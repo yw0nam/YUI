@@ -9,7 +9,11 @@
 - **Worktree → PR.** 모든 작업은 git worktree로 분리해 진행한 뒤 PR로 올린다. `main`에 직접 커밋·푸시 금지 — 문서/규칙 같은 경량 변경을 사용자가 명시적으로 "메인에 직접"이라고 지시한 경우만 예외.
 - **GitHub 트래커는 영어로.** 이슈·이슈 코멘트·PR 제목/본문은 영어로 쓴다 (OSS 공개 대비). 사용자와의 채팅과 이 한국어 문서는 그대로 한국어 OK.
 - **UI는 mock HTML 먼저.** 새 UI는 아래 [Design Context](#design-context)의 mock-HTML 승인 게이트를 따른다.
-- **TDD 필수.** 구현 전 테스트를 먼저 작성한다. 순서: ①실패하는 테스트(`it.todo` → 실제 assertion) → ②테스트 통과하는 최소 구현 → ③리팩터. `pnpm test` / `cargo test` 가 PR 게이트 — 새 기능에 테스트 없으면 merge 불가.
+- **TDD 필수 + 단계별 커밋 필수.** TDD 3단계마다 커밋을 따로 찍는다. 전체 구현을 묶어서 커밋 하나로 올리지 말 것.
+  1. **`test: ...`** — 실패하는 테스트 작성 (`it.todo` → 실제 assertion, `pnpm test` 가 red 상태)
+  2. **`feat: ...`** — 테스트를 통과하는 최소 구현 (`pnpm test` 가 green)
+  3. **`refactor: ...`** — 동작 변경 없이 정리 (green 유지, 필요할 때만)
+  `pnpm test` / `cargo test` 가 PR 게이트 — 새 기능에 테스트 없으면 merge 불가.
 - **Sub-agent 기반 개발.** 구현 작업은 아래 [Sub-agent 목록](#sub-agent-목록)의 전문 에이전트에게 위임한다. 사용자와 대화하는 **메인 에이전트는 구현하지 않는다** — 요구사항 파악·작업 위임·산출물 통합·검증·오케스트레이션에만 집중한다.
 
 ## Sub-agent 목록
