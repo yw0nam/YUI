@@ -9,6 +9,36 @@
 - **Worktree → PR.** 모든 작업은 git worktree로 분리해 진행한 뒤 PR로 올린다. `main`에 직접 커밋·푸시 금지 — 문서/규칙 같은 경량 변경을 사용자가 명시적으로 "메인에 직접"이라고 지시한 경우만 예외.
 - **GitHub 트래커는 영어로.** 이슈·이슈 코멘트·PR 제목/본문은 영어로 쓴다 (OSS 공개 대비). 사용자와의 채팅과 이 한국어 문서는 그대로 한국어 OK.
 - **UI는 mock HTML 먼저.** 새 UI는 아래 [Design Context](#design-context)의 mock-HTML 승인 게이트를 따른다.
+- **TDD 필수.** 구현 전 테스트를 먼저 작성한다. 순서: ①실패하는 테스트(`it.todo` → 실제 assertion) → ②테스트 통과하는 최소 구현 → ③리팩터. `pnpm test` / `cargo test` 가 PR 게이트 — 새 기능에 테스트 없으면 merge 불가.
+- **Sub-agent 기반 개발.** 구현 작업은 아래 [Sub-agent 목록](#sub-agent-목록)의 전문 에이전트에게 위임한다. 사용자와 대화하는 **메인 에이전트는 구현하지 않는다** — 요구사항 파악·작업 위임·산출물 통합·검증·오케스트레이션에만 집중한다.
+
+## Sub-agent 목록
+
+메인 에이전트가 위임할 수 있는 전문 에이전트 후보군. 각 에이전트는 자신의 책임 범위 밖을 건드리지 않는다.
+
+| 에이전트 | 모델 | 이유 | 책임 범위 | 주요 산출물 |
+|---|---|---|---|---|
+| **Renderer Agent** | `opus` | 3D 렌더 파이프라인 + VRM 상태머신 — 다단계 추론 필요 | `src/renderer/` — three.js/VRM 로드, 표정·모션·립싱크 | `renderer/index.ts`, VRM 표정 테스트 |
+| **Dispatcher Agent** | `opus` | TC-01~15 상태머신 + guardrail 로직 — 가장 높은 논리 복잡도 | `src/dispatcher/` — event-bus, classify→guardrail→route, TC-01~15 | dispatcher 로직, `tests/dispatcher/scenarios.test.ts` |
+| **IO / Chat Agent** | `sonnet` | SSE 스트림 파싱 + 프로토콜 구현 — 중간 복잡도 | `src/io/chat-client.ts` — Responses API SSE 파서, `express` tool-call 캡처 | SSE 파싱 로직, 스트림 단위 테스트 |
+| **IO / Audio Agent** | `sonnet` | TTS 순서 보장·동시성 — 중간 복잡도 | `src/io/tts-pipeline.ts` + `stt-vad.ts` — TTS 큐·순서 보장, VAD→STT | 오디오 파이프라인, 순서 계약 테스트 |
+| **Tauri / Rust Agent** | `sonnet` | Rust + IPC 계약 — 언어 전문성 필요하나 범위는 한정 | `src-tauri/` — os_event_watcher, IPC 직렬화 계약, `cargo test` | Rust 유닛 테스트, IPC 이벤트 계약 |
+| **Contract / Schema Agent** | `sonnet` | 타입↔docs 동기화 판단 — 기계적이지만 일관성 검토 필요 | `src/contract/types.ts` ↔ `docs/contract.md` 동기화, `express_tool.schema.json` 검증 | 타입 일관성 테스트, JSON schema 검증 |
+| **Test Writer Agent** | `sonnet` | 무엇을 테스트할지 설계 판단 — 기계적 작성보다 판단 비중 높음 | TDD 선행 — 구현 전 `it.todo` → 실패 테스트 작성 (vitest/cargo) | `.test.ts` / `_test.rs` 파일 |
+| **UI / Mock Agent** | `sonnet` | 디자인 토큰 해석 + HTML 조합 — 창의적이나 규칙 범위 내 | mock HTML 제작, DESIGN.md 토큰 준수, impeccable 통과 | 단독 mock HTML 파일 |
+| **Config Agent** | `haiku` | JSON 로드·검증 — 규칙이 명확한 기계적 작업 | `configs/*.json` 로더, 핫리로드(`config/load.ts`), 스키마 검증 | configs 유효성 테스트 |
+| **Ambient Agent** | `haiku` | 타이머 기반 단순 애니메이션 — 추론 깊이 낮음 | `src/ambient/tier1.ts` — blink/idle sway/breath (backend 무관 자율 동작) | ambient 타이밍·상태 테스트 |
+| **Docs Agent** | `haiku` | 기존 결정의 텍스트 동기화 — 새 결정 없음, 변환 작업 | `docs/` 업데이트 — contract.md·prd.md·결정 로그 D-* 동기화 | docs 내 결정 기록 갱신 |
+
+### 메인 에이전트 역할 (사용자 ↔ sub-agent 중간)
+
+메인 에이전트는 다음에만 집중한다:
+
+1. **요구사항 파악** — 사용자 의도를 명확히 하고 작업 범위를 정의
+2. **작업 위임** — 적절한 sub-agent에게 작업을 분배 (Test Writer → 구현 Agent 순서 보장)
+3. **통합 검증** — `pnpm test` + `cargo test` + 타입체크(`pnpm build`) 통과 확인
+4. **Sanity testing** — 빌드 통과, 타입 에러 없음, 계약(contract.md) 위반 없음
+5. **오케스트레이션** — 작업 순서·의존관계 관리, PR 게이트 조율
 
 ## 핵심 원칙: firing ≠ judgment
 
