@@ -105,12 +105,17 @@ pnpm install            # 의존성
 pnpm dev                # Vite dev server (port 1420) — 브라우저 단독 (셸 없음)
 pnpm tauri dev          # Tauri 앱 (투명 펫 창) — beforeDevCommand로 pnpm dev 자동 기동
 pnpm build              # tsc(타입체크) + vite build → dist/
+pnpm test               # vitest run — TS 유닛/통합 (test 파일은 production tsc에서 제외)
+pnpm test:watch         # vitest watch 모드
 pnpm tauri build        # 네이티브 번들
 pnpm tauri info         # 툴체인/버전 확인
-cd src-tauri && cargo check   # Rust 컴파일 체크 (Mate-Engine 외 CI 없음 — 이게 검증)
+cd src-tauri && cargo check   # Rust 컴파일 체크
+cd src-tauri && cargo test    # Rust 유닛 (os_event IPC 직렬화 계약 등)
 ```
 
 > 렌더링/UI는 `pnpm dev`로 브라우저에서 스크린샷 검증(AI 시각 루프), 네이티브 윈도우 레이어만 Tauri로 분리.
+
+**테스트 구조:** 하네스는 **vitest**(TS) + **cargo test**(Rust), E2E는 추후 **playwright**(`docs/event-dispatcher.tests.md`). TS 테스트는 `src/**/*.test.ts` 코로케이션 + 시나리오는 `tests/`. 아티팩트/계약을 잠그는 테스트 우선 — `configs/*.json`·`express_tool.schema.json` 정합, dispatcher TC-01~15는 `tests/dispatcher/scenarios.test.ts`에 `it.todo`로 대기. CI(`.github/workflows/ci.yml`)가 PR마다 `pnpm test` + `cargo test` 실행.
 
 ## 안티패턴 (하지 말 것)
 

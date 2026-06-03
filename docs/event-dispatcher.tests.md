@@ -54,6 +54,6 @@ parent spec의 §4~§13(envelope/routing/guardrails/recovery)을 변경하면 �
 
 ## 실행 메모
 
-- 단위/통합 테스트 하네스는 prototype 단계(M1~M2)에 결정. v0에서는 시나리오 카탈로그.
-- 각 TC는 spec 의도를 잠그는 용도이며, 구현 시 자동화 가능한 것부터 vitest/playwright로 옮긴다.
-- 새 TC 추가 시 parent spec의 어떤 절을 잠그는지 위 매트릭스에 등록.
+- **하네스 구축됨:** 유닛/통합 = **vitest**(`pnpm test`), Rust = `cargo test`, E2E = 추후 **playwright**.
+- 위 TC-01~15는 [`tests/dispatcher/scenarios.test.ts`](../tests/dispatcher/scenarios.test.ts)에 `it.todo`로 등록되어 러너에 pending으로 노출된다. dispatcher/guardrails/event-bus 모듈이 구현되는 대로 각 todo를 실제 단언으로 채운다.
+- 각 TC는 spec 의도를 잠그는 용도. 새 TC 추가 시 parent spec의 어떤 절을 잠그는지 위 매트릭스에 등록하고 scenarios 파일에도 todo 추가.

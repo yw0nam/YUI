@@ -63,3 +63,37 @@ pub fn emit_os_event(app: &AppHandle, payload: OsEventPayload) -> tauri::Result<
 pub fn start(_app: &AppHandle) {
     // TODO(M1): spawn OS polling loop and call `emit_os_event` per detected change.
 }
+
+#[cfg(test)]
+mod tests {
+    //! `os_event` IPC payload 직렬화가 event-dispatcher.md §10 contract와 일치하는지 잠근다.
+    //! Webview(TS)가 받는 JSON 형태를 코드로 고정 — 필드명/optional 생략 규칙이 깨지면 fail.
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn channel_name_is_stable() {
+        assert_eq!(OS_EVENT_CHANNEL, "os_event");
+    }
+
+    #[test]
+    fn data_skips_none_fields() {
+        // 전부 None → `{}` (skip_serializing_if). Webview가 빈 data를 받는 계약.
+        let v = serde_json::to_value(OsEventData::default()).unwrap();
+        assert_eq!(v, json!({}));
+    }
+
+    #[test]
+    fn payload_shape_matches_ipc_contract() {
+        let payload = OsEventPayload {
+            event_name: "os_idle_tick".into(),
+            ts: 123,
+            data: OsEventData { os_idle_ms: Some(5000), ..Default::default() },
+        };
+        let v = serde_json::to_value(payload).unwrap();
+        assert_eq!(
+            v,
+            json!({ "event_name": "os_idle_tick", "ts": 123, "data": { "os_idle_ms": 5000 } })
+        );
+    }
+}
