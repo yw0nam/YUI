@@ -1,0 +1,235 @@
+/* YUI interaction surfaces — speech bubble · tool-status · text input.
+   "The Hearthlight" (DESIGN.md). 평소엔 전부 사라져 있고(invisible-by-default),
+   필요할 때만 따뜻하게 나타난다(warm-when-present). 토큰은 ./tokens.css. */
+
+/* ── overlay layer ──
+   stage(캐릭터 캔버스, 드래그 영역) 위에 겹친다. 기본 pointer-events:none —
+   display 표면(말풍선·툴칩)은 클릭/드래그를 통과시켜 캐릭터를 잡을 수 있게 둔다.
+   입력만 pointer-events를 되살린다. (이 레이어엔 data-tauri-drag-region 없음 → 입력이 드래그를 안 먹음) */
+.yui-ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* 자체 stacking context: 캔버스 위, 서로 간 z-순서 보장 */
+  isolation: isolate;
+  font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+}
+
+/* prefers-reduced-motion: 전이를 opacity-only로 약화, 안무 제거 (5원칙 ⑤) */
+@media (prefers-reduced-motion: reduce) {
+  .yui-bubble,
+  .yui-tool,
+  .yui-input {
+    transition-duration: var(--yui-dur-fast) !important;
+    transition-property: opacity !important;
+  }
+  .yui-bubble,
+  .yui-tool {
+    transform: none !important;
+  }
+  .yui-bubble__caret,
+  .yui-tool__dot {
+    animation: none !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   1. Speech bubble — 떠 있는 caption 패널. 꼬리 없음, 하드 보더 없음.
+      DESIGN.md가 허용한 *유일한* 프로스트 backdrop 자리(가독 목적).
+   ════════════════════════════════════════════════════════════ */
+.yui-bubble {
+  position: absolute;
+  /* 캐릭터 상반신 옆 — 상단부에 앉힌다. 화면 모서리 클립 회피 위해 최상단은 피함.
+     --yui-bubble-top/side로 빌드 후 픽셀 보정 가능. */
+  top: var(--yui-bubble-top, 9%);
+  left: 50%;
+  transform: translate(-50%, 6px) scale(0.98);
+  width: max-content;
+  max-width: min(34ch, 78%);
+
+  padding: 0.7rem 0.95rem;
+  border-radius: var(--yui-radius);
+  background: var(--yui-scrim);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+
+  color: var(--yui-text);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+  text-shadow: var(--yui-text-shadow);
+
+  opacity: 0;
+  pointer-events: none; /* display-only — 캐릭터 드래그 통과 */
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease);
+
+  /* 내용에 맞춰 크기 — 긴 발화는 tts-pipeline이 문장 분절(현재 화자 발화만 표시)하고
+     replace-on-new(present-moment)라 보통 짧다. 정적 cap/mask는 짧은 본문의 첫 줄을
+     함께 깎아 common case를 망치므로 두지 않는다. */
+}
+
+.yui-bubble.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.yui-bubble__caret {
+  display: none;
+  width: 0.06em;
+  margin-left: 0.06em;
+  color: var(--yui-accent);
+  font-weight: 600;
+  /* 발화 onset의 warmth 순간 — 깜빡이는 앰버 캐럿 */
+  animation: yui-caret-blink 1s steps(2, jump-none) infinite;
+}
+.yui-bubble.is-streaming .yui-bubble__caret {
+  display: inline;
+}
+
+@keyframes yui-caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   2. Tool-status chip — 낮은 강조의 작은 pill. 백엔드 tool 실행 중 표시.
+      앰버 안 씀(working은 warmth 순간이 아님) — warm ash + 차분한 dot pulse.
+   ════════════════════════════════════════════════════════════ */
+.yui-tool {
+  position: absolute;
+  top: var(--yui-tool-top, 4%);
+  left: 50%;
+  transform: translate(-50%, 4px);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: var(--yui-radius-chip);
+  background: var(--yui-scrim);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+
+  color: var(--yui-text-dim);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-shadow: var(--yui-text-shadow);
+
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease);
+}
+.yui-tool.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.yui-tool__dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--yui-text-dim);
+  /* 차분한 opacity pulse — 스피너 아님, layout 애니 아님 */
+  animation: yui-dot-pulse 1.4s var(--yui-ease) infinite;
+}
+
+@keyframes yui-dot-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   3. Text input — 핫키로 소환되는 slim 필드. 하단에서 슬라이드 업.
+      활성 시 앰버 테두리 = warmth 순간. 평소 완전 숨김.
+   ════════════════════════════════════════════════════════════ */
+.yui-input {
+  position: absolute;
+  left: 50%;
+  bottom: var(--yui-input-bottom, 4%);
+  transform: translate(-50%, 130%);
+  width: min(42ch, 84%);
+
+  display: flex;
+  align-items: center;
+  padding: 0.1rem;
+  border-radius: var(--yui-radius-input);
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease),
+    border-color var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-input.is-open {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto; /* 입력만 클릭/포커스 받음 */
+}
+/* focus-within으로 앰버 테두리 점화 (warmth 순간) */
+.yui-input:focus-within {
+  border-color: var(--yui-accent);
+  box-shadow:
+    var(--yui-float),
+    0 0 0 1px var(--yui-accent-soft);
+}
+
+.yui-input__field {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  background: transparent;
+  color: var(--yui-text);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  text-shadow: var(--yui-text-shadow);
+}
+.yui-input__field:focus {
+  outline: none;
+}
+.yui-input__field::placeholder {
+  color: var(--yui-text-dim);
+  opacity: 0.7;
+}
+.yui-input.is-pending .yui-input__field {
+  opacity: 0.55;
+}
+
+/* 인라인 에러 (전송 실패) — side-stripe 금지, 텍스트 색만 */
+.yui-input__error {
+  flex: 0 0 auto;
+  padding-right: 0.6rem;
+  color: var(--yui-accent);
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-input.is-error .yui-input__error {
+  opacity: 1;
+}

@@ -1,0 +1,51 @@
+/* YUI design tokens — "The Hearthlight" (DESIGN.md).
+   SEED 값(`[구현 때 확정]`)을 여기서 확정한다. 컴포넌트가 안정화되면
+   `/impeccable document`(scan)로 DESIGN.md 5장(Components) + 정확값을 역수입한다.
+
+   doctrine: OKLCH만 사용 · `#000`/`#fff` 금지 · 모든 중립은 앰버 hue(~72)로 미세 틴트.
+
+   ── 표면 결정 ──────────────────────────────────────────────
+   YUI surface는 투명·always-on-top 창에서 *임의의* 데스크톱 배경 위에 뜬다.
+   그래서 "밝은 표면 + 어두운 텍스트"는 흰 IDE 위에서 사라진다. Legible-on-Anything의
+   robust한 답은 자막(subtitle)과 같다 — **어두운 scrim + 밝은 warm 텍스트 + 자체 그림자**.
+   → seed의 Warm Ink(22%, 어두운 본문)는 *밝은* 맥락용 토큰으로 남기고(--yui-ink),
+     실제 떠 있는 표면 위 본문은 밝은 --yui-text를 쓴다. (D: dark-scrim/light-text) */
+
+:root {
+  /* hue anchor: 따뜻한 앰버 ~72° */
+
+  /* ── Accent: Hearth Amber ──
+     온기·강조의 유일한 액센트. *순간*에만(활성 입력 테두리·발화 onset·focus/hover). 표면의 ≤10%. */
+  --yui-accent: oklch(0.8 0.13 75);
+  --yui-accent-soft: oklch(0.8 0.13 75 / 0.45);
+  --yui-accent-faint: oklch(0.8 0.13 75 / 0.16);
+
+  /* ── Text (떠 있는 dark scrim 위) ──
+     순백 아님 — 앰버 hue로 미세 틴트한 밝은 warm. */
+  --yui-text: oklch(0.95 0.012 80);       /* 본문 발화 */
+  --yui-text-dim: oklch(0.78 0.016 75);   /* 라벨·툴상태·부차 */
+
+  /* ── Surface (Scrim) ──
+     말풍선·칩 등 떠 있는 표면의 반투명 어두운 바탕. 임의 배경 위 가독의 핵심. */
+  --yui-scrim: oklch(0.21 0.014 70 / 0.64);
+  --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82); /* 입력 등 더 또렷해야 할 때 */
+  --yui-edge: oklch(0.97 0.01 80 / 0.1);  /* 어두운 배경에서도 표면 외곽을 잡아주는 hairline */
+
+  /* ── Light-context ink (seed Warm Ink, 현재 surface엔 미사용 — 보존) ── */
+  --yui-ink: oklch(0.22 0.01 70);
+
+  /* ── Elevation: 단 한 겹의 부드러운 ambient Float (The Float Rule) ── */
+  --yui-float: 0 8px 32px oklch(0.12 0.02 70 / 0.4);
+  --yui-text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55); /* 밝은 배경 보험 */
+
+  /* ── Shape ── */
+  --yui-radius: 14px;
+  --yui-radius-input: 12px;
+  --yui-radius-chip: 999px;
+
+  /* ── Motion: Responsive, ease-out 지수 곡선(quint). bounce/elastic 금지. ── */
+  --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --yui-dur: 200ms;
+  --yui-dur-fast: 140ms;
+  --yui-dwell: 5000ms; /* 발화 settled 후 유지 시간 */
+}
