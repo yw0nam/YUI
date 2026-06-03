@@ -19,25 +19,51 @@ body {
   height: 100vh;
 }
 
-.yui-scaffold {
+/* #7 투명창 시각 검증 타깃. yui-stage = 전체 투명 영역, yui-card = 떠 보이는 패널. */
+.yui-stage {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
   align-items: center;
   justify-content: center;
+  width: 100%;
   height: 100%;
-  text-align: center;
-  color: #e8e8e8;
 }
 
-.yui-scaffold h1 {
+.yui-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1.25rem;
+  border-radius: 18px;
+  /* 반투명 패널 — 바깥(stage)은 완전 투명이라 데스크톱이 비친다. */
+  background: rgba(22, 22, 30, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35); /* CSS shadow — OS 창 shadow(=false)와 무관 */
+  text-align: center;
+  color: #e8e8e8;
+  cursor: grab; /* data-tauri-drag-region 힌트 */
+}
+
+.yui-silhouette {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  /* VRM이 들어설 자리 placeholder — 불투명 도형으로 투명 대비를 분명히. */
+  background: radial-gradient(circle at 35% 30%, #7fd1ff, #4a78ff 70%);
+}
+
+.yui-card h1 {
   margin: 0;
   font-size: 2rem;
   letter-spacing: 0.1em;
 }
 
-.yui-scaffold p {
+.yui-card p {
   margin: 0;
-  font-size: 0.85rem;
-  opacity: 0.7;
+  max-width: 18ch;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  opacity: 0.75;
 }
