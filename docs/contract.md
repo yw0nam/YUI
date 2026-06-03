@@ -156,6 +156,34 @@ interface MotionRegistryEntry {
 
 **`speech_text`는 tool 필드가 아니다.** 발화 텍스트는 `express` arguments가 아니라 **별도 assistant 텍스트 스트림**(`response.output_text.delta`)으로 도착하며(D-SPEECH), client가 스트림에서 조립한다. 아래 `ControlEnvelope`는 client 내부에서 *재구성하는* 정규화 형태이고, `speech_text`는 텍스트 스트림에서 채워지는 파생 필드다.
 
+### express tool 정의 (backend skill 등록 contract) — canonical artifact
+> **단일 소스: [`configs/express_tool.schema.json`](../configs/express_tool.schema.json).** 아래는 그 요약. 코드/문서가 갈리면 JSON 아티팩트가 진실.
+
+이 turn의 제어신호 transport는 `name == "express"`인 function-call 하나다. **하드 계약 = function 이름(`express`) + arguments JSON Schema(`parameters`).** 백엔드 express skill은 이 둘만 맞추면 되고(호출 여부·내용은 backend 판단 — firing≠judgment), client는 들어온 `arguments`를 이 스키마로 검증해 `ControlEnvelope`로 정규화한다.
+
+```jsonc
+// configs/express_tool.schema.json (요약). 전체는 파일 참조.
+{
+  "type": "function", "name": "express", "strict": false,
+  "parameters": {
+    "type": "object", "additionalProperties": false, "required": [],   // 모든 인자 optional
+    "properties": {
+      "should_speak": { "type": "boolean", "default": true },          // false → Tier 2 silence
+      "emotion": { "type": ["object","null"], "required": ["id"],      // null/생략 → 직전 표정 유지
+        "properties": { "id": { "enum": [/* §1 10종 */] },
+                        "intensity": {"0~1, default 1"}, "transition_ms": {"default 250"} } },
+      "motion":  { "type": ["object","null"], "required": ["id"],      // null/생략 → idle
+        "properties": { "id": {"registry key — §2"},
+                        "loop": {}, "speed": {"0.25~2.5, default 1"}, "fade_ms": {"default 200"} } }
+    }
+  }
+}
+```
+- **`strict: false`인 이유:** Responses `strict` 모드는 모든 property를 `required`로 강제 → 인자 optional 의미(D-EXPRESS-OPTIONAL)와 충돌. 그래서 비활성.
+- **`speech_text`는 `parameters`에 없다** — 발화는 별도 텍스트 스트림(아래). express arguments에 넣지 않는다.
+- **emotion.id**는 hard enum(backend 책임). **motion.id**는 열린 문자열 → client registry(§2)에서 검증, 미등록 시 무시+경고.
+- ⚠ **E2E 미검증(spec-only):** 실제 Hermes 스트림에서 `name=="express"` function_call이 이 스키마대로 도착하는지는 backend가 skill을 등록한 뒤 [#1](https://github.com/yw0nam/YUI/issues/1)에서 확인한다. 지금은 contract만 확정.
+
 ### Responses API 스트림에서 신호를 뽑는 법
 > 근거: [`openai_response_sdk/sse-event-format.md`](./openai_response_sdk/sse-event-format.md) — Hermes 자체 구현(LangGraph→Responses SSE 변환).
 
