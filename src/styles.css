@@ -1,0 +1,43 @@
+/* YUI 글로벌 스타일 (placeholder, M1에서 확장).
+   투명 데스크톱 펫 창: body 배경 투명 — tauri.conf.json app.windows[0].transparent=true와 짝. */
+
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  /* 투명 창: 캐릭터 실루엣 외 영역은 비워 둔다 (click-through는 Rust hit-test, M1). */
+  background: transparent;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+}
+
+.yui-scaffold {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: #e8e8e8;
+}
+
+.yui-scaffold h1 {
+  margin: 0;
+  font-size: 2rem;
+  letter-spacing: 0.1em;
+}
+
+.yui-scaffold p {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}

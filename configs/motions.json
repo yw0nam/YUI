@@ -1,0 +1,23 @@
+{
+  "idle": {
+    "vrma_path": "assets/motions/idle.vrma",
+    "kind": "ambient",
+    "loop": true,
+    "priority": 0,
+    "interrupt_policy": "replace"
+  },
+  "drag": {
+    "vrma_path": "assets/motions/drag.vrma",
+    "kind": "reactive",
+    "loop": true,
+    "priority": 80,
+    "interrupt_policy": "replace"
+  },
+  "sit": {
+    "vrma_path": "assets/motions/sit.vrma",
+    "kind": "state",
+    "loop": true,
+    "priority": 50,
+    "interrupt_policy": "queue"
+  }
+}

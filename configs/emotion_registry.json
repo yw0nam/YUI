@@ -1,0 +1,12 @@
+{
+  "neutral": { "vrm_expression": "neutral", "fallback": "neutral" },
+  "happy": { "vrm_expression": "happy", "fallback": "neutral" },
+  "angry": { "vrm_expression": "angry", "fallback": "neutral" },
+  "sad": { "vrm_expression": "sad", "fallback": "neutral" },
+  "relaxed": { "vrm_expression": "relaxed", "fallback": "neutral" },
+  "surprised": { "vrm_expression": "surprised", "fallback": "neutral" },
+  "thinking": { "vrm_expression": "ex_thinking", "fallback": "relaxed" },
+  "curious": { "vrm_expression": "ex_curious", "fallback": "surprised" },
+  "sleepy": { "vrm_expression": "ex_sleepy", "fallback": "relaxed" },
+  "embarrassed": { "vrm_expression": "ex_blush", "fallback": "happy" }
+}

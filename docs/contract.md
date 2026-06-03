@@ -1,0 +1,348 @@
+# YUI ↔ Hermes Contract
+
+> **Version:** v0 draft — build-startable, 세부는 prototype에서 좁힌다.
+> **Scope:** client(YUI) ↔ backend(Hermes) 사이의 4개 스키마.
+> **Single-file 정책:** 4종 스키마(Emotion / Motion / Control envelope / Input context)는 본 파일 단일 문서로 유지 — 4개로 쪼개면 cross-ref 폭증. PRD F9에서 `docs/contract/` 4파일을 권고했으나 **본 단일 파일로 supersede**.
+
+**Companion specs:**
+- [`concept.md`](./concept.md) §1 §4 — 원칙과 4종 산출물 정의
+- [`event-dispatcher.md`](./event-dispatcher.md) — §7.1/§10이 본 문서의 `InputContext`/`ControlEnvelope`를 그대로 사용
+- [`prd.md`](./prd.md) §3 F9, §8 Dependencies — 마일스톤별 검증 지점
+- [`alignment-report.md`](./alignment-report.md) — Phase 0 정합 기록
+- [`openai_response_sdk/`](./openai_response_sdk/) — Hermes Responses API SSE event 형식 (`sse-event-format.md`가 function_call/텍스트 스트림 파싱의 근거)
+
+전송 계층은 [`concept.md`](./concept.md) §1대로 OpenAI 호환 API. 이 문서는 그 위에 얹는 payload만 다룬다. **제어신호(emotion/motion/should_speak)는 서버사이드 `express` tool-call의 arguments로** 전송 — inline 텍스트 태그 금지. **발화 텍스트는 tool-call이 아니라 별도 assistant 텍스트 스트림**으로 흐른다 (§3 참고).
+
+### Endpoint abstraction (chat)
+
+**검증(2026-06, Hermes 공식 docs `/features/api-server`):** Hermes는 `/v1/chat/completions`와 `/v1/responses`를 **둘 다** 노출한다. `/v1/responses`는 `previous_response_id` 기반 server-side 대화 상태 + `response.created` / `response.output_text.delta` 등 Responses event 스트리밍을 지원한다. → concept.md §1대로 **`/v1/responses`를 기본**으로 한다. endpoint는 concept §F(config-driven) 원칙상 교체 가능 — OSS 단계에서 `/v1/responses` 미지원 backend를 만나면 `/v1/chat/completions`로 fallback.
+
+```jsonc
+// configs/endpoints.json (요지)
+{
+  "chat_base_url": "http://localhost:8642",    // Hermes (SSH 터널)
+  "chat_endpoint": "/v1/responses",            // default. fallback: "/v1/chat/completions"
+  "stt_base_url":  "http://localhost:5517",    // 별도 ASR 서비스 (OpenAI 호환) → /audio/transcriptions
+  "tts_base_url":  "http://localhost:8092"     // 별도 TTS 서비스 (OpenAI 호환) → /audio/speech
+}
+```
+
+**STT/TTS는 Hermes와 무관 (확정):** ASR/TTS는 **각각 독립된 OpenAI 호환 서비스**로 서빙된다 — 기본 ASR `localhost:5517`, TTS `localhost:8092`. client UI가 이 둘을 **직접** 호출한다(Hermes를 경유하지 않음). 세 base URL(chat/stt/tts)은 서로 다른 프로세스이며 모두 config로 교체 가능.
+
+**Control transport (확정: `express` tool-call):** 제어신호 전송은 Hermes(사용자 소유 backend)에 등록된 **서버사이드 `express(...)` tool/skill**로 한다. 이 tool-call의 **arguments**가 제어 필드를 싣는다: `{ emotion, motion, should_speak }`. YUI client는 `/v1/responses` 출력의 `function_call` 아이템 중 **이름이 `express`인 것**을 파싱해 사용한다 (+ 검증된 `GET /v1/runs/{run_id}/events` SSE로 tool-call 수신).
+
+- **검증(2026-06):** Hermes `/v1/responses`가 `function_call` 아이템을 노출함(공식 docs). `express`가 **서버사이드 skill**이므로 caller가 tool 정의를 주입할 필요가 없다.
+- **발화 텍스트는 tool 페이로드 밖:** 발화는 `express` arguments에 넣지 않고, Hermes의 일반 assistant 텍스트 스트림(`response.output_text.delta`)으로 토큰 단위 수신한다(§3 D-SPEECH).
+- **이 결정은 이전의 "json_schema strict output으로 envelope 강제" 가정을 supersede한다.** json_schema(Responses `text.format` / Chat `response_format`)는 더 이상 plan이 아니며, `express` tool-call이 불가능할 경우의 **이론적 fallback**으로만 한 줄 남긴다.
+
+---
+
+## 1. Emotion Vocabulary
+
+### 목적
+backend가 turn마다 보낼 수 있는 emotion enum. **emotion 신호는 client-side에서 두 개의 매핑으로 소비된다:**
+- **(a) VRM expression registry (기존):** emotion enum → VRM expression 키. 모델 핫스왑 시 backend는 손대지 않는다.
+- **(b) TTS-prefix 매핑 (NEW, required, TBD):** emotion을 TTS로 보낼 text의 맨 앞에 prefix로 부착 → TTS 서비스가 prefix를 파싱해 감정 음성을 생성한다(§1 "Emotion → TTS prefix" 소절 + §3 D-TTS-PIPELINE).
+
+### Enum
+- **표준 (VRM 1.0 preset 그대로):** `neutral` `happy` `angry` `sad` `relaxed` `surprised`
+- **확장:** `thinking` (검색/툴 중 기본) · `curious` · `sleepy` · `embarrassed`
+
+### Schema
+```ts
+type EmotionId =
+  | "neutral" | "happy" | "angry" | "sad" | "relaxed" | "surprised"
+  | "thinking" | "curious" | "sleepy" | "embarrassed";
+
+interface EmotionSignal {
+  id: EmotionId;
+  intensity?: number;       // 0.0~1.0, default 1.0
+  transition_ms?: number;   // 보간 시간, default 250
+}
+```
+
+### 매핑 (client-local config)
+```jsonc
+// configs/emotion_registry.json
+{
+  "happy":       { "vrm_expression": "happy",    "fallback": "neutral" },
+  "embarrassed": { "vrm_expression": "ex_blush", "fallback": "happy"   }
+  // 모델별 파일로 핫스왑 가능
+}
+```
+
+### 예시
+```json
+{ "id": "thinking", "intensity": 0.7, "transition_ms": 400 }
+```
+
+### 제약
+- `intensity`는 클램프(0~1). 범위 밖이면 client가 잘라내고 경고.
+- 모델에 해당 expression이 없으면 fallback 체인을 따른다. 최종은 항상 `neutral`.
+- backend는 enum만 책임 — VRM 키 존재 여부는 알 필요 없다.
+- viseme/phoneme은 별도 채널(§3 reserved). emotion과 섞지 않는다.
+
+### Emotion → TTS prefix (required, TBD)
+
+**목적:** emotion enum을 TTS API(`localhost:8092`)로 보낼 text의 **맨 앞에 부착할 prefix 토큰/포맷**으로 변환하는 매핑. TTS 서비스가 이 prefix를 파싱해 감정 음성을 생성한다(D-EMOTION-DUAL).
+
+- **상태:** **required artifact. prefix 토큰/포맷은 TTS 구현 시 사용자에게 질문해 확정한다 (지금 정하지 않음, 발명 금지).**
+- 산출물 위치: emotion enum과 1:1로 묶이므로 본 §1(또는 `emotion_vocab.md`)의 **두 번째 매핑**으로 포함(PRD F9 참고).
+- **emotion은 optional이다.** 분절을 TTS로 보낼 시점에 emotion이 있으면 prefix를 붙이고, 없으면 prefix 없이 보낸다(best-effort, §3 D-TTS-PIPELINE). 하드 타이밍 의존 없음.
+
+```jsonc
+// configs/emotion_tts_prefix.json — 버전 스텁 (v1, TBD)
+{
+  "_version": "v1",
+  "_status": "TBD — TTS 구현 시 사용자에게 질문해 확정. 발명 금지."
+  // "happy": "<TBD>", "sad": "<TBD>", ... (enum 전체)
+}
+```
+
+---
+
+## 2. Motion Registry
+
+### 목적
+backend가 motion ID로 동작을 요청하면 client가 VRMA 파일 + 재생 옵션으로 해석. MVP 3종.
+
+### MVP entries
+| id     | kind     | loop | priority | interrupt_policy | 비고                       |
+|--------|----------|------|----------|------------------|----------------------------|
+| `idle` | ambient  | yes  | 0        | replace          | baseline. 항상 깔려 있음.  |
+| `drag` | reactive | yes  | 80       | replace          | 사용자 드래그 중.          |
+| `sit`  | state    | yes  | 50       | queue            | 창 가장자리 안착 시.       |
+
+`idle`은 backend 요청 없이도 client가 깔아두는 baseline. backend가 `motion: null`을 보내면 client는 `idle`로 복귀한다.
+
+### Schema
+```ts
+type MotionKind = "ambient" | "reactive" | "state" | "oneshot";
+type InterruptPolicy = "replace" | "queue" | "ignore";
+
+interface MotionSignal {
+  id: string;              // registry key
+  loop?: boolean;          // registry default 오버라이드
+  speed?: number;          // 0.25~2.5, default 1.0
+  fade_ms?: number;        // crossfade, default 200
+}
+
+interface MotionRegistryEntry {
+  vrma_path: string;
+  kind: MotionKind;
+  loop: boolean;
+  priority: number;        // 0~100, 높을수록 우선
+  interrupt_policy: InterruptPolicy;
+}
+```
+
+### 충돌 정책
+- 새 motion이 현재보다 priority 낮으면 `interrupt_policy`에 따라 queue/ignore/replace.
+- `oneshot`은 끝나면 직전 ambient/state로 복귀.
+- backend는 priority/interrupt를 명령하지 않는다 — registry가 진실의 원천.
+- 미등록 ID 수신 시 client는 무시 + 경고 로그.
+
+### 확장
+새 motion = registry entry 추가 + VRMA 드롭. backend는 ID 문자열만 알면 됨.
+
+---
+
+## 3. Control Signal Envelope
+
+### 목적
+한 turn의 비-텍스트 제어신호를 담는다. **Transport = 서버사이드 `express` tool-call의 arguments = `{ emotion, motion, should_speak }`** (위 endpoint abstraction "Control transport" 참고).
+
+**`express`는 매 턴 선택(optional)이다 (확정).** Hermes가 어떤 턴에 `express`를 호출하지 않으면 client는 기본 동작한다 — motion은 `idle` 유지, emotion 변화 없음(직전 표정 유지), 발화는 정상 진행. express는 "있으면 적용, 없으면 idle"인 **부가 제어 채널**이지 필수가 아니다. 따라서 express 도착 타이밍·매 턴 호출은 **하드 의존이 아니다.**
+
+**`speech_text`는 tool 필드가 아니다.** 발화 텍스트는 `express` arguments가 아니라 **별도 assistant 텍스트 스트림**(`response.output_text.delta`)으로 도착하며(D-SPEECH), client가 스트림에서 조립한다. 아래 `ControlEnvelope`는 client 내부에서 *재구성하는* 정규화 형태이고, `speech_text`는 텍스트 스트림에서 채워지는 파생 필드다.
+
+### Responses API 스트림에서 신호를 뽑는 법
+> 근거: [`openai_response_sdk/sse-event-format.md`](./openai_response_sdk/sse-event-format.md) — Hermes 자체 구현(LangGraph→Responses SSE 변환).
+
+한 응답 스트림은 `output_index`로 구분되는 **output item**들이 섞여 도착한다:
+- **message item** = 발화 텍스트. `response.output_text.delta`(토큰) → `response.output_text.done`. → `speech_text`로 누적.
+- **function_call item** = tool 호출. `response.output_item.added`(name, status:`in_progress`) → `response.function_call_arguments.delta`(인자 토큰) → `response.function_call_arguments.done`(name + 완성된 `arguments` JSON 문자열).
+  - `name == "express"` → `arguments` 파싱 → `{ emotion?, motion?, should_speak? }`.
+  - Hermes **자체 tool**(`web_search`/`terminal`/`browser` 등)도 **같은 function_call item**으로 노출 → `tool_status`는 이 item들의 `name`+`status`에서 **client가 관찰로 도출**한다(Hermes가 따로 채워주는 필드가 아님).
+- ⚠ **`response.completed`의 최종 `output[]`에는 message item만 담기고 function_call은 빠진다.** 따라서 `express`/tool 신호는 **스트림 진행 중**(`...arguments.done` 시점)에 잡아둬야 한다 — 최종 payload엔 없다.
+
+### Schema
+```ts
+// express tool-call arguments = { emotion, motion, should_speak } 만이 transport 페이로드.
+// 아래는 client 내부 정규화 형태 (텍스트 스트림 + tool-call을 합친 render directive 입력).
+// 제어 필드는 전부 optional — express가 없는 턴은 이 envelope이 비어 있고 client는 기본 동작.
+interface ControlEnvelope {
+  // --- express tool-call arguments (있을 때만) ---
+  should_speak?: boolean;         // default true. false면 TTS/말풍선 스킵 (Tier 2 silence)
+  emotion?: EmotionSignal | null; // 없으면 직전 표정 유지
+  motion?:  MotionSignal  | null; // 없거나 null이면 idle
+
+  // --- 텍스트 스트림에서 조립 (tool 필드 아님) ---
+  speech_text: string;            // response.output_text.delta 누적. 발화 없으면 ""
+
+  // --- Hermes 네이티브 tool의 function_call item을 client가 관찰해 도출 (express 아님) ---
+  tool_status?: {
+    state:    "idle" | "running" | "done" | "error";
+    label?:   string;             // function_call name 기반. ex: "검색 중…"
+    tool_id?: string;             // function_call name
+  } | null;
+
+  rich_content?: RichItem[];      // P2 — MVP는 발화 텍스트의 마크다운으로 링크/이미지 렌더. 구조화 카드는 P2.
+
+  _reserved?: {
+    expression_frames?: unknown[]; // partial emotion stream (P2)
+    visemes?: unknown[];           // viseme stream (P2)
+  };
+}
+
+type RichItem =
+  | { kind: "image"; url: string; alt?: string }
+  | { kind: "link";  url: string; title: string; desc?: string }
+  | { kind: "card";  title: string; body?: string; image?: string;
+                     action?: Record<string, unknown> };
+```
+
+`express` tool arguments의 JSON Schema(`{emotion?, motion?, should_speak?}`)는 §1·§2 제약을 따른다. `speech_text`는 텍스트 스트림, `tool_status`는 네이티브 function_call 관찰, `rich_content`는 P2.
+
+### 예시 — 일반 응답
+`express` tool-call(제어) + 별도 텍스트 스트림(발화)이 함께 도착:
+```jsonc
+// function_call 아이템: name == "express"
+{ "name": "express",
+  "arguments": {
+    "should_speak": true,
+    "emotion": { "id": "happy", "intensity": 0.6, "transition_ms": 300 },
+    "motion":  { "id": "sit" }
+  } }
+// + 별도 텍스트 스트림 (response.output_text.delta): "여기 두 번째 모니터 위에 앉을게."
+```
+
+### 예시 — Tier 2 silence
+`express`가 `should_speak:false` + **텍스트 스트림 없음**:
+```jsonc
+{ "name": "express",
+  "arguments": {
+    "should_speak": false,
+    "emotion": { "id": "thinking", "intensity": 0.3 },
+    "motion":  null
+  } }
+// 텍스트 스트림 미발생 → speech_text == ""
+```
+
+### 예시 — 툴 실행 중 (tool_status는 Hermes 네이티브 function_call에서 도출)
+Hermes가 자체 `web_search`를 돌리면 스트림에 function_call item이 뜬다 — client는 이걸 보고 tool_status를 만든다:
+```jsonc
+// function_call item (Hermes 자체 tool)
+{ "type": "response.output_item.added",
+  "item": { "type": "function_call", "name": "web_search", "status": "in_progress" } }
+//   → client: tool_status = { state:"running", label:"검색 중…", tool_id:"web_search" }
+// 이후 response.output_item.done(status:"completed") → tool_status state:"done"
+```
+
+### 렌더 규약 (client 시점)
+1. `express`에 `emotion`이 있으면 expression 전이 시작. 없으면 직전 표정 유지.
+2. `express`에 `motion`이 있으면 registry 조회 후 재생. 없거나 null이면 `idle`. **express 자체가 없는 턴도 idle.**
+3. `should_speak`이 false가 아니면(기본 true) 텍스트 스트림 발화를 TTS 파이프라인(아래 D-TTS-PIPELINE) + 말풍선에 흘림. false면 둘 다 스킵.
+4. `tool_status`(네이티브 function_call 관찰)로 UI 인디케이터 갱신. `completed` 시 해제.
+5. `rich_content`는 P2. MVP는 발화 텍스트의 마크다운 링크/이미지를 chat UI가 인라인 렌더.
+6. `_reserved`의 모든 필드는 v0에서 무시.
+
+### 스트리밍 처리 (D-TTS-PIPELINE — client-side TTS 파이프라인, required)
+발화 텍스트 스트림 → TTS → 재생 → 립싱크는 다음 순서로 처리한다(사용자 확정):
+
+1. **텍스트 스트림 수신** — `response.output_text.delta` 토큰을 받는다.
+2. **버퍼 큐 적재** — 받은 토큰을 버퍼 큐에 쌓는다.
+3. **문장 분절(sentence boundary) 감지** — 큐에서 문장 경계가 감지되면 그 지점까지를 한 덩어리로 끊는다. (분절 방식은 구현 시 결정 — 새 리서치 아님.)
+4. **emotion prefix 부착 (있을 때만)** — 그 시점에 emotion이 있으면 분절 text 맨 앞에 prefix를 붙인다(§1 매핑, TBD). **emotion은 optional이라 없으면 prefix 없이 plain text로 보낸다.**
+5. **per-sentence TTS 호출** — prefix가 붙은 분절을 TTS API(`localhost:8092`)로 전송 → output wav 수신.
+6. **ordered playback (재생 순서 보존)** — TTS 응답이 순서가 뒤바뀌어 와도 **원래 문장 순서대로** 재생한다.
+7. **진폭 기반 립싱크 동기** — 재생되는 wav의 진폭에 입(mouth blendshape) 움직임을 동기한다(PRD D1).
+
+**emotion prefix는 best-effort (확정):** emotion은 optional이다 — 분절을 TTS로 보낼 시점에 emotion이 있으면 prefix를 붙이고, 없으면 prefix 없이 plain text로 보낸다. 따라서 emotion 도착 타이밍은 **하드 의존이 아니다**(neutral fallback 같은 특별 처리 불필요). 표정도 emotion 없으면 직전 상태 유지.
+
+---
+
+## 4. Input Context Schema
+
+### 목적
+client → backend로 올리는 사용자 입력 + 환경 센서. OpenAI chat content 포맷(`text` + `image_url`)을 그대로 쓰되, YUI 메타데이터를 어디에 실을지만 규약화.
+
+### 매핑 원칙
+- **발화/transcript** → `messages[].role:"user"`의 `text` block.
+- **스크린샷** → 같은 메시지의 `image_url` block. data URL 또는 HTTPS 참조.
+- **환경 메타데이터** → **별도 `text` block에 fenced JSON**으로. system message에 박지 않는다 (turn마다 바뀌므로).
+
+### Schema
+```ts
+interface InputContext {
+  user_text?: string;             // 키보드 입력
+  transcript?: { text: string; confidence?: number; lang?: string };  // STT 결과
+
+  env: {
+    timestamp: string;            // ISO 8601
+    timezone:  string;            // ex: "Asia/Seoul"
+    active_app?: { name: string; bundle_id?: string };
+    active_window_title?: string;
+    locale?: string;
+  };
+
+  screenshot?: {
+    enabled: boolean;             // 토글 상태 자체를 명시
+    source:  ScreenSource;
+    data_url?: string;            // "data:image/png;base64,..." or "https://..."
+    captured_at?: string;
+    width?: number;
+    height?: number;
+  };
+
+  client: { yui_version: string; persona_hint?: string };
+}
+
+type ScreenSource =
+  | { kind: "monitor";     index: number; label?: string }
+  | { kind: "browser_tab"; browser: string; tab_title: string; url?: string }
+  | { kind: "window";      app: string; window_title: string };
+```
+
+### OpenAI chat message로의 인코딩
+```json
+{
+  "role": "user",
+  "content": [
+    { "type": "text", "text": "이 페이지 요약해 줘" },
+    { "type": "text", "text": "```yui-context\n{...InputContext JSON...}\n```" },
+    { "type": "image_url", "image_url": { "url": "data:image/png;base64,..." } }
+  ]
+}
+```
+
+backend는 ` ```yui-context ` 마커로 파싱. system prompt 1줄로 약속해두면 충분.
+
+### 캡처 정책 (v0)
+- 사용자 **토글 ON**일 때만 스크린샷 첨부. OFF면 `screenshot` 객체 생략.
+- 토글 ON 동안에는 **매 user turn마다 자동 첨부**. "이번엔 불필요"는 backend 판단.
+- source는 사용자가 monitor index / browser tab / window 중 선택.
+- 긴 변 1280px 등 리사이즈는 client 강제 — base64 폭주 방지.
+
+### 제약/주의
+- 모든 필드는 **선택적** — backend는 부재에 robust해야 한다.
+- transcript + user_text 동시 존재 가능(음성+키보드). 우선순위는 backend.
+- `timezone`은 client가 항상 채운다 — "지금 몇 시"를 backend가 추측하게 두지 않는다.
+- raw audio는 chat 요청에 싣지 않음 — STT는 `/audio/transcriptions` 별도 호출.
+
+---
+
+## Open Questions
+
+prototype에서 결정/검증:
+
+1. **Emotion frame 스트리밍** — `_reserved.expression_frames`를 실제 쓸지, turn-end 한 번으로 충분한지. 텍스트 vs 표정 lag을 사람이 거슬리는지부터 측정.
+2. **Viseme 채널** — 진폭 립싱크가 부족하면 `_reserved.visemes`로 phoneme 보낼지.
+3. **Tool status 갱신 빈도** — turn 중간 push 필요 여부 (P2 SSE와 직결).
+4. **`rich_content.card.action`** 스키마 — v0는 free-form. 어디까지 약속할지.
+5. **Emotion intensity 보간 책임** — 즉시 적용 vs client-side envelope(ADSR).
+6. **Motion crossfade 정책** — `replace` 시 이전 fade-out + 새 fade-in 동시 진행 여부.
+7. **Screenshot 압축** — PNG vs JPEG, 품질, data URL vs 임시 HTTPS.
+8. **Multi-character** — `character_id` envelope 추가 vs 채널 분리.
+9. **P2 SSE push envelope** — §3 그대로 재사용할지, push 전용 필드(urgency, ttl) 추가할지.
+10. **Schema 버전 협상** — `client.yui_version` 외에 별도 contract version handshake가 필요한가.
