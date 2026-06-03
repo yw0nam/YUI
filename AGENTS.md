@@ -15,6 +15,8 @@ backend가 `express` tool-call로 `should_speak:false`를 주면 client는 조�
 
 UI/시각 작업 전 [`PRODUCT.md`](PRODUCT.md)(전략) + [`DESIGN.md`](DESIGN.md)(시각, SEED)를 읽어라. impeccable 스킬(`/impeccable`)이 이 둘을 정본으로 쓴다.
 
+> **워크플로우(필수, 사용자 지시):** 새 UI를 만들 때는 ①먼저 **단독 mock HTML**(자가완결 1파일, 임시)을 만들어 사용자에게 보여주고(preview/스크린샷) 시각 승인을 받은 뒤, ②그다음에 실제 코드/아키텍처 설계에 들어간다. 브리프 텍스트만으로 곧장 `src/`에 구현하지 말 것 — mock HTML 승인이 게이트다.
+
 - **Register:** `product` — 디자인이 캐릭터/기능을 *서빙*. 마케팅 표면 아님.
 - **핵심 톤:** **invisible-by-default, warm-when-present** — 평소 UI는 물러서고(캐릭터가 주인공), 꼭 필요해 나타날 때만 따뜻·characterful.
 - **5원칙:** ①캐릭터가 주인공, UI는 스태프 ②나타날 땐 따뜻하게 ③UI에서도 firing≠judgment(상태 렌더만, 발명 X) ④무엇 위에서도 읽힘(투명 창) ⑤차분·안 보챔(reduced-motion 존중).

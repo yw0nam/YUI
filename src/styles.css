@@ -1,5 +1,7 @@
-/* YUI 글로벌 스타일 (placeholder, M1에서 확장).
+/* YUI 글로벌 스타일.
    투명 데스크톱 펫 창: body 배경 투명 — tauri.conf.json app.windows[0].transparent=true와 짝. */
+
+@import "./ui/tokens.css";
 
 :root {
   color-scheme: light dark;
@@ -19,10 +21,17 @@ body {
   height: 100vh;
 }
 
-/* VRM 무대 — 전체 투명 영역. renderer가 canvas를 여기 채운다 (#4). */
-.yui-stage {
+/* 루트 — 포지셔닝 컨텍스트. 무대(드래그) + .yui-ui 오버레이를 겹친다. */
+.yui-root {
+  position: relative;
   width: 100%;
   height: 100%;
+}
+
+/* VRM 무대 — 전체 투명 영역. renderer가 canvas를 여기 채운다 (#4). */
+.yui-stage {
+  position: absolute;
+  inset: 0;
 }
 
 /* WebGL canvas는 stage를 꽉 채운다. 배경은 renderer alpha로 투명. */
