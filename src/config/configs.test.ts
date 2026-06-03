@@ -30,6 +30,16 @@ describe("configs/emotion_tts_prefix.json", () => {
   });
 });
 
+describe("configs/avatar.json", () => {
+  const a = read("configs/avatar.json");
+
+  it("points at a dev-served VRM url (#4)", () => {
+    expect(a.vrm_url).toBeTypeOf("string");
+    expect(a.vrm_url).toMatch(/\.vrm$/);
+    expect(a.vrm_url.startsWith("/vrms/")).toBe(true); // vite dev 정적 서빙 경로
+  });
+});
+
 describe("configs/motions.json", () => {
   const m = read("configs/motions.json");
 
