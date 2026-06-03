@@ -16,6 +16,7 @@
 
 import "./styles.css";
 import { createRenderer } from "./renderer";
+import { createTier1Engine } from "./ambient/tier1";
 import { createSurfaces } from "./ui/surfaces";
 import { createMockDriver } from "./ui/mock";
 
@@ -43,6 +44,10 @@ async function bootstrap(): Promise<void> {
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
 
   const renderer = createRenderer({ mount: stage });
+  // Tier 1 ambient(#10): backend 독립, 항상 ON. tick은 vrm 로드 후부터 발화하므로
+  // loadVRM 전에 start해도 안전 (vrm 없는 프레임은 no-op).
+  const ambient = createTier1Engine(renderer);
+  ambient.start();
   const surfaces = createSurfaces({ mount: root });
   const mock = createMockDriver(surfaces);
 
@@ -66,6 +71,7 @@ async function bootstrap(): Promise<void> {
   if (import.meta.env.DEV) {
     Object.assign(globalThis as Record<string, unknown>, {
       __yuiRenderer: renderer,
+      __yuiAmbient: ambient,
       __yuiSurfaces: surfaces,
       __yuiMock: mock,
       // 단계별 시연 헬퍼
@@ -75,6 +81,8 @@ async function bootstrap(): Promise<void> {
         reply: (text = "오늘 일정 뭐 있어?") => mock.reply(text),
         proactive: () => mock.proactive(),
         speak: (line = "응, 듣고 있어. 그거 지금 같이 볼까?") => mock.speak(line),
+        tap: () => ambient.trigger("tap_react"),
+        idleReturn: () => ambient.trigger("idle_returned"),
       },
     });
   }
