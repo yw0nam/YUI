@@ -4,6 +4,12 @@
 > I/O 표면만 담당한다. 두뇌(MCP·tool calling·search·long-term memory·agent loop·proactivity *judgment*)는
 > **백엔드(Hermes)에 위임**한다. 이 파일이 정본 가이드다. 코드를 만지기 전에 읽어라.
 
+## 작업 규칙 (사용자 지시, 필수)
+
+- **Worktree → PR.** 모든 작업은 git worktree로 분리해 진행한 뒤 PR로 올린다. `main`에 직접 커밋·푸시 금지 — 문서/규칙 같은 경량 변경을 사용자가 명시적으로 "메인에 직접"이라고 지시한 경우만 예외.
+- **GitHub 트래커는 영어로.** 이슈·이슈 코멘트·PR 제목/본문은 영어로 쓴다 (OSS 공개 대비). 사용자와의 채팅과 이 한국어 문서는 그대로 한국어 OK.
+- **UI는 mock HTML 먼저.** 새 UI는 아래 [Design Context](#design-context)의 mock-HTML 승인 게이트를 따른다.
+
 ## 핵심 원칙: firing ≠ judgment
 
 client는 **언제 후보 이벤트가 생겼나(firing)** 만 책임진다. **말할지 / 무엇을 말할지(judgment)** 는
