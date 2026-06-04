@@ -5,6 +5,10 @@ mod os_event_watcher;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    // HTTP plugin (issue #39, D-TAURI-FETCH): routes JS fetch through Rust → no Origin
+    // header → bypasses Hermes CORS/403. Capability scoped to Hermes host in
+    // src-tauri/capabilities/default.json (http:default permission + url scope).
+    .plugin(tauri_plugin_http::init())
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

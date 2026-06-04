@@ -24,3 +24,6 @@ log = "0.4"
 # macos-private-api: tauri.conf.json app.macOSPrivateApi=true (투명 창) 필수 feature.
 tauri = { version = "2.11.2", features = ["macos-private-api"] }
 tauri-plugin-log = "2"
+# HTTP plugin (issue #39): routes requests through Rust → no Origin header → bypasses Hermes CORS/403.
+# JS side: `@tauri-apps/plugin-http` fetch injected into `new OpenAI({ fetch })`. (D-TAURI-FETCH)
+tauri-plugin-http = "2"
