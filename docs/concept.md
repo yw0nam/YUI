@@ -100,7 +100,7 @@ sources: timer / idle-watcher / OS-event-watcher / user-input / [P2] backend-SSE
 
 - **로드맵:** 초기 Tier 1·2 → 최종 Tier 3.
 - **필수 가드레일:** Tier 2/3는 **rate-limit + debounce + DND(focus 감지)**. 없으면 토큰 새고 캐릭터가 짜증남.
-- **Tier 2 silence 규약:** 백엔드가 "지금은 말 안 함"을 표현할 수 있어야 함 (예: structured output `should_speak: false`). 안 그러면 타이머마다 떠듦.
+- **Tier 2 silence 규약:** 백엔드가 "지금은 말 안 함"을 표현할 수 있어야 함 — **별도 플래그 없이 assistant 텍스트를 내보내지 않으면 침묵**이다(D-NO-SPEAK-GATE, contract §3). 표정만 짓고 싶으면 `express`로 emotion만 보낸다. 폭주 방지는 client-side rate-limit/debounce/DND가 안전망(firing이 client 소유).
 
 ---
 
@@ -110,7 +110,7 @@ client ↔ Hermes 사이 계약. 스키마 확정은 프로젝트 내 작업이�
 
 - **Emotion vocabulary** — 백엔드가 쏠 수 있는 emotion enum ↔ client의 VRM expression 매핑 레지스트리
 - **Motion registry** — 백엔드 motion ID ↔ client VRMA 파일 매핑 (prebuilt 모션 목록과 직결)
-- **Control signal envelope** — emotion / motion / should_speak / tool-status / rich-content를 담는 structured output 스키마
+- **Control signal envelope** — emotion / motion(+tool-status / rich-content)을 담는 `express` tool-call 스키마. 발화 게이트(should_speak) 없음 — 침묵=텍스트 미발신(D-NO-SPEAK-GATE)
 - **Input context schema** — client → backend로 올리는 센서 데이터(활성 앱, 창 제목, 시간, 스크린샷) 포맷
 
 ---

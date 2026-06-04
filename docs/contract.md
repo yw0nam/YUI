@@ -11,7 +11,7 @@
 - [`alignment-report.md`](./alignment-report.md) — Phase 0 정합 기록
 - [`openai_response_sdk/`](./openai_response_sdk/) — Hermes Responses API SSE event 형식 (`sse-event-format.md`가 function_call/텍스트 스트림 파싱의 근거)
 
-전송 계층은 [`concept.md`](./concept.md) §1대로 OpenAI 호환 API. 이 문서는 그 위에 얹는 payload만 다룬다. **제어신호(emotion/motion/should_speak)는 서버사이드 `express` tool-call의 arguments로** 전송 — inline 텍스트 태그 금지. **발화 텍스트는 tool-call이 아니라 별도 assistant 텍스트 스트림**으로 흐른다 (§3 참고).
+전송 계층은 [`concept.md`](./concept.md) §1대로 OpenAI 호환 API. 이 문서는 그 위에 얹는 payload만 다룬다. **비언어 제어신호(emotion/motion)는 서버사이드 `express` tool-call의 arguments로** 전송 — inline 텍스트 태그 금지. **발화 텍스트는 tool-call이 아니라 별도 assistant 텍스트 스트림**으로 흐른다 (§3 참고). 발화 게이트(`should_speak`)는 없다 — 침묵은 backend가 텍스트를 안 보내는 것으로 표현한다(D-NO-SPEAK-GATE, §3).
 
 ### Endpoint abstraction (chat)
 
@@ -30,7 +30,7 @@
 
 **STT/TTS는 Hermes와 무관 (확정):** ASR/TTS는 **각각 독립된 OpenAI 호환 서비스**로 서빙된다 — 기본 ASR `localhost:5517`, TTS `localhost:8092`. client UI가 이 둘을 **직접** 호출한다(Hermes를 경유하지 않음). 세 base URL(chat/stt/tts)은 서로 다른 프로세스이며 모두 config로 교체 가능.
 
-**Control transport (확정: `express` tool-call):** 제어신호 전송은 Hermes(사용자 소유 backend)에 등록된 **서버사이드 `express(...)` tool/skill**로 한다. 이 tool-call의 **arguments**가 제어 필드를 싣는다: `{ emotion, motion, should_speak }`. YUI client는 `/v1/responses` 출력의 `function_call` 아이템 중 **이름이 `express`인 것**을 파싱해 사용한다 (+ 검증된 `GET /v1/runs/{run_id}/events` SSE로 tool-call 수신).
+**Control transport (확정: `express` tool-call):** 제어신호 전송은 Hermes(사용자 소유 backend)에 등록된 **서버사이드 `express(...)` tool**로 한다. 이 tool-call의 **arguments**가 비언어 제어 필드를 싣는다: `{ emotion, motion }`(둘 다 optional, motion은 보통 생략 — §3 D-MOTION-FROM-EMOTION). YUI client는 `/v1/responses` 출력의 `function_call` 아이템 중 **이름이 `express`인 것**을 파싱해 사용한다 (+ 검증된 `GET /v1/runs/{run_id}/events` SSE로 tool-call 수신). express는 Hermes 용어로 **skill이 아니라 tool(plugin)** 이다 — skill(마크다운 지시문)은 function_call을 만들지 않는다([`hermes-express-tool.md`](./hermes-express-tool.md) §0).
 
 - **검증(2026-06):** Hermes `/v1/responses`가 `function_call` 아이템을 노출함(공식 docs). `express`가 **서버사이드 skill**이므로 caller가 tool 정의를 주입할 필요가 없다.
 - **발화 텍스트는 tool 페이로드 밖:** 발화는 `express` arguments에 넣지 않고, Hermes의 일반 assistant 텍스트 스트림(`response.output_text.delta`)으로 토큰 단위 수신한다(§3 D-SPEECH).
@@ -164,16 +164,20 @@ interface MotionRegistryEntry {
 ## 3. Control Signal Envelope
 
 ### 목적
-한 turn의 비-텍스트 제어신호를 담는다. **Transport = 서버사이드 `express` tool-call의 arguments = `{ emotion, motion, should_speak }`** (위 endpoint abstraction "Control transport" 참고).
+한 turn의 비-텍스트 제어신호를 담는다. **Transport = 서버사이드 `express` tool-call의 arguments = `{ emotion, motion }`** (위 endpoint abstraction "Control transport" 참고). 둘 다 optional이고 motion은 보통 생략된다(아래 D-MOTION-FROM-EMOTION).
 
 **`express`는 매 턴 선택(optional)이다 (확정).** Hermes가 어떤 턴에 `express`를 호출하지 않으면 client는 기본 동작한다 — motion은 `idle` 유지, emotion 변화 없음(직전 표정 유지), 발화는 정상 진행. express는 "있으면 적용, 없으면 idle"인 **부가 제어 채널**이지 필수가 아니다. 따라서 express 도착 타이밍·매 턴 호출은 **하드 의존이 아니다.**
 
+**[D-NO-SPEAK-GATE] 발화 게이트(`should_speak`)는 없다 (제거 2026-06-04).** firing(언제 backend를 부를지)은 **client event loop가 소유**한다(F5/F7 트리거가 client쪽). 따라서 "이 턴에 말할지"를 backend transport 신호로 둘 필요가 없다 — **침묵 = backend가 assistant 텍스트를 내보내지 않음**(`speech_text == ""`). client는 빈 텍스트면 TTS/말풍선을 스킵하므로 별도 플래그가 불필요하다. backend가 능동적으로 발화하는 턴도 동일 — 말하면 텍스트가 오고, 안 말하면 안 온다. express는 순수 **비언어** 채널 `{ emotion?, motion? }`로 축소됐다.
+
 **`speech_text`는 tool 필드가 아니다.** 발화 텍스트는 `express` arguments가 아니라 **별도 assistant 텍스트 스트림**(`response.output_text.delta`)으로 도착하며(D-SPEECH), client가 스트림에서 조립한다. 아래 `ControlEnvelope`는 client 내부에서 *재구성하는* 정규화 형태이고, `speech_text`는 텍스트 스트림에서 채워지는 파생 필드다.
 
-### express tool 정의 (backend skill 등록 contract) — canonical artifact
+**[D-MOTION-FROM-EMOTION] motion은 client가 emotion에서 파생한다 (확정 2026-06-04).** backend는 보통 `emotion`만 보낸다. `express.motion`이 없으면 client가 **emotion id가 바뀌는 순간**(전이 시점) `configs`의 emotion→motion 기본 매핑에서 제스처를 **1회** 파생 재생한다(oneshot 의미 보존; 매핑이 없는 emotion은 idle 유지). `express.motion`을 명시하면 그것이 우선 — 정서와 무관한 제스처(예: 드래그 반응, 지시 제스처)나 억제(`{id:"idle"}`)에 쓰는 **escape hatch**다. motion 채널은 schema에 optional로 남는다. (client 구현은 #16 계열 후속 — 매핑 아티팩트 신설.)
+
+### express tool 정의 (backend tool 등록 contract) — canonical artifact
 > **단일 소스: [`configs/express_tool.schema.json`](../configs/express_tool.schema.json).** 아래는 그 요약. 코드/문서가 갈리면 JSON 아티팩트가 진실.
 
-이 turn의 제어신호 transport는 `name == "express"`인 function-call 하나다. **하드 계약 = function 이름(`express`) + arguments JSON Schema(`parameters`).** 백엔드 express skill은 이 둘만 맞추면 되고(호출 여부·내용은 backend 판단 — firing≠judgment), client는 들어온 `arguments`를 이 스키마로 검증해 `ControlEnvelope`로 정규화한다.
+이 turn의 제어신호 transport는 `name == "express"`인 function-call 하나다. **하드 계약 = function 이름(`express`) + arguments JSON Schema(`parameters`).** 백엔드 express tool(Hermes plugin — [`hermes-express-tool.md`](./hermes-express-tool.md))은 이 둘만 맞추면 되고(호출 여부·내용은 backend 판단 — firing≠judgment), client는 들어온 `arguments`를 이 스키마로 검증해 `ControlEnvelope`로 정규화한다.
 
 ```jsonc
 // configs/express_tool.schema.json (요약). 전체는 파일 참조.
@@ -182,11 +186,10 @@ interface MotionRegistryEntry {
   "parameters": {
     "type": "object", "additionalProperties": false, "required": [],   // 모든 인자 optional
     "properties": {
-      "should_speak": { "type": "boolean", "default": true },          // false → Tier 2 silence
       "emotion": { "type": ["object","null"], "required": ["id"],      // null/생략 → 직전 표정 유지
         "properties": { "id": { "enum": [/* §1 10종 */] },
                         "intensity": {"0~1, default 1"}, "transition_ms": {"default 250"} } },
-      "motion":  { "type": ["object","null"], "required": ["id"],      // null/생략 → idle
+      "motion":  { "type": ["object","null"], "required": ["id"],      // 보통 생략(client가 emotion에서 파생). 명시 시 override
         "properties": { "id": {"registry key — §2"},
                         "loop": {}, "speed": {"0.25~2.5, default 1"}, "fade_ms": {"default 200"} } }
     }
@@ -194,8 +197,9 @@ interface MotionRegistryEntry {
 }
 ```
 - **`strict: false`인 이유:** Responses `strict` 모드는 모든 property를 `required`로 강제 → 인자 optional 의미(D-EXPRESS-OPTIONAL)와 충돌. 그래서 비활성.
+- **`should_speak`는 없다 (D-NO-SPEAK-GATE).** 발화 게이트 없음 — 침묵은 텍스트 미발신으로 표현.
 - **`speech_text`는 `parameters`에 없다** — 발화는 별도 텍스트 스트림(아래). express arguments에 넣지 않는다.
-- **emotion.id**는 hard enum(backend 책임). **motion.id**는 열린 문자열 → client registry(§2)에서 검증, 미등록 시 무시+경고.
+- **emotion.id**는 hard enum(backend 책임). **motion.id**는 열린 문자열 → client registry(§2)에서 검증, 미등록 시 무시+경고. backend는 보통 motion을 생략한다(D-MOTION-FROM-EMOTION).
 - ⚠ **E2E 미검증(spec-only):** 실제 Hermes 스트림에서 `name=="express"` function_call이 이 스키마대로 도착하는지는 backend가 skill을 등록한 뒤 [#1](https://github.com/yw0nam/YUI/issues/1)에서 확인한다. 지금은 contract만 확정.
 
 ### Responses API 스트림에서 신호를 뽑는 법
@@ -204,20 +208,20 @@ interface MotionRegistryEntry {
 한 응답 스트림은 `output_index`로 구분되는 **output item**들이 섞여 도착한다:
 - **message item** = 발화 텍스트. `response.output_text.delta`(토큰) → `response.output_text.done`. → `speech_text`로 누적.
 - **function_call item** = tool 호출. `response.output_item.added`(name, status:`in_progress`) → `response.function_call_arguments.delta`(인자 토큰) → `response.function_call_arguments.done`(name + 완성된 `arguments` JSON 문자열).
-  - `name == "express"` → `arguments` 파싱 → `{ emotion?, motion?, should_speak? }`.
+  - `name == "express"` → `arguments` 파싱 → `{ emotion?, motion? }`.
   - Hermes **자체 tool**(`web_search`/`terminal`/`browser` 등)도 **같은 function_call item**으로 노출 → `tool_status`는 이 item들의 `name`+`status`에서 **client가 관찰로 도출**한다(Hermes가 따로 채워주는 필드가 아님).
 - ⚠ **`response.completed`의 최종 `output[]`에는 message item만 담기고 function_call은 빠진다.** 따라서 `express`/tool 신호는 **스트림 진행 중**(`...arguments.done` 시점)에 잡아둬야 한다 — 최종 payload엔 없다.
 
 ### Schema
 ```ts
-// express tool-call arguments = { emotion, motion, should_speak } 만이 transport 페이로드.
+// express tool-call arguments = { emotion, motion } 만이 transport 페이로드.
 // 아래는 client 내부 정규화 형태 (텍스트 스트림 + tool-call을 합친 render directive 입력).
 // 제어 필드는 전부 optional — express가 없는 턴은 이 envelope이 비어 있고 client는 기본 동작.
 interface ControlEnvelope {
   // --- express tool-call arguments (있을 때만) ---
-  should_speak?: boolean;         // default true. false면 TTS/말풍선 스킵 (Tier 2 silence)
+  // should_speak 없음 (D-NO-SPEAK-GATE): 침묵 = speech_text == "".
   emotion?: EmotionSignal | null; // 없으면 직전 표정 유지
-  motion?:  MotionSignal  | null; // 없거나 null이면 idle
+  motion?:  MotionSignal  | null; // 없으면 client가 emotion에서 파생(D-MOTION-FROM-EMOTION). 명시 시 override
 
   // --- 텍스트 스트림에서 조립 (tool 필드 아님) ---
   speech_text: string;            // response.output_text.delta 누적. 발화 없으면 ""
@@ -244,31 +248,39 @@ type RichItem =
                      action?: Record<string, unknown> };
 ```
 
-`express` tool arguments의 JSON Schema(`{emotion?, motion?, should_speak?}`)는 §1·§2 제약을 따른다. `speech_text`는 텍스트 스트림, `tool_status`는 네이티브 function_call 관찰, `rich_content`는 P2.
+`express` tool arguments의 JSON Schema(`{emotion?, motion?}`)는 §1·§2 제약을 따른다. `speech_text`는 텍스트 스트림, `tool_status`는 네이티브 function_call 관찰, `rich_content`는 P2.
 
-### 예시 — 일반 응답
-`express` tool-call(제어) + 별도 텍스트 스트림(발화)이 함께 도착:
+### 예시 — 일반 응답 (보통: emotion만)
+`express` tool-call(비언어 제어) + 별도 텍스트 스트림(발화)이 함께 도착. backend는 보통 emotion만 보내고 motion은 client가 파생:
 ```jsonc
 // function_call 아이템: name == "express"
 { "name": "express",
   "arguments": {
-    "should_speak": true,
-    "emotion": { "id": "happy", "intensity": 0.6, "transition_ms": 300 },
-    "motion":  { "id": "happy" }
+    "emotion": { "id": "happy", "intensity": 0.6, "transition_ms": 300 }
   } }
 // + 별도 텍스트 스트림 (response.output_text.delta): "잘 됐다!"
+// → client: happy 표정 전이 + (emotion 전이 시) happy 제스처 1회 파생.
 ```
 
-### 예시 — Tier 2 silence
-`express`가 `should_speak:false` + **텍스트 스트림 없음**:
+### 예시 — motion 명시 (escape hatch)
+정서와 무관한 제스처가 필요할 때만 backend가 motion을 직접 싣는다:
 ```jsonc
 { "name": "express",
   "arguments": {
-    "should_speak": false,
-    "emotion": { "id": "thinking", "intensity": 0.3 },
-    "motion":  null
+    "emotion": { "id": "curious" },
+    "motion":  { "id": "shy_point" }   // 파생 대신 이 제스처 강제
   } }
-// 텍스트 스트림 미발생 → speech_text == ""
+```
+
+### 예시 — 침묵 (D-NO-SPEAK-GATE)
+말 없이 표정만 짓기 — `express`로 emotion만 보내고 **텍스트 스트림을 발생시키지 않는다**(should_speak 플래그 없음):
+```jsonc
+{ "name": "express",
+  "arguments": {
+    "emotion": { "id": "thinking", "intensity": 0.3 }
+  } }
+// 텍스트 스트림 미발생 → speech_text == "" → client는 TTS/말풍선 스킵, 표정만 적용.
+// (아무것도 안 하려면 express도 텍스트도 보내지 않으면 됨.)
 ```
 
 ### 예시 — 툴 실행 중 (tool_status는 Hermes 네이티브 function_call에서 도출)
@@ -283,8 +295,8 @@ Hermes가 자체 `web_search`를 돌리면 스트림에 function_call item이 �
 
 ### 렌더 규약 (client 시점)
 1. `express`에 `emotion`이 있으면 expression 전이 시작. 없으면 직전 표정 유지.
-2. `express`에 `motion`이 있으면 registry 조회 후 재생. 없거나 null이면 `idle`. **express 자체가 없는 턴도 idle.**
-3. `should_speak`이 false가 아니면(기본 true) 텍스트 스트림 발화를 TTS 파이프라인(아래 D-TTS-PIPELINE) + 말풍선에 흘림. false면 둘 다 스킵.
+2. `express`에 `motion`이 있으면 registry 조회 후 재생(override). **없으면 emotion 전이에서 1회 파생**(D-MOTION-FROM-EMOTION; 매핑 없으면 idle). **express 자체가 없는 턴도 idle.**
+3. **발화 게이트 없음 (D-NO-SPEAK-GATE).** 텍스트 스트림(`speech_text`)이 비어있지 않으면 TTS 파이프라인(아래 D-TTS-PIPELINE) + 말풍선에 흘린다. 비어있으면 스킵 — 별도 플래그 판정 없음.
 4. `tool_status`(네이티브 function_call 관찰)로 UI 인디케이터 갱신. `completed` 시 해제.
 5. `rich_content`는 P2. MVP는 발화 텍스트의 마크다운 링크/이미지를 chat UI가 인라인 렌더.
 6. `_reserved`의 모든 필드는 v0에서 무시.

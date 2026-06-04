@@ -36,9 +36,10 @@
                                           └── tier2/3 ─► backend_caller
                                                           ├ package context
                                                           ├ POST /v1/responses
-                                                          ├ parse express function_call + 텍스트 스트림
-                                                          ├ should_speak=false → silent_drop
-                                                          └ should_speak=true  → renderer
+                                                          ├ parse express function_call(emotion/motion) + 텍스트 스트림
+                                                          ├ emotion/motion → renderer (항상)
+                                                          ├ speech_text == "" → 발화 없음(silent)
+                                                          └ speech_text 있음  → TTS/말풍선
 ```
 
 ## 3. Sources — 트리거 조건
@@ -191,7 +192,7 @@
     "tier_hint": 2
   },
 
-  "should_speak_hint": null          // Tier 2 silence 사전 힌트 (선택)
+  "tier2_silence_ok": true           // Tier 2: backend가 침묵(텍스트 미발신) 선택 가능함을 알리는 힌트 (선택)
 }
 ```
 
@@ -204,15 +205,15 @@
 |---|---|---|---|
 | B1 | `package_context` (screenshot 포함 시 캡처) | 200ms (+screenshot 1000ms) | `cap_failed` → drop |
 | B2 | `POST {backend_base}/v1/responses` | 15s (스트리밍: first-chunk 5s, total 30s) | `network/5xx` → retry x1 (2s backoff), 실패 시 silent drop + tier2 카운터 환불 / `4xx` → drop, 환불 X, ERROR / `timeout` → drop, 환불 X |
-| B3 | `parse_structured_output` → [`contract.md`](./contract.md) §3 `ControlEnvelope` (`{ should_speak, speech_text, emotion, motion, tool_status?, rich_content?, _reserved? }`) | 즉시 | `parse_error` → silent drop + WARN + raw 로깅 |
-| B4 | `judgment_branch` | — | `should_speak=false` → silent drop (INFO, 정상) / `true` → B5 |
-| B5 | `dispatch_to_renderer` (emotion → expression / motion → VRMA / speech_text → TTS + 말풍선 / tool_status / rich_content) per contract §3 렌더 규약 | — | renderer 에러 → ambient fallback + ERROR 로그 |
+| B3 | `parse_structured_output` → [`contract.md`](./contract.md) §3 `ControlEnvelope` (`{ speech_text, emotion?, motion?, tool_status?, rich_content?, _reserved? }` — should_speak 없음, D-NO-SPEAK-GATE) | 즉시 | `parse_error` → silent drop + WARN + raw 로깅 |
+| B4 | `dispatch_to_renderer` (emotion → expression / motion → VRMA(없으면 emotion에서 파생) / tool_status / rich_content) per contract §3 렌더 규약. **emotion/motion은 발화 여부와 무관하게 항상 적용** | — | renderer 에러 → ambient fallback + ERROR 로그 |
+| B5 | `speech_branch` — `speech_text == ""` → 발화 없음(silent, INFO 정상) / 비어있지 않음 → TTS + 말풍선 | — | — |
 
 ### 7.3 Silent drop 분류
 | 종류 | 트리거 | 로그 |
 |---|---|---|
 | `guardrail_drop` | DND/debounce/rate-limit | INFO |
-| `should_speak_false` | backend 정상 응답 | INFO |
+| `empty_speech` | backend 침묵(텍스트 미발신, emotion/motion만 또는 무반응) | INFO |
 | `parse_error` | output 깨짐 | WARN |
 | `network_drop` | retry 후 실패 | WARN |
 | `http_4xx_drop` | 잘못된 요청 | ERROR |
@@ -266,7 +267,7 @@ Input: `{ envelope, tier, context }` · Output: `Promise<{ ok: bool, drop_reason
   // contract §3 ControlEnvelope의 필드를 그대로 전달
   "emotion": { /* EmotionSignal | null */ },
   "motion":  { /* MotionSignal  | null */ },
-  "speech_text": "string",            // should_speak=true일 때만 채워짐
+  "speech_text": "string",            // 발화 텍스트 스트림 누적. 침묵이면 "" (D-NO-SPEAK-GATE)
   "tool_status": null,
   "rich_content": [],
   // 렌더 측 부가 핸들
@@ -303,7 +304,7 @@ Input: `{ envelope, tier, context }` · Output: `Promise<{ ok: bool, drop_reason
 | Rust IPC 끊김 | os_event_watcher → webview | 5s 헬스체크 → source `error`. 재연결 polling. 사용자 알림 X. |
 | Backend network down | B2 | retry x1, 실패 silent drop. 5회 연속 실패 시 dispatcher cooldown 5min. |
 | Structured output 깨짐 | B3 | silent drop, raw 로깅. user-facing 영향 X. |
-| VAD 오인식 | user_input_source | dispatcher 책임 밖. backend로 그대로 전달, backend가 `should_speak=false` 가능. |
+| VAD 오인식 | user_input_source | dispatcher 책임 밖. backend로 그대로 전달, backend가 침묵(텍스트 미발신) 가능. |
 | Renderer motion 실패 | renderer | ambient fallback, dispatcher 영향 X. |
 | Rate-limit 폭주 | dispatcher | cooldown 5min, 디버그 HUD에만 표시. |
 | Queue 100 초과 | event_bus | 우선순위 낮은 것 drop, 정상 지속. |
@@ -331,7 +332,7 @@ spec 절을 추가/수정할 때 해당 문서의 TC ↔ § 매트릭스도 동�
 |---|---|---|---|---|
 | A1 | Rust가 OS-wide idle API 접근 가능 (macOS `CGEventSourceSecondsSinceLastEventType`, Win `GetLastInputInfo`, Linux X11 `XScreenSaverQueryInfo`) | **M1** (Shell skeleton 단계, Win/macOS 우선) | R11 | Linux Wayland 환경 idle 감지 불가 → source `error` |
 | A2 | Tauri `emit` 지연 < 50ms | **M1** | R12 | 큰 지연 시 fullscreen/idle 반응 어색 |
-| A3 | Control transport = **서버사이드 `express` tool-call**(확정, D-TRANSPORT). **검증됨:** Hermes `/v1/responses` 스트림이 `function_call` item 노출(자체 SSE 구현 `openai_response_sdk/sse-event-format.md`). arguments = `{emotion?, motion?, should_speak?}`; 발화는 별도 텍스트 스트림. **express는 optional** — 없는 턴은 idle + 직전 표정이라 매 턴 호출·타이밍은 하드 의존 아님(R16/R17 해소). | — (해소) | R10 | function_call은 최종 `output[]`에 빠지므로 스트림 중 캡처. contract §Endpoint/§3 연결 |
+| A3 | Control transport = **서버사이드 `express` tool-call**(확정, D-TRANSPORT). **검증됨:** Hermes `/v1/responses` 스트림이 `function_call` item 노출(자체 SSE 구현 `openai_response_sdk/sse-event-format.md`). arguments = `{emotion?, motion?}`(비언어 전용; should_speak 없음 D-NO-SPEAK-GATE, motion은 client가 emotion에서 파생 D-MOTION-FROM-EMOTION); 발화는 별도 텍스트 스트림(침묵=미발신). **express는 optional** — 없는 턴은 idle + 직전 표정이라 매 턴 호출·타이밍은 하드 의존 아님(R16/R17 해소). | — (해소) | R10 | function_call은 최종 `output[]`에 빠지므로 스트림 중 캡처. contract §Endpoint/§3 연결 |
 | A4 | TTS 스트림은 별도 워크플로 (dispatcher 외부) | **M2** (E2E 통합 시 audio life-cycle 분리 확정) | R13 | dispatcher가 audio life-cycle을 책임지면 cleanup inventory 변경 |
 | A5 | `camera_in_use` 감지는 best-effort, OS별 capability 상이 (Linux는 미지원) | **M3** (가드레일 단계) | R14 | Linux 가드레일 약화 — OS capability table 필요 |
 | A6 | `localStorage`가 milestone idempotency에 충분 (앱 재시작 후 유지) | **M3** (proactivity 검증 단계, TC-15) | R15 | 휘발 시 같은 날 milestone 중복 → tauri-plugin-store 대체 가능 |

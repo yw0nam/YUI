@@ -15,7 +15,7 @@ parent spec의 §4~§13(envelope/routing/guardrails/recovery)을 변경하면 �
 |---|---|---|
 | TC-01 | morning milestone, DND_OFF, rate 미달 | backend 호출 → 발화 가시 |
 | TC-02 | milestone + DND_ON (fullscreen) | silent drop, INFO |
-| TC-03 | `idle.long` + backend `should_speak=false` | silent drop, INFO, 사용자 영향 X |
+| TC-03 | `idle.long` + backend 침묵(텍스트 미발신, emotion/motion만 또는 무반응) | 발화 없음(empty_speech), INFO, 사용자 영향 X. emotion 있으면 표정만 적용 |
 | TC-04 | `idle.short` 30s 내 2회 | 두 번째 debounce drop |
 | TC-05 | tier 2 60min 내 7회 | 7번째 rate-limit drop |
 | TC-06 | backend 호출 중 `user.text_submitted` 도착 | abort + 큐 drop + user 즉시 처리 + 카운터 환불 |

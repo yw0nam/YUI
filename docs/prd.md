@@ -31,7 +31,7 @@
 | G2 | 텍스트·음성 대화 왕복이 가능 | 텍스트 입력 → backend 응답 → 자막+TTS+표정 변화까지 한 사이클이 7초 이내(LAN backend 기준)에 완료 |
 | G3 | backend 신호가 캐릭터 연출로 정확히 매핑 | emotion enum → expression, motion ID → VRMA 트리거가 100% (등록된 enum 한정) 매칭 |
 | G4 | 맥락 인지 입력 수집 | 활성 앱·창 제목·시간이 매 요청에 첨부됨; 스크린샷 토글 ON일 때 매 대화 자동 첨부 |
-| G5 | 선제 발화가 폭주하지 않는다 | Tier 2 발화는 rate-limit(분당 ≤ N) + DND(focus-mode 시 0) + `should_speak:false` 존중. 1시간 idle 시뮬레이션에서 spam 0회 |
+| G5 | 선제 발화가 폭주하지 않는다 | Tier 2 발화는 rate-limit(분당 ≤ N) + DND(focus-mode 시 0). backend 침묵(텍스트 미발신) 존중. 1시간 idle 시뮬레이션에서 spam 0회 |
 | G6 | 핫스왑 가능한 config | VRM 파일을 config로 교체하면 앱 재시작 없이 1초 내 새 모델 표시 |
 | G7 | AI 시각 검증 루프 작동 | headless 스크린샷 캡처로 "현재 expression == happy" 등 시각 단언이 가능 (개발용 dev tool) |
 
@@ -132,7 +132,7 @@ OpenAI 호환 스트리밍 chat + turn-bound 제어신호를 structured output�
 
 **Acceptance:**
 - chat 호출은 `/v1/responses` (또는 `/v1/chat/completions`) OpenAI 호환 스트리밍.
-- backend 응답에서 **control envelope(F9)이 서버사이드 `express` tool-call로 도착** — `/v1/responses`의 `function_call` 아이템 중 이름이 `express`인 것을 파싱(+ `GET /v1/runs/{run_id}/events` SSE). arguments = `{emotion, motion, should_speak}`. 발화 텍스트는 tool-call이 아니라 별도 텍스트 스트림. inline 텍스트 태그 파싱 X (스트리밍 분할 깨짐 방지). json_schema 강제는 이론적 fallback으로만 강등(D-TRANSPORT/D-SPEECH, contract §Endpoint).
+- backend 응답에서 **control envelope(F9)이 서버사이드 `express` tool-call로 도착** — `/v1/responses`의 `function_call` 아이템 중 이름이 `express`인 것을 파싱(+ `GET /v1/runs/{run_id}/events` SSE). arguments = `{emotion, motion}`(비언어 전용; 발화 게이트 없음, D-NO-SPEAK-GATE). 발화 텍스트는 tool-call이 아니라 별도 텍스트 스트림 — 침묵은 텍스트 미발신으로 표현. inline 텍스트 태그 파싱 X (스트리밍 분할 깨짐 방지). json_schema 강제는 이론적 fallback으로만 강등(D-TRANSPORT/D-SPEECH, contract §Endpoint).
 - client-side **event dispatcher**가 timer/idle-watcher/OS-event-watcher/user-input 네 source의 이벤트를 단일 bus로 모음.
 - dispatcher가 Tier 1 이벤트는 로컬에서 소비, Tier 2/3 이벤트는 backend로 패키징 전송.
 - **스트리밍 ↔ 제어신호 동시성 처리는 prototype-driven으로 결정** — M1~M2에서 실제 구현해보고 결정사항을 본 PRD 부록에 기록(아래 §5 참조).
@@ -142,12 +142,12 @@ OpenAI 호환 스트리밍 chat + turn-bound 제어신호를 structured output�
 ---
 
 ### F7 — Proactivity (Tier 1 + Tier 2)
-Tier 1은 F5로 충족. Tier 2 = 시간대 인사·장시간 idle 반응 등 가벼운 발화. rate-limit/debounce/DND 가드, `should_speak:false` 지원.
+Tier 1은 F5로 충족. Tier 2 = 시간대 인사·장시간 idle 반응 등 가벼운 발화. rate-limit/debounce/DND 가드. 침묵은 backend가 텍스트를 안 보내는 것으로 표현(D-NO-SPEAK-GATE — 별도 should_speak 플래그 없음).
 
 **Acceptance:**
 - idle 5분/15분/30분 등 config로 정의 가능한 timer가 dispatcher에 이벤트 발사.
 - 발사 시 input context schema로 패키징해 backend에 "발화 후보" 요청 전송.
-- backend가 control envelope `should_speak: false` 반환 시 **client는 어떤 발화/표정 변화도 일으키지 않음**.
+- backend가 침묵을 택하면 **assistant 텍스트를 내보내지 않음** → client는 발화하지 않음(말풍선/TTS 스킵). 완전 무반응을 원하면 `express`도 보내지 않음(표정만 짓고 싶으면 emotion만 전송). 별도 should_speak 플래그 없음(D-NO-SPEAK-GATE).
 - rate-limit: Tier 2 발화는 분당 ≤ N회(config, 기본 1회). 초과 시 클라이언트 드롭.
 - DND: OS focus-assist/do-not-disturb가 ON이거나 active_app이 config의 focus-app 목록에 있으면 Tier 2 발사 0회.
 - Tier 3은 P2지만 dispatcher source 추가가 코드 한 곳 수정으로 가능하도록 추상화 유지.
@@ -178,7 +178,7 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 **Acceptance:** 다음 4종이 별도 markdown/JSON schema 파일로 `docs/contract/` 아래 존재:
 1. **`emotion_vocab.md`** — backend가 쏠 수 있는 emotion enum 리스트 + **두 개의 매핑**: (a) 각 enum의 client VRM expression 매핑, (b) **emotion → TTS-prefix 매핑** (TTS text 맨 앞에 붙일 prefix 토큰/포맷 — **required지만 포맷은 TTS 구현 시 사용자에게 질문해 확정. 지금 미정, 토큰 발명 금지**. D-EMOTION-DUAL).
 2. **`motion_registry.md`** — motion ID ↔ VRMA 파일 매핑. **MVP 항목: `idle`(×5 variants), `drag`, `happy`, `laughing`, `shy_point` 5종** (D4/D-MOTION-VARIANTS 반영. `sit` 드롭 — 에셋 없음). VRMA 에셋은 `public/motions/`에 커밋, Vite `/motions/<id>.vrma` 서빙.
-3. **`control_envelope.schema.json`** — `express` tool-call arguments = `{emotion, motion, should_speak}`의 JSON Schema. (`speech_text`는 tool 필드 아님 — 별도 텍스트 스트림. `tool_status`/`rich_content` 전송 경로 OPEN. D-TRANSPORT.)
+3. **`configs/express_tool.schema.json`** (canonical) — `express` tool-call arguments = `{emotion, motion}`의 JSON Schema. 발화 게이트 없음(D-NO-SPEAK-GATE), motion은 보통 client가 emotion에서 파생(D-MOTION-FROM-EMOTION). (`speech_text`는 tool 필드 아님 — 별도 텍스트 스트림. `tool_status`/`rich_content` 전송 경로 OPEN. D-TRANSPORT.)
 4. **`input_context.schema.json`** — client → backend 센서 데이터 포맷(active_app, window_title, timestamp, optional screenshot ref).
 
 각 문서는 버전 필드(`v1`)를 포함하고, 변경 시 changelog 작성.
@@ -217,7 +217,9 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 | D5 | **스트리밍 ↔ 제어신호 동시성 = prototype-driven** — M1~M2에서 실제 동작 시켜 본 뒤, 다음 중 택해 본 doc 부록에 기재: (a) envelope 먼저 보내고 텍스트 stream, (b) 텍스트 stream 끝에 envelope, (c) envelope을 별도 channel/event | 2026-06-03 |
 | D6 | **스택 = Tauri + three.js + `@pixiv/three-vrm`** (AI 시각 검증 루프 목적) | 2026-06-03 |
 | D7 | **client에 brain 없음** — 모드 판단·judgment·persona 상태 일체 backend | concept v0.1 |
-| D-TRANSPORT | **Control 신호 전송 = 서버사이드 `express` tool-call.** Hermes에 등록된 `express(...)` skill의 arguments(`{emotion, motion, should_speak}`)로 제어신호 전송. client는 `/v1/responses`의 `function_call`(name==`express`) 파싱 + `GET /v1/runs/{id}/events` SSE 수신. **이전 json_schema strict-output 강제 가정을 supersede** — json_schema는 이론적 fallback 한 줄로 강등 | 2026-06-03 |
+| D-TRANSPORT | **Control 신호 전송 = 서버사이드 `express` tool-call.** Hermes에 등록된 `express(...)` **tool(plugin, skill 아님)** 의 arguments(`{emotion, motion}`)로 비언어 제어신호 전송. client는 `/v1/responses`의 `function_call`(name==`express`) 파싱 + `GET /v1/runs/{id}/events` SSE 수신. **이전 json_schema strict-output 강제 가정을 supersede** — json_schema는 이론적 fallback 한 줄로 강등 | 2026-06-03 |
+| D-NO-SPEAK-GATE | **발화 게이트(`should_speak`) 제거.** firing을 client event loop가 소유하므로 "말할지"를 backend transport 신호로 둘 필요 없음. **침묵 = backend가 assistant 텍스트 미발신**(`speech_text==""`) → client가 빈 텍스트면 발화 스킵. express는 순수 비언어 `{emotion?, motion?}`로 축소. Tier 2 폭주 방지는 client-side rate-limit/DND가 담당 | 2026-06-04 |
+| D-MOTION-FROM-EMOTION | **motion은 client가 emotion에서 파생.** backend는 보통 emotion만 전송. `express.motion` 생략 시 client가 emotion id 전이 순간 emotion→motion 기본 매핑에서 제스처 1회 파생(oneshot; 매핑 없으면 idle). `express.motion` 명시 시 override(정서 무관 제스처/억제용 escape hatch). motion 채널은 schema에 optional 유지. client 구현 = #16 계열 후속(매핑 아티팩트 신설) | 2026-06-04 |
 | D-SPEECH | **발화 텍스트 = Hermes 일반 assistant 텍스트 스트림**(`response.output_text.delta`). tool-call 안에 넣지 않음 | 2026-06-03 |
 | D-TTS-PIPELINE | **client-side TTS 파이프라인(required):** 텍스트 스트림 → 버퍼 큐 적재 → 문장 분절 감지 → per-sentence TTS(`localhost:8092`) → output wav → UI 재생 → **재생 순서 보존(ordered playback)** → 진폭 립싱크를 재생 wav에 동기 | 2026-06-03 |
 | D-EMOTION-DUAL | **emotion 이중 용도:** ① VRM expression 구동 ② **TTS text 맨 앞에 prefix로 부착** → TTS가 파싱해 감정 음성 생성. emotion은 **optional**(없으면 plain TTS). **prefix 매핑은 required이나 포맷은 TTS 구현 시 사용자에게 질문해 확정(지금 미정, 발명 금지)** | 2026-06-03 |
@@ -283,14 +285,14 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 ### M3 — Proactivity Tier 1+2 + 가드레일 (~2주)
 산출물: F7 완성.
 - idle timer source가 dispatcher에 등록되어 발사
-- backend의 `should_speak:false` 존중
+- backend 침묵(텍스트 미발신) 존중 — 빈 응답이면 발화 스킵(D-NO-SPEAK-GATE)
 - rate-limit / debounce / DND 동작
 - proactivity 파라미터가 config에서 조정됨
 
 **Exit:**
 - 1시간 idle 시뮬레이션에서 Tier 2 발화 ≤ 60회(rate-limit 분당 1 가정), spam 0회
 - focus-app(예: 풀스크린 게임) 활성 시 Tier 2 발화 0회
-- backend가 should_speak:false 반환 → 캐릭터 무반응 (표정도 안 바뀜)
+- backend가 침묵 선택(텍스트 미발신 + express 미호출) → 캐릭터 무반응 (표정도 안 바뀜). 표정만 짓는 경우는 express로 emotion만 보냄.
 
 ---
 
@@ -313,7 +315,7 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 | R2 | Tauri 투명·always-on-top·hit-test가 OS별로 다르게 동작 (특히 macOS vs Windows) | High | High | M1에서 양 OS 동시 검증. 차이 큰 부분은 플랫폼별 분기 + 수동 QA 체크리스트 운용. AI 시각 검증 어려운 영역으로 별도 추적 |
 | R3 | backend 응답 지연 시 UX freeze (특히 Tier 2 trigger 중 응답 안 옴) | Medium | Medium | client는 모든 backend 호출에 timeout(기본 10s) + 실패 시 silent drop. 사용자 입력 응답엔 "..." placeholder 표시 후 timeout 시 친절한 fallback |
 | R4 | 스트리밍 중 control envelope 도착 타이밍이 텍스트 토큰보다 늦으면 표정 지연 | Medium | Low | D5 prototype-driven 결정. envelope 우선 전송 또는 명시적 사전 phase로 backend가 envelope을 first chunk로 보내도록 합의(M2에서 확정) |
-| R5 | Tier 2 발화 spam — rate-limit 깨지면 토큰 새고 캐릭터가 짜증남 | Medium | High | F7 acceptance에 1시간 시뮬레이션 강제. backend `should_speak:false` 미준수도 client-side rate-limit이 안전망 |
+| R5 | Tier 2 발화 spam — rate-limit 깨지면 토큰 새고 캐릭터가 짜증남 | Medium | High | F7 acceptance에 1시간 시뮬레이션 강제. firing이 client 소유라 client-side rate-limit/DND가 1차 방어선(backend 침묵=텍스트 미발신은 보조) |
 | R6 | VAD 오작동 (배경 소음에 트리거) | Medium | Medium | 임계값 config 노출. 음성 모드는 명시 토글로만 ON (default OFF) |
 | R7 | 스크린샷이 민감 정보 노출 | Medium | High | 토글 기본 OFF. 첨부 직전 UI에 "스크린샷 첨부 중" indicator 표시. 캡처 영역 config로 제한 |
 | R8 | config 파일에 평문 API 키 — 유출 위험 | Low | High | MVP는 개인용이라 수용. F8의 추상화 레이어 덕에 OSS 진입 시 OS keychain으로 교체 비용 낮음 |
@@ -336,8 +338,8 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 YUI MVP 진행에 backend 측에서 보장해야 할 사항:
 
 1. **OpenAI 호환 chat 유지** — Hermes는 `/v1/responses`(기본) + `/v1/chat/completions`를 노출(공식 docs 검증). client가 config로 endpoint를 교체할 수 있는 한 OpenAI SDK 호환 형태 유지. ⚠ **audio는 Hermes 밖:** `/audio/transcriptions`·`/audio/speech`는 Hermes api-server가 노출하지 않으므로, YUI는 STT/TTS를 **별도 OpenAI 호환 provider**로 호출(`audio_base_url` 분리). 이 항목은 Hermes 의존이 아니라 YUI config 항목.
-2. **서버사이드 `express` tool/skill 등록 (optional 제어 채널)** — emotion/motion 연출을 원하면 Hermes에 `express(...)` skill을 등록해 `{emotion?, motion?, should_speak?}`를 tool-call로 노출. client는 응답 스트림에서 `function_call`(name==`express`)을 파싱(근거: `openai_response_sdk/sse-event-format.md`). **express는 optional** — 호출 안 하는 턴은 client가 idle로 처리하므로 매 턴 보장·도착 타이밍은 **하드 의존이 아니다**(R16/R17 해소). **검증(2026-06): Hermes `/v1/responses`가 function_call item을 스트림에 노출(Hermes 자체 SSE 구현 docs).** json_schema 강제는 dependency 아님.
-3. **`should_speak: false` 필드 존중** — Tier 2 발화 요청 시 backend가 "지금은 말 안 함"을 envelope으로 명시할 수 있고, 이때 텍스트는 비어 있어야 함(또는 무시 가능한 상태). 컨셉 §3 Tier 2 silence 규약.
+2. **서버사이드 `express` tool 등록 (optional 비언어 제어 채널)** — emotion/motion 연출을 원하면 Hermes에 `express(...)` **tool(plugin — `hermes-express-tool.md`, skill 아님)** 을 등록해 `{emotion?, motion?}`를 tool-call로 노출. client는 응답 스트림에서 `function_call`(name==`express`)을 파싱(근거: `openai_response_sdk/sse-event-format.md`). **express는 optional** — 호출 안 하는 턴은 client가 idle로 처리하므로 매 턴 보장·도착 타이밍은 **하드 의존이 아니다**(R16/R17 해소). **검증(2026-06): Hermes `/v1/responses`가 function_call item을 스트림에 노출(Hermes 자체 SSE 구현 docs).** json_schema 강제는 dependency 아님.
+3. **침묵 = 텍스트 미발신 (D-NO-SPEAK-GATE)** — Tier 2 발화 요청에 backend가 "지금은 말 안 함"을 택하면 **assistant 텍스트를 내보내지 않는다**(별도 should_speak 플래그 없음). client는 빈 텍스트면 발화를 스킵한다. 컨셉 §3 Tier 2 silence 규약.
 4. **emotion / motion enum 합의** — F9 #1, #2의 vocabulary를 backend가 generation 단계에서 enum constrain.
 5. **input context schema 수용** — F9 #4의 active_app/window_title/timestamp 필드를 chat 요청의 system 또는 metadata로 받아 처리.
 6. **이미지 입력 처리** — 스크린샷이 image content로 첨부될 때 비전 모델 라우팅 (OpenAI 호환 image content 형식).
@@ -361,7 +363,7 @@ YUI MVP 진행에 backend 측에서 보장해야 할 사항:
 - [ ] VRM/motion/proactivity 파라미터를 config 파일 수정으로 전부 바꿀 수 있음 (재시작 없이도 핫리로드 — 단, API 키는 다음 호출부터)
 - [ ] Windows + macOS 둘 다에서 F2(투명·always-on-top·hit-test·드래그·멀티모니터) 동작 확인
 - [ ] AI 시각 검증 dev tool로 주요 expression(≥ 4종) + motion(5종: idle/drag/happy/laughing/shy_point)에 대한 스크린샷 회귀 테스트셋 존재
-- [ ] §8 dependencies가 모두 Hermes 측에서 충족됨 (특히 structured output + should_speak)
+- [ ] §8 dependencies가 모두 Hermes 측에서 충족됨 (특히 express tool 등록 + emotion/motion enum 합의)
 - [ ] D5(동시성) 결정사항이 본 PRD에 기록됨
 - [ ] `docs/contract/` 4종 문서가 v1로 frozen
 
