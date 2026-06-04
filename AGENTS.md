@@ -124,7 +124,9 @@ YUI/
       dispatcher.ts         # classify → guardrail → route (event-dispatcher.md §5/§7)
       guardrails.ts         # DND / debounce / rate-limit (event-dispatcher.md §6)
     ambient/tier1.ts      # blink / idle sway / breath (backend-independent, F5 / §8)
-    config/load.ts        # configs/*.json loader + hot-reload (F8)
+    config/load.ts        # configs/*.json load + validate (fail-loud) + SecretProvider (F8)
+    config/store.ts       # reactive snapshot + polling hot-reload (subscribe / onError) (F8)
+    config/index.ts       # config barrel
     styles.css
   src-tauri/
     tauri.conf.json       # transparent · always-on-top pet window. identifier com.yui.desktop.
