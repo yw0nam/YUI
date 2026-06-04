@@ -19,7 +19,7 @@ import { createRenderer } from "./renderer";
 import { createTier1Engine } from "./ambient/tier1";
 import { createSurfaces } from "./ui/surfaces";
 import { createMockDriver } from "./ui/mock";
-import { createConfigStore } from "./config";
+import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET } from "./config";
 
 /** 입력 소환 핫키 (window-focus 한정 — 전역 단축키는 후속 tauri-plugin-global-shortcut). */
 const SUMMON_KEY = "/";
@@ -86,7 +86,17 @@ async function bootstrap(): Promise<void> {
 
   // config-driven 로드 (#22, F8): configs/*.json → 검증된 AppConfig. endpoints/motions 등은
   // dispatcher(#21)·tts(#14) 배선 시 소비. 지금은 avatar.vrm_url로 VRM을 띄운다.
-  const config = createConfigStore();
+  // chat 키는 SecretProvider로 주입 — dev는 Vite env, prod/OSS는 keychain 구현으로 교체(concept §2.F).
+  // dispatcher가 streamChat 호출 시 `await config.secrets.get(CHAT_API_KEY_SECRET)`로 해소한다.
+  const config = createConfigStore({
+    secrets: plainSecretProvider({
+      [CHAT_API_KEY_SECRET]: import.meta.env.VITE_YUI_CHAT_KEY,
+    }),
+  });
+  // dev에서 키를 빼먹으면 나중에 chat 호출 시 조용한 401처럼 보인다 → bootstrap에서 미리 알린다.
+  if (import.meta.env.DEV && !import.meta.env.VITE_YUI_CHAT_KEY) {
+    console.warn("[YUI] VITE_YUI_CHAT_KEY 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. .env.local 참고(.env.example).");
+  }
   try {
     const cfg = await config.load();
     await renderer.loadVRM(cfg.avatar.vrm_url);

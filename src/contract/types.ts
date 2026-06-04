@@ -196,9 +196,16 @@ export interface InputContext {
 
 /** configs/endpoints.json (contract.md §Endpoint). chat/stt/tts 세 base URL은 서로 다른 프로세스. */
 export interface EndpointsConfig {
-  /** Hermes (SSH 터널). */
+  /**
+   * Hermes API root (SSH 터널, 예: `http://localhost:8643/v1`). openai SDK가 이 뒤에 `/responses`를
+   * 자체 append하므로 `/v1`까지 포함한 root다(streamChat은 이 값만 baseURL로 쓴다).
+   */
   chat_base_url: string;
-  /** default "/v1/responses". fallback "/v1/chat/completions". */
+  /**
+   * 정보용/비-SDK 폴백 경로. default "/v1/responses", fallback "/v1/chat/completions".
+   * ⚠ SDK 경로(streamChat)는 이 필드를 쓰지 않는다 — chat_base_url + SDK append로 결정.
+   *   `chat_base_url + chat_endpoint`로 합치지 말 것(이미 `/v1` 중복).
+   */
   chat_endpoint: string;
   /** 별도 ASR 서비스 (OpenAI 호환) → /audio/transcriptions. */
   stt_base_url: string;

@@ -1,0 +1,73 @@
+/**
+ * chat-client.live.test.ts — 실 Hermes(:8643)에 streamChat 어댑터를 SecretProvider 경로로 돌리는
+ * 통합 테스트. CI 미실행(네트워크/백엔드 의존) — `YUI_LIVE=1`일 때만.
+ *
+ * 실행:
+ *   YUI_LIVE=1 YUI_CHAT_KEY=<API_SERVER_KEY> pnpm exec vitest run src/io/chat-client.live.test.ts
+ *
+ * 무엇을 증명하나: config #22의 SecretProvider에서 해소한 키를 streamChat({ apiKey })로 넘기면
+ * 키 강제 백엔드에 인증돼 스트리밍 응답이 ChatStreamEvent로 매핑된다 — express 미등록이라
+ * speech_delta/done/completed만 온다(정상).
+ */
+import { describe, it, expect } from "vitest";
+import type { EndpointsConfig } from "../contract";
+import { plainSecretProvider, CHAT_API_KEY_SECRET } from "../config";
+import { streamChat, type ChatStreamEvent } from "./chat-client";
+
+const LIVE = process.env.YUI_LIVE === "1";
+
+// 실 endpoints (configs/endpoints.json과 동일). SDK가 baseURL 뒤 /responses를 append → .../v1.
+const endpoints: EndpointsConfig = {
+  chat_base_url: "http://localhost:8643/v1",
+  chat_endpoint: "/v1/responses",
+  stt_base_url: "http://localhost:5517",
+  tts_base_url: "http://localhost:8092",
+};
+
+describe.skipIf(!LIVE)("streamChat — LIVE Hermes (SecretProvider 경로)", () => {
+  it("SecretProvider 키 → streamChat → 스트리밍 응답을 ChatStreamEvent로 매핑한다", async () => {
+    // dev SecretProvider: 실제 앱은 keychain 구현으로 교체. 여기선 env에서 주입.
+    const secrets = plainSecretProvider({
+      [CHAT_API_KEY_SECRET]: process.env.YUI_CHAT_KEY,
+    });
+    const apiKey = await secrets.get(CHAT_API_KEY_SECRET);
+    expect(apiKey, "YUI_CHAT_KEY env가 있어야 함").toBeTruthy();
+
+    const events: ChatStreamEvent[] = [];
+    for await (const ev of streamChat(
+      endpoints,
+      { input: "한 문장으로 짧게 인사해줘." },
+      { apiKey },
+    )) {
+      events.push(ev);
+      if (ev.type === "speech_delta") process.stdout.write(ev.text);
+    }
+    process.stdout.write("\n");
+
+    const types = events.map((e) => e.type);
+    console.log("[live] event types:", types.join(" → "));
+    expect(events.some((e) => e.type === "error"), "error 이벤트가 없어야 함").toBe(false);
+
+    const completed = events.find((e) => e.type === "completed");
+    expect(completed, "completed 이벤트가 와야 함").toBeDefined();
+    const envelope = (completed as { envelope: { speech_text: string } }).envelope;
+    console.log("[live] speech_text:", JSON.stringify(envelope.speech_text));
+    expect(envelope.speech_text.length).toBeGreaterThan(0);
+    expect(types).toContain("speech_delta");
+    expect(types).toContain("speech_done");
+  }, 60_000);
+
+  it("틀린 키 → 401이 무음이 아니라 error 이벤트로 노출된다", async () => {
+    const events: ChatStreamEvent[] = [];
+    for await (const ev of streamChat(
+      endpoints,
+      { input: "hi" },
+      { apiKey: "definitely-wrong-key" },
+    )) {
+      events.push(ev);
+    }
+    // 핵심: 빈 스트림으로 사라지지 않고 error를 낸다.
+    expect(events.some((e) => e.type === "error")).toBe(true);
+    expect(events.some((e) => e.type === "completed")).toBe(false);
+  }, 30_000);
+});
