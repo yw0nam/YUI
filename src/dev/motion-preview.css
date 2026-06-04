@@ -508,6 +508,13 @@ select:focus {
   margin-left: auto;
 }
 
+/* EMOTION section — no additional rules needed.
+ * Rows use .motion-row / .dot / .row-name / .state-playing / .tag / .btn-play.
+ * Sliders use .playback-row / .playback-label / .playback-control / .slider-wrap / .slider-value.
+ * Buttons use .btn-row / .btn / .btn-primary / .btn-stop.
+ * Active emotion highlight reuses the same amber .state-playing treatment as motion rows.
+ */
+
 /* Status bar */
 
 .status-bar {
