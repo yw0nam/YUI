@@ -158,6 +158,8 @@ cd src-tauri && cargo test    # Rust unit tests (os_event IPC serialization cont
 
 **Test structure:** Harness is **vitest** (TS) + **cargo test** (Rust), E2E is future **playwright** (`docs/event-dispatcher.tests.md`). TS tests are co-located at `src/**/*.test.ts` + scenarios at `tests/`. Tests that lock artifacts/contracts take priority — `configs/*.json` · `express_tool.schema.json` conformance, dispatcher TC-01~15 are queued as `it.todo` in `tests/dispatcher/scenarios.test.ts`. CI (`.github/workflows/ci.yml`) runs `pnpm test` + `cargo test` on every PR.
 
+> **Worktree verification:** a fresh `git worktree` has no `node_modules` and no gitignored VRM assets. Symlink from the main checkout (`ln -s ../YUI/node_modules node_modules`, `ln -s ../../YUI/resources/vrms resources/vrms`) and run dev on an alt port (`npm run dev -- --port {random_port}`; 1420 is held by the main checkout via `strictPort`).
+
 ## Anti-patterns (do not do)
 
 - **No brain in the client.** Judgment (whether/what to speak) · persona state · mode branching belongs to the backend. Client is firing + render only.
