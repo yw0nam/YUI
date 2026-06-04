@@ -57,7 +57,7 @@ VRM 모델 로드/핫스왑, VRMA 모션 재생, BlendShape/expression 제어, s
 
 **Acceptance:**
 - VRM 1종을 config 경로에서 로드해 화면에 표시. **config의 VRM 경로 교체 시 앱 재시작 없이 1초 내 새 모델로 핫스왑**.
-- emotion vocab(F9)의 enum 1개를 코드에서 호출하면 VRM expression이 ≤ 100ms 내 반영.
+- emotion vocab(F9)의 enum 1개를 코드에서 호출하면 VRM expression이 ≤ 100ms 내 반영. **[구현됨 feat/emotion-expression #6]:** `setEmotion` + `EmotionResolver`(pure, existence-aware fallback, unit-tested) + per-frame crossfade(`stepEmotion`, vrm.update 직전), hold-on-null, `≤100ms` 반응성(다음 프레임 전이 시작) + `transition_ms`(기본 250, 보간 지속 시간) 두 축 분리, dev `motion-preview` EMOTION 섹션(10종 버튼 + intensity/transition 슬라이더).
 - motion registry(F9)의 ID 1개를 호출하면 해당 VRMA가 재생, 종료 후 idle로 자동 복귀. **[구현됨 feat/add_motion]:** `playMotion` + `MotionController`(pure state machine) + `VRMAnimationLoaderPlugin`/`createVRMAnimationClip`/`AnimationMixer` crossfade, LoopOnce+clampWhenFinished oneshot, idle baseline 자동 재생, dev `motion-preview` 도구(screenshot-verification surface).
 - spring bone이 드래그·motion 재생 중에도 깨지지 않음.
 
@@ -222,6 +222,7 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 | D-TTS-PIPELINE | **client-side TTS 파이프라인(required):** 텍스트 스트림 → 버퍼 큐 적재 → 문장 분절 감지 → per-sentence TTS(`localhost:8092`) → output wav → UI 재생 → **재생 순서 보존(ordered playback)** → 진폭 립싱크를 재생 wav에 동기 | 2026-06-03 |
 | D-EMOTION-DUAL | **emotion 이중 용도:** ① VRM expression 구동 ② **TTS text 맨 앞에 prefix로 부착** → TTS가 파싱해 감정 음성 생성. emotion은 **optional**(없으면 plain TTS). **prefix 매핑은 required이나 포맷은 TTS 구현 시 사용자에게 질문해 확정(지금 미정, 발명 금지)** | 2026-06-03 |
 | D-EXPRESS-OPTIONAL | **`express` tool-call·emotion 모두 optional** — 없는 턴은 idle motion + 직전 표정 유지. 매 턴 호출·도착 타이밍은 하드 의존 아님 (R16/R17 해소) | 2026-06-03 |
+| D-EMOTION-EXPRESSION | **emotion→expression = existence-aware fallback + hold-on-null (구현됨, feat/emotion-expression #6).** `src/renderer/emotion-resolver.ts`(pure, no three.js)가 registry fallback 체인 탐색 시 각 후보 키를 `expressionManager.getExpression(key) != null` 술어로 검사해 **현재 VRM이 실제로 가진 expression만 채택**하며 사이클 가드 후 최종 terminal은 `"neutral"`. resolver + 술어는 VRM 핫스왑마다 재생성. `setEmotion(null)` = NO-OP(직전 표정 유지), 오직 명시적 `{id:"neutral"}`만 neutral 전이. 미등록 explicit id → warn + neutral. `≤100ms`(반응성: 다음 프레임 전이 시작)과 `transition_ms`(보간 지속 시간, default 250)는 독립된 두 축. expression weight는 `stepEmotion`이 vrm.update 직전 매 프레임 lerp 적용 → `blink` 등 tier-1 키와 충돌 없이 합성. registry는 `RendererOptions.emotionRegistry` / `setEmotionRegistry()`로 주입(motion 병렬 구조). dev `motion-preview` inspector에 EMOTION 섹션(10종 버튼 + intensity/transition 슬라이더) 추가. | feat/emotion-expression |
 | D-RICH-MVP | **rich content = MVP는 발화 텍스트의 마크다운**(링크·이미지)을 chat UI가 인라인 렌더. 구조화 카드 envelope은 P2 | 2026-06-03 |
 | D-HITTEST | **per-region hit-test = `tauri-plugin-polygon` 우선, cursor-polling + `setIgnoreCursorEvents` fallback** (M1 검증) | 2026-06-03 |
 | D-AMICA | **Amica(MIT) 코드 직접 차용 허용** — 구현된 부분 베끼고 안 맞는 것만 새로 작성 | 2026-06-03 |

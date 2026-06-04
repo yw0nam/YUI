@@ -18,18 +18,25 @@
 
 import "./motion-preview.css";
 import { createRenderer } from "../renderer";
-import type { MotionRegistry, MotionKind, MotionSignal } from "../contract";
+import type { MotionRegistry, MotionKind, MotionSignal, EmotionRegistry, EmotionId } from "../contract";
 
-// ─── Runtime config URL (served by the custom dev middleware at /configs/*) ───
+// ─── Runtime config URLs (served by the custom dev middleware at /configs/*) ──
 // Do NOT statically import — Vite rewrites JSON imports to ?import, the middleware
 // returns raw JSON (not a JS module), and the browser rejects the whole ES module graph.
 const CONFIG_URL = "/configs/motions.json";
+const EMOTION_CONFIG_URL = "/configs/emotion_registry.json";
 
 // ─── VRM URL (configurable; default uses the gitignored symlink) ──────────────
 const VRM_URL = "/vrms/carlotta.vrm";
 
 // ─── Motion kind display order ────────────────────────────────────────────────
 const KIND_ORDER: MotionKind[] = ["ambient", "reactive", "state", "oneshot"];
+
+// ─── Emotion display order (matches contract.md §1 vocabulary) ───────────────
+const EMOTION_ORDER: EmotionId[] = [
+  "neutral", "happy", "angry", "sad", "relaxed", "surprised",
+  "thinking", "curious", "sleepy", "embarrassed",
+];
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -47,6 +54,9 @@ const state: PlaybackState = {
   elapsedStart: 0,
   fps: 0,
 };
+
+/** ID of the emotion the user last applied (or null if none applied yet). */
+let activeEmotionId: EmotionId | null = null;
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 // The module script is deferred so the DOM is ready at this point.
@@ -68,6 +78,15 @@ const statusPriority = document.getElementById("status-priority") as HTMLSpanEle
 const statusElapsed = document.getElementById("status-elapsed") as HTMLSpanElement;
 const statusFps = document.getElementById("status-fps") as HTMLSpanElement;
 const viewportStatus = document.getElementById("viewport-status") as HTMLSpanElement;
+
+// ─── Emotion DOM refs ─────────────────────────────────────────────────────────
+const emotionList = document.getElementById("emotion-list") as HTMLDivElement;
+const slIntensity = document.getElementById("sl-intensity") as HTMLInputElement;
+const valIntensity = document.getElementById("val-intensity") as HTMLSpanElement;
+const slTransition = document.getElementById("sl-transition") as HTMLInputElement;
+const valTransition = document.getElementById("val-transition") as HTMLSpanElement;
+const btnNeutral = document.getElementById("btn-neutral") as HTMLButtonElement;
+const btnHold = document.getElementById("btn-hold") as HTMLButtonElement;
 
 // ─── Registry list rendering ──────────────────────────────────────────────────
 
@@ -214,6 +233,92 @@ function buildRegistryList(
   }
 }
 
+/** Set the active row in the emotion list (independent of motion active state). */
+function setActiveEmotionRow(id: EmotionId | null): void {
+  const rows = emotionList.querySelectorAll<HTMLDivElement>(".motion-row");
+  rows.forEach((row) => {
+    const rowId = row.dataset["emotionId"] as EmotionId | undefined;
+    const dot = row.querySelector<HTMLSpanElement>(".dot");
+    if (rowId === id) {
+      row.classList.add("state-playing");
+      if (dot) dot.className = "dot dot-filled";
+    } else {
+      row.classList.remove("state-playing");
+      if (dot) dot.className = "dot dot-hollow";
+    }
+  });
+}
+
+/**
+ * Build the 10 emotion rows from the registry.
+ * The `vrm_expression` hint shown per row is the *registry* mapping, NOT the
+ * runtime-resolved key (renderer does not expose the resolved key — acceptable for v0).
+ */
+function buildEmotionList(
+  emotionsRegistry: EmotionRegistry,
+  doSetEmotion: (id: EmotionId) => void,
+): void {
+  emotionList.innerHTML = "";
+
+  for (const id of EMOTION_ORDER) {
+    const entry = emotionsRegistry[id];
+
+    const row = document.createElement("div");
+    row.className = "motion-row";
+    row.dataset["emotionId"] = id;
+    row.tabIndex = 0;
+    row.setAttribute("role", "row");
+
+    // Dot
+    const dot = document.createElement("span");
+    dot.className = "dot dot-hollow";
+
+    // Name
+    const name = document.createElement("span");
+    name.className = "row-name";
+    name.textContent = id;
+
+    // Registry expression hint tag (static — registry mapping, not resolved key)
+    const tags = document.createElement("div");
+    tags.className = "row-tags";
+    if (entry) {
+      const tagExpr = document.createElement("span");
+      tagExpr.className = "tag";
+      tagExpr.textContent = entry.vrm_expression;
+      tags.appendChild(tagExpr);
+    }
+
+    // Play button
+    const playBtn = document.createElement("button");
+    playBtn.className = "btn-play";
+    playBtn.title = "set emotion";
+    playBtn.setAttribute("aria-label", `Set emotion ${id}`);
+    playBtn.textContent = "▶";
+
+    row.appendChild(dot);
+    row.appendChild(name);
+    row.appendChild(tags);
+    row.appendChild(playBtn);
+    emotionList.appendChild(row);
+
+    // Row click / keyboard handler
+    const handleSet = (): void => {
+      doSetEmotion(id);
+    };
+    row.addEventListener("click", handleSet);
+    row.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleSet();
+      }
+    });
+    playBtn.addEventListener("click", (e: MouseEvent) => {
+      e.stopPropagation();
+      handleSet();
+    });
+  }
+}
+
 // ─── FPS counter + elapsed timer ─────────────────────────────────────────────
 
 let fpsFrames = 0;
@@ -236,7 +341,8 @@ function rafLoop(): void {
 
   statusElapsed.textContent = `${elapsedSec}s`;
   statusFps.textContent = `${state.fps}fps`;
-  viewportStatus.textContent = `${state.activeId ?? "none"} · ${state.fps}fps`;
+  const emotionHint = activeEmotionId !== null ? ` · em:${activeEmotionId}` : "";
+  viewportStatus.textContent = `${state.activeId ?? "none"}${emotionHint} · ${state.fps}fps`;
 }
 
 // ─── Slider display updates ───────────────────────────────────────────────────
@@ -254,28 +360,48 @@ slFade.addEventListener("input", () => {
   valFade.textContent = `${slFade.value}ms`;
 });
 
+slIntensity.addEventListener("input", () => {
+  valIntensity.textContent = parseFloat(slIntensity.value).toFixed(2);
+});
+
+slTransition.addEventListener("input", () => {
+  valTransition.textContent = `${slTransition.value}ms`;
+});
+
 // ─── Main (async init) ────────────────────────────────────────────────────────
 // Structured as an async function so the registry fetch completes before any
 // code that depends on it runs. All init that needs the registry is inside here.
 
 async function main(): Promise<void> {
-  // 1. Fetch the motion registry at runtime (static import breaks the ES module
+  // 1. Fetch both registries at runtime (static import breaks the ES module
   //    graph — see module-level comment for the full explanation).
   let motionsRegistry: MotionRegistry;
+  let emotionsRegistry: EmotionRegistry;
   try {
-    const res = await fetch(CONFIG_URL);
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    const [motionsRes, emotionRes] = await Promise.all([
+      fetch(CONFIG_URL),
+      fetch(EMOTION_CONFIG_URL),
+    ]);
+    if (!motionsRes.ok) {
+      throw new Error(`HTTP ${motionsRes.status} ${motionsRes.statusText} (motions)`);
     }
-    motionsRegistry = (await res.json()) as MotionRegistry;
+    if (!emotionRes.ok) {
+      throw new Error(`HTTP ${emotionRes.status} ${emotionRes.statusText} (emotions)`);
+    }
+    motionsRegistry = (await motionsRes.json()) as MotionRegistry;
+    emotionsRegistry = (await emotionRes.json()) as EmotionRegistry;
   } catch (err) {
     console.error("[MotionPreview] registry load failed:", err);
     viewportStatus.textContent = "registry load failed";
     return;
   }
 
-  // 2. Create renderer with the now-available registry.
-  const renderer = createRenderer({ mount, motionRegistry: motionsRegistry });
+  // 2. Create renderer with both registries injected.
+  const renderer = createRenderer({
+    mount,
+    motionRegistry: motionsRegistry,
+    emotionRegistry: emotionsRegistry,
+  });
 
   // ─── Playback helpers (close over registry + renderer) ──────────────────────
 
@@ -309,6 +435,18 @@ async function main(): Promise<void> {
     doIdleReturn();
   }
 
+  // ─── Emotion helpers (close over emotionsRegistry + renderer) ───────────────
+
+  function doSetEmotion(id: EmotionId): void {
+    renderer.setEmotion({
+      id,
+      intensity: parseFloat(slIntensity.value),
+      transition_ms: parseInt(slTransition.value, 10),
+    });
+    activeEmotionId = id;
+    setActiveEmotionRow(id);
+  }
+
   // ─── Status bar ─────────────────────────────────────────────────────────────
 
   function updateStatusBar(): void {
@@ -328,7 +466,10 @@ async function main(): Promise<void> {
   buildRegistryList(motionsRegistry, doPlayById);
   buildCrossfadeOptions(motionsRegistry);
 
-  // 4. Wire action buttons (close over doPlayById/doStop/doIdleReturn).
+  // 4. Build emotion rows from the emotion registry.
+  buildEmotionList(emotionsRegistry, doSetEmotion);
+
+  // 5. Wire motion action buttons (close over doPlayById/doStop/doIdleReturn).
   btnPlay.addEventListener("click", () => {
     const id = selCrossfade.value;
     if (id) doPlayById(id);
@@ -342,10 +483,24 @@ async function main(): Promise<void> {
     doIdleReturn();
   });
 
-  // 5. Start rAF loop for fps/elapsed display.
+  // 6. Wire emotion action buttons.
+  // btn-neutral: the ONLY explicit-neutral path — always sets {id:"neutral"}.
+  btnNeutral.addEventListener("click", () => {
+    renderer.setEmotion({ id: "neutral" });
+    activeEmotionId = "neutral";
+    setActiveEmotionRow("neutral");
+  });
+
+  // btn-hold: demonstrates the hold-on-null no-op (renderer keeps previous expression).
+  btnHold.addEventListener("click", () => {
+    renderer.setEmotion(null);
+    // null is a no-op in the renderer — do not change activeEmotionId or row highlight.
+  });
+
+  // 7. Start rAF loop for fps/elapsed display.
   requestAnimationFrame(rafLoop);
 
-  // 6. Load VRM — renderer auto-plays idle baseline on load.
+  // 8. Load VRM — renderer auto-plays idle baseline on load.
   try {
     await renderer.loadVRM(VRM_URL);
     // Reflect idle baseline in UI state (renderer sets it on load when registry is set)

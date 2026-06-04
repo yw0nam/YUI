@@ -88,6 +88,47 @@
             </div>
           </div>
 
+          <div class="section-sep"></div>
+
+          <!-- EMOTION section -->
+          <div class="section">
+            <div class="section-header">
+              <span class="section-label">Emotion</span>
+              <div class="section-divider"></div>
+            </div>
+
+            <!-- emotion rows (populated by JS) -->
+            <div id="emotion-list"></div>
+
+            <!-- intensity slider -->
+            <div class="playback-row">
+              <span class="playback-label">intensity</span>
+              <div class="playback-control">
+                <div class="slider-wrap">
+                  <input type="range" id="sl-intensity" min="0" max="1" step="0.05" value="1" />
+                  <span class="slider-value" id="val-intensity">1.00</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- transition slider -->
+            <div class="playback-row">
+              <span class="playback-label">transition</span>
+              <div class="playback-control">
+                <div class="slider-wrap">
+                  <input type="range" id="sl-transition" min="0" max="1000" step="10" value="250" />
+                  <span class="slider-value" id="val-transition">250ms</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- emotion action buttons -->
+            <div class="btn-row">
+              <button class="btn btn-primary" id="btn-neutral">&#8594; neutral</button>
+              <button class="btn btn-stop" id="btn-hold">hold (null)</button>
+            </div>
+          </div>
+
         </div><!-- /rail-scroll -->
 
         <!-- Status bar pinned at bottom of rail -->
