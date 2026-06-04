@@ -13,6 +13,7 @@ describe("configs/endpoints.json", () => {
     expect(ep.stt_base_url).toMatch(/^https?:\/\//);
     expect(ep.tts_base_url).toMatch(/^https?:\/\//);
     expect(ep.chat_endpoint).toBe("/v1/responses"); // contract §endpoint default
+    expect(ep.chat_model).toBe("natsume"); // Hermes 모델 ID (config-driven, PRD F8)
   });
 
   it("chat/stt/tts are three distinct services", () => {

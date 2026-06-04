@@ -8,6 +8,14 @@
  * TYPED Responses events. This module maps those events → our `ChatStreamEvent`
  * and assembles the final `ControlEnvelope`.
  *
+ * D-TAURI-FETCH (issue #39): Tauri webview → Hermes CORS bypass via @tauri-apps/plugin-http.
+ *   The openai SDK accepts `new OpenAI({ fetch })` to override the HTTP transport.
+ *   In Tauri (prod), requests are routed through Rust, carrying NO Origin header →
+ *   bypasses Hermes's 403 on Origin-bearing requests.
+ *   In dev (Vite), fetch is left undefined → SDK uses global fetch → vite proxy handles CORS.
+ *   Use `selectFetch()` to pick the right fetch for the current environment, then pass it
+ *   into `streamChat` via `StreamChatOptions.fetch`.
+ *
  * Event → ChatStreamEvent mapping:
  *  - response.output_text.delta → speech_delta (accumulated into speech_text).
  *  - response.output_text.done  → speech_done.
@@ -75,6 +83,41 @@ export interface StreamChatOptions {
    * 미지정 시 무인증 로컬용 placeholder — 키를 강제하는 백엔드엔 401이 난다.
    */
   apiKey?: string;
+  /**
+   * Transport fetch override (D-TAURI-FETCH / issue #39).
+   *
+   * Tauri prod: `@tauri-apps/plugin-http`의 fetch를 주입 → Rust side 요청 → Origin 없음
+   *   → Hermes CORS/403 우회.
+   * Dev/Vite: undefined(기본) → SDK 글로벌 fetch 사용 → vite proxy 경유.
+   *
+   * 주입 방법: `streamChat(config, req, { fetch: selectFetch() })`.
+   * `selectFetch()`가 환경 감지 후 올바른 값을 반환한다.
+   */
+  fetch?: typeof globalThis.fetch;
+}
+
+/**
+ * 현재 실행 환경에 맞는 fetch 구현을 선택한다 (D-TAURI-FETCH).
+ *
+ * - Tauri prod(`window.__TAURI_INTERNALS__` 존재): `@tauri-apps/plugin-http`의 fetch를 동적
+ *   import해 반환. 이 fetch는 Rust를 통해 요청하며 Origin 헤더가 없다 → CORS 우회.
+ * - Dev/Browser(`__TAURI_INTERNALS__` 없음): `undefined` 반환 → SDK가 글로벌 fetch 사용.
+ *
+ * 동기 반환 설계 근거: OpenAI 생성자가 fetch를 동기로 받아야 한다. Tauri 환경에서는
+ * `@tauri-apps/plugin-http`가 이미 번들에 포함되어 있어 dynamic import가 빠르다.
+ * 그러나 비동기 import 때문에 async 오버로드를 둔다.
+ */
+export async function selectFetch(): Promise<typeof globalThis.fetch | undefined> {
+  // Tauri 감지: __TAURI_INTERNALS__ 글로벌(Tauri v2 webview에서 주입).
+  // `window` 대신 `globalThis`를 사용: 브라우저/Tauri webview 양쪽에서 동작하며,
+  // vitest(Node/no-DOM) 환경에서도 올바르게 undefined를 반환한다.
+  if ((globalThis as any).__TAURI_INTERNALS__) {
+    // Tauri 환경: plugin-http의 fetch를 동적 import.
+    // Cargo dep(tauri-plugin-http) + capability(http:default + scope)가 있어야 동작.
+    const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
+    return tauriFetch as unknown as typeof globalThis.fetch;
+  }
+  return undefined;
 }
 
 /**
@@ -93,11 +136,17 @@ export async function* streamChat(
 
   // apiKey는 SecretProvider 해소값을 caller가 넘긴다(없으면 무인증 placeholder). SDK는 baseURL
   // 뒤에 /responses를 자체 append하므로 baseURL은 API root(chat_base_url, 예: .../v1)다.
-  const client = makeClient({
+  // opts.fetch: Tauri prod = @tauri-apps/plugin-http의 fetch(CORS 우회), dev = undefined(SDK
+  // 글로벌 fetch 사용). D-TAURI-FETCH / issue #39.
+  const clientOpts: ConstructorParameters<typeof OpenAI>[0] = {
     baseURL: config.chat_base_url,
     apiKey: opts.apiKey ?? "yui-local-placeholder",
     dangerouslyAllowBrowser: true,
-  });
+  };
+  if (opts.fetch != null) {
+    clientOpts.fetch = opts.fetch;
+  }
+  const client = makeClient(clientOpts);
 
   // completed에서 조립할 누적 상태.
   let speech_text = "";
@@ -108,6 +157,9 @@ export async function* streamChat(
   try {
     stream = (await client.responses.create(
       {
+        // model: config-driven (EndpointsConfig.chat_model). Hermes Responses는 model 필수 —
+        // 미설정 시 생략(테스트 mock·model-less backend용). prod endpoints.json은 반드시 설정.
+        ...(config.chat_model ? { model: config.chat_model } : {}),
         input: request.input as any,
         previous_response_id: request.previous_response_id,
         stream: true,
