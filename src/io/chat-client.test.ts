@@ -290,10 +290,10 @@ describe("streamChat — error handling", () => {
       ]),
     );
 
-    let events: ChatStreamEvent[] = [];
-    await expect(async () => {
-      events = await collect(streamChat(CONFIG, req()));
-    }).not.toThrow();
+    // collect() rejecting would fail the test here — so awaiting it directly is a
+    // STRONGER "does not throw" guarantee than expect(asyncFn).not.toThrow(), which
+    // resolves synchronously without awaiting the inner promise (vitest 4).
+    const events = await collect(streamChat(CONFIG, req()));
 
     expect(events.some((e) => e.type === "error")).toBe(true);
     // 깨진 express에도 불구하고 스트림은 끝까지 진행해 completed를 낸다.
