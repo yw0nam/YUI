@@ -82,6 +82,13 @@ export interface SecretProvider {
   get(key: string): Promise<string | undefined>;
 }
 
+/**
+ * SecretProvider에서 Hermes chat 키를 찾을 때 쓰는 이름. backend env `API_SERVER_KEY`에 대응.
+ * 호출부(dispatcher #21): `streamChat(ep, req, { apiKey: await secrets.get(CHAT_API_KEY_SECRET) })`.
+ * (chat-client가 아니라 여기에 둔다 — secret 이름은 config/SecretProvider 소관, openai SDK 무관.)
+ */
+export const CHAT_API_KEY_SECRET = "chat_api_key";
+
 /** MVP 기본 구현 — 평문 레코드에서 조회. 실 값은 configs에 두지 않는 게 권장(env/keychain). */
 export function plainSecretProvider(
   secrets: Record<string, string | undefined> = {},

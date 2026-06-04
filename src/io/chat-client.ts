@@ -69,6 +69,14 @@ export interface ChatRequest {
   signal?: AbortSignal;
 }
 
+export interface StreamChatOptions {
+  /**
+   * Hermes 인증 키(Bearer). SecretProvider에서 해소해 caller가 넘긴다(concept §2.F).
+   * 미지정 시 무인증 로컬용 placeholder — 키를 강제하는 백엔드엔 401이 난다.
+   */
+  apiKey?: string;
+}
+
 /**
  * Responses API 스트림 호출. 공식 `openai` SDK 어댑터.
  *
@@ -78,15 +86,16 @@ export interface ChatRequest {
 export async function* streamChat(
   config: EndpointsConfig,
   request: ChatRequest,
+  opts: StreamChatOptions = {},
 ): AsyncGenerator<ChatStreamEvent> {
   // 이미 abort된 signal이면 hang 없이 즉시 종료.
   if (request.signal?.aborted) return;
 
-  // TODO: real apiKey → OS keychain (M2). SDK는 baseURL 뒤에 /responses를 자체 append하므로
-  // baseURL은 API root(chat_base_url)다.
+  // apiKey는 SecretProvider 해소값을 caller가 넘긴다(없으면 무인증 placeholder). SDK는 baseURL
+  // 뒤에 /responses를 자체 append하므로 baseURL은 API root(chat_base_url, 예: .../v1)다.
   const client = makeClient({
     baseURL: config.chat_base_url,
-    apiKey: "yui-local-placeholder",
+    apiKey: opts.apiKey ?? "yui-local-placeholder",
     dangerouslyAllowBrowser: true,
   });
 
@@ -105,8 +114,15 @@ export async function* streamChat(
       },
       { signal: request.signal },
     )) as unknown as AsyncIterable<any>;
-  } catch {
-    // SDK가 aborted signal 등에 reject할 수 있다 → 조용히 종료(hang 방지).
+  } catch (err) {
+    // aborted signal이면 조용히 종료(hang 방지). 그 외(401 인증 실패 / 네트워크 등)는 무음으로
+    // 삼키지 않고 error 이벤트로 노출한다 — placeholder 키 401이 "빈 스트림"으로 사라지는 함정 방지.
+    if (!request.signal?.aborted) {
+      yield {
+        type: "error",
+        message: `chat request failed: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
     return;
   }
 
@@ -194,6 +210,8 @@ export async function* streamChat(
     }
   } catch {
     // 스트림 도중 abort/네트워크 reject → 조용히 종료.
+    // TODO(의도적 비대칭): create() catch는 non-abort 에러를 error로 노출하지만, 여기 mid-stream
+    //   드롭은 부분 출력이 이미 consumer에 닿았고 빈도 낮아 무음 유지. 필요 시 동일 처리로 통일.
     return;
   }
 }

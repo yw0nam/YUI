@@ -6,6 +6,7 @@ export {
   loadConfig,
   ConfigError,
   plainSecretProvider,
+  CHAT_API_KEY_SECRET,
   CONFIG_FILES,
   type AppConfig,
   type AvatarConfig,
