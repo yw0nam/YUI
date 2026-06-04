@@ -24,6 +24,7 @@ import {
 import type {
   ControlEnvelope,
   EmotionSignal,
+  EmotionRegistry,
   MotionSignal,
   MotionRegistry,
 } from "../contract";
@@ -32,6 +33,11 @@ import {
   type MotionController,
   type ResolvedMotion,
 } from "./motion-controller";
+import {
+  createEmotionResolver,
+  type EmotionResolver,
+  type ResolvedEmotion,
+} from "./emotion-resolver";
 
 export interface RendererOptions {
   /** VRM을 렌더할 캔버스 마운트 대상. */
@@ -41,6 +47,11 @@ export interface RendererOptions {
    * 없으면 playMotion은 warn 후 no-op (#4 단독 동작 유지). setMotionRegistry로 나중에 주입 가능.
    */
   motionRegistry?: MotionRegistry;
+  /**
+   * emotion registry (configs/emotion_registry.json). 주입하면 setEmotion이 동작한다.
+   * 없으면 setEmotion은 warn 후 no-op. setEmotionRegistry로 나중에 주입 가능.
+   */
+  emotionRegistry?: EmotionRegistry;
 }
 
 /** rAF 프레임마다, **vrm.update(dt) 직전에** 전달되는 컨텍스트. */
@@ -66,8 +77,17 @@ export interface Renderer {
   onTick(fn: TickFn): () => void;
   /** contract.md §3 렌더 규약대로 render directive 적용. TODO(#16). */
   applyDirective(env: ControlEnvelope): void;
-  /** emotion → expression 전이. TODO(#6). */
+  /**
+   * emotion → expression GPU 크로스페이드 전이 (#6).
+   * registry가 주입돼 있고 VRM이 로드된 경우에만 동작.
+   * emotion === null이면 NO-OP(직전 표정 유지). neutral 복귀는 명시적 {id:"neutral"}만.
+   */
   setEmotion(emotion: EmotionSignal | null): void;
+  /**
+   * emotion registry 주입(또는 교체). 주입 시 현재 VRM 기준 hasExpression 술어를
+   * 재계산하고 EmotionResolver를 (재)생성한다.
+   */
+  setEmotionRegistry(registry: EmotionRegistry): void;
   /** motion registry 조회 후 VRMA 재생 (#5). registry가 주입돼 있어야 동작. */
   playMotion(motion: MotionSignal | null): void;
   /**
@@ -120,6 +140,34 @@ export function createRenderer(options: RendererOptions): Renderer {
   const actionToId = new Map<THREE.AnimationAction, string>();
   /** 핫스왑 race guard: 로드 비동기 사이에 VRM이 바뀌면 폐기. */
   let vrmEpoch = 0;
+
+  // ── Emotion 상태 (#6) ──────────────────────────────────────────────────────
+  let emotionRegistry: EmotionRegistry | undefined = options.emotionRegistry;
+  let emotionResolver: EmotionResolver | undefined;
+  /** 현재 VRM 기준 expression 존재 술어 (핫스왑마다 재계산). */
+  let hasExpressionCache: ((k: string) => boolean) | undefined;
+  /**
+   * 진행 중 emotion 크로스페이드 상태(없으면 null).
+   *  - prevKey: 페이드 아웃 중인 직전 표정 키(없으면 null).
+   *  - prevWeightAtStart: 페이드 시작 시점의 prev weight(중간 retarget pop 방지).
+   *  - targetKey/targetWeight: 페이드 인 목표 키/weight.
+   *  - startTargetW: 페이드 시작 시점의 target weight(retarget 시 현재 blend에서 출발).
+   *  - startMs/durationMs: 프레임 클록(elapsed*1000) 기준 시작/길이.
+   *  - curPrevW/curTargetW: 현재 프레임 적용 weight(retarget 출발점으로 재사용).
+   */
+  let emotionXfade:
+    | {
+        prevKey: string | null;
+        prevWeightAtStart: number;
+        targetKey: string;
+        targetWeight: number;
+        startTargetW: number;
+        startMs: number;
+        durationMs: number;
+        curPrevW: number;
+        curTargetW: number;
+      }
+    | null = null;
 
   /** mixer "finished" 핸들러 (oneshot 종료 → controller.finish → 복귀 재생). */
   const onMixerFinished = (e: { action: THREE.AnimationAction }): void => {
@@ -176,6 +224,9 @@ export function createRenderer(options: RendererOptions): Renderer {
           console.error("[YUI] mixer update error:", err);
         }
       }
+      // emotion 크로스페이드 — expressionManager.update()는 vrm.update(dt) 안에서
+      // 돌므로 weight를 그 직전에 써야 이번 프레임에 반영된다.
+      stepEmotion(dt);
       currentVrm.update(dt);
     }
     renderer.render(scene, camera);
@@ -201,6 +252,8 @@ export function createRenderer(options: RendererOptions): Renderer {
   function disposeCurrent(): void {
     if (!currentVrm) return;
     teardownMotion();
+    // 진행 중 페이드가 폐기된 VRM에 쓰지 않도록 리셋(핫스왑/dispose 공용).
+    emotionXfade = null;
     scene.remove(currentVrm.scene);
     VRMUtils.deepDispose(currentVrm.scene);
     currentVrm = undefined;
@@ -277,6 +330,62 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (controller) playMotion({ id: "idle" });
   }
 
+  // ── Emotion crossfade ──────────────────────────────────────────────────────
+
+  const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+  const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+
+  /**
+   * 현재 VRM 기준 expression 존재 술어를 재계산하고 resolver를 재생성한다.
+   * 존재 집합은 모델별이라 VRM 로드마다 새로 빌드해야 한다.
+   */
+  function recomputeHasExpression(): void {
+    hasExpressionCache = (k: string): boolean =>
+      currentVrm?.expressionManager?.getExpression(k) != null;
+    if (emotionRegistry) {
+      emotionResolver = createEmotionResolver(emotionRegistry, {
+        hasExpression: hasExpressionCache,
+      });
+    }
+  }
+
+  /**
+   * emotion 크로스페이드 한 프레임 진행 — mixer.update 후, vrm.update 직전 호출.
+   * 매 프레임 target/prev weight를 수동 lerp(three-vrm 내장 보간 없음).
+   * blink/blinkLeft/blinkRight/lookAt/mouth 키는 절대 건드리지 않는다(ambient/lipsync 소유).
+   */
+  function stepEmotion(_dt: number): void {
+    if (!emotionXfade || !currentVrm) return;
+    const em = currentVrm.expressionManager;
+    if (!em) return;
+    try {
+      const x = emotionXfade;
+      const now = elapsed * 1000;
+      const t = clamp01((now - x.startMs) / Math.max(1, x.durationMs));
+      x.curTargetW = lerp(x.startTargetW, x.targetWeight, t);
+      x.curPrevW = lerp(x.prevWeightAtStart, 0, t);
+
+      em.setValue(x.targetKey, x.curTargetW);
+      if (x.prevKey && x.prevKey !== x.targetKey) {
+        em.setValue(x.prevKey, x.curPrevW);
+      }
+
+      if (t >= 1) {
+        // prev 키를 1회 0으로 내리고 분리, target은 매 프레임 계속 고정(held).
+        if (x.prevKey && x.prevKey !== x.targetKey) {
+          em.setValue(x.prevKey, 0);
+        }
+        x.prevKey = null;
+        x.curPrevW = 0;
+        // target weight를 핀으로 고정 — 다음 프레임에도 계속 재적용된다.
+        x.startTargetW = x.targetWeight;
+        x.curTargetW = x.targetWeight;
+      }
+    } catch (err) {
+      console.error("[YUI] stepEmotion error:", err);
+    }
+  }
+
   async function loadVRM(url: string): Promise<void> {
     const gltf = await loader.loadAsync(url);
     const vrm = gltf.userData.vrm as VRM;
@@ -293,6 +402,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     vrmEpoch += 1; // 직전 모델에 묶인 비동기 clip 로드 무효화.
     currentVrm = vrm;
     scene.add(vrm.scene);
+
+    // emotion: 존재 집합은 모델별이라 핫스왑마다 술어/resolver 재생성.
+    if (emotionRegistry) recomputeHasExpression();
 
     // 새 VRM 전용 mixer (clip은 VRM-specific이므로 함께 새로 시작).
     mixer = new THREE.AnimationMixer(vrm.scene);
@@ -328,6 +440,64 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (currentVrm && mixer) playIdleBaseline();
   }
 
+  /** setEmotion 구현 — resolve → 현재 blend에서 retarget → 크로스페이드 시작. */
+  function setEmotion(emotion: EmotionSignal | null): void {
+    // contract §1 "emotion 없으면 직전 표정 유지" — null은 NO-OP.
+    // 오직 명시적 {id:"neutral"}만 neutral로 전이한다. (CRITICAL 비회귀)
+    if (emotion === null) return;
+
+    if (!emotionResolver || !emotionRegistry) {
+      console.warn("[YUI] setEmotion called without an emotion registry — no-op");
+      return;
+    }
+    if (!currentVrm) return;
+
+    try {
+      const resolved: ResolvedEmotion = emotionResolver.resolve(emotion);
+      const now = elapsed * 1000;
+
+      let prevKey: string | null = null;
+      let prevWeightAtStart = 0;
+
+      if (emotionXfade) {
+        if (emotionXfade.targetKey !== resolved.vrm_expression) {
+          // 진행 중 다른 target → 현재 blend된 target weight를 새 prev로(중간 retarget pop 방지).
+          prevKey = emotionXfade.targetKey;
+          prevWeightAtStart = emotionXfade.curTargetW;
+        } else {
+          // 같은 키 → prev 페이드는 그대로 이어가고 target weight/duration만 갱신.
+          prevKey = emotionXfade.prevKey;
+          prevWeightAtStart = emotionXfade.curPrevW;
+        }
+      }
+
+      const startTargetW =
+        emotionXfade && emotionXfade.targetKey === resolved.vrm_expression
+          ? emotionXfade.curTargetW
+          : 0;
+
+      emotionXfade = {
+        prevKey,
+        prevWeightAtStart,
+        targetKey: resolved.vrm_expression,
+        targetWeight: resolved.intensity,
+        startTargetW,
+        startMs: now,
+        durationMs: resolved.transition_ms,
+        curPrevW: prevWeightAtStart,
+        curTargetW: startTargetW,
+      };
+    } catch (err) {
+      console.error("[YUI] setEmotion error:", err);
+    }
+  }
+
+  function setEmotionRegistry(registry: EmotionRegistry): void {
+    emotionRegistry = registry;
+    // 현재 VRM 기준 존재 술어 재계산 + resolver 재생성.
+    recomputeHasExpression();
+  }
+
   return {
     loadVRM,
     onTick(fn) {
@@ -339,11 +509,10 @@ export function createRenderer(options: RendererOptions): Renderer {
     applyDirective(_env) {
       /* TODO(#16) */
     },
-    setEmotion(_emotion) {
-      /* TODO(#6) */
-    },
+    setEmotion,
     playMotion,
     setMotionRegistry,
+    setEmotionRegistry,
     dispose() {
       cancelAnimationFrame(rafId);
       ro.disconnect();
