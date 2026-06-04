@@ -202,11 +202,14 @@ describe("initDrag", () => {
   beforeEach(async () => {
     el = new EventTarget();
     mockInvoke.mockResolvedValue(undefined);
+    // Simulate the Tauri runtime so initDrag takes the full (non-guarded) path.
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
     cleanup = await initDrag(el);
   });
 
   afterEach(() => {
     cleanup();
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
     vi.clearAllMocks();
   });
 
@@ -246,5 +249,24 @@ describe("initDrag", () => {
     el.dispatchEvent(ev);
     await Promise.resolve();
     expect(stubFired).toBe(true);
+  });
+
+  it("non-Tauri (browser): no-op, never calls getCurrentWindow/invoke, returns cleanup", async () => {
+    // Regression: getCurrentWindow() throws in a plain browser; an unguarded
+    // initDrag crashed bootstrap before renderer/dispatcher init (Vite = PRD G7
+    // screenshot-verification surface). The guard must skip gracefully.
+    cleanup(); // tear down the Tauri-path instance from beforeEach
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.clearAllMocks();
+
+    const browserEl = new EventTarget();
+    const noop = await initDrag(browserEl); // must NOT throw
+    const ev = new Event("pointerdown") as Event & { buttons: number };
+    (ev as { buttons: number }).buttons = 1;
+    browserEl.dispatchEvent(ev);
+    await Promise.resolve();
+    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(typeof noop).toBe("function");
+    noop(); // cleanup must be safe to call
   });
 });

@@ -132,6 +132,15 @@ export function clampToWorkArea(
  * @returns A cleanup function. Call it when the surface is torn down.
  */
 export async function initDrag(el: EventTarget): Promise<() => void> {
+  // Tauri-only: getCurrentWindow() / onScaleChanged / invoke() require the Tauri
+  // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface,
+  // PRD G7) there is no window IPC, and getCurrentWindow() throws. Skip gracefully
+  // so bootstrap (renderer + dispatcher) still runs. Drag is a no-op in the browser.
+  if (!(globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+    console.debug("[YUI/drag] non-Tauri environment — drag disabled (no-op).");
+    return () => {};
+  }
+
   const win = getCurrentWindow();
 
   // ── scale-change listener (DPI seam for M2+) ──────────────────────────────
