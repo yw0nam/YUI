@@ -19,10 +19,7 @@ import { createRenderer } from "./renderer";
 import { createTier1Engine } from "./ambient/tier1";
 import { createSurfaces } from "./ui/surfaces";
 import { createMockDriver } from "./ui/mock";
-
-interface AvatarConfig {
-  vrm_url: string;
-}
+import { createConfigStore } from "./config";
 
 /** 입력 소환 핫키 (window-focus 한정 — 전역 단축키는 후속 tauri-plugin-global-shortcut). */
 const SUMMON_KEY = "/";
@@ -87,12 +84,33 @@ async function bootstrap(): Promise<void> {
     });
   }
 
-  // config-driven VRM 경로 (#4). 전체 config 로더 + 핫리로드는 #8.
+  // config-driven 로드 (#22, F8): configs/*.json → 검증된 AppConfig. endpoints/motions 등은
+  // dispatcher(#21)·tts(#14) 배선 시 소비. 지금은 avatar.vrm_url로 VRM을 띄운다.
+  const config = createConfigStore();
   try {
-    const cfg = (await fetch("/configs/avatar.json").then((r) => r.json())) as AvatarConfig;
-    await renderer.loadVRM(cfg.vrm_url);
+    const cfg = await config.load();
+    await renderer.loadVRM(cfg.avatar.vrm_url);
   } catch (err) {
-    console.error("[YUI] VRM load failed:", err);
+    console.error("[YUI] config load / VRM load failed:", err);
+  }
+
+  // 핫리로드: avatar.vrm_url이 바뀌면 VRM 핫스왑(renderer.loadVRM 재호출 = #4 핫스왑).
+  // loadVRM은 재진입 안전하지 않다(로드 완료 후 dispose+swap) → swap을 직렬화해 마지막
+  // "시작"이 아니라 마지막 "config"가 이기게 한다(빠른 연속 편집 레이스 방지).
+  let vrmSwap = Promise.resolve();
+  config.subscribe((cfg, changed) => {
+    if (!changed.has("avatar")) return;
+    vrmSwap = vrmSwap
+      .then(() => renderer.loadVRM(cfg.avatar.vrm_url))
+      .catch((err) => console.error("[YUI] VRM hot-swap failed:", err));
+  });
+  config.onError((err) => console.error("[YUI] config reload failed (이전 config 유지):", err));
+  // dev에서만 폴링 watcher 가동 — configs/*.json 편집 시 즉시 반영. prod는 #27에서 결정.
+  if (import.meta.env.DEV) {
+    config.start();
+    Object.assign(globalThis as Record<string, unknown>, { __yuiConfig: config });
+    // HMR로 모듈이 재실행되면 이전 store의 setInterval이 쌓인다 → dispose에서 중지.
+    import.meta.hot?.dispose(() => config.stop());
   }
 }
 
