@@ -24,9 +24,27 @@ export interface RendererOptions {
   mount: HTMLElement;
 }
 
+/** rAF 프레임마다, **vrm.update(dt) 직전에** 전달되는 컨텍스트. */
+export interface TickContext {
+  /** 현재 로드된 VRM (훅은 vrm이 있을 때만 호출됨). */
+  readonly vrm: VRM;
+  /** 직전 프레임과의 시간차(초). */
+  readonly dt: number;
+  /** 첫 프레임 이후 누적 경과 시간(초). */
+  readonly elapsed: number;
+}
+
+/** 프레임 훅. bone/expression 변경은 여기서(=vrm.update 전) 해야 spring bone에 반영된다. */
+export type TickFn = (ctx: TickContext) => void;
+
 export interface Renderer {
   /** VRM 로드 또는 핫스왑 (#4). 기존 모델이 있으면 새 모델 준비 후 dispose하고 교체. */
   loadVRM(url: string): Promise<void>;
+  /**
+   * 프레임 훅 등록 (#10 ambient 등). vrm.update(dt) **직전에** 호출되며,
+   * currentVrm이 있을 때만 발화한다. 등록 해제 함수를 반환.
+   */
+  onTick(fn: TickFn): () => void;
   /** contract.md §3 렌더 규약대로 render directive 적용. TODO(#16). */
   applyDirective(env: ControlEnvelope): void;
   /** emotion → expression 전이. TODO(#6). */
@@ -72,12 +90,28 @@ export function createRenderer(options: RendererOptions): Renderer {
   const ro = new ResizeObserver(resize);
   ro.observe(mount);
 
+  const tickHooks = new Set<TickFn>();
   const clock = new THREE.Clock();
+  let elapsed = 0;
   let rafId = 0;
   function animate(): void {
     rafId = requestAnimationFrame(animate);
     const dt = clock.getDelta();
-    currentVrm?.update(dt);
+    if (currentVrm) {
+      elapsed += dt;
+      // 훅을 먼저 — bone/expression 변경이 이번 프레임 vrm.update(spring/expression apply)에 반영되도록.
+      if (tickHooks.size > 0) {
+        const ctx: TickContext = { vrm: currentVrm, dt, elapsed };
+        for (const fn of tickHooks) {
+          try {
+            fn(ctx);
+          } catch (err) {
+            console.error("[YUI] tick hook error:", err);
+          }
+        }
+      }
+      currentVrm.update(dt);
+    }
     renderer.render(scene, camera);
   }
   animate();
@@ -108,6 +142,12 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   return {
     loadVRM,
+    onTick(fn) {
+      tickHooks.add(fn);
+      return () => {
+        tickHooks.delete(fn);
+      };
+    },
     applyDirective(_env) {
       /* TODO(#16) */
     },
