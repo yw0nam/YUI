@@ -22,6 +22,7 @@
 {
   "chat_base_url": "http://localhost:8642",    // Hermes (SSH 터널)
   "chat_endpoint": "/v1/responses",            // default. fallback: "/v1/chat/completions"
+  "chat_model":    "natsume",                  // Hermes 모델 ID (Responses `model`). config 소관(하드코딩 금지)
   "stt_base_url":  "http://localhost:5517",    // 별도 ASR 서비스 (OpenAI 호환) → /audio/transcriptions
   "tts_base_url":  "http://localhost:8092"     // 별도 TTS 서비스 (OpenAI 호환) → /audio/speech
 }

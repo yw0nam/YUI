@@ -195,10 +195,16 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   ) {
     issues.push(`chat_endpoint는 "/"로 시작하는 경로여야 함 (받음: ${JSON.stringify(chat_endpoint)})`);
   }
+  // chat_model: optional. 있으면 비어있지 않은 문자열이어야 함(PRD F8 모델 ID는 config 소관).
+  const chat_model = raw.chat_model;
+  if (chat_model !== undefined && (typeof chat_model !== "string" || chat_model.trim() === "")) {
+    issues.push(`chat_model은 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(chat_model)})`);
+  }
   assertValid(file, issues);
   return {
     chat_base_url,
     chat_endpoint: chat_endpoint as string,
+    ...(typeof chat_model === "string" ? { chat_model } : {}),
     stt_base_url,
     tts_base_url,
   };

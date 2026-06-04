@@ -214,6 +214,12 @@ export interface EndpointsConfig {
    *   `chat_base_url + chat_endpoint`로 합치지 말 것(이미 `/v1` 중복).
    */
   chat_endpoint: string;
+  /**
+   * Hermes chat 모델 ID (OpenAI Responses `model` 파라미터). 예: "natsume" (Hermes `/v1/models`).
+   * PRD F8: 모델 ID는 config 소관(하드코딩 금지). 미설정 시 streamChat은 model을 생략한다 —
+   * model을 강제하는 backend엔 4xx가 날 수 있다(prod config는 반드시 설정).
+   */
+  chat_model?: string;
   /** 별도 ASR 서비스 (OpenAI 호환) → /audio/transcriptions. */
   stt_base_url: string;
   /** 별도 TTS 서비스 (OpenAI 호환) → /audio/speech. */

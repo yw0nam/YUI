@@ -157,6 +157,9 @@ export async function* streamChat(
   try {
     stream = (await client.responses.create(
       {
+        // model: config-driven (EndpointsConfig.chat_model). Hermes Responses는 model 필수 —
+        // 미설정 시 생략(테스트 mock·model-less backend용). prod endpoints.json은 반드시 설정.
+        ...(config.chat_model ? { model: config.chat_model } : {}),
         input: request.input as any,
         previous_response_id: request.previous_response_id,
         stream: true,
