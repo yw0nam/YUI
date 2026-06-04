@@ -43,12 +43,44 @@ describe("configs/avatar.json", () => {
 describe("configs/motions.json", () => {
   const m = read("configs/motions.json");
 
-  it("registers MVP motions idle/drag/sit with vrma_path + policy", () => {
-    for (const id of ["idle", "drag", "sit"]) {
+  it("registers all five current motions: idle/drag/happy/laughing/shy_point", () => {
+    for (const id of ["idle", "drag", "happy", "laughing", "shy_point"]) {
       expect(m[id], id).toBeDefined();
-      expect(m[id].vrma_path, id).toMatch(/\.vrma$/);
-      expect(m[id].priority, id).toBeTypeOf("number");
-      expect(["replace", "queue", "ignore"], id).toContain(m[id].interrupt_policy);
+      expect(m[id].vrma_path, `${id}.vrma_path`).toMatch(/\.vrma$/);
+      expect(m[id].priority, `${id}.priority`).toBeTypeOf("number");
+      expect(["replace", "queue", "ignore"], `${id}.interrupt_policy`).toContain(
+        m[id].interrupt_policy,
+      );
     }
+  });
+
+  it("idle is ambient kind with priority 0", () => {
+    expect(m.idle.kind).toBe("ambient");
+    expect(m.idle.priority).toBe(0);
+    expect(m.idle.interrupt_policy).toBe("replace");
+  });
+
+  it("drag is reactive kind with priority 80", () => {
+    expect(m.drag.kind).toBe("reactive");
+    expect(m.drag.priority).toBe(80);
+    expect(m.drag.interrupt_policy).toBe("replace");
+  });
+
+  it("happy/laughing/shy_point are oneshot kind with priority 70 and interrupt_policy replace", () => {
+    for (const id of ["happy", "laughing", "shy_point"]) {
+      expect(m[id].kind, `${id}.kind`).toBe("oneshot");
+      expect(m[id].priority, `${id}.priority`).toBe(70);
+      expect(m[id].interrupt_policy, `${id}.interrupt_policy`).toBe("replace");
+    }
+  });
+
+  it("idle has 5 variants and variant_policy 'random'", () => {
+    expect(Array.isArray(m.idle.variants)).toBe(true);
+    expect(m.idle.variants).toHaveLength(5);
+    expect(m.idle.variant_policy).toBe("random");
+  });
+
+  it("sit is ABSENT from the registry", () => {
+    expect(m.sit).toBeUndefined();
   });
 });
