@@ -50,45 +50,91 @@ pub struct MonitorInfo {
 
 // ─── Tauri commands ──────────────────────────────────────────────────────────
 
-/// Start OS-native window drag.  TODO(feat): implement.
+/// Start OS-native window drag.
+///
+/// Called from the webview on `pointerdown` inside the drag region. Uses
+/// `WebviewWindow::start_dragging` which delegates to the OS window manager —
+/// no manual position tracking needed.
+///
+/// Returns `Ok(())` on success; the window follows the pointer until the
+/// primary mouse button is released, then stays at the new position.
 #[command]
 pub fn drag_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
-    todo!("implement drag_window: window.start_dragging()")
+    window.start_dragging().map_err(|e| e.to_string())
 }
 
-/// Return info for all available monitors.  TODO(feat): implement.
+/// Return info for all available monitors.
+///
+/// The webview uses this to understand the physical/logical pixel mapping on
+/// each screen so it can make correct decisions if manual repositioning is ever
+/// needed (e.g., centering on a target monitor). For the drag path itself this
+/// is informational only — the OS handles DPI-correct placement.
 #[command]
 pub fn get_monitors_info<R: Runtime>(app: AppHandle<R>) -> Result<Vec<MonitorInfo>, String> {
-    todo!("implement get_monitors_info: window.available_monitors()")
+    // Grab any window to call `available_monitors()` on it.
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    let monitors = window
+        .available_monitors()
+        .map_err(|e| e.to_string())?;
+    Ok(monitors
+        .into_iter()
+        .map(|m| MonitorInfo {
+            name: m.name().cloned(),
+            width_px: m.size().width,
+            height_px: m.size().height,
+            x_px: m.position().x,
+            y_px: m.position().y,
+            scale_factor: m.scale_factor(),
+        })
+        .collect())
 }
 
-// ─── Pure DPI math helpers — TODO(feat): implement ──────────────────────────
+// ─── Pure DPI math helpers (no Tauri runtime dependency) ────────────────────
+//
+// These are the canonical functions for physical ↔ logical pixel conversion.
+// All callers (Rust or TS via IPC) should use these semantics so that the
+// formula is tested in one place.
 
 /// Convert a physical-pixel coordinate to a logical pixel coordinate.
-/// Returns `None` if `scale_factor` ≤ 0.
-pub fn physical_to_logical(_physical: i64, _scale_factor: f64) -> Option<f64> {
-    todo!("implement physical_to_logical")
+///
+/// `scale_factor` is the monitor's reported DPI multiplier (e.g., 2.0 for
+/// Retina displays). Returns `None` if `scale_factor` ≤ 0.
+pub fn physical_to_logical(physical: i64, scale_factor: f64) -> Option<f64> {
+    if scale_factor <= 0.0 {
+        return None;
+    }
+    Some(physical as f64 / scale_factor)
 }
 
 /// Convert a logical-pixel coordinate to a physical pixel coordinate.
+///
 /// Returns `None` if `scale_factor` ≤ 0.
-pub fn logical_to_physical(_logical: f64, _scale_factor: f64) -> Option<i64> {
-    todo!("implement logical_to_physical")
+pub fn logical_to_physical(logical: f64, scale_factor: f64) -> Option<i64> {
+    if scale_factor <= 0.0 {
+        return None;
+    }
+    Some((logical * scale_factor).round() as i64)
 }
 
-/// Clamp logical position (x, y) so that window (w × h) stays within logical work area.
-/// Returns clamped (x, y).
+/// Clamp a logical position `(x, y)` so that the window `(w × h)` stays within
+/// the monitor's logical work area `(wx, wy, ww, wh)`.
+///
+/// All arguments are in **logical pixels**. Returns the clamped `(x, y)`.
 pub fn clamp_to_work_area(
-    _x: f64,
-    _y: f64,
-    _w: f64,
-    _h: f64,
-    _work_x: f64,
-    _work_y: f64,
-    _work_w: f64,
-    _work_h: f64,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    work_x: f64,
+    work_y: f64,
+    work_w: f64,
+    work_h: f64,
 ) -> (f64, f64) {
-    todo!("implement clamp_to_work_area")
+    let clamped_x = x.max(work_x).min(work_x + work_w - w);
+    let clamped_y = y.max(work_y).min(work_y + work_h - h);
+    (clamped_x, clamped_y)
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
