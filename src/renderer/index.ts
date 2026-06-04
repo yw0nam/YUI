@@ -6,9 +6,11 @@
  *  - VRMLoaderPlugin으로 VRM 로드, VRMUtils 최적화, 투명 배경(펫 창 #7).
  *  - loadVRM 재호출 = 핫스왑 (기존 모델 deepDispose 후 교체).
  *
+ * applyDirective(#16a render-wiring): ControlEnvelope의 emotion/motion 채널을 setEmotion(#6)/
+ *   playMotion(#5)로 라우팅(contract §3). 순수 dispatch는 ./apply-directive. TTS-prefix(#16b) 미구현.
+ *
  * 미구현(별 이슈):
- *  - setEmotion(#6 emotion→expression) / playMotion(#5 VRMA) / applyDirective(#16).
- *  - Tier1 ambient blend(#10), 립싱크(#15).
+ *  - Tier1 ambient blend(#10), 립싱크(#15), applyDirective TTS-prefix half(#16b / #23 보류).
  *
  * 근거: three-vrm 3.x 공식 예제(GLTFLoader.register(VRMLoaderPlugin) → gltf.userData.vrm,
  *       VRMUtils.removeUnnecessaryVertices/combineSkeletons/combineMorphs, deepDispose).
@@ -38,6 +40,7 @@ import {
   type EmotionResolver,
   type ResolvedEmotion,
 } from "./emotion-resolver";
+import { routeDirective } from "./apply-directive";
 
 export interface RendererOptions {
   /** VRM을 렌더할 캔버스 마운트 대상. */
@@ -75,7 +78,12 @@ export interface Renderer {
    * currentVrm이 있을 때만 발화한다. 등록 해제 함수를 반환.
    */
   onTick(fn: TickFn): () => void;
-  /** contract.md §3 렌더 규약대로 render directive 적용. TODO(#16). */
+  /**
+   * contract.md §3 렌더 규약대로 render directive 적용 (#16a render-wiring half).
+   * emotion → setEmotion(#6) (present만, 없으면 hold/no-op), motion → playMotion(#5)
+   * (없거나 null이면 idle 복귀). 순수 라우팅은 ./apply-directive routeDirective가 담당.
+   * TTS-prefix half(#16b / D-EMOTION-DUAL)는 미구현(#23 보류).
+   */
   applyDirective(env: ControlEnvelope): void;
   /**
    * emotion → expression GPU 크로스페이드 전이 (#6).
@@ -506,8 +514,10 @@ export function createRenderer(options: RendererOptions): Renderer {
         tickHooks.delete(fn);
       };
     },
-    applyDirective(_env) {
-      /* TODO(#16) */
+    applyDirective(env) {
+      // #16a render-wiring half: route emotion/motion into setEmotion(#6)/playMotion(#5)
+      // per contract.md §3 render rules. TTS-prefix half (#16b / D-EMOTION-DUAL) deferred.
+      routeDirective(env, { setEmotion, playMotion });
     },
     setEmotion,
     playMotion,
