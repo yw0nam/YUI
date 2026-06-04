@@ -20,6 +20,7 @@ import { createTier1Engine } from "./ambient/tier1";
 import { createSurfaces } from "./ui/surfaces";
 import { createMockDriver } from "./ui/mock";
 import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET } from "./config";
+import { initDrag } from "./drag";
 
 /** 입력 소환 핫키 (window-focus 한정 — 전역 단축키는 후속 tauri-plugin-global-shortcut). */
 const SUMMON_KEY = "/";
@@ -32,13 +33,24 @@ async function bootstrap(): Promise<void> {
 
   // 루트(포지셔닝 컨텍스트) > 무대(드래그) + 오버레이(surfaces).
   // 정밀 per-region hit-test는 #8/#9. 지금은 무대 = 드래그, 오버레이 = pointer 통과(입력만 예외).
+  // Note: data-tauri-drag-region removed — drag is handled via initDrag (Issue #9)
+  // so we get the gesture-stub seam and can apply per-region filtering later (#8).
   app.innerHTML = `
     <div class="yui-root">
-      <div class="yui-stage" data-tauri-drag-region></div>
+      <div class="yui-stage"></div>
     </div>
   `;
   const root = app.querySelector<HTMLDivElement>(".yui-root")!;
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
+
+  // Drag: pointerdown on stage → OS-native drag via Tauri IPC.
+  // onScaleChanged listener installed inside for DPI-change seam (Issue #9 F2).
+  const cleanupDrag = await initDrag(stage);
+
+  // Register drag cleanup on HMR dispose in dev.
+  if (import.meta.env.DEV) {
+    import.meta.hot?.dispose(() => cleanupDrag());
+  }
 
   const renderer = createRenderer({ mount: stage });
   // Tier 1 ambient(#10): backend 독립, 항상 ON. tick은 vrm 로드 후부터 발화하므로
