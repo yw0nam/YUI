@@ -2,10 +2,9 @@
  * MotionController — pure state machine for motion scheduling / variant resolution.
  * NO three.js import. No rendering side-effects.
  *
- * This file is a STUB: all methods return placeholder values so that
- * `pnpm build` passes and type-checks succeed.  The real implementation
- * (Renderer agent) will replace the stub bodies while keeping the exported
- * surface identical.
+ * 책임: registry 조회 + variant 선택 + clamp/default 적용(resolve), interrupt
+ * 정책에 따른 play/queue/ignore 결정(request), oneshot 종료 후 복귀(finish),
+ * 단일 슬롯 queue/현재 모션 상태 보유(commit/current).
  *
  * Exported surface (contract):
  *   createMotionController(registry, opts?) → MotionController
@@ -81,39 +80,184 @@ export interface MotionController {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Factory — STUB implementation
+// 상수
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SPEED_MIN = 0.25;
+const SPEED_MAX = 2.5;
+const DEFAULT_FADE_MS = 200;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Factory
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Creates a MotionController backed by the given registry.
  *
- * STUB: all methods return placeholder values; no real logic is implemented.
- * Tests that exercise real behaviour WILL FAIL against this stub — that is
- * intentional (TDD red phase).
+ * - rng: variant 선택용(주입 시 결정론적 테스트 가능), default Math.random.
+ * - warn: 미등록 id / speed clamp 경고, default console.warn.
+ * - baselineId: request(null)/finish 복귀 대상, default "idle".
  */
 export function createMotionController(
-  _registry: MotionRegistry,
-  _opts?: MotionControllerOptions,
+  registry: MotionRegistry,
+  opts?: MotionControllerOptions,
 ): MotionController {
+  const baselineId = opts?.baselineId ?? "idle";
+  const rng = opts?.rng ?? Math.random;
+  const warn = opts?.warn ?? ((msg: string) => console.warn(msg));
+
+  /** sequential variant_policy용 per-id 커서. */
+  const seqCursors = new Map<string, number>();
+
+  /** 현재 재생 중(커밋된) 모션. */
+  let current: ResolvedMotion | null = null;
+  /** ambient/state 모션을 기록 — oneshot 종료 후 복귀 대상. */
+  let previousStable: ResolvedMotion | null = null;
+  /** 단일 슬롯 queue. */
+  let queued: ResolvedMotion | null = null;
+
+  function resolve(signal: MotionSignal): ResolvedMotion | null {
+    const entry = registry[signal.id];
+    if (!entry) {
+      warn(`[MotionController] unregistered motion id: "${signal.id}"`);
+      return null;
+    }
+
+    // variant 선택.
+    let vrma_path = entry.vrma_path;
+    const variants = entry.variants;
+    if (variants && variants.length > 0) {
+      const policy = entry.variant_policy ?? "random";
+      if (policy === "sequential") {
+        const cursor = seqCursors.get(signal.id) ?? 0;
+        vrma_path = variants[cursor]!;
+        seqCursors.set(signal.id, (cursor + 1) % variants.length);
+      } else {
+        // random (default)
+        const index = Math.min(
+          variants.length - 1,
+          Math.floor(rng() * variants.length),
+        );
+        vrma_path = variants[index]!;
+      }
+    }
+
+    // speed: signal override → clamp [0.25, 2.5], 범위 밖이면 warn 1회.
+    let speed = signal.speed ?? 1;
+    if (speed < SPEED_MIN || speed > SPEED_MAX) {
+      warn(
+        `[MotionController] speed ${speed} out of range [${SPEED_MIN}, ${SPEED_MAX}] — clamped`,
+      );
+      speed = Math.min(SPEED_MAX, Math.max(SPEED_MIN, speed));
+    }
+
+    // fade_ms: default 200, >= 0 (0 유효).
+    const fade_ms = signal.fade_ms ?? DEFAULT_FADE_MS;
+
+    return {
+      id: signal.id,
+      vrma_path,
+      loop: signal.loop ?? entry.loop,
+      speed,
+      fade_ms,
+      kind: entry.kind,
+      priority: entry.priority,
+      interrupt_policy: entry.interrupt_policy,
+    };
+  }
+
+  function request(signal: MotionSignal | null): MotionDecision {
+    // null → baseline 복귀.
+    if (signal === null) {
+      if (current && current.id === baselineId) {
+        return {
+          action: "ignore",
+          reason: `already at baseline "${baselineId}"`,
+        };
+      }
+      const baseline = resolve({ id: baselineId });
+      if (!baseline) {
+        return {
+          action: "ignore",
+          reason: `baseline "${baselineId}" not registered`,
+        };
+      }
+      return { action: "play", motion: baseline };
+    }
+
+    const incoming = resolve(signal);
+    if (!incoming) {
+      return { action: "ignore", reason: `unregistered motion "${signal.id}"` };
+    }
+
+    if (!current) {
+      return { action: "play", motion: incoming };
+    }
+
+    if (incoming.priority >= current.priority) {
+      return { action: "play", motion: incoming };
+    }
+
+    // incoming 우선순위가 더 낮음 → incoming의 interrupt_policy로 결정.
+    switch (incoming.interrupt_policy) {
+      case "replace":
+        return { action: "play", motion: incoming };
+      case "queue":
+        return { action: "queue", motion: incoming };
+      case "ignore":
+      default:
+        return {
+          action: "ignore",
+          reason: `"${incoming.id}" (p${incoming.priority}) < current "${current.id}" (p${current.priority}), policy=ignore`,
+        };
+    }
+  }
+
+  function finish(id: string): MotionDecision {
+    if (!current || id !== current.id) {
+      return {
+        action: "ignore",
+        reason: `finish("${id}") but current is "${current?.id ?? "none"}"`,
+      };
+    }
+
+    // queue가 차 있으면 drain.
+    if (queued) {
+      const next = queued;
+      queued = null;
+      return { action: "play", motion: next };
+    }
+
+    // 아니면 직전 안정 모션(ambient/state)으로, 없으면 baseline.
+    const next = previousStable ?? resolve({ id: baselineId });
+    if (!next) {
+      return {
+        action: "ignore",
+        reason: `no previousStable and baseline "${baselineId}" not registered`,
+      };
+    }
+    return { action: "play", motion: next };
+  }
+
+  function commit(decision: MotionDecision): void {
+    if (decision.action === "play") {
+      current = decision.motion;
+      if (decision.motion.kind === "ambient" || decision.motion.kind === "state") {
+        previousStable = decision.motion;
+      }
+    } else if (decision.action === "queue") {
+      queued = decision.motion;
+    }
+    // "ignore" → no-op.
+  }
+
   return {
-    resolve(_signal: MotionSignal): ResolvedMotion | null {
-      return null;
-    },
-
-    request(_signal: MotionSignal | null): MotionDecision {
-      return { action: "ignore", reason: "stub" };
-    },
-
-    finish(_id: string): MotionDecision {
-      return { action: "ignore", reason: "stub" };
-    },
-
-    commit(_decision: MotionDecision): void {
-      // stub no-op
-    },
-
-    current(): ResolvedMotion | null {
-      return null;
+    resolve,
+    request,
+    finish,
+    commit,
+    current() {
+      return current;
     },
   };
 }
