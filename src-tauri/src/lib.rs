@@ -2,6 +2,9 @@
 // 근거: docs/event-dispatcher.md §1/§3.3/§10.
 mod os_event_watcher;
 
+// Drag + multi-monitor / DPI (Issue #9, F2 M1).
+mod drag;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -15,6 +18,10 @@ pub fn run() {
       }
       Ok(())
     })
+    .invoke_handler(tauri::generate_handler![
+      drag::drag_window,
+      drag::get_monitors_info,
+    ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
