@@ -80,14 +80,30 @@ YUI/
     endpoints.json          # chat/stt/tts base url (contract.md §Endpoint)
     emotion_registry.json   # emotion id → vrm_expression + fallback (contract.md §1)
     emotion_tts_prefix.json # emotion → TTS prefix. ⚠ TBD stub — do not invent tokens (D-EMOTION-DUAL)
-    motions.json            # MVP 3 types (idle/drag/sit) registry (contract.md §2)
+    motions.json            # MVP 5-entry semantic registry: idle(×5 variants)/drag/happy/laughing/shy_point (contract.md §2, D-MOTION-VARIANTS)
+  public/
+    motions/              # VRMA motion assets (git-tracked, ~2.4MB). Vite serves at /motions/<id>.vrma.
+                          # idle_01~idle_05.vrma · drag.vrma · happy.vrma · laughing.vrma · shy_point.vrma
+  motion-preview.html     # dev motion-preview inspector (Vite separate entry, screenshot-verification surface — NOT in Tauri pet window)
   src/
+    dev/                  # dev-only tooling (not bundled in production)
+      motion-preview.ts     # motion-preview.html logic (play/crossfade controls, VRMA selector)
+      motion-preview.css    # motion-preview UI styles
     main.ts               # bootstrap (placeholder, actual assembly in M1)
     contract/             # TS types from docs/contract.md §1~§4 (source of truth = contract.md)
       types.ts              # EmotionId/EmotionSignal/MotionSignal/MotionRegistryEntry/
                             # ExpressArgs/ControlEnvelope/InputContext/ScreenSource/EndpointsConfig
       index.ts              # re-export barrel
-    renderer/index.ts     # three.js + VRM load/expression/motion + amplitude lipsync (F1)
+    renderer/
+      index.ts              # three.js + VRM load/expression/motion + amplitude lipsync (F1).
+                            # playMotion(#5) 구현됨: VRMAnimationLoaderPlugin + createVRMAnimationClip,
+                            # AnimationMixer (per VRM, vrm.update 직전), crossfade(fade_ms),
+                            # LoopOnce+clampWhenFinished (oneshot), oneshot→previous ambient 복귀,
+                            # VRM 로드 시 idle baseline 자동 재생.
+                            # 미구현: setEmotion(#6) / applyDirective(#16) / 립싱크(#15).
+      motion-controller.ts  # pure motion state machine (NO three.js). resolve/variant-pick/clamp,
+                            # request(interrupt/queue/ignore), finish(oneshot→return), commit/current.
+                            # unit-tested (tests/renderer/motion-controller.test.ts).
     io/
       chat-client.ts        # Responses API SSE parser — express + text stream (F6)
       tts-pipeline.ts       # text stream→queue→sentence-split→TTS(:8092)→ordered playback→lipsync (F4)
@@ -112,8 +128,8 @@ YUI/
   docs/                   # design source of truth (see "Key Decision Pointers" below)
 ```
 
-> All `src/` modules are currently **build-passing placeholders** (type exports + signatures + TODOs).
-> Feature implementation starts at M1+. No over-implementation.
+> Most `src/` modules are **build-passing placeholders** (type exports + signatures + TODOs) — feature implementation starts at M1+.
+> **Implemented (feat/add_motion):** `renderer/motion-controller.ts` (pure state machine, unit-tested) + `renderer/index.ts` `playMotion` (#5) GPU path (screenshot-verified via `motion-preview.html`).
 
 ## Hermes Integration Summary
 
@@ -158,7 +174,7 @@ cd src-tauri && cargo test    # Rust unit tests (os_event IPC serialization cont
 
 **Test structure:** Harness is **vitest** (TS) + **cargo test** (Rust), E2E is future **playwright** (`docs/event-dispatcher.tests.md`). TS tests are co-located at `src/**/*.test.ts` + scenarios at `tests/`. Tests that lock artifacts/contracts take priority — `configs/*.json` · `express_tool.schema.json` conformance, dispatcher TC-01~15 are queued as `it.todo` in `tests/dispatcher/scenarios.test.ts`. CI (`.github/workflows/ci.yml`) runs `pnpm test` + `cargo test` on every PR.
 
-> **Worktree verification:** a fresh `git worktree` has no `node_modules` and no gitignored VRM assets. Symlink from the main checkout (`ln -s ../YUI/node_modules node_modules`, `ln -s ../../YUI/resources/vrms resources/vrms`) and run dev on an alt port (`npm run dev -- --port {random_port}`; 1420 is held by the main checkout via `strictPort`).
+> **Worktree verification:** a fresh `git worktree` has no `node_modules` and no gitignored VRM assets. Motion VRMA assets (`public/motions/*.vrma`) are **git-tracked** — no symlink needed. Only the VRM model (`resources/vrms/carlotta.vrm`, gitignored) requires a symlink: `ln -s ../YUI/node_modules node_modules`, `ln -s ../../YUI/resources/vrms resources/vrms`. Run dev on an alt port (`npm run dev -- --port {random_port}`; 1420 is held by the main checkout via `strictPort`).
 
 ## Anti-patterns (do not do)
 

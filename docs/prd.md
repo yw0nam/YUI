@@ -58,7 +58,7 @@ VRM 모델 로드/핫스왑, VRMA 모션 재생, BlendShape/expression 제어, s
 **Acceptance:**
 - VRM 1종을 config 경로에서 로드해 화면에 표시. **config의 VRM 경로 교체 시 앱 재시작 없이 1초 내 새 모델로 핫스왑**.
 - emotion vocab(F9)의 enum 1개를 코드에서 호출하면 VRM expression이 ≤ 100ms 내 반영.
-- motion registry(F9)의 ID 1개를 호출하면 해당 VRMA가 재생, 종료 후 idle로 자동 복귀.
+- motion registry(F9)의 ID 1개를 호출하면 해당 VRMA가 재생, 종료 후 idle로 자동 복귀. **[구현됨 feat/add_motion]:** `playMotion` + `MotionController`(pure state machine) + `VRMAnimationLoaderPlugin`/`createVRMAnimationClip`/`AnimationMixer` crossfade, LoopOnce+clampWhenFinished oneshot, idle baseline 자동 재생, dev `motion-preview` 도구(screenshot-verification surface).
 - spring bone이 드래그·motion 재생 중에도 깨지지 않음.
 
 **Depends-on:** F9(emotion vocab, motion registry).
@@ -177,7 +177,7 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 
 **Acceptance:** 다음 4종이 별도 markdown/JSON schema 파일로 `docs/contract/` 아래 존재:
 1. **`emotion_vocab.md`** — backend가 쏠 수 있는 emotion enum 리스트 + **두 개의 매핑**: (a) 각 enum의 client VRM expression 매핑, (b) **emotion → TTS-prefix 매핑** (TTS text 맨 앞에 붙일 prefix 토큰/포맷 — **required지만 포맷은 TTS 구현 시 사용자에게 질문해 확정. 지금 미정, 토큰 발명 금지**. D-EMOTION-DUAL).
-2. **`motion_registry.md`** — motion ID ↔ VRMA 파일 매핑. **MVP 초기 항목: `idle`, `drag`, `sit` 3종**(확정).
+2. **`motion_registry.md`** — motion ID ↔ VRMA 파일 매핑. **MVP 항목: `idle`(×5 variants), `drag`, `happy`, `laughing`, `shy_point` 5종** (D4/D-MOTION-VARIANTS 반영. `sit` 드롭 — 에셋 없음). VRMA 에셋은 `public/motions/`에 커밋, Vite `/motions/<id>.vrma` 서빙.
 3. **`control_envelope.schema.json`** — `express` tool-call arguments = `{emotion, motion, should_speak}`의 JSON Schema. (`speech_text`는 tool 필드 아님 — 별도 텍스트 스트림. `tool_status`/`rich_content` 전송 경로 OPEN. D-TRANSPORT.)
 4. **`input_context.schema.json`** — client → backend 센서 데이터 포맷(active_app, window_title, timestamp, optional screenshot ref).
 
@@ -212,7 +212,8 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 | D1 | **립싱크 = 오디오 진폭 기반** (viseme/phoneme은 P2) | 2026-06-03 |
 | D2 | **스크린샷 정책 = UI 토글 + 소스 선택**(MVP monitor 인덱스). **ON일 때 매 대화 자동 첨부** | 2026-06-03 |
 | D3 | **단일 캐릭터** (멀티 P2) | 2026-06-03 |
-| D4 | **Motion registry MVP = `idle`, `drag`, `sit` 3종** | 2026-06-03 |
+| D4 | **Motion registry MVP = `idle`(×5 variant clips), `drag`, `happy`, `laughing`, `shy_point` 5종.** `sit`은 VRMA 에셋 없어 드롭 — 에셋 준비 시 재추가. Motion VRMA 에셋은 `public/motions/`에 git-tracked 커밋(~2.4MB), Vite가 `/motions/<id>.vrma` 서빙. VRM 모델(`resources/vrms/carlotta.vrm`, ~48MB)은 gitignore 유지 (크기 임계값). | 2026-06-03 (updated feat/add_motion) |
+| D-MOTION-VARIANTS | **idle variant pool + client-side 선택 (D-MOTION-VARIANTS).** `MotionRegistryEntry`에 optional `variants?: string[]` + `variant_policy?: "random" \| "sequential"` 추가. `idle`은 5개 VRMA clip(`idle_01`~`idle_05`)을 하나의 논리 ID로 묶어 entry마다 client가 random 선택 (`Math.floor(rng()*len)` 클램프). `variants` 없는 entry는 `vrma_path` 단일 경로 — 하위 호환. | feat/add_motion |
 | D5 | **스트리밍 ↔ 제어신호 동시성 = prototype-driven** — M1~M2에서 실제 동작 시켜 본 뒤, 다음 중 택해 본 doc 부록에 기재: (a) envelope 먼저 보내고 텍스트 stream, (b) 텍스트 stream 끝에 envelope, (c) envelope을 별도 channel/event | 2026-06-03 |
 | D6 | **스택 = Tauri + three.js + `@pixiv/three-vrm`** (AI 시각 검증 루프 목적) | 2026-06-03 |
 | D7 | **client에 brain 없음** — 모드 판단·judgment·persona 상태 일체 backend | concept v0.1 |
@@ -356,7 +357,7 @@ YUI MVP 진행에 backend 측에서 보장해야 할 사항:
 - [ ] Tier 1 ambient는 backend 끊은 채로도 1시간 freeze/glitch 0회
 - [ ] VRM/motion/proactivity 파라미터를 config 파일 수정으로 전부 바꿀 수 있음 (재시작 없이도 핫리로드 — 단, API 키는 다음 호출부터)
 - [ ] Windows + macOS 둘 다에서 F2(투명·always-on-top·hit-test·드래그·멀티모니터) 동작 확인
-- [ ] AI 시각 검증 dev tool로 주요 expression(≥ 4종) + motion(3종)에 대한 스크린샷 회귀 테스트셋 존재
+- [ ] AI 시각 검증 dev tool로 주요 expression(≥ 4종) + motion(5종: idle/drag/happy/laughing/shy_point)에 대한 스크린샷 회귀 테스트셋 존재
 - [ ] §8 dependencies가 모두 Hermes 측에서 충족됨 (특히 structured output + should_speak)
 - [ ] D5(동시성) 결정사항이 본 PRD에 기록됨
 - [ ] `docs/contract/` 4종 문서가 v1로 frozen

@@ -104,16 +104,22 @@ interface EmotionSignal {
 ## 2. Motion Registry
 
 ### 목적
-backend가 motion ID로 동작을 요청하면 client가 VRMA 파일 + 재생 옵션으로 해석. MVP 3종.
+backend가 motion ID로 동작을 요청하면 client가 VRMA 파일 + 재생 옵션으로 해석. MVP 5종.
 
 ### MVP entries
-| id     | kind     | loop | priority | interrupt_policy | 비고                       |
-|--------|----------|------|----------|------------------|----------------------------|
-| `idle` | ambient  | yes  | 0        | replace          | baseline. 항상 깔려 있음.  |
-| `drag` | reactive | yes  | 80       | replace          | 사용자 드래그 중.          |
-| `sit`  | state    | yes  | 50       | queue            | 창 가장자리 안착 시.       |
+| id           | kind     | loop | priority | interrupt_policy | 비고                                        |
+|--------------|----------|------|----------|------------------|---------------------------------------------|
+| `idle`       | ambient  | yes  | 0        | replace          | baseline. 항상 깔려 있음. 5개 variant clip. |
+| `drag`       | reactive | yes  | 80       | replace          | 사용자 드래그 중.                           |
+| `happy`      | oneshot  | no   | 70       | replace          | 기쁨 제스처.                                |
+| `laughing`   | oneshot  | no   | 70       | replace          | 웃음 제스처.                                |
+| `shy_point`  | oneshot  | no   | 70       | replace          | 부끄럼+손가락 제스처.                       |
 
-`idle`은 backend 요청 없이도 client가 깔아두는 baseline. backend가 `motion: null`을 보내면 client는 `idle`로 복귀한다.
+> **`sit` 제거:** VRMA 에셋 없음 — 에셋 준비 시 재추가. (기존 D4에서 `sit`이 MVP에 포함되어 있었으나 feat/add_motion에서 드롭됨.)
+
+`idle`은 backend 요청 없이도 client가 깔아두는 baseline. backend가 `motion: null`을 보내면 client는 `idle`로 복귀한다. `happy`/`laughing`/`shy_point`는 gesture 모션(oneshot)으로, `emotion` 채널(표정)과 **독립된** `motion` 채널로 전달된다.
+
+Motion VRMA 에셋은 **`public/motions/`에 git-tracked으로 커밋**되어 Vite가 `/motions/<id>.vrma`로 서빙한다 (~2.4MB, 크기가 작아 커밋). VRM 모델(`resources/vrms/carlotta.vrm`, ~48MB)은 gitignore 유지.
 
 ### Schema
 ```ts
@@ -128,7 +134,9 @@ interface MotionSignal {
 }
 
 interface MotionRegistryEntry {
-  vrma_path: string;
+  vrma_path: string;       // Vite-served 경로 "/motions/<id>.vrma" (public/motions/ 아래 커밋)
+  variants?: string[];     // [D-MOTION-VARIANTS] 2개 이상의 VRMA 풀. 있으면 variant_policy로 entry마다 1개 선택.
+  variant_policy?: "random" | "sequential"; // [D-MOTION-VARIANTS] default "random". variants가 없으면 무시.
   kind: MotionKind;
   loop: boolean;
   priority: number;        // 0~100, 높을수록 우선
@@ -143,7 +151,9 @@ interface MotionRegistryEntry {
 - 미등록 ID 수신 시 client는 무시 + 경고 로그.
 
 ### 확장
-새 motion = registry entry 추가 + VRMA 드롭. backend는 ID 문자열만 알면 됨.
+새 motion = registry entry 추가 + VRMA 드롭(`public/motions/`). backend는 ID 문자열만 알면 됨.
+
+**[D-MOTION-VARIANTS]** `idle`처럼 하나의 논리 ID에 여러 VRMA clip을 묶는 "variant pool"을 지원한다. `variants[]`가 있으면 client가 entry마다 `variant_policy`에 따라 1개를 골라 재생(random: `Math.floor(rng()*len)` 클램프). 없는 entry는 `vrma_path` 단일 경로 — 하위 호환.
 
 ---
 
@@ -240,9 +250,9 @@ type RichItem =
   "arguments": {
     "should_speak": true,
     "emotion": { "id": "happy", "intensity": 0.6, "transition_ms": 300 },
-    "motion":  { "id": "sit" }
+    "motion":  { "id": "happy" }
   } }
-// + 별도 텍스트 스트림 (response.output_text.delta): "여기 두 번째 모니터 위에 앉을게."
+// + 별도 텍스트 스트림 (response.output_text.delta): "잘 됐다!"
 ```
 
 ### 예시 — Tier 2 silence

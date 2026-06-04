@@ -1,23 +1,45 @@
 {
   "idle": {
-    "vrma_path": "assets/motions/idle.vrma",
+    "vrma_path": "/motions/idle_01.vrma",
+    "variants": [
+      "/motions/idle_01.vrma",
+      "/motions/idle_02.vrma",
+      "/motions/idle_03.vrma",
+      "/motions/idle_04.vrma",
+      "/motions/idle_05.vrma"
+    ],
+    "variant_policy": "random",
     "kind": "ambient",
     "loop": true,
     "priority": 0,
     "interrupt_policy": "replace"
   },
   "drag": {
-    "vrma_path": "assets/motions/drag.vrma",
+    "vrma_path": "/motions/drag.vrma",
     "kind": "reactive",
     "loop": true,
     "priority": 80,
     "interrupt_policy": "replace"
   },
-  "sit": {
-    "vrma_path": "assets/motions/sit.vrma",
-    "kind": "state",
-    "loop": true,
-    "priority": 50,
-    "interrupt_policy": "queue"
+  "happy": {
+    "vrma_path": "/motions/happy.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace"
+  },
+  "laughing": {
+    "vrma_path": "/motions/laughing.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace"
+  },
+  "shy_point": {
+    "vrma_path": "/motions/shy_point.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace"
   }
 }

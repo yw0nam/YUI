@@ -72,10 +72,17 @@ export interface MotionSignal {
 /**
  * configs/motions.json 한 항목 (contract.md §2). registry가 priority/interrupt의 진실의 원천 —
  * backend는 ID 문자열만 알면 된다.
+ *
+ * [D-MOTION-VARIANTS] variants / variant_policy는 v0 클라이언트 사이드 확장.
+ * contract.md §2 반영은 Docs 에이전트 담당.
  */
 export interface MotionRegistryEntry {
-  /** assets/motions/<id>.vrma 형태의 VRMA 파일 경로. */
+  /** VRMA 파일 경로 (Vite public → "/motions/<id>.vrma"). variants 사용 시 기본/대표 경로(=variants[0]). */
   vrma_path: string;
+  /** NEW(D-MOTION-VARIANTS): 2개 이상의 VRMA 풀. 있으면 클라이언트가 entry마다 한 개를 골라 재생(variant_policy). 없으면 vrma_path 단일 사용. */
+  variants?: string[];
+  /** NEW: variants가 있을 때 선택 정책. default "random". */
+  variant_policy?: "random" | "sequential";
   kind: MotionKind;
   loop: boolean;
   /** 0~100, 높을수록 우선. */
