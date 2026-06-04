@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from "vite";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, normalize, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // dev 정적 서빙: /vrms/* → resources/vrms/, /configs/* → configs/.
 // VRM 에셋(resources/vrms, gitignore됨)·런타임 config를 publicDir 없이 클린 URL로 노출.
@@ -34,8 +35,18 @@ function serveDir(prefix: string, dir: string): Plugin {
 
 // Tauri 규약: dev server는 고정 포트 1420 (tauri.conf.json devUrl과 일치).
 // clearScreen: false → tauri CLI 로그가 vite 로그에 가려지지 않게.
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
+
 export default defineConfig({
   clearScreen: false,
   server: { port: 1420, strictPort: true, host: "127.0.0.1" },
   plugins: [serveDir("/vrms", "resources/vrms"), serveDir("/configs", "configs")],
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, "index.html"),
+        motionPreview: resolve(__dirname, "motion-preview.html"),
+      },
+    },
+  },
 });
