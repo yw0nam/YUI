@@ -111,17 +111,19 @@ describe("streamChat — fetch injection seam (D-TAURI-FETCH)", () => {
 });
 
 describe("selectFetch — environment detection", () => {
-  it("returns undefined when __TAURI_INTERNALS__ is absent (dev/browser path)", () => {
+  it("returns undefined when __TAURI_INTERNALS__ is absent (dev/browser path)", async () => {
     // JSDOM test env has no Tauri — selectFetch should return undefined
-    const result = selectFetch();
+    const result = await selectFetch();
     expect(result).toBeUndefined();
   });
 
-  it("returns a function when __TAURI_INTERNALS__ is present (Tauri prod path)", () => {
-    // Simulate Tauri environment by setting the global marker
+  it("returns a function when __TAURI_INTERNALS__ is present (Tauri prod path)", async () => {
+    // Simulate Tauri environment by setting the global marker.
+    // @tauri-apps/plugin-http is installed; in JSDOM the dynamic import resolves
+    // to the JS module (Tauri IPC calls would fail at runtime but the module loads).
     (globalThis as any).__TAURI_INTERNALS__ = {};
     try {
-      const result = selectFetch();
+      const result = await selectFetch();
       // In Tauri env, should return a fetch-compatible function
       expect(typeof result).toBe("function");
     } finally {
