@@ -1,182 +1,168 @@
 # YUI — Agent Guide
 
-> **YUI = Hermes Agent(brain)의 embodied frontend(head).** VRM 캐릭터 렌더링 + 데스크톱 펫 행동 +
-> I/O 표면만 담당한다. 두뇌(MCP·tool calling·search·long-term memory·agent loop·proactivity *judgment*)는
-> **백엔드(Hermes)에 위임**한다. 이 파일이 정본 가이드다. 코드를 만지기 전에 읽어라.
+> **YUI = embodied frontend (head) for Hermes Agent (brain).** Responsible only for VRM character rendering + desktop-pet behavior + I/O surfaces. The brain (MCP · tool calling · search · long-term memory · agent loop · proactivity *judgment*) is **delegated to the backend (Hermes)**. This file is the canonical guide. Read it before touching any code.
 
-## 작업 규칙 (사용자 지시, 필수)
+## Work Rules (user directive, mandatory)
 
-- **Worktree → PR.** 모든 작업은 git worktree로 분리해 진행한 뒤 PR로 올린다. `main`에 직접 커밋·푸시 금지 — 문서/규칙 같은 경량 변경을 사용자가 명시적으로 "메인에 직접"이라고 지시한 경우만 예외.
-- **GitHub 트래커는 영어로.** 이슈·이슈 코멘트·PR 제목/본문은 영어로 쓴다 (OSS 공개 대비). 사용자와의 채팅과 이 한국어 문서는 그대로 한국어 OK.
-- **UI는 mock HTML 먼저.** 새 UI는 아래 [Design Context](#design-context)의 mock-HTML 승인 게이트를 따른다.
-- **TDD 필수 + 단계별 커밋 필수.** TDD 3단계마다 커밋을 따로 찍는다. 전체 구현을 묶어서 커밋 하나로 올리지 말 것.
-  1. **`test: ...`** — 실패하는 테스트 작성 (`it.todo` → 실제 assertion, `pnpm test` 가 red 상태)
-  2. **`feat: ...`** — 테스트를 통과하는 최소 구현 (`pnpm test` 가 green)
-  3. **`refactor: ...`** — 동작 변경 없이 정리 (green 유지, 필요할 때만)
-  `pnpm test` / `cargo test` 가 PR 게이트 — 새 기능에 테스트 없으면 merge 불가.
-- **Sub-agent 기반 개발.** 구현 작업은 아래 [Sub-agent 목록](#sub-agent-목록)의 전문 에이전트에게 위임한다. 사용자와 대화하는 **메인 에이전트는 구현하지 않는다** — 요구사항 파악·작업 위임·산출물 통합·검증·오케스트레이션에만 집중한다.
+- **Worktree → PR.** All work must be done in a git worktree and submitted via PR. Direct commits/pushes to `main` are prohibited — exception only when the user explicitly says "directly to main" for lightweight changes like docs/rules.
+- **GitHub tracker in English.** Issues, issue comments, and PR titles/bodies must be written in English (in preparation for OSS release). Chat with the user is OK in any language.
+- **UI: mock HTML first.** New UI follows the mock-HTML approval gate in [Design Context](#design-context) below.
+- **TDD mandatory + per-phase commits mandatory.** Create a separate commit for each of the 3 TDD phases. Do not bundle the entire implementation into a single commit.
+  1. **`test: ...`** — Write failing tests (`it.todo` → real assertions, `pnpm test` is red)
+  2. **`feat: ...`** — Implementation that passes the tests. **Splitting `feat` into multiple commits is strongly recommended** — commit for each logically independent unit (one function, one branch, etc.), keeping `pnpm test` green at every checkpoint.
+  3. **`refactor: ...`** — Clean up without changing behavior (keep green, only when needed)
+  `pnpm test` / `cargo test` are PR gates — new features without tests cannot be merged.
+- **Sub-agent-based development.** Implementation work is delegated to specialist agents listed in [Sub-agent Roster](#sub-agent-roster) below. **The main agent (talking with the user) does not implement** — it focuses exclusively on requirements clarification, task delegation, output integration, verification, and orchestration.
 
-## Sub-agent 목록
+## Sub-agent Roster
 
-메인 에이전트가 위임할 수 있는 전문 에이전트 후보군. 각 에이전트는 자신의 책임 범위 밖을 건드리지 않는다.
+Specialist agents the main agent can delegate to. Each agent must not touch anything outside its own responsibility boundary.
 
-| 에이전트 | 모델 | 이유 | 책임 범위 | 주요 산출물 |
+| Agent | Model | Rationale | Responsibility | Key Outputs |
 |---|---|---|---|---|
-| **Renderer Agent** | `opus` | 3D 렌더 파이프라인 + VRM 상태머신 — 다단계 추론 필요 | `src/renderer/` — three.js/VRM 로드, 표정·모션·립싱크 | `renderer/index.ts`, VRM 표정 테스트 |
-| **Dispatcher Agent** | `opus` | TC-01~15 상태머신 + guardrail 로직 — 가장 높은 논리 복잡도 | `src/dispatcher/` — event-bus, classify→guardrail→route, TC-01~15 | dispatcher 로직, `tests/dispatcher/scenarios.test.ts` |
-| **IO / Chat Agent** | `sonnet` | SSE 스트림 파싱 + 프로토콜 구현 — 중간 복잡도 | `src/io/chat-client.ts` — Responses API SSE 파서, `express` tool-call 캡처 | SSE 파싱 로직, 스트림 단위 테스트 |
-| **IO / Audio Agent** | `sonnet` | TTS 순서 보장·동시성 — 중간 복잡도 | `src/io/tts-pipeline.ts` + `stt-vad.ts` — TTS 큐·순서 보장, VAD→STT | 오디오 파이프라인, 순서 계약 테스트 |
-| **Tauri / Rust Agent** | `sonnet` | Rust + IPC 계약 — 언어 전문성 필요하나 범위는 한정 | `src-tauri/` — os_event_watcher, IPC 직렬화 계약, `cargo test` | Rust 유닛 테스트, IPC 이벤트 계약 |
-| **Contract / Schema Agent** | `sonnet` | 타입↔docs 동기화 판단 — 기계적이지만 일관성 검토 필요 | `src/contract/types.ts` ↔ `docs/contract.md` 동기화, `express_tool.schema.json` 검증 | 타입 일관성 테스트, JSON schema 검증 |
-| **Test Writer Agent** | `sonnet` | 무엇을 테스트할지 설계 판단 — 기계적 작성보다 판단 비중 높음 | TDD 선행 — 구현 전 `it.todo` → 실패 테스트 작성 (vitest/cargo) | `.test.ts` / `_test.rs` 파일 |
-| **UI / Mock Agent** | `sonnet` | 디자인 토큰 해석 + HTML 조합 — 창의적이나 규칙 범위 내 | mock HTML 제작, DESIGN.md 토큰 준수, impeccable 통과 | 단독 mock HTML 파일 |
-| **Config Agent** | `haiku` | JSON 로드·검증 — 규칙이 명확한 기계적 작업 | `configs/*.json` 로더, 핫리로드(`config/load.ts`), 스키마 검증 | configs 유효성 테스트 |
-| **Ambient Agent** | `haiku` | 타이머 기반 단순 애니메이션 — 추론 깊이 낮음 | `src/ambient/tier1.ts` — blink/idle sway/breath (backend 무관 자율 동작) | ambient 타이밍·상태 테스트 |
-| **Docs Agent** | `haiku` | 기존 결정의 텍스트 동기화 — 새 결정 없음, 변환 작업 | `docs/` 업데이트 — contract.md·prd.md·결정 로그 D-* 동기화 | docs 내 결정 기록 갱신 |
+| **Renderer Agent** | `opus` | 3D render pipeline + VRM state machine — requires multi-step reasoning | `src/renderer/` — three.js/VRM load, expressions · motion · lipsync | `renderer/index.ts`, VRM expression tests |
+| **Dispatcher Agent** | `opus` | TC-01~15 state machine + guardrail logic — highest logical complexity | `src/dispatcher/` — event-bus, classify→guardrail→route, TC-01~15 | dispatcher logic, `tests/dispatcher/scenarios.test.ts` |
+| **IO / Chat Agent** | `sonnet` | SSE stream parsing + protocol implementation — moderate complexity | `src/io/chat-client.ts` — Responses API SSE parser, `express` tool-call capture | SSE parsing logic, stream unit tests |
+| **IO / Audio Agent** | `sonnet` | TTS ordering guarantees · concurrency — moderate complexity | `src/io/tts-pipeline.ts` + `stt-vad.ts` — TTS queue · ordering, VAD→STT | audio pipeline, ordering contract tests |
+| **Tauri / Rust Agent** | `sonnet` | Rust + IPC contract — language expertise required, limited scope | `src-tauri/` — os_event_watcher, IPC serialization contract, `cargo test` | Rust unit tests, IPC event contract |
+| **Contract / Schema Agent** | `sonnet` | Type↔docs sync judgment — mechanical but requires consistency review | `src/contract/types.ts` ↔ `docs/contract.md` sync, `express_tool.schema.json` validation | type consistency tests, JSON schema validation |
+| **Test Writer Agent** | `sonnet` | Designing what to test — judgment-heavy, not purely mechanical writing | TDD first — write failing tests (`it.todo` → real assertions) before implementation | `.test.ts` / `_test.rs` files |
+| **UI / Mock Agent** | `sonnet` | Design token interpretation + HTML composition — creative but rule-bounded | mock HTML authoring, DESIGN.md token compliance, impeccable pass | self-contained mock HTML file |
+| **Config Agent** | `haiku` | JSON load/validation — mechanical work with clear rules | `configs/*.json` loader, hot-reload (`config/load.ts`), schema validation | configs validity tests |
+| **Ambient Agent** | `haiku` | Timer-based simple animation — low reasoning depth | `src/ambient/tier1.ts` — blink/idle sway/breath (backend-independent autonomous behavior) | ambient timing/state tests |
+| **Docs Agent** | `haiku` | Text sync of existing decisions — no new decisions, transformation work | `docs/` updates — contract.md · prd.md · decision log D-* sync | decision record updates in docs |
 
-### 메인 에이전트 역할 (사용자 ↔ sub-agent 중간)
+### Main Agent Role (user ↔ sub-agent bridge)
 
-메인 에이전트는 다음에만 집중한다:
+The main agent focuses exclusively on:
 
-1. **요구사항 파악** — 사용자 의도를 명확히 하고 작업 범위를 정의
-2. **작업 위임** — 적절한 sub-agent에게 작업을 분배 (Test Writer → 구현 Agent 순서 보장)
-3. **통합 검증** — `pnpm test` + `cargo test` + 타입체크(`pnpm build`) 통과 확인
-4. **Sanity testing** — 빌드 통과, 타입 에러 없음, 계약(contract.md) 위반 없음
-5. **오케스트레이션** — 작업 순서·의존관계 관리, PR 게이트 조율
+1. **Requirements clarification** — understand user intent and define work scope
+2. **Task delegation** — distribute work to appropriate sub-agents (ensure Test Writer → implementation Agent ordering)
+3. **Integration verification** — confirm `pnpm test` + `cargo test` + type check (`pnpm build`) pass
+4. **Sanity testing** — build passes, no type errors, no contract (contract.md) violations
+5. **Orchestration** — manage task ordering and dependencies, coordinate PR gates
 
-## 핵심 원칙: firing ≠ judgment
+## Core Principle: firing ≠ judgment
 
-client는 **언제 후보 이벤트가 생겼나(firing)** 만 책임진다. **말할지 / 무엇을 말할지(judgment)** 는
-backend 소관이다. dispatcher가 이 경계를 강제한다 — tier 2/3 event는 backend 호출로만 발화가 되고,
-backend가 `express` tool-call로 `should_speak:false`를 주면 client는 조용히 drop한다.
-→ client에 brain(모드 분기·페르소나 상태·judgment)을 두지 않는다.
+The client is responsible only for **when a candidate event occurs (firing)**. **Whether to speak / what to say (judgment)** belongs to the backend. The dispatcher enforces this boundary — tier 2/3 events fire only through a backend call, and if the backend returns `should_speak:false` via the `express` tool-call, the client silently drops it.
+→ No brain (mode branching · persona state · judgment) lives in the client.
 
 ## Design Context
 
-UI/시각 작업 전 [`PRODUCT.md`](PRODUCT.md)(전략) + [`DESIGN.md`](DESIGN.md)(시각, SEED)를 읽어라. impeccable 스킬(`/impeccable`)이 이 둘을 정본으로 쓴다.
+Before any UI/visual work, read [`PRODUCT.md`](PRODUCT.md) (strategy) + [`DESIGN.md`](DESIGN.md) (visual, SEED). The impeccable skill (`/impeccable`) uses these two as its canonical source.
 
-> **워크플로우(필수, 사용자 지시):** 새 UI를 만들 때는 ①먼저 **단독 mock HTML**(자가완결 1파일, 임시)을 만들어 사용자에게 보여주고(preview/스크린샷) 시각 승인을 받은 뒤, ②그다음에 실제 코드/아키텍처 설계에 들어간다. 브리프 텍스트만으로 곧장 `src/`에 구현하지 말 것 — mock HTML 승인이 게이트다.
+> **Workflow (mandatory, user directive):** When building new UI — ① first create a **standalone mock HTML** (self-contained single file, temporary) and show it to the user (preview/screenshot) for visual approval, then ② proceed to actual code/architecture design. Do not jump straight to `src/` implementation from a brief text description — mock HTML approval is the gate.
 
-- **Register:** `product` — 디자인이 캐릭터/기능을 *서빙*. 마케팅 표면 아님.
-- **핵심 톤:** **invisible-by-default, warm-when-present** — 평소 UI는 물러서고(캐릭터가 주인공), 꼭 필요해 나타날 때만 따뜻·characterful.
-- **5원칙:** ①캐릭터가 주인공, UI는 스태프 ②나타날 땐 따뜻하게 ③UI에서도 firing≠judgment(상태 렌더만, 발명 X) ④무엇 위에서도 읽힘(투명 창) ⑤차분·안 보챔(reduced-motion 존중).
-- **시각(DESIGN.md SEED, "The Hearthlight"):** Restrained 팔레트 + 앰버 액센트 ≤10%(10% Warmth Rule), humanist warm sans, 떠 있는 표면은 자체 scrim으로 임의 배경 위 가독(Legible-on-Anything), Float 그림자 1겹, Responsive 모션.
-- **금지:** SaaS 챗봇 위젯 / 메신저 UI / 옛날 마스코트 말풍선 / 장식용 glass / side-stripe 보더 / gradient text.
+- **Register:** `product` — design *serves* the character/functionality. Not a marketing surface.
+- **Core tone:** **invisible-by-default, warm-when-present** — UI recedes by default (character is the protagonist), appears warm and characterful only when strictly necessary.
+- **5 principles:** ① character is protagonist, UI is staff ② warm when present ③ firing≠judgment in UI too (render state only, no invention) ④ legible on anything (transparent window) ⑤ calm, non-intrusive (respect reduced-motion).
+- **Visual (DESIGN.md SEED, "The Hearthlight"):** Restrained palette + amber accent ≤10% (10% Warmth Rule), humanist warm sans, floating surfaces self-scrimmed for legibility on any background (Legible-on-Anything), single Float shadow layer, Responsive motion.
+- **Prohibited:** SaaS chatbot widget / messenger UI / retro mascot speech bubbles / decorative glass / side-stripe border / gradient text.
 
-## 스택
+## Stack
 
-| 레이어 | 기술 | 버전 |
+| Layer | Technology | Version |
 |---|---|---|
-| 셸 / OS | Tauri v2 (Rust) | tauri 2.11.x, CLI 2.11.x |
-| 빌드 / dev server | Vite | 8.x (port **1420** 고정) |
-| 언어 | TypeScript | 6.x (bundler mode, `noEmit`) |
-| 렌더 | three.js | 0.180.x |
-| VRM / 모션 | `@pixiv/three-vrm`, `@pixiv/three-vrm-animation` | 3.5.x |
-| 음성 | `@ricky0123/vad-web` (Silero+ONNX) | 0.0.x (F3에서 사용) |
+| Shell / OS | Tauri v2 (Rust) | tauri 2.11.x, CLI 2.11.x |
+| Build / dev server | Vite | 8.x (port **1420** fixed) |
+| Language | TypeScript | 6.x (bundler mode, `noEmit`) |
+| Render | three.js | 0.180.x |
+| VRM / motion | `@pixiv/three-vrm`, `@pixiv/three-vrm-animation` | 3.5.x |
+| Voice | `@ricky0123/vad-web` (Silero+ONNX) | 0.0.x (used in F3) |
 
-## 디렉터리 맵
+## Directory Map
 
 ```
 YUI/
-  index.html              # Vite 진입 (#app 마운트 → src/main.ts)
-  vite.config.ts          # Tauri 규약: port 1420, strictPort, host 127.0.0.1
-  configs/                # config-driven (하드코딩 금지). 런타임 로드 대상.
+  index.html              # Vite entry (#app mount → src/main.ts)
+  vite.config.ts          # Tauri convention: port 1420, strictPort, host 127.0.0.1
+  configs/                # config-driven (no hardcoding). Runtime-loaded.
     endpoints.json          # chat/stt/tts base url (contract.md §Endpoint)
     emotion_registry.json   # emotion id → vrm_expression + fallback (contract.md §1)
-    emotion_tts_prefix.json # emotion → TTS prefix. ⚠ TBD 스텁 — 토큰 발명 금지 (D-EMOTION-DUAL)
-    motions.json            # MVP 3종(idle/drag/sit) registry (contract.md §2)
+    emotion_tts_prefix.json # emotion → TTS prefix. ⚠ TBD stub — do not invent tokens (D-EMOTION-DUAL)
+    motions.json            # MVP 3 types (idle/drag/sit) registry (contract.md §2)
   src/
-    main.ts               # 부트스트랩 (placeholder, 실제 조립 M1)
-    contract/             # docs/contract.md §1~§4의 TS 타입 (원천=contract.md)
+    main.ts               # bootstrap (placeholder, actual assembly in M1)
+    contract/             # TS types from docs/contract.md §1~§4 (source of truth = contract.md)
       types.ts              # EmotionId/EmotionSignal/MotionSignal/MotionRegistryEntry/
                             # ExpressArgs/ControlEnvelope/InputContext/ScreenSource/EndpointsConfig
       index.ts              # re-export barrel
-    renderer/index.ts     # three.js + VRM 로드/표정/모션 + 진폭 립싱크 (F1)
+    renderer/index.ts     # three.js + VRM load/expression/motion + amplitude lipsync (F1)
     io/
-      chat-client.ts        # Responses API SSE 파서 — express + 텍스트 스트림 (F6)
-      tts-pipeline.ts       # 텍스트 스트림→큐→문장분절→TTS(:8092)→ordered playback→립싱크 (F4)
+      chat-client.ts        # Responses API SSE parser — express + text stream (F6)
+      tts-pipeline.ts       # text stream→queue→sentence-split→TTS(:8092)→ordered playback→lipsync (F4)
       stt-vad.ts            # VAD(@ricky0123/vad-web)→STT(:5517) (F3)
     dispatcher/
       event-bus.ts          # priority queue (event-dispatcher.md §4)
       dispatcher.ts         # classify → guardrail → route (event-dispatcher.md §5/§7)
       guardrails.ts         # DND / debounce / rate-limit (event-dispatcher.md §6)
-    ambient/tier1.ts      # blink / idle sway / breath (backend 독립, F5 / §8)
-    config/load.ts        # configs/*.json 로더 + 핫리로드 (F8)
+    ambient/tier1.ts      # blink / idle sway / breath (backend-independent, F5 / §8)
+    config/load.ts        # configs/*.json loader + hot-reload (F8)
     styles.css
   src-tauri/
-    tauri.conf.json       # 투명·always-on-top 펫 창. identifier com.yui.desktop.
-                          # macOSPrivateApi=true (투명 필수) → Cargo tauri feature macos-private-api 짝.
-                          # ⚠ security.csp=null (개발 편의). OSS 전 강화 TODO.
+    tauri.conf.json       # transparent · always-on-top pet window. identifier com.yui.desktop.
+                          # macOSPrivateApi=true (required for transparency) → Cargo tauri feature macos-private-api pair.
+                          # ⚠ security.csp=null (dev convenience). TODO: harden before OSS.
     Cargo.toml            # tauri features=["macos-private-api"]
     src/
       lib.rs                # run() — Tauri Builder. mod os_event_watcher.
       main.rs
-      os_event_watcher.rs   # OS API 접근 stub: active app / OS idle / fullscreen / camera →
-                            # tauri://event "os_event" emit (event-dispatcher.md §1/§3.3/§10). 실제 호출 M1.
-  docs/                   # 설계 정본 (아래 "핵심 결정 포인터")
+      os_event_watcher.rs   # OS API access stub: active app / OS idle / fullscreen / camera →
+                            # tauri://event "os_event" emit (event-dispatcher.md §1/§3.3/§10). Actual calls in M1.
+  docs/                   # design source of truth (see "Key Decision Pointers" below)
 ```
 
-> 현재 `src/` 모듈은 전부 **빌드 통과하는 placeholder**(타입 export + 시그니처 + TODO)다.
-> 기능 구현은 M1+에서. 과구현 금지.
+> All `src/` modules are currently **build-passing placeholders** (type exports + signatures + TODOs).
+> Feature implementation starts at M1+. No over-implementation.
 
-## Hermes 연동 요지
+## Hermes Integration Summary
 
-전송 계층은 전부 **OpenAI 호환 API** (concept.md §1). 세 base URL은 **서로 다른 프로세스**다 (config 교체 가능):
+All transport layers use the **OpenAI-compatible API** (concept.md §1). The three base URLs are **separate processes** (swappable via config):
 
-- **chat → Hermes `/v1/responses` (`localhost:8642`, SSH 터널).** `previous_response_id` server-side 상태 +
-  Responses 이벤트 스트리밍. fallback `/v1/chat/completions`.
-- **STT → `localhost:5517` `/audio/transcriptions`** (독립 ASR, Hermes 무관).
-- **TTS → `localhost:8092` `/audio/speech`** (독립 TTS, Hermes 무관).
+- **chat → Hermes `/v1/responses` (`localhost:8643`, SSH tunnel).** `previous_response_id` server-side state + Responses event streaming. Fallback: `/v1/chat/completions`.
+- **STT → `localhost:5517` `/audio/transcriptions`** (independent ASR, unrelated to Hermes).
+- **TTS → `localhost:8092` `/audio/speech`** (independent TTS, unrelated to Hermes).
 
-**제어신호 transport = 서버사이드 `express` tool-call** (D-TRANSPORT):
-`/v1/responses` 스트림의 `function_call` 아이템 중 **name == `express`** 의 arguments =
-`{ emotion?, motion?, should_speak? }`. **발화 텍스트는 tool-call이 아니라 별도 assistant 텍스트 스트림**
-(`response.output_text.delta`, D-SPEECH). `express`·`emotion`은 **둘 다 optional** — 없는 턴은
-motion idle + 직전 표정 유지. ⚠ function_call은 최종 `output[]`에서 빠지므로 **스트림 진행 중**
-(`...arguments.done` 시점)에 캡처해야 한다. SSE 형식 원천: `docs/openai_response_sdk/sse-event-format.md`.
+**Control signal transport = server-side `express` tool-call** (D-TRANSPORT):
+Among `function_call` items in the `/v1/responses` stream, **name == `express`** has arguments =
+`{ emotion?, motion?, should_speak? }`. **Speech text is a separate assistant text stream, not a tool-call**
+(`response.output_text.delta`, D-SPEECH). Both `express` and `emotion` are **optional** — turns without them maintain motion idle + previous expression. ⚠ `function_call` is excluded from the final `output[]`, so it must be captured **during streaming** (at `...arguments.done`). SSE format source: `docs/openai_response_sdk/sse-event-format.md`.
 
-**tool_status** 는 Hermes 네이티브 tool(web_search/terminal/browser 등)의 function_call item을
-client가 관찰해 도출한다 (express 아님). **rich_content** 는 P2 — MVP는 발화 텍스트 마크다운 인라인 렌더.
+**`tool_status`** is derived by the client observing `function_call` items from Hermes native tools (web_search/terminal/browser etc.) — not `express`. **`rich_content`** is P2 — MVP renders speech text as inline markdown.
 
-## 핵심 결정 포인터 (docs/)
+## Key Decision Pointers (docs/)
 
-- **`docs/contract.md`** — TS 타입의 **원천**. §1 Emotion / §2 Motion / §3 Control envelope /
-  §4 Input context / §Endpoint. `src/contract/types.ts`는 여기서 파생. 스키마 변경은 여기부터.
-- **`docs/prd.md`** — F1~F9 + **결정 로그 D-*** (§5): D-TRANSPORT / D-SPEECH / D-TTS-PIPELINE /
-  D-EMOTION-DUAL. 마일스톤 M0~M4 (§6).
-- **`docs/event-dispatcher.md`** — 컴포넌트 경계(§1), source 트리거(§3), event bus(§4), 라우팅(§5),
-  guardrails(§6), backend caller B1~B5(§7), tier1 ambient(§8), Rust↔Webview handoff(§10).
-- **`docs/concept.md`** — 큰 줄기 + non-goals(§5, Hermes 위임 목록).
-- **`docs/alignment-report.md`** — Phase 0 cross-check 기록 (V1~V8 검증, OI 결정).
-- **`docs/openai_response_sdk/`** — Hermes Responses SSE event 형식 (chat-client 파싱 근거).
+- **`docs/contract.md`** — **source of truth** for TS types. §1 Emotion / §2 Motion / §3 Control envelope / §4 Input context / §Endpoint. `src/contract/types.ts` is derived from here. Schema changes start here.
+- **`docs/prd.md`** — F1~F9 + **decision log D-*** (§5): D-TRANSPORT / D-SPEECH / D-TTS-PIPELINE / D-EMOTION-DUAL. Milestones M0~M4 (§6).
+- **`docs/event-dispatcher.md`** — component boundary (§1), source triggers (§3), event bus (§4), routing (§5), guardrails (§6), backend callers B1~B5 (§7), tier1 ambient (§8), Rust↔Webview handoff (§10).
+- **`docs/concept.md`** — big picture + non-goals (§5, Hermes delegation list).
+- **`docs/alignment-report.md`** — Phase 0 cross-check record (V1~V8 verification, OI decisions).
+- **`docs/openai_response_sdk/`** — Hermes Responses SSE event format (basis for chat-client parsing).
 
-## 빌드 / 실행
+## Build / Run
 
 ```bash
-pnpm install            # 의존성
-pnpm dev                # Vite dev server (port 1420) — 브라우저 단독 (셸 없음)
-pnpm tauri dev          # Tauri 앱 (투명 펫 창) — beforeDevCommand로 pnpm dev 자동 기동
-pnpm build              # tsc(타입체크) + vite build → dist/
-pnpm test               # vitest run — TS 유닛/통합 (test 파일은 production tsc에서 제외)
-pnpm test:watch         # vitest watch 모드
-pnpm tauri build        # 네이티브 번들
-pnpm tauri info         # 툴체인/버전 확인
-cd src-tauri && cargo check   # Rust 컴파일 체크
-cd src-tauri && cargo test    # Rust 유닛 (os_event IPC 직렬화 계약 등)
+pnpm install            # install dependencies
+pnpm dev                # Vite dev server (port 1420) — browser only (no shell)
+pnpm tauri dev          # Tauri app (transparent pet window) — pnpm dev auto-started via beforeDevCommand
+pnpm build              # tsc (type check) + vite build → dist/
+pnpm test               # vitest run — TS unit/integration (test files excluded from production tsc)
+pnpm test:watch         # vitest watch mode
+pnpm tauri build        # native bundle
+pnpm tauri info         # toolchain/version info
+cd src-tauri && cargo check   # Rust compile check
+cd src-tauri && cargo test    # Rust unit tests (os_event IPC serialization contract etc.)
 ```
 
-> 렌더링/UI는 `pnpm dev`로 브라우저에서 스크린샷 검증(AI 시각 루프), 네이티브 윈도우 레이어만 Tauri로 분리.
+> Rendering/UI verified via screenshot in browser with `pnpm dev` (AI visual loop); native window layer separated in Tauri.
 
-**테스트 구조:** 하네스는 **vitest**(TS) + **cargo test**(Rust), E2E는 추후 **playwright**(`docs/event-dispatcher.tests.md`). TS 테스트는 `src/**/*.test.ts` 코로케이션 + 시나리오는 `tests/`. 아티팩트/계약을 잠그는 테스트 우선 — `configs/*.json`·`express_tool.schema.json` 정합, dispatcher TC-01~15는 `tests/dispatcher/scenarios.test.ts`에 `it.todo`로 대기. CI(`.github/workflows/ci.yml`)가 PR마다 `pnpm test` + `cargo test` 실행.
+**Test structure:** Harness is **vitest** (TS) + **cargo test** (Rust), E2E is future **playwright** (`docs/event-dispatcher.tests.md`). TS tests are co-located at `src/**/*.test.ts` + scenarios at `tests/`. Tests that lock artifacts/contracts take priority — `configs/*.json` · `express_tool.schema.json` conformance, dispatcher TC-01~15 are queued as `it.todo` in `tests/dispatcher/scenarios.test.ts`. CI (`.github/workflows/ci.yml`) runs `pnpm test` + `cargo test` on every PR.
 
-## 안티패턴 (하지 말 것)
+## Anti-patterns (do not do)
 
-- **client에 brain을 두지 말 것.** judgment(말할지/내용)·페르소나 상태·모드 분기는 backend. client는 firing + 렌더만.
-- **inline 제어 태그 금지.** emotion/motion을 발화 텍스트 안에 `[happy]` 같은 inline 토큰으로 박지 않는다 —
-  스트리밍 토큰 분할로 깨진다. 제어는 `express` tool-call arguments로만.
-- **미검증 가정 금지.** "아마 이럴 것"으로 결정하지 말고 docs(contract/prd/event-dispatcher/alignment) 우선.
-  docs에 없으면 web/context7 cross-check 후 docs에 먼저 기록. (Phase 0에서 미검증 추측으로 endpoint가
-  뒤집힌 전례 있음 — alignment-report §2.)
-- **emotion_tts_prefix 토큰 발명 금지.** prefix 포맷은 TTS 구현 시 사용자에게 질문해 확정 (D-EMOTION-DUAL, 현재 TBD).
-- **하드코딩 금지.** 엔드포인트/모델/VRM 경로/모션셋은 `configs/`. OSS 단계 API 키는 OS keychain.
-- **과구현 금지.** scaffold/placeholder 단계에선 빌드 통과가 목표. 기능은 해당 마일스톤에서.
+- **No brain in the client.** Judgment (whether/what to speak) · persona state · mode branching belongs to the backend. Client is firing + render only.
+- **No inline control tags.** Do not embed emotion/motion as inline tokens like `[happy]` inside speech text — streaming token splits break them. Control goes only through `express` tool-call arguments.
+- **No unverified assumptions.** Do not make decisions with "probably this" — consult docs (contract/prd/event-dispatcher/alignment) first. If not in docs, cross-check with web/context7 then record in docs first. (Precedent: an unverified assumption in Phase 0 flipped an endpoint — alignment-report §2.)
+- **No invented emotion_tts_prefix tokens.** The prefix format must be confirmed with the user at TTS implementation time (D-EMOTION-DUAL, currently TBD).
+- **No hardcoding.** Endpoints/models/VRM paths/motion sets go in `configs/`. API keys at OSS stage go in the OS keychain.
+- **No over-implementation.** At scaffold/placeholder stage, the goal is a passing build. Features belong in their respective milestone.
