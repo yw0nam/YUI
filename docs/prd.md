@@ -226,6 +226,7 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 | D-RICH-MVP | **rich content = MVP는 발화 텍스트의 마크다운**(링크·이미지)을 chat UI가 인라인 렌더. 구조화 카드 envelope은 P2 | 2026-06-03 |
 | D-HITTEST | **per-region hit-test = `tauri-plugin-polygon` 우선, cursor-polling + `setIgnoreCursorEvents` fallback** (M1 검증) | 2026-06-03 |
 | D-AMICA | **Amica(MIT) 코드 직접 차용 허용** — 구현된 부분 베끼고 안 맞는 것만 새로 작성 | 2026-06-03 |
+| D-CHAT-SDK | **chat-client = 공식 `openai` npm SDK 어댑터** — SSE 라인 파서를 직접 구현하지 않는다. `client.responses.create({stream:true})`의 타입된 이벤트(`response.output_text.delta`/`function_call_arguments.done`/`output_item.added`/`completed`/`error`)를 우리 `ChatStreamEvent` + `ControlEnvelope`로 매핑하는 얇은 어댑터만 작성. SSE framing·청크분할·abort는 SDK가 소유. `baseURL`=Hermes, 키는 더미(추후 keychain), Tauri webview = `dangerouslyAllowBrowser:true`. ⚠ Hermes 커스텀 필드/이벤트의 SDK 통과 여부는 [#1](https://github.com/yw0nam/YUI/issues/1) E2E에서 검증 (context7 openai-node 6.42 cross-check 2026-06-04) | 2026-06-04 |
 
 추후 결정은 본 표에 append. 기존 항목은 변경하지 말고 supersede 표시.
 
