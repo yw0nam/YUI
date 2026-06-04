@@ -84,7 +84,9 @@ YUI/
   public/
     motions/              # VRMA motion assets (git-tracked, ~2.4MB). Vite serves at /motions/<id>.vrma.
                           # idle_01~idle_05.vrma · drag.vrma · happy.vrma · laughing.vrma · shy_point.vrma
-  motion-preview.html     # dev motion-preview inspector (Vite separate entry, screenshot-verification surface — NOT in Tauri pet window)
+  motion-preview.html     # dev motion-preview inspector (Vite separate entry, screenshot-verification surface — NOT in Tauri pet window).
+                          # MOTION 섹션: VRMA 선택/재생/crossfade controls. EMOTION 섹션: 10종 emotion 버튼
+                          # + intensity slider + transition_ms slider + explicit-neutral/hold-null 버튼.
   src/
     dev/                  # dev-only tooling (not bundled in production)
       motion-preview.ts     # motion-preview.html logic (play/crossfade controls, VRMA selector)
@@ -96,11 +98,20 @@ YUI/
       index.ts              # re-export barrel
     renderer/
       index.ts              # three.js + VRM load/expression/motion + amplitude lipsync (F1).
+                            # setEmotion(#6) 구현됨: EmotionResolver.resolve → per-frame crossfade
+                            # (stepEmotion, vrm.update 직전 weight lerp). setEmotion(null) = NO-OP
+                            # (hold previous). emotionRegistry 주입: RendererOptions.emotionRegistry /
+                            # setEmotionRegistry(). VRM 핫스왑마다 hasExpression 술어 + resolver 재생성.
                             # playMotion(#5) 구현됨: VRMAnimationLoaderPlugin + createVRMAnimationClip,
                             # AnimationMixer (per VRM, vrm.update 직전), crossfade(fade_ms),
                             # LoopOnce+clampWhenFinished (oneshot), oneshot→previous ambient 복귀,
                             # VRM 로드 시 idle baseline 자동 재생.
-                            # 미구현: setEmotion(#6) / applyDirective(#16) / 립싱크(#15).
+                            # 미구현: applyDirective(#16) / 립싱크(#15).
+      emotion-resolver.ts   # pure emotion state resolver (NO three.js). registry fallback 체인 탐색 +
+                            # existence-aware fallback(hasExpression 술어 주입). resolve()는 항상
+                            # non-null ResolvedEmotion — 미등록/chain 소진 시 terminal "neutral".
+                            # intensity clamp/warn, transition_ms default 250.
+                            # unit-tested (tests/renderer/emotion-resolver.test.ts).
       motion-controller.ts  # pure motion state machine (NO three.js). resolve/variant-pick/clamp,
                             # request(interrupt/queue/ignore), finish(oneshot→return), commit/current.
                             # unit-tested (tests/renderer/motion-controller.test.ts).
@@ -130,6 +141,7 @@ YUI/
 
 > Most `src/` modules are **build-passing placeholders** (type exports + signatures + TODOs) — feature implementation starts at M1+.
 > **Implemented (feat/add_motion):** `renderer/motion-controller.ts` (pure state machine, unit-tested) + `renderer/index.ts` `playMotion` (#5) GPU path (screenshot-verified via `motion-preview.html`).
+> **Implemented (feat/emotion-expression #6):** `renderer/emotion-resolver.ts` (pure, existence-aware fallback, unit-tested) + `renderer/index.ts` `setEmotion` per-frame crossfade before vrm.update, hold-on-null, dev motion-preview EMOTION section.
 
 ## Hermes Integration Summary
 
