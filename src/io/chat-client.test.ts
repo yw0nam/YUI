@@ -1,0 +1,355 @@
+/**
+ * chat-client.test.ts — openai-SDK adapter (TDD red, #13).
+ *
+ * 검증 대상: streamChat(config, request)가 공식 `openai` SDK의
+ *   client.responses.create({ stream: true }) → async-iterable of TYPED Responses events
+ * 를 우리 ChatStreamEvent / ControlEnvelope로 매핑하는지.
+ *
+ * 결정 D-CHAT-SDK(docs/prd.md): SSE framing/chunk-split/abort는 SDK 소유.
+ * → 절대 fetch/ReadableStream/raw-bytes를 mock하지 않는다. `openai` 모듈을 mock한다.
+ *
+ * 이벤트 shape 원천: openai@6.42 d.ts + docs/openai_response_sdk/sse-event-format.md.
+ */
+
+import { describe, it, expect, vi, afterEach } from "vitest";
+import type { EndpointsConfig } from "../contract";
+import { streamChat, type ChatStreamEvent, type ChatRequest } from "./chat-client";
+
+// ── openai SDK mock ──────────────────────────────────────────────────────────
+// new OpenAI(opts) → { responses: { create: createMock } }.
+const createMock = vi.fn();
+vi.mock("openai", () => ({
+  default: vi.fn(() => ({ responses: { create: createMock } })),
+}));
+
+afterEach(() => vi.clearAllMocks());
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+/** typed SDK 이벤트 배열 → async-iterable (responses.create stream 결과 모사). */
+async function* streamOf(events: any[]): AsyncGenerator<any> {
+  for (const ev of events) yield ev;
+}
+
+/** 제너레이터를 끝까지 소진해 yield된 ChatStreamEvent를 모은다. */
+async function collect(gen: AsyncGenerator<ChatStreamEvent>): Promise<ChatStreamEvent[]> {
+  const out: ChatStreamEvent[] = [];
+  for await (const ev of gen) out.push(ev);
+  return out;
+}
+
+const CONFIG: EndpointsConfig = {
+  chat_base_url: "http://localhost:8642",
+  chat_endpoint: "/v1/responses",
+  stt_base_url: "http://localhost:5517",
+  tts_base_url: "http://localhost:8092",
+};
+
+const req = (over: Partial<ChatRequest> = {}): ChatRequest => ({
+  input: [{ role: "user", content: "hi" }],
+  ...over,
+});
+
+// 이벤트 빌더(verified shapes) ──────────────────────────────────────────────────
+const textDelta = (delta: string): any => ({
+  type: "response.output_text.delta",
+  delta,
+  item_id: "msg_1",
+  output_index: 0,
+  content_index: 0,
+  sequence_number: 0,
+});
+
+const textDone = (text: string): any => ({
+  type: "response.output_text.done",
+  text,
+  item_id: "msg_1",
+  output_index: 0,
+  content_index: 0,
+});
+
+const fnAdded = (name: string, id: string, output_index: number): any => ({
+  type: "response.output_item.added",
+  output_index,
+  item: { type: "function_call", id, name, call_id: `call_${id}`, arguments: "", status: "in_progress" },
+  sequence_number: 0,
+});
+
+const fnArgsDone = (name: string, item_id: string, output_index: number, args: string): any => ({
+  type: "response.function_call_arguments.done",
+  item_id,
+  output_index,
+  name, // ← name IS present here; express는 여기서 식별된다
+  arguments: args,
+});
+
+const fnItemDone = (name: string, id: string, output_index: number, args: string): any => ({
+  type: "response.output_item.done",
+  output_index,
+  item: { type: "function_call", id, name, arguments: args, status: "completed" },
+});
+
+/** response.completed — output[]엔 message item만, function_call은 빠진다. */
+const completed = (text: string): any => ({
+  type: "response.completed",
+  response: {
+    id: "resp_1",
+    status: "completed",
+    output: [
+      {
+        type: "message",
+        id: "msg_1",
+        role: "assistant",
+        content: [{ type: "output_text", text }],
+      },
+    ],
+    metadata: { thread_id: "th_1" },
+  },
+});
+
+const EXPRESS_ARGS = '{"should_speak":true,"emotion":{"id":"happy"},"motion":{"id":"wave"}}';
+
+// ── tests ──────────────────────────────────────────────────────────────────────
+
+describe("streamChat — text streaming", () => {
+  it("maps output_text deltas → speech_delta in order, .done → speech_done, completed → envelope.speech_text", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        textDelta("안녕"),
+        textDelta("하세요"),
+        textDone("안녕하세요"),
+        completed("안녕하세요"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    const deltas = events.filter((e) => e.type === "speech_delta");
+    expect(deltas).toEqual([
+      { type: "speech_delta", text: "안녕" },
+      { type: "speech_delta", text: "하세요" },
+    ]);
+
+    const done = events.find((e) => e.type === "speech_done");
+    expect(done).toEqual({ type: "speech_done", text: "안녕하세요" });
+
+    const final = events.find((e) => e.type === "completed");
+    expect(final).toBeDefined();
+    expect(final!.type === "completed" && final!.envelope.speech_text).toBe("안녕하세요");
+  });
+});
+
+describe("streamChat — express capture", () => {
+  it("output_item.added(express) + function_call_arguments.done(express) → express event with parsed args", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAdded("express", "fc_1", 0),
+        fnArgsDone("express", "fc_1", 0, EXPRESS_ARGS),
+        completed(""),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    const express = events.find((e) => e.type === "express");
+    expect(express).toBeDefined();
+    expect(express!.type).toBe("express");
+    if (express!.type !== "express") throw new Error("narrow");
+    expect(express.args.should_speak).toBe(true);
+    expect(express.args.emotion?.id).toBe("happy");
+    expect(express.args.motion?.id).toBe("wave");
+  });
+
+  it("merges express args into the final completed envelope alongside speech_text", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        textDelta("안녕"),
+        fnAdded("express", "fc_1", 1),
+        fnArgsDone("express", "fc_1", 1, EXPRESS_ARGS),
+        textDone("안녕"),
+        completed("안녕"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const final = events.find((e) => e.type === "completed");
+    expect(final).toBeDefined();
+    if (final!.type !== "completed") throw new Error("narrow");
+    const env = final.envelope;
+    // 텍스트와 express가 둘 다 하나의 envelope으로 합쳐진다.
+    expect(env.speech_text).toBe("안녕");
+    expect(env.should_speak).toBe(true);
+    expect(env.emotion?.id).toBe("happy");
+    expect(env.motion?.id).toBe("wave");
+  });
+
+  it("captures express mid-stream even though it is ABSENT from response.completed.output[]", async () => {
+    // completed("...")의 output[]엔 message item만 있고 function_call은 없다.
+    const stream = [
+      textDelta("hi"),
+      fnAdded("express", "fc_1", 1),
+      fnArgsDone("express", "fc_1", 1, EXPRESS_ARGS),
+      textDone("hi"),
+      completed("hi"),
+    ];
+    // sanity: 최종 payload에 function_call이 정말 없음을 잠근다.
+    const compl = stream.find((e) => e.type === "response.completed") as any;
+    expect(compl.response.output.some((o: any) => o.type === "function_call")).toBe(false);
+
+    createMock.mockResolvedValue(streamOf(stream));
+    const events = await collect(streamChat(CONFIG, req()));
+
+    // 최종 output[]에 없어도 streamed 이벤트에서 캡처되어 express가 발생해야 한다.
+    expect(events.some((e) => e.type === "express")).toBe(true);
+  });
+});
+
+describe("streamChat — native tool → tool_status", () => {
+  it("web_search function_call added(in_progress) → tool_status running, done(completed) → tool_status done; never an express event", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAdded("web_search", "fc_1", 0),
+        fnItemDone("web_search", "fc_1", 0, "{}"),
+        completed(""),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const statuses = events.filter((e) => e.type === "tool_status");
+    expect(statuses.length).toBe(2);
+
+    if (statuses[0].type !== "tool_status" || statuses[1].type !== "tool_status")
+      throw new Error("narrow");
+    expect(statuses[0].status.state).toBe("running");
+    expect(statuses[0].status.tool_id).toBe("web_search");
+    expect(statuses[1].status.state).toBe("done");
+    expect(statuses[1].status.tool_id).toBe("web_search");
+
+    // web_search는 express로 새지 않는다.
+    expect(events.some((e) => e.type === "express")).toBe(false);
+  });
+
+  it("express function_call is NOT emitted as a tool_status", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAdded("express", "fc_1", 0),
+        fnArgsDone("express", "fc_1", 0, EXPRESS_ARGS),
+        completed(""),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    expect(events.some((e) => e.type === "tool_status")).toBe(false);
+    expect(events.some((e) => e.type === "express")).toBe(true);
+  });
+});
+
+describe("streamChat — express-absent turn", () => {
+  it("text-only stream → completed envelope has speech_text set, emotion/motion/should_speak undefined (no invented defaults)", async () => {
+    createMock.mockResolvedValue(
+      streamOf([textDelta("그냥 텍스트"), textDone("그냥 텍스트"), completed("그냥 텍스트")]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const final = events.find((e) => e.type === "completed");
+    expect(final).toBeDefined();
+    if (final!.type !== "completed") throw new Error("narrow");
+    const env = final.envelope;
+    expect(env.speech_text).toBe("그냥 텍스트");
+    // 파서는 idle/직전 기본값을 발명하지 않는다 — 그건 consumer의 몫.
+    expect(env.should_speak).toBeUndefined();
+    expect(env.emotion).toBeUndefined();
+    expect(env.motion).toBeUndefined();
+  });
+});
+
+describe("streamChat — error handling", () => {
+  it("error event → error ChatStreamEvent with message", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        textDelta("부분"),
+        { type: "error", code: "execution_error", message: "Unexpected error occurred." },
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const err = events.find((e) => e.type === "error");
+    expect(err).toEqual({ type: "error", message: "Unexpected error occurred." });
+  });
+
+  it("malformed express arguments → error event; generator does NOT throw and runs to completion", async () => {
+    // NOTE for implementer: express arguments가 깨진 JSON일 때 — error를 emit한다고 가정.
+    // (대안: 조용히 skip. 확정 시 이 테스트를 갱신할 것.) 핵심 보장: 제너레이터가 throw하지 않고
+    // completed까지 정상 진행한다.
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAdded("express", "fc_1", 0),
+        fnArgsDone("express", "fc_1", 0, "{not json"),
+        textDone("hi"),
+        completed("hi"),
+      ]),
+    );
+
+    let events: ChatStreamEvent[] = [];
+    await expect(async () => {
+      events = await collect(streamChat(CONFIG, req()));
+    }).not.toThrow();
+
+    expect(events.some((e) => e.type === "error")).toBe(true);
+    // 깨진 express에도 불구하고 스트림은 끝까지 진행해 completed를 낸다.
+    expect(events.some((e) => e.type === "completed")).toBe(true);
+  });
+});
+
+describe("streamChat — abort", () => {
+  it("already-aborted signal → generator terminates cleanly (no hang)", async () => {
+    const ac = new AbortController();
+    ac.abort();
+    // SDK가 aborted signal에 던질 수도 있으므로 reject로 모사.
+    createMock.mockRejectedValue(Object.assign(new Error("aborted"), { name: "AbortError" }));
+
+    // NOTE for implementer: 이미 abort된 signal에서 streamChat은 hang 없이 종료해야 한다
+    // (조용히 종료하거나 error 1회 emit). 둘 다 허용 — 핵심은 제너레이터가 끝난다는 것.
+    let events: ChatStreamEvent[] = [];
+    await expect(async () => {
+      events = await collect(streamChat(CONFIG, req({ signal: ac.signal })));
+    }).not.toThrow();
+
+    // error를 냈다면 한 번만, 아니면 0개. 어느 쪽이든 깨끗이 종료한다.
+    expect(events.filter((e) => e.type !== "error").length).toBe(0);
+  });
+
+  it("forwards request.signal into the SDK create() options", async () => {
+    // NOTE for implementer: signal wiring shape이 확정되면 강화할 것 —
+    // 현재는 create() 옵션 객체에 동일한 AbortSignal이 전달되는지만 soft하게 본다.
+    const ac = new AbortController();
+    createMock.mockResolvedValue(streamOf([completed("")]));
+
+    await collect(streamChat(CONFIG, req({ signal: ac.signal })));
+
+    expect(createMock).toHaveBeenCalledTimes(1);
+    const opts = createMock.mock.calls[0]?.[1] ?? createMock.mock.calls[0]?.[0];
+    expect(opts).toBeDefined();
+    expect((opts as any).signal).toBe(ac.signal);
+  });
+});
+
+describe("streamChat — SDK request wiring", () => {
+  it("calls responses.create with stream:true and forwards input + previous_response_id", async () => {
+    createMock.mockResolvedValue(streamOf([completed("")]));
+
+    const request = req({
+      input: [{ role: "user", content: "안녕" }],
+      previous_response_id: "resp_prev",
+    });
+    await collect(streamChat(CONFIG, request));
+
+    expect(createMock).toHaveBeenCalledTimes(1);
+    const body = createMock.mock.calls[0]?.[0];
+    expect(body).toMatchObject({
+      stream: true,
+      input: request.input,
+      previous_response_id: "resp_prev",
+    });
+  });
+});
