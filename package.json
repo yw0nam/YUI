@@ -12,7 +12,9 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",
+    "@types/jsdom": "^28.0.3",
     "@types/three": "~0.180.0",
+    "jsdom": "^29.1.1",
     "typescript": "~6.0.2",
     "vite": "^8.0.12",
     "vitest": "^4.1.8"
