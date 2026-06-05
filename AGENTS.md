@@ -9,6 +9,7 @@ Load Karpathy Guideline.
 ## Work Rules (user directive, mandatory)
 
 - **Worktree → PR.** All work must be done in a git worktree and submitted via PR. Direct commits/pushes to `main` are prohibited — exception only when the user explicitly says "directly to main" for lightweight changes like docs/rules.
+  - **New-worktree setup (mandatory).** Gitignored runtime assets do not carry into a fresh worktree, so before running/verifying the app, link them from the main checkout: symlink the VRM — `ln -sf <main>/resources/vrms/carlotta.vrm <worktree>/resources/vrms/carlotta.vrm` (Vite serves `/vrms/*` from `resources/vrms`) — and copy `.env.local` (`VITE_YUI_CHAT_KEY`). Skipping this makes the VRM 404 and chat auth absent; both stay gitignored so they never touch the PR.
 - **GitHub tracker in English.** Issues, issue comments, and PR titles/bodies must be written in English. Chat with the user is OK in any language.
 - **UI: mock HTML first.** New UI follows the mock-HTML approval gate in [Design Context](#design-context) below.
 - **TDD mandatory + per-phase commits mandatory.** Create a separate commit for each of the 3 TDD phases.
