@@ -45,6 +45,7 @@
   --yui-radius-input: 12px;
   --yui-radius-chip: 999px;
   --yui-radius-row: 10px;
+  --yui-radius-img: 10px;
 
   /* ── Motion: Responsive, ease-out 지수 곡선(quint). bounce/elastic 금지. ── */
   --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
