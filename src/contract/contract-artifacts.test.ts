@@ -13,26 +13,38 @@ const EMOTION_IDS = [
 ] as const;
 const sorted = (a: readonly string[]) => [...a].sort();
 
-describe("express tool spec (configs/express_tool.schema.json)", () => {
+describe("generate_express tool spec (configs/express_tool.schema.json)", () => {
   const spec = read("configs/express_tool.schema.json");
 
-  it("is the express function with optional, non-strict args", () => {
+  it("is the generate_express function with optional, non-strict, flat args", () => {
     expect(spec.type).toBe("function");
-    expect(spec.name).toBe("express");
-    // strict 모드는 모든 property를 required로 강제 → optional 의미(D-EXPRESS-OPTIONAL)와 충돌.
+    expect(spec.name).toBe("generate_express");
+    // strict 모드는 모든 property를 required로 강제 → optional 의미와 충돌.
     expect(spec.strict).toBe(false);
     expect(spec.parameters.additionalProperties).toBe(false);
-    expect(spec.parameters.required).toEqual([]); // express 호출 자체가 매 턴 optional
+    expect(spec.parameters.required).toEqual([]); // 모든 인자 optional
   });
 
-  it("emotion.id enum matches the §1 vocabulary exactly", () => {
-    const enumIds: string[] = spec.parameters.properties.emotion.properties.id.enum;
+  it("exposes exactly the flat 3 fields emotion_id / motion_id / emotion_text (all string)", () => {
+    const props = spec.parameters.properties;
+    expect(sorted(Object.keys(props))).toEqual(
+      sorted(["emotion_id", "motion_id", "emotion_text"]),
+    );
+    expect(props.emotion_id.type).toBe("string");
+    expect(props.motion_id.type).toBe("string");
+    expect(props.emotion_text.type).toBe("string");
+  });
+
+  it("emotion_id enum matches the §1 vocabulary exactly", () => {
+    const enumIds: string[] = spec.parameters.properties.emotion_id.enum;
     expect(sorted(enumIds)).toEqual(sorted(EMOTION_IDS));
   });
 
-  it("emotion/motion objects require only id", () => {
-    expect(spec.parameters.properties.emotion.required).toEqual(["id"]);
-    expect(spec.parameters.properties.motion.required).toEqual(["id"]);
+  it("drops nested emotion/motion objects and should_speak (flat-args refactor)", () => {
+    const props = spec.parameters.properties;
+    expect(props).not.toHaveProperty("emotion");
+    expect(props).not.toHaveProperty("motion");
+    expect(props).not.toHaveProperty("should_speak");
   });
 
   it("does not carry speech_text (D-SPEECH: 발화는 별도 텍스트 스트림)", () => {
@@ -46,9 +58,9 @@ describe("emotion vocabulary consistency across artifacts", () => {
     expect(sorted(Object.keys(reg))).toEqual(sorted(EMOTION_IDS));
   });
 
-  it("express enum and emotion_registry keys agree (drift guard)", () => {
+  it("generate_express emotion_id enum and emotion_registry keys agree (drift guard)", () => {
     const enumIds: string[] =
-      read("configs/express_tool.schema.json").parameters.properties.emotion.properties.id.enum;
+      read("configs/express_tool.schema.json").parameters.properties.emotion_id.enum;
     const regKeys = Object.keys(read("configs/emotion_registry.json"));
     expect(sorted(enumIds)).toEqual(sorted(regKeys));
   });

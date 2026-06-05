@@ -112,7 +112,9 @@ const completed = (text: string): any => ({
   },
 });
 
-const EXPRESS_ARGS = '{"should_speak":true,"emotion":{"id":"happy"},"motion":{"id":"wave"}}';
+/** generate_express FLAT args (contract.md §1/§3): emotion_id / motion_id / emotion_text. */
+const GEN_EXPRESS_FLAT =
+  '{"emotion_id":"happy","motion_id":"shy_point","emotion_text":"[whisper in small voice]"}';
 
 // ── tests ──────────────────────────────────────────────────────────────────────
 
@@ -144,12 +146,12 @@ describe("streamChat — text streaming", () => {
   });
 });
 
-describe("streamChat — express capture", () => {
-  it("output_item.added(express) + function_call_arguments.done(express) → express event with parsed args", async () => {
+describe("streamChat — generate_express capture (flat args)", () => {
+  it("output_item.added(generate_express) + function_call_arguments.done → express event with FLAT args", async () => {
     createMock.mockResolvedValue(
       streamOf([
-        fnAdded("express", "fc_1", 0),
-        fnArgsDone("express", "fc_1", 0, EXPRESS_ARGS),
+        fnAdded("generate_express", "fc_1", 0),
+        fnArgsDone("generate_express", "fc_1", 0, GEN_EXPRESS_FLAT),
         completed(""),
       ]),
     );
@@ -158,19 +160,20 @@ describe("streamChat — express capture", () => {
 
     const express = events.find((e) => e.type === "express");
     expect(express).toBeDefined();
-    expect(express!.type).toBe("express");
     if (express!.type !== "express") throw new Error("narrow");
-    expect(express.args.should_speak).toBe(true);
-    expect(express.args.emotion?.id).toBe("happy");
-    expect(express.args.motion?.id).toBe("wave");
+    // FLAT shape — no nested emotion/motion objects, no should_speak.
+    expect(express.args.emotion_id).toBe("happy");
+    expect(express.args.motion_id).toBe("shy_point");
+    expect(express.args.emotion_text).toBe("[whisper in small voice]");
+    expect((express.args as Record<string, unknown>).should_speak).toBeUndefined();
   });
 
-  it("merges express args into the final completed envelope alongside speech_text", async () => {
+  it("normalizes flat args into the completed envelope: emotion_id→emotion{id}, motion_id→motion{id}, emotion_text", async () => {
     createMock.mockResolvedValue(
       streamOf([
         textDelta("안녕"),
-        fnAdded("express", "fc_1", 1),
-        fnArgsDone("express", "fc_1", 1, EXPRESS_ARGS),
+        fnAdded("generate_express", "fc_1", 1),
+        fnArgsDone("generate_express", "fc_1", 1, GEN_EXPRESS_FLAT),
         textDone("안녕"),
         completed("안녕"),
       ]),
@@ -181,19 +184,39 @@ describe("streamChat — express capture", () => {
     expect(final).toBeDefined();
     if (final!.type !== "completed") throw new Error("narrow");
     const env = final.envelope;
-    // 텍스트와 express가 둘 다 하나의 envelope으로 합쳐진다.
+    // 텍스트와 generate_express가 하나의 정규화된 envelope으로 합쳐진다.
     expect(env.speech_text).toBe("안녕");
-    expect(env.should_speak).toBe(true);
-    expect(env.emotion?.id).toBe("happy");
-    expect(env.motion?.id).toBe("wave");
+    // Normalized to the unchanged downstream renderer seam (EmotionSignal / MotionSignal).
+    expect(env.emotion).toEqual({ id: "happy" });
+    expect(env.motion).toEqual({ id: "shy_point" });
+    expect(env.emotion_text).toBe("[whisper in small voice]");
+    // should_speak is gone (D-NO-SPEAK-GATE).
+    expect((env as Record<string, unknown>).should_speak).toBeUndefined();
   });
 
-  it("captures express mid-stream even though it is ABSENT from response.completed.output[]", async () => {
-    // completed("...")의 output[]엔 message item만 있고 function_call은 없다.
+  it("partial flat args normalize only the present fields (emotion_id only)", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAdded("generate_express", "fc_1", 0),
+        fnArgsDone("generate_express", "fc_1", 0, '{"emotion_id":"thinking"}'),
+        completed(""),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const final = events.find((e) => e.type === "completed");
+    if (final!.type !== "completed") throw new Error("narrow");
+    const env = final.envelope;
+    expect(env.emotion).toEqual({ id: "thinking" });
+    expect(env.motion).toBeUndefined();
+    expect(env.emotion_text).toBeUndefined();
+  });
+
+  it("captures generate_express mid-stream even though it is ABSENT from response.completed.output[]", async () => {
     const stream = [
       textDelta("hi"),
-      fnAdded("express", "fc_1", 1),
-      fnArgsDone("express", "fc_1", 1, EXPRESS_ARGS),
+      fnAdded("generate_express", "fc_1", 1),
+      fnArgsDone("generate_express", "fc_1", 1, GEN_EXPRESS_FLAT),
       textDone("hi"),
       completed("hi"),
     ];
@@ -204,7 +227,6 @@ describe("streamChat — express capture", () => {
     createMock.mockResolvedValue(streamOf(stream));
     const events = await collect(streamChat(CONFIG, req()));
 
-    // 최종 output[]에 없어도 streamed 이벤트에서 캡처되어 express가 발생해야 한다.
     expect(events.some((e) => e.type === "express")).toBe(true);
   });
 });
@@ -234,11 +256,11 @@ describe("streamChat — native tool → tool_status", () => {
     expect(events.some((e) => e.type === "express")).toBe(false);
   });
 
-  it("express function_call is NOT emitted as a tool_status", async () => {
+  it("generate_express function_call is NOT emitted as a tool_status", async () => {
     createMock.mockResolvedValue(
       streamOf([
-        fnAdded("express", "fc_1", 0),
-        fnArgsDone("express", "fc_1", 0, EXPRESS_ARGS),
+        fnAdded("generate_express", "fc_1", 0),
+        fnArgsDone("generate_express", "fc_1", 0, GEN_EXPRESS_FLAT),
         completed(""),
       ]),
     );
@@ -249,8 +271,8 @@ describe("streamChat — native tool → tool_status", () => {
   });
 });
 
-describe("streamChat — express-absent turn", () => {
-  it("text-only stream → completed envelope has speech_text set, emotion/motion/should_speak undefined (no invented defaults)", async () => {
+describe("streamChat — generate_express-absent turn", () => {
+  it("text-only stream → completed envelope has speech_text set, emotion/motion/emotion_text undefined (no invented defaults)", async () => {
     createMock.mockResolvedValue(
       streamOf([textDelta("그냥 텍스트"), textDone("그냥 텍스트"), completed("그냥 텍스트")]),
     );
@@ -262,9 +284,11 @@ describe("streamChat — express-absent turn", () => {
     const env = final.envelope;
     expect(env.speech_text).toBe("그냥 텍스트");
     // 파서는 idle/직전 기본값을 발명하지 않는다 — 그건 consumer의 몫.
-    expect(env.should_speak).toBeUndefined();
     expect(env.emotion).toBeUndefined();
     expect(env.motion).toBeUndefined();
+    expect(env.emotion_text).toBeUndefined();
+    // should_speak 자체가 사라졌다 (D-NO-SPEAK-GATE).
+    expect((env as Record<string, unknown>).should_speak).toBeUndefined();
   });
 });
 
@@ -282,14 +306,14 @@ describe("streamChat — error handling", () => {
     expect(err).toEqual({ type: "error", message: "Unexpected error occurred." });
   });
 
-  it("malformed express arguments → error event; generator does NOT throw and runs to completion", async () => {
-    // NOTE for implementer: express arguments가 깨진 JSON일 때 — error를 emit한다고 가정.
+  it("malformed generate_express arguments → error event; generator does NOT throw and runs to completion", async () => {
+    // NOTE for implementer: generate_express arguments가 깨진 JSON일 때 — error를 emit한다고 가정.
     // (대안: 조용히 skip. 확정 시 이 테스트를 갱신할 것.) 핵심 보장: 제너레이터가 throw하지 않고
     // completed까지 정상 진행한다.
     createMock.mockResolvedValue(
       streamOf([
-        fnAdded("express", "fc_1", 0),
-        fnArgsDone("express", "fc_1", 0, "{not json"),
+        fnAdded("generate_express", "fc_1", 0),
+        fnArgsDone("generate_express", "fc_1", 0, "{not json"),
         textDone("hi"),
         completed("hi"),
       ]),
@@ -356,6 +380,25 @@ describe("streamChat — SDK request wiring", () => {
       input: request.input,
       previous_response_id: "resp_prev",
     });
+  });
+
+  it("forwards config.chat_instructions as the Responses `instructions` field", async () => {
+    createMock.mockResolvedValue(streamOf([completed("")]));
+    const cfg: EndpointsConfig = { ...CONFIG, chat_instructions: "You are the expression engine." };
+
+    await collect(streamChat(cfg, req()));
+
+    const body = createMock.mock.calls[0]?.[0];
+    expect((body as any).instructions).toBe("You are the expression engine.");
+  });
+
+  it("omits `instructions` when chat_instructions is unset", async () => {
+    createMock.mockResolvedValue(streamOf([completed("")]));
+
+    await collect(streamChat(CONFIG, req()));
+
+    const body = createMock.mock.calls[0]?.[0];
+    expect("instructions" in (body as object)).toBe(false);
   });
 });
 
