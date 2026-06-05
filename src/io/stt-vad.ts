@@ -84,7 +84,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
     form.append("file", wav, "audio.wav");
 
     try {
-      const res = await fetch(`${config.stt_base_url}/audio/transcriptions`, {
+      const res = await fetch(`${config.stt_base_url}/v1/audio/transcriptions`, {
         method: "POST",
         body: form,
       });
