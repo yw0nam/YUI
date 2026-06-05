@@ -2,7 +2,7 @@
  * stt-vad.test.ts — STT + VAD pipeline (TDD red, #19).
  *
  * Locks:
- *  - VAD onSpeechEnd → STT fetch (POST /audio/transcriptions) → onVoiceSegment.
+ *  - VAD onSpeechEnd → STT fetch (POST /v1/audio/transcriptions) → onVoiceSegment.
  *  - silenceMs is passed through as redemptionFrames override (default 1500).
  *  - voice mode is off by default; start()/stop() control it.
  *  - dispose() tears down the VAD instance.
@@ -136,10 +136,10 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     const audio = new Float32Array([0.1, 0.2, 0.3]);
     await triggerSpeechEnd!(audio);
 
-    // Must POST to stt_base_url/audio/transcriptions
+    // Must POST to stt_base_url/v1/audio/transcriptions
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:5517/audio/transcriptions");
+    expect(url).toBe("http://localhost:5517/v1/audio/transcriptions");
     expect(init.method).toBe("POST");
     expect(init.body).toBeInstanceOf(FormData);
 
