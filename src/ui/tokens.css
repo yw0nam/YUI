@@ -24,12 +24,14 @@
      순백 아님 — 앰버 hue로 미세 틴트한 밝은 warm. */
   --yui-text: oklch(0.95 0.012 80);       /* 본문 발화 */
   --yui-text-dim: oklch(0.78 0.016 75);   /* 라벨·툴상태·부차 */
+  --yui-text-mute: oklch(0.66 0.014 72);  /* 비활성·힌트·eyebrow */
 
   /* ── Surface (Scrim) ──
      말풍선·칩 등 떠 있는 표면의 반투명 어두운 바탕. 임의 배경 위 가독의 핵심. */
   --yui-scrim: oklch(0.21 0.014 70 / 0.64);
   --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82); /* 입력 등 더 또렷해야 할 때 */
   --yui-edge: oklch(0.97 0.01 80 / 0.1);  /* 어두운 배경에서도 표면 외곽을 잡아주는 hairline */
+  --yui-edge-strong: oklch(0.97 0.01 80 / 0.16); /* hover 강조 hairline */
 
   /* ── Light-context ink (seed Warm Ink, 현재 surface엔 미사용 — 보존) ── */
   --yui-ink: oklch(0.22 0.01 70);
@@ -42,6 +44,7 @@
   --yui-radius: 14px;
   --yui-radius-input: 12px;
   --yui-radius-chip: 999px;
+  --yui-radius-row: 10px;
 
   /* ── Motion: Responsive, ease-out 지수 곡선(quint). bounce/elastic 금지. ── */
   --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);

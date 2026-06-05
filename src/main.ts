@@ -19,6 +19,10 @@ import { createRenderer } from "./renderer";
 import { createTier1Engine } from "./ambient/tier1";
 import { createSurfaces } from "./ui/surfaces";
 import { createMockDriver } from "./ui/mock";
+import { createQuickControls } from "./ui/quick-controls";
+import { createCaptureIndicator } from "./ui/capture-indicator";
+import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
+import { createBrowserScreenSourceProvider } from "./io/screen-source-provider";
 import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET } from "./config";
 import { initDrag } from "./drag";
 import { selectFetch } from "./io/chat-client";
@@ -56,7 +60,9 @@ async function bootstrap(): Promise<void> {
 
   // Register drag cleanup on HMR dispose in dev.
   if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => cleanupDrag());
+    import.meta.hot?.dispose(() => {
+      cleanupDrag();
+    });
   }
 
   const renderer = createRenderer({ mount: stage });
@@ -66,6 +72,30 @@ async function bootstrap(): Promise<void> {
   ambient.start();
   const surfaces = createSurfaces({ mount: root });
   const mock = createMockDriver(surfaces);
+
+  const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
+  const screenSourceProvider = createBrowserScreenSourceProvider();
+  const quickControls = createQuickControls({ mount: root, settings: screenshotSettings, sourceProvider: screenSourceProvider });
+  const captureIndicator = createCaptureIndicator({
+    mount: root,
+    settings: screenshotSettings,
+    onActivate: () => quickControls.open(),
+  });
+
+  function onContextMenu(e: MouseEvent): void {
+    e.preventDefault();
+    quickControls.open({ x: e.clientX, y: e.clientY });
+  }
+  stage.addEventListener("contextmenu", onContextMenu);
+
+  if (import.meta.env.DEV) {
+    import.meta.hot?.dispose(() => {
+      quickControls.dispose();
+      captureIndicator.dispose();
+      screenshotSettings.dispose();
+      stage.removeEventListener("contextmenu", onContextMenu);
+    });
+  }
 
   // ── Dispatcher spine (#21) ────────────────────────────────────────────────
   // event_bus → dispatcher → backend_caller → streamChat → Hermes → ControlEnvelope →
@@ -104,6 +134,8 @@ async function bootstrap(): Promise<void> {
       __yuiAmbient: ambient,
       __yuiSurfaces: surfaces,
       __yuiMock: mock,
+      __yuiScreenshot: screenshotSettings,
+      __yuiQuick: quickControls,
       // DEV-ONLY 트리거: E2E 루프를 콘솔에서 직접 발사한다.
       //   window.__yui_send("안녕") → user.text_submitted → dispatcher → backend_caller →
       //   streamChat → Hermes → ControlEnvelope → renderer.applyDirective + 말풍선.
