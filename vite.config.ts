@@ -39,7 +39,20 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   clearScreen: false,
-  server: { port: 1420, strictPort: true, host: "127.0.0.1" },
+  server: {
+    port: 1420,
+    strictPort: true,
+    host: "127.0.0.1",
+    // 같은 출처 /__hermes → Hermes로 프록시 (web chat CORS preflight 회피, SSE 스트리밍).
+    // :8643은 configs/endpoints.json chat_base_url과 동기 유지.
+    proxy: {
+      "/__hermes": {
+        target: "http://localhost:8643",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/__hermes/, ""),
+      },
+    },
+  },
   plugins: [serveDir("/vrms", "resources/vrms"), serveDir("/configs", "configs")],
   build: {
     rollupOptions: {
