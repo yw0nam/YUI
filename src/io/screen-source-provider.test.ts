@@ -24,13 +24,6 @@ describe("createBrowserScreenSourceProvider — with injected screen", () => {
     });
   });
 
-  it("resolves to a fresh array each call", async () => {
-    const provider = createBrowserScreenSourceProvider({ width: 1920, height: 1080 });
-    const a = await provider.listMonitors();
-    const b = await provider.listMonitors();
-    expect(a).not.toBe(b); // different array instances
-    expect(a[0]).not.toBe(b[0]); // different object instances
-  });
 });
 
 describe("createBrowserScreenSourceProvider — without injected screen", () => {

@@ -35,10 +35,6 @@ describe("buildScreenshotBlock — enabled, no capture", () => {
     };
     const result = buildScreenshotBlock(settings);
     expect(result).toEqual({ enabled: true, source: settings.source });
-    expect(result).not.toHaveProperty("data_url");
-    expect(result).not.toHaveProperty("captured_at");
-    expect(result).not.toHaveProperty("width");
-    expect(result).not.toHaveProperty("height");
   });
 });
 

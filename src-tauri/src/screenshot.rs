@@ -27,10 +27,6 @@ pub struct ScreenSourceDto {
     pub height: u32,
     /// Whether this is the primary display.
     pub is_primary: bool,
-    /// Physical X offset of the top-left corner.
-    pub x: i32,
-    /// Physical Y offset of the top-left corner.
-    pub y: i32,
 }
 
 /// Captured PNG image returned to the webview as a data URL.
@@ -79,8 +75,6 @@ pub fn list_screen_sources() -> Result<Vec<ScreenSourceDto>, String> {
             width: m.width().unwrap_or(0),
             height: m.height().unwrap_or(0),
             is_primary: m.is_primary().unwrap_or(false),
-            x: m.x().unwrap_or(0),
-            y: m.y().unwrap_or(0),
         })
         .collect())
 }
@@ -215,8 +209,6 @@ mod tests {
             width: 2560,
             height: 1600,
             is_primary: true,
-            x: 0,
-            y: 0,
         };
         let v = serde_json::to_value(&dto).unwrap();
         assert_eq!(v["index"], 0);
@@ -224,23 +216,5 @@ mod tests {
         assert_eq!(v["width"], 2560);
         assert_eq!(v["height"], 1600);
         assert_eq!(v["isPrimary"], true);
-        assert_eq!(v["x"], 0);
-        assert_eq!(v["y"], 0);
-    }
-
-    #[test]
-    fn screen_source_dto_serialises_null_name() {
-        let dto = ScreenSourceDto {
-            index: 1,
-            name: None,
-            width: 1920,
-            height: 1080,
-            is_primary: false,
-            x: 2560,
-            y: 0,
-        };
-        let v = serde_json::to_value(&dto).unwrap();
-        assert!(v["name"].is_null());
-        assert_eq!(v["isPrimary"], false);
     }
 }

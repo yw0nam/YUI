@@ -11,8 +11,7 @@ import type { AnimationClip } from "three";
 
 /** Recenter a flat [x,y,z, ...] buffer: subtract mean X and mean Z, keep Y. */
 export function recenterRootTranslation(values: ArrayLike<number>): Float32Array {
-  const out = new Float32Array(values.length);
-  for (let i = 0; i < values.length; i++) out[i] = values[i];
+  const out = new Float32Array(values);
 
   const count = Math.floor(values.length / 3);
   if (count === 0 || values.length % 3 !== 0) return out;

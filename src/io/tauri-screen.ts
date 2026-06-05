@@ -23,8 +23,6 @@ interface ScreenSourceDto {
   width: number;
   height: number;
   isPrimary: boolean;
-  x: number;
-  y: number;
 }
 
 interface CaptureDto {
@@ -42,7 +40,7 @@ type InvokeFn = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
 export function createTauriScreenSourceProvider(invoke: InvokeFn = tauriInvoke): ScreenSourceProvider {
   return {
     async listMonitors(): Promise<MonitorInfo[]> {
-      const dtos = await (invoke as InvokeFn)<ScreenSourceDto[]>("list_screen_sources");
+      const dtos = await invoke<ScreenSourceDto[]>("list_screen_sources");
       return dtos.map((dto) => ({
         index: dto.index,
         label: dto.name ?? `디스플레이 ${dto.index + 1}`,
@@ -61,7 +59,7 @@ export function createTauriScreenCapturer(maxEdge = 1280, invoke: InvokeFn = tau
     async capture(source: ScreenSource): Promise<ScreenCapture | null> {
       if (source.kind !== "monitor") return null;
       try {
-        const dto = await (invoke as InvokeFn)<CaptureDto>("capture_screen", { index: source.index, maxEdge });
+        const dto = await invoke<CaptureDto>("capture_screen", { index: source.index, maxEdge });
         return {
           data_url: dto.dataUrl,
           captured_at: new Date().toISOString(),
