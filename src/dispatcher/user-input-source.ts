@@ -1,16 +1,19 @@
 /**
- * user_input_source — 사용자 입력을 bus envelope로 정규화하는 source. (event-dispatcher.md §3.4)
+ * user_input_source — normalizes user input into bus envelopes. (event-dispatcher.md §3.4)
  *
- * MVP(#21 spine): 채팅 텍스트 제출 → `user.text_submitted` (tier2, dnd_override=true).
- * 프로덕션 chat UI(#18, mock-HTML 승인 게이트)는 별도 — 본 모듈은 텍스트를 받아 bus에 넣는
- * 얇은 producer일 뿐이다. 음성 입력(user.voice_segment_ready)은 STT 파이프라인(#3)에서 연결.
+ * Produces:
+ *  - user.text_submitted  — keyboard chat submit (tier2, dnd_override=true).
+ *  - user.voice_segment_ready — STT transcript from VAD pipeline (#19, tier2, dnd_override=true).
  */
 
 import type { EventBus, BusEnvelope } from "./event-bus";
+import type { Transcript } from "../io/stt-vad";
 
 export interface UserInputSource {
-  /** 채팅 텍스트 제출 → bus push. 빈/공백 문자열은 무시. */
+  /** Chat text submit → bus push. Empty/whitespace is ignored. */
   submit(text: string): void;
+  /** Voice transcript from STT → bus push. Empty transcript text is ignored. */
+  submitVoice(transcript: Transcript): void;
 }
 
 export function createUserInputSource(bus: EventBus): UserInputSource {
@@ -24,7 +27,20 @@ export function createUserInputSource(bus: EventBus): UserInputSource {
         ts: Date.now(),
         payload: { text: trimmed },
         hint_tier: 2,
-        dnd_override: true, // user-initiated → DND/debounce 우회 (§3.4, §6.1).
+        dnd_override: true,
+      };
+      bus.push(env);
+    },
+
+    submitVoice(transcript) {
+      if (transcript.text.trim().length === 0) return;
+      const env: BusEnvelope = {
+        source: "user_input_source",
+        event_name: "user.voice_segment_ready",
+        ts: Date.now(),
+        payload: { transcript },
+        hint_tier: 2,
+        dnd_override: true,
       };
       bus.push(env);
     },
