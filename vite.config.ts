@@ -10,6 +10,10 @@ const MIME: Record<string, string> = {
   ".vrm": "application/octet-stream",
   ".vrma": "application/octet-stream",
   ".glb": "model/gltf-binary",
+  ".onnx": "application/octet-stream",
+  ".wasm": "application/wasm",
+  ".mjs": "text/javascript",
+  ".js": "text/javascript",
   ".json": "application/json",
 };
 
@@ -53,7 +57,7 @@ export default defineConfig({
       },
     },
   },
-  plugins: [serveDir("/vrms", "resources/vrms"), serveDir("/configs", "configs")],
+  plugins: [serveDir("/vrms", "resources/vrms"), serveDir("/configs", "configs"), serveDir("/vad", "public/vad")],
   build: {
     rollupOptions: {
       input: {

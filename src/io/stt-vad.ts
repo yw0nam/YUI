@@ -14,6 +14,9 @@ import type { EndpointsConfig, InputContext } from "../contract";
 
 /** STT result — matches contract.md §4 InputContext.transcript. */
 export type Transcript = NonNullable<InputContext["transcript"]>;
+export type SttVadRuntimeState = "listening" | "asr" | "fired" | "error";
+
+const VAD_ASSET_PATH = "/vad/";
 
 export interface SttVadOptions {
   config: EndpointsConfig;
@@ -21,6 +24,8 @@ export interface SttVadOptions {
   silenceMs?: number;
   /** Called once per completed voice segment after STT succeeds. */
   onVoiceSegment: (transcript: Transcript) => void;
+  /** Reports client-side voice pipeline state for runtime UI. */
+  onState?: (state: SttVadRuntimeState, detail?: string) => void;
 }
 
 export interface SttVad {
@@ -72,13 +77,14 @@ function encodeWav(samples: Float32Array): Blob {
 }
 
 export function createSttVad(options: SttVadOptions): SttVad {
-  const { config, onVoiceSegment } = options;
+  const { config, onVoiceSegment, onState } = options;
   const silenceMs = options.silenceMs ?? 1500;
 
   let vad: Awaited<ReturnType<typeof MicVAD.new>> | null = null;
   let loading = false;
 
   async function onSpeechEnd(audio: Float32Array): Promise<void> {
+    onState?.("asr");
     const wav = encodeWav(audio);
     const form = new FormData();
     form.append("file", wav, "audio.wav");
@@ -90,12 +96,16 @@ export function createSttVad(options: SttVadOptions): SttVad {
       });
       if (!res.ok) {
         console.warn(`[stt-vad] STT request failed: HTTP ${res.status}`);
+        onState?.("error", `HTTP ${res.status}`);
         return;
       }
       const data = (await res.json()) as { text: string };
       onVoiceSegment({ text: data.text });
+      onState?.("fired");
     } catch (err) {
       console.warn("[stt-vad] STT error:", err);
+      const detail = err instanceof Error ? err.message : "STT request failed";
+      onState?.("error", detail);
     }
   }
 
@@ -106,6 +116,9 @@ export function createSttVad(options: SttVadOptions): SttVad {
       try {
         vad = await MicVAD.new({
           redemptionMs: silenceMs,
+          baseAssetPath: VAD_ASSET_PATH,
+          onnxWASMBasePath: VAD_ASSET_PATH,
+          onSpeechStart: () => onState?.("listening"),
           onSpeechEnd,
         });
         await vad.start();

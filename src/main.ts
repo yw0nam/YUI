@@ -35,6 +35,7 @@ import { createEventBus } from "./dispatcher/event-bus";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import { createUserInputSource } from "./dispatcher/user-input-source";
+import type { SttVad } from "./io/stt-vad";
 
 /** 입력 소환 핫키 (window-focus 한정 — 전역 단축키는 후속 tauri-plugin-global-shortcut). */
 const SUMMON_KEY = "/";
@@ -108,6 +109,8 @@ async function bootstrap(): Promise<void> {
       quickControls.dispose();
       captureIndicator.dispose();
       voiceInputIndicator.dispose();
+      unsubscribeVoiceInputStatus();
+      void sttVad?.dispose();
       voiceInputStatus.dispose();
       screenshotSettings.dispose();
       stage.removeEventListener("contextmenu", onContextMenu);
@@ -124,6 +127,35 @@ async function bootstrap(): Promise<void> {
       console.info("[YUI][event_bus] drop", { event_name: env.event_name, reason }),
   });
   const userInput = createUserInputSource(bus);
+  let sttVad: SttVad | null = null;
+  let voiceInputReady = false;
+  let voiceInputStartRequested = false;
+
+  async function startVoiceInput(): Promise<void> {
+    voiceInputStartRequested = true;
+    if (!voiceInputReady || !sttVad) return;
+    try {
+      await sttVad.start();
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "Voice input failed";
+      voiceInputStatus.set("error", detail);
+    }
+  }
+
+  function stopVoiceInput(): void {
+    voiceInputStartRequested = false;
+    sttVad?.stop();
+  }
+
+  const unsubscribeVoiceInputStatus = voiceInputStatus.subscribe((snapshot) => {
+    if (snapshot.state === "idle") {
+      stopVoiceInput();
+      return;
+    }
+    if (snapshot.state === "listening") {
+      void startVoiceInput();
+    }
+  });
   // dispatcher는 config 로드 후 생성되므로(backend_caller가 config.get()에 의존), dev 인스펙션
   // 핸들이 참조할 수 있게 forward holder를 둔다.
   let dispatcherRef: Dispatcher | null = null;
@@ -238,6 +270,16 @@ async function bootstrap(): Promise<void> {
 
   try {
     const cfg = await config.load();
+    const { createSttVad } = await import("./io/stt-vad");
+    sttVad = createSttVad({
+      config: cfg.endpoints,
+      onVoiceSegment: (transcript) => userInput.submitVoice(transcript),
+      onState: (state, detail) => voiceInputStatus.set(state, detail),
+    });
+    voiceInputReady = true;
+    if (voiceInputStartRequested || voiceInputStatus.get().state !== "idle") {
+      void startVoiceInput();
+    }
     // emotion/motion registry를 renderer에 주입 → setEmotion/playMotion(=applyDirective) 동작.
     renderer.setEmotionRegistry(cfg.emotionRegistry);
     renderer.setMotionRegistry(cfg.motions);
