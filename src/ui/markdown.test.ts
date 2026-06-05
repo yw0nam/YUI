@@ -70,6 +70,14 @@ describe("renderMarkdownInline", () => {
     expect(node.querySelector("a")).not.toBeNull();
   });
 
+  it("adds is-broken class when an inline image fails to load", () => {
+    const node = renderMarkdownInline("![chart](https://example.com/c.png)");
+    const img = node.querySelector("img")!;
+    expect(img.classList.contains("is-broken")).toBe(false);
+    img.dispatchEvent(new Event("error"));
+    expect(img.classList.contains("is-broken")).toBe(true);
+  });
+
   // ── plain text passthrough ─────────────────────────────────
 
   it("returns plain text unchanged when no markdown syntax present", () => {
