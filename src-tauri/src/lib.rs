@@ -4,6 +4,9 @@ mod os_event_watcher;
 // Drag + multi-monitor / DPI.
 mod drag;
 
+// Screen-source enumeration and capture (issue #20).
+mod screenshot;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -22,6 +25,8 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       drag::drag_window,
       drag::get_monitors_info,
+      screenshot::list_screen_sources,
+      screenshot::capture_screen,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
