@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { ControlEnvelope, EndpointsConfig } from "../contract";
+import type { ControlEnvelope, EndpointsConfig, InputContext } from "../contract";
 import type { ChatStreamEvent } from "../io/chat-client";
 import type { BusEnvelope } from "./event-bus";
 
@@ -134,6 +134,81 @@ describe("backend_caller — B4 judgment branch (should_speak)", () => {
     scriptedEvents = [completedEvent(env)];
     await caller.call(userEnv());
     expect(speechSink).toHaveBeenCalledWith("hi");
+  });
+});
+
+describe("backend_caller — screenshot port (#20)", () => {
+  const SCREENSHOT: NonNullable<InputContext["screenshot"]> = {
+    enabled: true,
+    source: { kind: "monitor", index: 0 },
+    data_url: "data:image/png;base64,AAA",
+  };
+
+  /** find the user message in the input passed to streamChat. */
+  function userMessageOf(input: unknown): { role: string; content: unknown } {
+    const items = input as Array<{ role: string; content: unknown }>;
+    return items.find((m) => m.role === "user")!;
+  }
+
+  it("getScreenshot block → user content is array with input_text + input_image (data_url)", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getScreenshot: async () => SCREENSHOT,
+    });
+    await caller.call(userEnv("이 화면 뭐야?"));
+    const [, request] = streamChatSpy.mock.calls[0];
+    const content = userMessageOf(request.input).content as Array<Record<string, unknown>>;
+    expect(Array.isArray(content)).toBe(true);
+    const textPart = content.find((p) => p.type === "input_text");
+    expect(textPart?.text).toBe("이 화면 뭐야?");
+    const imagePart = content.find((p) => p.type === "input_image");
+    expect(imagePart?.image_url).toBe("data:image/png;base64,AAA");
+  });
+
+  it("getScreenshot omitted → user content is a plain string (unchanged)", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv("그냥 텍스트"));
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect(userMessageOf(request.input).content).toBe("그냥 텍스트");
+  });
+
+  it("getScreenshot resolves undefined → user content is a plain string (no image part)", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getScreenshot: async () => undefined,
+    });
+    await caller.call(userEnv("이미지 없음"));
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect(userMessageOf(request.input).content).toBe("이미지 없음");
+  });
+
+  it("getScreenshot rejects → turn still proceeds without an image (reaches streamChat)", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "hi" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getScreenshot: async () => {
+        throw new Error("capture failed");
+      },
+    });
+    const res = await caller.call(userEnv("캡처 실패"));
+    expect(res.ok).toBe(true);
+    expect(streamChatSpy).toHaveBeenCalledTimes(1);
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect(userMessageOf(request.input).content).toBe("캡처 실패");
   });
 });
 
