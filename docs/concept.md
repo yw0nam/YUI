@@ -65,7 +65,7 @@ VRM 캐릭터 렌더링 + 데스크톱 펫 행동 + I/O 표면을 담당하고,
 - **Ambient animation layer (Tier 1)** — blink / idle sway / 숨쉬기 등. 항상 켜짐, **백엔드 독립**(네트워크 X).
 
 ### E. 통신 / 프로토콜 (the contract)
-- `[MVP]` OpenAI 호환 스트리밍 + **turn-bound 제어신호(emotion/motion)를 structured output**으로 (inline 텍스트 태그 X — 스트리밍 중 토큰 분할로 깨지기 쉬움)
+- `[MVP]` OpenAI 호환 스트리밍 + **turn-bound 제어신호(emotion_id/motion_id/emotion_text)를 `generate_express` tool-call로** 전송 (inline 텍스트 태그 X — 스트리밍 중 토큰 분할로 깨지기 쉬움; flat 3필드, should_speak 없음)
 - `[MVP]` **client-side event loop / dispatcher**
   - sources: timer / idle-watcher / OS-event-watcher / user-input
   - 트리거 *발사*만 담당, 판단은 위임
@@ -100,7 +100,7 @@ sources: timer / idle-watcher / OS-event-watcher / user-input / [P2] backend-SSE
 
 - **로드맵:** 초기 Tier 1·2 → 최종 Tier 3.
 - **필수 가드레일:** Tier 2/3는 **rate-limit + debounce + DND(focus 감지)**. 없으면 토큰 새고 캐릭터가 짜증남.
-- **Tier 2 silence 규약:** 백엔드가 "지금은 말 안 함"을 표현할 수 있어야 함 — **별도 플래그 없이 assistant 텍스트를 내보내지 않으면 침묵**이다(D-NO-SPEAK-GATE, contract §3). 표정만 짓고 싶으면 `express`로 emotion만 보낸다. 폭주 방지는 client-side rate-limit/debounce/DND가 안전망(firing이 client 소유).
+- **Tier 2 silence 규약:** 백엔드가 "지금은 말 안 함"을 표현할 수 있어야 함 — **별도 플래그(should_speak) 없이 assistant 텍스트를 내보내지 않으면 침묵**이다(D-NO-SPEAK-GATE, contract §3). 표정만 짓고 싶으면 `generate_express`로 `emotion_id`만 보낸다. 폭주 방지는 client-side rate-limit/debounce/DND가 안전망(firing이 client 소유).
 
 ---
 
@@ -110,7 +110,7 @@ client ↔ Hermes 사이 계약. 스키마 확정은 프로젝트 내 작업이�
 
 - **Emotion vocabulary** — 백엔드가 쏠 수 있는 emotion enum ↔ client의 VRM expression 매핑 레지스트리
 - **Motion registry** — 백엔드 motion ID ↔ client VRMA 파일 매핑 (prebuilt 모션 목록과 직결)
-- **Control signal envelope** — emotion / motion(+tool-status / rich-content)을 담는 `express` tool-call 스키마. 발화 게이트(should_speak) 없음 — 침묵=텍스트 미발신(D-NO-SPEAK-GATE)
+- **Control signal envelope** — emotion(`emotion_id`) / motion(`motion_id`) / TTS 태그(`emotion_text`)(+tool-status / rich-content)를 담는 `generate_express` tool-call 스키마. flat arguments `{ emotion_id?, motion_id?, emotion_text? }`. 발화 게이트(should_speak) 없음 — 침묵=텍스트 미발신(D-NO-SPEAK-GATE)
 - **Input context schema** — client → backend로 올리는 센서 데이터(활성 앱, 창 제목, 시간, 스크린샷) 포맷
 
 ---

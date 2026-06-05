@@ -36,8 +36,8 @@
                                           └── tier2/3 ─► backend_caller
                                                           ├ package context
                                                           ├ POST /v1/responses
-                                                          ├ parse express function_call(emotion/motion) + 텍스트 스트림
-                                                          ├ emotion/motion → renderer (항상)
+                                                          ├ parse generate_express function_call(emotion_id/motion_id/emotion_text) + 텍스트 스트림
+                                                          ├ emotion_id/motion_id/emotion_text → renderer (항상)
                                                           ├ speech_text == "" → 발화 없음(silent)
                                                           └ speech_text 있음  → TTS/말풍선
 ```
@@ -205,8 +205,8 @@
 |---|---|---|---|
 | B1 | `package_context` (screenshot 포함 시 캡처) | 200ms (+screenshot 1000ms) | `cap_failed` → drop |
 | B2 | `POST {backend_base}/v1/responses` | 15s (스트리밍: first-chunk 5s, total 30s) | `network/5xx` → retry x1 (2s backoff), 실패 시 silent drop + tier2 카운터 환불 / `4xx` → drop, 환불 X, ERROR / `timeout` → drop, 환불 X |
-| B3 | `parse_structured_output` → [`contract.md`](./contract.md) §3 `ControlEnvelope` (`{ speech_text, emotion?, motion?, tool_status?, rich_content?, _reserved? }` — should_speak 없음, D-NO-SPEAK-GATE) | 즉시 | `parse_error` → silent drop + WARN + raw 로깅 |
-| B4 | `dispatch_to_renderer` (emotion → expression / motion → VRMA(없으면 emotion에서 파생) / tool_status / rich_content) per contract §3 렌더 규약. **emotion/motion은 발화 여부와 무관하게 항상 적용** | — | renderer 에러 → ambient fallback + ERROR 로그 |
+| B3 | `parse_structured_output` → [`contract.md`](./contract.md) §3 `ControlEnvelope` (`{ speech_text, emotion?, motion?, tool_status?, rich_content?, _reserved? }` — should_speak 없음, D-NO-SPEAK-GATE). `generate_express` arguments `{ emotion_id?, motion_id?, emotion_text? }` (flat)를 envelope 필드로 정규화 | 즉시 | `parse_error` → silent drop + WARN + raw 로깅 |
+| B4 | `dispatch_to_renderer` (emotion_id → expression / motion_id → VRMA(없으면 emotion에서 파생) / emotion_text → TTS prepend / tool_status / rich_content) per contract §3 렌더 규약. **emotion/motion/emotion_text는 발화 여부와 무관하게 항상 적용** | — | renderer 에러 → ambient fallback + ERROR 로그 |
 | B5 | `speech_branch` — `speech_text == ""` → 발화 없음(silent, INFO 정상) / 비어있지 않음 → TTS + 말풍선 | — | — |
 
 ### 7.3 Silent drop 분류
@@ -332,7 +332,7 @@ spec 절을 추가/수정할 때 해당 문서의 TC ↔ § 매트릭스도 동�
 |---|---|---|---|---|
 | A1 | Rust가 OS-wide idle API 접근 가능 (macOS `CGEventSourceSecondsSinceLastEventType`, Win `GetLastInputInfo`, Linux X11 `XScreenSaverQueryInfo`) | **M1** (Shell skeleton 단계, Win/macOS 우선) | R11 | Linux Wayland 환경 idle 감지 불가 → source `error` |
 | A2 | Tauri `emit` 지연 < 50ms | **M1** | R12 | 큰 지연 시 fullscreen/idle 반응 어색 |
-| A3 | Control transport = **서버사이드 `express` tool-call**(확정, D-TRANSPORT). **검증됨:** Hermes `/v1/responses` 스트림이 `function_call` item 노출(자체 SSE 구현 `openai_response_sdk/sse-event-format.md`). arguments = `{emotion?, motion?}`(비언어 전용; should_speak 없음 D-NO-SPEAK-GATE, motion은 client가 emotion에서 파생 D-MOTION-FROM-EMOTION); 발화는 별도 텍스트 스트림(침묵=미발신). **express는 optional** — 없는 턴은 idle + 직전 표정이라 매 턴 호출·타이밍은 하드 의존 아님(R16/R17 해소). | — (해소) | R10 | function_call은 최종 `output[]`에 빠지므로 스트림 중 캡처. contract §Endpoint/§3 연결 |
+| A3 | Control transport = **서버사이드 `generate_express` tool-call**(확정, D-TRANSPORT). **검증됨:** Hermes `/v1/responses` 스트림이 `function_call` item 노출(자체 SSE 구현 `openai_response_sdk/sse-event-format.md`). flat arguments = `{ emotion_id?, motion_id?, emotion_text? }`(비언어 전용; should_speak 없음 D-NO-SPEAK-GATE, motion_id 생략 시 client가 emotion에서 파생 D-MOTION-FROM-EMOTION); 발화는 별도 텍스트 스트림(침묵=미발신). **generate_express는 optional** — 없는 턴은 idle + 직전 표정이라 매 턴 호출·타이밍은 하드 의존 아님(R16/R17 해소). Expression Broker 가동 중 @ `localhost:3201`. | — (해소) | R10 | function_call은 최종 `output[]`에 빠지므로 스트림 중 캡처. contract §Endpoint/§3 연결 |
 | A4 | TTS 스트림은 별도 워크플로 (dispatcher 외부) | **M2** (E2E 통합 시 audio life-cycle 분리 확정) | R13 | dispatcher가 audio life-cycle을 책임지면 cleanup inventory 변경 |
 | A5 | `camera_in_use` 감지는 best-effort, OS별 capability 상이 (Linux는 미지원) | **M3** (가드레일 단계) | R14 | Linux 가드레일 약화 — OS capability table 필요 |
 | A6 | `localStorage`가 milestone idempotency에 충분 (앱 재시작 후 유지) | **M3** (proactivity 검증 단계, TC-15) | R15 | 휘발 시 같은 날 milestone 중복 → tauri-plugin-store 대체 가능 |
