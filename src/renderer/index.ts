@@ -97,6 +97,13 @@ export interface Renderer {
    * 재계산하고 EmotionResolver를 (재)생성한다.
    */
   setEmotionRegistry(registry: EmotionRegistry): void;
+  /**
+   * 립싱크 입 벌림 목표 설정 (#15, PRD D1 amplitude-only). value는 [0,1]로 clamp되며
+   * 매 프레임 `aa` 프리셋으로 부드럽게(lerp) 반영된다. blink/lookAt/emotion 키는 건드리지 않는다.
+   */
+  setMouthOpen(value: number): void;
+  /** 립싱크 정지 — 입을 0(닫힘)으로 ease한다. */
+  stopMouth(): void;
   /** motion registry 조회 후 VRMA 재생 (#5). registry가 주입돼 있어야 동작. */
   playMotion(motion: MotionSignal | null): void;
   /**
@@ -106,6 +113,55 @@ export interface Renderer {
   setMotionRegistry(registry: MotionRegistry): void;
   /** rAF 루프 정지 + GPU 리소스 해제. */
   dispose(): void;
+}
+
+/** VRM mouth-open preset driven exclusively by lip sync (never emotion/ambient). */
+export const MOUTH_EXPRESSION_KEY = "aa" as const;
+
+/** Minimal expressionManager surface the mouth state machine needs. */
+interface MouthExpressionManager {
+  setValue(name: string, weight: number): void;
+  getExpression(name: string): unknown;
+}
+
+export interface MouthLipsyncOptions {
+  /** Per-step lerp factor toward the target weight (0..1; 1 = snap). */
+  smoothing?: number;
+}
+
+/** Amplitude-only mouth state machine: target in [0,1], lerped, writes only `aa`. */
+export interface MouthLipsync {
+  /** Set the desired mouth-open target, clamped to [0,1]. */
+  setOpen(value: number): void;
+  /** Advance one frame: lerp current toward target, write the `aa` weight. */
+  step(dt: number, em: MouthExpressionManager): void;
+  /** Ease the mouth back to 0 (closed). */
+  stop(): void;
+}
+
+/**
+ * Pure amplitude lip-sync mouth driver (#15, PRD D1 — no viseme).
+ * Owns ONLY the `aa` preset; never touches blink/lookAt/emotion keys.
+ * No-ops when the model lacks `aa`. Frame-rate handling is the caller's dt.
+ */
+export function createMouthLipsync(options: MouthLipsyncOptions = {}): MouthLipsync {
+  const smoothing = Math.min(1, Math.max(0, options.smoothing ?? 0.4));
+  let target = 0;
+  let current = 0;
+
+  return {
+    setOpen(value) {
+      target = Math.min(1, Math.max(0, value));
+    },
+    step(_dt, em) {
+      if (em.getExpression(MOUTH_EXPRESSION_KEY) == null) return;
+      current += (target - current) * smoothing;
+      em.setValue(MOUTH_EXPRESSION_KEY, current);
+    },
+    stop() {
+      target = 0;
+    },
+  };
 }
 
 export function createRenderer(options: RendererOptions): Renderer {
@@ -149,6 +205,11 @@ export function createRenderer(options: RendererOptions): Renderer {
   const actionToId = new Map<THREE.AnimationAction, string>();
   /** 핫스왑 race guard: 로드 비동기 사이에 VRM이 바뀌면 폐기. */
   let vrmEpoch = 0;
+
+  // ── Lipsync 상태 (#15) ──────────────────────────────────────────────────────
+  // 입(`aa`)은 lipsync 전용 — ambient/emotion와 분리. emotion crossfade와 같은
+  // update 경로(vrm.update 직전)에서 매 프레임 lerp 반영한다.
+  const mouth = createMouthLipsync();
 
   // ── Emotion 상태 (#6) ──────────────────────────────────────────────────────
   let emotionRegistry: EmotionRegistry | undefined = options.emotionRegistry;
@@ -236,6 +297,10 @@ export function createRenderer(options: RendererOptions): Renderer {
       // emotion 크로스페이드 — expressionManager.update()는 vrm.update(dt) 안에서
       // 돌므로 weight를 그 직전에 써야 이번 프레임에 반영된다.
       stepEmotion(dt);
+      // lipsync — emotion과 같은 이유로 vrm.update 직전에 `aa` weight를 쓴다.
+      if (currentVrm.expressionManager) {
+        mouth.step(dt, currentVrm.expressionManager);
+      }
       currentVrm.update(dt);
     }
     renderer.render(scene, camera);
@@ -522,6 +587,12 @@ export function createRenderer(options: RendererOptions): Renderer {
       routeDirective(env, { setEmotion, playMotion });
     },
     setEmotion,
+    setMouthOpen(value) {
+      mouth.setOpen(value);
+    },
+    stopMouth() {
+      mouth.stop();
+    },
     playMotion,
     setMotionRegistry,
     setEmotionRegistry,
