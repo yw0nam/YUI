@@ -8,13 +8,6 @@
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
-    {
-      "identifier": "http:default",
-      "allow": [
-        { "url": "http://localhost:8643/**" },
-        { "url": "http://localhost:5517/**" },
-        { "url": "http://localhost:8092/**" }
-      ]
-    }
+    "cors-fetch:default"
   ]
 }

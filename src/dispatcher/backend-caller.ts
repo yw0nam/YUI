@@ -37,7 +37,7 @@ export interface BackendCallerDeps {
   renderer: Pick<Renderer, "applyDirective">;
   /** Hermes 인증 키 해소(SecretProvider). 없으면 무인증 placeholder. */
   getApiKey: () => Promise<string | undefined>;
-  /** transport fetch 선택(selectFetch, #44). Tauri=plugin-http, dev=undefined. */
+  /** transport fetch 선택(selectFetch). Tauri=cors-fetch, dev=undefined. */
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
   /** 발화 텍스트 sink — main.ts가 말풍선 + TTS 파이프라인(#14)으로 연결한다. */
   onSpeech?: (text: string) => void;

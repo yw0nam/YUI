@@ -1,17 +1,14 @@
-// OS event watcher stub (Rust 측 OS API 접근 전담). 실제 emit 로직은 M1.
-// 근거: docs/event-dispatcher.md §1/§3.3/§10.
+// OS event watcher stub (Rust 측 OS API 접근 전담).
 mod os_event_watcher;
 
-// Drag + multi-monitor / DPI (Issue #9, F2 M1).
+// Drag + multi-monitor / DPI.
 mod drag;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    // HTTP plugin (issue #39, D-TAURI-FETCH): routes JS fetch through Rust → no Origin
-    // header → bypasses Hermes CORS/403. Capability scoped to Hermes host in
-    // src-tauri/capabilities/default.json (http:default permission + url scope).
-    .plugin(tauri_plugin_http::init())
+    // window.fetch를 Rust로 라우팅 → CORS 우회 + SSE 스트리밍 지원(plugin-http는 스트리밍 불가).
+    .plugin(tauri_plugin_cors_fetch::init())
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
