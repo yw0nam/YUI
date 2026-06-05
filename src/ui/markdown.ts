@@ -59,6 +59,7 @@ export function renderMarkdownInline(text: string): HTMLSpanElement {
         img.setAttribute("src", src.trim());
         img.setAttribute("alt", alt);
         img.setAttribute("loading", "lazy");
+        img.addEventListener("error", () => img.classList.add("is-broken"));
         container.appendChild(img);
       } else {
         // Unsafe URL — render as escaped plain text
