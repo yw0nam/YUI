@@ -1,0 +1,81 @@
+/**
+ * Capture indicator — R7 항상-ON 프라이버시 tell.
+ * 스크린샷이 enabled일 때 상단에 상주하며 클릭 시 빠른 설정을 연다.
+ */
+
+import "./capture-indicator.css";
+import type { createScreenshotSettings } from "../io/screenshot-settings";
+
+type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
+
+interface CaptureIndicatorOptions {
+  mount: HTMLElement;
+  settings: ScreenshotSettingsStore;
+  onActivate: () => void;
+}
+
+interface CaptureIndicator {
+  el: HTMLElement;
+  dispose(): void;
+}
+
+export function createCaptureIndicator({
+  mount,
+  settings,
+  onActivate,
+}: CaptureIndicatorOptions): CaptureIndicator {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.className = "yui-capture";
+  el.setAttribute("aria-live", "polite");
+  el.innerHTML = `
+    <svg class="yui-capture__view" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 8.5V6a2 2 0 0 1 2-2h2.5M15.5 4H18a2 2 0 0 1 2 2v2.5M20 15.5V18a2 2 0 0 1-2 2h-2.5M8.5 20H6a2 2 0 0 1-2-2v-2.5"
+        stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+      />
+      <circle cx="12" cy="12" r="2.4" stroke="currentColor" stroke-width="1.7"/>
+    </svg>
+    <span>화면 보는 중</span>
+    <span class="yui-capture__live" aria-hidden="true"></span>
+  `;
+
+  mount.appendChild(el);
+
+  let visible = false;
+
+  function show(): void {
+    if (visible) return;
+    visible = true;
+    requestAnimationFrame(() => el.classList.add("is-visible"));
+  }
+
+  function hide(): void {
+    if (!visible) return;
+    visible = false;
+    el.classList.remove("is-visible");
+  }
+
+  // settings 반영 (초기 + 구독)
+  function reflect(enabled: boolean): void {
+    if (enabled) show();
+    else hide();
+  }
+
+  reflect(settings.get().enabled);
+  const unsubscribe = settings.subscribe((s) => reflect(s.enabled));
+
+  function handleClick(): void {
+    onActivate();
+  }
+
+  el.addEventListener("click", handleClick);
+
+  function dispose(): void {
+    unsubscribe();
+    el.removeEventListener("click", handleClick);
+    el.remove();
+  }
+
+  return { el, dispose };
+}

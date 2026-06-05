@@ -1,0 +1,274 @@
+/* YUI quick-controls popover — 우클릭으로 소환되는 빠른 설정 패널.
+   "The Hearthlight" 4번째 표면. 토큰은 ./tokens.css. */
+
+/* ── scrim overlay ── */
+.yui-quick-scrim {
+  position: fixed;
+  inset: 0;
+  pointer-events: auto;
+  /* 배경 어둡히지 않음 — 모달이 아니라 앵커 팝오버 */
+  background: transparent;
+  z-index: 99;
+}
+
+/* ── popover ── */
+.yui-quick {
+  position: fixed;
+  width: min(20rem, 86vw);
+  padding: 0.85rem 0.85rem 0.7rem;
+  border-radius: var(--yui-radius);
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  backdrop-filter: blur(14px) saturate(1.12);
+  -webkit-backdrop-filter: blur(14px) saturate(1.12);
+  color: var(--yui-text);
+  font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+  text-shadow: var(--yui-text-shadow);
+  pointer-events: auto;
+  z-index: 100;
+
+  /* 애니메이션 시작 상태 — bottom 앵커 기본 */
+  opacity: 0;
+  transform: translate(0, 8px) scale(0.985);
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease);
+}
+
+.yui-quick.is-open {
+  opacity: 1;
+  transform: translate(0, 0) scale(1);
+}
+
+.yui-quick__eyebrow {
+  display: block;
+  margin: 0 0.15rem 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--yui-text-mute);
+}
+
+/* ── 토글 행 ── */
+.yui-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.55rem;
+  border-radius: var(--yui-radius-row);
+  transition: background var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-row:hover {
+  background: oklch(0.97 0.01 80 / 0.05);
+}
+
+.yui-row__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.yui-row__label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.92rem;
+  font-weight: 550;
+  line-height: 1.2;
+}
+
+.yui-row__label svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  color: var(--yui-text-dim);
+  flex: 0 0 auto;
+}
+
+.yui-row__sub {
+  margin-top: 0.18rem;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: var(--yui-text-mute);
+}
+
+/* ── 스위치 — OFF=차분, ON=앰버 점화 ── */
+.yui-switch {
+  --w: 2.5rem;
+  --h: 1.45rem;
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--w);
+  height: var(--h);
+  border: 0;
+  padding: 0;
+  border-radius: 999px;
+  background: oklch(0.5 0.01 70 / 0.35);
+  cursor: pointer;
+  transition:
+    background var(--yui-dur) var(--yui-ease),
+    box-shadow var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-switch::after {
+  content: "";
+  position: absolute;
+  top: 0.18rem;
+  left: 0.18rem;
+  width: calc(var(--h) - 0.36rem);
+  height: calc(var(--h) - 0.36rem);
+  border-radius: 50%;
+  background: oklch(0.96 0.01 80);
+  box-shadow: 0 1px 3px oklch(0.1 0.01 70 / 0.5);
+  transition: transform var(--yui-dur) var(--yui-ease);
+}
+
+.yui-switch[aria-checked="true"] {
+  background: var(--yui-accent);
+}
+
+.yui-switch[aria-checked="true"]::after {
+  transform: translateX(calc(var(--w) - var(--h)));
+}
+
+.yui-switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* ── 소스 섹션 — ON일 때만 펼침 ── */
+.yui-source {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height var(--yui-dur) var(--yui-ease),
+    opacity var(--yui-dur) var(--yui-ease);
+}
+
+.yui-quick.is-on .yui-source {
+  max-height: 16rem;
+  opacity: 1;
+}
+
+.yui-source__label {
+  margin: 0.5rem 0.6rem 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--yui-text-mute);
+}
+
+.yui-monitors {
+  display: grid;
+  gap: 0.25rem;
+}
+
+/* ── 모니터 옵션(radio) ── */
+.yui-mon {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border-radius: var(--yui-radius-row);
+  color: var(--yui-text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-mon:hover {
+  background: oklch(0.97 0.01 80 / 0.06);
+}
+
+.yui-mon__tick {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--yui-text-mute);
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  transition:
+    border-color var(--yui-dur-fast) var(--yui-ease),
+    background var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-mon__tick::after {
+  content: "";
+  width: 0.46rem;
+  height: 0.46rem;
+  border-radius: 50%;
+  background: oklch(0.99 0.01 80);
+  transform: scale(0);
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-mon[aria-checked="true"] .yui-mon__tick {
+  border-color: var(--yui-accent);
+  background: var(--yui-accent);
+}
+
+.yui-mon[aria-checked="true"] .yui-mon__tick::after {
+  transform: scale(1);
+}
+
+.yui-mon__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.yui-mon__name {
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.yui-mon__meta {
+  font-size: 0.72rem;
+  color: var(--yui-text-mute);
+}
+
+.yui-mon__badge {
+  margin-left: auto;
+  font-size: 0.64rem;
+  letter-spacing: 0.04em;
+  color: var(--yui-text-dim);
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--yui-edge);
+  white-space: nowrap;
+}
+
+/* ── 푸터 힌트 ── */
+.yui-quick__foot {
+  margin: 0.55rem 0.6rem 0.1rem;
+  font-size: 0.71rem;
+  line-height: 1.4;
+  color: var(--yui-text-mute);
+}
+
+.yui-quick.is-on .yui-quick__foot--off,
+.yui-quick:not(.is-on) .yui-quick__foot--on {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-quick,
+  .yui-switch,
+  .yui-switch::after,
+  .yui-source,
+  .yui-mon__tick::after {
+    transition-duration: var(--yui-dur-fast) !important;
+  }
+  .yui-quick {
+    transform: translate(0, 0) !important;
+  }
+}

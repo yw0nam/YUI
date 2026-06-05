@@ -41,6 +41,8 @@ export interface BackendCallerDeps {
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
   /** 발화 텍스트 sink — main.ts가 말풍선 + TTS 파이프라인(#14)으로 연결한다. */
   onSpeech?: (text: string) => void;
+  /** 토글 ON일 때 화면 캡처 블록을 조립해 반환(OFF/실패면 undefined). main.ts가 settings+capturer+buildScreenshotBlock로 합성. */
+  getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   /** 단계별 로깅(없으면 console). */
   log?: (stage: string, detail: Record<string, unknown>) => void;
   /** client 버전(InputContext.client.yui_version). */
@@ -76,11 +78,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
   /**
    * B1: contract §4 InputContext 조립.
-   * active_app / active_window_title / screenshot은 DEFERRED(#26/#20) → 생략(null/미포함).
+   * active_app / active_window_title는 DEFERRED(#26) → 생략. screenshot은 토글 ON일 때만
+   * getScreenshot 포트로 첨부(#20). 캡처 실패는 턴을 깨뜨리지 않는다 — 로그 후 스크린샷 없이 진행.
    */
-  function packageContext(env: BusEnvelope): InputContext {
+  async function packageContext(env: BusEnvelope): Promise<InputContext> {
     const userText = userTextOf(env);
-    return {
+    const ctx: InputContext = {
       ...(userText !== undefined ? { user_text: userText } : {}),
       env: {
         timestamp: new Date(env.ts).toISOString(),
@@ -88,18 +91,34 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       },
       client: { yui_version: deps.yuiVersion ?? "0.0.0" },
     };
+    if (deps.getScreenshot) {
+      try {
+        const screenshot = await deps.getScreenshot();
+        if (screenshot) ctx.screenshot = screenshot;
+      } catch (err) {
+        log("screenshot.failed", { error: String(err) });
+      }
+    }
+    return ctx;
   }
 
   /** InputContext → OpenAI Responses input (user 발화는 user 메시지로 인코딩). */
   function encodeInput(ctx: InputContext): ChatRequest["input"] {
     const text = ctx.user_text ?? "";
+    // 스크린샷 첨부 시 Responses content-part 배열(input_text + input_image), 없으면 평문.
+    const userContent = ctx.screenshot?.data_url
+      ? [
+          { type: "input_text", text },
+          { type: "input_image", image_url: ctx.screenshot.data_url },
+        ]
+      : text;
     // env 메타(시각/타임존)는 system 힌트로 동봉 — backend judgment가 시간 맥락을 쓸 수 있게.
     return [
       {
         role: "system",
         content: `client_context: ${JSON.stringify(ctx.env)}`,
       },
-      { role: "user", content: text },
+      { role: "user", content: userContent },
     ];
   }
 
@@ -112,7 +131,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     }
 
     // B1
-    const ctx = packageContext(env);
+    const ctx = await packageContext(env);
     const input = encodeInput(ctx);
     log("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 

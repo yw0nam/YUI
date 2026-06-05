@@ -25,3 +25,5 @@ log = "0.4"
 tauri = { version = "2.11.2", features = ["macos-private-api"] }
 tauri-plugin-log = "2"
 tauri-plugin-cors-fetch = "5.0.0"
+xcap = "0.4.1"
+base64 = "0.22"

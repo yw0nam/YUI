@@ -1,0 +1,85 @@
+/* YUI capture indicator — R7 항상-ON 프라이버시 tell.
+   스크린샷이 켜져 있는 동안 상단에 상주한다. 토큰은 ./tokens.css. */
+
+.yui-capture {
+  position: absolute;
+  top: 4.5%;
+  left: 50%;
+  transform: translate(-50%, -6px);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.46rem;
+  padding: 0.3rem 0.66rem 0.3rem 0.56rem;
+  border-radius: var(--yui-radius-chip);
+  background: var(--yui-scrim);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  color: var(--yui-text-dim);
+  font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-shadow: var(--yui-text-shadow);
+  cursor: pointer;
+  user-select: none;
+  pointer-events: none;
+
+  opacity: 0;
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease),
+    border-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-capture.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.yui-capture:hover {
+  border-color: var(--yui-edge-strong);
+}
+
+.yui-capture__view {
+  width: 0.92rem;
+  height: 0.92rem;
+  color: var(--yui-text-dim);
+  flex: 0 0 auto;
+}
+
+/* 앰버 pulse dot — 화면이 첨부되고 있다는 차분한 tell */
+.yui-capture__live {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--yui-accent);
+  box-shadow: 0 0 0 0 var(--yui-accent-soft);
+  flex: 0 0 auto;
+  animation: yui-capture-live 1.8s var(--yui-ease) infinite;
+}
+
+@keyframes yui-capture-live {
+  0%,
+  100% {
+    opacity: 0.45;
+    box-shadow: 0 0 0 0 var(--yui-accent-soft);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 0 3px oklch(0.8 0.13 75 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-capture {
+    transition-duration: var(--yui-dur-fast) !important;
+    transform: translate(-50%, 0) !important;
+  }
+  .yui-capture__live {
+    animation: none !important;
+  }
+}
