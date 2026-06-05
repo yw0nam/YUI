@@ -152,6 +152,9 @@ async function bootstrap(): Promise<void> {
         speed: eps.tts_speed,
       })(input, signal);
     },
+    // 립싱크(#15): 재생 진폭(0..1) → 입 벌림. 큐 드레인 시 입 닫기.
+    onAmplitude: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
+    onPlaybackEnd: () => renderer.stopMouth(),
   });
   if (import.meta.env.DEV) {
     import.meta.hot?.dispose(() => tts.dispose());
@@ -165,12 +168,20 @@ async function bootstrap(): Promise<void> {
     renderer,
     getApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
     getFetch: () => selectFetch(),
+    // emotion_text(TTS voice tag)는 매칭 speech 세그먼트 *전에* 도착한다(backend_caller가
+    // onEmotionText→onSpeech 순으로 호출). pipeline이 다음 문장에 prefix로 prepend한다.
+    onEmotionText: (text) => tts.setEmotionText(text),
     onSpeech: (text) => {
       surfaces.beginSpeech();
       surfaces.pushSpeech(text);
       surfaces.endSpeech();
       tts.pushTextDelta(text);
       tts.end();
+    },
+    // tool_status(Hermes 네이티브 tool 관찰) → 툴 표면. running이면 라벨 표시, 그 외엔 숨김.
+    onToolStatus: (status) => {
+      if (status.state === "running") surfaces.showTool(status.tool_id ?? "");
+      else surfaces.hideTool();
     },
   });
   const dispatcher = createDispatcher({ bus, renderer, backendCaller });
