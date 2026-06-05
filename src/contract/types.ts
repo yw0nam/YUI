@@ -5,9 +5,10 @@
  * 임의로 필드를 추가/변경하지 않는다. 스키마가 바뀌면 contract.md를 먼저 고친다.
  *
  * 전송 규약 요지(contract.md §Endpoint, §3 / prd.md D-TRANSPORT/D-SPEECH):
- *  - 제어신호(emotion/motion/should_speak)는 서버사이드 `express` tool-call의 arguments로 도착.
+ *  - 제어신호(emotion_id/motion_id/emotion_text)는 서버사이드 `generate_express` tool-call의
+ *    arguments로 도착 (flat 문자열 인자, D-NO-SPEAK-GATE: should_speak 없음).
  *  - 발화 텍스트는 tool-call이 아니라 별도 assistant 텍스트 스트림(response.output_text.delta).
- *  - express·emotion은 둘 다 optional — 없는 턴은 idle + 직전 표정 유지.
+ *  - generate_express·emotion은 둘 다 optional — 없는 턴은 idle + 직전 표정 유지.
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -97,16 +98,18 @@ export type MotionRegistry = Record<string, MotionRegistryEntry>;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * `express` tool-call의 arguments = transport 페이로드 (contract.md §3).
- * 이것만이 실제로 wire를 타는 제어 필드다. 전부 optional — express 없는 턴은 비어 있다.
+ * `generate_express` tool-call의 arguments = transport 페이로드 (contract.md §3).
+ * FLAT 문자열 인자 — 이것만이 실제로 wire를 타는 제어 필드다. 전부 optional이며
+ * generate_express 없는 턴은 비어 있다. should_speak 없음(D-NO-SPEAK-GATE):
+ * 침묵 = speech_text == "".
  */
 export interface ExpressArgs {
-  /** default true. false면 TTS/말풍선 스킵 (Tier 2 silence). */
-  should_speak?: boolean;
-  /** 없으면 직전 표정 유지. */
-  emotion?: EmotionSignal | null;
-  /** 없거나 null이면 idle로 복귀. */
-  motion?: MotionSignal | null;
+  /** emotion enum id. 없으면 직전 표정 유지. client가 EmotionSignal{id}로 정규화. */
+  emotion_id?: string;
+  /** motion registry key. 없으면 client가 emotion에서 파생. MotionSignal{id}로 정규화. */
+  motion_id?: string;
+  /** TTS voice tag(예: "[whisper in small voice]") — 자유 텍스트. emotion_text 채널로 정규화. */
+  emotion_text?: string;
 }
 
 /** rich_content 항목 (contract.md §3). MVP는 텍스트 마크다운으로 렌더 — 구조화 카드는 P2. */
@@ -135,10 +138,12 @@ export interface ToolStatus {
  * function_call 관찰을 합친 render directive 입력. wire 스키마가 아니라 client가 재구성하는 형태.
  */
 export interface ControlEnvelope {
-  // --- express tool-call arguments (있을 때만) ---
-  should_speak?: boolean;
+  // --- generate_express tool-call arguments (있을 때만) ---
+  // should_speak 없음 (D-NO-SPEAK-GATE): 침묵 = speech_text == "".
   emotion?: EmotionSignal | null;
   motion?: MotionSignal | null;
+  /** generate_express.emotion_text — TTS voice tag 자유 텍스트. backend-caller가 onEmotionText로 라우팅. */
+  emotion_text?: string | null;
 
   // --- 텍스트 스트림에서 조립 (tool 필드 아님) ---
   /** response.output_text.delta 누적. 발화 없으면 "". */
@@ -214,6 +219,11 @@ export interface EndpointsConfig {
    *   `chat_base_url + chat_endpoint`로 합치지 말 것(이미 `/v1` 중복).
    */
   chat_endpoint: string;
+  /**
+   * Responses API `instructions` 필드로 보낼 시스템 nudge (config-driven, 하드코딩 금지).
+   * generate_express tool 사용을 유도한다(emotion_id/motion_id/emotion_text). 미설정 시 생략.
+   */
+  chat_instructions?: string;
   /**
    * Hermes chat 모델 ID (OpenAI Responses `model` 파라미터). 예: "natsume" (Hermes `/v1/models`).
    * PRD F8: 모델 ID는 config 소관(하드코딩 금지). 미설정 시 streamChat은 model을 생략한다 —
