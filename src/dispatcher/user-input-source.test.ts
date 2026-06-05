@@ -1,9 +1,11 @@
 /**
- * user-input-source.test.ts — user.text_submitted producer (event-dispatcher.md §3.4).
+ * user-input-source.test.ts — user.text_submitted + user.voice_segment_ready producers (event-dispatcher.md §3.4).
  *
- * Locks: submit(text) pushes a well-formed envelope onto the bus
- * (source=user_input_source, event_name=user.text_submitted, dnd_override=true,
- * payload.text, ts≈now). Empty/whitespace text is ignored.
+ * Locks:
+ *  - submit(text) pushes a well-formed user.text_submitted envelope.
+ *  - submitVoice(transcript) pushes a user.voice_segment_ready envelope with transcript payload.
+ *  - voice envelope: source=user_input_source, dnd_override=true, hint_tier=2.
+ *  - payload shape: { transcript: { text, confidence?, lang? } }.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -51,5 +53,39 @@ describe("user_input_source — submit", () => {
     const src = createUserInputSource(bus);
     src.submit("  hi  ");
     expect(pushed[0].payload?.text).toBe("hi");
+  });
+});
+
+describe("user_input_source — submitVoice", () => {
+  it("pushes a user.voice_segment_ready envelope with transcript payload", () => {
+    const { bus, pushed } = fakeBus();
+    const src = createUserInputSource(bus);
+    src.submitVoice({ text: "こんにちは" });
+
+    expect(pushed).toHaveLength(1);
+    const e = pushed[0];
+    expect(e.source).toBe("user_input_source");
+    expect(e.event_name).toBe("user.voice_segment_ready");
+    expect(e.dnd_override).toBe(true);
+    expect(e.hint_tier).toBe(2);
+    expect(typeof e.ts).toBe("number");
+    expect(e.payload?.transcript).toEqual({ text: "こんにちは" });
+  });
+
+  it("forwards confidence and lang when present", () => {
+    const { bus, pushed } = fakeBus();
+    const src = createUserInputSource(bus);
+    src.submitVoice({ text: "hello", confidence: 0.95, lang: "en" });
+
+    const e = pushed[0];
+    expect(e.payload?.transcript).toEqual({ text: "hello", confidence: 0.95, lang: "en" });
+  });
+
+  it("does not push when transcript text is empty", () => {
+    const { bus, pushed } = fakeBus();
+    const src = createUserInputSource(bus);
+    src.submitVoice({ text: "" });
+    src.submitVoice({ text: "   " });
+    expect(pushed).toHaveLength(0);
   });
 });
