@@ -25,7 +25,6 @@ export interface DndState {
 
 export type DropReason =
   | "guardrail_drop"
-  | "should_speak_false"
   | "parse_error"
   | "network_drop"
   | "http_4xx_drop"
