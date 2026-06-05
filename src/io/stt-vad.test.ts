@@ -18,6 +18,7 @@ import type { EndpointsConfig } from "../contract";
 // ── mock @ricky0123/vad-web ───────────────────────────────────────────────────
 // Capture the options passed to MicVAD.new() and expose a handle to trigger onSpeechEnd.
 let capturedOptions: Record<string, unknown> = {};
+let triggerSpeechStart: (() => void) | null = null;
 let triggerSpeechEnd: ((audio: Float32Array) => Promise<void>) | null = null;
 
 const mockMicVadInstance = {
@@ -30,6 +31,7 @@ vi.mock("@ricky0123/vad-web", () => ({
   MicVAD: {
     new: vi.fn(async (opts: Record<string, unknown>) => {
       capturedOptions = opts;
+      triggerSpeechStart = opts.onSpeechStart as () => void;
       triggerSpeechEnd = opts.onSpeechEnd as (audio: Float32Array) => Promise<void>;
       return mockMicVadInstance;
     }),
@@ -55,6 +57,7 @@ function buildFetchMock(responseText = "hello world") {
 
 beforeEach(() => {
   capturedOptions = {};
+  triggerSpeechStart = null;
   triggerSpeechEnd = null;
   vi.clearAllMocks();
 });
@@ -120,6 +123,46 @@ describe("createSttVad — silenceMs configurable", () => {
     await stt.start();
     expect(typeof capturedOptions.redemptionMs).toBe("number");
     expect((capturedOptions.redemptionMs as number) > 0).toBe(true);
+  });
+});
+
+describe("createSttVad — runtime state callbacks", () => {
+  it("reports listening when VAD detects speech start", async () => {
+    const onState = vi.fn();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState });
+    await stt.start();
+
+    triggerSpeechStart!();
+
+    expect(onState).toHaveBeenCalledWith("listening");
+  });
+
+  it("reports ASR posting before STT and fired after transcript forwarding", async () => {
+    vi.stubGlobal("fetch", buildFetchMock("hello"));
+
+    const onState = vi.fn();
+    const onVoiceSegment = vi.fn();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment, onState });
+    await stt.start();
+
+    await triggerSpeechEnd!(new Float32Array([0.1, 0.2]));
+
+    expect(onState.mock.calls.map(([state]) => state)).toEqual(["asr", "fired"]);
+    expect(onVoiceSegment).toHaveBeenCalledWith({ text: "hello" });
+  });
+
+  it("reports error when STT fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const onState = vi.fn();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState });
+    await stt.start();
+
+    await triggerSpeechEnd!(new Float32Array([0.1, 0.2]));
+
+    expect(onState).toHaveBeenCalledWith("asr");
+    expect(onState).toHaveBeenCalledWith("error", "HTTP 500");
   });
 });
 
