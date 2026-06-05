@@ -52,7 +52,13 @@ pub struct CaptureDto {
 /// Returns the pair unchanged when already within bounds or when `max_edge == 0`.
 /// Never returns 0 for a non-zero input dimension.
 pub fn fit_long_edge(width: u32, height: u32, max_edge: u32) -> (u32, u32) {
-    todo!("implement fit_long_edge")
+    if max_edge == 0 || (width <= max_edge && height <= max_edge) {
+        return (width, height);
+    }
+    let scale = max_edge as f64 / width.max(height) as f64;
+    let w = ((width as f64 * scale).round() as u32).max(1);
+    let h = ((height as f64 * scale).round() as u32).max(1);
+    (w, h)
 }
 
 // ─── Tauri commands ───────────────────────────────────────────────────────────
