@@ -65,6 +65,10 @@
   background: oklch(0.97 0.01 80 / 0.05);
 }
 
+.yui-row--voice {
+  margin-top: 0.35rem;
+}
+
 .yui-row__main {
   flex: 1;
   min-width: 0;
@@ -135,6 +139,85 @@
 .yui-switch:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* ── 음성 입력 세부 설정 ── */
+.yui-voice-details {
+  margin-top: 0.25rem;
+  padding: 0 0.55rem;
+}
+
+.yui-voice-details > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.5rem;
+  color: var(--yui-text-mute);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.yui-voice-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.yui-voice-details > summary::before {
+  content: "›";
+  display: inline-block;
+  font-size: 0.85rem;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-voice-details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.yui-voice-details__body {
+  display: grid;
+  gap: 0.52rem;
+  padding: 0.22rem 0 0.3rem;
+}
+
+.yui-voice-status {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.yui-voice-status__label,
+.yui-setting-grid span {
+  color: var(--yui-text-mute);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.yui-voice-status__value,
+.yui-setting-grid strong {
+  color: var(--yui-text-dim);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.yui-voice-status__note {
+  margin: 0;
+  color: var(--yui-text-mute);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.yui-setting-grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.36rem 0.7rem;
+  align-items: baseline;
 }
 
 /* ── 소스 섹션 — ON일 때만 펼침 ── */

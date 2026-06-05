@@ -21,6 +21,8 @@ import { createSurfaces } from "./ui/surfaces";
 import { createMockDriver } from "./ui/mock";
 import { createQuickControls } from "./ui/quick-controls";
 import { createCaptureIndicator } from "./ui/capture-indicator";
+import { createVoiceInputStatus } from "./ui/voice-input-status";
+import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { resolveScreenSourceProvider, resolveScreenCapturer } from "./io/tauri-screen";
 import { buildScreenshotBlock } from "./io/screenshot-context";
@@ -75,12 +77,23 @@ async function bootstrap(): Promise<void> {
   const mock = createMockDriver(surfaces);
 
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
+  const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
-  const quickControls = createQuickControls({ mount: root, settings: screenshotSettings, sourceProvider: screenSourceProvider });
+  const quickControls = createQuickControls({
+    mount: root,
+    settings: screenshotSettings,
+    sourceProvider: screenSourceProvider,
+    voiceStatus: voiceInputStatus,
+  });
   const captureIndicator = createCaptureIndicator({
     mount: root,
     settings: screenshotSettings,
+    onActivate: () => quickControls.open(),
+  });
+  const voiceInputIndicator = createVoiceInputIndicator({
+    mount: root,
+    status: voiceInputStatus,
     onActivate: () => quickControls.open(),
   });
 
@@ -94,6 +107,8 @@ async function bootstrap(): Promise<void> {
     import.meta.hot?.dispose(() => {
       quickControls.dispose();
       captureIndicator.dispose();
+      voiceInputIndicator.dispose();
+      voiceInputStatus.dispose();
       screenshotSettings.dispose();
       stage.removeEventListener("contextmenu", onContextMenu);
     });
@@ -138,6 +153,7 @@ async function bootstrap(): Promise<void> {
       __yuiMock: mock,
       __yuiScreenshot: screenshotSettings,
       __yuiQuick: quickControls,
+      __yuiVoiceInputStatus: voiceInputStatus,
       // DEV-ONLY 트리거: E2E 루프를 콘솔에서 직접 발사한다.
       //   window.__yui_send("안녕") → user.text_submitted → dispatcher → backend_caller →
       //   streamChat → Hermes → ControlEnvelope → renderer.applyDirective + 말풍선.
