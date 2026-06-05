@@ -372,6 +372,8 @@ type ScreenSource =
 
 backend는 ` ```yui-context ` 마커로 파싱. system prompt 1줄로 약속해두면 충분.
 
+> 실제 전송(`client.responses.create`)은 Responses API content-part를 쓴다 — 위 chat-completions 예시의 `image_url:{url}` 대신 `{ "type":"input_image", "image_url":"data:..." }`(image_url이 문자열 data URL), 텍스트는 `{ "type":"input_text", "text":... }`.
+
 ### 캡처 정책 (v0)
 - 사용자 **토글 ON**일 때만 스크린샷 첨부. OFF면 `screenshot` 객체 생략.
 - 토글 ON 동안에는 **매 user turn마다 자동 첨부**. "이번엔 불필요"는 backend 판단.
