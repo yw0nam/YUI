@@ -1,4 +1,4 @@
-// OS event watcher stub (Rust 측 OS API 접근 전담).
+// OS event watcher — real OS polling for active app, idle, fullscreen, camera.
 mod os_event_watcher;
 
 // Drag + multi-monitor / DPI.
@@ -7,7 +7,7 @@ mod drag;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    // window.fetch를 Rust로 라우팅 → CORS 우회 + SSE 스트리밍 지원(plugin-http는 스트리밍 불가).
+    // window.fetch を Rust でルーティング → CORS 回避 + SSE ストリーミング対応.
     .plugin(tauri_plugin_cors_fetch::init())
     .setup(|app| {
       if cfg!(debug_assertions) {
@@ -17,6 +17,8 @@ pub fn run() {
             .build(),
         )?;
       }
+      // Start OS event polling loop (emits `os_event` IPC to webview).
+      os_event_watcher::start(app.handle());
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
