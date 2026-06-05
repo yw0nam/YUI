@@ -13,7 +13,12 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import type { EndpointsConfig } from "../contract";
-import { streamChat, type ChatStreamEvent, type ChatRequest } from "./chat-client";
+import {
+  streamChat,
+  selectChatBaseUrl,
+  type ChatStreamEvent,
+  type ChatRequest,
+} from "./chat-client";
 
 // ── openai SDK mock ──────────────────────────────────────────────────────────
 // new OpenAI(opts) → { responses: { create: createMock } }.
@@ -351,5 +356,33 @@ describe("streamChat — SDK request wiring", () => {
       input: request.input,
       previous_response_id: "resp_prev",
     });
+  });
+});
+
+describe("selectChatBaseUrl", () => {
+  const CONFIGURED = "http://localhost:8643/v1";
+
+  it("returns the configured absolute URL unchanged under Tauri", () => {
+    expect(
+      selectChatBaseUrl(CONFIGURED, { isTauri: true, isDev: true, origin: "http://127.0.0.1:1420" }),
+    ).toBe(CONFIGURED);
+  });
+
+  it("rewrites to the same-origin proxy mount in dev web", () => {
+    expect(
+      selectChatBaseUrl(CONFIGURED, { isTauri: false, isDev: true, origin: "http://127.0.0.1:1420" }),
+    ).toBe("http://127.0.0.1:1420/__hermes/v1");
+  });
+
+  it("returns the configured URL unchanged in prod web", () => {
+    expect(
+      selectChatBaseUrl(CONFIGURED, { isTauri: false, isDev: false, origin: "https://app.example" }),
+    ).toBe(CONFIGURED);
+  });
+
+  it("handles a bare-path configured value in dev web", () => {
+    expect(
+      selectChatBaseUrl("/v1", { isTauri: false, isDev: true, origin: "http://127.0.0.1:1420" }),
+    ).toBe("http://127.0.0.1:1420/__hermes/v1");
   });
 });
