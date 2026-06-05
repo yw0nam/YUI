@@ -15,6 +15,8 @@ export interface TtsPipelineOptions {
   sink?: AudioSink;
   fetch?: typeof fetch;
   onAmplitude?: (rms: number) => void;
+  /** 큐가 드레인돼 재생이 멎으면 1회 호출 — 립싱크 입 닫기 신호. dispose 시엔 호출 안 함. */
+  onPlaybackEnd?: () => void;
 }
 
 export interface TtsPipeline {
@@ -50,6 +52,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   async function pump(): Promise<void> {
     if (pumping) return;
     pumping = true;
+    let played = false;
     try {
       while (!disposed) {
         if (failed.has(nextToPlay)) {
@@ -61,6 +64,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
         if (wav === undefined) break;
         results.delete(nextToPlay);
         nextToPlay++;
+        played = true;
         try {
           await sink.play(wav, options.onAmplitude);
         } catch (err) {
@@ -71,6 +75,8 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     } finally {
       pumping = false;
     }
+    // 큐가 비어 재생이 멎었고(이 패스에서 실제 재생됨) 폐기되지 않았으면 입을 닫게 알린다.
+    if (played && !disposed) options.onPlaybackEnd?.();
   }
 
   function submit(sentence: string): void {
