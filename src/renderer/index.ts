@@ -41,6 +41,7 @@ import {
   type ResolvedEmotion,
 } from "./emotion-resolver";
 import { routeDirective } from "./apply-directive";
+import { recenterClipRootMotion } from "./recenter-root-motion";
 
 export interface RendererOptions {
   /** VRM을 렌더할 캔버스 마운트 대상. */
@@ -289,6 +290,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       return null;
     }
     const clip = createVRMAnimationClip(vrmAnimation as never, currentVrm);
+    recenterClipRootMotion(clip); // strip baked horizontal root drift so the pet stays centered.
     clipCache.set(vrmaPath, clip);
     return clip;
   }
