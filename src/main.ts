@@ -22,7 +22,8 @@ import { createMockDriver } from "./ui/mock";
 import { createQuickControls } from "./ui/quick-controls";
 import { createCaptureIndicator } from "./ui/capture-indicator";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
-import { createBrowserScreenSourceProvider } from "./io/screen-source-provider";
+import { resolveScreenSourceProvider, resolveScreenCapturer } from "./io/tauri-screen";
+import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET } from "./config";
 import { initDrag } from "./drag";
 import { selectFetch } from "./io/chat-client";
@@ -74,7 +75,8 @@ async function bootstrap(): Promise<void> {
   const mock = createMockDriver(surfaces);
 
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
-  const screenSourceProvider = createBrowserScreenSourceProvider();
+  const screenSourceProvider = resolveScreenSourceProvider();
+  const screenCapturer = resolveScreenCapturer();
   const quickControls = createQuickControls({ mount: root, settings: screenshotSettings, sourceProvider: screenSourceProvider });
   const captureIndicator = createCaptureIndicator({
     mount: root,
@@ -203,6 +205,12 @@ async function bootstrap(): Promise<void> {
       surfaces.endSpeech();
       tts.pushTextDelta(text);
       tts.end();
+    },
+    getScreenshot: async () => {
+      const s = screenshotSettings.get();
+      if (!s.enabled) return undefined;
+      const cap = await screenCapturer.capture(s.source);
+      return buildScreenshotBlock(s, cap ?? undefined);
     },
   });
   const dispatcher = createDispatcher({ bus, renderer, backendCaller });

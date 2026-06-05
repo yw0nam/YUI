@@ -3,6 +3,9 @@
  * 브라우저는 자신의 화면 하나만 인식한다.
  */
 
+import type { ScreenSource } from "../contract";
+import type { ScreenCapture } from "./screenshot-context";
+
 export interface MonitorInfo {
   index: number;
   label?: string;
@@ -13,6 +16,20 @@ export interface MonitorInfo {
 
 export interface ScreenSourceProvider {
   listMonitors(): Promise<MonitorInfo[]>;
+}
+
+export interface ScreenCapturer {
+  capture(source: ScreenSource): Promise<ScreenCapture | null>;
+}
+
+export const noopScreenCapturer: ScreenCapturer = {
+  capture(_source: ScreenSource): Promise<ScreenCapture | null> {
+    return Promise.resolve(null);
+  },
+};
+
+export function isTauri(): boolean {
+  return !!(globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 }
 
 export function createBrowserScreenSourceProvider(
