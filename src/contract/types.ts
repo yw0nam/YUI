@@ -224,4 +224,13 @@ export interface EndpointsConfig {
   stt_base_url: string;
   /** 별도 TTS 서비스 (OpenAI 호환) → /audio/speech. */
   tts_base_url: string;
+  /**
+   * TTS 모델 ID (OpenAI 호환 /v1/audio/speech `model`). 예: "fishaudio/s2-pro".
+   * PRD F8: 모델 ID는 config 소관. 미설정 시 생략 → TTS 서비스 default.
+   */
+  tts_model?: string;
+  /** TTS voice (config). 미설정 시 생략 → 서비스 default. */
+  tts_voice?: string;
+  /** TTS 재생 속도 (config). 미설정 시 생략 → 서비스 default. */
+  tts_speed?: number;
 }
