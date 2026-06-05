@@ -17,6 +17,15 @@ describe("configs/endpoints.json", () => {
     expect(ep.tts_voice).toBe("ナツメ"); // /v1/audio/voices 등록 레퍼런스 보이스 default
   });
 
+  it("carries a config-driven chat_instructions nudge mentioning generate_express + the 3 channels", () => {
+    expect(ep.chat_instructions).toBeTypeOf("string");
+    expect(ep.chat_instructions.length).toBeGreaterThan(0);
+    expect(ep.chat_instructions).toContain("generate_express");
+    expect(ep.chat_instructions).toContain("emotion_id");
+    expect(ep.chat_instructions).toContain("motion_id");
+    expect(ep.chat_instructions).toContain("emotion_text");
+  });
+
   it("chat/stt/tts are three distinct services", () => {
     // contract: STT/TTS는 Hermes와 무관한 별도 프로세스.
     expect(new Set([ep.chat_base_url, ep.stt_base_url, ep.tts_base_url]).size).toBe(3);

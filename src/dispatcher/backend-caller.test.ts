@@ -5,8 +5,9 @@
  *  - B1 package_context → contract §4 InputContext (user_text + env.timestamp + env.timezone).
  *  - B2 streamChat invocation with injected fetch + apiKey from secrets, AbortSignal threaded.
  *  - B3 consume chat-client `completed` event → ControlEnvelope (no SSE re-parse).
- *  - B4 should_speak branch (false → silent drop INFO, no render).
- *  - B5 dispatch_to_renderer → renderer.applyDirective(envelope) + speech_text → speech sink.
+ *  - B4 speech gate by speech_text only (D-NO-SPEAK-GATE: empty = skip, no flag).
+ *  - B5 dispatch_to_renderer → renderer.applyDirective(envelope) + speech_text → speech sink
+ *       + emotion_text → onEmotionText + tool_status → onToolStatus (callbacks fire).
  *  - parse_error / network drop classification.
  */
 
@@ -55,6 +56,8 @@ function completedEvent(env: ControlEnvelope): ChatStreamEvent {
 
 let applyDirective: ReturnType<typeof vi.fn>;
 let speechSink: ReturnType<typeof vi.fn>;
+let emotionTextSink: ReturnType<typeof vi.fn>;
+let toolStatusSink: ReturnType<typeof vi.fn>;
 let caller: BackendCaller;
 
 beforeEach(() => {
@@ -63,12 +66,16 @@ beforeEach(() => {
   streamChatSpy.mockClear();
   applyDirective = vi.fn();
   speechSink = vi.fn();
+  emotionTextSink = vi.fn();
+  toolStatusSink = vi.fn();
   caller = createBackendCaller({
     config: CONFIG,
     renderer: { applyDirective } as never,
     getApiKey: async () => "k",
     getFetch: async () => undefined,
     onSpeech: speechSink,
+    onEmotionText: emotionTextSink,
+    onToolStatus: toolStatusSink,
   });
 });
 
@@ -100,11 +107,10 @@ describe("backend_caller — B1 package_context (contract §4 InputContext)", ()
   });
 });
 
-describe("backend_caller — B4 judgment branch (should_speak)", () => {
-  it("should_speak=true → applyDirective + speech sink (B5)", async () => {
+describe("backend_caller — B4 speech gate (D-NO-SPEAK-GATE: speech_text only)", () => {
+  it("non-empty speech_text → applyDirective + speech sink (B5)", async () => {
     const env: ControlEnvelope = {
       speech_text: "응 듣고 있어",
-      should_speak: true,
       emotion: { id: "happy" },
     };
     scriptedEvents = [completedEvent(env)];
@@ -114,26 +120,46 @@ describe("backend_caller — B4 judgment branch (should_speak)", () => {
     expect(speechSink).toHaveBeenCalledWith("응 듣고 있어");
   });
 
-  it("should_speak=false → silent drop, no speech, but render channels still applied", async () => {
+  it("empty speech_text → no speech, but render channels still applied (silence = empty text)", async () => {
     const env: ControlEnvelope = {
-      speech_text: "secret",
-      should_speak: false,
+      speech_text: "",
       emotion: { id: "thinking" },
     };
     scriptedEvents = [completedEvent(env)];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(true);
-    expect(res.drop_reason).toBe("should_speak_false");
+    expect(res.drop_reason).toBeUndefined();
     expect(speechSink).not.toHaveBeenCalled();
-    // emotion/motion still rendered (firing≠judgment: judgment only gates speech).
+    // emotion/motion still rendered (firing≠judgment: silence only gates speech).
     expect(applyDirective).toHaveBeenCalledWith(env);
   });
+});
 
-  it("should_speak omitted (default true) → speaks", async () => {
-    const env: ControlEnvelope = { speech_text: "hi", emotion: { id: "neutral" } };
+describe("backend_caller — B5 emotion_text + tool_status callbacks", () => {
+  it("forwards emotion_text to onEmotionText when present", async () => {
+    const env: ControlEnvelope = {
+      speech_text: "안녕",
+      emotion: { id: "happy" },
+      emotion_text: "[whisper in small voice]",
+    };
     scriptedEvents = [completedEvent(env)];
     await caller.call(userEnv());
-    expect(speechSink).toHaveBeenCalledWith("hi");
+    expect(emotionTextSink).toHaveBeenCalledWith("[whisper in small voice]");
+  });
+
+  it("does not call onEmotionText when emotion_text is absent", async () => {
+    const env: ControlEnvelope = { speech_text: "안녕", emotion: { id: "happy" } };
+    scriptedEvents = [completedEvent(env)];
+    await caller.call(userEnv());
+    expect(emotionTextSink).not.toHaveBeenCalled();
+  });
+
+  it("forwards tool_status to onToolStatus when present", async () => {
+    const status = { state: "running" as const, tool_id: "web_search" };
+    const env: ControlEnvelope = { speech_text: "", tool_status: status };
+    scriptedEvents = [completedEvent(env)];
+    await caller.call(userEnv());
+    expect(toolStatusSink).toHaveBeenCalledWith(status);
   });
 });
 
