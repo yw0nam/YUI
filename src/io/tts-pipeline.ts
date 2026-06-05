@@ -24,8 +24,13 @@ import { createSentenceSegmenter } from "./sentence-segmenter";
 import { createTtsSynth, type TtsSynth } from "./tts-synth";
 
 export interface TtsPipelineOptions {
-  config: EndpointsConfig;
-  /** TTS 합성기 주입(테스트). 미지정 시 createTtsSynth(config, fetch). */
+  /**
+   * default synth 구성용 endpoints. `synth`를 주입하면 사용되지 않으므로 optional.
+   * ⚠ 값을 넘길 때 `config.get()`처럼 throw 가능한 호출을 eager 평가하지 말 것 —
+   *   파이프라인 생성이 부트스트랩 초반(config.load() 전)일 수 있다. synth 주입이 그 해법.
+   */
+  config?: EndpointsConfig;
+  /** TTS 합성기 주입(테스트/lazy-config). 미지정 시 createTtsSynth(config, fetch). */
   synth?: TtsSynth;
   /** 오디오 재생 sink 주입(테스트). 미지정 시 createWebAudioSink(). */
   sink?: AudioSink;
@@ -48,7 +53,13 @@ export interface TtsPipeline {
 
 export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   const synth: TtsSynth =
-    options.synth ?? createTtsSynth({ config: options.config, fetch: options.fetch });
+    options.synth ??
+    (() => {
+      if (!options.config) {
+        throw new Error("[tts-pipeline] config 또는 synth 중 하나는 필요하다");
+      }
+      return createTtsSynth({ config: options.config, fetch: options.fetch });
+    })();
   const sink: AudioSink = options.sink ?? createWebAudioSink();
 
   const segmenter = createSentenceSegmenter();

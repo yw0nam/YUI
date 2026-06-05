@@ -143,7 +143,8 @@ async function bootstrap(): Promise<void> {
   // synth는 호출 시점에 config(핫리로드 반영)와 selectFetch(#44: :8092도 Tauri webview cross-origin →
   // plugin-http 필요)를 읽는 closure로 주입한다. emotion_text는 generate_express(#1) 배선 후 setEmotionText로.
   const tts = createTtsPipeline({
-    config: config.get().endpoints,
+    // ⚠ config.get()을 여기서 호출하면 안 된다(load() 전 → throw → 부트스트랩이 죽어 VRM 미로드).
+    //   synth closure가 호출 시점에 config.get()을 lazy로 읽으므로 config 옵션은 생략한다.
     synth: async (input, signal) => {
       const f = await selectFetch();
       const eps = config.get().endpoints;
