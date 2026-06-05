@@ -1,52 +1,141 @@
 /**
- * STT + VAD — 음성 입력 파이프라인. (placeholder, PRD F3 / concept.md §2.C)
+ * STT + VAD — voice input pipeline (PRD F3 / concept.md §2.C).
  *
- * 책임(M1+):
- *  - VAD(@ricky0123/vad-web, Silero+ONNX Runtime Web, alignment V8)로 발화 시작/끝 감지.
- *  - 발화 종료 시 오디오 세그먼트를 STT 서비스로 전송:
- *    POST {stt_base_url}/audio/transcriptions (OpenAI 호환) → transcript.
- *  - transcript를 user_input_source의 `user.voice_segment_ready`로 dispatcher에 firing
- *    (event-dispatcher.md §3.4).
+ * Responsibilities:
+ *  - VAD (@ricky0123/vad-web, Silero+ONNX) detects speech start/end.
+ *  - On speech end: encode Float32Array → WAV blob → POST to STT service.
+ *  - Forward transcript to caller via onVoiceSegment.
  *
- * ⚠ @ricky0123/vad-web는 지금 import하지 않는다 (F3에서 사용). dependency만 추가됨.
- *
- * 지금은 시그니처/타입만. 실제 VAD 로드 + STT fetch는 M1.
+ * Voice mode is OFF by default. Call start() to activate.
  */
 
+import { MicVAD } from "@ricky0123/vad-web";
 import type { EndpointsConfig, InputContext } from "../contract";
 
-/** STT 결과. contract.md §4 InputContext.transcript와 동일 형태. */
+/** STT result — matches contract.md §4 InputContext.transcript. */
 export type Transcript = NonNullable<InputContext["transcript"]>;
+export type SttVadRuntimeState = "listening" | "asr" | "fired" | "error";
+
+const VAD_ASSET_PATH = "/vad/";
 
 export interface SttVadOptions {
   config: EndpointsConfig;
-  /** VAD가 한 발화 세그먼트를 STT까지 마치면 호출. */
+  /** Silence window in ms before speech end is declared. Default 1500. */
+  silenceMs?: number;
+  /** Called once per completed voice segment after STT succeeds. */
   onVoiceSegment: (transcript: Transcript) => void;
+  /** Reports client-side voice pipeline state for runtime UI. */
+  onState?: (state: SttVadRuntimeState, detail?: string) => void;
 }
 
 export interface SttVad {
-  /** 마이크 권한 + VAD 로드 후 청취 시작. */
+  /** Load VAD and start listening (idempotent). */
   start(): Promise<void>;
-  /** 청취 중지. */
+  /** Pause listening without releasing resources. */
   stop(): void;
-  /** VAD 인스턴스 + ONNX 세션 해제. */
-  dispose(): void;
+  /** Destroy VAD instance and release ONNX session. */
+  dispose(): Promise<void>;
 }
 
-/**
- * STT+VAD 인스턴스 생성 (placeholder).
- * TODO(M1): @ricky0123/vad-web MicVAD 로드 → onSpeechEnd → /audio/transcriptions POST.
- */
-export function createSttVad(_options: SttVadOptions): SttVad {
+/** Encode Float32Array PCM (16 kHz, mono) to a WAV Blob. */
+function encodeWav(samples: Float32Array): Blob {
+  const sampleRate = 16000;
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const dataSize = samples.length * blockAlign;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  const writeStr = (offset: number, s: string) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i));
+  };
+
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeStr(36, "data");
+  view.setUint32(40, dataSize, true);
+
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    offset += 2;
+  }
+
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
+export function createSttVad(options: SttVadOptions): SttVad {
+  const { config, onVoiceSegment, onState } = options;
+  const silenceMs = options.silenceMs ?? 1500;
+
+  let vad: Awaited<ReturnType<typeof MicVAD.new>> | null = null;
+  let loading = false;
+
+  async function onSpeechEnd(audio: Float32Array): Promise<void> {
+    onState?.("asr");
+    const wav = encodeWav(audio);
+    const form = new FormData();
+    form.append("file", wav, "audio.wav");
+
+    try {
+      const res = await fetch(`${config.stt_base_url}/audio/transcriptions`, {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) {
+        console.warn(`[stt-vad] STT request failed: HTTP ${res.status}`);
+        onState?.("error", `HTTP ${res.status}`);
+        return;
+      }
+      const data = (await res.json()) as { text: string };
+      onVoiceSegment({ text: data.text });
+      onState?.("fired");
+    } catch (err) {
+      console.warn("[stt-vad] STT error:", err);
+      const detail = err instanceof Error ? err.message : "STT request failed";
+      onState?.("error", detail);
+    }
+  }
+
   return {
     async start() {
-      /* TODO(M1) */
+      if (vad !== null || loading) return;
+      loading = true;
+      try {
+        vad = await MicVAD.new({
+          redemptionMs: silenceMs,
+          baseAssetPath: VAD_ASSET_PATH,
+          onnxWASMBasePath: VAD_ASSET_PATH,
+          onSpeechStart: () => onState?.("listening"),
+          onSpeechEnd,
+        });
+        await vad.start();
+      } finally {
+        loading = false;
+      }
     },
+
     stop() {
-      /* TODO(M1) */
+      vad?.pause();
     },
-    dispose() {
-      /* TODO(M1) */
+
+    async dispose() {
+      if (vad) {
+        await vad.destroy();
+        vad = null;
+      }
     },
   };
 }

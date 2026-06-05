@@ -1,0 +1,92 @@
+/* YUI voice input indicator, runtime voice tell paired with capture-indicator. */
+
+.yui-voice {
+  position: absolute;
+  top: calc(4.5% + 2.45rem);
+  left: 50%;
+  transform: translate(-50%, -6px);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.44rem;
+  padding: 0.3rem 0.64rem 0.3rem 0.58rem;
+  border-radius: var(--yui-radius-chip);
+  background: var(--yui-scrim);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  color: var(--yui-text-dim);
+  font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-shadow: var(--yui-text-shadow);
+  cursor: pointer;
+  user-select: none;
+  pointer-events: none;
+  z-index: 2;
+
+  opacity: 0;
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease),
+    border-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-voice.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.yui-voice:hover {
+  border-color: var(--yui-edge-strong);
+}
+
+.yui-voice__dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--yui-accent);
+  box-shadow: 0 0 0 0 var(--yui-accent-soft);
+  flex: 0 0 auto;
+}
+
+.yui-voice[data-state="listening"] .yui-voice__dot,
+.yui-voice[data-state="asr"] .yui-voice__dot {
+  animation: yui-voice-live 1.25s var(--yui-ease) infinite;
+}
+
+.yui-voice[data-state="fired"] .yui-voice__dot {
+  background: oklch(0.76 0.08 145);
+  box-shadow: 0 0 0 2px oklch(0.76 0.08 145 / 0.18);
+}
+
+.yui-voice[data-state="error"] .yui-voice__dot {
+  background: oklch(0.68 0.13 28);
+  box-shadow: 0 0 0 2px oklch(0.68 0.13 28 / 0.2);
+}
+
+@keyframes yui-voice-live {
+  0%,
+  100% {
+    opacity: 0.5;
+    box-shadow: 0 0 0 0 var(--yui-accent-soft);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 0 3px oklch(0.8 0.13 75 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-voice {
+    transition-duration: var(--yui-dur-fast) !important;
+    transform: translate(-50%, 0) !important;
+  }
+
+  .yui-voice__dot {
+    animation: none !important;
+  }
+}

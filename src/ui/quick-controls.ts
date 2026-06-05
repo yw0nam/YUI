@@ -7,6 +7,7 @@ import "./quick-controls.css";
 import type { createScreenshotSettings } from "../io/screenshot-settings";
 import type { ScreenSourceProvider, MonitorInfo } from "../io/screen-source-provider";
 import type { ScreenSource } from "../contract";
+import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 
@@ -14,6 +15,7 @@ interface QuickControlsOptions {
   mount: HTMLElement;
   settings: ScreenshotSettingsStore;
   sourceProvider: ScreenSourceProvider;
+  voiceStatus: VoiceInputStatus;
 }
 
 interface QuickControls {
@@ -30,6 +32,7 @@ export function createQuickControls({
   mount,
   settings,
   sourceProvider,
+  voiceStatus,
 }: QuickControlsOptions): QuickControls {
   // scrim(바깥 클릭 감지) + 팝오버를 body에 직접 붙이지 않고 mount 안에 넣는다.
   // pointer-events: auto를 직접 부여해 overlay pointer-none을 돌파.
@@ -60,11 +63,43 @@ export function createQuickControls({
       <div class="yui-source__label">보낼 화면</div>
       <div class="yui-monitors" role="radiogroup" aria-label="보낼 화면"></div>
     </div>
+    <div class="yui-row yui-row--voice">
+      <div class="yui-row__main">
+        <span class="yui-row__label">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 4.5v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M8 9.5v1.8a4 4 0 0 0 8 0V9.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M12 15.5v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+          음성 입력
+        </span>
+        <span class="yui-row__sub">말이 끝나면 STT 후 사용자 입력으로 보내요</span>
+      </div>
+      <button class="yui-switch yui-voice-switch" type="button" role="switch" aria-checked="false" aria-label="음성 입력"></button>
+    </div>
+    <details class="yui-voice-details" open>
+      <summary>세부 설정</summary>
+      <div class="yui-voice-details__body">
+        <div class="yui-voice-status">
+          <span class="yui-voice-status__label">상태 표시</span>
+          <span class="yui-voice-status__value">화면 위 chip</span>
+        </div>
+        <p class="yui-voice-status__note">Idle, 듣는 중, ASR 전송, 전달됨, 오류는 설정값이 아니라 화면 위 runtime indicator로 표시한다.</p>
+        <div class="yui-setting-grid">
+          <span>침묵 기준</span>
+          <strong>1500 ms</strong>
+          <span>STT endpoint</span>
+          <strong>configs/endpoints.json</strong>
+        </div>
+      </div>
+    </details>
     <p class="yui-quick__foot yui-quick__foot--on">켜져 있는 동안 매 대화에 이 화면이 첨부돼요.</p>
     <p class="yui-quick__foot yui-quick__foot--off">기본은 꺼져 있어요. 켜면 화면을 함께 보내요.</p>
   `;
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-switch")!;
+  const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsEl = el.querySelector<HTMLDivElement>(".yui-monitors")!;
 
   let openState = false;
@@ -78,6 +113,12 @@ export function createQuickControls({
     const on = s.enabled;
     switchBtn.setAttribute("aria-checked", String(on));
     el.classList.toggle("is-on", on);
+  }
+
+  function reflectVoiceStatus(snapshot: VoiceInputStatusSnapshot): void {
+    const on = snapshot.state !== "idle";
+    voiceSwitchBtn.setAttribute("aria-checked", String(on));
+    el.classList.toggle("is-voice-on", on);
   }
 
   function renderMonitors(monitors: MonitorInfo[], currentSource: ScreenSource): void {
@@ -186,6 +227,7 @@ export function createQuickControls({
     mount.appendChild(el);
 
     reflectSettings();
+    reflectVoiceStatus(voiceStatus.get());
 
     // 위치 잡기 (getBoundingClientRect은 DOM 삽입 후)
     if (anchor) {
@@ -248,6 +290,11 @@ export function createQuickControls({
     }
   }
 
+  function handleVoiceSwitchClick(): void {
+    const current = voiceStatus.get().state !== "idle";
+    voiceStatus.set(current ? "idle" : "listening");
+  }
+
   function handleScrimPointerDown(e: PointerEvent): void {
     // scrim이 팝오버 뒤에 있으므로 팝오버 안쪽 클릭은 scrim에 도달하지 않음
     e.stopPropagation();
@@ -272,14 +319,18 @@ export function createQuickControls({
       void loadMonitors();
     }
   });
+  const unsubscribeVoice = voiceStatus.subscribe(reflectVoiceStatus);
 
   switchBtn.addEventListener("click", handleSwitchClick);
+  voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
   scrimEl.addEventListener("pointerdown", handleScrimPointerDown);
   document.addEventListener("keydown", handleDocKeydown);
 
   function dispose(): void {
     unsubscribe();
+    unsubscribeVoice();
     switchBtn.removeEventListener("click", handleSwitchClick);
+    voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     scrimEl.removeEventListener("pointerdown", handleScrimPointerDown);
     document.removeEventListener("keydown", handleDocKeydown);
     el.remove();
