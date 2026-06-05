@@ -28,6 +28,7 @@ function goodFixture(): Record<string, unknown> {
       chat_endpoint: "/v1/responses",
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
+      chat_instructions: "Use the generate_express tool with emotion_id, motion_id, emotion_text.",
     },
     "avatar.json": { vrm_url: "/vrms/carlotta.vrm" },
     "emotion_registry.json": {
@@ -85,6 +86,8 @@ describe("loadConfig — happy path", () => {
       chat_endpoint: "/v1/responses",
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
+      chat_instructions:
+        "Use the generate_express tool with emotion_id, motion_id, emotion_text.",
     });
     expect(cfg.avatar).toEqual({ vrm_url: "/vrms/carlotta.vrm" });
     expect(cfg.emotionRegistry.happy).toEqual({
@@ -137,6 +140,19 @@ describe("loadConfig — validation failures throw ConfigError", () => {
         chat_endpoint: "v1/responses", // 슬래시 없음
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
+      }),
+      "endpoints.json",
+    );
+  });
+
+  it("endpoints: chat_instructions가 문자열이 아니면 실패", async () => {
+    await expectConfigError(
+      loadWith(CONFIG_FILES.endpoints, {
+        chat_base_url: "http://localhost:8642",
+        chat_endpoint: "/v1/responses",
+        stt_base_url: "http://localhost:5517",
+        tts_base_url: "http://localhost:8092",
+        chat_instructions: 123, // 문자열이 아님
       }),
       "endpoints.json",
     );

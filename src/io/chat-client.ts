@@ -15,17 +15,20 @@
  * Event → ChatStreamEvent mapping:
  *  - response.output_text.delta → speech_delta (accumulated into speech_text).
  *  - response.output_text.done  → speech_done.
- *  - response.output_item.added (function_call, name != "express") → tool_status running.
+ *  - response.output_item.added (function_call, name != "generate_express") → tool_status running.
  *  - response.function_call_arguments.done:
- *      · name == "express" → JSON.parse(arguments) → ExpressArgs (emotion?/motion?/should_speak?).
- *        parse failure → error event (does NOT throw / abort the loop).
+ *      · name == "generate_express" → JSON.parse(arguments) → ExpressArgs
+ *        (FLAT: emotion_id?/motion_id?/emotion_text?). parse failure → error event
+ *        (does NOT throw / abort the loop).
  *      · native tool → no event here (completion handled at output_item.done).
- *  - response.output_item.done (function_call, name != "express") → tool_status done.
- *  - response.completed → completed event with the assembled ControlEnvelope.
+ *  - response.output_item.done (function_call, name != "generate_express") → tool_status done.
+ *  - response.completed → completed event with the assembled ControlEnvelope. Normalization
+ *    happens HERE (chat-client only): emotion_id→emotion{id}, motion_id→motion{id},
+ *    emotion_text→emotion_text. No should_speak (D-NO-SPEAK-GATE).
  *  - error → error event.
  *
  * ⚠ function_call items are ABSENT from response.completed's final output[] →
- *   express/tool state must be captured mid-stream and remembered until completed.
+ *   generate_express/tool state must be captured mid-stream and remembered until completed.
  *
  * Event shapes: openai@6.42 d.ts + docs/openai_response_sdk/sse-event-format.md.
  */
@@ -34,6 +37,7 @@ import OpenAI from "openai";
 
 import type {
   ControlEnvelope,
+  EmotionId,
   EndpointsConfig,
   ExpressArgs,
   ToolStatus,
@@ -158,6 +162,8 @@ export async function* streamChat(
         // model: config-driven (EndpointsConfig.chat_model). Hermes Responses는 model 필수 —
         // 미설정 시 생략(테스트 mock·model-less backend용). prod endpoints.json은 반드시 설정.
         ...(config.chat_model ? { model: config.chat_model } : {}),
+        // instructions: config-driven nudge (generate_express 유도). 미설정 시 생략.
+        ...(config.chat_instructions ? { instructions: config.chat_instructions } : {}),
         input: request.input as any,
         previous_response_id: request.previous_response_id,
         stream: true,
@@ -196,7 +202,7 @@ export async function* streamChat(
           const item = event.item;
           if (
             item?.type === "function_call" &&
-            item.name !== "express"
+            item.name !== "generate_express"
           ) {
             tool_status = { state: "running", tool_id: item.name };
             yield { type: "tool_status", status: tool_status };
@@ -205,7 +211,7 @@ export async function* streamChat(
         }
 
         case "response.function_call_arguments.done": {
-          if (event.name === "express") {
+          if (event.name === "generate_express") {
             try {
               const args = JSON.parse(event.arguments) as ExpressArgs;
               express = args;
@@ -213,7 +219,7 @@ export async function* streamChat(
             } catch (err) {
               yield {
                 type: "error",
-                message: `express arguments JSON parse failed: ${
+                message: `generate_express arguments JSON parse failed: ${
                   err instanceof Error ? err.message : String(err)
                 }`,
               };
@@ -228,7 +234,7 @@ export async function* streamChat(
           const item = event.item;
           if (
             item?.type === "function_call" &&
-            item.name !== "express"
+            item.name !== "generate_express"
           ) {
             tool_status = { state: "done", tool_id: item.name };
             yield { type: "tool_status", status: tool_status };
@@ -237,12 +243,17 @@ export async function* streamChat(
         }
 
         case "response.completed": {
+          // Normalization (chat-client ONLY): FLAT args → renderer seam shape.
+          //   emotion_id→emotion{id}, motion_id→motion{id}, emotion_text→emotion_text.
+          //   Only present fields are normalized; absent ones stay undefined (no invention).
           const envelope: ControlEnvelope = { speech_text };
           if (express) {
-            if (express.should_speak !== undefined)
-              envelope.should_speak = express.should_speak;
-            if (express.emotion !== undefined) envelope.emotion = express.emotion;
-            if (express.motion !== undefined) envelope.motion = express.motion;
+            if (express.emotion_id !== undefined)
+              envelope.emotion = { id: express.emotion_id as EmotionId };
+            if (express.motion_id !== undefined)
+              envelope.motion = { id: express.motion_id };
+            if (express.emotion_text !== undefined)
+              envelope.emotion_text = express.emotion_text;
           }
           if (tool_status) envelope.tool_status = tool_status;
           yield { type: "completed", envelope };
