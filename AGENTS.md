@@ -144,6 +144,7 @@ YUI/
 > Most `src/` modules are **build-passing placeholders** (type exports + signatures + TODOs) — feature implementation starts at M1+.
 > **Implemented (feat/add_motion):** `renderer/motion-controller.ts` (pure state machine, unit-tested) + `renderer/index.ts` `playMotion` (#5) GPU path (screenshot-verified via `motion-preview.html`).
 > **Implemented (feat/emotion-expression #6):** `renderer/emotion-resolver.ts` (pure, existence-aware fallback, unit-tested) + `renderer/index.ts` `setEmotion` per-frame crossfade before vrm.update, hold-on-null, dev motion-preview EMOTION section.
+> **Implemented (feat/tts-pipeline #14, F4):** `io/sentence-segmenter.ts` (pure, ASCII+CJK boundaries, unit-tested) + `io/tts-synth.ts` (`POST {tts_base_url}/v1/audio/speech` → wav, injected fetch) + `io/audio-player.ts` (`AudioSink` iface + Web Audio sink, RMS amplitude hook for #15) + `io/tts-pipeline.ts` (segment → concurrent synth → **ordered playback** by submission index, `setEmotionText` opaque-prefix). Wired in `main.ts` `onSpeech` (말풍선 + TTS). Live E2E: `io/tts-synth.live.test.ts` (`YUI_LIVE=1`, hits real :8092 fishaudio/s2-pro). **emotion_text는 `setEmotionText`로 노출만 — 라이브 wire는 `generate_express`(#1/broker) 도착 후.** `configs/emotion_tts_prefix.json`(emotion_id→prefix) 경로는 폐기(D-EMOTION-DUAL supersede, tts_rule.md).
 
 ## Hermes Integration Summary
 

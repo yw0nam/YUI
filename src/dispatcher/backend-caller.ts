@@ -12,7 +12,7 @@
  *     completed 미수신 → parse_error.
  *  B4 judgment — should_speak=false → silent drop(INFO). (emotion/motion은 그래도 렌더.)
  *  B5 dispatch_to_renderer — renderer.applyDirective(envelope) + should_speak시 speech_text를
- *     onSpeech 콜백으로(TTS는 #14 deferred — 지금은 dev 로그/콜백).
+ *     onSpeech 콜백으로(main.ts에서 말풍선 + TTS 파이프라인 #14으로 흘린다).
  *
  * §7.3 silent drop 분류: parse_error(WARN) / network_drop(WARN) / should_speak_false(INFO).
  * 본 MVP는 retry/timeout 정교화(§7.2 B2 retry x1, 5s/30s)는 seam만 두고 단순화한다(#21 spine).
@@ -39,7 +39,7 @@ export interface BackendCallerDeps {
   getApiKey: () => Promise<string | undefined>;
   /** transport fetch 선택(selectFetch, #44). Tauri=plugin-http, dev=undefined. */
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
-  /** 발화 텍스트 sink (TTS #14 deferred — 지금은 dev 로그/콜백). */
+  /** 발화 텍스트 sink — main.ts가 말풍선 + TTS 파이프라인(#14)으로 연결한다. */
   onSpeech?: (text: string) => void;
   /** 단계별 로깅(없으면 console). */
   log?: (stage: string, detail: Record<string, unknown>) => void;

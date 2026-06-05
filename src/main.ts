@@ -6,7 +6,7 @@
  *               → createEventBus() + createGuardrails()
  *               → createDispatcher({ bus, guardrails, renderer })
  *               → sources(timer/idle/user_input + Rust os_event) 구독 → dispatcher.start()
- *   io: streamChat(SSE) → express + 텍스트 스트림 → renderer / surfaces / tts-pipeline.
+ *   io: streamChat(SSE) → express + 텍스트 스트림 → renderer / surfaces / tts-pipeline(#14).
  *
  * 현재 = #4 renderer + UI surfaces 목업:
  *   - .yui-stage: 투명 캐릭터 무대(드래그 영역). renderer가 캔버스로 채운다.
@@ -22,6 +22,8 @@ import { createMockDriver } from "./ui/mock";
 import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET } from "./config";
 import { initDrag } from "./drag";
 import { selectFetch } from "./io/chat-client";
+import { createTtsPipeline } from "./io/tts-pipeline";
+import { createTtsSynth } from "./io/tts-synth";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
@@ -136,8 +138,31 @@ async function bootstrap(): Promise<void> {
   if (import.meta.env.DEV && !import.meta.env.VITE_YUI_CHAT_KEY) {
     console.warn("[YUI] VITE_YUI_CHAT_KEY 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. .env.local 참고(.env.example).");
   }
+  // TTS 파이프라인(#14, F4): 발화 텍스트 → 문장 분절 → per-sentence TTS(:8092) → ordered playback.
+  // 세션 1 인스턴스 — 발화마다 push+end, submission index가 단조증가하며 재생 순서를 보존한다.
+  // synth는 호출 시점에 config(핫리로드 반영)와 selectFetch(#44: :8092도 Tauri webview cross-origin →
+  // plugin-http 필요)를 읽는 closure로 주입한다. emotion_text는 generate_express(#1) 배선 후 setEmotionText로.
+  const tts = createTtsPipeline({
+    config: config.get().endpoints,
+    synth: async (input, signal) => {
+      const f = await selectFetch();
+      const eps = config.get().endpoints;
+      return createTtsSynth({
+        config: eps,
+        fetch: f,
+        model: eps.tts_model,
+        voice: eps.tts_voice,
+        speed: eps.tts_speed,
+      })(input, signal);
+    },
+  });
+  if (import.meta.env.DEV) {
+    import.meta.hot?.dispose(() => tts.dispose());
+    Object.assign(globalThis as Record<string, unknown>, { __yuiTts: tts });
+  }
+
   // backend_caller: config 스토어에서 endpoints/secret을 호출 시점에 읽고, transport fetch는
-  // selectFetch()로 환경에 맞게 고른다(#44). speech_text는 말풍선으로(TTS는 #14 deferred).
+  // selectFetch()로 환경에 맞게 고른다(#44). speech_text는 말풍선 + TTS 파이프라인으로 흘린다.
   const backendCaller = createBackendCaller({
     // getter로 감싸 핫리로드된 endpoints를 다음 호출부터 반영(config.get()은 최신 스냅샷).
     get config() {
@@ -150,6 +175,11 @@ async function bootstrap(): Promise<void> {
       surfaces.beginSpeech();
       surfaces.pushSpeech(text);
       surfaces.endSpeech();
+      // onSpeech는 발화 1건당 누적 텍스트 전체를 준다(chat-client가 completed에서 조립).
+      // push로 문장 분절 → end로 잔여 flush. (스트리밍-delta TTS는 backend-caller가 delta를
+      // 흘리도록 바뀔 때의 후속 — 현재 envelope wire는 완성 텍스트만 노출.)
+      tts.pushTextDelta(text);
+      tts.end();
     },
   });
   const dispatcher = createDispatcher({ bus, renderer, backendCaller });

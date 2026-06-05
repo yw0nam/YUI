@@ -1,0 +1,72 @@
+/**
+ * tts-synth.live.test.ts — 실 TTS 서비스(:8092, vLLM fishaudio/s2-pro)에 tts-synth +
+ * tts-pipeline을 돌리는 통합 테스트. CI 미실행(네트워크/백엔드 의존) — `YUI_LIVE=1`일 때만.
+ *
+ * 실행:
+ *   YUI_LIVE=1 pnpm exec vitest run src/io/tts-synth.live.test.ts
+ *
+ * 무엇을 증명하나:
+ *  1. POST {tts_base_url}/v1/audio/speech {input, response_format:"wav"} → RIFF/WAVE 바이너리.
+ *  2. emotion_text를 prepend한 input이 정상 합성된다(태그가 본문과 함께 전달돼도 200).
+ *  3. tts-pipeline이 다문장 텍스트를 분절→동시 synth→ordered playback(fake sink)으로 흘릴 때
+ *     재생이 submission index 순서로, 실제 wav를 받아 일어난다.
+ */
+import { describe, it, expect } from "vitest";
+import type { EndpointsConfig } from "../contract";
+import { createTtsSynth } from "./tts-synth";
+import { createTtsPipeline } from "./tts-pipeline";
+import type { AudioSink } from "./audio-player";
+
+const LIVE = process.env.YUI_LIVE === "1";
+
+const endpoints: EndpointsConfig = {
+  chat_base_url: "http://localhost:8643/v1",
+  chat_endpoint: "/v1/responses",
+  stt_base_url: "http://localhost:5517",
+  tts_base_url: "http://localhost:8092",
+};
+
+/** RIFF....WAVE 헤더 확인(첫 4바이트 "RIFF", 8~11바이트 "WAVE"). */
+function isWav(buf: ArrayBuffer): boolean {
+  if (buf.byteLength < 12) return false;
+  const b = new Uint8Array(buf);
+  const tag = (o: number) => String.fromCharCode(b[o], b[o + 1], b[o + 2], b[o + 3]);
+  return tag(0) === "RIFF" && tag(8) === "WAVE";
+}
+
+describe.skipIf(!LIVE)("tts-synth — LIVE :8092 (fishaudio/s2-pro)", () => {
+  it("plain input → wav 바이너리", async () => {
+    const synth = createTtsSynth({ config: endpoints });
+    const wav = await synth("Hello, can you hear me?");
+    expect(wav.byteLength).toBeGreaterThan(1000);
+    expect(isWav(wav), "RIFF/WAVE 헤더여야 함").toBe(true);
+  }, 60_000);
+
+  it("emotion_text prefix가 붙은 input도 합성된다", async () => {
+    const synth = createTtsSynth({ config: endpoints });
+    const wav = await synth("[whisper in small voice] Can you hear me?");
+    expect(isWav(wav)).toBe(true);
+  }, 60_000);
+
+  it("pipeline: 다문장 → 분절 → 실 synth → ordered playback(submission 순서)", async () => {
+    const playedBytes: number[] = [];
+    const fakeSink: AudioSink = {
+      async play(wav) {
+        expect(isWav(wav)).toBe(true);
+        playedBytes.push(wav.byteLength);
+      },
+      stop() {},
+    };
+    const tts = createTtsPipeline({ config: endpoints, sink: fakeSink });
+    tts.pushTextDelta("First sentence. Second sentence! Third one?");
+    tts.end();
+
+    // 모든 synth+재생이 끝날 때까지 대기(폴링).
+    const deadline = Date.now() + 55_000;
+    while (playedBytes.length < 3 && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    expect(playedBytes.length, "3문장 모두 재생되어야 함").toBe(3);
+    tts.dispose();
+  }, 60_000);
+});
