@@ -89,6 +89,14 @@ describe("createSttVad — start() loads VAD", () => {
     expect(MicVAD.new).toHaveBeenCalledOnce();
   });
 
+  it("serves VAD model, worklet, and ONNX wasm assets from Vite public path", async () => {
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    await stt.start();
+
+    expect(capturedOptions.baseAssetPath).toBe("/vad/");
+    expect(capturedOptions.onnxWASMBasePath).toBe("/vad/");
+  });
+
   it("start() is idempotent — second call does not create a second VAD instance", async () => {
     const { MicVAD } = await import("@ricky0123/vad-web");
     const onVoiceSegment = vi.fn();
