@@ -200,7 +200,7 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   if (chat_model !== undefined && (typeof chat_model !== "string" || chat_model.trim() === "")) {
     issues.push(`chat_model은 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(chat_model)})`);
   }
-  // tts_model / tts_voice: optional. 미설정 시 TTS 서비스 기본값(fishaudio/s2-pro)을 쓴다(#14).
+  // tts_model / tts_voice: optional. 미설정 시 TTS 서비스 기본값.
   const optStr = (k: "tts_model" | "tts_voice"): string | undefined => {
     const v = raw[k];
     if (v !== undefined && (typeof v !== "string" || v.trim() === "")) {
@@ -211,7 +211,7 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   };
   const tts_model = optStr("tts_model");
   const tts_voice = optStr("tts_voice");
-  // tts_speed: optional. OpenAI speech 스펙 범위 [0.25, 4.0].
+  // tts_speed: optional, [0.25, 4.0].
   const tts_speed = raw.tts_speed;
   if (
     tts_speed !== undefined &&

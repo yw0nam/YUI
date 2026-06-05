@@ -13,6 +13,8 @@
   3. **`refactor: ...`** — Clean up without changing behavior (keep green, only when needed)
   `pnpm test` / `cargo test` are PR gates — new features without tests cannot be merged.
 - **Sub-agent-based development.** Implementation work is delegated to specialist agents listed in [Sub-agent Roster](#sub-agent-roster) below. **The main agent (talking with the user) does not implement** — it focuses exclusively on requirements clarification, task delegation, output integration, verification, and orchestration.
+- **Verify what you can verify before asking the user.** Anything observable without the user — speech bubble / UI rendering / DOM state / logs — you must verify yourself (drive the app, screenshot, check the DOM) and only report once it works. Ask the user to confirm **only** things that genuinely require them (audio playback through speakers, physical input feel). Never hand off a "please check if X shows up" when X is something you could have checked.
+- **Comments: minimal, present-tense only.** No verbose explanations, no decision-history / spec-citation / issue-number breadcrumbs (`#NN`, `D-*`, `contract.md §x`, "이전엔 …", "supersede") in code comments — that belongs in docs/PRs, not source. Comment only what the code cannot say itself (a non-obvious invariant or gotcha), in one line.
 
 ## Sub-agent Roster
 

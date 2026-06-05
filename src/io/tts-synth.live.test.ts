@@ -1,15 +1,6 @@
 /**
- * tts-synth.live.test.ts — 실 TTS 서비스(:8092, vLLM fishaudio/s2-pro)에 tts-synth +
- * tts-pipeline을 돌리는 통합 테스트. CI 미실행(네트워크/백엔드 의존) — `YUI_LIVE=1`일 때만.
- *
- * 실행:
+ * 실 TTS 서비스(:8092)에 대한 통합 테스트 — `YUI_LIVE=1`일 때만 실행.
  *   YUI_LIVE=1 pnpm exec vitest run src/io/tts-synth.live.test.ts
- *
- * 무엇을 증명하나:
- *  1. POST {tts_base_url}/v1/audio/speech {input, response_format:"wav"} → RIFF/WAVE 바이너리.
- *  2. emotion_text를 prepend한 input이 정상 합성된다(태그가 본문과 함께 전달돼도 200).
- *  3. tts-pipeline이 다문장 텍스트를 분절→동시 synth→ordered playback(fake sink)으로 흘릴 때
- *     재생이 submission index 순서로, 실제 wav를 받아 일어난다.
  */
 import { describe, it, expect } from "vitest";
 import type { EndpointsConfig } from "../contract";

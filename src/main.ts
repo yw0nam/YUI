@@ -138,13 +138,9 @@ async function bootstrap(): Promise<void> {
   if (import.meta.env.DEV && !import.meta.env.VITE_YUI_CHAT_KEY) {
     console.warn("[YUI] VITE_YUI_CHAT_KEY 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. .env.local 참고(.env.example).");
   }
-  // TTS 파이프라인(#14, F4): 발화 텍스트 → 문장 분절 → per-sentence TTS(:8092) → ordered playback.
-  // 세션 1 인스턴스 — 발화마다 push+end, submission index가 단조증가하며 재생 순서를 보존한다.
-  // synth는 호출 시점에 config(핫리로드 반영)와 selectFetch(#44: :8092도 Tauri webview cross-origin →
-  // plugin-http 필요)를 읽는 closure로 주입한다. emotion_text는 generate_express(#1) 배선 후 setEmotionText로.
+  // synth는 호출 시점에 config(핫리로드)와 selectFetch를 읽는 closure로 주입한다.
+  // config.get()을 여기서 eager 평가하면 load() 전 throw로 부트스트랩이 죽으니 금지.
   const tts = createTtsPipeline({
-    // ⚠ config.get()을 여기서 호출하면 안 된다(load() 전 → throw → 부트스트랩이 죽어 VRM 미로드).
-    //   synth closure가 호출 시점에 config.get()을 lazy로 읽으므로 config 옵션은 생략한다.
     synth: async (input, signal) => {
       const f = await selectFetch();
       const eps = config.get().endpoints;
@@ -162,10 +158,7 @@ async function bootstrap(): Promise<void> {
     Object.assign(globalThis as Record<string, unknown>, { __yuiTts: tts });
   }
 
-  // backend_caller: config 스토어에서 endpoints/secret을 호출 시점에 읽고, transport fetch는
-  // selectFetch()로 환경에 맞게 고른다(#44). speech_text는 말풍선 + TTS 파이프라인으로 흘린다.
   const backendCaller = createBackendCaller({
-    // getter로 감싸 핫리로드된 endpoints를 다음 호출부터 반영(config.get()은 최신 스냅샷).
     get config() {
       return config.get().endpoints;
     },
@@ -176,9 +169,6 @@ async function bootstrap(): Promise<void> {
       surfaces.beginSpeech();
       surfaces.pushSpeech(text);
       surfaces.endSpeech();
-      // onSpeech는 발화 1건당 누적 텍스트 전체를 준다(chat-client가 completed에서 조립).
-      // push로 문장 분절 → end로 잔여 flush. (스트리밍-delta TTS는 backend-caller가 delta를
-      // 흘리도록 바뀔 때의 후속 — 현재 envelope wire는 완성 텍스트만 노출.)
       tts.pushTextDelta(text);
       tts.end();
     },
