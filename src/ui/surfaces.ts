@@ -11,6 +11,8 @@
  */
 
 import "./surfaces.css";
+import { renderMarkdownInline } from "./markdown";
+import { getToolLabel } from "./tool-labels";
 
 export interface Surfaces {
   /** overlay 루트 (.yui-ui) */
@@ -27,7 +29,8 @@ export interface Surfaces {
   hideSpeech(): void;
 
   // ── tool-status (백엔드 tool 관찰) ──
-  showTool(label: string): void;
+  /** tool_id를 넘기면 label 맵에서 표시 문자열을 조회한다. 미등록 id는 generic fallback. */
+  showTool(toolId: string): void;
   hideTool(): void;
 
   // ── text input (입력) ──
@@ -90,6 +93,8 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   const dwell = dwellMs ?? readDwellToken(el) ?? DEFAULT_DWELL;
   const submitHandlers: Array<(text: string) => void> = [];
   let dwellTimer: ReturnType<typeof setTimeout> | null = null;
+  // Raw accumulated speech text — re-rendered as markdown on each push.
+  let speechRaw = "";
 
   function clearDwell(): void {
     if (dwellTimer !== null) {
@@ -101,7 +106,8 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   // ── speech bubble ──
   function beginSpeech(): void {
     clearDwell();
-    bubbleText.textContent = "";
+    speechRaw = "";
+    bubbleText.replaceChildren();
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-streaming");
     // 다음 프레임에 transition 점화 (hidden 해제 직후 같은 프레임이면 안 움직임)
@@ -110,11 +116,13 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
 
   function pushSpeech(delta: string): void {
     if (bubbleEl.hidden) beginSpeech();
-    bubbleText.textContent += delta;
+    speechRaw += delta;
+    // Re-render the full accumulated text as inline markdown on each delta.
+    bubbleText.replaceChildren(renderMarkdownInline(speechRaw));
   }
 
   function endSpeech(): void {
-    if (bubbleEl.hidden && bubbleText.textContent === "") return;
+    if (bubbleEl.hidden && speechRaw === "") return;
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-visible");
     bubbleEl.classList.remove("is-streaming");
@@ -130,15 +138,16 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
       bubbleEl.removeEventListener("transitionend", onEnd);
       if (!bubbleEl.classList.contains("is-visible")) {
         bubbleEl.hidden = true;
-        bubbleText.textContent = "";
+        speechRaw = "";
+        bubbleText.replaceChildren();
       }
     };
     bubbleEl.addEventListener("transitionend", onEnd);
   }
 
   // ── tool-status ──
-  function showTool(label: string): void {
-    toolLabel.textContent = label;
+  function showTool(toolId: string): void {
+    toolLabel.textContent = getToolLabel(toolId);
     toolEl.hidden = false;
     requestAnimationFrame(() => toolEl.classList.add("is-visible"));
   }
