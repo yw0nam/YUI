@@ -3,5 +3,6 @@
   "chat_endpoint": "/v1/responses",
   "chat_model": "natsume",
   "stt_base_url": "http://localhost:5517",
-  "tts_base_url": "http://localhost:8092"
+  "tts_base_url": "http://localhost:8092",
+  "tts_voice": "ナツメ"
 }
