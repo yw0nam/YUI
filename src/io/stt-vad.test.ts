@@ -97,11 +97,11 @@ describe("createSttVad — start() loads VAD", () => {
 });
 
 describe("createSttVad — silenceMs configurable", () => {
-  it("silenceMs=2000 produces more redemptionFrames than silenceMs=1500", async () => {
+  it("silenceMs=2000 produces higher redemptionMs than silenceMs=1500", async () => {
     const onVoiceSegment = vi.fn();
     const stt = createSttVad({ config: CONFIG, onVoiceSegment, silenceMs: 2000 });
     await stt.start();
-    const frames2000 = capturedOptions.redemptionFrames as number;
+    const ms2000 = capturedOptions.redemptionMs as number;
 
     vi.clearAllMocks();
     capturedOptions = {};
@@ -109,18 +109,17 @@ describe("createSttVad — silenceMs configurable", () => {
 
     const stt2 = createSttVad({ config: CONFIG, onVoiceSegment, silenceMs: 1500 });
     await stt2.start();
-    const frames1500 = capturedOptions.redemptionFrames as number;
+    const ms1500 = capturedOptions.redemptionMs as number;
 
-    expect(frames2000).toBeGreaterThan(frames1500);
+    expect(ms2000).toBeGreaterThan(ms1500);
   });
 
-  it("default silenceMs is 1500 (redemptionFrames matches 1500ms calculation)", async () => {
+  it("default silenceMs is 1500 (redemptionMs is a positive number)", async () => {
     const onVoiceSegment = vi.fn();
     const stt = createSttVad({ config: CONFIG, onVoiceSegment });
     await stt.start();
-    // redemptionFrames must be defined (derived from default 1500ms)
-    expect(typeof capturedOptions.redemptionFrames).toBe("number");
-    expect((capturedOptions.redemptionFrames as number) > 0).toBe(true);
+    expect(typeof capturedOptions.redemptionMs).toBe("number");
+    expect((capturedOptions.redemptionMs as number) > 0).toBe(true);
   });
 });
 
@@ -165,18 +164,21 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     expect(file).toBeInstanceOf(Blob);
   });
 
-  it("includes 'model' field in FormData when config has stt_model", async () => {
+  it("sends audio data that encodes the Float32Array samples", async () => {
     const fetchMock = buildFetchMock("ok");
     vi.stubGlobal("fetch", fetchMock);
 
-    const configWithModel = { ...CONFIG, stt_model: "whisper-1" } as EndpointsConfig & { stt_model?: string };
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: configWithModel, onVoiceSegment });
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
     await stt.start();
-    await triggerSpeechEnd!(new Float32Array(8));
+
+    const audio = new Float32Array([0.5, -0.5, 0.1]);
+    await triggerSpeechEnd!(audio);
 
     const body = fetchMock.mock.calls[0][1].body as FormData;
-    expect(body.get("model")).toBe("whisper-1");
+    const file = body.get("file") as Blob;
+    // Blob must be non-empty (encodes PCM samples)
+    expect(file.size).toBeGreaterThan(0);
   });
 });
 
