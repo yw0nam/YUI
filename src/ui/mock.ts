@@ -21,7 +21,7 @@ const sleep = (ms: number): Promise<void> =>
 export interface MockDriver {
   /** 입력 제출에 대한 응답 1턴 재생: (tool) → 발화 스트림 → settle → fade. */
   reply(userText: string): Promise<void>;
-  /** 선제 발화(입력 없이) — should_speak firing 경로 시연. */
+  /** 선제 발화(입력 없이) — backend-initiated 발화 경로 시연. */
   proactive(line?: string): Promise<void>;
   /** 발화 스트림만 재생(도구 없음). */
   speak(line: string): Promise<void>;

@@ -2,7 +2,7 @@
  * Backend caller — B1–B5 호출 시퀀스. (PRD F6 / event-dispatcher.md §7.2)
  *
  * tier2/3 event를 backend judgment로 보낸다. firing≠judgment 경계의 backend 쪽:
- * 말할지/무엇을은 backend가 `express` tool-call(should_speak)로 결정한다.
+ * 말할지/무엇을은 backend가 발화 텍스트 발신 여부로 표현한다(D-NO-SPEAK-GATE: 침묵 = speech_text "").
  *
  *  B1 package_context — contract.md §4 InputContext 조립(MVP: user_text + env.timestamp +
  *     env.timezone). active_app/window(Rust handoff)는 DEFERRED(#26) → 채우지 않음.
@@ -10,16 +10,22 @@
  *     소유 — 여기서 직접 파싱하지 않는다. AbortSignal로 in-flight abort(§12).
  *  B3 parse — chat-client의 `completed` 이벤트가 이미 ControlEnvelope를 조립해 준다(§3).
  *     completed 미수신 → parse_error.
- *  B4 judgment — should_speak=false → silent drop(INFO). (emotion/motion은 그래도 렌더.)
- *  B5 dispatch_to_renderer — renderer.applyDirective(envelope) + should_speak시 speech_text를
- *     onSpeech 콜백으로(main.ts에서 말풍선 + TTS 파이프라인 #14으로 흘린다).
+ *  B4 speech gate — speech_text가 비어있지 않을 때만 발화(D-NO-SPEAK-GATE). 빈 텍스트 = 침묵,
+ *     별도 플래그 없음. emotion/motion은 침묵과 무관하게 렌더.
+ *  B5 dispatch_to_renderer — renderer.applyDirective(envelope) + speech_text→onSpeech +
+ *     emotion_text→onEmotionText + tool_status→onToolStatus(main.ts에서 TTS/UI로 흘린다).
  *
- * §7.3 silent drop 분류: parse_error(WARN) / network_drop(WARN) / should_speak_false(INFO).
+ * §7.3 silent drop 분류: parse_error(WARN) / network_drop(WARN).
  * 본 MVP는 retry/timeout 정교화(§7.2 B2 retry x1, 5s/30s)는 seam만 두고 단순화한다(#21 spine).
  */
 
 import { streamChat, type ChatRequest } from "../io/chat-client";
-import type { ControlEnvelope, EndpointsConfig, InputContext } from "../contract";
+import type {
+  ControlEnvelope,
+  EndpointsConfig,
+  InputContext,
+  ToolStatus,
+} from "../contract";
 import type { Renderer } from "../renderer";
 import type { BusEnvelope } from "./event-bus";
 import type { DropReason } from "./guardrails";
@@ -43,6 +49,10 @@ export interface BackendCallerDeps {
   onSpeech?: (text: string) => void;
   /** 토글 ON일 때 화면 캡처 블록을 조립해 반환(OFF/실패면 undefined). main.ts가 settings+capturer+buildScreenshotBlock로 합성. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
+  /** emotion_text(TTS voice tag) sink — present 시에만 호출. main.ts 배선은 후속(이 PR 비대상). */
+  onEmotionText?: (text: string) => void;
+  /** tool_status sink — present 시에만 호출. main.ts 배선은 후속(이 PR 비대상). */
+  onToolStatus?: (status: ToolStatus) => void;
   /** 단계별 로깅(없으면 console). */
   log?: (stage: string, detail: Record<string, unknown>) => void;
   /** client 버전(InputContext.client.yui_version). */
@@ -201,8 +211,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       return { ok: false, drop_reason: "parse_error" };
     }
 
-    // B5(render half): emotion/motion은 should_speak와 무관하게 적용한다.
-    //   firing≠judgment: judgment(should_speak)는 *발화*만 게이팅한다(§7.2/§3).
+    // B5(render half): emotion/motion은 침묵과 무관하게 적용한다.
+    //   firing≠judgment: silence(speech_text "")는 *발화*만 게이팅한다(§7.2/§3).
     try {
       deps.renderer.applyDirective(envelope);
       log("dispatch_to_renderer", {
@@ -214,14 +224,18 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       log("dispatch_to_renderer.error", { error: String(err) });
     }
 
-    // B4: should_speak judgment (default true). false면 발화만 silent drop(INFO).
-    const shouldSpeak = envelope.should_speak !== false;
-    if (!shouldSpeak) {
-      log("should_speak_false", { event_name: env.event_name });
-      return { ok: true, drop_reason: "should_speak_false" };
+    // B5(emotion_text half): TTS voice tag → onEmotionText(있을 때만).
+    if (envelope.emotion_text != null) {
+      deps.onEmotionText?.(envelope.emotion_text);
     }
 
-    // B5(speech half): speech_text → onSpeech(현재는 dev 로그/콜백, TTS는 #14).
+    // B5(tool_status half): 네이티브 tool 관찰 결과 → onToolStatus(있을 때만).
+    if (envelope.tool_status != null) {
+      deps.onToolStatus?.(envelope.tool_status);
+    }
+
+    // B4(speech gate, D-NO-SPEAK-GATE): speech_text가 비어있지 않을 때만 발화.
+    //   빈 텍스트 = 침묵 — 별도 플래그/판정 없음, drop_reason도 없음.
     if (envelope.speech_text) {
       deps.onSpeech?.(envelope.speech_text);
       log("speech", { text: envelope.speech_text });

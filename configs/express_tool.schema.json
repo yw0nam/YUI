@@ -1,23 +1,24 @@
 {
   "_meta": {
-    "purpose": "YUI 제어신호 transport contract. backend express skill이 등록할 function 정의 = 단일 소스. client는 들어온 function_call(name=='express')의 arguments를 이 parameters로 검증한다.",
+    "purpose": "YUI 제어신호 transport contract. backend generate_express tool이 등록할 function 정의 = 단일 소스. client는 들어온 function_call(name=='generate_express')의 arguments를 이 parameters로 검증한다.",
     "consumers": [
-      "backend(Hermes) express skill 등록: name=='express', parameters=아래 스키마를 그대로 맞춘다 (firing≠judgment: 호출 여부/내용은 backend 판단).",
-      "client SSE 파서: response.function_call_arguments.done 시점에 name=='express'면 arguments를 parameters로 검증 후 ControlEnvelope에 정규화."
+      "backend(Hermes) generate_express tool 등록: name=='generate_express', parameters=아래 스키마를 그대로 맞춘다 (firing≠judgment: 호출 여부/내용은 backend 판단).",
+      "client SSE 파서: response.function_call_arguments.done 시점에 name=='generate_express'면 arguments를 parameters로 검증 후 ControlEnvelope에 정규화(emotion_id→emotion{id}, motion_id→motion{id}, emotion_text→emotion_text)."
     ],
     "rules": [
-      "express 호출 자체가 매 턴 optional (D-EXPRESS-OPTIONAL). 안 부른 턴 → idle motion + 직전 표정 유지.",
+      "generate_express 호출 자체가 매 턴 optional (D-EXPRESS-OPTIONAL). 안 부른 턴 → idle motion + 직전 표정 유지.",
       "모든 인자 optional (required: []). strict=false인 이유 — Responses strict 모드는 모든 property를 required로 강제하므로 optional 의미와 충돌.",
-      "express = 순수 비언어 채널 {emotion?, motion?}. 발화 게이트(should_speak) 없음 (제거 2026-06-04, D-NO-SPEAK-GATE). 침묵 = backend가 assistant 텍스트를 안 보냄(speech_text==''); client는 빈 텍스트면 TTS/말풍선 스킵. firing은 client event loop 소유라 '말할지' 판단을 transport에 둘 이유 없음.",
+      "FLAT 문자열 인자 {emotion_id?, motion_id?, emotion_text?}. 발화 게이트(should_speak) 없음 (제거 2026-06-04, D-NO-SPEAK-GATE). 침묵 = backend가 assistant 텍스트를 안 보냄(speech_text==''); client는 빈 텍스트면 TTS/말풍선 스킵. firing은 client event loop 소유라 '말할지' 판단을 transport에 둘 이유 없음.",
       "speech_text는 여기 없음. 발화는 별도 텍스트 스트림(response.output_text.delta), tool 인자 아님 (D-SPEECH).",
-      "emotion.id enum은 backend 책임(§1). motion.id는 열린 문자열 — client registry(§2)에서 검증, 미등록 시 무시+경고.",
-      "motion = client fallback (D-MOTION-FROM-EMOTION). backend는 보통 emotion만 보낸다. express.motion이 없으면 client가 emotion id 전이 순간 emotion→motion 기본 매핑에서 제스처 1회 파생(매핑 없으면 idle). express.motion 명시 시 override — 정서 무관 제스처/억제용 escape hatch. 채널은 optional 유지.",
+      "emotion_id enum은 backend 책임(§1). motion_id는 열린 문자열 — client registry(§2)에서 검증, 미등록 시 무시+경고.",
+      "emotion_text = 자유 텍스트 TTS voice tag(예: '[whisper in small voice]'). client가 emotion_text 채널로 정규화해 TTS로 라우팅.",
+      "motion = client fallback (D-MOTION-FROM-EMOTION). backend는 보통 emotion_id만 보낸다. motion_id가 없으면 client가 emotion id 전이 순간 emotion→motion 기본 매핑에서 제스처 1회 파생(매핑 없으면 idle). motion_id 명시 시 override — 정서 무관 제스처/억제용 escape hatch. 채널은 optional 유지.",
       "근거: docs/contract.md §1·§2·§3, docs/openai_response_sdk/sse-event-format.md, D-TRANSPORT(prd §5)."
     ],
     "responses_tool_wrapper_example": {
-      "_note": "참고용. 실제 등록 형식은 Hermes skill 메커니즘이 결정(나중에 맞춤). 하드 계약은 name + parameters.",
+      "_note": "참고용. 실제 등록 형식은 Hermes tool 메커니즘이 결정(나중에 맞춤). 하드 계약은 name + parameters.",
       "type": "function",
-      "name": "express",
+      "name": "generate_express",
       "description": "see top-level description",
       "parameters": "see top-level parameters",
       "strict": false
@@ -25,8 +26,8 @@
   },
 
   "type": "function",
-  "name": "express",
-  "description": "Optional per-turn NON-VERBAL control channel for the YUI avatar: set the character's facial emotion (and optionally a body motion). Omit any field to keep its default; omit the whole call to leave the avatar idle with its previous expression. Speech is NOT controlled here — to speak, emit the assistant message text as usual; to stay silent, emit no text. There is no speak/silence flag.",
+  "name": "generate_express",
+  "description": "Optional per-turn expression channel for the YUI avatar (desktopmate-style desktop companion). Enrich the spoken reply with flat fields: emotion_id (facial emotion), motion_id (body gesture), and emotion_text (free-text TTS voice tags such as [whisper in small voice]). Omit any field to keep its default; omit the whole call to leave the avatar idle with its previous expression. Speech is NOT controlled here — to speak, emit the assistant message text as usual; to stay silent, emit no text. There is no speak/silence flag.",
   "strict": false,
   "parameters": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -34,64 +35,22 @@
     "additionalProperties": false,
     "required": [],
     "properties": {
-      "emotion": {
-        "type": ["object", "null"],
-        "additionalProperties": false,
-        "required": ["id"],
-        "description": "VRM 표정 + (있으면) TTS prefix로 이중 소비(D-EMOTION-DUAL). null/생략 시 직전 표정 유지.",
-        "properties": {
-          "id": {
-            "type": "string",
-            "enum": [
-              "neutral", "happy", "angry", "sad", "relaxed", "surprised",
-              "thinking", "curious", "sleepy", "embarrassed"
-            ],
-            "description": "VRM 1.0 preset(neutral/happy/angry/sad/relaxed/surprised) + 확장(thinking/curious/sleepy/embarrassed)."
-          },
-          "intensity": {
-            "type": "number",
-            "minimum": 0.0,
-            "maximum": 1.0,
-            "default": 1.0,
-            "description": "표정 강도. 범위 밖이면 client가 클램프+경고."
-          },
-          "transition_ms": {
-            "type": "integer",
-            "minimum": 0,
-            "default": 250,
-            "description": "표정 보간 시간(ms)."
-          }
-        }
+      "emotion_id": {
+        "type": "string",
+        "enum": [
+          "neutral", "happy", "angry", "sad", "relaxed", "surprised",
+          "thinking", "curious", "sleepy", "embarrassed"
+        ],
+        "description": "VRM 표정 emotion id. VRM 1.0 preset(neutral/happy/angry/sad/relaxed/surprised) + 확장(thinking/curious/sleepy/embarrassed). 생략 시 직전 표정 유지."
       },
-      "motion": {
-        "type": ["object", "null"],
-        "additionalProperties": false,
-        "required": ["id"],
-        "description": "body motion 요청 (optional escape hatch). 보통은 생략 — client가 emotion 전이에서 기본 제스처를 파생한다(D-MOTION-FROM-EMOTION). 명시하면 그게 우선: 정서 무관 제스처나 억제({id:'idle'})에 사용. null/생략 시 client fallback(매핑 없으면 idle). id는 client motion registry(§2) 키 — 미등록 시 무시+경고.",
-        "properties": {
-          "id": {
-            "type": "string",
-            "examples": ["idle", "drag", "happy", "laughing", "shy_point"],
-            "description": "registry key. MVP 5종(idle/drag/happy/laughing/shy_point — configs/motions.json). 새 motion = registry entry 추가, backend는 ID 문자열만 알면 됨."
-          },
-          "loop": {
-            "type": "boolean",
-            "description": "registry default 오버라이드."
-          },
-          "speed": {
-            "type": "number",
-            "minimum": 0.25,
-            "maximum": 2.5,
-            "default": 1.0,
-            "description": "재생 속도."
-          },
-          "fade_ms": {
-            "type": "integer",
-            "minimum": 0,
-            "default": 200,
-            "description": "crossfade(ms)."
-          }
-        }
+      "motion_id": {
+        "type": "string",
+        "examples": ["idle", "drag", "happy", "laughing", "shy_point"],
+        "description": "body motion registry key (optional escape hatch). 보통은 생략 — client가 emotion 전이에서 기본 제스처를 파생한다(D-MOTION-FROM-EMOTION). 명시하면 그게 우선: 정서 무관 제스처나 억제(\"idle\")에 사용. registry(§2, configs/motions.json) 키 — 미등록 시 무시+경고."
+      },
+      "emotion_text": {
+        "type": "string",
+        "description": "Free-text TTS voice tag describing how the line should sound, e.g. \"[whisper in small voice]\" or \"[excited]\". client가 emotion_text 채널로 정규화해 TTS 파이프라인으로 라우팅한다. 생략 가능."
       }
     }
   }
