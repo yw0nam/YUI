@@ -25,3 +25,6 @@ dist-ssr
 resources/vrms
 .env
 .env.local
+
+# verify-guard runtime counter (machine-local)
+.claude/.verify-attempts

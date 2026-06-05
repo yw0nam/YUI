@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-guard-stop.sh\"",
+            "statusMessage": "verify-guard: checking runtime verification(playwright, pnpm tauri dev.. etc) before stop"
+          }
+        ]
+      }
+    ]
+  }
+}
