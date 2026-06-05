@@ -1,7 +1,8 @@
-# Expression Broker (MCP) — 설계 스펙
+# Expression Broker (MCP) — 구현 스펙
 
-> **상태:** v0 설계 확정 — 구현 시작 가능. E2E(실제 Hermes 스트림)는 [#1](https://github.com/yw0nam/YUI/issues/1)에서 검증.
+> **상태:** **구현 완료, 가동 중 @ `localhost:3201`** (외부 구현, YUI 레포 외부). E2E 연동 검증은 [#1](https://github.com/yw0nam/YUI/issues/1) 참고.
 > **레포:** **독립 레포** — YUI에도 Hermes에도 속하지 않는 별도 서비스. 둘 다 이 broker의 MCP client로 붙는다.
+> **접속:** `localhost:3201` (streamable-http transport). YUI 시작 전에 broker가 먼저 기동되어 있어야 함.
 
 ## 0. 한 줄 요약
 
@@ -21,8 +22,8 @@ emotion/motion **어휘(vocabulary)의 단일 진실원천(SOT)** 이자, agent�
        │                                                 │
        │           ┌──────────────────────┐             │
        └───────────│    Hermes Agent      │─────────────┘
-   (same wire as   │ (MCP client = brain) │
-    old express)   │ = judgment           │
+   (generate_expr  │ (MCP client = brain) │
+    function_call) │ = judgment           │
                    └──────────────────────┘
 ```
 
@@ -146,16 +147,16 @@ async def update_emotion_ids(ids: list[str], ctx: Context) -> dict:
 
 ⚠ **`response.completed`의 최종 `output[]`엔 function_call이 빠진다 — 진행 중(`...arguments.done`)에 캡처 필수.** (contract.md §3와 동일.)
 
-## 6. 결정/검증 필요 사항
+## 6. 구현 상태 및 E2E 검증
 
-**구현 전 잠가야 할 결정:**
-- [ ] **구현 언어** — Python
-- [ ] **transport** — `streamable-http`
-- [ ] **firing tool 이름** — `generate_express` contract.md §3의 `express`→이 이름으로 일괄 갱신.
-- [ ] **render 미세 파라미터** — flat 3필드 shape는 contract의 `intensity/transition_ms/loop/speed/fade_ms`를 버린다 → client 기본값만 적용. 필요하면 nested로 복원(예: `emotion: {id, intensity}`). *권장: flat 유지, client default, 후속에 필요 시 확장.*
+**구현 확정 사항 (완료):**
+- [x] **구현 언어** — Python
+- [x] **transport** — `streamable-http` @ `localhost:3201`
+- [x] **firing tool 이름** — `generate_express` (구 `express` 완전 대체)
+- [x] **flat 3필드 shape** — `{ emotion_id?, motion_id?, emotion_text? }`. `intensity/transition_ms/loop/speed/fade_ms` 등 미세 파라미터는 client 기본값 적용. 필요 시 후속에서 확장.
 
-**Hermes에서 E2E 검증(#1):**
-- [ ] Hermes agent가 MCP server(streamable-http)를 tool source로 붙이는가.
+**E2E 연동 검증 항목 (#1):**
+- [ ] Hermes agent가 broker(streamable-http @ :3201)를 tool source로 붙이는가.
 - [ ] `generate_express` function_call이 `/v1/responses` 스트림에 **arguments까지** 실려 뜨는가(`output_item.added → arguments.done`).
 - [ ] 안 부르는 턴(표현 전환 없음)에 idle + 직전 표정 유지되는가.
 - [ ] resource subscription(`expression://vocabulary` 변경 통지)을 Hermes/YUI가 수신하는가.

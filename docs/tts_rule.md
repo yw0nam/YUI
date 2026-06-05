@@ -1,4 +1,4 @@
-# TTS tool
+# TTS Rule — `generate_express` payload & emotion_text
 
 ## Return value
 
@@ -65,27 +65,23 @@ And, These can be used together for fine-grained control.
 
 
 
-## Open question.
+## Resolved decisions (2026-06-05)
 
-- What is the SOT of emotion and motion?
-- How to syncronize emotion and motion with client and backend?
+- **SOT for emotion/motion vocabulary** — Expression Broker MCP @ `localhost:3201`. YUI publishes renderable ids on boot/hot-swap; Hermes reads `get_ids` or subscribes to `expression://vocabulary` resource.
+- **Sync channel** — `generate_express` arguments flow through the `/v1/responses` function_call stream. No separate sync protocol needed. See [`expression-broker-mcp.md`](./expression-broker-mcp.md) §5.
+- **`emotion_tts_prefix.json`** — deprecated. `emotion_text` free-text (FishSpeech S2 pro tags) supersedes the enum→prefix map entirely.
 
-## Suggenstion
+## Expression Broker MCP (already implemented, live @ localhost:3201)
 
-Make MCP server that expose motion_id, emotion_id.
+The Expression Broker is an **independent MCP server already running at `localhost:3201`**. It exposes the vocabulary SOT and the `generate_express` firing tool. See [`expression-broker-mcp.md`](./expression-broker-mcp.md) for the full spec.
 
-MCP server expose below tools:
+Tools exposed:
 
-- get_ids: return list of emotion_ids and motion ids
-- update_motion_ids: update motion_ids in realtime. UI Clinet watch update_motion_ids. If update_motion_ids is changed, UI Client update motion_ids.
-- update_emotion_ids: update emotion_ids in realtime. UI Clinet watch update_emotion_ids. If update_emotion_ids is changed, UI Client update emotion_ids.
-- generate_config: generate emotion_id, motion_id, and emotion text below format. 
+- `get_ids` — returns current `{ emotion_ids, motion_ids, version }` (Hermes agent calls this to know valid enum values)
+- `update_emotion_ids(ids)` — YUI pushes its renderable emotion id set (on boot + VRM hot-swap)
+- `update_motion_ids(ids)` — YUI pushes its renderable motion id set
+- `generate_express(emotion_id?, motion_id?, emotion_text?)` — Hermes agent calls this per turn; the resulting `function_call` appears in the `/v1/responses` stream for YUI to consume
+- Resource: `expression://vocabulary` — push notification when vocabulary changes
 
-```json
-{
-    "emotion_id": "emotion_id",
-    "motion_id": "motion_id",
-    "emotion_text": "emotion_text"
-}
-```
+The return-value shape of `generate_express` confirms validation; the **transport payload** (what YUI consumes) is the flat `{ emotion_id?, motion_id?, emotion_text? }` arguments in the stream.
 
