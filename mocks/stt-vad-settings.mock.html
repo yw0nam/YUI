@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>YUI STT/VAD Quick Controls Mock</title>
+<link rel="icon" href="data:," />
+<style>
+  :root {
+    --yui-accent: oklch(0.8 0.13 75);
+    --yui-accent-soft: oklch(0.8 0.13 75 / 0.45);
+    --yui-accent-faint: oklch(0.8 0.13 75 / 0.16);
+    --yui-text: oklch(0.95 0.012 80);
+    --yui-text-dim: oklch(0.78 0.016 75);
+    --yui-text-mute: oklch(0.64 0.014 75);
+    --yui-scrim: oklch(0.21 0.014 70 / 0.64);
+    --yui-scrim-strong: oklch(0.19 0.014 70 / 0.88);
+    --yui-edge: oklch(0.97 0.01 80 / 0.1);
+    --yui-float: 0 8px 32px oklch(0.12 0.02 70 / 0.4);
+    --yui-text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55);
+    --yui-radius: 14px;
+    --yui-radius-row: 10px;
+    --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --yui-dur: 200ms;
+    --yui-dur-fast: 140ms;
+    --danger: oklch(0.77 0.11 35);
+    --ok: oklch(0.78 0.08 145);
+    --page-ink: oklch(0.24 0.012 72);
+    --page-muted: oklch(0.34 0.012 72);
+    --page-bg: oklch(0.62 0.012 72);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    min-height: 100%;
+    background:
+      radial-gradient(72% 70% at 76% 74%, oklch(0.72 0.07 205 / 0.46), transparent 62%),
+      radial-gradient(68% 60% at 16% 12%, oklch(0.84 0.055 78 / 0.62), transparent 58%),
+      linear-gradient(135deg, oklch(0.66 0.012 72), oklch(0.51 0.01 72));
+    color: var(--page-ink);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  .page {
+    width: min(1120px, calc(100vw - 32px));
+    margin: 0 auto;
+    padding: 28px 0 44px;
+  }
+
+  .brief {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 18px;
+  }
+
+  .brief h1 {
+    margin: 0 0 5px;
+    font-size: 1.05rem;
+    line-height: 1.2;
+    font-weight: 650;
+    letter-spacing: 0;
+  }
+
+  .brief p {
+    margin: 0;
+    max-width: 72ch;
+    color: var(--page-muted);
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--page-muted);
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--yui-accent);
+    box-shadow: 0 0 0 5px var(--yui-accent-faint);
+  }
+
+  .stage {
+    display: grid;
+    grid-template-columns: minmax(390px, 520px) minmax(360px, 1fr);
+    gap: 30px;
+    align-items: start;
+  }
+
+  .window {
+    position: relative;
+    height: 640px;
+    overflow: hidden;
+    border-radius: 16px;
+    background: oklch(0.98 0.008 80);
+    box-shadow: 0 12px 34px oklch(0.12 0.02 70 / 0.3);
+  }
+
+  .vrm {
+    position: absolute;
+    left: 44%;
+    bottom: -30px;
+    width: 330px;
+    height: 610px;
+    transform: translateX(-50%);
+  }
+
+  .hair {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 250px;
+    height: 360px;
+    transform: translateX(-50%);
+    border-radius: 50% 50% 45% 45% / 34% 34% 60% 60%;
+    background:
+      radial-gradient(80% 62% at 50% 18%, oklch(0.95 0.035 220), transparent 70%),
+      linear-gradient(155deg, oklch(0.78 0.04 220), oklch(0.58 0.055 220));
+    box-shadow: 24px 36px 0 oklch(0.74 0.04 215 / 0.5);
+  }
+
+  .face {
+    position: absolute;
+    left: 50%;
+    top: 120px;
+    width: 150px;
+    height: 164px;
+    transform: translateX(-50%);
+    border-radius: 46% 46% 48% 48%;
+    background:
+      radial-gradient(11px 9px at 38% 50%, oklch(0.2 0.018 290), transparent 64%),
+      radial-gradient(11px 9px at 62% 50%, oklch(0.2 0.018 290), transparent 64%),
+      radial-gradient(18px 9px at 50% 70%, oklch(0.76 0.08 35 / 0.28), transparent 70%),
+      oklch(0.82 0.052 55);
+  }
+
+  .body {
+    position: absolute;
+    left: 50%;
+    top: 300px;
+    width: 210px;
+    height: 290px;
+    transform: translateX(-50%);
+    border-radius: 50px 50px 0 0;
+    background:
+      linear-gradient(90deg, transparent 47%, oklch(0.86 0.09 72) 47% 49%, transparent 49%),
+      linear-gradient(155deg, oklch(0.95 0.02 250), oklch(0.78 0.05 315) 42%, oklch(0.86 0.08 340));
+  }
+
+  .capture-chip {
+    position: absolute;
+    top: 28px;
+    left: 50%;
+    z-index: 4;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.28rem 0.7rem;
+    border: 1px solid var(--yui-edge);
+    border-radius: 999px;
+    background: var(--yui-scrim);
+    box-shadow: var(--yui-float);
+    color: var(--yui-text-dim);
+    font-size: 0.75rem;
+    text-shadow: var(--yui-text-shadow);
+  }
+
+  .voice-chip {
+    position: absolute;
+    top: 62px;
+    left: 50%;
+    z-index: 4;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.46rem;
+    padding: 0.3rem 0.66rem 0.3rem 0.56rem;
+    border: 1px solid var(--yui-edge);
+    border-radius: 999px;
+    background: var(--yui-scrim);
+    box-shadow: var(--yui-float);
+    color: var(--yui-text-dim);
+    font-size: 0.76rem;
+    font-weight: 500;
+    white-space: nowrap;
+    text-shadow: var(--yui-text-shadow);
+  }
+
+  .voice-chip__dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: var(--yui-text-mute);
+    flex: 0 0 auto;
+  }
+
+  .voice-chip[data-state="listening"] .voice-chip__dot,
+  .voice-chip[data-state="asr"] .voice-chip__dot {
+    background: var(--yui-accent);
+    animation: voice-live 1.5s var(--yui-ease) infinite;
+  }
+
+  .voice-chip[data-state="fired"] .voice-chip__dot {
+    background: var(--ok);
+    box-shadow: 0 0 0 4px oklch(0.78 0.08 145 / 0.12);
+  }
+
+  .voice-chip[data-state="error"] .voice-chip__dot {
+    background: var(--danger);
+    box-shadow: 0 0 0 4px oklch(0.77 0.11 35 / 0.12);
+  }
+
+  @keyframes voice-live {
+    0%,
+    100% {
+      opacity: 0.45;
+      box-shadow: 0 0 0 0 var(--yui-accent-soft);
+    }
+    50% {
+      opacity: 1;
+      box-shadow: 0 0 0 3px oklch(0.8 0.13 75 / 0);
+    }
+  }
+
+  .context-target {
+    position: absolute;
+    inset: 0;
+    cursor: context-menu;
+  }
+
+  .hint {
+    position: absolute;
+    left: 28px;
+    bottom: 26px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 30ch;
+    padding: 6px 10px;
+    border: 1px solid var(--yui-edge);
+    border-radius: 999px;
+    background: var(--yui-scrim);
+    box-shadow: var(--yui-float);
+    color: var(--yui-text-dim);
+    font-size: 0.74rem;
+    text-shadow: var(--yui-text-shadow);
+  }
+
+  .quick {
+    position: absolute;
+    left: min(61%, calc(100% - 358px));
+    top: 132px;
+    width: min(21.7rem, calc(100% - 24px));
+    max-height: calc(100% - 156px);
+    overflow: auto;
+    padding: 0.85rem 0.85rem 0.75rem;
+    border-radius: var(--yui-radius);
+    border: 1px solid var(--yui-edge);
+    background: var(--yui-scrim-strong);
+    box-shadow: var(--yui-float);
+    backdrop-filter: blur(14px) saturate(1.12);
+    -webkit-backdrop-filter: blur(14px) saturate(1.12);
+    color: var(--yui-text);
+    text-shadow: var(--yui-text-shadow);
+  }
+
+  .eyebrow {
+    display: block;
+    margin: 0 0.15rem 0.6rem;
+    color: var(--yui-text-mute);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.52rem 0.55rem;
+    border-radius: var(--yui-radius-row);
+  }
+
+  .row + .row,
+  .section {
+    border-top: 1px solid var(--yui-edge);
+  }
+
+  .label {
+    display: flex;
+    align-items: center;
+    gap: 0.42rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .label svg {
+    width: 0.95rem;
+    height: 0.95rem;
+    flex: 0 0 auto;
+    color: var(--yui-text-dim);
+  }
+
+  .sub {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--yui-text-mute);
+    font-size: 0.74rem;
+    line-height: 1.35;
+  }
+
+  .switch {
+    --w: 2.5rem;
+    --h: 1.45rem;
+    position: relative;
+    width: var(--w);
+    height: var(--h);
+    border: 0;
+    border-radius: 999px;
+    background: oklch(0.5 0.01 70 / 0.35);
+    cursor: pointer;
+  }
+
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 0.18rem;
+    left: 0.18rem;
+    width: calc(var(--h) - 0.36rem);
+    height: calc(var(--h) - 0.36rem);
+    border-radius: 50%;
+    background: oklch(0.96 0.01 80);
+    box-shadow: 0 1px 3px oklch(0.1 0.01 70 / 0.5);
+    transition: transform var(--yui-dur) var(--yui-ease);
+  }
+
+  .switch[aria-checked="true"] {
+    background: var(--yui-accent);
+  }
+
+  .switch[aria-checked="true"]::after {
+    transform: translateX(calc(var(--w) - var(--h)));
+  }
+
+  .details-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: calc(100% - 1.1rem);
+    margin: 0.25rem 0.55rem 0;
+    padding: 0.42rem 0;
+    border: 0;
+    border-top: 1px solid var(--yui-edge);
+    background: transparent;
+    color: var(--yui-text-dim);
+    font-size: 0.74rem;
+    font-weight: 560;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .details-toggle::after {
+    content: "⌄";
+    font-size: 0.82rem;
+    line-height: 1;
+    transform: translateY(-1px);
+    transition: transform var(--yui-dur-fast) var(--yui-ease);
+  }
+
+  .quick:not(.is-details-open) .details-toggle::after {
+    transform: rotate(-90deg);
+  }
+
+  .voice-details {
+    overflow: hidden;
+    max-height: 30rem;
+    opacity: 1;
+    transition:
+      max-height var(--yui-dur) var(--yui-ease),
+      opacity var(--yui-dur-fast) var(--yui-ease);
+  }
+
+  .quick:not(.is-details-open) .voice-details {
+    max-height: 0;
+    opacity: 0;
+  }
+
+  .section {
+    margin-top: 0.45rem;
+    padding: 0.62rem 0.55rem 0;
+  }
+
+  .field-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 0.38rem;
+    color: var(--yui-text-mute);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  .value {
+    color: var(--yui-text-dim);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+  }
+
+  .voice-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0.1rem 0 0.45rem;
+    color: var(--yui-text-dim);
+    font-size: 0.74rem;
+  }
+
+  .pulse {
+    width: 0.48rem;
+    height: 0.48rem;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 0 5px oklch(0.78 0.08 145 / 0.12);
+  }
+
+  .pulse.is-hot {
+    background: var(--yui-accent);
+    box-shadow: 0 0 0 5px var(--yui-accent-faint);
+  }
+
+  .flow {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .flow-steps {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.25rem;
+  }
+
+  .flow-step {
+    min-width: 0;
+    min-height: 2.25rem;
+    padding: 0.34rem 0.3rem;
+    border: 1px solid var(--yui-edge);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--yui-text-mute);
+    font-size: 0.65rem;
+    font-weight: 560;
+    line-height: 1.15;
+    cursor: pointer;
+  }
+
+  .flow-step[aria-pressed="true"] {
+    border-color: var(--yui-accent-soft);
+    background: var(--yui-accent-faint);
+    color: var(--yui-text);
+  }
+
+  .flow-preview {
+    display: grid;
+    gap: 0.3rem;
+    min-height: 4.4rem;
+    padding: 0.55rem 0.6rem;
+    border: 1px solid var(--yui-edge);
+    border-radius: 9px;
+    background: oklch(0.13 0.012 70 / 0.34);
+    color: var(--yui-text-dim);
+  }
+
+  .flow-preview__state {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--yui-text);
+  }
+
+  .flow-preview__text {
+    margin: 0;
+    color: var(--yui-text-mute);
+    font-size: 0.72rem;
+    line-height: 1.42;
+  }
+
+  .flow-preview__payload {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0;
+    color: var(--yui-text-dim);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.64rem;
+    line-height: 1.35;
+    white-space: nowrap;
+  }
+
+  .runtime-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    margin: 0.2rem 0 0.5rem;
+    color: var(--yui-text-mute);
+    font-size: 0.71rem;
+    line-height: 1.38;
+  }
+
+  .endpoint,
+  .transcript,
+  .bus {
+    overflow: hidden;
+    border: 1px solid var(--yui-edge);
+    border-radius: 9px;
+    background: oklch(0.13 0.012 70 / 0.34);
+    color: var(--yui-text-dim);
+  }
+
+  .endpoint {
+    padding: 0.48rem 0.55rem;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.68rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .transcript {
+    min-height: 3.1rem;
+    padding: 0.55rem 0.6rem;
+    font-size: 0.74rem;
+    line-height: 1.42;
+  }
+
+  .transcript strong {
+    color: var(--yui-text);
+    font-weight: 560;
+  }
+
+  .bus {
+    display: grid;
+    gap: 0.12rem;
+    padding: 0.52rem 0.58rem;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.64rem;
+    line-height: 1.42;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--yui-accent);
+  }
+
+  .foot {
+    margin: 0.55rem 0.6rem 0.1rem;
+    color: var(--yui-text-mute);
+    font-size: 0.71rem;
+    line-height: 1.4;
+  }
+
+  .notes {
+    display: grid;
+    gap: 12px;
+  }
+
+  .note {
+    padding: 14px 15px;
+    border-radius: 12px;
+    background: oklch(0.86 0.012 72 / 0.36);
+    color: var(--page-ink);
+  }
+
+  .note h2 {
+    margin: 0 0 7px;
+    font-size: 0.9rem;
+  }
+
+  .note p {
+    margin: 0;
+    color: var(--page-muted);
+    font-size: 0.78rem;
+    line-height: 1.48;
+  }
+
+  @media (max-width: 900px) {
+    .stage {
+      grid-template-columns: 1fr;
+    }
+
+    .window {
+      max-width: 520px;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .brief {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .badge {
+      white-space: normal;
+    }
+
+    .window {
+      height: 660px;
+    }
+
+    .vrm {
+      left: 50%;
+      width: 290px;
+    }
+
+    .quick {
+      left: 12px;
+      right: 12px;
+      top: 92px;
+      width: auto;
+      max-height: calc(100% - 118px);
+    }
+
+    .voice-chip {
+      top: 58px;
+    }
+
+    .flow-steps {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .switch::after,
+    .details-toggle::after,
+    .voice-details,
+    .voice-chip__dot {
+      transition-duration: var(--yui-dur-fast);
+      animation: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <header class="brief">
+      <div>
+        <h1>STT/VAD inside existing quick controls</h1>
+        <p>
+          기존 우클릭 빠른 설정 팝오버에 음성 입력 섹션을 추가한다. 새 설정창을 만들지 않고,
+          현재 스크린샷 설정과 같은 표면, 같은 밀도, 같은 토큰을 쓴다.
+        </p>
+      </div>
+      <div class="badge"><span class="dot"></span> 음성 활성 순간에만 amber 사용</div>
+    </header>
+
+    <section class="stage" aria-label="Existing quick controls with voice section">
+      <div class="window">
+        <div class="context-target" aria-hidden="true"></div>
+        <div class="capture-chip"><span class="dot"></span> 화면 보는 중</div>
+        <div class="voice-chip" data-state="listening" aria-live="polite">
+          <span class="voice-chip__dot" aria-hidden="true"></span>
+          <span id="voiceChipLabel">듣는 중</span>
+        </div>
+        <div class="vrm" aria-hidden="true">
+          <div class="hair"></div>
+          <div class="face"></div>
+          <div class="body"></div>
+        </div>
+        <div class="hint"><span class="dot"></span> VRM 우클릭으로 빠른 설정 열기</div>
+
+        <aside class="quick is-details-open" aria-label="빠른 설정">
+          <span class="eyebrow">빠른 설정</span>
+
+          <div class="row">
+            <div>
+              <span class="label">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                  <path d="M3 9h18" stroke="currentColor" stroke-width="1.7"/>
+                </svg>
+                스크린샷 첨부
+              </span>
+              <span class="sub">대화할 때 화면을 함께 봐요</span>
+            </div>
+            <button class="switch" type="button" role="switch" aria-checked="false" aria-label="스크린샷 첨부"></button>
+          </div>
+
+          <div class="row">
+            <div>
+              <span class="label">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 4a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3Z" stroke="currentColor" stroke-width="1.7"/>
+                  <path d="M6 10.5a6 6 0 0 0 12 0M12 16.5V20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                </svg>
+                음성 입력
+              </span>
+              <span class="sub">말이 끝나면 STT 후 사용자 입력으로 보내요</span>
+            </div>
+            <button class="switch" type="button" role="switch" aria-checked="true" aria-label="음성 입력"></button>
+          </div>
+
+          <button class="details-toggle" type="button" aria-expanded="true">세부 설정</button>
+          <div class="voice-details">
+            <div class="section">
+              <div class="field-head">
+                <span>상태 표시</span>
+                <span class="value">화면 위 chip</span>
+              </div>
+              <div class="runtime-note">
+                <span class="pulse is-hot"></span>
+                <span>Idle, 듣는 중, ASR 전송, 전달됨, 오류는 설정값이 아니라 화면 위 runtime indicator로 표시한다.</span>
+              </div>
+              <div class="flow" aria-label="음성 입력 상태 흐름">
+                <div class="flow-steps">
+                  <button class="flow-step" type="button" data-state="idle" aria-pressed="false">Idle</button>
+                  <button class="flow-step" type="button" data-state="listening" aria-pressed="true">듣는 중</button>
+                  <button class="flow-step" type="button" data-state="asr" aria-pressed="false">ASR 전송</button>
+                  <button class="flow-step" type="button" data-state="fired" aria-pressed="false">전달됨</button>
+                  <button class="flow-step" type="button" data-state="error" aria-pressed="false">오류</button>
+                </div>
+                <div class="flow-preview" aria-live="polite">
+                  <div class="flow-preview__state"><span class="pulse is-hot"></span><span id="flowTitle">듣는 중</span></div>
+                  <p class="flow-preview__text" id="flowText">VAD가 speech active 상태를 감지한다. 말이 끝나고 1.5초 침묵하면 segment를 닫는다.</p>
+                  <p class="flow-preview__payload" id="flowPayload">audio: Float32Array, pending speech end</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="voice-status"><span class="pulse is-hot"></span> 빠른 설정은 상태 설명과 조정값만 제공</div>
+              <div class="field-head">
+                <span>침묵 기준</span>
+                <span class="value">1500 ms</span>
+              </div>
+              <input type="range" min="500" max="3000" step="100" value="1500" />
+            </div>
+
+            <div class="section">
+              <div class="field-head">
+                <span>STT endpoint</span>
+                <span class="value">OpenAI compatible</span>
+              </div>
+              <div class="endpoint">http://localhost:5517/v1/audio/transcriptions</div>
+            </div>
+
+            <div class="section">
+              <div class="field-head">
+                <span>최근 음성 segment</span>
+                <span class="value">방금 전</span>
+              </div>
+              <div class="transcript"><strong>"오늘 회의 전에 빌드 상태 확인해줘"</strong></div>
+            </div>
+
+            <div class="section">
+              <div class="field-head">
+                <span>dispatcher preview</span>
+                <span class="value">tier2</span>
+              </div>
+              <div class="bus">
+                <span>event_name: "user.voice_segment_ready"</span>
+                <span>dnd_override: true</span>
+                <span>payload: { transcript }</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="foot">기본은 꺼져 있어요. 켜져 있어도 판단은 Hermes가 하고, YUI는 firing만 해요.</p>
+        </aside>
+      </div>
+
+      <div class="notes">
+        <article class="note">
+          <h2>Existing UI constraint</h2>
+          <p>현재 앱에는 이미 우클릭 `빠른 설정` 팝오버가 있다. 새 창을 추가하지 않고 같은 popover 안에 section을 추가한다.</p>
+        </article>
+        <article class="note">
+          <h2>Behavior scope</h2>
+          <p>Idle, listening, ASR 전송, fired, error는 `화면 보는 중`처럼 overlay chip으로 보여준다. 빠른 설정은 세부 확인과 조정만 담당한다.</p>
+        </article>
+        <article class="note">
+          <h2>Visual fit</h2>
+          <p>기존 screenshot row와 같은 switch, row spacing, dark scrim, float shadow를 유지한다. Amber는 active voice status와 switch에만 제한한다.</p>
+        </article>
+        <article class="note">
+          <h2>Implementation implication</h2>
+          <p>다음 구현은 `createQuickControls` 확장이다. 별도 `VoiceSettingsPopover`를 만들면 기존 surface vocabulary와 충돌한다.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+<script>
+  const quick = document.querySelector(".quick");
+  const detailsToggle = document.querySelector(".details-toggle");
+  const flowSteps = [...document.querySelectorAll(".flow-step")];
+  const flowTitle = document.querySelector("#flowTitle");
+  const flowText = document.querySelector("#flowText");
+  const flowPayload = document.querySelector("#flowPayload");
+  const flowPulse = document.querySelector(".flow-preview .pulse");
+  const voiceChip = document.querySelector(".voice-chip");
+  const voiceChipLabel = document.querySelector("#voiceChipLabel");
+
+  const flowCopy = {
+    idle: {
+      title: "Idle",
+      text: "음성 입력은 켜져 있지만 VAD가 speech를 감지하지 않은 대기 상태다.",
+      payload: "vad: ready, transcript: null",
+      hot: false,
+    },
+    listening: {
+      title: "듣는 중",
+      text: "VAD가 speech active 상태를 감지한다. 말이 끝나고 1.5초 침묵하면 segment를 닫는다.",
+      payload: "audio: Float32Array, pending speech end",
+      hot: true,
+    },
+    asr: {
+      title: "ASR 전송",
+      text: "닫힌 segment를 WAV로 인코딩해서 STT endpoint로 보낸다. 아직 bus event는 없다.",
+      payload: "POST /v1/audio/transcriptions",
+      hot: true,
+    },
+    fired: {
+      title: "전달됨",
+      text: "STT transcript가 성공하면 user.voice_segment_ready를 dispatcher bus로 넣는다.",
+      payload: 'payload: { transcript: { text: "..." } }',
+      hot: false,
+    },
+    error: {
+      title: "오류",
+      text: "마이크 권한, 네트워크, non-OK 응답은 조용히 drop한다. 빈 transcript도 보내지 않는다.",
+      payload: "bus event: none",
+      hot: false,
+    },
+  };
+
+  detailsToggle.addEventListener("click", () => {
+    const nextOpen = !quick.classList.contains("is-details-open");
+    quick.classList.toggle("is-details-open", nextOpen);
+    detailsToggle.setAttribute("aria-expanded", String(nextOpen));
+  });
+
+  for (const step of flowSteps) {
+    step.addEventListener("click", () => {
+      const state = step.dataset.state;
+      const copy = flowCopy[state];
+      for (const other of flowSteps) {
+        other.setAttribute("aria-pressed", String(other === step));
+      }
+      flowTitle.textContent = copy.title;
+      flowText.textContent = copy.text;
+      flowPayload.textContent = copy.payload;
+      flowPulse.classList.toggle("is-hot", copy.hot);
+      voiceChip.dataset.state = state;
+      voiceChipLabel.textContent = copy.title;
+    });
+  }
+</script>
+</body>
+</html>
