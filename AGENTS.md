@@ -13,6 +13,8 @@
   3. **`refactor: ...`** — Clean up without changing behavior (keep green, only when needed)
   `pnpm test` / `cargo test` are PR gates — new features without tests cannot be merged.
 - **Sub-agent-based development.** Implementation work is delegated to specialist agents listed in [Sub-agent Roster](#sub-agent-roster) below. **The main agent (talking with the user) does not implement** — it focuses exclusively on requirements clarification, task delegation, output integration, verification, and orchestration.
+- **Verify what you can verify before asking the user.** Anything observable without the user — speech bubble / UI rendering / DOM state / logs — you must verify yourself (drive the app, screenshot, check the DOM) and only report once it works. Ask the user to confirm **only** things that genuinely require them (audio playback through speakers, physical input feel). Never hand off a "please check if X shows up" when X is something you could have checked.
+- **Comments: minimal, present-tense only.** No verbose explanations, no decision-history / spec-citation / issue-number breadcrumbs (`#NN`, `D-*`, `contract.md §x`, "이전엔 …", "supersede") in code comments — that belongs in docs/PRs, not source. Comment only what the code cannot say itself (a non-obvious invariant or gotcha), in one line.
 
 ## Sub-agent Roster
 
@@ -144,6 +146,7 @@ YUI/
 > Most `src/` modules are **build-passing placeholders** (type exports + signatures + TODOs) — feature implementation starts at M1+.
 > **Implemented (feat/add_motion):** `renderer/motion-controller.ts` (pure state machine, unit-tested) + `renderer/index.ts` `playMotion` (#5) GPU path (screenshot-verified via `motion-preview.html`).
 > **Implemented (feat/emotion-expression #6):** `renderer/emotion-resolver.ts` (pure, existence-aware fallback, unit-tested) + `renderer/index.ts` `setEmotion` per-frame crossfade before vrm.update, hold-on-null, dev motion-preview EMOTION section.
+> **Implemented (feat/tts-pipeline #14, F4):** `io/sentence-segmenter.ts` (pure, ASCII+CJK boundaries, unit-tested) + `io/tts-synth.ts` (`POST {tts_base_url}/v1/audio/speech` → wav, injected fetch) + `io/audio-player.ts` (`AudioSink` iface + Web Audio sink, RMS amplitude hook for #15) + `io/tts-pipeline.ts` (segment → concurrent synth → **ordered playback** by submission index, `setEmotionText` opaque-prefix). Wired in `main.ts` `onSpeech` (말풍선 + TTS). Live E2E: `io/tts-synth.live.test.ts` (`YUI_LIVE=1`, hits real :8092 fishaudio/s2-pro). **emotion_text는 `setEmotionText`로 노출만 — 라이브 wire는 `generate_express`(#1/broker) 도착 후.** `configs/emotion_tts_prefix.json`(emotion_id→prefix) 경로는 폐기(D-EMOTION-DUAL supersede, tts_rule.md).
 
 ## Hermes Integration Summary
 

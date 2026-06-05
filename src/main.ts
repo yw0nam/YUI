@@ -6,7 +6,7 @@
  *               → createEventBus() + createGuardrails()
  *               → createDispatcher({ bus, guardrails, renderer })
  *               → sources(timer/idle/user_input + Rust os_event) 구독 → dispatcher.start()
- *   io: streamChat(SSE) → express + 텍스트 스트림 → renderer / surfaces / tts-pipeline.
+ *   io: streamChat(SSE) → express + 텍스트 스트림 → renderer / surfaces / tts-pipeline(#14).
  *
  * 현재 = #4 renderer + UI surfaces 목업:
  *   - .yui-stage: 투명 캐릭터 무대(드래그 영역). renderer가 캔버스로 채운다.
@@ -22,6 +22,8 @@ import { createMockDriver } from "./ui/mock";
 import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET } from "./config";
 import { initDrag } from "./drag";
 import { selectFetch } from "./io/chat-client";
+import { createTtsPipeline } from "./io/tts-pipeline";
+import { createTtsSynth } from "./io/tts-synth";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
@@ -136,10 +138,27 @@ async function bootstrap(): Promise<void> {
   if (import.meta.env.DEV && !import.meta.env.VITE_YUI_CHAT_KEY) {
     console.warn("[YUI] VITE_YUI_CHAT_KEY 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. .env.local 참고(.env.example).");
   }
-  // backend_caller: config 스토어에서 endpoints/secret을 호출 시점에 읽고, transport fetch는
-  // selectFetch()로 환경에 맞게 고른다(#44). speech_text는 말풍선으로(TTS는 #14 deferred).
+  // synth는 호출 시점에 config(핫리로드)와 selectFetch를 읽는 closure로 주입한다.
+  // config.get()을 여기서 eager 평가하면 load() 전 throw로 부트스트랩이 죽으니 금지.
+  const tts = createTtsPipeline({
+    synth: async (input, signal) => {
+      const f = await selectFetch();
+      const eps = config.get().endpoints;
+      return createTtsSynth({
+        config: eps,
+        fetch: f,
+        model: eps.tts_model,
+        voice: eps.tts_voice,
+        speed: eps.tts_speed,
+      })(input, signal);
+    },
+  });
+  if (import.meta.env.DEV) {
+    import.meta.hot?.dispose(() => tts.dispose());
+    Object.assign(globalThis as Record<string, unknown>, { __yuiTts: tts });
+  }
+
   const backendCaller = createBackendCaller({
-    // getter로 감싸 핫리로드된 endpoints를 다음 호출부터 반영(config.get()은 최신 스냅샷).
     get config() {
       return config.get().endpoints;
     },
@@ -150,6 +169,8 @@ async function bootstrap(): Promise<void> {
       surfaces.beginSpeech();
       surfaces.pushSpeech(text);
       surfaces.endSpeech();
+      tts.pushTextDelta(text);
+      tts.end();
     },
   });
   const dispatcher = createDispatcher({ bus, renderer, backendCaller });

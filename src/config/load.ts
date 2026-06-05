@@ -200,6 +200,25 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   if (chat_model !== undefined && (typeof chat_model !== "string" || chat_model.trim() === "")) {
     issues.push(`chat_model은 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(chat_model)})`);
   }
+  // tts_model / tts_voice: optional. 미설정 시 TTS 서비스 기본값.
+  const optStr = (k: "tts_model" | "tts_voice"): string | undefined => {
+    const v = raw[k];
+    if (v !== undefined && (typeof v !== "string" || v.trim() === "")) {
+      issues.push(`${k}는 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(v)})`);
+      return undefined;
+    }
+    return typeof v === "string" ? v : undefined;
+  };
+  const tts_model = optStr("tts_model");
+  const tts_voice = optStr("tts_voice");
+  // tts_speed: optional, [0.25, 4.0].
+  const tts_speed = raw.tts_speed;
+  if (
+    tts_speed !== undefined &&
+    (typeof tts_speed !== "number" || tts_speed < 0.25 || tts_speed > 4)
+  ) {
+    issues.push(`tts_speed는 0.25~4.0 숫자여야 함 (받음: ${JSON.stringify(tts_speed)})`);
+  }
   assertValid(file, issues);
   return {
     chat_base_url,
@@ -207,6 +226,9 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     ...(typeof chat_model === "string" ? { chat_model } : {}),
     stt_base_url,
     tts_base_url,
+    ...(tts_model !== undefined ? { tts_model } : {}),
+    ...(tts_voice !== undefined ? { tts_voice } : {}),
+    ...(typeof tts_speed === "number" ? { tts_speed } : {}),
   };
 }
 

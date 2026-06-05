@@ -1,56 +1,122 @@
 /**
- * TTS pipeline — client-side 발화 파이프라인. (placeholder, PRD F4 / contract.md §3 D-TTS-PIPELINE)
- *
- * 순서(사용자 확정, contract.md §3):
- *  1. 텍스트 스트림 수신 (response.output_text.delta 토큰).
- *  2. 버퍼 큐 적재.
- *  3. 문장 분절(sentence boundary) 감지 → 분절 단위로 끊음. (분절 방식은 구현 시 결정 — 새 리서치 X)
- *  4. emotion prefix 부착 (있을 때만 — emotion optional, 없으면 plain text). configs/emotion_tts_prefix.json (TBD).
- *  5. per-sentence TTS 호출 → {tts_base_url}/audio/speech → output wav.
- *  6. ordered playback — 응답이 뒤바뀌어 와도 원래 문장 순서대로 재생.
- *  7. 진폭 기반 립싱크 동기 — 재생 wav 진폭 → mouth blendshape (renderer로 핸들 전달).
- *
- * ⚠ emotion prefix 토큰/포맷은 TBD — TTS 구현 시 사용자에게 질문해 확정. 발명 금지(D-EMOTION-DUAL).
- *
- * 지금은 시그니처/타입만. 실제 큐/분절/fetch/playback은 M2(E2E)에서 audio life-cycle과 함께.
+ * 발화 텍스트를 문장 분절 → per-sentence TTS → submission index 순서로 재생한다.
+ * synth는 동시 실행되고 응답 순서가 뒤바뀌어도 제출 순서대로만 재생된다.
  */
 
-import type { EmotionId, EndpointsConfig } from "../contract";
+import type { EndpointsConfig } from "../contract";
+import { createWebAudioSink, type AudioSink } from "./audio-player";
+import { createSentenceSegmenter } from "./sentence-segmenter";
+import { createTtsSynth, type TtsSynth } from "./tts-synth";
 
 export interface TtsPipelineOptions {
-  config: EndpointsConfig;
-  /** emotion id → TTS text prefix. configs/emotion_tts_prefix.json 로드 결과 (현재 TBD/빈 값). */
-  emotionPrefix?: Partial<Record<EmotionId, string>>;
+  // synth 주입 시 미사용. config.get()처럼 throw 가능한 값을 eager 평가해 넘기지 말 것.
+  config?: EndpointsConfig;
+  synth?: TtsSynth;
+  sink?: AudioSink;
+  fetch?: typeof fetch;
+  onAmplitude?: (rms: number) => void;
 }
 
 export interface TtsPipeline {
-  /** 텍스트 스트림 토큰을 큐에 적재 (step 2). */
   pushTextDelta(token: string): void;
-  /** 이번 발화에 적용할 현재 emotion (step 4, optional). */
-  setEmotion(emotion: EmotionId | null): void;
-  /** 스트림 종료 — 큐의 잔여 텍스트를 마지막 분절로 flush. */
+  setEmotionText(text: string | null): void;
   end(): void;
-  /** 재생 중지 + 버퍼/오디오 리소스 해제 (event-dispatcher.md §12 cleanup). */
   dispose(): void;
 }
 
-/**
- * TTS 파이프라인 인스턴스 생성 (placeholder).
- * TODO(M2): 버퍼 큐 + sentence segmenter + per-sentence fetch + ordered playback + 진폭 립싱크.
- */
-export function createTtsPipeline(_options: TtsPipelineOptions): TtsPipeline {
+export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
+  const synth: TtsSynth =
+    options.synth ??
+    (() => {
+      if (!options.config) {
+        throw new Error("[tts-pipeline] config 또는 synth 중 하나는 필요하다");
+      }
+      return createTtsSynth({ config: options.config, fetch: options.fetch });
+    })();
+  const sink: AudioSink = options.sink ?? createWebAudioSink();
+
+  const segmenter = createSentenceSegmenter();
+  const abort = new AbortController();
+
+  let emotionText: string | null = null;
+  let disposed = false;
+
+  const results = new Map<number, ArrayBuffer>();
+  const failed = new Set<number>();
+  let submitted = 0;
+  let nextToPlay = 0;
+  let pumping = false;
+
+  async function pump(): Promise<void> {
+    if (pumping) return;
+    pumping = true;
+    try {
+      while (!disposed) {
+        if (failed.has(nextToPlay)) {
+          failed.delete(nextToPlay);
+          nextToPlay++;
+          continue;
+        }
+        const wav = results.get(nextToPlay);
+        if (wav === undefined) break;
+        results.delete(nextToPlay);
+        nextToPlay++;
+        try {
+          await sink.play(wav, options.onAmplitude);
+        } catch (err) {
+          if (disposed) break;
+          console.error("[tts-pipeline] playback failed", err);
+        }
+      }
+    } finally {
+      pumping = false;
+    }
+  }
+
+  function submit(sentence: string): void {
+    const trimmed = sentence.trim();
+    if (!trimmed) return;
+    const input = emotionText ? `${emotionText} ${trimmed}` : trimmed;
+    const index = submitted++;
+
+    synth(input, abort.signal).then(
+      (wav) => {
+        if (disposed) return;
+        results.set(index, wav);
+        void pump();
+      },
+      (err) => {
+        if (disposed || abort.signal.aborted) return;
+        console.error(`[tts-pipeline] synth failed (index ${index})`, err);
+        failed.add(index);
+        void pump();
+      },
+    );
+  }
+
   return {
-    pushTextDelta(_token) {
-      /* TODO(M2) */
+    pushTextDelta(token) {
+      if (disposed) return;
+      for (const sentence of segmenter.push(token)) submit(sentence);
     },
-    setEmotion(_emotion) {
-      /* TODO(M2) */
+
+    setEmotionText(text) {
+      emotionText = text && text.trim() ? text : null;
     },
+
     end() {
-      /* TODO(M2) */
+      if (disposed) return;
+      const rest = segmenter.flush();
+      if (rest) submit(rest);
     },
+
     dispose() {
-      /* TODO(M2) */
+      if (disposed) return;
+      disposed = true;
+      abort.abort();
+      sink.stop();
+      results.clear();
+      failed.clear();
     },
   };
 }

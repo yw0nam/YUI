@@ -1,17 +1,6 @@
 /**
- * chat-client-transport.test.ts — Transport seam TDD (#39).
- *
- * 검증 대상 (issue #39, D-TAURI-FETCH):
- *  1. StreamChatOptions.fetch 가 있으면 makeClient에 주입된다.
- *  2. 주입된 fetch가 OpenAI 생성자로 전달된다 (SDK fetch 옵션 seam).
- *  3. selectFetch(): Tauri 환경이면 tauriFetch를 반환, 아니면 undefined를 반환
- *     (undefined → SDK가 글로벌 fetch 사용 → dev/vite proxy 경로).
- *  4. streamChat이 주입 fetch를 실제로 사용한다 (end-to-end seam 체인).
- *
- * 결정 D-TAURI-FETCH (docs/prd.md에 append 예정):
- *   `@tauri-apps/plugin-http`의 `fetch`를 `new OpenAI({ fetch })` 옵션으로 주입.
- *   dev/vite 환경 = fetch 미주입(undefined) → SDK 글로벌 fetch 사용 → vite proxy 경유.
- *   prod/Tauri 환경 = tauriFetch 주입 → Rust side 요청 → Origin 헤더 없음 → CORS 우회.
+ * Transport seam: StreamChatOptions.fetch 주입 → OpenAI 생성자 전달 → streamChat 사용까지,
+ * 그리고 selectFetch의 환경별 선택(Tauri=injected fetchCORS, dev=undefined).
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
@@ -117,15 +106,22 @@ describe("selectFetch — environment detection", () => {
     expect(result).toBeUndefined();
   });
 
-  it("returns a function when __TAURI_INTERNALS__ is present (Tauri prod path)", async () => {
-    // Simulate Tauri environment by setting the global marker.
-    // @tauri-apps/plugin-http is installed; in JSDOM the dynamic import resolves
-    // to the JS module (Tauri IPC calls would fail at runtime but the module loads).
+  it("returns injected fetchCORS when present in Tauri env", async () => {
+    (globalThis as any).__TAURI_INTERNALS__ = {};
+    const stub = (() => {}) as unknown as typeof fetch;
+    (globalThis as any).fetchCORS = stub;
+    try {
+      expect(await selectFetch()).toBe(stub);
+    } finally {
+      delete (globalThis as any).__TAURI_INTERNALS__;
+      delete (globalThis as any).fetchCORS;
+    }
+  });
+
+  it("falls back to undefined in Tauri env when fetchCORS not yet injected", async () => {
     (globalThis as any).__TAURI_INTERNALS__ = {};
     try {
-      const result = await selectFetch();
-      // In Tauri env, should return a fetch-compatible function
-      expect(typeof result).toBe("function");
+      expect(await selectFetch()).toBeUndefined();
     } finally {
       delete (globalThis as any).__TAURI_INTERNALS__;
     }

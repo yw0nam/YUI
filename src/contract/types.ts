@@ -224,4 +224,8 @@ export interface EndpointsConfig {
   stt_base_url: string;
   /** 별도 TTS 서비스 (OpenAI 호환) → /audio/speech. */
   tts_base_url: string;
+  /** /v1/audio/speech model/voice/speed. 미설정 시 서비스 default. */
+  tts_model?: string;
+  tts_voice?: string;
+  tts_speed?: number;
 }
