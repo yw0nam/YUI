@@ -187,6 +187,65 @@ describe("createTtsPipeline — empty input", () => {
   });
 });
 
+describe("createTtsPipeline — onPlaybackEnd", () => {
+  it("fires once after the queue drains, and refires on a later burst", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const onPlaybackEnd = vi.fn();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+
+    pipe.pushTextDelta("One. Two.");
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    // 0 재생 중 — 아직 큐가 안 비었으니 end 콜백 없음.
+    expect(onPlaybackEnd).not.toHaveBeenCalled();
+    finish(); // 0 끝 → 1 재생 시작
+    await tick();
+    expect(onPlaybackEnd).not.toHaveBeenCalled();
+    finish(); // 1 끝 → 큐 드레인
+    await tick();
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+
+    // 새 버스트 → 다시 드레인되면 한 번 더.
+    pipe.pushTextDelta("Three.");
+    await tick();
+    resolvers[2].resolve(bufFor(2));
+    await tick();
+    finish();
+    await tick();
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not fire when nothing ever played", async () => {
+    const { synth } = deferredSynth();
+    const { sink } = recordingSink();
+    const onPlaybackEnd = vi.fn();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+
+    pipe.pushTextDelta("   ");
+    pipe.end();
+    await tick();
+    expect(onPlaybackEnd).not.toHaveBeenCalled();
+  });
+
+  it("does not fire on dispose mid-playback", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const onPlaybackEnd = vi.fn();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+
+    pipe.pushTextDelta("One.");
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    pipe.dispose();
+    await tick();
+    expect(onPlaybackEnd).not.toHaveBeenCalled();
+  });
+});
+
 describe("createTtsPipeline — dispose()", () => {
   it("stops the sink, aborts in-flight synths, and makes no further play calls", async () => {
     const { synth, resolvers, signals } = deferredSynth();
