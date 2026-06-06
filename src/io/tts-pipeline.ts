@@ -4,12 +4,10 @@
  */
 
 import type { EndpointsConfig } from "../contract";
-import { createLogger } from "../logger";
+import { createLogger, type Logger } from "../logger";
 import { createWebAudioSink, type AudioSink } from "./audio-player";
 import { createSentenceSegmenter } from "./sentence-segmenter";
 import { createTtsSynth, type TtsSynth } from "./tts-synth";
-
-const log = createLogger("tts-pipeline");
 
 export interface TtsPipelineOptions {
   // synth 주입 시 미사용. config.get()처럼 throw 가능한 값을 eager 평가해 넘기지 말 것.
@@ -20,6 +18,7 @@ export interface TtsPipelineOptions {
   onAmplitude?: (rms: number) => void;
   // 마지막 청크 재생이 끝나면(또는 재생할 청크가 없으면) end() 이후 1회 발화.
   onPlaybackEnd?: () => void;
+  logger?: Logger;
 }
 
 export interface TtsPipeline {
@@ -30,6 +29,7 @@ export interface TtsPipeline {
 }
 
 export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
+  const log: Logger = options.logger ?? createLogger("tts-pipeline");
   const synth: TtsSynth =
     options.synth ??
     (() => {
@@ -61,6 +61,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     if (!ended || pumping) return;
     if (nextToPlay !== submitted) return;
     completionFired = true;
+    log.info("playback", { state: "complete", segments: submitted });
     options.onPlaybackEnd?.();
   }
 
@@ -77,12 +78,20 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
         const wav = results.get(nextToPlay);
         if (wav === undefined) break;
         results.delete(nextToPlay);
+        const idx = nextToPlay;
         nextToPlay++;
         try {
-          await sink.play(wav, options.onAmplitude);
+          log.debug("playback", { index: idx, state: "start" });
+          let peak = 0;
+          const onAmp = (v: number) => {
+            if (v > peak) peak = v;
+            options.onAmplitude?.(v);
+          };
+          await sink.play(wav, onAmp);
+          log.debug("playback", { index: idx, state: "end", peak_mouth: peak });
         } catch (err) {
           if (disposed) break;
-          log.error("playback failed", err);
+          log.error("playback", { index: idx, error: String(err) });
         }
       }
     } finally {
@@ -96,16 +105,18 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     if (!trimmed) return;
     const input = emotionText ? `${emotionText} ${trimmed}` : trimmed;
     const index = submitted++;
+    log.debug("synth", { index, chars: trimmed.length });
 
     synth(input, abort.signal).then(
       (wav) => {
         if (disposed) return;
+        log.debug("synth", { index, ok: true, bytes: wav.byteLength });
         results.set(index, wav);
         void pump();
       },
       (err) => {
         if (disposed || abort.signal.aborted) return;
-        log.error(`synth failed (index ${index})`, err);
+        log.error("synth", { index, error: String(err) });
         failed.add(index);
         void pump();
       },
