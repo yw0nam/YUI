@@ -29,7 +29,7 @@ import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET } from "./config";
 import { initDrag } from "./drag";
 import { selectFetch } from "./io/chat-client";
-import { createTtsPipeline } from "./io/tts-pipeline";
+import { createSpeechPlayback } from "./io/speech-playback";
 import { createTtsSynth } from "./io/tts-synth";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createBackendCaller } from "./dispatcher/backend-caller";
@@ -222,22 +222,27 @@ async function bootstrap(): Promise<void> {
   }
   // synth는 호출 시점에 config(핫리로드)와 selectFetch를 읽는 closure로 주입한다.
   // config.get()을 여기서 eager 평가하면 load() 전 throw로 부트스트랩이 죽으니 금지.
-  const tts = createTtsPipeline({
-    synth: async (input, signal) => {
-      const f = await selectFetch();
-      const eps = config.get().endpoints;
-      return createTtsSynth({
-        config: eps,
-        fetch: f,
-        model: eps.tts_model,
-        voice: eps.tts_voice,
-        speed: eps.tts_speed,
-      })(input, signal);
+  // 재생 진폭은 renderer 입 모양으로, 재생 완료는 말풍선 페이드 해제로 흐른다(speech-playback).
+  const speechPlayback = createSpeechPlayback({
+    renderer,
+    surfaces,
+    pipeline: {
+      synth: async (input, signal) => {
+        const f = await selectFetch();
+        const eps = config.get().endpoints;
+        return createTtsSynth({
+          config: eps,
+          fetch: f,
+          model: eps.tts_model,
+          voice: eps.tts_voice,
+          speed: eps.tts_speed,
+        })(input, signal);
+      },
     },
   });
   if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => tts.dispose());
-    Object.assign(globalThis as Record<string, unknown>, { __yuiTts: tts });
+    import.meta.hot?.dispose(() => speechPlayback.dispose());
+    Object.assign(globalThis as Record<string, unknown>, { __yuiSpeech: speechPlayback });
   }
 
   const backendCaller = createBackendCaller({
@@ -247,13 +252,7 @@ async function bootstrap(): Promise<void> {
     renderer,
     getApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
     getFetch: () => selectFetch(),
-    onSpeech: (text) => {
-      surfaces.beginSpeech();
-      surfaces.pushSpeech(text);
-      surfaces.endSpeech();
-      tts.pushTextDelta(text);
-      tts.end();
-    },
+    onSpeech: (text) => speechPlayback.onSpeech(text),
     getScreenshot: async () => {
       const s = screenshotSettings.get();
       if (!s.enabled) return undefined;

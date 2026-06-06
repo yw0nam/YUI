@@ -15,6 +15,8 @@ export interface TtsPipelineOptions {
   sink?: AudioSink;
   fetch?: typeof fetch;
   onAmplitude?: (rms: number) => void;
+  // 마지막 청크 재생이 끝나면(또는 재생할 청크가 없으면) end() 이후 1회 발화.
+  onPlaybackEnd?: () => void;
 }
 
 export interface TtsPipeline {
@@ -46,6 +48,18 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   let submitted = 0;
   let nextToPlay = 0;
   let pumping = false;
+  let ended = false;
+  let completionFired = false;
+
+  // end()된 뒤 큐가 완전히 비면(재생할 청크 없음) 1회만 onPlaybackEnd 발화.
+  // 청크 재생 중에는 nextToPlay가 이미 증가했더라도 pump가 await 중이라 호출되지 않는다.
+  function maybeFireComplete(): void {
+    if (disposed || completionFired) return;
+    if (!ended || pumping) return;
+    if (nextToPlay !== submitted) return;
+    completionFired = true;
+    options.onPlaybackEnd?.();
+  }
 
   async function pump(): Promise<void> {
     if (pumping) return;
@@ -71,6 +85,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     } finally {
       pumping = false;
     }
+    maybeFireComplete();
   }
 
   function submit(sentence: string): void {
@@ -97,6 +112,11 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   return {
     pushTextDelta(token) {
       if (disposed) return;
+      // 완료 발화 후 새 텍스트가 오면 다음 턴 — 완료 사이클을 리셋한다.
+      if (ended || completionFired) {
+        ended = false;
+        completionFired = false;
+      }
       for (const sentence of segmenter.push(token)) submit(sentence);
     },
 
@@ -108,6 +128,9 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       if (disposed) return;
       const rest = segmenter.flush();
       if (rest) submit(rest);
+      ended = true;
+      // 재생할 청크가 하나도 없으면(빈 입력/전부 실패) 여기서 즉시 완료 발화.
+      maybeFireComplete();
     },
 
     dispose() {
