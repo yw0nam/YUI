@@ -56,7 +56,7 @@ function hasAudioContext(): boolean {
   );
 }
 
-export function createWebAudioSink(): AudioSink {
+export function createWebAudioSink(opts?: { getGain?: () => number }): AudioSink {
   if (!hasAudioContext()) {
     return { async play() {}, stop() {} };
   }
@@ -98,7 +98,7 @@ export function createWebAudioSink(): AudioSink {
 
         current = source;
 
-        const envelope = createAmplitudeEnvelope();
+        const envelope = createAmplitudeEnvelope({ gain: opts?.getGain?.() });
 
         const sample = () => {
           if (current !== source) return;
