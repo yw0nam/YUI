@@ -8,7 +8,6 @@
  *  - endpoints.json          → EndpointsConfig (chat/stt/tts base url + chat endpoint)
  *  - avatar.json             → AvatarConfig (vrm_url, #4)
  *  - emotion_registry.json   → EmotionRegistry (emotion id → vrm_expression + fallback)
- *  - emotion_tts_prefix.json → emotion id → TTS prefix (TBD 스텁, 발명 금지 — D-EMOTION-DUAL)
  *  - motions.json            → MotionRegistry (id → vrma_path + 재생 정책)
  *
  * 이 파일은 순수 로드 + 검증만 담당한다(부수효과 없음, reader 주입 가능 → 테스트). 핫리로드/
@@ -39,20 +38,11 @@ export interface AvatarConfig {
   vrm_url: string;
 }
 
-/** emotion_tts_prefix.json 형태 — TBD 스텁(contract.md §1, D-EMOTION-DUAL). 토큰 발명 금지. */
-export interface EmotionTtsPrefixConfig {
-  _version: string;
-  _status: string;
-  /** enum별 prefix는 TTS 구현 시 사용자 확정 후 채운다. 지금은 비어 있거나 부분. */
-  prefixes?: Partial<Record<EmotionId, string>>;
-}
-
 /** 로드·검증된 전체 config 묶음 (불변 스냅샷). */
 export interface AppConfig {
   endpoints: EndpointsConfig;
   avatar: AvatarConfig;
   emotionRegistry: EmotionRegistry;
-  emotionTtsPrefix: EmotionTtsPrefixConfig;
   motions: MotionRegistry;
 }
 
@@ -64,7 +54,6 @@ export const CONFIG_FILES: Record<ConfigSection, string> = {
   endpoints: "endpoints.json",
   avatar: "avatar.json",
   emotionRegistry: "emotion_registry.json",
-  emotionTtsPrefix: "emotion_tts_prefix.json",
   motions: "motions.json",
 };
 
@@ -320,31 +309,6 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
   return out;
 }
 
-function validateEmotionTtsPrefix(file: string, raw: unknown): EmotionTtsPrefixConfig {
-  if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
-  const issues: string[] = [];
-  if (typeof raw._version !== "string") issues.push("_version은 문자열이어야 함");
-  if (typeof raw._status !== "string") issues.push("_status는 문자열이어야 함");
-  // prefixes는 optional — 있으면 string map인지만 확인(값은 발명하지 않는다, 통과만).
-  let prefixes: EmotionTtsPrefixConfig["prefixes"];
-  if (raw.prefixes !== undefined) {
-    if (!isObject(raw.prefixes)) {
-      issues.push("prefixes는 객체여야 함");
-    } else {
-      for (const [id, v] of Object.entries(raw.prefixes)) {
-        if (typeof v !== "string") issues.push(`prefixes.${id}는 문자열이어야 함`);
-      }
-      prefixes = raw.prefixes as EmotionTtsPrefixConfig["prefixes"];
-    }
-  }
-  assertValid(file, issues);
-  return {
-    _version: raw._version as string,
-    _status: raw._status as string,
-    ...(prefixes ? { prefixes } : {}),
-  };
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // loadConfig
 // ─────────────────────────────────────────────────────────────────────────────
@@ -357,12 +321,11 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
   const read = opts.read ?? fetchReader(opts.baseUrl ?? "/configs", opts.cacheBust);
 
   // 파일별 read는 병렬, 검증은 결정적 순서로.
-  const [endpointsRaw, avatarRaw, emotionRegistryRaw, emotionTtsPrefixRaw, motionsRaw] =
+  const [endpointsRaw, avatarRaw, emotionRegistryRaw, motionsRaw] =
     await Promise.all([
       read(CONFIG_FILES.endpoints),
       read(CONFIG_FILES.avatar),
       read(CONFIG_FILES.emotionRegistry),
-      read(CONFIG_FILES.emotionTtsPrefix),
       read(CONFIG_FILES.motions),
     ]);
 
@@ -370,7 +333,6 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     endpoints: validateEndpoints(CONFIG_FILES.endpoints, endpointsRaw),
     avatar: validateAvatar(CONFIG_FILES.avatar, avatarRaw),
     emotionRegistry: validateEmotionRegistry(CONFIG_FILES.emotionRegistry, emotionRegistryRaw),
-    emotionTtsPrefix: validateEmotionTtsPrefix(CONFIG_FILES.emotionTtsPrefix, emotionTtsPrefixRaw),
     motions: validateMotions(CONFIG_FILES.motions, motionsRaw),
   };
 }

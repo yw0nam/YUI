@@ -176,7 +176,7 @@ API 엔드포인트·키·모델 ID·VRM 경로·모션셋·proactivity 파라�
 client ↔ Hermes 사이 계약 문서/스키마 4종.
 
 **Acceptance:** 다음 4종이 별도 markdown/JSON schema 파일로 `docs/contract/` 아래 존재:
-1. **`emotion_vocab.md`** — backend가 쏠 수 있는 emotion enum 리스트 + **두 개의 매핑**: (a) 각 enum의 client VRM expression 매핑, (b) **emotion → TTS-prefix 매핑** (TTS text 맨 앞에 붙일 prefix 토큰/포맷 — **required지만 포맷은 TTS 구현 시 사용자에게 질문해 확정. 지금 미정, 토큰 발명 금지**. D-EMOTION-DUAL).
+1. **`emotion_vocab.md`** — backend가 쏠 수 있는 emotion enum 리스트 + (a) 각 enum의 client VRM expression 매핑. emotion의 목소리(TTS) 차원은 enum→prefix 매핑이 아니라 `generate_express`가 싣는 **자유 텍스트 `emotion_text` 채널**(검증 없는 FishSpeech voice 태그)이다 — contract.md §1/§3 참고.
 2. **`motion_registry.md`** — motion ID ↔ VRMA 파일 매핑. **MVP 항목: `idle`(×5 variants), `drag`, `happy`, `laughing`, `shy_point` 5종** (D4/D-MOTION-VARIANTS 반영. `sit` 드롭 — 에셋 없음). VRMA 에셋은 `public/motions/`에 커밋, Vite `/motions/<id>.vrma` 서빙.
 3. **`configs/express_tool.schema.json`** (canonical) — `express` tool-call arguments = `{emotion, motion}`의 JSON Schema. 발화 게이트 없음(D-NO-SPEAK-GATE), motion은 보통 client가 emotion에서 파생(D-MOTION-FROM-EMOTION). (`speech_text`는 tool 필드 아님 — 별도 텍스트 스트림. `tool_status`/`rich_content` 전송 경로 OPEN. D-TRANSPORT.)
 4. **`input_context.schema.json`** — client → backend 센서 데이터 포맷(active_app, window_title, timestamp, optional screenshot ref).

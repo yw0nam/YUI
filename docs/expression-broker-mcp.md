@@ -126,7 +126,7 @@ async def update_emotion_ids(ids: list[str], ctx: Context) -> dict:
 |---|---|---|---|---|
 | `emotion_id` | **얼굴** (VRM blendshape) | 표정 | enum (10종) | broker hard 검증, 미등록 drop |
 | `motion_id` | **몸** (VRMA gesture) | 모션 | registry key (4종) | broker hard 검증, 미등록 drop |
-| `emotion_text` | **목소리** (TTS 제어) | TTS prefix | **자유 텍스트** (FishSpeech 태그) | 검증 없음, model이 직접 생성 |
+| `emotion_text` | **목소리** (TTS 제어) | voice 태그 | **자유 텍스트** (FishSpeech 태그) | 검증 없음, model이 직접 생성 |
 | 발화 텍스트 | 자막/TTS 본문 | **별도 텍스트 스트림** | `output_text.delta` | **`generate_express`에 없음** (D-SPEECH) |
 
 - emotion_id(얼굴)와 emotion_text(목소리)는 **독립**이다 — `happy` 표정 + `[whisper in small voice]` 목소리 동시 가능.

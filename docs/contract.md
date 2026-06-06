@@ -1,6 +1,6 @@
 # YUI ↔ Hermes Contract
 
-> **Version:** v0 draft — build-startable, 세부는 prototype에서 좁힌다.
+> **Version:** v0.2 draft — build-startable, 세부는 prototype에서 좁힌다. (changelog 맨 아래)
 > **Scope:** client(YUI) ↔ backend(Hermes) 사이의 4개 스키마.
 > **Single-file 정책:** 4종 스키마(Emotion / Motion / Control envelope / Input context)는 본 파일 단일 문서로 유지 — 4개로 쪼개면 cross-ref 폭증. PRD F9에서 `docs/contract/` 4파일을 권고했으나 **본 단일 파일로 supersede**.
 
@@ -42,9 +42,10 @@
 ## 1. Emotion Vocabulary
 
 ### 목적
-backend가 turn마다 보낼 수 있는 emotion enum. **emotion 신호는 client-side에서 두 개의 매핑으로 소비된다:**
-- **(a) VRM expression registry (기존):** emotion enum → VRM expression 키. 모델 핫스왑 시 backend는 손대지 않는다.
-- **(b) TTS-prefix 매핑 (NEW, required, TBD):** emotion을 TTS로 보낼 text의 맨 앞에 prefix로 부착 → TTS 서비스가 prefix를 파싱해 감정 음성을 생성한다(§1 "Emotion → TTS prefix" 소절 + §3 D-TTS-PIPELINE).
+backend가 turn마다 보낼 수 있는 emotion enum. emotion enum은 **얼굴(표정)** 채널이다 — client-side에서 VRM expression registry로 소비된다:
+- **(a) VRM expression registry:** emotion enum → VRM expression 키. 모델 핫스왑 시 backend는 손대지 않는다.
+
+emotion의 **목소리(TTS) 차원**은 이 enum이 아니라 `generate_express`가 싣는 **별도의 자유 텍스트 `emotion_text` 채널**이다 — enum→prefix 매핑이 아니라 검증 없는 FishSpeech voice 태그(예: `[whisper in small voice]`)를 model이 직접 생성한다(§3 / `generate_express` / [`tts_rule.md`](./tts_rule.md)).
 
 ### Enum
 - **표준 (VRM 1.0 preset 그대로):** `neutral` `happy` `angry` `sad` `relaxed` `surprised`
@@ -87,22 +88,9 @@ interface EmotionSignal {
 
 > **[구현됨 feat/emotion-expression #6]** emotion→expression 결정 + existence-aware fallback은 `src/renderer/emotion-resolver.ts`(pure, no three.js)가 담당한다. `EmotionResolver.resolve(signal)`은 registry fallback 체인을 따라 내려가되 각 후보 키에 대해 `expressionManager.getExpression(key) != null` 술어로 **VRM 모델이 실제로 갖고 있는 expression만 채택**하며, 사이클 가드 후 최종 terminal은 항상 `"neutral"`. 술어와 resolver는 VRM 로드/핫스왑마다 재생성(존재 집합이 모델별). `intensity` clamp·경고, 미등록 id → warn + neutral도 `resolve()` 안에서 처리. renderer(`src/renderer/index.ts`) `setEmotion(signal | null)`은 `null`이면 즉시 return(hold previous), signal이면 resolver로 결정한 뒤 `stepEmotion`이 **vrm.update(dt) 직전 프레임마다** weight를 linear lerp해 `expressionManager.setValue`를 적용하는 per-frame 크로스페이드를 시작한다. `blink` 등 tier-1 전용 expression 키는 건드리지 않아 ambient와 합성된다. `≤100ms` 반응성(다음 프레임에 전이 시작)과 `transition_ms`(기본 250, 보간 지속 시간)는 독립된 두 축이다. registry는 `RendererOptions.emotionRegistry` 또는 `setEmotionRegistry()`로 주입(motion과 병렬 구조).
 
-### Emotion → TTS prefix (required, TBD)
+### Emotion 목소리 차원 → `emotion_text` 채널
 
-**목적:** emotion enum을 TTS API(`localhost:8092`)로 보낼 text의 **맨 앞에 부착할 prefix 토큰/포맷**으로 변환하는 매핑. TTS 서비스가 이 prefix를 파싱해 감정 음성을 생성한다(D-EMOTION-DUAL).
-
-- **상태:** **required artifact. prefix 토큰/포맷은 TTS 구현 시 사용자에게 질문해 확정한다 (지금 정하지 않음, 발명 금지).**
-- 산출물 위치: emotion enum과 1:1로 묶이므로 본 §1(또는 `emotion_vocab.md`)의 **두 번째 매핑**으로 포함(PRD F9 참고).
-- **emotion은 optional이다.** 분절을 TTS로 보낼 시점에 emotion이 있으면 prefix를 붙이고, 없으면 prefix 없이 보낸다(best-effort, §3 D-TTS-PIPELINE). 하드 타이밍 의존 없음.
-
-```jsonc
-// configs/emotion_tts_prefix.json — 버전 스텁 (v1, TBD)
-{
-  "_version": "v1",
-  "_status": "TBD — TTS 구현 시 사용자에게 질문해 확정. 발명 금지."
-  // "happy": "<TBD>", "sad": "<TBD>", ... (enum 전체)
-}
-```
+emotion enum→prefix 매핑은 없다. emotion의 목소리(TTS) 차원은 `generate_express`가 싣는 **자유 텍스트 `emotion_text`** 필드로 전달된다 — 검증 없는 FishSpeech voice 태그를 model이 직접 생성하고(§3 / `generate_express`), client는 이를 TTS 분절 맨 앞에 prepend한다(§3 D-TTS-PIPELINE step 4). 상세는 [`tts_rule.md`](./tts_rule.md) 참고.
 
 ---
 
@@ -306,12 +294,12 @@ Hermes가 자체 `web_search`를 돌리면 스트림에 function_call item이 �
 1. **텍스트 스트림 수신** — `response.output_text.delta` 토큰을 받는다.
 2. **버퍼 큐 적재** — 받은 토큰을 버퍼 큐에 쌓는다.
 3. **문장 분절(sentence boundary) 감지** — 큐에서 문장 경계가 감지되면 그 지점까지를 한 덩어리로 끊는다. (분절 방식은 구현 시 결정 — 새 리서치 아님.)
-4. **emotion prefix 부착 (있을 때만)** — 그 시점에 emotion이 있으면 분절 text 맨 앞에 prefix를 붙인다(§1 매핑, TBD). **emotion은 optional이라 없으면 prefix 없이 plain text로 보낸다.**
-5. **per-sentence TTS 호출** — prefix가 붙은 분절을 TTS API(`localhost:8092`)로 전송 → output wav 수신.
+4. **`emotion_text` 태그 prepend (있을 때만)** — 그 시점에 `emotion_text`(FishSpeech voice 태그)가 있으면 분절 text 맨 앞에 prepend한다. **optional이라 없으면 태그 없이 plain text로 보낸다.**
+5. **per-sentence TTS 호출** — 태그가 붙은 분절을 TTS API(`localhost:8092`)로 전송 → output wav 수신.
 6. **ordered playback (재생 순서 보존)** — TTS 응답이 순서가 뒤바뀌어 와도 **원래 문장 순서대로** 재생한다.
 7. **진폭 기반 립싱크 동기** — 재생되는 wav의 진폭에 입(mouth blendshape) 움직임을 동기한다(PRD D1).
 
-**emotion prefix는 best-effort (확정):** emotion은 optional이다 — 분절을 TTS로 보낼 시점에 emotion이 있으면 prefix를 붙이고, 없으면 prefix 없이 plain text로 보낸다. 따라서 emotion 도착 타이밍은 **하드 의존이 아니다**(neutral fallback 같은 특별 처리 불필요). 표정도 emotion 없으면 직전 상태 유지.
+**`emotion_text` 태그는 best-effort (확정):** `emotion_text`는 optional이다 — 분절을 TTS로 보낼 시점에 있으면 태그를 prepend하고, 없으면 plain text로 보낸다. 따라서 도착 타이밍은 **하드 의존이 아니다**(neutral fallback 같은 특별 처리 불필요). 표정도 emotion 없으면 직전 상태 유지.
 
 ---
 
@@ -401,3 +389,9 @@ prototype에서 결정/검증:
 8. **Multi-character** — `character_id` envelope 추가 vs 채널 분리.
 9. **P2 SSE push envelope** — §3 그대로 재사용할지, push 전용 필드(urgency, ttl) 추가할지.
 10. **Schema 버전 협상** — `client.yui_version` 외에 별도 contract version handshake가 필요한가.
+
+---
+
+## Changelog
+
+- **2026-06-06 (v0.2 draft):** `emotion_tts_prefix`(emotion-enum→TTS-prefix 매핑) 제거 — emotion의 목소리 제어는 `generate_express`의 자유 텍스트 `emotion_text` 채널로 일원화(§1, §3 D-TTS-PIPELINE step 4).

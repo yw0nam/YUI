@@ -59,7 +59,6 @@ const ALL_SECTIONS: readonly ConfigSection[] = [
   "endpoints",
   "avatar",
   "emotionRegistry",
-  "emotionTtsPrefix",
   "motions",
 ];
 

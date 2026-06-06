@@ -10,7 +10,6 @@ export {
   CONFIG_FILES,
   type AppConfig,
   type AvatarConfig,
-  type EmotionTtsPrefixConfig,
   type ConfigSection,
   type ConfigReader,
   type LoadConfigOptions,
