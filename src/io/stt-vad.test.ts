@@ -43,7 +43,7 @@ vi.mock("@ricky0123/vad-web", () => ({
 const CONFIG: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",
   chat_endpoint: "/v1/responses",
-  stt_base_url: "http://localhost:5517",
+  stt_base_url: "http://localhost:5517/v1",
   tts_base_url: "http://localhost:8092",
 };
 
@@ -187,10 +187,10 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     const audio = new Float32Array([0.1, 0.2, 0.3]);
     await triggerSpeechEnd!(audio);
 
-    // Must POST to stt_base_url/audio/transcriptions
+    // Must POST to stt_base_url/audio/transcriptions (server has the /v1 prefix)
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:5517/audio/transcriptions");
+    expect(url).toBe("http://localhost:5517/v1/audio/transcriptions");
     expect(init.method).toBe("POST");
     expect(init.body).toBeInstanceOf(FormData);
 

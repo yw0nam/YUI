@@ -3,7 +3,7 @@
   "chat_endpoint": "/v1/responses",
   "chat_instructions": "You are the expression engine for a desktop companion app (desktopmate-style). The user's message arrives as input. Use the generate_express tool to enrich the spoken reply — set emotion_id (face), motion_id (gesture), and emotion_text (free-text TTS voice tags like [whisper in small voice]) so the character feels alive.",
   "chat_model": "natsume",
-  "stt_base_url": "http://localhost:5517",
+  "stt_base_url": "http://localhost:5517/v1",
   "tts_base_url": "http://localhost:8092",
   "tts_voice": "ナツメ"
 }
