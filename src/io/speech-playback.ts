@@ -3,7 +3,7 @@
  *
  * 세 반쪽을 연결한다:
  *  - tts-pipeline onAmplitude → renderer.setMouthOpen  (입이 TTS 음량을 따라감)
- *  - tts-pipeline onPlaybackEnd → renderer.stopMouth + surfaces.finishSpeech
+ *  - tts-pipeline onPlaybackEnd → renderer.stopMouth + surfaces.finishSpeech + ease emotion → neutral
  *  - onSpeech(text) → 말풍선(페이드 보류) + 파이프라인 구동
  *
  * 말풍선은 endSpeech({ defer:true })로 보류되고, 재생이 끝나(onPlaybackEnd) finishSpeech()로만
@@ -13,9 +13,14 @@
 
 import { createTtsPipeline, type TtsPipeline, type TtsPipelineOptions } from "./tts-pipeline";
 
+/** 발화 종료 후 표정을 neutral로 되돌리는 ease 시간(ms) — 느리게(스냅 X). */
+const EMOTION_REVERT_MS = 1000;
+
 interface PlaybackRenderer {
   setMouthOpen(value: number): void;
   stopMouth(): void;
+  /** 직전 emotion을 neutral로 천천히 ease (턴 종료 시 표정이 영영 갇히지 않게). */
+  easeEmotionToNeutral(durationMs?: number): void;
 }
 
 interface PlaybackSurfaces {
@@ -50,6 +55,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     onPlaybackEnd: () => {
       renderer.stopMouth();
       surfaces.finishSpeech();
+      // 발화가 끝나면 표정도 함께 neutral로 천천히 회귀 — 직전 emotion이 영영 갇히지 않게.
+      renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
     },
   });
 
