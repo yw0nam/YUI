@@ -8,14 +8,19 @@ import type { createScreenshotSettings } from "../io/screenshot-settings";
 import type { ScreenSourceProvider, MonitorInfo } from "../io/screen-source-provider";
 import type { ScreenSource } from "../contract";
 import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
+import { createLipsyncSettings, LIPSYNC_GAIN_MIN, LIPSYNC_GAIN_MAX } from "../io/lipsync-settings";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
+type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 
 interface QuickControlsOptions {
   mount: HTMLElement;
   settings: ScreenshotSettingsStore;
   sourceProvider: ScreenSourceProvider;
   voiceStatus: VoiceInputStatus;
+  lipsync: LipsyncSettingsStore;
+  onGainPreview: (mouthOpen: number) => void;
+  onGainPreviewEnd: () => void;
 }
 
 interface QuickControls {
@@ -28,11 +33,17 @@ interface QuickControls {
 
 const VIEWPORT_MARGIN = 12;
 
+const PREVIEW_PEAK_RMS = 0.15;
+const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
+
 export function createQuickControls({
   mount,
   settings,
   sourceProvider,
   voiceStatus,
+  lipsync,
+  onGainPreview,
+  onGainPreviewEnd,
 }: QuickControlsOptions): QuickControls {
   // scrim(바깥 클릭 감지) + 팝오버를 body에 직접 붙이지 않고 mount 안에 넣는다.
   // pointer-events: auto를 직접 부여해 overlay pointer-none을 돌파.
@@ -94,6 +105,21 @@ export function createQuickControls({
         </div>
       </div>
     </details>
+    <div class="yui-gain">
+      <div class="yui-gain__head">
+        <span class="yui-gain__label">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 10c2.4-2.4 4.9-3.6 8-3.6s5.6 1.2 8 3.6c-2.4 1.1-4.9 1.7-8 1.7s-5.6-.6-8-1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M4 14c2.4 2.4 4.9 3.6 8 3.6s5.6-1.2 8-3.6c-2.4-1.1-4.9-1.7-8-1.7s-5.6.6-8 1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+          </svg>
+          입 움직임
+        </span>
+        <span class="yui-gain__value">2.0×</span>
+      </div>
+      <span class="yui-gain__sub">목소리 크기에 따라 입이 벌어지는 정도</span>
+      <input class="yui-gain__slider" type="range" aria-label="입 움직임" />
+      <span class="yui-gain__hint">드래그하면 캐릭터 입이 실제로 그만큼 벌어져요</span>
+    </div>
     <p class="yui-quick__foot yui-quick__foot--on">켜져 있는 동안 매 대화에 이 화면이 첨부돼요.</p>
     <p class="yui-quick__foot yui-quick__foot--off">기본은 꺼져 있어요. 켜면 화면을 함께 보내요.</p>
   `;
@@ -101,8 +127,15 @@ export function createQuickControls({
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-switch")!;
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsEl = el.querySelector<HTMLDivElement>(".yui-monitors")!;
+  const gainSlider = el.querySelector<HTMLInputElement>(".yui-gain__slider")!;
+  const gainValue = el.querySelector<HTMLSpanElement>(".yui-gain__value")!;
+
+  gainSlider.min = String(LIPSYNC_GAIN_MIN);
+  gainSlider.max = String(LIPSYNC_GAIN_MAX);
+  gainSlider.step = "0.1";
 
   let openState = false;
+  let gainPreviewing = false;
   let closeRafId: number | null = null;
   let monitorsLoaded = false;
 
@@ -113,6 +146,13 @@ export function createQuickControls({
     const on = s.enabled;
     switchBtn.setAttribute("aria-checked", String(on));
     el.classList.toggle("is-on", on);
+  }
+
+  function reflectGain(): void {
+    const gain = lipsync.get().gain;
+    gainSlider.value = String(gain);
+    gainValue.textContent = gain.toFixed(1) + "×";
+    gainSlider.style.setProperty("--fill", String((gain - LIPSYNC_GAIN_MIN) / (LIPSYNC_GAIN_MAX - LIPSYNC_GAIN_MIN)));
   }
 
   function reflectVoiceStatus(snapshot: VoiceInputStatusSnapshot): void {
@@ -228,6 +268,7 @@ export function createQuickControls({
 
     reflectSettings();
     reflectVoiceStatus(voiceStatus.get());
+    reflectGain();
 
     // 위치 잡기 (getBoundingClientRect은 DOM 삽입 후)
     if (anchor) {
@@ -252,6 +293,7 @@ export function createQuickControls({
 
   function close(): void {
     if (!openState) return;
+    if (gainPreviewing) { onGainPreviewEnd(); gainPreviewing = false; }
     openState = false;
     el.classList.remove("is-open");
 
@@ -320,19 +362,40 @@ export function createQuickControls({
     }
   });
   const unsubscribeVoice = voiceStatus.subscribe(reflectVoiceStatus);
+  const unsubscribeLipsync = lipsync.subscribe(() => { if (openState) reflectGain(); });
+
+  function handleGainInput(): void {
+    const v = parseFloat(gainSlider.value);
+    lipsync.setGain(v);
+    gainPreviewing = true;
+    onGainPreview(previewMouth(v));
+    gainValue.textContent = v.toFixed(1) + "×";
+    gainSlider.style.setProperty("--fill", String((v - LIPSYNC_GAIN_MIN) / (LIPSYNC_GAIN_MAX - LIPSYNC_GAIN_MIN)));
+  }
+
+  function handleGainEnd(): void {
+    if (gainPreviewing) { onGainPreviewEnd(); gainPreviewing = false; }
+  }
 
   switchBtn.addEventListener("click", handleSwitchClick);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
   scrimEl.addEventListener("pointerdown", handleScrimPointerDown);
   document.addEventListener("keydown", handleDocKeydown);
+  gainSlider.addEventListener("input", handleGainInput);
+  gainSlider.addEventListener("pointerup", handleGainEnd);
+  gainSlider.addEventListener("blur", handleGainEnd);
 
   function dispose(): void {
     unsubscribe();
     unsubscribeVoice();
+    unsubscribeLipsync();
     switchBtn.removeEventListener("click", handleSwitchClick);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     scrimEl.removeEventListener("pointerdown", handleScrimPointerDown);
     document.removeEventListener("keydown", handleDocKeydown);
+    gainSlider.removeEventListener("input", handleGainInput);
+    gainSlider.removeEventListener("pointerup", handleGainEnd);
+    gainSlider.removeEventListener("blur", handleGainEnd);
     el.remove();
     scrimEl.remove();
   }
