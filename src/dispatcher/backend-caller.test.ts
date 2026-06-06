@@ -238,6 +238,59 @@ describe("backend_caller — screenshot port (#20)", () => {
   });
 });
 
+describe("backend_caller — os context port (#18)", () => {
+  /** decode the system message env block passed to streamChat. */
+  function envOf(input: unknown): Record<string, unknown> {
+    const items = input as Array<{ role: string; content: string }>;
+    const sys = items.find((m) => m.role === "system")!;
+    const json = sys.content.replace(/^client_context:\s*/, "");
+    return JSON.parse(json) as Record<string, unknown>;
+  }
+
+  it("getOsContext snapshot → env.active_app + env.active_window_title attached", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getOsContext: () => ({ activeApp: "Visual Studio Code", activeWindowTitle: "main.ts" }),
+    });
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    const env = envOf(request.input);
+    expect(env.active_app).toEqual({ name: "Visual Studio Code" });
+    expect(env.active_window_title).toBe("main.ts");
+  });
+
+  it("getOsContext absent → env.active_app / active_window_title omitted", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    const env = envOf(request.input);
+    expect("active_app" in env).toBe(false);
+    expect("active_window_title" in env).toBe(false);
+  });
+
+  it("getOsContext returns {} → env.active_app / active_window_title omitted", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getOsContext: () => ({}),
+    });
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    const env = envOf(request.input);
+    expect("active_app" in env).toBe(false);
+    expect("active_window_title" in env).toBe(false);
+  });
+});
+
 describe("backend_caller — failure classification (§7.3)", () => {
   it("no completed event → parse_error drop", async () => {
     scriptedEvents = [{ type: "speech_delta", text: "x" }];
