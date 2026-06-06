@@ -40,7 +40,7 @@ function stubPipelineFactory() {
 }
 
 function spyRenderer() {
-  return { setMouthOpen: vi.fn(), stopMouth: vi.fn() };
+  return { setMouthOpen: vi.fn(), stopMouth: vi.fn(), easeEmotionToNeutral: vi.fn() };
 }
 
 function spySurfaces() {
@@ -73,6 +73,47 @@ describe("createSpeechPlayback — amplitude drives the mouth", () => {
 
     stub.emitPlaybackEnd();
     expect(renderer.stopMouth).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("createSpeechPlayback — emotion eases back to neutral when playback ends", () => {
+  it("eases the emotion to neutral with a slow duration on playback end", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
+    stub.emitPlaybackEnd();
+    expect(renderer.easeEmotionToNeutral).toHaveBeenCalledTimes(1);
+    // a slow ease (>= 800ms), not the snappy default crossfade.
+    const durationMs = renderer.easeEmotionToNeutral.mock.calls[0][0] as number;
+    expect(durationMs).toBeGreaterThanOrEqual(800);
+  });
+
+  it("eases to neutral even when no audio played (empty/disabled/failed turn)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeech("Text with no audio.");
+    // the emotion must NOT revert mid-utterance — only when playback ends.
+    expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
+    stub.emitPlaybackEnd();
+    expect(renderer.easeEmotionToNeutral).toHaveBeenCalledTimes(1);
+  });
+
+  it("reverts alongside stopMouth + finishSpeech (same playback-end signal)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    stub.emitPlaybackEnd();
+    expect(renderer.stopMouth).toHaveBeenCalledTimes(1);
+    expect(surfaces.finishSpeech).toHaveBeenCalledTimes(1);
+    expect(renderer.easeEmotionToNeutral).toHaveBeenCalledTimes(1);
   });
 });
 
