@@ -195,6 +195,35 @@ mod tests {
         assert!(h >= 1);
     }
 
+    // ── encode_capture ────────────────────────────────────────────────────────
+
+    #[test]
+    fn encode_capture_no_resize_preserves_dimensions() {
+        let raw = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_pixel(4, 4, Rgba([10, 20, 30, 255]));
+        let dto = encode_capture(raw, 0).unwrap();
+        assert!(dto.data_url.starts_with("data:image/png;base64,"));
+        assert_eq!(dto.width, 4);
+        assert_eq!(dto.height, 4);
+    }
+
+    #[test]
+    fn encode_capture_downscales_to_fit_long_edge() {
+        let raw = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_pixel(8, 4, Rgba([10, 20, 30, 255]));
+        let dto = encode_capture(raw, 2).unwrap();
+        assert_eq!((dto.width, dto.height), fit_long_edge(8, 4, 2));
+        assert_eq!((dto.width, dto.height), (2, 1));
+        assert!(dto.data_url.starts_with("data:image/png;base64,"));
+    }
+
+    #[test]
+    fn encode_capture_payload_decodes_non_empty() {
+        let raw = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_pixel(4, 4, Rgba([10, 20, 30, 255]));
+        let dto = encode_capture(raw, 0).unwrap();
+        let b64 = dto.data_url.strip_prefix("data:image/png;base64,").unwrap();
+        let bytes = B64.decode(b64).unwrap();
+        assert!(!bytes.is_empty());
+    }
+
     // ── CaptureDto serialisation ──────────────────────────────────────────────
 
     #[test]
