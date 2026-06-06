@@ -30,6 +30,12 @@ describe("configs/endpoints.json", () => {
     // contract: STT/TTS는 Hermes와 무관한 별도 프로세스.
     expect(new Set([ep.chat_base_url, ep.stt_base_url, ep.tts_base_url]).size).toBe(3);
   });
+
+  it("stt_base_url resolves to /v1/audio/transcriptions (ASR server has the /v1 prefix)", () => {
+    expect(`${ep.stt_base_url}/audio/transcriptions`).toBe(
+      "http://localhost:5517/v1/audio/transcriptions",
+    );
+  });
 });
 
 describe("configs/avatar.json", () => {
