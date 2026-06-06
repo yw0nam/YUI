@@ -11,6 +11,9 @@
 
 import { MicVAD } from "@ricky0123/vad-web";
 import type { EndpointsConfig, InputContext } from "../contract";
+import { createLogger } from "../logger";
+
+const log = createLogger("stt-vad");
 
 /** STT result — matches contract.md §4 InputContext.transcript. */
 export type Transcript = NonNullable<InputContext["transcript"]>;
@@ -112,7 +115,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
         body: form,
       });
       if (!res.ok) {
-        console.warn(`[stt-vad] STT request failed: HTTP ${res.status}`);
+        log.warn(`STT request failed: HTTP ${res.status}`);
         onState?.("error", `HTTP ${res.status}`);
         return;
       }
@@ -120,7 +123,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
       onVoiceSegment({ text: data.text });
       onState?.("fired");
     } catch (err) {
-      console.warn("[stt-vad] STT error:", err);
+      log.warn("STT error:", err);
       const detail = err instanceof Error ? err.message : "STT request failed";
       onState?.("error", detail);
     }
@@ -141,7 +144,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
         await vad.start();
       } catch (err) {
         // getUserMedia / VAD asset load can fail (e.g. denied mic permission); surface it instead of throwing.
-        console.warn("[stt-vad] start failed:", err);
+        log.warn("start failed:", err);
         vad = null;
         onState?.("error", describeStartError(err));
       } finally {

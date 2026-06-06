@@ -16,6 +16,9 @@ import type {
   MotionKind,
   InterruptPolicy,
 } from "../contract";
+import { createLogger } from "../logger";
+
+const log = createLogger("motion-controller");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -45,7 +48,7 @@ export interface MotionControllerOptions {
   baselineId?: string;
   /** default Math.random — injectable for deterministic variant tests */
   rng?: () => number;
-  /** default console.warn */
+  /** default logger.warn */
   warn?: (msg: string) => void;
 }
 
@@ -95,7 +98,7 @@ const DEFAULT_FADE_MS = 200;
  * Creates a MotionController backed by the given registry.
  *
  * - rng: variant 선택용(주입 시 결정론적 테스트 가능), default Math.random.
- * - warn: 미등록 id / speed clamp 경고, default console.warn.
+ * - warn: 미등록 id / speed clamp 경고, default logger.warn.
  * - baselineId: request(null)/finish 복귀 대상, default "idle".
  */
 export function createMotionController(
@@ -104,7 +107,7 @@ export function createMotionController(
 ): MotionController {
   const baselineId = opts?.baselineId ?? "idle";
   const rng = opts?.rng ?? Math.random;
-  const warn = opts?.warn ?? ((msg: string) => console.warn(msg));
+  const warn = opts?.warn ?? ((msg: string) => log.warn(msg));
 
   /** sequential variant_policy용 per-id 커서. */
   const seqCursors = new Map<string, number>();

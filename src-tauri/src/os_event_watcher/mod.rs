@@ -69,7 +69,11 @@ pub fn sanitise_window_title(raw: &str) -> Option<String> {
 
 /// Emits one OS event to the webview (fire-and-forget, §10).
 pub fn emit_os_event(app: &AppHandle, payload: OsEventPayload) -> tauri::Result<()> {
-    app.emit(OS_EVENT_CHANNEL, payload)
+    let result = app.emit(OS_EVENT_CHANNEL, payload);
+    if let Err(e) = &result {
+        log::warn!("os_event emit failed: {e}");
+    }
+    result
 }
 
 // ─── Platform-specific OS polling ────────────────────────────────────────────

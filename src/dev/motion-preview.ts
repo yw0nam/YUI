@@ -19,6 +19,9 @@
 import "./motion-preview.css";
 import { createRenderer } from "../renderer";
 import type { MotionRegistry, MotionKind, MotionSignal, EmotionRegistry, EmotionId } from "../contract";
+import { createLogger } from "../logger";
+
+const log = createLogger("motion-preview");
 
 // ─── Runtime config URLs (served by the custom dev middleware at /configs/*) ──
 // Do NOT statically import — Vite rewrites JSON imports to ?import, the middleware
@@ -391,7 +394,7 @@ async function main(): Promise<void> {
     motionsRegistry = (await motionsRes.json()) as MotionRegistry;
     emotionsRegistry = (await emotionRes.json()) as EmotionRegistry;
   } catch (err) {
-    console.error("[MotionPreview] registry load failed:", err);
+    log.error("registry load failed:", err);
     viewportStatus.textContent = "registry load failed";
     return;
   }
@@ -509,7 +512,7 @@ async function main(): Promise<void> {
     setActiveRow("idle");
     updateStatusBar();
   } catch (err) {
-    console.error("[MotionPreview] VRM load failed:", err);
+    log.error("VRM load failed:", err);
   }
 }
 

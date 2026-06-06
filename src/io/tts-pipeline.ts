@@ -4,9 +4,12 @@
  */
 
 import type { EndpointsConfig } from "../contract";
+import { createLogger } from "../logger";
 import { createWebAudioSink, type AudioSink } from "./audio-player";
 import { createSentenceSegmenter } from "./sentence-segmenter";
 import { createTtsSynth, type TtsSynth } from "./tts-synth";
+
+const log = createLogger("tts-pipeline");
 
 export interface TtsPipelineOptions {
   // synth 주입 시 미사용. config.get()처럼 throw 가능한 값을 eager 평가해 넘기지 말 것.
@@ -79,7 +82,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
           await sink.play(wav, options.onAmplitude);
         } catch (err) {
           if (disposed) break;
-          console.error("[tts-pipeline] playback failed", err);
+          log.error("playback failed", err);
         }
       }
     } finally {
@@ -102,7 +105,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       },
       (err) => {
         if (disposed || abort.signal.aborted) return;
-        console.error(`[tts-pipeline] synth failed (index ${index})`, err);
+        log.error(`synth failed (index ${index})`, err);
         failed.add(index);
         void pump();
       },

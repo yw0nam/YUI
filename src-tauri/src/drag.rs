@@ -60,7 +60,10 @@ pub struct MonitorInfo {
 /// primary mouse button is released, then stays at the new position.
 #[command]
 pub fn drag_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
-    window.start_dragging().map_err(|e| e.to_string())
+    window.start_dragging().map_err(|e| {
+        log::warn!("start_dragging failed: {e}");
+        e.to_string()
+    })
 }
 
 /// Return info for all available monitors.
@@ -72,12 +75,14 @@ pub fn drag_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
 #[command]
 pub fn get_monitors_info<R: Runtime>(app: AppHandle<R>) -> Result<Vec<MonitorInfo>, String> {
     // Grab any window to call `available_monitors()` on it.
-    let window = app
-        .get_webview_window("main")
-        .ok_or_else(|| "main window not found".to_string())?;
-    let monitors = window
-        .available_monitors()
-        .map_err(|e| e.to_string())?;
+    let window = app.get_webview_window("main").ok_or_else(|| {
+        log::warn!("get_monitors_info: main window not found");
+        "main window not found".to_string()
+    })?;
+    let monitors = window.available_monitors().map_err(|e| {
+        log::warn!("available_monitors failed: {e}");
+        e.to_string()
+    })?;
     Ok(monitors
         .into_iter()
         .map(|m| MonitorInfo {

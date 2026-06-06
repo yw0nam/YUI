@@ -129,6 +129,10 @@ cd src-tauri && cargo check # Rust compile check
 cd src-tauri && cargo test  # Rust unit tests
 ```
 
+## Logs
+
+Frontend (`src/logger.ts` → `[YUI][namespace] …`) and Rust (`log` crate) lines merge into one file via `tauri-plugin-log`. Dev (`pnpm tauri dev`): `<repo>/logs/` (gitignored) — tail with `tail -f logs/*.log`. Release (macOS): `~/Library/Logs/com.yui.desktop/`. Levels: dev `debug`, release `warn`; override frontend via `VITE_YUI_LOG_LEVEL` (`debug|info|warn|error`).
+
 ## Anti-patterns (do not do)
 
 - **No brain in the client.** Judgment / persona state / mode branching belongs to the backend.

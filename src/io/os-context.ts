@@ -9,6 +9,10 @@
  * snapshot holder is the seam #24 can later extend for firing.
  */
 
+import { createLogger } from "../logger";
+
+const log = createLogger("os-context");
+
 /** `os_event` channel payload — mirrors src-tauri OsEventPayload (snake_case over IPC). */
 export interface OsEventPayload {
   event_name: string;
@@ -82,14 +86,14 @@ export function createOsContext(opts?: { listen?: OsEventListen }): OsContext {
     try {
       listen = opts?.listen ?? (await resolveTauriListen());
     } catch (err) {
-      console.debug("[YUI/os-context] listen resolve failed — degrade:", err);
+      log.debug("listen resolve failed — degrade:", err);
       return;
     }
     if (!listen) return;
     try {
       unlisten = await listen(OS_EVENT_CHANNEL, ({ payload }) => onEvent(payload));
     } catch (err) {
-      console.debug("[YUI/os-context] subscribe failed — degrade:", err);
+      log.debug("subscribe failed — degrade:", err);
     }
   }
 

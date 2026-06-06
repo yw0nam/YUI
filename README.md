@@ -102,6 +102,24 @@ provide them itself — link/copy them from an existing checkout before running.
 Vite serves `/vrms/*` from `resources/vrms`; without the VRM the model 404s and
 without `.env.local` chat auth is absent.
 
+## Logs
+
+Frontend and Rust logs are merged into a single file via `tauri-plugin-log`.
+Frontend lines come from a central logger (`src/logger.ts` —
+`createLogger("namespace")`, formatted `[YUI][namespace] …`); Rust lines use the
+`log` crate macros. Both streams write to the same file.
+
+- **Dev** (`pnpm tauri dev`) — `<repo>/logs/` (gitignored). Tail with:
+
+  ```bash
+  tail -f logs/*.log
+  ```
+
+- **Release** (built app, macOS) — `~/Library/Logs/com.yui.desktop/`.
+
+Default level is `debug` in dev and `warn` in release. Override the frontend
+level with the `VITE_YUI_LOG_LEVEL` env var (`debug` · `info` · `warn` · `error`).
+
 ## Documentation
 
 - [`AGENTS.md`](AGENTS.md) — canonical agent guide (work rules, roster, stack, layout)

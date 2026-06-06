@@ -165,6 +165,7 @@ pub fn frontmost_window_info(pid: i32) -> Option<WindowInfo> {
         CGWindowListCopyWindowInfo(K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY, K_CG_NULL_WINDOW_ID)
     };
     if windows.is_null() {
+        log::debug!("CGWindowListCopyWindowInfo returned null; skipping window info");
         return None;
     }
 
@@ -276,7 +277,10 @@ use objc2_foundation::NSString;
 /// Returns (pid, localizedName) of the frontmost application, or None.
 pub fn frontmost_app() -> Option<(i32, String)> {
     let ws = NSWorkspace::sharedWorkspace();
-    let app: Retained<NSRunningApplication> = ws.frontmostApplication()?;
+    let Some(app): Option<Retained<NSRunningApplication>> = ws.frontmostApplication() else {
+        log::debug!("NSWorkspace frontmostApplication returned None; skipping active-app poll");
+        return None;
+    };
     let name_ns: Retained<NSString> = app.localizedName()?;
     let name = name_ns.to_string();
     let pid = app.processIdentifier();

@@ -40,6 +40,9 @@ import {
 import { routeDirective } from "./apply-directive";
 import { revertEmotionToNeutral } from "./ease-emotion";
 import { recenterClipRootMotion } from "./recenter-root-motion";
+import { createLogger } from "../logger";
+
+const log = createLogger("renderer");
 
 export interface RendererOptions {
   /** VRM을 렌더할 캔버스 마운트 대상. */
@@ -254,7 +257,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         void startMotion(decision.motion);
       }
     } catch (err) {
-      console.error("[YUI] motion finish handler error:", err);
+      log.error("motion finish handler error:", err);
     }
   };
 
@@ -285,7 +288,7 @@ export function createRenderer(options: RendererOptions): Renderer {
           try {
             fn(ctx);
           } catch (err) {
-            console.error("[YUI] tick hook error:", err);
+            log.error("tick hook error:", err);
           }
         }
       }
@@ -294,7 +297,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         try {
           mixer.update(dt);
         } catch (err) {
-          console.error("[YUI] mixer update error:", err);
+          log.error("mixer update error:", err);
         }
       }
       // emotion 크로스페이드 — expressionManager.update()는 vrm.update(dt) 안에서
@@ -354,7 +357,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     const vrmAnimations = gltf.userData.vrmAnimations as unknown[] | undefined;
     const vrmAnimation = vrmAnimations?.[0];
     if (vrmAnimation == null) {
-      console.error(`[YUI] no vrmAnimations in "${vrmaPath}"`);
+      log.error(`no vrmAnimations in "${vrmaPath}"`);
       return null;
     }
     const clip = createVRMAnimationClip(vrmAnimation as never, currentVrm);
@@ -399,7 +402,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       }
       currentAction = action;
     } catch (err) {
-      console.error("[YUI] startMotion error:", err);
+      log.error("startMotion error:", err);
     }
   }
 
@@ -460,7 +463,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         x.curTargetW = x.targetWeight;
       }
     } catch (err) {
-      console.error("[YUI] stepEmotion error:", err);
+      log.error("stepEmotion error:", err);
     }
   }
 
@@ -494,7 +497,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   /** playMotion 구현 — request → (play/queue/ignore) → commit + 실제 재생. */
   function playMotion(motion: MotionSignal | null): void {
     if (!controller) {
-      console.warn("[YUI] playMotion called without a motion registry — no-op");
+      log.warn("playMotion called without a motion registry — no-op");
       return;
     }
     if (!currentVrm || !mixer) return; // VRM 미로드 시 재생 불가.
@@ -507,7 +510,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       // "queue"는 commit으로 슬롯에 저장됨 — finish 시 drain.
       // "ignore"는 no-op.
     } catch (err) {
-      console.error("[YUI] playMotion error:", err);
+      log.error("playMotion error:", err);
     }
   }
 
@@ -525,7 +528,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (emotion === null) return;
 
     if (!emotionResolver || !emotionRegistry) {
-      console.warn("[YUI] setEmotion called without an emotion registry — no-op");
+      log.warn("setEmotion called without an emotion registry — no-op");
       return;
     }
     if (!currentVrm) return;
@@ -566,7 +569,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         curTargetW: startTargetW,
       };
     } catch (err) {
-      console.error("[YUI] setEmotion error:", err);
+      log.error("setEmotion error:", err);
     }
   }
 

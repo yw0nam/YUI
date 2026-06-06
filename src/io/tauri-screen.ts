@@ -5,6 +5,7 @@
 
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import type { ScreenSource } from "../contract";
+import { createLogger } from "../logger";
 import type { ScreenCapture } from "./screenshot-context";
 import {
   type ScreenSourceProvider,
@@ -14,6 +15,8 @@ import {
   noopScreenCapturer,
   createBrowserScreenSourceProvider,
 } from "./screen-source-provider";
+
+const log = createLogger("screen");
 
 // ─── DTO types ────────────────────────────────────────────────────────────────
 
@@ -67,7 +70,7 @@ export function createTauriScreenCapturer(maxEdge = 1280, invoke: InvokeFn = tau
           height: dto.height,
         };
       } catch (err) {
-        console.error("[YUI] screen capture failed:", err);
+        log.error("screen capture failed:", err);
         return null;
       }
     },

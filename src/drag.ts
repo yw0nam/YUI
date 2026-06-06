@@ -37,6 +37,9 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { createLogger } from "./logger";
+
+const log = createLogger("drag");
 
 // ─── IPC types ────────────────────────────────────────────────────────────────
 
@@ -137,7 +140,7 @@ export async function initDrag(el: EventTarget): Promise<() => void> {
   // PRD G7) there is no window IPC, and getCurrentWindow() throws. Skip gracefully
   // so bootstrap (renderer + dispatcher) still runs. Drag is a no-op in the browser.
   if (!(globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
-    console.debug("[YUI/drag] non-Tauri environment — drag disabled (no-op).");
+    log.debug("non-Tauri environment — drag disabled (no-op).");
     return () => {};
   }
 
@@ -148,8 +151,8 @@ export async function initDrag(el: EventTarget): Promise<() => void> {
   // emits this event. M1: log only. M2+: hook here for re-centering / UI
   // density adjustments.
   const unlistenScale = await win.onScaleChanged(({ payload }) => {
-    console.debug(
-      `[YUI/drag] scale changed → ${payload.scaleFactor} (size ${payload.size.width}×${payload.size.height})`,
+    log.debug(
+      `scale changed → ${payload.scaleFactor} (size ${payload.size.width}×${payload.size.height})`,
     );
     // TODO(M2+): notify layout system of DPI change if needed.
   });
@@ -167,7 +170,7 @@ export async function initDrag(el: EventTarget): Promise<() => void> {
 
     // ── OS-native drag ────────────────────────────────────────────────────────
     invokeDragWindow().catch((err: unknown) => {
-      console.warn("[YUI/drag] drag_window invoke failed:", err);
+      log.warn("drag_window invoke failed:", err);
     });
   }
 

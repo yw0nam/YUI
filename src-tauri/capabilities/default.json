@@ -8,6 +8,7 @@
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
-    "cors-fetch:default"
+    "cors-fetch:default",
+    "log:default"
   ]
 }
