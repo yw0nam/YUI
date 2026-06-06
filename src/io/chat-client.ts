@@ -12,16 +12,31 @@
  *   얻는다(plugin-http는 SSE 스트리밍 불가). `selectFetch()`가 환경별 fetch를 골라
  *   `StreamChatOptions.fetch`로 SDK에 주입한다. dev/browser는 글로벌 fetch.
  *
+ * express tool naming: the tool is matched by SUFFIX (`name.endsWith("generate_express")`),
+ *   so it recognizes both the plain `generate_express` and the MCP-namespaced
+ *   `mcp_<server>_generate_express` the live backend emits. Sibling MCP tools
+ *   (e.g. `..._get_ids`) do NOT match → they stay generic tool_status chips.
+ *
+ * express args shape: the spec streams args via response.function_call_arguments.done,
+ *   but the live backend instead ships the complete `arguments` JSON inside the
+ *   function_call item of response.output_item.added/done. Both paths are parsed;
+ *   whichever arrives first wins (express is emitted exactly once per turn).
+ *
  * Event → ChatStreamEvent mapping:
  *  - response.output_text.delta → speech_delta (accumulated into speech_text).
  *  - response.output_text.done  → speech_done.
- *  - response.output_item.added (function_call, name != "generate_express") → tool_status running.
+ *  - response.output_item.added (function_call):
+ *      · isExpressTool(name) → if item.arguments present, JSON.parse → express (once).
+ *      · else → tool_status running.
  *  - response.function_call_arguments.done:
- *      · name == "generate_express" → JSON.parse(arguments) → ExpressArgs
+ *      · isExpressTool(name) → JSON.parse(arguments) → ExpressArgs (once)
  *        (FLAT: emotion_id?/motion_id?/emotion_text?). parse failure → error event
  *        (does NOT throw / abort the loop).
  *      · native tool → no event here (completion handled at output_item.done).
- *  - response.output_item.done (function_call, name != "generate_express") → tool_status done.
+ *  - response.output_item.done (function_call):
+ *      · isExpressTool(name) → if not yet emitted and item.arguments present,
+ *        JSON.parse → express (covers backends with no function_call_arguments.* events).
+ *      · else → tool_status done.
  *  - response.completed → completed event with the assembled ControlEnvelope. Normalization
  *    happens HERE (chat-client only): emotion_id→emotion{id}, motion_id→motion{id},
  *    emotion_text→emotion_text. No should_speak (D-NO-SPEAK-GATE).
@@ -65,6 +80,28 @@ function makeClient(opts: ConstructorParameters<typeof OpenAI>[0]): OpenAI {
       return (OpenAI as unknown as (o: typeof opts) => OpenAI)(opts);
     }
     throw err;
+  }
+}
+
+/**
+ * express tool 식별 — backend가 MCP로 등록하면 이름이 `mcp_<server>_generate_express`로
+ * namespaced되어 온다. suffix로 매칭해 namespaced/plain 둘 다 잡되, sibling tool
+ * (`..._get_ids` 등)은 generic tool_status로 남긴다.
+ */
+function isExpressTool(name: unknown): boolean {
+  return typeof name === "string" && name.endsWith("generate_express");
+}
+
+/** express arguments JSON 문자열 파싱. 실패 시 throw 없이 error 메시지를 돌려준다. */
+function parseExpressArgs(raw: unknown): { args: ExpressArgs } | { error: string } {
+  try {
+    return { args: JSON.parse(raw as string) as ExpressArgs };
+  } catch (err) {
+    return {
+      error: `generate_express arguments JSON parse failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    };
   }
 }
 
@@ -154,6 +191,8 @@ export async function* streamChat(
   let speech_text = "";
   let express: ExpressArgs | undefined;
   let tool_status: ToolStatus | undefined;
+  // express는 added/done/arguments.done 어디서 와도 한 번만 emit한다(중복 방지).
+  let expressEmitted = false;
 
   let stream: AsyncIterable<any>;
   try {
@@ -200,29 +239,36 @@ export async function* streamChat(
 
         case "response.output_item.added": {
           const item = event.item;
-          if (
-            item?.type === "function_call" &&
-            item.name !== "generate_express"
-          ) {
-            tool_status = { state: "running", tool_id: item.name };
-            yield { type: "tool_status", status: tool_status };
+          if (item?.type === "function_call") {
+            if (isExpressTool(item.name)) {
+              // 라이브 백엔드는 완성된 arguments를 added/done item에 바로 싣는다.
+              if (!expressEmitted && item.arguments) {
+                const result = parseExpressArgs(item.arguments);
+                if ("args" in result) {
+                  express = result.args;
+                  expressEmitted = true;
+                  yield { type: "express", args: result.args };
+                } else {
+                  yield { type: "error", message: result.error };
+                }
+              }
+            } else {
+              tool_status = { state: "running", tool_id: item.name };
+              yield { type: "tool_status", status: tool_status };
+            }
           }
           break;
         }
 
         case "response.function_call_arguments.done": {
-          if (event.name === "generate_express") {
-            try {
-              const args = JSON.parse(event.arguments) as ExpressArgs;
-              express = args;
-              yield { type: "express", args };
-            } catch (err) {
-              yield {
-                type: "error",
-                message: `generate_express arguments JSON parse failed: ${
-                  err instanceof Error ? err.message : String(err)
-                }`,
-              };
+          if (isExpressTool(event.name) && !expressEmitted) {
+            const result = parseExpressArgs(event.arguments);
+            if ("args" in result) {
+              express = result.args;
+              expressEmitted = true;
+              yield { type: "express", args: result.args };
+            } else {
+              yield { type: "error", message: result.error };
               // CONTINUE — never throw, never abort the loop.
             }
           }
@@ -232,12 +278,23 @@ export async function* streamChat(
 
         case "response.output_item.done": {
           const item = event.item;
-          if (
-            item?.type === "function_call" &&
-            item.name !== "generate_express"
-          ) {
-            tool_status = { state: "done", tool_id: item.name };
-            yield { type: "tool_status", status: tool_status };
+          if (item?.type === "function_call") {
+            if (isExpressTool(item.name)) {
+              // function_call_arguments.* 이벤트가 없는 백엔드는 done item에만 args가 있다.
+              if (!expressEmitted && item.arguments) {
+                const result = parseExpressArgs(item.arguments);
+                if ("args" in result) {
+                  express = result.args;
+                  expressEmitted = true;
+                  yield { type: "express", args: result.args };
+                } else {
+                  yield { type: "error", message: result.error };
+                }
+              }
+            } else {
+              tool_status = { state: "done", tool_id: item.name };
+              yield { type: "tool_status", status: tool_status };
+            }
           }
           break;
         }
