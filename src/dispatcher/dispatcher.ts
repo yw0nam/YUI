@@ -23,6 +23,9 @@ import type { Renderer } from "../renderer";
 import type { BackendCaller } from "./backend-caller";
 import type { DropReason } from "./guardrails";
 import type { ControlEnvelope } from "../contract";
+import { createLogger } from "../logger";
+
+const baseLog = createLogger("dispatcher");
 
 export interface DispatcherDeps {
   bus: EventBus;
@@ -132,7 +135,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   const { bus, renderer, backendCaller } = deps;
   const pumpMs = deps.pumpIntervalMs ?? DEFAULT_PUMP_MS;
   const log =
-    deps.log ?? ((stage, detail) => console.info(`[YUI][dispatcher] ${stage}`, detail));
+    deps.log ?? ((stage, detail) => baseLog.info(stage, detail));
 
   let state: DispatcherState = "booting";
   let timer: ReturnType<typeof setInterval> | null = null;

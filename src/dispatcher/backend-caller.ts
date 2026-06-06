@@ -29,6 +29,9 @@ import type {
 import type { Renderer } from "../renderer";
 import type { BusEnvelope } from "./event-bus";
 import type { DropReason } from "./guardrails";
+import { createLogger } from "../logger";
+
+const baseLog = createLogger("backend_caller");
 
 /** §10 Dispatcher → Backend Caller 출력: { ok, drop_reason? }. */
 export interface BackendCallResult {
@@ -86,7 +89,7 @@ function resolveTimezone(): string {
 
 export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   const log =
-    deps.log ?? ((stage, detail) => console.info(`[YUI][backend_caller] ${stage}`, detail));
+    deps.log ?? ((stage, detail) => baseLog.info(stage, detail));
 
   /**
    * B1: contract §4 InputContext 조립.

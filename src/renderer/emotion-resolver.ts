@@ -16,6 +16,9 @@
  */
 
 import type { EmotionId, EmotionSignal, EmotionRegistry } from "../contract";
+import { createLogger } from "../logger";
+
+const log = createLogger("emotion-resolver");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -34,7 +37,7 @@ export interface ResolvedEmotion {
 export interface EmotionResolverOptions {
   /** VRM 모델에 해당 expression 키가 존재하는지 확인. default: () => true */
   hasExpression?: (key: string) => boolean;
-  /** 미등록 id / intensity clamp 경고. default console.warn */
+  /** 미등록 id / intensity clamp 경고. default logger.warn */
   warn?: (m: string) => void;
 }
 
@@ -62,14 +65,14 @@ const FALLBACK_EXPRESSION = "neutral";
  *
  * - hasExpression: VRM 모델 expression 존재 확인용(주입 시 결정론적 테스트 가능),
  *   default () => true (모든 expression 존재로 간주 ⇒ 첫 키가 즉시 채택, walk 없음).
- * - warn: 미등록 id / intensity clamp 경고, default console.warn.
+ * - warn: 미등록 id / intensity clamp 경고, default logger.warn.
  */
 export function createEmotionResolver(
   registry: EmotionRegistry,
   opts?: EmotionResolverOptions,
 ): EmotionResolver {
   const hasExpression = opts?.hasExpression ?? (() => true);
-  const warn = opts?.warn ?? ((m: string) => console.warn(m));
+  const warn = opts?.warn ?? ((m: string) => log.warn(m));
 
   /**
    * 존재 인지(existence-aware) fallback 체인 탐색.

@@ -15,6 +15,7 @@
  */
 
 import "./styles.css";
+import { createLogger, initLogger } from "./logger";
 import { createRenderer } from "./renderer";
 import { createTier1Engine } from "./ambient/tier1";
 import { createSurfaces } from "./ui/surfaces";
@@ -41,7 +42,10 @@ import type { SttVad } from "./io/stt-vad";
 /** 입력 소환 핫키 (window-focus 한정 — 전역 단축키는 후속 tauri-plugin-global-shortcut). */
 const SUMMON_KEY = "/";
 
+const log = createLogger("bootstrap");
+
 async function bootstrap(): Promise<void> {
+  await initLogger();
   const app = document.querySelector<HTMLDivElement>("#app");
   if (!app) {
     throw new Error("#app mount point not found");
@@ -129,7 +133,7 @@ async function bootstrap(): Promise<void> {
   // config에서 읽는다). 다만 backend_caller는 config 스토어가 필요하므로 config 생성 후 배선한다.
   const bus = createEventBus({
     onDrop: (env, reason) =>
-      console.info("[YUI][event_bus] drop", { event_name: env.event_name, reason }),
+      log.info("drop", { event_name: env.event_name, reason }),
   });
   const userInput = createUserInputSource(bus);
   let sttVad: SttVad | null = null;
@@ -223,7 +227,7 @@ async function bootstrap(): Promise<void> {
   });
   // dev에서 키를 빼먹으면 나중에 chat 호출 시 조용한 401처럼 보인다 → bootstrap에서 미리 알린다.
   if (import.meta.env.DEV && !import.meta.env.VITE_YUI_CHAT_KEY) {
-    console.warn("[YUI] VITE_YUI_CHAT_KEY 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. .env.local 참고(.env.example).");
+    log.warn("VITE_YUI_CHAT_KEY 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. .env.local 참고(.env.example).");
   }
   // synth는 호출 시점에 config(핫리로드)와 selectFetch를 읽는 closure로 주입한다.
   // config.get()을 여기서 eager 평가하면 load() 전 throw로 부트스트랩이 죽으니 금지.
@@ -292,7 +296,7 @@ async function bootstrap(): Promise<void> {
     // config가 준비된 후에만 dispatcher를 가동(backend_caller가 config.get()에 의존).
     dispatcher.start();
   } catch (err) {
-    console.error("[YUI] config load / VRM load failed:", err);
+    log.error("config load / VRM load failed:", err);
   }
 
   // 핫리로드: avatar.vrm_url이 바뀌면 VRM 핫스왑(renderer.loadVRM 재호출 = #4 핫스왑).
@@ -306,9 +310,9 @@ async function bootstrap(): Promise<void> {
     if (!changed.has("avatar")) return;
     vrmSwap = vrmSwap
       .then(() => renderer.loadVRM(cfg.avatar.vrm_url))
-      .catch((err) => console.error("[YUI] VRM hot-swap failed:", err));
+      .catch((err) => log.error("VRM hot-swap failed:", err));
   });
-  config.onError((err) => console.error("[YUI] config reload failed (이전 config 유지):", err));
+  config.onError((err) => log.error("config reload failed (이전 config 유지):", err));
   // dev에서만 폴링 watcher 가동 — configs/*.json 편집 시 즉시 반영. prod는 #27에서 결정.
   if (import.meta.env.DEV) {
     config.start();
