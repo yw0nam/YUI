@@ -4,8 +4,8 @@
  * tier2/3 event를 backend judgment로 보낸다. firing≠judgment 경계의 backend 쪽:
  * 말할지/무엇을은 backend가 발화 텍스트 발신 여부로 표현한다(D-NO-SPEAK-GATE: 침묵 = speech_text "").
  *
- *  B1 package_context — contract.md §4 InputContext 조립(MVP: user_text + env.timestamp +
- *     env.timezone). active_app/window(Rust handoff)는 DEFERRED(#26) → 채우지 않음.
+ *  B1 package_context — contract.md §4 InputContext 조립(user_text + env.timestamp +
+ *     env.timezone). active_app/window은 getOsContext 스냅샷이 있을 때만 best-effort로 첨부.
  *  B2 POST — io/chat-client.streamChat(config, req, { fetch, apiKey }). SSE는 chat-client가
  *     소유 — 여기서 직접 파싱하지 않는다. AbortSignal로 in-flight abort(§12).
  *  B3 parse — chat-client의 `completed` 이벤트가 이미 ControlEnvelope를 조립해 준다(§3).
@@ -49,6 +49,8 @@ export interface BackendCallerDeps {
   onSpeech?: (text: string) => void;
   /** 토글 ON일 때 화면 캡처 블록을 조립해 반환(OFF/실패면 undefined). main.ts가 settings+capturer+buildScreenshotBlock로 합성. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
+  /** 현재 foreground app/title 스냅샷(#18). present 시 env.active_app/active_window_title을 채운다. */
+  getOsContext?: () => import("../io/os-context").OsContextSnapshot | undefined;
   /** emotion_text(TTS voice tag) sink — present 시에만 호출. main.ts 배선은 후속(이 PR 비대상). */
   onEmotionText?: (text: string) => void;
   /** tool_status sink — present 시에만 호출. main.ts 배선은 후속(이 PR 비대상). */
@@ -88,8 +90,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
   /**
    * B1: contract §4 InputContext 조립.
-   * active_app / active_window_title는 DEFERRED(#26) → 생략. screenshot은 토글 ON일 때만
-   * getScreenshot 포트로 첨부(#20). 캡처 실패는 턴을 깨뜨리지 않는다 — 로그 후 스크린샷 없이 진행.
+   * active_app / active_window_title는 getOsContext 스냅샷이 있을 때만 best-effort로 채운다(없으면 생략).
+   * screenshot은 토글 ON일 때만 getScreenshot 포트로 첨부(#20). 캡처 실패는 턴을 깨뜨리지 않는다 — 로그 후 스크린샷 없이 진행.
    */
   async function packageContext(env: BusEnvelope): Promise<InputContext> {
     const userText = userTextOf(env);
@@ -101,6 +103,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       },
       client: { yui_version: deps.yuiVersion ?? "0.0.0" },
     };
+    const os = deps.getOsContext?.();
+    if (os?.activeApp) ctx.env.active_app = { name: os.activeApp };
+    if (os?.activeWindowTitle) ctx.env.active_window_title = os.activeWindowTitle;
     if (deps.getScreenshot) {
       try {
         const screenshot = await deps.getScreenshot();

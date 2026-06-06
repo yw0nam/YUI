@@ -26,6 +26,7 @@ import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { resolveScreenSourceProvider, resolveScreenCapturer } from "./io/tauri-screen";
 import { buildScreenshotBlock } from "./io/screenshot-context";
+import { createOsContext } from "./io/os-context";
 import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET } from "./config";
 import { initDrag } from "./drag";
 import { selectFetch } from "./io/chat-client";
@@ -81,6 +82,9 @@ async function bootstrap(): Promise<void> {
   const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
+  // foreground app/title 스냅샷(#18) — backend_caller가 매 요청에 env로 첨부. non-Tauri면 no-op.
+  const osContext = createOsContext();
+  void osContext.start();
   const quickControls = createQuickControls({
     mount: root,
     settings: screenshotSettings,
@@ -113,6 +117,7 @@ async function bootstrap(): Promise<void> {
       void sttVad?.dispose();
       voiceInputStatus.dispose();
       screenshotSettings.dispose();
+      osContext.stop();
       stage.removeEventListener("contextmenu", onContextMenu);
     });
   }
@@ -260,6 +265,7 @@ async function bootstrap(): Promise<void> {
       const cap = await screenCapturer.capture(s.source);
       return buildScreenshotBlock(s, cap ?? undefined);
     },
+    getOsContext: () => osContext.get(),
   });
   const dispatcher = createDispatcher({ bus, renderer, backendCaller });
   dispatcherRef = dispatcher;
