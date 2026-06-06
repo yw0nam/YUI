@@ -65,7 +65,10 @@ pub fn fit_long_edge(width: u32, height: u32, max_edge: u32) -> (u32, u32) {
 /// as the `index` passed to `capture_screen`.
 #[command]
 pub fn list_screen_sources() -> Result<Vec<ScreenSourceDto>, String> {
-    let monitors = xcap::Monitor::all().map_err(|e| e.to_string())?;
+    let monitors = xcap::Monitor::all().map_err(|e| {
+        log::error!("monitor enumeration failed: {e}");
+        e.to_string()
+    })?;
     Ok(monitors
         .into_iter()
         .enumerate()
@@ -84,14 +87,19 @@ pub fn list_screen_sources() -> Result<Vec<ScreenSourceDto>, String> {
 /// `max_edge == 0` skips resize entirely.
 #[command]
 pub fn capture_screen(index: u32, max_edge: u32) -> Result<CaptureDto, String> {
-    let monitors = xcap::Monitor::all().map_err(|e| e.to_string())?;
+    let monitors = xcap::Monitor::all().map_err(|e| {
+        log::error!("monitor enumeration failed: {e}");
+        e.to_string()
+    })?;
     let monitor = monitors
         .into_iter()
         .nth(index as usize)
         .ok_or_else(|| format!("monitor index {index} out of range"))?;
 
-    let raw: ImageBuffer<Rgba<u8>, Vec<u8>> =
-        monitor.capture_image().map_err(|e| e.to_string())?;
+    let raw: ImageBuffer<Rgba<u8>, Vec<u8>> = monitor.capture_image().map_err(|e| {
+        log::error!("screen capture failed for monitor {index}: {e}");
+        e.to_string()
+    })?;
 
     let src_w = raw.width();
     let src_h = raw.height();
@@ -114,7 +122,10 @@ pub fn capture_screen(index: u32, max_edge: u32) -> Result<CaptureDto, String> {
             &mut std::io::Cursor::new(&mut png_bytes),
             ImageFormat::Png,
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            log::error!("PNG encoding failed: {e}");
+            e.to_string()
+        })?;
 
     let b64 = B64.encode(&png_bytes);
     Ok(CaptureDto {
