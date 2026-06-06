@@ -84,6 +84,9 @@ interface EmotionSignal {
 - backend는 enum만 책임 — VRM 키 존재 여부는 알 필요 없다.
 - viseme/phoneme은 별도 채널(§3 reserved). emotion과 섞지 않는다.
 - `emotion === null` or absent → **NO-OP (hold previous)**. 오직 명시적 `{id:"neutral"}`만 neutral로 전이한다.
+- emotion은 **턴마다 설정되고 발화(utterance) 동안 유지(held)** 되며, 그 턴의 **TTS 재생이 끝나면 neutral로 천천히 ease-back** 한다. 이 회귀는 위 규칙을 깨지 않는다 — 재생 종료 신호(onPlaybackEnd)가 트리거하는 **명시적 neutral 전이**일 뿐이다(`null` hold 규칙 불변). 재생이 없는 턴(빈 텍스트/TTS 비활성/전부 실패)에도 onPlaybackEnd가 발화하므로 neutral로 돌아온다.
+
+> **[구현됨 feat/emotion-revert-on-tts-end]** 발화 종료 시 표정 회귀는 `src/renderer/ease-emotion.ts`(pure)의 `revertEmotionToNeutral(durationMs, sink)`가 담당한다 — 명시적 `{id:"neutral", transition_ms}`를 `setEmotion`으로 흘려보내 #6 크로스페이드를 그대로 재사용하고, 절대 `null`을 보내지 않는다(`null`은 hold). renderer는 `easeEmotionToNeutral(durationMs?)`로 노출하고, `src/io/speech-playback.ts`가 `onPlaybackEnd`에서 `stopMouth`/`finishSpeech`와 **같은 신호로** 호출한다(느린 ~1s ease, 스냅 아님). `setEmotion(null)` NO-OP·명시적 neutral·기본 250ms 크로스페이드는 불변.
 
 > **[구현됨 feat/emotion-expression #6]** emotion→expression 결정 + existence-aware fallback은 `src/renderer/emotion-resolver.ts`(pure, no three.js)가 담당한다. `EmotionResolver.resolve(signal)`은 registry fallback 체인을 따라 내려가되 각 후보 키에 대해 `expressionManager.getExpression(key) != null` 술어로 **VRM 모델이 실제로 갖고 있는 expression만 채택**하며, 사이클 가드 후 최종 terminal은 항상 `"neutral"`. 술어와 resolver는 VRM 로드/핫스왑마다 재생성(존재 집합이 모델별). `intensity` clamp·경고, 미등록 id → warn + neutral도 `resolve()` 안에서 처리. renderer(`src/renderer/index.ts`) `setEmotion(signal | null)`은 `null`이면 즉시 return(hold previous), signal이면 resolver로 결정한 뒤 `stepEmotion`이 **vrm.update(dt) 직전 프레임마다** weight를 linear lerp해 `expressionManager.setValue`를 적용하는 per-frame 크로스페이드를 시작한다. `blink` 등 tier-1 전용 expression 키는 건드리지 않아 ambient와 합성된다. `≤100ms` 반응성(다음 프레임에 전이 시작)과 `transition_ms`(기본 250, 보간 지속 시간)는 독립된 두 축이다. registry는 `RendererOptions.emotionRegistry` 또는 `setEmotionRegistry()`로 주입(motion과 병렬 구조).
 
