@@ -76,6 +76,23 @@ function encodeWav(samples: Float32Array): Blob {
   return new Blob([buffer], { type: "audio/wav" });
 }
 
+/** Map a start() failure to a human-readable, cause-distinguishable detail. */
+function describeStartError(err: unknown): string {
+  const name = err instanceof DOMException ? err.name : "";
+  switch (name) {
+    case "NotAllowedError":
+    case "SecurityError":
+      return "Microphone permission denied";
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return "No microphone device found";
+    case "NotReadableError":
+      return "Microphone is in use by another app";
+  }
+  const message = err instanceof Error ? err.message : "";
+  return message ? `Voice init failed: ${message}` : "Voice init failed";
+}
+
 export function createSttVad(options: SttVadOptions): SttVad {
   const { config, onVoiceSegment, onState } = options;
   const silenceMs = options.silenceMs ?? 1500;
@@ -122,6 +139,11 @@ export function createSttVad(options: SttVadOptions): SttVad {
           onSpeechEnd,
         });
         await vad.start();
+      } catch (err) {
+        // getUserMedia / VAD asset load can fail (e.g. denied mic permission); surface it instead of throwing.
+        console.warn("[stt-vad] start failed:", err);
+        vad = null;
+        onState?.("error", describeStartError(err));
       } finally {
         loading = false;
       }
