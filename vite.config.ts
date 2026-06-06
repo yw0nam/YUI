@@ -54,6 +54,12 @@ export default defineConfig({
         target: "http://localhost:8643",
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/__hermes/, ""),
+        // Hermes는 Origin을 allowlist 검사 → 1420 외 워크트리 dev 포트는 403.
+        // changeOrigin은 Host만 바꾸므로 Origin을 허용 값으로 덮어써 어떤 포트든 통과시킨다.
+        configure: (proxy) => {
+          const origin = process.env.YUI_HERMES_ORIGIN ?? "http://localhost:1420";
+          proxy.on("proxyReq", (proxyReq) => proxyReq.setHeader("origin", origin));
+        },
       },
     },
   },
