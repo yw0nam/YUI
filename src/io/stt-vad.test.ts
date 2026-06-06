@@ -174,6 +174,99 @@ describe("createSttVad — runtime state callbacks", () => {
   });
 });
 
+describe("createSttVad — start() failure handling (#64)", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  it("start() does not throw when MicVAD.new rejects (resilient)", async () => {
+    const { MicVAD } = await import("@ricky0123/vad-web");
+    (MicVAD.new as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new DOMException("denied", "NotAllowedError"),
+    );
+
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    await expect(stt.start()).resolves.toBeUndefined();
+  });
+
+  it("reports error with a permission-denied detail when getUserMedia is blocked", async () => {
+    const { MicVAD } = await import("@ricky0123/vad-web");
+    (MicVAD.new as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new DOMException("denied", "NotAllowedError"),
+    );
+
+    const onState = vi.fn();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState });
+    await stt.start();
+
+    const errorCall = onState.mock.calls.find(([state]) => state === "error");
+    expect(errorCall).toBeDefined();
+    expect(errorCall![1]).toMatch(/microphone|permission|mic/i);
+  });
+
+  it("reports error with a device-missing detail when no mic is found", async () => {
+    const { MicVAD } = await import("@ricky0123/vad-web");
+    (MicVAD.new as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new DOMException("no device", "NotFoundError"),
+    );
+
+    const onState = vi.fn();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState });
+    await stt.start();
+
+    const errorCall = onState.mock.calls.find(([state]) => state === "error");
+    expect(errorCall).toBeDefined();
+    expect(errorCall![1]).toMatch(/device|found/i);
+  });
+
+  it("reports a distinguishable detail for VAD/asset init failures", async () => {
+    const { MicVAD } = await import("@ricky0123/vad-web");
+    (MicVAD.new as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("failed to fetch /vad/silero_vad_v5.onnx"),
+    );
+
+    const onState = vi.fn();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState });
+    await stt.start();
+
+    const errorCall = onState.mock.calls.find(([state]) => state === "error");
+    expect(errorCall).toBeDefined();
+    // Non-permission failures must NOT be mislabeled as a mic-permission problem.
+    expect(errorCall![1]).not.toMatch(/permission/i);
+  });
+
+  it("permission-denied and asset-load failures produce different details", async () => {
+    const { MicVAD } = await import("@ricky0123/vad-web");
+    const newMock = MicVAD.new as ReturnType<typeof vi.fn>;
+
+    newMock.mockRejectedValueOnce(new DOMException("denied", "NotAllowedError"));
+    const onStatePerm = vi.fn();
+    await createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState: onStatePerm }).start();
+    const permDetail = onStatePerm.mock.calls.find(([s]) => s === "error")?.[1];
+
+    newMock.mockRejectedValueOnce(new Error("onnx wasm load error"));
+    const onStateAsset = vi.fn();
+    await createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState: onStateAsset }).start();
+    const assetDetail = onStateAsset.mock.calls.find(([s]) => s === "error")?.[1];
+
+    expect(permDetail).toBeDefined();
+    expect(assetDetail).toBeDefined();
+    expect(permDetail).not.toBe(assetDetail);
+  });
+
+  it("does not retain a VAD instance after a failed start (next start() retries)", async () => {
+    const { MicVAD } = await import("@ricky0123/vad-web");
+    const newMock = MicVAD.new as ReturnType<typeof vi.fn>;
+    newMock.mockRejectedValueOnce(new DOMException("denied", "NotAllowedError"));
+
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    await stt.start();
+    await stt.start();
+
+    expect(newMock).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => {
   it("fetches /audio/transcriptions and calls onVoiceSegment with transcript", async () => {
     const fetchMock = buildFetchMock("こんにちは");
