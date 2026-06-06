@@ -27,7 +27,7 @@ Load Karpathy Guideline.
 |---|---|---|
 | **Renderer Agent** | `opus` | `src/renderer/` — three.js/VRM load, expressions, motion, lipsync |
 | **Dispatcher Agent** | `opus` | `src/dispatcher/` — event-bus, classify→guardrail→route |
-| **IO / Chat Agent** | `sonnet` | `src/io/chat-client.ts` — Responses API SSE parser, `express` tool-call capture |
+| **IO / Chat Agent** | `sonnet` | `src/io/chat-client.ts` — Responses API SSE parser, `generate_express` tool-call capture |
 | **IO / Audio Agent** | `sonnet` | `src/io/tts-pipeline.ts` + `stt-vad.ts` — TTS queue/ordering, VAD→STT |
 | **Tauri / Rust Agent** | `sonnet` | `src-tauri/` — os_event_watcher, IPC contract, `cargo test` |
 | **Contract / Schema Agent** | `sonnet` | `src/contract/types.ts` ↔ `docs/contract.md` sync, JSON schema validation |
@@ -46,7 +46,7 @@ Load Karpathy Guideline.
 
 ## Core Principle: firing ≠ judgment
 
-The client handles **firing** (when a candidate event occurs). **Judgment** (whether/what to speak) belongs to the backend. If the backend returns `should_speak:false`, the client silently drops it. No brain lives in the client.
+The client handles **firing** (when a candidate event occurs). **Judgment** (whether/what to speak) belongs to the backend. There is no `should_speak` flag (**D-NO-SPEAK-GATE**) — the backend expresses silence by sending no/empty speech text; the client renders whatever text arrives. No brain lives in the client.
 
 ## Design Context
 
@@ -87,14 +87,14 @@ YUI/
     main.ts                 # Bootstrap wiring
     contract/               # TS types from docs/contract.md (types.ts, index.ts)
     renderer/               # three.js + VRM (index.ts, emotion-resolver.ts, motion-controller.ts)
-    io/                     # I/O layer (chat-client.ts, tts-pipeline.ts, stt-vad.ts, etc.)
+    io/                     # I/O layer (chat-client.ts, tts-pipeline.ts, stt-vad.ts, os-context.ts, etc.)
     dispatcher/             # Event bus + classify→guardrail→route
     ambient/tier1.ts        # Blink / idle sway / breath (backend-independent)
     config/                 # Config load + validate + reactive store + hot-reload
     styles.css
   src-tauri/
     tauri.conf.json         # Transparent always-on-top pet window
-    src/                    # Rust: lib.rs, main.rs, os_event_watcher.rs
+    src/                    # Rust: lib.rs, main.rs, drag.rs, screenshot.rs, os_event_watcher/ (mod·macos·windows)
   docs/                     # Design source of truth
 ```
 
@@ -106,7 +106,7 @@ All transport uses the **OpenAI-compatible API**. Three separate processes (swap
 - **STT →** `localhost:5517` `/audio/transcriptions`
 - **TTS →** `localhost:8092` `/audio/speech`
 
-**Control signals** are delivered as server-side `express` tool-calls in the `/v1/responses` stream. Arguments: `{ emotion?, motion?, should_speak? }`. Speech text is a separate assistant text stream (`response.output_text.delta`). `function_call` items are excluded from final `output[]` — must be captured during streaming.
+**Control signals** are delivered as server-side `generate_express` tool-calls in the `/v1/responses` stream. Arguments are flat: `{ emotion_id?, motion_id?, emotion_text? }` — no `should_speak` (**D-NO-SPEAK-GATE**); `emotion_text` is a free-text FishSpeech voice tag. Speech text is a separate assistant text stream (`response.output_text.delta`). `function_call` items are excluded from final `output[]` — must be captured during streaming. The renderable emotion/motion vocabulary is brokered by the Expression Broker MCP (`docs/expression-broker-mcp.md`).
 
 ## Key Docs
 
@@ -132,6 +132,6 @@ cd src-tauri && cargo test  # Rust unit tests
 ## Anti-patterns (do not do)
 
 - **No brain in the client.** Judgment / persona state / mode branching belongs to the backend.
-- **No inline control tags.** Emotion/motion goes through `express` tool-call arguments only — not inline tokens in speech text.
+- **No inline control tags.** Emotion/motion goes through `generate_express` tool-call arguments only — not inline tokens in speech text.
 - **No unverified assumptions.** Consult docs first. If not in docs, record the decision in docs before implementing.
 - **No hardcoding.** Endpoints/models/VRM paths/motion sets go in `configs/`.
