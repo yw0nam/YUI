@@ -1,4 +1,4 @@
-// OS event watcher stub (Rust 측 OS API 접근 전담).
+// OS event watcher — real OS polling for active app, idle, fullscreen, camera.
 mod os_event_watcher;
 
 // Drag + multi-monitor / DPI.
@@ -20,6 +20,8 @@ pub fn run() {
             .build(),
         )?;
       }
+      // Start OS event polling loop (emits `os_event` IPC to webview).
+      os_event_watcher::start(app.handle());
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
