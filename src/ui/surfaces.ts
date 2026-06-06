@@ -23,8 +23,13 @@ export interface Surfaces {
   beginSpeech(): void;
   /** 스트리밍 델타 추가. */
   pushSpeech(delta: string): void;
-  /** 캐럿 OFF + dwell 후 자동 페이드. (전체 텍스트를 한 번에 줄 때도 사용) */
-  endSpeech(): void;
+  /**
+   * 캐럿 OFF. 기본은 dwell 후 자동 페이드(전체 텍스트를 한 번에 줄 때도 사용).
+   * defer=true면 페이드를 보류 — TTS 재생이 끝나 finishSpeech()가 호출될 때까지 말풍선 유지.
+   */
+  endSpeech(opts?: { defer?: boolean }): void;
+  /** 보류된 말풍선(endSpeech defer)을 dwell→페이드로 해제. 비-보류/숨김 상태면 no-op. */
+  finishSpeech(): void;
   /** 즉시 말풍선 숨김(dwell 무시). */
   hideSpeech(): void;
 
@@ -93,6 +98,8 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   const dwell = dwellMs ?? readDwellToken(el) ?? DEFAULT_DWELL;
   const submitHandlers: Array<(text: string) => void> = [];
   let dwellTimer: ReturnType<typeof setTimeout> | null = null;
+  // endSpeech({ defer:true })로 페이드를 보류 중인지 — finishSpeech()가 해제한다.
+  let deferred = false;
   // Raw accumulated speech text — re-rendered as markdown on each push.
   let speechRaw = "";
 
@@ -106,6 +113,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   // ── speech bubble ──
   function beginSpeech(): void {
     clearDwell();
+    deferred = false;
     speechRaw = "";
     bubbleText.replaceChildren();
     bubbleEl.hidden = false;
@@ -121,17 +129,32 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     bubbleText.replaceChildren(renderMarkdownInline(speechRaw));
   }
 
-  function endSpeech(): void {
+  function endSpeech(opts?: { defer?: boolean }): void {
     if (bubbleEl.hidden && speechRaw === "") return;
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-visible");
     bubbleEl.classList.remove("is-streaming");
+    clearDwell();
+    if (opts?.defer) {
+      // 재생이 끝날 때까지 페이드 보류 — finishSpeech()가 dwell을 점화한다.
+      deferred = true;
+      return;
+    }
+    deferred = false;
+    dwellTimer = setTimeout(hideSpeech, dwell);
+  }
+
+  function finishSpeech(): void {
+    if (!deferred) return;
+    deferred = false;
+    if (bubbleEl.hidden) return;
     clearDwell();
     dwellTimer = setTimeout(hideSpeech, dwell);
   }
 
   function hideSpeech(): void {
     clearDwell();
+    deferred = false;
     bubbleEl.classList.remove("is-visible", "is-streaming");
     const onEnd = (e: TransitionEvent): void => {
       if (e.propertyName !== "opacity") return;
@@ -244,6 +267,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     beginSpeech,
     pushSpeech,
     endSpeech,
+    finishSpeech,
     hideSpeech,
     showTool,
     hideTool,

@@ -187,6 +187,108 @@ describe("createTtsPipeline — empty input", () => {
   });
 });
 
+describe("createTtsPipeline — onPlaybackEnd signal", () => {
+  it("fires exactly once after end() and the last queued chunk finishes", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const onPlaybackEnd = vi.fn();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+
+    pipe.pushTextDelta("First. Second.");
+    pipe.end();
+    await tick();
+    // synths resolved, chunks queued → still playing, not done yet.
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    expect(onPlaybackEnd).not.toHaveBeenCalled();
+
+    finish(); // chunk 0 done
+    await tick();
+    expect(onPlaybackEnd).not.toHaveBeenCalled(); // chunk 1 still playing
+
+    finish(); // chunk 1 (last) done
+    await tick();
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fire before end() even if the queue has momentarily drained", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const onPlaybackEnd = vi.fn();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+
+    pipe.pushTextDelta("Only one. ");
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    finish(); // chunk 0 done, but end() not yet called — more may come.
+    await tick();
+    expect(onPlaybackEnd).not.toHaveBeenCalled();
+
+    pipe.end();
+    await tick();
+    // end() with a fully-drained queue → completion fires now.
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires for empty / whitespace-only input where no audio ever plays", async () => {
+    const { synth } = deferredSynth();
+    const { sink } = recordingSink();
+    const onPlaybackEnd = vi.fn();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+
+    pipe.pushTextDelta("   \n  ");
+    pipe.end();
+    await tick();
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires when every synth fails so no chunk plays", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, playedOrder } = recordingSink();
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const onPlaybackEnd = vi.fn();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+
+    pipe.pushTextDelta("A. B.");
+    pipe.end();
+    await tick();
+    resolvers[0].reject(new Error("boom 0"));
+    resolvers[1].reject(new Error("boom 1"));
+    await tick();
+    expect(playedOrder).toEqual([]);
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+    errSpy.mockRestore();
+  });
+
+  it("fires after a mix of failed and played chunks drains", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, playedOrder, finish } = recordingSink();
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const onPlaybackEnd = vi.fn();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+
+    pipe.pushTextDelta("A. B. C.");
+    pipe.end();
+    await tick();
+    resolvers[0].reject(new Error("boom 0"));
+    resolvers[1].resolve(bufFor(1));
+    resolvers[2].resolve(bufFor(2));
+    await tick();
+    expect(playedOrder).toEqual([1]);
+    expect(onPlaybackEnd).not.toHaveBeenCalled();
+    finish(); // chunk 1 done → chunk 2 plays
+    await tick();
+    expect(playedOrder).toEqual([1, 2]);
+    expect(onPlaybackEnd).not.toHaveBeenCalled();
+    finish(); // chunk 2 (last) done
+    await tick();
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+    errSpy.mockRestore();
+  });
+});
+
 describe("createTtsPipeline — dispose()", () => {
   it("stops the sink, aborts in-flight synths, and makes no further play calls", async () => {
     const { synth, resolvers, signals } = deferredSynth();

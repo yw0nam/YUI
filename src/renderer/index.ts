@@ -38,6 +38,7 @@ import {
   type ResolvedEmotion,
 } from "./emotion-resolver";
 import { routeDirective } from "./apply-directive";
+import { revertEmotionToNeutral } from "./ease-emotion";
 import { recenterClipRootMotion } from "./recenter-root-motion";
 
 export interface RendererOptions {
@@ -88,6 +89,12 @@ export interface Renderer {
    * emotion === null이면 NO-OP(직전 표정 유지). neutral 복귀는 명시적 {id:"neutral"}만.
    */
   setEmotion(emotion: EmotionSignal | null): void;
+  /**
+   * 직전 emotion을 neutral로 천천히 ease시킨다 (턴의 TTS 재생 종료 시). 명시적
+   * {id:"neutral"} 전이를 긴 transition_ms로 흘려보내 setEmotion 크로스페이드를 그대로 재사용한다.
+   * durationMs 미지정 시 느린 기본값. registry/VRM 미주입이면 setEmotion이 no-op.
+   */
+  easeEmotionToNeutral(durationMs?: number): void;
   /**
    * emotion registry 주입(또는 교체). 주입 시 현재 VRM 기준 hasExpression 술어를
    * 재계산하고 EmotionResolver를 (재)생성한다.
@@ -563,6 +570,11 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
   }
 
+  /** 직전 emotion을 명시적 neutral 전이로 천천히 되돌린다 (TTS 재생 종료 시). */
+  function easeEmotionToNeutral(durationMs?: number): void {
+    revertEmotionToNeutral(durationMs, { setEmotion });
+  }
+
   function setEmotionRegistry(registry: EmotionRegistry): void {
     emotionRegistry = registry;
     // 현재 VRM 기준 존재 술어 재계산 + resolver 재생성.
@@ -582,6 +594,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       routeDirective(env, { setEmotion, playMotion });
     },
     setEmotion,
+    easeEmotionToNeutral,
     setMouthOpen(value) {
       mouth.setOpen(value);
     },
