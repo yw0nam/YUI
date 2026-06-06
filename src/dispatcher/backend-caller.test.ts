@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ControlEnvelope, EndpointsConfig, InputContext } from "../contract";
 import type { ChatStreamEvent } from "../io/chat-client";
 import type { BusEnvelope } from "./event-bus";
+import type { Logger } from "../logger";
 
 // ── streamChat mock (so we don't hit the SDK / network) ───────────────────────
 let scriptedEvents: ChatStreamEvent[] = [];
@@ -54,11 +55,16 @@ function completedEvent(env: ControlEnvelope): ChatStreamEvent {
   return { type: "completed", envelope: env };
 }
 
+function makeLogger(): Logger {
+  return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+}
+
 let applyDirective: ReturnType<typeof vi.fn>;
 let speechSink: ReturnType<typeof vi.fn>;
 let emotionTextSink: ReturnType<typeof vi.fn>;
 let toolStatusSink: ReturnType<typeof vi.fn>;
 let caller: BackendCaller;
+let logger: Logger;
 
 beforeEach(() => {
   scriptedEvents = [];
@@ -68,6 +74,7 @@ beforeEach(() => {
   speechSink = vi.fn();
   emotionTextSink = vi.fn();
   toolStatusSink = vi.fn();
+  logger = makeLogger();
   caller = createBackendCaller({
     config: CONFIG,
     renderer: { applyDirective } as never,
@@ -76,6 +83,7 @@ beforeEach(() => {
     onSpeech: speechSink,
     onEmotionText: emotionTextSink,
     onToolStatus: toolStatusSink,
+    logger,
   });
 });
 
@@ -320,5 +328,65 @@ describe("backend_caller — failure classification (§7.3)", () => {
     const res = await caller.call(userEnv(), ac.signal);
     expect(res.ok).toBe(false);
     expect(streamChatSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ── #76 structured logging ─────────────────────────────────────────────────────
+
+describe("backend_caller — structured logging (#76)", () => {
+  it("no completed event (parse_error) → logger.warn('parse_error', ...)", async () => {
+    scriptedEvents = [];
+    await caller.call(userEnv());
+    expect(logger.warn).toHaveBeenCalledWith(
+      "parse_error",
+      expect.objectContaining({ event_name: expect.any(String) }),
+    );
+  });
+
+  it("error stream event (network_drop) → logger.warn with network_drop context", async () => {
+    scriptedEvents = [{ type: "error", message: "401 unauthorized" }];
+    await caller.call(userEnv());
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("network_drop"),
+      expect.anything(),
+    );
+  });
+
+  it("thrown stream (network_drop) → logger.warn with network_drop context", async () => {
+    streamChatError = new Error("boom");
+    await caller.call(userEnv());
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("network_drop"),
+      expect.anything(),
+    );
+  });
+
+  it("applyDirective throws → logger.error('dispatch_to_renderer.error', ...)", async () => {
+    applyDirective = vi.fn(() => { throw new Error("renderer boom"); });
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      logger,
+    });
+    scriptedEvents = [completedEvent({ speech_text: "안녕", emotion: { id: "happy" } })];
+    const res = await caller.call(userEnv());
+    // turn must still succeed despite renderer error
+    expect(res.ok).toBe(true);
+    expect(logger.error).toHaveBeenCalledWith(
+      "dispatch_to_renderer.error",
+      expect.objectContaining({ error: expect.any(String) }),
+    );
+  });
+
+  it("empty speech_text → logger.info('empty_speech', { trigger })", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "", emotion: { id: "thinking" } })];
+    await caller.call(userEnv());
+    expect(logger.info).toHaveBeenCalledWith(
+      "empty_speech",
+      expect.objectContaining({ trigger: expect.anything() }),
+    );
   });
 });

@@ -30,6 +30,7 @@ import type { Renderer } from "../renderer";
 import type { BusEnvelope } from "./event-bus";
 import type { DropReason } from "./guardrails";
 import { createLogger } from "../logger";
+import type { Logger } from "../logger";
 
 const baseLog = createLogger("backend_caller");
 
@@ -58,8 +59,8 @@ export interface BackendCallerDeps {
   onEmotionText?: (text: string) => void;
   /** tool_status sink — present 시에만 호출. main.ts 배선은 후속(이 PR 비대상). */
   onToolStatus?: (status: ToolStatus) => void;
-  /** 단계별 로깅(없으면 console). */
-  log?: (stage: string, detail: Record<string, unknown>) => void;
+  /** 구조화 로깅(없으면 backend_caller namespace logger). */
+  logger?: Logger;
   /** client 버전(InputContext.client.yui_version). */
   yuiVersion?: string;
 }
@@ -88,8 +89,7 @@ function resolveTimezone(): string {
 }
 
 export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
-  const log =
-    deps.log ?? ((stage, detail) => baseLog.info(stage, detail));
+  const log = deps.logger ?? baseLog;
 
   /**
    * B1: contract §4 InputContext 조립.
@@ -114,7 +114,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         const screenshot = await deps.getScreenshot();
         if (screenshot) ctx.screenshot = screenshot;
       } catch (err) {
-        log("screenshot.failed", { error: String(err) });
+        log.warn("screenshot.failed", { error: String(err) });
       }
     }
     return ctx;
@@ -151,7 +151,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     // B1
     const ctx = await packageContext(env);
     const input = encodeInput(ctx);
-    log("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
+    log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 
     // B2: fetch/apiKey 해소 후 streamChat. externalSignal을 그대로 전달(abort 위임, §12).
     let apiKey: string | undefined;
@@ -159,7 +159,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     try {
       [apiKey, fetchImpl] = await Promise.all([deps.getApiKey(), deps.getFetch()]);
     } catch (err) {
-      log("backend_call.setup_failed", { error: String(err) });
+      log.warn("network_drop", { stage: "setup", error: String(err) });
       return { ok: false, drop_reason: "network_drop" };
     }
 
@@ -200,7 +200,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       if (externalSignal?.aborted) {
         return { ok: false, drop_reason: "superseded_by_user" };
       }
-      log("backend_call.stream_threw", { error: String(err) });
+      log.warn("network_drop", { stage: "stream_threw", error: String(err) });
       return { ok: false, drop_reason: "network_drop" };
     }
 
@@ -209,13 +209,13 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     }
 
     if (streamError) {
-      log("backend_call.error", { message: streamError });
+      log.warn("network_drop", { stage: "stream_error", message: streamError });
       return { ok: false, drop_reason: "network_drop" };
     }
 
     if (!envelope) {
       // completed 미수신 = 깨진/빈 응답.
-      log("backend_call.parse_error", { event_name: env.event_name });
+      log.warn("parse_error", { event_name: env.event_name });
       return { ok: false, drop_reason: "parse_error" };
     }
 
@@ -223,13 +223,13 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     //   firing≠judgment: silence(speech_text "")는 *발화*만 게이팅한다(§7.2/§3).
     try {
       deps.renderer.applyDirective(envelope);
-      log("dispatch_to_renderer", {
+      log.debug("dispatch_to_renderer", {
         emotion: envelope.emotion ?? null,
         motion: envelope.motion ?? null,
       });
     } catch (err) {
       // renderer 에러 → ambient fallback은 renderer 책임, dispatcher는 계속.
-      log("dispatch_to_renderer.error", { error: String(err) });
+      log.error("dispatch_to_renderer.error", { error: String(err) });
     }
 
     // B5(emotion_text half): TTS voice tag → onEmotionText(있을 때만).
@@ -246,7 +246,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     //   빈 텍스트 = 침묵 — 별도 플래그/판정 없음, drop_reason도 없음.
     if (envelope.speech_text) {
       deps.onSpeech?.(envelope.speech_text);
-      log("speech", { text: envelope.speech_text });
+      log.debug("speech", { text: envelope.speech_text });
+    } else {
+      log.info("empty_speech", { trigger: env.event_name });
     }
 
     return { ok: true };

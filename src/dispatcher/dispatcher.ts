@@ -24,6 +24,7 @@ import type { BackendCaller } from "./backend-caller";
 import type { DropReason } from "./guardrails";
 import type { ControlEnvelope } from "../contract";
 import { createLogger } from "../logger";
+import type { Logger, LogLevel } from "../logger";
 
 const baseLog = createLogger("dispatcher");
 
@@ -33,8 +34,8 @@ export interface DispatcherDeps {
   backendCaller: BackendCaller;
   /** pump 주기(ms). default 16(rAF 대략). 테스트는 fake timer로 advance. */
   pumpIntervalMs?: number;
-  /** 단계별 로깅(없으면 console). */
-  log?: (stage: string, detail: Record<string, unknown>) => void;
+  /** 구조화 로깅(없으면 dispatcher namespace logger). */
+  logger?: Logger;
 }
 
 export type DispatcherState =
@@ -52,6 +53,16 @@ export interface DropRecord {
   reason: DropReason | "stale_pending";
   ts: number;
 }
+
+/** drop reason → log severity. Record가 누락 key를 컴파일 에러로 강제한다. */
+export const DROP_SEVERITY: Record<DropRecord["reason"], LogLevel> = {
+  guardrail_drop: "info",
+  parse_error: "warn",
+  network_drop: "warn",
+  http_4xx_drop: "error",
+  superseded_by_user: "info",
+  stale_pending: "info",
+};
 
 /** §11 in_flight_backend_call. */
 export interface InFlightInfo {
@@ -134,8 +145,7 @@ const MAX_DROP_RECORDS = 50;
 export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   const { bus, renderer, backendCaller } = deps;
   const pumpMs = deps.pumpIntervalMs ?? DEFAULT_PUMP_MS;
-  const log =
-    deps.log ?? ((stage, detail) => baseLog.info(stage, detail));
+  const log = deps.logger ?? baseLog;
 
   let state: DispatcherState = "booting";
   let timer: ReturnType<typeof setInterval> | null = null;
@@ -149,7 +159,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   function recordDrop(env: BusEnvelope, reason: DropRecord["reason"]): void {
     drops.push({ seq_id: env.seq_id, event_name: env.event_name, reason, ts: env.ts });
     if (drops.length > MAX_DROP_RECORDS) drops.shift();
-    log("drop", { event_name: env.event_name, reason, seq_id: env.seq_id });
+    log[DROP_SEVERITY[reason]]("drop", { event_name: env.event_name, reason, seq_id: env.seq_id });
   }
 
   /**
@@ -159,7 +169,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
    */
   function supersedeByUser(): void {
     if (inFlight) {
-      log("abort", { event_name: inFlight.trigger.event_name, reason: "superseded_by_user" });
+      log.info("abort", { event_name: inFlight.trigger.event_name, reason: "superseded_by_user" });
       inFlight.abort.abort();
       inFlight = null;
     }
@@ -184,17 +194,22 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   /** tier2/3 backend call 시작(in-flight 점유). 완료 시 슬롯 비우고 보류 1건 drain. */
   function startBackendCall(env: BusEnvelope): void {
     const abort = new AbortController();
-    inFlight = { trigger: env, started_at: Date.now(), abort };
-    log("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
+    const started_at = Date.now();
+    inFlight = { trigger: env, started_at, abort };
+    log.info("backend_call", { trigger: env.event_name, seq_id: env.seq_id, started_at });
     void backendCaller
       .call(env, abort.signal)
       .then((res) => {
-        if (!res.ok && res.drop_reason && res.drop_reason !== "superseded_by_user") {
-          recordDrop(env, res.drop_reason);
+        if (res.ok) {
+          log.info("backend_call", { trigger: env.event_name, outcome: "ok" });
+        } else if (res.drop_reason) {
+          log.info("backend_call", { trigger: env.event_name, outcome: res.drop_reason });
+          if (res.drop_reason !== "superseded_by_user") recordDrop(env, res.drop_reason);
         }
       })
       .catch((err) => {
-        log("backend_call.unexpected_error", { error: String(err) });
+        log.error("backend_call.unexpected_error", { error: String(err) });
+        log.info("backend_call", { trigger: env.event_name, outcome: "network_drop" });
         recordDrop(env, "network_drop");
       })
       .finally(() => {
@@ -227,11 +242,11 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   function renderTier1(env: BusEnvelope): void {
     const directive = tier1Directive(env);
     if (!directive) return;
-    log("fire", { event_name: env.event_name, target: "tier1" });
+    log.info("fire", { seq_id: env.seq_id, event_name: env.event_name, tier: 1 });
     try {
       renderer.applyDirective(directive);
     } catch (err) {
-      log("tier1.render_error", { error: String(err) });
+      log.error("tier1.render_error", { error: String(err) });
     }
   }
 
@@ -241,12 +256,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       supersedeByUser();
     }
 
-    const { target } = classify(env);
+    const { tier, target } = classify(env);
     if (target === "tier1") {
       renderTier1(env);
       return;
     }
     if (target === "backend_caller") {
+      log.info("fire", { seq_id: env.seq_id, event_name: env.event_name, tier });
       enqueueBackend(env);
       return;
     }
@@ -268,8 +284,9 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     },
     start() {
       if (state === "running") return;
+      const from = state;
       state = "running";
-      log("state_change", { to: "running" });
+      log.info("state_change", { from, to: "running" });
       timer = setInterval(pump, pumpMs);
       // 즉시 한 번 drain(첫 tick 전 push된 event 대응).
       pump();
@@ -284,8 +301,9 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         inFlight = null;
       }
       pending.length = 0;
+      const from = state;
       state = "stopped";
-      log("state_change", { to: "stopped" });
+      log.info("state_change", { from, to: "stopped" });
     },
     queue() {
       // 보류 + bus 미처리분(스냅샷)을 합쳐 노출.
