@@ -13,6 +13,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
 import { createTtsPipeline } from "./tts-pipeline";
 import type { AudioSink } from "./audio-player";
+import type { Logger } from "../logger";
 
 const CONFIG: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",
@@ -308,5 +309,195 @@ describe("createTtsPipeline — dispose()", () => {
     resolvers[1].resolve(bufFor(1));
     await tick();
     expect(playedOrder).toEqual([]);
+  });
+});
+
+// ── #observability: structured logging via injectable logger seam ──────────────
+
+function makeLogger(): Logger {
+  return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+}
+
+/**
+ * Sink that calls onAmplitude with a fixed sequence of values then resolves.
+ * Exposes a finish() so tests can resolve the play() promise manually.
+ */
+function amplitudeSink(amplitudeValues: number[]) {
+  let finishCurrent: (() => void) | null = null;
+  const playedOrder: number[] = [];
+  const sink: AudioSink = {
+    play(wav: ArrayBuffer, onAmplitude?: (v: number) => void) {
+      playedOrder.push(bufId(wav));
+      return new Promise<void>((resolve) => {
+        finishCurrent = () => {
+          resolve();
+        };
+        // Emit amplitude values synchronously before the promise resolves.
+        for (const v of amplitudeValues) {
+          onAmplitude?.(v);
+        }
+      });
+    },
+    stop: vi.fn(),
+  };
+  const finish = () => {
+    const f = finishCurrent;
+    finishCurrent = null;
+    f?.();
+  };
+  return { sink, playedOrder, finish };
+}
+
+describe("createTtsPipeline — observability logging seam", () => {
+  it("emits debug('synth', {index, chars}) when a sentence is submitted", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const logger = makeLogger();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, logger });
+
+    pipe.pushTextDelta("Hello world.");
+    await tick();
+
+    expect(logger.debug).toHaveBeenCalledWith(
+      "synth",
+      expect.objectContaining({ index: 0, chars: expect.any(Number) }),
+    );
+    resolvers[0].resolve(bufFor(0));
+  });
+
+  it("emits debug('synth', {index, ok:true, bytes}) when synth resolves", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const logger = makeLogger();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, logger });
+
+    pipe.pushTextDelta("Sentence one.");
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+
+    expect(logger.debug).toHaveBeenCalledWith(
+      "synth",
+      expect.objectContaining({ index: 0, ok: true, bytes: expect.any(Number) }),
+    );
+  });
+
+  it("emits error('synth', {index, error}) when synth rejects", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const logger = makeLogger();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, logger });
+
+    pipe.pushTextDelta("Will fail.");
+    await tick();
+    resolvers[0].reject(new Error("network error"));
+    await tick();
+
+    expect(logger.error).toHaveBeenCalledWith(
+      "synth",
+      expect.objectContaining({ index: 0, error: expect.any(String) }),
+    );
+  });
+
+  it("does NOT emit error('synth') when synth rejects after dispose", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const logger = makeLogger();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, logger });
+
+    pipe.pushTextDelta("Will be disposed.");
+    await tick();
+    pipe.dispose();
+    resolvers[0].reject(new Error("aborted"));
+    await tick();
+
+    expect(logger.error).not.toHaveBeenCalledWith("synth", expect.anything());
+  });
+
+  it("emits debug('playback', {index, state:'start'}) before sink.play", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const logger = makeLogger();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, logger });
+
+    pipe.pushTextDelta("Play me.");
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+
+    expect(logger.debug).toHaveBeenCalledWith(
+      "playback",
+      expect.objectContaining({ index: 0, state: "start" }),
+    );
+    finish();
+  });
+
+  it("emits debug('playback', {index, state:'end', peak_mouth}) with max amplitude after play resolves", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const logger = makeLogger();
+    // sink calls onAmplitude with [0.1, 0.5, 0.2]; peak should be 0.5
+    const { sink, finish } = amplitudeSink([0.1, 0.5, 0.2]);
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, logger });
+
+    pipe.pushTextDelta("Amplitude test.");
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    finish();
+    await tick();
+
+    expect(logger.debug).toHaveBeenCalledWith(
+      "playback",
+      expect.objectContaining({ index: 0, state: "end", peak_mouth: 0.5 }),
+    );
+  });
+
+  it("peak_mouth is 0 when no amplitude values are emitted", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const logger = makeLogger();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, logger });
+
+    pipe.pushTextDelta("Silent clip.");
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    finish();
+    await tick();
+
+    expect(logger.debug).toHaveBeenCalledWith(
+      "playback",
+      expect.objectContaining({ index: 0, state: "end", peak_mouth: 0 }),
+    );
+  });
+
+  it("emits info('playback', {state:'complete', segments}) right before onPlaybackEnd fires", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const logger = makeLogger();
+    const onPlaybackEnd = vi.fn();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, logger, onPlaybackEnd });
+
+    pipe.pushTextDelta("First. Second.");
+    pipe.end();
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    finish();
+    await tick();
+    finish();
+    await tick();
+
+    // complete log must have been emitted before onPlaybackEnd
+    expect(logger.info).toHaveBeenCalledWith(
+      "playback",
+      expect.objectContaining({ state: "complete", segments: expect.any(Number) }),
+    );
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+    // Order: info("playback", complete) fires strictly before onPlaybackEnd
+    const infoOrder = (logger.info as ReturnType<typeof vi.fn>).mock.invocationCallOrder;
+    const endOrder = (onPlaybackEnd as ReturnType<typeof vi.fn>).mock.invocationCallOrder;
+    expect(infoOrder[infoOrder.length - 1]).toBeLessThan(endOrder[0]);
   });
 });
