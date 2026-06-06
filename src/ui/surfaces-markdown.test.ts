@@ -67,6 +67,66 @@ describe("showTool — tool_id label resolution", () => {
   });
 });
 
+describe("endSpeech — deferred dwell for TTS playback", () => {
+  const DWELL = 5000;
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    s = createSurfaces({ mount, dwellMs: DWELL });
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+    vi.useRealTimers();
+  });
+
+  function bubble(): HTMLElement {
+    return mount.querySelector(".yui-bubble") as HTMLElement;
+  }
+
+  it("does not auto-hide while deferred, even past the dwell window", () => {
+    s.beginSpeech();
+    s.pushSpeech("Long answer that is still being spoken aloud.");
+    s.endSpeech({ defer: true });
+    // way past the fixed dwell — bubble must remain visible while TTS plays.
+    vi.advanceTimersByTime(DWELL * 3);
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+    expect(bubble().hidden).toBe(false);
+  });
+
+  it("applies the dwell→fade only after finishSpeech() releases the hold", () => {
+    s.beginSpeech();
+    s.pushSpeech("Spoken line.");
+    s.endSpeech({ defer: true });
+    vi.advanceTimersByTime(DWELL * 2);
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+
+    s.finishSpeech(); // playback ended → now dwell, then fade
+    expect(bubble().classList.contains("is-visible")).toBe(true); // dwell not elapsed
+    vi.advanceTimersByTime(DWELL);
+    expect(bubble().classList.contains("is-visible")).toBe(false); // faded
+  });
+
+  it("non-deferred endSpeech() still fixed-dwell fades (fallback path unchanged)", () => {
+    s.beginSpeech();
+    s.pushSpeech("No TTS this turn.");
+    s.endSpeech();
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+    vi.advanceTimersByTime(DWELL);
+    expect(bubble().classList.contains("is-visible")).toBe(false);
+  });
+
+  it("finishSpeech() is a no-op when the bubble is already hidden", () => {
+    expect(() => s.finishSpeech()).not.toThrow();
+    expect(bubble().hidden).toBe(true);
+  });
+});
+
 describe("pushSpeech — inline markdown rendering", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;
