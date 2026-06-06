@@ -80,6 +80,18 @@ const fnAdded = (name: string, id: string, output_index: number): any => ({
   sequence_number: 0,
 });
 
+/**
+ * Live Hermes shape: function_call args arrive fully-formed INSIDE output_item.added/done
+ * (item.arguments), with NO function_call_arguments.* events. MCP-registered tools surface
+ * here under their namespaced name (mcp_<server>_<tool>).
+ */
+const fnAddedWithArgs = (name: string, id: string, output_index: number, args: string): any => ({
+  type: "response.output_item.added",
+  output_index,
+  item: { type: "function_call", id, name, call_id: `call_${id}`, arguments: args, status: "in_progress" },
+  sequence_number: 0,
+});
+
 const fnArgsDone = (name: string, item_id: string, output_index: number, args: string): any => ({
   type: "response.function_call_arguments.done",
   item_id,
@@ -115,6 +127,14 @@ const completed = (text: string): any => ({
 /** generate_express FLAT args (contract.md §1/§3): emotion_id / motion_id / emotion_text. */
 const GEN_EXPRESS_FLAT =
   '{"emotion_id":"happy","motion_id":"shy_point","emotion_text":"[whisper in small voice]"}';
+
+/** Live Hermes MCP-namespaced tool name for generate_express (verified against backend). */
+const MCP_GEN_EXPRESS = "mcp_tts_express_server_generate_express";
+/** A sibling MCP tool that is NOT express — must remain a generic tool_status. */
+const MCP_GET_IDS = "mcp_tts_express_server_get_ids";
+/** Live flat args as the backend actually sends them. */
+const LIVE_EXPRESS_FLAT =
+  '{"emotion_id":"happy","motion_id":"happy","emotion_text":"[cheerful warm tone]"}';
 
 // ── tests ──────────────────────────────────────────────────────────────────────
 
@@ -289,6 +309,114 @@ describe("streamChat — generate_express-absent turn", () => {
     expect(env.emotion_text).toBeUndefined();
     // should_speak 자체가 사라졌다 (D-NO-SPEAK-GATE).
     expect((env as Record<string, unknown>).should_speak).toBeUndefined();
+  });
+});
+
+// ── LIVE Hermes backend shape (#63) ────────────────────────────────────────────
+// Verified stream: express tool is MCP-namespaced and its args ride inside
+// output_item.added/done (item.arguments); NO function_call_arguments.* events.
+describe("streamChat — live MCP-namespaced generate_express (#63)", () => {
+  it("recognizes mcp_…_generate_express + args from output_item.done → express event (no function_call_arguments.*)", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        textDelta("hi"),
+        fnAddedWithArgs(MCP_GEN_EXPRESS, "fc_1", 1, LIVE_EXPRESS_FLAT),
+        fnItemDone(MCP_GEN_EXPRESS, "fc_1", 1, LIVE_EXPRESS_FLAT),
+        textDone("hi"),
+        completed("hi"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    const express = events.find((e) => e.type === "express");
+    expect(express).toBeDefined();
+    if (express!.type !== "express") throw new Error("narrow");
+    expect(express.args.emotion_id).toBe("happy");
+    expect(express.args.motion_id).toBe("happy");
+    expect(express.args.emotion_text).toBe("[cheerful warm tone]");
+
+    // MCP-namespaced express must NOT leak as a tool_status chip.
+    expect(events.some((e) => e.type === "tool_status")).toBe(false);
+  });
+
+  it("normalizes live express into the completed envelope (emotion/motion/emotion_text)", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAddedWithArgs(MCP_GEN_EXPRESS, "fc_1", 0, LIVE_EXPRESS_FLAT),
+        fnItemDone(MCP_GEN_EXPRESS, "fc_1", 0, LIVE_EXPRESS_FLAT),
+        completed(""),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const final = events.find((e) => e.type === "completed");
+    expect(final).toBeDefined();
+    if (final!.type !== "completed") throw new Error("narrow");
+    const env = final.envelope;
+    expect(env.emotion).toEqual({ id: "happy" });
+    expect(env.motion).toEqual({ id: "happy" });
+    expect(env.emotion_text).toBe("[cheerful warm tone]");
+  });
+
+  it("a sibling MCP tool (…_get_ids) stays a tool_status running→done and never an express event", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAdded(MCP_GET_IDS, "fc_2", 0),
+        fnItemDone(MCP_GET_IDS, "fc_2", 0, "{}"),
+        completed(""),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const statuses = events.filter((e) => e.type === "tool_status");
+    expect(statuses.length).toBe(2);
+    if (statuses[0].type !== "tool_status" || statuses[1].type !== "tool_status")
+      throw new Error("narrow");
+    expect(statuses[0].status).toEqual({ state: "running", tool_id: MCP_GET_IDS });
+    expect(statuses[1].status).toEqual({ state: "done", tool_id: MCP_GET_IDS });
+
+    // …_get_ids is a real tool, not express.
+    expect(events.some((e) => e.type === "express")).toBe(false);
+  });
+
+  it("end-to-end live turn: express (mcp) + get_ids (mcp) coexist — express captured, get_ids stays tool_status", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAdded(MCP_GET_IDS, "fc_1", 0),
+        fnItemDone(MCP_GET_IDS, "fc_1", 0, "{}"),
+        fnAddedWithArgs(MCP_GEN_EXPRESS, "fc_2", 1, LIVE_EXPRESS_FLAT),
+        fnItemDone(MCP_GEN_EXPRESS, "fc_2", 1, LIVE_EXPRESS_FLAT),
+        textDelta("hi"),
+        textDone("hi"),
+        completed("hi"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const final = events.find((e) => e.type === "completed");
+    if (final!.type !== "completed") throw new Error("narrow");
+    const env = final.envelope;
+
+    expect(env.emotion).toEqual({ id: "happy" });
+    expect(env.motion).toEqual({ id: "happy" });
+    expect(env.emotion_text).toBe("[cheerful warm tone]");
+    expect(env.speech_text).toBe("hi");
+    // get_ids drove tool_status; the express tool did not.
+    expect(env.tool_status).toEqual({ state: "done", tool_id: MCP_GET_IDS });
+  });
+
+  it("does not emit a duplicate express when args arrive in BOTH added and done", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAddedWithArgs(MCP_GEN_EXPRESS, "fc_1", 0, LIVE_EXPRESS_FLAT),
+        fnItemDone(MCP_GEN_EXPRESS, "fc_1", 0, LIVE_EXPRESS_FLAT),
+        completed(""),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    expect(events.filter((e) => e.type === "express").length).toBe(1);
   });
 });
 
