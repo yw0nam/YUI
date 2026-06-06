@@ -18,7 +18,6 @@
  *
  * Out of scope for this layer (other tracks own them): should_speak (§3 rule 3),
  * speech_text, tool_status (§3 rule 4), rich_content (§3 rule 5).
- * The TTS-prefix half of #16 (#16b / D-EMOTION-DUAL) is intentionally NOT handled here.
  */
 
 import type { ControlEnvelope, EmotionSignal, MotionSignal } from "../contract";

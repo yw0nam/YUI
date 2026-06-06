@@ -30,7 +30,7 @@
 - **[중대] control transport 확정:** json_schema strict-output 강제 가정을 **서버사이드 `express` tool-call**(arguments `{emotion, motion}`)로 supersede (contract §Endpoint/§3, PRD F6/F9/§5 D-TRANSPORT, dispatcher A3). 발화 텍스트는 별도 assistant 텍스트 스트림으로 분리(D-SPEECH).
 - **[갱신 2026-06-04] express = tool(plugin)이지 Hermes-skill 아님 + should_speak 제거 + motion fallback:** express는 Hermes plugin tool로 등록(skill=마크다운 지시문은 function_call 안 만듦; `hermes-express-tool.md` §0). 발화 게이트 `should_speak` **제거**(D-NO-SPEAK-GATE) — firing이 client event loop 소유라 침묵=텍스트 미발신으로 표현. motion은 backend가 보통 생략, client가 emotion 전이에서 파생(D-MOTION-FROM-EMOTION). express arguments = `{emotion?, motion?}`로 축소.
 - **TTS 파이프라인 명세화:** client-side 큐 → 문장 분절 → per-sentence TTS(`localhost:8092`) → ordered playback → 진폭 립싱크 동기 (contract §3 D-TTS-PIPELINE, PRD F4).
-- **emotion 이중 용도:** VRM expression 구동 + TTS text prefix 부착. emotion→TTS-prefix 매핑은 required·TBD로 표기(발명 금지).
+- **emotion 이중 용도:** VRM expression 구동(얼굴) + 목소리(TTS) 제어. 목소리 쪽은 enum→prefix 매핑이 아니라 `generate_express`의 자유 텍스트 `emotion_text` 채널(FishSpeech voice 태그)이다.
 - **[중대] express·emotion optional 확정 + Responses 스트림 grounding:** 사용자가 `openai_response_sdk/`(response.md / sse-event-format.md / streaming.md) 제공. express tool-call과 emotion은 **둘 다 optional** — 없는 턴은 idle + 직전 표정, emotion 없으면 plain TTS. R16/R17 해소. tool_status는 Hermes 네이티브 tool의 function_call item(name+status) 관찰로 도출, rich_content는 P2(MVP는 텍스트 마크다운). contract §3에 실제 SSE event(`output_item.added`/`function_call_arguments.delta`/`.done`) 기준 파싱 절차 명시.
 
 ## 3. 구조/정합 (직전 패스에서 완료, 확인됨)

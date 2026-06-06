@@ -7,10 +7,7 @@
  *  - loadVRM 재호출 = 핫스왑 (기존 모델 deepDispose 후 교체).
  *
  * applyDirective(#16a render-wiring): ControlEnvelope의 emotion/motion 채널을 setEmotion(#6)/
- *   playMotion(#5)로 라우팅(contract §3). 순수 dispatch는 ./apply-directive. TTS-prefix(#16b) 미구현.
- *
- * 미구현(별 이슈):
- *  - Tier1 ambient blend(#10), 립싱크(#15), applyDirective TTS-prefix half(#16b / #23 보류).
+ *   playMotion(#5)로 라우팅(contract §3). 순수 dispatch는 ./apply-directive.
  *
  * 근거: three-vrm 3.x 공식 예제(GLTFLoader.register(VRMLoaderPlugin) → gltf.userData.vrm,
  *       VRMUtils.removeUnnecessaryVertices/combineSkeletons/combineMorphs, deepDispose).
@@ -83,7 +80,6 @@ export interface Renderer {
    * contract.md §3 렌더 규약대로 render directive 적용 (#16a render-wiring half).
    * emotion → setEmotion(#6) (present만, 없으면 hold/no-op), motion → playMotion(#5)
    * (없거나 null이면 idle 복귀). 순수 라우팅은 ./apply-directive routeDirective가 담당.
-   * TTS-prefix half(#16b / D-EMOTION-DUAL)는 미구현(#23 보류).
    */
   applyDirective(env: ControlEnvelope): void;
   /**
@@ -582,8 +578,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       };
     },
     applyDirective(env) {
-      // #16a render-wiring half: route emotion/motion into setEmotion(#6)/playMotion(#5)
-      // per contract.md §3 render rules. TTS-prefix half (#16b / D-EMOTION-DUAL) deferred.
+      // route emotion/motion into setEmotion(#6)/playMotion(#5) per contract.md §3 render rules.
       routeDirective(env, { setEmotion, playMotion });
     },
     setEmotion,
