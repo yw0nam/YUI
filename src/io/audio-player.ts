@@ -30,7 +30,7 @@ export function createAmplitudeEnvelope(
   options: AmplitudeEnvelopeOptions = {},
 ): AmplitudeEnvelope {
   const smoothing = Math.min(1, Math.max(0, options.smoothing ?? 0.4));
-  const gain = options.gain ?? 1.6;
+  const gain = options.gain ?? 2.0;
   let value = 0;
 
   const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
