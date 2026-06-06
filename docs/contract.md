@@ -200,7 +200,7 @@ interface MotionRegistryEntry {
 - **`should_speak`는 없다 (D-NO-SPEAK-GATE).** 발화 게이트 없음 — 침묵은 텍스트 미발신으로 표현.
 - **`speech_text`는 `parameters`에 없다** — 발화는 별도 텍스트 스트림(아래). generate_express arguments에 넣지 않는다.
 - **emotion_id**는 hard enum(backend 책임, §1 10종). **motion_id**는 열린 문자열 → client registry(§2)에서 검증, 미등록 시 무시+경고. backend는 보통 motion_id를 생략한다(D-MOTION-FROM-EMOTION). **emotion_text**는 자유 텍스트(TTS voice tag).
-- ⚠ **E2E 미검증(spec-only):** 실제 Hermes 스트림에서 `name=="generate_express"` function_call이 이 스키마대로 도착하는지는 backend가 tool을 등록한 뒤 [#1](https://github.com/yw0nam/YUI/issues/1)에서 확인한다. 지금은 contract만 확정.
+- ✅ **E2E 검증(2026-06, #63):** 실제 Hermes 스트림에서 express function_call이 이 arguments 스키마대로 도착함을 확인. 단 **두 가지 실측 차이**가 있다 — ① tool이 MCP로 등록돼 이름이 `mcp_tts_express_server_generate_express`로 namespaced된다(client는 suffix 매칭으로 흡수). ② args가 `function_call_arguments.*` 이벤트가 아니라 `output_item.added/done`의 `item.arguments`로 온다(client가 두 경로 모두 지원). 이상적으로는 backend가 tool을 un-namespaced로 노출하거나 spec대로 `function_call_arguments.*`를 emit하는 게 바람직 — 추후 backend 측 정합 논의 대상.
 
 ### Responses API 스트림에서 신호를 뽑는 법
 > 근거: [`openai_response_sdk/sse-event-format.md`](./openai_response_sdk/sse-event-format.md) — Hermes 자체 구현(LangGraph→Responses SSE 변환).
@@ -208,9 +208,11 @@ interface MotionRegistryEntry {
 한 응답 스트림은 `output_index`로 구분되는 **output item**들이 섞여 도착한다:
 - **message item** = 발화 텍스트. `response.output_text.delta`(토큰) → `response.output_text.done`. → `speech_text`로 누적.
 - **function_call item** = tool 호출. `response.output_item.added`(name, status:`in_progress`) → `response.function_call_arguments.delta`(인자 토큰) → `response.function_call_arguments.done`(name + 완성된 `arguments` JSON 문자열).
-  - `name == "generate_express"` → `arguments` 파싱 → FLAT `{ emotion_id?, motion_id?, emotion_text? }` → 정규화(`emotion_id→emotion{id}`, `motion_id→motion{id}`, `emotion_text→emotion_text`).
-  - Hermes **자체 tool**(`web_search`/`terminal`/`browser` 등)도 **같은 function_call item**으로 노출 → `tool_status`는 이 item들의 `name`+`status`에서 **client가 관찰로 도출**한다(Hermes가 따로 채워주는 필드가 아님).
-- ⚠ **`response.completed`의 최종 `output[]`에는 message item만 담기고 function_call은 빠진다.** 따라서 `generate_express`/tool 신호는 **스트림 진행 중**(`...arguments.done` 시점)에 잡아둬야 한다 — 최종 payload엔 없다.
+  - **express tool 식별은 이름 suffix로 한다 (`name.endsWith("generate_express")`)** — backend가 tool을 MCP로 등록하면 이름이 `mcp_<server>_generate_express`로 namespaced되어 온다(실측: `mcp_tts_express_server_generate_express`). plain `generate_express`도 동일 매칭. sibling MCP tool(`..._get_ids` 등)은 express가 아니므로 generic `tool_status`로 남는다.
+  - express로 식별되면 `arguments` 파싱 → FLAT `{ emotion_id?, motion_id?, emotion_text? }` → 정규화(`emotion_id→emotion{id}`, `motion_id→motion{id}`, `emotion_text→emotion_text`).
+  - **arguments 도착 위치(백엔드별 두 형태 모두 지원):** ① spec — `response.function_call_arguments.done`의 `arguments`. ② **실측 라이브 백엔드** — `response.function_call_arguments.*` 이벤트를 **전혀 내지 않고**, 완성된 `arguments` JSON을 `response.output_item.added`/`response.output_item.done`의 `item.arguments`에 바로 싣는다. client는 두 경로를 모두 파싱하되 **턴당 express는 정확히 한 번만** emit한다(먼저 도착한 것 채택).
+  - Hermes **자체 tool**(`web_search`/`terminal`/`browser` 등) 및 sibling MCP tool(`..._get_ids`)도 **같은 function_call item**으로 노출 → `tool_status`는 이 item들의 `name`+`status`에서 **client가 관찰로 도출**한다(Hermes가 따로 채워주는 필드가 아님).
+- ⚠ **`response.completed`의 최종 `output[]`에는 message item만 담기고 function_call은 빠진다.** 따라서 `generate_express`/tool 신호는 **스트림 진행 중**(`output_item.added/done` 또는 `function_call_arguments.done` 시점)에 잡아둬야 한다 — 최종 payload엔 없다.
 
 ### Schema
 ```ts
