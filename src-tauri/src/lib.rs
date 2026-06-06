@@ -12,6 +12,15 @@ fn level_for(debug: bool) -> log::LevelFilter {
   if debug { log::LevelFilter::Debug } else { log::LevelFilter::Warn }
 }
 
+/// Third-party HTTP crates that flood debug logs; silence to Warn.
+fn noisy_targets() -> &'static [(&'static str, log::LevelFilter)] {
+  &[
+    ("reqwest", log::LevelFilter::Warn),
+    ("hyper_util", log::LevelFilter::Warn),
+    ("hyper", log::LevelFilter::Warn),
+  ]
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -46,6 +55,10 @@ pub fn run() {
         ));
       }
 
+      for (target, level) in noisy_targets() {
+        builder = builder.level_for(*target, *level);
+      }
+
       app.handle().plugin(builder.build())?;
 
       // Start OS event polling loop (emits `os_event` IPC to webview).
@@ -74,5 +87,43 @@ mod tests {
   #[test]
   fn level_for_release_is_warn() {
     assert_eq!(level_for(false), log::LevelFilter::Warn);
+  }
+
+  // ── noisy_targets: third-party crates that flood debug logs ──────────────────
+
+  #[test]
+  fn noisy_targets_contains_reqwest() {
+    let targets = noisy_targets();
+    let found = targets.iter().any(|(name, _)| *name == "reqwest");
+    assert!(found, "noisy_targets must include 'reqwest'");
+  }
+
+  #[test]
+  fn noisy_targets_all_entries_are_warn() {
+    let targets = noisy_targets();
+    for (name, level) in targets {
+      assert_eq!(
+        *level,
+        log::LevelFilter::Warn,
+        "entry '{}' must be Warn, got {:?}",
+        name,
+        level,
+      );
+    }
+  }
+
+  #[test]
+  fn noisy_targets_includes_required_set() {
+    let targets = noisy_targets();
+    let names: std::collections::HashSet<&str> =
+      targets.iter().map(|(n, _)| *n).collect();
+    for required in &["reqwest", "hyper_util", "hyper"] {
+      assert!(
+        names.contains(required),
+        "noisy_targets must include '{}'; got {:?}",
+        required,
+        names,
+      );
+    }
   }
 }

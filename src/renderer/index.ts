@@ -124,6 +124,19 @@ export interface Renderer {
 /** VRM mouth-open preset driven exclusively by lip sync (never emotion/ambient). */
 export const MOUTH_EXPRESSION_KEY = "aa" as const;
 
+/**
+ * Inspect an expressionManager's expressionMap: list available expression keys
+ * and report whether the lipsync mouth key is present. Observability only — lets
+ * logs answer "audio played but the mouth didn't move — why?".
+ */
+export function describeExpressions(
+  em: { expressionMap?: Record<string, unknown> } | null | undefined,
+): { expressions: string[]; hasMouth: boolean } {
+  const map = em?.expressionMap;
+  const expressions = map ? Object.keys(map) : [];
+  return { expressions, hasMouth: expressions.includes(MOUTH_EXPRESSION_KEY) };
+}
+
 /** Minimal expressionManager surface the mouth state machine needs. */
 interface MouthExpressionManager {
   setValue(name: string, weight: number): void;
@@ -483,6 +496,19 @@ export function createRenderer(options: RendererOptions): Renderer {
     vrmEpoch += 1; // 직전 모델에 묶인 비동기 clip 로드 무효화.
     currentVrm = vrm;
     scene.add(vrm.scene);
+
+    // observability: surface available expressions + whether the lipsync mouth key exists.
+    const exprInfo = describeExpressions(currentVrm.expressionManager);
+    log.info("vrm_loaded", {
+      expressions: exprInfo.expressions,
+      has_mouth: exprInfo.hasMouth,
+    });
+    if (!exprInfo.hasMouth) {
+      log.warn(
+        `mouth expression '${MOUTH_EXPRESSION_KEY}' not found — lipsync will be silent`,
+        { expressions: exprInfo.expressions },
+      );
+    }
 
     // emotion: 존재 집합은 모델별이라 핫스왑마다 술어/resolver 재생성.
     if (emotionRegistry) recomputeHasExpression();

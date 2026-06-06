@@ -49,6 +49,11 @@ describe("createAmplitudeEnvelope — normalize + clamp", () => {
     expect(b).toBeGreaterThanOrEqual(a);
     expect(c).toBeGreaterThanOrEqual(b);
   });
+
+  it("default gain opens the mouth ~2x raw RMS (clamped)", () => {
+    const env = createAmplitudeEnvelope({ smoothing: 1 });
+    expect(env.push(0.25)).toBeCloseTo(0.5, 5); // 0.25 * 2.0
+  });
 });
 
 describe("createAmplitudeEnvelope — smoothing", () => {
