@@ -35,10 +35,6 @@ function goodFixture(): Record<string, unknown> {
       neutral: { vrm_expression: "neutral", fallback: "neutral" },
       happy: { vrm_expression: "happy", fallback: "neutral" },
     },
-    "emotion_tts_prefix.json": {
-      _version: "v1",
-      _status: "TBD — 발명 금지.",
-    },
     "motions.json": {
       idle: {
         vrma_path: "assets/motions/idle.vrma",
@@ -94,9 +90,8 @@ describe("loadConfig — happy path", () => {
       vrm_expression: "happy",
       fallback: "neutral",
     });
-    expect(cfg.emotionTtsPrefix._version).toBe("v1");
-    expect(cfg.emotionTtsPrefix._status).toContain("TBD");
-    // 모션 5섹션 중 하나 — registry default가 진실의 원천.
+    // emotion_tts_prefix는 제거됨 — AppConfig에 키가 없어야 한다.
+    expect("emotionTtsPrefix" in cfg).toBe(false);
     expect(Object.keys(cfg.motions)).toEqual(["idle", "drag", "sit"]);
     expect(cfg.motions.sit.interrupt_policy).toBe("queue");
   });
@@ -218,13 +213,6 @@ describe("loadConfig — validation failures throw ConfigError", () => {
         hapy: { vrm_expression: "happy", fallback: "neutral" }, // 오탈자
       }),
       "emotion_registry.json",
-    );
-  });
-
-  it("emotion_tts_prefix: _status 누락 시 실패", async () => {
-    await expectConfigError(
-      loadWith(CONFIG_FILES.emotionTtsPrefix, { _version: "v1" }),
-      "emotion_tts_prefix.json",
     );
   });
 });

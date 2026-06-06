@@ -25,7 +25,6 @@ function goodFixture(): Record<string, unknown> {
       neutral: { vrm_expression: "neutral", fallback: "neutral" },
       happy: { vrm_expression: "happy", fallback: "neutral" },
     },
-    "emotion_tts_prefix.json": { _version: "v1", _status: "TBD — 발명 금지." },
     "motions.json": {
       idle: {
         vrma_path: "assets/motions/idle.vrma",

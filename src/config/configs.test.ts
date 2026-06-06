@@ -32,15 +32,6 @@ describe("configs/endpoints.json", () => {
   });
 });
 
-describe("configs/emotion_tts_prefix.json", () => {
-  const pre = read("configs/emotion_tts_prefix.json");
-
-  it("is still the TBD stub — no invented prefix tokens (발명 금지)", () => {
-    expect(pre._version).toBeTypeOf("string");
-    expect(pre._status).toContain("TBD");
-  });
-});
-
 describe("configs/avatar.json", () => {
   const a = read("configs/avatar.json");
 
