@@ -59,6 +59,8 @@ export interface BackendCallerDeps {
   onEmotionText?: (text: string) => void;
   /** tool_status sink — present 시에만 호출. main.ts 배선은 후속(이 PR 비대상). */
   onToolStatus?: (status: ToolStatus) => void;
+  /** 현재 agent 설정(추론 강도 + instructions 오버라이드) 스냅샷. present일 때만 요청에 반영. */
+  getAgentSettings?: () => import("../io/agent-settings").AgentSettings;
   /** 구조화 로깅(없으면 backend_caller namespace logger). */
   logger?: Logger;
   /** client 버전(InputContext.client.yui_version). */
@@ -175,6 +177,13 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       else externalSignal.addEventListener("abort", () => ac.abort(), { once: true });
     }
     const request: ChatRequest = { input, signal: ac.signal };
+
+    // agent 설정 반영: "default"는 생략, 빈 instructions는 config 폴백을 위해 생략.
+    const agent = deps.getAgentSettings?.();
+    if (agent) {
+      if (agent.reasoning_effort !== "default") request.reasoning_effort = agent.reasoning_effort;
+      if (agent.instructions.trim()) request.instructions = agent.instructions;
+    }
 
     // B3: chat-client의 completed 이벤트에서 ControlEnvelope 수령(SSE 재파싱 X).
     let envelope: ControlEnvelope | undefined;
