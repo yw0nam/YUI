@@ -25,6 +25,8 @@ import { createCaptureIndicator } from "./ui/capture-indicator";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
 import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
+import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
+import { createWebAudioSink } from "./io/audio-player";
 import { resolveScreenSourceProvider, resolveScreenCapturer } from "./io/tauri-screen";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createOsContext } from "./io/os-context";
@@ -83,6 +85,7 @@ async function bootstrap(): Promise<void> {
   const mock = createMockDriver(surfaces);
 
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
+  const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
@@ -94,6 +97,9 @@ async function bootstrap(): Promise<void> {
     settings: screenshotSettings,
     sourceProvider: screenSourceProvider,
     voiceStatus: voiceInputStatus,
+    lipsync: lipsyncSettings,
+    onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
+    onGainPreviewEnd: () => renderer.stopMouth(),
   });
   const captureIndicator = createCaptureIndicator({
     mount: root,
@@ -121,6 +127,7 @@ async function bootstrap(): Promise<void> {
       void sttVad?.dispose();
       voiceInputStatus.dispose();
       screenshotSettings.dispose();
+      lipsyncSettings.dispose();
       osContext.stop();
       stage.removeEventListener("contextmenu", onContextMenu);
     });
@@ -193,6 +200,7 @@ async function bootstrap(): Promise<void> {
       __yuiSurfaces: surfaces,
       __yuiMock: mock,
       __yuiScreenshot: screenshotSettings,
+      __yuiLipsync: lipsyncSettings,
       __yuiQuick: quickControls,
       __yuiVoiceInputStatus: voiceInputStatus,
       // DEV-ONLY 트리거: E2E 루프를 콘솔에서 직접 발사한다.
@@ -236,6 +244,7 @@ async function bootstrap(): Promise<void> {
     renderer,
     surfaces,
     pipeline: {
+      sink: createWebAudioSink({ getGain: () => lipsyncSettings.get().gain }),
       synth: async (input, signal) => {
         const f = await selectFetch();
         const eps = config.get().endpoints;

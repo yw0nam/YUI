@@ -191,3 +191,107 @@ describe("createWebAudioSink — amplitude callback during playback", () => {
     expect(() => sink.stop()).not.toThrow();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Sink: optional getGain callback wires per-play gain into the envelope
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// createWebAudioSink accepts an optional opts.getGain getter:
+//   createWebAudioSink(opts?: { getGain?: () => number }): AudioSink
+// The getter is called at each play() and its return value is used as the
+// gain passed to createAmplitudeEnvelope. Absent opts/getGain → default 2.0.
+
+describe("createWebAudioSink — getGain option", () => {
+  let rafCbs: FrameRequestCallback[];
+
+  beforeEach(() => {
+    rafCbs = [];
+    (globalThis as any).AudioContext = FakeAudioContext;
+    (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => {
+      rafCbs.push(cb);
+      return rafCbs.length;
+    };
+    (globalThis as any).cancelAnimationFrame = vi.fn();
+  });
+
+  afterEach(() => {
+    delete (globalThis as any).AudioContext;
+    delete (globalThis as any).requestAnimationFrame;
+    delete (globalThis as any).cancelAnimationFrame;
+  });
+
+  function flushFrames(n: number): void {
+    for (let f = 0; f < n; f++) {
+      const batch = rafCbs;
+      rafCbs = [];
+      for (const cb of batch) cb(performance.now?.() ?? 0);
+    }
+  }
+
+  it("getGain is invoked during play()", async () => {
+    const getGain = vi.fn(() => 2);
+    const sink = createWebAudioSink({ getGain });
+    const wav = new Uint8Array([1, 2, 3, 4]).buffer;
+
+    const playing = sink.play(wav);
+    await Promise.resolve();
+    await Promise.resolve();
+    flushFrames(3);
+    await playing;
+
+    expect(getGain).toHaveBeenCalled();
+  });
+
+  it("higher gain produces larger amplitude samples than lower gain", async () => {
+    const wav = new Uint8Array([1, 2, 3, 4]).buffer;
+
+    // ── sink with gain 1 ──
+    const samplesGain1: number[] = [];
+    const sink1 = createWebAudioSink({ getGain: () => 1 });
+    const playing1 = sink1.play(wav, (v) => samplesGain1.push(v));
+    await Promise.resolve();
+    await Promise.resolve();
+    flushFrames(10);
+    await playing1;
+
+    // ── sink with gain 4 ──
+    const samplesGain4: number[] = [];
+    const sink2 = createWebAudioSink({ getGain: () => 4 });
+    const playing2 = sink2.play(wav, (v) => samplesGain4.push(v));
+    await Promise.resolve();
+    await Promise.resolve();
+    flushFrames(10);
+    await playing2;
+
+    const max1 = Math.max(...samplesGain1);
+    const max4 = Math.max(...samplesGain4);
+
+    // both must be finite and in range
+    expect(Number.isFinite(max1)).toBe(true);
+    expect(Number.isFinite(max4)).toBe(true);
+    expect(max1).toBeGreaterThanOrEqual(0);
+    expect(max1).toBeLessThanOrEqual(1);
+    expect(max4).toBeGreaterThanOrEqual(0);
+    expect(max4).toBeLessThanOrEqual(1);
+
+    // higher gain → larger mouth opening
+    expect(max4).toBeGreaterThan(max1);
+  });
+
+  it("sink without getGain option behaves identically to default (no throw)", async () => {
+    const sink = createWebAudioSink();
+    const samples: number[] = [];
+    const wav = new Uint8Array([1, 2, 3, 4]).buffer;
+    const playing = sink.play(wav, (v) => samples.push(v));
+    await Promise.resolve();
+    await Promise.resolve();
+    flushFrames(5);
+    await playing;
+    expect(samples.length).toBeGreaterThan(0);
+    for (const v of samples) {
+      expect(Number.isFinite(v)).toBe(true);
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+    }
+  });
+});
