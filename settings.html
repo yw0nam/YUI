@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YUI 설정</title>
+    <style>
+      /* 설정 창은 실제 OS 창(투명 오버레이 아님) — scrim의 불투명 형제 색으로 채운다.
+         styles.css가 body를 transparent로 두므로 !important로 덮어쓴다. */
+      html,
+      body {
+        background: oklch(0.16 0.014 70) !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/settings-main.ts"></script>
+  </body>
+</html>

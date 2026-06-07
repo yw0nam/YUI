@@ -64,6 +64,7 @@ export function createVoiceInputStatus(): VoiceInputStatus {
     set(state, detail) {
       const next = clone(STATE_COPY[state]);
       if (detail !== undefined) next.detail = detail;
+      if (snapshot.state === next.state && snapshot.detail === next.detail) return;
       snapshot = next;
       notify();
     },

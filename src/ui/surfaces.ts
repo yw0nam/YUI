@@ -110,6 +110,13 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     }
   }
 
+  // 높이 상한된 말풍선의 최신 줄을 항상 보이게 끝으로 스크롤.
+  // 넘칠 때만 is-scrollable을 켜 상단 fade가 적용되게 한다(짧은 발화는 첫 줄을 깎지 않음).
+  function scrollBubbleToEnd(): void {
+    bubbleEl.scrollTop = bubbleEl.scrollHeight;
+    bubbleEl.classList.toggle("is-scrollable", bubbleEl.scrollHeight > bubbleEl.clientHeight);
+  }
+
   // ── speech bubble ──
   function beginSpeech(): void {
     clearDwell();
@@ -127,6 +134,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     speechRaw += delta;
     // Re-render the full accumulated text as inline markdown on each delta.
     bubbleText.replaceChildren(renderMarkdownInline(speechRaw));
+    scrollBubbleToEnd();
   }
 
   function endSpeech(opts?: { defer?: boolean }): void {
@@ -134,6 +142,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-visible");
     bubbleEl.classList.remove("is-streaming");
+    scrollBubbleToEnd();
     clearDwell();
     if (opts?.defer) {
       // 재생이 끝날 때까지 페이드 보류 — finishSpeech()가 dwell을 점화한다.

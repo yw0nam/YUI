@@ -110,6 +110,10 @@ export interface ChatRequest {
   input: unknown;
   /** server-side 대화 상태 (Responses API). */
   previous_response_id?: string;
+  /** Responses reasoning.effort. omit => no reasoning param sent. ("default" maps to omitting upstream.) */
+  reasoning_effort?: "low" | "medium" | "high";
+  /** instructions 런타임 오버라이드. 비어있지 않으면 config.chat_instructions 대신 사용. */
+  instructions?: string;
   /** 중도 취소 (event-dispatcher.md §12 in-flight abort). */
   signal?: AbortSignal;
 }
@@ -194,6 +198,12 @@ export async function* streamChat(
   // express는 added/done/arguments.done 어디서 와도 한 번만 emit한다(중복 방지).
   let expressEmitted = false;
 
+  // instructions: 요청 오버라이드(비어있지 않으면 우선) → config.chat_instructions로 폴백.
+  const effectiveInstructions =
+    request.instructions && request.instructions.trim()
+      ? request.instructions
+      : config.chat_instructions;
+
   let stream: AsyncIterable<any>;
   try {
     stream = (await client.responses.create(
@@ -201,8 +211,10 @@ export async function* streamChat(
         // model: config-driven (EndpointsConfig.chat_model). Hermes Responses는 model 필수 —
         // 미설정 시 생략(테스트 mock·model-less backend용). prod endpoints.json은 반드시 설정.
         ...(config.chat_model ? { model: config.chat_model } : {}),
-        // instructions: config-driven nudge (generate_express 유도). 미설정 시 생략.
-        ...(config.chat_instructions ? { instructions: config.chat_instructions } : {}),
+        // instructions: 요청 오버라이드 우선, 없으면 config nudge. 둘 다 없으면 생략.
+        ...(effectiveInstructions ? { instructions: effectiveInstructions } : {}),
+        // reasoning.effort: 요청에 있을 때만 전달("default"는 상위에서 생략으로 매핑).
+        ...(request.reasoning_effort ? { reasoning: { effort: request.reasoning_effort } } : {}),
         input: request.input as any,
         previous_response_id: request.previous_response_id,
         stream: true,

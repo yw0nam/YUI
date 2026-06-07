@@ -26,6 +26,9 @@ import { createVoiceInputStatus } from "./ui/voice-input-status";
 import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
+import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
+import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
+import { createSettingsBridge } from "./io/settings-bridge";
 import { createWebAudioSink } from "./io/audio-player";
 import { resolveScreenSourceProvider, resolveScreenCapturer } from "./io/tauri-screen";
 import { buildScreenshotBlock } from "./io/screenshot-context";
@@ -86,20 +89,80 @@ async function bootstrap(): Promise<void> {
 
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
+  const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
   const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
   // foreground app/title 스냅샷(#18) — backend_caller가 매 요청에 env로 첨부. non-Tauri면 no-op.
   const osContext = createOsContext();
   void osContext.start();
+  // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
+  // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
+  const openSettings = createSettingsWindowOpener();
+  const disposeStorageSync = wireStorageSync([agentSettings, lipsyncSettings, screenshotSettings]);
+
+  // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
+  // 시스템(VRM 렌더러 · STT/VAD)에 닿게 한다. storage 폴백은 위 wireStorageSync로 유지.
+  const bridge = createSettingsBridge();
+  // 입 프리뷰(별도 창 → 이 창 VRM): 게인 슬라이더 드래그가 실제 입을 움직이게.
+  bridge.onMouthPreview((mouthOpen) => {
+    if (mouthOpen == null) renderer.stopMouth();
+    else renderer.setMouthOpen(mouthOpen);
+  });
+  // 음성 토글(별도 창 → 이 창 STT): 기존 voiceInputStatus 구독이 sttVad를 시작/정지한다.
+  bridge.onVoiceSet((on) => {
+    log.info("음성 토글 수신(별도 창)", { on });
+    voiceInputStatus.set(on ? "listening" : "idle");
+  });
+  // 음성 상태(이 창 → 별도 창): 별도 창 indicator가 실제 STT 상태를 반영하게.
+  voiceInputStatus.subscribe((snapshot) => {
+    bridge.emitVoiceState({ state: snapshot.state, detail: snapshot.detail });
+  });
+  // 설정 동기화(양방향, 루프 가드): 한쪽 편집 → emit → 다른쪽 store 재로드.
+  // store는 값이 그대로면 no-op이므로 왕복이 종료된다.
+  // 디바운스: 슬라이더 드래그/타이핑 버스트를 200ms 유휴 후 단일 cross-window 이벤트로 합친다.
+  let applyingRemote = false;
+  let broadcastTimer: ReturnType<typeof setTimeout> | null = null;
+  const broadcastSettings = (): void => {
+    if (applyingRemote) return;
+    if (broadcastTimer) clearTimeout(broadcastTimer);
+    broadcastTimer = setTimeout(() => {
+      broadcastTimer = null;
+      bridge.emitSettingsChanged();
+    }, 200);
+  };
+  agentSettings.subscribe(broadcastSettings);
+  lipsyncSettings.subscribe(broadcastSettings);
+  screenshotSettings.subscribe(broadcastSettings);
+  bridge.onSettingsChanged(() => {
+    applyingRemote = true;
+    try {
+      agentSettings.reloadFromStorage();
+      lipsyncSettings.reloadFromStorage();
+      screenshotSettings.reloadFromStorage();
+    } finally {
+      applyingRemote = false;
+    }
+    log.info("설정 변경 수신(별도 창) — 재로드");
+  });
   const quickControls = createQuickControls({
     mount: root,
     settings: screenshotSettings,
     sourceProvider: screenSourceProvider,
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,
+    agentSettings,
     onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
     onGainPreviewEnd: () => renderer.stopMouth(),
+    // 빈 instructions일 때 placeholder로 보여줄 기본 지침(config 미로드 시 무시).
+    getDefaultInstructions: () => {
+      try {
+        return config.get().endpoints.chat_instructions;
+      } catch {
+        return undefined;
+      }
+    },
+    onPopOut: () => openSettings(),
   });
   const captureIndicator = createCaptureIndicator({
     mount: root,
@@ -121,6 +184,9 @@ async function bootstrap(): Promise<void> {
   if (import.meta.env.DEV) {
     import.meta.hot?.dispose(() => {
       quickControls.dispose();
+      if (broadcastTimer) clearTimeout(broadcastTimer);
+      bridge.dispose();
+      disposeStorageSync();
       captureIndicator.dispose();
       voiceInputIndicator.dispose();
       unsubscribeVoiceInputStatus();
@@ -128,6 +194,7 @@ async function bootstrap(): Promise<void> {
       voiceInputStatus.dispose();
       screenshotSettings.dispose();
       lipsyncSettings.dispose();
+      agentSettings.dispose();
       osContext.stop();
       stage.removeEventListener("contextmenu", onContextMenu);
     });
@@ -201,6 +268,7 @@ async function bootstrap(): Promise<void> {
       __yuiMock: mock,
       __yuiScreenshot: screenshotSettings,
       __yuiLipsync: lipsyncSettings,
+      __yuiAgent: agentSettings,
       __yuiQuick: quickControls,
       __yuiVoiceInputStatus: voiceInputStatus,
       // DEV-ONLY 트리거: E2E 루프를 콘솔에서 직접 발사한다.
@@ -283,6 +351,7 @@ async function bootstrap(): Promise<void> {
       return buildScreenshotBlock(s, cap ?? undefined);
     },
     getOsContext: () => osContext.get(),
+    getAgentSettings: () => agentSettings.get(),
   });
   const dispatcher = createDispatcher({ bus, renderer, backendCaller });
   dispatcherRef = dispatcher;

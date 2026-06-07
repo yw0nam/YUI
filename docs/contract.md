@@ -37,6 +37,13 @@
 - **발화 텍스트는 tool 페이로드 밖:** 발화는 `generate_express` arguments에 넣지 않고, Hermes의 일반 assistant 텍스트 스트림(`response.output_text.delta`)으로 토큰 단위 수신한다(§3 D-SPEECH).
 - **이 결정은 이전의 "json_schema strict output으로 envelope 강제" 가정을 supersede한다.** json_schema(Responses `text.format` / Chat `response_format`)는 더 이상 plan이 아니며, `generate_express` tool-call이 불가능할 경우의 **이론적 fallback**으로만 한 줄 남긴다.
 
+### Runtime request-shaping inputs (per-user, layered on config)
+
+chat 요청은 위 `EndpointsConfig` 위에 **per-user 런타임 입력 2종**을 얹어 만든다. 둘 다 wire envelope(§3)을 바꾸지 않는다 — 표준 Responses 요청 필드를 어떻게 채울지만 정한다. 영속은 §3-store(localStorage `yui.agent`, D-AGENT-SETTINGS-STORE) 담당이며, **checked-in `configs/endpoints.json`을 mutate하지 않는다.**
+
+- **[D-REASONING-EFFORT] `reasoning.effort` (per-user, optional).** Responses 표준 파라미터 `reasoning: { effort }`를 런타임 설정으로 노출한다. UI 값은 `default · low · medium · high` 4종 — 단 **`default`는 파라미터를 통째로 생략**(backend가 결정)하는 안전 기본값이고, 나머지 `low|medium|high`만 `reasoning.effort`로 실어 보낸다. backend("natsume", OpenAI 호환)가 무시할 수 있는 best-effort hint이며, 미설정/out-of-the-box 상태는 `default`(생략)다. config 파일 필드가 아니다.
+- **[D-INSTRUCTIONS-OVERRIDE] `instructions` 런타임 오버라이드 (per-user, precedence).** Responses `instructions` 필드(system message)는 이미 존재하는 요청 필드다. 런타임 per-user 설정으로 이를 오버라이드할 수 있다. **precedence: 비어있지 않은 런타임 오버라이드가 우선**, 비어있으면 `EndpointsConfig.chat_instructions`(config 기본값)로 폴백한다. 오버라이드는 런타임 레이어일 뿐 `configs/endpoints.json`을 수정하지 않는다.
+
 ---
 
 ## 1. Emotion Vocabulary

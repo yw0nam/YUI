@@ -51,6 +51,28 @@ describe("createVoiceInputStatus", () => {
     });
   });
 
+  it("skips notify when set repeats the same state and detail", () => {
+    const status = createVoiceInputStatus();
+    const listener = vi.fn();
+
+    status.subscribe(listener);
+    status.set("listening");
+    status.set("listening");
+
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("notifies again when the same state carries a different detail", () => {
+    const status = createVoiceInputStatus();
+    const listener = vi.fn();
+
+    status.subscribe(listener);
+    status.set("error", "a");
+    status.set("error", "b");
+
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
   it("notifies subscribers and stops after unsubscribe", () => {
     const status = createVoiceInputStatus();
     const listener = vi.fn();

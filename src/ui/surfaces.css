@@ -25,7 +25,8 @@
   }
   .yui-bubble,
   .yui-tool {
-    transform: none !important;
+    /* 세로 슬라이드/스케일만 제거 — 가로 중앙 정렬(-50%)은 유지 */
+    transform: translateX(-50%) !important;
   }
   .yui-bubble__caret,
   .yui-tool__dot {
@@ -39,9 +40,9 @@
    ════════════════════════════════════════════════════════════ */
 .yui-bubble {
   position: absolute;
-  /* 캐릭터 상반신 옆 — 상단부에 앉힌다. 화면 모서리 클립 회피 위해 최상단은 피함.
-     --yui-bubble-top/side로 빌드 후 픽셀 보정 가능. */
-  top: var(--yui-bubble-top, 9%);
+  /* 캐릭터 하반신 밴드에 하단 앵커 — 얼굴/머리를 가리지 않는다.
+     --yui-bubble-bottom으로 빌드 후 픽셀 보정 가능. */
+  bottom: var(--yui-bubble-bottom, 16%);
   left: 50%;
   transform: translate(-50%, 6px) scale(0.98);
   width: max-content;
@@ -67,9 +68,30 @@
     opacity var(--yui-dur) var(--yui-ease),
     transform var(--yui-dur) var(--yui-ease);
 
-  /* 내용에 맞춰 크기 — 긴 발화는 tts-pipeline이 문장 분절(현재 화자 발화만 표시)하고
-     replace-on-new(present-moment)라 보통 짧다. 정적 cap/mask는 짧은 본문의 첫 줄을
-     함께 깎아 common case를 망치므로 두지 않는다. */
+  /* 긴 발화 높이 상한 + 내부 스크롤 — 넘쳐도 모델 위로 자라지 않는다. */
+  max-height: var(--yui-bubble-max-h, 34vh);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--yui-edge-strong) transparent;
+}
+
+/* 넘쳐서 스크롤될 때만 상단 fade로 녹여 scroll-up을 암시.
+   짧은 발화(common case)는 mask 없이 첫 줄을 온전히 보여준다. */
+.yui-bubble.is-scrollable {
+  mask-image: linear-gradient(to bottom, transparent 0, oklch(0 0 0) 18px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, oklch(0 0 0) 18px);
+}
+
+/* 스크롤바 최소화 — SaaS 패널처럼 보이지 않게 가느다란 faint thumb */
+.yui-bubble::-webkit-scrollbar {
+  width: 6px;
+}
+.yui-bubble::-webkit-scrollbar-track {
+  background: transparent;
+}
+.yui-bubble::-webkit-scrollbar-thumb {
+  background: var(--yui-edge-strong);
+  border-radius: 999px;
 }
 
 .yui-bubble.is-visible {

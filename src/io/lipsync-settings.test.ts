@@ -167,6 +167,9 @@ function makeMemStorage(): LipsyncStorage & { _data: LipsyncSettings | null } {
     get _data() {
       return data;
     },
+    set _data(v: LipsyncSettings | null) {
+      data = v;
+    },
     load() {
       return data;
     },
@@ -228,6 +231,81 @@ describe("createLipsyncSettings — persistence", () => {
     };
     const store = createLipsyncSettings({ storage, initial: { gain: 1.0 } });
     expect(store.get().gain).toBe(3.5);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createLipsyncSettings — reloadFromStorage (cross-window sync)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createLipsyncSettings — reloadFromStorage", () => {
+  it("applies an externally-changed stored value and notifies", () => {
+    const storage = makeMemStorage();
+    const store = createLipsyncSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    // 다른 창이 storage를 직접 갱신한 상황을 모사
+    storage._data = { gain: 3.5 };
+    store.reloadFromStorage();
+
+    expect(store.get().gain).toBe(3.5);
+    expect(cb).toHaveBeenCalledOnce();
+    expect(cb).toHaveBeenCalledWith({ gain: 3.5 });
+  });
+
+  it("clamps an out-of-range stored value on reload", () => {
+    const storage = makeMemStorage();
+    const store = createLipsyncSettings({ storage });
+    storage._data = { gain: 99 };
+    store.reloadFromStorage();
+    expect(store.get().gain).toBe(LIPSYNC_GAIN_MAX);
+  });
+
+  it("identical value is a no-op (no notify)", () => {
+    const storage = makeMemStorage();
+    const store = createLipsyncSettings({ storage });
+    store.setGain(3);
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.reloadFromStorage();
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("ignores invalid stored value on reload (no notify)", () => {
+    const storage = makeMemStorage();
+    const store = createLipsyncSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+    storage._data = { gain: "x" } as unknown as LipsyncSettings;
+    store.reloadFromStorage();
+    expect(store.get().gain).toBe(LIPSYNC_GAIN_DEFAULT);
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("no-op when storage is absent", () => {
+    const store = createLipsyncSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    expect(() => store.reloadFromStorage()).not.toThrow();
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("no-op when storage.load throws", () => {
+    let throws = false;
+    const storage: LipsyncStorage = {
+      load: () => {
+        if (throws) throw new Error("boom");
+        return null;
+      },
+      save: vi.fn(),
+    };
+    const store = createLipsyncSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+    throws = true;
+    expect(() => store.reloadFromStorage()).not.toThrow();
+    expect(cb).not.toHaveBeenCalled();
   });
 });
 
