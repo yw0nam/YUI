@@ -39,6 +39,34 @@ function stubPipelineFactory() {
   };
 }
 
+/**
+ * Factory that returns a FRESH spy-pipeline each call, keeping every instance so
+ * tests can assert which pipeline (first vs second after interrupt) received which call.
+ */
+function multiPipelineFactory() {
+  const instances: Array<{
+    pushTextDelta: ReturnType<typeof vi.fn>;
+    setEmotionText: ReturnType<typeof vi.fn>;
+    end: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+    onAmplitude?: (rms: number) => void;
+    onPlaybackEnd?: () => void;
+  }> = [];
+  const factory = (opts: TtsPipelineOptions): TtsPipeline => {
+    const inst = {
+      pushTextDelta: vi.fn(),
+      setEmotionText: vi.fn(),
+      end: vi.fn(),
+      dispose: vi.fn(),
+      onAmplitude: opts.onAmplitude,
+      onPlaybackEnd: opts.onPlaybackEnd,
+    };
+    instances.push(inst);
+    return inst as unknown as TtsPipeline;
+  };
+  return { factory, instances };
+}
+
 function spyRenderer() {
   return { setMouthOpen: vi.fn(), stopMouth: vi.fn(), easeEmotionToNeutral: vi.fn() };
 }
@@ -172,5 +200,153 @@ describe("createSpeechPlayback — dispose", () => {
     });
     sp.dispose();
     expect(stub.calls.disposed).toBe(1);
+  });
+});
+
+describe("createSpeechPlayback — onSpeechDelta streams text into bubble + pipeline", () => {
+  it("first delta of a run begins the bubble exactly once; later deltas don't re-begin", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    sp.onSpeechDelta(" there");
+    sp.onSpeechDelta(".");
+    // begin fires only on the first delta of the run.
+    expect(surfaces.beginSpeech).toHaveBeenCalledTimes(1);
+  });
+
+  it("every delta pushes to the bubble AND the pipeline (in order)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("a");
+    sp.onSpeechDelta("b");
+    sp.onSpeechDelta("c");
+    expect(surfaces.pushSpeech.mock.calls.map((c) => c[0])).toEqual(["a", "b", "c"]);
+    expect(stub.calls.pushTextDelta).toEqual(["a", "b", "c"]);
+    // streaming deltas must NOT flush/finish mid-run.
+    expect(stub.calls.ended).toBe(0);
+    expect(surfaces.finishSpeech).not.toHaveBeenCalled();
+  });
+});
+
+describe("createSpeechPlayback — onSpeechEnd finalizes a run", () => {
+  it("after ≥1 delta, defers the bubble dwell AND flushes the pipeline", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello.");
+    sp.onSpeechEnd();
+    expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
+    expect(stub.calls.ended).toBe(1);
+    // bubble not released yet — TTS hasn't finished.
+    expect(surfaces.finishSpeech).not.toHaveBeenCalled();
+  });
+
+  it("with no delta since begin → no-op (no endSpeech, no pipeline.end)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechEnd();
+    expect(surfaces.endSpeech).not.toHaveBeenCalled();
+    expect(stub.calls.ended).toBe(0);
+    expect(surfaces.beginSpeech).not.toHaveBeenCalled();
+  });
+});
+
+describe("createSpeechPlayback — setEmotionText forwards to the pipeline", () => {
+  it("forwards a tag to pipeline.setEmotionText", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+
+    sp.setEmotionText("(whisper)");
+    expect(multi.instances[0].setEmotionText).toHaveBeenCalledWith("(whisper)");
+  });
+
+  it("forwards null to pipeline.setEmotionText (clear)", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+
+    sp.setEmotionText(null);
+    expect(multi.instances[0].setEmotionText).toHaveBeenCalledWith(null);
+  });
+});
+
+describe("createSpeechPlayback — interrupt swaps the pipeline and releases the bubble", () => {
+  it("disposes the current pipeline, builds a fresh one, and releases any visible bubble (non-defer)", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    // factory called once at construction.
+    expect(multi.instances.length).toBe(1);
+
+    sp.interrupt();
+    // current pipeline disposed.
+    expect(multi.instances[0].dispose).toHaveBeenCalledTimes(1);
+    // a FRESH pipeline was built.
+    expect(multi.instances.length).toBe(2);
+    // bubble released immediately (non-defer) to clear any stuck bubble.
+    expect(surfaces.endSpeech).toHaveBeenCalledWith();
+  });
+
+  it("after interrupt, the next delta starts a new run and routes to the NEW pipeline", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+
+    sp.onSpeechDelta("old");
+    sp.interrupt();
+    sp.onSpeechDelta("new");
+
+    // first instance only saw the pre-interrupt delta.
+    expect(multi.instances[0].pushTextDelta.mock.calls.map((c) => c[0])).toEqual(["old"]);
+    // post-interrupt delta routed to the fresh instance.
+    expect(multi.instances[1].pushTextDelta.mock.calls.map((c) => c[0])).toEqual(["new"]);
+    // beginSpeech fires again for the new run (twice total: pre + post interrupt).
+    expect(surfaces.beginSpeech).toHaveBeenCalledTimes(2);
+  });
+
+  it("onSpeechEnd after interrupt with no new delta is a no-op (interrupt clears the run)", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+
+    sp.onSpeechDelta("old");
+    sp.interrupt();
+    sp.onSpeechEnd();
+    // the fresh pipeline never received an end (no delta since interrupt).
+    expect(multi.instances[1].end).not.toHaveBeenCalled();
+  });
+});
+
+describe("createSpeechPlayback — onSpeech is sugar over delta+end", () => {
+  it("begins, pushes text to bubble+pipeline, defers the bubble, and flushes once", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeech("Whole thing.");
+    expect(surfaces.beginSpeech).toHaveBeenCalledTimes(1);
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith("Whole thing.");
+    expect(stub.calls.pushTextDelta).toEqual(["Whole thing."]);
+    expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
+    expect(stub.calls.ended).toBe(1);
+    expect(surfaces.finishSpeech).not.toHaveBeenCalled();
   });
 });
