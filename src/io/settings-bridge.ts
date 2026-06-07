@@ -123,13 +123,25 @@ function selectTransport(): BridgeTransport {
   return noopTransport;
 }
 
+/** envelope: 보낸 창을 식별해 자기 자신이 쏜 이벤트를 무시한다(Tauri global emit 자기 전달 방지). */
+interface BridgeEnvelope {
+  __src: string;
+  payload: unknown;
+}
+
+function newSrcId(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  return c?.randomUUID?.() ?? `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+}
+
 export function createSettingsBridge(transport?: BridgeTransport): SettingsBridge {
   const t = transport ?? selectTransport();
   const disposers = new Set<() => void>();
+  const srcId = newSrcId();
 
   const safeEmit = (name: string, payload?: unknown): void => {
     try {
-      t.emit(name, payload);
+      t.emit(name, { __src: srcId, payload } satisfies BridgeEnvelope);
     } catch (err) {
       log.warn("emit 실패", err);
     }
@@ -138,7 +150,16 @@ export function createSettingsBridge(transport?: BridgeTransport): SettingsBridg
   const on = <T>(name: string, cb: (payload: T) => void): (() => void) => {
     let off = (): void => {};
     try {
-      off = t.listen(name, (payload) => cb(payload as T));
+      off = t.listen(name, (raw) => {
+        // 정상 envelope: 자기 자신이 쏜 것이면 무시. 손상/구형이면 방어적으로 그대로 전달.
+        const env = raw as Partial<BridgeEnvelope> | undefined;
+        if (env && typeof env.__src === "string") {
+          if (env.__src === srcId) return;
+          cb(env.payload as T);
+        } else {
+          cb((raw as { payload?: unknown } | undefined)?.payload ?? (raw as T));
+        }
+      });
     } catch (err) {
       log.warn("listen 실패", err);
     }
