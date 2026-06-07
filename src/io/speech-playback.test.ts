@@ -334,6 +334,37 @@ describe("createSpeechPlayback — interrupt swaps the pipeline and releases the
   });
 });
 
+describe("createSpeechPlayback — abort tears down without rebuilding", () => {
+  it("disposes the current pipeline and releases the bubble (non-defer), no fresh pipeline", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    // factory called once at construction.
+    expect(multi.instances.length).toBe(1);
+
+    sp.abort();
+    // current pipeline disposed.
+    expect(multi.instances[0].dispose).toHaveBeenCalledTimes(1);
+    // NO fresh pipeline (no new run is coming).
+    expect(multi.instances.length).toBe(1);
+    // bubble released immediately (non-defer) to clear the stuck bubble.
+    expect(surfaces.endSpeech).toHaveBeenCalledWith();
+  });
+
+  it("releases the bubble dwell so a frozen bubble does not stay forever", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("partial");
+    sp.abort();
+    expect(surfaces.endSpeech).toHaveBeenCalledWith();
+    expect(stub.calls.disposed).toBe(1);
+  });
+});
+
 describe("createSpeechPlayback — onSpeech is sugar over delta+end", () => {
   it("begins, pushes text to bubble+pipeline, defers the bubble, and flushes once", () => {
     const stub = stubPipelineFactory();
