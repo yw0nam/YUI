@@ -119,6 +119,31 @@ describe("createSettingsBridge", () => {
     expect(voice).not.toHaveBeenCalled();
   });
 
+  it("ignores self-emitted events but delivers them to a second instance", () => {
+    // Shared transport broadcasts to every registered listener (incl. the emitter's own) —
+    // models Tauri global emit delivering back to the sender window.
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t);
+    const b = createSettingsBridge(t);
+    const selfCb = vi.fn();
+    const otherCb = vi.fn();
+    a.onSettingsChanged(selfCb);
+    b.onSettingsChanged(otherCb);
+
+    a.emitSettingsChanged();
+    expect(selfCb).not.toHaveBeenCalled();
+    expect(otherCb).toHaveBeenCalledTimes(1);
+
+    // Payload-bearing channels: the second instance still receives the unwrapped value.
+    const selfMouth = vi.fn();
+    const otherMouth = vi.fn();
+    a.onMouthPreview(selfMouth);
+    b.onMouthPreview(otherMouth);
+    a.emitMouthPreview(0.42);
+    expect(selfMouth).not.toHaveBeenCalled();
+    expect(otherMouth).toHaveBeenCalledWith(0.42);
+  });
+
   it("does not throw when the transport.emit throws", () => {
     const throwing: BridgeTransport = {
       emit() {
