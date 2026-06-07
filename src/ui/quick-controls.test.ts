@@ -39,6 +39,7 @@ function makeSettings() {
     get: () => ({ enabled: false, source: { kind: "monitor" as const, index: 0 } }),
     setEnabled: vi.fn(),
     setSource: vi.fn(),
+    reloadFromStorage: vi.fn(),
     subscribe: vi.fn(() => () => {}),
     dispose: vi.fn(),
   };
