@@ -110,6 +110,11 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     }
   }
 
+  // 높이 상한된 말풍선의 최신 줄을 항상 보이게 끝으로 스크롤.
+  function scrollBubbleToEnd(): void {
+    bubbleEl.scrollTop = bubbleEl.scrollHeight;
+  }
+
   // ── speech bubble ──
   function beginSpeech(): void {
     clearDwell();
@@ -127,6 +132,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     speechRaw += delta;
     // Re-render the full accumulated text as inline markdown on each delta.
     bubbleText.replaceChildren(renderMarkdownInline(speechRaw));
+    scrollBubbleToEnd();
   }
 
   function endSpeech(opts?: { defer?: boolean }): void {
@@ -134,6 +140,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-visible");
     bubbleEl.classList.remove("is-streaming");
+    scrollBubbleToEnd();
     clearDwell();
     if (opts?.defer) {
       // 재생이 끝날 때까지 페이드 보류 — finishSpeech()가 dwell을 점화한다.

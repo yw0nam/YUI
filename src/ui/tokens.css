@@ -47,6 +47,10 @@
   --yui-radius-row: 10px;
   --yui-radius-img: 10px;
 
+  /* ── Speech bubble layout ── */
+  --yui-bubble-bottom: 16%;   /* 캐릭터 하반신 밴드 — 얼굴을 가리지 않게 하단 앵커 */
+  --yui-bubble-max-h: 34vh;   /* 긴 발화 높이 상한 — 넘으면 내부 스크롤 */
+
   /* ── Motion: Responsive, ease-out 지수 곡선(quint). bounce/elastic 금지. ── */
   --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --yui-dur: 200ms;
