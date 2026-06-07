@@ -68,3 +68,55 @@ describe("pushSpeech — auto-scroll to newest line", () => {
     expect(bubbleEl.scrollTop).toBe(480);
   });
 });
+
+describe("pushSpeech — is-scrollable toggle (top-fade only when overflowing)", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function bubble(): HTMLElement {
+    return mount.querySelector(".yui-bubble") as HTMLElement;
+  }
+
+  function stub(el: HTMLElement, scrollHeight: number, clientHeight: number): void {
+    Object.defineProperty(el, "scrollHeight", { value: scrollHeight, configurable: true });
+    Object.defineProperty(el, "clientHeight", { value: clientHeight, configurable: true });
+  }
+
+  it("does NOT mark a short (non-overflowing) bubble scrollable — first line stays unfaded", () => {
+    s.beginSpeech();
+    const bubbleEl = bubble();
+    stub(bubbleEl, 40, 40); // content fits — no overflow
+    s.pushSpeech("Short reply.");
+    expect(bubbleEl.classList.contains("is-scrollable")).toBe(false);
+  });
+
+  it("marks an overflowing bubble scrollable so the top fade applies", () => {
+    s.beginSpeech();
+    const bubbleEl = bubble();
+    stub(bubbleEl, 480, 240); // content overflows the capped height
+    s.pushSpeech("A very long reply that exceeds the capped bubble height.");
+    expect(bubbleEl.classList.contains("is-scrollable")).toBe(true);
+  });
+
+  it("clears is-scrollable when content shrinks back to fitting", () => {
+    s.beginSpeech();
+    const bubbleEl = bubble();
+    stub(bubbleEl, 480, 240);
+    s.pushSpeech("Long overflowing reply.");
+    expect(bubbleEl.classList.contains("is-scrollable")).toBe(true);
+
+    s.beginSpeech(); // replace-on-new resets content
+    stub(bubbleEl, 40, 40);
+    s.pushSpeech("Short.");
+    expect(bubbleEl.classList.contains("is-scrollable")).toBe(false);
+  });
+});
