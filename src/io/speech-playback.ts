@@ -52,6 +52,8 @@ export interface SpeechPlayback {
   setEmotionText(text: string | null): void;
   /** 진행 중인 발화를 중단: 파이프라인 폐기·재생성 + 보류 말풍선 즉시 해제. */
   interrupt(): void;
+  /** 비정상 종료(에러/네트워크 끊김) 정리: 파이프라인 폐기 + 보류 말풍선 즉시 해제. 다음 턴이 없어 재생성하지 않는다. */
+  abort(): void;
   dispose(): void;
 }
 
@@ -111,6 +113,12 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       pipeline.dispose();
       pipeline = buildPipeline();
       // 보류 중이던 말풍선을 즉시 해제 (defer 아님).
+      surfaces.endSpeech();
+      started = false;
+    },
+    abort() {
+      // 비정상 종료: 파이프라인 폐기 + 보류 말풍선 즉시 해제. 다음 턴이 없어 재생성하지 않는다.
+      pipeline.dispose();
       surfaces.endSpeech();
       started = false;
     },

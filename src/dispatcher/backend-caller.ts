@@ -57,6 +57,8 @@ export interface BackendCallerDeps {
   onSpeechEnd?: () => void;
   /** 발화 중단 sink — call() 진입 시 1회. 직전(superseded) 턴의 잔여 오디오/말풍선을 정리한다. */
   onSpeechInterrupt?: () => void;
+  /** 발화 비정상 종료 sink — 스트림 중 에러/끊김(유저 supersede 아님)으로 끝났고 delta가 1건 이상 왔을 때. 말풍선/오디오를 정리한다. */
+  onSpeechAbort?: () => void;
   /** 토글 ON일 때 화면 캡처 블록을 조립해 반환(OFF/실패면 undefined). main.ts가 settings+capturer+buildScreenshotBlock로 합성. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   /** 현재 foreground app/title 스냅샷(#18). present 시 env.active_app/active_window_title을 채운다. */
@@ -220,10 +222,11 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         }
       }
     } catch (err) {
-      // abort면 supersede, 그 외는 network drop.
+      // abort면 supersede(다음 턴이 정리), 그 외는 network drop — delta가 떴으면 말풍선/오디오 정리.
       if (externalSignal?.aborted) {
         return { ok: false, drop_reason: "superseded_by_user" };
       }
+      if (streamedAny) deps.onSpeechAbort?.();
       log.warn("network_drop", { stage: "stream_threw", error: String(err) });
       return { ok: false, drop_reason: "network_drop" };
     }
@@ -233,6 +236,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     }
 
     if (streamError) {
+      // delta가 떴으면 말풍선/오디오 정리 — 다음 턴이 없어 영영 갇히지 않게.
+      if (streamedAny) deps.onSpeechAbort?.();
       log.warn("network_drop", { stage: "stream_error", message: streamError });
       return { ok: false, drop_reason: "network_drop" };
     }

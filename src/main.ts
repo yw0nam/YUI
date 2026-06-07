@@ -274,6 +274,7 @@ async function bootstrap(): Promise<void> {
     onSpeechDelta: (text) => speechPlayback.onSpeechDelta(text),
     onSpeechEnd: () => speechPlayback.onSpeechEnd(),
     onSpeechInterrupt: () => speechPlayback.interrupt(),
+    onSpeechAbort: () => speechPlayback.abort(),
     onEmotionText: (text) => speechPlayback.setEmotionText(text),
     getScreenshot: async () => {
       const s = screenshotSettings.get();
