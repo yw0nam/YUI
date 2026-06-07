@@ -5,6 +5,7 @@
  */
 
 import "./quick-controls.css";
+import { createLogger } from "../logger";
 import type { createScreenshotSettings } from "../io/screenshot-settings";
 import type { ScreenSourceProvider, MonitorInfo } from "../io/screen-source-provider";
 import type { ScreenSource } from "../contract";
@@ -96,6 +97,8 @@ export function createQuickControls({
   getDefaultInstructions,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
+  // variant 태그로 어느 창이 만든 로그인지 구분(Tauri가 두 창 로그를 한 파일로 병합).
+  const log = createLogger(isWindow ? "settings-ui" : "quick-ui");
 
   // scrim(바깥 클릭 감지)은 popover variant에서만 쓴다.
   const scrimEl = document.createElement("div");
@@ -519,6 +522,7 @@ export function createQuickControls({
   function handleSwitchClick(): void {
     const current = settings.get().enabled;
     settings.setEnabled(!current);
+    log.info("스크린샷 첨부", { enabled: !current });
     if (!current && !monitorsLoaded) {
       void loadMonitors();
     }
@@ -526,6 +530,7 @@ export function createQuickControls({
 
   function handleVoiceSwitchClick(): void {
     const current = voiceStatus.get().state !== "idle";
+    log.info("음성 입력 토글", { on: !current });
     voiceStatus.set(current ? "idle" : "listening");
   }
 
@@ -553,6 +558,7 @@ export function createQuickControls({
     const clamped = Math.min(REASONING_EFFORTS.length - 1, Math.max(0, index));
     const effort = REASONING_EFFORTS[clamped];
     agentSettings.setReasoningEffort(effort);
+    log.info("추론 강도 변경", { effort });
     // store 구독으로 reflectAgent가 시각/aria를 갱신한다.
     if (focus) segButtons[clamped]?.focus();
   }
@@ -585,11 +591,13 @@ export function createQuickControls({
 
   function handleInstructionsInput(): void {
     agentSettings.setInstructions(instructionsEl.value);
+    log.info("지침 변경", { length: instructionsEl.value.length });
   }
 
   function handleResetInstructions(): void {
     agentSettings.setInstructions("");
     instructionsEl.value = "";
+    log.info("지침 초기화");
   }
 
   // ── 게인 슬라이더 ──
@@ -605,6 +613,7 @@ export function createQuickControls({
 
   function handleGainEnd(): void {
     if (gainPreviewing) { onGainPreviewEnd(); gainPreviewing = false; }
+    log.info("입 움직임 변경", { gain: parseFloat(gainSlider.value) });
   }
 
   // ── 구독 ──

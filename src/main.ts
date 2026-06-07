@@ -28,6 +28,7 @@ import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/sc
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
+import { createSettingsBridge } from "./io/settings-bridge";
 import { createWebAudioSink } from "./io/audio-player";
 import { resolveScreenSourceProvider, resolveScreenCapturer } from "./io/tauri-screen";
 import { buildScreenshotBlock } from "./io/screenshot-context";
@@ -99,6 +100,45 @@ async function bootstrap(): Promise<void> {
   // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
   const openSettings = createSettingsWindowOpener();
   const disposeStorageSync = wireStorageSync([agentSettings, lipsyncSettings, screenshotSettings]);
+
+  // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
+  // 시스템(VRM 렌더러 · STT/VAD)에 닿게 한다. storage 폴백은 위 wireStorageSync로 유지.
+  const bridge = createSettingsBridge();
+  // 입 프리뷰(별도 창 → 이 창 VRM): 게인 슬라이더 드래그가 실제 입을 움직이게.
+  bridge.onMouthPreview((mouthOpen) => {
+    if (mouthOpen == null) renderer.stopMouth();
+    else renderer.setMouthOpen(mouthOpen);
+    log.debug("mouth_preview 수신(별도 창)", { mouthOpen });
+  });
+  // 음성 토글(별도 창 → 이 창 STT): 기존 voiceInputStatus 구독이 sttVad를 시작/정지한다.
+  bridge.onVoiceSet((on) => {
+    log.info("음성 토글 수신(별도 창)", { on });
+    voiceInputStatus.set(on ? "listening" : "idle");
+  });
+  // 음성 상태(이 창 → 별도 창): 별도 창 indicator가 실제 STT 상태를 반영하게.
+  voiceInputStatus.subscribe((snapshot) => {
+    bridge.emitVoiceState({ state: snapshot.state, detail: snapshot.detail });
+  });
+  // 설정 동기화(양방향, 루프 가드): 한쪽 편집 → emit → 다른쪽 store 재로드.
+  // store는 값이 그대로면 no-op이므로 왕복이 종료된다.
+  let applyingRemote = false;
+  const broadcastSettings = (): void => {
+    if (!applyingRemote) bridge.emitSettingsChanged();
+  };
+  agentSettings.subscribe(broadcastSettings);
+  lipsyncSettings.subscribe(broadcastSettings);
+  screenshotSettings.subscribe(broadcastSettings);
+  bridge.onSettingsChanged(() => {
+    applyingRemote = true;
+    try {
+      agentSettings.reloadFromStorage();
+      lipsyncSettings.reloadFromStorage();
+      screenshotSettings.reloadFromStorage();
+    } finally {
+      applyingRemote = false;
+    }
+    log.info("설정 변경 수신(별도 창) — 재로드");
+  });
   const quickControls = createQuickControls({
     mount: root,
     settings: screenshotSettings,
@@ -138,6 +178,7 @@ async function bootstrap(): Promise<void> {
   if (import.meta.env.DEV) {
     import.meta.hot?.dispose(() => {
       quickControls.dispose();
+      bridge.dispose();
       disposeStorageSync();
       captureIndicator.dispose();
       voiceInputIndicator.dispose();

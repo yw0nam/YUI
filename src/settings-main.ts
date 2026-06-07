@@ -12,9 +12,10 @@ import { createQuickControls } from "./ui/quick-controls";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
-import { createVoiceInputStatus } from "./ui/voice-input-status";
+import { createVoiceInputStatus, type VoiceInputState } from "./ui/voice-input-status";
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
 import { wireStorageSync } from "./io/settings-window";
+import { createSettingsBridge } from "./io/settings-bridge";
 import { createConfigStore } from "./config";
 
 const log = createLogger("settings-bootstrap");
@@ -31,6 +32,10 @@ async function bootstrap(): Promise<void> {
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
+
+  // 메인 창과의 실시간 배선(Tauri 이벤트). 이 창엔 렌더러/STT가 없으므로 컨트롤은
+  // 메인 창으로 보내고, 음성 상태는 메인 창에서 받아 반영한다. storage 폴백은 아래 유지.
+  const bridge = createSettingsBridge();
 
   // 기본 지침 placeholder를 위한 config는 best-effort로만 로드한다(실패 → 일반 placeholder).
   const config = createConfigStore();
@@ -50,9 +55,9 @@ async function bootstrap(): Promise<void> {
     sourceProvider,
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,
-    // 설정 창에는 렌더러가 없으므로 게인 프리뷰는 no-op.
-    onGainPreview: () => {},
-    onGainPreviewEnd: () => {},
+    // 렌더러는 메인 창에 있으므로 게인 프리뷰를 브리지로 전달 → 메인 창 VRM 입이 움직인다.
+    onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
+    onGainPreviewEnd: () => bridge.emitMouthPreview(null),
     getDefaultInstructions: () => {
       if (!configLoaded) return undefined;
       try {
@@ -70,6 +75,38 @@ async function bootstrap(): Promise<void> {
   wireStorageSync(resyncStores);
   window.addEventListener("focus", () => {
     for (const s of resyncStores) s.reloadFromStorage();
+  });
+
+  // 음성 토글(이 창 → 메인 STT)과 음성 상태 반영(메인 → 이 창). 컴포넌트가 로컬
+  // voiceInputStatus를 구동하므로 그 변화를 메인으로 보내고, 메인의 실제 STT 상태를 받아 반영한다.
+  let applyingRemoteVoice = false;
+  voiceInputStatus.subscribe((snap) => {
+    if (!applyingRemoteVoice) bridge.emitVoiceSet(snap.state !== "idle");
+  });
+  bridge.onVoiceState((s) => {
+    applyingRemoteVoice = true;
+    try {
+      voiceInputStatus.set(s.state as VoiceInputState, s.detail);
+    } finally {
+      applyingRemoteVoice = false;
+    }
+  });
+
+  // 설정 동기화(양방향, 루프 가드): 이 창 편집 → emit; 메인 알림 → 세 store 재로드.
+  let applyingRemote = false;
+  const broadcastSettings = (): void => {
+    if (!applyingRemote) bridge.emitSettingsChanged();
+  };
+  agentSettings.subscribe(broadcastSettings);
+  lipsyncSettings.subscribe(broadcastSettings);
+  screenshotSettings.subscribe(broadcastSettings);
+  bridge.onSettingsChanged(() => {
+    applyingRemote = true;
+    try {
+      for (const s of resyncStores) s.reloadFromStorage();
+    } finally {
+      applyingRemote = false;
+    }
   });
 }
 
