@@ -69,6 +69,7 @@ fn dotenv_value(contents: &str, key: &str) -> Option<String> {
 }
 
 /// Resolve the log timestamp offset: process env → dev `.env.local` → UTC default.
+/// `YUI_LOG_TZ` is canonical; `VITE_YUI_LOG_TZ` is accepted as an alias (for shared `.env.local`).
 fn resolve_log_offset() -> UtcOffset {
   if let Some(off) = std::env::var("YUI_LOG_TZ")
     .or_else(|_| std::env::var("VITE_YUI_LOG_TZ"))
