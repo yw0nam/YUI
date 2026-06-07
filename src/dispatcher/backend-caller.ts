@@ -49,8 +49,14 @@ export interface BackendCallerDeps {
   getApiKey: () => Promise<string | undefined>;
   /** transport fetch 선택(selectFetch). Tauri=cors-fetch, dev=undefined. */
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
-  /** 발화 텍스트 sink — main.ts가 말풍선 + TTS 파이프라인(#14)으로 연결한다. */
+  /** 발화 텍스트 sink — main.ts가 말풍선 + TTS 파이프라인(#14)으로 연결한다. delta-less backend용 fallback. */
   onSpeech?: (text: string) => void;
+  /** 발화 토큰 증분 sink — speech_delta마다 호출(스트리밍 TTS). main.ts가 말풍선 누적 + 파이프라인 구동으로 연결. */
+  onSpeechDelta?: (text: string) => void;
+  /** 발화 스트림 종료 sink — 모든 delta 이후 1회. main.ts가 말풍선 dwell 보류 + 파이프라인 flush로 연결. */
+  onSpeechEnd?: () => void;
+  /** 발화 중단 sink — call() 진입 시 1회. 직전(superseded) 턴의 잔여 오디오/말풍선을 정리한다. */
+  onSpeechInterrupt?: () => void;
   /** 토글 ON일 때 화면 캡처 블록을 조립해 반환(OFF/실패면 undefined). main.ts가 settings+capturer+buildScreenshotBlock로 합성. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   /** 현재 foreground app/title 스냅샷(#18). present 시 env.active_app/active_window_title을 채운다. */
@@ -148,6 +154,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       return { ok: false, drop_reason: "superseded_by_user" };
     }
 
+    // 직전(superseded) 턴의 잔여 오디오/말풍선을 정리 — 첫 delta보다 먼저 1회.
+    deps.onSpeechInterrupt?.();
+
     // B1
     const ctx = await packageContext(env);
     const input = encodeInput(ctx);
@@ -179,12 +188,27 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     // B3: chat-client의 completed 이벤트에서 ControlEnvelope 수령(SSE 재파싱 X).
     let envelope: ControlEnvelope | undefined;
     let streamError: string | undefined;
+    // 스트리밍 발화: delta가 1건이라도 왔는가(완료 시 onSpeechEnd 구동 분기).
+    let streamedAny = false;
+    // emotion_text(voice tag)를 스트림 중 이미 적용했는가(완료 시 중복 방지).
+    let emotionTextSent = false;
     try {
       for await (const ev of streamChat(deps.config, request, {
         apiKey,
         fetch: fetchImpl,
       })) {
         switch (ev.type) {
+          case "speech_delta":
+            deps.onSpeechDelta?.(ev.text);
+            streamedAny = true;
+            break;
+          case "express":
+            // voice tag를 스트림 중에 적용 — 이후 문장부터 반영되게.
+            if (ev.args.emotion_text != null) {
+              deps.onEmotionText?.(ev.args.emotion_text);
+              emotionTextSent = true;
+            }
+            break;
           case "completed":
             envelope = ev.envelope;
             break;
@@ -232,8 +256,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       log.error("dispatch_to_renderer.error", { error: String(err) });
     }
 
-    // B5(emotion_text half): TTS voice tag → onEmotionText(있을 때만).
-    if (envelope.emotion_text != null) {
+    // B5(emotion_text half): TTS voice tag → onEmotionText.
+    //   스트림 중 express로 이미 적용했으면 중복 호출 X. delta/express 없는 completed-only
+    //   응답은 여기서 1회 적용해 기존 동작을 보존한다.
+    if (!emotionTextSent && envelope.emotion_text != null) {
       deps.onEmotionText?.(envelope.emotion_text);
     }
 
@@ -244,7 +270,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
     // B4(speech gate, D-NO-SPEAK-GATE): speech_text가 비어있지 않을 때만 발화.
     //   빈 텍스트 = 침묵 — 별도 플래그/판정 없음, drop_reason도 없음.
-    if (envelope.speech_text) {
+    if (streamedAny) {
+      // 스트리밍 경로: delta로 이미 발화를 구동했으니 종료만 알린다(onSpeech 호출 X).
+      deps.onSpeechEnd?.();
+      log.debug("speech", { text: envelope.speech_text });
+    } else if (envelope.speech_text) {
+      // legacy fallback: delta 없이 completed만 주는 backend.
       deps.onSpeech?.(envelope.speech_text);
       log.debug("speech", { text: envelope.speech_text });
     } else {
