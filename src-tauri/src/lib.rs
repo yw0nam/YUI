@@ -30,10 +30,7 @@ pub fn run() {
       let mut builder = tauri_plugin_log::Builder::new()
         .level(level_for(cfg!(debug_assertions)))
         .max_file_size(10_000_000)
-        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
-        .target(tauri_plugin_log::Target::new(
-          tauri_plugin_log::TargetKind::Webview,
-        ));
+        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne);
 
       if cfg!(debug_assertions) {
         // Dev: write logs into the repo's <worktree>/logs/ for easy `tail -f logs/*.log`.

@@ -43,7 +43,6 @@ export async function initLogger(): Promise<void> {
   if (!inTauri()) return;
   const mod = await import("@tauri-apps/plugin-log");
   sink = mod;
-  await mod.attachConsole();
 }
 
 function fmtArg(a: unknown): string {
