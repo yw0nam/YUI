@@ -299,6 +299,48 @@ describe("backend_caller — os context port (#18)", () => {
   });
 });
 
+describe("backend_caller — agent settings (reasoning effort + instructions)", () => {
+  it("getAgentSettings present → reasoning_effort + instructions threaded into ChatRequest", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getAgentSettings: () => ({ reasoning_effort: "medium", instructions: "be terse" }),
+    });
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect(request.reasoning_effort).toBe("medium");
+    expect(request.instructions).toBe("be terse");
+  });
+
+  it("getAgentSettings 'default'/empty → no reasoning_effort, no instructions on the request", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getAgentSettings: () => ({ reasoning_effort: "default", instructions: "" }),
+    });
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect("reasoning_effort" in request).toBe(false);
+    expect("instructions" in request).toBe(false);
+  });
+
+  it("getAgentSettings absent → request carries neither (back-compat)", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect("reasoning_effort" in request).toBe(false);
+    expect("instructions" in request).toBe(false);
+  });
+});
+
 describe("backend_caller — failure classification (§7.3)", () => {
   it("no completed event → parse_error drop", async () => {
     scriptedEvents = [{ type: "speech_delta", text: "x" }];
