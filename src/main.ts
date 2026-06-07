@@ -27,6 +27,7 @@ import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
+import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
 import { createWebAudioSink } from "./io/audio-player";
 import { resolveScreenSourceProvider, resolveScreenCapturer } from "./io/tauri-screen";
 import { buildScreenshotBlock } from "./io/screenshot-context";
@@ -94,6 +95,10 @@ async function bootstrap(): Promise<void> {
   // foreground app/title 스냅샷(#18) — backend_caller가 매 요청에 env로 첨부. non-Tauri면 no-op.
   const osContext = createOsContext();
   void osContext.start();
+  // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
+  // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
+  const openSettings = createSettingsWindowOpener();
+  const disposeStorageSync = wireStorageSync([agentSettings, lipsyncSettings, screenshotSettings]);
   const quickControls = createQuickControls({
     mount: root,
     settings: screenshotSettings,
@@ -111,14 +116,7 @@ async function bootstrap(): Promise<void> {
         return undefined;
       }
     },
-    // TEMP: 별도 설정 창. 추후 Tauri 창으로 교체.
-    onPopOut: () => {
-      try {
-        window.open("/settings.html", "yui-settings", "width=480,height=660");
-      } catch {
-        /* 팝아웃 실패 무시 */
-      }
-    },
+    onPopOut: () => openSettings(),
   });
   const captureIndicator = createCaptureIndicator({
     mount: root,
@@ -140,6 +138,7 @@ async function bootstrap(): Promise<void> {
   if (import.meta.env.DEV) {
     import.meta.hot?.dispose(() => {
       quickControls.dispose();
+      disposeStorageSync();
       captureIndicator.dispose();
       voiceInputIndicator.dispose();
       unsubscribeVoiceInputStatus();
