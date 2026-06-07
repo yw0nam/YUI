@@ -23,24 +23,28 @@ Load Karpathy Guideline.
 
 ## Sub-agent Roster
 
-| Agent | Model | Responsibility |
-|---|---|---|
-| **Renderer Agent** | `opus` | `src/renderer/` — three.js/VRM load, expressions, motion, lipsync |
-| **Dispatcher Agent** | `opus` | `src/dispatcher/` — event-bus, classify→guardrail→route |
-| **IO / Chat Agent** | `sonnet` | `src/io/chat-client.ts` — Responses API SSE parser, `generate_express` tool-call capture |
-| **IO / Audio Agent** | `sonnet` | `src/io/tts-pipeline.ts` + `stt-vad.ts` — TTS queue/ordering, VAD→STT |
-| **Tauri / Rust Agent** | `sonnet` | `src-tauri/` — os_event_watcher, IPC contract, `cargo test` |
-| **Contract / Schema Agent** | `sonnet` | `src/contract/types.ts` ↔ `docs/contract.md` sync, JSON schema validation |
-| **Test Writer Agent** | `sonnet` | TDD first — write failing tests before implementation |
-| **UI / Mock Agent** | `sonnet` | Mock HTML authoring, DESIGN.md token compliance |
-| **Config Agent** | `haiku` | `configs/*.json` loader, schema validation |
-| **Ambient Agent** | `haiku` | `src/ambient/tier1.ts` — blink/idle sway/breath |
-| **Docs Agent** | `haiku` | `docs/` updates — contract.md, prd.md sync |
+Specialist definitions are vendored in [`.claude/agents/`](.claude/agents/) so they travel with worktrees. Invoke an agent by its exact `name:` (the **Agent** column). Each row maps a YUI work area to the agent responsible for it.
+
+| Area | Agent (`name:`) | Model | Responsibility |
+|---|---|---|---|
+| **Renderer — graphics** | **Technical Artist** | `opus` | `src/renderer/` — shaders, expressions, motion, lipsync, frame-budget/perf |
+| **Renderer — load / Chat IO** | **Frontend Developer** | `opus` | `src/renderer/` three.js/VRM load + `src/io/chat-client.ts` Responses API SSE parser, `generate_express` capture |
+| **Dispatcher** | **Backend Architect** | `opus` | `src/dispatcher/` — event-bus, classify→guardrail→route |
+| **Audio IO** | **Voice AI Integration Engineer** | `sonnet` | `src/io/tts-pipeline.ts` + `stt-vad.ts` — TTS queue/ordering, VAD→STT |
+| **Tauri / Rust** | **Senior Developer** | `sonnet` | `src-tauri/` — os_event_watcher, IPC contract, `cargo test` |
+| **Contract / Schema** | **Software Architect** | `sonnet` | `src/contract/types.ts` ↔ `docs/contract.md` sync, JSON schema validation |
+| **UI / Mock** | **UI Designer** | `sonnet` | Mock HTML authoring, DESIGN.md token compliance |
+| **Docs** | **Technical Writer** | `sonnet` | `docs/` updates — contract.md, prd.md sync |
+| **Review** | **Code Reviewer** | `sonnet` | Diff review — correctness / maintainability / security / performance |
+| **Verification** | **Reality Checker** + **Evidence Collector** | `sonnet` | Evidence-based gating + screenshot proof of UI/DOM behavior |
+| **Performance** | **Performance Benchmarker** | `sonnet` | Frame budget, lipsync/TTS timing, regression checks |
+
+> **No dedicated agent** for Test-writing, `configs/*.json` loaders, or `src/ambient/tier1.ts` — these are handled by the **same agent that owns the area**. Per the TDD rule, the implementing agent writes its own failing tests first.
 
 ### Main Agent Role
 
 1. **Requirements clarification** — understand user intent and define work scope
-2. **Task delegation** — distribute work to sub-agents (ensure Test Writer → implementation ordering)
+2. **Task delegation** — distribute work to sub-agents (ensure failing tests precede implementation — TDD ordering)
 3. **Integration verification** — confirm `pnpm test` + `cargo test` + `pnpm build` pass
 4. **Orchestration** — manage task ordering and dependencies
 
