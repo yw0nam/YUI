@@ -528,6 +528,63 @@ describe("streamChat — SDK request wiring", () => {
     const body = createMock.mock.calls[0]?.[0];
     expect("instructions" in (body as object)).toBe(false);
   });
+
+  it("sends reasoning.effort when request.reasoning_effort is set", async () => {
+    createMock.mockResolvedValue(streamOf([completed("")]));
+
+    await collect(streamChat(CONFIG, req({ reasoning_effort: "high" })));
+
+    const body = createMock.mock.calls[0]?.[0];
+    expect((body as any).reasoning).toEqual({ effort: "high" });
+  });
+
+  it("omits `reasoning` when request.reasoning_effort is absent", async () => {
+    createMock.mockResolvedValue(streamOf([completed("")]));
+
+    await collect(streamChat(CONFIG, req()));
+
+    const body = createMock.mock.calls[0]?.[0];
+    expect("reasoning" in (body as object)).toBe(false);
+  });
+
+  it("non-empty request.instructions overrides config.chat_instructions", async () => {
+    createMock.mockResolvedValue(streamOf([completed("")]));
+    const cfg: EndpointsConfig = { ...CONFIG, chat_instructions: "config nudge" };
+
+    await collect(streamChat(cfg, req({ instructions: "X" })));
+
+    const body = createMock.mock.calls[0]?.[0];
+    expect((body as any).instructions).toBe("X");
+  });
+
+  it("falls back to config.chat_instructions when request.instructions is whitespace-only", async () => {
+    createMock.mockResolvedValue(streamOf([completed("")]));
+    const cfg: EndpointsConfig = { ...CONFIG, chat_instructions: "config nudge" };
+
+    await collect(streamChat(cfg, req({ instructions: "   " })));
+
+    const body = createMock.mock.calls[0]?.[0];
+    expect((body as any).instructions).toBe("config nudge");
+  });
+
+  it("falls back to config.chat_instructions when request.instructions is absent", async () => {
+    createMock.mockResolvedValue(streamOf([completed("")]));
+    const cfg: EndpointsConfig = { ...CONFIG, chat_instructions: "config nudge" };
+
+    await collect(streamChat(cfg, req()));
+
+    const body = createMock.mock.calls[0]?.[0];
+    expect((body as any).instructions).toBe("config nudge");
+  });
+
+  it("omits `instructions` when neither request override nor config is set", async () => {
+    createMock.mockResolvedValue(streamOf([completed("")]));
+
+    await collect(streamChat(CONFIG, req({ instructions: "  " })));
+
+    const body = createMock.mock.calls[0]?.[0];
+    expect("instructions" in (body as object)).toBe(false);
+  });
 });
 
 describe("selectChatBaseUrl", () => {
