@@ -77,6 +77,23 @@ export function createScreenshotSettings(opts?: {
       notify();
     },
 
+    // 다른 창이 storage를 갱신했을 때 재로드 — 값이 실제로 바뀌었을 때만 통지.
+    reloadFromStorage(): void {
+      if (!storage) return;
+      let loaded: ScreenshotSettings | null;
+      try {
+        loaded = storage.load();
+      } catch {
+        return;
+      }
+      if (!isValidSettings(loaded)) return;
+      if (loaded.enabled === state.enabled && JSON.stringify(loaded.source) === JSON.stringify(state.source)) {
+        return;
+      }
+      state = { ...loaded };
+      notify();
+    },
+
     subscribe(cb: (s: ScreenshotSettings) => void): () => void {
       subscribers.add(cb);
       return () => subscribers.delete(cb);

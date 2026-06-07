@@ -70,6 +70,22 @@ export function createLipsyncSettings(opts?: {
       notify();
     },
 
+    // 다른 창이 storage를 갱신했을 때 재로드 — 값이 실제로 바뀌었을 때만 통지.
+    reloadFromStorage(): void {
+      if (!storage) return;
+      let loaded: LipsyncSettings | null;
+      try {
+        loaded = storage.load();
+      } catch {
+        return;
+      }
+      if (!isValidSettings(loaded)) return;
+      const next = clampGain(loaded.gain);
+      if (state.gain === next) return;
+      state = { gain: next };
+      notify();
+    },
+
     subscribe(cb: (s: LipsyncSettings) => void): () => void {
       subscribers.add(cb);
       return () => subscribers.delete(cb);

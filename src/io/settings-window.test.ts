@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * settings-window.test.ts — TDD red for the pop-out settings window opener + cross-window sync.
  *
