@@ -26,6 +26,7 @@ import { createVoiceInputStatus } from "./ui/voice-input-status";
 import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
+import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import { createWebAudioSink } from "./io/audio-player";
 import { resolveScreenSourceProvider, resolveScreenCapturer } from "./io/tauri-screen";
 import { buildScreenshotBlock } from "./io/screenshot-context";
@@ -86,6 +87,7 @@ async function bootstrap(): Promise<void> {
 
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
+  const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
   const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
@@ -98,8 +100,25 @@ async function bootstrap(): Promise<void> {
     sourceProvider: screenSourceProvider,
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,
+    agentSettings,
     onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
     onGainPreviewEnd: () => renderer.stopMouth(),
+    // 빈 instructions일 때 placeholder로 보여줄 기본 지침(config 미로드 시 무시).
+    getDefaultInstructions: () => {
+      try {
+        return config.get().endpoints.chat_instructions;
+      } catch {
+        return undefined;
+      }
+    },
+    // TEMP: 별도 설정 창. 추후 Tauri 창으로 교체.
+    onPopOut: () => {
+      try {
+        window.open("/settings.html", "yui-settings", "width=480,height=660");
+      } catch {
+        /* 팝아웃 실패 무시 */
+      }
+    },
   });
   const captureIndicator = createCaptureIndicator({
     mount: root,
@@ -128,6 +147,7 @@ async function bootstrap(): Promise<void> {
       voiceInputStatus.dispose();
       screenshotSettings.dispose();
       lipsyncSettings.dispose();
+      agentSettings.dispose();
       osContext.stop();
       stage.removeEventListener("contextmenu", onContextMenu);
     });
@@ -201,6 +221,7 @@ async function bootstrap(): Promise<void> {
       __yuiMock: mock,
       __yuiScreenshot: screenshotSettings,
       __yuiLipsync: lipsyncSettings,
+      __yuiAgent: agentSettings,
       __yuiQuick: quickControls,
       __yuiVoiceInputStatus: voiceInputStatus,
       // DEV-ONLY 트리거: E2E 루프를 콘솔에서 직접 발사한다.
@@ -278,6 +299,7 @@ async function bootstrap(): Promise<void> {
       return buildScreenshotBlock(s, cap ?? undefined);
     },
     getOsContext: () => osContext.get(),
+    getAgentSettings: () => agentSettings.get(),
   });
   const dispatcher = createDispatcher({ bus, renderer, backendCaller });
   dispatcherRef = dispatcher;
