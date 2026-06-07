@@ -2,8 +2,9 @@
 //!
 //! # Responsibilities
 //! - `list_screen_sources` command: enumerate displays via `xcap::Monitor::all()`.
-//! - `capture_screen` command: capture a display by enumeration index, resize to
-//!   `max_edge`, encode as PNG data URL.
+//! - `capture_screen` command: async; runs the blocking display grab + encode off
+//!   the main thread via `spawn_blocking` so the UI never freezes per capture.
+//! - `encode_capture`: pure post-capture pipeline (resize → PNG → base64), unit-tested.
 //! - `fit_long_edge`: pure resize-math helper (unit-tested, no xcap dependency).
 
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
@@ -57,6 +58,46 @@ pub fn fit_long_edge(width: u32, height: u32, max_edge: u32) -> (u32, u32) {
     (w, h)
 }
 
+// ─── Pure post-capture encoder ──────────────────────────────────────────────
+
+/// Resize `raw` to long edge ≤ `max_edge`, encode as PNG, return a data-URL DTO.
+///
+/// `max_edge == 0` skips resize entirely. No xcap dependency — headless-testable.
+pub fn encode_capture(
+    raw: ImageBuffer<Rgba<u8>, Vec<u8>>,
+    max_edge: u32,
+) -> Result<CaptureDto, String> {
+    let src_w = raw.width();
+    let src_h = raw.height();
+    let (dst_w, dst_h) = fit_long_edge(src_w, src_h, max_edge);
+
+    let final_img: ImageBuffer<Rgba<u8>, Vec<u8>> = if (dst_w, dst_h) == (src_w, src_h) {
+        raw
+    } else {
+        xcap::image::imageops::resize(
+            &raw,
+            dst_w,
+            dst_h,
+            xcap::image::imageops::FilterType::Lanczos3,
+        )
+    };
+
+    let mut png_bytes: Vec<u8> = Vec::new();
+    final_img
+        .write_to(&mut std::io::Cursor::new(&mut png_bytes), ImageFormat::Png)
+        .map_err(|e| {
+            log::error!("PNG encoding failed: {e}");
+            e.to_string()
+        })?;
+
+    let b64 = B64.encode(&png_bytes);
+    Ok(CaptureDto {
+        data_url: format!("data:image/png;base64,{}", b64),
+        width: dst_w,
+        height: dst_h,
+    })
+}
+
 // ─── Tauri commands ───────────────────────────────────────────────────────────
 
 /// Return info for all available displays.
@@ -84,55 +125,32 @@ pub fn list_screen_sources() -> Result<Vec<ScreenSourceDto>, String> {
 
 /// Capture display at `index` and return a PNG data URL with long edge ≤ `max_edge`.
 ///
+/// Runs the blocking grab + encode off the main thread so the UI never freezes.
 /// `max_edge == 0` skips resize entirely.
 #[command]
-pub fn capture_screen(index: u32, max_edge: u32) -> Result<CaptureDto, String> {
-    let monitors = xcap::Monitor::all().map_err(|e| {
-        log::error!("monitor enumeration failed: {e}");
-        e.to_string()
-    })?;
-    let monitor = monitors
-        .into_iter()
-        .nth(index as usize)
-        .ok_or_else(|| format!("monitor index {index} out of range"))?;
+pub async fn capture_screen(index: u32, max_edge: u32) -> Result<CaptureDto, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let monitors = xcap::Monitor::all().map_err(|e| {
+            log::error!("monitor enumeration failed: {e}");
+            e.to_string()
+        })?;
+        let monitor = monitors
+            .into_iter()
+            .nth(index as usize)
+            .ok_or_else(|| format!("monitor index {index} out of range"))?;
 
-    let raw: ImageBuffer<Rgba<u8>, Vec<u8>> = monitor.capture_image().map_err(|e| {
-        log::error!("screen capture failed for monitor {index}: {e}");
-        e.to_string()
-    })?;
-
-    let src_w = raw.width();
-    let src_h = raw.height();
-    let (dst_w, dst_h) = fit_long_edge(src_w, src_h, max_edge);
-
-    let final_img: ImageBuffer<Rgba<u8>, Vec<u8>> = if (dst_w, dst_h) == (src_w, src_h) {
-        raw
-    } else {
-        xcap::image::imageops::resize(
-            &raw,
-            dst_w,
-            dst_h,
-            xcap::image::imageops::FilterType::Lanczos3,
-        )
-    };
-
-    let mut png_bytes: Vec<u8> = Vec::new();
-    final_img
-        .write_to(
-            &mut std::io::Cursor::new(&mut png_bytes),
-            ImageFormat::Png,
-        )
-        .map_err(|e| {
-            log::error!("PNG encoding failed: {e}");
+        let raw: ImageBuffer<Rgba<u8>, Vec<u8>> = monitor.capture_image().map_err(|e| {
+            log::error!("screen capture failed for monitor {index}: {e}");
             e.to_string()
         })?;
 
-    let b64 = B64.encode(&png_bytes);
-    Ok(CaptureDto {
-        data_url: format!("data:image/png;base64,{}", b64),
-        width: dst_w,
-        height: dst_h,
+        encode_capture(raw, max_edge)
     })
+    .await
+    .map_err(|e| {
+        log::error!("capture_screen join failed: {e}");
+        e.to_string()
+    })?
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -193,6 +211,35 @@ mod tests {
     fn fit_never_returns_zero_height() {
         let (_w, h) = fit_long_edge(10000, 1, 1);
         assert!(h >= 1);
+    }
+
+    // ── encode_capture ────────────────────────────────────────────────────────
+
+    #[test]
+    fn encode_capture_no_resize_preserves_dimensions() {
+        let raw = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_pixel(4, 4, Rgba([10, 20, 30, 255]));
+        let dto = encode_capture(raw, 0).unwrap();
+        assert!(dto.data_url.starts_with("data:image/png;base64,"));
+        assert_eq!(dto.width, 4);
+        assert_eq!(dto.height, 4);
+    }
+
+    #[test]
+    fn encode_capture_downscales_to_fit_long_edge() {
+        let raw = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_pixel(8, 4, Rgba([10, 20, 30, 255]));
+        let dto = encode_capture(raw, 2).unwrap();
+        assert_eq!((dto.width, dto.height), fit_long_edge(8, 4, 2));
+        assert_eq!((dto.width, dto.height), (2, 1));
+        assert!(dto.data_url.starts_with("data:image/png;base64,"));
+    }
+
+    #[test]
+    fn encode_capture_payload_decodes_non_empty() {
+        let raw = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_pixel(4, 4, Rgba([10, 20, 30, 255]));
+        let dto = encode_capture(raw, 0).unwrap();
+        let b64 = dto.data_url.strip_prefix("data:image/png;base64,").unwrap();
+        let bytes = B64.decode(b64).unwrap();
+        assert!(!bytes.is_empty());
     }
 
     // ── CaptureDto serialisation ──────────────────────────────────────────────
