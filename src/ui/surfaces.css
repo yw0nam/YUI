@@ -68,14 +68,18 @@
     opacity var(--yui-dur) var(--yui-ease),
     transform var(--yui-dur) var(--yui-ease);
 
-  /* 긴 발화 높이 상한 + 내부 스크롤 — 넘쳐도 모델 위로 자라지 않는다.
-     상단 가장자리는 부드러운 fade로 녹여 scroll-up을 암시. */
+  /* 긴 발화 높이 상한 + 내부 스크롤 — 넘쳐도 모델 위로 자라지 않는다. */
   max-height: var(--yui-bubble-max-h, 34vh);
   overflow-y: auto;
-  mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
   scrollbar-width: thin;
   scrollbar-color: var(--yui-edge-strong) transparent;
+}
+
+/* 넘쳐서 스크롤될 때만 상단 fade로 녹여 scroll-up을 암시.
+   짧은 발화(common case)는 mask 없이 첫 줄을 온전히 보여준다. */
+.yui-bubble.is-scrollable {
+  mask-image: linear-gradient(to bottom, transparent 0, oklch(0 0 0) 18px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, oklch(0 0 0) 18px);
 }
 
 /* 스크롤바 최소화 — SaaS 패널처럼 보이지 않게 가느다란 faint thumb */
