@@ -123,4 +123,109 @@ mod tests {
       );
     }
   }
+
+  // ── parse_tz_offset: named + offset forms ────────────────────────────────────
+
+  #[test]
+  fn parse_tz_offset_named_kst_case_insensitive() {
+    let want = UtcOffset::from_hms(9, 0, 0).unwrap();
+    assert_eq!(parse_tz_offset("KST"), Some(want));
+    assert_eq!(parse_tz_offset("kst"), Some(want));
+  }
+
+  #[test]
+  fn parse_tz_offset_offset_colon_form() {
+    assert_eq!(
+      parse_tz_offset("+09:00"),
+      Some(UtcOffset::from_hms(9, 0, 0).unwrap())
+    );
+  }
+
+  #[test]
+  fn parse_tz_offset_offset_four_digit_form() {
+    assert_eq!(
+      parse_tz_offset("+0900"),
+      Some(UtcOffset::from_hms(9, 0, 0).unwrap())
+    );
+  }
+
+  #[test]
+  fn parse_tz_offset_integer_hours() {
+    assert_eq!(
+      parse_tz_offset("9"),
+      Some(UtcOffset::from_hms(9, 0, 0).unwrap())
+    );
+    assert_eq!(
+      parse_tz_offset("-5"),
+      Some(UtcOffset::from_hms(-5, 0, 0).unwrap())
+    );
+  }
+
+  #[test]
+  fn parse_tz_offset_negative_with_minutes() {
+    assert_eq!(
+      parse_tz_offset("-05:30"),
+      Some(UtcOffset::from_hms(-5, -30, 0).unwrap())
+    );
+  }
+
+  #[test]
+  fn parse_tz_offset_utc_aliases() {
+    let utc = UtcOffset::UTC;
+    assert_eq!(parse_tz_offset("UTC"), Some(utc));
+    assert_eq!(parse_tz_offset("Z"), Some(utc));
+  }
+
+  #[test]
+  fn parse_tz_offset_invalid_is_none() {
+    assert_eq!(parse_tz_offset(""), None);
+    assert_eq!(parse_tz_offset("garbage"), None);
+  }
+
+  // ── dotenv_value: KEY=value extraction ───────────────────────────────────────
+
+  #[test]
+  fn dotenv_value_extracts_key_ignoring_comments_and_decoy() {
+    let contents = "\
+# a comment
+VITE_YUI_CHAT_KEY=abc
+
+YUI_LOG_TZ_OTHER=x
+# YUI_LOG_TZ=commented
+YUI_LOG_TZ=\"KST\"
+";
+    assert_eq!(
+      dotenv_value(contents, "YUI_LOG_TZ"),
+      Some("KST".to_string())
+    );
+    assert_eq!(
+      dotenv_value(contents, "YUI_LOG_TZ_OTHER"),
+      Some("x".to_string())
+    );
+    assert_eq!(dotenv_value(contents, "MISSING"), None);
+  }
+
+  // ── format_log_line: deterministic, tz-shifted, location-free ────────────────
+
+  #[test]
+  fn format_log_line_shifts_to_kst_and_drops_location() {
+    use time::{Date, Month, Time};
+
+    let offset = UtcOffset::from_hms(9, 0, 0).unwrap();
+    // Fixed 2026-06-07 07:59:20 UTC.
+    let now_utc = Date::from_calendar_date(2026, Month::June, 7)
+      .unwrap()
+      .with_time(Time::from_hms(7, 59, 20).unwrap())
+      .assume_utc();
+    let message = "[YUI][quick-ui] 추론 강도 변경 {\"effort\":\"high\"}";
+
+    let line = format_log_line(offset, now_utc, log::Level::Info, message);
+
+    assert_eq!(
+      line,
+      "[2026-06-07 16:59:20][INFO] [YUI][quick-ui] 추론 강도 변경 {\"effort\":\"high\"}"
+    );
+    assert!(!line.contains("@http"), "must not contain caller location");
+    assert!(!line.contains("webview:"), "must not contain target");
+  }
 }
