@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createQuickControls } from "./quick-controls";
+import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
 import { createLipsyncSettings } from "../io/lipsync-settings";
 import {
   createAgentSettings,
@@ -159,9 +159,9 @@ describe("createQuickControls — gain row", () => {
 
     expect(lipsync.get().gain).toBe(3);
 
-    // preview formula: clamp(gain * PREVIEW_PEAK_RMS, 0, 1) = clamp(3 * 0.15, 0, 1) = 0.45
+    // preview formula: clamp(3 * PREVIEW_PEAK_RMS, 0, 1)
     expect(onGainPreview).toHaveBeenCalledOnce();
-    expect(onGainPreview.mock.calls[0][0]).toBeCloseTo(0.45);
+    expect(onGainPreview.mock.calls[0][0]).toBeCloseTo(3 * PREVIEW_PEAK_RMS);
 
     const readout = qc.el.querySelector(".yui-gain__value");
     expect(readout!.textContent).toBe("3.0×");
