@@ -63,7 +63,7 @@ export interface BackendCallerDeps {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   /** 현재 foreground app/title 스냅샷(#18). present 시 env.active_app/active_window_title을 채운다. */
   getOsContext?: () => import("../io/os-context").OsContextSnapshot | undefined;
-  /** emotion_text(TTS voice tag) sink — present 시에만 호출. main.ts 배선은 후속(이 PR 비대상). */
+  /** emotion_text(TTS voice tag) sink — present 시에만 호출. main.ts에서 TTS 파이프라인(speechPlayback.setEmotionText)에 배선됨. */
   onEmotionText?: (text: string) => void;
   /** tool_status sink — present 시에만 호출. main.ts 배선은 후속(이 PR 비대상). */
   onToolStatus?: (status: ToolStatus) => void;

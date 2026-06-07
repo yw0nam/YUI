@@ -55,7 +55,7 @@ const SEG_LABELS: Record<ReasoningEffort, string> = {
   high: "High",
 };
 
-const PREVIEW_PEAK_RMS = 0.15;
+export const PREVIEW_PEAK_RMS = 0.15;
 const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
 
 interface SavedPos {
@@ -613,11 +613,9 @@ export function createQuickControls({
 
   function handleGainInput(): void {
     const v = parseFloat(gainSlider.value);
-    lipsync.setGain(v);
+    lipsync.setGain(v); // 값 변경 시 lipsync 구독이 reflectGain으로 게인 행을 다시 그린다
     gainPreviewing = true;
     onGainPreview(previewMouth(v));
-    gainValue.textContent = v.toFixed(1) + "×";
-    gainSlider.style.setProperty("--fill", String((v - LIPSYNC_GAIN_MIN) / (LIPSYNC_GAIN_MAX - LIPSYNC_GAIN_MIN)));
   }
 
   function handleGainEnd(): void {
