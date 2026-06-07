@@ -4,11 +4,13 @@
  * 세 반쪽을 연결한다:
  *  - tts-pipeline onAmplitude → renderer.setMouthOpen  (입이 TTS 음량을 따라감)
  *  - tts-pipeline onPlaybackEnd → renderer.stopMouth + surfaces.finishSpeech + ease emotion → neutral
- *  - onSpeech(text) → 말풍선(페이드 보류) + 파이프라인 구동
+ *  - onSpeechDelta/onSpeechEnd → 말풍선(페이드 보류) 스트리밍 + 파이프라인 구동
  *
  * 말풍선은 endSpeech({ defer:true })로 보류되고, 재생이 끝나(onPlaybackEnd) finishSpeech()로만
  * dwell→페이드된다. 오디오가 한 번도 재생되지 않는 턴(TTS 비활성/빈 텍스트/전부 실패)에도
  * 파이프라인이 onPlaybackEnd를 발화하므로 말풍선이 영영 갇히지 않는다.
+ *
+ * interrupt()는 현재 파이프라인을 폐기하고 새로 만들며, 보류 중인 말풍선을 즉시(non-defer) 해제한다.
  */
 
 import { createTtsPipeline, type TtsPipeline, type TtsPipelineOptions } from "./tts-pipeline";
@@ -40,8 +42,16 @@ export interface SpeechPlaybackOptions {
 }
 
 export interface SpeechPlayback {
-  /** 발화 텍스트 1건: 말풍선 표시(페이드 보류) + TTS 재생 구동. */
+  /** 발화 텍스트 1건(스트리밍 토큰): 말풍선 누적 + TTS 재생 구동. 첫 토큰에 말풍선을 연다. */
+  onSpeechDelta(delta: string): void;
+  /** 발화 종료: 말풍선 dwell 보류 + 파이프라인 flush. delta가 없었다면 no-op. */
+  onSpeechEnd(): void;
+  /** 발화 텍스트 1건(전체): onSpeechDelta + onSpeechEnd 슈가. */
   onSpeech(text: string): void;
+  /** FishSpeech voice 태그를 파이프라인에 전달. */
+  setEmotionText(text: string | null): void;
+  /** 진행 중인 발화를 중단: 파이프라인 폐기·재생성 + 보류 말풍선 즉시 해제. */
+  interrupt(): void;
   dispose(): void;
 }
 
@@ -49,25 +59,60 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   const { renderer, surfaces } = options;
   const factory = options.createPipeline ?? createTtsPipeline;
 
-  const pipeline = factory({
-    ...options.pipeline,
-    onAmplitude: (rms) => renderer.setMouthOpen(rms),
-    onPlaybackEnd: () => {
-      renderer.stopMouth();
-      surfaces.finishSpeech();
-      // 발화가 끝나면 표정도 함께 neutral로 천천히 회귀 — 직전 emotion이 영영 갇히지 않게.
-      renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
-    },
-  });
+  function buildPipeline(): TtsPipeline {
+    return factory({
+      ...options.pipeline,
+      onAmplitude: (rms) => renderer.setMouthOpen(rms),
+      onPlaybackEnd: () => {
+        renderer.stopMouth();
+        surfaces.finishSpeech();
+        // 발화가 끝나면 표정도 함께 neutral로 천천히 회귀 — 직전 emotion이 영영 갇히지 않게.
+        renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
+      },
+    });
+  }
+
+  let pipeline = buildPipeline();
+  // 직전 begin/interrupt 이후 delta가 1건 이상 들어왔는가.
+  let started = false;
+
+  function delta(text: string): void {
+    if (!started) {
+      surfaces.beginSpeech();
+      started = true;
+    }
+    surfaces.pushSpeech(text);
+    pipeline.pushTextDelta(text);
+  }
+
+  function end(): void {
+    if (!started) return;
+    // 재생이 끝날 때까지 말풍선 유지 — onPlaybackEnd가 finishSpeech로 해제한다.
+    surfaces.endSpeech({ defer: true });
+    pipeline.end();
+    started = false;
+  }
 
   return {
+    onSpeechDelta(text) {
+      delta(text);
+    },
+    onSpeechEnd() {
+      end();
+    },
     onSpeech(text) {
-      surfaces.beginSpeech();
-      surfaces.pushSpeech(text);
-      // 재생이 끝날 때까지 말풍선 유지 — onPlaybackEnd가 finishSpeech로 해제한다.
-      surfaces.endSpeech({ defer: true });
-      pipeline.pushTextDelta(text);
-      pipeline.end();
+      delta(text);
+      end();
+    },
+    setEmotionText(text) {
+      pipeline.setEmotionText(text);
+    },
+    interrupt() {
+      pipeline.dispose();
+      pipeline = buildPipeline();
+      // 보류 중이던 말풍선을 즉시 해제 (defer 아님).
+      surfaces.endSpeech();
+      started = false;
     },
     dispose() {
       pipeline.dispose();
