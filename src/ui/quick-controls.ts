@@ -287,7 +287,10 @@ export function createQuickControls({
       btn.tabIndex = selected ? 0 : -1;
     });
     segEl.style.setProperty("--seg", String(idx));
-    if (instructionsEl.value !== a.instructions) instructionsEl.value = a.instructions;
+    // 입력 중인 textarea는 덮어쓰지 않는다(원격 변경은 blur 시 적용).
+    if (document.activeElement !== instructionsEl && instructionsEl.value !== a.instructions) {
+      instructionsEl.value = a.instructions;
+    }
   }
 
   function reflectVoiceStatus(snapshot: VoiceInputStatusSnapshot): void {
@@ -595,6 +598,11 @@ export function createQuickControls({
     log.info("지침 변경", { length: instructionsEl.value.length });
   }
 
+  // blur 시점에 입력 중 보류된 원격 변경을 반영한다.
+  function handleInstructionsBlur(): void {
+    reflectAgent();
+  }
+
   function handleResetInstructions(): void {
     agentSettings.setInstructions("");
     instructionsEl.value = "";
@@ -641,6 +649,7 @@ export function createQuickControls({
   segEl.addEventListener("click", handleSegClick);
   segEl.addEventListener("keydown", handleSegKeydown);
   instructionsEl.addEventListener("input", handleInstructionsInput);
+  instructionsEl.addEventListener("blur", handleInstructionsBlur);
   resetBtn.addEventListener("click", handleResetInstructions);
   barEl.addEventListener("pointerdown", handleBarPointerDown);
   popOutBtn?.addEventListener("click", handlePopOut);
@@ -664,6 +673,7 @@ export function createQuickControls({
     segEl.removeEventListener("click", handleSegClick);
     segEl.removeEventListener("keydown", handleSegKeydown);
     instructionsEl.removeEventListener("input", handleInstructionsInput);
+    instructionsEl.removeEventListener("blur", handleInstructionsBlur);
     resetBtn.removeEventListener("click", handleResetInstructions);
     barEl.removeEventListener("pointerdown", handleBarPointerDown);
     popOutBtn?.removeEventListener("click", handlePopOut);
