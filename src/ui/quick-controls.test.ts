@@ -357,6 +357,37 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  it("does not overwrite the instructions textarea while it is focused", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
+    ta.focus();
+    ta.value = "user is mid-edit";
+
+    agentSettings.setInstructions("remote clobber");
+
+    expect(ta.value).toBe("user is mid-edit");
+
+    qc.dispose();
+  });
+
+  it("applies a deferred cross-window instructions change on blur", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
+    ta.focus();
+
+    agentSettings.setInstructions("remote value");
+    expect(ta.value).not.toBe("remote value");
+
+    ta.blur();
+    expect(ta.value).toBe("remote value");
+
+    qc.dispose();
+  });
+
   // ── pop-out button ────────────────────────────────────────────────────────
 
   it("clicking the pop-out button invokes onPopOut", () => {
