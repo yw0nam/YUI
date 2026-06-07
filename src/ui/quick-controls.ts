@@ -13,6 +13,7 @@ import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-s
 import { createLipsyncSettings, LIPSYNC_GAIN_MIN, LIPSYNC_GAIN_MAX } from "../io/lipsync-settings";
 import {
   createAgentSettings,
+  INSTRUCTIONS_MAX_LEN,
   REASONING_EFFORTS,
   type ReasoningEffort,
 } from "../io/agent-settings";
@@ -157,7 +158,7 @@ export function createQuickControls({
         <span class="yui-field-row__label">지침</span>
         <span class="yui-field-row__sub">비우면 기본 지침을 사용해요</span>
         <div class="yui-textarea-wrap">
-          <textarea class="yui-textarea" spellcheck="false" rows="4" aria-label="지침"></textarea>
+          <textarea class="yui-textarea" spellcheck="false" rows="4" maxlength="${INSTRUCTIONS_MAX_LEN}" aria-label="지침"></textarea>
         </div>
         <button class="yui-reset" type="button">기본값으로 되돌리기</button>
       </div>
