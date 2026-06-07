@@ -7,9 +7,111 @@ mod drag;
 // Screen-source enumeration and capture (issue #20).
 mod screenshot;
 
+use std::path::PathBuf;
+use time::{OffsetDateTime, UtcOffset};
+
 /// Log verbosity: verbose in dev, warnings-and-above in release.
 fn level_for(debug: bool) -> log::LevelFilter {
   if debug { log::LevelFilter::Debug } else { log::LevelFilter::Warn }
+}
+
+/// Parse a timezone spec: named (`KST`/`UTC`/...) or offset (`+09:00`/`+0900`/`9`/`-5`).
+fn parse_tz_offset(s: &str) -> Option<UtcOffset> {
+  let s = s.trim().trim_matches(|c| c == '"' || c == '\'').trim();
+  if s.is_empty() {
+    return None;
+  }
+
+  match s.to_ascii_uppercase().as_str() {
+    "UTC" | "GMT" | "Z" => return Some(UtcOffset::UTC),
+    "KST" | "JST" => return UtcOffset::from_hms(9, 0, 0).ok(),
+    "PST" => return UtcOffset::from_hms(-8, 0, 0).ok(),
+    "EST" => return UtcOffset::from_hms(-5, 0, 0).ok(),
+    _ => {}
+  }
+
+  // Offset forms: leading sign optional.
+  let (sign, rest) = match s.strip_prefix('-') {
+    Some(r) => (-1i8, r),
+    None => (1i8, s.strip_prefix('+').unwrap_or(s)),
+  };
+
+  let (h, m): (i8, i8) = if let Some((hh, mm)) = rest.split_once(':') {
+    // HH:MM
+    (hh.parse().ok()?, mm.parse().ok()?)
+  } else if rest.len() == 4 && rest.chars().all(|c| c.is_ascii_digit()) {
+    // HHMM
+    (rest[..2].parse().ok()?, rest[2..].parse().ok()?)
+  } else {
+    // integer hours
+    (rest.parse().ok()?, 0)
+  };
+
+  UtcOffset::from_hms(sign * h, sign * m, 0).ok()
+}
+
+/// Extract `KEY=value` from dotenv-style text (skips blanks/comments, strips quotes). Last match wins.
+fn dotenv_value(contents: &str, key: &str) -> Option<String> {
+  let mut found = None;
+  for line in contents.lines() {
+    let line = line.trim();
+    if line.is_empty() || line.starts_with('#') {
+      continue;
+    }
+    if let Some((k, v)) = line.split_once('=') {
+      if k.trim() == key {
+        let v = v.trim().trim_matches(|c| c == '"' || c == '\'');
+        found = Some(v.to_string());
+      }
+    }
+  }
+  found
+}
+
+/// Resolve the log timestamp offset: process env → dev `.env.local` → UTC default.
+fn resolve_log_offset() -> UtcOffset {
+  if let Some(off) = std::env::var("YUI_LOG_TZ")
+    .or_else(|_| std::env::var("VITE_YUI_LOG_TZ"))
+    .ok()
+    .and_then(|s| parse_tz_offset(&s))
+  {
+    return off;
+  }
+
+  if cfg!(debug_assertions) {
+    let env_local = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.env.local");
+    if let Ok(contents) = std::fs::read_to_string(&env_local) {
+      if let Some(off) = dotenv_value(&contents, "YUI_LOG_TZ")
+        .or_else(|| dotenv_value(&contents, "VITE_YUI_LOG_TZ"))
+        .and_then(|s| parse_tz_offset(&s))
+      {
+        return off;
+      }
+    }
+  }
+
+  UtcOffset::UTC
+}
+
+/// Deterministic log line: `[YYYY-MM-DD HH:MM:SS][LEVEL] message` — no target, no caller location.
+fn format_log_line(
+  offset: UtcOffset,
+  now_utc: OffsetDateTime,
+  level: log::Level,
+  message: &str,
+) -> String {
+  let t = now_utc.to_offset(offset);
+  format!(
+    "[{:04}-{:02}-{:02} {:02}:{:02}:{:02}][{}] {}",
+    t.year(),
+    u8::from(t.month()),
+    t.day(),
+    t.hour(),
+    t.minute(),
+    t.second(),
+    level,
+    message
+  )
 }
 
 /// Third-party HTTP crates that flood debug logs; silence to Warn.
@@ -27,10 +129,22 @@ pub fn run() {
     // window.fetch를 Rust로 라우팅 → CORS 우회 + SSE 스트리밍 지원(plugin-http는 스트리밍 불가).
     .plugin(tauri_plugin_cors_fetch::init())
     .setup(|app| {
+      let log_offset = resolve_log_offset();
       let mut builder = tauri_plugin_log::Builder::new()
         .level(level_for(cfg!(debug_assertions)))
         .max_file_size(10_000_000)
-        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne);
+        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
+        .format(move |out, message, record| {
+          out.finish(format_args!(
+            "{}",
+            format_log_line(
+              log_offset,
+              OffsetDateTime::now_utc(),
+              record.level(),
+              &message.to_string(),
+            )
+          ));
+        });
 
       if cfg!(debug_assertions) {
         // Dev: write logs into the repo's <worktree>/logs/ for easy `tail -f logs/*.log`.

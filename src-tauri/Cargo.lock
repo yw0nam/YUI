@@ -92,6 +92,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-cors-fetch",
  "tauri-plugin-log",
+ "time",
  "xcap",
 ]
 
