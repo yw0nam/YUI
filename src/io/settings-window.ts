@@ -70,7 +70,7 @@ async function openTauriSettingsWindow(): Promise<void> {
 
 function openBrowserSettingsWindow(): void {
   try {
-    window.open("/" + SETTINGS_URL, "yui-settings", "width=480,height=680");
+    window.open("/" + SETTINGS_URL, "yui-settings", "width=480,height=660");
   } catch (err) {
     log.warn("브라우저 설정 창 열기 실패", err);
   }
