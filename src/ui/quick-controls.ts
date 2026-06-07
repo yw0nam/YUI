@@ -613,10 +613,9 @@ export function createQuickControls({
 
   function handleGainInput(): void {
     const v = parseFloat(gainSlider.value);
-    lipsync.setGain(v);
+    lipsync.setGain(v); // 값 변경 시 lipsync 구독이 reflectGain으로 게인 행을 다시 그린다
     gainPreviewing = true;
     onGainPreview(previewMouth(v));
-    reflectGain();
   }
 
   function handleGainEnd(): void {
