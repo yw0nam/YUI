@@ -271,6 +271,11 @@ async function bootstrap(): Promise<void> {
     getApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
     getFetch: () => selectFetch(),
     onSpeech: (text) => speechPlayback.onSpeech(text),
+    onSpeechDelta: (text) => speechPlayback.onSpeechDelta(text),
+    onSpeechEnd: () => speechPlayback.onSpeechEnd(),
+    onSpeechInterrupt: () => speechPlayback.interrupt(),
+    onSpeechAbort: () => speechPlayback.abort(),
+    onEmotionText: (text) => speechPlayback.setEmotionText(text),
     getScreenshot: async () => {
       const s = screenshotSettings.get();
       if (!s.enabled) return undefined;

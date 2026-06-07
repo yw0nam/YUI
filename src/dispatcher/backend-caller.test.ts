@@ -25,8 +25,9 @@ const streamChatSpy = vi.fn();
 vi.mock("../io/chat-client", () => ({
   async *streamChat(...args: unknown[]) {
     streamChatSpy(...args);
-    if (streamChatError) throw streamChatError;
+    // yield scripted events first, then throw — models a stream that drops mid-flight.
     for (const ev of scriptedEvents) yield ev;
+    if (streamChatError) throw streamChatError;
   },
 }));
 
@@ -55,6 +56,14 @@ function completedEvent(env: ControlEnvelope): ChatStreamEvent {
   return { type: "completed", envelope: env };
 }
 
+function deltaEvent(text: string): ChatStreamEvent {
+  return { type: "speech_delta", text };
+}
+
+function expressEvent(emotionText: string): ChatStreamEvent {
+  return { type: "express", args: { emotion_text: emotionText } };
+}
+
 function makeLogger(): Logger {
   return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 }
@@ -63,6 +72,10 @@ let applyDirective: ReturnType<typeof vi.fn>;
 let speechSink: ReturnType<typeof vi.fn>;
 let emotionTextSink: ReturnType<typeof vi.fn>;
 let toolStatusSink: ReturnType<typeof vi.fn>;
+let speechDeltaSink: ReturnType<typeof vi.fn>;
+let speechEndSink: ReturnType<typeof vi.fn>;
+let speechInterruptSink: ReturnType<typeof vi.fn>;
+let speechAbortSink: ReturnType<typeof vi.fn>;
 let caller: BackendCaller;
 let logger: Logger;
 
@@ -74,6 +87,10 @@ beforeEach(() => {
   speechSink = vi.fn();
   emotionTextSink = vi.fn();
   toolStatusSink = vi.fn();
+  speechDeltaSink = vi.fn();
+  speechEndSink = vi.fn();
+  speechInterruptSink = vi.fn();
+  speechAbortSink = vi.fn();
   logger = makeLogger();
   caller = createBackendCaller({
     config: CONFIG,
@@ -83,6 +100,10 @@ beforeEach(() => {
     onSpeech: speechSink,
     onEmotionText: emotionTextSink,
     onToolStatus: toolStatusSink,
+    onSpeechDelta: speechDeltaSink,
+    onSpeechEnd: speechEndSink,
+    onSpeechInterrupt: speechInterruptSink,
+    onSpeechAbort: speechAbortSink,
     logger,
   });
 });
@@ -328,6 +349,108 @@ describe("backend_caller — failure classification (§7.3)", () => {
     const res = await caller.call(userEnv(), ac.signal);
     expect(res.ok).toBe(false);
     expect(streamChatSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ── streaming TTS: speech_delta → onSpeechDelta / onSpeechEnd / onSpeechInterrupt ─
+
+describe("backend_caller — streaming speech deltas (incremental TTS)", () => {
+  it("each speech_delta → onSpeechDelta in order; onSpeechEnd once after all deltas", async () => {
+    scriptedEvents = [
+      deltaEvent("Hel"),
+      deltaEvent("lo "),
+      deltaEvent("world"),
+      completedEvent({ speech_text: "Hello world" }),
+    ];
+    await caller.call(userEnv());
+    expect(speechDeltaSink.mock.calls.map((c) => c[0])).toEqual(["Hel", "lo ", "world"]);
+    expect(speechEndSink).toHaveBeenCalledTimes(1);
+  });
+
+  it("onSpeechInterrupt fires once at the START of call(), before the first delta", async () => {
+    const order: string[] = [];
+    speechInterruptSink.mockImplementation(() => order.push("interrupt"));
+    speechDeltaSink.mockImplementation((t: string) => order.push(`delta:${t}`));
+    speechEndSink.mockImplementation(() => order.push("end"));
+    scriptedEvents = [deltaEvent("a"), deltaEvent("b"), completedEvent({ speech_text: "ab" })];
+    await caller.call(userEnv());
+    expect(speechInterruptSink).toHaveBeenCalledTimes(1);
+    // interrupt precedes every delta (and the end).
+    expect(order).toEqual(["interrupt", "delta:a", "delta:b", "end"]);
+  });
+
+  it("express with emotion_text → onEmotionText DURING the stream, before onSpeechEnd", async () => {
+    const order: string[] = [];
+    emotionTextSink.mockImplementation((t: string) => order.push(`emotion:${t}`));
+    speechDeltaSink.mockImplementation((t: string) => order.push(`delta:${t}`));
+    speechEndSink.mockImplementation(() => order.push("end"));
+    scriptedEvents = [
+      deltaEvent("hi "),
+      expressEvent("(whisper)"),
+      deltaEvent("there"),
+      completedEvent({ speech_text: "hi there", emotion_text: "(whisper)" }),
+    ];
+    await caller.call(userEnv());
+    expect(emotionTextSink).toHaveBeenCalledWith("(whisper)");
+    // emotion_text routed mid-stream, strictly before the end signal.
+    expect(order.indexOf("emotion:(whisper)")).toBeGreaterThanOrEqual(0);
+    expect(order.indexOf("emotion:(whisper)")).toBeLessThan(order.indexOf("end"));
+  });
+
+  it("D-NO-SPEAK-GATE: no speech_delta → neither onSpeechDelta nor onSpeechEnd", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv());
+    expect(speechDeltaSink).not.toHaveBeenCalled();
+    expect(speechEndSink).not.toHaveBeenCalled();
+  });
+
+  it("error mid-stream after ≥1 delta → onSpeechAbort tears down (not onSpeechEnd)", async () => {
+    scriptedEvents = [deltaEvent("partial"), { type: "error", message: "boom" }];
+    await caller.call(userEnv());
+    expect(speechEndSink).not.toHaveBeenCalled();
+    expect(speechAbortSink).toHaveBeenCalledTimes(1);
+  });
+
+  it("thrown stream mid-flight after ≥1 delta → onSpeechAbort tears down (not onSpeechEnd)", async () => {
+    scriptedEvents = [deltaEvent("partial")];
+    streamChatError = new Error("network reset");
+    await caller.call(userEnv());
+    expect(speechEndSink).not.toHaveBeenCalled();
+    expect(speechAbortSink).toHaveBeenCalledTimes(1);
+  });
+
+  it("user-supersede mid-stream (aborted signal) → NO abort teardown (next turn cleans up)", async () => {
+    const ac = new AbortController();
+    speechDeltaSink.mockImplementation(() => ac.abort());
+    scriptedEvents = [deltaEvent("partial"), { type: "error", message: "boom" }];
+    const res = await caller.call(userEnv(), ac.signal);
+    expect(res.drop_reason).toBe("superseded_by_user");
+    expect(speechAbortSink).not.toHaveBeenCalled();
+    expect(speechEndSink).not.toHaveBeenCalled();
+  });
+
+  it("error mid-stream with NO prior delta → silent (no abort, no end)", async () => {
+    scriptedEvents = [{ type: "error", message: "boom" }];
+    await caller.call(userEnv());
+    expect(speechAbortSink).not.toHaveBeenCalled();
+    expect(speechEndSink).not.toHaveBeenCalled();
+  });
+
+  it("thrown stream with NO prior delta → silent (no abort, no end)", async () => {
+    streamChatError = new Error("network reset");
+    await caller.call(userEnv());
+    expect(speechAbortSink).not.toHaveBeenCalled();
+    expect(speechEndSink).not.toHaveBeenCalled();
+  });
+
+  it("streaming path does NOT invoke the whole-text onSpeech dep", async () => {
+    scriptedEvents = [
+      deltaEvent("a"),
+      deltaEvent("b"),
+      completedEvent({ speech_text: "ab" }),
+    ];
+    await caller.call(userEnv());
+    expect(speechSink).not.toHaveBeenCalled();
   });
 });
 
