@@ -93,9 +93,16 @@ async function bootstrap(): Promise<void> {
   });
 
   // 설정 동기화(양방향, 루프 가드): 이 창 편집 → emit; 메인 알림 → 세 store 재로드.
+  // 디바운스: 슬라이더 드래그/타이핑 버스트를 200ms 유휴 후 단일 cross-window 이벤트로 합친다.
   let applyingRemote = false;
+  let broadcastTimer: ReturnType<typeof setTimeout> | null = null;
   const broadcastSettings = (): void => {
-    if (!applyingRemote) bridge.emitSettingsChanged();
+    if (applyingRemote) return;
+    if (broadcastTimer) clearTimeout(broadcastTimer);
+    broadcastTimer = setTimeout(() => {
+      broadcastTimer = null;
+      bridge.emitSettingsChanged();
+    }, 200);
   };
   agentSettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);

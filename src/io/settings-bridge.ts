@@ -157,7 +157,7 @@ export function createSettingsBridge(transport?: BridgeTransport): SettingsBridg
           if (env.__src === srcId) return;
           cb(env.payload as T);
         } else {
-          cb((raw as { payload?: unknown } | undefined)?.payload ?? (raw as T));
+          cb(((raw as { payload?: unknown } | undefined)?.payload ?? raw) as T);
         }
       });
     } catch (err) {

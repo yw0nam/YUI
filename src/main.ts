@@ -108,7 +108,6 @@ async function bootstrap(): Promise<void> {
   bridge.onMouthPreview((mouthOpen) => {
     if (mouthOpen == null) renderer.stopMouth();
     else renderer.setMouthOpen(mouthOpen);
-    log.debug("mouth_preview 수신(별도 창)", { mouthOpen });
   });
   // 음성 토글(별도 창 → 이 창 STT): 기존 voiceInputStatus 구독이 sttVad를 시작/정지한다.
   bridge.onVoiceSet((on) => {
@@ -121,9 +120,16 @@ async function bootstrap(): Promise<void> {
   });
   // 설정 동기화(양방향, 루프 가드): 한쪽 편집 → emit → 다른쪽 store 재로드.
   // store는 값이 그대로면 no-op이므로 왕복이 종료된다.
+  // 디바운스: 슬라이더 드래그/타이핑 버스트를 200ms 유휴 후 단일 cross-window 이벤트로 합친다.
   let applyingRemote = false;
+  let broadcastTimer: ReturnType<typeof setTimeout> | null = null;
   const broadcastSettings = (): void => {
-    if (!applyingRemote) bridge.emitSettingsChanged();
+    if (applyingRemote) return;
+    if (broadcastTimer) clearTimeout(broadcastTimer);
+    broadcastTimer = setTimeout(() => {
+      broadcastTimer = null;
+      bridge.emitSettingsChanged();
+    }, 200);
   };
   agentSettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);
@@ -178,6 +184,7 @@ async function bootstrap(): Promise<void> {
   if (import.meta.env.DEV) {
     import.meta.hot?.dispose(() => {
       quickControls.dispose();
+      if (broadcastTimer) clearTimeout(broadcastTimer);
       bridge.dispose();
       disposeStorageSync();
       captureIndicator.dispose();
