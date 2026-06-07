@@ -17,7 +17,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createQuickControls } from "./quick-controls";
 import { createLipsyncSettings } from "../io/lipsync-settings";
-import { createAgentSettings, type AgentSettings, type AgentStorage } from "../io/agent-settings";
+import {
+  createAgentSettings,
+  INSTRUCTIONS_MAX_LEN,
+  type AgentSettings,
+  type AgentStorage,
+} from "../io/agent-settings";
 
 // In-memory AgentStorage so each test starts from a clean store.
 function inMemoryAgentStorage(): AgentStorage {
@@ -293,6 +298,16 @@ describe("createQuickControls — gain row", () => {
 
     expect(agentSettings.get().instructions).toBe("");
     expect(ta.value).toBe("");
+
+    qc.dispose();
+  });
+
+  it("caps the instructions textarea at INSTRUCTIONS_MAX_LEN", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
+    expect(ta.maxLength).toBe(INSTRUCTIONS_MAX_LEN);
 
     qc.dispose();
   });
