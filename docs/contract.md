@@ -313,6 +313,8 @@ Hermes가 자체 `web_search`를 돌리면 스트림에 function_call item이 �
 
 **`emotion_text` 태그는 best-effort (확정):** `emotion_text`는 optional이다 — 분절을 TTS로 보낼 시점에 있으면 태그를 prepend하고, 없으면 plain text로 보낸다. 따라서 도착 타이밍은 **하드 의존이 아니다**(neutral fallback 같은 특별 처리 불필요). 표정도 emotion 없으면 직전 상태 유지.
 
+**"reason-then-call-tool" 백엔드의 late `emotion_text` no-op:** 텍스트 스트림 이후에 `generate_express` tool-call이 오는 경우 모든 문장이 이미 submit(태그 prepend 완료)된 뒤라, 늦게 도착한 `emotion_text`는 해당 턴에서 조용히 no-op 된다 — 최저 지연 스트리밍(D-TTS-PIPELINE)의 의도된 귀결이며 버그가 아니다.
+
 ---
 
 ## 4. Input Context Schema
