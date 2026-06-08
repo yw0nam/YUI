@@ -34,14 +34,31 @@ function deferredSynth() {
   const resolvers: Array<{ resolve: (b: ArrayBuffer) => void; reject: (e: unknown) => void; input: string }> = [];
   const inputs: string[] = [];
   const signals: Array<AbortSignal | undefined> = [];
+  let inFlight = 0;
+  let maxConcurrent = 0;
   const synth = (input: string, signal?: AbortSignal): Promise<ArrayBuffer> => {
     inputs.push(input);
     signals.push(signal);
+    inFlight++;
+    if (inFlight > maxConcurrent) maxConcurrent = inFlight;
     return new Promise<ArrayBuffer>((resolve, reject) => {
-      resolvers.push({ resolve, reject, input });
+      const done = () => {
+        inFlight--;
+      };
+      resolvers.push({
+        resolve: (b) => {
+          done();
+          resolve(b);
+        },
+        reject: (e) => {
+          done();
+          reject(e);
+        },
+        input,
+      });
     });
   };
-  return { synth, resolvers, inputs, signals };
+  return { synth, resolvers, inputs, signals, peakConcurrency: () => maxConcurrent };
 }
 
 /** 재생 순서를 기록하는 fake sink. play는 외부에서 finish할 때까지 pending. */
@@ -68,10 +85,10 @@ function recordingSink() {
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe("createTtsPipeline — ordered playback", () => {
-  it("plays in submission index order even when synths resolve out of order", async () => {
+  it("plays in submission index order even when synths resolve out of order (maxInflight: 3)", async () => {
     const { synth, resolvers } = deferredSynth();
     const { sink, playedOrder, finish } = recordingSink();
-    const pipe = createTtsPipeline({ config: CONFIG, synth, sink });
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: 3 });
 
     pipe.pushTextDelta("First. Second. Third.");
     await tick();
@@ -94,6 +111,85 @@ describe("createTtsPipeline — ordered playback", () => {
     finish();
     await tick();
     expect(playedOrder).toEqual([0, 1, 2]);
+  });
+});
+
+describe("createTtsPipeline — synth concurrency cap", () => {
+  it("default cap is 1: the 2nd synth does not start until the 1st resolves", async () => {
+    const { synth, resolvers, peakConcurrency } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink });
+
+    pipe.pushTextDelta("First. Second. Third.");
+    await tick();
+    // Only synth #1 is dispatched; #2/#3 wait in the queue.
+    expect(resolvers).toHaveLength(1);
+    expect(peakConcurrency()).toBe(1);
+
+    // Resolving #1 frees the slot → #2 dispatches.
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    expect(resolvers).toHaveLength(2);
+    expect(peakConcurrency()).toBe(1);
+
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    expect(resolvers).toHaveLength(3);
+    expect(peakConcurrency()).toBe(1);
+    resolvers[2].resolve(bufFor(2));
+  });
+
+  it("cap > 1 overlaps: maxInflight 3 fires all 3 synths before any resolves", async () => {
+    const { synth, resolvers, peakConcurrency } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: 3 });
+
+    pipe.pushTextDelta("First. Second. Third.");
+    await tick();
+    expect(resolvers).toHaveLength(3);
+    expect(peakConcurrency()).toBe(3);
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].resolve(bufFor(1));
+    resolvers[2].resolve(bufFor(2));
+  });
+
+  it("cap 1: playback order equals submission order", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, playedOrder, finish } = recordingSink();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink });
+
+    pipe.pushTextDelta("First. Second. Third.");
+    await tick();
+    expect(resolvers).toHaveLength(1);
+
+    // Drain serially: each resolve frees the next synth, each finish plays the next chunk.
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    expect(playedOrder).toEqual([0]);
+    finish();
+    await tick();
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    expect(playedOrder).toEqual([0, 1]);
+    finish();
+    await tick();
+    resolvers[2].resolve(bufFor(2));
+    await tick();
+    expect(playedOrder).toEqual([0, 1, 2]);
+    finish();
+    await tick();
+  });
+
+  it("non-positive / fractional maxInflight is floored to a serial minimum of 1", async () => {
+    const { synth, resolvers, peakConcurrency } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: 0 });
+
+    pipe.pushTextDelta("First. Second.");
+    await tick();
+    expect(resolvers).toHaveLength(1);
+    expect(peakConcurrency()).toBe(1);
+    resolvers[0].resolve(bufFor(0));
   });
 });
 
@@ -122,10 +218,10 @@ describe("createTtsPipeline — emotion_text prefix", () => {
     expect(inputs).toEqual(["Plain sentence."]);
   });
 
-  it("applies a mid-stream emotion_text change only to subsequently-emitted segments", async () => {
+  it("applies a mid-stream emotion_text change only to subsequently-emitted segments (maxInflight: 3)", async () => {
     const { synth, inputs } = deferredSynth();
     const { sink } = recordingSink();
-    const pipe = createTtsPipeline({ config: CONFIG, synth, sink });
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: 3 });
 
     pipe.setEmotionText("[happy]");
     pipe.pushTextDelta("One. ");
@@ -137,10 +233,10 @@ describe("createTtsPipeline — emotion_text prefix", () => {
 });
 
 describe("createTtsPipeline — end() flush", () => {
-  it("flushes the segmenter remainder as a final segment", async () => {
+  it("flushes the segmenter remainder as a final segment (maxInflight: 3)", async () => {
     const { synth, inputs } = deferredSynth();
     const { sink } = recordingSink();
-    const pipe = createTtsPipeline({ config: CONFIG, synth, sink });
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: 3 });
 
     pipe.pushTextDelta("Complete. trailing remainder");
     await tick();
@@ -152,11 +248,11 @@ describe("createTtsPipeline — end() flush", () => {
 });
 
 describe("createTtsPipeline — error resilience", () => {
-  it("a synth rejection on one index does not block later indices", async () => {
+  it("a synth rejection on one index does not block later indices (maxInflight: 3)", async () => {
     const { synth, resolvers } = deferredSynth();
     const { sink, playedOrder, finish } = recordingSink();
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const pipe = createTtsPipeline({ config: CONFIG, synth, sink });
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: 3 });
 
     pipe.pushTextDelta("A. B. C.");
     await tick();
@@ -189,11 +285,11 @@ describe("createTtsPipeline — empty input", () => {
 });
 
 describe("createTtsPipeline — onPlaybackEnd signal", () => {
-  it("fires exactly once after end() and the last queued chunk finishes", async () => {
+  it("fires exactly once after end() and the last queued chunk finishes (maxInflight: 3)", async () => {
     const { synth, resolvers } = deferredSynth();
     const { sink, finish } = recordingSink();
     const onPlaybackEnd = vi.fn();
-    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd, maxInflight: 3 });
 
     pipe.pushTextDelta("First. Second.");
     pipe.end();
@@ -245,12 +341,12 @@ describe("createTtsPipeline — onPlaybackEnd signal", () => {
     expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
   });
 
-  it("fires when every synth fails so no chunk plays", async () => {
+  it("fires when every synth fails so no chunk plays (maxInflight: 3)", async () => {
     const { synth, resolvers } = deferredSynth();
     const { sink, playedOrder } = recordingSink();
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const onPlaybackEnd = vi.fn();
-    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd, maxInflight: 3 });
 
     pipe.pushTextDelta("A. B.");
     pipe.end();
@@ -263,12 +359,12 @@ describe("createTtsPipeline — onPlaybackEnd signal", () => {
     errSpy.mockRestore();
   });
 
-  it("fires after a mix of failed and played chunks drains", async () => {
+  it("fires after a mix of failed and played chunks drains (maxInflight: 3)", async () => {
     const { synth, resolvers } = deferredSynth();
     const { sink, playedOrder, finish } = recordingSink();
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const onPlaybackEnd = vi.fn();
-    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd, maxInflight: 3 });
 
     pipe.pushTextDelta("A. B. C.");
     pipe.end();
@@ -291,10 +387,10 @@ describe("createTtsPipeline — onPlaybackEnd signal", () => {
 });
 
 describe("createTtsPipeline — dispose()", () => {
-  it("stops the sink, aborts in-flight synths, and makes no further play calls", async () => {
+  it("stops the sink, aborts in-flight synths, and makes no further play calls (maxInflight: 3)", async () => {
     const { synth, resolvers, signals } = deferredSynth();
     const { sink, playedOrder, stopMock } = recordingSink();
-    const pipe = createTtsPipeline({ config: CONFIG, synth, sink });
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: 3 });
 
     pipe.pushTextDelta("One. Two.");
     await tick();
@@ -476,7 +572,7 @@ describe("createTtsPipeline — observability logging seam", () => {
     const { sink, finish } = recordingSink();
     const logger = makeLogger();
     const onPlaybackEnd = vi.fn();
-    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, logger, onPlaybackEnd });
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, logger, onPlaybackEnd, maxInflight: 3 });
 
     pipe.pushTextDelta("First. Second.");
     pipe.end();
