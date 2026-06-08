@@ -18,6 +18,8 @@ export interface TtsPipelineOptions {
   onAmplitude?: (rms: number) => void;
   // 마지막 청크 재생이 끝나면(또는 재생할 청크가 없으면) end() 이후 1회 발화.
   onPlaybackEnd?: () => void;
+  // synth 동시 실행 상한. 기본 1 = 직렬.
+  maxInflight?: number;
   logger?: Logger;
 }
 
@@ -39,6 +41,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       return createTtsSynth({ config: options.config, fetch: options.fetch });
     })();
   const sink: AudioSink = options.sink ?? createWebAudioSink();
+  const maxInflight = Math.max(1, Math.floor(options.maxInflight ?? 1));
 
   const segmenter = createSentenceSegmenter();
   const abort = new AbortController();
@@ -48,6 +51,8 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
 
   const results = new Map<number, ArrayBuffer>();
   const failed = new Set<number>();
+  const pending: Array<{ index: number; input: string }> = [];
+  let inFlight = 0;
   let submitted = 0;
   let nextToPlay = 0;
   let pumping = false;
@@ -100,27 +105,40 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     maybeFireComplete();
   }
 
+  // 큐에 쌓인 항목을 cap 내에서만 synth로 dispatch한다.
+  function drainSynth(): void {
+    while (inFlight < maxInflight && pending.length > 0) {
+      const { index, input } = pending.shift()!;
+      inFlight++;
+      synth(input, abort.signal).then(
+        (wav) => {
+          inFlight--;
+          if (disposed) return;
+          log.debug("synth", { index, ok: true, bytes: wav.byteLength });
+          results.set(index, wav);
+          drainSynth();
+          void pump();
+        },
+        (err) => {
+          inFlight--;
+          if (disposed || abort.signal.aborted) return;
+          log.error("synth", { index, error: String(err) });
+          failed.add(index);
+          drainSynth();
+          void pump();
+        },
+      );
+    }
+  }
+
   function submit(sentence: string): void {
     const trimmed = sentence.trim();
     if (!trimmed) return;
     const input = emotionText ? `${emotionText} ${trimmed}` : trimmed;
     const index = submitted++;
     log.debug("synth", { index, chars: trimmed.length });
-
-    synth(input, abort.signal).then(
-      (wav) => {
-        if (disposed) return;
-        log.debug("synth", { index, ok: true, bytes: wav.byteLength });
-        results.set(index, wav);
-        void pump();
-      },
-      (err) => {
-        if (disposed || abort.signal.aborted) return;
-        log.error("synth", { index, error: String(err) });
-        failed.add(index);
-        void pump();
-      },
-    );
+    pending.push({ index, input });
+    drainSynth();
   }
 
   return {
@@ -154,6 +172,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       sink.stop();
       results.clear();
       failed.clear();
+      pending.length = 0;
     },
   };
 }
