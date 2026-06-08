@@ -13,6 +13,11 @@ import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/sc
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import { createVrmSelection, localStorageVrmStorage } from "./io/vrm-selection";
+import {
+  createSpeakerSelection,
+  localStorageSpeakerStorage,
+  type SpeakerOption,
+} from "./io/speaker-selection";
 import { createVoiceInputStatus, type VoiceInputState } from "./ui/voice-input-status";
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
 import { wireStorageSync } from "./io/settings-window";
@@ -67,6 +72,27 @@ async function bootstrap(): Promise<void> {
     vrmSelection.select(option.id);
   };
 
+  // irodori 화자 선택 store(PR-B). 이 창엔 synth가 없으므로 store-only 커밋 — 등록은
+  // 펫 창의 synth 경로가 다음 발화에서 수행한다(swapVrm가 select-only인 것과 동일).
+  const speakerSelection = createSpeakerSelection({
+    defaultId: "",
+    storage: localStorageSpeakerStorage(),
+  });
+  if (configLoaded) {
+    try {
+      const eps = config.get().endpoints;
+      speakerSelection.setManifest({
+        available: eps.irodori_voices,
+        defaultId: eps.irodori_speaker ?? "",
+      });
+    } catch (err) {
+      log.warn("irodori config 읽기 실패 — fallback 화자 목록 유지", err);
+    }
+  }
+  const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
+    speakerSelection.select(option.id);
+  };
+
   const quickControls = createQuickControls({
     mount: app,
     variant: "window",
@@ -77,6 +103,8 @@ async function bootstrap(): Promise<void> {
     lipsync: lipsyncSettings,
     vrmSelection,
     swapVrm,
+    speakerSelection,
+    swapSpeaker,
     // 렌더러는 메인 창에 있으므로 게인 프리뷰를 브리지로 전달 → 메인 창 VRM 입이 움직인다.
     onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
     onGainPreviewEnd: () => bridge.emitMouthPreview(null),
@@ -94,7 +122,7 @@ async function bootstrap(): Promise<void> {
 
   // 메인 창의 편집을 반영: cross-window storage 이벤트 + 포커스 폴백.
   // vrmSelection도 함께 재로드해 펫 창에서 바뀐 선택이 이 창 UI에 반영되게 한다.
-  const resyncStores = [agentSettings, lipsyncSettings, screenshotSettings, vrmSelection];
+  const resyncStores = [agentSettings, lipsyncSettings, screenshotSettings, vrmSelection, speakerSelection];
   wireStorageSync(resyncStores);
   window.addEventListener("focus", () => {
     for (const s of resyncStores) s.reloadFromStorage();
@@ -132,6 +160,8 @@ async function bootstrap(): Promise<void> {
   screenshotSettings.subscribe(broadcastSettings);
   // VRM 선택도 cross-window로 알린다 → 펫 창이 받아 렌더러를 핫스왑한다(Tauri storage 이벤트 불안정 대비).
   vrmSelection.subscribe(broadcastSettings);
+  // 화자 선택도 cross-window로 알린다 → 펫 창이 받아 다음 발화에서 새 화자로 합성한다.
+  speakerSelection.subscribe(broadcastSettings);
   bridge.onSettingsChanged(() => {
     applyingRemote = true;
     try {
