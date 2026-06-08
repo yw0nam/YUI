@@ -29,6 +29,8 @@ export interface ResolvedMotion {
   /** variant-resolved concrete VRMA path */
   vrma_path: string;
   loop: boolean;
+  /** looping motion with >1 variants — renderer plays each variant once and chains a fresh variant on finish. */
+  cycle: boolean;
   /** clamped to [0.25, 2.5] */
   speed: number;
   /** >= 0, default 200 */
@@ -112,6 +114,9 @@ export function createMotionController(
   /** sequential variant_policy용 per-id 커서. */
   const seqCursors = new Map<string, number>();
 
+  /** random variant_policy용 per-id 직전 선택 index — 연속 반복 회피. */
+  const lastRandomIndex = new Map<string, number>();
+
   /** 현재 재생 중(커밋된) 모션. */
   let current: ResolvedMotion | null = null;
   /** ambient/state 모션을 기록 — oneshot 종료 후 복귀 대상. */
@@ -136,11 +141,16 @@ export function createMotionController(
         vrma_path = variants[cursor]!;
         seqCursors.set(signal.id, (cursor + 1) % variants.length);
       } else {
-        // random (default)
-        const index = Math.min(
+        // random (default) — 직전과 같은 index면 한 칸 밀어 연속 반복을 피한다.
+        let index = Math.min(
           variants.length - 1,
           Math.floor(rng() * variants.length),
         );
+        const last = lastRandomIndex.get(signal.id);
+        if (last === index && variants.length > 1) {
+          index = (index + 1) % variants.length;
+        }
+        lastRandomIndex.set(signal.id, index);
         vrma_path = variants[index]!;
       }
     }
@@ -157,10 +167,14 @@ export function createMotionController(
     // fade_ms: default 200, >= 0 (0 유효).
     const fade_ms = signal.fade_ms ?? DEFAULT_FADE_MS;
 
+    const loop = signal.loop ?? entry.loop;
+    const cycle = loop && !!variants && variants.length > 1;
+
     return {
       id: signal.id,
       vrma_path,
-      loop: signal.loop ?? entry.loop,
+      loop,
+      cycle,
       speed,
       fade_ms,
       kind: entry.kind,
@@ -229,6 +243,12 @@ export function createMotionController(
       const next = queued;
       queued = null;
       return { action: "play", motion: next };
+    }
+
+    // cycle 모션(idle 등)이면 같은 id를 재-resolve해 새 variant로 이어 붙인다.
+    if (current.cycle) {
+      const next = resolve({ id: current.id });
+      if (next) return { action: "play", motion: next };
     }
 
     // 아니면 직전 안정 모션(ambient/state)으로, 없으면 baseline.
