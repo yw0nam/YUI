@@ -390,15 +390,17 @@ export function createRenderer(options: RendererOptions): Renderer {
       const clip = await loadClip(motion.vrma_path);
       if (!clip || !mixer || epoch !== vrmEpoch) return;
 
+      log.debug("startMotion", { id: motion.id, vrma_path: motion.vrma_path });
+
       const action = mixer.clipAction(clip);
       action.timeScale = motion.speed;
-      if (motion.loop) {
+      if (motion.loop && !motion.cycle) {
         action.setLoop(THREE.LoopRepeat, Infinity);
         action.clampWhenFinished = false;
       } else {
+        // oneshot 또는 cycle: 한 번 재생 후 finished 이벤트로 controller.finish 구동.
         action.setLoop(THREE.LoopOnce, 1);
         action.clampWhenFinished = true;
-        // oneshot 종료 추적용 역참조.
         actionToId.set(action, motion.id);
       }
 
