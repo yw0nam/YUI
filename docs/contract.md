@@ -183,6 +183,9 @@ interface AvatarConfig {
 ### 규약
 - `vrm_url`은 항상 필수 — `available`이 없거나 비어 있어도 단일 모델로 동작(하위 호환).
 - `available`이 있으면 배열이어야 하며, 각 항목의 `id`/`label`/`url`은 비어 있지 않은 문자열, `source`는 있으면 `bundled|file`. 위반 시 `ConfigError`로 fail-loud(부분 로드 없음).
+- `id`는 영속화 키이자 CSS 셀렉터 `.yui-vrm[data-vrm-id="…"]` 값이므로 두 가지 추가 제약을 받는다(`label`은 자유 텍스트 — 제약 없음):
+  - **유일성:** `available[]` 안에서 `id`가 중복되면 `ConfigError`. 선택 해소는 `find(x => x.id === …)`로 첫 항목만 잡아 중복 항목이 영구 unreachable이 되고, 영속화된 override도 모호해진다.
+  - **charset:** `^[A-Za-z0-9._-]+$`만 허용(비어 있지 않고 공백·따옴표 등 셀렉터 특수문자 금지). 위반 시 셀렉터 조회가 깨지고 localStorage 키로도 취약하다.
 - 보통 `available[0]` 또는 `id`가 `vrm_url`과 일치하는 항목이 seed 선택이다. 선택 상태의 영속화/스왑은 client 책임(#94 P2~).
 - 모델 핫스왑 시 emotion expression registry는 손대지 않는다(§1 — existence-aware fallback이 모델별 expression 집합을 재평가).
 
