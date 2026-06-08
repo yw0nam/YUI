@@ -1,7 +1,10 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use time::{Date, OffsetDateTime, UtcOffset};
+use time::{Date, Duration, Month, OffsetDateTime, UtcOffset};
+
+/// Keep today plus this many prior days of dated log files; older ones are pruned.
+const RETENTION: Duration = Duration::days(14);
 
 /// Appends formatted log lines to `{base}_{YYYY-MM-DD}.log`, rotating at midnight in `offset`.
 pub struct DateRotatingFile {
@@ -37,9 +40,50 @@ impl DateRotatingFile {
         OpenOptions::new().create(true).append(true).open(path)?,
       );
       self.current_date = Some(date);
+      prune_older_than(&self.dir, &self.base, date - RETENTION);
     }
     self.inner.as_mut().unwrap().write_all(buf)
   }
+}
+
+/// Deletes `{base}_YYYY-MM-DD.log` files in `dir` whose date is strictly before `cutoff`.
+/// Best-effort: every fs error is swallowed so a sweep never breaks logging.
+fn prune_older_than(dir: &Path, base: &str, cutoff: Date) {
+  let entries = match fs::read_dir(dir) {
+    Ok(e) => e,
+    Err(_) => return,
+  };
+  for entry in entries.flatten() {
+    if !entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+      continue;
+    }
+    let name = entry.file_name();
+    let name = match name.to_str() {
+      Some(n) => n,
+      None => continue,
+    };
+    if let Some(date) = parse_dated_name(name, base) {
+      if date < cutoff {
+        let _ = fs::remove_file(entry.path());
+      }
+    }
+  }
+}
+
+/// Extracts the date from `{base}_YYYY-MM-DD.log`; returns `None` if it doesn't match.
+fn parse_dated_name(name: &str, base: &str) -> Option<Date> {
+  let stem = name
+    .strip_prefix(base)?
+    .strip_prefix('_')?
+    .strip_suffix(".log")?;
+  let mut parts = stem.split('-');
+  let y: i32 = parts.next()?.parse().ok()?;
+  let m: u8 = parts.next()?.parse().ok()?;
+  let day: u8 = parts.next()?.parse().ok()?;
+  if parts.next().is_some() {
+    return None;
+  }
+  Date::from_calendar_date(y, Month::try_from(m).ok()?, day).ok()
 }
 
 impl io::Write for DateRotatingFile {
