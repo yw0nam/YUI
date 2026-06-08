@@ -17,6 +17,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
 import { createLipsyncSettings } from "../io/lipsync-settings";
+import { createVrmSelection } from "../io/vrm-selection";
+import type { AvatarOption } from "../config/load";
 import {
   createAgentSettings,
   INSTRUCTIONS_MAX_LEN,
@@ -69,6 +71,17 @@ function makeVoiceStatus() {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Build a real createVrmSelection over an explicit manifest (default Carlotta).
+function makeVrmSelection(ids: string[] = ["carlotta", "aria", "mirai"]) {
+  const available: AvatarOption[] = ids.map((id) => ({
+    id,
+    label: id.charAt(0).toUpperCase() + id.slice(1),
+    url: `/vrms/${id}.vrm`,
+    source: "bundled",
+  }));
+  return createVrmSelection({ available, defaultUrl: available[0].url });
+}
+
 describe("createQuickControls — gain row", () => {
   let mount: HTMLElement;
   let onGainPreview: ReturnType<typeof vi.fn>;
@@ -76,6 +89,8 @@ describe("createQuickControls — gain row", () => {
   let lipsync: ReturnType<typeof createLipsyncSettings>;
   let agentSettings: ReturnType<typeof createAgentSettings>;
   let onPopOut: ReturnType<typeof vi.fn>;
+  let vrmSelection: ReturnType<typeof createVrmSelection>;
+  let swapVrm: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     // Make rAF synchronous so open() → is-open transition happens immediately in tests
@@ -94,6 +109,11 @@ describe("createQuickControls — gain row", () => {
     lipsync = createLipsyncSettings();
     agentSettings = createAgentSettings({ storage: inMemoryAgentStorage() });
     onPopOut = vi.fn();
+    vrmSelection = makeVrmSelection();
+    // default fake: commit the store on success (mirrors the real settings-window impl)
+    swapVrm = vi.fn(async (option: AvatarOption) => {
+      vrmSelection.select(option.id);
+    });
     try {
       globalThis.localStorage?.clear();
     } catch {
@@ -117,6 +137,8 @@ describe("createQuickControls — gain row", () => {
       onGainPreviewEnd,
       agentSettings,
       onPopOut,
+      vrmSelection,
+      swapVrm,
       ...extra,
     });
   }
@@ -465,6 +487,207 @@ describe("createQuickControls — gain row", () => {
     // still has the agent controls
     expect(qc.el.querySelector(".yui-seg")).not.toBeNull();
     expect(qc.el.querySelector(".yui-textarea")).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  // ── VRM section (#94 P3) ────────────────────────────────────────────────────
+
+  // microtask flush — swapVrm is async; let its promise settle before asserting.
+  const flush = () => new Promise<void>((r) => setTimeout(r, 0));
+
+  it("renders one .yui-vrm radio per vrmSelection.list() entry", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const group = qc.el.querySelector<HTMLElement>(".yui-vrms[role=radiogroup]");
+    expect(group).not.toBeNull();
+    const rows = group!.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]");
+    expect(rows).toHaveLength(3); // carlotta · aria · mirai
+    const names = Array.from(rows).map((r) => r.querySelector(".yui-vrm__name")!.textContent);
+    expect(names).toEqual(["Carlotta", "Aria", "Mirai"]);
+
+    qc.dispose();
+  });
+
+  it("marks the active row aria-checked and shows the '사용 중' badge", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
+    expect(active.querySelector(".yui-vrm__name")!.textContent).toBe("Carlotta");
+    expect(active.querySelector(".yui-vrm__badge")!.textContent).toBe("사용 중");
+    // non-active rows carry no badge
+    for (const r of rows) {
+      if (r !== active) expect(r.querySelector(".yui-vrm__badge")).toBeNull();
+    }
+
+    qc.dispose();
+  });
+
+  it("clicking a non-active row calls swapVrm with that option and shows loading", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    const aria = rows[1]; // Aria
+    aria.click();
+
+    expect(swapVrm).toHaveBeenCalledOnce();
+    expect(swapVrm.mock.calls[0][0]).toMatchObject({ id: "aria", url: "/vrms/aria.vrm" });
+
+    // loading reflected immediately (before the promise resolves)
+    expect(aria.getAttribute("aria-busy")).toBe("true");
+    expect(aria.querySelector(".yui-vrm__hint")!.textContent).toContain("바꾸는 중");
+    const group = qc.el.querySelector<HTMLElement>(".yui-vrms")!;
+    expect(group.getAttribute("aria-busy")).toBe("true");
+    expect(group.classList.contains("is-swapping")).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("on resolve the active tick + badge move to the new row and loading clears", async () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    rows[1].click(); // Aria
+    await flush();
+
+    const after = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    const active = after.find((r) => r.getAttribute("aria-checked") === "true")!;
+    expect(active.querySelector(".yui-vrm__name")!.textContent).toBe("Aria");
+    expect(active.querySelector(".yui-vrm__badge")!.textContent).toBe("사용 중");
+    // loading cleared everywhere
+    expect(qc.el.querySelector(".yui-vrm[aria-busy=true]")).toBeNull();
+    const group = qc.el.querySelector<HTMLElement>(".yui-vrms")!;
+    expect(group.getAttribute("aria-busy")).not.toBe("true");
+    expect(group.classList.contains("is-swapping")).toBe(false);
+    expect(vrmSelection.getActiveId()).toBe("aria");
+
+    qc.dispose();
+  });
+
+  it("on reject shows the inline error and leaves the active selection unchanged", async () => {
+    swapVrm = vi.fn(async () => {
+      throw new Error("load failed");
+    });
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    rows[2].click(); // Mirai
+    await flush();
+
+    const errorRow = qc.el.querySelector<HTMLButtonElement>(".yui-vrm.is-error")!;
+    expect(errorRow.querySelector(".yui-vrm__name")!.textContent).toBe("Mirai");
+    const errMsg = qc.el.querySelector(".yui-vrm__error")!;
+    expect(errMsg.textContent).toContain("불러오지 못했어요");
+    // active stays Carlotta (store never changed)
+    expect(vrmSelection.getActiveId()).toBe("carlotta");
+    const after = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    const active = after.find((r) => r.getAttribute("aria-checked") === "true")!;
+    expect(active.querySelector(".yui-vrm__name")!.textContent).toBe("Carlotta");
+    // loading cleared
+    expect(qc.el.querySelector(".yui-vrm[aria-busy=true]")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("clicking the already-active row is a no-op (no swapVrm)", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
+    active.click();
+
+    expect(swapVrm).not.toHaveBeenCalled();
+
+    qc.dispose();
+  });
+
+  it("the '파일에서 추가…' row is disabled and not interactive", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const add = qc.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
+    expect(add.disabled).toBe(true);
+    expect(add.getAttribute("aria-disabled")).toBe("true");
+    expect(add.tabIndex).toBe(-1);
+    // it is NOT a radio (excluded from the radiogroup roving order)
+    expect(add.getAttribute("role")).not.toBe("radio");
+
+    add.click();
+    expect(swapVrm).not.toHaveBeenCalled();
+
+    qc.dispose();
+  });
+
+  it("caps the list in a scroll container; the add-row footer lives OUTSIDE it", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const scroll = qc.el.querySelector<HTMLElement>(".yui-vrm-scroll")!;
+    const group = qc.el.querySelector<HTMLElement>(".yui-vrms")!;
+    const foot = qc.el.querySelector<HTMLElement>(".yui-vrm-foot")!;
+    // the radiogroup is inside the capped scroll container
+    expect(scroll.contains(group)).toBe(true);
+    // the pinned footer (and its add-row) is NOT inside the scroll container
+    expect(scroll.contains(foot)).toBe(false);
+    expect(foot.querySelector(".yui-vrm--add")).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  it("ArrowDown on the VRM radiogroup moves selection to the next row and swaps", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    // active is row 0 (Carlotta); ArrowDown → row 1 (Aria)
+    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+
+    expect(swapVrm).toHaveBeenCalledOnce();
+    expect(swapVrm.mock.calls[0][0]).toMatchObject({ id: "aria" });
+
+    qc.dispose();
+  });
+
+  it("End key on the VRM radiogroup swaps to the last row", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+
+    expect(swapVrm).toHaveBeenCalledOnce();
+    expect(swapVrm.mock.calls[0][0]).toMatchObject({ id: "mirai" });
+
+    qc.dispose();
+  });
+
+  it("reflects an external vrmSelection change (cross-window) while open", () => {
+    const qc = buildQc();
+    qc.open();
+
+    // simulate another window committing a selection
+    vrmSelection.select("mirai");
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
+    expect(active.querySelector(".yui-vrm__name")!.textContent).toBe("Mirai");
+
+    qc.dispose();
+  });
+
+  it("window variant also renders the VRM section", () => {
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    expect(qc.el.querySelector(".yui-vrms[role=radiogroup]")).not.toBeNull();
+    expect(qc.el.querySelector(".yui-vrm--add")).not.toBeNull();
 
     qc.dispose();
   });
