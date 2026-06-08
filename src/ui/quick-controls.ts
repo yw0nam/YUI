@@ -377,6 +377,8 @@ export function createQuickControls({
 
   function renderVrms(): void {
     const activeId = vrmSelection.getActiveId();
+    // innerHTML 재그림이 포커스를 가진 행을 파괴한다 — 가졌던 경우에만 복원하려고 미리 기록.
+    const hadFocus = vrmsEl.contains(document.activeElement);
     vrmsEl.innerHTML = "";
     for (const opt of vrmSelection.list()) {
       const btn = document.createElement("button");
@@ -391,9 +393,11 @@ export function createQuickControls({
       const badgeHtml = selected ? `<span class="yui-vrm__badge">사용 중</span>` : "";
       btn.innerHTML = `
         <span class="yui-vrm__tick" aria-hidden="true"></span>
-        <span class="yui-vrm__body"><span class="yui-vrm__name">${opt.label}</span></span>
+        <span class="yui-vrm__body"><span class="yui-vrm__name"></span></span>
         ${badgeHtml}
       `;
+      // 라벨은 신뢰 불가 입력일 수 있다(P2 파일 선택) — textContent로만 넣는다.
+      btn.querySelector<HTMLSpanElement>(".yui-vrm__name")!.textContent = opt.label;
 
       btn.addEventListener("click", () => {
         void swapTo(opt);
@@ -410,6 +414,15 @@ export function createQuickControls({
         err.setAttribute("role", "status");
         err.textContent = "이 모델을 불러오지 못했어요. 이전 모델로 되돌렸어요.";
         vrmsEl.appendChild(err);
+      }
+    }
+
+    // 재그림 전 라디오그룹이 포커스를 쥐고 있었다면 새 active 행으로 포커스를 잇는다(roving-tabindex 유지).
+    if (hadFocus) {
+      const active = vrmRowById(activeId);
+      if (active) {
+        active.focus();
+        active.scrollIntoView?.({ block: "nearest" });
       }
     }
   }
