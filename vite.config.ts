@@ -15,6 +15,8 @@ const MIME: Record<string, string> = {
   ".mjs": "text/javascript",
   ".js": "text/javascript",
   ".json": "application/json",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
 };
 
 function serveDir(prefix: string, dir: string): Plugin {
@@ -63,7 +65,12 @@ export default defineConfig({
       },
     },
   },
-  plugins: [serveDir("/vrms", "resources/vrms"), serveDir("/configs", "configs"), serveDir("/vad", "public/vad")],
+  plugins: [
+    serveDir("/vrms", "resources/vrms"),
+    serveDir("/references", "resources/references"),
+    serveDir("/configs", "configs"),
+    serveDir("/vad", "public/vad"),
+  ],
   build: {
     rollupOptions: {
       input: {

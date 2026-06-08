@@ -238,4 +238,22 @@ export interface EndpointsConfig {
   tts_model?: string;
   tts_voice?: string;
   tts_speed?: number;
+  /** TTS 합성 경로 선택. 미설정 시 loader가 "irodori"로 resolve한다. */
+  tts_provider?: "openai" | "irodori";
+  /** irodori_TTS 서버 root (http(s), 예: `http://localhost:8091`). provider=irodori일 때 필수. */
+  irodori_base_url?: string;
+  /** 활성 화자 reference_id(voice registry 등록 키). provider=irodori일 때 필수. */
+  irodori_speaker?: string;
+  /** 선택 가능한 화자 목록 — UI 표시 + voice registry 등록 소스. ref_url은 vite 서빙 경로(`/references/…`). */
+  irodori_voices?: Array<{ id: string; label?: string; ref_url: string }>;
+  /** diffusion step 수(품질/속도 trade-off). 미설정 시 서버 default. */
+  irodori_num_steps?: number;
+  /** emotion(text) adherence cfg scale. 미설정 시 서버 default. */
+  irodori_cfg_scale_text?: number;
+  /** speaker adherence cfg scale. 미설정 시 서버 default. */
+  irodori_cfg_scale_speaker?: number;
+  /** 목표 발화 길이(초). 미설정 시 서버 default. */
+  irodori_seconds?: number;
+  /** provider 무관 합성 동시성 상한. default 1(serial) — loader가 아니라 consumer(tts-pipeline)가 적용. */
+  tts_max_inflight?: number;
 }

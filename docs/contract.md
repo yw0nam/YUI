@@ -25,11 +25,13 @@
   "chat_instructions": "You are the expression engine …", // Responses `instructions` nudge — generate_express 유도(config 소관)
   "chat_model":        "natsume",                // Hermes 모델 ID (Responses `model`). config 소관(하드코딩 금지)
   "stt_base_url":      "http://localhost:5517",  // 별도 ASR 서비스 (OpenAI 호환) → /audio/transcriptions
-  "tts_base_url":      "http://localhost:8092"   // 별도 TTS 서비스 (OpenAI 호환) → /audio/speech
+  "tts_base_url":      "http://localhost:8092",  // OpenAI 호환 TTS → /audio/speech (provider="openai")
+  "tts_provider":      "irodori",                // "openai" | "irodori" (default irodori, §5)
+  "irodori_base_url":  "http://localhost:8091"   // irodori_TTS (NOT OpenAI 호환) → /synthesize (§5)
 }
 ```
 
-**STT/TTS는 Hermes와 무관 (확정):** ASR/TTS는 **각각 독립된 OpenAI 호환 서비스**로 서빙된다 — 기본 ASR `localhost:5517`, TTS `localhost:8092`. client UI가 이 둘을 **직접** 호출한다(Hermes를 경유하지 않음). 세 base URL(chat/stt/tts)은 서로 다른 프로세스이며 모두 config로 교체 가능.
+**STT/TTS는 Hermes와 무관 (확정):** ASR/TTS는 **각각 독립된 서비스**로 서빙된다 — 기본 ASR `localhost:5517`. client UI가 이 둘을 **직접** 호출한다(Hermes를 경유하지 않음). base URL들은 서로 다른 프로세스이며 모두 config로 교체 가능. **TTS는 provider 선택형**이다(`tts_provider`): OpenAI 호환 `/audio/speech`(`localhost:8092`) 또는 **irodori_TTS**(`localhost:8091`, OpenAI 호환 아님 — §5). 둘은 additive로 공존하며 default는 `irodori`다. irodori contract·voice registry·tunables는 **§5**, 두 provider가 공유하는 `emotion_text` 어휘(이모지)는 §1·§3에 정의.
 
 **Control transport (확정: `generate_express` tool-call):** 제어신호 전송은 Hermes(사용자 소유 backend)에 등록된 **서버사이드 `generate_express(...)` tool**로 한다. 이 tool-call의 **FLAT arguments**가 제어 필드를 싣는다: `{ emotion_id?, motion_id?, emotion_text? }`(전부 optional, motion_id는 보통 생략 — §3 D-MOTION-FROM-EMOTION). YUI client는 `/v1/responses` 출력의 `function_call` 아이템 중 **이름이 `generate_express`인 것**을 파싱해 사용한다 (+ 검증된 `GET /v1/runs/{run_id}/events` SSE로 tool-call 수신). generate_express는 Hermes 용어로 **skill이 아니라 tool(plugin)** 이다 — skill(마크다운 지시문)은 function_call을 만들지 않는다([`hermes-express-tool.md`](./hermes-express-tool.md) §0).
 
@@ -52,7 +54,7 @@ chat 요청은 위 `EndpointsConfig` 위에 **per-user 런타임 입력 2종**�
 backend가 turn마다 보낼 수 있는 emotion enum. emotion enum은 **얼굴(표정)** 채널이다 — client-side에서 VRM expression registry로 소비된다:
 - **(a) VRM expression registry:** emotion enum → VRM expression 키. 모델 핫스왑 시 backend는 손대지 않는다.
 
-emotion의 **목소리(TTS) 차원**은 이 enum이 아니라 `generate_express`가 싣는 **별도의 자유 텍스트 `emotion_text` 채널**이다 — enum→prefix 매핑이 아니라 검증 없는 FishSpeech voice 태그(예: `[whisper in small voice]`)를 model이 직접 생성한다(§3 / `generate_express` / [`tts_rule.md`](./tts_rule.md)).
+emotion의 **목소리(TTS) 차원**은 이 enum이 아니라 `generate_express`가 싣는 **별도의 자유 텍스트 `emotion_text` 채널**이다 — enum→prefix 매핑이 아니라 검증 없는 voice 태그를 model이 직접 생성한다(§3 / `generate_express`). **어휘는 이모지 태그**다(PR-A에서 FishSpeech 자유 텍스트를 대체 — §3 D-EMOTION-TEXT 표, §5). client는 이 태그를 TTS 분절 text **맨 앞에 prepend**할 뿐이라 **말풍선에는 들어가지 않는다**(prefix-only).
 
 ### Enum
 - **표준 (VRM 1.0 preset 그대로):** `neutral` `happy` `angry` `sad` `relaxed` `surprised`
@@ -100,7 +102,7 @@ interface EmotionSignal {
 
 ### Emotion 목소리 차원 → `emotion_text` 채널
 
-emotion enum→prefix 매핑은 없다. emotion의 목소리(TTS) 차원은 `generate_express`가 싣는 **자유 텍스트 `emotion_text`** 필드로 전달된다 — 검증 없는 FishSpeech voice 태그를 model이 직접 생성하고(§3 / `generate_express`), client는 이를 TTS 분절 맨 앞에 prepend한다(§3 D-TTS-PIPELINE step 4). 상세는 [`tts_rule.md`](./tts_rule.md) 참고.
+emotion enum→prefix 매핑은 없다. emotion의 목소리(TTS) 차원은 `generate_express`가 싣는 **자유 텍스트 `emotion_text`** 필드로 전달된다 — 검증 없는 voice 태그를 model이 직접 생성하고(§3 / `generate_express`), client는 이를 TTS 분절 맨 앞에 prepend한다(§3 D-TTS-PIPELINE step 4). **PR-A부터 어휘는 이모지 태그 집합**이다(§3 D-EMOTION-TEXT 표). 같은 이모지를 반복하면 강도가 세진다(예: `🥺🥺`). prefix-only라 말풍선엔 노출되지 않는다.
 
 ---
 
@@ -200,7 +202,33 @@ interface AvatarConfig {
 
 **[D-NO-SPEAK-GATE] 발화 게이트(`should_speak`)는 없다 (제거 2026-06-04).** firing(언제 backend를 부를지)은 **client event loop가 소유**한다(F5/F7 트리거가 client쪽). 따라서 "이 턴에 말할지"를 backend transport 신호로 둘 필요가 없다 — **침묵 = backend가 assistant 텍스트를 내보내지 않음**(`speech_text == ""`). client는 빈 텍스트면 TTS/말풍선을 스킵하므로 별도 플래그가 불필요하다. backend가 능동적으로 발화하는 턴도 동일 — 말하면 텍스트가 오고, 안 말하면 안 온다.
 
-**[D-EMOTION-TEXT] `emotion_text`는 자유 텍스트 TTS voice tag 채널이다.** generate_express가 `emotion_text`(예: `"[whisper in small voice]"`)를 실으면 client는 정규화 envelope의 `emotion_text` 필드에 그대로 담아 **TTS 파이프라인으로 라우팅**한다(backend-caller가 `onEmotionText` 콜백으로 전달). emotion_id(VRM 표정 enum)와 직교하는 별도 채널 — 표정과 무관하게 목소리 연출만 바꿀 수 있다.
+**[D-EMOTION-TEXT] `emotion_text`는 자유 텍스트 TTS voice tag 채널이다.** generate_express가 `emotion_text`(예: `"😏"`, `"🥺🥺"`)를 실으면 client는 정규화 envelope의 `emotion_text` 필드에 그대로 담아 **TTS 파이프라인으로 라우팅**한다(backend-caller가 `onEmotionText` 콜백으로 전달). emotion_id(VRM 표정 enum)와 직교하는 별도 채널 — 표정과 무관하게 목소리 연출만 바꿀 수 있다. **어휘는 아래 이모지 태그 집합**이다(PR-A에서 FishSpeech 자유 텍스트를 대체; 같은 이모지 반복 = 강도 ↑). 두 TTS provider(openai/irodori)가 같은 채널을 쓰며, **prefix 방식이라 이모지는 TTS 입력 text에만 들어가고 말풍선엔 절대 노출되지 않는다.** 검증은 하지 않는다(broker가 advisory hint로만 노출 — `expression-broker-mcp.md` §3.4).
+
+#### `emotion_text` 이모지 어휘 (PR-A)
+| Emoji | 의미 | | Emoji | 의미 |
+|---|---|---|---|---|
+| 👂 | whisper / close to ear | | 😆 | joyfully |
+| 😮‍💨 | breath / sigh / sleeping breath | | 😠 | angry / displeased / sulking |
+| ⏸️ | pause / silence | | 😲 | surprise / exclamation |
+| 🤭 | chuckle / giggle | | 🥱 | yawn |
+| 🥵 | panting / moan / groan | | 😖 | painfully |
+| 📢 | echo / reverb | | 😟 | worriedly |
+| 😏 | teasing / coaxing | | 🫣 | shyly / bashful |
+| 🥺 | trembling / timid | | 🙄 | exasperated |
+| 🌬️ | heavy breathing | | 😊 | cheerfully / glad |
+| 😮 | gasp | | 👌 | backchannel / agreement |
+| 👅 | licking / chewing / wet sound | | 🙏 | pleading / begging |
+| 💋 | lip noise | | 🥴 | drunkenly |
+| 🫶 | gently / tenderly | | 🎵 | humming |
+| 😭 | sobbing / crying / sad | | 🤐 | muffled |
+| 😱 | scream / shriek | | 😌 | relieved / content |
+| 😪 | sleepily / languid | | 🤔 | questioning |
+| ⏩ | fast-speaking / rapid-fire | | 🥤 | gulp / swallow |
+| 📞 | phone / speaker filter | | 🤧 | cough / sniffle / sneeze |
+| 🐢 | slowly | | 😒 | tutting / tongue click |
+| | | | 😰 | panicked / nervous / stutter |
+
+> **강도 표현:** 이모지를 반복하면 강도가 세진다(예: `🥺` → `🥺🥺`). 여러 태그 조합도 가능(자유 텍스트라 검증 없음). 발화(자막)는 여기 넣지 않는다 — 발화는 별도 텍스트 스트림(D-SPEECH). 이 어휘의 SOT/브로커링은 `expression-broker-mcp.md` §4.
 
 **`speech_text`는 tool 필드가 아니다.** 발화 텍스트는 `generate_express` arguments가 아니라 **별도 assistant 텍스트 스트림**(`response.output_text.delta`)으로 도착하며(D-SPEECH), client가 스트림에서 조립한다. 아래 `ControlEnvelope`는 client 내부에서 *재구성하는* 정규화 형태이고, `speech_text`는 텍스트 스트림에서 채워지는 파생 필드다.
 
@@ -220,7 +248,7 @@ interface AvatarConfig {
     "properties": {
       "emotion_id":   { "type": "string", "enum": [/* §1 10종 */] },    // 생략 → 직전 표정 유지
       "motion_id":    { "type": "string" },                            // registry key §2. 보통 생략(emotion에서 파생). 명시 시 override
-      "emotion_text": { "type": "string" }                            // TTS voice tag 자유 텍스트, 예: "[whisper in small voice]"
+      "emotion_text": { "type": "string" }                            // TTS voice tag — 이모지 어휘(§3 D-EMOTION-TEXT 표), 예: "😏", "🥺🥺"
     }
   }
 }
@@ -299,9 +327,9 @@ type RichItem =
   "arguments": {
     "emotion_id": "curious",
     "motion_id": "shy_point",                  // 파생 대신 이 제스처 강제
-    "emotion_text": "[whisper in small voice]" // TTS voice tag
+    "emotion_text": "👂"                        // TTS voice tag — 이모지 어휘(§3 D-EMOTION-TEXT)
   } }
-// → client 정규화: emotion={id:"curious"}, motion={id:"shy_point"}, emotion_text="[whisper in small voice]"(→ onEmotionText).
+// → client 정규화: emotion={id:"curious"}, motion={id:"shy_point"}, emotion_text="👂"(→ onEmotionText).
 ```
 
 ### 예시 — 침묵 (D-NO-SPEAK-GATE)
@@ -337,8 +365,8 @@ Hermes가 자체 `web_search`를 돌리면 스트림에 function_call item이 �
 1. **텍스트 스트림 수신** — `response.output_text.delta` 토큰을 받는다.
 2. **버퍼 큐 적재** — 받은 토큰을 버퍼 큐에 쌓는다.
 3. **문장 분절(sentence boundary) 감지** — 큐에서 문장 경계가 감지되면 그 지점까지를 한 덩어리로 끊는다. (분절 방식은 구현 시 결정 — 새 리서치 아님.)
-4. **`emotion_text` 태그 prepend (있을 때만)** — 그 시점에 `emotion_text`(FishSpeech voice 태그)가 있으면 분절 text 맨 앞에 prepend한다. **optional이라 없으면 태그 없이 plain text로 보낸다.**
-5. **per-sentence TTS 호출** — 태그가 붙은 분절을 TTS API(`localhost:8092`)로 전송 → output wav 수신.
+4. **`emotion_text` 태그 prepend (있을 때만)** — 그 시점에 `emotion_text`(이모지 voice 태그, §3 D-EMOTION-TEXT)가 있으면 분절 text 맨 앞에 prepend한다. **optional이라 없으면 태그 없이 plain text로 보낸다.** 태그는 TTS 입력에만 들어가고 말풍선에는 안 들어간다(prefix-only).
+5. **per-sentence TTS 호출** — 태그가 붙은 분절을 활성 TTS provider로 전송 → wav 수신. provider는 `tts_provider`로 선택: OpenAI 호환 `/audio/speech`(`localhost:8092`) 또는 irodori_TTS `/synthesize`(`localhost:8091`, §5). 동시 합성은 `tts_max_inflight`로 상한(default 1 = serial).
 6. **ordered playback (재생 순서 보존)** — TTS 응답이 순서가 뒤바뀌어 와도 **원래 문장 순서대로** 재생한다.
 7. **진폭 기반 립싱크 동기** — 재생되는 wav의 진폭에 입(mouth blendshape) 움직임을 동기한다(PRD D1).
 
@@ -420,6 +448,89 @@ backend는 ` ```yui-context ` 마커로 파싱. system prompt 1줄로 약속해�
 
 ---
 
+## 5. TTS Providers (openai · irodori)
+
+### 목적
+발화 분절(D-TTS-PIPELINE step 5)을 wav로 합성하는 경로. **두 provider가 additive로 공존**하며 `tts_provider`로 선택한다 — OpenAI 호환 `/audio/speech`(기존)와 **irodori_TTS**(`/synthesize`, OpenAI 호환 아님). default는 `irodori`. 둘 다 §3의 `emotion_text` 이모지 어휘를 분절 맨 앞 prefix로 받는다(말풍선엔 노출 안 됨). 합성 동시성은 provider 무관하게 `tts_max_inflight`로 상한(default 1 = serial; consumer인 tts-pipeline이 적용, loader가 아님).
+
+### 5.1 EndpointsConfig 추가 필드 (configs/endpoints.json)
+> `EndpointsConfig`(§Endpoint abstraction)의 확장이다. 기존 OpenAI TTS 필드(`tts_base_url`/`tts_model`/`tts_voice`/`tts_speed`)는 그대로 유지(`provider="openai"`일 때 쓰임). 아래는 PR-A 추가분. doc↔`src/contract/types.ts` SOT 동기 — 필드 변경 시 양쪽 갱신.
+
+```ts
+interface EndpointsConfig {
+  // ... 기존 chat/stt + OpenAI TTS 필드(생략) ...
+
+  tts_provider?: "openai" | "irodori";   // 합성 경로. 미설정 시 loader가 "irodori"로 resolve
+  tts_max_inflight?: number;             // provider 무관 합성 동시성 상한. default 1(serial). consumer(tts-pipeline) 적용
+
+  // --- provider="irodori"일 때 ---
+  irodori_base_url?: string;             // irodori_TTS root. 예: "http://localhost:8091". provider=irodori면 필수
+  irodori_speaker?: string;              // 활성 화자 = reference_id(voice registry 등록 키). provider=irodori면 필수
+  irodori_voices?: Array<{               // 선택 가능한 화자 목록 — UI 표시 + voice registry 등록 소스
+    id: string;                          //   reference_id(= /synthesize의 reference_id, /voices의 voice_id)
+    label?: string;                      //   표시 이름. 없으면 id
+    ref_url: string;                     //   reference clip 경로 — Vite 서빙 "/references/<id>/merged_audio.mp3"
+  }>;
+  irodori_num_steps?: number;            // diffusion step 수(품질/속도). 미설정 시 서버 default(40)
+  irodori_cfg_scale_text?: number;       // emotion(text) adherence. 미설정 시 서버 default(3.0)
+  irodori_cfg_scale_speaker?: number;    // speaker adherence. 미설정 시 서버 default(5.0)
+  irodori_seconds?: number;              // 목표 발화 길이(초). 미설정 시 서버 default
+}
+```
+
+- **provider 선택:** `tts_provider` 미설정 → loader가 `"irodori"`로 resolve(default). `"openai"`면 기존 `/audio/speech` 경로.
+- **`irodori_voices`의 `ref_url`**은 reference clip을 가리킨다 — `resources/references/<id>/merged_audio.mp3`(gitignored, symlink)를 Vite가 `/references/*`로 서빙. 등록(§5.3) 시에만 fetch되고, per-synth 요청엔 안 실린다.
+- client는 `src/io/irodori-synth.ts`(합성)와 `src/io/irodori-voices.ts`(voice-registry helper)로 이 경로를 구현한다.
+
+### 5.2 irodori_TTS `/synthesize` (라이브 검증된 8091 contract — authoritative)
+Base `http://localhost:8091`(= `irodori_base_url`로 교체 가능). **OpenAI 호환이 아니다.**
+
+```
+POST /synthesize    Content-Type: multipart/form-data   →   audio/wav (48 kHz, mono, 16-bit PCM)
+```
+
+| field | req | default | 비고 |
+|---|---|---|---|
+| `text` | ✅ | — | 합성할 텍스트(앞에 `emotion_text` 이모지 prefix 가능). |
+| `reference_id` | — | — | 등록된 voice id(= `irodori_speaker` / `irodori_voices[].id`). |
+| `reference_audio` | — | — | optional 파일 — **등록 시에만** 쓰임, per-synth엔 안 보냄. |
+| `seconds` | — | — | 목표 길이(`irodori_seconds`). |
+| `duration_scale` | — | `1.0` | |
+| `min_seconds` | — | `0.5` | |
+| `max_seconds` | — | `30.0` | |
+| `num_steps` | — | `40` | `irodori_num_steps`. |
+| `cfg_scale_text` | — | `3.0` | `irodori_cfg_scale_text`. |
+| `cfg_scale_speaker` | — | `5.0` | `irodori_cfg_scale_speaker`. |
+| `seed` | — | — | 재현용. 응답 `X-Used-Seed`에 실측값. |
+
+- **per-synth 요청은 `text` + `reference_id` + tunables만** 싣는다(파일 동봉 안 함 — 화자는 사전 등록된 `reference_id`로 참조).
+- **`reference_text`는 제거됐다 (모델이 transcript를 무시).** 더 이상 보내지 않는다.
+- **응답 헤더:** `X-RTF`(real-time factor), `Server-Timing`(per-stage + `total;dur=`), `X-Used-Seed`.
+
+### 5.3 Voice registry (`/voices`)
+화자는 reference clip으로 **사전 등록**되고, 등록된 `voice_id`가 `/synthesize`의 `reference_id`가 된다. 서버는 `--voices-dir`에 영속하고 startup마다 reload한다. client는 **첫 사용 시 등록**(`irodori-voices.ts`의 `ensureRegistered`)한다.
+
+```
+POST   /voices          multipart: reference_audio(file) + voice_id   →  201
+GET    /voices                                                        →  { "voices": [ { "voice_id", ... } ] }
+DELETE /voices/{id}                                                   →  삭제
+```
+
+- `voice_id`(등록) == `reference_id`(합성). client는 `irodori_voices[].id`를 양쪽 키로 쓴다.
+- 등록 시 `reference_audio`는 `ref_url`(`/references/<id>/merged_audio.mp3`)에서 fetch한 파일.
+
+### 5.4 에러 모델
+| status | 의미 | body |
+|---|---|---|
+| `422` | validation(예: 미등록 `reference_id`) | `detail`이 **string** *또는* `{type,loc,msg}` **배열**. client는 둘 다 처리. |
+| `503` | overloaded | `Retry-After` 헤더. |
+| `504` | timeout | |
+| `500` | server error | |
+
+> **검증 없는 `emotion_text`:** 이모지 prefix는 `text` 앞에 붙어 그대로 합성 입력이 된다 — irodori는 별도 검증 안 함(§3 D-EMOTION-TEXT). 미등록 `reference_id`만 `422`로 거른다.
+
+---
+
 ## Open Questions
 
 prototype에서 결정/검증:
@@ -439,5 +550,6 @@ prototype에서 결정/검증:
 
 ## Changelog
 
+- **2026-06-08 (PR-A):** §5 추가 — **irodori_TTS** provider(라이브 검증 8091 `/synthesize` + `/voices` registry, OpenAI 호환 아님)를 기존 OpenAI TTS와 additive로 공존. `EndpointsConfig`에 `tts_provider`(default irodori)·`tts_max_inflight`·`irodori_*` 필드 추가. `emotion_text` 어휘를 FishSpeech 자유 텍스트 → **이모지 태그 집합**으로 교체(§1·§3 D-EMOTION-TEXT 표; prefix-only, 말풍선 비노출). `reference_text`는 제거(모델이 transcript 무시).
 - **2026-06-08:** §2.5 추가 — `AvatarConfig.available?: AvatarOption[]` VRM 선택 manifest(#94). `vrm_url`은 필수 유지(하위 호환).
 - **2026-06-06 (v0.2 draft):** `emotion_tts_prefix`(emotion-enum→TTS-prefix 매핑) 제거 — emotion의 목소리 제어는 `generate_express`의 자유 텍스트 `emotion_text` 채널로 일원화(§1, §3 D-TTS-PIPELINE step 4).

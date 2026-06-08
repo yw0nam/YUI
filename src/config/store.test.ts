@@ -19,6 +19,7 @@ function goodFixture(): Record<string, unknown> {
       chat_endpoint: "/v1/responses",
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
+      tts_provider: "openai",
     },
     "avatar.json": { vrm_url: "/vrms/carlotta.vrm" },
     "emotion_registry.json": {

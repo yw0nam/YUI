@@ -39,6 +39,8 @@ import { initDrag } from "./drag";
 import { selectFetch } from "./io/chat-client";
 import { createSpeechPlayback } from "./io/speech-playback";
 import { createTtsSynth } from "./io/tts-synth";
+import { createIrodoriSynth } from "./io/irodori-synth";
+import { ensureRegistered } from "./io/irodori-voices";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
@@ -350,9 +352,31 @@ async function bootstrap(): Promise<void> {
     surfaces,
     pipeline: {
       sink: createWebAudioSink({ getGain: () => lipsyncSettings.get().gain }),
+      // function form → drain마다 lazy 해소(eager config read 없음, 핫리로드 친화).
+      maxInflight: () => config.get().endpoints.tts_max_inflight ?? 1,
       synth: async (input, signal) => {
         const f = await selectFetch();
         const eps = config.get().endpoints;
+        if (eps.tts_provider === "irodori") {
+          const id = eps.irodori_speaker;
+          if (!eps.irodori_base_url || !id) {
+            throw new Error("irodori provider requires irodori_base_url + irodori_speaker");
+          }
+          const voice = eps.irodori_voices?.find((v) => v.id === id);
+          // ensureRegistered는 멱등·메모이즈 — 매 synth 전 호출해도 첫 회 이후 no-op.
+          if (voice) {
+            await ensureRegistered({ baseUrl: eps.irodori_base_url, id, refUrl: voice.ref_url, fetch: f });
+          }
+          return createIrodoriSynth({
+            baseUrl: eps.irodori_base_url,
+            referenceId: id,
+            fetch: f,
+            numSteps: eps.irodori_num_steps,
+            cfgScaleText: eps.irodori_cfg_scale_text,
+            cfgScaleSpeaker: eps.irodori_cfg_scale_speaker,
+            seconds: eps.irodori_seconds,
+          })(input, signal);
+        }
         return createTtsSynth({
           config: eps,
           fetch: f,
