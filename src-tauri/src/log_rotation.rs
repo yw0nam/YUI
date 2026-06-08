@@ -26,8 +26,19 @@ impl DateRotatingFile {
     ))
   }
 
-  fn append(&mut self, _date: Date, _buf: &[u8]) -> io::Result<()> {
-    unimplemented!("not yet implemented")
+  fn append(&mut self, date: Date, buf: &[u8]) -> io::Result<()> {
+    if self.current_date != Some(date) {
+      if let Some(mut f) = self.inner.take() {
+        f.flush()?;
+      }
+      fs::create_dir_all(&self.dir)?;
+      let path = Self::dated_path(&self.dir, &self.base, date);
+      self.inner = Some(
+        OpenOptions::new().create(true).append(true).open(path)?,
+      );
+      self.current_date = Some(date);
+    }
+    self.inner.as_mut().unwrap().write_all(buf)
   }
 }
 
