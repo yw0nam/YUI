@@ -216,4 +216,57 @@ describe("ensureRegistered", () => {
       }),
     ).rejects.toThrow(/500/);
   });
+
+  it("skips entirely (no fetch/POST, no throw) when refUrl is empty", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new Error("should not fetch for empty refUrl");
+    });
+
+    await expect(
+      ensureRegistered({
+        baseUrl: BASE,
+        id: "natsume",
+        refUrl: "",
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not memoize the empty-refUrl skip — a later real refUrl still registers", async () => {
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
+    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
+        return voicesResponse(["other"]);
+      }
+      if (url === "/references/natsume.wav") return blobResponse(audio);
+      if (url === "http://localhost:8091/voices" && init?.method === "POST") {
+        return createdResponse("natsume");
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    // first call with empty refUrl is a no-op skip…
+    await ensureRegistered({
+      baseUrl: BASE,
+      id: "natsume",
+      refUrl: "",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // …a subsequent call with a real refUrl for the SAME id still registers.
+    await ensureRegistered({
+      baseUrl: BASE,
+      id: "natsume",
+      refUrl: "/references/natsume.wav",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+    const postCount = fetchMock.mock.calls.filter(
+      (c) => (c[1] as RequestInit | undefined)?.method === "POST",
+    ).length;
+    expect(postCount).toBe(1);
+  });
 });

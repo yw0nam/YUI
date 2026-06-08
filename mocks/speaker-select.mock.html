@@ -1,0 +1,686 @@
+<!doctype html>
+<!--
+  YUI 화자(Speaker / 音声) 선택 — visual-approval mock.
+  Intent: a TTS voice-clone picker that mirrors the existing VRM swap card exactly
+  (tick-radiogroup · "사용 중" badge · scroll+fade · disabled "준비 중" foot), so it
+  reads as the same surface family, not a new widget. Calm/invisible-by-default,
+  warm-only-on-the-moment (accent on hover/active/onset). One subtle per-row ▶ ghost
+  preview button is included to audition a clone; accent appears on hover only.
+-->
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YUI — 화자 선택 (mock)</title>
+    <style>
+      /* ───────────────────────────────────────────────────────────────
+         tokens.css — "The Hearthlight" (copied verbatim; OKLCH only, amber ~72)
+         ─────────────────────────────────────────────────────────────── */
+      :root {
+        --yui-accent: oklch(0.8 0.13 75);
+        --yui-accent-soft: oklch(0.8 0.13 75 / 0.45);
+        --yui-accent-faint: oklch(0.8 0.13 75 / 0.16);
+
+        --yui-text: oklch(0.95 0.012 80);
+        --yui-text-dim: oklch(0.78 0.016 75);
+        --yui-text-mute: oklch(0.66 0.014 72);
+
+        --yui-scrim: oklch(0.21 0.014 70 / 0.64);
+        --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82);
+        --yui-edge: oklch(0.97 0.01 80 / 0.1);
+        --yui-edge-strong: oklch(0.97 0.01 80 / 0.16);
+
+        --yui-ink: oklch(0.22 0.01 70);
+
+        --yui-danger: oklch(0.77 0.11 35);
+        --yui-danger-soft: oklch(0.77 0.11 35 / 0.45);
+
+        --yui-float: 0 8px 32px oklch(0.12 0.02 70 / 0.4);
+        --yui-text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55);
+
+        --yui-radius: 14px;
+        --yui-radius-input: 12px;
+        --yui-radius-chip: 999px;
+        --yui-radius-row: 10px;
+        --yui-radius-img: 10px;
+
+        --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
+        --yui-dur: 200ms;
+        --yui-dur-fast: 140ms;
+
+        /* component-local: scroll cap shared with VRM list */
+        --yui-vrm-cap: 9rem;
+      }
+
+      /* ── settings window owns an opaque warm-dark fill (matches settings.html) ── */
+      html,
+      body {
+        margin: 0;
+        background: oklch(0.16 0.014 70);
+        color: var(--yui-text);
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        text-shadow: var(--yui-text-shadow);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* mock chrome only — lays the two demo panels out side by side */
+      .mock-stage {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2.5rem;
+        align-items: flex-start;
+        padding: 2.5rem;
+      }
+
+      .mock-col {
+        width: 20rem;
+      }
+
+      .mock-caption {
+        margin: 0 0 0.75rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--yui-text-mute);
+      }
+
+      .mock-note {
+        margin: 1.25rem 0 0;
+        max-width: 20rem;
+        font-size: 0.72rem;
+        line-height: 1.55;
+        color: var(--yui-text-mute);
+      }
+
+      /* emulate the in-window panel body padding context */
+      .yui-quick--window-body {
+        padding: 0.55rem 0.85rem 0.1rem;
+        border-radius: var(--yui-radius);
+        background: var(--yui-scrim-strong);
+        border: 1px solid var(--yui-edge);
+        box-shadow: var(--yui-float);
+      }
+
+      /* ───────────────────────────────────────────────────────────────
+         section header — .yui-quick__section (verbatim)
+         ─────────────────────────────────────────────────────────────── */
+      .yui-quick__section {
+        display: block;
+        margin: 0.55rem 0.15rem 0.35rem;
+        font-size: 0.66rem;
+        font-weight: 600;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--yui-text-mute);
+      }
+      .yui-quick__section:first-child {
+        margin-top: 0.2rem;
+      }
+
+      .yui-quick__divider {
+        height: 1px;
+        margin: 0.75rem 0.15rem 0.2rem;
+        background: var(--yui-edge);
+      }
+
+      /* ───────────────────────────────────────────────────────────────
+         화자 섹션 — mirrors .yui-vrm* exactly (renamed .yui-spk for clarity)
+         ─────────────────────────────────────────────────────────────── */
+      .yui-spks {
+        display: grid;
+        gap: 0.25rem;
+      }
+
+      .yui-spk-scroll {
+        position: relative;
+        max-height: var(--yui-vrm-cap, 9rem);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+        scrollbar-color: var(--yui-edge-strong) transparent;
+      }
+      .yui-spk-scroll::-webkit-scrollbar {
+        width: 6px;
+      }
+      .yui-spk-scroll::-webkit-scrollbar-thumb {
+        background: var(--yui-edge-strong);
+        border-radius: 999px;
+      }
+      .yui-spk-scroll::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      /* calm bottom fade — hints "more below", no hard rule */
+      .yui-spk-scroll::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 1.6rem;
+        pointer-events: none;
+        background: linear-gradient(
+          to bottom,
+          oklch(0.19 0.014 70 / 0) 0%,
+          var(--yui-scrim-strong) 100%
+        );
+      }
+
+      /* fixed "파일에서 추가…" footer — outside scroll area */
+      .yui-spk-foot {
+        margin-top: 0.1rem;
+        border-top: 1px solid var(--yui-edge);
+        padding-top: 0.1rem;
+      }
+
+      /* ── speaker option (radio) ──
+         Rendered as div[role=radio] (NOT <button>) so it can legally contain
+         the nested ▶ preview <button> — nested interactive buttons are invalid
+         HTML and the parser would hoist the inner button out of the row. */
+      .yui-spk {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.5rem 0.6rem;
+        border: 0;
+        width: 100%;
+        box-sizing: border-box;
+        text-align: left;
+        background: transparent;
+        border-radius: var(--yui-radius-row);
+        color: var(--yui-text);
+        font-family: inherit;
+        cursor: pointer;
+        transition: background var(--yui-dur-fast) var(--yui-ease);
+      }
+
+      .yui-spk:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px var(--yui-accent-soft);
+      }
+
+      .yui-spk:hover {
+        background: oklch(0.97 0.01 80 / 0.06);
+      }
+
+      .yui-spk__tick {
+        width: 1.1rem;
+        height: 1.1rem;
+        border-radius: 50%;
+        border: 1.5px solid var(--yui-text-mute);
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        transition:
+          border-color var(--yui-dur-fast) var(--yui-ease),
+          background var(--yui-dur-fast) var(--yui-ease);
+      }
+
+      .yui-spk__tick::after {
+        content: "";
+        width: 0.46rem;
+        height: 0.46rem;
+        border-radius: 50%;
+        background: oklch(0.99 0.01 80);
+        transform: scale(0);
+        transition: transform var(--yui-dur-fast) var(--yui-ease);
+      }
+
+      .yui-spk[aria-checked="true"] .yui-spk__tick {
+        border-color: var(--yui-accent);
+        background: var(--yui-accent);
+      }
+      .yui-spk[aria-checked="true"] .yui-spk__tick::after {
+        transform: scale(1);
+      }
+
+      /* body grows to fill the row, pushing the trailing cluster
+         (preview · badge / hint) to the right edge. Single grow source —
+         so trailing items use source order, NOT competing margin-left:auto. */
+      .yui-spk__body {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        overflow: hidden;
+      }
+
+      .yui-spk__name {
+        font-size: 0.88rem;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* optional secondary meta (clone source / language) — muted, never loud */
+      .yui-spk__meta {
+        font-size: 0.72rem;
+        color: var(--yui-text-mute);
+      }
+
+      .yui-spk__badge {
+        flex: 0 0 auto;
+        font-size: 0.64rem;
+        letter-spacing: 0.04em;
+        color: var(--yui-text-dim);
+        padding: 0.1rem 0.4rem;
+        border-radius: 999px;
+        border: 1px solid var(--yui-edge);
+        white-space: nowrap;
+      }
+
+      /* ── per-row ▶ preview (ghost; accent on hover only) ──
+         Sits before the badge / right edge. Subtle by default so the list
+         stays calm; only warms on direct intent. */
+      .yui-spk__preview {
+        display: grid;
+        place-items: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        flex: 0 0 auto;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--yui-text-mute);
+        cursor: pointer;
+        opacity: 0.7;
+        transition:
+          background var(--yui-dur-fast) var(--yui-ease),
+          color var(--yui-dur-fast) var(--yui-ease),
+          opacity var(--yui-dur-fast) var(--yui-ease);
+      }
+      .yui-spk:hover .yui-spk__preview {
+        opacity: 1;
+      }
+      .yui-spk__preview:hover {
+        background: var(--yui-accent-faint);
+        color: var(--yui-accent);
+      }
+      .yui-spk__preview:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px var(--yui-accent-soft);
+      }
+      .yui-spk__preview svg {
+        width: 0.85rem;
+        height: 0.85rem;
+      }
+      /* playing state: filled accent dot quietly pulsing */
+      .yui-spk__preview.is-playing {
+        color: var(--yui-accent);
+        opacity: 1;
+      }
+
+      /* ── busy: clicked row -> spinner on tick, others dim/disabled ── */
+      .yui-spk[aria-busy="true"] .yui-spk__name {
+        color: var(--yui-text-dim);
+      }
+      .yui-spk__hint {
+        flex: 0 0 auto;
+        font-size: 0.7rem;
+        color: var(--yui-text-mute);
+        white-space: nowrap;
+      }
+      .yui-spk[aria-busy="true"] .yui-spk__tick {
+        border-color: var(--yui-accent-soft);
+        background: transparent;
+      }
+      .yui-spk[aria-busy="true"] .yui-spk__tick::after {
+        width: 0.62rem;
+        height: 0.62rem;
+        background: transparent;
+        border: 1.5px solid var(--yui-accent);
+        border-top-color: transparent;
+        transform: scale(1);
+      }
+
+      /* swap in progress -> other rows non-interactive */
+      .yui-spks.is-swapping .yui-spk:not([aria-busy="true"]) {
+        opacity: 0.4;
+        pointer-events: none;
+      }
+
+      /* ── error: reverts selection + warm-red inline note ── */
+      .yui-spk.is-error .yui-spk__name {
+        color: var(--yui-danger);
+      }
+      .yui-spk.is-error .yui-spk__tick {
+        border-color: var(--yui-danger);
+        background: transparent;
+      }
+      .yui-spk.is-error .yui-spk__tick::after {
+        transform: scale(0);
+      }
+      .yui-spk__error {
+        margin: 0.1rem 0.6rem 0.35rem 2.3rem;
+        font-size: 0.72rem;
+        line-height: 1.4;
+        color: var(--yui-danger);
+      }
+
+      /* ── "파일에서 추가…" ghost row — reserved / disabled ── */
+      .yui-spk--add {
+        color: var(--yui-text-mute);
+        cursor: not-allowed;
+        opacity: 0.62;
+      }
+      .yui-spk--add:hover {
+        background: transparent;
+      }
+      .yui-spk--add .yui-spk__tick {
+        border-style: dashed;
+        border-color: var(--yui-text-mute);
+      }
+      .yui-spk--add .yui-spk__tick::after {
+        content: "+";
+        width: auto;
+        height: auto;
+        background: transparent;
+        transform: none;
+        color: var(--yui-text-mute);
+        font-size: 0.78rem;
+        line-height: 1;
+      }
+      .yui-spk--add .yui-spk__name {
+        font-size: 0.84rem;
+        font-weight: 500;
+      }
+      .yui-spk__soon {
+        margin-left: auto;
+        font-size: 0.62rem;
+        letter-spacing: 0.04em;
+        color: var(--yui-text-mute);
+        padding: 0.1rem 0.4rem;
+        border-radius: 999px;
+        border: 1px dashed var(--yui-edge-strong);
+        white-space: nowrap;
+      }
+
+      /* ── motion gated behind reduced-motion preference ── */
+      @media (prefers-reduced-motion: no-preference) {
+        .yui-spk[aria-busy="true"] .yui-spk__tick::after {
+          animation: yui-spk-spin 0.7s linear infinite;
+        }
+        .yui-spk__preview.is-playing {
+          animation: yui-spk-pulse 1.4s var(--yui-ease) infinite;
+        }
+      }
+      @keyframes yui-spk-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes yui-spk-pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mock-stage">
+      <!-- ───────────────────────── primary panel: live section ───────────────────────── -->
+      <div class="mock-col">
+        <p class="mock-caption">화자 선택 — 기본 (VRM 섹션 다음 형제)</p>
+
+        <div class="yui-quick--window-body">
+          <!-- sibling context: the existing VRM section above (compact), then 화자 -->
+          <span class="yui-quick__section">VRM</span>
+          <div class="yui-spk-scroll" style="max-height: 4.4rem; --yui-vrm-cap: 4.4rem">
+            <div class="yui-spks" role="radiogroup" aria-label="VRM">
+              <div class="yui-spk" role="radio" aria-checked="true" tabindex="0">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">carlotta</span></span>
+                <span class="yui-spk__badge">사용 중</span>
+              </div>
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">aria</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="yui-quick__divider"></div>
+
+          <!-- ── the new 화자 section ── -->
+          <span class="yui-quick__section">화자 · 音声</span>
+          <div class="yui-spk-scroll">
+            <div class="yui-spks" role="radiogroup" aria-label="화자">
+              <div class="yui-spk" role="radio" aria-checked="true" tabindex="0">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">ナツメ</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="ナツメ 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+                <span class="yui-spk__badge">사용 중</span>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">あやせ</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="あやせ 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">ムラサメ</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="ムラサメ 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">レナ</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="レナ 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">七海</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="七海 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">千咲</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="千咲 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">小春</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="小春 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">希</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="希 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">愛衣</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="愛衣 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">栞那</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="栞那 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">涼音</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="涼音 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">羽月</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="羽月 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">芦花</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="芦花 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">茉優</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="茉優 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">茉子</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="茉子 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">芳乃</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="芳乃 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">朝陽</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="朝陽 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="yui-spk-foot">
+            <button class="yui-spk yui-spk--add" type="button" disabled aria-disabled="true" tabindex="-1">
+              <span class="yui-spk__tick" aria-hidden="true"></span>
+              <span class="yui-spk__body"><span class="yui-spk__name">파일에서 추가…</span></span>
+              <span class="yui-spk__soon">준비 중</span>
+            </button>
+          </div>
+        </div>
+
+        <p class="mock-note">
+          기본 목록. 17개 화자, ~9rem에서 멈추고 내부 스크롤 — 하단 페이드가 “더 있음”을 알린다.
+          활성 행에만 “사용 중” 배지. 각 행 오른쪽의 ▶는 ghost 미리듣기(호버 시에만 앰버).
+        </p>
+      </div>
+
+      <!-- ───────────────────────── second panel: state gallery ───────────────────────── -->
+      <div class="mock-col">
+        <p class="mock-caption">상태 예시 — hover · 재생중 · 바꾸는 중 · 오류</p>
+
+        <div class="yui-quick--window-body">
+          <span class="yui-quick__section">화자 · 音声 (상태 예시)</span>
+          <div class="yui-spk-scroll" style="max-height: none">
+            <!-- group marked .is-swapping so non-busy rows dim, mirroring real swap lock -->
+            <div class="yui-spks is-swapping" role="radiogroup" aria-label="화자 상태 예시">
+              <!-- (a) active / 사용 중 -->
+              <div class="yui-spk" role="radio" aria-checked="true" tabindex="0">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">ナツメ</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="ナツメ 미리듣기" title="미리듣기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+                <span class="yui-spk__badge">사용 중</span>
+              </div>
+
+              <!-- (b) hover — bg + warm preview forced inline so the static page shows it -->
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1" style="background: oklch(0.97 0.01 80 / 0.06)">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">あやせ</span></span>
+                <button class="yui-spk__preview" type="button" aria-label="あやせ 미리듣기" title="미리듣기" style="opacity: 1; background: var(--yui-accent-faint); color: var(--yui-accent)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg></button>
+              </div>
+
+              <!-- (c) auditioning — pause glyph + pulsing accent -->
+              <div class="yui-spk" role="radio" aria-checked="false" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">レナ</span></span>
+                <button class="yui-spk__preview is-playing" type="button" aria-label="レナ 미리듣기 정지" title="정지"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="6" width="3.4" height="12" rx="0.8" /><rect x="13.6" y="6" width="3.4" height="12" rx="0.8" /></svg></button>
+              </div>
+
+              <!-- (d) busy / swapping — spinner on tick, "바꾸는 중…" hint; this row stays interactive -->
+              <div class="yui-spk" role="radio" aria-checked="false" aria-busy="true" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">千咲</span></span>
+                <span class="yui-spk__hint">바꾸는 중…</span>
+              </div>
+
+              <!-- (e) error — reverted selection + warm-red inline note -->
+              <div class="yui-spk is-error" role="radio" aria-checked="false" aria-invalid="true" tabindex="-1">
+                <span class="yui-spk__tick" aria-hidden="true"></span>
+                <span class="yui-spk__body"><span class="yui-spk__name">小春</span></span>
+              </div>
+              <p class="yui-spk__error" role="status">
+                이 화자를 불러오지 못했어요. 이전 화자로 되돌렸어요.
+              </p>
+            </div>
+          </div>
+
+          <div class="yui-spk-foot">
+            <button class="yui-spk yui-spk--add" type="button" disabled aria-disabled="true" tabindex="-1">
+              <span class="yui-spk__tick" aria-hidden="true"></span>
+              <span class="yui-spk__body"><span class="yui-spk__name">파일에서 추가…</span></span>
+              <span class="yui-spk__soon">준비 중</span>
+            </button>
+          </div>
+        </div>
+
+        <p class="mock-note">
+          위에서부터: 활성(사용 중) · 호버 · 미리듣기 재생중(정지 글리프, 앰버 펄스) ·
+          바꾸는 중(틱 스피너 + 흐려진 나머지 행) · 오류(되돌림 + warm-red 인라인 안내).
+          모든 애니메이션은 <code>prefers-reduced-motion: no-preference</code> 뒤에 게이트.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      /* mock-only: ▶ rows toggle play/pause glyph so reviewers can feel the affordance.
+         No real audio — purely demonstrates the calm single-audition interaction. */
+      const PLAY =
+        '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+      const PAUSE =
+        '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="6" width="3.4" height="12" rx="0.8"/><rect x="13.6" y="6" width="3.4" height="12" rx="0.8"/></svg>';
+
+      document.querySelectorAll(".yui-spk__preview").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation(); // preview must not trigger row selection
+          const playing = btn.classList.contains("is-playing");
+          document.querySelectorAll(".yui-spk__preview.is-playing").forEach((other) => {
+            if (other !== btn) {
+              other.classList.remove("is-playing");
+              other.innerHTML = PLAY;
+            }
+          });
+          btn.classList.toggle("is-playing", !playing);
+          btn.innerHTML = playing ? PLAY : PAUSE;
+        });
+      });
+
+      /* roving-radio feel: clicking a row checks it (visual only) */
+      document.querySelectorAll('.yui-spks:not(.is-swapping) .yui-spk[role="radio"]').forEach((rowEl) => {
+        rowEl.addEventListener("click", () => {
+          const group = rowEl.closest(".yui-spks");
+          group.querySelectorAll('.yui-spk[role="radio"]').forEach((r) => {
+            r.setAttribute("aria-checked", "false");
+            r.tabIndex = -1;
+            r.querySelector(".yui-spk__badge")?.remove();
+          });
+          rowEl.setAttribute("aria-checked", "true");
+          rowEl.tabIndex = 0;
+          if (!rowEl.querySelector(".yui-spk__badge")) {
+            const badge = document.createElement("span");
+            badge.className = "yui-spk__badge";
+            badge.textContent = "사용 중";
+            rowEl.appendChild(badge);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -18,6 +18,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
 import { createLipsyncSettings } from "../io/lipsync-settings";
 import { createVrmSelection } from "../io/vrm-selection";
+import { createSpeakerSelection, type SpeakerOption } from "../io/speaker-selection";
 import type { AvatarOption } from "../config/load";
 import {
   createAgentSettings,
@@ -25,6 +26,15 @@ import {
   type AgentSettings,
   type AgentStorage,
 } from "../io/agent-settings";
+
+// jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
+// Escapes ASCII chars that aren't safe identifier chars; non-ASCII passes through (safe unescaped).
+if (typeof (globalThis as { CSS?: { escape?: unknown } }).CSS?.escape !== "function") {
+  (globalThis as { CSS?: { escape: (s: string) => string } }).CSS = {
+    escape: (value: string) =>
+      String(value).replace(/[\x00-\x7f]/g, (ch) => (/[a-zA-Z0-9_-]/.test(ch) ? ch : `\\${ch}`)),
+  };
+}
 
 // In-memory AgentStorage so each test starts from a clean store.
 function inMemoryAgentStorage(): AgentStorage {
@@ -82,6 +92,16 @@ function makeVrmSelection(ids: string[] = ["carlotta", "aria", "mirai"]) {
   return createVrmSelection({ available, defaultUrl: available[0].url });
 }
 
+// Build a real createSpeakerSelection over an explicit manifest (default first id).
+function makeSpeakerSelection(ids: string[] = ["natsume", "ayase", "rena"]) {
+  const available: SpeakerOption[] = ids.map((id) => ({
+    id,
+    label: id.charAt(0).toUpperCase() + id.slice(1),
+    ref_url: `/references/${id}.wav`,
+  }));
+  return createSpeakerSelection({ available, defaultId: available[0].id });
+}
+
 describe("createQuickControls — gain row", () => {
   let mount: HTMLElement;
   let onGainPreview: ReturnType<typeof vi.fn>;
@@ -91,6 +111,8 @@ describe("createQuickControls — gain row", () => {
   let onPopOut: ReturnType<typeof vi.fn>;
   let vrmSelection: ReturnType<typeof createVrmSelection>;
   let swapVrm: ReturnType<typeof vi.fn>;
+  let speakerSelection: ReturnType<typeof createSpeakerSelection>;
+  let swapSpeaker: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     // Make rAF synchronous so open() → is-open transition happens immediately in tests
@@ -113,6 +135,11 @@ describe("createQuickControls — gain row", () => {
     // default fake: commit the store on success (mirrors the real settings-window impl)
     swapVrm = vi.fn(async (option: AvatarOption) => {
       vrmSelection.select(option.id);
+    });
+    speakerSelection = makeSpeakerSelection();
+    // default fake: commit the store on success (mirrors the real settings-window impl)
+    swapSpeaker = vi.fn(async (option: SpeakerOption) => {
+      speakerSelection.select(option.id);
     });
     try {
       globalThis.localStorage?.clear();
@@ -139,6 +166,8 @@ describe("createQuickControls — gain row", () => {
       onPopOut,
       vrmSelection,
       swapVrm,
+      speakerSelection,
+      swapSpeaker,
       ...extra,
     });
   }
@@ -724,6 +753,333 @@ describe("createQuickControls — gain row", () => {
 
     expect(qc.el.querySelector(".yui-vrms[role=radiogroup]")).not.toBeNull();
     expect(qc.el.querySelector(".yui-vrm--add")).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  // ── 화자 (Speaker) section (PR-B B3) ─────────────────────────────────────────
+
+  it("renders one .yui-spk radio per speakerSelection.list() entry", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const group = qc.el.querySelector<HTMLElement>(".yui-spks[role=radiogroup]");
+    expect(group).not.toBeNull();
+    const rows = group!.querySelectorAll<HTMLElement>(".yui-spk[role=radio]");
+    expect(rows).toHaveLength(3); // natsume · ayase · rena
+    const names = Array.from(rows).map((r) => r.querySelector(".yui-spk__name")!.textContent);
+    expect(names).toEqual(["Natsume", "Ayase", "Rena"]);
+
+    qc.dispose();
+  });
+
+  it("the speaker section sits AFTER the VRM section", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const vrmGroup = qc.el.querySelector(".yui-vrms[role=radiogroup]")!;
+    const spkGroup = qc.el.querySelector(".yui-spks[role=radiogroup]")!;
+    // DOCUMENT_POSITION_FOLLOWING (4) → spkGroup comes after vrmGroup in document order
+    expect(vrmGroup.compareDocumentPosition(spkGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    qc.dispose();
+  });
+
+  it("marks the active speaker row aria-checked and shows the '사용 중' badge", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
+    expect(active.querySelector(".yui-spk__name")!.textContent).toBe("Natsume");
+    expect(active.querySelector(".yui-spk__badge")!.textContent).toBe("사용 중");
+    for (const r of rows) {
+      if (r !== active) expect(r.querySelector(".yui-spk__badge")).toBeNull();
+    }
+
+    qc.dispose();
+  });
+
+  it("roving tabindex: active speaker row tabindex=0, others -1", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    expect(rows[0].tabIndex).toBe(0); // active (natsume)
+    expect(rows[1].tabIndex).toBe(-1);
+    expect(rows[2].tabIndex).toBe(-1);
+
+    qc.dispose();
+  });
+
+  it("clicking a non-active speaker row calls swapSpeaker with that option and shows loading", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const ayase = rows[1];
+    ayase.click();
+
+    expect(swapSpeaker).toHaveBeenCalledOnce();
+    expect(swapSpeaker.mock.calls[0][0]).toMatchObject({ id: "ayase", ref_url: "/references/ayase.wav" });
+
+    // loading reflected immediately (before the promise resolves)
+    expect(ayase.getAttribute("aria-busy")).toBe("true");
+    expect(ayase.querySelector(".yui-spk__hint")!.textContent).toContain("바꾸는 중");
+    const group = qc.el.querySelector<HTMLElement>(".yui-spks")!;
+    expect(group.getAttribute("aria-busy")).toBe("true");
+    expect(group.classList.contains("is-swapping")).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("on resolve the active tick + badge move to the new speaker row and loading clears", async () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    rows[1].click(); // Ayase
+    await flush();
+
+    const after = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const active = after.find((r) => r.getAttribute("aria-checked") === "true")!;
+    expect(active.querySelector(".yui-spk__name")!.textContent).toBe("Ayase");
+    expect(active.querySelector(".yui-spk__badge")!.textContent).toBe("사용 중");
+    expect(qc.el.querySelector(".yui-spk[aria-busy=true]")).toBeNull();
+    const group = qc.el.querySelector<HTMLElement>(".yui-spks")!;
+    expect(group.getAttribute("aria-busy")).not.toBe("true");
+    expect(group.classList.contains("is-swapping")).toBe(false);
+    expect(speakerSelection.getActiveId()).toBe("ayase");
+
+    qc.dispose();
+  });
+
+  it("on reject shows the inline speaker error and leaves the active selection unchanged", async () => {
+    swapSpeaker = vi.fn(async () => {
+      throw new Error("clone failed");
+    });
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    rows[2].click(); // Rena
+    await flush();
+
+    const errorRow = qc.el.querySelector<HTMLElement>(".yui-spk.is-error")!;
+    expect(errorRow.querySelector(".yui-spk__name")!.textContent).toBe("Rena");
+    const errMsg = qc.el.querySelector(".yui-spk__error")!;
+    expect(errMsg.textContent).toContain("불러오지 못했어요");
+    expect(speakerSelection.getActiveId()).toBe("natsume");
+    const after = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const active = after.find((r) => r.getAttribute("aria-checked") === "true")!;
+    expect(active.querySelector(".yui-spk__name")!.textContent).toBe("Natsume");
+    expect(qc.el.querySelector(".yui-spk[aria-busy=true]")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("clicking the already-active speaker row is a no-op (no swapSpeaker)", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
+    active.click();
+
+    expect(swapSpeaker).not.toHaveBeenCalled();
+
+    qc.dispose();
+  });
+
+  it("the speaker '파일에서 추가…' row is disabled and not a radio", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const add = qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
+    expect(add.disabled).toBe(true);
+    expect(add.getAttribute("aria-disabled")).toBe("true");
+    expect(add.tabIndex).toBe(-1);
+    expect(add.getAttribute("role")).not.toBe("radio");
+
+    add.click();
+    expect(swapSpeaker).not.toHaveBeenCalled();
+
+    qc.dispose();
+  });
+
+  it("caps the speaker list in a scroll container; the add-row footer lives OUTSIDE it", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const scroll = qc.el.querySelector<HTMLElement>(".yui-spk-scroll")!;
+    const group = qc.el.querySelector<HTMLElement>(".yui-spks")!;
+    const foot = qc.el.querySelector<HTMLElement>(".yui-spk-foot")!;
+    expect(scroll.contains(group)).toBe(true);
+    expect(scroll.contains(foot)).toBe(false);
+    expect(foot.querySelector(".yui-spk--add")).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  it("Enter on a focused non-active speaker row selects it (swaps)", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(swapSpeaker).toHaveBeenCalledOnce();
+    expect(swapSpeaker.mock.calls[0][0]).toMatchObject({ id: "ayase" });
+
+    qc.dispose();
+  });
+
+  it("Space on a focused non-active speaker row selects it (swaps)", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+
+    expect(swapSpeaker).toHaveBeenCalledOnce();
+    expect(swapSpeaker.mock.calls[0][0]).toMatchObject({ id: "rena" });
+
+    qc.dispose();
+  });
+
+  it("ArrowDown moves roving focus to the next speaker row WITHOUT swapping", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    rows[0].focus();
+    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+
+    // roving focus moved; selection unchanged until Enter/Space
+    expect(document.activeElement).toBe(rows[1]);
+    expect(rows[1].tabIndex).toBe(0);
+    expect(rows[0].tabIndex).toBe(-1);
+    expect(swapSpeaker).not.toHaveBeenCalled();
+    expect(speakerSelection.getActiveId()).toBe("natsume");
+
+    qc.dispose();
+  });
+
+  it("ArrowUp wraps roving focus from the first to the last speaker row", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    rows[0].focus();
+    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+
+    expect(document.activeElement).toBe(rows[2]);
+
+    qc.dispose();
+  });
+
+  it("clicking the ▶ preview button does NOT trigger row selection", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const preview = rows[1].querySelector<HTMLButtonElement>(".yui-spk__preview")!;
+    expect(preview).not.toBeNull();
+    preview.click();
+
+    // the preview audition must not select/swap the row
+    expect(swapSpeaker).not.toHaveBeenCalled();
+
+    qc.dispose();
+  });
+
+  it("disables the ▶ preview button when a speaker has an empty ref_url", () => {
+    speakerSelection = createSpeakerSelection({
+      available: [
+        { id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" },
+        { id: "noclip", label: "Noclip", ref_url: "" },
+      ],
+      defaultId: "natsume",
+    });
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const withClip = rows[0].querySelector<HTMLButtonElement>(".yui-spk__preview")!;
+    const noClip = rows[1].querySelector<HTMLButtonElement>(".yui-spk__preview")!;
+    expect(withClip.disabled).toBe(false);
+    expect(noClip.disabled).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("reflects an external speakerSelection change (cross-window) while open", () => {
+    const qc = buildQc();
+    qc.open();
+
+    speakerSelection.select("rena");
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
+    expect(active.querySelector(".yui-spk__name")!.textContent).toBe("Rena");
+
+    qc.dispose();
+  });
+
+  it("renders a speaker label with HTML metacharacters as literal text (no innerHTML injection)", () => {
+    const evil = 'a<img src=x onerror=alert(1)>b';
+    speakerSelection = createSpeakerSelection({
+      available: [{ id: "natsume", label: evil, ref_url: "/references/natsume.wav" }],
+      defaultId: "natsume",
+    });
+    const qc = buildQc();
+    qc.open();
+
+    const name = qc.el.querySelector<HTMLElement>(".yui-spk[role=radio] .yui-spk__name")!;
+    expect(name.textContent).toBe(evil);
+    expect(name.querySelector("img")).toBeNull();
+    expect(qc.el.querySelector(".yui-spks img")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("activates a speaker whose id contains a double-quote without throwing (CSS.escape)", async () => {
+    const evilId = 'ナ"ツメ';
+    speakerSelection = createSpeakerSelection({
+      available: [
+        { id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" },
+        { id: evilId, label: "Quoted", ref_url: "/references/quoted.wav" },
+      ],
+      defaultId: "natsume",
+    });
+    swapSpeaker = vi.fn(async (option: SpeakerOption) => {
+      speakerSelection.select(option.id);
+    });
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const quoted = rows.find((r) => r.dataset.spkId === evilId)!;
+    expect(quoted).toBeDefined();
+
+    // clicking would throw SyntaxError inside spkRowById if the selector were unescaped
+    expect(() => quoted.click()).not.toThrow();
+    await flush();
+
+    const after = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const active = after.find((r) => r.getAttribute("aria-checked") === "true")!;
+    expect(active.dataset.spkId).toBe(evilId);
+    expect(speakerSelection.getActiveId()).toBe(evilId);
+
+    qc.dispose();
+  });
+
+  it("window variant also renders the speaker section", () => {
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    expect(qc.el.querySelector(".yui-spks[role=radiogroup]")).not.toBeNull();
+    expect(qc.el.querySelector(".yui-spk--add")).not.toBeNull();
 
     qc.dispose();
   });

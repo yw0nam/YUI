@@ -11,6 +11,7 @@ import type { ScreenSourceProvider, MonitorInfo } from "../io/screen-source-prov
 import type { ScreenSource } from "../contract";
 import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
 import type { createVrmSelection } from "../io/vrm-selection";
+import type { createSpeakerSelection, SpeakerOption } from "../io/speaker-selection";
 import type { AvatarOption } from "../config/load";
 import { createLipsyncSettings, LIPSYNC_GAIN_MIN, LIPSYNC_GAIN_MAX } from "../io/lipsync-settings";
 import {
@@ -24,6 +25,7 @@ type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type VrmSelectionStore = ReturnType<typeof createVrmSelection>;
+type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 
 interface QuickControlsOptions {
   mount: HTMLElement;
@@ -35,6 +37,9 @@ interface QuickControlsOptions {
   vrmSelection: VrmSelectionStore;
   /** 실제 스왑 수행 + 성공 시 store 커밋(P4 주입). 컴포넌트는 store.select를 직접 호출하지 않는다. */
   swapVrm: (option: AvatarOption) => Promise<void>;
+  speakerSelection: SpeakerSelectionStore;
+  /** 실제 화자 스왑 수행 + 성공 시 store 커밋(B2 주입). 컴포넌트는 store.select를 직접 호출하지 않는다. */
+  swapSpeaker: (option: SpeakerOption) => Promise<void>;
   onGainPreview: (mouthOpen: number) => void;
   onGainPreviewEnd: () => void;
   onPopOut?: () => void;
@@ -99,6 +104,8 @@ export function createQuickControls({
   agentSettings,
   vrmSelection,
   swapVrm,
+  speakerSelection,
+  swapSpeaker,
   onGainPreview,
   onGainPreviewEnd,
   onPopOut,
@@ -235,6 +242,18 @@ export function createQuickControls({
         </button>
       </div>
 
+      <span class="yui-quick__section">화자 · 音声</span>
+      <div class="yui-spk-scroll">
+        <div class="yui-spks" role="radiogroup" aria-label="화자"></div>
+      </div>
+      <div class="yui-spk-foot">
+        <button class="yui-spk yui-spk--add" type="button" disabled aria-disabled="true" tabindex="-1">
+          <span class="yui-spk__tick" aria-hidden="true"></span>
+          <span class="yui-spk__body"><span class="yui-spk__name">파일에서 추가…</span></span>
+          <span class="yui-spk__soon">준비 중</span>
+        </button>
+      </div>
+
       <span class="yui-quick__section">표현</span>
       <div class="yui-gain">
         <div class="yui-gain__head">
@@ -260,6 +279,7 @@ export function createQuickControls({
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsEl = el.querySelector<HTMLDivElement>(".yui-monitors")!;
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
+  const spksEl = el.querySelector<HTMLDivElement>(".yui-spks")!;
   const gainSlider = el.querySelector<HTMLInputElement>(".yui-gain__slider")!;
   const gainValue = el.querySelector<HTMLSpanElement>(".yui-gain__value")!;
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar")!;
@@ -428,7 +448,7 @@ export function createQuickControls({
   }
 
   function vrmRowById(id: string): HTMLButtonElement | null {
-    return vrmsEl.querySelector<HTMLButtonElement>(`.yui-vrm[data-vrm-id="${id}"]`);
+    return vrmsEl.querySelector<HTMLButtonElement>(`.yui-vrm[data-vrm-id="${CSS.escape(id)}"]`);
   }
 
   async function swapTo(option: AvatarOption): Promise<void> {
@@ -494,6 +514,196 @@ export function createQuickControls({
     target.scrollIntoView?.({ block: "nearest" });
     const opt = vrmSelection.list().find((o) => o.id === target.dataset.vrmId);
     if (opt) void swapTo(opt);
+  }
+
+  // ── 화자 섹션 ──
+  // VRM 섹션을 미러링하되 한 가지만 다르다: 행이 <button>이 아닌 div[role=radio]다
+  // (중첩 ▶ 미리듣기 <button>을 품으려면 — button 안의 button은 무효 HTML이라 파서가 빼낸다).
+  // 그래서 roving tabindex/Enter·Space/화살표 키보드를 직접 배선한다.
+
+  const SPK_PLAY_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
+  const SPK_PAUSE_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="6" width="3.4" height="12" rx="0.8"/><rect x="13.6" y="6" width="3.4" height="12" rx="0.8"/></svg>`;
+
+  let spkSwapping: string | null = null;
+  let spkErrorId: string | null = null;
+
+  // 미리듣기는 단일 audition — 하나를 재생하면 다른 것은 멈춘다.
+  let auditionAudio: HTMLAudioElement | null = null;
+  let auditionBtn: HTMLButtonElement | null = null;
+
+  function stopAudition(): void {
+    if (auditionAudio) {
+      auditionAudio.pause();
+      auditionAudio = null;
+    }
+    if (auditionBtn) {
+      auditionBtn.classList.remove("is-playing");
+      auditionBtn.innerHTML = SPK_PLAY_SVG;
+      auditionBtn = null;
+    }
+  }
+
+  function toggleAudition(btn: HTMLButtonElement, refUrl: string): void {
+    if (auditionBtn === btn) {
+      stopAudition(); // 같은 버튼 재클릭 → 정지 토글
+      return;
+    }
+    stopAudition(); // 다른 클립 재생 중이면 먼저 멈춘다
+    const audio = new Audio(refUrl);
+    audio.addEventListener("ended", () => {
+      if (auditionBtn === btn) stopAudition();
+    });
+    auditionAudio = audio;
+    auditionBtn = btn;
+    btn.classList.add("is-playing");
+    btn.innerHTML = SPK_PAUSE_SVG;
+    // play()는 Promise 또는(구형/일부 환경) undefined를 반환할 수 있다 — 둘 다 안전 처리.
+    const fail = (): void => {
+      if (auditionBtn === btn) stopAudition();
+    };
+    try {
+      const p = audio.play();
+      if (p && typeof p.then === "function") p.catch(fail);
+    } catch {
+      fail();
+    }
+  }
+
+  function renderSpeakers(): void {
+    const activeId = speakerSelection.getActiveId();
+    const hadFocus = spksEl.contains(document.activeElement);
+    stopAudition(); // 재그림이 미리듣기 버튼 노드를 파괴하므로 audition 정리
+    spksEl.innerHTML = "";
+    for (const opt of speakerSelection.list()) {
+      const row = document.createElement("div");
+      row.setAttribute("role", "radio");
+      row.className = "yui-spk";
+      row.dataset.spkId = opt.id;
+      const selected = opt.id === activeId;
+      row.setAttribute("aria-checked", String(selected));
+      row.tabIndex = selected ? 0 : -1;
+
+      const label = opt.label ?? opt.id;
+      const hasClip = opt.ref_url.length > 0;
+      const badgeHtml = selected ? `<span class="yui-spk__badge">사용 중</span>` : "";
+      row.innerHTML = `
+        <span class="yui-spk__tick" aria-hidden="true"></span>
+        <span class="yui-spk__body"><span class="yui-spk__name"></span></span>
+        <button class="yui-spk__preview" type="button" title="미리듣기" ${hasClip ? "" : "disabled"}>${SPK_PLAY_SVG}</button>
+        ${badgeHtml}
+      `;
+      // 라벨은 신뢰 불가 입력일 수 있다 — textContent로만 넣는다.
+      const nameEl = row.querySelector<HTMLSpanElement>(".yui-spk__name")!;
+      nameEl.textContent = label;
+      const previewBtn = row.querySelector<HTMLButtonElement>(".yui-spk__preview")!;
+      previewBtn.setAttribute("aria-label", `${label} 미리듣기`);
+      previewBtn.addEventListener("click", (e) => {
+        e.stopPropagation(); // 미리듣기는 행 선택을 트리거하지 않는다
+        if (hasClip) toggleAudition(previewBtn, opt.ref_url);
+      });
+
+      row.addEventListener("click", () => {
+        void swapToSpeaker(opt);
+      });
+
+      spksEl.appendChild(row);
+
+      if (opt.id === spkErrorId) {
+        row.classList.add("is-error");
+        row.setAttribute("aria-invalid", "true");
+        const err = document.createElement("p");
+        err.className = "yui-spk__error";
+        err.setAttribute("role", "status");
+        err.textContent = "이 화자를 불러오지 못했어요. 이전 화자로 되돌렸어요.";
+        spksEl.appendChild(err);
+      }
+    }
+
+    if (hadFocus) {
+      const active = spkRowById(activeId);
+      if (active) {
+        active.focus();
+        active.scrollIntoView?.({ block: "nearest" });
+      }
+    }
+  }
+
+  function spkRowById(id: string): HTMLDivElement | null {
+    return spksEl.querySelector<HTMLDivElement>(`.yui-spk[data-spk-id="${CSS.escape(id)}"]`);
+  }
+
+  async function swapToSpeaker(option: SpeakerOption): Promise<void> {
+    if (spkSwapping !== null) return; // 진행 중엔 두 번째 스왑 금지
+    if (option.id === speakerSelection.getActiveId()) return; // 이미 active면 no-op
+
+    if (spkErrorId !== null) {
+      spkErrorId = null;
+      renderSpeakers();
+    }
+    spkSwapping = option.id;
+
+    spksEl.setAttribute("aria-busy", "true");
+    spksEl.classList.add("is-swapping");
+    const row = spkRowById(option.id);
+    if (row) {
+      row.setAttribute("aria-busy", "true");
+      // 미리듣기 버튼은 스왑 중 숨기고 "바꾸는 중…" 힌트를 그 자리에 둔다.
+      row.querySelector(".yui-spk__preview")?.remove();
+      const body = row.querySelector(".yui-spk__body");
+      if (body && !row.querySelector(".yui-spk__hint")) {
+        const hint = document.createElement("span");
+        hint.className = "yui-spk__hint";
+        hint.textContent = "바꾸는 중…";
+        body.insertAdjacentElement("afterend", hint);
+      }
+    }
+
+    try {
+      await swapSpeaker(option);
+      log.info("화자 스왑", { id: option.id });
+    } catch (err) {
+      spkErrorId = option.id;
+      log.error("화자 스왑 실패", { id: option.id, error: String(err) });
+    } finally {
+      spkSwapping = null;
+      spksEl.removeAttribute("aria-busy");
+      spksEl.classList.remove("is-swapping");
+      renderSpeakers();
+    }
+  }
+
+  // 화자 radiogroup 키보드 — div[role=radio]라 직접 배선한다.
+  // Enter/Space는 선택(스왑), 화살표는 roving focus 이동만(래핑), Home/End는 양끝.
+  function handleSpkKeydown(e: KeyboardEvent): void {
+    if (spkSwapping !== null) return;
+    const target = (e.target as HTMLElement).closest<HTMLDivElement>(".yui-spk[role=radio]");
+    if (!target) return;
+    const rows = Array.from(spksEl.querySelectorAll<HTMLDivElement>(".yui-spk[role=radio]"));
+    if (rows.length === 0) return;
+
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      const opt = speakerSelection.list().find((o) => o.id === target.dataset.spkId);
+      if (opt) void swapToSpeaker(opt);
+      return;
+    }
+
+    const current = Math.max(0, rows.indexOf(target));
+    let next = -1;
+    if (e.key === "ArrowDown" || e.key === "ArrowRight") next = current + 1;
+    else if (e.key === "ArrowUp" || e.key === "ArrowLeft") next = current - 1;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = rows.length - 1;
+    else return;
+    e.preventDefault();
+    // 화살표는 래핑(첫↔끝), Home/End는 양끝으로 클램프.
+    const wrapped = (next + rows.length) % rows.length;
+    const focusTarget = rows[wrapped];
+    // roving tabindex 이동: 새 행만 0, 나머지 -1.
+    for (const r of rows) r.tabIndex = -1;
+    focusTarget.tabIndex = 0;
+    focusTarget.focus();
+    focusTarget.scrollIntoView?.({ block: "nearest" });
   }
 
   // ── 위치 계산 (popover variant) ──
@@ -616,6 +826,7 @@ export function createQuickControls({
     reflectGain();
     reflectAgent();
     renderVrms();
+    renderSpeakers();
 
     if (isWindow) {
       // 창 variant는 OS 창을 채운다 — 위치 계산/애니메이션 없음.
@@ -638,6 +849,7 @@ export function createQuickControls({
   function close(): void {
     if (!openState) return;
     if (gainPreviewing) { onGainPreviewEnd(); gainPreviewing = false; }
+    stopAudition();
     openState = false;
 
     if (isWindow) {
@@ -790,6 +1002,11 @@ export function createQuickControls({
   const unsubscribeVrm = vrmSelection.subscribe(() => {
     if (openState && vrmSwapping === null) renderVrms();
   });
+  // 화자 store 갱신(직접 select·다른 창 reloadFromStorage)을 active 행에 반영.
+  // 스왑 진행 중엔 건너뛴다 — finally의 renderSpeakers가 로딩 해제 후 최종 그림을 맡는다.
+  const unsubscribeSpk = speakerSelection.subscribe(() => {
+    if (openState && spkSwapping === null) renderSpeakers();
+  });
 
   switchBtn.addEventListener("click", handleSwitchClick);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
@@ -801,6 +1018,7 @@ export function createQuickControls({
   segEl.addEventListener("click", handleSegClick);
   segEl.addEventListener("keydown", handleSegKeydown);
   vrmsEl.addEventListener("keydown", handleVrmKeydown);
+  spksEl.addEventListener("keydown", handleSpkKeydown);
   instructionsEl.addEventListener("input", handleInstructionsInput);
   instructionsEl.addEventListener("blur", handleInstructionsBlur);
   resetBtn.addEventListener("click", handleResetInstructions);
@@ -817,6 +1035,8 @@ export function createQuickControls({
     unsubscribeLipsync();
     unsubscribeAgent();
     unsubscribeVrm();
+    unsubscribeSpk();
+    stopAudition();
     switchBtn.removeEventListener("click", handleSwitchClick);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     scrimEl.removeEventListener("pointerdown", handleScrimPointerDown);
@@ -827,6 +1047,7 @@ export function createQuickControls({
     segEl.removeEventListener("click", handleSegClick);
     segEl.removeEventListener("keydown", handleSegKeydown);
     vrmsEl.removeEventListener("keydown", handleVrmKeydown);
+    spksEl.removeEventListener("keydown", handleSpkKeydown);
     instructionsEl.removeEventListener("input", handleInstructionsInput);
     instructionsEl.removeEventListener("blur", handleInstructionsBlur);
     resetBtn.removeEventListener("click", handleResetInstructions);

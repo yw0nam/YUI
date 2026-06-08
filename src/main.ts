@@ -28,6 +28,11 @@ import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/sc
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import { createVrmSelection, localStorageVrmStorage } from "./io/vrm-selection";
+import {
+  createSpeakerSelection,
+  localStorageSpeakerStorage,
+  type SpeakerOption,
+} from "./io/speaker-selection";
 import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
 import { createSettingsBridge } from "./io/settings-bridge";
 import { createWebAudioSink } from "./io/audio-player";
@@ -153,6 +158,8 @@ async function bootstrap(): Promise<void> {
           log.error("VRM cross-window swap failed:", err),
         );
       }
+      // 화자 선택은 store-only — synth가 다음 발화에서 getActive()로 읽으므로 재로드만 한다.
+      speakerSelection.reloadFromStorage();
     } finally {
       applyingRemote = false;
     }
@@ -181,6 +188,29 @@ async function bootstrap(): Promise<void> {
   // 이 창에서 고른 VRM을 설정 창 UI에 반영하기 위해 cross-window로 알린다(루프 가드는 broadcastSettings).
   vrmSelection.subscribe(broadcastSettings);
 
+  // irodori 화자 선택 store(PR-B). config 로드 전이라 빈 fallback으로 시작 — 패널이 일찍
+  // 필요하기 때문. config 로드 후 setManifest로 실제 irodori_voices·default를 주입한다.
+  const speakerSelection = createSpeakerSelection({
+    defaultId: "",
+    storage: localStorageSpeakerStorage(),
+  });
+  // 선택 → irodori voice registry 등록 후 store 커밋(swapVrm의 load-then-select 미러).
+  const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
+    const f = await selectFetch();
+    const eps = config.get().endpoints;
+    if (eps.irodori_base_url) {
+      await ensureRegistered({
+        baseUrl: eps.irodori_base_url,
+        id: option.id,
+        refUrl: option.ref_url,
+        fetch: f,
+      });
+    }
+    speakerSelection.select(option.id);
+  };
+  // 이 창에서 고른 화자를 설정 창 UI에 반영하기 위해 cross-window로 알린다.
+  speakerSelection.subscribe(broadcastSettings);
+
   const quickControls = createQuickControls({
     mount: root,
     settings: screenshotSettings,
@@ -190,6 +220,8 @@ async function bootstrap(): Promise<void> {
     agentSettings,
     vrmSelection,
     swapVrm,
+    speakerSelection,
+    swapSpeaker,
     onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
     onGainPreviewEnd: () => renderer.stopMouth(),
     // 빈 instructions일 때 placeholder로 보여줄 기본 지침(config 미로드 시 무시).
@@ -234,6 +266,7 @@ async function bootstrap(): Promise<void> {
       lipsyncSettings.dispose();
       agentSettings.dispose();
       vrmSelection.dispose();
+      speakerSelection.dispose();
       osContext.stop();
       stage.removeEventListener("contextmenu", onContextMenu);
     });
@@ -358,18 +391,21 @@ async function bootstrap(): Promise<void> {
         const f = await selectFetch();
         const eps = config.get().endpoints;
         if (eps.tts_provider === "irodori") {
-          const id = eps.irodori_speaker;
-          if (!eps.irodori_base_url || !id) {
+          // 활성 화자는 store가 소유한다(UI override > config default). ref_url도 store 옵션에서 온다.
+          const active = speakerSelection.getActive();
+          if (!eps.irodori_base_url || !active.id) {
             throw new Error("irodori provider requires irodori_base_url + irodori_speaker");
           }
-          const voice = eps.irodori_voices?.find((v) => v.id === id);
           // ensureRegistered는 멱등·메모이즈 — 매 synth 전 호출해도 첫 회 이후 no-op.
-          if (voice) {
-            await ensureRegistered({ baseUrl: eps.irodori_base_url, id, refUrl: voice.ref_url, fetch: f });
-          }
+          await ensureRegistered({
+            baseUrl: eps.irodori_base_url,
+            id: active.id,
+            refUrl: active.ref_url,
+            fetch: f,
+          });
           return createIrodoriSynth({
             baseUrl: eps.irodori_base_url,
-            referenceId: id,
+            referenceId: active.id,
             fetch: f,
             numSteps: eps.irodori_num_steps,
             cfgScaleText: eps.irodori_cfg_scale_text,
@@ -438,6 +474,10 @@ async function bootstrap(): Promise<void> {
     renderer.setMotionRegistry(cfg.motions);
     // 실제 manifest 주입 후 부트 로드 → persist된 override가 시작 시점에 적용된다.
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
+    speakerSelection.setManifest({
+      available: cfg.endpoints.irodori_voices,
+      defaultId: cfg.endpoints.irodori_speaker ?? "",
+    });
     await loadVrmSerialized(vrmSelection.getActive().url);
     // config가 준비된 후에만 dispatcher를 가동(backend_caller가 config.get()에 의존).
     dispatcher.start();
@@ -451,6 +491,13 @@ async function bootstrap(): Promise<void> {
     // emotion/motion registry 핫리로드 → renderer 재주입(즉시 반영).
     if (changed.has("emotionRegistry")) renderer.setEmotionRegistry(cfg.emotionRegistry);
     if (changed.has("motions")) renderer.setMotionRegistry(cfg.motions);
+    // irodori 화자 manifest 핫리로드 — synth가 다음 발화에서 getActive()로 읽으므로 재로드만 한다.
+    if (changed.has("endpoints")) {
+      speakerSelection.setManifest({
+        available: cfg.endpoints.irodori_voices,
+        defaultId: cfg.endpoints.irodori_speaker ?? "",
+      });
+    }
     if (!changed.has("avatar")) return;
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
     void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
