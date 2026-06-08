@@ -7,7 +7,11 @@ mod drag;
 // Screen-source enumeration and capture (issue #20).
 mod screenshot;
 
+// Calendar-date-based log rotation.
+mod log_rotation;
+
 use std::path::PathBuf;
+use tauri::Manager;
 use time::{OffsetDateTime, UtcOffset};
 
 /// Log verbosity: verbose in dev, warnings-and-above in release.
@@ -124,6 +128,22 @@ fn noisy_targets() -> &'static [(&'static str, log::LevelFilter)] {
   ]
 }
 
+fn date_rotating_target(
+  dir: PathBuf,
+  base: String,
+  offset: UtcOffset,
+) -> tauri_plugin_log::Target {
+  let writer = log_rotation::DateRotatingFile::new(dir, base, offset);
+  let dispatch = tauri_plugin_log::fern::Dispatch::new()
+    .chain(tauri_plugin_log::fern::Output::writer(
+      Box::new(writer),
+      "\n",
+    ));
+  tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Dispatch(
+    dispatch,
+  ))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -133,8 +153,6 @@ pub fn run() {
       let log_offset = resolve_log_offset();
       let mut builder = tauri_plugin_log::Builder::new()
         .level(level_for(cfg!(debug_assertions)))
-        .max_file_size(10_000_000)
-        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
         .format(move |out, message, record| {
           out.finish(format_args!(
             "{}",
@@ -147,23 +165,22 @@ pub fn run() {
           ));
         });
 
+      let base = app.package_info().name.clone();
+
       if cfg!(debug_assertions) {
         // Dev: write logs into the repo's <worktree>/logs/ for easy `tail -f logs/*.log`.
-        let dev_logs = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../logs");
+        let dev_logs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../logs");
         builder = builder
           .target(tauri_plugin_log::Target::new(
             tauri_plugin_log::TargetKind::Stdout,
           ))
-          .target(tauri_plugin_log::Target::new(
-            tauri_plugin_log::TargetKind::Folder {
-              path: dev_logs,
-              file_name: None,
-            },
-          ));
+          .target(date_rotating_target(dev_logs, base.clone(), log_offset));
       } else {
         // Release: standard OS log dir (~/Library/Logs/com.yui.desktop/ on macOS).
-        builder = builder.target(tauri_plugin_log::Target::new(
-          tauri_plugin_log::TargetKind::LogDir { file_name: None },
+        builder = builder.target(date_rotating_target(
+          app.path().app_log_dir()?,
+          base,
+          log_offset,
         ));
       }
 
