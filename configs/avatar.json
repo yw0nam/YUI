@@ -1,3 +1,6 @@
 {
-  "vrm_url": "/vrms/carlotta.vrm"
+  "vrm_url": "/vrms/carlotta.vrm",
+  "available": [
+    { "id": "carlotta", "label": "Carlotta", "url": "/vrms/carlotta.vrm", "source": "bundled" }
+  ]
 }

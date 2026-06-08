@@ -32,10 +32,24 @@ import type {
 // Config 타입 (contract 파생 + loader 전용)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** 선택 가능한 VRM 한 개 (#94 모델 스왑 manifest 항목). */
+export interface AvatarOption {
+  /** 안정 키 (예: "carlotta"). 선택 상태 영속화에 쓰임. */
+  id: string;
+  /** 표시 이름 (예: "Carlotta"). */
+  label: string;
+  /** vrm_url과 동일 의미 — vite 경로 또는 절대 URL. */
+  url: string;
+  /** "file" = 향후 OS 파일 피커로 추가된 항목(#94 P2). 미지정 시 미상. */
+  source?: "bundled" | "file";
+}
+
 /** configs/avatar.json — 로드할 VRM (contract: #4 렌더러 입력). */
 export interface AvatarConfig {
-  /** vite dev 정적 서빙 경로(`/vrms/*.vrm`) 또는 절대 URL. */
+  /** vite dev 정적 서빙 경로(`/vrms/*.vrm`) 또는 절대 URL. 기본/seed 선택. */
   vrm_url: string;
+  /** 선택 가능한 VRM 목록(#94). 없으면 vrm_url 단일 모델. */
+  available?: AvatarOption[];
 }
 
 /** 로드·검증된 전체 config 묶음 (불변 스냅샷). */
@@ -141,6 +155,7 @@ function fetchReader(baseUrl: string, cacheBust?: string): ConfigReader {
 // 검증 헬퍼
 // ─────────────────────────────────────────────────────────────────────────────
 
+const AVATAR_SOURCES: readonly NonNullable<AvatarOption["source"]>[] = ["bundled", "file"];
 const MOTION_KINDS: readonly MotionKind[] = ["ambient", "reactive", "state", "oneshot"];
 const INTERRUPT_POLICIES: readonly InterruptPolicy[] = ["replace", "queue", "ignore"];
 /** contract.md §1 emotion enum 10종. registry 키는 이 집합에 한정(오탈자 키 fail-loud). */
@@ -233,7 +248,36 @@ function validateAvatar(file: string, raw: unknown): AvatarConfig {
   if (typeof vrm_url !== "string" || vrm_url.length === 0) {
     throw new ConfigError(file, [`vrm_url은 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(vrm_url)})`]);
   }
-  return { vrm_url };
+  const rawAvailable = raw.available;
+  if (rawAvailable === undefined) return { vrm_url };
+  if (!Array.isArray(rawAvailable)) {
+    throw new ConfigError(file, [`available은 배열이어야 함 (받음: ${JSON.stringify(rawAvailable)})`]);
+  }
+  const issues: string[] = [];
+  const available: AvatarOption[] = [];
+  rawAvailable.forEach((entry, i) => {
+    if (!isObject(entry)) {
+      issues.push(`available[${i}]: 항목이 객체가 아님`);
+      return;
+    }
+    for (const k of ["id", "label", "url"] as const) {
+      if (typeof entry[k] !== "string" || (entry[k] as string).length === 0) {
+        issues.push(`available[${i}].${k}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(entry[k])})`);
+      }
+    }
+    const source = entry.source;
+    if (source !== undefined && !AVATAR_SOURCES.includes(source as AvatarOption["source"] & string)) {
+      issues.push(`available[${i}].source는 ${AVATAR_SOURCES.join("|")} 중 하나여야 함 (받음: ${JSON.stringify(source)})`);
+    }
+    available.push({
+      id: entry.id as string,
+      label: entry.label as string,
+      url: entry.url as string,
+      ...(source !== undefined ? { source: source as AvatarOption["source"] } : {}),
+    });
+  });
+  assertValid(file, issues);
+  return { vrm_url, available };
 }
 
 function validateEmotionRegistry(file: string, raw: unknown): EmotionRegistry {

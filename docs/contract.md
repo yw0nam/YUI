@@ -160,6 +160,34 @@ interface MotionRegistryEntry {
 
 ---
 
+## 2.5 Avatar (VRM) 선택
+
+### 목적
+client가 로드할 VRM 모델과, 사용자가 고를 수 있는 모델 목록. backend는 관여하지 않는다(렌더러 입력 #4, client-local config). `configs/avatar.json`에서 로드.
+
+### Schema
+```ts
+interface AvatarOption {
+  id: string;                    // 안정 키 (예: "carlotta") — 선택 상태 영속화 단위
+  label: string;                 // 표시 이름 (예: "Carlotta")
+  url: string;                   // vrm_url과 동일 의미 — Vite 경로 또는 절대 URL
+  source?: "bundled" | "file";   // "file" = 향후 OS 파일 피커로 추가(#94 P2). 미지정 시 미상.
+}
+
+interface AvatarConfig {
+  vrm_url: string;               // 기본/seed 선택. 항상 필수.
+  available?: AvatarOption[];    // #94 선택 가능한 VRM 목록. 없으면 vrm_url 단일 모델.
+}
+```
+
+### 규약
+- `vrm_url`은 항상 필수 — `available`이 없거나 비어 있어도 단일 모델로 동작(하위 호환).
+- `available`이 있으면 배열이어야 하며, 각 항목의 `id`/`label`/`url`은 비어 있지 않은 문자열, `source`는 있으면 `bundled|file`. 위반 시 `ConfigError`로 fail-loud(부분 로드 없음).
+- 보통 `available[0]` 또는 `id`가 `vrm_url`과 일치하는 항목이 seed 선택이다. 선택 상태의 영속화/스왑은 client 책임(#94 P2~).
+- 모델 핫스왑 시 emotion expression registry는 손대지 않는다(§1 — existence-aware fallback이 모델별 expression 집합을 재평가).
+
+---
+
 ## 3. Control Signal Envelope
 
 ### 목적
@@ -408,4 +436,5 @@ prototype에서 결정/검증:
 
 ## Changelog
 
+- **2026-06-08:** §2.5 추가 — `AvatarConfig.available?: AvatarOption[]` VRM 선택 manifest(#94). `vrm_url`은 필수 유지(하위 호환).
 - **2026-06-06 (v0.2 draft):** `emotion_tts_prefix`(emotion-enum→TTS-prefix 매핑) 제거 — emotion의 목소리 제어는 `generate_express`의 자유 텍스트 `emotion_text` 채널로 일원화(§1, §3 D-TTS-PIPELINE step 4).
