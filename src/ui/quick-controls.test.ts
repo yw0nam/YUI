@@ -1034,6 +1034,37 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  it("activates a speaker whose id contains a double-quote without throwing (CSS.escape)", async () => {
+    const evilId = 'ナ"ツメ';
+    speakerSelection = createSpeakerSelection({
+      available: [
+        { id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" },
+        { id: evilId, label: "Quoted", ref_url: "/references/quoted.wav" },
+      ],
+      defaultId: "natsume",
+    });
+    swapSpeaker = vi.fn(async (option: SpeakerOption) => {
+      speakerSelection.select(option.id);
+    });
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const quoted = rows.find((r) => r.dataset.spkId === evilId)!;
+    expect(quoted).toBeDefined();
+
+    // clicking would throw SyntaxError inside spkRowById if the selector were unescaped
+    expect(() => quoted.click()).not.toThrow();
+    await flush();
+
+    const after = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const active = after.find((r) => r.getAttribute("aria-checked") === "true")!;
+    expect(active.dataset.spkId).toBe(evilId);
+    expect(speakerSelection.getActiveId()).toBe(evilId);
+
+    qc.dispose();
+  });
+
   it("window variant also renders the speaker section", () => {
     const qc = buildQc({ variant: "window" });
     qc.open();
