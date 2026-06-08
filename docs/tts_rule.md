@@ -49,19 +49,12 @@ current motion_id set is:
 
 ### emotion_text(string)
 
-Emtoion string for control TTS. These text can be varied by TTS model.
+Emotion string for controlling TTS. The vocabulary is **provider-dependent** — see `docs/contract.md` §3 (`[D-EMOTION-TEXT]`) for the authoritative table.
 
-Currently, TTS model is fishspeech s2 pro. So, emotion text is free text like: [whisper in small voice], [professional broadcast tone], [pitch up]. And also be like [pause] [emphasis] [laughing] [inhale] [chuckle] [tsk] [singing] [excited] [laughing tone] [interrupting] [chuckling] [excited tone] [volume up] [echo] [angry] [low volume] [sigh] [low voice] [whisper] [screaming] [shouting] [loud] [surprised] [short pause] [exhale] [delight] [panting] [audience laughter] [with strong accent] [volume down] [clearing throat] [sad] [moaning] [shocked]
+- **irodori (default provider):** inline **emoji tags** in the text, e.g. `👂 Can you hear me?`, `😆 I can't believe you said that.` Repeat an emoji to intensify.
+- **openai-compatible (legacy fishspeech path):** free text like `[whisper in small voice]`, `[laughing]`.
 
-In client, these free text like this:
-
-
-[whisper in small voice] Can you hear me?
-[laughing] I can't believe you said that.
-
-And, These can be used together for fine-grained control.
-
-[whisper in small voice] Can you hear me? [pause] I can't believe you said that.
+Either way the client prepends the tag to the spoken text and passes it through verbatim — no client-side validation, and the tag is never shown in the speech bubble.
 
 
 

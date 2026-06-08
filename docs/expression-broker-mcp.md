@@ -54,7 +54,7 @@ emotion/motion **어휘(vocabulary)의 단일 진실원천(SOT)** 이자, agent�
 
 - **emotion_ids** = VRM blendshape(얼굴) id. contract.md §1 enum 10종이 기본값. **TTS엔 안 쓰임.**
 - **motion_ids** = VRMA(몸) registry key. contract.md §2의 model-selectable 4종. (`drag`는 client 내부 reactive 모션 — model이 고르지 않으므로 제외.)
-- **TTS 태그(emotion_text)는 어휘에 두지 않는다.** FishSpeech S2 pro가 자유 텍스트(`[shocked]`, `[whisper in small voice]`, 조합 가능)를 허용하므로 hard enum이 아니다. broker가 *advisory 힌트 목록*을 노출할 수는 있으나(아래 §3.4 optional) 검증/강제는 안 한다.
+- **TTS 태그(emotion_text)는 hard 검증 어휘에 두지 않는다.** PR-A부터 어휘는 **이모지 태그 집합**이다(아래 §4 표 — FishSpeech 자유 텍스트를 대체). 자유 텍스트라(이모지 반복으로 강도 표현, 조합 가능) hard enum이 아니므로 broker는 검증/강제하지 않는다. broker가 이 이모지 목록을 *advisory 힌트*로 노출할 수는 있다(§3.4 `update_tts_tags`, optional).
 
 ## 3. MCP Surface
 
@@ -69,7 +69,7 @@ agent가 발화 중 표정/모션/목소리를 전환하려고 호출하는 tool
 def generate_express(
     emotion_id: str | None = None,   # §2 emotion_ids 중 하나. 생략 → 직전 표정 유지(hold)
     motion_id:  str | None = None,   # §2 motion_ids 중 하나. 생략 → client가 emotion에서 파생(D-MOTION-FROM-EMOTION)
-    emotion_text: str | None = None, # TTS 제어 태그(자유 텍스트). 생략 → prefix 없이 plain
+    emotion_text: str | None = None, # TTS 제어 태그(이모지 어휘 §4, 자유 텍스트). 생략 → prefix 없이 plain
 ) -> dict:
     ...
 ```
@@ -77,7 +77,7 @@ def generate_express(
 - **arguments(= 모델 생성 입력)** `{ emotion_id?, motion_id?, emotion_text? }` 가 **transport 페이로드**다. YUI가 소비하는 건 *이것*(반환값 아님).
 - **return value(= broker → Hermes)** = 검증 결과 ack. agent loop가 발화를 계속하도록 가벼운 JSON만:
   ```jsonc
-  { "ok": true, "applied": { "emotion_id": "happy", "motion_id": null, "emotion_text": "[whisper in small voice]" },
+  { "ok": true, "applied": { "emotion_id": "happy", "motion_id": null, "emotion_text": "👂" },
     "warnings": [] }   // 미등록 id가 오면 warnings에 싣고 해당 필드를 drop(no-op), ok는 유지
   ```
 - **handler 책임 = 검증 게이트.** `emotion_id`/`motion_id`가 현재 live 집합(§2)에 없으면 → 해당 필드 drop + warning. **발화를 막지 않는다(ok:true 유지).** `emotion_text`는 검증 안 함(자유 텍스트).
@@ -118,7 +118,7 @@ async def update_emotion_ids(ids: list[str], ctx: Context) -> dict:
 ```
 
 - YUI가 부팅 시 + **VRM 모델 핫스왑 시** 자기가 렌더 가능한 집합을 선언. broker는 이걸 SOT로 저장하고 resource 구독자에게 통지.
-- (optional) `update_tts_tags(tags)` — emotion_text advisory 힌트 목록을 두고 싶을 때만. **검증용 아님, 모델 힌트용.**
+- (optional) `update_tts_tags(tags)` — emotion_text advisory 힌트 목록을 두고 싶을 때만. **검증용 아님, 모델 힌트용.** PR-A 기준 힌트는 §4의 이모지 어휘.
 
 ## 4. 필드 정의 (3채널 분리 — 의도된 분리)
 
@@ -126,12 +126,40 @@ async def update_emotion_ids(ids: list[str], ctx: Context) -> dict:
 |---|---|---|---|---|
 | `emotion_id` | **얼굴** (VRM blendshape) | 표정 | enum (10종) | broker hard 검증, 미등록 drop |
 | `motion_id` | **몸** (VRMA gesture) | 모션 | registry key (4종) | broker hard 검증, 미등록 drop |
-| `emotion_text` | **목소리** (TTS 제어) | voice 태그 | **자유 텍스트** (FishSpeech 태그) | 검증 없음, model이 직접 생성 |
+| `emotion_text` | **목소리** (TTS 제어) | voice 태그 | **이모지 어휘** (자유 텍스트, 아래 표) | 검증 없음, model이 직접 생성 |
 | 발화 텍스트 | 자막/TTS 본문 | **별도 텍스트 스트림** | `output_text.delta` | **`generate_express`에 없음** (D-SPEECH) |
 
-- emotion_id(얼굴)와 emotion_text(목소리)는 **독립**이다 — `happy` 표정 + `[whisper in small voice]` 목소리 동시 가능.
-- `emotion_text` 예시: `"[shocked]"`, `"[whisper in small voice]"`, `"[excited] [volume up]"`. **문장은 넣지 않는다** (발화는 텍스트 스트림). YUI는 이 태그를 TTS 큐의 해당 분절 **맨 앞에 prepend**(D-TTS-PIPELINE step 4).
+- emotion_id(얼굴)와 emotion_text(목소리)는 **독립**이다 — `happy` 표정 + `👂`(whisper) 목소리 동시 가능.
+- `emotion_text` 예시: `"😏"`, `"🥺🥺"`, `"😆🎵"`. **문장은 넣지 않는다** (발화는 텍스트 스트림). YUI는 이 태그를 TTS 큐의 해당 분절 **맨 앞에 prepend**(D-TTS-PIPELINE step 4) — prefix-only라 말풍선엔 안 들어간다. 두 TTS provider(openai/irodori, contract §5)가 같은 채널을 쓴다.
 - 셋 다 optional. 전부 생략된 `generate_express`는 의미 없으므로 model은 보통 최소 하나를 채운다.
+
+### `emotion_text` 이모지 어휘 (renderable vocabulary, PR-A)
+broker가 브로커링하는 `emotion_text` 어휘는 아래 이모지 집합이다(PR-A에서 FishSpeech 자유 텍스트를 대체). **같은 이모지를 반복하면 강도가 세진다**(예: `🥺` → `🥺🥺`), 조합도 가능. broker는 이를 advisory hint로만 노출하고 **검증/강제는 안 한다**(§3.1) — 모델이 직접 생성, YUI가 TTS 분절 prefix로 소비.
+
+| Emoji | 의미 | | Emoji | 의미 |
+|---|---|---|---|---|
+| 👂 | whisper / close to ear | | 😆 | joyfully |
+| 😮‍💨 | breath / sigh / sleeping breath | | 😠 | angry / displeased / sulking |
+| ⏸️ | pause / silence | | 😲 | surprise / exclamation |
+| 🤭 | chuckle / giggle | | 🥱 | yawn |
+| 🥵 | panting / moan / groan | | 😖 | painfully |
+| 📢 | echo / reverb | | 😟 | worriedly |
+| 😏 | teasing / coaxing | | 🫣 | shyly / bashful |
+| 🥺 | trembling / timid | | 🙄 | exasperated |
+| 🌬️ | heavy breathing | | 😊 | cheerfully / glad |
+| 😮 | gasp | | 👌 | backchannel / agreement |
+| 👅 | licking / chewing / wet sound | | 🙏 | pleading / begging |
+| 💋 | lip noise | | 🥴 | drunkenly |
+| 🫶 | gently / tenderly | | 🎵 | humming |
+| 😭 | sobbing / crying / sad | | 🤐 | muffled |
+| 😱 | scream / shriek | | 😌 | relieved / content |
+| 😪 | sleepily / languid | | 🤔 | questioning |
+| ⏩ | fast-speaking / rapid-fire | | 🥤 | gulp / swallow |
+| 📞 | phone / speaker filter | | 🤧 | cough / sniffle / sneeze |
+| 🐢 | slowly | | 😒 | tutting / tongue click |
+| | | | 😰 | panicked / nervous / stutter |
+
+> 동일 표가 contract.md §3 D-EMOTION-TEXT에도 있다(SOT는 본 broker 스펙 §4 + contract §3 — 어휘 변경 시 양쪽 갱신).
 
 ## 5. YUI 소비 경로 (스트림에서 뽑기)
 
