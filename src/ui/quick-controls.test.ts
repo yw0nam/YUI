@@ -27,6 +27,15 @@ import {
   type AgentStorage,
 } from "../io/agent-settings";
 
+// jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
+// Escapes ASCII chars that aren't safe identifier chars; non-ASCII passes through (safe unescaped).
+if (typeof (globalThis as { CSS?: { escape?: unknown } }).CSS?.escape !== "function") {
+  (globalThis as { CSS?: { escape: (s: string) => string } }).CSS = {
+    escape: (value: string) =>
+      String(value).replace(/[\x00-\x7f]/g, (ch) => (/[a-zA-Z0-9_-]/.test(ch) ? ch : `\\${ch}`)),
+  };
+}
+
 // In-memory AgentStorage so each test starts from a clean store.
 function inMemoryAgentStorage(): AgentStorage {
   let value: AgentSettings | null = null;

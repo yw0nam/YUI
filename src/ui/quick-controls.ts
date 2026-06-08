@@ -448,7 +448,7 @@ export function createQuickControls({
   }
 
   function vrmRowById(id: string): HTMLButtonElement | null {
-    return vrmsEl.querySelector<HTMLButtonElement>(`.yui-vrm[data-vrm-id="${id}"]`);
+    return vrmsEl.querySelector<HTMLButtonElement>(`.yui-vrm[data-vrm-id="${CSS.escape(id)}"]`);
   }
 
   async function swapTo(option: AvatarOption): Promise<void> {
@@ -629,7 +629,7 @@ export function createQuickControls({
   }
 
   function spkRowById(id: string): HTMLDivElement | null {
-    return spksEl.querySelector<HTMLDivElement>(`.yui-spk[data-spk-id="${id}"]`);
+    return spksEl.querySelector<HTMLDivElement>(`.yui-spk[data-spk-id="${CSS.escape(id)}"]`);
   }
 
   async function swapToSpeaker(option: SpeakerOption): Promise<void> {

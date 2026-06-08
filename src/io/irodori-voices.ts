@@ -53,6 +53,13 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
 
 export function ensureRegistered(opts: EnsureRegisteredOptions): Promise<void> {
   const log = opts.logger ?? createLogger("irodori-voices");
+
+  // refUrl 없는 화자는 등록할 클립이 없다 — fetch/POST 없이 no-op, 캐시도 남기지 않는다(나중에 실 refUrl이 오면 등록).
+  if (!opts.refUrl) {
+    log.debug("voice register skipped", { id: opts.id, skipped: "empty ref_url" });
+    return Promise.resolve();
+  }
+
   const key = `${opts.baseUrl}::${opts.id}`;
 
   const existing = inflight.get(key);
