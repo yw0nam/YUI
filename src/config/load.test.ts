@@ -414,6 +414,22 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
+  it("motions: variant_policy만 있고 variants가 없으면 실패(dead 필드)", async () => {
+    await expectConfigError(
+      loadWith(CONFIG_FILES.motions, {
+        idle: {
+          vrma_path: "/motions/a.vrma",
+          variant_policy: "random", // variants 없이 의미 없음
+          kind: "ambient",
+          loop: true,
+          priority: 0,
+          interrupt_policy: "replace",
+        },
+      }),
+      "motions.json",
+    );
+  });
+
   it("emotion_registry: contract enum 밖의 키면 실패(오탈자 fail-loud)", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.emotionRegistry, {
