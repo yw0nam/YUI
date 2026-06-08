@@ -44,7 +44,9 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   // drain 시점에 평가 — 함수 형태면 hot-reload config 값을 그때그때 읽는다.
   const resolveMaxInflight = (): number => {
     const v = typeof options.maxInflight === "function" ? options.maxInflight() : options.maxInflight;
-    return Math.max(1, Math.floor(v ?? 1));
+    // ?? 1 does not catch NaN; non-finite (NaN/±Infinity) would hang or unbound the drain.
+    const n = Math.floor(v ?? 1);
+    return Number.isFinite(n) ? Math.max(1, n) : 1;
   };
 
   const segmenter = createSentenceSegmenter();
