@@ -192,6 +192,62 @@ describe("createTtsPipeline — synth concurrency cap", () => {
     resolvers[0].resolve(bufFor(0));
   });
 
+  // Regression: a NaN cap (?? does not catch NaN) made `inFlight < NaN` always false →
+  // no synth ever dispatched → pending sat forever → onPlaybackEnd never fired (silent hang).
+  // This test never awaits the hang: dispatch must happen within a tick, else the length
+  // assertion fails fast against the buggy impl.
+  it("function-form maxInflight returning NaN falls back to serial cap 1 and does not hang", async () => {
+    const { synth, resolvers, peakConcurrency } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const onPlaybackEnd = vi.fn();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd, maxInflight: () => NaN });
+
+    pipe.pushTextDelta("First. Second.");
+    pipe.end();
+    await tick();
+    // Buggy impl dispatches nothing here → this fails fast (no hang).
+    expect(resolvers).toHaveLength(1);
+    expect(peakConcurrency()).toBe(1);
+
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    finish();
+    await tick();
+    expect(resolvers).toHaveLength(2);
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    finish();
+    await tick();
+    expect(peakConcurrency()).toBe(1);
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("number-form NaN maxInflight also falls back to serial cap 1", async () => {
+    const { synth, resolvers, peakConcurrency } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: NaN });
+
+    pipe.pushTextDelta("First. Second.");
+    await tick();
+    expect(resolvers).toHaveLength(1);
+    expect(peakConcurrency()).toBe(1);
+    resolvers[0].resolve(bufFor(0));
+  });
+
+  // Math.floor(Infinity) is Infinity, which is not finite → guard clamps it to 1 (serial),
+  // not an unbounded cap. Asserts the guard treats non-finite the same regardless of sign.
+  it("function-form maxInflight returning Infinity clamps to serial cap 1", async () => {
+    const { synth, resolvers, peakConcurrency } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: () => Infinity });
+
+    pipe.pushTextDelta("First. Second.");
+    await tick();
+    expect(resolvers).toHaveLength(1);
+    expect(peakConcurrency()).toBe(1);
+    resolvers[0].resolve(bufFor(0));
+  });
+
   it("function-form maxInflight (() => 3) overlaps like the number 3", async () => {
     const { synth, resolvers, peakConcurrency } = deferredSynth();
     const { sink } = recordingSink();
