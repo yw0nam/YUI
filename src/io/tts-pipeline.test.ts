@@ -191,6 +191,54 @@ describe("createTtsPipeline — synth concurrency cap", () => {
     expect(peakConcurrency()).toBe(1);
     resolvers[0].resolve(bufFor(0));
   });
+
+  it("function-form maxInflight (() => 3) overlaps like the number 3", async () => {
+    const { synth, resolvers, peakConcurrency } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: () => 3 });
+
+    pipe.pushTextDelta("First. Second. Third.");
+    await tick();
+    expect(resolvers).toHaveLength(3);
+    expect(peakConcurrency()).toBe(3);
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].resolve(bufFor(1));
+    resolvers[2].resolve(bufFor(2));
+  });
+
+  it("function-form maxInflight is resolved per drain — a later drain honors the new value", async () => {
+    const { synth, resolvers, peakConcurrency } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    let cap = 1;
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: () => cap });
+
+    // First batch with cap 1: only one synth dispatches.
+    pipe.pushTextDelta("One. Two.");
+    await tick();
+    expect(resolvers).toHaveLength(1);
+    expect(peakConcurrency()).toBe(1);
+
+    // Drain the first batch so a fresh drain runs against the new cap.
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    expect(resolvers).toHaveLength(2); // freed slot dispatched the queued #2
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    finish();
+    await tick();
+    finish();
+    await tick();
+
+    // Raise the cap, then submit a second batch — the new value is honored.
+    cap = 3;
+    pipe.pushTextDelta("Three. Four. Five.");
+    await tick();
+    expect(resolvers).toHaveLength(5); // 2 from batch one + 3 from batch two
+    expect(peakConcurrency()).toBe(3);
+    resolvers[2].resolve(bufFor(2));
+    resolvers[3].resolve(bufFor(3));
+    resolvers[4].resolve(bufFor(4));
+  });
 });
 
 describe("createTtsPipeline — emotion_text prefix", () => {
