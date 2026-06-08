@@ -381,6 +381,10 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
         variant_policy = rawVariantPolicy as MotionRegistryEntry["variant_policy"];
       }
     }
+    // variants 없는 variant_policy는 resolve()가 무시하는 dead 필드 — fail-loud.
+    if (rawVariantPolicy !== undefined && rawVariants === undefined) {
+      issues.push(`${id}.variant_policy는 variants 없이 의미 없음 (variants 필요)`);
+    }
     out[id] = {
       vrma_path: entry.vrma_path as string,
       ...(variants !== undefined ? { variants } : {}),
