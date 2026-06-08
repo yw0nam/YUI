@@ -97,6 +97,34 @@ describe("loadConfig — happy path", () => {
   });
 });
 
+// ── motions.variants / variant_policy (D-MOTION-VARIANTS) ───────────────────────
+
+describe("loadConfig — motions.variants", () => {
+  it("variants/variant_policy를 검증 후 그대로 보존한다", async () => {
+    const map = goodFixture();
+    map["motions.json"] = {
+      idle: {
+        vrma_path: "/motions/a.vrma",
+        variants: ["/motions/a.vrma", "/motions/b.vrma"],
+        variant_policy: "random",
+        kind: "ambient",
+        loop: true,
+        priority: 0,
+        interrupt_policy: "replace",
+      },
+    };
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.motions.idle.variants).toEqual(["/motions/a.vrma", "/motions/b.vrma"]);
+    expect(cfg.motions.idle.variant_policy).toBe("random");
+  });
+
+  it("variants 없는 항목은 통과하고 variants는 undefined", async () => {
+    const cfg = await loadConfig({ read: readerOf(goodFixture()) });
+    expect(cfg.motions.idle.variants).toBeUndefined();
+    expect(cfg.motions.idle.variant_policy).toBeUndefined();
+  });
+});
+
 // ── avatar.available manifest (#94 VRM swap) ────────────────────────────────────
 
 describe("loadConfig — avatar.available", () => {
@@ -330,6 +358,55 @@ describe("loadConfig — validation failures throw ConfigError", () => {
           kind: "ambient",
           loop: true,
           priority: 200, // 0~100 밖
+          interrupt_policy: "replace",
+        },
+      }),
+      "motions.json",
+    );
+  });
+
+  it("motions: variants에 .vrma 아닌 항목이 있으면 실패", async () => {
+    await expectConfigError(
+      loadWith(CONFIG_FILES.motions, {
+        idle: {
+          vrma_path: "/motions/a.vrma",
+          variants: ["/motions/a.vrma", "/motions/b.glb"], // .vrma 아님
+          kind: "ambient",
+          loop: true,
+          priority: 0,
+          interrupt_policy: "replace",
+        },
+      }),
+      "motions.json",
+    );
+  });
+
+  it("motions: variants가 1개뿐이면 실패(단일 풀은 무의미)", async () => {
+    await expectConfigError(
+      loadWith(CONFIG_FILES.motions, {
+        idle: {
+          vrma_path: "/motions/a.vrma",
+          variants: ["/motions/a.vrma"], // 길이 1
+          kind: "ambient",
+          loop: true,
+          priority: 0,
+          interrupt_policy: "replace",
+        },
+      }),
+      "motions.json",
+    );
+  });
+
+  it("motions: variant_policy가 enum 밖이면 실패", async () => {
+    await expectConfigError(
+      loadWith(CONFIG_FILES.motions, {
+        idle: {
+          vrma_path: "/motions/a.vrma",
+          variants: ["/motions/a.vrma", "/motions/b.vrma"],
+          variant_policy: "bogus", // random|sequential 밖
+          kind: "ambient",
+          loop: true,
+          priority: 0,
           interrupt_policy: "replace",
         },
       }),
