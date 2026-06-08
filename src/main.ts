@@ -231,6 +231,7 @@ async function bootstrap(): Promise<void> {
       screenshotSettings.dispose();
       lipsyncSettings.dispose();
       agentSettings.dispose();
+      vrmSelection.dispose();
       osContext.stop();
       stage.removeEventListener("contextmenu", onContextMenu);
     });
