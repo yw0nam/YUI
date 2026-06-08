@@ -36,6 +36,10 @@
   /* ── Light-context ink (seed Warm Ink, 현재 surface엔 미사용 — 보존) ── */
   --yui-ink: oklch(0.22 0.01 70);
 
+  /* ── Danger: 절제된 warm-red. 되돌림/실패 안내에만(앰버와 충돌 않게 hue 35). ── */
+  --yui-danger: oklch(0.77 0.11 35);
+  --yui-danger-soft: oklch(0.77 0.11 35 / 0.45);
+
   /* ── Elevation: 단 한 겹의 부드러운 ambient Float (The Float Rule) ── */
   --yui-float: 0 8px 32px oklch(0.12 0.02 70 / 0.4);
   --yui-text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55); /* 밝은 배경 보험 */

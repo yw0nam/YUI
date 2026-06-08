@@ -10,6 +10,8 @@ import type { createScreenshotSettings } from "../io/screenshot-settings";
 import type { ScreenSourceProvider, MonitorInfo } from "../io/screen-source-provider";
 import type { ScreenSource } from "../contract";
 import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
+import type { createVrmSelection } from "../io/vrm-selection";
+import type { AvatarOption } from "../config/load";
 import { createLipsyncSettings, LIPSYNC_GAIN_MIN, LIPSYNC_GAIN_MAX } from "../io/lipsync-settings";
 import {
   createAgentSettings,
@@ -21,6 +23,7 @@ import {
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
+type VrmSelectionStore = ReturnType<typeof createVrmSelection>;
 
 interface QuickControlsOptions {
   mount: HTMLElement;
@@ -29,6 +32,9 @@ interface QuickControlsOptions {
   voiceStatus: VoiceInputStatus;
   lipsync: LipsyncSettingsStore;
   agentSettings: AgentSettingsStore;
+  vrmSelection: VrmSelectionStore;
+  /** 실제 스왑 수행 + 성공 시 store 커밋(P4 주입). 컴포넌트는 store.select를 직접 호출하지 않는다. */
+  swapVrm: (option: AvatarOption) => Promise<void>;
   onGainPreview: (mouthOpen: number) => void;
   onGainPreviewEnd: () => void;
   onPopOut?: () => void;
@@ -91,6 +97,8 @@ export function createQuickControls({
   voiceStatus,
   lipsync,
   agentSettings,
+  vrmSelection,
+  swapVrm,
   onGainPreview,
   onGainPreviewEnd,
   onPopOut,
@@ -215,6 +223,18 @@ export function createQuickControls({
         </div>
       </details>
 
+      <span class="yui-quick__section">VRM</span>
+      <div class="yui-vrm-scroll">
+        <div class="yui-vrms" role="radiogroup" aria-label="VRM"></div>
+      </div>
+      <div class="yui-vrm-foot">
+        <button class="yui-vrm yui-vrm--add" type="button" disabled aria-disabled="true" tabindex="-1">
+          <span class="yui-vrm__tick" aria-hidden="true"></span>
+          <span class="yui-vrm__body"><span class="yui-vrm__name">파일에서 추가…</span></span>
+          <span class="yui-vrm__soon">준비 중</span>
+        </button>
+      </div>
+
       <span class="yui-quick__section">표현</span>
       <div class="yui-gain">
         <div class="yui-gain__head">
@@ -239,6 +259,7 @@ export function createQuickControls({
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-switch")!;
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsEl = el.querySelector<HTMLDivElement>(".yui-monitors")!;
+  const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
   const gainSlider = el.querySelector<HTMLInputElement>(".yui-gain__slider")!;
   const gainValue = el.querySelector<HTMLSpanElement>(".yui-gain__value")!;
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar")!;
@@ -346,6 +367,133 @@ export function createQuickControls({
     const monitors = await sourceProvider.listMonitors();
     monitorsLoaded = true;
     renderMonitors(monitors, settings.get().source);
+  }
+
+  // ── VRM 섹션 ──
+
+  // 스왑 진행 중인 id(중복 스왑 가드) · 직전 오류 행 id(다시 그릴 때 인라인 안내 유지).
+  let vrmSwapping: string | null = null;
+  let vrmErrorId: string | null = null;
+
+  function renderVrms(): void {
+    const activeId = vrmSelection.getActiveId();
+    // innerHTML 재그림이 포커스를 가진 행을 파괴한다 — 가졌던 경우에만 복원하려고 미리 기록.
+    const hadFocus = vrmsEl.contains(document.activeElement);
+    vrmsEl.innerHTML = "";
+    for (const opt of vrmSelection.list()) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.setAttribute("role", "radio");
+      btn.className = "yui-vrm";
+      btn.dataset.vrmId = opt.id;
+      const selected = opt.id === activeId;
+      btn.setAttribute("aria-checked", String(selected));
+      btn.tabIndex = selected ? 0 : -1;
+
+      const badgeHtml = selected ? `<span class="yui-vrm__badge">사용 중</span>` : "";
+      btn.innerHTML = `
+        <span class="yui-vrm__tick" aria-hidden="true"></span>
+        <span class="yui-vrm__body"><span class="yui-vrm__name"></span></span>
+        ${badgeHtml}
+      `;
+      // 라벨은 신뢰 불가 입력일 수 있다(P2 파일 선택) — textContent로만 넣는다.
+      btn.querySelector<HTMLSpanElement>(".yui-vrm__name")!.textContent = opt.label;
+
+      btn.addEventListener("click", () => {
+        void swapTo(opt);
+      });
+
+      vrmsEl.appendChild(btn);
+
+      // 직전 오류 행이면 비활성으로 다시 그린 뒤 인라인 안내를 그 아래에 붙인다.
+      if (opt.id === vrmErrorId) {
+        btn.classList.add("is-error");
+        btn.setAttribute("aria-invalid", "true");
+        const err = document.createElement("p");
+        err.className = "yui-vrm__error";
+        err.setAttribute("role", "status");
+        err.textContent = "이 모델을 불러오지 못했어요. 이전 모델로 되돌렸어요.";
+        vrmsEl.appendChild(err);
+      }
+    }
+
+    // 재그림 전 라디오그룹이 포커스를 쥐고 있었다면 새 active 행으로 포커스를 잇는다(roving-tabindex 유지).
+    if (hadFocus) {
+      const active = vrmRowById(activeId);
+      if (active) {
+        active.focus();
+        active.scrollIntoView?.({ block: "nearest" });
+      }
+    }
+  }
+
+  function vrmRowById(id: string): HTMLButtonElement | null {
+    return vrmsEl.querySelector<HTMLButtonElement>(`.yui-vrm[data-vrm-id="${id}"]`);
+  }
+
+  async function swapTo(option: AvatarOption): Promise<void> {
+    if (vrmSwapping !== null) return; // 진행 중엔 두 번째 스왑 금지
+    if (option.id === vrmSelection.getActiveId()) return; // 이미 active면 no-op
+
+    // 직전 오류 표시가 있으면 그것만 먼저 지운다(목록 재그림으로 인라인 안내 제거).
+    if (vrmErrorId !== null) {
+      vrmErrorId = null;
+      renderVrms();
+    }
+    vrmSwapping = option.id;
+
+    // 로딩 반영: 클릭 행에 "바꾸는 중…" + 스피너, 그룹은 busy로 잠근다.
+    // 행을 in-place로 변형해 호출부가 쥔 노드 참조를 유지한다(재그림 안 함).
+    vrmsEl.setAttribute("aria-busy", "true");
+    vrmsEl.classList.add("is-swapping");
+    const row = vrmRowById(option.id);
+    if (row) {
+      row.setAttribute("aria-busy", "true");
+      const body = row.querySelector(".yui-vrm__body");
+      if (body && !row.querySelector(".yui-vrm__hint")) {
+        const hint = document.createElement("span");
+        hint.className = "yui-vrm__hint";
+        hint.textContent = "바꾸는 중…";
+        body.insertAdjacentElement("afterend", hint);
+      }
+    }
+
+    try {
+      await swapVrm(option);
+      log.info("VRM 스왑", { id: option.id });
+      // 성공: swapVrm이 store를 커밋했고 구독이 active 행을 옮긴다. 잠금 해제 후 재그림.
+    } catch (err) {
+      vrmErrorId = option.id;
+      log.error("VRM 스왑 실패", { id: option.id, error: String(err) });
+      // 실패: 선택은 그대로(revert는 store가 바뀌지 않아 자동). 오류 행 + 인라인 안내.
+    } finally {
+      vrmSwapping = null;
+      vrmsEl.removeAttribute("aria-busy");
+      vrmsEl.classList.remove("is-swapping");
+      renderVrms();
+    }
+  }
+
+  // radiogroup 화살표 내비 — handleSegKeydown 미러링(목록 스크롤 고려해 focus 이동).
+  function handleVrmKeydown(e: KeyboardEvent): void {
+    if (vrmSwapping !== null) return;
+    const rows = Array.from(vrmsEl.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    if (rows.length === 0) return;
+    const activeId = vrmSelection.getActiveId();
+    const current = Math.max(0, rows.findIndex((r) => r.dataset.vrmId === activeId));
+    let next = -1;
+    if (e.key === "ArrowDown" || e.key === "ArrowRight") next = current + 1;
+    else if (e.key === "ArrowUp" || e.key === "ArrowLeft") next = current - 1;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = rows.length - 1;
+    else return;
+    e.preventDefault();
+    const clamped = Math.min(rows.length - 1, Math.max(0, next));
+    const target = rows[clamped];
+    target.focus();
+    target.scrollIntoView?.({ block: "nearest" });
+    const opt = vrmSelection.list().find((o) => o.id === target.dataset.vrmId);
+    if (opt) void swapTo(opt);
   }
 
   // ── 위치 계산 (popover variant) ──
@@ -467,6 +615,7 @@ export function createQuickControls({
     reflectVoiceStatus(voiceStatus.get());
     reflectGain();
     reflectAgent();
+    renderVrms();
 
     if (isWindow) {
       // 창 variant는 OS 창을 채운다 — 위치 계산/애니메이션 없음.
@@ -636,6 +785,11 @@ export function createQuickControls({
   const unsubscribeVoice = voiceStatus.subscribe(reflectVoiceStatus);
   const unsubscribeLipsync = lipsync.subscribe(() => { if (openState) reflectGain(); });
   const unsubscribeAgent = agentSettings.subscribe(() => { if (openState) reflectAgent(); });
+  // store 갱신(직접 select·다른 창 reloadFromStorage)을 active 행에 반영.
+  // 스왑 진행 중엔 건너뛴다 — finally의 renderVrms가 로딩 해제 후 최종 그림을 맡는다.
+  const unsubscribeVrm = vrmSelection.subscribe(() => {
+    if (openState && vrmSwapping === null) renderVrms();
+  });
 
   switchBtn.addEventListener("click", handleSwitchClick);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
@@ -646,6 +800,7 @@ export function createQuickControls({
   gainSlider.addEventListener("blur", handleGainEnd);
   segEl.addEventListener("click", handleSegClick);
   segEl.addEventListener("keydown", handleSegKeydown);
+  vrmsEl.addEventListener("keydown", handleVrmKeydown);
   instructionsEl.addEventListener("input", handleInstructionsInput);
   instructionsEl.addEventListener("blur", handleInstructionsBlur);
   resetBtn.addEventListener("click", handleResetInstructions);
@@ -661,6 +816,7 @@ export function createQuickControls({
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeAgent();
+    unsubscribeVrm();
     switchBtn.removeEventListener("click", handleSwitchClick);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     scrimEl.removeEventListener("pointerdown", handleScrimPointerDown);
@@ -670,6 +826,7 @@ export function createQuickControls({
     gainSlider.removeEventListener("blur", handleGainEnd);
     segEl.removeEventListener("click", handleSegClick);
     segEl.removeEventListener("keydown", handleSegKeydown);
+    vrmsEl.removeEventListener("keydown", handleVrmKeydown);
     instructionsEl.removeEventListener("input", handleInstructionsInput);
     instructionsEl.removeEventListener("blur", handleInstructionsBlur);
     resetBtn.removeEventListener("click", handleResetInstructions);

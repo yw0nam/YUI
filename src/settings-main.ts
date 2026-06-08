@@ -12,6 +12,7 @@ import { createQuickControls } from "./ui/quick-controls";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
+import { createVrmSelection, localStorageVrmStorage } from "./io/vrm-selection";
 import { createVoiceInputStatus, type VoiceInputState } from "./ui/voice-input-status";
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
 import { wireStorageSync } from "./io/settings-window";
@@ -47,6 +48,25 @@ async function bootstrap(): Promise<void> {
     log.warn("config 로드 실패 — 기본 지침 placeholder 없이 진행", err);
   }
 
+  // VRM 선택 store + 스왑(#94). 이 창엔 렌더러가 없으므로 store-only 커밋.
+  // 메인 창이 storage 재로드로 실제 VRM을 핫스왑한다.
+  // fallback default로 만든 뒤, config가 로드됐으면 실제 available[]를 주입한다(메인 창과 동일).
+  const vrmSelection = createVrmSelection({
+    defaultUrl: "/vrms/carlotta.vrm",
+    storage: localStorageVrmStorage(),
+  });
+  if (configLoaded) {
+    try {
+      const avatar = config.get().avatar;
+      vrmSelection.setManifest({ available: avatar.available, defaultUrl: avatar.vrm_url });
+    } catch (err) {
+      log.warn("avatar config 읽기 실패 — fallback 모델 목록 유지", err);
+    }
+  }
+  const swapVrm = async (option: { id: string }): Promise<void> => {
+    vrmSelection.select(option.id);
+  };
+
   const quickControls = createQuickControls({
     mount: app,
     variant: "window",
@@ -55,6 +75,8 @@ async function bootstrap(): Promise<void> {
     sourceProvider,
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,
+    vrmSelection,
+    swapVrm,
     // 렌더러는 메인 창에 있으므로 게인 프리뷰를 브리지로 전달 → 메인 창 VRM 입이 움직인다.
     onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
     onGainPreviewEnd: () => bridge.emitMouthPreview(null),
@@ -71,7 +93,8 @@ async function bootstrap(): Promise<void> {
   quickControls.open();
 
   // 메인 창의 편집을 반영: cross-window storage 이벤트 + 포커스 폴백.
-  const resyncStores = [agentSettings, lipsyncSettings, screenshotSettings];
+  // vrmSelection도 함께 재로드해 펫 창에서 바뀐 선택이 이 창 UI에 반영되게 한다.
+  const resyncStores = [agentSettings, lipsyncSettings, screenshotSettings, vrmSelection];
   wireStorageSync(resyncStores);
   window.addEventListener("focus", () => {
     for (const s of resyncStores) s.reloadFromStorage();
@@ -107,6 +130,8 @@ async function bootstrap(): Promise<void> {
   agentSettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
+  // VRM 선택도 cross-window로 알린다 → 펫 창이 받아 렌더러를 핫스왑한다(Tauri storage 이벤트 불안정 대비).
+  vrmSelection.subscribe(broadcastSettings);
   bridge.onSettingsChanged(() => {
     applyingRemote = true;
     try {

@@ -1,3 +1,10 @@
 {
-  "vrm_url": "/vrms/carlotta.vrm"
+  "vrm_url": "/vrms/carlotta.vrm",
+  "available": [
+    { "id": "carlotta", "label": "Carlotta", "url": "/vrms/carlotta.vrm", "source": "bundled" },
+    { "id": "cantarella", "label": "Cantarella", "url": "/vrms/Cantarella.vrm", "source": "bundled" },
+    { "id": "cartethyia", "label": "Cartethyia", "url": "/vrms/Cartethyia.vrm", "source": "bundled" },
+    { "id": "klukai", "label": "Klukai", "url": "/vrms/Klukai.vrm", "source": "bundled" },
+    { "id": "yinlin", "label": "Yinlin", "url": "/vrms/Yinlin.vrm", "source": "bundled" }
+  ]
 }
