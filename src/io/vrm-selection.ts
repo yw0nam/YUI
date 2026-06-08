@@ -43,11 +43,16 @@ export function createVrmSelection(opts: {
 }) {
   const storage = opts.storage;
 
+  // manifest(options + defaultUrl)는 setManifest로 갱신 가능하므로 가변.
   // list()는 절대 비지 않는다 — available이 없거나 비면 defaultUrl로 단일 항목 합성.
-  const options: AvatarOption[] =
-    opts.available && opts.available.length > 0
-      ? opts.available.map((o) => ({ ...o }))
-      : [synthesizeOption(opts.defaultUrl)];
+  function normalize(available: AvatarOption[] | undefined, fallbackUrl: string): AvatarOption[] {
+    return available && available.length > 0
+      ? available.map((o) => ({ ...o }))
+      : [synthesizeOption(fallbackUrl)];
+  }
+
+  let defaultUrl = opts.defaultUrl;
+  let options: AvatarOption[] = normalize(opts.available, defaultUrl);
 
   function hasId(id: string): boolean {
     return options.some((o) => o.id === id);
@@ -70,7 +75,7 @@ export function createVrmSelection(opts: {
       const o = options.find((x) => x.id === override);
       if (o) return o;
     }
-    return options.find((x) => x.url === opts.defaultUrl) ?? options[0];
+    return options.find((x) => x.url === defaultUrl) ?? options[0];
   }
 
   const subscribers = new Set<(active: AvatarOption) => void>();
@@ -105,6 +110,17 @@ export function createVrmSelection(opts: {
       if (override === null) return;
       override = null;
       storage?.save(null);
+      notify();
+    },
+
+    // config 핫리로드: manifest + default 교체. 사용자 override는 보존하되 새 manifest에
+    // 없으면 default 해석으로 폴백. active id가 실제로 바뀐 경우에만 통지.
+    setManifest(next: { available?: AvatarOption[]; defaultUrl: string }): void {
+      const before = resolve().id;
+      defaultUrl = next.defaultUrl;
+      options = normalize(next.available, defaultUrl);
+      if (override !== null && !hasId(override)) override = null;
+      if (resolve().id === before) return;
       notify();
     },
 

@@ -141,22 +141,43 @@ async function bootstrap(): Promise<void> {
       agentSettings.reloadFromStorage();
       lipsyncSettings.reloadFromStorage();
       screenshotSettings.reloadFromStorage();
+      // VRM 선택은 설정 창에서 store-only로 커밋되므로, 그 변경을 펫 창 렌더러로 반영.
+      // 이 창 자체 스왑은 swapVrm이 이미 로드하므로, 여기선 OTHER 창 변경만 → 이중 로드 회피.
+      const prevVrmUrl = vrmSelection.getActive().url;
+      vrmSelection.reloadFromStorage();
+      const nextVrmUrl = vrmSelection.getActive().url;
+      if (nextVrmUrl !== prevVrmUrl) {
+        void loadVrmSerialized(nextVrmUrl).catch((err) =>
+          log.error("VRM cross-window swap failed:", err),
+        );
+      }
     } finally {
       applyingRemote = false;
     }
     log.info("설정 변경 수신(별도 창) — 재로드");
   });
   // VRM 선택 store + 스왑(#94). 펫 창은 renderer-backed: loadVRM 성공 시에만 store 커밋.
-  // config는 아직 로드 전이라 fallback default로 시작 — P4에서 config 로드 후
-  // available[] 주입/크로스윈도우 재로드를 본격 배선한다(지금은 best-effort).
+  // config 로드 전이라 fallback default로 시작 — 패널이 일찍 필요하기 때문. config 로드 후
+  // setManifest로 실제 available[]를 주입한다(아래 부트 시퀀스).
   const vrmSelection = createVrmSelection({
     defaultUrl: "/vrms/carlotta.vrm",
     storage: localStorageVrmStorage(),
   });
+  // 단일 직렬 스왑 경로: 사용자 스왑·부트·config 핫리로드·크로스윈도우가 모두 이 체인을
+  // 통과한다. loadVRM은 재진입 안전하지 않으므로 직렬화하되, 실패는 호출자에게 전파한다.
+  let vrmSwap = Promise.resolve();
+  function loadVrmSerialized(url: string): Promise<void> {
+    const next = vrmSwap.then(() => renderer.loadVRM(url));
+    vrmSwap = next.catch(() => {}); // 체인은 실패해도 살려두고
+    return next; // 이 호출자에게만 reject를 전파한다.
+  }
+  // 로드 성공 시에만 store 커밋. 실패하면 await가 throw → store 미커밋(UI가 에러+자동 복구).
   const swapVrm = async (option: { id: string; url: string }): Promise<void> => {
-    await renderer.loadVRM(option.url);
+    await loadVrmSerialized(option.url);
     vrmSelection.select(option.id);
   };
+  // 이 창에서 고른 VRM을 설정 창 UI에 반영하기 위해 cross-window로 알린다(루프 가드는 broadcastSettings).
+  vrmSelection.subscribe(broadcastSettings);
 
   const quickControls = createQuickControls({
     mount: root,
@@ -390,25 +411,26 @@ async function bootstrap(): Promise<void> {
     // emotion/motion registry를 renderer에 주입 → setEmotion/playMotion(=applyDirective) 동작.
     renderer.setEmotionRegistry(cfg.emotionRegistry);
     renderer.setMotionRegistry(cfg.motions);
-    await renderer.loadVRM(cfg.avatar.vrm_url);
+    // 실제 manifest 주입 후 부트 로드 → persist된 override가 시작 시점에 적용된다.
+    vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
+    await loadVrmSerialized(vrmSelection.getActive().url);
     // config가 준비된 후에만 dispatcher를 가동(backend_caller가 config.get()에 의존).
     dispatcher.start();
   } catch (err) {
     log.error("config load / VRM load failed:", err);
   }
 
-  // 핫리로드: avatar.vrm_url이 바뀌면 VRM 핫스왑(renderer.loadVRM 재호출 = #4 핫스왑).
-  // loadVRM은 재진입 안전하지 않다(로드 완료 후 dispose+swap) → swap을 직렬화해 마지막
-  // "시작"이 아니라 마지막 "config"가 이기게 한다(빠른 연속 편집 레이스 방지).
-  let vrmSwap = Promise.resolve();
+  // 핫리로드: avatar manifest가 바뀌면 setManifest로 갱신 후 active VRM 핫스왑(#4 핫스왑).
+  // override-wins: config vrm_url 편집은 사용자의 localStorage 선택을 덮지 않는다(agent-settings와 동일).
   config.subscribe((cfg, changed) => {
     // emotion/motion registry 핫리로드 → renderer 재주입(즉시 반영).
     if (changed.has("emotionRegistry")) renderer.setEmotionRegistry(cfg.emotionRegistry);
     if (changed.has("motions")) renderer.setMotionRegistry(cfg.motions);
     if (!changed.has("avatar")) return;
-    vrmSwap = vrmSwap
-      .then(() => renderer.loadVRM(cfg.avatar.vrm_url))
-      .catch((err) => log.error("VRM hot-swap failed:", err));
+    vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
+    void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
+      log.error("VRM hot-swap failed:", err),
+    );
   });
   config.onError((err) => log.error("config reload failed (이전 config 유지):", err));
   // dev에서만 폴링 watcher 가동 — configs/*.json 편집 시 즉시 반영. prod는 #27에서 결정.
