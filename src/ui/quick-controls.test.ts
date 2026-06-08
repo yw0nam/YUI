@@ -655,6 +655,42 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  it("keeps keyboard focus on the new active row after an ArrowDown swap resolves", async () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    rows[0].focus();
+    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    await flush();
+
+    // renderVrms() rebuilt the rows in finally; focus must follow to the active (Aria) row.
+    const active = qc.el.querySelector<HTMLButtonElement>(".yui-vrm[aria-checked=true]")!;
+    expect(active.dataset.vrmId).toBe("aria");
+    expect(document.activeElement).toBe(active);
+    expect(document.activeElement).not.toBe(document.body);
+
+    qc.dispose();
+  });
+
+  it("renders a label with HTML metacharacters as literal text (no innerHTML injection)", () => {
+    const evil = 'a<img src=x onerror=alert(1)>b';
+    vrmSelection = createVrmSelection({
+      available: [{ id: "carlotta", label: evil, url: "/vrms/carlotta.vrm", source: "bundled" }],
+      defaultUrl: "/vrms/carlotta.vrm",
+    });
+    const qc = buildQc();
+    qc.open();
+
+    const name = qc.el.querySelector<HTMLElement>(".yui-vrm[role=radio] .yui-vrm__name")!;
+    expect(name.textContent).toBe(evil);
+    // no element was parsed from the label — proves textContent, not innerHTML
+    expect(name.querySelector("img")).toBeNull();
+    expect(qc.el.querySelector(".yui-vrms img")).toBeNull();
+
+    qc.dispose();
+  });
+
   it("End key on the VRM radiogroup swaps to the last row", () => {
     const qc = buildQc();
     qc.open();
