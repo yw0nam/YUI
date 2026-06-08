@@ -18,8 +18,8 @@ export interface TtsPipelineOptions {
   onAmplitude?: (rms: number) => void;
   // 마지막 청크 재생이 끝나면(또는 재생할 청크가 없으면) end() 이후 1회 발화.
   onPlaybackEnd?: () => void;
-  // synth 동시 실행 상한. 기본 1 = 직렬.
-  maxInflight?: number;
+  // synth 동시 실행 상한. 기본 1 = 직렬. 함수 형태는 drain마다 평가돼 config를 lazy하게 읽는다.
+  maxInflight?: number | (() => number);
   logger?: Logger;
 }
 
@@ -41,7 +41,11 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       return createTtsSynth({ config: options.config, fetch: options.fetch });
     })();
   const sink: AudioSink = options.sink ?? createWebAudioSink();
-  const maxInflight = Math.max(1, Math.floor(options.maxInflight ?? 1));
+  // drain 시점에 평가 — 함수 형태면 hot-reload config 값을 그때그때 읽는다.
+  const resolveMaxInflight = (): number => {
+    const v = typeof options.maxInflight === "function" ? options.maxInflight() : options.maxInflight;
+    return Math.max(1, Math.floor(v ?? 1));
+  };
 
   const segmenter = createSentenceSegmenter();
   const abort = new AbortController();
@@ -107,7 +111,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
 
   // 큐에 쌓인 항목을 cap 내에서만 synth로 dispatch한다.
   function drainSynth(): void {
-    while (inFlight < maxInflight && pending.length > 0) {
+    while (inFlight < resolveMaxInflight() && pending.length > 0) {
       const { index, input } = pending.shift()!;
       inFlight++;
       synth(input, abort.signal).then(
