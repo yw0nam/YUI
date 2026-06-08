@@ -102,12 +102,26 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   let deferred = false;
   // Raw accumulated speech text — re-rendered as markdown on each push.
   let speechRaw = "";
+  // 사용자가 말풍선 위에 커서를 올려 읽는 중인지.
+  let hovering = false;
+  // dwell 빚이 남아있는지(타이머 점화 보류 가능 상태).
+  let dwellArmed = false;
 
   function clearDwell(): void {
     if (dwellTimer !== null) {
       clearTimeout(dwellTimer);
       dwellTimer = null;
     }
+  }
+
+  // dwell 점화 — 넘치는 말풍선을 읽는 중이면 보류(빚만 남기고 타이머는 안 켠다).
+  function armDwell(): void {
+    clearDwell();
+    if (hovering && bubbleEl.classList.contains("is-scrollable")) return;
+    dwellTimer = setTimeout(() => {
+      dwellArmed = false;
+      hideSpeech();
+    }, dwell);
   }
 
   // 높이 상한된 말풍선의 최신 줄을 항상 보이게 끝으로 스크롤.
@@ -150,19 +164,21 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
       return;
     }
     deferred = false;
-    dwellTimer = setTimeout(hideSpeech, dwell);
+    dwellArmed = true;
+    armDwell();
   }
 
   function finishSpeech(): void {
     if (!deferred) return;
     deferred = false;
     if (bubbleEl.hidden) return;
-    clearDwell();
-    dwellTimer = setTimeout(hideSpeech, dwell);
+    dwellArmed = true;
+    armDwell();
   }
 
   function hideSpeech(): void {
     clearDwell();
+    dwellArmed = false;
     deferred = false;
     bubbleEl.classList.remove("is-visible", "is-streaming");
     const onEnd = (e: TransitionEvent): void => {
@@ -258,15 +274,29 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     }
   }
 
+  // 넘치는 말풍선에 커서를 올리면 auto-hide를 멈춰 읽을 시간을 준다.
+  function onBubbleEnter(): void {
+    hovering = true;
+    if (dwellArmed && bubbleEl.classList.contains("is-scrollable")) clearDwell();
+  }
+  function onBubbleLeave(): void {
+    hovering = false;
+    if (dwellArmed) armDwell();
+  }
+
   formEl.addEventListener("submit", handleSubmit);
   field.addEventListener("keydown", handleFieldKey);
   field.addEventListener("input", clearErrorOnInput);
+  bubbleEl.addEventListener("pointerenter", onBubbleEnter);
+  bubbleEl.addEventListener("pointerleave", onBubbleLeave);
 
   function dispose(): void {
     clearDwell();
     formEl.removeEventListener("submit", handleSubmit);
     field.removeEventListener("keydown", handleFieldKey);
     field.removeEventListener("input", clearErrorOnInput);
+    bubbleEl.removeEventListener("pointerenter", onBubbleEnter);
+    bubbleEl.removeEventListener("pointerleave", onBubbleLeave);
     submitHandlers.length = 0;
     el.remove();
   }
