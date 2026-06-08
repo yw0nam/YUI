@@ -46,6 +46,15 @@ describe("configs/avatar.json", () => {
     expect(a.vrm_url).toMatch(/\.vrm$/);
     expect(a.vrm_url.startsWith("/vrms/")).toBe(true); // vite dev 정적 서빙 경로
   });
+
+  it("lists carlotta in the available[] VRM manifest (#94)", () => {
+    expect(Array.isArray(a.available)).toBe(true);
+    const carlotta = a.available.find((o: { id: string }) => o.id === "carlotta");
+    expect(carlotta).toBeDefined();
+    expect(carlotta.label).toBeTypeOf("string");
+    expect(carlotta.url).toBe(a.vrm_url); // seed selection == default vrm_url
+    expect(carlotta.source).toBe("bundled");
+  });
 });
 
 describe("configs/motions.json", () => {

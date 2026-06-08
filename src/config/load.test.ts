@@ -97,6 +97,33 @@ describe("loadConfig — happy path", () => {
   });
 });
 
+// ── avatar.available manifest (#94 VRM swap) ────────────────────────────────────
+
+describe("loadConfig — avatar.available", () => {
+  it("available가 없으면 vrm_url만 담고 available는 undefined", async () => {
+    const cfg = await loadConfig({ read: readerOf(goodFixture()) });
+    expect(cfg.avatar).toEqual({ vrm_url: "/vrms/carlotta.vrm" });
+    expect(cfg.avatar.available).toBeUndefined();
+  });
+
+  it("유효한 available[]를 그대로 보존한다(source 포함/생략 모두)", async () => {
+    const map = goodFixture();
+    map["avatar.json"] = {
+      vrm_url: "/vrms/carlotta.vrm",
+      available: [
+        { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
+        { id: "guest", label: "Guest", url: "https://example.com/guest.vrm" },
+      ],
+    };
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.avatar.vrm_url).toBe("/vrms/carlotta.vrm");
+    expect(cfg.avatar.available).toEqual([
+      { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
+      { id: "guest", label: "Guest", url: "https://example.com/guest.vrm" },
+    ]);
+  });
+});
+
 // ── validation failures ──────────────────────────────────────────────────────
 
 describe("loadConfig — validation failures throw ConfigError", () => {
@@ -155,6 +182,58 @@ describe("loadConfig — validation failures throw ConfigError", () => {
 
   it("avatar: vrm_url 누락 시 실패", async () => {
     await expectConfigError(loadWith(CONFIG_FILES.avatar, {}), "avatar.json");
+  });
+
+  it("avatar: available 항목이 객체가 아니면 실패", async () => {
+    await expectConfigError(
+      loadWith(CONFIG_FILES.avatar, {
+        vrm_url: "/vrms/carlotta.vrm",
+        available: ["carlotta"], // 문자열 — 객체가 아님
+      }),
+      "avatar.json",
+    );
+  });
+
+  it("avatar: available가 배열이 아니면 실패", async () => {
+    await expectConfigError(
+      loadWith(CONFIG_FILES.avatar, {
+        vrm_url: "/vrms/carlotta.vrm",
+        available: { carlotta: "/vrms/carlotta.vrm" }, // 배열이 아님
+      }),
+      "avatar.json",
+    );
+  });
+
+  it("avatar: available 항목에 id/label/url이 없으면 실패", async () => {
+    await expectConfigError(
+      loadWith(CONFIG_FILES.avatar, {
+        vrm_url: "/vrms/carlotta.vrm",
+        available: [{ id: "carlotta", label: "Carlotta" }], // url 누락
+      }),
+      "avatar.json",
+    );
+  });
+
+  it("avatar: available 항목의 id/label/url이 문자열이 아니면 실패", async () => {
+    await expectConfigError(
+      loadWith(CONFIG_FILES.avatar, {
+        vrm_url: "/vrms/carlotta.vrm",
+        available: [{ id: 1, label: "Carlotta", url: "/vrms/carlotta.vrm" }], // id 숫자
+      }),
+      "avatar.json",
+    );
+  });
+
+  it("avatar: available 항목의 source가 enum 밖이면 실패", async () => {
+    await expectConfigError(
+      loadWith(CONFIG_FILES.avatar, {
+        vrm_url: "/vrms/carlotta.vrm",
+        available: [
+          { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "remote" },
+        ], // bundled|file 밖
+      }),
+      "avatar.json",
+    );
   });
 
   it("motions: kind가 enum 밖이면 실패", async () => {
