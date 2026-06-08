@@ -7,6 +7,9 @@ mod drag;
 // Screen-source enumeration and capture (issue #20).
 mod screenshot;
 
+// Calendar-date-based log rotation.
+mod log_rotation;
+
 use std::path::PathBuf;
 use time::{OffsetDateTime, UtcOffset};
 
