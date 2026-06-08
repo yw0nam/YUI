@@ -120,3 +120,73 @@ describe("pushSpeech — is-scrollable toggle (top-fade only when overflowing)",
     expect(bubbleEl.classList.contains("is-scrollable")).toBe(false);
   });
 });
+
+describe("dwell-pause on hover", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    s = createSurfaces({ mount, dwellMs: 5000 });
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+    vi.useRealTimers();
+  });
+
+  function bubble(): HTMLElement {
+    return mount.querySelector(".yui-bubble") as HTMLElement;
+  }
+
+  function stub(el: HTMLElement, scrollHeight: number, clientHeight: number): void {
+    Object.defineProperty(el, "scrollHeight", { value: scrollHeight, configurable: true });
+    Object.defineProperty(el, "clientHeight", { value: clientHeight, configurable: true });
+  }
+
+  it("pauses the dwell while hovering an overflowing bubble", () => {
+    s.beginSpeech();
+    const bubbleEl = bubble();
+    stub(bubbleEl, 480, 240); // overflows the capped height
+    s.pushSpeech("A very long reply that exceeds the capped bubble height.");
+    s.endSpeech();
+    expect(bubbleEl.classList.contains("is-visible")).toBe(true); // precondition
+    expect(bubbleEl.classList.contains("is-scrollable")).toBe(true);
+
+    bubbleEl.dispatchEvent(new Event("pointerenter"));
+    vi.advanceTimersByTime(6000);
+    expect(bubbleEl.classList.contains("is-visible")).toBe(true); // still reading
+  });
+
+  it("resumes the dwell when the pointer leaves", () => {
+    s.beginSpeech();
+    const bubbleEl = bubble();
+    stub(bubbleEl, 480, 240);
+    s.pushSpeech("A very long reply that exceeds the capped bubble height.");
+    s.endSpeech();
+
+    bubbleEl.dispatchEvent(new Event("pointerenter"));
+    vi.advanceTimersByTime(6000);
+    expect(bubbleEl.classList.contains("is-visible")).toBe(true); // paused
+
+    bubbleEl.dispatchEvent(new Event("pointerleave"));
+    vi.advanceTimersByTime(6000);
+    expect(bubbleEl.classList.contains("is-visible")).toBe(false); // resumed → hidden
+  });
+
+  it("does NOT pause for a short (non-overflowing) bubble", () => {
+    s.beginSpeech();
+    const bubbleEl = bubble();
+    stub(bubbleEl, 40, 40); // fits — not scrollable
+    s.pushSpeech("Short reply.");
+    s.endSpeech();
+    expect(bubbleEl.classList.contains("is-scrollable")).toBe(false);
+
+    bubbleEl.dispatchEvent(new Event("pointerenter"));
+    vi.advanceTimersByTime(6000);
+    expect(bubbleEl.classList.contains("is-visible")).toBe(false); // hover did not pause
+  });
+});
