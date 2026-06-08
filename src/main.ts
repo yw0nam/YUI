@@ -27,6 +27,7 @@ import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
+import { createVrmSelection, localStorageVrmStorage } from "./io/vrm-selection";
 import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
 import { createSettingsBridge } from "./io/settings-bridge";
 import { createWebAudioSink } from "./io/audio-player";
@@ -145,6 +146,18 @@ async function bootstrap(): Promise<void> {
     }
     log.info("설정 변경 수신(별도 창) — 재로드");
   });
+  // VRM 선택 store + 스왑(#94). 펫 창은 renderer-backed: loadVRM 성공 시에만 store 커밋.
+  // config는 아직 로드 전이라 fallback default로 시작 — P4에서 config 로드 후
+  // available[] 주입/크로스윈도우 재로드를 본격 배선한다(지금은 best-effort).
+  const vrmSelection = createVrmSelection({
+    defaultUrl: "/vrms/carlotta.vrm",
+    storage: localStorageVrmStorage(),
+  });
+  const swapVrm = async (option: { id: string; url: string }): Promise<void> => {
+    await renderer.loadVRM(option.url);
+    vrmSelection.select(option.id);
+  };
+
   const quickControls = createQuickControls({
     mount: root,
     settings: screenshotSettings,
@@ -152,6 +165,8 @@ async function bootstrap(): Promise<void> {
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,
     agentSettings,
+    vrmSelection,
+    swapVrm,
     onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
     onGainPreviewEnd: () => renderer.stopMouth(),
     // 빈 instructions일 때 placeholder로 보여줄 기본 지침(config 미로드 시 무시).

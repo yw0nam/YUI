@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>YUI · VRM section (quick-controls) — mock</title>
+<link rel="icon" href="data:," />
+<style>
+  /* ─────────────────────────────────────────────────────────────
+     Tokens — copied verbatim from src/ui/tokens.css ("The Hearthlight").
+     OKLCH only · no #000/#fff · neutrals micro-tinted amber (~72 hue).
+     ───────────────────────────────────────────────────────────── */
+  :root {
+    --yui-accent: oklch(0.8 0.13 75);
+    --yui-accent-soft: oklch(0.8 0.13 75 / 0.45);
+    --yui-accent-faint: oklch(0.8 0.13 75 / 0.16);
+
+    --yui-text: oklch(0.95 0.012 80);
+    --yui-text-dim: oklch(0.78 0.016 75);
+    --yui-text-mute: oklch(0.66 0.014 72);
+
+    --yui-scrim: oklch(0.21 0.014 70 / 0.64);
+    --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82);
+    --yui-edge: oklch(0.97 0.01 80 / 0.1);
+    --yui-edge-strong: oklch(0.97 0.01 80 / 0.16);
+
+    --yui-float: 0 8px 32px oklch(0.12 0.02 70 / 0.4);
+    --yui-text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55);
+
+    --yui-radius: 14px;
+    --yui-radius-input: 12px;
+    --yui-radius-row: 10px;
+
+    --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --yui-dur: 200ms;
+    --yui-dur-fast: 140ms;
+
+    /* component-local field tone (from quick-controls.css) */
+    --yui-field: oklch(0.16 0.012 70 / 0.7);
+
+    /* error tone — warm-red, restrained (mock-only; mirrors stt mock --danger) */
+    --yui-danger: oklch(0.77 0.11 35);
+
+    /* mock page chrome (NOT part of YUI — only the bright backdrop + captions) */
+    --page-ink: oklch(0.24 0.012 72);
+    --page-muted: oklch(0.36 0.012 72);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    /* Bright, busy desktop backdrop — proves the dark-scrim panel stays
+       legible over an arbitrary light/transparent-window background. */
+    background:
+      radial-gradient(60% 55% at 82% 16%, oklch(0.88 0.10 95 / 0.85), transparent 60%),
+      radial-gradient(58% 60% at 12% 78%, oklch(0.84 0.09 205 / 0.7), transparent 60%),
+      radial-gradient(46% 50% at 52% 50%, oklch(0.92 0.06 150 / 0.55), transparent 62%),
+      linear-gradient(135deg, oklch(0.95 0.02 95), oklch(0.86 0.03 230));
+    color: var(--page-ink);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* faux-IDE light grid stripe under the gradient, to look genuinely "busy" */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, oklch(0.3 0.01 72 / 0.05) 0 1px, transparent 1px 28px),
+      repeating-linear-gradient(90deg, oklch(0.3 0.01 72 / 0.04) 0 1px, transparent 1px 96px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  button, input, textarea { font: inherit; }
+
+  .page {
+    position: relative;
+    z-index: 1;
+    width: min(1240px, calc(100vw - 40px));
+    margin: 0 auto;
+    padding: 32px 0 56px;
+  }
+
+  /* ── mock brief header ── */
+  .brief {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 22px;
+  }
+  .brief h1 {
+    margin: 0 0 6px;
+    font-size: 1.08rem;
+    line-height: 1.2;
+    font-weight: 700;
+  }
+  .brief p {
+    margin: 0;
+    max-width: 78ch;
+    color: var(--page-muted);
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+  .brief .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--page-muted);
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+  .brief .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--yui-accent);
+    box-shadow: 0 0 0 5px var(--yui-accent-faint);
+  }
+
+  /* ── state grid: four labelled panels side by side ── */
+  .states {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 26px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) { .states { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 620px)  { .states { grid-template-columns: 1fr; } }
+
+  .state {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .state__cap {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .state__num {
+    display: inline-grid;
+    place-items: center;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: oklch(0.3 0.01 72 / 0.12);
+    color: var(--page-ink);
+    font-size: 0.66rem;
+    font-weight: 700;
+    flex: 0 0 auto;
+  }
+  .state__name {
+    font-size: 0.88rem;
+    font-weight: 650;
+    color: var(--page-ink);
+    line-height: 1.2;
+  }
+  .state__desc {
+    margin: 2px 0 0 26px;
+    color: var(--page-muted);
+    font-size: 0.76rem;
+    line-height: 1.4;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     quick-controls panel — class names + values mirror
+     src/ui/quick-controls.css. Trimmed to the cluster around the
+     new VRM section (대화 → 입력 소스 → VRM → 표현).
+     ═══════════════════════════════════════════════════════════════ */
+  .yui-quick {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 0 0 0.55rem;
+    border-radius: var(--yui-radius);
+    background: var(--yui-scrim-strong);
+    border: 1px solid var(--yui-edge);
+    box-shadow: var(--yui-float);
+    backdrop-filter: blur(14px) saturate(1.12);
+    -webkit-backdrop-filter: blur(14px) saturate(1.12);
+    color: var(--yui-text);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-shadow: var(--yui-text-shadow);
+  }
+
+  .yui-quick__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.55rem 0.5rem 0.7rem;
+    border-bottom: 1px solid var(--yui-edge);
+  }
+  .yui-quick__grip {
+    display: inline-grid;
+    grid-template-columns: repeat(2, 3px);
+    grid-template-rows: repeat(3, 3px);
+    gap: 3px;
+    opacity: 0.55;
+  }
+  .yui-quick__grip i {
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    background: var(--yui-text-mute);
+  }
+  .yui-quick__title {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--yui-text-dim);
+  }
+
+  .yui-quick__body {
+    padding: 0.55rem 0.85rem 0.1rem;
+  }
+
+  .yui-quick__section {
+    display: block;
+    margin: 0.55rem 0.15rem 0.35rem;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--yui-text-mute);
+  }
+  .yui-quick__section:first-child { margin-top: 0.2rem; }
+
+  .yui-quick__divider {
+    height: 1px;
+    margin: 0.75rem 0.15rem 0.2rem;
+    background: var(--yui-edge);
+  }
+
+  /* condensed renderings of neighbouring controls (context only) */
+  .yui-field-row { padding: 0.5rem 0.55rem 0.2rem; }
+  .yui-field-row__label { display: block; font-size: 0.92rem; font-weight: 550; line-height: 1.2; }
+  .yui-field-row__sub { display: block; margin-top: 0.18rem; font-size: 0.74rem; line-height: 1.35; color: var(--yui-text-mute); }
+
+  .yui-seg {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    margin-top: 0.5rem;
+    padding: 0.18rem;
+    border-radius: var(--yui-radius-row);
+    background: oklch(0.5 0.01 70 / 0.2);
+    border: 1px solid var(--yui-edge);
+  }
+  .yui-seg__ind {
+    position: absolute;
+    top: 0.18rem; bottom: 0.18rem; left: 0.18rem;
+    width: calc((100% - 0.36rem) / 4);
+    border-radius: calc(var(--yui-radius-row) - 3px);
+    background: var(--yui-accent-faint);
+    border: 1px solid var(--yui-accent-soft);
+    transform: translateX(calc(var(--seg, 0) * 100%));
+  }
+  .yui-seg__btn {
+    position: relative;
+    z-index: 1;
+    padding: 0.34rem 0.2rem;
+    border: 0;
+    background: transparent;
+    color: var(--yui-text-mute);
+    font-size: 0.78rem;
+    font-weight: 550;
+    line-height: 1.1;
+    border-radius: calc(var(--yui-radius-row) - 3px);
+  }
+  .yui-seg__btn[aria-checked="true"] { color: var(--yui-accent); font-weight: 650; }
+
+  .yui-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.55rem;
+    border-radius: var(--yui-radius-row);
+  }
+  .yui-row__main { flex: 1; min-width: 0; }
+  .yui-row__label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.92rem;
+    font-weight: 550;
+    line-height: 1.2;
+  }
+  .yui-row__label svg { width: 0.95rem; height: 0.95rem; color: var(--yui-text-dim); flex: 0 0 auto; }
+  .yui-row__sub { margin-top: 0.18rem; font-size: 0.74rem; line-height: 1.35; color: var(--yui-text-mute); }
+
+  .yui-switch {
+    --w: 2.5rem; --h: 1.45rem;
+    position: relative;
+    flex: 0 0 auto;
+    width: var(--w); height: var(--h);
+    border: 0; padding: 0;
+    border-radius: 999px;
+    background: oklch(0.5 0.01 70 / 0.35);
+  }
+  .yui-switch::after {
+    content: "";
+    position: absolute;
+    top: 0.18rem; left: 0.18rem;
+    width: calc(var(--h) - 0.36rem);
+    height: calc(var(--h) - 0.36rem);
+    border-radius: 50%;
+    background: oklch(0.96 0.01 80);
+    box-shadow: 0 1px 3px oklch(0.1 0.01 70 / 0.5);
+    transition: transform var(--yui-dur) var(--yui-ease);
+  }
+  .yui-switch[aria-checked="true"] { background: var(--yui-accent); }
+  .yui-switch[aria-checked="true"]::after { transform: translateX(calc(var(--w) - var(--h))); }
+
+  /* ── 입력 소스 monitor picker (context — the pattern the VRM list mirrors) ── */
+  .yui-source__label {
+    margin: 0.5rem 0.6rem 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--yui-text-mute);
+  }
+  .yui-monitors, .yui-vrms { display: grid; gap: 0.25rem; }
+
+  /* ── VRM list scroll cap ──
+     Cap the model list at ~4 rows; beyond that it scrolls internally
+     instead of growing the panel. Derivation of --yui-vrm-cap:
+       row     = 0.5rem×2 padding + ~1.06rem (0.88rem name × 1.2 lh) ≈ 2.06rem
+       4 rows  = 4 × 2.06rem + 3 × 0.25rem gap ≈ 8.97rem → rounded to 9rem.
+     A partial 5th row peeks under the fade to advertise the overflow. */
+  .yui-vrm-scroll {
+    position: relative;
+    max-height: var(--yui-vrm-cap, 9rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* subtle, panel-consistent scrollbar — matches .yui-quick__body */
+    scrollbar-width: thin;
+    scrollbar-color: var(--yui-edge-strong) transparent;
+  }
+  .yui-vrm-scroll::-webkit-scrollbar { width: 6px; }
+  .yui-vrm-scroll::-webkit-scrollbar-thumb {
+    background: var(--yui-edge-strong);
+    border-radius: 999px;
+  }
+  .yui-vrm-scroll::-webkit-scrollbar-track { background: transparent; }
+
+  /* calm bottom fade — static scrim hinting "more below" (no hard line).
+     Sits over the scroll area's lower edge; non-interactive. The footer
+     row below it stays fully crisp. */
+  .yui-vrm-scroll::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 1.6rem;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      oklch(0.19 0.014 70 / 0) 0%,
+      var(--yui-scrim-strong) 100%);
+  }
+
+  /* pinned "파일에서 추가…" footer — lives OUTSIDE the scroll container,
+     always visible at the section foot regardless of list length. */
+  .yui-vrm-foot {
+    margin-top: 0.1rem;
+    border-top: 1px solid var(--yui-edge);
+    padding-top: 0.1rem;
+  }
+
+  .yui-mon, .yui-vrm {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.6rem;
+    border: 0;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border-radius: var(--yui-radius-row);
+    color: var(--yui-text);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--yui-dur-fast) var(--yui-ease);
+  }
+  .yui-mon:hover, .yui-vrm:hover { background: oklch(0.97 0.01 80 / 0.06); }
+
+  .yui-mon__tick, .yui-vrm__tick {
+    width: 1.1rem; height: 1.1rem;
+    border-radius: 50%;
+    border: 1.5px solid var(--yui-text-mute);
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    transition:
+      border-color var(--yui-dur-fast) var(--yui-ease),
+      background var(--yui-dur-fast) var(--yui-ease);
+  }
+  .yui-mon__tick::after, .yui-vrm__tick::after {
+    content: "";
+    width: 0.46rem; height: 0.46rem;
+    border-radius: 50%;
+    background: oklch(0.99 0.01 80);
+    transform: scale(0);
+    transition: transform var(--yui-dur-fast) var(--yui-ease);
+  }
+  .yui-mon[aria-checked="true"] .yui-mon__tick,
+  .yui-vrm[aria-checked="true"] .yui-vrm__tick {
+    border-color: var(--yui-accent);
+    background: var(--yui-accent);
+  }
+  .yui-mon[aria-checked="true"] .yui-mon__tick::after,
+  .yui-vrm[aria-checked="true"] .yui-vrm__tick::after { transform: scale(1); }
+
+  .yui-mon__body, .yui-vrm__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+  .yui-mon__name, .yui-vrm__name { font-size: 0.88rem; font-weight: 500; }
+  .yui-mon__meta, .yui-vrm__meta { font-size: 0.72rem; color: var(--yui-text-mute); }
+  .yui-mon__badge, .yui-vrm__badge {
+    margin-left: auto;
+    font-size: 0.64rem;
+    letter-spacing: 0.04em;
+    color: var(--yui-text-dim);
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid var(--yui-edge);
+    white-space: nowrap;
+  }
+
+  /* ── VRM-section-specific states ── */
+
+  /* loading: the clicked row shows "바꾸는 중…"; siblings dim out */
+  .yui-vrm[aria-busy="true"] .yui-vrm__name { color: var(--yui-text-dim); }
+  .yui-vrm__hint {
+    margin-left: auto;
+    font-size: 0.7rem;
+    color: var(--yui-text-mute);
+    white-space: nowrap;
+  }
+  /* spinner tick while busy — appears (no spin) under reduced-motion */
+  .yui-vrm[aria-busy="true"] .yui-vrm__tick {
+    border-color: var(--yui-accent-soft);
+    background: transparent;
+  }
+  .yui-vrm[aria-busy="true"] .yui-vrm__tick::after {
+    width: 0.62rem; height: 0.62rem;
+    background: transparent;
+    border: 1.5px solid var(--yui-accent);
+    border-top-color: transparent;
+    transform: scale(1);
+    animation: yui-vrm-spin 0.7s linear infinite;
+  }
+  @keyframes yui-vrm-spin { to { transform: rotate(360deg); } }
+
+  /* other rows are non-interactive while a swap is in flight */
+  .yui-vrms.is-swapping .yui-vrm:not([aria-busy="true"]) {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  /* error row — reverted selection; warm-red inline message */
+  .yui-vrm.is-error .yui-vrm__name { color: var(--yui-danger); }
+  .yui-vrm.is-error .yui-vrm__tick {
+    border-color: var(--yui-danger);
+    background: transparent;
+  }
+  .yui-vrm.is-error .yui-vrm__tick::after { transform: scale(0); }
+  .yui-vrm__error {
+    margin: 0.1rem 0.6rem 0.35rem 2.3rem;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--yui-danger);
+  }
+
+  /* P2 "파일에서 추가…" ghost row — reserved, visibly inactive.
+     Now a pinned footer child; vertical spacing handled by .yui-vrm-foot. */
+  .yui-vrm--add {
+    color: var(--yui-text-mute);
+    cursor: not-allowed;
+    opacity: 0.62;
+  }
+  .yui-vrm--add:hover { background: transparent; }
+  .yui-vrm--add .yui-vrm__tick {
+    border-style: dashed;
+    border-color: var(--yui-text-mute);
+  }
+  .yui-vrm--add .yui-vrm__tick::after {
+    content: "+";
+    width: auto; height: auto;
+    background: transparent;
+    transform: none;
+    color: var(--yui-text-mute);
+    font-size: 0.78rem;
+    line-height: 1;
+  }
+  .yui-vrm--add .yui-vrm__name { font-size: 0.84rem; font-weight: 500; }
+  .yui-vrm__soon {
+    margin-left: auto;
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+    color: var(--yui-text-mute);
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    border: 1px dashed var(--yui-edge-strong);
+    white-space: nowrap;
+  }
+
+  /* condensed 표현(gain) row for context */
+  .yui-gain { margin-top: 0.35rem; padding: 0.5rem 0.55rem 0.6rem; border-radius: var(--yui-radius-row); }
+  .yui-gain__head { display: flex; align-items: baseline; justify-content: space-between; }
+  .yui-gain__label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.92rem; font-weight: 550; line-height: 1.2; }
+  .yui-gain__label svg { width: 0.95rem; height: 0.95rem; color: var(--yui-text-dim); flex: 0 0 auto; }
+  .yui-gain__value { color: var(--yui-text-dim); font-size: 0.8rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .yui-gain__sub { display: block; margin-top: 0.18rem; font-size: 0.74rem; line-height: 1.35; color: var(--yui-text-mute); }
+  .yui-gain__track {
+    height: 4px;
+    margin: 0.6rem 0 0.2rem;
+    border-radius: 999px;
+    background: linear-gradient(to right,
+      var(--yui-accent) 0 43%, oklch(0.5 0.01 70 / 0.35) 43% 100%);
+  }
+
+  /* a faint "this is the new bit" highlight just for the mock review */
+  .vrm-focus .yui-quick__section--vrm {
+    color: var(--yui-text-dim);
+  }
+  .vrm-focus .yui-vrms {
+    position: relative;
+  }
+
+  .legend {
+    margin: 30px 0 0;
+    padding: 16px 18px;
+    border-radius: 12px;
+    background: oklch(0.99 0.006 80 / 0.78);
+    border: 1px solid oklch(0.3 0.01 72 / 0.1);
+    color: var(--page-muted);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    max-width: 92ch;
+  }
+  .legend strong { color: var(--page-ink); }
+  .legend code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.72rem;
+    background: oklch(0.3 0.01 72 / 0.08);
+    padding: 0.05em 0.35em;
+    border-radius: 5px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .yui-switch::after,
+    .yui-mon__tick::after, .yui-vrm__tick::after { transition-duration: var(--yui-dur-fast) !important; }
+    /* no decorative motion — the loading hint just appears */
+    .yui-vrm[aria-busy="true"] .yui-vrm__tick::after { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="brief">
+    <div>
+      <h1>VRM 섹션 — quick-controls 패널 (issue #94)</h1>
+      <p>
+        설정 패널 안에 <strong>VRM</strong> 섹션을 추가해 활성 캐릭터를 라이브로 교체한다.
+        모니터 선택기(<code>.yui-mon</code> radiogroup)와 동일한 패턴 — tick + 라벨 세로 목록.
+        배경은 일부러 밝고 번잡하게 깔아 투명 always-on-top 창 위 dark-scrim 가독성을 증명한다.
+        네 가지 상태를 한 화면에서 한 번에 승인할 수 있도록 나란히 배치했다.
+      </p>
+    </div>
+    <span class="badge"><span class="dot"></span>mock — 승인용 · 구현 전</span>
+  </header>
+
+  <div class="states vrm-focus">
+
+    <!-- ───────── State 1 · Default (multi-model) ───────── -->
+    <div class="state">
+      <div class="state__cap">
+        <span class="state__num">1</span>
+        <span class="state__name">기본 (여러 모델)</span>
+      </div>
+      <p class="state__desc">3–4개 모델이 보이고 현재 활성 모델 하나가 앰버 tick으로 선택됨.</p>
+
+      <div class="yui-quick" role="dialog" aria-label="설정">
+        <div class="yui-quick__bar">
+          <span class="yui-quick__grip" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="yui-quick__title">설정</span>
+        </div>
+        <div class="yui-quick__body">
+
+          <!-- 대화 -->
+          <span class="yui-quick__section">대화</span>
+          <div class="yui-field-row">
+            <span class="yui-field-row__label">추론 강도</span>
+            <span class="yui-field-row__sub">답변 전 얼마나 깊게 생각할지</span>
+            <div class="yui-seg" role="radiogroup" aria-label="추론 강도" style="--seg:0;">
+              <span class="yui-seg__ind" aria-hidden="true"></span>
+              <button class="yui-seg__btn" type="button" role="radio" aria-checked="true">기본값</button>
+              <button class="yui-seg__btn" type="button" role="radio" aria-checked="false">Low</button>
+              <button class="yui-seg__btn" type="button" role="radio" aria-checked="false">Medium</button>
+              <button class="yui-seg__btn" type="button" role="radio" aria-checked="false">High</button>
+            </div>
+          </div>
+
+          <div class="yui-quick__divider" aria-hidden="true"></div>
+
+          <!-- 입력 소스 (context — VRM list mirrors this monitor picker) -->
+          <span class="yui-quick__section">입력 소스</span>
+          <div class="yui-row">
+            <div class="yui-row__main">
+              <span class="yui-row__label">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                  <path d="M3 9h18" stroke="currentColor" stroke-width="1.7"/>
+                </svg>
+                스크린샷 첨부
+              </span>
+              <span class="yui-row__sub">대화할 때 화면을 함께 봐요</span>
+            </div>
+            <button class="yui-switch" type="button" role="switch" aria-checked="false" aria-label="스크린샷 첨부"></button>
+          </div>
+
+          <!-- ░░░ NEW: VRM 섹션 ░░░ -->
+          <span class="yui-quick__section yui-quick__section--vrm">VRM</span>
+          <!-- list scrolls internally past ~4 rows; add-row pinned below -->
+          <div class="yui-vrm-scroll">
+            <div class="yui-vrms" role="radiogroup" aria-label="VRM 모델">
+              <button class="yui-vrm" type="button" role="radio" aria-checked="true">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Carlotta</span></span>
+                <span class="yui-vrm__badge">사용 중</span>
+              </button>
+              <button class="yui-vrm" type="button" role="radio" aria-checked="false">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Aria</span></span>
+              </button>
+              <button class="yui-vrm" type="button" role="radio" aria-checked="false">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Mirai</span></span>
+              </button>
+              <button class="yui-vrm" type="button" role="radio" aria-checked="false">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Yui</span></span>
+              </button>
+              <button class="yui-vrm" type="button" role="radio" aria-checked="false">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Sora</span></span>
+              </button>
+              <button class="yui-vrm" type="button" role="radio" aria-checked="false">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Rin</span></span>
+              </button>
+              <button class="yui-vrm" type="button" role="radio" aria-checked="false">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Nao</span></span>
+              </button>
+            </div>
+          </div>
+          <!-- P2 hook — reserved, visibly inactive · pinned outside scroll -->
+          <div class="yui-vrm-foot">
+            <button class="yui-vrm yui-vrm--add" type="button" disabled aria-disabled="true" tabindex="-1">
+              <span class="yui-vrm__tick" aria-hidden="true"></span>
+              <span class="yui-vrm__body"><span class="yui-vrm__name">파일에서 추가…</span></span>
+              <span class="yui-vrm__soon">준비 중</span>
+            </button>
+          </div>
+
+          <!-- 표현 (context) -->
+          <span class="yui-quick__section">표현</span>
+          <div class="yui-gain">
+            <div class="yui-gain__head">
+              <span class="yui-gain__label">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 10c2.4-2.4 4.9-3.6 8-3.6s5.6 1.2 8 3.6c-2.4 1.1-4.9 1.7-8 1.7s-5.6-.6-8-1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                  <path d="M4 14c2.4 2.4 4.9 3.6 8 3.6s5.6-1.2 8-3.6c-2.4-1.1-4.9-1.7-8-1.7s-5.6.6-8 1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                </svg>
+                입 움직임
+              </span>
+              <span class="yui-gain__value">2.0×</span>
+            </div>
+            <span class="yui-gain__sub">목소리 크기에 따라 입이 벌어지는 정도</span>
+            <div class="yui-gain__track" aria-hidden="true"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────── State 2 · Single / seed-only ───────── -->
+    <div class="state">
+      <div class="state__cap">
+        <span class="state__num">2</span>
+        <span class="state__name">단일 (seed 전용)</span>
+      </div>
+      <p class="state__desc">avatar.json의 <code>vrm_url</code>에서 합성한 단일 fallback — 목록이 비지 않음.</p>
+
+      <div class="yui-quick" role="dialog" aria-label="설정">
+        <div class="yui-quick__bar">
+          <span class="yui-quick__grip" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="yui-quick__title">설정</span>
+        </div>
+        <div class="yui-quick__body">
+
+          <span class="yui-quick__section">입력 소스</span>
+          <div class="yui-row">
+            <div class="yui-row__main">
+              <span class="yui-row__label">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                  <path d="M3 9h18" stroke="currentColor" stroke-width="1.7"/>
+                </svg>
+                스크린샷 첨부
+              </span>
+              <span class="yui-row__sub">대화할 때 화면을 함께 봐요</span>
+            </div>
+            <button class="yui-switch" type="button" role="switch" aria-checked="false" aria-label="스크린샷 첨부"></button>
+          </div>
+
+          <!-- VRM 섹션 — single seed row (same structure, no overflow) -->
+          <span class="yui-quick__section yui-quick__section--vrm">VRM</span>
+          <div class="yui-vrm-scroll">
+            <div class="yui-vrms" role="radiogroup" aria-label="VRM 모델">
+              <button class="yui-vrm" type="button" role="radio" aria-checked="true">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Carlotta</span></span>
+                <span class="yui-vrm__badge">사용 중</span>
+              </button>
+            </div>
+          </div>
+          <div class="yui-vrm-foot">
+            <button class="yui-vrm yui-vrm--add" type="button" disabled aria-disabled="true" tabindex="-1">
+              <span class="yui-vrm__tick" aria-hidden="true"></span>
+              <span class="yui-vrm__body"><span class="yui-vrm__name">파일에서 추가…</span></span>
+              <span class="yui-vrm__soon">준비 중</span>
+            </button>
+          </div>
+
+          <span class="yui-quick__section">표현</span>
+          <div class="yui-gain">
+            <div class="yui-gain__head">
+              <span class="yui-gain__label">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 10c2.4-2.4 4.9-3.6 8-3.6s5.6 1.2 8 3.6c-2.4 1.1-4.9 1.7-8 1.7s-5.6-.6-8-1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                  <path d="M4 14c2.4 2.4 4.9 3.6 8 3.6s5.6-1.2 8-3.6c-2.4-1.1-4.9-1.7-8-1.7s-5.6.6-8 1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                </svg>
+                입 움직임
+              </span>
+              <span class="yui-gain__value">2.0×</span>
+            </div>
+            <span class="yui-gain__sub">목소리 크기에 따라 입이 벌어지는 정도</span>
+            <div class="yui-gain__track" aria-hidden="true"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────── State 3 · Swapping (loading) ───────── -->
+    <div class="state">
+      <div class="state__cap">
+        <span class="state__num">3</span>
+        <span class="state__name">교체 중 (로딩)</span>
+      </div>
+      <p class="state__desc">클릭한 행은 “바꾸는 중…”, 나머지 행은 비활성으로 흐려짐.</p>
+
+      <div class="yui-quick" role="dialog" aria-label="설정">
+        <div class="yui-quick__bar">
+          <span class="yui-quick__grip" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="yui-quick__title">설정</span>
+        </div>
+        <div class="yui-quick__body">
+
+          <span class="yui-quick__section">입력 소스</span>
+          <div class="yui-row">
+            <div class="yui-row__main">
+              <span class="yui-row__label">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                  <path d="M3 9h18" stroke="currentColor" stroke-width="1.7"/>
+                </svg>
+                스크린샷 첨부
+              </span>
+              <span class="yui-row__sub">대화할 때 화면을 함께 봐요</span>
+            </div>
+            <button class="yui-switch" type="button" role="switch" aria-checked="false" aria-label="스크린샷 첨부"></button>
+          </div>
+
+          <!-- VRM 섹션 — swap in flight -->
+          <span class="yui-quick__section yui-quick__section--vrm">VRM</span>
+          <div class="yui-vrm-scroll">
+            <div class="yui-vrms is-swapping" role="radiogroup" aria-label="VRM 모델" aria-busy="true">
+              <button class="yui-vrm" type="button" role="radio" aria-checked="false">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Carlotta</span></span>
+              </button>
+              <button class="yui-vrm" type="button" role="radio" aria-checked="false" aria-busy="true">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Aria</span></span>
+                <span class="yui-vrm__hint">바꾸는 중…</span>
+              </button>
+              <button class="yui-vrm" type="button" role="radio" aria-checked="false">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Mirai</span></span>
+              </button>
+              <button class="yui-vrm" type="button" role="radio" aria-checked="false">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Yui</span></span>
+              </button>
+            </div>
+          </div>
+          <div class="yui-vrm-foot">
+            <button class="yui-vrm yui-vrm--add" type="button" disabled aria-disabled="true" tabindex="-1">
+              <span class="yui-vrm__tick" aria-hidden="true"></span>
+              <span class="yui-vrm__body"><span class="yui-vrm__name">파일에서 추가…</span></span>
+              <span class="yui-vrm__soon">준비 중</span>
+            </button>
+          </div>
+
+          <span class="yui-quick__section">표현</span>
+          <div class="yui-gain">
+            <div class="yui-gain__head">
+              <span class="yui-gain__label">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 10c2.4-2.4 4.9-3.6 8-3.6s5.6 1.2 8 3.6c-2.4 1.1-4.9 1.7-8 1.7s-5.6-.6-8-1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                  <path d="M4 14c2.4 2.4 4.9 3.6 8 3.6s5.6-1.2 8-3.6c-2.4-1.1-4.9-1.7-8-1.7s-5.6.6-8 1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                </svg>
+                입 움직임
+              </span>
+              <span class="yui-gain__value">2.0×</span>
+            </div>
+            <span class="yui-gain__sub">목소리 크기에 따라 입이 벌어지는 정도</span>
+            <div class="yui-gain__track" aria-hidden="true"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────── State 4 · Error ───────── -->
+    <div class="state">
+      <div class="state__cap">
+        <span class="state__num">4</span>
+        <span class="state__name">오류 (되돌림)</span>
+      </div>
+      <p class="state__desc">로드 실패 → 이전 모델로 선택 복귀 + 행 아래 인라인 안내.</p>
+
+      <div class="yui-quick" role="dialog" aria-label="설정">
+        <div class="yui-quick__bar">
+          <span class="yui-quick__grip" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="yui-quick__title">설정</span>
+        </div>
+        <div class="yui-quick__body">
+
+          <span class="yui-quick__section">입력 소스</span>
+          <div class="yui-row">
+            <div class="yui-row__main">
+              <span class="yui-row__label">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                  <path d="M3 9h18" stroke="currentColor" stroke-width="1.7"/>
+                </svg>
+                스크린샷 첨부
+              </span>
+              <span class="yui-row__sub">대화할 때 화면을 함께 봐요</span>
+            </div>
+            <button class="yui-switch" type="button" role="switch" aria-checked="false" aria-label="스크린샷 첨부"></button>
+          </div>
+
+          <!-- VRM 섹션 — selection reverted to Carlotta; Mirai failed -->
+          <span class="yui-quick__section yui-quick__section--vrm">VRM</span>
+          <div class="yui-vrm-scroll">
+            <div class="yui-vrms" role="radiogroup" aria-label="VRM 모델">
+              <button class="yui-vrm" type="button" role="radio" aria-checked="true">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Carlotta</span></span>
+                <span class="yui-vrm__badge">사용 중</span>
+              </button>
+              <button class="yui-vrm" type="button" role="radio" aria-checked="false">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Aria</span></span>
+              </button>
+              <button class="yui-vrm is-error" type="button" role="radio" aria-checked="false" aria-invalid="true">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Mirai</span></span>
+              </button>
+              <p class="yui-vrm__error" role="status">이 모델을 불러오지 못했어요. 이전 모델로 되돌렸어요.</p>
+              <button class="yui-vrm" type="button" role="radio" aria-checked="false">
+                <span class="yui-vrm__tick" aria-hidden="true"></span>
+                <span class="yui-vrm__body"><span class="yui-vrm__name">Yui</span></span>
+              </button>
+            </div>
+          </div>
+          <div class="yui-vrm-foot">
+            <button class="yui-vrm yui-vrm--add" type="button" disabled aria-disabled="true" tabindex="-1">
+              <span class="yui-vrm__tick" aria-hidden="true"></span>
+              <span class="yui-vrm__body"><span class="yui-vrm__name">파일에서 추가…</span></span>
+              <span class="yui-vrm__soon">준비 중</span>
+            </button>
+          </div>
+
+          <span class="yui-quick__section">표현</span>
+          <div class="yui-gain">
+            <div class="yui-gain__head">
+              <span class="yui-gain__label">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 10c2.4-2.4 4.9-3.6 8-3.6s5.6 1.2 8 3.6c-2.4 1.1-4.9 1.7-8 1.7s-5.6-.6-8-1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                  <path d="M4 14c2.4 2.4 4.9 3.6 8 3.6s5.6-1.2 8-3.6c-2.4-1.1-4.9-1.7-8-1.7s-5.6.6-8 1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                </svg>
+                입 움직임
+              </span>
+              <span class="yui-gain__value">2.0×</span>
+            </div>
+            <span class="yui-gain__sub">목소리 크기에 따라 입이 벌어지는 정도</span>
+            <div class="yui-gain__track" aria-hidden="true"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="legend">
+    <strong>섹션 순서</strong> — <code>대화</code> → divider → <code>입력 소스</code> →
+    <strong>VRM (신규)</strong> → <code>표현</code>. VRM은 “캐릭터 몸” 클러스터에 붙는다:
+    먼저 몸(VRM)을 고르고 → 그 입 움직임(표현)을 조정. (State 2–4는 지면을 아껴 <code>대화</code>
+    섹션을 생략했지만, 실제 패널에서는 항상 맨 위에 온다.)<br>
+    <strong>패턴 재사용</strong> — 모니터 선택기(<code>.yui-mon</code>)와 동일한 tick + 라벨
+    radiogroup을 <code>.yui-vrm</code>으로 미러링. 앰버는 선택 tick에만 — 표면의 ≤10%.<br>
+    <strong>스크롤 캡</strong> — 모델 목록은 약 4행(<code>max-height: 9rem</code>)에서 멈추고
+    이후로는 <code>.yui-vrm-scroll</code> 내부 스크롤(<code>overscroll-behavior: contain</code>)로
+    처리해 패널을 늘리지 않는다. 넘칠 때 하단에 차분한 페이드 스크림으로 “더 있음”을 암시.
+    “파일에서 추가…”는 스크롤 영역 <em>밖</em>의 고정 푸터(<code>.yui-vrm-foot</code>)라 항상 보인다.
+    (State 1만 7개 모델로 오버플로 시연; 2–4는 넘치지 않아도 같은 구조 유지.)
+  </p>
+</div>
+</body>
+</html>

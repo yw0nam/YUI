@@ -12,6 +12,7 @@ import { createQuickControls } from "./ui/quick-controls";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
+import { createVrmSelection, localStorageVrmStorage } from "./io/vrm-selection";
 import { createVoiceInputStatus, type VoiceInputState } from "./ui/voice-input-status";
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
 import { wireStorageSync } from "./io/settings-window";
@@ -47,6 +48,25 @@ async function bootstrap(): Promise<void> {
     log.warn("config 로드 실패 — 기본 지침 placeholder 없이 진행", err);
   }
 
+  // VRM 선택 store + 스왑(#94). 이 창엔 렌더러가 없으므로 store-only 커밋.
+  // 메인 창이 storage 재로드로 실제 VRM을 핫스왑한다(P4에서 본격 배선).
+  const avatarCfg = (() => {
+    if (!configLoaded) return undefined;
+    try {
+      return config.get().avatar;
+    } catch {
+      return undefined;
+    }
+  })();
+  const vrmSelection = createVrmSelection({
+    available: avatarCfg?.available,
+    defaultUrl: avatarCfg?.vrm_url ?? "/vrms/carlotta.vrm",
+    storage: localStorageVrmStorage(),
+  });
+  const swapVrm = async (option: { id: string }): Promise<void> => {
+    vrmSelection.select(option.id);
+  };
+
   const quickControls = createQuickControls({
     mount: app,
     variant: "window",
@@ -55,6 +75,8 @@ async function bootstrap(): Promise<void> {
     sourceProvider,
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,
+    vrmSelection,
+    swapVrm,
     // 렌더러는 메인 창에 있으므로 게인 프리뷰를 브리지로 전달 → 메인 창 VRM 입이 움직인다.
     onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
     onGainPreviewEnd: () => bridge.emitMouthPreview(null),
