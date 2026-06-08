@@ -325,6 +325,95 @@ describe("finish() — oneshot return to baseline", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// §6  cycle flag + idle re-randomization chain
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("resolve() — cycle flag", () => {
+  it("idle (loop + 5 variants) → cycle true", () => {
+    const mc = createMotionController(realRegistry);
+    const r = mc.resolve({ id: "idle" });
+    expect(r!.cycle).toBe(true);
+  });
+
+  it("drag (loop, no variants) → cycle false", () => {
+    const mc = createMotionController(realRegistry);
+    const r = mc.resolve({ id: "drag" });
+    expect(r!.cycle).toBe(false);
+  });
+
+  it("happy (no loop) → cycle false", () => {
+    const mc = createMotionController(realRegistry);
+    const r = mc.resolve({ id: "happy" });
+    expect(r!.cycle).toBe(false);
+  });
+
+  it("idle with explicit loop:false override → cycle false", () => {
+    const mc = createMotionController(realRegistry);
+    const r = mc.resolve({ id: "idle", loop: false });
+    expect(r!.cycle).toBe(false);
+  });
+});
+
+describe("resolve() — random avoids immediate variant repeat", () => {
+  it("two successive idle resolves with a constant rng yield different variants", () => {
+    // rng()=>0 would pick index 0 both times; the second must bump to index 1.
+    const mc = createMotionController(realRegistry, { rng: () => 0 });
+    const r0 = mc.resolve({ id: "idle" });
+    const r1 = mc.resolve({ id: "idle" });
+    expect(r0!.vrma_path).toBe("/motions/idle_01.vrma");
+    expect(r1!.vrma_path).not.toBe(r0!.vrma_path);
+    expect(r1!.vrma_path).toBe("/motions/idle_02.vrma");
+  });
+
+  it("rng producing distinct indices is left unchanged (no bump)", () => {
+    // 0 → index 0 (idle_01), 0.5 → index 2 (idle_03): already distinct, untouched.
+    const seq = [0, 0.5];
+    let i = 0;
+    const rng = (): number => seq[i++ % seq.length]!;
+    const mc = createMotionController(realRegistry, { rng });
+    const r0 = mc.resolve({ id: "idle" });
+    const r1 = mc.resolve({ id: "idle" });
+    expect(r0!.vrma_path).toBe("/motions/idle_01.vrma");
+    expect(r1!.vrma_path).toBe("/motions/idle_03.vrma");
+  });
+
+  it("first pick with a fresh controller is never bumped (no prior 'last')", () => {
+    const mc = createMotionController(realRegistry, { rng: () => 0 });
+    const r = mc.resolve({ id: "idle" });
+    expect(r!.vrma_path).toBe("/motions/idle_01.vrma");
+  });
+});
+
+describe("finish() — idle cycle re-randomizes", () => {
+  it("finish('idle') returns a fresh idle variant differing from the played one", () => {
+    // rng sequence: 0 → idle_01 (committed), 0 → would repeat so bumps to idle_02.
+    const seq = [0, 0];
+    let i = 0;
+    const rng = (): number => seq[Math.min(i++, seq.length - 1)]!;
+    const mc = createMotionController(realRegistry, { rng, baselineId: "idle" });
+
+    const idle = mc.resolve({ id: "idle" });
+    mc.commit({ action: "play", motion: idle! });
+    expect(idle!.vrma_path).toBe("/motions/idle_01.vrma");
+
+    const afterFinish = mc.finish("idle");
+    expect(afterFinish.action).toBe("play");
+    if (afterFinish.action === "play") {
+      expect(afterFinish.motion.id).toBe("idle");
+      expect(afterFinish.motion.cycle).toBe(true);
+      expect([
+        "/motions/idle_01.vrma",
+        "/motions/idle_02.vrma",
+        "/motions/idle_03.vrma",
+        "/motions/idle_04.vrma",
+        "/motions/idle_05.vrma",
+      ]).toContain(afterFinish.motion.vrma_path);
+      expect(afterFinish.motion.vrma_path).not.toBe(idle!.vrma_path);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // §5  commit() / current()
 // ─────────────────────────────────────────────────────────────────────────────
 
