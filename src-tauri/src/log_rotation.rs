@@ -132,4 +132,57 @@ mod tests {
     let content = fs::read(&path).unwrap();
     assert_eq!(content, b"existing\nnew\n");
   }
+
+  fn touch(dir: &Path, name: &str) {
+    fs::write(dir.join(name), b"x\n").unwrap();
+  }
+
+  #[test]
+  fn prune_deletes_file_older_than_retention() {
+    let dir = scratch("prune_old");
+    let old = DateRotatingFile::dated_path(&dir, "YUI", d(2026, 5, 24));
+    fs::write(&old, b"old\n").unwrap();
+    prune_older_than(&dir, "YUI", d(2026, 5, 25));
+    assert!(!old.exists(), "file 15 days old must be deleted");
+  }
+
+  #[test]
+  fn prune_keeps_cutoff_and_today() {
+    let dir = scratch("prune_keep");
+    let cutoff = DateRotatingFile::dated_path(&dir, "YUI", d(2026, 5, 25));
+    let today = DateRotatingFile::dated_path(&dir, "YUI", d(2026, 6, 8));
+    fs::write(&cutoff, b"cutoff\n").unwrap();
+    fs::write(&today, b"today\n").unwrap();
+    prune_older_than(&dir, "YUI", d(2026, 5, 25));
+    assert!(cutoff.exists(), "file at cutoff (14 days old) must be kept");
+    assert!(today.exists(), "today's file must be kept");
+  }
+
+  #[test]
+  fn prune_ignores_foreign_and_undated_files() {
+    let dir = scratch("prune_foreign");
+    touch(&dir, "OTHER_2026-05-01.log");
+    touch(&dir, "YUI.log");
+    touch(&dir, "YUI_not-a-date.log");
+    touch(&dir, "notes.txt");
+    prune_older_than(&dir, "YUI", d(2026, 6, 8));
+    assert!(dir.join("OTHER_2026-05-01.log").exists());
+    assert!(dir.join("YUI.log").exists());
+    assert!(dir.join("YUI_not-a-date.log").exists());
+    assert!(dir.join("notes.txt").exists());
+  }
+
+  #[test]
+  fn prune_does_not_panic_on_missing_dir() {
+    let dir = scratch("prune_missing").join("absent");
+    prune_older_than(&dir, "YUI", d(2026, 6, 8));
+  }
+
+  #[test]
+  fn prune_keeps_directory_entries() {
+    let dir = scratch("prune_subdir");
+    fs::create_dir(dir.join("YUI_2026-01-01.log")).unwrap();
+    prune_older_than(&dir, "YUI", d(2026, 6, 8));
+    assert!(dir.join("YUI_2026-01-01.log").is_dir());
+  }
 }
