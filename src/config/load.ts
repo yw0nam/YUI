@@ -160,6 +160,10 @@ const AVATAR_SOURCES: readonly NonNullable<AvatarOption["source"]>[] = ["bundled
 const AVATAR_ID_RE = /^[A-Za-z0-9._-]+$/;
 const MOTION_KINDS: readonly MotionKind[] = ["ambient", "reactive", "state", "oneshot"];
 const INTERRUPT_POLICIES: readonly InterruptPolicy[] = ["replace", "queue", "ignore"];
+const VARIANT_POLICIES: readonly NonNullable<MotionRegistryEntry["variant_policy"]>[] = [
+  "random",
+  "sequential",
+];
 /** contract.md §1 emotion enum 10종. registry 키는 이 집합에 한정(오탈자 키 fail-loud). */
 const EMOTION_IDS: ReadonlySet<EmotionId> = new Set<EmotionId>([
   "neutral", "happy", "angry", "sad", "relaxed",
@@ -354,8 +358,33 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
     if (!INTERRUPT_POLICIES.includes(entry.interrupt_policy as InterruptPolicy)) {
       issues.push(`${id}.interrupt_policy는 ${INTERRUPT_POLICIES.join("|")} 중 하나여야 함`);
     }
+    // variants(D-MOTION-VARIANTS): 있으면 .vrma 문자열 2개 이상 풀. 1개짜리는 무의미.
+    const rawVariants = entry.variants;
+    let variants: string[] | undefined;
+    if (rawVariants !== undefined) {
+      if (!Array.isArray(rawVariants) || rawVariants.some((v) => typeof v !== "string")) {
+        issues.push(`${id}.variants는 문자열 배열이어야 함`);
+      } else if (rawVariants.length < 2) {
+        issues.push(`${id}.variants는 2개 이상이어야 함 (받음: ${rawVariants.length}개)`);
+      } else if (rawVariants.some((v) => !(v as string).endsWith(".vrma"))) {
+        issues.push(`${id}.variants의 각 항목은 .vrma로 끝나야 함`);
+      } else {
+        variants = rawVariants as string[];
+      }
+    }
+    const rawVariantPolicy = entry.variant_policy;
+    let variant_policy: MotionRegistryEntry["variant_policy"];
+    if (rawVariantPolicy !== undefined) {
+      if (!VARIANT_POLICIES.includes(rawVariantPolicy as NonNullable<typeof variant_policy>)) {
+        issues.push(`${id}.variant_policy는 ${VARIANT_POLICIES.join("|")} 중 하나여야 함`);
+      } else {
+        variant_policy = rawVariantPolicy as MotionRegistryEntry["variant_policy"];
+      }
+    }
     out[id] = {
       vrma_path: entry.vrma_path as string,
+      ...(variants !== undefined ? { variants } : {}),
+      ...(variant_policy !== undefined ? { variant_policy } : {}),
       kind: entry.kind as MotionKind,
       loop: entry.loop as boolean,
       priority: entry.priority as number,
