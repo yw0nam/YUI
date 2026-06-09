@@ -29,3 +29,6 @@ resources/references
 
 # verify-guard runtime counter (machine-local)
 .claude/.verify-attempts
+
+# Playwright MCP run artifacts
+.playwright-mcp/

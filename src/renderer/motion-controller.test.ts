@@ -82,6 +82,33 @@ const syntheticRegistry: MotionRegistry = {
   },
 };
 
+/** Fixed 5-variant idle registry — variant-index assertions stay stable as the
+ * real configs/motions.json idle pool grows. */
+const variantRegistry: MotionRegistry = {
+  idle: {
+    vrma_path: "/motions/idle_01.vrma",
+    variants: [
+      "/motions/idle_01.vrma",
+      "/motions/idle_02.vrma",
+      "/motions/idle_03.vrma",
+      "/motions/idle_04.vrma",
+      "/motions/idle_05.vrma",
+    ],
+    variant_policy: "random",
+    kind: "ambient",
+    loop: true,
+    priority: 0,
+    interrupt_policy: "replace",
+  },
+  drag: {
+    vrma_path: "/motions/drag.vrma",
+    kind: "reactive",
+    loop: true,
+    priority: 80,
+    interrupt_policy: "replace",
+  },
+};
+
 /** Registry with 3-variant sequential entry for sequential cycling tests. */
 const seqRegistry: MotionRegistry = {
   idle: {
@@ -175,21 +202,21 @@ describe("resolve() — registry defaults applied", () => {
 
 describe("resolve() — variant selection (idle has 5 variants, policy 'random')", () => {
   it("rng:()=>0 → index 0 → /motions/idle_01.vrma", () => {
-    const mc = createMotionController(realRegistry, { rng: () => 0 });
+    const mc = createMotionController(variantRegistry, { rng: () => 0 });
     const r = mc.resolve({ id: "idle" });
     expect(r).not.toBeNull();
     expect(r!.vrma_path).toBe("/motions/idle_01.vrma");
   });
 
   it("rng:()=>0.999 → last index (4) → /motions/idle_05.vrma", () => {
-    const mc = createMotionController(realRegistry, { rng: () => 0.999 });
+    const mc = createMotionController(variantRegistry, { rng: () => 0.999 });
     const r = mc.resolve({ id: "idle" });
     expect(r).not.toBeNull();
     expect(r!.vrma_path).toBe("/motions/idle_05.vrma");
   });
 
   it("rng:()=>0.5 → index Math.floor(0.5*5)=2 → /motions/idle_03.vrma", () => {
-    const mc = createMotionController(realRegistry, { rng: () => 0.5 });
+    const mc = createMotionController(variantRegistry, { rng: () => 0.5 });
     const r = mc.resolve({ id: "idle" });
     expect(r).not.toBeNull();
     expect(r!.vrma_path).toBe("/motions/idle_03.vrma");
@@ -197,7 +224,7 @@ describe("resolve() — variant selection (idle has 5 variants, policy 'random')
 
   it("non-variant entry (drag) ignores rng — always /motions/drag.vrma", () => {
     // Use rng that would pick index 3 if applied, but drag has no variants
-    const mc = createMotionController(realRegistry, { rng: () => 0.999 });
+    const mc = createMotionController(variantRegistry, { rng: () => 0.999 });
     const r = mc.resolve({ id: "drag" });
     expect(r).not.toBeNull();
     expect(r!.vrma_path).toBe("/motions/drag.vrma");
@@ -357,7 +384,7 @@ describe("resolve() — cycle flag", () => {
 describe("resolve() — random avoids immediate variant repeat", () => {
   it("two successive idle resolves with a constant rng yield different variants", () => {
     // rng()=>0 would pick index 0 both times; the second must bump to index 1.
-    const mc = createMotionController(realRegistry, { rng: () => 0 });
+    const mc = createMotionController(variantRegistry, { rng: () => 0 });
     const r0 = mc.resolve({ id: "idle" });
     const r1 = mc.resolve({ id: "idle" });
     expect(r0!.vrma_path).toBe("/motions/idle_01.vrma");
@@ -370,7 +397,7 @@ describe("resolve() — random avoids immediate variant repeat", () => {
     const seq = [0, 0.5];
     let i = 0;
     const rng = (): number => seq[i++ % seq.length]!;
-    const mc = createMotionController(realRegistry, { rng });
+    const mc = createMotionController(variantRegistry, { rng });
     const r0 = mc.resolve({ id: "idle" });
     const r1 = mc.resolve({ id: "idle" });
     expect(r0!.vrma_path).toBe("/motions/idle_01.vrma");
@@ -378,7 +405,7 @@ describe("resolve() — random avoids immediate variant repeat", () => {
   });
 
   it("first pick with a fresh controller is never bumped (no prior 'last')", () => {
-    const mc = createMotionController(realRegistry, { rng: () => 0 });
+    const mc = createMotionController(variantRegistry, { rng: () => 0 });
     const r = mc.resolve({ id: "idle" });
     expect(r!.vrma_path).toBe("/motions/idle_01.vrma");
   });
