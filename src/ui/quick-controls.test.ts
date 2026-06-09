@@ -394,7 +394,7 @@ describe("createQuickControls — gain row", () => {
       (r) => r.dataset.epField,
     );
     expect(keys).toEqual(["chat_base_url", "stt_base_url", "tts_base_url", "irodori_base_url", "chat_model"]);
-    expect(qc.el.querySelectorAll(".yui-endpoints .yui-input--url").length).toBe(4);
+    expect(qc.el.querySelectorAll(".yui-endpoints .yui-ep-input--url").length).toBe(4);
 
     qc.dispose();
   });
@@ -414,7 +414,7 @@ describe("createQuickControls — gain row", () => {
     qc.open();
 
     const ph = (key: string): string =>
-      qc.el.querySelector<HTMLInputElement>(`.yui-input-row[data-ep-field="${key}"] .yui-input`)!.placeholder;
+      qc.el.querySelector<HTMLInputElement>(`.yui-input-row[data-ep-field="${key}"] .yui-ep-input`)!.placeholder;
     expect(ph("chat_base_url")).toBe("http://localhost:8643/v1");
     expect(ph("stt_base_url")).toBe("http://localhost:5517/v1");
     expect(ph("chat_model")).toBe("natsume");
@@ -426,7 +426,7 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const input = qc.el.querySelector<HTMLInputElement>('.yui-input-row[data-ep-field="stt_base_url"] .yui-input')!;
+    const input = qc.el.querySelector<HTMLInputElement>('.yui-input-row[data-ep-field="stt_base_url"] .yui-ep-input')!;
     const row = input.closest<HTMLDivElement>(".yui-input-row")!;
 
     input.value = "localhost:5517"; // 스킴 없음 → invalid
@@ -449,7 +449,7 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const input = qc.el.querySelector<HTMLInputElement>('.yui-input-row[data-ep-field="chat_base_url"] .yui-input')!;
+    const input = qc.el.querySelector<HTMLInputElement>('.yui-input-row[data-ep-field="chat_base_url"] .yui-ep-input')!;
     input.value = "https://api.example.com/v1";
     input.dispatchEvent(new Event("input", { bubbles: true }));
     expect(endpointsSettings.get().chat_base_url).toBe("https://api.example.com/v1");
