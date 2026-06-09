@@ -22,7 +22,7 @@
 {
   "chat_base_url":     "http://localhost:8643",  // Hermes (SSH 터널)
   "chat_endpoint":     "/v1/responses",          // default. fallback: "/v1/chat/completions"
-  "chat_instructions": "You are the expression engine …", // Responses `instructions` nudge — generate_express 유도(config 소관)
+  "chat_instructions": "You are embodied as a VRM avatar … generate_express로 표정·제스처·음성 표현", // Responses `instructions` nudge — generate_express 유도(config 소관)
   "chat_model":        "natsume",                // Hermes 모델 ID (Responses `model`). config 소관(하드코딩 금지)
   "stt_base_url":      "http://localhost:5517",  // 별도 ASR 서비스 (OpenAI 호환) → /audio/transcriptions
   "tts_base_url":      "http://localhost:8092",  // OpenAI 호환 TTS → /audio/speech (provider="openai")

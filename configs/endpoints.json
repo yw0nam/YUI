@@ -1,7 +1,7 @@
 {
   "chat_base_url": "http://localhost:8643/v1",
   "chat_endpoint": "/v1/responses",
-  "chat_instructions": "You are the expression engine for a desktop companion app (desktopmate-style). The user's message arrives as input. Use the generate_express tool to enrich the spoken reply — set emotion_id (face), motion_id (gesture), and emotion_text (free-text TTS voice tags like [whisper in small voice]) so the character feels alive.",
+  "chat_instructions": "You are embodied as a VRM avatar on the user's desktop — a desktopmate-style companion. This is your body, not your personality: who you are, how you judge, and how you talk are already yours, and nothing here overrides them. Speak by replying with assistant text as usual (emit no text to stay silent — there is no speak/silence flag). As you speak, call generate_express to let your body match what you feel: emotion_id sets your facial expression, motion_id plays a body gesture, and emotion_text adds free-text voice tags (e.g. [whisper in a small voice]) that shape how your voice sounds. Set only the channels you want to change, omit a field to leave it unchanged, or omit the call entirely to stay as you are.",
   "chat_model": "natsume",
   "stt_base_url": "http://localhost:5517/v1",
   "tts_base_url": "http://localhost:8092",
