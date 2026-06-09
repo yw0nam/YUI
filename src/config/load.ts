@@ -308,6 +308,11 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   posNum("irodori_cfg_scale_text");
   posNum("irodori_cfg_scale_speaker");
   posNum("irodori_seconds");
+  // broker_base_url: optional. 있으면 http(s) URL이어야 함(Expression Broker MCP endpoint).
+  let broker_base_url: string | undefined;
+  if (raw.broker_base_url !== undefined) {
+    broker_base_url = httpUrl("broker_base_url");
+  }
   // tts_max_inflight: optional, 정수 ≥ 1.
   const tts_max_inflight = raw.tts_max_inflight;
   if (
@@ -337,6 +342,7 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     ...(typeof raw.irodori_cfg_scale_speaker === "number" ? { irodori_cfg_scale_speaker: raw.irodori_cfg_scale_speaker } : {}),
     ...(typeof raw.irodori_seconds === "number" ? { irodori_seconds: raw.irodori_seconds } : {}),
     ...(typeof tts_max_inflight === "number" ? { tts_max_inflight } : {}),
+    ...(broker_base_url ? { broker_base_url } : {}),
   };
 }
 

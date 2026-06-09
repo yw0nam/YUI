@@ -17,6 +17,11 @@ export {
 } from "./load";
 
 export {
+  loadEmotionTextTable,
+  type LoadEmotionTextOptions,
+} from "./emotion-text";
+
+export {
   createConfigStore,
   type ConfigStore,
   type ConfigStoreOptions,
