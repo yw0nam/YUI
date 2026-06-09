@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ensureRegistered, __resetIrodoriVoiceCache } from "./irodori-voices";
+import { ensureRegistered, evictRegistration, __resetIrodoriVoiceCache } from "./irodori-voices";
 
 const BASE = "http://localhost:8091";
 
@@ -232,6 +232,36 @@ describe("ensureRegistered", () => {
     ).resolves.toBeUndefined();
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("evictRegistration drops the memo so a later call re-registers", async () => {
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
+    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
+        return voicesResponse(["other"]);
+      }
+      if (url === "/references/x.mp3") return blobResponse(audio);
+      if (url === "http://localhost:8091/voices" && init?.method === "POST") {
+        return createdResponse("x");
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const opts = {
+      baseUrl: BASE,
+      id: "x",
+      refUrl: "/references/x.mp3",
+      fetch: fetchMock as unknown as typeof fetch,
+    };
+    await ensureRegistered(opts);
+    evictRegistration(BASE, "x");
+    await ensureRegistered(opts);
+
+    const postCount = fetchMock.mock.calls.filter(
+      (c) => (c[1] as RequestInit | undefined)?.method === "POST",
+    ).length;
+    expect(postCount).toBe(2);
   });
 
   it("does not memoize the empty-refUrl skip — a later real refUrl still registers", async () => {
