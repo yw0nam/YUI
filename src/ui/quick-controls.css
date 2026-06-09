@@ -1573,6 +1573,207 @@
   font-size: 0.88rem;
 }
 
+/* ── 세션 섹션(window 전용) — 조용한 진단 readout + reset ── */
+.yui-session {
+  padding: 0 0.55rem;
+}
+
+.yui-session__stat {
+  padding: 0.5rem 0 0.2rem;
+}
+
+.yui-session__statline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.yui-session__label {
+  color: var(--yui-text-mute);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.yui-session__value {
+  color: var(--yui-text-dim);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.yui-session__value .pct {
+  color: var(--yui-text-mute);
+  font-weight: 600;
+  margin-left: 0.35rem;
+}
+
+.yui-meter {
+  margin-top: 0.42rem;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--yui-field);
+  border: 1px solid var(--yui-edge);
+  overflow: hidden;
+}
+
+.yui-meter__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--yui-accent);
+  transition: width var(--yui-dur) var(--yui-ease);
+}
+
+.yui-meter__fill.is-high {
+  background: var(--yui-danger);
+}
+
+.yui-session__grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.36rem 0.7rem;
+  align-items: baseline;
+  padding: 0.5rem 0 0.1rem;
+}
+
+.yui-session__grid .k {
+  color: var(--yui-text-mute);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.yui-session__grid .v {
+  color: var(--yui-text-dim);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.yui-session__grid .v .arrow {
+  color: var(--yui-text-mute);
+  font-weight: 600;
+  margin: 0 0.28rem;
+}
+
+.yui-session__grid .v .removed {
+  color: var(--yui-text-mute);
+  font-weight: 500;
+  margin-left: 0.4rem;
+}
+
+.yui-session__empty {
+  color: var(--yui-text-mute);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-align: right;
+}
+
+.yui-session__action {
+  padding: 0.5rem 0 0.2rem;
+}
+
+.yui-session__action-label {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 550;
+  line-height: 1.2;
+}
+
+.yui-session__action-sub {
+  display: block;
+  margin-top: 0.18rem;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: var(--yui-text-mute);
+}
+
+.yui-link-btn {
+  display: inline-block;
+  margin: 0.5rem 0.15rem 0.1rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--yui-text-mute);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--yui-edge-strong);
+  text-underline-offset: 0.18em;
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    text-decoration-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-link-btn:hover {
+  color: var(--yui-accent);
+  text-decoration-color: var(--yui-accent-soft);
+}
+
+.yui-link-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+  border-radius: 4px;
+}
+
+.yui-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.45rem 0.15rem 0.1rem;
+}
+
+.yui-confirm[hidden] {
+  display: none;
+}
+
+.yui-confirm__q {
+  font-size: 0.74rem;
+  color: var(--yui-text-dim);
+}
+
+.yui-pill {
+  padding: 0.28rem 0.7rem;
+  border-radius: var(--yui-radius-chip);
+  border: 1px solid var(--yui-edge);
+  background: transparent;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease),
+    background var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-pill:hover {
+  border-color: var(--yui-edge-strong);
+  color: var(--yui-text);
+}
+
+.yui-pill--go {
+  color: var(--yui-danger);
+  border-color: var(--yui-danger-soft);
+}
+
+.yui-pill--go:hover {
+  background: var(--yui-danger-faint);
+  border-color: var(--yui-danger);
+  color: var(--yui-danger);
+}
+
+.yui-pill:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .yui-quick,
   .yui-switch,
@@ -1593,6 +1794,9 @@
     animation: none;
   }
   .yui-endpoints > summary::before {
+    transition: none;
+  }
+  .yui-meter__fill {
     transition: none;
   }
 }

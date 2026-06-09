@@ -64,6 +64,14 @@ function expressEvent(emotionText: string): ChatStreamEvent {
   return { type: "express", args: { emotion_text: emotionText } };
 }
 
+function usageEvent(
+  input_tokens: number,
+  output_tokens: number,
+  total_tokens: number,
+): ChatStreamEvent {
+  return { type: "usage", usage: { input_tokens, output_tokens, total_tokens } };
+}
+
 function makeLogger(): Logger {
   return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 }
@@ -76,6 +84,7 @@ let speechDeltaSink: ReturnType<typeof vi.fn>;
 let speechEndSink: ReturnType<typeof vi.fn>;
 let speechInterruptSink: ReturnType<typeof vi.fn>;
 let speechAbortSink: ReturnType<typeof vi.fn>;
+let usageSink: ReturnType<typeof vi.fn>;
 let caller: BackendCaller;
 let logger: Logger;
 
@@ -91,6 +100,7 @@ beforeEach(() => {
   speechEndSink = vi.fn();
   speechInterruptSink = vi.fn();
   speechAbortSink = vi.fn();
+  usageSink = vi.fn();
   logger = makeLogger();
   caller = createBackendCaller({
     config: CONFIG,
@@ -104,6 +114,7 @@ beforeEach(() => {
     onSpeechEnd: speechEndSink,
     onSpeechInterrupt: speechInterruptSink,
     onSpeechAbort: speechAbortSink,
+    onUsage: usageSink,
     logger,
   });
 });
@@ -553,5 +564,97 @@ describe("backend_caller — structured logging (#76)", () => {
       "empty_speech",
       expect.objectContaining({ trigger: expect.anything() }),
     );
+  });
+});
+
+// ── session id threading → streamChat opts.sessionId ───────────────────────────
+
+describe("backend_caller — session id threading (X-Hermes-Session-Id)", () => {
+  it("getSessionId present → streamChat opts carry sessionId", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getSessionId: () => "sess-1",
+    });
+    await caller.call(userEnv());
+    const [, , opts] = streamChatSpy.mock.calls[0];
+    expect(opts.sessionId).toBe("sess-1");
+  });
+
+  it("getSessionId absent → streamChat opts.sessionId is undefined", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv());
+    const [, , opts] = streamChatSpy.mock.calls[0];
+    expect(opts.sessionId).toBeUndefined();
+  });
+
+  it("getSessionId returns undefined → streamChat opts.sessionId is undefined", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getSessionId: () => undefined,
+    });
+    await caller.call(userEnv());
+    const [, , opts] = streamChatSpy.mock.calls[0];
+    expect(opts.sessionId).toBeUndefined();
+  });
+
+  it("reads the session id fresh each turn (not cached at construction)", async () => {
+    let current = "sess-1";
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getSessionId: () => current,
+    });
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv());
+    current = "sess-2";
+    await caller.call(userEnv());
+    expect(streamChatSpy.mock.calls[0][2].sessionId).toBe("sess-1");
+    expect(streamChatSpy.mock.calls[1][2].sessionId).toBe("sess-2");
+  });
+});
+
+// ── usage event → onUsage diagnostic sink ──────────────────────────────────────
+
+describe("backend_caller — usage sink (token accounting channel)", () => {
+  it("usage stream event → onUsage fires with the usage block", async () => {
+    scriptedEvents = [usageEvent(120, 30, 150), completedEvent({ speech_text: "" })];
+    await caller.call(userEnv());
+    expect(usageSink).toHaveBeenCalledWith({
+      input_tokens: 120,
+      output_tokens: 30,
+      total_tokens: 150,
+    });
+  });
+
+  it("no usage event → onUsage is not called", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv());
+    expect(usageSink).not.toHaveBeenCalled();
+  });
+
+  it("usage event but no onUsage dep → does not throw", async () => {
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+    });
+    scriptedEvents = [usageEvent(1, 2, 3), completedEvent({ speech_text: "hi" })];
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(true);
   });
 });

@@ -25,6 +25,7 @@ import type {
   EndpointsConfig,
   InputContext,
   ToolStatus,
+  Usage,
 } from "../contract";
 import type { Renderer } from "../renderer";
 import type { BusEnvelope } from "./event-bus";
@@ -67,6 +68,10 @@ export interface BackendCallerDeps {
   onEmotionText?: (text: string) => void;
   /** tool_status sink — present 시에만 호출. main.ts 배선은 후속(이 PR 비대상). */
   onToolStatus?: (status: ToolStatus) => void;
+  /** 현재 Hermes session id 조회 — present 시 X-Hermes-Session-Id 헤더로 흘린다. 매 턴 호출(rotation 반영). */
+  getSessionId?: () => string | undefined;
+  /** usage(토큰 점유량) sink — present 시에만 호출. ControlEnvelope와 무관한 진단 채널. */
+  onUsage?: (usage: Usage) => void;
   /** 현재 agent 설정(추론 강도 + instructions 오버라이드) 스냅샷. present일 때만 요청에 반영. */
   getAgentSettings?: () => import("../io/agent-settings").AgentSettings;
   /** 구조화 로깅(없으면 backend_caller namespace logger). */
@@ -176,6 +181,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       return { ok: false, drop_reason: "network_drop" };
     }
 
+    // 매 턴 현재 session id를 읽는다(생성 시점 캐시 X) — 턴 사이 rotation을 반영.
+    const sessionId = deps.getSessionId?.();
+
     if (externalSignal?.aborted) {
       return { ok: false, drop_reason: "superseded_by_user" };
     }
@@ -207,6 +215,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       for await (const ev of streamChat(deps.config, request, {
         apiKey,
         fetch: fetchImpl,
+        sessionId,
       })) {
         switch (ev.type) {
           case "speech_delta":
@@ -219,6 +228,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
               deps.onEmotionText?.(ev.args.emotion_text);
               emotionTextSent = true;
             }
+            break;
+          case "usage":
+            // ControlEnvelope/renderer와 무관한 진단 채널 — sink로만 흘린다.
+            deps.onUsage?.(ev.usage);
             break;
           case "completed":
             envelope = ev.envelope;

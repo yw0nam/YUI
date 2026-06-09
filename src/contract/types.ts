@@ -124,6 +124,39 @@ export type RichItem =
       action?: Record<string, unknown>;
     };
 
+/** Responses `response.completed` 이벤트의 usage — 현재 세션 토큰 점유량 추적 입력. */
+export interface Usage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+}
+
+/**
+ * `POST /api/sessions/{id}/compress` 응답 (status 판별 union). session_id는 공통,
+ * compressed는 토큰/메시지/removed/previous_session_id를, skipped는 reason을 노출한다.
+ * 서버가 추가 필드를 보낼 수 있으므로 관대하게 받는다.
+ */
+export type SessionCompressionResponse =
+  | {
+      object: "hermes.session.compression";
+      status: "compressed";
+      session_id: string;
+      previous_session_id: string;
+      before_messages: number;
+      after_messages: number;
+      before_tokens: number;
+      after_tokens: number;
+      removed: number;
+      [extra: string]: unknown;
+    }
+  | {
+      object: "hermes.session.compression";
+      status: "skipped";
+      session_id: string;
+      reason: string;
+      [extra: string]: unknown;
+    };
+
 /** Hermes 네이티브 tool의 function_call item을 client가 관찰해 도출 (express 아님). */
 export interface ToolStatus {
   state: "idle" | "running" | "done" | "error";
@@ -258,4 +291,12 @@ export interface EndpointsConfig {
   tts_max_inflight?: number;
   /** Expression Broker MCP endpoint(streamable-http, 예: `http://localhost:3201/mcp`). 미설정 시 vocab publish 스킵. */
   broker_base_url?: string;
+  /** 활성 chat 모델의 최대 컨텍스트 토큰 수. */
+  chat_model_context_window?: number;
+  /** 자동 compaction을 요청하는 컨텍스트 점유 비율(loader default 0.7). */
+  compact_threshold_ratio?: number;
+  /** skipped 직후, 점유율이 이 비율 아래로 떨어졌다가 다시 넘어야 threshold가 재발동(loader default 0.5). */
+  compact_resume_ratio?: number;
+  /** 단일 compress 호출의 마감 시한(ms, loader default 12000). */
+  compact_timeout_ms?: number;
 }

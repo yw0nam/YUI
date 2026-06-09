@@ -17,6 +17,7 @@ import {
   CONFIG_FILES,
   type ConfigReader,
 } from "./load";
+import type { EndpointsConfig } from "../contract";
 
 // ── fixtures (실제 configs/*.json 미러) ────────────────────────────────────────
 
@@ -86,6 +87,9 @@ describe("loadConfig — happy path", () => {
       tts_provider: "openai",
       chat_instructions:
         "Use the generate_express tool with emotion_id, motion_id, emotion_text.",
+      compact_threshold_ratio: 0.7,
+      compact_resume_ratio: 0.5,
+      compact_timeout_ms: 12000,
     });
     expect(cfg.avatar).toEqual({ vrm_url: "/vrms/carlotta.vrm" });
     expect(cfg.emotionRegistry.happy).toEqual({
@@ -282,6 +286,9 @@ describe("loadConfig — endpoints irodori provider", () => {
       irodori_cfg_scale_speaker: 2,
       irodori_seconds: 10,
       tts_max_inflight: 1,
+      compact_threshold_ratio: 0.7,
+      compact_resume_ratio: 0.5,
+      compact_timeout_ms: 12000,
     });
   });
 
@@ -345,6 +352,94 @@ describe("loadConfig — endpoints broker_base_url", () => {
     const err = await p.catch((e) => e);
     expect((err as ConfigError).file).toBe("endpoints.json");
     expect((err as ConfigError).issues.length).toBeGreaterThan(0);
+  });
+});
+
+// ── compaction knobs (context window + threshold/resume ratio + timeout) ────────
+
+describe("loadConfig — endpoints compaction knobs", () => {
+  function baseEndpoints(): Record<string, unknown> {
+    return {
+      chat_base_url: "http://localhost:8642",
+      chat_endpoint: "/v1/responses",
+      stt_base_url: "http://localhost:5517",
+      tts_base_url: "http://localhost:8092",
+      tts_provider: "openai",
+    };
+  }
+  async function loadWith(value: unknown): Promise<unknown> {
+    const map = goodFixture();
+    map[CONFIG_FILES.endpoints] = value;
+    return loadConfig({ read: readerOf(map) });
+  }
+  async function expectEndpointsError(p: Promise<unknown>): Promise<void> {
+    await expect(p).rejects.toBeInstanceOf(ConfigError);
+    const err = await p.catch((e) => e);
+    expect((err as ConfigError).file).toBe("endpoints.json");
+    expect((err as ConfigError).issues.length).toBeGreaterThan(0);
+  }
+
+  it("네 필드를 모두 명시하면 그대로 보존한다", async () => {
+    const cfg = await loadConfig({
+      read: readerOf({
+        ...goodFixture(),
+        "endpoints.json": {
+          ...baseEndpoints(),
+          chat_model_context_window: 128000,
+          compact_threshold_ratio: 0.6,
+          compact_resume_ratio: 0.4,
+          compact_timeout_ms: 8000,
+        },
+      }),
+    });
+    expect(cfg.endpoints.chat_model_context_window).toBe(128000);
+    expect(cfg.endpoints.compact_threshold_ratio).toBe(0.6);
+    expect(cfg.endpoints.compact_resume_ratio).toBe(0.4);
+    expect(cfg.endpoints.compact_timeout_ms).toBe(8000);
+  });
+
+  it("ratio/timeout이 없으면 문서화된 기본값으로 resolve된다", async () => {
+    const cfg = await loadWith(baseEndpoints());
+    const ep = (cfg as { endpoints: EndpointsConfig }).endpoints;
+    expect(ep.compact_threshold_ratio).toBe(0.7);
+    expect(ep.compact_resume_ratio).toBe(0.5);
+    expect(ep.compact_timeout_ms).toBe(12000);
+  });
+
+  it("chat_model_context_window는 없으면 undefined(선택)", async () => {
+    const cfg = await loadWith(baseEndpoints());
+    const ep = (cfg as { endpoints: EndpointsConfig }).endpoints;
+    expect(ep.chat_model_context_window).toBeUndefined();
+  });
+
+  it("chat_model_context_window가 0 이하면 실패", async () => {
+    await expectEndpointsError(loadWith({ ...baseEndpoints(), chat_model_context_window: 0 }));
+  });
+
+  it("chat_model_context_window가 비유한(Infinity)이면 실패", async () => {
+    await expectEndpointsError(
+      loadWith({ ...baseEndpoints(), chat_model_context_window: Infinity }),
+    );
+  });
+
+  it("compact_threshold_ratio가 (0,1] 밖(>1)이면 실패", async () => {
+    await expectEndpointsError(loadWith({ ...baseEndpoints(), compact_threshold_ratio: 1.5 }));
+  });
+
+  it("compact_threshold_ratio가 0이면 실패((0,1] 열린 하한)", async () => {
+    await expectEndpointsError(loadWith({ ...baseEndpoints(), compact_threshold_ratio: 0 }));
+  });
+
+  it("compact_resume_ratio가 (0,1] 밖(음수)이면 실패", async () => {
+    await expectEndpointsError(loadWith({ ...baseEndpoints(), compact_resume_ratio: -0.1 }));
+  });
+
+  it("compact_timeout_ms가 0 이하면 실패", async () => {
+    await expectEndpointsError(loadWith({ ...baseEndpoints(), compact_timeout_ms: 0 }));
+  });
+
+  it("compact_timeout_ms가 숫자가 아니면 실패", async () => {
+    await expectEndpointsError(loadWith({ ...baseEndpoints(), compact_timeout_ms: "8000" }));
   });
 });
 

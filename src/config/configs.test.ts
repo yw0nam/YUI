@@ -36,6 +36,15 @@ describe("configs/endpoints.json", () => {
       "http://localhost:5517/v1/audio/transcriptions",
     );
   });
+
+  it("carries compaction knobs: context window + threshold/resume ratio + timeout", () => {
+    expect(ep.chat_model_context_window).toBeGreaterThan(0);
+    expect(ep.compact_threshold_ratio).toBeGreaterThan(0);
+    expect(ep.compact_threshold_ratio).toBeLessThanOrEqual(1);
+    expect(ep.compact_resume_ratio).toBeGreaterThan(0);
+    expect(ep.compact_resume_ratio).toBeLessThanOrEqual(1);
+    expect(ep.compact_timeout_ms).toBeGreaterThan(0);
+  });
 });
 
 describe("configs/avatar.json", () => {
