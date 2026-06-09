@@ -74,6 +74,14 @@ html, body {
   background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 }
 
+/* renderer uses setSize(w,h,false) — CSS must size the canvas to the mount,
+   else it renders at its devicePixelRatio buffer size and overflows. */
+#vrm-mount canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .viewport-label {
   position: absolute;
   top: 14px;
