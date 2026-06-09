@@ -22,7 +22,10 @@ renders whatever text arrives.
 
 Control signals ride server-side `generate_express` tool-calls on the
 `/v1/responses` stream, with flat arguments `{ emotion_id?, motion_id?,
-emotion_text? }` (`emotion_text` is a free-text FishSpeech voice tag). Speech
+emotion_text? }` (`emotion_text` is a per-provider TTS voice tag whose
+renderable vocabulary is published by the Expression Broker — emoji set for
+irodori, free text for openai-compatible/fishspeech — which the agent learns
+via the broker). Speech
 text flows as a separate assistant text stream (`response.output_text.delta`),
 not inside the tool-call. The renderable emotion/motion vocabulary is brokered
 by the Expression Broker MCP (see [`docs/expression-broker-mcp.md`](docs/expression-broker-mcp.md)).
@@ -40,15 +43,21 @@ by the Expression Broker MCP (see [`docs/expression-broker-mcp.md`](docs/express
 
 ## Hermes integration
 
-All transport uses the OpenAI-compatible API across three separate,
-config-swappable processes:
+Chat and STT use the OpenAI-compatible API; TTS and the Expression Broker
+depend on the selected provider. All are separate, config-swappable processes:
 
 - **chat → Hermes Agent** — `localhost:8643` `/v1/responses`
 - **STT** — `localhost:5517` `/audio/transcriptions`
-- **TTS** — `localhost:8092` `/audio/speech`
+- **TTS** — provider-selected via `tts_provider` (default `irodori`):
+  - `irodori` — irodori_TTS at `irodori_base_url` (`localhost:8091`) `/synthesize`,
+    not OpenAI-compatible, reference-voice based (per-speaker voices in `irodori_voices`)
+  - `openai` — OpenAI-compatible `/audio/speech` at `tts_base_url` (`localhost:8092`)
+- **Expression Broker** (config-driven) — `broker_base_url` (`localhost:3201/mcp`,
+  streamable-http MCP); YUI publishes the renderable emotion/motion/emotion_text
+  vocabulary, the agent reads it (publish skipped if unset)
 
-The client calls STT and TTS directly (they do not route through Hermes). All
-three base URLs live in `configs/endpoints.json` — no hardcoding.
+The client calls STT and TTS directly (they do not route through Hermes). The
+base URLs all live in `configs/endpoints.json` — no hardcoding.
 
 ## Project structure
 
@@ -56,13 +65,13 @@ three base URLs live in `configs/endpoints.json` — no hardcoding.
 YUI/
   index.html              # Vite entry
   vite.config.ts          # port 1420, strictPort, host 127.0.0.1
-  configs/                # Runtime-loaded config (endpoints, emotion/motion registry, express tool schema)
+  configs/                # Runtime-loaded config (endpoints, emotion + motion registries, avatar, per-provider emotion_text vocab)
   public/motions/         # VRMA motion assets
   src/
     main.ts               # Bootstrap wiring
     contract/             # TS types from docs/contract.md
     renderer/             # three.js + VRM (load, emotion resolver, motion controller, lipsync)
-    io/                   # chat-client, tts-pipeline, stt-vad, os-context, screenshot, transports
+    io/                   # chat-client, tts-pipeline, stt-vad, os-context, screenshot, broker-client, irodori-synth
     dispatcher/           # Event bus + classify → route spine
     ambient/              # Tier-1 blink / sway / breath (backend-independent)
     config/               # Config load + validate + reactive store + hot-reload
