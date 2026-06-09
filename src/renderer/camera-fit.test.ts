@@ -17,7 +17,7 @@
 
 import { describe, it, expect } from "vitest";
 import * as THREE from "three";
-import { computeCameraFit } from "./camera-fit";
+import { computeCameraFit, nextZoom } from "./camera-fit";
 
 /** Box spanning [cx±sx/2, cy±sy/2, cz±sz/2]. */
 function boxOf(
@@ -127,5 +127,51 @@ describe("computeCameraFit — guards", () => {
       new THREE.Vector3(1, Number.NaN, 1),
     );
     expect(computeCameraFit(nanBox, { fov: 30, aspect: 1, margin: 0 })).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// nextZoom — wheel-driven zoom factor stepping (applied on top of fit distance).
+//
+// next = current · exp(-deltaY · sensitivity), then clamp to [min, max].
+// Wheel-up (deltaY < 0) INCREASES zoom (bigger character); wheel-down decreases.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("nextZoom", () => {
+  const opts = { min: 0.5, max: 3, sensitivity: 0.001 };
+
+  it("deltaY < 0 (wheel up) increases zoom above current", () => {
+    expect(nextZoom(1, -100, opts)).toBeGreaterThan(1);
+  });
+
+  it("deltaY > 0 (wheel down) decreases zoom below current", () => {
+    expect(nextZoom(1, 100, opts)).toBeLessThan(1);
+  });
+
+  it("large negative deltaY saturates at max", () => {
+    expect(nextZoom(1, -100000, opts)).toBe(3);
+  });
+
+  it("large positive deltaY saturates at min", () => {
+    expect(nextZoom(1, 100000, opts)).toBe(0.5);
+  });
+
+  it("hand-computed: nextZoom(1, -100, sens 0.001) = exp(0.1)", () => {
+    // next = 1 · exp(-(-100)·0.001) = exp(0.1) = 1.1051709180756477; within [0.5, 3].
+    expect(nextZoom(1, -100, opts)).toBeCloseTo(1.1051709180756477, 12);
+  });
+
+  it("non-finite current ⇒ finite result within [min, max]", () => {
+    const r = nextZoom(Number.NaN, -100, opts);
+    expect(Number.isFinite(r)).toBe(true);
+    expect(r).toBeGreaterThanOrEqual(0.5);
+    expect(r).toBeLessThanOrEqual(3);
+  });
+
+  it("non-finite deltaY ⇒ finite result within [min, max]", () => {
+    const r = nextZoom(1, Number.POSITIVE_INFINITY, opts);
+    expect(Number.isFinite(r)).toBe(true);
+    expect(r).toBeGreaterThanOrEqual(0.5);
+    expect(r).toBeLessThanOrEqual(3);
   });
 });
