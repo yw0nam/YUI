@@ -598,7 +598,7 @@
   box-shadow: 0 0 0 1px var(--yui-accent-soft);
 }
 
-.yui-input {
+.yui-ep-input {
   display: block;
   width: 100%;
   margin: 0;
@@ -613,15 +613,15 @@
   box-sizing: border-box;
 }
 
-.yui-input:focus {
+.yui-ep-input:focus {
   outline: none;
 }
 
-.yui-input::placeholder {
+.yui-ep-input::placeholder {
   color: var(--yui-text-mute);
 }
 
-.yui-input--url {
+.yui-ep-input--url {
   font-variant-numeric: tabular-nums;
 }
 
