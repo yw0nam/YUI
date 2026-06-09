@@ -68,6 +68,43 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
   log.info("voice registered", { id: opts.id });
 }
 
+export interface UpdateVoiceOptions {
+  baseUrl: string;
+  id: string;
+  refUrl: string;
+  fetch?: typeof fetch;
+  logger?: Logger;
+}
+
+/**
+ * 명시적 force-refresh: 기존 voice의 reference latent를 새 클립으로 갱신한다.
+ * ensureRegistered와 달리 멱등하지 않다 — GET-check·memoize 없이 항상 ref를 fetch해 PUT한다.
+ */
+export async function updateVoice(opts: UpdateVoiceOptions): Promise<void> {
+  const log = opts.logger ?? createLogger("irodori-voices");
+  if (!opts.refUrl) {
+    throw new Error("updateVoice requires a reference clip");
+  }
+  const fetchImpl = opts.fetch ?? globalThis.fetch;
+
+  const ref = toAbsoluteRef(opts.refUrl);
+  const refRes = await fetchImpl(ref);
+  if (!refRes.ok) {
+    throw new Error(`irodori reference fetch failed (HTTP ${refRes.status}) ${ref}`);
+  }
+  const blob = await refRes.blob();
+
+  const form = new FormData();
+  form.append("reference_audio", blob, `${opts.id}.mp3`);
+  form.append("voice_id", opts.id);
+
+  const putRes = await fetchImpl(`${opts.baseUrl}/voices`, { method: "PUT", body: form });
+  if (!putRes.ok) {
+    throw new Error(`irodori voice update failed (HTTP ${putRes.status}) ${opts.id}`);
+  }
+  log.info("voice updated", { id: opts.id });
+}
+
 export function ensureRegistered(opts: EnsureRegisteredOptions): Promise<void> {
   const log = opts.logger ?? createLogger("irodori-voices");
 
