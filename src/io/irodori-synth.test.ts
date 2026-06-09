@@ -12,6 +12,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { createIrodoriSynth } from "./irodori-synth";
 
+type FetchFn = (url: string, init: RequestInit) => Promise<Response>;
+
 const BASE = "http://localhost:8091";
 
 function okResponse(buf: ArrayBuffer, headers: Record<string, string> = {}): Response {
@@ -36,7 +38,7 @@ function errResponse(status: number, body: unknown): Response {
 describe("createIrodoriSynth", () => {
   it("POSTs multipart to {baseUrl}/synthesize with text + reference_id", async () => {
     const buf = new ArrayBuffer(8);
-    const fetchMock = vi.fn(async () => okResponse(buf));
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(buf));
     const synth = createIrodoriSynth({
       baseUrl: BASE,
       referenceId: "ナツメ",
@@ -46,7 +48,7 @@ describe("createIrodoriSynth", () => {
     const out = await synth("こんにちは。");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("http://localhost:8091/synthesize");
     expect(init.method).toBe("POST");
     const body = init.body as FormData;
@@ -57,7 +59,7 @@ describe("createIrodoriSynth", () => {
   });
 
   it("includes tunables only when defined (as strings)", async () => {
-    const fetchMock = vi.fn(async () => okResponse(new ArrayBuffer(4)));
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
     const synth = createIrodoriSynth({
       baseUrl: BASE,
       referenceId: "v1",
@@ -68,7 +70,7 @@ describe("createIrodoriSynth", () => {
       seconds: 8,
     });
     await synth("hi");
-    const body = (fetchMock.mock.calls[0][1] as RequestInit).body as FormData;
+    const body = fetchMock.mock.calls[0][1].body as FormData;
     expect(body.get("num_steps")).toBe("16");
     expect(body.get("cfg_scale_text")).toBe("2.5");
     expect(body.get("cfg_scale_speaker")).toBe("1");
@@ -76,14 +78,14 @@ describe("createIrodoriSynth", () => {
   });
 
   it("omits tunable fields entirely when not configured", async () => {
-    const fetchMock = vi.fn(async () => okResponse(new ArrayBuffer(4)));
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
     const synth = createIrodoriSynth({
       baseUrl: BASE,
       referenceId: "v1",
       fetch: fetchMock as unknown as typeof fetch,
     });
     await synth("hi");
-    const body = (fetchMock.mock.calls[0][1] as RequestInit).body as FormData;
+    const body = fetchMock.mock.calls[0][1].body as FormData;
     expect(body.has("num_steps")).toBe(false);
     expect(body.has("cfg_scale_text")).toBe(false);
     expect(body.has("cfg_scale_speaker")).toBe(false);
@@ -91,14 +93,14 @@ describe("createIrodoriSynth", () => {
   });
 
   it("never sends reference_audio or reference_text from the synth path", async () => {
-    const fetchMock = vi.fn(async () => okResponse(new ArrayBuffer(4)));
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
     const synth = createIrodoriSynth({
       baseUrl: BASE,
       referenceId: "v1",
       fetch: fetchMock as unknown as typeof fetch,
     });
     await synth("hi");
-    const body = (fetchMock.mock.calls[0][1] as RequestInit).body as FormData;
+    const body = fetchMock.mock.calls[0][1].body as FormData;
     expect(body.has("reference_audio")).toBe(false);
     expect(body.has("reference_text")).toBe(false);
   });
@@ -167,7 +169,7 @@ describe("createIrodoriSynth", () => {
   });
 
   it("passes the AbortSignal through to fetch", async () => {
-    const fetchMock = vi.fn(async () => okResponse(new ArrayBuffer(2)));
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(2)));
     const synth = createIrodoriSynth({
       baseUrl: BASE,
       referenceId: "v1",
@@ -175,7 +177,7 @@ describe("createIrodoriSynth", () => {
     });
     const ac = new AbortController();
     await synth("hi", ac.signal);
-    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    const init = fetchMock.mock.calls[0][1];
     expect(init.signal).toBe(ac.signal);
   });
 

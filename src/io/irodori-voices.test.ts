@@ -12,6 +12,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ensureRegistered, evictRegistration, __resetIrodoriVoiceCache } from "./irodori-voices";
 
+type FetchFn = (input: unknown, init?: RequestInit) => Promise<Response>;
+
 const BASE = "http://localhost:8091";
 
 function voicesResponse(ids: string[]): Response {
@@ -47,7 +49,7 @@ beforeEach(() => {
 
 describe("ensureRegistered", () => {
   it("no-ops (only GET, no POST) when the id is already registered", async () => {
-    const fetchMock = vi.fn(async (input: unknown) => {
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown) => {
       const url = String(input);
       if (url.endsWith("/voices")) return voicesResponse(["ナツメ", "other"]);
       throw new Error(`unexpected fetch ${url}`);
@@ -61,14 +63,15 @@ describe("ensureRegistered", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    const [rawUrl, init] = fetchMock.mock.calls[0];
+    const url = String(rawUrl);
     expect(url).toBe("http://localhost:8091/voices");
     expect(init?.method ?? "GET").toBe("GET");
   });
 
   it("fetches refUrl + POSTs multipart when the id is missing", async () => {
     const audio = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" });
-    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
         return voicesResponse(["other"]);
@@ -87,11 +90,9 @@ describe("ensureRegistered", () => {
       fetch: fetchMock as unknown as typeof fetch,
     });
 
-    const postCall = fetchMock.mock.calls.find(
-      (c) => (c[1] as RequestInit | undefined)?.method === "POST",
-    );
+    const postCall = fetchMock.mock.calls.find((c) => c[1]?.method === "POST");
     expect(postCall).toBeDefined();
-    const init = postCall![1] as RequestInit;
+    const init = postCall![1]!;
     const body = init.body as FormData;
     expect(body).toBeInstanceOf(FormData);
     expect(body.get("voice_id")).toBe("ナツメ");
@@ -101,7 +102,7 @@ describe("ensureRegistered", () => {
 
   it("memoizes — a second call after success makes no new POST", async () => {
     const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
         return voicesResponse(["other"]);
@@ -125,15 +126,13 @@ describe("ensureRegistered", () => {
 
     // second call resolves from memo cache — no additional fetch at all.
     expect(fetchMock.mock.calls.length).toBe(afterFirst);
-    const postCount = fetchMock.mock.calls.filter(
-      (c) => (c[1] as RequestInit | undefined)?.method === "POST",
-    ).length;
+    const postCount = fetchMock.mock.calls.filter((c) => c[1]?.method === "POST").length;
     expect(postCount).toBe(1);
   });
 
   it("deduplicates concurrent calls into a single registration", async () => {
     const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
         return voicesResponse(["other"]);
@@ -153,16 +152,14 @@ describe("ensureRegistered", () => {
     };
     await Promise.all([ensureRegistered(opts), ensureRegistered(opts), ensureRegistered(opts)]);
 
-    const postCount = fetchMock.mock.calls.filter(
-      (c) => (c[1] as RequestInit | undefined)?.method === "POST",
-    ).length;
+    const postCount = fetchMock.mock.calls.filter((c) => c[1]?.method === "POST").length;
     expect(postCount).toBe(1);
   });
 
   it("retries after a failure (cache cleared so a later call re-attempts)", async () => {
     let getCalls = 0;
     const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
         getCalls += 1;
@@ -187,15 +184,13 @@ describe("ensureRegistered", () => {
     await expect(ensureRegistered(opts)).rejects.toThrow();
     // cache entry was deleted on failure → retry proceeds and succeeds.
     await expect(ensureRegistered(opts)).resolves.toBeUndefined();
-    const postCount = fetchMock.mock.calls.filter(
-      (c) => (c[1] as RequestInit | undefined)?.method === "POST",
-    ).length;
+    const postCount = fetchMock.mock.calls.filter((c) => c[1]?.method === "POST").length;
     expect(postCount).toBe(1);
   });
 
   it("throws a clear message when POST /voices is non-2xx", async () => {
     const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
         return voicesResponse(["other"]);
@@ -218,7 +213,7 @@ describe("ensureRegistered", () => {
   });
 
   it("skips entirely (no fetch/POST, no throw) when refUrl is empty", async () => {
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => {
       throw new Error("should not fetch for empty refUrl");
     });
 
@@ -266,7 +261,7 @@ describe("ensureRegistered", () => {
 
   it("does not memoize the empty-refUrl skip — a later real refUrl still registers", async () => {
     const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
         return voicesResponse(["other"]);
@@ -294,9 +289,7 @@ describe("ensureRegistered", () => {
       refUrl: "/references/natsume.wav",
       fetch: fetchMock as unknown as typeof fetch,
     });
-    const postCount = fetchMock.mock.calls.filter(
-      (c) => (c[1] as RequestInit | undefined)?.method === "POST",
-    ).length;
+    const postCount = fetchMock.mock.calls.filter((c) => c[1]?.method === "POST").length;
     expect(postCount).toBe(1);
   });
 });
