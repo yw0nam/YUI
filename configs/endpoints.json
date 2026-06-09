@@ -9,6 +9,7 @@
   "tts_provider": "irodori",
   "irodori_base_url": "http://localhost:8091",
   "irodori_speaker": "ナツメ",
+  "broker_base_url": "http://localhost:3201/mcp",
   "tts_max_inflight": 1,
   "irodori_voices": [
     { "id": "あやせ", "label": "あやせ", "ref_url": "/references/あやせ/merged_audio.mp3" },

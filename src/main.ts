@@ -52,7 +52,8 @@ import { createWebAudioSink } from "./io/audio-player";
 import { resolveScreenSourceProvider, resolveScreenCapturer } from "./io/tauri-screen";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createOsContext } from "./io/os-context";
-import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET } from "./config";
+import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET, loadEmotionTextTable } from "./config";
+import { createBrokerClient, deriveBrokerPayload, type BrokerClient } from "./io/broker-client";
 import { initDrag } from "./drag";
 import { selectFetch } from "./io/chat-client";
 import { createSpeechPlayback } from "./io/speech-playback";
@@ -374,6 +375,23 @@ async function bootstrap(): Promise<void> {
   // dispatcher는 config 로드 후 생성되므로(backend_caller가 config.get()에 의존), dev 인스펙션
   // 핸들이 참조할 수 있게 forward holder를 둔다.
   let dispatcherRef: Dispatcher | null = null;
+  // broker client는 config 로드 후 broker_base_url이 있을 때만 만든다. 핫스왑 재publish와
+  // HMR dispose가 닿게 holder를 둔다.
+  let brokerRef: BrokerClient | null = null;
+
+  // irodori provider일 때만 enum 테이블을 best-effort 로드. 실패하면 warn 후 null →
+  // broker가 free 모드로 degrade(D4). 부트/핫스왑을 막지 않는다.
+  async function loadBrokerTable(
+    provider: string | undefined,
+  ): Promise<Record<string, string> | null> {
+    if (provider !== "irodori") return null;
+    try {
+      return await loadEmotionTextTable({ provider: "irodori" });
+    } catch (err) {
+      log.warn("broker: irodori emotion_text 로드 실패 — free 모드로 degrade", { err: String(err) });
+      return null;
+    }
+  }
 
   // 제출 → 입력 닫고 dispatcher 스파인으로 발사(user.text_submitted). mock은 dev 데모 전용으로 유지.
   surfaces.onSubmit((text) => {
@@ -561,6 +579,21 @@ async function bootstrap(): Promise<void> {
     await loadVrmSerialized(vrmSelection.getActive().url);
     // config가 준비된 후에만 dispatcher를 가동(backend_caller가 config.get()에 의존).
     dispatcher.start();
+    // Expression Broker publish(D6): broker_base_url이 있을 때만 가동. publish→start는
+    // fire-and-forget — 부트 임계 경로를 막지 않는다(D4).
+    if (cfg.endpoints.broker_base_url) {
+      const table = await loadBrokerTable(cfg.endpoints.tts_provider);
+      // Tauri webview에서 broker(localhost:3201)는 cross-origin → selectFetch로 CORS 우회 fetch 주입.
+      const brokerFetch = await selectFetch();
+      brokerRef = createBrokerClient({
+        baseUrl: cfg.endpoints.broker_base_url,
+        ...(brokerFetch ? { fetch: brokerFetch } : {}),
+      });
+      const payload = deriveBrokerPayload(cfg, table);
+      void brokerRef.publish(payload).then(() => brokerRef?.start());
+    } else {
+      log.debug("broker disabled: no broker_base_url");
+    }
   } catch (err) {
     log.error("config load / VRM load failed:", err);
   }
@@ -578,6 +611,15 @@ async function bootstrap(): Promise<void> {
         defaultId: cfg.endpoints.irodori_speaker ?? "",
       });
     }
+    // broker re-publish(D6): renderable vocab을 만드는 config 섹션이 바뀌면 동기화. best-effort.
+    if (
+      brokerRef &&
+      (changed.has("emotionRegistry") || changed.has("motions") || changed.has("endpoints"))
+    ) {
+      void loadBrokerTable(cfg.endpoints.tts_provider).then((table) => {
+        void brokerRef?.publish(deriveBrokerPayload(cfg, table));
+      });
+    }
     if (!changed.has("avatar")) return;
     // framing knob 핫리로드 (#106) — 핫스왑 재fit 전에 갱신.
     renderer.setFraming(cfg.avatar.framing ?? {});
@@ -593,6 +635,8 @@ async function bootstrap(): Promise<void> {
     Object.assign(globalThis as Record<string, unknown>, { __yuiConfig: config });
     // HMR로 모듈이 재실행되면 이전 store의 setInterval이 쌓인다 → dispose에서 중지.
     import.meta.hot?.dispose(() => config.stop());
+    // broker liveness poll의 setInterval도 HMR 간에 누수되지 않게 정리한다.
+    import.meta.hot?.dispose(() => brokerRef?.dispose());
   }
 }
 

@@ -11,7 +11,7 @@
       "FLAT 문자열 인자 {emotion_id?, motion_id?, emotion_text?}. 발화 게이트(should_speak) 없음 (제거 2026-06-04, D-NO-SPEAK-GATE). 침묵 = backend가 assistant 텍스트를 안 보냄(speech_text==''); client는 빈 텍스트면 TTS/말풍선 스킵. firing은 client event loop 소유라 '말할지' 판단을 transport에 둘 이유 없음.",
       "speech_text는 여기 없음. 발화는 별도 텍스트 스트림(response.output_text.delta), tool 인자 아님 (D-SPEECH).",
       "emotion_id enum은 backend 책임(§1). motion_id는 열린 문자열 — client registry(§2)에서 검증, 미등록 시 무시+경고.",
-      "emotion_text = 자유 텍스트 TTS voice tag(예: '[whisper in small voice]'). client가 emotion_text 채널로 정규화해 TTS로 라우팅.",
+      "emotion_text = TTS voice control tag. 렌더 가능한 vocabulary는 Expression Broker가 provider별로 publish한다(irodori = emoji enum, openai-compatible/fishspeech = free text); agent는 broker get_ids로 학습. client가 emotion_text 채널로 정규화해 TTS로 라우팅.",
       "motion = client fallback (D-MOTION-FROM-EMOTION). backend는 보통 emotion_id만 보낸다. motion_id가 없으면 client가 emotion id 전이 순간 emotion→motion 기본 매핑에서 제스처 1회 파생(매핑 없으면 idle). motion_id 명시 시 override — 정서 무관 제스처/억제용 escape hatch. 채널은 optional 유지.",
       "근거: docs/contract.md §1·§2·§3, docs/openai_response_sdk/sse-event-format.md, D-TRANSPORT(prd §5)."
     ],
@@ -50,7 +50,7 @@
       },
       "emotion_text": {
         "type": "string",
-        "description": "Free-text TTS voice tag describing how the line should sound, e.g. \"[whisper in small voice]\" or \"[excited]\". client가 emotion_text 채널로 정규화해 TTS 파이프라인으로 라우팅한다. 생략 가능."
+        "description": "Voice control tag for TTS. The renderable vocabulary is published by the Expression Broker per provider (irodori = emoji enum, openai-compatible/fishspeech = free text); the agent learns it via the broker's get_ids. Prepended to the TTS segment; not shown in subtitles. Optional."
       }
     }
   }

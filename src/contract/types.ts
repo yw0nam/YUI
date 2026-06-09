@@ -256,4 +256,6 @@ export interface EndpointsConfig {
   irodori_seconds?: number;
   /** provider 무관 합성 동시성 상한. default 1(serial) — loader가 아니라 consumer(tts-pipeline)가 적용. */
   tts_max_inflight?: number;
+  /** Expression Broker MCP endpoint(streamable-http, 예: `http://localhost:3201/mcp`). 미설정 시 vocab publish 스킵. */
+  broker_base_url?: string;
 }
