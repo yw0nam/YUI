@@ -31,11 +31,13 @@
                                           1. classify → tier
                                           2. guardrails: DND → debounce → rate-limit
                                           3. conflict resolution
+                                          ├── compacting? → 새 backend 턴 보류(큐 게이트) + 입력 disable + thinking cue
                                           ├── tier1 ──► tier1_ambient_engine ──► renderer
                                           └── tier2/3 ─► backend_caller
                                                           ├ package context
-                                                          ├ POST /v1/responses
+                                                          ├ POST /v1/responses (X-Hermes-Session-Id 헤더)
                                                           ├ parse express function_call(emotion/motion) + 텍스트 스트림
+                                                          ├ usage → token-threshold compaction trigger
                                                           ├ emotion/motion → renderer (항상)
                                                           ├ speech_text == "" → 발화 없음(silent)
                                                           └ speech_text 있음  → TTS/말풍선
@@ -237,9 +239,17 @@ Backend 응답 처리 중: expression은 backend 값 N초 유지 후 ambient bli
 [booting] → (config loaded, sources subscribed) → [running]
 [running] → (total rate-limit exceeded) → [cooldown 5min] → [running]
 [running] → (uncaught error)            → [degraded: tier1 only] → (수동 reset / 30min) → [running]
+[running] → (compaction boundary 도달)   → [compacting] → (compress settle/skip/error/timeout) → [running]
 [running] → (app shutdown)              → [draining 5s] → [stopped]
+[compacting] → (stop)                   → [stopped]
 ```
 Per-source 상태: `enabled | disabled | error`. dispatcher가 source 단위 enable/disable API 제공 (디버깅).
+
+### `compacting` (세션 압축 maintenance window, D-SESSION-CONTINUITY)
+- **entry:** `requestCompaction()`로 래치된 압축 요청이 **턴 경계**(`inFlight===null` && `state==="running"`)에 도달하면 동기적으로 진입한다 — in-flight backend 턴이 끝나는 순간(`startBackendCall` finally), 또는 이미 idle이면 `requestCompaction()`·pump tick 시점. 진입 시 `thinking` cue를 렌더하고 압축 thunk를 timeout과 race해 kick한다.
+- **gates:** compacting 동안 **새 backend 턴 launch를 보류**한다 — boundary에서 압축이 다음 턴보다 먼저 가도록 `enqueueBackend`/`drainPending`가 압축 래치를 보고 enqueue만 한다(드물게 들어오는 tier2/3는 pending에 쌓이고 압축 후 drain). 동시에 chat 입력을 비활성화한다. 이 게이트의 보증은 **큐 레벨**(보류 이벤트가 쌓였다가 압축 후 drain)이지 UI 입력 비활성화만이 아니다.
+- **exits:** compress가 정착(`compressed`/`skipped`/`error`)하거나 timeout(`compact_timeout_ms` 초과 → abort)하면 cue를 `neutral`로 풀고 `running`으로 복귀, pump 1회로 보류 이벤트를 drain한다. `stop()`이 끼어들면 `running` 복귀를 건너뛰고 `stopped`로 간다(rotation 중간에 되살리지 않음).
+- **세션 부재 가드:** 세션 id가 없으면 `requestCompaction()`이 no-op이라 무의미한 압축·cue flicker가 일어나지 않는다. 압축 자체와 회전 id 적용·진단 기록은 dispatcher 외부(main.ts compact thunk)에서 일어난다 — dispatcher는 store-agnostic하다.
 
 ## 10. Handoff Contracts
 
@@ -284,6 +294,14 @@ Input: `{ envelope, tier, context }` · Output: `Promise<{ ok: bool, drop_reason
 | `dispatcher.rate_limit_counters()` | `{ tier2:{count,window_start}, tier3:{...} }` |
 | `dispatcher.recent_drops(n)` | 최근 n drop (reason 포함) |
 | `dispatcher.in_flight_backend_call()` | `{ trigger, started_at } \| null` |
+
+**Control surface (compaction, 모든 빌드):**
+| API | 동작 |
+|---|---|
+| `dispatcher.requestCompaction()` | 세션 압축을 래치한다(idempotent). 다음 턴 경계(`inFlight===null`)에서 `compacting`으로 진입한다. compact thunk 부재·세션 id 부재·이미 `compacting`·`stopped`/`booting`이면 no-op. main.ts가 idle resume(focus/visibilitychange)·token threshold(`createCompactionTrigger`)·blur에서 호출한다. |
+| `dispatcher.subscribeState(cb)` | 상태 전이 구독 — 매 전이마다 `cb(state)` 호출, unsubscribe fn 반환. main.ts가 이걸로 `compacting` 동안 chat 입력을 비활성화한다(`setInputEnabled(s !== "compacting")`). |
+
+> **보류 보증은 큐 레벨이다.** `compacting` 동안 backend 턴 보류는 UI 입력 비활성화가 아니라 **dispatcher 큐 게이트**가 보장한다 — 외부(OS/timer/idle source)에서 들어오는 tier2/3 이벤트도 enqueue만 되고 launch되지 않으며, `running` 복귀 후 drain된다.
 
 **로그 (모든 빌드)**: `dispatcher.fire`, `dispatcher.drop`, `dispatcher.backend_call`, `dispatcher.state_change`. 로컬 파일 + (있다면) OTel.
 

@@ -38,6 +38,50 @@
 - **발화 텍스트는 tool 페이로드 밖:** 발화는 `generate_express` arguments에 넣지 않고, Hermes의 일반 assistant 텍스트 스트림(`response.output_text.delta`)으로 토큰 단위 수신한다(§3 D-SPEECH).
 - **제어신호는 `generate_express` tool-call로 전송한다.** json_schema(Responses `text.format` / Chat `response_format`)는 쓰지 않으며, `generate_express` tool-call이 불가능할 경우의 **이론적 fallback**으로만 둔다.
 
+### Session continuity (`X-Hermes-Session-Id`) + cost-bounded compaction
+
+[D-SESSION-CONTINUITY] **client는 단일 Hermes 세션 id 하나를 소유**하고 매 `/v1/responses` 요청에 `X-Hermes-Session-Id` 헤더로 싣는다. 대화 transcript는 server-side(Hermes)에 살고, client는 그 transcript를 가리키는 **포인터(세션 id) 하나만** 들고 있다 — brain은 client에 없다(judgment·persona·메모리는 backend 소유).
+
+- **lifecycle:** 세션 id는 **client가 mint한 UUID**(`crypto.randomUUID()`)다. localStorage(`yui.session_id`)에 persist되어 **앱 재시작 간에도 유지**되며 만료가 없다. 저장값이 없으면 첫 요청 시점에 새 UUID를 mint·persist한다(첫 턴부터 id 보장). 헤더는 turn마다 바뀔 수 있으므로 SDK `defaultHeaders`가 아니라 **per-request 헤더**로 보낸다.
+- **reset("start fresh"):** 설정에서 세션을 reset하면 저장된 id를 clear한다 — 다음 턴에 새 UUID가 mint되어 backend transcript와의 연결이 새로 시작된다.
+- **compaction(자동, 비용 한정):** 컨텍스트 점유가 커지면 client가 안전한 턴 경계에서 `POST {origin}/api/sessions/{id}/compress`(origin은 `chat_base_url`에서 도출 — `http://host:port/v1` → `http://host:port`)를 호출해 transcript를 압축하고 **continuation 세션으로 회전**한다. 응답이 새 id를 주면 client가 그것을 저장값으로 swap한다. compaction은 **client가 boundary만 소유**하고 실제 압축·메모리는 Hermes가 한다.
+- **trigger(언제 요청하는가):** ① **idle resume**(window focus / visibilitychange) · ② **token threshold**(`chat_model_context_window × compact_threshold_ratio`, 히스테리시스 — `compact_resume_ratio` 아래로 떨어졌다 다시 넘을 때만 재발동) · ③ **window blur**. 발사는 멱등(idempotent)이며 세션 부재·이미 compacting·중복은 dispatcher가 삼킨다.
+- **blocking maintenance window:** compaction 중 dispatcher는 `compacting` 상태로 새 backend 턴 launch를 게이트하고 chat 입력을 비활성화하며 `thinking` emotion cue를 재생한다(event-dispatcher.md §9·§11). 단일 compress 호출은 `compact_timeout_ms`로 마감된다.
+- **failure는 현재 id를 보존한다:** `skipped` · `error` · timeout · 비-2xx(404 등) 등 모든 실패 모드는 회전을 건너뛰고 **현재 세션 id를 그대로 유지**한다(연속성 손실 없음). compaction 중 reset이 새 id를 발급했으면 폐기된 세션의 연속분이 부활하지 않도록 회전·진단을 건너뛴다.
+- **diagnostics:** used/max 컨텍스트 토큰 + 마지막 압축 통계(before/after tokens, removed)는 **설정 창에만** 노출된다(localStorage `yui.session_diagnostics`).
+
+#### Usage (토큰 점유량 입력)
+`response.completed`의 `usage` 블록을 client가 자체 `usage` 스트림 이벤트로 흘려 토큰 점유량을 추적한다 — `ControlEnvelope`(§3)에는 싣지 않는다(렌더 신호 아님). threshold trigger와 진단 갱신의 입력이다.
+
+```ts
+interface Usage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+}
+```
+
+#### 압축 엔드포인트 + 응답 스키마
+```
+POST {origin}/api/sessions/{id}/compress   →   SessionCompressionResponse
+// origin = new URL(chat_base_url).origin · {id} = 현재 세션 id(URL-encoded)
+// 헤더: X-Hermes-Session-Id: <현재 id> · Authorization: Bearer <key>(키 있을 때 — chat-client와 동일)
+// 빈 JSON body. compressed면 회전 대상 id의 source of truth는 body.session_id(없으면 응답 X-Hermes-Session-Id 헤더 fallback).
+```
+
+응답은 `status` 판별 union이다 — `compressed`(회전 발생: 새/이전 세션 id + before/after 메시지·토큰 + removed)와 `skipped`(회전 없음: 같은 세션 + reason). 서버가 추가 필드를 보낼 수 있어 관대하게 받는다.
+
+```ts
+type SessionCompressionResponse =
+  | { object: "hermes.session.compression"; status: "compressed";
+      session_id: string; previous_session_id: string;
+      before_messages: number; after_messages: number;
+      before_tokens: number;  after_tokens:  number;
+      removed: number; [extra: string]: unknown }
+  | { object: "hermes.session.compression"; status: "skipped";
+      session_id: string; reason: string; [extra: string]: unknown };
+```
+
 ### Runtime request-shaping inputs (per-user, layered on config)
 
 chat 요청은 위 `EndpointsConfig` 위에 **per-user 런타임 입력 2종**을 얹어 만든다. 둘 다 wire envelope(§3)을 바꾸지 않는다 — 표준 Responses 요청 필드를 어떻게 채울지만 정한다. 영속은 §3-store(localStorage `yui.agent`, D-AGENT-SETTINGS-STORE) 담당이며, **checked-in `configs/endpoints.json`을 mutate하지 않는다.**
@@ -485,8 +529,16 @@ interface EndpointsConfig {
 
   // --- Expression Broker (provider 무관) ---
   broker_base_url?: string;              // Expression Broker MCP endpoint(streamable-http, 예: "http://localhost:3201/mcp"). 미설정 시 vocab publish 스킵
+
+  // --- Session continuity + compaction (D-SESSION-CONTINUITY, §Endpoint abstraction) ---
+  chat_model_context_window?: number;    // 활성 chat 모델의 최대 컨텍스트 토큰 수. 미설정 시 threshold trigger 미발동(idle/blur trigger는 동작). 예: 200000
+  compact_threshold_ratio?: number;      // 자동 compaction을 요청하는 컨텍스트 점유 비율. loader default 0.7
+  compact_resume_ratio?: number;         // 히스테리시스 하한 — skipped 직후 점유율이 이 비율 아래로 떨어졌다 다시 threshold를 넘어야 재발동. loader default 0.5
+  compact_timeout_ms?: number;           // 단일 compress 호출의 마감 시한(ms). 초과 시 abort + running 복귀. loader default 12000
 }
 ```
+
+- **session/compaction 필드 default(loader):** `compact_threshold_ratio=0.7` · `compact_resume_ratio=0.5` · `compact_timeout_ms=12000`. `chat_model_context_window`는 default 없음 — 미설정 시 token-threshold trigger가 발동하지 않는다(idle resume / blur trigger는 무관하게 동작). checked-in `configs/endpoints.json`은 `200000 / 0.7 / 0.5 / 12000`을 싣는다.
 
 - **provider 선택:** `tts_provider` 미설정 → loader가 `"irodori"`로 resolve(default). `"openai"`면 기존 `/audio/speech` 경로.
 - **`irodori_voices`의 `ref_url`**은 reference clip을 가리킨다 — `resources/references/<id>/merged_audio.mp3`(gitignored, symlink)를 Vite가 `/references/*`로 서빙. 등록(§5.3) 시에만 fetch되고, per-synth 요청엔 안 실린다.
@@ -562,6 +614,7 @@ prototype에서 결정/검증:
 
 ## Changelog
 
+- **2026-06-09:** §Endpoint abstraction — session continuity(`X-Hermes-Session-Id` per-request 헤더; client-minted UUID를 localStorage에 persist; 설정 reset) + cost-bounded compaction(`POST {origin}/api/sessions/{id}/compress` → `SessionCompressionResponse`; idle resume / token threshold / blur trigger; 실패 시 현재 id 보존). `Usage` 타입과 `EndpointsConfig`의 `chat_model_context_window` · `compact_threshold_ratio`(0.7) · `compact_resume_ratio`(0.5) · `compact_timeout_ms`(12000) 필드.
 - **2026-06-08 (PR-A):** §5 — **irodori_TTS** provider(라이브 검증 8091 `/synthesize` + `/voices` registry, OpenAI 호환 아님)가 OpenAI TTS와 공존하며 default는 `irodori`. `EndpointsConfig`는 `tts_provider`(default irodori)·`tts_max_inflight`·`irodori_*` 필드를 싣는다. `emotion_text` 어휘는 **이모지 태그 집합**이다(§1·§3 D-EMOTION-TEXT 표; prefix-only, 말풍선 비노출). `reference_text`는 미사용(모델이 transcript 무시).
 - **2026-06-08:** §2.5 추가 — `AvatarConfig.available?: AvatarOption[]` VRM 선택 manifest(#94). `vrm_url`은 필수 유지(하위 호환).
 - **2026-06-06 (v0.2 draft):** emotion 음성 제어는 `generate_express`의 자유 텍스트 `emotion_text` 채널로 한다(enum→TTS-prefix 매핑은 쓰지 않는다 — §1, §3 D-TTS-PIPELINE step 4).
