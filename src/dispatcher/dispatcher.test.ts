@@ -13,10 +13,54 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createDispatcher, type Dispatcher, DROP_SEVERITY } from "./dispatcher";
 import { createEventBus, type EventBus, type BusEnvelope } from "./event-bus";
+import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
 import type { BackendCaller, BackendCallResult } from "./backend-caller";
 import type { Logger } from "../logger";
 
 const NOW = 1_717_000_000_000;
+
+/**
+ * 스파인(라우팅/supersede) 테스트용 permissive guardrails config — debounce 0, 넉넉한 cap.
+ * 가드레일 자체 검증은 guardrails.test.ts 소관이므로 여기서는 간섭하지 않는다.
+ */
+function permissiveGuardrailsConfig(): GuardrailsConfig {
+  return {
+    dnd: { app_blocklist: [], camera_idle_off_ms: 30_000 },
+    debounce_ms: {
+      idle_watcher: 0,
+      os_event_watcher: 0,
+      backend_push_source: 0,
+      user_input_source: 0,
+    },
+    rate_limit: {
+      window_ms: 3_600_000,
+      tier2_max: 1000,
+      tier3_max: 1000,
+      overall_max: 1000,
+      cooldown_ms: 300_000,
+    },
+  };
+}
+
+/** §6 SOT 수치를 그대로 쓰는 guardrails config (게이팅 테스트용). */
+function realGuardrailsConfig(): GuardrailsConfig {
+  return {
+    dnd: { app_blocklist: [], camera_idle_off_ms: 30_000 },
+    debounce_ms: {
+      idle_watcher: 30_000,
+      os_event_watcher: 5_000,
+      backend_push_source: 10_000,
+      user_input_source: 0,
+    },
+    rate_limit: {
+      window_ms: 3_600_000,
+      tier2_max: 6,
+      tier3_max: 2,
+      overall_max: 20,
+      cooldown_ms: 300_000,
+    },
+  };
+}
 
 function env(over: Partial<BusEnvelope> = {}): BusEnvelope {
   return {
@@ -37,6 +81,7 @@ let applyDirective: ReturnType<typeof vi.fn>;
 let renderer: { applyDirective: typeof applyDirective };
 let callDeferred: Array<{ resolve: (r: BackendCallResult) => void; signal?: AbortSignal }>;
 let backendCaller: BackendCaller;
+let guardrails: Guardrails;
 let dispatcher: Dispatcher;
 let logger: Logger;
 
@@ -58,8 +103,9 @@ beforeEach(() => {
   renderer = { applyDirective };
   callDeferred = [];
   backendCaller = makeBackendCaller();
+  guardrails = createGuardrails(permissiveGuardrailsConfig(), { now: () => Date.now() });
   logger = makeLogger();
-  dispatcher = createDispatcher({ bus, renderer: renderer as never, backendCaller, logger });
+  dispatcher = createDispatcher({ bus, renderer: renderer as never, backendCaller, guardrails, logger });
 });
 afterEach(() => {
   dispatcher.stop();
@@ -316,5 +362,108 @@ describe("dispatcher — structured logging (#76): drop events via logger", () =
       "drop",
       expect.objectContaining({ reason: "stale_pending", event_name: expect.any(String) }),
     );
+  });
+});
+
+// ── #25 guardrail gating (event-dispatcher.md §6 / §9) ──────────────────────────
+
+describe("dispatcher — guardrail gating (#25, §6)", () => {
+  /** real-config(§6 수치) 가드레일을 단 dispatcher를 만든다. */
+  function makeGated(): { d: Dispatcher; g: Guardrails } {
+    const g = createGuardrails(realGuardrailsConfig(), { now: () => Date.now() });
+    const d = createDispatcher({ bus, renderer: renderer as never, backendCaller, guardrails: g, logger });
+    return { d, g };
+  }
+
+  it("DND on → tier2 backend firing is dropped (guardrail_drop) and not enqueued", async () => {
+    const { d, g } = makeGated();
+    d.start();
+    g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_entered", dnd_override: false }));
+    bus.push(env({ source: "idle_watcher", event_name: "idle.long", hint_tier: 2, dnd_override: false }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(d.recentDrops(10).some((dr) => dr.reason === "guardrail_drop")).toBe(true);
+    d.stop();
+  });
+
+  it("note() flips DND from a fullscreen bus event passed through the dispatcher", async () => {
+    const { d, g } = makeGated();
+    d.start();
+    // dispatcher.handle() must call guardrails.note() — a fullscreen event flips DND state.
+    bus.push(env({ source: "os_event_watcher", event_name: "os.fullscreen_entered", hint_tier: 3, dnd_override: false }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(g.dndState().on).toBe(true);
+    d.stop();
+  });
+
+  it("tier1 is NEVER gated under DND", async () => {
+    const { d, g } = makeGated();
+    d.start();
+    g.setDnd("manual", true);
+    bus.push(env({ source: "user_input_source", event_name: "user.drag_start", hint_tier: 1, dnd_override: false }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(applyDirective).toHaveBeenCalled();
+    d.stop();
+  });
+
+  it("dnd_override user turns pass the guardrail and reach the backend even under DND", async () => {
+    const { d, g } = makeGated();
+    d.start();
+    g.setDnd("manual", true);
+    bus.push(env()); // default env: user.text_submitted, dnd_override:true
+    await vi.advanceTimersByTimeAsync(20);
+    expect((backendCaller.call as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+    d.stop();
+  });
+
+  it("debounce drops a 2nd same-source tier2 within the window", async () => {
+    const { d } = makeGated();
+    d.start();
+    bus.push(env({ source: "idle_watcher", event_name: "idle.long", ts: NOW, hint_tier: 2, dnd_override: false }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0]?.resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(20);
+    (backendCaller.call as ReturnType<typeof vi.fn>).mockClear();
+    // 2nd idle within 30s — debounce drop, no new backend call.
+    bus.push(env({ source: "idle_watcher", event_name: "idle.long", ts: NOW + 1, hint_tier: 2, dnd_override: false }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(d.recentDrops(10).some((dr) => dr.reason === "guardrail_drop")).toBe(true);
+    d.stop();
+  });
+});
+
+describe("dispatcher — cooldown state mirror (#25, §6.3/§9)", () => {
+  it("overall-cap overflow flips state() to 'cooldown' and back to 'running'; tier1 still renders", async () => {
+    const cfg = realGuardrailsConfig();
+    cfg.rate_limit.tier2_max = 1000; // make overall cap the binding constraint
+    cfg.debounce_ms.user_input_source = 0;
+    const g = createGuardrails(cfg, { now: () => Date.now() });
+    const d = createDispatcher({ bus, renderer: renderer as never, backendCaller, guardrails: g, logger });
+    d.start();
+
+    // 21 non-override tier2 user firings → 21st enters cooldown.
+    for (let i = 0; i < 21; i++) {
+      bus.push(env({ source: "user_input_source", event_name: "user.text_submitted", ts: NOW + i, dnd_override: false }));
+      await vi.advanceTimersByTimeAsync(20);
+      // resolve any in-flight so the next can start.
+      callDeferred[callDeferred.length - 1]?.resolve({ ok: true });
+      await vi.advanceTimersByTimeAsync(20);
+    }
+    expect(g.cooldownActive()).toBe(true);
+    expect(d.state()).toBe("cooldown");
+
+    // tier1 still renders during cooldown.
+    applyDirective.mockClear();
+    bus.push(env({ source: "user_input_source", event_name: "user.drag_start", ts: NOW + 100, hint_tier: 1, dnd_override: false }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(applyDirective).toHaveBeenCalled();
+
+    // after 5min the dispatcher auto-returns to running.
+    vi.setSystemTime(NOW + 21 + 300_000 + 1000);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(g.cooldownActive()).toBe(false);
+    expect(d.state()).toBe("running");
+    d.stop();
   });
 });
