@@ -164,7 +164,7 @@ export function createQuickControls({
   // type="text"로 두고 검증 메시지를 직접 제어한다(브라우저 기본 URL 검증 회피).
   const endpointRowsHtml = ENDPOINT_FIELDS.map(({ key, label, url }) => {
     const errId = `yui-ep-err-${key}`;
-    const urlClass = url ? " yui-input--url" : "";
+    const urlClass = url ? " yui-ep-input--url" : "";
     const errHtml = url
       ? `<p class="yui-input-row__error" id="${errId}" role="status">${ENDPOINT_URL_ERROR}</p>`
       : "";
@@ -173,7 +173,7 @@ export function createQuickControls({
             <label class="yui-input-row__label" for="yui-ep-${key}">${label}</label>
             <span class="yui-input-row__sub">비우면 기본값을 사용해요</span>
             <div class="yui-input-wrap">
-              <input class="yui-input${urlClass}" id="yui-ep-${key}" type="text" spellcheck="false"
+              <input class="yui-ep-input${urlClass}" id="yui-ep-${key}" type="text" spellcheck="false"
                 inputmode="${url ? "url" : "text"}" autocapitalize="off" autocomplete="off" />
             </div>
             ${errHtml}

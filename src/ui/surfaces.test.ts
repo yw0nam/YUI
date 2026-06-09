@@ -190,3 +190,40 @@ describe("dwell-pause on hover", () => {
     expect(bubbleEl.classList.contains("is-visible")).toBe(false); // hover did not pause
   });
 });
+
+describe("setInputAnchor — --yui-input-bottom on the chat form", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function form(): HTMLElement {
+    return mount.querySelector(".yui-input") as HTMLElement;
+  }
+
+  it("sets --yui-input-bottom to a px value", () => {
+    s.setInputAnchor(120);
+    expect(form().style.getPropertyValue("--yui-input-bottom")).toBe("120px");
+  });
+
+  it("removes the var when given null", () => {
+    s.setInputAnchor(120);
+    s.setInputAnchor(null);
+    expect(form().style.getPropertyValue("--yui-input-bottom")).toBe("");
+  });
+
+  it("preserves the var across summonInput()/dismissInput()", () => {
+    s.setInputAnchor(96);
+    s.summonInput();
+    expect(form().style.getPropertyValue("--yui-input-bottom")).toBe("96px");
+    s.dismissInput();
+    expect(form().style.getPropertyValue("--yui-input-bottom")).toBe("96px");
+  });
+});

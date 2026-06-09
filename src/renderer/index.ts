@@ -41,6 +41,7 @@ import { routeDirective } from "./apply-directive";
 import { revertEmotionToNeutral } from "./ease-emotion";
 import { recenterClipRootMotion } from "./recenter-root-motion";
 import { computeCameraFit } from "./camera-fit";
+import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
 import { createLogger } from "../logger";
 
 const log = createLogger("renderer");
@@ -136,6 +137,11 @@ export interface Renderer {
   setZoom(z: number): void;
   /** 현재 적용된 zoom 배율 반환. */
   getZoom(): number;
+  /**
+   * 캐릭터 발밑(box 중앙 x/z, 최저 y)의 현재 화면 픽셀 좌표. VRM 미로드 시 null.
+   * resize/zoom으로 카메라가 재fit될 때마다 변한다 — UI 입력을 발밑에 붙이는 데 쓴다.
+   */
+  getCharacterAnchor(): ScreenAnchor | null;
   /** rAF 루프 정지 + GPU 리소스 해제. */
   dispose(): void;
 }
@@ -708,6 +714,11 @@ export function createRenderer(options: RendererOptions): Renderer {
     setZoom,
     getZoom() {
       return zoom;
+    },
+    getCharacterAnchor() {
+      if (!modelBox) return null;
+      camera.updateMatrixWorld();
+      return projectFeetAnchor(modelBox, camera, mount.clientWidth || 1, mount.clientHeight || 1);
     },
     dispose() {
       cancelAnimationFrame(rafId);
