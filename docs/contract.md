@@ -22,7 +22,7 @@
 {
   "chat_base_url":     "http://localhost:8643",  // Hermes (SSH 터널)
   "chat_endpoint":     "/v1/responses",          // default. fallback: "/v1/chat/completions"
-  "chat_instructions": "You are embodied as a VRM avatar … generate_express로 표정·제스처·음성 표현", // Responses `instructions` nudge — generate_express 유도(config 소관)
+  "chat_instructions": "Call generate_express … motion_id 몸동작 · emotion_id 표정 · emotion_text 음성", // Responses `instructions` nudge — generate_express 유도(config 소관)
   "chat_model":        "natsume",                // Hermes 모델 ID (Responses `model`). config 소관(하드코딩 금지)
   "stt_base_url":      "http://localhost:5517",  // 별도 ASR 서비스 (OpenAI 호환) → /audio/transcriptions
   "tts_base_url":      "http://localhost:8092",  // OpenAI 호환 TTS → /audio/speech (provider="openai")
@@ -243,13 +243,12 @@ interface AvatarConfig {
 
 **[D-MOTION-FROM-EMOTION] motion은 client가 emotion에서 파생한다 (확정 2026-06-04).** backend는 보통 `emotion_id`만 보낸다. `motion_id`가 없으면 client가 **emotion id가 바뀌는 순간**(전이 시점) `configs`의 emotion→motion 기본 매핑에서 제스처를 **1회** 파생 재생한다(oneshot 의미 보존; 매핑이 없는 emotion은 idle 유지). `motion_id`를 명시하면 그것이 우선 — 정서와 무관한 제스처(예: 드래그 반응, 지시 제스처)나 억제(`"idle"`)에 쓰는 **escape hatch**다. motion 채널은 schema에 optional로 남는다. (client 구현은 #16 계열 후속 — 매핑 아티팩트 신설.)
 
-### generate_express tool 정의 (backend tool 등록 contract) — canonical artifact
-> **단일 소스: [`configs/express_tool.schema.json`](../configs/express_tool.schema.json).** 아래는 그 요약. 코드/문서가 갈리면 JSON 아티팩트가 진실.
+### generate_express tool 정의 (backend tool 등록 contract) — canonical
 
 이 turn의 제어신호 transport는 `name == "generate_express"`인 function-call 하나다. **하드 계약 = function 이름(`generate_express`) + arguments JSON Schema(`parameters`).** 백엔드 generate_express tool(Hermes plugin — [`hermes-express-tool.md`](./hermes-express-tool.md))은 이 둘만 맞추면 되고(호출 여부·내용은 backend 판단 — firing≠judgment), client는 들어온 `arguments`를 이 스키마로 검증해 `ControlEnvelope`로 정규화한다.
 
 ```jsonc
-// configs/express_tool.schema.json (요약). 전체는 파일 참조. FLAT 문자열 인자.
+// generate_express tool — FLAT 문자열 인자.
 {
   "type": "function", "name": "generate_express", "strict": false,
   "parameters": {
