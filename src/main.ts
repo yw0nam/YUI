@@ -52,8 +52,9 @@ import { initDrag } from "./drag";
 import { selectFetch } from "./io/chat-client";
 import { createSpeechPlayback } from "./io/speech-playback";
 import { createTtsSynth } from "./io/tts-synth";
-import { createIrodoriSynth } from "./io/irodori-synth";
-import { ensureRegistered } from "./io/irodori-voices";
+import { createIrodoriSynth, type TtsSynth } from "./io/irodori-synth";
+import { ensureRegistered, evictRegistration } from "./io/irodori-voices";
+import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
@@ -410,6 +411,44 @@ async function bootstrap(): Promise<void> {
   // synth는 호출 시점에 config(핫리로드)와 selectFetch를 읽는 closure로 주입한다.
   // config.get()을 여기서 eager 평가하면 load() 전 throw로 부트스트랩이 죽으니 금지.
   // 재생 진폭은 renderer 입 모양으로, 재생 완료는 말풍선 페이드 해제로 흐른다(speech-playback).
+  // irodori synth closure를 화자·튜닝 키별로 메모이즈 + 422 self-heal. 문장마다 재구성하지 않는다.
+  let irodoriFactory: TtsSynth | undefined;
+  const irodoriSynth = async (input: string, signal?: AbortSignal): Promise<ArrayBuffer> => {
+    const f = await selectFetch();
+    irodoriFactory ??= createIrodoriSynthFactory({
+      getParams: () => {
+        const eps = config.get().endpoints;
+        const active = speakerSelection.getActive();
+        if (!eps.irodori_base_url || !active.id) {
+          throw new Error("irodori provider requires irodori_base_url + irodori_speaker");
+        }
+        return {
+          baseUrl: eps.irodori_base_url,
+          referenceId: active.id,
+          refUrl: active.ref_url,
+          numSteps: eps.irodori_num_steps,
+          cfgScaleText: eps.irodori_cfg_scale_text,
+          cfgScaleSpeaker: eps.irodori_cfg_scale_speaker,
+          seconds: eps.irodori_seconds,
+        };
+      },
+      ensureRegistered,
+      evictRegistration,
+      buildSynth: (p, fetchImpl) =>
+        createIrodoriSynth({
+          baseUrl: p.baseUrl,
+          referenceId: p.referenceId,
+          fetch: fetchImpl,
+          numSteps: p.numSteps,
+          cfgScaleText: p.cfgScaleText,
+          cfgScaleSpeaker: p.cfgScaleSpeaker,
+          seconds: p.seconds,
+        }),
+      fetch: f ?? globalThis.fetch,
+    });
+    return irodoriFactory(input, signal);
+  };
+
   const speechPlayback = createSpeechPlayback({
     renderer,
     surfaces,
@@ -418,31 +457,11 @@ async function bootstrap(): Promise<void> {
       // function form → drain마다 lazy 해소(eager config read 없음, 핫리로드 친화).
       maxInflight: () => config.get().endpoints.tts_max_inflight ?? 1,
       synth: async (input, signal) => {
-        const f = await selectFetch();
         const eps = config.get().endpoints;
         if (eps.tts_provider === "irodori") {
-          // 활성 화자는 store가 소유한다(UI override > config default). ref_url도 store 옵션에서 온다.
-          const active = speakerSelection.getActive();
-          if (!eps.irodori_base_url || !active.id) {
-            throw new Error("irodori provider requires irodori_base_url + irodori_speaker");
-          }
-          // ensureRegistered는 멱등·메모이즈 — 매 synth 전 호출해도 첫 회 이후 no-op.
-          await ensureRegistered({
-            baseUrl: eps.irodori_base_url,
-            id: active.id,
-            refUrl: active.ref_url,
-            fetch: f,
-          });
-          return createIrodoriSynth({
-            baseUrl: eps.irodori_base_url,
-            referenceId: active.id,
-            fetch: f,
-            numSteps: eps.irodori_num_steps,
-            cfgScaleText: eps.irodori_cfg_scale_text,
-            cfgScaleSpeaker: eps.irodori_cfg_scale_speaker,
-            seconds: eps.irodori_seconds,
-          })(input, signal);
+          return irodoriSynth(input, signal);
         }
+        const f = await selectFetch();
         return createTtsSynth({
           config: eps,
           fetch: f,

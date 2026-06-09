@@ -178,4 +178,115 @@ describe("createIrodoriSynth", () => {
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     expect(init.signal).toBe(ac.signal);
   });
+
+  it("attaches the HTTP status to the thrown error", async () => {
+    const fetchMock = vi.fn(async () => errResponse(422, { detail: "unknown reference_id 'nope'" }));
+    const synth = createIrodoriSynth({
+      baseUrl: BASE,
+      referenceId: "nope",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+    await expect(synth("x")).rejects.toMatchObject({ status: 422 });
+  });
+
+  it("includes a JSON.stringify fallback for undocumented detail shapes", async () => {
+    const fetchMock = vi.fn(async () =>
+      errResponse(400, { detail: { code: "BAD", reason: "weird" } }),
+    );
+    const synth = createIrodoriSynth({
+      baseUrl: BASE,
+      referenceId: "v1",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+    await expect(synth("x")).rejects.toThrow(/"code":"BAD"/);
+    await expect(synth("x")).rejects.toThrow(/"reason":"weird"/);
+  });
+
+  it("does not throw when the undocumented detail is non-serializable", async () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    const fetchMock = vi.fn(async () => errResponse(400, { detail: circular }));
+    const synth = createIrodoriSynth({
+      baseUrl: BASE,
+      referenceId: "v1",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+    await expect(synth("x")).rejects.toThrow(/400/);
+  });
+
+  it("retries once on 503 honoring Retry-After, then succeeds", async () => {
+    const buf = new ArrayBuffer(8);
+    let call = 0;
+    const sleeps: number[] = [];
+    const fetchMock = vi.fn(async () => {
+      call += 1;
+      if (call === 1) {
+        return {
+          ok: false,
+          status: 503,
+          headers: new Headers({ "Retry-After": "2" }),
+          json: async () => ({ detail: "overloaded" }),
+        } as unknown as Response;
+      }
+      return okResponse(buf);
+    });
+    const synth = createIrodoriSynth({
+      baseUrl: BASE,
+      referenceId: "v1",
+      fetch: fetchMock as unknown as typeof fetch,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+      },
+    });
+    const out = await synth("hi");
+    expect(out).toBe(buf);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sleeps).toEqual([2000]);
+  });
+
+  it("caps the 503 Retry-After wait to a sane maximum", async () => {
+    let call = 0;
+    const sleeps: number[] = [];
+    const fetchMock = vi.fn(async () => {
+      call += 1;
+      if (call === 1) {
+        return {
+          ok: false,
+          status: 503,
+          headers: new Headers({ "Retry-After": "9999" }),
+          json: async () => ({ detail: "overloaded" }),
+        } as unknown as Response;
+      }
+      return okResponse(new ArrayBuffer(4));
+    });
+    const synth = createIrodoriSynth({
+      baseUrl: BASE,
+      referenceId: "v1",
+      fetch: fetchMock as unknown as typeof fetch,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+      },
+    });
+    await synth("hi");
+    expect(sleeps[0]).toBeLessThanOrEqual(5000);
+  });
+
+  it("gives up after a single 503 retry (does not loop forever)", async () => {
+    const fetchMock = vi.fn(async () =>
+      ({
+        ok: false,
+        status: 503,
+        headers: new Headers(),
+        json: async () => ({ detail: "overloaded" }),
+      }) as unknown as Response,
+    );
+    const synth = createIrodoriSynth({
+      baseUrl: BASE,
+      referenceId: "v1",
+      fetch: fetchMock as unknown as typeof fetch,
+      sleep: async () => {},
+    });
+    await expect(synth("x")).rejects.toThrow(/503/);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

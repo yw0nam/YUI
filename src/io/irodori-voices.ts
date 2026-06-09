@@ -19,6 +19,11 @@ export function __resetIrodoriVoiceCache(): void {
   inflight.clear();
 }
 
+/** 서버 측 voice 삭제(재시작·DELETE)로 422가 나면 메모를 비워 재등록을 허용한다. */
+export function evictRegistration(baseUrl: string, id: string): void {
+  inflight.delete(`${baseUrl}::${id}`);
+}
+
 async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<void> {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const voicesUrl = `${opts.baseUrl}/voices`;
