@@ -168,6 +168,74 @@ describe("loadConfig — avatar.available", () => {
   });
 });
 
+// ── avatar.framing fit-to-bounds (#106) ─────────────────────────────────────────
+
+describe("loadConfig — avatar.framing", () => {
+  /** rejects → ConfigError on avatar.json with non-empty issues. */
+  async function expectAvatarError(p: Promise<unknown>): Promise<void> {
+    await expect(p).rejects.toBeInstanceOf(ConfigError);
+    const err = await p.catch((e) => e);
+    expect((err as ConfigError).file).toBe("avatar.json");
+    expect((err as ConfigError).issues.length).toBeGreaterThan(0);
+  }
+  async function loadWithAvatar(avatar: unknown): Promise<unknown> {
+    const map = goodFixture();
+    map[CONFIG_FILES.avatar] = avatar;
+    return loadConfig({ read: readerOf(map) });
+  }
+
+  it("유효한 framing {margin, fov}를 그대로 보존한다", async () => {
+    const cfg = await loadConfig({
+      read: readerOf({
+        ...goodFixture(),
+        "avatar.json": { vrm_url: "/vrms/carlotta.vrm", framing: { margin: 0.1, fov: 30 } },
+      }),
+    });
+    expect(cfg.avatar.framing).toEqual({ margin: 0.1, fov: 30 });
+  });
+
+  it("framing이 없으면 undefined (하위호환)", async () => {
+    const cfg = await loadConfig({ read: readerOf(goodFixture()) });
+    expect(cfg.avatar.framing).toBeUndefined();
+  });
+
+  it("fov: 0 (열린구간 밖)이면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", framing: { fov: 0 } }),
+    );
+  });
+
+  it("fov: 180 (열린구간 밖)이면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", framing: { fov: 180 } }),
+    );
+  });
+
+  it("fov: -5 (음수)이면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", framing: { fov: -5 } }),
+    );
+  });
+
+  it('fov: "30" (문자열)이면 실패', async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", framing: { fov: "30" } }),
+    );
+  });
+
+  it("margin: -0.1 (음수)이면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", framing: { margin: -0.1 } }),
+    );
+  });
+
+  it("margin: NaN (비유한)이면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", framing: { margin: Number.NaN } }),
+    );
+  });
+});
+
 // ── irodori_TTS provider (PR-A) ────────────────────────────────────────────────
 
 describe("loadConfig — endpoints irodori provider", () => {
