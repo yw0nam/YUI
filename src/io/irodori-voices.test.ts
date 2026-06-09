@@ -9,7 +9,7 @@
  * 테스트는 mock fetch만 사용 — 실제 서버 미접속. 케이스 간 누수 방지를 위해 매번 캐시 리셋.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ensureRegistered, __resetIrodoriVoiceCache } from "./irodori-voices";
 
 const BASE = "http://localhost:8091";
@@ -45,6 +45,10 @@ beforeEach(() => {
   __resetIrodoriVoiceCache();
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("ensureRegistered", () => {
   it("no-ops (only GET, no POST) when the id is already registered", async () => {
     const fetchMock = vi.fn(async (input: unknown) => {
@@ -61,7 +65,7 @@ describe("ensureRegistered", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit | undefined];
     expect(url).toBe("http://localhost:8091/voices");
     expect(init?.method ?? "GET").toBe("GET");
   });
@@ -268,5 +272,32 @@ describe("ensureRegistered", () => {
       (c) => (c[1] as RequestInit | undefined)?.method === "POST",
     ).length;
     expect(postCount).toBe(1);
+  });
+
+  it("absolutizes a relative refUrl against window origin before fetching", async () => {
+    vi.stubGlobal("location", { href: "http://127.0.0.1:1420/" });
+    const expectedRef = new URL("/references/あやせ/merged_audio.mp3", "http://127.0.0.1:1420/").href;
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
+    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
+        return voicesResponse(["other"]);
+      }
+      if (url === expectedRef) return blobResponse(audio);
+      if (url === "http://localhost:8091/voices" && init?.method === "POST") {
+        return createdResponse("あやせ");
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    await ensureRegistered({
+      baseUrl: BASE,
+      id: "あやせ",
+      refUrl: "/references/あやせ/merged_audio.mp3",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    const refCall = fetchMock.mock.calls.find((c) => String(c[0]) === expectedRef);
+    expect(refCall).toBeDefined();
   });
 });
