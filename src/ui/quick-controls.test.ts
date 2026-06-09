@@ -27,6 +27,8 @@ import {
   type AgentStorage,
 } from "../io/agent-settings";
 import { createEndpointsSettings } from "../io/endpoints-settings";
+import { createSessionDiagnosticsStore } from "../io/session-diagnostics";
+import { createSessionStore } from "../io/session-store";
 
 // jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
 // Escapes ASCII chars that aren't safe identifier chars; non-ASCII passes through (safe unescaped).
@@ -1407,5 +1409,194 @@ describe("createQuickControls — gain row", () => {
     expect(qc.el.querySelector(".yui-spk__note")).toBeNull();
 
     vi.useRealTimers();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Conversation / Session section (window-only)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createQuickControls — session section", () => {
+  let mount: HTMLElement;
+  let sessionDiagnostics: ReturnType<typeof createSessionDiagnosticsStore>;
+  let sessionStore: ReturnType<typeof createSessionStore>;
+
+  beforeEach(() => {
+    let rafId = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return ++rafId;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    sessionDiagnostics = createSessionDiagnosticsStore();
+    sessionStore = createSessionStore();
+    try {
+      globalThis.localStorage?.clear();
+    } catch {
+      /* localStorage 미사용 환경 무시 */
+    }
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+  });
+
+  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    return createQuickControls({
+      mount,
+      settings: makeSettings(),
+      sourceProvider: makeSourceProvider(),
+      voiceStatus: makeVoiceStatus(),
+      lipsync: createLipsyncSettings(),
+      onGainPreview: vi.fn(),
+      onGainPreviewEnd: vi.fn(),
+      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+      endpointsSettings: createEndpointsSettings(),
+      onPopOut: vi.fn(),
+      vrmSelection: createVrmSelection({
+        available: [{ id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" }],
+        defaultUrl: "/vrms/carlotta.vrm",
+      }),
+      swapVrm: vi.fn(async () => {}),
+      speakerSelection: createSpeakerSelection({
+        available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
+        defaultId: "natsume",
+      }),
+      swapSpeaker: vi.fn(async () => {}),
+      refreshSpeaker: vi.fn(async () => {}),
+      sessionDiagnostics,
+      sessionStore,
+      ...extra,
+    });
+  }
+
+  it("renders the session section in the window variant", () => {
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+    expect(qc.el.querySelector(".yui-session")).not.toBeNull();
+    qc.dispose();
+  });
+
+  it("does NOT render the session section in the popover (pet) variant", () => {
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+    expect(qc.el.querySelector(".yui-session")).toBeNull();
+    qc.dispose();
+  });
+
+  it("renders used/max and percent from the diagnostics store", () => {
+    sessionDiagnostics.setUsage(18200, 200000);
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    const value = qc.el.querySelector<HTMLElement>(".yui-session__value")!;
+    expect(value.textContent).toContain("18.2K");
+    expect(value.textContent).toContain("200K");
+    const pct = qc.el.querySelector<HTMLElement>(".yui-session__value .pct")!;
+    expect(pct.textContent).toContain("9%");
+    const fill = qc.el.querySelector<HTMLElement>(".yui-meter__fill")!;
+    expect(fill.style.width).toBe("9%");
+
+    qc.dispose();
+  });
+
+  it("handles a null contextWindow gracefully (no bar, muted readout)", () => {
+    sessionDiagnostics.setUsage(18200, null);
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    expect(qc.el.querySelector(".yui-meter")).toBeNull();
+    const value = qc.el.querySelector<HTMLElement>(".yui-session__value")!;
+    expect(value.querySelector(".pct")).toBeNull();
+    // still shows the used count formatted
+    expect(value.textContent).toContain("18.2K");
+
+    qc.dispose();
+  });
+
+  it("shows a muted placeholder when there is no last compression", () => {
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    expect(qc.el.querySelector(".yui-session__empty")).not.toBeNull();
+    expect(qc.el.querySelector(".yui-session__grid .v")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("renders a formatted last-compression line when present", () => {
+    sessionDiagnostics.setLastCompression({
+      beforeTokens: 120000,
+      afterTokens: 18000,
+      removed: 34,
+      at: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+    });
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    expect(qc.el.querySelector(".yui-session__empty")).toBeNull();
+    const v = qc.el.querySelector<HTMLElement>(".yui-session__grid .v")!;
+    expect(v.textContent).toContain("120K");
+    expect(v.textContent).toContain("18K");
+    expect(v.textContent).toContain("34");
+
+    qc.dispose();
+  });
+
+  it("reset confirm flow clears both the session store and diagnostics", () => {
+    sessionStore.get(); // mint an id so clear() actually fires
+    sessionDiagnostics.setUsage(50000, 200000);
+    const clearSession = vi.spyOn(sessionStore, "clear");
+    const clearDiag = vi.spyOn(sessionDiagnostics, "clear");
+
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    // the destructive action is gated behind a confirm affordance
+    const link = qc.el.querySelector<HTMLButtonElement>(".yui-link-btn")!;
+    expect(qc.el.querySelector<HTMLElement>(".yui-confirm")!.hidden).toBe(true);
+    link.click();
+    expect(qc.el.querySelector<HTMLElement>(".yui-confirm")!.hidden).toBe(false);
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-pill--go")!.click();
+    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(clearDiag).toHaveBeenCalledTimes(1);
+
+    qc.dispose();
+  });
+
+  it("Cancel dismisses the confirm without clearing", () => {
+    sessionStore.get();
+    const clearSession = vi.spyOn(sessionStore, "clear");
+
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-link-btn")!.click();
+    const cancel = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-pill")).find(
+      (b) => !b.classList.contains("yui-pill--go"),
+    )!;
+    cancel.click();
+
+    expect(clearSession).not.toHaveBeenCalled();
+    expect(qc.el.querySelector<HTMLElement>(".yui-confirm")!.hidden).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("live-updates the readout when the diagnostics store notifies while open", () => {
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    sessionDiagnostics.setUsage(100000, 200000);
+
+    const value = qc.el.querySelector<HTMLElement>(".yui-session__value")!;
+    expect(value.textContent).toContain("100K");
+    expect(qc.el.querySelector<HTMLElement>(".yui-session__value .pct")!.textContent).toContain("50%");
+
+    qc.dispose();
   });
 });

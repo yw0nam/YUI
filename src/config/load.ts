@@ -355,6 +355,40 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     issues.push(`tts_max_inflight는 1 이상 정수여야 함 (받음: ${JSON.stringify(tts_max_inflight)})`);
   }
 
+  // ── compaction knobs ─────────────────────────────────────────────────────────
+  // chat_model_context_window: optional, 유한 number > 0. 미설정 시 undefined.
+  const chat_model_context_window = raw.chat_model_context_window;
+  if (
+    chat_model_context_window !== undefined &&
+    (typeof chat_model_context_window !== "number" ||
+      !Number.isFinite(chat_model_context_window) ||
+      chat_model_context_window <= 0)
+  ) {
+    issues.push(`chat_model_context_window는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(chat_model_context_window)})`);
+  }
+  // ratio((0,1]) 검증 후 미설정 시 default로 resolve(출력엔 resolved 값을 박는다).
+  const ratio = (k: "compact_threshold_ratio" | "compact_resume_ratio", def: number): number => {
+    const v = raw[k];
+    if (v === undefined) return def;
+    if (typeof v !== "number" || !Number.isFinite(v) || v <= 0 || v > 1) {
+      issues.push(`${k}는 (0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(v)})`);
+      return def;
+    }
+    return v;
+  };
+  const compact_threshold_ratio = ratio("compact_threshold_ratio", 0.7);
+  const compact_resume_ratio = ratio("compact_resume_ratio", 0.5);
+  // compact_timeout_ms: 유한 number > 0. 미설정 시 default로 resolve.
+  const rawTimeout = raw.compact_timeout_ms;
+  let compact_timeout_ms = 12000;
+  if (rawTimeout !== undefined) {
+    if (typeof rawTimeout !== "number" || !Number.isFinite(rawTimeout) || rawTimeout <= 0) {
+      issues.push(`compact_timeout_ms는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(rawTimeout)})`);
+    } else {
+      compact_timeout_ms = rawTimeout;
+    }
+  }
+
   assertValid(file, issues);
   return {
     chat_base_url,
@@ -376,6 +410,10 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     ...(typeof raw.irodori_seconds === "number" ? { irodori_seconds: raw.irodori_seconds } : {}),
     ...(typeof tts_max_inflight === "number" ? { tts_max_inflight } : {}),
     ...(broker_base_url ? { broker_base_url } : {}),
+    ...(typeof chat_model_context_window === "number" ? { chat_model_context_window } : {}),
+    compact_threshold_ratio,
+    compact_resume_ratio,
+    compact_timeout_ms,
   };
 }
 

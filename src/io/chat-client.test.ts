@@ -124,6 +124,16 @@ const completed = (text: string): any => ({
   },
 });
 
+/** response.completed carrying a final usage block (token accounting at end-of-turn). */
+const completedWithUsage = (
+  text: string,
+  usage: Record<string, unknown>,
+): any => {
+  const ev = completed(text);
+  ev.response.usage = usage;
+  return ev;
+};
+
 /** generate_express FLAT args (contract.md §1/§3): emotion_id / motion_id / emotion_text. */
 const GEN_EXPRESS_FLAT =
   '{"emotion_id":"happy","motion_id":"shy_point","emotion_text":"[whisper in small voice]"}';
@@ -584,6 +594,71 @@ describe("streamChat — SDK request wiring", () => {
 
     const body = createMock.mock.calls[0]?.[0];
     expect("instructions" in (body as object)).toBe(false);
+  });
+});
+
+describe("streamChat — X-Hermes-Session-Id header", () => {
+  it("sends X-Hermes-Session-Id in the create() request options when sessionId is set", async () => {
+    createMock.mockResolvedValue(streamOf([completed("")]));
+
+    await collect(streamChat(CONFIG, req(), { sessionId: "abc" }));
+
+    expect(createMock).toHaveBeenCalledTimes(1);
+    const opts = createMock.mock.calls[0]?.[1];
+    expect((opts as any).headers).toBeDefined();
+    expect((opts as any).headers["X-Hermes-Session-Id"]).toBe("abc");
+  });
+
+  it("omits the header (no empty-string value) when sessionId is absent", async () => {
+    createMock.mockResolvedValue(streamOf([completed("")]));
+
+    await collect(streamChat(CONFIG, req()));
+
+    const opts = createMock.mock.calls[0]?.[1];
+    // headers is either undefined or lacks the key — never an empty-string session id.
+    const headers = (opts as any)?.headers;
+    expect(headers?.["X-Hermes-Session-Id"]).toBeUndefined();
+  });
+});
+
+describe("streamChat — usage event", () => {
+  it("emits a usage event from response.completed.usage, alongside completed", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        textDelta("hi"),
+        textDone("hi"),
+        completedWithUsage("hi", {
+          input_tokens: 120,
+          output_tokens: 30,
+          total_tokens: 150,
+        }),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    const usage = events.find((e) => e.type === "usage");
+    expect(usage).toBeDefined();
+    if (usage!.type !== "usage") throw new Error("narrow");
+    expect(usage.usage).toEqual({
+      input_tokens: 120,
+      output_tokens: 30,
+      total_tokens: 150,
+    });
+
+    // completed still rides the same turn.
+    expect(events.some((e) => e.type === "completed")).toBe(true);
+  });
+
+  it("emits NO usage event when response.completed carries no usage", async () => {
+    createMock.mockResolvedValue(
+      streamOf([textDelta("hi"), textDone("hi"), completed("hi")]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events.some((e) => e.type === "usage")).toBe(false);
+    expect(events.some((e) => e.type === "completed")).toBe(true);
   });
 });
 

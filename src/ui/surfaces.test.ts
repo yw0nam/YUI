@@ -227,3 +227,37 @@ describe("setInputAnchor — --yui-input-bottom on the chat form", () => {
     expect(form().style.getPropertyValue("--yui-input-bottom")).toBe("96px");
   });
 });
+
+describe("setInputEnabled — disable the field while busy", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function field(): HTMLInputElement {
+    return mount.querySelector(".yui-input__field") as HTMLInputElement;
+  }
+  function form(): HTMLElement {
+    return mount.querySelector(".yui-input") as HTMLElement;
+  }
+
+  it("disables the field and marks the form pending when disabled", () => {
+    s.setInputEnabled(false);
+    expect(field().disabled).toBe(true);
+    expect(form().classList.contains("is-pending")).toBe(true);
+  });
+
+  it("re-enables the field and clears pending when enabled", () => {
+    s.setInputEnabled(false);
+    s.setInputEnabled(true);
+    expect(field().disabled).toBe(false);
+    expect(form().classList.contains("is-pending")).toBe(false);
+  });
+});
