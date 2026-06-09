@@ -87,6 +87,9 @@ describe("loadConfig — happy path", () => {
       tts_provider: "openai",
       chat_instructions:
         "Use the generate_express tool with emotion_id, motion_id, emotion_text.",
+      compact_threshold_ratio: 0.7,
+      compact_resume_ratio: 0.5,
+      compact_timeout_ms: 12000,
     });
     expect(cfg.avatar).toEqual({ vrm_url: "/vrms/carlotta.vrm" });
     expect(cfg.emotionRegistry.happy).toEqual({
@@ -283,6 +286,9 @@ describe("loadConfig — endpoints irodori provider", () => {
       irodori_cfg_scale_speaker: 2,
       irodori_seconds: 10,
       tts_max_inflight: 1,
+      compact_threshold_ratio: 0.7,
+      compact_resume_ratio: 0.5,
+      compact_timeout_ms: 12000,
     });
   });
 
