@@ -27,7 +27,7 @@
 
   "type": "function",
   "name": "generate_express",
-  "description": "Optional per-turn expression channel for the YUI avatar (desktopmate-style desktop companion). Enrich the spoken reply with flat fields: emotion_id (facial emotion), motion_id (body gesture), and emotion_text (free-text TTS voice tags such as [whisper in small voice]). Omit any field to keep its default; omit the whole call to leave the avatar idle with its previous expression. Speech is NOT controlled here — to speak, emit the assistant message text as usual; to stay silent, emit no text. There is no speak/silence flag.",
+  "description": "Your body channel for this turn — you are a VRM avatar living on the user's desktop (desktopmate-style). Call generate_express to let your face, gesture, and voice match what you feel as you speak: emotion_id (your facial expression), motion_id (a body gesture), emotion_text (free-text TTS voice tags such as [whisper in small voice] that color your voice). Set only what you want to change; omit a field to keep it, or omit the whole call to stay idle with your previous expression. This does not control speech — speak by emitting your assistant message text as usual, stay silent by emitting none. There is no speak/silence flag.",
   "strict": false,
   "parameters": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
