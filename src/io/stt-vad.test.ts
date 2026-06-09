@@ -49,10 +49,10 @@ const CONFIG: EndpointsConfig = {
 
 /** Build a fake fetch that returns a successful STT response. */
 function buildFetchMock(responseText = "hello world") {
-  return vi.fn().mockResolvedValue({
+  return vi.fn<(url: string, init: RequestInit) => Promise<Response>>().mockResolvedValue({
     ok: true,
     json: () => Promise.resolve({ text: responseText }),
-  });
+  } as unknown as Response);
 }
 
 beforeEach(() => {
@@ -282,7 +282,7 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
 
     // Must POST to stt_base_url/audio/transcriptions (server has the /v1 prefix)
     expect(fetchMock).toHaveBeenCalledOnce();
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("http://localhost:5517/v1/audio/transcriptions");
     expect(init.method).toBe("POST");
     expect(init.body).toBeInstanceOf(FormData);

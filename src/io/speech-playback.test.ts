@@ -68,7 +68,11 @@ function multiPipelineFactory() {
 }
 
 function spyRenderer() {
-  return { setMouthOpen: vi.fn(), stopMouth: vi.fn(), easeEmotionToNeutral: vi.fn() };
+  return {
+    setMouthOpen: vi.fn<(mouthOpen: number) => void>(),
+    stopMouth: vi.fn<() => void>(),
+    easeEmotionToNeutral: vi.fn<(durationMs: number) => void>(),
+  };
 }
 
 function spySurfaces() {
@@ -115,7 +119,7 @@ describe("createSpeechPlayback — emotion eases back to neutral when playback e
     stub.emitPlaybackEnd();
     expect(renderer.easeEmotionToNeutral).toHaveBeenCalledTimes(1);
     // a slow ease (>= 800ms), not the snappy default crossfade.
-    const durationMs = renderer.easeEmotionToNeutral.mock.calls[0][0] as number;
+    const durationMs = renderer.easeEmotionToNeutral.mock.calls[0][0];
     expect(durationMs).toBeGreaterThanOrEqual(800);
   });
 
