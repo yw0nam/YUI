@@ -659,6 +659,8 @@ export function createQuickControls({
   const spkRefreshState = new Map<string, RefreshState>();
   // "done" 상태를 일정 시간 후 idle로 되돌리는 타이머(중복 갱신·dispose 시 정리).
   const spkRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  // dispose 후 in-flight refresh가 무너진 DOM에 재그림/타이머를 쓰지 않게 막는다.
+  let disposed = false;
   const REFRESH_DONE_DWELL_MS = 2400;
 
   function clearRefreshTimer(id: string): void {
@@ -867,6 +869,7 @@ export function createQuickControls({
     renderSpeakers();
     try {
       await refreshSpeaker(option);
+      if (disposed) return;
       spkRefreshState.set(option.id, "done");
       log.info("참조 음성 갱신", { id: option.id });
       renderSpeakers();
@@ -880,6 +883,7 @@ export function createQuickControls({
         }, REFRESH_DONE_DWELL_MS),
       );
     } catch (err) {
+      if (disposed) return;
       spkRefreshState.set(option.id, "error");
       log.error("참조 음성 갱신 실패", { id: option.id, error: String(err) });
       renderSpeakers();
@@ -1278,6 +1282,7 @@ export function createQuickControls({
   if (isWindow) open();
 
   function dispose(): void {
+    disposed = true;
     unsubscribe();
     unsubscribeVoice();
     unsubscribeLipsync();
@@ -1288,6 +1293,7 @@ export function createQuickControls({
     stopAudition();
     for (const t of spkRefreshTimers.values()) clearTimeout(t);
     spkRefreshTimers.clear();
+    spkRefreshState.clear();
     switchBtn.removeEventListener("click", handleSwitchClick);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     scrimEl.removeEventListener("pointerdown", handleScrimPointerDown);
