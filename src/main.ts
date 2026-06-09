@@ -77,6 +77,7 @@ import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
+import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import type { SttVad } from "./io/stt-vad";
 
@@ -423,6 +424,8 @@ async function bootstrap(): Promise<void> {
   // dispatcher는 config 로드 후 생성되므로(backend_caller가 config.get()에 의존), dev 인스펙션
   // 핸들이 참조할 수 있게 forward holder를 둔다.
   let dispatcherRef: Dispatcher | null = null;
+  // guardrails도 config 로드 후 생성 — 핫리로드 setConfig가 닿게 holder를 둔다.
+  let guardrailsRef: Guardrails | null = null;
   // broker client는 config 로드 후 broker_base_url이 있을 때만 만든다. 핫스왑 재publish와
   // HMR dispose가 닿게 holder를 둔다.
   let brokerRef: BrokerClient | null = null;
@@ -644,34 +647,38 @@ async function bootstrap(): Promise<void> {
     getOsContext: () => osContext.get(),
     getAgentSettings: () => agentSettings.get(),
   });
-  const dispatcher = createDispatcher({
-    bus,
-    renderer,
-    backendCaller,
-    compact,
-    getSessionId: () => sessionStore.get(),
-    compactTimeoutMs: getEndpoints().compact_timeout_ms ?? 12000,
-  });
-  dispatcherRef = dispatcher;
-  // 압축 중 입력 비활성화(field disabled + pending 디밍). busy 캐릭터 cue는 dispatcher가 처리.
-  const unsubCompactState = dispatcher.subscribeState((s) => {
-    surfaces.setInputEnabled(s !== "compacting");
-  });
-  // 세션 id 회전(설정 창 reset 등) → trigger 재무장.
-  const unsubSessionReset = sessionStore.subscribe(() => compactionTrigger.reset());
-  // HMR로 모듈이 재실행되면 이전 dispatcher의 setInterval/ in-flight가 남는다 → dispose에서 정지.
-  if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => {
-      dispatcher.stop();
-      unsubCompactState();
-      unsubSessionReset();
-      sessionStore.dispose();
-      sessionDiagnostics.dispose();
-    });
-  }
-
+  // dispatcher/guardrails는 config 로드 후 만든다(guardrails가 cfg.guardrails 수치를 필요로 함).
   try {
     const cfg = await config.load();
+    // §6 가드레일 — config 수치로 구성. dispatcher가 note+evaluate+cooldown polling으로 소비.
+    const guardrails = createGuardrails(cfg.guardrails);
+    guardrailsRef = guardrails;
+    const dispatcher = createDispatcher({
+      bus,
+      renderer,
+      backendCaller,
+      guardrails,
+      compact,
+      getSessionId: () => sessionStore.get(),
+      compactTimeoutMs: getEndpoints().compact_timeout_ms ?? 12000,
+    });
+    dispatcherRef = dispatcher;
+    // 압축 중 입력 비활성화(field disabled + pending 디밍). busy 캐릭터 cue는 dispatcher가 처리.
+    const unsubCompactState = dispatcher.subscribeState((s) => {
+      surfaces.setInputEnabled(s !== "compacting");
+    });
+    // 세션 id 회전(설정 창 reset 등) → trigger 재무장.
+    const unsubSessionReset = sessionStore.subscribe(() => compactionTrigger.reset());
+    // HMR로 모듈이 재실행되면 이전 dispatcher의 setInterval/ in-flight가 남는다 → dispose에서 정지.
+    if (import.meta.env.DEV) {
+      import.meta.hot?.dispose(() => {
+        dispatcher.stop();
+        unsubCompactState();
+        unsubSessionReset();
+        sessionStore.dispose();
+        sessionDiagnostics.dispose();
+      });
+    }
     const { createSttVad } = await import("./io/stt-vad");
     sttVad = createSttVad({
       config: cfg.endpoints,
@@ -724,7 +731,7 @@ async function bootstrap(): Promise<void> {
     const now = performance.now();
     if (now - lastTrigger < COMPACT_TRIGGER_DEBOUNCE_MS) return;
     lastTrigger = now;
-    dispatcher.requestCompaction();
+    dispatcherRef?.requestCompaction();
   }
   function onVisibilityChange(): void {
     requestCompactionDebounced();
@@ -746,6 +753,8 @@ async function bootstrap(): Promise<void> {
     // emotion/motion registry 핫리로드 → renderer 재주입(즉시 반영).
     if (changed.has("emotionRegistry")) renderer.setEmotionRegistry(cfg.emotionRegistry);
     if (changed.has("motions")) renderer.setMotionRegistry(cfg.motions);
+    // guardrails 수치 핫리로드 — 런타임 DND/카운터 상태는 보존하고 config만 교체.
+    if (changed.has("guardrails")) guardrailsRef?.setConfig(cfg.guardrails);
     // irodori 화자 manifest 핫리로드 — synth가 다음 발화에서 getActive()로 읽으므로 재로드만 한다.
     if (changed.has("endpoints")) {
       speakerSelection.setManifest({

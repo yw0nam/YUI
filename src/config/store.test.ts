@@ -35,6 +35,22 @@ function goodFixture(): Record<string, unknown> {
         interrupt_policy: "replace",
       },
     },
+    "guardrails.json": {
+      dnd: { app_blocklist: [], camera_idle_off_ms: 30000 },
+      debounce_ms: {
+        idle_watcher: 30000,
+        os_event_watcher: 5000,
+        backend_push_source: 10000,
+        user_input_source: 0,
+      },
+      rate_limit: {
+        window_ms: 3600000,
+        tier2_max: 6,
+        tier3_max: 2,
+        overall_max: 20,
+        cooldown_ms: 300000,
+      },
+    },
   };
 }
 
@@ -118,6 +134,26 @@ describe("createConfigStore — reload", () => {
     expect(err).toBeInstanceOf(Error);
     expect((err as { name: string }).name).toBe("ConfigError");
     expect((err as { file: string }).file).toBe("motions.json");
+  });
+});
+
+describe("createConfigStore — guardrails section diff (#25)", () => {
+  it("guardrails 변경 → reload() true, changed.has('guardrails')", async () => {
+    const map = goodFixture();
+    const store = createConfigStore({ read: mutableReader(map) });
+    await store.load();
+
+    const sub = vi.fn();
+    store.subscribe(sub);
+
+    (map["guardrails.json"] as { rate_limit: { overall_max: number } }).rate_limit.overall_max = 30;
+    await expect(store.reload()).resolves.toBe(true);
+
+    expect(sub).toHaveBeenCalledTimes(1);
+    const [nextCfg, changed] = sub.mock.calls[0];
+    expect(nextCfg.guardrails.rate_limit.overall_max).toBe(30);
+    expect(changed.has("guardrails")).toBe(true);
+    expect(changed.has("motions")).toBe(false);
   });
 });
 

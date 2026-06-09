@@ -66,6 +66,24 @@ describe("configs/avatar.json", () => {
   });
 });
 
+describe("configs/guardrails.json", () => {
+  const g = read("configs/guardrails.json");
+
+  it("carries dnd / debounce_ms / rate_limit blocks with §6 defaults", () => {
+    expect(g.dnd.camera_idle_off_ms).toBe(30000);
+    expect(Array.isArray(g.dnd.app_blocklist)).toBe(true);
+    expect(g.debounce_ms.idle_watcher).toBe(30000);
+    expect(g.debounce_ms.os_event_watcher).toBe(5000);
+    expect(g.debounce_ms.backend_push_source).toBe(10000);
+    expect(g.debounce_ms.user_input_source).toBe(0);
+    expect(g.rate_limit.window_ms).toBe(3600000);
+    expect(g.rate_limit.tier2_max).toBe(6);
+    expect(g.rate_limit.tier3_max).toBe(2);
+    expect(g.rate_limit.overall_max).toBe(20);
+    expect(g.rate_limit.cooldown_ms).toBe(300000);
+  });
+});
+
 describe("configs/motions.json", () => {
   const m = read("configs/motions.json");
 

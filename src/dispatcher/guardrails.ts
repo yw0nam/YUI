@@ -1,20 +1,24 @@
 /**
- * Guardrails — DND / debounce / rate-limit. (placeholder, PRD F7 / event-dispatcher.md §6)
+ * Guardrails — DND / debounce / rate-limit. (PRD F7 / event-dispatcher.md §6)
  *
- * 평가 순서(§6.4): DND → debounce → rate-limit → classify → route.
- * 각 단계 DROP은 reason 코드와 함께 dispatcher.drop 로그.
+ * 평가 순서(§6.4 INTENT): DND → debounce → rate-limit. dispatcher wiring 순서는
+ * supersede → classify(tier) → evaluate(env, tier) → route. dnd_override는 evaluate
+ * 최상단에서 short-circuit — user-initiated 턴은 모든 게이트를 우회하며 어떤 카운터도 증가시키지 않는다.
  *
  *  - DND(§6.1): Fullscreen / Camera / Active-app blocklist / Manual 4 trigger 중 하나라도 ON이면 DND_ON.
- *               DND_ON 시 tier 2/3 silent drop, tier 1 계속, dnd_override=true는 통과.
- *  - Debounce(§6.2): per source window (idle 30s / os 5s / backend_push 10s / user 0).
- *  - Rate-limit(§6.3): per tier rolling 60min (tier2 6회, tier3 2회, 전체 20회 → cooldown 5min).
+ *               note()는 envelope → setDnd 호출로 옮기는 thin translator(상태는 setDnd가 소유).
+ *  - Debounce(§6.2): per source window. now() − lastFire[source] < window면 drop.
+ *  - Rate-limit(§6.3): per tier rolling window. 슬롯은 발사(=pass) 시 소비, 환불 없음.
+ *               전체 overall_max 초과 시 cooldownUntil 설정(진입/종료 전이는 dispatcher가 소유).
  *
- * ⚠ 수치는 prototype 출발점 — config로 변경 가능, M3 후 1~2주 실사용 튜닝(§17 Q1).
- *
- * 지금은 상태 타입 + 평가 시그니처만. 실제 카운터/윈도우는 M3.
+ * 평가 함수는 순수(verdict만 반환) — dispatcher state를 mutate하지 않고 dispatcher 참조도 없다.
+ * 시간은 주입한 now()로만 읽는다(bare Date.now() 금지).
  */
 
 import type { BusEnvelope } from "./event-bus";
+import type { GuardrailsConfig } from "../config/load";
+
+export type { GuardrailsConfig };
 
 export type DndReason = "fullscreen" | "camera" | "active_app" | "manual";
 
@@ -39,25 +43,170 @@ export interface Guardrails {
   dndState(): DndState;
   /** DND trigger 토글 (os.fullscreen_* / os.camera_in_use / user.dnd_toggle 등). */
   setDnd(reason: DndReason, on: boolean): void;
-  /** §6.4 순서로 한 event를 평가. pass=false면 drop. */
+  /** envelope → 최대 1회 setDnd 호출로 옮기는 thin translator(DND 상태 갱신). */
+  note(env: BusEnvelope): void;
+  /** §6.4 순서로 한 event를 평가. pass=false면 drop. pass 시에만 debounce/rate state mutate. */
   evaluate(env: BusEnvelope, tier: 1 | 2 | 3): GuardResult;
+  /** overall-cap 초과로 진입한 cooldown이 아직 유효한지(now < cooldownUntil). */
+  cooldownActive(): boolean;
+  /** 핫리로드: config 수치만 교체(런타임 DND/카운터 상태는 보존). */
+  setConfig(next: GuardrailsConfig): void;
 }
 
-/**
- * Guardrails 생성 (placeholder).
- * TODO(M3): DND 상태 머신 + per-source debounce window + per-tier rolling rate-limit.
- */
-export function createGuardrails(): Guardrails {
+type Source = BusEnvelope["source"];
+
+export interface CreateGuardrailsOptions {
+  /** 시간 주입. default () => Date.now(). 모든 윈도우/쿨다운이 이 함수만 읽는다. */
+  now?: () => number;
+}
+
+/** payload[key]가 boolean이면 반환, 아니면 undefined(필드 부재는 graceful no-op). */
+function boolField(env: BusEnvelope, key: string): boolean | undefined {
+  const v = env.payload?.[key];
+  return typeof v === "boolean" ? v : undefined;
+}
+
+/** payload[key]가 non-empty string이면 반환, 아니면 undefined. */
+function strField(env: BusEnvelope, key: string): string | undefined {
+  const v = env.payload?.[key];
+  return typeof v === "string" && v.length > 0 ? v : undefined;
+}
+
+export function createGuardrails(
+  initialConfig: GuardrailsConfig,
+  opts: CreateGuardrailsOptions = {},
+): Guardrails {
+  const now = opts.now ?? (() => Date.now());
+  // 핫리로드로 교체 가능 — 런타임 상태(DND reasons / 카운터 / cooldown)는 보존한다.
+  let config = initialConfig;
+
+  // DND 상태의 단일 소스 — setDnd만 변경한다. camera는 idle-off 클록 윈도우로 별도 추적.
+  const dndReasons = new Set<DndReason>();
+  let lastCameraActive: number | null = null;
+
+  // debounce: source별 마지막 통과 시각.
+  const lastFire = new Map<Source, number>();
+
+  // rate-limit: tier별 + 전체 rolling 윈도우(통과 시각 epoch ms).
+  const tier2Window: number[] = [];
+  const tier3Window: number[] = [];
+  const overallWindow: number[] = [];
+  let cooldownUntil = 0;
+
+  /** camera idle-off 클록을 반영해 현재 DND reason 집합을 계산한다. */
+  function activeReasons(): DndReason[] {
+    if (
+      dndReasons.has("camera") &&
+      lastCameraActive !== null &&
+      now() - lastCameraActive >= config.dnd.camera_idle_off_ms
+    ) {
+      dndReasons.delete("camera");
+    }
+    return [...dndReasons];
+  }
+
+  function setDnd(reason: DndReason, on: boolean): void {
+    if (on) {
+      dndReasons.add(reason);
+      if (reason === "camera") lastCameraActive = now();
+    } else {
+      dndReasons.delete(reason);
+      if (reason === "camera") lastCameraActive = null;
+    }
+  }
+
+  function note(env: BusEnvelope): void {
+    switch (env.event_name) {
+      case "os.fullscreen_entered":
+        setDnd("fullscreen", true);
+        return;
+      case "os.fullscreen_exited":
+        setDnd("fullscreen", false);
+        return;
+      case "os.camera_in_use": {
+        const inUse = boolField(env, "camera_in_use");
+        if (inUse === undefined) return; // payload 미상 → graceful no-op
+        setDnd("camera", inUse);
+        return;
+      }
+      case "os.active_app_changed": {
+        const app = strField(env, "active_app_name");
+        if (app === undefined) return;
+        setDnd("active_app", config.dnd.app_blocklist.includes(app));
+        return;
+      }
+      case "user.dnd_toggle":
+        setDnd("manual", !dndReasons.has("manual"));
+        return;
+      default:
+        return;
+    }
+  }
+
+  /** rolling 윈도우에서 now() − window_ms 이전 항목을 앞에서 제거. */
+  function prune(window: number[]): void {
+    const cutoff = now() - config.rate_limit.window_ms;
+    while (window.length > 0 && window[0] <= cutoff) window.shift();
+  }
+
+  function evaluate(env: BusEnvelope, tier: 1 | 2 | 3): GuardResult {
+    // 1) dnd_override: 최상단 short-circuit. 어떤 카운터/디바운스도 증가시키지 않는다.
+    if (env.dnd_override === true) return { pass: true };
+
+    // 2) DND: 하나라도 on이면 drop.
+    const reasons = activeReasons();
+    if (reasons.length > 0) {
+      return { pass: false, reason: "guardrail_drop", detail: `dnd:${reasons.join(",")}` };
+    }
+
+    // 3) cooldown: 진입한 cooldown이 유효하면 drop.
+    if (now() < cooldownUntil) {
+      return { pass: false, reason: "guardrail_drop", detail: "cooldown" };
+    }
+
+    // 4) debounce: source별 윈도우. timer_scheduler는 N/A(자체 1회) → window 0(디바운스 없음, §6.2).
+    const window = (config.debounce_ms as Record<Source, number>)[env.source] ?? 0;
+    const last = lastFire.get(env.source);
+    if (window > 0 && last !== undefined && now() - last < window) {
+      return { pass: false, reason: "guardrail_drop", detail: `debounce:${env.source}` };
+    }
+
+    // 5) rate-limit: tier 윈도우 prune 후 cap, 그 다음 overall cap.
+    prune(tier2Window);
+    prune(tier3Window);
+    prune(overallWindow);
+    if (tier === 2 && tier2Window.length >= config.rate_limit.tier2_max) {
+      return { pass: false, reason: "guardrail_drop", detail: "rate_limit:tier2" };
+    }
+    if (tier === 3 && tier3Window.length >= config.rate_limit.tier3_max) {
+      return { pass: false, reason: "guardrail_drop", detail: "rate_limit:tier3" };
+    }
+    if (overallWindow.length >= config.rate_limit.overall_max) {
+      cooldownUntil = now() + config.rate_limit.cooldown_ms;
+      return { pass: false, reason: "guardrail_drop", detail: "cooldown_entered" };
+    }
+
+    // 6) pass: 발사 시점에 슬롯 소비(환불 없음).
+    lastFire.set(env.source, now());
+    if (tier === 2) tier2Window.push(now());
+    if (tier === 3) tier3Window.push(now());
+    overallWindow.push(now());
+    return { pass: true };
+  }
+
   return {
     dndState() {
-      return { on: false, reasons: [] };
+      const reasons = activeReasons();
+      return { on: reasons.length > 0, reasons };
     },
-    setDnd(_reason, _on) {
-      /* TODO(M3) */
+    setDnd,
+    note,
+    evaluate,
+    cooldownActive() {
+      return now() < cooldownUntil;
     },
-    evaluate(_env, _tier) {
-      // TODO(M3): 실제 평가. 현재는 전부 통과 (개발 편의).
-      return { pass: true };
+    setConfig(next) {
+      config = next;
     },
   };
 }

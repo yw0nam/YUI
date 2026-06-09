@@ -10,6 +10,7 @@ export {
   CONFIG_FILES,
   type AppConfig,
   type AvatarConfig,
+  type GuardrailsConfig,
   type ConfigSection,
   type ConfigReader,
   type LoadConfigOptions,

@@ -21,7 +21,7 @@
 import type { EventBus, BusEnvelope } from "./event-bus";
 import type { Renderer } from "../renderer";
 import type { BackendCaller } from "./backend-caller";
-import type { DropReason } from "./guardrails";
+import type { DropReason, Guardrails } from "./guardrails";
 import type { ControlEnvelope } from "../contract";
 import type { CompactResult } from "../io/session-compactor";
 import { createLogger } from "../logger";
@@ -33,6 +33,8 @@ export interface DispatcherDeps {
   bus: EventBus;
   renderer: Pick<Renderer, "applyDirective">;
   backendCaller: BackendCaller;
+  /** §6 가드레일 — DND/debounce/rate-limit 게이트 + cooldown verdict(순수). */
+  guardrails: Guardrails;
   /** pump 주기(ms). default 16(rAF 대략). 테스트는 fake timer로 advance. */
   pumpIntervalMs?: number;
   /** 구조화 로깅(없으면 dispatcher namespace logger). */
@@ -156,7 +158,7 @@ const DEFAULT_COMPACT_TIMEOUT_MS = 12_000;
 const MAX_DROP_RECORDS = 50;
 
 export function createDispatcher(deps: DispatcherDeps): Dispatcher {
-  const { bus, renderer, backendCaller } = deps;
+  const { bus, renderer, backendCaller, guardrails } = deps;
   const pumpMs = deps.pumpIntervalMs ?? DEFAULT_PUMP_MS;
   const compactTimeoutMs = deps.compactTimeoutMs ?? DEFAULT_COMPACT_TIMEOUT_MS;
   const log = deps.logger ?? baseLog;
@@ -281,6 +283,20 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     }
   }
 
+  /**
+   * §6.3/§9: dispatcher가 running ↔ cooldown 전이를 소유한다. guardrail은 verdict만 반환하고
+   * 전이에 관여하지 않으므로, 매 tick cooldownActive()를 폴링해 state를 동기화한다(진입/종료 함께).
+   * compacting은 별개 게이트라 폴링 대상에서 제외한다(running ↔ cooldown만 동기화).
+   */
+  function syncCooldownState(): void {
+    const inCooldown = guardrails.cooldownActive();
+    if (inCooldown && state === "running") {
+      setState("cooldown");
+    } else if (!inCooldown && state === "cooldown") {
+      setState("running");
+    }
+  }
+
   /** compacting busy cue. render 에러가 상태머신을 깨뜨리지 않도록 try/catch. */
   function applyCue(emotionId: "thinking" | "neutral"): void {
     try {
@@ -337,6 +353,9 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   function handle(env: BusEnvelope): void {
+    // §6.4: DND 상태 갱신은 분류/평가 이전에 — note는 envelope→setDnd thin translator.
+    guardrails.note(env);
+
     // §5.2: user.text_submitted는 분류 전에 supersede를 먼저 적용한다.
     if (env.event_name === "user.text_submitted") {
       supersedeByUser();
@@ -344,10 +363,17 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
     const { tier, target } = classify(env);
     if (target === "tier1") {
+      // tier1은 절대 게이트하지 않는다(§6.1 DND/cooldown 무관).
       renderTier1(env);
       return;
     }
     if (target === "backend_caller") {
+      // §6.4: classify로 tier 획득 후 evaluate. drop이면 enqueue하지 않는다.
+      const verdict = guardrails.evaluate(env, tier);
+      if (!verdict.pass) {
+        recordDrop(env, verdict.reason);
+        return;
+      }
       log.info("fire", { seq_id: env.seq_id, event_name: env.event_name, tier });
       enqueueBackend(env);
       return;
@@ -355,15 +381,20 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     // target === "drop": MVP 범위 밖 event (no-op — bus가 이미 미지의 event_name은 거름).
   }
 
-  /** pump: 매 tick마다 bus를 drain. compacting 등 비-running이면 no-op으로 보류 이벤트를 잡아 둔다. */
+  /**
+   * pump: 매 tick마다 bus를 drain. running/cooldown 모두에서 동작(cooldown 중 tier1 계속).
+   * compacting 등 그 외 비-running이면 no-op으로 보류 이벤트를 잡아 둔다.
+   */
   function pump(): void {
-    if (state !== "running") return;
-    // 이미 idle인데 압축이 래치돼 있으면 여기서 경계에 도달한다(BLOCKER 2).
+    if (state !== "running" && state !== "cooldown") return;
+    // 이미 idle인데 압축이 래치돼 있으면 여기서 경계에 도달한다(running일 때만; cooldown이면 no-op, BLOCKER 2).
     if (maybeStartCompaction()) return;
     let env: BusEnvelope | null;
     while ((env = bus.pop()) !== null) {
       handle(env);
     }
+    // backend 평가가 cooldown을 진입시켰거나 타이머가 종료시켰을 수 있다 → state 동기화.
+    syncCooldownState();
   }
 
   return {

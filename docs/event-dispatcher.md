@@ -162,10 +162,16 @@
 | 3 | **2회** | drop |
 | backend 호출 전체 | **20회** | dispatcher 5min cooldown 진입 |
 
+> **슬롯 소비 = fire 시점(시도 기준, 성공 기준 아님). 환불 없음** — rate-overflow·backend network/5xx·timeout·supersede 어디서도 카운터를 되돌리지 않는다. rate-limit은 autonomous-firing 스팸에 대한 1차 방어선(PRD R5)이므로, backend 실패가 ceiling을 우회해 스팸을 재유입하는 것을 막는다.
+
 > 위 수치는 prototype 출발점. config로 변경 가능. 1–2주 실사용 후 튜닝.
+
+> **Cooldown 소유권**: guardrail 평가 함수는 **순수(pure)** — verdict 신호만 반환하고 dispatcher state를 mutate하지 않으며 dispatcher 참조를 갖지 않는다. `running → cooldown → running` 전이와 5min 타이머 종료는 **dispatcher가 소유**한다. cooldown은 **진입 + 타이머 종료를 항상 함께** 구현한다 — 진입만 하고 빠져나올 수 없는 state는 금지. cooldown 동안: tier2/3 firing은 drop(`guardrail_drop`), tier1은 계속 렌더, `dnd_override=true` user 턴은 여전히 우회.
 
 ### 6.4 평가 순서
 `DND → debounce → rate-limit → classify → route`. 각 단계 DROP은 reason 코드와 함께 `dispatcher.drop` 로그.
+
+> **구현 wiring 주석**: 위 순서는 INTENT(route 전에 gate)를 표현한다. dispatcher 코드의 실제 순서는 `user-supersede(기존 유지) → classify(tier 획득) → evaluate(env, tier) → route` — guardrail이 `tier`를 필요로 하고 그 `tier`는 classify가 산출하므로 classify를 먼저 부른다(§6.4 INTENT와 일치). `dnd_override`는 evaluate 최상단에서 **short-circuit** — user-initiated 턴은 DND·debounce·rate-limit을 모두 우회하며 어떤 rate-limit 카운터도 증가시키지 않는다.
 
 ## 7. Backend Caller
 
@@ -205,7 +211,7 @@
 | Step | Action | Timeout | Failure → 처리 |
 |---|---|---|---|
 | B1 | `package_context` (screenshot 포함 시 캡처) | 200ms (+screenshot 1000ms) | `cap_failed` → drop |
-| B2 | `POST {backend_base}/v1/responses` | 15s (스트리밍: first-chunk 5s, total 30s) | `network/5xx` → retry x1 (2s backoff), 실패 시 silent drop + tier2 카운터 환불 / `4xx` → drop, 환불 X, ERROR / `timeout` → drop, 환불 X |
+| B2 | `POST {backend_base}/v1/responses` | 15s (스트리밍: first-chunk 5s, total 30s) | `network/5xx` → retry x1 (2s backoff), 실패 시 silent drop (rate-limit 카운터 환불 없음 — 슬롯은 발사 시 소비됨, §6.3) / `4xx` → drop, 환불 X, ERROR / `timeout` → drop, 환불 X |
 | B3 | `parse_structured_output` → [`contract.md`](./contract.md) §3 `ControlEnvelope` (`{ speech_text, emotion?, motion?, tool_status?, rich_content?, _reserved? }` — should_speak 없음, D-NO-SPEAK-GATE) | 즉시 | `parse_error` → silent drop + WARN + raw 로깅 |
 | B4 | `dispatch_to_renderer` (emotion → expression / motion → VRMA(없으면 emotion에서 파생) / tool_status / rich_content) per contract §3 렌더 규약. **emotion/motion은 발화 여부와 무관하게 항상 적용** | — | renderer 에러 → ambient fallback + ERROR 로그 |
 | B5 | `speech_branch` — `speech_text == ""` → 발화 없음(silent, INFO 정상) / 비어있지 않음 → TTS + 말풍선 | — | — |
@@ -243,6 +249,8 @@ Backend 응답 처리 중: expression은 backend 값 N초 유지 후 ambient bli
 [running] → (app shutdown)              → [draining 5s] → [stopped]
 [compacting] → (stop)                   → [stopped]
 ```
+`cooldown` 진입(total rate-limit 초과)과 5min 후 `running` 복귀는 **dispatcher가 소유** — 진입과 타이머 종료를 함께 구현해 빠져나올 수 없는 state를 만들지 않는다(§6.3). guardrail 평가 함수는 cooldown 전이에 관여하지 않는다(verdict만 반환, 순수). cooldown 동안 tier2/3 drop(`guardrail_drop`) · tier1 계속 · `dnd_override=true` 우회.
+
 Per-source 상태: `enabled | disabled | error`. dispatcher가 source 단위 enable/disable API 제공 (디버깅).
 
 ### `compacting` (세션 압축 maintenance window, D-SESSION-CONTINUITY)
@@ -336,7 +344,7 @@ Input: `{ envelope, tier, context }` · Output: `Promise<{ ok: bool, drop_reason
 | 4 | backend_caller | §7.2 B1–B5 | §7.3 분류대로 |
 | 5 | renderer | expression + motion + text bubble + TTS 큐 | 실패 시 ambient fallback |
 
-**ABORT path**: backend 호출 중 `user.text_submitted` 도착 → ① in-flight `AbortController.abort()` ② abort된 trigger의 rate-limit 카운터 환불 ③ user event를 B1부터 즉시 진행 ④ 큐의 모든 tier 2/3 drop (`superseded_by_user`).
+**ABORT path**: backend 호출 중 `user.text_submitted` 도착 → ① in-flight `AbortController.abort()` ② abort된 trigger는 이미 발사 시 슬롯을 소비했으므로 rate-limit 카운터 환불 없음(supersede 환불 X — §6.3; 근사 허용, 수치는 §17대로 튜닝 가능) ③ user event를 B1부터 즉시 진행 ④ 큐의 모든 tier 2/3 drop (`superseded_by_user`).
 
 ## 15. Test Cases
 **이 섹션은 [`event-dispatcher.tests.md`](./event-dispatcher.tests.md)로 이동했습니다.** (사이즈 trim 목적, QA 소유)
