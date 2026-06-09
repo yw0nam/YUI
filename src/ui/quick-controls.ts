@@ -394,9 +394,15 @@ export function createQuickControls({
   // 스왑 진행 중인 id(중복 스왑 가드) · 직전 오류 행 id(다시 그릴 때 인라인 안내 유지).
   let vrmSwapping: string | null = null;
   let vrmErrorId: string | null = null;
+  // 마지막으로 화살표가 머문 행 id — 재그림이 roving tabindex를 active로 되돌리지 않게 유지.
+  // close()에서 일부러 리셋하지 않는다 — 재오픈 시에도 머문 행을 잇고, ids.includes로 가드한다.
+  let vrmRovedId: string | null = null;
 
   function renderVrms(): void {
     const activeId = vrmSelection.getActiveId();
+    // roving tabindex는 마지막으로 화살표가 머문 행이 우선 — 없으면 active로 폴백.
+    const ids = vrmSelection.list().map((o) => o.id);
+    const rovedId = vrmRovedId !== null && ids.includes(vrmRovedId) ? vrmRovedId : activeId;
     // innerHTML 재그림이 포커스를 가진 행을 파괴한다 — 가졌던 경우에만 복원하려고 미리 기록.
     const hadFocus = vrmsEl.contains(document.activeElement);
     vrmsEl.innerHTML = "";
@@ -408,7 +414,7 @@ export function createQuickControls({
       btn.dataset.vrmId = opt.id;
       const selected = opt.id === activeId;
       btn.setAttribute("aria-checked", String(selected));
-      btn.tabIndex = selected ? 0 : -1;
+      btn.tabIndex = opt.id === rovedId ? 0 : -1;
 
       const badgeHtml = selected ? `<span class="yui-vrm__badge">사용 중</span>` : "";
       btn.innerHTML = `
@@ -437,12 +443,12 @@ export function createQuickControls({
       }
     }
 
-    // 재그림 전 라디오그룹이 포커스를 쥐고 있었다면 새 active 행으로 포커스를 잇는다(roving-tabindex 유지).
+    // 재그림 전 라디오그룹이 포커스를 쥐고 있었다면 roving 행으로 포커스를 잇는다.
     if (hadFocus) {
-      const active = vrmRowById(activeId);
-      if (active) {
-        active.focus();
-        active.scrollIntoView?.({ block: "nearest" });
+      const roved = vrmRowById(rovedId);
+      if (roved) {
+        roved.focus();
+        roved.scrollIntoView?.({ block: "nearest" });
       }
     }
   }
@@ -480,6 +486,7 @@ export function createQuickControls({
 
     try {
       await swapVrm(option);
+      vrmRovedId = option.id; // 커밋된 행으로 roving tabindex를 잇는다
       log.info("VRM 스왑", { id: option.id });
       // 성공: swapVrm이 store를 커밋했고 구독이 active 행을 옮긴다. 잠금 해제 후 재그림.
     } catch (err) {
@@ -494,13 +501,23 @@ export function createQuickControls({
     }
   }
 
-  // radiogroup 화살표 내비 — handleSegKeydown 미러링(목록 스크롤 고려해 focus 이동).
+  // VRM radiogroup 키보드 — 화자 섹션과 동일한 manual-activation.
+  // Enter/Space는 선택(스왑), 화살표는 roving focus 이동만(래핑), Home/End는 양끝.
   function handleVrmKeydown(e: KeyboardEvent): void {
     if (vrmSwapping !== null) return;
+    const target = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-vrm[role=radio]");
+    if (!target) return;
     const rows = Array.from(vrmsEl.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
     if (rows.length === 0) return;
-    const activeId = vrmSelection.getActiveId();
-    const current = Math.max(0, rows.findIndex((r) => r.dataset.vrmId === activeId));
+
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      const opt = vrmSelection.list().find((o) => o.id === target.dataset.vrmId);
+      if (opt) void swapTo(opt);
+      return;
+    }
+
+    const current = Math.max(0, rows.indexOf(target));
     let next = -1;
     if (e.key === "ArrowDown" || e.key === "ArrowRight") next = current + 1;
     else if (e.key === "ArrowUp" || e.key === "ArrowLeft") next = current - 1;
@@ -508,12 +525,13 @@ export function createQuickControls({
     else if (e.key === "End") next = rows.length - 1;
     else return;
     e.preventDefault();
-    const clamped = Math.min(rows.length - 1, Math.max(0, next));
-    const target = rows[clamped];
-    target.focus();
-    target.scrollIntoView?.({ block: "nearest" });
-    const opt = vrmSelection.list().find((o) => o.id === target.dataset.vrmId);
-    if (opt) void swapTo(opt);
+    const wrapped = (next + rows.length) % rows.length;
+    const focusTarget = rows[wrapped];
+    vrmRovedId = focusTarget.dataset.vrmId ?? null;
+    for (const r of rows) r.tabIndex = -1;
+    focusTarget.tabIndex = 0;
+    focusTarget.focus();
+    focusTarget.scrollIntoView?.({ block: "nearest" });
   }
 
   // ── 화자 섹션 ──
@@ -526,6 +544,9 @@ export function createQuickControls({
 
   let spkSwapping: string | null = null;
   let spkErrorId: string | null = null;
+  // 마지막으로 화살표가 머문 행 id — 재그림이 roving tabindex를 active로 되돌리지 않게 유지.
+  // close()에서 일부러 리셋하지 않는다 — 재오픈 시에도 머문 행을 잇고, ids.includes로 가드한다.
+  let spkRovedId: string | null = null;
 
   // 미리듣기는 단일 audition — 하나를 재생하면 다른 것은 멈춘다.
   let auditionAudio: HTMLAudioElement | null = null;
@@ -571,6 +592,9 @@ export function createQuickControls({
 
   function renderSpeakers(): void {
     const activeId = speakerSelection.getActiveId();
+    // roving tabindex는 마지막으로 화살표가 머문 행이 우선 — 없으면 active로 폴백.
+    const ids = speakerSelection.list().map((o) => o.id);
+    const rovedId = spkRovedId !== null && ids.includes(spkRovedId) ? spkRovedId : activeId;
     const hadFocus = spksEl.contains(document.activeElement);
     stopAudition(); // 재그림이 미리듣기 버튼 노드를 파괴하므로 audition 정리
     spksEl.innerHTML = "";
@@ -581,7 +605,7 @@ export function createQuickControls({
       row.dataset.spkId = opt.id;
       const selected = opt.id === activeId;
       row.setAttribute("aria-checked", String(selected));
-      row.tabIndex = selected ? 0 : -1;
+      row.tabIndex = opt.id === rovedId ? 0 : -1;
 
       const label = opt.label ?? opt.id;
       const hasClip = opt.ref_url.length > 0;
@@ -620,10 +644,10 @@ export function createQuickControls({
     }
 
     if (hadFocus) {
-      const active = spkRowById(activeId);
-      if (active) {
-        active.focus();
-        active.scrollIntoView?.({ block: "nearest" });
+      const roved = spkRowById(rovedId);
+      if (roved) {
+        roved.focus();
+        roved.scrollIntoView?.({ block: "nearest" });
       }
     }
   }
@@ -660,6 +684,7 @@ export function createQuickControls({
 
     try {
       await swapSpeaker(option);
+      spkRovedId = option.id; // 커밋된 행으로 roving tabindex를 잇는다
       log.info("화자 스왑", { id: option.id });
     } catch (err) {
       spkErrorId = option.id;
@@ -673,7 +698,7 @@ export function createQuickControls({
   }
 
   // 화자 radiogroup 키보드 — div[role=radio]라 직접 배선한다.
-  // Enter/Space는 선택(스왑), 화살표는 roving focus 이동만(래핑), Home/End는 양끝.
+  // manual-activation: 화살표는 roving focus 이동만, Enter/Space가 커밋 — 매 화살표마다 ▶ 미리듣기/스왑 비용을 피한다.
   function handleSpkKeydown(e: KeyboardEvent): void {
     if (spkSwapping !== null) return;
     const target = (e.target as HTMLElement).closest<HTMLDivElement>(".yui-spk[role=radio]");
@@ -696,9 +721,9 @@ export function createQuickControls({
     else if (e.key === "End") next = rows.length - 1;
     else return;
     e.preventDefault();
-    // 화살표는 래핑(첫↔끝), Home/End는 양끝으로 클램프.
     const wrapped = (next + rows.length) % rows.length;
     const focusTarget = rows[wrapped];
+    spkRovedId = focusTarget.dataset.spkId ?? null;
     // roving tabindex 이동: 새 행만 0, 나머지 -1.
     for (const r of rows) r.tabIndex = -1;
     focusTarget.tabIndex = 0;

@@ -670,13 +670,33 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("ArrowDown on the VRM radiogroup moves selection to the next row and swaps", () => {
+  it("ArrowDown on the VRM radiogroup moves roving focus to the next row WITHOUT swapping", () => {
     const qc = buildQc();
     qc.open();
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
-    // active is row 0 (Carlotta); ArrowDown → row 1 (Aria)
+    rows[0].focus();
+    // active is row 0 (Carlotta); ArrowDown → roving focus to row 1 (Aria), no commit
     rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+
+    expect(document.activeElement).toBe(rows[1]);
+    expect(rows[1].tabIndex).toBe(0);
+    expect(rows[0].tabIndex).toBe(-1);
+    // manual activation: roving moves focus only — selection (aria-checked) must not follow
+    expect(rows[1].getAttribute("aria-checked")).toBe("false");
+    expect(rows[0].getAttribute("aria-checked")).toBe("true");
+    expect(swapVrm).not.toHaveBeenCalled();
+    expect(vrmSelection.getActiveId()).toBe("carlotta");
+
+    qc.dispose();
+  });
+
+  it("Enter on a focused non-active VRM row selects it (swaps)", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
     expect(swapVrm).toHaveBeenCalledOnce();
     expect(swapVrm.mock.calls[0][0]).toMatchObject({ id: "aria" });
@@ -684,20 +704,15 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("keeps keyboard focus on the new active row after an ArrowDown swap resolves", async () => {
+  it("Space on a focused non-active VRM row selects it (swaps)", () => {
     const qc = buildQc();
     qc.open();
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
-    rows[0].focus();
-    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-    await flush();
+    rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
 
-    // renderVrms() rebuilt the rows in finally; focus must follow to the active (Aria) row.
-    const active = qc.el.querySelector<HTMLButtonElement>(".yui-vrm[aria-checked=true]")!;
-    expect(active.dataset.vrmId).toBe("aria");
-    expect(document.activeElement).toBe(active);
-    expect(document.activeElement).not.toBe(document.body);
+    expect(swapVrm).toHaveBeenCalledOnce();
+    expect(swapVrm.mock.calls[0][0]).toMatchObject({ id: "mirai" });
 
     qc.dispose();
   });
@@ -720,15 +735,48 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("End key on the VRM radiogroup swaps to the last row", () => {
+  it("End key on the VRM radiogroup moves roving focus to the last row WITHOUT swapping", () => {
     const qc = buildQc();
     qc.open();
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    rows[0].focus();
     rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
 
-    expect(swapVrm).toHaveBeenCalledOnce();
-    expect(swapVrm.mock.calls[0][0]).toMatchObject({ id: "mirai" });
+    expect(document.activeElement).toBe(rows[2]);
+    expect(rows[2].tabIndex).toBe(0);
+    expect(swapVrm).not.toHaveBeenCalled();
+
+    qc.dispose();
+  });
+
+  it("keeps the roving VRM tabindex on the last-roved row across a re-render", async () => {
+    // A rejected commit on a different row re-renders (finally → renderVrms) while the
+    // active id stays put — the seam that proves roving-tabindex survives a real re-render.
+    swapVrm = vi.fn(async () => {
+      throw new Error("load failed");
+    });
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    rows[0].focus();
+    // rove down to Aria (unchecked) without committing → vrmRovedId = aria
+    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    expect(rows[1].tabIndex).toBe(0);
+
+    // commit Mirai (a DIFFERENT row than the roved Aria); its swap REJECTS, so active stays
+    // carlotta but finally still re-renders. A wrong rovedId re-point on commit would move
+    // the tab stop to Mirai — this asserts it stays on the roved Aria.
+    rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await flush();
+
+    const after = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
+    expect(vrmSelection.getActiveId()).toBe("carlotta"); // rejected swap left active untouched
+    // roving tabindex must remain on Aria — not snap to the checked Carlotta, nor to Mirai
+    expect(after[1].tabIndex).toBe(0);
+    expect(after[0].tabIndex).toBe(-1);
+    expect(after[2].tabIndex).toBe(-1);
 
     qc.dispose();
   });
@@ -959,6 +1007,9 @@ describe("createQuickControls — gain row", () => {
     expect(document.activeElement).toBe(rows[1]);
     expect(rows[1].tabIndex).toBe(0);
     expect(rows[0].tabIndex).toBe(-1);
+    // manual activation: roving moves focus only — selection (aria-checked) must not follow
+    expect(rows[1].getAttribute("aria-checked")).toBe("false");
+    expect(rows[0].getAttribute("aria-checked")).toBe("true");
     expect(swapSpeaker).not.toHaveBeenCalled();
     expect(speakerSelection.getActiveId()).toBe("natsume");
 
@@ -974,6 +1025,37 @@ describe("createQuickControls — gain row", () => {
     rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
 
     expect(document.activeElement).toBe(rows[2]);
+
+    qc.dispose();
+  });
+
+  it("keeps the roving speaker tabindex on the last-roved row across a re-render", async () => {
+    // A rejected commit on a different row re-renders (finally → renderSpeakers) while the
+    // active id stays put — the seam that proves roving-tabindex survives a real re-render.
+    swapSpeaker = vi.fn(async () => {
+      throw new Error("swap failed");
+    });
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    rows[0].focus();
+    // rove down to Ayase (unchecked) without committing → spkRovedId = ayase
+    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    expect(rows[1].tabIndex).toBe(0);
+
+    // commit Rena (a DIFFERENT row than the roved Ayase); its swap REJECTS, so active stays
+    // natsume but finally still re-renders. A wrong rovedId re-point on commit would move
+    // the tab stop to Rena — this asserts it stays on the roved Ayase.
+    rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await flush();
+
+    const after = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    expect(speakerSelection.getActiveId()).toBe("natsume"); // rejected swap left active untouched
+    // roving tabindex must remain on Ayase — not snap to the checked Natsume, nor to Rena
+    expect(after[1].tabIndex).toBe(0);
+    expect(after[0].tabIndex).toBe(-1);
+    expect(after[2].tabIndex).toBe(-1);
 
     qc.dispose();
   });
