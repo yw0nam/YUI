@@ -45,6 +45,7 @@ chat 요청은 위 `EndpointsConfig` 위에 **per-user 런타임 입력 2종**�
 
 - **[D-REASONING-EFFORT] `reasoning.effort` (per-user, optional).** Responses 표준 파라미터 `reasoning: { effort }`를 런타임 설정으로 노출한다. UI 값은 `default · low · medium · high` 4종 — 단 **`default`는 파라미터를 통째로 생략**(backend가 결정)하는 안전 기본값이고, 나머지 `low|medium|high`만 `reasoning.effort`로 실어 보낸다. backend("natsume", OpenAI 호환)가 무시할 수 있는 best-effort hint이며, 미설정/out-of-the-box 상태는 `default`(생략)다. config 파일 필드가 아니다.
 - **[D-INSTRUCTIONS-OVERRIDE] `instructions` 런타임 오버라이드 (per-user, precedence).** Responses `instructions` 필드(system message)는 이미 존재하는 요청 필드다. 런타임 per-user 설정으로 이를 오버라이드할 수 있다. **precedence: 비어있지 않은 런타임 오버라이드가 우선**, 비어있으면 `EndpointsConfig.chat_instructions`(config 기본값)로 폴백한다. 오버라이드는 런타임 레이어일 뿐 `configs/endpoints.json`을 수정하지 않는다.
+- **[D-ENDPOINT-OVERRIDE] 엔드포인트 오버라이드 (per-user, localStorage `yui.endpoints`).** 5개 필드(`chat_base_url`·`stt_base_url`·`tts_base_url`·`irodori_base_url`·`chat_model`)를 설정 UI에서 편집할 수 있다. 빈 값="오버라이드 없음" → bundled `EndpointsConfig` 기본값으로 폴백. URL 4종은 `^https?://`로 검증하며 무효 값은 무시(effective는 기본값 유지)하고 UI가 에러를 노출한다. `chat_model`은 URL 검증 없이 non-empty면 적용. `mergeEndpoints(config.endpoints, overrides)`가 effective config를 만들며 checked-in `configs/endpoints.json`을 mutate하지 않는다. consumer는 호출 시점에 merge를 평가하지만, **STT(`stt_base_url`)만은 부트 시점에 `sttVad`가 한 번 읽으므로 다음 부트/음성 재토글에서 반영된다.** `tts_voice`는 화자 선택과 중복이라 의도적으로 제외.
 
 ---
 

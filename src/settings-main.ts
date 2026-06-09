@@ -12,6 +12,7 @@ import { createQuickControls } from "./ui/quick-controls";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
+import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
 import { createVrmSelection, localStorageVrmStorage } from "./io/vrm-selection";
 import {
   createSpeakerSelection,
@@ -36,6 +37,7 @@ async function bootstrap(): Promise<void> {
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
+  const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
 
@@ -116,13 +118,29 @@ async function bootstrap(): Promise<void> {
         return undefined;
       }
     },
+    endpointsSettings,
+    getEndpointDefaults: () => {
+      if (!configLoaded) return undefined;
+      try {
+        const e = config.get().endpoints;
+        return {
+          chat_base_url: e.chat_base_url,
+          stt_base_url: e.stt_base_url,
+          tts_base_url: e.tts_base_url,
+          irodori_base_url: e.irodori_base_url ?? "",
+          chat_model: e.chat_model ?? "",
+        };
+      } catch {
+        return undefined;
+      }
+    },
   });
   // window variant는 생성 시 자동으로 열리지만 멱등하므로 방어적으로 한 번 더 호출.
   quickControls.open();
 
   // 메인 창의 편집을 반영: cross-window storage 이벤트 + 포커스 폴백.
   // vrmSelection도 함께 재로드해 펫 창에서 바뀐 선택이 이 창 UI에 반영되게 한다.
-  const resyncStores = [agentSettings, lipsyncSettings, screenshotSettings, vrmSelection, speakerSelection];
+  const resyncStores = [agentSettings, endpointsSettings, lipsyncSettings, screenshotSettings, vrmSelection, speakerSelection];
   wireStorageSync(resyncStores);
   window.addEventListener("focus", () => {
     for (const s of resyncStores) s.reloadFromStorage();
@@ -156,6 +174,7 @@ async function bootstrap(): Promise<void> {
     }, 200);
   };
   agentSettings.subscribe(broadcastSettings);
+  endpointsSettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
   // VRM 선택도 cross-window로 알린다 → 펫 창이 받아 렌더러를 핫스왑한다(Tauri storage 이벤트 불안정 대비).
