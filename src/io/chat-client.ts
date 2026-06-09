@@ -56,6 +56,7 @@ import type {
   EndpointsConfig,
   ExpressArgs,
   ToolStatus,
+  Usage,
 } from "../contract";
 
 /** 스트림 파싱 중 client로 흘리는 증분 이벤트. */
@@ -64,6 +65,7 @@ export type ChatStreamEvent =
   | { type: "speech_done"; text: string }
   | { type: "express"; args: ExpressArgs }
   | { type: "tool_status"; status: ToolStatus }
+  | { type: "usage"; usage: Usage }
   | { type: "completed"; envelope: ControlEnvelope }
   | { type: "error"; message: string };
 
@@ -126,6 +128,8 @@ export interface StreamChatOptions {
   apiKey?: string;
   /** Transport fetch override. Tauri=cors-fetch의 fetchCORS, dev/browser=undefined(글로벌 fetch). */
   fetch?: typeof globalThis.fetch;
+  /** client-owned Hermes session id, sent per-request as the X-Hermes-Session-Id header. */
+  sessionId?: string;
 }
 
 /**
@@ -219,7 +223,11 @@ export async function* streamChat(
         previous_response_id: request.previous_response_id,
         stream: true,
       },
-      { signal: request.signal },
+      {
+        signal: request.signal,
+        // session id rotates between turns → per-request header, never defaultHeaders.
+        headers: opts.sessionId ? { "X-Hermes-Session-Id": opts.sessionId } : undefined,
+      },
     )) as unknown as AsyncIterable<any>;
   } catch (err) {
     // aborted signal이면 조용히 종료(hang 방지). 그 외(401 인증 실패 / 네트워크 등)는 무음으로
@@ -312,6 +320,19 @@ export async function* streamChat(
         }
 
         case "response.completed": {
+          // 토큰 점유량은 자체 이벤트로만 흘린다(ControlEnvelope에 싣지 않음). usage 블록이
+          // 통째로 없으면 emit 생략, 일부 누락 필드는 0으로 보정.
+          const rawUsage = event.response?.usage;
+          if (rawUsage) {
+            yield {
+              type: "usage",
+              usage: {
+                input_tokens: rawUsage.input_tokens ?? 0,
+                output_tokens: rawUsage.output_tokens ?? 0,
+                total_tokens: rawUsage.total_tokens ?? 0,
+              },
+            };
+          }
           // Normalization (chat-client ONLY): FLAT args → renderer seam shape.
           //   emotion_id→emotion{id}, motion_id→motion{id}, emotion_text→emotion_text.
           //   Only present fields are normalized; absent ones stay undefined (no invention).
