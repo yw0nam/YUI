@@ -1381,4 +1381,31 @@ describe("createQuickControls — gain row", () => {
 
     qc.dispose();
   });
+
+  it("does not render the success note or schedule a dwell timer when disposed mid-refresh", async () => {
+    vi.useFakeTimers();
+    let resolveRefresh: (() => void) | null = null;
+    refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(
+      () => new Promise<void>((res) => { resolveRefresh = res; }),
+    );
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    rows[1].querySelector<HTMLButtonElement>(".yui-spk__refresh")!.click(); // Ayase
+
+    // dispose while the refresh promise is still pending
+    qc.dispose();
+
+    // the now-resolving refresh must not write to the torn-down DOM
+    resolveRefresh?.();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(qc.el.querySelector(".yui-spk__note")).toBeNull();
+
+    // and no leaked dwell timer fires the note later
+    await vi.advanceTimersByTimeAsync(2400);
+    expect(qc.el.querySelector(".yui-spk__note")).toBeNull();
+
+    vi.useRealTimers();
+  });
 });
