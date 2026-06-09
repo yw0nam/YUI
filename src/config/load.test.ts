@@ -310,6 +310,44 @@ describe("loadConfig — endpoints irodori provider", () => {
   });
 });
 
+// ── broker_base_url (optional Expression Broker MCP endpoint) ──────────────────
+
+describe("loadConfig — endpoints broker_base_url", () => {
+  function baseEndpoints(): Record<string, unknown> {
+    return {
+      chat_base_url: "http://localhost:8642",
+      chat_endpoint: "/v1/responses",
+      stt_base_url: "http://localhost:5517",
+      tts_base_url: "http://localhost:8092",
+      tts_provider: "openai",
+    };
+  }
+
+  it("유효한 broker_base_url을 출력에 보존한다", async () => {
+    const map = goodFixture();
+    map["endpoints.json"] = { ...baseEndpoints(), broker_base_url: "http://localhost:3201/mcp" };
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.endpoints.broker_base_url).toBe("http://localhost:3201/mcp");
+  });
+
+  it("broker_base_url이 없으면 undefined(선택)", async () => {
+    const map = goodFixture();
+    map["endpoints.json"] = baseEndpoints();
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.endpoints.broker_base_url).toBeUndefined();
+  });
+
+  it("broker_base_url이 http(s) URL이 아니면 실패", async () => {
+    const map = goodFixture();
+    map["endpoints.json"] = { ...baseEndpoints(), broker_base_url: "localhost:3201/mcp" };
+    const p = loadConfig({ read: readerOf(map) });
+    await expect(p).rejects.toBeInstanceOf(ConfigError);
+    const err = await p.catch((e) => e);
+    expect((err as ConfigError).file).toBe("endpoints.json");
+    expect((err as ConfigError).issues.length).toBeGreaterThan(0);
+  });
+});
+
 describe("loadConfig — endpoints irodori validation failures", () => {
   async function loadWith(value: unknown): Promise<unknown> {
     const map = goodFixture();
