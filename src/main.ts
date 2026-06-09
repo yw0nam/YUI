@@ -601,8 +601,10 @@ async function bootstrap(): Promise<void> {
   });
   // 압축 thunk: 회전 id 적용 + 진단 기록 + trigger 피드백. dispatcher가 timeout과 race해 호출.
   const compact = async (signal: AbortSignal) => {
-    const result = await compactor.compress(sessionStore.get(), signal);
-    if (result.status === "compressed" && result.session_id) {
+    const startId = sessionStore.get();
+    const result = await compactor.compress(startId, signal);
+    // 압축 중 reset이 새 id를 발급했으면 회전·진단을 건너뛴다 — 폐기된 세션의 연속분 부활 방지.
+    if (result.status === "compressed" && result.session_id && sessionStore.get() === startId) {
       sessionStore.set(result.session_id);
       sessionDiagnostics.setLastCompression({
         beforeTokens: result.before_tokens ?? 0,
