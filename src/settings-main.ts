@@ -14,6 +14,11 @@ import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
 import { createVrmSelection, localStorageVrmStorage } from "./io/vrm-selection";
+import { createSessionStore, localStorageSessionStorage } from "./io/session-store";
+import {
+  createSessionDiagnosticsStore,
+  localStorageSessionDiagnosticsStorage,
+} from "./io/session-diagnostics";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
@@ -42,6 +47,9 @@ async function bootstrap(): Promise<void> {
   const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
+  // 세션 포인터 + 진단. 펫 창이 localStorage에 쓰면 storage 이벤트로 이 창이 재로드한다.
+  const sessionStore = createSessionStore(localStorageSessionStorage());
+  const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
 
   // 메인 창과의 실시간 배선(Tauri 이벤트). 이 창엔 렌더러/STT가 없으므로 컨트롤은
   // 메인 창으로 보내고, 음성 상태는 메인 창에서 받아 반영한다. storage 폴백은 아래 유지.
@@ -145,13 +153,15 @@ async function bootstrap(): Promise<void> {
         return undefined;
       }
     },
+    sessionDiagnostics,
+    sessionStore,
   });
   // window variant는 생성 시 자동으로 열리지만 멱등하므로 방어적으로 한 번 더 호출.
   quickControls.open();
 
   // 메인 창의 편집을 반영: cross-window storage 이벤트 + 포커스 폴백.
   // vrmSelection도 함께 재로드해 펫 창에서 바뀐 선택이 이 창 UI에 반영되게 한다.
-  const resyncStores = [agentSettings, endpointsSettings, lipsyncSettings, screenshotSettings, vrmSelection, speakerSelection];
+  const resyncStores = [agentSettings, endpointsSettings, lipsyncSettings, screenshotSettings, vrmSelection, speakerSelection, sessionStore, sessionDiagnostics];
   wireStorageSync(resyncStores);
   window.addEventListener("focus", () => {
     for (const s of resyncStores) s.reloadFromStorage();
