@@ -1,0 +1,16 @@
+{
+  "dnd": { "app_blocklist": [], "camera_idle_off_ms": 30000 },
+  "debounce_ms": {
+    "idle_watcher": 30000,
+    "os_event_watcher": 5000,
+    "backend_push_source": 10000,
+    "user_input_source": 0
+  },
+  "rate_limit": {
+    "window_ms": 3600000,
+    "tier2_max": 6,
+    "tier3_max": 2,
+    "overall_max": 20,
+    "cooldown_ms": 300000
+  }
+}

@@ -60,6 +60,7 @@ const ALL_SECTIONS: readonly ConfigSection[] = [
   "avatar",
   "emotionRegistry",
   "motions",
+  "guardrails",
 ];
 
 /** 두 AppConfig 간 바뀐 section 집합(직렬화 비교 — 순서 무관 비교는 불필요, 파일 그대로 매핑). */
