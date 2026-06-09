@@ -682,6 +682,9 @@ describe("createQuickControls — gain row", () => {
     expect(document.activeElement).toBe(rows[1]);
     expect(rows[1].tabIndex).toBe(0);
     expect(rows[0].tabIndex).toBe(-1);
+    // manual activation: roving moves focus only — selection (aria-checked) must not follow
+    expect(rows[1].getAttribute("aria-checked")).toBe("false");
+    expect(rows[0].getAttribute("aria-checked")).toBe("true");
     expect(swapVrm).not.toHaveBeenCalled();
     expect(vrmSelection.getActiveId()).toBe("carlotta");
 
@@ -747,23 +750,33 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("keeps the roving VRM tabindex on the last-roved row across a re-render", () => {
+  it("keeps the roving VRM tabindex on the last-roved row across a re-render", async () => {
+    // A rejected commit on a different row re-renders (finally → renderVrms) while the
+    // active id stays put — the seam that proves roving-tabindex survives a real re-render.
+    swapVrm = vi.fn(async () => {
+      throw new Error("load failed");
+    });
     const qc = buildQc();
     qc.open();
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
     rows[0].focus();
-    // rove down to Aria (unchecked) without committing
+    // rove down to Aria (unchecked) without committing → vrmRovedId = aria
     rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
     expect(rows[1].tabIndex).toBe(0);
 
-    // a re-render lands mid-navigation (e.g. cross-window store ping) — active stays carlotta
-    vrmSelection.select("carlotta");
+    // commit Mirai (a DIFFERENT row than the roved Aria); its swap REJECTS, so active stays
+    // carlotta but finally still re-renders. A wrong rovedId re-point on commit would move
+    // the tab stop to Mirai — this asserts it stays on the roved Aria.
+    rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await flush();
 
     const after = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
-    // roving tabindex must remain on Aria, not snap back to the checked Carlotta row
+    expect(vrmSelection.getActiveId()).toBe("carlotta"); // rejected swap left active untouched
+    // roving tabindex must remain on Aria — not snap to the checked Carlotta, nor to Mirai
     expect(after[1].tabIndex).toBe(0);
     expect(after[0].tabIndex).toBe(-1);
+    expect(after[2].tabIndex).toBe(-1);
 
     qc.dispose();
   });
@@ -994,6 +1007,9 @@ describe("createQuickControls — gain row", () => {
     expect(document.activeElement).toBe(rows[1]);
     expect(rows[1].tabIndex).toBe(0);
     expect(rows[0].tabIndex).toBe(-1);
+    // manual activation: roving moves focus only — selection (aria-checked) must not follow
+    expect(rows[1].getAttribute("aria-checked")).toBe("false");
+    expect(rows[0].getAttribute("aria-checked")).toBe("true");
     expect(swapSpeaker).not.toHaveBeenCalled();
     expect(speakerSelection.getActiveId()).toBe("natsume");
 
@@ -1013,23 +1029,33 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("keeps the roving speaker tabindex on the last-roved row across a re-render", () => {
+  it("keeps the roving speaker tabindex on the last-roved row across a re-render", async () => {
+    // A rejected commit on a different row re-renders (finally → renderSpeakers) while the
+    // active id stays put — the seam that proves roving-tabindex survives a real re-render.
+    swapSpeaker = vi.fn(async () => {
+      throw new Error("swap failed");
+    });
     const qc = buildQc();
     qc.open();
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     rows[0].focus();
-    // rove down to Ayase (unchecked) without committing
+    // rove down to Ayase (unchecked) without committing → spkRovedId = ayase
     rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
     expect(rows[1].tabIndex).toBe(0);
 
-    // a re-render lands mid-navigation — active stays natsume
-    speakerSelection.select("natsume");
+    // commit Rena (a DIFFERENT row than the roved Ayase); its swap REJECTS, so active stays
+    // natsume but finally still re-renders. A wrong rovedId re-point on commit would move
+    // the tab stop to Rena — this asserts it stays on the roved Ayase.
+    rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await flush();
 
     const after = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-    // roving tabindex must remain on Ayase, not snap back to the checked Natsume row
+    expect(speakerSelection.getActiveId()).toBe("natsume"); // rejected swap left active untouched
+    // roving tabindex must remain on Ayase — not snap to the checked Natsume, nor to Rena
     expect(after[1].tabIndex).toBe(0);
     expect(after[0].tabIndex).toBe(-1);
+    expect(after[2].tabIndex).toBe(-1);
 
     qc.dispose();
   });
