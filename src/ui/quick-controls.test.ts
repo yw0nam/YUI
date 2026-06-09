@@ -115,6 +115,7 @@ describe("createQuickControls — gain row", () => {
   let swapVrm: Mock<(option: AvatarOption) => Promise<void>>;
   let speakerSelection: ReturnType<typeof createSpeakerSelection>;
   let swapSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
+  let refreshSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
 
   beforeEach(() => {
     // Make rAF synchronous so open() → is-open transition happens immediately in tests
@@ -144,6 +145,8 @@ describe("createQuickControls — gain row", () => {
     swapSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async (option) => {
       speakerSelection.select(option.id);
     });
+    // refresh is server-side only — default fake resolves without touching the store.
+    refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async () => {});
     try {
       globalThis.localStorage?.clear();
     } catch {
@@ -172,6 +175,7 @@ describe("createQuickControls — gain row", () => {
       swapVrm,
       speakerSelection,
       swapSpeaker,
+      refreshSpeaker,
       ...extra,
     });
   }
@@ -1246,6 +1250,134 @@ describe("createQuickControls — gain row", () => {
 
     expect(qc.el.querySelector(".yui-spks[role=radiogroup]")).not.toBeNull();
     expect(qc.el.querySelector(".yui-spk--add")).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  // ── 화자 행 참조-음성 갱신(refresh) 버튼 — issue #103 ──────────────────────
+
+  it("renders a .yui-spk__refresh button per speaker row, before the ▶ preview", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    expect(rows).toHaveLength(3);
+    for (const r of rows) {
+      const refresh = r.querySelector<HTMLButtonElement>(".yui-spk__refresh");
+      const preview = r.querySelector<HTMLButtonElement>(".yui-spk__preview");
+      expect(refresh).not.toBeNull();
+      expect(preview).not.toBeNull();
+      // refresh sits BEFORE preview in source/visual order
+      expect(refresh!.compareDocumentPosition(preview!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+
+    qc.dispose();
+  });
+
+  it("disables the refresh button when a speaker has an empty ref_url", () => {
+    speakerSelection = createSpeakerSelection({
+      available: [
+        { id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" },
+        { id: "noclip", label: "Noclip", ref_url: "" },
+      ],
+      defaultId: "natsume",
+    });
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const withClip = rows[0].querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
+    const noClip = rows[1].querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
+    expect(withClip.disabled).toBe(false);
+    expect(noClip.disabled).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("clicking the refresh button calls refreshSpeaker and does NOT change the active selection", async () => {
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const ayase = rows[1]; // non-active
+    const refresh = ayase.querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
+    refresh.click();
+
+    expect(refreshSpeaker).toHaveBeenCalledOnce();
+    expect(refreshSpeaker.mock.calls[0][0]).toMatchObject({ id: "ayase", ref_url: "/references/ayase.wav" });
+    // refresh must not select/swap the row (stopPropagation) — active stays natsume
+    expect(swapSpeaker).not.toHaveBeenCalled();
+    expect(speakerSelection.getActiveId()).toBe("natsume");
+
+    await flush();
+    expect(speakerSelection.getActiveId()).toBe("natsume");
+
+    qc.dispose();
+  });
+
+  it("on a rejected refreshSpeaker the row gets the error state", async () => {
+    refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async () => {
+      throw new Error("update failed");
+    });
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    rows[2].querySelector<HTMLButtonElement>(".yui-spk__refresh")!.click(); // Rena
+    await flush();
+
+    const errorRow = qc.el.querySelector<HTMLElement>(".yui-spk.is-error")!;
+    expect(errorRow).not.toBeNull();
+    expect(errorRow.querySelector(".yui-spk__name")!.textContent).toBe("Rena");
+    expect(errorRow.getAttribute("aria-invalid")).toBe("true");
+    const errMsg = qc.el.querySelector(".yui-spk__error")!;
+    expect(errMsg.textContent).toContain("갱신하지 못했어요");
+    // refresh leaves the active selection untouched
+    expect(speakerSelection.getActiveId()).toBe("natsume");
+
+    qc.dispose();
+  });
+
+  it("shows the success note after a resolved refresh, then auto-reverts to idle", async () => {
+    vi.useFakeTimers();
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    rows[1].querySelector<HTMLButtonElement>(".yui-spk__refresh")!.click(); // Ayase
+    await vi.advanceTimersByTimeAsync(0); // let the refreshSpeaker promise settle
+
+    expect(qc.el.querySelector(".yui-spk__note")).not.toBeNull();
+    expect(qc.el.querySelector(".yui-spk__note")!.textContent).toContain("갱신했어요");
+
+    // auto-revert clears the note after the dwell
+    await vi.advanceTimersByTimeAsync(2400);
+    expect(qc.el.querySelector(".yui-spk__note")).toBeNull();
+
+    qc.dispose();
+    vi.useRealTimers();
+  });
+
+  it("ignores a re-entrant refresh while the same row is already refreshing", async () => {
+    let resolveRefresh: (() => void) | null = null;
+    refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(
+      () => new Promise<void>((res) => { resolveRefresh = res; }),
+    );
+    const qc = buildQc();
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    const refresh = rows[1].querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
+    refresh.click();
+    // a second click while in-flight must be ignored (button is also disabled, but guard defends)
+    const stillRefresh = qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]")[1]
+      .querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
+    stillRefresh.click();
+
+    expect(refreshSpeaker).toHaveBeenCalledOnce();
+
+    resolveRefresh?.();
+    await flush();
 
     qc.dispose();
   });

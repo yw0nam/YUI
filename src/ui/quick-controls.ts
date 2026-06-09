@@ -46,6 +46,8 @@ interface QuickControlsOptions {
   speakerSelection: SpeakerSelectionStore;
   /** 실제 화자 스왑 수행 + 성공 시 store 커밋(B2 주입). 컴포넌트는 store.select를 직접 호출하지 않는다. */
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
+  /** 화자의 참조 음성 재등록(PUT /voices, #103). 서버 측 갱신만 — 화자 선택/store는 바꾸지 않는다. */
+  refreshSpeaker: (option: SpeakerOption) => Promise<void>;
   onGainPreview: (mouthOpen: number) => void;
   onGainPreviewEnd: () => void;
   onPopOut?: () => void;
@@ -131,6 +133,7 @@ export function createQuickControls({
   swapVrm,
   speakerSelection,
   swapSpeaker,
+  refreshSpeaker,
   onGainPreview,
   onGainPreviewEnd,
   onPopOut,
@@ -641,12 +644,30 @@ export function createQuickControls({
 
   const SPK_PLAY_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
   const SPK_PAUSE_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="6" width="3.4" height="12" rx="0.8"/><rect x="13.6" y="6" width="3.4" height="12" rx="0.8"/></svg>`;
+  const SPK_REFRESH_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11a8 8 0 1 0-1.6 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M20 5v5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const SPK_CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const SPK_NOTE_CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
   let spkSwapping: string | null = null;
   let spkErrorId: string | null = null;
   // 마지막으로 화살표가 머문 행 id — 재그림이 roving tabindex를 active로 되돌리지 않게 유지.
   // close()에서 일부러 리셋하지 않는다 — 재오픈 시에도 머문 행을 잇고, ids.includes로 가드한다.
   let spkRovedId: string | null = null;
+
+  // 행별 참조-음성 갱신 상태(#103) — renderSpeakers 재그림을 살아남도록 id별로 보관.
+  type RefreshState = "refreshing" | "done" | "error";
+  const spkRefreshState = new Map<string, RefreshState>();
+  // "done" 상태를 일정 시간 후 idle로 되돌리는 타이머(중복 갱신·dispose 시 정리).
+  const spkRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const REFRESH_DONE_DWELL_MS = 2400;
+
+  function clearRefreshTimer(id: string): void {
+    const t = spkRefreshTimers.get(id);
+    if (t !== undefined) {
+      clearTimeout(t);
+      spkRefreshTimers.delete(id);
+    }
+  }
 
   // 미리듣기는 단일 audition — 하나를 재생하면 다른 것은 멈춘다.
   let auditionAudio: HTMLAudioElement | null = null;
@@ -709,16 +730,24 @@ export function createQuickControls({
 
       const label = opt.label ?? opt.id;
       const hasClip = opt.ref_url.length > 0;
+      const refreshState = spkRefreshState.get(opt.id);
       const badgeHtml = selected ? `<span class="yui-spk__badge">사용 중</span>` : "";
       row.innerHTML = `
         <span class="yui-spk__tick" aria-hidden="true"></span>
         <span class="yui-spk__body"><span class="yui-spk__name"></span></span>
+        <button class="yui-spk__refresh" type="button" title="참조 음성 갱신" ${hasClip ? "" : "disabled"}>${SPK_REFRESH_SVG}</button>
         <button class="yui-spk__preview" type="button" title="미리듣기" ${hasClip ? "" : "disabled"}>${SPK_PLAY_SVG}</button>
         ${badgeHtml}
       `;
       // 라벨은 신뢰 불가 입력일 수 있다 — textContent로만 넣는다.
       const nameEl = row.querySelector<HTMLSpanElement>(".yui-spk__name")!;
       nameEl.textContent = label;
+      const refreshBtn = row.querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
+      refreshBtn.setAttribute("aria-label", `${label} 참조 음성 갱신`);
+      refreshBtn.addEventListener("click", (e) => {
+        e.stopPropagation(); // 갱신은 행 선택을 트리거하지 않는다
+        if (hasClip) void refreshTo(opt);
+      });
       const previewBtn = row.querySelector<HTMLButtonElement>(".yui-spk__preview")!;
       previewBtn.setAttribute("aria-label", `${label} 미리듣기`);
       previewBtn.addEventListener("click", (e) => {
@@ -730,6 +759,24 @@ export function createQuickControls({
         void swapToSpeaker(opt);
       });
 
+      // 저장된 refresh 상태를 재그림 후에도 시각/aria에 반영한다.
+      if (refreshState === "refreshing") {
+        refreshBtn.classList.add("is-refreshing");
+        refreshBtn.disabled = true;
+        refreshBtn.setAttribute("aria-label", `${label} 참조 음성 갱신 중`);
+        const body = row.querySelector(".yui-spk__body");
+        if (body && !row.querySelector(".yui-spk__hint")) {
+          const hint = document.createElement("span");
+          hint.className = "yui-spk__hint";
+          hint.textContent = "갱신 중…";
+          body.insertAdjacentElement("afterend", hint);
+        }
+      } else if (refreshState === "done") {
+        refreshBtn.classList.add("is-done");
+        refreshBtn.innerHTML = SPK_CHECK_SVG;
+        refreshBtn.setAttribute("aria-label", `${label} 참조 음성 갱신됨`);
+      }
+
       spksEl.appendChild(row);
 
       if (opt.id === spkErrorId) {
@@ -740,6 +787,20 @@ export function createQuickControls({
         err.setAttribute("role", "status");
         err.textContent = "이 화자를 불러오지 못했어요. 이전 화자로 되돌렸어요.";
         spksEl.appendChild(err);
+      } else if (refreshState === "error") {
+        row.classList.add("is-error");
+        row.setAttribute("aria-invalid", "true");
+        const err = document.createElement("p");
+        err.className = "yui-spk__error";
+        err.setAttribute("role", "status");
+        err.textContent = "참조 음성을 갱신하지 못했어요.";
+        spksEl.appendChild(err);
+      } else if (refreshState === "done") {
+        const note = document.createElement("p");
+        note.className = "yui-spk__note";
+        note.setAttribute("role", "status");
+        note.innerHTML = `${SPK_NOTE_CHECK_SVG}참조 음성을 갱신했어요.`;
+        spksEl.appendChild(note);
       }
     }
 
@@ -793,6 +854,34 @@ export function createQuickControls({
       spkSwapping = null;
       spksEl.removeAttribute("aria-busy");
       spksEl.classList.remove("is-swapping");
+      renderSpeakers();
+    }
+  }
+
+  // 참조 음성 재등록(#103) — 서버 측 갱신만, 화자 선택/store는 바꾸지 않는다.
+  // 재진입 가드: 같은 id가 이미 갱신 중이면 무시한다.
+  async function refreshTo(option: SpeakerOption): Promise<void> {
+    if (spkRefreshState.get(option.id) === "refreshing") return;
+    clearRefreshTimer(option.id);
+    spkRefreshState.set(option.id, "refreshing");
+    renderSpeakers();
+    try {
+      await refreshSpeaker(option);
+      spkRefreshState.set(option.id, "done");
+      log.info("참조 음성 갱신", { id: option.id });
+      renderSpeakers();
+      // 일정 시간 후 idle로 되돌린다(상태 삭제 + 재그림).
+      spkRefreshTimers.set(
+        option.id,
+        setTimeout(() => {
+          spkRefreshTimers.delete(option.id);
+          spkRefreshState.delete(option.id);
+          renderSpeakers();
+        }, REFRESH_DONE_DWELL_MS),
+      );
+    } catch (err) {
+      spkRefreshState.set(option.id, "error");
+      log.error("참조 음성 갱신 실패", { id: option.id, error: String(err) });
       renderSpeakers();
     }
   }
@@ -1197,6 +1286,8 @@ export function createQuickControls({
     unsubscribeVrm();
     unsubscribeSpk();
     stopAudition();
+    for (const t of spkRefreshTimers.values()) clearTimeout(t);
+    spkRefreshTimers.clear();
     switchBtn.removeEventListener("click", handleSwitchClick);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     scrimEl.removeEventListener("pointerdown", handleScrimPointerDown);
