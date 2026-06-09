@@ -49,6 +49,8 @@ export interface Surfaces {
   onSubmit(cb: (text: string) => void): void;
   /** 인라인 에러 표시(예: 전송 실패). */
   showInputError(message: string): void;
+  /** 입력 비활성화 토글(예: 세션 압축 중). 비활성 시 field disabled + pending 디밍. */
+  setInputEnabled(enabled: boolean): void;
   /**
    * 입력의 하단 오프셋(px)을 캐릭터 발밑 추적용으로 설정한다. CSS의
    * `bottom: var(--yui-input-bottom, 4%)`를 픽셀로 덮어쓴다. null이면 var를
@@ -257,6 +259,11 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     submitHandlers.push(cb);
   }
 
+  function setInputEnabled(enabled: boolean): void {
+    field.disabled = !enabled;
+    formEl.classList.toggle("is-pending", !enabled);
+  }
+
   function setInputAnchor(bottomPx: number | null): void {
     if (bottomPx === null) formEl.style.removeProperty("--yui-input-bottom");
     else formEl.style.setProperty("--yui-input-bottom", `${bottomPx}px`);
@@ -326,6 +333,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     isInputOpen,
     onSubmit,
     showInputError,
+    setInputEnabled,
     setInputAnchor,
     dispose,
   };
