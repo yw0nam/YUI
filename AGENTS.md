@@ -20,6 +20,7 @@ Load Karpathy Guideline.
 - **Sub-agent-based development.** Implementation is delegated to specialist agents in [Sub-agent Roster](#sub-agent-roster). **The main agent does not implement** — it focuses on requirements clarification, task delegation, verification, and orchestration.
 - **Verify what you can verify before asking the user.** Anything observable (UI rendering / DOM state / logs) — verify yourself. Ask the user to confirm **only** things that genuinely require them (audio playback, physical input feel).
 - **Comments: minimal, present-tense only.** No decision-history / spec-citation / issue-number breadcrumbs in code comments. Comment only what the code cannot say itself, in one line.
+- **Docs: current-state only.** Write what the system *is*, declaratively. No change-narrative — no "was X, now Y", no "제거/대체/축소/supersede/더 이상/이전엔/추가했다/이제", no PR/issue numbers as prose. Decision-log and changelog entries keep their dated rows, but each cell states the **current rule**, not the act of changing it.
 
 ## Sub-agent Roster
 

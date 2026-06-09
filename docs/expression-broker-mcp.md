@@ -54,7 +54,7 @@ emotion/motion **어휘(vocabulary)의 단일 진실원천(SOT)** 이자, agent�
 
 - **emotion_ids** = VRM blendshape(얼굴) id. contract.md §1 enum 10종이 기본값. **TTS엔 안 쓰임.**
 - **motion_ids** = VRMA(몸) registry key. contract.md §2의 model-selectable 4종. (`drag`는 client 내부 reactive 모션 — model이 고르지 않으므로 제외.)
-- **TTS 태그(emotion_text)는 hard 검증 어휘에 두지 않는다.** PR-A부터 어휘는 **이모지 태그 집합**이다(아래 §4 표 — FishSpeech 자유 텍스트를 대체). 자유 텍스트라(이모지 반복으로 강도 표현, 조합 가능) hard enum이 아니므로 broker는 검증/강제하지 않는다. broker가 이 이모지 목록을 *advisory 힌트*로 노출할 수는 있다(§3.4 `update_tts_tags`, optional).
+- **TTS 태그(emotion_text)는 hard 검증 어휘에 두지 않는다.** 어휘는 **이모지 태그 집합**이다(아래 §4 표). 자유 텍스트라(이모지 반복으로 강도 표현, 조합 가능) hard enum이 아니므로 broker는 검증/강제하지 않는다. broker가 이 이모지 목록을 *advisory 힌트*로 노출할 수는 있다(§3.4 `update_tts_tags`, optional).
 
 ## 3. MCP Surface
 
@@ -118,7 +118,7 @@ async def update_emotion_ids(ids: list[str], ctx: Context) -> dict:
 ```
 
 - YUI가 부팅 시 + **VRM 모델 핫스왑 시** 자기가 렌더 가능한 집합을 선언. broker는 이걸 SOT로 저장하고 resource 구독자에게 통지.
-- (optional) `update_tts_tags(tags)` — emotion_text advisory 힌트 목록을 두고 싶을 때만. **검증용 아님, 모델 힌트용.** PR-A 기준 힌트는 §4의 이모지 어휘.
+- (optional) `update_tts_tags(tags)` — emotion_text advisory 힌트 목록을 두고 싶을 때만. **검증용 아님, 모델 힌트용.** 힌트는 §4의 이모지 어휘다.
 
 ## 4. 필드 정의 (3채널 분리 — 의도된 분리)
 
@@ -134,7 +134,7 @@ async def update_emotion_ids(ids: list[str], ctx: Context) -> dict:
 - 셋 다 optional. 전부 생략된 `generate_express`는 의미 없으므로 model은 보통 최소 하나를 채운다.
 
 ### `emotion_text` 이모지 어휘 (renderable vocabulary, PR-A)
-broker가 브로커링하는 `emotion_text` 어휘는 아래 이모지 집합이다(PR-A에서 FishSpeech 자유 텍스트를 대체). **같은 이모지를 반복하면 강도가 세진다**(예: `🥺` → `🥺🥺`), 조합도 가능. broker는 이를 advisory hint로만 노출하고 **검증/강제는 안 한다**(§3.1) — 모델이 직접 생성, YUI가 TTS 분절 prefix로 소비.
+broker가 브로커링하는 `emotion_text` 어휘는 아래 이모지 집합이다. **같은 이모지를 반복하면 강도가 세진다**(예: `🥺` → `🥺🥺`), 조합도 가능. broker는 이를 advisory hint로만 노출하고 **검증/강제는 안 한다**(§3.1) — 모델이 직접 생성, YUI가 TTS 분절 prefix로 소비.
 
 | Emoji | 의미 | | Emoji | 의미 |
 |---|---|---|---|---|
@@ -184,7 +184,7 @@ broker가 브로커링하는 `emotion_text` 어휘는 아래 이모지 집합이
 
 ### 결정 로그 (확정)
 
-> broker는 라이브 서비스로 구축됨 (레포 `yw0nam/tts_express_broker`, v1.27.2, `http://localhost:3201/mcp`, streamable-http). 아래 D1–D6은 #49에서 확정, #107을 재정의(client측 emotion_id→emoji 매핑 폐기 → "YUI를 broker MCP client로 연결"로 축소).
+> broker는 라이브 서비스다 (레포 `yw0nam/tts_express_broker`, v1.27.2, `http://localhost:3201/mcp`, streamable-http). 아래 D1–D6은 YUI를 broker MCP client로 연결하는 계약을 정의한다 — client측 emotion_id→emoji 매핑은 두지 않는다.
 
 - **D1 — generate_express shape:** flat 3필드 `{emotion_id?, motion_id?, emotion_text?}`로 고정. contract의 미세 파라미터(intensity/transition_ms/loop/speed/fade_ms)는 버리고 client 기본값을 적용한다. *근거: 최소 계약 표면, 후속 확장 가능.*
 - **D2 — emotion_text producer = Model A (agent 생성, broker 게이트):** Hermes agent가 broker가 publish한 `enum` 표에서 이모지/토큰을 골라 emotion_text를 생성하고, broker가 enum 게이트한다. YUI는 emotion_id→emoji 매핑을 하지 않고 emotion_text를 주입하지도 않는다 — (a) 표를 publish하고 (b) 스트림에 도착한 emotion_text를 TTS 분절 prefix로 소비할 뿐(`src/io/tts-pipeline.ts` 기구현). **따라서 YUI 어디에도 emotion_id→emoji 매핑이 없다.** *주의(cross-team E2E): D2는 Hermes agent가 실제로 emoji emotion_text를 emit해야 성립 — #1/#2에서 추적.*
@@ -193,7 +193,7 @@ broker가 브로커링하는 `emotion_text` 어휘는 아래 이모지 집합이
 - **D5 — YUI MCP client:** YUI에 streamable-http MCP client(`@modelcontextprotocol/sdk`)를 추가한다. `broker_base_url`은 `configs/endpoints.json`에 둔다(라이브 포트 **3201**; broker README의 기본 8000과 다름 — config 우선, no-hardcoding). YUI는 WRITER라 resource를 subscribe하지 않고 boot/hot-swap/reconnect 시 `update_*`만 호출한다.
 - **D6 — publish 타이밍:** boot(설정 로드 후 1회) + VRM 핫스왑 + broker 재연결. emotion ids ← `configs/emotion_registry.json`, motion ids ← `configs/motions.json`, emoji 표 ← `configs/`의 emoji 파일.
 
-> **스펙 대비 broker 확장:** broker는 위 §2/§3 원안을 넘어 `emotion_text_mode`/`update_emotion_text` **enum 게이트**를 추가했다 — `mode="free"`(pass-through, table=null) 또는 `mode="enum"`(표 키만 허용; 미등록 토큰 drop + 경고, 발화 미차단; multi-codepoint emoji를 greedy 토크나이즈). `get_ids()`는 이제 `emotion_text_mode`/`emotion_text_map`/`version`도 반환한다. **emotion_text 어휘 규칙은 provider별로 [`tts_emotion/`](./tts_emotion/)에 둔다**(irodori=enum, openai-compatible/fishspeech=free).
+> **broker enum 게이트:** broker는 `emotion_text_mode`/`update_emotion_text` **enum 게이트**를 제공한다 — `mode="free"`(pass-through, table=null) 또는 `mode="enum"`(표 키만 허용; 미등록 토큰 drop + 경고, 발화 미차단; multi-codepoint emoji를 greedy 토크나이즈). `get_ids()`는 `emotion_text_mode`/`emotion_text_map`/`version`도 반환한다. **emotion_text 어휘 규칙은 provider별로 [`tts_emotion/`](./tts_emotion/)에 둔다**(irodori=enum, openai-compatible/fishspeech=free).
 
 **Hermes에서 E2E 검증(#1):**
 - [ ] Hermes agent가 MCP server(streamable-http)를 tool source로 붙이는가.

@@ -7,7 +7,7 @@
 <!-- Closes #__ -->
 
 ## 관련 결정 / 문서
-<!-- 건드린 docs: contract.md / prd.md(D-*) / event-dispatcher.md / alignment-report.md -->
+<!-- 건드린 docs: contract.md / prd.md(D-*) / event-dispatcher.md -->
 
 ## 검증
 - [ ] `cargo check` 통과 (Rust 변경 시)
