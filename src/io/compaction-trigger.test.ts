@@ -28,6 +28,16 @@ function make(onTrigger = vi.fn(), contextWindow: number | undefined = WINDOW) {
   return { trigger, onTrigger };
 }
 
+function makeNoWindow(onTrigger = vi.fn()) {
+  const trigger = createCompactionTrigger({
+    contextWindow: undefined,
+    thresholdRatio: THRESHOLD,
+    resumeRatio: RESUME,
+    onTrigger,
+  });
+  return { trigger, onTrigger };
+}
+
 describe("createCompactionTrigger — threshold firing", () => {
   it("fires onTrigger exactly once when usage first crosses the threshold", () => {
     const { trigger, onTrigger } = make();
@@ -114,14 +124,14 @@ describe("createCompactionTrigger — result settling", () => {
 
 describe("createCompactionTrigger — no known context window", () => {
   it("never fires when contextWindow is undefined", () => {
-    const { trigger, onTrigger } = make(vi.fn(), undefined);
+    const { trigger, onTrigger } = makeNoWindow();
     trigger.noteUsage(1_000_000);
     trigger.noteUsage(5_000_000);
     expect(onTrigger).not.toHaveBeenCalled();
   });
 
   it("noteResult is a safe no-op with undefined contextWindow", () => {
-    const { trigger, onTrigger } = make(vi.fn(), undefined);
+    const { trigger, onTrigger } = makeNoWindow();
     expect(() => trigger.noteResult({ status: "skipped" } as CompactResult)).not.toThrow();
     trigger.noteUsage(1_000_000);
     expect(onTrigger).not.toHaveBeenCalled();
