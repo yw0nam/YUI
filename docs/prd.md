@@ -132,7 +132,7 @@ OpenAI 호환 스트리밍 chat + turn-bound 제어신호를 structured output�
 
 **Acceptance:**
 - chat 호출은 `/v1/responses` (또는 `/v1/chat/completions`) OpenAI 호환 스트리밍.
-- backend 응답에서 **control envelope(F9)이 서버사이드 `express` tool-call로 도착** — `/v1/responses`의 `function_call` 아이템 중 이름이 `express`인 것을 파싱(+ `GET /v1/runs/{run_id}/events` SSE). arguments = `{emotion, motion}`(비언어 전용; 발화 게이트 없음, D-NO-SPEAK-GATE). 발화 텍스트는 tool-call이 아니라 별도 텍스트 스트림 — 침묵은 텍스트 미발신으로 표현. inline 텍스트 태그 파싱 X (스트리밍 분할 깨짐 방지). json_schema 강제는 이론적 fallback으로만 강등(D-TRANSPORT/D-SPEECH, contract §Endpoint).
+- backend 응답에서 **control envelope(F9)이 서버사이드 `express` tool-call로 도착** — `/v1/responses`의 `function_call` 아이템 중 이름이 `express`인 것을 파싱(+ `GET /v1/runs/{run_id}/events` SSE). arguments = `{emotion, motion}`(비언어 전용; 발화 게이트 없음, D-NO-SPEAK-GATE). 발화 텍스트는 tool-call이 아니라 별도 텍스트 스트림 — 침묵은 텍스트 미발신으로 표현. inline 텍스트 태그 파싱 X (스트리밍 분할 깨짐 방지). json_schema 강제는 쓰지 않고 이론적 fallback으로만 둔다(D-TRANSPORT/D-SPEECH, contract §Endpoint).
 - client-side **event dispatcher**가 timer/idle-watcher/OS-event-watcher/user-input 네 source의 이벤트를 단일 bus로 모음.
 - dispatcher가 Tier 1 이벤트는 로컬에서 소비, Tier 2/3 이벤트는 backend로 패키징 전송.
 - **스트리밍 ↔ 제어신호 동시성 처리는 prototype-driven으로 결정** — M1~M2에서 실제 구현해보고 결정사항을 본 PRD 부록에 기록(아래 §5 참조).
@@ -176,8 +176,8 @@ API 엔드포인트·키·모델 ID·VRM 경로·모션셋·proactivity 파라�
 client ↔ Hermes 사이 계약 문서/스키마 4종.
 
 **Acceptance:** 다음 4종이 별도 markdown/JSON schema 파일로 `docs/contract/` 아래 존재:
-1. **`emotion_vocab.md`** — backend가 쏠 수 있는 emotion enum 리스트 + (a) 각 enum의 client VRM expression 매핑. emotion의 목소리(TTS) 차원은 enum→prefix 매핑이 아니라 `generate_express`가 싣는 **provider별 `emotion_text` voice-control 채널**이다 — 렌더 가능한 어휘는 Expression Broker가 publish한다: irodori는 **이모지 태그 집합**(PR-A에서 FishSpeech 자유 텍스트를 대체), openai-compatible/fishspeech는 자유 bracket 텍스트 — contract.md §1/§3 참고.
-2. **`motion_registry.md`** — motion ID ↔ VRMA 파일 매핑. **MVP 항목: `idle`(×5 variants), `drag`, `happy`, `laughing`, `shy_point` 5종** (D4/D-MOTION-VARIANTS 반영. `sit` 드롭 — 에셋 없음). VRMA 에셋은 `public/motions/`에 커밋, Vite `/motions/<id>.vrma` 서빙.
+1. **`emotion_vocab.md`** — backend가 쏠 수 있는 emotion enum 리스트 + (a) 각 enum의 client VRM expression 매핑. emotion의 목소리(TTS) 차원은 enum→prefix 매핑이 아니라 `generate_express`가 싣는 **provider별 `emotion_text` voice-control 채널**이다 — 렌더 가능한 어휘는 Expression Broker가 publish한다: irodori는 **이모지 태그 집합**, openai-compatible/fishspeech는 자유 bracket 텍스트 — contract.md §1/§3 참고.
+2. **`motion_registry.md`** — motion ID ↔ VRMA 파일 매핑. **MVP 항목: `idle`(×5 variants), `drag`, `happy`, `laughing`, `shy_point` 5종** (D4/D-MOTION-VARIANTS 반영. `sit` 미포함 — 에셋 없음). VRMA 에셋은 `public/motions/`에 커밋, Vite `/motions/<id>.vrma` 서빙.
 3. **`generate_express` tool 계약** ([`contract.md` §generate_express](contract.md) canonical) — `express` tool-call arguments = `{emotion_id?, motion_id?, emotion_text?}`의 JSON Schema. 발화 게이트 없음(D-NO-SPEAK-GATE), motion은 보통 client가 emotion에서 파생(D-MOTION-FROM-EMOTION). (`speech_text`는 tool 필드 아님 — 별도 텍스트 스트림. `tool_status`/`rich_content` 전송 경로 OPEN. D-TRANSPORT.)
 4. **`input_context.schema.json`** — client → backend 센서 데이터 포맷(active_app, window_title, timestamp, optional screenshot ref).
 
@@ -212,13 +212,13 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 | D1 | **립싱크 = 오디오 진폭 기반** (viseme/phoneme은 P2) | 2026-06-03 |
 | D2 | **스크린샷 정책 = UI 토글 + 소스 선택**(MVP monitor 인덱스). **ON일 때 매 대화 자동 첨부** | 2026-06-03 |
 | D3 | **단일 캐릭터** (멀티 P2) | 2026-06-03 |
-| D4 | **Motion registry MVP = `idle`(×5 variant clips), `drag`, `happy`, `laughing`, `shy_point` 5종.** `sit`은 VRMA 에셋 없어 드롭 — 에셋 준비 시 재추가. Motion VRMA 에셋은 `public/motions/`에 git-tracked 커밋(~2.4MB), Vite가 `/motions/<id>.vrma` 서빙. VRM 모델(`resources/vrms/carlotta.vrm`, ~48MB)은 gitignore 유지 (크기 임계값). | 2026-06-03 (updated feat/add_motion) |
+| D4 | **Motion registry MVP = `idle`(×5 variant clips), `drag`, `happy`, `laughing`, `shy_point` 5종.** `sit`은 VRMA 에셋 없어 미포함 — 에셋 준비 시 추가. Motion VRMA 에셋은 `public/motions/`에 git-tracked 커밋(~2.4MB), Vite가 `/motions/<id>.vrma` 서빙. VRM 모델(`resources/vrms/carlotta.vrm`, ~48MB)은 gitignore 유지 (크기 임계값). | 2026-06-03 (updated feat/add_motion) |
 | D-MOTION-VARIANTS | **idle variant pool + client-side 선택 (D-MOTION-VARIANTS).** `MotionRegistryEntry`에 optional `variants?: string[]` + `variant_policy?: "random" \| "sequential"` 추가. `idle`은 5개 VRMA clip(`idle_01`~`idle_05`)을 하나의 논리 ID로 묶어 entry마다 client가 random 선택 (`Math.floor(rng()*len)` 클램프). `variants` 없는 entry는 `vrma_path` 단일 경로 — 하위 호환. | feat/add_motion |
 | D5 | **스트리밍 ↔ 제어신호 동시성 = prototype-driven** — M1~M2에서 실제 동작 시켜 본 뒤, 다음 중 택해 본 doc 부록에 기재: (a) envelope 먼저 보내고 텍스트 stream, (b) 텍스트 stream 끝에 envelope, (c) envelope을 별도 channel/event | 2026-06-03 |
 | D6 | **스택 = Tauri + three.js + `@pixiv/three-vrm`** (AI 시각 검증 루프 목적) | 2026-06-03 |
 | D7 | **client에 brain 없음** — 모드 판단·judgment·persona 상태 일체 backend | concept v0.1 |
-| D-TRANSPORT | **Control 신호 전송 = 서버사이드 `express` tool-call.** Hermes에 등록된 `express(...)` **tool(plugin, skill 아님)** 의 arguments(`{emotion, motion}`)로 비언어 제어신호 전송. client는 `/v1/responses`의 `function_call`(name==`express`) 파싱 + `GET /v1/runs/{id}/events` SSE 수신. **이전 json_schema strict-output 강제 가정을 supersede** — json_schema는 이론적 fallback 한 줄로 강등 | 2026-06-03 |
-| D-NO-SPEAK-GATE | **발화 게이트(`should_speak`) 제거.** firing을 client event loop가 소유하므로 "말할지"를 backend transport 신호로 둘 필요 없음. **침묵 = backend가 assistant 텍스트 미발신**(`speech_text==""`) → client가 빈 텍스트면 발화 스킵. express는 순수 비언어 `{emotion?, motion?}`로 축소. Tier 2 폭주 방지는 client-side rate-limit/DND가 담당 | 2026-06-04 |
+| D-TRANSPORT | **Control 신호 전송 = 서버사이드 `express` tool-call.** Hermes에 등록된 `express(...)` **tool(plugin, skill 아님)** 의 arguments(`{emotion, motion}`)로 비언어 제어신호 전송. client는 `/v1/responses`의 `function_call`(name==`express`) 파싱 + `GET /v1/runs/{id}/events` SSE 수신. json_schema 강제는 쓰지 않고 이론적 fallback으로만 둔다 | 2026-06-03 |
+| D-NO-SPEAK-GATE | **발화 게이트(`should_speak`)가 없다.** firing을 client event loop가 소유하므로 "말할지"를 backend transport 신호로 둘 필요 없음. **침묵 = backend가 assistant 텍스트 미발신**(`speech_text==""`) → client가 빈 텍스트면 발화 스킵. express는 순수 비언어 채널이다(`{emotion_id?, motion_id?, emotion_text?}`). Tier 2 폭주 방지는 client-side rate-limit/DND가 담당 | 2026-06-04 |
 | D-MOTION-FROM-EMOTION | **motion은 client가 emotion에서 파생.** backend는 보통 emotion만 전송. `express.motion` 생략 시 client가 emotion id 전이 순간 emotion→motion 기본 매핑에서 제스처 1회 파생(oneshot; 매핑 없으면 idle). `express.motion` 명시 시 override(정서 무관 제스처/억제용 escape hatch). motion 채널은 schema에 optional 유지. client 구현 = #16 계열 후속(매핑 아티팩트 신설) | 2026-06-04 |
 | D-SPEECH | **발화 텍스트 = Hermes 일반 assistant 텍스트 스트림**(`response.output_text.delta`). tool-call 안에 넣지 않음 | 2026-06-03 |
 | D-TTS-PIPELINE | **client-side TTS 파이프라인(required):** 텍스트 스트림 → 버퍼 큐 적재 → 문장 분절 감지 → per-sentence TTS → output wav → UI 재생 → **재생 순서 보존(ordered playback)** → 진폭 립싱크를 재생 wav에 동기. (TTS 엔드포인트는 `tts_provider`로 swap — default irodori `/synthesize` @8091, openai `/audio/speech` @8092. contract.md §5.) | 2026-06-03 |
@@ -235,11 +235,11 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 | D-INSTRUCTIONS-OVERRIDE | **`instructions` = per-user 런타임 오버라이드 + precedence.** Responses `instructions` 필드(system message, 이미 존재하는 요청 필드)를 런타임 per-user 설정으로 오버라이드한다. **precedence: 비어있지 않은 런타임 오버라이드가 우선, 비어있으면 `EndpointsConfig.chat_instructions`(config 기본값)로 폴백.** 런타임 레이어일 뿐 checked-in `configs/endpoints.json`을 mutate하지 않는다. (contract.md §Runtime request-shaping inputs) | 2026-06-07 |
 | D-AGENT-SETTINGS-STORE | **D-REASONING-EFFORT + D-INSTRUCTIONS-OVERRIDE는 per-user localStorage에 영속(key `yui.agent`)** — 기존 reactive-settings-store 패턴(`src/io/lipsync-settings.ts`, `src/io/screenshot-settings.ts`) 그대로. 설정 UI에 노출되며, 이번 UI 리디자인에서 설정 표면이 ① **위치 기억되는 draggable in-window 패널** + ② 동일 설정을 **별도 네이티브 윈도우로 여는 "pop out" 버튼**(instructions 에디터의 넉넉한 home)으로 확장된다. 우클릭은 기본으로 docking 패널을 연다. (말풍선 하단 신체 이동·reasoning-effort 컨트롤·instructions 에디터를 함께 다루는 redesign 묶음) | 2026-06-07 |
 | D-TTS-IRODORI | **irodori_TTS provider (additive · config-swappable · default).** `tts_provider`(`"openai" \| "irodori"`, 기본 `irodori`)로 TTS 백엔드를 교체한다. irodori_TTS는 `irodori_base_url`(`localhost:8091`) `/synthesize`로 호출하며 **OpenAI 호환이 아니라 reference-voice 기반**이다 — per-speaker 목소리는 `irodori_voices` registry에 둔다(`irodori_speaker`로 선택). 기존 OpenAI TTS(`/audio/speech` @8092)와 additive 공존하며 둘 다 같은 `emotion_text` prefix 채널을 쓴다. (contract.md §5) | 2026-06-08 |
-| D-EMOTION-TEXT-EMOJI | **`emotion_text` 어휘 = FishSpeech 자유 텍스트 → 이모지 태그 집합 (PR-A).** generate_express의 `emotion_text`(예: `"😏"`, `"🥺🥺"`)는 prefix-only voice-control 태그다 — TTS 분절 text 맨 앞에만 prepend되고 **말풍선에는 노출되지 않는다**. 같은 이모지를 반복하면 강도가 세지고 조합도 가능. (contract.md §1/§3 D-EMOTION-TEXT 표) | 2026-06-08 |
+| D-EMOTION-TEXT-EMOJI | **`emotion_text` 어휘 = 이모지 태그 집합.** generate_express의 `emotion_text`(예: `"😏"`, `"🥺🥺"`)는 prefix-only voice-control 태그다 — TTS 분절 text 맨 앞에만 prepend되고 **말풍선에는 노출되지 않는다**. 같은 이모지를 반복하면 강도가 세지고 조합도 가능. (contract.md §1/§3 D-EMOTION-TEXT 표) | 2026-06-08 |
 | D-EXPRESSION-BROKER | **Expression Broker MCP가 렌더 가능한 emotion/motion/emotion_text 어휘를 provider별로 브로커링.** YUI는 부팅·VRM 핫스왑·broker 재연결 시 `update_*`로 자기가 렌더 가능한 집합을 publish하고(WRITER), Hermes agent는 broker에서 유효 어휘를 읽어 그 안에서 generate_express를 호출한다. `broker_base_url`(`localhost:3201/mcp`, streamable-http)는 config 소관. `emotion_text` 게이트는 provider 조건부 — irodori ⇒ `mode="enum"`(이모지 표 키만 허용, 미등록 drop+경고, 발화 미차단), openai-compatible/fishspeech ⇒ `mode="free"`(pass-through). broker down 시 best-effort degrade(publish만 skip, 부팅 차단 X). D1–D6 결정 로그는 docs/expression-broker-mcp.md. | 2026-06-09 |
 | D-FULLBODY-FRAMING | **전신 fit-to-bounds 카메라 (#106).** 렌더러는 VRM 로드/핫스왑/창 리사이즈마다 모델 bounding box(`Box3.setFromObject`, 휴식 포즈 기준 idle 전)를 측정해 카메라 거리·`lookAt`을 도출 — **전신(머리→발) 정면·중앙 정렬**, 키 다른 모델 스왑에도 안정. 높이/폭 둘 중 먼 거리를 채택해 좁은 창에서 팔 잘림 방지. knob = `configs/avatar.json`의 선택 `framing { margin≥0, fov∈(0,180) }`(no-hardcoding; default는 렌더러 소유 `margin=0.1`/`fov=30`). 정적 정면 프레이밍만 — 오빗/시점 조작은 비채택(별도 nit). | 2026-06-09 |
 
-추후 결정은 본 표에 append. 기존 항목은 변경하지 말고 supersede 표시.
+추후 결정은 본 표에 현재형으로 append/갱신한다.
 
 ---
 
@@ -328,7 +328,7 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 | R7 | 스크린샷이 민감 정보 노출 | Medium | High | 토글 기본 OFF. 첨부 직전 UI에 "스크린샷 첨부 중" indicator 표시. 캡처 영역 config로 제한 |
 | R8 | config 파일에 평문 API 키 — 유출 위험 | Low | High | MVP는 개인용이라 수용. F8의 추상화 레이어 덕에 OSS 진입 시 OS keychain으로 교체 비용 낮음 |
 | R9 | three.js + VRM 메모리 누수 (핫스왑 반복 시) | Medium | Medium | F1 acceptance에 핫스왑 반복 테스트 추가(10회 swap 후 메모리 baseline +20% 이내) — M4에서 검증 |
-| R10 | Control transport — **확정: 서버사이드 `express` tool-call**(D-TRANSPORT). 잔여 리스크: tool-call 파싱/수신 경로 안정성 | Medium | High | §8 Dependencies에 명시. M0 sign-off에서 backend `express` skill commitment 확보. **검증(2026-06): Hermes `/v1/responses`가 `function_call` 아이템 노출(공식 docs) + `GET /v1/runs/{id}/events` SSE.** json_schema 강제는 이론적 fallback으로만 강등(더 이상 plan 아님) |
+| R10 | Control transport — **확정: 서버사이드 `express` tool-call**(D-TRANSPORT). 잔여 리스크: tool-call 파싱/수신 경로 안정성 | Medium | High | §8 Dependencies에 명시. M0 sign-off에서 backend `express` skill commitment 확보. **검증(2026-06): Hermes `/v1/responses`가 `function_call` 아이템 노출(공식 docs) + `GET /v1/runs/{id}/events` SSE.** json_schema 강제는 쓰지 않음, 이론적 fallback으로만 둠 |
 | R16 | ~~emotion 도착 타이밍~~ **해소(2026-06): emotion optional** — 있으면 prefix, 없으면 plain TTS. 하드 의존 아님 | Low | Low | best-effort prefix (contract §3 D-TTS-PIPELINE). 특별 fallback 불요 |
 | R17 | ~~express 매 턴 호출 보장~~ **해소(2026-06): express optional** — 없는 턴은 idle motion + 직전 표정 유지 | Low | Low | express 부재 = 정상 케이스 (contract §3) |
 | R11 | (=dispatcher A1) Rust OS-wide idle API 접근 — Linux Wayland 미지원 가능 | Medium | Medium | M1에서 Win/macOS 우선 검증. Wayland는 idle source `error` 처리 + 대체 경로 조사 |

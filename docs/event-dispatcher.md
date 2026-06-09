@@ -6,7 +6,6 @@
 - [`contract.md`](./contract.md) — envelope/input-context 스키마 (source of truth, payload는 본 spec이 재정의하지 않음)
 - [`prd.md`](./prd.md) — F6/F7 acceptance + M0~M4 마일스톤
 - [`event-dispatcher.tests.md`](./event-dispatcher.tests.md) — 테스트 케이스 카탈로그 (구 §15 분리)
-- [`alignment-report.md`](./alignment-report.md) — Phase 0 cross-doc 정합 기록
 
 ## 0. Overview
 모든 발화 후보 event를 단일 경로로 모아 Tier별 라우팅 + 가드레일 + 로컬 ambient 또는 backend judgment로 보낸다. **firing(client) ≠ judgment(backend)** 원칙을 강제하는 단일 컴포넌트.

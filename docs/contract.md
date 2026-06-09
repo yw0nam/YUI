@@ -2,13 +2,12 @@
 
 > **Version:** v0.2 draft — build-startable, 세부는 prototype에서 좁힌다. (changelog 맨 아래)
 > **Scope:** client(YUI) ↔ backend(Hermes) 사이의 4개 스키마.
-> **Single-file 정책:** 4종 스키마(Emotion / Motion / Control envelope / Input context)는 본 파일 단일 문서로 유지 — 4개로 쪼개면 cross-ref 폭증. PRD F9에서 `docs/contract/` 4파일을 권고했으나 **본 단일 파일로 supersede**.
+> **Single-file 정책:** 4종 스키마(Emotion / Motion / Control envelope / Input context)는 본 파일 단일 문서로 유지 — 4개로 쪼개면 cross-ref 폭증을 막기 위해 단일 파일로 둔다.
 
 **Companion specs:**
 - [`concept.md`](./concept.md) §1 §4 — 원칙과 4종 산출물 정의
 - [`event-dispatcher.md`](./event-dispatcher.md) — §7.1/§10이 본 문서의 `InputContext`/`ControlEnvelope`를 그대로 사용
 - [`prd.md`](./prd.md) §3 F9, §8 Dependencies — 마일스톤별 검증 지점
-- [`alignment-report.md`](./alignment-report.md) — Phase 0 정합 기록
 - [`openai_response_sdk/`](./openai_response_sdk/) — Hermes Responses API SSE event 형식 (`sse-event-format.md`가 function_call/텍스트 스트림 파싱의 근거)
 
 전송 계층은 [`concept.md`](./concept.md) §1대로 OpenAI 호환 API. 이 문서는 그 위에 얹는 payload만 다룬다. **제어신호(emotion_id/motion_id/emotion_text)는 서버사이드 `generate_express` tool-call의 FLAT arguments로** 전송 — inline 텍스트 태그 금지. **발화 텍스트는 tool-call이 아니라 별도 assistant 텍스트 스트림**으로 흐른다 (§3 참고). 발화 게이트(`should_speak`)는 없다 — 침묵은 backend가 텍스트를 안 보내는 것으로 표현한다(D-NO-SPEAK-GATE, §3).
@@ -37,7 +36,7 @@
 
 - **검증(2026-06):** Hermes `/v1/responses`가 `function_call` 아이템을 노출함(공식 docs). `generate_express`가 **서버사이드 tool**이므로 caller가 tool 정의를 주입할 필요가 없다.
 - **발화 텍스트는 tool 페이로드 밖:** 발화는 `generate_express` arguments에 넣지 않고, Hermes의 일반 assistant 텍스트 스트림(`response.output_text.delta`)으로 토큰 단위 수신한다(§3 D-SPEECH).
-- **이 결정은 이전의 "json_schema strict output으로 envelope 강제" 가정을 supersede한다.** json_schema(Responses `text.format` / Chat `response_format`)는 더 이상 plan이 아니며, `generate_express` tool-call이 불가능할 경우의 **이론적 fallback**으로만 한 줄 남긴다.
+- **제어신호는 `generate_express` tool-call로 전송한다.** json_schema(Responses `text.format` / Chat `response_format`)는 쓰지 않으며, `generate_express` tool-call이 불가능할 경우의 **이론적 fallback**으로만 둔다.
 
 ### Runtime request-shaping inputs (per-user, layered on config)
 
@@ -55,7 +54,7 @@ chat 요청은 위 `EndpointsConfig` 위에 **per-user 런타임 입력 2종**�
 backend가 turn마다 보낼 수 있는 emotion enum. emotion enum은 **얼굴(표정)** 채널이다 — client-side에서 VRM expression registry로 소비된다:
 - **(a) VRM expression registry:** emotion enum → VRM expression 키. 모델 핫스왑 시 backend는 손대지 않는다.
 
-emotion의 **목소리(TTS) 차원**은 이 enum이 아니라 `generate_express`가 싣는 **별도의 자유 텍스트 `emotion_text` 채널**이다 — enum→prefix 매핑이 아니라 검증 없는 voice 태그를 model이 직접 생성한다(§3 / `generate_express`). **어휘는 이모지 태그**다(PR-A에서 FishSpeech 자유 텍스트를 대체 — §3 D-EMOTION-TEXT 표, §5). client는 이 태그를 TTS 분절 text **맨 앞에 prepend**할 뿐이라 **말풍선에는 들어가지 않는다**(prefix-only).
+emotion의 **목소리(TTS) 차원**은 이 enum이 아니라 `generate_express`가 싣는 **별도의 자유 텍스트 `emotion_text` 채널**이다 — enum→prefix 매핑이 아니라 검증 없는 voice 태그를 model이 직접 생성한다(§3 / `generate_express`). **어휘는 이모지 태그**다(§3 D-EMOTION-TEXT 표, §5). client는 이 태그를 TTS 분절 text **맨 앞에 prepend**할 뿐이라 **말풍선에는 들어가지 않는다**(prefix-only).
 
 ### Enum
 - **표준 (VRM 1.0 preset 그대로):** `neutral` `happy` `angry` `sad` `relaxed` `surprised`
@@ -103,7 +102,7 @@ interface EmotionSignal {
 
 ### Emotion 목소리 차원 → `emotion_text` 채널
 
-emotion enum→prefix 매핑은 없다. emotion의 목소리(TTS) 차원은 `generate_express`가 싣는 **자유 텍스트 `emotion_text`** 필드로 전달된다 — 검증 없는 voice 태그를 model이 직접 생성하고(§3 / `generate_express`), client는 이를 TTS 분절 맨 앞에 prepend한다(§3 D-TTS-PIPELINE step 4). **PR-A부터 어휘는 이모지 태그 집합**이다(§3 D-EMOTION-TEXT 표). 같은 이모지를 반복하면 강도가 세진다(예: `🥺🥺`). prefix-only라 말풍선엔 노출되지 않는다.
+emotion enum→prefix 매핑은 없다. emotion의 목소리(TTS) 차원은 `generate_express`가 싣는 **자유 텍스트 `emotion_text`** 필드로 전달된다 — 검증 없는 voice 태그를 model이 직접 생성하고(§3 / `generate_express`), client는 이를 TTS 분절 맨 앞에 prepend한다(§3 D-TTS-PIPELINE step 4). **어휘는 이모지 태그 집합**이다(§3 D-EMOTION-TEXT 표). 같은 이모지를 반복하면 강도가 세진다(예: `🥺🥺`). prefix-only라 말풍선엔 노출되지 않는다.
 
 ---
 
@@ -121,7 +120,7 @@ backend가 motion ID로 동작을 요청하면 client가 VRMA 파일 + 재생 �
 | `laughing`   | oneshot  | no   | 70       | replace          | 웃음 제스처.                                |
 | `shy_point`  | oneshot  | no   | 70       | replace          | 부끄럼+손가락 제스처.                       |
 
-> **`sit` 제거:** VRMA 에셋 없음 — 에셋 준비 시 재추가. (기존 D4에서 `sit`이 MVP에 포함되어 있었으나 feat/add_motion에서 드롭됨.)
+> **`sit` 미포함:** VRMA 에셋 없음 — 에셋 준비 시 추가.
 
 `idle`은 backend 요청 없이도 client가 깔아두는 baseline. backend가 `motion: null`을 보내면 client는 `idle`로 복귀한다. `happy`/`laughing`/`shy_point`는 gesture 모션(oneshot)으로, `emotion` 채널(표정)과 **독립된** `motion` 채널로 전달된다.
 
@@ -206,7 +205,7 @@ interface AvatarConfig {
 
 **`generate_express`는 매 턴 선택(optional)이다 (확정).** Hermes가 어떤 턴에 `generate_express`를 호출하지 않으면 client는 기본 동작한다 — motion은 `idle` 유지, emotion 변화 없음(직전 표정 유지), 발화는 정상 진행. generate_express는 "있으면 적용, 없으면 idle"인 **부가 제어 채널**이지 필수가 아니다. 따라서 generate_express 도착 타이밍·매 턴 호출은 **하드 의존이 아니다.**
 
-**[D-NO-SPEAK-GATE] 발화 게이트(`should_speak`)는 없다 (제거 2026-06-04).** firing(언제 backend를 부를지)은 **client event loop가 소유**한다(F5/F7 트리거가 client쪽). 따라서 "이 턴에 말할지"를 backend transport 신호로 둘 필요가 없다 — **침묵 = backend가 assistant 텍스트를 내보내지 않음**(`speech_text == ""`). client는 빈 텍스트면 TTS/말풍선을 스킵하므로 별도 플래그가 불필요하다. backend가 능동적으로 발화하는 턴도 동일 — 말하면 텍스트가 오고, 안 말하면 안 온다.
+**[D-NO-SPEAK-GATE] 발화 게이트(`should_speak`)는 없다.** firing(언제 backend를 부를지)은 **client event loop가 소유**한다(F5/F7 트리거가 client쪽). 따라서 "이 턴에 말할지"를 backend transport 신호로 둘 필요가 없다 — **침묵 = backend가 assistant 텍스트를 내보내지 않음**(`speech_text == ""`). client는 빈 텍스트면 TTS/말풍선을 스킵하므로 별도 플래그가 불필요하다. backend가 능동적으로 발화하는 턴도 동일 — 말하면 텍스트가 오고, 안 말하면 안 온다.
 
 **[D-EMOTION-TEXT] `emotion_text`는 provider 의존 TTS voice tag 채널이다.** generate_express가 `emotion_text`(예: `"😏"`, `"🥺🥺"`)를 실으면 client는 정규화 envelope의 `emotion_text` 필드에 그대로 담아 **TTS 파이프라인으로 라우팅**한다(backend-caller가 `onEmotionText` 콜백으로 전달). emotion_id(VRM 표정 enum)와 직교하는 별도 채널 — 표정과 무관하게 목소리 연출만 바꿀 수 있다. **어휘는 provider별로 다르며 [`tts_emotion/`](./tts_emotion/)에 권위 있게 문서화**된다(아래 표는 irodori용 요약). prefix 방식이라 이모지/태그는 TTS 입력 text에만 들어가고 말풍선엔 절대 노출되지 않는다.
 
@@ -462,7 +461,7 @@ backend는 ` ```yui-context ` 마커로 파싱. system prompt 1줄로 약속해�
 발화 분절(D-TTS-PIPELINE step 5)을 wav로 합성하는 경로. **두 provider가 additive로 공존**하며 `tts_provider`로 선택한다 — OpenAI 호환 `/audio/speech`(기존)와 **irodori_TTS**(`/synthesize`, OpenAI 호환 아님). default는 `irodori`. 둘 다 §3의 `emotion_text` 이모지 어휘를 분절 맨 앞 prefix로 받는다(말풍선엔 노출 안 됨). 합성 동시성은 provider 무관하게 `tts_max_inflight`로 상한(default 1 = serial; consumer인 tts-pipeline이 적용, loader가 아님).
 
 ### 5.1 EndpointsConfig 추가 필드 (configs/endpoints.json)
-> `EndpointsConfig`(§Endpoint abstraction)의 확장이다. 기존 OpenAI TTS 필드(`tts_base_url`/`tts_model`/`tts_voice`/`tts_speed`)는 그대로 유지(`provider="openai"`일 때 쓰임). 아래는 PR-A 추가분. doc↔`src/contract/types.ts` SOT 동기 — 필드 변경 시 양쪽 갱신.
+> `EndpointsConfig`(§Endpoint abstraction)의 확장이다. OpenAI TTS 필드(`tts_base_url`/`tts_model`/`tts_voice`/`tts_speed`)는 `provider="openai"`일 때 쓰인다. 아래는 irodori provider 필드다. doc↔`src/contract/types.ts` SOT 동기 — 필드 변경 시 양쪽 갱신.
 
 ```ts
 interface EndpointsConfig {
@@ -515,7 +514,7 @@ POST /synthesize    Content-Type: multipart/form-data   →   audio/wav (48 kHz,
 | `seed` | — | — | 재현용. 응답 `X-Used-Seed`에 실측값. |
 
 - **per-synth 요청은 `text` + `reference_id` + tunables만** 싣는다(파일 동봉 안 함 — 화자는 사전 등록된 `reference_id`로 참조).
-- **`reference_text`는 제거됐다 (모델이 transcript를 무시).** 더 이상 보내지 않는다.
+- **`reference_text`는 보내지 않는다 (모델이 transcript를 무시한다).**
 - **응답 헤더:** `X-RTF`(real-time factor), `Server-Timing`(per-stage + `total;dur=`), `X-Used-Seed`.
 
 ### 5.3 Voice registry (`/voices`)
@@ -563,6 +562,6 @@ prototype에서 결정/검증:
 
 ## Changelog
 
-- **2026-06-08 (PR-A):** §5 추가 — **irodori_TTS** provider(라이브 검증 8091 `/synthesize` + `/voices` registry, OpenAI 호환 아님)를 기존 OpenAI TTS와 additive로 공존. `EndpointsConfig`에 `tts_provider`(default irodori)·`tts_max_inflight`·`irodori_*` 필드 추가. `emotion_text` 어휘를 FishSpeech 자유 텍스트 → **이모지 태그 집합**으로 교체(§1·§3 D-EMOTION-TEXT 표; prefix-only, 말풍선 비노출). `reference_text`는 제거(모델이 transcript 무시).
+- **2026-06-08 (PR-A):** §5 — **irodori_TTS** provider(라이브 검증 8091 `/synthesize` + `/voices` registry, OpenAI 호환 아님)가 OpenAI TTS와 공존하며 default는 `irodori`. `EndpointsConfig`는 `tts_provider`(default irodori)·`tts_max_inflight`·`irodori_*` 필드를 싣는다. `emotion_text` 어휘는 **이모지 태그 집합**이다(§1·§3 D-EMOTION-TEXT 표; prefix-only, 말풍선 비노출). `reference_text`는 미사용(모델이 transcript 무시).
 - **2026-06-08:** §2.5 추가 — `AvatarConfig.available?: AvatarOption[]` VRM 선택 manifest(#94). `vrm_url`은 필수 유지(하위 호환).
-- **2026-06-06 (v0.2 draft):** `emotion_tts_prefix`(emotion-enum→TTS-prefix 매핑) 제거 — emotion의 목소리 제어는 `generate_express`의 자유 텍스트 `emotion_text` 채널로 일원화(§1, §3 D-TTS-PIPELINE step 4).
+- **2026-06-06 (v0.2 draft):** emotion 음성 제어는 `generate_express`의 자유 텍스트 `emotion_text` 채널로 한다(enum→TTS-prefix 매핑은 쓰지 않는다 — §1, §3 D-TTS-PIPELINE step 4).
