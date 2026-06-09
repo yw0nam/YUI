@@ -58,6 +58,13 @@ import { createWebAudioSink } from "./io/audio-player";
 import { resolveScreenSourceProvider, resolveScreenCapturer } from "./io/tauri-screen";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createOsContext } from "./io/os-context";
+import { createSessionStore, localStorageSessionStorage } from "./io/session-store";
+import {
+  createSessionDiagnosticsStore,
+  localStorageSessionDiagnosticsStorage,
+} from "./io/session-diagnostics";
+import { createSessionCompactor } from "./io/session-compactor";
+import { createCompactionTrigger } from "./io/compaction-trigger";
 import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET, loadEmotionTextTable } from "./config";
 import { createBrokerClient, deriveBrokerPayload, type BrokerClient } from "./io/broker-client";
 import { initDrag } from "./drag";
@@ -155,6 +162,10 @@ async function bootstrap(): Promise<void> {
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
+  // 세션 연속성(#128) store: 회전 id 포인터 + 진단(used/window/last-compression). 두 창이
+  // wireStorageSync로 동기화하므로 다른 store들과 함께 일찍 만든다(config/dispatcher 비의존).
+  const sessionStore = createSessionStore(localStorageSessionStorage());
+  const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
   // 사용자 편집 엔드포인트 오버라이드(#95): localStorage가 bundled config를 덮는다(빈 값=폴백).
   const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
   // config.endpoints 위에 오버라이드를 얹은 effective 엔드포인트. 호출 시점에 평가(핫리로드 친화).
@@ -174,7 +185,7 @@ async function bootstrap(): Promise<void> {
   // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
   // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
   const openSettings = createSettingsWindowOpener();
-  const disposeStorageSync = wireStorageSync([agentSettings, endpointsSettings, lipsyncSettings, screenshotSettings, cameraSettings]);
+  const disposeStorageSync = wireStorageSync([agentSettings, endpointsSettings, lipsyncSettings, screenshotSettings, cameraSettings, sessionStore, sessionDiagnostics]);
 
   // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
   // 시스템(VRM 렌더러 · STT/VAD)에 닿게 한다. storage 폴백은 위 wireStorageSync로 유지.
@@ -492,6 +503,16 @@ async function bootstrap(): Promise<void> {
   if (import.meta.env.DEV && !import.meta.env.VITE_YUI_CHAT_KEY) {
     log.warn("VITE_YUI_CHAT_KEY 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. .env.local 참고(.env.example).");
   }
+  // compactor의 getApiKey/getFetch는 동기 — async SecretProvider/selectFetch를 1회 해소해
+  // 캐시한다(부트 시 워밍). 둘 다 런타임 내내 안정적(빌드 상수 키 + 환경별 transport).
+  let chatApiKey: string | undefined;
+  let chatFetch: typeof globalThis.fetch | undefined;
+  void config.secrets.get(CHAT_API_KEY_SECRET).then((k) => {
+    chatApiKey = k;
+  });
+  void selectFetch().then((f) => {
+    chatFetch = f;
+  });
   // synth는 호출 시점에 config(핫리로드)와 selectFetch를 읽는 closure로 주입한다.
   // config.get()을 여기서 eager 평가하면 load() 전 throw로 부트스트랩이 죽으니 금지.
   // 재생 진폭은 renderer 입 모양으로, 재생 완료는 말풍선 페이드 해제로 흐른다(speech-playback).
@@ -561,6 +582,41 @@ async function bootstrap(): Promise<void> {
     Object.assign(globalThis as Record<string, unknown>, { __yuiSpeech: speechPlayback });
   }
 
+  // ── 세션 연속성(#128) ─────────────────────────────────────────────────────
+  // 압축 클라이언트 + 토큰 점유 히스테리시스 트리거. compact thunk가 store들을 조립해
+  // dispatcher에 넘긴다 — dispatcher는 store-agnostic이므로 rotation/진단/trigger 피드백은
+  // 여기서 일어난다. session store들은 위에서 wireStorageSync 대상으로 일찍 만든다.
+  const compactor = createSessionCompactor({
+    get config() {
+      return getEndpoints();
+    },
+    getFetch: () => chatFetch,
+    getApiKey: () => chatApiKey,
+  });
+  const compactionTrigger = createCompactionTrigger({
+    contextWindow: getEndpoints().chat_model_context_window,
+    thresholdRatio: getEndpoints().compact_threshold_ratio ?? 0.7,
+    resumeRatio: getEndpoints().compact_resume_ratio ?? 0.5,
+    onTrigger: () => dispatcherRef?.requestCompaction(),
+  });
+  // 압축 thunk: 회전 id 적용 + 진단 기록 + trigger 피드백. dispatcher가 timeout과 race해 호출.
+  const compact = async (signal: AbortSignal) => {
+    const startId = sessionStore.get();
+    const result = await compactor.compress(startId, signal);
+    // 압축 중 reset이 새 id를 발급했으면 회전·진단을 건너뛴다 — 폐기된 세션의 연속분 부활 방지.
+    if (result.status === "compressed" && result.session_id && sessionStore.get() === startId) {
+      sessionStore.set(result.session_id);
+      sessionDiagnostics.setLastCompression({
+        beforeTokens: result.before_tokens ?? 0,
+        afterTokens: result.after_tokens ?? 0,
+        removed: result.removed ?? 0,
+        at: new Date().toISOString(),
+      });
+    }
+    compactionTrigger.noteResult(result);
+    return result;
+  };
+
   const backendCaller = createBackendCaller({
     get config() {
       return getEndpoints();
@@ -568,6 +624,11 @@ async function bootstrap(): Promise<void> {
     renderer,
     getApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
     getFetch: () => selectFetch(),
+    getSessionId: () => sessionStore.get(),
+    onUsage: (usage) => {
+      compactionTrigger.noteUsage(usage.total_tokens);
+      sessionDiagnostics.setUsage(usage.total_tokens, getEndpoints().chat_model_context_window ?? null);
+    },
     onSpeech: (text) => speechPlayback.onSpeech(text),
     onSpeechDelta: (text) => speechPlayback.onSpeechDelta(text),
     onSpeechEnd: () => speechPlayback.onSpeechEnd(),
@@ -583,11 +644,30 @@ async function bootstrap(): Promise<void> {
     getOsContext: () => osContext.get(),
     getAgentSettings: () => agentSettings.get(),
   });
-  const dispatcher = createDispatcher({ bus, renderer, backendCaller });
+  const dispatcher = createDispatcher({
+    bus,
+    renderer,
+    backendCaller,
+    compact,
+    getSessionId: () => sessionStore.get(),
+    compactTimeoutMs: getEndpoints().compact_timeout_ms ?? 12000,
+  });
   dispatcherRef = dispatcher;
+  // 압축 중 입력 비활성화(field disabled + pending 디밍). busy 캐릭터 cue는 dispatcher가 처리.
+  const unsubCompactState = dispatcher.subscribeState((s) => {
+    surfaces.setInputEnabled(s !== "compacting");
+  });
+  // 세션 id 회전(설정 창 reset 등) → trigger 재무장.
+  const unsubSessionReset = sessionStore.subscribe(() => compactionTrigger.reset());
   // HMR로 모듈이 재실행되면 이전 dispatcher의 setInterval/ in-flight가 남는다 → dispose에서 정지.
   if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => dispatcher.stop());
+    import.meta.hot?.dispose(() => {
+      dispatcher.stop();
+      unsubCompactState();
+      unsubSessionReset();
+      sessionStore.dispose();
+      sessionDiagnostics.dispose();
+    });
   }
 
   try {
@@ -633,6 +713,31 @@ async function bootstrap(): Promise<void> {
     }
   } catch (err) {
     log.error("config load / VRM load failed:", err);
+  }
+
+  // 유휴/배경 전이마다 압축 기회를 노린다(#128). requestCompaction은 idempotent —
+  // 세션 부재·이미 compacting·중복 발사를 dispatcher가 삼킨다. macOS 포커스 churn을
+  // 막기 위해 1s 디바운스 가드를 둔다(performance.now 기준 — Date.now 의존 회피).
+  const COMPACT_TRIGGER_DEBOUNCE_MS = 1000;
+  let lastTrigger = -Infinity;
+  function requestCompactionDebounced(): void {
+    const now = performance.now();
+    if (now - lastTrigger < COMPACT_TRIGGER_DEBOUNCE_MS) return;
+    lastTrigger = now;
+    dispatcher.requestCompaction();
+  }
+  function onVisibilityChange(): void {
+    requestCompactionDebounced();
+  }
+  window.addEventListener("focus", requestCompactionDebounced);
+  window.addEventListener("blur", requestCompactionDebounced);
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  if (import.meta.env.DEV) {
+    import.meta.hot?.dispose(() => {
+      window.removeEventListener("focus", requestCompactionDebounced);
+      window.removeEventListener("blur", requestCompactionDebounced);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    });
   }
 
   // 핫리로드: avatar manifest가 바뀌면 setManifest로 갱신 후 active VRM 핫스왑(#4 핫스왑).

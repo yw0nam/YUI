@@ -19,6 +19,8 @@ export type {
   RichItem,
   ToolStatus,
   ControlEnvelope,
+  Usage,
+  SessionCompressionResponse,
   // §4 Input context
   ScreenSource,
   InputContext,

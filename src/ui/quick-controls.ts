@@ -25,6 +25,8 @@ import {
   isValidEndpointUrl,
   type EndpointOverrides,
 } from "../io/endpoints-settings";
+import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
+import type { createSessionStore } from "../io/session-store";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
@@ -32,6 +34,8 @@ type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 type VrmSelectionStore = ReturnType<typeof createVrmSelection>;
 type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
+type SessionDiagnosticsStore = ReturnType<typeof createSessionDiagnosticsStore>;
+type SessionStore = ReturnType<typeof createSessionStore>;
 
 interface QuickControlsOptions {
   mount: HTMLElement;
@@ -58,6 +62,10 @@ interface QuickControlsOptions {
   endpointsSettings: EndpointsSettingsStore;
   /** placeholder로 보여줄 bundled config 기본 엔드포인트(미로드 시 undefined). */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
+  /** 세션 진단(컨텍스트 사용량·마지막 압축). window variant에서만 세션 섹션을 그린다. */
+  sessionDiagnostics?: SessionDiagnosticsStore;
+  /** 현재 세션 id 포인터. "새 대화 시작"이 진단과 함께 비운다. */
+  sessionStore?: SessionStore;
 }
 
 interface QuickControls {
@@ -95,6 +103,29 @@ const ENDPOINT_URL_ERROR = "올바른 URL이 아니에요 (http:// 또는 https:
 
 export const PREVIEW_PEAK_RMS = 0.15;
 const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
+
+// 토큰 수를 "18.2K" / "18K" / "200K" 꼴로 줄여 표기한다. 1000 미만은 그대로,
+// 100K 미만은 소수 1자리(다만 .0은 떼고), 이상은 정수.
+export function formatTokenCount(n: number): string {
+  if (n < 1000) return String(n);
+  const k = n / 1000;
+  if (k >= 100) return Math.round(k) + "K";
+  return k.toFixed(1).replace(/\.0$/, "") + "K";
+}
+
+// 과거 ISO 시각을 현재 기준 상대 표현으로. just now / N minutes ago / N hours ago / N days ago.
+export function formatRelativeTime(iso: string, now = Date.now()): string {
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return "";
+  const sec = Math.max(0, Math.round((now - then) / 1000));
+  if (sec < 45) return "just now";
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min} minute${min === 1 ? "" : "s"} ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr} hour${hr === 1 ? "" : "s"} ago`;
+  const day = Math.round(hr / 24);
+  return `${day} day${day === 1 ? "" : "s"} ago`;
+}
 
 interface SavedPos {
   x: number;
@@ -141,8 +172,12 @@ export function createQuickControls({
   getDefaultInstructions,
   endpointsSettings,
   getEndpointDefaults,
+  sessionDiagnostics,
+  sessionStore,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
+  // 세션 섹션은 설정 창(window)에서만, 두 store가 모두 주입됐을 때 그린다.
+  const hasSession = isWindow && !!sessionDiagnostics && !!sessionStore;
   // variant 태그로 어느 창이 만든 로그인지 구분(Tauri가 두 창 로그를 한 파일로 병합).
   const log = createLogger(isWindow ? "settings-ui" : "quick-ui");
 
@@ -179,6 +214,39 @@ export function createQuickControls({
             ${errHtml}
           </div>`;
   }).join("");
+
+  // 세션 섹션(window 전용). compacting/disabled 상태는 의도적으로 구현하지 않는다 —
+  // dispatcher의 compacting 상태는 창 간 전파되지 않고, reset은 펫 창 thunk가 이미 race-safe.
+  const sessionHtml = hasSession
+    ? `
+      <div class="yui-quick__divider" aria-hidden="true"></div>
+      <span class="yui-quick__section">세션 · Session</span>
+      <div class="yui-session">
+        <div class="yui-session__stat">
+          <div class="yui-session__statline">
+            <span class="yui-session__label">Context</span>
+            <span class="yui-session__value"></span>
+          </div>
+        </div>
+        <div class="yui-session__grid">
+          <span class="k">Last compression</span>
+          <span class="yui-session__last"></span>
+          <span class="yui-session__when-k">When</span>
+          <span class="yui-session__when-v v"></span>
+        </div>
+        <div class="yui-quick__divider" aria-hidden="true"></div>
+        <div class="yui-session__action">
+          <span class="yui-session__action-label">새 대화 시작 · Start fresh</span>
+          <span class="yui-session__action-sub">Start a new conversation. YUI keeps the current memory until you do.</span>
+        </div>
+        <button class="yui-link-btn yui-session__reset" type="button">대화 초기화 · Reset conversation</button>
+        <div class="yui-confirm" hidden>
+          <span class="yui-confirm__q">Start over?</span>
+          <button class="yui-pill yui-pill--go yui-session__confirm" type="button">Start fresh</button>
+          <button class="yui-pill yui-session__cancel" type="button">Cancel</button>
+        </div>
+      </div>`
+    : "";
 
   const headerHtml = isWindow
     ? `
@@ -334,6 +402,7 @@ export function createQuickControls({
         <input class="yui-gain__slider" type="range" aria-label="입 움직임" />
         <span class="yui-gain__hint">드래그하면 캐릭터 입이 실제로 그만큼 벌어져요</span>
       </div>
+      ${sessionHtml}
     </div>
     <p class="yui-quick__foot yui-quick__foot--on">켜져 있는 동안 매 대화에 이 화면이 첨부돼요.</p>
     <p class="yui-quick__foot yui-quick__foot--off">기본은 꺼져 있어요. 켜면 화면을 함께 보내요.</p>
@@ -359,6 +428,17 @@ export function createQuickControls({
   for (const { key } of ENDPOINT_FIELDS) {
     epInputs.set(key, el.querySelector<HTMLInputElement>(`#yui-ep-${key}`)!);
   }
+
+  // 세션 섹션 노드(window 전용 — 없으면 null).
+  const sessionStatEl = el.querySelector<HTMLDivElement>(".yui-session__stat");
+  const sessionValueEl = el.querySelector<HTMLSpanElement>(".yui-session__value");
+  const sessionLastEl = el.querySelector<HTMLSpanElement>(".yui-session__last");
+  const sessionWhenKEl = el.querySelector<HTMLSpanElement>(".yui-session__when-k");
+  const sessionWhenVEl = el.querySelector<HTMLSpanElement>(".yui-session__when-v");
+  const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
+  const sessionConfirmEl = el.querySelector<HTMLDivElement>(".yui-confirm");
+  const sessionConfirmBtn = el.querySelector<HTMLButtonElement>(".yui-session__confirm");
+  const sessionCancelBtn = el.querySelector<HTMLButtonElement>(".yui-session__cancel");
 
   gainSlider.min = String(LIPSYNC_GAIN_MIN);
   gainSlider.max = String(LIPSYNC_GAIN_MAX);
@@ -434,6 +514,78 @@ export function createQuickControls({
         input.value = ov[key];
       }
       validateEndpointInput(key, input);
+    }
+  }
+
+  // 세션 진단 readout을 store에서 그린다. contextWindow가 null이면 막대·퍼센트 없이 사용량만.
+  function reflectSession(): void {
+    if (!sessionDiagnostics || !sessionValueEl) return;
+    const d = sessionDiagnostics.get();
+
+    // 컨텍스트 사용량 + 슬림 막대.
+    const used = d.usedTokens;
+    const max = d.contextWindow;
+    sessionValueEl.textContent = "";
+    if (used === null) {
+      sessionValueEl.textContent = "—";
+    } else if (max === null || max <= 0) {
+      sessionValueEl.textContent = formatTokenCount(used);
+    } else {
+      const pct = Math.min(100, Math.round((used / max) * 100));
+      sessionValueEl.append(`${formatTokenCount(used)} / ${formatTokenCount(max)}`);
+      const pctEl = document.createElement("span");
+      pctEl.className = "pct";
+      pctEl.textContent = `${pct}%`;
+      sessionValueEl.append(pctEl);
+    }
+    // 막대는 contextWindow를 알 때만 그린다.
+    const hasMeter = used !== null && max !== null && max > 0;
+    let meter = sessionStatEl?.querySelector<HTMLDivElement>(".yui-meter") ?? null;
+    if (hasMeter) {
+      const pct = Math.min(100, Math.round((used! / max!) * 100));
+      if (!meter) {
+        meter = document.createElement("div");
+        meter.className = "yui-meter";
+        meter.innerHTML = `<div class="yui-meter__fill"></div>`;
+        sessionStatEl?.append(meter);
+      }
+      const fill = meter.querySelector<HTMLDivElement>(".yui-meter__fill")!;
+      fill.style.width = `${pct}%`;
+      fill.classList.toggle("is-high", pct >= 85);
+    } else if (meter) {
+      meter.remove();
+    }
+
+    // 마지막 압축 — 없으면 muted placeholder, 있으면 before → after (N) + 상대시간.
+    const lc = d.lastCompression;
+    if (!sessionLastEl) return;
+    if (lc === null) {
+      sessionLastEl.className = "yui-session__empty";
+      sessionLastEl.textContent = "No compression yet";
+      if (sessionWhenKEl) sessionWhenKEl.hidden = true;
+      if (sessionWhenVEl) {
+        sessionWhenVEl.className = "yui-session__when-v";
+        sessionWhenVEl.hidden = true;
+        sessionWhenVEl.textContent = "";
+      }
+    } else {
+      sessionLastEl.className = "v";
+      sessionLastEl.textContent = "";
+      sessionLastEl.append(formatTokenCount(lc.beforeTokens));
+      const arrow = document.createElement("span");
+      arrow.className = "arrow";
+      arrow.textContent = "→";
+      const after = document.createTextNode(formatTokenCount(lc.afterTokens));
+      const removed = document.createElement("span");
+      removed.className = "removed";
+      removed.textContent = `${lc.removed} messages removed`;
+      sessionLastEl.append(arrow, after, removed);
+      if (sessionWhenKEl) sessionWhenKEl.hidden = false;
+      if (sessionWhenVEl) {
+        sessionWhenVEl.className = "yui-session__when-v v";
+        sessionWhenVEl.hidden = false;
+        sessionWhenVEl.textContent = formatRelativeTime(lc.at);
+      }
     }
   }
 
@@ -1044,6 +1196,7 @@ export function createQuickControls({
     reflectGain();
     reflectAgent();
     reflectEndpoints();
+    reflectSession();
     renderVrms();
     renderSpeakers();
 
@@ -1216,6 +1369,25 @@ export function createQuickControls({
     log.info("엔드포인트 초기화");
   }
 
+  // ── 세션 섹션: 새 대화 시작(reset) ──
+
+  function showSessionConfirm(): void {
+    if (sessionConfirmEl) sessionConfirmEl.hidden = false;
+    if (sessionResetBtn) sessionResetBtn.hidden = true;
+  }
+
+  function hideSessionConfirm(): void {
+    if (sessionConfirmEl) sessionConfirmEl.hidden = true;
+    if (sessionResetBtn) sessionResetBtn.hidden = false;
+  }
+
+  function handleSessionReset(): void {
+    sessionStore?.clear();
+    sessionDiagnostics?.clear();
+    hideSessionConfirm();
+    log.info("세션 초기화");
+  }
+
   // ── 게인 슬라이더 ──
 
   function handleGainInput(): void {
@@ -1254,6 +1426,10 @@ export function createQuickControls({
   const unsubscribeSpk = speakerSelection.subscribe(() => {
     if (openState && spkSwapping === null) renderSpeakers();
   });
+  // 세션 진단 갱신(이 창의 reset·펫 창 reloadFromStorage)을 readout에 반영.
+  const unsubscribeSession = sessionDiagnostics?.subscribe(() => {
+    if (openState) reflectSession();
+  });
 
   switchBtn.addEventListener("click", handleSwitchClick);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
@@ -1274,6 +1450,9 @@ export function createQuickControls({
     input.addEventListener("blur", handleEndpointBlur);
   }
   epResetBtn.addEventListener("click", handleResetEndpoints);
+  sessionResetBtn?.addEventListener("click", showSessionConfirm);
+  sessionConfirmBtn?.addEventListener("click", handleSessionReset);
+  sessionCancelBtn?.addEventListener("click", hideSessionConfirm);
   barEl.addEventListener("pointerdown", handleBarPointerDown);
   popOutBtn?.addEventListener("click", handlePopOut);
   closeBtn?.addEventListener("click", close);
@@ -1290,6 +1469,7 @@ export function createQuickControls({
     unsubscribeEndpoints();
     unsubscribeVrm();
     unsubscribeSpk();
+    unsubscribeSession?.();
     stopAudition();
     for (const t of spkRefreshTimers.values()) clearTimeout(t);
     spkRefreshTimers.clear();
@@ -1313,6 +1493,9 @@ export function createQuickControls({
       input.removeEventListener("blur", handleEndpointBlur);
     }
     epResetBtn.removeEventListener("click", handleResetEndpoints);
+    sessionResetBtn?.removeEventListener("click", showSessionConfirm);
+    sessionConfirmBtn?.removeEventListener("click", handleSessionReset);
+    sessionCancelBtn?.removeEventListener("click", hideSessionConfirm);
     barEl.removeEventListener("pointerdown", handleBarPointerDown);
     popOutBtn?.removeEventListener("click", handlePopOut);
     closeBtn?.removeEventListener("click", close);

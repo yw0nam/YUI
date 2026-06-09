@@ -135,6 +135,7 @@ OpenAI 호환 스트리밍 chat + turn-bound 제어신호를 structured output�
 - backend 응답에서 **control envelope(F9)이 서버사이드 `express` tool-call로 도착** — `/v1/responses`의 `function_call` 아이템 중 이름이 `express`인 것을 파싱(+ `GET /v1/runs/{run_id}/events` SSE). arguments = `{emotion, motion}`(비언어 전용; 발화 게이트 없음, D-NO-SPEAK-GATE). 발화 텍스트는 tool-call이 아니라 별도 텍스트 스트림 — 침묵은 텍스트 미발신으로 표현. inline 텍스트 태그 파싱 X (스트리밍 분할 깨짐 방지). json_schema 강제는 쓰지 않고 이론적 fallback으로만 둔다(D-TRANSPORT/D-SPEECH, contract §Endpoint).
 - client-side **event dispatcher**가 timer/idle-watcher/OS-event-watcher/user-input 네 source의 이벤트를 단일 bus로 모음.
 - dispatcher가 Tier 1 이벤트는 로컬에서 소비, Tier 2/3 이벤트는 backend로 패키징 전송.
+- **세션 연속성(D-SESSION-CONTINUITY):** client가 mint한 단일 세션 UUID를 localStorage에 persist하고 매 chat 요청에 `X-Hermes-Session-Id` 헤더로 싣는다(재시작 간 유지, transcript는 server-side). 컨텍스트가 커지면 dispatcher가 `compacting` 상태에서 `POST {origin}/api/sessions/{id}/compress`로 continuation 세션으로 회전한다 — 실패는 현재 id 보존. (contract.md §Endpoint abstraction)
 - **스트리밍 ↔ 제어신호 동시성 처리는 prototype-driven으로 결정** — M1~M2에서 실제 구현해보고 결정사항을 본 PRD 부록에 기록(아래 §5 참조).
 
 **Depends-on:** F8, F9.
@@ -166,6 +167,7 @@ API 엔드포인트·키·모델 ID·VRM 경로·모션셋·proactivity 파라�
   - `vrm.path`, `motions[]`(id → vrma 파일 매핑)
   - `proactivity.tier2_rate_per_min`, `proactivity.idle_thresholds_sec[]`, `proactivity.dnd_apps[]`
   - `screenshot.enabled`, `screenshot.source` (monitor index)
+  - 세션 compaction: `chat_model_context_window`, `compact_threshold_ratio`(default 0.7), `compact_resume_ratio`(default 0.5), `compact_timeout_ms`(default 12000) — D-SESSION-CONTINUITY, contract.md §Endpoint abstraction
 - 파일 변경 감지 시 핫리로드(VRM, motion registry, proactivity 파라미터). API 키 등 민감 값은 reload만, runtime swap은 다음 호출부터.
 
 **Depends-on:** —
@@ -238,6 +240,7 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 | D-EMOTION-TEXT-EMOJI | **`emotion_text` 어휘 = 이모지 태그 집합.** generate_express의 `emotion_text`(예: `"😏"`, `"🥺🥺"`)는 prefix-only voice-control 태그다 — TTS 분절 text 맨 앞에만 prepend되고 **말풍선에는 노출되지 않는다**. 같은 이모지를 반복하면 강도가 세지고 조합도 가능. (contract.md §1/§3 D-EMOTION-TEXT 표) | 2026-06-08 |
 | D-EXPRESSION-BROKER | **Expression Broker MCP가 렌더 가능한 emotion/motion/emotion_text 어휘를 provider별로 브로커링.** YUI는 부팅·VRM 핫스왑·broker 재연결 시 `update_*`로 자기가 렌더 가능한 집합을 publish하고(WRITER), Hermes agent는 broker에서 유효 어휘를 읽어 그 안에서 generate_express를 호출한다. `broker_base_url`(`localhost:3201/mcp`, streamable-http)는 config 소관. `emotion_text` 게이트는 provider 조건부 — irodori ⇒ `mode="enum"`(이모지 표 키만 허용, 미등록 drop+경고, 발화 미차단), openai-compatible/fishspeech ⇒ `mode="free"`(pass-through). broker down 시 best-effort degrade(publish만 skip, 부팅 차단 X). D1–D6 결정 로그는 docs/expression-broker-mcp.md. | 2026-06-09 |
 | D-FULLBODY-FRAMING | **전신 fit-to-bounds 카메라 (#106).** 렌더러는 VRM 로드/핫스왑/창 리사이즈마다 모델 bounding box(`Box3.setFromObject`, 휴식 포즈 기준 idle 전)를 측정해 카메라 거리·`lookAt`을 도출 — **전신(머리→발) 정면·중앙 정렬**, 키 다른 모델 스왑에도 안정. 높이/폭 둘 중 먼 거리를 채택해 좁은 창에서 팔 잘림 방지. knob = `configs/avatar.json`의 선택 `framing { margin≥0, fov∈(0,180) }`(no-hardcoding; default는 렌더러 소유 `margin=0.1`/`fov=30`). 정적 정면 프레이밍만 — 오빗/시점 조작은 비채택(별도 nit). | 2026-06-09 |
+| D-SESSION-CONTINUITY | **세션 연속성 + 비용 한정 compaction.** client는 단일 Hermes 세션 id 하나를 소유한다 — **client가 mint한 UUID**를 localStorage(`yui.session_id`)에 persist하고 매 `/v1/responses` 요청에 `X-Hermes-Session-Id` per-request 헤더로 싣는다. 앱 재시작 간 유지되고 만료가 없으며 transcript는 server-side(Hermes)에 산다. 설정의 "start fresh"는 id를 clear하고 다음 턴에 새 UUID를 mint한다. 컨텍스트가 커지면 client가 안전한 턴 경계에서 `POST {chat_base_url origin}/api/sessions/{id}/compress`를 호출해 continuation 세션으로 회전한다 — trigger는 ① idle resume(focus/visibilitychange) ② token threshold(`chat_model_context_window × compact_threshold_ratio`, 히스테리시스 `compact_resume_ratio`) ③ window blur. compaction은 blocking maintenance window다 — dispatcher가 `compacting` 상태로 새 backend 턴을 큐 게이트하고 입력을 비활성화하며 `thinking` cue를 재생, 단일 호출은 `compact_timeout_ms`로 마감. skipped/error/timeout/비-2xx 등 모든 실패는 현재 id를 보존한다. brain은 client에 없다 — client는 압축 invoke와 세션 경계만 소유하고 실제 압축·메모리는 Hermes 소유. 진단(used/max 컨텍스트·마지막 압축 통계)은 설정 창에만 노출. (contract.md §Endpoint abstraction, event-dispatcher.md §9·§11) | 2026-06-09 |
 
 추후 결정은 본 표에 현재형으로 append/갱신한다.
 
