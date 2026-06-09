@@ -49,6 +49,8 @@ export interface Guardrails {
   evaluate(env: BusEnvelope, tier: 1 | 2 | 3): GuardResult;
   /** overall-cap 초과로 진입한 cooldown이 아직 유효한지(now < cooldownUntil). */
   cooldownActive(): boolean;
+  /** 핫리로드: config 수치만 교체(런타임 DND/카운터 상태는 보존). */
+  setConfig(next: GuardrailsConfig): void;
 }
 
 type Source = BusEnvelope["source"];
@@ -71,10 +73,12 @@ function strField(env: BusEnvelope, key: string): string | undefined {
 }
 
 export function createGuardrails(
-  config: GuardrailsConfig,
+  initialConfig: GuardrailsConfig,
   opts: CreateGuardrailsOptions = {},
 ): Guardrails {
   const now = opts.now ?? (() => Date.now());
+  // 핫리로드로 교체 가능 — 런타임 상태(DND reasons / 카운터 / cooldown)는 보존한다.
+  let config = initialConfig;
 
   // DND 상태의 단일 소스 — setDnd만 변경한다. camera는 idle-off 클록 윈도우로 별도 추적.
   const dndReasons = new Set<DndReason>();
@@ -160,8 +164,8 @@ export function createGuardrails(
       return { pass: false, reason: "guardrail_drop", detail: "cooldown" };
     }
 
-    // 4) debounce: source별 윈도우.
-    const window = config.debounce_ms[env.source];
+    // 4) debounce: source별 윈도우. timer_scheduler는 N/A(자체 1회) → window 0(디바운스 없음, §6.2).
+    const window = (config.debounce_ms as Record<Source, number>)[env.source] ?? 0;
     const last = lastFire.get(env.source);
     if (window > 0 && last !== undefined && now() - last < window) {
       return { pass: false, reason: "guardrail_drop", detail: `debounce:${env.source}` };
@@ -200,6 +204,9 @@ export function createGuardrails(
     evaluate,
     cooldownActive() {
       return now() < cooldownUntil;
+    },
+    setConfig(next) {
+      config = next;
     },
   };
 }
