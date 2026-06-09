@@ -40,9 +40,14 @@ import {
 import { routeDirective } from "./apply-directive";
 import { revertEmotionToNeutral } from "./ease-emotion";
 import { recenterClipRootMotion } from "./recenter-root-motion";
+import { computeCameraFit } from "./camera-fit";
 import { createLogger } from "../logger";
 
 const log = createLogger("renderer");
+
+/** Default fit-to-bounds framing (#106) — overridden by configs/avatar.json. */
+const DEFAULT_FRAMING_MARGIN = 0.1;
+const DEFAULT_FRAMING_FOV = 30;
 
 export interface RendererOptions {
   /** VRM을 렌더할 캔버스 마운트 대상. */
@@ -57,6 +62,8 @@ export interface RendererOptions {
    * 없으면 setEmotion은 warn 후 no-op. setEmotionRegistry로 나중에 주입 가능.
    */
   emotionRegistry?: EmotionRegistry;
+  /** Initial fit-to-bounds framing (#106); live path is setFraming. Omitted keys keep defaults. */
+  framing?: { margin?: number; fov?: number };
 }
 
 /** rAF 프레임마다, **vrm.update(dt) 직전에** 전달되는 컨텍스트. */
@@ -117,6 +124,11 @@ export interface Renderer {
    * VRM이 이미 로드돼 있으면 idle baseline을 재생한다.
    */
   setMotionRegistry(registry: MotionRegistry): void;
+  /**
+   * Fit-to-bounds framing 갱신 (#106). 주어진 키만 현재 framing 위에 merge하고
+   * (생략 키는 기본값 유지) VRM이 로드돼 있으면 즉시 재fit한다.
+   */
+  setFraming(framing: { margin?: number; fov?: number }): void;
   /** rAF 루프 정지 + GPU 리소스 해제. */
   dispose(): void;
 }
@@ -193,10 +205,32 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   const scene = new THREE.Scene();
 
-  // 펫 상반신 프레이밍: 살짝 위에서 정면.
-  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
+  // Seed framing; fitCamera overrides position/fov from the model bounding box (#106).
+  const camera = new THREE.PerspectiveCamera(DEFAULT_FRAMING_FOV, 1, 0.1, 20);
   camera.position.set(0, 1.3, 1.6);
   camera.lookAt(new THREE.Vector3(0, 1.3, 0));
+
+  // Fit-to-bounds state (#106): full-body framing recomputed on load/swap/resize.
+  let modelBox: THREE.Box3 | undefined;
+  let framing = {
+    margin: options.framing?.margin ?? DEFAULT_FRAMING_MARGIN,
+    fov: options.framing?.fov ?? DEFAULT_FRAMING_FOV,
+  };
+
+  /** Reframe the camera to the current model box; no-op when no model is loaded. */
+  function fitCamera(): void {
+    if (!modelBox) return;
+    const fit = computeCameraFit(modelBox, {
+      fov: framing.fov,
+      aspect: camera.aspect,
+      margin: framing.margin,
+    });
+    if (!fit) return;
+    camera.fov = framing.fov;
+    camera.position.copy(fit.position);
+    camera.lookAt(fit.target);
+    camera.updateProjectionMatrix();
+  }
 
   const dir = new THREE.DirectionalLight(0xffffff, Math.PI);
   dir.position.set(1, 1, 1).normalize();
@@ -280,6 +314,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    fitCamera(); // re-fit on resize so width-bound framing stays correct (#106).
   }
   resize();
   const ro = new ResizeObserver(resize);
@@ -350,6 +385,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     scene.remove(currentVrm.scene);
     VRMUtils.deepDispose(currentVrm.scene);
     currentVrm = undefined;
+    modelBox = undefined; // drop stale bounds so fitCamera no-ops until next load (#106).
   }
 
   /**
@@ -499,6 +535,11 @@ export function createRenderer(options: RendererOptions): Renderer {
     currentVrm = vrm;
     scene.add(vrm.scene);
 
+    // Full-body fit-to-bounds (#106): measure in rest pose, before idle animates the arms.
+    vrm.scene.updateWorldMatrix(true, true);
+    modelBox = new THREE.Box3().setFromObject(vrm.scene);
+    fitCamera();
+
     // observability: surface available expressions + whether the lipsync mouth key exists.
     const exprInfo = describeExpressions(currentVrm.expressionManager);
     log.info("vrm_loaded", {
@@ -612,6 +653,15 @@ export function createRenderer(options: RendererOptions): Renderer {
     recomputeHasExpression();
   }
 
+  /** setFraming 구현 — 주어진 키만 merge(생략 키 기본값 유지) 후 재fit. */
+  function setFraming(next: { margin?: number; fov?: number }): void {
+    framing = {
+      margin: next.margin ?? framing.margin,
+      fov: next.fov ?? framing.fov,
+    };
+    fitCamera();
+  }
+
   return {
     loadVRM,
     onTick(fn) {
@@ -635,6 +685,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     playMotion,
     setMotionRegistry,
     setEmotionRegistry,
+    setFraming,
     dispose() {
       cancelAnimationFrame(rafId);
       ro.disconnect();

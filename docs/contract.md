@@ -179,6 +179,10 @@ interface AvatarOption {
 interface AvatarConfig {
   vrm_url: string;               // 기본/seed 선택. 항상 필수.
   available?: AvatarOption[];    // #94 선택 가능한 VRM 목록. 없으면 vrm_url 단일 모델.
+  framing?: {                    // #106 전신 fit-to-bounds 카메라 knob. 없으면 렌더러 기본값.
+    margin?: number;             //   거리 패딩 비율(distance·(1+margin)). 유한 ≥ 0. default 0.1.
+    fov?: number;                //   수직 FOV(도). 열린구간 (0, 180). default 30.
+  };
 }
 ```
 
@@ -190,6 +194,7 @@ interface AvatarConfig {
   - **charset:** `^[A-Za-z0-9._-]+$`만 허용(비어 있지 않고 공백·따옴표 등 셀렉터 특수문자 금지). 위반 시 셀렉터 조회가 깨지고 localStorage 키로도 취약하다.
 - 보통 `available[0]` 또는 `id`가 `vrm_url`과 일치하는 항목이 seed 선택이다. 선택 상태의 영속화/스왑은 client 책임(#94 P2~).
 - 모델 핫스왑 시 emotion expression registry는 손대지 않는다(§1 — existence-aware fallback이 모델별 expression 집합을 재평가).
+- `framing`(#106): 선택 블록. 있으면 객체여야 하고 `margin`은 유한 ≥ 0, `fov`는 열린구간 (0, 180) — 위반 시 `ConfigError` fail-loud. 렌더러는 매 VRM 로드/핫스왑/창 리사이즈마다 모델 bounding box를 측정해 카메라 거리·`lookAt`을 도출, **전신(머리→발)을 정면·중앙 정렬로 프레이밍**한다(높이/폭 둘 중 먼 거리 채택 → 좁은 창에서 팔 잘림 방지). 기본값은 렌더러 소유라 `framing`은 부분값(`margin`만 / `fov`만)도 허용한다.
 
 ---
 

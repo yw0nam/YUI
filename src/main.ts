@@ -472,6 +472,8 @@ async function bootstrap(): Promise<void> {
     // emotion/motion registry를 renderer에 주입 → setEmotion/playMotion(=applyDirective) 동작.
     renderer.setEmotionRegistry(cfg.emotionRegistry);
     renderer.setMotionRegistry(cfg.motions);
+    // 전신 fit-to-bounds framing knob 주입 (#106) — 첫 VRM 로드 전에 설정.
+    renderer.setFraming(cfg.avatar.framing ?? {});
     // 실제 manifest 주입 후 부트 로드 → persist된 override가 시작 시점에 적용된다.
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
     speakerSelection.setManifest({
@@ -499,6 +501,8 @@ async function bootstrap(): Promise<void> {
       });
     }
     if (!changed.has("avatar")) return;
+    // framing knob 핫리로드 (#106) — 핫스왑 재fit 전에 갱신.
+    renderer.setFraming(cfg.avatar.framing ?? {});
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
     void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
       log.error("VRM hot-swap failed:", err),
