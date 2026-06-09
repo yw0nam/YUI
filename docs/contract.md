@@ -518,12 +518,14 @@ POST /synthesize    Content-Type: multipart/form-data   →   audio/wav (48 kHz,
 
 ```
 POST   /voices          multipart: reference_audio(file) + voice_id   →  201
+PUT    /voices          multipart: reference_audio(file) + voice_id   →  200  (기존 voice의 reference latent를 강제 갱신)
 GET    /voices                                                        →  { "voices": [ { "voice_id", ... } ] }
 DELETE /voices/{id}                                                   →  삭제
 ```
 
 - `voice_id`(등록) == `reference_id`(합성). client는 `irodori_voices[].id`를 양쪽 키로 쓴다.
 - 등록 시 `reference_audio`는 `ref_url`(`/references/<id>/merged_audio.mp3`)에서 fetch한 파일.
+- **`PUT /voices`는 명시적 force-refresh(#103)** — `ensureRegistered`의 멱등 등록과 달리 GET-check·memoize 없이 항상 ref를 다시 fetch해 PUT한다(`irodori-voices.ts`의 `updateVoice`, 설정 UI의 화자 행 ↻ 버튼). reference clip이 바뀌었을 때 latent를 갱신하는 용도.
 
 ### 5.4 에러 모델
 | status | 의미 | body |

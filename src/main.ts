@@ -58,7 +58,7 @@ import { selectFetch } from "./io/chat-client";
 import { createSpeechPlayback } from "./io/speech-playback";
 import { createTtsSynth } from "./io/tts-synth";
 import { createIrodoriSynth, type TtsSynth } from "./io/irodori-synth";
-import { ensureRegistered, evictRegistration } from "./io/irodori-voices";
+import { ensureRegistered, evictRegistration, updateVoice } from "./io/irodori-voices";
 import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createBackendCaller } from "./dispatcher/backend-caller";
@@ -251,6 +251,13 @@ async function bootstrap(): Promise<void> {
     }
     speakerSelection.select(option.id);
   };
+  // 참조 음성 재등록(#103, PUT /voices) — 서버 측 force-refresh만, 화자 선택은 바꾸지 않는다.
+  const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
+    const f = await selectFetch();
+    const eps = getEndpoints();
+    if (!eps.irodori_base_url) throw new Error("irodori provider requires irodori_base_url");
+    await updateVoice({ baseUrl: eps.irodori_base_url, id: option.id, refUrl: option.ref_url, fetch: f });
+  };
   // 이 창에서 고른 화자를 설정 창 UI에 반영하기 위해 cross-window로 알린다.
   speakerSelection.subscribe(broadcastSettings);
 
@@ -265,6 +272,7 @@ async function bootstrap(): Promise<void> {
     swapVrm,
     speakerSelection,
     swapSpeaker,
+    refreshSpeaker,
     onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
     onGainPreviewEnd: () => renderer.stopMouth(),
     // 빈 instructions일 때 placeholder로 보여줄 기본 지침(config 미로드 시 무시).
