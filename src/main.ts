@@ -20,6 +20,12 @@ import { createRenderer } from "./renderer";
 import { nextZoom } from "./renderer/camera-fit";
 import { createTier1Engine } from "./ambient/tier1";
 import { createSurfaces } from "./ui/surfaces";
+import {
+  inputBottomFromAnchor,
+  INPUT_FEET_GAP_PX,
+  INPUT_ANCHOR_EPSILON_PX,
+  INPUT_ANCHOR_MIN_BOTTOM_PX,
+} from "./ui/anchor";
 import { createMockDriver } from "./ui/mock";
 import { createQuickControls } from "./ui/quick-controls";
 import { createCaptureIndicator } from "./ui/capture-indicator";
@@ -123,6 +129,28 @@ async function bootstrap(): Promise<void> {
   ambient.start();
   const surfaces = createSurfaces({ mount: root });
   const mock = createMockDriver(surfaces);
+
+  // 채팅 입력을 캐릭터 발밑에 붙인다(#106 reframe 추종). 매 프레임 발밑 화면좌표를 받아
+  // 입력 하단 오프셋으로 매핑하되, epsilon 이하 변화는 건너뛰어 var 재기록을 줄인다.
+  let lastInputBottom: number | null = null;
+  const unsubAnchor = renderer.onTick(() => {
+    const a = renderer.getCharacterAnchor();
+    if (!a) {
+      if (lastInputBottom !== null) {
+        surfaces.setInputAnchor(null);
+        lastInputBottom = null;
+      }
+      return;
+    }
+    const bottom = inputBottomFromAnchor(a.y, stage.clientHeight || 1, {
+      gap: INPUT_FEET_GAP_PX,
+      minBottom: INPUT_ANCHOR_MIN_BOTTOM_PX,
+    });
+    if (lastInputBottom === null || Math.abs(bottom - lastInputBottom) > INPUT_ANCHOR_EPSILON_PX) {
+      surfaces.setInputAnchor(bottom);
+      lastInputBottom = bottom;
+    }
+  });
 
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
@@ -320,6 +348,7 @@ async function bootstrap(): Promise<void> {
 
   if (import.meta.env.DEV) {
     import.meta.hot?.dispose(() => {
+      unsubAnchor();
       quickControls.dispose();
       if (broadcastTimer) clearTimeout(broadcastTimer);
       bridge.dispose();
