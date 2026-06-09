@@ -554,7 +554,12 @@ async function bootstrap(): Promise<void> {
     // fire-and-forget — 부트 임계 경로를 막지 않는다(D4).
     if (cfg.endpoints.broker_base_url) {
       const table = await loadBrokerTable(cfg.endpoints.tts_provider);
-      brokerRef = createBrokerClient({ baseUrl: cfg.endpoints.broker_base_url });
+      // Tauri webview에서 broker(localhost:3201)는 cross-origin → selectFetch로 CORS 우회 fetch 주입.
+      const brokerFetch = await selectFetch();
+      brokerRef = createBrokerClient({
+        baseUrl: cfg.endpoints.broker_base_url,
+        ...(brokerFetch ? { fetch: brokerFetch } : {}),
+      });
       const payload = deriveBrokerPayload(cfg, table);
       void brokerRef.publish(payload).then(() => brokerRef?.start());
     } else {
