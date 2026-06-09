@@ -484,6 +484,9 @@ interface EndpointsConfig {
   irodori_cfg_scale_text?: number;       // emotion(text) adherence. 미설정 시 서버 default(3.0)
   irodori_cfg_scale_speaker?: number;    // speaker adherence. 미설정 시 서버 default(5.0)
   irodori_seconds?: number;              // 목표 발화 길이(초). 미설정 시 서버 default
+
+  // --- Expression Broker (provider 무관) ---
+  broker_base_url?: string;              // Expression Broker MCP endpoint(streamable-http, 예: "http://localhost:3201/mcp"). 미설정 시 vocab publish 스킵
 }
 ```
 
