@@ -129,6 +129,13 @@ export interface Renderer {
    * (생략 키는 기본값 유지) VRM이 로드돼 있으면 즉시 재fit한다.
    */
   setFraming(framing: { margin?: number; fov?: number }): void;
+  /**
+   * Mouse-wheel zoom 배율 설정 (#106). fit 거리에 곱해지는 factor (>1 ⇒ 더 가까이 ⇒ 더 크게).
+   * 비유한/동일 값은 no-op. 클램프·persist는 호출자(src/io + main.ts)가 담당한다.
+   */
+  setZoom(z: number): void;
+  /** 현재 적용된 zoom 배율 반환. */
+  getZoom(): number;
   /** rAF 루프 정지 + GPU 리소스 해제. */
   dispose(): void;
 }
@@ -216,6 +223,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     margin: options.framing?.margin ?? DEFAULT_FRAMING_MARGIN,
     fov: options.framing?.fov ?? DEFAULT_FRAMING_FOV,
   };
+  // Mouse-wheel zoom factor on top of the fit distance (#106): >1 ⇒ closer ⇒ bigger.
+  // Bounds/persistence live in src/io + main.ts (setZoom just applies). Default 1 = exact fit.
+  let zoom = 1;
 
   /** Reframe the camera to the current model box; no-op when no model is loaded. */
   function fitCamera(): void {
@@ -226,8 +236,9 @@ export function createRenderer(options: RendererOptions): Renderer {
       margin: framing.margin,
     });
     if (!fit) return;
+    const d = fit.distance / zoom; // zoom>1 ⇒ camera closer ⇒ character bigger.
     camera.fov = framing.fov;
-    camera.position.copy(fit.position);
+    camera.position.set(fit.target.x, fit.target.y, fit.target.z + d);
     camera.lookAt(fit.target);
     camera.updateProjectionMatrix();
   }
@@ -662,6 +673,14 @@ export function createRenderer(options: RendererOptions): Renderer {
     fitCamera();
   }
 
+  /** setZoom 구현 — 비유한/동일 값은 무시, 그 외엔 zoom 갱신 후 재fit. */
+  function setZoom(z: number): void {
+    if (!Number.isFinite(z)) return;
+    if (z === zoom) return;
+    zoom = z;
+    fitCamera();
+  }
+
   return {
     loadVRM,
     onTick(fn) {
@@ -686,6 +705,10 @@ export function createRenderer(options: RendererOptions): Renderer {
     setMotionRegistry,
     setEmotionRegistry,
     setFraming,
+    setZoom,
+    getZoom() {
+      return zoom;
+    },
     dispose() {
       cancelAnimationFrame(rafId);
       ro.disconnect();

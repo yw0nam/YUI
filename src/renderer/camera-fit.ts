@@ -57,3 +57,21 @@ export function computeCameraFit(box: THREE.Box3, opts: CameraFitOptions): Camer
   const position = new THREE.Vector3(center.x, center.y, center.z + distance);
   return { position, target, distance };
 }
+
+/**
+ * Wheel-driven zoom factor step (applied on top of the fit distance).
+ *
+ * next = current · exp(-deltaY · sensitivity), clamped to [min, max].
+ * Wheel-up (deltaY < 0) increases zoom (bigger character); wheel-down decreases.
+ * Non-finite current/deltaY/result fall back so the output stays within bounds.
+ */
+export function nextZoom(
+  current: number,
+  deltaY: number,
+  opts: { min: number; max: number; sensitivity: number },
+): number {
+  const base = Number.isFinite(current) ? current : 1;
+  const factor = Number.isFinite(deltaY) ? Math.exp(-deltaY * opts.sensitivity) : 1;
+  const next = base * factor;
+  return Math.min(opts.max, Math.max(opts.min, Number.isFinite(next) ? next : base));
+}

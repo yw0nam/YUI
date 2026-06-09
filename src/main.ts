@@ -17,6 +17,7 @@
 import "./styles.css";
 import { createLogger, initLogger } from "./logger";
 import { createRenderer } from "./renderer";
+import { nextZoom } from "./renderer/camera-fit";
 import { createTier1Engine } from "./ambient/tier1";
 import { createSurfaces } from "./ui/surfaces";
 import { createMockDriver } from "./ui/mock";
@@ -27,6 +28,13 @@ import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
+import {
+  createCameraSettings,
+  localStorageCameraStorage,
+  CAMERA_ZOOM_MIN,
+  CAMERA_ZOOM_MAX,
+  CAMERA_WHEEL_SENSITIVITY,
+} from "./io/camera-settings";
 import { createVrmSelection, localStorageVrmStorage } from "./io/vrm-selection";
 import {
   createSpeakerSelection,
@@ -80,10 +88,24 @@ async function bootstrap(): Promise<void> {
   // onScaleChanged listener installed inside for DPI-change seam (Issue #9 F2).
   const cleanupDrag = await initDrag(stage);
 
-  // Register drag cleanup on HMR dispose in dev.
+  // 마우스 휠로 캐릭터 스케일(#106): 클램프 경계·민감도는 io 상수, persist는 store가 소유.
+  // 드래그는 pointerdown만 쓰므로 wheel과 충돌하지 않는다(drag.ts).
+  const onWheelZoom = (e: WheelEvent): void => {
+    e.preventDefault();
+    const next = nextZoom(cameraSettings.get().zoom, e.deltaY, {
+      min: CAMERA_ZOOM_MIN,
+      max: CAMERA_ZOOM_MAX,
+      sensitivity: CAMERA_WHEEL_SENSITIVITY,
+    });
+    cameraSettings.setZoom(next);
+  };
+  stage.addEventListener("wheel", onWheelZoom, { passive: false });
+
+  // Register drag + wheel cleanup on HMR dispose in dev.
   if (import.meta.env.DEV) {
     import.meta.hot?.dispose(() => {
       cleanupDrag();
+      stage.removeEventListener("wheel", onWheelZoom);
     });
   }
 
@@ -98,6 +120,10 @@ async function bootstrap(): Promise<void> {
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
+  // 카메라 줌(#106): persist된 배율을 부트 시 적용하고, 변경(휠/크로스윈도우)마다 렌더러로 흘린다.
+  const cameraSettings = createCameraSettings({ storage: localStorageCameraStorage() });
+  renderer.setZoom(cameraSettings.get().zoom);
+  cameraSettings.subscribe((s) => renderer.setZoom(s.zoom));
   const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
@@ -107,7 +133,7 @@ async function bootstrap(): Promise<void> {
   // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
   // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
   const openSettings = createSettingsWindowOpener();
-  const disposeStorageSync = wireStorageSync([agentSettings, lipsyncSettings, screenshotSettings]);
+  const disposeStorageSync = wireStorageSync([agentSettings, lipsyncSettings, screenshotSettings, cameraSettings]);
 
   // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
   // 시스템(VRM 렌더러 · STT/VAD)에 닿게 한다. storage 폴백은 위 wireStorageSync로 유지.
@@ -142,12 +168,15 @@ async function bootstrap(): Promise<void> {
   agentSettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
+  cameraSettings.subscribe(broadcastSettings);
   bridge.onSettingsChanged(() => {
     applyingRemote = true;
     try {
       agentSettings.reloadFromStorage();
       lipsyncSettings.reloadFromStorage();
       screenshotSettings.reloadFromStorage();
+      // 줌 재로드 → cameraSettings.subscribe(s => renderer.setZoom)가 카메라까지 반영.
+      cameraSettings.reloadFromStorage();
       // VRM 선택은 설정 창에서 store-only로 커밋되므로, 그 변경을 펫 창 렌더러로 반영.
       // 이 창 자체 스왑은 swapVrm이 이미 로드하므로, 여기선 OTHER 창 변경만 → 이중 로드 회피.
       const prevVrmUrl = vrmSelection.getActive().url;
@@ -265,6 +294,7 @@ async function bootstrap(): Promise<void> {
       screenshotSettings.dispose();
       lipsyncSettings.dispose();
       agentSettings.dispose();
+      cameraSettings.dispose();
       vrmSelection.dispose();
       speakerSelection.dispose();
       osContext.stop();
