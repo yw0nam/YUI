@@ -49,12 +49,12 @@ current motion_id set is:
 
 ### emotion_text(string)
 
-Emotion string for controlling TTS. The vocabulary is **provider-dependent** — see `docs/contract.md` §3 (`[D-EMOTION-TEXT]`) for the authoritative table.
+Emotion string for controlling TTS. The vocabulary is **provider-dependent** — the authoritative per-provider rule set lives in [`tts_emotion/`](./tts_emotion/) (enforced at runtime by the Expression Broker MCP gate).
 
-- **irodori (default provider):** inline **emoji tags** in the text, e.g. `👂 Can you hear me?`, `😆 I can't believe you said that.` Repeat an emoji to intensify.
-- **openai-compatible (legacy fishspeech path):** free text like `[whisper in small voice]`, `[laughing]`.
+- **irodori (default provider):** inline **emoji tags** in the text, e.g. `👂 Can you hear me?`, `😆 I can't believe you said that.` Repeat an emoji to intensify. Broker mode `enum`. → [`tts_emotion/irodori.md`](./tts_emotion/irodori.md)
+- **openai-compatible (legacy fishspeech path):** free text like `[whisper in small voice]`, `[laughing]`. Broker mode `free`. → [`tts_emotion/fishspeech.md`](./tts_emotion/fishspeech.md)
 
-Either way the client prepends the tag to the spoken text and passes it through verbatim — no client-side validation, and the tag is never shown in the speech bubble.
+Either way the client prepends the tag to the spoken text and passes it through verbatim — and the tag is never shown in the speech bubble. See also [`tts_emotion/README.md`](./tts_emotion/README.md) for the provider-switch re-publish contract and [`contract.md`](./contract.md) `[D-EMOTION-TEXT]`.
 
 
 

@@ -207,7 +207,10 @@ interface AvatarConfig {
 
 **[D-NO-SPEAK-GATE] 발화 게이트(`should_speak`)는 없다 (제거 2026-06-04).** firing(언제 backend를 부를지)은 **client event loop가 소유**한다(F5/F7 트리거가 client쪽). 따라서 "이 턴에 말할지"를 backend transport 신호로 둘 필요가 없다 — **침묵 = backend가 assistant 텍스트를 내보내지 않음**(`speech_text == ""`). client는 빈 텍스트면 TTS/말풍선을 스킵하므로 별도 플래그가 불필요하다. backend가 능동적으로 발화하는 턴도 동일 — 말하면 텍스트가 오고, 안 말하면 안 온다.
 
-**[D-EMOTION-TEXT] `emotion_text`는 자유 텍스트 TTS voice tag 채널이다.** generate_express가 `emotion_text`(예: `"😏"`, `"🥺🥺"`)를 실으면 client는 정규화 envelope의 `emotion_text` 필드에 그대로 담아 **TTS 파이프라인으로 라우팅**한다(backend-caller가 `onEmotionText` 콜백으로 전달). emotion_id(VRM 표정 enum)와 직교하는 별도 채널 — 표정과 무관하게 목소리 연출만 바꿀 수 있다. **어휘는 아래 이모지 태그 집합**이다(PR-A에서 FishSpeech 자유 텍스트를 대체; 같은 이모지 반복 = 강도 ↑). 두 TTS provider(openai/irodori)가 같은 채널을 쓰며, **prefix 방식이라 이모지는 TTS 입력 text에만 들어가고 말풍선엔 절대 노출되지 않는다.** 검증은 하지 않는다(broker가 advisory hint로만 노출 — `expression-broker-mcp.md` §3.4).
+**[D-EMOTION-TEXT] `emotion_text`는 provider 의존 TTS voice tag 채널이다.** generate_express가 `emotion_text`(예: `"😏"`, `"🥺🥺"`)를 실으면 client는 정규화 envelope의 `emotion_text` 필드에 그대로 담아 **TTS 파이프라인으로 라우팅**한다(backend-caller가 `onEmotionText` 콜백으로 전달). emotion_id(VRM 표정 enum)와 직교하는 별도 채널 — 표정과 무관하게 목소리 연출만 바꿀 수 있다. **어휘는 provider별로 다르며 [`tts_emotion/`](./tts_emotion/)에 권위 있게 문서화**된다(아래 표는 irodori용 요약). prefix 방식이라 이모지/태그는 TTS 입력 text에만 들어가고 말풍선엔 절대 노출되지 않는다.
+
+- **provider별 어휘 규칙은 Expression Broker MCP가 런타임 게이트한다** — `update_emotion_text(mode, table)`: `irodori` ⇒ `mode="enum"`(아래 이모지 표 키만 허용, 미등록 토큰 drop + 경고, 발화 미차단), `openai-compatible`/fishspeech ⇒ `mode="free"`(자유 bracket 태그, pass-through). 자세한 broker 동작·D1–D6 결정 로그는 [`expression-broker-mcp.md`](./expression-broker-mcp.md).
+- **provider-switch → re-publish 계약:** `configs/endpoints.json`의 `tts_provider`가 바뀌면 YUI는 새 provider에 맞는 `(mode, table)`로 `update_emotion_text`를 **재-publish**해야 한다(irodori→enum+표, openai-compatible→free+null). broker 상태는 in-memory & ephemeral이라 boot·reconnect 시에도 재-publish.
 
 #### `emotion_text` 이모지 어휘 (PR-A)
 | Emoji | 의미 | | Emoji | 의미 |
@@ -233,7 +236,7 @@ interface AvatarConfig {
 | 🐢 | slowly | | 😒 | tutting / tongue click |
 | | | | 😰 | panicked / nervous / stutter |
 
-> **강도 표현:** 이모지를 반복하면 강도가 세진다(예: `🥺` → `🥺🥺`). 여러 태그 조합도 가능(자유 텍스트라 검증 없음). 발화(자막)는 여기 넣지 않는다 — 발화는 별도 텍스트 스트림(D-SPEECH). 이 어휘의 SOT/브로커링은 `expression-broker-mcp.md` §4.
+> **강도 표현:** 이모지를 반복하면 강도가 세진다(예: `🥺` → `🥺🥺`). 여러 태그 조합도 가능. 발화(자막)는 여기 넣지 않는다 — 발화는 별도 텍스트 스트림(D-SPEECH). 이 표는 irodori(enum) 어휘이며, provider별 권위 규칙은 [`tts_emotion/`](./tts_emotion/)(irodori 표 39행 = [`tts_emotion/irodori.md`](./tts_emotion/irodori.md)), 브로커링은 `expression-broker-mcp.md` §4 + D1–D6.
 
 **`speech_text`는 tool 필드가 아니다.** 발화 텍스트는 `generate_express` arguments가 아니라 **별도 assistant 텍스트 스트림**(`response.output_text.delta`)으로 도착하며(D-SPEECH), client가 스트림에서 조립한다. 아래 `ControlEnvelope`는 client 내부에서 *재구성하는* 정규화 형태이고, `speech_text`는 텍스트 스트림에서 채워지는 파생 필드다.
 
