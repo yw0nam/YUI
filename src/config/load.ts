@@ -50,6 +50,8 @@ export interface AvatarConfig {
   vrm_url: string;
   /** 선택 가능한 VRM 목록(#94). 없으면 vrm_url 단일 모델. */
   available?: AvatarOption[];
+  /** 전신 fit-to-bounds 카메라 knob (#106). 없으면 렌더러 기본값. */
+  framing?: { margin?: number; fov?: number };
 }
 
 /** 로드·검증된 전체 config 묶음 (불변 스냅샷). */
@@ -344,48 +346,78 @@ function validateAvatar(file: string, raw: unknown): AvatarConfig {
   if (typeof vrm_url !== "string" || vrm_url.length === 0) {
     throw new ConfigError(file, [`vrm_url은 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(vrm_url)})`]);
   }
-  const rawAvailable = raw.available;
-  if (rawAvailable === undefined) return { vrm_url };
-  if (!Array.isArray(rawAvailable)) {
-    throw new ConfigError(file, [`available은 배열이어야 함 (받음: ${JSON.stringify(rawAvailable)})`]);
-  }
   const issues: string[] = [];
-  const available: AvatarOption[] = [];
-  rawAvailable.forEach((entry, i) => {
-    if (!isObject(entry)) {
-      issues.push(`available[${i}]: 항목이 객체가 아님`);
-      return;
+
+  // available[] — optional VRM swap manifest (#94).
+  let available: AvatarOption[] | undefined;
+  const rawAvailable = raw.available;
+  if (rawAvailable !== undefined) {
+    if (!Array.isArray(rawAvailable)) {
+      throw new ConfigError(file, [`available은 배열이어야 함 (받음: ${JSON.stringify(rawAvailable)})`]);
     }
-    for (const k of ["id", "label", "url"] as const) {
-      if (typeof entry[k] !== "string" || (entry[k] as string).length === 0) {
-        issues.push(`available[${i}].${k}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(entry[k])})`);
+    available = [];
+    rawAvailable.forEach((entry, i) => {
+      if (!isObject(entry)) {
+        issues.push(`available[${i}]: 항목이 객체가 아님`);
+        return;
       }
-    }
-    // id는 영속화 키 + CSS 셀렉터 값 — 공백/따옴표 등 특수문자 금지([A-Za-z0-9._-]).
-    if (typeof entry.id === "string" && !AVATAR_ID_RE.test(entry.id)) {
-      issues.push(`available[${i}].id는 [A-Za-z0-9._-]만 허용 (받음: ${JSON.stringify(entry.id)})`);
-    }
-    const source = entry.source;
-    if (source !== undefined && !AVATAR_SOURCES.includes(source as AvatarOption["source"] & string)) {
-      issues.push(`available[${i}].source는 ${AVATAR_SOURCES.join("|")} 중 하나여야 함 (받음: ${JSON.stringify(source)})`);
-    }
-    available.push({
-      id: entry.id as string,
-      label: entry.label as string,
-      url: entry.url as string,
-      ...(source !== undefined ? { source: source as AvatarOption["source"] } : {}),
+      for (const k of ["id", "label", "url"] as const) {
+        if (typeof entry[k] !== "string" || (entry[k] as string).length === 0) {
+          issues.push(`available[${i}].${k}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(entry[k])})`);
+        }
+      }
+      // id는 영속화 키 + CSS 셀렉터 값 — 공백/따옴표 등 특수문자 금지([A-Za-z0-9._-]).
+      if (typeof entry.id === "string" && !AVATAR_ID_RE.test(entry.id)) {
+        issues.push(`available[${i}].id는 [A-Za-z0-9._-]만 허용 (받음: ${JSON.stringify(entry.id)})`);
+      }
+      const source = entry.source;
+      if (source !== undefined && !AVATAR_SOURCES.includes(source as AvatarOption["source"] & string)) {
+        issues.push(`available[${i}].source는 ${AVATAR_SOURCES.join("|")} 중 하나여야 함 (받음: ${JSON.stringify(source)})`);
+      }
+      available!.push({
+        id: entry.id as string,
+        label: entry.label as string,
+        url: entry.url as string,
+        ...(source !== undefined ? { source: source as AvatarOption["source"] } : {}),
+      });
     });
-  });
-  // id 유일성 — find(x => x.id === …) 해소가 첫 항목만 잡으므로 중복은 영구 unreachable.
-  const seen = new Set<string>();
-  available.forEach((opt, i) => {
-    if (seen.has(opt.id)) {
-      issues.push(`available[${i}].id 중복: ${JSON.stringify(opt.id)}`);
+    // id 유일성 — find(x => x.id === …) 해소가 첫 항목만 잡으므로 중복은 영구 unreachable.
+    const seen = new Set<string>();
+    available.forEach((opt, i) => {
+      if (seen.has(opt.id)) {
+        issues.push(`available[${i}].id 중복: ${JSON.stringify(opt.id)}`);
+      }
+      seen.add(opt.id);
+    });
+  }
+
+  // framing — optional fit-to-bounds knob (#106). 부분값 허용(기본값은 렌더러 소유).
+  let framing: AvatarConfig["framing"];
+  const rawFraming = raw.framing;
+  if (rawFraming !== undefined) {
+    if (!isObject(rawFraming)) {
+      issues.push(`framing은 객체여야 함 (받음: ${JSON.stringify(rawFraming)})`);
+    } else {
+      const { margin, fov } = rawFraming;
+      if (margin !== undefined && (typeof margin !== "number" || !Number.isFinite(margin) || margin < 0)) {
+        issues.push(`framing.margin은 0 이상 유한 number여야 함 (받음: ${JSON.stringify(margin)})`);
+      }
+      if (fov !== undefined && (typeof fov !== "number" || !Number.isFinite(fov) || fov <= 0 || fov >= 180)) {
+        issues.push(`framing.fov는 (0, 180) 열린구간 number여야 함 (받음: ${JSON.stringify(fov)})`);
+      }
+      framing = {
+        ...(typeof margin === "number" ? { margin } : {}),
+        ...(typeof fov === "number" ? { fov } : {}),
+      };
     }
-    seen.add(opt.id);
-  });
+  }
+
   assertValid(file, issues);
-  return { vrm_url, available };
+  return {
+    vrm_url,
+    ...(available !== undefined ? { available } : {}),
+    ...(framing !== undefined ? { framing } : {}),
+  };
 }
 
 function validateEmotionRegistry(file: string, raw: unknown): EmotionRegistry {
