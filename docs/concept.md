@@ -21,7 +21,7 @@ VRM 캐릭터 렌더링 + 데스크톱 펫 행동 + I/O 표면을 담당하고,
 - **통신:** request/response IO는 전부 **OpenAI 호환 API**
   - chat → `/v1/responses`
   - STT → `/audio/transcriptions`
-  - TTS → `/audio/speech`
+  - TTS → `/audio/speech` *(provider-swappable: default irodori `/synthesize`@8091[reference-voice], openai-compatible `/audio/speech`@8092 — contract §5)*
   - vision 입력 → chat image content (OpenAI 호환 범위 내)
 - **예외 (명시):** Phase 2의 proactivity **push 채널(SSE/WebSocket)** 은 OpenAI 호환이 *아닌* 별도 채널. 원칙의 명시적 예외로 둔다.
 - **client에는 brain이 없다** — 렌더링 / 입출력 표면만.
@@ -56,7 +56,7 @@ VRM 캐릭터 렌더링 + 데스크톱 펫 행동 + I/O 표면을 담당하고,
 
 ### D. 출력 / 연출 (백엔드 신호 → 렌더)
 - 텍스트 응답 (말풍선 / 챗 UI)
-- 음성 출력 → TTS(`/audio/speech`) + **립싱크**
+- 음성 출력 → TTS(`/audio/speech`) + **립싱크** *(TTS provider-swappable: irodori 기본 / openai-compatible — contract §5)*
   - ⚠️ OpenAI 호환 TTS는 viseme/타이밍 미제공 → 오디오 진폭 기반 or 자체 phoneme 정렬 중 택 (§4 참고)
 - emotion 신호 → VRM expression 변경
 - motion 트리거 → 지정 VRMA 재생
