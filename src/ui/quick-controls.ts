@@ -395,6 +395,7 @@ export function createQuickControls({
   let vrmSwapping: string | null = null;
   let vrmErrorId: string | null = null;
   // 마지막으로 화살표가 머문 행 id — 재그림이 roving tabindex를 active로 되돌리지 않게 유지.
+  // close()에서 일부러 리셋하지 않는다 — 재오픈 시에도 머문 행을 잇고, ids.includes로 가드한다.
   let vrmRovedId: string | null = null;
 
   function renderVrms(): void {
@@ -544,6 +545,7 @@ export function createQuickControls({
   let spkSwapping: string | null = null;
   let spkErrorId: string | null = null;
   // 마지막으로 화살표가 머문 행 id — 재그림이 roving tabindex를 active로 되돌리지 않게 유지.
+  // close()에서 일부러 리셋하지 않는다 — 재오픈 시에도 머문 행을 잇고, ids.includes로 가드한다.
   let spkRovedId: string | null = null;
 
   // 미리듣기는 단일 audition — 하나를 재생하면 다른 것은 멈춘다.
