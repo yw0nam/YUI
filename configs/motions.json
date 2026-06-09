@@ -6,7 +6,15 @@
       "/motions/idle_02.vrma",
       "/motions/idle_03.vrma",
       "/motions/idle_04.vrma",
-      "/motions/idle_05.vrma"
+      "/motions/idle_05.vrma",
+      "/motions/idle_06.vrma",
+      "/motions/idle_07.vrma",
+      "/motions/idle_08.vrma",
+      "/motions/idle_09.vrma",
+      "/motions/idle_10.vrma",
+      "/motions/idle_11.vrma",
+      "/motions/idle_12.vrma",
+      "/motions/idle_13.vrma"
     ],
     "variant_policy": "random",
     "kind": "ambient",
@@ -37,6 +45,89 @@
   },
   "shy_point": {
     "vrma_path": "/motions/shy_point.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace"
+  },
+  "pose_shy": {
+    "vrma_path": "/motions/pose_shy.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace"
+  },
+  "pose_hair_touch": {
+    "vrma_path": "/motions/pose_hair_touch.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace"
+  },
+  "pose_hands_folded": {
+    "vrma_path": "/motions/pose_hands_folded.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace"
+  },
+  "pose_salute": {
+    "vrma_path": "/motions/pose_salute.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace"
+  },
+  "peek": {
+    "vrma_path": "/motions/peek.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace"
+  },
+  "sleeping": {
+    "vrma_path": "/motions/sleeping.vrma",
+    "kind": "oneshot",
+    "loop": true,
+    "priority": 70,
+    "interrupt_policy": "replace"
+  },
+  "sit": {
+    "vrma_path": "/motions/sit_01.vrma",
+    "variants": [
+      "/motions/sit_01.vrma",
+      "/motions/sit_02.vrma",
+      "/motions/sit_03.vrma",
+      "/motions/sit_04.vrma",
+      "/motions/sit_05.vrma",
+      "/motions/sit_07.vrma",
+      "/motions/suwari1.vrma",
+      "/motions/suwari3.vrma"
+    ],
+    "variant_policy": "random",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace"
+  },
+  "dance": {
+    "vrma_path": "/motions/dance_01.vrma",
+    "variants": [
+      "/motions/dance_01.vrma",
+      "/motions/dance_02.vrma",
+      "/motions/dance_03.vrma",
+      "/motions/dance_04.vrma",
+      "/motions/dance_05.vrma",
+      "/motions/dance_06.vrma",
+      "/motions/dance_07.vrma",
+      "/motions/dance_08.vrma",
+      "/motions/dance_09.vrma",
+      "/motions/dance_10.vrma",
+      "/motions/dance_11.vrma",
+      "/motions/dance_12.vrma",
+      "/motions/dance_13.vrma"
+    ],
+    "variant_policy": "random",
     "kind": "oneshot",
     "loop": false,
     "priority": 70,

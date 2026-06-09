@@ -119,6 +119,7 @@ Chat and STT use the **OpenAI-compatible API**; TTS depends on `tts_provider` (i
 ## Key Docs
 
 - **`docs/contract.md`** — Source of truth for TS types (Emotion / Motion / Control envelope / Input context / Endpoints)
+- **`docs/motions.md`** — Motion catalog: every `configs/motions.json` id with description, playback policy, and source clip
 - **`docs/prd.md`** — Features + decision log + milestones
 - **`docs/event-dispatcher.md`** — Dispatcher component design
 - **`docs/concept.md`** — Big picture + non-goals

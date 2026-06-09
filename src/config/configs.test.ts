@@ -118,13 +118,75 @@ describe("configs/motions.json", () => {
     }
   });
 
-  it("idle has 5 variants and variant_policy 'random'", () => {
+  it("idle is a random-variant ambient pool (>=5 variants)", () => {
     expect(Array.isArray(m.idle.variants)).toBe(true);
-    expect(m.idle.variants).toHaveLength(5);
+    expect(m.idle.variants.length).toBeGreaterThanOrEqual(5);
     expect(m.idle.variant_policy).toBe("random");
+    for (const v of m.idle.variants) {
+      expect(v, "idle.variant").toMatch(/\.vrma$/);
+    }
   });
 
-  it("sit is ABSENT from the registry", () => {
-    expect(m.sit).toBeUndefined();
+  it("dance is a random-variant oneshot pool (plays a random dance per trigger)", () => {
+    expect(m.dance).toBeDefined();
+    expect(m.dance.kind).toBe("oneshot");
+    expect(m.dance.loop).toBe(false);
+    expect(m.dance.priority).toBe(70);
+    expect(m.dance.variant_policy).toBe("random");
+    expect(Array.isArray(m.dance.variants)).toBe(true);
+    expect(m.dance.variants.length).toBeGreaterThanOrEqual(2);
+    for (const v of m.dance.variants) {
+      expect(v, "dance.variant").toMatch(/\.vrma$/);
+    }
+  });
+
+  it("sit is a random-variant oneshot pool (plays a random sit clip per trigger)", () => {
+    expect(m.sit).toBeDefined();
+    expect(m.sit.kind).toBe("oneshot");
+    expect(m.sit.loop).toBe(false);
+    expect(m.sit.priority).toBe(70);
+    expect(m.sit.variant_policy).toBe("random");
+    expect(Array.isArray(m.sit.variants)).toBe(true);
+    expect(m.sit.variants.length).toBeGreaterThanOrEqual(2);
+    for (const v of m.sit.variants) {
+      expect(v, "sit.variant").toMatch(/\.vrma$/);
+    }
+  });
+
+  it("registers the Mate-Engine standing-gesture batch as oneshot p70", () => {
+    for (const id of [
+      "pose_shy",
+      "pose_hair_touch",
+      "pose_hands_folded",
+      "pose_salute",
+      "peek",
+    ]) {
+      expect(m[id], id).toBeDefined();
+      expect(m[id].vrma_path, `${id}.vrma_path`).toMatch(/\.vrma$/);
+      expect(m[id].kind, `${id}.kind`).toBe("oneshot");
+      expect(m[id].loop, `${id}.loop`).toBe(false);
+      expect(m[id].priority, `${id}.priority`).toBe(70);
+      expect(m[id].interrupt_policy, `${id}.interrupt_policy`).toBe("replace");
+    }
+  });
+
+  it("sleeping is a looping oneshot p70", () => {
+    expect(m.sleeping.kind).toBe("oneshot");
+    expect(m.sleeping.loop).toBe(true);
+    expect(m.sleeping.priority).toBe(70);
+  });
+
+  it("dropped duplicates/mislabels are ABSENT (pose_sit_*, lean_*, hover_reaction)", () => {
+    for (const id of [
+      "pose_sit_1",
+      "pose_sit_2",
+      "pose_sit_3",
+      "pose_sit_4",
+      "lean_left",
+      "lean_right",
+      "hover_reaction",
+    ]) {
+      expect(m[id], id).toBeUndefined();
+    }
   });
 });
