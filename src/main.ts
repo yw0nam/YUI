@@ -29,6 +29,11 @@ import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/sc
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import {
+  createEndpointsSettings,
+  localStorageEndpointsStorage,
+  mergeEndpoints,
+} from "./io/endpoints-settings";
+import {
   createCameraSettings,
   localStorageCameraStorage,
   CAMERA_ZOOM_MIN,
@@ -121,6 +126,12 @@ async function bootstrap(): Promise<void> {
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
+  // 사용자 편집 엔드포인트 오버라이드(#95): localStorage가 bundled config를 덮는다(빈 값=폴백).
+  const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
+  // config.endpoints 위에 오버라이드를 얹은 effective 엔드포인트. 호출 시점에 평가(핫리로드 친화).
+  function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
+    return mergeEndpoints(config.get().endpoints, endpointsSettings.get());
+  }
   // 카메라 줌(#106): persist된 배율을 부트 시 적용하고, 변경(휠/크로스윈도우)마다 렌더러로 흘린다.
   const cameraSettings = createCameraSettings({ storage: localStorageCameraStorage() });
   renderer.setZoom(cameraSettings.get().zoom);
@@ -134,7 +145,7 @@ async function bootstrap(): Promise<void> {
   // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
   // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
   const openSettings = createSettingsWindowOpener();
-  const disposeStorageSync = wireStorageSync([agentSettings, lipsyncSettings, screenshotSettings, cameraSettings]);
+  const disposeStorageSync = wireStorageSync([agentSettings, endpointsSettings, lipsyncSettings, screenshotSettings, cameraSettings]);
 
   // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
   // 시스템(VRM 렌더러 · STT/VAD)에 닿게 한다. storage 폴백은 위 wireStorageSync로 유지.
@@ -167,6 +178,7 @@ async function bootstrap(): Promise<void> {
     }, 200);
   };
   agentSettings.subscribe(broadcastSettings);
+  endpointsSettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
   cameraSettings.subscribe(broadcastSettings);
@@ -174,6 +186,7 @@ async function bootstrap(): Promise<void> {
     applyingRemote = true;
     try {
       agentSettings.reloadFromStorage();
+      endpointsSettings.reloadFromStorage();
       lipsyncSettings.reloadFromStorage();
       screenshotSettings.reloadFromStorage();
       // 줌 재로드 → cameraSettings.subscribe(s => renderer.setZoom)가 카메라까지 반영.
@@ -227,7 +240,7 @@ async function bootstrap(): Promise<void> {
   // 선택 → irodori voice registry 등록 후 store 커밋(swapVrm의 load-then-select 미러).
   const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
     const f = await selectFetch();
-    const eps = config.get().endpoints;
+    const eps = getEndpoints();
     if (eps.irodori_base_url) {
       await ensureRegistered({
         baseUrl: eps.irodori_base_url,
@@ -257,7 +270,22 @@ async function bootstrap(): Promise<void> {
     // 빈 instructions일 때 placeholder로 보여줄 기본 지침(config 미로드 시 무시).
     getDefaultInstructions: () => {
       try {
-        return config.get().endpoints.chat_instructions;
+        return getEndpoints().chat_instructions;
+      } catch {
+        return undefined;
+      }
+    },
+    endpointsSettings,
+    getEndpointDefaults: () => {
+      try {
+        const e = config.get().endpoints;
+        return {
+          chat_base_url: e.chat_base_url,
+          stt_base_url: e.stt_base_url,
+          tts_base_url: e.tts_base_url,
+          irodori_base_url: e.irodori_base_url ?? "",
+          chat_model: e.chat_model ?? "",
+        };
       } catch {
         return undefined;
       }
@@ -295,6 +323,7 @@ async function bootstrap(): Promise<void> {
       screenshotSettings.dispose();
       lipsyncSettings.dispose();
       agentSettings.dispose();
+      endpointsSettings.dispose();
       cameraSettings.dispose();
       vrmSelection.dispose();
       speakerSelection.dispose();
@@ -417,7 +446,7 @@ async function bootstrap(): Promise<void> {
     const f = await selectFetch();
     irodoriFactory ??= createIrodoriSynthFactory({
       getParams: () => {
-        const eps = config.get().endpoints;
+        const eps = getEndpoints();
         const active = speakerSelection.getActive();
         if (!eps.irodori_base_url || !active.id) {
           throw new Error("irodori provider requires irodori_base_url + irodori_speaker");
@@ -455,9 +484,9 @@ async function bootstrap(): Promise<void> {
     pipeline: {
       sink: createWebAudioSink({ getGain: () => lipsyncSettings.get().gain }),
       // function form → drain마다 lazy 해소(eager config read 없음, 핫리로드 친화).
-      maxInflight: () => config.get().endpoints.tts_max_inflight ?? 1,
+      maxInflight: () => getEndpoints().tts_max_inflight ?? 1,
       synth: async (input, signal) => {
-        const eps = config.get().endpoints;
+        const eps = getEndpoints();
         if (eps.tts_provider === "irodori") {
           return irodoriSynth(input, signal);
         }
@@ -479,7 +508,7 @@ async function bootstrap(): Promise<void> {
 
   const backendCaller = createBackendCaller({
     get config() {
-      return config.get().endpoints;
+      return getEndpoints();
     },
     renderer,
     getApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),

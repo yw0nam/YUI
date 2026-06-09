@@ -26,6 +26,7 @@ import {
   type AgentSettings,
   type AgentStorage,
 } from "../io/agent-settings";
+import { createEndpointsSettings } from "../io/endpoints-settings";
 
 // jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
 // Escapes ASCII chars that aren't safe identifier chars; non-ASCII passes through (safe unescaped).
@@ -108,6 +109,7 @@ describe("createQuickControls — gain row", () => {
   let onGainPreviewEnd: Mock<() => void>;
   let lipsync: ReturnType<typeof createLipsyncSettings>;
   let agentSettings: ReturnType<typeof createAgentSettings>;
+  let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   let onPopOut: Mock<() => void>;
   let vrmSelection: ReturnType<typeof createVrmSelection>;
   let swapVrm: Mock<(option: AvatarOption) => Promise<void>>;
@@ -130,6 +132,7 @@ describe("createQuickControls — gain row", () => {
     onGainPreviewEnd = vi.fn<() => void>();
     lipsync = createLipsyncSettings();
     agentSettings = createAgentSettings({ storage: inMemoryAgentStorage() });
+    endpointsSettings = createEndpointsSettings();
     onPopOut = vi.fn<() => void>();
     vrmSelection = makeVrmSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
@@ -163,6 +166,7 @@ describe("createQuickControls — gain row", () => {
       onGainPreview,
       onGainPreviewEnd,
       agentSettings,
+      endpointsSettings,
       onPopOut,
       vrmSelection,
       swapVrm,
@@ -369,6 +373,86 @@ describe("createQuickControls — gain row", () => {
 
     const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
     expect(ta.placeholder).toBe("default nudge here");
+
+    qc.dispose();
+  });
+
+  // ── 엔드포인트 섹션(#95) ───────────────────────────────────────────────────
+
+  it("renders 5 endpoint fields (4 url + chat_model) in a collapsed details", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const details = qc.el.querySelector<HTMLDetailsElement>("details.yui-endpoints")!;
+    expect(details).not.toBeNull();
+    expect(details.open).toBe(false); // 기본 접힘
+    const keys = Array.from(qc.el.querySelectorAll<HTMLDivElement>(".yui-endpoints .yui-input-row")).map(
+      (r) => r.dataset.epField,
+    );
+    expect(keys).toEqual(["chat_base_url", "stt_base_url", "tts_base_url", "irodori_base_url", "chat_model"]);
+    expect(qc.el.querySelectorAll(".yui-endpoints .yui-input--url").length).toBe(4);
+
+    qc.dispose();
+  });
+
+  it("populates endpoint placeholders from getEndpointDefaults() on open even when defaults arrive after construction", () => {
+    // 패널은 config 로드 전에 생성된다 — 생성 시점엔 defaults가 없고 open() 시점에 채워져야 한다(회귀: #95).
+    let defaults: Record<string, string> | undefined;
+    const qc = buildQc({ getEndpointDefaults: () => defaults as never });
+    // 생성 후 config가 로드된 상태를 모사.
+    defaults = {
+      chat_base_url: "http://localhost:8643/v1",
+      stt_base_url: "http://localhost:5517/v1",
+      tts_base_url: "http://localhost:8092",
+      irodori_base_url: "http://localhost:8091",
+      chat_model: "natsume",
+    };
+    qc.open();
+
+    const ph = (key: string): string =>
+      qc.el.querySelector<HTMLInputElement>(`.yui-input-row[data-ep-field="${key}"] .yui-input`)!.placeholder;
+    expect(ph("chat_base_url")).toBe("http://localhost:8643/v1");
+    expect(ph("stt_base_url")).toBe("http://localhost:5517/v1");
+    expect(ph("chat_model")).toBe("natsume");
+
+    qc.dispose();
+  });
+
+  it("toggles inline invalid state on a url field via isValidEndpointUrl (empty = no error)", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const input = qc.el.querySelector<HTMLInputElement>('.yui-input-row[data-ep-field="stt_base_url"] .yui-input')!;
+    const row = input.closest<HTMLDivElement>(".yui-input-row")!;
+
+    input.value = "localhost:5517"; // 스킴 없음 → invalid
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(row.classList.contains("is-invalid")).toBe(true);
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+
+    input.value = "https://localhost:5517/v1"; // valid
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(row.classList.contains("is-invalid")).toBe(false);
+
+    input.value = ""; // 빈 값 = override 없음 → 에러 아님
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(row.classList.contains("is-invalid")).toBe(false);
+
+    qc.dispose();
+  });
+
+  it("persists an endpoint override into the store and reset() clears it", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const input = qc.el.querySelector<HTMLInputElement>('.yui-input-row[data-ep-field="chat_base_url"] .yui-input')!;
+    input.value = "https://api.example.com/v1";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(endpointsSettings.get().chat_base_url).toBe("https://api.example.com/v1");
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-ep-reset")!.click();
+    expect(endpointsSettings.get().chat_base_url).toBe("");
+    expect(input.value).toBe("");
 
     qc.dispose();
   });

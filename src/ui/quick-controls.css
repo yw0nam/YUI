@@ -514,6 +514,143 @@
   align-items: baseline;
 }
 
+/* ── 엔드포인트 섹션(#95) — 음성 세부 설정과 동일한 접이식. 기본 접힘. ── */
+.yui-endpoints {
+  margin-top: 0.25rem;
+  padding: 0 0.55rem;
+}
+
+.yui-endpoints > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.34rem;
+  min-height: 1.5rem;
+  color: var(--yui-text-mute);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.yui-endpoints > summary::-webkit-details-marker {
+  display: none;
+}
+
+.yui-endpoints > summary::before {
+  content: "›";
+  align-self: center;
+  display: inline-block;
+  font-size: 0.85rem;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-endpoints[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.yui-endpoints__hint {
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--yui-text-mute);
+  opacity: 0.7;
+}
+
+.yui-endpoints__body {
+  padding: 0.18rem 0 0.2rem;
+}
+
+/* 라벨 + 단일행 입력 한 칸 */
+.yui-input-row {
+  padding: 0.5rem 0.55rem 0.45rem;
+}
+
+.yui-input-row__label {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 550;
+  line-height: 1.2;
+}
+
+.yui-input-row__sub {
+  display: block;
+  margin-top: 0.18rem;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: var(--yui-text-mute);
+}
+
+/* 어두운 scrim 필드의 단일행 변형 — .yui-textarea-wrap 미러 */
+.yui-input-wrap {
+  margin-top: 0.42rem;
+  border-radius: var(--yui-radius-input);
+  background: var(--yui-field);
+  border: 1px solid var(--yui-edge);
+  transition:
+    border-color var(--yui-dur-fast) var(--yui-ease),
+    box-shadow var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-input-wrap:focus-within {
+  border-color: var(--yui-accent);
+  box-shadow: 0 0 0 1px var(--yui-accent-soft);
+}
+
+.yui-input {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.46rem 0.6rem;
+  border: 0;
+  background: transparent;
+  color: var(--yui-text);
+  font: inherit;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  text-shadow: var(--yui-text-shadow);
+  box-sizing: border-box;
+}
+
+.yui-input:focus {
+  outline: none;
+}
+
+.yui-input::placeholder {
+  color: var(--yui-text-mute);
+}
+
+.yui-input--url {
+  font-variant-numeric: tabular-nums;
+}
+
+/* invalid — warm-red 테두리 + faint wash, 앰버 금지 */
+.yui-input-row.is-invalid .yui-input-wrap {
+  border-color: var(--yui-danger);
+  background: var(--yui-danger-faint);
+}
+
+.yui-input-row.is-invalid .yui-input-wrap:focus-within {
+  box-shadow: 0 0 0 1px var(--yui-danger-soft);
+}
+
+.yui-input-row__error {
+  display: none;
+  margin: 0.3rem 0.1rem 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--yui-danger);
+}
+
+.yui-input-row.is-invalid .yui-input-row__error {
+  display: block;
+}
+
+.yui-endpoints__reset {
+  margin-left: 0.55rem;
+}
+
 /* ── 소스 섹션 — ON일 때만 펼침 ── */
 .yui-source {
   overflow: hidden;
@@ -1369,5 +1506,8 @@
   /* 장식 모션 없음 — 로딩 tick은 회전 없이 그냥 나타난다 */
   .yui-vrm[aria-busy="true"] .yui-vrm__tick::after {
     animation: none;
+  }
+  .yui-endpoints > summary::before {
+    transition: none;
   }
 }

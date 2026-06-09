@@ -39,6 +39,7 @@
   /* ── Danger: 절제된 warm-red. 되돌림/실패 안내에만(앰버와 충돌 않게 hue 35). ── */
   --yui-danger: oklch(0.77 0.11 35);
   --yui-danger-soft: oklch(0.77 0.11 35 / 0.45);
+  --yui-danger-faint: oklch(0.77 0.11 35 / 0.14);
 
   /* ── Elevation: 단 한 겹의 부드러운 ambient Float (The Float Rule) ── */
   --yui-float: 0 8px 32px oklch(0.12 0.02 70 / 0.4);

@@ -20,10 +20,16 @@ import {
   REASONING_EFFORTS,
   type ReasoningEffort,
 } from "../io/agent-settings";
+import {
+  createEndpointsSettings,
+  isValidEndpointUrl,
+  type EndpointOverrides,
+} from "../io/endpoints-settings";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
+type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 type VrmSelectionStore = ReturnType<typeof createVrmSelection>;
 type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 
@@ -46,6 +52,10 @@ interface QuickControlsOptions {
   variant?: "popover" | "window";
   /** 빈 instructions일 때 placeholder로 보여줄 기본 지침(config.chat_instructions). */
   getDefaultInstructions?: () => string | undefined;
+  /** 사용자 편집 엔드포인트 오버라이드 store(#95). 빈 값=폴백. */
+  endpointsSettings: EndpointsSettingsStore;
+  /** placeholder로 보여줄 bundled config 기본 엔드포인트(미로드 시 undefined). */
+  getEndpointDefaults?: () => EndpointOverrides | undefined;
 }
 
 interface QuickControls {
@@ -65,6 +75,21 @@ const SEG_LABELS: Record<ReasoningEffort, string> = {
   medium: "Medium",
   high: "High",
 };
+
+// 엔드포인트 섹션(#95): 편집 가능한 5개 필드. url=true면 isValidEndpointUrl 라이브 검증.
+interface EndpointFieldDef {
+  key: keyof EndpointOverrides;
+  label: string;
+  url: boolean;
+}
+const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = [
+  { key: "chat_base_url", label: "채팅 서버 URL", url: true },
+  { key: "stt_base_url", label: "음성 인식(STT) 서버 URL", url: true },
+  { key: "tts_base_url", label: "음성 합성(TTS) 서버 URL", url: true },
+  { key: "irodori_base_url", label: "irodori 서버 URL", url: true },
+  { key: "chat_model", label: "채팅 모델", url: false },
+];
+const ENDPOINT_URL_ERROR = "올바른 URL이 아니에요 (http:// 또는 https://)";
 
 export const PREVIEW_PEAK_RMS = 0.15;
 const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
@@ -111,6 +136,8 @@ export function createQuickControls({
   onPopOut,
   variant = "popover",
   getDefaultInstructions,
+  endpointsSettings,
+  getEndpointDefaults,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // variant 태그로 어느 창이 만든 로그인지 구분(Tauri가 두 창 로그를 한 파일로 병합).
@@ -129,6 +156,26 @@ export function createQuickControls({
     (e) =>
       `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${SEG_LABELS[e]}</button>`,
   ).join("");
+
+  // 엔드포인트 필드 행(#95). 라벨/placeholder/value는 빈 채로 두고 reflectEndpoints가 채운다.
+  // type="text"로 두고 검증 메시지를 직접 제어한다(브라우저 기본 URL 검증 회피).
+  const endpointRowsHtml = ENDPOINT_FIELDS.map(({ key, label, url }) => {
+    const errId = `yui-ep-err-${key}`;
+    const urlClass = url ? " yui-input--url" : "";
+    const errHtml = url
+      ? `<p class="yui-input-row__error" id="${errId}" role="status">${ENDPOINT_URL_ERROR}</p>`
+      : "";
+    return `
+          <div class="yui-input-row" data-ep-field="${key}">
+            <label class="yui-input-row__label" for="yui-ep-${key}">${label}</label>
+            <span class="yui-input-row__sub">비우면 기본값을 사용해요</span>
+            <div class="yui-input-wrap">
+              <input class="yui-input${urlClass}" id="yui-ep-${key}" type="text" spellcheck="false"
+                inputmode="${url ? "url" : "text"}" autocapitalize="off" autocomplete="off" />
+            </div>
+            ${errHtml}
+          </div>`;
+  }).join("");
 
   const headerHtml = isWindow
     ? `
@@ -177,6 +224,20 @@ export function createQuickControls({
         </div>
         <button class="yui-reset" type="button">기본값으로 되돌리기</button>
       </div>
+
+      <div class="yui-quick__divider" aria-hidden="true"></div>
+
+      <span class="yui-quick__section">엔드포인트</span>
+      <details class="yui-endpoints">
+        <summary>
+          <span>엔드포인트</span>
+          <span class="yui-endpoints__hint">고급 — 서버 주소·모델</span>
+        </summary>
+        <div class="yui-endpoints__body">
+          ${endpointRowsHtml}
+          <button class="yui-reset yui-endpoints__reset yui-ep-reset" type="button">기본값으로 되돌리기</button>
+        </div>
+      </details>
 
       <div class="yui-quick__divider" aria-hidden="true"></div>
 
@@ -289,6 +350,12 @@ export function createQuickControls({
   const segButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
+  const epResetBtn = el.querySelector<HTMLButtonElement>(".yui-ep-reset")!;
+  // 엔드포인트 입력 — 필드 key별 input 노드 맵.
+  const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
+  for (const { key } of ENDPOINT_FIELDS) {
+    epInputs.set(key, el.querySelector<HTMLInputElement>(`#yui-ep-${key}`)!);
+  }
 
   gainSlider.min = String(LIPSYNC_GAIN_MIN);
   gainSlider.max = String(LIPSYNC_GAIN_MAX);
@@ -297,6 +364,14 @@ export function createQuickControls({
   // 기본 지침 placeholder.
   const defaultInstr = getDefaultInstructions?.();
   instructionsEl.placeholder = defaultInstr && defaultInstr.length > 0 ? defaultInstr : "기본 지침을 사용 중이에요";
+
+  // 엔드포인트 placeholder — bundled config 기본값(greyed)으로 채운다(미로드 시 빈 채로 둠).
+  const epDefaults = getEndpointDefaults?.();
+  if (epDefaults) {
+    for (const { key } of ENDPOINT_FIELDS) {
+      epInputs.get(key)!.placeholder = epDefaults[key];
+    }
+  }
 
   let openState = false;
   let gainPreviewing = false;
@@ -331,6 +406,31 @@ export function createQuickControls({
     // 입력 중인 textarea는 덮어쓰지 않는다(원격 변경은 blur 시 적용).
     if (document.activeElement !== instructionsEl && instructionsEl.value !== a.instructions) {
       instructionsEl.value = a.instructions;
+    }
+  }
+
+  // URL 필드 한 칸의 invalid 상태(빈 값=에러 아님)를 토글한다.
+  function validateEndpointInput(key: keyof EndpointOverrides, input: HTMLInputElement): void {
+    const def = ENDPOINT_FIELDS.find((f) => f.key === key)!;
+    if (!def.url) return;
+    const invalid = !isValidEndpointUrl(input.value);
+    const row = input.closest<HTMLDivElement>(".yui-input-row")!;
+    row.classList.toggle("is-invalid", invalid);
+    input.setAttribute("aria-invalid", invalid ? "true" : "false");
+  }
+
+  function reflectEndpoints(): void {
+    const ov = endpointsSettings.get();
+    // placeholder는 config 로드 후에야 채워지므로(패널은 그 전에 생성됨) 매 reflect마다 갱신한다.
+    const defaults = getEndpointDefaults?.();
+    for (const { key } of ENDPOINT_FIELDS) {
+      const input = epInputs.get(key)!;
+      if (defaults) input.placeholder = defaults[key];
+      // 입력 중인 칸은 덮어쓰지 않는다(원격 변경은 blur 시 적용).
+      if (document.activeElement !== input && input.value !== ov[key]) {
+        input.value = ov[key];
+      }
+      validateEndpointInput(key, input);
     }
   }
 
@@ -850,6 +950,7 @@ export function createQuickControls({
     reflectVoiceStatus(voiceStatus.get());
     reflectGain();
     reflectAgent();
+    reflectEndpoints();
     renderVrms();
     renderSpeakers();
 
@@ -995,6 +1096,33 @@ export function createQuickControls({
     log.info("지침 초기화");
   }
 
+  // ── 엔드포인트 섹션(#95) ──
+
+  function handleEndpointInput(e: Event): void {
+    const input = e.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    const row = input.closest<HTMLDivElement>(".yui-input-row");
+    const key = row?.dataset.epField as keyof EndpointOverrides | undefined;
+    if (!key) return;
+    endpointsSettings.set({ [key]: input.value });
+    validateEndpointInput(key, input);
+  }
+
+  // blur 시점에 입력 중 보류된 원격 변경을 반영한다(지침 textarea와 동일).
+  function handleEndpointBlur(): void {
+    reflectEndpoints();
+  }
+
+  function handleResetEndpoints(): void {
+    endpointsSettings.reset();
+    for (const { key } of ENDPOINT_FIELDS) {
+      const input = epInputs.get(key)!;
+      input.value = "";
+      validateEndpointInput(key, input);
+    }
+    log.info("엔드포인트 초기화");
+  }
+
   // ── 게인 슬라이더 ──
 
   function handleGainInput(): void {
@@ -1022,6 +1150,7 @@ export function createQuickControls({
   const unsubscribeVoice = voiceStatus.subscribe(reflectVoiceStatus);
   const unsubscribeLipsync = lipsync.subscribe(() => { if (openState) reflectGain(); });
   const unsubscribeAgent = agentSettings.subscribe(() => { if (openState) reflectAgent(); });
+  const unsubscribeEndpoints = endpointsSettings.subscribe(() => { if (openState) reflectEndpoints(); });
   // store 갱신(직접 select·다른 창 reloadFromStorage)을 active 행에 반영.
   // 스왑 진행 중엔 건너뛴다 — finally의 renderVrms가 로딩 해제 후 최종 그림을 맡는다.
   const unsubscribeVrm = vrmSelection.subscribe(() => {
@@ -1047,6 +1176,11 @@ export function createQuickControls({
   instructionsEl.addEventListener("input", handleInstructionsInput);
   instructionsEl.addEventListener("blur", handleInstructionsBlur);
   resetBtn.addEventListener("click", handleResetInstructions);
+  for (const input of epInputs.values()) {
+    input.addEventListener("input", handleEndpointInput);
+    input.addEventListener("blur", handleEndpointBlur);
+  }
+  epResetBtn.addEventListener("click", handleResetEndpoints);
   barEl.addEventListener("pointerdown", handleBarPointerDown);
   popOutBtn?.addEventListener("click", handlePopOut);
   closeBtn?.addEventListener("click", close);
@@ -1059,6 +1193,7 @@ export function createQuickControls({
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeAgent();
+    unsubscribeEndpoints();
     unsubscribeVrm();
     unsubscribeSpk();
     stopAudition();
@@ -1076,6 +1211,11 @@ export function createQuickControls({
     instructionsEl.removeEventListener("input", handleInstructionsInput);
     instructionsEl.removeEventListener("blur", handleInstructionsBlur);
     resetBtn.removeEventListener("click", handleResetInstructions);
+    for (const input of epInputs.values()) {
+      input.removeEventListener("input", handleEndpointInput);
+      input.removeEventListener("blur", handleEndpointBlur);
+    }
+    epResetBtn.removeEventListener("click", handleResetEndpoints);
     barEl.removeEventListener("pointerdown", handleBarPointerDown);
     popOutBtn?.removeEventListener("click", handlePopOut);
     closeBtn?.removeEventListener("click", close);
