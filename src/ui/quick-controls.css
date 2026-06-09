@@ -1201,6 +1201,68 @@
   opacity: 1;
 }
 
+/* ── 행별 ↻ 참조-음성 갱신(#103) — preview와 같은 ghost 처리, preview 앞(왼쪽)에 위치 ── */
+.yui-spk__refresh {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+  opacity: 0.7;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease),
+    opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-spk:hover .yui-spk__refresh {
+  opacity: 1;
+}
+
+.yui-spk__refresh:hover {
+  background: var(--yui-accent-faint);
+  color: var(--yui-accent);
+}
+
+.yui-spk__refresh:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-spk__refresh:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.yui-spk__refresh:disabled:hover {
+  background: transparent;
+  color: var(--yui-text-mute);
+}
+
+.yui-spk__refresh svg {
+  width: 0.92rem;
+  height: 0.92rem;
+}
+
+/* refreshing: 비활성 + ↻ glyph가 제자리에서 회전(스왑 스피너와 같은 어휘) */
+.yui-spk__refresh.is-refreshing {
+  color: var(--yui-accent-soft);
+  opacity: 1;
+  cursor: progress;
+}
+
+/* success: 체크 glyph에 순간적 warm-accent 틴트 */
+.yui-spk__refresh.is-done {
+  color: var(--yui-accent);
+  opacity: 1;
+}
+
 /* ── 로딩: 클릭한 행은 "바꾸는 중…", 나머지 행은 흐려져 비활성 ── */
 .yui-spk[aria-busy="true"] .yui-spk__name {
   color: var(--yui-text-dim);
@@ -1254,6 +1316,24 @@
   color: var(--yui-danger);
 }
 
+/* 중립/긍정 인라인 안내(#103) — error와 같은 들여쓰기지만 차분한 dim, never warm-red */
+.yui-spk__note {
+  margin: 0.1rem 0.6rem 0.35rem 2.3rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--yui-text-dim);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.yui-spk__note svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  flex: 0 0 auto;
+  color: var(--yui-accent);
+}
+
 /* ── "파일에서 추가…" ghost 행 — 예약·비활성(B2 hook) ── */
 .yui-spk--add {
   color: var(--yui-text-mute);
@@ -1305,6 +1385,11 @@
 
   .yui-spk__preview.is-playing {
     animation: yui-spk-pulse 1.4s var(--yui-ease) infinite;
+  }
+
+  .yui-spk__refresh.is-refreshing svg {
+    animation: yui-spk-spin 0.7s linear infinite;
+    transform-origin: 50% 50%;
   }
 }
 

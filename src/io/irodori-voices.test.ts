@@ -10,7 +10,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ensureRegistered, evictRegistration, __resetIrodoriVoiceCache } from "./irodori-voices";
+import {
+  ensureRegistered,
+  evictRegistration,
+  updateVoice,
+  __resetIrodoriVoiceCache,
+} from "./irodori-voices";
 
 type FetchFn = (input: unknown, init?: RequestInit) => Promise<Response>;
 
@@ -38,6 +43,15 @@ function createdResponse(voice_id: string): Response {
   return {
     ok: true,
     status: 201,
+    headers: new Headers(),
+    json: async () => ({ voice_id }),
+  } as unknown as Response;
+}
+
+function updatedResponse(voice_id: string): Response {
+  return {
+    ok: true,
+    status: 200,
     headers: new Headers(),
     json: async () => ({ voice_id }),
   } as unknown as Response;
@@ -322,5 +336,143 @@ describe("ensureRegistered", () => {
 
     const refCall = fetchMock.mock.calls.find((c) => String(c[0]) === expectedRef);
     expect(refCall).toBeDefined();
+  });
+});
+
+describe("updateVoice", () => {
+  it("PUTs multipart with the correct voice_id + blob", async () => {
+    const audio = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" });
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/references/ナツメ/merged_audio.mp3") return blobResponse(audio);
+      if (url === "http://localhost:8091/voices" && init?.method === "PUT") {
+        return updatedResponse("ナツメ");
+      }
+      throw new Error(`unexpected fetch ${url} ${init?.method}`);
+    });
+
+    await updateVoice({
+      baseUrl: BASE,
+      id: "ナツメ",
+      refUrl: "/references/ナツメ/merged_audio.mp3",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    const putCall = fetchMock.mock.calls.find((c) => c[1]?.method === "PUT");
+    expect(putCall).toBeDefined();
+    expect(String(putCall![0])).toBe("http://localhost:8091/voices");
+    const body = putCall![1]!.body as FormData;
+    expect(body).toBeInstanceOf(FormData);
+    expect(body.get("voice_id")).toBe("ナツメ");
+    const ref = body.get("reference_audio");
+    expect(ref).toBeInstanceOf(Blob);
+  });
+
+  it("always fetches the ref + PUTs even when the id already exists (no GET check)", async () => {
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/references/x.mp3") return blobResponse(audio);
+      if (url === "http://localhost:8091/voices" && init?.method === "PUT") {
+        return updatedResponse("x");
+      }
+      throw new Error(`unexpected fetch ${url} ${init?.method}`);
+    });
+
+    await updateVoice({
+      baseUrl: BASE,
+      id: "x",
+      refUrl: "/references/x.mp3",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    // no GET /voices — a refresh is an explicit force-update, not a presence check.
+    const getCall = fetchMock.mock.calls.find(
+      (c) => String(c[0]) === "http://localhost:8091/voices" && (c[1]?.method ?? "GET") === "GET",
+    );
+    expect(getCall).toBeUndefined();
+    const putCount = fetchMock.mock.calls.filter((c) => c[1]?.method === "PUT").length;
+    expect(putCount).toBe(1);
+  });
+
+  it("absolutizes a relative refUrl against window origin before fetching", async () => {
+    vi.stubGlobal("location", { href: "http://127.0.0.1:1420/" });
+    const expectedRef = new URL("/references/あやせ/merged_audio.mp3", "http://127.0.0.1:1420/").href;
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
+    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === expectedRef) return blobResponse(audio);
+      if (url === "http://localhost:8091/voices" && init?.method === "PUT") {
+        return updatedResponse("あやせ");
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    await updateVoice({
+      baseUrl: BASE,
+      id: "あやせ",
+      refUrl: "/references/あやせ/merged_audio.mp3",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    const refCall = fetchMock.mock.calls.find((c) => String(c[0]) === expectedRef);
+    expect(refCall).toBeDefined();
+  });
+
+  it("throws a clear message when PUT /voices is non-2xx", async () => {
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/references/x.mp3") return blobResponse(audio);
+      if (url === "http://localhost:8091/voices" && init?.method === "PUT") {
+        return { ok: false, status: 500, headers: new Headers() } as unknown as Response;
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    await expect(
+      updateVoice({
+        baseUrl: BASE,
+        id: "x",
+        refUrl: "/references/x.mp3",
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    ).rejects.toThrow(/HTTP 500/);
+  });
+
+  it("throws (no fetch) when refUrl is empty", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => {
+      throw new Error("should not fetch for empty refUrl");
+    });
+
+    await expect(
+      updateVoice({
+        baseUrl: BASE,
+        id: "x",
+        refUrl: "",
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    ).rejects.toThrow(/requires a reference clip/);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("throws when the ref fetch is non-ok", async () => {
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown) => {
+      const url = String(input);
+      if (url === "/references/x.mp3") {
+        return { ok: false, status: 404, headers: new Headers() } as unknown as Response;
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    await expect(
+      updateVoice({
+        baseUrl: BASE,
+        id: "x",
+        refUrl: "/references/x.mp3",
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    ).rejects.toThrow(/HTTP 404/);
   });
 });

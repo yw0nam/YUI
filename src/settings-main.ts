@@ -24,6 +24,8 @@ import { resolveScreenSourceProvider } from "./io/tauri-screen";
 import { wireStorageSync } from "./io/settings-window";
 import { createSettingsBridge } from "./io/settings-bridge";
 import { createConfigStore } from "./config";
+import { selectFetch } from "./io/chat-client";
+import { updateVoice } from "./io/irodori-voices";
 
 const log = createLogger("settings-bootstrap");
 
@@ -94,6 +96,14 @@ async function bootstrap(): Promise<void> {
   const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
     speakerSelection.select(option.id);
   };
+  // 참조 음성 재등록(#103) — 펫 창과 달리 synth가 없지만, 갱신은 서버 직접 호출이므로 여기서도 수행한다.
+  // config 미로드/irodori_base_url 없으면 throw → UI가 에러를 노출한다.
+  const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
+    const irodoriBaseUrl = configLoaded ? config.get().endpoints.irodori_base_url : undefined;
+    if (!irodoriBaseUrl) throw new Error("irodori provider requires irodori_base_url");
+    const f = await selectFetch();
+    await updateVoice({ baseUrl: irodoriBaseUrl, id: option.id, refUrl: option.ref_url, fetch: f });
+  };
 
   const quickControls = createQuickControls({
     mount: app,
@@ -107,6 +117,7 @@ async function bootstrap(): Promise<void> {
     swapVrm,
     speakerSelection,
     swapSpeaker,
+    refreshSpeaker,
     // 렌더러는 메인 창에 있으므로 게인 프리뷰를 브리지로 전달 → 메인 창 VRM 입이 움직인다.
     onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
     onGainPreviewEnd: () => bridge.emitMouthPreview(null),
