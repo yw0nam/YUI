@@ -13,6 +13,8 @@ import { describe, it, expect, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
 import { createTtsSynth } from "./tts-synth";
 
+type FetchFn = (url: string, init: RequestInit) => Promise<Response>;
+
 const CONFIG: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",
   chat_endpoint: "/v1/responses",
@@ -31,13 +33,13 @@ function okResponse(buf: ArrayBuffer): Response {
 describe("createTtsSynth", () => {
   it("POSTs to {tts_base_url}/v1/audio/speech with input + response_format:wav", async () => {
     const buf = new ArrayBuffer(8);
-    const fetchMock = vi.fn(async () => okResponse(buf));
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(buf));
     const synth = createTtsSynth({ config: CONFIG, fetch: fetchMock as unknown as typeof fetch });
 
     const out = await synth("Hello there.");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("http://localhost:8092/v1/audio/speech");
     expect(init.method).toBe("POST");
     const body = JSON.parse(init.body as string);
@@ -46,7 +48,7 @@ describe("createTtsSynth", () => {
   });
 
   it("includes model/voice/speed when configured, omits them otherwise", async () => {
-    const fetchMock = vi.fn(async () => okResponse(new ArrayBuffer(4)));
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
     const synth = createTtsSynth({
       config: CONFIG,
       fetch: fetchMock as unknown as typeof fetch,
@@ -55,17 +57,17 @@ describe("createTtsSynth", () => {
       speed: 1.2,
     });
     await synth("Hi.");
-    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     expect(body.model).toBe("fishaudio/s2-pro");
     expect(body.voice).toBe("alloy");
     expect(body.speed).toBe(1.2);
   });
 
   it("omits model/voice/speed keys entirely when not configured", async () => {
-    const fetchMock = vi.fn(async () => okResponse(new ArrayBuffer(4)));
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
     const synth = createTtsSynth({ config: CONFIG, fetch: fetchMock as unknown as typeof fetch });
     await synth("Hi.");
-    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     expect("model" in body).toBe(false);
     expect("voice" in body).toBe(false);
     expect("speed" in body).toBe(false);
@@ -96,11 +98,11 @@ describe("createTtsSynth", () => {
   });
 
   it("passes the AbortSignal through to fetch", async () => {
-    const fetchMock = vi.fn(async () => okResponse(new ArrayBuffer(2)));
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(2)));
     const synth = createTtsSynth({ config: CONFIG, fetch: fetchMock as unknown as typeof fetch });
     const ac = new AbortController();
     await synth("hi", ac.signal);
-    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    const init = fetchMock.mock.calls[0][1];
     expect(init.signal).toBe(ac.signal);
   });
 });

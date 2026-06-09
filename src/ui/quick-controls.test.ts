@@ -14,7 +14,7 @@
  *   .yui-gain__value   (readout span)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
 import { createLipsyncSettings } from "../io/lipsync-settings";
 import { createVrmSelection } from "../io/vrm-selection";
@@ -104,15 +104,15 @@ function makeSpeakerSelection(ids: string[] = ["natsume", "ayase", "rena"]) {
 
 describe("createQuickControls — gain row", () => {
   let mount: HTMLElement;
-  let onGainPreview: ReturnType<typeof vi.fn>;
-  let onGainPreviewEnd: ReturnType<typeof vi.fn>;
+  let onGainPreview: Mock<(mouthOpen: number) => void>;
+  let onGainPreviewEnd: Mock<() => void>;
   let lipsync: ReturnType<typeof createLipsyncSettings>;
   let agentSettings: ReturnType<typeof createAgentSettings>;
-  let onPopOut: ReturnType<typeof vi.fn>;
+  let onPopOut: Mock<() => void>;
   let vrmSelection: ReturnType<typeof createVrmSelection>;
-  let swapVrm: ReturnType<typeof vi.fn>;
+  let swapVrm: Mock<(option: AvatarOption) => Promise<void>>;
   let speakerSelection: ReturnType<typeof createSpeakerSelection>;
-  let swapSpeaker: ReturnType<typeof vi.fn>;
+  let swapSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
 
   beforeEach(() => {
     // Make rAF synchronous so open() → is-open transition happens immediately in tests
@@ -126,19 +126,19 @@ describe("createQuickControls — gain row", () => {
     mount = document.createElement("div");
     document.body.appendChild(mount);
 
-    onGainPreview = vi.fn();
-    onGainPreviewEnd = vi.fn();
+    onGainPreview = vi.fn<(mouthOpen: number) => void>();
+    onGainPreviewEnd = vi.fn<() => void>();
     lipsync = createLipsyncSettings();
     agentSettings = createAgentSettings({ storage: inMemoryAgentStorage() });
-    onPopOut = vi.fn();
+    onPopOut = vi.fn<() => void>();
     vrmSelection = makeVrmSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
-    swapVrm = vi.fn(async (option: AvatarOption) => {
+    swapVrm = vi.fn<(option: AvatarOption) => Promise<void>>(async (option) => {
       vrmSelection.select(option.id);
     });
     speakerSelection = makeSpeakerSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
-    swapSpeaker = vi.fn(async (option: SpeakerOption) => {
+    swapSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async (option) => {
       speakerSelection.select(option.id);
     });
     try {
@@ -599,7 +599,7 @@ describe("createQuickControls — gain row", () => {
   });
 
   it("on reject shows the inline error and leaves the active selection unchanged", async () => {
-    swapVrm = vi.fn(async () => {
+    swapVrm = vi.fn<(option: AvatarOption) => Promise<void>>(async () => {
       throw new Error("load failed");
     });
     const qc = buildQc();
@@ -855,7 +855,7 @@ describe("createQuickControls — gain row", () => {
   });
 
   it("on reject shows the inline speaker error and leaves the active selection unchanged", async () => {
-    swapSpeaker = vi.fn(async () => {
+    swapSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async () => {
       throw new Error("clone failed");
     });
     const qc = buildQc();
@@ -1052,7 +1052,7 @@ describe("createQuickControls — gain row", () => {
       ],
       defaultId: "natsume",
     });
-    swapSpeaker = vi.fn(async (option: SpeakerOption) => {
+    swapSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async (option) => {
       speakerSelection.select(option.id);
     });
     const qc = buildQc();

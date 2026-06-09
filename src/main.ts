@@ -17,6 +17,7 @@
 import "./styles.css";
 import { createLogger, initLogger } from "./logger";
 import { createRenderer } from "./renderer";
+import { nextZoom } from "./renderer/camera-fit";
 import { createTier1Engine } from "./ambient/tier1";
 import { createSurfaces } from "./ui/surfaces";
 import { createMockDriver } from "./ui/mock";
@@ -27,6 +28,13 @@ import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
+import {
+  createCameraSettings,
+  localStorageCameraStorage,
+  CAMERA_ZOOM_MIN,
+  CAMERA_ZOOM_MAX,
+  CAMERA_WHEEL_SENSITIVITY,
+} from "./io/camera-settings";
 import { createVrmSelection, localStorageVrmStorage } from "./io/vrm-selection";
 import {
   createSpeakerSelection,
@@ -44,8 +52,9 @@ import { initDrag } from "./drag";
 import { selectFetch } from "./io/chat-client";
 import { createSpeechPlayback } from "./io/speech-playback";
 import { createTtsSynth } from "./io/tts-synth";
-import { createIrodoriSynth } from "./io/irodori-synth";
-import { ensureRegistered } from "./io/irodori-voices";
+import { createIrodoriSynth, type TtsSynth } from "./io/irodori-synth";
+import { ensureRegistered, evictRegistration } from "./io/irodori-voices";
+import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
@@ -80,10 +89,24 @@ async function bootstrap(): Promise<void> {
   // onScaleChanged listener installed inside for DPI-change seam (Issue #9 F2).
   const cleanupDrag = await initDrag(stage);
 
-  // Register drag cleanup on HMR dispose in dev.
+  // 마우스 휠로 캐릭터 스케일(#106): 클램프 경계·민감도는 io 상수, persist는 store가 소유.
+  // 드래그는 pointerdown만 쓰므로 wheel과 충돌하지 않는다(drag.ts).
+  const onWheelZoom = (e: WheelEvent): void => {
+    e.preventDefault();
+    const next = nextZoom(cameraSettings.get().zoom, e.deltaY, {
+      min: CAMERA_ZOOM_MIN,
+      max: CAMERA_ZOOM_MAX,
+      sensitivity: CAMERA_WHEEL_SENSITIVITY,
+    });
+    cameraSettings.setZoom(next);
+  };
+  stage.addEventListener("wheel", onWheelZoom, { passive: false });
+
+  // Register drag + wheel cleanup on HMR dispose in dev.
   if (import.meta.env.DEV) {
     import.meta.hot?.dispose(() => {
       cleanupDrag();
+      stage.removeEventListener("wheel", onWheelZoom);
     });
   }
 
@@ -98,6 +121,10 @@ async function bootstrap(): Promise<void> {
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
+  // 카메라 줌(#106): persist된 배율을 부트 시 적용하고, 변경(휠/크로스윈도우)마다 렌더러로 흘린다.
+  const cameraSettings = createCameraSettings({ storage: localStorageCameraStorage() });
+  renderer.setZoom(cameraSettings.get().zoom);
+  cameraSettings.subscribe((s) => renderer.setZoom(s.zoom));
   const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
@@ -107,7 +134,7 @@ async function bootstrap(): Promise<void> {
   // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
   // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
   const openSettings = createSettingsWindowOpener();
-  const disposeStorageSync = wireStorageSync([agentSettings, lipsyncSettings, screenshotSettings]);
+  const disposeStorageSync = wireStorageSync([agentSettings, lipsyncSettings, screenshotSettings, cameraSettings]);
 
   // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
   // 시스템(VRM 렌더러 · STT/VAD)에 닿게 한다. storage 폴백은 위 wireStorageSync로 유지.
@@ -142,12 +169,15 @@ async function bootstrap(): Promise<void> {
   agentSettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
+  cameraSettings.subscribe(broadcastSettings);
   bridge.onSettingsChanged(() => {
     applyingRemote = true;
     try {
       agentSettings.reloadFromStorage();
       lipsyncSettings.reloadFromStorage();
       screenshotSettings.reloadFromStorage();
+      // 줌 재로드 → cameraSettings.subscribe(s => renderer.setZoom)가 카메라까지 반영.
+      cameraSettings.reloadFromStorage();
       // VRM 선택은 설정 창에서 store-only로 커밋되므로, 그 변경을 펫 창 렌더러로 반영.
       // 이 창 자체 스왑은 swapVrm이 이미 로드하므로, 여기선 OTHER 창 변경만 → 이중 로드 회피.
       const prevVrmUrl = vrmSelection.getActive().url;
@@ -265,6 +295,7 @@ async function bootstrap(): Promise<void> {
       screenshotSettings.dispose();
       lipsyncSettings.dispose();
       agentSettings.dispose();
+      cameraSettings.dispose();
       vrmSelection.dispose();
       speakerSelection.dispose();
       osContext.stop();
@@ -380,6 +411,44 @@ async function bootstrap(): Promise<void> {
   // synth는 호출 시점에 config(핫리로드)와 selectFetch를 읽는 closure로 주입한다.
   // config.get()을 여기서 eager 평가하면 load() 전 throw로 부트스트랩이 죽으니 금지.
   // 재생 진폭은 renderer 입 모양으로, 재생 완료는 말풍선 페이드 해제로 흐른다(speech-playback).
+  // irodori synth closure를 화자·튜닝 키별로 메모이즈 + 422 self-heal. 문장마다 재구성하지 않는다.
+  let irodoriFactory: TtsSynth | undefined;
+  const irodoriSynth = async (input: string, signal?: AbortSignal): Promise<ArrayBuffer> => {
+    const f = await selectFetch();
+    irodoriFactory ??= createIrodoriSynthFactory({
+      getParams: () => {
+        const eps = config.get().endpoints;
+        const active = speakerSelection.getActive();
+        if (!eps.irodori_base_url || !active.id) {
+          throw new Error("irodori provider requires irodori_base_url + irodori_speaker");
+        }
+        return {
+          baseUrl: eps.irodori_base_url,
+          referenceId: active.id,
+          refUrl: active.ref_url,
+          numSteps: eps.irodori_num_steps,
+          cfgScaleText: eps.irodori_cfg_scale_text,
+          cfgScaleSpeaker: eps.irodori_cfg_scale_speaker,
+          seconds: eps.irodori_seconds,
+        };
+      },
+      ensureRegistered,
+      evictRegistration,
+      buildSynth: (p, fetchImpl) =>
+        createIrodoriSynth({
+          baseUrl: p.baseUrl,
+          referenceId: p.referenceId,
+          fetch: fetchImpl,
+          numSteps: p.numSteps,
+          cfgScaleText: p.cfgScaleText,
+          cfgScaleSpeaker: p.cfgScaleSpeaker,
+          seconds: p.seconds,
+        }),
+      fetch: f ?? globalThis.fetch,
+    });
+    return irodoriFactory(input, signal);
+  };
+
   const speechPlayback = createSpeechPlayback({
     renderer,
     surfaces,
@@ -388,31 +457,11 @@ async function bootstrap(): Promise<void> {
       // function form → drain마다 lazy 해소(eager config read 없음, 핫리로드 친화).
       maxInflight: () => config.get().endpoints.tts_max_inflight ?? 1,
       synth: async (input, signal) => {
-        const f = await selectFetch();
         const eps = config.get().endpoints;
         if (eps.tts_provider === "irodori") {
-          // 활성 화자는 store가 소유한다(UI override > config default). ref_url도 store 옵션에서 온다.
-          const active = speakerSelection.getActive();
-          if (!eps.irodori_base_url || !active.id) {
-            throw new Error("irodori provider requires irodori_base_url + irodori_speaker");
-          }
-          // ensureRegistered는 멱등·메모이즈 — 매 synth 전 호출해도 첫 회 이후 no-op.
-          await ensureRegistered({
-            baseUrl: eps.irodori_base_url,
-            id: active.id,
-            refUrl: active.ref_url,
-            fetch: f,
-          });
-          return createIrodoriSynth({
-            baseUrl: eps.irodori_base_url,
-            referenceId: active.id,
-            fetch: f,
-            numSteps: eps.irodori_num_steps,
-            cfgScaleText: eps.irodori_cfg_scale_text,
-            cfgScaleSpeaker: eps.irodori_cfg_scale_speaker,
-            seconds: eps.irodori_seconds,
-          })(input, signal);
+          return irodoriSynth(input, signal);
         }
+        const f = await selectFetch();
         return createTtsSynth({
           config: eps,
           fetch: f,
@@ -472,6 +521,8 @@ async function bootstrap(): Promise<void> {
     // emotion/motion registry를 renderer에 주입 → setEmotion/playMotion(=applyDirective) 동작.
     renderer.setEmotionRegistry(cfg.emotionRegistry);
     renderer.setMotionRegistry(cfg.motions);
+    // 전신 fit-to-bounds framing knob 주입 (#106) — 첫 VRM 로드 전에 설정.
+    renderer.setFraming(cfg.avatar.framing ?? {});
     // 실제 manifest 주입 후 부트 로드 → persist된 override가 시작 시점에 적용된다.
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
     speakerSelection.setManifest({
@@ -499,6 +550,8 @@ async function bootstrap(): Promise<void> {
       });
     }
     if (!changed.has("avatar")) return;
+    // framing knob 핫리로드 (#106) — 핫스왑 재fit 전에 갱신.
+    renderer.setFraming(cfg.avatar.framing ?? {});
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
     void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
       log.error("VRM hot-swap failed:", err),

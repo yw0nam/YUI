@@ -1,5 +1,6 @@
 {
   "vrm_url": "/vrms/carlotta.vrm",
+  "framing": { "margin": 0.1, "fov": 30 },
   "available": [
     { "id": "carlotta", "label": "Carlotta", "url": "/vrms/carlotta.vrm", "source": "bundled" },
     { "id": "cantarella", "label": "Cantarella", "url": "/vrms/Cantarella.vrm", "source": "bundled" },
