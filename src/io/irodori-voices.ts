@@ -19,6 +19,17 @@ export function __resetIrodoriVoiceCache(): void {
   inflight.clear();
 }
 
+/** 상대 vite 경로("/references/…")는 base 없는 URL이라 Tauri fetchCORS가 거부한다 — 현재 origin 기준 절대화. base 없는(node 테스트) 환경은 원본 유지. */
+function toAbsoluteRef(refUrl: string): string {
+  const base = (globalThis as { location?: { href?: string } }).location?.href;
+  if (!base) return refUrl;
+  try {
+    return new URL(refUrl, base).href;
+  } catch {
+    return refUrl;
+  }
+}
+
 async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<void> {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const voicesUrl = `${opts.baseUrl}/voices`;
@@ -34,9 +45,10 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
     return;
   }
 
-  const refRes = await fetchImpl(opts.refUrl);
+  const ref = toAbsoluteRef(opts.refUrl);
+  const refRes = await fetchImpl(ref);
   if (!refRes.ok) {
-    throw new Error(`irodori reference fetch failed (HTTP ${refRes.status}) ${opts.refUrl}`);
+    throw new Error(`irodori reference fetch failed (HTTP ${refRes.status}) ${ref}`);
   }
   const blob = await refRes.blob();
 
