@@ -79,7 +79,8 @@ function makeLogger(): Logger {
 
 let bus: EventBus;
 let applyDirective: ReturnType<typeof vi.fn>;
-let renderer: { applyDirective: typeof applyDirective };
+let setPerchTarget: ReturnType<typeof vi.fn>;
+let renderer: { applyDirective: typeof applyDirective; setPerchTarget: typeof setPerchTarget };
 let callDeferred: Array<{ resolve: (r: BackendCallResult) => void; signal?: AbortSignal }>;
 let backendCaller: BackendCaller;
 let guardrails: Guardrails;
@@ -101,7 +102,8 @@ beforeEach(() => {
   vi.setSystemTime(NOW);
   bus = createEventBus();
   applyDirective = vi.fn();
-  renderer = { applyDirective };
+  setPerchTarget = vi.fn();
+  renderer = { applyDirective, setPerchTarget };
   callDeferred = [];
   backendCaller = makeBackendCaller();
   guardrails = createGuardrails(permissiveGuardrailsConfig(), { now: () => Date.now() });
@@ -182,6 +184,54 @@ describe("dispatcher — routing (§5.1)", () => {
       "fire",
       expect.objectContaining({ event_name: "proactive.cowork", tier: 2 }),
     );
+  });
+
+  it("routes user.window_sit_drop (tier1) to renderer with window_sit motion + setPerchTarget, NOT the backend", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.window_sit_drop",
+        hint_tier: 1,
+        payload: { target_window_rect: { x: 300, y: 400, width: 520, height: 320 }, edge_local_ypx: 30 },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(applyDirective).toHaveBeenCalled();
+    const arg = applyDirective.mock.calls[0][0];
+    expect(arg.motion?.id).toBe("window_sit");
+    expect(setPerchTarget).toHaveBeenCalledWith({ edgeLocalYpx: 30 });
+  });
+
+  it("clears the perch on user.window_sit_exit via setPerchTarget(null)", async () => {
+    dispatcher.start();
+    bus.push(env({ event_name: "user.window_sit_exit", hint_tier: 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(setPerchTarget).toHaveBeenCalledWith(null);
+  });
+
+  it("does NOT set a perch target on user.window_sit_enter (sit in place)", async () => {
+    dispatcher.start();
+    bus.push(env({ event_name: "user.window_sit_enter", hint_tier: 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(setPerchTarget).not.toHaveBeenCalled();
+  });
+
+  it("skips setPerchTarget when user.window_sit_drop payload is malformed (still renders window_sit)", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.window_sit_drop",
+        hint_tier: 1,
+        payload: { target_window_rect: { x: 0, y: 0, width: 1, height: 1 } }, // no edge_local_ypx
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    const arg = applyDirective.mock.calls[0][0];
+    expect(arg.motion?.id).toBe("window_sit");
+    expect(setPerchTarget).not.toHaveBeenCalled();
   });
 });
 
