@@ -42,6 +42,14 @@ function appChanged(
   };
 }
 
+function fullscreen(entered: boolean): OsEventPayload {
+  return {
+    event_name: entered ? "fullscreen_entered" : "fullscreen_exited",
+    ts: 1_717_000_000_001,
+    data: { is_fullscreen: entered },
+  };
+}
+
 describe("os-context — snapshot from os_event", () => {
   it("active_app_changed updates activeApp + activeWindowTitle", async () => {
     const f = fakeListen();
@@ -51,13 +59,41 @@ describe("os-context — snapshot from os_event", () => {
     expect(os.get()).toEqual({ activeApp: "Visual Studio Code", activeWindowTitle: "main.ts" });
   });
 
-  it("os_idle_tick leaves the app/title snapshot unchanged", async () => {
+  it("os_idle_tick leaves the app/title snapshot unchanged and does not set isFullscreen", async () => {
     const f = fakeListen();
     const os = createOsContext({ listen: f.listen });
     await os.start();
     f.emit(appChanged("Visual Studio Code", "main.ts"));
     f.emit({ event_name: "os_idle_tick", ts: 1, data: { os_idle_ms: 5000 } });
     expect(os.get()).toEqual({ activeApp: "Visual Studio Code", activeWindowTitle: "main.ts" });
+    expect(os.get().isFullscreen).toBeUndefined();
+  });
+
+  it("fullscreen_entered sets isFullscreen true", async () => {
+    const f = fakeListen();
+    const os = createOsContext({ listen: f.listen });
+    await os.start();
+    f.emit(fullscreen(true));
+    expect(os.get().isFullscreen).toBe(true);
+  });
+
+  it("fullscreen_exited sets isFullscreen false", async () => {
+    const f = fakeListen();
+    const os = createOsContext({ listen: f.listen });
+    await os.start();
+    f.emit(fullscreen(true));
+    f.emit(fullscreen(false));
+    expect(os.get().isFullscreen).toBe(false);
+  });
+
+  it("fullscreen events leave the app/title snapshot unchanged", async () => {
+    const f = fakeListen();
+    const os = createOsContext({ listen: f.listen });
+    await os.start();
+    f.emit(appChanged("Visual Studio Code", "main.ts"));
+    f.emit(fullscreen(true));
+    expect(os.get().activeApp).toBe("Visual Studio Code");
+    expect(os.get().activeWindowTitle).toBe("main.ts");
   });
 
   it("null/empty active_app_name does not overwrite with a bogus value", async () => {
