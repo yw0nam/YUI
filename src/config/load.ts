@@ -26,6 +26,10 @@ import type {
   MotionRegistry,
   MotionRegistryEntry,
 } from "../contract";
+import { resolveAssetUrl } from "../io/asset-url";
+
+/** 논리 경로 → 런타임 URL 변환기. dev = identity, Tauri = 번들 리소스 절대 URL. */
+export type AssetUrlResolver = (logicalPath: string) => Promise<string>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config 타입 (contract 파생 + loader 전용)
@@ -180,14 +184,23 @@ export interface LoadConfigOptions {
   baseUrl?: string;
   /** 캐시 회피용 쿼리(핫리로드 재fetch 시 store가 넘김). */
   cacheBust?: string;
+  /** 논리 경로 → 런타임 URL 변환기(주입 가능). 기본은 resolveAssetUrl(dev passthrough / Tauri 번들). */
+  resolveUrl?: AssetUrlResolver;
+  /** fetch 주입(테스트). 미지정 시 globalThis.fetch. */
+  fetch?: typeof fetch;
 }
 
 /** fetch 기반 기본 reader (브라우저/Tauri webview 런타임). */
-function fetchReader(baseUrl: string, cacheBust?: string): ConfigReader {
+function fetchReader(
+  baseUrl: string,
+  cacheBust?: string,
+  resolveUrl: AssetUrlResolver = resolveAssetUrl,
+  fetchImpl: typeof fetch = globalThis.fetch,
+): ConfigReader {
   return async (file) => {
     const q = cacheBust ? `?t=${encodeURIComponent(cacheBust)}` : "";
-    const url = `${baseUrl}/${file}${q}`;
-    const res = await fetch(url);
+    const url = await resolveUrl(`${baseUrl}/${file}${q}`);
+    const res = await fetchImpl(url);
     if (!res.ok) {
       throw new ConfigError(file, [`HTTP ${res.status} ${res.statusText} (${url})`]);
     }
@@ -761,7 +774,9 @@ function validateSources(file: string, raw: unknown): SourcesConfig {
  * 어느 파일이든 누락/스키마 위반이면 ConfigError로 즉시 실패한다(fail-loud, 부분 로드 없음).
  */
 export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfig> {
-  const read = opts.read ?? fetchReader(opts.baseUrl ?? "/configs", opts.cacheBust);
+  const read =
+    opts.read ??
+    fetchReader(opts.baseUrl ?? "/configs", opts.cacheBust, opts.resolveUrl, opts.fetch);
 
   // 파일별 read는 병렬, 검증은 결정적 순서로.
   const [endpointsRaw, avatarRaw, emotionRegistryRaw, motionsRaw, guardrailsRaw, sourcesRaw] =

@@ -46,6 +46,7 @@ import {
   CAMERA_WHEEL_SENSITIVITY,
 } from "./io/camera-settings";
 import { createVrmSelection, localStorageVrmStorage } from "./io/vrm-selection";
+import { resolveAssetUrl } from "./io/asset-url";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
@@ -265,7 +266,8 @@ async function bootstrap(): Promise<void> {
   // 통과한다. loadVRM은 재진입 안전하지 않으므로 직렬화하되, 실패는 호출자에게 전파한다.
   let vrmSwap = Promise.resolve();
   function loadVrmSerialized(url: string): Promise<void> {
-    const next = vrmSwap.then(() => renderer.loadVRM(url));
+    // 논리 경로(/vrms/*.vrm)를 런타임 URL로 변환 — dev passthrough, Tauri 번들 리소스 절대 URL.
+    const next = vrmSwap.then(async () => renderer.loadVRM(await resolveAssetUrl(url)));
     vrmSwap = next.catch(() => {}); // 체인은 실패해도 살려두고
     return next; // 이 호출자에게만 reject를 전파한다.
   }

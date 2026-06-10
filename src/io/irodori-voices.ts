@@ -1,6 +1,10 @@
 /** irodori_TTS voice registry — synth 전에 voice id 존재를 멱등하게 보장한다. */
 
 import { createLogger, type Logger } from "../logger";
+import { resolveAssetUrl } from "./asset-url";
+
+/** ref_url을 fetchable URL로 변환. dev/브라우저 = origin 기준 절대화, Tauri = 번들 리소스 URL. */
+export type RefUrlResolver = (refUrl: string) => Promise<string>;
 
 export interface EnsureRegisteredOptions {
   baseUrl: string;
@@ -8,6 +12,8 @@ export interface EnsureRegisteredOptions {
   /** vite 서빙 경로(예: "/references/ナツメ/merged_audio.mp3"). */
   refUrl: string;
   fetch?: typeof fetch;
+  /** ref_url 변환기(주입 가능). 기본은 resolveRefUrl(dev origin 절대화 / Tauri 번들). */
+  resolveRef?: RefUrlResolver;
   logger?: Logger;
 }
 
@@ -19,8 +25,15 @@ export function __resetIrodoriVoiceCache(): void {
   inflight.clear();
 }
 
-/** 상대 vite 경로("/references/…")는 base 없는 URL이라 Tauri fetchCORS가 거부한다 — 현재 origin 기준 절대화. base 없는(node 테스트) 환경은 원본 유지. */
-function toAbsoluteRef(refUrl: string): string {
+/**
+ * ref_url을 fetchable URL로 변환한다.
+ * Tauri 패키징은 번들 리소스 절대 URL(resolveAssetUrl). dev/브라우저는 origin 기준 절대화
+ * (상대 vite 경로는 base 없는 URL이라 Tauri fetchCORS가 거부). base 없는(node 테스트) 환경은 원본 유지.
+ */
+async function resolveRefUrl(refUrl: string): Promise<string> {
+  if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+    return resolveAssetUrl(refUrl);
+  }
   const base = (globalThis as { location?: { href?: string } }).location?.href;
   if (!base) return refUrl;
   try {
@@ -50,7 +63,7 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
     return;
   }
 
-  const ref = toAbsoluteRef(opts.refUrl);
+  const ref = await (opts.resolveRef ?? resolveRefUrl)(opts.refUrl);
   const refRes = await fetchImpl(ref);
   if (!refRes.ok) {
     throw new Error(`irodori reference fetch failed (HTTP ${refRes.status}) ${ref}`);
@@ -73,6 +86,8 @@ export interface UpdateVoiceOptions {
   id: string;
   refUrl: string;
   fetch?: typeof fetch;
+  /** ref_url 변환기(주입 가능). 기본은 resolveRefUrl. */
+  resolveRef?: RefUrlResolver;
   logger?: Logger;
 }
 
@@ -87,7 +102,7 @@ export async function updateVoice(opts: UpdateVoiceOptions): Promise<void> {
   }
   const fetchImpl = opts.fetch ?? globalThis.fetch;
 
-  const ref = toAbsoluteRef(opts.refUrl);
+  const ref = await (opts.resolveRef ?? resolveRefUrl)(opts.refUrl);
   const refRes = await fetchImpl(ref);
   if (!refRes.ok) {
     throw new Error(`irodori reference fetch failed (HTTP ${refRes.status}) ${ref}`);

@@ -6,7 +6,8 @@
  * 순수 로드+검증만 담당(부수효과 없음, reader 주입 가능 → 테스트). fail-loud ConfigError.
  */
 
-import { ConfigError, type ConfigReader } from "./load";
+import { ConfigError, type AssetUrlResolver, type ConfigReader } from "./load";
+import { resolveAssetUrl } from "../io/asset-url";
 
 export interface LoadEmotionTextOptions {
   /** configs/emotion_text/<provider>.json의 provider 키(예: "irodori"). */
@@ -15,6 +16,10 @@ export interface LoadEmotionTextOptions {
   read?: ConfigReader;
   /** 기본 reader가 붙일 prefix. default `/configs`. */
   baseUrl?: string;
+  /** 논리 경로 → 런타임 URL 변환기(주입 가능). 기본은 resolveAssetUrl. */
+  resolveUrl?: AssetUrlResolver;
+  /** fetch 주입(테스트). 미지정 시 globalThis.fetch. */
+  fetch?: typeof fetch;
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -22,10 +27,14 @@ function isObject(v: unknown): v is Record<string, unknown> {
 }
 
 /** fetch 기반 기본 reader (브라우저/Tauri webview 런타임). */
-function fetchReader(baseUrl: string): ConfigReader {
+function fetchReader(
+  baseUrl: string,
+  resolveUrl: AssetUrlResolver = resolveAssetUrl,
+  fetchImpl: typeof fetch = globalThis.fetch,
+): ConfigReader {
   return async (file) => {
-    const url = `${baseUrl}/${file}`;
-    const res = await fetch(url);
+    const url = await resolveUrl(`${baseUrl}/${file}`);
+    const res = await fetchImpl(url);
     if (!res.ok) {
       throw new ConfigError(file, [`HTTP ${res.status} ${res.statusText} (${url})`]);
     }
@@ -44,7 +53,7 @@ function fetchReader(baseUrl: string): ConfigReader {
 export async function loadEmotionTextTable(
   opts: LoadEmotionTextOptions,
 ): Promise<Record<string, string>> {
-  const read = opts.read ?? fetchReader(opts.baseUrl ?? "/configs");
+  const read = opts.read ?? fetchReader(opts.baseUrl ?? "/configs", opts.resolveUrl, opts.fetch);
   const file = `emotion_text/${opts.provider}.json`;
   const raw = await read(file);
 
