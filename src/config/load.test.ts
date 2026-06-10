@@ -1068,6 +1068,66 @@ describe("loadConfig — validation failures throw ConfigError", () => {
   });
 });
 
+// ── sources.json (#24 proactive cowork knobs) ──────────────────────────────────
+
+describe("loadConfig — sources", () => {
+  /** valid sources fixture shape. */
+  function goodSources(): Record<string, unknown> {
+    return { proactive: { cowork: { interval_ms: 600000, present_max_idle_ms: 60000 } } };
+  }
+  async function loadWith(value: unknown): Promise<unknown> {
+    const map = goodFixture();
+    map[CONFIG_FILES.sources] = value;
+    return loadConfig({ read: readerOf(map) });
+  }
+  async function expectSourcesError(p: Promise<unknown>): Promise<void> {
+    await expect(p).rejects.toBeInstanceOf(ConfigError);
+    const err = await p.catch((e) => e);
+    expect((err as ConfigError).file).toBe("sources.json");
+    expect((err as ConfigError).issues.length).toBeGreaterThan(0);
+  }
+
+  it("유효한 sources를 그대로 보존한다", async () => {
+    const cfg = await loadConfig({ read: readerOf(goodFixture()) });
+    expect(cfg.sources.proactive.cowork.interval_ms).toBe(600000);
+    expect(cfg.sources.proactive.cowork.present_max_idle_ms).toBe(60000);
+  });
+
+  it("객체가 아니면 ConfigError", async () => {
+    await expectSourcesError(loadWith(42));
+  });
+
+  it("present_max_idle_ms가 < 10000이면 ConfigError", async () => {
+    await expectSourcesError(
+      loadWith({ proactive: { cowork: { interval_ms: 600000, present_max_idle_ms: 5000 } } }),
+    );
+  });
+
+  it("present_max_idle_ms >= interval_ms이면 ConfigError(degenerate)", async () => {
+    await expectSourcesError(
+      loadWith({ proactive: { cowork: { interval_ms: 60000, present_max_idle_ms: 60000 } } }),
+    );
+  });
+
+  it("interval_ms가 0 이하면 ConfigError", async () => {
+    await expectSourcesError(
+      loadWith({ proactive: { cowork: { interval_ms: 0, present_max_idle_ms: 60000 } } }),
+    );
+  });
+
+  it("interval_ms가 비유한(Infinity)이면 ConfigError", async () => {
+    await expectSourcesError(
+      loadWith({ proactive: { cowork: { interval_ms: Infinity, present_max_idle_ms: 60000 } } }),
+    );
+  });
+
+  it("파일 누락(reader reject)은 그대로 전파된다", async () => {
+    const map = goodFixture();
+    delete map["sources.json"];
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toThrow(/missing sources\.json/);
+  });
+});
+
 // ── reader 실패 전파 ────────────────────────────────────────────────────────────
 
 describe("loadConfig — reader rejection", () => {
