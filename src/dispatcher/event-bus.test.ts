@@ -94,6 +94,25 @@ describe("event_bus — priority ordering (§4.3)", () => {
   });
 });
 
+describe("event_bus — proactive.* family (#24 Step 5)", () => {
+  it("accepts proactive.cowork (not unknown_event_name-dropped)", () => {
+    expect(
+      bus.push(env({ source: "timer_scheduler", event_name: "proactive.cowork", ts: NOW, dnd_override: false })),
+    ).toBe(true);
+    expect(bus.snapshot()).toHaveLength(1);
+  });
+
+  it("gives proactive.* priority 2 — after user.* (0), before os.* (3)", () => {
+    bus.push(env({ source: "os_event_watcher", event_name: "os.active_app_changed", ts: NOW, dnd_override: false }));
+    bus.push(env({ source: "timer_scheduler", event_name: "proactive.cowork", ts: NOW, dnd_override: false }));
+    bus.push(env({ source: "user_input_source", event_name: "user.text_submitted", ts: NOW }));
+    expect(bus.pop()!.event_name).toBe("user.text_submitted");
+    expect(bus.pop()!.event_name).toBe("proactive.cowork");
+    expect(bus.pop()!.event_name).toBe("os.active_app_changed");
+    expect(bus.pop()).toBeNull();
+  });
+});
+
 describe("event_bus — capacity 100 (§4.2)", () => {
   it("drops the lowest-priority entry when over capacity, keeping high-priority", () => {
     const drops: unknown[] = [];
