@@ -109,6 +109,37 @@ const variantRegistry: MotionRegistry = {
   },
 };
 
+/** Registry exercising window_sit (state, loop, ≥2 variants, priority 55) against
+ * the existing state-machine: baseline idle + a p70 oneshot interrupter. */
+const sitRegistry: MotionRegistry = {
+  idle: {
+    vrma_path: "/motions/idle_01.vrma",
+    variants: ["/motions/idle_01.vrma", "/motions/idle_02.vrma"],
+    variant_policy: "random",
+    kind: "ambient",
+    loop: true,
+    priority: 0,
+    interrupt_policy: "replace",
+  },
+  window_sit: {
+    vrma_path: "/motions/sit_01.vrma",
+    variants: ["/motions/sit_01.vrma", "/motions/sit_02.vrma"],
+    variant_policy: "random",
+    cycle_dwell_ms: 4000,
+    kind: "state",
+    loop: true,
+    priority: 55,
+    interrupt_policy: "replace",
+  },
+  wave: {
+    vrma_path: "/motions/wave.vrma",
+    kind: "oneshot",
+    loop: false,
+    priority: 70,
+    interrupt_policy: "replace",
+  },
+};
+
 /** Registry with 3-variant sequential entry for sequential cycling tests. */
 const seqRegistry: MotionRegistry = {
   idle: {
@@ -436,6 +467,52 @@ describe("finish() — idle cycle re-randomizes", () => {
         "/motions/idle_05.vrma",
       ]).toContain(afterFinish.motion.vrma_path);
       expect(afterFinish.motion.vrma_path).not.toBe(idle!.vrma_path);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §7  window_sit (state, p55) — interaction with the existing state-machine
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("window_sit — exit and oneshot-return", () => {
+  it("request(null) while window_sit is current → play baseline idle (exit → idle)", () => {
+    const mc = createMotionController(sitRegistry, {
+      rng: () => 0,
+      baselineId: "idle",
+    });
+    const sit = mc.request({ id: "window_sit" });
+    expect(sit.action).toBe("play");
+    mc.commit(sit);
+    expect(mc.current()!.id).toBe("window_sit");
+
+    const decision = mc.request(null);
+    expect(decision.action).toBe("play");
+    if (decision.action === "play") {
+      expect(decision.motion.id).toBe("idle");
+    }
+  });
+
+  it("a p70 oneshot interrupts window_sit; finish(oneshot) returns window_sit via previousStable", () => {
+    const mc = createMotionController(sitRegistry, {
+      rng: () => 0,
+      baselineId: "idle",
+    });
+    // Commit window_sit (state, p55) — saved as previousStable on commit.
+    const sit = mc.request({ id: "window_sit" });
+    mc.commit(sit);
+
+    // p70 wave (>= 55) interrupts → play, committed as current.
+    const wave = mc.request({ id: "wave" });
+    expect(wave.action).toBe("play");
+    mc.commit(wave);
+    expect(mc.current()!.id).toBe("wave");
+
+    // Oneshot finishes → returns to the saved stable state, window_sit.
+    const afterFinish = mc.finish("wave");
+    expect(afterFinish.action).toBe("play");
+    if (afterFinish.action === "play") {
+      expect(afterFinish.motion.id).toBe("window_sit");
     }
   });
 });
