@@ -6,7 +6,7 @@ import { resolveVitePort } from "./scripts/dev-port.mjs";
 
 // dev 정적 서빙: /vrms/* → resources/vrms/, /configs/* → configs/.
 // VRM 에셋(resources/vrms, gitignore됨)·런타임 config를 publicDir 없이 클린 URL로 노출.
-// prod(Tauri)는 asset 프로토콜로 별도 처리 — 추후(#27 패키징).
+// prod(Tauri)는 bundle.resources + asset 프로토콜로 서빙 — 같은 논리 경로를 src/io/asset-url.ts가 변환.
 const MIME: Record<string, string> = {
   ".vrm": "application/octet-stream",
   ".vrma": "application/octet-stream",
