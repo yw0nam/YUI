@@ -531,7 +531,7 @@ interface EndpointsConfig {
   tts_provider?: "openai" | "irodori";   // 합성 경로. 미설정 시 loader가 "irodori"로 resolve
 
   // --- provider="irodori" ---
-  irodori_base_url?: string;             // irodori_TTS root. optional, 미설정 시 default "http://localhost:8091"
+  irodori_base_url?: string;             // irodori_TTS root(http(s)). provider=irodori일 때 필수 — 미설정 시 fail-loud ConfigError(default 없음)
   irodori_speaker?: string;              // 활성 화자 = reference_id(voice registry 등록 키)
   irodori_voices?: Array<{               // 선택 가능한 화자 목록 — UI 표시 + voice registry 등록 소스
     id: string;                          //   reference_id(= /synthesize의 reference_id, /voices의 voice_id)
@@ -557,7 +557,7 @@ interface EndpointsConfig {
 
 - **session/compaction 필드 default(loader):** `compact_threshold_ratio=0.7` · `compact_resume_ratio=0.5` · `compact_timeout_ms=12000`. `chat_model_context_window`는 default 없음 — 미설정 시 token-threshold trigger가 발동하지 않는다(idle resume / blur trigger는 무관하게 동작). checked-in `configs/endpoints.json`은 `200000 / 0.7 / 0.5 / 12000`을 싣는다.
 
-- **provider 선택:** `tts_provider` 미설정 → loader가 `"irodori"`로 resolve(default). `"openai"`면 `/audio/speech` 경로. `irodori_base_url`은 optional이며 미설정 시 `http://localhost:8091`로 resolve된다.
+- **provider 선택:** `tts_provider` 미설정 → loader가 `"irodori"`로 resolve(default). `"openai"`면 `/audio/speech` 경로. `irodori_base_url`은 `tts_provider === "irodori"`일 때 필수이며, 미설정 시 fail-loud ConfigError로 실패한다(default 없음).
 - **`irodori_voices`의 `ref_url`**은 reference clip을 가리킨다 — `resources/references/<id>/merged_audio.mp3`(gitignored, symlink)를 Vite가 `/references/*`로 서빙. 등록(§5.3) 시에만 fetch되고, per-synth 요청엔 안 실린다.
 - client는 `src/io/irodori-synth.ts`(합성)와 `src/io/irodori-voices.ts`(voice-registry helper)로 이 경로를 구현한다.
 

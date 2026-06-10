@@ -570,7 +570,7 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
     if (!INTERRUPT_POLICIES.includes(entry.interrupt_policy as InterruptPolicy)) {
       issues.push(`${id}.interrupt_policy는 ${INTERRUPT_POLICIES.join("|")} 중 하나여야 함`);
     }
-    // variants(D-MOTION-VARIANTS): 있으면 .vrma 문자열 2개 이상 풀. 1개짜리는 무의미.
+    // variants: 있으면 .vrma 문자열 2개 이상 풀. 1개짜리는 무의미.
     const rawVariants = entry.variants;
     let variants: string[] | undefined;
     if (rawVariants !== undefined) {

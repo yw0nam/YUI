@@ -1,8 +1,7 @@
 /**
  * Chat client — thin ADAPTER over the official `openai` SDK Responses stream.
- * (decision D-CHAT-SDK)
  *
- * D-CHAT-SDK: we do NOT hand-roll SSE/fetch/byte-framing. The SDK owns transport,
+ * We do NOT hand-roll SSE/fetch/byte-framing. The SDK owns transport,
  * chunk-splitting and abort. We construct `new OpenAI({...})` and call
  * `client.responses.create({ stream: true })`, which returns an async-iterable of
  * TYPED Responses events. This module maps those events → our `ChatStreamEvent`
@@ -39,7 +38,7 @@
  *      · else → tool_status done.
  *  - response.completed → completed event with the assembled ControlEnvelope. Normalization
  *    happens HERE (chat-client only): emotion_id→emotion{id}, motion_id→motion{id},
- *    emotion_text→emotion_text. No should_speak (D-NO-SPEAK-GATE).
+ *    emotion_text→emotion_text. No should_speak gate.
  *  - error → error event.
  *
  * ⚠ function_call items are ABSENT from response.completed's final output[] →

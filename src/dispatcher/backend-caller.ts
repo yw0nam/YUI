@@ -2,7 +2,7 @@
  * Backend caller — B1–B5 호출 시퀀스.
  *
  * tier2/3 event를 backend judgment로 보낸다. firing≠judgment 경계의 backend 쪽:
- * 말할지/무엇을은 backend가 발화 텍스트 발신 여부로 표현한다(D-NO-SPEAK-GATE: 침묵 = speech_text "").
+ * 말할지/무엇을은 backend가 발화 텍스트 발신 여부로 표현한다(should_speak 플래그 없음: 침묵 = speech_text "").
  *
  *  B1 package_context — InputContext 조립(user_text + env.timestamp +
  *     env.timezone). active_app/window은 getOsContext 스냅샷이 있을 때만 best-effort로 첨부.
@@ -10,7 +10,7 @@
  *     소유 — 여기서 직접 파싱하지 않는다. AbortSignal로 in-flight abort.
  *  B3 parse — chat-client의 `completed` 이벤트가 이미 ControlEnvelope를 조립해 준다.
  *     completed 미수신 → parse_error.
- *  B4 speech gate — speech_text가 비어있지 않을 때만 발화(D-NO-SPEAK-GATE). 빈 텍스트 = 침묵,
+ *  B4 speech gate — speech_text가 비어있지 않을 때만 발화(should_speak 플래그 없음). 빈 텍스트 = 침묵,
  *     별도 플래그 없음. emotion/motion은 침묵과 무관하게 렌더.
  *  B5 dispatch_to_renderer — renderer.applyDirective(envelope) + speech_text→onSpeech +
  *     emotion_text→onEmotionText + tool_status→onToolStatus(main.ts에서 TTS/UI로 흘린다).
@@ -331,7 +331,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       deps.onToolStatus?.(envelope.tool_status);
     }
 
-    // B4(speech gate, D-NO-SPEAK-GATE): speech_text가 비어있지 않을 때만 발화.
+    // B4(speech gate, should_speak 플래그 없음): speech_text가 비어있지 않을 때만 발화.
     //   빈 텍스트 = 침묵 — 별도 플래그/판정 없음, drop_reason도 없음.
     if (streamedAny) {
       // 스트리밍 경로: delta로 이미 발화를 구동했으니 종료만 알린다(onSpeech 호출 X).
