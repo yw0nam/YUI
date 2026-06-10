@@ -665,4 +665,31 @@ mod tests {
         assert!(!r.contains(10.0, 60.0)); // bottom edge exclusive (y + h)
         assert!(r.contains(39.9, 59.9)); // just inside
     }
+
+    // ── ProbeGuard once-guard ────────────────────────────────────────────────
+
+    #[test]
+    fn probe_guard_serialises_acquire_release() {
+        // Clean baseline (other tests share the process-wide flag).
+        PROBE_ACTIVE.store(false, Ordering::Release);
+
+        {
+            let first = ProbeGuard::try_acquire();
+            assert!(first.is_some(), "first acquire must succeed");
+            assert!(PROBE_ACTIVE.load(Ordering::Acquire), "flag set while held");
+
+            // A second concurrent acquire is refused while the first is held.
+            let second = ProbeGuard::try_acquire();
+            assert!(second.is_none(), "second concurrent acquire must be refused");
+        }
+
+        // Dropping the first guard at end of scope resets the flag.
+        assert!(!PROBE_ACTIVE.load(Ordering::Acquire), "flag cleared on drop");
+
+        // A subsequent acquire after release succeeds again.
+        let third = ProbeGuard::try_acquire();
+        assert!(third.is_some(), "acquire after release must succeed");
+        drop(third);
+        assert!(!PROBE_ACTIVE.load(Ordering::Acquire), "flag cleared after final drop");
+    }
 }
