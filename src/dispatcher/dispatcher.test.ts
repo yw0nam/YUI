@@ -152,6 +152,26 @@ describe("dispatcher — routing (§5.1)", () => {
     await vi.advanceTimersByTimeAsync(20);
     expect(applyDirective).toHaveBeenCalled();
   });
+
+  it("routes user.window_sit_enter (tier1) to renderer with window_sit motion, NOT the backend", async () => {
+    dispatcher.start();
+    bus.push(env({ event_name: "user.window_sit_enter", hint_tier: 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(applyDirective).toHaveBeenCalled();
+    const arg = applyDirective.mock.calls[0][0];
+    expect(arg.motion?.id).toBe("window_sit");
+  });
+
+  it("routes user.window_sit_exit (tier1) to renderer with motion null, NOT the backend", async () => {
+    dispatcher.start();
+    bus.push(env({ event_name: "user.window_sit_exit", hint_tier: 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(applyDirective).toHaveBeenCalled();
+    const arg = applyDirective.mock.calls[0][0];
+    expect(arg.motion).toBeNull();
+  });
 });
 
 describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path)", () => {

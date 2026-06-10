@@ -32,6 +32,7 @@ import {
   type MotionController,
   type ResolvedMotion,
 } from "./motion-controller";
+import { createCycleDwell } from "./cycle-dwell";
 import {
   createEmotionResolver,
   type EmotionResolver,
@@ -275,6 +276,8 @@ export function createRenderer(options: RendererOptions): Renderer {
   const actionToId = new Map<THREE.AnimationAction, string>();
   /** 핫스왑 race guard: 로드 비동기 사이에 VRM이 바뀌면 폐기. */
   let vrmEpoch = 0;
+  /** cycle 모션의 variant swap 전 dwell(정착 프레임 유지) 스케줄러 — startMotion이 취소 chokepoint. */
+  const cycleDwell = createCycleDwell();
 
   // ── Lipsync 상태 (#15) ──────────────────────────────────────────────────────
   // 입(`aa`)은 lipsync 전용 — ambient/emotion와 분리. emotion crossfade와 같은
@@ -315,11 +318,17 @@ export function createRenderer(options: RendererOptions): Renderer {
       const id = actionToId.get(e.action);
       actionToId.delete(e.action);
       if (!controller || !id) return;
-      const decision = controller.finish(id);
-      controller.commit(decision);
-      if (decision.action === "play") {
-        void startMotion(decision.motion);
-      }
+      // cycle 모션이면 정착 마지막 프레임을 cycle_dwell_ms만큼 유지한 뒤 swap.
+      const isCycle = controller.current()?.cycle ?? false;
+      const dwell = motionRegistry?.[id]?.cycle_dwell_ms;
+      const swap = (): void => {
+        const decision = controller!.finish(id);
+        controller!.commit(decision);
+        if (decision.action === "play") {
+          void startMotion(decision.motion);
+        }
+      };
+      cycleDwell.onFinish(isCycle, dwell, swap);
     } catch (err) {
       log.error("motion finish handler error:", err);
     }
@@ -380,6 +389,7 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   /** mixer/clip/action 캐시 + controller 상태를 모두 폐기 (핫스왑/dispose 공용). */
   function teardownMotion(): void {
+    cycleDwell.cancel(); // 폐기될 mixer에 stale swap이 발화하지 않도록.
     if (mixer) {
       mixer.removeEventListener("finished", onMixerFinished as never);
       mixer.stopAllAction();
@@ -437,6 +447,8 @@ export function createRenderer(options: RendererOptions): Renderer {
    * controller.commit은 호출자(playMotion/finish)가 결정과 함께 수행한다.
    */
   async function startMotion(motion: ResolvedMotion): Promise<void> {
+    // 단일 play sink — 어떤 새 모션이든 대기 중 dwell swap을 취소(인터럽트 지연·stale swap 방지).
+    cycleDwell.cancel();
     if (!currentVrm || !mixer) return;
     const epoch = vrmEpoch;
     try {

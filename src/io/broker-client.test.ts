@@ -399,6 +399,7 @@ describe("deriveBrokerPayload", () => {
         laugh: { vrma_path: "/motions/laugh.vrma", kind: "oneshot", loop: false, priority: 60, interrupt_policy: "replace" },
         embarrassed: { vrma_path: "/motions/embarrassed.vrma", kind: "oneshot", loop: false, priority: 60, interrupt_policy: "replace" },
         sit: { vrma_path: "/motions/sit.vrma", kind: "oneshot", loop: false, priority: 60, interrupt_policy: "replace", broker_publish: false },
+        window_sit: { vrma_path: "/motions/sit_01.vrma", kind: "state", loop: true, priority: 55, interrupt_policy: "replace", broker_publish: false },
       },
     };
   }
@@ -414,6 +415,11 @@ describe("deriveBrokerPayload", () => {
     expect(p.motionIds).not.toContain("idle");
     expect(p.motionIds).not.toContain("sit");
     expect([...p.motionIds].sort()).toEqual(["embarrassed", "happy", "laugh"]);
+  });
+
+  it("excludes a kind:state motion solely via broker_publish:false (window_sit)", () => {
+    const p = deriveBrokerPayload(baseConfig("openai"), null);
+    expect(p.motionIds).not.toContain("window_sit");
   });
 
   it("provider openai → emotion text free + null table", () => {

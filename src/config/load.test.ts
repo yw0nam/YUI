@@ -230,6 +230,71 @@ describe("loadConfig — motions.variants", () => {
   });
 });
 
+// ── motions.cycle_dwell_ms (cycle 정착 프레임 유지) ──────────────────────────────
+
+/** cycle 모션 한 항목(variants>1 + loop:true)을 motions.json으로 깔아주는 fixture. */
+function cycleMotionFixture(dwell?: number): Record<string, unknown> {
+  const map = goodFixture();
+  map["motions.json"] = {
+    perch: {
+      vrma_path: "/motions/a.vrma",
+      variants: ["/motions/a.vrma", "/motions/b.vrma"],
+      variant_policy: "random",
+      ...(dwell !== undefined ? { cycle_dwell_ms: dwell } : {}),
+      kind: "state",
+      loop: true,
+      priority: 50,
+      interrupt_policy: "replace",
+    },
+  };
+  return map;
+}
+
+describe("loadConfig — motions.cycle_dwell_ms", () => {
+  it("유효한 cycle_dwell_ms를 검증 후 그대로 보존한다", async () => {
+    const cfg = await loadConfig({ read: readerOf(cycleMotionFixture(4000)) });
+    expect(cfg.motions.perch.cycle_dwell_ms).toBe(4000);
+  });
+
+  it("cycle_dwell_ms 없는 항목은 통과하고 cycle_dwell_ms는 undefined", async () => {
+    const cfg = await loadConfig({ read: readerOf(cycleMotionFixture()) });
+    expect(cfg.motions.perch.cycle_dwell_ms).toBeUndefined();
+  });
+
+  it("정수가 아니면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(cycleMotionFixture(1000.5)) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("음수면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(cycleMotionFixture(-1)) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("60000 초과면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(cycleMotionFixture(60001)) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("cycle 모션(variants>1 + loop)이 아닌데 cycle_dwell_ms가 있으면 ConfigError", async () => {
+    const map = goodFixture();
+    map["motions.json"] = {
+      idle: {
+        vrma_path: "/motions/a.vrma",
+        cycle_dwell_ms: 4000,
+        kind: "ambient",
+        loop: false,
+        priority: 0,
+        interrupt_policy: "replace",
+      },
+    };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+});
+
 // ── avatar.available manifest (#94 VRM swap) ────────────────────────────────────
 
 describe("loadConfig — avatar.available", () => {

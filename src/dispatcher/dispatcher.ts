@@ -125,7 +125,9 @@ function classify(env: BusEnvelope): Classification {
     n === "user.drag_start" ||
     n === "user.drag_end" ||
     n === "idle.returned" ||
-    n === "user.tap"
+    n === "user.tap" ||
+    n === "user.window_sit_enter" ||
+    n === "user.window_sit_exit"
   ) {
     return { tier: 1, target: "tier1" };
   }
@@ -143,6 +145,10 @@ function tier1Directive(env: BusEnvelope): ControlEnvelope | null {
     case "user.drag_start":
       return { speech_text: "", motion: { id: "drag" } };
     case "user.drag_end":
+      return { speech_text: "", motion: null };
+    case "user.window_sit_enter":
+      return { speech_text: "", motion: { id: "window_sit" } };
+    case "user.window_sit_exit":
       return { speech_text: "", motion: null };
     case "user.tap":
     case "idle.returned":

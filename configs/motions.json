@@ -97,6 +97,26 @@
     "interrupt_policy": "replace",
     "broker_publish": false
   },
+  "window_sit": {
+    "vrma_path": "/motions/sit_01.vrma",
+    "variants": [
+      "/motions/sit_01.vrma",
+      "/motions/sit_02.vrma",
+      "/motions/sit_03.vrma",
+      "/motions/sit_04.vrma",
+      "/motions/sit_05.vrma",
+      "/motions/sit_07.vrma",
+      "/motions/suwari1.vrma",
+      "/motions/suwari3.vrma"
+    ],
+    "variant_policy": "random",
+    "cycle_dwell_ms": 4000,
+    "kind": "state",
+    "loop": true,
+    "priority": 55,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
   "dance": {
     "vrma_path": "/motions/dance_01.vrma",
     "variants": [
