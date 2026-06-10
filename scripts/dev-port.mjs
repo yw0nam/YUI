@@ -30,6 +30,7 @@ export async function resolvePort({ env, isPortFree, base = 1420, maxScan = 100 
   throw new Error(`No free dev port in range ${base}..${base + maxScan - 1}`);
 }
 
+// Best-effort probe; strictPort is the real arbiter — a lost probe-vs-bind race fails loudly.
 export async function findFreePort(port) {
   return new Promise((resolve) => {
     const server = createServer();

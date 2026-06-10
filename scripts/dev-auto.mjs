@@ -8,4 +8,5 @@ const child = spawn("pnpm", ["exec", "vite"], {
   stdio: "inherit",
   env: { ...process.env, YUI_DEV_PORT: String(port) },
 });
-child.on("exit", (code) => process.exit(code ?? 1));
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, () => child.kill(sig));
+child.on("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
