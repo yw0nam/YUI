@@ -153,6 +153,21 @@ describe("configs/motions.json", () => {
     }
   });
 
+  it("window_sit is a looping state perch with a cycle dwell and a random-variant pool", () => {
+    expect(m.window_sit).toBeDefined();
+    expect(m.window_sit.kind).toBe("state");
+    expect(m.window_sit.loop).toBe(true);
+    expect(m.window_sit.priority).toBe(55);
+    expect(m.window_sit.broker_publish).toBe(false);
+    expect(m.window_sit.cycle_dwell_ms).toBe(4000);
+    expect(m.window_sit.variant_policy).toBe("random");
+    expect(Array.isArray(m.window_sit.variants)).toBe(true);
+    expect(m.window_sit.variants.length).toBe(8);
+    for (const v of m.window_sit.variants) {
+      expect(v, "window_sit.variant").toMatch(/\.vrma$/);
+    }
+  });
+
   it("registers the standing-gesture batch as oneshot p70", () => {
     for (const id of [
       "sheepish",
