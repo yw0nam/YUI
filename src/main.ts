@@ -597,9 +597,10 @@ async function bootstrap(): Promise<void> {
     getApiKey: () => chatApiKey,
   });
   const compactionTrigger = createCompactionTrigger({
-    contextWindow: getEndpoints().chat_model_context_window,
-    thresholdRatio: getEndpoints().compact_threshold_ratio ?? 0.7,
-    resumeRatio: getEndpoints().compact_resume_ratio ?? 0.5,
+    // lazy: load() 전 eager 평가 금지 + 노브 핫리로드 반영.
+    contextWindow: () => getEndpoints().chat_model_context_window,
+    thresholdRatio: () => getEndpoints().compact_threshold_ratio ?? 0.7,
+    resumeRatio: () => getEndpoints().compact_resume_ratio ?? 0.5,
     onTrigger: () => dispatcherRef?.requestCompaction(),
   });
   // 압축 thunk: 회전 id 적용 + 진단 기록 + trigger 피드백. dispatcher가 timeout과 race해 호출.
