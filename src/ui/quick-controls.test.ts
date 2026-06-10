@@ -17,6 +17,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
 import { createLipsyncSettings } from "../io/lipsync-settings";
+import { createVadSettings, VAD_SILENCE_DEFAULT } from "../io/vad-settings";
 import { createVrmSelection } from "../io/vrm-selection";
 import { createSpeakerSelection, type SpeakerOption } from "../io/speaker-selection";
 import type { AvatarOption } from "../config/load";
@@ -171,6 +172,7 @@ describe("createQuickControls — gain row", () => {
       sourceProvider: makeSourceProvider(),
       voiceStatus: makeVoiceStatus(),
       lipsync,
+      vad: createVadSettings(),
       onGainPreview,
       onGainPreviewEnd,
       agentSettings,
@@ -253,14 +255,14 @@ describe("createQuickControls — gain row", () => {
 
   // ── Slider exists with correct attributes ─────────────────────────────────
 
-  it("renders a range slider with min=0.5, max=4, value=2 (default gain)", () => {
+  it("renders a range slider with min=0.5, max=6, value=2 (default gain)", () => {
     const qc = buildQc();
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>("input.yui-gain__slider[type=range]");
+    const slider = qc.el.querySelector<HTMLInputElement>("input.yui-gain__slider:not(.yui-vad__slider)[type=range]");
     expect(slider).not.toBeNull();
     expect(slider!.min).toBe("0.5");
-    expect(slider!.max).toBe("4");
+    expect(slider!.max).toBe("6");
     expect(slider!.value).toBe("2");
 
     qc.dispose();
@@ -1520,6 +1522,7 @@ describe("createQuickControls — session section", () => {
       sourceProvider: makeSourceProvider(),
       voiceStatus: makeVoiceStatus(),
       lipsync: createLipsyncSettings(),
+      vad: createVadSettings(),
       onGainPreview: vi.fn(),
       onGainPreviewEnd: vi.fn(),
       agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
@@ -1667,6 +1670,240 @@ describe("createQuickControls — session section", () => {
     expect(value.textContent).toContain("100K");
     expect(qc.el.querySelector<HTMLElement>(".yui-session__value .pct")!.textContent).toContain("50%");
 
+    qc.dispose();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab layout (#149) + VAD silence-window slider
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createQuickControls — tabs + VAD slider", () => {
+  let mount: HTMLElement;
+  let vad: ReturnType<typeof createVadSettings>;
+
+  beforeEach(() => {
+    let rafId = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return ++rafId;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    vad = createVadSettings();
+    try {
+      globalThis.localStorage?.clear();
+    } catch {
+      /* localStorage 미사용 환경 무시 */
+    }
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+  });
+
+  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    return createQuickControls({
+      mount,
+      settings: makeSettings(),
+      sourceProvider: makeSourceProvider(),
+      voiceStatus: makeVoiceStatus(),
+      lipsync: createLipsyncSettings(),
+      vad,
+      onGainPreview: vi.fn(),
+      onGainPreviewEnd: vi.fn(),
+      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+      endpointsSettings: createEndpointsSettings(),
+      proactiveSettings: createProactiveSettings(),
+      onPopOut: vi.fn(),
+      vrmSelection: createVrmSelection({
+        available: [{ id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" }],
+        defaultUrl: "/vrms/carlotta.vrm",
+      }),
+      swapVrm: vi.fn(async () => {}),
+      speakerSelection: createSpeakerSelection({
+        available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
+        defaultId: "natsume",
+      }),
+      swapSpeaker: vi.fn(async () => {}),
+      refreshSpeaker: vi.fn(async () => {}),
+      ...extra,
+    });
+  }
+
+  function tabs(qc: ReturnType<typeof createQuickControls>): HTMLButtonElement[] {
+    return Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+  }
+
+  function panelFor(qc: ReturnType<typeof createQuickControls>, tab: HTMLButtonElement): HTMLElement {
+    return qc.el.querySelector<HTMLElement>(`#${tab.getAttribute("aria-controls")}`)!;
+  }
+
+  it("renders a tablist with 4 tabs and 4 tabpanels", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]');
+    expect(tablist).not.toBeNull();
+    const t = tabs(qc);
+    expect(t.length).toBe(4);
+    expect(qc.el.querySelectorAll('[role="tabpanel"]').length).toBe(4);
+
+    // Each tab is wired to a panel and each panel back to its tab.
+    for (const tab of t) {
+      const panel = panelFor(qc, tab);
+      expect(panel).not.toBeNull();
+      expect(panel.getAttribute("role")).toBe("tabpanel");
+      expect(panel.getAttribute("aria-labelledby")).toBe(tab.id);
+    }
+
+    qc.dispose();
+  });
+
+  it("defaults to the 대화 tab active; its panel visible, others hidden", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const t = tabs(qc);
+    const active = t.find((tab) => tab.getAttribute("aria-selected") === "true")!;
+    expect(active.textContent).toContain("대화");
+
+    for (const tab of t) {
+      const on = tab === active;
+      expect(tab.getAttribute("aria-selected")).toBe(String(on));
+      expect(tab.tabIndex).toBe(on ? 0 : -1);
+      expect(panelFor(qc, tab).hidden).toBe(!on);
+    }
+
+    qc.dispose();
+  });
+
+  it("clicking a tab switches the active panel + aria-selected/hidden", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const t = tabs(qc);
+    const target = t[2]; // 입력
+    target.click();
+
+    expect(target.getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, target).hidden).toBe(false);
+    for (const tab of t) {
+      if (tab === target) continue;
+      expect(tab.getAttribute("aria-selected")).toBe("false");
+      expect(panelFor(qc, tab).hidden).toBe(true);
+    }
+
+    qc.dispose();
+  });
+
+  it("ArrowRight / ArrowLeft move the active tab (roving tabindex)", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
+    const t = tabs(qc);
+    t[0].focus();
+
+    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(t[1].getAttribute("aria-selected")).toBe("true");
+    expect(t[1].tabIndex).toBe(0);
+    expect(t[0].tabIndex).toBe(-1);
+    expect(panelFor(qc, t[1]).hidden).toBe(false);
+
+    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+    expect(t[0].getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, t[0]).hidden).toBe(false);
+
+    qc.dispose();
+  });
+
+  it("Home / End jump to the first / last tab", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
+    const t = tabs(qc);
+    t[0].focus();
+
+    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    expect(t[3].getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, t[3]).hidden).toBe(false);
+
+    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    expect(t[0].getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, t[0]).hidden).toBe(false);
+
+    qc.dispose();
+  });
+
+  it("keeps exactly one panel visible at all times", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const t = tabs(qc);
+    for (const tab of t) {
+      tab.click();
+      const visible = t.filter((x) => !panelFor(qc, x).hidden);
+      expect(visible.length).toBe(1);
+      expect(visible[0]).toBe(tab);
+    }
+
+    qc.dispose();
+  });
+
+  // ── 침묵 기준 (VAD) 슬라이더 — 입력 탭 ──────────────────────────────────────
+
+  it("renders the silence-window slider with min 500 / max 3000 / step 50", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const slider = qc.el.querySelector<HTMLInputElement>('.yui-gain__slider[aria-label="침묵 기준"]');
+    expect(slider).not.toBeNull();
+    expect(slider!.min).toBe("500");
+    expect(slider!.max).toBe("3000");
+    expect(slider!.step).toBe("50");
+
+    qc.dispose();
+  });
+
+  it("reflects the vad store value (default 1500 ms) on the readout", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const slider = qc.el.querySelector<HTMLInputElement>('.yui-gain__slider[aria-label="침묵 기준"]')!;
+    expect(slider.value).toBe(String(VAD_SILENCE_DEFAULT));
+    const value = slider.closest(".yui-gain")!.querySelector<HTMLElement>(".yui-gain__value")!;
+    expect(value.textContent).toBe("1500 ms");
+
+    qc.dispose();
+  });
+
+  it("dragging the slider calls vad.setSilenceMs and updates the readout", () => {
+    const setSpy = vi.spyOn(vad, "setSilenceMs");
+    const qc = buildQc();
+    qc.open();
+
+    const slider = qc.el.querySelector<HTMLInputElement>('.yui-gain__slider[aria-label="침묵 기준"]')!;
+    slider.value = "2000";
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(setSpy).toHaveBeenCalledWith(2000);
+    expect(vad.get().silenceMs).toBe(2000);
+    const value = slider.closest(".yui-gain")!.querySelector<HTMLElement>(".yui-gain__value")!;
+    expect(value.textContent).toBe("2000 ms");
+
+    qc.dispose();
+  });
+
+  it("does NOT render the legacy voice details (세부 설정) block", () => {
+    const qc = buildQc();
+    qc.open();
+    expect(qc.el.querySelector(".yui-voice-details")).toBeNull();
+    expect(qc.el.querySelector(".yui-voice-status")).toBeNull();
+    expect(qc.el.querySelector(".yui-setting-grid")).toBeNull();
     qc.dispose();
   });
 });

@@ -23,8 +23,11 @@ const VAD_ASSET_PATH = "/vad/";
 
 export interface SttVadOptions {
   config: EndpointsConfig;
-  /** Silence window in ms before speech end is declared. Default 1500. */
-  silenceMs?: number;
+  /**
+   * Silence window in ms before speech end is declared. Default 1500.
+   * Accepts a getter so a live setting is read at each start(), not pinned at construction.
+   */
+  silenceMs?: number | (() => number);
   /** Called once per completed voice segment after STT succeeds. */
   onVoiceSegment: (transcript: Transcript) => void;
   /** Reports client-side voice pipeline state for runtime UI. */
@@ -98,7 +101,8 @@ function describeStartError(err: unknown): string {
 
 export function createSttVad(options: SttVadOptions): SttVad {
   const { config, onVoiceSegment, onState } = options;
-  const silenceMs = options.silenceMs ?? 1500;
+  const resolveSilenceMs = (): number =>
+    typeof options.silenceMs === "function" ? options.silenceMs() : options.silenceMs ?? 1500;
 
   let vad: Awaited<ReturnType<typeof MicVAD.new>> | null = null;
   let loading = false;
@@ -135,7 +139,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
       loading = true;
       try {
         vad = await MicVAD.new({
-          redemptionMs: silenceMs,
+          redemptionMs: resolveSilenceMs(),
           baseAssetPath: VAD_ASSET_PATH,
           onnxWASMBasePath: VAD_ASSET_PATH,
           onSpeechStart: () => onState?.("listening"),

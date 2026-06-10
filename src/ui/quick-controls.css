@@ -179,6 +179,80 @@
   background: transparent;
 }
 
+/* ── 탭 스트립 — .yui-seg 시각언어를 tablist로 확장 ── */
+.yui-tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  flex: 0 0 auto;
+  margin: 0.6rem 0.85rem 0.2rem;
+  padding: 0.18rem;
+  border-radius: var(--yui-radius-row);
+  background: oklch(0.5 0.01 70 / 0.2);
+  border: 1px solid var(--yui-edge);
+}
+
+.yui-tabs__ind {
+  position: absolute;
+  top: 0.18rem;
+  bottom: 0.18rem;
+  left: 0.18rem;
+  width: calc((100% - 0.36rem) / 4);
+  border-radius: calc(var(--yui-radius-row) - 3px);
+  background: var(--yui-accent-faint);
+  border: 1px solid var(--yui-accent-soft);
+  transform: translateX(calc(var(--tab, 0) * 100%));
+  transition: transform var(--yui-dur) var(--yui-ease);
+}
+
+.yui-tab {
+  position: relative;
+  z-index: 1;
+  padding: 0.4rem 0.2rem;
+  border: 0;
+  background: transparent;
+  color: var(--yui-text-mute);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 550;
+  line-height: 1.1;
+  cursor: pointer;
+  border-radius: calc(var(--yui-radius-row) - 3px);
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-tab[aria-selected="true"] {
+  color: var(--yui-accent);
+  font-weight: 650;
+}
+
+.yui-tab:not([aria-selected="true"]):hover {
+  color: var(--yui-text-dim);
+}
+
+.yui-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* 탭 패널 — 비활성은 hidden, 전환은 opacity 페이드만(slide 금지) */
+.yui-tabpanel[hidden] {
+  display: none;
+}
+
+.yui-tabpanel {
+  animation: yui-tab-fade var(--yui-dur) var(--yui-ease);
+}
+
+@keyframes yui-tab-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* ── 섹션 라벨 / 구분선 ── */
 .yui-quick__section {
   display: block;
@@ -435,86 +509,7 @@
   border-radius: 4px;
 }
 
-/* ── 음성 입력 세부 설정 ── */
-.yui-voice-details {
-  margin-top: 0.25rem;
-  padding: 0 0.55rem;
-}
-
-.yui-voice-details > summary {
-  list-style: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  min-height: 1.5rem;
-  color: var(--yui-text-mute);
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-  user-select: none;
-}
-
-.yui-voice-details > summary::-webkit-details-marker {
-  display: none;
-}
-
-.yui-voice-details > summary::before {
-  content: "›";
-  display: inline-block;
-  font-size: 0.85rem;
-  line-height: 1;
-  transform: rotate(0deg);
-  transition: transform var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-voice-details[open] > summary::before {
-  transform: rotate(90deg);
-}
-
-.yui-voice-details__body {
-  display: grid;
-  gap: 0.52rem;
-  padding: 0.22rem 0 0.3rem;
-}
-
-.yui-voice-status {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.65rem;
-}
-
-.yui-voice-status__label,
-.yui-setting-grid span {
-  color: var(--yui-text-mute);
-  font-size: 0.68rem;
-  line-height: 1.2;
-}
-
-.yui-voice-status__value,
-.yui-setting-grid strong {
-  color: var(--yui-text-dim);
-  font-size: 0.72rem;
-  font-weight: 650;
-  line-height: 1.2;
-  text-align: right;
-}
-
-.yui-voice-status__note {
-  margin: 0;
-  color: var(--yui-text-mute);
-  font-size: 0.7rem;
-  line-height: 1.45;
-}
-
-.yui-setting-grid {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 0.36rem 0.7rem;
-  align-items: baseline;
-}
-
-/* ── 엔드포인트 섹션 — 음성 세부 설정과 동일한 접이식. 기본 접힘. ── */
+/* ── 엔드포인트 섹션 — 접이식. 기본 접힘. ── */
 .yui-endpoints {
   margin-top: 0.25rem;
   padding: 0 0.55rem;
@@ -1780,6 +1775,7 @@
   .yui-switch::after,
   .yui-source,
   .yui-seg__ind,
+  .yui-tabs__ind,
   .yui-mon__tick::after,
   .yui-vrm__tick::after,
   .yui-gain__slider::-webkit-slider-thumb,
@@ -1788,6 +1784,10 @@
   }
   .yui-quick {
     transform: translate(0, 0) !important;
+  }
+  /* 패널 전환은 페이드 애니메이션 없이 즉시 교체 */
+  .yui-tabpanel {
+    animation: none;
   }
   /* 장식 모션 없음 — 로딩 tick은 회전 없이 그냥 나타난다 */
   .yui-vrm[aria-busy="true"] .yui-vrm__tick::after {

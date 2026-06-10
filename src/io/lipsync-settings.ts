@@ -4,7 +4,7 @@
  */
 
 export const LIPSYNC_GAIN_MIN = 0.5;
-export const LIPSYNC_GAIN_MAX = 4.0;
+export const LIPSYNC_GAIN_MAX = 6.0;
 export const LIPSYNC_GAIN_DEFAULT = 2.0;
 
 export interface LipsyncSettings {

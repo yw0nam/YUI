@@ -26,8 +26,8 @@ describe("lipsync-settings constants", () => {
     expect(LIPSYNC_GAIN_MIN).toBe(0.5);
   });
 
-  it("MAX is 4.0", () => {
-    expect(LIPSYNC_GAIN_MAX).toBe(4.0);
+  it("MAX is 6.0", () => {
+    expect(LIPSYNC_GAIN_MAX).toBe(6.0);
   });
 
   it("DEFAULT is 2.0", () => {
@@ -76,10 +76,10 @@ describe("createLipsyncSettings — setGain", () => {
     expect(cb.mock.calls[0][0]).not.toBe(store.get());
   });
 
-  it("clamps above MAX: setGain(10) → 4.0", () => {
+  it("clamps above MAX: setGain(10) → 6.0", () => {
     const store = createLipsyncSettings();
     store.setGain(10);
-    expect(store.get().gain).toBe(4.0);
+    expect(store.get().gain).toBe(6.0);
   });
 
   it("clamps below MIN: setGain(0.1) → 0.5", () => {
@@ -121,13 +121,13 @@ describe("createLipsyncSettings — setGain", () => {
     expect(cb).toHaveBeenCalledOnce();
   });
 
-  it("dedup: two clamped setGain(10) calls both resolve to 4.0, second does NOT notify", () => {
+  it("dedup: two clamped setGain(10) calls both resolve to 6.0, second does NOT notify", () => {
     const store = createLipsyncSettings();
     const cb = vi.fn();
     store.subscribe(cb);
     store.setGain(10);
     store.setGain(10);
-    expect(store.get().gain).toBe(4.0);
+    expect(store.get().gain).toBe(6.0);
     expect(cb).toHaveBeenCalledOnce();
   });
 });
@@ -197,13 +197,13 @@ describe("createLipsyncSettings — persistence", () => {
     expect(store2.get().gain).toBe(3.5);
   });
 
-  it("stored value out of range is clamped on load: {gain:99} → 4.0", () => {
+  it("stored value out of range is clamped on load: {gain:99} → 6.0", () => {
     const storage: LipsyncStorage = {
       load: () => ({ gain: 99 }),
       save: vi.fn(),
     };
     const store = createLipsyncSettings({ storage });
-    expect(store.get().gain).toBe(4.0);
+    expect(store.get().gain).toBe(6.0);
   });
 
   it("stored invalid type {gain:'x'} falls back to DEFAULT", () => {
