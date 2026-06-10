@@ -85,6 +85,18 @@ export interface GuardrailsConfig {
   };
 }
 
+/** configs/sources.json — proactive 발화 소스 cadence/presence knob (#24). */
+export interface SourcesConfig {
+  proactive: {
+    cowork: {
+      /** cowork tick 간격(ms). */
+      interval_ms: number;
+      /** 이 시간(ms) 내 입력이 있어야 present로 본다 — interval_ms보다 작아야 함. */
+      present_max_idle_ms: number;
+    };
+  };
+}
+
 /** 로드·검증된 전체 config 묶음 (불변 스냅샷). */
 export interface AppConfig {
   endpoints: EndpointsConfig;
@@ -92,6 +104,7 @@ export interface AppConfig {
   emotionRegistry: EmotionRegistry;
   motions: MotionRegistry;
   guardrails: GuardrailsConfig;
+  sources: SourcesConfig;
 }
 
 /** AppConfig의 도메인 키 — 핫리로드가 "무엇이 바뀌었나"를 통지할 때 쓰는 단위(store.ts). */
@@ -104,6 +117,7 @@ export const CONFIG_FILES: Record<ConfigSection, string> = {
   emotionRegistry: "emotion_registry.json",
   motions: "motions.json",
   guardrails: "guardrails.json",
+  sources: "sources.json",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -685,6 +699,44 @@ function validateGuardrails(file: string, raw: unknown): GuardrailsConfig {
   return { dnd: { app_blocklist, camera_idle_off_ms }, debounce_ms, rate_limit };
 }
 
+function validateSources(file: string, raw: unknown): SourcesConfig {
+  if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
+  const issues: string[] = [];
+
+  const proactive = raw.proactive;
+  let interval_ms = 0;
+  let present_max_idle_ms = 0;
+  if (!isObject(proactive)) {
+    issues.push(`proactive는 객체여야 함 (받음: ${JSON.stringify(proactive)})`);
+  } else {
+    const cowork = proactive.cowork;
+    if (!isObject(cowork)) {
+      issues.push(`proactive.cowork는 객체여야 함 (받음: ${JSON.stringify(cowork)})`);
+    } else {
+      const iv = cowork.interval_ms;
+      if (typeof iv !== "number" || !Number.isFinite(iv) || iv <= 0) {
+        issues.push(`proactive.cowork.interval_ms는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(iv)})`);
+      } else {
+        interval_ms = iv;
+      }
+      const idle = cowork.present_max_idle_ms;
+      if (typeof idle !== "number" || !Number.isFinite(idle) || idle <= 0) {
+        issues.push(`proactive.cowork.present_max_idle_ms는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(idle)})`);
+      } else if (idle < 10000) {
+        issues.push(`proactive.cowork.present_max_idle_ms는 ≥ 10000ms (≥ 2 nominal ~5s ticks)여야 함 (받음: ${JSON.stringify(idle)})`);
+      } else {
+        present_max_idle_ms = idle;
+      }
+      if (interval_ms > 0 && present_max_idle_ms > 0 && present_max_idle_ms >= interval_ms) {
+        issues.push(`proactive.cowork.present_max_idle_ms(${present_max_idle_ms})는 interval_ms(${interval_ms})보다 작아야 함`);
+      }
+    }
+  }
+
+  assertValid(file, issues);
+  return { proactive: { cowork: { interval_ms, present_max_idle_ms } } };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // loadConfig
 // ─────────────────────────────────────────────────────────────────────────────
@@ -697,13 +749,14 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
   const read = opts.read ?? fetchReader(opts.baseUrl ?? "/configs", opts.cacheBust);
 
   // 파일별 read는 병렬, 검증은 결정적 순서로.
-  const [endpointsRaw, avatarRaw, emotionRegistryRaw, motionsRaw, guardrailsRaw] =
+  const [endpointsRaw, avatarRaw, emotionRegistryRaw, motionsRaw, guardrailsRaw, sourcesRaw] =
     await Promise.all([
       read(CONFIG_FILES.endpoints),
       read(CONFIG_FILES.avatar),
       read(CONFIG_FILES.emotionRegistry),
       read(CONFIG_FILES.motions),
       read(CONFIG_FILES.guardrails),
+      read(CONFIG_FILES.sources),
     ]);
 
   return {
@@ -712,5 +765,6 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     emotionRegistry: validateEmotionRegistry(CONFIG_FILES.emotionRegistry, emotionRegistryRaw),
     motions: validateMotions(CONFIG_FILES.motions, motionsRaw),
     guardrails: validateGuardrails(CONFIG_FILES.guardrails, guardrailsRaw),
+    sources: validateSources(CONFIG_FILES.sources, sourcesRaw),
   };
 }

@@ -77,9 +77,9 @@ describe("configs/guardrails.json", () => {
     expect(g.debounce_ms.backend_push_source).toBe(10000);
     expect(g.debounce_ms.user_input_source).toBe(0);
     expect(g.rate_limit.window_ms).toBe(3600000);
-    expect(g.rate_limit.tier2_max).toBe(6);
+    expect(g.rate_limit.tier2_max).toBe(12);
     expect(g.rate_limit.tier3_max).toBe(2);
-    expect(g.rate_limit.overall_max).toBe(20);
+    expect(g.rate_limit.overall_max).toBe(26);
     expect(g.rate_limit.cooldown_ms).toBe(300000);
   });
 });

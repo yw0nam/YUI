@@ -51,6 +51,9 @@ function goodFixture(): Record<string, unknown> {
         cooldown_ms: 300000,
       },
     },
+    "sources.json": {
+      proactive: { cowork: { interval_ms: 600000, present_max_idle_ms: 60000 } },
+    },
   };
 }
 

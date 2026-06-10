@@ -76,6 +76,9 @@ function goodFixture(): Record<string, unknown> {
         cooldown_ms: 300000,
       },
     },
+    "sources.json": {
+      proactive: { cowork: { interval_ms: 600000, present_max_idle_ms: 60000 } },
+    },
   };
 }
 
@@ -92,7 +95,7 @@ function readerOf(map: Record<string, unknown>): ConfigReader {
 // ── happy path ─────────────────────────────────────────────────────────────────
 
 describe("loadConfig — happy path", () => {
-  it("known-good fixture 전체를 5개 섹션의 AppConfig로 조립한다", async () => {
+  it("known-good fixture 전체를 6개 섹션의 AppConfig로 조립한다", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
 
     expect(cfg.endpoints).toEqual({
