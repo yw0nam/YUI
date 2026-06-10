@@ -164,8 +164,8 @@ export function createMotionController(
       speed = Math.min(SPEED_MAX, Math.max(SPEED_MIN, speed));
     }
 
-    // fade_ms: default 200, >= 0 (0 유효).
-    const fade_ms = signal.fade_ms ?? DEFAULT_FADE_MS;
+    // fade_ms: signal → entry default → 200, >= 0 (0 유효).
+    const fade_ms = signal.fade_ms ?? entry.fade_ms ?? DEFAULT_FADE_MS;
 
     const loop = signal.loop ?? entry.loop;
     const cycle = loop && !!variants && variants.length > 1;
