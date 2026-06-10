@@ -7,6 +7,15 @@ Human-readable map of every motion id in [`configs/motions.json`](../configs/mot
 - **Triggers**: AI via `generate_express` `motion_id` plays any agent-callable oneshot/pool; `idle` is the ambient baseline; `drag` is the reactive pickup. The agent-callable set published by the Expression Broker is `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance`.
 - **Broker publication** (`broker_publish`, default `true`): a `false` entry stays renderable locally but is kept out of the agent-facing broker vocabulary, so the agent never selects it. Three motions are not broker-published: `idle` (ambient baseline, auto-played), `drag` (reactive pickup), and `sit` (`broker_publish: false`, reserved for a future window-sit trigger).
 
+## Naming convention
+
+A motion id is named for the emotion or state it expresses, with a few patterns:
+
+- **Default — `{emotion}`**: the bare emotion or state — `happy`, `laugh`, `embarrassed`, `sheepish`, `calm`.
+- **Indexed — `{emotion}_1`, `{emotion}_2`, …**: when several clips express the same emotion, suffix a number.
+- **Qualified — `{emotion}_{extra}`**: when the emotion needs extra description, suffix a short qualifier.
+- **Descriptive exception**: motions whose action or pose is itself the clearest identifier keep that descriptive name instead of an emotion label — `idle`, `drag`, `peek`, `sit`, `sleeping`, `dance`.
+
 ## Top-level motions
 
 | id | kind | loop | description | source clip | ~len |
