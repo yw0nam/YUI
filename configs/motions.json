@@ -36,8 +36,8 @@
     "priority": 70,
     "interrupt_policy": "replace"
   },
-  "laughing": {
-    "vrma_path": "/motions/laughing.vrma",
+  "laugh": {
+    "vrma_path": "/motions/laugh.vrma",
     "kind": "oneshot",
     "loop": false,
     "priority": 70,
@@ -94,7 +94,8 @@
     "kind": "oneshot",
     "loop": false,
     "priority": 70,
-    "interrupt_policy": "replace"
+    "interrupt_policy": "replace",
+    "broker_publish": false
   },
   "dance": {
     "vrma_path": "/motions/dance_01.vrma",

@@ -310,9 +310,9 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
 
 /**
  * Pure derivation of the broker payload from loaded config. emotion ids = registry keys; motion ids
- * = motion keys excluding reactive entries (drops `drag`). emotion_text mode follows the TTS
- * provider: irodori ⇒ enum with the supplied table; anything else ⇒ free/null. irodori with a
- * missing table falls back to free/null with a warn rather than crashing.
+ * = agent-triggerable motion keys, excluding reactive, ambient, and `broker_publish:false` entries.
+ * emotion_text mode follows the TTS provider: irodori ⇒ enum with the supplied table; anything else
+ * ⇒ free/null. irodori with a missing table falls back to free/null with a warn rather than crashing.
  */
 export function deriveBrokerPayload(
   cfg: AppConfig,
@@ -322,7 +322,10 @@ export function deriveBrokerPayload(
   const log = logger ?? createLogger("broker-client");
   const emotionIds = Object.keys(cfg.emotionRegistry);
   const motionIds = Object.entries(cfg.motions)
-    .filter(([, entry]) => entry.kind !== "reactive")
+    .filter(
+      ([, entry]) =>
+        entry.kind !== "reactive" && entry.kind !== "ambient" && entry.broker_publish !== false,
+    )
     .map(([id]) => id);
 
   let emotionText: BrokerPayload["emotionText"];
