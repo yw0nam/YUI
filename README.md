@@ -35,7 +35,7 @@ by the Expression Broker MCP (see [`docs/expression-broker-mcp.md`](docs/express
 | Layer | Technology | Version |
 |---|---|---|
 | Shell / OS | Tauri v2 (Rust) | 2.11.x |
-| Build / dev server | Vite (port **1420** fixed) | 8.x |
+| Build / dev server | Vite (dev port `YUI_DEV_PORT`, default **1420**; auto-port launchers per worktree) | 8.x |
 | Language | TypeScript (bundler mode, `noEmit`) | 6.x |
 | Render | three.js | 0.180.x |
 | VRM / motion | `@pixiv/three-vrm`, `@pixiv/three-vrm-animation` | 3.5.x |
@@ -64,7 +64,8 @@ base URLs all live in `configs/endpoints.json` — no hardcoding.
 ```
 YUI/
   index.html              # Vite entry
-  vite.config.ts          # port 1420, strictPort, host 127.0.0.1
+  vite.config.ts          # dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1
+  scripts/                # Dev launchers: dev-port.mjs (resolver) + tauri-dev.mjs / dev-auto.mjs (auto-port)
   configs/                # Runtime-loaded config (endpoints, emotion + motion registries, avatar, per-provider emotion_text vocab)
   public/motions/         # VRMA motion assets
   src/
@@ -96,8 +97,10 @@ YUI/
 
 ```bash
 pnpm install
-pnpm dev                    # Vite dev server (port 1420) — browser only
-pnpm tauri dev              # Tauri app (transparent pet window)
+pnpm dev                    # Vite dev server (fixed port 1420) — browser only
+pnpm tauri dev              # Tauri app (fixed port 1420, transparent pet window)
+pnpm dev:auto               # Vite dev server, browser only — auto-picks a free port from 1420 up (or honors YUI_DEV_PORT)
+pnpm tauri:dev              # Tauri app — auto-picks a free port from 1420 up (or honors YUI_DEV_PORT); enables concurrent worktrees
 pnpm build                  # tsc + vite build
 pnpm test                   # vitest run
 cd src-tauri && cargo test  # Rust unit tests

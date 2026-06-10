@@ -191,6 +191,8 @@ interface MotionRegistryEntry {
   vrma_path: string;       // Vite-served 경로 "/motions/<id>.vrma" (public/motions/ 아래 커밋)
   variants?: string[];     // [D-MOTION-VARIANTS] 2개 이상의 VRMA 풀. 있으면 variant_policy로 entry마다 1개 선택.
   variant_policy?: "random" | "sequential"; // [D-MOTION-VARIANTS] default "random". variants가 없으면 무시.
+  cycle_dwell_ms?: number; // variant 사이 마지막 프레임 홀드 시간(ms). 0이면 홀드 없이 즉시 crossfade.
+  fade_ms?: number;        // entry-level 기본 crossfade(ms). motion signal이 fade_ms를 생략할 때 사용. 없으면 200.
   broker_publish?: boolean; // default true. false ⇒ 로컬 렌더는 되지만 broker/agent 어휘에서 제외(agent가 못 고름).
   kind: MotionKind;
   loop: boolean;

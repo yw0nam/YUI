@@ -298,6 +298,54 @@ describe("loadConfig — motions.cycle_dwell_ms", () => {
   });
 });
 
+// ── motions.fade_ms (entry-level default crossfade) ─────────────────────────────
+
+/** 한 모션 항목에 fade_ms를 깔아주는 fixture. */
+function fadeMotionFixture(fade?: number): Record<string, unknown> {
+  const map = goodFixture();
+  map["motions.json"] = {
+    perch: {
+      vrma_path: "/motions/a.vrma",
+      ...(fade !== undefined ? { fade_ms: fade } : {}),
+      kind: "state",
+      loop: true,
+      priority: 50,
+      interrupt_policy: "replace",
+    },
+  };
+  return map;
+}
+
+describe("loadConfig — motions.fade_ms", () => {
+  it("유효한 fade_ms를 검증 후 그대로 보존한다", async () => {
+    const cfg = await loadConfig({ read: readerOf(fadeMotionFixture(700)) });
+    expect(cfg.motions.perch.fade_ms).toBe(700);
+  });
+
+  it("fade_ms 없는 항목은 통과하고 fade_ms는 undefined", async () => {
+    const cfg = await loadConfig({ read: readerOf(fadeMotionFixture()) });
+    expect(cfg.motions.perch.fade_ms).toBeUndefined();
+  });
+
+  it("정수가 아니면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fadeMotionFixture(700.5)) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("음수면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fadeMotionFixture(-1)) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("5000 초과면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fadeMotionFixture(5001)) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+});
+
 // ── avatar.available manifest (#94 VRM swap) ────────────────────────────────────
 
 describe("loadConfig — avatar.available", () => {

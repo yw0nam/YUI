@@ -228,6 +228,51 @@ describe("resolve() — registry defaults applied", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// §1b  resolve() — entry-level fade_ms fallback
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("resolve() — entry-level fade_ms fallback", () => {
+  /** Entry carries fade_ms:700; idle has none → exercises signal/entry/default precedence. */
+  const fadeRegistry: MotionRegistry = {
+    idle: {
+      vrma_path: "/motions/idle_01.vrma",
+      kind: "ambient",
+      loop: true,
+      priority: 0,
+      interrupt_policy: "replace",
+    },
+    perch: {
+      vrma_path: "/motions/sit_01.vrma",
+      variants: ["/motions/sit_01.vrma", "/motions/sit_02.vrma"],
+      variant_policy: "random",
+      fade_ms: 700,
+      kind: "state",
+      loop: true,
+      priority: 55,
+      interrupt_policy: "replace",
+    },
+  };
+
+  it("entry has fade_ms, signal omits it → resolved.fade_ms === entry.fade_ms", () => {
+    const mc = createMotionController(fadeRegistry, { rng: () => 0 });
+    const r = mc.resolve({ id: "perch" });
+    expect(r!.fade_ms).toBe(700);
+  });
+
+  it("signal fade_ms overrides entry fade_ms", () => {
+    const mc = createMotionController(fadeRegistry, { rng: () => 0 });
+    const r = mc.resolve({ id: "perch", fade_ms: 120 });
+    expect(r!.fade_ms).toBe(120);
+  });
+
+  it("neither signal nor entry fade_ms → DEFAULT_FADE_MS (200)", () => {
+    const mc = createMotionController(fadeRegistry, { rng: () => 0 });
+    const r = mc.resolve({ id: "idle" });
+    expect(r!.fade_ms).toBe(200);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // §2  resolve() — variant selection
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -625,11 +625,27 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
         issues.push(`${id}.cycle_dwell_ms는 cycle 모션(variants>1 + loop)에만 유효함`);
       }
     }
+    // fade_ms: entry-level default crossfade ms. 모든 항목에 유효.
+    const rawFade = entry.fade_ms;
+    let fade_ms: number | undefined;
+    if (rawFade !== undefined) {
+      if (
+        typeof rawFade !== "number" ||
+        !Number.isInteger(rawFade) ||
+        rawFade < 0 ||
+        rawFade > 5000
+      ) {
+        issues.push(`${id}.fade_ms는 0~5000 사이 정수여야 함`);
+      } else {
+        fade_ms = rawFade;
+      }
+    }
     out[id] = {
       vrma_path: entry.vrma_path as string,
       ...(variants !== undefined ? { variants } : {}),
       ...(variant_policy !== undefined ? { variant_policy } : {}),
       ...(cycle_dwell_ms !== undefined ? { cycle_dwell_ms } : {}),
+      ...(fade_ms !== undefined ? { fade_ms } : {}),
       ...(broker_publish !== undefined ? { broker_publish } : {}),
       kind: entry.kind as MotionKind,
       loop: entry.loop as boolean,

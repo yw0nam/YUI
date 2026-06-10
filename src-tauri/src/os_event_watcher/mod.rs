@@ -11,9 +11,12 @@
 
 use serde::Serialize;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter};
+use tauri::{command, AppHandle, Emitter};
 
 pub const OS_EVENT_CHANNEL: &str = "os_event";
+
+/// Channel for the drag-drop release signal emitted after `start_dragging()`.
+pub const WINDOW_DROP_RELEASE_CHANNEL: &str = "window_drop_release";
 
 /// `os_event` channel payload — "Rust → Webview" handoff.
 #[derive(Debug, Clone, Serialize)]
@@ -76,6 +79,39 @@ pub fn emit_os_event(app: &AppHandle, payload: OsEventPayload) -> tauri::Result<
     result
 }
 
+// ─── Window-sit drop: release signal + window list ───────────────────────────
+
+/// One on-screen window, all measurements in points (top-left origin).
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowAtPoint {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub name: Option<String>,
+    pub pid: i32,
+}
+
+/// Lists every foreign on-screen window in front-to-back (topmost first) order,
+/// each in `CGWindowBounds` space (global, top-left origin, points).
+///
+/// Excludes YUI's own pid and non-layer-0 chrome (menu bar / Dock / wallpaper).
+/// The frontend uses the full list for the perch top-edge catch zone, whose
+/// U-band lies outside the window bounds and so cannot be resolved by a
+/// point-in-rect hit-test. Non-macOS platforms return `Ok(Vec::new())`.
+#[command]
+pub fn list_windows() -> Result<Vec<WindowAtPoint>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        Ok(macos::list_all_windows())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Ok(Vec::new())
+    }
+}
+
 // ─── Platform-specific OS polling ────────────────────────────────────────────
 
 #[cfg(target_os = "macos")]
@@ -83,6 +119,11 @@ mod macos;
 
 #[cfg(target_os = "windows")]
 mod windows;
+
+// Drop-release probe, invoked by drag.rs after start_dragging(). macOS-only;
+// emits `window_drop_release` as a bare signal (no payload).
+#[cfg(target_os = "macos")]
+pub use macos::spawn_drop_release_probe;
 
 // ─── start() — spawns background polling loop ─────────────────────────────────
 
@@ -319,5 +360,40 @@ mod tests {
     fn epoch_ms_is_reasonable_year() {
         // Must be after 2024-01-01 epoch ms = 1_704_067_200_000
         assert!(epoch_ms() > 1_704_067_200_000);
+    }
+
+    // ── WindowAtPoint serialisation ──────────────────────────────────────────
+
+    #[test]
+    fn window_at_point_serialises_camel_case() {
+        let w = WindowAtPoint {
+            x: 100.0,
+            y: 200.0,
+            width: 800.0,
+            height: 600.0,
+            name: Some("Safari".into()),
+            pid: 4321,
+        };
+        let v = serde_json::to_value(&w).unwrap();
+        assert_eq!(v["x"], 100.0);
+        assert_eq!(v["y"], 200.0);
+        assert_eq!(v["width"], 800.0);
+        assert_eq!(v["height"], 600.0);
+        assert_eq!(v["name"], "Safari");
+        assert_eq!(v["pid"], 4321);
+    }
+
+    #[test]
+    fn window_at_point_serialises_null_name() {
+        let w = WindowAtPoint {
+            x: 0.0,
+            y: 0.0,
+            width: 10.0,
+            height: 10.0,
+            name: None,
+            pid: 1,
+        };
+        let v = serde_json::to_value(&w).unwrap();
+        assert!(v["name"].is_null());
     }
 }

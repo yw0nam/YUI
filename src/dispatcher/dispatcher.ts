@@ -32,7 +32,7 @@ const baseLog = createLogger("dispatcher");
 
 export interface DispatcherDeps {
   bus: EventBus;
-  renderer: Pick<Renderer, "applyDirective">;
+  renderer: Pick<Renderer, "applyDirective" | "setPerchTarget">;
   backendCaller: BackendCaller;
   /** 가드레일 — DND/debounce/rate-limit 게이트 + cooldown verdict(순수). */
   guardrails: Guardrails;
@@ -131,7 +131,8 @@ function classify(env: BusEnvelope): Classification {
     n === "idle.returned" ||
     n === "user.tap" ||
     n === "user.window_sit_enter" ||
-    n === "user.window_sit_exit"
+    n === "user.window_sit_exit" ||
+    n === "user.window_sit_drop"
   ) {
     return { tier: 1, target: "tier1" };
   }
@@ -151,6 +152,8 @@ function tier1Directive(env: BusEnvelope): ControlEnvelope | null {
     case "user.drag_end":
       return { speech_text: "", motion: null };
     case "user.window_sit_enter":
+      return { speech_text: "", motion: { id: "window_sit" } };
+    case "user.window_sit_drop":
       return { speech_text: "", motion: { id: "window_sit" } };
     case "user.window_sit_exit":
       return { speech_text: "", motion: null };
@@ -290,6 +293,33 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       renderer.applyDirective(directive);
     } catch (err) {
       log.error("tier1.render_error", { error: String(err) });
+    }
+    applyPerchTarget(env);
+  }
+
+  /**
+   * Perch-target side-channel — client-only geometry handed to the renderer,
+   * NOT carried in the ControlEnvelope (keeps the agent contract clean):
+   *  - window_sit_drop → setPerchTarget({edgeLocalYpx}); skip + warn if malformed.
+   *  - window_sit_exit → setPerchTarget(null), always clear the perch.
+   *  - window_sit_enter (sit-in-place) → no perch target.
+   */
+  function applyPerchTarget(env: BusEnvelope): void {
+    try {
+      if (env.event_name === "user.window_sit_exit") {
+        renderer.setPerchTarget(null);
+        return;
+      }
+      if (env.event_name === "user.window_sit_drop") {
+        const edge = env.payload?.edge_local_ypx;
+        if (typeof edge !== "number" || !Number.isFinite(edge)) {
+          log.warn("perch_target.malformed", { seq_id: env.seq_id, payload: env.payload });
+          return;
+        }
+        renderer.setPerchTarget({ edgeLocalYpx: edge });
+      }
+    } catch (err) {
+      log.error("tier1.perch_target_error", { error: String(err) });
     }
   }
 

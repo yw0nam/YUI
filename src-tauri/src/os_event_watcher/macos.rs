@@ -4,13 +4,15 @@
 #![allow(dead_code)] // camera_in_use + CFBooleanRef are unused FFI bindings
 
 use super::{emit_os_event, epoch_ms, idle_ms_from_secs, sanitise_app_name,
-            sanitise_window_title, OsEventData, OsEventPayload};
+            sanitise_window_title, OsEventData, OsEventPayload, WindowAtPoint,
+            WINDOW_DROP_RELEASE_CHANNEL};
 use std::{
     ffi::c_void,
+    sync::atomic::{AtomicBool, Ordering},
     thread,
     time::Duration,
 };
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter, Runtime};
 
 // Polling interval — 5 s os_idle_tick / debounce.
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
@@ -49,6 +51,10 @@ extern "C" {
 
     fn CGMainDisplayID() -> u32;
     fn CGDisplayBounds(displayID: u32) -> CGRect;
+
+    // Release detection — read the left mouse-button state.
+    // `stateID` = kCGEventSourceStateCombinedSessionState (0); `button` = left (0).
+    fn CGEventSourceButtonState(stateID: i32, button: u32) -> bool;
 }
 
 #[link(name = "CoreFoundation", kind = "framework")]
@@ -268,6 +274,251 @@ unsafe fn make_cfstring(s: &str) -> CFStringRef {
     CFStringCreateWithCString(std::ptr::null(), cs.as_ptr(), K_CF_STRING_ENCODING_UTF8)
 }
 
+// ─── Drop-release detection + window enumeration ─────────────────────────────
+//
+// After `start_dragging()` hands control to the OS-modal drag loop, a poll
+// thread detects the mouse release and emits a bare `window_drop_release`
+// signal; `list_all_windows` enumerates the foreign on-screen windows.
+
+// kCGEventSourceStateCombinedSessionState = 0; left mouse button = 0.
+const CG_EVENT_SOURCE_STATE_COMBINED: i32 = 0;
+const CG_MOUSE_BUTTON_LEFT: u32 = 0;
+// Poll cadence + safety timeout so the thread can never spin forever.
+const RELEASE_POLL_INTERVAL: Duration = Duration::from_millis(16);
+const RELEASE_POLL_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Axis-aligned screen rect in CGWindowBounds space (points, top-left origin).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScreenRect {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+impl ScreenRect {
+    /// Half-open containment: left/top inclusive, right/bottom exclusive.
+    fn contains(&self, px: f64, py: f64) -> bool {
+        px >= self.x && px < self.x + self.width && py >= self.y && py < self.y + self.height
+    }
+}
+
+/// One enumerated on-screen window: rect (points), owner pid, optional name.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WindowRect {
+    pub rect: ScreenRect,
+    pub pid: i32,
+    pub name: Option<String>,
+}
+
+/// Reads a bounds CFDictionary (`kCGWindowBounds`) into a ScreenRect.
+///
+/// # Safety
+/// `bounds_dict` must be a valid CGWindowBounds dictionary.
+unsafe fn bounds_to_rect(bounds_dict: CFDictionaryRef) -> Option<ScreenRect> {
+    let x = dict_get_f64(bounds_dict, "X")?;
+    let y = dict_get_f64(bounds_dict, "Y")?;
+    let width = dict_get_f64(bounds_dict, "Width")?;
+    let height = dict_get_f64(bounds_dict, "Height")?;
+    Some(ScreenRect { x, y, width, height })
+}
+
+/// Public window list for the `list_windows` command: every foreign on-screen
+/// window in front-to-back (topmost first) order, mapped to `WindowAtPoint`.
+pub fn list_all_windows() -> Vec<WindowAtPoint> {
+    let own_pid = std::process::id() as i32;
+    filter_foreign(enumerate_windows(), own_pid)
+        .into_iter()
+        .map(window_rect_to_at_point)
+        .collect()
+}
+
+/// Pure own-pid filter (no FFI), so the ordering/exclusion is unit-testable.
+///
+/// `windows` is front-to-back (topmost first); the order is preserved, only
+/// windows owned by `own_pid` (YUI itself) are dropped.
+fn filter_foreign(windows: Vec<WindowRect>, own_pid: i32) -> Vec<WindowRect> {
+    windows.into_iter().filter(|w| w.pid != own_pid).collect()
+}
+
+/// Maps an enumerated `WindowRect` into the serializable `WindowAtPoint`.
+fn window_rect_to_at_point(w: WindowRect) -> WindowAtPoint {
+    WindowAtPoint {
+        x: w.rect.x,
+        y: w.rect.y,
+        width: w.rect.width,
+        height: w.rect.height,
+        name: w.name,
+        pid: w.pid,
+    }
+}
+
+/// Enumerates on-screen windows into `WindowRect`s in CGWindowBounds space
+/// (points, top-left origin), preserving CGWindowList front-to-back order.
+///
+/// Filter: skips chrome layers (menu bar / Dock / wallpaper) by dropping any
+/// window whose `kCGWindowLayer` != 0 — normal app windows live at layer 0;
+/// system chrome sits at non-zero layers. Own-pid exclusion is left to callers.
+fn enumerate_windows() -> Vec<WindowRect> {
+    let windows = unsafe {
+        CGWindowListCopyWindowInfo(K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY, K_CG_NULL_WINDOW_ID)
+    };
+    if windows.is_null() {
+        log::debug!("enumerate_windows: CGWindowListCopyWindowInfo returned null");
+        return Vec::new();
+    }
+
+    let count = unsafe { CFArrayGetCount(windows) };
+    let mut collected: Vec<WindowRect> = Vec::new();
+
+    for i in 0..count {
+        let dict = unsafe { CFArrayGetValueAtIndex(windows, i) };
+        if dict.is_null() {
+            continue;
+        }
+
+        // Layer: keep only normal app windows (layer 0); skip Dock/menu/desktop.
+        let layer = unsafe {
+            let v = CFDictionaryGetValue(dict, kCGWindowLayer);
+            if v.is_null() {
+                continue;
+            }
+            let mut out: i32 = 0;
+            if !CFNumberGetValue(v, CFNumberType::Int32 as i32, &mut out as *mut i32 as *mut c_void)
+            {
+                continue;
+            }
+            out
+        };
+        if layer != 0 {
+            continue;
+        }
+
+        // Owner pid.
+        let pid = unsafe {
+            let v = CFDictionaryGetValue(dict, kCGWindowOwnerPID);
+            if v.is_null() {
+                continue;
+            }
+            let mut out: i32 = 0;
+            if !CFNumberGetValue(v, CFNumberType::Int32 as i32, &mut out as *mut i32 as *mut c_void)
+            {
+                continue;
+            }
+            out
+        };
+
+        // Bounds rect.
+        let rect = unsafe {
+            let bounds_dict = CFDictionaryGetValue(dict, kCGWindowBounds);
+            if bounds_dict.is_null() {
+                continue;
+            }
+            match bounds_to_rect(bounds_dict) {
+                Some(r) => r,
+                None => continue,
+            }
+        };
+
+        // Name (optional — many windows report none).
+        let name = unsafe {
+            let name_ref = CFDictionaryGetValue(dict, kCGWindowName);
+            if name_ref.is_null() {
+                None
+            } else {
+                cfstring_to_string(name_ref).filter(|s| !s.is_empty())
+            }
+        };
+
+        collected.push(WindowRect { rect, pid, name });
+    }
+
+    unsafe { CFRelease(windows) };
+
+    collected
+}
+
+// Process-wide once-guard: only one drop-release probe runs at a time so
+// overlapping drags can't emit duplicate `window_drop_release` signals.
+static PROBE_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// RAII handle for the single active drop-release probe.
+///
+/// `try_acquire` succeeds only when no probe is running, flipping `PROBE_ACTIVE`
+/// to true; a concurrent attempt returns `None`. `Drop` clears the flag on every
+/// exit path of the holder (normal release emit, timeout, early return, panic),
+/// so the flag can never get stuck true.
+struct ProbeGuard;
+
+impl ProbeGuard {
+    fn try_acquire() -> Option<Self> {
+        PROBE_ACTIVE
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .ok()
+            .map(|_| ProbeGuard)
+    }
+}
+
+impl Drop for ProbeGuard {
+    fn drop(&mut self) {
+        PROBE_ACTIVE.store(false, Ordering::Release);
+    }
+}
+
+/// Spawns a short-lived thread that polls the left mouse button until release
+/// (down→up), then emits a bare `window_drop_release` signal.
+///
+/// Called right after `start_dragging()` succeeds. Polling (not an NSEvent
+/// monitor) is used because the OS-modal drag loop swallows monitor callbacks.
+/// A hard timeout guarantees the thread exits even if no release is observed.
+///
+/// A process-wide once-guard suppresses a second concurrent probe; rapid or
+/// overlapping drags reuse the in-flight probe instead of emitting duplicate
+/// release signals. A later drag spawns normally once the prior probe finishes.
+pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
+    let Some(guard) = ProbeGuard::try_acquire() else {
+        log::debug!("drop_release: probe already active, skipping duplicate spawn");
+        return;
+    };
+
+    thread::Builder::new()
+        .name("yui_drop_release".into())
+        .spawn(move || {
+            // Held for the thread's whole lifetime; Drop clears PROBE_ACTIVE on
+            // every exit path (timeout return, release break, or panic).
+            let _guard = guard;
+
+            let start = std::time::Instant::now();
+
+            // Wait until the button is actually down (drag may not have armed
+            // it yet), so we don't read a stale up-state as an instant release.
+            let mut saw_down = false;
+            loop {
+                if start.elapsed() >= RELEASE_POLL_TIMEOUT {
+                    log::info!("drop_release: timeout, no release observed");
+                    return;
+                }
+                let down = unsafe {
+                    CGEventSourceButtonState(CG_EVENT_SOURCE_STATE_COMBINED, CG_MOUSE_BUTTON_LEFT)
+                };
+                if down {
+                    saw_down = true;
+                } else if saw_down {
+                    // down → up transition: this is the release.
+                    break;
+                }
+                thread::sleep(RELEASE_POLL_INTERVAL);
+            }
+
+            log::info!("drop_release detected");
+
+            if let Err(e) = app.emit(WINDOW_DROP_RELEASE_CHANNEL, ()) {
+                log::warn!("window_drop_release emit failed: {e}");
+            }
+        })
+        .expect("failed to spawn yui_drop_release thread");
+}
+
 // ─── NSWorkspace / NSRunningApplication (objc2) ───────────────────────────────
 
 use objc2::rc::Retained;
@@ -417,5 +668,69 @@ mod tests {
             // Empty string → Some("") → sanitise_app_name will return None, but cfstring itself succeeds.
             assert_eq!(result, Some("".into()));
         }
+    }
+
+    // ── filter_foreign (pure own-pid filter, order-preserving) ─────────────
+
+    fn win(x: f64, y: f64, w: f64, h: f64, pid: i32) -> WindowRect {
+        WindowRect {
+            rect: ScreenRect { x, y, width: w, height: h },
+            pid,
+            name: None,
+        }
+    }
+
+    #[test]
+    fn filter_foreign_drops_own_and_preserves_order() {
+        let own = 4242;
+        let windows = vec![
+            win(0.0, 0.0, 100.0, 100.0, 11), // foreign, topmost
+            win(0.0, 0.0, 100.0, 100.0, own), // YUI itself — dropped
+            win(0.0, 0.0, 100.0, 100.0, 22), // foreign, lower
+        ];
+        let kept = filter_foreign(windows, own);
+        let pids: Vec<i32> = kept.iter().map(|w| w.pid).collect();
+        assert_eq!(pids, vec![11, 22]); // front-to-back order preserved
+    }
+
+    #[test]
+    fn filter_foreign_empty_is_empty() {
+        assert!(filter_foreign(Vec::new(), 999).is_empty());
+    }
+
+    #[test]
+    fn rect_contains_is_half_open() {
+        let r = ScreenRect { x: 10.0, y: 20.0, width: 30.0, height: 40.0 };
+        assert!(r.contains(10.0, 20.0)); // top-left inclusive
+        assert!(!r.contains(40.0, 20.0)); // right edge exclusive (x + w)
+        assert!(!r.contains(10.0, 60.0)); // bottom edge exclusive (y + h)
+        assert!(r.contains(39.9, 59.9)); // just inside
+    }
+
+    // ── ProbeGuard once-guard ────────────────────────────────────────────────
+
+    #[test]
+    fn probe_guard_serialises_acquire_release() {
+        // Clean baseline (other tests share the process-wide flag).
+        PROBE_ACTIVE.store(false, Ordering::Release);
+
+        {
+            let first = ProbeGuard::try_acquire();
+            assert!(first.is_some(), "first acquire must succeed");
+            assert!(PROBE_ACTIVE.load(Ordering::Acquire), "flag set while held");
+
+            // A second concurrent acquire is refused while the first is held.
+            let second = ProbeGuard::try_acquire();
+            assert!(second.is_none(), "second concurrent acquire must be refused");
+        }
+
+        // Dropping the first guard at end of scope resets the flag.
+        assert!(!PROBE_ACTIVE.load(Ordering::Acquire), "flag cleared on drop");
+
+        // A subsequent acquire after release succeeds again.
+        let third = ProbeGuard::try_acquire();
+        assert!(third.is_some(), "acquire after release must succeed");
+        drop(third);
+        assert!(!PROBE_ACTIVE.load(Ordering::Acquire), "flag cleared after final drop");
     }
 }

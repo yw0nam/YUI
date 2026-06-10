@@ -39,10 +39,20 @@ import {
   type ResolvedEmotion,
 } from "./emotion-resolver";
 import { routeDirective } from "./apply-directive";
+import { suppressIdleReturn } from "./perch-hold";
 import { revertEmotionToNeutral } from "./ease-emotion";
 import { recenterClipRootMotion } from "./recenter-root-motion";
 import { computeCameraFit } from "./camera-fit";
 import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
+import {
+  projectToScreen,
+  seatAnchorWorld,
+  seatAnchorWorldInto,
+  characterScreenHeight,
+  worldYPerPixel,
+  seatOffsetWorldY,
+  SEAT_DROP_DEFAULT,
+} from "./perch-geometry";
 import { createLogger } from "../logger";
 
 const log = createLogger("renderer");
@@ -50,6 +60,20 @@ const log = createLogger("renderer");
 /** Default fit-to-bounds framing — overridden by configs/avatar.json. */
 const DEFAULT_FRAMING_MARGIN = 0.1;
 const DEFAULT_FRAMING_FOV = 30;
+
+/**
+ * Seat drop below the hip bone (world units) for the window-sit perch.
+ * Tunable: the seat-contact point sits this far below the hip joint.
+ */
+const SEAT_DROP = SEAT_DROP_DEFAULT;
+/**
+ * Fit-distance multiplier while perched. Offsetting the character up to pin its
+ * seat can push head/feet out of frame; pulling the camera back keeps the pinned
+ * pose framed. >1 ⇒ camera further ⇒ character smaller.
+ */
+const PERCH_ZOOM = 1.25;
+/** Per-frame convergence rate for the seat-pin offset (proportional step). */
+const PERCH_PIN_RATE = 0.6;
 
 export interface RendererOptions {
   /** VRM을 렌더할 캔버스 마운트 대상. */
@@ -143,6 +167,22 @@ export interface Renderer {
    * resize/zoom으로 카메라가 재fit될 때마다 변한다 — UI 입력을 발밑에 붙이는 데 쓴다.
    */
   getCharacterAnchor(): ScreenAnchor | null;
+  /**
+   * Live one-shot probe used at drop time to decide if the character is over a
+   * window. Projects the live hips bone (+SEAT_DROP) to pet-window px (`seatPx`)
+   * and measures the current on-screen pixel height (`charHpx`). null when no VRM
+   * is loaded or bones/projection are unavailable.
+   */
+  getPerchProbe(): { seatPx: { x: number; y: number }; charHpx: number } | null;
+  /**
+   * Enter/exit perch-align mode. While a target is set, the seat (live hips
+   * +SEAT_DROP) is pinned every frame to `edgeLocalYpx` (the target window's top
+   * edge in pet-window-local px) via a dedicated additive vertical offset, and the
+   * camera zooms out by PERCH_ZOOM to keep the lifted pose framed. null clears the
+   * offset and restores normal framing — idle/cycle rendering is unaffected when unset.
+   * The `window_sit` motion itself is driven separately via the normal directive path.
+   */
+  setPerchTarget(target: { edgeLocalYpx: number } | null): void;
   /** rAF 루프 정지 + GPU 리소스 해제. */
   dispose(): void;
 }
@@ -234,6 +274,20 @@ export function createRenderer(options: RendererOptions): Renderer {
   // Bounds/persistence live in src/io + main.ts (setZoom just applies). Default 1 = exact fit.
   let zoom = 1;
 
+  // ── Window-sit perch state ──────────────────────────────────────────────────
+  // Active target's top-edge in pet-window-local px (null = not perched).
+  let perchTargetYpx: number | null = null;
+  // Dedicated additive vertical offset we fully own — never clobbers root-motion
+  // recentering. Applied onto vrm.scene.position.y after the mixer writes each frame.
+  let perchOffsetY = 0;
+  // Cached hips bone for the per-frame pin (refreshed on load; no per-frame lookup).
+  let perchHipsBone: THREE.Object3D | null = null;
+  // Scratch vectors reused every frame — no per-frame allocation in the pin path.
+  const perchHipsWorld = new THREE.Vector3();
+  const perchSeatWorld = new THREE.Vector3();
+  const perchCamForward = new THREE.Vector3();
+  const perchSeatRel = new THREE.Vector3();
+
   /** Reframe the camera to the current model box; no-op when no model is loaded. */
   function fitCamera(): void {
     if (!modelBox) return;
@@ -243,7 +297,9 @@ export function createRenderer(options: RendererOptions): Renderer {
       margin: framing.margin,
     });
     if (!fit) return;
-    const d = fit.distance / zoom; // zoom>1 ⇒ camera closer ⇒ character bigger.
+    // While perched, pull the camera back by PERCH_ZOOM so the lifted pose stays framed.
+    const perchZoom = perchTargetYpx !== null ? PERCH_ZOOM : 1;
+    const d = (fit.distance * perchZoom) / zoom; // zoom>1 ⇒ camera closer ⇒ character bigger.
     camera.fov = framing.fov;
     camera.position.set(fit.target.x, fit.target.y, fit.target.z + d);
     camera.lookAt(fit.target);
@@ -374,6 +430,9 @@ export function createRenderer(options: RendererOptions): Renderer {
           log.error("mixer update error:", err);
         }
       }
+      // perch seat-pin — after the mixer poses the hips, before vrm.update applies
+      // spring bones, so the offset rides into this frame's render.
+      stepPerch();
       // emotion 크로스페이드 — expressionManager.update()는 vrm.update(dt) 안에서
       // 돌므로 weight를 그 직전에 써야 이번 프레임에 반영된다.
       stepEmotion(dt);
@@ -409,6 +468,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     teardownMotion();
     // 진행 중 페이드가 폐기된 VRM에 쓰지 않도록 리셋(핫스왑/dispose 공용).
     emotionXfade = null;
+    // Drop the perch bone ref so a stale bone can't be pinned on the next VRM.
+    perchHipsBone = null;
+    perchOffsetY = 0;
     scene.remove(currentVrm.scene);
     VRMUtils.deepDispose(currentVrm.scene);
     currentVrm = undefined;
@@ -547,6 +609,43 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
   }
 
+  // ── Window-sit perch pin ─────────────────────────────────────────────────────
+
+  /**
+   * One frame of seat-pin alignment — called after mixer.update, before vrm.update.
+   * Projects the live hips (+SEAT_DROP) seat to px, measures how far it is from the
+   * target edge in world-Y, and steps a dedicated additive vertical offset toward it.
+   *
+   * The VRMA clip animates the hips *bone*, never vrm.scene.position — so scene.position.y
+   * is a channel we fully own (no clobbering root recentering). We set it absolutely from
+   * the accumulated offset. Proportional step (PERCH_PIN_RATE) ⇒ converges in ~1-2 frames
+   * and re-pins for free across window_sit variant swaps (each new pose's seat re-aligns).
+   * No-op when unset.
+   */
+  function stepPerch(): void {
+    if (perchTargetYpx === null || !currentVrm || !perchHipsBone) return;
+    try {
+      const w = mount.clientWidth || 1;
+      const h = mount.clientHeight || 1;
+      // Live posed hips → seat-contact world point (hips dropped by SEAT_DROP on Y).
+      perchHipsBone.getWorldPosition(perchHipsWorld);
+      seatAnchorWorldInto(perchSeatWorld, perchHipsWorld, SEAT_DROP);
+      const seatPx = projectToScreen(perchSeatWorld, camera, w, h);
+      if (!seatPx) return;
+      // View-axis depth: project (seat − eye) onto camera forward. worldYPerPixel's
+      // perspective formula expects on-axis depth, not Euclidean distance.
+      camera.getWorldDirection(perchCamForward);
+      const depth = perchSeatRel.copy(perchSeatWorld).sub(camera.position).dot(perchCamForward);
+      const wpp = worldYPerPixel(camera, depth, h);
+      const delta = seatOffsetWorldY(seatPx.y, perchTargetYpx, wpp);
+      // Proportional step toward the target offset (converges in a couple frames).
+      perchOffsetY += delta * PERCH_PIN_RATE;
+      currentVrm.scene.position.y = perchOffsetY;
+    } catch (err) {
+      log.error("stepPerch error:", err);
+    }
+  }
+
   async function loadVRM(url: string): Promise<void> {
     const gltf = await loader.loadAsync(url);
     const vrm = gltf.userData.vrm as VRM;
@@ -563,6 +662,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     vrmEpoch += 1; // 직전 모델에 묶인 비동기 clip 로드 무효화.
     currentVrm = vrm;
     scene.add(vrm.scene);
+
+    // Cache the hips bone for the per-frame perch pin (avoids per-frame lookups).
+    perchHipsBone = vrm.humanoid?.getNormalizedBoneNode("hips") ?? null;
 
     // Full-body fit-to-bounds: measure in rest pose, before idle animates the arms.
     vrm.scene.updateWorldMatrix(true, true);
@@ -599,6 +701,9 @@ export function createRenderer(options: RendererOptions): Renderer {
       return;
     }
     if (!currentVrm || !mixer) return; // VRM 미로드 시 재생 불가.
+    // While perched, an implicit idle return (null) is a no-op so the held window_sit
+    // survives emotion-only cues. Only an explicit exit (setPerchTarget(null)) lands idle.
+    if (suppressIdleReturn(motion, perchTargetYpx !== null)) return;
     try {
       const decision = controller.request(motion);
       controller.commit(decision);
@@ -731,6 +836,59 @@ export function createRenderer(options: RendererOptions): Renderer {
       if (!modelBox) return null;
       camera.updateMatrixWorld();
       return projectFeetAnchor(modelBox, camera, mount.clientWidth || 1, mount.clientHeight || 1);
+    },
+    getPerchProbe() {
+      if (!currentVrm) return null;
+      const head = currentVrm.humanoid?.getNormalizedBoneNode("head");
+      const hips = perchHipsBone;
+      if (!head || !hips) return null;
+      const w = mount.clientWidth || 1;
+      const h = mount.clientHeight || 1;
+      camera.updateMatrixWorld();
+
+      // Seat: live hips (+SEAT_DROP) → pet-window px (mirrors getCharacterAnchor's project path).
+      const hipsWorld = hips.getWorldPosition(new THREE.Vector3());
+      const seat = seatAnchorWorld(hipsWorld, SEAT_DROP);
+      const seatPx = projectToScreen(seat, camera, w, h);
+      if (!seatPx) return null;
+
+      // On-screen height: head top vs the live posed model's lowest point.
+      // Recompute a live box so it tracks the current pose/scale (modelBox is the idle fallback).
+      const headWorld = head.getWorldPosition(new THREE.Vector3());
+      const liveBox = new THREE.Box3().setFromObject(currentVrm.scene);
+      const feetWorld = liveBox.isEmpty()
+        ? modelBox
+          ? new THREE.Vector3(
+              (modelBox.min.x + modelBox.max.x) / 2,
+              modelBox.min.y,
+              (modelBox.min.z + modelBox.max.z) / 2,
+            )
+          : null
+        : new THREE.Vector3(
+            (liveBox.min.x + liveBox.max.x) / 2,
+            liveBox.min.y,
+            (liveBox.min.z + liveBox.max.z) / 2,
+          );
+      if (!feetWorld) return null;
+      const charHpx = characterScreenHeight(headWorld, feetWorld, camera, w, h);
+      if (charHpx === null) return null;
+
+      return { seatPx: { x: seatPx.x, y: seatPx.y }, charHpx };
+    },
+    setPerchTarget(target) {
+      const wasPerched = perchTargetYpx !== null;
+      if (target === null) {
+        perchTargetYpx = null;
+        perchOffsetY = 0;
+        if (currentVrm) currentVrm.scene.position.y = 0; // restore baseline.
+        if (wasPerched) {
+          fitCamera(); // restore normal framing.
+          playMotion(null); // perch cleared — explicit return to idle baseline.
+        }
+        return;
+      }
+      perchTargetYpx = target.edgeLocalYpx;
+      if (!wasPerched) fitCamera(); // apply PERCH_ZOOM on entry.
     },
     dispose() {
       cancelAnimationFrame(rafId);
