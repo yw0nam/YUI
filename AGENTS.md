@@ -69,7 +69,7 @@ Before any UI/visual work, read [`PRODUCT.md`](PRODUCT.md) + [`DESIGN.md`](DESIG
 | Layer | Technology | Version |
 |---|---|---|
 | Shell / OS | Tauri v2 (Rust) | tauri 2.11.x |
-| Build / dev server | Vite | 8.x (port **1420** fixed) |
+| Build / dev server | Vite | 8.x (dev port `YUI_DEV_PORT`, default **1420**; auto-port launchers pick a free port per worktree) |
 | Language | TypeScript | 6.x (bundler mode, `noEmit`) |
 | Render | three.js | 0.180.x |
 | VRM / motion | `@pixiv/three-vrm`, `@pixiv/three-vrm-animation` | 3.5.x |
@@ -80,7 +80,8 @@ Before any UI/visual work, read [`PRODUCT.md`](PRODUCT.md) + [`DESIGN.md`](DESIG
 ```
 YUI/
   index.html                # Vite entry
-  vite.config.ts            # port 1420, strictPort, host 127.0.0.1
+  vite.config.ts            # dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1
+  scripts/                  # Dev launchers: dev-port.mjs (port resolver) + tauri-dev.mjs / dev-auto.mjs (auto-port)
   configs/                  # Runtime-loaded config (no hardcoding)
     endpoints.json            # chat/stt/tts base urls + tts_provider + irodori_* + broker_base_url
     emotion_registry.json     # emotion id → vrm_expression + fallback
@@ -128,8 +129,10 @@ Chat and STT use the **OpenAI-compatible API**; TTS depends on `tts_provider` (i
 
 ```bash
 pnpm install
-pnpm dev                    # Vite dev server (port 1420) — browser only
-pnpm tauri dev              # Tauri app (transparent pet window)
+pnpm dev                    # Vite dev server (fixed port 1420) — browser only
+pnpm tauri dev              # Tauri app (fixed port 1420, transparent pet window)
+pnpm dev:auto               # Vite dev server, browser only — auto-picks a free port from 1420 up (or honors YUI_DEV_PORT)
+pnpm tauri:dev              # Tauri app — auto-picks a free port from 1420 up (or honors YUI_DEV_PORT); enables concurrent worktrees
 pnpm build                  # tsc + vite build
 pnpm test                   # vitest run
 pnpm test:watch             # vitest watch

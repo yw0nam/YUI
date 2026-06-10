@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from "vite";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveVitePort } from "./scripts/dev-port.mjs";
 
 // dev 정적 서빙: /vrms/* → resources/vrms/, /configs/* → configs/.
 // VRM 에셋(resources/vrms, gitignore됨)·런타임 config를 publicDir 없이 클린 URL로 노출.
@@ -39,14 +40,15 @@ function serveDir(prefix: string, dir: string): Plugin {
   };
 }
 
-// Tauri 규약: dev server는 고정 포트 1420 (tauri.conf.json devUrl과 일치).
+// dev 포트는 YUI_DEV_PORT(설정 시) 아니면 1420, strictPort로 충돌 시 즉시 실패 —
+// launcher(scripts/*.mjs)가 빈 포트를 골라 tauri.conf.json devUrl과 동기화한다.
 // clearScreen: false → tauri CLI 로그가 vite 로그에 가려지지 않게.
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   clearScreen: false,
   server: {
-    port: 1420,
+    port: resolveVitePort(),
     strictPort: true,
     host: "127.0.0.1",
     // 같은 출처 /__hermes → Hermes로 프록시 (web chat CORS preflight 회피, SSE 스트리밍).
