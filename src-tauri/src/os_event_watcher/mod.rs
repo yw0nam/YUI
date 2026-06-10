@@ -11,9 +11,12 @@
 
 use serde::Serialize;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter};
+use tauri::{command, AppHandle, Emitter};
 
 pub const OS_EVENT_CHANNEL: &str = "os_event";
+
+/// Channel for the drag-drop release signal emitted after `start_dragging()`.
+pub const WINDOW_DROP_RELEASE_CHANNEL: &str = "window_drop_release";
 
 /// `os_event` channel payload — event-dispatcher.md §10 "Rust → Webview" handoff.
 #[derive(Debug, Clone, Serialize)]
@@ -76,6 +79,76 @@ pub fn emit_os_event(app: &AppHandle, payload: OsEventPayload) -> tauri::Result<
     result
 }
 
+// ─── Window-sit drop: release signal + hit-test ──────────────────────────────
+
+/// Cursor release point (global, top-left origin, points).
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DropPoint {
+    pub x: f64,
+    pub y: f64,
+}
+
+/// `window_drop_release` payload — the release point only. The frontend
+/// hit-tests the character's seat point separately via `find_window_at_point`.
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DropReleasePayload {
+    pub point: DropPoint,
+}
+
+/// One window under a point, all measurements in points (top-left origin).
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowAtPoint {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub name: Option<String>,
+    pub pid: i32,
+}
+
+/// Hit-test: the topmost foreign on-screen window whose bounds contain
+/// `(x, y)` in `CGWindowBounds` space (global, top-left origin, points).
+///
+/// Excludes YUI's own pid and non-layer-0 chrome (menu bar / Dock / wallpaper).
+/// The frontend invokes this with the character's seat point — it is the
+/// authoritative hit-test, independent of the `window_drop_release` signal.
+/// Non-macOS platforms return `Ok(None)`.
+#[command]
+pub fn find_window_at_point(x: f64, y: f64) -> Result<Option<WindowAtPoint>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        Ok(macos::window_at_point(x, y))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (x, y);
+        Ok(None)
+    }
+}
+
+/// Lists every foreign on-screen window in front-to-back (topmost first) order,
+/// each in `CGWindowBounds` space (global, top-left origin, points).
+///
+/// Applies the same filters as `find_window_at_point` — excludes YUI's own pid
+/// and non-layer-0 chrome (menu bar / Dock / wallpaper). The frontend uses the
+/// full list for the perch top-edge catch zone, whose U-band lies outside the
+/// window bounds and so cannot be resolved by a point-in-rect hit-test.
+/// Non-macOS platforms return `Ok(Vec::new())`.
+#[command]
+pub fn list_windows() -> Result<Vec<WindowAtPoint>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        Ok(macos::list_all_windows())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Ok(Vec::new())
+    }
+}
+
 // ─── Platform-specific OS polling ────────────────────────────────────────────
 
 #[cfg(target_os = "macos")]
@@ -83,6 +156,11 @@ mod macos;
 
 #[cfg(target_os = "windows")]
 mod windows;
+
+// Drop-release probe, invoked by drag.rs after start_dragging(). macOS-only;
+// emits `window_drop_release` with the cursor release point.
+#[cfg(target_os = "macos")]
+pub use macos::spawn_drop_release_probe;
 
 // ─── start() — spawns background polling loop ─────────────────────────────────
 
@@ -319,5 +397,47 @@ mod tests {
     fn epoch_ms_is_reasonable_year() {
         // Must be after 2024-01-01 epoch ms = 1_704_067_200_000
         assert!(epoch_ms() > 1_704_067_200_000);
+    }
+
+    // ── window_drop_release payload + WindowAtPoint serialisation ────────────
+
+    #[test]
+    fn drop_release_payload_serialises_camel_case_nested_point() {
+        let p = DropReleasePayload { point: DropPoint { x: 12.5, y: 34.0 } };
+        let v = serde_json::to_value(p).unwrap();
+        assert_eq!(v, json!({ "point": { "x": 12.5, "y": 34.0 } }));
+    }
+
+    #[test]
+    fn window_at_point_serialises_camel_case() {
+        let w = WindowAtPoint {
+            x: 100.0,
+            y: 200.0,
+            width: 800.0,
+            height: 600.0,
+            name: Some("Safari".into()),
+            pid: 4321,
+        };
+        let v = serde_json::to_value(&w).unwrap();
+        assert_eq!(v["x"], 100.0);
+        assert_eq!(v["y"], 200.0);
+        assert_eq!(v["width"], 800.0);
+        assert_eq!(v["height"], 600.0);
+        assert_eq!(v["name"], "Safari");
+        assert_eq!(v["pid"], 4321);
+    }
+
+    #[test]
+    fn window_at_point_serialises_null_name() {
+        let w = WindowAtPoint {
+            x: 0.0,
+            y: 0.0,
+            width: 10.0,
+            height: 10.0,
+            name: None,
+            pid: 1,
+        };
+        let v = serde_json::to_value(&w).unwrap();
+        assert!(v["name"].is_null());
     }
 }

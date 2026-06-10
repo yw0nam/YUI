@@ -197,6 +197,8 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       drag::drag_window,
       drag::get_monitors_info,
+      os_event_watcher::find_window_at_point,
+      os_event_watcher::list_windows,
       screenshot::list_screen_sources,
       screenshot::capture_screen,
     ])
