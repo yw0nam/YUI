@@ -39,6 +39,11 @@ async function defaultDeps(): Promise<VrmImportDeps> {
   };
 }
 
+async function defaultRemoveDeps(): Promise<VrmRemoveDeps> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return { invoke };
+}
+
 /** Normalize the dialog result to a single source path, or null if nothing chosen. */
 function pickedPath(result: OpenResult): string | null {
   if (result == null) return null;
@@ -74,6 +79,6 @@ export async function importVrmFromFile(deps?: VrmImportDeps): Promise<AvatarOpt
 
 /** Delete an imported VRM's file from app-data. Idempotent on the native side. */
 export async function removeUserVrm(id: string, deps?: VrmRemoveDeps): Promise<void> {
-  const d = deps ?? (await defaultDeps());
+  const d = deps ?? (await defaultRemoveDeps());
   await d.invoke("remove_user_vrm", { id });
 }
