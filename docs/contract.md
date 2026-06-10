@@ -32,7 +32,7 @@
 
 **STT/TTS는 Hermes와 무관 (확정):** ASR/TTS는 **각각 독립된 서비스**로 서빙된다 — 기본 ASR `localhost:5517`. client UI가 이 둘을 **직접** 호출한다(Hermes를 경유하지 않음). base URL들은 서로 다른 프로세스이며 모두 config로 교체 가능. **TTS는 provider 선택형**이다(`tts_provider`): OpenAI 호환 `/audio/speech`(`localhost:8092`) 또는 **irodori_TTS**(`localhost:8091`, OpenAI 호환 아님 — §5). 둘은 additive로 공존하며 default는 `irodori`다. irodori contract·voice registry·tunables는 **§5**, 두 provider가 공유하는 `emotion_text` 어휘(이모지)는 §1·§3에 정의.
 
-**Control transport (확정: `generate_express` tool-call):** 제어신호 전송은 Hermes(사용자 소유 backend)에 등록된 **서버사이드 `generate_express(...)` tool**로 한다. 이 tool-call의 **FLAT arguments**가 제어 필드를 싣는다: `{ emotion_id?, motion_id?, emotion_text? }`(전부 optional, motion_id는 보통 생략 — §3 D-MOTION-FROM-EMOTION). YUI client는 `/v1/responses` 출력의 `function_call` 아이템 중 **이름이 `generate_express`인 것**을 파싱해 사용한다 (+ 검증된 `GET /v1/runs/{run_id}/events` SSE로 tool-call 수신). generate_express는 Hermes 용어로 **skill이 아니라 tool(plugin)** 이다 — skill(마크다운 지시문)은 function_call을 만들지 않는다([`hermes-express-tool.md`](./hermes-express-tool.md) §0).
+**Control transport (확정: `generate_express` tool-call):** 제어신호 전송은 Hermes(사용자 소유 backend)에 등록된 **서버사이드 `generate_express(...)` tool**로 한다. 이 tool-call의 **FLAT arguments**가 제어 필드를 싣는다: `{ emotion_id?, motion_id?, emotion_text? }`(전부 optional, motion_id는 보통 생략 — §3 D-MOTION-FROM-EMOTION). YUI client는 `/v1/responses` 출력의 `function_call` 아이템 중 **이름이 `generate_express`인 것**을 파싱해 사용한다 (+ 검증된 `GET /v1/runs/{run_id}/events` SSE로 tool-call 수신). generate_express는 Hermes 용어로 **skill이 아니라 tool(plugin)** 이다 — skill(마크다운 지시문)은 function_call을 만들지 않는다([`backend_agent_broker_interaction.md`](./backend_agent_broker_interaction.md) §0).
 
 - **검증(2026-06):** Hermes `/v1/responses`가 `function_call` 아이템을 노출함(공식 docs). `generate_express`가 **서버사이드 tool**이므로 caller가 tool 정의를 주입할 필요가 없다.
 - **발화 텍스트는 tool 페이로드 밖:** 발화는 `generate_express` arguments에 넣지 않고, Hermes의 일반 assistant 텍스트 스트림(`response.output_text.delta`)으로 토큰 단위 수신한다(§3 D-SPEECH).
@@ -288,7 +288,7 @@ interface AvatarConfig {
 
 ### generate_express tool 정의 (backend tool 등록 contract) — canonical
 
-이 turn의 제어신호 transport는 `name == "generate_express"`인 function-call 하나다. **하드 계약 = function 이름(`generate_express`) + arguments JSON Schema(`parameters`).** 백엔드 generate_express tool(Hermes plugin — [`hermes-express-tool.md`](./hermes-express-tool.md))은 이 둘만 맞추면 되고(호출 여부·내용은 backend 판단 — firing≠judgment), client는 들어온 `arguments`를 이 스키마로 검증해 `ControlEnvelope`로 정규화한다.
+이 turn의 제어신호 transport는 `name == "generate_express"`인 function-call 하나다. **하드 계약 = function 이름(`generate_express`) + arguments JSON Schema(`parameters`).** 백엔드 generate_express tool([`backend_agent_broker_interaction.md`](./backend_agent_broker_interaction.md))은 이 둘만 맞추면 되고(호출 여부·내용은 backend 판단 — firing≠judgment), client는 들어온 `arguments`를 이 스키마로 검증해 `ControlEnvelope`로 정규화한다.
 
 ```jsonc
 // generate_express tool — FLAT 문자열 인자.
