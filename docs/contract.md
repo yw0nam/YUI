@@ -161,12 +161,14 @@ backend가 motion ID로 동작을 요청하면 client가 VRMA 파일 + 재생 �
 | `idle`       | ambient  | yes  | 0        | replace          | baseline. 항상 깔려 있음. 5개 variant clip. |
 | `drag`       | reactive | yes  | 80       | replace          | 사용자 드래그 중.                           |
 | `happy`      | oneshot  | no   | 70       | replace          | 기쁨 제스처.                                |
-| `laughing`   | oneshot  | no   | 70       | replace          | 웃음 제스처.                                |
+| `laugh`      | oneshot  | no   | 70       | replace          | 웃음 제스처.                                |
 | `embarrassed`| oneshot  | no   | 70       | replace          | 강한 부끄럼+손가락 제스처.                  |
 
 > **`sit` 미포함:** VRMA 에셋 없음 — 에셋 준비 시 추가.
 
-`idle`은 backend 요청 없이도 client가 깔아두는 baseline. backend가 `motion: null`을 보내면 client는 `idle`로 복귀한다. `happy`/`laughing`/`embarrassed`는 gesture 모션(oneshot)으로, `emotion` 채널(표정)과 **독립된** `motion` 채널로 전달된다.
+`idle`은 backend 요청 없이도 client가 깔아두는 baseline. backend가 `motion: null`을 보내면 client는 `idle`로 복귀한다. `happy`/`laugh`/`embarrassed`는 gesture 모션(oneshot)으로, `emotion` 채널(표정)과 **독립된** `motion` 채널로 전달된다.
+
+Expression Broker가 agent에 노출하는 모션은 `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance`. `broker_publish: false`인 entry(`sit`)와 client 내부 전용 모션(`idle` ambient baseline, `drag` reactive pickup)은 broker 어휘에서 제외되어 agent가 고를 수 없다.
 
 Motion VRMA 에셋은 **`public/motions/`에 git-tracked으로 커밋**되어 Vite가 `/motions/<id>.vrma`로 서빙한다 (~2.4MB, 크기가 작아 커밋). VRM 모델(`resources/vrms/carlotta.vrm`, ~48MB)은 gitignore 유지.
 
@@ -186,6 +188,7 @@ interface MotionRegistryEntry {
   vrma_path: string;       // Vite-served 경로 "/motions/<id>.vrma" (public/motions/ 아래 커밋)
   variants?: string[];     // [D-MOTION-VARIANTS] 2개 이상의 VRMA 풀. 있으면 variant_policy로 entry마다 1개 선택.
   variant_policy?: "random" | "sequential"; // [D-MOTION-VARIANTS] default "random". variants가 없으면 무시.
+  broker_publish?: boolean; // default true. false ⇒ 로컬 렌더는 되지만 broker/agent 어휘에서 제외(agent가 못 고름).
   kind: MotionKind;
   loop: boolean;
   priority: number;        // 0~100, 높을수록 우선

@@ -8,7 +8,7 @@
 | table | `null` |
 
 `emotion_text` is **free text** in square-bracket tags, prepended to the spoken
-text — e.g. `[whisper in small voice]`, `[laughing]`, `[excited] [volume up]`.
+text — e.g. `[whisper in small voice]`, `[soft chuckle]`, `[excited] [volume up]`.
 
 There is no client-side validation. YUI publishes
 `update_emotion_text("free", null)`, and the broker passes `emotion_text`

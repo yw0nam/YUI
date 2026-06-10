@@ -40,19 +40,23 @@ Emotion id for blendshapes. These ids are fixed by UI Client so can't be changed
 
 motion_id(string) for VRMA. These ids are fixed by UI client, not used in TTS. If there is no matching motion_id in client, client fallback to previous motion or idle motion.
 
-current motion_id set is: 
+agent-callable motion_id set is:
 
-- idle
 - happy
-- laughing
+- laugh
 - embarrassed
+- sheepish
+- calm
+- peek
+- sleeping
+- dance
 
 ### emotion_text(string)
 
 Emotion string for controlling TTS. The vocabulary is **provider-dependent** — the authoritative per-provider rule set lives in [`tts_emotion/`](./tts_emotion/) (enforced at runtime by the Expression Broker MCP gate).
 
 - **irodori (default provider):** inline **emoji tags** in the text, e.g. `👂 Can you hear me?`, `😆 I can't believe you said that.` Repeat an emoji to intensify. Broker mode `enum`. → [`tts_emotion/irodori.md`](./tts_emotion/irodori.md)
-- **openai-compatible (legacy fishspeech path):** free text like `[whisper in small voice]`, `[laughing]`. Broker mode `free`. → [`tts_emotion/fishspeech.md`](./tts_emotion/fishspeech.md)
+- **openai-compatible (legacy fishspeech path):** free text like `[whisper in small voice]`, `[soft chuckle]`. Broker mode `free`. → [`tts_emotion/fishspeech.md`](./tts_emotion/fishspeech.md)
 
 Either way the client prepends the tag to the spoken text and passes it through verbatim — and the tag is never shown in the speech bubble. See also [`tts_emotion/README.md`](./tts_emotion/README.md) for the provider-switch re-publish contract and [`contract.md`](./contract.md) `[D-EMOTION-TEXT]`.
 
