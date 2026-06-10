@@ -11,7 +11,7 @@ Load Karpathy Guideline.
 - **Worktree → PR.** All work must be done in a git worktree and submitted via PR. Direct commits/pushes to `main` are prohibited — exception only when the user explicitly says "directly to main" for lightweight changes like docs/rules.
   - **New-worktree setup (mandatory).** Gitignored runtime assets do not carry into a fresh worktree, so before running/verifying the app, link them from the main checkout: symlink the VRM — `ln -sf <main>/resources/vrms/carlotta.vrm <worktree>/resources/vrms/carlotta.vrm` (Vite serves `/vrms/*` from `resources/vrms`) — and copy `.env.local` (`VITE_YUI_CHAT_KEY`). Skipping this makes the VRM 404 and chat auth absent; both stay gitignored so they never touch the PR. When provider is irodori, likewise symlink the reference clips — `ln -sf <main>/resources/references <worktree>/resources/references` (Vite serves `/references/*` from `resources/references`, gitignored) — so voice registration can fetch them.
 - **GitHub tracker in English.** Issues, issue comments, and PR titles/bodies must be written in English. Chat with the user is OK in any language.
-- **UI: review existing → mock HTML → implement.** Before designing any UI, always read existing surfaces (`src/ui/`, `DESIGN.md` tokens, `PRODUCT.md` principles) to align style and patterns. Then create a standalone mock HTML for visual approval, then proceed to implementation.
+- **UI: review existing → propose text structure → mock HTML → implement.** Before designing any UI, always read existing surfaces (`src/ui/`, `DESIGN.md` tokens, `PRODUCT.md` principles) to align style and patterns. First propose the UI structure/layout to the user in text to get confirmation, then create a standalone mock HTML for visual approval, and finally proceed to implementation.
 - **TDD mandatory + per-phase commits mandatory.** Create a separate commit for each of the 3 TDD phases.
   1. **`test: ...`** — Write failing tests (`pnpm test` is red)
   2. **`feat: ...`** — Implementation that passes the tests. Split per logically independent unit.
@@ -57,7 +57,7 @@ The client handles **firing** (when a candidate event occurs). **Judgment** (whe
 
 Before any UI/visual work, read [`PRODUCT.md`](PRODUCT.md) + [`DESIGN.md`](DESIGN.md). The impeccable skill (`/impeccable`) uses these as its canonical source.
 
-> **Workflow (mandatory):** ① Review existing UI surfaces (`src/ui/`, `DESIGN.md`, `PRODUCT.md`) to align style and patterns, ② Create a **standalone mock HTML** for visual approval, then ③ Proceed to implementation.
+> **Workflow (mandatory):** ① Review existing UI surfaces (`src/ui/`, `DESIGN.md`, `PRODUCT.md`) to align style and patterns, ② Propose the UI structure/layout to the user in text for confirmation, ③ Create a **standalone mock HTML** for visual approval, then ④ Proceed to implementation.
 
 - **Register:** `product` — design serves the character, not marketing.
 - **Core tone:** **invisible-by-default, warm-when-present.**
