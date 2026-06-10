@@ -7,11 +7,14 @@
 
 import type { CompactResult } from "./session-compactor";
 
+/** Plain value or a getter resolved per evaluation (config read deferred past load()). */
+type Lazy<T> = T | (() => T);
+
 export interface CompactionTriggerOptions {
   /** chat_model_context_window; undefined → no known max, threshold never fires. */
-  contextWindow?: number;
-  thresholdRatio: number;
-  resumeRatio: number;
+  contextWindow?: Lazy<number | undefined>;
+  thresholdRatio: Lazy<number>;
+  resumeRatio: Lazy<number>;
   onTrigger: () => void;
 }
 
@@ -26,14 +29,16 @@ export interface CompactionTrigger {
 
 export function createCompactionTrigger(opts: CompactionTriggerOptions): CompactionTrigger {
   const { contextWindow, thresholdRatio, resumeRatio, onTrigger } = opts;
-  const thresholdTokens = contextWindow != null ? contextWindow * thresholdRatio : undefined;
-  const resumeTokens = contextWindow != null ? contextWindow * resumeRatio : undefined;
+  const resolve = <T>(v: Lazy<T>): T => (typeof v === "function" ? (v as () => T)() : v);
 
   let armed = true;
 
   return {
     noteUsage(totalTokens: number): void {
-      if (thresholdTokens == null || resumeTokens == null) return;
+      const window = resolve(contextWindow);
+      if (window == null) return;
+      const thresholdTokens = window * resolve(thresholdRatio);
+      const resumeTokens = window * resolve(resumeRatio);
       if (armed) {
         if (totalTokens >= thresholdTokens) {
           armed = false;

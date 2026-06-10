@@ -138,6 +138,79 @@ describe("createCompactionTrigger — no known context window", () => {
   });
 });
 
+describe("createCompactionTrigger — lazy config resolution", () => {
+  it("does NOT read contextWindow at construction time", () => {
+    const contextWindow = vi.fn(() => WINDOW);
+    createCompactionTrigger({
+      contextWindow,
+      thresholdRatio: () => THRESHOLD,
+      resumeRatio: () => RESUME,
+      onTrigger: vi.fn(),
+    });
+    expect(contextWindow).not.toHaveBeenCalled();
+  });
+
+  it("does NOT throw at construction when a getter throws (config not yet loaded)", () => {
+    const boom = () => {
+      throw new Error("store.get() before load()");
+    };
+    expect(() =>
+      createCompactionTrigger({
+        contextWindow: boom,
+        thresholdRatio: boom,
+        resumeRatio: boom,
+        onTrigger: vi.fn(),
+      }),
+    ).not.toThrow();
+  });
+
+  it("resolves getters at evaluation time so threshold + resume still work", () => {
+    const onTrigger = vi.fn();
+    const trigger = createCompactionTrigger({
+      contextWindow: () => WINDOW,
+      thresholdRatio: () => THRESHOLD,
+      resumeRatio: () => RESUME,
+      onTrigger,
+    });
+    trigger.noteUsage(120_000); // below threshold
+    expect(onTrigger).not.toHaveBeenCalled();
+    trigger.noteUsage(150_000); // fire #1, disarm
+    expect(onTrigger).toHaveBeenCalledOnce();
+    trigger.noteUsage(90_000); // < resume → re-arm
+    trigger.noteUsage(150_000); // fire #2
+    expect(onTrigger).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-reads getters per evaluation (hot-reload of the knobs)", () => {
+    const onTrigger = vi.fn();
+    let window = 200_000;
+    const trigger = createCompactionTrigger({
+      contextWindow: () => window,
+      thresholdRatio: () => THRESHOLD,
+      resumeRatio: () => RESUME,
+      onTrigger,
+    });
+    trigger.noteUsage(150_000); // ≥ 140_000 → fire #1
+    expect(onTrigger).toHaveBeenCalledOnce();
+    trigger.noteUsage(90_000); // re-arm
+    window = 400_000; // threshold now 280_000
+    trigger.noteUsage(150_000); // below new threshold → no fire
+    expect(onTrigger).toHaveBeenCalledOnce();
+  });
+
+  it("never fires when the contextWindow getter returns undefined", () => {
+    const onTrigger = vi.fn();
+    const trigger = createCompactionTrigger({
+      contextWindow: () => undefined,
+      thresholdRatio: () => THRESHOLD,
+      resumeRatio: () => RESUME,
+      onTrigger,
+    });
+    trigger.noteUsage(1_000_000);
+    expect(onTrigger).not.toHaveBeenCalled();
+  });
+});
+
 describe("createCompactionTrigger — reset", () => {
   it("re-arms after reset so the threshold fires again", () => {
     const { trigger, onTrigger } = make();
