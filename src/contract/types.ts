@@ -84,6 +84,8 @@ export interface MotionRegistryEntry {
   variants?: string[];
   /** NEW: variants가 있을 때 선택 정책. default "random". */
   variant_policy?: "random" | "sequential";
+  /** NEW: cycle 모션이 다음 variant로 swap하기 전 마지막(정착) 프레임을 유지할 ms. 없으면/0이면 즉시 swap. variants>1 + loop 필요. */
+  cycle_dwell_ms?: number;
   /** false면 broker(agent) 어휘에서 제외 — 로컬 렌더만. default true. */
   broker_publish?: boolean;
   kind: MotionKind;

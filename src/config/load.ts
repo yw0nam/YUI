@@ -593,10 +593,30 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
         broker_publish = rawBrokerPublish;
       }
     }
+    // cycle_dwell_ms: cycle 모션이 다음 variant로 swap하기 전 정착 프레임 유지 ms.
+    const rawCycleDwell = entry.cycle_dwell_ms;
+    let cycle_dwell_ms: number | undefined;
+    if (rawCycleDwell !== undefined) {
+      if (
+        typeof rawCycleDwell !== "number" ||
+        !Number.isInteger(rawCycleDwell) ||
+        rawCycleDwell < 0 ||
+        rawCycleDwell > 60000
+      ) {
+        issues.push(`${id}.cycle_dwell_ms는 0~60000 사이 정수여야 함`);
+      } else {
+        cycle_dwell_ms = rawCycleDwell;
+      }
+      // cycle 모션(variants>1 + loop)이 아니면 resolve()가 무시하는 dead 필드 — fail-loud.
+      if (!(Array.isArray(variants) && variants.length > 1 && entry.loop === true)) {
+        issues.push(`${id}.cycle_dwell_ms는 cycle 모션(variants>1 + loop)에만 유효함`);
+      }
+    }
     out[id] = {
       vrma_path: entry.vrma_path as string,
       ...(variants !== undefined ? { variants } : {}),
       ...(variant_policy !== undefined ? { variant_policy } : {}),
+      ...(cycle_dwell_ms !== undefined ? { cycle_dwell_ms } : {}),
       ...(broker_publish !== undefined ? { broker_publish } : {}),
       kind: entry.kind as MotionKind,
       loop: entry.loop as boolean,
