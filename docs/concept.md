@@ -95,10 +95,13 @@ sources: timer / idle-watcher / OS-event-watcher / user-input / [P2] backend-SSE
 | Tier | 내용 | firing | judgment / content |
 |------|------|--------|--------------------|
 | **1 — ambient liveliness** | blink, idle sway, 숨쉬기, 둘러보기 | client | client (백엔드 X) |
-| **2 — 가벼운 발화** | 시간대 인사, 장시간 idle 반응 | client (timer/watcher) | **backend** (persona-aware, 확정) |
+| **2 — 가벼운 발화** | co-working(곁들이) 발화, 시간대 인사 | client (cowork/timer/watcher) | **backend** (persona-aware, 확정) |
 | **3 — 맥락 개입** | 맥락 감지 후 선제 제안 | client (sensing) + [P2] backend push | backend |
 
 - **로드맵:** 초기 Tier 1·2 → 최종 Tier 3.
+- **Co-working 트리거(Tier 2):** 사용자가 **present**(OS idle ≤ `present_max_idle_ms`, 기본 60초)인 동안 cadence(`interval_ms`, 기본 10분)마다 `proactive.cowork`를 발사한다 — "옆에서 같이 일하는" 모델. 발사일 뿐 말할지/무엇을 말할지는 backend 판단(침묵=텍스트 미발신).
+- **Proactive 토글:** 사용자가 끄고 켜는 on/off 스위치가 **Tier 2/3 선제 발화를 source에서 게이트**한다(기본 ON). 이 토글은 Tier 1 ambient(blink/idle sway/숨쉬기)는 건드리지 않는다 — Tier 1은 항상 켜진 백엔드 독립 레이어다.
+- **OS idle 신호 의존:** co-working은 Rust `os_idle_tick`(present 판정)에 의존한다 — macOS는 현재 제공, Windows watcher는 대기 중(그동안 co-working은 비활성).
 - **필수 가드레일:** Tier 2/3는 **rate-limit + debounce + DND(focus 감지)**. 없으면 토큰 새고 캐릭터가 짜증남.
 - **Tier 2 silence 규약:** 백엔드가 "지금은 말 안 함"을 표현할 수 있어야 함 — **별도 플래그 없이 assistant 텍스트를 내보내지 않으면 침묵**이다(D-NO-SPEAK-GATE, contract §3). 표정만 짓고 싶으면 `express`로 emotion만 보낸다. 폭주 방지는 client-side rate-limit/debounce/DND가 안전망(firing이 client 소유).
 
