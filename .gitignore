@@ -22,8 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-resources/vrms
-resources/references
+resources/vrms/*
+!resources/vrms/.gitkeep
+resources/references/*
+!resources/references/.gitkeep
 .env
 .env.local
 
