@@ -87,8 +87,8 @@ describe("configs/guardrails.json", () => {
 describe("configs/motions.json", () => {
   const m = read("configs/motions.json");
 
-  it("registers all five current motions: idle/drag/happy/laughing/embarrassed", () => {
-    for (const id of ["idle", "drag", "happy", "laughing", "embarrassed"]) {
+  it("registers all five current motions: idle/drag/happy/laugh/embarrassed", () => {
+    for (const id of ["idle", "drag", "happy", "laugh", "embarrassed"]) {
       expect(m[id], id).toBeDefined();
       expect(m[id].vrma_path, `${id}.vrma_path`).toMatch(/\.vrma$/);
       expect(m[id].priority, `${id}.priority`).toBeTypeOf("number");
@@ -110,8 +110,8 @@ describe("configs/motions.json", () => {
     expect(m.drag.interrupt_policy).toBe("replace");
   });
 
-  it("happy/laughing/embarrassed are oneshot kind with priority 70 and interrupt_policy replace", () => {
-    for (const id of ["happy", "laughing", "embarrassed"]) {
+  it("happy/laugh/embarrassed are oneshot kind with priority 70 and interrupt_policy replace", () => {
+    for (const id of ["happy", "laugh", "embarrassed"]) {
       expect(m[id].kind, `${id}.kind`).toBe("oneshot");
       expect(m[id].priority, `${id}.priority`).toBe(70);
       expect(m[id].interrupt_policy, `${id}.interrupt_policy`).toBe("replace");
