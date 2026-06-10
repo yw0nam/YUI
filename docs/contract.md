@@ -451,6 +451,7 @@ interface InputContext {
     timezone:  string;            // ex: "Asia/Seoul"
     active_app?: { name: string; bundle_id?: string };
     active_window_title?: string;
+    is_fullscreen?: boolean;       // OS fullscreen 상태 (context 시점)
     locale?: string;
   };
 

@@ -14,7 +14,7 @@
 | Component | 위치 | 비고 |
 |---|---|---|
 | `os_event_watcher` | **Rust (Tauri main)** | OS API 접근 전담: 활성 앱, 창 포커스, fullscreen, OS-wide idle, camera 사용. |
-| `timer_scheduler`, `idle_watcher`, `user_input_source`, `backend_push_source(P2)` | Webview (TS) | timer/idle/입력은 webview. idle은 Rust `os_idle_tick` + webview 자체 입력 **둘 다 충족 시**만 idle. |
+| `timer_scheduler`, `cowork_source`, `user_input_source`, `backend_push_source(P2)` | Webview (TS) | timer/cowork/입력은 webview. cowork은 Rust `os_idle_tick`으로 present(idle < 임계)를 판정해 cadence마다 `proactive.cowork`를 발사. |
 | `event_bus`, `dispatcher`, `backend_caller`, `tier1_ambient_engine` | Webview (TS) | 라우팅/가드레일/호출 전부 webview — 핫리로드 + 스크린샷 디버깅 가능. |
 | `renderer` | Webview (three.js + VRM) | 최종 출력. ambient/backend 신호 합성은 renderer 책임. |
 
@@ -24,7 +24,7 @@
 ```
 [Rust] os_event_watcher ──tauri emit──┐
                                       ▼
-[TS] timer · idle · user_input · [P2]backend_push  ──► event_bus (priority queue)
+[TS] timer · cowork · user_input · [P2]backend_push  ──► event_bus (priority queue)
                                                         │
                                                         ▼
                                                    dispatcher
@@ -54,12 +54,13 @@
 | `time_milestone.midnight` | 00:00 통과 | 1/day | 2 |
 | `periodic_tick` | 60s, internal heartbeat | 60s | — |
 
-### 3.2 `idle_watcher`
+### 3.2 `cowork_source` (co-working presence+cadence)
+사용자가 **present**(OS idle이 config 임계 미만)인 동안 config cadence마다 곁들이 발화 후보를 발사한다 — "옆에서 같이 일하는" 모델이다.
 | Event | 조건 | tier |
 |---|---|---|
-| `idle.short` | 입력 무동작 ≥ **120s** | 2 |
-| `idle.long`  | 입력 무동작 ≥ **600s** | 2 |
-| `idle.returned` | idle → 입력 재감지 (state-change) | 1 (ambient cue) |
+| `proactive.cowork` | 사용자 present(OS idle < `sources.proactive.cowork.present_max_idle_ms`) 동안 `sources.proactive.cowork.interval_ms` cadence마다 | 2 |
+
+`idle.*` bus 이름(`idle.short`/`idle.long`/`idle.returned`)은 여전히 유효한 dormant 어휘다 — 현재 이를 발사하는 source는 없다.
 
 ### 3.3 `os_event_watcher` (Rust)
 | Event | 조건 | dispatcher 처리 |
@@ -107,7 +108,7 @@
 ### 4.3 우선순위 (낮을수록 우선)
 | 0 | `user.*` |
 | 1 | `backend.push.*` |
-| 2 | `idle.*`, `time_milestone.*` |
+| 2 | `proactive.*`, `idle.*`, `time_milestone.*` |
 | 3 | `os.*` |
 | 4 | internal |
 동일 순위 내 FIFO.
@@ -118,8 +119,9 @@
 | event_name pattern | tier | target |
 |---|---|---|
 | `time_milestone.*` | 2 | backend_caller |
-| `idle.short` / `idle.long` | 2 | backend_caller |
-| `idle.returned` | 1 | tier1_ambient_engine |
+| `proactive.*` | 2 | backend_caller |
+| `idle.short` / `idle.long` | 2 | backend_caller (dormant — 발사 source 없음) |
+| `idle.returned` | 1 | tier1_ambient_engine (dormant) |
 | `user.text_submitted` / `user.voice_segment_ready` | 2 | backend_caller |
 | `user.tap` | 1 + 2 (split) | tier1 즉시 / tier2 가드레일 후 |
 | `user.drag_*` | 1 | tier1_ambient_engine |
@@ -148,7 +150,7 @@
 ### 6.2 Debounce (per source)
 | Source | Window |
 |---|---|
-| `idle_watcher` | 30s |
+| `cowork_source` | 30s |
 | `os_event_watcher` | 5s |
 | `backend_push_source` | 10s |
 | `user_input_source` | 0 |
@@ -181,12 +183,12 @@
 ```jsonc
 {
   // contract §4 InputContext 전체를 그대로 사용 (env.timestamp, env.timezone, env.active_app.name,
-  // env.active_window_title, screenshot{enabled,source,...}, user_text, transcript, client)
+  // env.active_window_title, env.is_fullscreen, screenshot{enabled,source,...}, user_text, transcript, client)
   "input_context": { /* InputContext per contract.md §4 */ },
 
-  // dispatcher가 추가하는 trigger envelope
+  // dispatcher가 추가하는 trigger envelope (emitted)
   "trigger": {
-    "source": "timer_scheduler | idle_watcher | os_event_watcher | user_input_source | backend_push_source",
+    "source": "timer_scheduler | cowork_source | os_event_watcher | user_input_source | backend_push_source",
     "event_name": "...",            // §3 표의 event_name
     "ts": 0,                         // bus envelope의 ts (epoch ms)
     "seq_id": 0
@@ -194,15 +196,17 @@
 
   // dispatcher가 알고 있는 부가 상태 (contract InputContext에는 없음)
   "dispatcher_state": {
-    "idle_seconds": 0,
-    "dnd_state": "OFF | ON",
-    "tier_hint": 2
+    "idle_seconds": 0,               // emitted
+    "tier_hint": 2,                  // emitted
+    "dnd_state": "OFF | ON"          // optional — 현재 미emit
   },
 
-  "tier2_silence_ok": true           // Tier 2: backend가 침묵(텍스트 미발신) 선택 가능함을 알리는 힌트 (선택)
+  "tier2_silence_ok": true           // optional 힌트(Tier 2 backend 침묵 허용) — 현재 미emit
 }
 ```
 
+- `trigger`(`source`/`event_name`/`ts`/`seq_id`)와 `dispatcher_state.idle_seconds`/`tier_hint`는 emit된다. `dispatcher_state.dnd_state`와 `tier2_silence_ok`는 optional이며 현재 wire에 싣지 않는다.
+- `env.is_fullscreen`은 별도 envelope 필드가 아니라 contract §4대로 `input_context.env` 안에 산다.
 - `input_context.screenshot.enabled`: tier2 default off, tier3 default on. config override.
 - `input_context.user_text` / `input_context.transcript`: user 발사일 때만 채움.
 - `input_context.env.active_app.name` / `env.active_window_title`은 §10 Rust handoff의 `active_app_name` / `active_window_title`을 그대로 매핑.
@@ -335,10 +339,10 @@ Input: `{ envelope, tier, context }` · Output: `Promise<{ ok: bool, drop_reason
 | Queue 100 초과 | event_bus | 우선순위 낮은 것 drop, 정상 지속. |
 | Webview crash | OS/Tauri | Tauri 재시작 (별도 워크플로). 상태 휘발, `last_fire_per_source`만 localStorage에서 복원. |
 
-## 14. Workflow Tree (대표: `idle.long`)
+## 14. Workflow Tree (대표: `proactive.cowork`)
 | Step | Actor | Action | 실패 / 분기 |
 |---|---|---|---|
-| 1 | idle_watcher | Rust idle 600s + webview idle 600s 모두 충족 → `idle.long` 발사 → `event_bus.push()` | debounce 30s 내 재발사 → bus drop |
+| 1 | cowork_source | 사용자 present(OS idle < `present_max_idle_ms`) 동안 `interval_ms` cadence 도달 → `proactive.cowork` 발사 → `event_bus.push()` | debounce 30s 내 재발사 → bus drop |
 | 2 | event_bus | 스키마 검증, seq_id 부여, 큐 삽입 | schema invalid → ERROR drop / queue full → 최저 우선순위 1건 drop 후 삽입 |
 | 3 | dispatcher | §6.4 순서 평가 → `tier=2, target=backend_caller` | DND_ON → silent drop / debounce hit → drop / rate-limit → drop (환불 X) |
 | 4 | backend_caller | §7.2 B1–B5 | §7.3 분류대로 |
