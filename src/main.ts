@@ -479,6 +479,26 @@ async function bootstrap(): Promise<void> {
       __yui_send: (text: string) => userInput.submit(text),
       // dispatcher 관찰(§11): __yui_dispatcher.inFlight()/queue()/recentDrops().
       __yui_dispatcher: () => dispatcherRef,
+      // DEV-ONLY 트리거: window_sit perch 진입/이탈을 콘솔에서 직접 발사한다.
+      //   window.__yui_windowSit.enter() → user.window_sit_enter → dispatcher → renderer.
+      __yui_windowSit: {
+        enter: () =>
+          bus.push({
+            source: "user_input_source",
+            event_name: "user.window_sit_enter",
+            ts: Date.now(),
+            hint_tier: 1,
+            dnd_override: true,
+          }),
+        exit: () =>
+          bus.push({
+            source: "user_input_source",
+            event_name: "user.window_sit_exit",
+            ts: Date.now(),
+            hint_tier: 1,
+            dnd_override: true,
+          }),
+      },
       // 단계별 시연 헬퍼
       __yuiDemo: {
         input: () => surfaces.summonInput(),
