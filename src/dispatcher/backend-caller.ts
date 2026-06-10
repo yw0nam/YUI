@@ -22,9 +22,11 @@
 import { streamChat, type ChatRequest } from "../io/chat-client";
 import type {
   ControlEnvelope,
+  DispatcherStateMeta,
   EndpointsConfig,
   InputContext,
   ToolStatus,
+  TriggerMeta,
   Usage,
 } from "../contract";
 import type { Renderer } from "../renderer";
@@ -34,6 +36,9 @@ import { createLogger } from "../logger";
 import type { Logger } from "../logger";
 
 const baseLog = createLogger("backend_caller");
+
+/** proactive 턴(user_text 없음)의 user 메시지 마커 — 빈 문자열 대신 명시적 신호. */
+const PROACTIVE_MARKER = "(proactive: co-working check-in)";
 
 /** §10 Dispatcher → Backend Caller 출력: { ok, drop_reason? }. */
 export interface BackendCallResult {
@@ -124,6 +129,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const os = deps.getOsContext?.();
     if (os?.activeApp) ctx.env.active_app = { name: os.activeApp };
     if (os?.activeWindowTitle) ctx.env.active_window_title = os.activeWindowTitle;
+    if (os?.isFullscreen !== undefined) ctx.env.is_fullscreen = os.isFullscreen;
     if (deps.getScreenshot) {
       try {
         const screenshot = await deps.getScreenshot();
@@ -135,9 +141,18 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     return ctx;
   }
 
-  /** InputContext → OpenAI Responses input (user 발화는 user 메시지로 인코딩). */
-  function encodeInput(ctx: InputContext): ChatRequest["input"] {
-    const text = ctx.user_text ?? "";
+  /**
+   * InputContext → OpenAI Responses input (user 발화는 user 메시지로 인코딩).
+   *
+   * system 힌트는 §7.1 layered shape `{ input_context, trigger, dispatcher_state }`.
+   *   - input_context: InputContext에서 screenshot.data_url을 뺀 사본(큰 base64는 USER
+   *     content-part로만 싣는다 — 힌트엔 cheap한 screenshot meta만 남긴다).
+   *   - trigger: firing envelope 메타(source/event_name/ts, seq_id present 시).
+   *   - dispatcher_state: dispatcher가 아는 부가 상태(idle_seconds/tier_hint). dnd_state는 미설정.
+   * proactive 턴(user_text 없음)은 빈 문자열 대신 non-empty 마커를 user 메시지로 싣는다.
+   */
+  function encodeInput(ctx: InputContext, env: BusEnvelope): ChatRequest["input"] {
+    const text = ctx.user_text ?? PROACTIVE_MARKER;
     // 스크린샷 첨부 시 Responses content-part 배열(input_text + input_image), 없으면 평문.
     const userContent = ctx.screenshot?.data_url
       ? [
@@ -145,11 +160,33 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           { type: "input_image", image_url: ctx.screenshot.data_url },
         ]
       : text;
-    // env 메타(시각/타임존)는 system 힌트로 동봉 — backend judgment가 시간 맥락을 쓸 수 있게.
+
+    // 큰 data_url은 힌트에서 제거(USER content-part로만 전송). 나머지 screenshot meta는 보존.
+    const input_context: InputContext = ctx.screenshot
+      ? (() => {
+          const { data_url: _omit, ...meta } = ctx.screenshot;
+          return { ...ctx, screenshot: meta };
+        })()
+      : ctx;
+
+    const trigger: TriggerMeta = {
+      source: env.source,
+      event_name: env.event_name,
+      ts: env.ts,
+      ...(env.seq_id != null ? { seq_id: env.seq_id } : {}),
+    };
+
+    const os_idle_ms =
+      typeof env.payload?.os_idle_ms === "number" ? env.payload.os_idle_ms : undefined;
+    const dispatcher_state: DispatcherStateMeta = {
+      ...(os_idle_ms != null ? { idle_seconds: Math.round(os_idle_ms / 1000) } : {}),
+      ...(env.hint_tier != null ? { tier_hint: env.hint_tier } : {}),
+    };
+
     return [
       {
         role: "system",
-        content: `client_context: ${JSON.stringify(ctx.env)}`,
+        content: `client_context: ${JSON.stringify({ input_context, trigger, dispatcher_state })}`,
       },
       { role: "user", content: userContent },
     ];
@@ -168,7 +205,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
     // B1
     const ctx = await packageContext(env);
-    const input = encodeInput(ctx);
+    const input = encodeInput(ctx, env);
     log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 
     // B2: fetch/apiKey 해소 후 streamChat. externalSignal을 그대로 전달(abort 위임, §12).

@@ -279,12 +279,13 @@ describe("backend_caller — screenshot port (#20)", () => {
 });
 
 describe("backend_caller — os context port (#18)", () => {
-  /** decode the system message env block passed to streamChat. */
+  /** decode input_context.env from the §7.1 layered system hint passed to streamChat. */
   function envOf(input: unknown): Record<string, unknown> {
     const items = input as Array<{ role: string; content: string }>;
     const sys = items.find((m) => m.role === "system")!;
     const json = sys.content.replace(/^client_context:\s*/, "");
-    return JSON.parse(json) as Record<string, unknown>;
+    const hint = JSON.parse(json) as { input_context: { env: Record<string, unknown> } };
+    return hint.input_context.env;
   }
 
   it("getOsContext snapshot → env.active_app + env.active_window_title attached", async () => {
