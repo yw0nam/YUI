@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>YUI — Proactive responses toggle mock</title>
+<link rel="icon" href="data:," />
+<!-- Real design tokens + component CSS (mirror of shipped panel). -->
+<link rel="stylesheet" href="../src/ui/tokens.css" />
+<link rel="stylesheet" href="../src/ui/quick-controls.css" />
+<style>
+  /* ── mock-page chrome only (never shipped) ── */
+  :root {
+    --page-ink: oklch(0.92 0.01 78);
+    --page-muted: oklch(0.7 0.012 75);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    /* Arbitrary desktop backdrop — proves legible-on-anything over a transparent window. */
+    background:
+      radial-gradient(58% 54% at 80% 78%, oklch(0.42 0.04 70 / 0.5), transparent 60%),
+      radial-gradient(54% 48% at 12% 6%, oklch(0.46 0.03 200 / 0.42), transparent 58%),
+      linear-gradient(150deg, oklch(0.32 0.014 72), oklch(0.2 0.01 72));
+    color: var(--page-ink);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    width: min(820px, calc(100vw - 40px));
+    margin: 0 auto;
+    padding: 30px 0 56px;
+  }
+
+  .brief { margin-bottom: 22px; }
+  .brief h1 { margin: 0 0 6px; font-size: 1.06rem; font-weight: 650; }
+  .brief p {
+    margin: 0;
+    max-width: 76ch;
+    color: var(--page-muted);
+    font-size: 0.82rem;
+    line-height: 1.55;
+  }
+
+  .stage {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 30px;
+    align-items: start;
+  }
+
+  .panel-wrap { min-width: 0; }
+  .panel-cap {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0 6px 10px;
+  }
+  .panel-cap strong { font-size: 0.84rem; font-weight: 650; }
+  .panel-cap span { font-size: 0.72rem; color: var(--page-muted); }
+
+  /* Render the popover panel statically (no enter animation, fixed→static for layout). */
+  .yui-quick.mock {
+    position: static;
+    opacity: 1;
+    transform: none;
+    width: 21rem;
+    max-width: 100%;
+    max-height: none;
+  }
+
+  .legend {
+    margin: 26px 6px 0;
+    padding-top: 14px;
+    border-top: 1px solid oklch(0.97 0.01 80 / 0.12);
+    color: var(--page-muted);
+    font-size: 0.76rem;
+    line-height: 1.6;
+  }
+  .legend b { color: var(--page-ink); font-weight: 600; }
+  .legend code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+    color: var(--yui-text-dim);
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <div class="brief">
+      <h1>주도적 반응 — 토글 행 (mock, 승인용)</h1>
+      <p>
+        quick-controls 패널 "입력 소스" 섹션에 들어갈 새 토글 행. 기존 "스크린샷 첨부"
+        행 바로 위에 배치해 시각적 일관성을 비교할 수 있게 했어요. 왼쪽 = OFF, 오른쪽 = ON(기본값).
+        실제 토큰(tokens.css)과 컴포넌트 스타일(quick-controls.css)을 그대로 링크해 렌더했습니다.
+      </p>
+    </div>
+
+    <div class="stage">
+      <!-- ── OFF state ── -->
+      <div class="panel-wrap">
+        <div class="panel-cap"><strong>OFF</strong><span>차분 — 먼저 말 걸지 않음</span></div>
+        <div class="yui-quick mock" role="dialog" aria-label="빠른 설정">
+          <div class="yui-quick__bar">
+            <span class="yui-quick__grip" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            <span class="yui-quick__title">빠른 설정</span>
+            <div class="yui-quick__bar-actions">
+              <button class="yui-iconbtn" type="button" aria-label="닫기">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="yui-quick__body">
+            <span class="yui-quick__section">입력 소스</span>
+
+            <!-- NEW ROW — proactive responses -->
+            <div class="yui-row">
+              <div class="yui-row__main">
+                <span class="yui-row__label">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 3.5l1.6 3.9 3.9 1.6-3.9 1.6L12 14.5l-1.6-3.9L6.5 9l3.9-1.6L12 3.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                    <path d="M18.5 15l.7 1.7 1.8.7-1.8.7-.7 1.7-.7-1.7-1.8-.7 1.8-.7.7-1.7z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+                  </svg>
+                  주도적 반응
+                </span>
+                <span class="yui-row__sub">다른 앱을 쓸 때도 가끔 먼저 말을 걸어요</span>
+              </div>
+              <button class="yui-switch" type="button" role="switch" aria-checked="false" aria-label="주도적 반응"></button>
+            </div>
+
+            <!-- SIBLING ROW (context) — screenshot attach -->
+            <div class="yui-row">
+              <div class="yui-row__main">
+                <span class="yui-row__label">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                    <path d="M3 9h18" stroke="currentColor" stroke-width="1.7"/>
+                  </svg>
+                  스크린샷 첨부
+                </span>
+                <span class="yui-row__sub">대화할 때 화면을 함께 봐요</span>
+              </div>
+              <button class="yui-switch" type="button" role="switch" aria-checked="false" aria-label="스크린샷 첨부"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ON state (default) ── -->
+      <div class="panel-wrap">
+        <div class="panel-cap"><strong>ON · 기본값</strong><span>앰버 점화</span></div>
+        <div class="yui-quick mock" role="dialog" aria-label="빠른 설정">
+          <div class="yui-quick__bar">
+            <span class="yui-quick__grip" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            <span class="yui-quick__title">빠른 설정</span>
+            <div class="yui-quick__bar-actions">
+              <button class="yui-iconbtn" type="button" aria-label="닫기">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="yui-quick__body">
+            <span class="yui-quick__section">입력 소스</span>
+
+            <!-- NEW ROW — proactive responses (ON) -->
+            <div class="yui-row">
+              <div class="yui-row__main">
+                <span class="yui-row__label">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 3.5l1.6 3.9 3.9 1.6-3.9 1.6L12 14.5l-1.6-3.9L6.5 9l3.9-1.6L12 3.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                    <path d="M18.5 15l.7 1.7 1.8.7-1.8.7-.7 1.7-.7-1.7-1.8-.7 1.8-.7.7-1.7z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+                  </svg>
+                  주도적 반응
+                </span>
+                <span class="yui-row__sub">다른 앱을 쓸 때도 가끔 먼저 말을 걸어요</span>
+              </div>
+              <button class="yui-switch" type="button" role="switch" aria-checked="true" aria-label="주도적 반응"></button>
+            </div>
+
+            <!-- SIBLING ROW (context) — screenshot attach -->
+            <div class="yui-row">
+              <div class="yui-row__main">
+                <span class="yui-row__label">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                    <path d="M3 9h18" stroke="currentColor" stroke-width="1.7"/>
+                  </svg>
+                  스크린샷 첨부
+                </span>
+                <span class="yui-row__sub">대화할 때 화면을 함께 봐요</span>
+              </div>
+              <button class="yui-switch" type="button" role="switch" aria-checked="true" aria-label="스크린샷 첨부"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="legend">
+      <b>라벨:</b> 주도적 반응 &nbsp;·&nbsp;
+      <b>서브라벨:</b> 다른 앱을 쓸 때도 가끔 먼저 말을 걸어요 &nbsp;·&nbsp;
+      <b>아이콘:</b> sparkles(이중 반짝임) — 기존 행과 동일한 <code>currentColor</code> stroke,
+      stroke-width 1.4–1.5, fill:none. &nbsp;·&nbsp;
+      <b>구조:</b> 기존 <code>.yui-row</code> / <code>.yui-row__main</code> /
+      <code>.yui-row__label</code> / <code>.yui-row__sub</code> / <code>.yui-switch[role=switch]</code>
+      그대로 미러.
+    </p>
+  </main>
+</body>
+</html>

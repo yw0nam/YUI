@@ -51,6 +51,9 @@ function goodFixture(): Record<string, unknown> {
         cooldown_ms: 300000,
       },
     },
+    "sources.json": {
+      proactive: { cowork: { interval_ms: 600000, present_max_idle_ms: 60000 } },
+    },
   };
 }
 
@@ -153,6 +156,26 @@ describe("createConfigStore — guardrails section diff (#25)", () => {
     const [nextCfg, changed] = sub.mock.calls[0];
     expect(nextCfg.guardrails.rate_limit.overall_max).toBe(30);
     expect(changed.has("guardrails")).toBe(true);
+    expect(changed.has("motions")).toBe(false);
+  });
+});
+
+describe("createConfigStore — sources section diff (#24)", () => {
+  it("sources 변경 → reload() true, changed.has('sources')", async () => {
+    const map = goodFixture();
+    const store = createConfigStore({ read: mutableReader(map) });
+    await store.load();
+
+    const sub = vi.fn();
+    store.subscribe(sub);
+
+    (map["sources.json"] as { proactive: { cowork: { interval_ms: number } } }).proactive.cowork.interval_ms = 900000;
+    await expect(store.reload()).resolves.toBe(true);
+
+    expect(sub).toHaveBeenCalledTimes(1);
+    const [nextCfg, changed] = sub.mock.calls[0];
+    expect(nextCfg.sources.proactive.cowork.interval_ms).toBe(900000);
+    expect(changed.has("sources")).toBe(true);
     expect(changed.has("motions")).toBe(false);
   });
 });

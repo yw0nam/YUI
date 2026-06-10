@@ -8,9 +8,9 @@
   },
   "rate_limit": {
     "window_ms": 3600000,
-    "tier2_max": 6,
+    "tier2_max": 12,
     "tier3_max": 2,
-    "overall_max": 20,
+    "overall_max": 26,
     "cooldown_ms": 300000
   }
 }

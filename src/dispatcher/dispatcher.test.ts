@@ -172,6 +172,17 @@ describe("dispatcher — routing (§5.1)", () => {
     const arg = applyDirective.mock.calls[0][0];
     expect(arg.motion).toBeNull();
   });
+
+  it("routes proactive.cowork (tier2) to the backend caller (#24 Step 5)", async () => {
+    dispatcher.start();
+    bus.push(env({ source: "timer_scheduler", event_name: "proactive.cowork", ts: NOW, dnd_override: false }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect((backendCaller.call as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      "fire",
+      expect.objectContaining({ event_name: "proactive.cowork", tier: 2 }),
+    );
+  });
 });
 
 describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path)", () => {

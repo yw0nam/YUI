@@ -1,0 +1,8 @@
+{
+  "proactive": {
+    "cowork": {
+      "interval_ms": 600000,
+      "present_max_idle_ms": 60000
+    }
+  }
+}

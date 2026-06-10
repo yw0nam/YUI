@@ -67,6 +67,7 @@ const KNOWN_PREFIXES: ReadonlyArray<{ prefix: string; priority: number }> = [
   { prefix: "backend.push.", priority: 1 },
   { prefix: "idle.", priority: 2 },
   { prefix: "time_milestone.", priority: 2 },
+  { prefix: "proactive.", priority: 2 },
   { prefix: "periodic_tick", priority: 4 },
   { prefix: "os.", priority: 3 },
 ];

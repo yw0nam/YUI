@@ -32,6 +32,7 @@ import { createCaptureIndicator } from "./ui/capture-indicator";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
 import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
+import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import {
@@ -79,6 +80,7 @@ import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
 import { createUserInputSource } from "./dispatcher/user-input-source";
+import { createCoworkSource } from "./dispatcher/cowork-source";
 import type { SttVad } from "./io/stt-vad";
 
 /** 입력 소환 핫키 (window-focus 한정 — 전역 단축키는 후속 tauri-plugin-global-shortcut). */
@@ -161,6 +163,8 @@ async function bootstrap(): Promise<void> {
   });
 
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
+  // proactive 발화(cowork tier2) on/off. 소스의 firing만 게이팅 — 구독은 멈추지 않는다.
+  const proactiveSettings = createProactiveSettings({ storage: localStorageProactiveStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
   // 세션 연속성(#128) store: 회전 id 포인터 + 진단(used/window/last-compression). 두 창이
@@ -186,7 +190,7 @@ async function bootstrap(): Promise<void> {
   // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
   // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
   const openSettings = createSettingsWindowOpener();
-  const disposeStorageSync = wireStorageSync([agentSettings, endpointsSettings, lipsyncSettings, screenshotSettings, cameraSettings, sessionStore, sessionDiagnostics]);
+  const disposeStorageSync = wireStorageSync([agentSettings, endpointsSettings, lipsyncSettings, screenshotSettings, proactiveSettings, cameraSettings, sessionStore, sessionDiagnostics]);
 
   // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
   // 시스템(VRM 렌더러 · STT/VAD)에 닿게 한다. storage 폴백은 위 wireStorageSync로 유지.
@@ -222,6 +226,7 @@ async function bootstrap(): Promise<void> {
   endpointsSettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
+  proactiveSettings.subscribe(broadcastSettings);
   cameraSettings.subscribe(broadcastSettings);
   bridge.onSettingsChanged(() => {
     applyingRemote = true;
@@ -230,6 +235,7 @@ async function bootstrap(): Promise<void> {
       endpointsSettings.reloadFromStorage();
       lipsyncSettings.reloadFromStorage();
       screenshotSettings.reloadFromStorage();
+      proactiveSettings.reloadFromStorage();
       // 줌 재로드 → cameraSettings.subscribe(s => renderer.setZoom)가 카메라까지 반영.
       cameraSettings.reloadFromStorage();
       // VRM 선택은 설정 창에서 store-only로 커밋되므로, 그 변경을 펫 창 렌더러로 반영.
@@ -305,6 +311,7 @@ async function bootstrap(): Promise<void> {
   const quickControls = createQuickControls({
     mount: root,
     settings: screenshotSettings,
+    proactiveSettings,
     sourceProvider: screenSourceProvider,
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,
@@ -371,6 +378,7 @@ async function bootstrap(): Promise<void> {
       void sttVad?.dispose();
       voiceInputStatus.dispose();
       screenshotSettings.dispose();
+      proactiveSettings.dispose();
       lipsyncSettings.dispose();
       agentSettings.dispose();
       endpointsSettings.dispose();
@@ -424,6 +432,8 @@ async function bootstrap(): Promise<void> {
   // dispatcher는 config 로드 후 생성되므로(backend_caller가 config.get()에 의존), dev 인스펙션
   // 핸들이 참조할 수 있게 forward holder를 둔다.
   let dispatcherRef: Dispatcher | null = null;
+  // cowork 소스도 config(cfg.sources) 로드 후 생성 — teardown에서 stop하도록 holder를 둔다.
+  let coworkSourceRef: { stop(): void } | null = null;
   // guardrails도 config 로드 후 생성 — 핫리로드 setConfig가 닿게 holder를 둔다.
   let guardrailsRef: Guardrails | null = null;
   // broker client는 config 로드 후 broker_base_url이 있을 때만 만든다. 핫스왑 재publish와
@@ -694,6 +704,7 @@ async function bootstrap(): Promise<void> {
     if (import.meta.env.DEV) {
       import.meta.hot?.dispose(() => {
         dispatcher.stop();
+        coworkSourceRef?.stop();
         unsubCompactState();
         unsubSessionReset();
         sessionStore.dispose();
@@ -724,6 +735,16 @@ async function bootstrap(): Promise<void> {
     await loadVrmSerialized(vrmSelection.getActive().url);
     // config가 준비된 후에만 dispatcher를 가동(backend_caller가 config.get()에 의존).
     dispatcher.start();
+    // cowork tier2 소스(#24): presence+cadence로 proactive.cowork를 발사. cfg.sources의
+    // cadence/presence knob를 쓰고, proactiveSettings로 firing을 게이팅한다. dispatcher 가동 후
+    // start — 발사가 즉시 소비되도록. teardown에서 dispatcher.stop()과 함께 stop.
+    const coworkSource = createCoworkSource({
+      bus,
+      cowork: cfg.sources.proactive.cowork,
+      isEnabled: () => proactiveSettings.get().enabled,
+    });
+    coworkSourceRef = coworkSource;
+    void coworkSource.start();
     // Expression Broker publish(D6): broker_base_url이 있을 때만 가동. publish→start는
     // fire-and-forget — 부트 임계 경로를 막지 않는다(D4).
     if (cfg.endpoints.broker_base_url) {

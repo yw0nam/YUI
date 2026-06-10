@@ -143,15 +143,19 @@ OpenAI 호환 스트리밍 chat + turn-bound 제어신호를 structured output�
 ---
 
 ### F7 — Proactivity (Tier 1 + Tier 2)
-Tier 1은 F5로 충족. Tier 2 = 시간대 인사·장시간 idle 반응 등 가벼운 발화. rate-limit/debounce/DND 가드. 침묵은 backend가 텍스트를 안 보내는 것으로 표현(D-NO-SPEAK-GATE — 별도 should_speak 플래그 없음).
+Tier 1은 F5로 충족. Tier 2 = co-working(곁들이) 발화 — 사용자가 곁에서 일하는 동안 cadence마다 발화 후보를 발사. rate-limit/debounce/DND 가드. 침묵은 backend가 텍스트를 안 보내는 것으로 표현(D-NO-SPEAK-GATE — 별도 should_speak 플래그 없음).
 
 **Acceptance:**
-- idle 5분/15분/30분 등 config로 정의 가능한 timer가 dispatcher에 이벤트 발사.
-- 발사 시 input context schema로 패키징해 backend에 "발화 후보" 요청 전송.
-- backend가 침묵을 택하면 **assistant 텍스트를 내보내지 않음** → client는 발화하지 않음(말풍선/TTS 스킵). 완전 무반응을 원하면 `express`도 보내지 않음(표정만 짓고 싶으면 emotion만 전송). 별도 should_speak 플래그 없음(D-NO-SPEAK-GATE).
-- rate-limit: Tier 2 발화는 분당 ≤ N회(config, 기본 1회). 초과 시 클라이언트 드롭.
+- `cowork_source`가 Rust `os_idle_tick`을 소비해, 사용자 present(OS idle ≤ `proactive.cowork.present_max_idle_ms`, 기본 60000ms) 동안 `proactive.cowork.interval_ms`(기본 600000ms = 10분) cadence마다 `proactive.cowork`(tier2)를 dispatcher에 발사.
+- 발사는 proactive 토글(`proactive-settings`, `{enabled}` 기본 ON, localStorage `yui.proactive`)이 source에서 게이트 — OFF면 Tier 2/3 선제 발화 0회, Tier 1 ambient는 불변.
+- 발사 시 §7.1 sibling envelope(`client_context = JSON({ input_context, trigger, dispatcher_state })`)로 패키징해 backend에 "발화 후보" 요청 전송.
+- backend가 침묵을 택하면 **assistant 텍스트를 내보내지 않음**(`speech_text==""`) → client는 발화하지 않음(말풍선/TTS 스킵). 완전 무반응을 원하면 `express`도 보내지 않음(표정만 짓고 싶으면 emotion만 전송). 별도 should_speak 플래그 없음(D-NO-SPEAK-GATE).
+- rate-limit: Tier 2 발화는 가드레일 cap `tier2_max`(기본 12)까지, 전체 cap `overall_max`(기본 26). 초과 시 클라이언트 드롭.
 - DND: OS focus-assist/do-not-disturb가 ON이거나 active_app이 config의 focus-app 목록에 있으면 Tier 2 발사 0회.
+- co-working은 OS idle 신호에 의존 — macOS는 제공, Windows watcher는 `os_idle_ms: null`을 emit해 현재 비활성.
 - Tier 3은 P2지만 dispatcher source 추가가 코드 한 곳 수정으로 가능하도록 추상화 유지.
+
+**Deferred (future):** away-idle nudge(장시간 자리비움 반응)와 time_milestone timer(시간대 인사)는 dormant `idle.*` bus 어휘 + classify 행으로 seam만 존재 — 발사 source는 아직 없다.
 
 **Depends-on:** F6, F9, F3(맥락 수집).
 
@@ -240,6 +244,7 @@ client ↔ Hermes 사이 계약 문서/스키마 4종.
 | D-EMOTION-TEXT-EMOJI | **`emotion_text` 어휘 = 이모지 태그 집합.** generate_express의 `emotion_text`(예: `"😏"`, `"🥺🥺"`)는 prefix-only voice-control 태그다 — TTS 분절 text 맨 앞에만 prepend되고 **말풍선에는 노출되지 않는다**. 같은 이모지를 반복하면 강도가 세지고 조합도 가능. (contract.md §1/§3 D-EMOTION-TEXT 표) | 2026-06-08 |
 | D-EXPRESSION-BROKER | **Expression Broker MCP가 렌더 가능한 emotion/motion/emotion_text 어휘를 provider별로 브로커링.** YUI는 부팅·VRM 핫스왑·broker 재연결 시 `update_*`로 자기가 렌더 가능한 집합을 publish하고(WRITER), Hermes agent는 broker에서 유효 어휘를 읽어 그 안에서 generate_express를 호출한다. `broker_base_url`(`localhost:3201/mcp`, streamable-http)는 config 소관. `emotion_text` 게이트는 provider 조건부 — irodori ⇒ `mode="enum"`(이모지 표 키만 허용, 미등록 drop+경고, 발화 미차단), openai-compatible/fishspeech ⇒ `mode="free"`(pass-through). broker down 시 best-effort degrade(publish만 skip, 부팅 차단 X). D1–D6 결정 로그는 docs/expression-broker-mcp.md. | 2026-06-09 |
 | D-FULLBODY-FRAMING | **전신 fit-to-bounds 카메라 (#106).** 렌더러는 VRM 로드/핫스왑/창 리사이즈마다 모델 bounding box(`Box3.setFromObject`, 휴식 포즈 기준 idle 전)를 측정해 카메라 거리·`lookAt`을 도출 — **전신(머리→발) 정면·중앙 정렬**, 키 다른 모델 스왑에도 안정. 높이/폭 둘 중 먼 거리를 채택해 좁은 창에서 팔 잘림 방지. knob = `configs/avatar.json`의 선택 `framing { margin≥0, fov∈(0,180) }`(no-hardcoding; default는 렌더러 소유 `margin=0.1`/`fov=30`). 정적 정면 프레이밍만 — 오빗/시점 조작은 비채택(별도 nit). | 2026-06-09 |
+| D-COWORK-FIRING | **Tier-2 proactive firing = co-working presence+cadence 트리거 (`proactive.cowork`).** 사용자가 present(OS idle ≤ `present_max_idle_ms`)인 동안 cadence(`interval_ms`)마다 `proactive.cowork`(tier2)를 발사한다 — 기본 ON 토글(`proactive-settings`, localStorage `yui.proactive`)이 source에서 게이트하며 Tier 1 ambient는 건드리지 않는다. cadence·presence 임계는 `configs/sources.json`(`proactive.cowork.{interval_ms, present_max_idle_ms}`) 소관. firing일 뿐 말할지/무엇을 말할지는 brain 판단(침묵=텍스트 미발신, D-NO-SPEAK-GATE). co-working은 Rust `os_idle_tick`에 의존 — macOS 제공, Windows는 `os_idle_ms: null`로 비활성. (concept §3, event-dispatcher.md §3.2) | 2026-06-10 |
 | D-SESSION-CONTINUITY | **세션 연속성 + 비용 한정 compaction.** client는 단일 Hermes 세션 id 하나를 소유한다 — **client가 mint한 UUID**를 localStorage(`yui.session_id`)에 persist하고 매 `/v1/responses` 요청에 `X-Hermes-Session-Id` per-request 헤더로 싣는다. 앱 재시작 간 유지되고 만료가 없으며 transcript는 server-side(Hermes)에 산다. 설정의 "start fresh"는 id를 clear하고 다음 턴에 새 UUID를 mint한다. 컨텍스트가 커지면 client가 안전한 턴 경계에서 `POST {chat_base_url origin}/api/sessions/{id}/compress`를 호출해 continuation 세션으로 회전한다 — trigger는 ① idle resume(focus/visibilitychange) ② token threshold(`chat_model_context_window × compact_threshold_ratio`, 히스테리시스 `compact_resume_ratio`) ③ window blur. compaction은 blocking maintenance window다 — dispatcher가 `compacting` 상태로 새 backend 턴을 큐 게이트하고 입력을 비활성화하며 `thinking` cue를 재생, 단일 호출은 `compact_timeout_ms`로 마감. skipped/error/timeout/비-2xx 등 모든 실패는 현재 id를 보존한다. brain은 client에 없다 — client는 압축 invoke와 세션 경계만 소유하고 실제 압축·메모리는 Hermes 소유. 진단(used/max 컨텍스트·마지막 압축 통계)은 설정 창에만 노출. (contract.md §Endpoint abstraction, event-dispatcher.md §9·§11) | 2026-06-09 |
 
 추후 결정은 본 표에 현재형으로 append/갱신한다.

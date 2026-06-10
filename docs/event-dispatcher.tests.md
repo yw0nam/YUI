@@ -15,9 +15,9 @@ parent spec의 §4~§13(envelope/routing/guardrails/recovery)을 변경하면 �
 |---|---|---|
 | TC-01 | morning milestone, DND_OFF, rate 미달 | backend 호출 → 발화 가시 |
 | TC-02 | milestone + DND_ON (fullscreen) | silent drop, INFO |
-| TC-03 | `idle.long` + backend 침묵(텍스트 미발신, emotion/motion만 또는 무반응) | 발화 없음(empty_speech), INFO, 사용자 영향 X. emotion 있으면 표정만 적용 |
-| TC-04 | `idle.short` 30s 내 2회 | 두 번째 debounce drop |
-| TC-05 | tier 2 60min 내 7회 | 7번째 rate-limit drop |
+| TC-03 | `proactive.cowork` + backend 침묵(텍스트 미발신, emotion/motion만 또는 무반응) | 발화 없음(empty_speech), INFO, 사용자 영향 X. emotion 있으면 표정만 적용 |
+| TC-04 | `proactive.cowork` present 지속 (interval_ms 내 다중 tick) | cadence self-limit — interval당 1회만 발사 (`timer_scheduler`는 debounce 미적용) |
+| TC-05 | tier 2 60min 내 13회 | 13번째 rate-limit drop (`tier2_max` 12) |
 | TC-06 | backend 호출 중 `user.text_submitted` 도착 | abort + 큐 drop + user 즉시 처리 + 카운터 환불 |
 | TC-07 | backend 15s timeout | retry 1회, 실패 시 silent drop, 환불 X |
 | TC-08 | parse_error | silent drop + WARN |
@@ -35,10 +35,11 @@ parent spec의 §4~§13(envelope/routing/guardrails/recovery)을 변경하면 �
 
 | Parent §  | 검증 TC |
 |---|---|
+| §3.2 cowork presence+cadence firing | TC-03, TC-04 |
 | §4 Event Bus / queue cap | TC-10 |
 | §5.2 Conflict / abort | TC-06 |
 | §6.1 DND | TC-02, TC-13 |
-| §6.2 Debounce | TC-04 |
+| §6.2 Debounce | (dormant — no active idle source) |
 | §6.3 Rate limit | TC-05, TC-12 |
 | §7.2 Backend call timeout/retry | TC-07 |
 | §7.2 parse error | TC-08 |

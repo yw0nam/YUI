@@ -7,6 +7,7 @@
 import "./quick-controls.css";
 import { createLogger } from "../logger";
 import type { createScreenshotSettings } from "../io/screenshot-settings";
+import type { createProactiveSettings } from "../io/proactive-settings";
 import type { ScreenSourceProvider, MonitorInfo } from "../io/screen-source-provider";
 import type { ScreenSource } from "../contract";
 import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
@@ -29,6 +30,7 @@ import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import type { createSessionStore } from "../io/session-store";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
+type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
@@ -40,6 +42,8 @@ type SessionStore = ReturnType<typeof createSessionStore>;
 interface QuickControlsOptions {
   mount: HTMLElement;
   settings: ScreenshotSettingsStore;
+  /** proactive 발화 on/off store(#24). 끄면 firing만 게이팅, 소스 구독은 유지된다. */
+  proactiveSettings: ProactiveSettingsStore;
   sourceProvider: ScreenSourceProvider;
   voiceStatus: VoiceInputStatus;
   lipsync: LipsyncSettingsStore;
@@ -156,6 +160,7 @@ function savePos(pos: SavedPos): void {
 export function createQuickControls({
   mount,
   settings,
+  proactiveSettings,
   sourceProvider,
   voiceStatus,
   lipsync,
@@ -317,6 +322,19 @@ export function createQuickControls({
         <div class="yui-row__main">
           <span class="yui-row__label">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3.5l1.6 3.9 3.9 1.6-3.9 1.6L12 14.5l-1.6-3.9L6.5 9l3.9-1.6L12 3.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M18.5 15l.7 1.7 1.8.7-1.8.7-.7 1.7-.7-1.7-1.8-.7 1.8-.7.7-1.7z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+            </svg>
+            주도적 반응
+          </span>
+          <span class="yui-row__sub">다른 앱을 쓸 때도 가끔 먼저 말을 걸어요</span>
+        </div>
+        <button class="yui-switch yui-proactive-switch" type="button" role="switch" aria-checked="false" aria-label="주도적 반응"></button>
+      </div>
+      <div class="yui-row">
+        <div class="yui-row__main">
+          <span class="yui-row__label">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
               <path d="M3 9h18" stroke="currentColor" stroke-width="1.7"/>
             </svg>
@@ -408,7 +426,8 @@ export function createQuickControls({
     <p class="yui-quick__foot yui-quick__foot--off">기본은 꺼져 있어요. 켜면 화면을 함께 보내요.</p>
   `;
 
-  const switchBtn = el.querySelector<HTMLButtonElement>(".yui-switch")!;
+  const switchBtn = el.querySelector<HTMLButtonElement>(".yui-switch[aria-label='스크린샷 첨부']")!;
+  const proactiveSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-proactive-switch")!;
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsEl = el.querySelector<HTMLDivElement>(".yui-monitors")!;
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
@@ -468,6 +487,10 @@ export function createQuickControls({
     const on = s.enabled;
     switchBtn.setAttribute("aria-checked", String(on));
     el.classList.toggle("is-on", on);
+  }
+
+  function reflectProactive(): void {
+    proactiveSwitchBtn.setAttribute("aria-checked", String(proactiveSettings.get().enabled));
   }
 
   function reflectGain(): void {
@@ -1192,6 +1215,7 @@ export function createQuickControls({
     mount.appendChild(el);
 
     reflectSettings();
+    reflectProactive();
     reflectVoiceStatus(voiceStatus.get());
     reflectGain();
     reflectAgent();
@@ -1263,6 +1287,12 @@ export function createQuickControls({
     if (!current && !monitorsLoaded) {
       void loadMonitors();
     }
+  }
+
+  function handleProactiveSwitchClick(): void {
+    const current = proactiveSettings.get().enabled;
+    proactiveSettings.setEnabled(!current);
+    log.info("주도적 반응", { enabled: !current });
   }
 
   function handleVoiceSwitchClick(): void {
@@ -1412,6 +1442,9 @@ export function createQuickControls({
       void loadMonitors();
     }
   });
+  const unsubscribeProactive = proactiveSettings.subscribe(() => {
+    if (openState) reflectProactive();
+  });
   const unsubscribeVoice = voiceStatus.subscribe(reflectVoiceStatus);
   const unsubscribeLipsync = lipsync.subscribe(() => { if (openState) reflectGain(); });
   const unsubscribeAgent = agentSettings.subscribe(() => { if (openState) reflectAgent(); });
@@ -1432,6 +1465,7 @@ export function createQuickControls({
   });
 
   switchBtn.addEventListener("click", handleSwitchClick);
+  proactiveSwitchBtn.addEventListener("click", handleProactiveSwitchClick);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
   scrimEl.addEventListener("pointerdown", handleScrimPointerDown);
   document.addEventListener("keydown", handleDocKeydown);
@@ -1463,6 +1497,7 @@ export function createQuickControls({
   function dispose(): void {
     disposed = true;
     unsubscribe();
+    unsubscribeProactive();
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeAgent();
@@ -1475,6 +1510,7 @@ export function createQuickControls({
     spkRefreshTimers.clear();
     spkRefreshState.clear();
     switchBtn.removeEventListener("click", handleSwitchClick);
+    proactiveSwitchBtn.removeEventListener("click", handleProactiveSwitchClick);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     scrimEl.removeEventListener("pointerdown", handleScrimPointerDown);
     document.removeEventListener("keydown", handleDocKeydown);

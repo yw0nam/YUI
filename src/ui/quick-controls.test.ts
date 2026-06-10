@@ -27,6 +27,7 @@ import {
   type AgentStorage,
 } from "../io/agent-settings";
 import { createEndpointsSettings } from "../io/endpoints-settings";
+import { createProactiveSettings } from "../io/proactive-settings";
 import { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import { createSessionStore } from "../io/session-store";
 
@@ -112,6 +113,7 @@ describe("createQuickControls — gain row", () => {
   let lipsync: ReturnType<typeof createLipsyncSettings>;
   let agentSettings: ReturnType<typeof createAgentSettings>;
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
+  let proactiveSettings: ReturnType<typeof createProactiveSettings>;
   let onPopOut: Mock<() => void>;
   let vrmSelection: ReturnType<typeof createVrmSelection>;
   let swapVrm: Mock<(option: AvatarOption) => Promise<void>>;
@@ -136,6 +138,7 @@ describe("createQuickControls — gain row", () => {
     lipsync = createLipsyncSettings();
     agentSettings = createAgentSettings({ storage: inMemoryAgentStorage() });
     endpointsSettings = createEndpointsSettings();
+    proactiveSettings = createProactiveSettings();
     onPopOut = vi.fn<() => void>();
     vrmSelection = makeVrmSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
@@ -172,6 +175,7 @@ describe("createQuickControls — gain row", () => {
       onGainPreviewEnd,
       agentSettings,
       endpointsSettings,
+      proactiveSettings,
       onPopOut,
       vrmSelection,
       swapVrm,
@@ -181,6 +185,71 @@ describe("createQuickControls — gain row", () => {
       ...extra,
     });
   }
+
+  // ── Proactive toggle row (#24 Step 9) ─────────────────────────────────────
+
+  it("renders the proactive toggle row above the screenshot row, ON by default", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const proactiveSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-proactive-switch");
+    expect(proactiveSwitch).not.toBeNull();
+    // Default ON reflects on open.
+    expect(proactiveSwitch!.getAttribute("aria-checked")).toBe("true");
+    expect(proactiveSwitch!.getAttribute("role")).toBe("switch");
+    expect(proactiveSwitch!.getAttribute("aria-label")).toBe("주도적 반응");
+
+    // Row carries the approved label + sub-label.
+    const row = proactiveSwitch!.closest(".yui-row")!;
+    expect(row.querySelector(".yui-row__label")!.textContent).toContain("주도적 반응");
+    expect(row.querySelector(".yui-row__sub")!.textContent).toContain(
+      "다른 앱을 쓸 때도 가끔 먼저 말을 걸어요",
+    );
+
+    // Ordered directly above the screenshot row in the same body.
+    const switches = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-switch"));
+    const proactiveIdx = switches.indexOf(proactiveSwitch!);
+    const screenshotSwitch = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-switch[aria-label='스크린샷 첨부']",
+    )!;
+    const screenshotIdx = switches.indexOf(screenshotSwitch);
+    expect(proactiveIdx).toBeGreaterThanOrEqual(0);
+    expect(proactiveIdx).toBeLessThan(screenshotIdx);
+
+    qc.dispose();
+  });
+
+  it("clicking the proactive switch toggles proactiveSettings.setEnabled", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const proactiveSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-proactive-switch")!;
+    expect(proactiveSettings.get().enabled).toBe(true);
+
+    proactiveSwitch.click();
+    expect(proactiveSettings.get().enabled).toBe(false);
+    expect(proactiveSwitch.getAttribute("aria-checked")).toBe("false");
+
+    proactiveSwitch.click();
+    expect(proactiveSettings.get().enabled).toBe(true);
+    expect(proactiveSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  it("external proactiveSettings.setEnabled reflects on the switch while open", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const proactiveSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-proactive-switch")!;
+    proactiveSettings.setEnabled(false);
+    expect(proactiveSwitch.getAttribute("aria-checked")).toBe("false");
+
+    proactiveSettings.setEnabled(true);
+    expect(proactiveSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
 
   // ── Slider exists with correct attributes ─────────────────────────────────
 
@@ -1455,6 +1524,7 @@ describe("createQuickControls — session section", () => {
       onGainPreviewEnd: vi.fn(),
       agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
       endpointsSettings: createEndpointsSettings(),
+      proactiveSettings: createProactiveSettings(),
       onPopOut: vi.fn(),
       vrmSelection: createVrmSelection({
         available: [{ id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" }],
