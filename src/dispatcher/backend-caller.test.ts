@@ -331,6 +331,73 @@ describe("backend_caller — os context port (#18)", () => {
   });
 });
 
+describe("backend_caller — §7.1 trigger / dispatcher_state envelope", () => {
+  /** decode the full system-hint block { input_context, trigger, dispatcher_state }. */
+  function hintOf(input: unknown): {
+    input_context: { env: Record<string, unknown> } & Record<string, unknown>;
+    trigger: Record<string, unknown>;
+    dispatcher_state: Record<string, unknown>;
+  } {
+    const items = input as Array<{ role: string; content: string }>;
+    const sys = items.find((m) => m.role === "system")!;
+    const json = sys.content.replace(/^client_context:\s*/, "");
+    return JSON.parse(json);
+  }
+
+  function userMessageContentOf(input: unknown): unknown {
+    const items = input as Array<{ role: string; content: unknown }>;
+    return items.find((m) => m.role === "user")!.content;
+  }
+
+  function proactiveEnv(): BusEnvelope {
+    return {
+      seq_id: 7,
+      source: "timer_scheduler",
+      event_name: "proactive.cowork",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: { os_idle_ms: 65_000 },
+    };
+  }
+
+  it("(a) proactive envelope → trigger + dispatcher_state serialized; user message is the proactive marker", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(proactiveEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    const hint = hintOf(request.input);
+    expect(hint.trigger.event_name).toBe("proactive.cowork");
+    expect(hint.trigger.source).toBe("timer_scheduler");
+    expect(hint.trigger.seq_id).toBe(7);
+    expect(hint.dispatcher_state.idle_seconds).toBe(65);
+    expect(hint.dispatcher_state.tier_hint).toBe(2);
+    // proactive turn (no user_text) → non-empty marker, not "".
+    expect(userMessageContentOf(request.input)).toBe("(proactive: co-working check-in)");
+  });
+
+  it("(b) os snapshot isFullscreen=true → input_context.env.is_fullscreen===true", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getOsContext: () => ({ isFullscreen: true }),
+    });
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    const hint = hintOf(request.input);
+    expect(hint.input_context.env.is_fullscreen).toBe(true);
+  });
+
+  it("(c) user turn with text → user message is the verbatim string (no marker)", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv("진짜 텍스트"));
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect(userMessageContentOf(request.input)).toBe("진짜 텍스트");
+  });
+});
+
 describe("backend_caller — agent settings (reasoning effort + instructions)", () => {
   it("getAgentSettings present → reasoning_effort + instructions threaded into ChatRequest", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
