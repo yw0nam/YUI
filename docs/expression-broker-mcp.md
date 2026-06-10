@@ -47,7 +47,7 @@ emotion/motion **어휘(vocabulary)의 단일 진실원천(SOT)** 이자, agent�
 {
   "emotion_ids": ["neutral","happy","angry","sad","relaxed",
                   "surprised","thinking","curious","sleepy","embarrassed"],
-  "motion_ids":  ["idle","happy","laughing","shy_point"],
+  "motion_ids":  ["idle","happy","laughing","embarrassed"],
   "version":     3   // 갱신마다 증가 (변경 감지/디버그용)
 }
 ```

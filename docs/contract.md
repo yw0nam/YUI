@@ -162,11 +162,11 @@ backend가 motion ID로 동작을 요청하면 client가 VRMA 파일 + 재생 �
 | `drag`       | reactive | yes  | 80       | replace          | 사용자 드래그 중.                           |
 | `happy`      | oneshot  | no   | 70       | replace          | 기쁨 제스처.                                |
 | `laughing`   | oneshot  | no   | 70       | replace          | 웃음 제스처.                                |
-| `shy_point`  | oneshot  | no   | 70       | replace          | 부끄럼+손가락 제스처.                       |
+| `embarrassed`| oneshot  | no   | 70       | replace          | 강한 부끄럼+손가락 제스처.                  |
 
 > **`sit` 미포함:** VRMA 에셋 없음 — 에셋 준비 시 추가.
 
-`idle`은 backend 요청 없이도 client가 깔아두는 baseline. backend가 `motion: null`을 보내면 client는 `idle`로 복귀한다. `happy`/`laughing`/`shy_point`는 gesture 모션(oneshot)으로, `emotion` 채널(표정)과 **독립된** `motion` 채널로 전달된다.
+`idle`은 backend 요청 없이도 client가 깔아두는 baseline. backend가 `motion: null`을 보내면 client는 `idle`로 복귀한다. `happy`/`laughing`/`embarrassed`는 gesture 모션(oneshot)으로, `emotion` 채널(표정)과 **독립된** `motion` 채널로 전달된다.
 
 Motion VRMA 에셋은 **`public/motions/`에 git-tracked으로 커밋**되어 Vite가 `/motions/<id>.vrma`로 서빙한다 (~2.4MB, 크기가 작아 커밋). VRM 모델(`resources/vrms/carlotta.vrm`, ~48MB)은 gitignore 유지.
 
@@ -377,10 +377,10 @@ type RichItem =
 { "name": "generate_express",
   "arguments": {
     "emotion_id": "curious",
-    "motion_id": "shy_point",                  // 파생 대신 이 제스처 강제
+    "motion_id": "embarrassed",                  // 파생 대신 이 제스처 강제
     "emotion_text": "👂"                        // TTS voice tag — 이모지 어휘(§3 D-EMOTION-TEXT)
   } }
-// → client 정규화: emotion={id:"curious"}, motion={id:"shy_point"}, emotion_text="👂"(→ onEmotionText).
+// → client 정규화: emotion={id:"curious"}, motion={id:"embarrassed"}, emotion_text="👂"(→ onEmotionText).
 ```
 
 ### 예시 — 침묵 (D-NO-SPEAK-GATE)

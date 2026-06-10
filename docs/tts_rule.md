@@ -45,7 +45,7 @@ current motion_id set is:
 - idle
 - happy
 - laughing
-- shy_point
+- embarrassed
 
 ### emotion_text(string)
 

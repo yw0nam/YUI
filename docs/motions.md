@@ -14,17 +14,15 @@ Human-readable map of every motion id in [`configs/motions.json`](../configs/mot
 | `drag` | reactive | yes | Pickup reaction while the window is being dragged. | PET_MISC/PET_DRAGGING | — |
 | `happy` | oneshot | no | Happy reaction. | PET_MISC/PET_HAPPY | — |
 | `laughing` | oneshot | no | Laughing reaction. | PET_MISC/PET_LAUGHING | — |
-| `shy_point` | oneshot | no | Shy finger-point. | PET_MISC/PET_SHY_POINT | — |
-| `pose_shy` | oneshot | no | Standing; both hands clasped near chest/chin — shy/demure. | PET_POSE/PET_POSE_1 | 6.8s |
-| `pose_hair_touch` | oneshot | no | Standing; one hand raised to the head/hair. | PET_POSE/PET_POSE_2 | 6.8s |
-| `pose_hands_folded` | oneshot | no | Standing; hands folded together in front — calm. | PET_POSE/PET_POSE_3 | 5.0s |
-| `pose_salute` | oneshot | no | Standing, wide stance; hand at forehead (salute / peering). | PET_POSE/PET_POSE_4 | 6.8s |
+| `embarrassed` | oneshot | no | Strongly embarrassed; shy finger-point gesture. | PET_MISC/PET_SHY_POINT | — |
+| `sheepish` | oneshot | no | Sheepish/awkward; one hand raised to the head/hair. | PET_POSE/PET_POSE_2 | 6.8s |
+| `calm` | oneshot | no | Calm; standing, hands folded together in front. | PET_POSE/PET_POSE_3 | 5.0s |
 | `peek` | oneshot | no | Standing, 3/4 turn; one hand covering the mouth — shy peek. | PET_HIDING/PET_HIDE | 14.0s |
 | `sleeping` | oneshot | yes | Lies down on the floor on her side — sleeping. Drops the hips low (off a feet-anchored frame). | PET_SLEEPING/PET_SLEEPING | 35.2s |
 | `sit` | oneshot | no | Random sit pool (see below). Currently returns to idle; held window-sit is #131. | PET_SITTING/* | — |
 | `dance` | oneshot | no | Random dance pool (see below). | PET_DANCING/* | — |
 
-> Note: `pose_*` are **standing gestures**, not sitting — the `pose_sit_*` working names were a misnomer and were renamed.
+> Note: `sheepish` and `calm` are **standing gestures**, not sitting.
 
 ## `idle` variants (ambient, random)
 
@@ -87,5 +85,7 @@ Human-readable map of every motion id in [`configs/motions.json`](../configs/mot
 
 | clips | intended use | status |
 |---|---|---|
+| PET_POSE/PET_POSE_1 | Standing pose gesture — both hands clasped near chest/chin. | extracted, not registered |
+| PET_POSE/PET_POSE_4 | Standing pose gesture — hand at forehead (salute / peering). | extracted, not registered |
 | PET_INTRO / PET_INTRO_START / _LOOP / _END | Spawn/appear sequence on app launch. | staged, needs sequencing wiring |
 | WINDOW_LAY_8 / 9 / 10, BETA_PET_WINDOW_LAY | Window-edge perch pool for the window-sit trigger. | reserved for #131 |
