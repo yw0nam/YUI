@@ -26,6 +26,7 @@
     "@pixiv/three-vrm-animation": "^3.5.3",
     "@ricky0123/vad-web": "^0.0.30",
     "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-dialog": "^2.4.0",
     "@tauri-apps/plugin-log": "^2.8.0",
     "openai": "^6.42.0",
     "three": "^0.180.0"

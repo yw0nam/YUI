@@ -43,8 +43,8 @@ export interface AvatarOption {
   label: string;
   /** vrm_url과 동일 의미 — vite 경로 또는 절대 URL. */
   url: string;
-  /** "file" = OS 파일 피커로 추가된 항목. 미지정 시 미상. */
-  source?: "bundled" | "file";
+  /** "user" = OS 파일 피커로 임포트한 항목, "file" = 설정 파일에 명시된 외부 경로. 미지정 시 미상. */
+  source?: "bundled" | "file" | "user";
 }
 
 /** configs/avatar.json — 로드할 VRM (렌더러 입력). */
@@ -216,7 +216,7 @@ function fetchReader(
 // 검증 헬퍼
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AVATAR_SOURCES: readonly NonNullable<AvatarOption["source"]>[] = ["bundled", "file"];
+const AVATAR_SOURCES: readonly NonNullable<AvatarOption["source"]>[] = ["bundled", "file", "user"];
 /** AvatarOption.id 허용 문자 — 영속화 키이자 CSS 셀렉터 `[data-vrm-id="…"]` 값이므로 공백/특수문자 금지. */
 const AVATAR_ID_RE = /^[A-Za-z0-9._-]+$/;
 const MOTION_KINDS: readonly MotionKind[] = ["ambient", "reactive", "state", "oneshot"];
