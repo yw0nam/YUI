@@ -10,6 +10,9 @@ mod screenshot;
 // Calendar-date-based log rotation.
 mod log_rotation;
 
+// Bring-your-own-VRM import (file copy into app-data).
+mod vrm_import;
+
 use std::path::PathBuf;
 use tauri::Manager;
 use time::{OffsetDateTime, UtcOffset};

@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { resolveAssetUrl, type TauriAssetApi } from "./asset-url";
+import { resolveAssetUrl, resolveUserFileSrc, type TauriAssetApi } from "./asset-url";
 
 /** 번들 리소스 경로를 흉내내는 mock — resolveResource는 절대 fs 경로, convertFileSrc는 asset URL. */
 function mockTauri(): TauriAssetApi {
@@ -95,5 +95,58 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
     });
     expect(api.resolveResource).not.toHaveBeenCalled();
     expect(out).toBe("https://cdn.example/x.vrm");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// resolveUserFileSrc — 임포트된 app-data 절대 파일 경로 → webview URL (#147)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("resolveUserFileSrc — Tauri app-data 절대 경로", () => {
+  it("절대 fs 경로를 convertFileSrc로 webview URL로 만든다 (resolveResource 미사용)", async () => {
+    const api = mockTauri();
+    const out = await resolveUserFileSrc("/Users/me/Library/.../com.yui/vrms/Cat.vrm", {
+      isTauri: () => true,
+      tauri: async () => api,
+    });
+    expect(api.resolveResource).not.toHaveBeenCalled();
+    expect(api.convertFileSrc).toHaveBeenCalledWith("/Users/me/Library/.../com.yui/vrms/Cat.vrm");
+    expect(out).toBe(
+      "asset://localhost/" + encodeURI("/Users/me/Library/.../com.yui/vrms/Cat.vrm"),
+    );
+  });
+
+  it("resource-relative 경로(resolveResource)와는 다른 변환 경로를 탄다", async () => {
+    const api = mockTauri();
+    const resourceOut = await resolveAssetUrl("/vrms/carlotta.vrm", {
+      isTauri: () => true,
+      tauri: async () => api,
+    });
+    const userOut = await resolveUserFileSrc("/abs/app-data/vrms/Cat.vrm", {
+      isTauri: () => true,
+      tauri: async () => api,
+    });
+    expect(resourceOut).toContain("/app/resources/");
+    expect(userOut).not.toContain("/app/resources/");
+  });
+
+  it("이미 asset:// URL이면 그대로 통과시킨다 (재변환 금지)", async () => {
+    const api = mockTauri();
+    const out = await resolveUserFileSrc("asset://localhost/x.vrm", {
+      isTauri: () => true,
+      tauri: async () => api,
+    });
+    expect(api.convertFileSrc).not.toHaveBeenCalled();
+    expect(out).toBe("asset://localhost/x.vrm");
+  });
+
+  it("dev/브라우저(비-Tauri)에서는 입력 경로를 그대로 통과시킨다", async () => {
+    const api = mockTauri();
+    const out = await resolveUserFileSrc("/abs/whatever.vrm", {
+      isTauri: () => false,
+      tauri: async () => api,
+    });
+    expect(api.convertFileSrc).not.toHaveBeenCalled();
+    expect(out).toBe("/abs/whatever.vrm");
   });
 });
