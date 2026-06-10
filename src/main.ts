@@ -32,6 +32,7 @@ import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
+import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import {
   createEndpointsSettings,
@@ -165,6 +166,7 @@ async function bootstrap(): Promise<void> {
   // proactive 발화(cowork tier2) on/off. 소스의 firing만 게이팅 — 구독은 멈추지 않는다.
   const proactiveSettings = createProactiveSettings({ storage: localStorageProactiveStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
+  const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
   // 세션 연속성 store: 회전 id 포인터 + 진단(used/window/last-compression). 두 창이
   // wireStorageSync로 동기화하므로 다른 store들과 함께 일찍 만든다(config/dispatcher 비의존).
@@ -189,7 +191,7 @@ async function bootstrap(): Promise<void> {
   // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
   // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
   const openSettings = createSettingsWindowOpener();
-  const disposeStorageSync = wireStorageSync([agentSettings, endpointsSettings, lipsyncSettings, screenshotSettings, proactiveSettings, cameraSettings, sessionStore, sessionDiagnostics]);
+  const disposeStorageSync = wireStorageSync([agentSettings, endpointsSettings, lipsyncSettings, vadSettings, screenshotSettings, proactiveSettings, cameraSettings, sessionStore, sessionDiagnostics]);
 
   // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
   // 시스템(VRM 렌더러 · STT/VAD)에 닿게 한다. storage 폴백은 위 wireStorageSync로 유지.
@@ -224,6 +226,7 @@ async function bootstrap(): Promise<void> {
   agentSettings.subscribe(broadcastSettings);
   endpointsSettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);
+  vadSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
   proactiveSettings.subscribe(broadcastSettings);
   cameraSettings.subscribe(broadcastSettings);
@@ -233,6 +236,7 @@ async function bootstrap(): Promise<void> {
       agentSettings.reloadFromStorage();
       endpointsSettings.reloadFromStorage();
       lipsyncSettings.reloadFromStorage();
+      vadSettings.reloadFromStorage();
       screenshotSettings.reloadFromStorage();
       proactiveSettings.reloadFromStorage();
       // 줌 재로드 → cameraSettings.subscribe(s => renderer.setZoom)가 카메라까지 반영.
@@ -314,6 +318,7 @@ async function bootstrap(): Promise<void> {
     sourceProvider: screenSourceProvider,
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,
+    vad: vadSettings,
     agentSettings,
     vrmSelection,
     swapVrm,
@@ -379,6 +384,7 @@ async function bootstrap(): Promise<void> {
       screenshotSettings.dispose();
       proactiveSettings.dispose();
       lipsyncSettings.dispose();
+      vadSettings.dispose();
       agentSettings.dispose();
       endpointsSettings.dispose();
       cameraSettings.dispose();
@@ -767,6 +773,8 @@ async function bootstrap(): Promise<void> {
     const { createSttVad } = await import("./io/stt-vad");
     sttVad = createSttVad({
       config: cfg.endpoints,
+      // lazy: VAD가 시작될 때마다 침묵 기준을 다시 읽어 슬라이더 변경이 반영되게 한다.
+      silenceMs: () => vadSettings.get().silenceMs,
       onVoiceSegment: (transcript) => userInput.submitVoice(transcript),
       onState: (state, detail) => voiceInputStatus.set(state, detail),
     });

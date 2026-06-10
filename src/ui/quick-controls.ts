@@ -1,6 +1,6 @@
 /**
  * Quick-controls 패널 — 우클릭으로 소환되는 설정 패널.
- * 드래그 가능한 헤더 + 스크롤 본문(대화 · 입력 소스 · 표현 섹션)으로 구성된다.
+ * 드래그 가능한 헤더 + 탭 스트립(대화 · 캐릭터 · 입력 · 고급) + 탭 패널 본문으로 구성된다.
  * variant: "popover"(기본, 펫 창 안 도킹 + 드래그) | "window"(별도 OS 창, 풀 채움).
  */
 
@@ -15,6 +15,7 @@ import type { createVrmSelection } from "../io/vrm-selection";
 import type { createSpeakerSelection, SpeakerOption } from "../io/speaker-selection";
 import type { AvatarOption } from "../config/load";
 import { createLipsyncSettings, LIPSYNC_GAIN_MIN, LIPSYNC_GAIN_MAX } from "../io/lipsync-settings";
+import { createVadSettings, VAD_SILENCE_MIN, VAD_SILENCE_MAX } from "../io/vad-settings";
 import {
   createAgentSettings,
   INSTRUCTIONS_MAX_LEN,
@@ -32,6 +33,7 @@ import type { createSessionStore } from "../io/session-store";
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
+type VadSettingsStore = ReturnType<typeof createVadSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 type VrmSelectionStore = ReturnType<typeof createVrmSelection>;
@@ -47,6 +49,8 @@ interface QuickControlsOptions {
   sourceProvider: ScreenSourceProvider;
   voiceStatus: VoiceInputStatus;
   lipsync: LipsyncSettingsStore;
+  /** STT 침묵 기준(ms) 단일값 store. 입력 탭의 슬라이더가 구동한다. */
+  vad: VadSettingsStore;
   agentSettings: AgentSettingsStore;
   vrmSelection: VrmSelectionStore;
   /** 실제 스왑 수행 + 성공 시 store 커밋. 컴포넌트는 store.select를 직접 호출하지 않는다. */
@@ -164,6 +168,7 @@ export function createQuickControls({
   sourceProvider,
   voiceStatus,
   lipsync,
+  vad,
   agentSettings,
   vrmSelection,
   swapVrm,
@@ -282,145 +287,152 @@ export function createQuickControls({
 
   el.innerHTML = `
     ${headerHtml}
+    <div class="yui-tabs" role="tablist" aria-label="설정 영역" style="--tab:0;">
+      <span class="yui-tabs__ind" aria-hidden="true"></span>
+      <button class="yui-tab" type="button" role="tab" id="yui-tab-talk" aria-selected="true" aria-controls="yui-panel-talk" tabindex="0">대화</button>
+      <button class="yui-tab" type="button" role="tab" id="yui-tab-char" aria-selected="false" aria-controls="yui-panel-char" tabindex="-1">캐릭터</button>
+      <button class="yui-tab" type="button" role="tab" id="yui-tab-input" aria-selected="false" aria-controls="yui-panel-input" tabindex="-1">입력</button>
+      <button class="yui-tab" type="button" role="tab" id="yui-tab-adv" aria-selected="false" aria-controls="yui-panel-adv" tabindex="-1">고급</button>
+    </div>
     <div class="yui-quick__body">
-      <span class="yui-quick__section">대화</span>
-      <div class="yui-field-row">
-        <span class="yui-field-row__label">추론 강도</span>
-        <span class="yui-field-row__sub">답변 전 얼마나 깊게 생각할지</span>
-        <div class="yui-seg" role="radiogroup" aria-label="추론 강도" style="--seg:0;">
-          <span class="yui-seg__ind" aria-hidden="true"></span>
-          ${segButtonsHtml}
-        </div>
-      </div>
-      <div class="yui-field-row">
-        <span class="yui-field-row__label">지침</span>
-        <span class="yui-field-row__sub">비우면 기본 지침을 사용해요</span>
-        <div class="yui-textarea-wrap">
-          <textarea class="yui-textarea" spellcheck="false" rows="4" maxlength="${INSTRUCTIONS_MAX_LEN}" aria-label="지침"></textarea>
-        </div>
-        <button class="yui-reset" type="button">기본값으로 되돌리기</button>
-      </div>
 
-      <div class="yui-quick__divider" aria-hidden="true"></div>
-
-      <span class="yui-quick__section">엔드포인트</span>
-      <details class="yui-endpoints">
-        <summary>
-          <span>엔드포인트</span>
-          <span class="yui-endpoints__hint">고급 — 서버 주소·모델</span>
-        </summary>
-        <div class="yui-endpoints__body">
-          ${endpointRowsHtml}
-          <button class="yui-reset yui-endpoints__reset yui-ep-reset" type="button">기본값으로 되돌리기</button>
-        </div>
-      </details>
-
-      <div class="yui-quick__divider" aria-hidden="true"></div>
-
-      <span class="yui-quick__section">입력 소스</span>
-      <div class="yui-row">
-        <div class="yui-row__main">
-          <span class="yui-row__label">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 3.5l1.6 3.9 3.9 1.6-3.9 1.6L12 14.5l-1.6-3.9L6.5 9l3.9-1.6L12 3.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-              <path d="M18.5 15l.7 1.7 1.8.7-1.8.7-.7 1.7-.7-1.7-1.8-.7 1.8-.7.7-1.7z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-            </svg>
-            주도적 반응
-          </span>
-          <span class="yui-row__sub">다른 앱을 쓸 때도 가끔 먼저 말을 걸어요</span>
-        </div>
-        <button class="yui-switch yui-proactive-switch" type="button" role="switch" aria-checked="false" aria-label="주도적 반응"></button>
-      </div>
-      <div class="yui-row">
-        <div class="yui-row__main">
-          <span class="yui-row__label">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
-              <path d="M3 9h18" stroke="currentColor" stroke-width="1.7"/>
-            </svg>
-            스크린샷 첨부
-          </span>
-          <span class="yui-row__sub">대화할 때 화면을 함께 봐요</span>
-        </div>
-        <button class="yui-switch" type="button" role="switch" aria-checked="false" aria-label="스크린샷 첨부"></button>
-      </div>
-      <div class="yui-source">
-        <div class="yui-source__label">보낼 화면</div>
-        <div class="yui-monitors" role="radiogroup" aria-label="보낼 화면"></div>
-      </div>
-      <div class="yui-row yui-row--voice">
-        <div class="yui-row__main">
-          <span class="yui-row__label">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 4.5v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-              <path d="M8 9.5v1.8a4 4 0 0 0 8 0V9.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-              <path d="M12 15.5v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-              <path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-            </svg>
-            음성 입력
-          </span>
-          <span class="yui-row__sub">말이 끝나면 STT 후 사용자 입력으로 보내요</span>
-        </div>
-        <button class="yui-switch yui-voice-switch" type="button" role="switch" aria-checked="false" aria-label="음성 입력"></button>
-      </div>
-      <details class="yui-voice-details" open>
-        <summary>세부 설정</summary>
-        <div class="yui-voice-details__body">
-          <div class="yui-voice-status">
-            <span class="yui-voice-status__label">상태 표시</span>
-            <span class="yui-voice-status__value">화면 위 chip</span>
-          </div>
-          <p class="yui-voice-status__note">Idle, 듣는 중, ASR 전송, 전달됨, 오류는 설정값이 아니라 화면 위 runtime indicator로 표시한다.</p>
-          <div class="yui-setting-grid">
-            <span>침묵 기준</span>
-            <strong>1500 ms</strong>
-            <span>STT endpoint</span>
-            <strong>configs/endpoints.json</strong>
+      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-talk" aria-labelledby="yui-tab-talk" tabindex="0">
+        <div class="yui-field-row">
+          <span class="yui-field-row__label">추론 강도</span>
+          <span class="yui-field-row__sub">답변 전 얼마나 깊게 생각할지</span>
+          <div class="yui-seg" role="radiogroup" aria-label="추론 강도" style="--seg:0;">
+            <span class="yui-seg__ind" aria-hidden="true"></span>
+            ${segButtonsHtml}
           </div>
         </div>
-      </details>
-
-      <span class="yui-quick__section">VRM</span>
-      <div class="yui-vrm-scroll">
-        <div class="yui-vrms" role="radiogroup" aria-label="VRM"></div>
-      </div>
-      <div class="yui-vrm-foot">
-        <button class="yui-vrm yui-vrm--add" type="button" disabled aria-disabled="true" tabindex="-1">
-          <span class="yui-vrm__tick" aria-hidden="true"></span>
-          <span class="yui-vrm__body"><span class="yui-vrm__name">파일에서 추가…</span></span>
-          <span class="yui-vrm__soon">준비 중</span>
-        </button>
-      </div>
-
-      <span class="yui-quick__section">화자 · 音声</span>
-      <div class="yui-spk-scroll">
-        <div class="yui-spks" role="radiogroup" aria-label="화자"></div>
-      </div>
-      <div class="yui-spk-foot">
-        <button class="yui-spk yui-spk--add" type="button" disabled aria-disabled="true" tabindex="-1">
-          <span class="yui-spk__tick" aria-hidden="true"></span>
-          <span class="yui-spk__body"><span class="yui-spk__name">파일에서 추가…</span></span>
-          <span class="yui-spk__soon">준비 중</span>
-        </button>
-      </div>
-
-      <span class="yui-quick__section">표현</span>
-      <div class="yui-gain">
-        <div class="yui-gain__head">
-          <span class="yui-gain__label">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 10c2.4-2.4 4.9-3.6 8-3.6s5.6 1.2 8 3.6c-2.4 1.1-4.9 1.7-8 1.7s-5.6-.6-8-1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-              <path d="M4 14c2.4 2.4 4.9 3.6 8 3.6s5.6-1.2 8-3.6c-2.4-1.1-4.9-1.7-8-1.7s-5.6.6-8 1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-            </svg>
-            입 움직임
-          </span>
-          <span class="yui-gain__value">2.0×</span>
+        <div class="yui-field-row">
+          <span class="yui-field-row__label">지침</span>
+          <span class="yui-field-row__sub">비우면 기본 지침을 사용해요</span>
+          <div class="yui-textarea-wrap">
+            <textarea class="yui-textarea" spellcheck="false" rows="4" maxlength="${INSTRUCTIONS_MAX_LEN}" aria-label="지침"></textarea>
+          </div>
+          <button class="yui-reset" type="button">기본값으로 되돌리기</button>
         </div>
-        <span class="yui-gain__sub">목소리 크기에 따라 입이 벌어지는 정도</span>
-        <input class="yui-gain__slider" type="range" aria-label="입 움직임" />
-        <span class="yui-gain__hint">드래그하면 캐릭터 입이 실제로 그만큼 벌어져요</span>
       </div>
-      ${sessionHtml}
+
+      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-char" aria-labelledby="yui-tab-char" tabindex="0" hidden>
+        <span class="yui-quick__section">VRM</span>
+        <div class="yui-vrm-scroll">
+          <div class="yui-vrms" role="radiogroup" aria-label="VRM"></div>
+        </div>
+        <div class="yui-vrm-foot">
+          <button class="yui-vrm yui-vrm--add" type="button" disabled aria-disabled="true" tabindex="-1">
+            <span class="yui-vrm__tick" aria-hidden="true"></span>
+            <span class="yui-vrm__body"><span class="yui-vrm__name">파일에서 추가…</span></span>
+            <span class="yui-vrm__soon">준비 중</span>
+          </button>
+        </div>
+
+        <div class="yui-quick__divider" aria-hidden="true"></div>
+
+        <span class="yui-quick__section">화자 · 音声</span>
+        <div class="yui-spk-scroll">
+          <div class="yui-spks" role="radiogroup" aria-label="화자"></div>
+        </div>
+        <div class="yui-spk-foot">
+          <button class="yui-spk yui-spk--add" type="button" disabled aria-disabled="true" tabindex="-1">
+            <span class="yui-spk__tick" aria-hidden="true"></span>
+            <span class="yui-spk__body"><span class="yui-spk__name">파일에서 추가…</span></span>
+            <span class="yui-spk__soon">준비 중</span>
+          </button>
+        </div>
+
+        <div class="yui-quick__divider" aria-hidden="true"></div>
+
+        <span class="yui-quick__section">표현</span>
+        <div class="yui-gain">
+          <div class="yui-gain__head">
+            <span class="yui-gain__label">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 10c2.4-2.4 4.9-3.6 8-3.6s5.6 1.2 8 3.6c-2.4 1.1-4.9 1.7-8 1.7s-5.6-.6-8-1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                <path d="M4 14c2.4 2.4 4.9 3.6 8 3.6s5.6-1.2 8-3.6c-2.4-1.1-4.9-1.7-8-1.7s-5.6.6-8 1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+              </svg>
+              입 움직임
+            </span>
+            <span class="yui-gain__value">2.0×</span>
+          </div>
+          <span class="yui-gain__sub">목소리 크기에 따라 입이 벌어지는 정도</span>
+          <input class="yui-gain__slider" type="range" aria-label="입 움직임" />
+          <span class="yui-gain__hint">드래그하면 캐릭터 입이 실제로 그만큼 벌어져요</span>
+        </div>
+      </div>
+
+      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-input" aria-labelledby="yui-tab-input" tabindex="0" hidden>
+        <div class="yui-row">
+          <div class="yui-row__main">
+            <span class="yui-row__label">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 3.5l1.6 3.9 3.9 1.6-3.9 1.6L12 14.5l-1.6-3.9L6.5 9l3.9-1.6L12 3.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M18.5 15l.7 1.7 1.8.7-1.8.7-.7 1.7-.7-1.7-1.8-.7 1.8-.7.7-1.7z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+              </svg>
+              주도적 반응
+            </span>
+            <span class="yui-row__sub">다른 앱을 쓸 때도 가끔 먼저 말을 걸어요</span>
+          </div>
+          <button class="yui-switch yui-proactive-switch" type="button" role="switch" aria-checked="false" aria-label="주도적 반응"></button>
+        </div>
+        <div class="yui-row">
+          <div class="yui-row__main">
+            <span class="yui-row__label">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                <path d="M3 9h18" stroke="currentColor" stroke-width="1.7"/>
+              </svg>
+              스크린샷 첨부
+            </span>
+            <span class="yui-row__sub">대화할 때 화면을 함께 봐요</span>
+          </div>
+          <button class="yui-switch" type="button" role="switch" aria-checked="false" aria-label="스크린샷 첨부"></button>
+        </div>
+        <div class="yui-source">
+          <div class="yui-source__label">보낼 화면</div>
+          <div class="yui-monitors" role="radiogroup" aria-label="보낼 화면"></div>
+        </div>
+        <div class="yui-row yui-row--voice">
+          <div class="yui-row__main">
+            <span class="yui-row__label">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 4.5v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                <path d="M8 9.5v1.8a4 4 0 0 0 8 0V9.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                <path d="M12 15.5v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                <path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+              음성 입력
+            </span>
+            <span class="yui-row__sub">말이 끝나면 STT 후 사용자 입력으로 보내요</span>
+          </div>
+          <button class="yui-switch yui-voice-switch" type="button" role="switch" aria-checked="false" aria-label="음성 입력"></button>
+        </div>
+        <div class="yui-gain">
+          <div class="yui-gain__head">
+            <span class="yui-gain__label">침묵 기준</span>
+            <span class="yui-gain__value yui-vad__value">1500 ms</span>
+          </div>
+          <span class="yui-gain__sub">말이 끝난 뒤 이만큼 기다렸다가 전송해요</span>
+          <input class="yui-gain__slider yui-vad__slider" type="range" aria-label="침묵 기준" />
+        </div>
+      </div>
+
+      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-adv" aria-labelledby="yui-tab-adv" tabindex="0" hidden>
+        <span class="yui-quick__section">엔드포인트</span>
+        <details class="yui-endpoints">
+          <summary>
+            <span>엔드포인트</span>
+            <span class="yui-endpoints__hint">고급 — 서버 주소·모델</span>
+          </summary>
+          <div class="yui-endpoints__body">
+            ${endpointRowsHtml}
+            <button class="yui-reset yui-endpoints__reset yui-ep-reset" type="button">기본값으로 되돌리기</button>
+          </div>
+        </details>
+        ${sessionHtml}
+      </div>
+
     </div>
     <p class="yui-quick__foot yui-quick__foot--on">켜져 있는 동안 매 대화에 이 화면이 첨부돼요.</p>
     <p class="yui-quick__foot yui-quick__foot--off">기본은 꺼져 있어요. 켜면 화면을 함께 보내요.</p>
@@ -432,8 +444,12 @@ export function createQuickControls({
   const monitorsEl = el.querySelector<HTMLDivElement>(".yui-monitors")!;
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
   const spksEl = el.querySelector<HTMLDivElement>(".yui-spks")!;
-  const gainSlider = el.querySelector<HTMLInputElement>(".yui-gain__slider")!;
-  const gainValue = el.querySelector<HTMLSpanElement>(".yui-gain__value")!;
+  const gainSlider = el.querySelector<HTMLInputElement>(".yui-gain__slider:not(.yui-vad__slider)")!;
+  const gainValue = el.querySelector<HTMLSpanElement>(".yui-gain__value:not(.yui-vad__value)")!;
+  const vadSlider = el.querySelector<HTMLInputElement>(".yui-vad__slider")!;
+  const vadValue = el.querySelector<HTMLSpanElement>(".yui-vad__value")!;
+  const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
+  const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar")!;
   const popOutBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
@@ -462,6 +478,10 @@ export function createQuickControls({
   gainSlider.min = String(LIPSYNC_GAIN_MIN);
   gainSlider.max = String(LIPSYNC_GAIN_MAX);
   gainSlider.step = "0.1";
+
+  vadSlider.min = String(VAD_SILENCE_MIN);
+  vadSlider.max = String(VAD_SILENCE_MAX);
+  vadSlider.step = "50";
 
   // 기본 지침 placeholder.
   const defaultInstr = getDefaultInstructions?.();
@@ -498,6 +518,13 @@ export function createQuickControls({
     gainSlider.value = String(gain);
     gainValue.textContent = gain.toFixed(1) + "×";
     gainSlider.style.setProperty("--fill", String((gain - LIPSYNC_GAIN_MIN) / (LIPSYNC_GAIN_MAX - LIPSYNC_GAIN_MIN)));
+  }
+
+  function reflectVad(): void {
+    const ms = vad.get().silenceMs;
+    vadSlider.value = String(ms);
+    vadValue.textContent = `${ms} ms`;
+    vadSlider.style.setProperty("--fill", String((ms - VAD_SILENCE_MIN) / (VAD_SILENCE_MAX - VAD_SILENCE_MIN)));
   }
 
   function reflectAgent(): void {
@@ -1218,6 +1245,7 @@ export function createQuickControls({
     reflectProactive();
     reflectVoiceStatus(voiceStatus.get());
     reflectGain();
+    reflectVad();
     reflectAgent();
     reflectEndpoints();
     reflectSession();
@@ -1432,6 +1460,57 @@ export function createQuickControls({
     log.info("입 움직임 변경", { gain: parseFloat(gainSlider.value) });
   }
 
+  // ── 침묵 기준(VAD) 슬라이더 ──
+
+  function handleVadInput(): void {
+    const ms = parseInt(vadSlider.value, 10);
+    vad.setSilenceMs(ms); // store 구독이 reflectVad로 값 행을 다시 그린다
+  }
+
+  function handleVadEnd(): void {
+    log.info("침묵 기준 변경", { silenceMs: parseInt(vadSlider.value, 10) });
+  }
+
+  // ── 탭 전환 ──
+  // aria-selected/hidden + roving tabindex만 토글. 화살표(←/→/Home/End)는 즉시 활성.
+
+  function selectTab(index: number, focus = false): void {
+    const clamped = Math.min(tabButtons.length - 1, Math.max(0, index));
+    tabButtons.forEach((tab, i) => {
+      const on = i === clamped;
+      tab.setAttribute("aria-selected", String(on));
+      tab.tabIndex = on ? 0 : -1;
+      const panel = el.querySelector<HTMLElement>(`#${tab.getAttribute("aria-controls")}`);
+      if (panel) panel.hidden = !on;
+    });
+    tablistEl.style.setProperty("--tab", String(clamped));
+    if (focus) tabButtons[clamped]?.focus();
+  }
+
+  function handleTabClick(e: MouseEvent): void {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-tab");
+    if (!btn) return;
+    selectTab(tabButtons.indexOf(btn));
+  }
+
+  function handleTabKeydown(e: KeyboardEvent): void {
+    const current = tabButtons.findIndex((t) => t.getAttribute("aria-selected") === "true");
+    const base = current < 0 ? 0 : current;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      selectTab((base + 1) % tabButtons.length, true);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      selectTab((base - 1 + tabButtons.length) % tabButtons.length, true);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      selectTab(0, true);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      selectTab(tabButtons.length - 1, true);
+    }
+  }
+
   // ── 구독 ──
 
   const unsubscribe = settings.subscribe((s) => {
@@ -1447,6 +1526,7 @@ export function createQuickControls({
   });
   const unsubscribeVoice = voiceStatus.subscribe(reflectVoiceStatus);
   const unsubscribeLipsync = lipsync.subscribe(() => { if (openState) reflectGain(); });
+  const unsubscribeVad = vad.subscribe(() => { if (openState) reflectVad(); });
   const unsubscribeAgent = agentSettings.subscribe(() => { if (openState) reflectAgent(); });
   const unsubscribeEndpoints = endpointsSettings.subscribe(() => { if (openState) reflectEndpoints(); });
   // store 갱신(직접 select·다른 창 reloadFromStorage)을 active 행에 반영.
@@ -1472,6 +1552,11 @@ export function createQuickControls({
   gainSlider.addEventListener("input", handleGainInput);
   gainSlider.addEventListener("pointerup", handleGainEnd);
   gainSlider.addEventListener("blur", handleGainEnd);
+  vadSlider.addEventListener("input", handleVadInput);
+  vadSlider.addEventListener("pointerup", handleVadEnd);
+  vadSlider.addEventListener("blur", handleVadEnd);
+  tablistEl.addEventListener("click", handleTabClick);
+  tablistEl.addEventListener("keydown", handleTabKeydown);
   segEl.addEventListener("click", handleSegClick);
   segEl.addEventListener("keydown", handleSegKeydown);
   vrmsEl.addEventListener("keydown", handleVrmKeydown);
@@ -1500,6 +1585,7 @@ export function createQuickControls({
     unsubscribeProactive();
     unsubscribeVoice();
     unsubscribeLipsync();
+    unsubscribeVad();
     unsubscribeAgent();
     unsubscribeEndpoints();
     unsubscribeVrm();
@@ -1517,6 +1603,11 @@ export function createQuickControls({
     gainSlider.removeEventListener("input", handleGainInput);
     gainSlider.removeEventListener("pointerup", handleGainEnd);
     gainSlider.removeEventListener("blur", handleGainEnd);
+    vadSlider.removeEventListener("input", handleVadInput);
+    vadSlider.removeEventListener("pointerup", handleVadEnd);
+    vadSlider.removeEventListener("blur", handleVadEnd);
+    tablistEl.removeEventListener("click", handleTabClick);
+    tablistEl.removeEventListener("keydown", handleTabKeydown);
     segEl.removeEventListener("click", handleSegClick);
     segEl.removeEventListener("keydown", handleSegKeydown);
     vrmsEl.removeEventListener("keydown", handleVrmKeydown);

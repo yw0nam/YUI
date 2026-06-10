@@ -286,10 +286,33 @@ describe("createVadSettings — reloadFromStorage", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("localStorageVadStorage", () => {
-  it("defaults to the 'yui.vad' key", () => {
+  it("round-trips through stubbed globalThis.localStorage", () => {
+    const fakeStore: Record<string, string> = {};
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (k: string) => fakeStore[k] ?? null,
+      setItem: (k: string, v: string) => {
+        fakeStore[k] = v;
+      },
+    };
+
     const adapter = localStorageVadStorage();
     adapter.save({ silenceMs: 2200 });
-    expect(globalThis.localStorage?.getItem("yui.vad")).toBe(JSON.stringify({ silenceMs: 2200 }));
-    globalThis.localStorage?.removeItem("yui.vad");
+    expect(adapter.load()).toEqual({ silenceMs: 2200 });
+
+    delete (globalThis as { localStorage?: unknown }).localStorage;
+  });
+
+  it("default key is 'yui.vad'", () => {
+    const written: Array<[string, string]> = [];
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: () => null,
+      setItem: (k: string, v: string) => written.push([k, v]),
+    };
+
+    const adapter = localStorageVadStorage();
+    adapter.save({ silenceMs: 1500 });
+    expect(written[0][0]).toBe("yui.vad");
+
+    delete (globalThis as { localStorage?: unknown }).localStorage;
   });
 });

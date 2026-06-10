@@ -255,14 +255,14 @@ describe("createQuickControls — gain row", () => {
 
   // ── Slider exists with correct attributes ─────────────────────────────────
 
-  it("renders a range slider with min=0.5, max=4, value=2 (default gain)", () => {
+  it("renders a range slider with min=0.5, max=6, value=2 (default gain)", () => {
     const qc = buildQc();
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>("input.yui-gain__slider[type=range]");
+    const slider = qc.el.querySelector<HTMLInputElement>("input.yui-gain__slider:not(.yui-vad__slider)[type=range]");
     expect(slider).not.toBeNull();
     expect(slider!.min).toBe("0.5");
-    expect(slider!.max).toBe("4");
+    expect(slider!.max).toBe("6");
     expect(slider!.value).toBe("2");
 
     qc.dispose();
