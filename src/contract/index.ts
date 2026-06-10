@@ -24,6 +24,9 @@ export type {
   // §4 Input context
   ScreenSource,
   InputContext,
+  // §7.1 Dispatcher-layer metadata
+  TriggerMeta,
+  DispatcherStateMeta,
   // Endpoint config
   EndpointsConfig,
 } from "./types";

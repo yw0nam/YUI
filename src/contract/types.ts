@@ -222,6 +222,8 @@ export interface InputContext {
     timezone: string;
     active_app?: { name: string; bundle_id?: string };
     active_window_title?: string;
+    /** OS fullscreen 상태(genuine OS state). */
+    is_fullscreen?: boolean;
     locale?: string;
   };
 
@@ -237,6 +239,27 @@ export interface InputContext {
   };
 
   client: { yui_version: string; persona_hint?: string };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §7.1 Dispatcher-layer metadata (event-dispatcher.md §7.1)
+// dispatcher가 backend 호출 시 input_context 위에 wire에서 덧싣는 메타데이터.
+// InputContext 안이 아니라 그 위에 layered.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** firing trigger envelope — 어떤 source의 어떤 event가 이 backend 턴을 발사했는지. */
+export interface TriggerMeta {
+  source: string;
+  event_name: string;
+  ts: number;
+  seq_id?: number;
+}
+
+/** dispatcher가 알고 있는 부가 상태(InputContext에는 없음). */
+export interface DispatcherStateMeta {
+  idle_seconds?: number;
+  dnd_state?: "OFF" | "ON";
+  tier_hint?: 1 | 2 | 3;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

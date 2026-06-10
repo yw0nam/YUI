@@ -1074,10 +1074,6 @@ describe("loadConfig — validation failures throw ConfigError", () => {
 // ── sources.json (#24 proactive cowork knobs) ──────────────────────────────────
 
 describe("loadConfig — sources", () => {
-  /** valid sources fixture shape. */
-  function goodSources(): Record<string, unknown> {
-    return { proactive: { cowork: { interval_ms: 600000, present_max_idle_ms: 60000 } } };
-  }
   async function loadWith(value: unknown): Promise<unknown> {
     const map = goodFixture();
     map[CONFIG_FILES.sources] = value;
