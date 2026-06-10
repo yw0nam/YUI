@@ -86,6 +86,41 @@ describe("loadEmotionTextTable — fail-loud ConfigError", () => {
   });
 });
 
+// ── default fetch reader: asset-url resolver wiring ───────────────────────────
+
+describe("loadEmotionTextTable — default fetch reader routes through asset resolver", () => {
+  it("dev(passthrough resolver)는 baseUrl/파일 URL 그대로 fetch한다", async () => {
+    let fetched = "";
+    const fetchMock = async (url: string) => {
+      fetched = url;
+      return { ok: true, json: async () => ({ "👂": "Whisper" }) } as unknown as Response;
+    };
+    const out = await loadEmotionTextTable({
+      provider: "irodori",
+      baseUrl: "/configs",
+      fetch: fetchMock as unknown as typeof fetch,
+      resolveUrl: async (p) => p,
+    });
+    expect(fetched).toBe("/configs/emotion_text/irodori.json");
+    expect(out).toEqual({ "👂": "Whisper" });
+  });
+
+  it("Tauri(변환 resolver)는 변환된 URL로 fetch한다", async () => {
+    let fetched = "";
+    const fetchMock = async (url: string) => {
+      fetched = url;
+      return { ok: true, json: async () => ({ "👂": "Whisper" }) } as unknown as Response;
+    };
+    await loadEmotionTextTable({
+      provider: "irodori",
+      baseUrl: "/configs",
+      fetch: fetchMock as unknown as typeof fetch,
+      resolveUrl: async (p) => `asset://localhost${p}`,
+    });
+    expect(fetched).toBe("asset://localhost/configs/emotion_text/irodori.json");
+  });
+});
+
 // ── drift-guard: configs JSON keys ↔ docs md emoji set ───────────────────────
 
 describe("irodori emotion_text drift-guard", () => {

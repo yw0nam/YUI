@@ -1185,6 +1185,43 @@ describe("loadConfig — reader rejection", () => {
   });
 });
 
+// ── default fetch reader: asset-url resolver wiring ───────────────────────────
+
+describe("loadConfig — default fetch reader routes through asset resolver", () => {
+  it("dev(passthrough resolver)에서는 baseUrl/파일 URL을 그대로 fetch한다", async () => {
+    const fetched: string[] = [];
+    const fetchMock = async (url: string) => {
+      fetched.push(url);
+      const file = url.split("/").pop()!.split("?")[0];
+      return { ok: true, json: async () => goodFixture()[file] } as unknown as Response;
+    };
+    await loadConfig({
+      baseUrl: "/configs",
+      fetch: fetchMock as unknown as typeof fetch,
+      resolveUrl: async (p) => p, // dev passthrough
+    });
+    expect(fetched).toContain("/configs/endpoints.json");
+    expect(fetched).toContain("/configs/avatar.json");
+  });
+
+  it("Tauri(resolver가 asset URL로 변환)면 변환된 URL로 fetch한다", async () => {
+    const fetched: string[] = [];
+    const fetchMock = async (url: string) => {
+      fetched.push(url);
+      // 원래 파일명을 끝에서 복구해 fixture를 돌려준다.
+      const file = url.replace(/\?.*$/, "").split("/").pop()!;
+      return { ok: true, json: async () => goodFixture()[file] } as unknown as Response;
+    };
+    await loadConfig({
+      baseUrl: "/configs",
+      fetch: fetchMock as unknown as typeof fetch,
+      resolveUrl: async (p) => `asset://localhost${p}`,
+    });
+    expect(fetched).toContain("asset://localhost/configs/endpoints.json");
+    expect(fetched.every((u) => u.startsWith("asset://localhost/configs/"))).toBe(true);
+  });
+});
+
 // ── plainSecretProvider ─────────────────────────────────────────────────────────
 
 describe("plainSecretProvider", () => {

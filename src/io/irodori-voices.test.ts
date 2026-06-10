@@ -337,6 +337,32 @@ describe("ensureRegistered", () => {
     const refCall = fetchMock.mock.calls.find((c) => String(c[0]) === expectedRef);
     expect(refCall).toBeDefined();
   });
+
+  it("injected resolveRef(Tauri asset resolver)로 ref_url을 변환해 fetch한다", async () => {
+    const assetRef = "asset://localhost/app/resources/references/あやせ/merged_audio.mp3";
+    const resolveRef = vi.fn(async (_p: string) => assetRef);
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `${BASE}/voices` && (init?.method ?? "GET") === "GET") {
+        return voicesResponse(["other"]);
+      }
+      if (url === assetRef) return blobResponse(audio);
+      if (url === `${BASE}/voices` && init?.method === "POST") return createdResponse("あやせ");
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    await ensureRegistered({
+      baseUrl: BASE,
+      id: "あやせ",
+      refUrl: "/references/あやせ/merged_audio.mp3",
+      fetch: fetchMock as unknown as typeof fetch,
+      resolveRef,
+    });
+
+    expect(resolveRef).toHaveBeenCalledWith("/references/あやせ/merged_audio.mp3");
+    expect(fetchMock.mock.calls.some((c) => String(c[0]) === assetRef)).toBe(true);
+  });
 });
 
 describe("updateVoice", () => {
