@@ -4,8 +4,8 @@
 #![allow(dead_code)] // camera_in_use + CFBooleanRef reserved for future use
 
 use super::{emit_os_event, epoch_ms, idle_ms_from_secs, sanitise_app_name,
-            sanitise_window_title, DropPoint, DropReleasePayload, OsEventData,
-            OsEventPayload, WindowAtPoint, WINDOW_DROP_RELEASE_CHANNEL};
+            sanitise_window_title, OsEventData, OsEventPayload, WindowAtPoint,
+            WINDOW_DROP_RELEASE_CHANNEL};
 use std::{
     ffi::c_void,
     thread,
@@ -51,13 +51,9 @@ extern "C" {
     fn CGMainDisplayID() -> u32;
     fn CGDisplayBounds(displayID: u32) -> CGRect;
 
-    // Release detection — read left-button state + cursor location.
+    // Release detection — read the left mouse-button state.
     // `stateID` = kCGEventSourceStateCombinedSessionState (0); `button` = left (0).
     fn CGEventSourceButtonState(stateID: i32, button: u32) -> bool;
-    // CGEventCreate(NULL) snapshots the current event; its location is the live
-    // cursor in global, top-left-origin points (same space as kCGWindowBounds).
-    fn CGEventCreate(source: CFTypeRef) -> CFTypeRef;
-    fn CGEventGetLocation(event: CFTypeRef) -> CGPoint;
 }
 
 #[link(name = "CoreFoundation", kind = "framework")]
@@ -277,11 +273,11 @@ unsafe fn make_cfstring(s: &str) -> CFStringRef {
     CFStringCreateWithCString(std::ptr::null(), cs.as_ptr(), K_CF_STRING_ENCODING_UTF8)
 }
 
-// ─── Drop-release detection + window hit-test ────────────────────────────────
+// ─── Drop-release detection + window enumeration ─────────────────────────────
 //
 // After `start_dragging()` hands control to the OS-modal drag loop, a poll
-// thread detects the mouse release and emits its global point; the hit-test
-// command identifies the topmost foreign window under an arbitrary point.
+// thread detects the mouse release and emits a bare `window_drop_release`
+// signal; `list_all_windows` enumerates the foreign on-screen windows.
 
 // kCGEventSourceStateCombinedSessionState = 0; left mouse button = 0.
 const CG_EVENT_SOURCE_STATE_COMBINED: i32 = 0;
@@ -314,24 +310,6 @@ pub struct WindowRect {
     pub name: Option<String>,
 }
 
-/// Pure point-in-rect selection (no FFI), so it is unit-testable.
-///
-/// `windows` is front-to-back (topmost first) — the order CGWindowList returns.
-/// Returns the first (topmost) window that contains `(px, py)`, skipping any
-/// window owned by `own_pid` (YUI itself). The first match wins, so callers
-/// pre-filter the desktop/menu-bar/Dock out of `windows` before calling.
-pub fn select_topmost_at(
-    windows: &[WindowRect],
-    px: f64,
-    py: f64,
-    own_pid: i32,
-) -> Option<WindowRect> {
-    windows
-        .iter()
-        .find(|w| w.pid != own_pid && w.rect.contains(px, py))
-        .cloned()
-}
-
 /// Reads a bounds CFDictionary (`kCGWindowBounds`) into a ScreenRect.
 ///
 /// # Safety
@@ -342,15 +320,6 @@ unsafe fn bounds_to_rect(bounds_dict: CFDictionaryRef) -> Option<ScreenRect> {
     let width = dict_get_f64(bounds_dict, "Width")?;
     let height = dict_get_f64(bounds_dict, "Height")?;
     Some(ScreenRect { x, y, width, height })
-}
-
-/// Public hit-test for the `find_window_at_point` command: maps the enumerated
-/// `WindowRect` into the serializable `WindowAtPoint` (all in points).
-pub fn window_at_point(px: f64, py: f64) -> Option<WindowAtPoint> {
-    let own_pid = std::process::id() as i32;
-    // enumerate_windows preserves CGWindowList order (front-to-back), so the
-    // pure selector's "first match wins" yields the topmost window.
-    select_topmost_at(&enumerate_windows(), px, py, own_pid).map(window_rect_to_at_point)
 }
 
 /// Public window list for the `list_windows` command: every foreign on-screen
@@ -468,22 +437,8 @@ fn enumerate_windows() -> Vec<WindowRect> {
     collected
 }
 
-/// Reads the live cursor location in global, top-left-origin points.
-///
-/// Same coordinate space as `kCGWindowBounds`, so the returned point feeds
-/// `find_window_at_point` directly.
-fn current_cursor_point() -> Option<CGPoint> {
-    let event = unsafe { CGEventCreate(std::ptr::null()) };
-    if event.is_null() {
-        return None;
-    }
-    let p = unsafe { CGEventGetLocation(event) };
-    unsafe { CFRelease(event) };
-    Some(p)
-}
-
 /// Spawns a short-lived thread that polls the left mouse button until release
-/// (down→up), then emits `window_drop_release` with the cursor release point.
+/// (down→up), then emits a bare `window_drop_release` signal.
 ///
 /// Called right after `start_dragging()` succeeds. Polling (not an NSEvent
 /// monitor) is used because the OS-modal drag loop swallows monitor callbacks.
@@ -514,16 +469,9 @@ pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
                 thread::sleep(RELEASE_POLL_INTERVAL);
             }
 
-            let Some(point) = current_cursor_point() else {
-                log::info!("drop_release: released but cursor point unavailable");
-                return;
-            };
-            log::info!("drop_release point=({},{})", point.x, point.y);
+            log::info!("drop_release detected");
 
-            let payload = DropReleasePayload {
-                point: DropPoint { x: point.x, y: point.y },
-            };
-            if let Err(e) = app.emit(WINDOW_DROP_RELEASE_CHANNEL, payload) {
+            if let Err(e) = app.emit(WINDOW_DROP_RELEASE_CHANNEL, ()) {
                 log::warn!("window_drop_release emit failed: {e}");
             }
         })
@@ -681,7 +629,7 @@ mod tests {
         }
     }
 
-    // ── select_topmost_at (pure point-in-rect) ─────────────────────────────
+    // ── filter_foreign (pure own-pid filter, order-preserving) ─────────────
 
     fn win(x: f64, y: f64, w: f64, h: f64, pid: i32) -> WindowRect {
         WindowRect {
@@ -690,42 +638,6 @@ mod tests {
             name: None,
         }
     }
-
-    #[test]
-    fn select_top_window_wins_over_lower() {
-        // Front-to-back order: top window listed first, both contain the point.
-        let windows = vec![
-            win(0.0, 0.0, 100.0, 100.0, 11), // topmost
-            win(0.0, 0.0, 200.0, 200.0, 22), // lower, also contains
-        ];
-        let hit = select_topmost_at(&windows, 50.0, 50.0, 999).unwrap();
-        assert_eq!(hit.pid, 11);
-    }
-
-    #[test]
-    fn select_excludes_own_pid() {
-        // Topmost is YUI itself → must be skipped, lower foreign window wins.
-        let own = 4242;
-        let windows = vec![
-            win(0.0, 0.0, 100.0, 100.0, own),
-            win(0.0, 0.0, 100.0, 100.0, 77),
-        ];
-        let hit = select_topmost_at(&windows, 10.0, 10.0, own).unwrap();
-        assert_eq!(hit.pid, 77);
-    }
-
-    #[test]
-    fn select_no_hit_returns_none() {
-        let windows = vec![win(0.0, 0.0, 100.0, 100.0, 11)];
-        assert!(select_topmost_at(&windows, 500.0, 500.0, 999).is_none());
-    }
-
-    #[test]
-    fn select_empty_list_returns_none() {
-        assert!(select_topmost_at(&[], 0.0, 0.0, 999).is_none());
-    }
-
-    // ── filter_foreign (pure own-pid filter, order-preserving) ─────────────
 
     #[test]
     fn filter_foreign_drops_own_and_preserves_order() {

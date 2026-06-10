@@ -15,6 +15,7 @@
  */
 
 import * as THREE from "three";
+import type { ScreenRect } from "../contract";
 
 /** Screen point in pet-window pixels (== logical px == points). */
 export interface ScreenPoint {
@@ -22,14 +23,6 @@ export interface ScreenPoint {
   x: number;
   /** Pixels from the top edge of the canvas. */
   y: number;
-}
-
-/** Global target rect in points (top-left origin), e.g. kCGWindowBounds. */
-export interface WindowRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
 }
 
 /** Catch-zone band tuning. Vertical bands scale with the character's screen height. */
@@ -127,7 +120,7 @@ export function petPxToGlobalPoints(
  */
 export function inCatchZone(
   seatGlobalPts: ScreenPoint,
-  win: WindowRect,
+  win: ScreenRect,
   charHpx: number,
   opts?: CatchZoneOpts,
 ): boolean {

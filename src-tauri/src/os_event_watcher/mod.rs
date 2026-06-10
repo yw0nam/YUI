@@ -79,25 +79,9 @@ pub fn emit_os_event(app: &AppHandle, payload: OsEventPayload) -> tauri::Result<
     result
 }
 
-// ─── Window-sit drop: release signal + hit-test ──────────────────────────────
+// ─── Window-sit drop: release signal + window list ───────────────────────────
 
-/// Cursor release point (global, top-left origin, points).
-#[derive(Debug, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct DropPoint {
-    pub x: f64,
-    pub y: f64,
-}
-
-/// `window_drop_release` payload — the release point only. The frontend
-/// hit-tests the character's seat point separately via `find_window_at_point`.
-#[derive(Debug, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct DropReleasePayload {
-    pub point: DropPoint,
-}
-
-/// One window under a point, all measurements in points (top-left origin).
+/// One on-screen window, all measurements in points (top-left origin).
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowAtPoint {
@@ -109,34 +93,13 @@ pub struct WindowAtPoint {
     pub pid: i32,
 }
 
-/// Hit-test: the topmost foreign on-screen window whose bounds contain
-/// `(x, y)` in `CGWindowBounds` space (global, top-left origin, points).
-///
-/// Excludes YUI's own pid and non-layer-0 chrome (menu bar / Dock / wallpaper).
-/// The frontend invokes this with the character's seat point — it is the
-/// authoritative hit-test, independent of the `window_drop_release` signal.
-/// Non-macOS platforms return `Ok(None)`.
-#[command]
-pub fn find_window_at_point(x: f64, y: f64) -> Result<Option<WindowAtPoint>, String> {
-    #[cfg(target_os = "macos")]
-    {
-        Ok(macos::window_at_point(x, y))
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = (x, y);
-        Ok(None)
-    }
-}
-
 /// Lists every foreign on-screen window in front-to-back (topmost first) order,
 /// each in `CGWindowBounds` space (global, top-left origin, points).
 ///
-/// Applies the same filters as `find_window_at_point` — excludes YUI's own pid
-/// and non-layer-0 chrome (menu bar / Dock / wallpaper). The frontend uses the
-/// full list for the perch top-edge catch zone, whose U-band lies outside the
-/// window bounds and so cannot be resolved by a point-in-rect hit-test.
-/// Non-macOS platforms return `Ok(Vec::new())`.
+/// Excludes YUI's own pid and non-layer-0 chrome (menu bar / Dock / wallpaper).
+/// The frontend uses the full list for the perch top-edge catch zone, whose
+/// U-band lies outside the window bounds and so cannot be resolved by a
+/// point-in-rect hit-test. Non-macOS platforms return `Ok(Vec::new())`.
 #[command]
 pub fn list_windows() -> Result<Vec<WindowAtPoint>, String> {
     #[cfg(target_os = "macos")]
@@ -158,7 +121,7 @@ mod macos;
 mod windows;
 
 // Drop-release probe, invoked by drag.rs after start_dragging(). macOS-only;
-// emits `window_drop_release` with the cursor release point.
+// emits `window_drop_release` as a bare signal (no payload).
 #[cfg(target_os = "macos")]
 pub use macos::spawn_drop_release_probe;
 
@@ -399,14 +362,7 @@ mod tests {
         assert!(epoch_ms() > 1_704_067_200_000);
     }
 
-    // ── window_drop_release payload + WindowAtPoint serialisation ────────────
-
-    #[test]
-    fn drop_release_payload_serialises_camel_case_nested_point() {
-        let p = DropReleasePayload { point: DropPoint { x: 12.5, y: 34.0 } };
-        let v = serde_json::to_value(p).unwrap();
-        assert_eq!(v, json!({ "point": { "x": 12.5, "y": 34.0 } }));
-    }
+    // ── WindowAtPoint serialisation ──────────────────────────────────────────
 
     #[test]
     fn window_at_point_serialises_camel_case() {

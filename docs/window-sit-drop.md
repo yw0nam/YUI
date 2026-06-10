@@ -29,9 +29,10 @@ firing ≠ judgment.
 
 ## Trigger — what counts as "on a window"
 
-Reference point = the **seat anchor** S (live `hips` bone + `SEAT_DROP`, projected to global screen
-points). Cursor position is irrelevant — the user grabs the character, so the seat is what must land on
-a window. A drop perches iff S falls in a target window's **top-edge catch zone**:
+Reference point = the **seat anchor** S (the live `hips` bone, dropped by the optional `SEAT_DROP`
+offset which defaults to `0`, projected to global screen points). Cursor position is irrelevant — the
+user grabs the character, so the seat is what must land on a window. A drop perches iff S falls in a
+target window's **top-edge catch zone**:
 
 ```
 horizontal:  W.left − mX ≤ S.x ≤ W.right + mX
@@ -62,21 +63,22 @@ The perch is one geometry problem: put the character's **seat point** on the tar
 | 4 | Global screen physical px | top-left, physical px | `outerPosition()` + CSS·`scaleFactor` |
 | 5 | Target window rect | top-left, **points** | `CGWindowBounds` |
 
-**Seat point (space 1→3).** The seat anchor is the live `hips` bone world position plus a single
-anatomical down-offset `SEAT_DROP`, projected to pet-window CSS px with the existing NDC→pixel remap
-(`projectFeetAnchor`'s math, retargeted from feet to hips). It is read **after `mixer.update(dt)`**, so
+**Seat point (space 1→3).** The seat anchor is the live `hips` bone world position, lowered by the
+optional `SEAT_DROP` offset (default `0`, so the seat is the `hips` bone centre), projected to
+pet-window CSS px with the existing NDC→pixel remap (`projectFeetAnchor`'s math, retargeted from feet
+to hips). It is read **after `mixer.update(dt)`**, so
 it reflects the pose actually on screen for the current variant. The static load-time `modelBox`
 (idle pose) is **not** used — it is wrong for a sitting pose.
 
 **Per-clip accuracy.** Because the seat anchor is the *live* bone of the *current* variant, each of the
-8 sit clips reports its own true seat position with no per-clip constants. `SEAT_DROP` is a single
-anatomical constant (hips-bone-centre → buttock-contact), valid across clips because a seated pelvis is
-roughly upright.
+8 sit clips reports its own true seat position with no per-clip constants. `SEAT_DROP` is an optional
+downward offset from the `hips` bone; it currently defaults to `0`, so the seat coincides with the
+`hips` bone centre.
 
-**Everything resolves to points (validated, U0 spike).** The cursor release point (`CGEventGetLocation`)
-and `CGWindowBounds` were confirmed on real hardware to share one space — **global, top-left origin,
-points** — with no Retina 2× mismatch. Pet-window CSS px is logical px = points. So the only conversion
-is the pet window's `outerPosition()` (physical) → points: `winOriginPts = outerPositionPhys ÷ scaleFactor`.
+**Everything resolves to points (validated, U0 spike).** `CGWindowBounds` and pet-window CSS px share
+one space — **global, top-left origin, points** — with no Retina 2× mismatch (confirmed on real
+hardware). Pet-window CSS px is logical px = points. So the only conversion is the pet window's
+`outerPosition()` (physical) → points: `winOriginPts = outerPositionPhys ÷ scaleFactor`.
 
 **Seat → global (space 3→4).** `seatGlobalPts = winOriginPts + seatCss` (`petPxToGlobalPoints`). Compared
 directly against the target window rect (already points) — no further conversion.
@@ -102,7 +104,7 @@ character so the seat lands on the edge line.
 ```
 drag (OS-native start_dragging)
   └─ release detected (Rust: poll CGEventSourceButtonState until down→up, 10s timeout)
-       └─ emit window_drop_release { point }            (validated: gates 1 & 2 green)
+       └─ emit window_drop_release (bare signal, no payload)
             └─ client computes seatGlobalPts + charH (live), invokes list_windows()  (Rust, CGWindowList)
                  └─ JS picks topmost window where inCatchZone(seat, win, charH)
                       ├─ hit → bus.push tier1 user.window_sit_drop { target_rect }
@@ -113,8 +115,9 @@ drag (OS-native start_dragging)
 
 - **Drop detection** (Rust, validated): `start_dragging()` is OS-modal and swallows the release from the
   webview, so an `NSEvent` mouse-up monitor is unreliable. A short-lived thread **polls
-  `CGEventSourceButtonState`** until the left button goes down→up (10s safety timeout), then reads
-  `CGEventGetLocation` and emits `window_drop_release { point }`. Proven on real hardware.
+  `CGEventSourceButtonState`** until the left button goes down→up (10s safety timeout), then emits
+  `window_drop_release` as a bare signal (no payload — the client hit-tests the seat, not the cursor).
+  Proven on real hardware.
 - **Window list + catch-zone select**: the trigger is a top-edge **catch zone** (a band that extends
   *above* the window top), so a point-in-rect hit-test is insufficient — the U-band lies outside the
   window's bounds. Rust `list_windows()` enumerates on-screen windows (front-to-back, points; excludes
@@ -134,13 +137,14 @@ drag (OS-native start_dragging)
   `PerchTarget { rect: ScreenRect; edge: "top" }` (room for other edges later). Client-only — not part
   of the agent `generate_express` surface.
 - **Bus**: new event `user.window_sit_drop` (priority 0, `user.` prefix, tier1, `dnd_override`) carrying
-  `payload: { target_window_rect, drop_point }`. `user.window_sit_exit` is reused for leave/interrupt.
-- **Producer wiring**: `OsContext` is read-only today. A client-only producer translates the Rust
-  release/hit-test event into the `user.window_sit_drop` / `user.window_sit_exit` bus envelopes (the
-  missing Rust→bus link).
+  `payload: { target_window_rect, edge_local_ypx }`. `user.window_sit_exit` is reused for leave/interrupt.
+- **Producer wiring**: `OsContext` is read-only today. A client-only producer reacts to the Rust
+  release signal — running the seat hit-test against `list_windows()` — and emits the
+  `user.window_sit_drop` / `user.window_sit_exit` bus envelopes (the missing Rust→bus link).
 - **Renderer**: a `setPerchTarget(target | null)` seam + the seat-anchor/offset solver + per-swap
   re-align hook in the existing `window_sit` cycle path.
-- **Rust**: `find_window_at_point` command; the `leftMouseUp` release monitor; a payload struct + emit.
+- **Rust**: `list_windows` command; the drop-release probe (poll `CGEventSourceButtonState` until
+  down→up) emitting a bare `window_drop_release` signal.
 - **Dev mock**: extend the `__yui_windowSit` DEV hook with `drop(rect)` so the perch+geometry path is
   exercisable without a real drag during unit/preview work.
 
@@ -148,16 +152,16 @@ drag (OS-native start_dragging)
 
 Position math breaks at unit/space seams. Each is validated against the real app before it is trusted:
 
-1. **🔴 Drop detection** — does the `leftMouseUp` monitor fire after `start_dragging()` with a usable
-   release point? If not, the whole trigger is redesigned. **Spike this first, before building on it.**
+1. **🔴 Drop detection** — does the `CGEventSourceButtonState` probe detect the down→up release after
+   `start_dragging()`? If not, the whole trigger is redesigned. **Spike this first, before building on it.**
 2. **CGWindowBounds units & origin** — confirm points vs px and top-left origin by reading a window of
    known size/position.
 3. **Pet-window mapping** — confirm `mount.clientW/H` equals the window content size and the content
    origin equals the window origin (no decorations, no CSS inset).
 4. **DPR vs scale** — confirm renderer `devicePixelRatio` equals Tauri `scaleFactor`, including on a
    second display with a different scale.
-5. **Hips as seat proxy** — confirm `hips + SEAT_DROP` reads as the buttock-contact across all 8 sit
-   clips; tune `SEAT_DROP`.
+5. **Hips as seat proxy** — confirm the live `hips` bone (the seat anchor, since `SEAT_DROP` defaults
+   to `0`) reads as the buttock-contact across all 8 sit clips.
 6. **Multi-monitor origin** — confirm `CGWindowList` global origin and Tauri position origin agree
    across displays (global vs per-display offsets).
 
@@ -171,10 +175,10 @@ manually.
 | U1 seat-anchor math | world hips (+`SEAT_DROP`) + camera + canvas → pet-window px | pure fn, vitest |
 | U2 alignment solver | seatGlobal + target edge + drop-x → character offset | pure fn, vitest |
 | U3 unit conversion | points ↔ physical, per-display scale | pure fn, vitest |
-| U4 window selection | window-rect list + point → chosen window (filters) | pure fn, `cargo test` |
+| U4 window enumeration | foreign on-screen windows (own-pid + chrome filters) | pure fn, `cargo test` |
 | U5 contract + dispatcher | `user.window_sit_drop` → `window_sit` + `setPerchTarget` | vitest |
-| U6 Rust hit-test command | `find_window_at_point` wiring around U4 | `cargo test` + manual |
-| U7 Rust release monitor | `leftMouseUp` after `start_dragging` | spike + manual (gate 1) |
+| U6 Rust window list command | `list_windows` wiring around U4 | `cargo test` + manual |
+| U7 Rust release probe | `CGEventSourceButtonState` poll after `start_dragging` | spike + manual (gate 1) |
 | U8 renderer wiring | apply offset from `setPerchTarget`; re-align on swap | preview + manual (GL) |
 
 Integration: human drag-drop onto a real window, observed via `screencapture` (the character window is
