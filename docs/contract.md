@@ -5,7 +5,7 @@
 **Companion specs:**
 - [`concept.md`](./concept.md) §1 §4 — 원칙과 4종 산출물 정의
 - [`event-dispatcher.md`](./event-dispatcher.md) — §7.1/§10이 본 문서의 `InputContext`/`ControlEnvelope`를 그대로 사용
-- [`prd.md`](./prd.md) §3 F9, §8 Dependencies — 마일스톤별 검증 지점
+- [`prd.md`](./prd.md) §3 F9, §4 Backend dependencies — 본 문서 스키마의 기능·의존성 맥락
 - [`openai_response_sdk/`](./openai_response_sdk/) — Hermes Responses API SSE event 형식 (`sse-event-format.md`가 function_call/텍스트 스트림 파싱의 근거)
 
 전송 계층은 [`concept.md`](./concept.md) §1대로 OpenAI 호환 API. 이 문서는 그 위에 얹는 payload만 다룬다. **제어신호(emotion_id/motion_id/emotion_text)는 서버사이드 `generate_express` tool-call의 FLAT arguments로** 전송 — inline 텍스트 태그 금지. **발화 텍스트는 tool-call이 아니라 별도 assistant 텍스트 스트림**으로 흐른다 (§3 참고). 발화 게이트(`should_speak`)는 없다 — 침묵은 backend가 텍스트를 안 보내는 것으로 표현한다(D-NO-SPEAK-GATE, §3).
