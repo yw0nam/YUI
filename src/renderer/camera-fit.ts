@@ -1,5 +1,5 @@
 /**
- * camera-fit — pure fit-to-bounds framing math (#106).
+ * camera-fit — pure fit-to-bounds framing math.
  *
  * WebGL-free and deterministic so it runs in vitest node env. Given a VRM's
  * world bounding box, derives the camera distance/target/position that frames

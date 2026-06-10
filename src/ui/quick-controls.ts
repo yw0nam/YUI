@@ -42,19 +42,19 @@ type SessionStore = ReturnType<typeof createSessionStore>;
 interface QuickControlsOptions {
   mount: HTMLElement;
   settings: ScreenshotSettingsStore;
-  /** proactive 발화 on/off store(#24). 끄면 firing만 게이팅, 소스 구독은 유지된다. */
+  /** proactive 발화 on/off store. 끄면 firing만 게이팅, 소스 구독은 유지된다. */
   proactiveSettings: ProactiveSettingsStore;
   sourceProvider: ScreenSourceProvider;
   voiceStatus: VoiceInputStatus;
   lipsync: LipsyncSettingsStore;
   agentSettings: AgentSettingsStore;
   vrmSelection: VrmSelectionStore;
-  /** 실제 스왑 수행 + 성공 시 store 커밋(P4 주입). 컴포넌트는 store.select를 직접 호출하지 않는다. */
+  /** 실제 스왑 수행 + 성공 시 store 커밋. 컴포넌트는 store.select를 직접 호출하지 않는다. */
   swapVrm: (option: AvatarOption) => Promise<void>;
   speakerSelection: SpeakerSelectionStore;
-  /** 실제 화자 스왑 수행 + 성공 시 store 커밋(B2 주입). 컴포넌트는 store.select를 직접 호출하지 않는다. */
+  /** 실제 화자 스왑 수행 + 성공 시 store 커밋. 컴포넌트는 store.select를 직접 호출하지 않는다. */
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
-  /** 화자의 참조 음성 재등록(PUT /voices, #103). 서버 측 갱신만 — 화자 선택/store는 바꾸지 않는다. */
+  /** 화자의 참조 음성 재등록(PUT /voices). 서버 측 갱신만 — 화자 선택/store는 바꾸지 않는다. */
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
   onGainPreview: (mouthOpen: number) => void;
   onGainPreviewEnd: () => void;
@@ -62,7 +62,7 @@ interface QuickControlsOptions {
   variant?: "popover" | "window";
   /** 빈 instructions일 때 placeholder로 보여줄 기본 지침(config.chat_instructions). */
   getDefaultInstructions?: () => string | undefined;
-  /** 사용자 편집 엔드포인트 오버라이드 store(#95). 빈 값=폴백. */
+  /** 사용자 편집 엔드포인트 오버라이드 store. 빈 값=폴백. */
   endpointsSettings: EndpointsSettingsStore;
   /** placeholder로 보여줄 bundled config 기본 엔드포인트(미로드 시 undefined). */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
@@ -90,7 +90,7 @@ const SEG_LABELS: Record<ReasoningEffort, string> = {
   high: "High",
 };
 
-// 엔드포인트 섹션(#95): 편집 가능한 5개 필드. url=true면 isValidEndpointUrl 라이브 검증.
+// 엔드포인트 섹션: 편집 가능한 5개 필드. url=true면 isValidEndpointUrl 라이브 검증.
 interface EndpointFieldDef {
   key: keyof EndpointOverrides;
   label: string;
@@ -200,7 +200,7 @@ export function createQuickControls({
       `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${SEG_LABELS[e]}</button>`,
   ).join("");
 
-  // 엔드포인트 필드 행(#95). 라벨/placeholder/value는 빈 채로 두고 reflectEndpoints가 채운다.
+  // 엔드포인트 필드 행. 라벨/placeholder/value는 빈 채로 두고 reflectEndpoints가 채운다.
   // type="text"로 두고 검증 메시지를 직접 제어한다(브라우저 기본 URL 검증 회피).
   const endpointRowsHtml = ENDPOINT_FIELDS.map(({ key, label, url }) => {
     const errId = `yui-ep-err-${key}`;
@@ -700,7 +700,7 @@ export function createQuickControls({
         <span class="yui-vrm__body"><span class="yui-vrm__name"></span></span>
         ${badgeHtml}
       `;
-      // 라벨은 신뢰 불가 입력일 수 있다(P2 파일 선택) — textContent로만 넣는다.
+      // 라벨은 신뢰 불가 입력일 수 있다 — textContent로만 넣는다.
       btn.querySelector<HTMLSpanElement>(".yui-vrm__name")!.textContent = opt.label;
 
       btn.addEventListener("click", () => {
@@ -829,7 +829,7 @@ export function createQuickControls({
   // close()에서 일부러 리셋하지 않는다 — 재오픈 시에도 머문 행을 잇고, ids.includes로 가드한다.
   let spkRovedId: string | null = null;
 
-  // 행별 참조-음성 갱신 상태(#103) — renderSpeakers 재그림을 살아남도록 id별로 보관.
+  // 행별 참조-음성 갱신 상태 — renderSpeakers 재그림을 살아남도록 id별로 보관.
   type RefreshState = "refreshing" | "done" | "error";
   const spkRefreshState = new Map<string, RefreshState>();
   // "done" 상태를 일정 시간 후 idle로 되돌리는 타이머(중복 갱신·dispose 시 정리).
@@ -1035,7 +1035,7 @@ export function createQuickControls({
     }
   }
 
-  // 참조 음성 재등록(#103) — 서버 측 갱신만, 화자 선택/store는 바꾸지 않는다.
+  // 참조 음성 재등록 — 서버 측 갱신만, 화자 선택/store는 바꾸지 않는다.
   // 재진입 가드: 같은 id가 이미 갱신 중이면 무시한다.
   async function refreshTo(option: SpeakerOption): Promise<void> {
     if (spkRefreshState.get(option.id) === "refreshing") return;
@@ -1372,7 +1372,7 @@ export function createQuickControls({
     log.info("지침 초기화");
   }
 
-  // ── 엔드포인트 섹션(#95) ──
+  // ── 엔드포인트 섹션 ──
 
   function handleEndpointInput(e: Event): void {
     const input = e.target;

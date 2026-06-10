@@ -12,8 +12,7 @@
  *   - Playback controls compose MotionSignal overrides passed to renderer.playMotion().
  *
  * Status bar tracks last-requested motion UI-side (renderer does not surface current motion
- * back to UI). Oneshot auto-return-to-idle is NOT reflected in status — acceptable for v0;
- * a future renderer event can drive it.
+ * back to UI). Oneshot auto-return-to-idle is not reflected in status.
  */
 
 import "./motion-preview.css";
@@ -35,7 +34,7 @@ const VRM_URL = "/vrms/carlotta.vrm";
 // ─── Motion kind display order ────────────────────────────────────────────────
 const KIND_ORDER: MotionKind[] = ["ambient", "reactive", "state", "oneshot"];
 
-// ─── Emotion display order (matches contract.md §1 vocabulary) ───────────────
+// ─── Emotion display order (matches the emotion vocabulary) ───────────────
 const EMOTION_ORDER: EmotionId[] = [
   "neutral", "happy", "angry", "sad", "relaxed", "surprised",
   "thinking", "curious", "sleepy", "embarrassed",
@@ -255,7 +254,7 @@ function setActiveEmotionRow(id: EmotionId | null): void {
 /**
  * Build the 10 emotion rows from the registry.
  * The `vrm_expression` hint shown per row is the *registry* mapping, NOT the
- * runtime-resolved key (renderer does not expose the resolved key — acceptable for v0).
+ * runtime-resolved key (renderer does not expose the resolved key).
  */
 function buildEmotionList(
   emotionsRegistry: EmotionRegistry,
@@ -281,7 +280,7 @@ function buildEmotionList(
     name.className = "row-name";
     name.textContent = id;
 
-    // Registry expression hint tag (static — registry mapping, not resolved key)
+    // Registry expression hint tag (registry mapping, not resolved key)
     const tags = document.createElement("div");
     tags.className = "row-tags";
     if (entry) {

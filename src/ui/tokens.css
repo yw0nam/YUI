@@ -1,15 +1,6 @@
-/* YUI design tokens — "The Hearthlight" (DESIGN.md).
-   SEED 값(`[구현 때 확정]`)을 여기서 확정한다. 컴포넌트가 안정화되면
-   `/impeccable document`(scan)로 DESIGN.md 5장(Components) + 정확값을 역수입한다.
-
-   doctrine: OKLCH만 사용 · `#000`/`#fff` 금지 · 모든 중립은 앰버 hue(~72)로 미세 틴트.
-
-   ── 표면 결정 ──────────────────────────────────────────────
-   YUI surface는 투명·always-on-top 창에서 *임의의* 데스크톱 배경 위에 뜬다.
-   그래서 "밝은 표면 + 어두운 텍스트"는 흰 IDE 위에서 사라진다. Legible-on-Anything의
-   robust한 답은 자막(subtitle)과 같다 — **어두운 scrim + 밝은 warm 텍스트 + 자체 그림자**.
-   → seed의 Warm Ink(22%, 어두운 본문)는 *밝은* 맥락용 토큰으로 남기고(--yui-ink),
-     실제 떠 있는 표면 위 본문은 밝은 --yui-text를 쓴다. (D: dark-scrim/light-text) */
+/* YUI design tokens — "The Hearthlight". Canonical source for the design system; see DESIGN.md.
+   Doctrine: OKLCH only, no #000/#fff, neutrals micro-tinted toward warm amber (~72°).
+   Floating surfaces use a dark scrim + light warm text so they stay legible over any desktop background. */
 
 :root {
   /* hue anchor: 따뜻한 앰버 ~72° */
@@ -33,7 +24,7 @@
   --yui-edge: oklch(0.97 0.01 80 / 0.1);  /* 어두운 배경에서도 표면 외곽을 잡아주는 hairline */
   --yui-edge-strong: oklch(0.97 0.01 80 / 0.16); /* hover 강조 hairline */
 
-  /* ── Light-context ink (seed Warm Ink, 현재 surface엔 미사용 — 보존) ── */
+  /* ── Light-context ink (unused by floating surfaces) ── */
   --yui-ink: oklch(0.22 0.01 70);
 
   /* ── Danger: 절제된 warm-red. 되돌림/실패 안내에만(앰버와 충돌 않게 hue 35). ── */

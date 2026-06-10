@@ -5,7 +5,7 @@
  * 후속 작업에서 같은 Surfaces API를 호출해 이 드라이버를 대체한다. 여기엔 brain이 없다 —
  * 스크립트가 백엔드 응답을 *흉내*낼 뿐(firing ≠ judgment).
  *
- * dev 핸들(__yuiDemo)로 스크린샷 검증 루프(#12)에서 단계를 직접 호출할 수 있다.
+ * dev 핸들(__yuiDemo)로 스크린샷 검증 루프에서 단계를 직접 호출할 수 있다.
  */
 
 import type { Surfaces } from "./surfaces";

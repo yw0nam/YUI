@@ -1,4 +1,4 @@
-//! Drag + multi-monitor / DPI support — F2 §drag+multimonitor (Issue #9, M1).
+//! Drag + multi-monitor / DPI support.
 //!
 //! # Responsibilities
 //! - `drag_window` command: called from webview `pointerdown` to initiate OS-native window drag.
@@ -13,13 +13,11 @@
 //! the window crosses a monitor boundary; we do NOT need to manually reposition after a drag.
 //!
 //! The `onScaleChanged` JS listener (see `src/drag.ts`) is the seam for reacting to DPI changes
-//! (e.g., snapping or re-centering) if needed in the future.
+//! (e.g., snapping or re-centering).
 //!
-//! # Dispatcher seam (deferred — Issue #21)
-//! Click/pet-gesture events on the character region belong to the dispatcher (F6). The dispatcher
-//! module (#21) does not exist yet. `src/drag.ts` emits a placeholder `"__yui_gesture_stub"`
-//! custom event at the drag-start site as the seam for #21 — do NOT implement dispatcher wiring
-//! here.
+//! # Dispatcher seam
+//! Click/pet-gesture events on the character region belong to the dispatcher. `src/drag.ts` emits
+//! a placeholder `"__yui_gesture_stub"` custom event at the drag-start site as the gesture seam.
 
 use serde::Serialize;
 use tauri::{command, AppHandle, Manager, Runtime, WebviewWindow};

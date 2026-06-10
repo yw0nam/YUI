@@ -1,5 +1,5 @@
 /**
- * STT + VAD — voice input pipeline (PRD F3 / concept.md §2.C).
+ * STT + VAD — voice input pipeline.
  *
  * Responsibilities:
  *  - VAD (@ricky0123/vad-web, Silero+ONNX) detects speech start/end.
@@ -15,7 +15,7 @@ import { createLogger } from "../logger";
 
 const log = createLogger("stt-vad");
 
-/** STT result — matches contract.md §4 InputContext.transcript. */
+/** STT result — matches InputContext.transcript. */
 export type Transcript = NonNullable<InputContext["transcript"]>;
 export type SttVadRuntimeState = "listening" | "asr" | "fired" | "error";
 

@@ -1,14 +1,13 @@
 /**
  * Tier 1 ambient engine — blink / idle sway / breath / look-around 등 로컬 생동감.
- * (PRD F5, event-dispatcher.md §8)
  *
  * 항상 켜짐, **backend 독립**(네트워크 X). renderer.onTick(rAF) 훅으로 매 프레임
  * bone(head/spine/chest) 회전 + blink expression을 vrm.update 직전에 쓴다.
- * 현재 이 채널들(head/spine/chest 회전, blink)을 ambient가 "소유"한다 — 매 프레임
- * 절대값으로 덮어쓴다. backend motion(#5) 합류 시 renderer가 weight 합성 책임을 진다
- * (§8: motion 재생 중 idle_sway weight 0.3→0.1). 그 hook은 #5에서.
+ * 이 채널들(head/spine/chest 회전, blink)을 ambient가 "소유"한다 — 매 프레임
+ * 절대값으로 덮어쓴다. backend motion 재생 중에는 renderer가 weight 합성 책임을 진다
+ * (motion 재생 중 idle_sway weight 0.3→0.1).
  *
- * Cue 표 (event-dispatcher.md §8):
+ * Cue 표:
  *  - blink         : 3~6s 랜덤, 150ms 펄스
  *  - idle_sway     : 항상, head/spine 다주파 sine
  *  - breath        : 4s 주기, chest/spine sine
@@ -53,7 +52,7 @@ const LOOK_LAMBDA = 1.8; // look target 댐핑 속도
 const TAP_BOB_AMP = 0.13; // tap 끄덕임(아래로, pitch+)
 const IDLE_RETURN_AMP = -0.09; // idle 복귀 시 살짝 위(pitch-)
 
-/** VRM별로 1회 해석하는 능력(존재하는 bone/expression). 핫스왑(#4) 대비 재해석. */
+/** VRM별로 1회 해석하는 능력(존재하는 bone/expression). 핫스왑 대비 재해석. */
 interface Caps {
   head: Object3D | null;
   spine: Object3D | null;

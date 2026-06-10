@@ -1,7 +1,7 @@
 //! macOS OS polling — active app (NSWorkspace), idle (CGEventSource FFI),
 //! window title + fullscreen (CGWindowList raw FFI), camera best-effort.
 
-#![allow(dead_code)] // camera_in_use + CFBooleanRef reserved for future use
+#![allow(dead_code)] // camera_in_use + CFBooleanRef are unused FFI bindings
 
 use super::{emit_os_event, epoch_ms, idle_ms_from_secs, sanitise_app_name,
             sanitise_window_title, OsEventData, OsEventPayload};
@@ -12,7 +12,7 @@ use std::{
 };
 use tauri::AppHandle;
 
-// Polling interval — 5 s per §3.3 os_idle_tick / debounce.
+// Polling interval — 5 s os_idle_tick / debounce.
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
 
 // ─── Raw Core Foundation + Core Graphics FFI ─────────────────────────────────
@@ -290,7 +290,7 @@ pub fn frontmost_app() -> Option<(i32, String)> {
 // ─── camera_in_use — best-effort ─────────────────────────────────────────────
 
 /// Always returns None on macOS (requires privileged IOKit SPI, not public API).
-/// Emitting None signals best-effort degrade per §A5.
+/// Emitting None signals best-effort degrade.
 pub fn camera_in_use() -> Option<bool> {
     None
 }

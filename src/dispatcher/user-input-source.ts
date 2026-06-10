@@ -1,9 +1,9 @@
 /**
- * user_input_source — normalizes user input into bus envelopes. (event-dispatcher.md §3.4)
+ * user_input_source — normalizes user input into bus envelopes.
  *
  * Produces:
  *  - user.text_submitted  — keyboard chat submit (tier2, dnd_override=true).
- *  - user.voice_segment_ready — STT transcript from VAD pipeline (#19, tier2, dnd_override=true).
+ *  - user.voice_segment_ready — STT transcript from VAD pipeline (tier2, dnd_override=true).
  */
 
 import type { EventBus, BusEnvelope } from "./event-bus";

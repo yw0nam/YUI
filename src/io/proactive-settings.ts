@@ -1,5 +1,5 @@
 /**
- * proactive 발화(cowork 등 tier2 소스)의 on/off를 관리하는 reactive 설정 스토어. (#24 Step 8)
+ * proactive 발화(cowork 등 tier2 소스)의 on/off를 관리하는 reactive 설정 스토어.
  * 변경 시 storage에 persist하고 구독자에게 통지한다. 소스 구독은 멈추지 않고 firing만 게이팅한다.
  */
 

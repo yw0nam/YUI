@@ -12,7 +12,7 @@ html,
 body {
   margin: 0;
   padding: 0;
-  /* 투명 창: 캐릭터 실루엣 외 영역은 비워 둔다 (click-through는 Rust hit-test, M1). */
+  /* 투명 창: 캐릭터 실루엣 외 영역은 비워 둔다 (click-through는 Rust hit-test). */
   background: transparent;
 }
 
@@ -28,7 +28,7 @@ body {
   height: 100%;
 }
 
-/* VRM 무대 — 전체 투명 영역. renderer가 canvas를 여기 채운다 (#4). */
+/* VRM 무대 — 전체 투명 영역. renderer가 canvas를 여기 채운다. */
 .yui-stage {
   position: absolute;
   inset: 0;

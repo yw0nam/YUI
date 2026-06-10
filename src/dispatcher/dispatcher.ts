@@ -1,21 +1,22 @@
 /**
- * Dispatcher — firing≠judgment 경계를 강제하는 단일 라우터. (PRD F6 / event-dispatcher.md §5,§7,§9,§11)
+ * Dispatcher — firing≠judgment 경계를 강제하는 단일 라우터.
  *
- * 흐름(§2, §5):
- *  1. event_bus.pop() → classify → tier (§5.1).
- *  2. (가드레일 §6은 #25 — 지금은 user_input dnd_override=true로 통과. seam만 둠.)
- *  3. conflict resolution (§5.2): user.text_submitted 도착 → in-flight backend abort +
+ * 흐름:
+ *  1. event_bus.pop() → classify → tier.
+ *  2. guardrails로 evaluate — user_input은 dnd_override=true로 통과.
+ *  3. conflict resolution: user.text_submitted 도착 → in-flight backend abort +
  *     큐의 tier2/3 drop(superseded_by_user).
  *  4. 라우팅:
  *     · tier1 (user.drag_*, idle.returned, user.tap 즉시 half) → renderer (로컬, backend X).
  *     · tier2/3 (user.text_submitted, idle.*, time_milestone.*, os.active_app_changed) → backend_caller.
  *
- * MVP(#21 spine): 단일 in-flight backend call. 보류 tier2/3은 로컬 pending에 1건만 유지
- * (2건 이상 보류 시 가장 오래된 것 drop, §5.2). guardrails/timer/idle source는 후속(#24/#25).
+ * 단일 in-flight backend call. 보류 tier2/3은 로컬 pending에 1건만 유지
+ * (2건 이상 보류 시 가장 오래된 것 drop).
  *
- * §9 state: booting → (start) → running → (stop) → stopped.
- *   cooldown/degraded는 최소 스텁(전이 트리거 미구현 — rate-limit #25 / 에러누적 추후).
- * §11 observable: queue() / recentDrops(n) / inFlight().
+ * state: booting → (start) → running → (stop) → stopped. cooldown은 guardrails의
+ *   overall-cap verdict를 매 tick 폴링해 running↔cooldown으로 전이한다. degraded는
+ *   선언만 되어 있고 진입 전이가 없다.
+ * observable: queue() / recentDrops(n) / inFlight().
  */
 
 import type { EventBus, BusEnvelope } from "./event-bus";
@@ -33,13 +34,13 @@ export interface DispatcherDeps {
   bus: EventBus;
   renderer: Pick<Renderer, "applyDirective">;
   backendCaller: BackendCaller;
-  /** §6 가드레일 — DND/debounce/rate-limit 게이트 + cooldown verdict(순수). */
+  /** 가드레일 — DND/debounce/rate-limit 게이트 + cooldown verdict(순수). */
   guardrails: Guardrails;
   /** pump 주기(ms). default 16(rAF 대략). 테스트는 fake timer로 advance. */
   pumpIntervalMs?: number;
   /** 구조화 로깅(없으면 dispatcher namespace logger). */
   logger?: Logger;
-  /** 세션 압축 thunk(P7 main.ts에서 조립). 없으면 requestCompaction은 no-op. */
+  /** 세션 압축 thunk(main.ts에서 조립). 없으면 requestCompaction은 no-op. */
   compact?: (signal: AbortSignal) => Promise<CompactResult>;
   /** 현재 세션 id 해소. falsy면 압축할 세션이 없어 requestCompaction skip. */
   getSessionId?: () => string | undefined;
@@ -56,7 +57,7 @@ export type DispatcherState =
   | "compacting"
   | "stopped";
 
-/** §11 recent_drops 항목. */
+/** recent_drops 항목. */
 export interface DropRecord {
   seq_id?: number;
   event_name: string;
@@ -74,7 +75,7 @@ export const DROP_SEVERITY: Record<DropRecord["reason"], LogLevel> = {
   stale_pending: "info",
 };
 
-/** §11 in_flight_backend_call. */
+/** in_flight_backend_call. */
 export interface InFlightInfo {
   trigger: BusEnvelope;
   started_at: number;
@@ -84,13 +85,13 @@ export interface Dispatcher {
   state(): DispatcherState;
   /** sources 구독 + 처리 루프 시작 (booting → running). */
   start(): void;
-  /** 처리 루프 정지 + in-flight abort → stopped (§9). */
+  /** 처리 루프 정지 + in-flight abort → stopped. */
   stop(): void;
-  /** §11 현재 보류 큐 + bus 미처리분 스냅샷. */
+  /** 현재 보류 큐 + bus 미처리분 스냅샷. */
   queue(): BusEnvelope[];
-  /** §11 최근 n drop(reason 포함). */
+  /** 최근 n drop(reason 포함). */
   recentDrops(n?: number): DropRecord[];
-  /** §11 진행 중 backend call(없으면 null). */
+  /** 진행 중 backend call(없으면 null). */
   inFlight(): InFlightInfo | null;
   /** 세션 압축 요청을 래치한다. idempotent; 세션/compact 부재·이미 compacting·stopped면 no-op. */
   requestCompaction(): void;
@@ -107,8 +108,8 @@ interface Classification {
 }
 
 /**
- * §5.1 classify. MVP에서 다루는 event만 라우팅, 나머지는 drop(=no-op, MVP 범위 밖).
- * user.tap은 tier1 즉시 half만 구현(tier2 가드레일 half는 #25).
+ * classify. 다루는 event만 라우팅, 나머지는 drop(=no-op).
+ * user.tap은 tier1 즉시 half로 처리한다.
  */
 function classify(env: BusEnvelope): Classification {
   const n = env.event_name;
@@ -140,7 +141,7 @@ function classify(env: BusEnvelope): Classification {
 /**
  * tier1 event → render directive 매핑(로컬, backend 독립).
  *  - drag_start → motion "drag" 재생 / drag_end → idle 복귀(motion null).
- *  - user.tap / idle.returned → ambient cue (#10에서 정교화). MVP는 빈 directive(hold).
+ *  - user.tap / idle.returned → 빈 directive(hold).
  * 반환 null이면 render 안 함.
  */
 function tier1Directive(env: BusEnvelope): ControlEnvelope | null {
@@ -155,7 +156,7 @@ function tier1Directive(env: BusEnvelope): ControlEnvelope | null {
       return { speech_text: "", motion: null };
     case "user.tap":
     case "idle.returned":
-      // ambient cue는 #10 — 지금은 빈 directive(emotion/motion 미지정 = hold)로 seam만 둔다.
+      // 빈 directive(emotion/motion 미지정 = hold).
       return { speech_text: "" };
     default:
       return null;
@@ -175,9 +176,9 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   let state: DispatcherState = "booting";
   let timer: ReturnType<typeof setInterval> | null = null;
 
-  // 단일 in-flight backend call (§5.2: 1건만, 나머지 보류).
+  // 단일 in-flight backend call (1건만, 나머지 보류).
   let inFlight: { trigger: BusEnvelope; started_at: number; abort: AbortController } | null = null;
-  // 보류 tier2/3 (§5.2: 2건 이상이면 가장 오래된 것 drop).
+  // 보류 tier2/3 (2건 이상이면 가장 오래된 것 drop).
   const pending: BusEnvelope[] = [];
   const drops: DropRecord[] = [];
 
@@ -202,7 +203,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   /**
-   * §5.2 / §14: user.text_submitted 도착 → in-flight abort + 보류 tier2/3 전부 drop +
+   * user.text_submitted 도착 → in-flight abort + 보류 tier2/3 전부 drop +
    * bus에 아직 남아 있는 tier2/3도 sweep해 drop. tier1은 그대로 즉시 처리해 남긴다.
    * (bus는 우선순위 큐라 user가 먼저 pop되므로, 같은 pump의 후행 tier2/3까지 here에서 비운다.)
    */
@@ -266,7 +267,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     startBackendCall(pending.shift()!);
   }
 
-  /** tier2/3 enqueue: in-flight 비면 즉시 시작, 아니면 보류(2건 이상이면 oldest drop §5.2). */
+  /** tier2/3 enqueue: in-flight 비면 즉시 시작, 아니면 보류(2건 이상이면 oldest drop). */
   function enqueueBackend(env: BusEnvelope): void {
     // 압축 래치 중에는 새 턴을 절대 시작하지 않는다 — 보류만(BLOCKER 1).
     if (!inFlight && !compactionRequested) {
@@ -274,7 +275,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       return;
     }
     pending.push(env);
-    // §5.2: 2건 이상 보류 시 가장 오래된 것 drop(stale).
+    // 2건 이상 보류 시 가장 오래된 것 drop(stale).
     while (pending.length > 1) {
       recordDrop(pending.shift()!, "stale_pending");
     }
@@ -293,7 +294,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   /**
-   * §6.3/§9: dispatcher가 running ↔ cooldown 전이를 소유한다. guardrail은 verdict만 반환하고
+   * dispatcher가 running ↔ cooldown 전이를 소유한다. guardrail은 verdict만 반환하고
    * 전이에 관여하지 않으므로, 매 tick cooldownActive()를 폴링해 state를 동기화한다(진입/종료 함께).
    * compacting은 별개 게이트라 폴링 대상에서 제외한다(running ↔ cooldown만 동기화).
    */
@@ -362,22 +363,22 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   function handle(env: BusEnvelope): void {
-    // §6.4: DND 상태 갱신은 분류/평가 이전에 — note는 envelope→setDnd thin translator.
+    // DND 상태 갱신은 분류/평가 이전에 — note는 envelope→setDnd thin translator.
     guardrails.note(env);
 
-    // §5.2: user.text_submitted는 분류 전에 supersede를 먼저 적용한다.
+    // user.text_submitted는 분류 전에 supersede를 먼저 적용한다.
     if (env.event_name === "user.text_submitted") {
       supersedeByUser();
     }
 
     const { tier, target } = classify(env);
     if (target === "tier1") {
-      // tier1은 절대 게이트하지 않는다(§6.1 DND/cooldown 무관).
+      // tier1은 절대 게이트하지 않는다(DND/cooldown 무관).
       renderTier1(env);
       return;
     }
     if (target === "backend_caller") {
-      // §6.4: classify로 tier 획득 후 evaluate. drop이면 enqueue하지 않는다.
+      // classify로 tier 획득 후 evaluate. drop이면 enqueue하지 않는다.
       const verdict = guardrails.evaluate(env, tier);
       if (!verdict.pass) {
         recordDrop(env, verdict.reason);
@@ -387,7 +388,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       enqueueBackend(env);
       return;
     }
-    // target === "drop": MVP 범위 밖 event (no-op — bus가 이미 미지의 event_name은 거름).
+    // target === "drop": 다루지 않는 event (no-op — bus가 이미 미지의 event_name은 거름).
   }
 
   /**

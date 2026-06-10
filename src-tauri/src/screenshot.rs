@@ -1,4 +1,4 @@
-//! Screen-source enumeration and capture — issue #20 Stage 2 (native half).
+//! Screen-source enumeration and capture (native half).
 //!
 //! # Responsibilities
 //! - `list_screen_sources` command: enumerate displays via `xcap::Monitor::all()`.

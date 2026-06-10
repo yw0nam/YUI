@@ -1,18 +1,18 @@
 /**
- * Event bus — 모든 발화 후보 event의 단일 수집 지점. (PRD F6 / event-dispatcher.md §4)
+ * Event bus — 모든 발화 후보 event의 단일 수집 지점.
  *
- * §4.2 큐 정책:
+ * 큐 정책:
  *  - 자료구조: priority heap, key = (tier ASC, ts ASC), 동일 tier FIFO(삽입순).
  *  - 용량 100. 초과 시 우선순위 가장 낮은 항목부터 drop + onDrop 콜백/로그.
  *  - Bus drop 조건: schema invalid / 미지의 event_name / ts ±60s 벗어남.
  *
- * §4.3 우선순위(낮을수록 우선): user.* (0) < backend.push.* (1) <
+ * 우선순위(낮을수록 우선): user.* (0) < backend.push.* (1) <
  *   idle.* · time_milestone.* (2) < os.* (3) < internal (4).
  *
  * 본 모듈은 firing 채집 + 정렬만 한다 — tier 최종 결정/라우팅은 dispatcher 책임.
  */
 
-/** event_bus envelope (event-dispatcher.md §4.1). seq_id는 bus가 부여. */
+/** event_bus envelope. seq_id는 bus가 부여. */
 export interface BusEnvelope {
   /** bus가 부여 (monotonic). push 시점엔 비어 있어도 됨. */
   seq_id?: number;
@@ -22,14 +22,14 @@ export interface BusEnvelope {
     | "os_event_watcher"
     | "user_input_source"
     | "backend_push_source";
-  /** event-dispatcher.md §3 표의 event_name. ex: "time_milestone.morning". */
+  /** event_name. ex: "time_milestone.morning". */
   event_name: string;
   /** client epoch ms. */
   ts: number;
   payload?: Record<string, unknown>;
-  /** source 추정 tier. dispatcher가 최종 결정 (§4.1). */
+  /** source 추정 tier. dispatcher가 최종 결정. */
   hint_tier?: 1 | 2 | 3;
-  /** user-initiated만 true (DND/debounce 우회, §6.1). */
+  /** user-initiated만 true (DND/debounce 우회). */
   dnd_override?: boolean;
 }
 
@@ -43,9 +43,9 @@ export type BusDropReason =
 export interface EventBusOptions {
   /** drop 발생 시 콜백 (dev 로깅/관찰). */
   onDrop?: (env: BusEnvelope, reason: BusDropReason) => void;
-  /** 큐 용량. default 100 (§4.2). */
+  /** 큐 용량. default 100. */
   capacity?: number;
-  /** ts 허용 윈도우(ms). default 60_000 (±60s, §4.2). */
+  /** ts 허용 윈도우(ms). default 60_000 (±60s). */
   tsWindowMs?: number;
 }
 
@@ -54,12 +54,12 @@ export interface EventBus {
   push(env: BusEnvelope): boolean;
   /** dispatcher가 다음 처리 대상을 꺼냄 (tier ASC, ts ASC, FIFO). 비면 null. */
   pop(): BusEnvelope | null;
-  /** 현재 큐 스냅샷 (정렬되지 않은 raw 배열, dev inspection §11). */
+  /** 현재 큐 스냅샷 (정렬되지 않은 raw 배열, dev inspection). */
   snapshot(): BusEnvelope[];
 }
 
 /**
- * event_name → 우선순위 priority (§4.3). 낮을수록 먼저 pop.
+ * event_name → 우선순위 priority. 낮을수록 먼저 pop.
  * 미지의 prefix는 unknown_event_name으로 bus-drop되므로 여기 도달하지 않는다.
  */
 const KNOWN_PREFIXES: ReadonlyArray<{ prefix: string; priority: number }> = [

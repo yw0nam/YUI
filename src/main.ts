@@ -1,17 +1,15 @@
 /**
  * YUI bootstrap.
  *
- * 최종 그래프 (concept.md §0, event-dispatcher.md §2):
+ * 그래프:
  *   loadConfig() → createRenderer(mount) → createTier1Engine(renderer)
  *               → createEventBus() + createGuardrails()
  *               → createDispatcher({ bus, guardrails, renderer })
  *               → sources(timer/idle/user_input + Rust os_event) 구독 → dispatcher.start()
- *   io: streamChat(SSE) → express + 텍스트 스트림 → renderer / surfaces / tts-pipeline(#14).
+ *   io: streamChat(SSE) → express + 텍스트 스트림 → renderer / surfaces / tts-pipeline.
  *
- * 현재 = #4 renderer + UI surfaces 목업:
  *   - .yui-stage: 투명 캐릭터 무대(드래그 영역). renderer가 캔버스로 채운다.
  *   - .yui-ui:    오버레이 — 발화 말풍선·툴상태·텍스트 입력(invisible-by-default).
- *   실데이터(chat-client SSE / tts) 배선은 후속. 지금은 mock 드라이버가 surface를 구동한다.
  */
 
 import "./styles.css";
@@ -96,9 +94,8 @@ async function bootstrap(): Promise<void> {
   }
 
   // 루트(포지셔닝 컨텍스트) > 무대(드래그) + 오버레이(surfaces).
-  // 정밀 per-region hit-test는 #8/#9. 지금은 무대 = 드래그, 오버레이 = pointer 통과(입력만 예외).
-  // Note: data-tauri-drag-region removed — drag is handled via initDrag (Issue #9)
-  // so we get the gesture-stub seam and can apply per-region filtering later (#8).
+  // 무대 = 드래그, 오버레이 = pointer 통과(입력만 예외).
+  // Drag is handled via initDrag — gesture-stub seam allows per-region filtering.
   app.innerHTML = `
     <div class="yui-root">
       <div class="yui-stage"></div>
@@ -108,10 +105,10 @@ async function bootstrap(): Promise<void> {
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
 
   // Drag: pointerdown on stage → OS-native drag via Tauri IPC.
-  // onScaleChanged listener installed inside for DPI-change seam (Issue #9 F2).
+  // onScaleChanged listener installed inside for DPI-change seam.
   const cleanupDrag = await initDrag(stage);
 
-  // 마우스 휠로 캐릭터 스케일(#106): 클램프 경계·민감도는 io 상수, persist는 store가 소유.
+  // 마우스 휠로 캐릭터 스케일: 클램프 경계·민감도는 io 상수, persist는 store가 소유.
   // 드래그는 pointerdown만 쓰므로 wheel과 충돌하지 않는다(drag.ts).
   const onWheelZoom = (e: WheelEvent): void => {
     e.preventDefault();
@@ -133,14 +130,14 @@ async function bootstrap(): Promise<void> {
   }
 
   const renderer = createRenderer({ mount: stage });
-  // Tier 1 ambient(#10): backend 독립, 항상 ON. tick은 vrm 로드 후부터 발화하므로
+  // Tier 1 ambient: backend 독립, 항상 ON. tick은 vrm 로드 후부터 발화하므로
   // loadVRM 전에 start해도 안전 (vrm 없는 프레임은 no-op).
   const ambient = createTier1Engine(renderer);
   ambient.start();
   const surfaces = createSurfaces({ mount: root });
   const mock = createMockDriver(surfaces);
 
-  // 채팅 입력을 캐릭터 발밑에 붙인다(#106 reframe 추종). 매 프레임 발밑 화면좌표를 받아
+  // 채팅 입력을 캐릭터 발밑에 붙인다(reframe 추종). 매 프레임 발밑 화면좌표를 받아
   // 입력 하단 오프셋으로 매핑하되, epsilon 이하 변화는 건너뛰어 var 재기록을 줄인다.
   let lastInputBottom: number | null = null;
   const unsubAnchor = renderer.onTick(() => {
@@ -167,24 +164,24 @@ async function bootstrap(): Promise<void> {
   const proactiveSettings = createProactiveSettings({ storage: localStorageProactiveStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
-  // 세션 연속성(#128) store: 회전 id 포인터 + 진단(used/window/last-compression). 두 창이
+  // 세션 연속성 store: 회전 id 포인터 + 진단(used/window/last-compression). 두 창이
   // wireStorageSync로 동기화하므로 다른 store들과 함께 일찍 만든다(config/dispatcher 비의존).
   const sessionStore = createSessionStore(localStorageSessionStorage());
   const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
-  // 사용자 편집 엔드포인트 오버라이드(#95): localStorage가 bundled config를 덮는다(빈 값=폴백).
+  // 사용자 편집 엔드포인트 오버라이드: localStorage가 bundled config를 덮는다(빈 값=폴백).
   const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
   // config.endpoints 위에 오버라이드를 얹은 effective 엔드포인트. 호출 시점에 평가(핫리로드 친화).
   function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
     return mergeEndpoints(config.get().endpoints, endpointsSettings.get());
   }
-  // 카메라 줌(#106): persist된 배율을 부트 시 적용하고, 변경(휠/크로스윈도우)마다 렌더러로 흘린다.
+  // 카메라 줌: persist된 배율을 부트 시 적용하고, 변경(휠/크로스윈도우)마다 렌더러로 흘린다.
   const cameraSettings = createCameraSettings({ storage: localStorageCameraStorage() });
   renderer.setZoom(cameraSettings.get().zoom);
   cameraSettings.subscribe((s) => renderer.setZoom(s.zoom));
   const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
-  // foreground app/title 스냅샷(#18) — backend_caller가 매 요청에 env로 첨부. non-Tauri면 no-op.
+  // foreground app/title 스냅샷 — backend_caller가 매 요청에 env로 첨부. non-Tauri면 no-op.
   const osContext = createOsContext();
   void osContext.start();
   // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
@@ -255,7 +252,7 @@ async function bootstrap(): Promise<void> {
     }
     log.info("설정 변경 수신(별도 창) — 재로드");
   });
-  // VRM 선택 store + 스왑(#94). 펫 창은 renderer-backed: loadVRM 성공 시에만 store 커밋.
+  // VRM 선택 store + 스왑. 펫 창은 renderer-backed: loadVRM 성공 시에만 store 커밋.
   // config 로드 전이라 fallback default로 시작 — 패널이 일찍 필요하기 때문. config 로드 후
   // setManifest로 실제 available[]를 주입한다(아래 부트 시퀀스).
   const vrmSelection = createVrmSelection({
@@ -278,7 +275,7 @@ async function bootstrap(): Promise<void> {
   // 이 창에서 고른 VRM을 설정 창 UI에 반영하기 위해 cross-window로 알린다(루프 가드는 broadcastSettings).
   vrmSelection.subscribe(broadcastSettings);
 
-  // irodori 화자 선택 store(PR-B). config 로드 전이라 빈 fallback으로 시작 — 패널이 일찍
+  // irodori 화자 선택 store. config 로드 전이라 빈 fallback으로 시작 — 패널이 일찍
   // 필요하기 때문. config 로드 후 setManifest로 실제 irodori_voices·default를 주입한다.
   const speakerSelection = createSpeakerSelection({
     defaultId: "",
@@ -298,7 +295,7 @@ async function bootstrap(): Promise<void> {
     }
     speakerSelection.select(option.id);
   };
-  // 참조 음성 재등록(#103, PUT /voices) — 서버 측 force-refresh만, 화자 선택은 바꾸지 않는다.
+  // 참조 음성 재등록(PUT /voices) — 서버 측 force-refresh만, 화자 선택은 바꾸지 않는다.
   const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
     const f = await selectFetch();
     const eps = getEndpoints();
@@ -390,7 +387,7 @@ async function bootstrap(): Promise<void> {
     });
   }
 
-  // ── Dispatcher spine (#21) ────────────────────────────────────────────────
+  // ── Dispatcher spine ──────────────────────────────────────────────────────
   // event_bus → dispatcher → backend_caller → streamChat → Hermes → ControlEnvelope →
   // renderer.applyDirective. user.text_submitted가 이 루프를 구동한다.
   // bus/dispatcher는 config 로드 전에 만들어도 안전(엔드포인트는 backend_caller가 호출 시점에
@@ -470,7 +467,7 @@ async function bootstrap(): Promise<void> {
   }
   window.addEventListener("keydown", onKeydown);
 
-  // dev 전용: 스크린샷 검증 루프(#12)에서 직접 호출할 핸들.
+  // dev 전용: 스크린샷 검증 루프에서 직접 호출할 핸들.
   if (import.meta.env.DEV) {
     Object.assign(globalThis as Record<string, unknown>, {
       __yuiRenderer: renderer,
@@ -485,9 +482,9 @@ async function bootstrap(): Promise<void> {
       // DEV-ONLY 트리거: E2E 루프를 콘솔에서 직접 발사한다.
       //   window.__yui_send("안녕") → user.text_submitted → dispatcher → backend_caller →
       //   streamChat → Hermes → ControlEnvelope → renderer.applyDirective + 말풍선.
-      // 프로덕션 chat UI는 #18(mock-HTML 승인 게이트). 이건 검증용 임시 핸들이다.
+      // 검증용 임시 핸들.
       __yui_send: (text: string) => userInput.submit(text),
-      // dispatcher 관찰(§11): __yui_dispatcher.inFlight()/queue()/recentDrops().
+      // dispatcher 관찰: __yui_dispatcher.inFlight()/queue()/recentDrops().
       __yui_dispatcher: () => dispatcherRef,
       // DEV-ONLY 트리거: window_sit perch 진입/이탈을 콘솔에서 직접 발사한다.
       //   window.__yui_windowSit.enter() → user.window_sit_enter → dispatcher → renderer.
@@ -523,9 +520,9 @@ async function bootstrap(): Promise<void> {
     });
   }
 
-  // config-driven 로드 (#22, F8): configs/*.json → 검증된 AppConfig. endpoints/motions 등은
-  // dispatcher(#21)·tts(#14) 배선 시 소비. 지금은 avatar.vrm_url로 VRM을 띄운다.
-  // chat 키는 SecretProvider로 주입 — dev는 Vite env, prod/OSS는 keychain 구현으로 교체(concept §2.F).
+  // config-driven 로드: configs/*.json → 검증된 AppConfig. endpoints/motions 등은
+  // dispatcher·tts 배선 시 소비. avatar.vrm_url로 VRM을 띄운다.
+  // chat 키는 SecretProvider로 주입 — dev는 Vite env, prod/OSS는 keychain 구현으로 교체.
   // dispatcher가 streamChat 호출 시 `await config.secrets.get(CHAT_API_KEY_SECRET)`로 해소한다.
   const config = createConfigStore({
     secrets: plainSecretProvider({
@@ -615,7 +612,7 @@ async function bootstrap(): Promise<void> {
     Object.assign(globalThis as Record<string, unknown>, { __yuiSpeech: speechPlayback });
   }
 
-  // ── 세션 연속성(#128) ─────────────────────────────────────────────────────
+  // ── 세션 연속성 ───────────────────────────────────────────────────────────
   // 압축 클라이언트 + 토큰 점유 히스테리시스 트리거. compact thunk가 store들을 조립해
   // dispatcher에 넘긴다 — dispatcher는 store-agnostic이므로 rotation/진단/trigger 피드백은
   // 여기서 일어난다. session store들은 위에서 wireStorageSync 대상으로 일찍 만든다.
@@ -681,7 +678,7 @@ async function bootstrap(): Promise<void> {
   // dispatcher/guardrails는 config 로드 후 만든다(guardrails가 cfg.guardrails 수치를 필요로 함).
   try {
     const cfg = await config.load();
-    // §6 가드레일 — config 수치로 구성. dispatcher가 note+evaluate+cooldown polling으로 소비.
+    // 가드레일 — config 수치로 구성. dispatcher가 note+evaluate+cooldown polling으로 소비.
     const guardrails = createGuardrails(cfg.guardrails);
     guardrailsRef = guardrails;
     const dispatcher = createDispatcher({
@@ -724,7 +721,7 @@ async function bootstrap(): Promise<void> {
     // emotion/motion registry를 renderer에 주입 → setEmotion/playMotion(=applyDirective) 동작.
     renderer.setEmotionRegistry(cfg.emotionRegistry);
     renderer.setMotionRegistry(cfg.motions);
-    // 전신 fit-to-bounds framing knob 주입 (#106) — 첫 VRM 로드 전에 설정.
+    // 전신 fit-to-bounds framing knob 주입 — 첫 VRM 로드 전에 설정.
     renderer.setFraming(cfg.avatar.framing ?? {});
     // 실제 manifest 주입 후 부트 로드 → persist된 override가 시작 시점에 적용된다.
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
@@ -735,7 +732,7 @@ async function bootstrap(): Promise<void> {
     await loadVrmSerialized(vrmSelection.getActive().url);
     // config가 준비된 후에만 dispatcher를 가동(backend_caller가 config.get()에 의존).
     dispatcher.start();
-    // cowork tier2 소스(#24): presence+cadence로 proactive.cowork를 발사. cfg.sources의
+    // cowork tier2 소스: presence+cadence로 proactive.cowork를 발사. cfg.sources의
     // cadence/presence knob를 쓰고, proactiveSettings로 firing을 게이팅한다. dispatcher 가동 후
     // start — 발사가 즉시 소비되도록. teardown에서 dispatcher.stop()과 함께 stop.
     const coworkSource = createCoworkSource({
@@ -764,7 +761,7 @@ async function bootstrap(): Promise<void> {
     log.error("config load / VRM load failed:", err);
   }
 
-  // 유휴/배경 전이마다 압축 기회를 노린다(#128). requestCompaction은 idempotent —
+  // 유휴/배경 전이마다 압축 기회를 노린다. requestCompaction은 idempotent —
   // 세션 부재·이미 compacting·중복 발사를 dispatcher가 삼킨다. macOS 포커스 churn을
   // 막기 위해 1s 디바운스 가드를 둔다(performance.now 기준 — Date.now 의존 회피).
   const COMPACT_TRIGGER_DEBOUNCE_MS = 1000;
@@ -789,7 +786,7 @@ async function bootstrap(): Promise<void> {
     });
   }
 
-  // 핫리로드: avatar manifest가 바뀌면 setManifest로 갱신 후 active VRM 핫스왑(#4 핫스왑).
+  // 핫리로드: avatar manifest가 바뀌면 setManifest로 갱신 후 active VRM 핫스왑.
   // override-wins: config vrm_url 편집은 사용자의 localStorage 선택을 덮지 않는다(agent-settings와 동일).
   config.subscribe((cfg, changed) => {
     // emotion/motion registry 핫리로드 → renderer 재주입(즉시 반영).
@@ -814,7 +811,7 @@ async function bootstrap(): Promise<void> {
       });
     }
     if (!changed.has("avatar")) return;
-    // framing knob 핫리로드 (#106) — 핫스왑 재fit 전에 갱신.
+    // framing knob 핫리로드 — 핫스왑 재fit 전에 갱신.
     renderer.setFraming(cfg.avatar.framing ?? {});
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
     void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
@@ -822,7 +819,7 @@ async function bootstrap(): Promise<void> {
     );
   });
   config.onError((err) => log.error("config reload failed (이전 config 유지):", err));
-  // dev에서만 폴링 watcher 가동 — configs/*.json 편집 시 즉시 반영. prod는 #27에서 결정.
+  // dev에서만 폴링 watcher 가동 — configs/*.json 편집 시 즉시 반영.
   if (import.meta.env.DEV) {
     config.start();
     Object.assign(globalThis as Record<string, unknown>, { __yuiConfig: config });

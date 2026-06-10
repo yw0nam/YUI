@@ -1,12 +1,12 @@
 /**
- * OS context snapshot holder (#18).
+ * OS context snapshot holder.
  *
  * Subscribes to the Rust `os_event` IPC channel and keeps a mutable snapshot of
  * the foreground app + window title. backend-caller reads `get()` to auto-attach
  * `env.active_app` / `env.active_window_title` to every request.
  *
- * Read-side only: this does NOT push os events to the dispatcher (#24). The
- * snapshot holder is the seam #24 can later extend for firing.
+ * Read-side only: this does NOT push os events to the dispatcher. The
+ * snapshot holder is the seam that can later extend for firing.
  */
 
 import { createLogger } from "../logger";

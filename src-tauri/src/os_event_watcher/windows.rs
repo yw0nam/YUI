@@ -1,12 +1,12 @@
-//! Windows OS polling stubs — cfg-gated compile-only.
+//! Windows OS polling stubs — cfg-gated compile-only, not yet implemented.
 //!
-//! TODO: Implement using:
+//! A real implementation would use:
 //!   - `GetLastInputInfo` for OS-wide idle (winapi crate or raw FFI)
 //!   - `GetForegroundWindow` + `GetWindowTextW` for active window/title
 //!   - `SHQueryUserNotificationState` for fullscreen detection
 //!   - MF_CAPTURE_ENGINE for camera (best-effort)
 //!
-//! All functions must not panic; degrade gracefully per R11.
+//! All functions must not panic; degrade gracefully.
 
 use super::{emit_os_event, epoch_ms, OsEventData, OsEventPayload};
 use std::{thread, time::Duration};
@@ -15,7 +15,6 @@ use tauri::AppHandle;
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
 
 /// Spawns a no-op background polling thread.
-/// Replace with real implementation when Windows support is prioritised.
 pub fn start_polling(app: AppHandle) {
     thread::Builder::new()
         .name("os_event_watcher_win".into())

@@ -1,30 +1,30 @@
 /**
- * Contract barrel — docs/contract.md §1~§4 타입의 단일 진입점.
+ * Contract barrel — wire contract 타입의 단일 진입점.
  * 다른 모듈은 `import { ... } from "../contract"` 로 접근한다.
  */
 export type {
-  // §1 Emotion
+  // Emotion
   EmotionId,
   EmotionSignal,
   EmotionRegistryEntry,
   EmotionRegistry,
-  // §2 Motion
+  // Motion
   MotionKind,
   InterruptPolicy,
   MotionSignal,
   MotionRegistryEntry,
   MotionRegistry,
-  // §3 Control envelope
+  // Control envelope
   ExpressArgs,
   RichItem,
   ToolStatus,
   ControlEnvelope,
   Usage,
   SessionCompressionResponse,
-  // §4 Input context
+  // Input context
   ScreenSource,
   InputContext,
-  // §7.1 Dispatcher-layer metadata
+  // Dispatcher-layer metadata
   TriggerMeta,
   DispatcherStateMeta,
   // Endpoint config
