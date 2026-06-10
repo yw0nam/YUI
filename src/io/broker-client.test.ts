@@ -397,7 +397,7 @@ describe("deriveBrokerPayload", () => {
         drag: { vrma_path: "/motions/drag.vrma", kind: "reactive", loop: false, priority: 50, interrupt_policy: "replace" },
         happy: { vrma_path: "/motions/happy.vrma", kind: "oneshot", loop: false, priority: 60, interrupt_policy: "replace" },
         laughing: { vrma_path: "/motions/laughing.vrma", kind: "oneshot", loop: false, priority: 60, interrupt_policy: "replace" },
-        shy_point: { vrma_path: "/motions/shy_point.vrma", kind: "oneshot", loop: false, priority: 60, interrupt_policy: "replace" },
+        embarrassed: { vrma_path: "/motions/embarrassed.vrma", kind: "oneshot", loop: false, priority: 60, interrupt_policy: "replace" },
       },
     };
   }
@@ -407,10 +407,10 @@ describe("deriveBrokerPayload", () => {
     expect([...p.emotionIds].sort()).toEqual(["happy", "neutral"]);
   });
 
-  it("excludes reactive motions (drops drag, keeps idle/happy/laughing/shy_point)", () => {
+  it("excludes reactive motions (drops drag, keeps idle/happy/laughing/embarrassed)", () => {
     const p = deriveBrokerPayload(baseConfig("openai"), null);
     expect(p.motionIds).not.toContain("drag");
-    expect([...p.motionIds].sort()).toEqual(["happy", "idle", "laughing", "shy_point"]);
+    expect([...p.motionIds].sort()).toEqual(["embarrassed", "happy", "idle", "laughing"]);
   });
 
   it("provider openai → emotion text free + null table", () => {
