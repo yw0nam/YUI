@@ -4,6 +4,7 @@ import {
   buildDevUrl,
   isValidPort,
   resolvePort,
+  resolveVitePort,
   tauriConfigArg,
 } from "../scripts/dev-port.mjs";
 
@@ -67,6 +68,28 @@ describe("resolvePort scanning", () => {
     await expect(
       resolvePort({ env: {}, isPortFree, base: 1420, maxScan: 5 }),
     ).rejects.toThrow(/1420/);
+  });
+});
+
+describe("resolveVitePort", () => {
+  it("defaults to 1420 when YUI_DEV_PORT is unset", () => {
+    expect(resolveVitePort({})).toBe(1420);
+  });
+
+  it("treats an empty YUI_DEV_PORT as unset and defaults to 1420", () => {
+    expect(resolveVitePort({ YUI_DEV_PORT: "" })).toBe(1420);
+  });
+
+  it("returns a valid YUI_DEV_PORT", () => {
+    expect(resolveVitePort({ YUI_DEV_PORT: "1737" })).toBe(1737);
+  });
+
+  it("throws on a present but invalid YUI_DEV_PORT", () => {
+    for (const bad of ["0", "70000", "-5", "8080.9", "abc"]) {
+      expect(() => resolveVitePort({ YUI_DEV_PORT: bad })).toThrow(
+        /Invalid YUI_DEV_PORT/,
+      );
+    }
   });
 });
 
