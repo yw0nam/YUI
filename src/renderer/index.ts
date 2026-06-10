@@ -1,16 +1,16 @@
 /**
- * Renderer — three.js + @pixiv/three-vrm 출력 레이어. (PRD F1 / concept.md §2.A)
+ * Renderer — three.js + @pixiv/three-vrm 출력 레이어.
  *
- * 현재 구현 범위 = #4 VRM 로드 + 핫스왑:
+ * VRM 로드 + 핫스왑:
  *  - three.js scene/camera/light + rAF 루프 (vrm.update).
- *  - VRMLoaderPlugin으로 VRM 로드, VRMUtils 최적화, 투명 배경(펫 창 #7).
+ *  - VRMLoaderPlugin으로 VRM 로드, VRMUtils 최적화, 투명 배경(펫 창).
  *  - loadVRM 재호출 = 핫스왑 (기존 모델 deepDispose 후 교체).
  *
- * applyDirective(#16a render-wiring): ControlEnvelope의 emotion/motion 채널을 setEmotion(#6)/
- *   playMotion(#5)로 라우팅(contract §3). 순수 dispatch는 ./apply-directive.
+ * applyDirective: ControlEnvelope의 emotion/motion 채널을 setEmotion/
+ *   playMotion으로 라우팅. 순수 dispatch는 ./apply-directive.
  *
- * 근거: three-vrm 3.x 공식 예제(GLTFLoader.register(VRMLoaderPlugin) → gltf.userData.vrm,
- *       VRMUtils.removeUnnecessaryVertices/combineSkeletons/combineMorphs, deepDispose).
+ * three-vrm 3.x 공식 경로(GLTFLoader.register(VRMLoaderPlugin) → gltf.userData.vrm,
+ *   VRMUtils.removeUnnecessaryVertices/combineSkeletons/combineMorphs, deepDispose).
  */
 
 import * as THREE from "three";
@@ -57,7 +57,7 @@ import { createLogger } from "../logger";
 
 const log = createLogger("renderer");
 
-/** Default fit-to-bounds framing (#106) — overridden by configs/avatar.json. */
+/** Default fit-to-bounds framing — overridden by configs/avatar.json. */
 const DEFAULT_FRAMING_MARGIN = 0.1;
 const DEFAULT_FRAMING_FOV = 30;
 
@@ -80,7 +80,7 @@ export interface RendererOptions {
   mount: HTMLElement;
   /**
    * motion registry (configs/motions.json). 주입하면 playMotion이 동작한다.
-   * 없으면 playMotion은 warn 후 no-op (#4 단독 동작 유지). setMotionRegistry로 나중에 주입 가능.
+   * 없으면 playMotion은 warn 후 no-op. setMotionRegistry로 나중에 주입 가능.
    */
   motionRegistry?: MotionRegistry;
   /**
@@ -88,7 +88,7 @@ export interface RendererOptions {
    * 없으면 setEmotion은 warn 후 no-op. setEmotionRegistry로 나중에 주입 가능.
    */
   emotionRegistry?: EmotionRegistry;
-  /** Initial fit-to-bounds framing (#106); live path is setFraming. Omitted keys keep defaults. */
+  /** Initial fit-to-bounds framing; live path is setFraming. Omitted keys keep defaults. */
   framing?: { margin?: number; fov?: number };
 }
 
@@ -106,21 +106,21 @@ export interface TickContext {
 export type TickFn = (ctx: TickContext) => void;
 
 export interface Renderer {
-  /** VRM 로드 또는 핫스왑 (#4). 기존 모델이 있으면 새 모델 준비 후 dispose하고 교체. */
+  /** VRM 로드 또는 핫스왑. 기존 모델이 있으면 새 모델 준비 후 dispose하고 교체. */
   loadVRM(url: string): Promise<void>;
   /**
-   * 프레임 훅 등록 (#10 ambient 등). vrm.update(dt) **직전에** 호출되며,
+   * 프레임 훅 등록. vrm.update(dt) **직전에** 호출되며,
    * currentVrm이 있을 때만 발화한다. 등록 해제 함수를 반환.
    */
   onTick(fn: TickFn): () => void;
   /**
-   * contract.md §3 렌더 규약대로 render directive 적용 (#16a render-wiring half).
-   * emotion → setEmotion(#6) (present만, 없으면 hold/no-op), motion → playMotion(#5)
+   * 렌더 규약대로 render directive 적용.
+   * emotion → setEmotion (present만, 없으면 hold/no-op), motion → playMotion
    * (없거나 null이면 idle 복귀). 순수 라우팅은 ./apply-directive routeDirective가 담당.
    */
   applyDirective(env: ControlEnvelope): void;
   /**
-   * emotion → expression GPU 크로스페이드 전이 (#6).
+   * emotion → expression GPU 크로스페이드 전이.
    * registry가 주입돼 있고 VRM이 로드된 경우에만 동작.
    * emotion === null이면 NO-OP(직전 표정 유지). neutral 복귀는 명시적 {id:"neutral"}만.
    */
@@ -137,13 +137,13 @@ export interface Renderer {
    */
   setEmotionRegistry(registry: EmotionRegistry): void;
   /**
-   * 립싱크 입 벌림 목표 설정 (#15, PRD D1 amplitude-only). value는 [0,1]로 clamp되며
+   * 립싱크 입 벌림 목표 설정 (amplitude-only). value는 [0,1]로 clamp되며
    * 매 프레임 `aa` 프리셋으로 부드럽게(lerp) 반영된다. blink/lookAt/emotion 키는 건드리지 않는다.
    */
   setMouthOpen(value: number): void;
   /** 립싱크 정지 — 입을 0(닫힘)으로 ease한다. */
   stopMouth(): void;
-  /** motion registry 조회 후 VRMA 재생 (#5). registry가 주입돼 있어야 동작. */
+  /** motion registry 조회 후 VRMA 재생. registry가 주입돼 있어야 동작. */
   playMotion(motion: MotionSignal | null): void;
   /**
    * motion registry 주입(또는 교체). 주입 시 MotionController를 (재)생성하고,
@@ -151,12 +151,12 @@ export interface Renderer {
    */
   setMotionRegistry(registry: MotionRegistry): void;
   /**
-   * Fit-to-bounds framing 갱신 (#106). 주어진 키만 현재 framing 위에 merge하고
+   * Fit-to-bounds framing 갱신. 주어진 키만 현재 framing 위에 merge하고
    * (생략 키는 기본값 유지) VRM이 로드돼 있으면 즉시 재fit한다.
    */
   setFraming(framing: { margin?: number; fov?: number }): void;
   /**
-   * Mouse-wheel zoom 배율 설정 (#106). fit 거리에 곱해지는 factor (>1 ⇒ 더 가까이 ⇒ 더 크게).
+   * Mouse-wheel zoom 배율 설정. fit 거리에 곱해지는 factor (>1 ⇒ 더 가까이 ⇒ 더 크게).
    * 비유한/동일 값은 no-op. 클램프·persist는 호출자(src/io + main.ts)가 담당한다.
    */
   setZoom(z: number): void;
@@ -225,7 +225,7 @@ export interface MouthLipsync {
 }
 
 /**
- * Pure amplitude lip-sync mouth driver (#15, PRD D1 — no viseme).
+ * Pure amplitude lip-sync mouth driver (no viseme).
  * Owns ONLY the `aa` preset; never touches blink/lookAt/emotion keys.
  * No-ops when the model lacks `aa`. Frame-rate handling is the caller's dt.
  */
@@ -254,23 +254,23 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setClearColor(0x000000, 0); // 투명 배경 — 펫 창(#7)에서 캐릭터만 보이게.
+  renderer.setClearColor(0x000000, 0); // 투명 배경 — 펫 창에서 캐릭터만 보이게.
   mount.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
 
-  // Seed framing; fitCamera overrides position/fov from the model bounding box (#106).
+  // Initial framing; fitCamera overrides position/fov from the model bounding box.
   const camera = new THREE.PerspectiveCamera(DEFAULT_FRAMING_FOV, 1, 0.1, 20);
   camera.position.set(0, 1.3, 1.6);
   camera.lookAt(new THREE.Vector3(0, 1.3, 0));
 
-  // Fit-to-bounds state (#106): full-body framing recomputed on load/swap/resize.
+  // Fit-to-bounds state: full-body framing recomputed on load/swap/resize.
   let modelBox: THREE.Box3 | undefined;
   let framing = {
     margin: options.framing?.margin ?? DEFAULT_FRAMING_MARGIN,
     fov: options.framing?.fov ?? DEFAULT_FRAMING_FOV,
   };
-  // Mouse-wheel zoom factor on top of the fit distance (#106): >1 ⇒ closer ⇒ bigger.
+  // Mouse-wheel zoom factor on top of the fit distance: >1 ⇒ closer ⇒ bigger.
   // Bounds/persistence live in src/io + main.ts (setZoom just applies). Default 1 = exact fit.
   let zoom = 1;
 
@@ -317,7 +317,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
   let currentVrm: VRM | undefined;
 
-  // ── Motion playback 상태 (#5) ──────────────────────────────────────────────
+  // ── Motion playback 상태 ──────────────────────────────────────────────
   let motionRegistry: MotionRegistry | undefined = options.motionRegistry;
   let controller: MotionController | undefined = motionRegistry
     ? createMotionController(motionRegistry)
@@ -335,12 +335,12 @@ export function createRenderer(options: RendererOptions): Renderer {
   /** cycle 모션의 variant swap 전 dwell(정착 프레임 유지) 스케줄러 — startMotion이 취소 chokepoint. */
   const cycleDwell = createCycleDwell();
 
-  // ── Lipsync 상태 (#15) ──────────────────────────────────────────────────────
+  // ── Lipsync 상태 ──────────────────────────────────────────────────────
   // 입(`aa`)은 lipsync 전용 — ambient/emotion와 분리. emotion crossfade와 같은
   // update 경로(vrm.update 직전)에서 매 프레임 lerp 반영한다.
   const mouth = createMouthLipsync();
 
-  // ── Emotion 상태 (#6) ──────────────────────────────────────────────────────
+  // ── Emotion 상태 ──────────────────────────────────────────────────────
   let emotionRegistry: EmotionRegistry | undefined = options.emotionRegistry;
   let emotionResolver: EmotionResolver | undefined;
   /** 현재 VRM 기준 expression 존재 술어 (핫스왑마다 재계산). */
@@ -396,7 +396,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    fitCamera(); // re-fit on resize so width-bound framing stays correct (#106).
+    fitCamera(); // re-fit on resize so width-bound framing stays correct.
   }
   resize();
   const ro = new ResizeObserver(resize);
@@ -474,7 +474,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     scene.remove(currentVrm.scene);
     VRMUtils.deepDispose(currentVrm.scene);
     currentVrm = undefined;
-    modelBox = undefined; // drop stale bounds so fitCamera no-ops until next load (#106).
+    modelBox = undefined; // drop stale bounds so fitCamera no-ops until next load.
   }
 
   /**
@@ -666,7 +666,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     // Cache the hips bone for the per-frame perch pin (avoids per-frame lookups).
     perchHipsBone = vrm.humanoid?.getNormalizedBoneNode("hips") ?? null;
 
-    // Full-body fit-to-bounds (#106): measure in rest pose, before idle animates the arms.
+    // Full-body fit-to-bounds: measure in rest pose, before idle animates the arms.
     vrm.scene.updateWorldMatrix(true, true);
     modelBox = new THREE.Box3().setFromObject(vrm.scene);
     fitCamera();
@@ -726,8 +726,8 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   /** setEmotion 구현 — resolve → 현재 blend에서 retarget → 크로스페이드 시작. */
   function setEmotion(emotion: EmotionSignal | null): void {
-    // contract §1 "emotion 없으면 직전 표정 유지" — null은 NO-OP.
-    // 오직 명시적 {id:"neutral"}만 neutral로 전이한다. (CRITICAL 비회귀)
+    // "emotion 없으면 직전 표정 유지" — null은 NO-OP.
+    // 오직 명시적 {id:"neutral"}만 neutral로 전이한다.
     if (emotion === null) return;
 
     if (!emotionResolver || !emotionRegistry) {
@@ -813,7 +813,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       };
     },
     applyDirective(env) {
-      // route emotion/motion into setEmotion(#6)/playMotion(#5) per contract.md §3 render rules.
+      // route emotion/motion into setEmotion/playMotion per render rules.
       routeDirective(env, { setEmotion, playMotion });
     },
     setEmotion,

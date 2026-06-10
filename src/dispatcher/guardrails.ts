@@ -1,14 +1,14 @@
 /**
- * Guardrails — DND / debounce / rate-limit. (PRD F7 / event-dispatcher.md §6)
+ * Guardrails — DND / debounce / rate-limit.
  *
- * 평가 순서(§6.4 INTENT): DND → debounce → rate-limit. dispatcher wiring 순서는
+ * 평가 순서: DND → debounce → rate-limit. dispatcher wiring 순서는
  * supersede → classify(tier) → evaluate(env, tier) → route. dnd_override는 evaluate
  * 최상단에서 short-circuit — user-initiated 턴은 모든 게이트를 우회하며 어떤 카운터도 증가시키지 않는다.
  *
- *  - DND(§6.1): Fullscreen / Camera / Active-app blocklist / Manual 4 trigger 중 하나라도 ON이면 DND_ON.
+ *  - DND: Fullscreen / Camera / Active-app blocklist / Manual 4 trigger 중 하나라도 ON이면 DND_ON.
  *               note()는 envelope → setDnd 호출로 옮기는 thin translator(상태는 setDnd가 소유).
- *  - Debounce(§6.2): per source window. now() − lastFire[source] < window면 drop.
- *  - Rate-limit(§6.3): per tier rolling window. 슬롯은 발사(=pass) 시 소비, 환불 없음.
+ *  - Debounce: per source window. now() − lastFire[source] < window면 drop.
+ *  - Rate-limit: per tier rolling window. 슬롯은 발사(=pass) 시 소비, 환불 없음.
  *               전체 overall_max 초과 시 cooldownUntil 설정(진입/종료 전이는 dispatcher가 소유).
  *
  * 평가 함수는 순수(verdict만 반환) — dispatcher state를 mutate하지 않고 dispatcher 참조도 없다.
@@ -45,7 +45,7 @@ export interface Guardrails {
   setDnd(reason: DndReason, on: boolean): void;
   /** envelope → 최대 1회 setDnd 호출로 옮기는 thin translator(DND 상태 갱신). */
   note(env: BusEnvelope): void;
-  /** §6.4 순서로 한 event를 평가. pass=false면 drop. pass 시에만 debounce/rate state mutate. */
+  /** 순서대로 한 event를 평가. pass=false면 drop. pass 시에만 debounce/rate state mutate. */
   evaluate(env: BusEnvelope, tier: 1 | 2 | 3): GuardResult;
   /** overall-cap 초과로 진입한 cooldown이 아직 유효한지(now < cooldownUntil). */
   cooldownActive(): boolean;
@@ -164,7 +164,7 @@ export function createGuardrails(
       return { pass: false, reason: "guardrail_drop", detail: "cooldown" };
     }
 
-    // 4) debounce: source별 윈도우. timer_scheduler는 N/A(자체 1회) → window 0(디바운스 없음, §6.2).
+    // 4) debounce: source별 윈도우. timer_scheduler는 N/A(자체 1회) → window 0(디바운스 없음).
     const window = (config.debounce_ms as Record<Source, number>)[env.source] ?? 0;
     const last = lastFire.get(env.source);
     if (window > 0 && last !== undefined && now() - last < window) {

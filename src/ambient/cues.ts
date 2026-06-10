@@ -1,5 +1,5 @@
 /**
- * Tier 1 ambient — 순수 cue 수학. (event-dispatcher.md §8, PRD F5)
+ * Tier 1 ambient — 순수 cue 수학.
  *
  * 여기 함수는 전부 **부수효과 없는 순수 함수**다 — VRM/DOM/시계에 의존하지 않는다.
  * 시간(ms/s)·rng를 받아 0..1 / -1..1 정규화 값을 돌려준다. 실제 bone/expression
@@ -9,14 +9,14 @@
  */
 
 // ── 상수 (스펙) ──
-export const BLINK_MIN_MS = 3000; // PRD F5: blink 평균 3~6초 랜덤
+export const BLINK_MIN_MS = 3000; // blink 평균 3~6초 랜덤
 export const BLINK_MAX_MS = 6000;
-export const BLINK_DURATION_MS = 150; // §8: eye pulse 150ms
-export const BREATH_PERIOD_S = 4; // §8: 4s 주기
-export const LOOK_MIN_MS = 30_000; // §8: look_around 30~120s
+export const BLINK_DURATION_MS = 150; // eye pulse 150ms
+export const BREATH_PERIOD_S = 4; // 4s 주기
+export const LOOK_MIN_MS = 30_000; // look_around 30~120s
 export const LOOK_MAX_MS = 120_000;
-export const TAP_BOB_MS = 220; // §8: tap_react head bob ~200ms
-export const IDLE_RETURNED_MS = 900; // §8: idle_returned 살짝 위 시선
+export const TAP_BOB_MS = 220; // tap_react head bob ~200ms
+export const IDLE_RETURNED_MS = 900; // idle_returned 살짝 위 시선
 
 /** 결정성/테스트를 위해 rng 주입 가능 (기본 Math.random). */
 export type Rng = () => number;

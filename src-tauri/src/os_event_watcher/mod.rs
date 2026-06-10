@@ -1,12 +1,12 @@
 //! OS event watcher — Tauri main(Rust) side OS API access.
 //!
 //! Polls active app, window title, OS-wide idle, and fullscreen state, then
-//! emits `os_event` IPC events to the webview per the §10 handoff contract.
+//! emits `os_event` IPC events to the webview.
 //!
 //! Platform support:
 //!   macOS  — fully implemented (NSWorkspace, CGEventSource, CGWindowList)
-//!   Windows — cfg-gated compile-only stubs (TODO)
-//!   Android — cfg-gated no-op degrade (R11)
+//!   Windows — cfg-gated compile-only stub, not yet implemented
+//!   Android — cfg-gated no-op degrade
 //!   other  — idle-source error emitted, no panic
 
 use serde::Serialize;
@@ -18,7 +18,7 @@ pub const OS_EVENT_CHANNEL: &str = "os_event";
 /// Channel for the drag-drop release signal emitted after `start_dragging()`.
 pub const WINDOW_DROP_RELEASE_CHANNEL: &str = "window_drop_release";
 
-/// `os_event` channel payload — event-dispatcher.md §10 "Rust → Webview" handoff.
+/// `os_event` channel payload — "Rust → Webview" handoff.
 #[derive(Debug, Clone, Serialize)]
 pub struct OsEventPayload {
     /// "active_app_changed" | "window_focus_changed" | "fullscreen_entered"
@@ -29,7 +29,7 @@ pub struct OsEventPayload {
     pub data: OsEventData,
 }
 
-/// §10 `data` block — all fields optional; each event_name populates different fields.
+/// `data` block — all fields optional; each event_name populates different fields.
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct OsEventData {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -70,7 +70,7 @@ pub fn sanitise_window_title(raw: &str) -> Option<String> {
     if s.is_empty() { None } else { Some(s) }
 }
 
-/// Emits one OS event to the webview (fire-and-forget, §10).
+/// Emits one OS event to the webview (fire-and-forget).
 pub fn emit_os_event(app: &AppHandle, payload: OsEventPayload) -> tauri::Result<()> {
     let result = app.emit(OS_EVENT_CHANNEL, payload);
     if let Err(e) = &result {
@@ -140,7 +140,7 @@ pub fn start(app: &AppHandle) {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         // Unsupported platform: emit one idle-source-error tick so the webview
-        // knows the source is in error state (R11 / §13 degraded recovery).
+        // knows the source is in error state (degraded recovery).
         let app = app.clone();
         std::thread::spawn(move || {
             // Emit a single error indicator and then exit — no panic.

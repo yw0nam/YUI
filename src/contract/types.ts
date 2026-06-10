@@ -1,22 +1,19 @@
 /**
- * YUI ↔ Hermes contract — TypeScript types.
+ * YUI ↔ Hermes contract — TypeScript types. 이 타입이 wire 스키마의 source of truth다.
  *
- * 원천(source of truth): docs/contract.md §1~§4. 이 파일은 그 스키마를 TS로 옮긴 것이며,
- * 임의로 필드를 추가/변경하지 않는다. 스키마가 바뀌면 contract.md를 먼저 고친다.
- *
- * 전송 규약 요지(contract.md §Endpoint, §3 / prd.md D-TRANSPORT/D-SPEECH):
+ * 전송 규약 요지:
  *  - 제어신호(emotion_id/motion_id/emotion_text)는 서버사이드 `generate_express` tool-call의
- *    arguments로 도착 (flat 문자열 인자, D-NO-SPEAK-GATE: should_speak 없음).
+ *    arguments로 도착 (flat 문자열 인자, should_speak 없음).
  *  - 발화 텍스트는 tool-call이 아니라 별도 assistant 텍스트 스트림(response.output_text.delta).
  *  - generate_express·emotion은 둘 다 optional — 없는 턴은 idle + 직전 표정 유지.
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §1. Emotion Vocabulary
+// Emotion Vocabulary
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * backend가 turn마다 보낼 수 있는 emotion enum (contract.md §1).
+ * backend가 turn마다 보낼 수 있는 emotion enum.
  * 표준 6종은 VRM 1.0 preset 그대로, 확장 4종은 fallback 체인으로 매핑.
  */
 export type EmotionId =
@@ -40,7 +37,7 @@ export interface EmotionSignal {
 }
 
 /**
- * configs/emotion_registry.json 한 항목 (contract.md §1 "매핑").
+ * configs/emotion_registry.json 한 항목.
  * emotion enum → VRM expression 키 + fallback 체인. 최종 fallback은 항상 "neutral".
  */
 export interface EmotionRegistryEntry {
@@ -53,7 +50,7 @@ export interface EmotionRegistryEntry {
 export type EmotionRegistry = Partial<Record<EmotionId, EmotionRegistryEntry>>;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §2. Motion Registry
+// Motion Registry
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type MotionKind = "ambient" | "reactive" | "state" | "oneshot";
@@ -71,20 +68,17 @@ export interface MotionSignal {
 }
 
 /**
- * configs/motions.json 한 항목 (contract.md §2). registry가 priority/interrupt의 진실의 원천 —
+ * configs/motions.json 한 항목. registry가 priority/interrupt의 진실의 원천 —
  * backend는 ID 문자열만 알면 된다.
- *
- * [D-MOTION-VARIANTS] variants / variant_policy는 v0 클라이언트 사이드 확장.
- * contract.md §2 반영은 Docs 에이전트 담당.
  */
 export interface MotionRegistryEntry {
   /** VRMA 파일 경로 (Vite public → "/motions/<id>.vrma"). variants 사용 시 기본/대표 경로(=variants[0]). */
   vrma_path: string;
-  /** NEW(D-MOTION-VARIANTS): 2개 이상의 VRMA 풀. 있으면 클라이언트가 entry마다 한 개를 골라 재생(variant_policy). 없으면 vrma_path 단일 사용. */
+  /** 2개 이상의 VRMA 풀. 있으면 클라이언트가 entry마다 한 개를 골라 재생(variant_policy). 없으면 vrma_path 단일 사용. */
   variants?: string[];
-  /** NEW: variants가 있을 때 선택 정책. default "random". */
+  /** variants가 있을 때 선택 정책. default "random". */
   variant_policy?: "random" | "sequential";
-  /** NEW: cycle 모션이 다음 variant로 swap하기 전 마지막(정착) 프레임을 유지할 ms. 없으면/0이면 즉시 swap. variants>1 + loop 필요. */
+  /** cycle 모션이 다음 variant로 swap하기 전 마지막(정착) 프레임을 유지할 ms. 없으면/0이면 즉시 swap. variants>1 + loop 필요. */
   cycle_dwell_ms?: number;
   /** entry-level default crossfade ms — signal이 fade_ms를 생략할 때 쓰인다. 없으면 200으로 폴백. */
   fade_ms?: number;
@@ -100,13 +94,13 @@ export interface MotionRegistryEntry {
 export type MotionRegistry = Record<string, MotionRegistryEntry>;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §3. Control Signal Envelope
+// Control Signal Envelope
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * `generate_express` tool-call의 arguments = transport 페이로드 (contract.md §3).
+ * `generate_express` tool-call의 arguments = transport 페이로드.
  * FLAT 문자열 인자 — 이것만이 실제로 wire를 타는 제어 필드다. 전부 optional이며
- * generate_express 없는 턴은 비어 있다. should_speak 없음(D-NO-SPEAK-GATE):
+ * generate_express 없는 턴은 비어 있다. should_speak 없음:
  * 침묵 = speech_text == "".
  */
 export interface ExpressArgs {
@@ -118,7 +112,7 @@ export interface ExpressArgs {
   emotion_text?: string;
 }
 
-/** rich_content 항목 (contract.md §3). MVP는 텍스트 마크다운으로 렌더 — 구조화 카드는 P2. */
+/** rich_content 항목. 텍스트 마크다운으로 렌더. */
 export type RichItem =
   | { kind: "image"; url: string; alt?: string }
   | { kind: "link"; url: string; title: string; desc?: string }
@@ -173,12 +167,12 @@ export interface ToolStatus {
 }
 
 /**
- * client 내부 정규화 형태 (contract.md §3). express arguments + 텍스트 스트림 + 네이티브
+ * client 내부 정규화 형태. express arguments + 텍스트 스트림 + 네이티브
  * function_call 관찰을 합친 render directive 입력. wire 스키마가 아니라 client가 재구성하는 형태.
  */
 export interface ControlEnvelope {
   // --- generate_express tool-call arguments (있을 때만) ---
-  // should_speak 없음 (D-NO-SPEAK-GATE): 침묵 = speech_text == "".
+  // should_speak 없음: 침묵 = speech_text == "".
   emotion?: EmotionSignal | null;
   motion?: MotionSignal | null;
   /** generate_express.emotion_text — TTS voice tag 자유 텍스트. backend-caller가 onEmotionText로 라우팅. */
@@ -191,10 +185,10 @@ export interface ControlEnvelope {
   // --- Hermes 네이티브 tool function_call item 관찰로 도출 ---
   tool_status?: ToolStatus | null;
 
-  /** P2. MVP는 발화 텍스트의 마크다운으로 인라인 렌더. */
+  /** 발화 텍스트의 마크다운으로 인라인 렌더. */
   rich_content?: RichItem[];
 
-  /** v0에서 전부 무시 (contract.md §3 렌더 규약 6). */
+  /** v0에서 전부 무시. */
   _reserved?: {
     expression_frames?: unknown[];
     visemes?: unknown[];
@@ -202,10 +196,10 @@ export interface ControlEnvelope {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §4. Input Context Schema (client → backend)
+// Input Context Schema (client → backend)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** 캡처 소스 (contract.md §4). 사용자가 monitor / browser tab / window 중 선택. */
+/** 캡처 소스. 사용자가 monitor / browser tab / window 중 선택. */
 export type ScreenSource =
   | { kind: "monitor"; index: number; label?: string }
   | { kind: "browser_tab"; browser: string; tab_title: string; url?: string }
@@ -244,7 +238,7 @@ export interface InputContext {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §7.1 Dispatcher-layer metadata (event-dispatcher.md §7.1)
+// Dispatcher-layer metadata
 // dispatcher가 backend 호출 시 input_context 위에 wire에서 덧싣는 메타데이터.
 // InputContext 안이 아니라 그 위에 layered.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -265,10 +259,10 @@ export interface DispatcherStateMeta {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Endpoint config (contract.md §Endpoint abstraction)
+// Endpoint config
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** configs/endpoints.json (contract.md §Endpoint). chat/stt/tts 세 base URL은 서로 다른 프로세스. */
+/** configs/endpoints.json. chat/stt/tts 세 base URL은 서로 다른 프로세스. */
 export interface EndpointsConfig {
   /**
    * Hermes API root (SSH 터널, 예: `http://localhost:8643/v1`). openai SDK가 이 뒤에 `/responses`를
@@ -288,7 +282,7 @@ export interface EndpointsConfig {
   chat_instructions?: string;
   /**
    * Hermes chat 모델 ID (OpenAI Responses `model` 파라미터). 예: "natsume" (Hermes `/v1/models`).
-   * PRD F8: 모델 ID는 config 소관(하드코딩 금지). 미설정 시 streamChat은 model을 생략한다 —
+   * 모델 ID는 config 소관(하드코딩 금지). 미설정 시 streamChat은 model을 생략한다 —
    * model을 강제하는 backend엔 4xx가 날 수 있다(prod config는 반드시 설정).
    */
   chat_model?: string;

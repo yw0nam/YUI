@@ -1,5 +1,5 @@
 /**
- * Inline markdown renderer — MVP scope: links and images only.
+ * Inline markdown renderer — links and images only.
  *
  * [text](url) → <a href="url" target="_blank" rel="noopener noreferrer">
  * ![alt](url) → <img src="url" alt="alt" loading="lazy">
@@ -30,7 +30,7 @@ function escapeHtml(str: string): string {
 }
 
 /**
- * Renders MVP inline markdown (links + images) into a <span> container.
+ * Renders inline markdown (links + images) into a <span> container.
  * The returned element is ready to be appended to the DOM.
  */
 export function renderMarkdownInline(text: string): HTMLSpanElement {

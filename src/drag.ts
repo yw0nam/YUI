@@ -1,17 +1,16 @@
 /**
- * Drag + multi-monitor / DPI glue — F2 §drag+multimonitor (Issue #9, M1).
+ * Drag + multi-monitor / DPI glue.
  *
  * # What this module does
  * - `initDrag(el)` — attaches a `pointerdown` listener to the given EventTarget
  *   (typically `.yui-stage`). On primary left-button press:
  *     1. Invokes the Rust `drag_window` command via Tauri IPC — the OS takes
  *        over and moves the window natively, no JS position tracking needed.
- *     2. Fires a `__yui_gesture_stub` CustomEvent on the element — this is the
- *        seam for the dispatcher (#21) to hook gesture events without modifying
- *        drag logic. The dispatcher does NOT exist yet; do not wire it here.
+ *     2. Fires a `__yui_gesture_stub` CustomEvent on the element — the gesture
+ *        seam for the dispatcher to hook without modifying drag logic.
  *   Installs an `onScaleChanged` listener that logs DPI changes when the window
- *   moves across monitors.  This is a no-op in M1 but keeps the seam open for
- *   re-centering / UI adjustment at a higher DPI.
+ *   moves across monitors, keeping the seam open for re-centering / UI
+ *   adjustment at a higher DPI.
  *   Returns a cleanup function that removes all listeners.
  *
  * - `invokeDragWindow()` / `invokeGetMonitorsInfo()` — thin Tauri IPC wrappers,
@@ -27,12 +26,8 @@
  * the window crosses monitor boundaries — we do NOT need to reposition manually
  * after a drag.
  *
- * The `onScaleChanged` listener below is where we would re-center or snap if
- * needed; for now it is intentionally a logged no-op.
- *
- * # Deferred (Issue #21)
- * The `__yui_gesture_stub` event is the hook point for the dispatcher to consume
- * click/pet-gesture events. Do NOT implement dispatcher wiring here.
+ * The `onScaleChanged` listener below is where re-centering or snapping would
+ * hook; it is a logged no-op.
  */
 
 import { invoke } from "@tauri-apps/api/core";
@@ -136,8 +131,8 @@ export function clampToWorkArea(
  */
 export async function initDrag(el: EventTarget): Promise<() => void> {
   // Tauri-only: getCurrentWindow() / onScaleChanged / invoke() require the Tauri
-  // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface,
-  // PRD G7) there is no window IPC, and getCurrentWindow() throws. Skip gracefully
+  // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface)
+  // there is no window IPC, and getCurrentWindow() throws. Skip gracefully
   // so bootstrap (renderer + dispatcher) still runs. Drag is a no-op in the browser.
   if (!(globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
     log.debug("non-Tauri environment — drag disabled (no-op).");
@@ -146,15 +141,14 @@ export async function initDrag(el: EventTarget): Promise<() => void> {
 
   const win = getCurrentWindow();
 
-  // ── scale-change listener (DPI seam for M2+) ──────────────────────────────
+  // ── scale-change listener (DPI seam) ──────────────────────────────────────
   // When the window moves to a display with a different scale factor, Tauri
-  // emits this event. M1: log only. M2+: hook here for re-centering / UI
-  // density adjustments.
+  // emits this event. Logs only; the seam for re-centering / UI density
+  // adjustments hooks here.
   const unlistenScale = await win.onScaleChanged(({ payload }) => {
     log.debug(
       `scale changed → ${payload.scaleFactor} (size ${payload.size.width}×${payload.size.height})`,
     );
-    // TODO(M2+): notify layout system of DPI change if needed.
   });
 
   // ── pointerdown handler ────────────────────────────────────────────────────
@@ -163,9 +157,9 @@ export async function initDrag(el: EventTarget): Promise<() => void> {
     const buttons = (e as PointerEvent).buttons ?? 0;
     if (buttons !== 1) return;
 
-    // ── Dispatcher seam — TODO(#21): dispatcher wiring goes here ─────────────
-    // The dispatcher module does not exist yet. We fire a stub event so that
-    // issue #21 can hook into gesture detection without modifying drag logic.
+    // ── Dispatcher seam ──────────────────────────────────────────────────────
+    // Fire a stub event so the dispatcher can hook gesture detection without
+    // modifying drag logic.
     el.dispatchEvent(new CustomEvent("__yui_gesture_stub", { bubbles: false }));
 
     // ── OS-native drag ────────────────────────────────────────────────────────

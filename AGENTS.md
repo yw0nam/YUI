@@ -20,7 +20,7 @@ Load Karpathy Guideline.
 - **Sub-agent-based development.** Implementation is delegated to specialist agents in [Sub-agent Roster](#sub-agent-roster). **The main agent does not implement** — it focuses on requirements clarification, task delegation, verification, and orchestration.
 - **Verify what you can verify before asking the user.** Anything observable (UI rendering / DOM state / logs) — verify yourself. Ask the user to confirm **only** things that genuinely require them (audio playback, physical input feel).
 - **Comments: minimal, present-tense only.** No decision-history / spec-citation / issue-number breadcrumbs in code comments. Comment only what the code cannot say itself, in one line.
-- **Docs: current-state only.** Write what the system *is*, declaratively. No change-narrative — no "was X, now Y", no "제거/대체/축소/supersede/더 이상/이전엔/추가했다/이제", no PR/issue numbers as prose. Decision-log and changelog entries keep their dated rows, but each cell states the **current rule**, not the act of changing it.
+- **Docs: current-state only.** Write what the system *is*, declaratively, matching the code. No change-narrative — no "was X, now Y", no "제거/대체/축소/supersede/더 이상/이전엔/추가했다/이제", no PR/issue numbers as prose, no dated decision-logs or changelogs. **Do not document future/unbuilt work in docs** — planned features and follow-ups live only in GitHub issues. Docs describe the present implementation; issues hold the future.
 
 ## Sub-agent Roster
 
@@ -121,7 +121,7 @@ Chat and STT use the **OpenAI-compatible API**; TTS depends on `tts_provider` (i
 
 - **`docs/contract.md`** — Source of truth for TS types (Emotion / Motion / Control envelope / Input context / Endpoints)
 - **`docs/motions.md`** — Motion catalog: every `configs/motions.json` id with description, playback policy, and source clip
-- **`docs/prd.md`** — Features + decision log + milestones
+- **`docs/prd.md`** — Current feature reference + backend dependencies
 - **`docs/event-dispatcher.md`** — Dispatcher component design
 - **`docs/concept.md`** — Big picture + non-goals
 

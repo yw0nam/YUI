@@ -1,7 +1,7 @@
 /**
- * 현재 선택된 VRM을 소유하는 reactive 스토어 (#94 모델 스왑 P2).
+ * 현재 선택된 VRM을 소유하는 reactive 스토어.
  * 선택은 AvatarOption.id(안정 키)로 persist한다 — url이 아님.
- * 렌더러 스왑은 하지 않는다(P4 소관). 선택 상태 보유 + 영속화 + active 옵션 해석만 담당.
+ * 렌더러 스왑은 하지 않는다. 선택 상태 보유 + 영속화 + active 옵션 해석만 담당.
  */
 
 import type { AvatarOption } from "../config/load";

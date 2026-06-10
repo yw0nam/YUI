@@ -1,7 +1,7 @@
-# Expression Broker (MCP) — 설계 스펙
+# Expression Broker (MCP) — 스펙
 
-> **상태:** v0 설계 확정 — 구현 시작 가능. E2E(실제 Hermes 스트림)는 [#1](https://github.com/yw0nam/YUI/issues/1)에서 검증.
-> **레포:** **독립 레포** — YUI에도 Hermes에도 속하지 않는 별도 서비스. 둘 다 이 broker의 MCP client로 붙는다.
+> **클라이언트:** YUI의 broker MCP client는 구현돼 있다(`src/io/broker-client.ts`, `src/io/broker-client.test.ts`). YUI는 부팅 시·VRM 핫스왑 시 렌더 가능한 emotion/motion/emotion_text 어휘를 broker에 publish한다. `broker_base_url`이 설정돼 있지 않으면 publish는 skip한다.
+> **레포:** broker는 독립 레포의 라이브 서비스(`yw0nam/tts_express_broker`)다 — YUI에도 Hermes에도 속하지 않는다. 둘 다 이 broker의 MCP client로 붙는다.
 
 ## 0. 한 줄 요약
 
@@ -53,7 +53,7 @@ emotion/motion **어휘(vocabulary)의 단일 진실원천(SOT)** 이자, agent�
 ```
 
 - **emotion_ids** = VRM blendshape(얼굴) id. contract.md §1 enum 10종이 기본값. **TTS엔 안 쓰임.**
-- **motion_ids** = VRMA(몸) registry key. broker가 노출하는 agent-callable 집합은 `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance`. `broker_publish: false`인 entry(`sit`)와 client 내부 전용 모션(`idle` ambient baseline, `drag` reactive pickup)은 model이 고르지 않으므로 제외.
+- **motion_ids** = VRMA(몸) registry key. broker가 노출하는 agent-callable 집합은 `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance`. `kind:reactive`(`drag`)·`broker_publish:false`(`sit`, `window_sit`)·`kind:ambient` baseline(`idle`)은 model이 고르지 않으므로 제외.
 - **TTS 태그(emotion_text)는 hard 검증 어휘에 두지 않는다.** 어휘는 **이모지 태그 집합**이다(아래 §4 표). 자유 텍스트라(이모지 반복으로 강도 표현, 조합 가능) hard enum이 아니므로 broker는 검증/강제하지 않는다. broker가 이 이모지 목록을 *advisory 힌트*로 노출할 수는 있다(§3.4 `update_tts_tags`, optional).
 
 ## 3. MCP Surface
@@ -125,7 +125,7 @@ async def update_emotion_ids(ids: list[str], ctx: Context) -> dict:
 | 필드 | 대상 | 채널 | 타입 | 소유/검증 |
 |---|---|---|---|---|
 | `emotion_id` | **얼굴** (VRM blendshape) | 표정 | enum (10종) | broker hard 검증, 미등록 drop |
-| `motion_id` | **몸** (VRMA gesture) | 모션 | registry key (4종) | broker hard 검증, 미등록 drop |
+| `motion_id` | **몸** (VRMA gesture) | 모션 | registry key (8종) | broker hard 검증, 미등록 drop |
 | `emotion_text` | **목소리** (TTS 제어) | voice 태그 | **이모지 어휘** (자유 텍스트, 아래 표) | 검증 없음, model이 직접 생성 |
 | 발화 텍스트 | 자막/TTS 본문 | **별도 텍스트 스트림** | `output_text.delta` | **`generate_express`에 없음** (D-SPEECH) |
 
@@ -133,7 +133,7 @@ async def update_emotion_ids(ids: list[str], ctx: Context) -> dict:
 - `emotion_text` 예시: `"😏"`, `"🥺🥺"`, `"😆🎵"`. **문장은 넣지 않는다** (발화는 텍스트 스트림). YUI는 이 태그를 TTS 큐의 해당 분절 **맨 앞에 prepend**(D-TTS-PIPELINE step 4) — prefix-only라 말풍선엔 안 들어간다. 두 TTS provider(openai/irodori, contract §5)가 같은 채널을 쓴다.
 - 셋 다 optional. 전부 생략된 `generate_express`는 의미 없으므로 model은 보통 최소 하나를 채운다.
 
-### `emotion_text` 이모지 어휘 (renderable vocabulary, PR-A)
+### `emotion_text` 이모지 어휘 (renderable vocabulary)
 broker가 브로커링하는 `emotion_text` 어휘는 아래 이모지 집합이다. **같은 이모지를 반복하면 강도가 세진다**(예: `🥺` → `🥺🥺`), 조합도 가능. broker는 이를 advisory hint로만 노출하고 **검증/강제는 안 한다**(§3.1) — 모델이 직접 생성, YUI가 TTS 분절 prefix로 소비.
 
 | Emoji | 의미 | | Emoji | 의미 |
@@ -174,30 +174,15 @@ broker가 브로커링하는 `emotion_text` 어휘는 아래 이모지 집합이
 
 ⚠ **`response.completed`의 최종 `output[]`엔 function_call이 빠진다 — 진행 중(`...arguments.done`)에 캡처 필수.** (contract.md §3와 동일.)
 
-## 6. 결정/검증 필요 사항
+## 6. 런타임 계약
 
-**구현 전 잠가야 할 결정:**
-- [x] **구현 언어** — Python ✅
-- [x] **transport** — `streamable-http` ✅
-- [x] **firing tool 이름** — `generate_express` ✅ contract.md §3의 `express`→이 이름으로 일괄 갱신.
-- [x] **render 미세 파라미터** — flat 3필드 shape ✅(D1). contract의 `intensity/transition_ms/loop/speed/fade_ms`를 버린다 → client 기본값만 적용. (후속에 필요 시 nested로 확장.)
+broker는 Python `FastMCP`로 구현된 라이브 서비스다 — `streamable-http` transport, `broker_base_url` 기본 `http://localhost:3201/mcp`(`configs/endpoints.json`에 둠, no-hardcoding). YUI는 이 broker의 MCP client다.
 
-### 결정 로그 (확정)
-
-> broker는 라이브 서비스다 (레포 `yw0nam/tts_express_broker`, v1.27.2, `http://localhost:3201/mcp`, streamable-http). 아래 D1–D6은 YUI를 broker MCP client로 연결하는 계약을 정의한다 — client측 emotion_id→emoji 매핑은 두지 않는다.
-
-- **D1 — generate_express shape:** flat 3필드 `{emotion_id?, motion_id?, emotion_text?}`로 고정. contract의 미세 파라미터(intensity/transition_ms/loop/speed/fade_ms)는 버리고 client 기본값을 적용한다. *근거: 최소 계약 표면, 후속 확장 가능.*
-- **D2 — emotion_text producer = Model A (agent 생성, broker 게이트):** Hermes agent가 broker가 publish한 `enum` 표에서 이모지/토큰을 골라 emotion_text를 생성하고, broker가 enum 게이트한다. YUI는 emotion_id→emoji 매핑을 하지 않고 emotion_text를 주입하지도 않는다 — (a) 표를 publish하고 (b) 스트림에 도착한 emotion_text를 TTS 분절 prefix로 소비할 뿐(`src/io/tts-pipeline.ts` 기구현). **따라서 YUI 어디에도 emotion_id→emoji 매핑이 없다.** *주의(cross-team E2E): D2는 Hermes agent가 실제로 emoji emotion_text를 emit해야 성립 — #1/#2에서 추적.*
-- **D3 — emoji 표 소유 = YUI `configs/`, provider 조건부:** YUI가 canonical irodori emoji→meaning 표를 `configs/`에 소유한다(no-hardcoding; 본 스펙상 어휘 owner는 YUI). broker의 39-entry `DEFAULT_EMOTION_TEXT_MAP`과 정렬되도록 seed한다. provider 조건: `tts_provider==="irodori"` ⇒ YUI가 `update_emotion_text("enum", <table>)`; `openai-compatible`/fishspeech ⇒ `update_emotion_text("free", null)`.
-- **D4 — broker-down degrade:** broker가 다운돼도 YUI는 부팅·동작해야 한다 — best-effort publish, 경고 로그, 부팅 차단 금지. broker 상태는 in-memory & ephemeral이므로 YUI는 매 부팅 + 재연결 시 재-publish한다.
-- **D5 — YUI MCP client:** YUI에 streamable-http MCP client(`@modelcontextprotocol/sdk`)를 추가한다. `broker_base_url`은 `configs/endpoints.json`에 둔다(라이브 포트 **3201**; broker README의 기본 8000과 다름 — config 우선, no-hardcoding). YUI는 WRITER라 resource를 subscribe하지 않고 boot/hot-swap/reconnect 시 `update_*`만 호출한다.
-- **D6 — publish 타이밍:** boot(설정 로드 후 1회) + VRM 핫스왑 + broker 재연결. emotion ids ← `configs/emotion_registry.json`, motion ids ← `configs/motions.json`, emoji 표 ← `configs/`의 emoji 파일.
+- **generate_express shape:** flat 3필드 `{emotion_id?, motion_id?, emotion_text?}`. render 미세 파라미터(intensity/transition_ms/loop/speed/fade_ms)는 두지 않고 client 기본값을 적용한다.
+- **emotion_text producer = agent, gate = broker:** Hermes agent가 broker가 publish한 `enum` 표에서 이모지/토큰을 골라 emotion_text를 생성하고, broker가 enum 게이트한다. YUI는 emotion_id→emoji 매핑을 하지 않고 emotion_text를 주입하지도 않는다 — (a) 표를 publish하고 (b) 스트림에 도착한 emotion_text를 TTS 분절 prefix로 소비할 뿐(`src/io/tts-pipeline.ts`). YUI 어디에도 emotion_id→emoji 매핑은 없다.
+- **emoji 표 소유 = YUI `configs/`, provider 조건부:** YUI가 canonical irodori emoji→meaning 표를 `configs/emotion_text/irodori.json`에 소유한다(no-hardcoding). `tts_provider==="irodori"` ⇒ YUI가 `update_emotion_text("enum", <table>)`; `openai-compatible`/fishspeech ⇒ `update_emotion_text("free", null)`.
+- **broker-down degrade:** broker가 다운돼도 YUI는 부팅·동작한다 — best-effort publish, 경고 로그, 부팅 차단 없음. `broker_base_url`이 설정돼 있지 않으면 publish 전체를 skip한다. broker 상태는 in-memory & ephemeral이라 YUI는 매 부팅 + 재연결 시 재-publish한다.
+- **YUI MCP client:** streamable-http MCP client(`@modelcontextprotocol/sdk`). YUI는 WRITER라 resource를 subscribe하지 않고 boot/hot-swap/reconnect 시 `update_*`만 호출한다.
+- **publish 타이밍:** boot(설정 로드 후 1회) + VRM 핫스왑 + broker 재연결. emotion ids ← `configs/emotion_registry.json`, motion ids ← `configs/motions.json`(`kind:reactive`와 `broker_publish:false` 제외 → `drag`/`sit`/`window_sit` 제외), emoji 표 ← `configs/emotion_text/irodori.json`.
 
 > **broker enum 게이트:** broker는 `emotion_text_mode`/`update_emotion_text` **enum 게이트**를 제공한다 — `mode="free"`(pass-through, table=null) 또는 `mode="enum"`(표 키만 허용; 미등록 토큰 drop + 경고, 발화 미차단; multi-codepoint emoji를 greedy 토크나이즈). `get_ids()`는 `emotion_text_mode`/`emotion_text_map`/`version`도 반환한다. **emotion_text 어휘 규칙은 provider별로 [`tts_emotion/`](./tts_emotion/)에 둔다**(irodori=enum, openai-compatible/fishspeech=free).
-
-**Hermes에서 E2E 검증(#1):**
-- [ ] Hermes agent가 MCP server(streamable-http)를 tool source로 붙이는가.
-- [ ] `generate_express` function_call이 `/v1/responses` 스트림에 **arguments까지** 실려 뜨는가(`output_item.added → arguments.done`).
-- [ ] 안 부르는 턴(표현 전환 없음)에 idle + 직전 표정 유지되는가.
-- [ ] resource subscription(`expression://vocabulary` 변경 통지)을 Hermes/YUI가 수신하는가.
-- [ ] broker down 시 degrade: Hermes는 baked-in 기본 enum으로, YUI는 broker 없이도 동작(어휘 publish만 skip).

@@ -1,22 +1,21 @@
 /**
- * Backend caller — B1–B5 호출 시퀀스. (PRD F6 / event-dispatcher.md §7.2)
+ * Backend caller — B1–B5 호출 시퀀스.
  *
  * tier2/3 event를 backend judgment로 보낸다. firing≠judgment 경계의 backend 쪽:
- * 말할지/무엇을은 backend가 발화 텍스트 발신 여부로 표현한다(D-NO-SPEAK-GATE: 침묵 = speech_text "").
+ * 말할지/무엇을은 backend가 발화 텍스트 발신 여부로 표현한다(should_speak 플래그 없음: 침묵 = speech_text "").
  *
- *  B1 package_context — contract.md §4 InputContext 조립(user_text + env.timestamp +
+ *  B1 package_context — InputContext 조립(user_text + env.timestamp +
  *     env.timezone). active_app/window은 getOsContext 스냅샷이 있을 때만 best-effort로 첨부.
  *  B2 POST — io/chat-client.streamChat(config, req, { fetch, apiKey }). SSE는 chat-client가
- *     소유 — 여기서 직접 파싱하지 않는다. AbortSignal로 in-flight abort(§12).
- *  B3 parse — chat-client의 `completed` 이벤트가 이미 ControlEnvelope를 조립해 준다(§3).
+ *     소유 — 여기서 직접 파싱하지 않는다. AbortSignal로 in-flight abort.
+ *  B3 parse — chat-client의 `completed` 이벤트가 이미 ControlEnvelope를 조립해 준다.
  *     completed 미수신 → parse_error.
- *  B4 speech gate — speech_text가 비어있지 않을 때만 발화(D-NO-SPEAK-GATE). 빈 텍스트 = 침묵,
+ *  B4 speech gate — speech_text가 비어있지 않을 때만 발화(should_speak 플래그 없음). 빈 텍스트 = 침묵,
  *     별도 플래그 없음. emotion/motion은 침묵과 무관하게 렌더.
  *  B5 dispatch_to_renderer — renderer.applyDirective(envelope) + speech_text→onSpeech +
  *     emotion_text→onEmotionText + tool_status→onToolStatus(main.ts에서 TTS/UI로 흘린다).
  *
- * §7.3 silent drop 분류: parse_error(WARN) / network_drop(WARN).
- * 본 MVP는 retry/timeout 정교화(§7.2 B2 retry x1, 5s/30s)는 seam만 두고 단순화한다(#21 spine).
+ * silent drop 분류: parse_error(WARN) / network_drop(WARN).
  */
 
 import { streamChat, type ChatRequest } from "../io/chat-client";
@@ -40,22 +39,22 @@ const baseLog = createLogger("backend_caller");
 /** proactive 턴(user_text 없음)의 user 메시지 마커 — 빈 문자열 대신 명시적 신호. */
 const PROACTIVE_MARKER = "(proactive: co-working check-in)";
 
-/** §10 Dispatcher → Backend Caller 출력: { ok, drop_reason? }. */
+/** Dispatcher → Backend Caller 출력: { ok, drop_reason? }. */
 export interface BackendCallResult {
   ok: boolean;
   drop_reason?: DropReason;
 }
 
 export interface BackendCallerDeps {
-  /** chat endpoint config (contract §Endpoint). */
+  /** chat endpoint config. */
   config: EndpointsConfig;
-  /** render directive sink (#16a applyDirective). */
+  /** render directive sink (applyDirective). */
   renderer: Pick<Renderer, "applyDirective">;
   /** Hermes 인증 키 해소(SecretProvider). 없으면 무인증 placeholder. */
   getApiKey: () => Promise<string | undefined>;
   /** transport fetch 선택(selectFetch). Tauri=cors-fetch, dev=undefined. */
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
-  /** 발화 텍스트 sink — main.ts가 말풍선 + TTS 파이프라인(#14)으로 연결한다. delta-less backend용 fallback. */
+  /** 발화 텍스트 sink — main.ts가 말풍선 + TTS 파이프라인으로 연결한다. delta-less backend용 fallback. */
   onSpeech?: (text: string) => void;
   /** 발화 토큰 증분 sink — speech_delta마다 호출(스트리밍 TTS). main.ts가 말풍선 누적 + 파이프라인 구동으로 연결. */
   onSpeechDelta?: (text: string) => void;
@@ -67,11 +66,11 @@ export interface BackendCallerDeps {
   onSpeechAbort?: () => void;
   /** 토글 ON일 때 화면 캡처 블록을 조립해 반환(OFF/실패면 undefined). main.ts가 settings+capturer+buildScreenshotBlock로 합성. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
-  /** 현재 foreground app/title 스냅샷(#18). present 시 env.active_app/active_window_title을 채운다. */
+  /** 현재 foreground app/title 스냅샷. present 시 env.active_app/active_window_title을 채운다. */
   getOsContext?: () => import("../io/os-context").OsContextSnapshot | undefined;
   /** emotion_text(TTS voice tag) sink — present 시에만 호출. main.ts에서 TTS 파이프라인(speechPlayback.setEmotionText)에 배선됨. */
   onEmotionText?: (text: string) => void;
-  /** tool_status sink — present 시에만 호출. main.ts 배선은 후속(이 PR 비대상). */
+  /** tool_status sink — present 시에만 호출. */
   onToolStatus?: (status: ToolStatus) => void;
   /** 현재 Hermes session id 조회 — present 시 X-Hermes-Session-Id 헤더로 흘린다. 매 턴 호출(rotation 반영). */
   getSessionId?: () => string | undefined;
@@ -112,9 +111,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   const log = deps.logger ?? baseLog;
 
   /**
-   * B1: contract §4 InputContext 조립.
+   * B1: InputContext 조립.
    * active_app / active_window_title는 getOsContext 스냅샷이 있을 때만 best-effort로 채운다(없으면 생략).
-   * screenshot은 토글 ON일 때만 getScreenshot 포트로 첨부(#20). 캡처 실패는 턴을 깨뜨리지 않는다 — 로그 후 스크린샷 없이 진행.
+   * screenshot은 토글 ON일 때만 getScreenshot 포트로 첨부. 캡처 실패는 턴을 깨뜨리지 않는다 — 로그 후 스크린샷 없이 진행.
    */
   async function packageContext(env: BusEnvelope): Promise<InputContext> {
     const userText = userTextOf(env);
@@ -144,7 +143,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   /**
    * InputContext → OpenAI Responses input (user 발화는 user 메시지로 인코딩).
    *
-   * system 힌트는 §7.1 layered shape `{ input_context, trigger, dispatcher_state }`.
+   * system 힌트는 layered shape `{ input_context, trigger, dispatcher_state }`.
    *   - input_context: InputContext에서 screenshot.data_url을 뺀 사본(큰 base64는 USER
    *     content-part로만 싣는다 — 힌트엔 cheap한 screenshot meta만 남긴다).
    *   - trigger: firing envelope 메타(source/event_name/ts, seq_id present 시).
@@ -208,7 +207,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const input = encodeInput(ctx, env);
     log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 
-    // B2: fetch/apiKey 해소 후 streamChat. externalSignal을 그대로 전달(abort 위임, §12).
+    // B2: fetch/apiKey 해소 후 streamChat. externalSignal을 그대로 전달(abort 위임).
     let apiKey: string | undefined;
     let fetchImpl: typeof globalThis.fetch | undefined;
     try {
@@ -225,7 +224,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       return { ok: false, drop_reason: "superseded_by_user" };
     }
 
-    // §12: in-flight fetch는 AbortController로 정리한다. 외부 signal(dispatcher의
+    // in-flight fetch는 AbortController로 정리한다. 외부 signal(dispatcher의
     // supersede abort)을 내부 컨트롤러에 링크해 항상 단일 signal을 streamChat에 넘긴다.
     const ac = new AbortController();
     if (externalSignal) {
@@ -308,7 +307,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     }
 
     // B5(render half): emotion/motion은 침묵과 무관하게 적용한다.
-    //   firing≠judgment: silence(speech_text "")는 *발화*만 게이팅한다(§7.2/§3).
+    //   firing≠judgment: silence(speech_text "")는 *발화*만 게이팅한다.
     try {
       deps.renderer.applyDirective(envelope);
       log.debug("dispatch_to_renderer", {
@@ -332,7 +331,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       deps.onToolStatus?.(envelope.tool_status);
     }
 
-    // B4(speech gate, D-NO-SPEAK-GATE): speech_text가 비어있지 않을 때만 발화.
+    // B4(speech gate, should_speak 플래그 없음): speech_text가 비어있지 않을 때만 발화.
     //   빈 텍스트 = 침묵 — 별도 플래그/판정 없음, drop_reason도 없음.
     if (streamedAny) {
       // 스트리밍 경로: delta로 이미 발화를 구동했으니 종료만 알린다(onSpeech 호출 X).

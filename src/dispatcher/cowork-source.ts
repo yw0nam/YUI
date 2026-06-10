@@ -1,5 +1,5 @@
 /**
- * cowork_source — co-working presence+cadence firing source. (#24 Step 6)
+ * cowork_source — co-working presence+cadence firing source.
  *
  * Subscribes to the shared `os_event` channel, reads bare `os_idle_tick`, and
  * fires `proactive.cowork` (tier2) on a presence+cadence state machine: the user

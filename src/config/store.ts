@@ -1,5 +1,5 @@
 /**
- * Config store — loadConfig 위에 reactive 스냅샷 + 핫리로드를 얹는다. (PRD F8 acceptance)
+ * Config store — loadConfig 위에 reactive 스냅샷 + 핫리로드를 얹는다.
  *
  * 책임:
  *  - 최초 load() 후 검증된 AppConfig 스냅샷 보관 → get().
@@ -9,11 +9,11 @@
  *    잘못된 편집(ConfigError)은 **현재 config를 유지**하고 onError로만 통지한다 → 편집 실수가
  *    실행 중 앱을 깨지 않는다.
  *
- * 민감값(API 키) 정책(concept.md §2.F): SecretProvider는 reload 시 재바인딩되지만, 이미 만들어진
- * 클라이언트의 런타임 교체는 강제하지 않는다 — **다음 호출부터** 새 값이 반영된다(PRD F8).
+ * 민감값(API 키) 정책: SecretProvider는 reload 시 재바인딩되지만, 이미 만들어진
+ * 클라이언트의 런타임 교체는 강제하지 않는다 — **다음 호출부터** 새 값이 반영된다.
  *
  * 파일 감시 방식: 의존성 0의 **폴링**(재fetch + section별 직렬화 비교). dev(vite 정적 서빙)·Tauri
- * webview 양쪽에서 추가 플러그인 없이 동작한다. 패키징(#27) 단계에서 Tauri fs-watch로 교체 가능 —
+ * webview 양쪽에서 추가 플러그인 없이 동작한다. Tauri fs-watch로 교체 가능 —
  * 구독/스냅샷 계약은 그대로 두고 트리거만 바꾸면 된다.
  */
 

@@ -1,20 +1,19 @@
 /**
- * Config loader — configs/*.json 로더 + 검증. (PRD F8 / concept.md §2.F, contract.md §Endpoint)
+ * Config loader — configs/*.json 로더 + 검증.
  *
- * config-driven 원칙(concept.md §1): API 엔드포인트 / 모델 / VRM 경로 / 모션셋을 하드코딩하지 않는다.
- * OSS 단계에서 API 키는 평문 config 대신 OS keychain(Tauri secure storage)로 — concept.md §2.F.
+ * config-driven 원칙: API 엔드포인트 / 모델 / VRM 경로 / 모션셋을 하드코딩하지 않는다.
+ * OSS 단계에서 API 키는 평문 config 대신 OS keychain(Tauri secure storage)로.
  *
- * 로드 대상(YUI 루트 configs/, vite dev는 `/configs/*`로 서빙 — vite.config.ts):
+ * 로드 대상(YUI 루트 configs/, vite dev는 `/configs/*`로 서빙):
  *  - endpoints.json          → EndpointsConfig (chat/stt/tts base url + chat endpoint)
- *  - avatar.json             → AvatarConfig (vrm_url, #4)
+ *  - avatar.json             → AvatarConfig (vrm_url)
  *  - emotion_registry.json   → EmotionRegistry (emotion id → vrm_expression + fallback)
  *  - motions.json            → MotionRegistry (id → vrma_path + 재생 정책)
  *
  * 이 파일은 순수 로드 + 검증만 담당한다(부수효과 없음, reader 주입 가능 → 테스트). 핫리로드/
  * 구독은 store.ts(createConfigStore)가 이 loadConfig를 감싸 제공한다.
  *
- * ⚠ PRD F8은 "단일 config.toml/.json" 아이디어로 적혀 있으나, 실제 합의된 contract(AGENTS.md ·
- *   configs/*.json · contract.md)는 도메인별 분리 파일이다. 구현은 분리 파일을 따른다.
+ * 합의된 contract는 도메인별 분리 파일이다. 구현은 분리 파일을 따른다.
  */
 
 import type {
@@ -32,7 +31,7 @@ import type {
 // Config 타입 (contract 파생 + loader 전용)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** 선택 가능한 VRM 한 개 (#94 모델 스왑 manifest 항목). */
+/** 선택 가능한 VRM 한 개 (모델 스왑 manifest 항목). */
 export interface AvatarOption {
   /** 안정 키 (예: "carlotta"). 선택 상태 영속화에 쓰임. */
   id: string;
@@ -40,37 +39,37 @@ export interface AvatarOption {
   label: string;
   /** vrm_url과 동일 의미 — vite 경로 또는 절대 URL. */
   url: string;
-  /** "file" = 향후 OS 파일 피커로 추가된 항목(#94 P2). 미지정 시 미상. */
+  /** "file" = OS 파일 피커로 추가된 항목. 미지정 시 미상. */
   source?: "bundled" | "file";
 }
 
-/** configs/avatar.json — 로드할 VRM (contract: #4 렌더러 입력). */
+/** configs/avatar.json — 로드할 VRM (렌더러 입력). */
 export interface AvatarConfig {
-  /** vite dev 정적 서빙 경로(`/vrms/*.vrm`) 또는 절대 URL. 기본/seed 선택. */
+  /** vite dev 정적 서빙 경로(`/vrms/*.vrm`) 또는 절대 URL. 기본 선택. */
   vrm_url: string;
-  /** 선택 가능한 VRM 목록(#94). 없으면 vrm_url 단일 모델. */
+  /** 선택 가능한 VRM 목록. 없으면 vrm_url 단일 모델. */
   available?: AvatarOption[];
-  /** 전신 fit-to-bounds 카메라 knob (#106). 없으면 렌더러 기본값. */
+  /** 전신 fit-to-bounds 카메라 knob. 없으면 렌더러 기본값. */
   framing?: { margin?: number; fov?: number };
 }
 
-/** configs/guardrails.json — DND/debounce/rate-limit 수치 (#25, event-dispatcher.md §6). */
+/** configs/guardrails.json — DND/debounce/rate-limit 수치. */
 export interface GuardrailsConfig {
-  /** §6.1 DND. */
+  /** DND. */
   dnd: {
     /** active-app blocklist — 포함된 앱이 전경이면 DND on. */
     app_blocklist: string[];
     /** 카메라 신호 후 이 시간(ms) 무신호면 camera DND off. */
     camera_idle_off_ms: number;
   };
-  /** §6.2 per-source debounce window(ms). 0이면 디바운스 없음. */
+  /** per-source debounce window(ms). 0이면 디바운스 없음. */
   debounce_ms: {
     idle_watcher: number;
     os_event_watcher: number;
     backend_push_source: number;
     user_input_source: number;
   };
-  /** §6.3 rolling rate-limit. */
+  /** rolling rate-limit. */
   rate_limit: {
     /** rolling 윈도우 길이(ms). */
     window_ms: number;
@@ -85,7 +84,7 @@ export interface GuardrailsConfig {
   };
 }
 
-/** configs/sources.json — proactive 발화 소스 cadence/presence knob (#24). */
+/** configs/sources.json — proactive 발화 소스 cadence/presence knob. */
 export interface SourcesConfig {
   proactive: {
     cowork: {
@@ -121,11 +120,11 @@ export const CONFIG_FILES: Record<ConfigSection, string> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// API 키 추상화 (concept.md §2.F — OSS 진입 시 OS keychain 이주용 레이어)
+// API 키 추상화 (OSS 진입 시 OS keychain 이주용 레이어)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 시크릿(예: chat api_key) 조회 추상화. MVP는 평문(plainSecretProvider), OSS 단계는
+ * 시크릿(예: chat api_key) 조회 추상화. 평문(plainSecretProvider) 또는
  * Tauri secure storage / OS keychain 구현으로 **호출부 변경 없이** 교체한다.
  * 비동기 시그니처는 keychain 접근(IPC)을 미리 수용하기 위함이다.
  */
@@ -136,12 +135,12 @@ export interface SecretProvider {
 
 /**
  * SecretProvider에서 Hermes chat 키를 찾을 때 쓰는 이름. backend env `API_SERVER_KEY`에 대응.
- * 호출부(dispatcher #21): `streamChat(ep, req, { apiKey: await secrets.get(CHAT_API_KEY_SECRET) })`.
+ * 호출부(dispatcher): `streamChat(ep, req, { apiKey: await secrets.get(CHAT_API_KEY_SECRET) })`.
  * (chat-client가 아니라 여기에 둔다 — secret 이름은 config/SecretProvider 소관, openai SDK 무관.)
  */
 export const CHAT_API_KEY_SECRET = "chat_api_key";
 
-/** MVP 기본 구현 — 평문 레코드에서 조회. 실 값은 configs에 두지 않는 게 권장(env/keychain). */
+/** 평문 레코드에서 조회. 실 값은 configs에 두지 않는 게 권장(env/keychain). */
 export function plainSecretProvider(
   secrets: Record<string, string | undefined> = {},
 ): SecretProvider {
@@ -213,7 +212,7 @@ const VARIANT_POLICIES: readonly NonNullable<MotionRegistryEntry["variant_policy
   "random",
   "sequential",
 ];
-/** contract.md §1 emotion enum 10종. registry 키는 이 집합에 한정(오탈자 키 fail-loud). */
+/** emotion enum 10종. registry 키는 이 집합에 한정(오탈자 키 fail-loud). */
 const EMOTION_IDS: ReadonlySet<EmotionId> = new Set<EmotionId>([
   "neutral", "happy", "angry", "sad", "relaxed",
   "surprised", "thinking", "curious", "sleepy", "embarrassed",
@@ -254,7 +253,7 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   ) {
     issues.push(`chat_endpoint는 "/"로 시작하는 경로여야 함 (받음: ${JSON.stringify(chat_endpoint)})`);
   }
-  // chat_model: optional. 있으면 비어있지 않은 문자열이어야 함(PRD F8 모델 ID는 config 소관).
+  // chat_model: optional. 있으면 비어있지 않은 문자열이어야 함(모델 ID는 config 소관).
   const chat_model = raw.chat_model;
   if (chat_model !== undefined && (typeof chat_model !== "string" || chat_model.trim() === "")) {
     issues.push(`chat_model은 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(chat_model)})`);
@@ -439,7 +438,7 @@ function validateAvatar(file: string, raw: unknown): AvatarConfig {
   }
   const issues: string[] = [];
 
-  // available[] — optional VRM swap manifest (#94).
+  // available[] — optional VRM swap manifest.
   let available: AvatarOption[] | undefined;
   const rawAvailable = raw.available;
   if (rawAvailable !== undefined) {
@@ -482,7 +481,7 @@ function validateAvatar(file: string, raw: unknown): AvatarConfig {
     });
   }
 
-  // framing — optional fit-to-bounds knob (#106). 부분값 허용(기본값은 렌더러 소유).
+  // framing — optional fit-to-bounds knob. 부분값 허용(기본값은 렌더러 소유).
   let framing: AvatarConfig["framing"];
   const rawFraming = raw.framing;
   if (rawFraming !== undefined) {
@@ -517,7 +516,7 @@ function validateEmotionRegistry(file: string, raw: unknown): EmotionRegistry {
   const out: EmotionRegistry = {};
   for (const [id, entry] of Object.entries(raw)) {
     if (!EMOTION_IDS.has(id as EmotionId)) {
-      issues.push(`${id}: 알 수 없는 emotion id (contract §1 enum 외)`);
+      issues.push(`${id}: 알 수 없는 emotion id (enum 외)`);
       continue;
     }
     if (!isObject(entry)) {
@@ -559,7 +558,7 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
     if (typeof entry.loop !== "boolean") {
       issues.push(`${id}.loop은 boolean이어야 함`);
     }
-    // contract §2: priority 0~100. typeof number는 NaN/Infinity를 통과시키므로 범위까지 본다.
+    // priority 0~100. typeof number는 NaN/Infinity를 통과시키므로 범위까지 본다.
     if (
       typeof entry.priority !== "number" ||
       !Number.isFinite(entry.priority) ||
@@ -571,7 +570,7 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
     if (!INTERRUPT_POLICIES.includes(entry.interrupt_policy as InterruptPolicy)) {
       issues.push(`${id}.interrupt_policy는 ${INTERRUPT_POLICIES.join("|")} 중 하나여야 함`);
     }
-    // variants(D-MOTION-VARIANTS): 있으면 .vrma 문자열 2개 이상 풀. 1개짜리는 무의미.
+    // variants: 있으면 .vrma 문자열 2개 이상 풀. 1개짜리는 무의미.
     const rawVariants = entry.variants;
     let variants: string[] | undefined;
     if (rawVariants !== undefined) {

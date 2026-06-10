@@ -1,8 +1,7 @@
 /**
  * Chat client — thin ADAPTER over the official `openai` SDK Responses stream.
- * (PRD F6 / contract.md §3, decision D-CHAT-SDK)
  *
- * D-CHAT-SDK: we do NOT hand-roll SSE/fetch/byte-framing. The SDK owns transport,
+ * We do NOT hand-roll SSE/fetch/byte-framing. The SDK owns transport,
  * chunk-splitting and abort. We construct `new OpenAI({...})` and call
  * `client.responses.create({ stream: true })`, which returns an async-iterable of
  * TYPED Responses events. This module maps those events → our `ChatStreamEvent`
@@ -39,7 +38,7 @@
  *      · else → tool_status done.
  *  - response.completed → completed event with the assembled ControlEnvelope. Normalization
  *    happens HERE (chat-client only): emotion_id→emotion{id}, motion_id→motion{id},
- *    emotion_text→emotion_text. No should_speak (D-NO-SPEAK-GATE).
+ *    emotion_text→emotion_text. No should_speak gate.
  *  - error → error event.
  *
  * ⚠ function_call items are ABSENT from response.completed's final output[] →
@@ -108,7 +107,7 @@ function parseExpressArgs(raw: unknown): { args: ExpressArgs } | { error: string
 }
 
 export interface ChatRequest {
-  /** OpenAI 호환 input (messages / input items). contract.md §4 InputContext 인코딩 포함. */
+  /** OpenAI 호환 input (messages / input items). InputContext 인코딩 포함. */
   input: unknown;
   /** server-side 대화 상태 (Responses API). */
   previous_response_id?: string;
@@ -116,13 +115,13 @@ export interface ChatRequest {
   reasoning_effort?: "low" | "medium" | "high";
   /** instructions 런타임 오버라이드. 비어있지 않으면 config.chat_instructions 대신 사용. */
   instructions?: string;
-  /** 중도 취소 (event-dispatcher.md §12 in-flight abort). */
+  /** 중도 취소 (in-flight abort). */
   signal?: AbortSignal;
 }
 
 export interface StreamChatOptions {
   /**
-   * Hermes 인증 키(Bearer). SecretProvider에서 해소해 caller가 넘긴다(concept §2.F).
+   * Hermes 인증 키(Bearer). SecretProvider에서 해소해 caller가 넘긴다.
    * 미지정 시 무인증 로컬용 placeholder — 키를 강제하는 백엔드엔 401이 난다.
    */
   apiKey?: string;
@@ -361,8 +360,8 @@ export async function* streamChat(
     }
   } catch {
     // 스트림 도중 abort/네트워크 reject → 조용히 종료.
-    // TODO(의도적 비대칭): create() catch는 non-abort 에러를 error로 노출하지만, 여기 mid-stream
-    //   드롭은 부분 출력이 이미 consumer에 닿았고 빈도 낮아 무음 유지. 필요 시 동일 처리로 통일.
+    // 의도적 비대칭: create() catch는 non-abort 에러를 error로 노출하지만, 여기 mid-stream
+    //   드롭은 부분 출력이 이미 consumer에 닿았고 빈도 낮아 무음 유지.
     return;
   }
 }

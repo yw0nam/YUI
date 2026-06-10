@@ -1,13 +1,13 @@
 /**
  * ease-emotion — slow ease back to neutral when a turn's TTS playback ends.
  *
- * The renderer holds the last emotion (setEmotion(null) is a NO-OP hold, contract §1), so a
+ * The renderer holds the last emotion (setEmotion(null) is a NO-OP hold), so a
  * turn that set `happy` stays happy forever. After playback finishes we drift gently back to
  * neutral as an EXPLICIT `{id:"neutral"}` transition — the only signal that returns to neutral
- * per contract §1 — with a long transition_ms so it eases rather than snaps.
+ * — with a long transition_ms so it eases rather than snaps.
  *
  * Pure dispatch (mirrors apply-directive): NO three.js / VRM, so it is unit-testable with a
- * spy. The actual crossfade is reused unchanged by setEmotion(#6).
+ * spy. The actual crossfade is reused unchanged by setEmotion.
  */
 
 import type { EmotionSignal } from "../contract";

@@ -67,7 +67,7 @@ async function bootstrap(): Promise<void> {
     log.warn("config 로드 실패 — 기본 지침 placeholder 없이 진행", err);
   }
 
-  // VRM 선택 store + 스왑(#94). 이 창엔 렌더러가 없으므로 store-only 커밋.
+  // VRM 선택 store + 스왑. 이 창엔 렌더러가 없으므로 store-only 커밋.
   // 메인 창이 storage 재로드로 실제 VRM을 핫스왑한다.
   // fallback default로 만든 뒤, config가 로드됐으면 실제 available[]를 주입한다(메인 창과 동일).
   const vrmSelection = createVrmSelection({
@@ -86,7 +86,7 @@ async function bootstrap(): Promise<void> {
     vrmSelection.select(option.id);
   };
 
-  // irodori 화자 선택 store(PR-B). 이 창엔 synth가 없으므로 store-only 커밋 — 등록은
+  // irodori 화자 선택 store. 이 창엔 synth가 없으므로 store-only 커밋 — 등록은
   // 펫 창의 synth 경로가 다음 발화에서 수행한다(swapVrm가 select-only인 것과 동일).
   const speakerSelection = createSpeakerSelection({
     defaultId: "",
@@ -106,7 +106,7 @@ async function bootstrap(): Promise<void> {
   const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
     speakerSelection.select(option.id);
   };
-  // 참조 음성 재등록(#103) — 펫 창과 달리 synth가 없지만, 갱신은 서버 직접 호출이므로 여기서도 수행한다.
+  // 참조 음성 재등록 — 펫 창과 달리 synth가 없지만, 갱신은 서버 직접 호출이므로 여기서도 수행한다.
   // config 미로드/irodori_base_url 없으면 throw → UI가 에러를 노출한다.
   const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
     const irodoriBaseUrl = configLoaded ? config.get().endpoints.irodori_base_url : undefined;

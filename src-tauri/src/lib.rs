@@ -4,7 +4,7 @@ mod os_event_watcher;
 // Drag + multi-monitor / DPI.
 mod drag;
 
-// Screen-source enumeration and capture (issue #20).
+// Screen-source enumeration and capture.
 mod screenshot;
 
 // Calendar-date-based log rotation.

@@ -137,7 +137,7 @@ level with the `VITE_YUI_LOG_LEVEL` env var (`debug` · `info` · `warn` · `err
 - [`AGENTS.md`](AGENTS.md) — canonical agent guide (work rules, roster, stack, layout)
 - [`PRODUCT.md`](PRODUCT.md) / [`DESIGN.md`](DESIGN.md) — product register + design system
 - [`docs/concept.md`](docs/concept.md) — big picture + non-goals
-- [`docs/prd.md`](docs/prd.md) — features + decision log + milestones
+- [`docs/prd.md`](docs/prd.md) — current feature reference + backend dependencies
 - [`docs/contract.md`](docs/contract.md) — YUI ↔ Hermes contract (emotion · motion · control envelope · input context · endpoints)
 - [`docs/event-dispatcher.md`](docs/event-dispatcher.md) — dispatcher component design
 - [`docs/expression-broker-mcp.md`](docs/expression-broker-mcp.md) — Expression Broker MCP
@@ -145,4 +145,11 @@ level with the `VITE_YUI_LOG_LEVEL` env var (`debug` · `info` · `warn` · `err
 
 ## Status
 
-Pre-alpha — render + I/O + dispatcher spine landed; proactivity (Tier 2) in progress.
+YUI renders 10 emotions (existence-aware fallback) and 12 motions (idle, drag,
+happy, laugh, embarrassed, sheepish, calm, peek, sleeping, sit, window_sit,
+dance) with a Tier-1 ambient layer (blink · sway · breath · look-around) and
+amplitude-based lipsync. The dispatcher fires Tier-1 ambient client-side and
+Tier-2 co-working proactive utterances (presence + 10-min cadence, settings
+toggle default ON) through DND/debounce/rate-limit guards to the backend.
+Chat, STT, TTS, and the Expression Broker are wired. Co-working is inert on
+Windows, where `os_idle_ms` is unavailable.

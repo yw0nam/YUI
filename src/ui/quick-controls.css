@@ -514,7 +514,7 @@
   align-items: baseline;
 }
 
-/* ── 엔드포인트 섹션(#95) — 음성 세부 설정과 동일한 접이식. 기본 접힘. ── */
+/* ── 엔드포인트 섹션 — 음성 세부 설정과 동일한 접이식. 기본 접힘. ── */
 .yui-endpoints {
   margin-top: 0.25rem;
   padding: 0 0.55rem;
@@ -956,7 +956,7 @@
   color: var(--yui-danger);
 }
 
-/* ── "파일에서 추가…" ghost 행 — 예약·비활성(#94 P2 hook) ── */
+/* ── "파일에서 추가…" ghost 행 — 예약·비활성 ── */
 .yui-vrm--add {
   color: var(--yui-text-mute);
   cursor: not-allowed;
@@ -1201,7 +1201,7 @@
   opacity: 1;
 }
 
-/* ── 행별 ↻ 참조-음성 갱신(#103) — preview와 같은 ghost 처리, preview 앞(왼쪽)에 위치 ── */
+/* ── 행별 ↻ 참조-음성 갱신 — preview와 같은 ghost 처리, preview 앞(왼쪽)에 위치 ── */
 .yui-spk__refresh {
   display: grid;
   place-items: center;
@@ -1316,7 +1316,7 @@
   color: var(--yui-danger);
 }
 
-/* 중립/긍정 인라인 안내(#103) — error와 같은 들여쓰기지만 차분한 dim, never warm-red */
+/* 중립/긍정 인라인 안내 — error와 같은 들여쓰기지만 차분한 dim, never warm-red */
 .yui-spk__note {
   margin: 0.1rem 0.6rem 0.35rem 2.3rem;
   font-size: 0.72rem;
@@ -1334,7 +1334,7 @@
   color: var(--yui-accent);
 }
 
-/* ── "파일에서 추가…" ghost 행 — 예약·비활성(B2 hook) ── */
+/* ── "파일에서 추가…" ghost 행 — 예약·비활성 ── */
 .yui-spk--add {
   color: var(--yui-text-mute);
   cursor: not-allowed;
