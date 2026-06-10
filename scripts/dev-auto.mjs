@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import os from "node:os";
 import { resolvePort, findFreePort, buildDevUrl } from "./dev-port.mjs";
 
 const port = await resolvePort({ env: process.env, isPortFree: findFreePort });
@@ -22,4 +23,7 @@ child.on("error", (err) => {
   console.error(`[YUI] failed to start vite dev: ${err.message}`);
   process.exit(1);
 });
-child.on("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
+// signal death exits 128+signum (130 for SIGINT), preserving the failure-vs-Ctrl-C distinction.
+child.on("exit", (code, signal) =>
+  process.exit(code ?? (signal ? 128 + (os.constants.signals[signal] ?? 1) : 0)),
+);
