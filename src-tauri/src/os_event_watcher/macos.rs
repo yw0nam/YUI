@@ -8,6 +8,7 @@ use super::{emit_os_event, epoch_ms, idle_ms_from_secs, sanitise_app_name,
             WINDOW_DROP_RELEASE_CHANNEL};
 use std::{
     ffi::c_void,
+    sync::atomic::{AtomicBool, Ordering},
     thread,
     time::Duration,
 };
@@ -437,16 +438,56 @@ fn enumerate_windows() -> Vec<WindowRect> {
     collected
 }
 
+// Process-wide once-guard: only one drop-release probe runs at a time so
+// overlapping drags can't emit duplicate `window_drop_release` signals.
+static PROBE_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// RAII handle for the single active drop-release probe.
+///
+/// `try_acquire` succeeds only when no probe is running, flipping `PROBE_ACTIVE`
+/// to true; a concurrent attempt returns `None`. `Drop` clears the flag on every
+/// exit path of the holder (normal release emit, timeout, early return, panic),
+/// so the flag can never get stuck true.
+struct ProbeGuard;
+
+impl ProbeGuard {
+    fn try_acquire() -> Option<Self> {
+        PROBE_ACTIVE
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .ok()
+            .map(|_| ProbeGuard)
+    }
+}
+
+impl Drop for ProbeGuard {
+    fn drop(&mut self) {
+        PROBE_ACTIVE.store(false, Ordering::Release);
+    }
+}
+
 /// Spawns a short-lived thread that polls the left mouse button until release
 /// (down→up), then emits a bare `window_drop_release` signal.
 ///
 /// Called right after `start_dragging()` succeeds. Polling (not an NSEvent
 /// monitor) is used because the OS-modal drag loop swallows monitor callbacks.
 /// A hard timeout guarantees the thread exits even if no release is observed.
+///
+/// A process-wide once-guard suppresses a second concurrent probe; rapid or
+/// overlapping drags reuse the in-flight probe instead of emitting duplicate
+/// release signals. A later drag spawns normally once the prior probe finishes.
 pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
+    let Some(guard) = ProbeGuard::try_acquire() else {
+        log::debug!("drop_release: probe already active, skipping duplicate spawn");
+        return;
+    };
+
     thread::Builder::new()
         .name("yui_drop_release".into())
         .spawn(move || {
+            // Held for the thread's whole lifetime; Drop clears PROBE_ACTIVE on
+            // every exit path (timeout return, release break, or panic).
+            let _guard = guard;
+
             let start = std::time::Instant::now();
 
             // Wait until the button is actually down (drag may not have armed
