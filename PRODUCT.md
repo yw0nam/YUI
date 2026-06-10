@@ -45,4 +45,4 @@ Core tone in one line: **invisible-by-default, warm-when-present.**
 ## Accessibility & Inclusion
 
 - **Confirmed requirement — respect reduced-motion:** Tier 1 ambient (blink/sway/breathing) and UI transitions run at all times, so they must quietly attenuate under OS `prefers-reduced-motion` (prevents motion sickness / distraction).
-- **Current scope = personal minimum.** Beyond the above, basic-level only. **To be reinforced at OSS stage (deferred but acknowledged):** Do not rely solely on color for emotion/tool-status (color-blind safe); high-contrast text on arbitrary backgrounds (WCAG contrast). Currently deferred.
+- **Scope = personal minimum.** Beyond reduced-motion, accessibility is basic-level: emotion/tool-status is not conveyed by color alone, and floating surfaces carry self-contrast (scrim + warm-light text) for legibility on arbitrary backgrounds.

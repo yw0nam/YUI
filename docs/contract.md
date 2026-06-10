@@ -1,8 +1,6 @@
 # YUI ↔ Hermes Contract
 
-> **Version:** v0.2 draft — build-startable, 세부는 prototype에서 좁힌다. (changelog 맨 아래)
-> **Scope:** client(YUI) ↔ backend(Hermes) 사이의 4개 스키마.
-> **Single-file 정책:** 4종 스키마(Emotion / Motion / Control envelope / Input context)는 본 파일 단일 문서로 유지 — 4개로 쪼개면 cross-ref 폭증을 막기 위해 단일 파일로 둔다.
+> **Scope:** client(YUI) ↔ backend(Hermes) 사이의 4개 스키마(Emotion / Motion / Control envelope / Input context)를 본 파일 단일 문서로 정의한다.
 
 **Companion specs:**
 - [`concept.md`](./concept.md) §1 §4 — 원칙과 4종 산출물 정의
@@ -14,29 +12,29 @@
 
 ### Endpoint abstraction (chat)
 
-**검증(2026-06, Hermes 공식 docs `/features/api-server`):** Hermes는 `/v1/chat/completions`와 `/v1/responses`를 **둘 다** 노출한다. `/v1/responses`는 `previous_response_id` 기반 server-side 대화 상태 + `response.created` / `response.output_text.delta` 등 Responses event 스트리밍을 지원한다. → concept.md §1대로 **`/v1/responses`를 기본**으로 한다. endpoint는 concept §F(config-driven) 원칙상 교체 가능 — OSS 단계에서 `/v1/responses` 미지원 backend를 만나면 `/v1/chat/completions`로 fallback.
+Hermes는 `/v1/chat/completions`와 `/v1/responses`를 **둘 다** 노출한다. `/v1/responses`는 `previous_response_id` 기반 server-side 대화 상태 + `response.created` / `response.output_text.delta` 등 Responses event 스트리밍을 지원한다. concept.md §1대로 **`/v1/responses`가 기본**이다. endpoint는 config-driven이라 교체 가능 — `/v1/responses` 미지원 backend는 `/v1/chat/completions`로 fallback.
 
 ```jsonc
 // configs/endpoints.json (요지)
 {
-  "chat_base_url":     "http://localhost:8643",  // Hermes (SSH 터널)
-  "chat_endpoint":     "/v1/responses",          // default. fallback: "/v1/chat/completions"
-  "chat_instructions": "Call generate_express … motion_id 몸동작 · emotion_id 표정 · emotion_text 음성", // Responses `instructions` nudge — generate_express 유도(config 소관)
+  "chat_base_url":     "http://localhost:8643/v1", // Hermes root (SDK가 뒤에 /responses append)
+  "chat_endpoint":     "/v1/responses",          // 정보용. default. fallback: "/v1/chat/completions"
+  "chat_instructions": "Call the generate_express tool … emotion_id 표정 · motion_id 몸동작 · emotion_text 음성", // Responses `instructions` nudge (config 소관)
   "chat_model":        "natsume",                // Hermes 모델 ID (Responses `model`). config 소관(하드코딩 금지)
-  "stt_base_url":      "http://localhost:5517",  // 별도 ASR 서비스 (OpenAI 호환) → /audio/transcriptions
+  "stt_base_url":      "http://localhost:5517/v1", // 별도 ASR 서비스 (OpenAI 호환) → /audio/transcriptions
   "tts_base_url":      "http://localhost:8092",  // OpenAI 호환 TTS → /audio/speech (provider="openai")
   "tts_provider":      "irodori",                // "openai" | "irodori" (default irodori, §5)
   "irodori_base_url":  "http://localhost:8091"   // irodori_TTS (NOT OpenAI 호환) → /synthesize (§5)
 }
 ```
 
-**STT/TTS는 Hermes와 무관 (확정):** ASR/TTS는 **각각 독립된 서비스**로 서빙된다 — 기본 ASR `localhost:5517`. client UI가 이 둘을 **직접** 호출한다(Hermes를 경유하지 않음). base URL들은 서로 다른 프로세스이며 모두 config로 교체 가능. **TTS는 provider 선택형**이다(`tts_provider`): OpenAI 호환 `/audio/speech`(`localhost:8092`) 또는 **irodori_TTS**(`localhost:8091`, OpenAI 호환 아님 — §5). 둘은 additive로 공존하며 default는 `irodori`다. irodori contract·voice registry·tunables는 **§5**, 두 provider가 공유하는 `emotion_text` 어휘(이모지)는 §1·§3에 정의.
+**STT/TTS는 Hermes와 무관:** ASR/TTS는 **각각 독립된 서비스**로 서빙된다 — 기본 ASR `localhost:5517`. client UI가 이 둘을 **직접** 호출한다(Hermes를 경유하지 않음). base URL들은 서로 다른 프로세스이며 모두 config로 교체 가능. **TTS는 provider 선택형**이다(`tts_provider`): OpenAI 호환 `/audio/speech`(`localhost:8092`) 또는 **irodori_TTS**(`localhost:8091`, OpenAI 호환 아님 — §5). 둘은 additive로 공존하며 default는 `irodori`다. irodori contract·voice registry·tunables는 **§5**, `emotion_text` 어휘(provider별)는 §1·§3에 정의.
 
-**Control transport (확정: `generate_express` tool-call):** 제어신호 전송은 Hermes(사용자 소유 backend)에 등록된 **서버사이드 `generate_express(...)` tool**로 한다. 이 tool-call의 **FLAT arguments**가 제어 필드를 싣는다: `{ emotion_id?, motion_id?, emotion_text? }`(전부 optional, motion_id는 보통 생략 — §3 D-MOTION-FROM-EMOTION). YUI client는 `/v1/responses` 출력의 `function_call` 아이템 중 **이름이 `generate_express`인 것**을 파싱해 사용한다 (+ 검증된 `GET /v1/runs/{run_id}/events` SSE로 tool-call 수신). generate_express는 Hermes 용어로 **skill이 아니라 tool(plugin)** 이다 — skill(마크다운 지시문)은 function_call을 만들지 않는다([`backend_agent_broker_interaction.md`](./backend_agent_broker_interaction.md) §0).
+**Control transport — `generate_express` tool-call:** 제어신호 전송은 Hermes에 등록된 **서버사이드 `generate_express(...)` tool**로 한다. 이 tool-call의 **FLAT arguments**가 제어 필드를 싣는다: `{ emotion_id?, motion_id?, emotion_text? }`(전부 optional, motion_id는 보통 생략 — §3 D-MOTION-FROM-EMOTION). YUI client는 `/v1/responses` 출력의 `function_call` 아이템 중 **이름이 `generate_express`로 끝나는 것**(`name.endsWith("generate_express")`)을 파싱해 사용한다. generate_express는 Hermes 용어로 **skill이 아니라 tool(plugin)** 이다 — skill(마크다운 지시문)은 function_call을 만들지 않는다([`backend_agent_broker_interaction.md`](./backend_agent_broker_interaction.md) §0).
 
-- **검증(2026-06):** Hermes `/v1/responses`가 `function_call` 아이템을 노출함(공식 docs). `generate_express`가 **서버사이드 tool**이므로 caller가 tool 정의를 주입할 필요가 없다.
+- `generate_express`는 **서버사이드 tool**이므로 caller가 tool 정의를 주입할 필요가 없다.
 - **발화 텍스트는 tool 페이로드 밖:** 발화는 `generate_express` arguments에 넣지 않고, Hermes의 일반 assistant 텍스트 스트림(`response.output_text.delta`)으로 토큰 단위 수신한다(§3 D-SPEECH).
-- **제어신호는 `generate_express` tool-call로 전송한다.** json_schema(Responses `text.format` / Chat `response_format`)는 쓰지 않으며, `generate_express` tool-call이 불가능할 경우의 **이론적 fallback**으로만 둔다.
+- json_schema(Responses `text.format` / Chat `response_format`)는 쓰지 않는다 — 제어신호는 `generate_express` tool-call로만 전송한다.
 
 ### Session continuity (`X-Hermes-Session-Id`) + cost-bounded compaction
 
@@ -45,7 +43,7 @@
 - **lifecycle:** 세션 id는 **client가 mint한 UUID**(`crypto.randomUUID()`)다. localStorage(`yui.session_id`)에 persist되어 **앱 재시작 간에도 유지**되며 만료가 없다. 저장값이 없으면 첫 요청 시점에 새 UUID를 mint·persist한다(첫 턴부터 id 보장). 헤더는 turn마다 바뀔 수 있으므로 SDK `defaultHeaders`가 아니라 **per-request 헤더**로 보낸다.
 - **reset("start fresh"):** 설정에서 세션을 reset하면 저장된 id를 clear한다 — 다음 턴에 새 UUID가 mint되어 backend transcript와의 연결이 새로 시작된다.
 - **compaction(자동, 비용 한정):** 컨텍스트 점유가 커지면 client가 안전한 턴 경계에서 `POST {origin}/api/sessions/{id}/compress`(origin은 `chat_base_url`에서 도출 — `http://host:port/v1` → `http://host:port`)를 호출해 transcript를 압축하고 **continuation 세션으로 회전**한다. 응답이 새 id를 주면 client가 그것을 저장값으로 swap한다. compaction은 **client가 boundary만 소유**하고 실제 압축·메모리는 Hermes가 한다.
-- **trigger(언제 요청하는가):** ① **idle resume**(window focus / visibilitychange) · ② **token threshold**(`chat_model_context_window × compact_threshold_ratio`, 히스테리시스 — `compact_resume_ratio` 아래로 떨어졌다 다시 넘을 때만 재발동) · ③ **window blur**. 발사는 멱등(idempotent)이며 세션 부재·이미 compacting·중복은 dispatcher가 삼킨다.
+- **trigger(언제 요청하는가):** ① **idle resume**(window focus / visibilitychange) · ② **token threshold**(`chat_model_context_window × compact_threshold_ratio`, 히스테리시스 — `compact_resume_ratio` 아래로 떨어졌다 다시 넘을 때만 재발동) · ③ **window blur**. 발사는 멱등(idempotent)이며 세션 부재·이미 compacting·중복은 dispatcher가 흡수한다.
 - **blocking maintenance window:** compaction 중 dispatcher는 `compacting` 상태로 새 backend 턴 launch를 게이트하고 chat 입력을 비활성화하며 `thinking` emotion cue를 재생한다(event-dispatcher.md §9·§11). 단일 compress 호출은 `compact_timeout_ms`로 마감된다.
 - **failure는 현재 id를 보존한다:** `skipped` · `error` · timeout · 비-2xx(404 등) 등 모든 실패 모드는 회전을 건너뛰고 **현재 세션 id를 그대로 유지**한다(연속성 손실 없음). compaction 중 reset이 새 id를 발급했으면 폐기된 세션의 연속분이 부활하지 않도록 회전·진단을 건너뛴다.
 - **diagnostics:** used/max 컨텍스트 토큰 + 마지막 압축 통계(before/after tokens, removed)는 **설정 창에만** 노출된다(localStorage `yui.session_diagnostics`).
@@ -140,9 +138,9 @@ interface EmotionSignal {
 - `emotion === null` or absent → **NO-OP (hold previous)**. 오직 명시적 `{id:"neutral"}`만 neutral로 전이한다.
 - emotion은 **턴마다 설정되고 발화(utterance) 동안 유지(held)** 되며, 그 턴의 **TTS 재생이 끝나면 neutral로 천천히 ease-back** 한다. 이 회귀는 위 규칙을 깨지 않는다 — 재생 종료 신호(onPlaybackEnd)가 트리거하는 **명시적 neutral 전이**일 뿐이다(`null` hold 규칙 불변). 재생이 없는 턴(빈 텍스트/TTS 비활성/전부 실패)에도 onPlaybackEnd가 발화하므로 neutral로 돌아온다.
 
-> **[구현됨 feat/emotion-revert-on-tts-end]** 발화 종료 시 표정 회귀는 `src/renderer/ease-emotion.ts`(pure)의 `revertEmotionToNeutral(durationMs, sink)`가 담당한다 — 명시적 `{id:"neutral", transition_ms}`를 `setEmotion`으로 흘려보내 #6 크로스페이드를 그대로 재사용하고, 절대 `null`을 보내지 않는다(`null`은 hold). renderer는 `easeEmotionToNeutral(durationMs?)`로 노출하고, `src/io/speech-playback.ts`가 `onPlaybackEnd`에서 `stopMouth`/`finishSpeech`와 **같은 신호로** 호출한다(느린 ~1s ease, 스냅 아님). `setEmotion(null)` NO-OP·명시적 neutral·기본 250ms 크로스페이드는 불변.
+> 발화 종료 시 표정 회귀는 `src/renderer/ease-emotion.ts`(pure)의 `revertEmotionToNeutral(durationMs, sink)`가 담당한다 — 명시적 `{id:"neutral", transition_ms}`를 `setEmotion`으로 흘려보내 크로스페이드를 재사용하고, 절대 `null`을 보내지 않는다(`null`은 hold). renderer는 `easeEmotionToNeutral(durationMs?)`로 노출하고, `src/io/speech-playback.ts`가 `onPlaybackEnd`에서 `stopMouth`/`finishSpeech`와 **같은 신호로** 호출한다(느린 ~1s ease, 스냅 아님). `setEmotion(null)` NO-OP·명시적 neutral·기본 250ms 크로스페이드는 불변.
 
-> **[구현됨 feat/emotion-expression #6]** emotion→expression 결정 + existence-aware fallback은 `src/renderer/emotion-resolver.ts`(pure, no three.js)가 담당한다. `EmotionResolver.resolve(signal)`은 registry fallback 체인을 따라 내려가되 각 후보 키에 대해 `expressionManager.getExpression(key) != null` 술어로 **VRM 모델이 실제로 갖고 있는 expression만 채택**하며, 사이클 가드 후 최종 terminal은 항상 `"neutral"`. 술어와 resolver는 VRM 로드/핫스왑마다 재생성(존재 집합이 모델별). `intensity` clamp·경고, 미등록 id → warn + neutral도 `resolve()` 안에서 처리. renderer(`src/renderer/index.ts`) `setEmotion(signal | null)`은 `null`이면 즉시 return(hold previous), signal이면 resolver로 결정한 뒤 `stepEmotion`이 **vrm.update(dt) 직전 프레임마다** weight를 linear lerp해 `expressionManager.setValue`를 적용하는 per-frame 크로스페이드를 시작한다. `blink` 등 tier-1 전용 expression 키는 건드리지 않아 ambient와 합성된다. `≤100ms` 반응성(다음 프레임에 전이 시작)과 `transition_ms`(기본 250, 보간 지속 시간)는 독립된 두 축이다. registry는 `RendererOptions.emotionRegistry` 또는 `setEmotionRegistry()`로 주입(motion과 병렬 구조).
+> emotion→expression 결정 + existence-aware fallback은 `src/renderer/emotion-resolver.ts`(pure, no three.js)가 담당한다. `EmotionResolver.resolve(signal)`은 registry fallback 체인을 따라 내려가되 각 후보 키에 대해 `expressionManager.getExpression(key) != null` 술어로 **VRM 모델이 실제로 갖고 있는 expression만 채택**하며, 사이클 가드 후 최종 terminal은 항상 `"neutral"`. 술어와 resolver는 VRM 로드/핫스왑마다 재생성(존재 집합이 모델별). `intensity` clamp·경고, 미등록 id → warn + neutral도 `resolve()` 안에서 처리. renderer(`src/renderer/index.ts`) `setEmotion(signal | null)`은 `null`이면 즉시 return(hold previous), signal이면 resolver로 결정한 뒤 `stepEmotion`이 **vrm.update(dt) 직전 프레임마다** weight를 linear lerp해 `expressionManager.setValue`를 적용하는 per-frame 크로스페이드를 시작한다. `blink` 등 tier-1 전용 expression 키는 건드리지 않아 ambient와 합성된다. `≤100ms` 반응성(다음 프레임에 전이 시작)과 `transition_ms`(기본 250, 보간 지속 시간)는 독립된 두 축이다. registry는 `RendererOptions.emotionRegistry` 또는 `setEmotionRegistry()`로 주입(motion과 병렬 구조).
 
 ### Emotion 목소리 차원 → `emotion_text` 채널
 
@@ -153,22 +151,27 @@ emotion enum→prefix 매핑은 없다. emotion의 목소리(TTS) 차원은 `gen
 ## 2. Motion Registry
 
 ### 목적
-backend가 motion ID로 동작을 요청하면 client가 VRMA 파일 + 재생 옵션으로 해석. MVP 5종.
+backend가 motion ID로 동작을 요청하면 client가 VRMA 파일 + 재생 옵션으로 해석. registry는 `configs/motions.json`(12종).
 
-### MVP entries
-| id           | kind     | loop | priority | interrupt_policy | 비고                                        |
-|--------------|----------|------|----------|------------------|---------------------------------------------|
-| `idle`       | ambient  | yes  | 0        | replace          | baseline. 항상 깔려 있음. 5개 variant clip. |
-| `drag`       | reactive | yes  | 80       | replace          | 사용자 드래그 중.                           |
-| `happy`      | oneshot  | no   | 70       | replace          | 기쁨 제스처.                                |
-| `laugh`      | oneshot  | no   | 70       | replace          | 웃음 제스처.                                |
-| `embarrassed`| oneshot  | no   | 70       | replace          | 강한 부끄럼+손가락 제스처.                  |
+### Registry entries
+| id           | kind     | loop | priority | interrupt_policy | broker_publish | 비고                                    |
+|--------------|----------|------|----------|------------------|----------------|-----------------------------------------|
+| `idle`       | ambient  | yes  | 0        | replace          | (내부 전용)    | baseline. 항상 깔려 있음. 13 variant.   |
+| `drag`       | reactive | yes  | 80       | replace          | (내부 전용)    | 사용자 드래그 중.                       |
+| `happy`      | oneshot  | no   | 70       | replace          | true           | 기쁨 제스처.                            |
+| `laugh`      | oneshot  | no   | 70       | replace          | true           | 웃음 제스처.                            |
+| `embarrassed`| oneshot  | no   | 70       | replace          | true           | 강한 부끄럼+손가락 제스처.              |
+| `sheepish`   | oneshot  | no   | 70       | replace          | true           | 머쓱한 제스처.                          |
+| `calm`       | oneshot  | no   | 70       | replace          | true           | 차분한 제스처.                          |
+| `peek`       | oneshot  | no   | 70       | replace          | true           | 빼꼼.                                   |
+| `sleeping`   | oneshot  | yes  | 70       | replace          | true           | 졸음/수면.                              |
+| `dance`      | oneshot  | no   | 70       | replace          | true           | 춤. 13 variant.                         |
+| `sit`        | oneshot  | no   | 70       | replace          | false          | 앉기. 8 variant.                        |
+| `window_sit` | state    | yes  | 55       | replace          | false          | 창 가장자리 앉기 state. 8 variant, `cycle_dwell_ms` 4000. |
 
-> **`sit` 미포함:** VRMA 에셋 없음 — 에셋 준비 시 추가.
+`idle`은 backend 요청 없이도 client가 깔아두는 baseline. backend가 `motion: null`을 보내면 client는 `idle`로 복귀한다. oneshot gesture 모션은 `emotion` 채널(표정)과 **독립된** `motion` 채널로 전달된다.
 
-`idle`은 backend 요청 없이도 client가 깔아두는 baseline. backend가 `motion: null`을 보내면 client는 `idle`로 복귀한다. `happy`/`laugh`/`embarrassed`는 gesture 모션(oneshot)으로, `emotion` 채널(표정)과 **독립된** `motion` 채널로 전달된다.
-
-Expression Broker가 agent에 노출하는 모션은 `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance`. `broker_publish: false`인 entry(`sit`)와 client 내부 전용 모션(`idle` ambient baseline, `drag` reactive pickup)은 broker 어휘에서 제외되어 agent가 고를 수 없다.
+Expression Broker가 agent에 노출하는 모션은 `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance`. `broker_publish: false` entry(`sit`, `window_sit`)와 `kind: reactive`(`drag`) · client 내부 전용 `idle`(ambient baseline)은 broker 어휘에서 제외되어 agent가 고를 수 없다.
 
 Motion VRMA 에셋은 **`public/motions/`에 git-tracked으로 커밋**되어 Vite가 `/motions/<id>.vrma`로 서빙한다 (~2.4MB, 크기가 작아 커밋). VRM 모델(`resources/vrms/carlotta.vrm`, ~48MB)은 gitignore 유지.
 
@@ -212,7 +215,7 @@ interface MotionRegistryEntry {
 ## 2.5 Avatar (VRM) 선택
 
 ### 목적
-client가 로드할 VRM 모델과, 사용자가 고를 수 있는 모델 목록. backend는 관여하지 않는다(렌더러 입력 #4, client-local config). `configs/avatar.json`에서 로드.
+client가 로드할 VRM 모델과, 사용자가 고를 수 있는 모델 목록. backend는 관여하지 않는다(렌더러 입력, client-local config). `configs/avatar.json`에서 로드.
 
 ### Schema
 ```ts
@@ -220,13 +223,13 @@ interface AvatarOption {
   id: string;                    // 안정 키 (예: "carlotta") — 선택 상태 영속화 단위
   label: string;                 // 표시 이름 (예: "Carlotta")
   url: string;                   // vrm_url과 동일 의미 — Vite 경로 또는 절대 URL
-  source?: "bundled" | "file";   // "file" = 향후 OS 파일 피커로 추가(#94 P2). 미지정 시 미상.
+  source?: "bundled" | "file";   // "file" = OS 파일 피커로 추가된 모델. 미지정 시 미상.
 }
 
 interface AvatarConfig {
   vrm_url: string;               // 기본/seed 선택. 항상 필수.
-  available?: AvatarOption[];    // #94 선택 가능한 VRM 목록. 없으면 vrm_url 단일 모델.
-  framing?: {                    // #106 전신 fit-to-bounds 카메라 knob. 없으면 렌더러 기본값.
+  available?: AvatarOption[];    // 선택 가능한 VRM 목록. 없으면 vrm_url 단일 모델.
+  framing?: {                    // 전신 fit-to-bounds 카메라 knob. 없으면 렌더러 기본값.
     margin?: number;             //   거리 패딩 비율(distance·(1+margin)). 유한 ≥ 0. default 0.1.
     fov?: number;                //   수직 FOV(도). 열린구간 (0, 180). default 30.
   };
@@ -239,9 +242,9 @@ interface AvatarConfig {
 - `id`는 영속화 키이자 CSS 셀렉터 `.yui-vrm[data-vrm-id="…"]` 값이므로 두 가지 추가 제약을 받는다(`label`은 자유 텍스트 — 제약 없음):
   - **유일성:** `available[]` 안에서 `id`가 중복되면 `ConfigError`. 선택 해소는 `find(x => x.id === …)`로 첫 항목만 잡아 중복 항목이 영구 unreachable이 되고, 영속화된 override도 모호해진다.
   - **charset:** `^[A-Za-z0-9._-]+$`만 허용(비어 있지 않고 공백·따옴표 등 셀렉터 특수문자 금지). 위반 시 셀렉터 조회가 깨지고 localStorage 키로도 취약하다.
-- 보통 `available[0]` 또는 `id`가 `vrm_url`과 일치하는 항목이 seed 선택이다. 선택 상태의 영속화/스왑은 client 책임(#94 P2~).
+- 보통 `available[0]` 또는 `id`가 `vrm_url`과 일치하는 항목이 seed 선택이다. 선택 상태의 영속화/스왑은 client 책임이다.
 - 모델 핫스왑 시 emotion expression registry는 손대지 않는다(§1 — existence-aware fallback이 모델별 expression 집합을 재평가).
-- `framing`(#106): 선택 블록. 있으면 객체여야 하고 `margin`은 유한 ≥ 0, `fov`는 열린구간 (0, 180) — 위반 시 `ConfigError` fail-loud. 렌더러는 매 VRM 로드/핫스왑/창 리사이즈마다 모델 bounding box를 측정해 카메라 거리·`lookAt`을 도출, **전신(머리→발)을 정면·중앙 정렬로 프레이밍**한다(높이/폭 둘 중 먼 거리 채택 → 좁은 창에서 팔 잘림 방지). 기본값은 렌더러 소유라 `framing`은 부분값(`margin`만 / `fov`만)도 허용한다.
+- `framing`: 선택 블록. 있으면 객체여야 하고 `margin`은 유한 ≥ 0, `fov`는 열린구간 (0, 180) — 위반 시 `ConfigError` fail-loud. 렌더러는 매 VRM 로드/핫스왑/창 리사이즈마다 모델 bounding box를 측정해 카메라 거리·`lookAt`을 도출, **전신(머리→발)을 정면·중앙 정렬로 프레이밍**한다(높이/폭 둘 중 먼 거리 채택 → 좁은 창에서 팔 잘림 방지). 기본값은 렌더러 소유라 `framing`은 부분값(`margin`만 / `fov`만)도 허용한다.
 
 ---
 
@@ -256,10 +259,10 @@ interface AvatarConfig {
 
 **[D-EMOTION-TEXT] `emotion_text`는 provider 의존 TTS voice tag 채널이다.** generate_express가 `emotion_text`(예: `"😏"`, `"🥺🥺"`)를 실으면 client는 정규화 envelope의 `emotion_text` 필드에 그대로 담아 **TTS 파이프라인으로 라우팅**한다(backend-caller가 `onEmotionText` 콜백으로 전달). emotion_id(VRM 표정 enum)와 직교하는 별도 채널 — 표정과 무관하게 목소리 연출만 바꿀 수 있다. **어휘는 provider별로 다르며 [`tts_emotion/`](./tts_emotion/)에 권위 있게 문서화**된다(아래 표는 irodori용 요약). prefix 방식이라 이모지/태그는 TTS 입력 text에만 들어가고 말풍선엔 절대 노출되지 않는다.
 
-- **provider별 어휘 규칙은 Expression Broker MCP가 런타임 게이트한다** — `update_emotion_text(mode, table)`: `irodori` ⇒ `mode="enum"`(아래 이모지 표 키만 허용, 미등록 토큰 drop + 경고, 발화 미차단), `openai-compatible`/fishspeech ⇒ `mode="free"`(자유 bracket 태그, pass-through). 자세한 broker 동작·D1–D6 결정 로그는 [`expression-broker-mcp.md`](./expression-broker-mcp.md).
+- **provider별 어휘 규칙은 Expression Broker MCP가 런타임 게이트한다** — `update_emotion_text(mode, table)`: `irodori` ⇒ `mode="enum"`(아래 이모지 표 키만 허용, 미등록 토큰 drop + 경고, 발화 미차단), `openai-compatible`/fishspeech ⇒ `mode="free"`(자유 bracket 태그, pass-through). 자세한 broker 동작은 [`expression-broker-mcp.md`](./expression-broker-mcp.md).
 - **provider-switch → re-publish 계약:** `configs/endpoints.json`의 `tts_provider`가 바뀌면 YUI는 새 provider에 맞는 `(mode, table)`로 `update_emotion_text`를 **재-publish**해야 한다(irodori→enum+표, openai-compatible→free+null). broker 상태는 in-memory & ephemeral이라 boot·reconnect 시에도 재-publish.
 
-#### `emotion_text` 이모지 어휘 (PR-A)
+#### `emotion_text` 이모지 어휘 (irodori — `configs/emotion_text/irodori.json`)
 | Emoji | 의미 | | Emoji | 의미 |
 |---|---|---|---|---|
 | 👂 | whisper / close to ear | | 😆 | joyfully |
@@ -283,11 +286,11 @@ interface AvatarConfig {
 | 🐢 | slowly | | 😒 | tutting / tongue click |
 | | | | 😰 | panicked / nervous / stutter |
 
-> **강도 표현:** 이모지를 반복하면 강도가 세진다(예: `🥺` → `🥺🥺`). 여러 태그 조합도 가능. 발화(자막)는 여기 넣지 않는다 — 발화는 별도 텍스트 스트림(D-SPEECH). 이 표는 irodori(enum) 어휘이며, provider별 권위 규칙은 [`tts_emotion/`](./tts_emotion/)(irodori 표 39행 = [`tts_emotion/irodori.md`](./tts_emotion/irodori.md)), 브로커링은 `expression-broker-mcp.md` §4 + D1–D6.
+> **강도 표현:** 이모지를 반복하면 강도가 세진다(예: `🥺` → `🥺🥺`). 여러 태그 조합도 가능. 발화(자막)는 여기 넣지 않는다 — 발화는 별도 텍스트 스트림(D-SPEECH). 이 표는 irodori(enum) 어휘이며, provider별 권위 규칙은 [`tts_emotion/`](./tts_emotion/)(irodori 표 39행 = [`tts_emotion/irodori.md`](./tts_emotion/irodori.md)), 브로커링은 `expression-broker-mcp.md` §4.
 
 **`speech_text`는 tool 필드가 아니다.** 발화 텍스트는 `generate_express` arguments가 아니라 **별도 assistant 텍스트 스트림**(`response.output_text.delta`)으로 도착하며(D-SPEECH), client가 스트림에서 조립한다. 아래 `ControlEnvelope`는 client 내부에서 *재구성하는* 정규화 형태이고, `speech_text`는 텍스트 스트림에서 채워지는 파생 필드다.
 
-**[D-MOTION-FROM-EMOTION] motion은 client가 emotion에서 파생한다 (확정 2026-06-04).** backend는 보통 `emotion_id`만 보낸다. `motion_id`가 없으면 client가 **emotion id가 바뀌는 순간**(전이 시점) `configs`의 emotion→motion 기본 매핑에서 제스처를 **1회** 파생 재생한다(oneshot 의미 보존; 매핑이 없는 emotion은 idle 유지). `motion_id`를 명시하면 그것이 우선 — 정서와 무관한 제스처(예: 드래그 반응, 지시 제스처)나 억제(`"idle"`)에 쓰는 **escape hatch**다. motion 채널은 schema에 optional로 남는다. (client 구현은 #16 계열 후속 — 매핑 아티팩트 신설.)
+**[D-MOTION-FROM-EMOTION] motion은 client가 emotion에서 파생한다.** backend는 보통 `emotion_id`만 보낸다. `motion_id`가 없으면 client가 **emotion id가 바뀌는 순간**(전이 시점) `configs`의 emotion→motion 기본 매핑에서 제스처를 **1회** 파생 재생한다(oneshot 의미 보존; 매핑이 없는 emotion은 idle 유지). `motion_id`를 명시하면 그것이 우선 — 정서와 무관한 제스처(예: 드래그 반응, 지시 제스처)나 억제(`"idle"`)에 쓰는 **escape hatch**다. motion 채널은 schema에 optional이다.
 
 ### generate_express tool 정의 (backend tool 등록 contract) — canonical
 
@@ -311,7 +314,7 @@ interface AvatarConfig {
 - **`should_speak`는 없다 (D-NO-SPEAK-GATE).** 발화 게이트 없음 — 침묵은 텍스트 미발신으로 표현.
 - **`speech_text`는 `parameters`에 없다** — 발화는 별도 텍스트 스트림(아래). generate_express arguments에 넣지 않는다.
 - **emotion_id**는 hard enum(backend 책임, §1 10종). **motion_id**는 열린 문자열 → client registry(§2)에서 검증, 미등록 시 무시+경고. backend는 보통 motion_id를 생략한다(D-MOTION-FROM-EMOTION). **emotion_text**는 자유 텍스트(TTS voice tag).
-- ✅ **E2E 검증(2026-06, #63):** 실제 Hermes 스트림에서 express function_call이 이 arguments 스키마대로 도착함을 확인. 단 **두 가지 실측 차이**가 있다 — ① tool이 MCP로 등록돼 이름이 `mcp_tts_express_server_generate_express`로 namespaced된다(client는 suffix 매칭으로 흡수). ② args가 `function_call_arguments.*` 이벤트가 아니라 `output_item.added/done`의 `item.arguments`로 온다(client가 두 경로 모두 지원). 이상적으로는 backend가 tool을 un-namespaced로 노출하거나 spec대로 `function_call_arguments.*`를 emit하는 게 바람직 — 추후 backend 측 정합 논의 대상.
+- **실측 wire 형태 두 가지를 client가 흡수한다** — ① tool이 MCP로 등록되면 이름이 `mcp_<server>_generate_express`로 namespaced된다(예: `mcp_tts_express_server_generate_express`; client는 `name.endsWith("generate_express")` suffix 매칭). ② args가 `function_call_arguments.*` 이벤트가 아니라 `output_item.added/done`의 `item.arguments`로 오기도 한다(client가 두 경로 모두 파싱, 턴당 한 번만 emit).
 
 ### Responses API 스트림에서 신호를 뽑는 법
 > 근거: [`openai_response_sdk/sse-event-format.md`](./openai_response_sdk/sse-event-format.md) — Hermes 자체 구현(LangGraph→Responses SSE 변환).
@@ -347,11 +350,11 @@ interface ControlEnvelope {
     tool_id?: string;             // function_call name
   } | null;
 
-  rich_content?: RichItem[];      // P2 — MVP는 발화 텍스트의 마크다운으로 링크/이미지 렌더. 구조화 카드는 P2.
+  rich_content?: RichItem[];      // 구조화 카드 채널. client는 발화 텍스트의 마크다운으로 링크/이미지를 인라인 렌더한다.
 
   _reserved?: {
-    expression_frames?: unknown[]; // partial emotion stream (P2)
-    visemes?: unknown[];           // viseme stream (P2)
+    expression_frames?: unknown[]; // partial emotion stream
+    visemes?: unknown[];           // viseme stream
   };
 }
 
@@ -362,7 +365,7 @@ type RichItem =
                      action?: Record<string, unknown> };
 ```
 
-`generate_express` tool arguments의 JSON Schema(`{emotion_id?, motion_id?, emotion_text?}`)는 §1·§2 제약을 따른다. `speech_text`는 텍스트 스트림, `tool_status`는 네이티브 function_call 관찰, `rich_content`는 P2.
+`generate_express` tool arguments의 JSON Schema(`{emotion_id?, motion_id?, emotion_text?}`)는 §1·§2 제약을 따른다. `speech_text`는 텍스트 스트림, `tool_status`는 네이티브 function_call 관찰, `rich_content`는 마크다운 인라인 렌더, `_reserved`는 무시.
 
 ### 예시 — 일반 응답 (보통: emotion_id만)
 `generate_express` tool-call(제어) + 별도 텍스트 스트림(발화)이 함께 도착. backend는 보통 emotion_id만 보내고 motion은 client가 파생:
@@ -410,8 +413,8 @@ Hermes가 자체 `web_search`를 돌리면 스트림에 function_call item이 �
 2. `generate_express`에 `motion_id`가 있으면 registry 조회 후 재생(override). **없으면 emotion 전이에서 1회 파생**(D-MOTION-FROM-EMOTION; 매핑 없으면 idle). **generate_express 자체가 없는 턴도 idle.**
 3. **발화 게이트 없음 (D-NO-SPEAK-GATE).** 텍스트 스트림(`speech_text`)이 비어있지 않으면 TTS 파이프라인(아래 D-TTS-PIPELINE) + 말풍선에 흘린다. 비어있으면 스킵 — 별도 플래그 판정 없음.
 4. `tool_status`(네이티브 function_call 관찰)로 UI 인디케이터 갱신. `completed` 시 해제.
-5. `rich_content`는 P2. MVP는 발화 텍스트의 마크다운 링크/이미지를 chat UI가 인라인 렌더.
-6. `_reserved`의 모든 필드는 v0에서 무시.
+5. `rich_content`: chat UI가 발화 텍스트의 마크다운 링크/이미지를 인라인 렌더.
+6. `_reserved`의 모든 필드는 무시.
 
 ### 스트리밍 처리 (D-TTS-PIPELINE — client-side TTS 파이프라인, required)
 발화 텍스트 스트림 → TTS → 재생 → 립싱크는 다음 순서로 처리한다(사용자 확정):
@@ -489,7 +492,7 @@ backend는 ` ```yui-context ` 마커로 파싱. system prompt 1줄로 약속해�
 
 > 실제 전송(`client.responses.create`)은 Responses API content-part를 쓴다 — 위 chat-completions 예시의 `image_url:{url}` 대신 `{ "type":"input_image", "image_url":"data:..." }`(image_url이 문자열 data URL), 텍스트는 `{ "type":"input_text", "text":... }`.
 
-### 캡처 정책 (v0)
+### 캡처 정책
 - 사용자 **토글 ON**일 때만 스크린샷 첨부. OFF면 `screenshot` 객체 생략.
 - 토글 ON 동안에는 **매 user turn마다 자동 첨부**. "이번엔 불필요"는 backend 판단.
 - source는 사용자가 monitor index / browser tab / window 중 선택.
@@ -508,28 +511,33 @@ backend는 ` ```yui-context ` 마커로 파싱. system prompt 1줄로 약속해�
 ### 목적
 발화 분절(D-TTS-PIPELINE step 5)을 wav로 합성하는 경로. **두 provider가 additive로 공존**하며 `tts_provider`로 선택한다 — OpenAI 호환 `/audio/speech`(기존)와 **irodori_TTS**(`/synthesize`, OpenAI 호환 아님). default는 `irodori`. 둘 다 §3의 `emotion_text` 이모지 어휘를 분절 맨 앞 prefix로 받는다(말풍선엔 노출 안 됨). 합성 동시성은 provider 무관하게 `tts_max_inflight`로 상한(default 1 = serial; consumer인 tts-pipeline이 적용, loader가 아님).
 
-### 5.1 EndpointsConfig 추가 필드 (configs/endpoints.json)
-> `EndpointsConfig`(§Endpoint abstraction)의 확장이다. OpenAI TTS 필드(`tts_base_url`/`tts_model`/`tts_voice`/`tts_speed`)는 `provider="openai"`일 때 쓰인다. 아래는 irodori provider 필드다. doc↔`src/contract/types.ts` SOT 동기 — 필드 변경 시 양쪽 갱신.
+### 5.1 EndpointsConfig (configs/endpoints.json) — full interface
+> `EndpointsConfig`(§Endpoint abstraction)의 완전한 정의다. doc↔`src/contract/types.ts` SOT 동기 — 필드 변경 시 양쪽 갱신. OpenAI TTS 필드(`tts_base_url`/`tts_model`/`tts_voice`/`tts_speed`)는 `provider="openai"`일 때 쓰이고, `irodori_*`는 `provider="irodori"`일 때 쓰인다.
 
 ```ts
 interface EndpointsConfig {
-  // ... 기존 chat/stt + OpenAI TTS 필드(생략) ...
+  // --- chat (Hermes Responses) ---
+  chat_base_url: string;                 // Hermes root. 예: "http://localhost:8643/v1" (SDK가 뒤에 /responses append)
+  chat_endpoint: string;                 // 정보용/비-SDK 폴백. default "/v1/responses". fallback "/v1/chat/completions"
+  chat_instructions?: string;            // Responses `instructions` nudge — generate_express 유도(config 소관)
+  chat_model?: string;                   // Hermes 모델 ID (Responses `model`). 미설정 시 생략. 예: "natsume"
 
+  // --- STT (별도 ASR, OpenAI 호환) ---
+  stt_base_url: string;                  // → /audio/transcriptions. 예: "http://localhost:5517/v1"
+
+  // --- TTS (provider 선택) ---
+  tts_base_url: string;                  // OpenAI 호환 TTS root → /audio/speech (provider="openai")
+  tts_voice?: string;                    // /audio/speech voice (provider="openai")
   tts_provider?: "openai" | "irodori";   // 합성 경로. 미설정 시 loader가 "irodori"로 resolve
-  tts_max_inflight?: number;             // provider 무관 합성 동시성 상한. default 1(serial). consumer(tts-pipeline) 적용
 
-  // --- provider="irodori"일 때 ---
-  irodori_base_url?: string;             // irodori_TTS root. 예: "http://localhost:8091". provider=irodori면 필수
-  irodori_speaker?: string;              // 활성 화자 = reference_id(voice registry 등록 키). provider=irodori면 필수
+  // --- provider="irodori" ---
+  irodori_base_url?: string;             // irodori_TTS root. optional, 미설정 시 default "http://localhost:8091"
+  irodori_speaker?: string;              // 활성 화자 = reference_id(voice registry 등록 키)
   irodori_voices?: Array<{               // 선택 가능한 화자 목록 — UI 표시 + voice registry 등록 소스
     id: string;                          //   reference_id(= /synthesize의 reference_id, /voices의 voice_id)
     label?: string;                      //   표시 이름. 없으면 id
     ref_url: string;                     //   reference clip 경로 — Vite 서빙 "/references/<id>/merged_audio.mp3"
   }>;
-  irodori_num_steps?: number;            // diffusion step 수(품질/속도). 미설정 시 서버 default(40)
-  irodori_cfg_scale_text?: number;       // emotion(text) adherence. 미설정 시 서버 default(3.0)
-  irodori_cfg_scale_speaker?: number;    // speaker adherence. 미설정 시 서버 default(5.0)
-  irodori_seconds?: number;              // 목표 발화 길이(초). 미설정 시 서버 default
 
   // --- Expression Broker (provider 무관) ---
   broker_base_url?: string;              // Expression Broker MCP endpoint(streamable-http, 예: "http://localhost:3201/mcp"). 미설정 시 vocab publish 스킵
@@ -539,12 +547,17 @@ interface EndpointsConfig {
   compact_threshold_ratio?: number;      // 자동 compaction을 요청하는 컨텍스트 점유 비율. loader default 0.7
   compact_resume_ratio?: number;         // 히스테리시스 하한 — skipped 직후 점유율이 이 비율 아래로 떨어졌다 다시 threshold를 넘어야 재발동. loader default 0.5
   compact_timeout_ms?: number;           // 단일 compress 호출의 마감 시한(ms). 초과 시 abort + running 복귀. loader default 12000
+
+  // --- 합성 동시성 (provider 무관) ---
+  tts_max_inflight?: number;             // 합성 동시성 상한. default 1(serial). consumer(tts-pipeline) 적용
 }
 ```
 
+> 추가 optional tunable(타입에는 있으나 checked-in config엔 미수록): `tts_model` · `tts_speed`(openai), `irodori_num_steps`(40) · `irodori_cfg_scale_text`(3.0) · `irodori_cfg_scale_speaker`(5.0) · `irodori_seconds`(서버 default를 오버라이드, §5.2).
+
 - **session/compaction 필드 default(loader):** `compact_threshold_ratio=0.7` · `compact_resume_ratio=0.5` · `compact_timeout_ms=12000`. `chat_model_context_window`는 default 없음 — 미설정 시 token-threshold trigger가 발동하지 않는다(idle resume / blur trigger는 무관하게 동작). checked-in `configs/endpoints.json`은 `200000 / 0.7 / 0.5 / 12000`을 싣는다.
 
-- **provider 선택:** `tts_provider` 미설정 → loader가 `"irodori"`로 resolve(default). `"openai"`면 기존 `/audio/speech` 경로.
+- **provider 선택:** `tts_provider` 미설정 → loader가 `"irodori"`로 resolve(default). `"openai"`면 `/audio/speech` 경로. `irodori_base_url`은 optional이며 미설정 시 `http://localhost:8091`로 resolve된다.
 - **`irodori_voices`의 `ref_url`**은 reference clip을 가리킨다 — `resources/references/<id>/merged_audio.mp3`(gitignored, symlink)를 Vite가 `/references/*`로 서빙. 등록(§5.3) 시에만 fetch되고, per-synth 요청엔 안 실린다.
 - client는 `src/io/irodori-synth.ts`(합성)와 `src/io/irodori-voices.ts`(voice-registry helper)로 이 경로를 구현한다.
 
@@ -585,7 +598,7 @@ DELETE /voices/{id}                                                   →  삭�
 
 - `voice_id`(등록) == `reference_id`(합성). client는 `irodori_voices[].id`를 양쪽 키로 쓴다.
 - 등록 시 `reference_audio`는 `ref_url`(`/references/<id>/merged_audio.mp3`)에서 fetch한 파일.
-- **`PUT /voices`는 명시적 force-refresh(#103)** — `ensureRegistered`의 멱등 등록과 달리 GET-check·memoize 없이 항상 ref를 다시 fetch해 PUT한다(`irodori-voices.ts`의 `updateVoice`, 설정 UI의 화자 행 ↻ 버튼). reference clip이 바뀌었을 때 latent를 갱신하는 용도.
+- **`PUT /voices`는 명시적 force-refresh** — `ensureRegistered`의 멱등 등록과 달리 GET-check·memoize 없이 항상 ref를 다시 fetch해 PUT한다(`irodori-voices.ts`의 `updateVoice`, 설정 UI의 화자 행 ↻ 버튼). reference clip이 바뀌었을 때 latent를 갱신하는 용도.
 
 ### 5.4 에러 모델
 | status | 의미 | body |
@@ -596,29 +609,3 @@ DELETE /voices/{id}                                                   →  삭�
 | `500` | server error | |
 
 > **검증 없는 `emotion_text`:** 이모지 prefix는 `text` 앞에 붙어 그대로 합성 입력이 된다 — irodori는 별도 검증 안 함(§3 D-EMOTION-TEXT). 미등록 `reference_id`만 `422`로 거른다.
-
----
-
-## Open Questions
-
-prototype에서 결정/검증:
-
-1. **Emotion frame 스트리밍** — `_reserved.expression_frames`를 실제 쓸지, turn-end 한 번으로 충분한지. 텍스트 vs 표정 lag을 사람이 거슬리는지부터 측정.
-2. **Viseme 채널** — 진폭 립싱크가 부족하면 `_reserved.visemes`로 phoneme 보낼지.
-3. **Tool status 갱신 빈도** — turn 중간 push 필요 여부 (P2 SSE와 직결).
-4. **`rich_content.card.action`** 스키마 — v0는 free-form. 어디까지 약속할지.
-5. **Emotion intensity 보간 책임** — 즉시 적용 vs client-side envelope(ADSR).
-6. **Motion crossfade 정책** — `replace` 시 이전 fade-out + 새 fade-in 동시 진행 여부.
-7. **Screenshot 압축** — PNG vs JPEG, 품질, data URL vs 임시 HTTPS.
-8. **Multi-character** — `character_id` envelope 추가 vs 채널 분리.
-9. **P2 SSE push envelope** — §3 그대로 재사용할지, push 전용 필드(urgency, ttl) 추가할지.
-10. **Schema 버전 협상** — `client.yui_version` 외에 별도 contract version handshake가 필요한가.
-
----
-
-## Changelog
-
-- **2026-06-09:** §Endpoint abstraction — session continuity(`X-Hermes-Session-Id` per-request 헤더; client-minted UUID를 localStorage에 persist; 설정 reset) + cost-bounded compaction(`POST {origin}/api/sessions/{id}/compress` → `SessionCompressionResponse`; idle resume / token threshold / blur trigger; 실패 시 현재 id 보존). `Usage` 타입과 `EndpointsConfig`의 `chat_model_context_window` · `compact_threshold_ratio`(0.7) · `compact_resume_ratio`(0.5) · `compact_timeout_ms`(12000) 필드.
-- **2026-06-08 (PR-A):** §5 — **irodori_TTS** provider(라이브 검증 8091 `/synthesize` + `/voices` registry, OpenAI 호환 아님)가 OpenAI TTS와 공존하며 default는 `irodori`. `EndpointsConfig`는 `tts_provider`(default irodori)·`tts_max_inflight`·`irodori_*` 필드를 싣는다. `emotion_text` 어휘는 **이모지 태그 집합**이다(§1·§3 D-EMOTION-TEXT 표; prefix-only, 말풍선 비노출). `reference_text`는 미사용(모델이 transcript 무시).
-- **2026-06-08:** §2.5 추가 — `AvatarConfig.available?: AvatarOption[]` VRM 선택 manifest(#94). `vrm_url`은 필수 유지(하위 호환).
-- **2026-06-06 (v0.2 draft):** emotion 음성 제어는 `generate_express`의 자유 텍스트 `emotion_text` 채널로 한다(enum→TTS-prefix 매핑은 쓰지 않는다 — §1, §3 D-TTS-PIPELINE step 4).

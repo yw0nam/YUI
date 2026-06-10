@@ -13,7 +13,7 @@ independent channel from `emotion_id` (the VRM face blendshape). A happy face
 The Hermes agent produces `emotion_text`; YUI consumes whatever arrives on the
 `/v1/responses` stream and prepends it to the TTS segment (prefix-only — never
 shown in the speech bubble). See
-[`../expression-broker-mcp.md`](../expression-broker-mcp.md) (D2) and
+[`../expression-broker-mcp.md`](../expression-broker-mcp.md) and
 [`../contract.md`](../contract.md) `[D-EMOTION-TEXT]`.
 
 ## Provider-switch contract (mandatory)
@@ -35,7 +35,7 @@ re-publish the broker's `emotion_text` gate via
   Pass-through, no validation.
 
 The broker keeps this state in-memory and ephemeral, so YUI re-publishes on
-every boot and on every broker reconnect (D4/D6).
+every boot and on every broker reconnect.
 
 ## Adding a new provider
 
@@ -48,7 +48,6 @@ every boot and on every broker reconnect (D4/D6).
 ## See also
 
 - [`../expression-broker-mcp.md`](../expression-broker-mcp.md) — broker design,
-  D1–D6 decision log, the `emotion_text` enum-gate.
-- [`../tts_rule.md`](../tts_rule.md) — the wider TTS tool fields
-  (`emotion_id` / `motion_id` / `emotion_text`).
+  the wider `generate_express` tool fields (`emotion_id` / `motion_id` /
+  `emotion_text`), and the `emotion_text` enum-gate.
 - [`../contract.md`](../contract.md) — `[D-EMOTION-TEXT]`, the control envelope.

@@ -1,148 +1,151 @@
-# Desktop VRM Mate — Feature Spec
+# YUI — Concept
 
-> **Version:** v0.1 (big-picture / 큰 줄기)
-> **Status:** 프로젝트 내에서 구체화 진행 예정
+YUI is the embodied frontend (**head**) for the Hermes Agent (**brain**): VRM
+character rendering, desktop-pet behavior, and I/O surfaces. The brain — MCP,
+tool calling, search, long-term memory, persona/relationship state, and the
+agent loop — lives in the backend.
 
----
-
-## 0. 한 줄 정의
-
-Hermes Agent(**brain**)의 embodied frontend(**head**).
-VRM 캐릭터 렌더링 + 데스크톱 펫 행동 + I/O 표면을 담당하고,
-두뇌(MCP · tool calling · search · long-term memory · agent loop)는 **백엔드에 위임**한다.
-
-**핵심 분리 원칙:** `firing ≠ judgment`
-→ client는 *언제 후보 이벤트가 생겼나*(firing)만 책임. *말할지 / 무엇을 말할지*(judgment)는 backend.
+**Core split:** `firing ≠ judgment`. The client owns *firing* — detecting when a
+candidate event occurs. The backend owns *judgment* — whether and what to speak.
+There is no `should_speak` flag (D-NO-SPEAK-GATE); silence is expressed as no/empty
+speech text, and the client renders whatever text arrives. No brain, persona
+state, or mode-branching lives in the client.
 
 ---
 
-## 1. 아키텍처 원칙 (확정)
+## 1. Architecture principles
 
-- **통신:** request/response IO는 전부 **OpenAI 호환 API**
+- **Communication.** Chat and STT use the OpenAI-compatible API; TTS is
+  provider-switchable (irodori is not OpenAI-compatible). The Expression Broker
+  is an MCP. All are separate, config-swappable processes.
   - chat → `/v1/responses`
   - STT → `/audio/transcriptions`
-  - TTS → `/audio/speech` *(provider-swappable: default irodori `/synthesize`@8091[reference-voice], openai-compatible `/audio/speech`@8092 — contract §5)*
-  - vision 입력 → chat image content (OpenAI 호환 범위 내)
-- **예외 (명시):** Phase 2의 proactivity **push 채널(SSE/WebSocket)** 은 OpenAI 호환이 *아닌* 별도 채널. 원칙의 명시적 예외로 둔다.
-- **client에는 brain이 없다** — 렌더링 / 입출력 표면만.
-- **config-driven** — 개인용 우선, OSS 전환 대비해 하드코딩 금지.
-- **스택:** 웹 렌더링(three.js + `@pixiv/three-vrm`) + Tauri 셸. (AI 시각 검증 루프 확보 목적 — 렌더링/UI는 브라우저에서 스크린샷 검증, 네이티브 윈도우 레이어만 분리)
+  - TTS → provider-selected (irodori `/synthesize` or openai-compatible `/audio/speech`)
+  - vision input → chat image content
+- **No brain in the client** — rendering and I/O surfaces only.
+- **Config-driven** — endpoints, models, VRM paths, and motion sets live in
+  `configs/`, never hardcoded.
+- **Stack** — web rendering (three.js + `@pixiv/three-vrm`) inside a Tauri shell.
+  Rendering/UI is screenshot-verifiable in the browser; the native window layer
+  is isolated in Tauri.
 
 ---
 
-## 2. Feature Sections
+## 2. Feature surfaces
 
-### A. VRM 렌더링
-- VRM 모델 로드 + **핫스왑** (config로 모델 교체)
-- VRMA 모션 재생 (prebuilt 모션셋)
-- 표정/포즈 제어 (BlendShape/expression) — 백엔드 emotion 신호에 매핑
-- spring bone 등 기본 물리
+### A. VRM rendering
+- VRM model load with hot-swap via config.
+- VRMA motion playback from a prebuilt motion set.
+- Expression/pose control (BlendShape/expression) mapped from backend emotion signals.
+- Spring-bone physics.
 
-### B. 데스크톱 셸 / 펫 행동 *(Tauri 레이어 — AI 시각 검증이 어려운 영역, 분리 개발)*
-- 투명 / always-on-top 윈도우
-- **per-region hit-test** — 캐릭터 실루엣 위 = interactive, 투명 영역 = click-through (pass-through). *(드래그/쓰다듬기와 click-through 공존을 위한 필수 요건)*
-- 드래그로 위치 이동
-- 화면 가장자리 · 다른 앱 창 위 앉기 *(가장 손 많이 가는 부분. Desktop Homunculus 구현 참고)*
-- 멀티모니터
-- 클릭 / 쓰다듬기 반응
+### B. Desktop shell / pet behavior (Tauri layer)
+- Transparent, always-on-top window.
+- Per-region hit-test — the character silhouette is interactive, transparent
+  area is click-through (pass-through), so dragging and click-through coexist.
+- Drag to reposition.
+- OS-native window drag, multi-monitor capture, click/pet reactions.
 
-### C. 입력 (client = 센서)
-- 사용자 **텍스트** 입력
-- **음성** 입력 → STT(`/audio/transcriptions`)
-  - **VAD(voice activity detection)** — 녹음 시작/끝 감지 (음성 모드 필수 요소)
-- **화면 맥락** 수집: 활성 앱 · 창 제목 · 시간 → 백엔드 전달
-- **스크린샷** 캡처 → 비전 입력으로 백엔드 전달
-- *(클립보드는 범위 제외)*
+### C. Input (client = sensor)
+- Text input.
+- Voice input → STT (`/audio/transcriptions`), gated by VAD (Silero + ONNX) for
+  recording start/end detection.
+- Screen context: active app, window title, time → sent to the backend.
+- Screenshot capture → vision input for the backend.
 
-### D. 출력 / 연출 (백엔드 신호 → 렌더)
-- 텍스트 응답 (말풍선 / 챗 UI)
-- 음성 출력 → TTS(`/audio/speech`) + **립싱크** *(TTS provider-swappable: irodori 기본 / openai-compatible — contract §5)*
-  - ⚠️ OpenAI 호환 TTS는 viseme/타이밍 미제공 → 오디오 진폭 기반 or 자체 phoneme 정렬 중 택 (§4 참고)
-- emotion 신호 → VRM expression 변경
-- motion 트리거 → 지정 VRMA 재생
-- 툴 실행 과정/상태 표시 ("검색 중…", 툴 결과 카드)
-- 리치 콘텐츠 렌더 (이미지 · 링크 · 카드)
-- **Ambient animation layer (Tier 1)** — blink / idle sway / 숨쉬기 등. 항상 켜짐, **백엔드 독립**(네트워크 X).
+### D. Output / presentation (backend signal → render)
+- Text response (speech bubble / chat UI).
+- Voice output → TTS + amplitude-based lipsync (WebAudio amplitude drives the
+  mouth blendshape).
+- Emotion signal → VRM expression change.
+- Motion trigger → designated VRMA playback.
+- Tool-status display and rich content (images · links · cards).
+- Ambient animation layer (Tier 1) — blink / idle sway / breath / look-around.
+  Always on, backend-independent (no network).
 
-### E. 통신 / 프로토콜 (the contract)
-- `[MVP]` OpenAI 호환 스트리밍 + **turn-bound 제어신호(emotion/motion)를 structured output**으로 (inline 텍스트 태그 X — 스트리밍 중 토큰 분할로 깨지기 쉬움)
-- `[MVP]` **client-side event loop / dispatcher**
-  - sources: timer / idle-watcher / OS-event-watcher / user-input
-  - 트리거 *발사*만 담당, 판단은 위임
-- `[Phase 2]` 백엔드 **SSE/WebSocket push**가 이 dispatcher의 *또 다른 source*로 합류 (교체 아님 — 누적)
+### E. Communication / protocol (the contract)
+- OpenAI-compatible streaming with turn-bound control signals (emotion/motion)
+  as structured output — never inline text tags.
+- Client-side event loop / dispatcher with sources: timer · idle-watcher ·
+  OS-event-watcher · user-input. It only fires triggers; judgment is delegated.
 
 ```
-sources: timer / idle-watcher / OS-event-watcher / user-input / [P2] backend-SSE
+sources: timer / idle-watcher / OS-event-watcher / user-input
    → event bus
-   → dispatcher
-        ├ Tier 1 → 로컬 애니메이션 (백엔드 X)
-        └ Tier 2·3 → 맥락 패키징 → 백엔드 호출 → 렌더
+   → dispatcher (classify → guardrails → route)
+        ├ Tier 1 → local animation (no backend)
+        └ Tier 2·3 → context packaging → backend call → render
 ```
 
-### F. 설정 / 커스텀
-- `[MVP]` config 파일 기반 (API 엔드포인트 · 키, 모델, VRM 경로, 모션셋)
-- `[Phase 2]` 설정 UI, 사용자 모델 업로드, 페르소나 편집
-- 🔒 OSS 단계 진입 시 API 키는 평문 config 대신 **OS keychain**(Tauri secure storage)로
+### F. Settings / customization
+- Config-file based: API endpoints/keys, models, VRM path, motion set.
+- A settings toggle gates proactive (Tier 2/3) firing, default ON.
 
-### G. 모드 (혼합형 처리)
-- 챗 · 비서 · 펫 인격이 한 캐릭터에 공존
-- **자동 해소:** persona/모드 상태는 backend 소관(non-goal). client는 모드 전환 트리거 발사 + 현재 모드 표시만. client에 모드 분기 로직을 두지 않는다.
-
----
-
-## 3. Proactivity — 3 Tier 라우팅
-
-| Tier | 내용 | firing | judgment / content |
-|------|------|--------|--------------------|
-| **1 — ambient liveliness** | blink, idle sway, 숨쉬기, 둘러보기 | client | client (백엔드 X) |
-| **2 — 가벼운 발화** | co-working(곁들이) 발화, 시간대 인사 | client (cowork/timer/watcher) | **backend** (persona-aware, 확정) |
-| **3 — 맥락 개입** | 맥락 감지 후 선제 제안 | client (sensing) + [P2] backend push | backend |
-
-- **로드맵:** 초기 Tier 1·2 → 최종 Tier 3.
-- **Co-working 트리거(Tier 2):** 사용자가 **present**(OS idle ≤ `present_max_idle_ms`, 기본 60초)인 동안 cadence(`interval_ms`, 기본 10분)마다 `proactive.cowork`를 발사한다 — "옆에서 같이 일하는" 모델. 발사일 뿐 말할지/무엇을 말할지는 backend 판단(침묵=텍스트 미발신).
-- **Proactive 토글:** 사용자가 끄고 켜는 on/off 스위치가 **Tier 2/3 선제 발화를 source에서 게이트**한다(기본 ON). 이 토글은 Tier 1 ambient(blink/idle sway/숨쉬기)는 건드리지 않는다 — Tier 1은 항상 켜진 백엔드 독립 레이어다.
-- **OS idle 신호 의존:** co-working은 Rust `os_idle_tick`(present 판정)에 의존한다 — macOS는 현재 제공, Windows watcher는 대기 중(그동안 co-working은 비활성).
-- **필수 가드레일:** Tier 2/3는 **rate-limit + debounce + DND(focus 감지)**. 없으면 토큰 새고 캐릭터가 짜증남.
-- **Tier 2 silence 규약:** 백엔드가 "지금은 말 안 함"을 표현할 수 있어야 함 — **별도 플래그 없이 assistant 텍스트를 내보내지 않으면 침묵**이다(D-NO-SPEAK-GATE, contract §3). 표정만 짓고 싶으면 `express`로 emotion만 보낸다. 폭주 방지는 client-side rate-limit/debounce/DND가 안전망(firing이 client 소유).
+### G. Modes
+- Chat · assistant · pet personas coexist in one character. Persona/mode state is
+  the backend's concern. The client fires mode-transition triggers and displays
+  the current mode; it holds no mode-branching logic.
 
 ---
 
-## 4. The Contract (정의해야 할 핵심 산출물)
+## 3. Proactivity — 3-tier routing
 
-client ↔ Hermes 사이 계약. 스키마 확정은 프로젝트 내 작업이나, **존재 자체가 required**.
+| Tier | Content | firing | judgment / content |
+|------|---------|--------|--------------------|
+| **1 — ambient liveliness** | blink, idle sway, breath, look-around | client | client (no backend) |
+| **2 — light utterance** | co-working remarks, time-of-day greetings | client (cowork/timer/watcher) | backend (persona-aware) |
+| **3 — contextual intervention** | proactive suggestion after sensing | client (sensing) | backend |
 
-- **Emotion vocabulary** — 백엔드가 쏠 수 있는 emotion enum ↔ client의 VRM expression 매핑 레지스트리
-- **Motion registry** — 백엔드 motion ID ↔ client VRMA 파일 매핑 (prebuilt 모션 목록과 직결)
-- **Control signal envelope** — emotion / motion(+tool-status / rich-content)을 담는 `express` tool-call 스키마. 발화 게이트(should_speak) 없음 — 침묵=텍스트 미발신(D-NO-SPEAK-GATE)
-- **Input context schema** — client → backend로 올리는 센서 데이터(활성 앱, 창 제목, 시간, 스크린샷) 포맷
+- **Co-working trigger (Tier 2).** While the user is present (OS idle ≤
+  `present_max_idle_ms`, default 60s), the client fires `proactive.cowork` on a
+  cadence (`interval_ms`, default 10 min) — a "working alongside you" model. It
+  only fires; whether and what to say is the backend's judgment (silence = no
+  text emitted).
+- **Proactive toggle.** An on/off switch gates Tier 2/3 firing at the source
+  (default ON). It does not touch Tier 1 ambient, which is an always-on,
+  backend-independent layer.
+- **OS idle dependency.** Co-working relies on the Rust `os_event_watcher`
+  presence signal. `os_idle_ms` is null on Windows, so co-working is inert there.
+- **Guardrails.** Tier 2/3 firing passes rate-limit + debounce + DND (focus
+  detection) guards before reaching the backend-caller.
+- **Tier 2 silence.** The backend expresses "not speaking now" by emitting no
+  assistant text (D-NO-SPEAK-GATE, contract §3); to express only a face it sends
+  emotion via `generate_express`. Client-side rate-limit/debounce/DND are the
+  runaway safety net (firing is client-owned).
 
 ---
 
-## 5. 🚫 Non-goals (Hermes에 위임 — client가 만들지 않음)
+## 4. The contract
+
+The client ↔ Hermes contract (see [`contract.md`](contract.md)):
+
+- **Emotion vocabulary** — backend emotion enum ↔ client VRM expression registry,
+  with existence-aware fallback (`configs/emotion_registry.json`).
+- **Motion registry** — backend motion ID ↔ client VRMA mapping
+  (`configs/motions.json`, catalog in [`motions.md`](motions.md)).
+- **Control signal envelope** — emotion/motion/emotion_text carried in the
+  `generate_express` tool-call. No `should_speak` (D-NO-SPEAK-GATE).
+- **Input context schema** — sensor data (active app, window title, time,
+  screenshot) the client sends to the backend.
+- **Session continuity** — `X-Hermes-Session-Id` plus token-threshold compaction.
+
+---
+
+## 5. Non-goals (delegated to Hermes)
 
 - MCP / tool calling
 - search
-- long-term memory + 관계 · 페르소나 상태 (호감도 등)
+- long-term memory + relationship/persona state
 - agent loop
-- proactivity 트리거 **judgment** (말할지 · 내용 결정)
+- proactivity **judgment** (whether to speak · content)
 
-→ client는 위 결과를 *렌더링 / 표시*만. 트리거 **firing · sourcing**은 client 책임.
-
----
-
-## 6. ❓ Open Questions (프로젝트 내 구체화)
-
-1. **스트리밍 ↔ 제어신호 동시성** — emotion이 텍스트보다 늦게 도착하면 표정 지연. control envelope 형태 확정 시 해결.
-2. **스크린샷 캡처 정책** — 매 턴 / 트리거 시 / 백엔드 요청 시 중 택.
-3. **lipsync 방식** — 오디오 진폭 기반 vs 자체 phoneme 정렬.
-4. **단일 캐릭터 vs 멀티 캐릭터**
-5. **prebuilt 모션 정확한 목록** (= Motion registry 초기 항목)
-6. **패키징 / 배포** — Tauri updater, 코드사이닝 등
+The client renders/displays those results. Trigger **firing · sourcing** is the
+client's responsibility.
 
 ---
 
-## 7. 레퍼런스
+## 6. References
 
-- **Amica** (semperai/amica, MIT) — three-vrm + Tauri + OpenAI 호환 챗. 구조 레퍼런스.
-- **ChatVRM** (pixiv) — 더 단순한 출발점.
-- **Desktop Homunculus** (not-elm/desktop-homunculus, MIT) — 창 위 앉기 등 네이티브 윈도우 동작 구현 참고.
+- **Amica** (semperai/amica, MIT) — three-vrm + Tauri + OpenAI-compatible chat. Structural reference.
+- **ChatVRM** (pixiv) — simpler starting point.
+- **Desktop Homunculus** (not-elm/desktop-homunculus, MIT) — native window behavior (sitting on windows) reference.
