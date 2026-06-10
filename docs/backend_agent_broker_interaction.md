@@ -113,3 +113,45 @@ generate_express({ emotion_id: "happy" })
 ```
 
 The last example loses the timing. Use separate cues when different parts of the sentence need different expression.
+
+## FAQ
+
+### Do expression cues persist across sentences?
+
+No. Call `generate_express` for every sentence that should have an expression cue.
+
+After the motion loop finishes, expression and motion return to neutral/idle. If multiple sentences should keep the same happy expression or motion, call `generate_express` again for each sentence.
+
+### What happens when text is streamed without `generate_express`?
+
+The sentence is spoken normally with neutral voice tone and idle/neutral presentation.
+
+Use no `generate_express` call when the sentence should stay neutral.
+
+### When should `generate_express` be called?
+
+Call it per sentence or per meaningful expressive beat.
+
+Use it when the sentence needs a face, body motion, or voice tone cue. If the next sentence should use the same cue, call it again for that sentence.
+
+### What values are valid?
+
+Use the broker tool that returns valid ids before choosing values.
+
+- Use `get_ids` to check valid `emotion_id`, `motion_id`, and `emotion_text` values.
+- Do not rely on memorized value lists.
+- The valid set can change.
+- Only `generate_express` changes facial expression, body motion, or voice tone.
+
+`emotion_text` supports emoji combinations when those emoji are valid for the current broker vocabulary, for example:
+
+```text
+👅🫣👅
+🫣💋
+```
+
+### What does `generate_express({})` mean?
+
+It is an error. Do not call `generate_express` with no arguments.
+
+To keep the sentence neutral, stream the text without calling `generate_express`.
