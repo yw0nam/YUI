@@ -87,8 +87,8 @@ describe("configs/guardrails.json", () => {
 describe("configs/motions.json", () => {
   const m = read("configs/motions.json");
 
-  it("registers all five current motions: idle/drag/happy/laughing/shy_point", () => {
-    for (const id of ["idle", "drag", "happy", "laughing", "shy_point"]) {
+  it("registers all five current motions: idle/drag/happy/laugh/embarrassed", () => {
+    for (const id of ["idle", "drag", "happy", "laugh", "embarrassed"]) {
       expect(m[id], id).toBeDefined();
       expect(m[id].vrma_path, `${id}.vrma_path`).toMatch(/\.vrma$/);
       expect(m[id].priority, `${id}.priority`).toBeTypeOf("number");
@@ -110,8 +110,8 @@ describe("configs/motions.json", () => {
     expect(m.drag.interrupt_policy).toBe("replace");
   });
 
-  it("happy/laughing/shy_point are oneshot kind with priority 70 and interrupt_policy replace", () => {
-    for (const id of ["happy", "laughing", "shy_point"]) {
+  it("happy/laugh/embarrassed are oneshot kind with priority 70 and interrupt_policy replace", () => {
+    for (const id of ["happy", "laugh", "embarrassed"]) {
       expect(m[id].kind, `${id}.kind`).toBe("oneshot");
       expect(m[id].priority, `${id}.priority`).toBe(70);
       expect(m[id].interrupt_policy, `${id}.interrupt_policy`).toBe("replace");
@@ -153,12 +153,10 @@ describe("configs/motions.json", () => {
     }
   });
 
-  it("registers the Mate-Engine standing-gesture batch as oneshot p70", () => {
+  it("registers the standing-gesture batch as oneshot p70", () => {
     for (const id of [
-      "pose_shy",
-      "pose_hair_touch",
-      "pose_hands_folded",
-      "pose_salute",
+      "sheepish",
+      "calm",
       "peek",
     ]) {
       expect(m[id], id).toBeDefined();
@@ -176,7 +174,7 @@ describe("configs/motions.json", () => {
     expect(m.sleeping.priority).toBe(70);
   });
 
-  it("dropped duplicates/mislabels are ABSENT (pose_sit_*, lean_*, hover_reaction)", () => {
+  it("dropped duplicates/mislabels are ABSENT (pose_sit_*, lean_*, hover_reaction, old ids)", () => {
     for (const id of [
       "pose_sit_1",
       "pose_sit_2",
@@ -185,6 +183,11 @@ describe("configs/motions.json", () => {
       "lean_left",
       "lean_right",
       "hover_reaction",
+      "shy_point",
+      "pose_shy",
+      "pose_salute",
+      "pose_hair_touch",
+      "pose_hands_folded",
     ]) {
       expect(m[id], id).toBeUndefined();
     }

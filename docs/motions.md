@@ -4,7 +4,17 @@ Human-readable map of every motion id in [`configs/motions.json`](../configs/mot
 
 - **Source**: all clips were extracted from the Mate-Engine Unity project (`Assets/MATE ENGINE - Animations/…`) to `.vrma` via the `unity-cli exec → YuiExport.YuiVrmaExport.ExportBatch` pipeline (30 FPS, T-pose reference, model-independent retarget). Durations are the source clip length.
 - **Pools**: `idle`, `sit`, `dance` are single registry entries with a `variants[]` list and `variant_policy: "random"` — each trigger plays a random variant (immediate-repeat avoided). The character-facing id is the pool id (`sit`, `dance`); individual variant files are not separate registry entries.
-- **Triggers** (current): AI via `generate_express` `motion_id` plays any oneshot/pool; `idle` is the ambient baseline; `drag` is the reactive pickup. Window-sit-on-drop (reactive) is tracked in #131; per-personality filtering of these pools in #130.
+- **Triggers**: AI via `generate_express` `motion_id` plays any agent-callable oneshot/pool; `idle` is the ambient baseline; `drag` is the reactive pickup. The agent-callable set published by the Expression Broker is `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance`.
+- **Broker publication** (`broker_publish`, default `true`): a `false` entry stays renderable locally but is kept out of the agent-facing broker vocabulary, so the agent never selects it. Three motions are not broker-published: `idle` (ambient baseline, auto-played), `drag` (reactive pickup), and `sit` (`broker_publish: false`, reserved for a future window-sit trigger).
+
+## Naming convention
+
+A motion id is named for the emotion or state it expresses, with a few patterns:
+
+- **Default — `{emotion}`**: the bare emotion or state — `happy`, `laugh`, `embarrassed`, `sheepish`, `calm`.
+- **Indexed — `{emotion}_1`, `{emotion}_2`, …**: when several clips express the same emotion, suffix a number.
+- **Qualified — `{emotion}_{extra}`**: when the emotion needs extra description, suffix a short qualifier.
+- **Descriptive exception**: motions whose action or pose is itself the clearest identifier keep that descriptive name instead of an emotion label — `idle`, `drag`, `peek`, `sit`, `sleeping`, `dance`.
 
 ## Top-level motions
 
@@ -13,18 +23,16 @@ Human-readable map of every motion id in [`configs/motions.json`](../configs/mot
 | `idle` | ambient | yes (cycle) | Ambient baseline — random idle variant pool (see below). | PET_IDLE / PET_MISC | — |
 | `drag` | reactive | yes | Pickup reaction while the window is being dragged. | PET_MISC/PET_DRAGGING | — |
 | `happy` | oneshot | no | Happy reaction. | PET_MISC/PET_HAPPY | — |
-| `laughing` | oneshot | no | Laughing reaction. | PET_MISC/PET_LAUGHING | — |
-| `shy_point` | oneshot | no | Shy finger-point. | PET_MISC/PET_SHY_POINT | — |
-| `pose_shy` | oneshot | no | Standing; both hands clasped near chest/chin — shy/demure. | PET_POSE/PET_POSE_1 | 6.8s |
-| `pose_hair_touch` | oneshot | no | Standing; one hand raised to the head/hair. | PET_POSE/PET_POSE_2 | 6.8s |
-| `pose_hands_folded` | oneshot | no | Standing; hands folded together in front — calm. | PET_POSE/PET_POSE_3 | 5.0s |
-| `pose_salute` | oneshot | no | Standing, wide stance; hand at forehead (salute / peering). | PET_POSE/PET_POSE_4 | 6.8s |
+| `laugh` | oneshot | no | Laughing reaction. | PET_MISC/PET_LAUGHING | — |
+| `embarrassed` | oneshot | no | Strongly embarrassed; shy finger-point gesture. | PET_MISC/PET_SHY_POINT | — |
+| `sheepish` | oneshot | no | Sheepish/awkward; one hand raised to the head/hair. | PET_POSE/PET_POSE_2 | 6.8s |
+| `calm` | oneshot | no | Calm; standing, hands folded together in front. | PET_POSE/PET_POSE_3 | 5.0s |
 | `peek` | oneshot | no | Standing, 3/4 turn; one hand covering the mouth — shy peek. | PET_HIDING/PET_HIDE | 14.0s |
 | `sleeping` | oneshot | yes | Lies down on the floor on her side — sleeping. Drops the hips low (off a feet-anchored frame). | PET_SLEEPING/PET_SLEEPING | 35.2s |
-| `sit` | oneshot | no | Random sit pool (see below). Currently returns to idle; held window-sit is #131. | PET_SITTING/* | — |
+| `sit` | oneshot | no | Random sit pool (see below). `broker_publish: false` — renderable locally but not agent-callable; returns to idle, reserved for a future held window-sit trigger. | PET_SITTING/* | — |
 | `dance` | oneshot | no | Random dance pool (see below). | PET_DANCING/* | — |
 
-> Note: `pose_*` are **standing gestures**, not sitting — the `pose_sit_*` working names were a misnomer and were renamed.
+> Note: `sheepish` and `calm` are **standing gestures**, not sitting.
 
 ## `idle` variants (ambient, random)
 
@@ -87,5 +95,7 @@ Human-readable map of every motion id in [`configs/motions.json`](../configs/mot
 
 | clips | intended use | status |
 |---|---|---|
+| PET_POSE/PET_POSE_1 | Standing pose gesture — both hands clasped near chest/chin. | extracted, not registered |
+| PET_POSE/PET_POSE_4 | Standing pose gesture — hand at forehead (salute / peering). | extracted, not registered |
 | PET_INTRO / PET_INTRO_START / _LOOP / _END | Spawn/appear sequence on app launch. | staged, needs sequencing wiring |
 | WINDOW_LAY_8 / 9 / 10, BETA_PET_WINDOW_LAY | Window-edge perch pool for the window-sit trigger. | reserved for #131 |

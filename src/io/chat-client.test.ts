@@ -136,7 +136,7 @@ const completedWithUsage = (
 
 /** generate_express FLAT args (contract.md §1/§3): emotion_id / motion_id / emotion_text. */
 const GEN_EXPRESS_FLAT =
-  '{"emotion_id":"happy","motion_id":"shy_point","emotion_text":"[whisper in small voice]"}';
+  '{"emotion_id":"happy","motion_id":"embarrassed","emotion_text":"[whisper in small voice]"}';
 
 /** Live Hermes MCP-namespaced tool name for generate_express (verified against backend). */
 const MCP_GEN_EXPRESS = "mcp_tts_express_server_generate_express";
@@ -193,7 +193,7 @@ describe("streamChat — generate_express capture (flat args)", () => {
     if (express!.type !== "express") throw new Error("narrow");
     // FLAT shape — no nested emotion/motion objects, no should_speak.
     expect(express.args.emotion_id).toBe("happy");
-    expect(express.args.motion_id).toBe("shy_point");
+    expect(express.args.motion_id).toBe("embarrassed");
     expect(express.args.emotion_text).toBe("[whisper in small voice]");
     expect((express.args as Record<string, unknown>).should_speak).toBeUndefined();
   });
@@ -218,7 +218,7 @@ describe("streamChat — generate_express capture (flat args)", () => {
     expect(env.speech_text).toBe("안녕");
     // Normalized to the unchanged downstream renderer seam (EmotionSignal / MotionSignal).
     expect(env.emotion).toEqual({ id: "happy" });
-    expect(env.motion).toEqual({ id: "shy_point" });
+    expect(env.motion).toEqual({ id: "embarrassed" });
     expect(env.emotion_text).toBe("[whisper in small voice]");
     // should_speak is gone (D-NO-SPEAK-GATE).
     expect((env as Record<string, unknown>).should_speak).toBeUndefined();

@@ -84,6 +84,8 @@ export interface MotionRegistryEntry {
   variants?: string[];
   /** NEW: variants가 있을 때 선택 정책. default "random". */
   variant_policy?: "random" | "sequential";
+  /** false면 broker(agent) 어휘에서 제외 — 로컬 렌더만. default true. */
+  broker_publish?: boolean;
   kind: MotionKind;
   loop: boolean;
   /** 0~100, 높을수록 우선. */

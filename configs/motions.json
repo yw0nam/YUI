@@ -36,43 +36,29 @@
     "priority": 70,
     "interrupt_policy": "replace"
   },
-  "laughing": {
-    "vrma_path": "/motions/laughing.vrma",
+  "laugh": {
+    "vrma_path": "/motions/laugh.vrma",
     "kind": "oneshot",
     "loop": false,
     "priority": 70,
     "interrupt_policy": "replace"
   },
-  "shy_point": {
-    "vrma_path": "/motions/shy_point.vrma",
+  "embarrassed": {
+    "vrma_path": "/motions/embarrassed.vrma",
     "kind": "oneshot",
     "loop": false,
     "priority": 70,
     "interrupt_policy": "replace"
   },
-  "pose_shy": {
-    "vrma_path": "/motions/pose_shy.vrma",
+  "sheepish": {
+    "vrma_path": "/motions/sheepish.vrma",
     "kind": "oneshot",
     "loop": false,
     "priority": 70,
     "interrupt_policy": "replace"
   },
-  "pose_hair_touch": {
-    "vrma_path": "/motions/pose_hair_touch.vrma",
-    "kind": "oneshot",
-    "loop": false,
-    "priority": 70,
-    "interrupt_policy": "replace"
-  },
-  "pose_hands_folded": {
-    "vrma_path": "/motions/pose_hands_folded.vrma",
-    "kind": "oneshot",
-    "loop": false,
-    "priority": 70,
-    "interrupt_policy": "replace"
-  },
-  "pose_salute": {
-    "vrma_path": "/motions/pose_salute.vrma",
+  "calm": {
+    "vrma_path": "/motions/calm.vrma",
     "kind": "oneshot",
     "loop": false,
     "priority": 70,
@@ -108,7 +94,8 @@
     "kind": "oneshot",
     "loop": false,
     "priority": 70,
-    "interrupt_policy": "replace"
+    "interrupt_policy": "replace",
+    "broker_publish": false
   },
   "dance": {
     "vrma_path": "/motions/dance_01.vrma",

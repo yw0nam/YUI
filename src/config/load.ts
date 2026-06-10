@@ -584,10 +584,20 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
     if (rawVariantPolicy !== undefined && rawVariants === undefined) {
       issues.push(`${id}.variant_policy는 variants 없이 의미 없음 (variants 필요)`);
     }
+    const rawBrokerPublish = entry.broker_publish;
+    let broker_publish: boolean | undefined;
+    if (rawBrokerPublish !== undefined) {
+      if (typeof rawBrokerPublish !== "boolean") {
+        issues.push(`${id}.broker_publish는 boolean이어야 함`);
+      } else {
+        broker_publish = rawBrokerPublish;
+      }
+    }
     out[id] = {
       vrma_path: entry.vrma_path as string,
       ...(variants !== undefined ? { variants } : {}),
       ...(variant_policy !== undefined ? { variant_policy } : {}),
+      ...(broker_publish !== undefined ? { broker_publish } : {}),
       kind: entry.kind as MotionKind,
       loop: entry.loop as boolean,
       priority: entry.priority as number,

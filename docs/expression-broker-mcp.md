@@ -47,13 +47,13 @@ emotion/motion **어휘(vocabulary)의 단일 진실원천(SOT)** 이자, agent�
 {
   "emotion_ids": ["neutral","happy","angry","sad","relaxed",
                   "surprised","thinking","curious","sleepy","embarrassed"],
-  "motion_ids":  ["idle","happy","laughing","shy_point"],
+  "motion_ids":  ["happy","laugh","embarrassed","sheepish","calm","peek","sleeping","dance"],
   "version":     3   // 갱신마다 증가 (변경 감지/디버그용)
 }
 ```
 
 - **emotion_ids** = VRM blendshape(얼굴) id. contract.md §1 enum 10종이 기본값. **TTS엔 안 쓰임.**
-- **motion_ids** = VRMA(몸) registry key. contract.md §2의 model-selectable 4종. (`drag`는 client 내부 reactive 모션 — model이 고르지 않으므로 제외.)
+- **motion_ids** = VRMA(몸) registry key. broker가 노출하는 agent-callable 집합은 `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance`. `broker_publish: false`인 entry(`sit`)와 client 내부 전용 모션(`idle` ambient baseline, `drag` reactive pickup)은 model이 고르지 않으므로 제외.
 - **TTS 태그(emotion_text)는 hard 검증 어휘에 두지 않는다.** 어휘는 **이모지 태그 집합**이다(아래 §4 표). 자유 텍스트라(이모지 반복으로 강도 표현, 조합 가능) hard enum이 아니므로 broker는 검증/강제하지 않는다. broker가 이 이모지 목록을 *advisory 힌트*로 노출할 수는 있다(§3.4 `update_tts_tags`, optional).
 
 ## 3. MCP Surface

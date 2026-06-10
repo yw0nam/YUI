@@ -207,6 +207,27 @@ describe("loadConfig — motions.variants", () => {
     expect(cfg.motions.idle.variants).toBeUndefined();
     expect(cfg.motions.idle.variant_policy).toBeUndefined();
   });
+
+  it("broker_publish:false를 검증 후 그대로 보존한다", async () => {
+    const map = goodFixture();
+    map["motions.json"] = {
+      idle: {
+        vrma_path: "/motions/a.vrma",
+        broker_publish: false,
+        kind: "oneshot",
+        loop: false,
+        priority: 0,
+        interrupt_policy: "replace",
+      },
+    };
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.motions.idle.broker_publish).toBe(false);
+  });
+
+  it("broker_publish 없는 항목은 통과하고 broker_publish는 undefined", async () => {
+    const cfg = await loadConfig({ read: readerOf(goodFixture()) });
+    expect(cfg.motions.idle.broker_publish).toBeUndefined();
+  });
 });
 
 // ── avatar.available manifest (#94 VRM swap) ────────────────────────────────────
@@ -884,6 +905,22 @@ describe("loadConfig — validation failures throw ConfigError", () => {
           kind: "ambient",
           loop: true,
           priority: 200, // 0~100 밖
+          interrupt_policy: "replace",
+        },
+      }),
+      "motions.json",
+    );
+  });
+
+  it("motions: broker_publish가 boolean이 아니면 실패", async () => {
+    await expectConfigError(
+      loadWith(CONFIG_FILES.motions, {
+        idle: {
+          vrma_path: "/motions/a.vrma",
+          broker_publish: "no", // boolean 아님
+          kind: "ambient",
+          loop: true,
+          priority: 0,
           interrupt_policy: "replace",
         },
       }),

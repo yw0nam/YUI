@@ -49,7 +49,7 @@ Example:
 "안녕 영우야!"
 generate_express({ emotion_id: "happy", motion_id: "dance", emotion_text: "🤭" })
 " 오늘 하루는 어땠어?"
-generate_express({ emotion_id: "curious", motion_id: "pose_salute", emotion_text: "😏" })
+generate_express({ emotion_id: "curious", motion_id: "calm", emotion_text: "😏" })
 ```
 
 This means:
@@ -57,7 +57,7 @@ This means:
 - say `"안녕 영우야!"`;
 - place a happy/dance/🤭 cue on that greeting;
 - say `" 오늘 하루는 어땠어?"`;
-- place a curious/pose_salute/😏 cue on the question.
+- place a curious/calm/😏 cue on the question.
 
 ## Streaming Shape
 
@@ -75,10 +75,10 @@ event: response.output_text.delta
 data: {"type":"response.output_text.delta","item_id":"msg_1","delta":" 오늘 하루는 어땠어?","sequence_number":5}
 
 event: response.output_item.added
-data: {"type":"response.output_item.added","output_index":2,"item":{"id":"fc_2","type":"function_call","name":"generate_express","arguments":"{\"emotion_id\":\"curious\",\"motion_id\":\"pose_salute\",\"emotion_text\":\"😏\"}"},"sequence_number":6}
+data: {"type":"response.output_item.added","output_index":2,"item":{"id":"fc_2","type":"function_call","name":"generate_express","arguments":"{\"emotion_id\":\"curious\",\"motion_id\":\"calm\",\"emotion_text\":\"😏\"}"},"sequence_number":6}
 
 event: response.output_item.done
-data: {"type":"response.output_item.done","output_index":2,"item":{"id":"fc_2","type":"function_call","name":"generate_express","arguments":"{\"emotion_id\":\"curious\",\"motion_id\":\"pose_salute\",\"emotion_text\":\"😏\"}"},"sequence_number":7}
+data: {"type":"response.output_item.done","output_index":2,"item":{"id":"fc_2","type":"function_call","name":"generate_express","arguments":"{\"emotion_id\":\"curious\",\"motion_id\":\"calm\",\"emotion_text\":\"😏\"}"},"sequence_number":7}
 
 event: response.output_text.done
 data: {"type":"response.output_text.done","item_id":"msg_1","text":"안녕 영우야! 오늘 하루는 어땠어?","sequence_number":8}
