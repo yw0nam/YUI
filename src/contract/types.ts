@@ -86,6 +86,8 @@ export interface MotionRegistryEntry {
   variant_policy?: "random" | "sequential";
   /** NEW: cycle 모션이 다음 variant로 swap하기 전 마지막(정착) 프레임을 유지할 ms. 없으면/0이면 즉시 swap. variants>1 + loop 필요. */
   cycle_dwell_ms?: number;
+  /** entry-level default crossfade ms — signal이 fade_ms를 생략할 때 쓰인다. 없으면 200으로 폴백. */
+  fade_ms?: number;
   /** false면 broker(agent) 어휘에서 제외 — 로컬 렌더만. default true. */
   broker_publish?: boolean;
   kind: MotionKind;
@@ -326,4 +328,29 @@ export interface EndpointsConfig {
   compact_resume_ratio?: number;
   /** 단일 compress 호출의 마감 시한(ms, loader default 12000). */
   compact_timeout_ms?: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── Client-only geometry (window-sit perch) ──
+// backend contract 밖 — generate_express / ControlEnvelope에 싣지 않는 순수 렌더 입력.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** A rectangle in global screen coordinates (points, top-left origin). */
+export interface ScreenRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** An on-screen foreign window (matches the Rust `list_windows()` / `WindowAtPoint` payload, points). */
+export interface WindowRect extends ScreenRect {
+  name: string | null;
+  pid: number;
+}
+
+/** Client-only perch target handed to the renderer: which window edge the character sits on. */
+export interface PerchTarget {
+  rect: ScreenRect;
+  edge: "top";
 }

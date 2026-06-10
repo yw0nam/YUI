@@ -153,13 +153,15 @@ describe("configs/motions.json", () => {
     }
   });
 
-  it("window_sit is a looping state perch with a cycle dwell and a random-variant pool", () => {
+  it("window_sit is a looping state perch that cycles variants seamlessly (no dwell, long fade)", () => {
     expect(m.window_sit).toBeDefined();
     expect(m.window_sit.kind).toBe("state");
     expect(m.window_sit.loop).toBe(true);
     expect(m.window_sit.priority).toBe(55);
     expect(m.window_sit.broker_publish).toBe(false);
-    expect(m.window_sit.cycle_dwell_ms).toBe(4000);
+    // Seamless cycle: no frozen clamp hold, blended over a long crossfade.
+    expect(m.window_sit.cycle_dwell_ms).toBe(0);
+    expect(m.window_sit.fade_ms).toBe(700);
     expect(m.window_sit.variant_policy).toBe("random");
     expect(Array.isArray(m.window_sit.variants)).toBe(true);
     expect(m.window_sit.variants.length).toBe(8);

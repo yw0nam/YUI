@@ -81,6 +81,8 @@ import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { createCoworkSource } from "./dispatcher/cowork-source";
+import { createWindowDropSource } from "./io/window-drop-source";
+import type { WindowRect } from "./contract";
 import type { SttVad } from "./io/stt-vad";
 
 /** 입력 소환 핫키 (window-focus 한정 — 전역 단축키는 후속 tauri-plugin-global-shortcut). */
@@ -386,6 +388,8 @@ async function bootstrap(): Promise<void> {
       vrmSelection.dispose();
       speakerSelection.dispose();
       osContext.stop();
+      windowDropDisposed = true;
+      windowDropSource?.stop();
       stage.removeEventListener("contextmenu", onContextMenu);
     });
   }
@@ -400,6 +404,32 @@ async function bootstrap(): Promise<void> {
       log.info("drop", { event_name: env.event_name, reason }),
   });
   const userInput = createUserInputSource(bus);
+  // Window-sit drop producer (#131): Rust window_drop_release → tier1 perch event.
+  // Tauri-only — getCurrentWindow()/invoke/listen require the Tauri runtime; in a
+  // plain browser (Vite dev) it is skipped so bootstrap still runs. The DEV mock
+  // (__yui_windowSit.drop) exercises the geometry path without a real drag.
+  let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
+  // Guards the teardown/async-assign race: cleanup may run before the IIFE assigns.
+  let windowDropDisposed = false;
+  if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+    void (async () => {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const { listen } = await import("@tauri-apps/api/event");
+      windowDropSource = createWindowDropSource({
+        bus,
+        renderer,
+        invoke: (cmd) => invoke(cmd) as Promise<WindowRect[]>,
+        getWindow: getCurrentWindow,
+        listen: listen as never,
+      });
+      if (windowDropDisposed) {
+        windowDropSource.stop();
+        return;
+      }
+      await windowDropSource.start();
+    })().catch((err) => log.warn("window-drop source start failed — degrade:", err));
+  }
   let sttVad: SttVad | null = null;
   let voiceInputReady = false;
   let voiceInputStartRequested = false;
@@ -489,8 +519,9 @@ async function bootstrap(): Promise<void> {
       __yui_send: (text: string) => userInput.submit(text),
       // dispatcher 관찰(§11): __yui_dispatcher.inFlight()/queue()/recentDrops().
       __yui_dispatcher: () => dispatcherRef,
-      // DEV-ONLY 트리거: window_sit perch 진입/이탈을 콘솔에서 직접 발사한다.
+      // DEV-ONLY 트리거: window_sit perch 진입/이탈/드롭을 콘솔에서 직접 발사한다.
       //   window.__yui_windowSit.enter() → user.window_sit_enter → dispatcher → renderer.
+      //   window.__yui_windowSit.drop(rect) → user.window_sit_drop(geometry) → perch align.
       __yui_windowSit: {
         enter: () =>
           bus.push({
@@ -508,6 +539,31 @@ async function bootstrap(): Promise<void> {
             hint_tier: 1,
             dnd_override: true,
           }),
+        // edge_local_ypx를 현재 창 outerPosition/scaleFactor로 계산해 geometry 경로를
+        // 실제 OS 창 없이 구동한다(Tauri면 실값, 아니면 0,0/1 폴백).
+        drop: async (rect: WindowRect): Promise<void> => {
+          let pos = { x: 0, y: 0 };
+          let scale = 1;
+          if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+            try {
+              const { getCurrentWindow } = await import("@tauri-apps/api/window");
+              const w = getCurrentWindow();
+              pos = await w.outerPosition();
+              scale = await w.scaleFactor();
+            } catch {
+              /* fallback to 0,0 / 1 */
+            }
+          }
+          const sf = scale > 0 ? scale : 1;
+          bus.push({
+            source: "os_event_watcher",
+            event_name: "user.window_sit_drop",
+            ts: Date.now(),
+            hint_tier: 1,
+            dnd_override: true,
+            payload: { target_window_rect: rect, edge_local_ypx: rect.y - pos.y / sf },
+          });
+        },
       },
       // 단계별 시연 헬퍼
       __yuiDemo: {

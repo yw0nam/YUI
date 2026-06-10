@@ -110,7 +110,8 @@
       "/motions/suwari3.vrma"
     ],
     "variant_policy": "random",
-    "cycle_dwell_ms": 4000,
+    "cycle_dwell_ms": 0,
+    "fade_ms": 700,
     "kind": "state",
     "loop": true,
     "priority": 55,
