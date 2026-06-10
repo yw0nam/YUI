@@ -400,6 +400,7 @@ describe("mergeEndpoints", () => {
 
   it("applies all four URL overrides + chat_model", () => {
     const out = mergeEndpoints(baseConfig(), {
+      ...EMPTY,
       chat_base_url: "http://c",
       stt_base_url: "http://s",
       tts_base_url: "http://t",

@@ -153,8 +153,18 @@ async function bootstrap(): Promise<void> {
           stt_base_url: e.stt_base_url,
           tts_base_url: e.tts_base_url,
           irodori_base_url: e.irodori_base_url ?? "",
+          broker_base_url: e.broker_base_url ?? "",
           chat_model: e.chat_model ?? "",
+          tts_provider: e.tts_provider ?? "",
         };
+      } catch {
+        return undefined;
+      }
+    },
+    getDefaultProvider: () => {
+      if (!configLoaded) return undefined;
+      try {
+        return config.get().endpoints.tts_provider;
       } catch {
         return undefined;
       }

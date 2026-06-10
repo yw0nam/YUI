@@ -456,7 +456,7 @@ describe("createQuickControls — gain row", () => {
 
   // ── 엔드포인트 섹션(#95) ───────────────────────────────────────────────────
 
-  it("renders 5 endpoint fields (4 url + chat_model) in a collapsed details", () => {
+  it("renders 6 endpoint fields (5 url + chat_model) in a collapsed details", () => {
     const qc = buildQc();
     qc.open();
 
@@ -466,8 +466,15 @@ describe("createQuickControls — gain row", () => {
     const keys = Array.from(qc.el.querySelectorAll<HTMLDivElement>(".yui-endpoints .yui-input-row")).map(
       (r) => r.dataset.epField,
     );
-    expect(keys).toEqual(["chat_base_url", "stt_base_url", "tts_base_url", "irodori_base_url", "chat_model"]);
-    expect(qc.el.querySelectorAll(".yui-endpoints .yui-ep-input--url").length).toBe(4);
+    expect(keys).toEqual([
+      "chat_base_url",
+      "stt_base_url",
+      "tts_base_url",
+      "irodori_base_url",
+      "broker_base_url",
+      "chat_model",
+    ]);
+    expect(qc.el.querySelectorAll(".yui-endpoints .yui-ep-input--url").length).toBe(5);
 
     qc.dispose();
   });

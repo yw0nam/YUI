@@ -68,6 +68,7 @@ import { createSessionCompactor } from "./io/session-compactor";
 import { createCompactionTrigger } from "./io/compaction-trigger";
 import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET, loadEmotionTextTable } from "./config";
 import { createBrokerClient, deriveBrokerPayload, type BrokerClient } from "./io/broker-client";
+import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { initDrag } from "./drag";
 import { selectFetch } from "./io/chat-client";
 import { createSpeechPlayback } from "./io/speech-playback";
@@ -346,8 +347,17 @@ async function bootstrap(): Promise<void> {
           stt_base_url: e.stt_base_url,
           tts_base_url: e.tts_base_url,
           irodori_base_url: e.irodori_base_url ?? "",
+          broker_base_url: e.broker_base_url ?? "",
           chat_model: e.chat_model ?? "",
+          tts_provider: e.tts_provider ?? "",
         };
+      } catch {
+        return undefined;
+      }
+    },
+    getDefaultProvider: () => {
+      try {
+        return config.get().endpoints.tts_provider;
       } catch {
         return undefined;
       }
@@ -474,6 +484,12 @@ async function bootstrap(): Promise<void> {
   // broker client는 config 로드 후 broker_base_url이 있을 때만 만든다. 핫스왑 재publish와
   // HMR dispose가 닿게 holder를 둔다.
   let brokerRef: BrokerClient | null = null;
+  // Tauri webview에서 broker(localhost:3201)는 cross-origin → selectFetch로 CORS 우회 fetch 주입.
+  // 부트에서 1회 해소해 캐시하고, 재지정(override) 시에도 같은 fetch를 재사용한다.
+  let brokerFetch: typeof fetch | undefined;
+  function makeBroker(baseUrl: string): BrokerClient {
+    return createBrokerClient({ baseUrl, ...(brokerFetch ? { fetch: brokerFetch } : {}) });
+  }
 
   // irodori provider일 때만 enum 테이블을 best-effort 로드. 실패하면 warn 후 null →
   // broker가 free 모드로 degrade(D4). 부트/핫스왑을 막지 않는다.
@@ -808,21 +824,35 @@ async function bootstrap(): Promise<void> {
     });
     coworkSourceRef = coworkSource;
     void coworkSource.start();
-    // Expression Broker publish(D6): broker_base_url이 있을 때만 가동. publish→start는
-    // fire-and-forget — 부트 임계 경로를 막지 않는다(D4).
-    if (cfg.endpoints.broker_base_url) {
-      const table = await loadBrokerTable(cfg.endpoints.tts_provider);
-      // Tauri webview에서 broker(localhost:3201)는 cross-origin → selectFetch로 CORS 우회 fetch 주입.
-      const brokerFetch = await selectFetch();
-      brokerRef = createBrokerClient({
-        baseUrl: cfg.endpoints.broker_base_url,
-        ...(brokerFetch ? { fetch: brokerFetch } : {}),
-      });
-      const payload = deriveBrokerPayload(cfg, table);
+    // Expression Broker publish(D6): broker_base_url이 있을 때만 가동(override 병합 effective 기준).
+    // publish→start는 fire-and-forget — 부트 임계 경로를 막지 않는다(D4).
+    const bootEps = getEndpoints();
+    brokerFetch = (await selectFetch()) ?? undefined;
+    if (bootEps.broker_base_url) {
+      const table = await loadBrokerTable(bootEps.tts_provider);
+      brokerRef = makeBroker(bootEps.broker_base_url);
+      const payload = deriveBrokerPayload({ ...cfg, endpoints: bootEps }, table);
       void brokerRef.publish(payload).then(() => brokerRef?.start());
     } else {
       log.debug("broker disabled: no broker_base_url");
     }
+
+    // 오버라이드(음성 엔진·broker URL) 변경을 라이브로 broker에 반영. config.subscribe는
+    // 디스크 편집만 보므로 별도로 배선한다(best-effort).
+    const brokerReconciler = createBrokerOverrideReconciler({
+      getEffectiveEndpoints: getEndpoints,
+      getBroker: () => brokerRef,
+      setBroker: (b) => {
+        brokerRef = b;
+      },
+      createBroker: makeBroker,
+      loadTable: loadBrokerTable,
+      derivePayload: (eff, table) => deriveBrokerPayload({ ...config.get(), endpoints: eff }, table),
+    });
+    const unsubscribeBrokerOverride = endpointsSettings.subscribe(() => {
+      void brokerReconciler.onChange();
+    });
+    if (import.meta.env.DEV) import.meta.hot?.dispose(unsubscribeBrokerOverride);
   } catch (err) {
     log.error("config load / VRM load failed:", err);
   }
@@ -868,12 +898,14 @@ async function bootstrap(): Promise<void> {
       });
     }
     // broker re-publish(D6): renderable vocab을 만드는 config 섹션이 바뀌면 동기화. best-effort.
+    // override 병합 effective 엔드포인트로 발행해 디스크 편집이 사용자 오버라이드를 덮지 않게 한다.
     if (
       brokerRef &&
       (changed.has("emotionRegistry") || changed.has("motions") || changed.has("endpoints"))
     ) {
-      void loadBrokerTable(cfg.endpoints.tts_provider).then((table) => {
-        void brokerRef?.publish(deriveBrokerPayload(cfg, table));
+      const eff = getEndpoints();
+      void loadBrokerTable(eff.tts_provider).then((table) => {
+        void brokerRef?.publish(deriveBrokerPayload({ ...cfg, endpoints: eff }, table));
       });
     }
     if (!changed.has("avatar")) return;
