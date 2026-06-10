@@ -29,4 +29,8 @@ export type {
   DispatcherStateMeta,
   // Endpoint config
   EndpointsConfig,
+  // Client-only geometry (window-sit perch)
+  ScreenRect,
+  WindowRect,
+  PerchTarget,
 } from "./types";
