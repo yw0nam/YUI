@@ -10,24 +10,21 @@
  */
 
 import { createLogger } from "../logger";
+import {
+  OS_EVENT_CHANNEL,
+  resolveTauriListen,
+  type OsEventListen,
+  type OsEventPayload,
+} from "./tauri-listen";
 
 const log = createLogger("os-context");
 
-/** `os_event` channel payload — mirrors src-tauri OsEventPayload (snake_case over IPC). */
-export interface OsEventPayload {
-  event_name: string;
-  ts: number;
-  data: {
-    active_app_name?: string | null;
-    active_window_title?: string | null;
-    os_idle_ms?: number | null;
-    is_fullscreen?: boolean | null;
-  };
-}
+export type { OsEventPayload } from "./tauri-listen";
 
 export interface OsContextSnapshot {
   activeApp?: string;
   activeWindowTitle?: string;
+  isFullscreen?: boolean;
 }
 
 export interface OsContext {
@@ -36,26 +33,9 @@ export interface OsContext {
   stop(): void;
 }
 
-/** Tauri event `listen` signature (injectable for tests). */
-export type OsEventListen = (
-  event: string,
-  handler: (e: { payload: OsEventPayload }) => void,
-) => Promise<() => void>;
-
-const OS_EVENT_CHANNEL = "os_event";
-
 /** A non-empty string, else undefined (null/empty are ignored). */
 function nonEmpty(v: string | null | undefined): string | undefined {
   return typeof v === "string" && v.trim() !== "" ? v : undefined;
-}
-
-/** Resolve the real Tauri `listen`, but only under the Tauri runtime. */
-async function resolveTauriListen(): Promise<OsEventListen | undefined> {
-  if (!(globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
-    return undefined;
-  }
-  const { listen } = await import("@tauri-apps/api/event");
-  return listen as unknown as OsEventListen;
 }
 
 export function createOsContext(opts?: { listen?: OsEventListen }): OsContext {
@@ -67,8 +47,16 @@ export function createOsContext(opts?: { listen?: OsEventListen }): OsContext {
   }
 
   function onEvent(payload: OsEventPayload): void {
-    // Only foreground-app changes touch the app/title snapshot. Idle / fullscreen /
-    // camera events carry no app identity here (#24 may consume them separately).
+    // Fullscreen events carry no app identity — only flip the isFullscreen flag.
+    if (
+      payload.event_name === "fullscreen_entered" ||
+      payload.event_name === "fullscreen_exited"
+    ) {
+      snapshot = { ...snapshot, isFullscreen: payload.data.is_fullscreen === true };
+      return;
+    }
+    // Only foreground-app changes touch the app/title snapshot. Idle ticks are
+    // owned by the cowork source, not consumed here.
     if (payload.event_name !== "active_app_changed") return;
     const app = nonEmpty(payload.data.active_app_name);
     // A new app may have no readable title — clear it rather than carry the old one.
