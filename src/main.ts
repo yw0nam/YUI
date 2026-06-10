@@ -311,6 +311,7 @@ async function bootstrap(): Promise<void> {
   const quickControls = createQuickControls({
     mount: root,
     settings: screenshotSettings,
+    proactiveSettings,
     sourceProvider: screenSourceProvider,
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,

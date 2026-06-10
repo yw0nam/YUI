@@ -120,6 +120,7 @@ async function bootstrap(): Promise<void> {
     variant: "window",
     agentSettings,
     settings: screenshotSettings,
+    proactiveSettings,
     sourceProvider,
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,
