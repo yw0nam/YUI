@@ -1449,8 +1449,7 @@ export function createQuickControls({
     const provider = VOICE_ENGINES[clamped];
     endpointsSettings.set({ tts_provider: provider });
     log.info("음성 엔진 변경", { provider });
-    // store 구독으로 reflectVoiceEngine이 시각/aria/화자 비활성을 갱신한다.
-    reflectVoiceEngine();
+    // store 구독(unsubscribeEndpoints)이 reflectVoiceEngine으로 시각/aria/화자 비활성을 갱신한다.
     if (focus) voiceSegButtons[clamped]?.focus();
   }
 
