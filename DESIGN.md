@@ -1,135 +1,179 @@
 ---
 name: YUI
 description: Embodied desktop VRM companion — invisible-by-default UI, warm-when-present.
+colors:
+  accent: "oklch(0.8 0.13 75)"
+  accent-soft: "oklch(0.8 0.13 75 / 0.45)"
+  accent-faint: "oklch(0.8 0.13 75 / 0.16)"
+  text: "oklch(0.95 0.012 80)"
+  text-dim: "oklch(0.78 0.016 75)"
+  text-mute: "oklch(0.66 0.014 72)"
+  scrim: "oklch(0.21 0.014 70 / 0.64)"
+  scrim-strong: "oklch(0.19 0.014 70 / 0.82)"
+  edge: "oklch(0.97 0.01 80 / 0.1)"
+  edge-strong: "oklch(0.97 0.01 80 / 0.16)"
+  ink: "oklch(0.22 0.01 70)"
+  danger: "oklch(0.77 0.11 35)"
+  danger-soft: "oklch(0.77 0.11 35 / 0.45)"
+  danger-faint: "oklch(0.77 0.11 35 / 0.14)"
+typography:
+  display:
+    fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif"
+    fontWeight: 600
+  title:
+    fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif"
+    fontSize: "1.0rem"
+    fontWeight: 600
+  body:
+    fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif"
+    fontSize: "0.95rem"
+    fontWeight: 400
+    lineHeight: 1.5
+  label:
+    fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 500
+    letterSpacing: "0.02em"
+rounded:
+  md: "14px"
+  input: "12px"
+  chip: "999px"
+  row: "10px"
+  img: "10px"
+components:
+  speech-bubble:
+    backgroundColor: "{colors.scrim}"
+    textColor: "{colors.text}"
+    typography: "{typography.body}"
+    rounded: "{rounded.md}"
+    padding: "0.7rem 0.95rem"
+  text-input:
+    backgroundColor: "{colors.scrim-strong}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.input}"
+    padding: "0.55rem 0.7rem"
+  tool-status:
+    backgroundColor: "{colors.scrim}"
+    textColor: "{colors.text-dim}"
+    typography: "{typography.label}"
+    rounded: "{rounded.chip}"
+    padding: "0.28rem 0.7rem"
+  voice-indicator:
+    backgroundColor: "{colors.scrim}"
+    textColor: "{colors.text-dim}"
+    rounded: "{rounded.chip}"
+    padding: "0.3rem 0.64rem"
+  capture-indicator:
+    backgroundColor: "{colors.scrim}"
+    textColor: "{colors.text-dim}"
+    rounded: "{rounded.chip}"
+    padding: "0.3rem 0.66rem"
+  settings-row:
+    rounded: "{rounded.row}"
+    padding: "0.5rem 0.55rem"
 ---
 
 # Design System: YUI
 
-The canonical token source is [`src/ui/tokens.css`](src/ui/tokens.css). Every value below mirrors that file. Doctrine: OKLCH only · no `#000`/`#fff` · all neutrals micro-tinted with the warm amber hue (~70–80°).
+The canonical token source is [`src/ui/tokens.css`](src/ui/tokens.css); the frontmatter above mirrors it. Doctrine: OKLCH only, never `#000`/`#fff`, every neutral micro-tinted toward warm amber (~70–80°).
 
 ## 1. Overview
 
 **Creative North Star: "The Hearthlight"**
 
-YUI's UI is like the dying embers of a fireplace. It burns warmly in a corner of the room without stealing the gaze. The character owns the stage; the interface only lights up briefly when it has something to say, then recedes back into darkness. Colors are nearly achromatic neutral, and warmth is carried by a single point of amber. The font is a warm humanist sans; motion is only subtle feedback. This system's purpose is to *step back*.
+YUI's interface is the dying embers of a fireplace: it burns warmly in a corner of the room without stealing the gaze. The character owns the stage; the chrome lights up only when it has something to say, then recedes into the dark. Color is near-achromatic neutral, warmth carried by a single point of amber. Type is a warm humanist sans; motion is feedback, never choreography. The whole system's purpose is to *step back*.
 
-The UI floats over an arbitrary desktop background in a transparent, always-on-top window. Every surface must therefore be *readable against any backdrop* without heavy containers. The surfaces that appear — speech bubble, text input, tool-status/quick-controls, capture and voice indicators — are the system's entirety and signature.
+Every surface floats over an arbitrary desktop background in a transparent, always-on-top window, so each must be legible against any backdrop without a heavy container. The surfaces that ever appear (speech bubble, text input, tool-status chip, capture and voice indicators) are the system's entirety and its signature.
 
-What this system explicitly rejects: bottom-right SaaS chatbot widgets (Intercom/Drift-style), messenger chat lists (Discord/Slack), the pushy speech bubbles of old desktop mascots (Clippy). YUI is not a widget, not a messenger, not a mascot.
+This system explicitly rejects the bottom-right SaaS chatbot widget (Intercom/Drift), the messenger chat list (Discord/Slack/KakaoTalk), and the pushy speech bubbles of the old desktop mascot (Clippy). YUI is not a widget, not a messenger, not a mascot.
 
 **Key Characteristics:**
-- Invisible-by-default: UI is absent at rest; the character/desktop fills the stage.
-- Warm-when-present: when it appears, small amber warmth + humanist warmth.
-- Legible-on-anything: readable on any background in a transparent window via self-contrast.
-- Calm motion: subtle feedback transitions, no choreography, respect reduced-motion.
+- Invisible-by-default: chrome is absent at rest; the character and desktop fill the stage.
+- Warm-when-present: when a surface appears, a small amber warmth meets humanist warmth.
+- Legible-on-anything: readable over any background through self-contrast, not the backdrop.
+- Calm motion: feedback transitions only, no choreography, quietly attenuated under reduced-motion.
 
 ## 2. Colors
 
-Near-achromatic warm neutral, with a single point of amber carrying warmth. All hues anchor to warm amber (~70–80°).
+Near-achromatic warm neutral with a single point of amber. The model is **dark scrim + light warm text**: a light surface with dark ink vanishes against a white IDE, so surfaces read like a subtitle, a semi-transparent dark scrim under light warm text with its own shadow. All hues anchor to warm amber (~70–80°).
 
-**Surface model: dark scrim + light warm text.** YUI floats over an arbitrary desktop in a transparent window, so a light surface with dark ink disappears against a white IDE. The robust answer is a subtitle: a semi-transparent dark scrim, light warm text, and a self-shadow. Floating surfaces use the light `--yui-text` family on the `--yui-scrim` family. The dark `--yui-ink` is retained only as a light-context token and is not used on floating surfaces.
+### Primary
+- **Hearth Amber** (`oklch(0.8 0.13 75)`): the sole accent and the only carrier of warmth. Used in *moments* only: active input border, speech onset caret, focus and hover. A soft (`/ 0.45`) and faint (`/ 0.16`) variant carry focus rings and underlines.
 
-### Accent — Hearth Amber
-The sole accent responsible for warmth. Used only in *moments* — active input border, speech onset signal, focus/hover. ≤10% of any surface.
-- `--yui-accent`: `oklch(0.8 0.13 75)`
-- `--yui-accent-soft`: `oklch(0.8 0.13 75 / 0.45)`
-- `--yui-accent-faint`: `oklch(0.8 0.13 75 / 0.16)`
+### Neutral
+- **Speech White** (`oklch(0.95 0.012 80)`): primary body/speech text on a floating surface; warm, not pure white.
+- **Ash** (`oklch(0.78 0.016 75)`): labels, tool-status, secondary text.
+- **Muted Ash** (`oklch(0.66 0.014 72)`): disabled text, hints, eyebrows.
+- **Scrim** (`oklch(0.21 0.014 70 / 0.64)`): the semi-transparent dark backdrop under every floating surface; a stronger variant (`oklch(0.19 0.014 70 / 0.82)`) sharpens the text input.
+- **Hairline** (`oklch(0.97 0.01 80 / 0.1)`, hover `/ 0.16`): the thin edge that holds a surface outline against a dark backdrop.
+- **Warm Ink** (`oklch(0.22 0.01 70)`): dark body text, retained for light contexts only; never used on a floating surface.
 
-### Text (on floating dark scrim)
-Light warm neutrals, micro-tinted amber — not pure white.
-- `--yui-text`: `oklch(0.95 0.012 80)` — body speech
-- `--yui-text-dim`: `oklch(0.78 0.016 75)` — labels, tool status, secondary
-- `--yui-text-mute`: `oklch(0.66 0.014 72)` — disabled, hints, eyebrow
-
-### Surface (Scrim)
-Semi-transparent dark backdrop for floating surfaces (speech bubble, chips). The key to legibility on any background (see Float in §4).
-- `--yui-scrim`: `oklch(0.21 0.014 70 / 0.64)`
-- `--yui-scrim-strong`: `oklch(0.19 0.014 70 / 0.82)` — where a surface must read more sharply, e.g. input
-- `--yui-edge`: `oklch(0.97 0.01 80 / 0.1)` — hairline that holds a surface outline on dark backdrops
-- `--yui-edge-strong`: `oklch(0.97 0.01 80 / 0.16)` — hover-emphasis hairline
-
-### Light-context ink
-Retained for light contexts; not used on floating surfaces.
-- `--yui-ink`: `oklch(0.22 0.01 70)`
-
-### Danger
-Restrained warm-red for undo/failure messaging only. Hue 35 keeps it from clashing with amber.
-- `--yui-danger`: `oklch(0.77 0.11 35)`
-- `--yui-danger-soft`: `oklch(0.77 0.11 35 / 0.45)`
-- `--yui-danger-faint`: `oklch(0.77 0.11 35 / 0.14)`
+### Functional
+- **Ember Red** (`oklch(0.77 0.11 35)`): undo and failure messaging only. Hue 35 keeps it clear of the amber accent; soft and faint variants match the accent pattern.
 
 ### Named Rules
-**The 10% Warmth Rule.** Hearth Amber must occupy ≤10% of any screen. Scarcity is warmth — once common, it reads as branding and breaks invisible-by-default.
+**The 10% Warmth Rule.** Hearth Amber occupies ≤10% of any surface. Scarcity is the warmth; once common it reads as branding and breaks invisible-by-default.
 
-**The Legible-on-Anything Rule.** Every surface that carries text has *self-contrast* (dark scrim + light text + self-shadow). Legibility does not depend on the desktop background.
+**The Legible-on-Anything Rule.** Every text-bearing surface owns its contrast (dark scrim + light text + self-shadow). Legibility never depends on the desktop background.
 
 ## 3. Typography
 
-A single warm humanist sans carries display, body, and label — no separate mono, which would read tool-like. Crisp at small sizes (bubbles, labels), not cold or mechanical.
+**Display / Body / Label Font:** a single warm humanist sans (`system-ui, -apple-system, "Segoe UI", sans-serif`, overridable via the runtime `--yui-font`).
+
+**Character:** one warm, slightly rounded humanist family carries everything. No separate mono, which would read tool-like. Crisp at small sizes (bubbles, labels), never cold or mechanical.
 
 ### Hierarchy
-- **Display** (~600): rare moments only — character name etc.
-- **Title** (~600): emphasis inside speech bubbles, tool result headings.
-- **Body** (~400, line-height ~1.5): speech text. Conversational short bursts — a narrow column fitted to bubble width, not wide document width.
-- **Label** (~500, light uppercase tracking): tool status ("Searching…"), timestamps.
+- **Display** (weight ~600): rare moments only, such as a character name.
+- **Title** (~600, ~1.0rem): emphasis inside a speech bubble, tool-result headings.
+- **Body** (~400, ~0.95rem, line-height ~1.5): speech text, set as short conversational bursts in a narrow column fitted to bubble width, not document width.
+- **Label** (~500, ~0.75rem, light uppercase tracking ~0.02em): tool status ("Searching…"), timestamps.
 
 ### Named Rules
-**The Speech-First Rule.** Body type is optimized for short conversational bursts inside speech bubbles. Do not import document layout rules (long line length, dense columns).
+**The Speech-First Rule.** Body type is tuned for short conversational bursts inside a bubble. Document layout rules (long measure, dense columns) are never imported.
 
 ## 4. Elevation
 
-The default is flat. Depth comes not from stacking shadows but from a single *soft ambient shadow layer* on the floating surface, plus a text self-shadow as legibility insurance against bright backgrounds. In a transparent window, shadows are a functional device that separates UI from the arbitrary background — not decoration.
+Flat by default. Depth comes from a single soft ambient shadow on the one floating surface, plus a text self-shadow as insurance against bright backgrounds. In a transparent window a shadow is a functional separator between the UI and an arbitrary backdrop, never decoration.
 
 ### Shadow Vocabulary
-- **Float** (`--yui-float`): `0 8px 32px oklch(0.12 0.02 70 / 0.4)` — single ambient layer for floating surfaces. No game-HUD neon glow or hard drop shadows.
-- **Text shadow** (`--yui-text-shadow`): `0 1px 2px oklch(0.1 0.01 70 / 0.55)` — keeps light text legible over bright backdrops.
+- **Float** (`box-shadow: 0 8px 32px oklch(0.12 0.02 70 / 0.4)`): the single ambient layer under every floating surface. No neon glow, no hard drop shadow.
+- **Text Shadow** (`text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55)`): keeps light text legible over a bright backdrop.
 
 ### Named Rules
-**The Float Rule.** UI surfaces float above the desktop with exactly one soft ambient shadow. Multiple shadows · hard drop shadows · neon glows are prohibited.
+**The Float Rule.** A surface floats with exactly one soft ambient shadow. Multiple shadows, hard drop shadows, and neon glows are forbidden.
 
-## 5. Shape, Layout & Motion
+## 5. Components
 
-### Shape (radius)
-- `--yui-radius`: `14px` — primary surfaces (speech bubble)
-- `--yui-radius-input`: `12px` — text input
-- `--yui-radius-chip`: `999px` — pill chips / quick-controls
-- `--yui-radius-row`: `10px` — list rows
-- `--yui-radius-img`: `10px` — embedded imagery
+Surfaces are absent at rest and transition in over ~200ms (`--yui-dur`) on an ease-out exponential curve (`cubic-bezier(0.22, 1, 0.36, 1)`), ~140ms (`--yui-dur-fast`) for color shifts; under `prefers-reduced-motion` the slide and scale drop to an opacity-only fade. Implemented CSS lives in `src/ui/`.
 
-### Speech bubble layout
-- `--yui-bubble-bottom`: `16%` — bottom anchor over the character's lower band so the face stays unobscured
-- `--yui-bubble-max-h`: `34vh` — long-utterance height cap; overflow scrolls internally
+### Speech bubble
+The primary floating surface (`surfaces.css`). A scrim panel with no tail and no hard border: light Speech White text on Scrim, gently curved (14px), a single Float shadow, and the system's *only* sanctioned frosted backdrop (`blur(10px)`, for legibility). Bottom-anchored at 16% over the character's lower band so the face stays unobscured, width-capped at `min(34ch, 78%)`, height-capped at 34vh with internal scroll and a top fade once it overflows. A blinking amber caret (`oklch(0.8 0.13 75)`) marks streaming onset; inline links wear an amber-soft underline that ignites to full amber on hover/focus.
 
-### Motion
-Responsive, ease-out exponential (quint). No bounce/elastic. Quietly attenuated under `prefers-reduced-motion`.
-- `--yui-ease`: `cubic-bezier(0.22, 1, 0.36, 1)`
-- `--yui-dur`: `200ms`
-- `--yui-dur-fast`: `140ms`
-- `--yui-dwell`: `5000ms` — hold time after an utterance settles
+### Text input
+A slim field summoned by hotkey, sliding up from the bottom (`surfaces.css`). Stronger scrim (`oklch(0.19 0.014 70 / 0.82)`), 12px corners, transparent inner field. At rest the border is a hairline; on `:focus-within` it ignites to a Hearth Amber border plus an amber-soft ring, the design's signature warmth moment. Submit failure shows an amber inline message, never a side-stripe.
 
-## 6. Components
+### Tool-status chip
+A low-emphasis pill (`surfaces.css`) shown while the backend runs a tool. Pill-shaped (999px), Scrim background, Ash text, a Float shadow, and a calm opacity dot-pulse (no spinner). Amber is withheld here: work is not a warmth moment.
 
-The implemented surfaces (CSS in `src/ui/`):
+### Settings row + switch
+A list row (`quick-controls.css`), 10px corners, 0.5rem padding, with a faint background tint on hover. The label pairs a ~0.95rem name with a ~0.74rem Muted-Ash sub-line. Its switch (2.5rem track) sits calm and grey when off and ignites to a full Hearth Amber track with the knob slid right when on (`aria-checked="true"`); focus shows an amber-soft ring.
 
-- **Speech bubble** (`surfaces.css`) — the primary floating surface: dark scrim, light warm text, single Float shadow, bottom-anchored at `--yui-bubble-bottom`, height-capped at `--yui-bubble-max-h` with internal scroll.
-- **Text input** (`surfaces.css`) — `--yui-scrim-strong` backdrop, `--yui-radius-input`, Hearth Amber border only on active focus.
-- **Tool status / quick-controls** (`quick-controls.css`) — pill chips (`--yui-radius-chip`) carrying tool-status labels in `--yui-text-dim`.
-- **Capture indicator** (`capture-indicator.css`) — transient state cue for screen capture.
-- **Voice input indicator** (`voice-input-indicator.css`) — transient state cue for VAD/STT listening.
+### Capture & voice indicators
+Paired status pills at the top edge (`capture-indicator.css`, `voice-input-indicator.css`). Same pill shape and scrim as the tool chip. The capture tell carries an amber pulse dot while the screen is being attached (an always-on privacy cue); the voice tell carries a dot that pulses amber while listening, turns green when a turn fires, and red on error.
 
-## 7. Do's and Don'ts
+## 6. Do's and Don'ts
 
 ### Do:
-- **Do** micro-tint all neutrals with amber hue (chroma ~0.005–0.016). No `#000`/`#fff`; use OKLCH.
-- **Do** keep Hearth Amber ≤10%, used only in *moments* (active input · speech signal · hover).
-- **Do** give floating surfaces a self-scrim (dark, semi-transparent) plus light text for legibility on any background — but *only where legibility is needed* (speech bubble), not decorative.
-- **Do** make motion Responsive: smooth enter/exit + feedback. Ease-out exponential curve. Quietly attenuate transitions under `prefers-reduced-motion`.
-- **Do** keep it flat; add the Float shadow only when a surface lifts.
+- **Do** micro-tint every neutral toward amber (chroma ~0.005–0.016) in OKLCH; never `#000`/`#fff`.
+- **Do** keep Hearth Amber ≤10% of a surface, ignited only in *moments* (active input, speech onset, hover).
+- **Do** give a floating surface its own dark scrim plus light text for legibility on any background, and only where legibility is needed (the speech bubble), never decoratively.
+- **Do** keep motion Responsive: smooth enter/exit and feedback on an ease-out exponential curve, attenuated under `prefers-reduced-motion`.
+- **Do** stay flat, adding the single Float shadow only when a surface lifts.
 
 ### Don't:
-- **Don't** make it look like a **SaaS chatbot widget** (bordered card, gradient accent, generic widget tone).
-- **Don't** stack chat lists · message rows · channel chrome like a **messenger app** (Discord/Slack/KakaoTalk).
-- **Don't** use pushy, garish speech bubbles like an **old desktop mascot** (Clippy). The opposite of non-intrusive.
-- **Don't** overuse decorative glassmorphism. Frosted backdrop is purposeful *only for legibility in one speech bubble* — otherwise skip it.
-- **Don't** use side-stripe borders (color lines >1px on left/right), gradient text (`background-clip:text`), identical card grids, or modal-first patterns.
-- **Don't** use amber as a fill — warmth is a point, not a plane (10% Warmth Rule).
+- **Don't** look like an **enterprise SaaS chatbot widget** (bordered card, gradient accent, generic widget tone).
+- **Don't** stack chat lists, message rows, or channel chrome like a **messenger app** (Discord/Slack/KakaoTalk); YUI keeps no conversation log.
+- **Don't** use pushy, garish speech bubbles like an **old desktop mascot** (Clippy), the exact opposite of non-intrusive.
+- **Don't** overuse glassmorphism: the frosted backdrop is purposeful in the one speech bubble only, otherwise skip it.
+- **Don't** use side-stripe borders (a color line >1px on an edge), gradient text (`background-clip: text`), identical card grids, or modal-first patterns.
+- **Don't** use amber as a fill: warmth is a point, not a plane (the 10% Warmth Rule).
