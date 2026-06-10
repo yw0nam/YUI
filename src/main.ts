@@ -388,6 +388,7 @@ async function bootstrap(): Promise<void> {
       vrmSelection.dispose();
       speakerSelection.dispose();
       osContext.stop();
+      windowDropDisposed = true;
       windowDropSource?.stop();
       stage.removeEventListener("contextmenu", onContextMenu);
     });
@@ -408,6 +409,8 @@ async function bootstrap(): Promise<void> {
   // plain browser (Vite dev) it is skipped so bootstrap still runs. The DEV mock
   // (__yui_windowSit.drop) exercises the geometry path without a real drag.
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
+  // Guards the teardown/async-assign race: cleanup may run before the IIFE assigns.
+  let windowDropDisposed = false;
   if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
     void (async () => {
       const { invoke } = await import("@tauri-apps/api/core");
@@ -420,6 +423,10 @@ async function bootstrap(): Promise<void> {
         getWindow: getCurrentWindow,
         listen: listen as never,
       });
+      if (windowDropDisposed) {
+        windowDropSource.stop();
+        return;
+      }
       await windowDropSource.start();
     })().catch((err) => log.warn("window-drop source start failed — degrade:", err));
   }

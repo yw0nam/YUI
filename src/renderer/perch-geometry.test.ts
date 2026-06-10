@@ -14,6 +14,7 @@ import * as THREE from "three";
 import {
   projectToScreen,
   seatAnchorWorld,
+  seatAnchorWorldInto,
   characterScreenHeight,
   petPxToGlobalPoints,
   inCatchZone,
@@ -88,6 +89,43 @@ describe("seatAnchorWorld", () => {
     expect(seat.x).toBeCloseTo(1, 6);
     expect(seat.y).toBeCloseTo(2, 6);
     expect(seat.z).toBeCloseTo(3, 6);
+  });
+
+  it("returns a fresh vector (does not alias the hips input)", () => {
+    const hips = new THREE.Vector3(0.2, 1.0, -0.3);
+    const seat = seatAnchorWorld(hips, 0.15);
+    expect(seat).not.toBe(hips);
+    expect(hips.y).toBeCloseTo(1.0, 6); // input untouched
+  });
+});
+
+describe("seatAnchorWorldInto", () => {
+  it("writes into out (same reference returned) and computes y = hips.y - drop", () => {
+    const out = new THREE.Vector3(99, 99, 99);
+    const hips = new THREE.Vector3(0.2, 1.0, -0.3);
+    const ret = seatAnchorWorldInto(out, hips, 0.15);
+    expect(ret).toBe(out); // returns the provided out
+    expect(out.x).toBeCloseTo(0.2, 6);
+    expect(out.y).toBeCloseTo(0.85, 6); // 1.0 - 0.15
+    expect(out.z).toBeCloseTo(-0.3, 6);
+  });
+
+  it("does not mutate the hips input", () => {
+    const out = new THREE.Vector3();
+    const hips = new THREE.Vector3(1, 2, 3);
+    seatAnchorWorldInto(out, hips, 0.5);
+    expect(hips.x).toBeCloseTo(1, 6);
+    expect(hips.y).toBeCloseTo(2, 6);
+    expect(hips.z).toBeCloseTo(3, 6);
+  });
+
+  it("matches seatAnchorWorld for the same inputs", () => {
+    const hips = new THREE.Vector3(-0.4, 1.7, 0.9);
+    const fresh = seatAnchorWorld(hips, 0.2);
+    const out = seatAnchorWorldInto(new THREE.Vector3(), hips, 0.2);
+    expect(out.x).toBeCloseTo(fresh.x, 9);
+    expect(out.y).toBeCloseTo(fresh.y, 9);
+    expect(out.z).toBeCloseTo(fresh.z, 9);
   });
 });
 
@@ -214,6 +252,26 @@ describe("worldYPerPixel", () => {
     const expected =
       (2 * depth * Math.tan(((cam.fov * Math.PI) / 180) / 2)) / CANVAS_H;
     expect(worldYPerPixel(cam, depth, CANVAS_H)).toBeCloseTo(expected, 9);
+  });
+
+  // The pin path feeds view-axis depth (seat−eye projected onto camera forward),
+  // NOT Euclidean distance. For an off-center seat the two diverge; this pins the
+  // expectation that callers compute on-axis depth before calling worldYPerPixel.
+  it("on-axis depth (forward dot) is smaller than Euclidean for an off-center seat", () => {
+    const cam = fixtureCamera(); // at (0,1.3,3) looking toward -Z
+    // Seat well off the view axis (large +x) at the same world-Z plane as look-at.
+    const seat = new THREE.Vector3(2.0, 1.3, 0);
+    const forward = new THREE.Vector3();
+    cam.getWorldDirection(forward);
+    const rel = seat.clone().sub(cam.position);
+    const viewDepth = rel.dot(forward); // on-axis depth
+    const euclid = cam.position.distanceTo(seat); // overestimate
+    expect(viewDepth).toBeGreaterThan(0);
+    expect(euclid).toBeGreaterThan(viewDepth);
+    // worldYPerPixel scales linearly with depth, so the Euclidean feed inflates it.
+    expect(worldYPerPixel(cam, euclid, CANVAS_H)).toBeGreaterThan(
+      worldYPerPixel(cam, viewDepth, CANVAS_H),
+    );
   });
 });
 

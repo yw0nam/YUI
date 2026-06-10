@@ -66,14 +66,29 @@ export function projectToScreen(
 }
 
 /**
+ * In-place buttock-contact world point: writes the hip world position dropped
+ * by `seatDrop` on Y only into `out`. Allocates nothing — for the per-frame pin.
+ */
+export function seatAnchorWorldInto(
+  out: THREE.Vector3,
+  hipsWorld: THREE.Vector3,
+  seatDrop: number,
+): THREE.Vector3 {
+  out.copy(hipsWorld);
+  out.y -= seatDrop;
+  return out;
+}
+
+/**
  * Buttock-contact world point: the hip bone world position dropped by
- * `seatDrop` on Y only (the seat sits below the hip joint).
+ * `seatDrop` on Y only (the seat sits below the hip joint). Returns a fresh
+ * vector — for non-hot callers; the pin path uses {@link seatAnchorWorldInto}.
  */
 export function seatAnchorWorld(
   hipsWorld: THREE.Vector3,
   seatDrop: number,
 ): THREE.Vector3 {
-  return new THREE.Vector3(hipsWorld.x, hipsWorld.y - seatDrop, hipsWorld.z);
+  return seatAnchorWorldInto(new THREE.Vector3(), hipsWorld, seatDrop);
 }
 
 /**
@@ -144,7 +159,9 @@ export function inCatchZone(
 
 /**
  * Perspective vertical world-units spanned by one screen pixel at a given
- * depth from the camera. `seatDepthFromCamera` = camera.position.distanceTo(seat).
+ * depth from the camera. `seatDepthFromCamera` is the depth measured ALONG the
+ * camera's view axis (forward-projected), not the Euclidean distance — the
+ * formula assumes the on-axis depth of the perspective frustum.
  *   (2 * depth * tan(fovY/2)) / canvasH
  */
 export function worldYPerPixel(

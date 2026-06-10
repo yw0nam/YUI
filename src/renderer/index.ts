@@ -47,6 +47,7 @@ import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
 import {
   projectToScreen,
   seatAnchorWorld,
+  seatAnchorWorldInto,
   characterScreenHeight,
   worldYPerPixel,
   seatOffsetWorldY,
@@ -284,6 +285,8 @@ export function createRenderer(options: RendererOptions): Renderer {
   // Scratch vectors reused every frame — no per-frame allocation in the pin path.
   const perchHipsWorld = new THREE.Vector3();
   const perchSeatWorld = new THREE.Vector3();
+  const perchCamForward = new THREE.Vector3();
+  const perchSeatRel = new THREE.Vector3();
 
   /** Reframe the camera to the current model box; no-op when no model is loaded. */
   function fitCamera(): void {
@@ -626,10 +629,13 @@ export function createRenderer(options: RendererOptions): Renderer {
       const h = mount.clientHeight || 1;
       // Live posed hips → seat-contact world point (hips dropped by SEAT_DROP on Y).
       perchHipsBone.getWorldPosition(perchHipsWorld);
-      perchSeatWorld.copy(seatAnchorWorld(perchHipsWorld, SEAT_DROP));
+      seatAnchorWorldInto(perchSeatWorld, perchHipsWorld, SEAT_DROP);
       const seatPx = projectToScreen(perchSeatWorld, camera, w, h);
       if (!seatPx) return;
-      const depth = camera.position.distanceTo(perchSeatWorld);
+      // View-axis depth: project (seat − eye) onto camera forward. worldYPerPixel's
+      // perspective formula expects on-axis depth, not Euclidean distance.
+      camera.getWorldDirection(perchCamForward);
+      const depth = perchSeatRel.copy(perchSeatWorld).sub(camera.position).dot(perchCamForward);
       const wpp = worldYPerPixel(camera, depth, h);
       const delta = seatOffsetWorldY(seatPx.y, perchTargetYpx, wpp);
       // Proportional step toward the target offset (converges in a couple frames).
