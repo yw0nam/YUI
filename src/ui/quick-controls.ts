@@ -987,25 +987,30 @@ export function createQuickControls({
     renderVrms();
   }
 
-  // user 옵션 제거 — store에서 빼고 파일 삭제, active였으면 fallback으로 스왑한다.
+  // user 옵션 제거 — 파일을 먼저 지우고(성공해야 store/disk 불일치 없음), 그 다음에만
+  // store에서 빼고 active였으면 fallback으로 스왑한다.
   async function removeUserOption(id: string): Promise<void> {
     const wasActive = vrmSelection.getActiveId() === id;
-    vrmSelection.removeUserOption(id); // active였으면 default로 폴백 + 통지
-    // 비-active 제거는 store가 통지하지 않으므로 목록을 직접 다시 그린다.
-    if (!wasActive) renderVrms();
     log.info("VRM 삭제", { id });
     try {
       await removeUserVrm(id);
     } catch (err) {
+      // 파일 삭제 실패 — store 제거를 커밋하지 않고 행을 그대로 둔다(disk와 일치 유지).
       log.error("VRM 파일 삭제 실패", { id, error: String(err) });
+      return;
+    }
+    vrmSelection.removeUserOption(id); // active였으면 default로 폴백 + 통지
+    // 비-active 제거는 store가 통지하지 않으므로 목록을 직접 다시 그린다.
+    if (!wasActive) {
+      renderVrms();
+      return;
     }
     // active를 지웠으면 폴백 옵션을 렌더러에 로드한다(store는 이미 default를 가리킴).
-    if (wasActive) {
-      try {
-        await swapVrm(vrmSelection.getActive());
-      } catch (err) {
-        log.error("VRM 폴백 스왑 실패", { error: String(err) });
-      }
+    try {
+      await swapVrm(vrmSelection.getActive());
+    } catch (err) {
+      log.error("VRM 폴백 스왑 실패", { error: String(err) });
+      renderVrms(); // 스왑 실패 시 목록을 실제 상태에 맞춰 다시 그린다.
     }
   }
 
@@ -1399,25 +1404,30 @@ export function createQuickControls({
     renderSpeakers();
   }
 
-  // user 화자 제거 — store에서 빼고 파일 삭제, active였으면 fallback으로 스왑한다.
+  // user 화자 제거 — 파일을 먼저 지우고(성공해야 store/disk 불일치 없음 → 다음 발화의 서버
+  // 422 방지), 그 다음에만 store에서 빼고 active였으면 fallback으로 스왑한다.
   async function removeUserSpeaker(id: string): Promise<void> {
     const wasActive = speakerSelection.getActiveId() === id;
-    speakerSelection.removeUserVoice(id); // active였으면 default로 폴백 + 통지
-    // 비-active 제거는 store가 통지하지 않으므로 목록을 직접 다시 그린다.
-    if (!wasActive) renderSpeakers();
     log.info("화자 삭제", { id });
     try {
       await removeUserVoice(id);
     } catch (err) {
+      // 파일 삭제 실패 — store 제거를 커밋하지 않고 행을 그대로 둔다(disk와 일치 유지).
       log.error("화자 파일 삭제 실패", { id, error: String(err) });
+      return;
+    }
+    speakerSelection.removeUserVoice(id); // active였으면 default로 폴백 + 통지
+    // 비-active 제거는 store가 통지하지 않으므로 목록을 직접 다시 그린다.
+    if (!wasActive) {
+      renderSpeakers();
+      return;
     }
     // active를 지웠으면 폴백 화자를 서버에 등록·커밋한다(store는 이미 default를 가리킴).
-    if (wasActive) {
-      try {
-        await swapSpeaker(speakerSelection.getActive());
-      } catch (err) {
-        log.error("화자 폴백 스왑 실패", { error: String(err) });
-      }
+    try {
+      await swapSpeaker(speakerSelection.getActive());
+    } catch (err) {
+      log.error("화자 폴백 스왑 실패", { error: String(err) });
+      renderSpeakers(); // 스왑 실패 시 목록을 실제 상태에 맞춰 다시 그린다.
     }
   }
 
