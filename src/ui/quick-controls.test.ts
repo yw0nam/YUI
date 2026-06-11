@@ -115,6 +115,14 @@ function makeSpeakerSelection(ids: string[] = ["natsume", "ayase", "rena"]) {
   return createSpeakerSelection({ available, defaultId: available[0].id });
 }
 
+// A user (imported) voice mirroring voice-import's output shape.
+const USER_VOICE: SpeakerOption = {
+  id: "myvoice",
+  label: "내 목소리",
+  ref_url: "asset://localhost/app-data/references/myvoice/clip.mp3",
+  source: "user",
+};
+
 describe("createQuickControls — gain row", () => {
   let mount: HTMLElement;
   let onGainPreview: Mock<(mouthOpen: number) => void>;
@@ -131,6 +139,8 @@ describe("createQuickControls — gain row", () => {
   let speakerSelection: ReturnType<typeof createSpeakerSelection>;
   let swapSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
   let refreshSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
+  let importVoice: Mock<() => Promise<void>>;
+  let removeUserVoice: Mock<(id: string) => Promise<void>>;
 
   beforeEach(() => {
     // Make rAF synchronous so open() → is-open transition happens immediately in tests
@@ -165,6 +175,8 @@ describe("createQuickControls — gain row", () => {
     });
     // refresh is server-side only — default fake resolves without touching the store.
     refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async () => {});
+    importVoice = vi.fn<() => Promise<void>>(async () => {});
+    removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {});
     try {
       globalThis.localStorage?.clear();
     } catch {
@@ -198,6 +210,8 @@ describe("createQuickControls — gain row", () => {
       speakerSelection,
       swapSpeaker,
       refreshSpeaker,
+      importVoice,
+      removeUserVoice,
       ...extra,
     });
   }
@@ -1419,18 +1433,205 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("the speaker '파일에서 추가…' row is disabled and not a radio", () => {
-    const qc = buildQc();
+  it("the speaker '파일에서 추가…' row is an enabled button (irodori) and click invokes importVoice", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
 
     const add = qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
-    expect(add.disabled).toBe(true);
-    expect(add.getAttribute("aria-disabled")).toBe("true");
-    expect(add.tabIndex).toBe(-1);
+    expect(add.disabled).toBe(false);
     expect(add.getAttribute("role")).not.toBe("radio");
+    expect(add.querySelector(".yui-spk__soon")).toBeNull(); // no "준비 중" chip anymore
 
     add.click();
+    expect(importVoice).toHaveBeenCalledOnce();
     expect(swapSpeaker).not.toHaveBeenCalled();
+
+    qc.dispose();
+  });
+
+  // ── 화자: user (imported) voice management — mirrors the VRM section (#148) ──
+
+  function withUserVoice() {
+    speakerSelection = makeSpeakerSelection();
+    speakerSelection.addUserVoice(USER_VOICE);
+  }
+
+  function userSpkRow(qc: { el: HTMLElement }): HTMLElement {
+    return qc.el.querySelector<HTMLElement>(`.yui-spk[data-spk-id="${USER_VOICE.id}"]`)!;
+  }
+
+  it("renders a user voice row carrying rename + remove + audition controls", () => {
+    withUserVoice();
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    const row = userSpkRow(qc);
+    expect(row).not.toBeNull();
+    expect(row.tagName).toBe("DIV");
+    expect(row.getAttribute("role")).toBe("radio");
+    expect(row.querySelector(".yui-spk__name")!.textContent).toBe("내 목소리");
+    expect(row.querySelector<HTMLButtonElement>(".yui-spk__rename")).not.toBeNull();
+    expect(row.querySelector<HTMLButtonElement>(".yui-spk__remove")).not.toBeNull();
+    expect(row.querySelector<HTMLButtonElement>(".yui-spk__preview")).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  it("bundled speaker rows carry no rename/remove controls", () => {
+    withUserVoice();
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    const natsume = qc.el.querySelector<HTMLElement>('.yui-spk[data-spk-id="natsume"]')!;
+    expect(natsume.querySelector(".yui-spk__rename")).toBeNull();
+    expect(natsume.querySelector(".yui-spk__remove")).toBeNull();
+    // bundled still has refresh + preview
+    expect(natsume.querySelector(".yui-spk__preview")).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  it("pencil opens inline rename; Enter commits via renameUserVoice", () => {
+    withUserVoice();
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__rename")!.click();
+
+    const row = userSpkRow(qc);
+    expect(row.classList.contains("yui-spk--renaming")).toBe(true);
+    const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
+    expect(input).not.toBeNull();
+    expect(input.value).toBe("내 목소리");
+    expect(row.querySelector(".yui-spk__rename-hint")).not.toBeNull();
+
+    input.value = "새 목소리";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(speakerSelection.getOptions().find((o) => o.id === "myvoice")!.label).toBe("새 목소리");
+    expect(userSpkRow(qc).querySelector(".yui-ep-input")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("Esc cancels inline speaker rename without changing the label or closing the panel", () => {
+    withUserVoice();
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__rename")!.click();
+    const input = userSpkRow(qc).querySelector<HTMLInputElement>(".yui-ep-input")!;
+    input.value = "버려질 이름";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect(speakerSelection.getOptions().find((o) => o.id === "myvoice")!.label).toBe("내 목소리");
+    expect(userSpkRow(qc).querySelector(".yui-ep-input")).toBeNull();
+    expect(qc.isOpen()).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("trash removes the voice via store removeUserVoice + injected removeUserVoice", () => {
+    withUserVoice();
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+
+    expect(removeUserVoice).toHaveBeenCalledOnce();
+    expect(removeUserVoice.mock.calls[0][0]).toBe("myvoice");
+    expect(speakerSelection.getOptions().map((o) => o.id)).not.toContain("myvoice");
+    expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("removing the active user voice falls back to default and swaps the speaker", async () => {
+    withUserVoice();
+    speakerSelection.select("myvoice");
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    await flush();
+
+    // store fell back to the bundled default
+    expect(speakerSelection.getActiveId()).toBe("natsume");
+    // speaker reloaded onto the fallback
+    expect(swapSpeaker).toHaveBeenCalled();
+    expect(swapSpeaker.mock.calls.at(-1)![0]).toMatchObject({ id: "natsume" });
+
+    qc.dispose();
+  });
+
+  it("clicking add enters the importing state (loading row)", () => {
+    importVoice = vi.fn<() => Promise<void>>(() => new Promise<void>(() => {}));
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+
+    const loading = qc.el.querySelector<HTMLElement>(".yui-spk__loading")!;
+    expect(loading).not.toBeNull();
+    expect(loading.querySelector(".yui-spk__spin")).not.toBeNull();
+    expect(loading.querySelector(".yui-spk__loading-name")!.textContent).toContain("불러오는 중");
+
+    qc.dispose();
+  });
+
+  it("a failed voice import shows the inline error and clears the importing row", async () => {
+    importVoice = vi.fn<() => Promise<void>>(async () => {
+      throw new Error("bad voice");
+    });
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+
+    const err = qc.el.querySelector<HTMLElement>(".yui-spk__import-error")!;
+    expect(err).not.toBeNull();
+    expect(err.hidden).toBe(false);
+    expect(qc.el.querySelector(".yui-spk__loading")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("a successful voice import clears the importing row and error notice", async () => {
+    importVoice = vi.fn<() => Promise<void>>(async () => {
+      speakerSelection.addUserVoice(USER_VOICE);
+    });
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+
+    expect(qc.el.querySelector(".yui-spk__loading")).toBeNull();
+    expect(qc.el.querySelector<HTMLElement>(".yui-spk__import-error")!.hidden).toBe(true);
+    expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  it("when provider=openai the add button does not import and user controls are absent", () => {
+    withUserVoice();
+    const qc = buildQc({ getDefaultProvider: () => "openai" });
+    qc.open();
+
+    // whole speaker section disabled (pointer-events:none via .is-disabled)
+    const foot = qc.el.querySelector<HTMLElement>(".yui-spk-foot")!;
+    expect(foot.classList.contains("is-disabled")).toBe(true);
+    const scroll = qc.el.querySelector<HTMLElement>(".yui-spk-scroll")!;
+    expect(scroll.classList.contains("is-disabled")).toBe(true);
+
+    // even if the click handler fires, it must not import while openai is effective
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    expect(importVoice).not.toHaveBeenCalled();
+
+    // a remove click on a user row must not delete while openai is effective
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    expect(removeUserVoice).not.toHaveBeenCalled();
 
     qc.dispose();
   });
@@ -1553,6 +1754,40 @@ describe("createQuickControls — gain row", () => {
     expect(swapSpeaker).not.toHaveBeenCalled();
 
     qc.dispose();
+  });
+
+  it("routes the audition url through the asset resolver before constructing Audio (#153)", async () => {
+    const resolveAuditionUrl = vi.fn(async (u: string) => `resolved://${u}`);
+    const seen: string[] = [];
+    class FakeAudio {
+      src: string;
+      constructor(src: string) {
+        this.src = src;
+        seen.push(src);
+      }
+      addEventListener() {}
+      play() {
+        return Promise.resolve();
+      }
+      pause() {}
+    }
+    const OrigAudio = globalThis.Audio;
+    (globalThis as { Audio: unknown }).Audio = FakeAudio as unknown;
+    try {
+      const qc = buildQc({ resolveAuditionUrl });
+      qc.open();
+
+      const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+      rows[1].querySelector<HTMLButtonElement>(".yui-spk__preview")!.click();
+      await flush();
+
+      expect(resolveAuditionUrl).toHaveBeenCalledWith("/references/ayase.wav");
+      expect(seen).toEqual(["resolved:///references/ayase.wav"]);
+
+      qc.dispose();
+    } finally {
+      (globalThis as { Audio: unknown }).Audio = OrigAudio;
+    }
   });
 
   it("disables the ▶ preview button when a speaker has an empty ref_url", () => {

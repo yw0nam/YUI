@@ -1,3 +1,5 @@
 strictDepBuilds: false
 onlyBuiltDependencies:
   - protobufjs
+allowBuilds:
+  protobufjs: set this to true or false
