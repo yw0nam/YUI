@@ -120,4 +120,74 @@ mod tests {
         assert!(!is_allowed_audio_ext(""));
         assert!(!is_allowed_audio_ext("mp4"));
     }
+
+    fn unique_dir(tag: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("yui_voice_test_{tag}_{nanos}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn remove_at_deletes_a_normal_id_dir() {
+        let references = unique_dir("rm_ok");
+        let voice = references.join("Cat");
+        std::fs::create_dir_all(&voice).unwrap();
+        std::fs::write(voice.join("clip.mp3"), b"x").unwrap();
+        remove_user_voice_at(&references, "Cat").unwrap();
+        assert!(!voice.exists());
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    #[test]
+    fn remove_at_rejects_dotdot_id_and_keeps_siblings() {
+        let app_data = unique_dir("rm_escape");
+        let references = app_data.join("references");
+        std::fs::create_dir_all(&references).unwrap();
+        let sibling = app_data.join("sessions");
+        std::fs::create_dir_all(&sibling).unwrap();
+        std::fs::write(sibling.join("keep.json"), b"keep me").unwrap();
+
+        let _ = remove_user_voice_at(&references, "..");
+
+        assert!(app_data.exists(), "app-data parent must survive a `..` id");
+        assert!(sibling.exists(), "sibling dir must not be deleted");
+        std::fs::remove_dir_all(&app_data).ok();
+    }
+
+    #[test]
+    fn remove_at_missing_is_ok() {
+        let references = unique_dir("rm_missing");
+        assert!(remove_user_voice_at(&references, "nope").is_ok());
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    #[test]
+    fn copy_into_rejects_oversized_source() {
+        let dir = unique_dir("oversize");
+        let src = dir.join("big.wav");
+        let f = std::fs::File::create(&src).unwrap();
+        f.set_len(MAX_AUDIO_BYTES + 1).unwrap();
+        drop(f);
+        let err = copy_into_references(&dir.join("references"), &src, "wav");
+        assert!(err.is_err(), "oversized source must be rejected");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_disambiguates_on_existing_dest() {
+        let dir = unique_dir("collide");
+        let references = dir.join("references");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        std::fs::write(references.join("Cat").join("clip.wav"), b"existing").unwrap();
+        let src = dir.join("Cat.wav");
+        std::fs::write(&src, b"new bytes").unwrap();
+
+        let imported = copy_into_references(&references, &src, "wav").unwrap();
+        assert_ne!(imported.id, "Cat", "must not overwrite the existing dest");
+        std::fs::remove_dir_all(&dir).ok();
+    }
 }

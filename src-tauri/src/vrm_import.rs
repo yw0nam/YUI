@@ -72,3 +72,79 @@ pub fn remove_user_vrm(app: AppHandle, id: String) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    fn unique_dir(tag: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("yui_vrm_test_{tag}_{nanos}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn remove_at_deletes_a_normal_id_clip() {
+        let vrms = unique_dir("rm_ok");
+        let target = vrms.join("Cat.vrm");
+        std::fs::write(&target, b"x").unwrap();
+        remove_user_vrm_at(&vrms, "Cat").unwrap();
+        assert!(!target.exists());
+        std::fs::remove_dir_all(&vrms).ok();
+    }
+
+    #[test]
+    fn remove_at_rejects_dotdot_id_and_keeps_siblings() {
+        let app_data = unique_dir("rm_escape");
+        let vrms = app_data.join("vrms");
+        std::fs::create_dir_all(&vrms).unwrap();
+        let sibling = app_data.join("configs.json");
+        std::fs::write(&sibling, b"keep me").unwrap();
+
+        let _ = remove_user_vrm_at(&vrms, "..");
+
+        assert!(app_data.exists(), "app-data parent must survive a `..` id");
+        assert!(sibling.exists(), "sibling file must not be deleted");
+        std::fs::remove_dir_all(&app_data).ok();
+    }
+
+    #[test]
+    fn remove_at_missing_is_ok() {
+        let vrms = unique_dir("rm_missing");
+        assert!(remove_user_vrm_at(&vrms, "nope").is_ok());
+        std::fs::remove_dir_all(&vrms).ok();
+    }
+
+    #[test]
+    fn copy_into_rejects_oversized_source() {
+        let dir = unique_dir("oversize");
+        let src = dir.join("big.vrm");
+        // Sparse file larger than the cap, without writing the bytes.
+        let f = std::fs::File::create(&src).unwrap();
+        f.set_len(MAX_VRM_BYTES + 1).unwrap();
+        drop(f);
+        let err = copy_into_vrms(&dir.join("dest"), Path::new(&src));
+        assert!(err.is_err(), "oversized source must be rejected");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_disambiguates_on_existing_dest() {
+        let dir = unique_dir("collide");
+        let vrms = dir.join("vrms");
+        std::fs::create_dir_all(&vrms).unwrap();
+        std::fs::write(vrms.join("Cat.vrm"), b"existing").unwrap();
+        let src = dir.join("Cat.vrm");
+        std::fs::write(&src, b"new bytes").unwrap();
+
+        let imported = copy_into_vrms(&vrms, Path::new(&src)).unwrap();
+        assert_ne!(imported.id, "Cat", "must not overwrite the existing dest");
+        assert!(vrms.join("Cat.vrm").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}
