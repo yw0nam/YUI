@@ -79,7 +79,11 @@ function createFakeRenderer() {
 
 const WORK_AREA: ScreenRect = { x: 0, y: 0, width: 1920, height: 1080 };
 
+/** Non-origin window X — a fall must preserve it, never snap to workArea.x. */
+const WIN_X = 555;
+
 function createFakeMover(overrides?: {
+  winX?: number;
   winY?: number;
   winH?: number;
   workArea?: ScreenRect;
@@ -87,6 +91,7 @@ function createFakeMover(overrides?: {
   failGeom?: boolean;
   failSetPosition?: boolean;
 }) {
+  const winX = overrides?.winX ?? WIN_X;
   const winY = overrides?.winY ?? 100;
   const winH = overrides?.winH ?? 400;
   const workArea = overrides?.workArea ?? WORK_AREA;
@@ -101,7 +106,7 @@ function createFakeMover(overrides?: {
     }),
     getWindowGeom: vi.fn(async () => {
       if (overrides?.failGeom) throw new Error("getWindowGeom failed");
-      return { x: workArea.x, y: winY, w: 300, h: winH, scale: 1 };
+      return { x: winX, y: winY, w: 300, h: winH, scale: 1 };
     }),
   };
 }
@@ -369,6 +374,48 @@ describe("createFallSequence — fall state machine", () => {
       await flush();
       expect(renderer.played).not.toContain(LANDING_REACTION_ID);
       expect(seq.state()).toBe(FallState.Cancelled);
+    });
+  });
+
+  describe("window X preservation (blocker: no horizontal teleport)", () => {
+    it("every fall-step setPosition keeps the window's real X", async () => {
+      const { deps, mover, tick } = makeDeps();
+      const seq = createFallSequence(deps);
+      seq.start();
+      await flush();
+      tick.pump(() => seq.state() !== FallState.Falling);
+      await flush();
+
+      expect(mover.setPosition.mock.calls.length).toBeGreaterThan(0);
+      for (const call of mover.setPosition.mock.calls) {
+        expect(call[0]).toBe(WIN_X);
+      }
+    });
+
+    it("the reduced-motion snap keeps the window's real X", async () => {
+      const { deps, mover } = makeDeps({ reducedMotion: true });
+      const seq = createFallSequence(deps);
+      seq.start();
+      await flush();
+
+      expect(mover.setPosition).toHaveBeenCalledTimes(1);
+      expect(mover.setPosition.mock.calls[0]![0]).toBe(WIN_X);
+    });
+
+    it("clamps an off-area X back inside the work area", async () => {
+      // window hangs past the right edge (1900 + 300 > 1920) → clamped to 1620.
+      const mover = createFakeMover({ winX: 1900 });
+      const { deps, tick } = makeDeps({ mover });
+      const seq = createFallSequence(deps);
+      seq.start();
+      await flush();
+      tick.pump(() => seq.state() !== FallState.Falling);
+      await flush();
+
+      expect(mover.setPosition.mock.calls.length).toBeGreaterThan(0);
+      for (const call of mover.setPosition.mock.calls) {
+        expect(call[0]).toBe(WORK_AREA.x + WORK_AREA.width - 300);
+      }
     });
   });
 
