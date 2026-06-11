@@ -688,6 +688,98 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  it("flushes a dirty typed key once on close() (never before close)", () => {
+    const chatKeySettings = createChatKeySettings();
+    const setSpy = vi.spyOn(chatKeySettings, "setApiKey");
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    const input = chatKeyInput(qc);
+    input.value = "sk-unblurred-789";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    // Typing without blur persists nothing yet.
+    expect(setSpy).not.toHaveBeenCalled();
+
+    qc.close();
+    expect(setSpy).toHaveBeenCalledTimes(1);
+    expect(setSpy).toHaveBeenCalledWith("sk-unblurred-789");
+    expect(chatKeySettings.get().apiKey).toBe("sk-unblurred-789");
+
+    qc.dispose();
+  });
+
+  it("flushes a dirty typed key on close() in the window variant", () => {
+    const chatKeySettings = createChatKeySettings();
+    const setSpy = vi.spyOn(chatKeySettings, "setApiKey");
+    const qc = buildQc({ chatKeySettings, variant: "window" });
+    qc.open();
+
+    const input = chatKeyInput(qc);
+    input.value = "sk-window-321";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(setSpy).not.toHaveBeenCalled();
+
+    qc.close();
+    expect(setSpy).toHaveBeenCalledTimes(1);
+    expect(setSpy).toHaveBeenCalledWith("sk-window-321");
+    expect(chatKeySettings.get().apiKey).toBe("sk-window-321");
+
+    qc.dispose();
+  });
+
+  it("flushes a dirty typed key on dispose() without a prior blur", () => {
+    const chatKeySettings = createChatKeySettings();
+    const setSpy = vi.spyOn(chatKeySettings, "setApiKey");
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    const input = chatKeyInput(qc);
+    input.value = "sk-disposed-654";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(setSpy).not.toHaveBeenCalled();
+
+    qc.dispose();
+    expect(setSpy).toHaveBeenCalledTimes(1);
+    expect(setSpy).toHaveBeenCalledWith("sk-disposed-654");
+    expect(chatKeySettings.get().apiKey).toBe("sk-disposed-654");
+  });
+
+  it("emptying a set key then close() clears the override", () => {
+    const chatKeySettings = createChatKeySettings();
+    chatKeySettings.setApiKey("sk-secret-123");
+    const clearSpy = vi.spyOn(chatKeySettings, "clear");
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    const input = chatKeyInput(qc);
+    input.value = "";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    // Emptying without blur does not clear yet.
+    expect(clearSpy).not.toHaveBeenCalled();
+
+    qc.close();
+    expect(clearSpy).toHaveBeenCalled();
+    expect(chatKeySettings.get().apiKey).toBe("");
+
+    qc.dispose();
+  });
+
+  it("close() does not commit when no typing occurred", () => {
+    const chatKeySettings = createChatKeySettings();
+    chatKeySettings.setApiKey("sk-secret-123");
+    const setSpy = vi.spyOn(chatKeySettings, "setApiKey");
+    const clearSpy = vi.spyOn(chatKeySettings, "clear");
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    qc.close();
+    expect(setSpy).not.toHaveBeenCalled();
+    expect(clearSpy).not.toHaveBeenCalled();
+    expect(chatKeySettings.get().apiKey).toBe("sk-secret-123");
+
+    qc.dispose();
+  });
+
   it("a dedicated clear button empties the field and the store", () => {
     const chatKeySettings = createChatKeySettings();
     chatKeySettings.setApiKey("sk-secret-123");
