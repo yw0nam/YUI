@@ -53,8 +53,12 @@ import {
   localStorageVrmStorage,
   localStorageUserVrmStorage,
 } from "./io/vrm-selection";
-import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
-import { importVoiceFromFile, removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
+import { importVrmFromFile, removeUserVrm, removeOrphanVrm } from "./io/vrm-import";
+import {
+  importVoiceFromFile,
+  removeUserVoice as removeUserVoiceFile,
+  removeOrphanVoice,
+} from "./io/voice-import";
 import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
 import {
   createSpeakerSelection,
@@ -306,7 +310,10 @@ async function bootstrap(): Promise<void> {
       const src = await resolveUserFileSrc(option.url);
       ({ metaName } = await loadVrmSerialized(src));
     } catch (err) {
-      await removeUserVrm(option.id).catch(() => {}); // 고아 사본 제거(best-effort)
+      // 고아 사본 제거 — 실패하면 삼키지 말고 경고로 드러낸다(원본 에러는 그대로 throw).
+      await removeOrphanVrm(option.id, removeUserVrm, (e) =>
+        log.warn("orphan VRM cleanup failed:", e),
+      );
       log.error("imported VRM load failed:", err);
       throw err;
     }
@@ -363,7 +370,10 @@ async function bootstrap(): Promise<void> {
         fetch: f,
       });
     } catch (err) {
-      await removeUserVoiceFile(option.id).catch(() => {}); // 고아 사본 제거(best-effort)
+      // 고아 사본 제거 — 실패하면 삼키지 말고 경고로 드러낸다(원본 에러는 그대로 throw).
+      await removeOrphanVoice(option.id, removeUserVoiceFile, (e) =>
+        log.warn("orphan voice cleanup failed:", e),
+      );
       log.error("imported voice register failed:", err);
       throw err;
     }

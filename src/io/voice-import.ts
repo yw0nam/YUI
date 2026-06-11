@@ -84,3 +84,20 @@ export async function removeUserVoice(id: string, deps?: VoiceRemoveDeps): Promi
   const d = deps ?? (await defaultRemoveDeps());
   await d.invoke("remove_user_voice", { id });
 }
+
+/**
+ * Remove an orphaned imported voice after a failed import. A failed removal is
+ * surfaced via onError (never swallowed) so multi-MB orphans don't pile up
+ * silently; the caller's primary error still rethrows.
+ */
+export async function removeOrphanVoice(
+  id: string,
+  remove: (id: string) => Promise<void>,
+  onError: (err: unknown) => void,
+): Promise<void> {
+  try {
+    await remove(id);
+  } catch (err) {
+    onError(err);
+  }
+}
