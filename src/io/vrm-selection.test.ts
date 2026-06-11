@@ -951,3 +951,126 @@ describe("coerceUserOption — id charset validation", () => {
     expect(store.getOptions().map((o) => o.id)).not.toContain("..");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// reloadFromStorage — cross-window user-options merge (no lost update) (#162)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const USER_DOG: AvatarOption = {
+  id: "Dog",
+  label: "Dog",
+  url: "asset://localhost/app-data/vrms/Dog.vrm",
+  source: "user",
+};
+
+describe("createVrmSelection — reloadFromStorage user-list merge", () => {
+  it("union-merges an externally-added user option into the in-memory list", () => {
+    const storage = makeMemStorage();
+    const userStorage = makeUserMemStorage();
+    // Two stores over one shared userStorage (two windows).
+    const a = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", storage, userStorage });
+    const b = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", storage, userStorage });
+
+    // Window A imports Cat first → userStorage = [Cat].
+    a.addUserOption(USER_CAT);
+    // Window B (stale, in-memory []) reloads, then imports Dog.
+    b.reloadFromStorage();
+    b.addUserOption(USER_DOG);
+
+    // No lost update: BOTH survive in persisted storage and B's list.
+    expect(userStorage._data.map((o) => o.id).sort()).toEqual(["Cat", "Dog"]);
+    expect(b.list().map((o) => o.id)).toContain("Cat");
+    expect(b.list().map((o) => o.id)).toContain("Dog");
+  });
+
+  it("reloadFromStorage picks up a user option added by another window", () => {
+    const userStorage = makeUserMemStorage();
+    const a = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", userStorage });
+    const b = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", userStorage });
+
+    a.addUserOption(USER_CAT);
+    expect(b.getOptions().map((o) => o.id)).not.toContain("Cat");
+
+    b.reloadFromStorage();
+    expect(b.getOptions().map((o) => o.id)).toContain("Cat");
+  });
+
+  it("merge dedupes by id and keeps the reloaded entry (no duplicates)", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", userStorage });
+    store.addUserOption(USER_CAT);
+    // Another window renamed Cat → reflected only in storage.
+    userStorage._data = [{ ...USER_CAT, label: "냥이" }];
+
+    store.reloadFromStorage();
+
+    const cats = store.getOptions().filter((o) => o.id === "Cat");
+    expect(cats).toHaveLength(1);
+  });
+
+  it("a reloaded user entry colliding with a bundled id is dropped (bundled wins)", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", userStorage });
+    // Another window persisted a user entry shadowing a bundled id.
+    userStorage._data = [{ id: "miko", label: "Fake", url: "asset://localhost/fake.vrm", source: "user" }];
+
+    store.reloadFromStorage();
+
+    const mikos = store.getOptions().filter((o) => o.id === "miko");
+    expect(mikos).toHaveLength(1);
+    expect(mikos[0].source).toBe("bundled");
+  });
+
+  it("notifies when an externally-added user option becomes the resolved override", () => {
+    const storage = makeMemStorage();
+    const userStorage = makeUserMemStorage();
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", storage, userStorage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    // Another window added Cat AND selected it.
+    userStorage._data = [USER_CAT];
+    storage._data = "Cat";
+    store.reloadFromStorage();
+
+    expect(store.getActiveId()).toBe("Cat");
+    expect(cb).toHaveBeenCalledOnce();
+  });
+
+  it("does NOT notify when the merged list leaves the active id unchanged", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", userStorage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    // Merge a new user option but active stays carlotta (no override).
+    userStorage._data = [USER_CAT];
+    store.reloadFromStorage();
+
+    expect(store.getActiveId()).toBe("carlotta");
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op for the user list when userStorage is absent", () => {
+    const storage = makeMemStorage();
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", storage });
+    expect(() => store.reloadFromStorage()).not.toThrow();
+    expect(store.getOptions().map((o) => o.id)).toEqual(["carlotta", "miko"]);
+  });
+
+  it("survives a throwing userStorage.load without dropping existing user options", () => {
+    let throwOnLoad = false;
+    const userStorage: UserVrmStorage = {
+      load: () => {
+        if (throwOnLoad) throw new Error("boom");
+        return [];
+      },
+      save: vi.fn(),
+    };
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", userStorage });
+    store.addUserOption(USER_CAT);
+    throwOnLoad = true;
+    expect(() => store.reloadFromStorage()).not.toThrow();
+    expect(store.getOptions().map((o) => o.id)).toContain("Cat");
+  });
+});

@@ -7,7 +7,12 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { importVoiceFromFile, removeUserVoice, type VoiceImportDeps } from "./voice-import";
+import {
+  importVoiceFromFile,
+  removeUserVoice,
+  removeOrphanVoice,
+  type VoiceImportDeps,
+} from "./voice-import";
 
 function makeDeps(over: Partial<VoiceImportDeps> = {}): VoiceImportDeps {
   return {
@@ -84,5 +89,26 @@ describe("removeUserVoice", () => {
     const invoke = vi.fn(async () => undefined);
     await removeUserVoice("MyVoice", { invoke });
     expect(invoke).toHaveBeenCalledWith("remove_user_voice", { id: "MyVoice" });
+  });
+});
+
+describe("removeOrphanVoice — orphan cleanup surfaces failures (#162)", () => {
+  it("attempts removal and resolves without calling onError on success", async () => {
+    const remove = vi.fn(async () => {});
+    const onError = vi.fn();
+    await removeOrphanVoice("MyVoice", remove, onError);
+    expect(remove).toHaveBeenCalledWith("MyVoice");
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("surfaces (does not swallow) a failed orphan removal via onError", async () => {
+    const boom = new Error("native delete failed");
+    const remove = vi.fn(async () => {
+      throw boom;
+    });
+    const onError = vi.fn();
+    await expect(removeOrphanVoice("MyVoice", remove, onError)).resolves.toBeUndefined();
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError.mock.calls[0][0]).toBe(boom);
   });
 });

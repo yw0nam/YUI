@@ -80,18 +80,26 @@ export function createVrmSelection(opts: {
     return bundled.some((o) => o.id === id);
   }
   let userOptions: AvatarOption[] = [];
-  if (userStorage) {
+
+  // userStorage의 목록을 in-memory userOptions에 union-merge한다 — bundled id 충돌은 버리고
+  // id로 dedupe(reloaded 항목이 우선). 다른 창이 추가한 항목을 잃지 않게 한다.
+  function mergeUserOptions(): void {
+    if (!userStorage) return;
+    let persisted: AvatarOption[];
     try {
-      for (const raw of userStorage.load()) {
-        const opt = coerceUserOption(raw);
-        if (opt && !isBundledId(opt.id) && !userOptions.some((u) => u.id === opt.id)) {
-          userOptions.push(opt);
-        }
-      }
+      persisted = userStorage.load();
     } catch {
-      // storage 오류 시 user 옵션 없음으로 폴백
+      return; // storage 오류 시 기존 user 옵션 보존
+    }
+    for (const raw of persisted) {
+      const opt = coerceUserOption(raw);
+      if (!opt || isBundledId(opt.id)) continue;
+      const idx = userOptions.findIndex((u) => u.id === opt.id);
+      if (idx >= 0) userOptions[idx] = opt;
+      else userOptions.push(opt);
     }
   }
+  mergeUserOptions();
 
   // 해석 대상 전체 목록: bundled 뒤에 user(중복 id 없음).
   function options(): AvatarOption[] {
@@ -214,19 +222,20 @@ export function createVrmSelection(opts: {
       notify();
     },
 
-    // 다른 창이 storage를 갱신했을 때 재로드 — 해석 결과가 실제로 바뀌었을 때만 통지.
+    // 다른 창이 storage를 갱신했을 때 재로드 — user 목록과 override 포인터를 모두 다시 읽고
+    // (cross-window lost-update 방지), 해석 결과가 실제로 바뀌었을 때만 통지.
     reloadFromStorage(): void {
-      if (!storage) return;
       const before = resolve().id;
-      let loaded: string | null;
-      try {
-        loaded = coerceOverride(storage.load());
-      } catch {
-        return;
+      mergeUserOptions();
+      if (storage) {
+        let loaded: string | null;
+        try {
+          loaded = coerceOverride(storage.load());
+        } catch {
+          loaded = override;
+        }
+        override = loaded !== null && hasId(loaded) ? loaded : null;
       }
-      const next = loaded !== null && hasId(loaded) ? loaded : null;
-      if (override === next) return;
-      override = next;
       if (resolve().id === before) return;
       notify();
     },

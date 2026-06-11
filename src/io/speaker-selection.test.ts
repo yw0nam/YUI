@@ -938,3 +938,118 @@ describe("coerceUserSpeaker — id charset validation", () => {
     expect(store.getOptions().map((o) => o.id)).not.toContain("..");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// reloadFromStorage — cross-window user-options merge (no lost update) (#162)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const USER_DOG: SpeakerOption = {
+  id: "Dog",
+  label: "Dog",
+  ref_url: "asset://localhost/app-data/references/Dog/clip.mp3",
+  source: "user",
+};
+
+describe("createSpeakerSelection — reloadFromStorage user-list merge", () => {
+  it("union-merges an externally-added user voice into the in-memory list", () => {
+    const storage = makeMemStorage();
+    const userStorage = makeUserMemStorage();
+    const a = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", storage, userStorage });
+    const b = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", storage, userStorage });
+
+    a.addUserVoice(USER_CAT);
+    b.reloadFromStorage();
+    b.addUserVoice(USER_DOG);
+
+    expect(userStorage._data.map((o) => o.id).sort()).toEqual(["Cat", "Dog"]);
+    expect(b.list().map((o) => o.id)).toContain("Cat");
+    expect(b.list().map((o) => o.id)).toContain("Dog");
+  });
+
+  it("reloadFromStorage picks up a user voice added by another window", () => {
+    const userStorage = makeUserMemStorage();
+    const a = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", userStorage });
+    const b = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", userStorage });
+
+    a.addUserVoice(USER_CAT);
+    expect(b.getOptions().map((o) => o.id)).not.toContain("Cat");
+
+    b.reloadFromStorage();
+    expect(b.getOptions().map((o) => o.id)).toContain("Cat");
+  });
+
+  it("merge dedupes by id and keeps the reloaded entry (no duplicates)", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", userStorage });
+    store.addUserVoice(USER_CAT);
+    userStorage._data = [{ ...USER_CAT, label: "냥이" }];
+
+    store.reloadFromStorage();
+
+    const cats = store.getOptions().filter((o) => o.id === "Cat");
+    expect(cats).toHaveLength(1);
+  });
+
+  it("a reloaded user entry colliding with a bundled id is dropped (bundled wins)", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", userStorage });
+    userStorage._data = [{ id: "miko", label: "Fake", ref_url: "asset://localhost/fake.mp3", source: "user" }];
+
+    store.reloadFromStorage();
+
+    const mikos = store.getOptions().filter((o) => o.id === "miko");
+    expect(mikos).toHaveLength(1);
+    expect(mikos[0].ref_url).toBe("/references/miko.wav");
+  });
+
+  it("notifies when an externally-added user voice becomes the resolved override", () => {
+    const storage = makeMemStorage();
+    const userStorage = makeUserMemStorage();
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", storage, userStorage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    userStorage._data = [USER_CAT];
+    storage._data = "Cat";
+    store.reloadFromStorage();
+
+    expect(store.getActiveId()).toBe("Cat");
+    expect(cb).toHaveBeenCalledOnce();
+  });
+
+  it("does NOT notify when the merged list leaves the active id unchanged", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", userStorage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    userStorage._data = [USER_CAT];
+    store.reloadFromStorage();
+
+    expect(store.getActiveId()).toBe("carlotta");
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op for the user list when userStorage is absent", () => {
+    const storage = makeMemStorage();
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", storage });
+    expect(() => store.reloadFromStorage()).not.toThrow();
+    expect(store.getOptions().map((o) => o.id)).toEqual(["carlotta", "miko"]);
+  });
+
+  it("survives a throwing userStorage.load without dropping existing user voices", () => {
+    let throwOnLoad = false;
+    const userStorage: UserSpeakerStorage = {
+      load: () => {
+        if (throwOnLoad) throw new Error("boom");
+        return [];
+      },
+      save: vi.fn(),
+    };
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", userStorage });
+    store.addUserVoice(USER_CAT);
+    throwOnLoad = true;
+    expect(() => store.reloadFromStorage()).not.toThrow();
+    expect(store.getOptions().map((o) => o.id)).toContain("Cat");
+  });
+});
