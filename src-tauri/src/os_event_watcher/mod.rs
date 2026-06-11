@@ -373,6 +373,7 @@ mod tests {
             height: 600.0,
             name: Some("Safari".into()),
             pid: 4321,
+            window_number: 8765,
         };
         let v = serde_json::to_value(&w).unwrap();
         assert_eq!(v["x"], 100.0);
@@ -381,6 +382,7 @@ mod tests {
         assert_eq!(v["height"], 600.0);
         assert_eq!(v["name"], "Safari");
         assert_eq!(v["pid"], 4321);
+        assert_eq!(v["windowNumber"], 8765);
     }
 
     #[test]
@@ -392,8 +394,10 @@ mod tests {
             height: 10.0,
             name: None,
             pid: 1,
+            window_number: 42,
         };
         let v = serde_json::to_value(&w).unwrap();
         assert!(v["name"].is_null());
+        assert_eq!(v["windowNumber"], 42);
     }
 }
