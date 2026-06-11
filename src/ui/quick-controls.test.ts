@@ -1360,17 +1360,75 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("trash removes the option via removeUserOption + removeUserVrm", () => {
+  it("trash removes the option via removeUserVrm then store removeUserOption", async () => {
     withUserOption();
     const qc = buildQc();
     qc.open();
 
     userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    await flush();
 
     expect(removeUserVrm).toHaveBeenCalledOnce();
     expect(removeUserVrm.mock.calls[0][0]).toBe("cat");
     expect(vrmSelection.getOptions().map((o) => o.id)).not.toContain("cat");
     expect(qc.el.querySelector('.yui-vrm[data-vrm-id="cat"]')).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("deletes the file BEFORE committing the store removal (no divergence ordering)", async () => {
+    withUserOption();
+    let storeStillHadCatAtDelete: boolean | null = null;
+    removeUserVrm = vi.fn<(id: string) => Promise<void>>(async () => {
+      // at the moment the native delete runs, the store must not have committed yet.
+      storeStillHadCatAtDelete = vrmSelection.getOptions().some((o) => o.id === "cat");
+    });
+    const qc = buildQc();
+    qc.open();
+
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    await flush();
+
+    expect(storeStillHadCatAtDelete).toBe(true);
+    expect(vrmSelection.getOptions().map((o) => o.id)).not.toContain("cat");
+
+    qc.dispose();
+  });
+
+  it("keeps the entry in the store when the native file delete fails (no divergence)", async () => {
+    withUserOption();
+    removeUserVrm = vi.fn<(id: string) => Promise<void>>(async () => {
+      throw new Error("native delete failed");
+    });
+    const qc = buildQc();
+    qc.open();
+
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    await flush();
+
+    // file delete failed → store must NOT have dropped the entry; row stays visible.
+    expect(vrmSelection.getOptions().map((o) => o.id)).toContain("cat");
+    expect(qc.el.querySelector('.yui-vrm[data-vrm-id="cat"]')).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  it("does NOT fall back / swap the renderer when deleting the active VRM file fails", async () => {
+    withUserOption();
+    vrmSelection.select("cat");
+    removeUserVrm = vi.fn<(id: string) => Promise<void>>(async () => {
+      throw new Error("native delete failed");
+    });
+    const qc = buildQc();
+    qc.open();
+    swapVrm.mockClear();
+
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    await flush();
+
+    // store still active on cat, no fallback swap attempted.
+    expect(vrmSelection.getActiveId()).toBe("cat");
+    expect(swapVrm).not.toHaveBeenCalled();
 
     qc.dispose();
   });
@@ -1678,17 +1736,72 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("trash removes the voice via store removeUserVoice + injected removeUserVoice", () => {
+  it("trash removes the voice via injected removeUserVoice then store removeUserVoice", async () => {
     withUserVoice();
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    await flush();
 
     expect(removeUserVoice).toHaveBeenCalledOnce();
     expect(removeUserVoice.mock.calls[0][0]).toBe("myvoice");
     expect(speakerSelection.getOptions().map((o) => o.id)).not.toContain("myvoice");
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("deletes the voice file BEFORE committing the store removal (no divergence ordering)", async () => {
+    withUserVoice();
+    let storeStillHadVoiceAtDelete: boolean | null = null;
+    removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {
+      storeStillHadVoiceAtDelete = speakerSelection.getOptions().some((o) => o.id === "myvoice");
+    });
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    await flush();
+
+    expect(storeStillHadVoiceAtDelete).toBe(true);
+    expect(speakerSelection.getOptions().map((o) => o.id)).not.toContain("myvoice");
+
+    qc.dispose();
+  });
+
+  it("keeps the voice in the store when the native file delete fails (no divergence)", async () => {
+    withUserVoice();
+    removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {
+      throw new Error("native delete failed");
+    });
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    await flush();
+
+    expect(speakerSelection.getOptions().map((o) => o.id)).toContain("myvoice");
+    expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  it("does NOT fall back / swap the speaker when deleting the active voice file fails", async () => {
+    withUserVoice();
+    speakerSelection.select("myvoice");
+    removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {
+      throw new Error("native delete failed");
+    });
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+    swapSpeaker.mockClear();
+
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    await flush();
+
+    expect(speakerSelection.getActiveId()).toBe("myvoice");
+    expect(swapSpeaker).not.toHaveBeenCalled();
 
     qc.dispose();
   });

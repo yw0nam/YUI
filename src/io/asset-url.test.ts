@@ -150,3 +150,63 @@ describe("resolveUserFileSrc — Tauri app-data 절대 경로", () => {
     expect(out).toBe("/abs/whatever.vrm");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// resolveUserFileSrc — scheme allowlist (block dangerous schemes) (#162)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("resolveUserFileSrc — scheme allowlist", () => {
+  // Dangerous schemes must NOT pass through as a usable asset src.
+  for (const scheme of ["javascript:", "data:", "file:", "vbscript:", "JavaScript:", "DATA:"]) {
+    it(`blocks ${scheme} — does not return it verbatim (returns empty)`, async () => {
+      const api = mockTauri();
+      const evil = `${scheme}alert(1)`;
+      const out = await resolveUserFileSrc(evil, { isTauri: () => true, tauri: async () => api });
+      expect(out).not.toBe(evil);
+      expect(out).toBe("");
+      expect(api.convertFileSrc).not.toHaveBeenCalled();
+    });
+
+    it(`blocks ${scheme} even in dev/browser (non-Tauri)`, async () => {
+      const api = mockTauri();
+      const evil = `${scheme}alert(1)`;
+      const out = await resolveUserFileSrc(evil, { isTauri: () => false, tauri: async () => api });
+      expect(out).not.toBe(evil);
+      expect(out).toBe("");
+    });
+  }
+
+  it("passes through legitimate asset:// / blob: / http(s) inputs verbatim", async () => {
+    const api = mockTauri();
+    for (const ok of [
+      "asset://localhost/x.vrm",
+      "blob:https://app/abc",
+      "https://cdn.example/x.vrm",
+      "http://localhost/x.vrm",
+    ]) {
+      const out = await resolveUserFileSrc(ok, { isTauri: () => true, tauri: async () => api });
+      expect(out).toBe(ok);
+    }
+    expect(api.convertFileSrc).not.toHaveBeenCalled();
+  });
+
+  it("converts a bare absolute filesystem path via convertFileSrc (Tauri)", async () => {
+    const api = mockTauri();
+    const out = await resolveUserFileSrc("/abs/app-data/vrms/Cat.vrm", {
+      isTauri: () => true,
+      tauri: async () => api,
+    });
+    expect(api.convertFileSrc).toHaveBeenCalledWith("/abs/app-data/vrms/Cat.vrm");
+    expect(out).toBe("asset://localhost/" + encodeURI("/abs/app-data/vrms/Cat.vrm"));
+  });
+
+  it("converts a Windows drive path via convertFileSrc, not scheme passthrough (Tauri)", async () => {
+    const api = mockTauri();
+    const out = await resolveUserFileSrc("C:\\Users\\me\\Cat.vrm", {
+      isTauri: () => true,
+      tauri: async () => api,
+    });
+    expect(api.convertFileSrc).toHaveBeenCalledWith("C:\\Users\\me\\Cat.vrm");
+    expect(out).not.toBe("C:\\Users\\me\\Cat.vrm");
+  });
+});

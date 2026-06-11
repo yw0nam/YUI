@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { importVrmFromFile, removeUserVrm, type VrmImportDeps } from "./vrm-import";
+import { importVrmFromFile, removeUserVrm, removeOrphanVrm, type VrmImportDeps } from "./vrm-import";
 
 function makeDeps(over: Partial<VrmImportDeps> = {}): VrmImportDeps {
   return {
@@ -85,5 +85,27 @@ describe("removeUserVrm", () => {
     const invoke = vi.fn(async () => undefined);
     await removeUserVrm("MyAvatar", { invoke });
     expect(invoke).toHaveBeenCalledWith("remove_user_vrm", { id: "MyAvatar" });
+  });
+});
+
+describe("removeOrphanVrm — orphan cleanup surfaces failures (#162)", () => {
+  it("attempts removal and resolves without calling onError on success", async () => {
+    const remove = vi.fn(async () => {});
+    const onError = vi.fn();
+    await removeOrphanVrm("MyAvatar", remove, onError);
+    expect(remove).toHaveBeenCalledWith("MyAvatar");
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("surfaces (does not swallow) a failed orphan removal via onError", async () => {
+    const boom = new Error("native delete failed");
+    const remove = vi.fn(async () => {
+      throw boom;
+    });
+    const onError = vi.fn();
+    // must not reject — the primary error is what rethrows; cleanup only surfaces.
+    await expect(removeOrphanVrm("MyAvatar", remove, onError)).resolves.toBeUndefined();
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError.mock.calls[0][0]).toBe(boom);
   });
 });
