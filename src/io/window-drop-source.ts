@@ -16,7 +16,7 @@
  *   5. hit → user.window_sit_drop { target_window_rect, edge_local_ypx } + arm
  *      the poll on target.windowNumber; miss → user.window_sit_exit.
  *
- * Once armed, the poll re-checks ~1.3 Hz whether the perched window is still
+ * Once armed, the poll re-checks ~1.4 Hz whether the perched window is still
  * under the seat and topmost. The held-perch test is point-in-rect (NOT the
  * U-band catch zone — that generosity is for the drop decision only). Loss
  * fires user.window_sit_exit through the bus and disarms. The poll never calls
@@ -38,8 +38,8 @@ const log = createLogger("window-drop");
 /** Tauri event channel carrying the drag-release point (payload unused by the seat hit-test). */
 const RELEASE_EVENT = "window_drop_release";
 
-/** Poll cadence — ~1.3 Hz keeps detach latency under ~2 ticks (≈3 s). */
-const DEFAULT_POLL_MS = 1500;
+/** Poll cadence — ~1.4 Hz keeps detach latency under ~2 ticks (≈1.4 s). */
+const DEFAULT_POLL_MS = 700;
 /** Consecutive lost ticks required for an *ambiguous* loss (covered / not-containing). */
 const AMBIGUOUS_LOST_TICKS = 2;
 
