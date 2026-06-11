@@ -97,6 +97,14 @@ function makeVrmSelection(ids: string[] = ["carlotta", "aria", "mirai"]) {
   return createVrmSelection({ available, defaultUrl: available[0].url });
 }
 
+// A user (imported) option mirroring vrm-import's output shape.
+const USER_OPTION: AvatarOption = {
+  id: "cat",
+  label: "깜냥이",
+  url: "asset://localhost/app-data/vrms/cat.vrm",
+  source: "user",
+};
+
 // Build a real createSpeakerSelection over an explicit manifest (default first id).
 function makeSpeakerSelection(ids: string[] = ["natsume", "ayase", "rena"]) {
   const available: SpeakerOption[] = ids.map((id) => ({
@@ -118,6 +126,8 @@ describe("createQuickControls — gain row", () => {
   let onPopOut: Mock<() => void>;
   let vrmSelection: ReturnType<typeof createVrmSelection>;
   let swapVrm: Mock<(option: AvatarOption) => Promise<void>>;
+  let importVrm: Mock<() => Promise<void>>;
+  let removeUserVrm: Mock<(id: string) => Promise<void>>;
   let speakerSelection: ReturnType<typeof createSpeakerSelection>;
   let swapSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
   let refreshSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
@@ -146,6 +156,8 @@ describe("createQuickControls — gain row", () => {
     swapVrm = vi.fn<(option: AvatarOption) => Promise<void>>(async (option) => {
       vrmSelection.select(option.id);
     });
+    importVrm = vi.fn<() => Promise<void>>(async () => {});
+    removeUserVrm = vi.fn<(id: string) => Promise<void>>(async () => {});
     speakerSelection = makeSpeakerSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
     swapSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async (option) => {
@@ -181,6 +193,8 @@ describe("createQuickControls — gain row", () => {
       onPopOut,
       vrmSelection,
       swapVrm,
+      importVrm,
+      removeUserVrm,
       speakerSelection,
       swapSpeaker,
       refreshSpeaker,
@@ -605,6 +619,31 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  it("the voice-engine sub-label reads the approved copy", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    const seg = qc.el.querySelector<HTMLDivElement>(".yui-seg--2")!;
+    const sub = seg.closest(".yui-field-row")!.querySelector(".yui-field-row__sub")!;
+    expect(sub.textContent).toBe("캐릭터 목소리를 만드는 합성 엔진");
+
+    qc.dispose();
+  });
+
+  it("places the OpenAI speaker hint ABOVE the speaker list, under the voice-engine seg", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    const seg = qc.el.querySelector(".yui-seg--2")!;
+    const hint = qc.el.querySelector(".yui-spks-hint")!;
+    const list = qc.el.querySelector(".yui-spk-scroll")!;
+    // seg → hint → list in document order
+    expect(seg.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(hint.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    qc.dispose();
+  });
+
   it("clicking 'irodori' re-enables the speaker list and hides the hint", () => {
     endpointsSettings.set({ tts_provider: "openai" });
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
@@ -905,19 +944,21 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("the '파일에서 추가…' row is disabled and not interactive", () => {
+  it("the '파일에서 추가…' row is enabled and invokes the import handler on click", () => {
     const qc = buildQc();
     qc.open();
 
     const add = qc.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
-    expect(add.disabled).toBe(true);
-    expect(add.getAttribute("aria-disabled")).toBe("true");
-    expect(add.tabIndex).toBe(-1);
+    expect(add.disabled).toBe(false);
+    expect(add.hasAttribute("aria-disabled")).toBe(false);
+    expect(add.classList.contains("is-ready")).toBe(true);
+    // the 준비 중 chip is gone now that import is wired
+    expect(add.querySelector(".yui-vrm__soon")).toBeNull();
     // it is NOT a radio (excluded from the radiogroup roving order)
     expect(add.getAttribute("role")).not.toBe("radio");
 
     add.click();
-    expect(swapVrm).not.toHaveBeenCalled();
+    expect(importVrm).toHaveBeenCalledOnce();
 
     qc.dispose();
   });
@@ -1069,6 +1110,177 @@ describe("createQuickControls — gain row", () => {
 
     expect(qc.el.querySelector(".yui-vrms[role=radiogroup]")).not.toBeNull();
     expect(qc.el.querySelector(".yui-vrm--add")).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  // ── BYO-VRM: user rows + import + rename + remove (#147) ─────────────────────
+
+  // Selection holding the three bundled rows plus one user (imported) option.
+  function withUserOption() {
+    vrmSelection = makeVrmSelection();
+    vrmSelection.addUserOption(USER_OPTION);
+  }
+
+  function userRow(qc: { el: HTMLElement }): HTMLElement {
+    return qc.el.querySelector<HTMLElement>(`.yui-vrm[data-vrm-id="${USER_OPTION.id}"]`)!;
+  }
+
+  it("renders a user option as a div[role=radio] row carrying rename + remove controls", () => {
+    withUserOption();
+    const qc = buildQc();
+    qc.open();
+
+    const row = userRow(qc);
+    expect(row).not.toBeNull();
+    // nested buttons require a div row, never a <button> (invalid nested HTML)
+    expect(row.tagName).toBe("DIV");
+    expect(row.getAttribute("role")).toBe("radio");
+    expect(row.querySelector(".yui-vrm__name")!.textContent).toBe("깜냥이");
+    expect(row.querySelector<HTMLButtonElement>(".yui-vrm__rename")).not.toBeNull();
+    expect(row.querySelector<HTMLButtonElement>(".yui-vrm__remove")).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  it("bundled rows stay <button> radios with no rename/remove controls", () => {
+    withUserOption();
+    const qc = buildQc();
+    qc.open();
+
+    const carlotta = qc.el.querySelector<HTMLElement>('.yui-vrm[data-vrm-id="carlotta"]')!;
+    expect(carlotta.tagName).toBe("BUTTON");
+    expect(carlotta.querySelector(".yui-vrm__rename")).toBeNull();
+    expect(carlotta.querySelector(".yui-vrm__remove")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("pencil opens inline rename; Enter commits via renameUserOption", () => {
+    withUserOption();
+    const qc = buildQc();
+    qc.open();
+
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click();
+
+    // entering rename re-renders — re-query the now-renaming row
+    const row = userRow(qc);
+    expect(row.classList.contains("yui-vrm--renaming")).toBe(true);
+    const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
+    expect(input).not.toBeNull();
+    expect(input.value).toBe("깜냥이");
+    expect(row.querySelector(".yui-vrm__rename-hint")).not.toBeNull();
+
+    input.value = "냥이";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(vrmSelection.getOptions().find((o) => o.id === "cat")!.label).toBe("냥이");
+    // input is gone after commit
+    expect(userRow(qc).querySelector(".yui-ep-input")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("Esc cancels inline rename without changing the label", () => {
+    withUserOption();
+    const qc = buildQc();
+    qc.open();
+
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click();
+    const input = userRow(qc).querySelector<HTMLInputElement>(".yui-ep-input")!;
+    input.value = "버려질 이름";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect(vrmSelection.getOptions().find((o) => o.id === "cat")!.label).toBe("깜냥이");
+    expect(userRow(qc).querySelector(".yui-ep-input")).toBeNull();
+    // Esc cancels the rename only — it must NOT close the whole panel
+    expect(qc.isOpen()).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("trash removes the option via removeUserOption + removeUserVrm", () => {
+    withUserOption();
+    const qc = buildQc();
+    qc.open();
+
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+
+    expect(removeUserVrm).toHaveBeenCalledOnce();
+    expect(removeUserVrm.mock.calls[0][0]).toBe("cat");
+    expect(vrmSelection.getOptions().map((o) => o.id)).not.toContain("cat");
+    expect(qc.el.querySelector('.yui-vrm[data-vrm-id="cat"]')).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("removing the active user VRM falls back to default and swaps the renderer", async () => {
+    withUserOption();
+    vrmSelection.select("cat");
+    const qc = buildQc();
+    qc.open();
+
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    await flush();
+
+    // store fell back to the bundled default
+    expect(vrmSelection.getActiveId()).toBe("carlotta");
+    // renderer reloaded onto the fallback
+    expect(swapVrm).toHaveBeenCalled();
+    expect(swapVrm.mock.calls.at(-1)![0]).toMatchObject({ id: "carlotta" });
+
+    qc.dispose();
+  });
+
+  it("clicking the add button enters the importing state (loading row)", () => {
+    // import handler that never resolves — pins the transient importing row
+    importVrm = vi.fn<() => Promise<void>>(() => new Promise<void>(() => {}));
+    const qc = buildQc();
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!.click();
+
+    const loading = qc.el.querySelector<HTMLElement>(".yui-vrm__loading")!;
+    expect(loading).not.toBeNull();
+    expect(loading.querySelector(".yui-vrm__spin")).not.toBeNull();
+    expect(loading.querySelector(".yui-vrm__loading-name")!.textContent).toContain("불러오는 중");
+
+    qc.dispose();
+  });
+
+  it("a failed import shows the inline error and clears the importing row", async () => {
+    importVrm = vi.fn<() => Promise<void>>(async () => {
+      throw new Error("bad vrm");
+    });
+    const qc = buildQc();
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!.click();
+    await flush();
+
+    const err = qc.el.querySelector<HTMLElement>(".yui-vrm__import-error")!;
+    expect(err).not.toBeNull();
+    expect(err.hidden).toBe(false);
+    expect(err.textContent).toContain("불러올 수 없는 파일이에요");
+    // the transient loading row is gone once the import settles
+    expect(qc.el.querySelector(".yui-vrm__loading")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("a successful import clears the importing row and error notice", async () => {
+    importVrm = vi.fn<() => Promise<void>>(async () => {
+      vrmSelection.addUserOption(USER_OPTION);
+    });
+    const qc = buildQc();
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!.click();
+    await flush();
+
+    expect(qc.el.querySelector(".yui-vrm__loading")).toBeNull();
+    expect(qc.el.querySelector<HTMLElement>(".yui-vrm__import-error")!.hidden).toBe(true);
+    expect(qc.el.querySelector('.yui-vrm[data-vrm-id="cat"]')).not.toBeNull();
 
     qc.dispose();
   });

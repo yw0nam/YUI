@@ -741,6 +741,69 @@ describe("createVrmSelection — removeUserOption", () => {
   });
 });
 
+describe("createVrmSelection — renameUserOption", () => {
+  it("renames a user option, persists, and survives reloadFromStorage", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
+    store.addUserOption(USER_CAT);
+    store.renameUserOption("Cat", "냥이");
+    expect(store.getOptions().find((o) => o.id === "Cat")?.label).toBe("냥이");
+    // persisted to storage
+    expect(userStorage._data.find((o) => o.id === "Cat")?.label).toBe("냥이");
+
+    // a fresh store over the same storage sees the renamed label
+    const reloaded = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
+    expect(reloaded.getOptions().find((o) => o.id === "Cat")?.label).toBe("냥이");
+  });
+
+  it("notifies subscribers when the active user option is renamed", () => {
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm" });
+    store.addUserOption(USER_CAT);
+    store.select("Cat");
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.renameUserOption("Cat", "냥이");
+    expect(cb).toHaveBeenCalledOnce();
+    expect(cb.mock.calls[0][0].label).toBe("냥이");
+  });
+
+  it("renaming an unknown id is a no-op", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
+    store.addUserOption(USER_CAT);
+    store.renameUserOption("ghost", "Nope");
+    expect(store.getOptions().find((o) => o.id === "Cat")?.label).toBe("Cat");
+    expect(userStorage._data).toEqual([USER_CAT]);
+  });
+
+  it("renaming a bundled id is a no-op (only user options are renamable)", () => {
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm" });
+    store.renameUserOption("carlotta", "Hacked");
+    expect(store.getOptions().find((o) => o.id === "carlotta")?.label).toBe("Carlotta");
+  });
+
+  it("rejects an empty / whitespace-only label (keeps the old one)", () => {
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm" });
+    store.addUserOption(USER_CAT);
+    store.renameUserOption("Cat", "   ");
+    expect(store.getOptions().find((o) => o.id === "Cat")?.label).toBe("Cat");
+    store.renameUserOption("Cat", "");
+    expect(store.getOptions().find((o) => o.id === "Cat")?.label).toBe("Cat");
+  });
+});
+
 describe("createVrmSelection — user id never clobbers a bundled id", () => {
   it("addUserOption with a bundled id is rejected (bundled wins)", () => {
     const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm" });

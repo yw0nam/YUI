@@ -1003,6 +1003,180 @@
   white-space: nowrap;
 }
 
+/* ── 활성화된 "파일에서 추가…" 행 — 같은 ghost 레이아웃, 이제 인터랙티브.
+   disabled wash와 준비 중 chip을 떼고 ⊕ tick은 유지한다. ── */
+.yui-vrm--add.is-ready {
+  color: var(--yui-text-dim);
+  cursor: pointer;
+  opacity: 1;
+}
+
+.yui-vrm--add.is-ready:hover {
+  background: oklch(0.97 0.01 80 / 0.06);
+}
+
+.yui-vrm--add.is-ready:hover .yui-vrm__name {
+  color: var(--yui-text);
+}
+
+.yui-vrm--add.is-ready .yui-vrm__tick {
+  border-color: var(--yui-text-mute);
+}
+
+.yui-vrm--add.is-ready:hover .yui-vrm__tick {
+  border-color: var(--yui-text-dim);
+}
+
+.yui-vrm--add.is-ready .yui-vrm__name {
+  color: var(--yui-text-dim);
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+/* ── user 행의 ✎ 이름 바꾸기 · 🗑 삭제 — .yui-spk__refresh / __preview 미러.
+   1.5rem ghost, rest에선 숨김, 호버 시 점화(rename=앰버, remove=warm-red). ── */
+.yui-vrm__rename,
+.yui-vrm__remove {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease),
+    opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+/* 아이콘은 행 호버/포커스에서 떠오른다(invisible-by-default) */
+.yui-vrm:hover .yui-vrm__rename,
+.yui-vrm:hover .yui-vrm__remove,
+.yui-vrm:focus-within .yui-vrm__rename,
+.yui-vrm:focus-within .yui-vrm__remove {
+  opacity: 0.7;
+}
+
+.yui-vrm__rename:hover {
+  opacity: 1;
+  background: var(--yui-accent-faint);
+  color: var(--yui-accent);
+}
+
+/* 삭제는 파괴적 — 호버 시 warm-red(앰버 아님) */
+.yui-vrm__remove:hover {
+  opacity: 1;
+  background: var(--yui-danger-faint);
+  color: var(--yui-danger);
+}
+
+.yui-vrm__rename:focus-visible,
+.yui-vrm__remove:focus-visible {
+  outline: none;
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-vrm__remove:focus-visible {
+  box-shadow: 0 0 0 2px var(--yui-danger-soft);
+}
+
+.yui-vrm__rename svg,
+.yui-vrm__remove svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+/* ── 임포트 placeholder 행 — transient, 목록 끝 ── */
+.yui-vrm__loading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  color: var(--yui-text-dim);
+}
+
+.yui-vrm__spin {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1.5px solid var(--yui-accent-soft);
+  border-top-color: transparent;
+  animation: yui-vrm-spin 0.7s linear infinite;
+}
+
+.yui-vrm__loading-name {
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+/* ── 로드 에러 — 인라인, add 행 아래. muted danger. ── */
+.yui-vrm__import-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.3rem 0.6rem 0.1rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--yui-radius-row);
+  background: var(--yui-danger-faint);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--yui-danger);
+}
+
+.yui-vrm__import-error[hidden] {
+  display: none;
+}
+
+.yui-vrm__import-error svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex: 0 0 auto;
+  margin-top: 0.08rem;
+}
+
+/* ── 인라인 이름 편집 — .yui-input-wrap / .yui-ep-input 재사용 ── */
+.yui-vrm--renaming {
+  cursor: default;
+  background: oklch(0.97 0.01 80 / 0.04);
+}
+
+/* 편집 행 안의 입력 래퍼는 행 안에서 자라며 위쪽 마진을 제거한다(엔드포인트 행 변형 무력화). */
+.yui-vrm--renaming .yui-input-wrap {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
+
+.yui-vrm--renaming .yui-ep-input {
+  padding: 0.32rem 0.55rem;
+}
+
+.yui-vrm__rename-hint {
+  flex: 0 0 auto;
+  font-size: 0.66rem;
+  color: var(--yui-text-mute);
+  white-space: nowrap;
+}
+
+.yui-vrm__rename-hint kbd {
+  font-family: inherit;
+  font-weight: 650;
+  color: var(--yui-text-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-vrm__spin {
+    animation: none;
+  }
+}
+
 /* ── 화자 섹션 — VRM 섹션(.yui-vrm*)을 미러링하되 행은 div[role=radio]다.
    중첩 ▶ 미리듣기 <button>을 품으려면 행이 <button>일 수 없다(중첩 무효 HTML). ── */
 .yui-spks {
