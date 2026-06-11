@@ -34,6 +34,10 @@ import {
 } from "./motion-controller";
 import { createCycleDwell } from "./cycle-dwell";
 import {
+  createMotionPreemption,
+  type MotionPreemptedCallback,
+} from "./motion-preemption";
+import {
   createEmotionResolver,
   type EmotionResolver,
   type ResolvedEmotion,
@@ -150,6 +154,19 @@ export interface Renderer {
   stopMouth(): void;
   /** motion registry 조회 후 VRMA 재생. registry가 주입돼 있어야 동작. */
   playMotion(motion: MotionSignal | null): void;
+  /**
+   * 활성 모션이 다른 모션으로 교체(priority/replace 경로)되거나 VRM이 폐기될 때 통지.
+   * 폐기 시 nextId는 null. 등록 해제 함수를 반환. fall 컨트롤러가 자신이 시작한
+   * falling 모션이 선점됐는지 학습하는 데 쓴다.
+   */
+  onMotionPreempted(cb: MotionPreemptedCallback): () => void;
+  /**
+   * 현재 motion generation — 매 교체/폐기마다 증가한다. 호출자가 시퀀스 시작 시
+   * 캡처한 뒤, 비동기 작업이 resolve될 때 isMotionGenerationCurrent로 stale을 판별한다.
+   */
+  motionGeneration(): number;
+  /** 캡처한 generation이 아직 live면 true(이후 교체/폐기가 없었으면). */
+  isMotionGenerationCurrent(captured: number): boolean;
   /**
    * motion registry 주입(또는 교체). 주입 시 MotionController를 (재)생성하고,
    * VRM이 이미 로드돼 있으면 idle baseline을 재생한다.
@@ -341,6 +358,8 @@ export function createRenderer(options: RendererOptions): Renderer {
   let vrmEpoch = 0;
   /** cycle 모션의 variant swap 전 dwell(정착 프레임 유지) 스케줄러 — startMotion이 취소 chokepoint. */
   const cycleDwell = createCycleDwell();
+  /** 모션 교체/폐기 통지 + generation 카운터 — fall 컨트롤러가 preempt/stale을 감지한다. */
+  const preemption = createMotionPreemption();
 
   // ── Lipsync 상태 ──────────────────────────────────────────────────────
   // 입(`aa`)은 lipsync 전용 — ambient/emotion와 분리. emotion crossfade와 같은
@@ -456,6 +475,10 @@ export function createRenderer(options: RendererOptions): Renderer {
   /** mixer/clip/action 캐시 + controller 상태를 모두 폐기 (핫스왑/dispose 공용). */
   function teardownMotion(): void {
     cycleDwell.cancel(); // 폐기될 mixer에 stale swap이 발화하지 않도록.
+    // controller 재생성 전에 활성 모션 교체를 통지(폐기 = nextId null) — in-flight
+    // 비동기 작업이 generation으로 stale을 감지하게 한다.
+    const prevId = controller?.current()?.id;
+    if (prevId) preemption.preempt(prevId, null);
     if (mixer) {
       mixer.removeEventListener("finished", onMixerFinished as never);
       mixer.stopAllAction();
@@ -723,9 +746,14 @@ export function createRenderer(options: RendererOptions): Renderer {
     // survives emotion-only cues. Only an explicit exit (setPerchTarget(null)) lands idle.
     if (suppressIdleReturn(motion, perchTargetYpx !== null)) return;
     try {
+      const prevId = controller.current()?.id;
       const decision = controller.request(motion);
       controller.commit(decision);
       if (decision.action === "play") {
+        // 다른 모션이 활성이었으면(priority 또는 replace 경로) 교체를 통지.
+        if (prevId && prevId !== decision.motion.id) {
+          preemption.preempt(prevId, decision.motion.id);
+        }
         void startMotion(decision.motion);
       }
       // "queue"는 commit으로 슬롯에 저장됨 — finish 시 drain.
@@ -843,6 +871,15 @@ export function createRenderer(options: RendererOptions): Renderer {
       mouth.stop();
     },
     playMotion,
+    onMotionPreempted(cb) {
+      return preemption.onMotionPreempted(cb);
+    },
+    motionGeneration() {
+      return preemption.generation();
+    },
+    isMotionGenerationCurrent(captured) {
+      return preemption.isCurrent(captured);
+    },
     setMotionRegistry,
     setEmotionRegistry,
     setFraming,
