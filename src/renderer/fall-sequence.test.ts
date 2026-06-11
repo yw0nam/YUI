@@ -476,6 +476,38 @@ describe("createFallSequence — fall state machine", () => {
     });
   });
 
+  describe("invalidateMotionWaits (stale waiter cleanup)", () => {
+    it("invalidates pending motion waits when preempted mid-landing", async () => {
+      const invalidateMotionWaits = vi.fn();
+      const { deps, tick, preemption } = makeDeps();
+      const seq = createFallSequence({ ...deps, invalidateMotionWaits });
+      seq.start();
+      await flush();
+      tick.pump(() => seq.state() !== FallState.Falling);
+      await flush();
+      expect(seq.state()).toBe(FallState.Landing);
+      expect(invalidateMotionWaits).not.toHaveBeenCalled();
+
+      // takeover while a landing wait is parked — the wait must be invalidated
+      // so a LATER natural finish of the same clip can't be consumed as the fall's.
+      preemption.preempt("landing", "drag");
+      expect(seq.state()).toBe(FallState.Cancelled);
+      expect(invalidateMotionWaits).toHaveBeenCalled();
+    });
+
+    it("invalidates pending motion waits on cancel() mid-fall", async () => {
+      const invalidateMotionWaits = vi.fn();
+      const { deps } = makeDeps();
+      const seq = createFallSequence({ ...deps, invalidateMotionWaits });
+      seq.start();
+      await flush();
+      expect(seq.state()).toBe(FallState.Falling);
+
+      seq.cancel();
+      expect(invalidateMotionWaits).toHaveBeenCalled();
+    });
+  });
+
   describe("cadence throttle (absorbs U6)", () => {
     it("throttles setPosition to the min-interval and min-delta gates while computing Y every frame", async () => {
       const { deps, mover, tick } = makeDeps({ feetPx: 380 });
