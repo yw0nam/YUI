@@ -894,3 +894,47 @@ describe("localStorageUserSpeakerStorage", () => {
     if (saved !== undefined) (globalThis as any).localStorage = saved;
   });
 });
+
+describe("coerceUserSpeaker — id charset validation", () => {
+  it("drops entries whose id contains a traversal or separator", () => {
+    (globalThis as any).localStorage = {
+      getItem: () =>
+        JSON.stringify([
+          USER_CAT,
+          { id: "..", ref_url: "/x.mp3" },
+          { id: "a/b", ref_url: "/x.mp3" },
+          { id: "a\\b", ref_url: "/x.mp3" },
+          { id: ".", ref_url: "/x.mp3" },
+          { id: "a.b", ref_url: "/x.mp3" },
+        ]),
+      setItem: () => {},
+      removeItem: () => {},
+    };
+    const adapter = localStorageUserSpeakerStorage();
+    expect(adapter.load()).toEqual([USER_CAT]);
+    delete (globalThis as any).localStorage;
+  });
+
+  it("drops an empty-id entry but keeps valid ids", () => {
+    (globalThis as any).localStorage = {
+      getItem: () =>
+        JSON.stringify([{ id: "", ref_url: "/x.mp3" }, USER_CAT]),
+      setItem: () => {},
+      removeItem: () => {},
+    };
+    const adapter = localStorageUserSpeakerStorage();
+    expect(adapter.load()).toEqual([USER_CAT]);
+    delete (globalThis as any).localStorage;
+  });
+
+  it("a crafted `..` id in user storage is dropped on store construction", () => {
+    const userStorage = makeUserMemStorage();
+    userStorage._data = [{ id: "..", label: "evil", ref_url: "/x.mp3", source: "user" }];
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
+    expect(store.getOptions().map((o) => o.id)).not.toContain("..");
+  });
+});
