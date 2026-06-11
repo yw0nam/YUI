@@ -159,11 +159,51 @@ mod tests {
         std::fs::create_dir_all(&vrms).unwrap();
         std::fs::write(vrms.join("Cat.vrm"), b"existing").unwrap();
         let src = dir.join("Cat.vrm");
-        std::fs::write(&src, b"new bytes").unwrap();
+        // Valid GLB magic so the disambiguation path is reached, not the sniff gate.
+        std::fs::write(&src, b"glTF\x02\x00\x00\x00new bytes").unwrap();
 
         let imported = copy_into_vrms(&vrms, Path::new(&src)).unwrap();
         assert_ne!(imported.id, "Cat", "must not overwrite the existing dest");
         assert!(vrms.join("Cat.vrm").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_rejects_bogus_magic_and_copies_nothing() {
+        let dir = unique_dir("bad_magic");
+        let vrms = dir.join("vrms");
+        let src = dir.join("fake.vrm");
+        std::fs::write(&src, b"%PDF-1.4 not a vrm at all").unwrap();
+
+        let res = copy_into_vrms(&vrms, Path::new(&src));
+        assert!(res.is_err(), "non-GLB content must be rejected");
+        assert!(
+            !vrms.join("fake.vrm").exists(),
+            "no partial copy on sniff failure"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_accepts_valid_glb_magic() {
+        let dir = unique_dir("good_magic");
+        let vrms = dir.join("vrms");
+        let src = dir.join("real.vrm");
+        std::fs::write(&src, b"glTF\x02\x00\x00\x00binary chunk").unwrap();
+
+        let imported = copy_into_vrms(&vrms, Path::new(&src)).unwrap();
+        assert_eq!(imported.id, "real");
+        assert!(vrms.join("real.vrm").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_errors_carry_no_path_separators() {
+        let dir = unique_dir("err_generic");
+        let src = dir.join("fake.vrm");
+        std::fs::write(&src, b"not a vrm").unwrap();
+        let err = copy_into_vrms(&dir.join("vrms"), Path::new(&src)).unwrap_err();
+        assert!(!err.contains('/'), "error must not leak a path: {err:?}");
         std::fs::remove_dir_all(&dir).ok();
     }
 }

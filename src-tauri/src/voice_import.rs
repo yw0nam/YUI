@@ -210,10 +210,49 @@ mod tests {
         std::fs::create_dir_all(references.join("Cat")).unwrap();
         std::fs::write(references.join("Cat").join("clip.wav"), b"existing").unwrap();
         let src = dir.join("Cat.wav");
-        std::fs::write(&src, b"new bytes").unwrap();
+        std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
 
         let imported = copy_into_references(&references, &src, "wav").unwrap();
         assert_ne!(imported.id, "Cat", "must not overwrite the existing dest");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_rejects_bogus_audio_magic_and_copies_nothing() {
+        let dir = unique_dir("bad_magic");
+        let references = dir.join("references");
+        let src = dir.join("fake.wav");
+        std::fs::write(&src, b"not really wav audio data").unwrap();
+
+        let res = copy_into_references(&references, &src, "wav");
+        assert!(res.is_err(), "non-WAV content must be rejected");
+        assert!(
+            !references.join("fake").exists(),
+            "no partial copy on sniff failure"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_accepts_valid_audio_magic() {
+        let dir = unique_dir("good_magic");
+        let references = dir.join("references");
+        let src = dir.join("real.ogg");
+        std::fs::write(&src, b"OggS\x00\x02\x00\x00\x00\x00\x00\x00").unwrap();
+
+        let imported = copy_into_references(&references, &src, "ogg").unwrap();
+        assert_eq!(imported.id, "real");
+        assert!(references.join("real").join("clip.ogg").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_errors_carry_no_path_separators() {
+        let dir = unique_dir("err_generic");
+        let src = dir.join("fake.wav");
+        std::fs::write(&src, b"not wav").unwrap();
+        let err = copy_into_references(&dir.join("references"), &src, "wav").unwrap_err();
+        assert!(!err.contains('/'), "error must not leak a path: {err:?}");
         std::fs::remove_dir_all(&dir).ok();
     }
 }

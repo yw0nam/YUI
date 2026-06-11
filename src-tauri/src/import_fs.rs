@@ -263,4 +263,104 @@ mod tests {
         assert!(h.chars().all(|c| c.is_ascii_hexdigit()));
         assert_eq!(h, short_hash("/some/path/Cat.vrm"));
     }
+
+    // ── sniff_ok ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn sniff_glb_accepts_gltf_magic() {
+        assert!(sniff_ok(b"glTF\x02\x00\x00\x00", SniffKind::Glb));
+    }
+
+    #[test]
+    fn sniff_glb_rejects_non_gltf() {
+        assert!(!sniff_ok(b"%PDF-1.4", SniffKind::Glb));
+        assert!(!sniff_ok(b"GLTF", SniffKind::Glb));
+        assert!(!sniff_ok(b"gl", SniffKind::Glb));
+    }
+
+    #[test]
+    fn sniff_wav_requires_riff_and_wave() {
+        assert!(sniff_ok(b"RIFF\x24\x08\x00\x00WAVEfmt ", SniffKind::Wav));
+        assert!(!sniff_ok(b"RIFF\x24\x08\x00\x00AVI WAVE", SniffKind::Wav));
+        assert!(!sniff_ok(b"OggS\x00\x02\x00\x00\x00\x00\x00\x00", SniffKind::Wav));
+    }
+
+    #[test]
+    fn sniff_ogg_and_opus_require_oggs() {
+        assert!(sniff_ok(b"OggS\x00\x02\x00\x00", SniffKind::Ogg));
+        assert!(sniff_ok(b"OggS\x00\x02\x00\x00", SniffKind::Opus));
+        assert!(!sniff_ok(b"RIFF....WAVE", SniffKind::Ogg));
+    }
+
+    #[test]
+    fn sniff_flac_requires_flac_magic() {
+        assert!(sniff_ok(b"fLaC\x00\x00\x00\x22", SniffKind::Flac));
+        assert!(!sniff_ok(b"FLAC", SniffKind::Flac));
+    }
+
+    #[test]
+    fn sniff_mp3_accepts_id3_or_frame_sync() {
+        assert!(sniff_ok(b"ID3\x04\x00\x00\x00\x00", SniffKind::Mp3));
+        assert!(sniff_ok(&[0xFF, 0xFB, 0x90, 0x00], SniffKind::Mp3));
+        assert!(sniff_ok(&[0xFF, 0xE0, 0x00, 0x00], SniffKind::Mp3));
+        assert!(!sniff_ok(b"RIFF....WAVE", SniffKind::Mp3));
+        assert!(!sniff_ok(&[0xFF, 0x00, 0x00, 0x00], SniffKind::Mp3));
+    }
+
+    #[test]
+    fn sniff_m4a_accepts_ftyp_or_adts() {
+        assert!(sniff_ok(b"\x00\x00\x00\x20ftypM4A ", SniffKind::M4a));
+        assert!(sniff_ok(&[0xFF, 0xF1, 0x00, 0x00], SniffKind::M4a));
+        assert!(sniff_ok(&[0xFF, 0xF0, 0x00, 0x00], SniffKind::M4a));
+        assert!(!sniff_ok(b"\x00\x00\x00\x20moovM4A ", SniffKind::M4a));
+    }
+
+    #[test]
+    fn sniff_aac_accepts_ftyp_or_adts() {
+        assert!(sniff_ok(b"\x00\x00\x00\x20ftypM4A ", SniffKind::Aac));
+        assert!(sniff_ok(&[0xFF, 0xF1, 0x00, 0x00], SniffKind::Aac));
+        assert!(!sniff_ok(b"plain text here ", SniffKind::Aac));
+    }
+
+    #[test]
+    fn sniff_webm_requires_ebml_magic() {
+        assert!(sniff_ok(&[0x1A, 0x45, 0xDF, 0xA3, 0x00], SniffKind::Webm));
+        assert!(!sniff_ok(b"RIFF....WAVE", SniffKind::Webm));
+    }
+
+    #[test]
+    fn sniff_rejects_short_headers() {
+        assert!(!sniff_ok(b"gl", SniffKind::Glb));
+        assert!(!sniff_ok(b"RI", SniffKind::Wav));
+        assert!(!sniff_ok(&[0xFF], SniffKind::Mp3));
+        assert!(!sniff_ok(b"", SniffKind::Webm));
+    }
+
+    #[test]
+    fn audio_sniff_kind_maps_each_allowed_ext() {
+        assert!(matches!(audio_sniff_kind("mp3"), Some(SniffKind::Mp3)));
+        assert!(matches!(audio_sniff_kind("wav"), Some(SniffKind::Wav)));
+        assert!(matches!(audio_sniff_kind("ogg"), Some(SniffKind::Ogg)));
+        assert!(matches!(audio_sniff_kind("m4a"), Some(SniffKind::M4a)));
+        assert!(matches!(audio_sniff_kind("flac"), Some(SniffKind::Flac)));
+        assert!(matches!(audio_sniff_kind("aac"), Some(SniffKind::Aac)));
+        assert!(matches!(audio_sniff_kind("opus"), Some(SniffKind::Opus)));
+        assert!(matches!(audio_sniff_kind("webm"), Some(SniffKind::Webm)));
+        assert!(audio_sniff_kind("txt").is_none());
+    }
+
+    #[test]
+    fn sniff_file_reads_header_and_validates() {
+        let path = std::env::temp_dir().join(format!(
+            "yui_sniff_file_{}.bin",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::write(&path, b"glTF\x02\x00\x00\x00rest of file ignored").unwrap();
+        assert!(sniff_file(&path, SniffKind::Glb).unwrap());
+        assert!(!sniff_file(&path, SniffKind::Wav).unwrap());
+        let _ = std::fs::remove_file(&path);
+    }
 }
