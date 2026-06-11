@@ -156,6 +156,17 @@ export function createSpeakerSelection(opts: {
       notify();
     },
 
+    /** user 옵션의 label 갱신 + persist + (active면) 통지. unknown/bundled id·빈 label은 no-op. */
+    renameUserVoice(id: string, label: string): void {
+      const trimmed = label.trim();
+      if (trimmed.length === 0) return;
+      const opt = userOptions.find((o) => o.id === id);
+      if (!opt || opt.label === trimmed) return;
+      opt.label = trimmed;
+      persistUser();
+      if (resolve().id === id) notify();
+    },
+
     getActive(): SpeakerOption {
       return { ...resolve() };
     },

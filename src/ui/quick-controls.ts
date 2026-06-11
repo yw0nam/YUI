@@ -29,6 +29,7 @@ import {
 } from "../io/endpoints-settings";
 import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import type { createSessionStore } from "../io/session-store";
+import { resolveAssetUrl } from "../io/asset-url";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
@@ -64,6 +65,12 @@ interface QuickControlsOptions {
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
   /** 화자의 참조 음성 재등록(PUT /voices). 서버 측 갱신만 — 화자 선택/store는 바꾸지 않는다. */
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
+  /** 파일 선택 → 등록 → addUserVoice + 선택까지의 전체 임포트 흐름. reject 시 인라인 에러. */
+  importVoice: () => Promise<void>;
+  /** 임포트된 음성의 app-data 파일을 삭제(idempotent). store 제거와 별개로 호출한다. */
+  removeUserVoice: (id: string) => Promise<void>;
+  /** 미리듣기 ref_url을 fetchable URL로 변환(주입 가능). 기본은 resolveAssetUrl. */
+  resolveAuditionUrl?: (refUrl: string) => Promise<string>;
   onGainPreview: (mouthOpen: number) => void;
   onGainPreviewEnd: () => void;
   onPopOut?: () => void;
@@ -126,6 +133,7 @@ const VOICE_ENGINE_LABELS: Record<VoiceEngine, string> = {
 const SPEAKER_OPENAI_HINT =
   "irodori 전용이에요. OpenAI 호환 엔진은 서버에 설정된 voice로 말해요.";
 const VRM_IMPORT_ERROR = "불러올 수 없는 파일이에요. VRM 파일인지 확인해 주세요.";
+const VOICE_IMPORT_ERROR = "이 음성을 등록하지 못했어요. 오디오 파일과 irodori 서버를 확인해 주세요.";
 
 export const PREVIEW_PEAK_RMS = 0.15;
 const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
@@ -195,6 +203,9 @@ export function createQuickControls({
   speakerSelection,
   swapSpeaker,
   refreshSpeaker,
+  importVoice,
+  removeUserVoice,
+  resolveAuditionUrl,
   onGainPreview,
   onGainPreviewEnd,
   onPopOut,
@@ -376,11 +387,17 @@ export function createQuickControls({
           <div class="yui-spks" role="radiogroup" aria-label="화자"></div>
         </div>
         <div class="yui-spk-foot">
-          <button class="yui-spk yui-spk--add" type="button" disabled aria-disabled="true" tabindex="-1">
+          <button class="yui-spk yui-spk--add is-ready" type="button">
             <span class="yui-spk__tick" aria-hidden="true"></span>
             <span class="yui-spk__body"><span class="yui-spk__name">파일에서 추가…</span></span>
-            <span class="yui-spk__soon">준비 중</span>
           </button>
+          <p class="yui-spk__import-error" role="status" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
+            <span>${VOICE_IMPORT_ERROR}</span>
+          </p>
         </div>
 
         <div class="yui-quick__divider" aria-hidden="true"></div>
@@ -504,6 +521,8 @@ export function createQuickControls({
   const spkScrollEl = el.querySelector<HTMLDivElement>(".yui-spk-scroll")!;
   const spkFootEl = el.querySelector<HTMLDivElement>(".yui-spk-foot")!;
   const spksHintEl = el.querySelector<HTMLParagraphElement>(".yui-spks-hint")!;
+  const spkAddBtn = el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
+  const spkImportErrorEl = el.querySelector<HTMLParagraphElement>(".yui-spk__import-error")!;
   const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
   const epResetBtn = el.querySelector<HTMLButtonElement>(".yui-ep-reset")!;
@@ -1065,9 +1084,14 @@ export function createQuickControls({
   const SPK_REFRESH_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11a8 8 0 1 0-1.6 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M20 5v5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const SPK_CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const SPK_NOTE_CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const SPK_RENAME_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+  const SPK_REMOVE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>`;
 
   let spkSwapping: string | null = null;
   let spkErrorId: string | null = null;
+  // 인라인 이름 편집 중인 user 화자 id(없으면 null) · 임포트 진행 여부.
+  let spkRenamingId: string | null = null;
+  let spkImporting = false;
   // 마지막으로 화살표가 머문 행 id — 재그림이 roving tabindex를 active로 되돌리지 않게 유지.
   // close()에서 일부러 리셋하지 않는다 — 재오픈 시에도 머문 행을 잇고, ids.includes로 가드한다.
   let spkRovedId: string | null = null;
@@ -1105,30 +1129,40 @@ export function createQuickControls({
     }
   }
 
+  // 미리듣기 ref_url을 fetchable URL로 변환한다(패키징 시 /references/* 404 회피, #153).
+  // Tauri는 번들 리소스 절대 URL, dev/브라우저는 원본 통과 — irodori-voices와 같은 resolver.
+  const resolveAudition = resolveAuditionUrl ?? resolveAssetUrl;
+
   function toggleAudition(btn: HTMLButtonElement, refUrl: string): void {
     if (auditionBtn === btn) {
       stopAudition(); // 같은 버튼 재클릭 → 정지 토글
       return;
     }
     stopAudition(); // 다른 클립 재생 중이면 먼저 멈춘다
-    const audio = new Audio(refUrl);
-    audio.addEventListener("ended", () => {
-      if (auditionBtn === btn) stopAudition();
-    });
-    auditionAudio = audio;
-    auditionBtn = btn;
     btn.classList.add("is-playing");
     btn.innerHTML = SPK_PAUSE_SVG;
-    // play()는 Promise 또는(구형/일부 환경) undefined를 반환할 수 있다 — 둘 다 안전 처리.
+    auditionBtn = btn; // resolver 대기 동안 같은 버튼 재클릭이 정지 토글로 동작하도록 선점
     const fail = (): void => {
       if (auditionBtn === btn) stopAudition();
     };
-    try {
-      const p = audio.play();
-      if (p && typeof p.then === "function") p.catch(fail);
-    } catch {
-      fail();
-    }
+    // ref_url을 먼저 자산 프로토콜로 해석한 뒤 Audio를 만든다 — bundled·user 행 모두.
+    void resolveAudition(refUrl)
+      .then((url) => {
+        if (auditionBtn !== btn) return; // 대기 중 다른 클립이 시작/정지됨
+        const audio = new Audio(url);
+        audio.addEventListener("ended", () => {
+          if (auditionBtn === btn) stopAudition();
+        });
+        auditionAudio = audio;
+        // play()는 Promise 또는(구형/일부 환경) undefined를 반환할 수 있다 — 둘 다 안전 처리.
+        try {
+          const p = audio.play();
+          if (p && typeof p.then === "function") p.catch(fail);
+        } catch {
+          fail();
+        }
+      })
+      .catch(fail);
   }
 
   function renderSpeakers(): void {
@@ -1136,10 +1170,13 @@ export function createQuickControls({
     // roving tabindex는 마지막으로 화살표가 머문 행이 우선 — 없으면 active로 폴백.
     const ids = speakerSelection.list().map((o) => o.id);
     const rovedId = spkRovedId !== null && ids.includes(spkRovedId) ? spkRovedId : activeId;
+    // 더 이상 목록에 없는 행을 편집 중이었다면 편집 상태를 정리한다.
+    if (spkRenamingId !== null && !ids.includes(spkRenamingId)) spkRenamingId = null;
     const hadFocus = spksEl.contains(document.activeElement);
     stopAudition(); // 재그림이 미리듣기 버튼 노드를 파괴하므로 audition 정리
     spksEl.innerHTML = "";
     for (const opt of speakerSelection.list()) {
+      const isUser = opt.source === "user";
       const row = document.createElement("div");
       row.setAttribute("role", "radio");
       row.className = "yui-spk";
@@ -1148,13 +1185,25 @@ export function createQuickControls({
       row.setAttribute("aria-checked", String(selected));
       row.tabIndex = opt.id === rovedId ? 0 : -1;
 
+      if (isUser && opt.id === spkRenamingId) {
+        renderSpkRenamingRow(row, opt);
+        spksEl.appendChild(row);
+        continue;
+      }
+
       const label = opt.label ?? opt.id;
       const hasClip = opt.ref_url.length > 0;
       const refreshState = spkRefreshState.get(opt.id);
       const badgeHtml = selected ? `<span class="yui-spk__badge">사용 중</span>` : "";
+      // user 행은 ✎ 이름 바꾸기 · 🗑 삭제를 ↻/▶ 앞에 더한다.
+      const userActionsHtml = isUser
+        ? `<button class="yui-spk__rename" type="button" title="이름 바꾸기" aria-label="이름 바꾸기">${SPK_RENAME_SVG}</button>` +
+          `<button class="yui-spk__remove" type="button" title="삭제" aria-label="삭제">${SPK_REMOVE_SVG}</button>`
+        : "";
       row.innerHTML = `
         <span class="yui-spk__tick" aria-hidden="true"></span>
         <span class="yui-spk__body"><span class="yui-spk__name"></span></span>
+        ${userActionsHtml}
         <button class="yui-spk__refresh" type="button" title="참조 음성 갱신" ${hasClip ? "" : "disabled"}>${SPK_REFRESH_SVG}</button>
         <button class="yui-spk__preview" type="button" title="미리듣기" ${hasClip ? "" : "disabled"}>${SPK_PLAY_SVG}</button>
         ${badgeHtml}
@@ -1162,6 +1211,16 @@ export function createQuickControls({
       // 라벨은 신뢰 불가 입력일 수 있다 — textContent로만 넣는다.
       const nameEl = row.querySelector<HTMLSpanElement>(".yui-spk__name")!;
       nameEl.textContent = label;
+      if (isUser) {
+        row.querySelector<HTMLButtonElement>(".yui-spk__rename")!.addEventListener("click", (e) => {
+          e.stopPropagation(); // 이름 편집은 행 선택을 트리거하지 않는다
+          if (speakerControlsEnabled()) startSpkRename(opt.id);
+        });
+        row.querySelector<HTMLButtonElement>(".yui-spk__remove")!.addEventListener("click", (e) => {
+          e.stopPropagation(); // 삭제는 행 선택을 트리거하지 않는다
+          if (speakerControlsEnabled()) void removeUserSpeaker(opt.id);
+        });
+      }
       const refreshBtn = row.querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
       refreshBtn.setAttribute("aria-label", `${label} 참조 음성 갱신`);
       refreshBtn.addEventListener("click", (e) => {
@@ -1224,12 +1283,123 @@ export function createQuickControls({
       }
     }
 
+    // 임포트 진행 중이면 목록 끝에 스피너 placeholder 행을 붙인다(라디오 아님).
+    if (spkImporting) {
+      const loading = document.createElement("div");
+      loading.className = "yui-spk__loading";
+      loading.setAttribute("role", "status");
+      loading.innerHTML = `<span class="yui-spk__spin" aria-hidden="true"></span><span class="yui-spk__loading-name">불러오는 중…</span>`;
+      spksEl.appendChild(loading);
+    }
+
+    // 편집 중이면 입력에 포커스를 두고 종료한다(roving 포커스 복원보다 우선).
+    if (spkRenamingId !== null) {
+      const input = spksEl.querySelector<HTMLInputElement>(".yui-spk--renaming .yui-ep-input");
+      if (input) {
+        input.focus();
+        input.select();
+      }
+      return;
+    }
+
     if (hadFocus) {
       const roved = spkRowById(rovedId);
       if (roved) {
         roved.focus();
         roved.scrollIntoView?.({ block: "nearest" });
       }
+    }
+  }
+
+  // user 화자 행을 인라인 이름 편집 모드로 그린다 — 라벨이 입력으로 바뀌고 hint가 뒤따른다.
+  function renderSpkRenamingRow(row: HTMLElement, opt: SpeakerOption): void {
+    row.classList.add("yui-spk--renaming");
+    row.innerHTML = `
+      <span class="yui-spk__tick" aria-hidden="true"></span>
+      <span class="yui-input-wrap"><input class="yui-ep-input" type="text" aria-label="화자 이름" /></span>
+      <span class="yui-spk__rename-hint"><kbd>Enter</kbd> 저장 · <kbd>Esc</kbd> 취소</span>
+    `;
+    const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
+    input.value = opt.label ?? opt.id;
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitSpkRename(opt.id, input.value);
+      } else if (e.key === "Escape") {
+        // Esc는 이름 편집만 취소한다 — 패널 닫기(document Escape)로 새지 않게 막는다.
+        e.preventDefault();
+        e.stopPropagation();
+        cancelSpkRename();
+      }
+    });
+    // blur로 빠져나가면 비어있지 않은 값을 커밋한다.
+    input.addEventListener("blur", () => {
+      if (spkRenamingId !== opt.id) return; // 이미 commit/cancel로 정리됨
+      commitSpkRename(opt.id, input.value);
+    });
+  }
+
+  function startSpkRename(id: string): void {
+    spkRenamingId = id;
+    renderSpeakers();
+  }
+
+  function cancelSpkRename(): void {
+    if (spkRenamingId === null) return;
+    spkRenamingId = null;
+    renderSpeakers();
+  }
+
+  function commitSpkRename(id: string, label: string): void {
+    if (spkRenamingId !== id) return;
+    spkRenamingId = null;
+    // 빈/공백 label은 store가 거부한다(기존 라벨 유지). 변경 시 store 구독이 재그림.
+    speakerSelection.renameUserVoice(id, label);
+    log.info("화자 이름 변경", { id });
+    renderSpeakers();
+  }
+
+  // user 화자 제거 — store에서 빼고 파일 삭제, active였으면 fallback으로 스왑한다.
+  async function removeUserSpeaker(id: string): Promise<void> {
+    const wasActive = speakerSelection.getActiveId() === id;
+    speakerSelection.removeUserVoice(id); // active였으면 default로 폴백 + 통지
+    // 비-active 제거는 store가 통지하지 않으므로 목록을 직접 다시 그린다.
+    if (!wasActive) renderSpeakers();
+    log.info("화자 삭제", { id });
+    try {
+      await removeUserVoice(id);
+    } catch (err) {
+      log.error("화자 파일 삭제 실패", { id, error: String(err) });
+    }
+    // active를 지웠으면 폴백 화자를 서버에 등록·커밋한다(store는 이미 default를 가리킴).
+    if (wasActive) {
+      try {
+        await swapSpeaker(speakerSelection.getActive());
+      } catch (err) {
+        log.error("화자 폴백 스왑 실패", { error: String(err) });
+      }
+    }
+  }
+
+  function setSpkImportError(show: boolean): void {
+    spkImportErrorEl.hidden = !show;
+  }
+
+  // "파일에서 추가…" — importing 행을 띄우고 전체 임포트 흐름을 위임한다.
+  // 성공 시 store가 행을 추가하고(구독→재그림), 실패 시 인라인 에러를 띄운다.
+  async function importVoiceFlow(): Promise<void> {
+    if (spkImporting) return; // 진행 중엔 두 번째 임포트 금지
+    spkImporting = true;
+    setSpkImportError(false);
+    renderSpeakers();
+    try {
+      await importVoice();
+    } catch (err) {
+      setSpkImportError(true);
+      log.error("화자 임포트 실패", { error: String(err) });
+    } finally {
+      spkImporting = false;
+      renderSpeakers();
     }
   }
 
@@ -1312,6 +1482,8 @@ export function createQuickControls({
   // manual-activation: 화살표는 roving focus 이동만, Enter/Space가 커밋 — 매 화살표마다 ▶ 미리듣기/스왑 비용을 피한다.
   function handleSpkKeydown(e: KeyboardEvent): void {
     if (spkSwapping !== null) return;
+    // 인라인 이름 편집 입력의 키는 입력 자체가 처리한다 — 라디오 키보드로 새지 않게 막는다.
+    if ((e.target as HTMLElement).closest(".yui-spk--renaming")) return;
     const target = (e.target as HTMLElement).closest<HTMLDivElement>(".yui-spk[role=radio]");
     if (!target) return;
     const rows = Array.from(spksEl.querySelectorAll<HTMLDivElement>(".yui-spk[role=radio]"));
@@ -1548,6 +1720,16 @@ export function createQuickControls({
 
   function handleVrmAddClick(): void {
     void importVrmFlow();
+  }
+
+  // openai 엔진에선 화자 관리가 비활성 — 프로그래매틱 클릭(테스트)도 게이팅한다.
+  function speakerControlsEnabled(): boolean {
+    return effectiveProvider() === "irodori";
+  }
+
+  function handleSpkAddClick(): void {
+    if (!speakerControlsEnabled()) return;
+    void importVoiceFlow();
   }
 
   function handleScrimPointerDown(e: PointerEvent): void {
@@ -1825,6 +2007,7 @@ export function createQuickControls({
   vrmsEl.addEventListener("keydown", handleVrmKeydown);
   vrmAddBtn.addEventListener("click", handleVrmAddClick);
   spksEl.addEventListener("keydown", handleSpkKeydown);
+  spkAddBtn.addEventListener("click", handleSpkAddClick);
   instructionsEl.addEventListener("input", handleInstructionsInput);
   instructionsEl.addEventListener("blur", handleInstructionsBlur);
   resetBtn.addEventListener("click", handleResetInstructions);
@@ -1879,6 +2062,7 @@ export function createQuickControls({
     vrmsEl.removeEventListener("keydown", handleVrmKeydown);
     vrmAddBtn.removeEventListener("click", handleVrmAddClick);
     spksEl.removeEventListener("keydown", handleSpkKeydown);
+    spkAddBtn.removeEventListener("click", handleSpkAddClick);
     instructionsEl.removeEventListener("input", handleInstructionsInput);
     instructionsEl.removeEventListener("blur", handleInstructionsBlur);
     resetBtn.removeEventListener("click", handleResetInstructions);

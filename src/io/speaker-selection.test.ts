@@ -719,6 +719,78 @@ describe("createSpeakerSelection — removeUserVoice", () => {
   });
 });
 
+describe("createSpeakerSelection — renameUserVoice", () => {
+  it("renames a user voice, persists, and survives reload", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
+    store.addUserVoice(USER_CAT);
+    store.renameUserVoice("Cat", "냥이");
+    expect(store.getOptions().find((o) => o.id === "Cat")?.label).toBe("냥이");
+    // persisted to storage
+    expect(userStorage._data.find((o) => o.id === "Cat")?.label).toBe("냥이");
+
+    // a fresh store over the same storage sees the renamed label
+    const reloaded = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
+    expect(reloaded.getOptions().find((o) => o.id === "Cat")?.label).toBe("냥이");
+  });
+
+  it("notifies subscribers when the active user voice is renamed", () => {
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
+    store.addUserVoice(USER_CAT);
+    store.select("Cat");
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.renameUserVoice("Cat", "냥이");
+    expect(cb).toHaveBeenCalledOnce();
+    expect(cb.mock.calls[0][0].label).toBe("냥이");
+  });
+
+  it("does NOT notify when a non-active user voice is renamed", () => {
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
+    store.addUserVoice(USER_CAT);
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.renameUserVoice("Cat", "냥이");
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("renaming an unknown id is a no-op", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
+    store.addUserVoice(USER_CAT);
+    store.renameUserVoice("ghost", "Nope");
+    expect(store.getOptions().find((o) => o.id === "Cat")?.label).toBe("Cat");
+    expect(userStorage._data).toEqual([USER_CAT]);
+  });
+
+  it("renaming a bundled id is a no-op (only user voices are renamable)", () => {
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
+    store.renameUserVoice("carlotta", "Hacked");
+    expect(store.getOptions().find((o) => o.id === "carlotta")?.label).toBe("Carlotta");
+  });
+
+  it("rejects an empty / whitespace-only label (keeps the old one)", () => {
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
+    store.addUserVoice(USER_CAT);
+    store.renameUserVoice("Cat", "   ");
+    expect(store.getOptions().find((o) => o.id === "Cat")?.label).toBe("Cat");
+    store.renameUserVoice("Cat", "");
+    expect(store.getOptions().find((o) => o.id === "Cat")?.label).toBe("Cat");
+  });
+});
+
 describe("createSpeakerSelection — user id never clobbers a bundled id", () => {
   it("addUserVoice with a bundled id is rejected (bundled wins)", () => {
     const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });

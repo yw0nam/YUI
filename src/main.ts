@@ -52,10 +52,12 @@ import {
   localStorageUserVrmStorage,
 } from "./io/vrm-selection";
 import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
+import { importVoiceFromFile, removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
+  localStorageUserSpeakerStorage,
   type SpeakerOption,
 } from "./io/speaker-selection";
 import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
@@ -314,6 +316,7 @@ async function bootstrap(): Promise<void> {
   const speakerSelection = createSpeakerSelection({
     defaultId: "",
     storage: localStorageSpeakerStorage(),
+    userStorage: localStorageUserSpeakerStorage(),
   });
   // 선택 → irodori voice registry 등록 후 store 커밋(swapVrm의 load-then-select 미러).
   const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
@@ -336,6 +339,31 @@ async function bootstrap(): Promise<void> {
     if (!eps.irodori_base_url) throw new Error("irodori provider requires irodori_base_url");
     await updateVoice({ baseUrl: eps.irodori_base_url, id: option.id, refUrl: option.ref_url, fetch: f });
   };
+  // BYO-voice 임포트: 파일 선택 → 복사 → irodori 등록 → 옵션 추가 + 선택(swapSpeaker의 register-then-select 미러).
+  // 취소(null)는 조용히 무시. 등록 실패(서버 다운/사용 불가 클립)면 고아 사본을 지우고 옵션은
+  // 추가하지 않은 채 throw한다 — 직전 선택은 그대로(등록이 store 커밋 전에 실패하므로 복구 불필요).
+  const importVoice = async (): Promise<void> => {
+    const option = await importVoiceFromFile();
+    if (option === null) return; // 취소
+    try {
+      const f = await selectFetch();
+      const eps = getEndpoints();
+      if (!eps.irodori_base_url) throw new Error("irodori provider requires irodori_base_url");
+      // ref_url은 asset:// URL — resolveRef가 그대로 통과시켜 클립을 POST한다.
+      await ensureRegistered({
+        baseUrl: eps.irodori_base_url,
+        id: option.id,
+        refUrl: option.ref_url,
+        fetch: f,
+      });
+    } catch (err) {
+      await removeUserVoiceFile(option.id).catch(() => {}); // 고아 사본 제거(best-effort)
+      log.error("imported voice register failed:", err);
+      throw err;
+    }
+    speakerSelection.addUserVoice(option);
+    speakerSelection.select(option.id);
+  };
   // 이 창에서 고른 화자를 설정 창 UI에 반영하기 위해 cross-window로 알린다.
   speakerSelection.subscribe(broadcastSettings);
 
@@ -355,6 +383,9 @@ async function bootstrap(): Promise<void> {
     speakerSelection,
     swapSpeaker,
     refreshSpeaker,
+    importVoice,
+    removeUserVoice: removeUserVoiceFile,
+    resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
     onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
     onGainPreviewEnd: () => renderer.stopMouth(),
     // 빈 instructions일 때 placeholder로 보여줄 기본 지침(config 미로드 시 무시).

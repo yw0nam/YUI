@@ -21,6 +21,7 @@ import {
   localStorageUserVrmStorage,
 } from "./io/vrm-selection";
 import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
+import { importVoiceFromFile, removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { createSessionStore, localStorageSessionStorage } from "./io/session-store";
 import {
   createSessionDiagnosticsStore,
@@ -29,15 +30,17 @@ import {
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
+  localStorageUserSpeakerStorage,
   type SpeakerOption,
 } from "./io/speaker-selection";
 import { createVoiceInputStatus, type VoiceInputState } from "./ui/voice-input-status";
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
+import { resolveAssetUrl } from "./io/asset-url";
 import { wireStorageSync } from "./io/settings-window";
 import { createSettingsBridge } from "./io/settings-bridge";
 import { createConfigStore } from "./config";
 import { selectFetch } from "./io/chat-client";
-import { updateVoice } from "./io/irodori-voices";
+import { ensureRegistered, updateVoice } from "./io/irodori-voices";
 
 const log = createLogger("settings-bootstrap");
 
@@ -108,6 +111,7 @@ async function bootstrap(): Promise<void> {
   const speakerSelection = createSpeakerSelection({
     defaultId: "",
     storage: localStorageSpeakerStorage(),
+    userStorage: localStorageUserSpeakerStorage(),
   });
   if (configLoaded) {
     try {
@@ -131,6 +135,24 @@ async function bootstrap(): Promise<void> {
     const f = await selectFetch();
     await updateVoice({ baseUrl: irodoriBaseUrl, id: option.id, refUrl: option.ref_url, fetch: f });
   };
+  // BYO-voice 임포트(설정 창) — 등록은 서버 직접 호출이라 여기서도 수행한다(refreshSpeaker와 동일).
+  // 파일 복사 → irodori 등록 → 옵션 추가 + 선택. 취소(null)는 무시. 등록 실패면 고아 사본 제거 후 throw.
+  const importVoice = async (): Promise<void> => {
+    const option = await importVoiceFromFile();
+    if (option === null) return;
+    try {
+      const irodoriBaseUrl = configLoaded ? config.get().endpoints.irodori_base_url : undefined;
+      if (!irodoriBaseUrl) throw new Error("irodori provider requires irodori_base_url");
+      const f = await selectFetch();
+      await ensureRegistered({ baseUrl: irodoriBaseUrl, id: option.id, refUrl: option.ref_url, fetch: f });
+    } catch (err) {
+      await removeUserVoiceFile(option.id).catch(() => {}); // 고아 사본 제거(best-effort)
+      log.error("imported voice register failed:", err);
+      throw err;
+    }
+    speakerSelection.addUserVoice(option);
+    speakerSelection.select(option.id);
+  };
 
   const quickControls = createQuickControls({
     mount: app,
@@ -149,6 +171,9 @@ async function bootstrap(): Promise<void> {
     speakerSelection,
     swapSpeaker,
     refreshSpeaker,
+    importVoice,
+    removeUserVoice: removeUserVoiceFile,
+    resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
     // 렌더러는 메인 창에 있으므로 게인 프리뷰를 브리지로 전달 → 메인 창 VRM 입이 움직인다.
     onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
     onGainPreviewEnd: () => bridge.emitMouthPreview(null),
