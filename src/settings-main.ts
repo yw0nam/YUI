@@ -15,7 +15,12 @@ import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-
 import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
-import { createVrmSelection, localStorageVrmStorage } from "./io/vrm-selection";
+import {
+  createVrmSelection,
+  localStorageVrmStorage,
+  localStorageUserVrmStorage,
+} from "./io/vrm-selection";
+import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
 import { createSessionStore, localStorageSessionStorage } from "./io/session-store";
 import {
   createSessionDiagnosticsStore,
@@ -75,6 +80,7 @@ async function bootstrap(): Promise<void> {
   const vrmSelection = createVrmSelection({
     defaultUrl: "/vrms/carlotta.vrm",
     storage: localStorageVrmStorage(),
+    userStorage: localStorageUserVrmStorage(),
   });
   if (configLoaded) {
     try {
@@ -85,6 +91,15 @@ async function bootstrap(): Promise<void> {
     }
   }
   const swapVrm = async (option: { id: string }): Promise<void> => {
+    vrmSelection.select(option.id);
+  };
+  // BYO-VRM 임포트(설정 창) — 렌더러가 없으므로 로드/메타는 펫 창에 맡긴다. 파일을 복사해
+  // 파일명 stem 라벨로 옵션을 추가하고 선택만 한다. 펫 창이 cross-window로 실제 로드를 수행한다.
+  // 취소(null)는 조용히 무시.
+  const importVrm = async (): Promise<void> => {
+    const option = await importVrmFromFile();
+    if (option === null) return;
+    vrmSelection.addUserOption(option);
     vrmSelection.select(option.id);
   };
 
@@ -129,6 +144,8 @@ async function bootstrap(): Promise<void> {
     vad: vadSettings,
     vrmSelection,
     swapVrm,
+    importVrm,
+    removeUserVrm,
     speakerSelection,
     swapSpeaker,
     refreshSpeaker,

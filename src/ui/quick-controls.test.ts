@@ -1161,9 +1161,10 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const row = userRow(qc);
-    row.querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click();
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click();
 
+    // entering rename re-renders — re-query the now-renaming row
+    const row = userRow(qc);
     expect(row.classList.contains("yui-vrm--renaming")).toBe(true);
     const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
     expect(input).not.toBeNull();
@@ -1185,14 +1186,15 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const row = userRow(qc);
-    row.querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click();
-    const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click();
+    const input = userRow(qc).querySelector<HTMLInputElement>(".yui-ep-input")!;
     input.value = "버려질 이름";
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
     expect(vrmSelection.getOptions().find((o) => o.id === "cat")!.label).toBe("깜냥이");
     expect(userRow(qc).querySelector(".yui-ep-input")).toBeNull();
+    // Esc cancels the rename only — it must NOT close the whole panel
+    expect(qc.isOpen()).toBe(true);
 
     qc.dispose();
   });
@@ -1258,6 +1260,7 @@ describe("createQuickControls — gain row", () => {
 
     const err = qc.el.querySelector<HTMLElement>(".yui-vrm__import-error")!;
     expect(err).not.toBeNull();
+    expect(err.hidden).toBe(false);
     expect(err.textContent).toContain("불러올 수 없는 파일이에요");
     // the transient loading row is gone once the import settles
     expect(qc.el.querySelector(".yui-vrm__loading")).toBeNull();
@@ -1276,7 +1279,7 @@ describe("createQuickControls — gain row", () => {
     await flush();
 
     expect(qc.el.querySelector(".yui-vrm__loading")).toBeNull();
-    expect(qc.el.querySelector(".yui-vrm__import-error")).toBeNull();
+    expect(qc.el.querySelector<HTMLElement>(".yui-vrm__import-error")!.hidden).toBe(true);
     expect(qc.el.querySelector('.yui-vrm[data-vrm-id="cat"]')).not.toBeNull();
 
     qc.dispose();

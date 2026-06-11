@@ -14,7 +14,7 @@
 
 import "./styles.css";
 import { createLogger, initLogger } from "./logger";
-import { createRenderer } from "./renderer";
+import { createRenderer, type VrmLoadResult } from "./renderer";
 import { nextZoom } from "./renderer/camera-fit";
 import { createTier1Engine } from "./ambient/tier1";
 import { createSurfaces } from "./ui/surfaces";
@@ -46,8 +46,13 @@ import {
   CAMERA_ZOOM_MAX,
   CAMERA_WHEEL_SENSITIVITY,
 } from "./io/camera-settings";
-import { createVrmSelection, localStorageVrmStorage } from "./io/vrm-selection";
-import { resolveAssetUrl } from "./io/asset-url";
+import {
+  createVrmSelection,
+  localStorageVrmStorage,
+  localStorageUserVrmStorage,
+} from "./io/vrm-selection";
+import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
+import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
@@ -266,11 +271,12 @@ async function bootstrap(): Promise<void> {
   const vrmSelection = createVrmSelection({
     defaultUrl: "/vrms/carlotta.vrm",
     storage: localStorageVrmStorage(),
+    userStorage: localStorageUserVrmStorage(),
   });
   // 단일 직렬 스왑 경로: 사용자 스왑·부트·config 핫리로드·크로스윈도우가 모두 이 체인을
   // 통과한다. loadVRM은 재진입 안전하지 않으므로 직렬화하되, 실패는 호출자에게 전파한다.
-  let vrmSwap = Promise.resolve();
-  function loadVrmSerialized(url: string): Promise<void> {
+  let vrmSwap: Promise<unknown> = Promise.resolve();
+  function loadVrmSerialized(url: string): Promise<VrmLoadResult> {
     // 논리 경로(/vrms/*.vrm)를 런타임 URL로 변환 — dev passthrough, Tauri 번들 리소스 절대 URL.
     const next = vrmSwap.then(async () => renderer.loadVRM(await resolveAssetUrl(url)));
     vrmSwap = next.catch(() => {}); // 체인은 실패해도 살려두고
@@ -280,6 +286,25 @@ async function bootstrap(): Promise<void> {
   const swapVrm = async (option: { id: string; url: string }): Promise<void> => {
     await loadVrmSerialized(option.url);
     vrmSelection.select(option.id);
+  };
+  // BYO-VRM 임포트: 파일 선택 → 복사 → 로드 → (메타 이름이 있으면 그걸로 라벨) → 옵션 추가 + 선택.
+  // 취소(null)는 조용히 무시. 로드 실패면 고아 파일을 지우고 옵션은 추가하지 않은 채 throw한다
+  // (직전 선택/렌더러는 그대로 — 로드가 currentVrm 교체 전에 실패하므로 복구 불필요).
+  const importVrm = async (): Promise<void> => {
+    const option = await importVrmFromFile();
+    if (option === null) return; // 취소
+    let metaName: string | null;
+    try {
+      const src = await resolveUserFileSrc(option.url);
+      ({ metaName } = await loadVrmSerialized(src));
+    } catch (err) {
+      await removeUserVrm(option.id).catch(() => {}); // 고아 사본 제거(best-effort)
+      log.error("imported VRM load failed:", err);
+      throw err;
+    }
+    const labelled = metaName ? { ...option, label: metaName } : option;
+    vrmSelection.addUserOption(labelled);
+    vrmSelection.select(labelled.id);
   };
   // 이 창에서 고른 VRM을 설정 창 UI에 반영하기 위해 cross-window로 알린다(루프 가드는 broadcastSettings).
   vrmSelection.subscribe(broadcastSettings);
@@ -325,6 +350,8 @@ async function bootstrap(): Promise<void> {
     agentSettings,
     vrmSelection,
     swapVrm,
+    importVrm,
+    removeUserVrm,
     speakerSelection,
     swapSpeaker,
     refreshSpeaker,

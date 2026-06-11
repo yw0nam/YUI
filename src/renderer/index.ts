@@ -105,9 +105,14 @@ export interface TickContext {
 /** 프레임 훅. bone/expression 변경은 여기서(=vrm.update 전) 해야 spring bone에 반영된다. */
 export type TickFn = (ctx: TickContext) => void;
 
+/** loadVRM 결과 — VRMC_vrm/VRM0 메타에서 읽은 모델 이름(없으면 null). */
+export interface VrmLoadResult {
+  metaName: string | null;
+}
+
 export interface Renderer {
-  /** VRM 로드 또는 핫스왑. 기존 모델이 있으면 새 모델 준비 후 dispose하고 교체. */
-  loadVRM(url: string): Promise<void>;
+  /** VRM 로드 또는 핫스왑. 기존 모델이 있으면 새 모델 준비 후 dispose하고 교체. 메타 이름을 반환. */
+  loadVRM(url: string): Promise<VrmLoadResult>;
   /**
    * 프레임 훅 등록. vrm.update(dt) **직전에** 호출되며,
    * currentVrm이 있을 때만 발화한다. 등록 해제 함수를 반환.
@@ -646,7 +651,16 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
   }
 
-  async function loadVRM(url: string): Promise<void> {
+  // VRM 메타에서 표시 이름을 읽는다 — VRM1.0은 meta.name, VRM0.0은 meta.title. 둘 다 없으면 null.
+  function readVrmMetaName(vrm: VRM): string | null {
+    const meta = vrm.meta as { name?: unknown; title?: unknown } | undefined;
+    const raw = typeof meta?.name === "string" ? meta.name : meta?.title;
+    if (typeof raw !== "string") return null;
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  async function loadVRM(url: string): Promise<VrmLoadResult> {
     const gltf = await loader.loadAsync(url);
     const vrm = gltf.userData.vrm as VRM;
     // 성능 최적화 (three-vrm 공식 권장).
@@ -692,6 +706,8 @@ export function createRenderer(options: RendererOptions): Renderer {
     mixer.addEventListener("finished", onMixerFinished as never);
 
     playIdleBaseline(); // registry가 있으면 idle ambient를 자동 재생.
+
+    return { metaName: readVrmMetaName(vrm) };
   }
 
   /** playMotion 구현 — request → (play/queue/ignore) → commit + 실제 재생. */
