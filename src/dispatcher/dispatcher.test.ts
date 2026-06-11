@@ -575,6 +575,7 @@ function makeCompact(): {
 function makeCompactingDispatcher(over: {
   compact?: ReturnType<typeof vi.fn>;
   getSessionId?: () => string | undefined;
+  hasCompactableHistory?: () => boolean;
   compactTimeoutMs?: number;
 } = {}): Dispatcher {
   const compact = over.compact ?? makeCompact().thunk;
@@ -587,6 +588,7 @@ function makeCompactingDispatcher(over: {
     logger,
     compact: compact as never,
     getSessionId,
+    hasCompactableHistory: over.hasCompactableHistory,
     compactTimeoutMs: over.compactTimeoutMs,
   });
 }
@@ -740,6 +742,32 @@ describe("dispatcher — compacting: idempotent / swallowed", () => {
     dispatcher.start();
     expect(() => dispatcher.requestCompaction()).not.toThrow();
     expect(dispatcher.state()).toBe("running");
+  });
+
+  it("requestCompaction with hasCompactableHistory() === false does NOT call compact", () => {
+    const { thunk } = makeCompact();
+    dispatcher = makeCompactingDispatcher({ compact: thunk, hasCompactableHistory: () => false });
+    dispatcher.start();
+    dispatcher.requestCompaction();
+    expect(thunk).not.toHaveBeenCalled();
+    expect(dispatcher.state()).toBe("running");
+  });
+
+  it("requestCompaction with hasCompactableHistory() === true DOES compact", () => {
+    const { thunk } = makeCompact();
+    dispatcher = makeCompactingDispatcher({ compact: thunk, hasCompactableHistory: () => true });
+    dispatcher.start();
+    dispatcher.requestCompaction();
+    expect(thunk).toHaveBeenCalledTimes(1);
+    expect(dispatcher.state()).toBe("compacting");
+  });
+
+  it("requestCompaction with absent hasCompactableHistory dep still compacts", () => {
+    const { thunk } = makeCompact();
+    dispatcher = makeCompactingDispatcher({ compact: thunk });
+    dispatcher.start();
+    dispatcher.requestCompaction();
+    expect(thunk).toHaveBeenCalledTimes(1);
   });
 });
 
