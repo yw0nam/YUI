@@ -655,6 +655,29 @@
   margin-left: 0.55rem;
 }
 
+/* ── chat API 키 필드 — .yui-input-wrap 재사용 + 인라인 아이콘(보기/지우기) ── */
+.yui-chatkey__wrap {
+  display: flex;
+  align-items: center;
+  padding-right: 0.18rem;
+}
+
+.yui-chatkey__input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.yui-chatkey__toggle,
+.yui-chatkey__clear {
+  flex: 0 0 auto;
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.yui-chatkey__toggle[aria-pressed="true"] {
+  color: var(--yui-accent);
+}
+
 /* ── 소스 섹션 — ON일 때만 펼침 ── */
 .yui-source {
   overflow: hidden;

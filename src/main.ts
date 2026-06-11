@@ -39,6 +39,8 @@ import {
   localStorageEndpointsStorage,
   mergeEndpoints,
 } from "./io/endpoints-settings";
+import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
+import { createSettingsSecretProvider } from "./io/secret-provider";
 import {
   createCameraSettings,
   localStorageCameraStorage,
@@ -73,7 +75,7 @@ import {
 } from "./io/session-diagnostics";
 import { createSessionCompactor } from "./io/session-compactor";
 import { createCompactionTrigger } from "./io/compaction-trigger";
-import { createConfigStore, plainSecretProvider, CHAT_API_KEY_SECRET, loadEmotionTextTable } from "./config";
+import { createConfigStore, CHAT_API_KEY_SECRET, loadEmotionTextTable } from "./config";
 import { createBrokerClient, deriveBrokerPayload, type BrokerClient } from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { initDrag } from "./drag";
@@ -183,6 +185,8 @@ async function bootstrap(): Promise<void> {
   const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
   // 사용자 편집 엔드포인트 오버라이드: localStorage가 bundled config를 덮는다(빈 값=폴백).
   const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
+  // 런타임 chat API 키 오버라이드: localStorage가 build-time 키를 덮는다(빈 값=폴백). 값은 시크릿.
+  const chatKeySettings = createChatKeySettings({ storage: localStorageChatKeyStorage() });
   // config.endpoints 위에 오버라이드를 얹은 effective 엔드포인트. 호출 시점에 평가(핫리로드 친화).
   function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
     return mergeEndpoints(config.get().endpoints, endpointsSettings.get());
@@ -200,7 +204,7 @@ async function bootstrap(): Promise<void> {
   // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
   // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
   const openSettings = createSettingsWindowOpener();
-  const disposeStorageSync = wireStorageSync([agentSettings, endpointsSettings, lipsyncSettings, vadSettings, screenshotSettings, proactiveSettings, cameraSettings, sessionStore, sessionDiagnostics]);
+  const disposeStorageSync = wireStorageSync([agentSettings, endpointsSettings, chatKeySettings, lipsyncSettings, vadSettings, screenshotSettings, proactiveSettings, cameraSettings, sessionStore, sessionDiagnostics]);
 
   // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
   // 시스템(VRM 렌더러 · STT/VAD)에 닿게 한다. storage 폴백은 위 wireStorageSync로 유지.
@@ -234,6 +238,7 @@ async function bootstrap(): Promise<void> {
   };
   agentSettings.subscribe(broadcastSettings);
   endpointsSettings.subscribe(broadcastSettings);
+  chatKeySettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);
   vadSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
@@ -244,6 +249,7 @@ async function bootstrap(): Promise<void> {
     try {
       agentSettings.reloadFromStorage();
       endpointsSettings.reloadFromStorage();
+      chatKeySettings.reloadFromStorage();
       lipsyncSettings.reloadFromStorage();
       vadSettings.reloadFromStorage();
       screenshotSettings.reloadFromStorage();
@@ -397,6 +403,7 @@ async function bootstrap(): Promise<void> {
       }
     },
     endpointsSettings,
+    chatKeySettings,
     getEndpointDefaults: () => {
       try {
         const e = config.get().endpoints;
@@ -457,6 +464,7 @@ async function bootstrap(): Promise<void> {
       vadSettings.dispose();
       agentSettings.dispose();
       endpointsSettings.dispose();
+      chatKeySettings.dispose();
       cameraSettings.dispose();
       vrmSelection.dispose();
       speakerSelection.dispose();
@@ -663,21 +671,28 @@ async function bootstrap(): Promise<void> {
   // chat 키는 SecretProvider로 주입 — dev는 Vite env, prod/OSS는 keychain 구현으로 교체.
   // dispatcher가 streamChat 호출 시 `await config.secrets.get(CHAT_API_KEY_SECRET)`로 해소한다.
   const config = createConfigStore({
-    secrets: plainSecretProvider({
-      [CHAT_API_KEY_SECRET]: import.meta.env.VITE_YUI_CHAT_KEY,
+    secrets: createSettingsSecretProvider({
+      chatKey: chatKeySettings,
+      fallback: { [CHAT_API_KEY_SECRET]: import.meta.env.VITE_YUI_CHAT_KEY },
     }),
   });
-  // dev에서 키를 빼먹으면 나중에 chat 호출 시 조용한 401처럼 보인다 → bootstrap에서 미리 알린다.
-  if (import.meta.env.DEV && !import.meta.env.VITE_YUI_CHAT_KEY) {
-    log.warn("VITE_YUI_CHAT_KEY 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. .env.local 참고(.env.example).");
+  // dev에서 런타임 오버라이드도 build-time 키도 없으면 chat 호출이 조용한 401처럼 보인다 →
+  // bootstrap에서 미리 알린다. 키 값 자체는 절대 로깅하지 않는다(시크릿).
+  if (import.meta.env.DEV && !chatKeySettings.get().apiKey && !import.meta.env.VITE_YUI_CHAT_KEY) {
+    log.warn("chat API 키 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. 설정 패널의 채팅 API 키 또는 .env.local(VITE_YUI_CHAT_KEY) 참고.");
   }
-  // compactor의 getApiKey/getFetch는 동기 — async SecretProvider/selectFetch를 1회 해소해
-  // 캐시한다(부트 시 워밍). 둘 다 런타임 내내 안정적(빌드 상수 키 + 환경별 transport).
+  // compactor의 getApiKey/getFetch는 동기 — async SecretProvider/selectFetch를 해소해 캐시한다.
+  // transport는 환경별로 안정적이라 1회 워밍하면 충분하지만, chat 키는 런타임 오버라이드로
+  // 바뀔 수 있어 store 변경마다 재해소해 compactor가 활성 키와 어긋나지 않게 한다(값은 로깅 금지).
   let chatApiKey: string | undefined;
   let chatFetch: typeof globalThis.fetch | undefined;
-  void config.secrets.get(CHAT_API_KEY_SECRET).then((k) => {
-    chatApiKey = k;
-  });
+  const refreshChatApiKey = (): void => {
+    void config.secrets.get(CHAT_API_KEY_SECRET).then((k) => {
+      chatApiKey = k;
+    });
+  };
+  refreshChatApiKey();
+  chatKeySettings.subscribe(refreshChatApiKey);
   void selectFetch().then((f) => {
     chatFetch = f;
   });
