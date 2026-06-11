@@ -39,6 +39,13 @@ function isAbsoluteUrl(path: string): boolean {
   return /^[a-z][a-z0-9+.-]*:/i.test(path);
 }
 
+/** convertFileSrc/dev에서 정당하게 오는, webview가 로드 가능한 src 스킴. */
+const SAFE_USER_SRC_SCHEME = /^(asset|blob|https?):/i;
+/** asset src로 통과시키면 안 되는 위험 스킴. */
+const DANGEROUS_SCHEME = /^(javascript|data|file|vbscript):/i;
+/** 단일 글자 드라이브(예: "C:\…")는 스킴이 아니라 Windows 절대 경로다. */
+const WINDOWS_DRIVE = /^[a-z]:[\\/]/i;
+
 /** "/configs/x.json?t=1" → { rel: "configs/x.json", query: "?t=1" }. */
 function splitPath(logicalPath: string): { rel: string; query: string } {
   const qIdx = logicalPath.indexOf("?");
@@ -66,16 +73,22 @@ export async function resolveAssetUrl(
 }
 
 /**
- * 임포트된 VRM의 절대 app-data 파일 경로를 webview가 로드 가능한 URL로 변환한다.
- * 번들 리소스가 아니므로 resolveResource를 거치지 않고 convertFileSrc만 적용한다.
- * dev/브라우저거나 이미 절대 URL이면 입력 그대로 통과.
+ * 임포트된 VRM/음성의 app-data 파일 경로를 webview가 로드 가능한 URL로 변환한다.
+ * convertFileSrc/dev에서 오는 known-safe 스킴(asset/blob/http(s))만 그대로 통과시키고,
+ * 위험 스킴(javascript/data/file/vbscript)은 사용 불가 src로 빈 문자열을 돌려 차단한다.
+ * 스킴 없는 절대 경로와 Windows 드라이브 경로는 (Tauri에서) convertFileSrc로 변환한다.
+ * 사용 불가 입력의 빈 문자열은 호출부(렌더러 로드/voice 등록)에서 실패로 처리된다.
  */
 export async function resolveUserFileSrc(
   absPath: string,
   opts: ResolveAssetUrlOptions = {},
 ): Promise<string> {
+  if (DANGEROUS_SCHEME.test(absPath)) return "";
+  if (SAFE_USER_SRC_SCHEME.test(absPath)) return absPath; // 이미 fetchable — 재변환 금지
   const isTauri = opts.isTauri ?? defaultIsTauri;
-  if (!isTauri() || isAbsoluteUrl(absPath)) return absPath;
+  // 스킴이 붙었지만 안전 목록·드라이브 경로 어디에도 없으면 정체불명 — 차단한다.
+  if (isAbsoluteUrl(absPath) && !WINDOWS_DRIVE.test(absPath)) return "";
+  if (!isTauri()) return absPath; // dev/브라우저: 절대 fs 경로 그대로 서빙
   const tauri = await (opts.tauri ?? defaultTauri)();
   return tauri.convertFileSrc(absPath);
 }
