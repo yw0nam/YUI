@@ -3,7 +3,9 @@
 Drag the pet window and release it over another window; the character perches on that
 window's **top edge** — seat pinned to the edge line, torso above it, legs hanging over the
 window's content. The perch holds (pose-cycling `window_sit`) until interrupted; releasing over
-no window leaves the character in `idle`.
+no window leaves the character in `idle`. Leaving an established perch hands off to the
+**fall sequence** (`docs/fall-sequence.md`) — the character drops to the work-area floor
+before settling back to `idle`.
 
 This is **client-firing, backend-bypassed** (tier1): the client decides *when* a perch candidate
 occurs (drop over a window) and renders it locally. No brain, no agent call — consistent with
@@ -20,12 +22,15 @@ firing ≠ judgment.
   between variants (`cycle_dwell_ms: 0`, `fade_ms: 700` crossfade — no frozen hold); each clip sits
   differently, so the perch **re-aligns the seat to the edge on each variant swap**.
 - **Hold semantics**: the perch is a held state — emotion-only directives and implicit idle-returns do
-  NOT end it. Only an explicit `window_sit_exit` (re-drag elsewhere or off a window) or a
-  higher-priority motion (drag p80 > window_sit p55) ends the perch, returning the character to `idle`.
+  NOT end it. Only an explicit `window_sit_exit` (re-drag elsewhere or off a window, or perch-loss
+  detected by the poll) or a higher-priority motion (drag p80 > window_sit p55) ends the perch.
 - **No window under the drop**: no perch — return to `idle`.
-- **Exit**: dragging the character again, or any higher-priority motion (drag p80 > window_sit p55),
-  interrupts the perch; afterwards the character returns to `idle` (auto-resume of the perch is out of
-  scope — see Boundary).
+- **Exit**: dragging the character again, any higher-priority motion (drag p80 > window_sit p55), or
+  losing the perched window (closed / moved away / covered — see the perch-loss poll) interrupts the
+  perch. Clearing an established perch hands off to the **fall sequence** — the character falls to the
+  work-area floor, lands, reacts, then returns to `idle` (`docs/fall-sequence.md`); when no fall
+  sequence is attached (plain-browser dev, no window mover) or its geometry probes fail, the exit is an
+  instant return to `idle`. Auto-resume of the perch is out of scope — see Boundary.
 
 ## Trigger — what counts as "on a window"
 
@@ -107,10 +112,13 @@ drag (OS-native start_dragging)
        └─ emit window_drop_release (bare signal, no payload)
             └─ client computes seatGlobalPts + charH (live), invokes list_windows()  (Rust, CGWindowList)
                  └─ JS picks topmost window where inCatchZone(seat, win, charH)
-                      ├─ hit → bus.push tier1 user.window_sit_drop { target_rect }
+                      ├─ hit → bus.push tier1 user.window_sit_drop { target_rect } + arm perch-loss poll
                       │     └─ dispatcher tier1 → renderer: play window_sit + setPerchTarget(rect)
                       │          └─ renderer aligns seat→edge (char offset); re-aligns on each swap
-                      └─ no hit → bus.push user.window_sit_exit → idle
+                      └─ no hit → bus.push user.window_sit_exit
+                            └─ dispatcher → setPerchTarget(null)
+                                 ├─ was perched + fall sequence attached → fall to work-area floor → idle
+                                 └─ otherwise → idle
 ```
 
 - **Drop detection** (Rust, validated): `start_dragging()` is OS-modal and swallows the release from the
@@ -124,6 +132,13 @@ drag (OS-native start_dragging)
   YUI's own pid, the desktop/wallpaper, the menu bar) via `CGWindowListCopyWindowInfo`; **the client**
   computes the live seat + `charH` and selects the **topmost** window satisfying
   `inCatchZone` (`perch-geometry.ts`). All catch-zone logic stays in the tested JS module.
+- **Perch-loss poll**: a successful drop arms a ~1.4 Hz poll on the target's `windowNumber`
+  (`window-drop-source.ts`). Each tick re-reads the live seat and `list_windows()` and checks the
+  perched window is still under the seat and uncovered — **point-in-rect**, not the U-band catch zone
+  (that generosity is for the drop decision only). The armed window gone from the list detaches on the
+  first tick; an ambiguous loss (covered by a window above, or seat no longer inside the rect) rides a
+  2-consecutive-tick debounce. Loss pushes `user.window_sit_exit` through the bus — the poll never
+  calls `setPerchTarget` directly — and disarms; a perch ended elsewhere disarms silently.
 - **Geometry routing**: the target rect is a **client-only rendering concern** and is **not** added to
   the backend-facing `ControlEnvelope`. The dispatcher plays `window_sit` (unchanged directive) and
   separately hands the rect to the renderer via a client-only `setPerchTarget(rect | null)` seam. This
@@ -186,12 +201,12 @@ filtered out of computer-use screenshots; OS-level capture sees it).
 
 ## Boundary
 
-**In scope (v2):** drop detection → top-edge perch → per-swap seat re-align (macOS).
+**In scope:** drop detection → top-edge perch → per-swap seat re-align → perch-loss detach
+(occlusion poll) → fall-sequence exit (macOS).
 
 **Deferred:**
-- **Follow on move / occlusion** — re-aligning when the *target* window is moved/resized/closed while
-  perched (v3); when another window covers (occludes) the perched window, the character is not yet
-  re-evaluated or detached (occlusion-aware re-perch/detach is v3, same class as follow-on-move).
+- **Follow on move** — re-aligning the perch when the *target* window is moved/resized while perched;
+  the poll detaches (fall) instead of following.
 - **Dedicated loopable perch clips** (#127) — remove the per-swap re-sit and the zoom-out headroom need.
 - **Windows parity** — the hit-test and release monitor are macOS-specific.
 - **Per-personality perch filter** (#130).

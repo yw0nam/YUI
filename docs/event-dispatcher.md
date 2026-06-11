@@ -116,11 +116,11 @@ Valid `source` values: `timer_scheduler`, `idle_watcher`, `os_event_watcher`, `u
 | `idle.returned` | 1 | tier1_ambient_engine (dormant) |
 | `user.tap` | 1 | tier1_ambient_engine |
 | `user.drag_start` / `user.drag_end` | 1 | tier1_ambient_engine |
-| `user.window_sit_enter` / `user.window_sit_exit` | 1 | tier1_ambient_engine |
+| `user.window_sit_enter` / `user.window_sit_drop` / `user.window_sit_exit` | 1 | tier1_ambient_engine |
 | `os.active_app_changed` | 3 | backend_caller (dormant) |
 | unknown | hint_tier ?? 3 | drop (no-op) |
 
-tier1 render directives are local (backend-independent): `user.drag_start` → motion `drag`, `user.drag_end` → motion null, `user.window_sit_enter` → motion `window_sit`, `user.window_sit_exit` → motion null, `user.tap` / `idle.returned` → empty directive (hold; ambient cue is a renderer seam).
+tier1 render directives are local (backend-independent): `user.drag_start` → motion `drag`, `user.drag_end` → motion null, `user.window_sit_enter` / `user.window_sit_drop` → motion `window_sit`, `user.window_sit_exit` → motion null, `user.tap` / `idle.returned` → empty directive (hold; ambient cue is a renderer seam). `user.window_sit_drop` / `user.window_sit_exit` additionally hand the perch geometry to the renderer via a client-only `setPerchTarget` side-channel, never via the `ControlEnvelope` (`docs/window-sit-drop.md`); the renderer suppresses the implicit idle return while perched or mid-fall, and on exit it runs the fall sequence instead of an instant idle when one is attached (`docs/fall-sequence.md`).
 
 ### 5.2 Conflict resolution
 - A single in-flight backend call. New tier2/3 events queue in a 1-item pending slot; a second pending event drops the oldest (`stale_pending`).
