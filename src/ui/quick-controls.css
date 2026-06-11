@@ -1571,6 +1571,179 @@
   white-space: nowrap;
 }
 
+/* ── 활성화된 "파일에서 추가…" 행 — 같은 ghost 레이아웃, 이제 인터랙티브.
+   disabled wash를 떼고 ⊕ tick은 유지한다(VRM --add.is-ready 미러). ── */
+.yui-spk--add.is-ready {
+  color: var(--yui-text-dim);
+  cursor: pointer;
+  opacity: 1;
+}
+
+.yui-spk--add.is-ready:hover {
+  background: oklch(0.97 0.01 80 / 0.06);
+}
+
+.yui-spk--add.is-ready:hover .yui-spk__name {
+  color: var(--yui-text);
+}
+
+.yui-spk--add.is-ready .yui-spk__tick {
+  border-color: var(--yui-text-mute);
+}
+
+.yui-spk--add.is-ready:hover .yui-spk__tick {
+  border-color: var(--yui-text-dim);
+}
+
+.yui-spk--add.is-ready .yui-spk__name {
+  color: var(--yui-text-dim);
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+/* ── user 행의 ✎ 이름 바꾸기 · 🗑 삭제 — .yui-vrm__rename / __remove 미러.
+   1.5rem ghost, rest에선 숨김, 호버 시 점화(rename=앰버, remove=warm-red). ── */
+.yui-spk__rename,
+.yui-spk__remove {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease),
+    opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+/* 아이콘은 행 호버/포커스에서 떠오른다(invisible-by-default) */
+.yui-spk:hover .yui-spk__rename,
+.yui-spk:hover .yui-spk__remove,
+.yui-spk:focus-within .yui-spk__rename,
+.yui-spk:focus-within .yui-spk__remove {
+  opacity: 0.7;
+}
+
+.yui-spk__rename:hover {
+  opacity: 1;
+  background: var(--yui-accent-faint);
+  color: var(--yui-accent);
+}
+
+/* 삭제는 파괴적 — 호버 시 warm-red(앰버 아님) */
+.yui-spk__remove:hover {
+  opacity: 1;
+  background: var(--yui-danger-faint);
+  color: var(--yui-danger);
+}
+
+.yui-spk__rename:focus-visible,
+.yui-spk__remove:focus-visible {
+  outline: none;
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-spk__remove:focus-visible {
+  box-shadow: 0 0 0 2px var(--yui-danger-soft);
+}
+
+.yui-spk__rename svg,
+.yui-spk__remove svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+/* ── 임포트 placeholder 행 — transient, 목록 끝 ── */
+.yui-spk__loading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  color: var(--yui-text-dim);
+}
+
+.yui-spk__spin {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1.5px solid var(--yui-accent-soft);
+  border-top-color: transparent;
+  animation: yui-spk-spin 0.7s linear infinite;
+}
+
+.yui-spk__loading-name {
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+/* ── 등록 에러 — 인라인, add 행 아래. muted danger. ── */
+.yui-spk__import-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.3rem 0.6rem 0.1rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--yui-radius-row);
+  background: var(--yui-danger-faint);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--yui-danger);
+}
+
+.yui-spk__import-error[hidden] {
+  display: none;
+}
+
+.yui-spk__import-error svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex: 0 0 auto;
+  margin-top: 0.08rem;
+}
+
+/* ── 인라인 이름 편집 — .yui-input-wrap / .yui-ep-input 재사용 ── */
+.yui-spk--renaming {
+  cursor: default;
+  background: oklch(0.97 0.01 80 / 0.04);
+}
+
+.yui-spk--renaming .yui-input-wrap {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
+
+.yui-spk--renaming .yui-ep-input {
+  padding: 0.32rem 0.55rem;
+}
+
+.yui-spk__rename-hint {
+  flex: 0 0 auto;
+  font-size: 0.66rem;
+  color: var(--yui-text-mute);
+  white-space: nowrap;
+}
+
+.yui-spk__rename-hint kbd {
+  font-family: inherit;
+  font-weight: 650;
+  color: var(--yui-text-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-spk__spin {
+    animation: none;
+  }
+}
+
 /* ── 모션은 reduced-motion 선호 뒤에 게이트 ── */
 @media (prefers-reduced-motion: no-preference) {
   .yui-spk[aria-busy="true"] .yui-spk__tick::after {
