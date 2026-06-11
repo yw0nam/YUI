@@ -10,8 +10,14 @@ mod screenshot;
 // Calendar-date-based log rotation.
 mod log_rotation;
 
+// Shared import filesystem helpers (sanitize/collision).
+mod import_fs;
+
 // Bring-your-own-VRM import (file copy into app-data).
 mod vrm_import;
+
+// Bring-your-own-voice import (reference clip copy into app-data).
+mod voice_import;
 
 use std::path::PathBuf;
 use tauri::Manager;
@@ -207,6 +213,8 @@ pub fn run() {
       screenshot::capture_screen,
       vrm_import::import_vrm_file,
       vrm_import::remove_user_vrm,
+      voice_import::import_voice_file,
+      voice_import::remove_user_voice,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
