@@ -28,3 +28,24 @@ export function clampToWorkArea(
   const clampedY = Math.min(Math.max(y, area.y), area.y + area.height - h);
   return { x: clampedX, y: clampedY };
 }
+
+/**
+ * Resolve where a perched window falls to so the character's feet land on the
+ * work-area bottom. The raw target puts the feet on `workBottom`, then the same
+ * U1 clamp pins the window's Y inside the area. `distance` is measured after the
+ * clamp; a non-positive distance means the window is already at/below the
+ * landing, so the fall is skipped (sequence goes straight to land + react).
+ */
+export function computeTargetY(input: {
+  winY: number;
+  winH: number;
+  feetPxFromWindowTop: number;
+  workArea: ScreenRect;
+}): { targetWinY: number; distance: number; skipFall: boolean } {
+  const { winY, winH, feetPxFromWindowTop, workArea } = input;
+  const workBottom = workArea.y + workArea.height;
+  const rawTargetWinY = workBottom - feetPxFromWindowTop;
+  const targetWinY = clampToWorkArea(workArea.x, rawTargetWinY, 0, winH, workArea).y;
+  const distance = targetWinY - winY;
+  return { targetWinY, distance, skipFall: distance <= 0 };
+}
