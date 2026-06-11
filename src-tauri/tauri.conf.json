@@ -28,7 +28,7 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$RESOURCE/**/*"]
+        "scope": ["$RESOURCE/**/*", "$APPDATA/vrms/**/*"]
       }
     }
   },

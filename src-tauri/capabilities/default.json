@@ -10,6 +10,7 @@
     "core:window:allow-start-dragging",
     "core:webview:allow-create-webview-window",
     "cors-fetch:default",
-    "log:default"
+    "log:default",
+    "dialog:allow-open"
   ]
 }

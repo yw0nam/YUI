@@ -10,8 +10,12 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { createVrmSelection, localStorageVrmStorage } from "./vrm-selection";
-import type { VrmSelectionStorage } from "./vrm-selection";
+import {
+  createVrmSelection,
+  localStorageVrmStorage,
+  localStorageUserVrmStorage,
+} from "./vrm-selection";
+import type { VrmSelectionStorage, UserVrmStorage } from "./vrm-selection";
 import type { AvatarOption } from "../config/load";
 
 const SAMPLE: AvatarOption[] = [
@@ -561,6 +565,282 @@ describe("localStorageVrmStorage", () => {
     expect(() => adapter.save("miko")).not.toThrow();
     expect(() => adapter.save(null)).not.toThrow();
 
+    if (saved !== undefined) (globalThis as any).localStorage = saved;
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User options — imported (source:"user") VRMs persist + merge with bundled (#147)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BUNDLED: AvatarOption[] = [
+  { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
+  { id: "miko", label: "Miko", url: "/vrms/miko.vrm", source: "bundled" },
+];
+
+const USER_CAT: AvatarOption = {
+  id: "Cat",
+  label: "Cat",
+  url: "asset://localhost/app-data/vrms/Cat.vrm",
+  source: "user",
+};
+
+/** In-memory user-options storage. */
+function makeUserMemStorage(): UserVrmStorage & { _data: AvatarOption[] } {
+  let data: AvatarOption[] = [];
+  return {
+    get _data() {
+      return data;
+    },
+    set _data(v: AvatarOption[]) {
+      data = v;
+    },
+    load() {
+      return data.map((o) => ({ ...o }));
+    },
+    save(list) {
+      data = list.map((o) => ({ ...o }));
+    },
+  };
+}
+
+describe("createVrmSelection — user options merge", () => {
+  it("getOptions() returns bundled ∪ user", () => {
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm" });
+    store.addUserOption(USER_CAT);
+    const ids = store.getOptions().map((o) => o.id);
+    expect(ids).toEqual(["carlotta", "miko", "Cat"]);
+  });
+
+  it("list() also reflects user options (single source of truth)", () => {
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm" });
+    store.addUserOption(USER_CAT);
+    expect(store.list().map((o) => o.id)).toContain("Cat");
+  });
+
+  it("addUserOption persists the user list via storage", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
+    store.addUserOption(USER_CAT);
+    expect(userStorage._data).toEqual([USER_CAT]);
+  });
+
+  it("restores persisted user options on construction (survives reload)", () => {
+    const userStorage = makeUserMemStorage();
+    userStorage._data = [USER_CAT];
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
+    expect(store.getOptions().map((o) => o.id)).toContain("Cat");
+  });
+
+  it("a re-added user id updates in place (no duplicate)", () => {
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm" });
+    store.addUserOption(USER_CAT);
+    store.addUserOption({ ...USER_CAT, label: "Renamed", url: "asset://localhost/new.vrm" });
+    const cats = store.getOptions().filter((o) => o.id === "Cat");
+    expect(cats).toHaveLength(1);
+    expect(cats[0].url).toBe("asset://localhost/new.vrm");
+  });
+
+  it("forces source:'user' on an added option regardless of input", () => {
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm" });
+    store.addUserOption({ ...USER_CAT, source: "bundled" });
+    const cat = store.getOptions().find((o) => o.id === "Cat");
+    expect(cat?.source).toBe("user");
+  });
+
+  it("a user option may be selected like a bundled one and persists the id", () => {
+    const storage = makeMemStorage();
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
+    store.addUserOption(USER_CAT);
+    store.select("Cat");
+    expect(store.getActiveId()).toBe("Cat");
+    expect(storage._data).toBe("Cat");
+  });
+
+  it("a persisted user-option id resolves as the active override across reload", () => {
+    const storage = makeMemStorage();
+    const userStorage = makeUserMemStorage();
+    userStorage._data = [USER_CAT];
+    storage._data = "Cat";
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+      userStorage,
+    });
+    expect(store.getActiveId()).toBe("Cat");
+  });
+});
+
+describe("createVrmSelection — removeUserOption", () => {
+  it("removes the option and persists the shrunken list", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
+    store.addUserOption(USER_CAT);
+    store.removeUserOption("Cat");
+    expect(store.getOptions().map((o) => o.id)).not.toContain("Cat");
+    expect(userStorage._data).toEqual([]);
+  });
+
+  it("removing the currently-selected user option falls back to default + notifies", () => {
+    const storage = makeMemStorage();
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
+    store.addUserOption(USER_CAT);
+    store.select("Cat");
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.removeUserOption("Cat");
+
+    expect(store.getActiveId()).toBe("carlotta");
+    expect(storage._data).toBeNull();
+    expect(cb).toHaveBeenCalledOnce();
+    expect(cb).toHaveBeenCalledWith(BUNDLED[0]);
+  });
+
+  it("removing a non-selected user option does not churn the active selection", () => {
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm" });
+    store.addUserOption(USER_CAT);
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.removeUserOption("Cat");
+    expect(store.getActiveId()).toBe("carlotta");
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("removing an unknown id is a no-op", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
+    store.addUserOption(USER_CAT);
+    store.removeUserOption("ghost");
+    expect(store.getOptions().map((o) => o.id)).toContain("Cat");
+  });
+});
+
+describe("createVrmSelection — user id never clobbers a bundled id", () => {
+  it("addUserOption with a bundled id is rejected (bundled wins)", () => {
+    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm" });
+    store.addUserOption({
+      id: "carlotta",
+      label: "Evil",
+      url: "asset://localhost/evil.vrm",
+      source: "user",
+    });
+    const carlottas = store.getOptions().filter((o) => o.id === "carlotta");
+    expect(carlottas).toHaveLength(1);
+    expect(carlottas[0].source).toBe("bundled");
+    expect(carlottas[0].url).toBe("/vrms/carlotta.vrm");
+  });
+
+  it("a persisted user option colliding with a bundled id is dropped on load", () => {
+    const userStorage = makeUserMemStorage();
+    userStorage._data = [
+      { id: "miko", label: "Fake", url: "asset://localhost/fake.vrm", source: "user" },
+    ];
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
+    const mikos = store.getOptions().filter((o) => o.id === "miko");
+    expect(mikos).toHaveLength(1);
+    expect(mikos[0].source).toBe("bundled");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// localStorageUserVrmStorage
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("localStorageUserVrmStorage", () => {
+  it("round-trips a user-options list through stubbed localStorage", () => {
+    const fakeStore: Record<string, string> = {};
+    (globalThis as any).localStorage = {
+      getItem: (k: string) => fakeStore[k] ?? null,
+      setItem: (k: string, v: string) => {
+        fakeStore[k] = v;
+      },
+      removeItem: (k: string) => {
+        delete fakeStore[k];
+      },
+    };
+
+    const adapter = localStorageUserVrmStorage();
+    adapter.save([USER_CAT]);
+    expect(adapter.load()).toEqual([USER_CAT]);
+
+    delete (globalThis as any).localStorage;
+  });
+
+  it("default key is 'yui.vrm.user'", () => {
+    const written: Array<[string, string]> = [];
+    (globalThis as any).localStorage = {
+      getItem: () => null,
+      setItem: (k: string, v: string) => written.push([k, v]),
+      removeItem: () => {},
+    };
+
+    const adapter = localStorageUserVrmStorage();
+    adapter.save([USER_CAT]);
+    expect(written[0][0]).toBe("yui.vrm.user");
+
+    delete (globalThis as any).localStorage;
+  });
+
+  it("returns [] for malformed persisted JSON", () => {
+    (globalThis as any).localStorage = {
+      getItem: () => "{not json",
+      setItem: () => {},
+      removeItem: () => {},
+    };
+    const adapter = localStorageUserVrmStorage();
+    expect(adapter.load()).toEqual([]);
+    delete (globalThis as any).localStorage;
+  });
+
+  it("drops malformed entries (missing id/url) on load", () => {
+    (globalThis as any).localStorage = {
+      getItem: () =>
+        JSON.stringify([USER_CAT, { label: "no id" }, { id: "x" }]),
+      setItem: () => {},
+      removeItem: () => {},
+    };
+    const adapter = localStorageUserVrmStorage();
+    expect(adapter.load()).toEqual([USER_CAT]);
+    delete (globalThis as any).localStorage;
+  });
+
+  it("gracefully returns [] when localStorage is unavailable", () => {
+    const saved = (globalThis as any).localStorage;
+    delete (globalThis as any).localStorage;
+    const adapter = localStorageUserVrmStorage();
+    expect(() => adapter.load()).not.toThrow();
+    expect(adapter.load()).toEqual([]);
+    expect(() => adapter.save([USER_CAT])).not.toThrow();
     if (saved !== undefined) (globalThis as any).localStorage = saved;
   });
 });

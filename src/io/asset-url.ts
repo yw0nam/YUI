@@ -64,3 +64,18 @@ export async function resolveAssetUrl(
   const abs = await tauri.resolveResource(rel);
   return tauri.convertFileSrc(abs) + query;
 }
+
+/**
+ * 임포트된 VRM의 절대 app-data 파일 경로를 webview가 로드 가능한 URL로 변환한다.
+ * 번들 리소스가 아니므로 resolveResource를 거치지 않고 convertFileSrc만 적용한다.
+ * dev/브라우저거나 이미 절대 URL이면 입력 그대로 통과.
+ */
+export async function resolveUserFileSrc(
+  absPath: string,
+  opts: ResolveAssetUrlOptions = {},
+): Promise<string> {
+  const isTauri = opts.isTauri ?? defaultIsTauri;
+  if (!isTauri() || isAbsoluteUrl(absPath)) return absPath;
+  const tauri = await (opts.tauri ?? defaultTauri)();
+  return tauri.convertFileSrc(absPath);
+}

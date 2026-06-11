@@ -10,6 +10,9 @@ mod screenshot;
 // Calendar-date-based log rotation.
 mod log_rotation;
 
+// Bring-your-own-VRM import (file copy into app-data).
+mod vrm_import;
+
 use std::path::PathBuf;
 use tauri::Manager;
 use time::{OffsetDateTime, UtcOffset};
@@ -149,6 +152,8 @@ pub fn run() {
   tauri::Builder::default()
     // window.fetch를 Rust로 라우팅 → CORS 우회 + SSE 스트리밍 지원(plugin-http는 스트리밍 불가).
     .plugin(tauri_plugin_cors_fetch::init())
+    // OS 파일 피커 — bring-your-own VRM import.
+    .plugin(tauri_plugin_dialog::init())
     .setup(|app| {
       let log_offset = resolve_log_offset();
       let mut builder = tauri_plugin_log::Builder::new()
@@ -200,6 +205,8 @@ pub fn run() {
       os_event_watcher::list_windows,
       screenshot::list_screen_sources,
       screenshot::capture_screen,
+      vrm_import::import_vrm_file,
+      vrm_import::remove_user_vrm,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -12,6 +12,22 @@ export interface VrmSelectionStorage {
   save(id: string | null): void;
 }
 
+/** 임포트된 source:"user" 옵션 목록의 영속화 어댑터. */
+export interface UserVrmStorage {
+  load(): AvatarOption[];
+  save(list: AvatarOption[]): void;
+}
+
+/** 임포트 옵션 한 건을 안전한 source:"user" AvatarOption으로 강제(불완전하면 null). */
+function coerceUserOption(v: unknown): AvatarOption | null {
+  if (typeof v !== "object" || v === null) return null;
+  const o = v as Record<string, unknown>;
+  if (typeof o.id !== "string" || o.id.length === 0) return null;
+  if (typeof o.url !== "string" || o.url.length === 0) return null;
+  const label = typeof o.label === "string" && o.label.length > 0 ? o.label : o.id;
+  return { id: o.id, label, url: o.url, source: "user" };
+}
+
 /** url의 파일명 stem에서 안정 id를 끌어낸다 (예: "/vrms/carlotta.vrm" → "carlotta"). */
 function stemFromUrl(url: string): string {
   const path = url.split(/[?#]/, 1)[0];
@@ -40,8 +56,10 @@ export function createVrmSelection(opts: {
   available?: AvatarOption[];
   defaultUrl: string;
   storage?: VrmSelectionStorage;
+  userStorage?: UserVrmStorage;
 }) {
   const storage = opts.storage;
+  const userStorage = opts.userStorage;
 
   // manifest(options + defaultUrl)는 setManifest로 갱신 가능하므로 가변.
   // list()는 절대 비지 않는다 — available이 없거나 비면 defaultUrl로 단일 항목 합성.
@@ -52,10 +70,33 @@ export function createVrmSelection(opts: {
   }
 
   let defaultUrl = opts.defaultUrl;
-  let options: AvatarOption[] = normalize(opts.available, defaultUrl);
+  let bundled: AvatarOption[] = normalize(opts.available, defaultUrl);
+
+  // 임포트된 user 옵션 — bundled id와 충돌하는 항목은 버린다(bundled 우선).
+  function isBundledId(id: string): boolean {
+    return bundled.some((o) => o.id === id);
+  }
+  let userOptions: AvatarOption[] = [];
+  if (userStorage) {
+    try {
+      for (const raw of userStorage.load()) {
+        const opt = coerceUserOption(raw);
+        if (opt && !isBundledId(opt.id) && !userOptions.some((u) => u.id === opt.id)) {
+          userOptions.push(opt);
+        }
+      }
+    } catch {
+      // storage 오류 시 user 옵션 없음으로 폴백
+    }
+  }
+
+  // 해석 대상 전체 목록: bundled 뒤에 user(중복 id 없음).
+  function options(): AvatarOption[] {
+    return [...bundled, ...userOptions];
+  }
 
   function hasId(id: string): boolean {
-    return options.some((o) => o.id === id);
+    return options().some((o) => o.id === id);
   }
 
   // 저장된 override를 읽되, 더 이상 list에 없는(stale/removed) id는 없는 것으로 취급.
@@ -71,11 +112,12 @@ export function createVrmSelection(opts: {
 
   // 해석 우선순위: (1) override(list에 존재) > (2) defaultUrl 일치 > (3) list[0].
   function resolve(): AvatarOption {
+    const all = options();
     if (override !== null) {
-      const o = options.find((x) => x.id === override);
+      const o = all.find((x) => x.id === override);
       if (o) return o;
     }
-    return options.find((x) => x.url === defaultUrl) ?? options[0];
+    return all.find((x) => x.url === defaultUrl) ?? all[0];
   }
 
   const subscribers = new Set<(active: AvatarOption) => void>();
@@ -85,9 +127,41 @@ export function createVrmSelection(opts: {
     for (const cb of subscribers) cb(copy);
   }
 
+  function persistUser(): void {
+    userStorage?.save(userOptions.map((o) => ({ ...o })));
+  }
+
   return {
     list(): AvatarOption[] {
-      return options.map((o) => ({ ...o }));
+      return options().map((o) => ({ ...o }));
+    },
+
+    /** bundled ∪ user 전체 옵션(dedup, bundled 우선). list()와 동일 결과. */
+    getOptions(): AvatarOption[] {
+      return options().map((o) => ({ ...o }));
+    },
+
+    /** 임포트한 user 옵션을 추가/갱신. bundled id와 충돌하면 거부. source는 "user"로 강제. */
+    addUserOption(opt: AvatarOption): void {
+      if (isBundledId(opt.id)) return; // bundled가 항상 우선
+      const next: AvatarOption = { ...opt, source: "user" };
+      const idx = userOptions.findIndex((o) => o.id === next.id);
+      if (idx >= 0) userOptions[idx] = next;
+      else userOptions.push(next);
+      persistUser();
+    },
+
+    /** user 옵션 제거. 현재 선택 중이던 항목이면 default 해석으로 폴백 + 통지. */
+    removeUserOption(id: string): void {
+      const idx = userOptions.findIndex((o) => o.id === id);
+      if (idx < 0) return;
+      const wasActive = resolve().id === id;
+      userOptions.splice(idx, 1);
+      persistUser();
+      if (!wasActive) return;
+      override = null;
+      storage?.save(null);
+      notify();
     },
 
     getActive(): AvatarOption {
@@ -118,7 +192,9 @@ export function createVrmSelection(opts: {
     setManifest(next: { available?: AvatarOption[]; defaultUrl: string }): void {
       const before = resolve().id;
       defaultUrl = next.defaultUrl;
-      options = normalize(next.available, defaultUrl);
+      bundled = normalize(next.available, defaultUrl);
+      // 새 bundled와 id 충돌하는 user 옵션은 드롭(bundled 우선).
+      userOptions = userOptions.filter((u) => !isBundledId(u.id));
       if (override !== null && !hasId(override)) override = null;
       if (resolve().id === before) return;
       notify();
@@ -166,6 +242,32 @@ export function localStorageVrmStorage(key = "yui.vrm"): VrmSelectionStorage {
       try {
         if (id === null) globalThis.localStorage?.removeItem(key);
         else globalThis.localStorage?.setItem(key, id);
+      } catch {
+        // localStorage 사용 불가 시 no-op
+      }
+    },
+  };
+}
+
+/** localStorage 기반 UserVrmStorage 어댑터(임포트 옵션 목록 JSON). 불완전/손상 항목은 드롭. */
+export function localStorageUserVrmStorage(key = "yui.vrm.user"): UserVrmStorage {
+  return {
+    load() {
+      try {
+        const raw = globalThis.localStorage?.getItem(key);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+          .map((v) => coerceUserOption(v))
+          .filter((o): o is AvatarOption => o !== null);
+      } catch {
+        return [];
+      }
+    },
+    save(list) {
+      try {
+        globalThis.localStorage?.setItem(key, JSON.stringify(list));
       } catch {
         // localStorage 사용 불가 시 no-op
       }
