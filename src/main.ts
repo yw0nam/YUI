@@ -505,8 +505,42 @@ async function bootstrap(): Promise<void> {
   if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
     void (async () => {
       const { invoke } = await import("@tauri-apps/api/core");
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const { getCurrentWindow, LogicalPosition } = await import("@tauri-apps/api/window");
       const { listen } = await import("@tauri-apps/api/event");
+      // Fall sequence (#143): real window mover so perch exit falls to the work-area
+      // bottom. Off-Tauri this never runs — setPerchTarget(null) keeps the idle path.
+      const petWindow = getCurrentWindow();
+      renderer.attachFallSequence(
+        {
+          setPosition: async (x, y) => {
+            await petWindow.setPosition(new LogicalPosition(x, y));
+          },
+          getWorkArea: () =>
+            invoke<{
+              x: number;
+              y: number;
+              width: number;
+              height: number;
+              scaleFactor: number;
+            }>("get_work_area_for_window"),
+          getWindowGeom: async () => {
+            const [pos, size, scale] = await Promise.all([
+              petWindow.outerPosition(),
+              petWindow.outerSize(),
+              petWindow.scaleFactor(),
+            ]);
+            const sf = scale > 0 ? scale : 1;
+            return {
+              x: pos.x / sf,
+              y: pos.y / sf,
+              w: size.width / sf,
+              h: size.height / sf,
+              scale: sf,
+            };
+          },
+        },
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      );
       windowDropSource = createWindowDropSource({
         bus,
         renderer,

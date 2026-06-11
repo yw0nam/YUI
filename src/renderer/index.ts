@@ -37,6 +37,12 @@ import {
   createMotionPreemption,
   type MotionPreemptedCallback,
 } from "./motion-preemption";
+import { createMotionFinishWaiters } from "./motion-finish-waiters";
+import {
+  createFallSequence,
+  type FallSequence,
+  type WindowMover,
+} from "./fall-sequence";
 import {
   createEmotionResolver,
   type EmotionResolver,
@@ -207,6 +213,12 @@ export interface Renderer {
   setPerchTarget(target: { edgeLocalYpx: number } | null): void;
   /** 현재 perch 활성 여부 — occlusion poll이 perch 종료를 감지하는 데 쓴다. */
   isPerched(): boolean;
+  /**
+   * Tauri window mover를 붙여 perch 이탈 시 fall 시퀀스를 활성화한다. attach 전
+   * (브라우저 dev)에는 setPerchTarget(null)이 기존 즉시-idle 경로를 그대로 탄다.
+   * reducedMotion은 호출자가 matchMedia로 1회 읽어 전달한다.
+   */
+  attachFallSequence(mover: WindowMover, reducedMotion: boolean): void;
   /** rAF 루프 정지 + GPU 리소스 해제. */
   dispose(): void;
 }
@@ -360,6 +372,12 @@ export function createRenderer(options: RendererOptions): Renderer {
   const cycleDwell = createCycleDwell();
   /** 모션 교체/폐기 통지 + generation 카운터 — fall 컨트롤러가 preempt/stale을 감지한다. */
   const preemption = createMotionPreemption();
+  /** fall 컨트롤러의 whenMotionFinished 대기 — 자연 종료에서만 resolve된다. */
+  const motionFinishWaiters = createMotionFinishWaiters();
+  /** attachFallSequence로 생성되는 perch-이탈 fall 시퀀스 (미부착 시 즉시-idle 경로). */
+  let fallSequence: FallSequence | null = null;
+  /** fall 컨트롤러가 구동 중인 playMotion — 자신의 전이를 preempt로 통지하지 않게 한다. */
+  let fallDriven = false;
 
   // ── Lipsync 상태 ──────────────────────────────────────────────────────
   // 입(`aa`)은 lipsync 전용 — ambient/emotion와 분리. emotion crossfade와 같은
@@ -399,7 +417,11 @@ export function createRenderer(options: RendererOptions): Renderer {
     try {
       const id = actionToId.get(e.action);
       actionToId.delete(e.action);
-      if (!controller || !id) return;
+      if (!id) return;
+      // fall 시퀀스가 이 종료를 기다리는 중이면 resolve하고 auto-swap을 건너뛴다 —
+      // 시퀀스 동안 후속 모션은 컨트롤러가 단독으로 구동한다(must-fix #3).
+      if (motionFinishWaiters.resolve(id)) return;
+      if (!controller) return;
       // cycle 모션이면 정착 마지막 프레임을 cycle_dwell_ms만큼 유지한 뒤 swap.
       const isCycle = controller.current()?.cycle ?? false;
       const dwell = motionRegistry?.[id]?.cycle_dwell_ms;
@@ -475,6 +497,8 @@ export function createRenderer(options: RendererOptions): Renderer {
   /** mixer/clip/action 캐시 + controller 상태를 모두 폐기 (핫스왑/dispose 공용). */
   function teardownMotion(): void {
     cycleDwell.cancel(); // 폐기될 mixer에 stale swap이 발화하지 않도록.
+    // 폐기될 mixer의 종료가 stale fall 대기를 resolve하지 않도록 미정산 폐기.
+    motionFinishWaiters.clear();
     // controller 재생성 전에 활성 모션 교체를 통지(폐기 = nextId null) — in-flight
     // 비동기 작업이 generation으로 stale을 감지하게 한다.
     const prevId = controller?.current()?.id;
@@ -676,6 +700,56 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
   }
 
+  // ── Fall sequence (perch detach) ─────────────────────────────────────────────
+
+  /**
+   * Live posed feet-line distance from the window TOP in logical/CSS px.
+   * Mirrors getPerchProbe's setFromObject approach: a live box over the current
+   * pose (NOT the idle-pose modelBox), feet point projected via projectFeetAnchor.
+   * Falls back to the window height (feet-at-bottom ⇒ zero-distance fall) when
+   * no VRM is loaded or the projection is unavailable.
+   */
+  function measureFeetPx(): number {
+    const h = mount.clientHeight || 1;
+    if (!currentVrm) return h;
+    camera.updateMatrixWorld();
+    const liveBox = new THREE.Box3().setFromObject(currentVrm.scene);
+    const anchor = projectFeetAnchor(liveBox, camera, mount.clientWidth || 1, h);
+    return anchor ? anchor.y : h;
+  }
+
+  /** fall 컨트롤러 전용 motion 채널 — playMotion과 동일하되 preempt 통지만 끈다. */
+  function playMotionFallDriven(id: string | null): void {
+    fallDriven = true;
+    try {
+      playMotion(id === null ? null : { id });
+    } finally {
+      fallDriven = false;
+    }
+  }
+
+  function attachFallSequence(mover: WindowMover, reducedMotion: boolean): void {
+    fallSequence?.cancel();
+    fallSequence = createFallSequence({
+      playMotion: playMotionFallDriven,
+      whenMotionFinished: (id) => motionFinishWaiters.wait(id),
+      windowMover: mover,
+      measureFeetPx,
+      onTick(fn) {
+        const hook: TickFn = (ctx) => fn(ctx.dt);
+        tickHooks.add(hook);
+        return () => {
+          tickHooks.delete(hook);
+        };
+      },
+      onMotionPreempted: (cb) => preemption.onMotionPreempted(cb),
+      motionGeneration: () => preemption.generation(),
+      isMotionGenerationCurrent: (captured) => preemption.isCurrent(captured),
+      reducedMotion,
+      restoreFraming: () => fitCamera(),
+    });
+  }
+
   // VRM 메타에서 표시 이름을 읽는다 — VRM1.0은 meta.name, VRM0.0은 meta.title. 둘 다 없으면 null.
   function readVrmMetaName(vrm: VRM): string | null {
     const meta = vrm.meta as { name?: unknown; title?: unknown } | undefined;
@@ -751,7 +825,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       controller.commit(decision);
       if (decision.action === "play") {
         // 다른 모션이 활성이었으면(priority 또는 replace 경로) 교체를 통지.
-        if (prevId && prevId !== decision.motion.id) {
+        // fall 컨트롤러 자신의 전이는 takeover가 아니므로 통지하지 않는다.
+        if (prevId && prevId !== decision.motion.id && !fallDriven) {
           preemption.preempt(prevId, decision.motion.id);
         }
         void startMotion(decision.motion);
@@ -937,8 +1012,14 @@ export function createRenderer(options: RendererOptions): Renderer {
         perchOffsetY = 0;
         if (currentVrm) currentVrm.scene.position.y = 0; // restore baseline.
         if (wasPerched) {
-          fitCamera(); // restore normal framing.
-          playMotion(null); // perch cleared — explicit return to idle baseline.
+          if (fallSequence) {
+            // Fall hand-off: the sequence owns motion AND framing restore —
+            // re-fitting here mid-fall would pop the zoom (must-fix #2).
+            fallSequence.start();
+          } else {
+            fitCamera(); // restore normal framing.
+            playMotion(null); // perch cleared — explicit return to idle baseline.
+          }
         }
         return;
       }
@@ -948,7 +1029,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     isPerched() {
       return perchTargetYpx !== null;
     },
+    attachFallSequence,
     dispose() {
+      fallSequence?.cancel();
       cancelAnimationFrame(rafId);
       ro.disconnect();
       disposeCurrent();
