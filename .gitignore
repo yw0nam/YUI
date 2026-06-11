@@ -26,6 +26,7 @@ resources/vrms/*
 !resources/vrms/.gitkeep
 resources/references/*
 !resources/references/.gitkeep
+resources/vrma/
 .env
 .env.local
 

@@ -29,6 +29,22 @@
     "priority": 80,
     "interrupt_policy": "replace"
   },
+  "falling": {
+    "vrma_path": "/motions/falling_loop.vrma",
+    "kind": "reactive",
+    "loop": true,
+    "priority": 78,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "landing": {
+    "vrma_path": "/motions/landing.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 78,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
   "happy": {
     "vrma_path": "/motions/happy.vrma",
     "kind": "oneshot",
@@ -77,6 +93,14 @@
     "loop": true,
     "priority": 70,
     "interrupt_policy": "replace"
+  },
+  "suneru": {
+    "vrma_path": "/motions/suneru.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
   },
   "sit": {
     "vrma_path": "/motions/sit_01.vrma",
