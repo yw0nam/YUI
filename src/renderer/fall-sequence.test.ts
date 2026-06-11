@@ -503,6 +503,42 @@ describe("createFallSequence — fall state machine", () => {
     });
   });
 
+  describe("active() — the renderer's implicit-idle suppression predicate", () => {
+    it("reports active through detaching/falling/landing/reacting and false at idle", async () => {
+      const { deps, renderer, tick } = makeDeps();
+      const seq = createFallSequence(deps);
+      expect(seq.active()).toBe(false);
+
+      seq.start();
+      expect(seq.active()).toBe(true); // detaching (synchronous)
+      await flush();
+      expect(seq.active()).toBe(true); // falling
+
+      tick.pump(() => seq.state() !== FallState.Falling);
+      await flush();
+      expect(seq.active()).toBe(true); // landing
+
+      renderer.finish("landing");
+      await flush();
+      expect(seq.active()).toBe(true); // reacting
+
+      renderer.finish(LANDING_REACTION_ID);
+      await flush();
+      expect(seq.state()).toBe(FallState.Idle);
+      expect(seq.active()).toBe(false);
+    });
+
+    it("reports inactive after cancel", async () => {
+      const { deps } = makeDeps();
+      const seq = createFallSequence(deps);
+      seq.start();
+      await flush();
+      expect(seq.active()).toBe(true);
+      seq.cancel();
+      expect(seq.active()).toBe(false);
+    });
+  });
+
   describe("invalidateMotionWaits (stale waiter cleanup)", () => {
     it("invalidates pending motion waits when preempted mid-landing", async () => {
       const invalidateMotionWaits = vi.fn();
