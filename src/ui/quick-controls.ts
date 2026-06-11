@@ -1717,6 +1717,7 @@ export function createQuickControls({
     if (!openState) return;
     if (gainPreviewing) { onGainPreviewEnd(); gainPreviewing = false; }
     stopAudition();
+    commitChatKeyIfDirty();
     openState = false;
 
     if (isWindow) {
@@ -1928,14 +1929,18 @@ export function createQuickControls({
     chatKeyDirty = true;
   }
 
+  // dirty 입력값을 한 번만 commit한다 — blur·close·dispose 공통.
+  function commitChatKeyIfDirty(): void {
+    if (!chatKeyDirty) return;
+    chatKeyDirty = false;
+    const v = chatKeyInput.value;
+    if (v) chatKeySettings.setApiKey(v);
+    else chatKeySettings.clear(); // 빈 값 = 오버라이드 없음
+  }
+
   // blur 시점에 입력값을 commit한다. 입력하지 않았다면 원격 변경만 반영한다.
   function handleChatKeyBlur(): void {
-    if (chatKeyDirty) {
-      chatKeyDirty = false;
-      const v = chatKeyInput.value;
-      if (v) chatKeySettings.setApiKey(v);
-      else chatKeySettings.clear(); // 빈 값 = 오버라이드 없음
-    }
+    commitChatKeyIfDirty();
     reflectChatKey();
   }
 
@@ -2127,6 +2132,7 @@ export function createQuickControls({
 
   function dispose(): void {
     disposed = true;
+    commitChatKeyIfDirty();
     unsubscribe();
     unsubscribeProactive();
     unsubscribeVoice();
