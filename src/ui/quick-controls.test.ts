@@ -31,6 +31,7 @@ import { createEndpointsSettings } from "../io/endpoints-settings";
 import { createProactiveSettings } from "../io/proactive-settings";
 import { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import { createSessionStore } from "../io/session-store";
+import { createChatKeySettings } from "../io/chat-key-settings";
 
 // jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
 // Escapes ASCII chars that aren't safe identifier chars; non-ASCII passes through (safe unescaped).
@@ -202,6 +203,7 @@ describe("createQuickControls — gain row", () => {
       agentSettings,
       endpointsSettings,
       proactiveSettings,
+      chatKeySettings: createChatKeySettings(),
       onPopOut,
       vrmSelection,
       swapVrm,
@@ -565,6 +567,151 @@ describe("createQuickControls — gain row", () => {
     qc.el.querySelector<HTMLButtonElement>(".yui-ep-reset")!.click();
     expect(endpointsSettings.get().chat_base_url).toBe("");
     expect(input.value).toBe("");
+
+    qc.dispose();
+  });
+
+  // ── chat API key field (#150) ─────────────────────────────────────────────
+
+  function chatKeyInput(qc: { el: HTMLElement }): HTMLInputElement {
+    return qc.el.querySelector<HTMLInputElement>(".yui-chatkey__input")!;
+  }
+
+  it("renders a masked chat API-key field in the advanced panel with no autofill leakage", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const input = chatKeyInput(qc);
+    expect(input).not.toBeNull();
+    // Masked by default + no browser autofill of a secret.
+    expect(input.type).toBe("password");
+    expect(input.getAttribute("autocomplete")).toBe("off");
+    expect(input.getAttribute("spellcheck")).toBe("false");
+    expect(input.hasAttribute("name")).toBe(false);
+    // Lives in the advanced tab, near the endpoint rows (chat credential).
+    const advPanel = qc.el.querySelector<HTMLElement>("#yui-panel-adv")!;
+    expect(advPanel.contains(input)).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("prefills from the store and signals 'default in use' without revealing any value", () => {
+    const chatKeySettings = createChatKeySettings();
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    const input = chatKeyInput(qc);
+    // No override → empty field, never a placeholder/sublabel that leaks a value.
+    expect(input.value).toBe("");
+    const row = input.closest<HTMLDivElement>(".yui-input-row")!;
+    const sub = row.querySelector<HTMLElement>(".yui-input-row__sub")!;
+    expect(sub.textContent).toContain("기본값");
+    // The field communicates default-in-use via copy, not by surfacing a secret.
+    expect(input.placeholder).not.toContain("sk-");
+
+    qc.dispose();
+  });
+
+  it("reflects an existing override as a masked value and 'saved' sublabel", () => {
+    const chatKeySettings = createChatKeySettings();
+    chatKeySettings.setApiKey("sk-secret-123");
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    const input = chatKeyInput(qc);
+    // Value is present (so edits round-trip) but the field is masked.
+    expect(input.value).toBe("sk-secret-123");
+    expect(input.type).toBe("password");
+    const sub = input.closest<HTMLDivElement>(".yui-input-row")!.querySelector<HTMLElement>(".yui-input-row__sub")!;
+    expect(sub.textContent).not.toContain("기본값");
+
+    qc.dispose();
+  });
+
+  it("typing persists the key via chatKeySettings.setApiKey", () => {
+    const chatKeySettings = createChatKeySettings();
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    const input = chatKeyInput(qc);
+    input.value = "sk-typed-456";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(chatKeySettings.get().apiKey).toBe("sk-typed-456");
+
+    qc.dispose();
+  });
+
+  it("clearing the field calls clear() (empty = no override)", () => {
+    const chatKeySettings = createChatKeySettings();
+    chatKeySettings.setApiKey("sk-secret-123");
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    const input = chatKeyInput(qc);
+    input.value = "";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(chatKeySettings.get().apiKey).toBe("");
+
+    qc.dispose();
+  });
+
+  it("a dedicated clear button empties the field and the store", () => {
+    const chatKeySettings = createChatKeySettings();
+    chatKeySettings.setApiKey("sk-secret-123");
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-chatkey__clear")!.click();
+    expect(chatKeySettings.get().apiKey).toBe("");
+    expect(chatKeyInput(qc).value).toBe("");
+
+    qc.dispose();
+  });
+
+  it("the show/hide toggle flips the input between password and text", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const input = chatKeyInput(qc);
+    const toggle = qc.el.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
+    expect(input.type).toBe("password");
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+
+    toggle.click();
+    expect(input.type).toBe("text");
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+
+    toggle.click();
+    expect(input.type).toBe("password");
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+
+    qc.dispose();
+  });
+
+  it("subscribes to the store so cross-window edits reflect into the field", () => {
+    const chatKeySettings = createChatKeySettings();
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    chatKeySettings.setApiKey("sk-from-other-window");
+    expect(chatKeyInput(qc).value).toBe("sk-from-other-window");
+
+    chatKeySettings.clear();
+    expect(chatKeyInput(qc).value).toBe("");
+
+    qc.dispose();
+  });
+
+  it("never writes the key value into the DOM text or attributes", () => {
+    const chatKeySettings = createChatKeySettings();
+    chatKeySettings.setApiKey("sk-secret-123");
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    const row = chatKeyInput(qc).closest<HTMLDivElement>(".yui-input-row")!;
+    // The secret may live only in input.value — never in rendered text or other attrs.
+    expect(row.textContent).not.toContain("sk-secret-123");
+    expect(row.innerHTML).not.toContain("sk-secret-123");
 
     qc.dispose();
   });
@@ -2082,6 +2229,7 @@ describe("createQuickControls — session section", () => {
       agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
       endpointsSettings: createEndpointsSettings(),
       proactiveSettings: createProactiveSettings(),
+      chatKeySettings: createChatKeySettings(),
       onPopOut: vi.fn(),
       vrmSelection: createVrmSelection({
         available: [{ id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" }],
@@ -2271,6 +2419,7 @@ describe("createQuickControls — tabs + VAD slider", () => {
       agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
       endpointsSettings: createEndpointsSettings(),
       proactiveSettings: createProactiveSettings(),
+      chatKeySettings: createChatKeySettings(),
       onPopOut: vi.fn(),
       vrmSelection: createVrmSelection({
         available: [{ id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" }],
