@@ -188,6 +188,8 @@ export interface Renderer {
    * The `window_sit` motion itself is driven separately via the normal directive path.
    */
   setPerchTarget(target: { edgeLocalYpx: number } | null): void;
+  /** 현재 perch 활성 여부 — occlusion poll이 perch 종료를 감지하는 데 쓴다. */
+  isPerched(): boolean;
   /** rAF 루프 정지 + GPU 리소스 해제. */
   dispose(): void;
 }
@@ -905,6 +907,9 @@ export function createRenderer(options: RendererOptions): Renderer {
       }
       perchTargetYpx = target.edgeLocalYpx;
       if (!wasPerched) fitCamera(); // apply PERCH_ZOOM on entry.
+    },
+    isPerched() {
+      return perchTargetYpx !== null;
     },
     dispose() {
       cancelAnimationFrame(rafId);

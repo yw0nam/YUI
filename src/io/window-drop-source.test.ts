@@ -13,7 +13,7 @@
  * are mocked.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createWindowDropSource } from "./window-drop-source";
 import type { EventBus, BusEnvelope } from "../dispatcher/event-bus";
 import type { WindowRect } from "../contract";
@@ -67,6 +67,7 @@ const win = (over: Partial<WindowRect> = {}): WindowRect => ({
   height: 320,
   name: "Other",
   pid: 999,
+  windowNumber: 7,
   ...over,
 });
 
@@ -233,5 +234,377 @@ describe("window-drop-source — lifecycle + degrade", () => {
     await Promise.resolve();
     // The release point is unused by the seat-based hit-test, so a malformed
     // payload still drives a probe-based decision — but it must never throw.
+  });
+});
+
+// ── Occlusion-aware perch detach poll (#143) ────────────────────────────────
+//
+// After a successful drop arms the poll, ~1.3 Hz it re-checks whether the
+// perched window (tracked by windowNumber) still sits under the seat and is
+// topmost. The held-perch test is point-in-rect (NOT the U-band catch zone).
+// Loss fires user.window_sit_exit through the bus and disarms. Geometry seam:
+// seatPx (40,30) · pos (520,740) · scale 2 → seatGlobal (300,400), which is the
+// top-left corner of the default win() — so the default window contains the seat.
+
+/** A perch probe source whose isPerched() is controllable per tick. */
+function makePerchSource(perched = true) {
+  const state = { perched };
+  return {
+    state,
+    renderer: {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => state.perched),
+    },
+  };
+}
+
+/** Advance one poll tick and let all queued microtasks (the await chain) settle. */
+async function tick(): Promise<void> {
+  await vi.advanceTimersByTimeAsync(1500);
+}
+
+/** Fire a release and flush the onRelease async chain (outerPosition/scaleFactor/invoke + arm). */
+async function settleRelease(): Promise<void> {
+  for (let i = 0; i < 8; i++) await Promise.resolve();
+}
+
+describe("window-drop-source — occlusion poll arm/hold (J1)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("arms the poll on a successful drop", async () => {
+    const { renderer } = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+    expect(pushed.at(-1)?.event_name).toBe("user.window_sit_drop");
+
+    // poll now armed: a tick with the unchanged list HOLDS (no exit).
+    await tick();
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
+  });
+
+  it("a tick immediately after the drop with an unchanged list HOLDS (no self-detach)", async () => {
+    const { renderer } = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+
+    await tick();
+    await tick();
+    await tick();
+    expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(0);
+  });
+});
+
+describe("window-drop-source — occlusion poll loss + debounce (J2)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function armOn(armed: WindowRect, lists: WindowRect[][]) {
+    const { renderer } = makePerchSource();
+    const invoke = vi.fn(async () => lists[0]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    await source.start();
+    invoke.mockImplementation(async () => lists[0]);
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+    return { invoke, lists };
+  }
+
+  it("a window above that covers the seat detaches after 2 ticks (ambiguous loss)", async () => {
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const cover = win({ name: "Cover", windowNumber: 99 }); // same rect → contains seat (300,400)
+    const { invoke } = await armOn(armed, [[armed]]);
+
+    invoke.mockImplementation(async () => [cover, armed]); // cover is ABOVE armed.
+    await tick(); // lostStreak = 1 → no exit yet.
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
+    await tick(); // lostStreak = 2 → detach.
+    expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
+  });
+
+  it("the armed window absent/closed detaches on the FIRST tick (unambiguous loss)", async () => {
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const stranger = win({ name: "Stranger", windowNumber: 7 });
+    const { invoke } = await armOn(armed, [[armed]]);
+
+    invoke.mockImplementation(async () => [stranger]); // armed (42) is gone.
+    await tick();
+    expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
+  });
+
+  it("a window whose top edge is only in the U-band above the armed window does NOT detach (S1)", async () => {
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    // A window above whose top is within the catch U-band (0.28*200=56px above
+    // seat.y 400 → y≥344) but which does NOT cover the seat point: its bottom
+    // edge sits above the seat (does not contain (300,400)).
+    const grazing = win({ name: "Grazing", windowNumber: 99, x: 300, y: 360, width: 520, height: 20 });
+    const { invoke } = await armOn(armed, [[armed]]);
+
+    invoke.mockImplementation(async () => [grazing, armed]);
+    await tick();
+    await tick();
+    await tick();
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
+  });
+
+  it("a single covered tick followed by an uncovered tick does NOT detach (debounce ride-out)", async () => {
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const cover = win({ name: "Cover", windowNumber: 99 });
+    const { invoke } = await armOn(armed, [[armed]]);
+
+    invoke.mockImplementation(async () => [cover, armed]); // covered.
+    await tick(); // lostStreak = 1.
+    invoke.mockImplementation(async () => [armed]); // uncovered again.
+    await tick(); // held → streak reset.
+    invoke.mockImplementation(async () => [cover, armed]); // covered again.
+    await tick(); // lostStreak = 1 (reset earlier) → still no exit.
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
+  });
+});
+
+describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("disarms on a miss (own exit) — no further ticks fire exit", async () => {
+    const { renderer } = makePerchSource();
+    // seat over no window → onRelease pushes exit, never arms.
+    const invoke = vi.fn(async () => [win({ x: 5000, y: 5000 })]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+    expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
+
+    invoke.mockImplementation(async () => [win({ windowNumber: 12345 })]);
+    await tick();
+    await tick();
+    // not armed → poll does nothing.
+    expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
+  });
+
+  it("a fresh drop re-arms with the new windowNumber", async () => {
+    const { renderer } = makePerchSource();
+    const winA = win({ name: "A", windowNumber: 1 });
+    const winB = win({ name: "B", windowNumber: 2 });
+    const invoke = vi.fn(async () => [winA]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    await source.start();
+
+    invoke.mockImplementation(async () => [winA]);
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease(); // armed on 1.
+
+    invoke.mockImplementation(async () => [winB]); // re-drop onto B.
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease(); // re-armed on 2.
+
+    // Only B present now → armed on 2 holds; remove 2 to prove the new arm is live.
+    invoke.mockImplementation(async () => [winA]); // 2 gone, only 1 left → lost.
+    await tick();
+    expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
+  });
+
+  it("a tick where isPerched()===false disarms silently (no exit pushed)", async () => {
+    const probe = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer: probe.renderer,
+      invoke,
+      getWindow,
+      listen,
+    });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+
+    // perch ended elsewhere (manual re-grab / dev exit).
+    probe.state.perched = false;
+    // make the list "lost" too, to prove the silent disarm wins over a loss.
+    invoke.mockImplementation(async () => []);
+    await tick();
+    await tick();
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
+  });
+
+  it("an in-flight re-arm discards the stale tick result (S3 pollGen)", async () => {
+    // Drive the poll tick manually via a captured-callback interval so the await
+    // boundary is deterministic: start a tick (gen 1, list_windows blocked), let a
+    // fresh drop re-arm (gen 2) mid-await, then resolve the stale list as EMPTY.
+    // For the re-armed window 77 an empty list reads as an unambiguous loss and
+    // would detach on the FIRST tick — the pollGen guard must discard it instead.
+    let tickCb: (() => void) | null = null;
+    const fakeSetInterval = ((cb: () => void) => {
+      tickCb = cb;
+      return 1 as unknown as ReturnType<typeof setInterval>;
+    }) as typeof setInterval;
+    const fakeClearInterval = (() => {
+      tickCb = null;
+    }) as typeof clearInterval;
+
+    const probe = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const fresh = win({ name: "Fresh", windowNumber: 77 });
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+
+    let releaseTickList!: (v: WindowRect[]) => void;
+    const tickPending = new Promise<WindowRect[]>((res) => (releaseTickList = res));
+    let call = 0;
+    const invoke = vi.fn(async () => {
+      call++;
+      if (call === 1) return [armed]; // drop #1 → arm 42.
+      if (call === 2) return tickPending; // poll tick (gen 1) → blocks on the await.
+      return [fresh]; // drop #2 (arm 77) + any later tick.
+    });
+
+    const source = createWindowDropSource({
+      bus,
+      renderer: probe.renderer,
+      invoke,
+      getWindow,
+      listen,
+      setInterval: fakeSetInterval,
+      clearInterval: fakeClearInterval,
+    });
+    await source.start();
+
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease(); // armed on 42, gen = 1, tickCb captured.
+
+    // Fire one poll tick — it reaches the blocked list_windows (call #2) and awaits.
+    const tickRun = (async () => tickCb?.())();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // A fresh drop arrives mid-await → re-arms on 77, bumping pollGen to 2.
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease(); // re-armed on 77, gen = 2.
+
+    // Resolve the STALE (gen-1) list as EMPTY → would detach the live 77, but the
+    // captured gen (1) ≠ live gen (2) must discard the result.
+    releaseTickList([]);
+    await tickRun;
+    await settleRelease();
+
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
+  });
+
+  it("detaches cleanly when the window vanishes between getPerchProbe and invoke", async () => {
+    const probe = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer: probe.renderer,
+      invoke,
+      getWindow,
+      listen,
+    });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+
+    // probe still ok, but the armed window is absent from the fresh list → first-tick detach.
+    invoke.mockImplementation(async () => []);
+    await tick();
+    expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
+  });
+
+  it("a mid-drag tick fires exit at most once and does not double-fire against the release", async () => {
+    const probe = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer: probe.renderer,
+      invoke,
+      getWindow,
+      listen,
+    });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+
+    // Mid-drag: perch still true on screen but the armed window has gone (re-grab) →
+    // first-tick unambiguous detach (one exit).
+    invoke.mockImplementation(async () => []);
+    await tick();
+    // The release then resolves over no window → onRelease pushes its own exit, but the
+    // poll already disarmed, so no poll double-fire.
+    invoke.mockImplementation(async () => [win({ x: 5000, y: 5000, windowNumber: 1 })]);
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+
+    // Exactly: one poll exit + one release exit = 2, never a poll double-fire on later ticks.
+    const before = pushed.filter((e) => e.event_name === "user.window_sit_exit").length;
+    await tick();
+    await tick();
+    const after = pushed.filter((e) => e.event_name === "user.window_sit_exit").length;
+    expect(after).toBe(before); // disarmed → no further poll exits.
+  });
+
+  it("stop() halts the poll — no exit after disposal", async () => {
+    const probe = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer: probe.renderer,
+      invoke,
+      getWindow,
+      listen,
+    });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+
+    source.stop();
+    invoke.mockImplementation(async () => []); // would be lost if polled.
+    await tick();
+    await tick();
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
   });
 });
