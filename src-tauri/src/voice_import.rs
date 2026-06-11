@@ -6,7 +6,9 @@
 use std::path::{Path, PathBuf};
 use serde::Serialize;
 use tauri::{command, AppHandle, Manager};
-use crate::import_fs::{sanitize_stem, derive_dest_stem, collides, ensure_within};
+use crate::import_fs::{
+    sanitize_stem, derive_dest_stem, collides, ensure_within, audio_sniff_kind, sniff_file,
+};
 
 /// Allowed audio file extensions (lowercase).
 const AUDIO_EXTS: [&str; 8] = ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"];
@@ -47,9 +49,15 @@ fn copy_into_references(
     if std::fs::metadata(&src).map_err(|_| "source file not found".to_string())?.len() > MAX_AUDIO_BYTES {
         return Err("source file too large".to_string());
     }
+    let kind = audio_sniff_kind(ext_lower).ok_or("unsupported audio type".to_string())?;
+    if !sniff_file(&src, kind)? {
+        return Err("unsupported audio type".to_string());
+    }
 
-    std::fs::create_dir_all(references_dir)
-        .map_err(|e| format!("create references dir failed: {e}"))?;
+    std::fs::create_dir_all(references_dir).map_err(|e| {
+        log::error!("create references dir failed at {}: {e}", references_dir.display());
+        "storage unavailable".to_string()
+    })?;
 
     let id = derive_dest_stem(&src, |candidate| {
         collides(&references_dir.join(candidate).join(format!("clip.{ext_lower}")))
@@ -57,10 +65,16 @@ fn copy_into_references(
 
     let dir = references_dir.join(&id);
     ensure_within(references_dir, &dir)?;
-    std::fs::create_dir_all(&dir).map_err(|e| format!("create references dir failed: {e}"))?;
+    std::fs::create_dir_all(&dir).map_err(|e| {
+        log::error!("create references dir failed at {}: {e}", dir.display());
+        "storage unavailable".to_string()
+    })?;
 
     let dest = dir.join(format!("clip.{ext_lower}"));
-    std::fs::copy(&src, &dest).map_err(|e| format!("copy failed: {e}"))?;
+    std::fs::copy(&src, &dest).map_err(|e| {
+        log::error!("copy to {} failed: {e}", dest.display());
+        "import failed".to_string()
+    })?;
 
     Ok(ImportedVoice {
         id,
@@ -76,7 +90,10 @@ fn remove_user_voice_at(references_dir: &Path, id: &str) -> Result<(), String> {
     let dir = references_dir.join(sanitize_stem(id));
     ensure_within(references_dir, &dir)?;
     if dir.exists() {
-        std::fs::remove_dir_all(&dir).map_err(|e| format!("remove failed: {e}"))?;
+        std::fs::remove_dir_all(&dir).map_err(|e| {
+            log::error!("remove {} failed: {e}", dir.display());
+            "remove failed".to_string()
+        })?;
     }
     Ok(())
 }
@@ -94,7 +111,10 @@ pub fn import_voice_file(app: AppHandle, src_path: String) -> Result<ImportedVoi
     let references_dir = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("app_data_dir unavailable: {e}"))?
+        .map_err(|e| {
+            log::error!("app_data_dir unavailable: {e}");
+            "storage unavailable".to_string()
+        })?
         .join("references");
 
     copy_into_references(&references_dir, &src, &ext_lower)
@@ -106,7 +126,10 @@ pub fn remove_user_voice(app: AppHandle, id: String) -> Result<(), String> {
     let references_dir = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("app_data_dir unavailable: {e}"))?
+        .map_err(|e| {
+            log::error!("app_data_dir unavailable: {e}");
+            "storage unavailable".to_string()
+        })?
         .join("references");
     remove_user_voice_at(&references_dir, &id)
 }
@@ -210,10 +233,49 @@ mod tests {
         std::fs::create_dir_all(references.join("Cat")).unwrap();
         std::fs::write(references.join("Cat").join("clip.wav"), b"existing").unwrap();
         let src = dir.join("Cat.wav");
-        std::fs::write(&src, b"new bytes").unwrap();
+        std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
 
         let imported = copy_into_references(&references, &src, "wav").unwrap();
         assert_ne!(imported.id, "Cat", "must not overwrite the existing dest");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_rejects_bogus_audio_magic_and_copies_nothing() {
+        let dir = unique_dir("bad_magic");
+        let references = dir.join("references");
+        let src = dir.join("fake.wav");
+        std::fs::write(&src, b"not really wav audio data").unwrap();
+
+        let res = copy_into_references(&references, &src, "wav");
+        assert!(res.is_err(), "non-WAV content must be rejected");
+        assert!(
+            !references.join("fake").exists(),
+            "no partial copy on sniff failure"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_accepts_valid_audio_magic() {
+        let dir = unique_dir("good_magic");
+        let references = dir.join("references");
+        let src = dir.join("real.ogg");
+        std::fs::write(&src, b"OggS\x00\x02\x00\x00\x00\x00\x00\x00").unwrap();
+
+        let imported = copy_into_references(&references, &src, "ogg").unwrap();
+        assert_eq!(imported.id, "real");
+        assert!(references.join("real").join("clip.ogg").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_errors_carry_no_path_separators() {
+        let dir = unique_dir("err_generic");
+        let src = dir.join("fake.wav");
+        std::fs::write(&src, b"not wav").unwrap();
+        let err = copy_into_references(&dir.join("references"), &src, "wav").unwrap_err();
+        assert!(!err.contains('/'), "error must not leak a path: {err:?}");
         std::fs::remove_dir_all(&dir).ok();
     }
 }

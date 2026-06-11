@@ -8,7 +8,7 @@
 use std::path::{Path, PathBuf};
 use serde::Serialize;
 use tauri::{command, AppHandle, Manager};
-use crate::import_fs::{sanitize_stem, derive_dest_stem, collides, ensure_within};
+use crate::import_fs::{sanitize_stem, derive_dest_stem, collides, ensure_within, sniff_file, SniffKind};
 
 /// Max accepted source size for a VRM import.
 const MAX_VRM_BYTES: u64 = 512 * 1024 * 1024;
@@ -40,8 +40,14 @@ fn copy_into_vrms(vrms_dir: &Path, src: &Path) -> Result<ImportedVrm, String> {
     if std::fs::metadata(&src).map_err(|_| "source file not found".to_string())?.len() > MAX_VRM_BYTES {
         return Err("source file too large".to_string());
     }
+    if !sniff_file(&src, SniffKind::Glb)? {
+        return Err("not a .vrm file".to_string());
+    }
 
-    std::fs::create_dir_all(vrms_dir).map_err(|e| format!("create vrms dir failed: {e}"))?;
+    std::fs::create_dir_all(vrms_dir).map_err(|e| {
+        log::error!("create vrms dir failed at {}: {e}", vrms_dir.display());
+        "storage unavailable".to_string()
+    })?;
 
     let stem = derive_dest_stem(&src, |candidate| {
         collides(&vrms_dir.join(format!("{candidate}.vrm")))
@@ -49,7 +55,10 @@ fn copy_into_vrms(vrms_dir: &Path, src: &Path) -> Result<ImportedVrm, String> {
     let dest = vrms_dir.join(format!("{stem}.vrm"));
     ensure_within(vrms_dir, &dest)?;
 
-    std::fs::copy(&src, &dest).map_err(|e| format!("copy failed: {e}"))?;
+    std::fs::copy(&src, &dest).map_err(|e| {
+        log::error!("copy to {} failed: {e}", dest.display());
+        "import failed".to_string()
+    })?;
 
     Ok(ImportedVrm {
         id: stem,
@@ -65,7 +74,10 @@ fn remove_user_vrm_at(vrms_dir: &Path, id: &str) -> Result<(), String> {
     let dest = vrms_dir.join(format!("{}.vrm", sanitize_stem(id)));
     ensure_within(vrms_dir, &dest)?;
     if dest.exists() {
-        std::fs::remove_file(&dest).map_err(|e| format!("remove failed: {e}"))?;
+        std::fs::remove_file(&dest).map_err(|e| {
+            log::error!("remove {} failed: {e}", dest.display());
+            "remove failed".to_string()
+        })?;
     }
     Ok(())
 }
@@ -76,7 +88,10 @@ pub fn import_vrm_file(app: AppHandle, src_path: String) -> Result<ImportedVrm, 
     let vrms_dir = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("app_data_dir unavailable: {e}"))?
+        .map_err(|e| {
+            log::error!("app_data_dir unavailable: {e}");
+            "storage unavailable".to_string()
+        })?
         .join("vrms");
     copy_into_vrms(&vrms_dir, &PathBuf::from(&src_path))
 }
@@ -87,7 +102,10 @@ pub fn remove_user_vrm(app: AppHandle, id: String) -> Result<(), String> {
     let vrms_dir = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("app_data_dir unavailable: {e}"))?
+        .map_err(|e| {
+            log::error!("app_data_dir unavailable: {e}");
+            "storage unavailable".to_string()
+        })?
         .join("vrms");
     remove_user_vrm_at(&vrms_dir, &id)
 }
@@ -159,11 +177,51 @@ mod tests {
         std::fs::create_dir_all(&vrms).unwrap();
         std::fs::write(vrms.join("Cat.vrm"), b"existing").unwrap();
         let src = dir.join("Cat.vrm");
-        std::fs::write(&src, b"new bytes").unwrap();
+        // Valid GLB magic so the disambiguation path is reached, not the sniff gate.
+        std::fs::write(&src, b"glTF\x02\x00\x00\x00new bytes").unwrap();
 
         let imported = copy_into_vrms(&vrms, Path::new(&src)).unwrap();
         assert_ne!(imported.id, "Cat", "must not overwrite the existing dest");
         assert!(vrms.join("Cat.vrm").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_rejects_bogus_magic_and_copies_nothing() {
+        let dir = unique_dir("bad_magic");
+        let vrms = dir.join("vrms");
+        let src = dir.join("fake.vrm");
+        std::fs::write(&src, b"%PDF-1.4 not a vrm at all").unwrap();
+
+        let res = copy_into_vrms(&vrms, Path::new(&src));
+        assert!(res.is_err(), "non-GLB content must be rejected");
+        assert!(
+            !vrms.join("fake.vrm").exists(),
+            "no partial copy on sniff failure"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_accepts_valid_glb_magic() {
+        let dir = unique_dir("good_magic");
+        let vrms = dir.join("vrms");
+        let src = dir.join("real.vrm");
+        std::fs::write(&src, b"glTF\x02\x00\x00\x00binary chunk").unwrap();
+
+        let imported = copy_into_vrms(&vrms, Path::new(&src)).unwrap();
+        assert_eq!(imported.id, "real");
+        assert!(vrms.join("real.vrm").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_errors_carry_no_path_separators() {
+        let dir = unique_dir("err_generic");
+        let src = dir.join("fake.vrm");
+        std::fs::write(&src, b"not a vrm").unwrap();
+        let err = copy_into_vrms(&dir.join("vrms"), Path::new(&src)).unwrap_err();
+        assert!(!err.contains('/'), "error must not leak a path: {err:?}");
         std::fs::remove_dir_all(&dir).ok();
     }
 }
