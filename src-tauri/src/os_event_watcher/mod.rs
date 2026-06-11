@@ -91,6 +91,8 @@ pub struct WindowAtPoint {
     pub height: f64,
     pub name: Option<String>,
     pub pid: i32,
+    /// Stable CoreGraphics window identity (`kCGWindowNumber`).
+    pub window_number: u32,
 }
 
 /// Lists every foreign on-screen window in front-to-back (topmost first) order,

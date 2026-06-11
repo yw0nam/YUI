@@ -35,6 +35,7 @@ const K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY: CGWindowListOption = 1 << 0;
 #[repr(i32)]
 #[allow(dead_code)]
 enum CFNumberType {
+    Int64 = 4,
     Int32 = 9,
     Double = 13,
 }
@@ -79,6 +80,7 @@ extern "C" {
 // Static CGWindowList property keys (declared in CoreGraphics).
 #[link(name = "CoreGraphics", kind = "framework")]
 extern "C" {
+    static kCGWindowNumber: CFStringRef;
     static kCGWindowOwnerPID: CFStringRef;
     static kCGWindowName: CFStringRef;
     static kCGWindowLayer: CFStringRef;
@@ -309,6 +311,7 @@ pub struct WindowRect {
     pub rect: ScreenRect,
     pub pid: i32,
     pub name: Option<String>,
+    pub window_number: u32,
 }
 
 /// Reads a bounds CFDictionary (`kCGWindowBounds`) into a ScreenRect.
@@ -350,6 +353,7 @@ fn window_rect_to_at_point(w: WindowRect) -> WindowAtPoint {
         height: w.rect.height,
         name: w.name,
         pid: w.pid,
+        window_number: w.window_number,
     }
 }
 
@@ -408,6 +412,20 @@ fn enumerate_windows() -> Vec<WindowRect> {
             out
         };
 
+        // Window number: stable CGWindowID identity (read i64, cast u32).
+        let window_number = unsafe {
+            let v = CFDictionaryGetValue(dict, kCGWindowNumber);
+            if v.is_null() {
+                continue;
+            }
+            let mut out: i64 = 0;
+            if !CFNumberGetValue(v, CFNumberType::Int64 as i32, &mut out as *mut i64 as *mut c_void)
+            {
+                continue;
+            }
+            out as u32
+        };
+
         // Bounds rect.
         let rect = unsafe {
             let bounds_dict = CFDictionaryGetValue(dict, kCGWindowBounds);
@@ -430,7 +448,7 @@ fn enumerate_windows() -> Vec<WindowRect> {
             }
         };
 
-        collected.push(WindowRect { rect, pid, name });
+        collected.push(WindowRect { rect, pid, name, window_number });
     }
 
     unsafe { CFRelease(windows) };
@@ -677,6 +695,7 @@ mod tests {
             rect: ScreenRect { x, y, width: w, height: h },
             pid,
             name: None,
+            window_number: 0,
         }
     }
 
