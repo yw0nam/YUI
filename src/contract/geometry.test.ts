@@ -18,7 +18,7 @@ describe("ScreenRect", () => {
 });
 
 describe("WindowRect", () => {
-  it("ScreenRect를 확장하고 name(null 허용)·pid를 더한다", () => {
+  it("ScreenRect를 확장하고 name(null 허용)·pid·windowNumber를 더한다", () => {
     const win: WindowRect = {
       x: 0,
       y: 0,
@@ -26,15 +26,25 @@ describe("WindowRect", () => {
       height: 720,
       name: "Safari",
       pid: 4242,
+      windowNumber: 88,
     };
     const asRect: ScreenRect = win;
     expect(asRect.width).toBe(1280);
     expect(win.pid).toBe(4242);
+    expect(win.windowNumber).toBe(88);
     expectTypeOf<WindowRect["name"]>().toEqualTypeOf<string | null>();
   });
 
   it("name은 null일 수 있다", () => {
-    const win: WindowRect = { x: 0, y: 0, width: 1, height: 1, name: null, pid: 1 };
+    const win: WindowRect = {
+      x: 0,
+      y: 0,
+      width: 1,
+      height: 1,
+      name: null,
+      pid: 1,
+      windowNumber: 1,
+    };
     expect(win.name).toBeNull();
   });
 });
