@@ -30,3 +30,41 @@ export const FALL_MAX_DURATION_S = 1.2;
  * suneru follow-ons) can only be set after auditioning the clips on the rig.
  */
 export const FALLING_SPEED = 1.0;
+
+/** Motion id played while the integrator runs. */
+export const FALLING_MOTION_ID = "falling";
+
+/** Oneshot landing motion, played to completion before the reaction. */
+export const LANDING_MOTION_ID = "landing";
+
+/**
+ * Reaction motion after landing settles (the sulk). Swappable.
+ *
+ * PHASE-0 AUDITION DEPENDENT — reaction beat choice is tied to the landing
+ * clip's settle frame; "suneru" is the current pick pending rig audition.
+ */
+export const LANDING_REACTION_ID = "suneru";
+
+/**
+ * Startled pre-beat is deferred. Kept as a flag so the beat can be re-added
+ * between landing and reacting without reshaping the state machine.
+ */
+export const STARTLED_ENABLED = false;
+
+/**
+ * Cadence throttle for the per-frame window Y-step (#143 U6). The integrator
+ * computes Y every frame, but an IPC `setPosition` is issued only when the
+ * accumulated delta crosses this many logical px AND the min interval elapsed,
+ * capping IPC load without making the fall look stepped.
+ */
+export const SETPOS_MIN_DELTA_PX = 1;
+
+/** Min seconds between issued setPosition calls (~30 Hz cap). */
+export const SETPOS_MIN_INTERVAL_S = 1 / 30;
+
+/**
+ * Per-await deadline (ms) for the start() geometry probes. A hung
+ * getWorkArea/getWindowGeom must fall back to Phase-1 idle, never freeze
+ * mid-detach (must-fix #5).
+ */
+export const FALL_GEOMETRY_TIMEOUT_MS = 1000;
