@@ -90,8 +90,9 @@ export interface FallSequenceDeps {
   /** Read once by the caller (matchMedia). Skips the animated plunge. */
   reducedMotion: boolean;
   /**
-   * Restore normal camera framing (perch zoom hand-back). Called once on idle
-   * entry — sequence completion or fallback — never on cancel (takeover owns it).
+   * Restore normal camera framing (perch zoom hand-back). Called exactly once
+   * per sequence, on idle entry (completion or fallback) or on cancel of an
+   * active sequence — the camera never stays at perch zoom.
    */
   restoreFraming?(): void;
   /**
@@ -133,6 +134,8 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
   let captured = 0;
   let unsubPreempt: (() => void) | null = null;
   let unTick: (() => void) | null = null;
+  /** Once-per-sequence latch for restoreFraming (reset on each begin). */
+  let framingRestored = false;
 
   /** Active iff a sequence is mid-flight (start() is ignored in these phases). */
   function isActive(): boolean {
@@ -165,8 +168,16 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
     deps.invalidateMotionWaits?.();
   }
 
+  /** Restore framing exactly once per sequence. */
+  function restoreFramingOnce(): void {
+    if (framingRestored) return;
+    framingRestored = true;
+    deps.restoreFraming?.();
+  }
+
   /** Hard abort: tick gone, no transitions, no forced idle (takeover owns the character). */
   function cancel(): void {
+    if (isActive()) restoreFramingOnce(); // hand the perch zoom back even on takeover.
     phase = FallState.Cancelled;
     teardown();
   }
@@ -174,7 +185,7 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
   /** Phase-1 fallback: no animated fall — straight to idle motion. */
   function fallbackToIdle(): void {
     teardown();
-    deps.restoreFraming?.();
+    restoreFramingOnce();
     deps.playMotion(null);
     phase = FallState.Idle;
   }
@@ -192,7 +203,7 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
     if (aborted()) return;
 
     teardown();
-    deps.restoreFraming?.();
+    restoreFramingOnce();
     deps.playMotion(null);
     phase = FallState.Idle;
   }
@@ -256,6 +267,7 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
     // Capture generation FIRST so any preemption from here on is detectable.
     captured = deps.motionGeneration();
     phase = FallState.Detaching;
+    framingRestored = false;
 
     unsubPreempt = deps.onMotionPreempted(() => {
       // Any supersession during the sequence is a takeover — abort, no forced idle.
