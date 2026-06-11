@@ -70,6 +70,8 @@ interface QuickControlsOptions {
   endpointsSettings: EndpointsSettingsStore;
   /** placeholder로 보여줄 bundled config 기본 엔드포인트(미로드 시 undefined). */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
+  /** 오버라이드가 없을 때 음성 엔진 세그가 반영할 bundled config 기본 provider(미로드 시 undefined). */
+  getDefaultProvider?: () => "openai" | "irodori" | undefined;
   /** 세션 진단(컨텍스트 사용량·마지막 압축). window variant에서만 세션 섹션을 그린다. */
   sessionDiagnostics?: SessionDiagnosticsStore;
   /** 현재 세션 id 포인터. "새 대화 시작"이 진단과 함께 비운다. */
@@ -105,9 +107,20 @@ const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = [
   { key: "stt_base_url", label: "음성 인식(STT) 서버 URL", url: true },
   { key: "tts_base_url", label: "음성 합성(TTS) 서버 URL", url: true },
   { key: "irodori_base_url", label: "irodori 서버 URL", url: true },
+  { key: "broker_base_url", label: "표현 브로커(Broker) URL", url: true },
   { key: "chat_model", label: "채팅 모델", url: false },
 ];
 const ENDPOINT_URL_ERROR = "올바른 URL이 아니에요 (http:// 또는 https://)";
+
+// 음성 엔진 세그먼트(2칸) — tts_provider 오버라이드를 구동. 효과적 provider를 반영한다.
+const VOICE_ENGINES = ["irodori", "openai"] as const;
+type VoiceEngine = (typeof VOICE_ENGINES)[number];
+const VOICE_ENGINE_LABELS: Record<VoiceEngine, string> = {
+  irodori: "irodori",
+  openai: "OpenAI 호환",
+};
+const SPEAKER_OPENAI_HINT =
+  "irodori 전용이에요. OpenAI 호환 엔진은 서버에 설정된 voice로 말해요.";
 
 export const PREVIEW_PEAK_RMS = 0.15;
 const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
@@ -182,6 +195,7 @@ export function createQuickControls({
   getDefaultInstructions,
   endpointsSettings,
   getEndpointDefaults,
+  getDefaultProvider,
   sessionDiagnostics,
   sessionStore,
 }: QuickControlsOptions): QuickControls {
@@ -203,6 +217,11 @@ export function createQuickControls({
   const segButtonsHtml = REASONING_EFFORTS.map(
     (e) =>
       `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${SEG_LABELS[e]}</button>`,
+  ).join("");
+
+  const voiceEngineButtonsHtml = VOICE_ENGINES.map(
+    (p) =>
+      `<button class="yui-seg__btn" type="button" role="radio" data-provider="${p}" aria-checked="false" tabindex="-1">${VOICE_ENGINE_LABELS[p]}</button>`,
   ).join("");
 
   // 엔드포인트 필드 행. 라벨/placeholder/value는 빈 채로 두고 reflectEndpoints가 채운다.
@@ -331,6 +350,14 @@ export function createQuickControls({
         <div class="yui-quick__divider" aria-hidden="true"></div>
 
         <span class="yui-quick__section">화자 · 音声</span>
+        <div class="yui-field-row">
+          <span class="yui-field-row__label">음성 엔진</span>
+          <span class="yui-field-row__sub">목소리를 합성하는 방식</span>
+          <div class="yui-seg yui-seg--2" role="radiogroup" aria-label="음성 엔진" style="--seg:0;">
+            <span class="yui-seg__ind" aria-hidden="true"></span>
+            ${voiceEngineButtonsHtml}
+          </div>
+        </div>
         <div class="yui-spk-scroll">
           <div class="yui-spks" role="radiogroup" aria-label="화자"></div>
         </div>
@@ -341,6 +368,7 @@ export function createQuickControls({
             <span class="yui-spk__soon">준비 중</span>
           </button>
         </div>
+        <p class="yui-spks-hint" role="status" hidden>${SPEAKER_OPENAI_HINT}</p>
 
         <div class="yui-quick__divider" aria-hidden="true"></div>
 
@@ -453,8 +481,14 @@ export function createQuickControls({
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar")!;
   const popOutBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
-  const segEl = el.querySelector<HTMLDivElement>(".yui-seg")!;
-  const segButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+  const segEl = el.querySelector<HTMLDivElement>(".yui-field-row .yui-seg:not(.yui-seg--2)")!;
+  const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+  // 음성 엔진 세그(2칸) + 화자 비활성 노드(캐릭터 탭).
+  const voiceSegEl = el.querySelector<HTMLDivElement>(".yui-seg--2")!;
+  const voiceSegButtons = Array.from(voiceSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+  const spkScrollEl = el.querySelector<HTMLDivElement>(".yui-spk-scroll")!;
+  const spkFootEl = el.querySelector<HTMLDivElement>(".yui-spk-foot")!;
+  const spksHintEl = el.querySelector<HTMLParagraphElement>(".yui-spks-hint")!;
   const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
   const epResetBtn = el.querySelector<HTMLButtonElement>(".yui-ep-reset")!;
@@ -540,6 +574,31 @@ export function createQuickControls({
     if (document.activeElement !== instructionsEl && instructionsEl.value !== a.instructions) {
       instructionsEl.value = a.instructions;
     }
+  }
+
+  // 효과적 음성 엔진 — 유효한 오버라이드가 있으면 그것, 없으면 bundled 기본값, 최종 폴백 irodori.
+  function effectiveProvider(): VoiceEngine {
+    const ov = endpointsSettings.get().tts_provider;
+    if (ov === "irodori" || ov === "openai") return ov;
+    const def = getDefaultProvider?.();
+    return def === "openai" ? "openai" : "irodori";
+  }
+
+  // 음성 엔진 세그 + 화자 목록 활성/비활성을 효과적 provider에 맞춰 그린다.
+  function reflectVoiceEngine(): void {
+    const eff = effectiveProvider();
+    const idx = VOICE_ENGINES.indexOf(eff);
+    voiceSegButtons.forEach((btn, i) => {
+      const selected = i === idx;
+      btn.setAttribute("aria-checked", String(selected));
+      btn.tabIndex = selected ? 0 : -1;
+    });
+    voiceSegEl.style.setProperty("--seg", String(Math.max(0, idx)));
+    // openai는 서버 voice로 말하므로 화자 선택을 비활성 + 안내한다.
+    const openai = eff === "openai";
+    spkScrollEl.classList.toggle("is-disabled", openai);
+    spkFootEl.classList.toggle("is-disabled", openai);
+    spksHintEl.hidden = !openai;
   }
 
   // URL 필드 한 칸의 invalid 상태(빈 값=에러 아님)를 토글한다.
@@ -1248,6 +1307,7 @@ export function createQuickControls({
     reflectVad();
     reflectAgent();
     reflectEndpoints();
+    reflectVoiceEngine();
     reflectSession();
     renderVrms();
     renderSpeakers();
@@ -1379,6 +1439,41 @@ export function createQuickControls({
     } else if (e.key === "End") {
       e.preventDefault();
       selectEffort(REASONING_EFFORTS.length - 1, true);
+    }
+  }
+
+  // ── 캐릭터 섹션: 음성 엔진(tts_provider) 세그먼트 ──
+
+  function selectVoiceEngine(index: number, focus = false): void {
+    const clamped = Math.min(VOICE_ENGINES.length - 1, Math.max(0, index));
+    const provider = VOICE_ENGINES[clamped];
+    endpointsSettings.set({ tts_provider: provider });
+    log.info("음성 엔진 변경", { provider });
+    // store 구독(unsubscribeEndpoints)이 reflectVoiceEngine으로 시각/aria/화자 비활성을 갱신한다.
+    if (focus) voiceSegButtons[clamped]?.focus();
+  }
+
+  function handleVoiceSegClick(e: MouseEvent): void {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
+    if (!btn) return;
+    selectVoiceEngine(voiceSegButtons.indexOf(btn));
+  }
+
+  function handleVoiceSegKeydown(e: KeyboardEvent): void {
+    const current = voiceSegButtons.findIndex((b) => b.getAttribute("aria-checked") === "true");
+    const base = current < 0 ? 0 : current;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      selectVoiceEngine(base + 1, true);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      selectVoiceEngine(base - 1, true);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      selectVoiceEngine(0, true);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      selectVoiceEngine(VOICE_ENGINES.length - 1, true);
     }
   }
 
@@ -1528,7 +1623,12 @@ export function createQuickControls({
   const unsubscribeLipsync = lipsync.subscribe(() => { if (openState) reflectGain(); });
   const unsubscribeVad = vad.subscribe(() => { if (openState) reflectVad(); });
   const unsubscribeAgent = agentSettings.subscribe(() => { if (openState) reflectAgent(); });
-  const unsubscribeEndpoints = endpointsSettings.subscribe(() => { if (openState) reflectEndpoints(); });
+  const unsubscribeEndpoints = endpointsSettings.subscribe(() => {
+    if (openState) {
+      reflectEndpoints();
+      reflectVoiceEngine();
+    }
+  });
   // store 갱신(직접 select·다른 창 reloadFromStorage)을 active 행에 반영.
   // 스왑 진행 중엔 건너뛴다 — finally의 renderVrms가 로딩 해제 후 최종 그림을 맡는다.
   const unsubscribeVrm = vrmSelection.subscribe(() => {
@@ -1559,6 +1659,8 @@ export function createQuickControls({
   tablistEl.addEventListener("keydown", handleTabKeydown);
   segEl.addEventListener("click", handleSegClick);
   segEl.addEventListener("keydown", handleSegKeydown);
+  voiceSegEl.addEventListener("click", handleVoiceSegClick);
+  voiceSegEl.addEventListener("keydown", handleVoiceSegKeydown);
   vrmsEl.addEventListener("keydown", handleVrmKeydown);
   spksEl.addEventListener("keydown", handleSpkKeydown);
   instructionsEl.addEventListener("input", handleInstructionsInput);
@@ -1610,6 +1712,8 @@ export function createQuickControls({
     tablistEl.removeEventListener("keydown", handleTabKeydown);
     segEl.removeEventListener("click", handleSegClick);
     segEl.removeEventListener("keydown", handleSegKeydown);
+    voiceSegEl.removeEventListener("click", handleVoiceSegClick);
+    voiceSegEl.removeEventListener("keydown", handleVoiceSegKeydown);
     vrmsEl.removeEventListener("keydown", handleVrmKeydown);
     spksEl.removeEventListener("keydown", handleSpkKeydown);
     instructionsEl.removeEventListener("input", handleInstructionsInput);

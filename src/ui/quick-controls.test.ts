@@ -456,7 +456,7 @@ describe("createQuickControls — gain row", () => {
 
   // ── 엔드포인트 섹션(#95) ───────────────────────────────────────────────────
 
-  it("renders 5 endpoint fields (4 url + chat_model) in a collapsed details", () => {
+  it("renders 6 endpoint fields (5 url + chat_model) in a collapsed details", () => {
     const qc = buildQc();
     qc.open();
 
@@ -466,8 +466,15 @@ describe("createQuickControls — gain row", () => {
     const keys = Array.from(qc.el.querySelectorAll<HTMLDivElement>(".yui-endpoints .yui-input-row")).map(
       (r) => r.dataset.epField,
     );
-    expect(keys).toEqual(["chat_base_url", "stt_base_url", "tts_base_url", "irodori_base_url", "chat_model"]);
-    expect(qc.el.querySelectorAll(".yui-endpoints .yui-ep-input--url").length).toBe(4);
+    expect(keys).toEqual([
+      "chat_base_url",
+      "stt_base_url",
+      "tts_base_url",
+      "irodori_base_url",
+      "broker_base_url",
+      "chat_model",
+    ]);
+    expect(qc.el.querySelectorAll(".yui-endpoints .yui-ep-input--url").length).toBe(5);
 
     qc.dispose();
   });
@@ -529,6 +536,106 @@ describe("createQuickControls — gain row", () => {
 
     qc.el.querySelector<HTMLButtonElement>(".yui-ep-reset")!.click();
     expect(endpointsSettings.get().chat_base_url).toBe("");
+    expect(input.value).toBe("");
+
+    qc.dispose();
+  });
+
+  // ── voice engine (tts_provider) toggle + broker URL row (#136) ─────────────
+
+  function voiceSegButtons(qc: { el: HTMLElement }): HTMLButtonElement[] {
+    const seg = qc.el.querySelector<HTMLDivElement>(".yui-seg--2")!;
+    return Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+  }
+
+  it("renders a 2-segment voice-engine control in the character panel", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    const seg = qc.el.querySelector<HTMLDivElement>(".yui-seg--2");
+    expect(seg).not.toBeNull();
+    expect(seg!.getAttribute("role")).toBe("radiogroup");
+    // Lives inside the character tab panel, alongside the speaker list.
+    const charPanel = qc.el.querySelector<HTMLElement>("#yui-panel-char")!;
+    expect(charPanel.contains(seg!)).toBe(true);
+    expect(charPanel.querySelector(".yui-spk-scroll")).not.toBeNull();
+
+    const btns = voiceSegButtons(qc);
+    expect(btns.map((b) => b.dataset.provider)).toEqual(["irodori", "openai"]);
+    expect(btns[1].textContent).toContain("OpenAI");
+
+    qc.dispose();
+  });
+
+  it("reflects the effective provider: bundled default when no override", () => {
+    const qc = buildQc({ getDefaultProvider: () => "openai" });
+    qc.open();
+    const btns = voiceSegButtons(qc);
+    expect(btns[0].getAttribute("aria-checked")).toBe("false"); // irodori
+    expect(btns[1].getAttribute("aria-checked")).toBe("true"); // openai
+    qc.dispose();
+  });
+
+  it("reflects the effective provider: override wins over the default", () => {
+    endpointsSettings.set({ tts_provider: "openai" });
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+    const btns = voiceSegButtons(qc);
+    expect(btns[1].getAttribute("aria-checked")).toBe("true"); // openai override
+    qc.dispose();
+  });
+
+  it("clicking 'OpenAI' persists the override and disables the speaker list with a hint", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    const btns = voiceSegButtons(qc);
+    btns[1].click(); // openai
+    expect(endpointsSettings.get().tts_provider).toBe("openai");
+    expect(btns[1].getAttribute("aria-checked")).toBe("true");
+
+    const charPanel = qc.el.querySelector<HTMLElement>("#yui-panel-char")!;
+    expect(charPanel.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(true);
+    expect(charPanel.querySelector(".yui-spk-foot")!.classList.contains("is-disabled")).toBe(true);
+    const hint = charPanel.querySelector<HTMLElement>(".yui-spks-hint")!;
+    expect(hint).not.toBeNull();
+    expect(hint.hidden).toBe(false);
+    expect(hint.textContent).toContain("irodori 전용");
+
+    qc.dispose();
+  });
+
+  it("clicking 'irodori' re-enables the speaker list and hides the hint", () => {
+    endpointsSettings.set({ tts_provider: "openai" });
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    const btns = voiceSegButtons(qc);
+    btns[0].click(); // irodori
+    expect(endpointsSettings.get().tts_provider).toBe("irodori");
+
+    const charPanel = qc.el.querySelector<HTMLElement>("#yui-panel-char")!;
+    expect(charPanel.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(false);
+    expect(charPanel.querySelector<HTMLElement>(".yui-spks-hint")!.hidden).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("renders a broker_base_url endpoint row that persists and clears on reset", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const row = qc.el.querySelector<HTMLDivElement>('.yui-input-row[data-ep-field="broker_base_url"]');
+    expect(row).not.toBeNull();
+    const input = row!.querySelector<HTMLInputElement>(".yui-ep-input")!;
+    expect(input.classList.contains("yui-ep-input--url")).toBe(true);
+
+    input.value = "http://localhost:3201/mcp";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(endpointsSettings.get().broker_base_url).toBe("http://localhost:3201/mcp");
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-ep-reset")!.click();
+    expect(endpointsSettings.get().broker_base_url).toBe("");
     expect(input.value).toBe("");
 
     qc.dispose();

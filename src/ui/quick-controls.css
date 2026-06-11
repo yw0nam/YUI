@@ -439,6 +439,15 @@
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
+/* 2칸 변형 — 음성 엔진 토글. 인디케이터 너비/스텝을 2등분에 맞춘다. */
+.yui-seg--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.yui-seg--2 .yui-seg__ind {
+  width: calc((100% - 0.36rem) / 2);
+}
+
 /* ── 지침 textarea — 어두운 scrim 필드, focus → 앰버 테두리 ── */
 .yui-textarea-wrap {
   margin-top: 0.5rem;
@@ -1045,6 +1054,22 @@
   margin-top: 0.1rem;
   border-top: 1px solid var(--yui-edge);
   padding-top: 0.1rem;
+}
+
+/* OpenAI 호환 엔진일 때 화자 선택을 비활성화 — 클릭/포커스 차단 + 흐리게. */
+.yui-spk-scroll.is-disabled,
+.yui-spk-foot.is-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  filter: grayscale(1);
+}
+
+/* 화자 비활성 안내 — openai 엔진은 서버 voice로 말한다는 정적 status. */
+.yui-spks-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--yui-text-mute);
 }
 
 /* ── 화자 옵션(radio) ── */

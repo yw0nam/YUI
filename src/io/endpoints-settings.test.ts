@@ -24,7 +24,9 @@ const EMPTY: EndpointOverrides = {
   stt_base_url: "",
   tts_base_url: "",
   irodori_base_url: "",
+  broker_base_url: "",
   chat_model: "",
+  tts_provider: "",
 };
 
 function baseConfig(): EndpointsConfig {
@@ -398,6 +400,7 @@ describe("mergeEndpoints", () => {
 
   it("applies all four URL overrides + chat_model", () => {
     const out = mergeEndpoints(baseConfig(), {
+      ...EMPTY,
       chat_base_url: "http://c",
       stt_base_url: "http://s",
       tts_base_url: "http://t",
@@ -463,6 +466,125 @@ describe("mergeEndpoints", () => {
     expect(out.chat_endpoint).toBe(base.chat_endpoint);
     expect(out.irodori_speaker).toBe(base.irodori_speaker);
     expect(out.tts_provider).toBe(base.tts_provider);
+  });
+
+  // ── broker_base_url override ──
+
+  it("applies a valid broker_base_url override", () => {
+    const out = mergeEndpoints(baseConfig(), { ...EMPTY, broker_base_url: "http://localhost:3201/mcp" });
+    expect(out.broker_base_url).toBe("http://localhost:3201/mcp");
+  });
+
+  it("trims a broker_base_url override before applying", () => {
+    const out = mergeEndpoints(baseConfig(), { ...EMPTY, broker_base_url: "  https://broker.example/mcp  " });
+    expect(out.broker_base_url).toBe("https://broker.example/mcp");
+  });
+
+  it("ignores an invalid broker_base_url override (keeps base default)", () => {
+    const base = baseConfig();
+    base.broker_base_url = "http://localhost:3201/mcp";
+    const out = mergeEndpoints(base, { ...EMPTY, broker_base_url: "localhost:3201" });
+    expect(out.broker_base_url).toBe("http://localhost:3201/mcp");
+  });
+
+  it("ignores an empty broker_base_url override (keeps base default)", () => {
+    const base = baseConfig();
+    base.broker_base_url = "http://localhost:3201/mcp";
+    const out = mergeEndpoints(base, { ...EMPTY, broker_base_url: "" });
+    expect(out.broker_base_url).toBe("http://localhost:3201/mcp");
+  });
+
+  // ── tts_provider override ──
+
+  it("applies tts_provider = 'openai'", () => {
+    const out = mergeEndpoints(baseConfig(), { ...EMPTY, tts_provider: "openai" });
+    expect(out.tts_provider).toBe("openai");
+  });
+
+  it("applies tts_provider = 'irodori'", () => {
+    const base = baseConfig();
+    base.tts_provider = "openai";
+    const out = mergeEndpoints(base, { ...EMPTY, tts_provider: "irodori" });
+    expect(out.tts_provider).toBe("irodori");
+  });
+
+  it("ignores an empty tts_provider override (keeps base default)", () => {
+    const base = baseConfig();
+    const out = mergeEndpoints(base, { ...EMPTY, tts_provider: "" });
+    expect(out.tts_provider).toBe(base.tts_provider);
+  });
+
+  it("ignores an unknown tts_provider override (keeps base default)", () => {
+    const base = baseConfig();
+    const out = mergeEndpoints(base, { ...EMPTY, tts_provider: "fishspeech" });
+    expect(out.tts_provider).toBe(base.tts_provider);
+  });
+
+  it("does not URL-validate tts_provider", () => {
+    const out = mergeEndpoints(baseConfig(), { ...EMPTY, tts_provider: "openai" });
+    expect(out.tts_provider).toBe("openai");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// broker_base_url + tts_provider — store set/get/persist/reload/reset
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createEndpointsSettings — broker_base_url + tts_provider overrides", () => {
+  it("set/get a broker_base_url override and persist it", () => {
+    const storage: EndpointsStorage = { load: () => null, save: vi.fn() };
+    const store = createEndpointsSettings({ storage });
+    store.set({ broker_base_url: "http://localhost:3201/mcp" });
+    expect(store.get().broker_base_url).toBe("http://localhost:3201/mcp");
+    expect(storage.save).toHaveBeenCalledWith({ ...EMPTY, broker_base_url: "http://localhost:3201/mcp" });
+  });
+
+  it("set/get a tts_provider override and persist it", () => {
+    const storage: EndpointsStorage = { load: () => null, save: vi.fn() };
+    const store = createEndpointsSettings({ storage });
+    store.set({ tts_provider: "openai" });
+    expect(store.get().tts_provider).toBe("openai");
+    expect(storage.save).toHaveBeenCalledWith({ ...EMPTY, tts_provider: "openai" });
+  });
+
+  it("coerces a garbage tts_provider value to '' on set (no throw)", () => {
+    const store = createEndpointsSettings();
+    store.set({ tts_provider: "fishspeech" as unknown as string });
+    expect(store.get().tts_provider).toBe("");
+  });
+
+  it("coerces a non-string tts_provider value to '' on set", () => {
+    const store = createEndpointsSettings();
+    store.set({ tts_provider: 7 as unknown as string });
+    expect(store.get().tts_provider).toBe("");
+  });
+
+  it("loads a valid tts_provider from storage and coerces a garbage one to ''", () => {
+    const good: EndpointsStorage = { load: () => ({ ...EMPTY, tts_provider: "irodori" }), save: vi.fn() };
+    expect(createEndpointsSettings({ storage: good }).get().tts_provider).toBe("irodori");
+    const bad: EndpointsStorage = {
+      load: () => ({ ...EMPTY, tts_provider: "garbage" } as unknown as EndpointOverrides),
+      save: vi.fn(),
+    };
+    expect(createEndpointsSettings({ storage: bad }).get().tts_provider).toBe("");
+  });
+
+  it("reset() clears both broker_base_url and tts_provider", () => {
+    const store = createEndpointsSettings({
+      initial: { ...EMPTY, broker_base_url: "http://localhost:3201/mcp", tts_provider: "openai" },
+    });
+    store.reset();
+    expect(store.get().broker_base_url).toBe("");
+    expect(store.get().tts_provider).toBe("");
+  });
+
+  it("reloadFromStorage applies externally-changed broker_base_url and tts_provider", () => {
+    const storage = makeMemStorage();
+    const store = createEndpointsSettings({ storage });
+    storage._data = { ...EMPTY, broker_base_url: "http://other:3201/mcp", tts_provider: "openai" };
+    store.reloadFromStorage();
+    expect(store.get().broker_base_url).toBe("http://other:3201/mcp");
+    expect(store.get().tts_provider).toBe("openai");
   });
 });
 
