@@ -11,8 +11,12 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { createSpeakerSelection, localStorageSpeakerStorage } from "./speaker-selection";
-import type { SpeakerOption, SpeakerSelectionStorage } from "./speaker-selection";
+import {
+  createSpeakerSelection,
+  localStorageSpeakerStorage,
+  localStorageUserSpeakerStorage,
+} from "./speaker-selection";
+import type { SpeakerOption, SpeakerSelectionStorage, UserSpeakerStorage } from "./speaker-selection";
 
 const SAMPLE: SpeakerOption[] = [
   { id: "carlotta", label: "Carlotta", ref_url: "/references/carlotta.wav" },
@@ -539,6 +543,282 @@ describe("localStorageSpeakerStorage", () => {
     expect(() => adapter.save("miko")).not.toThrow();
     expect(() => adapter.save(null)).not.toThrow();
 
+    if (saved !== undefined) (globalThis as any).localStorage = saved;
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User options — imported (source:"user") voices persist + merge with bundled (#148)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BUNDLED: SpeakerOption[] = [
+  { id: "carlotta", label: "Carlotta", ref_url: "/references/carlotta.wav" },
+  { id: "miko", label: "Miko", ref_url: "/references/miko.wav" },
+];
+
+const USER_CAT: SpeakerOption = {
+  id: "Cat",
+  label: "Cat",
+  ref_url: "asset://localhost/app-data/references/Cat/clip.mp3",
+  source: "user",
+};
+
+/** In-memory UserSpeakerStorage mirroring the VRM storage helper. */
+function makeUserMemStorage(): UserSpeakerStorage & { _data: SpeakerOption[] } {
+  let data: SpeakerOption[] = [];
+  return {
+    get _data() {
+      return data;
+    },
+    set _data(v: SpeakerOption[]) {
+      data = v;
+    },
+    load() {
+      return data.map((o) => ({ ...o }));
+    },
+    save(list) {
+      data = list.map((o) => ({ ...o }));
+    },
+  };
+}
+
+describe("createSpeakerSelection — user options merge", () => {
+  it("getOptions() returns bundled ∪ user", () => {
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
+    store.addUserVoice(USER_CAT);
+    const ids = store.getOptions().map((o) => o.id);
+    expect(ids).toEqual(["carlotta", "miko", "Cat"]);
+  });
+
+  it("list() also reflects user options (single source of truth)", () => {
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
+    store.addUserVoice(USER_CAT);
+    expect(store.list().map((o) => o.id)).toContain("Cat");
+  });
+
+  it("addUserVoice persists the user list via userStorage", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
+    store.addUserVoice(USER_CAT);
+    expect(userStorage._data).toEqual([USER_CAT]);
+  });
+
+  it("restores persisted user options on construction (survives reload)", () => {
+    const userStorage = makeUserMemStorage();
+    userStorage._data = [USER_CAT];
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
+    expect(store.getOptions().map((o) => o.id)).toContain("Cat");
+  });
+
+  it("a re-added user id updates in place (no duplicate)", () => {
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
+    store.addUserVoice(USER_CAT);
+    store.addUserVoice({ ...USER_CAT, label: "Renamed", ref_url: "asset://localhost/new.mp3" });
+    const cats = store.getOptions().filter((o) => o.id === "Cat");
+    expect(cats).toHaveLength(1);
+    expect(cats[0].ref_url).toBe("asset://localhost/new.mp3");
+  });
+
+  it("forces source:'user' on an added option regardless of input", () => {
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
+    store.addUserVoice({ ...USER_CAT, source: "bundled" });
+    const cat = store.getOptions().find((o) => o.id === "Cat");
+    expect(cat?.source).toBe("user");
+  });
+
+  it("a user option may be selected like a bundled one and persists the id", () => {
+    const storage = makeMemStorage();
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      storage,
+    });
+    store.addUserVoice(USER_CAT);
+    store.select("Cat");
+    expect(store.getActiveId()).toBe("Cat");
+    expect(storage._data).toBe("Cat");
+  });
+
+  it("a persisted user-option id resolves as the active override across reload", () => {
+    const storage = makeMemStorage();
+    const userStorage = makeUserMemStorage();
+    userStorage._data = [USER_CAT];
+    storage._data = "Cat";
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      storage,
+      userStorage,
+    });
+    expect(store.getActiveId()).toBe("Cat");
+  });
+});
+
+describe("createSpeakerSelection — removeUserVoice", () => {
+  it("removes the option and persists the shrunken list", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
+    store.addUserVoice(USER_CAT);
+    store.removeUserVoice("Cat");
+    expect(store.getOptions().map((o) => o.id)).not.toContain("Cat");
+    expect(userStorage._data).toEqual([]);
+  });
+
+  it("removing the currently-selected user option falls back to default + notifies", () => {
+    const storage = makeMemStorage();
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      storage,
+    });
+    store.addUserVoice(USER_CAT);
+    store.select("Cat");
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.removeUserVoice("Cat");
+
+    expect(store.getActiveId()).toBe("carlotta");
+    expect(storage._data).toBeNull();
+    expect(cb).toHaveBeenCalledOnce();
+    expect(cb).toHaveBeenCalledWith(BUNDLED[0]);
+  });
+
+  it("removing a non-selected user option does not churn the active selection", () => {
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
+    store.addUserVoice(USER_CAT);
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.removeUserVoice("Cat");
+    expect(store.getActiveId()).toBe("carlotta");
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("removing an unknown id is a no-op", () => {
+    const userStorage = makeUserMemStorage();
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
+    store.addUserVoice(USER_CAT);
+    store.removeUserVoice("ghost");
+    expect(store.getOptions().map((o) => o.id)).toContain("Cat");
+  });
+});
+
+describe("createSpeakerSelection — user id never clobbers a bundled id", () => {
+  it("addUserVoice with a bundled id is rejected (bundled wins)", () => {
+    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
+    store.addUserVoice({
+      id: "carlotta",
+      label: "Evil",
+      ref_url: "asset://localhost/evil.mp3",
+      source: "user",
+    });
+    const carlottas = store.getOptions().filter((o) => o.id === "carlotta");
+    expect(carlottas).toHaveLength(1);
+    expect(carlottas[0].source).toBeUndefined();
+    expect(carlottas[0].ref_url).toBe("/references/carlotta.wav");
+  });
+
+  it("a persisted user option colliding with a bundled id is dropped on load", () => {
+    const userStorage = makeUserMemStorage();
+    userStorage._data = [
+      { id: "miko", label: "Fake", ref_url: "asset://localhost/fake.mp3", source: "user" },
+    ];
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
+    const mikos = store.getOptions().filter((o) => o.id === "miko");
+    expect(mikos).toHaveLength(1);
+    expect(mikos[0].ref_url).toBe("/references/miko.wav");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// localStorageUserSpeakerStorage
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("localStorageUserSpeakerStorage", () => {
+  it("round-trips a user-options list through stubbed localStorage", () => {
+    const fakeStore: Record<string, string> = {};
+    (globalThis as any).localStorage = {
+      getItem: (k: string) => fakeStore[k] ?? null,
+      setItem: (k: string, v: string) => {
+        fakeStore[k] = v;
+      },
+      removeItem: (k: string) => {
+        delete fakeStore[k];
+      },
+    };
+
+    const adapter = localStorageUserSpeakerStorage();
+    adapter.save([USER_CAT]);
+    expect(adapter.load()).toEqual([USER_CAT]);
+
+    delete (globalThis as any).localStorage;
+  });
+
+  it("default key is 'yui.speaker.user'", () => {
+    const written: Array<[string, string]> = [];
+    (globalThis as any).localStorage = {
+      getItem: () => null,
+      setItem: (k: string, v: string) => written.push([k, v]),
+      removeItem: () => {},
+    };
+
+    const adapter = localStorageUserSpeakerStorage();
+    adapter.save([USER_CAT]);
+    expect(written[0][0]).toBe("yui.speaker.user");
+
+    delete (globalThis as any).localStorage;
+  });
+
+  it("returns [] for malformed persisted JSON", () => {
+    (globalThis as any).localStorage = {
+      getItem: () => "{not json",
+      setItem: () => {},
+      removeItem: () => {},
+    };
+    const adapter = localStorageUserSpeakerStorage();
+    expect(adapter.load()).toEqual([]);
+    delete (globalThis as any).localStorage;
+  });
+
+  it("drops entries missing id or ref_url on load", () => {
+    (globalThis as any).localStorage = {
+      getItem: () =>
+        JSON.stringify([USER_CAT, { label: "no id", ref_url: "/x.mp3" }, { id: "x" }]),
+      setItem: () => {},
+      removeItem: () => {},
+    };
+    const adapter = localStorageUserSpeakerStorage();
+    expect(adapter.load()).toEqual([USER_CAT]);
+    delete (globalThis as any).localStorage;
+  });
+
+  it("gracefully returns [] when localStorage is unavailable", () => {
+    const saved = (globalThis as any).localStorage;
+    delete (globalThis as any).localStorage;
+    const adapter = localStorageUserSpeakerStorage();
+    expect(() => adapter.load()).not.toThrow();
+    expect(adapter.load()).toEqual([]);
+    expect(() => adapter.save([USER_CAT])).not.toThrow();
     if (saved !== undefined) (globalThis as any).localStorage = saved;
   });
 });
