@@ -785,15 +785,16 @@ export function createQuickControls({
 
   function renderVrms(): void {
     const activeId = vrmSelection.getActiveId();
+    const options = vrmSelection.list();
     // roving tabindex는 마지막으로 화살표가 머문 행이 우선 — 없으면 active로 폴백.
-    const ids = vrmSelection.list().map((o) => o.id);
+    const ids = options.map((o) => o.id);
     const rovedId = vrmRovedId !== null && ids.includes(vrmRovedId) ? vrmRovedId : activeId;
     // 더 이상 목록에 없는 행을 편집 중이었다면 편집 상태를 정리한다.
     if (vrmRenamingId !== null && !ids.includes(vrmRenamingId)) vrmRenamingId = null;
     // innerHTML 재그림이 포커스를 가진 행을 파괴한다 — 가졌던 경우에만 복원하려고 미리 기록.
     const hadFocus = vrmsEl.contains(document.activeElement);
     vrmsEl.innerHTML = "";
-    for (const opt of vrmSelection.list()) {
+    for (const opt of options) {
       const isUser = opt.source === "user";
       const selected = opt.id === activeId;
       // user 행은 중첩 버튼/입력을 품으므로 div[role=radio]다(button 안의 button은 무효 HTML).
