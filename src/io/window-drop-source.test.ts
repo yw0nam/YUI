@@ -263,11 +263,9 @@ async function tick(): Promise<void> {
   await vi.advanceTimersByTimeAsync(1500);
 }
 
-/** Fire a release and flush the onRelease async chain. */
+/** Fire a release and flush the onRelease async chain (outerPosition/scaleFactor/invoke + arm). */
 async function settleRelease(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let i = 0; i < 8; i++) await Promise.resolve();
 }
 
 describe("window-drop-source — occlusion poll arm/hold (J1)", () => {
@@ -466,22 +464,34 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
   });
 
   it("an in-flight re-arm discards the stale tick result (S3 pollGen)", async () => {
+    // Drive the poll tick manually via a captured-callback interval so the await
+    // boundary is deterministic: start a tick (gen 1, list_windows blocked), let a
+    // fresh drop re-arm (gen 2) mid-await, then resolve the stale list as EMPTY.
+    // For the re-armed window 77 an empty list reads as an unambiguous loss and
+    // would detach on the FIRST tick — the pollGen guard must discard it instead.
+    let tickCb: (() => void) | null = null;
+    const fakeSetInterval = ((cb: () => void) => {
+      tickCb = cb;
+      return 1 as unknown as ReturnType<typeof setInterval>;
+    }) as typeof setInterval;
+    const fakeClearInterval = (() => {
+      tickCb = null;
+    }) as typeof clearInterval;
+
     const probe = makePerchSource();
     const armed = win({ name: "Armed", windowNumber: 42 });
     const fresh = win({ name: "Fresh", windowNumber: 77 });
     const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
     const { listen, fire } = makeListen();
 
-    // The first poll invoke blocks until we release it; meanwhile a fresh drop re-arms.
-    let releaseStaleList!: (v: WindowRect[]) => void;
-    const stalePending = new Promise<WindowRect[]>((res) => (releaseStaleList = res));
-    let firstListCall = true;
+    let releaseTickList!: (v: WindowRect[]) => void;
+    const tickPending = new Promise<WindowRect[]>((res) => (releaseTickList = res));
+    let call = 0;
     const invoke = vi.fn(async () => {
-      if (firstListCall) {
-        firstListCall = false;
-        return stalePending; // tick’s await hangs here.
-      }
-      return [fresh]; // re-drop + subsequent ticks see fresh.
+      call++;
+      if (call === 1) return [armed]; // drop #1 → arm 42.
+      if (call === 2) return tickPending; // poll tick (gen 1) → blocks on the await.
+      return [fresh]; // drop #2 (arm 77) + any later tick.
     });
 
     const source = createWindowDropSource({
@@ -490,38 +500,28 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
       invoke,
       getWindow,
       listen,
+      setInterval: fakeSetInterval,
+      clearInterval: fakeClearInterval,
     });
     await source.start();
 
-    // First drop arms on 42 (uses the blocking invoke for its own list — release it).
     fire({ point: { x: 0, y: 0 } });
-    // onRelease awaits the same blocking invoke; release with armed present so it arms.
-    releaseStaleList([armed]);
-    await settleRelease();
+    await settleRelease(); // armed on 42, gen = 1, tickCb captured.
 
-    // Re-arm the blocking gate for the next list call (the poll tick).
-    firstListCall = true;
-    const stale2 = new Promise<WindowRect[]>((res) => (releaseStaleList = res));
-    invoke.mockImplementation(async () => {
-      if (firstListCall) {
-        firstListCall = false;
-        return stale2;
-      }
-      return [fresh];
-    });
-
-    // Start a poll tick — it awaits the blocking list.
-    const pending = vi.advanceTimersByTimeAsync(1500);
+    // Fire one poll tick — it reaches the blocked list_windows (call #2) and awaits.
+    const tickRun = (async () => tickCb?.())();
+    await Promise.resolve();
     await Promise.resolve();
 
-    // A fresh drop arrives mid-await → re-arms on 77, bumping pollGen.
+    // A fresh drop arrives mid-await → re-arms on 77, bumping pollGen to 2.
     fire({ point: { x: 0, y: 0 } });
-    await settleRelease();
+    await settleRelease(); // re-armed on 77, gen = 2.
 
-    // Now release the STALE list as "armed (42) absent" — would normally detach,
-    // but pollGen mismatch must discard it.
-    releaseStaleList([fresh]);
-    await pending;
+    // Resolve the STALE (gen-1) list as EMPTY → would detach the live 77, but the
+    // captured gen (1) ≠ live gen (2) must discard the result.
+    releaseTickList([]);
+    await tickRun;
+    await settleRelease();
 
     expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
   });
