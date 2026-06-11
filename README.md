@@ -145,17 +145,29 @@ level with the `VITE_YUI_LOG_LEVEL` env var (`debug` · `info` · `warn` · `err
 
 ## Credits
 
-The motion assets (`public/motions/*.vrma`) are all extracted from the
+The motion assets (`public/motions/*.vrma`) come from three sources.
+
+Most clips are extracted from the
 [Mate Engine](https://github.com/shinyflvre/Mate-Engine) project by Shiny.
 They are used under Mate Engine's non-commercial terms: free for personal,
 study, and non-revenue use with attribution to Shiny; commercial use requires
 separate permission from Shiny.
 
+The `suneru` clip (`suneru.vrma`) is from necocoya's
+[EmoteSet_Free_v130](https://booth.pm/ja/items/1065089) (Unity Humanoid
+`06_suneru`, 拗ね = sulk/pout), attribution to necocoya. Modification/conversion
+and bundling-with-credit are permitted; standalone resale of the raw file is
+prohibited.
+
+The `falling` and `landing` clips (`falling_loop.vrma`, `landing.vrma`) are
+original works authored in Blender by the project author.
+
 ## Status
 
-YUI renders 10 emotions (existence-aware fallback) and 12 motions (idle, drag,
-happy, laugh, embarrassed, sheepish, calm, peek, sleeping, sit, window_sit,
-dance) with a Tier-1 ambient layer (blink · sway · breath · look-around) and
+YUI renders 10 emotions (existence-aware fallback) and 15 motions (idle, drag,
+falling, landing, happy, laugh, embarrassed, sheepish, calm, peek, sleeping,
+suneru, sit, window_sit, dance) with a Tier-1 ambient layer
+(blink · sway · breath · look-around) and
 amplitude-based lipsync. The dispatcher fires Tier-1 ambient client-side and
 Tier-2 co-working proactive utterances (presence + 10-min cadence, settings
 toggle default ON) through DND/debounce/rate-limit guards to the backend.

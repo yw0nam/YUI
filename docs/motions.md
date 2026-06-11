@@ -2,10 +2,14 @@
 
 Human-readable map of every motion id in [`configs/motions.json`](../configs/motions.json) — what it looks like, its playback policy, and the source clip it was extracted from. Keep this in sync with the registry.
 
-- **Source**: all clips are extracted from the [Mate Engine](https://github.com/shinyflvre/Mate-Engine) Unity project by Shiny (`Assets/MATE ENGINE - Animations/…`) to `.vrma` via the `unity-cli exec → YuiExport.YuiVrmaExport.ExportBatch` pipeline (30 FPS, T-pose reference, model-independent retarget). Durations are the source clip length. Used under Mate Engine's non-commercial terms — attribution to Shiny required; commercial use needs separate permission.
+- **Sources**: clips come from three origins.
+  - **[Mate Engine](https://github.com/shinyflvre/Mate-Engine)** (Shiny) — the bulk set, extracted from the Unity project (`Assets/MATE ENGINE - Animations/…`) to `.vrma` via the `unity-cli exec → YuiExport.YuiVrmaExport.ExportBatch` pipeline (30 FPS, T-pose reference, model-independent retarget). Used under Mate Engine's non-commercial terms — attribution to Shiny required; commercial use needs separate permission.
+  - **[necocoya — EmoteSet_Free_v130](https://booth.pm/ja/items/1065089)** — `suneru` only (Unity Humanoid `06_suneru`, 拗ね = sulk/pout). Attribution to necocoya required; modification/conversion and bundling-with-credit are permitted, standalone resale of the raw file is prohibited.
+  - **Original works** authored in Blender by the project author — `falling`, `landing`.
+- Durations are the source clip length.
 - **Pools**: `idle`, `sit`, `window_sit`, `dance` are single registry entries with a `variants[]` list and `variant_policy: "random"` — each trigger plays a random variant (immediate-repeat avoided). The character-facing id is the pool id; individual variant files are not separate registry entries.
 - **Triggers**: AI via `generate_express` `motion_id` plays any broker-published oneshot/pool; `idle` is the ambient baseline; `drag` is the reactive pickup; `window_sit` is a held state engaged by a dev trigger.
-- **Broker publication** (`broker_publish`, default `true`): a `false` entry stays renderable locally but is kept out of the agent-facing broker vocabulary, so the agent never selects it. The broker-published, agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance`. Excluded from the broker: `idle` (ambient baseline, auto-played), `drag` (`kind: reactive` pickup), `sit` and `window_sit` (`broker_publish: false`).
+- **Broker publication** (`broker_publish`, default `true`): a `false` entry stays renderable locally but is kept out of the agent-facing broker vocabulary, so the agent never selects it. The broker-published, agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance`. Excluded from the broker: `idle` (ambient baseline, auto-played), `drag` (`kind: reactive` pickup), `sit` and `window_sit` (`broker_publish: false`), and the client-mechanic-driven fall sequence `falling`, `landing`, `suneru` (`broker_publish: false`).
 
 ## Naming convention
 
@@ -21,6 +25,8 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 |---|---|---|---|---|---|
 | `idle` | ambient | yes (cycle) | Ambient baseline — random idle variant pool (see below). | PET_IDLE / PET_MISC | — |
 | `drag` | reactive | yes | Pickup reaction while the window is being dragged. `broker_publish: false`. | PET_MISC/PET_DRAGGING | — |
+| `falling` | reactive | yes | Dynamic falling loop (arms up, spring-bone flutter) — held while the character is mid-fall in the perch-fall sequence. `broker_publish: false`. | Original (Blender, project author) | 2.5s |
+| `landing` | oneshot | no | Landing impact then settle — the touchdown of the perch-fall sequence. `broker_publish: false`. | Original (Blender, project author) | 1.8s |
 | `happy` | oneshot | no | Happy reaction. | PET_MISC/PET_HAPPY | — |
 | `laugh` | oneshot | no | Laughing reaction. | PET_MISC/PET_LAUGHING | — |
 | `embarrassed` | oneshot | no | Strongly embarrassed; shy finger-point gesture. | PET_MISC/PET_SHY_POINT | — |
@@ -28,6 +34,7 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 | `calm` | oneshot | no | Calm standing gesture; hands folded together in front. | PET_POSE/PET_POSE_3 | 5.0s |
 | `peek` | oneshot | no | Standing, 3/4 turn; one hand covering the mouth — shy peek. | PET_HIDING/PET_HIDE | 14.0s |
 | `sleeping` | oneshot | yes | Lies down on the floor on her side — sleeping. Drops the hips low (off a feet-anchored frame). | PET_SLEEPING/PET_SLEEPING | 35.2s |
+| `suneru` | oneshot | no | Sulk/pout (拗ね) — the settle after the perch fall lands. `broker_publish: false`. | necocoya EmoteSet_Free_v130 / `06_suneru` | 4.2s |
 | `sit` | oneshot | no | Random sit pool (see below). AI-triggered floor/edge sit; returns to idle. `broker_publish: false` — render-only, not published to the broker. | PET_SITTING/* | — |
 | `window_sit` | state | yes | Held window-perch (see below). Plays a sit variant, holds the settled frame for `cycle_dwell_ms`, crossfades to a different variant, repeats until interrupted. `broker_publish: false`. Engaged by a dev trigger. | PET_SITTING/* | — |
 | `dance` | oneshot | no | Random dance pool (see below). | PET_DANCING/* | — |
