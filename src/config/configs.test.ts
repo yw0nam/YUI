@@ -170,6 +170,36 @@ describe("configs/motions.json", () => {
     }
   });
 
+  it("registers the #143 fall sequence: falling (reactive, loop, broker-excluded)", () => {
+    expect(m.falling).toBeDefined();
+    expect(m.falling.vrma_path).toBe("/motions/falling_loop.vrma");
+    expect(m.falling.kind).toBe("reactive");
+    expect(m.falling.loop).toBe(true);
+    expect(m.falling.priority).toBe(78);
+    expect(m.falling.interrupt_policy).toBe("replace");
+    expect(m.falling.broker_publish).toBe(false);
+  });
+
+  it("registers the #143 fall sequence: landing (oneshot, broker-excluded)", () => {
+    expect(m.landing).toBeDefined();
+    expect(m.landing.vrma_path).toBe("/motions/landing.vrma");
+    expect(m.landing.kind).toBe("oneshot");
+    expect(m.landing.loop).toBe(false);
+    expect(m.landing.priority).toBe(78);
+    expect(m.landing.interrupt_policy).toBe("replace");
+    expect(m.landing.broker_publish).toBe(false);
+  });
+
+  it("registers the #143 fall sequence: suneru (oneshot, broker-excluded)", () => {
+    expect(m.suneru).toBeDefined();
+    expect(m.suneru.vrma_path).toBe("/motions/suneru.vrma");
+    expect(m.suneru.kind).toBe("oneshot");
+    expect(m.suneru.loop).toBe(false);
+    expect(m.suneru.priority).toBe(70);
+    expect(m.suneru.interrupt_policy).toBe("replace");
+    expect(m.suneru.broker_publish).toBe(false);
+  });
+
   it("registers the standing-gesture batch as oneshot p70", () => {
     for (const id of [
       "sheepish",

@@ -231,6 +231,25 @@ describe("loadConfig — motions.variants", () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
     expect(cfg.motions.idle.broker_publish).toBeUndefined();
   });
+
+  it("reactive 루프 + broker_publish:false 항목(#143 falling)을 그대로 보존한다", async () => {
+    const map = goodFixture();
+    map["motions.json"] = {
+      falling: {
+        vrma_path: "/motions/falling_loop.vrma",
+        kind: "reactive",
+        loop: true,
+        priority: 78,
+        interrupt_policy: "replace",
+        broker_publish: false,
+      },
+    };
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.motions.falling.kind).toBe("reactive");
+    expect(cfg.motions.falling.loop).toBe(true);
+    expect(cfg.motions.falling.broker_publish).toBe(false);
+    expect(cfg.motions.falling.vrma_path).toBe("/motions/falling_loop.vrma");
+  });
 });
 
 // ── motions.cycle_dwell_ms (cycle 정착 프레임 유지) ──────────────────────────────
