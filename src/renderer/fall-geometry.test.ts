@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { clampToWorkArea } from "./fall-geometry";
+import { clampToWorkArea, computeTargetY } from "./fall-geometry";
 
 const FULL = { x: 0, y: 0, width: 2560, height: 1440 };
 
@@ -62,5 +62,50 @@ describe("clampToWorkArea", () => {
     const r = clampToWorkArea(-2000, 50, 400, 600, area);
     expect(r.x).toBeCloseTo(-1920, 9);
     expect(r.y).toBeCloseTo(50, 9);
+  });
+});
+
+describe("computeTargetY", () => {
+  // Work area 0..1080 vertically; workBottom = 1080.
+  const AREA = { x: 0, y: 0, width: 1920, height: 1080 };
+
+  it("computes a positive fall distance when the window is above the landing", () => {
+    // feet 700px below window top → raw target 1080-700 = 380; winH 400 keeps it
+    // unclamped (workBottom - winH = 680 ≥ 380). winY 100 ⇒ dist 280.
+    const r = computeTargetY({ winY: 100, winH: 400, feetPxFromWindowTop: 700, workArea: AREA });
+    expect(r.skipFall).toBe(false);
+    expect(r.targetWinY).toBeCloseTo(380, 9);
+    expect(r.distance).toBeCloseTo(280, 9);
+  });
+
+  it("lands the feet on the work-area bottom (targetWinY == workBottom - feet) when unclamped", () => {
+    const feet = 650;
+    const r = computeTargetY({ winY: 50, winH: 400, feetPxFromWindowTop: feet, workArea: AREA });
+    expect(r.targetWinY).toBeCloseTo(1080 - feet, 9); // 430
+  });
+
+  it("skips the fall when already at/below the landing (distance <= 0)", () => {
+    // raw target = 1080-700 = 380 (unclamped at winH 400); winY 380 ⇒ distance 0 ⇒ skip.
+    const at = computeTargetY({ winY: 380, winH: 400, feetPxFromWindowTop: 700, workArea: AREA });
+    expect(at.distance).toBeCloseTo(0, 9);
+    expect(at.skipFall).toBe(true);
+    // winY below the landing ⇒ negative distance ⇒ skip.
+    const below = computeTargetY({ winY: 500, winH: 400, feetPxFromWindowTop: 700, workArea: AREA });
+    expect(below.distance).toBeLessThan(0);
+    expect(below.skipFall).toBe(true);
+  });
+
+  it("clamps the target up to workArea.y when raw target is above the work area", () => {
+    // feet huge ⇒ raw target 1080-2000 = -920 < workArea.y(0) ⇒ clamp to 0.
+    const r = computeTargetY({ winY: -1000, winH: 800, feetPxFromWindowTop: 2000, workArea: AREA });
+    expect(r.targetWinY).toBeCloseTo(0, 9);
+    expect(r.distance).toBeCloseTo(0 - -1000, 9); // 1000
+  });
+
+  it("clamps the target down to workBottom - winH when raw target sits too low", () => {
+    // feet 0 ⇒ raw target 1080; workBottom - winH = 1080-800 = 280 < 1080 ⇒ clamp to 280.
+    const r = computeTargetY({ winY: 50, winH: 800, feetPxFromWindowTop: 0, workArea: AREA });
+    expect(r.targetWinY).toBeCloseTo(280, 9);
+    expect(r.distance).toBeCloseTo(230, 9); // 280 - 50
   });
 });
