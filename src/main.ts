@@ -661,6 +661,15 @@ async function bootstrap(): Promise<void> {
             payload: { target_window_rect: rect, edge_local_ypx: rect.y - pos.y / sf },
           });
         },
+        // 점유 시뮬레이션: 실제 두 번째 창 없이 occlusion poll의 이탈 결과(window_sit_exit)를 발사한다.
+        occlude: (_rect?: WindowRect) =>
+          bus.push({
+            source: "os_event_watcher",
+            event_name: "user.window_sit_exit",
+            ts: Date.now(),
+            hint_tier: 1,
+            dnd_override: true,
+          }),
       },
       // 단계별 시연 헬퍼
       __yuiDemo: {
