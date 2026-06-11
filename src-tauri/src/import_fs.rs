@@ -1,6 +1,76 @@
-//! Shared import filesystem helpers — sanitize, hash, derive stem, collision check.
+//! Shared import filesystem helpers — sanitize, hash, derive stem, collision
+//! check, and container-signature sniffing.
 
+use std::io::Read;
 use std::path::{Component, Path, PathBuf};
+
+/// Container kinds we content-validate before copying an imported file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SniffKind {
+    Glb,
+    Wav,
+    Ogg,
+    Opus,
+    Flac,
+    Mp3,
+    M4a,
+    Aac,
+    Webm,
+}
+
+/// Bytes read from the source head to recognize a container signature.
+pub(crate) const SNIFF_HEADER_LEN: usize = 16;
+
+/// Map an allowed lowercase audio extension to its sniff kind.
+pub(crate) fn audio_sniff_kind(ext_lower: &str) -> Option<SniffKind> {
+    match ext_lower {
+        "mp3" => Some(SniffKind::Mp3),
+        "wav" => Some(SniffKind::Wav),
+        "ogg" => Some(SniffKind::Ogg),
+        "m4a" => Some(SniffKind::M4a),
+        "flac" => Some(SniffKind::Flac),
+        "aac" => Some(SniffKind::Aac),
+        "opus" => Some(SniffKind::Opus),
+        "webm" => Some(SniffKind::Webm),
+        _ => None,
+    }
+}
+
+/// True when `header` carries a container signature matching `kind`.
+pub(crate) fn sniff_ok(header: &[u8], kind: SniffKind) -> bool {
+    match kind {
+        SniffKind::Glb => header.starts_with(b"glTF"),
+        SniffKind::Wav => {
+            header.len() >= 12 && &header[0..4] == b"RIFF" && &header[8..12] == b"WAVE"
+        }
+        SniffKind::Ogg | SniffKind::Opus => header.starts_with(b"OggS"),
+        SniffKind::Flac => header.starts_with(b"fLaC"),
+        SniffKind::Mp3 => {
+            header.starts_with(b"ID3")
+                || (header.len() >= 2 && header[0] == 0xFF && header[1] & 0xE0 == 0xE0)
+        }
+        SniffKind::M4a | SniffKind::Aac => {
+            (header.len() >= 8 && &header[4..8] == b"ftyp")
+                || (header.len() >= 2 && header[0] == 0xFF && header[1] & 0xF6 == 0xF0)
+        }
+        SniffKind::Webm => header.starts_with(&[0x1A, 0x45, 0xDF, 0xA3]),
+    }
+}
+
+/// Read the source head and report whether it matches `kind`. Errors generically
+/// when the source cannot be opened or read.
+pub(crate) fn sniff_file(src: &Path, kind: SniffKind) -> Result<bool, String> {
+    let mut f = std::fs::File::open(src).map_err(|e| {
+        log::warn!("sniff open failed for {}: {e}", src.display());
+        "source file not found".to_string()
+    })?;
+    let mut header = [0u8; SNIFF_HEADER_LEN];
+    let n = f.read(&mut header).map_err(|e| {
+        log::warn!("sniff read failed for {}: {e}", src.display());
+        "source file not found".to_string()
+    })?;
+    Ok(sniff_ok(&header[..n], kind))
+}
 
 /// Sanitize a filename stem into a safe id charset (`[A-Za-z0-9_-]`).
 /// Every other char — including `.`, `/`, `\`, NUL, unicode — becomes `_`, so the
