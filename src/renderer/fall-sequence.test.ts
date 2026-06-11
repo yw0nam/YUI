@@ -461,7 +461,7 @@ describe("createFallSequence — fall state machine", () => {
       expect(restoreFraming).toHaveBeenCalledTimes(1);
     });
 
-    it("does NOT call restoreFraming when preempted mid-fall (takeover owns the character)", async () => {
+    it("calls restoreFraming once when preempted mid-fall (no perch-zoom leak)", async () => {
       const restoreFraming = vi.fn();
       const { deps, preemption } = makeDeps();
       const seq = createFallSequence({ ...deps, restoreFraming });
@@ -472,6 +472,33 @@ describe("createFallSequence — fall state machine", () => {
       preemption.preempt("falling", "drag");
       await flush();
       expect(seq.state()).toBe(FallState.Cancelled);
+      expect(restoreFraming).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not double-restore when cancel() follows a completed sequence", async () => {
+      const restoreFraming = vi.fn();
+      const { deps, renderer, tick } = makeDeps();
+      const seq = createFallSequence({ ...deps, restoreFraming });
+      seq.start();
+      await flush();
+      tick.pump(() => seq.state() !== FallState.Falling);
+      await flush();
+      renderer.finish("landing");
+      await flush();
+      renderer.finish(LANDING_REACTION_ID);
+      await flush();
+      expect(seq.state()).toBe(FallState.Idle);
+      expect(restoreFraming).toHaveBeenCalledTimes(1);
+
+      seq.cancel(); // dispose-path cancel after settle
+      expect(restoreFraming).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not restore on cancel() of a never-started sequence", () => {
+      const restoreFraming = vi.fn();
+      const { deps } = makeDeps();
+      const seq = createFallSequence({ ...deps, restoreFraming });
+      seq.cancel();
       expect(restoreFraming).not.toHaveBeenCalled();
     });
   });
