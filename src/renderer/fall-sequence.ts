@@ -220,21 +220,19 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
     let sinceLast = 0; // seconds since the last issued setPosition
     let inFlight = false;
 
-    // Fire-and-forget window step. A resolve that comes back stale (cancel /
-    // dispose / new sequence) is discarded so we never yank the window out from
-    // under a takeover. The landing hand-off does NOT wait on this resolve —
-    // it's driven synchronously by integrator.done() below.
+    // Fire-and-forget window step. The landing hand-off does NOT wait on this
+    // resolve — it's driven synchronously by integrator.done() below. After an
+    // abort the tick is already gone, so the symmetric inFlight reset is inert.
     const issue = (y: number): void => {
       inFlight = true;
-      void deps
-        .windowMover!.setPosition(winX, y)
-        .then(() => {
-          if (aborted()) return;
+      void deps.windowMover!.setPosition(winX, y).then(
+        () => {
           inFlight = false;
-        })
-        .catch(() => {
+        },
+        () => {
           inFlight = false;
-        });
+        },
+      );
     };
 
     unTick = deps.onTick((dt) => {
@@ -282,37 +280,40 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
       return;
     }
 
-    // Resolve geometry under a deadline; ANY failure/timeout → Phase-1 idle.
-    let workAreaInfo: ScreenRect & { scaleFactor: number };
+    // Resolve geometry under a deadline; ANY failure/timeout/throw → Phase-1
+    // idle — a probe error must never strand the machine in Detaching.
     let geom: WindowGeom;
+    let winX: number;
+    let targetWinY: number;
+    let skipFall: boolean;
     try {
-      workAreaInfo = await withTimeout(mover.getWorkArea(), FALL_GEOMETRY_TIMEOUT_MS);
+      const workAreaInfo = await withTimeout(mover.getWorkArea(), FALL_GEOMETRY_TIMEOUT_MS);
       if (aborted()) return;
       geom = await withTimeout(mover.getWindowGeom(), FALL_GEOMETRY_TIMEOUT_MS);
       if (aborted()) return;
+
+      const workArea: ScreenRect = {
+        x: workAreaInfo.x,
+        y: workAreaInfo.y,
+        width: workAreaInfo.width,
+        height: workAreaInfo.height,
+      };
+      // The window's real X, kept for every step (clamped inside the work area).
+      winX = clampToWorkArea(geom.x, geom.y, geom.w, geom.h, workArea).x;
+      // Freeze the feet measurement once, at fall start.
+      const feetPxFromWindowTop = deps.measureFeetPx();
+
+      ({ targetWinY, skipFall } = computeTargetY({
+        winY: geom.y,
+        winH: geom.h,
+        feetPxFromWindowTop,
+        workArea,
+      }));
     } catch {
       // A preemption during the await already owns the character — don't override.
       if (!aborted()) fallbackToIdle();
       return;
     }
-
-    const workArea: ScreenRect = {
-      x: workAreaInfo.x,
-      y: workAreaInfo.y,
-      width: workAreaInfo.width,
-      height: workAreaInfo.height,
-    };
-    // The window's real X, kept for every step (clamped inside the work area).
-    const winX = clampToWorkArea(geom.x, geom.y, geom.w, geom.h, workArea).x;
-    // Freeze the feet measurement once, at fall start.
-    const feetPxFromWindowTop = deps.measureFeetPx();
-
-    const { targetWinY, skipFall } = computeTargetY({
-      winY: geom.y,
-      winH: geom.h,
-      feetPxFromWindowTop,
-      workArea,
-    });
 
     if (skipFall) {
       // Already at/below the landing — no plunge, straight to land + react.

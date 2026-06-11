@@ -21,16 +21,6 @@ export const FALL_TERMINAL_VELOCITY = 2800;
 /** Hard cap in seconds: any fall snaps to target by here, however far. */
 export const FALL_MAX_DURATION_S = 1.2;
 
-/**
- * Playback rate for the falling.vrma loop while the integrator runs.
- * 1.0 plays the clip at authored speed.
- *
- * PHASE-0 AUDITION DEPENDENT — falling clip is a 2.5s loop; the right rate to
- * match the integrator's actual fall duration (and the 1.8s landing / 4.2s
- * suneru follow-ons) can only be set after auditioning the clips on the rig.
- */
-export const FALLING_SPEED = 1.0;
-
 /** Motion id played while the integrator runs. */
 export const FALLING_MOTION_ID = "falling";
 
@@ -44,12 +34,6 @@ export const LANDING_MOTION_ID = "landing";
  * clip's settle frame; "suneru" is the current pick pending rig audition.
  */
 export const LANDING_REACTION_ID = "suneru";
-
-/**
- * Startled pre-beat is deferred. Kept as a flag so the beat can be re-added
- * between landing and reacting without reshaping the state machine.
- */
-export const STARTLED_ENABLED = false;
 
 /**
  * Cadence throttle for the per-frame window Y-step (#143 U6). The integrator

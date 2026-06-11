@@ -420,6 +420,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       if (!id) return;
       // fall 시퀀스가 이 종료를 기다리는 중이면 resolve하고 auto-swap을 건너뛴다 —
       // 시퀀스 동안 후속 모션은 컨트롤러가 단독으로 구동한다(must-fix #3).
+      // 이 스킵은 queue drain도 건너뛴다 — 현재 전 모션이 replace 정책이라 queue는 비어 있다.
       if (motionFinishWaiters.resolve(id)) return;
       if (!controller) return;
       // cycle 모션이면 정착 마지막 프레임을 cycle_dwell_ms만큼 유지한 뒤 swap.
