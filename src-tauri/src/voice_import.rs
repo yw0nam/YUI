@@ -3,13 +3,16 @@
 //! Copies a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`.
 //! A native `std::fs::copy` reads the arbitrary source with the app's own privileges.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use serde::Serialize;
 use tauri::{command, AppHandle, Manager};
-use crate::import_fs::{sanitize_stem, derive_dest_stem, collides};
+use crate::import_fs::{sanitize_stem, derive_dest_stem, collides, ensure_within};
 
 /// Allowed audio file extensions (lowercase).
 const AUDIO_EXTS: [&str; 8] = ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"];
+
+/// Max accepted source size for a voice-clip import.
+const MAX_AUDIO_BYTES: u64 = 100 * 1024 * 1024;
 
 /// True when `ext` (case-insensitive) is in the allowlist.
 fn is_allowed_audio_ext(ext: &str) -> bool {
@@ -27,37 +30,33 @@ pub struct ImportedVoice {
     pub ref_path: String,
 }
 
-/// Copy a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`.
-#[command]
-pub fn import_voice_file(app: AppHandle, src_path: String) -> Result<ImportedVoice, String> {
-    let src = PathBuf::from(&src_path);
-
-    let ext = src
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
-
-    if !is_allowed_audio_ext(ext) {
-        return Err(format!("unsupported audio type: {src_path}"));
-    }
+/// Copy a validated audio source into `references_dir/<id>/clip.<ext_lower>`.
+fn copy_into_references(
+    references_dir: &Path,
+    src: &Path,
+    ext_lower: &str,
+) -> Result<ImportedVoice, String> {
+    let src = src.canonicalize().map_err(|_| "source file not found".to_string())?;
     if !src.is_file() {
-        return Err(format!("source file not found: {src_path}"));
+        return Err("source file not found".to_string());
+    }
+    let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("");
+    if !is_allowed_audio_ext(ext) {
+        return Err("unsupported audio type".to_string());
+    }
+    if std::fs::metadata(&src).map_err(|_| "source file not found".to_string())?.len() > MAX_AUDIO_BYTES {
+        return Err("source file too large".to_string());
     }
 
-    let ext_lower = ext.to_ascii_lowercase();
-
-    let references_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("app_data_dir unavailable: {e}"))?
-        .join("references");
+    std::fs::create_dir_all(references_dir)
+        .map_err(|e| format!("create references dir failed: {e}"))?;
 
     let id = derive_dest_stem(&src, |candidate| {
-        let clip = references_dir.join(candidate).join(format!("clip.{ext_lower}"));
-        collides(&src, &clip)
+        collides(&references_dir.join(candidate).join(format!("clip.{ext_lower}")))
     });
 
     let dir = references_dir.join(&id);
+    ensure_within(references_dir, &dir)?;
     std::fs::create_dir_all(&dir).map_err(|e| format!("create references dir failed: {e}"))?;
 
     let dest = dir.join(format!("clip.{ext_lower}"));
@@ -69,20 +68,47 @@ pub fn import_voice_file(app: AppHandle, src_path: String) -> Result<ImportedVoi
     })
 }
 
-/// Delete `<app_data_dir>/references/<id>/` if present. Idempotent — missing is Ok.
-#[command]
-pub fn remove_user_voice(app: AppHandle, id: String) -> Result<(), String> {
-    let sanitized = sanitize_stem(&id);
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("app_data_dir unavailable: {e}"))?
-        .join("references")
-        .join(sanitized);
+/// Delete `references_dir/<sanitized id>/` if present. Idempotent — missing is Ok.
+fn remove_user_voice_at(references_dir: &Path, id: &str) -> Result<(), String> {
+    if !references_dir.exists() {
+        return Ok(());
+    }
+    let dir = references_dir.join(sanitize_stem(id));
+    ensure_within(references_dir, &dir)?;
     if dir.exists() {
         std::fs::remove_dir_all(&dir).map_err(|e| format!("remove failed: {e}"))?;
     }
     Ok(())
+}
+
+/// Copy a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`.
+#[command]
+pub fn import_voice_file(app: AppHandle, src_path: String) -> Result<ImportedVoice, String> {
+    let src = PathBuf::from(&src_path);
+    let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("");
+    if !is_allowed_audio_ext(ext) {
+        return Err("unsupported audio type".to_string());
+    }
+    let ext_lower = ext.to_ascii_lowercase();
+
+    let references_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("app_data_dir unavailable: {e}"))?
+        .join("references");
+
+    copy_into_references(&references_dir, &src, &ext_lower)
+}
+
+/// Delete `<app_data_dir>/references/<id>/` if present. Idempotent — missing is Ok.
+#[command]
+pub fn remove_user_voice(app: AppHandle, id: String) -> Result<(), String> {
+    let references_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("app_data_dir unavailable: {e}"))?
+        .join("references");
+    remove_user_voice_at(&references_dir, &id)
 }
 
 #[cfg(test)]

@@ -5,10 +5,13 @@
 //! the app's own privileges — the fs plugin would require the source path to be in
 //! a pre-declared scope, which an OS file picker cannot satisfy.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use serde::Serialize;
 use tauri::{command, AppHandle, Manager};
-use crate::import_fs::{sanitize_stem, derive_dest_stem, collides};
+use crate::import_fs::{sanitize_stem, derive_dest_stem, collides, ensure_within};
+
+/// Max accepted source size for a VRM import.
+const MAX_VRM_BYTES: u64 = 512 * 1024 * 1024;
 
 /// Imported VRM handle returned to the webview.
 #[derive(Debug, Clone, Serialize)]
@@ -20,34 +23,31 @@ pub struct ImportedVrm {
     pub dest_path: String,
 }
 
-/// Copy a user-picked `.vrm` into `<app_data_dir>/vrms/`, returning its id + dest path.
-#[command]
-pub fn import_vrm_file(app: AppHandle, src_path: String) -> Result<ImportedVrm, String> {
-    let src = PathBuf::from(&src_path);
-
+/// Copy a validated `.vrm` source into `vrms_dir`, disambiguating the dest stem.
+fn copy_into_vrms(vrms_dir: &Path, src: &Path) -> Result<ImportedVrm, String> {
+    let src = src.canonicalize().map_err(|_| "source file not found".to_string())?;
+    if !src.is_file() {
+        return Err("source file not found".to_string());
+    }
     if src
         .extension()
         .and_then(|e| e.to_str())
         .map(|e| e.eq_ignore_ascii_case("vrm"))
         != Some(true)
     {
-        return Err(format!("not a .vrm file: {src_path}"));
+        return Err("not a .vrm file".to_string());
     }
-    if !src.is_file() {
-        return Err(format!("source file not found: {src_path}"));
+    if std::fs::metadata(&src).map_err(|_| "source file not found".to_string())?.len() > MAX_VRM_BYTES {
+        return Err("source file too large".to_string());
     }
 
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("app_data_dir unavailable: {e}"))?
-        .join("vrms");
-    std::fs::create_dir_all(&dir).map_err(|e| format!("create vrms dir failed: {e}"))?;
+    std::fs::create_dir_all(vrms_dir).map_err(|e| format!("create vrms dir failed: {e}"))?;
 
     let stem = derive_dest_stem(&src, |candidate| {
-        collides(&src, &dir.join(format!("{candidate}.vrm")))
+        collides(&vrms_dir.join(format!("{candidate}.vrm")))
     });
-    let dest = dir.join(format!("{stem}.vrm"));
+    let dest = vrms_dir.join(format!("{stem}.vrm"));
+    ensure_within(vrms_dir, &dest)?;
 
     std::fs::copy(&src, &dest).map_err(|e| format!("copy failed: {e}"))?;
 
@@ -57,20 +57,39 @@ pub fn import_vrm_file(app: AppHandle, src_path: String) -> Result<ImportedVrm, 
     })
 }
 
-/// Delete `<app_data_dir>/vrms/<id>.vrm` if present. Idempotent — missing is Ok.
-#[command]
-pub fn remove_user_vrm(app: AppHandle, id: String) -> Result<(), String> {
-    let sanitized = sanitize_stem(&id);
-    let dest = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("app_data_dir unavailable: {e}"))?
-        .join("vrms")
-        .join(format!("{sanitized}.vrm"));
+/// Delete `vrms_dir/<sanitized id>.vrm` if present. Idempotent — missing is Ok.
+fn remove_user_vrm_at(vrms_dir: &Path, id: &str) -> Result<(), String> {
+    if !vrms_dir.exists() {
+        return Ok(());
+    }
+    let dest = vrms_dir.join(format!("{}.vrm", sanitize_stem(id)));
+    ensure_within(vrms_dir, &dest)?;
     if dest.exists() {
         std::fs::remove_file(&dest).map_err(|e| format!("remove failed: {e}"))?;
     }
     Ok(())
+}
+
+/// Copy a user-picked `.vrm` into `<app_data_dir>/vrms/`, returning its id + dest path.
+#[command]
+pub fn import_vrm_file(app: AppHandle, src_path: String) -> Result<ImportedVrm, String> {
+    let vrms_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("app_data_dir unavailable: {e}"))?
+        .join("vrms");
+    copy_into_vrms(&vrms_dir, &PathBuf::from(&src_path))
+}
+
+/// Delete `<app_data_dir>/vrms/<id>.vrm` if present. Idempotent — missing is Ok.
+#[command]
+pub fn remove_user_vrm(app: AppHandle, id: String) -> Result<(), String> {
+    let vrms_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("app_data_dir unavailable: {e}"))?
+        .join("vrms");
+    remove_user_vrm_at(&vrms_dir, &id)
 }
 
 #[cfg(test)]

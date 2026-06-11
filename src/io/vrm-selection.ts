@@ -18,11 +18,14 @@ export interface UserVrmStorage {
   save(list: AvatarOption[]): void;
 }
 
+/** id로 안전한 charset(`^[A-Za-z0-9_-]+$`) — 네이티브 sanitize_stem과 동일. */
+const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+
 /** 임포트 옵션 한 건을 안전한 source:"user" AvatarOption으로 강제(불완전하면 null). */
 function coerceUserOption(v: unknown): AvatarOption | null {
   if (typeof v !== "object" || v === null) return null;
   const o = v as Record<string, unknown>;
-  if (typeof o.id !== "string" || o.id.length === 0) return null;
+  if (typeof o.id !== "string" || !SAFE_ID.test(o.id)) return null;
   if (typeof o.url !== "string" || o.url.length === 0) return null;
   const label = typeof o.label === "string" && o.label.length > 0 ? o.label : o.id;
   return { id: o.id, label, url: o.url, source: "user" };
