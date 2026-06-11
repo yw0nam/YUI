@@ -19,7 +19,7 @@
  */
 
 import type { ScreenRect } from "../contract";
-import { computeTargetY } from "./fall-geometry";
+import { clampToWorkArea, computeTargetY } from "./fall-geometry";
 import { createFallIntegrator } from "./fall-integrator";
 import {
   FALLING_MOTION_ID,
@@ -191,7 +191,7 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
   }
 
   /** Integrator-driven plunge: compute Y every frame, throttle the IPC setPosition. */
-  function runFall(workArea: ScreenRect, startY: number, targetY: number): void {
+  function runFall(winX: number, startY: number, targetY: number): void {
     phase = FallState.Falling;
     deps.playMotion(FALLING_MOTION_ID);
 
@@ -207,7 +207,7 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
     const issue = (y: number): void => {
       inFlight = true;
       void deps
-        .windowMover!.setPosition(workArea.x, y)
+        .windowMover!.setPosition(winX, y)
         .then(() => {
           if (aborted()) return;
           inFlight = false;
@@ -281,6 +281,8 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
       width: workAreaInfo.width,
       height: workAreaInfo.height,
     };
+    // The window's real X, kept for every step (clamped inside the work area).
+    const winX = clampToWorkArea(geom.x, geom.y, geom.w, geom.h, workArea).x;
     // Freeze the feet measurement once, at fall start.
     const feetPxFromWindowTop = deps.measureFeetPx();
 
@@ -300,7 +302,7 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
     if (deps.reducedMotion) {
       // Skip the animated plunge: one instant snap to the bottom, then land-react.
       try {
-        await mover.setPosition(workArea.x, targetWinY);
+        await mover.setPosition(winX, targetWinY);
       } catch {
         if (!aborted()) fallbackToIdle();
         return;
@@ -310,7 +312,7 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
       return;
     }
 
-    runFall(workArea, geom.y, targetWinY);
+    runFall(winX, geom.y, targetWinY);
   }
 
   return {
