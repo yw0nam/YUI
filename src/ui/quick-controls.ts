@@ -561,6 +561,8 @@ export function createQuickControls({
   const chatKeySubEl = el.querySelector<HTMLSpanElement>(".yui-chatkey .yui-input-row__sub")!;
   const chatKeyToggleBtn = el.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
   const chatKeyClearBtn = el.querySelector<HTMLButtonElement>(".yui-chatkey__clear")!;
+  // 사용자가 입력한 뒤 아직 commit하지 않았는지 — blur 때 typed 값이 원격 변경보다 우선한다.
+  let chatKeyDirty = false;
 
   // 세션 섹션 노드(window 전용 — 없으면 null).
   const sessionStatEl = el.querySelector<HTMLDivElement>(".yui-session__stat");
@@ -696,6 +698,7 @@ export function createQuickControls({
     const key = chatKeySettings.get().apiKey;
     if (document.activeElement !== chatKeyInput && chatKeyInput.value !== key) {
       chatKeyInput.value = key;
+      chatKeyDirty = false;
     }
     chatKeySubEl.textContent = key ? CHATKEY_SUB_OVERRIDE : CHATKEY_SUB_DEFAULT;
   }
@@ -1909,15 +1912,20 @@ export function createQuickControls({
   // ── chat API 키 필드 ──
   // 값은 시크릿 — 어떤 로그에도 키 자체를 남기지 않는다(상태 전이만 기록).
 
+  // 타이핑은 store에 commit하지 않는다 — 중간 prefix가 라이브 키가 되는 걸 막는다.
+  // blur 때 한 번만 반영한다. 사용자가 입력했는지만 추적(시크릿은 다루지 않음).
   function handleChatKeyInput(): void {
-    const v = chatKeyInput.value;
-    if (v) chatKeySettings.setApiKey(v);
-    else chatKeySettings.clear(); // 빈 값 = 오버라이드 없음
-    // store 구독(unsubscribeChatKey)이 reflectChatKey로 sublabel을 갱신한다.
+    chatKeyDirty = true;
   }
 
-  // blur 시점에 입력 중 보류된 원격 변경을 반영한다(엔드포인트/지침과 동일).
+  // blur 시점에 입력값을 commit한다. 입력하지 않았다면 원격 변경만 반영한다.
   function handleChatKeyBlur(): void {
+    if (chatKeyDirty) {
+      chatKeyDirty = false;
+      const v = chatKeyInput.value;
+      if (v) chatKeySettings.setApiKey(v);
+      else chatKeySettings.clear(); // 빈 값 = 오버라이드 없음
+    }
     reflectChatKey();
   }
 
@@ -1932,6 +1940,7 @@ export function createQuickControls({
   }
 
   function handleChatKeyClear(): void {
+    chatKeyDirty = false;
     chatKeyInput.value = "";
     chatKeySettings.clear();
     log.info("채팅 API 키 지움");
