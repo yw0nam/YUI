@@ -817,9 +817,12 @@ export function createRenderer(options: RendererOptions): Renderer {
       return;
     }
     if (!currentVrm || !mixer) return; // VRM 미로드 시 재생 불가.
-    // While perched, an implicit idle return (null) is a no-op so the held window_sit
-    // survives emotion-only cues. Only an explicit exit (setPerchTarget(null)) lands idle.
-    if (suppressIdleReturn(motion, perchTargetYpx !== null)) return;
+    // While perched OR mid-fall, an implicit idle return (null) is a no-op so the held
+    // window_sit / running fall survives motion-less directives. The fall controller's
+    // own plays (fallDriven) bypass this — its final null lands idle. Explicit motions
+    // still take over (and cancel the fall via preemption).
+    const fallActive = !fallDriven && (fallSequence?.active() ?? false);
+    if (suppressIdleReturn(motion, perchTargetYpx !== null || fallActive)) return;
     try {
       const prevId = controller.current()?.id;
       const decision = controller.request(motion);

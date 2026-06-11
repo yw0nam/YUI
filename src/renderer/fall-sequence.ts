@@ -110,6 +110,8 @@ export interface FallSequence {
   cancel(): void;
   /** Current state (for tests / wiring observability). */
   state(): FallState;
+  /** True while a sequence is mid-flight (detaching/falling/landing/reacting). */
+  active(): boolean;
 }
 
 /** Reject if `p` doesn't settle within `ms` — keeps a hung probe from freezing the detach. */
@@ -344,5 +346,6 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
     state() {
       return phase;
     },
+    active: isActive,
   };
 }
