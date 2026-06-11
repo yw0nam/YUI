@@ -1131,7 +1131,7 @@ export function createQuickControls({
 
   // 미리듣기 ref_url을 fetchable URL로 변환한다(패키징 시 /references/* 404 회피, #153).
   // Tauri는 번들 리소스 절대 URL, dev/브라우저는 원본 통과 — irodori-voices와 같은 resolver.
-  const resolveAudition = resolveAuditionUrl ?? ((u: string) => resolveAssetUrl(u));
+  const resolveAudition = resolveAuditionUrl ?? resolveAssetUrl;
 
   function toggleAudition(btn: HTMLButtonElement, refUrl: string): void {
     if (auditionBtn === btn) {
