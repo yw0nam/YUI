@@ -143,6 +143,14 @@ level with the `VITE_YUI_LOG_LEVEL` env var (`debug` · `info` · `warn` · `err
 - [`docs/expression-broker-mcp.md`](docs/expression-broker-mcp.md) — Expression Broker MCP
 - [`CHANGELOG.md`](CHANGELOG.md) — landed work
 
+## Credits
+
+The motion assets (`public/motions/*.vrma`) are all extracted from the
+[Mate Engine](https://github.com/shinyflvre/Mate-Engine) project by Shiny.
+They are used under Mate Engine's non-commercial terms: free for personal,
+study, and non-revenue use with attribution to Shiny; commercial use requires
+separate permission from Shiny.
+
 ## Status
 
 YUI renders 10 emotions (existence-aware fallback) and 12 motions (idle, drag,
