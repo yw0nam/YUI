@@ -39,7 +39,7 @@ const log = createLogger("window-drop");
 const RELEASE_EVENT = "window_drop_release";
 
 /** Poll cadence — ~1.3 Hz keeps detach latency under ~2 ticks (≈3 s). */
-const DEFAULT_POLL_MS = 1500;
+const DEFAULT_POLL_MS = 700;
 /** Consecutive lost ticks required for an *ambiguous* loss (covered / not-containing). */
 const AMBIGUOUS_LOST_TICKS = 2;
 
