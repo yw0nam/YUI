@@ -94,6 +94,12 @@ export interface FallSequenceDeps {
    * entry — sequence completion or fallback — never on cancel (takeover owns it).
    */
   restoreFraming?(): void;
+  /**
+   * Drop any pending whenMotionFinished waits. Called on every teardown
+   * (cancel/abort included) so a stale wait can't consume a later natural
+   * finish of the same clip id.
+   */
+  invalidateMotionWaits?(): void;
 }
 
 export interface FallSequence {
@@ -156,6 +162,7 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
       unsubPreempt();
       unsubPreempt = null;
     }
+    deps.invalidateMotionWaits?.();
   }
 
   /** Hard abort: tick gone, no transitions, no forced idle (takeover owns the character). */

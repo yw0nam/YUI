@@ -747,6 +747,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       isMotionGenerationCurrent: (captured) => preemption.isCurrent(captured),
       reducedMotion,
       restoreFraming: () => fitCamera(),
+      invalidateMotionWaits: () => motionFinishWaiters.clear(),
     });
   }
 
