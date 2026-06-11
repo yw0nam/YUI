@@ -628,28 +628,61 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("typing persists the key via chatKeySettings.setApiKey", () => {
+  it("does not persist intermediate prefixes per keystroke", () => {
     const chatKeySettings = createChatKeySettings();
+    const setSpy = vi.spyOn(chatKeySettings, "setApiKey");
+    const clearSpy = vi.spyOn(chatKeySettings, "clear");
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    const input = chatKeyInput(qc);
+    for (const v of ["s", "sk", "sk-", "sk-typed-456"]) {
+      input.value = v;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    // No prefix ever reaches the store while typing.
+    expect(setSpy).not.toHaveBeenCalled();
+    expect(clearSpy).not.toHaveBeenCalled();
+    expect(chatKeySettings.get().apiKey).toBe("");
+
+    qc.dispose();
+  });
+
+  it("commits the full key once on blur", () => {
+    const chatKeySettings = createChatKeySettings();
+    const setSpy = vi.spyOn(chatKeySettings, "setApiKey");
     const qc = buildQc({ chatKeySettings });
     qc.open();
 
     const input = chatKeyInput(qc);
     input.value = "sk-typed-456";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    // Nothing persisted from typing alone.
+    expect(setSpy).not.toHaveBeenCalled();
+
+    input.dispatchEvent(new Event("blur", { bubbles: true }));
+    expect(setSpy).toHaveBeenCalledTimes(1);
+    expect(setSpy).toHaveBeenCalledWith("sk-typed-456");
     expect(chatKeySettings.get().apiKey).toBe("sk-typed-456");
 
     qc.dispose();
   });
 
-  it("clearing the field calls clear() (empty = no override)", () => {
+  it("blurring an emptied field calls clear() (empty = no override)", () => {
     const chatKeySettings = createChatKeySettings();
     chatKeySettings.setApiKey("sk-secret-123");
+    const clearSpy = vi.spyOn(chatKeySettings, "clear");
     const qc = buildQc({ chatKeySettings });
     qc.open();
 
     const input = chatKeyInput(qc);
     input.value = "";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    // Emptying alone does not clear the override.
+    expect(clearSpy).not.toHaveBeenCalled();
+
+    input.dispatchEvent(new Event("blur", { bubbles: true }));
+    expect(clearSpy).toHaveBeenCalled();
     expect(chatKeySettings.get().apiKey).toBe("");
 
     qc.dispose();
