@@ -46,6 +46,25 @@ pub struct MonitorInfo {
     pub scale_factor: f64,
 }
 
+/// Work area of a monitor in **logical pixels / points** (Dock/menu-bar excluded).
+///
+/// Matches the perch coordinate chain, which operates in points. `scale_factor`
+/// is the source monitor's DPI multiplier, carried through for callers needing it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkAreaInfo {
+    /// Logical X of the work-area top-left corner (may be negative on multi-monitor).
+    pub x: f64,
+    /// Logical Y of the work-area top-left corner.
+    pub y: f64,
+    /// Logical work-area width.
+    pub width: f64,
+    /// Logical work-area height.
+    pub height: f64,
+    /// Scale factor (physical / logical) of the source monitor.
+    pub scale_factor: f64,
+}
+
 // ─── Tauri commands ──────────────────────────────────────────────────────────
 
 /// Start OS-native window drag.
@@ -268,6 +287,60 @@ mod tests {
             clamp_to_work_area(1800.0, 50.0, 400.0, 600.0, 1920.0, 0.0, 1920.0, 1080.0);
         assert!((cx - 1920.0).abs() < 1e-9);
         assert!((cy - 50.0).abs() < 1e-9);
+    }
+
+    // ── work_area_to_logical ──────────────────────────────────────────────────
+
+    #[test]
+    fn work_area_to_logical_1x_primary() {
+        let info = work_area_to_logical(0, 25, 2560, 1415, 1.0);
+        assert!((info.x - 0.0).abs() < 1e-9);
+        assert!((info.y - 25.0).abs() < 1e-9);
+        assert!((info.width - 2560.0).abs() < 1e-9);
+        assert!((info.height - 1415.0).abs() < 1e-9);
+        assert!((info.scale_factor - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn work_area_to_logical_2x_retina() {
+        // Retina: physical px halve into logical points.
+        let info = work_area_to_logical(0, 50, 2880, 1700, 2.0);
+        assert!((info.x - 0.0).abs() < 1e-9);
+        assert!((info.y - 25.0).abs() < 1e-9);
+        assert!((info.width - 1440.0).abs() < 1e-9);
+        assert!((info.height - 850.0).abs() < 1e-9);
+        assert!((info.scale_factor - 2.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn work_area_to_logical_negative_origin_secondary_display() {
+        // Secondary monitor to the left of primary: negative physical X origin.
+        let info = work_area_to_logical(-1920, 0, 1920, 1080, 1.0);
+        assert!((info.x - -1920.0).abs() < 1e-9);
+        assert!((info.y - 0.0).abs() < 1e-9);
+        assert!((info.width - 1920.0).abs() < 1e-9);
+        assert!((info.height - 1080.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn work_area_to_logical_negative_origin_with_2x_scale() {
+        // Negative-origin secondary display at 2x: offset and size both halve.
+        let info = work_area_to_logical(-2880, -100, 2880, 1800, 2.0);
+        assert!((info.x - -1440.0).abs() < 1e-9);
+        assert!((info.y - -50.0).abs() < 1e-9);
+        assert!((info.width - 1440.0).abs() < 1e-9);
+        assert!((info.height - 900.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn work_area_to_logical_serialises_camel_case() {
+        let info = work_area_to_logical(0, 25, 1920, 1055, 1.0);
+        let v = serde_json::to_value(&info).unwrap();
+        assert_eq!(v["x"], 0.0);
+        assert_eq!(v["y"], 25.0);
+        assert_eq!(v["width"], 1920.0);
+        assert_eq!(v["height"], 1055.0);
+        assert_eq!(v["scaleFactor"], 1.0);
     }
 
     // ── MonitorInfo serialisation ─────────────────────────────────────────────
