@@ -553,6 +553,8 @@ async function bootstrap(): Promise<void> {
   // dispatcher는 config 로드 후 생성되므로(backend_caller가 config.get()에 의존), dev 인스펙션
   // 핸들이 참조할 수 있게 forward holder를 둔다.
   let dispatcherRef: Dispatcher | null = null;
+  // 현재 세션이 backend에 등록됐는지(첫 usage 턴 이후 true). 빈 세션 압축 404를 막는 게이트.
+  let sessionHasTurn = false;
   // cowork 소스도 config(cfg.sources) 로드 후 생성 — teardown에서 stop하도록 holder를 둔다.
   let coworkSourceRef: { stop(): void } | null = null;
   // guardrails도 config 로드 후 생성 — 핫리로드 setConfig가 닿게 holder를 둔다.
@@ -829,6 +831,7 @@ async function bootstrap(): Promise<void> {
     getFetch: () => selectFetch(),
     getSessionId: () => sessionStore.get(),
     onUsage: (usage) => {
+      if (usage.total_tokens > 0) sessionHasTurn = true;
       compactionTrigger.noteUsage(usage.total_tokens);
       sessionDiagnostics.setUsage(usage.total_tokens, getEndpoints().chat_model_context_window ?? null);
     },
@@ -860,6 +863,7 @@ async function bootstrap(): Promise<void> {
       guardrails,
       compact,
       getSessionId: () => sessionStore.get(),
+      hasCompactableHistory: () => sessionHasTurn,
       compactTimeoutMs: getEndpoints().compact_timeout_ms ?? 12000,
     });
     dispatcherRef = dispatcher;
@@ -868,7 +872,10 @@ async function bootstrap(): Promise<void> {
       surfaces.setInputEnabled(s !== "compacting");
     });
     // 세션 id 회전(설정 창 reset 등) → trigger 재무장.
-    const unsubSessionReset = sessionStore.subscribe(() => compactionTrigger.reset());
+    const unsubSessionReset = sessionStore.subscribe(() => {
+      compactionTrigger.reset();
+      sessionHasTurn = false;
+    });
     // HMR로 모듈이 재실행되면 이전 dispatcher의 setInterval/ in-flight가 남는다 → dispose에서 정지.
     if (import.meta.env.DEV) {
       import.meta.hot?.dispose(() => {

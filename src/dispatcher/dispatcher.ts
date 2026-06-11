@@ -44,6 +44,8 @@ export interface DispatcherDeps {
   compact?: (signal: AbortSignal) => Promise<CompactResult>;
   /** 현재 세션 id 해소. falsy면 압축할 세션이 없어 requestCompaction skip. */
   getSessionId?: () => string | undefined;
+  /** 현재 세션에 압축할 이력(턴/usage)이 있는지. false면 requestCompaction skip — 빈 세션 404 방지. */
+  hasCompactableHistory?: () => boolean;
   /** compact() timeout(ms). default 12000. 초과 시 abort + running 복귀. */
   compactTimeoutMs?: number;
 }
@@ -489,6 +491,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       }
       // 세션이 없으면 무의미한 압축 + cue flicker를 피한다.
       if (!deps.getSessionId?.()) return;
+      // 턴/usage가 없는 세션은 backend 미등록 → 압축 시 404. focus churn 빈 세션 차단.
+      if (deps.hasCompactableHistory && !deps.hasCompactableHistory()) return;
       compactionRequested = true;
       // 이미 idle이면 tick을 기다리지 않고 즉시 압축한다.
       maybeStartCompaction();
