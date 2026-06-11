@@ -239,7 +239,7 @@ describe("window-drop-source — lifecycle + degrade", () => {
 
 // ── Occlusion-aware perch detach poll (#143) ────────────────────────────────
 //
-// After a successful drop arms the poll, ~1.3 Hz it re-checks whether the
+// After a successful drop arms the poll, ~1.4 Hz it re-checks whether the
 // perched window (tracked by windowNumber) still sits under the seat and is
 // topmost. The held-perch test is point-in-rect (NOT the U-band catch zone).
 // Loss fires user.window_sit_exit through the bus and disarms. Geometry seam:
@@ -258,9 +258,12 @@ function makePerchSource(perched = true) {
   };
 }
 
+/** Default poll cadence in ms (≈1.4 Hz). */
+const DEFAULT_POLL_MS = 700;
+
 /** Advance one poll tick and let all queued microtasks (the await chain) settle. */
 async function tick(): Promise<void> {
-  await vi.advanceTimersByTimeAsync(1500);
+  await vi.advanceTimersByTimeAsync(DEFAULT_POLL_MS);
 }
 
 /** Fire a release and flush the onRelease async chain (outerPosition/scaleFactor/invoke + arm). */
@@ -310,6 +313,41 @@ describe("window-drop-source — occlusion poll arm/hold (J1)", () => {
     await tick();
     await tick();
     expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(0);
+  });
+});
+
+describe("window-drop-source — occlusion poll default cadence (J1b)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("fires the default poll tick at ~700ms (≈1.4 Hz) when pollIntervalMs is not injected", async () => {
+    const { renderer } = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    // No pollIntervalMs → exercises DEFAULT_POLL_MS.
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+    expect(pushed.at(-1)?.event_name).toBe("user.window_sit_drop");
+
+    // Window now absent → an unambiguous loss fires exit on the first tick.
+    invoke.mockImplementation(async () => []);
+
+    // Just shy of the cadence: no tick yet.
+    await vi.advanceTimersByTimeAsync(DEFAULT_POLL_MS - 1);
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
+
+    // Crossing 700ms total fires the tick → exit.
+    await vi.advanceTimersByTimeAsync(1);
+    expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
   });
 });
 
