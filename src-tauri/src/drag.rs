@@ -121,6 +121,37 @@ pub fn get_monitors_info<R: Runtime>(app: AppHandle<R>) -> Result<Vec<MonitorInf
         .collect())
 }
 
+/// Return the work area (Dock/menu-bar excluded) of the monitor the pet window
+/// currently sits on, in **logical pixels / points**.
+///
+/// Anchors on `current_monitor()` (the window's display) rather than enumerating
+/// all monitors, so the JS fall sequence computes the correct on-screen bottom on
+/// the active display. The physical work-area rect is converted to points here to
+/// match the perch coordinate chain.
+#[command]
+pub fn get_work_area_for_window<R: Runtime>(
+    window: WebviewWindow<R>,
+) -> Result<WorkAreaInfo, String> {
+    let monitor = window
+        .current_monitor()
+        .map_err(|e| {
+            log::warn!("current_monitor failed: {e}");
+            e.to_string()
+        })?
+        .ok_or_else(|| {
+            log::warn!("get_work_area_for_window: no current monitor");
+            "no current monitor".to_string()
+        })?;
+    let area = monitor.work_area();
+    Ok(work_area_to_logical(
+        area.position.x,
+        area.position.y,
+        area.size.width,
+        area.size.height,
+        monitor.scale_factor(),
+    ))
+}
+
 // ─── Pure DPI math helpers (no Tauri runtime dependency) ────────────────────
 //
 // These are the canonical functions for physical ↔ logical pixel conversion.
@@ -165,6 +196,29 @@ pub fn clamp_to_work_area(
     let clamped_x = x.max(work_x).min(work_x + work_w - w);
     let clamped_y = y.max(work_y).min(work_y + work_h - h);
     (clamped_x, clamped_y)
+}
+
+/// Convert a monitor's physical-pixel work-area rect into logical points.
+///
+/// `(x, y)` is the work-area top-left (physical, may be negative on multi-monitor);
+/// `(width, height)` its physical size. Output is logical px / points, matching the
+/// perch coordinate chain. Uses `physical_to_logical`, falling back to the raw value
+/// only if `scale_factor` ≤ 0 (which `physical_to_logical` rejects).
+pub fn work_area_to_logical(
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+    scale_factor: f64,
+) -> WorkAreaInfo {
+    let to_logical = |physical: i64| physical_to_logical(physical, scale_factor).unwrap_or(physical as f64);
+    WorkAreaInfo {
+        x: to_logical(x as i64),
+        y: to_logical(y as i64),
+        width: to_logical(width as i64),
+        height: to_logical(height as i64),
+        scale_factor,
+    }
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
