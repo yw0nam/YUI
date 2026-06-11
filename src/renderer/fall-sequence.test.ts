@@ -372,6 +372,63 @@ describe("createFallSequence — fall state machine", () => {
     });
   });
 
+  describe("restoreFraming (camera hand-back, must-fix #2)", () => {
+    it("calls restoreFraming exactly once, at idle entry after the full sequence", async () => {
+      const restoreFraming = vi.fn();
+      const { deps, renderer, tick } = makeDeps();
+      const seq = createFallSequence({ ...deps, restoreFraming });
+      seq.start();
+      await flush();
+      tick.pump(() => seq.state() !== FallState.Falling);
+      await flush();
+      expect(restoreFraming).not.toHaveBeenCalled(); // landing — framing still held
+
+      renderer.finish("landing");
+      await flush();
+      expect(restoreFraming).not.toHaveBeenCalled(); // reacting — framing still held
+
+      renderer.finish(LANDING_REACTION_ID);
+      await flush();
+      expect(seq.state()).toBe(FallState.Idle);
+      expect(restoreFraming).toHaveBeenCalledTimes(1);
+    });
+
+    it("calls restoreFraming on the no-mover idle fallback", async () => {
+      const restoreFraming = vi.fn();
+      const { deps } = makeDeps();
+      const seq = createFallSequence({ ...deps, windowMover: undefined, restoreFraming });
+      seq.start();
+      await flush();
+      expect(seq.state()).toBe(FallState.Idle);
+      expect(restoreFraming).toHaveBeenCalledTimes(1);
+    });
+
+    it("calls restoreFraming on the geometry-failure idle fallback", async () => {
+      const restoreFraming = vi.fn();
+      const mover = createFakeMover({ failWorkArea: true });
+      const { deps } = makeDeps({ mover });
+      const seq = createFallSequence({ ...deps, restoreFraming });
+      seq.start();
+      await flush();
+      expect(seq.state()).toBe(FallState.Idle);
+      expect(restoreFraming).toHaveBeenCalledTimes(1);
+    });
+
+    it("does NOT call restoreFraming when preempted mid-fall (takeover owns the character)", async () => {
+      const restoreFraming = vi.fn();
+      const { deps, preemption } = makeDeps();
+      const seq = createFallSequence({ ...deps, restoreFraming });
+      seq.start();
+      await flush();
+      expect(seq.state()).toBe(FallState.Falling);
+
+      preemption.preempt("falling", "drag");
+      await flush();
+      expect(seq.state()).toBe(FallState.Cancelled);
+      expect(restoreFraming).not.toHaveBeenCalled();
+    });
+  });
+
   describe("cadence throttle (absorbs U6)", () => {
     it("throttles setPosition to the min-interval and min-delta gates while computing Y every frame", async () => {
       const { deps, mover, tick } = makeDeps({ feetPx: 380 });
