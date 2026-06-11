@@ -89,6 +89,11 @@ export interface FallSequenceDeps {
   isMotionGenerationCurrent(captured: number): boolean;
   /** Read once by the caller (matchMedia). Skips the animated plunge. */
   reducedMotion: boolean;
+  /**
+   * Restore normal camera framing (perch zoom hand-back). Called once on idle
+   * entry — sequence completion or fallback — never on cancel (takeover owns it).
+   */
+  restoreFraming?(): void;
 }
 
 export interface FallSequence {
@@ -162,6 +167,7 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
   /** Phase-1 fallback: no animated fall — straight to idle motion. */
   function fallbackToIdle(): void {
     teardown();
+    deps.restoreFraming?.();
     deps.playMotion(null);
     phase = FallState.Idle;
   }
@@ -179,6 +185,7 @@ export function createFallSequence(deps: FallSequenceDeps): FallSequence {
     if (aborted()) return;
 
     teardown();
+    deps.restoreFraming?.();
     deps.playMotion(null);
     phase = FallState.Idle;
   }
