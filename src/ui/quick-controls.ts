@@ -27,6 +27,7 @@ import {
   isValidEndpointUrl,
   type EndpointOverrides,
 } from "../io/endpoints-settings";
+import type { ChatKeySettingsStore } from "../io/chat-key-settings";
 import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import type { createSessionStore } from "../io/session-store";
 import { resolveAssetUrl } from "../io/asset-url";
@@ -79,6 +80,8 @@ interface QuickControlsOptions {
   getDefaultInstructions?: () => string | undefined;
   /** 사용자 편집 엔드포인트 오버라이드 store. 빈 값=폴백. */
   endpointsSettings: EndpointsSettingsStore;
+  /** chat API 키 오버라이드 store. 빈 값=build-time 키 사용. 값은 시크릿 — 로깅 금지. */
+  chatKeySettings: ChatKeySettingsStore;
   /** placeholder로 보여줄 bundled config 기본 엔드포인트(미로드 시 undefined). */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** 오버라이드가 없을 때 음성 엔진 세그가 반영할 bundled config 기본 provider(미로드 시 undefined). */
@@ -122,6 +125,14 @@ const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = [
   { key: "chat_model", label: "채팅 모델", url: false },
 ];
 const ENDPOINT_URL_ERROR = "올바른 URL이 아니에요 (http:// 또는 https://)";
+
+// chat API 키 필드 — 시크릿이므로 값은 input.value에만 두고 sublabel은 상태(기본/저장)만 말한다.
+const CHATKEY_SUB_DEFAULT = "기본값 사용 중 — 비워두면 빌드 시 설정한 키를 써요";
+const CHATKEY_SUB_OVERRIDE = "이 기기에 저장됨 — 비우면 원래 키로 돌아가요";
+// 눈 아이콘(보임/숨김). 라인 아이콘 스타일을 다른 아이콘 버튼과 맞춘다.
+const CHATKEY_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg>`;
+const CHATKEY_EYE_OFF_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9.6 5.9A9.6 9.6 0 0 1 12 5.5C18 5.5 21.5 12 21.5 12a16 16 0 0 1-2.7 3.3M6.3 7.7A16 16 0 0 0 2.5 12S6 18.5 12 18.5a9.3 9.3 0 0 0 2.7-.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.7 9.8a2.6 2.6 0 0 0 3.6 3.7" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
+const CHATKEY_CLEAR_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
 
 // 음성 엔진 세그먼트(2칸) — tts_provider 오버라이드를 구동. 효과적 provider를 반영한다.
 const VOICE_ENGINES = ["irodori", "openai"] as const;
@@ -212,6 +223,7 @@ export function createQuickControls({
   variant = "popover",
   getDefaultInstructions,
   endpointsSettings,
+  chatKeySettings,
   getEndpointDefaults,
   getDefaultProvider,
   sessionDiagnostics,
@@ -488,6 +500,19 @@ export function createQuickControls({
             <button class="yui-reset yui-endpoints__reset yui-ep-reset" type="button">기본값으로 되돌리기</button>
           </div>
         </details>
+
+        <div class="yui-quick__divider" aria-hidden="true"></div>
+        <span class="yui-quick__section">채팅 API 키</span>
+        <div class="yui-input-row yui-chatkey">
+          <label class="yui-input-row__label" for="yui-chatkey-input">채팅 API 키</label>
+          <span class="yui-input-row__sub"></span>
+          <div class="yui-input-wrap yui-chatkey__wrap">
+            <input class="yui-ep-input yui-chatkey__input" id="yui-chatkey-input" type="password"
+              autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="채팅 API 키" />
+            <button class="yui-iconbtn yui-chatkey__toggle" type="button" aria-pressed="false" aria-label="키 보기" title="키 보기">${CHATKEY_EYE_SVG}</button>
+            <button class="yui-iconbtn yui-chatkey__clear" type="button" aria-label="키 지우기" title="키 지우기">${CHATKEY_CLEAR_SVG}</button>
+          </div>
+        </div>
         ${sessionHtml}
       </div>
 
@@ -531,6 +556,11 @@ export function createQuickControls({
   for (const { key } of ENDPOINT_FIELDS) {
     epInputs.set(key, el.querySelector<HTMLInputElement>(`#yui-ep-${key}`)!);
   }
+  // chat API 키 — 값은 시크릿이므로 input.value에만 살고, sublabel/aria는 상태만 노출한다.
+  const chatKeyInput = el.querySelector<HTMLInputElement>(".yui-chatkey__input")!;
+  const chatKeySubEl = el.querySelector<HTMLSpanElement>(".yui-chatkey .yui-input-row__sub")!;
+  const chatKeyToggleBtn = el.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
+  const chatKeyClearBtn = el.querySelector<HTMLButtonElement>(".yui-chatkey__clear")!;
 
   // 세션 섹션 노드(window 전용 — 없으면 null).
   const sessionStatEl = el.querySelector<HTMLDivElement>(".yui-session__stat");
@@ -658,6 +688,16 @@ export function createQuickControls({
       }
       validateEndpointInput(key, input);
     }
+  }
+
+  // chat API 키 필드를 store에서 그린다. 값은 시크릿 — input.value에만 두고 로깅하지 않는다.
+  // 입력 중인 칸은 덮어쓰지 않는다(원격 변경은 blur 시 적용). 빈 값=기본값 사용 중을 sublabel로 안내.
+  function reflectChatKey(): void {
+    const key = chatKeySettings.get().apiKey;
+    if (document.activeElement !== chatKeyInput && chatKeyInput.value !== key) {
+      chatKeyInput.value = key;
+    }
+    chatKeySubEl.textContent = key ? CHATKEY_SUB_OVERRIDE : CHATKEY_SUB_DEFAULT;
   }
 
   // 세션 진단 readout을 store에서 그린다. contextWindow가 null이면 막대·퍼센트 없이 사용량만.
@@ -1636,6 +1676,7 @@ export function createQuickControls({
     reflectVad();
     reflectAgent();
     reflectEndpoints();
+    reflectChatKey();
     reflectVoiceEngine();
     reflectSession();
     renderVrms();
@@ -1865,6 +1906,37 @@ export function createQuickControls({
     log.info("엔드포인트 초기화");
   }
 
+  // ── chat API 키 필드 ──
+  // 값은 시크릿 — 어떤 로그에도 키 자체를 남기지 않는다(상태 전이만 기록).
+
+  function handleChatKeyInput(): void {
+    const v = chatKeyInput.value;
+    if (v) chatKeySettings.setApiKey(v);
+    else chatKeySettings.clear(); // 빈 값 = 오버라이드 없음
+    // store 구독(unsubscribeChatKey)이 reflectChatKey로 sublabel을 갱신한다.
+  }
+
+  // blur 시점에 입력 중 보류된 원격 변경을 반영한다(엔드포인트/지침과 동일).
+  function handleChatKeyBlur(): void {
+    reflectChatKey();
+  }
+
+  function handleChatKeyToggle(): void {
+    const show = chatKeyToggleBtn.getAttribute("aria-pressed") !== "true";
+    chatKeyToggleBtn.setAttribute("aria-pressed", String(show));
+    chatKeyInput.type = show ? "text" : "password";
+    chatKeyToggleBtn.innerHTML = show ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG;
+    const label = show ? "키 숨기기" : "키 보기";
+    chatKeyToggleBtn.setAttribute("aria-label", label);
+    chatKeyToggleBtn.title = label;
+  }
+
+  function handleChatKeyClear(): void {
+    chatKeyInput.value = "";
+    chatKeySettings.clear();
+    log.info("채팅 API 키 지움");
+  }
+
   // ── 세션 섹션: 새 대화 시작(reset) ──
 
   function showSessionConfirm(): void {
@@ -1972,6 +2044,10 @@ export function createQuickControls({
       reflectVoiceEngine();
     }
   });
+  // chat 키 store 갱신(이 창 편집·다른 창 reloadFromStorage)을 필드에 반영. 값은 시크릿.
+  const unsubscribeChatKey = chatKeySettings.subscribe(() => {
+    if (openState) reflectChatKey();
+  });
   // store 갱신(직접 select·다른 창 reloadFromStorage)을 active 행에 반영.
   // 스왑 진행 중엔 건너뛴다 — finally의 renderVrms가 로딩 해제 후 최종 그림을 맡는다.
   const unsubscribeVrm = vrmSelection.subscribe(() => {
@@ -2016,6 +2092,10 @@ export function createQuickControls({
     input.addEventListener("blur", handleEndpointBlur);
   }
   epResetBtn.addEventListener("click", handleResetEndpoints);
+  chatKeyInput.addEventListener("input", handleChatKeyInput);
+  chatKeyInput.addEventListener("blur", handleChatKeyBlur);
+  chatKeyToggleBtn.addEventListener("click", handleChatKeyToggle);
+  chatKeyClearBtn.addEventListener("click", handleChatKeyClear);
   sessionResetBtn?.addEventListener("click", showSessionConfirm);
   sessionConfirmBtn?.addEventListener("click", handleSessionReset);
   sessionCancelBtn?.addEventListener("click", hideSessionConfirm);
@@ -2035,6 +2115,7 @@ export function createQuickControls({
     unsubscribeVad();
     unsubscribeAgent();
     unsubscribeEndpoints();
+    unsubscribeChatKey();
     unsubscribeVrm();
     unsubscribeSpk();
     unsubscribeSession?.();
@@ -2071,6 +2152,10 @@ export function createQuickControls({
       input.removeEventListener("blur", handleEndpointBlur);
     }
     epResetBtn.removeEventListener("click", handleResetEndpoints);
+    chatKeyInput.removeEventListener("input", handleChatKeyInput);
+    chatKeyInput.removeEventListener("blur", handleChatKeyBlur);
+    chatKeyToggleBtn.removeEventListener("click", handleChatKeyToggle);
+    chatKeyClearBtn.removeEventListener("click", handleChatKeyClear);
     sessionResetBtn?.removeEventListener("click", showSessionConfirm);
     sessionConfirmBtn?.removeEventListener("click", handleSessionReset);
     sessionCancelBtn?.removeEventListener("click", hideSessionConfirm);

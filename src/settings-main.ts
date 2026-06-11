@@ -15,6 +15,7 @@ import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-
 import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
+import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
 import {
   createVrmSelection,
   localStorageVrmStorage,
@@ -57,6 +58,9 @@ async function bootstrap(): Promise<void> {
   const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
   const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
+  // 런타임 chat API 키 store(같은 localStorage 키). 이 창엔 SecretProvider가 없고(디스패처 없음),
+  // 필드 표시 + cross-window 동기화만 담당한다.
+  const chatKeySettings = createChatKeySettings({ storage: localStorageChatKeyStorage() });
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
   // 세션 포인터 + 진단. 펫 창이 localStorage에 쓰면 storage 이벤트로 이 창이 재로드한다.
@@ -186,6 +190,7 @@ async function bootstrap(): Promise<void> {
       }
     },
     endpointsSettings,
+    chatKeySettings,
     getEndpointDefaults: () => {
       if (!configLoaded) return undefined;
       try {
@@ -219,7 +224,7 @@ async function bootstrap(): Promise<void> {
 
   // 메인 창의 편집을 반영: cross-window storage 이벤트 + 포커스 폴백.
   // vrmSelection도 함께 재로드해 펫 창에서 바뀐 선택이 이 창 UI에 반영되게 한다.
-  const resyncStores = [agentSettings, endpointsSettings, lipsyncSettings, vadSettings, screenshotSettings, proactiveSettings, vrmSelection, speakerSelection, sessionStore, sessionDiagnostics];
+  const resyncStores = [agentSettings, endpointsSettings, chatKeySettings, lipsyncSettings, vadSettings, screenshotSettings, proactiveSettings, vrmSelection, speakerSelection, sessionStore, sessionDiagnostics];
   wireStorageSync(resyncStores);
   window.addEventListener("focus", () => {
     for (const s of resyncStores) s.reloadFromStorage();
@@ -254,6 +259,7 @@ async function bootstrap(): Promise<void> {
   };
   agentSettings.subscribe(broadcastSettings);
   endpointsSettings.subscribe(broadcastSettings);
+  chatKeySettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);
   vadSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
