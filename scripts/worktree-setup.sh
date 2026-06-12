@@ -21,6 +21,17 @@ if [ -z "$MAIN" ] || [ ! -d "$MAIN" ]; then
   exit 65
 fi
 
+# Absolutize both paths — symlink targets resolve relative to the link's own
+# directory, so relative arguments would produce dangling links.
+WT=$(cd "$WT" 2>/dev/null && pwd) || {
+  echo "worktree-setup: worktree path not found: $1" >&2
+  exit 65
+}
+MAIN=$(cd "$MAIN" 2>/dev/null && pwd) || {
+  echo "worktree-setup: main checkout not found: $MAIN" >&2
+  exit 65
+}
+
 link_asset() {
   src="$1"
   dst="$2"
