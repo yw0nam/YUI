@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -81,6 +81,17 @@ describe("scripts/worktree-setup.sh", () => {
     const r = spawnSync("bash", [SETUP, wt, main], { encoding: "utf8" });
     expect(r.status).toBe(0);
     expect(existsSync(join(wt, ".env.local"))).toBe(false);
+  });
+
+  it("resolves relative arguments so symlinks survive any caller cwd", () => {
+    const main = makeMainCheckout();
+    const wt = tmp("yui-wt-");
+    const r = spawnSync("bash", [SETUP, basename(wt), basename(main)], {
+      encoding: "utf8",
+      cwd: dirname(wt),
+    });
+    expect(r.status).toBe(0);
+    expect(readFileSync(join(wt, "resources/vrms/carlotta.vrm"), "utf8")).toBe("vrm-bytes");
   });
 
   it("exits non-zero with usage when called without arguments", () => {
