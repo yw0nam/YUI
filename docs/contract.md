@@ -151,13 +151,15 @@ emotion enum→prefix 매핑은 없다. emotion의 목소리(TTS) 차원은 `gen
 ## 2. Motion Registry
 
 ### 목적
-backend가 motion ID로 동작을 요청하면 client가 VRMA 파일 + 재생 옵션으로 해석. registry는 `configs/motions.json`(12종).
+backend가 motion ID로 동작을 요청하면 client가 VRMA 파일 + 재생 옵션으로 해석. registry는 `configs/motions.json`(15종).
 
 ### Registry entries
 | id           | kind     | loop | priority | interrupt_policy | broker_publish | 비고                                    |
 |--------------|----------|------|----------|------------------|----------------|-----------------------------------------|
 | `idle`       | ambient  | yes  | 0        | replace          | (내부 전용)    | baseline. 항상 깔려 있음. 13 variant.   |
 | `drag`       | reactive | yes  | 80       | replace          | (내부 전용)    | 사용자 드래그 중.                       |
+| `falling`    | reactive | yes  | 78       | replace          | false          | 낙하 루프. 등록만, 현재 트리거하는 코드 없음. |
+| `landing`    | oneshot  | no   | 78       | replace          | false          | 착지 임팩트 후 정착. 등록만, 현재 트리거하는 코드 없음. |
 | `happy`      | oneshot  | no   | 70       | replace          | true           | 기쁨 제스처.                            |
 | `laugh`      | oneshot  | no   | 70       | replace          | true           | 웃음 제스처.                            |
 | `embarrassed`| oneshot  | no   | 70       | replace          | true           | 강한 부끄럼+손가락 제스처.              |
@@ -165,13 +167,14 @@ backend가 motion ID로 동작을 요청하면 client가 VRMA 파일 + 재생 �
 | `calm`       | oneshot  | no   | 70       | replace          | true           | 차분한 제스처.                          |
 | `peek`       | oneshot  | no   | 70       | replace          | true           | 빼꼼.                                   |
 | `sleeping`   | oneshot  | yes  | 70       | replace          | true           | 졸음/수면.                              |
+| `sulk`       | oneshot  | no   | 70       | replace          | true           | 삐짐/뾰로통(拗ね) 감정 제스처.          |
 | `dance`      | oneshot  | no   | 70       | replace          | true           | 춤. 13 variant.                         |
 | `sit`        | oneshot  | no   | 70       | replace          | false          | 앉기. 8 variant.                        |
 | `window_sit` | state    | yes  | 55       | replace          | false          | 창 가장자리 앉기 state. 8 variant, `cycle_dwell_ms` 4000. |
 
 `idle`은 backend 요청 없이도 client가 깔아두는 baseline. backend가 `motion: null`을 보내면 client는 `idle`로 복귀한다. oneshot gesture 모션은 `emotion` 채널(표정)과 **독립된** `motion` 채널로 전달된다.
 
-Expression Broker가 agent에 노출하는 모션은 `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance`. `broker_publish: false` entry(`sit`, `window_sit`)와 `kind: reactive`(`drag`) · client 내부 전용 `idle`(ambient baseline)은 broker 어휘에서 제외되어 agent가 고를 수 없다.
+Expression Broker가 agent에 노출하는 모션은 `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance, sulk`. `broker_publish: false` entry(`sit`, `window_sit`, `falling`, `landing`)와 `kind: reactive`(`drag`) · client 내부 전용 `idle`(ambient baseline)은 broker 어휘에서 제외되어 agent가 고를 수 없다.
 
 Motion VRMA 에셋은 **`public/motions/`에 git-tracked으로 커밋**되어 Vite가 `/motions/<id>.vrma`로 서빙한다 (~2.4MB, 크기가 작아 커밋). VRM 모델(`resources/vrms/carlotta.vrm`, ~48MB)은 gitignore 유지.
 
