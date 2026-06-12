@@ -190,14 +190,28 @@ describe("configs/motions.json", () => {
     expect(m.landing.broker_publish).toBe(false);
   });
 
-  it("registers the #143 fall sequence: suneru (oneshot, broker-excluded)", () => {
-    expect(m.suneru).toBeDefined();
-    expect(m.suneru.vrma_path).toBe("/motions/suneru.vrma");
-    expect(m.suneru.kind).toBe("oneshot");
-    expect(m.suneru.loop).toBe(false);
-    expect(m.suneru.priority).toBe(70);
-    expect(m.suneru.interrupt_policy).toBe("replace");
-    expect(m.suneru.broker_publish).toBe(false);
+  it("registers sulk as a broker-published oneshot emotion motion", () => {
+    expect(m.suneru).toBeUndefined();
+    expect(m.sulk).toBeDefined();
+    expect(m.sulk.vrma_path).toBe("/motions/suneru.vrma");
+    expect(m.sulk.kind).toBe("oneshot");
+    expect(m.sulk.loop).toBe(false);
+    expect(m.sulk.priority).toBe(70);
+    expect(m.sulk.interrupt_policy).toBe("replace");
+    expect(m.sulk.broker_publish).not.toBe(false);
+  });
+
+  it("derives a broker-published set that includes sulk and excludes falling/landing/suneru", () => {
+    const published = Object.entries(m)
+      .filter(
+        ([, e]: [string, any]) =>
+          e.kind !== "reactive" && e.kind !== "ambient" && e.broker_publish !== false,
+      )
+      .map(([id]) => id);
+    expect(published).toContain("sulk");
+    expect(published).not.toContain("falling");
+    expect(published).not.toContain("landing");
+    expect(published).not.toContain("suneru");
   });
 
   it("registers the standing-gesture batch as oneshot p70", () => {
