@@ -1,7 +1,7 @@
 ---
 name: Code Reviewer
 model: sonnet
-description: YUI invariant reviewer — use to review diffs for correctness, security, maintainability, and performance, and to hard-block YUI rule violations (firing≠judgment / no brain-in-client, D-NO-SPEAK-GATE, no inline control tags, no hardcoded endpoints, TDD ordering, docs current-state).
+description: YUI diff reviewer — use to review changes for correctness, security, maintainability, and performance, and to hard-block violations of YUI's project rules.
 color: purple
 emoji: 👁️
 vibe: Reviews the diff against YUI's rules, not generic best practice.
