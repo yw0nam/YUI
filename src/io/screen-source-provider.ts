@@ -32,12 +32,14 @@ export function isTauri(): boolean {
   return !!(globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 }
 
-export function createBrowserScreenSourceProvider(
-  screen?: { width: number; height: number },
-): ScreenSourceProvider {
+export function createBrowserScreenSourceProvider(screen?: {
+  width: number;
+  height: number;
+}): ScreenSourceProvider {
   return {
     listMonitors(): Promise<MonitorInfo[]> {
-      const src = screen ?? (typeof globalThis.screen !== "undefined" ? globalThis.screen : undefined);
+      const src =
+        screen ?? (typeof globalThis.screen !== "undefined" ? globalThis.screen : undefined);
       const monitor: MonitorInfo = {
         index: 0,
         label: "이 화면",

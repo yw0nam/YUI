@@ -16,9 +16,7 @@ export interface SettingsSecretProviderOptions {
   fallback?: Record<string, string | undefined>;
 }
 
-export function createSettingsSecretProvider(
-  opts: SettingsSecretProviderOptions,
-): SecretProvider {
+export function createSettingsSecretProvider(opts: SettingsSecretProviderOptions): SecretProvider {
   const { chatKey, fallback } = opts;
   return {
     async get(name) {

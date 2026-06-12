@@ -1,12 +1,43 @@
 {
   "hooks": {
-    "Stop": [
+    "WorktreeCreate": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-guard-stop.sh\"",
-            "statusMessage": "verify-guard: checking runtime verification(playwright, pnpm tauri dev.. etc) before stop"
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-create.sh\"",
+            "statusMessage": "worktree-create: adding worktree + linking runtime assets (VRM, references, .env.local)"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/pretool-bash-guard.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/pretool-read-guard.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/posttool-edit-guard.sh\""
           }
         ]
       }

@@ -8,16 +8,16 @@
  *   mergeEndpoints(base, overrides) — overlay non-empty valid overrides onto a base EndpointsConfig
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { EndpointsConfig } from "../contract";
+import type { EndpointOverrides, EndpointsStorage } from "./endpoints-settings";
 import {
-  ENDPOINT_VALUE_MAX_LEN,
   createEndpointsSettings,
-  localStorageEndpointsStorage,
+  ENDPOINT_VALUE_MAX_LEN,
   isValidEndpointUrl,
+  localStorageEndpointsStorage,
   mergeEndpoints,
 } from "./endpoints-settings";
-import type { EndpointsStorage, EndpointOverrides } from "./endpoints-settings";
-import type { EndpointsConfig } from "../contract";
 
 const EMPTY: EndpointOverrides = {
   chat_base_url: "",
@@ -87,7 +87,7 @@ describe("createEndpointsSettings — load coercion", () => {
   it("coerces non-string fields to ''", () => {
     const storage: EndpointsStorage = {
       load: () =>
-        ({ ...EMPTY, chat_base_url: 123, stt_base_url: null } as unknown as EndpointOverrides),
+        ({ ...EMPTY, chat_base_url: 123, stt_base_url: null }) as unknown as EndpointOverrides,
       save: vi.fn(),
     };
     const store = createEndpointsSettings({ storage });
@@ -107,7 +107,7 @@ describe("createEndpointsSettings — load coercion", () => {
 
   it("ignores unknown keys and fills missing keys with ''", () => {
     const storage: EndpointsStorage = {
-      load: () => ({ chat_model: "only" } as unknown as EndpointOverrides),
+      load: () => ({ chat_model: "only" }) as unknown as EndpointOverrides,
       save: vi.fn(),
     };
     const store = createEndpointsSettings({ storage });
@@ -215,7 +215,10 @@ describe("createEndpointsSettings — reset", () => {
   });
 
   it("persists the cleared state", () => {
-    const storage: EndpointsStorage = { load: () => ({ ...EMPTY, chat_model: "m" }), save: vi.fn() };
+    const storage: EndpointsStorage = {
+      load: () => ({ ...EMPTY, chat_model: "m" }),
+      save: vi.fn(),
+    };
     const store = createEndpointsSettings({ storage });
     store.reset();
     expect(storage.save).toHaveBeenCalledWith(EMPTY);
@@ -471,12 +474,18 @@ describe("mergeEndpoints", () => {
   // ── broker_base_url override ──
 
   it("applies a valid broker_base_url override", () => {
-    const out = mergeEndpoints(baseConfig(), { ...EMPTY, broker_base_url: "http://localhost:3201/mcp" });
+    const out = mergeEndpoints(baseConfig(), {
+      ...EMPTY,
+      broker_base_url: "http://localhost:3201/mcp",
+    });
     expect(out.broker_base_url).toBe("http://localhost:3201/mcp");
   });
 
   it("trims a broker_base_url override before applying", () => {
-    const out = mergeEndpoints(baseConfig(), { ...EMPTY, broker_base_url: "  https://broker.example/mcp  " });
+    const out = mergeEndpoints(baseConfig(), {
+      ...EMPTY,
+      broker_base_url: "  https://broker.example/mcp  ",
+    });
     expect(out.broker_base_url).toBe("https://broker.example/mcp");
   });
 
@@ -536,7 +545,10 @@ describe("createEndpointsSettings — broker_base_url + tts_provider overrides",
     const store = createEndpointsSettings({ storage });
     store.set({ broker_base_url: "http://localhost:3201/mcp" });
     expect(store.get().broker_base_url).toBe("http://localhost:3201/mcp");
-    expect(storage.save).toHaveBeenCalledWith({ ...EMPTY, broker_base_url: "http://localhost:3201/mcp" });
+    expect(storage.save).toHaveBeenCalledWith({
+      ...EMPTY,
+      broker_base_url: "http://localhost:3201/mcp",
+    });
   });
 
   it("set/get a tts_provider override and persist it", () => {
@@ -560,10 +572,13 @@ describe("createEndpointsSettings — broker_base_url + tts_provider overrides",
   });
 
   it("loads a valid tts_provider from storage and coerces a garbage one to ''", () => {
-    const good: EndpointsStorage = { load: () => ({ ...EMPTY, tts_provider: "irodori" }), save: vi.fn() };
+    const good: EndpointsStorage = {
+      load: () => ({ ...EMPTY, tts_provider: "irodori" }),
+      save: vi.fn(),
+    };
     expect(createEndpointsSettings({ storage: good }).get().tts_provider).toBe("irodori");
     const bad: EndpointsStorage = {
-      load: () => ({ ...EMPTY, tts_provider: "garbage" } as unknown as EndpointOverrides),
+      load: () => ({ ...EMPTY, tts_provider: "garbage" }) as unknown as EndpointOverrides,
       save: vi.fn(),
     };
     expect(createEndpointsSettings({ storage: bad }).get().tts_provider).toBe("");

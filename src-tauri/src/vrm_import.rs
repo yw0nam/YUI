@@ -5,10 +5,12 @@
 //! the app's own privileges — the fs plugin would require the source path to be in
 //! a pre-declared scope, which an OS file picker cannot satisfy.
 
-use std::path::{Path, PathBuf};
+use crate::import_fs::{
+    collides, derive_dest_stem, ensure_within, sanitize_stem, sniff_file, SniffKind,
+};
 use serde::Serialize;
+use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle, Manager};
-use crate::import_fs::{sanitize_stem, derive_dest_stem, collides, ensure_within, sniff_file, SniffKind};
 
 /// Max accepted source size for a VRM import.
 const MAX_VRM_BYTES: u64 = 512 * 1024 * 1024;
@@ -25,7 +27,9 @@ pub struct ImportedVrm {
 
 /// Copy a validated `.vrm` source into `vrms_dir`, disambiguating the dest stem.
 fn copy_into_vrms(vrms_dir: &Path, src: &Path) -> Result<ImportedVrm, String> {
-    let src = src.canonicalize().map_err(|_| "source file not found".to_string())?;
+    let src = src
+        .canonicalize()
+        .map_err(|_| "source file not found".to_string())?;
     if !src.is_file() {
         return Err("source file not found".to_string());
     }
@@ -37,7 +41,11 @@ fn copy_into_vrms(vrms_dir: &Path, src: &Path) -> Result<ImportedVrm, String> {
     {
         return Err("not a .vrm file".to_string());
     }
-    if std::fs::metadata(&src).map_err(|_| "source file not found".to_string())?.len() > MAX_VRM_BYTES {
+    if std::fs::metadata(&src)
+        .map_err(|_| "source file not found".to_string())?
+        .len()
+        > MAX_VRM_BYTES
+    {
         return Err("source file too large".to_string());
     }
     if !sniff_file(&src, SniffKind::Glb)? {

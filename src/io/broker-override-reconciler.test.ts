@@ -11,10 +11,10 @@
  * accessor/setter) is injected — no real network, no real config store.
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { createBrokerOverrideReconciler } from "./broker-override-reconciler";
-import type { BrokerClient, BrokerPayload } from "./broker-client";
+import { describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
+import type { BrokerClient, BrokerPayload } from "./broker-client";
+import { createBrokerOverrideReconciler } from "./broker-override-reconciler";
 
 function fakeBroker(): BrokerClient & {
   publish: ReturnType<typeof vi.fn>;

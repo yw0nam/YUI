@@ -12,7 +12,7 @@
  *  - get()이 shallow copy를 반환(내부 상태 변경 불가)
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createProactiveSettings,
   type ProactiveSettings,

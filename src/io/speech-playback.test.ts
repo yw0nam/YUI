@@ -10,7 +10,7 @@
  * a spy renderer, and a spy surfaces. No real audio / DOM.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createSpeechPlayback } from "./speech-playback";
 import type { TtsPipeline, TtsPipelineOptions } from "./tts-pipeline";
 

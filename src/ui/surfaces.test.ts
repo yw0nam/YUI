@@ -7,7 +7,7 @@
  * jsdom reports scrollHeight=0, so we stub it to assert the scroll behavior.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // CSS imports are not handled in jsdom — mock them
 vi.mock("./surfaces.css", () => ({}));

@@ -27,11 +27,11 @@
  * degrade to a warn log (mirrors os-context.ts).
  */
 
-import { createLogger } from "../logger";
-import { petPxToGlobalPoints, inCatchZone } from "../renderer/perch-geometry";
-import type { ScreenPoint } from "../renderer/perch-geometry";
-import type { EventBus } from "../dispatcher/event-bus";
 import type { ScreenRect, WindowRect } from "../contract";
+import type { EventBus } from "../dispatcher/event-bus";
+import { createLogger } from "../logger";
+import type { ScreenPoint } from "../renderer/perch-geometry";
+import { inCatchZone, petPxToGlobalPoints } from "../renderer/perch-geometry";
 
 const log = createLogger("window-drop");
 

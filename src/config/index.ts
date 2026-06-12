@@ -2,30 +2,30 @@
  * Config barrel — config 로더/스토어의 단일 진입점.
  * 다른 모듈은 `import { ... } from "../config"` 로 접근한다.
  */
+
 export {
-  loadConfig,
-  ConfigError,
-  plainSecretProvider,
-  CHAT_API_KEY_SECRET,
-  CONFIG_FILES,
+  type LoadEmotionTextOptions,
+  loadEmotionTextTable,
+} from "./emotion-text";
+export {
   type AppConfig,
   type AvatarConfig,
-  type GuardrailsConfig,
-  type ConfigSection,
+  CHAT_API_KEY_SECRET,
+  CONFIG_FILES,
+  ConfigError,
   type ConfigReader,
+  type ConfigSection,
+  type GuardrailsConfig,
   type LoadConfigOptions,
+  loadConfig,
+  plainSecretProvider,
   type SecretProvider,
 } from "./load";
 
 export {
-  loadEmotionTextTable,
-  type LoadEmotionTextOptions,
-} from "./emotion-text";
-
-export {
-  createConfigStore,
+  type ConfigErrorListener,
+  type ConfigListener,
   type ConfigStore,
   type ConfigStoreOptions,
-  type ConfigListener,
-  type ConfigErrorListener,
+  createConfigStore,
 } from "./store";

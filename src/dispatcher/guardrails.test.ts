@@ -12,9 +12,9 @@
  *  - §6.4 평가 순서 + dnd_override short-circuit(어떤 카운터도 증가 X).
  */
 
-import { describe, it, expect } from "vitest";
-import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
+import { describe, expect, it } from "vitest";
 import type { BusEnvelope } from "./event-bus";
+import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
 
 const BASE_TS = 1_717_000_000_000;
 
@@ -39,7 +39,11 @@ function config(): GuardrailsConfig {
 }
 
 /** 주입 가능한 시계 — 테스트가 .now를 밀어 시간을 진행시킨다. */
-function clock(start = BASE_TS): { now: () => number; set: (t: number) => void; advance: (ms: number) => void } {
+function clock(start = BASE_TS): {
+  now: () => number;
+  set: (t: number) => void;
+  advance: (ms: number) => void;
+} {
   let t = start;
   return {
     now: () => t,
@@ -77,18 +81,36 @@ describe("guardrails — DND (§6.1)", () => {
 
   it("os.camera_in_use(payload boolean) toggles the camera reason", () => {
     const g = createGuardrails(config());
-    g.note(env({ source: "os_event_watcher", event_name: "os.camera_in_use", payload: { camera_in_use: true } }));
+    g.note(
+      env({
+        source: "os_event_watcher",
+        event_name: "os.camera_in_use",
+        payload: { camera_in_use: true },
+      }),
+    );
     expect(g.dndState().on).toBe(true);
     expect(g.dndState().reasons).toContain("camera");
 
-    g.note(env({ source: "os_event_watcher", event_name: "os.camera_in_use", payload: { camera_in_use: false } }));
+    g.note(
+      env({
+        source: "os_event_watcher",
+        event_name: "os.camera_in_use",
+        payload: { camera_in_use: false },
+      }),
+    );
     expect(g.dndState().reasons).not.toContain("camera");
   });
 
   it("camera DND clears once camera_idle_off_ms elapses since last active signal", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
-    g.note(env({ source: "os_event_watcher", event_name: "os.camera_in_use", payload: { camera_in_use: true } }));
+    g.note(
+      env({
+        source: "os_event_watcher",
+        event_name: "os.camera_in_use",
+        payload: { camera_in_use: true },
+      }),
+    );
     expect(g.dndState().reasons).toContain("camera");
 
     // before the idle-off window elapses, camera DND is still on
@@ -104,10 +126,22 @@ describe("guardrails — DND (§6.1)", () => {
     const cfg = config();
     cfg.dnd.app_blocklist = ["Keynote"];
     const g = createGuardrails(cfg);
-    g.note(env({ source: "os_event_watcher", event_name: "os.active_app_changed", payload: { active_app_name: "Keynote" } }));
+    g.note(
+      env({
+        source: "os_event_watcher",
+        event_name: "os.active_app_changed",
+        payload: { active_app_name: "Keynote" },
+      }),
+    );
     expect(g.dndState().reasons).toContain("active_app");
 
-    g.note(env({ source: "os_event_watcher", event_name: "os.active_app_changed", payload: { active_app_name: "Finder" } }));
+    g.note(
+      env({
+        source: "os_event_watcher",
+        event_name: "os.active_app_changed",
+        payload: { active_app_name: "Finder" },
+      }),
+    );
     expect(g.dndState().reasons).not.toContain("active_app");
   });
 
@@ -147,7 +181,9 @@ describe("guardrails — DND (§6.1)", () => {
   it("note no-ops gracefully on events with undefined payload fields", () => {
     const g = createGuardrails(config());
     // camera event without a payload boolean — must not throw, must not toggle.
-    expect(() => g.note(env({ source: "os_event_watcher", event_name: "os.camera_in_use" }))).not.toThrow();
+    expect(() =>
+      g.note(env({ source: "os_event_watcher", event_name: "os.camera_in_use" })),
+    ).not.toThrow();
     expect(g.dndState().on).toBe(false);
   });
 });
@@ -172,7 +208,10 @@ describe("guardrails — evaluate DND gate", () => {
     g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_entered" }));
     // fire many user-override turns — DND on, debounce 0, none increments rate counters.
     for (let i = 0; i < 50; i++) {
-      const r = g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted", dnd_override: true }), 2);
+      const r = g.evaluate(
+        env({ source: "user_input_source", event_name: "user.text_submitted", dnd_override: true }),
+        2,
+      );
       expect(r.pass).toBe(true);
     }
     // overall counter never moved → cooldown not entered.
@@ -200,28 +239,45 @@ describe("guardrails — debounce per source (§6.2)", () => {
   it("os_event_watcher 5s window", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
-    expect(g.evaluate(env({ source: "os_event_watcher", event_name: "os.active_app_changed" }), 3).pass).toBe(true);
+    expect(
+      g.evaluate(env({ source: "os_event_watcher", event_name: "os.active_app_changed" }), 3).pass,
+    ).toBe(true);
     c.advance(4_999);
-    expect(g.evaluate(env({ source: "os_event_watcher", event_name: "os.active_app_changed" }), 3).pass).toBe(false);
+    expect(
+      g.evaluate(env({ source: "os_event_watcher", event_name: "os.active_app_changed" }), 3).pass,
+    ).toBe(false);
     c.advance(1);
-    expect(g.evaluate(env({ source: "os_event_watcher", event_name: "os.active_app_changed" }), 3).pass).toBe(true);
+    expect(
+      g.evaluate(env({ source: "os_event_watcher", event_name: "os.active_app_changed" }), 3).pass,
+    ).toBe(true);
   });
 
   it("backend_push_source 10s window", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
-    expect(g.evaluate(env({ source: "backend_push_source", event_name: "backend.push.suggest" }), 3).pass).toBe(true);
+    expect(
+      g.evaluate(env({ source: "backend_push_source", event_name: "backend.push.suggest" }), 3)
+        .pass,
+    ).toBe(true);
     c.advance(9_999);
-    expect(g.evaluate(env({ source: "backend_push_source", event_name: "backend.push.suggest" }), 3).pass).toBe(false);
+    expect(
+      g.evaluate(env({ source: "backend_push_source", event_name: "backend.push.suggest" }), 3)
+        .pass,
+    ).toBe(false);
     c.advance(1);
-    expect(g.evaluate(env({ source: "backend_push_source", event_name: "backend.push.suggest" }), 3).pass).toBe(true);
+    expect(
+      g.evaluate(env({ source: "backend_push_source", event_name: "backend.push.suggest" }), 3)
+        .pass,
+    ).toBe(true);
   });
 
   it("user_input_source 0 window — never debounce-dropped", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 3; i++) {
-      expect(g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass).toBe(true);
+      expect(
+        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+      ).toBe(true);
     }
   });
 
@@ -244,9 +300,14 @@ describe("guardrails — rate-limit per tier rolling 60min (§6.3)", () => {
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 6; i++) {
       // distinct sources/time to avoid debounce — drive via user_input (debounce 0).
-      expect(g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass).toBe(true);
+      expect(
+        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+      ).toBe(true);
     }
-    const r = g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2);
+    const r = g.evaluate(
+      env({ source: "user_input_source", event_name: "user.text_submitted" }),
+      2,
+    );
     expect(r.pass).toBe(false);
     if (!r.pass) expect(r.detail).toBe("rate_limit:tier2");
   });
@@ -254,9 +315,16 @@ describe("guardrails — rate-limit per tier rolling 60min (§6.3)", () => {
   it("tier3 cap 2: 2 pass, 3rd drops with detail rate_limit:tier3", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
-    expect(g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 3).pass).toBe(true);
-    expect(g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 3).pass).toBe(true);
-    const r = g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 3);
+    expect(
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 3).pass,
+    ).toBe(true);
+    expect(
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 3).pass,
+    ).toBe(true);
+    const r = g.evaluate(
+      env({ source: "user_input_source", event_name: "user.text_submitted" }),
+      3,
+    );
     expect(r.pass).toBe(false);
     if (!r.pass) expect(r.detail).toBe("rate_limit:tier3");
   });
@@ -265,25 +333,37 @@ describe("guardrails — rate-limit per tier rolling 60min (§6.3)", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 6; i++) {
-      expect(g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass).toBe(true);
+      expect(
+        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+      ).toBe(true);
       c.advance(1);
     }
     // immediately full
-    expect(g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass).toBe(false);
+    expect(
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+    ).toBe(false);
     // advance past window relative to the first fire → one slot prunes, one more passes
     c.advance(3_600_000);
-    expect(g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass).toBe(true);
+    expect(
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+    ).toBe(true);
   });
 
   it("NO refund: a dropped (over-cap) attempt does not free a slot", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 6; i++) {
-      expect(g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass).toBe(true);
+      expect(
+        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+      ).toBe(true);
     }
     // two over-cap attempts in the same instant — both drop, no slot is freed by the drops.
-    expect(g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass).toBe(false);
-    expect(g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass).toBe(false);
+    expect(
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+    ).toBe(false);
+    expect(
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+    ).toBe(false);
   });
 });
 
@@ -295,11 +375,16 @@ describe("guardrails — overall cap → cooldown (§6.3)", () => {
     cfg.rate_limit.tier2_max = 1000;
     const g = createGuardrails(cfg, { now: c.now });
     for (let i = 0; i < 20; i++) {
-      expect(g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass).toBe(true);
+      expect(
+        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+      ).toBe(true);
     }
     expect(g.cooldownActive()).toBe(false);
 
-    const r = g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2);
+    const r = g.evaluate(
+      env({ source: "user_input_source", event_name: "user.text_submitted" }),
+      2,
+    );
     expect(r.pass).toBe(false);
     if (!r.pass) expect(r.detail).toBe("cooldown_entered");
     expect(g.cooldownActive()).toBe(true);
@@ -321,7 +406,10 @@ describe("guardrails — overall cap → cooldown (§6.3)", () => {
       g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2);
     }
     g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2); // enters cooldown
-    const r = g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2);
+    const r = g.evaluate(
+      env({ source: "user_input_source", event_name: "user.text_submitted" }),
+      2,
+    );
     expect(r.pass).toBe(false);
     if (!r.pass) expect(r.detail).toBe("cooldown");
   });
@@ -333,7 +421,10 @@ describe("guardrails — eval ordering (§6.4)", () => {
   it("dnd_override is checked first — bypasses DND, debounce, and rate-limit", () => {
     const g = createGuardrails(config());
     g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_entered" })); // DND on
-    const r = g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted", dnd_override: true }), 2);
+    const r = g.evaluate(
+      env({ source: "user_input_source", event_name: "user.text_submitted", dnd_override: true }),
+      2,
+    );
     expect(r.pass).toBe(true);
   });
 

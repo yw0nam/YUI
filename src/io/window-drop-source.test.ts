@@ -13,10 +13,10 @@
  * are mocked.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createWindowDropSource } from "./window-drop-source";
-import type { EventBus, BusEnvelope } from "../dispatcher/event-bus";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WindowRect } from "../contract";
+import type { BusEnvelope, EventBus } from "../dispatcher/event-bus";
+import { createWindowDropSource } from "./window-drop-source";
 
 const RELEASE_EVENT = "window_drop_release";
 
@@ -359,7 +359,7 @@ describe("window-drop-source — occlusion poll loss + debounce (J2)", () => {
     vi.useRealTimers();
   });
 
-  async function armOn(armed: WindowRect, lists: WindowRect[][]) {
+  async function armOn(_armed: WindowRect, lists: WindowRect[][]) {
     const { renderer } = makePerchSource();
     const invoke = vi.fn(async () => lists[0]);
     const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
@@ -399,7 +399,14 @@ describe("window-drop-source — occlusion poll loss + debounce (J2)", () => {
     // A window above whose top is within the catch U-band (0.28*200=56px above
     // seat.y 400 → y≥344) but which does NOT cover the seat point: its bottom
     // edge sits above the seat (does not contain (300,400)).
-    const grazing = win({ name: "Grazing", windowNumber: 99, x: 300, y: 360, width: 520, height: 20 });
+    const grazing = win({
+      name: "Grazing",
+      windowNumber: 99,
+      x: 300,
+      y: 360,
+      width: 520,
+      height: 20,
+    });
     const { invoke } = await armOn(armed, [[armed]]);
 
     invoke.mockImplementation(async () => [grazing, armed]);

@@ -6,7 +6,7 @@
  * Tauri API는 주입 가능 — 실제 @tauri-apps/api를 타지 않고 mock으로 분기를 검증한다.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { resolveAssetUrl, resolveUserFileSrc, type TauriAssetApi } from "./asset-url";
 
 /** 번들 리소스 경로를 흉내내는 mock — resolveResource는 절대 fs 경로, convertFileSrc는 asset URL. */
@@ -53,7 +53,7 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
     });
     expect(api.resolveResource).toHaveBeenCalledWith("configs/endpoints.json");
     expect(api.convertFileSrc).toHaveBeenCalledWith("/app/resources/configs/endpoints.json");
-    expect(out).toBe("asset://localhost/" + encodeURI("/app/resources/configs/endpoints.json"));
+    expect(out).toBe(`asset://localhost/${encodeURI("/app/resources/configs/endpoints.json")}`);
   });
 
   it("VRM 경로도 동일하게 resource-relative로 변환한다", async () => {
@@ -112,7 +112,7 @@ describe("resolveUserFileSrc — Tauri app-data 절대 경로", () => {
     expect(api.resolveResource).not.toHaveBeenCalled();
     expect(api.convertFileSrc).toHaveBeenCalledWith("/Users/me/Library/.../com.yui/vrms/Cat.vrm");
     expect(out).toBe(
-      "asset://localhost/" + encodeURI("/Users/me/Library/.../com.yui/vrms/Cat.vrm"),
+      `asset://localhost/${encodeURI("/Users/me/Library/.../com.yui/vrms/Cat.vrm")}`,
     );
   });
 
@@ -197,7 +197,7 @@ describe("resolveUserFileSrc — scheme allowlist", () => {
       tauri: async () => api,
     });
     expect(api.convertFileSrc).toHaveBeenCalledWith("/abs/app-data/vrms/Cat.vrm");
-    expect(out).toBe("asset://localhost/" + encodeURI("/abs/app-data/vrms/Cat.vrm"));
+    expect(out).toBe(`asset://localhost/${encodeURI("/abs/app-data/vrms/Cat.vrm")}`);
   });
 
   it("converts a Windows drive path via convertFileSrc, not scheme passthrough (Tauri)", async () => {

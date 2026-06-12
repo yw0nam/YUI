@@ -3,9 +3,10 @@
 
 #![allow(dead_code)] // camera_in_use + CFBooleanRef are unused FFI bindings
 
-use super::{emit_os_event, epoch_ms, idle_ms_from_secs, sanitise_app_name,
-            sanitise_window_title, OsEventData, OsEventPayload, WindowAtPoint,
-            WINDOW_DROP_RELEASE_CHANNEL};
+use super::{
+    emit_os_event, epoch_ms, idle_ms_from_secs, sanitise_app_name, sanitise_window_title,
+    OsEventData, OsEventPayload, WindowAtPoint, WINDOW_DROP_RELEASE_CHANNEL,
+};
 use std::{
     ffi::c_void,
     sync::atomic::{AtomicBool, Ordering},
@@ -147,7 +148,12 @@ unsafe fn cfstring_to_string(s: CFStringRef) -> Option<String> {
     // 3 bytes per char for UTF-8 (max expansion) + null.
     let buf_size = (len * 4 + 1) as usize;
     let mut buf = vec![0u8; buf_size];
-    let ok = CFStringGetCString(s, buf.as_mut_ptr(), buf_size as CFIndex, K_CF_STRING_ENCODING_UTF8);
+    let ok = CFStringGetCString(
+        s,
+        buf.as_mut_ptr(),
+        buf_size as CFIndex,
+        K_CF_STRING_ENCODING_UTF8,
+    );
     if !ok {
         return None;
     }
@@ -194,7 +200,11 @@ pub fn frontmost_window_info(pid: i32) -> Option<WindowInfo> {
                 continue;
             }
             let mut out: i32 = 0;
-            if !CFNumberGetValue(v, CFNumberType::Int32 as i32, &mut out as *mut i32 as *mut c_void) {
+            if !CFNumberGetValue(
+                v,
+                CFNumberType::Int32 as i32,
+                &mut out as *mut i32 as *mut c_void,
+            ) {
                 continue;
             }
             out
@@ -218,15 +228,19 @@ pub fn frontmost_window_info(pid: i32) -> Option<WindowInfo> {
             let layer_v = CFDictionaryGetValue(dict, kCGWindowLayer);
             if !layer_v.is_null() {
                 let mut layer: i32 = 0;
-                if CFNumberGetValue(layer_v, CFNumberType::Int32 as i32, &mut layer as *mut i32 as *mut c_void)
-                    && layer == 0
+                if CFNumberGetValue(
+                    layer_v,
+                    CFNumberType::Int32 as i32,
+                    &mut layer as *mut i32 as *mut c_void,
+                ) && layer == 0
                 {
                     // Parse bounds dict (has X/Y/Width/Height as CFNumber keys).
                     let bounds_dict = CFDictionaryGetValue(dict, kCGWindowBounds);
                     if !bounds_dict.is_null() {
-                        if let (Some(w), Some(h)) =
-                            (dict_get_f64(bounds_dict, "Width"), dict_get_f64(bounds_dict, "Height"))
-                        {
+                        if let (Some(w), Some(h)) = (
+                            dict_get_f64(bounds_dict, "Width"),
+                            dict_get_f64(bounds_dict, "Height"),
+                        ) {
                             if w >= sw && h >= sh {
                                 is_fullscreen = true;
                             }
@@ -239,7 +253,10 @@ pub fn frontmost_window_info(pid: i32) -> Option<WindowInfo> {
 
     unsafe { CFRelease(windows) };
 
-    Some(WindowInfo { title, is_fullscreen })
+    Some(WindowInfo {
+        title,
+        is_fullscreen,
+    })
 }
 
 /// Reads a f64 from a nested CFDictionary by UTF-8 key.
@@ -254,7 +271,11 @@ unsafe fn dict_get_f64(dict: CFDictionaryRef, key: &str) -> Option<f64> {
         return None;
     }
     let mut out: f64 = 0.0;
-    if CFNumberGetValue(v, CFNumberType::Double as i32, &mut out as *mut f64 as *mut c_void) {
+    if CFNumberGetValue(
+        v,
+        CFNumberType::Double as i32,
+        &mut out as *mut f64 as *mut c_void,
+    ) {
         Some(out)
     } else {
         None
@@ -323,7 +344,12 @@ unsafe fn bounds_to_rect(bounds_dict: CFDictionaryRef) -> Option<ScreenRect> {
     let y = dict_get_f64(bounds_dict, "Y")?;
     let width = dict_get_f64(bounds_dict, "Width")?;
     let height = dict_get_f64(bounds_dict, "Height")?;
-    Some(ScreenRect { x, y, width, height })
+    Some(ScreenRect {
+        x,
+        y,
+        width,
+        height,
+    })
 }
 
 /// Public window list for the `list_windows` command: every foreign on-screen
@@ -388,8 +414,11 @@ fn enumerate_windows() -> Vec<WindowRect> {
                 continue;
             }
             let mut out: i32 = 0;
-            if !CFNumberGetValue(v, CFNumberType::Int32 as i32, &mut out as *mut i32 as *mut c_void)
-            {
+            if !CFNumberGetValue(
+                v,
+                CFNumberType::Int32 as i32,
+                &mut out as *mut i32 as *mut c_void,
+            ) {
                 continue;
             }
             out
@@ -405,8 +434,11 @@ fn enumerate_windows() -> Vec<WindowRect> {
                 continue;
             }
             let mut out: i32 = 0;
-            if !CFNumberGetValue(v, CFNumberType::Int32 as i32, &mut out as *mut i32 as *mut c_void)
-            {
+            if !CFNumberGetValue(
+                v,
+                CFNumberType::Int32 as i32,
+                &mut out as *mut i32 as *mut c_void,
+            ) {
                 continue;
             }
             out
@@ -419,8 +451,11 @@ fn enumerate_windows() -> Vec<WindowRect> {
                 continue;
             }
             let mut out: i64 = 0;
-            if !CFNumberGetValue(v, CFNumberType::Int64 as i32, &mut out as *mut i64 as *mut c_void)
-            {
+            if !CFNumberGetValue(
+                v,
+                CFNumberType::Int64 as i32,
+                &mut out as *mut i64 as *mut c_void,
+            ) {
                 continue;
             }
             out as u32
@@ -448,7 +483,12 @@ fn enumerate_windows() -> Vec<WindowRect> {
             }
         };
 
-        collected.push(WindowRect { rect, pid, name, window_number });
+        collected.push(WindowRect {
+            rect,
+            pid,
+            name,
+            window_number,
+        });
     }
 
     unsafe { CFRelease(windows) };
@@ -587,7 +627,10 @@ fn polling_loop(app: AppHandle) {
             OsEventPayload {
                 event_name: "os_idle_tick".into(),
                 ts: now,
-                data: OsEventData { os_idle_ms: Some(idle), ..Default::default() },
+                data: OsEventData {
+                    os_idle_ms: Some(idle),
+                    ..Default::default()
+                },
             },
         );
 
@@ -618,13 +661,20 @@ fn polling_loop(app: AppHandle) {
             let fs_changed = prev_fullscreen.map(|p| p != fs).unwrap_or(true);
             if fs_changed {
                 prev_fullscreen = Some(fs);
-                let event_name = if fs { "fullscreen_entered" } else { "fullscreen_exited" };
+                let event_name = if fs {
+                    "fullscreen_entered"
+                } else {
+                    "fullscreen_exited"
+                };
                 let _ = emit_os_event(
                     &app,
                     OsEventPayload {
                         event_name: event_name.into(),
                         ts: epoch_ms(),
-                        data: OsEventData { is_fullscreen: Some(fs), ..Default::default() },
+                        data: OsEventData {
+                            is_fullscreen: Some(fs),
+                            ..Default::default()
+                        },
                     },
                 );
             }
@@ -692,7 +742,12 @@ mod tests {
 
     fn win(x: f64, y: f64, w: f64, h: f64, pid: i32) -> WindowRect {
         WindowRect {
-            rect: ScreenRect { x, y, width: w, height: h },
+            rect: ScreenRect {
+                x,
+                y,
+                width: w,
+                height: h,
+            },
             pid,
             name: None,
             window_number: 0,
@@ -703,9 +758,9 @@ mod tests {
     fn filter_foreign_drops_own_and_preserves_order() {
         let own = 4242;
         let windows = vec![
-            win(0.0, 0.0, 100.0, 100.0, 11), // foreign, topmost
+            win(0.0, 0.0, 100.0, 100.0, 11),  // foreign, topmost
             win(0.0, 0.0, 100.0, 100.0, own), // YUI itself — dropped
-            win(0.0, 0.0, 100.0, 100.0, 22), // foreign, lower
+            win(0.0, 0.0, 100.0, 100.0, 22),  // foreign, lower
         ];
         let kept = filter_foreign(windows, own);
         let pids: Vec<i32> = kept.iter().map(|w| w.pid).collect();
@@ -719,7 +774,12 @@ mod tests {
 
     #[test]
     fn rect_contains_is_half_open() {
-        let r = ScreenRect { x: 10.0, y: 20.0, width: 30.0, height: 40.0 };
+        let r = ScreenRect {
+            x: 10.0,
+            y: 20.0,
+            width: 30.0,
+            height: 40.0,
+        };
         assert!(r.contains(10.0, 20.0)); // top-left inclusive
         assert!(!r.contains(40.0, 20.0)); // right edge exclusive (x + w)
         assert!(!r.contains(10.0, 60.0)); // bottom edge exclusive (y + h)
@@ -740,16 +800,25 @@ mod tests {
 
             // A second concurrent acquire is refused while the first is held.
             let second = ProbeGuard::try_acquire();
-            assert!(second.is_none(), "second concurrent acquire must be refused");
+            assert!(
+                second.is_none(),
+                "second concurrent acquire must be refused"
+            );
         }
 
         // Dropping the first guard at end of scope resets the flag.
-        assert!(!PROBE_ACTIVE.load(Ordering::Acquire), "flag cleared on drop");
+        assert!(
+            !PROBE_ACTIVE.load(Ordering::Acquire),
+            "flag cleared on drop"
+        );
 
         // A subsequent acquire after release succeeds again.
         let third = ProbeGuard::try_acquire();
         assert!(third.is_some(), "acquire after release must succeed");
         drop(third);
-        assert!(!PROBE_ACTIVE.load(Ordering::Acquire), "flag cleared after final drop");
+        assert!(
+            !PROBE_ACTIVE.load(Ordering::Acquire),
+            "flag cleared after final drop"
+        );
     }
 }

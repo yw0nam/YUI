@@ -9,19 +9,24 @@
  *  - createTauriScreenCapturer: invoke reject 시 null 반환 (throw 안 함)
  */
 
-import { describe, it, expect, vi } from "vitest";
-import {
-  createTauriScreenSourceProvider,
-  createTauriScreenCapturer,
-} from "./tauri-screen";
+import { describe, expect, it, vi } from "vitest";
 import type { ScreenSource } from "../contract";
+import { createTauriScreenCapturer, createTauriScreenSourceProvider } from "./tauri-screen";
 
 // ─── createTauriScreenSourceProvider ──────────────────────────────────────────
 
 describe("createTauriScreenSourceProvider — DTO mapping", () => {
   it("maps a single DTO with name to MonitorInfo", async () => {
     const fakeInvoke = vi.fn().mockResolvedValue([
-      { index: 0, name: "Built-in Retina Display", width: 2560, height: 1600, isPrimary: true, x: 0, y: 0 },
+      {
+        index: 0,
+        name: "Built-in Retina Display",
+        width: 2560,
+        height: 1600,
+        isPrimary: true,
+        x: 0,
+        y: 0,
+      },
     ]);
     const provider = createTauriScreenSourceProvider(fakeInvoke);
     const monitors = await provider.listMonitors();
@@ -59,9 +64,11 @@ describe("createTauriScreenSourceProvider — DTO mapping", () => {
   });
 
   it("maps width and height from DTO", async () => {
-    const fakeInvoke = vi.fn().mockResolvedValue([
-      { index: 2, name: "External", width: 3840, height: 2160, isPrimary: false, x: 0, y: 0 },
-    ]);
+    const fakeInvoke = vi
+      .fn()
+      .mockResolvedValue([
+        { index: 2, name: "External", width: 3840, height: 2160, isPrimary: false, x: 0, y: 0 },
+      ]);
     const provider = createTauriScreenSourceProvider(fakeInvoke);
     const monitors = await provider.listMonitors();
     expect(monitors[0].width).toBe(3840);

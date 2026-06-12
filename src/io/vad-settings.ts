@@ -26,10 +26,7 @@ function clampSilence(ms: number): number {
   return Math.min(VAD_SILENCE_MAX, Math.max(VAD_SILENCE_MIN, ms));
 }
 
-export function createVadSettings(opts?: {
-  storage?: VadStorage;
-  initial?: VadSettings;
-}) {
+export function createVadSettings(opts?: { storage?: VadStorage; initial?: VadSettings }) {
   const storage = opts?.storage;
 
   let stored: VadSettings | null = null;

@@ -18,9 +18,9 @@
  * Pure routing: no real VRM / GPU. setEmotion & playMotion are vi.fn() spies.
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { routeDirective } from "./apply-directive";
+import { describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope, EmotionSignal, MotionSignal } from "../contract";
+import { routeDirective } from "./apply-directive";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -30,8 +30,7 @@ import type { ControlEnvelope, EmotionSignal, MotionSignal } from "../contract";
 function makeHarness() {
   const setEmotion = vi.fn<(e: EmotionSignal | null) => void>();
   const playMotion = vi.fn<(m: MotionSignal | null) => void>();
-  const route = (env: ControlEnvelope): void =>
-    routeDirective(env, { setEmotion, playMotion });
+  const route = (env: ControlEnvelope): void => routeDirective(env, { setEmotion, playMotion });
   return { setEmotion, playMotion, route };
 }
 

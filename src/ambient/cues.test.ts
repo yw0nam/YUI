@@ -1,21 +1,21 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  BLINK_MIN_MS,
-  BLINK_MAX_MS,
   BLINK_DURATION_MS,
+  BLINK_MAX_MS,
+  BLINK_MIN_MS,
   BREATH_PERIOD_S,
-  LOOK_MIN_MS,
+  blinkEnvelope,
+  bobEnvelope,
+  breathOffset,
+  damp,
   LOOK_MAX_MS,
-  TAP_BOB_MS,
+  LOOK_MIN_MS,
   nextBlinkDelay,
   nextLookDelay,
-  blinkEnvelope,
-  breathOffset,
-  swayOffsets,
-  bobEnvelope,
-  damp,
   nextLookTarget,
   type Rng,
+  swayOffsets,
+  TAP_BOB_MS,
 } from "./cues";
 
 /** 결정적 rng 시퀀스 (테스트용). */

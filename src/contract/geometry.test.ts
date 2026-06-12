@@ -6,8 +6,8 @@
  * 이 타입들은 backend contract 밖(generate_express/ControlEnvelope 미포함)임을 함께 표시한다.
  */
 
-import { describe, it, expect, expectTypeOf } from "vitest";
-import type { ScreenRect, WindowRect, PerchTarget } from "./types";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import type { PerchTarget, ScreenRect, WindowRect } from "./types";
 
 describe("ScreenRect", () => {
   it("x/y/width/height를 points로 담는다", () => {

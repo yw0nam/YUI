@@ -5,7 +5,7 @@
  *  - off-Tauri (no __TAURI_INTERNALS__): resolveTauriListen() returns undefined.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { resolveTauriListen } from "./tauri-listen";
 
 describe("tauri-listen — resolveTauriListen", () => {

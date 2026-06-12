@@ -7,41 +7,41 @@
  */
 
 import "./styles.css";
-import { createLogger, initLogger } from "./logger";
-import { createQuickControls } from "./ui/quick-controls";
-import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
-import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
-import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
-import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
+import { createConfigStore } from "./config";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
-import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
+import { resolveAssetUrl } from "./io/asset-url";
+import { selectFetch } from "./io/chat-client";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
-import {
-  createVrmSelection,
-  localStorageVrmStorage,
-  localStorageUserVrmStorage,
-} from "./io/vrm-selection";
-import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
-import { importVoiceFromFile, removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
-import { createSessionStore, localStorageSessionStorage } from "./io/session-store";
+import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
+import { ensureRegistered, updateVoice } from "./io/irodori-voices";
+import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
+import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
+import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import {
   createSessionDiagnosticsStore,
   localStorageSessionDiagnosticsStorage,
 } from "./io/session-diagnostics";
+import { createSessionStore, localStorageSessionStorage } from "./io/session-store";
+import { createSettingsBridge } from "./io/settings-bridge";
+import { wireStorageSync } from "./io/settings-window";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
   localStorageUserSpeakerStorage,
   type SpeakerOption,
 } from "./io/speaker-selection";
-import { createVoiceInputStatus, type VoiceInputState } from "./ui/voice-input-status";
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
-import { resolveAssetUrl } from "./io/asset-url";
-import { wireStorageSync } from "./io/settings-window";
-import { createSettingsBridge } from "./io/settings-bridge";
-import { createConfigStore } from "./config";
-import { selectFetch } from "./io/chat-client";
-import { ensureRegistered, updateVoice } from "./io/irodori-voices";
+import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
+import { importVoiceFromFile, removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
+import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
+import {
+  createVrmSelection,
+  localStorageUserVrmStorage,
+  localStorageVrmStorage,
+} from "./io/vrm-selection";
+import { createLogger, initLogger } from "./logger";
+import { createQuickControls } from "./ui/quick-controls";
+import { createVoiceInputStatus, type VoiceInputState } from "./ui/voice-input-status";
 
 const log = createLogger("settings-bootstrap");
 
@@ -148,7 +148,12 @@ async function bootstrap(): Promise<void> {
       const irodoriBaseUrl = configLoaded ? config.get().endpoints.irodori_base_url : undefined;
       if (!irodoriBaseUrl) throw new Error("irodori provider requires irodori_base_url");
       const f = await selectFetch();
-      await ensureRegistered({ baseUrl: irodoriBaseUrl, id: option.id, refUrl: option.ref_url, fetch: f });
+      await ensureRegistered({
+        baseUrl: irodoriBaseUrl,
+        id: option.id,
+        refUrl: option.ref_url,
+        fetch: f,
+      });
     } catch (err) {
       await removeUserVoiceFile(option.id).catch(() => {}); // 고아 사본 제거(best-effort)
       log.error("imported voice register failed:", err);
@@ -224,7 +229,19 @@ async function bootstrap(): Promise<void> {
 
   // 메인 창의 편집을 반영: cross-window storage 이벤트 + 포커스 폴백.
   // vrmSelection도 함께 재로드해 펫 창에서 바뀐 선택이 이 창 UI에 반영되게 한다.
-  const resyncStores = [agentSettings, endpointsSettings, chatKeySettings, lipsyncSettings, vadSettings, screenshotSettings, proactiveSettings, vrmSelection, speakerSelection, sessionStore, sessionDiagnostics];
+  const resyncStores = [
+    agentSettings,
+    endpointsSettings,
+    chatKeySettings,
+    lipsyncSettings,
+    vadSettings,
+    screenshotSettings,
+    proactiveSettings,
+    vrmSelection,
+    speakerSelection,
+    sessionStore,
+    sessionDiagnostics,
+  ];
   wireStorageSync(resyncStores);
   window.addEventListener("focus", () => {
     for (const s of resyncStores) s.reloadFromStorage();

@@ -10,10 +10,10 @@
  *  - non-idle os_event ignored.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import { createCoworkSource } from "./cowork-source";
 import type { BusEnvelope, EventBus } from "./event-bus";
-import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 
 function fakeBus(): { bus: Pick<EventBus, "push">; pushed: BusEnvelope[] } {
   const pushed: BusEnvelope[] = [];

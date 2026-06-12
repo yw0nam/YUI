@@ -7,14 +7,14 @@
  *   localStorageAgentStorage(key?) localStorage adapter
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { AgentSettings, AgentStorage } from "./agent-settings";
 import {
-  REASONING_EFFORTS,
-  INSTRUCTIONS_MAX_LEN,
   createAgentSettings,
+  INSTRUCTIONS_MAX_LEN,
   localStorageAgentStorage,
+  REASONING_EFFORTS,
 } from "./agent-settings";
-import type { AgentStorage, AgentSettings } from "./agent-settings";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -72,7 +72,7 @@ describe("createAgentSettings — load coercion", () => {
 
   it("coerces invalid stored reasoning_effort to 'default'", () => {
     const storage: AgentStorage = {
-      load: () => ({ reasoning_effort: "bogus", instructions: "x" } as unknown as AgentSettings),
+      load: () => ({ reasoning_effort: "bogus", instructions: "x" }) as unknown as AgentSettings,
       save: vi.fn(),
     };
     const store = createAgentSettings({ storage });
@@ -82,7 +82,7 @@ describe("createAgentSettings — load coercion", () => {
 
   it("coerces non-string stored instructions to ''", () => {
     const storage: AgentStorage = {
-      load: () => ({ reasoning_effort: "low", instructions: 123 } as unknown as AgentSettings),
+      load: () => ({ reasoning_effort: "low", instructions: 123 }) as unknown as AgentSettings,
       save: vi.fn(),
     };
     const store = createAgentSettings({ storage });
@@ -281,7 +281,10 @@ describe("createAgentSettings — reloadFromStorage", () => {
 
     expect(store.get()).toEqual({ reasoning_effort: "high", instructions: "from other window" });
     expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ reasoning_effort: "high", instructions: "from other window" });
+    expect(cb).toHaveBeenCalledWith({
+      reasoning_effort: "high",
+      instructions: "from other window",
+    });
   });
 
   it("coerces invalid stored values on reload", () => {
@@ -420,9 +423,7 @@ describe("localStorageAgentStorage", () => {
     const adapter = localStorageAgentStorage();
     expect(() => adapter.load()).not.toThrow();
     expect(adapter.load()).toBeNull();
-    expect(() =>
-      adapter.save({ reasoning_effort: "default", instructions: "" }),
-    ).not.toThrow();
+    expect(() => adapter.save({ reasoning_effort: "default", instructions: "" })).not.toThrow();
 
     if (saved !== undefined) (globalThis as any).localStorage = saved;
   });

@@ -10,7 +10,7 @@
  *  - X and Z are recentered around their own mean; Y is left untouched.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { recenterRootTranslation } from "./recenter-root-motion";
 
 describe("recenterRootTranslation — horizontal mean removal", () => {

@@ -84,10 +84,7 @@ export function seatAnchorWorldInto(
  * `seatDrop` on Y only (the seat sits below the hip joint). Returns a fresh
  * vector — for non-hot callers; the pin path uses {@link seatAnchorWorldInto}.
  */
-export function seatAnchorWorld(
-  hipsWorld: THREE.Vector3,
-  seatDrop: number,
-): THREE.Vector3 {
+export function seatAnchorWorld(hipsWorld: THREE.Vector3, seatDrop: number): THREE.Vector3 {
   return seatAnchorWorldInto(new THREE.Vector3(), hipsWorld, seatDrop);
 }
 
@@ -169,7 +166,7 @@ export function worldYPerPixel(
   seatDepthFromCamera: number,
   canvasH: number,
 ): number {
-  const halfFovRad = ((camera.fov * Math.PI) / 180) / 2;
+  const halfFovRad = (camera.fov * Math.PI) / 180 / 2;
   return (2 * seatDepthFromCamera * Math.tan(halfFovRad)) / canvasH;
 }
 

@@ -19,14 +19,14 @@
  * observable: queue() / recentDrops(n) / inFlight().
  */
 
-import type { EventBus, BusEnvelope } from "./event-bus";
-import type { Renderer } from "../renderer";
-import type { BackendCaller } from "./backend-caller";
-import type { DropReason, Guardrails } from "./guardrails";
 import type { ControlEnvelope } from "../contract";
 import type { CompactResult } from "../io/session-compactor";
-import { createLogger } from "../logger";
 import type { Logger, LogLevel } from "../logger";
+import { createLogger } from "../logger";
+import type { Renderer } from "../renderer";
+import type { BackendCaller } from "./backend-caller";
+import type { BusEnvelope, EventBus } from "./event-bus";
+import type { DropReason, Guardrails } from "./guardrails";
 
 const baseLog = createLogger("dispatcher");
 

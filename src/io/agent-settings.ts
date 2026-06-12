@@ -4,12 +4,7 @@
  */
 
 export type ReasoningEffort = "default" | "low" | "medium" | "high";
-export const REASONING_EFFORTS: readonly ReasoningEffort[] = [
-  "default",
-  "low",
-  "medium",
-  "high",
-];
+export const REASONING_EFFORTS: readonly ReasoningEffort[] = ["default", "low", "medium", "high"];
 export const INSTRUCTIONS_MAX_LEN = 4000;
 
 export interface AgentSettings {
@@ -28,9 +23,7 @@ const DEFAULT_SETTINGS: AgentSettings = {
 };
 
 function coerceEffort(v: unknown): ReasoningEffort {
-  return REASONING_EFFORTS.includes(v as ReasoningEffort)
-    ? (v as ReasoningEffort)
-    : "default";
+  return REASONING_EFFORTS.includes(v as ReasoningEffort) ? (v as ReasoningEffort) : "default";
 }
 
 function coerceInstructions(v: unknown): string {
@@ -50,10 +43,7 @@ function equals(a: AgentSettings, b: AgentSettings): boolean {
   return a.reasoning_effort === b.reasoning_effort && a.instructions === b.instructions;
 }
 
-export function createAgentSettings(opts?: {
-  storage?: AgentStorage;
-  initial?: AgentSettings;
-}) {
+export function createAgentSettings(opts?: { storage?: AgentStorage; initial?: AgentSettings }) {
   const storage = opts?.storage;
 
   let stored: AgentSettings | null = null;

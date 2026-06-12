@@ -10,8 +10,8 @@
  * the X-Hermes-Session-Id response header is a fallback.
  */
 
-import { createLogger, type Logger } from "../logger";
 import type { EndpointsConfig, SessionCompressionResponse } from "../contract";
+import { createLogger, type Logger } from "../logger";
 
 export interface CompactResult {
   status: "compressed" | "skipped" | "error";
@@ -47,7 +47,7 @@ export async function compressSession(
     "Content-Type": "application/json",
     "X-Hermes-Session-Id": sessionId,
   };
-  if (opts.apiKey) headers["Authorization"] = `Bearer ${opts.apiKey}`;
+  if (opts.apiKey) headers.Authorization = `Bearer ${opts.apiKey}`;
 
   let res: Response;
   try {

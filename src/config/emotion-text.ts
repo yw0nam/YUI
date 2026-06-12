@@ -6,8 +6,8 @@
  * 순수 로드+검증만 담당(부수효과 없음, reader 주입 가능 → 테스트). fail-loud ConfigError.
  */
 
-import { ConfigError, type AssetUrlResolver, type ConfigReader } from "./load";
 import { resolveAssetUrl } from "../io/asset-url";
+import { type AssetUrlResolver, ConfigError, type ConfigReader } from "./load";
 
 export interface LoadEmotionTextOptions {
   /** configs/emotion_text/<provider>.json의 provider 키(예: "irodori"). */

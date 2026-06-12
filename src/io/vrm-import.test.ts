@@ -6,8 +6,13 @@
  * injectable so the suite never touches a real Tauri runtime.
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { importVrmFromFile, removeUserVrm, removeOrphanVrm, type VrmImportDeps } from "./vrm-import";
+import { describe, expect, it, vi } from "vitest";
+import {
+  importVrmFromFile,
+  removeOrphanVrm,
+  removeUserVrm,
+  type VrmImportDeps,
+} from "./vrm-import";
 
 function makeDeps(over: Partial<VrmImportDeps> = {}): VrmImportDeps {
   return {
@@ -59,7 +64,7 @@ describe("importVrmFromFile — successful pick", () => {
     expect(out).toEqual({
       id: "MyAvatar",
       label: "MyAvatar",
-      url: "asset://localhost/" + encodeURI("/app-data/vrms/MyAvatar.vrm"),
+      url: `asset://localhost/${encodeURI("/app-data/vrms/MyAvatar.vrm")}`,
       source: "user",
     });
     expect(deps.convertFileSrc).toHaveBeenCalledWith("/app-data/vrms/MyAvatar.vrm");

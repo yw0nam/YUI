@@ -281,9 +281,7 @@ export function localStorageUserVrmStorage(key = "yui.vrm.user"): UserVrmStorage
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed)) return [];
-        return parsed
-          .map((v) => coerceUserOption(v))
-          .filter((o): o is AvatarOption => o !== null);
+        return parsed.map((v) => coerceUserOption(v)).filter((o): o is AvatarOption => o !== null);
       } catch {
         return [];
       }

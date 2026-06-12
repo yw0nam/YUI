@@ -827,11 +827,7 @@
   bottom: 0;
   height: 1.6rem;
   pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    oklch(0.19 0.014 70 / 0) 0%,
-    var(--yui-scrim-strong) 100%
-  );
+  background: linear-gradient(to bottom, oklch(0.19 0.014 70 / 0) 0%, var(--yui-scrim-strong) 100%);
 }
 
 /* "파일에서 추가…" 고정 푸터 — 스크롤 영역 밖. 목록 길이와 무관하게 항상 보인다. */
@@ -1239,11 +1235,7 @@
   bottom: 0;
   height: 1.6rem;
   pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    oklch(0.19 0.014 70 / 0) 0%,
-    var(--yui-scrim-strong) 100%
-  );
+  background: linear-gradient(to bottom, oklch(0.19 0.014 70 / 0) 0%, var(--yui-scrim-strong) 100%);
 }
 
 /* "파일에서 추가…" 고정 푸터 — 스크롤 영역 밖. */
@@ -1895,11 +1887,15 @@
 
 .yui-gain__slider:hover::-webkit-slider-thumb,
 .yui-gain__slider:active::-webkit-slider-thumb {
-  box-shadow: 0 1px 3px oklch(0.1 0.01 70 / 0.5), 0 0 0 4px var(--yui-accent-faint);
+  box-shadow:
+    0 1px 3px oklch(0.1 0.01 70 / 0.5),
+    0 0 0 4px var(--yui-accent-faint);
 }
 
 .yui-gain__slider:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 1px 3px oklch(0.1 0.01 70 / 0.5), 0 0 0 2px var(--yui-accent-soft);
+  box-shadow:
+    0 1px 3px oklch(0.1 0.01 70 / 0.5),
+    0 0 0 2px var(--yui-accent-soft);
 }
 
 .yui-gain__slider::-moz-range-track {
@@ -1926,11 +1922,15 @@
 
 .yui-gain__slider:hover::-moz-range-thumb,
 .yui-gain__slider:active::-moz-range-thumb {
-  box-shadow: 0 1px 3px oklch(0.1 0.01 70 / 0.5), 0 0 0 4px var(--yui-accent-faint);
+  box-shadow:
+    0 1px 3px oklch(0.1 0.01 70 / 0.5),
+    0 0 0 4px var(--yui-accent-faint);
 }
 
 .yui-gain__slider:focus-visible::-moz-range-thumb {
-  box-shadow: 0 1px 3px oklch(0.1 0.01 70 / 0.5), 0 0 0 2px var(--yui-accent-soft);
+  box-shadow:
+    0 1px 3px oklch(0.1 0.01 70 / 0.5),
+    0 0 0 2px var(--yui-accent-soft);
 }
 
 /* ── 푸터 힌트 ── */

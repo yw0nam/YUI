@@ -7,7 +7,7 @@
  * from logs.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { describeExpressions, MOUTH_EXPRESSION_KEY } from "./index";
 
 describe("describeExpressions — MOUTH_EXPRESSION_KEY", () => {

@@ -7,7 +7,7 @@
  *  - index=0, label="이 화면", primary=true
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createBrowserScreenSourceProvider } from "./screen-source-provider";
 
 describe("createBrowserScreenSourceProvider — with injected screen", () => {
@@ -23,7 +23,6 @@ describe("createBrowserScreenSourceProvider — with injected screen", () => {
       primary: true,
     });
   });
-
 });
 
 describe("createBrowserScreenSourceProvider — without injected screen", () => {

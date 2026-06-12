@@ -6,12 +6,8 @@
  * and clamped so the input never leaves the viewport. Pure arithmetic — no DOM.
  */
 
-import { describe, it, expect } from "vitest";
-import {
-  inputBottomFromAnchor,
-  INPUT_FEET_GAP_PX,
-  INPUT_ANCHOR_MIN_BOTTOM_PX,
-} from "./anchor";
+import { describe, expect, it } from "vitest";
+import { INPUT_ANCHOR_MIN_BOTTOM_PX, INPUT_FEET_GAP_PX, inputBottomFromAnchor } from "./anchor";
 
 const opts = { gap: INPUT_FEET_GAP_PX, minBottom: INPUT_ANCHOR_MIN_BOTTOM_PX };
 const H = 600;

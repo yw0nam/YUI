@@ -12,7 +12,7 @@
  * into (onMixerFinished schedules; startMotion + teardown cancel).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createCycleDwell } from "./cycle-dwell";
 
 beforeEach(() => {

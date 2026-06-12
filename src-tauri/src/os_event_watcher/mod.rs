@@ -16,6 +16,7 @@ use tauri::{command, AppHandle, Emitter};
 pub const OS_EVENT_CHANNEL: &str = "os_event";
 
 /// Channel for the drag-drop release signal emitted after `start_dragging()`.
+#[allow(dead_code)] // consumed by the macOS drop-release probe; dead on other targets
 pub const WINDOW_DROP_RELEASE_CHANNEL: &str = "window_drop_release";
 
 /// `os_event` channel payload — "Rust → Webview" handoff.
@@ -54,20 +55,35 @@ pub fn epoch_ms() -> i64 {
 }
 
 /// Converts idle seconds (f64) to milliseconds (u64), clamping negative to 0.
+#[allow(dead_code)] // used by the macOS watcher; dead on other targets
 pub fn idle_ms_from_secs(secs: f64) -> u64 {
-    if secs < 0.0 { 0 } else { (secs * 1000.0) as u64 }
+    if secs < 0.0 {
+        0
+    } else {
+        (secs * 1000.0) as u64
+    }
 }
 
 /// Sanitises a raw OS app name: trims whitespace, returns None if empty.
+#[allow(dead_code)] // used by the macOS watcher; dead on other targets
 pub fn sanitise_app_name(raw: &str) -> Option<String> {
     let s = raw.trim().to_string();
-    if s.is_empty() { None } else { Some(s) }
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
 }
 
 /// Sanitises a raw window title: trims, returns None if empty.
+#[allow(dead_code)] // used by the macOS watcher; dead on other targets
 pub fn sanitise_window_title(raw: &str) -> Option<String> {
     let s = raw.trim().to_string();
-    if s.is_empty() { None } else { Some(s) }
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
 }
 
 /// Emits one OS event to the webview (fire-and-forget).
@@ -151,7 +167,10 @@ pub fn start(app: &AppHandle) {
                 OsEventPayload {
                     event_name: "os_idle_tick".into(),
                     ts: epoch_ms(),
-                    data: OsEventData { os_idle_ms: None, ..Default::default() },
+                    data: OsEventData {
+                        os_idle_ms: None,
+                        ..Default::default()
+                    },
                 },
             );
         });
@@ -183,7 +202,10 @@ mod tests {
         let payload = OsEventPayload {
             event_name: "os_idle_tick".into(),
             ts: 123,
-            data: OsEventData { os_idle_ms: Some(5000), ..Default::default() },
+            data: OsEventData {
+                os_idle_ms: Some(5000),
+                ..Default::default()
+            },
         };
         let v = serde_json::to_value(payload).unwrap();
         assert_eq!(
@@ -267,7 +289,10 @@ mod tests {
         assert_eq!(v["event_name"], "active_app_changed");
         assert_eq!(v["data"]["active_app_name"], "Finder");
         assert_eq!(v["data"]["active_window_title"], "Desktop");
-        assert!(v["data"]["os_idle_ms"].is_null() || !v["data"].as_object().unwrap().contains_key("os_idle_ms"));
+        assert!(
+            v["data"]["os_idle_ms"].is_null()
+                || !v["data"].as_object().unwrap().contains_key("os_idle_ms")
+        );
     }
 
     #[test]
@@ -275,7 +300,10 @@ mod tests {
         let p = OsEventPayload {
             event_name: "fullscreen_entered".into(),
             ts: 2000,
-            data: OsEventData { is_fullscreen: Some(true), ..Default::default() },
+            data: OsEventData {
+                is_fullscreen: Some(true),
+                ..Default::default()
+            },
         };
         let v = serde_json::to_value(p).unwrap();
         assert_eq!(v["event_name"], "fullscreen_entered");
@@ -287,7 +315,10 @@ mod tests {
         let p = OsEventPayload {
             event_name: "fullscreen_exited".into(),
             ts: 3000,
-            data: OsEventData { is_fullscreen: Some(false), ..Default::default() },
+            data: OsEventData {
+                is_fullscreen: Some(false),
+                ..Default::default()
+            },
         };
         let v = serde_json::to_value(p).unwrap();
         assert_eq!(v["event_name"], "fullscreen_exited");
@@ -304,7 +335,11 @@ mod tests {
             .iter()
             .filter_map(|&fs| {
                 if fs != was_fullscreen {
-                    let name = if fs { "fullscreen_entered" } else { "fullscreen_exited" };
+                    let name = if fs {
+                        "fullscreen_entered"
+                    } else {
+                        "fullscreen_exited"
+                    };
                     was_fullscreen = fs;
                     Some(name)
                 } else {
@@ -345,7 +380,10 @@ mod tests {
         let p = OsEventPayload {
             event_name: "camera_in_use".into(),
             ts: 9000,
-            data: OsEventData { camera_in_use: Some(true), ..Default::default() },
+            data: OsEventData {
+                camera_in_use: Some(true),
+                ..Default::default()
+            },
         };
         let v = serde_json::to_value(p).unwrap();
         assert_eq!(v["data"]["camera_in_use"], true);

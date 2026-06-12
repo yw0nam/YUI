@@ -11,15 +11,15 @@
  * 테스트는 주입한 fake fetch만 사용 — 실제 broker 미접속.
  */
 
-import { describe, it, expect, vi } from "vitest";
-import {
-  createBrokerClient,
-  deriveBrokerPayload,
-  type BrokerPayload,
-  type BrokerVocab,
-} from "./broker-client";
+import { describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "../config/load";
 import type { Logger } from "../logger";
+import {
+  type BrokerPayload,
+  type BrokerVocab,
+  createBrokerClient,
+  deriveBrokerPayload,
+} from "./broker-client";
 
 type FetchFn = (input: unknown, init?: RequestInit) => Promise<Response>;
 
@@ -128,7 +128,12 @@ describe("getIds", () => {
 
   it("returns null on HTTP error (no throw escapes)", async () => {
     const fetch = vi.fn<FetchFn>(async () => {
-      return { ok: false, status: 500, headers: new Headers(), text: async () => "" } as unknown as Response;
+      return {
+        ok: false,
+        status: 500,
+        headers: new Headers(),
+        text: async () => "",
+      } as unknown as Response;
     });
     const client = createBrokerClient({ baseUrl: BASE, fetch, logger: silentLogger() });
     await expect(client.getIds()).resolves.toBeNull();
@@ -141,7 +146,12 @@ describe("getIds", () => {
       if (body.method === "notifications/initialized") return acceptedResponse();
       const h = new Headers();
       h.set("mcp-session-id", "sess-1");
-      return { ok: true, status: 200, headers: h, text: async () => "garbage no data line" } as unknown as Response;
+      return {
+        ok: true,
+        status: 200,
+        headers: h,
+        text: async () => "garbage no data line",
+      } as unknown as Response;
     });
     const client = createBrokerClient({ baseUrl: BASE, fetch, logger: silentLogger() });
     await expect(client.getIds()).resolves.toBeNull();
@@ -165,7 +175,8 @@ describe("getIds", () => {
       "tools/call",
     ]);
     // initialized + tools/call carry the captured session header
-    const headersOf = (i: number) => (fetch.mock.calls[i][1]?.headers ?? {}) as Record<string, string>;
+    const headersOf = (i: number) =>
+      (fetch.mock.calls[i][1]?.headers ?? {}) as Record<string, string>;
     expect(headersOf(1)["mcp-session-id"]).toBe("sess-1");
     expect(headersOf(2)["mcp-session-id"]).toBe("sess-1");
   });
@@ -244,7 +255,9 @@ describe("publish idempotency", () => {
     });
     expect(toolNames(calls)).toEqual(["get_ids", "update_emotion_text"]);
     const call = calls.find(
-      (c) => c.body.method === "tools/call" && (c.body.params as { name: string }).name === "update_emotion_text",
+      (c) =>
+        c.body.method === "tools/call" &&
+        (c.body.params as { name: string }).name === "update_emotion_text",
     )!;
     const args = (call.body.params as { arguments: unknown }).arguments;
     expect(args).toEqual({ mode: "enum", table: { "😀": "happy" } });
@@ -276,7 +289,12 @@ describe("publish idempotency", () => {
       if (body.method === "initialize") {
         cycle += 1;
         if (cycle === 1) {
-          return { ok: false, status: 503, headers: new Headers(), text: async () => "" } as unknown as Response;
+          return {
+            ok: false,
+            status: 503,
+            headers: new Headers(),
+            text: async () => "",
+          } as unknown as Response;
         }
         return sseResponse(initResult(body.id as number));
       }
@@ -393,13 +411,57 @@ describe("deriveBrokerPayload", () => {
         happy: { vrm_expression: "happy", fallback: "neutral" },
       },
       motions: {
-        idle: { vrma_path: "/motions/idle.vrma", kind: "ambient", loop: true, priority: 10, interrupt_policy: "ignore" },
-        drag: { vrma_path: "/motions/drag.vrma", kind: "reactive", loop: false, priority: 50, interrupt_policy: "replace" },
-        happy: { vrma_path: "/motions/happy.vrma", kind: "oneshot", loop: false, priority: 60, interrupt_policy: "replace" },
-        laugh: { vrma_path: "/motions/laugh.vrma", kind: "oneshot", loop: false, priority: 60, interrupt_policy: "replace" },
-        embarrassed: { vrma_path: "/motions/embarrassed.vrma", kind: "oneshot", loop: false, priority: 60, interrupt_policy: "replace" },
-        sit: { vrma_path: "/motions/sit.vrma", kind: "oneshot", loop: false, priority: 60, interrupt_policy: "replace", broker_publish: false },
-        window_sit: { vrma_path: "/motions/sit_01.vrma", kind: "state", loop: true, priority: 55, interrupt_policy: "replace", broker_publish: false },
+        idle: {
+          vrma_path: "/motions/idle.vrma",
+          kind: "ambient",
+          loop: true,
+          priority: 10,
+          interrupt_policy: "ignore",
+        },
+        drag: {
+          vrma_path: "/motions/drag.vrma",
+          kind: "reactive",
+          loop: false,
+          priority: 50,
+          interrupt_policy: "replace",
+        },
+        happy: {
+          vrma_path: "/motions/happy.vrma",
+          kind: "oneshot",
+          loop: false,
+          priority: 60,
+          interrupt_policy: "replace",
+        },
+        laugh: {
+          vrma_path: "/motions/laugh.vrma",
+          kind: "oneshot",
+          loop: false,
+          priority: 60,
+          interrupt_policy: "replace",
+        },
+        embarrassed: {
+          vrma_path: "/motions/embarrassed.vrma",
+          kind: "oneshot",
+          loop: false,
+          priority: 60,
+          interrupt_policy: "replace",
+        },
+        sit: {
+          vrma_path: "/motions/sit.vrma",
+          kind: "oneshot",
+          loop: false,
+          priority: 60,
+          interrupt_policy: "replace",
+          broker_publish: false,
+        },
+        window_sit: {
+          vrma_path: "/motions/sit_01.vrma",
+          kind: "state",
+          loop: true,
+          priority: 55,
+          interrupt_policy: "replace",
+          broker_publish: false,
+        },
       },
     };
   }

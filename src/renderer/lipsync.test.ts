@@ -15,7 +15,7 @@
  *  - it never touches blink / lookAt / emotion keys.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createMouthLipsync, MOUTH_EXPRESSION_KEY } from "./index";
 
 /** Minimal expressionManager stub: records setValue calls; `aa` exists by default. */

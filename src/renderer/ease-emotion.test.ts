@@ -10,9 +10,9 @@
  * setEmotion is a spy. The actual crossfade machinery is reused unchanged by setEmotion(#6).
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { revertEmotionToNeutral, DEFAULT_EMOTION_REVERT_MS } from "./ease-emotion";
+import { describe, expect, it, vi } from "vitest";
 import type { EmotionSignal } from "../contract";
+import { DEFAULT_EMOTION_REVERT_MS, revertEmotionToNeutral } from "./ease-emotion";
 
 function spySink() {
   return { setEmotion: vi.fn<(e: EmotionSignal | null) => void>() };

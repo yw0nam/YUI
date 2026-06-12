@@ -16,7 +16,7 @@
  * - `clampToWorkArea` is the TS counterpart of Rust `clamp_to_work_area`.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Mock @tauri-apps/api/core before importing drag.ts ─────────────────────
 vi.mock("@tauri-apps/api/core", () => ({
@@ -29,16 +29,16 @@ vi.mock("@tauri-apps/api/window", () => ({
   })),
 }));
 
+import { invoke } from "@tauri-apps/api/core";
 import {
-  invokeDragWindow,
-  invokeGetMonitorsInfo,
-  physicalToLogical,
-  logicalToPhysical,
   clampToWorkArea,
   initDrag,
+  invokeDragWindow,
+  invokeGetMonitorsInfo,
+  logicalToPhysical,
   type MonitorInfo,
+  physicalToLogical,
 } from "./drag";
-import { invoke } from "@tauri-apps/api/core";
 
 const mockInvoke = invoke as ReturnType<typeof vi.fn>;
 
@@ -243,7 +243,9 @@ describe("initDrag", () => {
 
   it("fires __yui_gesture_stub custom event on drag-start (dispatcher #21 seam)", async () => {
     let stubFired = false;
-    el.addEventListener("__yui_gesture_stub", () => { stubFired = true; });
+    el.addEventListener("__yui_gesture_stub", () => {
+      stubFired = true;
+    });
     const ev = new Event("pointerdown") as Event & { buttons: number };
     (ev as { buttons: number }).buttons = 1;
     el.dispatchEvent(ev);

@@ -25,7 +25,10 @@ pub fn start_polling(app: AppHandle) {
                 OsEventPayload {
                     event_name: "os_idle_tick".into(),
                     ts: epoch_ms(),
-                    data: OsEventData { os_idle_ms: None, ..Default::default() },
+                    data: OsEventData {
+                        os_idle_ms: None,
+                        ..Default::default()
+                    },
                 },
             );
             thread::sleep(POLL_INTERVAL);

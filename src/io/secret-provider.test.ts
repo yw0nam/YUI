@@ -8,10 +8,10 @@
  * For any other name: fallback lookup only. The key value is a secret — never logged.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CHAT_API_KEY_SECRET } from "../config";
-import { createSettingsSecretProvider } from "./secret-provider";
 import { createChatKeySettings } from "./chat-key-settings";
+import { createSettingsSecretProvider } from "./secret-provider";
 
 describe("createSettingsSecretProvider — chat key resolution", () => {
   it("returns the runtime key when the store has a non-empty value", async () => {

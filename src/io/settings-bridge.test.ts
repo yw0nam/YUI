@@ -12,11 +12,13 @@
  * is integration and intentionally not unit-tested here.
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { createSettingsBridge, type BridgeTransport } from "./settings-bridge";
+import { describe, expect, it, vi } from "vitest";
+import { type BridgeTransport, createSettingsBridge } from "./settings-bridge";
 
 // In-memory pub/sub transport shared by two bridges (= two windows).
-function createFakeTransport(): BridgeTransport & { listeners: Map<string, Set<(p: unknown) => void>> } {
+function createFakeTransport(): BridgeTransport & {
+  listeners: Map<string, Set<(p: unknown) => void>>;
+} {
   const listeners = new Map<string, Set<(p: unknown) => void>>();
   return {
     listeners,

@@ -9,7 +9,7 @@
  * 테스트는 mock fetch만 사용 — 실제 :8092 미접속.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
 import { createTtsSynth } from "./tts-synth";
 
@@ -74,11 +74,14 @@ describe("createTtsSynth", () => {
   });
 
   it("throws on non-2xx with status + parsed error.message (JSON error body)", async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: false,
-      status: 400,
-      json: async () => ({ error: { message: "input too long" } }),
-    }) as unknown as Response);
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: false,
+          status: 400,
+          json: async () => ({ error: { message: "input too long" } }),
+        }) as unknown as Response,
+    );
     const synth = createTtsSynth({ config: CONFIG, fetch: fetchMock as unknown as typeof fetch });
 
     await expect(synth("x")).rejects.toThrow(/400/);
@@ -86,13 +89,16 @@ describe("createTtsSynth", () => {
   });
 
   it("throws with status even when error body is not JSON", async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: false,
-      status: 503,
-      json: async () => {
-        throw new Error("not json");
-      },
-    }) as unknown as Response);
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: false,
+          status: 503,
+          json: async () => {
+            throw new Error("not json");
+          },
+        }) as unknown as Response,
+    );
     const synth = createTtsSynth({ config: CONFIG, fetch: fetchMock as unknown as typeof fetch });
     await expect(synth("x")).rejects.toThrow(/503/);
   });

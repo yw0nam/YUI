@@ -9,15 +9,15 @@
  * Zoom multiplies the computed fit distance: zoom > 1 ⇒ bigger character.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { CameraSettings, CameraStorage } from "./camera-settings";
 import {
-  CAMERA_ZOOM_MIN,
-  CAMERA_ZOOM_MAX,
   CAMERA_ZOOM_DEFAULT,
+  CAMERA_ZOOM_MAX,
+  CAMERA_ZOOM_MIN,
   createCameraSettings,
   localStorageCameraStorage,
 } from "./camera-settings";
-import type { CameraStorage, CameraSettings } from "./camera-settings";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -210,7 +210,7 @@ describe("createCameraSettings — persistence", () => {
 
   it("stored invalid type {zoom:'x'} falls back to DEFAULT", () => {
     const storage: CameraStorage = {
-      load: () => ({ zoom: "x" } as unknown as CameraSettings),
+      load: () => ({ zoom: "x" }) as unknown as CameraSettings,
       save: vi.fn(),
     };
     const store = createCameraSettings({ storage });
