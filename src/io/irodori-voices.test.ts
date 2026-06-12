@@ -9,12 +9,12 @@
  * 테스트는 mock fetch만 사용 — 실제 서버 미접속. 케이스 간 누수 방지를 위해 매번 캐시 리셋.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  __resetIrodoriVoiceCache,
   ensureRegistered,
   evictRegistration,
   updateVoice,
-  __resetIrodoriVoiceCache,
 } from "./irodori-voices";
 
 type FetchFn = (input: unknown, init?: RequestInit) => Promise<Response>;
@@ -313,7 +313,8 @@ describe("ensureRegistered", () => {
 
   it("absolutizes a relative refUrl against window origin before fetching", async () => {
     vi.stubGlobal("location", { href: "http://127.0.0.1:1420/" });
-    const expectedRef = new URL("/references/あやせ/merged_audio.mp3", "http://127.0.0.1:1420/").href;
+    const expectedRef = new URL("/references/あやせ/merged_audio.mp3", "http://127.0.0.1:1420/")
+      .href;
     const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
     const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
@@ -423,7 +424,8 @@ describe("updateVoice", () => {
 
   it("absolutizes a relative refUrl against window origin before fetching", async () => {
     vi.stubGlobal("location", { href: "http://127.0.0.1:1420/" });
-    const expectedRef = new URL("/references/あやせ/merged_audio.mp3", "http://127.0.0.1:1420/").href;
+    const expectedRef = new URL("/references/あやせ/merged_audio.mp3", "http://127.0.0.1:1420/")
+      .href;
     const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
     const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
       const url = String(input);

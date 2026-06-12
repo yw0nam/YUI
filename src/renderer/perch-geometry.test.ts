@@ -9,21 +9,21 @@
  * at (0, 1.3, 3) looking at (0, 1.3, 0), canvas 800×1200.
  */
 
-import { describe, it, expect } from "vitest";
 import * as THREE from "three";
+import { describe, expect, it } from "vitest";
 import {
-  projectToScreen,
-  seatAnchorWorld,
-  seatAnchorWorldInto,
-  characterScreenHeight,
-  petPxToGlobalPoints,
-  inCatchZone,
-  worldYPerPixel,
-  seatOffsetWorldY,
-  CATCH_U,
   CATCH_D,
   CATCH_MX,
+  CATCH_U,
+  characterScreenHeight,
+  inCatchZone,
+  petPxToGlobalPoints,
+  projectToScreen,
   SEAT_DROP_DEFAULT,
+  seatAnchorWorld,
+  seatAnchorWorldInto,
+  seatOffsetWorldY,
+  worldYPerPixel,
 } from "./perch-geometry";
 
 const CANVAS_W = 800;
@@ -221,7 +221,9 @@ describe("inCatchZone", () => {
     // Just outside the strict edge, but inside the widened band.
     expect(inCatchZone({ x: WIN.x - 10, y: yMid }, WIN, CHAR_H, { mx })).toBe(true);
     // Beyond the widened band.
-    expect(inCatchZone({ x: WIN.x - (mx * WIN.width) - 1, y: yMid }, WIN, CHAR_H, { mx })).toBe(false);
+    expect(inCatchZone({ x: WIN.x - mx * WIN.width - 1, y: yMid }, WIN, CHAR_H, { mx })).toBe(
+      false,
+    );
   });
 
   it("u/d opts override the default vertical bands", () => {
@@ -249,8 +251,7 @@ describe("worldYPerPixel", () => {
   it("matches the perspective formula", () => {
     const cam = fixtureCamera();
     const depth = 3;
-    const expected =
-      (2 * depth * Math.tan(((cam.fov * Math.PI) / 180) / 2)) / CANVAS_H;
+    const expected = (2 * depth * Math.tan((cam.fov * Math.PI) / 180 / 2)) / CANVAS_H;
     expect(worldYPerPixel(cam, depth, CANVAS_H)).toBeCloseTo(expected, 9);
   });
 

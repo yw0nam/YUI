@@ -36,7 +36,9 @@ function formatDetail(detail: unknown): string {
   if (typeof detail === "string") return `: ${detail}`;
   if (Array.isArray(detail)) {
     const msgs = detail
-      .map((d) => (d && typeof d === "object" && "msg" in d ? String((d as { msg: unknown }).msg) : ""))
+      .map((d) =>
+        d && typeof d === "object" && "msg" in d ? String((d as { msg: unknown }).msg) : "",
+      )
       .filter(Boolean);
     if (msgs.length) return `: ${msgs.join("; ")}`;
   }
@@ -106,7 +108,10 @@ export function createIrodoriSynth(opts: IrodoriSynthOptions): TtsSynth {
     } catch {
       /* non-JSON body */
     }
-    return new IrodoriSynthError(`irodori synthesize failed (HTTP ${res.status})${detail}`, res.status);
+    return new IrodoriSynthError(
+      `irodori synthesize failed (HTTP ${res.status})${detail}`,
+      res.status,
+    );
   };
 
   return async (input, signal) => {

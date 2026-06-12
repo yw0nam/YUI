@@ -6,8 +6,8 @@
  * reload()를 직접 호출한다.
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { createConfigStore, plainSecretProvider, type ConfigReader } from "./index";
+import { describe, expect, it, vi } from "vitest";
+import { type ConfigReader, createConfigStore, plainSecretProvider } from "./index";
 
 // ── mutable fake reader ──────────────────────────────────────────────────────
 
@@ -169,7 +169,9 @@ describe("createConfigStore — sources section diff (#24)", () => {
     const sub = vi.fn();
     store.subscribe(sub);
 
-    (map["sources.json"] as { proactive: { cowork: { interval_ms: number } } }).proactive.cowork.interval_ms = 900000;
+    (
+      map["sources.json"] as { proactive: { cowork: { interval_ms: number } } }
+    ).proactive.cowork.interval_ms = 900000;
     await expect(store.reload()).resolves.toBe(true);
 
     expect(sub).toHaveBeenCalledTimes(1);

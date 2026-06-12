@@ -10,16 +10,13 @@
  * camera at center + (0,0,distance), looking at center.
  */
 
-import { describe, it, expect } from "vitest";
 import * as THREE from "three";
+import { describe, expect, it } from "vitest";
 import { computeCameraFit } from "./camera-fit";
 import { projectFeetAnchor } from "./project-anchor";
 
 /** Box spanning [cx±sx/2, cy±sy/2, cz±sz/2]. */
-function boxOf(
-  center: [number, number, number],
-  size: [number, number, number],
-): THREE.Box3 {
+function boxOf(center: [number, number, number], size: [number, number, number]): THREE.Box3 {
   const [cx, cy, cz] = center;
   const [sx, sy, sz] = size;
   return new THREE.Box3(

@@ -1,14 +1,8 @@
 // Central logger contract. In node (no window.__TAURI_INTERNALS__) the logger
 // routes to console.* and initLogger() is a no-op.
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import {
-  createLogger,
-  resolveLevel,
-  setLogLevel,
-  getLogLevel,
-  initLogger,
-} from "./logger";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createLogger, getLogLevel, initLogger, resolveLevel, setLogLevel } from "./logger";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // §1  Console fallback in non-Tauri (node/test) env

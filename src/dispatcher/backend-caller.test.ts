@@ -11,11 +11,11 @@
  *  - parse_error / network drop classification.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope, EndpointsConfig, InputContext } from "../contract";
 import type { ChatStreamEvent } from "../io/chat-client";
-import type { BusEnvelope } from "./event-bus";
 import type { Logger } from "../logger";
+import type { BusEnvelope } from "./event-bus";
 
 // ── streamChat mock (so we don't hit the SDK / network) ───────────────────────
 let scriptedEvents: ChatStreamEvent[] = [];
@@ -31,7 +31,7 @@ vi.mock("../io/chat-client", () => ({
   },
 }));
 
-import { createBackendCaller, type BackendCaller } from "./backend-caller";
+import { type BackendCaller, createBackendCaller } from "./backend-caller";
 
 const CONFIG: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",
@@ -565,11 +565,7 @@ describe("backend_caller — streaming speech deltas (incremental TTS)", () => {
   });
 
   it("streaming path does NOT invoke the whole-text onSpeech dep", async () => {
-    scriptedEvents = [
-      deltaEvent("a"),
-      deltaEvent("b"),
-      completedEvent({ speech_text: "ab" }),
-    ];
+    scriptedEvents = [deltaEvent("a"), deltaEvent("b"), completedEvent({ speech_text: "ab" })];
     await caller.call(userEnv());
     expect(speechSink).not.toHaveBeenCalled();
   });
@@ -606,7 +602,9 @@ describe("backend_caller — structured logging (#76)", () => {
   });
 
   it("applyDirective throws → logger.error('dispatch_to_renderer.error', ...)", async () => {
-    applyDirective = vi.fn(() => { throw new Error("renderer boom"); });
+    applyDirective = vi.fn(() => {
+      throw new Error("renderer boom");
+    });
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,

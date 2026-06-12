@@ -200,7 +200,8 @@ mod tests {
         !s.is_empty()
             && s != "."
             && s != ".."
-            && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
     }
 
     // ── sanitize_stem ────────────────────────────────────────────────────────
@@ -231,7 +232,10 @@ mod tests {
     fn sanitize_neutralizes_traversal_inputs() {
         for input in ["..", ".", "../x", "a/b", "a\\b", "\0", "....", "../../etc"] {
             let out = sanitize_stem(input);
-            assert!(is_safe_stem(&out), "{input:?} -> {out:?} is not a safe stem");
+            assert!(
+                is_safe_stem(&out),
+                "{input:?} -> {out:?} is not a safe stem"
+            );
         }
     }
 
@@ -352,7 +356,10 @@ mod tests {
     fn sniff_wav_requires_riff_and_wave() {
         assert!(sniff_ok(b"RIFF\x24\x08\x00\x00WAVEfmt ", SniffKind::Wav));
         assert!(!sniff_ok(b"RIFF\x24\x08\x00\x00AVI WAVE", SniffKind::Wav));
-        assert!(!sniff_ok(b"OggS\x00\x02\x00\x00\x00\x00\x00\x00", SniffKind::Wav));
+        assert!(!sniff_ok(
+            b"OggS\x00\x02\x00\x00\x00\x00\x00\x00",
+            SniffKind::Wav
+        ));
     }
 
     #[test]

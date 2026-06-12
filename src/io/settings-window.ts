@@ -70,7 +70,7 @@ async function openTauriSettingsWindow(): Promise<void> {
 
 function openBrowserSettingsWindow(): void {
   try {
-    window.open("/" + SETTINGS_URL, "yui-settings", "width=480,height=660");
+    window.open(`/${SETTINGS_URL}`, "yui-settings", "width=480,height=660");
   } catch (err) {
     log.warn("브라우저 설정 창 열기 실패", err);
   }
@@ -88,9 +88,7 @@ export function createSettingsWindowOpener(): () => void {
 }
 
 /** 창 간 동기화: 다른 창의 localStorage write(`storage` 이벤트)에 각 store를 재로드. disposer 반환. */
-export function wireStorageSync(
-  stores: ReadonlyArray<{ reloadFromStorage(): void }>,
-): () => void {
+export function wireStorageSync(stores: ReadonlyArray<{ reloadFromStorage(): void }>): () => void {
   const onStorage = (): void => {
     for (const s of stores) s.reloadFromStorage();
   };

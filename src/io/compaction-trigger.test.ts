@@ -10,7 +10,7 @@
  * shows total < window*resume. skipped/error results keep it disarmed.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createCompactionTrigger } from "./compaction-trigger";
 import type { CompactResult } from "./session-compactor";
 

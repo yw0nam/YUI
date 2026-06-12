@@ -68,7 +68,9 @@ export async function importVoiceFromFile(
   const d = deps ?? (await defaultDeps());
   const result = await d.openDialog({
     multiple: false,
-    filters: [{ name: "Audio", extensions: ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"] }],
+    filters: [
+      { name: "Audio", extensions: ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"] },
+    ],
   });
 
   const srcPath = pickedPath(result);

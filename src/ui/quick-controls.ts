@@ -5,32 +5,36 @@
  */
 
 import "./quick-controls.css";
-import { createLogger } from "../logger";
-import type { createScreenshotSettings } from "../io/screenshot-settings";
-import type { createProactiveSettings } from "../io/proactive-settings";
-import type { ScreenSourceProvider, MonitorInfo } from "../io/screen-source-provider";
-import type { ScreenSource } from "../contract";
-import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
-import type { createVrmSelection } from "../io/vrm-selection";
-import type { createSpeakerSelection, SpeakerOption } from "../io/speaker-selection";
 import type { AvatarOption } from "../config/load";
-import { createLipsyncSettings, LIPSYNC_GAIN_MIN, LIPSYNC_GAIN_MAX } from "../io/lipsync-settings";
-import { createVadSettings, VAD_SILENCE_MIN, VAD_SILENCE_MAX } from "../io/vad-settings";
+import type { ScreenSource } from "../contract";
 import {
-  createAgentSettings,
+  type createAgentSettings,
   INSTRUCTIONS_MAX_LEN,
   REASONING_EFFORTS,
   type ReasoningEffort,
 } from "../io/agent-settings";
-import {
-  createEndpointsSettings,
-  isValidEndpointUrl,
-  type EndpointOverrides,
-} from "../io/endpoints-settings";
+import { resolveAssetUrl } from "../io/asset-url";
 import type { ChatKeySettingsStore } from "../io/chat-key-settings";
+import {
+  type createEndpointsSettings,
+  type EndpointOverrides,
+  isValidEndpointUrl,
+} from "../io/endpoints-settings";
+import {
+  type createLipsyncSettings,
+  LIPSYNC_GAIN_MAX,
+  LIPSYNC_GAIN_MIN,
+} from "../io/lipsync-settings";
+import type { createProactiveSettings } from "../io/proactive-settings";
+import type { MonitorInfo, ScreenSourceProvider } from "../io/screen-source-provider";
+import type { createScreenshotSettings } from "../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import type { createSessionStore } from "../io/session-store";
-import { resolveAssetUrl } from "../io/asset-url";
+import type { createSpeakerSelection, SpeakerOption } from "../io/speaker-selection";
+import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../io/vad-settings";
+import type { createVrmSelection } from "../io/vrm-selection";
+import { createLogger } from "../logger";
+import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
@@ -141,10 +145,10 @@ const VOICE_ENGINE_LABELS: Record<VoiceEngine, string> = {
   irodori: "irodori",
   openai: "OpenAI 호환",
 };
-const SPEAKER_OPENAI_HINT =
-  "irodori 전용이에요. OpenAI 호환 엔진은 서버에 설정된 voice로 말해요.";
+const SPEAKER_OPENAI_HINT = "irodori 전용이에요. OpenAI 호환 엔진은 서버에 설정된 voice로 말해요.";
 const VRM_IMPORT_ERROR = "불러올 수 없는 파일이에요. VRM 파일인지 확인해 주세요.";
-const VOICE_IMPORT_ERROR = "이 음성을 등록하지 못했어요. 오디오 파일과 irodori 서버를 확인해 주세요.";
+const VOICE_IMPORT_ERROR =
+  "이 음성을 등록하지 못했어요. 오디오 파일과 irodori 서버를 확인해 주세요.";
 
 export const PREVIEW_PEAK_RMS = 0.15;
 const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
@@ -154,8 +158,8 @@ const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PR
 export function formatTokenCount(n: number): string {
   if (n < 1000) return String(n);
   const k = n / 1000;
-  if (k >= 100) return Math.round(k) + "K";
-  return k.toFixed(1).replace(/\.0$/, "") + "K";
+  if (k >= 100) return `${Math.round(k)}K`;
+  return `${k.toFixed(1).replace(/\.0$/, "")}K`;
 }
 
 // 과거 ISO 시각을 현재 기준 상대 표현으로. just now / N minutes ago / N hours ago / N days ago.
@@ -542,7 +546,9 @@ export function createQuickControls({
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   // 음성 엔진 세그(2칸) + 화자 비활성 노드(캐릭터 탭).
   const voiceSegEl = el.querySelector<HTMLDivElement>(".yui-seg--2")!;
-  const voiceSegButtons = Array.from(voiceSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+  const voiceSegButtons = Array.from(
+    voiceSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"),
+  );
   const spkScrollEl = el.querySelector<HTMLDivElement>(".yui-spk-scroll")!;
   const spkFootEl = el.querySelector<HTMLDivElement>(".yui-spk-foot")!;
   const spksHintEl = el.querySelector<HTMLParagraphElement>(".yui-spks-hint")!;
@@ -585,7 +591,8 @@ export function createQuickControls({
 
   // 기본 지침 placeholder.
   const defaultInstr = getDefaultInstructions?.();
-  instructionsEl.placeholder = defaultInstr && defaultInstr.length > 0 ? defaultInstr : "기본 지침을 사용 중이에요";
+  instructionsEl.placeholder =
+    defaultInstr && defaultInstr.length > 0 ? defaultInstr : "기본 지침을 사용 중이에요";
 
   // 엔드포인트 placeholder — bundled config 기본값(greyed)으로 채운다(미로드 시 빈 채로 둠).
   const epDefaults = getEndpointDefaults?.();
@@ -616,15 +623,21 @@ export function createQuickControls({
   function reflectGain(): void {
     const gain = lipsync.get().gain;
     gainSlider.value = String(gain);
-    gainValue.textContent = gain.toFixed(1) + "×";
-    gainSlider.style.setProperty("--fill", String((gain - LIPSYNC_GAIN_MIN) / (LIPSYNC_GAIN_MAX - LIPSYNC_GAIN_MIN)));
+    gainValue.textContent = `${gain.toFixed(1)}×`;
+    gainSlider.style.setProperty(
+      "--fill",
+      String((gain - LIPSYNC_GAIN_MIN) / (LIPSYNC_GAIN_MAX - LIPSYNC_GAIN_MIN)),
+    );
   }
 
   function reflectVad(): void {
     const ms = vad.get().silenceMs;
     vadSlider.value = String(ms);
     vadValue.textContent = `${ms} ms`;
-    vadSlider.style.setProperty("--fill", String((ms - VAD_SILENCE_MIN) / (VAD_SILENCE_MAX - VAD_SILENCE_MIN)));
+    vadSlider.style.setProperty(
+      "--fill",
+      String((ms - VAD_SILENCE_MIN) / (VAD_SILENCE_MAX - VAD_SILENCE_MIN)),
+    );
   }
 
   function reflectAgent(): void {
@@ -787,18 +800,13 @@ export function createQuickControls({
       const btn = document.createElement("button");
       btn.type = "button";
       btn.setAttribute("role", "radio");
-      const selected =
-        currentSource.kind === "monitor" && currentSource.index === mon.index;
+      const selected = currentSource.kind === "monitor" && currentSource.index === mon.index;
       btn.setAttribute("aria-checked", String(selected));
       btn.className = "yui-mon";
 
       const metaText =
-        mon.width !== undefined && mon.height !== undefined
-          ? `${mon.width} × ${mon.height}`
-          : "";
-      const badgeHtml = mon.primary
-        ? `<span class="yui-mon__badge">주 화면</span>`
-        : "";
+        mon.width !== undefined && mon.height !== undefined ? `${mon.width} × ${mon.height}` : "";
+      const badgeHtml = mon.primary ? `<span class="yui-mon__badge">주 화면</span>` : "";
 
       btn.innerHTML = `
         <span class="yui-mon__tick" aria-hidden="true"></span>
@@ -888,14 +896,18 @@ export function createQuickControls({
           void swapTo(opt);
         });
         if (isUser) {
-          row.querySelector<HTMLButtonElement>(".yui-vrm__rename")!.addEventListener("click", (e) => {
-            e.stopPropagation(); // 이름 편집은 행 선택을 트리거하지 않는다
-            startRename(opt.id);
-          });
-          row.querySelector<HTMLButtonElement>(".yui-vrm__remove")!.addEventListener("click", (e) => {
-            e.stopPropagation(); // 삭제는 행 선택을 트리거하지 않는다
-            void removeUserOption(opt.id);
-          });
+          row
+            .querySelector<HTMLButtonElement>(".yui-vrm__rename")!
+            .addEventListener("click", (e) => {
+              e.stopPropagation(); // 이름 편집은 행 선택을 트리거하지 않는다
+              startRename(opt.id);
+            });
+          row
+            .querySelector<HTMLButtonElement>(".yui-vrm__remove")!
+            .addEventListener("click", (e) => {
+              e.stopPropagation(); // 삭제는 행 선택을 트리거하지 않는다
+              void removeUserOption(opt.id);
+            });
         }
       }
 
@@ -1715,7 +1727,10 @@ export function createQuickControls({
 
   function close(): void {
     if (!openState) return;
-    if (gainPreviewing) { onGainPreviewEnd(); gainPreviewing = false; }
+    if (gainPreviewing) {
+      onGainPreviewEnd();
+      gainPreviewing = false;
+    }
     stopAudition();
     commitChatKeyIfDirty();
     openState = false;
@@ -1990,7 +2005,10 @@ export function createQuickControls({
   }
 
   function handleGainEnd(): void {
-    if (gainPreviewing) { onGainPreviewEnd(); gainPreviewing = false; }
+    if (gainPreviewing) {
+      onGainPreviewEnd();
+      gainPreviewing = false;
+    }
     log.info("입 움직임 변경", { gain: parseFloat(gainSlider.value) });
   }
 
@@ -2059,9 +2077,15 @@ export function createQuickControls({
     if (openState) reflectProactive();
   });
   const unsubscribeVoice = voiceStatus.subscribe(reflectVoiceStatus);
-  const unsubscribeLipsync = lipsync.subscribe(() => { if (openState) reflectGain(); });
-  const unsubscribeVad = vad.subscribe(() => { if (openState) reflectVad(); });
-  const unsubscribeAgent = agentSettings.subscribe(() => { if (openState) reflectAgent(); });
+  const unsubscribeLipsync = lipsync.subscribe(() => {
+    if (openState) reflectGain();
+  });
+  const unsubscribeVad = vad.subscribe(() => {
+    if (openState) reflectVad();
+  });
+  const unsubscribeAgent = agentSettings.subscribe(() => {
+    if (openState) reflectAgent();
+  });
   const unsubscribeEndpoints = endpointsSettings.subscribe(() => {
     if (openState) {
       reflectEndpoints();

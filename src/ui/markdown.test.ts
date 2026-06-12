@@ -6,7 +6,7 @@
  * Security: HTML in input is escaped; only safe inline elements are emitted.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { renderMarkdownInline } from "./markdown";
 
 describe("renderMarkdownInline", () => {

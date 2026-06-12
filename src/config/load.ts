@@ -227,8 +227,16 @@ const VARIANT_POLICIES: readonly NonNullable<MotionRegistryEntry["variant_policy
 ];
 /** emotion enum 10종. registry 키는 이 집합에 한정(오탈자 키 fail-loud). */
 const EMOTION_IDS: ReadonlySet<EmotionId> = new Set<EmotionId>([
-  "neutral", "happy", "angry", "sad", "relaxed",
-  "surprised", "thinking", "curious", "sleepy", "embarrassed",
+  "neutral",
+  "happy",
+  "angry",
+  "sad",
+  "relaxed",
+  "surprised",
+  "thinking",
+  "curious",
+  "sleepy",
+  "embarrassed",
 ]);
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -264,7 +272,9 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     !chat_endpoint.startsWith("/") ||
     chat_endpoint.startsWith("//")
   ) {
-    issues.push(`chat_endpoint는 "/"로 시작하는 경로여야 함 (받음: ${JSON.stringify(chat_endpoint)})`);
+    issues.push(
+      `chat_endpoint는 "/"로 시작하는 경로여야 함 (받음: ${JSON.stringify(chat_endpoint)})`,
+    );
   }
   // chat_model: optional. 있으면 비어있지 않은 문자열이어야 함(모델 ID는 config 소관).
   const chat_model = raw.chat_model;
@@ -300,7 +310,9 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   // tts_provider: optional enum. 미설정 시 irodori로 resolve(출력엔 resolved 값을 박는다).
   const rawProvider = raw.tts_provider;
   if (rawProvider !== undefined && rawProvider !== "openai" && rawProvider !== "irodori") {
-    issues.push(`tts_provider는 "openai" | "irodori" 중 하나여야 함 (받음: ${JSON.stringify(rawProvider)})`);
+    issues.push(
+      `tts_provider는 "openai" | "irodori" 중 하나여야 함 (받음: ${JSON.stringify(rawProvider)})`,
+    );
   }
   const tts_provider: EndpointsConfig["tts_provider"] =
     rawProvider === "openai" ? "openai" : "irodori";
@@ -313,7 +325,9 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const irodori_speaker = raw.irodori_speaker;
   if (tts_provider === "irodori" || irodori_speaker !== undefined) {
     if (typeof irodori_speaker !== "string" || irodori_speaker.trim() === "") {
-      issues.push(`irodori_speaker는 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(irodori_speaker)})`);
+      issues.push(
+        `irodori_speaker는 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(irodori_speaker)})`,
+      );
     }
   }
 
@@ -332,13 +346,19 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
           return;
         }
         if (typeof entry.id !== "string" || entry.id.length === 0) {
-          issues.push(`irodori_voices[${i}].id는 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(entry.id)})`);
+          issues.push(
+            `irodori_voices[${i}].id는 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(entry.id)})`,
+          );
         }
         if (typeof entry.ref_url !== "string" || !entry.ref_url.startsWith("/")) {
-          issues.push(`irodori_voices[${i}].ref_url는 "/"로 시작하는 경로여야 함 (받음: ${JSON.stringify(entry.ref_url)})`);
+          issues.push(
+            `irodori_voices[${i}].ref_url는 "/"로 시작하는 경로여야 함 (받음: ${JSON.stringify(entry.ref_url)})`,
+          );
         }
         if (entry.label !== undefined && typeof entry.label !== "string") {
-          issues.push(`irodori_voices[${i}].label는 문자열이어야 함 (받음: ${JSON.stringify(entry.label)})`);
+          issues.push(
+            `irodori_voices[${i}].label는 문자열이어야 함 (받음: ${JSON.stringify(entry.label)})`,
+          );
         }
         irodori_voices!.push({
           id: entry.id as string,
@@ -353,12 +373,18 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const irodori_num_steps = raw.irodori_num_steps;
   if (
     irodori_num_steps !== undefined &&
-    (typeof irodori_num_steps !== "number" || !Number.isInteger(irodori_num_steps) || irodori_num_steps < 1)
+    (typeof irodori_num_steps !== "number" ||
+      !Number.isInteger(irodori_num_steps) ||
+      irodori_num_steps < 1)
   ) {
-    issues.push(`irodori_num_steps는 1 이상 정수여야 함 (받음: ${JSON.stringify(irodori_num_steps)})`);
+    issues.push(
+      `irodori_num_steps는 1 이상 정수여야 함 (받음: ${JSON.stringify(irodori_num_steps)})`,
+    );
   }
   // irodori_cfg_scale_text / _speaker / seconds: optional, 유한 number > 0.
-  const posNum = (k: "irodori_cfg_scale_text" | "irodori_cfg_scale_speaker" | "irodori_seconds"): void => {
+  const posNum = (
+    k: "irodori_cfg_scale_text" | "irodori_cfg_scale_speaker" | "irodori_seconds",
+  ): void => {
     const v = raw[k];
     if (v !== undefined && (typeof v !== "number" || !Number.isFinite(v) || v <= 0)) {
       issues.push(`${k}는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(v)})`);
@@ -376,9 +402,13 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const tts_max_inflight = raw.tts_max_inflight;
   if (
     tts_max_inflight !== undefined &&
-    (typeof tts_max_inflight !== "number" || !Number.isInteger(tts_max_inflight) || tts_max_inflight < 1)
+    (typeof tts_max_inflight !== "number" ||
+      !Number.isInteger(tts_max_inflight) ||
+      tts_max_inflight < 1)
   ) {
-    issues.push(`tts_max_inflight는 1 이상 정수여야 함 (받음: ${JSON.stringify(tts_max_inflight)})`);
+    issues.push(
+      `tts_max_inflight는 1 이상 정수여야 함 (받음: ${JSON.stringify(tts_max_inflight)})`,
+    );
   }
 
   // ── compaction knobs ─────────────────────────────────────────────────────────
@@ -390,7 +420,9 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
       !Number.isFinite(chat_model_context_window) ||
       chat_model_context_window <= 0)
   ) {
-    issues.push(`chat_model_context_window는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(chat_model_context_window)})`);
+    issues.push(
+      `chat_model_context_window는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(chat_model_context_window)})`,
+    );
   }
   // ratio((0,1]) 검증 후 미설정 시 default로 resolve(출력엔 resolved 값을 박는다).
   const ratio = (k: "compact_threshold_ratio" | "compact_resume_ratio", def: number): number => {
@@ -409,7 +441,9 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   let compact_timeout_ms = 12000;
   if (rawTimeout !== undefined) {
     if (typeof rawTimeout !== "number" || !Number.isFinite(rawTimeout) || rawTimeout <= 0) {
-      issues.push(`compact_timeout_ms는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(rawTimeout)})`);
+      issues.push(
+        `compact_timeout_ms는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(rawTimeout)})`,
+      );
     } else {
       compact_timeout_ms = rawTimeout;
     }
@@ -431,8 +465,12 @@ function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     ...(typeof irodori_speaker === "string" ? { irodori_speaker } : {}),
     ...(irodori_voices !== undefined ? { irodori_voices } : {}),
     ...(typeof irodori_num_steps === "number" ? { irodori_num_steps } : {}),
-    ...(typeof raw.irodori_cfg_scale_text === "number" ? { irodori_cfg_scale_text: raw.irodori_cfg_scale_text } : {}),
-    ...(typeof raw.irodori_cfg_scale_speaker === "number" ? { irodori_cfg_scale_speaker: raw.irodori_cfg_scale_speaker } : {}),
+    ...(typeof raw.irodori_cfg_scale_text === "number"
+      ? { irodori_cfg_scale_text: raw.irodori_cfg_scale_text }
+      : {}),
+    ...(typeof raw.irodori_cfg_scale_speaker === "number"
+      ? { irodori_cfg_scale_speaker: raw.irodori_cfg_scale_speaker }
+      : {}),
     ...(typeof raw.irodori_seconds === "number" ? { irodori_seconds: raw.irodori_seconds } : {}),
     ...(typeof tts_max_inflight === "number" ? { tts_max_inflight } : {}),
     ...(broker_base_url ? { broker_base_url } : {}),
@@ -447,7 +485,9 @@ function validateAvatar(file: string, raw: unknown): AvatarConfig {
   if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
   const vrm_url = raw.vrm_url;
   if (typeof vrm_url !== "string" || vrm_url.length === 0) {
-    throw new ConfigError(file, [`vrm_url은 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(vrm_url)})`]);
+    throw new ConfigError(file, [
+      `vrm_url은 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(vrm_url)})`,
+    ]);
   }
   const issues: string[] = [];
 
@@ -456,7 +496,9 @@ function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const rawAvailable = raw.available;
   if (rawAvailable !== undefined) {
     if (!Array.isArray(rawAvailable)) {
-      throw new ConfigError(file, [`available은 배열이어야 함 (받음: ${JSON.stringify(rawAvailable)})`]);
+      throw new ConfigError(file, [
+        `available은 배열이어야 함 (받음: ${JSON.stringify(rawAvailable)})`,
+      ]);
     }
     available = [];
     rawAvailable.forEach((entry, i) => {
@@ -466,16 +508,25 @@ function validateAvatar(file: string, raw: unknown): AvatarConfig {
       }
       for (const k of ["id", "label", "url"] as const) {
         if (typeof entry[k] !== "string" || (entry[k] as string).length === 0) {
-          issues.push(`available[${i}].${k}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(entry[k])})`);
+          issues.push(
+            `available[${i}].${k}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(entry[k])})`,
+          );
         }
       }
       // id는 영속화 키 + CSS 셀렉터 값 — 공백/따옴표 등 특수문자 금지([A-Za-z0-9._-]).
       if (typeof entry.id === "string" && !AVATAR_ID_RE.test(entry.id)) {
-        issues.push(`available[${i}].id는 [A-Za-z0-9._-]만 허용 (받음: ${JSON.stringify(entry.id)})`);
+        issues.push(
+          `available[${i}].id는 [A-Za-z0-9._-]만 허용 (받음: ${JSON.stringify(entry.id)})`,
+        );
       }
       const source = entry.source;
-      if (source !== undefined && !AVATAR_SOURCES.includes(source as AvatarOption["source"] & string)) {
-        issues.push(`available[${i}].source는 ${AVATAR_SOURCES.join("|")} 중 하나여야 함 (받음: ${JSON.stringify(source)})`);
+      if (
+        source !== undefined &&
+        !AVATAR_SOURCES.includes(source as AvatarOption["source"] & string)
+      ) {
+        issues.push(
+          `available[${i}].source는 ${AVATAR_SOURCES.join("|")} 중 하나여야 함 (받음: ${JSON.stringify(source)})`,
+        );
       }
       available!.push({
         id: entry.id as string,
@@ -502,10 +553,16 @@ function validateAvatar(file: string, raw: unknown): AvatarConfig {
       issues.push(`framing은 객체여야 함 (받음: ${JSON.stringify(rawFraming)})`);
     } else {
       const { margin, fov } = rawFraming;
-      if (margin !== undefined && (typeof margin !== "number" || !Number.isFinite(margin) || margin < 0)) {
+      if (
+        margin !== undefined &&
+        (typeof margin !== "number" || !Number.isFinite(margin) || margin < 0)
+      ) {
         issues.push(`framing.margin은 0 이상 유한 number여야 함 (받음: ${JSON.stringify(margin)})`);
       }
-      if (fov !== undefined && (typeof fov !== "number" || !Number.isFinite(fov) || fov <= 0 || fov >= 180)) {
+      if (
+        fov !== undefined &&
+        (typeof fov !== "number" || !Number.isFinite(fov) || fov <= 0 || fov >= 180)
+      ) {
         issues.push(`framing.fov는 (0, 180) 열린구간 number여야 함 (받음: ${JSON.stringify(fov)})`);
       }
       framing = {
@@ -566,7 +623,9 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
       issues.push(`${id}.vrma_path는 .vrma로 끝나는 문자열이어야 함`);
     }
     if (!MOTION_KINDS.includes(entry.kind as MotionKind)) {
-      issues.push(`${id}.kind는 ${MOTION_KINDS.join("|")} 중 하나여야 함 (받음: ${JSON.stringify(entry.kind)})`);
+      issues.push(
+        `${id}.kind는 ${MOTION_KINDS.join("|")} 중 하나여야 함 (받음: ${JSON.stringify(entry.kind)})`,
+      );
     }
     if (typeof entry.loop !== "boolean") {
       issues.push(`${id}.loop은 boolean이어야 함`);
@@ -578,7 +637,9 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
       entry.priority < 0 ||
       entry.priority > 100
     ) {
-      issues.push(`${id}.priority는 0~100 사이 유한 number여야 함 (받음: ${JSON.stringify(entry.priority)})`);
+      issues.push(
+        `${id}.priority는 0~100 사이 유한 number여야 함 (받음: ${JSON.stringify(entry.priority)})`,
+      );
     }
     if (!INTERRUPT_POLICIES.includes(entry.interrupt_policy as InterruptPolicy)) {
       issues.push(`${id}.interrupt_policy는 ${INTERRUPT_POLICIES.join("|")} 중 하나여야 함`);
@@ -703,7 +764,12 @@ function validateGuardrails(file: string, raw: unknown): GuardrailsConfig {
 
   // debounce_ms
   const rawDebounce = raw.debounce_ms;
-  const debounce_ms = { idle_watcher: 0, os_event_watcher: 0, backend_push_source: 0, user_input_source: 0 };
+  const debounce_ms = {
+    idle_watcher: 0,
+    os_event_watcher: 0,
+    backend_push_source: 0,
+    user_input_source: 0,
+  };
   if (!isObject(rawDebounce)) {
     issues.push(`debounce_ms는 객체여야 함 (받음: ${JSON.stringify(rawDebounce)})`);
   } else {
@@ -743,20 +809,28 @@ function validateSources(file: string, raw: unknown): SourcesConfig {
     } else {
       const iv = cowork.interval_ms;
       if (typeof iv !== "number" || !Number.isFinite(iv) || iv <= 0) {
-        issues.push(`proactive.cowork.interval_ms는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(iv)})`);
+        issues.push(
+          `proactive.cowork.interval_ms는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(iv)})`,
+        );
       } else {
         interval_ms = iv;
       }
       const idle = cowork.present_max_idle_ms;
       if (typeof idle !== "number" || !Number.isFinite(idle) || idle <= 0) {
-        issues.push(`proactive.cowork.present_max_idle_ms는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(idle)})`);
+        issues.push(
+          `proactive.cowork.present_max_idle_ms는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(idle)})`,
+        );
       } else if (idle < 10000) {
-        issues.push(`proactive.cowork.present_max_idle_ms는 ≥ 10000ms (≥ 2 nominal ~5s ticks)여야 함 (받음: ${JSON.stringify(idle)})`);
+        issues.push(
+          `proactive.cowork.present_max_idle_ms는 ≥ 10000ms (≥ 2 nominal ~5s ticks)여야 함 (받음: ${JSON.stringify(idle)})`,
+        );
       } else {
         present_max_idle_ms = idle;
       }
       if (interval_ms > 0 && present_max_idle_ms > 0 && present_max_idle_ms >= interval_ms) {
-        issues.push(`proactive.cowork.present_max_idle_ms(${present_max_idle_ms})는 interval_ms(${interval_ms})보다 작아야 함`);
+        issues.push(
+          `proactive.cowork.present_max_idle_ms(${present_max_idle_ms})는 interval_ms(${interval_ms})보다 작아야 함`,
+        );
       }
     }
   }

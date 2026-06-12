@@ -9,7 +9,7 @@
  * 라이브 8091 계약(프로브 완료) 기준. 테스트는 mock fetch만 사용 — 실제 서버 미접속.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createIrodoriSynth } from "./irodori-synth";
 
 type FetchFn = (url: string, init: RequestInit) => Promise<Response>;
@@ -123,7 +123,11 @@ describe("createIrodoriSynth", () => {
       errResponse(422, {
         detail: [
           { type: "missing", loc: ["body", "text"], msg: "Field required" },
-          { type: "string_type", loc: ["body", "reference_id"], msg: "Input should be a valid string" },
+          {
+            type: "string_type",
+            loc: ["body", "reference_id"],
+            msg: "Input should be a valid string",
+          },
         ],
       }),
     );
@@ -138,14 +142,17 @@ describe("createIrodoriSynth", () => {
   });
 
   it("throws with status even when error body is not JSON", async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: false,
-      status: 503,
-      headers: new Headers(),
-      json: async () => {
-        throw new Error("not json");
-      },
-    }) as unknown as Response);
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: false,
+          status: 503,
+          headers: new Headers(),
+          json: async () => {
+            throw new Error("not json");
+          },
+        }) as unknown as Response,
+    );
     const synth = createIrodoriSynth({
       baseUrl: BASE,
       referenceId: "v1",
@@ -182,7 +189,9 @@ describe("createIrodoriSynth", () => {
   });
 
   it("attaches the HTTP status to the thrown error", async () => {
-    const fetchMock = vi.fn(async () => errResponse(422, { detail: "unknown reference_id 'nope'" }));
+    const fetchMock = vi.fn(async () =>
+      errResponse(422, { detail: "unknown reference_id 'nope'" }),
+    );
     const synth = createIrodoriSynth({
       baseUrl: BASE,
       referenceId: "nope",
@@ -274,13 +283,14 @@ describe("createIrodoriSynth", () => {
   });
 
   it("gives up after a single 503 retry (does not loop forever)", async () => {
-    const fetchMock = vi.fn(async () =>
-      ({
-        ok: false,
-        status: 503,
-        headers: new Headers(),
-        json: async () => ({ detail: "overloaded" }),
-      }) as unknown as Response,
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: false,
+          status: 503,
+          headers: new Headers(),
+          json: async () => ({ detail: "overloaded" }),
+        }) as unknown as Response,
     );
     const synth = createIrodoriSynth({
       baseUrl: BASE,

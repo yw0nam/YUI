@@ -6,15 +6,15 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import type { ScreenSource } from "../contract";
 import { createLogger } from "../logger";
-import type { ScreenCapture } from "./screenshot-context";
 import {
-  type ScreenSourceProvider,
-  type ScreenCapturer,
-  type MonitorInfo,
-  isTauri,
-  noopScreenCapturer,
   createBrowserScreenSourceProvider,
+  isTauri,
+  type MonitorInfo,
+  noopScreenCapturer,
+  type ScreenCapturer,
+  type ScreenSourceProvider,
 } from "./screen-source-provider";
+import type { ScreenCapture } from "./screenshot-context";
 
 const log = createLogger("screen");
 
@@ -40,7 +40,9 @@ type InvokeFn = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
 
 // ─── Tauri screen source provider ────────────────────────────────────────────
 
-export function createTauriScreenSourceProvider(invoke: InvokeFn = tauriInvoke): ScreenSourceProvider {
+export function createTauriScreenSourceProvider(
+  invoke: InvokeFn = tauriInvoke,
+): ScreenSourceProvider {
   return {
     async listMonitors(): Promise<MonitorInfo[]> {
       const dtos = await invoke<ScreenSourceDto[]>("list_screen_sources");
@@ -57,7 +59,10 @@ export function createTauriScreenSourceProvider(invoke: InvokeFn = tauriInvoke):
 
 // ─── Tauri screen capturer ────────────────────────────────────────────────────
 
-export function createTauriScreenCapturer(maxEdge = 1280, invoke: InvokeFn = tauriInvoke): ScreenCapturer {
+export function createTauriScreenCapturer(
+  maxEdge = 1280,
+  invoke: InvokeFn = tauriInvoke,
+): ScreenCapturer {
   return {
     async capture(source: ScreenSource): Promise<ScreenCapture | null> {
       if (source.kind !== "monitor") return null;

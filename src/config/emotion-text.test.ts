@@ -8,7 +8,7 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { loadEmotionTextTable } from "./emotion-text";
 import { ConfigError, type ConfigReader } from "./load";
 

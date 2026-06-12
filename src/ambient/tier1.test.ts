@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { Renderer, TickContext, TickFn } from "../renderer";
 import { createTier1Engine, type Tier1Engine } from "./tier1";
-import type { Renderer, TickFn, TickContext } from "../renderer";
 
 /**
  * Tier1 엔진을 **헤드리스로 결정적 구동**한다 (브라우저/ rAF 없이).
@@ -76,15 +76,17 @@ function makeRenderer(): { renderer: Renderer; getTick: () => TickFn } {
 }
 
 /** 합성 프레임 구동기: 60fps로 durationS초 동안 tick 호출, 샘플 수집. elapsed는 호출 간 누적. */
-function drive(
-  tick: TickFn,
-  m: ReturnType<typeof makeVrm>,
-  durationS: number,
-  fps = 60,
-) {
+function drive(tick: TickFn, m: ReturnType<typeof makeVrm>, durationS: number, fps = 60) {
   const dt = 1 / fps;
   const n = Math.round(durationS * fps);
-  const samples: Array<{ elapsed: number; headY: number; headX: number; spineX: number; chestX: number; blink: number }> = [];
+  const samples: Array<{
+    elapsed: number;
+    headY: number;
+    headX: number;
+    spineX: number;
+    chestX: number;
+    blink: number;
+  }> = [];
   for (let i = 0; i < n; i++) {
     m.elapsed += dt;
     const ctx: TickContext = { vrm: m.vrm as never, dt, elapsed: m.elapsed };

@@ -9,14 +9,14 @@
  * NOT url). It does not perform the renderer swap — only holds + persists + resolves.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { AvatarOption } from "../config/load";
+import type { UserVrmStorage, VrmSelectionStorage } from "./vrm-selection";
 import {
   createVrmSelection,
-  localStorageVrmStorage,
   localStorageUserVrmStorage,
+  localStorageVrmStorage,
 } from "./vrm-selection";
-import type { VrmSelectionStorage, UserVrmStorage } from "./vrm-selection";
-import type { AvatarOption } from "../config/load";
 
 const SAMPLE: AvatarOption[] = [
   { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
@@ -98,7 +98,11 @@ describe("createVrmSelection — getActive resolution", () => {
   it("(1) persisted override wins when present in list", () => {
     const storage = makeMemStorage();
     storage._data = "miko";
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     expect(store.getActive()).toEqual(SAMPLE[1]);
     expect(store.getActiveId()).toBe("miko");
   });
@@ -132,7 +136,11 @@ describe("createVrmSelection — getActive resolution", () => {
 describe("createVrmSelection — select", () => {
   it("sets a known id as the override, persists, and notifies once", () => {
     const storage = makeMemStorage();
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     const cb = vi.fn();
     store.subscribe(cb);
 
@@ -155,7 +163,11 @@ describe("createVrmSelection — select", () => {
 
   it("selecting the already-active id is a no-op (no save, no notify)", () => {
     const storage = makeMemStorage();
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     const saveSpy = vi.spyOn(storage, "save");
     const cb = vi.fn();
     store.subscribe(cb);
@@ -169,7 +181,11 @@ describe("createVrmSelection — select", () => {
 
   it("selecting an unknown id is a no-op — does not persist garbage", () => {
     const storage = makeMemStorage();
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     const cb = vi.fn();
     store.subscribe(cb);
 
@@ -199,7 +215,11 @@ describe("createVrmSelection — reset", () => {
   it("clears the override back to default resolution, persists cleared, notifies", () => {
     const storage = makeMemStorage();
     storage._data = "miko";
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     const cb = vi.fn();
     store.subscribe(cb);
 
@@ -213,7 +233,11 @@ describe("createVrmSelection — reset", () => {
 
   it("reset with no override active is a no-op (no notify)", () => {
     const storage = makeMemStorage();
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     const cb = vi.fn();
     store.subscribe(cb);
     store.reset();
@@ -228,7 +252,11 @@ describe("createVrmSelection — reset", () => {
 describe("createVrmSelection — reloadFromStorage", () => {
   it("applies an externally-changed override and notifies", () => {
     const storage = makeMemStorage();
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     const cb = vi.fn();
     store.subscribe(cb);
 
@@ -244,7 +272,11 @@ describe("createVrmSelection — reloadFromStorage", () => {
   it("picks up an external reset (override cleared) and notifies", () => {
     const storage = makeMemStorage();
     storage._data = "miko";
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     const cb = vi.fn();
     store.subscribe(cb);
 
@@ -257,7 +289,11 @@ describe("createVrmSelection — reloadFromStorage", () => {
 
   it("identical override on reload is a no-op (no notify)", () => {
     const storage = makeMemStorage();
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     store.select("miko");
     const cb = vi.fn();
     store.subscribe(cb);
@@ -282,7 +318,11 @@ describe("createVrmSelection — reloadFromStorage", () => {
       },
       save: vi.fn(),
     };
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     const cb = vi.fn();
     store.subscribe(cb);
     throws = true;
@@ -300,14 +340,22 @@ describe("createVrmSelection — stale override + coercion", () => {
     const storage = makeMemStorage();
     storage._data = "custom"; // a previously-added source:"file" entry, now removed
     const reduced: AvatarOption[] = [SAMPLE[0], SAMPLE[1]];
-    const store = createVrmSelection({ available: reduced, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: reduced,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     expect(store.getActiveId()).toBe("carlotta");
   });
 
   it("a stale override does not resurface — selecting another id then resetting yields default", () => {
     const storage = makeMemStorage();
     storage._data = "ghost";
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     // stale "ghost" is treated as no override → default resolution.
     expect(store.getActiveId()).toBe("carlotta");
     store.select("miko");
@@ -324,7 +372,7 @@ describe("createVrmSelection — stale override + coercion", () => {
 
   it("non-string persisted junk coerces to no override without throwing", () => {
     const storage: VrmSelectionStorage = {
-      load: () => ({ nope: true } as unknown as string | null),
+      load: () => ({ nope: true }) as unknown as string | null,
       save: vi.fn(),
     };
     const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/miko.vrm", storage });
@@ -339,7 +387,11 @@ describe("createVrmSelection — stale override + coercion", () => {
       },
       save: vi.fn(),
     };
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     expect(store.getActiveId()).toBe("carlotta");
   });
 });
@@ -372,7 +424,11 @@ describe("createVrmSelection — setManifest", () => {
 
   it("preserves a user override across a manifest swap (override wins over new defaultUrl)", () => {
     const storage = makeMemStorage();
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     store.select("miko");
     expect(store.getActiveId()).toBe("miko");
 
@@ -385,7 +441,11 @@ describe("createVrmSelection — setManifest", () => {
 
   it("a preserved override absent from the new manifest falls back to default resolution", () => {
     const storage = makeMemStorage();
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     store.select("custom");
     expect(store.getActiveId()).toBe("custom");
 
@@ -420,7 +480,11 @@ describe("createVrmSelection — setManifest", () => {
 
   it("does NOT notify when a preserved override keeps the same active id", () => {
     const storage = makeMemStorage();
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     store.select("miko");
     const cb = vi.fn();
     store.subscribe(cb);
@@ -434,7 +498,11 @@ describe("createVrmSelection — setManifest", () => {
 
   it("notifies when a stale override falls back to a different default after swap", () => {
     const storage = makeMemStorage();
-    const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: SAMPLE,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     store.select("custom");
     const cb = vi.fn();
     store.subscribe(cb);
@@ -887,8 +955,7 @@ describe("localStorageUserVrmStorage", () => {
 
   it("drops malformed entries (missing id/url) on load", () => {
     (globalThis as any).localStorage = {
-      getItem: () =>
-        JSON.stringify([USER_CAT, { label: "no id" }, { id: "x" }]),
+      getItem: () => JSON.stringify([USER_CAT, { label: "no id" }, { id: "x" }]),
       setItem: () => {},
       removeItem: () => {},
     };
@@ -930,8 +997,7 @@ describe("coerceUserOption — id charset validation", () => {
 
   it("drops an empty-id entry but keeps valid ids", () => {
     (globalThis as any).localStorage = {
-      getItem: () =>
-        JSON.stringify([{ id: "", url: "/x.vrm" }, USER_CAT]),
+      getItem: () => JSON.stringify([{ id: "", url: "/x.vrm" }, USER_CAT]),
       setItem: () => {},
       removeItem: () => {},
     };
@@ -968,8 +1034,18 @@ describe("createVrmSelection — reloadFromStorage user-list merge", () => {
     const storage = makeMemStorage();
     const userStorage = makeUserMemStorage();
     // Two stores over one shared userStorage (two windows).
-    const a = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", storage, userStorage });
-    const b = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", storage, userStorage });
+    const a = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+      userStorage,
+    });
+    const b = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+      userStorage,
+    });
 
     // Window A imports Cat first → userStorage = [Cat].
     a.addUserOption(USER_CAT);
@@ -985,8 +1061,16 @@ describe("createVrmSelection — reloadFromStorage user-list merge", () => {
 
   it("reloadFromStorage picks up a user option added by another window", () => {
     const userStorage = makeUserMemStorage();
-    const a = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", userStorage });
-    const b = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", userStorage });
+    const a = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
+    const b = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
 
     a.addUserOption(USER_CAT);
     expect(b.getOptions().map((o) => o.id)).not.toContain("Cat");
@@ -997,7 +1081,11 @@ describe("createVrmSelection — reloadFromStorage user-list merge", () => {
 
   it("merge dedupes by id and keeps the reloaded entry (no duplicates)", () => {
     const userStorage = makeUserMemStorage();
-    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", userStorage });
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
     store.addUserOption(USER_CAT);
     // Another window renamed Cat → reflected only in storage.
     userStorage._data = [{ ...USER_CAT, label: "냥이" }];
@@ -1010,9 +1098,15 @@ describe("createVrmSelection — reloadFromStorage user-list merge", () => {
 
   it("a reloaded user entry colliding with a bundled id is dropped (bundled wins)", () => {
     const userStorage = makeUserMemStorage();
-    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", userStorage });
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
     // Another window persisted a user entry shadowing a bundled id.
-    userStorage._data = [{ id: "miko", label: "Fake", url: "asset://localhost/fake.vrm", source: "user" }];
+    userStorage._data = [
+      { id: "miko", label: "Fake", url: "asset://localhost/fake.vrm", source: "user" },
+    ];
 
     store.reloadFromStorage();
 
@@ -1024,7 +1118,12 @@ describe("createVrmSelection — reloadFromStorage user-list merge", () => {
   it("notifies when an externally-added user option becomes the resolved override", () => {
     const storage = makeMemStorage();
     const userStorage = makeUserMemStorage();
-    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", storage, userStorage });
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+      userStorage,
+    });
     const cb = vi.fn();
     store.subscribe(cb);
 
@@ -1039,7 +1138,11 @@ describe("createVrmSelection — reloadFromStorage user-list merge", () => {
 
   it("does NOT notify when the merged list leaves the active id unchanged", () => {
     const userStorage = makeUserMemStorage();
-    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", userStorage });
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
     const cb = vi.fn();
     store.subscribe(cb);
 
@@ -1053,7 +1156,11 @@ describe("createVrmSelection — reloadFromStorage user-list merge", () => {
 
   it("is a no-op for the user list when userStorage is absent", () => {
     const storage = makeMemStorage();
-    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", storage });
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      storage,
+    });
     expect(() => store.reloadFromStorage()).not.toThrow();
     expect(store.getOptions().map((o) => o.id)).toEqual(["carlotta", "miko"]);
   });
@@ -1067,7 +1174,11 @@ describe("createVrmSelection — reloadFromStorage user-list merge", () => {
       },
       save: vi.fn(),
     };
-    const store = createVrmSelection({ available: BUNDLED, defaultUrl: "/vrms/carlotta.vrm", userStorage });
+    const store = createVrmSelection({
+      available: BUNDLED,
+      defaultUrl: "/vrms/carlotta.vrm",
+      userStorage,
+    });
     store.addUserOption(USER_CAT);
     throwOnLoad = true;
     expect(() => store.reloadFromStorage()).not.toThrow();

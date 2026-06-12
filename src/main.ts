@@ -13,91 +13,91 @@
  */
 
 import "./styles.css";
-import { createLogger, initLogger } from "./logger";
-import { createRenderer, type VrmLoadResult } from "./renderer";
-import { nextZoom } from "./renderer/camera-fit";
 import { createTier1Engine } from "./ambient/tier1";
-import { createSurfaces } from "./ui/surfaces";
-import {
-  inputBottomFromAnchor,
-  INPUT_FEET_GAP_PX,
-  INPUT_ANCHOR_EPSILON_PX,
-  INPUT_ANCHOR_MIN_BOTTOM_PX,
-} from "./ui/anchor";
-import { createMockDriver } from "./ui/mock";
-import { createQuickControls } from "./ui/quick-controls";
-import { createCaptureIndicator } from "./ui/capture-indicator";
-import { createVoiceInputStatus } from "./ui/voice-input-status";
-import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
-import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
-import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
-import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
-import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
+import { CHAT_API_KEY_SECRET, createConfigStore, loadEmotionTextTable } from "./config";
+import type { WindowRect } from "./contract";
+import { createBackendCaller } from "./dispatcher/backend-caller";
+import { createCoworkSource } from "./dispatcher/cowork-source";
+import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
+import { createEventBus } from "./dispatcher/event-bus";
+import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
+import { createUserInputSource } from "./dispatcher/user-input-source";
+import { initDrag } from "./drag";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
+import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
+import { createWebAudioSink } from "./io/audio-player";
+import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
+import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
+import {
+  CAMERA_WHEEL_SENSITIVITY,
+  CAMERA_ZOOM_MAX,
+  CAMERA_ZOOM_MIN,
+  createCameraSettings,
+  localStorageCameraStorage,
+} from "./io/camera-settings";
+import { selectFetch } from "./io/chat-client";
+import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
+import { createCompactionTrigger } from "./io/compaction-trigger";
 import {
   createEndpointsSettings,
   localStorageEndpointsStorage,
   mergeEndpoints,
 } from "./io/endpoints-settings";
-import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
+import { createIrodoriSynth, type TtsSynth } from "./io/irodori-synth";
+import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
+import { ensureRegistered, evictRegistration, updateVoice } from "./io/irodori-voices";
+import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
+import { createOsContext } from "./io/os-context";
+import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
+import { buildScreenshotBlock } from "./io/screenshot-context";
+import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
+import { createSessionCompactor } from "./io/session-compactor";
 import {
-  createCameraSettings,
-  localStorageCameraStorage,
-  CAMERA_ZOOM_MIN,
-  CAMERA_ZOOM_MAX,
-  CAMERA_WHEEL_SENSITIVITY,
-} from "./io/camera-settings";
-import {
-  createVrmSelection,
-  localStorageVrmStorage,
-  localStorageUserVrmStorage,
-} from "./io/vrm-selection";
-import { importVrmFromFile, removeUserVrm, removeOrphanVrm } from "./io/vrm-import";
-import {
-  importVoiceFromFile,
-  removeUserVoice as removeUserVoiceFile,
-  removeOrphanVoice,
-} from "./io/voice-import";
-import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
+  createSessionDiagnosticsStore,
+  localStorageSessionDiagnosticsStorage,
+} from "./io/session-diagnostics";
+import { createSessionStore, localStorageSessionStorage } from "./io/session-store";
+import { createSettingsBridge } from "./io/settings-bridge";
+import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
   localStorageUserSpeakerStorage,
   type SpeakerOption,
 } from "./io/speaker-selection";
-import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
-import { createSettingsBridge } from "./io/settings-bridge";
-import { createWebAudioSink } from "./io/audio-player";
-import { resolveScreenSourceProvider, resolveScreenCapturer } from "./io/tauri-screen";
-import { buildScreenshotBlock } from "./io/screenshot-context";
-import { createOsContext } from "./io/os-context";
-import { createSessionStore, localStorageSessionStorage } from "./io/session-store";
-import {
-  createSessionDiagnosticsStore,
-  localStorageSessionDiagnosticsStorage,
-} from "./io/session-diagnostics";
-import { createSessionCompactor } from "./io/session-compactor";
-import { createCompactionTrigger } from "./io/compaction-trigger";
-import { createConfigStore, CHAT_API_KEY_SECRET, loadEmotionTextTable } from "./config";
-import { createBrokerClient, deriveBrokerPayload, type BrokerClient } from "./io/broker-client";
-import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
-import { initDrag } from "./drag";
-import { selectFetch } from "./io/chat-client";
 import { createSpeechPlayback } from "./io/speech-playback";
-import { createTtsSynth } from "./io/tts-synth";
-import { createIrodoriSynth, type TtsSynth } from "./io/irodori-synth";
-import { ensureRegistered, evictRegistration, updateVoice } from "./io/irodori-voices";
-import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
-import { createEventBus } from "./dispatcher/event-bus";
-import { createBackendCaller } from "./dispatcher/backend-caller";
-import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
-import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
-import { createUserInputSource } from "./dispatcher/user-input-source";
-import { createCoworkSource } from "./dispatcher/cowork-source";
-import { createWindowDropSource } from "./io/window-drop-source";
-import type { WindowRect } from "./contract";
 import type { SttVad } from "./io/stt-vad";
+import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
+import { createTtsSynth } from "./io/tts-synth";
+import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
+import {
+  importVoiceFromFile,
+  removeOrphanVoice,
+  removeUserVoice as removeUserVoiceFile,
+} from "./io/voice-import";
+import { importVrmFromFile, removeOrphanVrm, removeUserVrm } from "./io/vrm-import";
+import {
+  createVrmSelection,
+  localStorageUserVrmStorage,
+  localStorageVrmStorage,
+} from "./io/vrm-selection";
+import { createWindowDropSource } from "./io/window-drop-source";
+import { createLogger, initLogger } from "./logger";
+import { createRenderer, type VrmLoadResult } from "./renderer";
+import { nextZoom } from "./renderer/camera-fit";
+import {
+  INPUT_ANCHOR_EPSILON_PX,
+  INPUT_ANCHOR_MIN_BOTTOM_PX,
+  INPUT_FEET_GAP_PX,
+  inputBottomFromAnchor,
+} from "./ui/anchor";
+import { createCaptureIndicator } from "./ui/capture-indicator";
+import { createMockDriver } from "./ui/mock";
+import { createQuickControls } from "./ui/quick-controls";
+import { createSurfaces } from "./ui/surfaces";
+import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
+import { createVoiceInputStatus } from "./ui/voice-input-status";
 
 /** 입력 소환 핫키 (window-focus 한정 — 전역 단축키는 후속 tauri-plugin-global-shortcut). */
 const SUMMON_KEY = "/";
@@ -208,7 +208,18 @@ async function bootstrap(): Promise<void> {
   // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
   // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
   const openSettings = createSettingsWindowOpener();
-  const disposeStorageSync = wireStorageSync([agentSettings, endpointsSettings, chatKeySettings, lipsyncSettings, vadSettings, screenshotSettings, proactiveSettings, cameraSettings, sessionStore, sessionDiagnostics]);
+  const disposeStorageSync = wireStorageSync([
+    agentSettings,
+    endpointsSettings,
+    chatKeySettings,
+    lipsyncSettings,
+    vadSettings,
+    screenshotSettings,
+    proactiveSettings,
+    cameraSettings,
+    sessionStore,
+    sessionDiagnostics,
+  ]);
 
   // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
   // 시스템(VRM 렌더러 · STT/VAD)에 닿게 한다. storage 폴백은 위 wireStorageSync로 유지.
@@ -350,7 +361,12 @@ async function bootstrap(): Promise<void> {
     const f = await selectFetch();
     const eps = getEndpoints();
     if (!eps.irodori_base_url) throw new Error("irodori provider requires irodori_base_url");
-    await updateVoice({ baseUrl: eps.irodori_base_url, id: option.id, refUrl: option.ref_url, fetch: f });
+    await updateVoice({
+      baseUrl: eps.irodori_base_url,
+      id: option.id,
+      refUrl: option.ref_url,
+      fetch: f,
+    });
   };
   // BYO-voice 임포트: 파일 선택 → 복사 → irodori 등록 → 옵션 추가 + 선택(swapSpeaker의 register-then-select 미러).
   // 취소(null)는 조용히 무시. 등록 실패(서버 다운/사용 불가 클립)면 고아 사본을 지우고 옵션은
@@ -491,8 +507,7 @@ async function bootstrap(): Promise<void> {
   // bus/dispatcher는 config 로드 전에 만들어도 안전(엔드포인트는 backend_caller가 호출 시점에
   // config에서 읽는다). 다만 backend_caller는 config 스토어가 필요하므로 config 생성 후 배선한다.
   const bus = createEventBus({
-    onDrop: (env, reason) =>
-      log.info("drop", { event_name: env.event_name, reason }),
+    onDrop: (env, reason) => log.info("drop", { event_name: env.event_name, reason }),
   });
   const userInput = createUserInputSource(bus);
   // Window-sit drop producer (#131): Rust window_drop_release → tier1 perch event.
@@ -578,7 +593,9 @@ async function bootstrap(): Promise<void> {
     try {
       return await loadEmotionTextTable({ provider: "irodori" });
     } catch (err) {
-      log.warn("broker: irodori emotion_text 로드 실패 — free 모드로 degrade", { err: String(err) });
+      log.warn("broker: irodori emotion_text 로드 실패 — free 모드로 degrade", {
+        err: String(err),
+      });
       return null;
     }
   }
@@ -700,7 +717,9 @@ async function bootstrap(): Promise<void> {
   // dev에서 런타임 오버라이드도 build-time 키도 없으면 chat 호출이 조용한 401처럼 보인다 →
   // bootstrap에서 미리 알린다. 키 값 자체는 절대 로깅하지 않는다(시크릿).
   if (import.meta.env.DEV && !chatKeySettings.get().apiKey && !import.meta.env.VITE_YUI_CHAT_KEY) {
-    log.warn("chat API 키 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. 설정 패널의 채팅 API 키 또는 .env.local(VITE_YUI_CHAT_KEY) 참고.");
+    log.warn(
+      "chat API 키 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. 설정 패널의 채팅 API 키 또는 .env.local(VITE_YUI_CHAT_KEY) 참고.",
+    );
   }
   // compactor의 getApiKey/getFetch는 동기 — async SecretProvider/selectFetch를 해소해 캐시한다.
   // transport는 환경별로 안정적이라 1회 워밍하면 충분하지만, chat 키는 런타임 오버라이드로
@@ -833,7 +852,10 @@ async function bootstrap(): Promise<void> {
     onUsage: (usage) => {
       if (usage.total_tokens > 0) sessionHasTurn = true;
       compactionTrigger.noteUsage(usage.total_tokens);
-      sessionDiagnostics.setUsage(usage.total_tokens, getEndpoints().chat_model_context_window ?? null);
+      sessionDiagnostics.setUsage(
+        usage.total_tokens,
+        getEndpoints().chat_model_context_window ?? null,
+      );
     },
     onSpeech: (text) => speechPlayback.onSpeech(text),
     onSpeechDelta: (text) => speechPlayback.onSpeechDelta(text),
@@ -946,7 +968,8 @@ async function bootstrap(): Promise<void> {
       },
       createBroker: makeBroker,
       loadTable: loadBrokerTable,
-      derivePayload: (eff, table) => deriveBrokerPayload({ ...config.get(), endpoints: eff }, table),
+      derivePayload: (eff, table) =>
+        deriveBrokerPayload({ ...config.get(), endpoints: eff }, table),
     });
     const unsubscribeBrokerOverride = endpointsSettings.subscribe(() => {
       void brokerReconciler.onChange();
@@ -1031,12 +1054,7 @@ async function bootstrap(): Promise<void> {
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName;
-  return (
-    tag === "INPUT" ||
-    tag === "TEXTAREA" ||
-    tag === "SELECT" ||
-    target.isContentEditable
-  );
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
 }
 
 void bootstrap();

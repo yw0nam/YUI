@@ -6,18 +6,21 @@
  * injectable so the suite never touches a real Tauri runtime.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   importVoiceFromFile,
-  removeUserVoice,
   removeOrphanVoice,
+  removeUserVoice,
   type VoiceImportDeps,
 } from "./voice-import";
 
 function makeDeps(over: Partial<VoiceImportDeps> = {}): VoiceImportDeps {
   return {
     openDialog: vi.fn(async () => "/Users/me/Downloads/MyVoice.wav"),
-    invoke: vi.fn(async () => ({ id: "MyVoice", refPath: "/app-data/references/MyVoice/clip.wav" })),
+    invoke: vi.fn(async () => ({
+      id: "MyVoice",
+      refPath: "/app-data/references/MyVoice/clip.wav",
+    })),
     resolveRefUrl: vi.fn(async (p: string) => `asset://localhost/${p}`),
     ...over,
   };
@@ -45,7 +48,9 @@ describe("importVoiceFromFile — successful pick", () => {
     await importVoiceFromFile(deps);
     expect(deps.openDialog).toHaveBeenCalledWith({
       multiple: false,
-      filters: [{ name: "Audio", extensions: ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"] }],
+      filters: [
+        { name: "Audio", extensions: ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"] },
+      ],
     });
   });
 

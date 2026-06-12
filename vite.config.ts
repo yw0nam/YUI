@@ -1,7 +1,7 @@
-import { defineConfig, type Plugin } from "vite";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { defineConfig, type Plugin } from "vite";
 import { resolveVitePort } from "./scripts/dev-port.mjs";
 
 // dev 정적 서빙: /vrms/* → resources/vrms/, /configs/* → configs/.
@@ -28,7 +28,7 @@ function serveDir(prefix: string, dir: string): Plugin {
       // connect가 prefix를 벗겨 req.url을 넘긴다 (예: /vrms/x.vrm → /x.vrm).
       server.middlewares.use(prefix, (req, res, next) => {
         const rel = decodeURIComponent((req.url ?? "/").split("?")[0]);
-        const file = normalize(resolve(root, "." + rel));
+        const file = normalize(resolve(root, `.${rel}`));
         // path traversal 차단 + 실제 파일만.
         if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) {
           return next();

@@ -13,47 +13,44 @@
  *   VRMUtils.removeUnnecessaryVertices/combineSkeletons/combineMorphs, deepDispose).
  */
 
+import { type VRM, VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
+import { createVRMAnimationClip, VRMAnimationLoaderPlugin } from "@pixiv/three-vrm-animation";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
-import {
-  VRMAnimationLoaderPlugin,
-  createVRMAnimationClip,
-} from "@pixiv/three-vrm-animation";
 import type {
   ControlEnvelope,
-  EmotionSignal,
   EmotionRegistry,
-  MotionSignal,
+  EmotionSignal,
   MotionRegistry,
+  MotionSignal,
 } from "../contract";
-import {
-  createMotionController,
-  type MotionController,
-  type ResolvedMotion,
-} from "./motion-controller";
+import { createLogger } from "../logger";
+import { routeDirective } from "./apply-directive";
+import { computeCameraFit } from "./camera-fit";
 import { createCycleDwell } from "./cycle-dwell";
+import { revertEmotionToNeutral } from "./ease-emotion";
 import {
   createEmotionResolver,
   type EmotionResolver,
   type ResolvedEmotion,
 } from "./emotion-resolver";
-import { routeDirective } from "./apply-directive";
-import { suppressIdleReturn } from "./perch-hold";
-import { revertEmotionToNeutral } from "./ease-emotion";
-import { recenterClipRootMotion } from "./recenter-root-motion";
-import { computeCameraFit } from "./camera-fit";
-import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
 import {
+  createMotionController,
+  type MotionController,
+  type ResolvedMotion,
+} from "./motion-controller";
+import {
+  characterScreenHeight,
   projectToScreen,
+  SEAT_DROP_DEFAULT,
   seatAnchorWorld,
   seatAnchorWorldInto,
-  characterScreenHeight,
-  worldYPerPixel,
   seatOffsetWorldY,
-  SEAT_DROP_DEFAULT,
+  worldYPerPixel,
 } from "./perch-geometry";
-import { createLogger } from "../logger";
+import { suppressIdleReturn } from "./perch-hold";
+import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
+import { recenterClipRootMotion } from "./recenter-root-motion";
 
 const log = createLogger("renderer");
 
@@ -361,19 +358,17 @@ export function createRenderer(options: RendererOptions): Renderer {
    *  - startMs/durationMs: 프레임 클록(elapsed*1000) 기준 시작/길이.
    *  - curPrevW/curTargetW: 현재 프레임 적용 weight(retarget 출발점으로 재사용).
    */
-  let emotionXfade:
-    | {
-        prevKey: string | null;
-        prevWeightAtStart: number;
-        targetKey: string;
-        targetWeight: number;
-        startTargetW: number;
-        startMs: number;
-        durationMs: number;
-        curPrevW: number;
-        curTargetW: number;
-      }
-    | null = null;
+  let emotionXfade: {
+    prevKey: string | null;
+    prevWeightAtStart: number;
+    targetKey: string;
+    targetWeight: number;
+    startTargetW: number;
+    startMs: number;
+    durationMs: number;
+    curPrevW: number;
+    curTargetW: number;
+  } | null = null;
 
   /** mixer "finished" 핸들러 (oneshot 종료 → controller.finish → 복귀 재생). */
   const onMixerFinished = (e: { action: THREE.AnimationAction }): void => {
@@ -694,10 +689,9 @@ export function createRenderer(options: RendererOptions): Renderer {
       has_mouth: exprInfo.hasMouth,
     });
     if (!exprInfo.hasMouth) {
-      log.warn(
-        `mouth expression '${MOUTH_EXPRESSION_KEY}' not found — lipsync will be silent`,
-        { expressions: exprInfo.expressions },
-      );
+      log.warn(`mouth expression '${MOUTH_EXPRESSION_KEY}' not found — lipsync will be silent`, {
+        expressions: exprInfo.expressions,
+      });
     }
 
     // emotion: 존재 집합은 모델별이라 핫스왑마다 술어/resolver 재생성.

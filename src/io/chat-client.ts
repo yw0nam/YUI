@@ -151,8 +151,7 @@ export function selectChatBaseUrl(
   configuredBaseUrl: string,
   env?: { isTauri?: boolean; isDev?: boolean; origin?: string },
 ): string {
-  const isTauri =
-    env?.isTauri ?? !!(globalThis as any).__TAURI_INTERNALS__;
+  const isTauri = env?.isTauri ?? !!(globalThis as any).__TAURI_INTERNALS__;
   const isDev = env?.isDev ?? (import.meta as any).env?.DEV;
   const origin = env?.origin ?? (globalThis as any).location?.origin;
 
@@ -162,7 +161,7 @@ export function selectChatBaseUrl(
     if (/^[a-z]+:\/\//i.test(configuredBaseUrl)) {
       path = new URL(configuredBaseUrl).pathname;
     }
-    if (!path.startsWith("/")) path = "/" + path;
+    if (!path.startsWith("/")) path = `/${path}`;
     return `${origin}/__hermes${path}`;
   }
   return configuredBaseUrl;
@@ -202,10 +201,9 @@ export async function* streamChat(
   let expressEmitted = false;
 
   // instructions: 요청 오버라이드(비어있지 않으면 우선) → config.chat_instructions로 폴백.
-  const effectiveInstructions =
-    request.instructions && request.instructions.trim()
-      ? request.instructions
-      : config.chat_instructions;
+  const effectiveInstructions = request.instructions?.trim()
+    ? request.instructions
+    : config.chat_instructions;
 
   let stream: AsyncIterable<any>;
   try {
@@ -339,10 +337,8 @@ export async function* streamChat(
           if (express) {
             if (express.emotion_id !== undefined)
               envelope.emotion = { id: express.emotion_id as EmotionId };
-            if (express.motion_id !== undefined)
-              envelope.motion = { id: express.motion_id };
-            if (express.emotion_text !== undefined)
-              envelope.emotion_text = express.emotion_text;
+            if (express.motion_id !== undefined) envelope.motion = { id: express.motion_id };
+            if (express.emotion_text !== undefined) envelope.emotion_text = express.emotion_text;
           }
           if (tool_status) envelope.tool_status = tool_status;
           yield { type: "completed", envelope };

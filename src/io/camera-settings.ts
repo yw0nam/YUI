@@ -29,10 +29,7 @@ function clampZoom(zoom: number): number {
   return Math.min(CAMERA_ZOOM_MAX, Math.max(CAMERA_ZOOM_MIN, zoom));
 }
 
-export function createCameraSettings(opts?: {
-  storage?: CameraStorage;
-  initial?: CameraSettings;
-}) {
+export function createCameraSettings(opts?: { storage?: CameraStorage; initial?: CameraSettings }) {
   const storage = opts?.storage;
 
   let stored: CameraSettings | null = null;

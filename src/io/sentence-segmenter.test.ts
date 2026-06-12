@@ -10,7 +10,7 @@
  *  - 약어 NLP 없음. 각 문장 trim, 빈 문장 drop.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createSentenceSegmenter } from "./sentence-segmenter";
 
 describe("createSentenceSegmenter — push()", () => {
@@ -56,18 +56,12 @@ describe("createSentenceSegmenter — push()", () => {
 
   it("includes closing quote/bracket after terminal punctuation in the sentence", () => {
     const seg = createSentenceSegmenter();
-    expect(seg.push('She said "hi!" Then left.')).toEqual([
-      'She said "hi!"',
-      "Then left.",
-    ]);
+    expect(seg.push('She said "hi!" Then left.')).toEqual(['She said "hi!"', "Then left."]);
   });
 
   it("trims whitespace from emitted sentences and drops empty ones", () => {
     const seg = createSentenceSegmenter();
-    expect(seg.push("  spaced out.   \n\n  next.  ")).toEqual([
-      "spaced out.",
-      "next.",
-    ]);
+    expect(seg.push("  spaced out.   \n\n  next.  ")).toEqual(["spaced out.", "next."]);
   });
 });
 

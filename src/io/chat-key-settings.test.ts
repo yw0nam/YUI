@@ -10,13 +10,13 @@
  * The key value is a secret — assertions check persistence/notification shape, never log it.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { ChatKeySettings, ChatKeyStorage } from "./chat-key-settings";
 import {
   CHAT_KEY_MAX_LEN,
   createChatKeySettings,
   localStorageChatKeyStorage,
 } from "./chat-key-settings";
-import type { ChatKeyStorage, ChatKeySettings } from "./chat-key-settings";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -212,7 +212,7 @@ describe("createChatKeySettings — persistence", () => {
 
   it("stored invalid type {apiKey:123} falls back to empty", () => {
     const storage: ChatKeyStorage = {
-      load: () => ({ apiKey: 123 } as unknown as ChatKeySettings),
+      load: () => ({ apiKey: 123 }) as unknown as ChatKeySettings,
       save: vi.fn(),
     };
     const store = createChatKeySettings({ storage });

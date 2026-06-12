@@ -9,11 +9,11 @@
  * fake synth(제어 가능한 promise) + fake AudioSink(재생 순서 기록)로 검증 — 실제 오디오/네트워크 없음.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
-import { createTtsPipeline } from "./tts-pipeline";
-import type { AudioSink } from "./audio-player";
 import type { Logger } from "../logger";
+import type { AudioSink } from "./audio-player";
+import { createTtsPipeline } from "./tts-pipeline";
 
 const CONFIG: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",
@@ -31,7 +31,11 @@ const bufId = (buf: ArrayBuffer): number => new Uint8Array(buf)[0];
 
 /** 호출 시점에 resolve/reject를 제어할 수 있는 fake synth. */
 function deferredSynth() {
-  const resolvers: Array<{ resolve: (b: ArrayBuffer) => void; reject: (e: unknown) => void; input: string }> = [];
+  const resolvers: Array<{
+    resolve: (b: ArrayBuffer) => void;
+    reject: (e: unknown) => void;
+    input: string;
+  }> = [];
   const inputs: string[] = [];
   const signals: Array<AbortSignal | undefined> = [];
   let inFlight = 0;
@@ -200,7 +204,13 @@ describe("createTtsPipeline — synth concurrency cap", () => {
     const { synth, resolvers, peakConcurrency } = deferredSynth();
     const { sink, finish } = recordingSink();
     const onPlaybackEnd = vi.fn();
-    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd, maxInflight: () => NaN });
+    const pipe = createTtsPipeline({
+      config: CONFIG,
+      synth,
+      sink,
+      onPlaybackEnd,
+      maxInflight: () => NaN,
+    });
 
     pipe.pushTextDelta("First. Second.");
     pipe.end();
@@ -676,7 +686,14 @@ describe("createTtsPipeline — observability logging seam", () => {
     const { sink, finish } = recordingSink();
     const logger = makeLogger();
     const onPlaybackEnd = vi.fn();
-    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, logger, onPlaybackEnd, maxInflight: 3 });
+    const pipe = createTtsPipeline({
+      config: CONFIG,
+      synth,
+      sink,
+      logger,
+      onPlaybackEnd,
+      maxInflight: 3,
+    });
 
     pipe.pushTextDelta("First. Second.");
     pipe.end();

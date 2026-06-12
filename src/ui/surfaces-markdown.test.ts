@@ -8,7 +8,7 @@
  * CSS imports are ignored (no CSS processing in jsdom).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // CSS imports are not handled in jsdom — mock them
 vi.mock("./surfaces.css", () => ({}));

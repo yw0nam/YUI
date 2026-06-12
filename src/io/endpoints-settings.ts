@@ -99,10 +99,7 @@ export function isValidEndpointUrl(v: string): boolean {
  * tts_provider는 유효 enum("irodori"|"openai")일 때만 적용. 적용 값은 trim한다.
  * 무효 URL/provider는 무시(effective는 base 기본값 유지) — UI가 에러를 따로 노출.
  */
-export function mergeEndpoints(
-  base: EndpointsConfig,
-  ov: EndpointOverrides,
-): EndpointsConfig {
+export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): EndpointsConfig {
   const out: EndpointsConfig = { ...base };
   const urlField = (
     k: "chat_base_url" | "stt_base_url" | "tts_base_url" | "irodori_base_url" | "broker_base_url",

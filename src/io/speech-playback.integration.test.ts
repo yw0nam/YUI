@@ -4,7 +4,7 @@
  * renderer mouth and the bubble is released only when the real pipeline drains.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSpeechPlayback } from "./speech-playback";
 
 class FakeAnalyser {

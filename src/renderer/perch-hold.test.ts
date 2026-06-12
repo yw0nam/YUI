@@ -6,7 +6,7 @@
  * pure predicate and tested directly, then wired into playMotion.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { MotionSignal } from "../contract";
 import { suppressIdleReturn } from "./perch-hold";
 

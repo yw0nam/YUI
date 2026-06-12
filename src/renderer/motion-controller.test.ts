@@ -10,16 +10,11 @@
  *  - `rng` is injected for deterministic variant selection.
  */
 
-import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import {
-  createMotionController,
-  type MotionController,
-  type ResolvedMotion,
-  type MotionDecision,
-} from "./motion-controller";
+import { describe, expect, it, vi } from "vitest";
 import type { MotionRegistry } from "../contract";
+import { createMotionController } from "./motion-controller";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -34,11 +29,7 @@ const realRegistry: MotionRegistry = JSON.parse(
 const syntheticRegistry: MotionRegistry = {
   idle: {
     vrma_path: "/motions/idle_01.vrma",
-    variants: [
-      "/motions/idle_01.vrma",
-      "/motions/idle_02.vrma",
-      "/motions/idle_03.vrma",
-    ],
+    variants: ["/motions/idle_01.vrma", "/motions/idle_02.vrma", "/motions/idle_03.vrma"],
     variant_policy: "random",
     kind: "ambient",
     loop: true,

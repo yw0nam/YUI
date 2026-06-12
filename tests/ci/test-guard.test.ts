@@ -5,7 +5,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-const GUARD = resolve(fileURLToPath(new URL(".", import.meta.url)), "../../scripts/ci/test-guard.sh");
+const GUARD = resolve(
+  fileURLToPath(new URL(".", import.meta.url)),
+  "../../scripts/ci/test-guard.sh",
+);
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
@@ -90,7 +93,10 @@ describe("scripts/ci/test-guard.sh", () => {
 
   it("fails on large Rust changes without tests", () => {
     const repo = makeBranchedRepo({
-      "src-tauri/src/feature.rs": Array.from({ length: 30 }, (_, i) => `pub const V${i}: u8 = ${i};`).join("\n"),
+      "src-tauri/src/feature.rs": Array.from(
+        { length: 30 },
+        (_, i) => `pub const V${i}: u8 = ${i};`,
+      ).join("\n"),
     });
     expect(runGuard(repo).status).toBe(1);
   });

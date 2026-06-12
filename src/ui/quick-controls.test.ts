@@ -14,30 +14,31 @@
  *   .yui-gain__value   (readout span)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
-import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
-import { createLipsyncSettings } from "../io/lipsync-settings";
-import { createVadSettings, VAD_SILENCE_DEFAULT } from "../io/vad-settings";
-import { createVrmSelection } from "../io/vrm-selection";
-import { createSpeakerSelection, type SpeakerOption } from "../io/speaker-selection";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../config/load";
 import {
-  createAgentSettings,
-  INSTRUCTIONS_MAX_LEN,
   type AgentSettings,
   type AgentStorage,
+  createAgentSettings,
+  INSTRUCTIONS_MAX_LEN,
 } from "../io/agent-settings";
+import { createChatKeySettings } from "../io/chat-key-settings";
 import { createEndpointsSettings } from "../io/endpoints-settings";
+import { createLipsyncSettings } from "../io/lipsync-settings";
 import { createProactiveSettings } from "../io/proactive-settings";
 import { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import { createSessionStore } from "../io/session-store";
-import { createChatKeySettings } from "../io/chat-key-settings";
+import { createSpeakerSelection, type SpeakerOption } from "../io/speaker-selection";
+import { createVadSettings, VAD_SILENCE_DEFAULT } from "../io/vad-settings";
+import { createVrmSelection } from "../io/vrm-selection";
+import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
 
 // jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
 // Escapes ASCII chars that aren't safe identifier chars; non-ASCII passes through (safe unescaped).
 if (typeof (globalThis as { CSS?: { escape?: unknown } }).CSS?.escape !== "function") {
   (globalThis as { CSS?: { escape: (s: string) => string } }).CSS = {
     escape: (value: string) =>
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: the polyfill must match the C0 control range to escape it.
       String(value).replace(/[\x00-\x7f]/g, (ch) => (/[a-zA-Z0-9_-]/.test(ch) ? ch : `\\${ch}`)),
   };
 }
@@ -76,7 +77,12 @@ function makeSourceProvider() {
 
 function makeVoiceStatus() {
   return {
-    get: () => ({ state: "idle" as const, label: "Idle", detail: "Voice input is off", visible: false }),
+    get: () => ({
+      state: "idle" as const,
+      label: "Idle",
+      detail: "Voice input is off",
+      visible: false,
+    }),
     set: vi.fn(),
     subscribe: vi.fn(() => () => {}),
     dispose: vi.fn(),
@@ -289,7 +295,9 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>("input.yui-gain__slider:not(.yui-vad__slider)[type=range]");
+    const slider = qc.el.querySelector<HTMLInputElement>(
+      "input.yui-gain__slider:not(.yui-vad__slider)[type=range]",
+    );
     expect(slider).not.toBeNull();
     expect(slider!.min).toBe("0.5");
     expect(slider!.max).toBe("6");
@@ -493,9 +501,9 @@ describe("createQuickControls — gain row", () => {
     const details = qc.el.querySelector<HTMLDetailsElement>("details.yui-endpoints")!;
     expect(details).not.toBeNull();
     expect(details.open).toBe(false); // 기본 접힘
-    const keys = Array.from(qc.el.querySelectorAll<HTMLDivElement>(".yui-endpoints .yui-input-row")).map(
-      (r) => r.dataset.epField,
-    );
+    const keys = Array.from(
+      qc.el.querySelectorAll<HTMLDivElement>(".yui-endpoints .yui-input-row"),
+    ).map((r) => r.dataset.epField);
     expect(keys).toEqual([
       "chat_base_url",
       "stt_base_url",
@@ -524,7 +532,8 @@ describe("createQuickControls — gain row", () => {
     qc.open();
 
     const ph = (key: string): string =>
-      qc.el.querySelector<HTMLInputElement>(`.yui-input-row[data-ep-field="${key}"] .yui-ep-input`)!.placeholder;
+      qc.el.querySelector<HTMLInputElement>(`.yui-input-row[data-ep-field="${key}"] .yui-ep-input`)!
+        .placeholder;
     expect(ph("chat_base_url")).toBe("http://localhost:8643/v1");
     expect(ph("stt_base_url")).toBe("http://localhost:5517/v1");
     expect(ph("chat_model")).toBe("natsume");
@@ -536,7 +545,9 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const input = qc.el.querySelector<HTMLInputElement>('.yui-input-row[data-ep-field="stt_base_url"] .yui-ep-input')!;
+    const input = qc.el.querySelector<HTMLInputElement>(
+      '.yui-input-row[data-ep-field="stt_base_url"] .yui-ep-input',
+    )!;
     const row = input.closest<HTMLDivElement>(".yui-input-row")!;
 
     input.value = "localhost:5517"; // 스킴 없음 → invalid
@@ -559,7 +570,9 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const input = qc.el.querySelector<HTMLInputElement>('.yui-input-row[data-ep-field="chat_base_url"] .yui-ep-input')!;
+    const input = qc.el.querySelector<HTMLInputElement>(
+      '.yui-input-row[data-ep-field="chat_base_url"] .yui-ep-input',
+    )!;
     input.value = "https://api.example.com/v1";
     input.dispatchEvent(new Event("input", { bubbles: true }));
     expect(endpointsSettings.get().chat_base_url).toBe("https://api.example.com/v1");
@@ -622,7 +635,9 @@ describe("createQuickControls — gain row", () => {
     // Value is present (so edits round-trip) but the field is masked.
     expect(input.value).toBe("sk-secret-123");
     expect(input.type).toBe("password");
-    const sub = input.closest<HTMLDivElement>(".yui-input-row")!.querySelector<HTMLElement>(".yui-input-row__sub")!;
+    const sub = input
+      .closest<HTMLDivElement>(".yui-input-row")!
+      .querySelector<HTMLElement>(".yui-input-row__sub")!;
     expect(sub.textContent).not.toContain("기본값");
 
     qc.dispose();
@@ -895,7 +910,9 @@ describe("createQuickControls — gain row", () => {
     expect(btns[1].getAttribute("aria-checked")).toBe("true");
 
     const charPanel = qc.el.querySelector<HTMLElement>("#yui-panel-char")!;
-    expect(charPanel.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(true);
+    expect(charPanel.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(
+      true,
+    );
     expect(charPanel.querySelector(".yui-spk-foot")!.classList.contains("is-disabled")).toBe(true);
     const hint = charPanel.querySelector<HTMLElement>(".yui-spks-hint")!;
     expect(hint).not.toBeNull();
@@ -940,7 +957,9 @@ describe("createQuickControls — gain row", () => {
     expect(endpointsSettings.get().tts_provider).toBe("irodori");
 
     const charPanel = qc.el.querySelector<HTMLElement>("#yui-panel-char")!;
-    expect(charPanel.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(false);
+    expect(charPanel.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(
+      false,
+    );
     expect(charPanel.querySelector<HTMLElement>(".yui-spks-hint")!.hidden).toBe(true);
 
     qc.dispose();
@@ -950,7 +969,9 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const row = qc.el.querySelector<HTMLDivElement>('.yui-input-row[data-ep-field="broker_base_url"]');
+    const row = qc.el.querySelector<HTMLDivElement>(
+      '.yui-input-row[data-ep-field="broker_base_url"]',
+    );
     expect(row).not.toBeNull();
     const input = row!.querySelector<HTMLInputElement>(".yui-ep-input")!;
     expect(input.classList.contains("yui-ep-input--url")).toBe(true);
@@ -1051,7 +1072,9 @@ describe("createQuickControls — gain row", () => {
     qc.open();
     expect(qc.isOpen()).toBe(true);
 
-    const closeBtn = qc.el.querySelector<HTMLButtonElement>(".yui-quick__bar-actions .yui-iconbtn:not(.yui-iconbtn--popout)")!;
+    const closeBtn = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-quick__bar-actions .yui-iconbtn:not(.yui-iconbtn--popout)",
+    )!;
     closeBtn.click();
 
     expect(qc.isOpen()).toBe(false);
@@ -1069,8 +1092,12 @@ describe("createQuickControls — gain row", () => {
     bar.dispatchEvent(
       new PointerEvent("pointerdown", { bubbles: true, clientX: 120, clientY: 110, button: 0 }),
     );
-    document.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 170, clientY: 160 }));
-    document.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientX: 170, clientY: 160 }));
+    document.dispatchEvent(
+      new PointerEvent("pointermove", { bubbles: true, clientX: 170, clientY: 160 }),
+    );
+    document.dispatchEvent(
+      new PointerEvent("pointerup", { bubbles: true, clientX: 170, clientY: 160 }),
+    );
 
     // moved by (+50, +50) from the open anchor (100,100) → (150,150)
     expect(qc.el.style.left).toBe("150px");
@@ -1313,7 +1340,7 @@ describe("createQuickControls — gain row", () => {
   });
 
   it("renders a label with HTML metacharacters as literal text (no innerHTML injection)", () => {
-    const evil = 'a<img src=x onerror=alert(1)>b';
+    const evil = "a<img src=x onerror=alert(1)>b";
     vrmSelection = createVrmSelection({
       available: [{ id: "carlotta", label: evil, url: "/vrms/carlotta.vrm", source: "bundled" }],
       defaultUrl: "/vrms/carlotta.vrm",
@@ -1652,7 +1679,9 @@ describe("createQuickControls — gain row", () => {
     const vrmGroup = qc.el.querySelector(".yui-vrms[role=radiogroup]")!;
     const spkGroup = qc.el.querySelector(".yui-spks[role=radiogroup]")!;
     // DOCUMENT_POSITION_FOLLOWING (4) → spkGroup comes after vrmGroup in document order
-    expect(vrmGroup.compareDocumentPosition(spkGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      vrmGroup.compareDocumentPosition(spkGroup) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     qc.dispose();
   });
@@ -1693,7 +1722,10 @@ describe("createQuickControls — gain row", () => {
     ayase.click();
 
     expect(swapSpeaker).toHaveBeenCalledOnce();
-    expect(swapSpeaker.mock.calls[0][0]).toMatchObject({ id: "ayase", ref_url: "/references/ayase.wav" });
+    expect(swapSpeaker.mock.calls[0][0]).toMatchObject({
+      id: "ayase",
+      ref_url: "/references/ayase.wav",
+    });
 
     // loading reflected immediately (before the promise resolves)
     expect(ayase.getAttribute("aria-busy")).toBe("true");
@@ -2209,7 +2241,7 @@ describe("createQuickControls — gain row", () => {
   });
 
   it("renders a speaker label with HTML metacharacters as literal text (no innerHTML injection)", () => {
-    const evil = 'a<img src=x onerror=alert(1)>b';
+    const evil = "a<img src=x onerror=alert(1)>b";
     speakerSelection = createSpeakerSelection({
       available: [{ id: "natsume", label: evil, ref_url: "/references/natsume.wav" }],
       defaultId: "natsume",
@@ -2280,7 +2312,9 @@ describe("createQuickControls — gain row", () => {
       expect(refresh).not.toBeNull();
       expect(preview).not.toBeNull();
       // refresh sits BEFORE preview in source/visual order
-      expect(refresh!.compareDocumentPosition(preview!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(
+        refresh!.compareDocumentPosition(preview!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
     }
 
     qc.dispose();
@@ -2316,7 +2350,10 @@ describe("createQuickControls — gain row", () => {
     refresh.click();
 
     expect(refreshSpeaker).toHaveBeenCalledOnce();
-    expect(refreshSpeaker.mock.calls[0][0]).toMatchObject({ id: "ayase", ref_url: "/references/ayase.wav" });
+    expect(refreshSpeaker.mock.calls[0][0]).toMatchObject({
+      id: "ayase",
+      ref_url: "/references/ayase.wav",
+    });
     // refresh must not select/swap the row (stopPropagation) — active stays natsume
     expect(swapSpeaker).not.toHaveBeenCalled();
     expect(speakerSelection.getActiveId()).toBe("natsume");
@@ -2373,7 +2410,10 @@ describe("createQuickControls — gain row", () => {
   it("ignores a re-entrant refresh while the same row is already refreshing", async () => {
     let resolveRefresh: (() => void) | null = null;
     refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(
-      () => new Promise<void>((res) => { resolveRefresh = res; }),
+      () =>
+        new Promise<void>((res) => {
+          resolveRefresh = res;
+        }),
     );
     const qc = buildQc();
     qc.open();
@@ -2382,7 +2422,8 @@ describe("createQuickControls — gain row", () => {
     const refresh = rows[1].querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
     refresh.click();
     // a second click while in-flight must be ignored (button is also disabled, but guard defends)
-    const stillRefresh = qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]")[1]
+    const stillRefresh = qc.el
+      .querySelectorAll<HTMLElement>(".yui-spk[role=radio]")[1]
       .querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
     stillRefresh.click();
 
@@ -2398,7 +2439,10 @@ describe("createQuickControls — gain row", () => {
     vi.useFakeTimers();
     let resolveRefresh: (() => void) | null = null;
     refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(
-      () => new Promise<void>((res) => { resolveRefresh = res; }),
+      () =>
+        new Promise<void>((res) => {
+          resolveRefresh = res;
+        }),
     );
     const qc = buildQc();
     qc.open();
@@ -2470,7 +2514,9 @@ describe("createQuickControls — session section", () => {
       chatKeySettings: createChatKeySettings(),
       onPopOut: vi.fn(),
       vrmSelection: createVrmSelection({
-        available: [{ id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" }],
+        available: [
+          { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
+        ],
         defaultUrl: "/vrms/carlotta.vrm",
       }),
       swapVrm: vi.fn(async () => {}),
@@ -2608,7 +2654,9 @@ describe("createQuickControls — session section", () => {
 
     const value = qc.el.querySelector<HTMLElement>(".yui-session__value")!;
     expect(value.textContent).toContain("100K");
-    expect(qc.el.querySelector<HTMLElement>(".yui-session__value .pct")!.textContent).toContain("50%");
+    expect(qc.el.querySelector<HTMLElement>(".yui-session__value .pct")!.textContent).toContain(
+      "50%",
+    );
 
     qc.dispose();
   });
@@ -2660,7 +2708,9 @@ describe("createQuickControls — tabs + VAD slider", () => {
       chatKeySettings: createChatKeySettings(),
       onPopOut: vi.fn(),
       vrmSelection: createVrmSelection({
-        available: [{ id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" }],
+        available: [
+          { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
+        ],
         defaultUrl: "/vrms/carlotta.vrm",
       }),
       swapVrm: vi.fn(async () => {}),
@@ -2678,7 +2728,10 @@ describe("createQuickControls — tabs + VAD slider", () => {
     return Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
   }
 
-  function panelFor(qc: ReturnType<typeof createQuickControls>, tab: HTMLButtonElement): HTMLElement {
+  function panelFor(
+    qc: ReturnType<typeof createQuickControls>,
+    tab: HTMLButtonElement,
+  ): HTMLElement {
     return qc.el.querySelector<HTMLElement>(`#${tab.getAttribute("aria-controls")}`)!;
   }
 
@@ -2801,7 +2854,9 @@ describe("createQuickControls — tabs + VAD slider", () => {
     const qc = buildQc();
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>('.yui-gain__slider[aria-label="침묵 기준"]');
+    const slider = qc.el.querySelector<HTMLInputElement>(
+      '.yui-gain__slider[aria-label="침묵 기준"]',
+    );
     expect(slider).not.toBeNull();
     expect(slider!.min).toBe("500");
     expect(slider!.max).toBe("3000");
@@ -2814,7 +2869,9 @@ describe("createQuickControls — tabs + VAD slider", () => {
     const qc = buildQc();
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>('.yui-gain__slider[aria-label="침묵 기준"]')!;
+    const slider = qc.el.querySelector<HTMLInputElement>(
+      '.yui-gain__slider[aria-label="침묵 기준"]',
+    )!;
     expect(slider.value).toBe(String(VAD_SILENCE_DEFAULT));
     const value = slider.closest(".yui-gain")!.querySelector<HTMLElement>(".yui-gain__value")!;
     expect(value.textContent).toBe("1500 ms");
@@ -2827,7 +2884,9 @@ describe("createQuickControls — tabs + VAD slider", () => {
     const qc = buildQc();
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>('.yui-gain__slider[aria-label="침묵 기준"]')!;
+    const slider = qc.el.querySelector<HTMLInputElement>(
+      '.yui-gain__slider[aria-label="침묵 기준"]',
+    )!;
     slider.value = "2000";
     slider.dispatchEvent(new Event("input", { bubbles: true }));
 

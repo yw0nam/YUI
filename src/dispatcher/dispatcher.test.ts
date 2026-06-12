@@ -10,13 +10,18 @@
  *  - §11 observable dev APIs (queue / recent_drops / in_flight).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createDispatcher, type Dispatcher, type DispatcherState, DROP_SEVERITY } from "./dispatcher";
-import { createEventBus, type EventBus, type BusEnvelope } from "./event-bus";
-import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
-import type { BackendCaller, BackendCallResult } from "./backend-caller";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompactResult } from "../io/session-compactor";
 import type { Logger } from "../logger";
+import type { BackendCaller, BackendCallResult } from "./backend-caller";
+import {
+  createDispatcher,
+  type Dispatcher,
+  type DispatcherState,
+  DROP_SEVERITY,
+} from "./dispatcher";
+import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";
+import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
 
 const NOW = 1_717_000_000_000;
 
@@ -108,7 +113,13 @@ beforeEach(() => {
   backendCaller = makeBackendCaller();
   guardrails = createGuardrails(permissiveGuardrailsConfig(), { now: () => Date.now() });
   logger = makeLogger();
-  dispatcher = createDispatcher({ bus, renderer: renderer as never, backendCaller, guardrails, logger });
+  dispatcher = createDispatcher({
+    bus,
+    renderer: renderer as never,
+    backendCaller,
+    guardrails,
+    logger,
+  });
 });
 afterEach(() => {
   dispatcher.stop();
@@ -128,14 +139,14 @@ describe("dispatcher — routing (§5.1)", () => {
     dispatcher.start();
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
   });
 
   it("routes user.drag_start (tier1) to renderer, NOT the backend", async () => {
     dispatcher.start();
     bus.push(env({ event_name: "user.drag_start", hint_tier: 1 }));
     await vi.advanceTimersByTimeAsync(20);
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     expect(applyDirective).toHaveBeenCalled();
     const arg = applyDirective.mock.calls[0][0];
     expect(arg.motion?.id).toBe("drag");
@@ -143,9 +154,16 @@ describe("dispatcher — routing (§5.1)", () => {
 
   it("routes idle.returned (tier1) to renderer without a backend call", async () => {
     dispatcher.start();
-    bus.push(env({ source: "idle_watcher", event_name: "idle.returned", hint_tier: 1, dnd_override: false }));
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.returned",
+        hint_tier: 1,
+        dnd_override: false,
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
   it("user.tap fires a tier1 render reaction immediately", async () => {
@@ -159,7 +177,7 @@ describe("dispatcher — routing (§5.1)", () => {
     dispatcher.start();
     bus.push(env({ event_name: "user.window_sit_enter", hint_tier: 1 }));
     await vi.advanceTimersByTimeAsync(20);
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     expect(applyDirective).toHaveBeenCalled();
     const arg = applyDirective.mock.calls[0][0];
     expect(arg.motion?.id).toBe("window_sit");
@@ -169,7 +187,7 @@ describe("dispatcher — routing (§5.1)", () => {
     dispatcher.start();
     bus.push(env({ event_name: "user.window_sit_exit", hint_tier: 1 }));
     await vi.advanceTimersByTimeAsync(20);
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     expect(applyDirective).toHaveBeenCalled();
     const arg = applyDirective.mock.calls[0][0];
     expect(arg.motion).toBeNull();
@@ -177,9 +195,16 @@ describe("dispatcher — routing (§5.1)", () => {
 
   it("routes proactive.cowork (tier2) to the backend caller (#24 Step 5)", async () => {
     dispatcher.start();
-    bus.push(env({ source: "timer_scheduler", event_name: "proactive.cowork", ts: NOW, dnd_override: false }));
+    bus.push(
+      env({
+        source: "timer_scheduler",
+        event_name: "proactive.cowork",
+        ts: NOW,
+        dnd_override: false,
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
     expect(logger.info).toHaveBeenCalledWith(
       "fire",
       expect.objectContaining({ event_name: "proactive.cowork", tier: 2 }),
@@ -193,11 +218,14 @@ describe("dispatcher — routing (§5.1)", () => {
         source: "os_event_watcher",
         event_name: "user.window_sit_drop",
         hint_tier: 1,
-        payload: { target_window_rect: { x: 300, y: 400, width: 520, height: 320 }, edge_local_ypx: 30 },
+        payload: {
+          target_window_rect: { x: 300, y: 400, width: 520, height: 320 },
+          edge_local_ypx: 30,
+        },
       }),
     );
     await vi.advanceTimersByTimeAsync(20);
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     expect(applyDirective).toHaveBeenCalled();
     const arg = applyDirective.mock.calls[0][0];
     expect(arg.motion?.id).toBe("window_sit");
@@ -256,7 +284,15 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
     bus.push(env({ ts: NOW }));
     await vi.advanceTimersByTimeAsync(20);
     // queue a tier2 idle.short behind it (won't run while in-flight)
-    bus.push(env({ source: "idle_watcher", event_name: "idle.short", ts: NOW + 1, hint_tier: 2, dnd_override: false }));
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
     // now a new user message supersedes
     bus.push(env({ ts: NOW + 2 }));
     await vi.advanceTimersByTimeAsync(20);
@@ -281,7 +317,15 @@ describe("dispatcher — observable dev APIs (§11)", () => {
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
     // first is in-flight; queue a second tier2 that stays pending
-    bus.push(env({ source: "idle_watcher", event_name: "idle.short", ts: NOW + 1, hint_tier: 2, dnd_override: false }));
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
     expect(dispatcher.queue().length).toBeGreaterThan(0);
   });
@@ -344,7 +388,14 @@ describe("dispatcher — structured logging (#76): fire events", () => {
 
   it("emits logger.info('fire', {seq_id}) for idle.returned (tier1)", async () => {
     dispatcher.start();
-    bus.push(env({ source: "idle_watcher", event_name: "idle.returned", hint_tier: 1, dnd_override: false }));
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.returned",
+        hint_tier: 1,
+        dnd_override: false,
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
     expect(logger.info).toHaveBeenCalledWith(
       "fire",
@@ -398,7 +449,11 @@ describe("dispatcher — structured logging (#76): drop events via logger", () =
     await vi.advanceTimersByTimeAsync(20);
     expect(logger.warn).toHaveBeenCalledWith(
       "drop",
-      expect.objectContaining({ reason: "parse_error", seq_id: expect.anything(), event_name: expect.any(String) }),
+      expect.objectContaining({
+        reason: "parse_error",
+        seq_id: expect.anything(),
+        event_name: expect.any(String),
+      }),
     );
   });
 
@@ -410,7 +465,11 @@ describe("dispatcher — structured logging (#76): drop events via logger", () =
     await vi.advanceTimersByTimeAsync(20);
     expect(logger.warn).toHaveBeenCalledWith(
       "drop",
-      expect.objectContaining({ reason: "network_drop", seq_id: expect.anything(), event_name: expect.any(String) }),
+      expect.objectContaining({
+        reason: "network_drop",
+        seq_id: expect.anything(),
+        event_name: expect.any(String),
+      }),
     );
   });
 
@@ -420,7 +479,15 @@ describe("dispatcher — structured logging (#76): drop events via logger", () =
     bus.push(env({ ts: NOW }));
     await vi.advanceTimersByTimeAsync(20);
     // queue a tier2 behind the in-flight
-    bus.push(env({ source: "idle_watcher", event_name: "idle.short", ts: NOW + 1, hint_tier: 2, dnd_override: false }));
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
     // new user message supersedes
     bus.push(env({ ts: NOW + 2 }));
     await vi.advanceTimersByTimeAsync(20);
@@ -437,8 +504,24 @@ describe("dispatcher — structured logging (#76): drop events via logger", () =
     await vi.advanceTimersByTimeAsync(20);
     expect(callDeferred).toHaveLength(1);
     // push two more tier2 while in-flight — oldest pending gets stale_pending drop
-    bus.push(env({ source: "idle_watcher", event_name: "idle.short", ts: NOW + 1, hint_tier: 2, dnd_override: false }));
-    bus.push(env({ source: "idle_watcher", event_name: "idle.long", ts: NOW + 2, hint_tier: 2, dnd_override: false }));
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.long",
+        ts: NOW + 2,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
     expect(logger.info).toHaveBeenCalledWith(
       "drop",
@@ -453,17 +536,27 @@ describe("dispatcher — guardrail gating (#25, §6)", () => {
   /** real-config(§6 수치) 가드레일을 단 dispatcher를 만든다. */
   function makeGated(): { d: Dispatcher; g: Guardrails } {
     const g = createGuardrails(realGuardrailsConfig(), { now: () => Date.now() });
-    const d = createDispatcher({ bus, renderer: renderer as never, backendCaller, guardrails: g, logger });
+    const d = createDispatcher({
+      bus,
+      renderer: renderer as never,
+      backendCaller,
+      guardrails: g,
+      logger,
+    });
     return { d, g };
   }
 
   it("DND on → tier2 backend firing is dropped (guardrail_drop) and not enqueued", async () => {
     const { d, g } = makeGated();
     d.start();
-    g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_entered", dnd_override: false }));
-    bus.push(env({ source: "idle_watcher", event_name: "idle.long", hint_tier: 2, dnd_override: false }));
+    g.note(
+      env({ source: "os_event_watcher", event_name: "os.fullscreen_entered", dnd_override: false }),
+    );
+    bus.push(
+      env({ source: "idle_watcher", event_name: "idle.long", hint_tier: 2, dnd_override: false }),
+    );
     await vi.advanceTimersByTimeAsync(20);
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     expect(d.recentDrops(10).some((dr) => dr.reason === "guardrail_drop")).toBe(true);
     d.stop();
   });
@@ -472,7 +565,14 @@ describe("dispatcher — guardrail gating (#25, §6)", () => {
     const { d, g } = makeGated();
     d.start();
     // dispatcher.handle() must call guardrails.note() — a fullscreen event flips DND state.
-    bus.push(env({ source: "os_event_watcher", event_name: "os.fullscreen_entered", hint_tier: 3, dnd_override: false }));
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "os.fullscreen_entered",
+        hint_tier: 3,
+        dnd_override: false,
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
     expect(g.dndState().on).toBe(true);
     d.stop();
@@ -482,7 +582,14 @@ describe("dispatcher — guardrail gating (#25, §6)", () => {
     const { d, g } = makeGated();
     d.start();
     g.setDnd("manual", true);
-    bus.push(env({ source: "user_input_source", event_name: "user.drag_start", hint_tier: 1, dnd_override: false }));
+    bus.push(
+      env({
+        source: "user_input_source",
+        event_name: "user.drag_start",
+        hint_tier: 1,
+        dnd_override: false,
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
     expect(applyDirective).toHaveBeenCalled();
     d.stop();
@@ -494,22 +601,38 @@ describe("dispatcher — guardrail gating (#25, §6)", () => {
     g.setDnd("manual", true);
     bus.push(env()); // default env: user.text_submitted, dnd_override:true
     await vi.advanceTimersByTimeAsync(20);
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
     d.stop();
   });
 
   it("debounce drops a 2nd same-source tier2 within the window", async () => {
     const { d } = makeGated();
     d.start();
-    bus.push(env({ source: "idle_watcher", event_name: "idle.long", ts: NOW, hint_tier: 2, dnd_override: false }));
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.long",
+        ts: NOW,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
     callDeferred[0]?.resolve({ ok: true });
     await vi.advanceTimersByTimeAsync(20);
     (backendCaller.call as ReturnType<typeof vi.fn>).mockClear();
     // 2nd idle within 30s — debounce drop, no new backend call.
-    bus.push(env({ source: "idle_watcher", event_name: "idle.long", ts: NOW + 1, hint_tier: 2, dnd_override: false }));
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.long",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     expect(d.recentDrops(10).some((dr) => dr.reason === "guardrail_drop")).toBe(true);
     d.stop();
   });
@@ -521,12 +644,25 @@ describe("dispatcher — cooldown state mirror (#25, §6.3/§9)", () => {
     cfg.rate_limit.tier2_max = 1000; // make overall cap the binding constraint
     cfg.debounce_ms.user_input_source = 0;
     const g = createGuardrails(cfg, { now: () => Date.now() });
-    const d = createDispatcher({ bus, renderer: renderer as never, backendCaller, guardrails: g, logger });
+    const d = createDispatcher({
+      bus,
+      renderer: renderer as never,
+      backendCaller,
+      guardrails: g,
+      logger,
+    });
     d.start();
 
     // 21 non-override tier2 user firings → 21st enters cooldown.
     for (let i = 0; i < 21; i++) {
-      bus.push(env({ source: "user_input_source", event_name: "user.text_submitted", ts: NOW + i, dnd_override: false }));
+      bus.push(
+        env({
+          source: "user_input_source",
+          event_name: "user.text_submitted",
+          ts: NOW + i,
+          dnd_override: false,
+        }),
+      );
       await vi.advanceTimersByTimeAsync(20);
       // resolve any in-flight so the next can start.
       callDeferred[callDeferred.length - 1]?.resolve({ ok: true });
@@ -537,7 +673,15 @@ describe("dispatcher — cooldown state mirror (#25, §6.3/§9)", () => {
 
     // tier1 still renders during cooldown.
     applyDirective.mockClear();
-    bus.push(env({ source: "user_input_source", event_name: "user.drag_start", ts: NOW + 100, hint_tier: 1, dnd_override: false }));
+    bus.push(
+      env({
+        source: "user_input_source",
+        event_name: "user.drag_start",
+        ts: NOW + 100,
+        hint_tier: 1,
+        dnd_override: false,
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
     expect(applyDirective).toHaveBeenCalled();
 
@@ -572,12 +716,14 @@ function makeCompact(): {
 }
 
 /** Build a dispatcher wired with compact deps. Defaults to a live session id. */
-function makeCompactingDispatcher(over: {
-  compact?: ReturnType<typeof vi.fn>;
-  getSessionId?: () => string | undefined;
-  hasCompactableHistory?: () => boolean;
-  compactTimeoutMs?: number;
-} = {}): Dispatcher {
+function makeCompactingDispatcher(
+  over: {
+    compact?: ReturnType<typeof vi.fn>;
+    getSessionId?: () => string | undefined;
+    hasCompactableHistory?: () => boolean;
+    compactTimeoutMs?: number;
+  } = {},
+): Dispatcher {
   const compact = over.compact ?? makeCompact().thunk;
   const getSessionId = over.getSessionId ?? (() => "sess-1");
   return createDispatcher({
@@ -605,7 +751,15 @@ describe("dispatcher — compacting: queue-level gate (BLOCKER 1)", () => {
     expect(callDeferred).toHaveLength(1);
 
     // a tier2 idle turn queues behind it (would normally launch on settle)
-    bus.push(env({ source: "idle_watcher", event_name: "idle.short", ts: NOW + 1, hint_tier: 2, dnd_override: false }));
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
 
     // latch a compaction while the first turn is still in flight
@@ -616,7 +770,7 @@ describe("dispatcher — compacting: queue-level gate (BLOCKER 1)", () => {
     await vi.advanceTimersByTimeAsync(20);
 
     // no second backend call — instead we entered compacting
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
     expect(dispatcher.state()).toBe("compacting");
   });
 });
@@ -642,17 +796,25 @@ describe("dispatcher — compacting: enter/exit transitions (BLOCKER 2)", () => 
     // hold a tier2 turn while compaction is latched
     dispatcher.requestCompaction();
     expect(dispatcher.state()).toBe("compacting");
-    bus.push(env({ source: "idle_watcher", event_name: "idle.short", ts: NOW + 1, hint_tier: 2, dnd_override: false }));
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
     // held — no backend call while compacting
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
 
     calls[0].resolve({ status: "compressed", session_id: "sess-2" });
     await vi.advanceTimersByTimeAsync(20);
 
     expect(dispatcher.state()).toBe("running");
     // the held turn now launches
-    expect((backendCaller.call as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
   });
 });
 

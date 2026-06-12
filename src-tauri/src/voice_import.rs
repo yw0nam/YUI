@@ -3,12 +3,12 @@
 //! Copies a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`.
 //! A native `std::fs::copy` reads the arbitrary source with the app's own privileges.
 
-use std::path::{Path, PathBuf};
-use serde::Serialize;
-use tauri::{command, AppHandle, Manager};
 use crate::import_fs::{
-    sanitize_stem, derive_dest_stem, collides, ensure_within, audio_sniff_kind, sniff_file,
+    audio_sniff_kind, collides, derive_dest_stem, ensure_within, sanitize_stem, sniff_file,
 };
+use serde::Serialize;
+use std::path::{Path, PathBuf};
+use tauri::{command, AppHandle, Manager};
 
 /// Allowed audio file extensions (lowercase).
 const AUDIO_EXTS: [&str; 8] = ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"];
@@ -38,7 +38,9 @@ fn copy_into_references(
     src: &Path,
     ext_lower: &str,
 ) -> Result<ImportedVoice, String> {
-    let src = src.canonicalize().map_err(|_| "source file not found".to_string())?;
+    let src = src
+        .canonicalize()
+        .map_err(|_| "source file not found".to_string())?;
     if !src.is_file() {
         return Err("source file not found".to_string());
     }
@@ -46,7 +48,11 @@ fn copy_into_references(
     if !is_allowed_audio_ext(ext) {
         return Err("unsupported audio type".to_string());
     }
-    if std::fs::metadata(&src).map_err(|_| "source file not found".to_string())?.len() > MAX_AUDIO_BYTES {
+    if std::fs::metadata(&src)
+        .map_err(|_| "source file not found".to_string())?
+        .len()
+        > MAX_AUDIO_BYTES
+    {
         return Err("source file too large".to_string());
     }
     let kind = audio_sniff_kind(ext_lower).ok_or("unsupported audio type".to_string())?;
@@ -55,12 +61,19 @@ fn copy_into_references(
     }
 
     std::fs::create_dir_all(references_dir).map_err(|e| {
-        log::error!("create references dir failed at {}: {e}", references_dir.display());
+        log::error!(
+            "create references dir failed at {}: {e}",
+            references_dir.display()
+        );
         "storage unavailable".to_string()
     })?;
 
     let id = derive_dest_stem(&src, |candidate| {
-        collides(&references_dir.join(candidate).join(format!("clip.{ext_lower}")))
+        collides(
+            &references_dir
+                .join(candidate)
+                .join(format!("clip.{ext_lower}")),
+        )
     });
 
     let dir = references_dir.join(&id);

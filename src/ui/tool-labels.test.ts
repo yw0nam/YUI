@@ -8,7 +8,7 @@
  * - Unknown tool IDs fall back to a generic "Working…" label.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { getToolLabel, TOOL_LABELS } from "./tool-labels";
 
 describe("TOOL_LABELS (English locale)", () => {
@@ -18,18 +18,18 @@ describe("TOOL_LABELS (English locale)", () => {
   });
 
   it("maps web_search to a non-empty English label", () => {
-    expect(typeof TOOL_LABELS.en["web_search"]).toBe("string");
-    expect(TOOL_LABELS.en["web_search"].length).toBeGreaterThan(0);
+    expect(typeof TOOL_LABELS.en.web_search).toBe("string");
+    expect(TOOL_LABELS.en.web_search.length).toBeGreaterThan(0);
   });
 
   it("maps browser to a non-empty English label", () => {
-    expect(typeof TOOL_LABELS.en["browser"]).toBe("string");
-    expect(TOOL_LABELS.en["browser"].length).toBeGreaterThan(0);
+    expect(typeof TOOL_LABELS.en.browser).toBe("string");
+    expect(TOOL_LABELS.en.browser.length).toBeGreaterThan(0);
   });
 
   it("maps terminal to a non-empty English label", () => {
-    expect(typeof TOOL_LABELS.en["terminal"]).toBe("string");
-    expect(TOOL_LABELS.en["terminal"].length).toBeGreaterThan(0);
+    expect(typeof TOOL_LABELS.en.terminal).toBe("string");
+    expect(TOOL_LABELS.en.terminal.length).toBeGreaterThan(0);
   });
 });
 
@@ -77,7 +77,7 @@ describe("getToolLabel (i18n extension)", () => {
     const originalEn = { ...TOOL_LABELS.en };
 
     // Add a minimal Japanese locale
-    (TOOL_LABELS as Record<string, Record<string, string>>)["ja"] = {
+    (TOOL_LABELS as Record<string, Record<string, string>>).ja = {
       web_search: "検索中…",
     };
 
@@ -86,7 +86,7 @@ describe("getToolLabel (i18n extension)", () => {
     expect(getToolLabel("browser", "ja")).toBe("Browsing…");
 
     // Cleanup
-    delete (TOOL_LABELS as Record<string, Record<string, string>>)["ja"];
+    delete (TOOL_LABELS as Record<string, Record<string, string>>).ja;
     expect(TOOL_LABELS.en).toEqual(originalEn);
   });
 });

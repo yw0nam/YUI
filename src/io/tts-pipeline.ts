@@ -5,7 +5,7 @@
 
 import type { EndpointsConfig } from "../contract";
 import { createLogger, type Logger } from "../logger";
-import { createWebAudioSink, type AudioSink } from "./audio-player";
+import { type AudioSink, createWebAudioSink } from "./audio-player";
 import { createSentenceSegmenter } from "./sentence-segmenter";
 import { createTtsSynth, type TtsSynth } from "./tts-synth";
 
@@ -43,7 +43,8 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   const sink: AudioSink = options.sink ?? createWebAudioSink();
   // drain 시점에 평가 — 함수 형태면 hot-reload config 값을 그때그때 읽는다.
   const resolveMaxInflight = (): number => {
-    const v = typeof options.maxInflight === "function" ? options.maxInflight() : options.maxInflight;
+    const v =
+      typeof options.maxInflight === "function" ? options.maxInflight() : options.maxInflight;
     // ?? 1 does not catch NaN; non-finite (NaN/±Infinity) would hang or unbound the drain.
     const n = Math.floor(v ?? 1);
     return Number.isFinite(n) ? Math.max(1, n) : 1;
@@ -159,7 +160,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     },
 
     setEmotionText(text) {
-      emotionText = text && text.trim() ? text : null;
+      emotionText = text?.trim() ? text : null;
     },
 
     end() {
