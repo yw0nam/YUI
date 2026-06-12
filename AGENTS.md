@@ -4,23 +4,19 @@
 
 ## Before start it
 
-Load Karpathy Guideline.
+Load the Karpathy guidelines, vendored at [`.claude/skills/karpathy-guidelines/SKILL.md`](.claude/skills/karpathy-guidelines/SKILL.md): think before coding, simplicity first, surgical changes, goal-driven execution.
 
 ## Work Rules (user directive, mandatory)
 
-- **Worktree → PR.** All work must be done in a git worktree and submitted via PR. Direct commits/pushes to `main` are prohibited — exception only when the user explicitly says "directly to main" for lightweight changes like docs/rules.
-  - **New-worktree setup (mandatory).** Gitignored runtime assets do not carry into a fresh worktree, so before running/verifying the app, link them from the main checkout: symlink the VRM — `ln -sf <main>/resources/vrms/carlotta.vrm <worktree>/resources/vrms/carlotta.vrm` (Vite serves `/vrms/*` from `resources/vrms`) — and copy `.env.local` (`VITE_YUI_CHAT_KEY`). Skipping this makes the VRM 404 and chat auth absent; both stay gitignored so they never touch the PR. When provider is irodori, likewise symlink the reference clips — `ln -sf <main>/resources/references <worktree>/resources/references` (Vite serves `/references/*` from `resources/references`, gitignored) — so voice registration can fetch them.
-- **GitHub tracker in English.** Issues, issue comments, and PR titles/bodies must be written in English. Chat with the user is OK in any language.
-- **UI: review existing → propose text structure → mock HTML → implement.** Before designing any UI, always read existing surfaces (`src/ui/`, `DESIGN.md` tokens, `PRODUCT.md` principles) to align style and patterns. First propose the UI structure/layout to the user in text to get confirmation, then create a standalone mock HTML for visual approval, and finally proceed to implementation.
-- **TDD mandatory + per-phase commits mandatory.** Create a separate commit for each of the 3 TDD phases.
-  1. **`test: ...`** — Write failing tests (`pnpm test` is red)
-  2. **`feat: ...`** — Implementation that passes the tests. Split per logically independent unit.
-  3. **`refactor: ...`** — Clean up without changing behavior (only when needed)
-  `pnpm test` / `cargo test` are PR gates — new features without tests cannot be merged.
-- **Sub-agent-based development.** Implementation is delegated to specialist agents in [Sub-agent Roster](#sub-agent-roster). **The main agent does not implement** — it focuses on requirements clarification, task delegation, verification, and orchestration.
-- **Verify what you can verify before asking the user.** Anything observable (UI rendering / DOM state / logs) — verify yourself. Ask the user to confirm **only** things that genuinely require them (audio playback, physical input feel).
+- **Worktree → PR.** All work happens in a git worktree and lands via PR. The `main` branch ruleset requires a PR and green CI; the local `PreToolUse(Bash)` guard denies `git commit`/`git push` on `main` (set `YUI_ALLOW_MAIN=1` for the lightweight docs/rules exception the user explicitly approves).
+  - **New-worktree setup.** Gitignored runtime assets (VRM, reference clips, `.env.local`) do not carry into a fresh worktree. A Claude-created worktree is set up automatically by the `WorktreeCreate` hook; after a manual `git worktree add`, run `bash scripts/worktree-setup.sh <worktree>` to link them from the main checkout. Without it the VRM 404s and chat auth is absent.
+- **GitHub tracker in English.** Issues, issue comments, and PR titles/bodies are written in English (chat with the user is any language). The `pr-title` CI job enforces an English (ASCII) subject on PR titles.
+- **UI: review existing → propose text structure → mock HTML → implement.** Before designing any UI, read existing surfaces (`src/ui/`, `DESIGN.md` tokens, `PRODUCT.md` principles) to align style and patterns. First propose the UI structure/layout to the user in text to get confirmation, then create a standalone mock HTML for visual approval, and finally proceed to implementation.
+- **Tests accompany behavior.** New or changed behavior ships its test in the same PR. The `test-guard` CI job fails a PR whose `src/`/`src-tauri/` change exceeds the threshold without an accompanying test; the `skip-tests` label bypasses it for justified exceptions (rename, config-only, generated code). `pnpm test` / `cargo test` are PR gates. Working style: write the failing test first (`test:`), then the implementation (`feat:`), then refactor if needed (`refactor:`).
+- **Sub-agent-based development.** Implementation is delegated to specialist agents in [Sub-agent Roster](#sub-agent-roster). The main agent focuses on requirements clarification, task delegation, verification, and orchestration. Exception: a small change with no new behavior (≈20 lines or fewer — a typo, a one-line fix, a doc tweak) the main agent may make directly.
+- **Verify what you can verify before asking the user.** Anything observable (UI rendering / DOM state / logs) — verify yourself, and attach the proof to the PR's Runtime-evidence section. Ask the user to confirm **only** things that genuinely require them (audio playback, physical input feel).
 - **Comments: minimal, present-tense only.** No decision-history / spec-citation / issue-number breadcrumbs in code comments. Comment only what the code cannot say itself, in one line.
-- **Docs: current-state only.** Write what the system *is*, declaratively, matching the code. No change-narrative — no "was X, now Y", no "제거/대체/축소/supersede/더 이상/이전엔/추가했다/이제", no PR/issue numbers as prose, no dated decision-logs or changelogs. **Do not document future/unbuilt work in docs** — planned features and follow-ups live only in GitHub issues. Docs describe the present implementation; issues hold the future.
+- **Docs: current-state only.** Write what the system *is*, declaratively, matching the code. No change-narrative — no "was X, now Y", no "제거/대체/축소/supersede/더 이상/이전엔/추가했다/이제", no PR/issue numbers as prose, no dated decision-logs or changelogs. **Do not document future/unbuilt work in docs** — planned features and follow-ups live only in GitHub issues. Docs describe the present implementation; issues hold the future. The `PostToolUse` docs guard blocks change-narrative vocabulary in markdown.
 
 ## Sub-agent Roster
 
@@ -40,14 +36,33 @@ Specialist definitions are vendored in [`.claude/agents/`](.claude/agents/) so t
 | **Verification** | **Reality Checker** | `sonnet` | Evidence-based gating — Playwright screenshot + app-run log proof of UI/DOM/runtime behavior before certifying |
 | **Performance** | **Performance Benchmarker** | `sonnet` | Frame budget, lipsync/TTS timing, regression checks |
 
-> **No dedicated agent** for Test-writing, `configs/*.json` loaders, or `src/ambient/tier1.ts` — these are handled by the **same agent that owns the area**. Per the TDD rule, the implementing agent writes its own failing tests first.
+> **No dedicated agent** for Test-writing, `configs/*.json` loaders, or `src/ambient/tier1.ts` — these are handled by the **same agent that owns the area**. The implementing agent writes its own failing tests first.
 
 ### Main Agent Role
 
 1. **Requirements clarification** — understand user intent and define work scope
 2. **Task delegation** — distribute work to sub-agents (ensure failing tests precede implementation — TDD ordering)
-3. **Integration verification** — confirm `pnpm test` + `cargo test` + `pnpm build` pass
+3. **Integration verification** — confirm `pnpm test` + `cargo test` + `pnpm build` + `pnpm lint` pass
 4. **Orchestration** — manage task ordering and dependencies
+
+## Harness & Enforcement
+
+Mandatory rules have an enforcement point — the gate, not memory, is the source of truth. Rules without one are working style, applied by judgment.
+
+| Rule | Enforced by |
+|---|---|
+| No direct commits to `main`; PR + green CI required | GitHub branch ruleset · `PreToolUse(Bash)` hook (`YUI_ALLOW_MAIN=1` bypass) |
+| New/changed behavior ships a test | `test-guard` CI job (`skip-tests` label bypass) |
+| Conventional, English PR titles | `pr-title` CI job |
+| Format + lint | `lint` CI job (`pnpm lint`, Biome) |
+| Rust format + clippy | `rust` CI job (`cargo fmt --check`, `cargo clippy -D warnings`) |
+| Runtime verification of UI/DOM/runtime change | PR template Runtime-evidence section |
+| Docs are current-state only | `PostToolUse(Write\|Edit)` hook (change-narrative vocabulary block) |
+| `.env.local` secret stays out of the transcript | `PreToolUse(Bash\|Read)` hook |
+| Worktree runtime assets linked | `WorktreeCreate` hook + `scripts/worktree-setup.sh` |
+| TDD ordering, UI mock approval, delegation | Working style (no machine gate) |
+
+Hook scripts live in [`.claude/hooks/`](.claude/hooks/) and are wired in [`.claude/settings.json`](.claude/settings.json); all fail open. Contract-pair sync (`src/contract/types.ts` ↔ `docs/contract.md`, `configs/motions.json` ↔ `docs/motions.md`) surfaces as a non-blocking nudge.
 
 ## Core Principle: firing ≠ judgment
 
@@ -81,7 +96,12 @@ Before any UI/visual work, read [`PRODUCT.md`](PRODUCT.md) + [`DESIGN.md`](DESIG
 YUI/
   index.html                # Vite entry
   vite.config.ts            # dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1
-  scripts/                  # Dev launchers: dev-port.mjs (port resolver) + tauri-dev.mjs / dev-auto.mjs (auto-port)
+  biome.json                # Format + lint config (curated rule set)
+  .claude/
+    hooks/                  # Workflow guards (worktree setup, main/secret guard, docs guard) — fail open
+    skills/                 # Vendored skills (karpathy-guidelines)
+    agents/                 # Vendored sub-agent definitions
+  scripts/                  # Dev launchers (dev-port.mjs, tauri-dev.mjs, dev-auto.mjs) + worktree-setup.sh + ci/test-guard.sh
   configs/                  # Runtime-loaded config (no hardcoding)
     endpoints.json            # chat/stt/tts base urls + tts_provider + irodori_* + broker_base_url
     emotion_registry.json     # emotion id → vrm_expression + fallback
@@ -136,6 +156,8 @@ pnpm tauri:dev              # Tauri app — auto-picks a free port from 1420 up 
 pnpm build                  # tsc + vite build
 pnpm test                   # vitest run
 pnpm test:watch             # vitest watch
+pnpm lint                   # biome check (format + lint)
+pnpm lint:fix               # biome check --write (apply safe fixes)
 pnpm tauri build            # Native bundle
 cd src-tauri && cargo check # Rust compile check
 cd src-tauri && cargo test  # Rust unit tests

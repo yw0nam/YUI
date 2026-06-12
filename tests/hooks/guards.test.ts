@@ -9,11 +9,7 @@ const HOOKS = resolve(fileURLToPath(new URL(".", import.meta.url)), "../../.clau
 
 type HookResult = { status: number | null; stdout: string; stderr: string };
 
-function runHook(
-  script: string,
-  input: unknown,
-  env: Record<string, string> = {},
-): HookResult {
+function runHook(script: string, input: unknown, env: Record<string, string> = {}): HookResult {
   const r = spawnSync("bash", [join(HOOKS, script)], {
     input: typeof input === "string" ? input : JSON.stringify(input),
     encoding: "utf8",
@@ -93,7 +89,9 @@ describe("pretool-bash-guard.sh — main branch guard", () => {
 
   it("allows read-only git commands on main", () => {
     for (const cmd of ["git status", "git log --oneline", "git diff"]) {
-      expect(denyReason(runHook("pretool-bash-guard.sh", bashInput(cmd, mainRepo)))).toBeUndefined();
+      expect(
+        denyReason(runHook("pretool-bash-guard.sh", bashInput(cmd, mainRepo))),
+      ).toBeUndefined();
     }
   });
 });
@@ -161,7 +159,9 @@ const PROJECT = "/Users/me/YUI";
 
 function editInput(file_path: string, text: string, tool: "Write" | "Edit" = "Edit") {
   const tool_input =
-    tool === "Write" ? { file_path, content: text } : { file_path, new_string: text, old_string: "" };
+    tool === "Write"
+      ? { file_path, content: text }
+      : { file_path, new_string: text, old_string: "" };
   return { cwd: PROJECT, hook_event_name: "PostToolUse", tool_name: tool, tool_input };
 }
 
