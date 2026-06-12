@@ -87,7 +87,10 @@ export function createScreenshotSettings(opts?: {
         return;
       }
       if (!isValidSettings(loaded)) return;
-      if (loaded.enabled === state.enabled && JSON.stringify(loaded.source) === JSON.stringify(state.source)) {
+      if (
+        loaded.enabled === state.enabled &&
+        JSON.stringify(loaded.source) === JSON.stringify(state.source)
+      ) {
         return;
       }
       state = { ...loaded };

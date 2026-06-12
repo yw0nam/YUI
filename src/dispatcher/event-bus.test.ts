@@ -6,8 +6,8 @@
  * §4.3 priorities + FIFO within tier.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createEventBus, type BusEnvelope, type EventBus } from "./event-bus";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";
 
 const NOW = 1_717_000_000_000;
 
@@ -69,8 +69,17 @@ describe("event_bus — bus drop conditions (§4.2)", () => {
 
 describe("event_bus — priority ordering (§4.3)", () => {
   it("pops by tier ASC (user before idle before os)", () => {
-    bus.push(env({ source: "os_event_watcher", event_name: "os.active_app_changed", ts: NOW, dnd_override: false }));
-    bus.push(env({ source: "idle_watcher", event_name: "idle.short", ts: NOW, dnd_override: false }));
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "os.active_app_changed",
+        ts: NOW,
+        dnd_override: false,
+      }),
+    );
+    bus.push(
+      env({ source: "idle_watcher", event_name: "idle.short", ts: NOW, dnd_override: false }),
+    );
     bus.push(env({ source: "user_input_source", event_name: "user.text_submitted", ts: NOW }));
     expect(bus.pop()!.event_name).toBe("user.text_submitted");
     expect(bus.pop()!.event_name).toBe("idle.short");
@@ -97,14 +106,35 @@ describe("event_bus — priority ordering (§4.3)", () => {
 describe("event_bus — proactive.* family (#24 Step 5)", () => {
   it("accepts proactive.cowork (not unknown_event_name-dropped)", () => {
     expect(
-      bus.push(env({ source: "timer_scheduler", event_name: "proactive.cowork", ts: NOW, dnd_override: false })),
+      bus.push(
+        env({
+          source: "timer_scheduler",
+          event_name: "proactive.cowork",
+          ts: NOW,
+          dnd_override: false,
+        }),
+      ),
     ).toBe(true);
     expect(bus.snapshot()).toHaveLength(1);
   });
 
   it("gives proactive.* priority 2 — after user.* (0), before os.* (3)", () => {
-    bus.push(env({ source: "os_event_watcher", event_name: "os.active_app_changed", ts: NOW, dnd_override: false }));
-    bus.push(env({ source: "timer_scheduler", event_name: "proactive.cowork", ts: NOW, dnd_override: false }));
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "os.active_app_changed",
+        ts: NOW,
+        dnd_override: false,
+      }),
+    );
+    bus.push(
+      env({
+        source: "timer_scheduler",
+        event_name: "proactive.cowork",
+        ts: NOW,
+        dnd_override: false,
+      }),
+    );
     bus.push(env({ source: "user_input_source", event_name: "user.text_submitted", ts: NOW }));
     expect(bus.pop()!.event_name).toBe("user.text_submitted");
     expect(bus.pop()!.event_name).toBe("proactive.cowork");
@@ -119,7 +149,14 @@ describe("event_bus — capacity 100 (§4.2)", () => {
     bus = createEventBus({ onDrop: (e, reason) => drops.push({ e: e.event_name, reason }) });
     // Fill with 100 low-priority os events.
     for (let i = 0; i < 100; i++) {
-      bus.push(env({ source: "os_event_watcher", event_name: "os.active_app_changed", ts: NOW + i, dnd_override: false }));
+      bus.push(
+        env({
+          source: "os_event_watcher",
+          event_name: "os.active_app_changed",
+          ts: NOW + i,
+          dnd_override: false,
+        }),
+      );
     }
     expect(bus.snapshot()).toHaveLength(100);
     // 101st is a high-priority user event → must be inserted, an os event dropped.

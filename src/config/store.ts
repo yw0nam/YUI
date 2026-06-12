@@ -18,10 +18,10 @@
  */
 
 import {
-  loadConfig,
   type AppConfig,
   type ConfigSection,
   type LoadConfigOptions,
+  loadConfig,
   type SecretProvider,
 } from "./load";
 
@@ -75,7 +75,11 @@ function diffSections(a: AppConfig, b: AppConfig): Set<ConfigSection> {
 
 export function createConfigStore(opts: ConfigStoreOptions = {}): ConfigStore {
   const { secrets: secretsOpt, ...loadOpts } = opts;
-  const secrets: SecretProvider = secretsOpt ?? { async get() { return undefined; } };
+  const secrets: SecretProvider = secretsOpt ?? {
+    async get() {
+      return undefined;
+    },
+  };
 
   let current: AppConfig | null = null;
   const listeners = new Set<ConfigListener>();

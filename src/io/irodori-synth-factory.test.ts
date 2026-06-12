@@ -11,7 +11,7 @@
  * All collaborators are injected — no network, no main.ts wiring.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createIrodoriSynthFactory, type IrodoriSynthParams } from "./irodori-synth-factory";
 
 const BASE = "http://localhost:8091";
@@ -88,7 +88,9 @@ describe("createIrodoriSynthFactory", () => {
     const inner = vi.fn(async () => {
       synthCalls += 1;
       if (synthCalls === 1) {
-        const err = new Error("irodori synthesize failed (HTTP 422): unknown reference_id") as Error & {
+        const err = new Error(
+          "irodori synthesize failed (HTTP 422): unknown reference_id",
+        ) as Error & {
           status?: number;
         };
         err.status = 422;

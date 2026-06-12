@@ -1,9 +1,8 @@
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
 
-const read = (rel: string): any =>
-  JSON.parse(readFileSync(resolve(process.cwd(), rel), "utf-8"));
+const read = (rel: string): any => JSON.parse(readFileSync(resolve(process.cwd(), rel), "utf-8"));
 
 describe("configs/endpoints.json", () => {
   const ep = read("configs/endpoints.json");
@@ -215,11 +214,7 @@ describe("configs/motions.json", () => {
   });
 
   it("registers the standing-gesture batch as oneshot p70", () => {
-    for (const id of [
-      "sheepish",
-      "calm",
-      "peek",
-    ]) {
+    for (const id of ["sheepish", "calm", "peek"]) {
       expect(m[id], id).toBeDefined();
       expect(m[id].vrma_path, `${id}.vrma_path`).toMatch(/\.vrma$/);
       expect(m[id].kind, `${id}.kind`).toBe("oneshot");

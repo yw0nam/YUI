@@ -15,15 +15,12 @@
  *   tan(15°) = 0.2679491924311227, tan(30°) = 0.5773502691896257
  */
 
-import { describe, it, expect } from "vitest";
 import * as THREE from "three";
+import { describe, expect, it } from "vitest";
 import { computeCameraFit, nextZoom } from "./camera-fit";
 
 /** Box spanning [cx±sx/2, cy±sy/2, cz±sz/2]. */
-function boxOf(
-  center: [number, number, number],
-  size: [number, number, number],
-): THREE.Box3 {
+function boxOf(center: [number, number, number], size: [number, number, number]): THREE.Box3 {
   const [cx, cy, cz] = center;
   const [sx, sy, sz] = size;
   return new THREE.Box3(
@@ -116,16 +113,10 @@ describe("computeCameraFit — guards", () => {
   });
 
   it("box with a non-finite component ⇒ null", () => {
-    const infBox = new THREE.Box3(
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(Infinity, 1, 1),
-    );
+    const infBox = new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(Infinity, 1, 1));
     expect(computeCameraFit(infBox, { fov: 30, aspect: 1, margin: 0 })).toBeNull();
 
-    const nanBox = new THREE.Box3(
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(1, Number.NaN, 1),
-    );
+    const nanBox = new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, Number.NaN, 1));
     expect(computeCameraFit(nanBox, { fov: 30, aspect: 1, margin: 0 })).toBeNull();
   });
 });

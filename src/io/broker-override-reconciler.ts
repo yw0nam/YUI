@@ -12,10 +12,10 @@
  * accessor) is injected. Best-effort — never throws on the UI path (D4).
  */
 
-import { createLogger, type Logger } from "../logger";
-import { isValidEndpointUrl } from "./endpoints-settings";
-import type { BrokerClient, BrokerPayload } from "./broker-client";
 import type { EndpointsConfig } from "../contract";
+import { createLogger, type Logger } from "../logger";
+import type { BrokerClient, BrokerPayload } from "./broker-client";
+import { isValidEndpointUrl } from "./endpoints-settings";
 
 export interface BrokerOverrideReconcilerOptions {
   /** 효과적(오버라이드 병합) 엔드포인트 — 호출 시점에 평가. */

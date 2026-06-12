@@ -13,7 +13,7 @@
  *    with a fake AudioContext/AnalyserNode (no real audio device).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAmplitudeEnvelope, createWebAudioSink } from "./audio-player";
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -10,13 +10,17 @@
  * It does not register voices — only holds + persists + resolves the active speaker.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type {
+  SpeakerOption,
+  SpeakerSelectionStorage,
+  UserSpeakerStorage,
+} from "./speaker-selection";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
   localStorageUserSpeakerStorage,
 } from "./speaker-selection";
-import type { SpeakerOption, SpeakerSelectionStorage, UserSpeakerStorage } from "./speaker-selection";
 
 const SAMPLE: SpeakerOption[] = [
   { id: "carlotta", label: "Carlotta", ref_url: "/references/carlotta.wav" },
@@ -304,7 +308,7 @@ describe("createSpeakerSelection — stale override + coercion", () => {
 
   it("non-string persisted junk coerces to no override without throwing", () => {
     const storage: SpeakerSelectionStorage = {
-      load: () => ({ nope: true } as unknown as string | null),
+      load: () => ({ nope: true }) as unknown as string | null,
       save: vi.fn(),
     };
     const store = createSpeakerSelection({ available: SAMPLE, defaultId: "miko", storage });
@@ -874,8 +878,7 @@ describe("localStorageUserSpeakerStorage", () => {
 
   it("drops entries missing id or ref_url on load", () => {
     (globalThis as any).localStorage = {
-      getItem: () =>
-        JSON.stringify([USER_CAT, { label: "no id", ref_url: "/x.mp3" }, { id: "x" }]),
+      getItem: () => JSON.stringify([USER_CAT, { label: "no id", ref_url: "/x.mp3" }, { id: "x" }]),
       setItem: () => {},
       removeItem: () => {},
     };
@@ -917,8 +920,7 @@ describe("coerceUserSpeaker — id charset validation", () => {
 
   it("drops an empty-id entry but keeps valid ids", () => {
     (globalThis as any).localStorage = {
-      getItem: () =>
-        JSON.stringify([{ id: "", ref_url: "/x.mp3" }, USER_CAT]),
+      getItem: () => JSON.stringify([{ id: "", ref_url: "/x.mp3" }, USER_CAT]),
       setItem: () => {},
       removeItem: () => {},
     };
@@ -954,8 +956,18 @@ describe("createSpeakerSelection — reloadFromStorage user-list merge", () => {
   it("union-merges an externally-added user voice into the in-memory list", () => {
     const storage = makeMemStorage();
     const userStorage = makeUserMemStorage();
-    const a = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", storage, userStorage });
-    const b = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", storage, userStorage });
+    const a = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      storage,
+      userStorage,
+    });
+    const b = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      storage,
+      userStorage,
+    });
 
     a.addUserVoice(USER_CAT);
     b.reloadFromStorage();
@@ -980,7 +992,11 @@ describe("createSpeakerSelection — reloadFromStorage user-list merge", () => {
 
   it("merge dedupes by id and keeps the reloaded entry (no duplicates)", () => {
     const userStorage = makeUserMemStorage();
-    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", userStorage });
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
     store.addUserVoice(USER_CAT);
     userStorage._data = [{ ...USER_CAT, label: "냥이" }];
 
@@ -992,8 +1008,14 @@ describe("createSpeakerSelection — reloadFromStorage user-list merge", () => {
 
   it("a reloaded user entry colliding with a bundled id is dropped (bundled wins)", () => {
     const userStorage = makeUserMemStorage();
-    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", userStorage });
-    userStorage._data = [{ id: "miko", label: "Fake", ref_url: "asset://localhost/fake.mp3", source: "user" }];
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
+    userStorage._data = [
+      { id: "miko", label: "Fake", ref_url: "asset://localhost/fake.mp3", source: "user" },
+    ];
 
     store.reloadFromStorage();
 
@@ -1005,7 +1027,12 @@ describe("createSpeakerSelection — reloadFromStorage user-list merge", () => {
   it("notifies when an externally-added user voice becomes the resolved override", () => {
     const storage = makeMemStorage();
     const userStorage = makeUserMemStorage();
-    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", storage, userStorage });
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      storage,
+      userStorage,
+    });
     const cb = vi.fn();
     store.subscribe(cb);
 
@@ -1019,7 +1046,11 @@ describe("createSpeakerSelection — reloadFromStorage user-list merge", () => {
 
   it("does NOT notify when the merged list leaves the active id unchanged", () => {
     const userStorage = makeUserMemStorage();
-    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", userStorage });
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
     const cb = vi.fn();
     store.subscribe(cb);
 
@@ -1046,7 +1077,11 @@ describe("createSpeakerSelection — reloadFromStorage user-list merge", () => {
       },
       save: vi.fn(),
     };
-    const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", userStorage });
+    const store = createSpeakerSelection({
+      available: BUNDLED,
+      defaultId: "carlotta",
+      userStorage,
+    });
     store.addUserVoice(USER_CAT);
     throwOnLoad = true;
     expect(() => store.reloadFromStorage()).not.toThrow();

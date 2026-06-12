@@ -7,15 +7,15 @@
  *   localStorageLipsyncStorage(key?) localStorage adapter
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { LipsyncSettings, LipsyncStorage } from "./lipsync-settings";
 import {
-  LIPSYNC_GAIN_MIN,
-  LIPSYNC_GAIN_MAX,
-  LIPSYNC_GAIN_DEFAULT,
   createLipsyncSettings,
+  LIPSYNC_GAIN_DEFAULT,
+  LIPSYNC_GAIN_MAX,
+  LIPSYNC_GAIN_MIN,
   localStorageLipsyncStorage,
 } from "./lipsync-settings";
-import type { LipsyncStorage, LipsyncSettings } from "./lipsync-settings";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -208,7 +208,7 @@ describe("createLipsyncSettings — persistence", () => {
 
   it("stored invalid type {gain:'x'} falls back to DEFAULT", () => {
     const storage: LipsyncStorage = {
-      load: () => ({ gain: "x" } as unknown as LipsyncSettings),
+      load: () => ({ gain: "x" }) as unknown as LipsyncSettings,
       save: vi.fn(),
     };
     const store = createLipsyncSettings({ storage });

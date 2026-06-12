@@ -2,11 +2,11 @@
  * 실 TTS 서비스(:8092)에 대한 통합 테스트 — `YUI_LIVE=1`일 때만 실행.
  *   YUI_LIVE=1 pnpm exec vitest run src/io/tts-synth.live.test.ts
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { EndpointsConfig } from "../contract";
-import { createTtsSynth } from "./tts-synth";
-import { createTtsPipeline } from "./tts-pipeline";
 import type { AudioSink } from "./audio-player";
+import { createTtsPipeline } from "./tts-pipeline";
+import { createTtsSynth } from "./tts-synth";
 
 const LIVE = process.env.YUI_LIVE === "1";
 

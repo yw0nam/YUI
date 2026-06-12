@@ -5,8 +5,8 @@
  * 좁힌 뒤 status별 전용 필드에 접근 가능한지(=union 모양이 의도대로인지)를 런타임 값으로 굳힌다.
  */
 
-import { describe, it, expect, expectTypeOf } from "vitest";
-import type { Usage, SessionCompressionResponse } from "./types";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import type { SessionCompressionResponse, Usage } from "./types";
 
 describe("Usage", () => {
   it("response.completed usage 모양(input/output/total)을 담는다", () => {

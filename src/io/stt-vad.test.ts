@@ -12,7 +12,7 @@
  * No real mic / ONNX runtime in CI — mock @ricky0123/vad-web and fetch.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
 
 // ── mock @ricky0123/vad-web ───────────────────────────────────────────────────

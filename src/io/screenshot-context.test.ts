@@ -7,7 +7,7 @@
  *  - enabled=true, capture 있음 → {enabled:true, source, data_url, captured_at, width, height}
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { buildScreenshotBlock, type ScreenCapture } from "./screenshot-context";
 import type { ScreenshotSettings } from "./screenshot-settings";
 

@@ -18,9 +18,9 @@
  * 순수 cue 수학은 ./cues.ts. 여기선 타이머·상태·VRM 쓰기만.
  */
 
+import type { VRM } from "@pixiv/three-vrm";
 import type { Object3D } from "three";
 import type { Renderer, TickContext } from "../renderer";
-import type { VRM } from "@pixiv/three-vrm";
 import * as cues from "./cues";
 
 export type AmbientCue =
@@ -70,8 +70,7 @@ interface OneShot {
 function prefersReducedMotion(): boolean {
   try {
     return (
-      typeof matchMedia === "function" &&
-      matchMedia("(prefers-reduced-motion: reduce)").matches
+      typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
     );
   } catch {
     return false;
@@ -112,9 +111,7 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
     const head = h?.getNormalizedBoneNode("head") ?? null;
     // chest가 없는 모델이 있어 upperChest→chest 순으로 폴백.
     const chest =
-      h?.getNormalizedBoneNode("upperChest") ??
-      h?.getNormalizedBoneNode("chest") ??
-      null;
+      h?.getNormalizedBoneNode("upperChest") ?? h?.getNormalizedBoneNode("chest") ?? null;
     const spine = h?.getNormalizedBoneNode("spine") ?? null;
 
     const em = vrm.expressionManager;
@@ -232,8 +229,7 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
     trigger(cue) {
       // 일회성만 큐잉 (주기 cue는 자동). startMs는 다음 tick에서 확정(-1 sentinel).
       if (cue === "tap_react") oneShots.push({ kind: "tap", startMs: -1 });
-      else if (cue === "idle_returned")
-        oneShots.push({ kind: "idle_returned", startMs: -1 });
+      else if (cue === "idle_returned") oneShots.push({ kind: "idle_returned", startMs: -1 });
       // blink/idle_sway/breath/look_around 는 주기 엔진이 담당 — no-op.
     },
     stop() {

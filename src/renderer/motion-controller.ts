@@ -10,12 +10,7 @@
  *   createMotionController(registry, opts?) → MotionController
  */
 
-import type {
-  MotionRegistry,
-  MotionSignal,
-  MotionKind,
-  InterruptPolicy,
-} from "../contract";
+import type { InterruptPolicy, MotionKind, MotionRegistry, MotionSignal } from "../contract";
 import { createLogger } from "../logger";
 
 const log = createLogger("motion-controller");
@@ -142,10 +137,7 @@ export function createMotionController(
         seqCursors.set(signal.id, (cursor + 1) % variants.length);
       } else {
         // random (default) — 직전과 같은 index면 한 칸 밀어 연속 반복을 피한다.
-        let index = Math.min(
-          variants.length - 1,
-          Math.floor(rng() * variants.length),
-        );
+        let index = Math.min(variants.length - 1, Math.floor(rng() * variants.length));
         const last = lastRandomIndex.get(signal.id);
         if (last === index && variants.length > 1) {
           index = (index + 1) % variants.length;
@@ -158,9 +150,7 @@ export function createMotionController(
     // speed: signal override → clamp [0.25, 2.5], 범위 밖이면 warn 1회.
     let speed = signal.speed ?? 1;
     if (speed < SPEED_MIN || speed > SPEED_MAX) {
-      warn(
-        `[MotionController] speed ${speed} out of range [${SPEED_MIN}, ${SPEED_MAX}] — clamped`,
-      );
+      warn(`[MotionController] speed ${speed} out of range [${SPEED_MIN}, ${SPEED_MAX}] — clamped`);
       speed = Math.min(SPEED_MAX, Math.max(SPEED_MIN, speed));
     }
 
@@ -221,7 +211,6 @@ export function createMotionController(
         return { action: "play", motion: incoming };
       case "queue":
         return { action: "queue", motion: incoming };
-      case "ignore":
       default:
         return {
           action: "ignore",

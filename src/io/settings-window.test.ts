@@ -10,12 +10,8 @@
  * integration (dynamic import in the Tauri branch) and is intentionally not unit-tested here.
  */
 
-import { describe, it, expect, vi, afterEach } from "vitest";
-import {
-  openSettingsWindow,
-  wireStorageSync,
-  type SettingsWindowEnv,
-} from "./settings-window";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { openSettingsWindow, type SettingsWindowEnv, wireStorageSync } from "./settings-window";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // openSettingsWindow — routing

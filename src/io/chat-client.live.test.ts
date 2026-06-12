@@ -9,10 +9,10 @@
  * 키 강제 백엔드에 인증돼 스트리밍 응답이 ChatStreamEvent로 매핑된다 — express 미등록이라
  * speech_delta/done/completed만 온다(정상).
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { CHAT_API_KEY_SECRET, plainSecretProvider } from "../config";
 import type { EndpointsConfig } from "../contract";
-import { plainSecretProvider, CHAT_API_KEY_SECRET } from "../config";
-import { streamChat, type ChatStreamEvent } from "./chat-client";
+import { type ChatStreamEvent, streamChat } from "./chat-client";
 
 const LIVE = process.env.YUI_LIVE === "1";
 
@@ -46,7 +46,10 @@ describe.skipIf(!LIVE)("streamChat — LIVE Hermes (SecretProvider 경로)", () 
 
     const types = events.map((e) => e.type);
     console.log("[live] event types:", types.join(" → "));
-    expect(events.some((e) => e.type === "error"), "error 이벤트가 없어야 함").toBe(false);
+    expect(
+      events.some((e) => e.type === "error"),
+      "error 이벤트가 없어야 함",
+    ).toBe(false);
 
     const completed = events.find((e) => e.type === "completed");
     expect(completed, "completed 이벤트가 와야 함").toBeDefined();

@@ -11,8 +11,8 @@
  * JSON string.
  */
 
-import { createLogger, type Logger } from "../logger";
 import type { AppConfig } from "../config/load";
+import { createLogger, type Logger } from "../logger";
 
 export interface BrokerVocab {
   emotion_ids: string[];
@@ -235,9 +235,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
     const wantMode = payload.emotionText.mode;
     const wantTable = payload.emotionText.table;
     const tableDiffers =
-      wantMode === "enum"
-        ? !sameTable(current?.emotion_text_map ?? {}, wantTable ?? {})
-        : false;
+      wantMode === "enum" ? !sameTable(current?.emotion_text_map ?? {}, wantTable ?? {}) : false;
     if (!current || current.emotion_text_mode !== wantMode || tableDiffers) {
       calls.push({
         name: "update_emotion_text",

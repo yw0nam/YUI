@@ -11,13 +11,13 @@
  * 이벤트 shape 원천: openai@6.42 d.ts + docs/openai_response_sdk/sse-event-format.md.
  */
 
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
 import {
-  streamChat,
-  selectChatBaseUrl,
-  type ChatStreamEvent,
   type ChatRequest,
+  type ChatStreamEvent,
+  selectChatBaseUrl,
+  streamChat,
 } from "./chat-client";
 
 // ── openai SDK mock ──────────────────────────────────────────────────────────
@@ -76,7 +76,14 @@ const textDone = (text: string): any => ({
 const fnAdded = (name: string, id: string, output_index: number): any => ({
   type: "response.output_item.added",
   output_index,
-  item: { type: "function_call", id, name, call_id: `call_${id}`, arguments: "", status: "in_progress" },
+  item: {
+    type: "function_call",
+    id,
+    name,
+    call_id: `call_${id}`,
+    arguments: "",
+    status: "in_progress",
+  },
   sequence_number: 0,
 });
 
@@ -88,7 +95,14 @@ const fnAdded = (name: string, id: string, output_index: number): any => ({
 const fnAddedWithArgs = (name: string, id: string, output_index: number, args: string): any => ({
   type: "response.output_item.added",
   output_index,
-  item: { type: "function_call", id, name, call_id: `call_${id}`, arguments: args, status: "in_progress" },
+  item: {
+    type: "function_call",
+    id,
+    name,
+    call_id: `call_${id}`,
+    arguments: args,
+    status: "in_progress",
+  },
   sequence_number: 0,
 });
 
@@ -125,10 +139,7 @@ const completed = (text: string): any => ({
 });
 
 /** response.completed carrying a final usage block (token accounting at end-of-turn). */
-const completedWithUsage = (
-  text: string,
-  usage: Record<string, unknown>,
-): any => {
+const completedWithUsage = (text: string, usage: Record<string, unknown>): any => {
   const ev = completed(text);
   ev.response.usage = usage;
   return ev;
@@ -651,9 +662,7 @@ describe("streamChat — usage event", () => {
   });
 
   it("emits NO usage event when response.completed carries no usage", async () => {
-    createMock.mockResolvedValue(
-      streamOf([textDelta("hi"), textDone("hi"), completed("hi")]),
-    );
+    createMock.mockResolvedValue(streamOf([textDelta("hi"), textDone("hi"), completed("hi")]));
 
     const events = await collect(streamChat(CONFIG, req()));
 
@@ -667,19 +676,31 @@ describe("selectChatBaseUrl", () => {
 
   it("returns the configured absolute URL unchanged under Tauri", () => {
     expect(
-      selectChatBaseUrl(CONFIGURED, { isTauri: true, isDev: true, origin: "http://127.0.0.1:1420" }),
+      selectChatBaseUrl(CONFIGURED, {
+        isTauri: true,
+        isDev: true,
+        origin: "http://127.0.0.1:1420",
+      }),
     ).toBe(CONFIGURED);
   });
 
   it("rewrites to the same-origin proxy mount in dev web", () => {
     expect(
-      selectChatBaseUrl(CONFIGURED, { isTauri: false, isDev: true, origin: "http://127.0.0.1:1420" }),
+      selectChatBaseUrl(CONFIGURED, {
+        isTauri: false,
+        isDev: true,
+        origin: "http://127.0.0.1:1420",
+      }),
     ).toBe("http://127.0.0.1:1420/__hermes/v1");
   });
 
   it("returns the configured URL unchanged in prod web", () => {
     expect(
-      selectChatBaseUrl(CONFIGURED, { isTauri: false, isDev: false, origin: "https://app.example" }),
+      selectChatBaseUrl(CONFIGURED, {
+        isTauri: false,
+        isDev: false,
+        origin: "https://app.example",
+      }),
     ).toBe(CONFIGURED);
   });
 

@@ -3,14 +3,14 @@
  * 그리고 selectFetch의 환경별 선택(Tauri=injected fetchCORS, dev=undefined).
  */
 
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
 import {
-  streamChat,
-  selectFetch,
-  type ChatStreamEvent,
   type ChatRequest,
+  type ChatStreamEvent,
   type StreamChatOptions,
+  selectFetch,
+  streamChat,
 } from "./chat-client";
 
 // ── openai SDK mock (same pattern as chat-client.test.ts) ──────────────────
@@ -57,7 +57,9 @@ const completed = (text: string): any => ({
   response: {
     id: "resp_1",
     status: "completed",
-    output: [{ type: "message", id: "msg_1", role: "assistant", content: [{ type: "output_text", text }] }],
+    output: [
+      { type: "message", id: "msg_1", role: "assistant", content: [{ type: "output_text", text }] },
+    ],
   },
 });
 

@@ -4,28 +4,30 @@
  * Matches mocks/motion-preview.html visual spec exactly.
  */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
 :root {
-  --surface-ground:    oklch(16% 0.008 70);
-  --surface-panel:     oklch(20% 0.010 70);
-  --surface-raised:    oklch(24% 0.010 70);
-  --surface-hover:     oklch(27% 0.010 70);
+  --surface-ground: oklch(16% 0.008 70);
+  --surface-panel: oklch(20% 0.01 70);
+  --surface-raised: oklch(24% 0.01 70);
+  --surface-hover: oklch(27% 0.01 70);
   --surface-active-bg: oklch(24% 0.025 70);
 
-  --text-primary:      oklch(92% 0.008 70);
-  --text-secondary:    oklch(62% 0.008 70);
-  --text-tertiary:     oklch(44% 0.008 70);
+  --text-primary: oklch(92% 0.008 70);
+  --text-secondary: oklch(62% 0.008 70);
+  --text-tertiary: oklch(44% 0.008 70);
 
-  --accent:            oklch(78% 0.12 70);
-  --accent-dim:        oklch(62% 0.08 70);
+  --accent: oklch(78% 0.12 70);
+  --accent-dim: oklch(62% 0.08 70);
 
-  --border:            oklch(30% 0.010 70);
-  --border-subtle:     oklch(26% 0.008 70);
+  --border: oklch(30% 0.01 70);
+  --border-subtle: oklch(26% 0.008 70);
 
   --rail-width: 38%;
   --viewport-width: 62%;
@@ -38,7 +40,8 @@
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-html, body {
+html,
+body {
   height: 100%;
   overflow: hidden;
   background: var(--surface-ground);
@@ -71,7 +74,11 @@ html, body {
     linear-gradient(45deg, transparent 75%, oklch(22% 0.008 70) 75%),
     linear-gradient(-45deg, transparent 75%, oklch(22% 0.008 70) 75%);
   background-size: 20px 20px;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0px;
 }
 
 /* renderer uses setSize(w,h,false) — CSS must size the canvas to the mount,
@@ -157,7 +164,7 @@ html, body {
 .section-label {
   font-size: var(--section-label-size);
   font-weight: 600;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-tertiary);
 }
@@ -212,7 +219,7 @@ html, body {
   background: var(--surface-active-bg);
 }
 .motion-row.state-playing:hover {
-  background: oklch(26% 0.030 70);
+  background: oklch(26% 0.03 70);
 }
 
 /* Status dot */
@@ -225,7 +232,9 @@ html, body {
 
 @media (prefers-reduced-motion: no-preference) {
   .dot {
-    transition: background 150ms var(--ease-out), border-color 150ms var(--ease-out);
+    transition:
+      background 150ms var(--ease-out),
+      border-color 150ms var(--ease-out);
   }
 }
 
@@ -283,7 +292,7 @@ html, body {
 }
 
 .motion-row.state-playing .tag-loop {
-  background: oklch(28% 0.020 70);
+  background: oklch(28% 0.02 70);
   color: var(--accent-dim);
 }
 
@@ -305,12 +314,14 @@ html, body {
 
 @media (prefers-reduced-motion: no-preference) {
   .btn-play {
-    transition: background 150ms var(--ease-out), color 150ms var(--ease-out);
+    transition:
+      background 150ms var(--ease-out),
+      color 150ms var(--ease-out);
   }
 }
 
 .btn-play:hover {
-  background: oklch(32% 0.010 70);
+  background: oklch(32% 0.01 70);
   color: var(--text-primary);
 }
 
@@ -487,7 +498,10 @@ select:focus {
 
 @media (prefers-reduced-motion: no-preference) {
   .btn {
-    transition: background 150ms var(--ease-out), border-color 150ms var(--ease-out), color 150ms var(--ease-out);
+    transition:
+      background 150ms var(--ease-out),
+      border-color 150ms var(--ease-out),
+      color 150ms var(--ease-out);
   }
 }
 
@@ -497,14 +511,14 @@ select:focus {
 }
 
 .btn-primary {
-  background: oklch(28% 0.030 70);
-  border-color: oklch(40% 0.060 70);
+  background: oklch(28% 0.03 70);
+  border-color: oklch(40% 0.06 70);
   color: var(--accent);
   font-weight: 500;
 }
 
 .btn-primary:hover {
-  background: oklch(32% 0.040 70);
+  background: oklch(32% 0.04 70);
   border-color: var(--accent);
 }
 

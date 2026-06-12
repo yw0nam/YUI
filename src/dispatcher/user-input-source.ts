@@ -6,8 +6,8 @@
  *  - user.voice_segment_ready — STT transcript from VAD pipeline (tier2, dnd_override=true).
  */
 
-import type { EventBus, BusEnvelope } from "./event-bus";
 import type { Transcript } from "../io/stt-vad";
+import type { BusEnvelope, EventBus } from "./event-bus";
 
 export interface UserInputSource {
   /** Chat text submit → bus push. Empty/whitespace is ignored. */

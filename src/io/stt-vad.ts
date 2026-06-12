@@ -102,7 +102,7 @@ function describeStartError(err: unknown): string {
 export function createSttVad(options: SttVadOptions): SttVad {
   const { config, onVoiceSegment, onState } = options;
   const resolveSilenceMs = (): number =>
-    typeof options.silenceMs === "function" ? options.silenceMs() : options.silenceMs ?? 1500;
+    typeof options.silenceMs === "function" ? options.silenceMs() : (options.silenceMs ?? 1500);
 
   let vad: Awaited<ReturnType<typeof MicVAD.new>> | null = null;
   let loading = false;

@@ -13,13 +13,13 @@ const FALLBACK = "Working…";
 export const TOOL_LABELS: Record<string, Record<string, string>> = {
   en: {
     web_search: "Searching…",
-    browser:    "Browsing…",
-    terminal:   "Running…",
-    code:       "Running…",
-    file:       "Reading…",
-    read_file:  "Reading…",
+    browser: "Browsing…",
+    terminal: "Running…",
+    code: "Running…",
+    file: "Reading…",
+    read_file: "Reading…",
     write_file: "Writing…",
-    python:     "Running…",
+    python: "Running…",
   },
 };
 
@@ -31,7 +31,7 @@ export function getToolLabel(toolId: string, locale = "en"): string {
   const localMap = TOOL_LABELS[locale];
   if (localMap && toolId in localMap) return localMap[toolId];
 
-  const enMap = TOOL_LABELS["en"];
+  const enMap = TOOL_LABELS.en;
   if (enMap && toolId in enMap) return enMap[toolId];
 
   return FALLBACK;

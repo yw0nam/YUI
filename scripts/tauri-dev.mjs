@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 import os from "node:os";
-import { resolvePort, findFreePort, buildDevUrl, tauriConfigArg } from "./dev-port.mjs";
+import { buildDevUrl, findFreePort, resolvePort, tauriConfigArg } from "./dev-port.mjs";
 
 const port = await resolvePort({ env: process.env, isPortFree: findFreePort });
 console.log(`[YUI] tauri dev → ${buildDevUrl(port)} (YUI_DEV_PORT=${port})`);

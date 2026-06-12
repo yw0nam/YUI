@@ -18,7 +18,6 @@
  * silent drop 분류: parse_error(WARN) / network_drop(WARN).
  */
 
-import { streamChat, type ChatRequest } from "../io/chat-client";
 import type {
   ControlEnvelope,
   DispatcherStateMeta,
@@ -28,11 +27,12 @@ import type {
   TriggerMeta,
   Usage,
 } from "../contract";
+import { type ChatRequest, streamChat } from "../io/chat-client";
+import type { Logger } from "../logger";
+import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import type { BusEnvelope } from "./event-bus";
 import type { DropReason } from "./guardrails";
-import { createLogger } from "../logger";
-import type { Logger } from "../logger";
 
 const baseLog = createLogger("backend_caller");
 
@@ -191,10 +191,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     ];
   }
 
-  async function call(
-    env: BusEnvelope,
-    externalSignal?: AbortSignal,
-  ): Promise<BackendCallResult> {
+  async function call(env: BusEnvelope, externalSignal?: AbortSignal): Promise<BackendCallResult> {
     if (externalSignal?.aborted) {
       return { ok: false, drop_reason: "superseded_by_user" };
     }

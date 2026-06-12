@@ -16,9 +16,15 @@
  */
 
 import "./motion-preview.css";
-import { createRenderer } from "../renderer";
-import type { MotionRegistry, MotionKind, MotionSignal, EmotionRegistry, EmotionId } from "../contract";
+import type {
+  EmotionId,
+  EmotionRegistry,
+  MotionKind,
+  MotionRegistry,
+  MotionSignal,
+} from "../contract";
 import { createLogger } from "../logger";
+import { createRenderer } from "../renderer";
 
 const log = createLogger("motion-preview");
 
@@ -36,8 +42,16 @@ const KIND_ORDER: MotionKind[] = ["ambient", "reactive", "state", "oneshot"];
 
 // ─── Emotion display order (matches the emotion vocabulary) ───────────────
 const EMOTION_ORDER: EmotionId[] = [
-  "neutral", "happy", "angry", "sad", "relaxed", "surprised",
-  "thinking", "curious", "sleepy", "embarrassed",
+  "neutral",
+  "happy",
+  "angry",
+  "sad",
+  "relaxed",
+  "surprised",
+  "thinking",
+  "curious",
+  "sleepy",
+  "embarrassed",
 ];
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -108,7 +122,7 @@ function buildCrossfadeOptions(motionsRegistry: MotionRegistry): void {
 function setActiveRow(id: string | null): void {
   const rows = registryList.querySelectorAll<HTMLDivElement>(".motion-row");
   rows.forEach((row) => {
-    const rowId = row.dataset["motionId"];
+    const rowId = row.dataset.motionId;
     const dot = row.querySelector<HTMLSpanElement>(".dot");
     const nameEl = row.querySelector<HTMLSpanElement>(".row-name");
     if (rowId === id) {
@@ -162,7 +176,7 @@ function buildRegistryList(
 
       const row = document.createElement("div");
       row.className = "motion-row";
-      row.dataset["motionId"] = id;
+      row.dataset.motionId = id;
       row.tabIndex = 0;
       row.setAttribute("role", "row");
 
@@ -239,7 +253,7 @@ function buildRegistryList(
 function setActiveEmotionRow(id: EmotionId | null): void {
   const rows = emotionList.querySelectorAll<HTMLDivElement>(".motion-row");
   rows.forEach((row) => {
-    const rowId = row.dataset["emotionId"] as EmotionId | undefined;
+    const rowId = row.dataset.emotionId as EmotionId | undefined;
     const dot = row.querySelector<HTMLSpanElement>(".dot");
     if (rowId === id) {
       row.classList.add("state-playing");
@@ -267,7 +281,7 @@ function buildEmotionList(
 
     const row = document.createElement("div");
     row.className = "motion-row";
-    row.dataset["emotionId"] = id;
+    row.dataset.emotionId = id;
     row.tabIndex = 0;
     row.setAttribute("role", "row");
 
@@ -337,9 +351,7 @@ function rafLoop(): void {
   }
 
   const elapsedSec =
-    state.activeId !== null
-      ? ((performance.now() - state.elapsedStart) / 1000).toFixed(1)
-      : "0.0";
+    state.activeId !== null ? ((performance.now() - state.elapsedStart) / 1000).toFixed(1) : "0.0";
 
   statusElapsed.textContent = `${elapsedSec}s`;
   statusFps.textContent = `${state.fps}fps`;

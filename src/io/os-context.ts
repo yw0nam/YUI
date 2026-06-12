@@ -12,9 +12,9 @@
 import { createLogger } from "../logger";
 import {
   OS_EVENT_CHANNEL,
-  resolveTauriListen,
   type OsEventListen,
   type OsEventPayload,
+  resolveTauriListen,
 } from "./tauri-listen";
 
 const log = createLogger("os-context");
@@ -48,10 +48,7 @@ export function createOsContext(opts?: { listen?: OsEventListen }): OsContext {
 
   function onEvent(payload: OsEventPayload): void {
     // Fullscreen events carry no app identity — only flip the isFullscreen flag.
-    if (
-      payload.event_name === "fullscreen_entered" ||
-      payload.event_name === "fullscreen_exited"
-    ) {
+    if (payload.event_name === "fullscreen_entered" || payload.event_name === "fullscreen_exited") {
       snapshot = { ...snapshot, isFullscreen: payload.data.is_fullscreen === true };
       return;
     }

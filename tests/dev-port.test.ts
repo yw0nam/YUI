@@ -33,9 +33,9 @@ describe("resolvePort env precedence", () => {
   it("throws on a present but invalid YUI_DEV_PORT", async () => {
     const isPortFree = vi.fn(() => true);
     for (const bad of ["abc", "0", "70000"]) {
-      await expect(
-        resolvePort({ env: { YUI_DEV_PORT: bad }, isPortFree }),
-      ).rejects.toThrow(/Invalid YUI_DEV_PORT/);
+      await expect(resolvePort({ env: { YUI_DEV_PORT: bad }, isPortFree })).rejects.toThrow(
+        /Invalid YUI_DEV_PORT/,
+      );
     }
     expect(isPortFree).not.toHaveBeenCalled();
   });
@@ -65,9 +65,9 @@ describe("resolvePort scanning", () => {
 
   it("throws naming the scanned range when every port is busy", async () => {
     const isPortFree = vi.fn(() => false);
-    await expect(
-      resolvePort({ env: {}, isPortFree, base: 1420, maxScan: 5 }),
-    ).rejects.toThrow(/1420/);
+    await expect(resolvePort({ env: {}, isPortFree, base: 1420, maxScan: 5 })).rejects.toThrow(
+      /1420/,
+    );
   });
 });
 
@@ -86,9 +86,7 @@ describe("resolveVitePort", () => {
 
   it("throws on a present but invalid YUI_DEV_PORT", () => {
     for (const bad of ["0", "70000", "-5", "8080.9", "abc"]) {
-      expect(() => resolveVitePort({ YUI_DEV_PORT: bad })).toThrow(
-        /Invalid YUI_DEV_PORT/,
-      );
+      expect(() => resolveVitePort({ YUI_DEV_PORT: bad })).toThrow(/Invalid YUI_DEV_PORT/);
     }
   });
 });

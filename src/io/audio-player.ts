@@ -26,9 +26,7 @@ export interface AmplitudeEnvelope {
  * raw RMS를 게인으로 스케일·clamp한 뒤 light smoothing으로 ease한다.
  * raw에 단조 증가(louder in → not quieter out)하며 항상 finite 0..1.
  */
-export function createAmplitudeEnvelope(
-  options: AmplitudeEnvelopeOptions = {},
-): AmplitudeEnvelope {
+export function createAmplitudeEnvelope(options: AmplitudeEnvelopeOptions = {}): AmplitudeEnvelope {
   const smoothing = Math.min(1, Math.max(0, options.smoothing ?? 0.4));
   const gain = options.gain ?? 2.0;
   let value = 0;

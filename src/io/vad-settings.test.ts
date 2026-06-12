@@ -7,15 +7,15 @@
  *   localStorageVadStorage(key?) localStorage adapter
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { VadSettings, VadStorage } from "./vad-settings";
 import {
-  VAD_SILENCE_MIN,
-  VAD_SILENCE_MAX,
-  VAD_SILENCE_DEFAULT,
   createVadSettings,
   localStorageVadStorage,
+  VAD_SILENCE_DEFAULT,
+  VAD_SILENCE_MAX,
+  VAD_SILENCE_MIN,
 } from "./vad-settings";
-import type { VadStorage, VadSettings } from "./vad-settings";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -207,7 +207,7 @@ describe("createVadSettings — persistence", () => {
 
   it("stored invalid type {silenceMs:'x'} falls back to DEFAULT", () => {
     const storage: VadStorage = {
-      load: () => ({ silenceMs: "x" } as unknown as VadSettings),
+      load: () => ({ silenceMs: "x" }) as unknown as VadSettings,
       save: vi.fn(),
     };
     const store = createVadSettings({ storage });

@@ -15,8 +15,7 @@ function tokenize(text: string): string[] {
   return text.match(/\S+\s*/g) ?? [text];
 }
 
-const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 export interface MockDriver {
   /** 입력 제출에 대한 응답 1턴 재생: (tool) → 발화 스트림 → settle → fade. */
@@ -92,8 +91,7 @@ export function createMockDriver(
       surfaces.hideTool();
     }
 
-    const line =
-      CANNED_REPLIES[Math.abs(hash(userText)) % CANNED_REPLIES.length];
+    const line = CANNED_REPLIES[Math.abs(hash(userText)) % CANNED_REPLIES.length];
     await streamLine(line, gen);
   }
 

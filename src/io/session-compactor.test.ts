@@ -9,10 +9,10 @@
  * 테스트는 주입한 fake fetch만 사용 — 실제 Hermes 미접속.
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { compressUrl, compressSession } from "./session-compactor";
+import { describe, expect, it, vi } from "vitest";
 import type { SessionCompressionResponse } from "../contract";
 import type { Logger } from "../logger";
+import { compressSession, compressUrl } from "./session-compactor";
 
 type FetchFn = (input: unknown, init?: RequestInit) => Promise<Response>;
 
@@ -23,10 +23,7 @@ function silentLogger(): Logger {
 }
 
 /** JSON Response with optional X-Hermes-Session-Id header. */
-function jsonResponse(
-  body: unknown,
-  opts: { status?: number; sessionId?: string } = {},
-): Response {
+function jsonResponse(body: unknown, opts: { status?: number; sessionId?: string } = {}): Response {
   const headers = new Headers();
   headers.set("content-type", "application/json");
   if (opts.sessionId) headers.set("X-Hermes-Session-Id", opts.sessionId);
@@ -102,7 +99,7 @@ describe("compressSession — compressed", () => {
     expect(url).toBe("http://localhost:8643/api/sessions/sess-old/compress");
     expect(init?.method).toBe("POST");
     const headers = (init?.headers ?? {}) as Record<string, string>;
-    expect(headers["Authorization"]).toBe("Bearer key-123");
+    expect(headers.Authorization).toBe("Bearer key-123");
     expect(headers["X-Hermes-Session-Id"]).toBe("sess-old");
     expect(headers["Content-Type"]).toBe("application/json");
     expect(typeof init?.body).toBe("string");
@@ -118,9 +115,7 @@ describe("compressSession — compressed", () => {
       after_tokens: 2400,
       removed: 28,
     };
-    const fetch = vi.fn<FetchFn>(async () =>
-      jsonResponse(bodyNoId, { sessionId: "sess-header" }),
-    );
+    const fetch = vi.fn<FetchFn>(async () => jsonResponse(bodyNoId, { sessionId: "sess-header" }));
     const result = await compressSession(CONFIG, "sess-old", {
       fetch,
       logger: silentLogger(),
@@ -262,6 +257,6 @@ describe("compressSession — auth", () => {
     await compressSession(CONFIG, "sess-old", { fetch, logger: silentLogger() });
     const [, init] = fetch.mock.calls[0];
     const headers = (init?.headers ?? {}) as Record<string, string>;
-    expect(headers["Authorization"]).toBeUndefined();
+    expect(headers.Authorization).toBeUndefined();
   });
 });

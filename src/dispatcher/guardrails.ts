@@ -15,8 +15,8 @@
  * 시간은 주입한 now()로만 읽는다(bare Date.now() 금지).
  */
 
-import type { BusEnvelope } from "./event-bus";
 import type { GuardrailsConfig } from "../config/load";
+import type { BusEnvelope } from "./event-bus";
 
 export type { GuardrailsConfig };
 
@@ -35,9 +35,7 @@ export type DropReason =
   | "superseded_by_user";
 
 /** 가드레일 통과/탈락 판정 결과. */
-export type GuardResult =
-  | { pass: true }
-  | { pass: false; reason: DropReason; detail: string };
+export type GuardResult = { pass: true } | { pass: false; reason: DropReason; detail: string };
 
 export interface Guardrails {
   dndState(): DndState;

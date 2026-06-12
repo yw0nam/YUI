@@ -34,14 +34,9 @@ export interface IrodoriSynthFactoryDeps {
 }
 
 function paramsKey(p: IrodoriSynthParams): string {
-  return [
-    p.baseUrl,
-    p.referenceId,
-    p.numSteps,
-    p.cfgScaleText,
-    p.cfgScaleSpeaker,
-    p.seconds,
-  ].join("::");
+  return [p.baseUrl, p.referenceId, p.numSteps, p.cfgScaleText, p.cfgScaleSpeaker, p.seconds].join(
+    "::",
+  );
 }
 
 function is422(err: unknown): boolean {

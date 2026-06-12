@@ -16,7 +16,7 @@
  *  - teardownMotion/dispose: dwell.cancel() so no stale timer fires on a torn mixer.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createCycleDwell } from "./cycle-dwell";
 
 beforeEach(() => {

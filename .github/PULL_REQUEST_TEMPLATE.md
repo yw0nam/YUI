@@ -1,22 +1,31 @@
-<!-- 제목: 관련 feature/이슈가 드러나게. 예: "[F1] VRM 로드 + 핫스왑" -->
+<!-- Title in English, conventional-commit format (becomes the squash-merge subject). e.g. "feat: VRM load + hot-swap" -->
 
-## 변경 요약
-<!-- 무엇을, 왜 -->
+## Summary
+<!-- What and why -->
 
-## 관련 이슈
+## Related issues
 <!-- Closes #__ -->
 
-## 관련 결정 / 문서
-<!-- 건드린 docs: contract.md / prd.md(D-*) / event-dispatcher.md -->
+## Related decisions / docs
+<!-- Touched docs: contract.md / prd.md / event-dispatcher.md -->
 
-## 검증
-- [ ] `cargo check` 통과 (Rust 변경 시)
-- [ ] `pnpm build` 통과 (tsc 타입체크 포함)
-- [ ] 필요 시 `pnpm tauri dev`로 실제 동작 + 스크린샷 확인
+## Runtime evidence (required for UI / DOM / runtime behavior)
+<!-- Unit tests are not runtime verification. For any visible or behavioral
+     change, attach a screenshot (Playwright MCP / app window) or paste the
+     app-run log proving the behavior. State "N/A — no runtime behavior change"
+     only when the diff is non-runtime (docs, config, tooling). -->
 
-## 체크리스트 (YUI 원칙)
-- [ ] 스키마 변경은 `docs/contract.md`를 **먼저** 수정한 뒤 코드 반영
-- [ ] 미검증 가정 없음 (web/context7 cross-check, docs 우선)
-- [ ] client에 brain 추가 안 함 — judgment/persona/모드는 backend (firing ≠ judgment)
-- [ ] inline 제어 태그 금지 — 제어는 `express` tool-call arguments로만
-- [ ] 하드코딩 금지 — 엔드포인트/모델/경로는 `configs/`
+## Verification
+- [ ] `pnpm build` passes (includes tsc typecheck)
+- [ ] `pnpm test` passes
+- [ ] `pnpm lint` passes (biome format + lint)
+- [ ] `cargo test` / `cargo clippy` pass (Rust changes)
+- [ ] Runtime evidence attached above, or N/A justified
+
+## Checklist (YUI principles)
+- [ ] Schema changes update `docs/contract.md` alongside the code
+- [ ] No unverified assumptions (docs first; web/context7 cross-check)
+- [ ] No brain in the client — judgment/persona/mode live in the backend (firing ≠ judgment)
+- [ ] No inline control tags — emotion/motion only via `generate_express` tool-call arguments
+- [ ] No hardcoding — endpoints/models/paths live in `configs/`
+- [ ] New/changed behavior ships a test in this PR (or `skip-tests` label justified)

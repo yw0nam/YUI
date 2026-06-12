@@ -12,9 +12,9 @@
  * whether/what to speak.
  */
 
-import { createLogger } from "../logger";
-import { OS_EVENT_CHANNEL, resolveTauriListen } from "../io/tauri-listen";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
+import { OS_EVENT_CHANNEL, resolveTauriListen } from "../io/tauri-listen";
+import { createLogger } from "../logger";
 import type { BusEnvelope, EventBus } from "./event-bus";
 
 const log = createLogger("cowork_source");

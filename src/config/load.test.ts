@@ -9,15 +9,15 @@
  * .issues는 비어 있지 않다.
  */
 
-import { describe, it, expect } from "vitest";
-import {
-  loadConfig,
-  ConfigError,
-  plainSecretProvider,
-  CONFIG_FILES,
-  type ConfigReader,
-} from "./load";
+import { describe, expect, it } from "vitest";
 import type { EndpointsConfig } from "../contract";
+import {
+  CONFIG_FILES,
+  ConfigError,
+  type ConfigReader,
+  loadConfig,
+  plainSecretProvider,
+} from "./load";
 
 // ── fixtures (실제 configs/*.json 미러) ────────────────────────────────────────
 
@@ -104,8 +104,7 @@ describe("loadConfig — happy path", () => {
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
       tts_provider: "openai",
-      chat_instructions:
-        "Use the generate_express tool with emotion_id, motion_id, emotion_text.",
+      chat_instructions: "Use the generate_express tool with emotion_id, motion_id, emotion_text.",
       compact_threshold_ratio: 0.7,
       compact_resume_ratio: 0.5,
       compact_timeout_ms: 12000,
@@ -148,7 +147,10 @@ describe("loadConfig — guardrails", () => {
 
   it("app_blocklist에 string 항목을 보존한다", async () => {
     const map = goodFixture();
-    (map["guardrails.json"] as { dnd: { app_blocklist: string[] } }).dnd.app_blocklist = ["Keynote", "Zoom"];
+    (map["guardrails.json"] as { dnd: { app_blocklist: string[] } }).dnd.app_blocklist = [
+      "Keynote",
+      "Zoom",
+    ];
     const cfg = await loadConfig({ read: readerOf(map) });
     expect(cfg.guardrails.dnd.app_blocklist).toEqual(["Keynote", "Zoom"]);
   });
@@ -161,7 +163,8 @@ describe("loadConfig — guardrails", () => {
 
   it("음수 debounce window는 ConfigError", async () => {
     const map = goodFixture();
-    (map["guardrails.json"] as { debounce_ms: Record<string, number> }).debounce_ms.idle_watcher = -1;
+    (map["guardrails.json"] as { debounce_ms: Record<string, number> }).debounce_ms.idle_watcher =
+      -1;
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 
@@ -284,21 +287,21 @@ describe("loadConfig — motions.cycle_dwell_ms", () => {
   });
 
   it("정수가 아니면 ConfigError", async () => {
-    await expect(
-      loadConfig({ read: readerOf(cycleMotionFixture(1000.5)) }),
-    ).rejects.toBeInstanceOf(ConfigError);
+    await expect(loadConfig({ read: readerOf(cycleMotionFixture(1000.5)) })).rejects.toBeInstanceOf(
+      ConfigError,
+    );
   });
 
   it("음수면 ConfigError", async () => {
-    await expect(
-      loadConfig({ read: readerOf(cycleMotionFixture(-1)) }),
-    ).rejects.toBeInstanceOf(ConfigError);
+    await expect(loadConfig({ read: readerOf(cycleMotionFixture(-1)) })).rejects.toBeInstanceOf(
+      ConfigError,
+    );
   });
 
   it("60000 초과면 ConfigError", async () => {
-    await expect(
-      loadConfig({ read: readerOf(cycleMotionFixture(60001)) }),
-    ).rejects.toBeInstanceOf(ConfigError);
+    await expect(loadConfig({ read: readerOf(cycleMotionFixture(60001)) })).rejects.toBeInstanceOf(
+      ConfigError,
+    );
   });
 
   it("cycle 모션(variants>1 + loop)이 아닌데 cycle_dwell_ms가 있으면 ConfigError", async () => {
@@ -347,21 +350,21 @@ describe("loadConfig — motions.fade_ms", () => {
   });
 
   it("정수가 아니면 ConfigError", async () => {
-    await expect(
-      loadConfig({ read: readerOf(fadeMotionFixture(700.5)) }),
-    ).rejects.toBeInstanceOf(ConfigError);
+    await expect(loadConfig({ read: readerOf(fadeMotionFixture(700.5)) })).rejects.toBeInstanceOf(
+      ConfigError,
+    );
   });
 
   it("음수면 ConfigError", async () => {
-    await expect(
-      loadConfig({ read: readerOf(fadeMotionFixture(-1)) }),
-    ).rejects.toBeInstanceOf(ConfigError);
+    await expect(loadConfig({ read: readerOf(fadeMotionFixture(-1)) })).rejects.toBeInstanceOf(
+      ConfigError,
+    );
   });
 
   it("5000 초과면 ConfigError", async () => {
-    await expect(
-      loadConfig({ read: readerOf(fadeMotionFixture(5001)) }),
-    ).rejects.toBeInstanceOf(ConfigError);
+    await expect(loadConfig({ read: readerOf(fadeMotionFixture(5001)) })).rejects.toBeInstanceOf(
+      ConfigError,
+    );
   });
 });
 
@@ -438,9 +441,7 @@ describe("loadConfig — avatar.framing", () => {
   });
 
   it("fov: 0 (열린구간 밖)이면 실패", async () => {
-    await expectAvatarError(
-      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", framing: { fov: 0 } }),
-    );
+    await expectAvatarError(loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", framing: { fov: 0 } }));
   });
 
   it("fov: 180 (열린구간 밖)이면 실패", async () => {

@@ -11,15 +11,11 @@
  *  - `hasExpression` / `warn` are injected for determinism.
  */
 
-import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import {
-  createEmotionResolver,
-  type EmotionResolver,
-  type ResolvedEmotion,
-} from "./emotion-resolver";
-import type { EmotionRegistry, EmotionId } from "../contract";
+import { describe, expect, it, vi } from "vitest";
+import type { EmotionId, EmotionRegistry } from "../contract";
+import { createEmotionResolver } from "./emotion-resolver";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers

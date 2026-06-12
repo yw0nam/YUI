@@ -8,9 +8,9 @@
  *  - payload shape: { transcript: { text, confidence?, lang? } }.
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { createUserInputSource } from "./user-input-source";
+import { describe, expect, it, vi } from "vitest";
 import type { BusEnvelope, EventBus } from "./event-bus";
+import { createUserInputSource } from "./user-input-source";
 
 function fakeBus(): { bus: EventBus; pushed: BusEnvelope[] } {
   const pushed: BusEnvelope[] = [];
