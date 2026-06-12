@@ -94,13 +94,12 @@
     "priority": 70,
     "interrupt_policy": "replace"
   },
-  "suneru": {
+  "sulk": {
     "vrma_path": "/motions/suneru.vrma",
     "kind": "oneshot",
     "loop": false,
     "priority": 70,
-    "interrupt_policy": "replace",
-    "broker_publish": false
+    "interrupt_policy": "replace"
   },
   "sit": {
     "vrma_path": "/motions/sit_01.vrma",
