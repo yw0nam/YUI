@@ -10,9 +10,13 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "biome check",
+    "lint:fix": "biome check --write",
+    "format": "biome format --write"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.16",
     "@tauri-apps/cli": "^2.11.2",
     "@types/jsdom": "^28.0.3",
     "@types/three": "~0.180.0",
