@@ -16,6 +16,7 @@ use tauri::{command, AppHandle, Emitter};
 pub const OS_EVENT_CHANNEL: &str = "os_event";
 
 /// Channel for the drag-drop release signal emitted after `start_dragging()`.
+#[allow(dead_code)] // consumed by the macOS drop-release probe; dead on other targets
 pub const WINDOW_DROP_RELEASE_CHANNEL: &str = "window_drop_release";
 
 /// `os_event` channel payload — "Rust → Webview" handoff.
@@ -54,6 +55,7 @@ pub fn epoch_ms() -> i64 {
 }
 
 /// Converts idle seconds (f64) to milliseconds (u64), clamping negative to 0.
+#[allow(dead_code)] // used by the macOS watcher; dead on other targets
 pub fn idle_ms_from_secs(secs: f64) -> u64 {
     if secs < 0.0 {
         0
@@ -63,6 +65,7 @@ pub fn idle_ms_from_secs(secs: f64) -> u64 {
 }
 
 /// Sanitises a raw OS app name: trims whitespace, returns None if empty.
+#[allow(dead_code)] // used by the macOS watcher; dead on other targets
 pub fn sanitise_app_name(raw: &str) -> Option<String> {
     let s = raw.trim().to_string();
     if s.is_empty() {
@@ -73,6 +76,7 @@ pub fn sanitise_app_name(raw: &str) -> Option<String> {
 }
 
 /// Sanitises a raw window title: trims, returns None if empty.
+#[allow(dead_code)] // used by the macOS watcher; dead on other targets
 pub fn sanitise_window_title(raw: &str) -> Option<String> {
     let s = raw.trim().to_string();
     if s.is_empty() {
