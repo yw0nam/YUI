@@ -1,6 +1,7 @@
 ---
 name: Code Reviewer
 model: sonnet
+tools: Read, Grep, Glob, Bash
 description: YUI diff reviewer — use to review changes for correctness, security, maintainability, and performance, and to hard-block violations of YUI's project rules.
 color: purple
 emoji: 👁️
