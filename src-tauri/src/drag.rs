@@ -112,6 +112,7 @@ pub fn get_monitors_info<R: Runtime>(app: AppHandle<R>) -> Result<Vec<MonitorInf
 ///
 /// `scale_factor` is the monitor's reported DPI multiplier (e.g., 2.0 for
 /// Retina displays). Returns `None` if `scale_factor` ≤ 0.
+#[allow(dead_code)]
 pub fn physical_to_logical(physical: i64, scale_factor: f64) -> Option<f64> {
     if scale_factor <= 0.0 {
         return None;
@@ -122,6 +123,7 @@ pub fn physical_to_logical(physical: i64, scale_factor: f64) -> Option<f64> {
 /// Convert a logical-pixel coordinate to a physical pixel coordinate.
 ///
 /// Returns `None` if `scale_factor` ≤ 0.
+#[allow(dead_code)]
 pub fn logical_to_physical(logical: f64, scale_factor: f64) -> Option<i64> {
     if scale_factor <= 0.0 {
         return None;
@@ -133,6 +135,7 @@ pub fn logical_to_physical(logical: f64, scale_factor: f64) -> Option<i64> {
 /// the monitor's logical work area `(wx, wy, ww, wh)`.
 ///
 /// All arguments are in **logical pixels**. Returns the clamped `(x, y)`.
+#[allow(dead_code, clippy::too_many_arguments)]
 pub fn clamp_to_work_area(
     x: f64,
     y: f64,
@@ -167,7 +170,7 @@ mod tests {
     }
 
     #[test]
-    fn physical_to_logical_1_5x_windows_hiDPI() {
+    fn physical_to_logical_1_5x_windows_hi_dpi() {
         let result = physical_to_logical(2400, 1.5).unwrap();
         assert!((result - 1600.0).abs() < 1e-9);
     }
@@ -244,8 +247,7 @@ mod tests {
 
     #[test]
     fn clamp_right_edge() {
-        let (cx, _) =
-            clamp_to_work_area(2400.0, 100.0, 400.0, 600.0, 0.0, 0.0, 2560.0, 1440.0);
+        let (cx, _) = clamp_to_work_area(2400.0, 100.0, 400.0, 600.0, 0.0, 0.0, 2560.0, 1440.0);
         assert!((cx - 2160.0).abs() < 1e-9);
     }
 
@@ -257,15 +259,13 @@ mod tests {
 
     #[test]
     fn clamp_bottom_edge() {
-        let (_, cy) =
-            clamp_to_work_area(100.0, 1000.0, 400.0, 600.0, 0.0, 0.0, 2560.0, 1440.0);
+        let (_, cy) = clamp_to_work_area(100.0, 1000.0, 400.0, 600.0, 0.0, 0.0, 2560.0, 1440.0);
         assert!((cy - 840.0).abs() < 1e-9);
     }
 
     #[test]
     fn clamp_respects_non_zero_work_origin() {
-        let (cx, cy) =
-            clamp_to_work_area(1800.0, 50.0, 400.0, 600.0, 1920.0, 0.0, 1920.0, 1080.0);
+        let (cx, cy) = clamp_to_work_area(1800.0, 50.0, 400.0, 600.0, 1920.0, 0.0, 1920.0, 1080.0);
         assert!((cx - 1920.0).abs() < 1e-9);
         assert!((cy - 50.0).abs() < 1e-9);
     }
