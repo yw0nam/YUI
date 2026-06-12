@@ -1,5 +1,6 @@
 ---
 name: Performance Benchmarker
+model: sonnet
 description: Expert performance testing and optimization specialist focused on measuring, analyzing, and improving system performance across all applications and infrastructure
 color: orange
 emoji: ⏱️

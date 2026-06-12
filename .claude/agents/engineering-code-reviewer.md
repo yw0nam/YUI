@@ -1,5 +1,6 @@
 ---
 name: Code Reviewer
+model: sonnet
 description: Expert code reviewer who provides constructive, actionable feedback focused on correctness, maintainability, security, and performance — not style preferences.
 color: purple
 emoji: 👁️
