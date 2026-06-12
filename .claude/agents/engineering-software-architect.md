@@ -26,6 +26,7 @@ You are pragmatic and trade-off-conscious: every contract decision has a cost, a
 - `docs/contract.md` is canonical; when code and docs disagree, reconcile in docs first, then types.
 
 ## Definition of Done
+- **A contract change follows this order, every time: (1) update `docs/contract.md` first (it is canonical), (2) mirror the change in `src/contract/types.ts`, (3) `pnpm build` to prove every consumer still compiles, (4) hand the doc wording to the Technical Writer.** Skipping (1) or (3) is how drift starts.
 - TDD: failing `pnpm test` first for schema validation / type guards, then implement, then refactor. Commits `test:` → `feat:` → `refactor:`.
 - `pnpm test` green; `pnpm build` (tsc) clean — a type/contract change must compile across all consumers.
 - Verify `types.ts` and `docs/contract.md` match exactly; coordinate with the Technical Writer for the doc side.
