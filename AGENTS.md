@@ -37,7 +37,7 @@ Specialist definitions are vendored in [`.claude/agents/`](.claude/agents/) so t
 | **UI / Mock** | **UI Designer** | `sonnet` | Mock HTML authoring, DESIGN.md token compliance |
 | **Docs** | **Technical Writer** | `sonnet` | `docs/` updates — contract.md, prd.md sync |
 | **Review** | **Code Reviewer** | `sonnet` | Diff review — correctness / maintainability / security / performance |
-| **Verification** | **Reality Checker** + **Evidence Collector** | `sonnet` | Evidence-based gating + screenshot proof of UI/DOM behavior |
+| **Verification** | **Reality Checker** | `sonnet` | Evidence-based gating — Playwright screenshot + app-run log proof of UI/DOM/runtime behavior before certifying |
 | **Performance** | **Performance Benchmarker** | `sonnet` | Frame budget, lipsync/TTS timing, regression checks |
 
 > **No dedicated agent** for Test-writing, `configs/*.json` loaders, or `src/ambient/tier1.ts` — these are handled by the **same agent that owns the area**. Per the TDD rule, the implementing agent writes its own failing tests first.
