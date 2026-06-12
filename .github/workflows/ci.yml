@@ -24,6 +24,61 @@ jobs:
       - run: pnpm build # tsc 타입체크 + vite build
       - run: pnpm test # vitest run
 
+  lint:
+    name: lint (biome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint # biome check (format + lint)
+
+  test-guard:
+    name: test-guard (tests accompany source)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so we can diff against the PR base
+      - name: Enforce that source changes ship tests
+        env:
+          TEST_GUARD_SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'skip-tests') && '1' || '' }}
+        run: bash scripts/ci/test-guard.sh "origin/${{ github.event.pull_request.base.ref }}"
+
+  pr-title:
+    name: pr-title (conventional + english)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Conventional-commit type set; PR titles become squash-merge commit subjects.
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+          # Tracker content is English: the subject must be printable ASCII.
+          subjectPattern: ^[\x20-\x7E]+$
+          subjectPatternError: |
+            The PR title subject must be written in English (printable ASCII).
+            GitHub tracker content is English-only (AGENTS.md).
+
   rust:
     name: rust (cargo test)
     runs-on: ubuntu-latest
@@ -39,7 +94,11 @@ jobs:
             libxdo-dev libssl-dev \
             libayatana-appindicator3-dev librsvg2-dev
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
