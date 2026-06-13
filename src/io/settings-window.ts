@@ -47,7 +47,7 @@ async function openTauriSettingsWindow(): Promise<void> {
         await existing.show();
         await existing.setFocus();
       } catch (err) {
-        log.warn("기존 설정 창 포커스 실패", err);
+        log.warn("settings_window_focus_failed", { error: String(err) });
       }
       return;
     }
@@ -62,9 +62,11 @@ async function openTauriSettingsWindow(): Promise<void> {
       decorations: true,
       transparent: false,
     });
-    win.once("tauri://error", (e) => log.error("설정 창 생성 오류", e));
+    win.once("tauri://error", (e) =>
+      log.error("settings_window_create_error", { error: String(e) }),
+    );
   } catch (err) {
-    log.error("설정 창 열기 실패", err);
+    log.error("settings_window_open_failed", { error: String(err) });
   }
 }
 
@@ -72,7 +74,7 @@ function openBrowserSettingsWindow(): void {
   try {
     window.open(`/${SETTINGS_URL}`, "yui-settings", "width=480,height=660");
   } catch (err) {
-    log.warn("브라우저 설정 창 열기 실패", err);
+    log.warn("settings_window_browser_open_failed", { error: String(err) });
   }
 }
 

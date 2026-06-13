@@ -179,7 +179,7 @@ pub fn frontmost_window_info(pid: i32) -> Option<WindowInfo> {
         CGWindowListCopyWindowInfo(K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY, K_CG_NULL_WINDOW_ID)
     };
     if windows.is_null() {
-        log::debug!("CGWindowListCopyWindowInfo returned null; skipping window info");
+        log::debug!("window_info_null skipped=true");
         return None;
     }
 
@@ -394,7 +394,7 @@ fn enumerate_windows() -> Vec<WindowRect> {
         CGWindowListCopyWindowInfo(K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY, K_CG_NULL_WINDOW_ID)
     };
     if windows.is_null() {
-        log::debug!("enumerate_windows: CGWindowListCopyWindowInfo returned null");
+        log::debug!("enumerate_windows_null skipped=true");
         return Vec::new();
     }
 
@@ -535,7 +535,7 @@ impl Drop for ProbeGuard {
 /// release signals. A later drag spawns normally once the prior probe finishes.
 pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
     let Some(guard) = ProbeGuard::try_acquire() else {
-        log::debug!("drop_release: probe already active, skipping duplicate spawn");
+        log::debug!("drop_release_probe_skipped reason=already_active");
         return;
     };
 
@@ -553,7 +553,7 @@ pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
             let mut saw_down = false;
             loop {
                 if start.elapsed() >= RELEASE_POLL_TIMEOUT {
-                    log::info!("drop_release: timeout, no release observed");
+                    log::info!("drop_release_timeout");
                     return;
                 }
                 let down = unsafe {
@@ -568,10 +568,10 @@ pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
                 thread::sleep(RELEASE_POLL_INTERVAL);
             }
 
-            log::info!("drop_release detected");
+            log::info!("drop_release_detected");
 
             if let Err(e) = app.emit(WINDOW_DROP_RELEASE_CHANNEL, ()) {
-                log::warn!("window_drop_release emit failed: {e}");
+                log::warn!("window_drop_release_emit_failed error={e}");
             }
         })
         .expect("failed to spawn yui_drop_release thread");
@@ -587,7 +587,7 @@ use objc2_foundation::NSString;
 pub fn frontmost_app() -> Option<(i32, String)> {
     let ws = NSWorkspace::sharedWorkspace();
     let Some(app): Option<Retained<NSRunningApplication>> = ws.frontmostApplication() else {
-        log::debug!("NSWorkspace frontmostApplication returned None; skipping active-app poll");
+        log::debug!("frontmost_app_none skipped=true");
         return None;
     };
     let name_ns: Retained<NSString> = app.localizedName()?;

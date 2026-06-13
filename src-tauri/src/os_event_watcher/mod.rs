@@ -90,7 +90,7 @@ pub fn sanitise_window_title(raw: &str) -> Option<String> {
 pub fn emit_os_event(app: &AppHandle, payload: OsEventPayload) -> tauri::Result<()> {
     let result = app.emit(OS_EVENT_CHANNEL, payload);
     if let Err(e) = &result {
-        log::warn!("os_event emit failed: {e}");
+        log::warn!("os_event_emit_failed error={e}");
     }
     result
 }

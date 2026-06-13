@@ -119,7 +119,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
         }),
       });
       if (!initRes.ok) {
-        log.warn("broker initialize failed", { status: initRes.status });
+        log.warn("initialize_failed", { status: initRes.status });
         return null;
       }
       const sessionId = initRes.headers.get("mcp-session-id") ?? undefined;
@@ -153,19 +153,19 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
             }),
           });
           if (!res.ok) {
-            log.warn("broker tool call failed", { tool: call.name, status: res.status });
+            log.warn("tool_call_failed", { tool: call.name, status: res.status });
             results.push(null);
             continue;
           }
           results.push(parseToolPayload(await res.text(), call.name));
         } catch (err) {
-          log.warn("broker tool call threw", { tool: call.name, err: String(err) });
+          log.warn("tool_call_threw", { tool: call.name, error: String(err) });
           results.push(null);
         }
       }
       return results;
     } catch (err) {
-      log.warn("broker rpc threw", { err: String(err) });
+      log.warn("rpc_threw", { error: String(err) });
       return null;
     }
   }
@@ -174,28 +174,28 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   function parseToolPayload(text: string, tool: string): unknown | null {
     const env = parseSse(text);
     if (!env || typeof env !== "object") {
-      log.warn("broker tool reply unparseable", { tool });
+      log.warn("tool_reply_unparseable", { tool });
       return null;
     }
     const result = (env as { result?: unknown }).result;
     if (!result || typeof result !== "object") {
-      log.warn("broker tool reply missing result", { tool });
+      log.warn("tool_reply_missing_result", { tool });
       return null;
     }
     if ((result as { isError?: boolean }).isError) {
-      log.warn("broker tool reply isError", { tool });
+      log.warn("tool_reply_is_error", { tool });
       return null;
     }
     const content = (result as { content?: Array<{ text?: string }> }).content;
     const raw = content?.[0]?.text;
     if (typeof raw !== "string") {
-      log.warn("broker tool reply missing content text", { tool });
+      log.warn("tool_reply_missing_content", { tool });
       return null;
     }
     try {
       return JSON.parse(raw);
     } catch {
-      log.warn("broker tool reply content not JSON", { tool });
+      log.warn("tool_reply_content_not_json", { tool });
       return null;
     }
   }
@@ -211,7 +211,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
       (p.emotion_text_mode !== "free" && p.emotion_text_mode !== "enum") ||
       typeof p.version !== "number"
     ) {
-      log.warn("broker get_ids payload shape invalid");
+      log.warn("get_ids_payload_invalid");
       return null;
     }
     return {
@@ -255,7 +255,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
     if (results) {
       results.forEach((r, i) => {
         const ok = (r as { ok?: boolean } | null)?.ok;
-        if (ok !== true) log.warn("broker update not ok", { tool: updates[i].name });
+        if (ok !== true) log.warn("update_not_ok", { tool: updates[i].name });
         const v = (r as { version?: number } | null)?.version;
         if (typeof v === "number") lastObservedVersion = v;
       });
@@ -266,7 +266,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
     if (!lastPayload) return;
     const vocab = await getIds();
     if (!vocab) {
-      log.warn("broker poll: unreachable, will retry");
+      log.warn("poll_unreachable", { retry: true });
       return;
     }
     const regressed = lastObservedVersion !== null && vocab.version < lastObservedVersion;
@@ -276,7 +276,8 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
       vocab.emotion_text_mode !== lastPayload.emotionText.mode;
     lastObservedVersion = vocab.version;
     if (regressed || drifted) {
-      log.warn("broker restart inferred — re-publishing", {
+      log.warn("restart_inferred", {
+        republish: true,
         version: vocab.version,
         regressed,
         drifted,
@@ -331,7 +332,7 @@ export function deriveBrokerPayload(
     if (irodoriTable) {
       emotionText = { mode: "enum", table: irodoriTable };
     } else {
-      log.warn("irodori provider without emotion_text table — falling back to free");
+      log.warn("emotion_text_table_missing", { fallback: "free" });
       emotionText = { mode: "free", table: null };
     }
   } else {

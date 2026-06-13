@@ -31,11 +31,24 @@
       },
       "suspicious": {
         "noExplicitAny": "off",
-        "noAssignInExpressions": "off"
+        "noAssignInExpressions": "off",
+        "noConsole": "error"
       },
       "complexity": {
         "noImportantStyles": "off"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/logger.ts", "scripts/**", "src/**/*.live.test.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    }
+  ]
 }

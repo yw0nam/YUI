@@ -71,14 +71,14 @@ export function createOsContext(opts?: { listen?: OsEventListen }): OsContext {
     try {
       listen = opts?.listen ?? (await resolveTauriListen());
     } catch (err) {
-      log.debug("listen resolve failed — degrade:", err);
+      log.debug("listen_resolve_failed", { degrade: true, error: String(err) });
       return;
     }
     if (!listen) return;
     try {
       unlisten = await listen(OS_EVENT_CHANNEL, ({ payload }) => onEvent(payload));
     } catch (err) {
-      log.debug("subscribe failed — degrade:", err);
+      log.debug("subscribe_failed", { degrade: true, error: String(err) });
     }
   }
 

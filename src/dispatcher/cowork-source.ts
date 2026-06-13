@@ -17,7 +17,7 @@ import { OS_EVENT_CHANNEL, resolveTauriListen } from "../io/tauri-listen";
 import { createLogger } from "../logger";
 import type { BusEnvelope, EventBus } from "./event-bus";
 
-const log = createLogger("cowork_source");
+const log = createLogger("cowork-source");
 
 export interface CoworkSourceDeps {
   bus: Pick<EventBus, "push">;
@@ -83,14 +83,14 @@ export function createCoworkSource(deps: CoworkSourceDeps): CoworkSource {
     try {
       listen = deps.listen ?? (await resolveTauriListen());
     } catch (err) {
-      log.debug("listen resolve failed — degrade:", err);
+      log.debug("listen_resolve_failed", { degrade: true, error: String(err) });
       return;
     }
     if (!listen) return;
     try {
       unlisten = await listen(OS_EVENT_CHANNEL, ({ payload }) => onTick(payload));
     } catch (err) {
-      log.debug("subscribe failed — degrade:", err);
+      log.debug("subscribe_failed", { degrade: true, error: String(err) });
     }
   }
 

@@ -405,7 +405,7 @@ async function main(): Promise<void> {
     motionsRegistry = (await motionsRes.json()) as MotionRegistry;
     emotionsRegistry = (await emotionRes.json()) as EmotionRegistry;
   } catch (err) {
-    log.error("registry load failed:", err);
+    log.error("registry_load_failed", { error: String(err) });
     viewportStatus.textContent = "registry load failed";
     return;
   }
@@ -534,7 +534,7 @@ async function main(): Promise<void> {
     setActiveRow("idle");
     updateStatusBar();
   } catch (err) {
-    log.error("VRM load failed:", err);
+    log.error("vrm_load_failed", { error: String(err) });
   }
 }
 

@@ -119,7 +119,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
         body: form,
       });
       if (!res.ok) {
-        log.warn(`STT request failed: HTTP ${res.status}`);
+        log.warn("stt_request_failed", { status: res.status });
         onState?.("error", `HTTP ${res.status}`);
         return;
       }
@@ -127,7 +127,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
       onVoiceSegment({ text: data.text });
       onState?.("fired");
     } catch (err) {
-      log.warn("STT error:", err);
+      log.warn("stt_error", { error: String(err) });
       const detail = err instanceof Error ? err.message : "STT request failed";
       onState?.("error", detail);
     }
@@ -148,7 +148,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
         await vad.start();
       } catch (err) {
         // getUserMedia / VAD asset load can fail (e.g. denied mic permission); surface it instead of throwing.
-        log.warn("start failed:", err);
+        log.warn("start_failed", { error: String(err) });
         vad = null;
         onState?.("error", describeStartError(err));
       } finally {

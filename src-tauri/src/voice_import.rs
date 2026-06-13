@@ -62,7 +62,7 @@ fn copy_into_references(
 
     std::fs::create_dir_all(references_dir).map_err(|e| {
         log::error!(
-            "create references dir failed at {}: {e}",
+            "create_references_dir_failed dest={} error={e}",
             references_dir.display()
         );
         "storage unavailable".to_string()
@@ -79,13 +79,16 @@ fn copy_into_references(
     let dir = references_dir.join(&id);
     ensure_within(references_dir, &dir)?;
     std::fs::create_dir_all(&dir).map_err(|e| {
-        log::error!("create references dir failed at {}: {e}", dir.display());
+        log::error!(
+            "create_references_dir_failed dest={} error={e}",
+            dir.display()
+        );
         "storage unavailable".to_string()
     })?;
 
     let dest = dir.join(format!("clip.{ext_lower}"));
     std::fs::copy(&src, &dest).map_err(|e| {
-        log::error!("copy to {} failed: {e}", dest.display());
+        log::error!("copy_failed dest={} error={e}", dest.display());
         "import failed".to_string()
     })?;
 
@@ -104,7 +107,7 @@ fn remove_user_voice_at(references_dir: &Path, id: &str) -> Result<(), String> {
     ensure_within(references_dir, &dir)?;
     if dir.exists() {
         std::fs::remove_dir_all(&dir).map_err(|e| {
-            log::error!("remove {} failed: {e}", dir.display());
+            log::error!("remove_failed dest={} error={e}", dir.display());
             "remove failed".to_string()
         })?;
     }
@@ -125,7 +128,7 @@ pub fn import_voice_file(app: AppHandle, src_path: String) -> Result<ImportedVoi
         .path()
         .app_data_dir()
         .map_err(|e| {
-            log::error!("app_data_dir unavailable: {e}");
+            log::error!("app_data_dir_unavailable error={e}");
             "storage unavailable".to_string()
         })?
         .join("references");
@@ -140,7 +143,7 @@ pub fn remove_user_voice(app: AppHandle, id: String) -> Result<(), String> {
         .path()
         .app_data_dir()
         .map_err(|e| {
-            log::error!("app_data_dir unavailable: {e}");
+            log::error!("app_data_dir_unavailable error={e}");
             "storage unavailable".to_string()
         })?
         .join("references");

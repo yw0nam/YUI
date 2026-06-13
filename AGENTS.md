@@ -55,6 +55,7 @@ Mandatory rules have an enforcement point — the gate, not memory, is the sourc
 | New/changed behavior ships a test | `test-guard` CI job (`skip-tests` label bypass) |
 | Conventional, English PR titles | `pr-title` CI job |
 | Format + lint | `lint` CI job (`pnpm lint`, Biome) |
+| No raw `console.*` in `src/` | `lint` CI job (Biome `noConsole`) |
 | Rust format + clippy | `rust` CI job (`cargo fmt --check`, `cargo clippy -D warnings`) |
 | Runtime verification of UI/DOM/runtime change | PR template Runtime-evidence section |
 | Docs are current-state only | `PostToolUse(Write\|Edit)` hook (change-narrative vocabulary block) |
@@ -144,6 +145,7 @@ Chat and STT use the **OpenAI-compatible API**; TTS depends on `tts_provider` (i
 - **`docs/prd.md`** — Current feature reference + backend dependencies
 - **`docs/event-dispatcher.md`** — Dispatcher component design
 - **`docs/concept.md`** — Big picture + non-goals
+- **`docs/logging.md`** — Logging convention: message format, namespaces, level semantics (TS + Rust)
 
 ## Build / Run
 

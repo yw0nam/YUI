@@ -998,7 +998,7 @@ export function createQuickControls({
     vrmRenamingId = null;
     // 빈/공백 label은 store가 거부한다(기존 라벨 유지). 변경 시 store 구독이 재그림.
     vrmSelection.renameUserOption(id, label);
-    log.info("VRM 이름 변경", { id });
+    log.info("vrm_rename", { id });
     renderVrms();
   }
 
@@ -1006,12 +1006,12 @@ export function createQuickControls({
   // store에서 빼고 active였으면 fallback으로 스왑한다.
   async function removeUserOption(id: string): Promise<void> {
     const wasActive = vrmSelection.getActiveId() === id;
-    log.info("VRM 삭제", { id });
+    log.info("vrm_delete", { id });
     try {
       await removeUserVrm(id);
     } catch (err) {
       // 파일 삭제 실패 — store 제거를 커밋하지 않고 행을 그대로 둔다(disk와 일치 유지).
-      log.error("VRM 파일 삭제 실패", { id, error: String(err) });
+      log.error("vrm_delete_failed", { id, error: String(err) });
       return;
     }
     vrmSelection.removeUserOption(id); // active였으면 default로 폴백 + 통지
@@ -1024,7 +1024,7 @@ export function createQuickControls({
     try {
       await swapVrm(vrmSelection.getActive());
     } catch (err) {
-      log.error("VRM 폴백 스왑 실패", { error: String(err) });
+      log.error("vrm_fallback_swap_failed", { error: String(err) });
       renderVrms(); // 스왑 실패 시 목록을 실제 상태에 맞춰 다시 그린다.
     }
   }
@@ -1044,7 +1044,7 @@ export function createQuickControls({
       await importVrm();
     } catch (err) {
       setImportError(true);
-      log.error("VRM 임포트 실패", { error: String(err) });
+      log.error("vrm_import_failed", { error: String(err) });
     } finally {
       vrmImporting = false;
       renderVrms();
@@ -1085,11 +1085,11 @@ export function createQuickControls({
     try {
       await swapVrm(option);
       vrmRovedId = option.id; // 커밋된 행으로 roving tabindex를 잇는다
-      log.info("VRM 스왑", { id: option.id });
+      log.info("vrm_swap", { id: option.id });
       // 성공: swapVrm이 store를 커밋했고 구독이 active 행을 옮긴다. 잠금 해제 후 재그림.
     } catch (err) {
       vrmErrorId = option.id;
-      log.error("VRM 스왑 실패", { id: option.id, error: String(err) });
+      log.error("vrm_swap_failed", { id: option.id, error: String(err) });
       // 실패: 선택은 그대로(revert는 store가 바뀌지 않아 자동). 오류 행 + 인라인 안내.
     } finally {
       vrmSwapping = null;
@@ -1415,7 +1415,7 @@ export function createQuickControls({
     spkRenamingId = null;
     // 빈/공백 label은 store가 거부한다(기존 라벨 유지). 변경 시 store 구독이 재그림.
     speakerSelection.renameUserVoice(id, label);
-    log.info("화자 이름 변경", { id });
+    log.info("voice_rename", { id });
     renderSpeakers();
   }
 
@@ -1423,12 +1423,12 @@ export function createQuickControls({
   // 422 방지), 그 다음에만 store에서 빼고 active였으면 fallback으로 스왑한다.
   async function removeUserSpeaker(id: string): Promise<void> {
     const wasActive = speakerSelection.getActiveId() === id;
-    log.info("화자 삭제", { id });
+    log.info("voice_delete", { id });
     try {
       await removeUserVoice(id);
     } catch (err) {
       // 파일 삭제 실패 — store 제거를 커밋하지 않고 행을 그대로 둔다(disk와 일치 유지).
-      log.error("화자 파일 삭제 실패", { id, error: String(err) });
+      log.error("voice_delete_failed", { id, error: String(err) });
       return;
     }
     speakerSelection.removeUserVoice(id); // active였으면 default로 폴백 + 통지
@@ -1441,7 +1441,7 @@ export function createQuickControls({
     try {
       await swapSpeaker(speakerSelection.getActive());
     } catch (err) {
-      log.error("화자 폴백 스왑 실패", { error: String(err) });
+      log.error("voice_fallback_swap_failed", { error: String(err) });
       renderSpeakers(); // 스왑 실패 시 목록을 실제 상태에 맞춰 다시 그린다.
     }
   }
@@ -1461,7 +1461,7 @@ export function createQuickControls({
       await importVoice();
     } catch (err) {
       setSpkImportError(true);
-      log.error("화자 임포트 실패", { error: String(err) });
+      log.error("voice_import_failed", { error: String(err) });
     } finally {
       spkImporting = false;
       renderSpeakers();
@@ -1501,10 +1501,10 @@ export function createQuickControls({
     try {
       await swapSpeaker(option);
       spkRovedId = option.id; // 커밋된 행으로 roving tabindex를 잇는다
-      log.info("화자 스왑", { id: option.id });
+      log.info("voice_swap", { id: option.id });
     } catch (err) {
       spkErrorId = option.id;
-      log.error("화자 스왑 실패", { id: option.id, error: String(err) });
+      log.error("voice_swap_failed", { id: option.id, error: String(err) });
     } finally {
       spkSwapping = null;
       spksEl.removeAttribute("aria-busy");
@@ -1524,7 +1524,7 @@ export function createQuickControls({
       await refreshSpeaker(option);
       if (disposed) return;
       spkRefreshState.set(option.id, "done");
-      log.info("참조 음성 갱신", { id: option.id });
+      log.info("reference_voice_update", { id: option.id });
       renderSpeakers();
       // 일정 시간 후 idle로 되돌린다(상태 삭제 + 재그림).
       spkRefreshTimers.set(
@@ -1538,7 +1538,7 @@ export function createQuickControls({
     } catch (err) {
       if (disposed) return;
       spkRefreshState.set(option.id, "error");
-      log.error("참조 음성 갱신 실패", { id: option.id, error: String(err) });
+      log.error("reference_voice_update_failed", { id: option.id, error: String(err) });
       renderSpeakers();
     }
   }
@@ -1770,7 +1770,7 @@ export function createQuickControls({
   function handleSwitchClick(): void {
     const current = settings.get().enabled;
     settings.setEnabled(!current);
-    log.info("스크린샷 첨부", { enabled: !current });
+    log.info("screenshot_attach_toggle", { enabled: !current });
     if (!current && !monitorsLoaded) {
       void loadMonitors();
     }
@@ -1779,12 +1779,12 @@ export function createQuickControls({
   function handleProactiveSwitchClick(): void {
     const current = proactiveSettings.get().enabled;
     proactiveSettings.setEnabled(!current);
-    log.info("주도적 반응", { enabled: !current });
+    log.info("proactive_toggle", { enabled: !current });
   }
 
   function handleVoiceSwitchClick(): void {
     const current = voiceStatus.get().state !== "idle";
-    log.info("음성 입력 토글", { on: !current });
+    log.info("voice_input_toggle", { on: !current });
     voiceStatus.set(current ? "idle" : "listening");
   }
 
@@ -1826,7 +1826,7 @@ export function createQuickControls({
     const clamped = Math.min(REASONING_EFFORTS.length - 1, Math.max(0, index));
     const effort = REASONING_EFFORTS[clamped];
     agentSettings.setReasoningEffort(effort);
-    log.info("추론 강도 변경", { effort });
+    log.info("reasoning_effort_change", { effort });
     // store 구독으로 reflectAgent가 시각/aria를 갱신한다.
     if (focus) segButtons[clamped]?.focus();
   }
@@ -1861,7 +1861,7 @@ export function createQuickControls({
     const clamped = Math.min(VOICE_ENGINES.length - 1, Math.max(0, index));
     const provider = VOICE_ENGINES[clamped];
     endpointsSettings.set({ tts_provider: provider });
-    log.info("음성 엔진 변경", { provider });
+    log.info("voice_engine_change", { provider });
     // store 구독(unsubscribeEndpoints)이 reflectVoiceEngine으로 시각/aria/화자 비활성을 갱신한다.
     if (focus) voiceSegButtons[clamped]?.focus();
   }
@@ -1894,7 +1894,7 @@ export function createQuickControls({
 
   function handleInstructionsInput(): void {
     agentSettings.setInstructions(instructionsEl.value);
-    log.info("지침 변경", { length: instructionsEl.value.length });
+    log.info("instructions_change", { length: instructionsEl.value.length });
   }
 
   // blur 시점에 입력 중 보류된 원격 변경을 반영한다.
@@ -1905,7 +1905,7 @@ export function createQuickControls({
   function handleResetInstructions(): void {
     agentSettings.setInstructions("");
     instructionsEl.value = "";
-    log.info("지침 초기화");
+    log.info("instructions_reset");
   }
 
   // ── 엔드포인트 섹션 ──
@@ -1932,7 +1932,7 @@ export function createQuickControls({
       input.value = "";
       validateEndpointInput(key, input);
     }
-    log.info("엔드포인트 초기화");
+    log.info("endpoints_reset");
   }
 
   // ── chat API 키 필드 ──
@@ -1973,7 +1973,7 @@ export function createQuickControls({
     chatKeyDirty = false;
     chatKeyInput.value = "";
     chatKeySettings.clear();
-    log.info("채팅 API 키 지움");
+    log.info("chat_api_key_clear");
   }
 
   // ── 세션 섹션: 새 대화 시작(reset) ──
@@ -1992,7 +1992,7 @@ export function createQuickControls({
     sessionStore?.clear();
     sessionDiagnostics?.clear();
     hideSessionConfirm();
-    log.info("세션 초기화");
+    log.info("session_reset");
   }
 
   // ── 게인 슬라이더 ──
@@ -2009,7 +2009,7 @@ export function createQuickControls({
       onGainPreviewEnd();
       gainPreviewing = false;
     }
-    log.info("입 움직임 변경", { gain: parseFloat(gainSlider.value) });
+    log.info("mouth_gain_change", { gain: parseFloat(gainSlider.value) });
   }
 
   // ── 침묵 기준(VAD) 슬라이더 ──
@@ -2020,7 +2020,7 @@ export function createQuickControls({
   }
 
   function handleVadEnd(): void {
-    log.info("침묵 기준 변경", { silenceMs: parseInt(vadSlider.value, 10) });
+    log.info("vad_silence_change", { silenceMs: parseInt(vadSlider.value, 10) });
   }
 
   // ── 탭 전환 ──

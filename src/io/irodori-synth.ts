@@ -120,7 +120,7 @@ export function createIrodoriSynth(opts: IrodoriSynthOptions): TtsSynth {
     // 503 overloaded: Retry-After를 한 번만 존중해 재시도(transient drop 방지).
     if (res.status === 503) {
       const waitMs = retryAfterMs(res.headers.get("Retry-After"));
-      log.warn("synth 503 overloaded — retrying once", { wait_ms: waitMs });
+      log.warn("synth_overloaded", { status: 503, retry: true, wait_ms: waitMs });
       await sleep(waitMs, signal);
       res = await fetchImpl(url, { method: "POST", body: buildForm(input), signal });
     }
