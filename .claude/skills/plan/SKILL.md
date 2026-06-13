@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Lock architecture, scope, and a test plan before delegating implementation. Use after /spec (or whenever a task is confirmed but the how is unsettled) — runs a scope challenge, an engineering lens, product/design lenses when they apply, and records the decision in docs/.
+description: Lock architecture, scope, and a test plan before delegating implementation. Use after /spec (or whenever a task is confirmed but the how is unsettled) — the drafter runs a scope challenge and an engineering lens, then an independent reviewer sub-agent adversarially reviews the plan before any code.
 license: MIT
 ---
 
@@ -13,6 +13,13 @@ executes. Runs before delegation, not after.
 **Why this exists:** `/spec` answers *what & why*. `/plan` answers *how* — and
 catches the over-built design, the structural-and-behavioral change bundled into
 one diff, and the missing test plan before any code is written.
+
+**Two roles.** The **drafter** (you) maps the how. An **independent reviewer** (a
+different sub-agent than the drafter and than the implementer) adversarially checks
+it before build. The drafter never approves their own plan — that self-review is the
+anti-pattern this gate exists to break.
+
+# Drafter
 
 ## Step 0 — Scope challenge (always, first)
 Answer before any design work:
@@ -42,11 +49,32 @@ Defer to the existing UI workflow: read `src/ui/`, `DESIGN.md`, `PRODUCT.md`,
 then run `/impeccable`. Propose structure in text → mock HTML → implement. Do not
 re-invent this here.
 
-## Record the decision (mandatory)
-Before delegating, record the chosen design in `docs/` (declarative, current-state —
-no change-narrative). A design that isn't in docs isn't decided. If the decision
-revises an existing doc, update it in place. This satisfies the AGENTS.md rule:
-*if it's not in docs, record the decision in docs before implementing.*
+# Reviewer
+
+## Independent plan-review (mandatory — a different agent)
+The drafter does not approve their own plan. Hand the drafted plan to an
+**independent reviewer sub-agent** — not the drafter, not the implementer. Default
+reviewer: **Software Architect** (architecture + contract). Scale up when warranted:
+add a **product** review (against `PRODUCT.md`) when scope or value is unsettled,
+and a **design** review (`/impeccable`) for UI. A small, well-scoped change gets one
+eng-review pass; a large or risky one gets the full set.
+
+The reviewer is adversarial and returns:
+- **Scope** — is the cut minimal? Does Step 0 hold, or is something over/under-built?
+- **Architecture** — is the data flow sound? Any seam, race, or ordering missed?
+- **Edge cases** — what is not enumerated?
+- **Test plan** — does it cover the behavior and the edges, failing-first?
+- **Invariants** — firing ≠ judgment, no `should_speak`, no inline tags, no hardcoding.
+- **Verdict** — `ready` or `revise`, plus a list of **unresolved decisions**.
+
+The drafter revises until the verdict is `ready`. Unresolved decisions the drafter
+cannot settle from the code go to the user — never silently resolved.
+
+## Record the decision
+YUI docs are current-state only; the *plan* (future work) lives in the GitHub issue.
+Record the chosen design and the reviewer's verdict as a comment on the issue. The
+`docs/` update that reflects the new behavior lands in the implementation PR,
+matching the code — not ahead of it.
 
 ## Exit gate (before delegating)
 Do not hand off until:
@@ -55,7 +83,8 @@ Do not hand off until:
 - [ ] Contract consumers traced (if the contract changes).
 - [ ] Edge cases enumerated.
 - [ ] Test plan written (failing-tests-first list).
-- [ ] Decision recorded in `docs/`.
+- [ ] Independent plan-review returned `ready`; unresolved decisions surfaced to the user.
+- [ ] Decision + verdict recorded on the issue.
 
 ## Hand-off
 Delegate to the owning sub-agent (see AGENTS.md roster) with the test plan. The
