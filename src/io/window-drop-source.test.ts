@@ -240,9 +240,9 @@ describe("window-drop-source — lifecycle + degrade", () => {
 // ── Occlusion-aware perch detach poll (#143) ────────────────────────────────
 //
 // After a successful drop arms the poll, ~1.4 Hz it re-checks whether the
-// perched window (tracked by windowNumber) still sits under the seat and is
-// topmost. The held-perch test is point-in-rect (NOT the U-band catch zone).
-// Loss fires user.window_sit_exit through the bus and disarms. Geometry seam:
+// armed window (tracked by windowNumber) detached: gone from the list, covered
+// by an earlier z-order window, or moved more than MOVE_TH from its arm-time
+// top-left. Loss fires user.window_sit_exit through the bus and disarms. Geometry seam:
 // seatPx (40,30) · pos (520,740) · scale 2 → seatGlobal (300,400), which is the
 // top-left corner of the default win() — so the default window contains the seat.
 
@@ -676,8 +676,7 @@ describe("window-drop-source — arm-baseline detach policy (#191)", () => {
     // Seat lands at (300, 400); armed top y=412 sits 12px below it, so the seat
     // is parked above the edge (the #191 condition the strict hold test broke on).
     const armed = win({ name: "Armed", windowNumber: 42, y: 412 });
-    const live = { rect: armed as WindowRect };
-    const invoke = vi.fn(async () => [live.rect]);
+    const invoke = vi.fn(async () => [armed]);
     const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
     const { listen, fire } = makeListen();
     const source = createWindowDropSource({
@@ -690,7 +689,8 @@ describe("window-drop-source — arm-baseline detach policy (#191)", () => {
     await source.start();
     fire({ point: { x: 0, y: 0 } });
     await settleRelease();
-    return { source, invoke, live, armed };
+    expect(pushed.at(-1)?.event_name).toBe("user.window_sit_drop");
+    return { source, invoke, armed };
   }
 
   it("a seat parked above the armed window's top edge HOLDS across many ticks (#191 regression)", async () => {
