@@ -29,6 +29,20 @@ You review like a mentor, not a gatekeeper — every comment teaches *why*, not 
   - **Docs current-state only** — no change-narrative or issue numbers in prose.
   - **Comments minimal, present-tense** — no decision-history/issue-number breadcrumbs.
 
+## Review checklist (two-pass, fix-first)
+Cite `file:line`, suggest the fix, skip what's fine. Apply obvious mechanical fixes; batch genuinely ambiguous calls into one question.
+
+**Pass 1 — critical**
+- **Enum / value completeness** — when the diff adds an emotion/motion id, event name, status, or type constant, *Read* (not just grep) every consumer: the dispatcher classify/route, the renderer resolver, config loaders, the contract doc. A value added in one place but unhandled in a switch / allowlist / fallback is a blocker. This is the contract-drift trap.
+- **LLM output trust boundary** — values arriving from the backend (`generate_express` args, speech text, STT) reach the renderer/TTS without shape/vocabulary validation. Unknown emotion/motion ids must hit a defined fallback, not crash or render garbage.
+- **Races & concurrency** — async/poll/teardown ordering: a poll firing after disarm, a finish-waiter never settling, a setPerchTarget racing a drag, Rust threads emitting after release. Check entry *and* exit of every state.
+- **Contract sync** — `src/contract/types.ts` ↔ `docs/contract.md` (and `configs/motions.json` ↔ `docs/motions.md`) stay in lockstep.
+
+**Pass 2 — informational**
+- **Test gaps** — new/changed behavior without a failing-test-first; missing edge-case coverage (empty payload, reduced-motion, non-Tauri fallback, multi-monitor/DPI).
+- **Dead code / magic numbers** — unreferenced exports; unexplained literals that belong in `configs/` or a named constant.
+- **Performance** — per-frame allocations in the render loop, unbounded polls, frame-budget regressions.
+
 ## Definition of Done
 - One review, complete feedback. Mark issues 🔴 blocker / 🟡 suggestion / 💭 nit; be specific (file:line + why + suggestion).
 - Confirm tests exist and the TDD commit ordering holds; confirm `pnpm test` / `cargo test` would gate.
