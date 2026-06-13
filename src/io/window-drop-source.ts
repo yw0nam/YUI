@@ -16,11 +16,13 @@
  *   5. hit → user.window_sit_drop { target_window_rect, edge_local_ypx } + arm
  *      the poll on target.windowNumber; miss → user.window_sit_exit.
  *
- * Once armed, the poll re-checks ~1.4 Hz whether the perched window is still
- * under the seat and topmost. The held-perch test is point-in-rect (NOT the
- * U-band catch zone — that generosity is for the drop decision only). Loss
- * fires user.window_sit_exit through the bus and disarms. The poll never calls
- * setPerchTarget directly — it preserves the bus→dispatcher→renderer path.
+ * Once armed, the poll re-checks ~1.4 Hz whether the perched window detached.
+ * The held-perch test is arm-baseline delta: a perch is lost when the armed
+ * window is gone from the list, is covered by an earlier z-order window, or has
+ * moved more than MOVE_TH from its arm-time top-left. A seat parked above the
+ * window's top edge (animation bob) yields zero displacement → no false detach.
+ * Loss fires user.window_sit_exit through the bus and disarms. The poll never
+ * calls setPerchTarget directly — it preserves the bus→dispatcher→renderer path.
  *
  * Tauri deps (invoke / getWindow / listen) are injected so the module is unit-
  * testable without the Tauri runtime. Never throws to the caller — failures
@@ -40,8 +42,10 @@ const RELEASE_EVENT = "window_drop_release";
 
 /** Poll cadence — ~1.4 Hz keeps detach latency under ~2 ticks (≈1.4 s). */
 const DEFAULT_POLL_MS = 700;
-/** Consecutive lost ticks required for an *ambiguous* loss (covered / not-containing). */
+/** Consecutive lost ticks required for an *ambiguous* loss (covered / moved). */
 const AMBIGUOUS_LOST_TICKS = 2;
+/** Px threshold below which armed-window movement is treated as jitter, not a move. */
+const MOVE_TH = 12;
 
 /** Live perch probe surface the producer needs from the renderer. */
 export interface PerchProbeSource {
@@ -108,6 +112,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
 
   // ── Occlusion poll state ──
   let armedWindowNumber: number | null = null;
+  let armedRect: { x: number; y: number } | null = null;
   let pollTimer: ReturnType<typeof setInterval> | null = null;
   let lostStreak = 0;
   // Bumped on every (re)arm; a tick captures it before awaiting and discards a
@@ -136,14 +141,22 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   function disarm(): void {
     stopPoll();
     armedWindowNumber = null;
+    armedRect = null;
     lostStreak = 0;
   }
 
-  function arm(windowNumber: number): void {
+  function arm(windowNumber: number, armRect: { x: number; y: number }, charHpx: number): void {
     armedWindowNumber = windowNumber;
+    armedRect = { x: armRect.x, y: armRect.y };
     lostStreak = 0;
     stopPoll();
     pollGen++;
+    log.debug("perch.arm", {
+      armedWindowNumber,
+      armX: Math.round(armRect.x),
+      armY: Math.round(armRect.y),
+      charHpx: Math.round(charHpx),
+    });
     pollTimer = setIntervalImpl(() => {
       void tick().catch((err) =>
         log.warn("perch_poll_tick_failed", { degrade: true, error: String(err) }),
@@ -181,25 +194,43 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       return;
     }
 
-    let lost: boolean;
-    let ambiguous = false;
+    let reason: "gone" | "covered" | "moved" | null = null;
+    let dx = 0;
+    let dy = 0;
+    let covering = false;
+    const seat = probe ? projectSeat(probe, pos, scale) : null;
+    const armedIdx = windows.findIndex((w) => w.windowNumber === armedWindowNumber);
     if (!probe) {
-      lost = true;
-    } else {
-      const seat = projectSeat(probe, pos, scale);
-      const armedIdx = windows.findIndex((w) => w.windowNumber === armedWindowNumber);
+      // No live probe → treat as gone (unambiguous): the seat is unknowable.
+      reason = "gone";
+    } else if (armedIdx < 0) {
+      reason = "gone";
+    } else if (seat) {
       // A window earlier in the front-to-back list (above the armed one) covers the seat.
-      const covered = windows.some((w, i) => i < armedIdx && containsSeat(w, seat));
-      const stillUnder = armedIdx >= 0 && containsSeat(windows[armedIdx], seat);
-      lost = armedIdx < 0 || !stillUnder || covered;
-      // Unambiguous: the armed window is gone (moved/closed/minimized). Ambiguous
-      // (covered or not-containing) rides out the debounce.
-      ambiguous = armedIdx >= 0;
+      covering = windows.some((w, i) => i < armedIdx && containsSeat(w, seat));
+      const w = windows[armedIdx];
+      dx = armedRect ? w.x - armedRect.x : 0;
+      dy = armedRect ? w.y - armedRect.y : 0;
+      const moved = armedRect != null && (Math.abs(dx) > MOVE_TH || Math.abs(dy) > MOVE_TH);
+      if (covering) reason = "covered";
+      else if (moved) reason = "moved";
     }
 
-    if (lost) {
+    if (reason) {
+      log.debug("perch.lost", {
+        armedWindowNumber,
+        armedIdx,
+        reason,
+        covering,
+        seatY: seat ? Math.round(seat.y) : null,
+        winY: armedIdx >= 0 ? Math.round(windows[armedIdx].y) : null,
+        armY: armedRect ? Math.round(armedRect.y) : null,
+        dx: Math.round(dx),
+        dy: Math.round(dy),
+      });
       lostStreak++;
-      const need = ambiguous ? AMBIGUOUS_LOST_TICKS : 1;
+      // gone is unambiguous (1 tick); covered/moved ride out the debounce.
+      const need = reason === "gone" ? 1 : AMBIGUOUS_LOST_TICKS;
       if (lostStreak >= need) pushExit();
     } else {
       lostStreak = 0;
@@ -240,7 +271,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       dnd_override: true,
       payload: { target_window_rect: target, edge_local_ypx: edgeLocalYpx },
     });
-    arm(target.windowNumber);
+    arm(target.windowNumber, { x: target.x, y: target.y }, probe.charHpx);
   }
 
   return {
