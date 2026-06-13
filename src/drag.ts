@@ -2,12 +2,13 @@
  * Drag + multi-monitor / DPI glue.
  *
  * # What this module does
- * - `initDrag(el)` — attaches a `pointerdown` listener to the given EventTarget
- *   (typically `.yui-stage`). On primary left-button press:
- *     1. Invokes the Rust `drag_window` command via Tauri IPC — the OS takes
- *        over and moves the window natively, no JS position tracking needed.
- *     2. Fires a `__yui_gesture_stub` CustomEvent on the element — the gesture
- *        seam for the dispatcher to hook without modifying drag logic.
+ * - `initDrag(el, opts)` — attaches a threshold gesture detector to the given
+ *   EventTarget (typically `.yui-stage`). On primary left-button press it records
+ *   the start point and waits: only once a `pointermove` crosses
+ *   `DRAG_THRESHOLD_PX` does it fire `opts.onDragStart` (once) and invoke the Rust
+ *   `drag_window` command via Tauri IPC — the OS then owns the pointer and moves
+ *   the window natively. A sub-threshold press-release is a click and fires
+ *   nothing.
  *   Installs an `onScaleChanged` listener that logs DPI changes when the window
  *   moves across monitors, keeping the seam open for re-centering / UI
  *   adjustment at a higher DPI.
@@ -35,6 +36,12 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createLogger } from "./logger";
 
 const log = createLogger("drag");
+
+/**
+ * Pointer travel (CSS/logical px) past which a primary press becomes a drag
+ * gesture rather than a click. Below this, a press-release is a click.
+ */
+const DRAG_THRESHOLD_PX = 4;
 
 // ─── IPC types ────────────────────────────────────────────────────────────────
 
@@ -124,12 +131,17 @@ export function clampToWorkArea(
 // ─── initDrag ─────────────────────────────────────────────────────────────────
 
 /**
- * Attach OS-native drag to `el`.
+ * Attach OS-native drag to `el`, gated by a move threshold.
  *
  * @param el - The drag surface element (typically `.yui-stage`).
+ * @param opts.onDragStart - Fired once per gesture when the pointer crosses
+ *   `DRAG_THRESHOLD_PX`, just before the OS-native drag begins.
  * @returns A cleanup function. Call it when the surface is torn down.
  */
-export async function initDrag(el: EventTarget): Promise<() => void> {
+export async function initDrag(
+  el: EventTarget,
+  opts: { onDragStart?: () => void } = {},
+): Promise<() => void> {
   // Tauri-only: getCurrentWindow() / onScaleChanged / invoke() require the Tauri
   // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface)
   // there is no window IPC, and getCurrentWindow() throws. Skip gracefully
@@ -151,27 +163,57 @@ export async function initDrag(el: EventTarget): Promise<() => void> {
     );
   });
 
-  // ── pointerdown handler ────────────────────────────────────────────────────
-  function onPointerDown(e: Event): void {
-    // Only act on primary (left) button; secondary / middle / pen barrel ignore.
-    const buttons = (e as PointerEvent).buttons ?? 0;
-    if (buttons !== 1) return;
+  // ── threshold gesture detector ─────────────────────────────────────────────
+  // A primary press arms; a move past DRAG_THRESHOLD_PX promotes it to a drag,
+  // firing onDragStart + the OS-native drag once. A press-release below the
+  // threshold is a click and fires nothing.
+  let startX = 0;
+  let startY = 0;
+  let started = false;
 
-    // ── Dispatcher seam ──────────────────────────────────────────────────────
-    // Fire a stub event so the dispatcher can hook gesture detection without
-    // modifying drag logic.
-    el.dispatchEvent(new CustomEvent("__yui_gesture_stub", { bubbles: false }));
+  function detach(): void {
+    el.removeEventListener("pointermove", onPointerMove);
+    el.removeEventListener("pointerup", onPointerEnd);
+    el.removeEventListener("pointercancel", onPointerEnd);
+  }
 
-    // ── OS-native drag ────────────────────────────────────────────────────────
+  function onPointerMove(e: Event): void {
+    if (started) return;
+    const pe = e as PointerEvent;
+    const dx = pe.clientX - startX;
+    const dy = pe.clientY - startY;
+    if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+    started = true;
+    el.removeEventListener("pointermove", onPointerMove);
+    opts.onDragStart?.();
     invokeDragWindow().catch((err: unknown) => {
       log.warn("drag_window invoke failed:", err);
     });
+  }
+
+  function onPointerEnd(): void {
+    // Release/cancel before the threshold — a click. Fire nothing, just clean up.
+    detach();
+  }
+
+  function onPointerDown(e: Event): void {
+    // Only act on primary (left) button; secondary / middle / pen barrel ignore.
+    const pe = e as PointerEvent;
+    if ((pe.buttons ?? 0) !== 1) return;
+    startX = pe.clientX;
+    startY = pe.clientY;
+    started = false;
+    (el as Partial<Element>).setPointerCapture?.(pe.pointerId);
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", onPointerEnd);
+    el.addEventListener("pointercancel", onPointerEnd);
   }
 
   el.addEventListener("pointerdown", onPointerDown);
 
   return function cleanup(): void {
     el.removeEventListener("pointerdown", onPointerDown);
+    detach();
     unlistenScale();
   };
 }
