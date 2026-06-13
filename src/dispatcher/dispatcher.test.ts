@@ -142,7 +142,7 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
   });
 
-  it("routes user.drag_start (tier1) to renderer, NOT the backend", async () => {
+  it("routes user.drag_start (tier1) to renderer with drag motion + clears perch, NOT the backend", async () => {
     dispatcher.start();
     bus.push(env({ event_name: "user.drag_start", hint_tier: 1 }));
     await vi.advanceTimersByTimeAsync(20);
@@ -150,6 +150,13 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(applyDirective).toHaveBeenCalled();
     const arg = applyDirective.mock.calls[0][0];
     expect(arg.motion?.id).toBe("drag");
+    // grabbing a perched character clears the stale perch at grab.
+    expect(setPerchTarget).toHaveBeenCalledWith(null);
+    // perch-clear must run BEFORE applyDirective so the drag motion is the last
+    // playMotion and is not clobbered by setPerchTarget(null)'s playMotion(null).
+    expect(setPerchTarget.mock.invocationCallOrder[0]).toBeLessThan(
+      applyDirective.mock.invocationCallOrder[0],
+    );
   });
 
   it("routes idle.returned (tier1) to renderer without a backend call", async () => {

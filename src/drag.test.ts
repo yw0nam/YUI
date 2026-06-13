@@ -213,44 +213,54 @@ describe("initDrag", () => {
     vi.clearAllMocks();
   });
 
-  it("calls drag_window on primary pointerdown (buttons=1)", async () => {
-    // PointerEvent is available in Node 18+ via EventTarget (no buttons filter
-    // in EventTarget, but we pass it as a custom Event with the right shape).
-    const ev = new Event("pointerdown") as Event & { buttons: number };
-    (ev as { buttons: number }).buttons = 1;
+  function down(clientX = 0, clientY = 0, buttons = 1): void {
+    const ev = new Event("pointerdown") as Event & {
+      buttons: number;
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+    };
+    Object.assign(ev, { buttons, clientX, clientY, pointerId: 1 });
     el.dispatchEvent(ev);
-    // give the microtask queue a tick so the async invoke call fires
+  }
+
+  function move(clientX: number, clientY: number): void {
+    const ev = new Event("pointermove") as Event & {
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+    };
+    Object.assign(ev, { clientX, clientY, pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  it("does not call drag_window on pointerdown alone (no threshold crossed)", async () => {
+    down(0, 0);
+    await Promise.resolve();
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it("calls drag_window once after a pointermove crosses the threshold", async () => {
+    down(0, 0);
+    move(100, 0);
     await Promise.resolve();
     expect(mockInvoke).toHaveBeenCalledWith("drag_window");
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
 
   it("ignores non-primary button pointerdown (right-click, buttons=2)", async () => {
-    const ev = new Event("pointerdown") as Event & { buttons: number };
-    (ev as { buttons: number }).buttons = 2;
-    el.dispatchEvent(ev);
+    down(0, 0, 2);
+    move(100, 0);
     await Promise.resolve();
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 
   it("does not call drag_window after cleanup()", async () => {
     cleanup();
-    const ev = new Event("pointerdown") as Event & { buttons: number };
-    (ev as { buttons: number }).buttons = 1;
-    el.dispatchEvent(ev);
+    down(0, 0);
+    move(100, 0);
     await Promise.resolve();
     expect(mockInvoke).not.toHaveBeenCalled();
-  });
-
-  it("fires __yui_gesture_stub custom event on drag-start (dispatcher #21 seam)", async () => {
-    let stubFired = false;
-    el.addEventListener("__yui_gesture_stub", () => {
-      stubFired = true;
-    });
-    const ev = new Event("pointerdown") as Event & { buttons: number };
-    (ev as { buttons: number }).buttons = 1;
-    el.dispatchEvent(ev);
-    await Promise.resolve();
-    expect(stubFired).toBe(true);
   });
 
   it("non-Tauri (browser): no-op, never calls getCurrentWindow/invoke, returns cleanup", async () => {
@@ -270,5 +280,138 @@ describe("initDrag", () => {
     expect(mockInvoke).not.toHaveBeenCalled();
     expect(typeof noop).toBe("function");
     noop(); // cleanup must be safe to call
+  });
+
+  it("non-Tauri (browser): never fires onDragStart", async () => {
+    cleanup(); // tear down the Tauri-path instance from beforeEach
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.clearAllMocks();
+
+    const browserEl = new EventTarget();
+    const onDragStart = vi.fn();
+    const noop = await initDrag(browserEl, { onDragStart });
+    const down = new Event("pointerdown") as Event & { buttons: number; clientX: number };
+    Object.assign(down, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
+    browserEl.dispatchEvent(down);
+    const move = new Event("pointermove") as Event & { clientX: number };
+    Object.assign(move, { clientX: 100, clientY: 0, pointerId: 1 });
+    browserEl.dispatchEvent(move);
+    await Promise.resolve();
+    expect(onDragStart).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
+    noop();
+  });
+});
+
+// ─── initDrag — onDragStart gesture DI ─────────────────────────────────────────
+// Threshold gesture: onDragStart fires once when a primary pointer drags past the
+// move threshold, never on a pure click.
+
+describe("initDrag — onDragStart", () => {
+  let el: EventTarget;
+  let cleanup: () => void;
+  let onDragStart: ReturnType<typeof vi.fn>;
+
+  function down(clientX = 0, clientY = 0, buttons = 1): void {
+    const ev = new Event("pointerdown") as Event & {
+      buttons: number;
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+    };
+    Object.assign(ev, { buttons, clientX, clientY, pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  function move(clientX: number, clientY: number): void {
+    const ev = new Event("pointermove") as Event & {
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+    };
+    Object.assign(ev, { clientX, clientY, pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  function up(): void {
+    const ev = new Event("pointerup") as Event & { pointerId: number };
+    Object.assign(ev, { pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  function cancel(): void {
+    const ev = new Event("pointercancel") as Event & { pointerId: number };
+    Object.assign(ev, { pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  beforeEach(async () => {
+    el = new EventTarget();
+    onDragStart = vi.fn();
+    mockInvoke.mockResolvedValue(undefined);
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    cleanup = await initDrag(el, { onDragStart });
+  });
+
+  afterEach(() => {
+    cleanup();
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.clearAllMocks();
+  });
+
+  it("fires onDragStart + invoke once when the move crosses the threshold", async () => {
+    down(0, 0);
+    move(100, 0);
+    await Promise.resolve();
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).toHaveBeenCalledWith("drag_window");
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fire onDragStart on pointerup before the threshold (a click)", async () => {
+    down(0, 0);
+    up();
+    await Promise.resolve();
+    expect(onDragStart).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it("does not fire onDragStart for a sub-threshold move then pointerup", async () => {
+    down(0, 0);
+    move(1, 1);
+    up();
+    await Promise.resolve();
+    expect(onDragStart).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it("fires onDragStart only once across multiple moves past the threshold", async () => {
+    down(0, 0);
+    move(100, 0);
+    move(200, 0);
+    move(300, 0);
+    await Promise.resolve();
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("detaches on pointercancel before the threshold; a fresh drag still fires once", async () => {
+    // Gesture aborted mid-press, before the threshold — nothing fires.
+    down(0, 0);
+    cancel();
+    await Promise.resolve();
+    expect(onDragStart).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
+    // Stale move listener from the cancelled gesture must be detached: a move
+    // without a fresh pointerdown does nothing.
+    move(100, 0);
+    await Promise.resolve();
+    expect(onDragStart).not.toHaveBeenCalled();
+    // A fresh gesture still works and fires exactly once (no double-fire).
+    down(0, 0);
+    move(100, 0);
+    await Promise.resolve();
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
 });
