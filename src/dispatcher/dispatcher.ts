@@ -291,12 +291,14 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     const directive = tier1Directive(env);
     if (!directive) return;
     log.info("fire", { seq_id: env.seq_id, event_name: env.event_name, tier: 1 });
+    // perch-clear first so applyDirective's motion is the last playMotion and is
+    // not clobbered by setPerchTarget(null)'s internal playMotion(null).
+    applyPerchTarget(env);
     try {
       renderer.applyDirective(directive);
     } catch (err) {
       log.error("tier1.render_error", { error: String(err) });
     }
-    applyPerchTarget(env);
   }
 
   /**
@@ -304,11 +306,12 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
    * NOT carried in the ControlEnvelope (keeps the agent contract clean):
    *  - window_sit_drop → setPerchTarget({edgeLocalYpx}); skip + warn if malformed.
    *  - window_sit_exit → setPerchTarget(null), always clear the perch.
+   *  - drag_start → setPerchTarget(null), unpin the stale edge at grab.
    *  - window_sit_enter (sit-in-place) → no perch target.
    */
   function applyPerchTarget(env: BusEnvelope): void {
     try {
-      if (env.event_name === "user.window_sit_exit") {
+      if (env.event_name === "user.window_sit_exit" || env.event_name === "user.drag_start") {
         renderer.setPerchTarget(null);
         return;
       }

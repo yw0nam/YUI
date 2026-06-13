@@ -122,9 +122,19 @@ async function bootstrap(): Promise<void> {
   const root = app.querySelector<HTMLDivElement>(".yui-root")!;
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
 
-  // Drag: pointerdown on stage → OS-native drag via Tauri IPC.
-  // onScaleChanged listener installed inside for DPI-change seam.
-  const cleanupDrag = await initDrag(stage);
+  // Drag: a primary press that crosses the move threshold → OS-native drag via
+  // Tauri IPC + a tier1 user.drag_start onto the bus (plays the drag motion,
+  // clears any stale perch). onScaleChanged listener installed inside for DPI seam.
+  const cleanupDrag = await initDrag(stage, {
+    onDragStart: () =>
+      bus.push({
+        source: "os_event_watcher",
+        event_name: "user.drag_start",
+        ts: Date.now(),
+        hint_tier: 1,
+        dnd_override: true,
+      }),
+  });
 
   // 마우스 휠로 캐릭터 스케일: 클램프 경계·민감도는 io 상수, persist는 store가 소유.
   // 드래그는 pointerdown만 쓰므로 wheel과 충돌하지 않는다(drag.ts).
