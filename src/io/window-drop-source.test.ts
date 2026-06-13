@@ -240,9 +240,9 @@ describe("window-drop-source — lifecycle + degrade", () => {
 // ── Occlusion-aware perch detach poll (#143) ────────────────────────────────
 //
 // After a successful drop arms the poll, ~1.4 Hz it re-checks whether the
-// perched window (tracked by windowNumber) still sits under the seat and is
-// topmost. The held-perch test is point-in-rect (NOT the U-band catch zone).
-// Loss fires user.window_sit_exit through the bus and disarms. Geometry seam:
+// armed window (tracked by windowNumber) detached: gone from the list, covered
+// by an earlier z-order window, or moved more than MOVE_TH from its arm-time
+// top-left. Loss fires user.window_sit_exit through the bus and disarms. Geometry seam:
 // seatPx (40,30) · pos (520,740) · scale 2 → seatGlobal (300,400), which is the
 // top-left corner of the default win() — so the default window contains the seat.
 
@@ -650,6 +650,112 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
     invoke.mockImplementation(async () => []); // would be lost if polled.
     await tick();
     await tick();
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
+  });
+});
+
+// ── Arm-baseline delta hold test (#191 perch false-detach) ──────────────────
+//
+// The held-perch test is "did the armed window MOVE from its arm-time position",
+// not "is the seat still inside the window". A seat parked a few px above the
+// window's top edge (animation bob + the drop/hold catch-zone asymmetry) yields
+// zero window displacement → no false detach. Genuine window moves and occlusion
+// still detach.
+
+describe("window-drop-source — arm-baseline detach policy (#191)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Arm with a window whose top edge sits BELOW the seat (seat parked above the edge). */
+  async function armAbove() {
+    const probe = makePerchSource();
+    // Seat lands at (300, 400); armed top y=412 sits 12px below it, so the seat
+    // is parked above the edge (the #191 condition the strict hold test broke on).
+    const armed = win({ name: "Armed", windowNumber: 42, y: 412 });
+    const invoke = vi.fn(async () => [armed]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer: probe.renderer,
+      invoke,
+      getWindow,
+      listen,
+    });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+    expect(pushed.at(-1)?.event_name).toBe("user.window_sit_drop");
+    return { source, invoke, armed };
+  }
+
+  it("a seat parked above the armed window's top edge HOLDS across many ticks (#191 regression)", async () => {
+    const probe = makePerchSource();
+    // seat parked above the edge: catch zone allows up to 0.28*200=56px above.
+    // armed top y=412, seat.y=400 → seat 12px ABOVE the edge, still in the U-band.
+    const armed = win({ name: "Armed", windowNumber: 42, y: 412 });
+    const invoke = vi.fn(async () => [armed]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer: probe.renderer,
+      invoke,
+      getWindow,
+      listen,
+    });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+    expect(pushed.at(-1)?.event_name).toBe("user.window_sit_drop");
+
+    // Armed rect UNCHANGED across many ticks → no displacement → no detach,
+    // even though the seat sits strictly above the window's top edge.
+    for (let i = 0; i < 8; i++) await tick();
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
+  });
+
+  it("the armed window moving more than MOVE_TH detaches after 2 ticks (moved)", async () => {
+    const { invoke, armed } = await armAbove();
+
+    // Window slides down 40px (> MOVE_TH=12) from its arm-time y=412.
+    invoke.mockImplementation(async () => [{ ...armed, y: armed.y + 40 }]);
+    await tick(); // lostStreak = 1 → ambiguous, no exit yet.
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
+    await tick(); // lostStreak = 2 → detach.
+    expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
+  });
+
+  it("a window above that covers the seat detaches after 2 ticks (covered)", async () => {
+    const { invoke, armed } = await armAbove();
+    // A window earlier in z-order whose rect contains the live seat (300,400).
+    const cover = win({ name: "Cover", windowNumber: 99, y: 360, height: 200 });
+
+    invoke.mockImplementation(async () => [cover, armed]); // cover is ABOVE armed.
+    await tick(); // lostStreak = 1 → no exit yet.
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
+    await tick(); // lostStreak = 2 → detach.
+    expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
+  });
+
+  it("the armed window absent from list_windows detaches on the FIRST tick (gone)", async () => {
+    const { invoke } = await armAbove();
+
+    invoke.mockImplementation(async () => [win({ name: "Stranger", windowNumber: 7 })]);
+    await tick();
+    expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
+  });
+
+  it("the armed window jittering less than MOVE_TH HOLDS (jitter tolerated)", async () => {
+    const { invoke, armed } = await armAbove();
+
+    // Sub-threshold jitter on both axes (< MOVE_TH=12) → treated as noise.
+    invoke.mockImplementation(async () => [{ ...armed, x: armed.x + 8, y: armed.y - 9 }]);
+    for (let i = 0; i < 6; i++) await tick();
     expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
   });
 });
