@@ -34,7 +34,7 @@ import type { Renderer } from "../renderer";
 import type { BusEnvelope } from "./event-bus";
 import type { DropReason } from "./guardrails";
 
-const baseLog = createLogger("backend_caller");
+const baseLog = createLogger("backend-caller");
 
 /** proactive 턴(user_text 없음)의 user 메시지 마커 — 빈 문자열 대신 명시적 신호. */
 const PROACTIVE_MARKER = "(proactive: co-working check-in)";

@@ -145,7 +145,9 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     stopPoll();
     pollGen++;
     pollTimer = setIntervalImpl(() => {
-      void tick().catch((err) => log.warn("perch poll tick failed — degrade:", err));
+      void tick().catch((err) =>
+        log.warn("perch_poll_tick_failed", { degrade: true, error: String(err) }),
+      );
     }, pollMs);
   }
 
@@ -246,10 +248,12 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       if (unlisten) return;
       try {
         unlisten = await listen(RELEASE_EVENT, () => {
-          void onRelease().catch((err) => log.warn("release handling failed — degrade:", err));
+          void onRelease().catch((err) =>
+            log.warn("release_handling_failed", { degrade: true, error: String(err) }),
+          );
         });
       } catch (err) {
-        log.warn("listen subscribe failed — degrade:", err);
+        log.warn("listen_subscribe_failed", { degrade: true, error: String(err) });
       }
     },
     stop() {

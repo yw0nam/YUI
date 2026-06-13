@@ -40,7 +40,7 @@ export async function compressSession(
   opts: CompactOptions = {},
 ): Promise<CompactResult> {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
-  const log = opts.logger ?? createLogger("session_compactor");
+  const log = opts.logger ?? createLogger("session-compactor");
   const url = compressUrl(config.chat_base_url, sessionId);
 
   const headers: Record<string, string> = {
@@ -58,12 +58,12 @@ export async function compressSession(
       signal: opts.signal,
     });
   } catch (err) {
-    log.warn("compress request threw", { sessionId, err: String(err) });
+    log.warn("compress_request_threw", { session_id: sessionId, error: String(err) });
     return { status: "error" };
   }
 
   if (!res.ok) {
-    log.warn("compress non-2xx", { sessionId, status: res.status });
+    log.warn("compress_non_2xx", { session_id: sessionId, status: res.status });
     return { status: "error" };
   }
 
@@ -71,7 +71,7 @@ export async function compressSession(
   try {
     parsed = await res.json();
   } catch (err) {
-    log.warn("compress body not JSON", { sessionId, err: String(err) });
+    log.warn("compress_body_not_json", { session_id: sessionId, error: String(err) });
     return { status: "error" };
   }
   const body = parsed as Partial<SessionCompressionResponse> | null;
@@ -80,7 +80,7 @@ export async function compressSession(
     const headerId = res.headers.get("X-Hermes-Session-Id") ?? undefined;
     const newId = body.session_id ?? headerId;
     if (!newId) {
-      log.warn("compressed without session_id (body+header absent)", { sessionId });
+      log.warn("compressed_without_session_id", { session_id: sessionId });
       return { status: "error" };
     }
     return {
@@ -96,7 +96,7 @@ export async function compressSession(
     return { status: "skipped", session_id: body.session_id ?? sessionId };
   }
 
-  log.warn("compress unexpected status", { sessionId, status: body?.status });
+  log.warn("compress_unexpected_status", { session_id: sessionId, status: body?.status });
   return { status: "error" };
 }
 
@@ -116,7 +116,7 @@ export interface SessionCompactorOptions {
  * `compress(sessionId, signal)` without threading transport details on every call.
  */
 export function createSessionCompactor(opts: SessionCompactorOptions): SessionCompactor {
-  const log = opts.logger ?? createLogger("session_compactor");
+  const log = opts.logger ?? createLogger("session-compactor");
   return {
     compress(sessionId: string, signal?: AbortSignal): Promise<CompactResult> {
       return compressSession(opts.config, sessionId, {

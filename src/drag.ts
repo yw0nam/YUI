@@ -147,7 +147,7 @@ export async function initDrag(
   // there is no window IPC, and getCurrentWindow() throws. Skip gracefully
   // so bootstrap (renderer + dispatcher) still runs. Drag is a no-op in the browser.
   if (!(globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
-    log.debug("non-Tauri environment — drag disabled (no-op).");
+    log.debug("drag_disabled", { reason: "non_tauri" });
     return () => {};
   }
 
@@ -187,7 +187,7 @@ export async function initDrag(
     el.removeEventListener("pointermove", onPointerMove);
     opts.onDragStart?.();
     invokeDragWindow().catch((err: unknown) => {
-      log.warn("drag_window invoke failed:", err);
+      log.warn("drag_window_invoke_failed", { error: String(err) });
     });
   }
 

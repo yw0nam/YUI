@@ -241,7 +241,7 @@ async function bootstrap(): Promise<void> {
   });
   // 음성 토글(별도 창 → 이 창 STT): 기존 voiceInputStatus 구독이 sttVad를 시작/정지한다.
   bridge.onVoiceSet((on) => {
-    log.info("음성 토글 수신(별도 창)", { on });
+    log.info("voice_toggle_received", { on, source: "settings_window" });
     voiceInputStatus.set(on ? "listening" : "idle");
   });
   // 음성 상태(이 창 → 별도 창): 별도 창 indicator가 실제 STT 상태를 반영하게.
@@ -288,7 +288,7 @@ async function bootstrap(): Promise<void> {
       const nextVrmUrl = vrmSelection.getActive().url;
       if (nextVrmUrl !== prevVrmUrl) {
         void loadVrmSerialized(nextVrmUrl).catch((err) =>
-          log.error("VRM cross-window swap failed:", err),
+          log.error("vrm_cross_window_swap_failed", { error: String(err) }),
         );
       }
       // 화자 선택은 store-only — synth가 다음 발화에서 getActive()로 읽으므로 재로드만 한다.
@@ -296,7 +296,7 @@ async function bootstrap(): Promise<void> {
     } finally {
       applyingRemote = false;
     }
-    log.info("설정 변경 수신(별도 창) — 재로드");
+    log.info("settings_change_received", { source: "settings_window" });
   });
   // VRM 선택 store + 스왑. 펫 창은 renderer-backed: loadVRM 성공 시에만 store 커밋.
   // config 로드 전이라 fallback default로 시작 — 패널이 일찍 필요하기 때문. config 로드 후
@@ -333,9 +333,9 @@ async function bootstrap(): Promise<void> {
     } catch (err) {
       // 고아 사본 제거 — 실패하면 삼키지 말고 경고로 드러낸다(원본 에러는 그대로 throw).
       await removeOrphanVrm(option.id, removeUserVrm, (e) =>
-        log.warn("orphan VRM cleanup failed:", e),
+        log.warn("orphan_vrm_cleanup_failed", { error: String(e) }),
       );
-      log.error("imported VRM load failed:", err);
+      log.error("imported_vrm_load_failed", { error: String(err) });
       throw err;
     }
     const labelled = metaName ? { ...option, label: metaName } : option;
@@ -398,9 +398,9 @@ async function bootstrap(): Promise<void> {
     } catch (err) {
       // 고아 사본 제거 — 실패하면 삼키지 말고 경고로 드러낸다(원본 에러는 그대로 throw).
       await removeOrphanVoice(option.id, removeUserVoiceFile, (e) =>
-        log.warn("orphan voice cleanup failed:", e),
+        log.warn("orphan_voice_cleanup_failed", { error: String(e) }),
       );
-      log.error("imported voice register failed:", err);
+      log.error("imported_voice_register_failed", { error: String(err) });
       throw err;
     }
     speakerSelection.addUserVoice(option);
@@ -544,7 +544,9 @@ async function bootstrap(): Promise<void> {
         return;
       }
       await windowDropSource.start();
-    })().catch((err) => log.warn("window-drop source start failed — degrade:", err));
+    })().catch((err) =>
+      log.warn("window_drop_source_start_failed", { degrade: true, error: String(err) }),
+    );
   }
   let sttVad: SttVad | null = null;
   let voiceInputReady = false;
@@ -603,8 +605,9 @@ async function bootstrap(): Promise<void> {
     try {
       return await loadEmotionTextTable({ provider: "irodori" });
     } catch (err) {
-      log.warn("broker: irodori emotion_text 로드 실패 — free 모드로 degrade", {
-        err: String(err),
+      log.warn("emotion_text_load_failed", {
+        fallback: "free",
+        error: String(err),
       });
       return null;
     }
@@ -965,7 +968,7 @@ async function bootstrap(): Promise<void> {
       const payload = deriveBrokerPayload({ ...cfg, endpoints: bootEps }, table);
       void brokerRef.publish(payload).then(() => brokerRef?.start());
     } else {
-      log.debug("broker disabled: no broker_base_url");
+      log.debug("broker_disabled", { reason: "no_broker_base_url" });
     }
 
     // 오버라이드(음성 엔진·broker URL) 변경을 라이브로 broker에 반영. config.subscribe는
@@ -986,7 +989,7 @@ async function bootstrap(): Promise<void> {
     });
     if (import.meta.env.DEV) import.meta.hot?.dispose(unsubscribeBrokerOverride);
   } catch (err) {
-    log.error("config load / VRM load failed:", err);
+    log.error("config_or_vrm_load_failed", { error: String(err) });
   }
 
   // 유휴/배경 전이마다 압축 기회를 노린다. requestCompaction은 idempotent —
@@ -1045,10 +1048,12 @@ async function bootstrap(): Promise<void> {
     renderer.setFraming(cfg.avatar.framing ?? {});
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
     void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
-      log.error("VRM hot-swap failed:", err),
+      log.error("vrm_hot_swap_failed", { error: String(err) }),
     );
   });
-  config.onError((err) => log.error("config reload failed (이전 config 유지):", err));
+  config.onError((err) =>
+    log.error("config_reload_failed", { kept_previous: true, error: String(err) }),
+  );
   // dev에서만 폴링 watcher 가동 — configs/*.json 편집 시 즉시 반영.
   if (import.meta.env.DEV) {
     config.start();

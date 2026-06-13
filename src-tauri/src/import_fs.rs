@@ -61,12 +61,12 @@ pub(crate) fn sniff_ok(header: &[u8], kind: SniffKind) -> bool {
 /// when the source cannot be opened or read.
 pub(crate) fn sniff_file(src: &Path, kind: SniffKind) -> Result<bool, String> {
     let mut f = std::fs::File::open(src).map_err(|e| {
-        log::warn!("sniff open failed for {}: {e}", src.display());
+        log::warn!("sniff_open_failed src={} error={e}", src.display());
         "source file not found".to_string()
     })?;
     let mut header = [0u8; SNIFF_HEADER_LEN];
     let n = f.read(&mut header).map_err(|e| {
-        log::warn!("sniff read failed for {}: {e}", src.display());
+        log::warn!("sniff_read_failed src={} error={e}", src.display());
         "source file not found".to_string()
     })?;
     Ok(sniff_ok(&header[..n], kind))

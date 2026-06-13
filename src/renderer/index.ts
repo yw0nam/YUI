@@ -388,7 +388,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       };
       cycleDwell.onFinish(isCycle, dwell, swap);
     } catch (err) {
-      log.error("motion finish handler error:", err);
+      log.error("motion_finish_handler_error", { error: String(err) });
     }
   };
 
@@ -420,7 +420,7 @@ export function createRenderer(options: RendererOptions): Renderer {
           try {
             fn(ctx);
           } catch (err) {
-            log.error("tick hook error:", err);
+            log.error("tick_hook_error", { error: String(err) });
           }
         }
       }
@@ -429,7 +429,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         try {
           mixer.update(dt);
         } catch (err) {
-          log.error("mixer update error:", err);
+          log.error("mixer_update_error", { error: String(err) });
         }
       }
       // perch seat-pin — after the mixer poses the hips, before vrm.update applies
@@ -497,7 +497,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     const vrmAnimations = gltf.userData.vrmAnimations as unknown[] | undefined;
     const vrmAnimation = vrmAnimations?.[0];
     if (vrmAnimation == null) {
-      log.error(`no vrmAnimations in "${vrmaPath}"`);
+      log.error("vrma_no_animations", { vrma_path: vrmaPath });
       return null;
     }
     const clip = createVRMAnimationClip(vrmAnimation as never, currentVrm);
@@ -519,7 +519,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       const clip = await loadClip(motion.vrma_path);
       if (!clip || !mixer || epoch !== vrmEpoch) return;
 
-      log.debug("startMotion", { id: motion.id, vrma_path: motion.vrma_path });
+      log.debug("start_motion", { id: motion.id, vrma_path: motion.vrma_path });
 
       const action = mixer.clipAction(clip);
       action.timeScale = motion.speed;
@@ -546,7 +546,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       }
       currentAction = action;
     } catch (err) {
-      log.error("startMotion error:", err);
+      log.error("start_motion", { error: String(err) });
     }
   }
 
@@ -607,7 +607,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         x.curTargetW = x.targetWeight;
       }
     } catch (err) {
-      log.error("stepEmotion error:", err);
+      log.error("step_emotion", { error: String(err) });
     }
   }
 
@@ -644,7 +644,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       perchOffsetY += delta * PERCH_PIN_RATE;
       currentVrm.scene.position.y = perchOffsetY;
     } catch (err) {
-      log.error("stepPerch error:", err);
+      log.error("step_perch", { error: String(err) });
     }
   }
 
@@ -689,7 +689,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       has_mouth: exprInfo.hasMouth,
     });
     if (!exprInfo.hasMouth) {
-      log.warn(`mouth expression '${MOUTH_EXPRESSION_KEY}' not found — lipsync will be silent`, {
+      log.warn("mouth_expression_missing", {
+        key: MOUTH_EXPRESSION_KEY,
         expressions: exprInfo.expressions,
       });
     }
@@ -709,7 +710,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   /** playMotion 구현 — request → (play/queue/ignore) → commit + 실제 재생. */
   function playMotion(motion: MotionSignal | null): void {
     if (!controller) {
-      log.warn("playMotion called without a motion registry — no-op");
+      log.warn("play_motion_no_registry");
       return;
     }
     if (!currentVrm || !mixer) return; // VRM 미로드 시 재생 불가.
@@ -725,7 +726,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       // "queue"는 commit으로 슬롯에 저장됨 — finish 시 drain.
       // "ignore"는 no-op.
     } catch (err) {
-      log.error("playMotion error:", err);
+      log.error("play_motion", { error: String(err) });
     }
   }
 
@@ -743,7 +744,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (emotion === null) return;
 
     if (!emotionResolver || !emotionRegistry) {
-      log.warn("setEmotion called without an emotion registry — no-op");
+      log.warn("set_emotion_no_registry");
       return;
     }
     if (!currentVrm) return;
@@ -784,7 +785,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         curTargetW: startTargetW,
       };
     } catch (err) {
-      log.error("setEmotion error:", err);
+      log.error("set_emotion", { error: String(err) });
     }
   }
 

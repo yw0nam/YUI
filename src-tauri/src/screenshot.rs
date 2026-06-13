@@ -86,7 +86,7 @@ pub fn encode_capture(
     final_img
         .write_to(&mut std::io::Cursor::new(&mut png_bytes), ImageFormat::Png)
         .map_err(|e| {
-            log::error!("PNG encoding failed: {e}");
+            log::error!("png_encoding_failed error={e}");
             e.to_string()
         })?;
 
@@ -107,7 +107,7 @@ pub fn encode_capture(
 #[command]
 pub fn list_screen_sources() -> Result<Vec<ScreenSourceDto>, String> {
     let monitors = xcap::Monitor::all().map_err(|e| {
-        log::error!("monitor enumeration failed: {e}");
+        log::error!("monitor_enumeration_failed error={e}");
         e.to_string()
     })?;
     Ok(monitors
@@ -131,7 +131,7 @@ pub fn list_screen_sources() -> Result<Vec<ScreenSourceDto>, String> {
 pub async fn capture_screen(index: u32, max_edge: u32) -> Result<CaptureDto, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let monitors = xcap::Monitor::all().map_err(|e| {
-            log::error!("monitor enumeration failed: {e}");
+            log::error!("monitor_enumeration_failed error={e}");
             e.to_string()
         })?;
         let monitor = monitors
@@ -140,7 +140,7 @@ pub async fn capture_screen(index: u32, max_edge: u32) -> Result<CaptureDto, Str
             .ok_or_else(|| format!("monitor index {index} out of range"))?;
 
         let raw: ImageBuffer<Rgba<u8>, Vec<u8>> = monitor.capture_image().map_err(|e| {
-            log::error!("screen capture failed for monitor {index}: {e}");
+            log::error!("screen_capture_failed monitor={index} error={e}");
             e.to_string()
         })?;
 
@@ -148,7 +148,7 @@ pub async fn capture_screen(index: u32, max_edge: u32) -> Result<CaptureDto, Str
     })
     .await
     .map_err(|e| {
-        log::error!("capture_screen join failed: {e}");
+        log::error!("capture_screen_join_failed error={e}");
         e.to_string()
     })?
 }

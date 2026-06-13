@@ -55,7 +55,7 @@ function createTauriTransport(): BridgeTransport {
     emit(name, payload) {
       void eventMod
         .then((m) => m.emit(name, payload))
-        .catch((err) => log.warn("Tauri emit 실패", err));
+        .catch((err) => log.warn("tauri_emit_failed", { error: String(err) }));
     },
     listen(name, cb) {
       let unlisten: (() => void) | null = null;
@@ -69,7 +69,7 @@ function createTauriTransport(): BridgeTransport {
           }
           unlisten = un;
         })
-        .catch((err) => log.warn("Tauri listen 실패", err));
+        .catch((err) => log.warn("tauri_listen_failed", { error: String(err) }));
       return () => {
         disposed = true;
         unlisten?.();
@@ -118,7 +118,7 @@ function selectTransport(): BridgeTransport {
     if (detectTauri()) return createTauriTransport();
     if (typeof BroadcastChannel !== "undefined") return createBroadcastTransport();
   } catch (err) {
-    log.warn("transport 선택 실패 — no-op로 폴백", err);
+    log.warn("transport_select_failed", { fallback: "noop", error: String(err) });
   }
   return noopTransport;
 }
@@ -143,7 +143,7 @@ export function createSettingsBridge(transport?: BridgeTransport): SettingsBridg
     try {
       t.emit(name, { __src: srcId, payload } satisfies BridgeEnvelope);
     } catch (err) {
-      log.warn("emit 실패", err);
+      log.warn("emit_failed", { error: String(err) });
     }
   };
 
@@ -161,14 +161,14 @@ export function createSettingsBridge(transport?: BridgeTransport): SettingsBridg
         }
       });
     } catch (err) {
-      log.warn("listen 실패", err);
+      log.warn("listen_failed", { error: String(err) });
     }
     const disposer = (): void => {
       disposers.delete(disposer);
       try {
         off();
       } catch (err) {
-        log.warn("unlisten 실패", err);
+        log.warn("unlisten_failed", { error: String(err) });
       }
     };
     disposers.add(disposer);

@@ -59,7 +59,7 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
   const list = (await listRes.json()) as { voices?: Array<{ voice_id?: string }> };
   const registered = (list.voices ?? []).some((v) => v.voice_id === opts.id);
   if (registered) {
-    log.debug("voice already registered", { id: opts.id });
+    log.debug("voice_already_registered", { id: opts.id });
     return;
   }
 
@@ -78,7 +78,7 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
   if (!postRes.ok) {
     throw new Error(`irodori voice register failed (HTTP ${postRes.status}) ${opts.id}`);
   }
-  log.info("voice registered", { id: opts.id });
+  log.info("voice_registered", { id: opts.id });
 }
 
 export interface UpdateVoiceOptions {
@@ -117,7 +117,7 @@ export async function updateVoice(opts: UpdateVoiceOptions): Promise<void> {
   if (!putRes.ok) {
     throw new Error(`irodori voice update failed (HTTP ${putRes.status}) ${opts.id}`);
   }
-  log.info("voice updated", { id: opts.id });
+  log.info("voice_updated", { id: opts.id });
 }
 
 export function ensureRegistered(opts: EnsureRegisteredOptions): Promise<void> {
@@ -125,7 +125,7 @@ export function ensureRegistered(opts: EnsureRegisteredOptions): Promise<void> {
 
   // refUrl 없는 화자는 등록할 클립이 없다 — fetch/POST 없이 no-op, 캐시도 남기지 않는다(나중에 실 refUrl이 오면 등록).
   if (!opts.refUrl) {
-    log.debug("voice register skipped", { id: opts.id, skipped: "empty ref_url" });
+    log.debug("voice_register_skipped", { id: opts.id, reason: "empty_ref_url" });
     return Promise.resolve();
   }
 

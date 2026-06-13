@@ -78,7 +78,7 @@ async function bootstrap(): Promise<void> {
     await config.load();
     configLoaded = true;
   } catch (err) {
-    log.warn("config 로드 실패 — 기본 지침 placeholder 없이 진행", err);
+    log.warn("config_load_failed", { error: String(err) });
   }
 
   // VRM 선택 store + 스왑. 이 창엔 렌더러가 없으므로 store-only 커밋.
@@ -94,7 +94,7 @@ async function bootstrap(): Promise<void> {
       const avatar = config.get().avatar;
       vrmSelection.setManifest({ available: avatar.available, defaultUrl: avatar.vrm_url });
     } catch (err) {
-      log.warn("avatar config 읽기 실패 — fallback 모델 목록 유지", err);
+      log.warn("avatar_config_read_failed", { fallback: true, error: String(err) });
     }
   }
   const swapVrm = async (option: { id: string }): Promise<void> => {
@@ -125,7 +125,7 @@ async function bootstrap(): Promise<void> {
         defaultId: eps.irodori_speaker ?? "",
       });
     } catch (err) {
-      log.warn("irodori config 읽기 실패 — fallback 화자 목록 유지", err);
+      log.warn("irodori_config_read_failed", { fallback: true, error: String(err) });
     }
   }
   const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
@@ -156,7 +156,7 @@ async function bootstrap(): Promise<void> {
       });
     } catch (err) {
       await removeUserVoiceFile(option.id).catch(() => {}); // 고아 사본 제거(best-effort)
-      log.error("imported voice register failed:", err);
+      log.error("imported_voice_register_failed", { error: String(err) });
       throw err;
     }
     speakerSelection.addUserVoice(option);

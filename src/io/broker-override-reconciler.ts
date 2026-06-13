@@ -85,7 +85,7 @@ export function createBrokerOverrideReconciler(
         if (broker) await republish(eff, broker);
       }
     } catch (err) {
-      log.warn("broker override reconcile failed (best-effort)", { err: String(err) });
+      log.warn("reconcile_failed", { best_effort: true, error: String(err) });
     }
   }
 

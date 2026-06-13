@@ -75,7 +75,7 @@ export function createTauriScreenCapturer(
           height: dto.height,
         };
       } catch (err) {
-        log.error("screen capture failed:", err);
+        log.error("screen_capture_failed", { error: String(err) });
         return null;
       }
     },

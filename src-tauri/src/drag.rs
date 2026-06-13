@@ -59,7 +59,7 @@ pub struct MonitorInfo {
 #[command]
 pub fn drag_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
     window.start_dragging().map_err(|e| {
-        log::warn!("start_dragging failed: {e}");
+        log::warn!("start_dragging_failed error={e}");
         e.to_string()
     })?;
 
@@ -82,11 +82,11 @@ pub fn drag_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
 pub fn get_monitors_info<R: Runtime>(app: AppHandle<R>) -> Result<Vec<MonitorInfo>, String> {
     // Grab any window to call `available_monitors()` on it.
     let window = app.get_webview_window("main").ok_or_else(|| {
-        log::warn!("get_monitors_info: main window not found");
+        log::warn!("get_monitors_info_no_main_window");
         "main window not found".to_string()
     })?;
     let monitors = window.available_monitors().map_err(|e| {
-        log::warn!("available_monitors failed: {e}");
+        log::warn!("available_monitors_failed error={e}");
         e.to_string()
     })?;
     Ok(monitors
