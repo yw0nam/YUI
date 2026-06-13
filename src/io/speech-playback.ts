@@ -13,6 +13,7 @@
  * interrupt()는 현재 파이프라인을 폐기하고 새로 만들며, 보류 중인 말풍선을 즉시(non-defer) 해제한다.
  */
 
+import type { ControlEnvelope, EmotionId, ExpressArgs } from "../contract";
 import { createTtsPipeline, type TtsPipeline, type TtsPipelineOptions } from "./tts-pipeline";
 
 /** 발화 종료 후 표정을 neutral로 되돌리는 ease 시간(ms) — 느리게(스냅 X). */
@@ -23,6 +24,8 @@ interface PlaybackRenderer {
   stopMouth(): void;
   /** 직전 emotion을 neutral로 천천히 ease (턴 종료 시 표정이 영영 갇히지 않게). */
   easeEmotionToNeutral(durationMs?: number): void;
+  applyDirective(env: ControlEnvelope): void;
+  playMotion(motion: { id: string } | null): void;
 }
 
 interface PlaybackSurfaces {
@@ -36,7 +39,7 @@ export interface SpeechPlaybackOptions {
   renderer: PlaybackRenderer;
   surfaces: PlaybackSurfaces;
   /** 파이프라인 생성 시 주입할 base 옵션(synth/config 등). onAmplitude/onPlaybackEnd는 여기서 덮어쓴다. */
-  pipeline?: Omit<TtsPipelineOptions, "onAmplitude" | "onPlaybackEnd">;
+  pipeline?: Omit<TtsPipelineOptions, "onAmplitude" | "onPlaybackEnd" | "onCuePlay">;
   /** 테스트용 파이프라인 팩토리 주입. */
   createPipeline?: (opts: TtsPipelineOptions) => TtsPipeline;
 }
@@ -48,8 +51,8 @@ export interface SpeechPlayback {
   onSpeechEnd(): void;
   /** 발화 텍스트 1건(전체): onSpeechDelta + onSpeechEnd 슈가. */
   onSpeech(text: string): void;
-  /** FishSpeech voice 태그를 파이프라인에 전달. */
-  setEmotionText(text: string | null): void;
+  /** per-beat cue를 파이프라인에 전달. */
+  setCue(cue: ExpressArgs | null): void;
   /** 진행 중인 발화를 중단: 파이프라인 폐기·재생성 + 보류 말풍선 즉시 해제. */
   interrupt(): void;
   /** 비정상 종료(에러/네트워크 끊김) 정리: 파이프라인 폐기 + 보류 말풍선 즉시 해제. 다음 턴이 없어 재생성하지 않는다. */
@@ -61,10 +64,25 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   const { renderer, surfaces } = options;
   const factory = options.createPipeline ?? createTtsPipeline;
 
+  // fires when a sentence begins playback or its synth fails — audio-timed expression seam.
+  function applyCue(cue: ExpressArgs | null): void {
+    if (cue?.emotion_id || cue?.motion_id) {
+      renderer.applyDirective({
+        speech_text: "",
+        ...(cue.emotion_id ? { emotion: { id: cue.emotion_id as EmotionId } } : {}),
+        ...(cue.motion_id ? { motion: { id: cue.motion_id } } : {}),
+      });
+    } else {
+      renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
+      renderer.playMotion(null);
+    }
+  }
+
   function buildPipeline(): TtsPipeline {
     return factory({
       ...options.pipeline,
       onAmplitude: (rms) => renderer.setMouthOpen(rms),
+      onCuePlay: (cue) => applyCue(cue),
       onPlaybackEnd: () => {
         renderer.stopMouth();
         surfaces.finishSpeech();
@@ -106,8 +124,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       delta(text);
       end();
     },
-    setEmotionText(text) {
-      pipeline.setEmotionText(text);
+    setCue(cue) {
+      pipeline.setCue(cue);
     },
     interrupt() {
       pipeline.dispose();

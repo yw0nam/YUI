@@ -7,12 +7,12 @@
  *  - B3 consume chat-client `completed` event → ControlEnvelope (no SSE re-parse).
  *  - B4 speech gate by speech_text only (D-NO-SPEAK-GATE: empty = skip, no flag).
  *  - B5 dispatch_to_renderer → renderer.applyDirective(envelope) + speech_text → speech sink
- *       + emotion_text → onEmotionText + tool_status → onToolStatus (callbacks fire).
+ *       + cue → onCue + tool_status → onToolStatus (callbacks fire).
  *  - parse_error / network drop classification.
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ControlEnvelope, EndpointsConfig, InputContext } from "../contract";
+import type { ControlEnvelope, EndpointsConfig, ExpressArgs, InputContext } from "../contract";
 import type { ChatStreamEvent } from "../io/chat-client";
 import type { Logger } from "../logger";
 import type { BusEnvelope } from "./event-bus";
@@ -60,8 +60,8 @@ function deltaEvent(text: string): ChatStreamEvent {
   return { type: "speech_delta", text };
 }
 
-function expressEvent(emotionText: string): ChatStreamEvent {
-  return { type: "express", args: { emotion_text: emotionText } };
+function expressEvent(args: ExpressArgs): ChatStreamEvent {
+  return { type: "express", args };
 }
 
 function usageEvent(
@@ -78,7 +78,7 @@ function makeLogger(): Logger {
 
 let applyDirective: ReturnType<typeof vi.fn>;
 let speechSink: ReturnType<typeof vi.fn>;
-let emotionTextSink: ReturnType<typeof vi.fn>;
+let cueSink: ReturnType<typeof vi.fn>;
 let toolStatusSink: ReturnType<typeof vi.fn>;
 let speechDeltaSink: ReturnType<typeof vi.fn>;
 let speechEndSink: ReturnType<typeof vi.fn>;
@@ -94,7 +94,7 @@ beforeEach(() => {
   streamChatSpy.mockClear();
   applyDirective = vi.fn();
   speechSink = vi.fn();
-  emotionTextSink = vi.fn();
+  cueSink = vi.fn();
   toolStatusSink = vi.fn();
   speechDeltaSink = vi.fn();
   speechEndSink = vi.fn();
@@ -108,7 +108,7 @@ beforeEach(() => {
     getApiKey: async () => "k",
     getFetch: async () => undefined,
     onSpeech: speechSink,
-    onEmotionText: emotionTextSink,
+    onCue: cueSink,
     onToolStatus: toolStatusSink,
     onSpeechDelta: speechDeltaSink,
     onSpeechEnd: speechEndSink,
@@ -175,23 +175,26 @@ describe("backend_caller — B4 speech gate (D-NO-SPEAK-GATE: speech_text only)"
   });
 });
 
-describe("backend_caller — B5 emotion_text + tool_status callbacks", () => {
-  it("forwards emotion_text to onEmotionText when present", async () => {
-    const env: ControlEnvelope = {
-      speech_text: "안녕",
-      emotion: { id: "happy" },
-      emotion_text: "[whisper in small voice]",
-    };
-    scriptedEvents = [completedEvent(env)];
+describe("backend_caller — B5 cue forwarding + tool_status callbacks", () => {
+  it("forwards each express cue to onCue (full args, not just emotion_text)", async () => {
+    scriptedEvents = [
+      deltaEvent("hi "),
+      expressEvent({ emotion_id: "happy", motion_id: "wave", emotion_text: "(whisper)" }),
+      completedEvent({ speech_text: "hi", emotion_text: "(whisper)" }),
+    ];
     await caller.call(userEnv());
-    expect(emotionTextSink).toHaveBeenCalledWith("[whisper in small voice]");
+    expect(cueSink).toHaveBeenCalledWith({
+      emotion_id: "happy",
+      motion_id: "wave",
+      emotion_text: "(whisper)",
+    });
   });
 
-  it("does not call onEmotionText when emotion_text is absent", async () => {
+  it("does not call onCue when the stream yields no express event", async () => {
     const env: ControlEnvelope = { speech_text: "안녕", emotion: { id: "happy" } };
-    scriptedEvents = [completedEvent(env)];
+    scriptedEvents = [deltaEvent("안녕"), completedEvent(env)];
     await caller.call(userEnv());
-    expect(emotionTextSink).not.toHaveBeenCalled();
+    expect(cueSink).not.toHaveBeenCalled();
   });
 
   it("forwards tool_status to onToolStatus when present", async () => {
@@ -500,22 +503,22 @@ describe("backend_caller — streaming speech deltas (incremental TTS)", () => {
     expect(order).toEqual(["interrupt", "delta:a", "delta:b", "end"]);
   });
 
-  it("express with emotion_text → onEmotionText DURING the stream, before onSpeechEnd", async () => {
+  it("express cue → onCue DURING the stream, before onSpeechEnd", async () => {
     const order: string[] = [];
-    emotionTextSink.mockImplementation((t: string) => order.push(`emotion:${t}`));
+    cueSink.mockImplementation((c: ExpressArgs) => order.push(`cue:${c.emotion_text}`));
     speechDeltaSink.mockImplementation((t: string) => order.push(`delta:${t}`));
     speechEndSink.mockImplementation(() => order.push("end"));
     scriptedEvents = [
       deltaEvent("hi "),
-      expressEvent("(whisper)"),
+      expressEvent({ emotion_text: "(whisper)" }),
       deltaEvent("there"),
       completedEvent({ speech_text: "hi there", emotion_text: "(whisper)" }),
     ];
     await caller.call(userEnv());
-    expect(emotionTextSink).toHaveBeenCalledWith("(whisper)");
-    // emotion_text routed mid-stream, strictly before the end signal.
-    expect(order.indexOf("emotion:(whisper)")).toBeGreaterThanOrEqual(0);
-    expect(order.indexOf("emotion:(whisper)")).toBeLessThan(order.indexOf("end"));
+    expect(cueSink).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
+    // cue routed mid-stream, strictly before the end signal.
+    expect(order.indexOf("cue:(whisper)")).toBeGreaterThanOrEqual(0);
+    expect(order.indexOf("cue:(whisper)")).toBeLessThan(order.indexOf("end"));
   });
 
   it("D-NO-SPEAK-GATE: no speech_delta → neither onSpeechDelta nor onSpeechEnd", async () => {
@@ -568,6 +571,53 @@ describe("backend_caller — streaming speech deltas (incremental TTS)", () => {
     scriptedEvents = [deltaEvent("a"), deltaEvent("b"), completedEvent({ speech_text: "ab" })];
     await caller.call(userEnv());
     expect(speechSink).not.toHaveBeenCalled();
+  });
+});
+
+// ── per-beat cue ownership: streaming pipeline applies cues audio-timed ─────────
+
+describe("backend_caller — per-beat cue application (pipeline ownership)", () => {
+  it("streaming turn (≥1 express + ≥1 delta) → onCue per cue; applyDirective NOT called at completed", async () => {
+    scriptedEvents = [
+      expressEvent({ emotion_id: "happy", motion_id: "wave" }),
+      deltaEvent("Hi "),
+      expressEvent({ emotion_id: "curious" }),
+      deltaEvent("there"),
+      completedEvent({ speech_text: "Hi there", emotion: { id: "curious" } }),
+    ];
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(true);
+    // pipeline owns visual application audio-timed per sentence — no completed apply.
+    expect(applyDirective).not.toHaveBeenCalled();
+    expect(cueSink.mock.calls.map((c) => c[0])).toEqual([
+      { emotion_id: "happy", motion_id: "wave" },
+      { emotion_id: "curious" },
+    ]);
+  });
+
+  it("silent turn (express but NO delta, empty speech) → applyDirective called once at completed (firing≠judgment)", async () => {
+    const env: ControlEnvelope = { speech_text: "", emotion: { id: "thinking" } };
+    scriptedEvents = [expressEvent({ emotion_id: "thinking" }), completedEvent(env)];
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(true);
+    expect(cueSink).toHaveBeenCalledWith({ emotion_id: "thinking" });
+    // no audio to time against → completed applies the cue once.
+    expect(applyDirective).toHaveBeenCalledTimes(1);
+    expect(applyDirective).toHaveBeenCalledWith(env);
+  });
+
+  it("completed-only backend (no express) with emotion/motion → applyDirective called at completed", async () => {
+    const env: ControlEnvelope = {
+      speech_text: "안녕",
+      emotion: { id: "happy" },
+      motion: { id: "wave" },
+    };
+    scriptedEvents = [completedEvent(env)];
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(true);
+    expect(applyDirective).toHaveBeenCalledTimes(1);
+    expect(applyDirective).toHaveBeenCalledWith(env);
+    expect(cueSink).not.toHaveBeenCalled();
   });
 });
 

@@ -175,7 +175,7 @@ export interface ControlEnvelope {
   // should_speak 없음: 침묵 = speech_text == "".
   emotion?: EmotionSignal | null;
   motion?: MotionSignal | null;
-  /** generate_express.emotion_text — TTS voice tag 자유 텍스트. backend-caller가 onEmotionText로 라우팅. */
+  /** generate_express.emotion_text — TTS voice tag 자유 텍스트. backend-caller가 onCue로 라우팅, tts-pipeline이 문장 합성에 prefix. */
   emotion_text?: string | null;
 
   // --- 텍스트 스트림에서 조립 (tool 필드 아님) ---
