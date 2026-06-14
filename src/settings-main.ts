@@ -13,6 +13,10 @@ import { resolveAssetUrl } from "./io/asset-url";
 import { selectFetch } from "./io/chat-client";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
+import {
+  createIdleThrottleSettings,
+  localStorageIdleThrottleStorage,
+} from "./io/idle-throttle-settings";
 import { ensureRegistered, updateVoice } from "./io/irodori-voices";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
@@ -53,6 +57,9 @@ async function bootstrap(): Promise<void> {
   }
 
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
+  const idleThrottleSettings = createIdleThrottleSettings({
+    storage: localStorageIdleThrottleStorage(),
+  });
   const proactiveSettings = createProactiveSettings({ storage: localStorageProactiveStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
@@ -168,6 +175,7 @@ async function bootstrap(): Promise<void> {
     variant: "window",
     agentSettings,
     settings: screenshotSettings,
+    idleThrottleSettings,
     proactiveSettings,
     sourceProvider,
     voiceStatus: voiceInputStatus,
@@ -236,6 +244,7 @@ async function bootstrap(): Promise<void> {
     lipsyncSettings,
     vadSettings,
     screenshotSettings,
+    idleThrottleSettings,
     proactiveSettings,
     vrmSelection,
     speakerSelection,
@@ -280,6 +289,7 @@ async function bootstrap(): Promise<void> {
   lipsyncSettings.subscribe(broadcastSettings);
   vadSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
+  idleThrottleSettings.subscribe(broadcastSettings);
   proactiveSettings.subscribe(broadcastSettings);
   // VRM 선택도 cross-window로 알린다 → 펫 창이 받아 렌더러를 핫스왑한다(Tauri storage 이벤트 불안정 대비).
   vrmSelection.subscribe(broadcastSettings);

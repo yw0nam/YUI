@@ -20,6 +20,7 @@ import {
   type EndpointOverrides,
   isValidEndpointUrl,
 } from "../io/endpoints-settings";
+import type { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import {
   type createLipsyncSettings,
   LIPSYNC_GAIN_MAX,
@@ -37,6 +38,7 @@ import { createLogger } from "../logger";
 import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
+type IdleThrottleSettingsStore = ReturnType<typeof createIdleThrottleSettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
@@ -50,6 +52,8 @@ type SessionStore = ReturnType<typeof createSessionStore>;
 interface QuickControlsOptions {
   mount: HTMLElement;
   settings: ScreenshotSettingsStore;
+  /** 유휴 절전(30fps 캡) on/off store. 끄면 항상 풀 프레임. */
+  idleThrottleSettings: IdleThrottleSettingsStore;
   /** proactive 발화 on/off store. 끄면 firing만 게이팅, 소스 구독은 유지된다. */
   proactiveSettings: ProactiveSettingsStore;
   sourceProvider: ScreenSourceProvider;
@@ -205,6 +209,7 @@ function savePos(pos: SavedPos): void {
 export function createQuickControls({
   mount,
   settings,
+  idleThrottleSettings,
   proactiveSettings,
   sourceProvider,
   voiceStatus,
@@ -517,6 +522,16 @@ export function createQuickControls({
             <button class="yui-iconbtn yui-chatkey__clear" type="button" aria-label="키 지우기" title="키 지우기">${CHATKEY_CLEAR_SVG}</button>
           </div>
         </div>
+
+        <div class="yui-quick__divider" aria-hidden="true"></div>
+        <span class="yui-quick__section">성능</span>
+        <div class="yui-row">
+          <div class="yui-row__main">
+            <span class="yui-row__label">유휴 시 절전 (30fps)</span>
+            <span class="yui-row__sub">캐릭터가 가만히 있을 때 프레임을 낮춰 전력을 아낍니다. 말하거나 움직일 땐 자동으로 부드러워집니다.</span>
+          </div>
+          <button class="yui-switch yui-idle-throttle-switch" type="button" role="switch" aria-checked="false" aria-label="유휴 시 절전"></button>
+        </div>
         ${sessionHtml}
       </div>
 
@@ -526,6 +541,7 @@ export function createQuickControls({
   `;
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-switch[aria-label='스크린샷 첨부']")!;
+  const idleThrottleSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
   const proactiveSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-proactive-switch")!;
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsEl = el.querySelector<HTMLDivElement>(".yui-monitors")!;
@@ -614,6 +630,10 @@ export function createQuickControls({
     const on = s.enabled;
     switchBtn.setAttribute("aria-checked", String(on));
     el.classList.toggle("is-on", on);
+  }
+
+  function reflectIdleThrottle(): void {
+    idleThrottleSwitchBtn.setAttribute("aria-checked", String(idleThrottleSettings.get().enabled));
   }
 
   function reflectProactive(): void {
@@ -1695,6 +1715,7 @@ export function createQuickControls({
     mount.appendChild(el);
 
     reflectSettings();
+    reflectIdleThrottle();
     reflectProactive();
     reflectVoiceStatus(voiceStatus.get());
     reflectGain();
@@ -1774,6 +1795,12 @@ export function createQuickControls({
     if (!current && !monitorsLoaded) {
       void loadMonitors();
     }
+  }
+
+  function handleIdleThrottleSwitchClick(): void {
+    const current = idleThrottleSettings.get().enabled;
+    idleThrottleSettings.setEnabled(!current);
+    log.info("idle_throttle_toggle", { enabled: !current });
   }
 
   function handleProactiveSwitchClick(): void {
@@ -2073,6 +2100,9 @@ export function createQuickControls({
       void loadMonitors();
     }
   });
+  const unsubscribeIdleThrottle = idleThrottleSettings.subscribe(() => {
+    if (openState) reflectIdleThrottle();
+  });
   const unsubscribeProactive = proactiveSettings.subscribe(() => {
     if (openState) reflectProactive();
   });
@@ -2112,6 +2142,7 @@ export function createQuickControls({
   });
 
   switchBtn.addEventListener("click", handleSwitchClick);
+  idleThrottleSwitchBtn.addEventListener("click", handleIdleThrottleSwitchClick);
   proactiveSwitchBtn.addEventListener("click", handleProactiveSwitchClick);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
   scrimEl.addEventListener("pointerdown", handleScrimPointerDown);
@@ -2158,6 +2189,7 @@ export function createQuickControls({
     disposed = true;
     commitChatKeyIfDirty();
     unsubscribe();
+    unsubscribeIdleThrottle();
     unsubscribeProactive();
     unsubscribeVoice();
     unsubscribeLipsync();
@@ -2173,6 +2205,7 @@ export function createQuickControls({
     spkRefreshTimers.clear();
     spkRefreshState.clear();
     switchBtn.removeEventListener("click", handleSwitchClick);
+    idleThrottleSwitchBtn.removeEventListener("click", handleIdleThrottleSwitchClick);
     proactiveSwitchBtn.removeEventListener("click", handleProactiveSwitchClick);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     scrimEl.removeEventListener("pointerdown", handleScrimPointerDown);
