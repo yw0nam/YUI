@@ -29,9 +29,9 @@ Specialist definitions are vendored in [`.claude/agents/`](.claude/agents/) so t
 | **Dispatcher** | **Backend Architect** | `opus` | `src/dispatcher/` — event-bus, classify→guardrail→route |
 | **Audio IO** | **Voice AI Integration Engineer** | `sonnet` | `src/io/tts-pipeline.ts` + `stt-vad.ts` — TTS queue/ordering, VAD→STT |
 | **Tauri / Rust** | **Senior Developer** | `sonnet` | `src-tauri/` — os_event_watcher, IPC contract, `cargo test` |
-| **Contract / Schema** | **Software Architect** | `sonnet` | `src/contract/types.ts` ↔ `docs/contract.md` sync, JSON schema validation |
+| **Contract / Schema** | **Software Architect** | `sonnet` | `src/contract/types.ts` (contract source of truth) + JSON schema validation |
 | **UI / Mock** | **UI Designer** | `sonnet` | Mock HTML authoring, DESIGN.md token compliance |
-| **Docs** | **Technical Writer** | `sonnet` | `docs/` updates — contract.md, prd.md sync |
+| **Docs** | **Technical Writer** | `sonnet` | `docs/` updates — backend_agent_broker_interaction.md, motions.md, logging.md, tts_emotion/ |
 | **Review** | **Code Reviewer** | `sonnet` | Diff review — correctness / maintainability / security / performance |
 | **Verification** | **Reality Checker** | `sonnet` | Evidence-based gating — Playwright screenshot + app-run log proof of UI/DOM/runtime behavior before certifying |
 | **Performance** | **Performance Benchmarker** | `sonnet` | Frame budget, lipsync/TTS timing, regression checks |
@@ -63,7 +63,7 @@ Mandatory rules have an enforcement point — the gate, not memory, is the sourc
 | Worktree runtime assets linked | `WorktreeCreate` hook + `scripts/worktree-setup.sh` |
 | TDD ordering, UI mock approval, delegation | Working style (no machine gate) |
 
-Hook scripts live in [`.claude/hooks/`](.claude/hooks/) and are wired in [`.claude/settings.json`](.claude/settings.json); all fail open. Contract-pair sync (`src/contract/types.ts` ↔ `docs/contract.md`, `configs/motions.json` ↔ `docs/motions.md`) surfaces as a non-blocking nudge.
+Hook scripts live in [`.claude/hooks/`](.claude/hooks/) and are wired in [`.claude/settings.json`](.claude/settings.json); all fail open. The `configs/motions.json` ↔ `docs/motions.md` pair surfaces a non-blocking sync nudge.
 
 ## Core Principle: firing ≠ judgment
 
@@ -114,7 +114,7 @@ YUI/
   src/
     dev/                    # Dev-only tooling (motion-preview.ts, motion-preview.css)
     main.ts                 # Bootstrap wiring
-    contract/               # TS types from docs/contract.md (types.ts, index.ts)
+    contract/               # TS contract types — source of truth (types.ts, index.ts)
     renderer/               # three.js + VRM (index.ts, emotion-resolver.ts, motion-controller.ts)
     io/                     # I/O layer (chat-client.ts, tts-pipeline.ts, stt-vad.ts, os-context.ts, etc.)
     dispatcher/             # Event bus + classify→guardrail→route
@@ -136,16 +136,17 @@ Chat and STT use the **OpenAI-compatible API**; TTS depends on `tts_provider` (i
 - **TTS →** provider-selected via `tts_provider` (default `irodori`): `irodori` → irodori_TTS `irodori_base_url` (`localhost:8091`) `/synthesize` (NOT OpenAI-compatible, reference-voice based, per-speaker voices in `irodori_voices`); `openai` → OpenAI-compatible `/audio/speech` at `tts_base_url` (`localhost:8092`)
 - **Expression Broker** (config-driven) `broker_base_url` (`localhost:3201/mcp`, streamable-http MCP) — YUI publishes renderable emotion/motion/emotion_text vocabulary, the agent reads it (publish skipped if unset)
 
-**Control signals** are delivered as server-side `generate_express` tool-calls in the `/v1/responses` stream. Arguments are flat: `{ emotion_id?, motion_id?, emotion_text? }` — no `should_speak` (**D-NO-SPEAK-GATE**); `emotion_text` is a per-provider TTS voice tag whose renderable vocabulary is published by the Expression Broker (irodori = emoji set, openai-compatible/fishspeech = free text), which the agent learns via the broker. Speech text is a separate assistant text stream (`response.output_text.delta`). `function_call` items are excluded from final `output[]` — must be captured during streaming. The renderable emotion/motion vocabulary is brokered by the Expression Broker MCP (`docs/expression-broker-mcp.md`).
+**Control signals** are delivered as server-side `generate_express` tool-calls in the `/v1/responses` stream. Arguments are flat: `{ emotion_id?, motion_id?, emotion_text? }` — no `should_speak` (**D-NO-SPEAK-GATE**); `emotion_text` is a per-provider TTS voice tag whose renderable vocabulary is published by the Expression Broker (irodori = emoji set, openai-compatible/fishspeech = free text), which the agent learns via the broker. Speech text is a separate assistant text stream (`response.output_text.delta`). `function_call` items are excluded from final `output[]` — must be captured during streaming. The renderable emotion/motion vocabulary is brokered by the Expression Broker MCP; the `generate_express` cue contract handed to the backend agent lives in [`docs/backend_agent_broker_interaction.md`](docs/backend_agent_broker_interaction.md).
 
 ## Key Docs
 
-- **`docs/contract.md`** — Source of truth for TS types (Emotion / Motion / Control envelope / Input context / Endpoints)
+> **Code is the source of truth.** Client behavior (how responses are parsed and rendered), the TS contract shapes (`src/contract/types.ts`), and the config schemas (`configs/*.json`) are authoritative — read the code, not a prose mirror. The docs below are the few things the code cannot state for itself: the contract handed to the backend agent, and human-facing catalogs/conventions.
+
+- **`docs/backend_agent_broker_interaction.md`** — the `generate_express` cue contract handed to the backend agent (tool args, streaming shape, per-sentence one-shot cue rules)
 - **`docs/motions.md`** — Motion catalog: every `configs/motions.json` id with description, playback policy, and source clip
-- **`docs/prd.md`** — Current feature reference + backend dependencies
-- **`docs/event-dispatcher.md`** — Dispatcher component design
-- **`docs/concept.md`** — Big picture + non-goals
+- **`docs/tts_emotion/`** — per-provider `emotion_text` voice-tag vocabulary rules
 - **`docs/logging.md`** — Logging convention: message format, namespaces, level semantics (TS + Rust)
+- **`src/contract/types.ts`** — TS contract shapes (Emotion / Motion / Control envelope / Input context / Endpoints)
 
 ## Build / Run
 

@@ -12,9 +12,11 @@ independent channel from `emotion_id` (the VRM face blendshape). A happy face
 (`emotion_id`) and a whispered voice (`emotion_text`) can fire at the same time.
 The Hermes agent produces `emotion_text`; YUI consumes whatever arrives on the
 `/v1/responses` stream and prepends it to the TTS segment (prefix-only — never
-shown in the speech bubble). See
-[`../expression-broker-mcp.md`](../expression-broker-mcp.md) and
-[`../contract.md`](../contract.md) `[D-EMOTION-TEXT]`.
+shown in the speech bubble). The `generate_express` cue contract that carries
+`emotion_text` is described in
+[`../backend_agent_broker_interaction.md`](../backend_agent_broker_interaction.md);
+the control envelope shape lives in
+[`../../src/contract/types.ts`](../../src/contract/types.ts).
 
 ## Provider-switch contract (mandatory)
 
@@ -47,7 +49,8 @@ every boot and on every broker reconnect.
 
 ## See also
 
-- [`../expression-broker-mcp.md`](../expression-broker-mcp.md) — broker design,
-  the wider `generate_express` tool fields (`emotion_id` / `motion_id` /
-  `emotion_text`), and the `emotion_text` enum-gate.
-- [`../contract.md`](../contract.md) — `[D-EMOTION-TEXT]`, the control envelope.
+- [`../backend_agent_broker_interaction.md`](../backend_agent_broker_interaction.md) —
+  the `generate_express` cue contract handed to the backend agent (the
+  `emotion_id` / `motion_id` / `emotion_text` fields and streaming shape).
+- [`../../src/contract/types.ts`](../../src/contract/types.ts) — the control
+  envelope shape (contract source of truth).

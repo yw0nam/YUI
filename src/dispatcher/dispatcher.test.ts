@@ -1,5 +1,5 @@
 /**
- * dispatcher.test.ts — classify → route + conflict resolution (event-dispatcher.md §5/§9/§11).
+ * dispatcher.test.ts — classify → route + conflict resolution.
  *
  * MVP scope (#21 spine):
  *  - §5.1 classify: user.text_submitted (tier2) → backend_caller; user.drag_* / idle.returned
@@ -537,7 +537,7 @@ describe("dispatcher — structured logging (#76): drop events via logger", () =
   });
 });
 
-// ── #25 guardrail gating (event-dispatcher.md §6 / §9) ──────────────────────────
+// ── #25 guardrail gating ──────────────────────────
 
 describe("dispatcher — guardrail gating (#25, §6)", () => {
   /** real-config(§6 수치) 가드레일을 단 dispatcher를 만든다. */

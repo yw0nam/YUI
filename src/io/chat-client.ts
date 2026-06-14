@@ -47,7 +47,7 @@
  * ⚠ function_call items are ABSENT from response.completed's final output[] →
  *   generate_express/tool state must be captured mid-stream and remembered until completed.
  *
- * Event shapes: openai@6.42 d.ts + docs/openai_response_sdk/sse-event-format.md.
+ * Event shapes: openai@6.42 d.ts.
  */
 
 import OpenAI from "openai";
