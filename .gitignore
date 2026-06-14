@@ -35,3 +35,4 @@ resources/vrma/
 
 # Playwright MCP run artifacts
 .playwright-mcp/
+pnpm-workspace.yaml
