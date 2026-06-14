@@ -8,9 +8,10 @@
  * Two pure pieces, both DOM/GL-free so they're node-testable:
  *  - isActive(state): are any of the active signals (lipsync, emotion crossfade,
  *    non-idle motion, perch converging) happening this frame?
- *  - shouldRenderFrame(nowMs, lastRenderMs, active, targetIdleFps): given the
- *    frame clock, do we draw this frame? Active ⇒ always; idle ⇒ only once the
- *    idle-fps interval has elapsed.
+ *  - shouldRenderFrame(nowMs, lastRenderMs, active, targetIdleFps, throttleEnabled):
+ *    given the frame clock, do we draw this frame? Active ⇒ always; idle ⇒ only once
+ *    the idle-fps interval has elapsed — unless throttling is disabled, which bypasses
+ *    the idle cap entirely (render every frame).
  */
 
 import { describe, expect, it } from "vitest";
@@ -70,5 +71,17 @@ describe("shouldRenderFrame", () => {
 
   it("renders the first idle frame when there is no prior render timestamp", () => {
     expect(shouldRenderFrame(1000, null, false, IDLE_FPS)).toBe(true);
+  });
+
+  it("bypasses the idle cap when throttling is disabled (renders every frame)", () => {
+    // Disabled ⇒ even an idle frame arriving well before the idle interval renders.
+    expect(shouldRenderFrame(1016.6, 1000, false, IDLE_FPS, false)).toBe(true);
+    expect(shouldRenderFrame(1000.1, 1000, false, IDLE_FPS, false)).toBe(true);
+  });
+
+  it("applies the idle cap when throttling is enabled (default arg)", () => {
+    // Explicit-enabled and default-omitted both cap idle frames.
+    expect(shouldRenderFrame(1016.6, 1000, false, IDLE_FPS, true)).toBe(false);
+    expect(shouldRenderFrame(1016.6, 1000, false, IDLE_FPS)).toBe(false);
   });
 });
