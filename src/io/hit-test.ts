@@ -20,7 +20,7 @@
  * Tauri-only: inert in a plain browser (mirrors src/drag.ts's guard).
  */
 
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
 import { createLogger } from "../logger";
 
 const log = createLogger("hit-test");
@@ -150,7 +150,18 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     return { start() {}, stop() {}, suspend() {}, resume() {} };
   }
 
-  const getWindow = opts.getWindow ?? (() => getCurrentWindow() as unknown as HitTestWindow);
+  // cursorPosition is a module-level function; the rest are Window instance methods.
+  const getWindow =
+    opts.getWindow ??
+    (() => {
+      const w = getCurrentWindow();
+      return {
+        cursorPosition: () => cursorPosition(),
+        setIgnoreCursorEvents: (ignore: boolean) => w.setIgnoreCursorEvents(ignore),
+        outerPosition: () => w.outerPosition(),
+        scaleFactor: () => w.scaleFactor(),
+      };
+    });
   const moveTarget = opts.moveTarget ?? (globalThis as unknown as EventTarget);
   const schedule =
     opts.schedule ?? ((cb, ms) => globalThis.setTimeout(cb, ms) as unknown as number);
