@@ -1,6 +1,12 @@
 {
   "vrm_url": "/vrms/carlotta.vrm",
   "framing": { "margin": 0.1, "fov": 30 },
+  "hit_test": {
+    "hysteresis_margin_px": 8,
+    "poll_interval_ms": 200,
+    "debounce_samples": 2,
+    "alpha_threshold": 0.1
+  },
   "available": [
     { "id": "carlotta", "label": "Carlotta", "url": "/vrms/carlotta.vrm", "source": "bundled" },
     { "id": "cantarella", "label": "Cantarella", "url": "/vrms/Cantarella.vrm", "source": "bundled" },

@@ -55,6 +55,14 @@ export interface AvatarConfig {
   available?: AvatarOption[];
   /** 전신 fit-to-bounds 카메라 knob. 없으면 렌더러 기본값. */
   framing?: { margin?: number; fov?: number };
+  /** 클릭스루 hit-test knob. 없으면 컨트롤러 기본값. */
+  hit_test?: {
+    hysteresis_margin_px?: number;
+    poll_interval_ms?: number;
+    debounce_samples?: number;
+    /** phase-2용 alpha 임계(현재 미사용, (0,1] 범위만 검증). */
+    alpha_threshold?: number;
+  };
 }
 
 /** configs/guardrails.json — DND/debounce/rate-limit 수치. */
@@ -572,11 +580,63 @@ function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
+  // hit_test — optional click-through knob. 부분값 허용(기본값은 컨트롤러 소유).
+  let hit_test: AvatarConfig["hit_test"];
+  const rawHitTest = raw.hit_test;
+  if (rawHitTest !== undefined) {
+    if (!isObject(rawHitTest)) {
+      issues.push(`hit_test은 객체여야 함 (받음: ${JSON.stringify(rawHitTest)})`);
+    } else {
+      const out: NonNullable<AvatarConfig["hit_test"]> = {};
+      // hysteresis_margin_px / poll_interval_ms: 유한 number. margin은 ≥0, interval은 >0.
+      const posNum = (
+        k: "hysteresis_margin_px" | "poll_interval_ms",
+        minExclusive: boolean,
+      ): void => {
+        const v = rawHitTest[k];
+        if (v === undefined) return;
+        if (typeof v !== "number" || !Number.isFinite(v) || (minExclusive ? v <= 0 : v < 0)) {
+          issues.push(
+            `hit_test.${k}는 ${minExclusive ? "0보다 큰" : "0 이상"} 유한 number여야 함 (받음: ${JSON.stringify(v)})`,
+          );
+        } else {
+          out[k] = v;
+        }
+      };
+      posNum("hysteresis_margin_px", false);
+      posNum("poll_interval_ms", true);
+      // debounce_samples: 1 이상 정수.
+      const ds = rawHitTest.debounce_samples;
+      if (ds !== undefined) {
+        if (typeof ds !== "number" || !Number.isInteger(ds) || ds < 1) {
+          issues.push(
+            `hit_test.debounce_samples는 1 이상 정수여야 함 (받음: ${JSON.stringify(ds)})`,
+          );
+        } else {
+          out.debounce_samples = ds;
+        }
+      }
+      // alpha_threshold: (0, 1] 범위 유한 number(phase-2 예약).
+      const at = rawHitTest.alpha_threshold;
+      if (at !== undefined) {
+        if (typeof at !== "number" || !Number.isFinite(at) || at <= 0 || at > 1) {
+          issues.push(
+            `hit_test.alpha_threshold는 (0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(at)})`,
+          );
+        } else {
+          out.alpha_threshold = at;
+        }
+      }
+      hit_test = out;
+    }
+  }
+
   assertValid(file, issues);
   return {
     vrm_url,
     ...(available !== undefined ? { available } : {}),
     ...(framing !== undefined ? { framing } : {}),
+    ...(hit_test !== undefined ? { hit_test } : {}),
   };
 }
 

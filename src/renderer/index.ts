@@ -34,6 +34,7 @@ import {
   type EmotionResolver,
   type ResolvedEmotion,
 } from "./emotion-resolver";
+import { pointInProjectedBox } from "./hit-test";
 import {
   createMotionController,
   type MotionController,
@@ -169,6 +170,12 @@ export interface Renderer {
    * resize/zoom으로 카메라가 재fit될 때마다 변한다 — UI 입력을 발밑에 붙이는 데 쓴다.
    */
   getCharacterAnchor(): ScreenAnchor | null;
+  /**
+   * Coarse Phase-1 hit test: true when the canvas CSS-px point (x, y), relative
+   * to the stage top-left, falls inside the character's projected screen
+   * bounding box. False when no VRM/model box is loaded. No GL readback.
+   */
+  hitTest(x: number, y: number): boolean;
   /**
    * Live one-shot probe used at drop time to decide if the character is over a
    * window. Projects the live hips bone (+SEAT_DROP) to pet-window px (`seatPx`)
@@ -849,6 +856,18 @@ export function createRenderer(options: RendererOptions): Renderer {
       if (!modelBox) return null;
       camera.updateMatrixWorld();
       return projectFeetAnchor(modelBox, camera, mount.clientWidth || 1, mount.clientHeight || 1);
+    },
+    hitTest(x, y) {
+      if (!modelBox) return false;
+      camera.updateMatrixWorld();
+      return pointInProjectedBox(
+        modelBox,
+        camera,
+        mount.clientWidth || 1,
+        mount.clientHeight || 1,
+        x,
+        y,
+      );
     },
     getPerchProbe() {
       if (!currentVrm) return null;
