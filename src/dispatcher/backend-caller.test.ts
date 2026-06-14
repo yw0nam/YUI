@@ -1,5 +1,5 @@
 /**
- * backend-caller.test.ts — Backend caller B1–B5 (event-dispatcher.md §7.2).
+ * backend-caller.test.ts — Backend caller B1–B5.
  *
  * Locks:
  *  - B1 package_context → contract §4 InputContext (user_text + env.timestamp + env.timezone).

@@ -12,8 +12,7 @@ segment). **Repeat an emoji to intensify** (e.g. `🥺` → `🥺🥺`); combina
 allowed. YUI publishes this exact table to the broker via
 `update_emotion_text("enum", <table>)`, and the broker enum-gates incoming
 `emotion_text` against it (unknown tokens dropped + warning, speech never
-blocked). The canonical machine copy lives under `configs/`
-([D3](../expression-broker-mcp.md)).
+blocked). The canonical machine copy lives under `configs/`.
 
 This table stays aligned with the broker's 39-entry `DEFAULT_EMOTION_TEXT_MAP`.
 

@@ -122,7 +122,7 @@ describe("loadConfig — happy path", () => {
   });
 });
 
-// ── guardrails.json (#25, event-dispatcher.md §6) ────────────────────────────────
+// ── guardrails.json (#25) ────────────────────────────────
 
 describe("loadConfig — guardrails", () => {
   it("SOT 모양을 그대로 보존한다", async () => {

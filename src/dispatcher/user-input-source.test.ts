@@ -1,5 +1,5 @@
 /**
- * user-input-source.test.ts — user.text_submitted + user.voice_segment_ready producers (event-dispatcher.md §3.4).
+ * user-input-source.test.ts — user.text_submitted + user.voice_segment_ready producers.
  *
  * Locks:
  *  - submit(text) pushes a well-formed user.text_submitted envelope.

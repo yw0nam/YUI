@@ -2,13 +2,11 @@
  * apply-directive.test.ts — TDD red phase for Renderer.applyDirective (#16a, render-wiring half).
  *
  * These tests MUST FAIL against the stub (`routeDirective` does not yet exist).
- * They encode contract.md §3 "렌더 규약" (render rules) + §1 hold-on-null semantics that
- * applyDirective must obey when routing a ControlEnvelope into setEmotion(#6) / playMotion(#5).
- *
- * Source of truth (contract.md):
- *  - §3 render rule 1 (line 284): emotion present → expression transition; ABSENT → hold previous.
- *  - §3 render rule 2 (line 285): motion present → registry lookup + play; ABSENT or null → idle.
- *  - §1 (line 84): `emotion === null` OR absent → NO-OP (hold previous); only explicit
+ * These tests ARE the source of truth for the render rules + hold-on-null semantics that
+ * applyDirective must obey when routing a ControlEnvelope into setEmotion(#6) / playMotion(#5):
+ *  - render rule 1: emotion present → expression transition; ABSENT → hold previous.
+ *  - render rule 2: motion present → registry lookup + play; ABSENT or null → idle.
+ *  - hold-on-null: `emotion === null` OR absent → NO-OP (hold previous); only explicit
  *    `{id:"neutral"}` transitions to neutral. `setEmotion(null)` is itself a NO-OP hold (#6).
  *  - §3 render rule 6 (line 289): `_reserved` is ignored in v0.
  *

@@ -28,7 +28,8 @@ irodori, free text for openai-compatible/fishspeech — which the agent learns
 via the broker). Speech
 text flows as a separate assistant text stream (`response.output_text.delta`),
 not inside the tool-call. The renderable emotion/motion vocabulary is brokered
-by the Expression Broker MCP (see [`docs/expression-broker-mcp.md`](docs/expression-broker-mcp.md)).
+by the Expression Broker MCP; the `generate_express` cue contract handed to the
+backend agent lives in [`docs/backend_agent_broker_interaction.md`](docs/backend_agent_broker_interaction.md).
 
 ## Stack
 
@@ -70,7 +71,7 @@ YUI/
   public/motions/         # VRMA motion assets
   src/
     main.ts               # Bootstrap wiring
-    contract/             # TS types from docs/contract.md
+    contract/             # TS contract types — source of truth
     renderer/             # three.js + VRM (load, emotion resolver, motion controller, lipsync)
     io/                   # chat-client, tts-pipeline, stt-vad, os-context, screenshot, broker-client, irodori-synth
     dispatcher/           # Event bus + classify → route spine
@@ -83,7 +84,7 @@ YUI/
       drag.rs             # OS-native window drag
       screenshot.rs       # Monitor capture
       os_event_watcher/   # mod · macos · windows — active app / idle / fullscreen polling
-  docs/                   # Design + contract source of truth
+  docs/                   # Backend-handoff contract + human-facing catalogs
 ```
 
 ## Getting started
@@ -136,11 +137,11 @@ level with the `VITE_YUI_LOG_LEVEL` env var (`debug` · `info` · `warn` · `err
 
 - [`AGENTS.md`](AGENTS.md) — canonical agent guide (work rules, roster, stack, layout)
 - [`PRODUCT.md`](PRODUCT.md) / [`DESIGN.md`](DESIGN.md) — product register + design system
-- [`docs/concept.md`](docs/concept.md) — big picture + non-goals
-- [`docs/prd.md`](docs/prd.md) — current feature reference + backend dependencies
-- [`docs/contract.md`](docs/contract.md) — YUI ↔ Hermes contract (emotion · motion · control envelope · input context · endpoints)
-- [`docs/event-dispatcher.md`](docs/event-dispatcher.md) — dispatcher component design
-- [`docs/expression-broker-mcp.md`](docs/expression-broker-mcp.md) — Expression Broker MCP
+- [`docs/backend_agent_broker_interaction.md`](docs/backend_agent_broker_interaction.md) — `generate_express` cue contract handed to the backend agent
+- [`docs/motions.md`](docs/motions.md) — motion catalog (every `configs/motions.json` id, playback policy, source clip)
+- [`docs/tts_emotion/`](docs/tts_emotion/) — per-provider `emotion_text` voice-tag vocabulary
+- [`docs/logging.md`](docs/logging.md) — logging convention (format, namespaces, levels)
+- [`src/contract/types.ts`](src/contract/types.ts) — TS contract shapes (emotion · motion · control envelope · input context · endpoints)
 - [`CHANGELOG.md`](CHANGELOG.md) — landed work
 
 ## Credits

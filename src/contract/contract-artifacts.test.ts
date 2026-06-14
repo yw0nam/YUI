@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 // vitest는 프로젝트 루트에서 실행되므로 cwd 기준으로 아티팩트를 읽는다.
 const read = (rel: string): any => JSON.parse(readFileSync(resolve(process.cwd(), rel), "utf-8"));
 
-// docs/contract.md §1 — canonical emotion vocabulary. 테스트의 단일 기준점.
+// canonical emotion vocabulary — 이 테스트가 단일 기준점이다.
 const EMOTION_IDS = [
   "neutral",
   "happy",

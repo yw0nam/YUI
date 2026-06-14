@@ -1,15 +1,13 @@
 import { describe, it } from "vitest";
 
 /**
- * Dispatcher acceptance-scenario catalog (docs/event-dispatcher.tests.md TC-01..TC-15).
+ * Dispatcher acceptance-scenario catalog (TC-01..TC-15).
  *
  * 이 파일은 시나리오 카탈로그를 러너에 연결만 한다 — 각 TC는 `it.todo`로 pending 표시되어
  * `pnpm test` 출력에 "구현 대기" 목록으로 드러난다. dispatcher / guardrails / event-bus
- * 모듈이 구현되는 M1~M2에 각 todo를 실제 단언으로 채운다 (event-dispatcher.tests.md §실행 메모).
- *
- * 새 TC 추가 시 parent spec(event-dispatcher.md)의 어느 절을 잠그는지 tests.md 매트릭스에도 등록.
+ * 모듈이 구현되는 M1~M2에 각 todo를 실제 단언으로 채운다.
  */
-describe("event dispatcher acceptance scenarios (event-dispatcher.tests.md)", () => {
+describe("event dispatcher acceptance scenarios", () => {
   it.todo("TC-01 morning milestone · DND_OFF · rate 미달 → backend 호출 → 발화 가시");
   it.todo("TC-02 milestone + DND_ON(fullscreen) → silent drop, INFO");
   it.todo("TC-03 idle.long + backend should_speak=false → silent drop, 사용자 영향 X");

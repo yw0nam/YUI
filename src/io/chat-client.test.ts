@@ -5,10 +5,10 @@
  *   client.responses.create({ stream: true }) → async-iterable of TYPED Responses events
  * 를 우리 ChatStreamEvent / ControlEnvelope로 매핑하는지.
  *
- * 결정 D-CHAT-SDK(docs/prd.md): SSE framing/chunk-split/abort는 SDK 소유.
+ * 결정 D-CHAT-SDK: SSE framing/chunk-split/abort는 SDK 소유.
  * → 절대 fetch/ReadableStream/raw-bytes를 mock하지 않는다. `openai` 모듈을 mock한다.
  *
- * 이벤트 shape 원천: openai@6.42 d.ts + docs/openai_response_sdk/sse-event-format.md.
+ * 이벤트 shape 원천: openai@6.42 d.ts.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -145,7 +145,7 @@ const completedWithUsage = (text: string, usage: Record<string, unknown>): any =
   return ev;
 };
 
-/** generate_express FLAT args (contract.md §1/§3): emotion_id / motion_id / emotion_text. */
+/** generate_express FLAT args: emotion_id / motion_id / emotion_text. */
 const GEN_EXPRESS_FLAT =
   '{"emotion_id":"happy","motion_id":"embarrassed","emotion_text":"[whisper in small voice]"}';
 

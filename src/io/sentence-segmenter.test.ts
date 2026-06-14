@@ -4,7 +4,7 @@
  * 대상: createSentenceSegmenter() — push(text)는 누적 후 완성된 문장만 배열로 반환하고
  * 미완성 꼬리는 버퍼에 남긴다. flush()는 남은 버퍼(trim, 비어있지 않을 때)를 반환, 없으면 null.
  *
- * 경계 규칙(contract.md §3 step 3, "구현 시 결정 — 새 리서치 X"):
+ * 경계 규칙:
  *  - 종결부호 run(.!?…。！？) + optional 닫는 인용/괄호 → whitespace/끝.
  *  - newline도 분절.
  *  - 약어 NLP 없음. 각 문장 trim, 빈 문장 drop.

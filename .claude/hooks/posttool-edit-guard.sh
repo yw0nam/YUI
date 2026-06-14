@@ -34,14 +34,8 @@ add_ctx() {
 }
 
 case "$fp" in
-  */src/contract/types.ts)
-    add_ctx "src/contract/types.ts changed — keep docs/contract.md in sync (paired by contract)."
-    ;;
-  */docs/contract.md)
-    add_ctx "docs/contract.md changed — keep src/contract/types.ts in sync (paired by contract)."
-    ;;
   */configs/motions.json)
-    add_ctx "configs/motions.json changed — keep docs/motions.md and the contract.md motion registry table in sync."
+    add_ctx "configs/motions.json changed — keep docs/motions.md in sync."
     ;;
 esac
 
