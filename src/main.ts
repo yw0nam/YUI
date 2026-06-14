@@ -44,6 +44,10 @@ import {
   mergeEndpoints,
 } from "./io/endpoints-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
+import {
+  createIdleThrottleSettings,
+  localStorageIdleThrottleStorage,
+} from "./io/idle-throttle-settings";
 import { createIrodoriSynth, type TtsSynth } from "./io/irodori-synth";
 import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
 import { ensureRegistered, evictRegistration, updateVoice } from "./io/irodori-voices";
@@ -196,6 +200,10 @@ async function bootstrap(): Promise<void> {
   });
 
   const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
+  // 유휴 절전(30fps 캡) on/off. 기본 ON.
+  const idleThrottleSettings = createIdleThrottleSettings({
+    storage: localStorageIdleThrottleStorage(),
+  });
   // proactive 발화(cowork tier2) on/off. 소스의 firing만 게이팅 — 구독은 멈추지 않는다.
   const proactiveSettings = createProactiveSettings({ storage: localStorageProactiveStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
@@ -217,6 +225,8 @@ async function bootstrap(): Promise<void> {
   const cameraSettings = createCameraSettings({ storage: localStorageCameraStorage() });
   renderer.setZoom(cameraSettings.get().zoom);
   cameraSettings.subscribe((s) => renderer.setZoom(s.zoom));
+  renderer.setIdleThrottleEnabled(idleThrottleSettings.get().enabled);
+  idleThrottleSettings.subscribe((s) => renderer.setIdleThrottleEnabled(s.enabled));
   const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
@@ -234,6 +244,7 @@ async function bootstrap(): Promise<void> {
     vadSettings,
     screenshotSettings,
     proactiveSettings,
+    idleThrottleSettings,
     cameraSettings,
     sessionStore,
     sessionDiagnostics,
@@ -276,6 +287,7 @@ async function bootstrap(): Promise<void> {
   vadSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
   proactiveSettings.subscribe(broadcastSettings);
+  idleThrottleSettings.subscribe(broadcastSettings);
   cameraSettings.subscribe(broadcastSettings);
   bridge.onSettingsChanged(() => {
     applyingRemote = true;
@@ -287,6 +299,7 @@ async function bootstrap(): Promise<void> {
       vadSettings.reloadFromStorage();
       screenshotSettings.reloadFromStorage();
       proactiveSettings.reloadFromStorage();
+      idleThrottleSettings.reloadFromStorage();
       // 줌 재로드 → cameraSettings.subscribe(s => renderer.setZoom)가 카메라까지 반영.
       cameraSettings.reloadFromStorage();
       // VRM 선택은 설정 창에서 store-only로 커밋되므로, 그 변경을 펫 창 렌더러로 반영.
@@ -420,6 +433,7 @@ async function bootstrap(): Promise<void> {
   const quickControls = createQuickControls({
     mount: root,
     settings: screenshotSettings,
+    idleThrottleSettings,
     proactiveSettings,
     sourceProvider: screenSourceProvider,
     voiceStatus: voiceInputStatus,
@@ -503,6 +517,7 @@ async function bootstrap(): Promise<void> {
       void sttVad?.dispose();
       voiceInputStatus.dispose();
       screenshotSettings.dispose();
+      idleThrottleSettings.dispose();
       proactiveSettings.dispose();
       lipsyncSettings.dispose();
       vadSettings.dispose();

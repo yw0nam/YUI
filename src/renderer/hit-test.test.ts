@@ -2,14 +2,16 @@
  * hit-test.test.ts — PHASE-2 per-pixel alpha silhouette predicate.
  *
  * Pins the PURE parts of the alpha-based hit test (no GL):
+ *  - grabDimensions: device-buffer → offscreen grab size (linear scale, maxW cap,
+ *    aspect-preserved, floored ≥1).
  *  - cssToGrabCell: CSS-px (stage top-left origin) → low-res grab cell, with the
- *    Y-FLIP that maps DOM top-left to readPixels' bottom-left grab origin.
+ *    Y-FLIP that maps DOM top-left to the bottom-left grab origin.
  *  - sampleAlphaHit: alpha-threshold decision with 3×3 dilation against a small
  *    synthetic RGBA grab grid.
  */
 
 import { describe, expect, it } from "vitest";
-import { cssToGrabCell, sampleAlphaHit } from "./hit-test";
+import { cssToGrabCell, grabDimensions, sampleAlphaHit } from "./hit-test";
 
 /**
  * Build an RGBA Uint8Array grab of size gw×gh where `opaque(col,row)` decides the
@@ -57,6 +59,32 @@ describe("cssToGrabCell — CSS px → low-res grab cell with Y-flip", () => {
     const past = cssToGrabCell(1000, -50, 100, 200, 10, 20);
     expect(past.col).toBe(9);
     expect(past.row).toBe(19);
+  });
+});
+
+describe("grabDimensions — offscreen grab size from the device buffer", () => {
+  const SCALE = 1 / 8;
+  const MAX_W = 128;
+
+  it("scales the width by the linear factor and preserves aspect", () => {
+    // 800×600 device buffer → width 800/8 = 100, height 600/800*100 = 75.
+    expect(grabDimensions(800, 600, SCALE, MAX_W)).toEqual({ gw: 100, gh: 75 });
+  });
+
+  it("caps the width at maxW for large displays (aspect from the cap)", () => {
+    // 4000×2000: 4000/8 = 500 > 128 ⇒ gw=128, gh = 2000/4000*128 = 64.
+    expect(grabDimensions(4000, 2000, SCALE, MAX_W)).toEqual({ gw: 128, gh: 64 });
+  });
+
+  it("never returns a zero dimension for a tiny buffer", () => {
+    const d = grabDimensions(3, 2, SCALE, MAX_W);
+    expect(d.gw).toBeGreaterThanOrEqual(1);
+    expect(d.gh).toBeGreaterThanOrEqual(1);
+  });
+
+  it("returns null for a non-positive buffer (nothing to grab)", () => {
+    expect(grabDimensions(0, 600, SCALE, MAX_W)).toBeNull();
+    expect(grabDimensions(800, 0, SCALE, MAX_W)).toBeNull();
   });
 });
 

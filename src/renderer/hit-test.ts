@@ -15,6 +15,29 @@ export interface GrabCell {
   row: number;
 }
 
+/** Pixel size of the offscreen alpha grab (gw×gh). */
+export interface GrabSize {
+  gw: number;
+  gh: number;
+}
+
+/**
+ * Size the offscreen alpha grab from the device buffer: scale the width by `scale`
+ * (linear), cap it at `maxW`, and derive the height from the device aspect. Both
+ * dims floor to >=1. Returns null for a non-positive buffer (nothing to grab).
+ */
+export function grabDimensions(
+  bw: number,
+  bh: number,
+  scale: number,
+  maxW: number,
+): GrabSize | null {
+  if (bw <= 0 || bh <= 0) return null;
+  const gw = Math.min(maxW, Math.max(1, Math.round(bw * scale)));
+  const gh = Math.max(1, Math.round((bh / bw) * gw));
+  return { gw, gh };
+}
+
 const clampInt = (v: number, max: number): number => (v < 0 ? 0 : v > max ? max : Math.floor(v));
 
 /**

@@ -24,6 +24,7 @@ import {
 } from "../io/agent-settings";
 import { createChatKeySettings } from "../io/chat-key-settings";
 import { createEndpointsSettings } from "../io/endpoints-settings";
+import { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import { createLipsyncSettings } from "../io/lipsync-settings";
 import { createProactiveSettings } from "../io/proactive-settings";
 import { createSessionDiagnosticsStore } from "../io/session-diagnostics";
@@ -200,6 +201,7 @@ describe("createQuickControls — gain row", () => {
     return createQuickControls({
       mount,
       settings: makeSettings(),
+      idleThrottleSettings: createIdleThrottleSettings(),
       sourceProvider: makeSourceProvider(),
       voiceStatus: makeVoiceStatus(),
       lipsync,
@@ -285,6 +287,61 @@ describe("createQuickControls — gain row", () => {
 
     proactiveSettings.setEnabled(true);
     expect(proactiveSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  // ── 유휴 절전 toggle row (Advanced tab) ──────────────────────────────────
+
+  it("renders the idle-throttle toggle row in the Advanced tab, ON by default", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const idleSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch");
+    expect(idleSwitch).not.toBeNull();
+    expect(idleSwitch!.getAttribute("aria-checked")).toBe("true");
+    expect(idleSwitch!.getAttribute("role")).toBe("switch");
+    expect(idleSwitch!.getAttribute("aria-label")).toBe("유휴 시 절전");
+
+    const row = idleSwitch!.closest(".yui-row")!;
+    expect(row.querySelector(".yui-row__label")!.textContent).toContain("유휴 시 절전");
+    expect(row.querySelector(".yui-row__sub")!.textContent).toContain(
+      "캐릭터가 가만히 있을 때 프레임을 낮춰 전력을 아낍니다",
+    );
+
+    qc.dispose();
+  });
+
+  it("clicking the idle-throttle switch toggles idleThrottleSettings.setEnabled", () => {
+    const idleThrottleSettings = createIdleThrottleSettings();
+    const qc = buildQc({ idleThrottleSettings });
+    qc.open();
+
+    const idleSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
+    expect(idleThrottleSettings.get().enabled).toBe(true);
+
+    idleSwitch.click();
+    expect(idleThrottleSettings.get().enabled).toBe(false);
+    expect(idleSwitch.getAttribute("aria-checked")).toBe("false");
+
+    idleSwitch.click();
+    expect(idleThrottleSettings.get().enabled).toBe(true);
+    expect(idleSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  it("external idleThrottleSettings.setEnabled reflects on the switch while open", () => {
+    const idleThrottleSettings = createIdleThrottleSettings();
+    const qc = buildQc({ idleThrottleSettings });
+    qc.open();
+
+    const idleSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
+    idleThrottleSettings.setEnabled(false);
+    expect(idleSwitch.getAttribute("aria-checked")).toBe("false");
+
+    idleThrottleSettings.setEnabled(true);
+    expect(idleSwitch.getAttribute("aria-checked")).toBe("true");
 
     qc.dispose();
   });
@@ -2502,6 +2559,7 @@ describe("createQuickControls — session section", () => {
     return createQuickControls({
       mount,
       settings: makeSettings(),
+      idleThrottleSettings: createIdleThrottleSettings(),
       sourceProvider: makeSourceProvider(),
       voiceStatus: makeVoiceStatus(),
       lipsync: createLipsyncSettings(),
@@ -2696,6 +2754,7 @@ describe("createQuickControls — tabs + VAD slider", () => {
     return createQuickControls({
       mount,
       settings: makeSettings(),
+      idleThrottleSettings: createIdleThrottleSettings(),
       sourceProvider: makeSourceProvider(),
       voiceStatus: makeVoiceStatus(),
       lipsync: createLipsyncSettings(),
