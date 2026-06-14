@@ -37,15 +37,17 @@ export function isActive(state: ActiveState): boolean {
 /**
  * Decide whether to draw this frame. Active ⇒ always draw (uncapped). Idle ⇒ draw
  * only once the idle-fps interval has elapsed since the last render. A null
- * lastRenderMs (no prior render) always draws.
+ * lastRenderMs (no prior render) always draws. When `throttleEnabled` is false the
+ * idle cap is bypassed entirely — every frame draws (pause-on-hidden is separate).
  */
 export function shouldRenderFrame(
   nowMs: number,
   lastRenderMs: number | null,
   active: boolean,
   targetIdleFps: number,
+  throttleEnabled = true,
 ): boolean {
-  if (active) return true;
+  if (active || !throttleEnabled) return true;
   if (lastRenderMs === null) return true;
   const idleIntervalMs = 1000 / targetIdleFps;
   // Tiny epsilon so a frame landing exactly one interval out renders despite

@@ -217,6 +217,14 @@ export interface Renderer {
   setPerchTarget(target: { edgeLocalYpx: number } | null): void;
   /** 현재 perch 활성 여부 — occlusion poll이 perch 종료를 감지하는 데 쓴다. */
   isPerched(): boolean;
+  /**
+   * Enable/disable the idle 30fps cap at runtime. Enabled (default) caps ambient-only
+   * frames to IDLE_FPS; disabled renders idle frames at full refresh. Pause-on-hidden
+   * is always on and unaffected by this toggle.
+   */
+  setIdleThrottleEnabled(enabled: boolean): void;
+  /** Current idle-throttle toggle state (true = idle cap active). */
+  getIdleThrottleEnabled(): boolean;
   /** rAF 루프 정지 + GPU 리소스 해제. */
   dispose(): void;
 }
@@ -520,6 +528,8 @@ export function createRenderer(options: RendererOptions): Renderer {
   let lastRenderMs: number | null = null;
   // True while the rAF loop is paused because the document is hidden/minimized.
   let paused = false;
+  // Idle 30fps cap toggle (runtime). Disabled ⇒ idle frames render at full refresh.
+  let idleThrottleEnabled = true;
 
   /** True while a non-idle motion clip is actively playing via the mixer. */
   function isMotionActive(): boolean {
@@ -541,7 +551,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       perchConverging,
     });
     const now = performance.now();
-    if (!shouldRenderFrame(now, lastRenderMs, active, IDLE_FPS)) return;
+    if (!shouldRenderFrame(now, lastRenderMs, active, IDLE_FPS, idleThrottleEnabled)) return;
     lastRenderMs = now;
 
     const dt = clock.getDelta();
@@ -1083,6 +1093,12 @@ export function createRenderer(options: RendererOptions): Renderer {
     },
     isPerched() {
       return perchTargetYpx !== null;
+    },
+    setIdleThrottleEnabled(enabled) {
+      idleThrottleEnabled = enabled;
+    },
+    getIdleThrottleEnabled() {
+      return idleThrottleEnabled;
     },
     dispose() {
       cancelAnimationFrame(rafId);
