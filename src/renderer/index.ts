@@ -35,7 +35,7 @@ import {
   type ResolvedEmotion,
 } from "./emotion-resolver";
 import { isActive, shouldRenderFrame } from "./frame-gate";
-import { cssToGrabCell, sampleAlphaHit } from "./hit-test";
+import { cssToGrabCell, grabDimensions, sampleAlphaHit } from "./hit-test";
 import {
   createMotionController,
   type MotionController,
@@ -338,21 +338,25 @@ export function createRenderer(options: RendererOptions): Renderer {
   const perchSeatRel = new THREE.Vector3();
 
   // ── Per-pixel alpha hit-test state ───────────────────────────────────────────
-  // Low-res RGBA grab of the visible drawing buffer (reused; no per-frame alloc).
+  // Low-res RGBA grab of the silhouette (reused; no per-frame alloc).
   let alphaGrab: Uint8Array | null = null;
   let alphaGrabW = 0;
   let alphaGrabH = 0;
   let alphaFrame = 0;
   // Threshold in 0..1 (config-injected); compared as 0..255 against the grab.
   let alphaThreshold = DEFAULT_ALPHA_THRESHOLD;
+  // Offscreen render target sized to the grab dims — the scene is re-rendered into
+  // it at low res so the readback reads only gw×gh px (not the full device buffer).
+  // Allocated once, resized only when the grab dims change (no per-frame alloc).
+  let alphaTarget: THREE.WebGLRenderTarget | null = null;
 
   /**
-   * Refresh the CPU-side alpha grab from the default framebuffer. MUST run inside
-   * the rAF loop right after renderer.render() — a same-turn gl.readPixels of the
-   * default framebuffer is valid (the browser clears it only after JS yields), so
-   * preserveDrawingBuffer is NOT needed. Reading from a poll/pointer callback
-   * (outside the draw turn) would read zeros. Frame-gated + reused buffer to keep
-   * the frame budget. No grab while no VRM is loaded.
+   * Refresh the low-res alpha grab via an offscreen render target. The scene is
+   * re-rendered into a gw×gh target (the GPU does the downscale) and only those
+   * pixels are read back — far cheaper than reading the full device buffer and
+   * box-sampling on the CPU. MUST run inside the rAF loop. readRenderTargetPixels'
+   * origin is bottom-left, so grab rows stay bottom-up (cssToGrabCell's flip holds).
+   * Frame-gated to spare the budget. No grab while no VRM is loaded.
    */
   function refreshAlphaGrab(): void {
     if (!currentVrm) {
@@ -363,47 +367,36 @@ export function createRenderer(options: RendererOptions): Renderer {
     try {
       const gl = renderer.getContext();
       // drawingBufferWidth/Height are device px (post devicePixelRatio).
-      const bw = gl.drawingBufferWidth;
-      const bh = gl.drawingBufferHeight;
-      if (bw <= 0 || bh <= 0) return;
-      const cap = Math.min(ALPHA_GRAB_MAX_W, Math.max(1, Math.round(bw * ALPHA_GRAB_SCALE)));
-      const gw = cap;
-      const gh = Math.max(1, Math.round((bh / bw) * gw));
+      const dims = grabDimensions(
+        gl.drawingBufferWidth,
+        gl.drawingBufferHeight,
+        ALPHA_GRAB_SCALE,
+        ALPHA_GRAB_MAX_W,
+      );
+      if (!dims) return;
+      const { gw, gh } = dims;
+      if (!alphaTarget) {
+        alphaTarget = new THREE.WebGLRenderTarget(gw, gh, {
+          depthBuffer: true,
+          stencilBuffer: false,
+        });
+      } else if (alphaTarget.width !== gw || alphaTarget.height !== gh) {
+        alphaTarget.setSize(gw, gh);
+      }
       const need = gw * gh * 4;
       if (!alphaGrab || alphaGrab.length < need) alphaGrab = new Uint8Array(need);
-      readDownscaled(gl, bw, bh, gw, gh, alphaGrab);
+
+      const prevTarget = renderer.getRenderTarget();
+      renderer.setRenderTarget(alphaTarget);
+      renderer.render(scene, camera);
+      renderer.readRenderTargetPixels(alphaTarget, 0, 0, gw, gh, alphaGrab);
+      renderer.setRenderTarget(prevTarget);
+
       alphaGrabW = gw;
       alphaGrabH = gh;
     } catch (err) {
       log.error("alpha_grab_error", { error: String(err) });
       alphaGrab = null;
-    }
-  }
-
-  // Full-resolution scratch for a strided downscale read (reused across frames).
-  let alphaFullBuf: Uint8Array | null = null;
-  /**
-   * Read the full device buffer and box-sample its alpha into the gw×gh grab
-   * (nearest, stride-based). readPixels can only return 1:1 device px, so the
-   * downscale happens on the CPU here. Grab rows stay bottom-up (readPixels origin).
-   */
-  function readDownscaled(
-    gl: WebGLRenderingContext | WebGL2RenderingContext,
-    bw: number,
-    bh: number,
-    gw: number,
-    gh: number,
-    out: Uint8Array,
-  ): void {
-    const full = bw * bh * 4;
-    if (!alphaFullBuf || alphaFullBuf.length < full) alphaFullBuf = new Uint8Array(full);
-    gl.readPixels(0, 0, bw, bh, gl.RGBA, gl.UNSIGNED_BYTE, alphaFullBuf);
-    for (let r = 0; r < gh; r++) {
-      const sy = Math.min(bh - 1, Math.floor((r / gh) * bh));
-      for (let c = 0; c < gw; c++) {
-        const sx = Math.min(bw - 1, Math.floor((c / gw) * bw));
-        out[(r * gw + c) * 4 + 3] = alphaFullBuf[(sy * bw + sx) * 4 + 3];
-      }
     }
   }
 
@@ -589,8 +582,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       currentVrm.update(dt);
     }
     renderer.render(scene, camera);
-    // Same-turn readback of the just-rendered default framebuffer for the alpha
-    // hit-test. Must be here (after render, in the rAF turn) — reading later reads zeros.
+    // Refresh the low-res alpha grab (offscreen render-target readback) for the
+    // hit-test. Frame-gated; runs in the rAF turn right after the main render.
     refreshAlphaGrab();
   }
   animate();
@@ -1105,6 +1098,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       ro.disconnect();
       disposeCurrent();
+      alphaTarget?.dispose();
+      alphaTarget = null;
       renderer.dispose();
       renderer.domElement.remove();
     },
