@@ -34,6 +34,7 @@ import {
   type EmotionResolver,
   type ResolvedEmotion,
 } from "./emotion-resolver";
+import { isActive, shouldRenderFrame } from "./frame-gate";
 import { cssToGrabCell, sampleAlphaHit } from "./hit-test";
 import {
   createMotionController,
@@ -82,6 +83,9 @@ const ALPHA_GRAB_MAX_W = 128;
 const ALPHA_GRAB_FRAME_GATE = 3;
 /** Fallback alpha threshold (0..1) until config injects one. */
 const DEFAULT_ALPHA_THRESHOLD = 0.1;
+
+/** Idle (ambient-only) frame cap — full refresh is reserved for active animation. */
+const IDLE_FPS = 30;
 
 export interface RendererOptions {
   /** VRM을 렌더할 캔버스 마운트 대상. */
@@ -252,6 +256,8 @@ export interface MouthLipsync {
   step(dt: number, em: MouthExpressionManager): void;
   /** Ease the mouth back to 0 (closed). */
   stop(): void;
+  /** Current applied mouth-open weight (0..1) — cheap read for the frame gate. */
+  openValue(): number;
 }
 
 /**
@@ -275,6 +281,9 @@ export function createMouthLipsync(options: MouthLipsyncOptions = {}): MouthLips
     },
     stop() {
       target = 0;
+    },
+    openValue() {
+      return current;
     },
   };
 }
@@ -312,6 +321,8 @@ export function createRenderer(options: RendererOptions): Renderer {
   let perchOffsetY = 0;
   // Cached hips bone for the per-frame pin (refreshed on load; no per-frame lookup).
   let perchHipsBone: THREE.Object3D | null = null;
+  // True while the seat-pin offset is still stepping toward the target (not settled).
+  let perchConverging = false;
   // Scratch vectors reused every frame — no per-frame allocation in the pin path.
   const perchHipsWorld = new THREE.Vector3();
   const perchSeatWorld = new THREE.Vector3();
@@ -504,8 +515,35 @@ export function createRenderer(options: RendererOptions): Renderer {
   const clock = new THREE.Clock();
   let elapsed = 0;
   let rafId = 0;
+  // Frame-throttle bookkeeping: last rendered timestamp (perf-clock ms) for the
+  // idle fps cap; null = no frame drawn yet (or just resumed) ⇒ draw immediately.
+  let lastRenderMs: number | null = null;
+  // True while the rAF loop is paused because the document is hidden/minimized.
+  let paused = false;
+
+  /** True while a non-idle motion clip is actively playing via the mixer. */
+  function isMotionActive(): boolean {
+    if (!currentAction?.isRunning()) return false;
+    const id = controller?.current()?.id;
+    return id != null && id !== "idle";
+  }
+
   function animate(): void {
     rafId = requestAnimationFrame(animate);
+    // Idle/active frame gate: while only ambient is running, cap to IDLE_FPS so the
+    // frame budget is spared; full refresh is reserved for active animation. Skipped
+    // frames do NOT consume the clock delta — it accumulates into the next rendered
+    // frame so animation speed is unchanged.
+    const active = isActive({
+      mouthOpen: mouth.openValue(),
+      emotionFading: emotionXfade !== null,
+      motionActive: isMotionActive(),
+      perchConverging,
+    });
+    const now = performance.now();
+    if (!shouldRenderFrame(now, lastRenderMs, active, IDLE_FPS)) return;
+    lastRenderMs = now;
+
     const dt = clock.getDelta();
     if (currentVrm) {
       elapsed += dt;
@@ -546,6 +584,26 @@ export function createRenderer(options: RendererOptions): Renderer {
     refreshAlphaGrab();
   }
   animate();
+
+  // Pause the rAF loop entirely while the document is hidden/minimized; resume the
+  // moment it is visible again. On resume, discard the paused gap (getDelta returns
+  // the whole hidden duration otherwise — that would teleport animations) and clear
+  // lastRenderMs so the first frame draws immediately.
+  function onVisibilityChange(): void {
+    if (document.visibilityState === "hidden") {
+      if (paused) return;
+      paused = true;
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    } else {
+      if (!paused) return;
+      paused = false;
+      clock.getDelta(); // drop the accumulated hidden gap so dt doesn't jump.
+      lastRenderMs = null;
+      animate();
+    }
+  }
+  document.addEventListener("visibilitychange", onVisibilityChange);
 
   /** mixer/clip/action 캐시 + controller 상태를 모두 폐기 (핫스왑/dispose 공용). */
   function teardownMotion(): void {
@@ -740,6 +798,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       const depth = perchSeatRel.copy(perchSeatWorld).sub(camera.position).dot(perchCamForward);
       const wpp = worldYPerPixel(camera, depth, h);
       const delta = seatOffsetWorldY(seatPx.y, perchTargetYpx, wpp);
+      // Sub-pixel residual ⇒ settled; lets the frame gate drop to idle fps once pinned.
+      perchConverging = Math.abs(delta) > wpp;
       // Proportional step toward the target offset (converges in a couple frames).
       perchOffsetY += delta * PERCH_PIN_RATE;
       currentVrm.scene.position.y = perchOffsetY;
@@ -1010,6 +1070,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       if (target === null) {
         perchTargetYpx = null;
         perchOffsetY = 0;
+        perchConverging = false;
         if (currentVrm) currentVrm.scene.position.y = 0; // restore baseline.
         if (wasPerched) {
           fitCamera(); // restore normal framing.
@@ -1025,6 +1086,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     },
     dispose() {
       cancelAnimationFrame(rafId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       ro.disconnect();
       disposeCurrent();
       renderer.dispose();
