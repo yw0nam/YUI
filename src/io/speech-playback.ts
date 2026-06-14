@@ -14,6 +14,7 @@
  */
 
 import type { ControlEnvelope, EmotionId, ExpressArgs } from "../contract";
+import { createEmojiStripper } from "./strip-emoji";
 import { createTtsPipeline, type TtsPipeline, type TtsPipelineOptions } from "./tts-pipeline";
 
 /** 발화 종료 후 표정을 neutral로 되돌리는 ease 시간(ms) — 느리게(스냅 X). */
@@ -95,18 +96,22 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   let pipeline = buildPipeline();
   // 직전 begin/interrupt 이후 delta가 1건 이상 들어왔는가.
   let started = false;
+  const stripper = createEmojiStripper();
 
   function delta(text: string): void {
+    const clean = stripper.push(text);
     if (!started) {
       surfaces.beginSpeech();
       started = true;
     }
-    surfaces.pushSpeech(text);
-    pipeline.pushTextDelta(text);
+    surfaces.pushSpeech(clean);
+    pipeline.pushTextDelta(clean);
   }
 
   function end(): void {
     if (!started) return;
+    // flush held-back emoji carry (discards it — it's all emoji).
+    stripper.flush();
     // 재생이 끝날 때까지 말풍선 유지 — onPlaybackEnd가 finishSpeech로 해제한다.
     surfaces.endSpeech({ defer: true });
     pipeline.end();
@@ -128,6 +133,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       pipeline.setCue(cue);
     },
     interrupt() {
+      stripper.reset();
       pipeline.dispose();
       pipeline = buildPipeline();
       // 보류 중이던 말풍선을 즉시 해제 (defer 아님).
@@ -135,6 +141,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       started = false;
     },
     abort() {
+      stripper.reset();
       // 비정상 종료: 파이프라인 폐기 + 보류 말풍선 즉시 해제. 다음 턴이 없어 재생성하지 않는다.
       pipeline.dispose();
       surfaces.endSpeech();
