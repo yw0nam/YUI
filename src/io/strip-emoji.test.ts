@@ -89,10 +89,16 @@ describe("createEmojiStripper — complex emoji sequences removed", () => {
     expect(s.push("flag 🇰🇷")).toBe("flag ");
   });
 
-  it("removes keycap sequence (#️⃣)", () => {
+  it("removes keycap modifiers (VS16, U+20E3) but preserves the ASCII base (#️⃣ → #)", () => {
     const s = createEmojiStripper();
-    // # + VS16 + combining enclosing keycap U+20E3
-    expect(s.push("key #️⃣ pressed")).toBe("key  pressed");
+    // # + VS16 + combining enclosing keycap U+20E3: modifiers removed, base kept
+    expect(s.push("key #️⃣ pressed")).toBe("key # pressed");
+  });
+
+  it("removes keycap modifiers but preserves digit base (1️⃣ → 1)", () => {
+    const s = createEmojiStripper();
+    expect(s.push("1️⃣ 먼저")).toBe("1 먼저");
+    expect(s.flush()).toBe("");
   });
 });
 
@@ -123,6 +129,23 @@ describe("createEmojiStripper — boundary hold-back across deltas", () => {
     s.push("start 🎉");
     const second = s.push("next text");
     expect(second).toBe("next text");
+  });
+
+  it("keycap at end of delta preserves base digit and produces no leftover combining marks", () => {
+    const s = createEmojiStripper();
+    // 3️⃣ at the very end: combining marks held in carry, base digit emitted immediately
+    const first = s.push("정답은 3️⃣");
+    const flushed = s.flush();
+    expect(first + flushed).toBe("정답은 3");
+  });
+
+  it("keycap split across deltas produces same digit-preserved result as whole-delta", () => {
+    const s = createEmojiStripper();
+    // base digit arrives in first delta, combining marks in second
+    const a = s.push("정답은 3");
+    const b = s.push("️⃣");
+    const flushed = s.flush();
+    expect(a + b + flushed).toBe("정답은 3");
   });
 });
 

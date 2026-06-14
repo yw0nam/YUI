@@ -451,3 +451,76 @@ describe("createSpeechPlayback — onSpeech is sugar over delta+end", () => {
     expect(surfaces.finishSpeech).not.toHaveBeenCalled();
   });
 });
+
+describe("createSpeechPlayback — emoji sanitization in delta", () => {
+  it("delta with decorative emoji: both surfaces.pushSpeech and pipeline receive cleaned text", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    // trailing emoji is held in carry and discarded when the run ends (flush on onSpeechEnd).
+    sp.onSpeechDelta("잘 왔어 ✨");
+    // the stripper holds back trailing emoji-class run, so both sinks see the clean prefix.
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith("잘 왔어 ");
+    expect(stub.calls.pushTextDelta).toEqual(["잘 왔어 "]);
+  });
+
+  it("clean delta (no emoji): both sinks receive text unchanged", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("hello world");
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith("hello world");
+    expect(stub.calls.pushTextDelta).toEqual(["hello world"]);
+  });
+});
+
+describe("createSpeechPlayback — stripper carry reset on interrupt/abort", () => {
+  it("interrupt resets carry: stale trailing emoji does not leak into the next turn", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+
+    // push a delta ending in a trailing emoji-class run — stripper holds it in carry.
+    sp.onSpeechDelta("hello ✨");
+    // interrupt clears carry via stripper.reset().
+    sp.interrupt();
+    // new turn: plain delta must arrive at the new pipeline with no stale emoji prepended.
+    sp.onSpeechDelta("new turn");
+    const newPipelineCalls = multi.instances[1].pushTextDelta.mock.calls.map((c) => c[0]);
+    expect(newPipelineCalls).toEqual(["new turn"]);
+    // surfaces also receives only the clean new-turn text (no stale emoji prefix).
+    const pushSpeeechNewTurnCall = surfaces.pushSpeech.mock.calls.find((c) => c[0] === "new turn");
+    expect(pushSpeeechNewTurnCall).toBeDefined();
+    const staleEmojiCall = surfaces.pushSpeech.mock.calls.find((c) =>
+      (c[0] as string).includes("✨"),
+    );
+    expect(staleEmojiCall).toBeUndefined();
+  });
+
+  it("abort resets carry: stale trailing emoji does not leak into subsequent onSpeechDelta calls", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+
+    // push a delta ending in a trailing emoji-class run — stripper holds it in carry.
+    sp.onSpeechDelta("bye ✨");
+    // abort clears carry via stripper.reset(); no new pipeline is built.
+    sp.abort();
+    // after abort, a fresh run (new turn from outside) must not see stale carry.
+    sp.onSpeechDelta("clean start");
+    // only one pipeline instance (abort does not rebuild).
+    const pipelineCalls = multi.instances[0].pushTextDelta.mock.calls.map((c) => c[0]);
+    // first call was "bye " (trailing emoji held), last call is "clean start" with no emoji leak.
+    expect(pipelineCalls[pipelineCalls.length - 1]).toBe("clean start");
+    const staleEmojiCall = surfaces.pushSpeech.mock.calls.find((c) =>
+      (c[0] as string).includes("✨"),
+    );
+    expect(staleEmojiCall).toBeUndefined();
+  });
+});
