@@ -136,11 +136,13 @@ export function clampToWorkArea(
  * @param el - The drag surface element (typically `.yui-stage`).
  * @param opts.onDragStart - Fired once per gesture when the pointer crosses
  *   `DRAG_THRESHOLD_PX`, just before the OS-native drag begins.
+ * @param opts.onDragEnd - Fired once per gesture on pointerup/pointercancel
+ *   after a threshold-crossing drag. Not fired for sub-threshold clicks.
  * @returns A cleanup function. Call it when the surface is torn down.
  */
 export async function initDrag(
   el: EventTarget,
-  opts: { onDragStart?: () => void } = {},
+  opts: { onDragStart?: () => void; onDragEnd?: () => void } = {},
 ): Promise<() => void> {
   // Tauri-only: getCurrentWindow() / onScaleChanged / invoke() require the Tauri
   // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface)
@@ -192,7 +194,8 @@ export async function initDrag(
   }
 
   function onPointerEnd(): void {
-    // Release/cancel before the threshold — a click. Fire nothing, just clean up.
+    // Fires onDragEnd only when the threshold was crossed (a real drag gesture).
+    if (started) opts.onDragEnd?.();
     detach();
   }
 

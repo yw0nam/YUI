@@ -475,6 +475,96 @@ describe("loadConfig — avatar.framing", () => {
   });
 });
 
+// ── avatar.hit_test click-through (#8) ──────────────────────────────────────────
+
+describe("loadConfig — avatar.hit_test", () => {
+  async function expectAvatarError(p: Promise<unknown>): Promise<void> {
+    await expect(p).rejects.toBeInstanceOf(ConfigError);
+    const err = await p.catch((e) => e);
+    expect((err as ConfigError).file).toBe("avatar.json");
+    expect((err as ConfigError).issues.length).toBeGreaterThan(0);
+  }
+  async function loadWithAvatar(avatar: unknown): Promise<Awaited<ReturnType<typeof loadConfig>>> {
+    const map = goodFixture();
+    map[CONFIG_FILES.avatar] = avatar;
+    return loadConfig({ read: readerOf(map) });
+  }
+
+  it("유효한 hit_test 전체 블록을 그대로 보존한다", async () => {
+    const cfg = await loadWithAvatar({
+      vrm_url: "/vrms/carlotta.vrm",
+      hit_test: {
+        hysteresis_margin_px: 8,
+        poll_interval_ms: 200,
+        debounce_samples: 2,
+        alpha_threshold: 0.1,
+      },
+    });
+    expect(cfg.avatar.hit_test).toEqual({
+      hysteresis_margin_px: 8,
+      poll_interval_ms: 200,
+      debounce_samples: 2,
+      alpha_threshold: 0.1,
+    });
+  });
+
+  it("hit_test이 없으면 undefined (하위호환)", async () => {
+    const cfg = await loadConfig({ read: readerOf(goodFixture()) });
+    expect(cfg.avatar.hit_test).toBeUndefined();
+  });
+
+  it("부분 hit_test(일부 필드만)도 허용한다", async () => {
+    const cfg = await loadWithAvatar({
+      vrm_url: "/vrms/carlotta.vrm",
+      hit_test: { poll_interval_ms: 150 },
+    });
+    expect(cfg.avatar.hit_test).toEqual({ poll_interval_ms: 150 });
+  });
+
+  it("hit_test이 객체가 아니면 실패", async () => {
+    await expectAvatarError(loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", hit_test: 5 }));
+  });
+
+  it("hysteresis_margin_px: 음수면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", hit_test: { hysteresis_margin_px: -1 } }),
+    );
+  });
+
+  it("hysteresis_margin_px: 비유한이면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({
+        vrm_url: "/vrms/carlotta.vrm",
+        hit_test: { hysteresis_margin_px: Number.NaN },
+      }),
+    );
+  });
+
+  it("poll_interval_ms: 0 이하면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", hit_test: { poll_interval_ms: 0 } }),
+    );
+  });
+
+  it("debounce_samples: 정수가 아니면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", hit_test: { debounce_samples: 1.5 } }),
+    );
+  });
+
+  it("debounce_samples: 1 미만이면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", hit_test: { debounce_samples: 0 } }),
+    );
+  });
+
+  it("alpha_threshold: (0,1] 밖이면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", hit_test: { alpha_threshold: 1.5 } }),
+    );
+  });
+});
+
 // ── irodori_TTS provider (PR-A) ────────────────────────────────────────────────
 
 describe("loadConfig — endpoints irodori provider", () => {

@@ -415,3 +415,116 @@ describe("initDrag — onDragStart", () => {
     expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
 });
+
+// ─── initDrag — onDragEnd gesture DI ───────────────────────────────────────────
+// onDragEnd fires once per gesture after a threshold-crossing drag releases via
+// pointerup or pointercancel. It does NOT fire for sub-threshold press-release (a
+// click), and does NOT fire when a drag was never started.
+
+describe("initDrag — onDragEnd", () => {
+  let el: EventTarget;
+  let cleanup: () => void;
+  let onDragStart: ReturnType<typeof vi.fn>;
+  let onDragEnd: ReturnType<typeof vi.fn>;
+
+  function down(clientX = 0, clientY = 0, buttons = 1): void {
+    const ev = new Event("pointerdown") as Event & {
+      buttons: number;
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+    };
+    Object.assign(ev, { buttons, clientX, clientY, pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  function move(clientX: number, clientY: number): void {
+    const ev = new Event("pointermove") as Event & {
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+    };
+    Object.assign(ev, { clientX, clientY, pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  function up(): void {
+    const ev = new Event("pointerup") as Event & { pointerId: number };
+    Object.assign(ev, { pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  function cancel(): void {
+    const ev = new Event("pointercancel") as Event & { pointerId: number };
+    Object.assign(ev, { pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  beforeEach(async () => {
+    el = new EventTarget();
+    onDragStart = vi.fn();
+    onDragEnd = vi.fn();
+    mockInvoke.mockResolvedValue(undefined);
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    cleanup = await initDrag(el, { onDragStart, onDragEnd });
+  });
+
+  afterEach(() => {
+    cleanup();
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.clearAllMocks();
+  });
+
+  it("fires onDragEnd once on pointerup after a threshold-crossing drag", async () => {
+    down(0, 0);
+    move(100, 0);
+    await Promise.resolve();
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    up();
+    await Promise.resolve();
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires onDragEnd once on pointercancel after a threshold-crossing drag", async () => {
+    down(0, 0);
+    move(100, 0);
+    await Promise.resolve();
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    cancel();
+    await Promise.resolve();
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT fire onDragEnd for a sub-threshold press-release (a click)", async () => {
+    down(0, 0);
+    up();
+    await Promise.resolve();
+    expect(onDragStart).not.toHaveBeenCalled();
+    expect(onDragEnd).not.toHaveBeenCalled();
+  });
+
+  it("does NOT fire onDragEnd for a sub-threshold move then pointerup", async () => {
+    down(0, 0);
+    move(1, 1);
+    up();
+    await Promise.resolve();
+    expect(onDragStart).not.toHaveBeenCalled();
+    expect(onDragEnd).not.toHaveBeenCalled();
+  });
+
+  it("fires onDragEnd exactly once per drag gesture, not for every pointerup", async () => {
+    down(0, 0);
+    move(100, 0);
+    await Promise.resolve();
+    up();
+    await Promise.resolve();
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+    // Second gesture: drag again
+    down(0, 0);
+    move(100, 0);
+    await Promise.resolve();
+    up();
+    await Promise.resolve();
+    expect(onDragEnd).toHaveBeenCalledTimes(2);
+  });
+});

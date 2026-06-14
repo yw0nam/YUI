@@ -43,6 +43,7 @@ import {
   localStorageEndpointsStorage,
   mergeEndpoints,
 } from "./io/endpoints-settings";
+import { createHitTestController, type HitTestController } from "./io/hit-test";
 import { createIrodoriSynth, type TtsSynth } from "./io/irodori-synth";
 import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
 import { ensureRegistered, evictRegistration, updateVoice } from "./io/irodori-voices";
@@ -125,15 +126,22 @@ async function bootstrap(): Promise<void> {
   // Drag: a primary press that crosses the move threshold → OS-native drag via
   // Tauri IPC + a tier1 user.drag_start onto the bus (plays the drag motion,
   // clears any stale perch). onScaleChanged listener installed inside for DPI seam.
+  // Click-through hit-test controller — late-bound (created after config load so
+  // it gets the hit_test knob). Drag suspends toggling so the OS-native drag is
+  // never interrupted by a mid-gesture ignore flip.
+  let hitTestRef: HitTestController | null = null;
   const cleanupDrag = await initDrag(stage, {
-    onDragStart: () =>
+    onDragStart: () => {
+      hitTestRef?.suspend();
       bus.push({
         source: "os_event_watcher",
         event_name: "user.drag_start",
         ts: Date.now(),
         hint_tier: 1,
         dnd_override: true,
-      }),
+      });
+    },
+    onDragEnd: () => hitTestRef?.resume(),
   });
 
   // 마우스 휠로 캐릭터 스케일: 클램프 경계·민감도는 io 상수, persist는 store가 소유.
@@ -939,6 +947,9 @@ async function bootstrap(): Promise<void> {
     renderer.setMotionRegistry(cfg.motions);
     // 전신 fit-to-bounds framing knob 주입 — 첫 VRM 로드 전에 설정.
     renderer.setFraming(cfg.avatar.framing ?? {});
+    // per-pixel alpha hit-test threshold (configs/avatar.json hit_test.alpha_threshold).
+    const bootAlpha = cfg.avatar.hit_test?.alpha_threshold;
+    if (bootAlpha !== undefined) renderer.setHitTestThreshold(bootAlpha);
     // 실제 manifest 주입 후 부트 로드 → persist된 override가 시작 시점에 적용된다.
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
     speakerSelection.setManifest({
@@ -946,6 +957,34 @@ async function bootstrap(): Promise<void> {
       defaultId: cfg.endpoints.irodori_speaker ?? "",
     });
     await loadVrmSerialized(vrmSelection.getActive().url);
+    // 클릭스루 hit-test: 캐릭터/가시 UI 위는 interactive, 그 외 빈 영역은 click-through.
+    // interactive = renderer.hitTest(stage-local) ∪ 가시 입력 폼 ∪ 열린 quick-controls.
+    // 좌표는 모두 viewport(client) 기준 — renderer.hitTest만 stage 좌상단 기준으로 변환한다.
+    const interactiveRects = (): DOMRect[] => {
+      const rects: DOMRect[] = [];
+      const inputForm = root.querySelector<HTMLElement>(".yui-input.is-open");
+      if (inputForm) rects.push(inputForm.getBoundingClientRect());
+      if (quickControls.isOpen()) rects.push(quickControls.el.getBoundingClientRect());
+      return rects;
+    };
+    const pointInRect = (x: number, y: number, r: DOMRect, margin: number): boolean =>
+      x >= r.left - margin &&
+      x <= r.right + margin &&
+      y >= r.top - margin &&
+      y <= r.bottom + margin;
+    const hitTest = createHitTestController({
+      isOverInteractive: (xClient, yClient, marginPx) => {
+        const stageRect = stage.getBoundingClientRect();
+        if (renderer.hitTest(xClient - stageRect.left, yClient - stageRect.top)) return true;
+        return interactiveRects().some((r) => pointInRect(xClient, yClient, r, marginPx));
+      },
+      moveTarget: window,
+      // 핫리로드 친화: 매 tick config store에서 읽어 knob 편집이 반영되게 한다.
+      getConfig: () => config.get().avatar.hit_test ?? {},
+    });
+    hitTestRef = hitTest;
+    hitTest.start();
+    if (import.meta.env.DEV) import.meta.hot?.dispose(() => hitTest.stop());
     // config가 준비된 후에만 dispatcher를 가동(backend_caller가 config.get()에 의존).
     dispatcher.start();
     // cowork tier2 소스: presence+cadence로 proactive.cowork를 발사. cfg.sources의
@@ -1046,6 +1085,8 @@ async function bootstrap(): Promise<void> {
     if (!changed.has("avatar")) return;
     // framing knob 핫리로드 — 핫스왑 재fit 전에 갱신.
     renderer.setFraming(cfg.avatar.framing ?? {});
+    const reloadAlpha = cfg.avatar.hit_test?.alpha_threshold;
+    if (reloadAlpha !== undefined) renderer.setHitTestThreshold(reloadAlpha);
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
     void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
       log.error("vrm_hot_swap_failed", { error: String(err) }),
