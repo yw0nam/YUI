@@ -3,8 +3,8 @@
  *
  * Removes Extended_Pictographic + emoji modifiers (ZWJ U+200D, VS16 U+FE0F,
  * skin-tone U+1F3FB–U+1F3FF, regional indicators U+1F1E6–U+1F1FF, keycap U+20E3).
- * Keycap sequences (e.g. #️⃣) strip the ASCII base character too, since the base
- * alone is an unintended speech artifact.
+ * Keycap sequences (e.g. 3️⃣): the emoji modifiers VS16 and combining enclosing keycap
+ * (U+20E3) are removed; the ASCII base digit/character is preserved as ordinary text.
  * Preserves all other characters including punctuation, math, and currency.
  *
  * Hold-back: a trailing emoji-class run in the input is buffered in carry so a ZWJ
@@ -17,9 +17,6 @@ export interface EmojiStripper {
   reset(): void;
 }
 
-// keycap sequence: ASCII base ([#*0-9]) + optional VS16 + combining enclosing keycap U+20E3.
-const KEYCAP_SEQ = /[#*0-9]️?⃣/gu;
-
 // one emoji-class codepoint: Extended_Pictographic or modifier (alternation avoids misleading char class).
 const EMOJI_CP =
   /(?:\p{Extended_Pictographic}|\u{200D}|\u{FE0F}|[\u{1F3FB}-\u{1F3FF}]|[\u{1F1E6}-\u{1F1FF}]|\u{20E3})/u;
@@ -31,7 +28,7 @@ const EMOJI_RUN = new RegExp(`(?:${EMOJI_CP.source})+`, "gu");
 const TRAILING_EMOJI = new RegExp(`(?:${EMOJI_CP.source})+$`, "u");
 
 function strip(s: string): string {
-  return s.replace(KEYCAP_SEQ, "").replace(EMOJI_RUN, "");
+  return s.replace(EMOJI_RUN, "");
 }
 
 export function createEmojiStripper(): EmojiStripper {
