@@ -1,45 +1,70 @@
 /**
- * hit-test — Phase-1 coarse hit predicate for per-region click-through.
+ * hit-test — pure helpers for the per-pixel alpha silhouette predicate (#8 PHASE-2).
  *
- * Projects a world Box3's 8 corners to canvas px (same NDC remap as
- * project-anchor.ts / perch-geometry.ts), takes the screen-space AABB, and
- * tests whether a CSS-px point falls inside it. Coarse bbox only — no GL
- * readback, no per-pixel alpha (a later phase). Pure THREE math (node-testable).
+ * The renderer keeps a CPU-side low-res RGBA grab of the visible drawing buffer
+ * (refreshed inside the rAF loop right after render). These pure functions decide
+ * a hit against that grab: map a CSS-px point to a grab cell (with the Y-flip
+ * readPixels needs), then threshold the alpha with a small 3×3 dilation so thin
+ * features (fingers, hair) and the low-res grid stay forgiving. No GL here —
+ * node-testable.
  */
 
-import * as THREE from "three";
+/** A cell coordinate in the low-res grab (col left→right, row bottom→top). */
+export interface GrabCell {
+  col: number;
+  row: number;
+}
 
-/** Reused scratch — corner projection may run on pointer events. */
-const corner = new THREE.Vector3();
+const clampInt = (v: number, max: number): number => (v < 0 ? 0 : v > max ? max : Math.floor(v));
 
 /**
- * True when (x, y) in canvas CSS px is inside the box's projected screen AABB.
- * Projects all 8 corners (a posed/rotated box's screen AABB needs every corner)
- * and bounds them. Empty box ⇒ false.
+ * Map a CSS-px point (stage top-left origin) to a low-res grab cell.
+ *
+ * readPixels' origin is bottom-left while the DOM is top-left, so the grab buffer
+ * stores rows bottom-up — the Y axis is FLIPPED here: a CSS y near 0 (visual top)
+ * maps to the highest grab row index. Out-of-range points clamp to valid cells.
  */
-export function pointInProjectedBox(
-  box: THREE.Box3,
-  camera: THREE.Camera,
-  canvasW: number,
-  canvasH: number,
-  x: number,
-  y: number,
+export function cssToGrabCell(
+  xCss: number,
+  yCss: number,
+  cssW: number,
+  cssH: number,
+  grabW: number,
+  grabH: number,
+): GrabCell {
+  const w = cssW > 0 ? cssW : 1;
+  const h = cssH > 0 ? cssH : 1;
+  const col = clampInt((xCss / w) * grabW, grabW - 1);
+  // Top-left CSS → top visual row → highest grab row (flip).
+  const rowFromTop = clampInt((yCss / h) * grabH, grabH - 1);
+  const row = grabH - 1 - rowFromTop;
+  return { col, row };
+}
+
+/**
+ * True when the cell (col,row) — or any of its 3×3 neighbors — has alpha at or
+ * above `threshold255` in the RGBA grab. The dilation forgives the low-res grid
+ * and thin silhouette features. Out-of-bounds neighbors are skipped; an
+ * undersized/empty grab returns false.
+ */
+export function sampleAlphaHit(
+  grab: Uint8Array,
+  grabW: number,
+  grabH: number,
+  col: number,
+  row: number,
+  threshold255: number,
 ): boolean {
-  if (box.isEmpty()) return false;
-  const { min, max } = box;
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  for (let i = 0; i < 8; i++) {
-    corner.set(i & 1 ? max.x : min.x, i & 2 ? max.y : min.y, i & 4 ? max.z : min.z).project(camera);
-    const px = (corner.x * 0.5 + 0.5) * canvasW;
-    const py = (1 - (corner.y * 0.5 + 0.5)) * canvasH;
-    if (!Number.isFinite(px) || !Number.isFinite(py)) return false;
-    if (px < minX) minX = px;
-    if (px > maxX) maxX = px;
-    if (py < minY) minY = py;
-    if (py > maxY) maxY = py;
+  if (grab.length < grabW * grabH * 4) return false;
+  for (let dr = -1; dr <= 1; dr++) {
+    const r = row + dr;
+    if (r < 0 || r >= grabH) continue;
+    for (let dc = -1; dc <= 1; dc++) {
+      const c = col + dc;
+      if (c < 0 || c >= grabW) continue;
+      const alpha = grab[(r * grabW + c) * 4 + 3];
+      if (alpha >= threshold255) return true;
+    }
   }
-  return x >= minX && x <= maxX && y >= minY && y <= maxY;
+  return false;
 }

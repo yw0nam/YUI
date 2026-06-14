@@ -34,7 +34,7 @@ import {
   type EmotionResolver,
   type ResolvedEmotion,
 } from "./emotion-resolver";
-import { pointInProjectedBox } from "./hit-test";
+import { cssToGrabCell, sampleAlphaHit } from "./hit-test";
 import {
   createMotionController,
   type MotionController,
@@ -72,6 +72,16 @@ const SEAT_DROP = SEAT_DROP_DEFAULT;
 const PERCH_ZOOM = 1.25;
 /** Per-frame convergence rate for the seat-pin offset (proportional step). */
 const PERCH_PIN_RATE = 0.6;
+
+// ── Per-pixel alpha hit-test (#8 PHASE-2) ────────────────────────────────────
+/** Downscale factor (linear) of the drawing buffer for the CPU-side alpha grab. */
+const ALPHA_GRAB_SCALE = 1 / 8;
+/** Cap on the grab width (px) so large displays stay cheap. */
+const ALPHA_GRAB_MAX_W = 128;
+/** Refresh the grab every Nth frame (~20-30Hz) to spare the frame budget. */
+const ALPHA_GRAB_FRAME_GATE = 3;
+/** Fallback alpha threshold (0..1) until config injects one. */
+const DEFAULT_ALPHA_THRESHOLD = 0.1;
 
 export interface RendererOptions {
   /** VRM을 렌더할 캔버스 마운트 대상. */
@@ -171,11 +181,20 @@ export interface Renderer {
    */
   getCharacterAnchor(): ScreenAnchor | null;
   /**
-   * Coarse Phase-1 hit test: true when the canvas CSS-px point (x, y), relative
-   * to the stage top-left, falls inside the character's projected screen
-   * bounding box. False when no VRM/model box is loaded. No GL readback.
+   * Per-pixel alpha hit test: true when the rendered character pixel under the
+   * canvas CSS-px point (x, y), relative to the stage top-left, is opaque
+   * (alpha ≥ threshold) — the true silhouette, including hair/transparent-texture
+   * edges. Samples a CPU-side low-res alpha grab refreshed inside the render loop
+   * (with a 3×3 dilation so thin features stay hittable). False when no VRM/grab
+   * is available yet. No GL readback happens here — the readback is in the rAF loop.
    */
   hitTest(x: number, y: number): boolean;
+  /**
+   * Set the alpha threshold (0..1) the per-pixel hit test compares against.
+   * Sourced from configs/avatar.json `hit_test.alpha_threshold` via main.ts.
+   * Non-finite or out-of-(0,1] values are ignored.
+   */
+  setHitTestThreshold(threshold: number): void;
   /**
    * Live one-shot probe used at drop time to decide if the character is over a
    * window. Projects the live hips bone (+SEAT_DROP) to pet-window px (`seatPx`)
@@ -298,6 +317,76 @@ export function createRenderer(options: RendererOptions): Renderer {
   const perchSeatWorld = new THREE.Vector3();
   const perchCamForward = new THREE.Vector3();
   const perchSeatRel = new THREE.Vector3();
+
+  // ── Per-pixel alpha hit-test state ───────────────────────────────────────────
+  // Low-res RGBA grab of the visible drawing buffer (reused; no per-frame alloc).
+  let alphaGrab: Uint8Array | null = null;
+  let alphaGrabW = 0;
+  let alphaGrabH = 0;
+  let alphaFrame = 0;
+  // Threshold in 0..1 (config-injected); compared as 0..255 against the grab.
+  let alphaThreshold = DEFAULT_ALPHA_THRESHOLD;
+
+  /**
+   * Refresh the CPU-side alpha grab from the default framebuffer. MUST run inside
+   * the rAF loop right after renderer.render() — a same-turn gl.readPixels of the
+   * default framebuffer is valid (the browser clears it only after JS yields), so
+   * preserveDrawingBuffer is NOT needed. Reading from a poll/pointer callback
+   * (outside the draw turn) would read zeros. Frame-gated + reused buffer to keep
+   * the frame budget. No grab while no VRM is loaded.
+   */
+  function refreshAlphaGrab(): void {
+    if (!currentVrm) {
+      alphaGrab = null;
+      return;
+    }
+    if (alphaFrame++ % ALPHA_GRAB_FRAME_GATE !== 0) return;
+    try {
+      const gl = renderer.getContext();
+      // drawingBufferWidth/Height are device px (post devicePixelRatio).
+      const bw = gl.drawingBufferWidth;
+      const bh = gl.drawingBufferHeight;
+      if (bw <= 0 || bh <= 0) return;
+      const cap = Math.min(ALPHA_GRAB_MAX_W, Math.max(1, Math.round(bw * ALPHA_GRAB_SCALE)));
+      const gw = cap;
+      const gh = Math.max(1, Math.round((bh / bw) * gw));
+      const need = gw * gh * 4;
+      if (!alphaGrab || alphaGrab.length < need) alphaGrab = new Uint8Array(need);
+      readDownscaled(gl, bw, bh, gw, gh, alphaGrab);
+      alphaGrabW = gw;
+      alphaGrabH = gh;
+    } catch (err) {
+      log.error("alpha_grab_error", { error: String(err) });
+      alphaGrab = null;
+    }
+  }
+
+  // Full-resolution scratch for a strided downscale read (reused across frames).
+  let alphaFullBuf: Uint8Array | null = null;
+  /**
+   * Read the full device buffer and box-sample its alpha into the gw×gh grab
+   * (nearest, stride-based). readPixels can only return 1:1 device px, so the
+   * downscale happens on the CPU here. Grab rows stay bottom-up (readPixels origin).
+   */
+  function readDownscaled(
+    gl: WebGLRenderingContext | WebGL2RenderingContext,
+    bw: number,
+    bh: number,
+    gw: number,
+    gh: number,
+    out: Uint8Array,
+  ): void {
+    const full = bw * bh * 4;
+    if (!alphaFullBuf || alphaFullBuf.length < full) alphaFullBuf = new Uint8Array(full);
+    gl.readPixels(0, 0, bw, bh, gl.RGBA, gl.UNSIGNED_BYTE, alphaFullBuf);
+    for (let r = 0; r < gh; r++) {
+      const sy = Math.min(bh - 1, Math.floor((r / gh) * bh));
+      for (let c = 0; c < gw; c++) {
+        const sx = Math.min(bw - 1, Math.floor((c / gw) * bw));
+        out[(r * gw + c) * 4 + 3] = alphaFullBuf[(sy * bw + sx) * 4 + 3];
+      }
+    }
+  }
 
   /** Reframe the camera to the current model box; no-op when no model is loaded. */
   function fitCamera(): void {
@@ -452,6 +541,9 @@ export function createRenderer(options: RendererOptions): Renderer {
       currentVrm.update(dt);
     }
     renderer.render(scene, camera);
+    // Same-turn readback of the just-rendered default framebuffer for the alpha
+    // hit-test. Must be here (after render, in the rAF turn) — reading later reads zeros.
+    refreshAlphaGrab();
   }
   animate();
 
@@ -484,6 +576,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     VRMUtils.deepDispose(currentVrm.scene);
     currentVrm = undefined;
     modelBox = undefined; // drop stale bounds so fitCamera no-ops until next load.
+    alphaGrab = null; // stale silhouette can't outlive its VRM.
   }
 
   /**
@@ -858,16 +951,21 @@ export function createRenderer(options: RendererOptions): Renderer {
       return projectFeetAnchor(modelBox, camera, mount.clientWidth || 1, mount.clientHeight || 1);
     },
     hitTest(x, y) {
-      if (!modelBox) return false;
-      camera.updateMatrixWorld();
-      return pointInProjectedBox(
-        modelBox,
-        camera,
-        mount.clientWidth || 1,
-        mount.clientHeight || 1,
+      if (!alphaGrab || alphaGrabW === 0 || alphaGrabH === 0) return false;
+      const cell = cssToGrabCell(
         x,
         y,
+        mount.clientWidth || 1,
+        mount.clientHeight || 1,
+        alphaGrabW,
+        alphaGrabH,
       );
+      const threshold255 = Math.round(alphaThreshold * 255);
+      return sampleAlphaHit(alphaGrab, alphaGrabW, alphaGrabH, cell.col, cell.row, threshold255);
+    },
+    setHitTestThreshold(threshold) {
+      if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 1) return;
+      alphaThreshold = threshold;
     },
     getPerchProbe() {
       if (!currentVrm) return null;

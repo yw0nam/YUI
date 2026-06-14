@@ -947,6 +947,9 @@ async function bootstrap(): Promise<void> {
     renderer.setMotionRegistry(cfg.motions);
     // 전신 fit-to-bounds framing knob 주입 — 첫 VRM 로드 전에 설정.
     renderer.setFraming(cfg.avatar.framing ?? {});
+    // per-pixel alpha hit-test threshold (configs/avatar.json hit_test.alpha_threshold).
+    const bootAlpha = cfg.avatar.hit_test?.alpha_threshold;
+    if (bootAlpha !== undefined) renderer.setHitTestThreshold(bootAlpha);
     // 실제 manifest 주입 후 부트 로드 → persist된 override가 시작 시점에 적용된다.
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
     speakerSelection.setManifest({
@@ -1082,6 +1085,8 @@ async function bootstrap(): Promise<void> {
     if (!changed.has("avatar")) return;
     // framing knob 핫리로드 — 핫스왑 재fit 전에 갱신.
     renderer.setFraming(cfg.avatar.framing ?? {});
+    const reloadAlpha = cfg.avatar.hit_test?.alpha_threshold;
+    if (reloadAlpha !== undefined) renderer.setHitTestThreshold(reloadAlpha);
     vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
     void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
       log.error("vrm_hot_swap_failed", { error: String(err) }),
