@@ -441,6 +441,120 @@ describe("streamChat — live MCP-namespaced generate_express (#63)", () => {
   });
 });
 
+// ── per-beat cues: MULTIPLE generate_express per reply (#195) ───────────────────
+// Hermes emits one generate_express per expressive beat. EVERY distinct call must
+// surface as its own express event, deduped PER CALL (added/done share one id).
+describe("streamChat — per-beat cues (multiple generate_express, #195)", () => {
+  const CUE_A = '{"emotion_id":"happy","motion_id":"wave","emotion_text":"[cheerful warm tone]"}';
+  const CUE_B = '{"emotion_id":"thinking","motion_id":"nod","emotion_text":"[soft pondering]"}';
+
+  it("two distinct generate_express calls → two express events with their respective args", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAddedWithArgs(MCP_GEN_EXPRESS, "fc_a", 0, CUE_A),
+        fnItemDone(MCP_GEN_EXPRESS, "fc_a", 0, CUE_A),
+        textDelta("hi "),
+        fnAddedWithArgs(MCP_GEN_EXPRESS, "fc_b", 1, CUE_B),
+        fnItemDone(MCP_GEN_EXPRESS, "fc_b", 1, CUE_B),
+        textDelta("there"),
+        textDone("hi there"),
+        completed("hi there"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const express = events.filter((e) => e.type === "express");
+    expect(express.length).toBe(2);
+    if (express[0].type !== "express" || express[1].type !== "express") throw new Error("narrow");
+    expect(express[0].args).toEqual({
+      emotion_id: "happy",
+      motion_id: "wave",
+      emotion_text: "[cheerful warm tone]",
+    });
+    expect(express[1].args).toEqual({
+      emotion_id: "thinking",
+      motion_id: "nod",
+      emotion_text: "[soft pondering]",
+    });
+  });
+
+  it("two distinct calls on the function_call_arguments.done path dedup by item_id → two express events (args A then B)", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAdded("generate_express", "fc_a", 0),
+        fnArgsDone("generate_express", "fc_a", 0, CUE_A),
+        textDelta("hi "),
+        fnAdded("generate_express", "fc_b", 1),
+        fnArgsDone("generate_express", "fc_b", 1, CUE_B),
+        textDone("hi"),
+        completed("hi"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const express = events.filter((e) => e.type === "express");
+    expect(express.length).toBe(2);
+    if (express[0].type !== "express" || express[1].type !== "express") throw new Error("narrow");
+    expect(express[0].args).toEqual({
+      emotion_id: "happy",
+      motion_id: "wave",
+      emotion_text: "[cheerful warm tone]",
+    });
+    expect(express[1].args).toEqual({
+      emotion_id: "thinking",
+      motion_id: "nod",
+      emotion_text: "[soft pondering]",
+    });
+  });
+
+  it("one call surfaced in BOTH added and done (same id) → exactly one express event", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAddedWithArgs(MCP_GEN_EXPRESS, "fc_a", 0, CUE_A),
+        fnItemDone(MCP_GEN_EXPRESS, "fc_a", 0, CUE_A),
+        completed(""),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    expect(events.filter((e) => e.type === "express").length).toBe(1);
+  });
+
+  it("a get_ids-style tool call (name ending _get_ids, args {}) yields NO express event", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAdded(MCP_GET_IDS, "fc_g", 0),
+        fnItemDone(MCP_GET_IDS, "fc_g", 0, "{}"),
+        completed(""),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    expect(events.some((e) => e.type === "express")).toBe(false);
+  });
+
+  it("completed envelope reflects the LAST cue when multiple cues were sent", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAddedWithArgs(MCP_GEN_EXPRESS, "fc_a", 0, CUE_A),
+        fnItemDone(MCP_GEN_EXPRESS, "fc_a", 0, CUE_A),
+        fnAddedWithArgs(MCP_GEN_EXPRESS, "fc_b", 1, CUE_B),
+        fnItemDone(MCP_GEN_EXPRESS, "fc_b", 1, CUE_B),
+        completed(""),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const final = events.find((e) => e.type === "completed");
+    if (final!.type !== "completed") throw new Error("narrow");
+    const env = final.envelope;
+    // last cue (CUE_B) wins the fallback envelope, not the first.
+    expect(env.emotion).toEqual({ id: "thinking" });
+    expect(env.motion).toEqual({ id: "nod" });
+    expect(env.emotion_text).toBe("[soft pondering]");
+  });
+});
+
 describe("streamChat — error handling", () => {
   it("error event → error ChatStreamEvent with message", async () => {
     createMock.mockResolvedValue(

@@ -11,10 +11,11 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import type { ExpressArgs } from "../contract";
 import { createSpeechPlayback } from "./speech-playback";
 import type { TtsPipeline, TtsPipelineOptions } from "./tts-pipeline";
 
-/** Stub pipeline that captures the onAmplitude / onPlaybackEnd it was constructed with. */
+/** Stub pipeline that captures the onAmplitude / onPlaybackEnd / onCuePlay it was constructed with. */
 function stubPipelineFactory() {
   const calls = { pushTextDelta: [] as string[], ended: 0, disposed: 0 };
   let captured: TtsPipelineOptions | null = null;
@@ -22,7 +23,7 @@ function stubPipelineFactory() {
     captured = opts;
     return {
       pushTextDelta: (t: string) => calls.pushTextDelta.push(t),
-      setEmotionText: () => {},
+      setCue: () => {},
       end: () => {
         calls.ended++;
       },
@@ -36,6 +37,7 @@ function stubPipelineFactory() {
     calls,
     emitAmplitude: (v: number) => captured?.onAmplitude?.(v),
     emitPlaybackEnd: () => captured?.onPlaybackEnd?.(),
+    emitCuePlay: (cue: ExpressArgs | null) => captured?.onCuePlay?.(cue),
   };
 }
 
@@ -46,7 +48,7 @@ function stubPipelineFactory() {
 function multiPipelineFactory() {
   const instances: Array<{
     pushTextDelta: ReturnType<typeof vi.fn>;
-    setEmotionText: ReturnType<typeof vi.fn>;
+    setCue: ReturnType<typeof vi.fn>;
     end: ReturnType<typeof vi.fn>;
     dispose: ReturnType<typeof vi.fn>;
     onAmplitude?: (rms: number) => void;
@@ -55,7 +57,7 @@ function multiPipelineFactory() {
   const factory = (opts: TtsPipelineOptions): TtsPipeline => {
     const inst = {
       pushTextDelta: vi.fn(),
-      setEmotionText: vi.fn(),
+      setCue: vi.fn(),
       end: vi.fn(),
       dispose: vi.fn(),
       onAmplitude: opts.onAmplitude,
@@ -72,6 +74,8 @@ function spyRenderer() {
     setMouthOpen: vi.fn<(mouthOpen: number) => void>(),
     stopMouth: vi.fn<() => void>(),
     easeEmotionToNeutral: vi.fn<(durationMs: number) => void>(),
+    applyDirective: vi.fn(),
+    playMotion: vi.fn(),
   };
 }
 
@@ -266,25 +270,87 @@ describe("createSpeechPlayback — onSpeechEnd finalizes a run", () => {
   });
 });
 
-describe("createSpeechPlayback — setEmotionText forwards to the pipeline", () => {
-  it("forwards a tag to pipeline.setEmotionText", () => {
+describe("createSpeechPlayback — setCue forwards to the pipeline", () => {
+  it("forwards a cue to pipeline.setCue", () => {
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
     const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
 
-    sp.setEmotionText("(whisper)");
-    expect(multi.instances[0].setEmotionText).toHaveBeenCalledWith("(whisper)");
+    sp.setCue({ emotion_id: "happy", emotion_text: "😊" });
+    expect(multi.instances[0].setCue).toHaveBeenCalledWith({
+      emotion_id: "happy",
+      emotion_text: "😊",
+    });
   });
 
-  it("forwards null to pipeline.setEmotionText (clear)", () => {
+  it("forwards null to pipeline.setCue (clear)", () => {
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
     const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
 
-    sp.setEmotionText(null);
-    expect(multi.instances[0].setEmotionText).toHaveBeenCalledWith(null);
+    sp.setCue(null);
+    expect(multi.instances[0].setCue).toHaveBeenCalledWith(null);
+  });
+});
+
+describe("createSpeechPlayback — onCuePlay drives renderer directives", () => {
+  it("onCuePlay with emotion_id+motion_id calls applyDirective with both mapped fields", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    stub.emitCuePlay({ emotion_id: "happy", motion_id: "dance" });
+    expect(renderer.applyDirective).toHaveBeenCalledTimes(1);
+    const env = renderer.applyDirective.mock.calls[0][0];
+    expect(env).toMatchObject({
+      emotion: { id: "happy" },
+      motion: { id: "dance" },
+      speech_text: "",
+    });
+    expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
+    expect(renderer.playMotion).not.toHaveBeenCalled();
+  });
+
+  it("onCuePlay with emotion_id only (no motion_id) calls applyDirective with emotion but no motion key", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    stub.emitCuePlay({ emotion_id: "curious" });
+    expect(renderer.applyDirective).toHaveBeenCalledTimes(1);
+    const env = renderer.applyDirective.mock.calls[0][0];
+    expect(env).toMatchObject({ emotion: { id: "curious" }, speech_text: "" });
+    expect(env.motion).toBeUndefined();
+    expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
+    expect(renderer.playMotion).not.toHaveBeenCalled();
+  });
+
+  it("onCuePlay with emotion_text only (no emotion_id/motion_id) reverts to neutral", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    stub.emitCuePlay({ emotion_text: "😆" });
+    expect(renderer.applyDirective).not.toHaveBeenCalled();
+    expect(renderer.easeEmotionToNeutral).toHaveBeenCalledWith(1000);
+    expect(renderer.playMotion).toHaveBeenCalledWith(null);
+  });
+
+  it("onCuePlay(null) reverts to neutral: easeEmotionToNeutral(1000) + playMotion(null)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    stub.emitCuePlay(null);
+    expect(renderer.applyDirective).not.toHaveBeenCalled();
+    expect(renderer.easeEmotionToNeutral).toHaveBeenCalledWith(1000);
+    expect(renderer.playMotion).toHaveBeenCalledWith(null);
   });
 });
 

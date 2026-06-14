@@ -63,7 +63,13 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
   }
 
   it("drives the mouth from TTS amplitude and releases the bubble on completion", async () => {
-    const renderer = { setMouthOpen: vi.fn(), stopMouth: vi.fn(), easeEmotionToNeutral: vi.fn() };
+    const renderer = {
+      setMouthOpen: vi.fn(),
+      stopMouth: vi.fn(),
+      easeEmotionToNeutral: vi.fn(),
+      applyDirective: vi.fn(),
+      playMotion: vi.fn(),
+    };
     const surfaces = {
       beginSpeech: vi.fn(),
       pushSpeech: vi.fn(),

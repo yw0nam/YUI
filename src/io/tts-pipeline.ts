@@ -3,7 +3,7 @@
  * synth는 동시 실행되고 응답 순서가 뒤바뀌어도 제출 순서대로만 재생된다.
  */
 
-import type { EndpointsConfig } from "../contract";
+import type { EndpointsConfig, ExpressArgs } from "../contract";
 import { createLogger, type Logger } from "../logger";
 import { type AudioSink, createWebAudioSink } from "./audio-player";
 import { createSentenceSegmenter } from "./sentence-segmenter";
@@ -18,6 +18,8 @@ export interface TtsPipelineOptions {
   onAmplitude?: (rms: number) => void;
   // 마지막 청크 재생이 끝나면(또는 재생할 청크가 없으면) end() 이후 1회 발화.
   onPlaybackEnd?: () => void;
+  // 각 sentence 재생 시작(또는 synth 실패 skip) 시 1회 발화. null = 이 sentence에 cue 없음.
+  onCuePlay?: (cue: ExpressArgs | null) => void;
   // synth 동시 실행 상한. 기본 1 = 직렬. 함수 형태는 drain마다 평가돼 config를 lazy하게 읽는다.
   maxInflight?: number | (() => number);
   logger?: Logger;
@@ -25,7 +27,7 @@ export interface TtsPipelineOptions {
 
 export interface TtsPipeline {
   pushTextDelta(token: string): void;
-  setEmotionText(text: string | null): void;
+  setCue(cue: ExpressArgs | null): void;
   end(): void;
   dispose(): void;
 }
@@ -53,11 +55,12 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   const segmenter = createSentenceSegmenter();
   const abort = new AbortController();
 
-  let emotionText: string | null = null;
+  let pendingCue: ExpressArgs | null = null;
   let disposed = false;
 
   const results = new Map<number, ArrayBuffer>();
   const failed = new Set<number>();
+  const cues = new Map<number, ExpressArgs | null>();
   const pending: Array<{ index: number; input: string }> = [];
   let inFlight = 0;
   let submitted = 0;
@@ -83,7 +86,10 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     try {
       while (!disposed) {
         if (failed.has(nextToPlay)) {
-          failed.delete(nextToPlay);
+          const idx = nextToPlay;
+          failed.delete(idx);
+          options.onCuePlay?.(cues.get(idx) ?? null);
+          cues.delete(idx);
           nextToPlay++;
           continue;
         }
@@ -92,6 +98,8 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
         results.delete(nextToPlay);
         const idx = nextToPlay;
         nextToPlay++;
+        options.onCuePlay?.(cues.get(idx) ?? null);
+        cues.delete(idx);
         try {
           log.debug("playback", { index: idx, state: "start" });
           let peak = 0;
@@ -141,8 +149,12 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   function submit(sentence: string): void {
     const trimmed = sentence.trim();
     if (!trimmed) return;
-    const input = emotionText ? `${emotionText} ${trimmed}` : trimmed;
+    const cue = pendingCue;
+    pendingCue = null;
+    const voiceTag = cue?.emotion_text?.trim() || null;
+    const input = voiceTag ? `${voiceTag} ${trimmed}` : trimmed;
     const index = submitted++;
+    cues.set(index, cue);
     log.debug("synth", { index, chars: trimmed.length });
     pending.push({ index, input });
     drainSynth();
@@ -159,8 +171,14 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       for (const sentence of segmenter.push(token)) submit(sentence);
     },
 
-    setEmotionText(text) {
-      emotionText = text?.trim() ? text : null;
+    setCue(cue) {
+      if (!cue) {
+        pendingCue = null;
+        return;
+      }
+      const emotText = cue.emotion_text?.trim() ? cue.emotion_text : undefined;
+      pendingCue =
+        (cue.emotion_id ?? cue.motion_id ?? emotText) ? { ...cue, emotion_text: emotText } : null;
     },
 
     end() {
@@ -179,6 +197,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       sink.stop();
       results.clear();
       failed.clear();
+      cues.clear();
       pending.length = 0;
     },
   };

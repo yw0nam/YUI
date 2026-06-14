@@ -19,21 +19,24 @@
  * express args shape: the spec streams args via response.function_call_arguments.done,
  *   but the live backend instead ships the complete `arguments` JSON inside the
  *   function_call item of response.output_item.added/done. Both paths are parsed;
- *   whichever arrives first wins (express is emitted exactly once per turn).
+ *   whichever arrives first for a given call wins. Hermes emits one generate_express
+ *   per expressive beat — every distinct call emits its own express event, deduped
+ *   per call (by function-call item id, falling back to output_index).
  *
  * Event → ChatStreamEvent mapping:
  *  - response.output_text.delta → speech_delta (accumulated into speech_text).
  *  - response.output_text.done  → speech_done.
  *  - response.output_item.added (function_call):
- *      · isExpressTool(name) → if item.arguments present, JSON.parse → express (once).
+ *      · isExpressTool(name) → if item.arguments present and call not yet emitted,
+ *        JSON.parse → express.
  *      · else → tool_status running.
  *  - response.function_call_arguments.done:
- *      · isExpressTool(name) → JSON.parse(arguments) → ExpressArgs (once)
+ *      · isExpressTool(name) → if call not yet emitted, JSON.parse(arguments) → ExpressArgs
  *        (FLAT: emotion_id?/motion_id?/emotion_text?). parse failure → error event
- *        (does NOT throw / abort the loop).
+ *        (does NOT throw / abort the loop, does NOT mark the call emitted).
  *      · native tool → no event here (completion handled at output_item.done).
  *  - response.output_item.done (function_call):
- *      · isExpressTool(name) → if not yet emitted and item.arguments present,
+ *      · isExpressTool(name) → if call not yet emitted and item.arguments present,
  *        JSON.parse → express (covers backends with no function_call_arguments.* events).
  *      · else → tool_status done.
  *  - response.completed → completed event with the assembled ControlEnvelope. Normalization
@@ -91,6 +94,14 @@ function makeClient(opts: ConstructorParameters<typeof OpenAI>[0]): OpenAI {
  */
 function isExpressTool(name: unknown): boolean {
   return typeof name === "string" && name.endsWith("generate_express");
+}
+
+/**
+ * per-call dedup key — 한 generate_express call은 added/done/arguments.done에 걸쳐
+ * 같은 function-call item id를 공유한다. id가 없으면 output_index로 폴백한다.
+ */
+function expressCallKey(id: unknown, outputIndex: unknown): string {
+  return typeof id === "string" && id.length > 0 ? id : String(outputIndex);
 }
 
 /** express arguments JSON 문자열 파싱. 실패 시 throw 없이 error 메시지를 돌려준다. */
@@ -195,10 +206,12 @@ export async function* streamChat(
 
   // completed에서 조립할 누적 상태.
   let speech_text = "";
+  // express는 cue(beat)마다 emit된다. completed envelope은 마지막 cue를 fallback으로 싣는다.
   let express: ExpressArgs | undefined;
   let tool_status: ToolStatus | undefined;
-  // express는 added/done/arguments.done 어디서 와도 한 번만 emit한다(중복 방지).
-  let expressEmitted = false;
+  // 같은 call(id, 없으면 output_index)이 added/done/arguments.done로 여러 번 나타나도
+  // 한 번만 emit한다. 서로 다른 call은 각각 emit된다(per-beat cue).
+  const emittedExpressKeys = new Set<string>();
 
   // instructions: 요청 오버라이드(비어있지 않으면 우선) → config.chat_instructions로 폴백.
   const effectiveInstructions = request.instructions?.trim()
@@ -259,11 +272,12 @@ export async function* streamChat(
           if (item?.type === "function_call") {
             if (isExpressTool(item.name)) {
               // 라이브 백엔드는 완성된 arguments를 added/done item에 바로 싣는다.
-              if (!expressEmitted && item.arguments) {
+              const key = expressCallKey(item.id, event.output_index);
+              if (!emittedExpressKeys.has(key) && item.arguments) {
                 const result = parseExpressArgs(item.arguments);
                 if ("args" in result) {
                   express = result.args;
-                  expressEmitted = true;
+                  emittedExpressKeys.add(key);
                   yield { type: "express", args: result.args };
                 } else {
                   yield { type: "error", message: result.error };
@@ -278,15 +292,18 @@ export async function* streamChat(
         }
 
         case "response.function_call_arguments.done": {
-          if (isExpressTool(event.name) && !expressEmitted) {
-            const result = parseExpressArgs(event.arguments);
-            if ("args" in result) {
-              express = result.args;
-              expressEmitted = true;
-              yield { type: "express", args: result.args };
-            } else {
-              yield { type: "error", message: result.error };
-              // CONTINUE — never throw, never abort the loop.
+          if (isExpressTool(event.name)) {
+            const key = expressCallKey(event.item_id, event.output_index);
+            if (!emittedExpressKeys.has(key)) {
+              const result = parseExpressArgs(event.arguments);
+              if ("args" in result) {
+                express = result.args;
+                emittedExpressKeys.add(key);
+                yield { type: "express", args: result.args };
+              } else {
+                yield { type: "error", message: result.error };
+                // CONTINUE — never throw, never abort the loop.
+              }
             }
           }
           // native tool: 완료는 output_item.done에서 처리.
@@ -298,11 +315,12 @@ export async function* streamChat(
           if (item?.type === "function_call") {
             if (isExpressTool(item.name)) {
               // function_call_arguments.* 이벤트가 없는 백엔드는 done item에만 args가 있다.
-              if (!expressEmitted && item.arguments) {
+              const key = expressCallKey(item.id, event.output_index);
+              if (!emittedExpressKeys.has(key) && item.arguments) {
                 const result = parseExpressArgs(item.arguments);
                 if ("args" in result) {
                   express = result.args;
-                  expressEmitted = true;
+                  emittedExpressKeys.add(key);
                   yield { type: "express", args: result.args };
                 } else {
                   yield { type: "error", message: result.error };

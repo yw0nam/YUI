@@ -307,39 +307,37 @@ describe("createTtsPipeline — synth concurrency cap", () => {
   });
 });
 
-describe("createTtsPipeline — emotion_text prefix", () => {
-  it("prepends snapshotted emotion_text to the sentence sent to synth", async () => {
+describe("createTtsPipeline — emotion_text voice tag baking", () => {
+  it("prepends cue emotion_text to the sentence sent to synth", async () => {
     const { synth, inputs, resolvers } = deferredSynth();
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ config: CONFIG, synth, sink });
 
-    pipe.setEmotionText("[whisper]");
+    pipe.setCue({ emotion_text: "[whisper]" });
     pipe.pushTextDelta("Can you hear me?");
     await tick();
     expect(inputs).toEqual(["[whisper] Can you hear me?"]);
     resolvers[0].resolve(bufFor(0));
   });
 
-  it("sends plain text when emotion_text is cleared with null", async () => {
+  it("sends plain text when no cue is set", async () => {
     const { synth, inputs } = deferredSynth();
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ config: CONFIG, synth, sink });
 
-    pipe.setEmotionText("[whisper]");
-    pipe.setEmotionText(null);
     pipe.pushTextDelta("Plain sentence.");
     await tick();
     expect(inputs).toEqual(["Plain sentence."]);
   });
 
-  it("applies a mid-stream emotion_text change only to subsequently-emitted segments (maxInflight: 3)", async () => {
+  it("each sentence gets its own cue: different emotion_texts bake per-sentence (maxInflight: 3)", async () => {
     const { synth, inputs } = deferredSynth();
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: 3 });
 
-    pipe.setEmotionText("[happy]");
+    pipe.setCue({ emotion_text: "[happy]" });
     pipe.pushTextDelta("One. ");
-    pipe.setEmotionText("[sad]");
+    pipe.setCue({ emotion_text: "[sad]" });
     pipe.pushTextDelta("Two. ");
     await tick();
     expect(inputs).toEqual(["[happy] One.", "[sad] Two."]);
@@ -496,6 +494,144 @@ describe("createTtsPipeline — onPlaybackEnd signal", () => {
     finish(); // chunk 2 (last) done
     await tick();
     expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+    errSpy.mockRestore();
+  });
+});
+
+describe("createTtsPipeline — setCue / onCuePlay", () => {
+  it("onCuePlay fires with the cue for each sentence in submission order", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const cuePlays: Array<import("../contract").ExpressArgs | null> = [];
+    const pipe = createTtsPipeline({
+      config: CONFIG,
+      synth,
+      sink,
+      maxInflight: 3,
+      onCuePlay: (cue) => cuePlays.push(cue),
+    });
+
+    pipe.setCue({ emotion_id: "happy", motion_id: "dance", emotion_text: "😆" });
+    pipe.pushTextDelta("Hello.");
+    pipe.setCue({ emotion_id: "curious", emotion_text: "🤔" });
+    pipe.pushTextDelta("World.");
+    await tick();
+    expect(resolvers).toHaveLength(2);
+
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    // index 0 starts playing — onCuePlay fires for happy cue
+    expect(cuePlays).toHaveLength(1);
+    expect(cuePlays[0]).toMatchObject({
+      emotion_id: "happy",
+      motion_id: "dance",
+      emotion_text: "😆",
+    });
+    finish(); // finish index 0
+    await tick();
+    // index 1 starts playing — onCuePlay fires for curious cue
+    expect(cuePlays).toHaveLength(2);
+    expect(cuePlays[1]).toMatchObject({ emotion_id: "curious", emotion_text: "🤔" });
+    finish();
+    await tick();
+  });
+
+  it("onCuePlay fires null for a sentence submitted with no preceding setCue", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const cuePlays: Array<import("../contract").ExpressArgs | null> = [];
+    const pipe = createTtsPipeline({
+      config: CONFIG,
+      synth,
+      sink,
+      onCuePlay: (cue) => cuePlays.push(cue),
+    });
+
+    pipe.pushTextDelta("No cue here.");
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    expect(cuePlays).toHaveLength(1);
+    expect(cuePlays[0]).toBeNull();
+    finish();
+    await tick();
+  });
+
+  it("cue is one-shot: a second sentence with no new setCue gets null", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const cuePlays: Array<import("../contract").ExpressArgs | null> = [];
+    const pipe = createTtsPipeline({
+      config: CONFIG,
+      synth,
+      sink,
+      maxInflight: 2,
+      onCuePlay: (cue) => cuePlays.push(cue),
+    });
+
+    pipe.setCue({ emotion_id: "happy", emotion_text: "😊" });
+    pipe.pushTextDelta("First.");
+    pipe.pushTextDelta(" Second.");
+    await tick();
+    expect(resolvers).toHaveLength(2);
+
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    expect(cuePlays).toHaveLength(1);
+    expect(cuePlays[0]).toMatchObject({ emotion_id: "happy" });
+    finish();
+    await tick();
+    expect(cuePlays).toHaveLength(2);
+    expect(cuePlays[1]).toBeNull(); // cue NOT reused
+    finish();
+    await tick();
+  });
+
+  it("synth input contains voice tag only for cued sentence; uncued sentence has no tag", async () => {
+    const { synth, inputs, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, maxInflight: 2 });
+
+    pipe.setCue({ emotion_text: "😆" });
+    pipe.pushTextDelta("Cued.");
+    pipe.pushTextDelta(" Uncued.");
+    await tick();
+    expect(inputs[0]).toBe("😆 Cued.");
+    expect(inputs[1]).toBe("Uncued.");
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].resolve(bufFor(1));
+  });
+
+  it("failed synth still triggers onCuePlay for its index (failed-skip path)", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const cuePlays: Array<import("../contract").ExpressArgs | null> = [];
+    const pipe = createTtsPipeline({
+      config: CONFIG,
+      synth,
+      sink,
+      maxInflight: 2,
+      onCuePlay: (cue) => cuePlays.push(cue),
+    });
+
+    pipe.setCue({ emotion_id: "happy", emotion_text: "😊" });
+    pipe.pushTextDelta("Will fail.");
+    pipe.pushTextDelta(" Will play.");
+    await tick();
+
+    resolvers[0].reject(new Error("synth boom"));
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    // index 0 failed — onCuePlay fires for its cue; pump immediately continues to index 1
+    // and fires onCuePlay for index 1 too (both fire before sink.play awaits).
+    expect(cuePlays).toHaveLength(2);
+    expect(cuePlays[0]).toMatchObject({ emotion_id: "happy" });
+    expect(cuePlays[1]).toBeNull();
+    finish();
+    await tick();
     errSpy.mockRestore();
   });
 });

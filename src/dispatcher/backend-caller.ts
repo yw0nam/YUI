@@ -12,8 +12,9 @@
  *     completed 미수신 → parse_error.
  *  B4 speech gate — speech_text가 비어있지 않을 때만 발화(should_speak 플래그 없음). 빈 텍스트 = 침묵,
  *     별도 플래그 없음. emotion/motion은 침묵과 무관하게 렌더.
- *  B5 dispatch_to_renderer — renderer.applyDirective(envelope) + speech_text→onSpeech +
- *     emotion_text→onEmotionText + tool_status→onToolStatus(main.ts에서 TTS/UI로 흘린다).
+ *  B5 dispatch_to_renderer — per-beat cue가 스트리밍되면 TTS 파이프라인이 audio-timed로
+ *     emotion/motion을 적용(express→onCue)하고, 그 외엔 completed에서 renderer.applyDirective(envelope).
+ *     speech_text→onSpeech + tool_status→onToolStatus(main.ts에서 TTS/UI로 흘린다).
  *
  * silent drop 분류: parse_error(WARN) / network_drop(WARN).
  */
@@ -22,6 +23,7 @@ import type {
   ControlEnvelope,
   DispatcherStateMeta,
   EndpointsConfig,
+  ExpressArgs,
   InputContext,
   ToolStatus,
   TriggerMeta,
@@ -68,8 +70,8 @@ export interface BackendCallerDeps {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   /** 현재 foreground app/title 스냅샷. present 시 env.active_app/active_window_title을 채운다. */
   getOsContext?: () => import("../io/os-context").OsContextSnapshot | undefined;
-  /** emotion_text(TTS voice tag) sink — present 시에만 호출. main.ts에서 TTS 파이프라인(speechPlayback.setEmotionText)에 배선됨. */
-  onEmotionText?: (text: string) => void;
+  /** per-beat cue sink — 매 express cue를 그대로 흘린다(emotion_id/motion_id/emotion_text). main.ts에서 TTS 파이프라인(speechPlayback.setCue)에 배선 — 문장 재생 시점에 audio-timed 적용. */
+  onCue?: (cue: ExpressArgs) => void;
   /** tool_status sink — present 시에만 호출. */
   onToolStatus?: (status: ToolStatus) => void;
   /** 현재 Hermes session id 조회 — present 시 X-Hermes-Session-Id 헤더로 흘린다. 매 턴 호출(rotation 반영). */
@@ -242,8 +244,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     let streamError: string | undefined;
     // 스트리밍 발화: delta가 1건이라도 왔는가(완료 시 onSpeechEnd 구동 분기).
     let streamedAny = false;
-    // emotion_text(voice tag)를 스트림 중 이미 적용했는가(완료 시 중복 방지).
-    let emotionTextSent = false;
+    // express cue가 스트림 중 1건이라도 왔는가(완료 시 pipeline 소유 분기).
+    let cueStreamed = false;
     try {
       for await (const ev of streamChat(deps.config, request, {
         apiKey,
@@ -256,11 +258,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
             streamedAny = true;
             break;
           case "express":
-            // voice tag를 스트림 중에 적용 — 이후 문장부터 반영되게.
-            if (ev.args.emotion_text != null) {
-              deps.onEmotionText?.(ev.args.emotion_text);
-              emotionTextSent = true;
-            }
+            // 전체 cue를 그대로 흘린다 — TTS 파이프라인이 문장 재생 시점에 audio-timed 적용.
+            deps.onCue?.(ev.args);
+            cueStreamed = true;
             break;
           case "usage":
             // ControlEnvelope/renderer와 무관한 진단 채널 — sink로만 흘린다.
@@ -303,24 +303,30 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       return { ok: false, drop_reason: "parse_error" };
     }
 
-    // B5(render half): emotion/motion은 침묵과 무관하게 적용한다.
-    //   firing≠judgment: silence(speech_text "")는 *발화*만 게이팅한다.
-    try {
-      deps.renderer.applyDirective(envelope);
+    // B5(render half): per-beat cue가 스트리밍됐고 발화가 있으면(streamedAny) TTS 파이프라인이
+    //   문장 재생 시점에 cue를 audio-timed 적용한다 — 여기서 중복 적용하지 않는다.
+    //   그 외(cue 없음, 또는 cue는 있으나 침묵 턴)는 completed에서 1회 적용:
+    //   firing≠judgment — silent-turn-with-cue도 emotion/motion을 렌더하고,
+    //   express를 스트리밍하지 않는 completed-only backend도 보존한다.
+    const pipelineOwnsCues = cueStreamed && streamedAny;
+    if (pipelineOwnsCues) {
       log.debug("dispatch_to_renderer", {
+        owner: "pipeline",
         emotion: envelope.emotion ?? null,
         motion: envelope.motion ?? null,
       });
-    } catch (err) {
-      // renderer 에러 → ambient fallback은 renderer 책임, dispatcher는 계속.
-      log.error("dispatch_to_renderer.error", { error: String(err) });
-    }
-
-    // B5(emotion_text half): TTS voice tag → onEmotionText.
-    //   스트림 중 express로 이미 적용했으면 중복 호출 X. delta/express 없는 completed-only
-    //   응답은 여기서 1회 적용해 기존 동작을 보존한다.
-    if (!emotionTextSent && envelope.emotion_text != null) {
-      deps.onEmotionText?.(envelope.emotion_text);
+    } else {
+      try {
+        deps.renderer.applyDirective(envelope);
+        log.debug("dispatch_to_renderer", {
+          owner: "completed",
+          emotion: envelope.emotion ?? null,
+          motion: envelope.motion ?? null,
+        });
+      } catch (err) {
+        // renderer 에러 → ambient fallback은 renderer 책임, dispatcher는 계속.
+        log.error("dispatch_to_renderer.error", { error: String(err) });
+      }
     }
 
     // B5(tool_status half): 네이티브 tool 관찰 결과 → onToolStatus(있을 때만).
