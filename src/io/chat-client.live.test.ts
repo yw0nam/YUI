@@ -118,22 +118,21 @@ describe.skipIf(!LIVE)("streamChat — LIVE previous_response_id 대화 스레�
 });
 
 describe.skipIf(!LIVE)("streamChat — LIVE reasoning.effort 수용", () => {
-  it.each(["none", "minimal"] as const)(
-    "reasoning_effort '%s' 요청을 error 없이 completed로 수용한다",
-    async (effort) => {
-      const apiKey = process.env.YUI_CHAT_KEY;
-      expect(apiKey, "YUI_CHAT_KEY env가 있어야 함").toBeTruthy();
-      const events: ChatStreamEvent[] = [];
-      for await (const ev of streamChat(
-        endpoints,
-        { input: "한 문장으로 짧게 인사해줘.", reasoning_effort: effort },
-        { apiKey },
-      )) {
-        events.push(ev);
-      }
-      expect(events.some((e) => e.type === "error")).toBe(false);
-      expect(events.some((e) => e.type === "completed")).toBe(true);
-    },
-    60_000,
-  );
+  it.each([
+    "none",
+    "minimal",
+  ] as const)("reasoning_effort '%s' 요청을 error 없이 completed로 수용한다", async (effort) => {
+    const apiKey = process.env.YUI_CHAT_KEY;
+    expect(apiKey, "YUI_CHAT_KEY env가 있어야 함").toBeTruthy();
+    const events: ChatStreamEvent[] = [];
+    for await (const ev of streamChat(
+      endpoints,
+      { input: "한 문장으로 짧게 인사해줘.", reasoning_effort: effort },
+      { apiKey },
+    )) {
+      events.push(ev);
+    }
+    expect(events.some((e) => e.type === "error")).toBe(false);
+    expect(events.some((e) => e.type === "completed")).toBe(true);
+  }, 60_000);
 });
