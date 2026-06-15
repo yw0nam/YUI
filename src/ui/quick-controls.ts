@@ -27,6 +27,7 @@ import {
   LIPSYNC_GAIN_MIN,
 } from "../io/lipsync-settings";
 import type { createProactiveSettings } from "../io/proactive-settings";
+import type { createScheduleSettings } from "../io/schedule-settings";
 import type { MonitorInfo, ScreenSourceProvider } from "../io/screen-source-provider";
 import type { createScreenshotSettings } from "../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
@@ -35,11 +36,13 @@ import type { createSpeakerSelection, SpeakerOption } from "../io/speaker-select
 import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../io/vad-settings";
 import type { createVrmSelection } from "../io/vrm-selection";
 import { createLogger } from "../logger";
+import { type CueListInstance, createCueList } from "./cue-list";
 import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type IdleThrottleSettingsStore = ReturnType<typeof createIdleThrottleSettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
+type ScheduleSettingsStore = ReturnType<typeof createScheduleSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
@@ -54,8 +57,10 @@ interface QuickControlsOptions {
   settings: ScreenshotSettingsStore;
   /** 유휴 절전(30fps 캡) on/off store. 끄면 항상 풀 프레임. */
   idleThrottleSettings: IdleThrottleSettingsStore;
-  /** proactive 발화 on/off store. 끄면 firing만 게이팅, 소스 구독은 유지된다. */
+  /** proactive 발화 on/off + 큐 목록 store. */
   proactiveSettings: ProactiveSettingsStore;
+  /** 시각 기반 schedule cue on/off + 큐 목록 store. */
+  scheduleSettings: ScheduleSettingsStore;
   sourceProvider: ScreenSourceProvider;
   voiceStatus: VoiceInputStatus;
   lipsync: LipsyncSettingsStore;
@@ -211,6 +216,7 @@ export function createQuickControls({
   settings,
   idleThrottleSettings,
   proactiveSettings,
+  scheduleSettings,
   sourceProvider,
   voiceStatus,
   lipsync,
@@ -442,19 +448,8 @@ export function createQuickControls({
       </div>
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-input" aria-labelledby="yui-tab-input" tabindex="0" hidden>
-        <div class="yui-row">
-          <div class="yui-row__main">
-            <span class="yui-row__label">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 3.5l1.6 3.9 3.9 1.6-3.9 1.6L12 14.5l-1.6-3.9L6.5 9l3.9-1.6L12 3.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                <path d="M18.5 15l.7 1.7 1.8.7-1.8.7-.7 1.7-.7-1.7-1.8-.7 1.8-.7.7-1.7z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-              </svg>
-              주도적 반응
-            </span>
-            <span class="yui-row__sub">다른 앱을 쓸 때도 가끔 먼저 말을 걸어요</span>
-          </div>
-          <button class="yui-switch yui-proactive-switch" type="button" role="switch" aria-checked="false" aria-label="주도적 반응"></button>
-        </div>
+        <div class="yui-cue-sections"></div>
+        <div class="yui-quick__divider" aria-hidden="true"></div>
         <div class="yui-row">
           <div class="yui-row__main">
             <span class="yui-row__label">
@@ -542,7 +537,7 @@ export function createQuickControls({
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-switch[aria-label='스크린샷 첨부']")!;
   const idleThrottleSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
-  const proactiveSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-proactive-switch")!;
+  const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsEl = el.querySelector<HTMLDivElement>(".yui-monitors")!;
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
@@ -634,10 +629,6 @@ export function createQuickControls({
 
   function reflectIdleThrottle(): void {
     idleThrottleSwitchBtn.setAttribute("aria-checked", String(idleThrottleSettings.get().enabled));
-  }
-
-  function reflectProactive(): void {
-    proactiveSwitchBtn.setAttribute("aria-checked", String(proactiveSettings.get().enabled));
   }
 
   function reflectGain(): void {
@@ -1716,7 +1707,6 @@ export function createQuickControls({
 
     reflectSettings();
     reflectIdleThrottle();
-    reflectProactive();
     reflectVoiceStatus(voiceStatus.get());
     reflectGain();
     reflectVad();
@@ -1801,12 +1791,6 @@ export function createQuickControls({
     const current = idleThrottleSettings.get().enabled;
     idleThrottleSettings.setEnabled(!current);
     log.info("idle_throttle_toggle", { enabled: !current });
-  }
-
-  function handleProactiveSwitchClick(): void {
-    const current = proactiveSettings.get().enabled;
-    proactiveSettings.setEnabled(!current);
-    log.info("proactive_toggle", { enabled: !current });
   }
 
   function handleVoiceSwitchClick(): void {
@@ -2103,9 +2087,39 @@ export function createQuickControls({
   const unsubscribeIdleThrottle = idleThrottleSettings.subscribe(() => {
     if (openState) reflectIdleThrottle();
   });
-  const unsubscribeProactive = proactiveSettings.subscribe(() => {
-    if (openState) reflectProactive();
-  });
+  // 큐 목록 컴포넌트 — 입력 탭 내 .yui-cue-sections에 마운트. 구독·teardown을 컴포넌트 자체가 관리한다.
+  const scheduleDividerEl = document.createElement("div");
+  scheduleDividerEl.className = "yui-quick__divider";
+  scheduleDividerEl.setAttribute("aria-hidden", "true");
+
+  let scheduleCueList: CueListInstance | null = null;
+  let proactiveCueList: CueListInstance | null = null;
+
+  function mountCueLists(): void {
+    cueSectionsMountEl.innerHTML = "";
+    scheduleCueList = createCueList({
+      mount: cueSectionsMountEl,
+      store: scheduleSettings,
+      title: "시간대 인사",
+      sub: "정한 시각에 자리에 있으면 먼저 말을 걸어요",
+      icon: "clock",
+      trigger: { kind: "time", field: "time" },
+      addLabel: "+ 인사 추가",
+    });
+    cueSectionsMountEl.appendChild(scheduleDividerEl);
+    proactiveCueList = createCueList({
+      mount: cueSectionsMountEl,
+      store: proactiveSettings,
+      title: "주도적 반응",
+      sub: "작업 중인데 한동안 말을 안 걸면 먼저 말을 걸어요",
+      icon: "sparkle",
+      trigger: { kind: "minutes", field: "idle_min" },
+      addLabel: "+ 반응 추가",
+    });
+  }
+
+  mountCueLists();
+
   const unsubscribeVoice = voiceStatus.subscribe(reflectVoiceStatus);
   const unsubscribeLipsync = lipsync.subscribe(() => {
     if (openState) reflectGain();
@@ -2143,7 +2157,6 @@ export function createQuickControls({
 
   switchBtn.addEventListener("click", handleSwitchClick);
   idleThrottleSwitchBtn.addEventListener("click", handleIdleThrottleSwitchClick);
-  proactiveSwitchBtn.addEventListener("click", handleProactiveSwitchClick);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
   scrimEl.addEventListener("pointerdown", handleScrimPointerDown);
   document.addEventListener("keydown", handleDocKeydown);
@@ -2188,9 +2201,10 @@ export function createQuickControls({
   function dispose(): void {
     disposed = true;
     commitChatKeyIfDirty();
+    scheduleCueList?.destroy();
+    proactiveCueList?.destroy();
     unsubscribe();
     unsubscribeIdleThrottle();
-    unsubscribeProactive();
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();
@@ -2206,7 +2220,6 @@ export function createQuickControls({
     spkRefreshState.clear();
     switchBtn.removeEventListener("click", handleSwitchClick);
     idleThrottleSwitchBtn.removeEventListener("click", handleIdleThrottleSwitchClick);
-    proactiveSwitchBtn.removeEventListener("click", handleProactiveSwitchClick);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     scrimEl.removeEventListener("pointerdown", handleScrimPointerDown);
     document.removeEventListener("keydown", handleDocKeydown);

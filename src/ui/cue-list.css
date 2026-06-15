@@ -1,0 +1,295 @@
+/* Cue-list 섹션 컴포넌트 — 시간대 인사 · 주도적 반응 공통 패턴.
+   토큰: src/ui/tokens.css. 로컬 --yui-field는 .yui-quick에서 상속됨. */
+
+/* ── 큐 목록 컨테이너 ── */
+.yui-cue-list {
+  display: grid;
+  gap: 0;
+  margin-top: 0.15rem;
+}
+
+/* ── "+ 추가" 버튼 — base (compound override below) ── */
+.yui-cue-add {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.38rem 0.5rem;
+  border: 1px dashed var(--yui-edge-strong);
+  border-radius: var(--yui-radius-row);
+  background: transparent;
+  color: var(--yui-text-mute);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 550;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease),
+    background var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-cue-add:hover {
+  border-color: var(--yui-accent-soft);
+  color: var(--yui-accent);
+  background: var(--yui-accent-faint);
+}
+
+.yui-cue-add svg {
+  width: 0.82rem;
+  height: 0.82rem;
+  flex: 0 0 auto;
+}
+
+/* ── 섹션 전체 — master OFF 시 목록·추가 버튼 흐림 ── */
+.yui-section--off .yui-cue-list,
+.yui-section--off .yui-cue-add {
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+/* ── 개별 큐 행 ── */
+.yui-cue {
+  border-radius: var(--yui-radius-row);
+  margin-bottom: 0.15rem;
+  background: oklch(0.97 0.01 80 / 0.03);
+  border: 1px solid var(--yui-edge);
+  overflow: hidden;
+}
+
+.yui-cue--off {
+  opacity: 0.42;
+}
+
+.yui-cue--expanded {
+  background: oklch(0.97 0.01 80 / 0.05);
+  border-color: var(--yui-edge-strong);
+}
+
+/* ── 접힌 행 레이아웃 ── */
+.yui-cue__collapsed {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.42rem 0.5rem;
+}
+
+/* 큐 이름 */
+.yui-cue__name {
+  font-size: 0.84rem;
+  font-weight: 550;
+  color: var(--yui-text);
+  white-space: nowrap;
+  flex: 0 0 auto;
+  min-width: 3.2rem;
+}
+
+/* 트리거 영역 */
+.yui-cue__trigger {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+/* 시각 입력 */
+.yui-time-input {
+  background: var(--yui-field, oklch(0.16 0.012 70 / 0.7));
+  border: 1px solid var(--yui-edge);
+  border-radius: 8px;
+  color: var(--yui-text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.2rem 0.38rem;
+  width: 5.5rem;
+  text-shadow: var(--yui-text-shadow);
+  outline: none;
+  -webkit-appearance: none;
+  color-scheme: dark;
+}
+
+.yui-time-input:focus {
+  border-color: var(--yui-accent);
+  box-shadow: 0 0 0 1px var(--yui-accent-soft);
+}
+
+/* 분 입력 */
+.yui-num-input {
+  background: var(--yui-field, oklch(0.16 0.012 70 / 0.7));
+  border: 1px solid var(--yui-edge);
+  border-radius: 8px;
+  color: var(--yui-text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.2rem 0.38rem;
+  width: 3.2rem;
+  text-align: right;
+  text-shadow: var(--yui-text-shadow);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.yui-num-input:focus {
+  border-color: var(--yui-accent);
+  box-shadow: 0 0 0 1px var(--yui-accent-soft);
+}
+
+.yui-cue__suffix {
+  font-size: 0.78rem;
+  color: var(--yui-text-mute);
+}
+
+.yui-cue__minutes-label {
+  font-size: 0.72rem;
+  color: var(--yui-text-mute);
+  flex-shrink: 0;
+}
+
+/* 컨텍스트 미리보기 */
+.yui-cue__ctx-preview {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.74rem;
+  color: var(--yui-text-mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 삭제 버튼 — hover 시에만 표시 */
+.yui-cue__delete {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--yui-dur-fast) var(--yui-ease),
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-cue:hover .yui-cue__delete,
+.yui-cue--expanded .yui-cue__delete {
+  opacity: 0.65;
+}
+
+.yui-cue__delete:hover {
+  opacity: 1 !important;
+  background: var(--yui-danger-faint);
+  color: var(--yui-danger);
+}
+
+.yui-cue__delete svg {
+  width: 0.82rem;
+  height: 0.82rem;
+}
+
+/* ── 펼침 편집 창 ── */
+.yui-cue__editor {
+  display: none;
+  padding: 0.5rem 0.5rem 0.55rem;
+  border-top: 1px solid var(--yui-edge);
+  gap: 0.42rem;
+  flex-direction: column;
+}
+
+.yui-cue--expanded .yui-cue__editor {
+  display: flex;
+}
+
+.yui-cue__ed-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.yui-cue__ed-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--yui-text-mute);
+  flex: 0 0 3.2rem;
+}
+
+.yui-cue__name-input {
+  flex: 1;
+  background: var(--yui-field, oklch(0.16 0.012 70 / 0.7));
+  border: 1px solid var(--yui-edge);
+  border-radius: 8px;
+  color: var(--yui-text);
+  font: inherit;
+  font-size: 0.84rem;
+  padding: 0.22rem 0.45rem;
+  outline: none;
+  text-shadow: var(--yui-text-shadow);
+}
+
+.yui-cue__name-input:focus {
+  border-color: var(--yui-accent);
+  box-shadow: 0 0 0 1px var(--yui-accent-soft);
+}
+
+/* 컨텍스트 텍스트에어리어 래퍼 */
+.yui-cue__ctx-wrap {
+  margin-top: 0.08rem;
+  border-radius: var(--yui-radius-input);
+  background: var(--yui-field, oklch(0.16 0.012 70 / 0.7));
+  border: 1px solid var(--yui-edge);
+  transition:
+    border-color var(--yui-dur-fast) var(--yui-ease),
+    box-shadow var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-cue__ctx-wrap:focus-within {
+  border-color: var(--yui-accent);
+  box-shadow: 0 0 0 1px var(--yui-accent-soft);
+}
+
+.yui-cue__ctx-label {
+  display: block;
+  padding: 0.38rem 0.52rem 0;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--yui-text-mute);
+  text-transform: uppercase;
+}
+
+.yui-cue__ctx-textarea {
+  display: block;
+  width: 100%;
+  min-height: 3.6rem;
+  padding: 0.22rem 0.52rem 0.42rem;
+  border: 0;
+  background: transparent;
+  color: var(--yui-text);
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  resize: none;
+  text-shadow: var(--yui-text-shadow);
+  outline: none;
+}
+
+.yui-cue__ctx-textarea::placeholder {
+  color: var(--yui-text-mute);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-cue__delete,
+  .yui-cue-add,
+  .yui-cue__ctx-wrap {
+    transition-duration: 0ms !important;
+  }
+}

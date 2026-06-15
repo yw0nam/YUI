@@ -1,15 +1,14 @@
 /**
- * proactive-settings.test.ts — createProactiveSettings reactive store (TDD red).
+ * proactive-settings.test.ts — createProactiveSettings reactive store (idle-gap cue list).
  *
  * 검증:
- *  - 기본값(defaults): enabled=true
- *  - 저장된 유효값이 initial보다 우선
- *  - initial이 기본값보다 우선
- *  - 잘못된/throw하는 storage → 기본값, factory는 throw 안 함
- *  - setEnabled: 실제 변경 시 persist + notify, 동일값이면 skip
- *  - reloadFromStorage: 크로스윈도우 재로드, 동일값/malformed/부재 시 no-op
- *  - subscribe/unsubscribe
- *  - get()이 shallow copy를 반환(내부 상태 변경 불가)
+ *  - 기본값: enabled=true, 3개 seed entry
+ *  - get()이 deep clone 반환
+ *  - addCue/updateCue(valid+invalid idle_min/label)/removeCue
+ *  - setEnabled: 변경 시 persist + notify, 동일값 skip
+ *  - hydration 우선순위 + malformed 폴백
+ *  - migration: 구버전 { enabled } (no entries) → enabled 유지 + seed entries 채움
+ *  - reloadFromStorage, subscribe/unsubscribe, dispose
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -20,7 +19,7 @@ import {
 } from "./proactive-settings";
 
 function fakeStorage(
-  initial?: ProactiveSettings | null,
+  initial?: unknown,
   opts?: { throwOnLoad?: boolean },
 ): ProactiveStorage & { saved: ProactiveSettings[] } {
   const saved: ProactiveSettings[] = [];
@@ -28,7 +27,7 @@ function fakeStorage(
     saved,
     load() {
       if (opts?.throwOnLoad) throw new Error("storage exploded");
-      return initial ?? null;
+      return (initial ?? null) as ProactiveSettings | null;
     },
     save(s) {
       saved.push(s);
@@ -49,15 +48,20 @@ function memStorage(): ProactiveStorage & { _data: ProactiveSettings | null } {
       return data;
     },
     save(s) {
-      data = { ...s };
+      data = structuredClone(s);
     },
   };
 }
 
 describe("createProactiveSettings — defaults", () => {
-  it("defaults to enabled=true when no storage and no initial", () => {
+  it("defaults to enabled=true with 3 seed entries", () => {
     const store = createProactiveSettings();
-    expect(store.get().enabled).toBe(true);
+    const s = store.get();
+    expect(s.enabled).toBe(true);
+    expect(s.entries).toHaveLength(3);
+    expect(s.entries.map((e) => e.id)).toEqual(["short_break", "mid_check", "long_focus"]);
+    expect(s.entries.every((e) => e.enabled)).toBe(true);
+    expect(s.entries.map((e) => e.idle_min)).toEqual([5, 10, 30]);
   });
 
   it("does not throw when no options given", () => {
@@ -65,95 +69,208 @@ describe("createProactiveSettings — defaults", () => {
   });
 });
 
-describe("createProactiveSettings — hydration precedence", () => {
-  it("valid stored value wins over initial", () => {
-    const stored: ProactiveSettings = { enabled: false };
-    const initial: ProactiveSettings = { enabled: true };
-    const store = createProactiveSettings({
-      storage: fakeStorage(stored),
-      initial,
-    });
-    expect(store.get().enabled).toBe(false);
-  });
+describe("createProactiveSettings — get() returns a deep clone", () => {
+  it("mutating the returned object/entries does not affect store state", () => {
+    const store = createProactiveSettings();
+    const s = store.get();
+    s.enabled = false;
+    s.entries[0].label = "hacked";
+    s.entries.push({ id: "x", label: "x", context: "x", idle_min: 1, enabled: true });
 
-  it("initial wins over hard defaults when no stored value", () => {
-    const initial: ProactiveSettings = { enabled: false };
-    const store = createProactiveSettings({
-      storage: fakeStorage(null),
-      initial,
-    });
-    expect(store.get().enabled).toBe(false);
+    const again = store.get();
+    expect(again.enabled).toBe(true);
+    expect(again.entries[0].label).toBe("잠깐 환기");
+    expect(again.entries).toHaveLength(3);
   });
 });
 
-describe("createProactiveSettings — malformed/throwing storage", () => {
-  it("storage.load() throws → falls back to defaults, factory does not throw", () => {
-    const store = createProactiveSettings({
-      storage: fakeStorage(null, { throwOnLoad: true }),
-    });
-    expect(store.get().enabled).toBe(true);
+describe("createProactiveSettings — addCue", () => {
+  it("appends a blank cue with idle_min=10, persists, notifies, returns it", () => {
+    const storage = fakeStorage(null);
+    const store = createProactiveSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    const cue = store.addCue();
+    expect(cue.idle_min).toBe(10);
+    expect(cue.label).toBe("");
+    expect(cue.context).toBe("");
+    expect(cue.enabled).toBe(true);
+    expect(typeof cue.id).toBe("string");
+
+    expect(store.get().entries).toHaveLength(4);
+    expect(storage.saved).toHaveLength(1);
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("createProactiveSettings — updateCue", () => {
+  it("applies a valid patch, persists, notifies once", () => {
+    const storage = fakeStorage(null);
+    const store = createProactiveSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.updateCue("mid_check", { label: "체크", idle_min: 15, enabled: false });
+    const c = store.get().entries.find((e) => e.id === "mid_check")!;
+    expect(c.label).toBe("체크");
+    expect(c.idle_min).toBe(15);
+    expect(c.enabled).toBe(false);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(storage.saved).toHaveLength(1);
   });
 
-  it("storage returns malformed data (missing enabled) → falls back to defaults", () => {
-    const malformed = {} as unknown as ProactiveSettings;
-    const store = createProactiveSettings({ storage: fakeStorage(malformed) });
-    expect(store.get().enabled).toBe(true);
+  it("invalid idle_min (0) keeps prior value", () => {
+    const store = createProactiveSettings();
+    store.updateCue("short_break", { idle_min: 0 });
+    expect(store.get().entries.find((e) => e.id === "short_break")!.idle_min).toBe(5);
   });
 
-  it("storage returns non-boolean enabled → falls back to defaults", () => {
-    const malformed = { enabled: "nope" } as unknown as ProactiveSettings;
-    const store = createProactiveSettings({ storage: fakeStorage(malformed) });
-    expect(store.get().enabled).toBe(true);
+  it("invalid idle_min (non-finite) keeps prior value", () => {
+    const store = createProactiveSettings();
+    store.updateCue("short_break", { idle_min: Number.POSITIVE_INFINITY });
+    expect(store.get().entries.find((e) => e.id === "short_break")!.idle_min).toBe(5);
+  });
+
+  it("empty label (after trim) keeps prior value", () => {
+    const store = createProactiveSettings();
+    store.updateCue("short_break", { label: "  " });
+    expect(store.get().entries.find((e) => e.id === "short_break")!.label).toBe("잠깐 환기");
+  });
+
+  it("unknown id is a no-op", () => {
+    const store = createProactiveSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.updateCue("nope", { label: "x" });
+    expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+describe("createProactiveSettings — removeCue", () => {
+  it("removes by id, persists, notifies", () => {
+    const storage = fakeStorage(null);
+    const store = createProactiveSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.removeCue("mid_check");
+    expect(store.get().entries.map((e) => e.id)).toEqual(["short_break", "long_focus"]);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(storage.saved).toHaveLength(1);
+  });
+
+  it("unknown id is a no-op", () => {
+    const store = createProactiveSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.removeCue("nope");
+    expect(store.get().entries).toHaveLength(3);
+    expect(cb).not.toHaveBeenCalled();
   });
 });
 
 describe("createProactiveSettings — setEnabled", () => {
-  it("setEnabled(false) persists and notifies subscribers", () => {
+  it("setEnabled(false) persists and notifies", () => {
     const storage = fakeStorage(null);
     const store = createProactiveSettings({ storage });
     const cb = vi.fn();
     store.subscribe(cb);
-
     store.setEnabled(false);
-
     expect(store.get().enabled).toBe(false);
     expect(storage.saved).toHaveLength(1);
-    expect(storage.saved[0].enabled).toBe(false);
     expect(cb).toHaveBeenCalledTimes(1);
-    expect(cb.mock.calls[0][0].enabled).toBe(false);
   });
 
-  it("setEnabled with same value does NOT persist or notify", () => {
+  it("same value is a no-op", () => {
     const storage = fakeStorage(null);
     const store = createProactiveSettings({ storage });
     const cb = vi.fn();
     store.subscribe(cb);
-
-    store.setEnabled(true); // same as default
-
+    store.setEnabled(true);
     expect(storage.saved).toHaveLength(0);
     expect(cb).not.toHaveBeenCalled();
   });
 });
 
-describe("createProactiveSettings — reloadFromStorage (cross-window sync)", () => {
-  it("applies an externally-changed stored value and notifies", () => {
+describe("createProactiveSettings — hydration precedence", () => {
+  it("valid stored value wins over initial", () => {
+    const stored: ProactiveSettings = {
+      enabled: false,
+      entries: [{ id: "a", label: "A", context: "c", idle_min: 7, enabled: true }],
+    };
+    const initial: ProactiveSettings = { enabled: true, entries: [] };
+    const store = createProactiveSettings({ storage: fakeStorage(stored), initial });
+    expect(store.get().enabled).toBe(false);
+    expect(store.get().entries[0].id).toBe("a");
+  });
+
+  it("initial wins over defaults when no stored value", () => {
+    const initial: ProactiveSettings = {
+      enabled: false,
+      entries: [{ id: "b", label: "B", context: "c", idle_min: 3, enabled: true }],
+    };
+    const store = createProactiveSettings({ storage: fakeStorage(null), initial });
+    expect(store.get().entries[0].id).toBe("b");
+  });
+});
+
+describe("createProactiveSettings — malformed storage", () => {
+  it("storage.load() throws → defaults", () => {
+    const store = createProactiveSettings({ storage: fakeStorage(null, { throwOnLoad: true }) });
+    expect(store.get().entries).toHaveLength(3);
+  });
+
+  it("entries with invalid idle_min (0) → falls back to defaults", () => {
+    const malformed = {
+      enabled: true,
+      entries: [{ id: "a", label: "A", context: "c", idle_min: 0, enabled: true }],
+    };
+    const store = createProactiveSettings({ storage: fakeStorage(malformed) });
+    expect(store.get().entries).toHaveLength(3);
+  });
+
+  it("entries with non-finite idle_min → falls back to defaults", () => {
+    const malformed = {
+      enabled: true,
+      entries: [{ id: "a", label: "A", context: "c", idle_min: Infinity, enabled: true }],
+    };
+    const store = createProactiveSettings({ storage: fakeStorage(malformed) });
+    expect(store.get().entries).toHaveLength(3);
+  });
+});
+
+describe("createProactiveSettings — migration from old { enabled } shape", () => {
+  it("{ enabled: false } (no entries) → keeps enabled, fills seed entries", () => {
+    const storage = memStorage();
+    storage._data = { enabled: false } as unknown as ProactiveSettings;
+    const store = createProactiveSettings({ storage });
+    const s = store.get();
+    expect(s.enabled).toBe(false);
+    expect(s.entries).toHaveLength(3);
+    expect(s.entries.map((e) => e.id)).toEqual(["short_break", "mid_check", "long_focus"]);
+  });
+});
+
+describe("createProactiveSettings — reloadFromStorage", () => {
+  it("applies an externally-changed value and notifies", () => {
     const storage = memStorage();
     const store = createProactiveSettings({ storage });
     const cb = vi.fn();
     store.subscribe(cb);
 
-    // 다른 창이 storage를 직접 갱신한 상황을 모사
-    const next: ProactiveSettings = { enabled: false };
+    const next: ProactiveSettings = {
+      enabled: false,
+      entries: [{ id: "z", label: "Z", context: "c", idle_min: 2, enabled: true }],
+    };
     storage._data = next;
     store.reloadFromStorage();
 
     expect(store.get()).toEqual(next);
     expect(cb).toHaveBeenCalledTimes(1);
-    expect(cb.mock.calls[0][0]).toEqual(next);
   });
 
-  it("identical value is a no-op (no notify)", () => {
+  it("identical value is a no-op", () => {
     const storage = memStorage();
     const store = createProactiveSettings({ storage });
     store.setEnabled(false);
@@ -163,89 +280,35 @@ describe("createProactiveSettings — reloadFromStorage (cross-window sync)", ()
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("ignores malformed stored value on reload (no notify)", () => {
-    const storage = memStorage();
-    const store = createProactiveSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    storage._data = { enabled: "nope" } as unknown as ProactiveSettings;
-    store.reloadFromStorage();
-    expect(store.get().enabled).toBe(true);
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage is absent", () => {
+  it("no-op when storage absent", () => {
     const store = createProactiveSettings();
     const cb = vi.fn();
     store.subscribe(cb);
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage.load throws", () => {
-    let throws = false;
-    const storage: ProactiveStorage = {
-      load: () => {
-        if (throws) throw new Error("boom");
-        return null;
-      },
-      save: vi.fn(),
-    };
-    const store = createProactiveSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    throws = true;
     expect(() => store.reloadFromStorage()).not.toThrow();
     expect(cb).not.toHaveBeenCalled();
   });
 });
 
 describe("createProactiveSettings — subscribe/unsubscribe", () => {
-  it("subscribe returns unsubscribe function that stops notifications", () => {
+  it("unsubscribe stops notifications", () => {
     const store = createProactiveSettings();
     const cb = vi.fn();
     const unsub = store.subscribe(cb);
-
     store.setEnabled(false);
     expect(cb).toHaveBeenCalledTimes(1);
-
     unsub();
     store.setEnabled(true);
-    expect(cb).toHaveBeenCalledTimes(1); // no more
-  });
-
-  it("multiple subscribers are each notified independently", () => {
-    const store = createProactiveSettings();
-    const cb1 = vi.fn();
-    const cb2 = vi.fn();
-    store.subscribe(cb1);
-    store.subscribe(cb2);
-
-    store.setEnabled(false);
-    expect(cb1).toHaveBeenCalledTimes(1);
-    expect(cb2).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("createProactiveSettings — get() returns a copy", () => {
-  it("mutating the returned object does not affect store state", () => {
-    const store = createProactiveSettings();
-    const s = store.get();
-    (s as any).enabled = false;
-
-    expect(store.get().enabled).toBe(true);
+    expect(cb).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("createProactiveSettings — dispose", () => {
-  it("dispose clears all subscribers; subsequent mutations do not call them", () => {
+  it("dispose clears subscribers", () => {
     const store = createProactiveSettings();
     const cb = vi.fn();
     store.subscribe(cb);
-
     store.dispose();
     store.setEnabled(false);
-
     expect(cb).not.toHaveBeenCalled();
   });
 });

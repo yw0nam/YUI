@@ -1,0 +1,310 @@
+/**
+ * schedule-settings.test.ts — createScheduleSettings reactive store (TDD red).
+ *
+ * 검증:
+ *  - 기본값(defaults): enabled=true, 4개 seed entry
+ *  - get()이 deep clone 반환(entry mutation이 내부 상태에 영향 없음)
+ *  - addCue/updateCue/removeCue: persist + notify + validation
+ *  - setEnabled: 실제 변경 시 persist + notify, 동일값이면 skip
+ *  - hydration 우선순위: 저장값 > initial > 기본값
+ *  - malformed storage → 기본값 폴백
+ *  - reloadFromStorage: 크로스윈도우 재로드, 동일값/부재 시 no-op
+ *  - subscribe/unsubscribe, dispose
+ */
+
+import { describe, expect, it, vi } from "vitest";
+import {
+  createScheduleSettings,
+  type ScheduleSettings,
+  type ScheduleStorage,
+} from "./schedule-settings";
+
+function fakeStorage(
+  initial?: ScheduleSettings | null,
+  opts?: { throwOnLoad?: boolean },
+): ScheduleStorage & { saved: ScheduleSettings[] } {
+  const saved: ScheduleSettings[] = [];
+  return {
+    saved,
+    load() {
+      if (opts?.throwOnLoad) throw new Error("storage exploded");
+      return initial ?? null;
+    },
+    save(s) {
+      saved.push(s);
+    },
+  };
+}
+
+function memStorage(): ScheduleStorage & { _data: ScheduleSettings | null } {
+  let data: ScheduleSettings | null = null;
+  return {
+    get _data() {
+      return data;
+    },
+    set _data(v: ScheduleSettings | null) {
+      data = v;
+    },
+    load() {
+      return data;
+    },
+    save(s) {
+      data = structuredClone(s);
+    },
+  };
+}
+
+describe("createScheduleSettings — defaults", () => {
+  it("defaults to enabled=true with 4 seed entries", () => {
+    const store = createScheduleSettings();
+    const s = store.get();
+    expect(s.enabled).toBe(true);
+    expect(s.entries).toHaveLength(4);
+    expect(s.entries.map((e) => e.id)).toEqual(["morning", "lunch", "evening", "late_night"]);
+    expect(s.entries.every((e) => e.enabled)).toBe(true);
+  });
+
+  it("does not throw when no options given", () => {
+    expect(() => createScheduleSettings()).not.toThrow();
+  });
+});
+
+describe("createScheduleSettings — get() returns a deep clone", () => {
+  it("mutating the returned object/entries does not affect store state", () => {
+    const store = createScheduleSettings();
+    const s = store.get();
+    s.enabled = false;
+    s.entries[0].label = "hacked";
+    s.entries.push({ id: "x", label: "x", context: "x", time: "00:00", enabled: true });
+
+    const again = store.get();
+    expect(again.enabled).toBe(true);
+    expect(again.entries[0].label).toBe("아침");
+    expect(again.entries).toHaveLength(4);
+  });
+});
+
+describe("createScheduleSettings — addCue", () => {
+  it("appends a blank cue, persists, notifies, and returns the new cue", () => {
+    const storage = fakeStorage(null);
+    const store = createScheduleSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    const cue = store.addCue();
+
+    expect(cue.time).toBe("12:00");
+    expect(cue.label).toBe("");
+    expect(cue.context).toBe("");
+    expect(cue.enabled).toBe(true);
+    expect(typeof cue.id).toBe("string");
+    expect(cue.id.length).toBeGreaterThan(0);
+
+    expect(store.get().entries).toHaveLength(5);
+    expect(store.get().entries[4].id).toBe(cue.id);
+    expect(storage.saved).toHaveLength(1);
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("createScheduleSettings — updateCue", () => {
+  it("applies a valid patch, persists, notifies once", () => {
+    const storage = fakeStorage(null);
+    const store = createScheduleSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.updateCue("morning", { label: "굿모닝", time: "08:30", enabled: false });
+
+    const m = store.get().entries.find((e) => e.id === "morning")!;
+    expect(m.label).toBe("굿모닝");
+    expect(m.time).toBe("08:30");
+    expect(m.enabled).toBe(false);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(storage.saved).toHaveLength(1);
+  });
+
+  it("invalid time keeps prior value", () => {
+    const store = createScheduleSettings();
+    store.updateCue("morning", { time: "25:99" });
+    expect(store.get().entries.find((e) => e.id === "morning")!.time).toBe("09:00");
+  });
+
+  it("empty label (after trim) keeps prior value", () => {
+    const store = createScheduleSettings();
+    store.updateCue("morning", { label: "   " });
+    expect(store.get().entries.find((e) => e.id === "morning")!.label).toBe("아침");
+  });
+
+  it("unknown id is a no-op (no notify, no persist)", () => {
+    const storage = fakeStorage(null);
+    const store = createScheduleSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.updateCue("nope", { label: "x" });
+    expect(cb).not.toHaveBeenCalled();
+    expect(storage.saved).toHaveLength(0);
+  });
+
+  it("no-op patch (no changes) does not notify", () => {
+    const store = createScheduleSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.updateCue("morning", { label: "아침", time: "09:00" });
+    expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+describe("createScheduleSettings — removeCue", () => {
+  it("removes by id, persists, notifies", () => {
+    const storage = fakeStorage(null);
+    const store = createScheduleSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.removeCue("lunch");
+
+    expect(store.get().entries.map((e) => e.id)).toEqual(["morning", "evening", "late_night"]);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(storage.saved).toHaveLength(1);
+  });
+
+  it("unknown id is a no-op", () => {
+    const store = createScheduleSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.removeCue("nope");
+    expect(store.get().entries).toHaveLength(4);
+    expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+describe("createScheduleSettings — setEnabled", () => {
+  it("change persists and notifies", () => {
+    const storage = fakeStorage(null);
+    const store = createScheduleSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.setEnabled(false);
+    expect(store.get().enabled).toBe(false);
+    expect(storage.saved).toHaveLength(1);
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  it("same value is a no-op", () => {
+    const storage = fakeStorage(null);
+    const store = createScheduleSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.setEnabled(true);
+    expect(storage.saved).toHaveLength(0);
+    expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+describe("createScheduleSettings — hydration precedence", () => {
+  it("valid stored value wins over initial", () => {
+    const stored: ScheduleSettings = {
+      enabled: false,
+      entries: [{ id: "a", label: "A", context: "c", time: "07:00", enabled: true }],
+    };
+    const initial: ScheduleSettings = { enabled: true, entries: [] };
+    const store = createScheduleSettings({ storage: fakeStorage(stored), initial });
+    expect(store.get().enabled).toBe(false);
+    expect(store.get().entries).toHaveLength(1);
+    expect(store.get().entries[0].id).toBe("a");
+  });
+
+  it("initial wins over defaults when no stored value", () => {
+    const initial: ScheduleSettings = {
+      enabled: false,
+      entries: [{ id: "b", label: "B", context: "c", time: "10:00", enabled: true }],
+    };
+    const store = createScheduleSettings({ storage: fakeStorage(null), initial });
+    expect(store.get().enabled).toBe(false);
+    expect(store.get().entries[0].id).toBe("b");
+  });
+});
+
+describe("createScheduleSettings — malformed storage", () => {
+  it("storage.load() throws → defaults, factory does not throw", () => {
+    const store = createScheduleSettings({ storage: fakeStorage(null, { throwOnLoad: true }) });
+    expect(store.get().entries).toHaveLength(4);
+  });
+
+  it("missing entries → defaults", () => {
+    const malformed = { enabled: true } as unknown as ScheduleSettings;
+    const store = createScheduleSettings({ storage: fakeStorage(malformed) });
+    expect(store.get().entries).toHaveLength(4);
+  });
+
+  it("bad time in an entry → defaults", () => {
+    const malformed = {
+      enabled: true,
+      entries: [{ id: "a", label: "A", context: "c", time: "99:99", enabled: true }],
+    } as unknown as ScheduleSettings;
+    const store = createScheduleSettings({ storage: fakeStorage(malformed) });
+    expect(store.get().entries).toHaveLength(4);
+  });
+});
+
+describe("createScheduleSettings — reloadFromStorage (cross-window sync)", () => {
+  it("applies an externally-changed value and notifies", () => {
+    const storage = memStorage();
+    const store = createScheduleSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    const next: ScheduleSettings = {
+      enabled: false,
+      entries: [{ id: "z", label: "Z", context: "c", time: "06:00", enabled: true }],
+    };
+    storage._data = next;
+    store.reloadFromStorage();
+
+    expect(store.get()).toEqual(next);
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  it("identical value is a no-op (no notify)", () => {
+    const storage = memStorage();
+    const store = createScheduleSettings({ storage });
+    store.setEnabled(false);
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.reloadFromStorage();
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("no-op when storage is absent", () => {
+    const store = createScheduleSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    expect(() => store.reloadFromStorage()).not.toThrow();
+    expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+describe("createScheduleSettings — subscribe/unsubscribe", () => {
+  it("unsubscribe stops notifications", () => {
+    const store = createScheduleSettings();
+    const cb = vi.fn();
+    const unsub = store.subscribe(cb);
+    store.setEnabled(false);
+    expect(cb).toHaveBeenCalledTimes(1);
+    unsub();
+    store.setEnabled(true);
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("createScheduleSettings — dispose", () => {
+  it("dispose clears subscribers", () => {
+    const store = createScheduleSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.dispose();
+    store.setEnabled(false);
+    expect(cb).not.toHaveBeenCalled();
+  });
+});

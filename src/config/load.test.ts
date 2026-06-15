@@ -77,7 +77,8 @@ function goodFixture(): Record<string, unknown> {
       },
     },
     "sources.json": {
-      proactive: { cowork: { interval_ms: 600000, present_max_idle_ms: 60000 } },
+      proactive: { present_max_idle_ms: 180000 },
+      schedule: { present_max_idle_ms: 180000 },
     },
   };
 }
@@ -1229,7 +1230,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
   });
 });
 
-// ── sources.json (#24 proactive cowork knobs) ──────────────────────────────────
+// ── sources.json (#24 present-gated firing knobs) ──────────────────────────────
 
 describe("loadConfig — sources", () => {
   async function loadWith(value: unknown): Promise<unknown> {
@@ -1246,35 +1247,77 @@ describe("loadConfig — sources", () => {
 
   it("유효한 sources를 그대로 보존한다", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
-    expect(cfg.sources.proactive.cowork.interval_ms).toBe(600000);
-    expect(cfg.sources.proactive.cowork.present_max_idle_ms).toBe(60000);
+    expect(cfg.sources.proactive.present_max_idle_ms).toBe(180000);
+    expect(cfg.sources.schedule.present_max_idle_ms).toBe(180000);
   });
 
   it("객체가 아니면 ConfigError", async () => {
     await expectSourcesError(loadWith(42));
   });
 
-  it("present_max_idle_ms가 < 10000이면 ConfigError", async () => {
+  it("proactive가 객체가 아니면 ConfigError", async () => {
     await expectSourcesError(
-      loadWith({ proactive: { cowork: { interval_ms: 600000, present_max_idle_ms: 5000 } } }),
+      loadWith({ proactive: 42, schedule: { present_max_idle_ms: 180000 } }),
     );
   });
 
-  it("present_max_idle_ms >= interval_ms이면 ConfigError(degenerate)", async () => {
+  it("schedule이 객체가 아니면 ConfigError", async () => {
     await expectSourcesError(
-      loadWith({ proactive: { cowork: { interval_ms: 60000, present_max_idle_ms: 60000 } } }),
+      loadWith({ proactive: { present_max_idle_ms: 180000 }, schedule: "bad" }),
     );
   });
 
-  it("interval_ms가 0 이하면 ConfigError", async () => {
+  it("proactive.present_max_idle_ms가 숫자가 아니면 ConfigError", async () => {
     await expectSourcesError(
-      loadWith({ proactive: { cowork: { interval_ms: 0, present_max_idle_ms: 60000 } } }),
+      loadWith({
+        proactive: { present_max_idle_ms: "x" },
+        schedule: { present_max_idle_ms: 180000 },
+      }),
     );
   });
 
-  it("interval_ms가 비유한(Infinity)이면 ConfigError", async () => {
+  it("proactive.present_max_idle_ms가 0 이하면 ConfigError", async () => {
     await expectSourcesError(
-      loadWith({ proactive: { cowork: { interval_ms: Infinity, present_max_idle_ms: 60000 } } }),
+      loadWith({
+        proactive: { present_max_idle_ms: 0 },
+        schedule: { present_max_idle_ms: 180000 },
+      }),
+    );
+  });
+
+  it("proactive.present_max_idle_ms가 < 10000이면 ConfigError", async () => {
+    await expectSourcesError(
+      loadWith({
+        proactive: { present_max_idle_ms: 5000 },
+        schedule: { present_max_idle_ms: 180000 },
+      }),
+    );
+  });
+
+  it("schedule.present_max_idle_ms가 숫자가 아니면 ConfigError", async () => {
+    await expectSourcesError(
+      loadWith({
+        proactive: { present_max_idle_ms: 180000 },
+        schedule: { present_max_idle_ms: null },
+      }),
+    );
+  });
+
+  it("schedule.present_max_idle_ms가 0 이하면 ConfigError", async () => {
+    await expectSourcesError(
+      loadWith({
+        proactive: { present_max_idle_ms: 180000 },
+        schedule: { present_max_idle_ms: -1 },
+      }),
+    );
+  });
+
+  it("schedule.present_max_idle_ms가 < 10000이면 ConfigError", async () => {
+    await expectSourcesError(
+      loadWith({
+        proactive: { present_max_idle_ms: 180000 },
+        schedule: { present_max_idle_ms: 9999 },
+      }),
     );
   });
 

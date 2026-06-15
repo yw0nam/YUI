@@ -20,6 +20,7 @@ import {
 import { ensureRegistered, updateVoice } from "./io/irodori-voices";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
+import { createScheduleSettings, localStorageScheduleStorage } from "./io/schedule-settings";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import {
   createSessionDiagnosticsStore,
@@ -61,6 +62,7 @@ async function bootstrap(): Promise<void> {
     storage: localStorageIdleThrottleStorage(),
   });
   const proactiveSettings = createProactiveSettings({ storage: localStorageProactiveStorage() });
+  const scheduleSettings = createScheduleSettings({ storage: localStorageScheduleStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
@@ -177,6 +179,7 @@ async function bootstrap(): Promise<void> {
     settings: screenshotSettings,
     idleThrottleSettings,
     proactiveSettings,
+    scheduleSettings,
     sourceProvider,
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,
@@ -246,6 +249,7 @@ async function bootstrap(): Promise<void> {
     screenshotSettings,
     idleThrottleSettings,
     proactiveSettings,
+    scheduleSettings,
     vrmSelection,
     speakerSelection,
     sessionStore,
@@ -291,6 +295,7 @@ async function bootstrap(): Promise<void> {
   screenshotSettings.subscribe(broadcastSettings);
   idleThrottleSettings.subscribe(broadcastSettings);
   proactiveSettings.subscribe(broadcastSettings);
+  scheduleSettings.subscribe(broadcastSettings);
   // VRM 선택도 cross-window로 알린다 → 펫 창이 받아 렌더러를 핫스왑한다(Tauri storage 이벤트 불안정 대비).
   vrmSelection.subscribe(broadcastSettings);
   // 화자 선택도 cross-window로 알린다 → 펫 창이 받아 다음 발화에서 새 화자로 합성한다.

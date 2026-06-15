@@ -1,71 +1,77 @@
 /**
- * idle-gap 기반 proactive cue(잠깐 환기/슬슬 체크 등)의 on/off + 항목 목록을 관리하는 reactive 설정 스토어.
+ * 시각 기반 schedule cue(아침/점심/저녁 등)의 on/off + 항목 목록을 관리하는 reactive 설정 스토어.
  * 변경 시 storage에 persist하고 구독자에게 통지한다. 소스 구독은 멈추지 않고 firing만 게이팅한다.
  */
 
-export interface ProactiveCue {
+export interface ScheduledCue {
   id: string;
   label: string;
   context: string;
-  /** 마지막 상호작용 이후 경과 분(minutes). */
-  idle_min: number;
+  /** "HH:MM" 24h. */
+  time: string;
   enabled: boolean;
 }
 
-export interface ProactiveSettings {
+export interface ScheduleSettings {
   enabled: boolean;
-  entries: ProactiveCue[];
+  entries: ScheduledCue[];
 }
 
-export interface ProactiveStorage {
-  load(): ProactiveSettings | null;
-  save(s: ProactiveSettings): void;
+export interface ScheduleStorage {
+  load(): ScheduleSettings | null;
+  save(s: ScheduleSettings): void;
 }
 
-const DEFAULT_SETTINGS: ProactiveSettings = {
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const DEFAULT_SETTINGS: ScheduleSettings = {
   enabled: true,
   entries: [
     {
-      id: "short_break",
-      label: "잠깐 환기",
-      context: "5분 넘게 조용하네. 잠깐 고개 들고 환기 좀 하라고 살짝 말해줘.",
-      idle_min: 5,
+      id: "morning",
+      label: "아침",
+      context: "하루를 시작하는 아침 인사. 막 자리에 앉았을 때 가볍게 안부를 물어봐줘.",
+      time: "09:00",
       enabled: true,
     },
     {
-      id: "mid_check",
-      label: "슬슬 체크",
-      context: "10분 넘게 말이 없네. 작업 잘 되고 있는지 가볍게 물어봐줘. 부담스럽지 않게.",
-      idle_min: 10,
+      id: "lunch",
+      label: "점심",
+      context: "점심시간이야. 밥은 먹었는지, 오전은 어땠는지 가볍게 물어봐줘.",
+      time: "12:00",
       enabled: true,
     },
     {
-      id: "long_focus",
-      label: "오래 집중",
-      context: "30분이나 됐어. 잠깐 쉬는 건 어때? 너무 오래 앉아 있으면 몸이 힘들잖아.",
-      idle_min: 30,
+      id: "evening",
+      label: "저녁",
+      context: "하루 마무리할 시간이야. 오늘 어땠는지 가볍게 들어봐줘.",
+      time: "18:00",
+      enabled: true,
+    },
+    {
+      id: "late_night",
+      label: "심야",
+      context: "많이 늦었어. 이제 좀 쉬는 게 어때? 무리하지 말라고 부드럽게 챙겨줘.",
+      time: "23:00",
       enabled: true,
     },
   ],
 };
 
-function isValidIdleMin(v: unknown): v is number {
-  return typeof v === "number" && Number.isFinite(v) && v > 0;
-}
-
-function isValidCue(v: unknown): v is ProactiveCue {
+function isValidCue(v: unknown): v is ScheduledCue {
   if (v === null || typeof v !== "object") return false;
   const c = v as Record<string, unknown>;
   return (
     typeof c.id === "string" &&
     typeof c.label === "string" &&
     typeof c.context === "string" &&
-    isValidIdleMin(c.idle_min) &&
+    typeof c.time === "string" &&
+    TIME_RE.test(c.time) &&
     typeof c.enabled === "boolean"
   );
 }
 
-function isValidSettings(v: unknown): v is ProactiveSettings {
+function isValidSettings(v: unknown): v is ScheduleSettings {
   if (v === null || typeof v !== "object") return false;
   const s = v as Record<string, unknown>;
   if (typeof s.enabled !== "boolean") return false;
@@ -73,41 +79,30 @@ function isValidSettings(v: unknown): v is ProactiveSettings {
   return s.entries.every(isValidCue);
 }
 
-/** 구버전 { enabled } (entries 없음) → enabled 유지 + seed entries 채움. */
-function migrate(v: unknown): ProactiveSettings | null {
-  if (v === null || typeof v !== "object") return null;
-  const s = v as Record<string, unknown>;
-  if (typeof s.enabled === "boolean" && !Array.isArray(s.entries)) {
-    return { enabled: s.enabled, entries: DEFAULT_SETTINGS.entries.map((c) => ({ ...c })) };
-  }
-  return null;
-}
-
-function cloneSettings(s: ProactiveSettings): ProactiveSettings {
+function cloneSettings(s: ScheduleSettings): ScheduleSettings {
   return { enabled: s.enabled, entries: s.entries.map((c) => ({ ...c })) };
 }
 
-export function createProactiveSettings(opts?: {
-  storage?: ProactiveStorage;
-  initial?: ProactiveSettings;
+export function createScheduleSettings(opts?: {
+  storage?: ScheduleStorage;
+  initial?: ScheduleSettings;
 }) {
   const storage = opts?.storage;
 
-  let stored: ProactiveSettings | null = null;
+  let stored: ScheduleSettings | null = null;
   if (storage) {
     try {
       const loaded = storage.load();
       if (isValidSettings(loaded)) stored = loaded;
-      else stored = migrate(loaded);
     } catch {
       // storage 오류 시 기본값으로 폴백
     }
   }
 
   // 우선순위: 저장값 > initial > 기본값
-  let state: ProactiveSettings = cloneSettings(stored ?? opts?.initial ?? DEFAULT_SETTINGS);
+  let state: ScheduleSettings = cloneSettings(stored ?? opts?.initial ?? DEFAULT_SETTINGS);
 
-  const subscribers = new Set<(s: ProactiveSettings) => void>();
+  const subscribers = new Set<(s: ScheduleSettings) => void>();
 
   function notify(): void {
     const copy = cloneSettings(state);
@@ -118,12 +113,12 @@ export function createProactiveSettings(opts?: {
     storage?.save(cloneSettings(state));
   }
 
-  function findCue(id: string): ProactiveCue | undefined {
+  function findCue(id: string): ScheduledCue | undefined {
     return state.entries.find((c) => c.id === id);
   }
 
   return {
-    get(): ProactiveSettings {
+    get(): ScheduleSettings {
       return cloneSettings(state);
     },
 
@@ -134,12 +129,12 @@ export function createProactiveSettings(opts?: {
       notify();
     },
 
-    addCue(): ProactiveCue {
-      const cue: ProactiveCue = {
+    addCue(): ScheduledCue {
+      const cue: ScheduledCue = {
         id: crypto.randomUUID(),
         label: "",
         context: "",
-        idle_min: 10,
+        time: "12:00",
         enabled: true,
       };
       state = { ...state, entries: [...state.entries, cue] };
@@ -148,10 +143,10 @@ export function createProactiveSettings(opts?: {
       return { ...cue };
     },
 
-    updateCue(id: string, patch: Partial<Omit<ProactiveCue, "id">>): void {
+    updateCue(id: string, patch: Partial<Omit<ScheduledCue, "id">>): void {
       const cur = findCue(id);
       if (!cur) return;
-      const next: ProactiveCue = { ...cur };
+      const next: ScheduledCue = { ...cur };
       let changed = false;
 
       if ("label" in patch && typeof patch.label === "string" && patch.label.trim().length > 0) {
@@ -166,9 +161,9 @@ export function createProactiveSettings(opts?: {
           changed = true;
         }
       }
-      if ("idle_min" in patch && isValidIdleMin(patch.idle_min)) {
-        if (next.idle_min !== patch.idle_min) {
-          next.idle_min = patch.idle_min;
+      if ("time" in patch && typeof patch.time === "string" && TIME_RE.test(patch.time)) {
+        if (next.time !== patch.time) {
+          next.time = patch.time;
           changed = true;
         }
       }
@@ -195,7 +190,7 @@ export function createProactiveSettings(opts?: {
     // 다른 창이 storage를 갱신했을 때 재로드 — 값이 실제로 바뀌었을 때만 통지.
     reloadFromStorage(): void {
       if (!storage) return;
-      let loaded: ProactiveSettings | null;
+      let loaded: ScheduleSettings | null;
       try {
         loaded = storage.load();
       } catch {
@@ -208,7 +203,7 @@ export function createProactiveSettings(opts?: {
       notify();
     },
 
-    subscribe(cb: (s: ProactiveSettings) => void): () => void {
+    subscribe(cb: (s: ScheduleSettings) => void): () => void {
       subscribers.add(cb);
       return () => subscribers.delete(cb);
     },
@@ -219,14 +214,14 @@ export function createProactiveSettings(opts?: {
   };
 }
 
-/** localStorage 기반 ProactiveStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
-export function localStorageProactiveStorage(key = "yui.proactive"): ProactiveStorage {
+/** localStorage 기반 ScheduleStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+export function localStorageScheduleStorage(key = "yui.schedule"): ScheduleStorage {
   return {
     load() {
       try {
         const raw = globalThis.localStorage?.getItem(key);
         if (!raw) return null;
-        return JSON.parse(raw) as ProactiveSettings;
+        return JSON.parse(raw) as ScheduleSettings;
       } catch {
         return null;
       }
