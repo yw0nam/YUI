@@ -148,7 +148,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
    * system 힌트는 layered shape `{ input_context, trigger, dispatcher_state }`.
    *   - input_context: InputContext에서 screenshot.data_url을 뺀 사본(큰 base64는 USER
    *     content-part로만 싣는다 — 힌트엔 cheap한 screenshot meta만 남긴다).
-   *   - trigger: firing envelope 메타(source/event_name/ts, seq_id present 시).
+   *   - trigger: firing envelope 메타(source/event_name/ts, seq_id·cue present 시).
+   *     cue: schedule/proactive 발사의 사용자 작성 의도(label/context/시각·무대화분).
    *   - dispatcher_state: dispatcher가 아는 부가 상태(idle_seconds/tier_hint). dnd_state는 미설정.
    * proactive 턴(user_text 없음)은 빈 문자열 대신 non-empty 마커를 user 메시지로 싣는다.
    */
@@ -170,11 +171,26 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         })()
       : ctx;
 
+    const p = env.payload;
+    const cue =
+      typeof p?.cue_id === "string" &&
+      typeof p?.label === "string" &&
+      typeof p?.context === "string"
+        ? {
+            id: p.cue_id as string,
+            label: p.label as string,
+            context: p.context as string,
+            ...(typeof p.local_time === "string" ? { local_time: p.local_time as string } : {}),
+            ...(typeof p.idle_min === "number" ? { idle_min: p.idle_min as number } : {}),
+          }
+        : undefined;
+
     const trigger: TriggerMeta = {
       source: env.source,
       event_name: env.event_name,
       ts: env.ts,
       ...(env.seq_id != null ? { seq_id: env.seq_id } : {}),
+      ...(cue ? { cue } : {}),
     };
 
     const os_idle_ms =

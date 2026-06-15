@@ -243,12 +243,22 @@ export interface InputContext {
 // InputContext 안이 아니라 그 위에 layered.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** cue payload forwarded from schedule/proactive firing sources. */
+export interface CueMeta {
+  id: string;
+  label: string;
+  context: string;
+  local_time?: string;
+  idle_min?: number;
+}
+
 /** firing trigger envelope — 어떤 source의 어떤 event가 이 backend 턴을 발사했는지. */
 export interface TriggerMeta {
   source: string;
   event_name: string;
   ts: number;
   seq_id?: number;
+  cue?: CueMeta;
 }
 
 /** dispatcher가 알고 있는 부가 상태(InputContext에는 없음). */

@@ -742,6 +742,85 @@ describe("backend_caller — session id threading (X-Hermes-Session-Id)", () => 
   });
 });
 
+// ── cue context forwarding (schedule / proactive payloads → trigger.cue) ──────
+
+describe("backend_caller — cue context forwarding (trigger.cue)", () => {
+  /** decode the full system-hint block { input_context, trigger, dispatcher_state }. */
+  function hintOf(input: unknown): {
+    input_context: Record<string, unknown>;
+    trigger: Record<string, unknown>;
+    dispatcher_state: Record<string, unknown>;
+  } {
+    const items = input as Array<{ role: string; content: string }>;
+    const sys = items.find((m) => m.role === "system")!;
+    const json = sys.content.replace(/^client_context:\s*/, "");
+    return JSON.parse(json);
+  }
+
+  it("schedule envelope with cue payload → trigger.cue has id/label/context/local_time, no idle_min", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 10,
+      source: "timer_scheduler",
+      event_name: "schedule.morning",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        cue_id: "morning",
+        label: "아침",
+        context: "아침 인사 + 오늘 일정 리마인드",
+        local_time: "09:00",
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const hint = hintOf(request.input);
+    expect(hint.trigger.cue).toEqual({
+      id: "morning",
+      label: "아침",
+      context: "아침 인사 + 오늘 일정 리마인드",
+      local_time: "09:00",
+    });
+    expect((hint.trigger.cue as Record<string, unknown>).idle_min).toBeUndefined();
+  });
+
+  it("proactive envelope with cue payload → trigger.cue has id/label/context/idle_min, no local_time", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 11,
+      source: "timer_scheduler",
+      event_name: "proactive.cowork",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        cue_id: "cowork",
+        label: "코워킹",
+        context: "집중 근무 중 따뜻하게 말 걸기",
+        idle_min: 10,
+        gap_ms: 3_600_000,
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const hint = hintOf(request.input);
+    expect(hint.trigger.cue).toEqual({
+      id: "cowork",
+      label: "코워킹",
+      context: "집중 근무 중 따뜻하게 말 걸기",
+      idle_min: 10,
+    });
+    expect((hint.trigger.cue as Record<string, unknown>).local_time).toBeUndefined();
+  });
+
+  it("normal user.text_submitted envelope (no cue_id) → trigger.cue is absent", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv("안녕"));
+    const [, request] = streamChatSpy.mock.calls[0];
+    const hint = hintOf(request.input);
+    expect("cue" in hint.trigger).toBe(false);
+  });
+});
+
 // ── usage event → onUsage diagnostic sink ──────────────────────────────────────
 
 describe("backend_caller — usage sink (token accounting channel)", () => {
