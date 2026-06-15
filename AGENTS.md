@@ -54,7 +54,7 @@ Default by rule; ask only on the boundary.
 
 ## Core Principle: firing ≠ judgment
 
-The client handles **firing** (when a candidate event occurs). **Judgment** (whether/what to speak) belongs to the backend. There is no `should_speak` flag (**D-NO-SPEAK-GATE**) — the backend expresses silence by sending no/empty speech text; the client renders whatever text arrives. No brain lives in the client.
+The client handles **firing** (when a candidate event occurs). **Judgment** (whether/what to speak) belongs to the backend. The backend expresses silence by sending no/empty speech text; the client renders whatever text arrives and never invents a speak/don't-speak gate. No brain lives in the client.
 
 ## Anti-patterns (do not do)
 

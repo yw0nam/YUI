@@ -5,7 +5,7 @@
  *  - B1 package_context → contract §4 InputContext (user_text + env.timestamp + env.timezone).
  *  - B2 streamChat invocation with injected fetch + apiKey from secrets, AbortSignal threaded.
  *  - B3 consume chat-client `completed` event → ControlEnvelope (no SSE re-parse).
- *  - B4 speech gate by speech_text only (D-NO-SPEAK-GATE: empty = skip, no flag).
+ *  - B4 speech gate by speech_text only (empty = skip, no flag).
  *  - B5 dispatch_to_renderer → renderer.applyDirective(envelope) + speech_text → speech sink
  *       + cue → onCue + tool_status → onToolStatus (callbacks fire).
  *  - parse_error / network drop classification.
@@ -147,7 +147,7 @@ describe("backend_caller — B1 package_context (contract §4 InputContext)", ()
   });
 });
 
-describe("backend_caller — B4 speech gate (D-NO-SPEAK-GATE: speech_text only)", () => {
+describe("backend_caller — B4 speech gate (speech_text only)", () => {
   it("non-empty speech_text → applyDirective + speech sink (B5)", async () => {
     const env: ControlEnvelope = {
       speech_text: "응 듣고 있어",
@@ -206,7 +206,7 @@ describe("backend_caller — B5 cue forwarding + tool_status callbacks", () => {
   });
 });
 
-describe("backend_caller — screenshot port (#20)", () => {
+describe("backend_caller — screenshot port", () => {
   const SCREENSHOT: NonNullable<InputContext["screenshot"]> = {
     enabled: true,
     source: { kind: "monitor", index: 0 },
@@ -281,7 +281,7 @@ describe("backend_caller — screenshot port (#20)", () => {
   });
 });
 
-describe("backend_caller — os context port (#18)", () => {
+describe("backend_caller — os context port", () => {
   /** decode input_context.env from the §7.1 layered system hint passed to streamChat. */
   function envOf(input: unknown): Record<string, unknown> {
     const items = input as Array<{ role: string; content: string }>;
@@ -521,7 +521,7 @@ describe("backend_caller — streaming speech deltas (incremental TTS)", () => {
     expect(order.indexOf("cue:(whisper)")).toBeLessThan(order.indexOf("end"));
   });
 
-  it("D-NO-SPEAK-GATE: no speech_delta → neither onSpeechDelta nor onSpeechEnd", async () => {
+  it("empty speech_text: no speech_delta → neither onSpeechDelta nor onSpeechEnd", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv());
     expect(speechDeltaSink).not.toHaveBeenCalled();
@@ -621,9 +621,9 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
   });
 });
 
-// ── #76 structured logging ─────────────────────────────────────────────────────
+// ── structured logging ──────────────────────────────────────────────────────
 
-describe("backend_caller — structured logging (#76)", () => {
+describe("backend_caller — structured logging", () => {
   it("no completed event (parse_error) → logger.warn('parse_error', ...)", async () => {
     scriptedEvents = [];
     await caller.call(userEnv());

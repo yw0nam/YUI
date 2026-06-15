@@ -1,5 +1,5 @@
 /**
- * audio-player.test.ts — TDD red for amplitude → mouth-open envelope (#15, PRD D1).
+ * audio-player.test.ts — amplitude → mouth-open envelope.
  *
  * Two things are pinned here:
  *

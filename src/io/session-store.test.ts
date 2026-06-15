@@ -1,5 +1,5 @@
 /**
- * session-store.test.ts — TDD red for the single-scalar Hermes session-id reactive store.
+ * session-store.test.ts — single-scalar Hermes session-id reactive store.
  *
  * Pins the contract for src/io/session-store.ts:
  *   createSessionStore(storage?) store (get/set/clear/reloadFromStorage/subscribe/dispose)

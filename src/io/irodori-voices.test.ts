@@ -1,5 +1,5 @@
 /**
- * irodori-voices.test.ts — voice registry idempotent registration (TDD red).
+ * irodori-voices.test.ts — voice registry idempotent registration.
  *
  * 대상: ensureRegistered({ baseUrl, id, refUrl, fetch?, logger? }) => Promise<void>.
  *   GET {baseUrl}/voices → 이미 등록(voice_id 포함)이면 no-op.

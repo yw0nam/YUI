@@ -1,8 +1,7 @@
 /**
- * emotion-resolver.test.ts — TDD red phase.
+ * emotion-resolver.test.ts
  *
- * These tests MUST FAIL against the stub in emotion-resolver.ts.
- * They encode the contract that the Renderer agent must implement.
+ * Encodes the contract that emotion-resolver.ts implements.
  *
  * Conventions:
  *  - Small synthetic registries for cycle-guard / edge cases.

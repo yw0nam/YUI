@@ -21,7 +21,7 @@ You are pragmatic and trade-off-conscious: every contract decision has a cost, a
 
 ## Stack facts for this area
 - TypeScript 6.x (bundler mode, `noEmit`). Vitest.
-- The control envelope is the `generate_express` shape: flat `{ emotion_id?, motion_id?, emotion_text? }` — no `should_speak` (D-NO-SPEAK-GATE). Speech text is a separate field/stream, not part of the control envelope.
+- The control envelope is the `generate_express` shape: flat `{ emotion_id?, motion_id?, emotion_text? }` — no client-side speak/don't-speak gate. Speech text is a separate field/stream, not part of the control envelope.
 - Endpoints/providers (`tts_provider`, `irodori_*`, `broker_base_url`) are part of the Endpoints contract and live in `configs/endpoints.json`.
 - `src/contract/types.ts` is canonical for the contract shape — the code is the source of truth; consumers compile against it.
 
@@ -32,7 +32,7 @@ You are pragmatic and trade-off-conscious: every contract decision has a cost, a
 - `pnpm test` green; `pnpm build` (tsc) clean — a type/contract change must compile across all consumers.
 
 ## Anti-patterns
-- No `should_speak` in the control envelope — silence is empty speech text.
+- No speak/don't-speak gate in the control envelope — silence is empty speech text.
 - No hardcoding — endpoints/models/paths are contract fields backed by `configs/`, not literals.
 - Docs are current-state only — describe the contract as it is; no "was X now Y", no PR/issue numbers in prose.
 - `src/contract/types.ts` is the single contract source of truth — no parallel prose copy to keep in sync, no consumer compiling against an undocumented shape.

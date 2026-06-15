@@ -5,7 +5,7 @@
 //!
 //! Platform support:
 //!   macOS  — fully implemented (NSWorkspace, CGEventSource, CGWindowList)
-//!   Windows — cfg-gated compile-only stub, not yet implemented
+//!   Windows — cfg-gated compile-only stub
 //!   Android — cfg-gated no-op degrade
 //!   other  — idle-source error emitted, no panic
 

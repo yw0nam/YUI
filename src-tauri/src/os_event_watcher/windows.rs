@@ -1,4 +1,4 @@
-//! Windows OS polling stubs — cfg-gated compile-only, not yet implemented.
+//! Windows OS polling — cfg-gated compile-only stub.
 //!
 //! A real implementation would use:
 //!   - `GetLastInputInfo` for OS-wide idle (winapi crate or raw FFI)
@@ -19,7 +19,7 @@ pub fn start_polling(app: AppHandle) {
     thread::Builder::new()
         .name("os_event_watcher_win".into())
         .spawn(move || loop {
-            // Emit idle tick with None (source error: not yet implemented).
+            // Emit idle tick with None (source error: unimplemented stub).
             let _ = emit_os_event(
                 &app,
                 OsEventPayload {

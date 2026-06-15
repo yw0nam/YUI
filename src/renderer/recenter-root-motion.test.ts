@@ -1,8 +1,7 @@
 /**
- * recenter-root-motion.test.ts — TDD red phase.
+ * recenter-root-motion.test.ts
  *
- * These tests MUST FAIL until recenter-root-motion.ts is implemented.
- * They encode the contract for recentering a VRMA hips position track so
+ * Encodes the contract for recentering a VRMA hips position track so
  * the pet stays centered while keeping its weight-shift sway balanced on origin.
  *
  * Conventions:

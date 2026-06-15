@@ -16,7 +16,7 @@
  *  - emotion ABSENT → *passive* hold: do not touch the expression at all (no setEmotion call).
  *  - motion ABSENT/null → *active* return to idle: call playMotion(null).
  *
- * Out of scope for this layer (other tracks own them): should_speak,
+ * Out of scope for this layer (other tracks own them):
  * speech_text, tool_status, rich_content.
  */
 

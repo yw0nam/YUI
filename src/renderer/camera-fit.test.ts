@@ -1,7 +1,7 @@
 /**
- * camera-fit.test.ts — TDD red phase (#106).
+ * camera-fit.test.ts
  *
- * Pins the contract for the pure `computeCameraFit` helper (not yet written) —
+ * Pins the contract for the pure `computeCameraFit` helper —
  * full-body fit-to-bounds framing. THREE.Box3/Vector3 are pure math, so this
  * runs in vitest node env (same pattern as emotion-resolver.test.ts).
  *

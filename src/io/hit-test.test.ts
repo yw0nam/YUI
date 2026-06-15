@@ -1,5 +1,5 @@
 /**
- * Tests for src/io/hit-test.ts — click-through hit-test controller (#8, PHASE-1).
+ * Tests for src/io/hit-test.ts — click-through hit-test controller (PHASE-1).
  *
  * Environment: node (vitest default — no jsdom needed; we inject a fake window
  * + a synchronous scheduler so the impure poll loop is fully deterministic).

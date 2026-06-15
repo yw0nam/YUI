@@ -5,7 +5,7 @@
  * 실행:
  *   YUI_LIVE=1 YUI_CHAT_KEY=<API_SERVER_KEY> pnpm exec vitest run src/io/chat-client.live.test.ts
  *
- * 무엇을 증명하나: config #22의 SecretProvider에서 해소한 키를 streamChat({ apiKey })로 넘기면
+ * 무엇을 증명하나: config의 SecretProvider에서 해소한 키를 streamChat({ apiKey })로 넘기면
  * 키 강제 백엔드에 인증돼 스트리밍 응답이 ChatStreamEvent로 매핑된다 — express 미등록이라
  * speech_delta/done/completed만 온다(정상).
  */

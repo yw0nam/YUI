@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * settings-window.test.ts — TDD red for the pop-out settings window opener + cross-window sync.
+ * settings-window.test.ts — pop-out settings window opener + cross-window sync.
  *
  * Pins the contract for src/io/settings-window.ts:
  *   openSettingsWindow(env) routes Tauri vs browser (pure, injectable)

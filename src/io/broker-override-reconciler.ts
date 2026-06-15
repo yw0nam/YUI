@@ -1,5 +1,5 @@
 /**
- * Reconciles endpoint overrides → the live Expression Broker client (#136). The pet window's
+ * Reconciles endpoint overrides → the live Expression Broker client. The pet window's
  * config.subscribe path only reacts to disk-config edits; this seam reacts to the per-user
  * override store so a voice-engine or broker-URL change takes effect without a reload.
  *
@@ -9,7 +9,7 @@
  *     new URL; an empty/invalid URL disposes and leaves the broker disabled.
  *
  * Pure seam: every collaborator (broker factory, table loader, payload deriver, current-client
- * accessor) is injected. Best-effort — never throws on the UI path (D4).
+ * accessor) is injected. Best-effort — never throws on the UI path.
  */
 
 import type { EndpointsConfig } from "../contract";

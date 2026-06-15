@@ -1,5 +1,5 @@
 /**
- * load.test.ts — loadConfig + validators + SecretProvider 단위 테스트 (#22, F8).
+ * load.test.ts — loadConfig + validators + SecretProvider 단위 테스트.
  *
  * 원칙: 절대 network/fetch/fs를 타지 않는다. fake ConfigReader(`read` 옵션)를 주입해
  * in-memory map({filename → parsed JSON})으로만 검증한다. fixture는 실제 configs/*.json
@@ -122,7 +122,7 @@ describe("loadConfig — happy path", () => {
   });
 });
 
-// ── guardrails.json (#25) ────────────────────────────────
+// ── guardrails.json ────────────────────────────────
 
 describe("loadConfig — guardrails", () => {
   it("SOT 모양을 그대로 보존한다", async () => {
@@ -235,7 +235,7 @@ describe("loadConfig — motions.variants", () => {
     expect(cfg.motions.idle.broker_publish).toBeUndefined();
   });
 
-  it("reactive 루프 + broker_publish:false 항목(#143 falling)을 그대로 보존한다", async () => {
+  it("reactive 루프 + broker_publish:false 항목(falling)을 그대로 보존한다", async () => {
     const map = goodFixture();
     map["motions.json"] = {
       falling: {
@@ -368,7 +368,7 @@ describe("loadConfig — motions.fade_ms", () => {
   });
 });
 
-// ── avatar.available manifest (#94 VRM swap) ────────────────────────────────────
+// ── avatar.available manifest (VRM swap) ────────────────────────────────────────
 
 describe("loadConfig — avatar.available", () => {
   it("available가 없으면 vrm_url만 담고 available는 undefined", async () => {
@@ -409,7 +409,7 @@ describe("loadConfig — avatar.available", () => {
   });
 });
 
-// ── avatar.framing fit-to-bounds (#106) ─────────────────────────────────────────
+// ── avatar.framing fit-to-bounds ────────────────────────────────────────────────
 
 describe("loadConfig — avatar.framing", () => {
   /** rejects → ConfigError on avatar.json with non-empty issues. */
@@ -475,7 +475,7 @@ describe("loadConfig — avatar.framing", () => {
   });
 });
 
-// ── avatar.hit_test click-through (#8) ──────────────────────────────────────────
+// ── avatar.hit_test click-through ───────────────────────────────────────────────
 
 describe("loadConfig — avatar.hit_test", () => {
   async function expectAvatarError(p: Promise<unknown>): Promise<void> {
@@ -1229,7 +1229,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
   });
 });
 
-// ── sources.json (#24 proactive cowork knobs) ──────────────────────────────────
+// ── sources.json (proactive cowork knobs) ───────────────────────────────────────
 
 describe("loadConfig — sources", () => {
   async function loadWith(value: unknown): Promise<unknown> {

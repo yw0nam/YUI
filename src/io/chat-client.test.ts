@@ -1,5 +1,5 @@
 /**
- * chat-client.test.ts — openai-SDK adapter (TDD red, #13).
+ * chat-client.test.ts — openai-SDK adapter.
  *
  * 검증 대상: streamChat(config, request)가 공식 `openai` SDK의
  *   client.responses.create({ stream: true }) → async-iterable of TYPED Responses events
@@ -202,11 +202,10 @@ describe("streamChat — generate_express capture (flat args)", () => {
     const express = events.find((e) => e.type === "express");
     expect(express).toBeDefined();
     if (express!.type !== "express") throw new Error("narrow");
-    // FLAT shape — no nested emotion/motion objects, no should_speak.
+    // FLAT shape — no nested emotion/motion objects.
     expect(express.args.emotion_id).toBe("happy");
     expect(express.args.motion_id).toBe("embarrassed");
     expect(express.args.emotion_text).toBe("[whisper in small voice]");
-    expect((express.args as Record<string, unknown>).should_speak).toBeUndefined();
   });
 
   it("normalizes flat args into the completed envelope: emotion_id→emotion{id}, motion_id→motion{id}, emotion_text", async () => {
@@ -231,8 +230,6 @@ describe("streamChat — generate_express capture (flat args)", () => {
     expect(env.emotion).toEqual({ id: "happy" });
     expect(env.motion).toEqual({ id: "embarrassed" });
     expect(env.emotion_text).toBe("[whisper in small voice]");
-    // should_speak is gone (D-NO-SPEAK-GATE).
-    expect((env as Record<string, unknown>).should_speak).toBeUndefined();
   });
 
   it("partial flat args normalize only the present fields (emotion_id only)", async () => {
@@ -328,15 +325,14 @@ describe("streamChat — generate_express-absent turn", () => {
     expect(env.emotion).toBeUndefined();
     expect(env.motion).toBeUndefined();
     expect(env.emotion_text).toBeUndefined();
-    // should_speak 자체가 사라졌다 (D-NO-SPEAK-GATE).
-    expect((env as Record<string, unknown>).should_speak).toBeUndefined();
+    // 침묵은 빈 speech_text로 표현된다 — 클라이언트에 speak 게이트가 없다.
   });
 });
 
-// ── LIVE Hermes backend shape (#63) ────────────────────────────────────────────
+// ── LIVE Hermes backend shape ────────────────────────────────────────────
 // Verified stream: express tool is MCP-namespaced and its args ride inside
 // output_item.added/done (item.arguments); NO function_call_arguments.* events.
-describe("streamChat — live MCP-namespaced generate_express (#63)", () => {
+describe("streamChat — live MCP-namespaced generate_express", () => {
   it("recognizes mcp_…_generate_express + args from output_item.done → express event (no function_call_arguments.*)", async () => {
     createMock.mockResolvedValue(
       streamOf([
@@ -441,10 +437,10 @@ describe("streamChat — live MCP-namespaced generate_express (#63)", () => {
   });
 });
 
-// ── per-beat cues: MULTIPLE generate_express per reply (#195) ───────────────────
+// ── per-beat cues: MULTIPLE generate_express per reply ───────────────────
 // Hermes emits one generate_express per expressive beat. EVERY distinct call must
 // surface as its own express event, deduped PER CALL (added/done share one id).
-describe("streamChat — per-beat cues (multiple generate_express, #195)", () => {
+describe("streamChat — per-beat cues (multiple generate_express)", () => {
   const CUE_A = '{"emotion_id":"happy","motion_id":"wave","emotion_text":"[cheerful warm tone]"}';
   const CUE_B = '{"emotion_id":"thinking","motion_id":"nod","emotion_text":"[soft pondering]"}';
 

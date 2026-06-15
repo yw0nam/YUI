@@ -1,5 +1,5 @@
 /**
- * session-diagnostics.test.ts — TDD red for the cross-window diagnostics store.
+ * session-diagnostics.test.ts — cross-window diagnostics store.
  *
  * Pins the contract for src/io/session-diagnostics.ts:
  *   createSessionDiagnosticsStore(storage?)

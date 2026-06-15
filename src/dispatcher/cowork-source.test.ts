@@ -1,5 +1,5 @@
 /**
- * cowork-source.test.ts — co-working presence+cadence firing source (#24 Step 6).
+ * cowork-source.test.ts — co-working presence+cadence firing source.
  *
  * Locks the state machine over the shared `os_event` channel (bare `os_idle_tick`):
  *  - null idle → ignore (no fire, no presence mutation).

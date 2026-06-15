@@ -41,7 +41,7 @@
  *      · else → tool_status done.
  *  - response.completed → completed event with the assembled ControlEnvelope. Normalization
  *    happens HERE (chat-client only): emotion_id→emotion{id}, motion_id→motion{id},
- *    emotion_text→emotion_text. No should_speak gate.
+ *    emotion_text→emotion_text. Silence is an empty speech_text; no client-side speak gate.
  *  - error → error event.
  *
  * ⚠ function_call items are ABSENT from response.completed's final output[] →

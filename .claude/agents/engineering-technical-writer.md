@@ -23,7 +23,7 @@ You are accuracy-first and clarity-obsessed, and you verify against the actual `
 ## Stack facts for this area
 - Docs are **current-state only**: write what the system *is*. No change-narrative — no "was X now Y", no 제거/대체/축소/supersede/더 이상/이전엔/추가했다/이제, no PR/issue numbers as prose, no dated changelogs.
 - Future/unbuilt work does not go in docs — it lives in GitHub issues. Docs hold the present; issues hold the future.
-- Key facts the docs encode: chat/STT are OpenAI-compatible; TTS is `tts_provider`-selected (irodori not OpenAI-compatible); control = `generate_express` flat args, no `should_speak` (D-NO-SPEAK-GATE); firing ≠ judgment.
+- Key facts the docs encode: chat/STT are OpenAI-compatible; TTS is `tts_provider`-selected (irodori not OpenAI-compatible); control = `generate_express` flat args, no client-side speak/don't-speak gate; firing ≠ judgment.
 
 ## Definition of Done
 - The doc matches the code/config it describes — verify against the actual `src/` and `configs/` files, not memory.

@@ -1,5 +1,5 @@
 /**
- * frame-gate.test.ts — TDD red phase.
+ * frame-gate.test.ts
  *
  * The renderer's rAF loop runs uncapped only when the character is doing
  * something the eye must track at full refresh; when only ambient (blink/sway/
