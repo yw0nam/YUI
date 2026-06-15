@@ -409,8 +409,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       log.info("empty_speech", { trigger: env.event_name });
     }
 
-    // 대화 상태 진행: 모든 post-stream 가드를 통과한 뒤에만 persist. 시작 시점 id가 그대로일 때만 —
-    // in-flight 중 reset/rotation(R2)이 있었다면 그 새 상태를 죽은 응답으로 되살리지 않는다.
+    // 대화 상태 진행: post-stream 가드(abort / streamError / !envelope)를 모두 통과한 이 지점에서만
+    // persist. 시작 시점 id가 그대로일 때만 — in-flight 중 reset/rotation(R2)이 있었다면 그 새 상태를
+    // 죽은 응답으로 되살리지 않는다.
     if (newResponseId && deps.getPreviousResponseId?.() === startPreviousResponseId) {
       deps.onResponseId?.(newResponseId);
     }

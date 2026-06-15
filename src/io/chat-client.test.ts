@@ -641,6 +641,15 @@ describe("streamChat — SDK request wiring", () => {
     });
   });
 
+  it("passes previous_response_id as undefined when absent (first turn — SDK drops it, never sends null)", async () => {
+    createMock.mockResolvedValue(streamOf([completed("")]));
+
+    await collect(streamChat(CONFIG, req()));
+
+    const body = createMock.mock.calls[0]?.[0];
+    expect((body as any).previous_response_id).toBeUndefined();
+  });
+
   it("forwards config.chat_instructions as the Responses `instructions` field", async () => {
     createMock.mockResolvedValue(streamOf([completed("")]));
     const cfg: EndpointsConfig = { ...CONFIG, chat_instructions: "You are the expression engine." };

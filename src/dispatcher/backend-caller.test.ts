@@ -833,11 +833,13 @@ describe("backend_caller — previous_response_id threading", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       onSpeech: speechSink,
-      // simulate a settings-window reset rotating the id during the in-flight stream.
+      // settings-window reset rotates the id while the turn is in flight.
       getPreviousResponseId: () => current,
       onResponseId,
     });
-    // flip the id after start (read at request-build time) so the completion guard mismatches.
+    // The reset lands via onSpeech (any callback firing before the post-stream snapshot check
+    // works — single-threaded, so there's no TOCTOU window): start-time id "resp_prev" no longer
+    // matches at completion, so the dead turn's id must not overwrite the rotated store.
     speechSink.mockImplementation(() => {
       current = "resp_rotated";
     });
