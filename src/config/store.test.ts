@@ -52,7 +52,8 @@ function goodFixture(): Record<string, unknown> {
       },
     },
     "sources.json": {
-      proactive: { cowork: { interval_ms: 600000, present_max_idle_ms: 60000 } },
+      proactive: { present_max_idle_ms: 180000 },
+      schedule: { present_max_idle_ms: 180000 },
     },
   };
 }
@@ -170,13 +171,13 @@ describe("createConfigStore — sources section diff", () => {
     store.subscribe(sub);
 
     (
-      map["sources.json"] as { proactive: { cowork: { interval_ms: number } } }
-    ).proactive.cowork.interval_ms = 900000;
+      map["sources.json"] as { proactive: { present_max_idle_ms: number } }
+    ).proactive.present_max_idle_ms = 120000;
     await expect(store.reload()).resolves.toBe(true);
 
     expect(sub).toHaveBeenCalledTimes(1);
     const [nextCfg, changed] = sub.mock.calls[0];
-    expect(nextCfg.sources.proactive.cowork.interval_ms).toBe(900000);
+    expect(nextCfg.sources.proactive.present_max_idle_ms).toBe(120000);
     expect(changed.has("sources")).toBe(true);
     expect(changed.has("motions")).toBe(false);
   });

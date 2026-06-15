@@ -17,10 +17,11 @@ import { createTier1Engine } from "./ambient/tier1";
 import { CHAT_API_KEY_SECRET, createConfigStore, loadEmotionTextTable } from "./config";
 import type { WindowRect } from "./contract";
 import { createBackendCaller } from "./dispatcher/backend-caller";
-import { createCoworkSource } from "./dispatcher/cowork-source";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
+import { createProactiveSource } from "./dispatcher/proactive-source";
+import { createScheduleSource } from "./dispatcher/schedule-source";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
@@ -54,6 +55,7 @@ import { ensureRegistered, evictRegistration, updateVoice } from "./io/irodori-v
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createOsContext } from "./io/os-context";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
+import { createScheduleSettings, localStorageScheduleStorage } from "./io/schedule-settings";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
@@ -204,8 +206,10 @@ async function bootstrap(): Promise<void> {
   const idleThrottleSettings = createIdleThrottleSettings({
     storage: localStorageIdleThrottleStorage(),
   });
-  // proactive 발화(cowork tier2) on/off. 소스의 firing만 게이팅 — 구독은 멈추지 않는다.
+  // 주도적 반응(무대화 N분 → proactive.<id>) 설정. 소스 firing만 게이팅 — 구독은 멈추지 않는다.
   const proactiveSettings = createProactiveSettings({ storage: localStorageProactiveStorage() });
+  // 시간대 인사(HH:MM → schedule.<id>) 설정.
+  const scheduleSettings = createScheduleSettings({ storage: localStorageScheduleStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
@@ -287,6 +291,7 @@ async function bootstrap(): Promise<void> {
   vadSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
   proactiveSettings.subscribe(broadcastSettings);
+  scheduleSettings.subscribe(broadcastSettings);
   idleThrottleSettings.subscribe(broadcastSettings);
   cameraSettings.subscribe(broadcastSettings);
   bridge.onSettingsChanged(() => {
@@ -299,6 +304,7 @@ async function bootstrap(): Promise<void> {
       vadSettings.reloadFromStorage();
       screenshotSettings.reloadFromStorage();
       proactiveSettings.reloadFromStorage();
+      scheduleSettings.reloadFromStorage();
       idleThrottleSettings.reloadFromStorage();
       // 줌 재로드 → cameraSettings.subscribe(s => renderer.setZoom)가 카메라까지 반영.
       cameraSettings.reloadFromStorage();
@@ -435,6 +441,7 @@ async function bootstrap(): Promise<void> {
     settings: screenshotSettings,
     idleThrottleSettings,
     proactiveSettings,
+    scheduleSettings,
     sourceProvider: screenSourceProvider,
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,
@@ -519,6 +526,7 @@ async function bootstrap(): Promise<void> {
       screenshotSettings.dispose();
       idleThrottleSettings.dispose();
       proactiveSettings.dispose();
+      scheduleSettings.dispose();
       lipsyncSettings.dispose();
       vadSettings.dispose();
       agentSettings.dispose();
@@ -605,8 +613,9 @@ async function bootstrap(): Promise<void> {
   let dispatcherRef: Dispatcher | null = null;
   // 현재 세션이 backend에 등록됐는지(첫 usage 턴 이후 true). 빈 세션 압축 404를 막는 게이트.
   let sessionHasTurn = false;
-  // cowork 소스도 config(cfg.sources) 로드 후 생성 — teardown에서 stop하도록 holder를 둔다.
-  let coworkSourceRef: { stop(): void } | null = null;
+  // 발화 후보 소스도 config(cfg.sources) 로드 후 생성 — teardown에서 stop하도록 holder를 둔다.
+  let proactiveSourceRef: { stop(): void; noteInteraction(ts?: number): void } | null = null;
+  let scheduleSourceRef: { stop(): void } | null = null;
   // guardrails도 config 로드 후 생성 — 핫리로드 setConfig가 닿게 holder를 둔다.
   let guardrailsRef: Guardrails | null = null;
   // broker client는 config 로드 후 broker_base_url이 있을 때만 만든다. 핫스왑 재publish와
@@ -640,6 +649,8 @@ async function bootstrap(): Promise<void> {
   surfaces.onSubmit((text) => {
     surfaces.dismissInput();
     userInput.submit(text);
+    // YUI와 대화 → 주도적 반응의 무대화 경과 타이머 리셋.
+    proactiveSourceRef?.noteInteraction();
   });
 
   // 핫키: window 포커스 상태에서 SUMMON_KEY로 입력 소환. (Esc/Enter는 입력 내부에서 처리)
@@ -938,7 +949,8 @@ async function bootstrap(): Promise<void> {
     if (import.meta.env.DEV) {
       import.meta.hot?.dispose(() => {
         dispatcher.stop();
-        coworkSourceRef?.stop();
+        proactiveSourceRef?.stop();
+        scheduleSourceRef?.stop();
         unsubCompactState();
         unsubSessionReset();
         sessionStore.dispose();
@@ -950,7 +962,10 @@ async function bootstrap(): Promise<void> {
       config: cfg.endpoints,
       // lazy: VAD가 시작될 때마다 침묵 기준을 다시 읽어 슬라이더 변경이 반영되게 한다.
       silenceMs: () => vadSettings.get().silenceMs,
-      onVoiceSegment: (transcript) => userInput.submitVoice(transcript),
+      onVoiceSegment: (transcript) => {
+        userInput.submitVoice(transcript);
+        proactiveSourceRef?.noteInteraction();
+      },
       onState: (state, detail) => voiceInputStatus.set(state, detail),
     });
     voiceInputReady = true;
@@ -1002,16 +1017,25 @@ async function bootstrap(): Promise<void> {
     if (import.meta.env.DEV) import.meta.hot?.dispose(() => hitTest.stop());
     // config가 준비된 후에만 dispatcher를 가동(backend_caller가 config.get()에 의존).
     dispatcher.start();
-    // cowork tier2 소스: presence+cadence로 proactive.cowork를 발사. cfg.sources의
-    // cadence/presence knob를 쓰고, proactiveSettings로 firing을 게이팅한다. dispatcher 가동 후
-    // start — 발사가 즉시 소비되도록. teardown에서 dispatcher.stop()과 함께 stop.
-    const coworkSource = createCoworkSource({
+    // tier2 발화 후보 소스: presence 게이트 위에서 proactive.<id>(무대화 N분)와
+    // schedule.<id>(시간대 인사)를 발사한다. cfg.sources의 present knob + 각 설정 store로
+    // 게이팅. dispatcher 가동 후 start — 발사가 즉시 소비되도록. teardown에서 함께 stop.
+    const proactiveSource = createProactiveSource({
       bus,
-      cowork: cfg.sources.proactive.cowork,
+      present_max_idle_ms: cfg.sources.proactive.present_max_idle_ms,
+      getCues: () => proactiveSettings.get().entries,
       isEnabled: () => proactiveSettings.get().enabled,
     });
-    coworkSourceRef = coworkSource;
-    void coworkSource.start();
+    proactiveSourceRef = proactiveSource;
+    void proactiveSource.start();
+    const scheduleSource = createScheduleSource({
+      bus,
+      present_max_idle_ms: cfg.sources.schedule.present_max_idle_ms,
+      getCues: () => scheduleSettings.get().entries,
+      isEnabled: () => scheduleSettings.get().enabled,
+    });
+    scheduleSourceRef = scheduleSource;
+    void scheduleSource.start();
     // Expression Broker publish(D6): broker_base_url이 있을 때만 가동(override 병합 effective 기준).
     // publish→start는 fire-and-forget — 부트 임계 경로를 막지 않는다(D4).
     const bootEps = getEndpoints();

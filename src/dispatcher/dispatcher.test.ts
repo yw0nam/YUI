@@ -218,6 +218,36 @@ describe("dispatcher — routing (§5.1)", () => {
     );
   });
 
+  it("routes schedule.morning (tier2) to backend_caller", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "timer_scheduler",
+        event_name: "schedule.morning",
+        ts: NOW,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes proactive.<id> (tier2) to backend_caller", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "timer_scheduler",
+        event_name: "proactive.mid_check",
+        ts: NOW,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
+  });
+
   it("routes user.window_sit_drop (tier1) to renderer with window_sit motion + setPerchTarget, NOT the backend", async () => {
     dispatcher.start();
     bus.push(

@@ -96,16 +96,10 @@ export interface GuardrailsConfig {
   };
 }
 
-/** configs/sources.json — proactive 발화 소스 cadence/presence knob. */
+/** configs/sources.json — present-gated firing source presence knob. */
 export interface SourcesConfig {
-  proactive: {
-    cowork: {
-      /** cowork tick 간격(ms). */
-      interval_ms: number;
-      /** 이 시간(ms) 내 입력이 있어야 present로 본다 — interval_ms보다 작아야 함. */
-      present_max_idle_ms: number;
-    };
-  };
+  proactive: { present_max_idle_ms: number };
+  schedule: { present_max_idle_ms: number };
 }
 
 /** 로드·검증된 전체 config 묶음 (불변 스냅샷). */
@@ -856,47 +850,38 @@ function validateGuardrails(file: string, raw: unknown): GuardrailsConfig {
 function validateSources(file: string, raw: unknown): SourcesConfig {
   if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
   const issues: string[] = [];
+  const obj: Record<string, unknown> = raw;
 
-  const proactive = raw.proactive;
-  let interval_ms = 0;
-  let present_max_idle_ms = 0;
-  if (!isObject(proactive)) {
-    issues.push(`proactive는 객체여야 함 (받음: ${JSON.stringify(proactive)})`);
-  } else {
-    const cowork = proactive.cowork;
-    if (!isObject(cowork)) {
-      issues.push(`proactive.cowork는 객체여야 함 (받음: ${JSON.stringify(cowork)})`);
-    } else {
-      const iv = cowork.interval_ms;
-      if (typeof iv !== "number" || !Number.isFinite(iv) || iv <= 0) {
-        issues.push(
-          `proactive.cowork.interval_ms는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(iv)})`,
-        );
-      } else {
-        interval_ms = iv;
-      }
-      const idle = cowork.present_max_idle_ms;
-      if (typeof idle !== "number" || !Number.isFinite(idle) || idle <= 0) {
-        issues.push(
-          `proactive.cowork.present_max_idle_ms는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(idle)})`,
-        );
-      } else if (idle < 10000) {
-        issues.push(
-          `proactive.cowork.present_max_idle_ms는 ≥ 10000ms (≥ 2 nominal ~5s ticks)여야 함 (받음: ${JSON.stringify(idle)})`,
-        );
-      } else {
-        present_max_idle_ms = idle;
-      }
-      if (interval_ms > 0 && present_max_idle_ms > 0 && present_max_idle_ms >= interval_ms) {
-        issues.push(
-          `proactive.cowork.present_max_idle_ms(${present_max_idle_ms})는 interval_ms(${interval_ms})보다 작아야 함`,
-        );
-      }
+  function validatePresenceBlock(blockKey: string): number {
+    const block = obj[blockKey];
+    if (!isObject(block)) {
+      issues.push(`${blockKey}는 객체여야 함 (받음: ${JSON.stringify(block)})`);
+      return 0;
     }
+    const idle = block.present_max_idle_ms;
+    if (typeof idle !== "number" || !Number.isFinite(idle) || idle <= 0) {
+      issues.push(
+        `${blockKey}.present_max_idle_ms는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(idle)})`,
+      );
+      return 0;
+    }
+    if (idle < 10000) {
+      issues.push(
+        `${blockKey}.present_max_idle_ms는 ≥ 10000ms (≥ 2 nominal ~5s ticks)여야 함 (받음: ${JSON.stringify(idle)})`,
+      );
+      return 0;
+    }
+    return idle;
   }
 
+  const proactive_idle = validatePresenceBlock("proactive");
+  const schedule_idle = validatePresenceBlock("schedule");
+
   assertValid(file, issues);
-  return { proactive: { cowork: { interval_ms, present_max_idle_ms } } };
+  return {
+    proactive: { present_max_idle_ms: proactive_idle },
+    schedule: { present_max_idle_ms: schedule_idle },
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

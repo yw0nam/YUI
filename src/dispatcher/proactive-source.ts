@@ -1,27 +1,30 @@
 /**
- * cowork_source — co-working presence+cadence firing source.
+ * proactive_source — idle-gap proactive firing source.
  *
  * Subscribes to the shared `os_event` channel, reads bare `os_idle_tick`, and
- * fires `proactive.cowork` (tier2) on a presence+cadence state machine: the user
- * is "present" when OS idle time stays within `present_max_idle_ms`; while held
- * present, the source fires every `interval_ms`. The away→present edge re-anchors
- * the cadence (no fire on return). `isEnabled()` gates firing only — toggling does
- * not stop the subscription nor reset cadence state.
+ * fires `proactive.<cue_id>` (tier2) when the user is "present" (OS idle within
+ * `present_max_idle_ms`) and the gap since the last interaction has reached
+ * `cue.idle_min` minutes. Each cue fires at most once per session; `noteInteraction`
+ * re-anchors the gap and clears the latches. `isEnabled()` and per-cue `enabled`
+ * gate firing only — toggling does not stop the subscription. Presence alone does
+ * NOT reset the gap.
  *
  * firing ≠ judgment: this only produces a candidate event; the backend decides
  * whether/what to speak.
  */
 
+import type { ProactiveCue } from "../io/proactive-settings";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import { OS_EVENT_CHANNEL, resolveTauriListen } from "../io/tauri-listen";
 import { createLogger } from "../logger";
 import type { BusEnvelope, EventBus } from "./event-bus";
 
-const log = createLogger("cowork-source");
+const log = createLogger("proactive-source");
 
-export interface CoworkSourceDeps {
+export interface ProactiveSourceDeps {
   bus: Pick<EventBus, "push">;
-  cowork: { interval_ms: number; present_max_idle_ms: number };
+  present_max_idle_ms: number;
+  getCues: () => ProactiveCue[];
   /** Read inside the tick handler — gates firing without stopping the source. */
   isEnabled: () => boolean;
   /** Injectable channel listen; defaults to the resolved Tauri `listen`. */
@@ -30,18 +33,25 @@ export interface CoworkSourceDeps {
   now?: () => number;
 }
 
-export interface CoworkSource {
+export interface ProactiveSource {
   start(): Promise<void>;
   stop(): void;
+  /** Re-anchor the idle gap and clear per-cue latches (user activity edge). */
+  noteInteraction(ts?: number): void;
 }
 
-export function createCoworkSource(deps: CoworkSourceDeps): CoworkSource {
-  const { bus, cowork, isEnabled } = deps;
+export function createProactiveSource(deps: ProactiveSourceDeps): ProactiveSource {
+  const { bus, present_max_idle_ms, getCues, isEnabled } = deps;
   const now = deps.now ?? Date.now;
 
   let unlisten: (() => void) | undefined;
-  let wasPresent = false;
-  let lastFireTs = 0;
+  let lastInteractionTs = 0;
+  const fired = new Set<string>();
+
+  function noteInteraction(ts?: number): void {
+    lastInteractionTs = ts ?? now();
+    fired.clear();
+  }
 
   function onTick(payload: OsEventPayload): void {
     if (payload.event_name !== "os_idle_tick") return;
@@ -49,36 +59,36 @@ export function createCoworkSource(deps: CoworkSourceDeps): CoworkSource {
     // Null idle (e.g. Windows) carries no presence signal — ignore entirely.
     if (idle == null) return;
 
-    const present = idle <= cowork.present_max_idle_ms;
+    const present = idle <= present_max_idle_ms;
+    if (!present) return;
 
-    // away→present edge: re-anchor cadence, do not fire this tick.
-    if (present && !wasPresent) {
-      lastFireTs = now();
-      wasPresent = true;
-      return;
-    }
-    if (!present) {
-      wasPresent = false;
-      return;
-    }
+    if (!isEnabled()) return;
 
-    // held present: fire on cadence, only when enabled.
-    if (isEnabled() && now() - lastFireTs >= cowork.interval_ms) {
+    const gap = now() - lastInteractionTs;
+    for (const cue of getCues()) {
+      if (!cue.enabled || fired.has(cue.id) || gap < cue.idle_min * 60_000) continue;
       const env: BusEnvelope = {
         source: "timer_scheduler",
-        event_name: "proactive.cowork",
+        event_name: `proactive.${cue.id}`,
         ts: now(),
         hint_tier: 2,
         dnd_override: false,
-        payload: { os_idle_ms: idle },
+        payload: {
+          cue_id: cue.id,
+          label: cue.label,
+          context: cue.context,
+          idle_min: cue.idle_min,
+          gap_ms: gap,
+        },
       };
       bus.push(env);
-      lastFireTs = now();
+      fired.add(cue.id);
     }
   }
 
   async function start(): Promise<void> {
     if (unlisten) return;
+    lastInteractionTs = now();
     let listen: OsEventListen | undefined;
     try {
       listen = deps.listen ?? (await resolveTauriListen());
@@ -99,5 +109,5 @@ export function createCoworkSource(deps: CoworkSourceDeps): CoworkSource {
     unlisten = undefined;
   }
 
-  return { start, stop };
+  return { start, stop, noteInteraction };
 }

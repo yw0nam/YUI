@@ -27,6 +27,7 @@ import { createEndpointsSettings } from "../io/endpoints-settings";
 import { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import { createLipsyncSettings } from "../io/lipsync-settings";
 import { createProactiveSettings } from "../io/proactive-settings";
+import { createScheduleSettings } from "../io/schedule-settings";
 import { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import { createSessionStore } from "../io/session-store";
 import { createSpeakerSelection, type SpeakerOption } from "../io/speaker-selection";
@@ -139,6 +140,7 @@ describe("createQuickControls — gain row", () => {
   let agentSettings: ReturnType<typeof createAgentSettings>;
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   let proactiveSettings: ReturnType<typeof createProactiveSettings>;
+  let scheduleSettings: ReturnType<typeof createScheduleSettings>;
   let onPopOut: Mock<() => void>;
   let vrmSelection: ReturnType<typeof createVrmSelection>;
   let swapVrm: Mock<(option: AvatarOption) => Promise<void>>;
@@ -168,6 +170,7 @@ describe("createQuickControls — gain row", () => {
     agentSettings = createAgentSettings({ storage: inMemoryAgentStorage() });
     endpointsSettings = createEndpointsSettings();
     proactiveSettings = createProactiveSettings();
+    scheduleSettings = createScheduleSettings();
     onPopOut = vi.fn<() => void>();
     vrmSelection = makeVrmSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
@@ -211,6 +214,7 @@ describe("createQuickControls — gain row", () => {
       agentSettings,
       endpointsSettings,
       proactiveSettings,
+      scheduleSettings,
       chatKeySettings: createChatKeySettings(),
       onPopOut,
       vrmSelection,
@@ -226,69 +230,107 @@ describe("createQuickControls — gain row", () => {
     });
   }
 
-  // ── Proactive toggle row ──────────────────────────────────────────────────
+  // ── 시간대 인사 · 주도적 반응 cue-list sections ──────────────────────────
 
-  it("renders the proactive toggle row above the screenshot row, ON by default", () => {
+  it("mounts both cue-list sections in the input tab", () => {
     const qc = buildQc();
     qc.open();
 
-    const proactiveSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-proactive-switch");
-    expect(proactiveSwitch).not.toBeNull();
-    // Default ON reflects on open.
-    expect(proactiveSwitch!.getAttribute("aria-checked")).toBe("true");
-    expect(proactiveSwitch!.getAttribute("role")).toBe("switch");
-    expect(proactiveSwitch!.getAttribute("aria-label")).toBe("주도적 반응");
+    // Both section titles are present
+    const titles = Array.from(
+      qc.el.querySelectorAll<HTMLElement>("[data-testid='cue-list-title']"),
+    ).map((el) => el.textContent?.trim() ?? "");
+    expect(titles).toContain("시간대 인사");
+    expect(titles).toContain("주도적 반응");
 
-    // Row carries the approved label + sub-label.
-    const row = proactiveSwitch!.closest(".yui-row")!;
-    expect(row.querySelector(".yui-row__label")!.textContent).toContain("주도적 반응");
-    expect(row.querySelector(".yui-row__sub")!.textContent).toContain(
-      "다른 앱을 쓸 때도 가끔 먼저 말을 걸어요",
+    // Cue rows from default store data are rendered
+    const scheduleRows = qc.el.querySelectorAll("#yui-panel-input [data-testid='cue-row']");
+    expect(scheduleRows.length).toBeGreaterThan(0);
+
+    qc.dispose();
+  });
+
+  it("schedule cue-list master switch reflects scheduleSettings enabled state", () => {
+    const qc = buildQc();
+    qc.open();
+
+    // The first master switch belongs to the schedule section (시간대 인사)
+    const masterSwitches = Array.from(
+      qc.el.querySelectorAll<HTMLButtonElement>("[data-testid='cue-list-master-switch']"),
     );
+    expect(masterSwitches.length).toBe(2);
 
-    // Ordered directly above the screenshot row in the same body.
-    const switches = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-switch"));
-    const proactiveIdx = switches.indexOf(proactiveSwitch!);
-    const screenshotSwitch = qc.el.querySelector<HTMLButtonElement>(
+    // Default: scheduleSettings enabled = true
+    expect(masterSwitches[0].getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  it("proactive cue-list master switch reflects proactiveSettings enabled state", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const masterSwitches = Array.from(
+      qc.el.querySelectorAll<HTMLButtonElement>("[data-testid='cue-list-master-switch']"),
+    );
+    // Second master switch = proactive section
+    expect(masterSwitches[1].getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  it("clicking schedule master switch calls scheduleSettings.setEnabled", () => {
+    const localSchedule = createScheduleSettings();
+    const qc = buildQc({ scheduleSettings: localSchedule });
+    qc.open();
+
+    const masterSwitches = Array.from(
+      qc.el.querySelectorAll<HTMLButtonElement>("[data-testid='cue-list-master-switch']"),
+    );
+    expect(localSchedule.get().enabled).toBe(true);
+    masterSwitches[0].click();
+    expect(localSchedule.get().enabled).toBe(false);
+
+    qc.dispose();
+  });
+
+  it("clicking proactive master switch calls proactiveSettings.setEnabled", () => {
+    const localProactive = createProactiveSettings();
+    const qc = buildQc({ proactiveSettings: localProactive });
+    qc.open();
+
+    const masterSwitches = Array.from(
+      qc.el.querySelectorAll<HTMLButtonElement>("[data-testid='cue-list-master-switch']"),
+    );
+    expect(localProactive.get().enabled).toBe(true);
+    masterSwitches[1].click();
+    expect(localProactive.get().enabled).toBe(false);
+
+    qc.dispose();
+  });
+
+  it("cue-list sections are placed before the screenshot row", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const inputPanel = qc.el.querySelector<HTMLElement>("#yui-panel-input")!;
+    const cueSections = inputPanel.querySelector(".yui-cue-sections")!;
+    const screenshotSwitch = inputPanel.querySelector<HTMLButtonElement>(
       ".yui-switch[aria-label='스크린샷 첨부']",
     )!;
-    const screenshotIdx = switches.indexOf(screenshotSwitch);
-    expect(proactiveIdx).toBeGreaterThanOrEqual(0);
-    expect(proactiveIdx).toBeLessThan(screenshotIdx);
+
+    // cueSections must appear in DOM before screenshotSwitch
+    const children = Array.from(inputPanel.querySelectorAll("*"));
+    expect(children.indexOf(cueSections)).toBeLessThan(children.indexOf(screenshotSwitch));
 
     qc.dispose();
   });
 
-  it("clicking the proactive switch toggles proactiveSettings.setEnabled", () => {
+  it("dispose() destroys cue-list sections without errors", () => {
     const qc = buildQc();
     qc.open();
 
-    const proactiveSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-proactive-switch")!;
-    expect(proactiveSettings.get().enabled).toBe(true);
-
-    proactiveSwitch.click();
-    expect(proactiveSettings.get().enabled).toBe(false);
-    expect(proactiveSwitch.getAttribute("aria-checked")).toBe("false");
-
-    proactiveSwitch.click();
-    expect(proactiveSettings.get().enabled).toBe(true);
-    expect(proactiveSwitch.getAttribute("aria-checked")).toBe("true");
-
-    qc.dispose();
-  });
-
-  it("external proactiveSettings.setEnabled reflects on the switch while open", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const proactiveSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-proactive-switch")!;
-    proactiveSettings.setEnabled(false);
-    expect(proactiveSwitch.getAttribute("aria-checked")).toBe("false");
-
-    proactiveSettings.setEnabled(true);
-    expect(proactiveSwitch.getAttribute("aria-checked")).toBe("true");
-
-    qc.dispose();
+    expect(() => qc.dispose()).not.toThrow();
   });
 
   // ── 유휴 절전 toggle row (Advanced tab) ──────────────────────────────────
@@ -2569,6 +2611,7 @@ describe("createQuickControls — session section", () => {
       agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
       endpointsSettings: createEndpointsSettings(),
       proactiveSettings: createProactiveSettings(),
+      scheduleSettings: createScheduleSettings(),
       chatKeySettings: createChatKeySettings(),
       onPopOut: vi.fn(),
       vrmSelection: createVrmSelection({
@@ -2764,6 +2807,7 @@ describe("createQuickControls — tabs + VAD slider", () => {
       agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
       endpointsSettings: createEndpointsSettings(),
       proactiveSettings: createProactiveSettings(),
+      scheduleSettings: createScheduleSettings(),
       chatKeySettings: createChatKeySettings(),
       onPopOut: vi.fn(),
       vrmSelection: createVrmSelection({
