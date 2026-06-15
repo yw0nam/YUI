@@ -22,7 +22,7 @@ import {
 
 describe("agent-settings constants", () => {
   it("REASONING_EFFORTS is the expected ordered list", () => {
-    expect(REASONING_EFFORTS).toEqual(["default", "low", "medium", "high"]);
+    expect(REASONING_EFFORTS).toEqual(["none", "minimal", "low", "medium"]);
   });
 
   it("INSTRUCTIONS_MAX_LEN is 4000", () => {
@@ -37,7 +37,7 @@ describe("agent-settings constants", () => {
 describe("createAgentSettings — defaults", () => {
   it("returns default state when no storage or initial given", () => {
     const store = createAgentSettings();
-    expect(store.get()).toEqual({ reasoning_effort: "default", instructions: "" });
+    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "" });
   });
 
   it("get() returns a copy, not the internal reference", () => {
@@ -50,9 +50,9 @@ describe("createAgentSettings — defaults", () => {
 
   it("uses initial when no storage is provided", () => {
     const store = createAgentSettings({
-      initial: { reasoning_effort: "high", instructions: "be terse" },
+      initial: { reasoning_effort: "medium", instructions: "be terse" },
     });
-    expect(store.get()).toEqual({ reasoning_effort: "high", instructions: "be terse" });
+    expect(store.get()).toEqual({ reasoning_effort: "medium", instructions: "be terse" });
   });
 });
 
@@ -70,13 +70,13 @@ describe("createAgentSettings — load coercion", () => {
     expect(store.get()).toEqual({ reasoning_effort: "medium", instructions: "hi" });
   });
 
-  it("coerces invalid stored reasoning_effort to 'default'", () => {
+  it("coerces invalid stored reasoning_effort to 'none'", () => {
     const storage: AgentStorage = {
       load: () => ({ reasoning_effort: "bogus", instructions: "x" }) as unknown as AgentSettings,
       save: vi.fn(),
     };
     const store = createAgentSettings({ storage });
-    expect(store.get().reasoning_effort).toBe("default");
+    expect(store.get().reasoning_effort).toBe("none");
     expect(store.get().instructions).toBe("x");
   });
 
@@ -93,7 +93,7 @@ describe("createAgentSettings — load coercion", () => {
   it("caps stored instructions length to INSTRUCTIONS_MAX_LEN", () => {
     const long = "a".repeat(INSTRUCTIONS_MAX_LEN + 100);
     const storage: AgentStorage = {
-      load: () => ({ reasoning_effort: "default", instructions: long }),
+      load: () => ({ reasoning_effort: "none", instructions: long }),
       save: vi.fn(),
     };
     const store = createAgentSettings({ storage });
@@ -103,7 +103,7 @@ describe("createAgentSettings — load coercion", () => {
   it("storage.load() returning null falls back to default", () => {
     const storage: AgentStorage = { load: () => null, save: vi.fn() };
     const store = createAgentSettings({ storage });
-    expect(store.get()).toEqual({ reasoning_effort: "default", instructions: "" });
+    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "" });
   });
 
   it("storage.load() throwing falls back to default", () => {
@@ -114,19 +114,19 @@ describe("createAgentSettings — load coercion", () => {
       save: vi.fn(),
     };
     const store = createAgentSettings({ storage });
-    expect(store.get()).toEqual({ reasoning_effort: "default", instructions: "" });
+    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "" });
   });
 
   it("stored > initial: storage value takes priority over initial option", () => {
     const storage: AgentStorage = {
-      load: () => ({ reasoning_effort: "high", instructions: "stored" }),
+      load: () => ({ reasoning_effort: "medium", instructions: "stored" }),
       save: vi.fn(),
     };
     const store = createAgentSettings({
       storage,
       initial: { reasoning_effort: "low", instructions: "init" },
     });
-    expect(store.get()).toEqual({ reasoning_effort: "high", instructions: "stored" });
+    expect(store.get()).toEqual({ reasoning_effort: "medium", instructions: "stored" });
   });
 });
 
@@ -139,10 +139,10 @@ describe("createAgentSettings — setReasoningEffort", () => {
     const store = createAgentSettings();
     const cb = vi.fn();
     store.subscribe(cb);
-    store.setReasoningEffort("high");
-    expect(store.get().reasoning_effort).toBe("high");
+    store.setReasoningEffort("medium");
+    expect(store.get().reasoning_effort).toBe("medium");
     expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ reasoning_effort: "high", instructions: "" });
+    expect(cb).toHaveBeenCalledWith({ reasoning_effort: "medium", instructions: "" });
     expect(cb.mock.calls[0][0]).not.toBe(store.get());
   });
 
@@ -156,23 +156,23 @@ describe("createAgentSettings — setReasoningEffort", () => {
     });
   });
 
-  it("invalid effort coerces to 'default' (no-op from default state)", () => {
+  it("invalid effort coerces to 'none' (no-op from default state)", () => {
     const store = createAgentSettings();
     const cb = vi.fn();
     store.subscribe(cb);
     store.setReasoningEffort("nope" as unknown as AgentSettings["reasoning_effort"]);
-    expect(store.get().reasoning_effort).toBe("default");
+    expect(store.get().reasoning_effort).toBe("none");
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("invalid effort coerces to 'default' (notifies when changing from non-default)", () => {
+  it("invalid effort coerces to 'none' (notifies when changing from non-default)", () => {
     const store = createAgentSettings({
-      initial: { reasoning_effort: "high", instructions: "" },
+      initial: { reasoning_effort: "medium", instructions: "" },
     });
     const cb = vi.fn();
     store.subscribe(cb);
     store.setReasoningEffort("nope" as unknown as AgentSettings["reasoning_effort"]);
-    expect(store.get().reasoning_effort).toBe("default");
+    expect(store.get().reasoning_effort).toBe("none");
     expect(cb).toHaveBeenCalledOnce();
   });
 
@@ -200,7 +200,7 @@ describe("createAgentSettings — setInstructions", () => {
     store.setInstructions("hello");
     expect(store.get().instructions).toBe("hello");
     expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ reasoning_effort: "default", instructions: "hello" });
+    expect(cb).toHaveBeenCalledWith({ reasoning_effort: "none", instructions: "hello" });
     expect(cb.mock.calls[0][0]).not.toBe(store.get());
   });
 
@@ -209,7 +209,7 @@ describe("createAgentSettings — setInstructions", () => {
     const store = createAgentSettings({ storage });
     store.setInstructions("custom");
     expect(storage.save).toHaveBeenCalledWith({
-      reasoning_effort: "default",
+      reasoning_effort: "none",
       instructions: "custom",
     });
   });
@@ -222,7 +222,7 @@ describe("createAgentSettings — setInstructions", () => {
 
   it("non-string coerces to ''", () => {
     const store = createAgentSettings({
-      initial: { reasoning_effort: "default", instructions: "had text" },
+      initial: { reasoning_effort: "none", instructions: "had text" },
     });
     store.setInstructions(42 as unknown as string);
     expect(store.get().instructions).toBe("");
@@ -276,13 +276,13 @@ describe("createAgentSettings — reloadFromStorage", () => {
     store.subscribe(cb);
 
     // 다른 창이 storage를 직접 갱신한 상황을 모사
-    storage._data = { reasoning_effort: "high", instructions: "from other window" };
+    storage._data = { reasoning_effort: "medium", instructions: "from other window" };
     store.reloadFromStorage();
 
-    expect(store.get()).toEqual({ reasoning_effort: "high", instructions: "from other window" });
+    expect(store.get()).toEqual({ reasoning_effort: "medium", instructions: "from other window" });
     expect(cb).toHaveBeenCalledOnce();
     expect(cb).toHaveBeenCalledWith({
-      reasoning_effort: "high",
+      reasoning_effort: "medium",
       instructions: "from other window",
     });
   });
@@ -292,7 +292,7 @@ describe("createAgentSettings — reloadFromStorage", () => {
     const store = createAgentSettings({ storage });
     storage._data = { reasoning_effort: "bogus", instructions: 9 } as unknown as AgentSettings;
     store.reloadFromStorage();
-    expect(store.get()).toEqual({ reasoning_effort: "default", instructions: "" });
+    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "" });
   });
 
   it("identical value is a no-op (no notify)", () => {
@@ -342,7 +342,7 @@ describe("createAgentSettings — subscribe / dispose", () => {
     const unsub = store.subscribe(cb);
     store.setReasoningEffort("low");
     unsub();
-    store.setReasoningEffort("high");
+    store.setReasoningEffort("medium");
     expect(cb).toHaveBeenCalledOnce();
   });
 
@@ -371,9 +371,9 @@ describe("localStorageAgentStorage", () => {
     };
 
     const adapter = localStorageAgentStorage();
-    adapter.save({ reasoning_effort: "high", instructions: "yo" });
+    adapter.save({ reasoning_effort: "medium", instructions: "yo" });
     const loaded = adapter.load();
-    expect(loaded).toEqual({ reasoning_effort: "high", instructions: "yo" });
+    expect(loaded).toEqual({ reasoning_effort: "medium", instructions: "yo" });
 
     delete (globalThis as any).localStorage;
   });
@@ -386,7 +386,7 @@ describe("localStorageAgentStorage", () => {
     };
 
     const adapter = localStorageAgentStorage();
-    adapter.save({ reasoning_effort: "default", instructions: "" });
+    adapter.save({ reasoning_effort: "none", instructions: "" });
     expect(written[0][0]).toBe("yui.agent");
 
     delete (globalThis as any).localStorage;
@@ -400,7 +400,7 @@ describe("localStorageAgentStorage", () => {
     };
 
     const adapter = localStorageAgentStorage("my.key");
-    adapter.save({ reasoning_effort: "default", instructions: "" });
+    adapter.save({ reasoning_effort: "none", instructions: "" });
     expect(written[0][0]).toBe("my.key");
 
     delete (globalThis as any).localStorage;
@@ -423,7 +423,7 @@ describe("localStorageAgentStorage", () => {
     const adapter = localStorageAgentStorage();
     expect(() => adapter.load()).not.toThrow();
     expect(adapter.load()).toBeNull();
-    expect(() => adapter.save({ reasoning_effort: "default", instructions: "" })).not.toThrow();
+    expect(() => adapter.save({ reasoning_effort: "none", instructions: "" })).not.toThrow();
 
     if (saved !== undefined) (globalThis as any).localStorage = saved;
   });

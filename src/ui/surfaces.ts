@@ -49,7 +49,7 @@ export interface Surfaces {
   onSubmit(cb: (text: string) => void): void;
   /** 인라인 에러 표시(예: 전송 실패). */
   showInputError(message: string): void;
-  /** 입력 비활성화 토글(예: 세션 압축 중). 비활성 시 field disabled + pending 디밍. */
+  /** 입력 비활성화 토글(처리 중 등). 비활성 시 field disabled + pending 디밍. */
   setInputEnabled(enabled: boolean): void;
   /**
    * 입력의 하단 오프셋(px)을 캐릭터 발밑 추적용으로 설정한다. CSS의

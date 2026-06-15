@@ -73,8 +73,10 @@ export interface BackendCallerDeps {
   onCue?: (cue: ExpressArgs) => void;
   /** tool_status sink — present 시에만 호출. */
   onToolStatus?: (status: ToolStatus) => void;
-  /** 현재 Hermes session id 조회 — present 시 X-Hermes-Session-Id 헤더로 흘린다. 매 턴 호출(rotation 반영). */
-  getSessionId?: () => string | undefined;
+  /** 직전 response id 조회 — present 시 요청에 실어 대화를 잇는다. 매 턴 호출(reset/rotation 반영). */
+  getPreviousResponseId?: () => string | undefined;
+  /** 새 response id persist — 완전히 성공한 턴 이후에만 호출(대화 상태 진행). */
+  onResponseId?: (id: string) => void;
   /** usage(토큰 점유량) sink — present 시에만 호출. ControlEnvelope와 무관한 진단 채널. */
   onUsage?: (usage: Usage) => void;
   /** 현재 agent 설정(추론 강도 + instructions 오버라이드) 스냅샷. present일 때만 요청에 반영. */
@@ -273,9 +275,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       return { ok: false, drop_reason: "network_drop" };
     }
 
-    // 매 턴 현재 session id를 읽는다(생성 시점 캐시 X) — 턴 사이 rotation을 반영.
-    const sessionId = deps.getSessionId?.();
-
     if (externalSignal?.aborted) {
       return { ok: false, drop_reason: "superseded_by_user" };
     }
@@ -289,15 +288,20 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     }
     const request: ChatRequest = { input, signal: ac.signal };
 
-    // agent 설정 반영: "default"는 생략, 빈 instructions는 config 폴백을 위해 생략.
+    // 직전 response id를 스냅샷해 요청에 싣는다 — 완료 시 reset 감지(R2)를 위해 시작값을 보존.
+    const startPreviousResponseId = deps.getPreviousResponseId?.();
+    if (startPreviousResponseId) request.previous_response_id = startPreviousResponseId;
+
+    // agent 설정 반영: reasoning_effort는 항상 전송, 빈 instructions는 config 폴백을 위해 생략.
     const agent = deps.getAgentSettings?.();
     if (agent) {
-      if (agent.reasoning_effort !== "default") request.reasoning_effort = agent.reasoning_effort;
+      request.reasoning_effort = agent.reasoning_effort;
       if (agent.instructions.trim()) request.instructions = agent.instructions;
     }
 
     // B3: chat-client의 completed 이벤트에서 ControlEnvelope 수령(SSE 재파싱 X).
     let envelope: ControlEnvelope | undefined;
+    let newResponseId: string | undefined;
     let streamError: string | undefined;
     // 스트리밍 발화: delta가 1건이라도 왔는가(완료 시 onSpeechEnd 구동 분기).
     let streamedAny = false;
@@ -307,7 +311,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       for await (const ev of streamChat(deps.config, request, {
         apiKey,
         fetch: fetchImpl,
-        sessionId,
       })) {
         switch (ev.type) {
           case "speech_delta":
@@ -325,6 +328,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
             break;
           case "completed":
             envelope = ev.envelope;
+            newResponseId = ev.responseId || undefined;
             break;
           case "error":
             streamError = ev.message;
@@ -403,6 +407,13 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       log.debug("speech", { text: envelope.speech_text });
     } else {
       log.info("empty_speech", { trigger: env.event_name });
+    }
+
+    // 대화 상태 진행: post-stream 가드(abort / streamError / !envelope)를 모두 통과한 이 지점에서만
+    // persist. 시작 시점 id가 그대로일 때만 — in-flight 중 reset/rotation(R2)이 있었다면 그 새 상태를
+    // 죽은 응답으로 되살리지 않는다.
+    if (newResponseId && deps.getPreviousResponseId?.() === startPreviousResponseId) {
+      deps.onResponseId?.(newResponseId);
     }
 
     return { ok: true };

@@ -3,12 +3,12 @@
  * 변경 시 storage에 persist하고 구독자에게 통지한다.
  */
 
-export type ReasoningEffort = "default" | "low" | "medium" | "high";
-export const REASONING_EFFORTS: readonly ReasoningEffort[] = ["default", "low", "medium", "high"];
+export type ReasoningEffort = "none" | "minimal" | "low" | "medium";
+export const REASONING_EFFORTS: readonly ReasoningEffort[] = ["none", "minimal", "low", "medium"];
 export const INSTRUCTIONS_MAX_LEN = 4000;
 
 export interface AgentSettings {
-  reasoning_effort: ReasoningEffort; // "default" => 호출자가 reasoning 파라미터를 생략
+  reasoning_effort: ReasoningEffort; // 백엔드로 보내는 reasoning.effort 값 ("none" => 추론 안 함)
   instructions: string; // "" => 호출자가 config.chat_instructions로 폴백
 }
 
@@ -18,12 +18,12 @@ export interface AgentStorage {
 }
 
 const DEFAULT_SETTINGS: AgentSettings = {
-  reasoning_effort: "default",
+  reasoning_effort: "none",
   instructions: "",
 };
 
 function coerceEffort(v: unknown): ReasoningEffort {
-  return REASONING_EFFORTS.includes(v as ReasoningEffort) ? (v as ReasoningEffort) : "default";
+  return REASONING_EFFORTS.includes(v as ReasoningEffort) ? (v as ReasoningEffort) : "none";
 }
 
 function coerceInstructions(v: unknown): string {

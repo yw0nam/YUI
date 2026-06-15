@@ -11,9 +11,6 @@
   "irodori_speaker": "ナツメ",
   "broker_base_url": "http://localhost:3201/mcp",
   "chat_model_context_window": 200000,
-  "compact_threshold_ratio": 0.7,
-  "compact_resume_ratio": 0.5,
-  "compact_timeout_ms": 12000,
   "tts_max_inflight": 1,
   "irodori_voices": [
     { "id": "あやせ", "label": "あやせ", "ref_url": "/references/あやせ/merged_audio.mp3" },

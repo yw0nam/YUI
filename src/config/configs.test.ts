@@ -36,13 +36,8 @@ describe("configs/endpoints.json", () => {
     );
   });
 
-  it("carries compaction knobs: context window + threshold/resume ratio + timeout", () => {
+  it("carries the chat model context window for token-usage tracking", () => {
     expect(ep.chat_model_context_window).toBeGreaterThan(0);
-    expect(ep.compact_threshold_ratio).toBeGreaterThan(0);
-    expect(ep.compact_threshold_ratio).toBeLessThanOrEqual(1);
-    expect(ep.compact_resume_ratio).toBeGreaterThan(0);
-    expect(ep.compact_resume_ratio).toBeLessThanOrEqual(1);
-    expect(ep.compact_timeout_ms).toBeGreaterThan(0);
   });
 });
 

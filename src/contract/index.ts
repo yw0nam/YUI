@@ -29,7 +29,6 @@ export type {
   ScreenRect,
   // Input context
   ScreenSource,
-  SessionCompressionResponse,
   ToolStatus,
   // Dispatcher-layer metadata
   TriggerMeta,

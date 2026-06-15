@@ -506,9 +506,9 @@ describe("createQuickControls — gain row", () => {
 
     const seg = qc.el.querySelector<HTMLElement>(".yui-seg")!;
     const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-    // order: default · low · medium · high
+    // order: none · minimal · low · medium
     expect(btns).toHaveLength(4);
-    const medium = btns[2];
+    const medium = btns[3];
 
     medium.click();
 
@@ -527,12 +527,12 @@ describe("createQuickControls — gain row", () => {
 
     const seg = qc.el.querySelector<HTMLElement>(".yui-seg")!;
     const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-    // start at default (index 0)
+    // start at none (index 0)
     expect(btns[0].getAttribute("aria-checked")).toBe("true");
 
     btns[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
 
-    expect(agentSettings.get().reasoning_effort).toBe("low");
+    expect(agentSettings.get().reasoning_effort).toBe("minimal");
     expect(btns[1].getAttribute("aria-checked")).toBe("true");
     expect(btns[0].getAttribute("aria-checked")).toBe("false");
 
@@ -1089,14 +1089,14 @@ describe("createQuickControls — gain row", () => {
   // ── reflect store state on open ───────────────────────────────────────────
 
   it("open() reflects the store's reasoning_effort and instructions", () => {
-    agentSettings.setReasoningEffort("high");
+    agentSettings.setReasoningEffort("medium");
     agentSettings.setInstructions("hello world");
 
     const qc = buildQc();
     qc.open();
 
     const btns = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-    expect(btns[3].getAttribute("aria-checked")).toBe("true"); // high
+    expect(btns[3].getAttribute("aria-checked")).toBe("true"); // medium
     expect(btns[0].getAttribute("aria-checked")).toBe("false");
 
     const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
@@ -1113,7 +1113,7 @@ describe("createQuickControls — gain row", () => {
     agentSettings.setInstructions("changed externally");
 
     const btns = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-    expect(btns[1].getAttribute("aria-checked")).toBe("true"); // low
+    expect(btns[2].getAttribute("aria-checked")).toBe("true"); // low
 
     const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
     expect(ta.value).toBe("changed externally");
@@ -2677,37 +2677,8 @@ describe("createQuickControls — session section", () => {
     qc.dispose();
   });
 
-  it("shows a muted placeholder when there is no last compression", () => {
-    const qc = buildQc({ variant: "window" });
-    qc.open();
-
-    expect(qc.el.querySelector(".yui-session__empty")).not.toBeNull();
-    expect(qc.el.querySelector(".yui-session__grid .v")).toBeNull();
-
-    qc.dispose();
-  });
-
-  it("renders a formatted last-compression line when present", () => {
-    sessionDiagnostics.setLastCompression({
-      beforeTokens: 120000,
-      afterTokens: 18000,
-      removed: 34,
-      at: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
-    });
-    const qc = buildQc({ variant: "window" });
-    qc.open();
-
-    expect(qc.el.querySelector(".yui-session__empty")).toBeNull();
-    const v = qc.el.querySelector<HTMLElement>(".yui-session__grid .v")!;
-    expect(v.textContent).toContain("120K");
-    expect(v.textContent).toContain("18K");
-    expect(v.textContent).toContain("34");
-
-    qc.dispose();
-  });
-
   it("reset confirm flow clears both the session store and diagnostics", () => {
-    sessionStore.get(); // mint an id so clear() actually fires
+    sessionStore.set("resp_x"); // populate so clear() actually fires
     sessionDiagnostics.setUsage(50000, 200000);
     const clearSession = vi.spyOn(sessionStore, "clear");
     const clearDiag = vi.spyOn(sessionDiagnostics, "clear");
@@ -2729,7 +2700,7 @@ describe("createQuickControls — session section", () => {
   });
 
   it("Cancel dismisses the confirm without clearing", () => {
-    sessionStore.get();
+    sessionStore.set("resp_y");
     const clearSession = vi.spyOn(sessionStore, "clear");
 
     const qc = buildQc({ variant: "window" });

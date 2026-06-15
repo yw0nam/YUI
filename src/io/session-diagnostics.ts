@@ -1,22 +1,12 @@
 /**
- * Reactive store for the Settings-window session diagnostics (used tokens / context window / last
- * compression). localStorage is the cross-window seam — a separate window reads the same key. Notify
- * only on actual change; coerce stored junk to defaults. The `at` timestamp is supplied by the caller
- * so the store stays pure and testable.
+ * Reactive store for the Settings-window session diagnostics (used tokens / context window).
+ * localStorage is the cross-window seam — a separate window reads the same key. Notify only on actual
+ * change; coerce stored junk to defaults.
  */
-
-export interface LastCompressionEntry {
-  beforeTokens: number;
-  afterTokens: number;
-  removed: number;
-  /** ISO timestamp, supplied by the caller. */
-  at: string;
-}
 
 export interface SessionDiagnostics {
   usedTokens: number | null;
   contextWindow: number | null;
-  lastCompression: LastCompressionEntry | null;
 }
 
 export interface SessionDiagnosticsStorage {
@@ -27,30 +17,10 @@ export interface SessionDiagnosticsStorage {
 const DEFAULTS: SessionDiagnostics = {
   usedTokens: null,
   contextWindow: null,
-  lastCompression: null,
 };
 
 function coerceNumberOrNull(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
-}
-
-function coerceLastCompression(v: unknown): LastCompressionEntry | null {
-  if (typeof v !== "object" || v === null) return null;
-  const o = v as Record<string, unknown>;
-  if (
-    typeof o.beforeTokens !== "number" ||
-    typeof o.afterTokens !== "number" ||
-    typeof o.removed !== "number" ||
-    typeof o.at !== "string"
-  ) {
-    return null;
-  }
-  return {
-    beforeTokens: o.beforeTokens,
-    afterTokens: o.afterTokens,
-    removed: o.removed,
-    at: o.at,
-  };
 }
 
 function coerce(v: unknown): SessionDiagnostics {
@@ -58,36 +28,17 @@ function coerce(v: unknown): SessionDiagnostics {
   return {
     usedTokens: coerceNumberOrNull(o.usedTokens),
     contextWindow: coerceNumberOrNull(o.contextWindow),
-    lastCompression: coerceLastCompression(o.lastCompression),
   };
 }
 
-function lastCompressionEquals(
-  a: LastCompressionEntry | null,
-  b: LastCompressionEntry | null,
-): boolean {
-  if (a === null || b === null) return a === b;
-  return (
-    a.beforeTokens === b.beforeTokens &&
-    a.afterTokens === b.afterTokens &&
-    a.removed === b.removed &&
-    a.at === b.at
-  );
-}
-
 function equals(a: SessionDiagnostics, b: SessionDiagnostics): boolean {
-  return (
-    a.usedTokens === b.usedTokens &&
-    a.contextWindow === b.contextWindow &&
-    lastCompressionEquals(a.lastCompression, b.lastCompression)
-  );
+  return a.usedTokens === b.usedTokens && a.contextWindow === b.contextWindow;
 }
 
 function clone(s: SessionDiagnostics): SessionDiagnostics {
   return {
     usedTokens: s.usedTokens,
     contextWindow: s.contextWindow,
-    lastCompression: s.lastCompression ? { ...s.lastCompression } : null,
   };
 }
 
@@ -125,12 +76,6 @@ export function createSessionDiagnosticsStore(storage?: SessionDiagnosticsStorag
       const next = clone(state);
       next.usedTokens = usedTokens;
       next.contextWindow = contextWindow;
-      commit(next);
-    },
-
-    setLastCompression(entry: LastCompressionEntry): void {
-      const next = clone(state);
-      next.lastCompression = { ...entry };
       commit(next);
     },
 

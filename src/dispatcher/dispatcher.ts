@@ -20,7 +20,6 @@
  */
 
 import type { ControlEnvelope } from "../contract";
-import type { CompactResult } from "../io/session-compactor";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
@@ -40,14 +39,6 @@ export interface DispatcherDeps {
   pumpIntervalMs?: number;
   /** 구조화 로깅(없으면 dispatcher namespace logger). */
   logger?: Logger;
-  /** 세션 압축 thunk(main.ts에서 조립). 없으면 requestCompaction은 no-op. */
-  compact?: (signal: AbortSignal) => Promise<CompactResult>;
-  /** 현재 세션 id 해소. falsy면 압축할 세션이 없어 requestCompaction skip. */
-  getSessionId?: () => string | undefined;
-  /** 현재 세션에 압축할 이력(턴/usage)이 있는지. false면 requestCompaction skip — 빈 세션 404 방지. */
-  hasCompactableHistory?: () => boolean;
-  /** compact() timeout(ms). default 12000. 초과 시 abort + running 복귀. */
-  compactTimeoutMs?: number;
 }
 
 export type DispatcherState =
@@ -56,7 +47,6 @@ export type DispatcherState =
   | "cooldown"
   | "degraded"
   | "draining"
-  | "compacting"
   | "stopped";
 
 /** recent_drops 항목. */
@@ -95,8 +85,6 @@ export interface Dispatcher {
   recentDrops(n?: number): DropRecord[];
   /** 진행 중 backend call(없으면 null). */
   inFlight(): InFlightInfo | null;
-  /** 세션 압축 요청을 래치한다. idempotent; 세션/compact 부재·이미 compacting·stopped면 no-op. */
-  requestCompaction(): void;
   /** 상태 전이 구독. 매 전이마다 콜백 호출, unsubscribe fn 반환. */
   subscribeState(cb: (s: DispatcherState) => void): () => void;
 }
@@ -172,13 +160,11 @@ function tier1Directive(env: BusEnvelope): ControlEnvelope | null {
 }
 
 const DEFAULT_PUMP_MS = 16;
-const DEFAULT_COMPACT_TIMEOUT_MS = 12_000;
 const MAX_DROP_RECORDS = 50;
 
 export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   const { bus, renderer, backendCaller, guardrails } = deps;
   const pumpMs = deps.pumpIntervalMs ?? DEFAULT_PUMP_MS;
-  const compactTimeoutMs = deps.compactTimeoutMs ?? DEFAULT_COMPACT_TIMEOUT_MS;
   const log = deps.logger ?? baseLog;
 
   let state: DispatcherState = "booting";
@@ -190,9 +176,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   const pending: BusEnvelope[] = [];
   const drops: DropRecord[] = [];
 
-  // 세션 압축 래치: set이면 새 backend 턴은 enqueue/drain에서 보류된다(BLOCKER 1).
-  let compactionRequested = false;
-  let compactAbort: AbortController | null = null;
   const stateSubscribers = new Set<(s: DispatcherState) => void>();
 
   /** 상태 전이의 단일 경로: 할당 + state_change 로그 + 구독자 통지. */
@@ -263,22 +246,19 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       .finally(() => {
         // 이 콜이 여전히 현재 in-flight일 때만 슬롯 해제(abort로 교체됐으면 건드리지 않음).
         if (inFlight && inFlight.trigger === env) inFlight = null;
-        // 경계 도달(inFlight===null && compactionRequested): 압축이 다음 턴보다 먼저(BLOCKER 2).
-        if (maybeStartCompaction()) return;
         drainPending();
       });
   }
 
-  /** 보류 큐에서 다음 tier2/3 1건을 꺼내 in-flight가 비었으면 시작. 압축 래치/비-running이면 보류. */
+  /** 보류 큐에서 다음 tier2/3 1건을 꺼내 in-flight가 비었으면 시작. 비-running이면 보류. */
   function drainPending(): void {
-    if (inFlight || pending.length === 0 || state !== "running" || compactionRequested) return;
+    if (inFlight || pending.length === 0 || state !== "running") return;
     startBackendCall(pending.shift()!);
   }
 
   /** tier2/3 enqueue: in-flight 비면 즉시 시작, 아니면 보류(2건 이상이면 oldest drop). */
   function enqueueBackend(env: BusEnvelope): void {
-    // 압축 래치 중에는 새 턴을 절대 시작하지 않는다 — 보류만(BLOCKER 1).
-    if (!inFlight && !compactionRequested) {
+    if (!inFlight) {
       startBackendCall(env);
       return;
     }
@@ -334,7 +314,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   /**
    * dispatcher가 running ↔ cooldown 전이를 소유한다. guardrail은 verdict만 반환하고
    * 전이에 관여하지 않으므로, 매 tick cooldownActive()를 폴링해 state를 동기화한다(진입/종료 함께).
-   * compacting은 별개 게이트라 폴링 대상에서 제외한다(running ↔ cooldown만 동기화).
    */
   function syncCooldownState(): void {
     const inCooldown = guardrails.cooldownActive();
@@ -342,61 +321,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       setState("cooldown");
     } else if (!inCooldown && state === "cooldown") {
       setState("running");
-    }
-  }
-
-  /** compacting busy cue. render 에러가 상태머신을 깨뜨리지 않도록 try/catch. */
-  function applyCue(emotionId: "thinking" | "neutral"): void {
-    try {
-      renderer.applyDirective({ speech_text: "", emotion: { id: emotionId } });
-    } catch (err) {
-      log.error("compact.render_error", { error: String(err) });
-    }
-  }
-
-  /**
-   * 경계(inFlight===null && compactionRequested && running)에 도달했으면 동기적으로 compacting
-   * 진입 + 압축 비동기 kick. interval pump를 await로 막지 않아 동시 압축이 겹치지 않는다(BLOCKER 2).
-   * 진입했으면 true.
-   */
-  function maybeStartCompaction(): boolean {
-    if (!compactionRequested || inFlight || state !== "running") return false;
-    compactionRequested = false;
-    setState("compacting");
-    applyCue("thinking");
-    void runCompaction();
-    return true;
-  }
-
-  /**
-   * 압축 thunk를 timeout과 race하고(BLOCKER 3) 어떤 결과든 상태머신을 정착시킨다:
-   * stopped가 아니면 running 복귀 + cue 해제 + pump 1회로 보류 이벤트 drain.
-   * hung compact가 dispatcher를 영구 동결시키지 못한다.
-   */
-  async function runCompaction(): Promise<void> {
-    const abort = new AbortController();
-    compactAbort = abort;
-    const compact = deps.compact!;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    const timeout = new Promise<void>((resolve) => {
-      timeoutId = setTimeout(() => {
-        abort.abort();
-        resolve();
-      }, compactTimeoutMs);
-    });
-    try {
-      await Promise.race([compact(abort.signal).then(() => undefined), timeout]);
-    } catch (err) {
-      log.warn("compact.error", { error: String(err) });
-    } finally {
-      if (timeoutId !== null) clearTimeout(timeoutId);
-      if (compactAbort === abort) compactAbort = null;
-      // stop()이 끼어들었으면 running으로 되돌리지 않는다.
-      if (state !== "stopped") {
-        applyCue("neutral");
-        setState("running");
-        pump();
-      }
     }
   }
 
@@ -431,12 +355,10 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /**
    * pump: 매 tick마다 bus를 drain. running/cooldown 모두에서 동작(cooldown 중 tier1 계속).
-   * compacting 등 그 외 비-running이면 no-op으로 보류 이벤트를 잡아 둔다.
+   * 그 외 비-running이면 no-op으로 보류 이벤트를 잡아 둔다.
    */
   function pump(): void {
     if (state !== "running" && state !== "cooldown") return;
-    // 이미 idle인데 압축이 래치돼 있으면 여기서 경계에 도달한다(running일 때만; cooldown이면 no-op, BLOCKER 2).
-    if (maybeStartCompaction()) return;
     let env: BusEnvelope | null;
     while ((env = bus.pop()) !== null) {
       handle(env);
@@ -450,8 +372,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       return state;
     },
     start() {
-      // compacting 중 start()는 rotation 중간에 running으로 되돌리지 않는다.
-      if (state === "running" || state === "compacting") return;
+      if (state === "running") return;
       setState("running");
       timer = setInterval(pump, pumpMs);
       // 즉시 한 번 drain(첫 tick 전 push된 event 대응).
@@ -466,12 +387,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         inFlight.abort.abort();
         inFlight = null;
       }
-      // 진행 중인 압축도 중단(설정 핸들러는 stopped를 보면 running 복귀를 건너뛴다).
-      if (compactAbort) {
-        compactAbort.abort();
-        compactAbort = null;
-      }
-      compactionRequested = false;
       pending.length = 0;
       setState("stopped");
     },
@@ -484,24 +399,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     },
     inFlight() {
       return inFlight ? { trigger: inFlight.trigger, started_at: inFlight.started_at } : null;
-    },
-    requestCompaction() {
-      if (
-        !deps.compact ||
-        compactionRequested ||
-        state === "compacting" ||
-        state === "stopped" ||
-        state === "booting"
-      ) {
-        return;
-      }
-      // 세션이 없으면 무의미한 압축 + cue flicker를 피한다.
-      if (!deps.getSessionId?.()) return;
-      // 턴/usage가 없는 세션은 backend 미등록 → 압축 시 404. focus churn 빈 세션 차단.
-      if (deps.hasCompactableHistory && !deps.hasCompactableHistory()) return;
-      compactionRequested = true;
-      // 이미 idle이면 tick을 기다리지 않고 즉시 압축한다.
-      maybeStartCompaction();
     },
     subscribeState(cb) {
       stateSubscribers.add(cb);

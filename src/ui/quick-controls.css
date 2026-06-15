@@ -2020,48 +2020,6 @@
   background: var(--yui-danger);
 }
 
-.yui-session__grid {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 0.36rem 0.7rem;
-  align-items: baseline;
-  padding: 0.5rem 0 0.1rem;
-}
-
-.yui-session__grid .k {
-  color: var(--yui-text-mute);
-  font-size: 0.68rem;
-  line-height: 1.2;
-}
-
-.yui-session__grid .v {
-  color: var(--yui-text-dim);
-  font-size: 0.72rem;
-  font-weight: 650;
-  line-height: 1.2;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.yui-session__grid .v .arrow {
-  color: var(--yui-text-mute);
-  font-weight: 600;
-  margin: 0 0.28rem;
-}
-
-.yui-session__grid .v .removed {
-  color: var(--yui-text-mute);
-  font-weight: 500;
-  margin-left: 0.4rem;
-}
-
-.yui-session__empty {
-  color: var(--yui-text-mute);
-  font-size: 0.72rem;
-  font-weight: 500;
-  text-align: right;
-}
-
 .yui-session__action {
   padding: 0.5rem 0 0.2rem;
 }
