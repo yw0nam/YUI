@@ -3,11 +3,11 @@
  *
  * Pins the contract for src/io/session-diagnostics.ts:
  *   createSessionDiagnosticsStore(storage?)
- *     → { get, setUsage, setLastCompression, clear, subscribe, reloadFromStorage, dispose }
+ *     → { get, setUsage, clear, subscribe, reloadFromStorage, dispose }
  *   localStorageSessionDiagnosticsStorage(key?) localStorage adapter
  *
  * Mirrors endpoints-settings idioms: notify only on actual change, coerce junk
- * to defaults, the `at` timestamp is passed in (store never calls new Date()).
+ * to defaults.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -20,7 +20,6 @@ import {
 const DEFAULTS: SessionDiagnostics = {
   usedTokens: null,
   contextWindow: null,
-  lastCompression: null,
 };
 
 function makeMemStorage(): SessionDiagnosticsStorage & {
@@ -64,12 +63,6 @@ describe("createSessionDiagnosticsStore — defaults", () => {
     storage._data = {
       usedTokens: 1234,
       contextWindow: 200_000,
-      lastCompression: {
-        beforeTokens: 1000,
-        afterTokens: 400,
-        removed: 600,
-        at: "2026-06-09T00:00:00Z",
-      },
     };
     const store = createSessionDiagnosticsStore(storage);
     expect(store.get()).toEqual(storage._data);
@@ -81,26 +74,11 @@ describe("createSessionDiagnosticsStore — defaults", () => {
         ({
           usedTokens: "nope",
           contextWindow: {},
-          lastCompression: 7,
         }) as unknown as SessionDiagnostics,
       save: vi.fn(),
     };
     const store = createSessionDiagnosticsStore(storage);
     expect(store.get()).toEqual(DEFAULTS);
-  });
-
-  it("coerces a partial/garbage lastCompression to null", () => {
-    const storage: SessionDiagnosticsStorage = {
-      load: () =>
-        ({
-          usedTokens: 10,
-          contextWindow: 100,
-          lastCompression: { beforeTokens: 5 }, // missing fields
-        }) as unknown as SessionDiagnostics,
-      save: vi.fn(),
-    };
-    const store = createSessionDiagnosticsStore(storage);
-    expect(store.get()).toEqual({ usedTokens: 10, contextWindow: 100, lastCompression: null });
   });
 
   it("storage.load() returning null falls back to defaults", () => {
@@ -134,7 +112,6 @@ describe("createSessionDiagnosticsStore — setUsage", () => {
     expect(store.get()).toEqual({
       usedTokens: 1500,
       contextWindow: 200_000,
-      lastCompression: null,
     });
     expect(cb).toHaveBeenCalledOnce();
     expect(cb.mock.calls[0][0]).toEqual(store.get());
@@ -144,7 +121,7 @@ describe("createSessionDiagnosticsStore — setUsage", () => {
   it("accepts null contextWindow (unknown max)", () => {
     const store = createSessionDiagnosticsStore();
     store.setUsage(900, null);
-    expect(store.get()).toEqual({ usedTokens: 900, contextWindow: null, lastCompression: null });
+    expect(store.get()).toEqual({ usedTokens: 900, contextWindow: null });
   });
 
   it("persists via storage.save", () => {
@@ -154,19 +131,6 @@ describe("createSessionDiagnosticsStore — setUsage", () => {
     expect(storage._data).toEqual({
       usedTokens: 42,
       contextWindow: 200_000,
-      lastCompression: null,
-    });
-  });
-
-  it("does not clobber lastCompression", () => {
-    const store = createSessionDiagnosticsStore();
-    store.setLastCompression({ beforeTokens: 100, afterTokens: 40, removed: 60, at: "t" });
-    store.setUsage(7, 200_000);
-    expect(store.get().lastCompression).toEqual({
-      beforeTokens: 100,
-      afterTokens: 40,
-      removed: 60,
-      at: "t",
     });
   });
 
@@ -177,45 +141,6 @@ describe("createSessionDiagnosticsStore — setUsage", () => {
     store.subscribe(cb);
     store.setUsage(100, 200_000);
     store.setUsage(100, 200_000);
-    expect(cb).toHaveBeenCalledOnce();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// setLastCompression
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("createSessionDiagnosticsStore — setLastCompression", () => {
-  it("stores the entry, persists, and notifies", () => {
-    const storage = makeMemStorage();
-    const store = createSessionDiagnosticsStore(storage);
-    const cb = vi.fn();
-    store.subscribe(cb);
-    const entry = {
-      beforeTokens: 1000,
-      afterTokens: 400,
-      removed: 600,
-      at: "2026-06-09T12:00:00Z",
-    };
-    store.setLastCompression(entry);
-    expect(store.get().lastCompression).toEqual(entry);
-    expect(storage._data?.lastCompression).toEqual(entry);
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("uses the caller-supplied `at` timestamp verbatim", () => {
-    const store = createSessionDiagnosticsStore();
-    store.setLastCompression({ beforeTokens: 1, afterTokens: 1, removed: 0, at: "FIXED-ISO" });
-    expect(store.get().lastCompression?.at).toBe("FIXED-ISO");
-  });
-
-  it("identical entry is a no-op (no notify)", () => {
-    const store = createSessionDiagnosticsStore();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    const entry = { beforeTokens: 1, afterTokens: 1, removed: 0, at: "x" };
-    store.setLastCompression(entry);
-    store.setLastCompression({ ...entry });
     expect(cb).toHaveBeenCalledOnce();
   });
 });
@@ -258,7 +183,7 @@ describe("createSessionDiagnosticsStore — reloadFromStorage", () => {
     const store = createSessionDiagnosticsStore(storage);
     const cb = vi.fn();
     store.subscribe(cb);
-    storage._data = { usedTokens: 999, contextWindow: 200_000, lastCompression: null };
+    storage._data = { usedTokens: 999, contextWindow: 200_000 };
     store.reloadFromStorage();
     expect(store.get().usedTokens).toBe(999);
     expect(cb).toHaveBeenCalledOnce();
@@ -343,7 +268,6 @@ describe("localStorageSessionDiagnosticsStorage", () => {
     const value: SessionDiagnostics = {
       usedTokens: 7,
       contextWindow: 200_000,
-      lastCompression: { beforeTokens: 9, afterTokens: 3, removed: 6, at: "iso" },
     };
     adapter.save(value);
     expect(adapter.load()).toEqual(value);

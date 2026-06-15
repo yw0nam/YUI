@@ -52,8 +52,8 @@ function userEnv(text = "안녕"): BusEnvelope {
   };
 }
 
-function completedEvent(env: ControlEnvelope): ChatStreamEvent {
-  return { type: "completed", envelope: env };
+function completedEvent(env: ControlEnvelope, responseId = "resp_new"): ChatStreamEvent {
+  return { type: "completed", envelope: env, responseId };
 }
 
 function deltaEvent(text: string): ChatStreamEvent {
@@ -456,7 +456,7 @@ describe("backend_caller — agent settings (reasoning effort + instructions)", 
     expect(request.instructions).toBe("be terse");
   });
 
-  it("getAgentSettings 'default'/empty → no reasoning_effort, no instructions on the request", async () => {
+  it("getAgentSettings 'none' → reasoning_effort always sent; empty instructions omitted", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
@@ -464,11 +464,11 @@ describe("backend_caller — agent settings (reasoning effort + instructions)", 
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       onSpeech: speechSink,
-      getAgentSettings: () => ({ reasoning_effort: "default", instructions: "" }),
+      getAgentSettings: () => ({ reasoning_effort: "none", instructions: "" }),
     });
     await caller.call(userEnv());
     const [, request] = streamChatSpy.mock.calls[0];
-    expect("reasoning_effort" in request).toBe(false);
+    expect(request.reasoning_effort).toBe("none");
     expect("instructions" in request).toBe(false);
   });
 
@@ -720,10 +720,10 @@ describe("backend_caller — structured logging", () => {
   });
 });
 
-// ── session id threading → streamChat opts.sessionId ───────────────────────────
+// ── previous_response_id threading (OpenAI Responses conversation state) ────────
 
-describe("backend_caller — session id threading (X-Hermes-Session-Id)", () => {
-  it("getSessionId present → streamChat opts carry sessionId", async () => {
+describe("backend_caller — previous_response_id threading", () => {
+  it("getPreviousResponseId present → request.previous_response_id carries it", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
@@ -731,21 +731,14 @@ describe("backend_caller — session id threading (X-Hermes-Session-Id)", () => 
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       onSpeech: speechSink,
-      getSessionId: () => "sess-1",
+      getPreviousResponseId: () => "resp_prev",
     });
     await caller.call(userEnv());
-    const [, , opts] = streamChatSpy.mock.calls[0];
-    expect(opts.sessionId).toBe("sess-1");
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect(request.previous_response_id).toBe("resp_prev");
   });
 
-  it("getSessionId absent → streamChat opts.sessionId is undefined", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
-    await caller.call(userEnv());
-    const [, , opts] = streamChatSpy.mock.calls[0];
-    expect(opts.sessionId).toBeUndefined();
-  });
-
-  it("getSessionId returns undefined → streamChat opts.sessionId is undefined", async () => {
+  it("getPreviousResponseId returns undefined → no previous_response_id (first turn)", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
@@ -753,29 +746,104 @@ describe("backend_caller — session id threading (X-Hermes-Session-Id)", () => 
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       onSpeech: speechSink,
-      getSessionId: () => undefined,
+      getPreviousResponseId: () => undefined,
     });
     await caller.call(userEnv());
-    const [, , opts] = streamChatSpy.mock.calls[0];
-    expect(opts.sessionId).toBeUndefined();
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect("previous_response_id" in request).toBe(false);
   });
 
-  it("reads the session id fresh each turn (not cached at construction)", async () => {
-    let current = "sess-1";
+  it("getPreviousResponseId absent → no previous_response_id (back-compat)", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect("previous_response_id" in request).toBe(false);
+  });
+
+  it("successful completed turn → onResponseId called once with the completed responseId", async () => {
+    const onResponseId = vi.fn();
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       onSpeech: speechSink,
-      getSessionId: () => current,
+      getPreviousResponseId: () => undefined,
+      onResponseId,
     });
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    scriptedEvents = [completedEvent({ speech_text: "hi" }, "resp_123")];
     await caller.call(userEnv());
-    current = "sess-2";
+    expect(onResponseId).toHaveBeenCalledTimes(1);
+    expect(onResponseId).toHaveBeenCalledWith("resp_123");
+  });
+
+  it("aborted turn → onResponseId NOT called", async () => {
+    const onResponseId = vi.fn();
+    const ac = new AbortController();
+    ac.abort();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      onResponseId,
+    });
+    scriptedEvents = [completedEvent({ speech_text: "hi" }, "resp_123")];
+    await caller.call(userEnv(), ac.signal);
+    expect(onResponseId).not.toHaveBeenCalled();
+  });
+
+  it("error event turn → onResponseId NOT called", async () => {
+    const onResponseId = vi.fn();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      onResponseId,
+    });
+    scriptedEvents = [{ type: "error", message: "boom" }];
     await caller.call(userEnv());
-    expect(streamChatSpy.mock.calls[0][2].sessionId).toBe("sess-1");
-    expect(streamChatSpy.mock.calls[1][2].sessionId).toBe("sess-2");
+    expect(onResponseId).not.toHaveBeenCalled();
+  });
+
+  it("no completed envelope (parse_error) → onResponseId NOT called", async () => {
+    const onResponseId = vi.fn();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      onResponseId,
+    });
+    scriptedEvents = [deltaEvent("x")];
+    await caller.call(userEnv());
+    expect(onResponseId).not.toHaveBeenCalled();
+  });
+
+  it("R2 race: previous id changed mid-stream (reset) → onResponseId NOT called", async () => {
+    const onResponseId = vi.fn();
+    let current: string | undefined = "resp_prev";
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      // simulate a settings-window reset rotating the id during the in-flight stream.
+      getPreviousResponseId: () => current,
+      onResponseId,
+    });
+    // flip the id after start (read at request-build time) so the completion guard mismatches.
+    speechSink.mockImplementation(() => {
+      current = "resp_rotated";
+    });
+    scriptedEvents = [completedEvent({ speech_text: "hi" }, "resp_123")];
+    await caller.call(userEnv());
+    expect(onResponseId).not.toHaveBeenCalled();
   });
 });
 

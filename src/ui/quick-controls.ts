@@ -117,10 +117,10 @@ const VIEWPORT_MARGIN = 12;
 const POS_KEY = "yui.quick.pos";
 
 const SEG_LABELS: Record<ReasoningEffort, string> = {
-  default: "기본값",
+  none: "없음",
+  minimal: "최소",
   low: "Low",
   medium: "Medium",
-  high: "High",
 };
 
 // 엔드포인트 섹션: 편집 가능한 5개 필드. url=true면 isValidEndpointUrl 라이브 검증.
@@ -169,20 +169,6 @@ export function formatTokenCount(n: number): string {
   const k = n / 1000;
   if (k >= 100) return `${Math.round(k)}K`;
   return `${k.toFixed(1).replace(/\.0$/, "")}K`;
-}
-
-// 과거 ISO 시각을 현재 기준 상대 표현으로. just now / N minutes ago / N hours ago / N days ago.
-export function formatRelativeTime(iso: string, now = Date.now()): string {
-  const then = Date.parse(iso);
-  if (!Number.isFinite(then)) return "";
-  const sec = Math.max(0, Math.round((now - then) / 1000));
-  if (sec < 45) return "just now";
-  const min = Math.round(sec / 60);
-  if (min < 60) return `${min} minute${min === 1 ? "" : "s"} ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr} hour${hr === 1 ? "" : "s"} ago`;
-  const day = Math.round(hr / 24);
-  return `${day} day${day === 1 ? "" : "s"} ago`;
 }
 
 interface SavedPos {
@@ -289,8 +275,7 @@ export function createQuickControls({
           </div>`;
   }).join("");
 
-  // 세션 섹션(window 전용). compacting/disabled 상태는 의도적으로 구현하지 않는다 —
-  // dispatcher의 compacting 상태는 창 간 전파되지 않고, reset은 펫 창 thunk가 이미 race-safe.
+  // 세션 섹션(window 전용). 토큰 점유량 표시 + 대화 초기화 액션. reset은 펫 창 thunk가 race-safe.
   const sessionHtml = hasSession
     ? `
       <div class="yui-quick__divider" aria-hidden="true"></div>
@@ -301,12 +286,6 @@ export function createQuickControls({
             <span class="yui-session__label">Context</span>
             <span class="yui-session__value"></span>
           </div>
-        </div>
-        <div class="yui-session__grid">
-          <span class="k">Last compression</span>
-          <span class="yui-session__last"></span>
-          <span class="yui-session__when-k">When</span>
-          <span class="yui-session__when-v v"></span>
         </div>
         <div class="yui-quick__divider" aria-hidden="true"></div>
         <div class="yui-session__action">
@@ -584,9 +563,6 @@ export function createQuickControls({
   // 세션 섹션 노드(window 전용 — 없으면 null).
   const sessionStatEl = el.querySelector<HTMLDivElement>(".yui-session__stat");
   const sessionValueEl = el.querySelector<HTMLSpanElement>(".yui-session__value");
-  const sessionLastEl = el.querySelector<HTMLSpanElement>(".yui-session__last");
-  const sessionWhenKEl = el.querySelector<HTMLSpanElement>(".yui-session__when-k");
-  const sessionWhenVEl = el.querySelector<HTMLSpanElement>(".yui-session__when-v");
   const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
   const sessionConfirmEl = el.querySelector<HTMLDivElement>(".yui-confirm");
   const sessionConfirmBtn = el.querySelector<HTMLButtonElement>(".yui-session__confirm");
@@ -764,38 +740,6 @@ export function createQuickControls({
       fill.classList.toggle("is-high", pct >= 85);
     } else if (meter) {
       meter.remove();
-    }
-
-    // 마지막 압축 — 없으면 muted placeholder, 있으면 before → after (N) + 상대시간.
-    const lc = d.lastCompression;
-    if (!sessionLastEl) return;
-    if (lc === null) {
-      sessionLastEl.className = "yui-session__empty";
-      sessionLastEl.textContent = "No compression yet";
-      if (sessionWhenKEl) sessionWhenKEl.hidden = true;
-      if (sessionWhenVEl) {
-        sessionWhenVEl.className = "yui-session__when-v";
-        sessionWhenVEl.hidden = true;
-        sessionWhenVEl.textContent = "";
-      }
-    } else {
-      sessionLastEl.className = "v";
-      sessionLastEl.textContent = "";
-      sessionLastEl.append(formatTokenCount(lc.beforeTokens));
-      const arrow = document.createElement("span");
-      arrow.className = "arrow";
-      arrow.textContent = "→";
-      const after = document.createTextNode(formatTokenCount(lc.afterTokens));
-      const removed = document.createElement("span");
-      removed.className = "removed";
-      removed.textContent = `${lc.removed} messages removed`;
-      sessionLastEl.append(arrow, after, removed);
-      if (sessionWhenKEl) sessionWhenKEl.hidden = false;
-      if (sessionWhenVEl) {
-        sessionWhenVEl.className = "yui-session__when-v v";
-        sessionWhenVEl.hidden = false;
-        sessionWhenVEl.textContent = formatRelativeTime(lc.at);
-      }
     }
   }
 

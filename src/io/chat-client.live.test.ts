@@ -74,3 +74,71 @@ describe.skipIf(!LIVE)("streamChat — LIVE Hermes (SecretProvider 경로)", () 
     expect(events.some((e) => e.type === "completed")).toBe(false);
   }, 30_000);
 });
+
+/** 한 턴을 끝까지 소비해 completed 이벤트(speech_text + responseId)를 돌려준다. */
+async function runTurn(
+  request: Parameters<typeof streamChat>[1],
+  apiKey?: string,
+): Promise<{ speech_text: string; responseId: string }> {
+  let speech_text = "";
+  let responseId = "";
+  for await (const ev of streamChat(endpoints, request, { apiKey })) {
+    if (ev.type === "error") throw new Error(`stream error: ${ev.message}`);
+    if (ev.type === "completed") {
+      speech_text = ev.envelope.speech_text;
+      responseId = ev.responseId;
+    }
+  }
+  return { speech_text, responseId };
+}
+
+describe.skipIf(!LIVE)("streamChat — LIVE previous_response_id 대화 스레딩", () => {
+  it("턴1 responseId를 턴2에 넘기면 이름을 회상하고, 안 넘기면 회상하지 못한다", async () => {
+    const apiKey = process.env.YUI_CHAT_KEY;
+    expect(apiKey, "YUI_CHAT_KEY env가 있어야 함").toBeTruthy();
+
+    const turn1 = await runTurn(
+      { input: "내 이름은 철수야. 기억해둬. 한 문장으로 짧게 답해줘." },
+      apiKey,
+    );
+    console.log("[live] turn1 responseId:", turn1.responseId);
+    expect(turn1.responseId, "completed가 response.id를 실어야 함").toMatch(/^resp_/);
+
+    // 같은 스레드(previous_response_id 전달) → 이름 회상.
+    const withThread = await runTurn(
+      { input: "내 이름이 뭐야? 한 단어로 답해줘.", previous_response_id: turn1.responseId },
+      apiKey,
+    );
+    console.log("[live] with-thread:", JSON.stringify(withThread.speech_text));
+    expect(withThread.speech_text).toContain("철수");
+
+    // 스레드 미전달(새 대화) → 회상 불가.
+    const withoutThread = await runTurn(
+      { input: "내 이름이 뭐야? 한 단어로 답해줘." },
+      apiKey,
+    );
+    console.log("[live] without-thread:", JSON.stringify(withoutThread.speech_text));
+    expect(withoutThread.speech_text).not.toContain("철수");
+  }, 90_000);
+});
+
+describe.skipIf(!LIVE)("streamChat — LIVE reasoning.effort 수용", () => {
+  it.each(["none", "minimal"] as const)(
+    "reasoning_effort '%s' 요청을 error 없이 completed로 수용한다",
+    async (effort) => {
+      const apiKey = process.env.YUI_CHAT_KEY;
+      expect(apiKey, "YUI_CHAT_KEY env가 있어야 함").toBeTruthy();
+      const events: ChatStreamEvent[] = [];
+      for await (const ev of streamChat(
+        endpoints,
+        { input: "한 문장으로 짧게 인사해줘.", reasoning_effort: effort },
+        { apiKey },
+      )) {
+        events.push(ev);
+      }
+      expect(events.some((e) => e.type === "error")).toBe(false);
+      expect(events.some((e) => e.type === "completed")).toBe(true);
+    },
+    60_000,
+  );
+});

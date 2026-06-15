@@ -38,7 +38,6 @@ import {
 } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
-import { createCompactionTrigger } from "./io/compaction-trigger";
 import {
   createEndpointsSettings,
   localStorageEndpointsStorage,
@@ -59,7 +58,6 @@ import { createScheduleSettings, localStorageScheduleStorage } from "./io/schedu
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
-import { createSessionCompactor } from "./io/session-compactor";
 import {
   createSessionDiagnosticsStore,
   localStorageSessionDiagnosticsStorage,
@@ -611,8 +609,6 @@ async function bootstrap(): Promise<void> {
   // dispatcher는 config 로드 후 생성되므로(backend_caller가 config.get()에 의존), dev 인스펙션
   // 핸들이 참조할 수 있게 forward holder를 둔다.
   let dispatcherRef: Dispatcher | null = null;
-  // 현재 세션이 backend에 등록됐는지(첫 usage 턴 이후 true). 빈 세션 압축 404를 막는 게이트.
-  let sessionHasTurn = false;
   // 발화 후보 소스도 config(cfg.sources) 로드 후 생성 — teardown에서 stop하도록 holder를 둔다.
   let proactiveSourceRef: { stop(): void; noteInteraction(ts?: number): void } | null = null;
   let scheduleSourceRef: { stop(): void } | null = null;
@@ -768,21 +764,6 @@ async function bootstrap(): Promise<void> {
       "chat API 키 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. 설정 패널의 채팅 API 키 또는 .env.local(VITE_YUI_CHAT_KEY) 참고.",
     );
   }
-  // compactor의 getApiKey/getFetch는 동기 — async SecretProvider/selectFetch를 해소해 캐시한다.
-  // transport는 환경별로 안정적이라 1회 워밍하면 충분하지만, chat 키는 런타임 오버라이드로
-  // 바뀔 수 있어 store 변경마다 재해소해 compactor가 활성 키와 어긋나지 않게 한다(값은 로깅 금지).
-  let chatApiKey: string | undefined;
-  let chatFetch: typeof globalThis.fetch | undefined;
-  const refreshChatApiKey = (): void => {
-    void config.secrets.get(CHAT_API_KEY_SECRET).then((k) => {
-      chatApiKey = k;
-    });
-  };
-  refreshChatApiKey();
-  chatKeySettings.subscribe(refreshChatApiKey);
-  void selectFetch().then((f) => {
-    chatFetch = f;
-  });
   // synth는 호출 시점에 config(핫리로드)와 selectFetch를 읽는 closure로 주입한다.
   // config.get()을 여기서 eager 평가하면 load() 전 throw로 부트스트랩이 죽으니 금지.
   // 재생 진폭은 renderer 입 모양으로, 재생 완료는 말풍선 페이드 해제로 흐른다(speech-playback).
@@ -853,41 +834,9 @@ async function bootstrap(): Promise<void> {
   }
 
   // ── 세션 연속성 ───────────────────────────────────────────────────────────
-  // 압축 클라이언트 + 토큰 점유 히스테리시스 트리거. compact thunk가 store들을 조립해
-  // dispatcher에 넘긴다 — dispatcher는 store-agnostic이므로 rotation/진단/trigger 피드백은
-  // 여기서 일어난다. session store들은 위에서 wireStorageSync 대상으로 일찍 만든다.
-  const compactor = createSessionCompactor({
-    get config() {
-      return getEndpoints();
-    },
-    getFetch: () => chatFetch,
-    getApiKey: () => chatApiKey,
-  });
-  const compactionTrigger = createCompactionTrigger({
-    // lazy: load() 전 eager 평가 금지 + 노브 핫리로드 반영.
-    contextWindow: () => getEndpoints().chat_model_context_window,
-    thresholdRatio: () => getEndpoints().compact_threshold_ratio ?? 0.7,
-    resumeRatio: () => getEndpoints().compact_resume_ratio ?? 0.5,
-    onTrigger: () => dispatcherRef?.requestCompaction(),
-  });
-  // 압축 thunk: 회전 id 적용 + 진단 기록 + trigger 피드백. dispatcher가 timeout과 race해 호출.
-  const compact = async (signal: AbortSignal) => {
-    const startId = sessionStore.get();
-    const result = await compactor.compress(startId, signal);
-    // 압축 중 reset이 새 id를 발급했으면 회전·진단을 건너뛴다 — 폐기된 세션의 연속분 부활 방지.
-    if (result.status === "compressed" && result.session_id && sessionStore.get() === startId) {
-      sessionStore.set(result.session_id);
-      sessionDiagnostics.setLastCompression({
-        beforeTokens: result.before_tokens ?? 0,
-        afterTokens: result.after_tokens ?? 0,
-        removed: result.removed ?? 0,
-        at: new Date().toISOString(),
-      });
-    }
-    compactionTrigger.noteResult(result);
-    return result;
-  };
-
+  // 대화 스레딩은 OpenAI Responses의 previous_response_id로 잇는다 — 매 턴 직전 id를 읽어
+  // 보내고(getPreviousResponseId), 성공한 턴의 새 response id를 저장한다(onResponseId).
+  // session store는 위에서 wireStorageSync 대상으로 일찍 만든다.
   const backendCaller = createBackendCaller({
     get config() {
       return getEndpoints();
@@ -895,10 +844,9 @@ async function bootstrap(): Promise<void> {
     renderer,
     getApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
     getFetch: () => selectFetch(),
-    getSessionId: () => sessionStore.get(),
+    getPreviousResponseId: () => sessionStore.get() ?? undefined,
+    onResponseId: (id) => sessionStore.set(id),
     onUsage: (usage) => {
-      if (usage.total_tokens > 0) sessionHasTurn = true;
-      compactionTrigger.noteUsage(usage.total_tokens);
       sessionDiagnostics.setUsage(
         usage.total_tokens,
         getEndpoints().chat_model_context_window ?? null,
@@ -930,29 +878,14 @@ async function bootstrap(): Promise<void> {
       renderer,
       backendCaller,
       guardrails,
-      compact,
-      getSessionId: () => sessionStore.get(),
-      hasCompactableHistory: () => sessionHasTurn,
-      compactTimeoutMs: getEndpoints().compact_timeout_ms ?? 12000,
     });
     dispatcherRef = dispatcher;
-    // 압축 중 입력 비활성화(field disabled + pending 디밍). busy 캐릭터 cue는 dispatcher가 처리.
-    const unsubCompactState = dispatcher.subscribeState((s) => {
-      surfaces.setInputEnabled(s !== "compacting");
-    });
-    // 세션 id 회전(설정 창 reset 등) → trigger 재무장.
-    const unsubSessionReset = sessionStore.subscribe(() => {
-      compactionTrigger.reset();
-      sessionHasTurn = false;
-    });
     // HMR로 모듈이 재실행되면 이전 dispatcher의 setInterval/ in-flight가 남는다 → dispose에서 정지.
     if (import.meta.env.DEV) {
       import.meta.hot?.dispose(() => {
         dispatcher.stop();
         proactiveSourceRef?.stop();
         scheduleSourceRef?.stop();
-        unsubCompactState();
-        unsubSessionReset();
         sessionStore.dispose();
         sessionDiagnostics.dispose();
       });
@@ -1068,31 +1001,6 @@ async function bootstrap(): Promise<void> {
     if (import.meta.env.DEV) import.meta.hot?.dispose(unsubscribeBrokerOverride);
   } catch (err) {
     log.error("config_or_vrm_load_failed", { error: String(err) });
-  }
-
-  // 유휴/배경 전이마다 압축 기회를 노린다. requestCompaction은 idempotent —
-  // 세션 부재·이미 compacting·중복 발사를 dispatcher가 삼킨다. macOS 포커스 churn을
-  // 막기 위해 1s 디바운스 가드를 둔다(performance.now 기준 — Date.now 의존 회피).
-  const COMPACT_TRIGGER_DEBOUNCE_MS = 1000;
-  let lastTrigger = -Infinity;
-  function requestCompactionDebounced(): void {
-    const now = performance.now();
-    if (now - lastTrigger < COMPACT_TRIGGER_DEBOUNCE_MS) return;
-    lastTrigger = now;
-    dispatcherRef?.requestCompaction();
-  }
-  function onVisibilityChange(): void {
-    requestCompactionDebounced();
-  }
-  window.addEventListener("focus", requestCompactionDebounced);
-  window.addEventListener("blur", requestCompactionDebounced);
-  document.addEventListener("visibilitychange", onVisibilityChange);
-  if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => {
-      window.removeEventListener("focus", requestCompactionDebounced);
-      window.removeEventListener("blur", requestCompactionDebounced);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    });
   }
 
   // 핫리로드: avatar manifest가 바뀌면 setManifest로 갱신 후 active VRM 핫스왑.

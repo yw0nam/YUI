@@ -663,10 +663,10 @@ describe("streamChat — SDK request wiring", () => {
   it("sends reasoning.effort when request.reasoning_effort is set", async () => {
     createMock.mockResolvedValue(streamOf([completed("")]));
 
-    await collect(streamChat(CONFIG, req({ reasoning_effort: "high" })));
+    await collect(streamChat(CONFIG, req({ reasoning_effort: "none" })));
 
     const body = createMock.mock.calls[0]?.[0];
-    expect((body as any).reasoning).toEqual({ effort: "high" });
+    expect((body as any).reasoning).toEqual({ effort: "none" });
   });
 
   it("omits `reasoning` when request.reasoning_effort is absent", async () => {
@@ -718,27 +718,41 @@ describe("streamChat — SDK request wiring", () => {
   });
 });
 
-describe("streamChat — X-Hermes-Session-Id header", () => {
-  it("sends X-Hermes-Session-Id in the create() request options when sessionId is set", async () => {
-    createMock.mockResolvedValue(streamOf([completed("")]));
-
-    await collect(streamChat(CONFIG, req(), { sessionId: "abc" }));
-
-    expect(createMock).toHaveBeenCalledTimes(1);
-    const opts = createMock.mock.calls[0]?.[1];
-    expect((opts as any).headers).toBeDefined();
-    expect((opts as any).headers["X-Hermes-Session-Id"]).toBe("abc");
-  });
-
-  it("omits the header (no empty-string value) when sessionId is absent", async () => {
+describe("streamChat — no custom session header", () => {
+  it("never sends an X-Hermes-Session-Id header in the create() request options", async () => {
     createMock.mockResolvedValue(streamOf([completed("")]));
 
     await collect(streamChat(CONFIG, req()));
 
+    expect(createMock).toHaveBeenCalledTimes(1);
     const opts = createMock.mock.calls[0]?.[1];
-    // headers is either undefined or lacks the key — never an empty-string session id.
-    const headers = (opts as any)?.headers;
-    expect(headers?.["X-Hermes-Session-Id"]).toBeUndefined();
+    expect((opts as any)?.headers?.["X-Hermes-Session-Id"]).toBeUndefined();
+  });
+});
+
+describe("streamChat — completed responseId", () => {
+  it("surfaces response.id on the completed event", async () => {
+    const ev = completed("hi");
+    ev.response.id = "resp_abc";
+    ev.response.usage = { input_tokens: 1, output_tokens: 1, total_tokens: 2 };
+    createMock.mockResolvedValue(streamOf([textDelta("hi"), textDone("hi"), ev]));
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const final = events.find((e) => e.type === "completed");
+    expect(final).toBeDefined();
+    if (final!.type !== "completed") throw new Error("narrow");
+    expect(final.responseId).toBe("resp_abc");
+  });
+
+  it("defaults responseId to '' when response.id is absent", async () => {
+    const ev = completed("hi");
+    delete ev.response.id;
+    createMock.mockResolvedValue(streamOf([textDone("hi"), ev]));
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const final = events.find((e) => e.type === "completed");
+    if (final!.type !== "completed") throw new Error("narrow");
+    expect(final.responseId).toBe("");
   });
 });
 

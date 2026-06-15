@@ -1,17 +1,15 @@
 /**
- * session-store.test.ts — single-scalar Hermes session-id reactive store.
+ * session-store.test.ts — single-scalar last-response-id reactive store.
  *
  * Pins the contract for src/io/session-store.ts:
  *   createSessionStore(storage?) store (get/set/clear/reloadFromStorage/subscribe/dispose)
  *   localStorageSessionStorage(key?) localStorage adapter
- *   get() mints + persists a UUID on first access; never returns empty.
+ *   get() returns the stored response id or null (no minting, no side effects).
  */
 
 import { describe, expect, it, vi } from "vitest";
 import type { SessionStorage } from "./session-store";
 import { createSessionStore, localStorageSessionStorage } from "./session-store";
-
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function makeMemStorage(initial: string | null = null): SessionStorage & {
   _data: string | null;
@@ -37,59 +35,46 @@ function makeMemStorage(initial: string | null = null): SessionStorage & {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// get — mint on first access
+// get — read-only, null when empty
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createSessionStore — get mints on first access", () => {
-  it("mints a v4-shaped UUID when nothing is stored", () => {
+describe("createSessionStore — get", () => {
+  it("returns null when nothing is stored", () => {
     const store = createSessionStore(makeMemStorage());
-    expect(store.get()).toMatch(UUID_V4);
+    expect(store.get()).toBeNull();
   });
 
-  it("persists the freshly minted id to storage", () => {
+  it("has no save/notify side effect on an empty store", () => {
     const storage = makeMemStorage();
+    const saveSpy = vi.spyOn(storage, "save");
     const store = createSessionStore(storage);
-    const id = store.get();
-    expect(storage._data).toBe(id);
-  });
-
-  it("subsequent get() returns the same id without re-minting", () => {
-    const storage = makeMemStorage();
-    const store = createSessionStore(storage);
-    const first = store.get();
-    const second = store.get();
-    expect(second).toBe(first);
-  });
-
-  it("returns a stored id without minting a new one", () => {
-    const store = createSessionStore(makeMemStorage("11111111-1111-4111-8111-111111111111"));
-    expect(store.get()).toBe("11111111-1111-4111-8111-111111111111");
-  });
-
-  it("never returns empty even with no storage at all", () => {
-    const store = createSessionStore();
-    expect(store.get()).toMatch(UUID_V4);
-    expect(store.get()).toBe(store.get());
-  });
-
-  it("treats non-string stored junk as absent and mints", () => {
-    const storage = makeMemStorage(42 as unknown as string);
-    const store = createSessionStore(storage);
-    expect(store.get()).toMatch(UUID_V4);
-  });
-
-  it("treats empty/whitespace stored value as absent and mints", () => {
-    const store = createSessionStore(makeMemStorage("   "));
-    expect(store.get()).toMatch(UUID_V4);
-  });
-
-  it("notifies subscribers when get() mints a new id", () => {
-    const store = createSessionStore(makeMemStorage());
     const cb = vi.fn();
     store.subscribe(cb);
-    const id = store.get();
-    expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith(id);
+    expect(store.get()).toBeNull();
+    expect(storage._data).toBeNull();
+    expect(saveSpy).not.toHaveBeenCalled();
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("returns a stored response id", () => {
+    const store = createSessionStore(makeMemStorage("resp_seed"));
+    expect(store.get()).toBe("resp_seed");
+  });
+
+  it("returns null when no storage at all", () => {
+    const store = createSessionStore();
+    expect(store.get()).toBeNull();
+  });
+
+  it("treats non-string stored junk as absent (null)", () => {
+    const storage = makeMemStorage(42 as unknown as string);
+    const store = createSessionStore(storage);
+    expect(store.get()).toBeNull();
+  });
+
+  it("treats empty/whitespace stored value as absent (null)", () => {
+    const store = createSessionStore(makeMemStorage("   "));
+    expect(store.get()).toBeNull();
   });
 });
 
@@ -98,67 +83,59 @@ describe("createSessionStore — get mints on first access", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createSessionStore — set", () => {
+  it("set then get returns the value", () => {
+    const store = createSessionStore(makeMemStorage());
+    store.set("resp_x");
+    expect(store.get()).toBe("resp_x");
+  });
+
   it("persists the new id and notifies", () => {
-    const storage = makeMemStorage("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    const storage = makeMemStorage("resp_a");
     const store = createSessionStore(storage);
     const cb = vi.fn();
     store.subscribe(cb);
-    store.set("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
-    expect(store.get()).toBe("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
-    expect(storage._data).toBe("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+    store.set("resp_b");
+    expect(store.get()).toBe("resp_b");
+    expect(storage._data).toBe("resp_b");
     expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+    expect(cb).toHaveBeenCalledWith("resp_b");
+  });
+
+  it("ignores empty / whitespace / non-string values", () => {
+    const store = createSessionStore(makeMemStorage("resp_keep"));
+    store.set("");
+    store.set("   ");
+    store.set(123 as unknown as string);
+    expect(store.get()).toBe("resp_keep");
   });
 
   it("is a no-op when setting the same value (no save, no notify)", () => {
-    const storage = makeMemStorage("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+    const storage = makeMemStorage("resp_same");
     const saveSpy = vi.spyOn(storage, "save");
     const store = createSessionStore(storage);
-    store.get();
     const cb = vi.fn();
     store.subscribe(cb);
-    store.set("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+    store.set("resp_same");
     expect(cb).not.toHaveBeenCalled();
     expect(saveSpy).not.toHaveBeenCalled();
-  });
-
-  it("changes state for a subscriber added after the first get()", () => {
-    const store = createSessionStore(makeMemStorage());
-    const minted = store.get();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.set("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
-    expect(cb).toHaveBeenCalledOnce();
-    expect(minted).not.toBe("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// clear — drop + re-mint
+// clear — drop to null
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createSessionStore — clear", () => {
-  it("drops the stored id", () => {
-    const storage = makeMemStorage();
+  it("drops the stored id and get() returns null", () => {
+    const storage = makeMemStorage("resp_drop");
     const store = createSessionStore(storage);
-    store.get();
-    expect(storage._data).not.toBeNull();
     store.clear();
+    expect(store.get()).toBeNull();
     expect(storage._data).toBeNull();
   });
 
-  it("the next get() mints a NEW different id", () => {
-    const store = createSessionStore(makeMemStorage());
-    const first = store.get();
-    store.clear();
-    const second = store.get();
-    expect(second).toMatch(UUID_V4);
-    expect(second).not.toBe(first);
-  });
-
   it("notifies subscribers on clear (with null)", () => {
-    const store = createSessionStore(makeMemStorage());
-    store.get();
+    const store = createSessionStore(makeMemStorage("resp_drop"));
     const cb = vi.fn();
     store.subscribe(cb);
     store.clear();
@@ -181,35 +158,32 @@ describe("createSessionStore — clear", () => {
 
 describe("createSessionStore — reloadFromStorage", () => {
   it("applies an externally-changed stored value and notifies", () => {
-    const storage = makeMemStorage();
+    const storage = makeMemStorage("resp_old");
     const store = createSessionStore(storage);
-    store.get();
     const cb = vi.fn();
     store.subscribe(cb);
 
-    storage._data = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+    storage._data = "resp_new";
     store.reloadFromStorage();
 
-    expect(store.get()).toBe("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
+    expect(store.get()).toBe("resp_new");
     expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
+    expect(cb).toHaveBeenCalledWith("resp_new");
   });
 
   it("identical stored value is a no-op (no notify)", () => {
-    const storage = makeMemStorage();
+    const storage = makeMemStorage("resp_keep");
     const store = createSessionStore(storage);
-    const id = store.get();
     const cb = vi.fn();
     store.subscribe(cb);
-    storage._data = id;
+    storage._data = "resp_keep";
     store.reloadFromStorage();
     expect(cb).not.toHaveBeenCalled();
   });
 
   it("an external clear is picked up and notifies with null", () => {
-    const storage = makeMemStorage();
+    const storage = makeMemStorage("resp_keep");
     const store = createSessionStore(storage);
-    store.get();
     const cb = vi.fn();
     store.subscribe(cb);
     storage._data = null;
@@ -246,6 +220,17 @@ describe("createSessionStore — reloadFromStorage", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// persistence
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createSessionStore — persistence", () => {
+  it("a store over storage already holding a seed returns it", () => {
+    const store = createSessionStore(makeMemStorage("resp_seed"));
+    expect(store.get()).toBe("resp_seed");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // subscribe / dispose
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -254,9 +239,9 @@ describe("createSessionStore — subscribe / dispose", () => {
     const store = createSessionStore(makeMemStorage());
     const cb = vi.fn();
     const unsub = store.subscribe(cb);
-    store.set("11111111-1111-4111-8111-111111111111");
+    store.set("resp_1");
     unsub();
-    store.set("22222222-2222-4222-8222-222222222222");
+    store.set("resp_2");
     expect(cb).toHaveBeenCalledOnce();
   });
 
@@ -265,7 +250,7 @@ describe("createSessionStore — subscribe / dispose", () => {
     const cb = vi.fn();
     store.subscribe(cb);
     store.dispose();
-    store.set("33333333-3333-4333-8333-333333333333");
+    store.set("resp_3");
     expect(cb).not.toHaveBeenCalled();
   });
 });
@@ -288,15 +273,15 @@ describe("localStorageSessionStorage", () => {
     };
 
     const adapter = localStorageSessionStorage();
-    adapter.save("44444444-4444-4444-8444-444444444444");
-    expect(adapter.load()).toBe("44444444-4444-4444-8444-444444444444");
+    adapter.save("resp_roundtrip");
+    expect(adapter.load()).toBe("resp_roundtrip");
     adapter.clear();
     expect(adapter.load()).toBeNull();
 
     delete (globalThis as any).localStorage;
   });
 
-  it("default key is 'yui.session_id'", () => {
+  it("default key is 'yui.previous_response_id'", () => {
     const written: Array<[string, string]> = [];
     (globalThis as any).localStorage = {
       getItem: () => null,
@@ -306,7 +291,7 @@ describe("localStorageSessionStorage", () => {
 
     const adapter = localStorageSessionStorage();
     adapter.save("x");
-    expect(written[0][0]).toBe("yui.session_id");
+    expect(written[0][0]).toBe("yui.previous_response_id");
 
     delete (globalThis as any).localStorage;
   });

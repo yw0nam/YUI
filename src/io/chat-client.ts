@@ -68,7 +68,7 @@ export type ChatStreamEvent =
   | { type: "express"; args: ExpressArgs }
   | { type: "tool_status"; status: ToolStatus }
   | { type: "usage"; usage: Usage }
-  | { type: "completed"; envelope: ControlEnvelope }
+  | { type: "completed"; envelope: ControlEnvelope; responseId: string }
   | { type: "error"; message: string };
 
 /**
@@ -122,8 +122,8 @@ export interface ChatRequest {
   input: unknown;
   /** server-side 대화 상태 (Responses API). */
   previous_response_id?: string;
-  /** Responses reasoning.effort. omit => no reasoning param sent. ("default" maps to omitting upstream.) */
-  reasoning_effort?: "low" | "medium" | "high";
+  /** Responses reasoning.effort. when present → sent as reasoning.effort; omit → no reasoning param sent. */
+  reasoning_effort?: "none" | "minimal" | "low" | "medium";
   /** instructions 런타임 오버라이드. 비어있지 않으면 config.chat_instructions 대신 사용. */
   instructions?: string;
   /** 중도 취소 (in-flight abort). */
@@ -138,8 +138,6 @@ export interface StreamChatOptions {
   apiKey?: string;
   /** Transport fetch override. Tauri=cors-fetch의 fetchCORS, dev/browser=undefined(글로벌 fetch). */
   fetch?: typeof globalThis.fetch;
-  /** client-owned Hermes session id, sent per-request as the X-Hermes-Session-Id header. */
-  sessionId?: string;
 }
 
 /**
@@ -227,17 +225,13 @@ export async function* streamChat(
         ...(config.chat_model ? { model: config.chat_model } : {}),
         // instructions: 요청 오버라이드 우선, 없으면 config nudge. 둘 다 없으면 생략.
         ...(effectiveInstructions ? { instructions: effectiveInstructions } : {}),
-        // reasoning.effort: 요청에 있을 때만 전달("default"는 상위에서 생략으로 매핑).
+        // reasoning.effort: 요청에 있을 때만 전달(none/minimal/low/medium 모두 명시 값).
         ...(request.reasoning_effort ? { reasoning: { effort: request.reasoning_effort } } : {}),
         input: request.input as any,
         previous_response_id: request.previous_response_id,
         stream: true,
       },
-      {
-        signal: request.signal,
-        // session id rotates between turns → per-request header, never defaultHeaders.
-        headers: opts.sessionId ? { "X-Hermes-Session-Id": opts.sessionId } : undefined,
-      },
+      { signal: request.signal },
     )) as unknown as AsyncIterable<any>;
   } catch (err) {
     // aborted signal이면 조용히 종료(hang 방지). 그 외(401 인증 실패 / 네트워크 등)는 무음으로
@@ -359,7 +353,7 @@ export async function* streamChat(
             if (express.emotion_text !== undefined) envelope.emotion_text = express.emotion_text;
           }
           if (tool_status) envelope.tool_status = tool_status;
-          yield { type: "completed", envelope };
+          yield { type: "completed", envelope, responseId: event.response?.id ?? "" };
           break;
         }
 
