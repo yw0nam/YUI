@@ -205,8 +205,12 @@ export type ScreenSource =
   | { kind: "browser_tab"; browser: string; tab_title: string; url?: string }
   | { kind: "window"; app: string; window_title: string };
 
+/**
+ * Internal shape returned by packageContext. Carries user utterance and screenshot data_url
+ * for assembly into the Responses API request — NOT serialized to the system message.
+ */
 export interface InputContext {
-  /** 키보드 입력. */
+  /** 키보드 입력 또는 STT 결과 (내부 전달용; system context에 포함되지 않음). */
   user_text?: string;
   /** STT 결과. */
   transcript?: { text: string; confidence?: number; lang?: string };
@@ -218,54 +222,60 @@ export interface InputContext {
     timezone: string;
     active_app?: { name: string; bundle_id?: string };
     active_window_title?: string;
-    /** OS fullscreen 상태(genuine OS state). */
-    is_fullscreen?: boolean;
-    locale?: string;
   };
 
   screenshot?: {
     /** 토글 상태 자체를 명시. */
     enabled: boolean;
     source: ScreenSource;
-    /** "data:image/png;base64,..." or "https://...". */
+    /** "data:image/png;base64,..." or "https://...". 내부 전달용; system context에서 제거됨. */
     data_url?: string;
     captured_at?: string;
     width?: number;
     height?: number;
   };
-
-  client: { yui_version: string; persona_hint?: string };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Dispatcher-layer metadata
-// dispatcher가 backend 호출 시 input_context 위에 wire에서 덧싣는 메타데이터.
-// InputContext 안이 아니라 그 위에 layered.
+// Flat client_context — the system message object sent to the backend each turn.
+// Contains only context (env, screenshot meta, trigger) — NO user utterance text.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** cue payload forwarded from schedule/proactive firing sources. */
+/** cue forwarded from schedule/proactive firing sources. id is omitted from the wire shape. */
 export interface CueMeta {
-  id: string;
   label: string;
   context: string;
   local_time?: string;
   idle_min?: number;
 }
 
-/** firing trigger envelope — 어떤 source의 어떤 event가 이 backend 턴을 발사했는지. */
+/** trigger envelope describing what fired this backend turn. */
 export interface TriggerMeta {
-  source: string;
-  event_name: string;
-  ts: number;
-  seq_id?: number;
+  kind: "user" | "schedule" | "proactive";
   cue?: CueMeta;
+  /** proactive only: Math.round(gap_ms / 60000). */
+  idle_elapsed_min?: number;
 }
 
-/** dispatcher가 알고 있는 부가 상태(InputContext에는 없음). */
-export interface DispatcherStateMeta {
-  idle_seconds?: number;
-  dnd_state?: "OFF" | "ON";
-  tier_hint?: 1 | 2 | 3;
+/**
+ * Flat system-message context object. Carries environment, screenshot meta (no data_url),
+ * and trigger — never carries user utterance text.
+ */
+export interface ClientContext {
+  env: {
+    timestamp: string;
+    timezone: string;
+    active_app?: { name: string; bundle_id?: string };
+    active_window_title?: string;
+  };
+  screenshot?: {
+    enabled: boolean;
+    source: ScreenSource;
+    captured_at?: string;
+    width?: number;
+    height?: number;
+  };
+  trigger: TriggerMeta;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

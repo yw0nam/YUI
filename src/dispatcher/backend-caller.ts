@@ -20,13 +20,12 @@
  */
 
 import type {
+  ClientContext,
   ControlEnvelope,
-  DispatcherStateMeta,
   EndpointsConfig,
   ExpressArgs,
   InputContext,
   ToolStatus,
-  TriggerMeta,
   Usage,
 } from "../contract";
 import { type ChatRequest, streamChat } from "../io/chat-client";
@@ -38,8 +37,8 @@ import type { DropReason } from "./guardrails";
 
 const baseLog = createLogger("backend-caller");
 
-/** proactive 턴(user_text 없음)의 user 메시지 마커 — 빈 문자열 대신 명시적 신호. */
-const PROACTIVE_MARKER = "(proactive: co-working check-in)";
+/** proactive/schedule 턴(user_text 없음)의 user 메시지 마커 — 빈 문자열 대신 명시적 신호. */
+const PROACTIVE_MARKER = "(proactive trigger)";
 
 /** Dispatcher → Backend Caller 출력: { ok, drop_reason? }. */
 export interface BackendCallResult {
@@ -82,8 +81,6 @@ export interface BackendCallerDeps {
   getAgentSettings?: () => import("../io/agent-settings").AgentSettings;
   /** 구조화 로깅(없으면 backend_caller namespace logger). */
   logger?: Logger;
-  /** client 버전(InputContext.client.yui_version). */
-  yuiVersion?: string;
 }
 
 export interface BackendCaller {
@@ -109,6 +106,38 @@ function resolveTimezone(): string {
   }
 }
 
+/**
+ * Local ISO 8601 wall-clock string with timezone offset (e.g. "2026-06-15T09:00:12+09:00").
+ * Falls back to UTC toISOString() if formatting throws.
+ */
+function localIso(ts: number, timeZone: string): string {
+  const d = new Date(ts);
+  try {
+    const local = new Intl.DateTimeFormat("sv-SE", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    })
+      .format(d)
+      .replace(" ", "T");
+
+    const name = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" })
+      .formatToParts(d)
+      .find((p) => p.type === "timeZoneName")?.value;
+    const offset =
+      name && name !== "GMT" && name !== "UTC" ? name.replace(/^(?:GMT|UTC)/, "") : "+00:00";
+
+    return `${local}${offset}`;
+  } catch {
+    return d.toISOString();
+  }
+}
+
 export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   const log = deps.logger ?? baseLog;
 
@@ -116,21 +145,21 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
    * B1: InputContext 조립.
    * active_app / active_window_title는 getOsContext 스냅샷이 있을 때만 best-effort로 채운다(없으면 생략).
    * screenshot은 토글 ON일 때만 getScreenshot 포트로 첨부. 캡처 실패는 턴을 깨뜨리지 않는다 — 로그 후 스크린샷 없이 진행.
+   * user_text는 encodeInput에서 user 메시지에만 실린다 — system context에는 포함되지 않는다.
    */
   async function packageContext(env: BusEnvelope): Promise<InputContext> {
     const userText = userTextOf(env);
+    const tz = resolveTimezone();
     const ctx: InputContext = {
       ...(userText !== undefined ? { user_text: userText } : {}),
       env: {
-        timestamp: new Date(env.ts).toISOString(),
-        timezone: resolveTimezone(),
+        timestamp: localIso(env.ts, tz),
+        timezone: tz,
       },
-      client: { yui_version: deps.yuiVersion ?? "0.0.0" },
     };
     const os = deps.getOsContext?.();
     if (os?.activeApp) ctx.env.active_app = { name: os.activeApp };
     if (os?.activeWindowTitle) ctx.env.active_window_title = os.activeWindowTitle;
-    if (os?.isFullscreen !== undefined) ctx.env.is_fullscreen = os.isFullscreen;
     if (deps.getScreenshot) {
       try {
         const screenshot = await deps.getScreenshot();
@@ -143,15 +172,21 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   }
 
   /**
-   * InputContext → OpenAI Responses input (user 발화는 user 메시지로 인코딩).
+   * InputContext → OpenAI Responses input (user 발화는 user 메시지로만 인코딩).
    *
-   * system 힌트는 layered shape `{ input_context, trigger, dispatcher_state }`.
-   *   - input_context: InputContext에서 screenshot.data_url을 뺀 사본(큰 base64는 USER
-   *     content-part로만 싣는다 — 힌트엔 cheap한 screenshot meta만 남긴다).
-   *   - trigger: firing envelope 메타(source/event_name/ts, seq_id·cue present 시).
-   *     cue: schedule/proactive 발사의 사용자 작성 의도(label/context/시각·무대화분).
-   *   - dispatcher_state: dispatcher가 아는 부가 상태(idle_seconds/tier_hint). dnd_state는 미설정.
-   * proactive 턴(user_text 없음)은 빈 문자열 대신 non-empty 마커를 user 메시지로 싣는다.
+   * System message carries the flat ClientContext:
+   *   { env, screenshot?, trigger }
+   *   - env: timestamp/timezone + optional active_app/active_window_title (no user utterance).
+   *   - screenshot: meta only (enabled/source/captured_at/width/height) — data_url is stripped
+   *     and sent as the user input_image content-part instead.
+   *   - trigger: { kind, cue?, idle_elapsed_min? }
+   *     kind: derived from event_name ("schedule.*"→"schedule", "proactive.*"→"proactive", else "user").
+   *     cue: present when payload has cue_id+label+context — carries label/context/local_time?/idle_min?,
+   *          id is omitted from the wire shape.
+   *     idle_elapsed_min: Math.round(gap_ms/60000) when gap_ms is present (proactive turns).
+   *
+   * User message: userText ?? PROACTIVE_MARKER (+ image content-part when screenshot present).
+   * User text is NEVER serialized into the system ClientContext.
    */
   function encodeInput(ctx: InputContext, env: BusEnvelope): ChatRequest["input"] {
     const text = ctx.user_text ?? PROACTIVE_MARKER;
@@ -163,21 +198,21 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         ]
       : text;
 
-    // 큰 data_url은 힌트에서 제거(USER content-part로만 전송). 나머지 screenshot meta는 보존.
-    const input_context: InputContext = ctx.screenshot
-      ? (() => {
-          const { data_url: _omit, ...meta } = ctx.screenshot;
-          return { ...ctx, screenshot: meta };
-        })()
-      : ctx;
+    // derive trigger.kind from event_name
+    const eventName = env.event_name;
+    const kind = eventName.startsWith("schedule.")
+      ? "schedule"
+      : eventName.startsWith("proactive.")
+        ? "proactive"
+        : "user";
 
+    // cue: present when payload carries cue_id+label+context; id is omitted from wire shape.
     const p = env.payload;
     const cue =
       typeof p?.cue_id === "string" &&
       typeof p?.label === "string" &&
       typeof p?.context === "string"
         ? {
-            id: p.cue_id as string,
             label: p.label as string,
             context: p.context as string,
             ...(typeof p.local_time === "string" ? { local_time: p.local_time as string } : {}),
@@ -185,25 +220,31 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           }
         : undefined;
 
-    const trigger: TriggerMeta = {
-      source: env.source,
-      event_name: env.event_name,
-      ts: env.ts,
-      ...(env.seq_id != null ? { seq_id: env.seq_id } : {}),
-      ...(cue ? { cue } : {}),
-    };
+    // idle_elapsed_min: proactive only, derived from gap_ms.
+    const gap_ms = typeof p?.gap_ms === "number" ? (p.gap_ms as number) : undefined;
 
-    const os_idle_ms =
-      typeof env.payload?.os_idle_ms === "number" ? env.payload.os_idle_ms : undefined;
-    const dispatcher_state: DispatcherStateMeta = {
-      ...(os_idle_ms != null ? { idle_seconds: Math.round(os_idle_ms / 1000) } : {}),
-      ...(env.hint_tier != null ? { tier_hint: env.hint_tier } : {}),
+    // screenshot meta only (data_url stripped — rides the user image content-part above).
+    const screenshotMeta: ClientContext["screenshot"] = ctx.screenshot
+      ? (() => {
+          const { data_url: _omit, ...meta } = ctx.screenshot;
+          return meta;
+        })()
+      : undefined;
+
+    const clientContext: ClientContext = {
+      env: ctx.env,
+      ...(screenshotMeta ? { screenshot: screenshotMeta } : {}),
+      trigger: {
+        kind,
+        ...(cue ? { cue } : {}),
+        ...(gap_ms != null ? { idle_elapsed_min: Math.round(gap_ms / 60000) } : {}),
+      },
     };
 
     return [
       {
         role: "system",
-        content: `client_context: ${JSON.stringify({ input_context, trigger, dispatcher_state })}`,
+        content: `client_context: ${JSON.stringify(clientContext)}`,
       },
       { role: "user", content: userContent },
     ];

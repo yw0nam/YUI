@@ -3,8 +3,10 @@
  * 다른 모듈은 `import { ... } from "../contract"` 로 접근한다.
  */
 export type {
+  // Flat system-message context (client → backend each turn)
+  ClientContext,
   ControlEnvelope,
-  DispatcherStateMeta,
+  CueMeta,
   // Emotion
   EmotionId,
   EmotionRegistry,
