@@ -1,5 +1,114 @@
 # Backend Agent ↔ Broker Interaction
 
+## Per-turn client context (client → agent)
+
+Each turn the client sends a Responses API request with two inputs followed by `instructions` (static persona/global rules, config-driven). The inputs are:
+
+| Index | Role | Content |
+|---|---|---|
+| `input[0]` | `system` | `client_context: <JSON>` — current context (no user utterance) |
+| `input[1]` | `user` | The user's message text, or a proactive marker when no user utterance exists |
+
+When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "input_text", text }, { type: "input_image", image_url }]`. Otherwise it is plain text.
+
+### `client_context` JSON shape
+
+```jsonc
+{
+  "env": {
+    "timestamp": "ISO 8601 local time with offset", // e.g. "2026-06-15T19:30:00+09:00"
+    "timezone": "IANA zone (auto-detected)",    // e.g. "Asia/Seoul"
+    "active_app": { "name": "foreground app" }, // optional
+    "active_window_title": "foreground window"  // optional
+  },
+  "screenshot": {                               // optional; present when screen capture is enabled
+    "enabled": true,
+    "source": { "kind": "monitor", "index": 0 }, // ScreenSource union
+    "width": 1920,
+    "height": 1080
+    // data_url is NOT included here — pixels arrive as the input_image content-part on input[1]
+  },
+  "trigger": {
+    "kind": "user | schedule | proactive",
+    "cue": {                                    // present for schedule and proactive kinds
+      "label": "short human name",
+      "context": "free-text intent the user wrote for the agent",
+      "local_time": "HH:MM",                   // present for schedule
+      "idle_min": 0                             // present for proactive (configured threshold, minutes)
+    },
+    "idle_elapsed_min": 0                       // present for proactive (actual elapsed minutes)
+  }
+}
+```
+
+### `trigger.kind` values
+
+| `kind` | What fired | User content | `cue` present |
+|---|---|---|---|
+| `user` | User spoke or typed | The user's message text | No |
+| `schedule` | A user-configured time-of-day cue fired | Proactive marker string | Yes |
+| `proactive` | A user-configured engagement cue fired because the user has been present but not interacting | Proactive marker string | Yes |
+
+For `schedule` and `proactive` turns there is no user utterance — the agent reads `cue.context` to decide whether and what to say. Firing a turn does not guarantee speech: the client renders whatever text the agent returns, and silence means the agent returns empty or no speech text. No client-side gate decides whether to speak (see `D-NO-SPEAK-GATE`).
+
+### Cue fields
+
+| Field | Type | Present for | Meaning |
+|---|---|---|---|
+| `label` | string | schedule, proactive | Short human-readable name the user gave this cue |
+| `context` | string | schedule, proactive | Free-text intent the user wrote; the agent reads this to determine its response |
+| `local_time` | string (`HH:MM`) | schedule | Configured clock time at which this cue fires |
+| `idle_min` | number | proactive | Configured idle threshold in minutes; cue fires once this threshold is reached |
+| `idle_elapsed_min` | number | proactive | Actual elapsed minutes since the last user interaction at the moment the cue fired |
+
+### Per-kind examples
+
+**`user` turn** — user typed or spoke:
+
+```json
+{
+  "env": { "timestamp": "2026-06-15T19:30:00+09:00", "timezone": "Asia/Seoul" },
+  "trigger": { "kind": "user" }
+}
+```
+
+**`schedule` turn** — time-of-day cue fired:
+
+```json
+{
+  "env": { "timestamp": "2026-06-15T09:00:00+09:00", "timezone": "Asia/Seoul" },
+  "trigger": {
+    "kind": "schedule",
+    "cue": {
+      "label": "아침 인사",
+      "context": "아침 9시에 영우에게 하루 시작 인사를 건네줘",
+      "local_time": "09:00"
+    }
+  }
+}
+```
+
+**`proactive` turn** — engagement cue fired after idle threshold:
+
+```json
+{
+  "env": { "timestamp": "2026-06-15T14:45:00+09:00", "timezone": "Asia/Seoul" },
+  "trigger": {
+    "kind": "proactive",
+    "cue": {
+      "label": "잠깐 환기",
+      "context": "영우가 너무 오래 집중하고 있으면 쉬어가라고 해줘",
+      "idle_min": 30
+    },
+    "idle_elapsed_min": 37
+  }
+}
+```
+
+---
+
+## Backend → Client: `generate_express`
+
 ## Purpose
 
 Use `generate_express` to place expression cues between streamed assistant text segments.

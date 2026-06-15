@@ -145,6 +145,23 @@ describe("backend_caller — B1 package_context (contract §4 InputContext)", ()
     const [, request] = streamChatSpy.mock.calls[0];
     expect(request.signal).toBeInstanceOf(AbortSignal);
   });
+
+  it("env.timestamp is a local ISO 8601 string with timezone offset representing the same instant as env.ts", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const TS = 1_717_000_000_000;
+    await caller.call(userEnv("now?"));
+    const [, request] = streamChatSpy.mock.calls[0];
+    const items = request.input as Array<{ role: string; content: string }>;
+    const sys = items.find((m) => m.role === "system")!;
+    const ctx = JSON.parse(sys.content.replace(/^client_context:\s*/, "")) as {
+      env: { timestamp: string };
+    };
+    const ts = ctx.env.timestamp;
+    // local wall-clock form with explicit ±HH:MM offset (not UTC "…Z").
+    expect(ts).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/);
+    // combined with its offset it must denote the same instant as env.ts.
+    expect(new Date(ts).getTime()).toBe(TS);
+  });
 });
 
 describe("backend_caller — B4 speech gate (speech_text only)", () => {
@@ -282,13 +299,12 @@ describe("backend_caller — screenshot port", () => {
 });
 
 describe("backend_caller — os context port", () => {
-  /** decode input_context.env from the §7.1 layered system hint passed to streamChat. */
-  function envOf(input: unknown): Record<string, unknown> {
+  /** decode the flat ClientContext from the system message passed to streamChat. */
+  function clientContextOf(input: unknown): Record<string, unknown> {
     const items = input as Array<{ role: string; content: string }>;
     const sys = items.find((m) => m.role === "system")!;
     const json = sys.content.replace(/^client_context:\s*/, "");
-    const hint = JSON.parse(json) as { input_context: { env: Record<string, unknown> } };
-    return hint.input_context.env;
+    return JSON.parse(json);
   }
 
   it("getOsContext snapshot → env.active_app + env.active_window_title attached", async () => {
@@ -303,7 +319,8 @@ describe("backend_caller — os context port", () => {
     });
     await caller.call(userEnv());
     const [, request] = streamChatSpy.mock.calls[0];
-    const env = envOf(request.input);
+    const ctx = clientContextOf(request.input);
+    const env = ctx.env as Record<string, unknown>;
     expect(env.active_app).toEqual({ name: "Visual Studio Code" });
     expect(env.active_window_title).toBe("main.ts");
   });
@@ -312,7 +329,8 @@ describe("backend_caller — os context port", () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv());
     const [, request] = streamChatSpy.mock.calls[0];
-    const env = envOf(request.input);
+    const ctx = clientContextOf(request.input);
+    const env = ctx.env as Record<string, unknown>;
     expect("active_app" in env).toBe(false);
     expect("active_window_title" in env).toBe(false);
   });
@@ -329,19 +347,16 @@ describe("backend_caller — os context port", () => {
     });
     await caller.call(userEnv());
     const [, request] = streamChatSpy.mock.calls[0];
-    const env = envOf(request.input);
+    const ctx = clientContextOf(request.input);
+    const env = ctx.env as Record<string, unknown>;
     expect("active_app" in env).toBe(false);
     expect("active_window_title" in env).toBe(false);
   });
 });
 
-describe("backend_caller — §7.1 trigger / dispatcher_state envelope", () => {
-  /** decode the full system-hint block { input_context, trigger, dispatcher_state }. */
-  function hintOf(input: unknown): {
-    input_context: { env: Record<string, unknown> } & Record<string, unknown>;
-    trigger: Record<string, unknown>;
-    dispatcher_state: Record<string, unknown>;
-  } {
+describe("backend_caller — flat client_context envelope", () => {
+  /** decode the flat ClientContext { env, trigger, screenshot? } from the system message. */
+  function clientContextOf(input: unknown): Record<string, unknown> {
     const items = input as Array<{ role: string; content: string }>;
     const sys = items.find((m) => m.role === "system")!;
     const json = sys.content.replace(/^client_context:\s*/, "");
@@ -360,45 +375,67 @@ describe("backend_caller — §7.1 trigger / dispatcher_state envelope", () => {
       event_name: "proactive.cowork",
       ts: 1_717_000_000_000,
       hint_tier: 2,
-      payload: { os_idle_ms: 65_000 },
+      payload: { os_idle_ms: 65_000, gap_ms: 3_900_000 },
     };
   }
 
-  it("(a) proactive envelope → trigger + dispatcher_state serialized; user message is the proactive marker", async () => {
+  it("(a) proactive envelope → flat trigger with kind/idle_elapsed_min; NO input_context/dispatcher_state; user message is proactive marker", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     await caller.call(proactiveEnv());
     const [, request] = streamChatSpy.mock.calls[0];
-    const hint = hintOf(request.input);
-    expect(hint.trigger.event_name).toBe("proactive.cowork");
-    expect(hint.trigger.source).toBe("timer_scheduler");
-    expect(hint.trigger.seq_id).toBe(7);
-    expect(hint.dispatcher_state.idle_seconds).toBe(65);
-    expect(hint.dispatcher_state.tier_hint).toBe(2);
-    // proactive turn (no user_text) → non-empty marker, not "".
-    expect(userMessageContentOf(request.input)).toBe("(proactive: co-working check-in)");
+    const ctx = clientContextOf(request.input);
+    // top-level keys: env + trigger only (no input_context, no dispatcher_state)
+    expect("input_context" in ctx).toBe(false);
+    expect("dispatcher_state" in ctx).toBe(false);
+    // trigger must have kind derived from event_name
+    const trigger = ctx.trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("proactive");
+    // idle_elapsed_min = round(3_900_000 / 60000) = 65
+    expect(trigger.idle_elapsed_min).toBe(65);
+    // no raw event_name/source/ts/seq_id on trigger
+    expect("event_name" in trigger).toBe(false);
+    expect("source" in trigger).toBe(false);
+    expect("ts" in trigger).toBe(false);
+    expect("seq_id" in trigger).toBe(false);
+    // proactive turn (no user_text) → proactive marker string
+    expect(userMessageContentOf(request.input)).toBe("(proactive trigger)");
   });
 
-  it("(b) os snapshot isFullscreen=true → input_context.env.is_fullscreen===true", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
-    caller = createBackendCaller({
-      config: CONFIG,
-      renderer: { applyDirective } as never,
-      getApiKey: async () => "k",
-      getFetch: async () => undefined,
-      onSpeech: speechSink,
-      getOsContext: () => ({ isFullscreen: true }),
-    });
-    await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
-    const hint = hintOf(request.input);
-    expect(hint.input_context.env.is_fullscreen).toBe(true);
-  });
-
-  it("(c) user turn with text → user message is the verbatim string (no marker)", async () => {
+  it("(b) user turn → trigger.kind is 'user'; env has timestamp/timezone; no user_text in system object", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv("진짜 텍스트"));
     const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    const trigger = ctx.trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("user");
+    expect("idle_elapsed_min" in trigger).toBe(false);
+    // env has timestamp + timezone
+    const env = ctx.env as Record<string, unknown>;
+    expect(typeof env.timestamp).toBe("string");
+    expect(typeof env.timezone).toBe("string");
+    // NO user text in system object anywhere
+    const serialized = JSON.stringify(ctx);
+    expect(serialized).not.toContain("진짜 텍스트");
+    // user text appears in the user-role message
     expect(userMessageContentOf(request.input)).toBe("진짜 텍스트");
+  });
+
+  it("(c) schedule envelope → trigger.kind is 'schedule'", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 5,
+      source: "timer_scheduler",
+      event_name: "schedule.morning",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {},
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    const trigger = ctx.trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("schedule");
+    expect("idle_elapsed_min" in trigger).toBe(false);
   });
 });
 
@@ -739,6 +776,97 @@ describe("backend_caller — session id threading (X-Hermes-Session-Id)", () => 
     await caller.call(userEnv());
     expect(streamChatSpy.mock.calls[0][2].sessionId).toBe("sess-1");
     expect(streamChatSpy.mock.calls[1][2].sessionId).toBe("sess-2");
+  });
+});
+
+// ── cue context forwarding (schedule / proactive payloads → trigger.cue) ──────
+
+describe("backend_caller — cue context forwarding (trigger.cue)", () => {
+  /** decode the flat ClientContext from the system message. */
+  function clientContextOf(input: unknown): Record<string, unknown> {
+    const items = input as Array<{ role: string; content: string }>;
+    const sys = items.find((m) => m.role === "system")!;
+    const json = sys.content.replace(/^client_context:\s*/, "");
+    return JSON.parse(json);
+  }
+
+  it("(a) schedule envelope with cue → trigger.cue has label/context/local_time, NO id; schedule user message is proactive marker", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 10,
+      source: "timer_scheduler",
+      event_name: "schedule.morning",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        cue_id: "morning",
+        label: "아침",
+        context: "아침 인사 + 오늘 일정 리마인드",
+        local_time: "09:00",
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    const trigger = ctx.trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("schedule");
+    expect(trigger.cue).toEqual({
+      label: "아침",
+      context: "아침 인사 + 오늘 일정 리마인드",
+      local_time: "09:00",
+    });
+    // no id on cue
+    expect((trigger.cue as Record<string, unknown>).id).toBeUndefined();
+    expect((trigger.cue as Record<string, unknown>).idle_min).toBeUndefined();
+    // idle_elapsed_min absent (no gap_ms on this envelope)
+    expect("idle_elapsed_min" in trigger).toBe(false);
+    // user message is the proactive marker (no user text for schedule/proactive)
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toBe("(proactive trigger)");
+  });
+
+  it("(b) proactive envelope with cue → trigger.cue has label/context/idle_min, NO id/local_time; idle_elapsed_min on trigger", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 11,
+      source: "timer_scheduler",
+      event_name: "proactive.cowork",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        cue_id: "cowork",
+        label: "코워킹",
+        context: "집중 근무 중 따뜻하게 말 걸기",
+        idle_min: 10,
+        gap_ms: 3_600_000,
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    const trigger = ctx.trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("proactive");
+    expect(trigger.cue).toEqual({
+      label: "코워킹",
+      context: "집중 근무 중 따뜻하게 말 걸기",
+      idle_min: 10,
+    });
+    expect((trigger.cue as Record<string, unknown>).id).toBeUndefined();
+    expect((trigger.cue as Record<string, unknown>).local_time).toBeUndefined();
+    // idle_elapsed_min = round(3_600_000 / 60000) = 60
+    expect(trigger.idle_elapsed_min).toBe(60);
+  });
+
+  it("(c) user.text_submitted envelope (no cue_id) → trigger.cue absent", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv("안녕"));
+    const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    const trigger = ctx.trigger as Record<string, unknown>;
+    expect("cue" in trigger).toBe(false);
+    expect("idle_elapsed_min" in trigger).toBe(false);
   });
 });
 
