@@ -1,5 +1,5 @@
 /**
- * vrm-selection.test.ts — TDD red for the VRM selection reactive store (#94 P2).
+ * vrm-selection.test.ts — VRM selection reactive store.
  *
  * Pins the contract for src/io/vrm-selection.ts:
  *   createVrmSelection({ available?, defaultUrl, storage? }) store
@@ -397,7 +397,7 @@ describe("createVrmSelection — stale override + coercion", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// setManifest — config hot-reload (#94 P4)
+// setManifest — config hot-reload
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createVrmSelection — setManifest", () => {
@@ -638,7 +638,7 @@ describe("localStorageVrmStorage", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// User options — imported (source:"user") VRMs persist + merge with bundled (#147)
+// User options — imported (source:"user") VRMs persist + merge with bundled
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BUNDLED: AvatarOption[] = [
@@ -1019,7 +1019,7 @@ describe("coerceUserOption — id charset validation", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// reloadFromStorage — cross-window user-options merge (no lost update) (#162)
+// reloadFromStorage — cross-window user-options merge (no lost update)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const USER_DOG: AvatarOption = {

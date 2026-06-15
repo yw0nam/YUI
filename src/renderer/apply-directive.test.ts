@@ -1,16 +1,15 @@
 /**
- * apply-directive.test.ts — TDD red phase for Renderer.applyDirective (#16a, render-wiring half).
+ * apply-directive.test.ts — render rules + hold-on-null semantics for Renderer.applyDirective.
  *
- * These tests MUST FAIL against the stub (`routeDirective` does not yet exist).
  * These tests ARE the source of truth for the render rules + hold-on-null semantics that
- * applyDirective must obey when routing a ControlEnvelope into setEmotion(#6) / playMotion(#5):
+ * applyDirective must obey when routing a ControlEnvelope into setEmotion / playMotion:
  *  - render rule 1: emotion present → expression transition; ABSENT → hold previous.
  *  - render rule 2: motion present → registry lookup + play; ABSENT or null → idle.
  *  - hold-on-null: `emotion === null` OR absent → NO-OP (hold previous); only explicit
- *    `{id:"neutral"}` transitions to neutral. `setEmotion(null)` is itself a NO-OP hold (#6).
- *  - §3 render rule 6 (line 289): `_reserved` is ignored in v0.
+ *    `{id:"neutral"}` transitions to neutral. `setEmotion(null)` is itself a NO-OP hold.
+ *  - render rule 6: `_reserved` is ignored in v0.
  *
- * `should_speak` / `speech_text` / `tool_status` / `rich_content` are NOT this routing layer's
+ * `speech_text` / `tool_status` / `rich_content` are NOT this routing layer's
  * concern (other tracks) — routeDirective must touch only the emotion + motion render channels.
  *
  * Pure routing: no real VRM / GPU. setEmotion & playMotion are vi.fn() spies.
@@ -152,11 +151,10 @@ describe("routeDirective — combined", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("routeDirective — ignores non-render fields", () => {
-  it("should_speak / speech_text / tool_status / rich_content / _reserved do not affect routing", () => {
+  it("speech_text / tool_status / rich_content / _reserved do not affect routing", () => {
     const { setEmotion, playMotion, route } = makeHarness();
     route(
       env({
-        should_speak: false,
         speech_text: "hello there",
         tool_status: { state: "running", label: "검색 중…", tool_id: "web_search" },
         rich_content: [{ kind: "link", url: "https://x", title: "x" }],

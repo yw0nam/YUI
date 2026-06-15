@@ -1,5 +1,5 @@
 /**
- * lipsync-settings.test.ts — TDD red for the lipsync gain reactive store.
+ * lipsync-settings.test.ts — lipsync gain reactive store.
  *
  * Pins the contract for src/io/lipsync-settings.ts:
  *   LIPSYNC_GAIN_MIN / MAX / DEFAULT constants

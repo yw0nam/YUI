@@ -1,7 +1,7 @@
 /**
- * Expression Broker MCP write-only client (#107). YUI publishes its renderable vocabulary;
+ * Expression Broker MCP write-only client. YUI publishes its renderable vocabulary;
  * it never subscribes. Stateless + best-effort: never throws to the caller, never blocks boot
- * (D4) — all transport failures degrade to a warn log. publish() is idempotent (D7): it diffs
+ * — all transport failures degrade to a warn log. publish() is idempotent: it diffs
  * against the broker's current ids and only sends the tools that changed. start() runs a liveness
  * poll that re-publishes when a broker restart is inferred (version regression / drift).
  *

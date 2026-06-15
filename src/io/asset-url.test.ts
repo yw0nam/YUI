@@ -99,7 +99,7 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// resolveUserFileSrc — 임포트된 app-data 절대 파일 경로 → webview URL (#147)
+// resolveUserFileSrc — 임포트된 app-data 절대 파일 경로 → webview URL
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("resolveUserFileSrc — Tauri app-data 절대 경로", () => {
@@ -152,7 +152,7 @@ describe("resolveUserFileSrc — Tauri app-data 절대 경로", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// resolveUserFileSrc — scheme allowlist (block dangerous schemes) (#162)
+// resolveUserFileSrc — scheme allowlist (block dangerous schemes)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("resolveUserFileSrc — scheme allowlist", () => {

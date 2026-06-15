@@ -1,5 +1,5 @@
 /**
- * tauri-screen.test.ts — Tauri-backed screen source provider + capturer (TDD red).
+ * tauri-screen.test.ts — Tauri-backed screen source provider + capturer.
  *
  * 검증:
  *  - createTauriScreenSourceProvider: DTO → MonitorInfo 매핑 (name null 시 label 폴백, primary 매핑)

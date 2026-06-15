@@ -16,9 +16,9 @@ then steps back.
 
 The head/brain split rests on one principle: **firing ≠ judgment**. The client
 *fires* candidate events (timer · idle-watcher · OS-event-watcher · user input);
-the backend decides whether and what to speak. There is **no `should_speak`
-flag** (D-NO-SPEAK-GATE) — silence is simply empty speech text, and the client
-renders whatever text arrives.
+the backend decides whether and what to speak. Silence is simply empty speech
+text, and the client renders whatever text arrives — no brain lives in the
+client.
 
 Control signals ride server-side `generate_express` tool-calls on the
 `/v1/responses` stream, with flat arguments `{ emotion_id?, motion_id?,

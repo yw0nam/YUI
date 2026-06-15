@@ -1,5 +1,5 @@
 /**
- * screenshot-settings.test.ts — createScreenshotSettings reactive store (TDD red).
+ * screenshot-settings.test.ts — createScreenshotSettings reactive store.
  *
  * 검증:
  *  - 기본값(defaults): enabled=false, source={kind:"monitor",index:0}

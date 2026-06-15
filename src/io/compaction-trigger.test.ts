@@ -1,5 +1,5 @@
 /**
- * compaction-trigger.test.ts — TDD red for the pure hysteresis controller.
+ * compaction-trigger.test.ts — pure hysteresis controller.
  *
  * Pins the contract for src/io/compaction-trigger.ts:
  *   createCompactionTrigger({ contextWindow?, thresholdRatio, resumeRatio, onTrigger })

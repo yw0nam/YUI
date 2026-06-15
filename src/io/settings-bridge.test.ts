@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * settings-bridge.test.ts — TDD red for the cross-window settings bridge.
+ * settings-bridge.test.ts — cross-window settings bridge.
  *
  * Pins the contract for src/io/settings-bridge.ts:
  *   createSettingsBridge(transport) builds a typed bus over an injectable transport.

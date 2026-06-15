@@ -1,5 +1,5 @@
 /**
- * perch-geometry.test.ts — TDD red phase.
+ * perch-geometry.test.ts
  *
  * Pins the contract for the "window-sit drop" perch math. All pure functions:
  * THREE camera/projection + plain arithmetic, so this runs in vitest node env

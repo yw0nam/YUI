@@ -1,5 +1,5 @@
 /**
- * screenshot-context.test.ts — buildScreenshotBlock pure encoder (TDD red).
+ * screenshot-context.test.ts — buildScreenshotBlock pure encoder.
  *
  * 검증:
  *  - enabled=false → undefined

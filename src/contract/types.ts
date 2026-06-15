@@ -3,7 +3,7 @@
  *
  * 전송 규약 요지:
  *  - 제어신호(emotion_id/motion_id/emotion_text)는 서버사이드 `generate_express` tool-call의
- *    arguments로 도착 (flat 문자열 인자, should_speak 없음).
+ *    arguments로 도착 (flat 문자열 인자).
  *  - 발화 텍스트는 tool-call이 아니라 별도 assistant 텍스트 스트림(response.output_text.delta).
  *  - generate_express·emotion은 둘 다 optional — 없는 턴은 idle + 직전 표정 유지.
  */
@@ -100,8 +100,8 @@ export type MotionRegistry = Record<string, MotionRegistryEntry>;
 /**
  * `generate_express` tool-call의 arguments = transport 페이로드.
  * FLAT 문자열 인자 — 이것만이 실제로 wire를 타는 제어 필드다. 전부 optional이며
- * generate_express 없는 턴은 비어 있다. should_speak 없음:
- * 침묵 = speech_text == "".
+ * generate_express 없는 턴은 비어 있다.
+ * 침묵은 speech_text가 빈 문자열인 것으로 표현한다.
  */
 export interface ExpressArgs {
   /** emotion enum id. 없으면 직전 표정 유지. client가 EmotionSignal{id}로 정규화. */
@@ -172,7 +172,7 @@ export interface ToolStatus {
  */
 export interface ControlEnvelope {
   // --- generate_express tool-call arguments (있을 때만) ---
-  // should_speak 없음: 침묵 = speech_text == "".
+  // 침묵은 speech_text가 빈 문자열인 것으로 표현한다.
   emotion?: EmotionSignal | null;
   motion?: MotionSignal | null;
   /** generate_express.emotion_text — TTS voice tag 자유 텍스트. backend-caller가 onCue로 라우팅, tts-pipeline이 문장 합성에 prefix. */

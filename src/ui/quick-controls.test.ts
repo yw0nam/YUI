@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * quick-controls.test.ts — TDD red for the lipsync gain row in the quick-settings popover.
+ * quick-controls.test.ts — the lipsync gain row in the quick-settings popover.
  *
  * Pins THREE new options added to createQuickControls:
  *   lipsync        — a createLipsyncSettings store instance
@@ -591,7 +591,7 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  // ── 엔드포인트 섹션(#95) ───────────────────────────────────────────────────
+  // ── 엔드포인트 섹션 ───────────────────────────────────────────────────────
 
   it("renders 6 endpoint fields (5 url + chat_model) in a collapsed details", () => {
     const qc = buildQc();
@@ -617,7 +617,7 @@ describe("createQuickControls — gain row", () => {
   });
 
   it("populates endpoint placeholders from getEndpointDefaults() on open even when defaults arrive after construction", () => {
-    // 패널은 config 로드 전에 생성된다 — 생성 시점엔 defaults가 없고 open() 시점에 채워져야 한다(회귀: #95).
+    // 패널은 config 로드 전에 생성된다 — 생성 시점엔 defaults가 없고 open() 시점에 채워져야 한다.
     let defaults: Record<string, string> | undefined;
     const qc = buildQc({ getEndpointDefaults: () => defaults as never });
     // 생성 후 config가 로드된 상태를 모사.
@@ -683,7 +683,7 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  // ── chat API key field (#150) ─────────────────────────────────────────────
+  // ── chat API key field ────────────────────────────────────────────────────
 
   function chatKeyInput(qc: { el: HTMLElement }): HTMLInputElement {
     return qc.el.querySelector<HTMLInputElement>(".yui-chatkey__input")!;
@@ -955,7 +955,7 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  // ── voice engine (tts_provider) toggle + broker URL row (#136) ─────────────
+  // ── voice engine (tts_provider) toggle + broker URL row ─────────────────────
 
   function voiceSegButtons(qc: { el: HTMLElement }): HTMLButtonElement[] {
     const seg = qc.el.querySelector<HTMLDivElement>(".yui-seg--2")!;
@@ -1239,7 +1239,7 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  // ── VRM section (#94 P3) ────────────────────────────────────────────────────
+  // ── VRM section ─────────────────────────────────────────────────────────────
 
   // microtask flush — swapVrm is async; let its promise settle before asserting.
   const flush = () => new Promise<void>((r) => setTimeout(r, 0));
@@ -1526,7 +1526,7 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  // ── BYO-VRM: user rows + import + rename + remove (#147) ─────────────────────
+  // ── BYO-VRM: user rows + import + rename + remove ───────────────────────────
 
   // Selection holding the three bundled rows plus one user (imported) option.
   function withUserOption() {
@@ -1910,7 +1910,7 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  // ── 화자: user (imported) voice management — mirrors the VRM section (#148) ──
+  // ── 화자: user (imported) voice management — mirrors the VRM section ─────────
 
   function withUserVoice() {
     speakerSelection = makeSpeakerSelection();
@@ -2272,7 +2272,7 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("routes the audition url through the asset resolver before constructing Audio (#153)", async () => {
+  it("routes the audition url through the asset resolver before constructing Audio", async () => {
     const resolveAuditionUrl = vi.fn(async (u: string) => `resolved://${u}`);
     const seen: string[] = [];
     class FakeAudio {
@@ -2397,7 +2397,7 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  // ── 화자 행 참조-음성 갱신(refresh) 버튼 — issue #103 ──────────────────────
+  // ── 화자 행 참조-음성 갱신(refresh) 버튼 ────────────────────────────────────
 
   it("renders a .yui-spk__refresh button per speaker row, before the ▶ preview", () => {
     const qc = buildQc();
@@ -2764,7 +2764,7 @@ describe("createQuickControls — session section", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tab layout (#149) + VAD silence-window slider
+// Tab layout + VAD silence-window slider
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createQuickControls — tabs + VAD slider", () => {

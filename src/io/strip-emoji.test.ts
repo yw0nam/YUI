@@ -1,5 +1,5 @@
 /**
- * strip-emoji.test.ts — TDD red: stateful emoji stripper for spoken output_text.
+ * strip-emoji.test.ts — stateful emoji stripper for spoken output_text.
  *
  * Scope: removes Extended_Pictographic + emoji modifier codepoints (ZWJ, VS16,
  * skin-tone, regional indicators, keycap). Preserves all other text.

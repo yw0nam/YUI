@@ -1,5 +1,5 @@
 /**
- * camera-settings.test.ts — TDD red for the camera zoom reactive store.
+ * camera-settings.test.ts — camera zoom reactive store.
  *
  * Pins the contract for src/io/camera-settings.ts:
  *   CAMERA_ZOOM_MIN / MAX / DEFAULT constants

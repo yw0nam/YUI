@@ -1,5 +1,5 @@
 /**
- * stt-vad.test.ts — STT + VAD pipeline (TDD red, #19).
+ * stt-vad.test.ts — STT + VAD pipeline.
  *
  * Locks:
  *  - VAD onSpeechEnd → STT fetch (POST /audio/transcriptions) → onVoiceSegment.

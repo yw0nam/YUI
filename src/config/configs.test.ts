@@ -12,7 +12,7 @@ describe("configs/endpoints.json", () => {
     expect(ep.stt_base_url).toMatch(/^https?:\/\//);
     expect(ep.tts_base_url).toMatch(/^https?:\/\//);
     expect(ep.chat_endpoint).toBe("/v1/responses"); // contract §endpoint default
-    expect(ep.chat_model).toBe("natsume"); // Hermes 모델 ID (config-driven, PRD F8)
+    expect(ep.chat_model).toBe("natsume"); // Hermes 모델 ID (config-driven)
     expect(ep.tts_voice).toBe("ナツメ"); // /v1/audio/voices 등록 레퍼런스 보이스 default
   });
 
@@ -49,13 +49,13 @@ describe("configs/endpoints.json", () => {
 describe("configs/avatar.json", () => {
   const a = read("configs/avatar.json");
 
-  it("points at a dev-served VRM url (#4)", () => {
+  it("points at a dev-served VRM url", () => {
     expect(a.vrm_url).toBeTypeOf("string");
     expect(a.vrm_url).toMatch(/\.vrm$/);
     expect(a.vrm_url.startsWith("/vrms/")).toBe(true); // vite dev 정적 서빙 경로
   });
 
-  it("lists carlotta in the available[] VRM manifest (#94)", () => {
+  it("lists carlotta in the available[] VRM manifest", () => {
     expect(Array.isArray(a.available)).toBe(true);
     const carlotta = a.available.find((o: { id: string }) => o.id === "carlotta");
     expect(carlotta).toBeDefined();
@@ -169,7 +169,7 @@ describe("configs/motions.json", () => {
     }
   });
 
-  it("registers the #143 fall sequence: falling (reactive, loop, broker-excluded)", () => {
+  it("registers the fall sequence: falling (reactive, loop, broker-excluded)", () => {
     expect(m.falling).toBeDefined();
     expect(m.falling.vrma_path).toBe("/motions/falling_loop.vrma");
     expect(m.falling.kind).toBe("reactive");
@@ -179,7 +179,7 @@ describe("configs/motions.json", () => {
     expect(m.falling.broker_publish).toBe(false);
   });
 
-  it("registers the #143 fall sequence: landing (oneshot, broker-excluded)", () => {
+  it("registers the fall sequence: landing (oneshot, broker-excluded)", () => {
     expect(m.landing).toBeDefined();
     expect(m.landing.vrma_path).toBe("/motions/landing.vrma");
     expect(m.landing.kind).toBe("oneshot");

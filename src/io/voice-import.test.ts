@@ -1,5 +1,5 @@
 /**
- * voice-import.test.ts — TDD for the bring-your-own-voice import module (#148).
+ * voice-import.test.ts — bring-your-own-voice import module.
  *
  * Pins the contract for src/io/voice-import.ts: a thin TS layer over the dialog
  * plugin + the Rust `import_voice_file` / `remove_user_voice` commands. All deps are

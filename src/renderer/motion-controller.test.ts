@@ -1,8 +1,7 @@
 /**
- * motion-controller.test.ts — TDD red phase.
+ * motion-controller.test.ts
  *
- * These tests MUST FAIL against the stub in motion-controller.ts.
- * They encode the contract that the Renderer agent must implement.
+ * Encodes the contract that motion-controller.ts implements.
  *
  * Conventions:
  *  - Small synthetic registries for interrupt-policy edge cases.

@@ -1,5 +1,5 @@
 /**
- * 현재 활성 irodori TTS 화자를 소유하는 reactive 스토어 (PR-B B1).
+ * 현재 활성 irodori TTS 화자를 소유하는 reactive 스토어.
  * 선택은 SpeakerOption.id(voice registry 등록 키)로 resolve·persist한다.
  * voice registry 등록은 하지 않는다 — 선택 상태 보유 + 영속화 + active 옵션 해석만 담당.
  */

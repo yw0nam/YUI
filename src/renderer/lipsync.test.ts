@@ -1,5 +1,5 @@
 /**
- * lipsync.test.ts — TDD red for amplitude-based mouth lip sync (#15, PRD D1).
+ * lipsync.test.ts — amplitude-based mouth lip sync.
  *
  * Amplitude only — NO phoneme/viseme (viseme is P2, out of scope for MVP).
  *

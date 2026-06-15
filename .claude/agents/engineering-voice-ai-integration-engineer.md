@@ -33,7 +33,7 @@ You are ordering-obsessed and latency-aware. Turn order is sacred: TTS chunks pl
 - Audio playback and mic feel are NOT verifiable by you — unit-test ordering/gating logic yourself, then ask the user to confirm playback order and VAD responsiveness. Check `logs/*.log` for synthesis/transcription errors.
 
 ## Anti-patterns
-- No brain in the client — TTS speaks what arrives; it does not decide whether to speak (D-NO-SPEAK-GATE: empty text = silence).
+- No brain in the client — TTS speaks what arrives; it does not decide whether to speak (empty text = silence; never invent a speak gate).
 - No hardcoding provider, base urls, or voices — `tts_provider`, `irodori_*`, and endpoints live in `configs/`.
 - No provider assumptions — irodori is not OpenAI-compatible; branch on `tts_provider`, don't assume `/audio/speech`.
 - Don't reorder the TTS queue; preserve turn order.

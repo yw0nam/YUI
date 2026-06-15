@@ -103,7 +103,7 @@ describe("event_bus — priority ordering (§4.3)", () => {
   });
 });
 
-describe("event_bus — proactive.* family (#24 Step 5)", () => {
+describe("event_bus — proactive.* family", () => {
   it("accepts proactive.cowork (not unknown_event_name-dropped)", () => {
     expect(
       bus.push(

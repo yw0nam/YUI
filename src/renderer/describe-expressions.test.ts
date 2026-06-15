@@ -1,5 +1,5 @@
 /**
- * describe-expressions.test.ts — TDD red for describeExpressions helper (#observability).
+ * describe-expressions.test.ts — describeExpressions helper.
  *
  * Pins the contract for a pure helper that inspects an expressionManager's
  * expressionMap and reports which expressions exist and whether the mouth key ("aa")

@@ -1,5 +1,5 @@
 /**
- * vrm-import.test.ts — TDD red for the bring-your-own-VRM import module (#147).
+ * vrm-import.test.ts — bring-your-own-VRM import module.
  *
  * Pins the contract for src/io/vrm-import.ts: a thin TS layer over the dialog
  * plugin + the Rust `import_vrm_file` / `remove_user_vrm` commands. All deps are

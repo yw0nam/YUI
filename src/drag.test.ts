@@ -1,5 +1,5 @@
 /**
- * Tests for src/drag.ts — drag + multi-monitor / DPI (Issue #9, F2 M1).
+ * Tests for src/drag.ts — drag + multi-monitor / DPI.
  *
  * Environment: node (vitest default — no jsdom dependency).
  *

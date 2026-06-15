@@ -74,7 +74,7 @@ const PERCH_ZOOM = 1.25;
 /** Per-frame convergence rate for the seat-pin offset (proportional step). */
 const PERCH_PIN_RATE = 0.6;
 
-// ── Per-pixel alpha hit-test (#8 PHASE-2) ────────────────────────────────────
+// ── Per-pixel alpha hit-test ─────────────────────────────────────────────────
 /** Downscale factor (linear) of the drawing buffer for the CPU-side alpha grab. */
 const ALPHA_GRAB_SCALE = 1 / 8;
 /** Cap on the grab width (px) so large displays stay cheap. */

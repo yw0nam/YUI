@@ -1,5 +1,5 @@
 /**
- * idle-throttle-settings.test.ts — createIdleThrottleSettings reactive store (TDD red).
+ * idle-throttle-settings.test.ts — createIdleThrottleSettings reactive store.
  *
  * 검증:
  *  - 기본값(defaults): enabled=true

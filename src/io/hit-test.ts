@@ -1,5 +1,5 @@
 /**
- * Click-through hit-test controller (#8, PHASE-1).
+ * Click-through hit-test controller (PHASE-1).
  *
  * Keeps the transparent pet window click-through (ignore cursor) over empty
  * space and interactive over the character / visible UI surfaces. A two-state

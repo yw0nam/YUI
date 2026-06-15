@@ -1,5 +1,5 @@
 /**
- * endpoints-settings.test.ts — TDD red for the per-user endpoint-override reactive store.
+ * endpoints-settings.test.ts — per-user endpoint-override reactive store.
  *
  * Pins the contract for src/io/endpoints-settings.ts:
  *   createEndpointsSettings({ storage?, initial? }) store (get/set/reset/reload/subscribe/dispose)

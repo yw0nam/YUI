@@ -1,5 +1,5 @@
 /**
- * store.test.ts — createConfigStore reactive 스냅샷 + 핫리로드 (#22, F8 acceptance).
+ * store.test.ts — createConfigStore reactive 스냅샷 + 핫리로드.
  *
  * 원칙: network/fs 없음. backing map을 MUTATE할 수 있는 fake reader를 주입해 reload()가
  * 변경을 감지하는지 직접 구동한다. 실타이머/start() 폴링에 의존하지 않는다(flaky 회피) —
@@ -141,7 +141,7 @@ describe("createConfigStore — reload", () => {
   });
 });
 
-describe("createConfigStore — guardrails section diff (#25)", () => {
+describe("createConfigStore — guardrails section diff", () => {
   it("guardrails 변경 → reload() true, changed.has('guardrails')", async () => {
     const map = goodFixture();
     const store = createConfigStore({ read: mutableReader(map) });
@@ -161,7 +161,7 @@ describe("createConfigStore — guardrails section diff (#25)", () => {
   });
 });
 
-describe("createConfigStore — sources section diff (#24)", () => {
+describe("createConfigStore — sources section diff", () => {
   it("sources 변경 → reload() true, changed.has('sources')", async () => {
     const map = goodFixture();
     const store = createConfigStore({ read: mutableReader(map) });

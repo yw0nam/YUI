@@ -1,5 +1,5 @@
 /**
- * screen-source-provider.test.ts — createBrowserScreenSourceProvider seam (TDD red).
+ * screen-source-provider.test.ts — createBrowserScreenSourceProvider seam.
  *
  * 검증:
  *  - 주입된 screen dims를 사용해 단일 primary monitor 반환
