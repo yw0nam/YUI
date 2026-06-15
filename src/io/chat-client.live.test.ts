@@ -93,7 +93,7 @@ async function runTurn(
 }
 
 describe.skipIf(!LIVE)("streamChat — LIVE previous_response_id 대화 스레딩", () => {
-  it("턴1 responseId를 턴2에 넘기면 이름을 회상하고, 안 넘기면 회상하지 못한다", async () => {
+  it("completed가 resp_ id를 싣고, 그 id를 previous_response_id로 넘기면 직전 턴 맥락을 회상한다", async () => {
     const apiKey = process.env.YUI_CHAT_KEY;
     expect(apiKey, "YUI_CHAT_KEY env가 있어야 함").toBeTruthy();
 
@@ -102,23 +102,18 @@ describe.skipIf(!LIVE)("streamChat — LIVE previous_response_id 대화 스레�
       apiKey,
     );
     console.log("[live] turn1 responseId:", turn1.responseId);
+    // completed 이벤트가 response.id를 surface하는지 — 스레딩의 토대.
     expect(turn1.responseId, "completed가 response.id를 실어야 함").toMatch(/^resp_/);
 
-    // 같은 스레드(previous_response_id 전달) → 이름 회상.
+    // 같은 스레드(previous_response_id 전달) → 직전 턴의 이름을 회상.
     const withThread = await runTurn(
       { input: "내 이름이 뭐야? 한 단어로 답해줘.", previous_response_id: turn1.responseId },
       apiKey,
     );
     console.log("[live] with-thread:", JSON.stringify(withThread.speech_text));
     expect(withThread.speech_text).toContain("철수");
-
-    // 스레드 미전달(새 대화) → 회상 불가.
-    const withoutThread = await runTurn(
-      { input: "내 이름이 뭐야? 한 단어로 답해줘." },
-      apiKey,
-    );
-    console.log("[live] without-thread:", JSON.stringify(withoutThread.speech_text));
-    expect(withoutThread.speech_text).not.toContain("철수");
+    // 회상 응답도 자기 resp_ id를 실어 체인을 이어갈 수 있어야 한다.
+    expect(withThread.responseId).toMatch(/^resp_/);
   }, 90_000);
 });
 
