@@ -1,5 +1,5 @@
 /**
- * vad-settings.test.ts — TDD red for the VAD silence-window reactive store.
+ * vad-settings.test.ts — VAD silence-window reactive store.
  *
  * Pins the contract for src/io/vad-settings.ts:
  *   VAD_SILENCE_MIN / MAX / DEFAULT constants

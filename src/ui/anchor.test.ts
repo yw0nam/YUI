@@ -1,5 +1,5 @@
 /**
- * anchor.test.ts — TDD red phase.
+ * anchor.test.ts
  *
  * Pins the pure mapping from the character's on-screen feet (px from top) to
  * the chat input's bottom offset (px from bottom): gapped just below the feet

@@ -1,5 +1,5 @@
 /**
- * cycle-dwell.test.ts — TDD red phase (Unit 2).
+ * cycle-dwell.test.ts
  *
  * createCycleDwell is the renderer's dwell scheduler: when a cycle motion's clip
  * finishes and its registry entry carries cycle_dwell_ms > 0, the swap to the next

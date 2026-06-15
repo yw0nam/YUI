@@ -1,5 +1,5 @@
 /**
- * proactive-settings.test.ts — createProactiveSettings reactive store (TDD red).
+ * proactive-settings.test.ts — createProactiveSettings reactive store.
  *
  * 검증:
  *  - 기본값(defaults): enabled=true

@@ -1,6 +1,6 @@
 /**
- * broker-override-reconciler.test.ts — TDD red for live broker re-publish / re-point on
- * endpoint-override change (#136).
+ * broker-override-reconciler.test.ts — live broker re-publish / re-point on
+ * endpoint-override change.
  *
  * createBrokerOverrideReconciler wires endpoints overrides → the live Expression Broker client:
  *   - tts_provider override change ⇒ re-publish vocab with the MERGED provider's table.

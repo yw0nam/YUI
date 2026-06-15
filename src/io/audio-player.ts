@@ -22,7 +22,7 @@ export interface AmplitudeEnvelope {
 }
 
 /**
- * 진폭 → 입 벌림 엔벨로프 (#15, PRD D1 amplitude-only).
+ * 진폭 → 입 벌림 엔벨로프 (amplitude-only).
  * raw RMS를 게인으로 스케일·clamp한 뒤 light smoothing으로 ease한다.
  * raw에 단조 증가(louder in → not quieter out)하며 항상 finite 0..1.
  */

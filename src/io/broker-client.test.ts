@@ -1,5 +1,5 @@
 /**
- * broker-client.test.ts — Expression Broker MCP write-only client (TDD red).
+ * broker-client.test.ts — Expression Broker MCP write-only client.
  *
  * 대상: createBrokerClient({ baseUrl, fetch?, logger?, pollIntervalMs?, setInterval?, clearInterval? }).
  *   stateless, best-effort writer. getIds()/publish() — MCP streamable-http(initialize → notifications/initialized → tools/call).
@@ -314,7 +314,7 @@ describe("publish idempotency", () => {
   });
 });
 
-describe("liveness poll (D7)", () => {
+describe("liveness poll", () => {
   it("re-publishes the last payload when broker version regresses", async () => {
     // start with a high version, then have getIds report a lower one → restart inferred.
     let version = 10;

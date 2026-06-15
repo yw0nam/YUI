@@ -1,5 +1,5 @@
 /**
- * tts-synth.test.ts — per-sentence TTS HTTP call (TDD red, #14).
+ * tts-synth.test.ts — per-sentence TTS HTTP call.
  *
  * 대상: createTtsSynth({ config, fetch, model?, voice?, speed? }) → (input, signal?) => Promise<ArrayBuffer>.
  * POST {tts_base_url}/v1/audio/speech, body { input, response_format:"wav", ...model/voice/speed }.

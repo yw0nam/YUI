@@ -1,5 +1,5 @@
 /**
- * agent-settings.test.ts — TDD red for the AI agent request-shaping reactive store.
+ * agent-settings.test.ts — AI agent request-shaping reactive store.
  *
  * Pins the contract for src/io/agent-settings.ts:
  *   REASONING_EFFORTS / INSTRUCTIONS_MAX_LEN constants

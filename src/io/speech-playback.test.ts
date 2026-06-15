@@ -1,5 +1,5 @@
 /**
- * speech-playback.test.ts — TDD red: TTS playback ↔ renderer mouth ↔ speech bubble glue.
+ * speech-playback.test.ts — TTS playback ↔ renderer mouth ↔ speech bubble glue.
  *
  * Wires the three halves that already exist independently:
  *  - tts-pipeline onAmplitude → renderer.setMouthOpen (mouth follows TTS audio)

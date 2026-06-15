@@ -1,5 +1,5 @@
 /**
- * guardrails.test.ts — DND / debounce / rate-limit 단위 테스트 (#25).
+ * guardrails.test.ts — DND / debounce / rate-limit 단위 테스트.
  *
  * 원칙: 시간은 주입한 now()로만 구동한다(bare Date.now() 의존 금지). 모든 source의 합성
  * envelope(idle/timer/os/backend_push/user)을 직접 만들어 넣어 평가 분기를 잠근다.

@@ -1,5 +1,5 @@
 /**
- * sentence-segmenter.test.ts — PURE sentence boundary detection (TDD red, #14).
+ * sentence-segmenter.test.ts — PURE sentence boundary detection.
  *
  * 대상: createSentenceSegmenter() — push(text)는 누적 후 완성된 문장만 배열로 반환하고
  * 미완성 꼬리는 버퍼에 남긴다. flush()는 남은 버퍼(trim, 비어있지 않을 때)를 반환, 없으면 null.

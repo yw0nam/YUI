@@ -1,5 +1,5 @@
 /**
- * secret-provider.test.ts — TDD red for the runtime SecretProvider.
+ * secret-provider.test.ts — runtime SecretProvider.
  *
  * Pins the contract for src/io/secret-provider.ts:
  *   createSettingsSecretProvider({ chatKey, fallback? }) → SecretProvider

@@ -1,5 +1,5 @@
 /**
- * index.test.ts — TDD red phase (Unit 2): renderer cycle-dwell wiring.
+ * index.test.ts — renderer cycle-dwell wiring.
  *
  * createRenderer instantiates a real THREE.WebGLRenderer (needs a GL context that
  * neither node nor jsdom provides), so the renderer's dwell behavior is verified at

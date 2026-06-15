@@ -1,5 +1,5 @@
 /**
- * speaker-selection.test.ts — TDD red for the irodori speaker selection store (PR-B B1).
+ * speaker-selection.test.ts — irodori speaker selection store.
  *
  * Pins the contract for src/io/speaker-selection.ts:
  *   createSpeakerSelection({ available?, defaultId, storage? }) store
@@ -552,7 +552,7 @@ describe("localStorageSpeakerStorage", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// User options — imported (source:"user") voices persist + merge with bundled (#148)
+// User options — imported (source:"user") voices persist + merge with bundled
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BUNDLED: SpeakerOption[] = [
@@ -942,7 +942,7 @@ describe("coerceUserSpeaker — id charset validation", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// reloadFromStorage — cross-window user-options merge (no lost update) (#162)
+// reloadFromStorage — cross-window user-options merge (no lost update)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const USER_DOG: SpeakerOption = {

@@ -1,5 +1,5 @@
 /**
- * window-drop-source.test.ts — TDD red phase.
+ * window-drop-source.test.ts — window-drop release → bus envelope producer.
  *
  * The producer translates the Rust `window_drop_release` event into bus
  * envelopes. It is client-firing, backend-bypassed (firing ≠ judgment):
@@ -237,7 +237,7 @@ describe("window-drop-source — lifecycle + degrade", () => {
   });
 });
 
-// ── Occlusion-aware perch detach poll (#143) ────────────────────────────────
+// ── Occlusion-aware perch detach poll ───────────────────────────────────────
 //
 // After a successful drop arms the poll, ~1.4 Hz it re-checks whether the
 // armed window (tracked by windowNumber) detached: gone from the list, covered
@@ -654,7 +654,7 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
   });
 });
 
-// ── Arm-baseline delta hold test (#191 perch false-detach) ──────────────────
+// ── Arm-baseline delta hold test (perch false-detach) ───────────────────────
 //
 // The held-perch test is "did the armed window MOVE from its arm-time position",
 // not "is the seat still inside the window". A seat parked a few px above the
@@ -674,7 +674,7 @@ describe("window-drop-source — arm-baseline detach policy (#191)", () => {
   async function armAbove() {
     const probe = makePerchSource();
     // Seat lands at (300, 400); armed top y=412 sits 12px below it, so the seat
-    // is parked above the edge (the #191 condition the strict hold test broke on).
+    // is parked above the edge.
     const armed = win({ name: "Armed", windowNumber: 42, y: 412 });
     const invoke = vi.fn(async () => [armed]);
     const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);

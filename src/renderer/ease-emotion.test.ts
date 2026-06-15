@@ -1,5 +1,5 @@
 /**
- * ease-emotion.test.ts — TDD red for the slow ease-to-neutral after a turn's TTS ends.
+ * ease-emotion.test.ts — slow ease-to-neutral after a turn's TTS ends.
  *
  * The renderer holds the last emotion (setEmotion(null) is a NO-OP hold). When TTS playback
  * finishes we want the expression to drift gently back to neutral — implemented as an EXPLICIT
@@ -7,7 +7,7 @@
  * long transition_ms so it eases rather than snaps.
  *
  * This pins the pure decision (mirroring apply-directive's routeDirective): no three.js / VRM —
- * setEmotion is a spy. The actual crossfade machinery is reused unchanged by setEmotion(#6).
+ * setEmotion is a spy. The actual crossfade machinery is reused unchanged by setEmotion.
  */
 
 import { describe, expect, it, vi } from "vitest";

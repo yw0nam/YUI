@@ -1,5 +1,5 @@
 /**
- * session-compactor.test.ts — write-only Hermes session compaction client (TDD red).
+ * session-compactor.test.ts — write-only Hermes session compaction client.
  *
  * 대상: compressUrl(chatBaseUrl, sessionId) — 순수 origin 도출 + id 인코딩.
  *   compressSession(config, sessionId, opts?) — best-effort POST, never throws.

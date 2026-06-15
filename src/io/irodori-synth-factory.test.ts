@@ -1,5 +1,5 @@
 /**
- * irodori-synth-factory.test.ts — memoized irodori synth + 422 self-heal (TDD red).
+ * irodori-synth-factory.test.ts — memoized irodori synth + 422 self-heal.
  *
  * createIrodoriSynthFactory({ ensureRegistered, buildSynth }) returns a synth(input, signal)
  * that:

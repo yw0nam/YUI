@@ -1,5 +1,5 @@
 /**
- * irodori-synth.test.ts — irodori_TTS per-sentence synth (TDD red).
+ * irodori-synth.test.ts — irodori_TTS per-sentence synth.
  *
  * 대상: createIrodoriSynth({ baseUrl, referenceId, fetch?, num/cfg/seconds?, logger? })
  *   → (input, signal?) => Promise<ArrayBuffer>.

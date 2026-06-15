@@ -543,7 +543,7 @@ async function bootstrap(): Promise<void> {
     onDrop: (env, reason) => log.info("drop", { event_name: env.event_name, reason }),
   });
   const userInput = createUserInputSource(bus);
-  // Window-sit drop producer (#131): Rust window_drop_release → tier1 perch event.
+  // Window-sit drop producer: Rust window_drop_release → tier1 perch event.
   // Tauri-only — getCurrentWindow()/invoke/listen require the Tauri runtime; in a
   // plain browser (Vite dev) it is skipped so bootstrap still runs. The DEV mock
   // (__yui_windowSit.drop) exercises the geometry path without a real drag.

@@ -1,5 +1,5 @@
 /**
- * project-anchor.test.ts — TDD red phase.
+ * project-anchor.test.ts
  *
  * Pins the contract for `projectFeetAnchor` — world feet point → screen px.
  * THREE camera/projection is pure math, so this runs in vitest node env

@@ -1,5 +1,5 @@
 /**
- * os-context.test.ts — OS context snapshot holder (#18).
+ * os-context.test.ts — OS context snapshot holder.
  *
  * Locks:
  *  - active_app_changed payload updates activeApp / activeWindowTitle.

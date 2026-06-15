@@ -1,7 +1,7 @@
 /**
- * tts-pipeline.test.ts — orchestration: segment → synth (concurrent) → ordered playback (TDD red, #14).
+ * tts-pipeline.test.ts — orchestration: segment → synth (concurrent) → ordered playback.
  *
- * 핵심 보장(#14 core):
+ * 핵심 보장:
  *  - synth는 동시 실행, 응답이 뒤바뀌어 와도 playback은 submission index 순서로만.
  *  - emotion_text는 문장 emit 시점에 snapshot되어 prefix로 prepend (verbatim free text, 발명 금지).
  *  - synth 에러는 큐를 deadlock시키지 않고 해당 index를 skip.

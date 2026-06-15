@@ -1,5 +1,5 @@
 /**
- * hit-test — pure helpers for the per-pixel alpha silhouette predicate (#8 PHASE-2).
+ * hit-test — pure helpers for the per-pixel alpha silhouette predicate.
  *
  * The renderer keeps a CPU-side low-res RGBA grab of the visible drawing buffer
  * (refreshed inside the rAF loop right after render). These pure functions decide

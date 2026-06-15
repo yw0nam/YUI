@@ -1,7 +1,7 @@
 /**
  * dispatcher.test.ts — classify → route + conflict resolution.
  *
- * MVP scope (#21 spine):
+ * Scope:
  *  - §5.1 classify: user.text_submitted (tier2) → backend_caller; user.drag_* / idle.returned
  *    / user.tap (tier1 half) → tier1/renderer.
  *  - §5.2 conflict: user.text_submitted arrival → abort in-flight backend call (AbortController)
@@ -200,7 +200,7 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(arg.motion).toBeNull();
   });
 
-  it("routes proactive.cowork (tier2) to the backend caller (#24 Step 5)", async () => {
+  it("routes proactive.cowork (tier2) to the backend caller", async () => {
     dispatcher.start();
     bus.push(
       env({
@@ -338,9 +338,9 @@ describe("dispatcher — observable dev APIs (§11)", () => {
   });
 });
 
-// ── #76 structured logging ─────────────────────────────────────────────────────
+// ── structured logging ──────────────────────────────────────────────────────
 
-describe("dispatcher — structured logging (#76): DROP_SEVERITY table", () => {
+describe("dispatcher — structured logging: DROP_SEVERITY table", () => {
   it("exports DROP_SEVERITY mapping every DropRecord reason", () => {
     expect(DROP_SEVERITY).toBeDefined();
     expect(DROP_SEVERITY.guardrail_drop).toBe("info");
@@ -352,7 +352,7 @@ describe("dispatcher — structured logging (#76): DROP_SEVERITY table", () => {
   });
 });
 
-describe("dispatcher — structured logging (#76): state_change events", () => {
+describe("dispatcher — structured logging: state_change events", () => {
   it("emits logger.info('state_change', {from:'booting', to:'running'}) on start()", () => {
     dispatcher.start();
     expect(logger.info).toHaveBeenCalledWith(
@@ -372,7 +372,7 @@ describe("dispatcher — structured logging (#76): state_change events", () => {
   });
 });
 
-describe("dispatcher — structured logging (#76): fire events", () => {
+describe("dispatcher — structured logging: fire events", () => {
   it("emits logger.info('fire', {seq_id, event_name, tier}) for a tier1 drag_start", async () => {
     dispatcher.start();
     bus.push(env({ event_name: "user.drag_start", hint_tier: 1 }));
@@ -411,7 +411,7 @@ describe("dispatcher — structured logging (#76): fire events", () => {
   });
 });
 
-describe("dispatcher — structured logging (#76): backend_call events", () => {
+describe("dispatcher — structured logging: backend_call events", () => {
   it("emits logger.info('backend_call', {trigger, seq_id, started_at}) at call start", async () => {
     dispatcher.start();
     bus.push(env());
@@ -447,7 +447,7 @@ describe("dispatcher — structured logging (#76): backend_call events", () => {
   });
 });
 
-describe("dispatcher — structured logging (#76): drop events via logger", () => {
+describe("dispatcher — structured logging: drop events via logger", () => {
   it("emits logger.warn('drop', ...) for parse_error via DROP_SEVERITY", async () => {
     dispatcher.start();
     bus.push(env());
@@ -537,9 +537,9 @@ describe("dispatcher — structured logging (#76): drop events via logger", () =
   });
 });
 
-// ── #25 guardrail gating ──────────────────────────
+// ── guardrail gating ───────────────────────────
 
-describe("dispatcher — guardrail gating (#25, §6)", () => {
+describe("dispatcher — guardrail gating (§6)", () => {
   /** real-config(§6 수치) 가드레일을 단 dispatcher를 만든다. */
   function makeGated(): { d: Dispatcher; g: Guardrails } {
     const g = createGuardrails(realGuardrailsConfig(), { now: () => Date.now() });
@@ -645,7 +645,7 @@ describe("dispatcher — guardrail gating (#25, §6)", () => {
   });
 });
 
-describe("dispatcher — cooldown state mirror (#25, §6.3/§9)", () => {
+describe("dispatcher — cooldown state mirror (§6.3/§9)", () => {
   it("overall-cap overflow flips state() to 'cooldown' and back to 'running'; tier1 still renders", async () => {
     const cfg = realGuardrailsConfig();
     cfg.rate_limit.tier2_max = 1000; // make overall cap the binding constraint
@@ -701,7 +701,7 @@ describe("dispatcher — cooldown state mirror (#25, §6.3/§9)", () => {
   });
 });
 
-// ── #128 P5 compacting state ───────────────────────────────────────────────────
+// ── compacting state ────────────────────────────────────────────────────────
 
 /** Controllable compact thunk: capture each call's signal + a settle handle. */
 interface CompactCall {

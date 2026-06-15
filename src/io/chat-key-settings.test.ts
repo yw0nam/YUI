@@ -1,5 +1,5 @@
 /**
- * chat-key-settings.test.ts — TDD red for the chat API key override reactive store.
+ * chat-key-settings.test.ts — chat API key override reactive store.
  *
  * Pins the contract for src/io/chat-key-settings.ts:
  *   CHAT_KEY_MAX_LEN cap
