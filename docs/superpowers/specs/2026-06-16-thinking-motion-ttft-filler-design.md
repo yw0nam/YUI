@@ -33,10 +33,15 @@ never inline in code, and the thinking motion is **not** published to the broker
 1. `configs/motions.json`: add `thinking`:
    - `vrma_path: "/purchased_motions/thinking.vrma"`, `kind: "state"`, `loop: true`,
      `interrupt_policy: "replace"`, `fade_ms: 200`, `broker_publish: false`,
-     priority above idle and below reactive emotes (exact value taken from neighbouring
-     entries when implementing).
-   - Missing-file fallback: `loadClip` returning `null` already falls back to idle; confirm
-     and test the fallback path.
+     `priority: 50` — above `idle` (0), below the perch held-state `window_sit` (55) so it
+     never disrupts a held state, and below reactive emotes (70) so the backend's response
+     motion replaces it.
+   - Missing-file behaviour: `loadClip` returning `null` does **not** auto-return to idle —
+     `startMotion` silently no-ops (`src/renderer/index.ts:681`), leaving the character on
+     its current baseline (idle in the common case). This is acceptable: a missing
+     `thinking.vrma` simply means no thinking pose, while the filler line still plays. The
+     spec does **not** rely on an idle fallback; tests assert the silent no-op, not a fallback
+     motion.
 2. `scripts/worktree-setup.sh`: link `public/purchased_motions` from the main checkout so
    gitignored purchased motions exist in worktrees (mirrors the `resources/references` link).
 3. `docs/motions.md`: document the `thinking` entry (current-state, declarative).
@@ -56,44 +61,84 @@ never inline in code, and the thinking motion is **not** published to the broker
 }
 ```
 
-- Loaded via `src/config/load.ts` (`validateFiller` + `CONFIG_FILES` + `AppConfig`), with
-  fail-loud validation and hot-reload via the config store (same as other configs).
+- `FillerConfig` and `type FillerLang = "ja" | "en" | "ko"` are declared in
+  `src/config/load.ts` (alongside `AvatarConfig`/`GuardrailsConfig`), **not** in
+  `src/contract/types.ts` — filler never crosses the Hermes wire, so it must not pollute the
+  wire contract. `filler-settings.ts` imports `FillerLang` from `load.ts`.
+- Wiring into the loader is created from scratch (none exists yet): add `filler` to
+  `AppConfig`, add the `filler` key to `CONFIG_FILES`, add `validateFiller`, and extend
+  `loadConfig`'s `Promise.all`/return. Hot-reload via the config store then covers `filler`
+  automatically (it becomes a `ConfigSection`).
+- `validateFiller` is fail-loud, matching `validateMotions`: `threshold_ms` is a positive
+  integer in `[100, 10000]`; `pools` keys are restricted to the closed `FillerLang` union
+  (unknown keys rejected); each pool value is a **non-empty** `string[]` of non-empty
+  strings.
 
 ### Settings store: `src/io/filler-settings.ts`
 
-- Shape: `{ enabled: boolean, language: "ja" | "en" | "ko", customPools: Partial<Record<lang, string[]>> }`.
+- Shape: `{ enabled: boolean, language: FillerLang, customPools: Partial<Record<FillerLang, string[]>> }`
+  (`FillerLang` imported from `load.ts`).
 - localStorage key `yui.filler`, following the `vad-settings.ts` store pattern
   (`get` / setters / `reloadFromStorage` / `subscribe` / `dispose`, storage adapter,
   stored > initial > defaults).
 - **Effective pool** for a language = `customPools[lang]` if present and non-empty, else
   `config.filler.pools[lang]`. `threshold_ms` always comes from config.
+- The dispatcher's `getFiller` and `main.ts`'s `onThinkingStart` read the **current**
+  config-store and settings-store snapshots at call time (live getters, not values captured
+  at wiring time) so a hot-reload or settings change takes effect on the next turn.
 
 ### Dispatcher: `src/dispatcher/backend-caller.ts`
 
 - New deps (all optional, injected from `main.ts`):
   - `onThinkingStart?: () => void`
   - `onThinkingEnd?: () => void`
-  - `getFiller?: () => { enabled: boolean; thresholdMs: number; pool: string[] } | null`
-  - a settable timer (default `setTimeout`/`clearTimeout`) so tests can drive it.
-- On `call()` entry (after `onSpeechInterrupt`): if filler enabled, arm a `thresholdMs`
-  timer.
-- If the timer fires before the first stream event → `onThinkingStart()` (once).
-- On the first `speech_delta` / `express` / `completed` / error / abort: clear the timer; if
-  thinking had started, `onThinkingEnd()` (once). Fast responses (first event before
-  threshold) never start thinking — no motion, no filler.
+  - `getFiller?: () => { thresholdMs: number } | null` — returns `null` when filler is
+    disabled or the effective pool is empty, so the dispatcher arms the timer only when a
+    filler will actually be shown. (The phrase/pool resolution lives in `main.ts`'s
+    `onThinkingStart`; the dispatcher only owns timing.)
+  - settable `setTimeout` / `clearTimeout` (defaulting to the globals) so tests drive the
+    threshold deterministically — the existing harness uses dependency injection, not
+    `vi.useFakeTimers()`, and the `streamChat` mock yields synchronously.
+- **Per-`call()` locals** (never closure/module scope — `call()` invocations can overlap
+  when one turn aborts and the next starts): `let handle`, `let thinkingStarted = false`,
+  `let thinkingDone = false`, plus two idempotent wrappers:
+  - `startThinking()`: `if (thinkingStarted || thinkingDone) return; thinkingStarted = true; onThinkingStart?.()`
+  - `endThinking()`: `if (thinkingDone) return; thinkingDone = true; clearTimeout(handle); if (thinkingStarted) onThinkingEnd?.()`
+- Arm the timer after `onSpeechInterrupt` (`:261`), only if `getFiller()` is non-null, with
+  `handle = setTimeout(startThinking, thresholdMs)`.
+- **Clear on the first stream event of *any* type**: `endThinking()` runs as the first
+  statement inside the `for await` loop body, *before* the `switch` — because `usage`,
+  `tool_status`, or `speech_done` can be the first event ahead of `speech_delta`
+  (`ChatStreamEvent` has seven members; enumerating a subset is a bug).
+- **Wrap the whole post-arm body (`:264`–`:419`) in `try { … } finally { endThinking() }`**
+  so every early return clears the timer / ends thinking. Without this, the setup-stage
+  reject (`:273`), the early-abort return (`:278`), and the empty/`parse_error` return
+  (`:361`) leak a started-but-never-ended thinking state.
+- "Fire once / end once" is guaranteed by the flags above, not by `clearTimeout` alone (an
+  already-queued timer callback still runs after the first event without the
+  `thinkingStarted/thinkingDone` gate). Fast responses (first event before threshold) never
+  start thinking — no motion, no filler.
 
 ### Wiring: `src/main.ts`
 
 - `onThinkingStart`:
   1. `renderer.playMotion({ id: "thinking", loop: true })`.
-  2. Pick a random phrase from the effective pool; show it in the speech bubble and
-     `ttsPipeline.submit(phrase)`.
-- TTS ordering: filler is submitted first; real `speech_delta` text is submitted after, so
-  the queue plays **filler → response** with no clipping. The real response replaces the
-  filler text in the bubble when it begins streaming.
-- `onThinkingEnd`: the response motion (from the backend cue) or idle baseline replaces the
-  thinking motion through the normal motion controller; no special teardown beyond letting
-  the queued filler finish.
+  2. Resolve the effective pool here (`fillerSettings.customPools[lang]` if non-empty, else
+     `config.filler.pools[lang]`), pick a random phrase, and play it as one complete
+     utterance via `speechPlayback.onSpeech(phrase)` — the public path that feeds the TTS
+     pipeline (there is **no** public `ttsPipeline.submit`; `onSpeech` runs delta+end). The
+     filler carries **no cue** (`setCue`/`onCue` timing stays anchored to the response
+     deltas only).
+- TTS ordering: the pipeline plays in FIFO submission order, but the **filler→response order
+  is guaranteed by the dispatcher start-gate** — once the first stream event arrives,
+  `thinkingStarted` is gated so the filler can never be submitted late. The real response's
+  `speech_delta` flow then begins a fresh speech segment (existing `beginSpeech`/`pushSpeech`
+  via `speech-playback`), and the queued filler audio finishes ahead of it.
+- `onThinkingEnd`: release the thinking motion to the normal controller — the response cue
+  motion (priority 70) or idle baseline replaces it via `interrupt_policy`. Do **not** issue
+  an explicit motion stop here: an explicit stop could cancel the *next* turn's just-started
+  thinking motion when turns overlap. No bubble teardown beyond the existing per-turn
+  `onSpeechInterrupt`.
 
 ## Part D — settings UI
 
@@ -111,10 +156,17 @@ Per AGENTS.md UI flow: review existing surfaces → propose structure → **mock
 
 - `src/io/filler-settings.test.ts` — store priority/persistence/idempotence/sync/dispose.
 - `src/config/load.test.ts` — `validateFiller` accept/reject cases.
-- `src/dispatcher/backend-caller.test.ts` — timer fires `onThinkingStart` only when slow;
-  not when the first event beats the threshold; `onThinkingEnd` on first delta / error /
-  abort; filler disabled → no timer.
-- motion registry/renderer test — `thinking` entry valid; missing-file → idle fallback.
+- `src/dispatcher/backend-caller.test.ts` (DI fakes for `setTimeout`/`clearTimeout`,
+  `onThinkingStart`/`onThinkingEnd` as `vi.fn()`):
+  - slow turn → `onThinkingStart` once, then `onThinkingEnd` once;
+  - fast turn (first event before threshold) → neither fires;
+  - first event is `usage` (not `speech_delta`) → timer cleared, thinking never starts;
+  - leak paths: setup-stage reject (`:273`) and empty/`parse_error` response (`:361`) with the
+    timer already fired → `onThinkingEnd` exactly once;
+  - external-signal abort mid-thinking → `onThinkingEnd` once;
+  - `getFiller()` returns `null` (disabled/empty pool) → timer never armed.
+- motion registry/renderer test — `thinking` entry valid; missing clip → `startMotion` silent
+  no-op (no fallback motion, no throw).
 - `src/ui/quick-controls.test.ts` — filler controls bind to the store.
 - `tests/hooks/guards.test.ts` — already covers `public/purchased_motions` (landed).
 
