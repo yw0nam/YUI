@@ -292,16 +292,16 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       if (thinkingStarted) deps.onThinkingEnd?.();
     };
 
-    // filler가 실제로 뜰 때만(non-null) 무장. disabled/빈 풀이면 타이머 자체가 없다.
-    const filler = deps.getFiller?.();
-    if (filler) {
-      handle = setTimer(startThinking, filler.thresholdMs);
-    }
-
-    // 무장 이후 전 구간을 try/finally로 감싼다 — 어느 종료 경로든 타이머 해제 / thinking 종료가
-    // 정확히 1회 보장된다(setup reject, early abort, stream throw, post-loop abort,
-    // streamError, empty/parse_error, 정상 완료 전부).
+    // 무장 + 이후 전 구간을 try/finally로 감싼다 — 어느 종료 경로든 타이머 해제 / thinking 종료가
+    // 정확히 1회 보장된다(arm 시 동기 throw, setup reject, early abort, stream throw,
+    // post-loop abort, streamError, empty/parse_error, 정상 완료 전부).
     try {
+      // filler가 실제로 뜰 때만(non-null) 무장. disabled/빈 풀이면 타이머 자체가 없다.
+      const filler = deps.getFiller?.();
+      if (filler) {
+        handle = setTimer(startThinking, filler.thresholdMs);
+      }
+
       // B1
       const ctx = await packageContext(env);
       const input = encodeInput(ctx, env);

@@ -207,6 +207,15 @@ describe("createFillerSettings — setCustomPool", () => {
     expect(saveSpy.mock.calls[0][0].customPools.ko).toEqual(["글쎄…"]);
   });
 
+  it("idempotent: unset pool → [] is a no-op (both mean 'use config pool')", () => {
+    const store = createFillerSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.setCustomPool("ja", []);
+    store.setCustomPool("ja", []);
+    expect(cb).not.toHaveBeenCalled();
+  });
+
   it("get() customPools is a copy — mutation does not affect store", () => {
     const store = createFillerSettings();
     store.setCustomPool("ja", ["うーん…"]);
@@ -281,6 +290,22 @@ describe("createFillerSettings — reloadFromStorage", () => {
     store.subscribe(cb);
 
     storage._data = { enabled: "yes" as unknown as boolean, language: "ja", customPools: {} };
+    store.reloadFromStorage();
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("invalid customPools shape on reload is ignored (no notify)", () => {
+    const storage = makeMemStorage();
+    const store = createFillerSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    storage._data = {
+      enabled: true,
+      language: "ja",
+      customPools: "bad" as unknown as Record<string, never>,
+    };
     store.reloadFromStorage();
 
     expect(cb).not.toHaveBeenCalled();

@@ -116,10 +116,11 @@ export function createFillerSettings(opts?: { storage?: FillerStorage; initial?:
 
     setCustomPool(lang: FillerLang, phrases: string[]): void {
       const current = state.customPools[lang];
+      // No-op when unchanged — including the unset→empty case (both mean "use config pool").
       if (
-        current !== undefined &&
-        current.length === phrases.length &&
-        phrases.every((p, i) => current[i] === p)
+        current === undefined
+          ? phrases.length === 0
+          : current.length === phrases.length && phrases.every((p, i) => current[i] === p)
       )
         return;
       const newPools: Partial<Record<FillerLang, string[]>> = {

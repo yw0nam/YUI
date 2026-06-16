@@ -1107,6 +1107,22 @@ describe("backend_caller — TTFT thinking timer", () => {
     expect(onThinkingEnd).toHaveBeenCalledTimes(1);
   });
 
+  it("leak path — stream throw (network_drop) with the timer already fired → onThinkingEnd exactly once", async () => {
+    caller = makeCaller();
+    // arm fires immediately, then the stream throws mid-flight (no abort).
+    streamChatError = new Error("connection reset");
+    scriptedEvents = [];
+    fakeSetTimeout.mockImplementationOnce((cb: () => void) => {
+      cb();
+      return 1 as never;
+    });
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(false);
+    expect(res.drop_reason).toBe("network_drop");
+    expect(onThinkingStart).toHaveBeenCalledTimes(1);
+    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
+  });
+
   it("external-signal abort mid-thinking → onThinkingEnd once", async () => {
     const ac = new AbortController();
     caller = makeCaller();

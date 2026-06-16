@@ -206,6 +206,7 @@ describe("configs/motions.json", () => {
     expect(published).not.toContain("falling");
     expect(published).not.toContain("landing");
     expect(published).not.toContain("suneru");
+    expect(published).not.toContain("thinking");
   });
 
   it("registers the standing-gesture batch as oneshot p70", () => {
@@ -225,7 +226,7 @@ describe("configs/motions.json", () => {
     expect(m.thinking.kind).toBe("state");
     expect(m.thinking.loop).toBe(true);
     expect(m.thinking.priority).toBe(50);
-    expect(m.thinking.interrupt_policy).toBe("replace");
+    expect(m.thinking.interrupt_policy).toBe("ignore");
     expect(m.thinking.fade_ms).toBe(200);
     expect(m.thinking.broker_publish).toBe(false);
   });

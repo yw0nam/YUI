@@ -100,7 +100,7 @@
     "kind": "state",
     "loop": true,
     "priority": 50,
-    "interrupt_policy": "replace",
+    "interrupt_policy": "ignore",
     "broker_publish": false
   },
   "sulk": {

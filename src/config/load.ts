@@ -894,6 +894,8 @@ function validateFiller(file: string, raw: unknown): FillerConfig {
   const pools: Partial<Record<FillerLang, string[]>> = {};
   if (!isObject(rawPools)) {
     issues.push(`pools는 객체여야 함 (받음: ${JSON.stringify(rawPools)})`);
+  } else if (Object.keys(rawPools).length === 0) {
+    issues.push("pools는 최소 한 개의 언어(ja | en | ko)를 포함해야 함");
   } else {
     for (const key of Object.keys(rawPools)) {
       if (!(FILLER_LANGS as readonly string[]).includes(key)) {
@@ -906,14 +908,16 @@ function validateFiller(file: string, raw: unknown): FillerConfig {
         issues.push(`pools.${lang}는 비어있지 않은 배열이어야 함 (받음: ${JSON.stringify(pool)})`);
         continue;
       }
+      let poolClean = true;
       for (let i = 0; i < pool.length; i++) {
         if (typeof pool[i] !== "string" || pool[i] === "") {
           issues.push(
             `pools.${lang}[${i}]는 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(pool[i])})`,
           );
+          poolClean = false;
         }
       }
-      pools[lang] = pool as string[];
+      if (poolClean) pools[lang] = pool as string[];
     }
   }
 

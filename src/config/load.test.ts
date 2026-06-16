@@ -1465,6 +1465,24 @@ describe("loadConfig — filler (reject)", () => {
     map["filler.json"] = { threshold_ms: 500, pools: "ja" };
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
+
+  it("threshold_ms 키가 없으면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { pools: { ja: ["うーん…"] } };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pools 키가 없으면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { threshold_ms: 500 };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pools가 빈 객체이면 ConfigError (최소 한 개 언어 필요)", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { threshold_ms: 500, pools: {} };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
 });
 
 // ── plainSecretProvider ─────────────────────────────────────────────────────────

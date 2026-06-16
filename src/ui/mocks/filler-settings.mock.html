@@ -432,7 +432,9 @@
         positionSeg(seg);
         seg.querySelectorAll(".yui-seg__btn").forEach((btn) => {
           btn.addEventListener("click", () => {
-            seg.querySelectorAll(".yui-seg__btn").forEach((b) => b.setAttribute("aria-checked", "false"));
+            seg.querySelectorAll(".yui-seg__btn").forEach((b) => {
+              b.setAttribute("aria-checked", "false");
+            });
             btn.setAttribute("aria-checked", "true");
             positionSeg(seg);
           });
