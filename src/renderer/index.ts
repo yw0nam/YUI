@@ -525,11 +525,11 @@ export function createRenderer(options: RendererOptions): Renderer {
   // Idle 30fps cap toggle (runtime). Disabled ⇒ idle frames render at full refresh.
   let idleThrottleEnabled = true;
 
-  /** True while a non-idle motion clip is actively playing via the mixer. */
+  /** True while a non-baseline motion clip is actively playing via the mixer. */
   function isMotionActive(): boolean {
     if (!currentAction?.isRunning()) return false;
     const id = controller?.current()?.id;
-    return id != null && id !== "idle";
+    return id != null && id !== controller?.baseline();
   }
 
   function animate(): void {
@@ -734,9 +734,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (idle) void startMotion(idle);
   }
 
-  /** registry가 있으면 idle baseline을 깔아 항상 ambient가 돌게 한다. */
+  /** registry가 있으면 baseline을 깔아 항상 ambient가 돌게 한다. */
   function playIdleBaseline(): void {
-    if (controller) playMotion({ id: "idle" });
+    if (controller) playMotion({ id: controller.baseline() });
   }
 
   // ── Emotion crossfade ──────────────────────────────────────────────────────

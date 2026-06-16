@@ -77,6 +77,9 @@ export interface MotionController {
 
   /** Returns the currently committed (playing) motion, or null if none. */
   current(): ResolvedMotion | null;
+
+  /** Returns the configured baseline motion id (single source of truth). */
+  baseline(): string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -270,6 +273,9 @@ export function createMotionController(
     commit,
     current() {
       return current;
+    },
+    baseline() {
+      return baselineId;
     },
   };
 }
