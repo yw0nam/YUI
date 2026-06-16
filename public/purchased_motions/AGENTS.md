@@ -11,4 +11,4 @@
 - **Fallback Behavior:** If these purchased motions are not present in your local environment, use the `idle` motion as a fallback.
 
 Motion list
-- [もいらんど/thinking](https://booth.pm/ja/items/5562384)
+- [もいらんど/thinking.vrma](https://booth.pm/ja/items/5562384)

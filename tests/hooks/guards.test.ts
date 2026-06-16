@@ -13,7 +13,7 @@ function runHook(script: string, input: unknown, env: Record<string, string> = {
   const r = spawnSync("bash", [join(HOOKS, script)], {
     input: typeof input === "string" ? input : JSON.stringify(input),
     encoding: "utf8",
-    env: { ...process.env, YUI_ALLOW_MAIN: "", ...env },
+    env: { ...process.env, ...env },
   });
   return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
 }
@@ -69,21 +69,14 @@ describe("pretool-bash-guard.sh — main branch guard", () => {
     expect(denyReason(r)).toMatch(/main/);
   });
 
-  it("mentions the YUI_ALLOW_MAIN bypass in the deny reason", () => {
+  it("directs the agent to request the user in the deny reason", () => {
     const r = runHook("pretool-bash-guard.sh", bashInput('git commit -m "x"', mainRepo));
-    expect(denyReason(r)).toMatch(/YUI_ALLOW_MAIN=1/);
+    expect(denyReason(r)).toMatch(/request the user/i);
   });
 
   it("allows git commit on a feature branch", () => {
     const r = runHook("pretool-bash-guard.sh", bashInput('git commit -m "x"', featRepo));
     expect(r.status).toBe(0);
-    expect(denyReason(r)).toBeUndefined();
-  });
-
-  it("allows git commit on main when YUI_ALLOW_MAIN=1", () => {
-    const r = runHook("pretool-bash-guard.sh", bashInput('git commit -m "x"', mainRepo), {
-      YUI_ALLOW_MAIN: "1",
-    });
     expect(denyReason(r)).toBeUndefined();
   });
 
@@ -137,6 +130,17 @@ describe("pretool-bash-guard.sh — purchased_motions guard", () => {
       );
     });
   }
+
+  it("denies mutation of public/purchased_motions", () => {
+    expect(
+      denyReason(
+        runHook(
+          "pretool-bash-guard.sh",
+          bashInput("rm public/purchased_motions/thinking.vrma", featRepo),
+        ),
+      ),
+    ).toMatch(/purchased_motions/);
+  });
 
   it("mentions the YUI_ALLOW_MOTIONS bypass", () => {
     const r = runHook(
@@ -252,6 +256,22 @@ describe("pretool-write-guard.sh — purchased_motions guard", () => {
 
   it("denies a relative purchased_motions path", () => {
     const r = runHook("pretool-write-guard.sh", writeInput("resources/purchased_motions/a.anim"));
+    expect(denyReason(r)).toMatch(/purchased_motions/);
+  });
+
+  it("denies writing inside public/purchased_motions (absolute path)", () => {
+    const r = runHook(
+      "pretool-write-guard.sh",
+      writeInput("/Users/x/YUI/public/purchased_motions/thinking.vrma"),
+    );
+    expect(denyReason(r)).toMatch(/purchased_motions/);
+  });
+
+  it("denies a relative public/purchased_motions path", () => {
+    const r = runHook(
+      "pretool-write-guard.sh",
+      writeInput("public/purchased_motions/thinking.vrma"),
+    );
     expect(denyReason(r)).toMatch(/purchased_motions/);
   });
 
