@@ -219,6 +219,17 @@ describe("configs/motions.json", () => {
     }
   });
 
+  it("registers thinking as a looping state TTFT-filler motion (purchased, broker-excluded, p50)", () => {
+    expect(m.thinking).toBeDefined();
+    expect(m.thinking.vrma_path).toBe("/purchased_motions/thinking.vrma");
+    expect(m.thinking.kind).toBe("state");
+    expect(m.thinking.loop).toBe(true);
+    expect(m.thinking.priority).toBe(50);
+    expect(m.thinking.interrupt_policy).toBe("replace");
+    expect(m.thinking.fade_ms).toBe(200);
+    expect(m.thinking.broker_publish).toBe(false);
+  });
+
   it("sleeping is a looping oneshot p70", () => {
     expect(m.sleeping.kind).toBe("oneshot");
     expect(m.sleeping.loop).toBe(true);

@@ -46,6 +46,7 @@ link_asset() {
 
 link_asset "$MAIN/resources/vrms/carlotta.vrm" "$WT/resources/vrms/carlotta.vrm"
 link_asset "$MAIN/resources/references" "$WT/resources/references"
+link_asset "$MAIN/public/purchased_motions" "$WT/public/purchased_motions"
 
 if [ -f "$MAIN/.env.local" ]; then
   cp "$MAIN/.env.local" "$WT/.env.local"
