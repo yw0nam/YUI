@@ -40,9 +40,9 @@ function paramsKey(p: IrodoriSynthParams): string {
 }
 
 function is422(err: unknown): boolean {
-  return typeof (err as { status?: unknown })?.status === "number"
-    ? (err as { status: number }).status === 422
-    : /HTTP 422/.test(String((err as { message?: unknown })?.message ?? ""));
+  const status = (err as { status?: unknown })?.status;
+  if (typeof status === "number") return status === 422;
+  return /HTTP 422/.test(String((err as { message?: unknown })?.message ?? ""));
 }
 
 export function createIrodoriSynthFactory(deps: IrodoriSynthFactoryDeps): TtsSynth {
