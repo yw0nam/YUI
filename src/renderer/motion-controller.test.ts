@@ -591,3 +591,22 @@ describe("commit() / current()", () => {
     expect(mc.current()!.id).toBe("low_queue");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §8  baseline() — single source of truth for the baseline id
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("baseline() — configured baseline id getter", () => {
+  it("defaults to 'idle' when no baselineId is given", () => {
+    const mc = createMotionController(syntheticRegistry, { rng: () => 0 });
+    expect(mc.baseline()).toBe("idle");
+  });
+
+  it("returns the injected baselineId", () => {
+    const mc = createMotionController(syntheticRegistry, {
+      rng: () => 0,
+      baselineId: "drag",
+    });
+    expect(mc.baseline()).toBe("drag");
+  });
+});

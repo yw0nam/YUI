@@ -17,23 +17,23 @@
 
 import type { MotionController, ResolvedMotion } from "./motion-controller";
 
-const BASELINE_ID = "idle";
-
 /**
- * Resolves and force-commits the idle baseline as recovery for `failedId`'s dead clip.
- * Returns the resolved idle motion for the renderer to (re)play, or null when no
+ * Resolves and force-commits the baseline as recovery for `failedId`'s dead clip.
+ * Returns the resolved baseline motion for the renderer to (re)play, or null when no
  * fallback should run:
- *  - `failedId === "idle"` → recursion guard (idle's own load failed; do not loop).
- *  - idle is not registered → nothing to fall back to.
+ *  - `failedId === controller.baseline()` → recursion guard (the baseline's own load
+ *    failed; do not loop).
+ *  - the baseline is not registered → nothing to fall back to.
  */
 export function resolveBaselineFallback(
   controller: MotionController,
   failedId: string,
 ): ResolvedMotion | null {
-  if (failedId === BASELINE_ID) return null;
-  const idle = controller.resolve({ id: BASELINE_ID });
-  if (!idle) return null;
-  // Force-commit (not request()) so the dead motion's priority can't block idle.
-  controller.commit({ action: "play", motion: idle });
-  return idle;
+  const baselineId = controller.baseline();
+  if (failedId === baselineId) return null;
+  const baseline = controller.resolve({ id: baselineId });
+  if (!baseline) return null;
+  // Force-commit (not request()) so the dead motion's priority can't block the baseline.
+  controller.commit({ action: "play", motion: baseline });
+  return baseline;
 }

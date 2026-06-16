@@ -287,30 +287,27 @@ async function bootstrap(): Promise<void> {
       bridge.emitSettingsChanged();
     }, 200);
   };
-  agentSettings.subscribe(broadcastSettings);
-  endpointsSettings.subscribe(broadcastSettings);
-  chatKeySettings.subscribe(broadcastSettings);
-  lipsyncSettings.subscribe(broadcastSettings);
-  vadSettings.subscribe(broadcastSettings);
-  fillerSettings.subscribe(broadcastSettings);
-  screenshotSettings.subscribe(broadcastSettings);
-  proactiveSettings.subscribe(broadcastSettings);
-  scheduleSettings.subscribe(broadcastSettings);
-  idleThrottleSettings.subscribe(broadcastSettings);
+  // 동일하게 broadcast/reload 되는 설정 store들. cameraSettings는 reload가
+  // 줌까지 전파되어 별도 주석으로 남기므로 배열에서 제외한다.
+  type SyncedStore = { subscribe(cb: () => void): () => void; reloadFromStorage(): void };
+  const syncedSettingsStores: SyncedStore[] = [
+    agentSettings,
+    endpointsSettings,
+    chatKeySettings,
+    lipsyncSettings,
+    vadSettings,
+    fillerSettings,
+    screenshotSettings,
+    proactiveSettings,
+    scheduleSettings,
+    idleThrottleSettings,
+  ];
+  for (const store of syncedSettingsStores) store.subscribe(broadcastSettings);
   cameraSettings.subscribe(broadcastSettings);
   bridge.onSettingsChanged(() => {
     applyingRemote = true;
     try {
-      agentSettings.reloadFromStorage();
-      endpointsSettings.reloadFromStorage();
-      chatKeySettings.reloadFromStorage();
-      lipsyncSettings.reloadFromStorage();
-      vadSettings.reloadFromStorage();
-      fillerSettings.reloadFromStorage();
-      screenshotSettings.reloadFromStorage();
-      proactiveSettings.reloadFromStorage();
-      scheduleSettings.reloadFromStorage();
-      idleThrottleSettings.reloadFromStorage();
+      for (const store of syncedSettingsStores) store.reloadFromStorage();
       // 줌 재로드 → cameraSettings.subscribe(s => renderer.setZoom)가 카메라까지 반영.
       cameraSettings.reloadFromStorage();
       // VRM 선택은 설정 창에서 store-only로 커밋되므로, 그 변경을 펫 창 렌더러로 반영.

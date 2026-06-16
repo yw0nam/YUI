@@ -77,4 +77,19 @@ describe("resolveBaselineFallback — failed clip repairs controller to idle", (
     const controller = createMotionController(noIdle);
     expect(resolveBaselineFallback(controller, "drag")).toBeNull();
   });
+
+  it("recursion guard tracks the controller's configured baseline, not a hardcoded 'idle'", () => {
+    // baseline is 'window_sit' here; a failed 'window_sit' clip must NOT recurse,
+    // while a failed 'idle' clip SHOULD fall back to the window_sit baseline.
+    const controller = createMotionController(realRegistry, {
+      rng: () => 0,
+      baselineId: "window_sit",
+    });
+
+    expect(resolveBaselineFallback(controller, "window_sit")).toBeNull();
+
+    const baseline = resolveBaselineFallback(controller, "idle");
+    expect(baseline).not.toBeNull();
+    expect(baseline!.id).toBe("window_sit");
+  });
 });
