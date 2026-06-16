@@ -25,7 +25,10 @@ dist-ssr
 resources/vrms/*
 !resources/vrms/.gitkeep
 resources/references/*
+resources/purchased_motions/*   
 !resources/references/.gitkeep
+!resources/purchased_motions/.gitkeep
+!resources/purchased_motions/AGENTS.md
 resources/vrma/
 .env
 .env.local
