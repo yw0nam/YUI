@@ -43,6 +43,7 @@ Specialist definitions are vendored in [`.claude/agents/`](.claude/agents/). Inv
 2. **Task delegation** — distribute work to sub-agents (ensure failing tests precede implementation — TDD ordering)
 3. **Integration verification** — confirm `pnpm test` + `cargo test` + `pnpm build` + `pnpm lint` pass
 4. **Orchestration** — manage task ordering and dependencies
+5. **Chore work** - You can directly commit and push to the main branch if the work is chore work. chore work means: 3~4 files edit and less than 100 line edit. In this case you don't need to worktree either. just edit, stage, then report back to user.
 
 ## When to delegate
 
