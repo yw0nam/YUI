@@ -3,6 +3,8 @@
  * 변경 시 storage에 persist하고 구독자에게 통지한다.
  */
 
+import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
+
 export const LIPSYNC_GAIN_MIN = 0.5;
 export const LIPSYNC_GAIN_MAX = 6.0;
 export const LIPSYNC_GAIN_DEFAULT = 2.0;
@@ -11,10 +13,7 @@ export interface LipsyncSettings {
   gain: number;
 }
 
-export interface LipsyncStorage {
-  load(): LipsyncSettings | null;
-  save(s: LipsyncSettings): void;
-}
+export type LipsyncStorage = PersistedStorage<LipsyncSettings>;
 
 function isValidSettings(v: unknown): v is LipsyncSettings {
   if (v === null || typeof v !== "object") return false;
@@ -30,91 +29,29 @@ export function createLipsyncSettings(opts?: {
   storage?: LipsyncStorage;
   initial?: LipsyncSettings;
 }) {
-  const storage = opts?.storage;
-
-  let stored: LipsyncSettings | null = null;
-  if (storage) {
-    try {
-      const loaded = storage.load();
-      if (isValidSettings(loaded)) stored = { gain: clampGain(loaded.gain) };
-    } catch {
-      // storage 오류 시 기본값으로 폴백
-    }
-  }
-
-  // 우선순위: 저장값 > initial > 기본값
-  let state: LipsyncSettings = stored
-    ? { ...stored }
-    : opts?.initial
-      ? { ...opts.initial }
-      : { gain: LIPSYNC_GAIN_DEFAULT };
-
-  const subscribers = new Set<(s: LipsyncSettings) => void>();
-
-  function notify(): void {
-    const copy = { gain: state.gain };
-    for (const cb of subscribers) cb(copy);
-  }
+  const core = createPersistedStore<LipsyncSettings>({
+    storage: opts?.storage,
+    initial: opts?.initial,
+    defaults: { gain: LIPSYNC_GAIN_DEFAULT },
+    parse: (v) => (isValidSettings(v) ? { gain: clampGain(v.gain) } : null),
+    equals: (a, b) => a.gain === b.gain,
+  });
 
   return {
-    get(): LipsyncSettings {
-      return { gain: state.gain };
-    },
+    get: core.get,
 
     setGain(gain: number): void {
       if (!Number.isFinite(gain)) return;
-      const clamped = clampGain(gain);
-      if (state.gain === clamped) return;
-      state = { gain: clamped };
-      storage?.save({ ...state });
-      notify();
+      core.commit({ gain: clampGain(gain) });
     },
 
-    // 다른 창이 storage를 갱신했을 때 재로드 — 값이 실제로 바뀌었을 때만 통지.
-    reloadFromStorage(): void {
-      if (!storage) return;
-      let loaded: LipsyncSettings | null;
-      try {
-        loaded = storage.load();
-      } catch {
-        return;
-      }
-      if (!isValidSettings(loaded)) return;
-      const next = clampGain(loaded.gain);
-      if (state.gain === next) return;
-      state = { gain: next };
-      notify();
-    },
-
-    subscribe(cb: (s: LipsyncSettings) => void): () => void {
-      subscribers.add(cb);
-      return () => subscribers.delete(cb);
-    },
-
-    dispose(): void {
-      subscribers.clear();
-    },
+    reloadFromStorage: core.reloadFromStorage,
+    subscribe: core.subscribe,
+    dispose: core.dispose,
   };
 }
 
 /** localStorage 기반 LipsyncStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
 export function localStorageLipsyncStorage(key = "yui.lipsync"): LipsyncStorage {
-  return {
-    load() {
-      try {
-        const raw = globalThis.localStorage?.getItem(key);
-        if (!raw) return null;
-        return JSON.parse(raw) as LipsyncSettings;
-      } catch {
-        return null;
-      }
-    },
-    save(s) {
-      try {
-        globalThis.localStorage?.setItem(key, JSON.stringify(s));
-      } catch {
-        // localStorage 사용 불가 시 no-op
-      }
-    },
-  };
+  return localStorageStore<LipsyncSettings>(key);
 }

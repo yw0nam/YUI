@@ -6,6 +6,7 @@
  */
 
 import type { FillerLang } from "../config/load";
+import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
 
 export interface FillerSettings {
   enabled: boolean;
@@ -13,10 +14,7 @@ export interface FillerSettings {
   customPools: Partial<Record<FillerLang, string[]>>;
 }
 
-export interface FillerStorage {
-  load(): FillerSettings | null;
-  save(s: FillerSettings): void;
-}
+export type FillerStorage = PersistedStorage<FillerSettings>;
 
 const FILLER_LANGS: readonly FillerLang[] = ["ja", "en", "ko"];
 
@@ -67,55 +65,28 @@ function settingsEqual(a: FillerSettings, b: FillerSettings): boolean {
 }
 
 export function createFillerSettings(opts?: { storage?: FillerStorage; initial?: FillerSettings }) {
-  const storage = opts?.storage;
-
-  let stored: FillerSettings | null = null;
-  if (storage) {
-    try {
-      const loaded = storage.load();
-      if (isValidSettings(loaded)) stored = copySettings(loaded);
-    } catch {
-      // storage 오류 시 기본값으로 폴백
-    }
-  }
-
-  // 우선순위: 저장값 > initial > 기본값
-  let state: FillerSettings = stored
-    ? stored
-    : opts?.initial
-      ? copySettings(opts.initial)
-      : copySettings(DEFAULTS);
-
-  const subscribers = new Set<(s: FillerSettings) => void>();
-
-  function notify(): void {
-    const copy = copySettings(state);
-    for (const cb of subscribers) cb(copy);
-  }
+  const core = createPersistedStore<FillerSettings>({
+    storage: opts?.storage,
+    initial: opts?.initial,
+    defaults: DEFAULTS,
+    parse: (v) => (isValidSettings(v) ? copySettings(v) : null),
+    clone: copySettings,
+    equals: settingsEqual,
+  });
 
   return {
-    get(): FillerSettings {
-      return copySettings(state);
-    },
+    get: core.get,
 
     setEnabled(enabled: boolean): void {
-      if (state.enabled === enabled) return;
-      state = { ...state, customPools: { ...state.customPools } };
-      state.enabled = enabled;
-      storage?.save(copySettings(state));
-      notify();
+      core.commit({ ...core.current(), enabled });
     },
 
     setLanguage(language: FillerLang): void {
-      if (state.language === language) return;
-      state = { ...state, customPools: { ...state.customPools } };
-      state.language = language;
-      storage?.save(copySettings(state));
-      notify();
+      core.commit({ ...core.current(), language });
     },
 
     setCustomPool(lang: FillerLang, phrases: string[]): void {
-      const current = state.customPools[lang];
+      const current = core.current().customPools[lang];
       // No-op when unchanged — including the unset→empty case (both mean "use config pool").
       if (
         current === undefined
@@ -124,58 +95,19 @@ export function createFillerSettings(opts?: { storage?: FillerStorage; initial?:
       )
         return;
       const newPools: Partial<Record<FillerLang, string[]>> = {
-        ...state.customPools,
+        ...core.current().customPools,
         [lang]: [...phrases],
       };
-      state = { ...state, customPools: newPools };
-      storage?.save(copySettings(state));
-      notify();
+      core.commit({ ...core.current(), customPools: newPools });
     },
 
-    reloadFromStorage(): void {
-      if (!storage) return;
-      let loaded: FillerSettings | null;
-      try {
-        loaded = storage.load();
-      } catch {
-        return;
-      }
-      if (!isValidSettings(loaded)) return;
-      const next = copySettings(loaded);
-      if (settingsEqual(state, next)) return;
-      state = next;
-      notify();
-    },
-
-    subscribe(cb: (s: FillerSettings) => void): () => void {
-      subscribers.add(cb);
-      return () => subscribers.delete(cb);
-    },
-
-    dispose(): void {
-      subscribers.clear();
-    },
+    reloadFromStorage: core.reloadFromStorage,
+    subscribe: core.subscribe,
+    dispose: core.dispose,
   };
 }
 
 /** localStorage 기반 FillerStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
 export function localStorageFillerStorage(key = "yui.filler"): FillerStorage {
-  return {
-    load() {
-      try {
-        const raw = globalThis.localStorage?.getItem(key);
-        if (!raw) return null;
-        return JSON.parse(raw) as FillerSettings;
-      } catch {
-        return null;
-      }
-    },
-    save(s) {
-      try {
-        globalThis.localStorage?.setItem(key, JSON.stringify(s));
-      } catch {
-        // localStorage 사용 불가 시 no-op
-      }
-    },
-  };
+  return localStorageStore<FillerSettings>(key);
 }
