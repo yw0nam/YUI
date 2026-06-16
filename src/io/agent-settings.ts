@@ -3,6 +3,8 @@
  * 변경 시 storage에 persist하고 구독자에게 통지한다.
  */
 
+import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
+
 export type ReasoningEffort = "none" | "minimal" | "low" | "medium";
 export const REASONING_EFFORTS: readonly ReasoningEffort[] = ["none", "minimal", "low", "medium"];
 export const INSTRUCTIONS_MAX_LEN = 4000;
@@ -12,10 +14,7 @@ export interface AgentSettings {
   instructions: string; // "" => 호출자가 config.chat_instructions로 폴백
 }
 
-export interface AgentStorage {
-  load(): AgentSettings | null;
-  save(s: AgentSettings): void;
-}
+export type AgentStorage = PersistedStorage<AgentSettings>;
 
 const DEFAULT_SETTINGS: AgentSettings = {
   reasoning_effort: "none",
@@ -39,102 +38,35 @@ function coerce(v: unknown): AgentSettings {
   };
 }
 
-function equals(a: AgentSettings, b: AgentSettings): boolean {
-  return a.reasoning_effort === b.reasoning_effort && a.instructions === b.instructions;
-}
-
 export function createAgentSettings(opts?: { storage?: AgentStorage; initial?: AgentSettings }) {
-  const storage = opts?.storage;
-
-  let stored: AgentSettings | null = null;
-  if (storage) {
-    try {
-      const loaded = storage.load();
-      if (loaded !== null) stored = coerce(loaded);
-    } catch {
-      // storage 오류 시 기본값으로 폴백
-    }
-  }
-
-  // 우선순위: 저장값 > initial > 기본값
-  let state: AgentSettings = stored
-    ? { ...stored }
-    : opts?.initial
-      ? coerce(opts.initial)
-      : { ...DEFAULT_SETTINGS };
-
-  const subscribers = new Set<(s: AgentSettings) => void>();
-
-  function notify(): void {
-    const copy = { ...state };
-    for (const cb of subscribers) cb(copy);
-  }
+  const core = createPersistedStore<AgentSettings>({
+    storage: opts?.storage,
+    initial: opts?.initial,
+    defaults: { ...DEFAULT_SETTINGS },
+    parse: (v) => (v === null ? null : coerce(v)),
+    fromInitial: coerce,
+    equals: (a, b) =>
+      a.reasoning_effort === b.reasoning_effort && a.instructions === b.instructions,
+  });
 
   return {
-    get(): AgentSettings {
-      return { ...state };
-    },
+    get: core.get,
 
     setReasoningEffort(e: ReasoningEffort): void {
-      const next = coerceEffort(e);
-      if (state.reasoning_effort === next) return;
-      state = { ...state, reasoning_effort: next };
-      storage?.save({ ...state });
-      notify();
+      core.commit({ ...core.current(), reasoning_effort: coerceEffort(e) });
     },
 
     setInstructions(s: string): void {
-      const next = coerceInstructions(s);
-      if (state.instructions === next) return;
-      state = { ...state, instructions: next };
-      storage?.save({ ...state });
-      notify();
+      core.commit({ ...core.current(), instructions: coerceInstructions(s) });
     },
 
-    reloadFromStorage(): void {
-      if (!storage) return;
-      let loaded: AgentSettings | null;
-      try {
-        loaded = storage.load();
-      } catch {
-        return;
-      }
-      if (loaded === null) return;
-      const next = coerce(loaded);
-      if (equals(state, next)) return;
-      state = next;
-      notify();
-    },
-
-    subscribe(cb: (s: AgentSettings) => void): () => void {
-      subscribers.add(cb);
-      return () => subscribers.delete(cb);
-    },
-
-    dispose(): void {
-      subscribers.clear();
-    },
+    reloadFromStorage: core.reloadFromStorage,
+    subscribe: core.subscribe,
+    dispose: core.dispose,
   };
 }
 
 /** localStorage 기반 AgentStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
 export function localStorageAgentStorage(key = "yui.agent"): AgentStorage {
-  return {
-    load() {
-      try {
-        const raw = globalThis.localStorage?.getItem(key);
-        if (!raw) return null;
-        return JSON.parse(raw) as AgentSettings;
-      } catch {
-        return null;
-      }
-    },
-    save(s) {
-      try {
-        globalThis.localStorage?.setItem(key, JSON.stringify(s));
-      } catch {
-        // localStorage 사용 불가 시 no-op
-      }
-    },
-  };
+  return localStorageStore<AgentSettings>(key);
 }

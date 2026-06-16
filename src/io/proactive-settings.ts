@@ -3,6 +3,8 @@
  * 변경 시 storage에 persist하고 구독자에게 통지한다. 소스 구독은 멈추지 않고 firing만 게이팅한다.
  */
 
+import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
+
 export interface ProactiveCue {
   id: string;
   label: string;
@@ -17,10 +19,7 @@ export interface ProactiveSettings {
   entries: ProactiveCue[];
 }
 
-export interface ProactiveStorage {
-  load(): ProactiveSettings | null;
-  save(s: ProactiveSettings): void;
-}
+export type ProactiveStorage = PersistedStorage<ProactiveSettings>;
 
 const DEFAULT_SETTINGS: ProactiveSettings = {
   enabled: true,
@@ -78,60 +77,33 @@ function migrate(v: unknown): ProactiveSettings | null {
   if (v === null || typeof v !== "object") return null;
   const s = v as Record<string, unknown>;
   if (typeof s.enabled === "boolean" && !Array.isArray(s.entries)) {
-    return { enabled: s.enabled, entries: DEFAULT_SETTINGS.entries.map((c) => ({ ...c })) };
+    return { enabled: s.enabled, entries: structuredClone(DEFAULT_SETTINGS.entries) };
   }
   return null;
-}
-
-function cloneSettings(s: ProactiveSettings): ProactiveSettings {
-  return { enabled: s.enabled, entries: s.entries.map((c) => ({ ...c })) };
 }
 
 export function createProactiveSettings(opts?: {
   storage?: ProactiveStorage;
   initial?: ProactiveSettings;
 }) {
-  const storage = opts?.storage;
+  const core = createPersistedStore<ProactiveSettings>({
+    storage: opts?.storage,
+    initial: opts?.initial,
+    defaults: DEFAULT_SETTINGS,
+    parse: (v) => (isValidSettings(v) ? v : null),
+    migrate,
+    clone: structuredClone,
+    equals: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+  });
 
-  let stored: ProactiveSettings | null = null;
-  if (storage) {
-    try {
-      const loaded = storage.load();
-      if (isValidSettings(loaded)) stored = loaded;
-      else stored = migrate(loaded);
-    } catch {
-      // storage 오류 시 기본값으로 폴백
-    }
-  }
-
-  // 우선순위: 저장값 > initial > 기본값
-  let state: ProactiveSettings = cloneSettings(stored ?? opts?.initial ?? DEFAULT_SETTINGS);
-
-  const subscribers = new Set<(s: ProactiveSettings) => void>();
-
-  function notify(): void {
-    const copy = cloneSettings(state);
-    for (const cb of subscribers) cb(copy);
-  }
-
-  function persist(): void {
-    storage?.save(cloneSettings(state));
-  }
-
-  function findCue(id: string): ProactiveCue | undefined {
-    return state.entries.find((c) => c.id === id);
-  }
+  const findCue = (id: string): ProactiveCue | undefined =>
+    core.current().entries.find((c) => c.id === id);
 
   return {
-    get(): ProactiveSettings {
-      return cloneSettings(state);
-    },
+    get: core.get,
 
     setEnabled(enabled: boolean): void {
-      if (state.enabled === enabled) return;
-      state = { ...state, enabled };
-      persist();
-      notify();
+      core.commit({ ...core.current(), enabled });
     },
 
     addCue(): ProactiveCue {
@@ -142,9 +114,7 @@ export function createProactiveSettings(opts?: {
         idle_min: 10,
         enabled: true,
       };
-      state = { ...state, entries: [...state.entries, cue] };
-      persist();
-      notify();
+      core.commit({ ...core.current(), entries: [...core.current().entries, cue] });
       return { ...cue };
     },
 
@@ -180,63 +150,27 @@ export function createProactiveSettings(opts?: {
       }
 
       if (!changed) return;
-      state = { ...state, entries: state.entries.map((c) => (c.id === id ? next : c)) };
-      persist();
-      notify();
+      core.commit({
+        ...core.current(),
+        entries: core.current().entries.map((c) => (c.id === id ? next : c)),
+      });
     },
 
     removeCue(id: string): void {
       if (!findCue(id)) return;
-      state = { ...state, entries: state.entries.filter((c) => c.id !== id) };
-      persist();
-      notify();
+      core.commit({
+        ...core.current(),
+        entries: core.current().entries.filter((c) => c.id !== id),
+      });
     },
 
-    // 다른 창이 storage를 갱신했을 때 재로드 — 값이 실제로 바뀌었을 때만 통지.
-    reloadFromStorage(): void {
-      if (!storage) return;
-      let loaded: ProactiveSettings | null;
-      try {
-        loaded = storage.load();
-      } catch {
-        return;
-      }
-      if (!isValidSettings(loaded)) return;
-      const next = cloneSettings(loaded);
-      if (JSON.stringify(next) === JSON.stringify(state)) return;
-      state = next;
-      notify();
-    },
-
-    subscribe(cb: (s: ProactiveSettings) => void): () => void {
-      subscribers.add(cb);
-      return () => subscribers.delete(cb);
-    },
-
-    dispose(): void {
-      subscribers.clear();
-    },
+    reloadFromStorage: core.reloadFromStorage,
+    subscribe: core.subscribe,
+    dispose: core.dispose,
   };
 }
 
 /** localStorage 기반 ProactiveStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
 export function localStorageProactiveStorage(key = "yui.proactive"): ProactiveStorage {
-  return {
-    load() {
-      try {
-        const raw = globalThis.localStorage?.getItem(key);
-        if (!raw) return null;
-        return JSON.parse(raw) as ProactiveSettings;
-      } catch {
-        return null;
-      }
-    },
-    save(s) {
-      try {
-        globalThis.localStorage?.setItem(key, JSON.stringify(s));
-      } catch {
-        // localStorage 사용 불가 시 no-op
-      }
-    },
-  };
+  return localStorageStore<ProactiveSettings>(key);
 }

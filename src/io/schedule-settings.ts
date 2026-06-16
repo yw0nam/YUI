@@ -3,6 +3,8 @@
  * 변경 시 storage에 persist하고 구독자에게 통지한다. 소스 구독은 멈추지 않고 firing만 게이팅한다.
  */
 
+import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
+
 export interface ScheduledCue {
   id: string;
   label: string;
@@ -17,10 +19,7 @@ export interface ScheduleSettings {
   entries: ScheduledCue[];
 }
 
-export interface ScheduleStorage {
-  load(): ScheduleSettings | null;
-  save(s: ScheduleSettings): void;
-}
+export type ScheduleStorage = PersistedStorage<ScheduleSettings>;
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -79,54 +78,27 @@ function isValidSettings(v: unknown): v is ScheduleSettings {
   return s.entries.every(isValidCue);
 }
 
-function cloneSettings(s: ScheduleSettings): ScheduleSettings {
-  return { enabled: s.enabled, entries: s.entries.map((c) => ({ ...c })) };
-}
-
 export function createScheduleSettings(opts?: {
   storage?: ScheduleStorage;
   initial?: ScheduleSettings;
 }) {
-  const storage = opts?.storage;
+  const core = createPersistedStore<ScheduleSettings>({
+    storage: opts?.storage,
+    initial: opts?.initial,
+    defaults: DEFAULT_SETTINGS,
+    parse: (v) => (isValidSettings(v) ? v : null),
+    clone: structuredClone,
+    equals: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+  });
 
-  let stored: ScheduleSettings | null = null;
-  if (storage) {
-    try {
-      const loaded = storage.load();
-      if (isValidSettings(loaded)) stored = loaded;
-    } catch {
-      // storage 오류 시 기본값으로 폴백
-    }
-  }
-
-  // 우선순위: 저장값 > initial > 기본값
-  let state: ScheduleSettings = cloneSettings(stored ?? opts?.initial ?? DEFAULT_SETTINGS);
-
-  const subscribers = new Set<(s: ScheduleSettings) => void>();
-
-  function notify(): void {
-    const copy = cloneSettings(state);
-    for (const cb of subscribers) cb(copy);
-  }
-
-  function persist(): void {
-    storage?.save(cloneSettings(state));
-  }
-
-  function findCue(id: string): ScheduledCue | undefined {
-    return state.entries.find((c) => c.id === id);
-  }
+  const findCue = (id: string): ScheduledCue | undefined =>
+    core.current().entries.find((c) => c.id === id);
 
   return {
-    get(): ScheduleSettings {
-      return cloneSettings(state);
-    },
+    get: core.get,
 
     setEnabled(enabled: boolean): void {
-      if (state.enabled === enabled) return;
-      state = { ...state, enabled };
-      persist();
-      notify();
+      core.commit({ ...core.current(), enabled });
     },
 
     addCue(): ScheduledCue {
@@ -137,9 +109,7 @@ export function createScheduleSettings(opts?: {
         time: "12:00",
         enabled: true,
       };
-      state = { ...state, entries: [...state.entries, cue] };
-      persist();
-      notify();
+      core.commit({ ...core.current(), entries: [...core.current().entries, cue] });
       return { ...cue };
     },
 
@@ -175,63 +145,27 @@ export function createScheduleSettings(opts?: {
       }
 
       if (!changed) return;
-      state = { ...state, entries: state.entries.map((c) => (c.id === id ? next : c)) };
-      persist();
-      notify();
+      core.commit({
+        ...core.current(),
+        entries: core.current().entries.map((c) => (c.id === id ? next : c)),
+      });
     },
 
     removeCue(id: string): void {
       if (!findCue(id)) return;
-      state = { ...state, entries: state.entries.filter((c) => c.id !== id) };
-      persist();
-      notify();
+      core.commit({
+        ...core.current(),
+        entries: core.current().entries.filter((c) => c.id !== id),
+      });
     },
 
-    // 다른 창이 storage를 갱신했을 때 재로드 — 값이 실제로 바뀌었을 때만 통지.
-    reloadFromStorage(): void {
-      if (!storage) return;
-      let loaded: ScheduleSettings | null;
-      try {
-        loaded = storage.load();
-      } catch {
-        return;
-      }
-      if (!isValidSettings(loaded)) return;
-      const next = cloneSettings(loaded);
-      if (JSON.stringify(next) === JSON.stringify(state)) return;
-      state = next;
-      notify();
-    },
-
-    subscribe(cb: (s: ScheduleSettings) => void): () => void {
-      subscribers.add(cb);
-      return () => subscribers.delete(cb);
-    },
-
-    dispose(): void {
-      subscribers.clear();
-    },
+    reloadFromStorage: core.reloadFromStorage,
+    subscribe: core.subscribe,
+    dispose: core.dispose,
   };
 }
 
 /** localStorage 기반 ScheduleStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
 export function localStorageScheduleStorage(key = "yui.schedule"): ScheduleStorage {
-  return {
-    load() {
-      try {
-        const raw = globalThis.localStorage?.getItem(key);
-        if (!raw) return null;
-        return JSON.parse(raw) as ScheduleSettings;
-      } catch {
-        return null;
-      }
-    },
-    save(s) {
-      try {
-        globalThis.localStorage?.setItem(key, JSON.stringify(s));
-      } catch {
-        // localStorage 사용 불가 시 no-op
-      }
-    },
-  };
+  return localStorageStore<ScheduleSettings>(key);
 }

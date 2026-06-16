@@ -5,6 +5,7 @@
  */
 
 import type { EndpointsConfig } from "../contract";
+import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
 
 /** 각 필드 최대 길이(과도하게 긴 storage 값은 ""로 절단하지 않고 cap만 적용). */
 export const ENDPOINT_VALUE_MAX_LEN = 2048;
@@ -23,10 +24,7 @@ export interface EndpointOverrides {
   tts_provider: string;
 }
 
-export interface EndpointsStorage {
-  load(): EndpointOverrides | null;
-  save(s: EndpointOverrides): void;
-}
+export type EndpointsStorage = PersistedStorage<EndpointOverrides>;
 
 const FIELDS: readonly (keyof EndpointOverrides)[] = [
   "chat_base_url",
@@ -124,99 +122,37 @@ export function createEndpointsSettings(opts?: {
   storage?: EndpointsStorage;
   initial?: EndpointOverrides;
 }) {
-  const storage = opts?.storage;
-
-  let stored: EndpointOverrides | null = null;
-  if (storage) {
-    try {
-      const loaded = storage.load();
-      if (loaded !== null) stored = coerce(loaded);
-    } catch {
-      // storage 오류 시 기본값으로 폴백
-    }
-  }
-
-  // 우선순위: 저장값 > initial > 기본값
-  let state: EndpointOverrides = stored
-    ? { ...stored }
-    : opts?.initial
-      ? coerce(opts.initial)
-      : { ...EMPTY };
-
-  const subscribers = new Set<(s: EndpointOverrides) => void>();
-
-  function notify(): void {
-    const copy = { ...state };
-    for (const cb of subscribers) cb(copy);
-  }
+  const core = createPersistedStore<EndpointOverrides>({
+    storage: opts?.storage,
+    initial: opts?.initial,
+    defaults: { ...EMPTY },
+    parse: (v) => (v === null ? null : coerce(v)),
+    fromInitial: coerce,
+    equals,
+  });
 
   return {
-    get(): EndpointOverrides {
-      return { ...state };
-    },
+    get: core.get,
 
     set(partial: Partial<EndpointOverrides>): void {
-      const next = { ...state };
+      const next = { ...core.current() };
       for (const k of FIELDS) {
         if (k in partial) next[k] = coerceFor(k, partial[k]);
       }
-      if (equals(state, next)) return;
-      state = next;
-      storage?.save({ ...state });
-      notify();
+      core.commit(next);
     },
 
     reset(): void {
-      if (equals(state, EMPTY)) return;
-      state = { ...EMPTY };
-      storage?.save({ ...state });
-      notify();
+      core.commit({ ...EMPTY });
     },
 
-    reloadFromStorage(): void {
-      if (!storage) return;
-      let loaded: EndpointOverrides | null;
-      try {
-        loaded = storage.load();
-      } catch {
-        return;
-      }
-      if (loaded === null) return;
-      const next = coerce(loaded);
-      if (equals(state, next)) return;
-      state = next;
-      notify();
-    },
-
-    subscribe(cb: (s: EndpointOverrides) => void): () => void {
-      subscribers.add(cb);
-      return () => subscribers.delete(cb);
-    },
-
-    dispose(): void {
-      subscribers.clear();
-    },
+    reloadFromStorage: core.reloadFromStorage,
+    subscribe: core.subscribe,
+    dispose: core.dispose,
   };
 }
 
 /** localStorage 기반 EndpointsStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
 export function localStorageEndpointsStorage(key = "yui.endpoints"): EndpointsStorage {
-  return {
-    load() {
-      try {
-        const raw = globalThis.localStorage?.getItem(key);
-        if (!raw) return null;
-        return JSON.parse(raw) as EndpointOverrides;
-      } catch {
-        return null;
-      }
-    },
-    save(s) {
-      try {
-        globalThis.localStorage?.setItem(key, JSON.stringify(s));
-      } catch {
-        // localStorage 사용 불가 시 no-op
-      }
-    },
-  };
+  return localStorageStore<EndpointOverrides>(key);
 }

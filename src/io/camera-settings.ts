@@ -4,6 +4,8 @@
  * (fit 거리를 줌으로 나눠 카메라가 가까워진다 — 적용은 renderer.fitCamera).
  */
 
+import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
+
 export const CAMERA_ZOOM_MIN = 0.5;
 export const CAMERA_ZOOM_MAX = 3.0;
 export const CAMERA_ZOOM_DEFAULT = 1.0;
@@ -14,10 +16,7 @@ export interface CameraSettings {
   zoom: number;
 }
 
-export interface CameraStorage {
-  load(): CameraSettings | null;
-  save(s: CameraSettings): void;
-}
+export type CameraStorage = PersistedStorage<CameraSettings>;
 
 function isValidSettings(v: unknown): v is CameraSettings {
   if (v === null || typeof v !== "object") return false;
@@ -30,91 +29,29 @@ function clampZoom(zoom: number): number {
 }
 
 export function createCameraSettings(opts?: { storage?: CameraStorage; initial?: CameraSettings }) {
-  const storage = opts?.storage;
-
-  let stored: CameraSettings | null = null;
-  if (storage) {
-    try {
-      const loaded = storage.load();
-      if (isValidSettings(loaded)) stored = { zoom: clampZoom(loaded.zoom) };
-    } catch {
-      // storage 오류 시 기본값으로 폴백
-    }
-  }
-
-  // 우선순위: 저장값 > initial > 기본값
-  let state: CameraSettings = stored
-    ? { ...stored }
-    : opts?.initial
-      ? { ...opts.initial }
-      : { zoom: CAMERA_ZOOM_DEFAULT };
-
-  const subscribers = new Set<(s: CameraSettings) => void>();
-
-  function notify(): void {
-    const copy = { zoom: state.zoom };
-    for (const cb of subscribers) cb(copy);
-  }
+  const core = createPersistedStore<CameraSettings>({
+    storage: opts?.storage,
+    initial: opts?.initial,
+    defaults: { zoom: CAMERA_ZOOM_DEFAULT },
+    parse: (v) => (isValidSettings(v) ? { zoom: clampZoom(v.zoom) } : null),
+    equals: (a, b) => a.zoom === b.zoom,
+  });
 
   return {
-    get(): CameraSettings {
-      return { zoom: state.zoom };
-    },
+    get: core.get,
 
     setZoom(zoom: number): void {
       if (!Number.isFinite(zoom)) return;
-      const clamped = clampZoom(zoom);
-      if (state.zoom === clamped) return;
-      state = { zoom: clamped };
-      storage?.save({ ...state });
-      notify();
+      core.commit({ zoom: clampZoom(zoom) });
     },
 
-    // 다른 창이 storage를 갱신했을 때 재로드 — 값이 실제로 바뀌었을 때만 통지.
-    reloadFromStorage(): void {
-      if (!storage) return;
-      let loaded: CameraSettings | null;
-      try {
-        loaded = storage.load();
-      } catch {
-        return;
-      }
-      if (!isValidSettings(loaded)) return;
-      const next = clampZoom(loaded.zoom);
-      if (state.zoom === next) return;
-      state = { zoom: next };
-      notify();
-    },
-
-    subscribe(cb: (s: CameraSettings) => void): () => void {
-      subscribers.add(cb);
-      return () => subscribers.delete(cb);
-    },
-
-    dispose(): void {
-      subscribers.clear();
-    },
+    reloadFromStorage: core.reloadFromStorage,
+    subscribe: core.subscribe,
+    dispose: core.dispose,
   };
 }
 
 /** localStorage 기반 CameraStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
 export function localStorageCameraStorage(key = "yui.camera"): CameraStorage {
-  return {
-    load() {
-      try {
-        const raw = globalThis.localStorage?.getItem(key);
-        if (!raw) return null;
-        return JSON.parse(raw) as CameraSettings;
-      } catch {
-        return null;
-      }
-    },
-    save(s) {
-      try {
-        globalThis.localStorage?.setItem(key, JSON.stringify(s));
-      } catch {
-        // localStorage 사용 불가 시 no-op
-      }
-    },
-  };
+  return localStorageStore<CameraSettings>(key);
 }
