@@ -81,6 +81,16 @@ export interface BackendCallerDeps {
   onUsage?: (usage: Usage) => void;
   /** 현재 agent 설정(추론 강도 + instructions 오버라이드) 스냅샷. present일 때만 요청에 반영. */
   getAgentSettings?: () => import("../io/agent-settings").AgentSettings;
+  /** TTFT thinking 진입 sink — 첫 토큰이 thresholdMs 안에 안 오면 1회. main.ts가 thinking 모션 + 필러 발화로 연결. */
+  onThinkingStart?: () => void;
+  /** TTFT thinking 종료 sink — 첫 스트림 이벤트 도착 / 턴 종료(어느 경로든) 시 1회. thinking을 시작했을 때만 호출. */
+  onThinkingEnd?: () => void;
+  /** 필러 타이밍 스냅샷 조회 — disabled/빈 풀이면 null. non-null일 때만 타이머를 무장한다(매 턴 호출). */
+  getFiller?: () => { thresholdMs: number } | null;
+  /** 타이머 무장(테스트 seam, 기본 global setTimeout). */
+  setTimeout?: typeof globalThis.setTimeout;
+  /** 타이머 해제(테스트 seam, 기본 global clearTimeout). */
+  clearTimeout?: typeof globalThis.clearTimeout;
   /** 구조화 로깅(없으면 backend_caller namespace logger). */
   logger?: Logger;
 }
@@ -142,6 +152,9 @@ function localIso(ts: number, timeZone: string): string {
 
 export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   const log = deps.logger ?? baseLog;
+  // 테스트 seam — 기본은 global 타이머. setTimeout/clearTimeout은 한 쌍으로 같이 주입한다.
+  const setTimer = deps.setTimeout ?? globalThis.setTimeout;
+  const clearTimer = deps.clearTimeout ?? globalThis.clearTimeout;
 
   /**
    * B1: InputContext 조립.
@@ -260,163 +273,198 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     // 직전(superseded) 턴의 잔여 오디오/말풍선을 정리 — 첫 delta보다 먼저 1회.
     deps.onSpeechInterrupt?.();
 
-    // B1
-    const ctx = await packageContext(env);
-    const input = encodeInput(ctx, env);
-    log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
+    // TTFT thinking 타이머 — 첫 토큰 지연 시 client-side filler를 띄운다(judgment 아님).
+    // call()은 턴이 겹칠 수 있어 상태를 per-invocation local로 둔다(절대 closure/module scope 금지).
+    // "한 번만 시작 / 한 번만 종료"는 아래 플래그가 보장한다 — clearTimeout만으로는 이미 큐된
+    // 콜백을 막지 못한다.
+    let handle: ReturnType<typeof setTimer> | undefined;
+    let thinkingStarted = false;
+    let thinkingDone = false;
+    const startThinking = () => {
+      if (thinkingStarted || thinkingDone) return;
+      thinkingStarted = true;
+      deps.onThinkingStart?.();
+    };
+    const endThinking = () => {
+      if (thinkingDone) return;
+      thinkingDone = true;
+      if (handle !== undefined) clearTimer(handle);
+      if (thinkingStarted) deps.onThinkingEnd?.();
+    };
 
-    // B2: fetch/apiKey 해소 후 streamChat. externalSignal을 그대로 전달(abort 위임).
-    let apiKey: string | undefined;
-    let fetchImpl: typeof globalThis.fetch | undefined;
+    // filler가 실제로 뜰 때만(non-null) 무장. disabled/빈 풀이면 타이머 자체가 없다.
+    const filler = deps.getFiller?.();
+    if (filler) {
+      handle = setTimer(startThinking, filler.thresholdMs);
+    }
+
+    // 무장 이후 전 구간을 try/finally로 감싼다 — 어느 종료 경로든 타이머 해제 / thinking 종료가
+    // 정확히 1회 보장된다(setup reject, early abort, stream throw, post-loop abort,
+    // streamError, empty/parse_error, 정상 완료 전부).
     try {
-      [apiKey, fetchImpl] = await Promise.all([deps.getApiKey(), deps.getFetch()]);
-    } catch (err) {
-      log.warn("network_drop", { stage: "setup", error: String(err) });
-      return { ok: false, drop_reason: "network_drop" };
-    }
+      // B1
+      const ctx = await packageContext(env);
+      const input = encodeInput(ctx, env);
+      log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 
-    if (externalSignal?.aborted) {
-      return { ok: false, drop_reason: "superseded_by_user" };
-    }
-
-    // in-flight fetch는 AbortController로 정리한다. 외부 signal(dispatcher의
-    // supersede abort)을 내부 컨트롤러에 링크해 항상 단일 signal을 streamChat에 넘긴다.
-    const ac = new AbortController();
-    if (externalSignal) {
-      if (externalSignal.aborted) ac.abort();
-      else externalSignal.addEventListener("abort", () => ac.abort(), { once: true });
-    }
-    const request: ChatRequest = { input, signal: ac.signal };
-
-    // 직전 response id를 스냅샷해 요청에 싣는다 — 완료 시 reset 감지(R2)를 위해 시작값을 보존.
-    const startPreviousResponseId = deps.getPreviousResponseId?.();
-    if (startPreviousResponseId) request.previous_response_id = startPreviousResponseId;
-
-    // agent 설정 반영: reasoning_effort는 항상 전송, 빈 instructions는 config 폴백을 위해 생략.
-    const agent = deps.getAgentSettings?.();
-    if (agent) {
-      request.reasoning_effort = agent.reasoning_effort;
-      if (agent.instructions.trim()) request.instructions = agent.instructions;
-    }
-
-    // B3: chat-client의 completed 이벤트에서 ControlEnvelope 수령(SSE 재파싱 X).
-    let envelope: ControlEnvelope | undefined;
-    let newResponseId: string | undefined;
-    let streamError: string | undefined;
-    // 스트리밍 발화: delta가 1건이라도 왔는가(완료 시 onSpeechEnd 구동 분기).
-    let streamedAny = false;
-    // express cue가 스트림 중 1건이라도 왔는가(완료 시 pipeline 소유 분기).
-    let cueStreamed = false;
-    try {
-      for await (const ev of streamChat(deps.config, request, {
-        apiKey,
-        fetch: fetchImpl,
-      })) {
-        switch (ev.type) {
-          case "speech_delta":
-            deps.onSpeechDelta?.(ev.text);
-            streamedAny = true;
-            break;
-          case "express":
-            // 전체 cue를 그대로 흘린다 — TTS 파이프라인이 문장 재생 시점에 audio-timed 적용.
-            deps.onCue?.(ev.args);
-            cueStreamed = true;
-            break;
-          case "usage":
-            // ControlEnvelope/renderer와 무관한 진단 채널 — sink로만 흘린다.
-            deps.onUsage?.(ev.usage);
-            break;
-          case "completed":
-            envelope = ev.envelope;
-            newResponseId = ev.responseId || undefined;
-            break;
-          case "error":
-            streamError = ev.message;
-            break;
-          default:
-            break;
-        }
+      // B2: fetch/apiKey 해소 후 streamChat. externalSignal을 그대로 전달(abort 위임).
+      let apiKey: string | undefined;
+      let fetchImpl: typeof globalThis.fetch | undefined;
+      try {
+        [apiKey, fetchImpl] = await Promise.all([deps.getApiKey(), deps.getFetch()]);
+      } catch (err) {
+        log.warn("network_drop", { stage: "setup", error: String(err) });
+        return { ok: false, drop_reason: "network_drop" };
       }
-    } catch (err) {
-      // abort면 supersede(다음 턴이 정리), 그 외는 network drop — delta가 떴으면 말풍선/오디오 정리.
+
       if (externalSignal?.aborted) {
         return { ok: false, drop_reason: "superseded_by_user" };
       }
-      if (streamedAny) deps.onSpeechAbort?.();
-      log.warn("network_drop", { stage: "stream_threw", error: String(err) });
-      return { ok: false, drop_reason: "network_drop" };
-    }
 
-    if (externalSignal?.aborted) {
-      return { ok: false, drop_reason: "superseded_by_user" };
-    }
+      // in-flight fetch는 AbortController로 정리한다. 외부 signal(dispatcher의
+      // supersede abort)을 내부 컨트롤러에 링크해 항상 단일 signal을 streamChat에 넘긴다.
+      const ac = new AbortController();
+      if (externalSignal) {
+        if (externalSignal.aborted) ac.abort();
+        else externalSignal.addEventListener("abort", () => ac.abort(), { once: true });
+      }
+      const request: ChatRequest = { input, signal: ac.signal };
 
-    if (streamError) {
-      // delta가 떴으면 말풍선/오디오 정리 — 다음 턴이 없어 영영 갇히지 않게.
-      if (streamedAny) deps.onSpeechAbort?.();
-      log.warn("network_drop", { stage: "stream_error", message: streamError });
-      return { ok: false, drop_reason: "network_drop" };
-    }
+      // 직전 response id를 스냅샷해 요청에 싣는다 — 완료 시 reset 감지(R2)를 위해 시작값을 보존.
+      const startPreviousResponseId = deps.getPreviousResponseId?.();
+      if (startPreviousResponseId) request.previous_response_id = startPreviousResponseId;
 
-    if (!envelope) {
-      // completed 미수신 = 깨진/빈 응답.
-      log.warn("parse_error", { event_name: env.event_name });
-      return { ok: false, drop_reason: "parse_error" };
-    }
+      // agent 설정 반영: reasoning_effort는 항상 전송, 빈 instructions는 config 폴백을 위해 생략.
+      const agent = deps.getAgentSettings?.();
+      if (agent) {
+        request.reasoning_effort = agent.reasoning_effort;
+        if (agent.instructions.trim()) request.instructions = agent.instructions;
+      }
 
-    // B5(render half): per-beat cue가 스트리밍됐고 발화가 있으면(streamedAny) TTS 파이프라인이
-    //   문장 재생 시점에 cue를 audio-timed 적용한다 — 여기서 중복 적용하지 않는다.
-    //   그 외(cue 없음, 또는 cue는 있으나 침묵 턴)는 completed에서 1회 적용:
-    //   firing≠judgment — silent-turn-with-cue도 emotion/motion을 렌더하고,
-    //   express를 스트리밍하지 않는 completed-only backend도 보존한다.
-    const pipelineOwnsCues = cueStreamed && streamedAny;
-    if (pipelineOwnsCues) {
-      log.debug("dispatch_to_renderer", {
-        owner: "pipeline",
-        emotion: envelope.emotion ?? null,
-        motion: envelope.motion ?? null,
-      });
-    } else {
+      // B3: chat-client의 completed 이벤트에서 ControlEnvelope 수령(SSE 재파싱 X).
+      let envelope: ControlEnvelope | undefined;
+      let newResponseId: string | undefined;
+      let streamError: string | undefined;
+      // 스트리밍 발화: delta가 1건이라도 왔는가(완료 시 onSpeechEnd 구동 분기).
+      let streamedAny = false;
+      // express cue가 스트림 중 1건이라도 왔는가(완료 시 pipeline 소유 분기).
+      let cueStreamed = false;
       try {
-        deps.renderer.applyDirective(envelope);
+        for await (const ev of streamChat(deps.config, request, {
+          apiKey,
+          fetch: fetchImpl,
+        })) {
+          // 첫 스트림 이벤트(타입 무관)에 thinking 종료 — usage/tool_status/speech_done이
+          // speech_delta보다 먼저 올 수 있으므로 switch 이전에 무조건 1회 호출한다.
+          endThinking();
+          switch (ev.type) {
+            case "speech_delta":
+              deps.onSpeechDelta?.(ev.text);
+              streamedAny = true;
+              break;
+            case "express":
+              // 전체 cue를 그대로 흘린다 — TTS 파이프라인이 문장 재생 시점에 audio-timed 적용.
+              deps.onCue?.(ev.args);
+              cueStreamed = true;
+              break;
+            case "usage":
+              // ControlEnvelope/renderer와 무관한 진단 채널 — sink로만 흘린다.
+              deps.onUsage?.(ev.usage);
+              break;
+            case "completed":
+              envelope = ev.envelope;
+              newResponseId = ev.responseId || undefined;
+              break;
+            case "error":
+              streamError = ev.message;
+              break;
+            default:
+              break;
+          }
+        }
+      } catch (err) {
+        // abort면 supersede(다음 턴이 정리), 그 외는 network drop — delta가 떴으면 말풍선/오디오 정리.
+        if (externalSignal?.aborted) {
+          return { ok: false, drop_reason: "superseded_by_user" };
+        }
+        if (streamedAny) deps.onSpeechAbort?.();
+        log.warn("network_drop", { stage: "stream_threw", error: String(err) });
+        return { ok: false, drop_reason: "network_drop" };
+      }
+
+      if (externalSignal?.aborted) {
+        return { ok: false, drop_reason: "superseded_by_user" };
+      }
+
+      if (streamError) {
+        // delta가 떴으면 말풍선/오디오 정리 — 다음 턴이 없어 영영 갇히지 않게.
+        if (streamedAny) deps.onSpeechAbort?.();
+        log.warn("network_drop", { stage: "stream_error", message: streamError });
+        return { ok: false, drop_reason: "network_drop" };
+      }
+
+      if (!envelope) {
+        // completed 미수신 = 깨진/빈 응답.
+        log.warn("parse_error", { event_name: env.event_name });
+        return { ok: false, drop_reason: "parse_error" };
+      }
+
+      // B5(render half): per-beat cue가 스트리밍됐고 발화가 있으면(streamedAny) TTS 파이프라인이
+      //   문장 재생 시점에 cue를 audio-timed 적용한다 — 여기서 중복 적용하지 않는다.
+      //   그 외(cue 없음, 또는 cue는 있으나 침묵 턴)는 completed에서 1회 적용:
+      //   firing≠judgment — silent-turn-with-cue도 emotion/motion을 렌더하고,
+      //   express를 스트리밍하지 않는 completed-only backend도 보존한다.
+      const pipelineOwnsCues = cueStreamed && streamedAny;
+      if (pipelineOwnsCues) {
         log.debug("dispatch_to_renderer", {
-          owner: "completed",
+          owner: "pipeline",
           emotion: envelope.emotion ?? null,
           motion: envelope.motion ?? null,
         });
-      } catch (err) {
-        // renderer 에러 → ambient fallback은 renderer 책임, dispatcher는 계속.
-        log.error("dispatch_to_renderer.error", { error: String(err) });
+      } else {
+        try {
+          deps.renderer.applyDirective(envelope);
+          log.debug("dispatch_to_renderer", {
+            owner: "completed",
+            emotion: envelope.emotion ?? null,
+            motion: envelope.motion ?? null,
+          });
+        } catch (err) {
+          // renderer 에러 → ambient fallback은 renderer 책임, dispatcher는 계속.
+          log.error("dispatch_to_renderer.error", { error: String(err) });
+        }
       }
-    }
 
-    // B5(tool_status half): 네이티브 tool 관찰 결과 → onToolStatus(있을 때만).
-    if (envelope.tool_status != null) {
-      deps.onToolStatus?.(envelope.tool_status);
-    }
+      // B5(tool_status half): 네이티브 tool 관찰 결과 → onToolStatus(있을 때만).
+      if (envelope.tool_status != null) {
+        deps.onToolStatus?.(envelope.tool_status);
+      }
 
-    // B4(speech gate): speech_text가 비어있지 않을 때만 발화.
-    //   빈 텍스트 = 침묵 — 별도 플래그/판정 없음, drop_reason도 없음.
-    if (streamedAny) {
-      // 스트리밍 경로: delta로 이미 발화를 구동했으니 종료만 알린다(onSpeech 호출 X).
-      deps.onSpeechEnd?.();
-      log.debug("speech", { text: envelope.speech_text });
-    } else if (envelope.speech_text) {
-      // legacy fallback: delta 없이 completed만 주는 backend.
-      deps.onSpeech?.(envelope.speech_text);
-      log.debug("speech", { text: envelope.speech_text });
-    } else {
-      log.info("empty_speech", { trigger: env.event_name });
-    }
+      // B4(speech gate): speech_text가 비어있지 않을 때만 발화.
+      //   빈 텍스트 = 침묵 — 별도 플래그/판정 없음, drop_reason도 없음.
+      if (streamedAny) {
+        // 스트리밍 경로: delta로 이미 발화를 구동했으니 종료만 알린다(onSpeech 호출 X).
+        deps.onSpeechEnd?.();
+        log.debug("speech", { text: envelope.speech_text });
+      } else if (envelope.speech_text) {
+        // legacy fallback: delta 없이 completed만 주는 backend.
+        deps.onSpeech?.(envelope.speech_text);
+        log.debug("speech", { text: envelope.speech_text });
+      } else {
+        log.info("empty_speech", { trigger: env.event_name });
+      }
 
-    // 대화 상태 진행: post-stream 가드(abort / streamError / !envelope)를 모두 통과한 이 지점에서만
-    // persist. 시작 시점 id가 그대로일 때만 — in-flight 중 reset/rotation(R2)이 있었다면 그 새 상태를
-    // 죽은 응답으로 되살리지 않는다.
-    if (newResponseId && deps.getPreviousResponseId?.() === startPreviousResponseId) {
-      deps.onResponseId?.(newResponseId);
-    }
+      // 대화 상태 진행: post-stream 가드(abort / streamError / !envelope)를 모두 통과한 이 지점에서만
+      // persist. 시작 시점 id가 그대로일 때만 — in-flight 중 reset/rotation(R2)이 있었다면 그 새 상태를
+      // 죽은 응답으로 되살리지 않는다.
+      if (newResponseId && deps.getPreviousResponseId?.() === startPreviousResponseId) {
+        deps.onResponseId?.(newResponseId);
+      }
 
-    return { ok: true };
+      return { ok: true };
+    } finally {
+      endThinking();
+    }
   }
 
   return { call };

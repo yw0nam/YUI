@@ -972,3 +972,179 @@ describe("backend_caller — usage sink (token accounting channel)", () => {
     expect(res.ok).toBe(true);
   });
 });
+
+// ── TTFT thinking timer (filler) ───────────────────────────────────────────────
+// Drives the threshold deterministically via injected setTimeout/clearTimeout —
+// capture the armed callback and fire it (or not) manually, matching the harness'
+// DI style (no vi.useFakeTimers; streamChat yields synchronously).
+
+describe("backend_caller — TTFT thinking timer", () => {
+  let onThinkingStart: ReturnType<typeof vi.fn>;
+  let onThinkingEnd: ReturnType<typeof vi.fn>;
+  let getFiller: ReturnType<typeof vi.fn>;
+  let fakeSetTimeout: ReturnType<typeof vi.fn>;
+  let fakeClearTimeout: ReturnType<typeof vi.fn>;
+  // captured timer callback (the armed startThinking), and whether it is still live.
+  let armedCb: (() => void) | null;
+  let cleared: boolean;
+
+  function fireTimer(): void {
+    // model the platform: clearTimeout cancels delivery, so a cleared timer never fires.
+    if (armedCb && !cleared) armedCb();
+  }
+
+  function makeCaller(fillerValue: { thresholdMs: number } | null = { thresholdMs: 500 }) {
+    return createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      onSpeechDelta: speechDeltaSink,
+      onSpeechEnd: speechEndSink,
+      onSpeechInterrupt: speechInterruptSink,
+      logger,
+      onThinkingStart,
+      onThinkingEnd,
+      getFiller: getFiller.mockReturnValue(fillerValue),
+      setTimeout: fakeSetTimeout as never,
+      clearTimeout: fakeClearTimeout as never,
+    });
+  }
+
+  beforeEach(() => {
+    onThinkingStart = vi.fn();
+    onThinkingEnd = vi.fn();
+    getFiller = vi.fn();
+    armedCb = null;
+    cleared = false;
+    fakeSetTimeout = vi.fn((cb: () => void) => {
+      armedCb = cb;
+      return 1 as never;
+    });
+    fakeClearTimeout = vi.fn(() => {
+      cleared = true;
+    });
+  });
+
+  it("slow turn (timer fires before first event) → onThinkingStart once, then onThinkingEnd once", async () => {
+    const order: string[] = [];
+    onThinkingStart.mockImplementation(() => order.push("start"));
+    onThinkingEnd.mockImplementation(() => order.push("end"));
+    caller = makeCaller();
+    scriptedEvents = [deltaEvent("hi"), completedEvent({ speech_text: "hi" })];
+    // arm happens inside call(); fire the timer before the (synchronous) stream is pumped.
+    fakeSetTimeout.mockImplementationOnce((cb: () => void) => {
+      cb();
+      return 1 as never;
+    });
+    await caller.call(userEnv());
+    expect(onThinkingStart).toHaveBeenCalledTimes(1);
+    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
+    expect(order).toEqual(["start", "end"]);
+  });
+
+  it("fast turn (first event before the timer fires) → neither callback fires", async () => {
+    caller = makeCaller();
+    scriptedEvents = [deltaEvent("hi"), completedEvent({ speech_text: "hi" })];
+    await caller.call(userEnv());
+    // the timer was armed but never fired (first event cleared it).
+    fireTimer();
+    expect(onThinkingStart).not.toHaveBeenCalled();
+    expect(onThinkingEnd).not.toHaveBeenCalled();
+    expect(fakeClearTimeout).toHaveBeenCalled();
+  });
+
+  it("first event is usage (not speech_delta) → timer cleared, thinking never starts", async () => {
+    caller = makeCaller();
+    scriptedEvents = [usageEvent(1, 2, 3), completedEvent({ speech_text: "" })];
+    await caller.call(userEnv());
+    fireTimer();
+    expect(onThinkingStart).not.toHaveBeenCalled();
+    expect(onThinkingEnd).not.toHaveBeenCalled();
+  });
+
+  it("leak path — setup-stage reject with the timer already fired → onThinkingEnd exactly once", async () => {
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => {
+        throw new Error("secret resolve failed");
+      },
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      logger,
+      onThinkingStart,
+      onThinkingEnd,
+      getFiller: getFiller.mockReturnValue({ thresholdMs: 500 }),
+      setTimeout: fakeSetTimeout as never,
+      clearTimeout: fakeClearTimeout as never,
+    });
+    // timer fires immediately upon arming, before the setup-stage reject.
+    fakeSetTimeout.mockImplementationOnce((cb: () => void) => {
+      cb();
+      return 1 as never;
+    });
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(false);
+    expect(res.drop_reason).toBe("network_drop");
+    expect(onThinkingStart).toHaveBeenCalledTimes(1);
+    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("leak path — empty/parse_error response with the timer already fired → onThinkingEnd exactly once", async () => {
+    caller = makeCaller();
+    // no completed event → parse_error; arm fires before the (empty) stream is pumped.
+    scriptedEvents = [];
+    fakeSetTimeout.mockImplementationOnce((cb: () => void) => {
+      cb();
+      return 1 as never;
+    });
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(false);
+    expect(res.drop_reason).toBe("parse_error");
+    expect(onThinkingStart).toHaveBeenCalledTimes(1);
+    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("external-signal abort mid-thinking → onThinkingEnd once", async () => {
+    const ac = new AbortController();
+    caller = makeCaller();
+    // fire the timer (thinking starts), then abort so the post-loop guard returns superseded.
+    fakeSetTimeout.mockImplementationOnce((cb: () => void) => {
+      cb();
+      return 1 as never;
+    });
+    speechDeltaSink.mockImplementation(() => ac.abort());
+    scriptedEvents = [deltaEvent("partial"), { type: "error", message: "boom" }];
+    const res = await caller.call(userEnv(), ac.signal);
+    expect(res.drop_reason).toBe("superseded_by_user");
+    expect(onThinkingStart).toHaveBeenCalledTimes(1);
+    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("getFiller() returns null → timer never armed", async () => {
+    caller = makeCaller(null);
+    scriptedEvents = [deltaEvent("hi"), completedEvent({ speech_text: "hi" })];
+    await caller.call(userEnv());
+    expect(fakeSetTimeout).not.toHaveBeenCalled();
+    expect(onThinkingStart).not.toHaveBeenCalled();
+    expect(onThinkingEnd).not.toHaveBeenCalled();
+  });
+
+  it("getFiller / thinking deps absent → turn proceeds unchanged (back-compat, no arm)", async () => {
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      setTimeout: fakeSetTimeout as never,
+      clearTimeout: fakeClearTimeout as never,
+    });
+    scriptedEvents = [completedEvent({ speech_text: "hi" })];
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(true);
+    expect(fakeSetTimeout).not.toHaveBeenCalled();
+  });
+});
