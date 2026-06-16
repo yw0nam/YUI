@@ -24,6 +24,7 @@ import {
 } from "../io/agent-settings";
 import { createChatKeySettings } from "../io/chat-key-settings";
 import { createEndpointsSettings } from "../io/endpoints-settings";
+import { createFillerSettings } from "../io/filler-settings";
 import { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import { createLipsyncSettings } from "../io/lipsync-settings";
 import { createProactiveSettings } from "../io/proactive-settings";
@@ -2978,6 +2979,195 @@ describe("createQuickControls — tabs + VAD slider", () => {
     expect(qc.el.querySelector(".yui-voice-details")).toBeNull();
     expect(qc.el.querySelector(".yui-voice-status")).toBeNull();
     expect(qc.el.querySelector(".yui-setting-grid")).toBeNull();
+    qc.dispose();
+  });
+
+  // ── 생각중 추임새 (filler) section ──────────────────────────────────────────
+
+  function makeFillerSettings(initial?: { enabled?: boolean; language?: "ja" | "en" | "ko" }) {
+    return createFillerSettings({
+      initial: { enabled: true, language: "ja", customPools: {}, ...initial },
+    });
+  }
+
+  it("does not render filler section when fillerSettings is absent", () => {
+    const qc = buildQc();
+    qc.open();
+    expect(qc.el.querySelector(".yui-filler")).toBeNull();
+    qc.dispose();
+  });
+
+  it("renders filler section in the talk tab when fillerSettings is provided", () => {
+    const fs = makeFillerSettings();
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const section = qc.el.querySelector(".yui-filler");
+    expect(section).not.toBeNull();
+    // Must be inside the talk panel
+    const talkPanel = qc.el.querySelector<HTMLElement>("#yui-panel-talk")!;
+    expect(talkPanel.contains(section)).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("reflectFiller: enable toggle reflects initial enabled=true", () => {
+    const fs = makeFillerSettings({ enabled: true });
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const sw = qc.el.querySelector<HTMLButtonElement>(".yui-filler .yui-filler-switch")!;
+    expect(sw).not.toBeNull();
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  it("reflectFiller: enable toggle reflects initial enabled=false", () => {
+    const fs = makeFillerSettings({ enabled: false });
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const sw = qc.el.querySelector<HTMLButtonElement>(".yui-filler .yui-filler-switch")!;
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+
+    qc.dispose();
+  });
+
+  it("clicking the filler switch calls setEnabled with toggled value", () => {
+    const fs = makeFillerSettings({ enabled: true });
+    const spy = vi.spyOn(fs, "setEnabled");
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const sw = qc.el.querySelector<HTMLButtonElement>(".yui-filler .yui-filler-switch")!;
+    sw.click();
+
+    expect(spy).toHaveBeenCalledWith(false);
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+
+    qc.dispose();
+  });
+
+  it("reflectFiller: language seg reflects initial language ja", () => {
+    const fs = makeFillerSettings({ language: "ja" });
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
+    const btns = Array.from(langSeg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    expect(btns[0].getAttribute("aria-checked")).toBe("true"); // ja
+    expect(btns[1].getAttribute("aria-checked")).toBe("false"); // en
+    expect(btns[2].getAttribute("aria-checked")).toBe("false"); // ko
+
+    qc.dispose();
+  });
+
+  it("reflectFiller: language seg reflects initial language en", () => {
+    const fs = makeFillerSettings({ language: "en" });
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
+    const btns = Array.from(langSeg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    expect(btns[1].getAttribute("aria-checked")).toBe("true"); // en
+
+    qc.dispose();
+  });
+
+  it("clicking a language segment calls setLanguage and reloads the textarea", () => {
+    const fs = createFillerSettings({
+      initial: {
+        enabled: true,
+        language: "ja",
+        customPools: { ja: ["うーん"], en: ["Hmm..."] },
+      },
+    });
+    const spy = vi.spyOn(fs, "setLanguage");
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
+    const btns = Array.from(langSeg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    // click "en" (index 1)
+    btns[1].click();
+
+    expect(spy).toHaveBeenCalledWith("en");
+    // textarea should now show the en custom pool
+    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-textarea")!;
+    expect(ta.value).toBe("Hmm...");
+
+    qc.dispose();
+  });
+
+  it("editing the textarea calls setCustomPool with split non-empty lines", () => {
+    const fs = makeFillerSettings({ language: "ja" });
+    const spy = vi.spyOn(fs, "setCustomPool");
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-textarea")!;
+    ta.value = "うーん\n\nそうだね\n";
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // Empty lines stripped; order preserved
+    expect(spy).toHaveBeenCalledWith("ja", ["うーん", "そうだね"]);
+
+    qc.dispose();
+  });
+
+  it("clearing the textarea calls setCustomPool with empty array", () => {
+    const fs = makeFillerSettings({ language: "ja" });
+    const spy = vi.spyOn(fs, "setCustomPool");
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-textarea")!;
+    ta.value = "";
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(spy).toHaveBeenCalledWith("ja", []);
+
+    qc.dispose();
+  });
+
+  it("reflectFiller syncs textarea from customPools for current language on open", () => {
+    const fs = createFillerSettings({
+      initial: {
+        enabled: true,
+        language: "ko",
+        customPools: { ko: ["음…", "글쎄…"] },
+      },
+    });
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-textarea")!;
+    expect(ta.value).toBe("음…\n글쎄…");
+
+    qc.dispose();
+  });
+
+  it("reflectFiller: textarea is empty when customPools has no entry for the current language", () => {
+    const fs = makeFillerSettings({ language: "en" }); // no customPools for en
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-textarea")!;
+    expect(ta.value).toBe("");
+
+    qc.dispose();
+  });
+
+  it("external fillerSettings store change reflects in the UI while open", () => {
+    const fs = makeFillerSettings({ enabled: true, language: "ja" });
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const sw = qc.el.querySelector<HTMLButtonElement>(".yui-filler .yui-filler-switch")!;
+    fs.setEnabled(false);
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+
     qc.dispose();
   });
 });

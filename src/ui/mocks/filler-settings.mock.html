@@ -1,0 +1,452 @@
+<!doctype html>
+<!--
+  Standalone mock: filler (생각중 추임새) section — Part D visual review.
+  Shows the new section as it will appear inside the 대화 (Talk) tab of the quick-controls panel.
+  Tokens match tokens.css / quick-controls.css; no framework dependency.
+-->
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Filler Settings — Mock</title>
+    <style>
+      /* ── Design tokens (from tokens.css) ── */
+      :root {
+        --yui-accent: oklch(0.8 0.13 75);
+        --yui-accent-soft: oklch(0.8 0.13 75 / 0.45);
+        --yui-accent-faint: oklch(0.8 0.13 75 / 0.16);
+        --yui-text: oklch(0.95 0.012 80);
+        --yui-text-dim: oklch(0.78 0.016 75);
+        --yui-text-mute: oklch(0.66 0.014 72);
+        --yui-scrim: oklch(0.21 0.014 70 / 0.64);
+        --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82);
+        --yui-edge: oklch(0.97 0.01 80 / 0.1);
+        --yui-edge-strong: oklch(0.97 0.01 80 / 0.16);
+        --yui-float: 0 8px 32px oklch(0.12 0.02 70 / 0.4);
+        --yui-text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55);
+        --yui-radius: 14px;
+        --yui-radius-input: 12px;
+        --yui-radius-row: 10px;
+        --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
+        --yui-dur: 200ms;
+        --yui-field: oklch(0.16 0.012 70 / 0.7);
+        --yui-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+
+      /* ── Page chrome (dark desktop stand-in to prove legibility) ── */
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* Arbitrary busy desktop wallpaper simulation — gradient across two hues */
+        background: linear-gradient(135deg, oklch(0.38 0.12 250) 0%, oklch(0.28 0.08 195) 100%);
+        font-family: var(--yui-font);
+      }
+
+      /* ── Panel shell (quick-controls panel excerpt) ── */
+      .panel {
+        width: min(20rem, 86vw);
+        padding: 0 0 0.55rem;
+        border-radius: var(--yui-radius);
+        background: var(--yui-scrim-strong);
+        border: 1px solid var(--yui-edge);
+        box-shadow: var(--yui-float);
+        backdrop-filter: blur(14px) saturate(1.12);
+        -webkit-backdrop-filter: blur(14px) saturate(1.12);
+        color: var(--yui-text);
+        text-shadow: var(--yui-text-shadow);
+      }
+
+      /* ── Panel header (tab-strip chrome stub) ── */
+      .panel__bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.7rem;
+        border-bottom: 1px solid var(--yui-edge);
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--yui-text-dim);
+        letter-spacing: 0.02em;
+      }
+
+      /* ── .yui-quick__divider ── */
+      .yui-quick__divider {
+        height: 1px;
+        margin: 0.35rem 0.55rem;
+        background: var(--yui-edge);
+      }
+
+      /* ── .yui-quick__section (eyebrow label above a named cluster) ── */
+      .yui-quick__section {
+        display: block;
+        padding: 0.45rem 0.55rem 0.1rem;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.055em;
+        text-transform: uppercase;
+        color: var(--yui-text-mute);
+      }
+
+      /* ── .yui-field-row (label + sub + control cluster) ── */
+      .yui-field-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.22rem;
+        padding: 0.45rem 0.55rem;
+      }
+
+      .yui-field-row__label {
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--yui-text);
+      }
+
+      .yui-field-row__sub {
+        font-size: 0.72rem;
+        color: var(--yui-text-mute);
+        line-height: 1.4;
+      }
+
+      /* ── .yui-row (icon-label + sub + switch) ── */
+      .yui-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.5rem 0.55rem;
+      }
+
+      .yui-row__main {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.12rem;
+      }
+
+      .yui-row__label {
+        display: flex;
+        align-items: center;
+        gap: 0.32rem;
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--yui-text);
+      }
+
+      .yui-row__label svg {
+        width: 14px;
+        height: 14px;
+        flex: 0 0 auto;
+        color: var(--yui-text-dim);
+      }
+
+      .yui-row__sub {
+        font-size: 0.72rem;
+        color: var(--yui-text-mute);
+        line-height: 1.4;
+      }
+
+      /* ── .yui-switch (toggle) ── */
+      .yui-switch {
+        flex: 0 0 auto;
+        position: relative;
+        width: 34px;
+        height: 20px;
+        border-radius: 999px;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        background: var(--yui-edge-strong, oklch(0.97 0.01 80 / 0.16));
+        transition: background var(--yui-dur) var(--yui-ease);
+        outline-offset: 2px;
+      }
+
+      .yui-switch::after {
+        content: "";
+        position: absolute;
+        left: 3px;
+        top: 3px;
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        background: var(--yui-text-dim);
+        transition: left var(--yui-dur) var(--yui-ease), background var(--yui-dur) var(--yui-ease);
+      }
+
+      .yui-switch[aria-checked="true"] {
+        background: var(--yui-accent-soft);
+      }
+
+      .yui-switch[aria-checked="true"]::after {
+        left: 17px;
+        background: var(--yui-accent);
+      }
+
+      /* ── .yui-seg (segmented control) ── */
+      .yui-seg {
+        position: relative;
+        display: flex;
+        gap: 0;
+        padding: 3px;
+        border-radius: 10px;
+        background: var(--yui-field);
+        border: 1px solid var(--yui-edge);
+        --seg: 0;
+      }
+
+      .yui-seg__ind {
+        position: absolute;
+        top: 3px;
+        bottom: 3px;
+        border-radius: 7px;
+        background: var(--yui-accent-faint);
+        border: 1px solid var(--yui-accent-soft);
+        pointer-events: none;
+        transition:
+          left var(--yui-dur) var(--yui-ease),
+          width var(--yui-dur) var(--yui-ease);
+      }
+
+      .yui-seg__btn {
+        flex: 1 1 0;
+        font-family: var(--yui-font);
+        font-size: 0.73rem;
+        font-weight: 500;
+        border: none;
+        background: none;
+        color: var(--yui-text-dim);
+        padding: 0.22rem 0.4rem;
+        border-radius: 7px;
+        cursor: pointer;
+        position: relative;
+        z-index: 1;
+        transition: color var(--yui-dur-fast, 140ms) var(--yui-ease);
+        white-space: nowrap;
+      }
+
+      .yui-seg__btn[aria-checked="true"] {
+        color: var(--yui-accent);
+      }
+
+      /* ── .yui-textarea-wrap + .yui-textarea ── */
+      .yui-textarea-wrap {
+        border-radius: var(--yui-radius-input);
+        background: var(--yui-field);
+        border: 1px solid var(--yui-edge);
+        overflow: hidden;
+        transition: border-color var(--yui-dur) var(--yui-ease);
+      }
+
+      .yui-textarea-wrap:focus-within {
+        border-color: var(--yui-accent-soft);
+      }
+
+      .yui-textarea {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        background: none;
+        border: none;
+        color: var(--yui-text);
+        font-family: var(--yui-font);
+        font-size: 0.8rem;
+        line-height: 1.55;
+        padding: 0.45rem 0.6rem;
+        resize: none;
+        outline: none;
+      }
+
+      .yui-textarea::placeholder {
+        color: var(--yui-text-mute);
+      }
+
+      /* ── Hint text below an input ── */
+      .yui-field-hint {
+        font-size: 0.68rem;
+        color: var(--yui-text-mute);
+        padding: 0 0.55rem 0.3rem;
+        line-height: 1.45;
+      }
+
+      /* ── Section gap between Talk-tab rows ── */
+      .talk-body {
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ── Disabled state for the language seg + textarea when toggle is off ── */
+      .filler-body.is-disabled .yui-seg,
+      .filler-body.is-disabled .yui-textarea-wrap,
+      .filler-body.is-disabled .yui-field-hint {
+        opacity: 0.38;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ── The panel shell showing only the Talk tab content ── -->
+    <div class="panel" role="dialog" aria-label="설정 (대화 탭 발췌 — mock)">
+      <div class="panel__bar">대화 탭 — 생각중 추임새 섹션 (Mock)</div>
+
+      <div class="talk-body">
+        <!-- ── Existing rows above the filler section (stubbed for context) ── -->
+        <div class="yui-field-row">
+          <span class="yui-field-row__label">추론 강도</span>
+          <span class="yui-field-row__sub">답변 전 얼마나 깊게 생각할지</span>
+          <div
+            class="yui-seg"
+            role="radiogroup"
+            aria-label="추론 강도"
+            style="--seg: 0; position:relative;"
+          >
+            <span class="yui-seg__ind" style="left: 3px; width: calc(25% - 3px)"></span>
+            <button class="yui-seg__btn" role="radio" aria-checked="true" type="button">
+              없음
+            </button>
+            <button class="yui-seg__btn" role="radio" aria-checked="false" type="button">
+              최소
+            </button>
+            <button class="yui-seg__btn" role="radio" aria-checked="false" type="button">
+              Low
+            </button>
+            <button class="yui-seg__btn" role="radio" aria-checked="false" type="button">
+              Medium
+            </button>
+          </div>
+        </div>
+
+        <div class="yui-field-row">
+          <span class="yui-field-row__label">지침</span>
+          <span class="yui-field-row__sub">비우면 기본 지침을 사용해요</span>
+          <div class="yui-textarea-wrap">
+            <textarea
+              class="yui-textarea"
+              rows="3"
+              placeholder="기본 지침을 사용 중이에요"
+              aria-label="지침"
+              spellcheck="false"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             NEW: 생각중 추임새 (filler) section — this is the content being reviewed
+             ══════════════════════════════════════════════════════════════════ -->
+        <div class="yui-quick__divider" aria-hidden="true"></div>
+        <span class="yui-quick__section">생각중 추임새</span>
+
+        <!-- Enable toggle row -->
+        <div class="yui-row">
+          <div class="yui-row__main">
+            <span class="yui-row__label">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 2a9 9 0 0 1 9 9c0 3.6-2.1 6.7-5.1 8.2L15 21H9l-.9-1.8A9 9 0 0 1 3 11a9 9 0 0 1 9-9Z"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M9 21h6"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                />
+              </svg>
+              추임새 사용
+            </span>
+            <span class="yui-row__sub">답변을 기다리는 동안 짧은 말을 해요</span>
+          </div>
+          <button
+            class="yui-switch"
+            type="button"
+            role="switch"
+            aria-checked="true"
+            aria-label="추임새 사용"
+          ></button>
+        </div>
+
+        <!-- Language seg + phrase editor — disabled when toggle is off -->
+        <div class="filler-body">
+          <div class="yui-field-row">
+            <span class="yui-field-row__label">언어</span>
+            <span class="yui-field-row__sub">추임새를 말할 언어</span>
+            <div
+              class="yui-seg"
+              role="radiogroup"
+              aria-label="추임새 언어"
+              style="--seg: 0; position: relative;"
+            >
+              <span class="yui-seg__ind" style="left: 3px; width: calc(33.33% - 3px)"></span>
+              <button class="yui-seg__btn" role="radio" aria-checked="true" type="button">
+                日本語
+              </button>
+              <button class="yui-seg__btn" role="radio" aria-checked="false" type="button">
+                English
+              </button>
+              <button class="yui-seg__btn" role="radio" aria-checked="false" type="button">
+                한국어
+              </button>
+            </div>
+          </div>
+
+          <div class="yui-field-row">
+            <span class="yui-field-row__label">문구 목록</span>
+            <span class="yui-field-row__sub">한 줄에 하나씩 입력해요</span>
+            <div class="yui-textarea-wrap">
+              <textarea
+                class="yui-textarea"
+                rows="4"
+                placeholder="うーん…&#10;そうだね…&#10;ええと…&#10;ちょっと待ってね…"
+                aria-label="추임새 문구 목록"
+                spellcheck="false"
+              ></textarea>
+            </div>
+          </div>
+          <p class="yui-field-hint">비워두면 기본 문구를 사용해요.</p>
+        </div>
+        <!-- ══════════════════════════════════════════════════════════════════
+             END filler section
+             ══════════════════════════════════════════════════════════════════ -->
+      </div>
+    </div>
+
+    <script>
+      // ── Minimal interaction demo so the mock is reviewable without dev server ──
+
+      // Seg indicator positioning helper
+      function positionSeg(segEl) {
+        const btns = segEl.querySelectorAll(".yui-seg__btn");
+        const ind = segEl.querySelector(".yui-seg__ind");
+        if (!ind || !btns.length) return;
+        const idx = [...btns].findIndex((b) => b.getAttribute("aria-checked") === "true");
+        if (idx < 0) return;
+        const n = btns.length;
+        ind.style.left = `calc(${(idx / n) * 100}% + 3px)`;
+        ind.style.width = `calc(${100 / n}% - 6px)`;
+      }
+
+      // Wire all segmented controls
+      document.querySelectorAll(".yui-seg[role=radiogroup]").forEach((seg) => {
+        positionSeg(seg);
+        seg.querySelectorAll(".yui-seg__btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            seg.querySelectorAll(".yui-seg__btn").forEach((b) => b.setAttribute("aria-checked", "false"));
+            btn.setAttribute("aria-checked", "true");
+            positionSeg(seg);
+          });
+        });
+      });
+
+      // Wire the filler enable toggle
+      const fillerSwitch = document.querySelector(".yui-row .yui-switch[aria-label='추임새 사용']");
+      const fillerBody = document.querySelector(".filler-body");
+      fillerSwitch?.addEventListener("click", () => {
+        const on = fillerSwitch.getAttribute("aria-checked") === "true";
+        fillerSwitch.setAttribute("aria-checked", String(!on));
+        fillerBody?.classList.toggle("is-disabled", on);
+      });
+    </script>
+  </body>
+</html>
