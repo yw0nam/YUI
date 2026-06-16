@@ -43,6 +43,8 @@ import {
   localStorageEndpointsStorage,
   mergeEndpoints,
 } from "./io/endpoints-settings";
+import { effectiveFillerPool } from "./io/filler-pool";
+import { createFillerSettings, localStorageFillerStorage } from "./io/filler-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
 import {
   createIdleThrottleSettings,
@@ -211,6 +213,8 @@ async function bootstrap(): Promise<void> {
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
+  // TTFT 추임새(생각중 모션 + 필러 발화) 설정. 두 창이 wireStorageSync로 동기화.
+  const fillerSettings = createFillerSettings({ storage: localStorageFillerStorage() });
   // 세션 연속성 store: 회전 id 포인터 + 진단(used/window/last-compression). 두 창이
   // wireStorageSync로 동기화하므로 다른 store들과 함께 일찍 만든다(config/dispatcher 비의존).
   const sessionStore = createSessionStore(localStorageSessionStorage());
@@ -244,6 +248,7 @@ async function bootstrap(): Promise<void> {
     chatKeySettings,
     lipsyncSettings,
     vadSettings,
+    fillerSettings,
     screenshotSettings,
     proactiveSettings,
     idleThrottleSettings,
@@ -287,6 +292,7 @@ async function bootstrap(): Promise<void> {
   chatKeySettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);
   vadSettings.subscribe(broadcastSettings);
+  fillerSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
   proactiveSettings.subscribe(broadcastSettings);
   scheduleSettings.subscribe(broadcastSettings);
@@ -300,6 +306,7 @@ async function bootstrap(): Promise<void> {
       chatKeySettings.reloadFromStorage();
       lipsyncSettings.reloadFromStorage();
       vadSettings.reloadFromStorage();
+      fillerSettings.reloadFromStorage();
       screenshotSettings.reloadFromStorage();
       proactiveSettings.reloadFromStorage();
       scheduleSettings.reloadFromStorage();
@@ -444,6 +451,7 @@ async function bootstrap(): Promise<void> {
     voiceStatus: voiceInputStatus,
     lipsync: lipsyncSettings,
     vad: vadSettings,
+    fillerSettings,
     agentSettings,
     vrmSelection,
     swapVrm,
@@ -527,6 +535,7 @@ async function bootstrap(): Promise<void> {
       scheduleSettings.dispose();
       lipsyncSettings.dispose();
       vadSettings.dispose();
+      fillerSettings.dispose();
       agentSettings.dispose();
       endpointsSettings.dispose();
       chatKeySettings.dispose();
@@ -833,6 +842,12 @@ async function bootstrap(): Promise<void> {
     Object.assign(globalThis as Record<string, unknown>, { __yuiSpeech: speechPlayback });
   }
 
+  // ── TTFT 추임새 ───────────────────────────────────────────────────────────
+  // 호출 시점에 현재 filler 설정 + config 스냅샷을 라이브로 읽어 effective 풀을 만든다
+  // (부트 시점 캡처 금지 — 핫리로드/설정 변경이 다음 턴에 반영되게).
+  const effectiveFiller = (): string[] =>
+    effectiveFillerPool(fillerSettings.get(), config.get().filler);
+
   // ── 세션 연속성 ───────────────────────────────────────────────────────────
   // 대화 스레딩은 OpenAI Responses의 previous_response_id로 잇는다 — 매 턴 직전 id를 읽어
   // 보내고(getPreviousResponseId), 성공한 턴의 새 response id를 저장한다(onResponseId).
@@ -866,6 +881,26 @@ async function bootstrap(): Promise<void> {
     },
     getOsContext: () => osContext.get(),
     getAgentSettings: () => agentSettings.get(),
+    // TTFT thinking: 디스패처는 타이밍만 소유 — effective 풀이 비어있지 않을 때만 타이머 무장.
+    getFiller: () => {
+      const pool = effectiveFiller();
+      return pool.length ? { thresholdMs: config.get().filler.threshold_ms } : null;
+    },
+    // 첫 토큰 지연 시: 생각중 모션(loop) + 필러 1문장(cue 없음). 풀이 비면 모션만.
+    onThinkingStart: () => {
+      // Motion yields when a higher-priority state is current (e.g. window_sit perch:
+      // thinking is interrupt_policy "ignore"), but the filler voice always speaks —
+      // the utterance is independent of the motion decision.
+      renderer.playMotion({ id: "thinking", loop: true });
+      const pool = effectiveFiller();
+      if (!pool.length) return;
+      const phrase = pool[Math.floor(Math.random() * pool.length)];
+      speechPlayback.onSpeech(phrase);
+    },
+    // thinking 종료 → idle baseline 복귀. thinking은 loop:true/kind:"state"라 cue가 없으면
+    // 영영 돌고 previousStable도 오염되므로, 종료 시 idle로 되돌려 둘 다 막는다.
+    // (backend 모션 cue priority 70은 도착 시 idle을 그대로 대체한다.)
+    onThinkingEnd: () => renderer.playMotion(null),
   });
   // dispatcher/guardrails는 config 로드 후 만든다(guardrails가 cfg.guardrails 수치를 필요로 함).
   try {

@@ -47,6 +47,16 @@ link_asset() {
 link_asset "$MAIN/resources/vrms/carlotta.vrm" "$WT/resources/vrms/carlotta.vrm"
 link_asset "$MAIN/resources/references" "$WT/resources/references"
 
+# Purchased motions: AGENTS.md is tracked but the .vrma files are gitignored, so the
+# directory already exists in the worktree — link each .vrma individually rather than
+# the whole directory (a dir symlink would nest under the tracked dir).
+if [ -d "$MAIN/public/purchased_motions" ]; then
+  mkdir -p "$WT/public/purchased_motions"
+  for f in "$MAIN/public/purchased_motions"/*.vrma; do
+    [ -e "$f" ] && link_asset "$f" "$WT/public/purchased_motions/$(basename "$f")"
+  done
+fi
+
 if [ -f "$MAIN/.env.local" ]; then
   cp "$MAIN/.env.local" "$WT/.env.local"
   echo "worktree-setup: copied .env.local"

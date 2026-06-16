@@ -41,6 +41,7 @@ import {
   type MotionController,
   type ResolvedMotion,
 } from "./motion-controller";
+import { resolveBaselineFallback } from "./motion-fallback";
 import {
   characterScreenHeight,
   projectToScreen,
@@ -678,7 +679,13 @@ export function createRenderer(options: RendererOptions): Renderer {
     const epoch = vrmEpoch;
     try {
       const clip = await loadClip(motion.vrma_path);
-      if (!clip || !mixer || epoch !== vrmEpoch) return;
+      if (!clip) {
+        // Real load failure (clip missing/invalid for the live VRM) → fall back to idle.
+        // A hotswap/teardown drop (epoch changed / no vrm / no mixer) just returns silently.
+        if (epoch === vrmEpoch && currentVrm && mixer) fallbackToBaseline(motion.id);
+        return;
+      }
+      if (!mixer || epoch !== vrmEpoch) return;
 
       log.debug("start_motion", { id: motion.id, vrma_path: motion.vrma_path });
 
@@ -708,7 +715,23 @@ export function createRenderer(options: RendererOptions): Renderer {
       currentAction = action;
     } catch (err) {
       log.error("start_motion", { error: String(err) });
+      // Loader threw for the live VRM → recover to idle. Drops (hotswap/teardown) return silently.
+      if (epoch === vrmEpoch && currentVrm && mixer) fallbackToBaseline(motion.id);
     }
+  }
+
+  /**
+   * A motion's clip failed to load → repair controller state to idle and (re)play it.
+   * playMotion commits before the async load, so a failed clip leaves current +
+   * previousStable pinned at the dead id and a later idle blocked by priority;
+   * force-committing idle (motion-fallback) overwrites both. Recursion guard: idle's
+   * own failure resolves to null and no-ops. Honors public/purchased_motions/AGENTS.md.
+   */
+  function fallbackToBaseline(failedId: string): void {
+    if (!controller) return;
+    log.warn("motion_fallback_to_idle", { failed_id: failedId });
+    const idle = resolveBaselineFallback(controller, failedId);
+    if (idle) void startMotion(idle);
   }
 
   /** registry가 있으면 idle baseline을 깔아 항상 ambient가 돌게 한다. */

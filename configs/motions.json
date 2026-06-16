@@ -94,6 +94,15 @@
     "priority": 70,
     "interrupt_policy": "replace"
   },
+  "thinking": {
+    "vrma_path": "/purchased_motions/thinking.vrma",
+    "fade_ms": 200,
+    "kind": "state",
+    "loop": true,
+    "priority": 50,
+    "interrupt_policy": "ignore",
+    "broker_publish": false
+  },
   "sulk": {
     "vrma_path": "/motions/suneru.vrma",
     "kind": "oneshot",

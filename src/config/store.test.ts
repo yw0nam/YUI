@@ -55,6 +55,10 @@ function goodFixture(): Record<string, unknown> {
       proactive: { present_max_idle_ms: 180000 },
       schedule: { present_max_idle_ms: 180000 },
     },
+    "filler.json": {
+      threshold_ms: 500,
+      pools: { ja: ["うーん…"], en: ["Hmm..."], ko: ["음…"] },
+    },
   };
 }
 

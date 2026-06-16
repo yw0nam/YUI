@@ -20,6 +20,7 @@ import {
   type EndpointOverrides,
   isValidEndpointUrl,
 } from "../io/endpoints-settings";
+import type { createFillerSettings } from "../io/filler-settings";
 import type { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import {
   type createLipsyncSettings,
@@ -47,6 +48,7 @@ type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
+type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 type VrmSelectionStore = ReturnType<typeof createVrmSelection>;
 type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 type SessionDiagnosticsStore = ReturnType<typeof createSessionDiagnosticsStore>;
@@ -103,6 +105,8 @@ interface QuickControlsOptions {
   sessionDiagnostics?: SessionDiagnosticsStore;
   /** 현재 세션 id 포인터. "새 대화 시작"이 진단과 함께 비운다. */
   sessionStore?: SessionStore;
+  /** 생각중 추임새 설정 store. 없으면 섹션을 그리지 않는다(통합 에이전트가 주입). */
+  fillerSettings?: FillerSettingsStore;
 }
 
 interface QuickControls {
@@ -229,6 +233,7 @@ export function createQuickControls({
   getDefaultProvider,
   sessionDiagnostics,
   sessionStore,
+  fillerSettings,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // 세션 섹션은 설정 창(window)에서만, 두 store가 모두 주입됐을 때 그린다.
@@ -356,6 +361,40 @@ export function createQuickControls({
           </div>
           <button class="yui-reset" type="button">기본값으로 되돌리기</button>
         </div>
+        ${
+          fillerSettings
+            ? `
+        <div class="yui-quick__divider" aria-hidden="true"></div>
+        <span class="yui-quick__section">생각중 추임새</span>
+        <div class="yui-filler">
+          <div class="yui-row">
+            <div class="yui-row__main">
+              <span class="yui-row__label">추임새 사용</span>
+              <span class="yui-row__sub">답변을 기다리는 동안 짧은 말을 해요</span>
+            </div>
+            <button class="yui-switch yui-filler-switch" type="button" role="switch" aria-checked="false" aria-label="추임새 사용"></button>
+          </div>
+          <div class="yui-field-row">
+            <span class="yui-field-row__label">언어</span>
+            <span class="yui-field-row__sub">추임새를 말할 언어</span>
+            <div class="yui-seg yui-filler-lang-seg" role="radiogroup" aria-label="추임새 언어" style="--seg:0;">
+              <span class="yui-seg__ind" aria-hidden="true"></span>
+              <button class="yui-seg__btn" type="button" role="radio" data-lang="ja" aria-checked="false" tabindex="-1">日本語</button>
+              <button class="yui-seg__btn" type="button" role="radio" data-lang="en" aria-checked="false" tabindex="-1">English</button>
+              <button class="yui-seg__btn" type="button" role="radio" data-lang="ko" aria-checked="false" tabindex="-1">한국어</button>
+            </div>
+          </div>
+          <div class="yui-field-row">
+            <span class="yui-field-row__label">문구 목록</span>
+            <span class="yui-field-row__sub">한 줄에 하나씩 입력해요</span>
+            <div class="yui-textarea-wrap">
+              <textarea class="yui-textarea yui-filler-textarea" spellcheck="false" rows="4" aria-label="추임새 문구 목록"></textarea>
+            </div>
+          </div>
+          <p class="yui-filler-hint">비워두면 기본 문구를 사용해요.</p>
+        </div>`
+            : ""
+        }
       </div>
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-char" aria-labelledby="yui-tab-char" tabindex="0" hidden>
@@ -546,6 +585,13 @@ export function createQuickControls({
   const spkImportErrorEl = el.querySelector<HTMLParagraphElement>(".yui-spk__import-error")!;
   const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
+  // 생각중 추임새 섹션 노드 — fillerSettings 주입 시에만 존재한다(없으면 null).
+  const fillerSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-filler-switch");
+  const fillerLangSegEl = el.querySelector<HTMLDivElement>(".yui-filler-lang-seg");
+  const fillerLangBtns = fillerLangSegEl
+    ? Array.from(fillerLangSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"))
+    : [];
+  const fillerTextareaEl = el.querySelector<HTMLTextAreaElement>(".yui-filler-textarea");
   const epResetBtn = el.querySelector<HTMLButtonElement>(".yui-ep-reset")!;
   // 엔드포인트 입력 — 필드 key별 input 노드 맵.
   const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
@@ -640,6 +686,25 @@ export function createQuickControls({
     if (document.activeElement !== instructionsEl && instructionsEl.value !== a.instructions) {
       instructionsEl.value = a.instructions;
     }
+  }
+
+  // 생각중 추임새 섹션 — store 상태를 UI에 반영한다.
+  function reflectFiller(): void {
+    if (!fillerSettings || !fillerSwitchBtn || !fillerLangSegEl || !fillerTextareaEl) return;
+    const s = fillerSettings.get();
+    fillerSwitchBtn.setAttribute("aria-checked", String(s.enabled));
+    // 언어 seg 인디케이터
+    const FILLER_LANGS = ["ja", "en", "ko"] as const;
+    const idx = Math.max(0, FILLER_LANGS.indexOf(s.language));
+    fillerLangBtns.forEach((btn, i) => {
+      const selected = i === idx;
+      btn.setAttribute("aria-checked", String(selected));
+      btn.tabIndex = selected ? 0 : -1;
+    });
+    fillerLangSegEl.style.setProperty("--seg", String(idx));
+    // 문구 textarea — 현재 언어의 customPool을 줄 단위로 표시
+    const pool = s.customPools[s.language];
+    fillerTextareaEl.value = pool && pool.length > 0 ? pool.join("\n") : "";
   }
 
   // 효과적 음성 엔진 — 유효한 오버라이드가 있으면 그것, 없으면 bundled 기본값, 최종 폴백 irodori.
@@ -1655,6 +1720,7 @@ export function createQuickControls({
     reflectGain();
     reflectVad();
     reflectAgent();
+    reflectFiller();
     reflectEndpoints();
     reflectChatKey();
     reflectVoiceEngine();
@@ -1735,6 +1801,37 @@ export function createQuickControls({
     const current = idleThrottleSettings.get().enabled;
     idleThrottleSettings.setEnabled(!current);
     log.info("idle_throttle_toggle", { enabled: !current });
+  }
+
+  // ── 생각중 추임새 이벤트 핸들러 ──
+
+  function handleFillerSwitchClick(): void {
+    if (!fillerSettings) return;
+    fillerSettings.setEnabled(!fillerSettings.get().enabled);
+  }
+
+  function handleFillerLangClick(e: MouseEvent): void {
+    if (!fillerSettings) return;
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
+    if (!btn) return;
+    const lang = btn.dataset.lang as "ja" | "en" | "ko" | undefined;
+    if (!lang) return;
+    fillerSettings.setLanguage(lang);
+    // 언어가 바뀌면 textarea를 새 언어의 pool로 즉시 갱신(store 구독보다 선행).
+    if (fillerTextareaEl) {
+      const pool = fillerSettings.get().customPools[lang];
+      fillerTextareaEl.value = pool && pool.length > 0 ? pool.join("\n") : "";
+    }
+  }
+
+  function handleFillerTextareaInput(): void {
+    if (!fillerSettings || !fillerTextareaEl) return;
+    const lang = fillerSettings.get().language;
+    const lines = fillerTextareaEl.value
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+    fillerSettings.setCustomPool(lang, lines);
   }
 
   function handleVoiceSwitchClick(): void {
@@ -2084,6 +2181,10 @@ export function createQuickControls({
   const unsubscribeChatKey = chatKeySettings.subscribe(() => {
     if (openState) reflectChatKey();
   });
+  // 생각중 추임새 store 갱신을 섹션에 반영(다른 창 reloadFromStorage 포함).
+  const unsubscribeFiller = fillerSettings?.subscribe(() => {
+    if (openState) reflectFiller();
+  });
   // store 갱신(직접 select·다른 창 reloadFromStorage)을 active 행에 반영.
   // 스왑 진행 중엔 건너뛴다 — finally의 renderVrms가 로딩 해제 후 최종 그림을 맡는다.
   const unsubscribeVrm = vrmSelection.subscribe(() => {
@@ -2101,6 +2202,9 @@ export function createQuickControls({
 
   switchBtn.addEventListener("click", handleSwitchClick);
   idleThrottleSwitchBtn.addEventListener("click", handleIdleThrottleSwitchClick);
+  fillerSwitchBtn?.addEventListener("click", handleFillerSwitchClick);
+  fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
+  fillerTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
   scrimEl.addEventListener("pointerdown", handleScrimPointerDown);
   document.addEventListener("keydown", handleDocKeydown);
@@ -2155,6 +2259,7 @@ export function createQuickControls({
     unsubscribeAgent();
     unsubscribeEndpoints();
     unsubscribeChatKey();
+    unsubscribeFiller?.();
     unsubscribeVrm();
     unsubscribeSpk();
     unsubscribeSession?.();
@@ -2164,6 +2269,9 @@ export function createQuickControls({
     spkRefreshState.clear();
     switchBtn.removeEventListener("click", handleSwitchClick);
     idleThrottleSwitchBtn.removeEventListener("click", handleIdleThrottleSwitchClick);
+    fillerSwitchBtn?.removeEventListener("click", handleFillerSwitchClick);
+    fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
+    fillerTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     scrimEl.removeEventListener("pointerdown", handleScrimPointerDown);
     document.removeEventListener("keydown", handleDocKeydown);

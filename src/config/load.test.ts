@@ -80,6 +80,14 @@ function goodFixture(): Record<string, unknown> {
       proactive: { present_max_idle_ms: 180000 },
       schedule: { present_max_idle_ms: 180000 },
     },
+    "filler.json": {
+      threshold_ms: 500,
+      pools: {
+        ja: ["うーん…", "そうだね…", "ええと…", "ちょっと待ってね…"],
+        en: ["Let me think...", "Hmm...", "Well..."],
+        ko: ["음…", "글쎄…", "잠깐…"],
+      },
+    },
   };
 }
 
@@ -96,7 +104,7 @@ function readerOf(map: Record<string, unknown>): ConfigReader {
 // ── happy path ─────────────────────────────────────────────────────────────────
 
 describe("loadConfig — happy path", () => {
-  it("known-good fixture 전체를 6개 섹션의 AppConfig로 조립한다", async () => {
+  it("known-good fixture 전체를 7개 섹션의 AppConfig로 조립한다", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
 
     expect(cfg.endpoints).toEqual({
@@ -1332,6 +1340,148 @@ describe("loadConfig — default fetch reader routes through asset resolver", ()
     });
     expect(fetched).toContain("asset://localhost/configs/endpoints.json");
     expect(fetched.every((u) => u.startsWith("asset://localhost/configs/"))).toBe(true);
+  });
+});
+
+// ── filler.json ─────────────────────────────────────────────────────────────────
+
+function goodFillerFixture(): Record<string, unknown> {
+  return {
+    threshold_ms: 500,
+    pools: {
+      ja: ["うーん…", "そうだね…", "ええと…", "ちょっと待ってね…"],
+      en: ["Let me think...", "Hmm...", "Well..."],
+      ko: ["음…", "글쎄…", "잠깐…"],
+    },
+  };
+}
+
+function fillerFixture(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const map = goodFixture();
+  map["filler.json"] = { ...goodFillerFixture(), ...overrides };
+  return map;
+}
+
+describe("loadConfig — filler (accept)", () => {
+  it("known-good filler fixture를 그대로 보존한다", async () => {
+    const cfg = await loadConfig({ read: readerOf(fillerFixture()) });
+    expect(cfg.filler.threshold_ms).toBe(500);
+    expect(cfg.filler.pools.ja).toEqual(["うーん…", "そうだね…", "ええと…", "ちょっと待ってね…"]);
+    expect(cfg.filler.pools.en).toEqual(["Let me think...", "Hmm...", "Well..."]);
+    expect(cfg.filler.pools.ko).toEqual(["음…", "글쎄…", "잠깐…"]);
+  });
+
+  it("pools에 ja만 있어도 통과한다", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { threshold_ms: 1000, pools: { ja: ["うーん…"] } };
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.filler.pools.ja).toEqual(["うーん…"]);
+    expect(cfg.filler.pools.en).toBeUndefined();
+  });
+
+  it("threshold_ms 100(하한)은 통과한다", async () => {
+    const cfg = await loadConfig({ read: readerOf(fillerFixture({ threshold_ms: 100 })) });
+    expect(cfg.filler.threshold_ms).toBe(100);
+  });
+
+  it("threshold_ms 10000(상한)은 통과한다", async () => {
+    const cfg = await loadConfig({ read: readerOf(fillerFixture({ threshold_ms: 10000 })) });
+    expect(cfg.filler.threshold_ms).toBe(10000);
+  });
+});
+
+describe("loadConfig — filler (reject)", () => {
+  it("객체가 아니면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = 42;
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("threshold_ms가 0이면 ConfigError (0은 양의 정수가 아님)", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ threshold_ms: 0 })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("threshold_ms가 음수이면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ threshold_ms: -1 })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("threshold_ms가 99이면 ConfigError (하한 100 미만)", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ threshold_ms: 99 })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("threshold_ms가 10001이면 ConfigError (상한 초과)", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ threshold_ms: 10001 })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("threshold_ms가 소수이면 ConfigError (정수가 아님)", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ threshold_ms: 500.5 })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("threshold_ms가 문자열이면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ threshold_ms: "500" })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pools에 알 수 없는 키(fr)가 있으면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = {
+      threshold_ms: 500,
+      pools: { ja: ["うーん…"], fr: ["hmm…"] },
+    };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pools[ja]가 빈 배열이면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { threshold_ms: 500, pools: { ja: [] } };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pools[ja]에 비어있는 문자열이 포함되면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { threshold_ms: 500, pools: { ja: ["うーん…", ""] } };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pools[en]이 string[]이 아닌 number[]이면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { threshold_ms: 500, pools: { en: [1, 2, 3] } };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pools가 객체가 아니면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { threshold_ms: 500, pools: "ja" };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("threshold_ms 키가 없으면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { pools: { ja: ["うーん…"] } };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pools 키가 없으면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { threshold_ms: 500 };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pools가 빈 객체이면 ConfigError (최소 한 개 언어 필요)", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { threshold_ms: 500, pools: {} };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 });
 

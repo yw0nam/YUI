@@ -102,6 +102,17 @@ export interface SourcesConfig {
   schedule: { present_max_idle_ms: number };
 }
 
+/** TTFT filler language — closed union, never crosses the Hermes wire. */
+export type FillerLang = "ja" | "en" | "ko";
+
+/** configs/filler.json — TTFT filler phrases + threshold. */
+export interface FillerConfig {
+  /** Fire filler only if first token hasn't arrived within this many ms. */
+  threshold_ms: number;
+  /** Default backchannel phrase pools per language. */
+  pools: Partial<Record<FillerLang, string[]>>;
+}
+
 /** 로드·검증된 전체 config 묶음 (불변 스냅샷). */
 export interface AppConfig {
   endpoints: EndpointsConfig;
@@ -110,6 +121,7 @@ export interface AppConfig {
   motions: MotionRegistry;
   guardrails: GuardrailsConfig;
   sources: SourcesConfig;
+  filler: FillerConfig;
 }
 
 /** AppConfig의 도메인 키 — 핫리로드가 "무엇이 바뀌었나"를 통지할 때 쓰는 단위(store.ts). */
@@ -123,6 +135,7 @@ export const CONFIG_FILES: Record<ConfigSection, string> = {
   motions: "motions.json",
   guardrails: "guardrails.json",
   sources: "sources.json",
+  filler: "filler.json",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -857,6 +870,61 @@ function validateSources(file: string, raw: unknown): SourcesConfig {
   };
 }
 
+const FILLER_LANGS: readonly FillerLang[] = ["ja", "en", "ko"];
+
+function validateFiller(file: string, raw: unknown): FillerConfig {
+  if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
+  const issues: string[] = [];
+
+  // threshold_ms: positive integer in [100, 10000]
+  const threshold_ms = raw.threshold_ms;
+  if (
+    typeof threshold_ms !== "number" ||
+    !Number.isInteger(threshold_ms) ||
+    threshold_ms < 100 ||
+    threshold_ms > 10000
+  ) {
+    issues.push(
+      `threshold_ms는 [100, 10000] 범위의 양의 정수여야 함 (받음: ${JSON.stringify(threshold_ms)})`,
+    );
+  }
+
+  // pools: object whose keys are restricted to FillerLang
+  const rawPools = raw.pools;
+  const pools: Partial<Record<FillerLang, string[]>> = {};
+  if (!isObject(rawPools)) {
+    issues.push(`pools는 객체여야 함 (받음: ${JSON.stringify(rawPools)})`);
+  } else if (Object.keys(rawPools).length === 0) {
+    issues.push("pools는 최소 한 개의 언어(ja | en | ko)를 포함해야 함");
+  } else {
+    for (const key of Object.keys(rawPools)) {
+      if (!(FILLER_LANGS as readonly string[]).includes(key)) {
+        issues.push(`pools의 알 수 없는 키: ${JSON.stringify(key)} (허용: ja | en | ko)`);
+        continue;
+      }
+      const lang = key as FillerLang;
+      const pool = rawPools[lang];
+      if (!Array.isArray(pool) || pool.length === 0) {
+        issues.push(`pools.${lang}는 비어있지 않은 배열이어야 함 (받음: ${JSON.stringify(pool)})`);
+        continue;
+      }
+      let poolClean = true;
+      for (let i = 0; i < pool.length; i++) {
+        if (typeof pool[i] !== "string" || pool[i] === "") {
+          issues.push(
+            `pools.${lang}[${i}]는 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(pool[i])})`,
+          );
+          poolClean = false;
+        }
+      }
+      if (poolClean) pools[lang] = pool as string[];
+    }
+  }
+
+  assertValid(file, issues);
+  return { threshold_ms: threshold_ms as number, pools };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // loadConfig
 // ─────────────────────────────────────────────────────────────────────────────
@@ -871,15 +939,23 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     fetchReader(opts.baseUrl ?? "/configs", opts.cacheBust, opts.resolveUrl, opts.fetch);
 
   // 파일별 read는 병렬, 검증은 결정적 순서로.
-  const [endpointsRaw, avatarRaw, emotionRegistryRaw, motionsRaw, guardrailsRaw, sourcesRaw] =
-    await Promise.all([
-      read(CONFIG_FILES.endpoints),
-      read(CONFIG_FILES.avatar),
-      read(CONFIG_FILES.emotionRegistry),
-      read(CONFIG_FILES.motions),
-      read(CONFIG_FILES.guardrails),
-      read(CONFIG_FILES.sources),
-    ]);
+  const [
+    endpointsRaw,
+    avatarRaw,
+    emotionRegistryRaw,
+    motionsRaw,
+    guardrailsRaw,
+    sourcesRaw,
+    fillerRaw,
+  ] = await Promise.all([
+    read(CONFIG_FILES.endpoints),
+    read(CONFIG_FILES.avatar),
+    read(CONFIG_FILES.emotionRegistry),
+    read(CONFIG_FILES.motions),
+    read(CONFIG_FILES.guardrails),
+    read(CONFIG_FILES.sources),
+    read(CONFIG_FILES.filler),
+  ]);
 
   return {
     endpoints: validateEndpoints(CONFIG_FILES.endpoints, endpointsRaw),
@@ -888,5 +964,6 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     motions: validateMotions(CONFIG_FILES.motions, motionsRaw),
     guardrails: validateGuardrails(CONFIG_FILES.guardrails, guardrailsRaw),
     sources: validateSources(CONFIG_FILES.sources, sourcesRaw),
+    filler: validateFiller(CONFIG_FILES.filler, fillerRaw),
   };
 }
