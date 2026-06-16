@@ -119,6 +119,61 @@ describe("pretool-bash-guard.sh — secret guard", () => {
   });
 });
 
+describe("pretool-bash-guard.sh — purchased_motions guard", () => {
+  const mutating = [
+    "rm resources/purchased_motions/考え中ループ.anim",
+    "mv resources/purchased_motions/a.anim resources/vrma/a.anim",
+    "cp resources/purchased_motions/a.anim /tmp/a.anim",
+    "rsync -a resources/purchased_motions/ /tmp/dst/",
+    "sed -i '' 's/x/y/' resources/purchased_motions/a.anim",
+    "git add resources/purchased_motions/a.anim",
+    "git rm resources/purchased_motions/a.anim",
+    "echo data > resources/purchased_motions/a.anim",
+  ];
+  for (const cmd of mutating) {
+    it(`denies: ${cmd}`, () => {
+      expect(denyReason(runHook("pretool-bash-guard.sh", bashInput(cmd, featRepo)))).toMatch(
+        /purchased_motions/,
+      );
+    });
+  }
+
+  it("mentions the YUI_ALLOW_MOTIONS bypass", () => {
+    const r = runHook(
+      "pretool-bash-guard.sh",
+      bashInput("rm resources/purchased_motions/a.anim", featRepo),
+    );
+    expect(denyReason(r)).toMatch(/YUI_ALLOW_MOTIONS=1/);
+  });
+
+  it("allows reads of purchased_motions (cat/ls/grep)", () => {
+    for (const cmd of [
+      "cat resources/purchased_motions/AGENTS.md",
+      "ls resources/purchased_motions",
+      "grep -r foo resources/purchased_motions",
+    ]) {
+      expect(
+        denyReason(runHook("pretool-bash-guard.sh", bashInput(cmd, featRepo))),
+      ).toBeUndefined();
+    }
+  });
+
+  it("does not flag commands unrelated to purchased_motions", () => {
+    expect(
+      denyReason(runHook("pretool-bash-guard.sh", bashInput("rm resources/vrma/a.anim", featRepo))),
+    ).toBeUndefined();
+  });
+
+  it("allows mutation when YUI_ALLOW_MOTIONS=1", () => {
+    const r = runHook(
+      "pretool-bash-guard.sh",
+      bashInput("rm resources/purchased_motions/a.anim", featRepo),
+      { YUI_ALLOW_MOTIONS: "1" },
+    );
+    expect(denyReason(r)).toBeUndefined();
+  });
+});
+
 describe("pretool-bash-guard.sh — fail-open", () => {
   it("exits 0 with no output on malformed input", () => {
     const r = runHook("pretool-bash-guard.sh", "not-json{{{");
@@ -176,6 +231,48 @@ function additionalContext(r: HookResult): string | undefined {
   if (!r.stdout.trim()) return undefined;
   return JSON.parse(r.stdout).hookSpecificOutput?.additionalContext as string | undefined;
 }
+
+describe("pretool-write-guard.sh — purchased_motions guard", () => {
+  function writeInput(file_path: string) {
+    return {
+      hook_event_name: "PreToolUse",
+      tool_name: "Write",
+      tool_input: { file_path, content: "x" },
+    };
+  }
+
+  it("denies writing inside purchased_motions (absolute path)", () => {
+    const r = runHook(
+      "pretool-write-guard.sh",
+      writeInput("/Users/x/YUI/resources/purchased_motions/a.anim"),
+    );
+    expect(r.status).toBe(0);
+    expect(denyReason(r)).toMatch(/purchased_motions/);
+  });
+
+  it("denies a relative purchased_motions path", () => {
+    const r = runHook("pretool-write-guard.sh", writeInput("resources/purchased_motions/a.anim"));
+    expect(denyReason(r)).toMatch(/purchased_motions/);
+  });
+
+  it("allows other files", () => {
+    const r = runHook("pretool-write-guard.sh", writeInput("/Users/x/YUI/resources/vrma/a.anim"));
+    expect(denyReason(r)).toBeUndefined();
+  });
+
+  it("allows writes when YUI_ALLOW_MOTIONS=1", () => {
+    const r = runHook("pretool-write-guard.sh", writeInput("resources/purchased_motions/a.anim"), {
+      YUI_ALLOW_MOTIONS: "1",
+    });
+    expect(denyReason(r)).toBeUndefined();
+  });
+
+  it("fails open on malformed input", () => {
+    const r = runHook("pretool-write-guard.sh", "{{{");
+    expect(r.status).toBe(0);
+    expect(r.stdout.trim()).toBe("");
+  });
+});
 
 describe("posttool-edit-guard.sh — docs vocabulary guard", () => {
   it("blocks change-narrative vocabulary in docs markdown", () => {

@@ -1,8 +1,14 @@
-# Puchased Motion Files
+# Purchased Motion Files
 
-DOOOOOO Not move or push to github these files.
+> [!WARNING]
+> **CRITICAL SECURITY / LICENSING RULE:** Do NOT commit, push, or copy these files to GitHub or any public repository. They are licensed assets.
 
-The motion files in this folder should not be exposed.
+## Guidelines for Agents and Developers
 
-When you developing the project, you can use these files, but you must not expose them to the public.
-When you don't have these motions, just use idle as fallback motion.
+- **No Public Exposure:** These motion files must never be uploaded to Git or any public repository.
+- **Allowed Actions:** You may only read or load these files locally during development. Do not write to, modify, or copy them outside this directory.
+- **App Bundling:** These motions are packaged during the build process but must remain strictly gitignored.
+- **Fallback Behavior:** If these purchased motions are not present in your local environment, use the `idle` motion as a fallback.
+
+Motion list
+- [もいらんど/thinking](https://booth.pm/ja/items/5562384)
