@@ -36,12 +36,23 @@ never inline in code, and the thinking motion is **not** published to the broker
      `priority: 50` — above `idle` (0), below the perch held-state `window_sit` (55) so it
      never disrupts a held state, and below reactive emotes (70) so the backend's response
      motion replaces it.
-   - Missing-file behaviour: `loadClip` returning `null` does **not** auto-return to idle —
-     `startMotion` silently no-ops (`src/renderer/index.ts:681`), leaving the character on
-     its current baseline (idle in the common case). This is acceptable: a missing
-     `thinking.vrma` simply means no thinking pose, while the filler line still plays. The
-     spec does **not** rely on an idle fallback; tests assert the silent no-op, not a fallback
-     motion.
+   - Missing-file behaviour: implement an **idle fallback** in the renderer (honouring
+     `public/purchased_motions/AGENTS.md`: "if purchased motions are not present, use idle").
+     Today `playMotion` commits the decision *before* the async clip load
+     (`src/renderer/index.ts:884-887`), and `startMotion` silently returns on a null/throwing
+     clip (`:681`, `:709`). That leaves three corruptions when `thinking.vrma` is absent:
+     `current` = thinking, `previousStable` = thinking (it is `kind:"state"`, committed at
+     `motion-controller.ts:257`), and a later `playMotion({id:"idle"})` blocked by priority
+     (0 < 50).
+   - Fix: add a renderer-internal `fallbackToBaseline(failedId)` that resolves `idle` via
+     `controller.resolve({id:"idle"})`, **force-commits** it (`controller.commit({action:"play", motion: idle})`,
+     bypassing `request()` so priority cannot block it), and calls `startMotion(idle)`.
+     Force-committing idle (`kind:"ambient"`) overwrites both `current` and `previousStable`,
+     repairing the corruption. Recursion guard: return immediately if `failedId === "idle"`.
+   - `startMotion` calls `fallbackToBaseline(motion.id)` on the null-clip path and in the
+     catch — but only when the load failure is real, i.e. `epoch === vrmEpoch && currentVrm
+     && mixer` (a hotswap/teardown drop still returns silently). This is a general fallback
+     (any motion whose clip fails → idle), not thinking-specific.
 2. `scripts/worktree-setup.sh`: link `public/purchased_motions` from the main checkout so
    gitignored purchased motions exist in worktrees (mirrors the `resources/references` link).
 3. `docs/motions.md`: document the `thinking` entry (current-state, declarative).
@@ -165,8 +176,10 @@ Per AGENTS.md UI flow: review existing surfaces → propose structure → **mock
     timer already fired → `onThinkingEnd` exactly once;
   - external-signal abort mid-thinking → `onThinkingEnd` once;
   - `getFiller()` returns `null` (disabled/empty pool) → timer never armed.
-- motion registry/renderer test — `thinking` entry valid; missing clip → `startMotion` silent
-  no-op (no fallback motion, no throw).
+- motion registry/renderer test — `thinking` entry valid; a clip that fails to load (loader
+  rejects / no animations) → `fallbackToBaseline` force-plays `idle`, leaving
+  `controller.current()` = idle and `previousStable` = idle (not the failed motion); idle's
+  own load failure does not recurse.
 - `src/ui/quick-controls.test.ts` — filler controls bind to the store.
 - `tests/hooks/guards.test.ts` — already covers `public/purchased_motions` (landed).
 
