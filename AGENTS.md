@@ -8,7 +8,7 @@ Load the Karpathy guidelines, vendored at [`.claude/skills/karpathy-guidelines/S
 
 ## Work Rules (user directive, mandatory)
 
-- **Worktree → PR.** All work happens in a git worktree and lands via PR; `main` requires a PR and green CI (`PreToolUse(Bash)` guard denies `git commit`/`git push` on `main`; set `YUI_ALLOW_MAIN=1` for explicit docs/rules exceptions). New-worktree setup: run `bash scripts/worktree-setup.sh <worktree>` after a manual `git worktree add` (Claude-created worktrees run this automatically via `WorktreeCreate` hook).
+- **Worktree → PR.** All work happens in a git worktree and lands via PR; `main` requires a PR and green CI (`PreToolUse(Bash)` guard denies `git commit`/`git push` on `main` — the agent cannot commit/push to `main` and must request the user to run it directly). New-worktree setup: run `bash scripts/worktree-setup.sh <worktree>` after a manual `git worktree add` (Claude-created worktrees run this automatically via `WorktreeCreate` hook).
 - **GitHub tracker in English.** Issues, issue comments, and PR titles/bodies are written in English (chat with the user is any language); enforced by the `pr-title` CI job.
 - **UI: review existing → propose text structure → mock HTML → implement.** Read `src/ui/`, `DESIGN.md`, `PRODUCT.md` before any UI work; propose structure, get confirmation, create a standalone mock HTML, then implement (detail: `docs/agent-guide/design-context.md`).
 - **Tests accompany behavior.** New or changed behavior ships its test in the same PR; the `test-guard` CI job enforces this (`skip-tests` label bypasses). Write the failing test first (`test:`), then implementation (`feat:`), then refactor if needed (`refactor:`).
