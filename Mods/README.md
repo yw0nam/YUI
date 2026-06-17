@@ -32,7 +32,7 @@ The agent then adds the MCP tool source at `http://localhost:9000/mcp` (from the
 
 | Tool | Description |
 |---|---|
-| `screenshot` | Capture the current screen as PNG |
+| `screenshot` | Capture every display as PNG (one image per monitor), long edge downscaled to 1280px (`DESKTOP_CONTROL_SCREENSHOT_MAX_EDGE`, `0` disables) |
 | `list_running_apps` | Names of visible (non-background) apps |
 | `open_app(name)` | Launch + focus an allowlisted app |
 | `close_app(name)` | Gracefully quit an allowlisted app |

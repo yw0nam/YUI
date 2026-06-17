@@ -9,6 +9,9 @@ _LIST_APPS_SCRIPT = (
     "(every process whose background only is false)"
 )
 
+# Safety cap when probing display indices (screencapture -D is 1-based).
+_MAX_DISPLAYS = 8
+
 
 def list_running_apps() -> list[str]:
     """Names of visible (non-background) apps. osascript output is a ', '-joined string."""
@@ -26,16 +29,36 @@ def quit_app(name: str) -> None:
     _run(["osascript", "-e", f'quit app "{name}"'])
 
 
-def capture_screen(max_edge: int | None = None) -> bytes:
-    """Capture the current screen as PNG bytes (`screencapture -x`, no shutter sound).
+def capture_screens(max_edge: int | None = None) -> list[bytes]:
+    """Capture every display as PNG bytes — one entry per display.
 
-    When max_edge is given, downscale the long edge to that value with `sips -Z`
-    to keep full-resolution images from bloating the agent's context (tokens/latency).
+    Probes display indices upward (`screencapture -D`) until one is invalid, so a
+    window on any monitor is captured, not just the main display.
+    """
+    shots: list[bytes] = []
+    for index in range(1, _MAX_DISPLAYS + 1):
+        png = _capture_display(index, max_edge)
+        if png is None:
+            break
+        shots.append(png)
+    return shots
+
+
+def _capture_display(index: int, max_edge: int | None) -> bytes | None:
+    """Capture one display (`screencapture -x -D`, no shutter sound). None if `index`
+    is out of range. When max_edge is given, downscale the long edge with `sips -Z`
+    to keep images from bloating the agent's context (tokens/latency).
     """
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
         path = Path(tmp.name)
     try:
-        _run(["screencapture", "-x", "-t", "png", str(path)])
+        result = subprocess.run(
+            ["screencapture", "-x", "-D", str(index), "-t", "png", str(path)],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            return None
         if max_edge:
             _run(["sips", "-Z", str(max_edge), str(path)])
         return path.read_bytes()

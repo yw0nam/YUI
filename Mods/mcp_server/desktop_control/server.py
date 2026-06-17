@@ -49,9 +49,10 @@ mcp = FastMCP(
 
 
 @mcp.tool
-def screenshot() -> Image:
-    """Capture the current screen as a PNG image (long edge downscaled to 1280px by default)."""
-    return Image(data=ops.capture_screen(_screenshot_max_edge()), format="png")
+def screenshot() -> list[Image]:
+    """Capture every display as a PNG image, one per monitor (long edge downscaled to 1280px by default)."""
+    max_edge = _screenshot_max_edge()
+    return [Image(data=png, format="png") for png in ops.capture_screens(max_edge)]
 
 
 @mcp.tool

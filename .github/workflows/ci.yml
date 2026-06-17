@@ -102,3 +102,17 @@ jobs:
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+
+  mods:
+    name: mods (uv + pytest)
+    runs-on: ubuntu-latest
+    # Mods/ are standalone Python MCP servers; OS calls are mocked, so they run on Linux.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+        working-directory: Mods
+      - run: uv run pytest
+        working-directory: Mods
