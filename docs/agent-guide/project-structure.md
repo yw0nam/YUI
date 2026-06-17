@@ -44,5 +44,6 @@ YUI/
   src-tauri/
     tauri.conf.json         # Transparent always-on-top pet window
     src/                    # Rust: lib.rs, main.rs, drag.rs, screenshot.rs, os_event_watcher/ (mod·macos·windows)
+  Mods/                     # Standalone MCP servers, independent of the app runtime (Python/uv, own `mods` CI job). Optional agent tool sources — see Mods/README.md (desktop_control: macOS screen + app control)
   docs/                     # Design source of truth
 ```
