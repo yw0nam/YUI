@@ -445,6 +445,43 @@ describe("resolve() — cycle flag", () => {
     const r = mc.resolve({ id: "idle", loop: false });
     expect(r!.cycle).toBe(false);
   });
+
+  it("single-variant loop entry with crossfade_loop:true → cycle true (opt-in self-loop)", () => {
+    const xfadeRegistry: MotionRegistry = {
+      thinking: {
+        vrma_path: "/purchased_motions/thinking.vrma",
+        crossfade_loop: true,
+        kind: "state",
+        loop: true,
+        priority: 50,
+        interrupt_policy: "ignore",
+      },
+    };
+    const mc = createMotionController(xfadeRegistry);
+    const r = mc.resolve({ id: "thinking" });
+    expect(r!.cycle).toBe(true);
+  });
+
+  it("single-variant loop entry WITHOUT crossfade_loop → cycle false (control)", () => {
+    const noFlagRegistry: MotionRegistry = {
+      thinking: {
+        vrma_path: "/purchased_motions/thinking.vrma",
+        kind: "state",
+        loop: true,
+        priority: 50,
+        interrupt_policy: "ignore",
+      },
+    };
+    const mc = createMotionController(noFlagRegistry);
+    const r = mc.resolve({ id: "thinking" });
+    expect(r!.cycle).toBe(false);
+  });
+
+  it("multi-variant loop entry still resolves cycle true (no regression from the flag)", () => {
+    const mc = createMotionController(realRegistry);
+    const r = mc.resolve({ id: "idle" });
+    expect(r!.cycle).toBe(true);
+  });
 });
 
 describe("resolve() — random avoids immediate variant repeat", () => {
