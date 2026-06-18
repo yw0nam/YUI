@@ -74,6 +74,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   const factory = options.createPipeline ?? createTtsPipeline;
 
   let motionHeld = false;
+  let heldCue: ExpressArgs | null = null;
 
   // fires when a sentence begins playback or its synth fails — audio-timed expression seam.
   function applyCue(cue: ExpressArgs | null): void {
@@ -141,10 +142,23 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       end();
     },
     setCue(cue) {
-      pipeline.setCue(cue);
+      if (motionHeld) {
+        heldCue = cue;
+      } else {
+        pipeline.setCue(cue);
+      }
     },
     holdMotion(held) {
-      motionHeld = held;
+      if (held) {
+        motionHeld = true;
+        heldCue = null;
+      } else {
+        motionHeld = false;
+        if (heldCue !== null) {
+          pipeline.setCue(heldCue);
+          heldCue = null;
+        }
+      }
     },
     interrupt() {
       stripper.reset();
