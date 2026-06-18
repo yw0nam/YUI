@@ -176,7 +176,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const tz = resolveTimezone();
     const ctx: InputContext = {
       ...(userText !== undefined ? { user_text: userText } : {}),
-      ...(userImages ? { user_images: userImages } : {}),
+      ...(userImages?.length ? { user_images: userImages } : {}),
       env: {
         timestamp: localIso(env.ts, tz),
         timezone: tz,

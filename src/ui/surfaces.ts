@@ -298,6 +298,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     chip.className = "yui-chip";
     const img = document.createElement("img");
     img.src = dataUrl;
+    img.alt = ""; // 장식용 썸네일 — 칩의 × 버튼이 첨부 존재를 전달한다.
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "yui-chip__remove";

@@ -290,6 +290,8 @@ describe("image attachments — tray chips + onSubmit images", () => {
     await pasteImages(pngFile("a.png"));
 
     expect(tray().children.length).toBe(1);
+    // 장식용 썸네일 — alt=""로 스크린리더가 건너뛴다.
+    expect(tray().querySelector("img")?.alt).toBe("");
     submit();
 
     expect(seen.length).toBe(1);
