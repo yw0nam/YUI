@@ -85,7 +85,12 @@ YUI/
       screenshot.rs       # Monitor capture
       os_event_watcher/   # mod · macos · windows — active app / idle / fullscreen polling
   docs/                   # Backend-handoff contract + human-facing catalogs
+  Mods/                   # Standalone MCP servers, independent of the app — Python/uv, own `mods` CI
 ```
+
+Optional standalone **Mods** — independent MCP servers that extend the backend agent
+(e.g. `desktop_control` for macOS screen capture + app launch/quit) — live under
+[`Mods/`](Mods/README.md), separate from the app runtime.
 
 ## Getting started
 
