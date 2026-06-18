@@ -1,8 +1,9 @@
 {
-  "threshold_ms": 500,
+  "gap_ms": 1000,
+  "gap_jitter_ms": 300,
   "pools": {
-    "ja": ["うーん…", "そうだね…", "ええと…", "ちょっと待ってね…"],
-    "en": ["Let me think...", "Hmm...", "Well..."],
-    "ko": ["음…", "글쎄…", "잠깐…"]
+    "ja": { "first": ["うーん…", "そうだね…"], "repeat": ["ええと…", "ちょっと待ってね…", "なるほど…"] },
+    "en": { "first": ["Let me think...", "Hmm..."], "repeat": ["Well...", "Just a sec...", "Let me see..."] },
+    "ko": { "first": ["음…", "그건…"], "repeat": ["글쎄…", "잠깐만…", "어디 보자…"] }
   }
 }

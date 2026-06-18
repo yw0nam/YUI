@@ -435,6 +435,42 @@ describe("createSpeechPlayback — abort tears down without rebuilding", () => {
   });
 });
 
+describe("createSpeechPlayback — options.onPlaybackEnd passthrough", () => {
+  it("invokes options.onPlaybackEnd when playback ends", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const onPlaybackEnd = vi.fn();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory, onPlaybackEnd });
+
+    stub.emitPlaybackEnd();
+    expect(onPlaybackEnd).toHaveBeenCalledOnce();
+  });
+
+  it("options.onPlaybackEnd fires after stopMouth/finishSpeech/easeEmotionToNeutral", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const order: string[] = [];
+    renderer.stopMouth.mockImplementation(() => order.push("stopMouth"));
+    surfaces.finishSpeech.mockImplementation(() => order.push("finishSpeech"));
+    renderer.easeEmotionToNeutral.mockImplementation(() => order.push("easeEmotion"));
+    const onPlaybackEnd = vi.fn(() => order.push("onPlaybackEnd"));
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory, onPlaybackEnd });
+
+    stub.emitPlaybackEnd();
+    expect(order).toEqual(["stopMouth", "finishSpeech", "easeEmotion", "onPlaybackEnd"]);
+  });
+
+  it("works fine when options.onPlaybackEnd is not provided (no error)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    expect(() => stub.emitPlaybackEnd()).not.toThrow();
+  });
+});
+
 describe("createSpeechPlayback — onSpeech is sugar over delta+end", () => {
   it("begins, pushes text to bubble+pipeline, defers the bubble, and flushes once", () => {
     const stub = stubPipelineFactory();

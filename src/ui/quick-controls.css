@@ -274,6 +274,20 @@
   background: var(--yui-edge);
 }
 
+/* ── 생각중 추임새 — 두 목록 사이 헤어라인 + 안내 ── */
+.yui-filler__list-sep {
+  height: 1px;
+  margin: 0 0.55rem;
+  background: var(--yui-edge);
+}
+
+.yui-field-hint {
+  font-size: 0.68rem;
+  color: var(--yui-text-mute);
+  padding: 0 0.55rem 0.3rem;
+  line-height: 1.45;
+}
+
 /* ── 토글 행 ── */
 .yui-row {
   display: flex;

@@ -43,6 +43,7 @@ import {
   localStorageEndpointsStorage,
   mergeEndpoints,
 } from "./io/endpoints-settings";
+import { createFillerLoop } from "./io/filler-loop";
 import { effectiveFillerPool } from "./io/filler-pool";
 import { createFillerSettings, localStorageFillerStorage } from "./io/filler-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
@@ -811,9 +812,13 @@ async function bootstrap(): Promise<void> {
     return irodoriFactory(input, signal);
   };
 
+  // 추임새 루프는 speechPlayback로 말하고(speak), speechPlayback의 재생 종료(onPlaybackEnd)가
+  // 루프의 다음 반복을 트리거한다 — 서로를 참조하므로 forward let으로 순환을 끊는다.
+  let fillerLoop: import("./io/filler-loop").FillerLoop | undefined;
   const speechPlayback = createSpeechPlayback({
     renderer,
     surfaces,
+    onPlaybackEnd: () => fillerLoop?.onUtteranceDone(),
     pipeline: {
       sink: createWebAudioSink({ getGain: () => lipsyncSettings.get().gain }),
       // function form → drain마다 lazy 해소(eager config read 없음, 핫리로드 친화).
@@ -842,8 +847,17 @@ async function bootstrap(): Promise<void> {
   // ── TTFT 추임새 ───────────────────────────────────────────────────────────
   // 호출 시점에 현재 filler 설정 + config 스냅샷을 라이브로 읽어 effective 풀을 만든다
   // (부트 시점 캡처 금지 — 핫리로드/설정 변경이 다음 턴에 반영되게).
-  const effectiveFiller = (): string[] =>
-    effectiveFillerPool(fillerSettings.get(), config.get().filler);
+  const effectiveFiller = () => effectiveFillerPool(fillerSettings.get(), config.get().filler);
+
+  // 추임새 루프 — speak(speechPlayback) + 라이브 풀/타이밍. forward let에 대입해 순환을 닫는다.
+  fillerLoop = createFillerLoop({
+    speak: (t) => speechPlayback.onSpeech(t),
+    getPools: effectiveFiller,
+    getTiming: () => ({
+      gapMs: config.get().filler.gap_ms,
+      jitterMs: config.get().filler.gap_jitter_ms,
+    }),
+  });
 
   // ── 세션 연속성 ───────────────────────────────────────────────────────────
   // 대화 스레딩은 OpenAI Responses의 previous_response_id로 잇는다 — 매 턴 직전 id를 읽어
@@ -881,23 +895,23 @@ async function bootstrap(): Promise<void> {
     // TTFT thinking: 디스패처는 타이밍만 소유 — effective 풀이 비어있지 않을 때만 타이머 무장.
     getFiller: () => {
       const pool = effectiveFiller();
-      return pool.length ? { thresholdMs: config.get().filler.threshold_ms } : null;
+      return pool.first.length > 0 || pool.repeat.length > 0;
     },
-    // 첫 토큰 지연 시: 생각중 모션(loop) + 필러 1문장(cue 없음). 풀이 비면 모션만.
+    // 첫 토큰 지연 시: 생각중 모션(loop) + 추임새 루프 시작(첫 대사 → 반복). 루프가 말하기를 소유한다.
     onThinkingStart: () => {
       // Motion yields when a higher-priority state is current (e.g. window_sit perch:
       // thinking is interrupt_policy "ignore"), but the filler voice always speaks —
       // the utterance is independent of the motion decision.
       renderer.playMotion({ id: "thinking", loop: true });
-      const pool = effectiveFiller();
-      if (!pool.length) return;
-      const phrase = pool[Math.floor(Math.random() * pool.length)];
-      speechPlayback.onSpeech(phrase);
+      fillerLoop?.start();
     },
-    // thinking 종료 → idle baseline 복귀. thinking은 loop:true/kind:"state"라 cue가 없으면
-    // 영영 돌고 previousStable도 오염되므로, 종료 시 idle로 되돌려 둘 다 막는다.
+    // thinking 종료 → 추임새 루프 정지 + idle baseline 복귀. thinking은 loop:true/kind:"state"라
+    // cue가 없으면 영영 돌고 previousStable도 오염되므로, 종료 시 idle로 되돌려 둘 다 막는다.
     // (backend 모션 cue priority 70은 도착 시 idle을 그대로 대체한다.)
-    onThinkingEnd: () => renderer.playMotion(null),
+    onThinkingEnd: () => {
+      fillerLoop?.stop();
+      renderer.playMotion(null);
+    },
   });
   // dispatcher/guardrails는 config 로드 후 만든다(guardrails가 cfg.guardrails 수치를 필요로 함).
   try {

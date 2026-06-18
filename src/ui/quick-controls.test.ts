@@ -3075,12 +3075,15 @@ describe("createQuickControls — tabs + VAD slider", () => {
     qc.dispose();
   });
 
-  it("clicking a language segment calls setLanguage and reloads the textarea", () => {
+  it("clicking a language segment calls setLanguage and reloads both textareas", () => {
     const fs = createFillerSettings({
       initial: {
         enabled: true,
         language: "ja",
-        customPools: { ja: ["うーん"], en: ["Hmm..."] },
+        customPools: {
+          ja: { first: ["うーん"], repeat: ["ええと"] },
+          en: { first: ["Hmm..."], repeat: ["Still thinking..."] },
+        },
       },
     });
     const spy = vi.spyOn(fs, "setLanguage");
@@ -3093,68 +3096,119 @@ describe("createQuickControls — tabs + VAD slider", () => {
     btns[1].click();
 
     expect(spy).toHaveBeenCalledWith("en");
-    // textarea should now show the en custom pool
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-textarea")!;
-    expect(ta.value).toBe("Hmm...");
+    // both textareas should now show the en custom pool
+    const first = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-first-textarea",
+    )!;
+    const repeat = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-repeat-textarea",
+    )!;
+    expect(first.value).toBe("Hmm...");
+    expect(repeat.value).toBe("Still thinking...");
 
     qc.dispose();
   });
 
-  it("editing the textarea calls setCustomPool with split non-empty lines", () => {
+  it("editing 첫 대사 calls setCustomPool with split first lines, preserving repeat", () => {
+    const fs = createFillerSettings({
+      initial: {
+        enabled: true,
+        language: "ja",
+        customPools: { ja: { first: [], repeat: ["ええと"] } },
+      },
+    });
+    const spy = vi.spyOn(fs, "setCustomPool");
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const first = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-first-textarea",
+    )!;
+    first.value = "うーん\n\nそうだね\n";
+    first.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // Empty lines stripped; order preserved; repeat from the other textarea preserved.
+    expect(spy).toHaveBeenCalledWith("ja", { first: ["うーん", "そうだね"], repeat: ["ええと"] });
+
+    qc.dispose();
+  });
+
+  it("editing 반복 대사 calls setCustomPool with split repeat lines, preserving first", () => {
+    const fs = createFillerSettings({
+      initial: {
+        enabled: true,
+        language: "ja",
+        customPools: { ja: { first: ["うーん"], repeat: [] } },
+      },
+    });
+    const spy = vi.spyOn(fs, "setCustomPool");
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const repeat = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-repeat-textarea",
+    )!;
+    repeat.value = "ええと\n\nもう少し\n";
+    repeat.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(spy).toHaveBeenCalledWith("ja", { first: ["うーん"], repeat: ["ええと", "もう少し"] });
+
+    qc.dispose();
+  });
+
+  it("clearing both textareas calls setCustomPool with empty lists", () => {
     const fs = makeFillerSettings({ language: "ja" });
     const spy = vi.spyOn(fs, "setCustomPool");
     const qc = buildQc({ fillerSettings: fs });
     qc.open();
 
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-textarea")!;
-    ta.value = "うーん\n\nそうだね\n";
-    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    const first = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-first-textarea",
+    )!;
+    first.value = "";
+    first.dispatchEvent(new Event("input", { bubbles: true }));
 
-    // Empty lines stripped; order preserved
-    expect(spy).toHaveBeenCalledWith("ja", ["うーん", "そうだね"]);
-
-    qc.dispose();
-  });
-
-  it("clearing the textarea calls setCustomPool with empty array", () => {
-    const fs = makeFillerSettings({ language: "ja" });
-    const spy = vi.spyOn(fs, "setCustomPool");
-    const qc = buildQc({ fillerSettings: fs });
-    qc.open();
-
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-textarea")!;
-    ta.value = "";
-    ta.dispatchEvent(new Event("input", { bubbles: true }));
-
-    expect(spy).toHaveBeenCalledWith("ja", []);
+    expect(spy).toHaveBeenCalledWith("ja", { first: [], repeat: [] });
 
     qc.dispose();
   });
 
-  it("reflectFiller syncs textarea from customPools for current language on open", () => {
+  it("reflectFiller syncs both textareas from customPools for current language on open", () => {
     const fs = createFillerSettings({
       initial: {
         enabled: true,
         language: "ko",
-        customPools: { ko: ["음…", "글쎄…"] },
+        customPools: { ko: { first: ["음…", "글쎄…"], repeat: ["아직…"] } },
       },
     });
     const qc = buildQc({ fillerSettings: fs });
     qc.open();
 
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-textarea")!;
-    expect(ta.value).toBe("음…\n글쎄…");
+    const first = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-first-textarea",
+    )!;
+    const repeat = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-repeat-textarea",
+    )!;
+    expect(first.value).toBe("음…\n글쎄…");
+    expect(repeat.value).toBe("아직…");
 
     qc.dispose();
   });
 
-  it("reflectFiller: textarea is empty when customPools has no entry for the current language", () => {
+  it("reflectFiller: both textareas are empty when customPools has no entry for the current language", () => {
     const fs = makeFillerSettings({ language: "en" }); // no customPools for en
     const qc = buildQc({ fillerSettings: fs });
     qc.open();
 
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-textarea")!;
-    expect(ta.value).toBe("");
+    const first = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-first-textarea",
+    )!;
+    const repeat = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-repeat-textarea",
+    )!;
+    expect(first.value).toBe("");
+    expect(repeat.value).toBe("");
 
     qc.dispose();
   });

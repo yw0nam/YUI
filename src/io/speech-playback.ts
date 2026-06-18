@@ -43,6 +43,8 @@ export interface SpeechPlaybackOptions {
   pipeline?: Omit<TtsPipelineOptions, "onAmplitude" | "onPlaybackEnd" | "onCuePlay">;
   /** 테스트용 파이프라인 팩토리 주입. */
   createPipeline?: (opts: TtsPipelineOptions) => TtsPipeline;
+  /** Called after stopMouth/finishSpeech/easeEmotionToNeutral on each playback-end. */
+  onPlaybackEnd?: () => void;
 }
 
 export interface SpeechPlayback {
@@ -89,6 +91,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
         surfaces.finishSpeech();
         // 발화가 끝나면 표정도 함께 neutral로 천천히 회귀 — 직전 emotion이 영영 갇히지 않게.
         renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
+        options.onPlaybackEnd?.();
       },
     });
   }

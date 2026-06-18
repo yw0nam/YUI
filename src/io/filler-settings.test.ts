@@ -9,6 +9,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import type { FillerPool } from "../config/load";
 import type { FillerSettings, FillerStorage } from "./filler-settings";
 import { createFillerSettings, localStorageFillerStorage } from "./filler-settings";
 
@@ -32,6 +33,10 @@ function makeMemStorage(): FillerStorage & { _data: FillerSettings | null } {
       data = { ...s, customPools: { ...s.customPools } };
     },
   };
+}
+
+function pool(first: string[], repeat: string[] = []): FillerPool {
+  return { first, repeat };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,6 +85,26 @@ describe("createFillerSettings — priority", () => {
     });
     expect(store.get().enabled).toBe(false);
     expect(store.get().language).toBe("ko");
+  });
+
+  it("stored value with old string-array customPools shape falls back to initial", () => {
+    // old shape: customPools.ja is string[] instead of {first,repeat}
+    const storage: FillerStorage = {
+      load: () =>
+        ({
+          enabled: true,
+          language: "ja",
+          customPools: { ja: ["うーん…"] }, // old shape — array not object
+        }) as unknown as FillerSettings,
+      save: vi.fn(),
+    };
+    const store = createFillerSettings({
+      storage,
+      initial: { enabled: false, language: "en", customPools: {} },
+    });
+    // validation rejects old shape → falls back to initial
+    expect(store.get().language).toBe("en");
+    expect(store.get().enabled).toBe(false);
   });
 
   it("invalid stored value falls back to initial (bad language)", () => {
@@ -175,26 +200,29 @@ describe("createFillerSettings — setLanguage", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createFillerSettings — setCustomPool", () => {
-  it("setCustomPool('en', [...]) sets en pool and notifies", () => {
+  it("setCustomPool('en', pool) sets en pool and notifies", () => {
     const store = createFillerSettings();
     const cb = vi.fn();
     store.subscribe(cb);
-    store.setCustomPool("en", ["Let me think...", "Hmm..."]);
-    expect(store.get().customPools.en).toEqual(["Let me think...", "Hmm..."]);
+    store.setCustomPool("en", pool(["Let me think...", "Hmm..."], ["Still thinking..."]));
+    expect(store.get().customPools.en).toEqual({
+      first: ["Let me think...", "Hmm..."],
+      repeat: ["Still thinking..."],
+    });
     expect(cb).toHaveBeenCalledOnce();
   });
 
-  it("idempotent: same pool value is no-op (array content compare)", () => {
+  it("idempotent: same pool value is no-op (deep content compare)", () => {
     const store = createFillerSettings({
       initial: {
         enabled: true,
         language: "ja",
-        customPools: { en: ["Hmm..."] },
+        customPools: { en: pool(["Hmm..."]) },
       },
     });
     const cb = vi.fn();
     store.subscribe(cb);
-    store.setCustomPool("en", ["Hmm..."]);
+    store.setCustomPool("en", pool(["Hmm..."]));
     expect(cb).not.toHaveBeenCalled();
   });
 
@@ -202,26 +230,37 @@ describe("createFillerSettings — setCustomPool", () => {
     const storage = makeMemStorage();
     const saveSpy = vi.spyOn(storage, "save");
     const store = createFillerSettings({ storage });
-    store.setCustomPool("ko", ["글쎄…"]);
+    store.setCustomPool("ko", pool(["글쎄…"], ["음…"]));
     expect(saveSpy).toHaveBeenCalled();
-    expect(saveSpy.mock.calls[0][0].customPools.ko).toEqual(["글쎄…"]);
+    expect(saveSpy.mock.calls[0][0].customPools.ko).toEqual({ first: ["글쎄…"], repeat: ["음…"] });
   });
 
-  it("idempotent: unset pool → [] is a no-op (both mean 'use config pool')", () => {
+  it("idempotent: unset → {first:[],repeat:[]} is a no-op (both mean 'use config pool')", () => {
     const store = createFillerSettings();
     const cb = vi.fn();
     store.subscribe(cb);
-    store.setCustomPool("ja", []);
-    store.setCustomPool("ja", []);
+    store.setCustomPool("ja", pool([]));
+    store.setCustomPool("ja", pool([], []));
     expect(cb).not.toHaveBeenCalled();
   });
 
   it("get() customPools is a copy — mutation does not affect store", () => {
     const store = createFillerSettings();
-    store.setCustomPool("ja", ["うーん…"]);
+    store.setCustomPool("ja", pool(["うーん…"]));
     const s = store.get();
-    s.customPools.ja = ["mutated"];
-    expect(store.get().customPools.ja).toEqual(["うーん…"]);
+    s.customPools.ja = pool(["mutated"]);
+    expect(store.get().customPools.ja).toEqual({ first: ["うーん…"], repeat: [] });
+  });
+
+  it("setting only first list differs from setting only repeat list (per-lang independence)", () => {
+    const store = createFillerSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.setCustomPool("ja", pool(["ちょっと待って"], []));
+    store.setCustomPool("en", pool([], ["Still here..."]));
+    expect(cb).toHaveBeenCalledTimes(2);
+    expect(store.get().customPools.ja).toEqual({ first: ["ちょっと待って"], repeat: [] });
+    expect(store.get().customPools.en).toEqual({ first: [], repeat: ["Still here..."] });
   });
 });
 
@@ -261,12 +300,12 @@ describe("createFillerSettings — reloadFromStorage", () => {
     const cb = vi.fn();
     store.subscribe(cb);
 
-    storage._data = { enabled: false, language: "ko", customPools: { ja: ["うーん…"] } };
+    storage._data = { enabled: false, language: "ko", customPools: { ja: pool(["うーん…"]) } };
     store.reloadFromStorage();
 
     expect(store.get().enabled).toBe(false);
     expect(store.get().language).toBe("ko");
-    expect(store.get().customPools.ja).toEqual(["うーん…"]);
+    expect(store.get().customPools.ja).toEqual({ first: ["うーん…"], repeat: [] });
     expect(cb).toHaveBeenCalledOnce();
   });
 
@@ -330,12 +369,15 @@ describe("createFillerSettings — persistence", () => {
     const store1 = createFillerSettings({ storage });
     store1.setEnabled(false);
     store1.setLanguage("ko");
-    store1.setCustomPool("en", ["Hmm..."]);
+    store1.setCustomPool("en", pool(["Hmm..."], ["Still thinking..."]));
 
     const store2 = createFillerSettings({ storage });
     expect(store2.get().enabled).toBe(false);
     expect(store2.get().language).toBe("ko");
-    expect(store2.get().customPools.en).toEqual(["Hmm..."]);
+    expect(store2.get().customPools.en).toEqual({
+      first: ["Hmm..."],
+      repeat: ["Still thinking..."],
+    });
   });
 });
 
@@ -357,7 +399,7 @@ describe("localStorageFillerStorage", () => {
     const settings: FillerSettings = {
       enabled: false,
       language: "en",
-      customPools: { ja: ["うーん…"] },
+      customPools: { ja: pool(["うーん…"]) },
     };
     adapter.save(settings);
     expect(adapter.load()).toEqual(settings);

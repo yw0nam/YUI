@@ -81,16 +81,12 @@ export interface BackendCallerDeps {
   onUsage?: (usage: Usage) => void;
   /** 현재 agent 설정(추론 강도 + instructions 오버라이드) 스냅샷. present일 때만 요청에 반영. */
   getAgentSettings?: () => import("../io/agent-settings").AgentSettings;
-  /** TTFT thinking 진입 sink — 첫 토큰이 thresholdMs 안에 안 오면 1회. main.ts가 thinking 모션 + 필러 발화로 연결. */
+  /** TTFT thinking 진입 sink — filler 활성 시 call() 진입에서 동기로 1회. main.ts가 thinking 모션 + 필러 발화 루프로 연결. */
   onThinkingStart?: () => void;
-  /** TTFT thinking 종료 sink — 첫 스트림 이벤트 도착 / 턴 종료(어느 경로든) 시 1회. thinking을 시작했을 때만 호출. */
+  /** TTFT thinking 종료 sink — 첫 speech_delta(실제 응답 발화 시작) / 턴 종료(어느 경로든) 시 1회. thinking을 시작했을 때만 호출. */
   onThinkingEnd?: () => void;
-  /** 필러 타이밍 스냅샷 조회 — disabled/빈 풀이면 null. non-null일 때만 타이머를 무장한다(매 턴 호출). */
-  getFiller?: () => { thresholdMs: number } | null;
-  /** 타이머 무장(테스트 seam, 기본 global setTimeout). */
-  setTimeout?: typeof globalThis.setTimeout;
-  /** 타이머 해제(테스트 seam, 기본 global clearTimeout). */
-  clearTimeout?: typeof globalThis.clearTimeout;
+  /** filler 활성 여부 조회 — filler 켜짐 + 풀 non-empty면 true. true일 때만 thinking을 동기로 시작한다(매 턴 호출). */
+  getFiller?: () => boolean;
   /** 구조화 로깅(없으면 backend_caller namespace logger). */
   logger?: Logger;
 }
@@ -152,9 +148,6 @@ function localIso(ts: number, timeZone: string): string {
 
 export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   const log = deps.logger ?? baseLog;
-  // 테스트 seam — 기본은 global 타이머. setTimeout/clearTimeout은 한 쌍으로 같이 주입한다.
-  const setTimer = deps.setTimeout ?? globalThis.setTimeout;
-  const clearTimer = deps.clearTimeout ?? globalThis.clearTimeout;
 
   /**
    * B1: InputContext 조립.
@@ -273,11 +266,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     // 직전(superseded) 턴의 잔여 오디오/말풍선을 정리 — 첫 delta보다 먼저 1회.
     deps.onSpeechInterrupt?.();
 
-    // TTFT thinking 타이머 — 첫 토큰 지연 시 client-side filler를 띄운다(judgment 아님).
+    // TTFT thinking — filler 활성 시 call() 진입에서 즉시 시작(judgment 아님, 첫 줄은 지연 없음).
+    // 종료는 실제 응답 발화(첫 speech_delta) 시작 시 1회 — 그 전의 usage/express/tool_status는
+    // thinking을 깨뜨리지 않는다. 침묵/에러/abort 턴은 finally가 종료를 보장한다.
     // call()은 턴이 겹칠 수 있어 상태를 per-invocation local로 둔다(절대 closure/module scope 금지).
-    // "한 번만 시작 / 한 번만 종료"는 아래 플래그가 보장한다 — clearTimeout만으로는 이미 큐된
-    // 콜백을 막지 못한다.
-    let handle: ReturnType<typeof setTimer> | undefined;
     let thinkingStarted = false;
     let thinkingDone = false;
     const startThinking = () => {
@@ -288,19 +280,15 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const endThinking = () => {
       if (thinkingDone) return;
       thinkingDone = true;
-      if (handle !== undefined) clearTimer(handle);
       if (thinkingStarted) deps.onThinkingEnd?.();
     };
 
-    // 무장 + 이후 전 구간을 try/finally로 감싼다 — 어느 종료 경로든 타이머 해제 / thinking 종료가
-    // 정확히 1회 보장된다(arm 시 동기 throw, setup reject, early abort, stream throw,
-    // post-loop abort, streamError, empty/parse_error, 정상 완료 전부).
+    // 전 구간을 try/finally로 감싼다 — 어느 종료 경로든 thinking 종료가 정확히 1회 보장된다
+    // (setup reject, early abort, stream throw, post-loop abort, streamError, empty/parse_error,
+    // 정상 완료 전부).
     try {
-      // filler가 실제로 뜰 때만(non-null) 무장. disabled/빈 풀이면 타이머 자체가 없다.
-      const filler = deps.getFiller?.();
-      if (filler) {
-        handle = setTimer(startThinking, filler.thresholdMs);
-      }
+      // filler 활성이면 첫 줄을 지연 없이 띄운다(동기 시작). disabled/빈 풀이면 시작하지 않는다.
+      if (deps.getFiller?.()) startThinking();
 
       // B1
       const ctx = await packageContext(env);
@@ -354,11 +342,11 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           apiKey,
           fetch: fetchImpl,
         })) {
-          // 첫 스트림 이벤트(타입 무관)에 thinking 종료 — usage/tool_status/speech_done이
-          // speech_delta보다 먼저 올 수 있으므로 switch 이전에 무조건 1회 호출한다.
-          endThinking();
           switch (ev.type) {
             case "speech_delta":
+              // 실제 응답 발화 시작 — 여기서만 thinking 종료(thinkingDone로 첫 delta에서만 발화).
+              // 그 전의 usage/express/tool_status는 thinking을 깨뜨리지 않는다.
+              endThinking();
               deps.onSpeechDelta?.(ev.text);
               streamedAny = true;
               break;
