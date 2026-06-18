@@ -648,9 +648,9 @@ async function bootstrap(): Promise<void> {
   }
 
   // 제출 → 입력 닫고 dispatcher 스파인으로 발사(user.text_submitted). mock은 dev 데모 전용으로 유지.
-  surfaces.onSubmit((text) => {
+  surfaces.onSubmit((text, images) => {
     surfaces.dismissInput();
-    userInput.submit(text);
+    userInput.submit(text, images);
     // YUI와 대화 → 주도적 반응의 무대화 경과 타이머 리셋.
     proactiveSourceRef?.noteInteraction();
   });

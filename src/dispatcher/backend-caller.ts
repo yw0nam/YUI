@@ -109,6 +109,14 @@ function userTextOf(env: BusEnvelope): string | undefined {
   return typeof t === "string" ? t : undefined;
 }
 
+/** payload에서 첨부 이미지(data URLs) 추출 — 모든 원소가 string인 배열일 때만. */
+function userImagesOf(env: BusEnvelope): string[] | undefined {
+  const imgs = env.payload?.images;
+  return Array.isArray(imgs) && imgs.every((u) => typeof u === "string")
+    ? (imgs as string[])
+    : undefined;
+}
+
 /** 안전한 timezone 조회(환경에 따라 throw 가능 → fallback). */
 function resolveTimezone(): string {
   try {
@@ -164,9 +172,11 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
    */
   async function packageContext(env: BusEnvelope): Promise<InputContext> {
     const userText = userTextOf(env);
+    const userImages = userImagesOf(env);
     const tz = resolveTimezone();
     const ctx: InputContext = {
       ...(userText !== undefined ? { user_text: userText } : {}),
+      ...(userImages ? { user_images: userImages } : {}),
       env: {
         timestamp: localIso(env.ts, tz),
         timezone: tz,
@@ -205,11 +215,16 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
    */
   function encodeInput(ctx: InputContext, env: BusEnvelope): ChatRequest["input"] {
     const text = ctx.user_text ?? PROACTIVE_MARKER;
-    // 스크린샷 첨부 시 Responses content-part 배열(input_text + input_image), 없으면 평문.
-    const userContent = ctx.screenshot?.data_url
+    // 이미지(스크린샷 또는 첨부)가 하나라도 있으면 Responses content-part 배열, 없으면 평문.
+    // 스크린샷 part가 먼저, 그다음 사용자 첨부 이미지들.
+    const hasImage = !!ctx.screenshot?.data_url || !!ctx.user_images?.length;
+    const userContent = hasImage
       ? [
           { type: "input_text", text },
-          { type: "input_image", image_url: ctx.screenshot.data_url },
+          ...(ctx.screenshot?.data_url
+            ? [{ type: "input_image", image_url: ctx.screenshot.data_url }]
+            : []),
+          ...(ctx.user_images ?? []).map((image_url) => ({ type: "input_image", image_url })),
         ]
       : text;
 

@@ -56,6 +56,43 @@ describe("user_input_source — submit", () => {
   });
 });
 
+describe("user_input_source — submit with images", () => {
+  const URL = "data:image/png;base64,AAA";
+
+  it("carries images on the payload alongside text", () => {
+    const { bus, pushed } = fakeBus();
+    const src = createUserInputSource(bus);
+    src.submit("hi", [URL]);
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0].payload?.text).toBe("hi");
+    expect(pushed[0].payload?.images).toEqual([URL]);
+  });
+
+  it("pushes images-only submit with empty text", () => {
+    const { bus, pushed } = fakeBus();
+    const src = createUserInputSource(bus);
+    src.submit("", [URL]);
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0].payload?.text).toBe("");
+    expect(pushed[0].payload?.images).toEqual([URL]);
+  });
+
+  it("does not set images key when no images attached", () => {
+    const { bus, pushed } = fakeBus();
+    const src = createUserInputSource(bus);
+    src.submit("hi");
+    expect(pushed[0].payload).not.toHaveProperty("images");
+  });
+
+  it("ignores empty text with empty image list", () => {
+    const { bus, pushed } = fakeBus();
+    const src = createUserInputSource(bus);
+    src.submit("", []);
+    src.submit("   ");
+    expect(pushed).toHaveLength(0);
+  });
+});
+
 describe("user_input_source — submitVoice", () => {
   it("pushes a user.voice_segment_ready envelope with transcript payload", () => {
     const { bus, pushed } = fakeBus();

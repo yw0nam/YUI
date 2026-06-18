@@ -10,22 +10,22 @@ import type { Transcript } from "../io/stt-vad";
 import type { BusEnvelope, EventBus } from "./event-bus";
 
 export interface UserInputSource {
-  /** Chat text submit → bus push. Empty/whitespace is ignored. */
-  submit(text: string): void;
+  /** Chat submit → bus push. Pushes when text is non-empty OR ≥1 image is attached. */
+  submit(text: string, images?: string[]): void;
   /** Voice transcript from STT → bus push. Empty transcript text is ignored. */
   submitVoice(transcript: Transcript): void;
 }
 
 export function createUserInputSource(bus: EventBus): UserInputSource {
   return {
-    submit(text) {
+    submit(text, images) {
       const trimmed = text.trim();
-      if (trimmed.length === 0) return;
+      if (trimmed.length === 0 && (images?.length ?? 0) === 0) return;
       const env: BusEnvelope = {
         source: "user_input_source",
         event_name: "user.text_submitted",
         ts: Date.now(),
-        payload: { text: trimmed },
+        payload: { text: trimmed, ...(images?.length ? { images } : {}) },
         hint_tier: 2,
         dnd_override: true,
       };

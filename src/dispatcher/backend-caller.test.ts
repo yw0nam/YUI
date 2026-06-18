@@ -298,6 +298,76 @@ describe("backend_caller — screenshot port", () => {
   });
 });
 
+describe("backend_caller — user_images (chat attachments)", () => {
+  const IMG_A = "data:image/png;base64,AAA";
+  const IMG_B = "data:image/jpeg;base64,BBB";
+
+  /** find the user message in the input passed to streamChat. */
+  function userMessageOf(input: unknown): { role: string; content: unknown } {
+    const items = input as Array<{ role: string; content: unknown }>;
+    return items.find((m) => m.role === "user")!;
+  }
+
+  /** the raw system message string passed to streamChat. */
+  function systemStringOf(input: unknown): string {
+    const items = input as Array<{ role: string; content: string }>;
+    return items.find((m) => m.role === "system")!.content;
+  }
+
+  function imgEnv(text: string, images: string[]): BusEnvelope {
+    return { ...userEnv(text), payload: { text, images } };
+  }
+
+  it("payload.images → user content carries one input_image part per image + input_text", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(imgEnv("이거 봐", [IMG_A, IMG_B]));
+    const [, request] = streamChatSpy.mock.calls[0];
+    const content = userMessageOf(request.input).content as Array<Record<string, unknown>>;
+    expect(Array.isArray(content)).toBe(true);
+    expect(content.find((p) => p.type === "input_text")?.text).toBe("이거 봐");
+    const images = content.filter((p) => p.type === "input_image");
+    expect(images.map((p) => p.image_url)).toEqual([IMG_A, IMG_B]);
+  });
+
+  it("image data URLs are absent from the system client_context string", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(imgEnv("이거 봐", [IMG_A, IMG_B]));
+    const [, request] = streamChatSpy.mock.calls[0];
+    const sys = systemStringOf(request.input);
+    expect(sys).not.toContain(IMG_A);
+    expect(sys).not.toContain(IMG_B);
+  });
+
+  it("screenshot + user_images together → screenshot part AND all user image parts present", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const SHOT = "data:image/png;base64,SHOT";
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getScreenshot: async () => ({
+        enabled: true,
+        source: { kind: "monitor", index: 0 },
+        data_url: SHOT,
+      }),
+    });
+    await caller.call(imgEnv("둘 다", [IMG_A, IMG_B]));
+    const [, request] = streamChatSpy.mock.calls[0];
+    const content = userMessageOf(request.input).content as Array<Record<string, unknown>>;
+    const urls = content.filter((p) => p.type === "input_image").map((p) => p.image_url);
+    expect(urls).toEqual([SHOT, IMG_A, IMG_B]);
+  });
+
+  it("no images and no screenshot → user content stays a plain string", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv("그냥 텍스트"));
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect(userMessageOf(request.input).content).toBe("그냥 텍스트");
+  });
+});
+
 describe("backend_caller — os context port", () => {
   /** decode the flat ClientContext from the system message passed to streamChat. */
   function clientContextOf(input: unknown): Record<string, unknown> {
