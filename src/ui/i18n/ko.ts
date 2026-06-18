@@ -74,8 +74,8 @@ const ko: Record<string, string> = {
   "reasoning.sub": "답변 전 얼마나 깊게 생각할지",
   "reasoning.none": "없음",
   "reasoning.minimal": "최소",
-  "reasoning.low": "Low",
-  "reasoning.medium": "Medium",
+  "reasoning.low": "낮음",
+  "reasoning.medium": "중간",
 
   // instructions
   "instructions.label": "지침",
