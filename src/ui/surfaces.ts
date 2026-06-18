@@ -45,8 +45,8 @@ export interface Surfaces {
   dismissInput(): void;
   /** 입력 열림 여부. */
   isInputOpen(): boolean;
-  /** 제출 콜백 등록. text는 trim된 비어있지 않은 문자열. */
-  onSubmit(cb: (text: string) => void): void;
+  /** 제출 콜백 등록. text는 trim된 문자열(이미지만 보낼 땐 빈 문자열), images는 데이터 URL 배열. */
+  onSubmit(cb: (text: string, images: string[]) => void): void;
   /** 인라인 에러 표시(예: 전송 실패). */
   showInputError(message: string): void;
   /** 입력 비활성화 토글(처리 중 등). 비활성 시 field disabled + pending 디밍. */
@@ -81,16 +81,26 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
       <span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span>
     </div>
     <form class="yui-input" novalidate hidden>
-      <input
-        class="yui-input__field"
-        type="text"
-        autocomplete="off"
-        autocapitalize="off"
-        spellcheck="false"
-        placeholder="말 걸기…"
-        aria-label="YUI에게 말 걸기"
-      />
-      <span class="yui-input__error" role="alert"></span>
+      <div class="yui-input__tray"></div>
+      <div class="yui-input__row">
+        <button type="button" class="yui-input__attach" aria-label="이미지 첨부">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+          </svg>
+        </button>
+        <input
+          class="yui-input__field"
+          type="text"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="말 걸기…"
+          aria-label="YUI에게 말 걸기"
+        />
+        <span class="yui-input__error" role="alert"></span>
+        <input type="file" class="yui-input__picker" accept="image/*" multiple hidden />
+      </div>
     </form>
   `;
   mount.appendChild(el);
@@ -102,9 +112,14 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   const formEl = el.querySelector<HTMLFormElement>(".yui-input")!;
   const field = el.querySelector<HTMLInputElement>(".yui-input__field")!;
   const errorEl = el.querySelector<HTMLSpanElement>(".yui-input__error")!;
+  const trayEl = el.querySelector<HTMLDivElement>(".yui-input__tray")!;
+  const attachBtn = el.querySelector<HTMLButtonElement>(".yui-input__attach")!;
+  const picker = el.querySelector<HTMLInputElement>(".yui-input__picker")!;
 
   const dwell = dwellMs ?? readDwellToken(el) ?? DEFAULT_DWELL;
-  const submitHandlers: Array<(text: string) => void> = [];
+  const submitHandlers: Array<(text: string, images: string[]) => void> = [];
+  // ponytail: no count/size cap — add when context-size bites.
+  const attachments: string[] = [];
   let dwellTimer: ReturnType<typeof setTimeout> | null = null;
   // endSpeech({ defer:true })로 페이드를 보류 중인지 — finishSpeech()가 해제한다.
   let deferred = false;
@@ -238,6 +253,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
       if (!formEl.classList.contains("is-open")) {
         formEl.hidden = true;
         field.value = "";
+        clearAttachments();
         formEl.classList.remove("is-error", "is-pending");
         errorEl.textContent = "";
       }
@@ -255,8 +271,46 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     formEl.classList.remove("is-pending");
   }
 
-  function onSubmit(cb: (text: string) => void): void {
+  function onSubmit(cb: (text: string, images: string[]) => void): void {
     submitHandlers.push(cb);
+  }
+
+  function clearAttachments(): void {
+    attachments.length = 0;
+    trayEl.replaceChildren();
+  }
+
+  function addFiles(files: FileList | File[]): void {
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const url = reader.result as string;
+        attachments.push(url);
+        addChip(url);
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  function addChip(dataUrl: string): void {
+    const chip = document.createElement("div");
+    chip.className = "yui-chip";
+    const img = document.createElement("img");
+    img.src = dataUrl;
+    img.alt = ""; // 장식용 썸네일 — 칩의 × 버튼이 첨부 존재를 전달한다.
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "yui-chip__remove";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", "첨부 제거");
+    remove.addEventListener("click", () => {
+      const idx = Array.from(trayEl.children).indexOf(chip);
+      if (idx !== -1) attachments.splice(idx, 1);
+      chip.remove();
+    });
+    chip.append(img, remove);
+    trayEl.append(chip);
   }
 
   function setInputEnabled(enabled: boolean): void {
@@ -272,10 +326,12 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   function handleSubmit(e: Event): void {
     e.preventDefault();
     const text = field.value.trim();
-    if (text === "") return;
+    if (text === "" && attachments.length === 0) return;
     formEl.classList.remove("is-error");
     errorEl.textContent = "";
-    for (const cb of submitHandlers) cb(text);
+    const images = attachments.slice();
+    for (const cb of submitHandlers) cb(text, images);
+    clearAttachments();
   }
 
   function handleFieldKey(e: KeyboardEvent): void {
@@ -302,9 +358,49 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     if (dwellArmed) armDwell();
   }
 
+  function onAttachClick(): void {
+    picker.click();
+  }
+  function onPickerChange(): void {
+    if (picker.files) addFiles(picker.files);
+    picker.value = "";
+  }
+  function onFieldPaste(e: ClipboardEvent): void {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files = Array.from(items)
+      .filter((i) => i.kind === "file")
+      .map((i) => i.getAsFile())
+      .filter((f): f is File => f !== null);
+    if (files.length === 0) return;
+    // 텍스트+이미지 혼합 붙여넣기면 텍스트를 살리기 위해 기본 동작을 막지 않는다.
+    // 이미지 전용일 때만 막아 파일명이 필드에 새지 않게 한다.
+    if (!e.clipboardData?.getData("text")) e.preventDefault();
+    addFiles(files);
+  }
+  function onDragOver(e: DragEvent): void {
+    e.preventDefault();
+    formEl.classList.add("is-dragover");
+  }
+  function onDragLeave(e: DragEvent): void {
+    // 자식 요소로 진입할 때도 dragleave가 발생하므로, 폼을 실제로 벗어날 때만 해제.
+    if (!formEl.contains(e.relatedTarget as Node)) formEl.classList.remove("is-dragover");
+  }
+  function onDrop(e: DragEvent): void {
+    e.preventDefault();
+    formEl.classList.remove("is-dragover");
+    if (e.dataTransfer) addFiles(e.dataTransfer.files);
+  }
+
   formEl.addEventListener("submit", handleSubmit);
   field.addEventListener("keydown", handleFieldKey);
   field.addEventListener("input", clearErrorOnInput);
+  field.addEventListener("paste", onFieldPaste);
+  attachBtn.addEventListener("click", onAttachClick);
+  picker.addEventListener("change", onPickerChange);
+  formEl.addEventListener("dragover", onDragOver);
+  formEl.addEventListener("dragleave", onDragLeave);
+  formEl.addEventListener("drop", onDrop);
   bubbleEl.addEventListener("pointerenter", onBubbleEnter);
   bubbleEl.addEventListener("pointerleave", onBubbleLeave);
 
@@ -313,6 +409,12 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     formEl.removeEventListener("submit", handleSubmit);
     field.removeEventListener("keydown", handleFieldKey);
     field.removeEventListener("input", clearErrorOnInput);
+    field.removeEventListener("paste", onFieldPaste);
+    attachBtn.removeEventListener("click", onAttachClick);
+    picker.removeEventListener("change", onPickerChange);
+    formEl.removeEventListener("dragover", onDragOver);
+    formEl.removeEventListener("dragleave", onDragLeave);
+    formEl.removeEventListener("drop", onDrop);
     bubbleEl.removeEventListener("pointerenter", onBubbleEnter);
     bubbleEl.removeEventListener("pointerleave", onBubbleLeave);
     submitHandlers.length = 0;

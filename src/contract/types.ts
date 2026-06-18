@@ -208,6 +208,9 @@ export interface InputContext {
     width?: number;
     height?: number;
   };
+
+  /** 사용자가 첨부한 이미지 (data URLs). 내부 전달용; system context에는 포함되지 않음. */
+  user_images?: string[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

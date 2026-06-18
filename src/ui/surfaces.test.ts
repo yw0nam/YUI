@@ -228,6 +228,156 @@ describe("setInputAnchor — --yui-input-bottom on the chat form", () => {
   });
 });
 
+describe("image attachments — tray chips + onSubmit images", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function form(): HTMLFormElement {
+    return mount.querySelector(".yui-input") as HTMLFormElement;
+  }
+  function field(): HTMLInputElement {
+    return mount.querySelector(".yui-input__field") as HTMLInputElement;
+  }
+  function tray(): HTMLElement {
+    return mount.querySelector(".yui-input__tray") as HTMLElement;
+  }
+
+  function pngFile(name: string): File {
+    return new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], name, { type: "image/png" });
+  }
+
+  function makePasteEvent(files: File[], text = ""): Event & { clipboardData: unknown } {
+    const items = files.map((f) => ({ kind: "file" as const, getAsFile: () => f }));
+    const e = new Event("paste", { bubbles: true, cancelable: true }) as Event & {
+      clipboardData: unknown;
+    };
+    Object.defineProperty(e, "clipboardData", {
+      value: { items, getData: (type: string) => (type === "text" ? text : "") },
+      configurable: true,
+    });
+    return e;
+  }
+
+  // Drive the field paste path with a stubbed clipboard carrying image files,
+  // then await the FileReader → data-URL load (microtask + macrotask flush).
+  async function pasteImages(...files: File[]): Promise<void> {
+    const before = tray().children.length;
+    field().dispatchEvent(makePasteEvent(files));
+    // FileReader load is async — wait until every dispatched chip has rendered.
+    while (tray().children.length < before + files.length) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+
+  function submit(): void {
+    form().dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  }
+
+  it("submits the attached image data URLs alongside text", async () => {
+    const seen: Array<[string, string[]]> = [];
+    s.onSubmit((text, images) => seen.push([text, images]));
+
+    field().value = "look at this";
+    await pasteImages(pngFile("a.png"));
+
+    expect(tray().children.length).toBe(1);
+    // 장식용 썸네일 — alt=""로 스크린리더가 건너뛴다.
+    expect(tray().querySelector("img")?.alt).toBe("");
+    submit();
+
+    expect(seen.length).toBe(1);
+    expect(seen[0][0]).toBe("look at this");
+    expect(seen[0][1].length).toBe(1);
+    expect(seen[0][1][0]).toMatch(/^data:image\/png/);
+  });
+
+  it("fires onSubmit for an images-only message (empty field)", async () => {
+    const seen: Array<[string, string[]]> = [];
+    s.onSubmit((text, images) => seen.push([text, images]));
+
+    field().value = "";
+    await pasteImages(pngFile("only.png"));
+    submit();
+
+    expect(seen.length).toBe(1);
+    expect(seen[0][0]).toBe("");
+    expect(seen[0][1].length).toBe(1);
+  });
+
+  it("removing a chip drops that image from the next submit", async () => {
+    const seen: Array<[string, string[]]> = [];
+    s.onSubmit((text, images) => seen.push([text, images]));
+
+    await pasteImages(pngFile("first.png"));
+    await pasteImages(pngFile("second.png"));
+    await pasteImages(pngFile("third.png"));
+    expect(tray().children.length).toBe(3);
+
+    // remove the middle chip
+    const middle = tray().children[1] as HTMLElement;
+    const remove = middle.querySelector(".yui-chip__remove") as HTMLButtonElement;
+    remove.click();
+    expect(tray().children.length).toBe(2);
+
+    field().value = "x";
+    submit();
+    expect(seen[0][1].length).toBe(2);
+  });
+
+  it("preserves text on a mixed image+text paste (does not preventDefault)", async () => {
+    const e = makePasteEvent([pngFile("a.png")], "some pasted text");
+    field().dispatchEvent(e);
+    // image still captured…
+    while (tray().children.length < 1) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    expect(tray().children.length).toBe(1);
+    // …but the text paste is allowed through (default not prevented)
+    expect(e.defaultPrevented).toBe(false);
+  });
+
+  it("prevents default on an image-only paste (no clipboard text)", async () => {
+    const e = makePasteEvent([pngFile("a.png")], "");
+    field().dispatchEvent(e);
+    while (tray().children.length < 1) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    expect(e.defaultPrevented).toBe(true);
+  });
+
+  it("clears the tray after submit", async () => {
+    s.onSubmit(() => {});
+    field().value = "hi";
+    await pasteImages(pngFile("a.png"));
+    expect(tray().children.length).toBe(1);
+    submit();
+    expect(tray().children.length).toBe(0);
+  });
+
+  it("clears the tray after dismissInput() completes", async () => {
+    s.onSubmit(() => {});
+    s.summonInput();
+    await pasteImages(pngFile("a.png"));
+    expect(tray().children.length).toBe(1);
+
+    s.dismissInput();
+    const te = new Event("transitionend") as TransitionEvent & { propertyName: string };
+    Object.defineProperty(te, "propertyName", { value: "opacity", configurable: true });
+    form().dispatchEvent(te);
+
+    expect(tray().children.length).toBe(0);
+  });
+});
+
 describe("setInputEnabled — disable the field while busy", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;

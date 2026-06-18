@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>YUI — chat image attachment mock</title>
+<style>
+  /* Subset of tokens.css — Hearthlight, OKLCH only. */
+  :root {
+    --yui-accent: oklch(0.8 0.13 75);
+    --yui-accent-soft: oklch(0.8 0.13 75 / 0.45);
+    --yui-text: oklch(0.95 0.012 80);
+    --yui-text-dim: oklch(0.78 0.016 75);
+    --yui-text-mute: oklch(0.66 0.014 72);
+    --yui-scrim: oklch(0.21 0.014 70 / 0.64);
+    --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82);
+    --yui-edge: oklch(0.97 0.01 80 / 0.1);
+    --yui-edge-strong: oklch(0.97 0.01 80 / 0.16);
+    --yui-danger: oklch(0.77 0.11 35);
+    --yui-float: 0 8px 32px oklch(0.12 0.02 70 / 0.4);
+    --yui-text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55);
+    --yui-radius-input: 12px;
+    --yui-radius-chip: 999px;
+    --yui-radius-img: 10px;
+    --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --yui-dur: 200ms;
+    --yui-dur-fast: 140ms;
+  }
+
+  /* desktop backdrop stand-in so the floating surface is judged over a busy bg */
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: end center;
+    padding-bottom: 6vh;
+    background:
+      radial-gradient(60% 50% at 30% 20%, oklch(0.5 0.08 250 / 0.7), transparent),
+      radial-gradient(50% 60% at 80% 70%, oklch(0.55 0.1 30 / 0.6), transparent),
+      oklch(0.35 0.02 250);
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+  }
+
+  /* ── input: now a vertical stack (tray on top, row below) ── */
+  .yui-input {
+    width: min(42ch, 84%);
+    display: flex;
+    flex-direction: column;
+    padding: 0.1rem;
+    border-radius: var(--yui-radius-input);
+    background: var(--yui-scrim-strong);
+    border: 1px solid var(--yui-edge);
+    box-shadow: var(--yui-float);
+  }
+  .yui-input:focus-within {
+    border-color: var(--yui-accent);
+    box-shadow: var(--yui-float), 0 0 0 1px var(--yui-accent-soft);
+  }
+
+  /* ── attachment tray — hidden when empty ── */
+  .yui-input__tray {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.4rem 0.45rem 0.1rem;
+  }
+  .yui-input__tray:empty {
+    display: none;
+  }
+  .yui-chip {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--yui-radius-img);
+    overflow: hidden;
+    border: 1px solid var(--yui-edge-strong);
+    background: var(--yui-scrim);
+  }
+  .yui-chip img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .yui-chip__remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 16px;
+    height: 16px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: var(--yui-radius-chip);
+    background: oklch(0.15 0.01 70 / 0.78);
+    color: var(--yui-text);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--yui-dur-fast) var(--yui-ease);
+  }
+  .yui-chip__remove:hover {
+    background: var(--yui-danger);
+  }
+
+  /* ── row: paperclip + field + error ── */
+  .yui-input__row {
+    display: flex;
+    align-items: center;
+  }
+  .yui-input__attach {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin-left: 0.15rem;
+    border: 0;
+    border-radius: var(--yui-radius-chip);
+    background: transparent;
+    color: var(--yui-text-mute);
+    cursor: pointer;
+    transition: color var(--yui-dur-fast) var(--yui-ease),
+      background var(--yui-dur-fast) var(--yui-ease);
+  }
+  .yui-input__attach:hover {
+    color: var(--yui-accent);
+    background: oklch(0.8 0.13 75 / 0.12);
+  }
+  .yui-input__attach svg {
+    width: 18px;
+    height: 18px;
+  }
+  .yui-input__field {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0.55rem 0.7rem;
+    border: 0;
+    background: transparent;
+    color: var(--yui-text);
+    font: inherit;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    text-shadow: var(--yui-text-shadow);
+  }
+  .yui-input__field:focus {
+    outline: none;
+  }
+  .yui-input__field::placeholder {
+    color: var(--yui-text-dim);
+    opacity: 0.7;
+  }
+
+  /* dropzone affordance */
+  .yui-input.is-dragover {
+    border-color: var(--yui-accent);
+    box-shadow: var(--yui-float), 0 0 0 1px var(--yui-accent-soft);
+  }
+
+  .hint {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    color: var(--yui-text-dim);
+    font-size: 0.8rem;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+  <div class="hint">
+    mock: paste an image · drag-drop an image file · click 📎<br />
+    (state-only mock; no backend)
+  </div>
+
+  <form class="yui-input" novalidate>
+    <div class="yui-input__tray" id="tray"></div>
+    <div class="yui-input__row">
+      <button type="button" class="yui-input__attach" id="attach" aria-label="이미지 첨부">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+        </svg>
+      </button>
+      <input class="yui-input__field" type="text" placeholder="말 걸기…"
+             autocomplete="off" spellcheck="false" aria-label="YUI에게 말 걸기" />
+      <input type="file" id="picker" accept="image/*" multiple hidden />
+    </div>
+  </form>
+
+  <script>
+    const form = document.querySelector(".yui-input");
+    const tray = document.getElementById("tray");
+    const picker = document.getElementById("picker");
+    document.getElementById("attach").addEventListener("click", () => picker.click());
+
+    function addImages(files) {
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) continue;
+        const reader = new FileReader();
+        reader.onload = () => addChip(reader.result);
+        reader.readAsDataURL(file);
+      }
+    }
+    function addChip(dataUrl) {
+      const chip = document.createElement("div");
+      chip.className = "yui-chip";
+      const img = document.createElement("img");
+      img.src = dataUrl;
+      const rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "yui-chip__remove";
+      rm.textContent = "×";
+      rm.setAttribute("aria-label", "첨부 제거");
+      rm.addEventListener("click", () => chip.remove());
+      chip.append(img, rm);
+      tray.append(chip);
+    }
+
+    picker.addEventListener("change", () => {
+      addImages(picker.files);
+      picker.value = "";
+    });
+    document.querySelector(".yui-input__field").addEventListener("paste", (e) => {
+      const files = [...e.clipboardData.items]
+        .filter((i) => i.kind === "file")
+        .map((i) => i.getAsFile())
+        .filter(Boolean);
+      if (files.length) {
+        e.preventDefault();
+        addImages(files);
+      }
+    });
+    form.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      form.classList.add("is-dragover");
+    });
+    form.addEventListener("dragleave", () => form.classList.remove("is-dragover"));
+    form.addEventListener("drop", (e) => {
+      e.preventDefault();
+      form.classList.remove("is-dragover");
+      addImages(e.dataTransfer.files);
+    });
+    form.addEventListener("submit", (e) => e.preventDefault());
+  </script>
+</body>
+</html>
