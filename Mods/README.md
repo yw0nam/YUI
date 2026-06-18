@@ -30,6 +30,13 @@ Two separate permission buckets gate the tools — grant both to the **launching
 
 Without these, calls fail closed in different ways — `screenshot` silently returns wallpaper-only images, Automation calls error with `-1743`. The server runs a **startup preflight** that checks both and logs an explicit `[setup] … NOT granted` warning for each gap, so an ungranted permission surfaces as a clear setup error instead of a mystery no-op.
 
+### Safety boundary (operator responsibility)
+
+The allowlist **is** the safety boundary — there is no client-side config. desktop-control is a separate process with no capability in the YUI app, so the operator who sets the env owns the risk:
+
+- Keep `DESKTOP_CONTROL_ALLOWED_APPS` as narrow as possible — only the apps you intend the agent to control. An empty allowlist rejects everything; there are no silent defaults.
+- **The HTTP transport has no auth.** Any local process that can reach `127.0.0.1:9000` gets full screen capture + app control. This is acceptable for personal-desktop use and is mitigated by the SSH reverse-tunnel model below, but the local-process exposure is real — keep the bind on loopback.
+
 ### Expose to the remote agent
 
 The server binds `127.0.0.1` only. Reach it from the remote host with an SSH reverse tunnel:

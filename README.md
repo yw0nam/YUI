@@ -1,6 +1,19 @@
+<div align="center">
+
 # YUI
 
-> Embodied VRM frontend (head) for the Hermes Agent (brain).
+**Embodied VRM frontend (head) for the Hermes Agent (brain).**
+
+*invisible-by-default, warm-when-present*
+
+[![CI](https://github.com/yw0nam/YUI/actions/workflows/ci.yml/badge.svg)](https://github.com/yw0nam/YUI/actions/workflows/ci.yml)
+![Tauri v2](https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![three.js](https://img.shields.io/badge/three.js-000000?logo=three.js&logoColor=white)
+
+<img src="docs/assets/yui-hero.png" alt="YUI — a VRM character living on the desktop as a transparent, always-on-top overlay, with speech bubble, settings panel, and input bar" width="820">
+
+</div>
 
 ## What it is
 
