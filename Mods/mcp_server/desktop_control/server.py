@@ -35,7 +35,11 @@ def _screenshot_max_edge() -> int | None:
     raw = raw.strip()
     if raw in ("", "0"):
         return None
-    return int(raw)
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning(f"{SCREENSHOT_MAX_EDGE_ENV}={raw!r} is not an int; using {DEFAULT_MAX_EDGE}")
+        return DEFAULT_MAX_EDGE
 
 
 mcp = FastMCP(
