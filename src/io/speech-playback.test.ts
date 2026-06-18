@@ -295,6 +295,94 @@ describe("createSpeechPlayback — setCue forwards to the pipeline", () => {
   });
 });
 
+describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
+  it("while held: setCue does NOT forward to pipeline.setCue", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+
+    sp.holdMotion(true);
+    sp.setCue({ emotion_id: "calm", motion_id: "calm" });
+
+    expect(multi.instances[0].setCue).not.toHaveBeenCalled();
+  });
+
+  it("while held: holdMotion(false) flushes the buffered cue to pipeline.setCue exactly once", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+
+    sp.holdMotion(true);
+    sp.setCue({ emotion_id: "calm", motion_id: "calm" });
+    sp.holdMotion(false);
+
+    expect(multi.instances[0].setCue).toHaveBeenCalledTimes(1);
+    expect(multi.instances[0].setCue).toHaveBeenCalledWith({
+      emotion_id: "calm",
+      motion_id: "calm",
+    });
+  });
+
+  it("while held: multiple setCue calls — only the LATEST is flushed on release", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+
+    sp.holdMotion(true);
+    sp.setCue({ emotion_id: "calm", motion_id: "calm" });
+    sp.setCue({ emotion_id: "happy", motion_id: "dance" });
+    sp.holdMotion(false);
+
+    expect(multi.instances[0].setCue).toHaveBeenCalledTimes(1);
+    expect(multi.instances[0].setCue).toHaveBeenCalledWith({
+      emotion_id: "happy",
+      motion_id: "dance",
+    });
+  });
+
+  it("while held with NO setCue: holdMotion(false) does NOT call pipeline.setCue", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+
+    sp.holdMotion(true);
+    sp.holdMotion(false);
+
+    expect(multi.instances[0].setCue).not.toHaveBeenCalled();
+  });
+
+  it("holdMotion(true) again clears the previously buffered cue — subsequent release flushes nothing", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+
+    sp.holdMotion(true);
+    sp.setCue({ emotion_id: "calm", motion_id: "calm" });
+    // new thinking phase: hold again clears the stale buffer
+    sp.holdMotion(true);
+    sp.holdMotion(false);
+
+    expect(multi.instances[0].setCue).not.toHaveBeenCalled();
+  });
+
+  it("not held (default): setCue forwards to pipeline.setCue immediately", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+
+    sp.setCue({ emotion_id: "happy" });
+
+    expect(multi.instances[0].setCue).toHaveBeenCalledTimes(1);
+    expect(multi.instances[0].setCue).toHaveBeenCalledWith({ emotion_id: "happy" });
+  });
+});
+
 describe("createSpeechPlayback — onCuePlay drives renderer directives", () => {
   it("onCuePlay with emotion_id+motion_id calls applyDirective with both mapped fields", () => {
     const stub = stubPipelineFactory();
@@ -435,6 +523,42 @@ describe("createSpeechPlayback — abort tears down without rebuilding", () => {
   });
 });
 
+describe("createSpeechPlayback — options.onPlaybackEnd passthrough", () => {
+  it("invokes options.onPlaybackEnd when playback ends", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const onPlaybackEnd = vi.fn();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory, onPlaybackEnd });
+
+    stub.emitPlaybackEnd();
+    expect(onPlaybackEnd).toHaveBeenCalledOnce();
+  });
+
+  it("options.onPlaybackEnd fires after stopMouth/finishSpeech/easeEmotionToNeutral", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const order: string[] = [];
+    renderer.stopMouth.mockImplementation(() => order.push("stopMouth"));
+    surfaces.finishSpeech.mockImplementation(() => order.push("finishSpeech"));
+    renderer.easeEmotionToNeutral.mockImplementation(() => order.push("easeEmotion"));
+    const onPlaybackEnd = vi.fn(() => order.push("onPlaybackEnd"));
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory, onPlaybackEnd });
+
+    stub.emitPlaybackEnd();
+    expect(order).toEqual(["stopMouth", "finishSpeech", "easeEmotion", "onPlaybackEnd"]);
+  });
+
+  it("works fine when options.onPlaybackEnd is not provided (no error)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    expect(() => stub.emitPlaybackEnd()).not.toThrow();
+  });
+});
+
 describe("createSpeechPlayback — onSpeech is sugar over delta+end", () => {
   it("begins, pushes text to bubble+pipeline, defers the bubble, and flushes once", () => {
     const stub = stubPipelineFactory();
@@ -475,6 +599,47 @@ describe("createSpeechPlayback — emoji sanitization in delta", () => {
     sp.onSpeechDelta("hello world");
     expect(surfaces.pushSpeech).toHaveBeenCalledWith("hello world");
     expect(stub.calls.pushTextDelta).toEqual(["hello world"]);
+  });
+});
+
+describe("createSpeechPlayback — holdMotion suppresses playMotion(null) for null cues", () => {
+  it("holdMotion(true): null-cue onCuePlay does NOT call playMotion(null) but DOES easeEmotionToNeutral", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.holdMotion(true);
+    stub.emitCuePlay(null);
+
+    expect(renderer.easeEmotionToNeutral).toHaveBeenCalledWith(1000);
+    expect(renderer.playMotion).not.toHaveBeenCalled();
+  });
+
+  it("holdMotion(false) (default): null-cue onCuePlay still calls playMotion(null)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    // default is false — no holdMotion call needed
+    stub.emitCuePlay(null);
+
+    expect(renderer.easeEmotionToNeutral).toHaveBeenCalledWith(1000);
+    expect(renderer.playMotion).toHaveBeenCalledWith(null);
+  });
+
+  it("real cue (emotion_id) still calls applyDirective regardless of holdMotion(true)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.holdMotion(true);
+    stub.emitCuePlay({ emotion_id: "happy", motion_id: "wave" });
+
+    expect(renderer.applyDirective).toHaveBeenCalledTimes(1);
+    expect(renderer.playMotion).not.toHaveBeenCalled();
   });
 });
 

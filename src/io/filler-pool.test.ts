@@ -4,8 +4,13 @@ import { effectiveFillerPool } from "./filler-pool";
 import type { FillerSettings } from "./filler-settings";
 
 const cfg: FillerConfig = {
-  threshold_ms: 500,
-  pools: { ja: ["うーん…", "ええと…"], en: ["Hmm..."], ko: ["음…"] },
+  gap_ms: 5000,
+  gap_jitter_ms: 500,
+  pools: {
+    ja: { first: ["うーん…", "ええと…"], repeat: ["まだ考えてます"] },
+    en: { first: ["Hmm..."], repeat: ["Still thinking..."] },
+    ko: { first: ["음…"], repeat: [] },
+  },
 };
 
 function settings(over: Partial<FillerSettings> = {}): FillerSettings {
@@ -13,27 +18,67 @@ function settings(over: Partial<FillerSettings> = {}): FillerSettings {
 }
 
 describe("effectiveFillerPool", () => {
-  it("returns [] when disabled", () => {
-    expect(effectiveFillerPool(settings({ enabled: false }), cfg)).toEqual([]);
+  it("returns {first:[],repeat:[]} when disabled", () => {
+    expect(effectiveFillerPool(settings({ enabled: false }), cfg)).toEqual({
+      first: [],
+      repeat: [],
+    });
   });
 
   it("falls back to config pool for the active language", () => {
-    expect(effectiveFillerPool(settings({ language: "ja" }), cfg)).toEqual(["うーん…", "ええと…"]);
-    expect(effectiveFillerPool(settings({ language: "en" }), cfg)).toEqual(["Hmm..."]);
+    expect(effectiveFillerPool(settings({ language: "ja" }), cfg)).toEqual({
+      first: ["うーん…", "ええと…"],
+      repeat: ["まだ考えてます"],
+    });
+    expect(effectiveFillerPool(settings({ language: "en" }), cfg)).toEqual({
+      first: ["Hmm..."],
+      repeat: ["Still thinking..."],
+    });
   });
 
-  it("prefers a non-empty custom pool over the config pool", () => {
-    const s = settings({ language: "ja", customPools: { ja: ["やあ"] } });
-    expect(effectiveFillerPool(s, cfg)).toEqual(["やあ"]);
+  it("prefers custom.first over config.first if custom.first has ≥1 entry", () => {
+    const s = settings({
+      language: "ja",
+      customPools: { ja: { first: ["やあ"], repeat: [] } },
+    });
+    const result = effectiveFillerPool(s, cfg);
+    expect(result.first).toEqual(["やあ"]);
+    // repeat falls back to config because custom.repeat is empty
+    expect(result.repeat).toEqual(["まだ考えてます"]);
   });
 
-  it("ignores an empty custom pool and uses the config pool", () => {
-    const s = settings({ language: "ja", customPools: { ja: [] } });
-    expect(effectiveFillerPool(s, cfg)).toEqual(["うーん…", "ええと…"]);
+  it("prefers custom.repeat over config.repeat if custom.repeat has ≥1 entry", () => {
+    const s = settings({
+      language: "ja",
+      customPools: { ja: { first: [], repeat: ["カスタムリピート"] } },
+    });
+    const result = effectiveFillerPool(s, cfg);
+    // first falls back to config because custom.first is empty
+    expect(result.first).toEqual(["うーん…", "ええと…"]);
+    expect(result.repeat).toEqual(["カスタムリピート"]);
   });
 
-  it("returns [] when neither custom nor config has the language", () => {
-    const bare: FillerConfig = { threshold_ms: 500, pools: {} };
-    expect(effectiveFillerPool(settings({ language: "ko" }), bare)).toEqual([]);
+  it("partial custom (only first set) falls back to config for repeat independently", () => {
+    const s = settings({
+      language: "en",
+      customPools: { en: { first: ["Custom first"], repeat: [] } },
+    });
+    const result = effectiveFillerPool(s, cfg);
+    expect(result.first).toEqual(["Custom first"]);
+    expect(result.repeat).toEqual(["Still thinking..."]);
+  });
+
+  it("returns {first:[],repeat:[]} when neither custom nor config has the language", () => {
+    const bare: FillerConfig = { gap_ms: 5000, gap_jitter_ms: 500, pools: {} };
+    expect(effectiveFillerPool(settings({ language: "ko" }), bare)).toEqual({
+      first: [],
+      repeat: [],
+    });
+  });
+
+  it("config pool with empty repeat returns empty repeat", () => {
+    const result = effectiveFillerPool(settings({ language: "ko" }), cfg);
+    expect(result.first).toEqual(["음…"]);
+    expect(result.repeat).toEqual([]);
   });
 });

@@ -56,8 +56,13 @@ function goodFixture(): Record<string, unknown> {
       schedule: { present_max_idle_ms: 180000 },
     },
     "filler.json": {
-      threshold_ms: 500,
-      pools: { ja: ["うーん…"], en: ["Hmm..."], ko: ["음…"] },
+      gap_ms: 1000,
+      gap_jitter_ms: 300,
+      pools: {
+        ja: { first: ["うーん…"], repeat: [] },
+        en: { first: ["Hmm..."], repeat: [] },
+        ko: { first: ["음…"], repeat: [] },
+      },
     },
   };
 }

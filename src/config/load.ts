@@ -105,12 +105,22 @@ export interface SourcesConfig {
 /** TTFT filler language — closed union, never crosses the Hermes wire. */
 export type FillerLang = "ja" | "en" | "ko";
 
-/** configs/filler.json — TTFT filler phrases + threshold. */
+/** Per-language filler phrase pool split into two tiers. */
+export interface FillerPool {
+  /** Phrases for the first filler utterance (immediate acknowledgment). */
+  first: string[];
+  /** Phrases for subsequent filler utterances (still-thinking backchannels). */
+  repeat: string[];
+}
+
+/** configs/filler.json — TTFT filler phrases + loop timing. */
 export interface FillerConfig {
-  /** Fire filler only if first token hasn't arrived within this many ms. */
-  threshold_ms: number;
-  /** Default backchannel phrase pools per language. */
-  pools: Partial<Record<FillerLang, string[]>>;
+  /** Silence (ms) between filler utterances — base. */
+  gap_ms: number;
+  /** Random ± jitter (ms) added to gap_ms each repeat. */
+  gap_jitter_ms: number;
+  /** Per-language filler phrase pools. */
+  pools: Partial<Record<FillerLang, FillerPool>>;
 }
 
 /** 로드·검증된 전체 config 묶음 (불변 스냅샷). */
@@ -872,26 +882,45 @@ function validateSources(file: string, raw: unknown): SourcesConfig {
 
 const FILLER_LANGS: readonly FillerLang[] = ["ja", "en", "ko"];
 
+/** Validates a string[] filler tier (first or repeat). Returns cleaned array or records issues. */
+function validateFillerTier(issues: string[], tier: unknown, path: string): string[] {
+  if (!Array.isArray(tier)) {
+    issues.push(`${path}는 배열이어야 함 (받음: ${JSON.stringify(tier)})`);
+    return [];
+  }
+  const out: string[] = [];
+  let clean = true;
+  for (let i = 0; i < tier.length; i++) {
+    if (typeof tier[i] !== "string") {
+      issues.push(`${path}[${i}]는 문자열이어야 함 (받음: ${JSON.stringify(tier[i])})`);
+      clean = false;
+    } else {
+      out.push(tier[i] as string);
+    }
+  }
+  return clean ? out : [];
+}
+
 function validateFiller(file: string, raw: unknown): FillerConfig {
   if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
   const issues: string[] = [];
 
-  // threshold_ms: positive integer in [100, 10000]
-  const threshold_ms = raw.threshold_ms;
-  if (
-    typeof threshold_ms !== "number" ||
-    !Number.isInteger(threshold_ms) ||
-    threshold_ms < 100 ||
-    threshold_ms > 10000
-  ) {
-    issues.push(
-      `threshold_ms는 [100, 10000] 범위의 양의 정수여야 함 (받음: ${JSON.stringify(threshold_ms)})`,
-    );
-  }
+  /** obj[key]가 유한 number ≥ 0인지. 아니면 issue 추가하고 0 반환. */
+  const nonNegNum = (key: string): number => {
+    const v = raw[key];
+    if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+      issues.push(`${key}는 0 이상 유한 number여야 함 (받음: ${JSON.stringify(v)})`);
+      return 0;
+    }
+    return v;
+  };
 
-  // pools: object whose keys are restricted to FillerLang
+  const gap_ms = nonNegNum("gap_ms");
+  const gap_jitter_ms = nonNegNum("gap_jitter_ms");
+
+  // pools: object whose keys are restricted to FillerLang; each value is {first, repeat}
   const rawPools = raw.pools;
-  const pools: Partial<Record<FillerLang, string[]>> = {};
+  const pools: Partial<Record<FillerLang, FillerPool>> = {};
   if (!isObject(rawPools)) {
     issues.push(`pools는 객체여야 함 (받음: ${JSON.stringify(rawPools)})`);
   } else if (Object.keys(rawPools).length === 0) {
@@ -903,26 +932,19 @@ function validateFiller(file: string, raw: unknown): FillerConfig {
         continue;
       }
       const lang = key as FillerLang;
-      const pool = rawPools[lang];
-      if (!Array.isArray(pool) || pool.length === 0) {
-        issues.push(`pools.${lang}는 비어있지 않은 배열이어야 함 (받음: ${JSON.stringify(pool)})`);
+      const entry = rawPools[lang];
+      if (!isObject(entry)) {
+        issues.push(`pools.${lang}는 {first, repeat} 객체여야 함 (받음: ${JSON.stringify(entry)})`);
         continue;
       }
-      let poolClean = true;
-      for (let i = 0; i < pool.length; i++) {
-        if (typeof pool[i] !== "string" || pool[i] === "") {
-          issues.push(
-            `pools.${lang}[${i}]는 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(pool[i])})`,
-          );
-          poolClean = false;
-        }
-      }
-      if (poolClean) pools[lang] = pool as string[];
+      const first = validateFillerTier(issues, entry.first, `pools.${lang}.first`);
+      const repeat = validateFillerTier(issues, entry.repeat, `pools.${lang}.repeat`);
+      pools[lang] = { first, repeat };
     }
   }
 
   assertValid(file, issues);
-  return { threshold_ms: threshold_ms as number, pools };
+  return { gap_ms, gap_jitter_ms, pools };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

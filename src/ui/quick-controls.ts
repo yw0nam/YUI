@@ -385,13 +385,21 @@ export function createQuickControls({
             </div>
           </div>
           <div class="yui-field-row">
-            <span class="yui-field-row__label">문구 목록</span>
-            <span class="yui-field-row__sub">한 줄에 하나씩 입력해요</span>
+            <span class="yui-field-row__label">첫 대사</span>
+            <span class="yui-field-row__sub">유저 메시지가 들어오면 바로 한 번 재생</span>
             <div class="yui-textarea-wrap">
-              <textarea class="yui-textarea yui-filler-textarea" spellcheck="false" rows="4" aria-label="추임새 문구 목록"></textarea>
+              <textarea class="yui-textarea yui-filler-first-textarea" spellcheck="false" rows="3" aria-label="첫 대사 목록"></textarea>
             </div>
           </div>
-          <p class="yui-filler-hint">비워두면 기본 문구를 사용해요.</p>
+          <div class="yui-filler__list-sep" aria-hidden="true"></div>
+          <div class="yui-field-row">
+            <span class="yui-field-row__label">반복 대사</span>
+            <span class="yui-field-row__sub">첫 대사 뒤, 응답이 올 때까지 1초 간격으로 반복 재생</span>
+            <div class="yui-textarea-wrap">
+              <textarea class="yui-textarea yui-filler-repeat-textarea" spellcheck="false" rows="3" aria-label="반복 대사 목록"></textarea>
+            </div>
+          </div>
+          <p class="yui-field-hint yui-filler-hint">두 목록 모두 비워두면 기본 문구를 사용해요. 한 줄에 하나씩 입력해요.</p>
         </div>`
             : ""
         }
@@ -591,7 +599,10 @@ export function createQuickControls({
   const fillerLangBtns = fillerLangSegEl
     ? Array.from(fillerLangSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"))
     : [];
-  const fillerTextareaEl = el.querySelector<HTMLTextAreaElement>(".yui-filler-textarea");
+  const fillerFirstTextareaEl = el.querySelector<HTMLTextAreaElement>(".yui-filler-first-textarea");
+  const fillerRepeatTextareaEl = el.querySelector<HTMLTextAreaElement>(
+    ".yui-filler-repeat-textarea",
+  );
   const epResetBtn = el.querySelector<HTMLButtonElement>(".yui-ep-reset")!;
   // 엔드포인트 입력 — 필드 key별 input 노드 맵.
   const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
@@ -690,7 +701,14 @@ export function createQuickControls({
 
   // 생각중 추임새 섹션 — store 상태를 UI에 반영한다.
   function reflectFiller(): void {
-    if (!fillerSettings || !fillerSwitchBtn || !fillerLangSegEl || !fillerTextareaEl) return;
+    if (
+      !fillerSettings ||
+      !fillerSwitchBtn ||
+      !fillerLangSegEl ||
+      !fillerFirstTextareaEl ||
+      !fillerRepeatTextareaEl
+    )
+      return;
     const s = fillerSettings.get();
     fillerSwitchBtn.setAttribute("aria-checked", String(s.enabled));
     // 언어 seg 인디케이터
@@ -702,9 +720,10 @@ export function createQuickControls({
       btn.tabIndex = selected ? 0 : -1;
     });
     fillerLangSegEl.style.setProperty("--seg", String(idx));
-    // 문구 textarea — 현재 언어의 customPool을 줄 단위로 표시
+    // 두 textarea — 현재 언어의 customPool(first/repeat)을 줄 단위로 표시(미설정 시 빈 값).
     const pool = s.customPools[s.language];
-    fillerTextareaEl.value = pool && pool.length > 0 ? pool.join("\n") : "";
+    fillerFirstTextareaEl.value = pool ? pool.first.join("\n") : "";
+    fillerRepeatTextareaEl.value = pool ? pool.repeat.join("\n") : "";
   }
 
   // 효과적 음성 엔진 — 유효한 오버라이드가 있으면 그것, 없으면 bundled 기본값, 최종 폴백 irodori.
@@ -1810,6 +1829,15 @@ export function createQuickControls({
     fillerSettings.setEnabled(!fillerSettings.get().enabled);
   }
 
+  // textarea 한 칸을 줄 단위로 파싱(trim + 빈 줄 제거).
+  function parseFillerLines(el: HTMLTextAreaElement | null): string[] {
+    if (!el) return [];
+    return el.value
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+  }
+
   function handleFillerLangClick(e: MouseEvent): void {
     if (!fillerSettings) return;
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
@@ -1817,21 +1845,20 @@ export function createQuickControls({
     const lang = btn.dataset.lang as "ja" | "en" | "ko" | undefined;
     if (!lang) return;
     fillerSettings.setLanguage(lang);
-    // 언어가 바뀌면 textarea를 새 언어의 pool로 즉시 갱신(store 구독보다 선행).
-    if (fillerTextareaEl) {
-      const pool = fillerSettings.get().customPools[lang];
-      fillerTextareaEl.value = pool && pool.length > 0 ? pool.join("\n") : "";
-    }
+    // 언어가 바뀌면 두 textarea를 새 언어의 pool로 즉시 갱신(store 구독보다 선행).
+    const pool = fillerSettings.get().customPools[lang];
+    if (fillerFirstTextareaEl) fillerFirstTextareaEl.value = pool ? pool.first.join("\n") : "";
+    if (fillerRepeatTextareaEl) fillerRepeatTextareaEl.value = pool ? pool.repeat.join("\n") : "";
   }
 
+  // 어느 칸을 편집하든 두 칸의 현재 값을 함께 써서 다른 칸을 덮어쓰지 않게 한다.
   function handleFillerTextareaInput(): void {
-    if (!fillerSettings || !fillerTextareaEl) return;
+    if (!fillerSettings) return;
     const lang = fillerSettings.get().language;
-    const lines = fillerTextareaEl.value
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-    fillerSettings.setCustomPool(lang, lines);
+    fillerSettings.setCustomPool(lang, {
+      first: parseFillerLines(fillerFirstTextareaEl),
+      repeat: parseFillerLines(fillerRepeatTextareaEl),
+    });
   }
 
   function handleVoiceSwitchClick(): void {
@@ -2204,7 +2231,8 @@ export function createQuickControls({
   idleThrottleSwitchBtn.addEventListener("click", handleIdleThrottleSwitchClick);
   fillerSwitchBtn?.addEventListener("click", handleFillerSwitchClick);
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
-  fillerTextareaEl?.addEventListener("input", handleFillerTextareaInput);
+  fillerFirstTextareaEl?.addEventListener("input", handleFillerTextareaInput);
+  fillerRepeatTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
   scrimEl.addEventListener("pointerdown", handleScrimPointerDown);
   document.addEventListener("keydown", handleDocKeydown);
@@ -2271,7 +2299,8 @@ export function createQuickControls({
     idleThrottleSwitchBtn.removeEventListener("click", handleIdleThrottleSwitchClick);
     fillerSwitchBtn?.removeEventListener("click", handleFillerSwitchClick);
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
-    fillerTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
+    fillerFirstTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
+    fillerRepeatTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     scrimEl.removeEventListener("pointerdown", handleScrimPointerDown);
     document.removeEventListener("keydown", handleDocKeydown);

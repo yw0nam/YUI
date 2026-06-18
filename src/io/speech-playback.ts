@@ -43,6 +43,8 @@ export interface SpeechPlaybackOptions {
   pipeline?: Omit<TtsPipelineOptions, "onAmplitude" | "onPlaybackEnd" | "onCuePlay">;
   /** 테스트용 파이프라인 팩토리 주입. */
   createPipeline?: (opts: TtsPipelineOptions) => TtsPipeline;
+  /** Called after stopMouth/finishSpeech/easeEmotionToNeutral on each playback-end. */
+  onPlaybackEnd?: () => void;
 }
 
 export interface SpeechPlayback {
@@ -54,6 +56,12 @@ export interface SpeechPlayback {
   onSpeech(text: string): void;
   /** per-beat cue를 파이프라인에 전달. */
   setCue(cue: ExpressArgs | null): void;
+  /**
+   * While held (true), null-cue applyCue suppresses playMotion(null) so an externally
+   * started looping motion (e.g. thinking) is not reset by cue-less filler sentences.
+   * easeEmotionToNeutral still fires — only the motion reset is suppressed.
+   */
+  holdMotion(held: boolean): void;
   /** 진행 중인 발화를 중단: 파이프라인 폐기·재생성 + 보류 말풍선 즉시 해제. */
   interrupt(): void;
   /** 비정상 종료(에러/네트워크 끊김) 정리: 파이프라인 폐기 + 보류 말풍선 즉시 해제. 다음 턴이 없어 재생성하지 않는다. */
@@ -65,6 +73,9 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   const { renderer, surfaces } = options;
   const factory = options.createPipeline ?? createTtsPipeline;
 
+  let motionHeld = false;
+  let heldCue: ExpressArgs | null = null;
+
   // fires when a sentence begins playback or its synth fails — audio-timed expression seam.
   function applyCue(cue: ExpressArgs | null): void {
     if (cue?.emotion_id || cue?.motion_id) {
@@ -75,7 +86,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       });
     } else {
       renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
-      renderer.playMotion(null);
+      if (!motionHeld) renderer.playMotion(null);
     }
   }
 
@@ -89,6 +100,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
         surfaces.finishSpeech();
         // 발화가 끝나면 표정도 함께 neutral로 천천히 회귀 — 직전 emotion이 영영 갇히지 않게.
         renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
+        options.onPlaybackEnd?.();
       },
     });
   }
@@ -130,7 +142,23 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       end();
     },
     setCue(cue) {
-      pipeline.setCue(cue);
+      if (motionHeld) {
+        heldCue = cue;
+      } else {
+        pipeline.setCue(cue);
+      }
+    },
+    holdMotion(held) {
+      if (held) {
+        motionHeld = true;
+        heldCue = null;
+      } else {
+        motionHeld = false;
+        if (heldCue !== null) {
+          pipeline.setCue(heldCue);
+          heldCue = null;
+        }
+      }
     },
     interrupt() {
       stripper.reset();
