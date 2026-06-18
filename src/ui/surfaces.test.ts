@@ -411,3 +411,115 @@ describe("setInputEnabled — disable the field while busy", () => {
     expect(form().classList.contains("is-pending")).toBe(false);
   });
 });
+
+describe("setBusy — send ↔ stop toggle on the input form", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function form(): HTMLElement {
+    return mount.querySelector(".yui-input") as HTMLElement;
+  }
+  function sendBtn(): HTMLButtonElement {
+    return mount.querySelector(".yui-input__send") as HTMLButtonElement;
+  }
+
+  it("adds is-running and shows the stop affordance when busy", () => {
+    s.setBusy(true);
+    expect(form().classList.contains("is-running")).toBe(true);
+    expect(sendBtn().getAttribute("aria-label")).toBe("멈추기");
+  });
+
+  it("reverts to the send affordance when no longer busy", () => {
+    s.setBusy(true);
+    s.setBusy(false);
+    expect(form().classList.contains("is-running")).toBe(false);
+    expect(sendBtn().getAttribute("aria-label")).toBe("보내기");
+  });
+});
+
+describe("onStop — stop fires only on explicit button click while busy", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function form(): HTMLFormElement {
+    return mount.querySelector(".yui-input") as HTMLFormElement;
+  }
+  function field(): HTMLInputElement {
+    return mount.querySelector(".yui-input__field") as HTMLInputElement;
+  }
+  function sendBtn(): HTMLButtonElement {
+    return mount.querySelector(".yui-input__send") as HTMLButtonElement;
+  }
+
+  it("fires onStop and NOT onSubmit when the button is clicked while busy", () => {
+    const onStop = vi.fn();
+    const onSubmit = vi.fn();
+    s.onStop(onStop);
+    s.onSubmit(onSubmit);
+    field().value = "안녕";
+    s.setBusy(true);
+
+    sendBtn().click();
+
+    expect(onStop).toHaveBeenCalledTimes(1);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("does NOT fire onSubmit on form submit (Enter) while busy", () => {
+    const onSubmit = vi.fn();
+    const onStop = vi.fn();
+    s.onSubmit(onSubmit);
+    s.onStop(onStop);
+    field().value = "안녕";
+    s.setBusy(true);
+
+    form().dispatchEvent(new Event("submit", { cancelable: true }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onStop).not.toHaveBeenCalled();
+  });
+
+  it("does NOT fire onStop when the button is clicked while idle", () => {
+    const onStop = vi.fn();
+    const onSubmit = vi.fn();
+    s.onStop(onStop);
+    s.onSubmit(onSubmit);
+    field().value = "안녕";
+
+    // idle button click = submit (type=submit). jsdom doesn't auto-submit on
+    // click, so drive the submit path the listener guards.
+    form().dispatchEvent(new Event("submit", { cancelable: true }));
+
+    expect(onStop).not.toHaveBeenCalled();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires onSubmit on Enter / form submit when idle (no regression)", () => {
+    const onSubmit = vi.fn();
+    s.onSubmit(onSubmit);
+    field().value = "안녕";
+
+    form().dispatchEvent(new Event("submit", { cancelable: true }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith("안녕", []);
+  });
+});

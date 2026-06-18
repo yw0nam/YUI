@@ -647,9 +647,9 @@ async function bootstrap(): Promise<void> {
     }
   }
 
-  // 제출 → 입력 닫고 dispatcher 스파인으로 발사(user.text_submitted). mock은 dev 데모 전용으로 유지.
+  // 제출 → dispatcher 스파인으로 발사(user.text_submitted). 입력은 열어 둔 채 send→stop로
+  // 전환(subscribeBusy)되고, 턴 완료 시 send로 복귀한다. mock은 dev 데모 전용으로 유지.
   surfaces.onSubmit((text, images) => {
-    surfaces.dismissInput();
     userInput.submit(text, images);
     // YUI와 대화 → 주도적 반응의 무대화 경과 타이머 리셋.
     proactiveSourceRef?.noteInteraction();
@@ -912,6 +912,9 @@ async function bootstrap(): Promise<void> {
       guardrails,
     });
     dispatcherRef = dispatcher;
+    // 진행 중 backend 턴 ⟷ 입력의 send/stop 토글. stop 클릭 → 명시적 cancel(client-side abort).
+    dispatcher.subscribeBusy((busy) => surfaces.setBusy(busy));
+    surfaces.onStop(() => dispatcher.cancel());
     // HMR로 모듈이 재실행되면 이전 dispatcher의 setInterval/ in-flight가 남는다 → dispose에서 정지.
     if (import.meta.env.DEV) {
       import.meta.hot?.dispose(() => {

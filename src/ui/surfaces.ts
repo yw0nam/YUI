@@ -47,6 +47,13 @@ export interface Surfaces {
   isInputOpen(): boolean;
   /** 제출 콜백 등록. text는 trim된 문자열(이미지만 보낼 땐 빈 문자열), images는 데이터 URL 배열. */
   onSubmit(cb: (text: string, images: string[]) => void): void;
+  /** 중단 콜백 등록. busy 중 send 버튼을 명시적으로 누를 때만 발화한다. */
+  onStop(cb: () => void): void;
+  /**
+   * 처리 중 토글. busy면 send 버튼이 stop으로 바뀌고(is-running + 앰버),
+   * Enter/submit는 no-op이 된다. 중단은 버튼 클릭으로만 발화.
+   */
+  setBusy(busy: boolean): void;
   /** 인라인 에러 표시(예: 전송 실패). */
   showInputError(message: string): void;
   /** 입력 비활성화 토글(처리 중 등). 비활성 시 field disabled + pending 디밍. */
@@ -99,6 +106,19 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
           aria-label="YUI에게 말 걸기"
         />
         <span class="yui-input__error" role="alert"></span>
+        <button class="yui-input__send" type="submit" aria-label="보내기">
+          <span class="icon-send" aria-hidden="true">
+            <svg viewBox="0 0 16 16">
+              <line x1="8" y1="13" x2="8" y2="3"/>
+              <polyline points="4,7 8,3 12,7"/>
+            </svg>
+          </span>
+          <span class="icon-stop" aria-hidden="true">
+            <svg viewBox="0 0 16 16">
+              <rect x="4" y="4" width="8" height="8" rx="1.5"/>
+            </svg>
+          </span>
+        </button>
         <input type="file" class="yui-input__picker" accept="image/*" multiple hidden />
       </div>
     </form>
@@ -115,11 +135,15 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   const trayEl = el.querySelector<HTMLDivElement>(".yui-input__tray")!;
   const attachBtn = el.querySelector<HTMLButtonElement>(".yui-input__attach")!;
   const picker = el.querySelector<HTMLInputElement>(".yui-input__picker")!;
+  const sendBtn = el.querySelector<HTMLButtonElement>(".yui-input__send")!;
 
   const dwell = dwellMs ?? readDwellToken(el) ?? DEFAULT_DWELL;
   const submitHandlers: Array<(text: string, images: string[]) => void> = [];
+  const stopHandlers: Array<() => void> = [];
   // ponytail: no count/size cap — add when context-size bites.
   const attachments: string[] = [];
+  // 백엔드 처리 중 — send 버튼이 stop으로 바뀌고 submit이 막힌다.
+  let busy = false;
   let dwellTimer: ReturnType<typeof setTimeout> | null = null;
   // endSpeech({ defer:true })로 페이드를 보류 중인지 — finishSpeech()가 해제한다.
   let deferred = false;
@@ -313,6 +337,17 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     trayEl.append(chip);
   }
 
+  function onStop(cb: () => void): void {
+    stopHandlers.push(cb);
+  }
+
+  // busy면 send→stop 아이콘 스왑 + 앰버, field 디밍, submit 차단.
+  function setBusy(value: boolean): void {
+    busy = value;
+    formEl.classList.toggle("is-running", value);
+    sendBtn.setAttribute("aria-label", value ? "멈추기" : "보내기");
+  }
+
   function setInputEnabled(enabled: boolean): void {
     field.disabled = !enabled;
     formEl.classList.toggle("is-pending", !enabled);
@@ -325,6 +360,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
 
   function handleSubmit(e: Event): void {
     e.preventDefault();
+    if (busy) return; // 처리 중엔 Enter/submit no-op — 중단은 버튼 클릭으로만
     const text = field.value.trim();
     if (text === "" && attachments.length === 0) return;
     formEl.classList.remove("is-error");
@@ -332,6 +368,13 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     const images = attachments.slice();
     for (const cb of submitHandlers) cb(text, images);
     clearAttachments();
+  }
+
+  // busy 중 버튼 클릭 = 중단(submit 가로채기). idle이면 type=submit로 통과.
+  function handleSendClick(e: Event): void {
+    if (!busy) return;
+    e.preventDefault();
+    for (const cb of stopHandlers) cb();
   }
 
   function handleFieldKey(e: KeyboardEvent): void {
@@ -393,6 +436,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   }
 
   formEl.addEventListener("submit", handleSubmit);
+  sendBtn.addEventListener("click", handleSendClick);
   field.addEventListener("keydown", handleFieldKey);
   field.addEventListener("input", clearErrorOnInput);
   field.addEventListener("paste", onFieldPaste);
@@ -407,6 +451,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   function dispose(): void {
     clearDwell();
     formEl.removeEventListener("submit", handleSubmit);
+    sendBtn.removeEventListener("click", handleSendClick);
     field.removeEventListener("keydown", handleFieldKey);
     field.removeEventListener("input", clearErrorOnInput);
     field.removeEventListener("paste", onFieldPaste);
@@ -418,6 +463,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     bubbleEl.removeEventListener("pointerenter", onBubbleEnter);
     bubbleEl.removeEventListener("pointerleave", onBubbleLeave);
     submitHandlers.length = 0;
+    stopHandlers.length = 0;
     el.remove();
   }
 
@@ -434,6 +480,8 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     dismissInput,
     isInputOpen,
     onSubmit,
+    onStop,
+    setBusy,
     showInputError,
     setInputEnabled,
     setInputAnchor,

@@ -372,6 +372,91 @@
 .yui-input.is-pending .yui-input__field {
   opacity: 0.55;
 }
+/* 처리 중 field 디밍 — send→stop 토글과 함께 점화 */
+.yui-input.is-running .yui-input__field {
+  opacity: 0.55;
+}
+
+/* send/stop 버튼 — flex:0 0 auto 고정폭이라 아이콘 스왑에도 form이 reflow 안 됨 */
+.yui-input__send {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 0.2rem;
+
+  border: 0;
+  border-radius: calc(var(--yui-radius-input) - 3px);
+  background: transparent;
+  cursor: pointer;
+  color: var(--yui-text-mute);
+
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    background-color var(--yui-dur-fast) var(--yui-ease),
+    opacity var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-input__send .icon-send {
+  display: block;
+}
+.yui-input__send .icon-stop {
+  display: none;
+}
+/* hover/focus: 살짝 데움 (warmth 순간 아님) */
+.yui-input__send:hover,
+.yui-input__send:focus-visible {
+  color: var(--yui-text-dim);
+  background: var(--yui-accent-faint);
+  outline: none;
+}
+/* active(눌림): 앰버 플래시 — warmth 순간 */
+.yui-input__send:active {
+  color: var(--yui-accent);
+  background: var(--yui-accent-faint);
+}
+
+/* running/stop: 아이콘 스왑 + 앰버 상시 */
+.yui-input.is-running .yui-input__send {
+  color: var(--yui-accent);
+  background: var(--yui-accent-faint);
+}
+.yui-input.is-running .yui-input__send .icon-send {
+  display: none;
+}
+.yui-input.is-running .yui-input__send .icon-stop {
+  display: block;
+}
+.yui-input.is-running .yui-input__send:hover,
+.yui-input.is-running .yui-input__send:focus-visible {
+  color: var(--yui-accent);
+  background: var(--yui-accent-soft);
+  outline: none;
+}
+
+.yui-input__send svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* stop 아이콘은 stroke 아닌 fill */
+.yui-input__send .icon-stop svg {
+  stroke: none;
+  fill: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-input__send {
+    transition: none;
+  }
+}
 
 /* 인라인 에러 (전송 실패) — side-stripe 금지, 텍스트 색만 */
 .yui-input__error {
