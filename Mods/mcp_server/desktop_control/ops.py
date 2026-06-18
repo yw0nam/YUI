@@ -19,6 +19,30 @@ def list_running_apps() -> list[str]:
     return [name.strip() for name in out.split(",") if name.strip()]
 
 
+def screen_capture_granted() -> bool:
+    """True if Screen Recording (TCC) is granted for the responsible process. Non-prompting.
+
+    `AXIsProcessTrusted` is the wrong check here — it reads Accessibility, a different bucket.
+    """
+    from Quartz import CGPreflightScreenCaptureAccess  # macOS-only; imported lazily
+
+    return bool(CGPreflightScreenCaptureAccess())
+
+
+def automation_granted() -> bool:
+    """True if Apple Events to System Events is granted. No non-prompting preflight API exists
+    for this bucket, so probe by running the real query: -1743 (errAEEventNotPermitted) means
+    not granted; other failures re-raise.
+    """
+    try:
+        _run(["osascript", "-e", _LIST_APPS_SCRIPT])
+        return True
+    except subprocess.CalledProcessError as exc:
+        if "-1743" in (exc.stderr or ""):
+            return False
+        raise
+
+
 def open_app(name: str) -> None:
     """Launch and focus an app (`open -a`)."""
     _run(["open", "-a", name])
