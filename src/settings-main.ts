@@ -46,7 +46,10 @@ import {
   localStorageVrmStorage,
 } from "./io/vrm-selection";
 import { createLogger, initLogger } from "./logger";
-import { subscribe as subscribeLocale } from "./ui/i18n";
+import {
+  reloadFromStorage as reloadLocaleFromStorage,
+  subscribe as subscribeLocale,
+} from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls";
 import { createVoiceInputStatus, type VoiceInputState } from "./ui/voice-input-status";
 
@@ -277,6 +280,7 @@ async function bootstrap(): Promise<void> {
   wireStorageSync(resyncStores);
   window.addEventListener("focus", () => {
     for (const s of resyncStores) s.reloadFromStorage();
+    reloadLocaleFromStorage();
   });
 
   // 음성 토글(이 창 → 메인 STT)과 음성 상태 반영(메인 → 이 창). 컴포넌트가 로컬
@@ -316,6 +320,8 @@ async function bootstrap(): Promise<void> {
   idleThrottleSettings.subscribe(broadcastSettings);
   proactiveSettings.subscribe(broadcastSettings);
   scheduleSettings.subscribe(broadcastSettings);
+  // 표시 언어 변경도 cross-window로 알린다 → 펫 창이 받아 UI를 새 언어로 다시 그린다.
+  subscribeLocale(broadcastSettings);
   // VRM 선택도 cross-window로 알린다 → 펫 창이 받아 렌더러를 핫스왑한다(Tauri storage 이벤트 불안정 대비).
   vrmSelection.subscribe(broadcastSettings);
   // 화자 선택도 cross-window로 알린다 → 펫 창이 받아 다음 발화에서 새 화자로 합성한다.
@@ -324,6 +330,7 @@ async function bootstrap(): Promise<void> {
     applyingRemote = true;
     try {
       for (const s of resyncStores) s.reloadFromStorage();
+      reloadLocaleFromStorage();
     } finally {
       applyingRemote = false;
     }

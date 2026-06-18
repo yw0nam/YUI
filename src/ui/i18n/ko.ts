@@ -119,7 +119,7 @@ const ko: Record<string, string> = {
   "vrm.swap_error": "이 모델을 불러오지 못했어요. 이전 모델로 되돌렸어요.",
 
   // speaker section
-  "speaker.section": "화자 · 音声",
+  "speaker.section": "음성",
   "speaker.engine_label": "음성 엔진",
   "speaker.engine_sub": "캐릭터 목소리를 만드는 합성 엔진",
   "speaker.engine_aria": "음성 엔진",
@@ -208,7 +208,7 @@ const ko: Record<string, string> = {
   "perf.idle_aria": "유휴 시 절전",
 
   // session
-  "session.section": "세션 · Session",
+  "session.section": "세션",
   "session.context": "Context",
   "session.action_label": "새 대화 시작 · Start fresh",
   "session.action_sub": "Start a new conversation. YUI keeps the current memory until you do.",

@@ -101,7 +101,10 @@ import {
   inputBottomFromAnchor,
 } from "./ui/anchor";
 import { createCaptureIndicator } from "./ui/capture-indicator";
-import { subscribe as subscribeLocale } from "./ui/i18n";
+import {
+  reloadFromStorage as reloadLocaleFromStorage,
+  subscribe as subscribeLocale,
+} from "./ui/i18n";
 import { createMockDriver } from "./ui/mock";
 import { createQuickControls } from "./ui/quick-controls";
 import { createSurfaces } from "./ui/surfaces";
@@ -327,12 +330,16 @@ async function bootstrap(): Promise<void> {
   ];
   for (const store of syncedSettingsStores) store.subscribe(broadcastSettings);
   cameraSettings.subscribe(broadcastSettings);
+  // 표시 언어도 창 간 동기화: 변경을 브로드캐스트하고, 원격 변경 시 storage에서 재적용한다.
+  subscribeLocale(broadcastSettings);
   bridge.onSettingsChanged(() => {
     applyingRemote = true;
     try {
       for (const store of syncedSettingsStores) store.reloadFromStorage();
       // 줌 재로드 → cameraSettings.subscribe(s => renderer.setZoom)가 카메라까지 반영.
       cameraSettings.reloadFromStorage();
+      // 다른 창에서 바뀐 표시 언어 반영 → i18n.subscribe 재마운트 구독자가 UI를 다시 그린다.
+      reloadLocaleFromStorage();
       // VRM 선택은 설정 창에서 store-only로 커밋되므로, 그 변경을 펫 창 렌더러로 반영.
       // 이 창 자체 스왑은 swapVrm이 이미 로드하므로, 여기선 OTHER 창 변경만 → 이중 로드 회피.
       const prevVrmUrl = vrmSelection.getActive().url;

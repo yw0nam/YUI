@@ -51,4 +51,22 @@ describe("surfaces — i18n chrome", () => {
     s.setBusy(false);
     expect(send.getAttribute("aria-label")).toBe(t("aria.send"));
   });
+
+  it("re-applies static labels on locale change (surfaces is not re-mounted)", () => {
+    const field = mount.querySelector<HTMLInputElement>(".yui-input__field")!;
+    const attach = mount.querySelector<HTMLButtonElement>(".yui-input__attach")!;
+    setLocale("ja");
+    expect(field.placeholder).toBe(t("input.placeholder"));
+    expect(field.getAttribute("aria-label")).toBe(t("aria.input_field"));
+    expect(attach.getAttribute("aria-label")).toBe(t("aria.attach_image"));
+    // ja value actually differs from the en value baked at construction
+    expect(field.placeholder).not.toBe("Say something…");
+  });
+
+  it("preserves the busy state when re-applying labels on locale change", () => {
+    const send = mount.querySelector<HTMLButtonElement>(".yui-input__send")!;
+    s.setBusy(true);
+    setLocale("ja");
+    expect(send.getAttribute("aria-label")).toBe(t("aria.stop"));
+  });
 });

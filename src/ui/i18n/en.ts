@@ -119,7 +119,7 @@ const en: Record<string, string> = {
   "vrm.swap_error": "Could not load this model. Reverted to the previous one.",
 
   // speaker section
-  "speaker.section": "Voice · 音声",
+  "speaker.section": "Voice",
   "speaker.engine_label": "Voice engine",
   "speaker.engine_sub": "Synthesis engine that creates the character voice",
   "speaker.engine_aria": "Voice engine",
@@ -209,7 +209,7 @@ const en: Record<string, string> = {
   "perf.idle_aria": "Power saving when idle",
 
   // session
-  "session.section": "Session · Session",
+  "session.section": "Session",
   "session.context": "Context",
   "session.action_label": "Start fresh · Start fresh",
   "session.action_sub": "Start a new conversation. YUI keeps the current memory until you do.",

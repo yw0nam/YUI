@@ -11,7 +11,7 @@
  */
 
 import "./surfaces.css";
-import { t } from "./i18n";
+import { subscribe as subscribeLocale, t } from "./i18n";
 import { renderMarkdownInline } from "./markdown";
 import { getToolLabel } from "./tool-labels";
 
@@ -349,6 +349,15 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     sendBtn.setAttribute("aria-label", value ? t("aria.stop") : t("aria.send"));
   }
 
+  // surfaces는 로케일 변경 시 재마운트되지 않으므로 정적 라벨을 직접 갱신한다.
+  function applyLocaleLabels(): void {
+    attachBtn.setAttribute("aria-label", t("aria.attach_image"));
+    field.placeholder = t("input.placeholder");
+    field.setAttribute("aria-label", t("aria.input_field"));
+    sendBtn.setAttribute("aria-label", busy ? t("aria.stop") : t("aria.send"));
+  }
+  const unsubscribeLocale = subscribeLocale(applyLocaleLabels);
+
   function setInputEnabled(enabled: boolean): void {
     field.disabled = !enabled;
     formEl.classList.toggle("is-pending", !enabled);
@@ -451,6 +460,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
 
   function dispose(): void {
     clearDwell();
+    unsubscribeLocale();
     formEl.removeEventListener("submit", handleSubmit);
     sendBtn.removeEventListener("click", handleSendClick);
     field.removeEventListener("keydown", handleFieldKey);

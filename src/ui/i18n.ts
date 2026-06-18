@@ -57,6 +57,21 @@ export function setLocale(l: Locale): void {
 }
 
 /**
+ * Re-reads the persisted locale and applies it if it changed (cross-window sync
+ * via the settings bridge). Does not re-persist; notifies subscribers so hosts
+ * re-render. No-op when the stored locale matches the in-memory one.
+ */
+export function reloadFromStorage(): void {
+  const next = _hydrate();
+  if (next === _locale) return;
+  _locale = next;
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = next;
+  }
+  for (const fn of _subscribers) fn(next);
+}
+
+/**
  * Looks up a translation key.
  * Order: dict[locale][key] → dict.en[key] → key itself.
  * If vars is provided, replaces {name}-style placeholders in the resolved value.

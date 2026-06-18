@@ -131,6 +131,43 @@ describe("setLocale / getLocale — persistence and side effects", () => {
   });
 });
 
+describe("reloadFromStorage — cross-window sync", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    globalThis.localStorage?.clear?.();
+  });
+
+  it("applies a locale persisted by another window and notifies subscribers", async () => {
+    const { setLocale, getLocale, subscribe, reloadFromStorage } = await import("./i18n");
+    setLocale("en");
+    const calls: string[] = [];
+    subscribe((l) => calls.push(l));
+    // Simulate another window persisting "ja" to the shared store (JSON-encoded).
+    globalThis.localStorage.setItem("yui.locale", JSON.stringify("ja"));
+    reloadFromStorage();
+    expect(getLocale()).toBe("ja");
+    expect(calls).toEqual(["ja"]);
+    expect(document.documentElement.lang).toBe("ja");
+  });
+
+  it("is a no-op when the stored locale matches the in-memory one", async () => {
+    const { setLocale, subscribe, reloadFromStorage } = await import("./i18n");
+    setLocale("ko");
+    const calls: string[] = [];
+    subscribe((l) => calls.push(l));
+    reloadFromStorage();
+    expect(calls).toHaveLength(0);
+  });
+
+  it("does not re-persist (no echo): the stored value is untouched on reload", async () => {
+    const { setLocale, reloadFromStorage } = await import("./i18n");
+    setLocale("en");
+    globalThis.localStorage.setItem("yui.locale", JSON.stringify("ko"));
+    reloadFromStorage();
+    expect(globalThis.localStorage.getItem("yui.locale")).toBe(JSON.stringify("ko"));
+  });
+});
+
 describe("LOCALES and display names", () => {
   beforeEach(() => {
     vi.resetModules();
