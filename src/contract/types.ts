@@ -82,6 +82,8 @@ export interface MotionRegistryEntry {
   cycle_dwell_ms?: number;
   /** entry-level default crossfade ms — signal이 fade_ms를 생략할 때 쓰인다. 없으면 200으로 폴백. */
   fade_ms?: number;
+  /** true면 단일 variant loop 모션이 hard LoopRepeat 대신 loop 이음매를 self-crossfade 한다. */
+  crossfade_loop?: boolean;
   /** false면 broker(agent) 어휘에서 제외 — 로컬 렌더만. default true. */
   broker_publish?: boolean;
   kind: MotionKind;

@@ -678,7 +678,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (!currentVrm || !mixer) return;
     const epoch = vrmEpoch;
     try {
-      const clip = await loadClip(motion.vrma_path);
+      let clip = await loadClip(motion.vrma_path);
       if (!clip) {
         // Real load failure (clip missing/invalid for the live VRM) → fall back to idle.
         // A hotswap/teardown drop (epoch changed / no vrm / no mixer) just returns silently.
@@ -688,6 +688,21 @@ export function createRenderer(options: RendererOptions): Renderer {
       if (!mixer || epoch !== vrmEpoch) return;
 
       log.debug("start_motion", { id: motion.id, vrma_path: motion.vrma_path });
+
+      const fadeMs = Math.max(0, motion.fade_ms);
+      const prev = currentAction;
+      // self-crossfade cycle re-trigger: clipAction caches one action per clip, so
+      // re-playing the same clip returns prev === action and the crossfade is skipped.
+      // Swap to a cloned clip so the new action differs and crossFadeFrom can blend.
+      if (motion.cycle && fadeMs > 0 && prev && prev.getClip().uuid === clip.uuid) {
+        const cloneKey = `${motion.vrma_path}#xfade`;
+        let cloneClip = clipCache.get(cloneKey);
+        if (!cloneClip) {
+          cloneClip = clip.clone();
+          clipCache.set(cloneKey, cloneClip);
+        }
+        clip = cloneClip;
+      }
 
       const action = mixer.clipAction(clip);
       action.timeScale = motion.speed;
@@ -701,8 +716,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         actionToId.set(action, motion.id);
       }
 
-      const fade = Math.max(0, motion.fade_ms) / 1000;
-      const prev = currentAction;
+      const fade = fadeMs / 1000;
       action.reset();
       action.enabled = true;
       if (prev && prev !== action && fade > 0) {

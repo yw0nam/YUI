@@ -161,7 +161,7 @@ export function createMotionController(
     const fade_ms = signal.fade_ms ?? entry.fade_ms ?? DEFAULT_FADE_MS;
 
     const loop = signal.loop ?? entry.loop;
-    const cycle = loop && !!variants && variants.length > 1;
+    const cycle = loop && (!!(variants && variants.length > 1) || !!entry.crossfade_loop);
 
     return {
       id: signal.id,
