@@ -904,6 +904,8 @@ async function bootstrap(): Promise<void> {
     onThinkingStart: (token) => {
       // 이 턴이 thinking을 소유한다고 동기로 선언 — 겹친 다음 턴 start가 추월하면 갱신된다.
       currentThinkingTurn = token;
+      // hold BEFORE the first filler can speak so no filler sentence resets the motion.
+      speechPlayback.holdMotion(true);
       // Motion yields when a higher-priority state is current (e.g. window_sit perch:
       // thinking is interrupt_policy "ignore"), but the filler voice always speaks —
       // the utterance is independent of the motion decision.
@@ -917,6 +919,7 @@ async function bootstrap(): Promise<void> {
     onThinkingEnd: (token) => {
       if (token !== currentThinkingTurn) return;
       currentThinkingTurn = null;
+      speechPlayback.holdMotion(false);
       fillerLoop?.stop();
       renderer.playMotion(null);
     },

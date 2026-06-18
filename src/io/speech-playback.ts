@@ -56,6 +56,12 @@ export interface SpeechPlayback {
   onSpeech(text: string): void;
   /** per-beat cue를 파이프라인에 전달. */
   setCue(cue: ExpressArgs | null): void;
+  /**
+   * While held (true), null-cue applyCue suppresses playMotion(null) so an externally
+   * started looping motion (e.g. thinking) is not reset by cue-less filler sentences.
+   * easeEmotionToNeutral still fires — only the motion reset is suppressed.
+   */
+  holdMotion(held: boolean): void;
   /** 진행 중인 발화를 중단: 파이프라인 폐기·재생성 + 보류 말풍선 즉시 해제. */
   interrupt(): void;
   /** 비정상 종료(에러/네트워크 끊김) 정리: 파이프라인 폐기 + 보류 말풍선 즉시 해제. 다음 턴이 없어 재생성하지 않는다. */
@@ -67,6 +73,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   const { renderer, surfaces } = options;
   const factory = options.createPipeline ?? createTtsPipeline;
 
+  let motionHeld = false;
+
   // fires when a sentence begins playback or its synth fails — audio-timed expression seam.
   function applyCue(cue: ExpressArgs | null): void {
     if (cue?.emotion_id || cue?.motion_id) {
@@ -77,7 +85,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       });
     } else {
       renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
-      renderer.playMotion(null);
+      if (!motionHeld) renderer.playMotion(null);
     }
   }
 
@@ -134,6 +142,9 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     },
     setCue(cue) {
       pipeline.setCue(cue);
+    },
+    holdMotion(held) {
+      motionHeld = held;
     },
     interrupt() {
       stripper.reset();

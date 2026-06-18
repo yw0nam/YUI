@@ -514,6 +514,47 @@ describe("createSpeechPlayback — emoji sanitization in delta", () => {
   });
 });
 
+describe("createSpeechPlayback — holdMotion suppresses playMotion(null) for null cues", () => {
+  it("holdMotion(true): null-cue onCuePlay does NOT call playMotion(null) but DOES easeEmotionToNeutral", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.holdMotion(true);
+    stub.emitCuePlay(null);
+
+    expect(renderer.easeEmotionToNeutral).toHaveBeenCalledWith(1000);
+    expect(renderer.playMotion).not.toHaveBeenCalled();
+  });
+
+  it("holdMotion(false) (default): null-cue onCuePlay still calls playMotion(null)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    // default is false — no holdMotion call needed
+    stub.emitCuePlay(null);
+
+    expect(renderer.easeEmotionToNeutral).toHaveBeenCalledWith(1000);
+    expect(renderer.playMotion).toHaveBeenCalledWith(null);
+  });
+
+  it("real cue (emotion_id) still calls applyDirective regardless of holdMotion(true)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.holdMotion(true);
+    stub.emitCuePlay({ emotion_id: "happy", motion_id: "wave" });
+
+    expect(renderer.applyDirective).toHaveBeenCalledTimes(1);
+    expect(renderer.playMotion).not.toHaveBeenCalled();
+  });
+});
+
 describe("createSpeechPlayback — stripper carry reset on interrupt/abort", () => {
   it("interrupt resets carry: stale trailing emoji does not leak into the next turn", () => {
     const multi = multiPipelineFactory();
