@@ -18,6 +18,18 @@ DESKTOP_CONTROL_ALLOWED_APPS="Safari,Notes,Google Chrome" \
 
 Only apps in `DESKTOP_CONTROL_ALLOWED_APPS` (comma-separated) can be opened or closed.
 
+### macOS permissions (TCC)
+
+Two separate permission buckets gate the tools — grant both to the **launching process** (the terminal that runs `uv run`, since TCC attributes grants to the responsible process, not to a stable desktop-control identity; re-grant if you launch it differently):
+
+| Tool | Permission | System Settings → Privacy & Security → … |
+|---|---|---|
+| `screenshot` | Screen Recording | Screen Recording |
+| `list_running_apps`, `close_app` | Automation (Apple Events to System Events) | Automation |
+| `open_app` | none | — |
+
+Without these, calls fail closed in different ways — `screenshot` silently returns wallpaper-only images, Automation calls error with `-1743`. The server runs a **startup preflight** that checks both and logs an explicit `[setup] … NOT granted` warning for each gap, so an ungranted permission surfaces as a clear setup error instead of a mystery no-op.
+
 ### Expose to the remote agent
 
 The server binds `127.0.0.1` only. Reach it from the remote host with an SSH reverse tunnel:

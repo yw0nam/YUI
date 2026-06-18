@@ -91,6 +91,30 @@ def close_app(name: str) -> dict[str, Any]:
     return {"ok": True, "name": name}
 
 
+def preflight() -> list[str]:
+    """Check TCC grants at startup and log each gap explicitly, so an ungranted permission
+    surfaces as a clear setup error instead of a silent no-op. Returns the problems found.
+
+    Permissions attach to the responsible process (the terminal launching this), not a stable
+    desktop-control identity — so the fix is to grant the launching app, and re-grant if you
+    relaunch it differently.
+    """
+    problems: list[str] = []
+    if not ops.screen_capture_granted():
+        problems.append(
+            "Screen Recording NOT granted — `screenshot` will capture wallpaper only. Grant "
+            "the launching app in System Settings → Privacy & Security → Screen Recording."
+        )
+    if not ops.automation_granted():
+        problems.append(
+            "Automation to System Events NOT granted — list_running_apps/close_app will fail "
+            "(-1743). Grant the launching app in System Settings → Privacy & Security → Automation."
+        )
+    for problem in problems:
+        logger.warning(f"[setup] {problem}")
+    return problems
+
+
 def main() -> None:
     """Run the Desktop Control MCP Server."""
     parser = argparse.ArgumentParser(description="Desktop Control MCP Server")
@@ -103,6 +127,8 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1", help="HTTP bind host")
     parser.add_argument("--port", type=int, default=9000, help="HTTP bind port")
     args = parser.parse_args()
+
+    preflight()
 
     kwargs: dict[str, Any] = {"transport": args.transport}
     if args.transport != "stdio":
