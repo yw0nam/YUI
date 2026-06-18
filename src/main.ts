@@ -815,6 +815,9 @@ async function bootstrap(): Promise<void> {
   // 추임새 루프는 speechPlayback로 말하고(speak), speechPlayback의 재생 종료(onPlaybackEnd)가
   // 루프의 다음 반복을 트리거한다 — 서로를 참조하므로 forward let으로 순환을 끊는다.
   let fillerLoop: import("./io/filler-loop").FillerLoop | undefined;
+  // 현재 thinking을 소유한 턴의 token. 턴이 겹치면(supersede) 추월당한 턴의 늦은
+  // onThinkingEnd가 단일 fillerLoop/모션을 정리하지 않게, token이 현재와 다르면 무시한다.
+  let currentThinkingTurn: object | null = null;
   const speechPlayback = createSpeechPlayback({
     renderer,
     surfaces,
@@ -898,7 +901,9 @@ async function bootstrap(): Promise<void> {
       return pool.first.length > 0 || pool.repeat.length > 0;
     },
     // 첫 토큰 지연 시: 생각중 모션(loop) + 추임새 루프 시작(첫 대사 → 반복). 루프가 말하기를 소유한다.
-    onThinkingStart: () => {
+    onThinkingStart: (token) => {
+      // 이 턴이 thinking을 소유한다고 동기로 선언 — 겹친 다음 턴 start가 추월하면 갱신된다.
+      currentThinkingTurn = token;
       // Motion yields when a higher-priority state is current (e.g. window_sit perch:
       // thinking is interrupt_policy "ignore"), but the filler voice always speaks —
       // the utterance is independent of the motion decision.
@@ -908,7 +913,10 @@ async function bootstrap(): Promise<void> {
     // thinking 종료 → 추임새 루프 정지 + idle baseline 복귀. thinking은 loop:true/kind:"state"라
     // cue가 없으면 영영 돌고 previousStable도 오염되므로, 종료 시 idle로 되돌려 둘 다 막는다.
     // (backend 모션 cue priority 70은 도착 시 idle을 그대로 대체한다.)
-    onThinkingEnd: () => {
+    // 추월당한 턴의 늦은 end(token != current)는 무시 — 단일 fillerLoop/모션이 현재 턴 소유다.
+    onThinkingEnd: (token) => {
+      if (token !== currentThinkingTurn) return;
+      currentThinkingTurn = null;
       fillerLoop?.stop();
       renderer.playMotion(null);
     },

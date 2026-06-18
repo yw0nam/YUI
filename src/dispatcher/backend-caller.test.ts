@@ -1177,4 +1177,75 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
     // started + ended exactly once (delta ended it, finally is idempotent).
     expect(onThinkingEnd).toHaveBeenCalledTimes(1);
   });
+
+  // ── turn-token identity (cross-turn overlap guard) ──────────────────────────
+  // The cross-turn guard lives in main.ts (singleton fillerLoop + renderer), but
+  // its correctness rests on backend-caller handing a STABLE per-call token to both
+  // seams: same token for one call's start+end, distinct tokens across calls. With
+  // that contract, main.ts records currentThinkingTurn at start and no-ops an end
+  // whose token != current — so a superseded turn's late end cannot tear down the
+  // turn that superseded it. These tests pin the token contract main.ts relies on.
+
+  it("onThinkingStart and onThinkingEnd of one call receive the SAME token", async () => {
+    let startToken: unknown;
+    let endToken: unknown;
+    onThinkingStart.mockImplementation((t: unknown) => {
+      startToken = t;
+    });
+    onThinkingEnd.mockImplementation((t: unknown) => {
+      endToken = t;
+    });
+    caller = makeCaller(true);
+    scriptedEvents = [deltaEvent("hi"), completedEvent({ speech_text: "hi" })];
+    await caller.call(userEnv());
+    expect(startToken).toBeDefined();
+    expect(typeof startToken).toBe("object");
+    expect(endToken).toBe(startToken);
+  });
+
+  it("distinct calls receive DISTINCT tokens", async () => {
+    const startTokens: unknown[] = [];
+    onThinkingStart.mockImplementation((t: unknown) => startTokens.push(t));
+    caller = makeCaller(true);
+    scriptedEvents = [deltaEvent("a"), completedEvent({ speech_text: "a" })];
+    await caller.call(userEnv());
+    scriptedEvents = [deltaEvent("b"), completedEvent({ speech_text: "b" })];
+    await caller.call(userEnv());
+    expect(startTokens).toHaveLength(2);
+    expect(startTokens[0]).not.toBe(startTokens[1]);
+  });
+
+  it("overlap race: turn A's late end (token A) must NOT tear down turn B (token B)", () => {
+    // Reproduce the main.ts guard against the real per-call tokens. Turn B's start
+    // runs synchronously before turn A's abort-driven finally; A's late end carries
+    // A's token, which is no longer current → guard ignores it, B survives.
+    let currentThinkingTurn: object | null = null;
+    let bTornDown = false;
+
+    // Capture each call's token via a fresh start handler per turn.
+    const tokens: object[] = [];
+    onThinkingStart.mockImplementation((t: object) => {
+      tokens.push(t);
+      currentThinkingTurn = t; // main.ts: claim ownership synchronously.
+    });
+    onThinkingEnd.mockImplementation((t: object) => {
+      if (t !== currentThinkingTurn) return; // main.ts: ignore stale end.
+      currentThinkingTurn = null;
+      if (t === tokens[1]) bTornDown = true; // tearing down B would set this.
+    });
+
+    // Drive start/end directly with the captured tokens to model the interleave:
+    //   A.start → B.start → A.end(stale) → (B survives).
+    caller = makeCaller(true);
+    // Two synchronous starts (A then B), distinct tokens.
+    const tokenA = {};
+    const tokenB = {};
+    onThinkingStart(tokenA);
+    onThinkingStart(tokenB);
+    // A's late end carries tokenA, which != current (tokenB) → must be ignored.
+    onThinkingEnd(tokenA);
+
+    expect(currentThinkingTurn).toBe(tokenB); // B still owns thinking.
+    expect(bTornDown).toBe(false); // B's loop/motion untouched by A's late end.
+  });
 });

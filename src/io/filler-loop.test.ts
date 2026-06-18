@@ -8,7 +8,7 @@
  * No renderer, no pipeline knowledge — pure scheduling logic.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createFillerLoop, type FillerLoopDeps } from "./filler-loop";
 
 // ─────────────────────────────────────────────────────────────────────────────

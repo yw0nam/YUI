@@ -81,10 +81,10 @@ export interface BackendCallerDeps {
   onUsage?: (usage: Usage) => void;
   /** 현재 agent 설정(추론 강도 + instructions 오버라이드) 스냅샷. present일 때만 요청에 반영. */
   getAgentSettings?: () => import("../io/agent-settings").AgentSettings;
-  /** TTFT thinking 진입 sink — filler 활성 시 call() 진입에서 동기로 1회. main.ts가 thinking 모션 + 필러 발화 루프로 연결. */
-  onThinkingStart?: () => void;
-  /** TTFT thinking 종료 sink — 첫 speech_delta(실제 응답 발화 시작) / 턴 종료(어느 경로든) 시 1회. thinking을 시작했을 때만 호출. */
-  onThinkingEnd?: () => void;
+  /** TTFT thinking 진입 sink — filler 활성 시 call() 진입에서 동기로 1회. token은 이 call() 고유. main.ts가 thinking 모션 + 필러 발화 루프로 연결. */
+  onThinkingStart?: (token: object) => void;
+  /** TTFT thinking 종료 sink — 첫 speech_delta(실제 응답 발화 시작) / 턴 종료(어느 경로든) 시 1회. start와 동일 token. main.ts가 cross-turn supersede를 token으로 가린다. */
+  onThinkingEnd?: (token: object) => void;
   /** filler 활성 여부 조회 — filler 켜짐 + 풀 non-empty면 true. true일 때만 thinking을 동기로 시작한다(매 턴 호출). */
   getFiller?: () => boolean;
   /** 구조화 로깅(없으면 backend_caller namespace logger). */
@@ -270,17 +270,20 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     // 종료는 실제 응답 발화(첫 speech_delta) 시작 시 1회 — 그 전의 usage/express/tool_status는
     // thinking을 깨뜨리지 않는다. 침묵/에러/abort 턴은 finally가 종료를 보장한다.
     // call()은 턴이 겹칠 수 있어 상태를 per-invocation local로 둔다(절대 closure/module scope 금지).
+    // turnToken: 이 call() 고유 identity — start/end에 같은 token을 실어 main.ts가
+    // cross-turn supersede(겹친 다음 턴이 이 턴을 추월)에서 stale end를 token으로 가린다.
+    const turnToken = {};
     let thinkingStarted = false;
     let thinkingDone = false;
     const startThinking = () => {
       if (thinkingStarted || thinkingDone) return;
       thinkingStarted = true;
-      deps.onThinkingStart?.();
+      deps.onThinkingStart?.(turnToken);
     };
     const endThinking = () => {
       if (thinkingDone) return;
       thinkingDone = true;
-      if (thinkingStarted) deps.onThinkingEnd?.();
+      if (thinkingStarted) deps.onThinkingEnd?.(turnToken);
     };
 
     // 전 구간을 try/finally로 감싼다 — 어느 종료 경로든 thinking 종료가 정확히 1회 보장된다
