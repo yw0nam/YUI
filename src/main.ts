@@ -101,6 +101,7 @@ import {
   inputBottomFromAnchor,
 } from "./ui/anchor";
 import { createCaptureIndicator } from "./ui/capture-indicator";
+import { subscribe as subscribeLocale } from "./ui/i18n";
 import { createMockDriver } from "./ui/mock";
 import { createQuickControls } from "./ui/quick-controls";
 import { createSurfaces } from "./ui/surfaces";
@@ -202,34 +203,52 @@ async function bootstrap(): Promise<void> {
     }
   });
 
-  const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
+  const screenshotSettings = createScreenshotSettings({
+    storage: localStorageScreenshotStorage(),
+  });
   // 유휴 절전(30fps 캡) on/off. 기본 ON.
   const idleThrottleSettings = createIdleThrottleSettings({
     storage: localStorageIdleThrottleStorage(),
   });
   // 주도적 반응(무대화 N분 → proactive.<id>) 설정. 소스 firing만 게이팅 — 구독은 멈추지 않는다.
-  const proactiveSettings = createProactiveSettings({ storage: localStorageProactiveStorage() });
+  const proactiveSettings = createProactiveSettings({
+    storage: localStorageProactiveStorage(),
+  });
   // 시간대 인사(HH:MM → schedule.<id>) 설정.
-  const scheduleSettings = createScheduleSettings({ storage: localStorageScheduleStorage() });
-  const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
+  const scheduleSettings = createScheduleSettings({
+    storage: localStorageScheduleStorage(),
+  });
+  const lipsyncSettings = createLipsyncSettings({
+    storage: localStorageLipsyncStorage(),
+  });
   const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
-  const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
+  const agentSettings = createAgentSettings({
+    storage: localStorageAgentStorage(),
+  });
   // TTFT 추임새(생각중 모션 + 필러 발화) 설정. 두 창이 wireStorageSync로 동기화.
-  const fillerSettings = createFillerSettings({ storage: localStorageFillerStorage() });
+  const fillerSettings = createFillerSettings({
+    storage: localStorageFillerStorage(),
+  });
   // 세션 연속성 store: 회전 id 포인터 + 진단(used/window/last-compression). 두 창이
   // wireStorageSync로 동기화하므로 다른 store들과 함께 일찍 만든다(config/dispatcher 비의존).
   const sessionStore = createSessionStore(localStorageSessionStorage());
   const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
   // 사용자 편집 엔드포인트 오버라이드: localStorage가 bundled config를 덮는다(빈 값=폴백).
-  const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
+  const endpointsSettings = createEndpointsSettings({
+    storage: localStorageEndpointsStorage(),
+  });
   // 런타임 chat API 키 오버라이드: localStorage가 build-time 키를 덮는다(빈 값=폴백). 값은 시크릿.
-  const chatKeySettings = createChatKeySettings({ storage: localStorageChatKeyStorage() });
+  const chatKeySettings = createChatKeySettings({
+    storage: localStorageChatKeyStorage(),
+  });
   // config.endpoints 위에 오버라이드를 얹은 effective 엔드포인트. 호출 시점에 평가(핫리로드 친화).
   function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
     return mergeEndpoints(config.get().endpoints, endpointsSettings.get());
   }
   // 카메라 줌: persist된 배율을 부트 시 적용하고, 변경(휠/크로스윈도우)마다 렌더러로 흘린다.
-  const cameraSettings = createCameraSettings({ storage: localStorageCameraStorage() });
+  const cameraSettings = createCameraSettings({
+    storage: localStorageCameraStorage(),
+  });
   renderer.setZoom(cameraSettings.get().zoom);
   cameraSettings.subscribe((s) => renderer.setZoom(s.zoom));
   renderer.setIdleThrottleEnabled(idleThrottleSettings.get().enabled);
@@ -290,7 +309,10 @@ async function bootstrap(): Promise<void> {
   };
   // 동일하게 broadcast/reload 되는 설정 store들. cameraSettings는 reload가
   // 줌까지 전파되어 별도 주석으로 남기므로 배열에서 제외한다.
-  type SyncedStore = { subscribe(cb: () => void): () => void; reloadFromStorage(): void };
+  type SyncedStore = {
+    subscribe(cb: () => void): () => void;
+    reloadFromStorage(): void;
+  };
   const syncedSettingsStores: SyncedStore[] = [
     agentSettings,
     endpointsSettings,
@@ -439,74 +461,98 @@ async function bootstrap(): Promise<void> {
   // 이 창에서 고른 화자를 설정 창 UI에 반영하기 위해 cross-window로 알린다.
   speakerSelection.subscribe(broadcastSettings);
 
-  const quickControls = createQuickControls({
-    mount: root,
-    settings: screenshotSettings,
-    idleThrottleSettings,
-    proactiveSettings,
-    scheduleSettings,
-    sourceProvider: screenSourceProvider,
-    voiceStatus: voiceInputStatus,
-    lipsync: lipsyncSettings,
-    vad: vadSettings,
-    fillerSettings,
-    agentSettings,
-    vrmSelection,
-    swapVrm,
-    importVrm,
-    removeUserVrm,
-    speakerSelection,
-    swapSpeaker,
-    refreshSpeaker,
-    importVoice,
-    removeUserVoice: removeUserVoiceFile,
-    resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
-    onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
-    onGainPreviewEnd: () => renderer.stopMouth(),
-    // 빈 instructions일 때 placeholder로 보여줄 기본 지침(config 미로드 시 무시).
-    getDefaultInstructions: () => {
-      try {
-        return getEndpoints().chat_instructions;
-      } catch {
-        return undefined;
-      }
-    },
-    endpointsSettings,
-    chatKeySettings,
-    getEndpointDefaults: () => {
-      try {
-        const e = config.get().endpoints;
-        return {
-          chat_base_url: e.chat_base_url,
-          stt_base_url: e.stt_base_url,
-          tts_base_url: e.tts_base_url,
-          irodori_base_url: e.irodori_base_url ?? "",
-          broker_base_url: e.broker_base_url ?? "",
-          chat_model: e.chat_model ?? "",
-          tts_provider: e.tts_provider ?? "",
-        };
-      } catch {
-        return undefined;
-      }
-    },
-    getDefaultProvider: () => {
-      try {
-        return config.get().endpoints.tts_provider;
-      } catch {
-        return undefined;
-      }
-    },
-    onPopOut: () => openSettings(),
-  });
-  const captureIndicator = createCaptureIndicator({
-    mount: root,
-    settings: screenshotSettings,
-    onActivate: () => quickControls.open(),
-  });
-  const voiceInputIndicator = createVoiceInputIndicator({
-    mount: root,
-    status: voiceInputStatus,
-    onActivate: () => quickControls.open(),
+  const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
+    createQuickControls({
+      mount: root,
+      settings: screenshotSettings,
+      idleThrottleSettings,
+      proactiveSettings,
+      scheduleSettings,
+      sourceProvider: screenSourceProvider,
+      voiceStatus: voiceInputStatus,
+      lipsync: lipsyncSettings,
+      vad: vadSettings,
+      fillerSettings,
+      agentSettings,
+      vrmSelection,
+      swapVrm,
+      importVrm,
+      removeUserVrm,
+      speakerSelection,
+      swapSpeaker,
+      refreshSpeaker,
+      importVoice,
+      removeUserVoice: removeUserVoiceFile,
+      resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
+      onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
+      onGainPreviewEnd: () => renderer.stopMouth(),
+      // 빈 instructions일 때 placeholder로 보여줄 기본 지침(config 미로드 시 무시).
+      getDefaultInstructions: () => {
+        try {
+          return getEndpoints().chat_instructions;
+        } catch {
+          return undefined;
+        }
+      },
+      endpointsSettings,
+      chatKeySettings,
+      getEndpointDefaults: () => {
+        try {
+          const e = config.get().endpoints;
+          return {
+            chat_base_url: e.chat_base_url,
+            stt_base_url: e.stt_base_url,
+            tts_base_url: e.tts_base_url,
+            irodori_base_url: e.irodori_base_url ?? "",
+            broker_base_url: e.broker_base_url ?? "",
+            chat_model: e.chat_model ?? "",
+            tts_provider: e.tts_provider ?? "",
+          };
+        } catch {
+          return undefined;
+        }
+      },
+      getDefaultProvider: () => {
+        try {
+          return config.get().endpoints.tts_provider;
+        } catch {
+          return undefined;
+        }
+      },
+      onPopOut: () => openSettings(),
+    });
+  // DOM surfaces re-mounted on locale change (see i18n subscriber below). Held in
+  // let bindings; onActivate arrows read the live binding, so recreating is safe.
+  let quickControls = buildQuickControls();
+  const buildCaptureIndicator = (): ReturnType<typeof createCaptureIndicator> =>
+    createCaptureIndicator({
+      mount: root,
+      settings: screenshotSettings,
+      onActivate: () => quickControls.open(),
+    });
+  const buildVoiceInputIndicator = (): ReturnType<typeof createVoiceInputIndicator> =>
+    createVoiceInputIndicator({
+      mount: root,
+      status: voiceInputStatus,
+      onActivate: () => quickControls.open(),
+    });
+  let captureIndicator = buildCaptureIndicator();
+  let voiceInputIndicator = buildVoiceInputIndicator();
+
+  // Re-mount the localized DOM surfaces when the display language changes.
+  // Deferred to a microtask so the triggering click handler (the picker lives
+  // inside quick-controls) unwinds before its host is disposed. Long-lived
+  // non-UI singletons (renderer, TTS pipeline, VAD, voiceStatus store) and the
+  // dispatcher-wired `surfaces` instance are intentionally NOT re-created here.
+  const unsubscribeLocale = subscribeLocale(() => {
+    queueMicrotask(() => {
+      voiceInputIndicator.dispose();
+      captureIndicator.dispose();
+      quickControls.dispose();
+      quickControls = buildQuickControls();
+      captureIndicator = buildCaptureIndicator();
+      voiceInputIndicator = buildVoiceInputIndicator();
+    });
   });
 
   function onContextMenu(e: MouseEvent): void {
@@ -518,6 +564,7 @@ async function bootstrap(): Promise<void> {
   if (import.meta.env.DEV) {
     import.meta.hot?.dispose(() => {
       unsubAnchor();
+      unsubscribeLocale();
       quickControls.dispose();
       if (broadcastTimer) clearTimeout(broadcastTimer);
       bridge.dispose();
@@ -581,7 +628,10 @@ async function bootstrap(): Promise<void> {
       }
       await windowDropSource.start();
     })().catch((err) =>
-      log.warn("window_drop_source_start_failed", { degrade: true, error: String(err) }),
+      log.warn("window_drop_source_start_failed", {
+        degrade: true,
+        error: String(err),
+      }),
     );
   }
   let sttVad: SttVad | null = null;
@@ -617,7 +667,10 @@ async function bootstrap(): Promise<void> {
   // 핸들이 참조할 수 있게 forward holder를 둔다.
   let dispatcherRef: Dispatcher | null = null;
   // 발화 후보 소스도 config(cfg.sources) 로드 후 생성 — teardown에서 stop하도록 holder를 둔다.
-  let proactiveSourceRef: { stop(): void; noteInteraction(ts?: number): void } | null = null;
+  let proactiveSourceRef: {
+    stop(): void;
+    noteInteraction(ts?: number): void;
+  } | null = null;
   let scheduleSourceRef: { stop(): void } | null = null;
   // guardrails도 config 로드 후 생성 — 핫리로드 setConfig가 닿게 holder를 둔다.
   let guardrailsRef: Guardrails | null = null;
@@ -628,7 +681,10 @@ async function bootstrap(): Promise<void> {
   // 부트에서 1회 해소해 캐시하고, 재지정(override) 시에도 같은 fetch를 재사용한다.
   let brokerFetch: typeof fetch | undefined;
   function makeBroker(baseUrl: string): BrokerClient {
-    return createBrokerClient({ baseUrl, ...(brokerFetch ? { fetch: brokerFetch } : {}) });
+    return createBrokerClient({
+      baseUrl,
+      ...(brokerFetch ? { fetch: brokerFetch } : {}),
+    });
   }
 
   // irodori provider일 때만 enum 테이블을 best-effort 로드. 실패하면 warn 후 null →
@@ -727,7 +783,10 @@ async function bootstrap(): Promise<void> {
             ts: Date.now(),
             hint_tier: 1,
             dnd_override: true,
-            payload: { target_window_rect: rect, edge_local_ypx: rect.y - pos.y / sf },
+            payload: {
+              target_window_rect: rect,
+              edge_local_ypx: rect.y - pos.y / sf,
+            },
           });
         },
         // 점유 시뮬레이션: 실제 두 번째 창 없이 occlusion poll의 이탈 결과(window_sit_exit)를 발사한다.
@@ -844,7 +903,9 @@ async function bootstrap(): Promise<void> {
   });
   if (import.meta.env.DEV) {
     import.meta.hot?.dispose(() => speechPlayback.dispose());
-    Object.assign(globalThis as Record<string, unknown>, { __yuiSpeech: speechPlayback });
+    Object.assign(globalThis as Record<string, unknown>, {
+      __yuiSpeech: speechPlayback,
+    });
   }
 
   // ── TTFT 추임새 ───────────────────────────────────────────────────────────
@@ -974,7 +1035,10 @@ async function bootstrap(): Promise<void> {
     const bootAlpha = cfg.avatar.hit_test?.alpha_threshold;
     if (bootAlpha !== undefined) renderer.setHitTestThreshold(bootAlpha);
     // 실제 manifest 주입 후 부트 로드 → persist된 override가 시작 시점에 적용된다.
-    vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
+    vrmSelection.setManifest({
+      available: cfg.avatar.available,
+      defaultUrl: cfg.avatar.vrm_url,
+    });
     speakerSelection.setManifest({
       available: cfg.endpoints.irodori_voices,
       defaultId: cfg.endpoints.irodori_speaker ?? "",
@@ -1094,18 +1158,26 @@ async function bootstrap(): Promise<void> {
     renderer.setFraming(cfg.avatar.framing ?? {});
     const reloadAlpha = cfg.avatar.hit_test?.alpha_threshold;
     if (reloadAlpha !== undefined) renderer.setHitTestThreshold(reloadAlpha);
-    vrmSelection.setManifest({ available: cfg.avatar.available, defaultUrl: cfg.avatar.vrm_url });
+    vrmSelection.setManifest({
+      available: cfg.avatar.available,
+      defaultUrl: cfg.avatar.vrm_url,
+    });
     void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
       log.error("vrm_hot_swap_failed", { error: String(err) }),
     );
   });
   config.onError((err) =>
-    log.error("config_reload_failed", { kept_previous: true, error: String(err) }),
+    log.error("config_reload_failed", {
+      kept_previous: true,
+      error: String(err),
+    }),
   );
   // dev에서만 폴링 watcher 가동 — configs/*.json 편집 시 즉시 반영.
   if (import.meta.env.DEV) {
     config.start();
-    Object.assign(globalThis as Record<string, unknown>, { __yuiConfig: config });
+    Object.assign(globalThis as Record<string, unknown>, {
+      __yuiConfig: config,
+    });
     // HMR로 모듈이 재실행되면 이전 store의 setInterval이 쌓인다 → dispose에서 중지.
     import.meta.hot?.dispose(() => config.stop());
     // broker liveness poll의 setInterval도 HMR 간에 누수되지 않게 정리한다.

@@ -11,6 +11,7 @@
  */
 
 import "./surfaces.css";
+import { t } from "./i18n";
 import { renderMarkdownInline } from "./markdown";
 import { getToolLabel } from "./tool-labels";
 
@@ -90,7 +91,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     <form class="yui-input" novalidate hidden>
       <div class="yui-input__tray"></div>
       <div class="yui-input__row">
-        <button type="button" class="yui-input__attach" aria-label="이미지 첨부">
+        <button type="button" class="yui-input__attach" aria-label="${t("aria.attach_image")}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -102,11 +103,11 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
-          placeholder="말 걸기…"
-          aria-label="YUI에게 말 걸기"
+          placeholder="${t("input.placeholder")}"
+          aria-label="${t("aria.input_field")}"
         />
         <span class="yui-input__error" role="alert"></span>
-        <button class="yui-input__send" type="submit" aria-label="보내기">
+        <button class="yui-input__send" type="submit" aria-label="${t("aria.send")}">
           <span class="icon-send" aria-hidden="true">
             <svg viewBox="0 0 16 16">
               <line x1="8" y1="13" x2="8" y2="3"/>
@@ -327,7 +328,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     remove.type = "button";
     remove.className = "yui-chip__remove";
     remove.textContent = "×";
-    remove.setAttribute("aria-label", "첨부 제거");
+    remove.setAttribute("aria-label", t("aria.remove_attachment"));
     remove.addEventListener("click", () => {
       const idx = Array.from(trayEl.children).indexOf(chip);
       if (idx !== -1) attachments.splice(idx, 1);
@@ -345,7 +346,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   function setBusy(value: boolean): void {
     busy = value;
     formEl.classList.toggle("is-running", value);
-    sendBtn.setAttribute("aria-label", value ? "멈추기" : "보내기");
+    sendBtn.setAttribute("aria-label", value ? t("aria.stop") : t("aria.send"));
   }
 
   function setInputEnabled(enabled: boolean): void {

@@ -34,6 +34,7 @@ import { createSessionStore } from "../io/session-store";
 import { createSpeakerSelection, type SpeakerOption } from "../io/speaker-selection";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../io/vad-settings";
 import { createVrmSelection } from "../io/vrm-selection";
+import { getLocale, LOCALE_DISPLAY_NAMES, setLocale } from "./i18n";
 import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
 
 // jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
@@ -194,6 +195,8 @@ describe("createQuickControls — gain row", () => {
     } catch {
       /* localStorage 미사용 환경 무시 */
     }
+    // Existing assertions pin Korean copy/selectors; render the panel in ko.
+    setLocale("ko");
   });
 
   afterEach(() => {
@@ -2591,6 +2594,8 @@ describe("createQuickControls — session section", () => {
     } catch {
       /* localStorage 미사용 환경 무시 */
     }
+    // Existing assertions pin Korean copy/selectors; render the panel in ko.
+    setLocale("ko");
   });
 
   afterEach(() => {
@@ -2758,6 +2763,8 @@ describe("createQuickControls — tabs + VAD slider", () => {
     } catch {
       /* localStorage 미사용 환경 무시 */
     }
+    // Existing assertions pin Korean copy/selectors; render the panel in ko.
+    setLocale("ko");
   });
 
   afterEach(() => {
@@ -3222,6 +3229,121 @@ describe("createQuickControls — tabs + VAD slider", () => {
     fs.setEnabled(false);
     expect(sw.getAttribute("aria-checked")).toBe("false");
 
+    qc.dispose();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Language picker (i18n)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createQuickControls — language picker", () => {
+  let mount: HTMLElement;
+
+  beforeEach(() => {
+    let rafId = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return ++rafId;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    try {
+      globalThis.localStorage?.clear();
+    } catch {
+      /* localStorage 미사용 환경 무시 */
+    }
+    setLocale("en");
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    setLocale("en");
+    vi.restoreAllMocks();
+  });
+
+  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    return createQuickControls({
+      mount,
+      settings: makeSettings(),
+      idleThrottleSettings: createIdleThrottleSettings(),
+      sourceProvider: makeSourceProvider(),
+      voiceStatus: makeVoiceStatus(),
+      lipsync: createLipsyncSettings(),
+      vad: createVadSettings(),
+      onGainPreview: vi.fn(),
+      onGainPreviewEnd: vi.fn(),
+      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+      endpointsSettings: createEndpointsSettings(),
+      proactiveSettings: createProactiveSettings(),
+      scheduleSettings: createScheduleSettings(),
+      chatKeySettings: createChatKeySettings(),
+      onPopOut: vi.fn(),
+      vrmSelection: createVrmSelection({
+        available: [
+          { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
+        ],
+        defaultUrl: "/vrms/carlotta.vrm",
+      }),
+      swapVrm: vi.fn(async () => {}),
+      speakerSelection: createSpeakerSelection({
+        available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
+        defaultId: "natsume",
+      }),
+      swapSpeaker: vi.fn(async () => {}),
+      refreshSpeaker: vi.fn(async () => {}),
+      ...extra,
+    });
+  }
+
+  it("renders a 3-way language segmented control with display names", () => {
+    const qc = buildQc();
+    qc.open();
+    const seg = qc.el.querySelector<HTMLElement>(".yui-lang-seg")!;
+    expect(seg).not.toBeNull();
+    const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    const locales = btns.map((b) => b.dataset.locale);
+    expect(locales).toEqual(["ja", "en", "ko"]);
+    const labels = btns.map((b) => b.textContent);
+    expect(labels).toEqual([
+      LOCALE_DISPLAY_NAMES.ja,
+      LOCALE_DISPLAY_NAMES.en,
+      LOCALE_DISPLAY_NAMES.ko,
+    ]);
+    qc.dispose();
+  });
+
+  it("reflects the current locale as the checked segment on render", () => {
+    setLocale("ko");
+    const qc = buildQc();
+    qc.open();
+    const checked = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-lang-seg .yui-seg__btn[aria-checked='true']",
+    )!;
+    expect(checked.dataset.locale).toBe("ko");
+    qc.dispose();
+  });
+
+  it("clicking a language segment calls setLocale with that locale", () => {
+    const qc = buildQc();
+    qc.open();
+    expect(getLocale()).toBe("en");
+    const koBtn = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-lang-seg .yui-seg__btn[data-locale='ko']",
+    )!;
+    koBtn.click();
+    expect(getLocale()).toBe("ko");
+    qc.dispose();
+  });
+
+  it("renders panel text via t() in the active locale", () => {
+    setLocale("ko");
+    const qc = buildQc();
+    qc.open();
+    // The reasoning-effort field label is keyed; ko renders the Korean copy.
+    const label = qc.el.querySelector<HTMLElement>(".yui-field-row__label")!;
+    expect(label.textContent).toBe("추론 강도");
     qc.dispose();
   });
 });

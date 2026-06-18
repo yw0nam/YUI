@@ -1,4 +1,5 @@
 import "./voice-input-indicator.css";
+import { t } from "./i18n";
 import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
 
 interface VoiceInputIndicatorOptions {
@@ -30,9 +31,12 @@ export function createVoiceInputIndicator({
   mount.appendChild(el);
 
   function reflect(snapshot: VoiceInputStatusSnapshot): void {
+    // Map state → translated label directly; ignore the baked snapshot.label so
+    // the visible text/aria stays correct across a locale change + host re-mount.
+    const label = t(`voice.state.${snapshot.state}`);
     el.dataset.state = snapshot.state;
-    labelEl.textContent = snapshot.label;
-    el.setAttribute("aria-label", `음성 입력: ${snapshot.label}`);
+    labelEl.textContent = label;
+    el.setAttribute("aria-label", t("aria.voice_input", { label }));
     el.classList.toggle("is-visible", snapshot.visible);
   }
 

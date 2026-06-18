@@ -5,6 +5,7 @@
 
 import "./capture-indicator.css";
 import type { createScreenshotSettings } from "../io/screenshot-settings";
+import { t } from "./i18n";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 
@@ -36,7 +37,7 @@ export function createCaptureIndicator({
       />
       <circle cx="12" cy="12" r="2.4" stroke="currentColor" stroke-width="1.7"/>
     </svg>
-    <span>화면 보는 중</span>
+    <span>${t("capture.watching")}</span>
     <span class="yui-capture__live" aria-hidden="true"></span>
   `;
 

@@ -1,38 +1,23 @@
 /**
- * Tool-id → display label map.
+ * Tool-id → display label lookup.
  *
- * English by default. Structured for i18n extension: add a new locale key to
- * TOOL_LABELS and getToolLabel will pick it up automatically.
- *
- * Lookup order: TOOL_LABELS[locale][id] → TOOL_LABELS.en[id] → FALLBACK.
+ * Delegates to the i18n dictionary (tool.<id> keys, English in every locale).
+ * Unknown tool ids fall back to a generic "Working…" label.
  */
+
+import { t } from "./i18n";
 
 const FALLBACK = "Working…";
 
-/** Locale → tool-id → display label. Extend for i18n without touching core logic. */
-export const TOOL_LABELS: Record<string, Record<string, string>> = {
-  en: {
-    web_search: "Searching…",
-    browser: "Browsing…",
-    terminal: "Running…",
-    code: "Running…",
-    file: "Reading…",
-    read_file: "Reading…",
-    write_file: "Writing…",
-    python: "Running…",
-  },
-};
-
 /**
  * Returns the display label for a given tool id and optional locale.
- * Falls back to English, then to the generic fallback if neither matches.
+ * The locale argument is accepted for call-site compatibility; tool labels are
+ * English in every locale, so the i18n lookup resolves the same value regardless.
+ * Falls back to the generic label when the tool id is unknown.
  */
-export function getToolLabel(toolId: string, locale = "en"): string {
-  const localMap = TOOL_LABELS[locale];
-  if (localMap && toolId in localMap) return localMap[toolId];
-
-  const enMap = TOOL_LABELS.en;
-  if (enMap && toolId in enMap) return enMap[toolId];
-
-  return FALLBACK;
+export function getToolLabel(toolId: string, _locale?: string): string {
+  if (!toolId) return FALLBACK;
+  const key = `tool.${toolId}`;
+  const value = t(key);
+  return value === key ? FALLBACK : value;
 }

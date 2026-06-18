@@ -46,6 +46,7 @@ import {
   localStorageVrmStorage,
 } from "./io/vrm-selection";
 import { createLogger, initLogger } from "./logger";
+import { subscribe as subscribeLocale } from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls";
 import { createVoiceInputStatus, type VoiceInputState } from "./ui/voice-input-status";
 
@@ -174,72 +175,86 @@ async function bootstrap(): Promise<void> {
     speakerSelection.select(option.id);
   };
 
-  const quickControls = createQuickControls({
-    mount: app,
-    variant: "window",
-    agentSettings,
-    settings: screenshotSettings,
-    idleThrottleSettings,
-    proactiveSettings,
-    scheduleSettings,
-    sourceProvider,
-    voiceStatus: voiceInputStatus,
-    lipsync: lipsyncSettings,
-    vad: vadSettings,
-    fillerSettings,
-    vrmSelection,
-    swapVrm,
-    importVrm,
-    removeUserVrm,
-    speakerSelection,
-    swapSpeaker,
-    refreshSpeaker,
-    importVoice,
-    removeUserVoice: removeUserVoiceFile,
-    resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
-    // 렌더러는 메인 창에 있으므로 게인 프리뷰를 브리지로 전달 → 메인 창 VRM 입이 움직인다.
-    onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
-    onGainPreviewEnd: () => bridge.emitMouthPreview(null),
-    getDefaultInstructions: () => {
-      if (!configLoaded) return undefined;
-      try {
-        return config.get().endpoints.chat_instructions;
-      } catch {
-        return undefined;
-      }
-    },
-    endpointsSettings,
-    chatKeySettings,
-    getEndpointDefaults: () => {
-      if (!configLoaded) return undefined;
-      try {
-        const e = config.get().endpoints;
-        return {
-          chat_base_url: e.chat_base_url,
-          stt_base_url: e.stt_base_url,
-          tts_base_url: e.tts_base_url,
-          irodori_base_url: e.irodori_base_url ?? "",
-          broker_base_url: e.broker_base_url ?? "",
-          chat_model: e.chat_model ?? "",
-          tts_provider: e.tts_provider ?? "",
-        };
-      } catch {
-        return undefined;
-      }
-    },
-    getDefaultProvider: () => {
-      if (!configLoaded) return undefined;
-      try {
-        return config.get().endpoints.tts_provider;
-      } catch {
-        return undefined;
-      }
-    },
-    sessionDiagnostics,
-    sessionStore,
-  });
+  const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
+    createQuickControls({
+      mount: app,
+      variant: "window",
+      agentSettings,
+      settings: screenshotSettings,
+      idleThrottleSettings,
+      proactiveSettings,
+      scheduleSettings,
+      sourceProvider,
+      voiceStatus: voiceInputStatus,
+      lipsync: lipsyncSettings,
+      vad: vadSettings,
+      fillerSettings,
+      vrmSelection,
+      swapVrm,
+      importVrm,
+      removeUserVrm,
+      speakerSelection,
+      swapSpeaker,
+      refreshSpeaker,
+      importVoice,
+      removeUserVoice: removeUserVoiceFile,
+      resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
+      // 렌더러는 메인 창에 있으므로 게인 프리뷰를 브리지로 전달 → 메인 창 VRM 입이 움직인다.
+      onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
+      onGainPreviewEnd: () => bridge.emitMouthPreview(null),
+      getDefaultInstructions: () => {
+        if (!configLoaded) return undefined;
+        try {
+          return config.get().endpoints.chat_instructions;
+        } catch {
+          return undefined;
+        }
+      },
+      endpointsSettings,
+      chatKeySettings,
+      getEndpointDefaults: () => {
+        if (!configLoaded) return undefined;
+        try {
+          const e = config.get().endpoints;
+          return {
+            chat_base_url: e.chat_base_url,
+            stt_base_url: e.stt_base_url,
+            tts_base_url: e.tts_base_url,
+            irodori_base_url: e.irodori_base_url ?? "",
+            broker_base_url: e.broker_base_url ?? "",
+            chat_model: e.chat_model ?? "",
+            tts_provider: e.tts_provider ?? "",
+          };
+        } catch {
+          return undefined;
+        }
+      },
+      getDefaultProvider: () => {
+        if (!configLoaded) return undefined;
+        try {
+          return config.get().endpoints.tts_provider;
+        } catch {
+          return undefined;
+        }
+      },
+      sessionDiagnostics,
+      sessionStore,
+    });
+
+  // quick-controls는 표시 언어 변경 시 통째로 재마운트한다(setLocale → i18n.subscribe).
+  // 컴포넌트가 자기 클릭 핸들러 도중 자신을 파괴하지 않도록 마이크로태스크로 미룬다.
+  let quickControls = buildQuickControls();
   // window variant는 생성 시 자동으로 열리지만 멱등하므로 방어적으로 한 번 더 호출.
   quickControls.open();
+
+  const unsubscribeLocale = subscribeLocale(() => {
+    queueMicrotask(() => {
+      quickControls.dispose();
+      quickControls = buildQuickControls();
+      quickControls.open();
+    });
+  });
+  window.addEventListener("beforeunload", unsubscribeLocale);
 
   // 메인 창의 편집을 반영: cross-window storage 이벤트 + 포커스 폴백.
   // vrmSelection도 함께 재로드해 펫 창에서 바뀐 선택이 이 창 UI에 반영되게 한다.

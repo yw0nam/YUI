@@ -4,6 +4,7 @@
  */
 
 import "./cue-list.css";
+import { t } from "./i18n";
 
 // ── 스토어 구조 인터페이스 (스케줄/프로액티브 양쪽에 맞는 최소 공통 형태) ──
 
@@ -125,7 +126,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
       const input = document.createElement("input");
       input.type = "time";
       input.className = "yui-time-input";
-      input.setAttribute("aria-label", "시각");
+      input.setAttribute("aria-label", t("cue.time_aria"));
       input.setAttribute("data-testid", "cue-trigger-input");
       const value = (cue as unknown as Record<string, unknown>)[trigger.field];
       input.value = typeof value === "string" ? value : "";
@@ -136,14 +137,14 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     } else {
       const label = document.createElement("span");
       label.className = "yui-cue__minutes-label";
-      label.textContent = "무대화";
+      label.textContent = t("cue.minutes_word");
 
       const input = document.createElement("input");
       input.type = "number";
       input.className = "yui-num-input";
       input.min = "1";
       input.max = "999";
-      input.setAttribute("aria-label", "무대화 분");
+      input.setAttribute("aria-label", t("cue.minutes_aria"));
       input.setAttribute("data-testid", "cue-trigger-input");
       const value = (cue as unknown as Record<string, unknown>)[trigger.field];
       input.value = typeof value === "number" ? String(value) : "";
@@ -156,7 +157,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
       const suffix = document.createElement("span");
       suffix.className = "yui-cue__suffix";
       suffix.setAttribute("data-testid", "cue-minutes-suffix");
-      suffix.textContent = "분";
+      suffix.textContent = t("cue.minutes_suffix");
 
       wrapper.appendChild(label);
       wrapper.appendChild(input);
@@ -174,11 +175,11 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     edLabel.className = "yui-cue__ed-label";
 
     if (trigger.kind === "time") {
-      edLabel.textContent = "시각";
+      edLabel.textContent = t("cue.time_aria");
       const input = document.createElement("input");
       input.type = "time";
       input.className = "yui-time-input";
-      input.setAttribute("aria-label", "인사 시각");
+      input.setAttribute("aria-label", t("cue.greeting_time_aria"));
       const value = (cue as unknown as Record<string, unknown>)[trigger.field];
       input.value = typeof value === "string" ? value : "";
       input.addEventListener("change", () => {
@@ -187,13 +188,13 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
       row.appendChild(edLabel);
       row.appendChild(input);
     } else {
-      edLabel.textContent = "무대화";
+      edLabel.textContent = t("cue.minutes_word");
       const input = document.createElement("input");
       input.type = "number";
       input.className = "yui-num-input";
       input.min = "1";
       input.max = "999";
-      input.setAttribute("aria-label", "무대화 분");
+      input.setAttribute("aria-label", t("cue.minutes_aria"));
       const value = (cue as unknown as Record<string, unknown>)[trigger.field];
       input.value = typeof value === "number" ? String(value) : "";
       input.addEventListener("change", () => {
@@ -203,7 +204,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
       });
       const suffix = document.createElement("span");
       suffix.className = "yui-cue__suffix";
-      suffix.textContent = "분";
+      suffix.textContent = t("cue.minutes_suffix");
       row.appendChild(edLabel);
       row.appendChild(input);
       row.appendChild(suffix);
@@ -229,7 +230,10 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     cueSwitch.className = "yui-switch yui-switch--sm";
     cueSwitch.setAttribute("role", "switch");
     cueSwitch.setAttribute("aria-checked", String(cue.enabled));
-    cueSwitch.setAttribute("aria-label", `${cue.label || "큐"} 활성화`);
+    cueSwitch.setAttribute(
+      "aria-label",
+      t("cue.toggle_aria", { name: cue.label || t("cue.toggle_fallback") }),
+    );
     cueSwitch.setAttribute("data-testid", "cue-switch");
     cueSwitch.addEventListener("click", () => {
       store.updateCue(cue.id, {
@@ -255,7 +259,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "yui-cue__delete";
-    deleteBtn.setAttribute("aria-label", "삭제");
+    deleteBtn.setAttribute("aria-label", t("cue.delete"));
     deleteBtn.setAttribute("data-testid", "cue-delete");
     deleteBtn.innerHTML = DELETE_SVG;
     deleteBtn.addEventListener("click", (e) => {
@@ -278,11 +282,11 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     nameEdRow.className = "yui-cue__ed-row";
     const nameEdLabel = document.createElement("span");
     nameEdLabel.className = "yui-cue__ed-label";
-    nameEdLabel.textContent = "이름";
+    nameEdLabel.textContent = t("cue.name_label");
     const nameInput = document.createElement("input");
     nameInput.type = "text";
     nameInput.className = "yui-cue__name-input";
-    nameInput.setAttribute("aria-label", "이름");
+    nameInput.setAttribute("aria-label", t("cue.name_aria"));
     nameInput.value = cue.label;
     const prevLabel = { value: cue.label };
     nameInput.addEventListener("change", () => {
@@ -306,13 +310,13 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
 
     const ctxLabel = document.createElement("span");
     ctxLabel.className = "yui-cue__ctx-label";
-    ctxLabel.textContent = "컨텍스트";
+    ctxLabel.textContent = t("cue.ctx_label");
 
     const ctxTextarea = document.createElement("textarea");
     ctxTextarea.className = "yui-cue__ctx-textarea";
     ctxTextarea.rows = 3;
-    ctxTextarea.setAttribute("aria-label", "AI가 읽을 컨텍스트");
-    ctxTextarea.placeholder = "AI가 참고할 상황 설명을 자유롭게 적어요…";
+    ctxTextarea.setAttribute("aria-label", t("cue.ctx_aria"));
+    ctxTextarea.placeholder = t("cue.ctx_placeholder");
     ctxTextarea.value = cue.context;
     ctxTextarea.addEventListener("change", () => {
       store.updateCue(cue.id, { context: ctxTextarea.value } as Partial<Omit<C, "id">>);

@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProactiveCue } from "../io/proactive-settings";
 import type { ScheduledCue } from "../io/schedule-settings";
 import { createCueList } from "./cue-list";
+import { t } from "./i18n";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // In-memory store stubs
@@ -568,7 +569,7 @@ describe("createCueList — proactive (minutes trigger)", () => {
 
     const suffix = mount.querySelector("[data-testid='cue-minutes-suffix']");
     expect(suffix).not.toBeNull();
-    expect(suffix!.textContent).toBe("분");
+    expect(suffix!.textContent).toBe(t("cue.minutes_suffix"));
   });
 
   it("dimmed cue row carries yui-cue--off when cue.enabled is false", () => {
