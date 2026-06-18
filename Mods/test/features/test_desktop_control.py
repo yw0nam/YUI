@@ -1,6 +1,9 @@
 """Unit tests for desktop_control MCP tools — OS calls are mocked at the ops layer."""
 
 import asyncio
+import subprocess
+import sys
+import types
 from unittest.mock import patch
 
 import pytest
@@ -112,6 +115,58 @@ class TestCaptureDisplay:
             run.return_value.returncode = 0
             ops._capture_display(1, None)
         sips.assert_not_called()
+
+
+class TestAutomationGranted:
+    def test_true_when_query_succeeds(self):
+        with patch.object(ops, "_run", return_value="Finder, Safari"):
+            assert ops.automation_granted() is True
+
+    def test_false_on_not_permitted(self):
+        err = subprocess.CalledProcessError(1, ["osascript"], stderr="execution error: -1743")
+        with patch.object(ops, "_run", side_effect=err):
+            assert ops.automation_granted() is False
+
+    def test_reraises_other_errors(self):
+        err = subprocess.CalledProcessError(1, ["osascript"], stderr="some other failure")
+        with patch.object(ops, "_run", side_effect=err):
+            with pytest.raises(subprocess.CalledProcessError):
+                ops.automation_granted()
+
+
+class TestScreenCaptureGranted:
+    def _fake_quartz(self, granted):
+        mod = types.ModuleType("Quartz")
+        mod.CGPreflightScreenCaptureAccess = lambda: granted
+        return mod
+
+    def test_reads_quartz_preflight(self, monkeypatch):
+        monkeypatch.setitem(sys.modules, "Quartz", self._fake_quartz(True))
+        assert ops.screen_capture_granted() is True
+        monkeypatch.setitem(sys.modules, "Quartz", self._fake_quartz(False))
+        assert ops.screen_capture_granted() is False
+
+
+class TestPreflight:
+    def test_no_problems_when_both_granted(self):
+        with patch.object(server.ops, "screen_capture_granted", return_value=True), patch.object(
+            server.ops, "automation_granted", return_value=True
+        ):
+            assert server.preflight() == []
+
+    def test_reports_screen_recording_gap(self):
+        with patch.object(server.ops, "screen_capture_granted", return_value=False), patch.object(
+            server.ops, "automation_granted", return_value=True
+        ):
+            problems = server.preflight()
+        assert len(problems) == 1 and "Screen Recording" in problems[0]
+
+    def test_reports_automation_gap(self):
+        with patch.object(server.ops, "screen_capture_granted", return_value=True), patch.object(
+            server.ops, "automation_granted", return_value=False
+        ):
+            problems = server.preflight()
+        assert len(problems) == 1 and "Automation" in problems[0]
 
 
 class TestToolRegistration:
