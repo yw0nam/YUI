@@ -1,0 +1,221 @@
+/**
+ * Korean strings.
+ * tool.* keys stay English (same as en) — not translated per spec.
+ */
+const ko: Record<string, string> = {
+  // tool labels (English — not translated)
+  "tool.web_search": "Searching…",
+  "tool.browser": "Browsing…",
+  "tool.terminal": "Running…",
+  "tool.code": "Running…",
+  "tool.python": "Running…",
+  "tool.file": "Reading…",
+  "tool.read_file": "Reading…",
+  "tool.write_file": "Writing…",
+
+  // voice state labels
+  "voice.state.idle": "대기 중",
+  "voice.state.listening": "듣는 중…",
+  "voice.state.processing": "처리 중…",
+  "voice.state.speaking": "말하는 중…",
+  "voice.state.asr": "ASR 전송",
+  "voice.state.fired": "전달됨",
+  "voice.state.error": "오류",
+
+  // aria labels (parameterized)
+  "aria.refresh_speaker": "{name} 참조 음성 갱신",
+  "aria.refresh_speaker_refreshing": "{name} 참조 음성 갱신 중",
+  "aria.refresh_speaker_done": "{name} 참조 음성 갱신됨",
+  "aria.preview_speaker": "{name} 미리듣기",
+  "aria.voice_input": "음성 입력: {label}",
+
+  // surfaces (speech bubble · tool-status · text input)
+  "aria.attach_image": "이미지 첨부",
+  "aria.input_field": "YUI에게 말 걸기",
+  "aria.send": "보내기",
+  "aria.stop": "멈추기",
+  "aria.remove_attachment": "첨부 제거",
+  "input.placeholder": "말 걸기…",
+
+  // capture indicator
+  "capture.watching": "화면 보는 중",
+
+  // cue-list internal labels
+  "cue.time_aria": "시각",
+  "cue.greeting_time_aria": "인사 시각",
+  "cue.minutes_word": "무대화",
+  "cue.minutes_aria": "무대화 분",
+  "cue.minutes_suffix": "분",
+  "cue.toggle_aria": "{name} 활성화",
+  "cue.toggle_fallback": "큐",
+  "cue.delete": "삭제",
+  "cue.name_label": "이름",
+  "cue.name_aria": "이름",
+  "cue.ctx_label": "컨텍스트",
+  "cue.ctx_aria": "AI가 읽을 컨텍스트",
+  "cue.ctx_placeholder": "AI가 참고할 상황 설명을 자유롭게 적어요…",
+
+  // panel chrome
+  "panel.dialog_label": "설정",
+  "panel.title": "설정",
+  "panel.tablist_label": "설정 영역",
+  "panel.drag_hint": "드래그해서 옮기기",
+  "panel.pop_out": "창으로 빼기",
+  "panel.close": "닫기",
+
+  // tabs
+  "tabs.talk": "대화",
+  "tabs.char": "캐릭터",
+  "tabs.input": "입력",
+  "tabs.adv": "고급",
+
+  // reasoning effort segment
+  "reasoning.label": "추론 강도",
+  "reasoning.sub": "답변 전 얼마나 깊게 생각할지",
+  "reasoning.none": "없음",
+  "reasoning.minimal": "최소",
+  "reasoning.low": "낮음",
+  "reasoning.medium": "중간",
+
+  // instructions
+  "instructions.label": "지침",
+  "instructions.sub": "비우면 기본 지침을 사용해요",
+  "instructions.reset": "기본값으로 되돌리기",
+  "instructions.placeholder_default": "기본 지침을 사용 중이에요",
+
+  // filler (thinking interjections)
+  "filler.section": "생각중 추임새",
+  "filler.enable_label": "추임새 사용",
+  "filler.enable_sub": "답변을 기다리는 동안 짧은 말을 해요",
+  "filler.lang_label": "언어",
+  "filler.lang_sub": "추임새를 말할 언어",
+  "filler.lang_aria": "추임새 언어",
+  "filler.first_label": "첫 대사",
+  "filler.first_sub": "유저 메시지가 들어오면 바로 한 번 재생",
+  "filler.first_aria": "첫 대사 목록",
+  "filler.repeat_label": "반복 대사",
+  "filler.repeat_sub": "첫 대사 뒤, 응답이 올 때까지 1초 간격으로 반복 재생",
+  "filler.repeat_aria": "반복 대사 목록",
+  "filler.hint": "두 목록 모두 비워두면 기본 문구를 사용해요. 한 줄에 하나씩 입력해요.",
+
+  // language picker
+  "language.label": "언어",
+  "language.sub": "이 앱의 표시 언어",
+  "language.aria": "표시 언어",
+
+  // VRM section
+  "vrm.section": "VRM",
+  "vrm.group_aria": "VRM",
+  "vrm.add": "파일에서 추가…",
+  "vrm.import_error": "불러올 수 없는 파일이에요. VRM 파일인지 확인해 주세요.",
+  "vrm.in_use": "사용 중",
+  "vrm.rename": "이름 바꾸기",
+  "vrm.remove": "삭제",
+  "vrm.name_aria": "VRM 이름",
+  "vrm.rename_hint_save": "저장",
+  "vrm.rename_hint_cancel": "취소",
+  "vrm.loading": "불러오는 중…",
+  "vrm.swapping": "바꾸는 중…",
+  "vrm.swap_error": "이 모델을 불러오지 못했어요. 이전 모델로 되돌렸어요.",
+
+  // speaker section
+  "speaker.section": "음성",
+  "speaker.engine_label": "음성 엔진",
+  "speaker.engine_sub": "캐릭터 목소리를 만드는 합성 엔진",
+  "speaker.engine_aria": "음성 엔진",
+  "speaker.engine_irodori": "irodori",
+  "speaker.engine_openai": "OpenAI 호환",
+  "speaker.openai_hint": "irodori 전용이에요. OpenAI 호환 엔진은 서버에 설정된 voice로 말해요.",
+  "speaker.group_aria": "화자",
+  "speaker.add": "파일에서 추가…",
+  "speaker.import_error":
+    "이 음성을 등록하지 못했어요. 오디오 파일과 irodori 서버를 확인해 주세요.",
+  "speaker.in_use": "사용 중",
+  "speaker.rename": "이름 바꾸기",
+  "speaker.remove": "삭제",
+  "speaker.refresh": "참조 음성 갱신",
+  "speaker.preview": "미리듣기",
+  "speaker.name_aria": "화자 이름",
+  "speaker.rename_hint_save": "저장",
+  "speaker.rename_hint_cancel": "취소",
+  "speaker.loading": "불러오는 중…",
+  "speaker.swapping": "바꾸는 중…",
+  "speaker.refreshing": "갱신 중…",
+  "speaker.swap_error": "이 화자를 불러오지 못했어요. 이전 화자로 되돌렸어요.",
+  "speaker.refresh_error": "참조 음성을 갱신하지 못했어요.",
+  "speaker.refresh_done": "참조 음성을 갱신했어요.",
+
+  // expression (lipsync gain)
+  "expression.section": "표현",
+  "expression.mouth_label": "입 움직임",
+  "expression.mouth_sub": "목소리 크기에 따라 입이 벌어지는 정도",
+  "expression.mouth_aria": "입 움직임",
+  "expression.mouth_hint": "드래그하면 캐릭터 입이 실제로 그만큼 벌어져요",
+
+  // screenshot / input tab
+  "screenshot.label": "스크린샷 첨부",
+  "screenshot.sub": "대화할 때 화면을 함께 봐요",
+  "screenshot.source_label": "보낼 화면",
+  "screenshot.source_aria": "보낼 화면",
+  "screenshot.monitor_primary": "주 화면",
+  "screenshot.display": "디스플레이 {n}",
+  "screenshot.foot_on": "켜져 있는 동안 매 대화에 이 화면이 첨부돼요.",
+  "screenshot.foot_off": "기본은 꺼져 있어요. 켜면 화면을 함께 보내요.",
+
+  // voice input
+  "voice_input.label": "음성 입력",
+  "voice_input.sub": "말이 끝나면 STT 후 사용자 입력으로 보내요",
+  "voice_input.aria": "음성 입력",
+  "voice_input.silence_label": "침묵 기준",
+  "voice_input.silence_sub": "말이 끝난 뒤 이만큼 기다렸다가 전송해요",
+  "voice_input.silence_aria": "침묵 기준",
+
+  // cue lists (input tab)
+  "cue.schedule_title": "시간대 인사",
+  "cue.schedule_sub": "정한 시각에 자리에 있으면 먼저 말을 걸어요",
+  "cue.schedule_add": "+ 인사 추가",
+  "cue.proactive_title": "주도적 반응",
+  "cue.proactive_sub": "작업 중인데 한동안 말을 안 걸면 먼저 말을 걸어요",
+  "cue.proactive_add": "+ 반응 추가",
+
+  // endpoints
+  "endpoints.section": "엔드포인트",
+  "endpoints.summary_hint": "고급 — 서버 주소·모델",
+  "endpoints.field_sub": "비우면 기본값을 사용해요",
+  "endpoints.reset": "기본값으로 되돌리기",
+  "endpoints.url_error": "올바른 URL이 아니에요 (http:// 또는 https://)",
+  "endpoints.chat_base_url.label": "채팅 서버 URL",
+  "endpoints.stt_base_url.label": "음성 인식(STT) 서버 URL",
+  "endpoints.tts_base_url.label": "음성 합성(TTS) 서버 URL",
+  "endpoints.irodori_base_url.label": "irodori 서버 URL",
+  "endpoints.broker_base_url.label": "표현 브로커(Broker) URL",
+  "endpoints.chat_model.label": "채팅 모델",
+
+  // chat API key
+  "chatkey.section": "채팅 API 키",
+  "chatkey.label": "채팅 API 키",
+  "chatkey.sub_default": "기본값 사용 중 — 비워두면 빌드 시 설정한 키를 써요",
+  "chatkey.sub_override": "이 기기에 저장됨 — 비우면 원래 키로 돌아가요",
+  "chatkey.show": "키 보기",
+  "chatkey.hide": "키 숨기기",
+  "chatkey.clear": "키 지우기",
+
+  // performance
+  "perf.section": "성능",
+  "perf.idle_label": "유휴 시 절전 (30fps)",
+  "perf.idle_sub":
+    "캐릭터가 가만히 있을 때 프레임을 낮춰 전력을 아낍니다. 말하거나 움직일 땐 자동으로 부드러워집니다.",
+  "perf.idle_aria": "유휴 시 절전",
+
+  // session
+  "session.section": "세션",
+  "session.context": "Context",
+  "session.action_label": "새 대화 시작 · Start fresh",
+  "session.action_sub": "Start a new conversation. YUI keeps the current memory until you do.",
+  "session.reset": "대화 초기화 · Reset conversation",
+  "session.confirm_q": "Start over?",
+  "session.confirm_go": "Start fresh",
+  "session.confirm_cancel": "Cancel",
+};
+
+export default ko;

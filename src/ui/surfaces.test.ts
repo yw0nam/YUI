@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./surfaces.css", () => ({}));
 vi.mock("./tokens.css", () => ({}));
 
+import { t } from "./i18n";
 import { createSurfaces } from "./surfaces";
 
 function makeSurfaces() {
@@ -435,14 +436,14 @@ describe("setBusy — send ↔ stop toggle on the input form", () => {
   it("adds is-running and shows the stop affordance when busy", () => {
     s.setBusy(true);
     expect(form().classList.contains("is-running")).toBe(true);
-    expect(sendBtn().getAttribute("aria-label")).toBe("멈추기");
+    expect(sendBtn().getAttribute("aria-label")).toBe(t("aria.stop"));
   });
 
   it("reverts to the send affordance when no longer busy", () => {
     s.setBusy(true);
     s.setBusy(false);
     expect(form().classList.contains("is-running")).toBe(false);
-    expect(sendBtn().getAttribute("aria-label")).toBe("보내기");
+    expect(sendBtn().getAttribute("aria-label")).toBe(t("aria.send"));
   });
 });
 

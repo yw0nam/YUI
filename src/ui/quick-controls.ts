@@ -38,6 +38,7 @@ import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../io/
 import type { createVrmSelection } from "../io/vrm-selection";
 import { createLogger } from "../logger";
 import { type CueListInstance, createCueList } from "./cue-list";
+import { getLocale, LOCALE_DISPLAY_NAMES, type Locale, setLocale, t } from "./i18n";
 import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
@@ -120,32 +121,33 @@ interface QuickControls {
 const VIEWPORT_MARGIN = 12;
 const POS_KEY = "yui.quick.pos";
 
-const SEG_LABELS: Record<ReasoningEffort, string> = {
-  none: "없음",
-  minimal: "최소",
-  low: "Low",
-  medium: "Medium",
+// 언어 피커 표시 순서(日本語 / English / 한국어). LOCALES와 별개로 고정한다.
+const LANG_PICKER_ORDER: readonly Locale[] = ["ja", "en", "ko"];
+
+// reasoning effort → i18n key for its segment label.
+const SEG_LABEL_KEYS: Record<ReasoningEffort, string> = {
+  none: "reasoning.none",
+  minimal: "reasoning.minimal",
+  low: "reasoning.low",
+  medium: "reasoning.medium",
 };
 
 // 엔드포인트 섹션: 편집 가능한 5개 필드. url=true면 isValidEndpointUrl 라이브 검증.
+// labelKey는 필드 라벨의 i18n 키다.
 interface EndpointFieldDef {
   key: keyof EndpointOverrides;
-  label: string;
+  labelKey: string;
   url: boolean;
 }
 const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = [
-  { key: "chat_base_url", label: "채팅 서버 URL", url: true },
-  { key: "stt_base_url", label: "음성 인식(STT) 서버 URL", url: true },
-  { key: "tts_base_url", label: "음성 합성(TTS) 서버 URL", url: true },
-  { key: "irodori_base_url", label: "irodori 서버 URL", url: true },
-  { key: "broker_base_url", label: "표현 브로커(Broker) URL", url: true },
-  { key: "chat_model", label: "채팅 모델", url: false },
+  { key: "chat_base_url", labelKey: "endpoints.chat_base_url.label", url: true },
+  { key: "stt_base_url", labelKey: "endpoints.stt_base_url.label", url: true },
+  { key: "tts_base_url", labelKey: "endpoints.tts_base_url.label", url: true },
+  { key: "irodori_base_url", labelKey: "endpoints.irodori_base_url.label", url: true },
+  { key: "broker_base_url", labelKey: "endpoints.broker_base_url.label", url: true },
+  { key: "chat_model", labelKey: "endpoints.chat_model.label", url: false },
 ];
-const ENDPOINT_URL_ERROR = "올바른 URL이 아니에요 (http:// 또는 https://)";
 
-// chat API 키 필드 — 시크릿이므로 값은 input.value에만 두고 sublabel은 상태(기본/저장)만 말한다.
-const CHATKEY_SUB_DEFAULT = "기본값 사용 중 — 비워두면 빌드 시 설정한 키를 써요";
-const CHATKEY_SUB_OVERRIDE = "이 기기에 저장됨 — 비우면 원래 키로 돌아가요";
 // 눈 아이콘(보임/숨김). 라인 아이콘 스타일을 다른 아이콘 버튼과 맞춘다.
 const CHATKEY_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg>`;
 const CHATKEY_EYE_OFF_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9.6 5.9A9.6 9.6 0 0 1 12 5.5C18 5.5 21.5 12 21.5 12a16 16 0 0 1-2.7 3.3M6.3 7.7A16 16 0 0 0 2.5 12S6 18.5 12 18.5a9.3 9.3 0 0 0 2.7-.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.7 9.8a2.6 2.6 0 0 0 3.6 3.7" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
@@ -154,14 +156,11 @@ const CHATKEY_CLEAR_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="tru
 // 음성 엔진 세그먼트(2칸) — tts_provider 오버라이드를 구동. 효과적 provider를 반영한다.
 const VOICE_ENGINES = ["irodori", "openai"] as const;
 type VoiceEngine = (typeof VOICE_ENGINES)[number];
-const VOICE_ENGINE_LABELS: Record<VoiceEngine, string> = {
-  irodori: "irodori",
-  openai: "OpenAI 호환",
+// voice engine → i18n key for its segment label.
+const VOICE_ENGINE_LABEL_KEYS: Record<VoiceEngine, string> = {
+  irodori: "speaker.engine_irodori",
+  openai: "speaker.engine_openai",
 };
-const SPEAKER_OPENAI_HINT = "irodori 전용이에요. OpenAI 호환 엔진은 서버에 설정된 voice로 말해요.";
-const VRM_IMPORT_ERROR = "불러올 수 없는 파일이에요. VRM 파일인지 확인해 주세요.";
-const VOICE_IMPORT_ERROR =
-  "이 음성을 등록하지 못했어요. 오디오 파일과 irodori 서버를 확인해 주세요.";
 
 export const PREVIEW_PEAK_RMS = 0.15;
 const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
@@ -248,30 +247,36 @@ export function createQuickControls({
   const el = document.createElement("div");
   el.className = isWindow ? "yui-quick yui-quick--window" : "yui-quick";
   el.setAttribute("role", "dialog");
-  el.setAttribute("aria-label", "설정");
+  el.setAttribute("aria-label", t("panel.dialog_label"));
 
   const segButtonsHtml = REASONING_EFFORTS.map(
     (e) =>
-      `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${SEG_LABELS[e]}</button>`,
+      `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${t(SEG_LABEL_KEYS[e])}</button>`,
   ).join("");
 
   const voiceEngineButtonsHtml = VOICE_ENGINES.map(
     (p) =>
-      `<button class="yui-seg__btn" type="button" role="radio" data-provider="${p}" aria-checked="false" tabindex="-1">${VOICE_ENGINE_LABELS[p]}</button>`,
+      `<button class="yui-seg__btn" type="button" role="radio" data-provider="${p}" aria-checked="false" tabindex="-1">${t(VOICE_ENGINE_LABEL_KEYS[p])}</button>`,
+  ).join("");
+
+  // 언어 피커 세그(3칸) — 표시 언어 전환. 호스트가 i18n.subscribe로 재마운트한다.
+  const langButtonsHtml = LANG_PICKER_ORDER.map(
+    (l) =>
+      `<button class="yui-seg__btn" type="button" role="radio" data-locale="${l}" aria-checked="false" tabindex="-1">${LOCALE_DISPLAY_NAMES[l]}</button>`,
   ).join("");
 
   // 엔드포인트 필드 행. 라벨/placeholder/value는 빈 채로 두고 reflectEndpoints가 채운다.
   // type="text"로 두고 검증 메시지를 직접 제어한다(브라우저 기본 URL 검증 회피).
-  const endpointRowsHtml = ENDPOINT_FIELDS.map(({ key, label, url }) => {
+  const endpointRowsHtml = ENDPOINT_FIELDS.map(({ key, labelKey, url }) => {
     const errId = `yui-ep-err-${key}`;
     const urlClass = url ? " yui-ep-input--url" : "";
     const errHtml = url
-      ? `<p class="yui-input-row__error" id="${errId}" role="status">${ENDPOINT_URL_ERROR}</p>`
+      ? `<p class="yui-input-row__error" id="${errId}" role="status">${t("endpoints.url_error")}</p>`
       : "";
     return `
           <div class="yui-input-row" data-ep-field="${key}">
-            <label class="yui-input-row__label" for="yui-ep-${key}">${label}</label>
-            <span class="yui-input-row__sub">비우면 기본값을 사용해요</span>
+            <label class="yui-input-row__label" for="yui-ep-${key}">${t(labelKey)}</label>
+            <span class="yui-input-row__sub">${t("endpoints.field_sub")}</span>
             <div class="yui-input-wrap">
               <input class="yui-ep-input${urlClass}" id="yui-ep-${key}" type="text" spellcheck="false"
                 inputmode="${url ? "url" : "text"}" autocapitalize="off" autocomplete="off" />
@@ -284,24 +289,24 @@ export function createQuickControls({
   const sessionHtml = hasSession
     ? `
       <div class="yui-quick__divider" aria-hidden="true"></div>
-      <span class="yui-quick__section">세션 · Session</span>
+      <span class="yui-quick__section">${t("session.section")}</span>
       <div class="yui-session">
         <div class="yui-session__stat">
           <div class="yui-session__statline">
-            <span class="yui-session__label">Context</span>
+            <span class="yui-session__label">${t("session.context")}</span>
             <span class="yui-session__value"></span>
           </div>
         </div>
         <div class="yui-quick__divider" aria-hidden="true"></div>
         <div class="yui-session__action">
-          <span class="yui-session__action-label">새 대화 시작 · Start fresh</span>
-          <span class="yui-session__action-sub">Start a new conversation. YUI keeps the current memory until you do.</span>
+          <span class="yui-session__action-label">${t("session.action_label")}</span>
+          <span class="yui-session__action-sub">${t("session.action_sub")}</span>
         </div>
-        <button class="yui-link-btn yui-session__reset" type="button">대화 초기화 · Reset conversation</button>
+        <button class="yui-link-btn yui-session__reset" type="button">${t("session.reset")}</button>
         <div class="yui-confirm" hidden>
-          <span class="yui-confirm__q">Start over?</span>
-          <button class="yui-pill yui-pill--go yui-session__confirm" type="button">Start fresh</button>
-          <button class="yui-pill yui-session__cancel" type="button">Cancel</button>
+          <span class="yui-confirm__q">${t("session.confirm_q")}</span>
+          <button class="yui-pill yui-pill--go yui-session__confirm" type="button">${t("session.confirm_go")}</button>
+          <button class="yui-pill yui-session__cancel" type="button">${t("session.confirm_cancel")}</button>
         </div>
       </div>`
     : "";
@@ -309,23 +314,23 @@ export function createQuickControls({
   const headerHtml = isWindow
     ? `
     <div class="yui-quick__bar">
-      <span class="yui-quick__title">설정</span>
+      <span class="yui-quick__title">${t("panel.title")}</span>
     </div>`
     : `
-    <div class="yui-quick__bar" title="드래그해서 옮기기">
+    <div class="yui-quick__bar" title="${t("panel.drag_hint")}">
       <span class="yui-quick__grip" aria-hidden="true">
         <i></i><i></i><i></i><i></i><i></i><i></i>
       </span>
-      <span class="yui-quick__title">설정</span>
+      <span class="yui-quick__title">${t("panel.title")}</span>
       <span class="yui-quick__bar-actions">
-        <button class="yui-iconbtn yui-iconbtn--popout" type="button" aria-label="창으로 빼기" title="창으로 빼기">
+        <button class="yui-iconbtn yui-iconbtn--popout" type="button" aria-label="${t("panel.pop_out")}" title="${t("panel.pop_out")}">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M14 5h5v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M19 5l-7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M18 13v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
-        <button class="yui-iconbtn yui-iconbtn--close" type="button" aria-label="닫기" title="닫기">
+        <button class="yui-iconbtn yui-iconbtn--close" type="button" aria-label="${t("panel.close")}" title="${t("panel.close")}">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
           </svg>
@@ -335,49 +340,57 @@ export function createQuickControls({
 
   el.innerHTML = `
     ${headerHtml}
-    <div class="yui-tabs" role="tablist" aria-label="설정 영역" style="--tab:0;">
+    <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" style="--tab:0;">
       <span class="yui-tabs__ind" aria-hidden="true"></span>
-      <button class="yui-tab" type="button" role="tab" id="yui-tab-talk" aria-selected="true" aria-controls="yui-panel-talk" tabindex="0">대화</button>
-      <button class="yui-tab" type="button" role="tab" id="yui-tab-char" aria-selected="false" aria-controls="yui-panel-char" tabindex="-1">캐릭터</button>
-      <button class="yui-tab" type="button" role="tab" id="yui-tab-input" aria-selected="false" aria-controls="yui-panel-input" tabindex="-1">입력</button>
-      <button class="yui-tab" type="button" role="tab" id="yui-tab-adv" aria-selected="false" aria-controls="yui-panel-adv" tabindex="-1">고급</button>
+      <button class="yui-tab" type="button" role="tab" id="yui-tab-talk" aria-selected="true" aria-controls="yui-panel-talk" tabindex="0">${t("tabs.talk")}</button>
+      <button class="yui-tab" type="button" role="tab" id="yui-tab-char" aria-selected="false" aria-controls="yui-panel-char" tabindex="-1">${t("tabs.char")}</button>
+      <button class="yui-tab" type="button" role="tab" id="yui-tab-input" aria-selected="false" aria-controls="yui-panel-input" tabindex="-1">${t("tabs.input")}</button>
+      <button class="yui-tab" type="button" role="tab" id="yui-tab-adv" aria-selected="false" aria-controls="yui-panel-adv" tabindex="-1">${t("tabs.adv")}</button>
     </div>
     <div class="yui-quick__body">
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-talk" aria-labelledby="yui-tab-talk" tabindex="0">
         <div class="yui-field-row">
-          <span class="yui-field-row__label">추론 강도</span>
-          <span class="yui-field-row__sub">답변 전 얼마나 깊게 생각할지</span>
-          <div class="yui-seg" role="radiogroup" aria-label="추론 강도" style="--seg:0;">
+          <span class="yui-field-row__label">${t("reasoning.label")}</span>
+          <span class="yui-field-row__sub">${t("reasoning.sub")}</span>
+          <div class="yui-seg" role="radiogroup" aria-label="${t("reasoning.label")}" style="--seg:0;">
             <span class="yui-seg__ind" aria-hidden="true"></span>
             ${segButtonsHtml}
           </div>
         </div>
         <div class="yui-field-row">
-          <span class="yui-field-row__label">지침</span>
-          <span class="yui-field-row__sub">비우면 기본 지침을 사용해요</span>
-          <div class="yui-textarea-wrap">
-            <textarea class="yui-textarea" spellcheck="false" rows="4" maxlength="${INSTRUCTIONS_MAX_LEN}" aria-label="지침"></textarea>
+          <span class="yui-field-row__label">${t("language.label")}</span>
+          <span class="yui-field-row__sub">${t("language.sub")}</span>
+          <div class="yui-seg yui-lang-seg" role="radiogroup" aria-label="${t("language.aria")}" style="--seg:0;">
+            <span class="yui-seg__ind" aria-hidden="true"></span>
+            ${langButtonsHtml}
           </div>
-          <button class="yui-reset" type="button">기본값으로 되돌리기</button>
+        </div>
+        <div class="yui-field-row">
+          <span class="yui-field-row__label">${t("instructions.label")}</span>
+          <span class="yui-field-row__sub">${t("instructions.sub")}</span>
+          <div class="yui-textarea-wrap">
+            <textarea class="yui-textarea" spellcheck="false" rows="4" maxlength="${INSTRUCTIONS_MAX_LEN}" aria-label="${t("instructions.label")}"></textarea>
+          </div>
+          <button class="yui-reset" type="button">${t("instructions.reset")}</button>
         </div>
         ${
           fillerSettings
             ? `
         <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">생각중 추임새</span>
+        <span class="yui-quick__section">${t("filler.section")}</span>
         <div class="yui-filler">
           <div class="yui-row">
             <div class="yui-row__main">
-              <span class="yui-row__label">추임새 사용</span>
-              <span class="yui-row__sub">답변을 기다리는 동안 짧은 말을 해요</span>
+              <span class="yui-row__label">${t("filler.enable_label")}</span>
+              <span class="yui-row__sub">${t("filler.enable_sub")}</span>
             </div>
-            <button class="yui-switch yui-filler-switch" type="button" role="switch" aria-checked="false" aria-label="추임새 사용"></button>
+            <button class="yui-switch yui-filler-switch" type="button" role="switch" aria-checked="false" aria-label="${t("filler.enable_label")}"></button>
           </div>
           <div class="yui-field-row">
-            <span class="yui-field-row__label">언어</span>
-            <span class="yui-field-row__sub">추임새를 말할 언어</span>
-            <div class="yui-seg yui-filler-lang-seg" role="radiogroup" aria-label="추임새 언어" style="--seg:0;">
+            <span class="yui-field-row__label">${t("filler.lang_label")}</span>
+            <span class="yui-field-row__sub">${t("filler.lang_sub")}</span>
+            <div class="yui-seg yui-filler-lang-seg" role="radiogroup" aria-label="${t("filler.lang_aria")}" style="--seg:0;">
               <span class="yui-seg__ind" aria-hidden="true"></span>
               <button class="yui-seg__btn" type="button" role="radio" data-lang="ja" aria-checked="false" tabindex="-1">日本語</button>
               <button class="yui-seg__btn" type="button" role="radio" data-lang="en" aria-checked="false" tabindex="-1">English</button>
@@ -385,77 +398,77 @@ export function createQuickControls({
             </div>
           </div>
           <div class="yui-field-row">
-            <span class="yui-field-row__label">첫 대사</span>
-            <span class="yui-field-row__sub">유저 메시지가 들어오면 바로 한 번 재생</span>
+            <span class="yui-field-row__label">${t("filler.first_label")}</span>
+            <span class="yui-field-row__sub">${t("filler.first_sub")}</span>
             <div class="yui-textarea-wrap">
-              <textarea class="yui-textarea yui-filler-first-textarea" spellcheck="false" rows="3" aria-label="첫 대사 목록"></textarea>
+              <textarea class="yui-textarea yui-filler-first-textarea" spellcheck="false" rows="3" aria-label="${t("filler.first_aria")}"></textarea>
             </div>
           </div>
           <div class="yui-filler__list-sep" aria-hidden="true"></div>
           <div class="yui-field-row">
-            <span class="yui-field-row__label">반복 대사</span>
-            <span class="yui-field-row__sub">첫 대사 뒤, 응답이 올 때까지 1초 간격으로 반복 재생</span>
+            <span class="yui-field-row__label">${t("filler.repeat_label")}</span>
+            <span class="yui-field-row__sub">${t("filler.repeat_sub")}</span>
             <div class="yui-textarea-wrap">
-              <textarea class="yui-textarea yui-filler-repeat-textarea" spellcheck="false" rows="3" aria-label="반복 대사 목록"></textarea>
+              <textarea class="yui-textarea yui-filler-repeat-textarea" spellcheck="false" rows="3" aria-label="${t("filler.repeat_aria")}"></textarea>
             </div>
           </div>
-          <p class="yui-field-hint yui-filler-hint">두 목록 모두 비워두면 기본 문구를 사용해요. 한 줄에 하나씩 입력해요.</p>
+          <p class="yui-field-hint yui-filler-hint">${t("filler.hint")}</p>
         </div>`
             : ""
         }
       </div>
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-char" aria-labelledby="yui-tab-char" tabindex="0" hidden>
-        <span class="yui-quick__section">VRM</span>
+        <span class="yui-quick__section">${t("vrm.section")}</span>
         <div class="yui-vrm-scroll">
-          <div class="yui-vrms" role="radiogroup" aria-label="VRM"></div>
+          <div class="yui-vrms" role="radiogroup" aria-label="${t("vrm.group_aria")}"></div>
         </div>
         <div class="yui-vrm-foot">
           <button class="yui-vrm yui-vrm--add is-ready" type="button">
             <span class="yui-vrm__tick" aria-hidden="true"></span>
-            <span class="yui-vrm__body"><span class="yui-vrm__name">파일에서 추가…</span></span>
+            <span class="yui-vrm__body"><span class="yui-vrm__name">${t("vrm.add")}</span></span>
           </button>
           <p class="yui-vrm__import-error" role="status" hidden>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="10" />
               <path d="M12 8v4M12 16h.01" />
             </svg>
-            <span>${VRM_IMPORT_ERROR}</span>
+            <span>${t("vrm.import_error")}</span>
           </p>
         </div>
 
         <div class="yui-quick__divider" aria-hidden="true"></div>
 
-        <span class="yui-quick__section">화자 · 音声</span>
+        <span class="yui-quick__section">${t("speaker.section")}</span>
         <div class="yui-field-row">
-          <span class="yui-field-row__label">음성 엔진</span>
-          <span class="yui-field-row__sub">캐릭터 목소리를 만드는 합성 엔진</span>
-          <div class="yui-seg yui-seg--2" role="radiogroup" aria-label="음성 엔진" style="--seg:0;">
+          <span class="yui-field-row__label">${t("speaker.engine_label")}</span>
+          <span class="yui-field-row__sub">${t("speaker.engine_sub")}</span>
+          <div class="yui-seg yui-seg--2" role="radiogroup" aria-label="${t("speaker.engine_aria")}" style="--seg:0;">
             <span class="yui-seg__ind" aria-hidden="true"></span>
             ${voiceEngineButtonsHtml}
           </div>
         </div>
-        <p class="yui-spks-hint" role="status" hidden>${SPEAKER_OPENAI_HINT}</p>
+        <p class="yui-spks-hint" role="status" hidden>${t("speaker.openai_hint")}</p>
         <div class="yui-spk-scroll">
-          <div class="yui-spks" role="radiogroup" aria-label="화자"></div>
+          <div class="yui-spks" role="radiogroup" aria-label="${t("speaker.group_aria")}"></div>
         </div>
         <div class="yui-spk-foot">
           <button class="yui-spk yui-spk--add is-ready" type="button">
             <span class="yui-spk__tick" aria-hidden="true"></span>
-            <span class="yui-spk__body"><span class="yui-spk__name">파일에서 추가…</span></span>
+            <span class="yui-spk__body"><span class="yui-spk__name">${t("speaker.add")}</span></span>
           </button>
           <p class="yui-spk__import-error" role="status" hidden>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="10" />
               <path d="M12 8v4M12 16h.01" />
             </svg>
-            <span>${VOICE_IMPORT_ERROR}</span>
+            <span>${t("speaker.import_error")}</span>
           </p>
         </div>
 
         <div class="yui-quick__divider" aria-hidden="true"></div>
 
-        <span class="yui-quick__section">표현</span>
+        <span class="yui-quick__section">${t("expression.section")}</span>
         <div class="yui-gain">
           <div class="yui-gain__head">
             <span class="yui-gain__label">
@@ -463,13 +476,13 @@ export function createQuickControls({
                 <path d="M4 10c2.4-2.4 4.9-3.6 8-3.6s5.6 1.2 8 3.6c-2.4 1.1-4.9 1.7-8 1.7s-5.6-.6-8-1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
                 <path d="M4 14c2.4 2.4 4.9 3.6 8 3.6s5.6-1.2 8-3.6c-2.4-1.1-4.9-1.7-8-1.7s-5.6.6-8 1.7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
               </svg>
-              입 움직임
+              ${t("expression.mouth_label")}
             </span>
             <span class="yui-gain__value">2.0×</span>
           </div>
-          <span class="yui-gain__sub">목소리 크기에 따라 입이 벌어지는 정도</span>
-          <input class="yui-gain__slider" type="range" aria-label="입 움직임" />
-          <span class="yui-gain__hint">드래그하면 캐릭터 입이 실제로 그만큼 벌어져요</span>
+          <span class="yui-gain__sub">${t("expression.mouth_sub")}</span>
+          <input class="yui-gain__slider" type="range" aria-label="${t("expression.mouth_aria")}" />
+          <span class="yui-gain__hint">${t("expression.mouth_hint")}</span>
         </div>
       </div>
 
@@ -483,15 +496,15 @@ export function createQuickControls({
                 <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
                 <path d="M3 9h18" stroke="currentColor" stroke-width="1.7"/>
               </svg>
-              스크린샷 첨부
+              ${t("screenshot.label")}
             </span>
-            <span class="yui-row__sub">대화할 때 화면을 함께 봐요</span>
+            <span class="yui-row__sub">${t("screenshot.sub")}</span>
           </div>
-          <button class="yui-switch" type="button" role="switch" aria-checked="false" aria-label="스크린샷 첨부"></button>
+          <button class="yui-switch yui-screenshot-switch" type="button" role="switch" aria-checked="false" aria-label="${t("screenshot.label")}"></button>
         </div>
         <div class="yui-source">
-          <div class="yui-source__label">보낼 화면</div>
-          <div class="yui-monitors" role="radiogroup" aria-label="보낼 화면"></div>
+          <div class="yui-source__label">${t("screenshot.source_label")}</div>
+          <div class="yui-monitors" role="radiogroup" aria-label="${t("screenshot.source_aria")}"></div>
         </div>
         <div class="yui-row yui-row--voice">
           <div class="yui-row__main">
@@ -502,66 +515,66 @@ export function createQuickControls({
                 <path d="M12 15.5v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
                 <path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
               </svg>
-              음성 입력
+              ${t("voice_input.label")}
             </span>
-            <span class="yui-row__sub">말이 끝나면 STT 후 사용자 입력으로 보내요</span>
+            <span class="yui-row__sub">${t("voice_input.sub")}</span>
           </div>
-          <button class="yui-switch yui-voice-switch" type="button" role="switch" aria-checked="false" aria-label="음성 입력"></button>
+          <button class="yui-switch yui-voice-switch" type="button" role="switch" aria-checked="false" aria-label="${t("voice_input.label")}"></button>
         </div>
         <div class="yui-gain">
           <div class="yui-gain__head">
-            <span class="yui-gain__label">침묵 기준</span>
+            <span class="yui-gain__label">${t("voice_input.silence_label")}</span>
             <span class="yui-gain__value yui-vad__value">1500 ms</span>
           </div>
-          <span class="yui-gain__sub">말이 끝난 뒤 이만큼 기다렸다가 전송해요</span>
-          <input class="yui-gain__slider yui-vad__slider" type="range" aria-label="침묵 기준" />
+          <span class="yui-gain__sub">${t("voice_input.silence_sub")}</span>
+          <input class="yui-gain__slider yui-vad__slider" type="range" aria-label="${t("voice_input.silence_aria")}" />
         </div>
       </div>
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-adv" aria-labelledby="yui-tab-adv" tabindex="0" hidden>
-        <span class="yui-quick__section">엔드포인트</span>
+        <span class="yui-quick__section">${t("endpoints.section")}</span>
         <details class="yui-endpoints">
           <summary>
-            <span>엔드포인트</span>
-            <span class="yui-endpoints__hint">고급 — 서버 주소·모델</span>
+            <span>${t("endpoints.section")}</span>
+            <span class="yui-endpoints__hint">${t("endpoints.summary_hint")}</span>
           </summary>
           <div class="yui-endpoints__body">
             ${endpointRowsHtml}
-            <button class="yui-reset yui-endpoints__reset yui-ep-reset" type="button">기본값으로 되돌리기</button>
+            <button class="yui-reset yui-endpoints__reset yui-ep-reset" type="button">${t("endpoints.reset")}</button>
           </div>
         </details>
 
         <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">채팅 API 키</span>
+        <span class="yui-quick__section">${t("chatkey.section")}</span>
         <div class="yui-input-row yui-chatkey">
-          <label class="yui-input-row__label" for="yui-chatkey-input">채팅 API 키</label>
+          <label class="yui-input-row__label" for="yui-chatkey-input">${t("chatkey.label")}</label>
           <span class="yui-input-row__sub"></span>
           <div class="yui-input-wrap yui-chatkey__wrap">
             <input class="yui-ep-input yui-chatkey__input" id="yui-chatkey-input" type="password"
-              autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="채팅 API 키" />
-            <button class="yui-iconbtn yui-chatkey__toggle" type="button" aria-pressed="false" aria-label="키 보기" title="키 보기">${CHATKEY_EYE_SVG}</button>
-            <button class="yui-iconbtn yui-chatkey__clear" type="button" aria-label="키 지우기" title="키 지우기">${CHATKEY_CLEAR_SVG}</button>
+              autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="${t("chatkey.label")}" />
+            <button class="yui-iconbtn yui-chatkey__toggle" type="button" aria-pressed="false" aria-label="${t("chatkey.show")}" title="${t("chatkey.show")}">${CHATKEY_EYE_SVG}</button>
+            <button class="yui-iconbtn yui-chatkey__clear" type="button" aria-label="${t("chatkey.clear")}" title="${t("chatkey.clear")}">${CHATKEY_CLEAR_SVG}</button>
           </div>
         </div>
 
         <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">성능</span>
+        <span class="yui-quick__section">${t("perf.section")}</span>
         <div class="yui-row">
           <div class="yui-row__main">
-            <span class="yui-row__label">유휴 시 절전 (30fps)</span>
-            <span class="yui-row__sub">캐릭터가 가만히 있을 때 프레임을 낮춰 전력을 아낍니다. 말하거나 움직일 땐 자동으로 부드러워집니다.</span>
+            <span class="yui-row__label">${t("perf.idle_label")}</span>
+            <span class="yui-row__sub">${t("perf.idle_sub")}</span>
           </div>
-          <button class="yui-switch yui-idle-throttle-switch" type="button" role="switch" aria-checked="false" aria-label="유휴 시 절전"></button>
+          <button class="yui-switch yui-idle-throttle-switch" type="button" role="switch" aria-checked="false" aria-label="${t("perf.idle_aria")}"></button>
         </div>
         ${sessionHtml}
       </div>
 
     </div>
-    <p class="yui-quick__foot yui-quick__foot--on">켜져 있는 동안 매 대화에 이 화면이 첨부돼요.</p>
-    <p class="yui-quick__foot yui-quick__foot--off">기본은 꺼져 있어요. 켜면 화면을 함께 보내요.</p>
+    <p class="yui-quick__foot yui-quick__foot--on">${t("screenshot.foot_on")}</p>
+    <p class="yui-quick__foot yui-quick__foot--off">${t("screenshot.foot_off")}</p>
   `;
 
-  const switchBtn = el.querySelector<HTMLButtonElement>(".yui-switch[aria-label='스크린샷 첨부']")!;
+  const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const idleThrottleSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
@@ -603,6 +616,9 @@ export function createQuickControls({
   const fillerRepeatTextareaEl = el.querySelector<HTMLTextAreaElement>(
     ".yui-filler-repeat-textarea",
   );
+  // 언어 피커 세그(3칸) 노드.
+  const langSegEl = el.querySelector<HTMLDivElement>(".yui-lang-seg")!;
+  const langSegButtons = Array.from(langSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const epResetBtn = el.querySelector<HTMLButtonElement>(".yui-ep-reset")!;
   // 엔드포인트 입력 — 필드 key별 input 노드 맵.
   const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
@@ -636,7 +652,7 @@ export function createQuickControls({
   // 기본 지침 placeholder.
   const defaultInstr = getDefaultInstructions?.();
   instructionsEl.placeholder =
-    defaultInstr && defaultInstr.length > 0 ? defaultInstr : "기본 지침을 사용 중이에요";
+    defaultInstr && defaultInstr.length > 0 ? defaultInstr : t("instructions.placeholder_default");
 
   // 엔드포인트 placeholder — bundled config 기본값(greyed)으로 채운다(미로드 시 빈 채로 둠).
   const epDefaults = getEndpointDefaults?.();
@@ -726,6 +742,17 @@ export function createQuickControls({
     fillerRepeatTextareaEl.value = pool ? pool.repeat.join("\n") : "";
   }
 
+  // 언어 피커 — 현재 표시 언어를 선택 세그로 반영한다.
+  function reflectLanguage(): void {
+    const idx = Math.max(0, LANG_PICKER_ORDER.indexOf(getLocale()));
+    langSegButtons.forEach((btn, i) => {
+      const selected = i === idx;
+      btn.setAttribute("aria-checked", String(selected));
+      btn.tabIndex = selected ? 0 : -1;
+    });
+    langSegEl.style.setProperty("--seg", String(idx));
+  }
+
   // 효과적 음성 엔진 — 유효한 오버라이드가 있으면 그것, 없으면 bundled 기본값, 최종 폴백 irodori.
   function effectiveProvider(): VoiceEngine {
     const ov = endpointsSettings.get().tts_provider;
@@ -784,7 +811,7 @@ export function createQuickControls({
       chatKeyInput.value = key;
       chatKeyDirty = false;
     }
-    chatKeySubEl.textContent = key ? CHATKEY_SUB_OVERRIDE : CHATKEY_SUB_DEFAULT;
+    chatKeySubEl.textContent = key ? t("chatkey.sub_override") : t("chatkey.sub_default");
   }
 
   // 세션 진단 readout을 store에서 그린다. contextWindow가 null이면 막대·퍼센트 없이 사용량만.
@@ -845,19 +872,21 @@ export function createQuickControls({
 
       const metaText =
         mon.width !== undefined && mon.height !== undefined ? `${mon.width} × ${mon.height}` : "";
-      const badgeHtml = mon.primary ? `<span class="yui-mon__badge">주 화면</span>` : "";
+      const badgeHtml = mon.primary
+        ? `<span class="yui-mon__badge">${t("screenshot.monitor_primary")}</span>`
+        : "";
 
       btn.innerHTML = `
         <span class="yui-mon__tick" aria-hidden="true"></span>
         <span class="yui-mon__body">
-          <span class="yui-mon__name">디스플레이 ${mon.index + 1}</span>
+          <span class="yui-mon__name">${t("screenshot.display", { n: mon.index + 1 })}</span>
           ${metaText ? `<span class="yui-mon__meta">${metaText}</span>` : ""}
         </span>
         ${badgeHtml}
       `;
 
       btn.addEventListener("click", () => {
-        const label = mon.label ?? `디스플레이 ${mon.index + 1}`;
+        const label = mon.label ?? t("screenshot.display", { n: mon.index + 1 });
         const source: ScreenSource = { kind: "monitor", index: mon.index, label };
         settings.setSource(source);
         // 라디오 상태 즉시 반영
@@ -918,10 +947,10 @@ export function createQuickControls({
       if (isUser && opt.id === vrmRenamingId) {
         renderRenamingRow(row, opt);
       } else {
-        const badgeHtml = selected ? `<span class="yui-vrm__badge">사용 중</span>` : "";
+        const badgeHtml = selected ? `<span class="yui-vrm__badge">${t("vrm.in_use")}</span>` : "";
         const actionsHtml = isUser
-          ? `<button class="yui-vrm__rename" type="button" title="이름 바꾸기" aria-label="이름 바꾸기">${VRM_RENAME_SVG}</button>` +
-            `<button class="yui-vrm__remove" type="button" title="삭제" aria-label="삭제">${VRM_REMOVE_SVG}</button>`
+          ? `<button class="yui-vrm__rename" type="button" title="${t("vrm.rename")}" aria-label="${t("vrm.rename")}">${VRM_RENAME_SVG}</button>` +
+            `<button class="yui-vrm__remove" type="button" title="${t("vrm.remove")}" aria-label="${t("vrm.remove")}">${VRM_REMOVE_SVG}</button>`
           : "";
         row.innerHTML = `
           <span class="yui-vrm__tick" aria-hidden="true"></span>
@@ -959,7 +988,7 @@ export function createQuickControls({
         const err = document.createElement("p");
         err.className = "yui-vrm__error";
         err.setAttribute("role", "status");
-        err.textContent = "이 모델을 불러오지 못했어요. 이전 모델로 되돌렸어요.";
+        err.textContent = t("vrm.swap_error");
         vrmsEl.appendChild(err);
       }
     }
@@ -969,7 +998,7 @@ export function createQuickControls({
       const loading = document.createElement("div");
       loading.className = "yui-vrm__loading";
       loading.setAttribute("role", "status");
-      loading.innerHTML = `<span class="yui-vrm__spin" aria-hidden="true"></span><span class="yui-vrm__loading-name">불러오는 중…</span>`;
+      loading.innerHTML = `<span class="yui-vrm__spin" aria-hidden="true"></span><span class="yui-vrm__loading-name">${t("vrm.loading")}</span>`;
       vrmsEl.appendChild(loading);
     }
 
@@ -998,8 +1027,8 @@ export function createQuickControls({
     row.classList.add("yui-vrm--renaming");
     row.innerHTML = `
       <span class="yui-vrm__tick" aria-hidden="true"></span>
-      <span class="yui-input-wrap"><input class="yui-ep-input" type="text" aria-label="VRM 이름" /></span>
-      <span class="yui-vrm__rename-hint"><kbd>Enter</kbd> 저장 · <kbd>Esc</kbd> 취소</span>
+      <span class="yui-input-wrap"><input class="yui-ep-input" type="text" aria-label="${t("vrm.name_aria")}" /></span>
+      <span class="yui-vrm__rename-hint"><kbd>Enter</kbd> ${t("vrm.rename_hint_save")} · <kbd>Esc</kbd> ${t("vrm.rename_hint_cancel")}</span>
     `;
     const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
     input.value = opt.label;
@@ -1116,7 +1145,7 @@ export function createQuickControls({
       if (body && !row.querySelector(".yui-vrm__hint")) {
         const hint = document.createElement("span");
         hint.className = "yui-vrm__hint";
-        hint.textContent = "바꾸는 중…";
+        hint.textContent = t("vrm.swapping");
         body.insertAdjacentElement("afterend", hint);
       }
     }
@@ -1293,18 +1322,20 @@ export function createQuickControls({
       const label = opt.label ?? opt.id;
       const hasClip = opt.ref_url.length > 0;
       const refreshState = spkRefreshState.get(opt.id);
-      const badgeHtml = selected ? `<span class="yui-spk__badge">사용 중</span>` : "";
+      const badgeHtml = selected
+        ? `<span class="yui-spk__badge">${t("speaker.in_use")}</span>`
+        : "";
       // user 행은 ✎ 이름 바꾸기 · 🗑 삭제를 ↻/▶ 앞에 더한다.
       const userActionsHtml = isUser
-        ? `<button class="yui-spk__rename" type="button" title="이름 바꾸기" aria-label="이름 바꾸기">${SPK_RENAME_SVG}</button>` +
-          `<button class="yui-spk__remove" type="button" title="삭제" aria-label="삭제">${SPK_REMOVE_SVG}</button>`
+        ? `<button class="yui-spk__rename" type="button" title="${t("speaker.rename")}" aria-label="${t("speaker.rename")}">${SPK_RENAME_SVG}</button>` +
+          `<button class="yui-spk__remove" type="button" title="${t("speaker.remove")}" aria-label="${t("speaker.remove")}">${SPK_REMOVE_SVG}</button>`
         : "";
       row.innerHTML = `
         <span class="yui-spk__tick" aria-hidden="true"></span>
         <span class="yui-spk__body"><span class="yui-spk__name"></span></span>
         ${userActionsHtml}
-        <button class="yui-spk__refresh" type="button" title="참조 음성 갱신" ${hasClip ? "" : "disabled"}>${SPK_REFRESH_SVG}</button>
-        <button class="yui-spk__preview" type="button" title="미리듣기" ${hasClip ? "" : "disabled"}>${SPK_PLAY_SVG}</button>
+        <button class="yui-spk__refresh" type="button" title="${t("speaker.refresh")}" ${hasClip ? "" : "disabled"}>${SPK_REFRESH_SVG}</button>
+        <button class="yui-spk__preview" type="button" title="${t("speaker.preview")}" ${hasClip ? "" : "disabled"}>${SPK_PLAY_SVG}</button>
         ${badgeHtml}
       `;
       // 라벨은 신뢰 불가 입력일 수 있다 — textContent로만 넣는다.
@@ -1321,13 +1352,13 @@ export function createQuickControls({
         });
       }
       const refreshBtn = row.querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
-      refreshBtn.setAttribute("aria-label", `${label} 참조 음성 갱신`);
+      refreshBtn.setAttribute("aria-label", t("aria.refresh_speaker", { name: label }));
       refreshBtn.addEventListener("click", (e) => {
         e.stopPropagation(); // 갱신은 행 선택을 트리거하지 않는다
         if (hasClip) void refreshTo(opt);
       });
       const previewBtn = row.querySelector<HTMLButtonElement>(".yui-spk__preview")!;
-      previewBtn.setAttribute("aria-label", `${label} 미리듣기`);
+      previewBtn.setAttribute("aria-label", t("aria.preview_speaker", { name: label }));
       previewBtn.addEventListener("click", (e) => {
         e.stopPropagation(); // 미리듣기는 행 선택을 트리거하지 않는다
         if (hasClip) toggleAudition(previewBtn, opt.ref_url);
@@ -1341,18 +1372,21 @@ export function createQuickControls({
       if (refreshState === "refreshing") {
         refreshBtn.classList.add("is-refreshing");
         refreshBtn.disabled = true;
-        refreshBtn.setAttribute("aria-label", `${label} 참조 음성 갱신 중`);
+        refreshBtn.setAttribute(
+          "aria-label",
+          t("aria.refresh_speaker_refreshing", { name: label }),
+        );
         const body = row.querySelector(".yui-spk__body");
         if (body && !row.querySelector(".yui-spk__hint")) {
           const hint = document.createElement("span");
           hint.className = "yui-spk__hint";
-          hint.textContent = "갱신 중…";
+          hint.textContent = t("speaker.refreshing");
           body.insertAdjacentElement("afterend", hint);
         }
       } else if (refreshState === "done") {
         refreshBtn.classList.add("is-done");
         refreshBtn.innerHTML = SPK_CHECK_SVG;
-        refreshBtn.setAttribute("aria-label", `${label} 참조 음성 갱신됨`);
+        refreshBtn.setAttribute("aria-label", t("aria.refresh_speaker_done", { name: label }));
       }
 
       spksEl.appendChild(row);
@@ -1363,7 +1397,7 @@ export function createQuickControls({
         const err = document.createElement("p");
         err.className = "yui-spk__error";
         err.setAttribute("role", "status");
-        err.textContent = "이 화자를 불러오지 못했어요. 이전 화자로 되돌렸어요.";
+        err.textContent = t("speaker.swap_error");
         spksEl.appendChild(err);
       } else if (refreshState === "error") {
         row.classList.add("is-error");
@@ -1371,13 +1405,13 @@ export function createQuickControls({
         const err = document.createElement("p");
         err.className = "yui-spk__error";
         err.setAttribute("role", "status");
-        err.textContent = "참조 음성을 갱신하지 못했어요.";
+        err.textContent = t("speaker.refresh_error");
         spksEl.appendChild(err);
       } else if (refreshState === "done") {
         const note = document.createElement("p");
         note.className = "yui-spk__note";
         note.setAttribute("role", "status");
-        note.innerHTML = `${SPK_NOTE_CHECK_SVG}참조 음성을 갱신했어요.`;
+        note.innerHTML = `${SPK_NOTE_CHECK_SVG}${t("speaker.refresh_done")}`;
         spksEl.appendChild(note);
       }
     }
@@ -1387,7 +1421,7 @@ export function createQuickControls({
       const loading = document.createElement("div");
       loading.className = "yui-spk__loading";
       loading.setAttribute("role", "status");
-      loading.innerHTML = `<span class="yui-spk__spin" aria-hidden="true"></span><span class="yui-spk__loading-name">불러오는 중…</span>`;
+      loading.innerHTML = `<span class="yui-spk__spin" aria-hidden="true"></span><span class="yui-spk__loading-name">${t("speaker.loading")}</span>`;
       spksEl.appendChild(loading);
     }
 
@@ -1415,8 +1449,8 @@ export function createQuickControls({
     row.classList.add("yui-spk--renaming");
     row.innerHTML = `
       <span class="yui-spk__tick" aria-hidden="true"></span>
-      <span class="yui-input-wrap"><input class="yui-ep-input" type="text" aria-label="화자 이름" /></span>
-      <span class="yui-spk__rename-hint"><kbd>Enter</kbd> 저장 · <kbd>Esc</kbd> 취소</span>
+      <span class="yui-input-wrap"><input class="yui-ep-input" type="text" aria-label="${t("speaker.name_aria")}" /></span>
+      <span class="yui-spk__rename-hint"><kbd>Enter</kbd> ${t("speaker.rename_hint_save")} · <kbd>Esc</kbd> ${t("speaker.rename_hint_cancel")}</span>
     `;
     const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
     input.value = opt.label ?? opt.id;
@@ -1532,7 +1566,7 @@ export function createQuickControls({
       if (body && !row.querySelector(".yui-spk__hint")) {
         const hint = document.createElement("span");
         hint.className = "yui-spk__hint";
-        hint.textContent = "바꾸는 중…";
+        hint.textContent = t("speaker.swapping");
         body.insertAdjacentElement("afterend", hint);
       }
     }
@@ -1740,6 +1774,7 @@ export function createQuickControls({
     reflectVad();
     reflectAgent();
     reflectFiller();
+    reflectLanguage();
     reflectEndpoints();
     reflectChatKey();
     reflectVoiceEngine();
@@ -1849,6 +1884,16 @@ export function createQuickControls({
     const pool = fillerSettings.get().customPools[lang];
     if (fillerFirstTextareaEl) fillerFirstTextareaEl.value = pool ? pool.first.join("\n") : "";
     if (fillerRepeatTextareaEl) fillerRepeatTextareaEl.value = pool ? pool.repeat.join("\n") : "";
+  }
+
+  // 언어 피커 — 세그 클릭 시 표시 언어를 바꾼다. 호스트가 i18n.subscribe로 패널을 재마운트한다.
+  function handleLangSegClick(e: MouseEvent): void {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
+    if (!btn) return;
+    const locale = btn.dataset.locale as Locale | undefined;
+    if (!locale) return;
+    log.info("ui_language_change", { locale });
+    setLocale(locale);
   }
 
   // 어느 칸을 편집하든 두 칸의 현재 값을 함께 써서 다른 칸을 덮어쓰지 않게 한다.
@@ -2043,7 +2088,7 @@ export function createQuickControls({
     chatKeyToggleBtn.setAttribute("aria-pressed", String(show));
     chatKeyInput.type = show ? "text" : "password";
     chatKeyToggleBtn.innerHTML = show ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG;
-    const label = show ? "키 숨기기" : "키 보기";
+    const label = show ? t("chatkey.hide") : t("chatkey.show");
     chatKeyToggleBtn.setAttribute("aria-label", label);
     chatKeyToggleBtn.title = label;
   }
@@ -2168,21 +2213,21 @@ export function createQuickControls({
     scheduleCueList = createCueList({
       mount: cueSectionsMountEl,
       store: scheduleSettings,
-      title: "시간대 인사",
-      sub: "정한 시각에 자리에 있으면 먼저 말을 걸어요",
+      title: t("cue.schedule_title"),
+      sub: t("cue.schedule_sub"),
       icon: "clock",
       trigger: { kind: "time", field: "time" },
-      addLabel: "+ 인사 추가",
+      addLabel: t("cue.schedule_add"),
     });
     cueSectionsMountEl.appendChild(scheduleDividerEl);
     proactiveCueList = createCueList({
       mount: cueSectionsMountEl,
       store: proactiveSettings,
-      title: "주도적 반응",
-      sub: "작업 중인데 한동안 말을 안 걸면 먼저 말을 걸어요",
+      title: t("cue.proactive_title"),
+      sub: t("cue.proactive_sub"),
       icon: "sparkle",
       trigger: { kind: "minutes", field: "idle_min" },
-      addLabel: "+ 반응 추가",
+      addLabel: t("cue.proactive_add"),
     });
   }
 
@@ -2231,6 +2276,7 @@ export function createQuickControls({
   idleThrottleSwitchBtn.addEventListener("click", handleIdleThrottleSwitchClick);
   fillerSwitchBtn?.addEventListener("click", handleFillerSwitchClick);
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
+  langSegEl.addEventListener("click", handleLangSegClick);
   fillerFirstTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   fillerRepeatTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
@@ -2299,6 +2345,7 @@ export function createQuickControls({
     idleThrottleSwitchBtn.removeEventListener("click", handleIdleThrottleSwitchClick);
     fillerSwitchBtn?.removeEventListener("click", handleFillerSwitchClick);
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
+    langSegEl.removeEventListener("click", handleLangSegClick);
     fillerFirstTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     fillerRepeatTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
