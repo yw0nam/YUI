@@ -83,6 +83,12 @@ class TestScreenshotMaxEdge:
             server.screenshot()
         m.assert_called_once_with(None)
 
+    def test_non_numeric_falls_back_to_default(self, monkeypatch):
+        monkeypatch.setenv("DESKTOP_CONTROL_SCREENSHOT_MAX_EDGE", "wide")
+        with patch.object(server.ops, "capture_screens", return_value=[b"x"]) as m:
+            server.screenshot()
+        m.assert_called_once_with(1280)
+
 
 class TestCaptureScreens:
     def test_collects_each_display_until_invalid(self):
