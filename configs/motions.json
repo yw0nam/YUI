@@ -97,6 +97,7 @@
   "thinking": {
     "vrma_path": "/purchased_motions/thinking.vrma",
     "fade_ms": 200,
+    "crossfade_loop": true,
     "kind": "state",
     "loop": true,
     "priority": 50,
