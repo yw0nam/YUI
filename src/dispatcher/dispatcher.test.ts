@@ -669,6 +669,114 @@ describe("dispatcher — guardrail gating (§6)", () => {
   });
 });
 
+describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
+  it("cancel() aborts the in-flight backend call", async () => {
+    dispatcher.start();
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(callDeferred).toHaveLength(1);
+    expect(callDeferred[0].signal?.aborted).toBe(false);
+
+    dispatcher.cancel();
+    expect(callDeferred[0].signal?.aborted).toBe(true);
+    expect(dispatcher.inFlight()).toBeNull();
+  });
+
+  it("cancel() drops pending tier2/3 with superseded_by_user", async () => {
+    dispatcher.start();
+    // occupy in-flight
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    // queue a tier2 behind it
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(dispatcher.queue().length).toBeGreaterThan(0);
+
+    dispatcher.cancel();
+    expect(dispatcher.queue()).toHaveLength(0);
+    expect(dispatcher.recentDrops(10).some((d) => d.reason === "superseded_by_user")).toBe(true);
+  });
+
+  it("cancel() with nothing in flight is a no-op (no throw)", () => {
+    dispatcher.start();
+    expect(() => dispatcher.cancel()).not.toThrow();
+    expect(dispatcher.inFlight()).toBeNull();
+  });
+
+  it("subscribeBusy fires true when a backend call starts, false when it completes", async () => {
+    const seen: boolean[] = [];
+    dispatcher.subscribeBusy((b) => seen.push(b));
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    expect(seen).toEqual([true]);
+    callDeferred[0].resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(seen).toEqual([true, false]);
+  });
+
+  it("subscribeBusy fires false when cancel() aborts the in-flight call", async () => {
+    const seen: boolean[] = [];
+    dispatcher.subscribeBusy((b) => seen.push(b));
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    expect(seen).toEqual([true]);
+    dispatcher.cancel();
+    expect(seen).toEqual([true, false]);
+  });
+
+  it("subscribeBusy does NOT double-fire across a drainPending hand-off (no spurious false)", async () => {
+    const seen: boolean[] = [];
+    dispatcher.start();
+    // occupy in-flight with first tier2
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    // queue a second tier2 that stays pending
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    // subscribe only now: busy is already true and stays true across the hand-off.
+    dispatcher.subscribeBusy((b) => seen.push(b));
+    // first completes → drainPending immediately starts the pending one (busy stays true).
+    callDeferred[0].resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(seen).toEqual([]); // no false→...→true flicker on the boundary
+    // second completes with nothing pending → now busy flips to false once.
+    callDeferred[1].resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(seen).toEqual([false]);
+  });
+
+  it("subscribeBusy unsubscribe stops further notifications", async () => {
+    const seen: boolean[] = [];
+    const off = dispatcher.subscribeBusy((b) => seen.push(b));
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    expect(seen).toEqual([true]);
+    off();
+    callDeferred[0].resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(seen).toEqual([true]);
+  });
+});
+
 describe("dispatcher — cooldown state mirror (§6.3/§9)", () => {
   it("overall-cap overflow flips state() to 'cooldown' and back to 'running'; tier1 still renders", async () => {
     const cfg = realGuardrailsConfig();

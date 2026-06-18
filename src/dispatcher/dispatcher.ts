@@ -85,8 +85,12 @@ export interface Dispatcher {
   recentDrops(n?: number): DropRecord[];
   /** 진행 중 backend call(없으면 null). */
   inFlight(): InFlightInfo | null;
+  /** 진행 중 call abort + 보류 tier2/3 drop(client-only). bus sweep/tier1은 안 함. */
+  cancel(): void;
   /** 상태 전이 구독. 매 전이마다 콜백 호출, unsubscribe fn 반환. */
   subscribeState(cb: (s: DispatcherState) => void): () => void;
+  /** busy(=in-flight 유무) 전이 구독. idle⟷busy 경계에서만 호출, unsubscribe fn 반환. */
+  subscribeBusy(cb: (busy: boolean) => void): () => void;
 }
 
 type Tier = 1 | 2 | 3;
@@ -177,6 +181,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   const drops: DropRecord[] = [];
 
   const stateSubscribers = new Set<(s: DispatcherState) => void>();
+  const busySubscribers = new Set<(busy: boolean) => void>();
 
   /** 상태 전이의 단일 경로: 할당 + state_change 로그 + 구독자 통지. */
   function setState(next: DispatcherState): void {
@@ -185,6 +190,15 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     state = next;
     log.info("state_change", { from, to: next });
     for (const cb of stateSubscribers) cb(next);
+  }
+
+  /** in-flight 할당의 단일 경로: idle⟷busy 경계(null↔non-null)에서만 구독자 통지. */
+  function setInFlight(next: typeof inFlight): void {
+    const wasBusy = inFlight !== null;
+    inFlight = next;
+    const isBusy = inFlight !== null;
+    if (wasBusy === isBusy) return;
+    for (const cb of busySubscribers) cb(isBusy);
   }
 
   function recordDrop(env: BusEnvelope, reason: DropRecord["reason"]): void {
@@ -202,7 +216,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     if (inFlight) {
       log.info("abort", { event_name: inFlight.trigger.event_name, reason: "superseded_by_user" });
       inFlight.abort.abort();
-      inFlight = null;
+      setInFlight(null);
     }
     while (pending.length > 0) {
       recordDrop(pending.shift()!, "superseded_by_user");
@@ -226,7 +240,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   function startBackendCall(env: BusEnvelope): void {
     const abort = new AbortController();
     const started_at = Date.now();
-    inFlight = { trigger: env, started_at, abort };
+    setInFlight({ trigger: env, started_at, abort });
     log.info("backend_call", { trigger: env.event_name, seq_id: env.seq_id, started_at });
     void backendCaller
       .call(env, abort.signal)
@@ -245,15 +259,21 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       })
       .finally(() => {
         // 이 콜이 여전히 현재 in-flight일 때만 슬롯 해제(abort로 교체됐으면 건드리지 않음).
-        if (inFlight && inFlight.trigger === env) inFlight = null;
-        drainPending();
+        // 곧장 drain할 보류가 있으면 슬롯을 비우지 않고 바로 다음 콜로 교체해
+        // busy가 true→true로 유지된다(경계 통지 없음).
+        if (inFlight && inFlight.trigger === env) {
+          if (canDrain()) {
+            startBackendCall(pending.shift()!);
+          } else {
+            setInFlight(null);
+          }
+        }
       });
   }
 
-  /** 보류 큐에서 다음 tier2/3 1건을 꺼내 in-flight가 비었으면 시작. 비-running이면 보류. */
-  function drainPending(): void {
-    if (inFlight || pending.length === 0 || state !== "running") return;
-    startBackendCall(pending.shift()!);
+  /** 지금 보류 1건을 다음 콜로 시작할 수 있는지(콜 완료 직후 슬롯 교체 판정용). */
+  function canDrain(): boolean {
+    return pending.length > 0 && state === "running";
   }
 
   /** tier2/3 enqueue: in-flight 비면 즉시 시작, 아니면 보류(2건 이상이면 oldest drop). */
@@ -385,7 +405,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       }
       if (inFlight) {
         inFlight.abort.abort();
-        inFlight = null;
+        setInFlight(null);
       }
       pending.length = 0;
       setState("stopped");
@@ -400,10 +420,30 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     inFlight() {
       return inFlight ? { trigger: inFlight.trigger, started_at: inFlight.started_at } : null;
     },
+    cancel() {
+      // client-only abort: 진행 중 call abort + 보류 drop. bus sweep/tier1 렌더는 안 함.
+      if (inFlight) {
+        log.info("abort", {
+          event_name: inFlight.trigger.event_name,
+          reason: "superseded_by_user",
+        });
+        inFlight.abort.abort();
+        setInFlight(null);
+      }
+      while (pending.length > 0) {
+        recordDrop(pending.shift()!, "superseded_by_user");
+      }
+    },
     subscribeState(cb) {
       stateSubscribers.add(cb);
       return () => {
         stateSubscribers.delete(cb);
+      };
+    },
+    subscribeBusy(cb) {
+      busySubscribers.add(cb);
+      return () => {
+        busySubscribers.delete(cb);
       };
     },
   };
