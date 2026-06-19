@@ -749,6 +749,41 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
         issues.push(`${id}.cycle_dwell_ms는 cycle 모션(variants>1 + loop)에만 유효함`);
       }
     }
+    // pingpong: forward↔reverse loop. loop 필수, crossfade_loop와 상호 배타.
+    const rawPingpong = entry.pingpong;
+    let pingpong: boolean | undefined;
+    if (rawPingpong !== undefined) {
+      if (typeof rawPingpong !== "boolean") {
+        issues.push(`${id}.pingpong은 boolean이어야 함`);
+      } else {
+        pingpong = rawPingpong;
+      }
+      if (rawPingpong === true && entry.loop !== true) {
+        issues.push(`${id}.pingpong:true는 loop:true를 요구함`);
+      }
+      if (rawPingpong === true && entry.crossfade_loop === true) {
+        issues.push(`${id}.pingpong과 crossfade_loop는 상호 배타임`);
+      }
+    }
+    // loop_cycles: [min,max] 왕복 횟수. 양의 정수 2개 + lo<=hi. pingpong:true에서만 유효.
+    const rawLoopCycles = entry.loop_cycles;
+    let loop_cycles: [number, number] | undefined;
+    if (rawLoopCycles !== undefined) {
+      if (
+        !Array.isArray(rawLoopCycles) ||
+        rawLoopCycles.length !== 2 ||
+        rawLoopCycles.some((v) => typeof v !== "number" || !Number.isInteger(v) || v < 1) ||
+        (rawLoopCycles[0] as number) > (rawLoopCycles[1] as number)
+      ) {
+        issues.push(`${id}.loop_cycles는 lo<=hi인 양의 정수 2개 배열이어야 함`);
+      } else {
+        loop_cycles = [rawLoopCycles[0] as number, rawLoopCycles[1] as number];
+      }
+      // pingpong:true가 아니면 resolve()가 무시하는 dead 필드 — fail-loud.
+      if (rawPingpong !== true) {
+        issues.push(`${id}.loop_cycles는 pingpong:true 없이 의미 없음`);
+      }
+    }
     // fade_ms: entry-level default crossfade ms. 모든 항목에 유효.
     const rawFade = entry.fade_ms;
     let fade_ms: number | undefined;
@@ -769,6 +804,8 @@ function validateMotions(file: string, raw: unknown): MotionRegistry {
       ...(variants !== undefined ? { variants } : {}),
       ...(variant_policy !== undefined ? { variant_policy } : {}),
       ...(cycle_dwell_ms !== undefined ? { cycle_dwell_ms } : {}),
+      ...(pingpong !== undefined ? { pingpong } : {}),
+      ...(loop_cycles !== undefined ? { loop_cycles } : {}),
       ...(fade_ms !== undefined ? { fade_ms } : {}),
       ...(broker_publish !== undefined ? { broker_publish } : {}),
       kind: entry.kind as MotionKind,
