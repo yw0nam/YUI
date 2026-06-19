@@ -17,6 +17,8 @@
       "/motions/idle_13.vrma"
     ],
     "variant_policy": "random",
+    "pingpong": true,
+    "loop_cycles": [1, 3],
     "kind": "ambient",
     "loop": true,
     "priority": 0,
@@ -97,7 +99,7 @@
   "thinking": {
     "vrma_path": "/purchased_motions/thinking.vrma",
     "fade_ms": 200,
-    "crossfade_loop": true,
+    "pingpong": true,
     "kind": "state",
     "loop": true,
     "priority": 50,
@@ -145,6 +147,8 @@
     "variant_policy": "random",
     "cycle_dwell_ms": 0,
     "fade_ms": 700,
+    "pingpong": true,
+    "loop_cycles": [1, 3],
     "kind": "state",
     "loop": true,
     "priority": 55,
