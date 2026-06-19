@@ -8,9 +8,9 @@ Human-readable map of every motion id in [`configs/motions.json`](../configs/mot
   - **[もいらんど — thinking](https://booth.pm/ja/items/5562384)** — `thinking` only. A purchased licensed asset kept at `public/purchased_motions/thinking.vrma`, gitignored and never committed to a public repository (see [`public/purchased_motions/AGENTS.md`](../public/purchased_motions/AGENTS.md)). When the file is absent locally, the renderer falls back to `idle`.
   - **Original works** authored in Blender by the project author — `falling`, `landing`.
 - Durations are the source clip length.
-- **Pools**: `idle`, `sit`, `window_sit`, `dance` are single registry entries with a `variants[]` list and `variant_policy: "random"` — each trigger plays a random variant (immediate-repeat avoided). The character-facing id is the pool id; individual variant files are not separate registry entries.
+- **Pools**: `idle`, `window_sit`, `dance` are single registry entries with a `variants[]` list and `variant_policy: "random"` — each trigger plays a random variant (immediate-repeat avoided). The character-facing id is the pool id; individual variant files are not separate registry entries.
 - **Triggers**: AI via `generate_express` `motion_id` plays any broker-published oneshot/pool; `idle` is the ambient baseline; `drag` is the reactive pickup; `window_sit` is a held state engaged by a dev trigger; `thinking` is a client-played TTFT latency affordance (loops from the start of a backend turn until the response speech begins).
-- **Broker publication** (`broker_publish`, default `true`): a `false` entry stays renderable locally but is kept out of the agent-facing broker vocabulary, so the agent never selects it. The broker-published, agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance, sulk`. Excluded from the broker: `idle` (ambient baseline, auto-played), `drag` (`kind: reactive` pickup), `sit` and `window_sit` (`broker_publish: false`), `thinking` (`broker_publish: false`, client-played TTFT affordance), and `falling`, `landing` (`broker_publish: false`) — registered but not currently triggered by any code.
+- **Broker publication** (`broker_publish`, default `true`): a `false` entry stays renderable locally but is kept out of the agent-facing broker vocabulary, so the agent never selects it. The broker-published, agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance, sulk`. Excluded from the broker: `idle` (ambient baseline, auto-played), `drag` (`kind: reactive` pickup), `window_sit` (`broker_publish: false`), `thinking` (`broker_publish: false`, client-played TTFT affordance), and `falling`, `landing` (`broker_publish: false`) — registered but not currently triggered by any code.
 - **Missing-clip fallback**: any motion whose clip fails to load (missing or invalid `.vrma` for the live VRM — e.g. a gitignored purchased motion absent locally) recovers to `idle`. The renderer force-commits `idle` so the failed id never pins controller state or blocks a later idle by priority.
 
 ## Naming convention
@@ -19,7 +19,7 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 
 - **Default — `{emotion}`**: the bare emotion or state — `happy`, `laugh`, `embarrassed`, `sheepish`, `calm`.
 - **Indexed — `{emotion}_NN`**: when several clips express the same id, suffix a zero-padded number (`idle_01`, `dance_13`, `sit_01`).
-- **Descriptive exception**: motions whose action or pose is itself the clearest identifier keep that descriptive name instead of an emotion label — `idle`, `drag`, `peek`, `sit`, `window_sit`, `sleeping`, `thinking`, `dance`.
+- **Descriptive exception**: motions whose action or pose is itself the clearest identifier keep that descriptive name instead of an emotion label — `idle`, `drag`, `peek`, `window_sit`, `sleeping`, `thinking`, `dance`.
 
 ## Top-level motions
 
@@ -38,7 +38,6 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 | `sleeping` | oneshot | yes | Lies down on the floor on her side — sleeping. Drops the hips low (off a feet-anchored frame). | PET_SLEEPING/PET_SLEEPING | 35.2s |
 | `thinking` | state | yes | Looping thinking pose — client-played TTFT latency affordance; loops from the start of a backend turn until the response speech begins. `crossfade_loop: true` self-crossfades the loop seam (`fade_ms: 200`) instead of a hard `LoopRepeat` cut. Priority 50 (above `idle`, below `window_sit` perch and reactive emotes). `broker_publish: false`. Purchased asset at `public/purchased_motions/thinking.vrma`; falls back to `idle` when absent. | もいらんど thinking | — |
 | `sulk` | oneshot | no | Sulk/pout (拗ね) emotion gesture. | necocoya EmoteSet_Free_v130 / `06_suneru` | 4.2s |
-| `sit` | oneshot | no | Random sit pool (see below). AI-triggered floor/edge sit; returns to idle. `broker_publish: false` — render-only, not published to the broker. | PET_SITTING/* | — |
 | `window_sit` | state | yes | Held window-perch (see below). Plays a sit variant, holds the settled frame for `cycle_dwell_ms`, crossfades to a different variant, repeats until interrupted. `broker_publish: false`. Engaged by a dev trigger. | PET_SITTING/* | — |
 | `dance` | oneshot | no | Random dance pool (see below). | PET_DANCING/* | — |
 
@@ -64,9 +63,9 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 | idle_12.vrma | PET_IDLE/PET_IDLE_12 | 3.5s |
 | idle_13.vrma | PET_IDLE/PET_IDLE_13 | 4.1s |
 
-## `sit` / `window_sit` variants (random)
+## `window_sit` variants (random)
 
-Both pools share the same 8 variants — a mix of floor sits and edge/perch sits. All lower the hips when seated. `sit` is a oneshot that returns to idle; `window_sit` is a looping held state that dwells on each settled frame for `cycle_dwell_ms: 4000` before crossfading to a different variant.
+8 variants — a mix of floor sits and edge/perch sits. All lower the hips when seated. `window_sit` is a looping held state that crossfades to a different variant over `fade_ms: 700` with no settled-frame dwell (`cycle_dwell_ms: 0`).
 
 | variant file | description | source clip | ~len |
 |---|---|---|---|
