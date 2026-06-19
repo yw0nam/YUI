@@ -707,11 +707,15 @@ export function createRenderer(options: RendererOptions): Renderer {
       const action = mixer.clipAction(clip);
       action.timeScale = motion.speed;
       if (motion.loop && !motion.cycle) {
-        action.setLoop(THREE.LoopRepeat, Infinity);
+        // plain loop 또는 단일 variant pingpong(continuous).
+        action.setLoop(motion.pingpong ? THREE.LoopPingPong : THREE.LoopRepeat, Infinity);
         action.clampWhenFinished = false;
       } else {
-        // oneshot 또는 cycle: 한 번 재생 후 finished 이벤트로 controller.finish 구동.
-        action.setLoop(THREE.LoopOnce, 1);
+        // oneshot 또는 cycle: pingpong이면 2N reps 후, 아니면 1회 재생 후 finished로 controller.finish 구동.
+        action.setLoop(
+          motion.pingpong ? THREE.LoopPingPong : THREE.LoopOnce,
+          motion.pingpong ? motion.loop_reps : 1,
+        );
         action.clampWhenFinished = true;
         actionToId.set(action, motion.id);
       }
