@@ -25,7 +25,7 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 
 | id | kind | loop | description | source clip | ~len |
 |---|---|---|---|---|---|
-| `idle` | ambient | yes (cycle) | Ambient baseline — random idle variant pool (see below). | PET_IDLE / PET_MISC | — |
+| `idle` | ambient | yes (cycle) | Ambient baseline — random idle variant pool (see below). `pingpong: true` with `loop_cycles: [1, 3]`: each variant plays forward↔reverse a random 1–3 round trips, then rotates to a fresh variant. | PET_IDLE / PET_MISC | — |
 | `drag` | reactive | yes | Pickup reaction while the window is being dragged. `broker_publish: false`. | PET_MISC/PET_DRAGGING | — |
 | `falling` | reactive | yes | Falling loop — arms up, spring-bone flutter. Registered but not currently triggered by any code. `broker_publish: false`. | Original (Blender, project author) | 2.5s |
 | `landing` | oneshot | no | Landing impact then settle. Registered but not currently triggered by any code. `broker_publish: false`. | Original (Blender, project author) | 1.8s |
@@ -36,9 +36,9 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 | `calm` | oneshot | no | Calm standing gesture; hands folded together in front. | PET_POSE/PET_POSE_3 | 5.0s |
 | `peek` | oneshot | no | Standing, 3/4 turn; one hand covering the mouth — shy peek. | PET_HIDING/PET_HIDE | 14.0s |
 | `sleeping` | oneshot | yes | Lies down on the floor on her side — sleeping. Drops the hips low (off a feet-anchored frame). | PET_SLEEPING/PET_SLEEPING | 35.2s |
-| `thinking` | state | yes | Looping thinking pose — client-played TTFT latency affordance; loops from the start of a backend turn until the response speech begins. `crossfade_loop: true` self-crossfades the loop seam (`fade_ms: 200`) instead of a hard `LoopRepeat` cut. Priority 50 (above `idle`, below `window_sit` perch and reactive emotes). `broker_publish: false`. Purchased asset at `public/purchased_motions/thinking.vrma`; falls back to `idle` when absent. | もいらんど thinking | — |
+| `thinking` | state | yes | Looping thinking pose — client-played TTFT latency affordance; loops from the start of a backend turn until the response speech begins. `pingpong: true` (single variant): plays forward↔reverse continuously, seam-free at the turnaround, until interrupted. Priority 50 (above `idle`, below `window_sit` perch and reactive emotes). `broker_publish: false`. Purchased asset at `public/purchased_motions/thinking.vrma`; falls back to `idle` when absent. | もいらんど thinking | — |
 | `sulk` | oneshot | no | Sulk/pout (拗ね) emotion gesture. | necocoya EmoteSet_Free_v130 / `06_suneru` | 4.2s |
-| `window_sit` | state | yes | Held window-perch (see below). Plays a sit variant, holds the settled frame for `cycle_dwell_ms`, crossfades to a different variant, repeats until interrupted. `broker_publish: false`. Engaged by a dev trigger. | PET_SITTING/* | — |
+| `window_sit` | state | yes | Held window-perch (see below). Plays a sit variant, `pingpong: true` with `loop_cycles: [1, 3]` (forward↔reverse a random 1–3 round trips), crossfades to a different variant, repeats until interrupted. `broker_publish: false`. Engaged by a dev trigger. | PET_SITTING/* | — |
 | `dance` | oneshot | no | Random dance pool (see below). | PET_DANCING/* | — |
 
 > `sheepish` and `calm` are **standing gestures**, not sitting.
@@ -65,7 +65,7 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 
 ## `window_sit` variants (random)
 
-8 variants — a mix of floor sits and edge/perch sits. All lower the hips when seated. `window_sit` is a looping held state that crossfades to a different variant over `fade_ms: 700` with no settled-frame dwell (`cycle_dwell_ms: 0`).
+8 variants — a mix of floor sits and edge/perch sits. All lower the hips when seated. `window_sit` is a looping held state that ping-pongs each variant forward↔reverse a random 1–3 round trips (`loop_cycles: [1, 3]`), then crossfades to a different variant over `fade_ms: 700` with no settled-frame dwell (`cycle_dwell_ms: 0`).
 
 | variant file | description | source clip | ~len |
 |---|---|---|---|

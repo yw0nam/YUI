@@ -84,6 +84,10 @@ export interface MotionRegistryEntry {
   fade_ms?: number;
   /** true면 단일 variant loop 모션이 hard LoopRepeat 대신 loop 이음매를 self-crossfade 한다. */
   crossfade_loop?: boolean;
+  /** ping-pong (forward↔reverse) loop. requires loop=true. mutually exclusive with crossfade_loop. */
+  pingpong?: boolean;
+  /** [min,max] ping-pong round trips before a multi-variant motion swaps variant. default [1,1]. ignored for single-variant (continuous). */
+  loop_cycles?: [number, number];
   /** false면 broker(agent) 어휘에서 제외 — 로컬 렌더만. default true. */
   broker_publish?: boolean;
   kind: MotionKind;

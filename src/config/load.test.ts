@@ -327,6 +327,98 @@ describe("loadConfig — motions.cycle_dwell_ms", () => {
   });
 });
 
+// ── motions.pingpong / loop_cycles (ping-pong loop) ─────────────────────────────
+
+/** multi-variant loop 항목에 pingpong/loop_cycles를 깔아주는 fixture. */
+function pingpongMotionFixture(over: Record<string, unknown>): Record<string, unknown> {
+  const map = goodFixture();
+  map["motions.json"] = {
+    idle: {
+      vrma_path: "/motions/a.vrma",
+      variants: ["/motions/a.vrma", "/motions/b.vrma"],
+      variant_policy: "random",
+      kind: "ambient",
+      loop: true,
+      priority: 0,
+      interrupt_policy: "replace",
+      ...over,
+    },
+  };
+  return map;
+}
+
+describe("loadConfig — motions.pingpong / loop_cycles", () => {
+  it("유효한 pingpong:true + loop_cycles:[1,3]을 검증 후 그대로 보존한다", async () => {
+    const cfg = await loadConfig({
+      read: readerOf(pingpongMotionFixture({ pingpong: true, loop_cycles: [1, 3] })),
+    });
+    expect(cfg.motions.idle.pingpong).toBe(true);
+    expect(cfg.motions.idle.loop_cycles).toEqual([1, 3]);
+  });
+
+  it("pingpong/loop_cycles 없는 항목은 통과하고 둘 다 undefined", async () => {
+    const cfg = await loadConfig({ read: readerOf(goodFixture()) });
+    expect(cfg.motions.idle.pingpong).toBeUndefined();
+    expect(cfg.motions.idle.loop_cycles).toBeUndefined();
+  });
+
+  it("pingpong이 boolean이 아니면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(pingpongMotionFixture({ pingpong: "yes" })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pingpong:true + loop:false면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(pingpongMotionFixture({ pingpong: true, loop: false })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pingpong:true + crossfade_loop:true면 ConfigError(상호 배타)", async () => {
+    await expect(
+      loadConfig({
+        read: readerOf(pingpongMotionFixture({ pingpong: true, crossfade_loop: true })),
+      }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("loop_cycles가 pingpong:true 없이 있으면 ConfigError(dead 필드)", async () => {
+    await expect(
+      loadConfig({ read: readerOf(pingpongMotionFixture({ loop_cycles: [1, 3] })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("loop_cycles가 2-요소가 아니면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(pingpongMotionFixture({ pingpong: true, loop_cycles: [1] })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("loop_cycles의 lo>hi면 ConfigError", async () => {
+    await expect(
+      loadConfig({
+        read: readerOf(pingpongMotionFixture({ pingpong: true, loop_cycles: [3, 1] })),
+      }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("loop_cycles에 0이 있으면 ConfigError(양의 정수)", async () => {
+    await expect(
+      loadConfig({
+        read: readerOf(pingpongMotionFixture({ pingpong: true, loop_cycles: [0, 2] })),
+      }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("loop_cycles에 정수가 아닌 값이 있으면 ConfigError", async () => {
+    await expect(
+      loadConfig({
+        read: readerOf(pingpongMotionFixture({ pingpong: true, loop_cycles: [1, 2.5] })),
+      }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+});
+
 // ── motions.fade_ms (entry-level default crossfade) ─────────────────────────────
 
 /** 한 모션 항목에 fade_ms를 깔아주는 fixture. */

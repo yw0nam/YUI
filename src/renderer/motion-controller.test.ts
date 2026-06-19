@@ -484,6 +484,129 @@ describe("resolve() — cycle flag", () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// §6b  pingpong → loop_reps
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("resolve() — pingpong loop_reps", () => {
+  /** multi-variant pingpong (idle-like) with loop_cycles [1,3]. */
+  const multiRegistry: MotionRegistry = {
+    idle: {
+      vrma_path: "/motions/idle_01.vrma",
+      variants: ["/motions/idle_01.vrma", "/motions/idle_02.vrma", "/motions/idle_03.vrma"],
+      variant_policy: "random",
+      pingpong: true,
+      loop_cycles: [1, 3],
+      kind: "ambient",
+      loop: true,
+      priority: 0,
+      interrupt_policy: "replace",
+    },
+  };
+  /** single-variant pingpong (thinking-like) → continuous. */
+  const singleRegistry: MotionRegistry = {
+    thinking: {
+      vrma_path: "/purchased_motions/thinking.vrma",
+      pingpong: true,
+      kind: "state",
+      loop: true,
+      priority: 50,
+      interrupt_policy: "ignore",
+    },
+  };
+
+  it("non-pingpong entry (drag) → pingpong false, loop_reps 0", () => {
+    const mc = createMotionController(realRegistry);
+    const r = mc.resolve({ id: "drag" });
+    expect(r!.pingpong).toBe(false);
+    expect(r!.loop_reps).toBe(0);
+  });
+
+  it("multi-variant pingpong → pingpong true, cycle true, loop_reps even", () => {
+    const mc = createMotionController(multiRegistry, { rng: () => 0 });
+    const r = mc.resolve({ id: "idle" });
+    expect(r!.pingpong).toBe(true);
+    expect(r!.cycle).toBe(true);
+    expect(r!.loop_reps % 2).toBe(0);
+  });
+
+  it("multi-variant pingpong loop_reps within [2*lo, 2*hi] across rng stubs", () => {
+    // rng feeds both variant pick AND the n draw; only the reps bound matters here.
+    for (const stub of [0, 0.5, 0.99]) {
+      const mc = createMotionController(multiRegistry, { rng: () => stub });
+      const r = mc.resolve({ id: "idle" });
+      expect(r!.loop_reps).toBeGreaterThanOrEqual(2); // 2*lo, lo=1
+      expect(r!.loop_reps).toBeLessThanOrEqual(6); // 2*hi, hi=3
+      expect(r!.loop_reps % 2).toBe(0);
+    }
+  });
+
+  it("multi-variant pingpong: rng→0 picks lo (n=1) → loop_reps 2", () => {
+    const mc = createMotionController(multiRegistry, { rng: () => 0 });
+    const r = mc.resolve({ id: "idle" });
+    expect(r!.loop_reps).toBe(2);
+  });
+
+  it("multi-variant pingpong: rng→0.99 picks hi (n=3) → loop_reps 6", () => {
+    const mc = createMotionController(multiRegistry, { rng: () => 0.99 });
+    const r = mc.resolve({ id: "idle" });
+    expect(r!.loop_reps).toBe(6);
+  });
+
+  it("single-variant pingpong → pingpong true, cycle false, loop_reps Infinity", () => {
+    const mc = createMotionController(singleRegistry);
+    const r = mc.resolve({ id: "thinking" });
+    expect(r!.pingpong).toBe(true);
+    expect(r!.cycle).toBe(false);
+    expect(r!.loop_reps).toBe(Infinity);
+  });
+
+  it("pingpong with loop:false override → pingpong false (guard), loop_reps 0", () => {
+    const mc = createMotionController(singleRegistry);
+    const r = mc.resolve({ id: "thinking", loop: false });
+    expect(r!.pingpong).toBe(false);
+    expect(r!.loop_reps).toBe(0);
+  });
+
+  it("drag interrupt re-resolves idle with a fresh count (no persistent counter)", () => {
+    const dragRegistry: MotionRegistry = {
+      ...multiRegistry,
+      drag: {
+        vrma_path: "/motions/drag.vrma",
+        kind: "reactive",
+        loop: true,
+        priority: 80,
+        interrupt_policy: "replace",
+      },
+    };
+    // rng sequence threads variant pick + n draw across two idle resolves.
+    const seq = [0, 0, 0.99, 0.99];
+    let i = 0;
+    const rng = (): number => seq[Math.min(i++, seq.length - 1)]!;
+    const mc = createMotionController(dragRegistry, { rng, baselineId: "idle" });
+
+    const idle = mc.request({ id: "idle" });
+    expect(idle.action).toBe("play");
+    mc.commit(idle);
+    const repsA = idle.action === "play" ? idle.motion.loop_reps : -1;
+
+    // drag interrupts immediately (p80 ≥ idle p0).
+    const drag = mc.request({ id: "drag" });
+    expect(drag.action).toBe("play");
+    mc.commit(drag);
+
+    // stale finish from the faded idle is ignored — no ghost swap.
+    expect(mc.finish("idle").action).toBe("ignore");
+
+    // return to idle later → fresh resolve, count NOT carried from before.
+    const back = mc.request(null);
+    expect(back.action).toBe("play");
+    const repsB = back.action === "play" ? back.motion.loop_reps : -1;
+    expect(repsA).toBe(2); // rng 0,0 → n=1
+    expect(repsB).toBe(6); // rng 0.99,0.99 → n=3 (fresh, not repsA)
+  });
+});
+
 describe("resolve() — random avoids immediate variant repeat", () => {
   it("two successive idle resolves with a constant rng yield different variants", () => {
     // rng()=>0 would pick index 0 both times; the second must bump to index 1.
