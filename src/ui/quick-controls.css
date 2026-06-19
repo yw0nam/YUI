@@ -83,10 +83,6 @@
   cursor: grabbing;
 }
 
-.yui-quick--window .yui-quick__bar {
-  cursor: default;
-}
-
 .yui-quick__grip {
   display: inline-grid;
   grid-template-columns: repeat(2, 3px);
@@ -190,6 +186,11 @@
   border-radius: var(--yui-radius-row);
   background: oklch(0.5 0.01 70 / 0.2);
   border: 1px solid var(--yui-edge);
+}
+
+/* window variant: no custom bar — tabs sit below the native macOS titlebar (28px). */
+.yui-quick--window .yui-tabs {
+  margin-top: calc(28px + 0.4rem);
 }
 
 .yui-tabs__ind {
@@ -832,18 +833,6 @@
   background: transparent;
 }
 
-/* 차분한 하단 페이드 — "더 있음"을 암시하는 정적 스크림(하드 라인 없음). */
-.yui-vrm-scroll::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1.6rem;
-  pointer-events: none;
-  background: linear-gradient(to bottom, oklch(0.19 0.014 70 / 0) 0%, var(--yui-scrim-strong) 100%);
-}
-
 /* "파일에서 추가…" 고정 푸터 — 스크롤 영역 밖. 목록 길이와 무관하게 항상 보인다. */
 .yui-vrm-foot {
   margin-top: 0.1rem;
@@ -1238,18 +1227,6 @@
 
 .yui-spk-scroll::-webkit-scrollbar-track {
   background: transparent;
-}
-
-/* 차분한 하단 페이드 — "더 있음"을 암시하는 정적 스크림. */
-.yui-spk-scroll::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1.6rem;
-  pointer-events: none;
-  background: linear-gradient(to bottom, oklch(0.19 0.014 70 / 0) 0%, var(--yui-scrim-strong) 100%);
 }
 
 /* "파일에서 추가…" 고정 푸터 — 스크롤 영역 밖. */
