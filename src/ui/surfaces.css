@@ -100,6 +100,109 @@
   transform: translate(-50%, 0) scale(1);
 }
 
+/* 입력이 열려 있는 동안 — 말풍선을 입력 위로(--yui-bubble-bottom는 JS가 px로 설정),
+   아래로 자라지 않게 높이를 더 죄어 입력 영역을 침범하지 않게 한다. */
+.yui-bubble.is-above-input {
+  max-height: min(var(--yui-bubble-max-h, 34vh), 28vh);
+}
+
+/* ── 말풍선 내부 마크다운 ──
+   작은 caption 패널에 맞게 블록/인라인 요소를 촘촘하게. 첫/마지막 여백 제거. */
+.yui-bubble p {
+  margin: 0.4em 0;
+}
+.yui-bubble > :first-child {
+  margin-top: 0;
+}
+.yui-bubble > :last-child {
+  margin-bottom: 0;
+}
+.yui-bubble ul,
+.yui-bubble ol {
+  margin: 0.4em 0;
+  padding-left: 1.3em;
+}
+.yui-bubble li {
+  margin: 0.12em 0;
+}
+.yui-bubble li::marker {
+  color: var(--yui-text-dim);
+}
+.yui-bubble strong {
+  font-weight: 650;
+  color: var(--yui-text);
+}
+.yui-bubble em {
+  font-style: italic;
+}
+/* 인라인 코드 — 은은한 scrim bg, 작은 radius. */
+.yui-bubble code {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+  font-size: 0.86em;
+  padding: 0.08em 0.34em;
+  border-radius: 5px;
+  background: var(--yui-scrim);
+  border: 1px solid var(--yui-edge);
+}
+/* 코드 블록 — 긴 줄은 가로 스크롤, 높이 캡으로 말풍선을 덮지 않게. */
+.yui-bubble pre {
+  margin: 0.5em 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--yui-radius-row);
+  background: var(--yui-scrim);
+  border: 1px solid var(--yui-edge);
+  overflow-x: auto;
+  max-height: 16vh;
+  scrollbar-width: thin;
+  scrollbar-color: var(--yui-edge-strong) transparent;
+}
+.yui-bubble pre code {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.84em;
+  line-height: 1.45;
+  white-space: pre;
+}
+/* 헤딩 — 본문 크기에 가깝게 축소, 작은 패널에서 위계만 살린다. */
+.yui-bubble h1,
+.yui-bubble h2,
+.yui-bubble h3,
+.yui-bubble h4,
+.yui-bubble h5,
+.yui-bubble h6 {
+  margin: 0.5em 0 0.3em;
+  line-height: 1.25;
+  font-weight: 650;
+}
+.yui-bubble h1 {
+  font-size: 1.18em;
+}
+.yui-bubble h2 {
+  font-size: 1.1em;
+}
+.yui-bubble h3 {
+  font-size: 1.02em;
+}
+.yui-bubble h4,
+.yui-bubble h5,
+.yui-bubble h6 {
+  font-size: 0.96em;
+  color: var(--yui-text-dim);
+}
+.yui-bubble blockquote {
+  margin: 0.45em 0;
+  padding: 0.1em 0 0.1em 0.7em;
+  border-left: 2px solid var(--yui-accent-soft);
+  color: var(--yui-text-dim);
+}
+.yui-bubble hr {
+  margin: 0.6em 0;
+  border: 0;
+  border-top: 1px solid var(--yui-edge);
+}
+
 .yui-bubble__caret {
   display: none;
   width: 0.06em;
