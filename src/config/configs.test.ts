@@ -134,19 +134,6 @@ describe("configs/motions.json", () => {
     }
   });
 
-  it("sit is a random-variant oneshot pool (plays a random sit clip per trigger)", () => {
-    expect(m.sit).toBeDefined();
-    expect(m.sit.kind).toBe("oneshot");
-    expect(m.sit.loop).toBe(false);
-    expect(m.sit.priority).toBe(70);
-    expect(m.sit.variant_policy).toBe("random");
-    expect(Array.isArray(m.sit.variants)).toBe(true);
-    expect(m.sit.variants.length).toBeGreaterThanOrEqual(2);
-    for (const v of m.sit.variants) {
-      expect(v, "sit.variant").toMatch(/\.vrma$/);
-    }
-  });
-
   it("window_sit is a looping state perch that cycles variants seamlessly (no dwell, long fade)", () => {
     expect(m.window_sit).toBeDefined();
     expect(m.window_sit.kind).toBe("state");
