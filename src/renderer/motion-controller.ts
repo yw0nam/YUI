@@ -26,6 +26,14 @@ export interface ResolvedMotion {
   loop: boolean;
   /** looping motion with >1 variants — renderer plays each variant once and chains a fresh variant on finish. */
   cycle: boolean;
+  /**
+   * pingpong=false                          → existing behavior (loop_reps unused, 0)
+   * pingpong=true, cycle=false, reps=Inf    → single-variant continuous pingpong (thinking)
+   * pingpong=true, cycle=true,  reps=2N     → multi-variant pingpong cycle (idle, window_sit)
+   */
+  pingpong: boolean;
+  /** LoopPingPong repetitions. Even finite 2N (multi-variant → finished→swap) | Infinity (single-variant → continuous) | 0 when pingpong=false. */
+  loop_reps: number;
   /** clamped to [0.25, 2.5] */
   speed: number;
   /** >= 0, default 200 */
@@ -163,11 +171,29 @@ export function createMotionController(
     const loop = signal.loop ?? entry.loop;
     const cycle = loop && (!!(variants && variants.length > 1) || !!entry.crossfade_loop);
 
+    // `&& loop` guard is NON-NEGOTIABLE: a true pingpong with loop=false would yield
+    // setLoop(LoopPingPong, 0) downstream (undefined three.js behavior). Load
+    // validation already rejects that combo; this is cheap defense in depth.
+    const pingpong = !!entry.pingpong && loop;
+    let loop_reps = 0;
+    if (pingpong) {
+      if (variants && variants.length > 1) {
+        const [lo, hi] = entry.loop_cycles ?? [1, 1];
+        // Math.min clamp guards rng() === 1.0 (test stubs); load already enforces lo<=hi.
+        const n = Math.min(hi, lo + Math.floor(rng() * (hi - lo + 1))); // int in [lo,hi]
+        loop_reps = 2 * n; // round trips → reps (even)
+      } else {
+        loop_reps = Infinity; // single-variant → continuous
+      }
+    }
+
     return {
       id: signal.id,
       vrma_path,
       loop,
       cycle,
+      pingpong,
+      loop_reps,
       speed,
       fade_ms,
       kind: entry.kind,
