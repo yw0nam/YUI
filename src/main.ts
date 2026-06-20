@@ -75,6 +75,7 @@ import {
   type SpeakerOption,
 } from "./io/speaker-selection";
 import { createSpeechPlayback } from "./io/speech-playback";
+import { createSttSettings, localStorageSttStorage } from "./io/stt-settings";
 import type { SttVad } from "./io/stt-vad";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
 import { TTS_SKIP } from "./io/tts-pipeline";
@@ -215,6 +216,10 @@ async function bootstrap(): Promise<void> {
   const ttsSettings = createTtsSettings({
     storage: localStorageTtsStorage(),
   });
+  // STT 음성입력 on/off 의도. 기본 OFF. 켜둔 채 종료하면 다음 실행에서 자동 재개한다.
+  const sttSettings = createSttSettings({
+    storage: localStorageSttStorage(),
+  });
   // 유휴 절전(30fps 캡) on/off. 기본 ON.
   const idleThrottleSettings = createIdleThrottleSettings({
     storage: localStorageIdleThrottleStorage(),
@@ -303,6 +308,10 @@ async function bootstrap(): Promise<void> {
   // 음성 상태(이 창 → 별도 창): 별도 창 indicator가 실제 STT 상태를 반영하게.
   voiceInputStatus.subscribe((snapshot) => {
     bridge.emitVoiceState({ state: snapshot.state, detail: snapshot.detail });
+  });
+  // 음성입력 on/off 의도를 영속화 — idle이 아니면 켜짐. 다음 실행에서 자동 재개에 쓴다.
+  voiceInputStatus.subscribe((snapshot) => {
+    sttSettings.setEnabled(snapshot.state !== "idle");
   });
   // 설정 동기화(양방향, 루프 가드): 한쪽 편집 → emit → 다른쪽 store 재로드.
   // store는 값이 그대로면 no-op이므로 왕복이 종료된다.
@@ -593,6 +602,7 @@ async function bootstrap(): Promise<void> {
       screenshotSettings.dispose();
       idleThrottleSettings.dispose();
       ttsSettings.dispose();
+      sttSettings.dispose();
       proactiveSettings.dispose();
       scheduleSettings.dispose();
       lipsyncSettings.dispose();
@@ -1046,7 +1056,13 @@ async function bootstrap(): Promise<void> {
       onState: (state, detail) => voiceInputStatus.set(state, detail),
     });
     voiceInputReady = true;
-    if (voiceInputStartRequested || voiceInputStatus.get().state !== "idle") {
+    // 직전 세션에서 켜둔 채 종료했으면(sttSettings.enabled) 자동 재개. 단일 start로 통일하고,
+    // 서버 미설정이면 start()가 no-op라 onState가 안 와 status는 조용히 idle로 남는다.
+    if (
+      voiceInputStartRequested ||
+      voiceInputStatus.get().state !== "idle" ||
+      sttSettings.get().enabled
+    ) {
       void startVoiceInput();
     }
     // emotion/motion registry를 renderer에 주입 → setEmotion/playMotion(=applyDirective) 동작.
