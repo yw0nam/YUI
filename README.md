@@ -90,7 +90,7 @@ via the broker). Speech
 text flows as a separate assistant text stream (`response.output_text.delta`),
 not inside the tool-call. The renderable emotion/motion vocabulary is brokered
 by the Expression Broker MCP; the `generate_express` cue contract handed to the
-backend agent lives in [`docs/backend_agent_broker_interaction.md`](docs/backend_agent_broker_interaction.md).
+backend agent lives in [`docs/backend_contract.md`](docs/backend_contract.md).
 
 ## Stack
 
@@ -181,6 +181,8 @@ provide them itself — link/copy them from an existing checkout before running.
 Vite serves `/vrms/*` from `resources/vrms`; without the VRM the model 404s and
 without `.env.local` chat auth is absent.
 
+For backend services (broker · agent · TTS · STT) and full wiring, see [`docs/setup.md`](docs/setup.md).
+
 ## Logs
 
 Frontend and Rust logs are merged into a single file via `tauri-plugin-log`.
@@ -203,7 +205,8 @@ level with the `VITE_YUI_LOG_LEVEL` env var (`debug` · `info` · `warn` · `err
 
 - [`AGENTS.md`](AGENTS.md) — canonical agent guide (work rules, roster, stack, layout)
 - [`PRODUCT.md`](PRODUCT.md) / [`DESIGN.md`](DESIGN.md) — product register + design system
-- [`docs/backend_agent_broker_interaction.md`](docs/backend_agent_broker_interaction.md) — `generate_express` cue contract handed to the backend agent
+- [`docs/setup.md`](docs/setup.md) — install and wiring guide (broker · agent · TTS · STT · VRM)
+- [`docs/backend_contract.md`](docs/backend_contract.md) — `generate_express` cue contract handed to the backend agent
 - [`docs/motions.md`](docs/motions.md) — motion catalog (every `configs/motions.json` id, playback policy, source clip)
 - [`docs/tts_emotion/`](docs/tts_emotion/) — per-provider `emotion_text` voice-tag vocabulary
 - [`docs/logging.md`](docs/logging.md) — logging convention (format, namespaces, levels)
