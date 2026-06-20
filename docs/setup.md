@@ -31,7 +31,7 @@ cp .env.example .env.local
 # then edit .env.local and set VITE_YUI_CHAT_KEY=<your-key>
 ```
 
-> See the README [Getting started](../README.md#getting-started) and [Runtime assets](../README.md#getting-started) sections for VRM placement and worktree setup.
+> See the README [Getting started](../README.md#getting-started) and [Runtime assets](../README.md#runtime-assets) sections for VRM placement and worktree setup.
 
 ---
 

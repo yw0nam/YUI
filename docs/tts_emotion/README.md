@@ -14,7 +14,7 @@ The Hermes agent produces `emotion_text`; YUI consumes whatever arrives on the
 `/v1/responses` stream and prepends it to the TTS segment (prefix-only — never
 shown in the speech bubble). The `generate_express` cue contract that carries
 `emotion_text` is described in
-[`../backend_agent_broker_interaction.md`](../backend_agent_broker_interaction.md);
+[`../backend_contract.md`](../backend_contract.md);
 the control envelope shape lives in
 [`../../src/contract/types.ts`](../../src/contract/types.ts).
 
@@ -49,7 +49,7 @@ every boot and on every broker reconnect.
 
 ## See also
 
-- [`../backend_agent_broker_interaction.md`](../backend_agent_broker_interaction.md) —
+- [`../backend_contract.md`](../backend_contract.md) —
   the `generate_express` cue contract handed to the backend agent (the
   `emotion_id` / `motion_id` / `emotion_text` fields and streaming shape).
 - [`../../src/contract/types.ts`](../../src/contract/types.ts) — the control
