@@ -25,6 +25,54 @@ invisible-by-default and warm-when-present (see [`PRODUCT.md`](PRODUCT.md)): the
 character owns the stage, and chrome surfaces only when it has something to say,
 then steps back.
 
+## Features
+
+> YUI is the body for a real agent. Rather than embedding a small on-device LLM, it renders the character and delegates the mind to any backend that speaks the OpenAI Responses API and honors its expression contract — so the character is as capable as the agent behind it.
+
+**🧠 Agent Integration**
+
+| Capability | What it does |
+|---|---|
+| Pluggable agent backend | Drives the character from any OpenAI Responses-API backend that honors the contract — not a fixed embedded LLM |
+| Structured expression contract | Speech + `emotion_id` / `motion_id` / `emotion_text` cues arrive as `generate_express` tool-calls, never inline tags |
+| Expression Broker (MCP) | Publishes YUI's renderable emotion/motion/voice vocabulary so the backend learns what the body can express at runtime |
+| Firing ≠ judgment boundary | Client fires candidate events (idle · OS-event · user); backend judges — no brain in the client |
+
+**🎙️ Voice & Chat I/O**
+
+| Capability | What it does |
+|---|---|
+| Voice input (STT + VAD) | Silero VAD + ONNX segments speech, OpenAI-compatible transcription |
+| Voice output (TTS) | Sentence-queued pipeline, ordered playback, per-sentence emotion-text cue routing |
+| Amplitude lipsync | RMS audio → mouth blendshape, user gain slider |
+| Streaming speech bubble | Markdown-rendered, frosted, invisible-by-default surface |
+
+**🖱️ Desktop-Pet Behavior**
+
+| Capability | What it does |
+|---|---|
+| Window-sit / perch | Sits on a window's top edge, detaches on occlusion / move / close |
+| OS-native drag | Transparent always-on-top overlay, multi-monitor DPI-aware |
+| Tier-1 ambient (backend-independent) | Blink · sway · breath · look-around, `prefers-reduced-motion` compliant |
+| OS context | Active-app / idle / fullscreen / optional screenshot fed to the agent per turn |
+
+**🎨 Rendering & Motion**
+
+| Capability | What it does |
+|---|---|
+| VRM 1.0 hot-swap | three.js + `@pixiv/three-vrm`, GPU cleanup on swap |
+| 10 emotions / 15 motions | Existence-aware fallback chain, config-driven registries |
+| Motion variant pools + ping-pong | Idle/sit cycle through clip pools with smooth dwell transitions |
+| Fit-to-bounds camera | Auto-frames the avatar, wheel zoom, perch pull-back |
+
+**🌐 Platform & Localization**
+
+| Capability | What it does |
+|---|---|
+| Multi-language UI | English · 日本語 · 한국어, persistent locale |
+| Config-driven everything | Endpoints, models, VRM paths, motion sets — no hardcoding |
+| macOS-first | Full OS-event watching on macOS; **Windows partial** (`os_idle_ms` unavailable) |
+
 ## Architecture
 
 The head/brain split rests on one principle: **firing ≠ judgment**. The client
@@ -42,7 +90,7 @@ via the broker). Speech
 text flows as a separate assistant text stream (`response.output_text.delta`),
 not inside the tool-call. The renderable emotion/motion vocabulary is brokered
 by the Expression Broker MCP; the `generate_express` cue contract handed to the
-backend agent lives in [`docs/backend_agent_broker_interaction.md`](docs/backend_agent_broker_interaction.md).
+backend agent lives in [`docs/backend_contract.md`](docs/backend_contract.md).
 
 ## Stack
 
@@ -133,6 +181,8 @@ provide them itself — link/copy them from an existing checkout before running.
 Vite serves `/vrms/*` from `resources/vrms`; without the VRM the model 404s and
 without `.env.local` chat auth is absent.
 
+For backend services (broker · agent · TTS · STT) and full wiring, see [`docs/setup.md`](docs/setup.md).
+
 ## Logs
 
 Frontend and Rust logs are merged into a single file via `tauri-plugin-log`.
@@ -155,7 +205,8 @@ level with the `VITE_YUI_LOG_LEVEL` env var (`debug` · `info` · `warn` · `err
 
 - [`AGENTS.md`](AGENTS.md) — canonical agent guide (work rules, roster, stack, layout)
 - [`PRODUCT.md`](PRODUCT.md) / [`DESIGN.md`](DESIGN.md) — product register + design system
-- [`docs/backend_agent_broker_interaction.md`](docs/backend_agent_broker_interaction.md) — `generate_express` cue contract handed to the backend agent
+- [`docs/setup.md`](docs/setup.md) — install and wiring guide (broker · agent · TTS · STT · VRM)
+- [`docs/backend_contract.md`](docs/backend_contract.md) — `generate_express` cue contract handed to the backend agent
 - [`docs/motions.md`](docs/motions.md) — motion catalog (every `configs/motions.json` id, playback policy, source clip)
 - [`docs/tts_emotion/`](docs/tts_emotion/) — per-provider `emotion_text` voice-tag vocabulary
 - [`docs/logging.md`](docs/logging.md) — logging convention (format, namespaces, levels)

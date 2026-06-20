@@ -30,7 +30,7 @@ Specialist definitions are vendored in [`.claude/agents/`](.claude/agents/). Inv
 | **Tauri / Rust** | **Senior Developer** | `sonnet` | `src-tauri/` — os_event_watcher, IPC contract, `cargo test` |
 | **Contract / Schema** | **Software Architect** | `sonnet` | `src/contract/types.ts` (contract source of truth) + JSON schema validation |
 | **UI / Mock** | **UI Designer** | `sonnet` | Mock HTML authoring, DESIGN.md token compliance |
-| **Docs** | **Technical Writer** | `sonnet` | `docs/` updates — backend_agent_broker_interaction.md, motions.md, logging.md, tts_emotion/ |
+| **Docs** | **Technical Writer** | `sonnet` | `docs/` updates — backend_contract.md, motions.md, logging.md, tts_emotion/ |
 | **Review** | **Code Reviewer** | `sonnet` | Diff review — correctness / maintainability / security / performance |
 | **Verification** | **Reality Checker** | `sonnet` | Evidence-based gating — Playwright screenshot + app-run log proof of UI/DOM/runtime behavior before certifying |
 | **Performance** | **Performance Benchmarker** | `sonnet` | Frame budget, lipsync/TTS timing, regression checks |
@@ -76,7 +76,7 @@ Read these when the trigger applies; they are not loaded by default.
 - **Checking how a rule is enforced** → `docs/agent-guide/harness-enforcement.md`
 - **Build / run / find logs** → `docs/agent-guide/build-run.md`
 - **Any UI or visual work** → `docs/agent-guide/design-context.md` (+ `PRODUCT.md`, `DESIGN.md`)
-- **`generate_express` cue contract** → `docs/backend_agent_broker_interaction.md`
+- **`generate_express` cue contract** → `docs/backend_contract.md`
 - **Motion catalog** → `docs/motions.md`
 - **TTS emotion_text vocabulary** → `docs/tts_emotion/`
 - **Logging convention** → `docs/logging.md`
