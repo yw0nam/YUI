@@ -77,6 +77,8 @@ import {
 import { createSpeechPlayback } from "./io/speech-playback";
 import type { SttVad } from "./io/stt-vad";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
+import { TTS_SKIP } from "./io/tts-pipeline";
+import { createTtsSettings, localStorageTtsStorage } from "./io/tts-settings";
 import { createTtsSynth } from "./io/tts-synth";
 import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
 import {
@@ -209,6 +211,10 @@ async function bootstrap(): Promise<void> {
   const screenshotSettings = createScreenshotSettings({
     storage: localStorageScreenshotStorage(),
   });
+  // TTS 음성 출력 on/off. 기본 ON. OFF면 synth를 건너뛰고 표정/모션·말풍선만 표시.
+  const ttsSettings = createTtsSettings({
+    storage: localStorageTtsStorage(),
+  });
   // 유휴 절전(30fps 캡) on/off. 기본 ON.
   const idleThrottleSettings = createIdleThrottleSettings({
     storage: localStorageIdleThrottleStorage(),
@@ -275,6 +281,7 @@ async function bootstrap(): Promise<void> {
     screenshotSettings,
     proactiveSettings,
     idleThrottleSettings,
+    ttsSettings,
     cameraSettings,
     sessionStore,
     sessionDiagnostics,
@@ -327,6 +334,7 @@ async function bootstrap(): Promise<void> {
     proactiveSettings,
     scheduleSettings,
     idleThrottleSettings,
+    ttsSettings,
   ];
   for (const store of syncedSettingsStores) store.subscribe(broadcastSettings);
   cameraSettings.subscribe(broadcastSettings);
@@ -480,6 +488,7 @@ async function bootstrap(): Promise<void> {
       lipsync: lipsyncSettings,
       vad: vadSettings,
       fillerSettings,
+      ttsSettings,
       agentSettings,
       vrmSelection,
       swapVrm,
@@ -583,6 +592,7 @@ async function bootstrap(): Promise<void> {
       voiceInputStatus.dispose();
       screenshotSettings.dispose();
       idleThrottleSettings.dispose();
+      ttsSettings.dispose();
       proactiveSettings.dispose();
       scheduleSettings.dispose();
       lipsyncSettings.dispose();
@@ -893,10 +903,16 @@ async function bootstrap(): Promise<void> {
       // function form → drain마다 lazy 해소(eager config read 없음, 핫리로드 친화).
       maxInflight: () => getEndpoints().tts_max_inflight ?? 1,
       synth: async (input, signal) => {
+        // TTS 비활성(토글 OFF 또는 서버 미설정) 시 조용히 skip — 표정/모션·말풍선은 그대로.
+        if (!ttsSettings.get().enabled) return Promise.reject(TTS_SKIP);
         const eps = getEndpoints();
         if (eps.tts_provider === "irodori") {
+          if (!eps.irodori_base_url || !speakerSelection.getActive().id) {
+            return Promise.reject(TTS_SKIP);
+          }
           return irodoriSynth(input, signal);
         }
+        if (!eps.tts_base_url) return Promise.reject(TTS_SKIP);
         const f = await selectFetch();
         return createTtsSynth({
           config: eps,

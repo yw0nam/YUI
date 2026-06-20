@@ -171,6 +171,11 @@ const ja: Record<string, string> = {
   "voice_input.silence_sub": "話し終わってからこの時間だけ待ってから送信します",
   "voice_input.silence_aria": "無音のしきい値",
 
+  // TTS output toggle
+  "tts_output.label": "音声出力",
+  "tts_output.sub": "TTS で返答を読み上げます。オフにするとテキストのみ表示します",
+  "tts_output.aria": "音声出力",
+
   // cue lists (input tab)
   "cue.schedule_title": "時間帯のあいさつ",
   "cue.schedule_sub": "決めた時刻に席にいると、先に話しかけます",

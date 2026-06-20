@@ -135,6 +135,8 @@ export function createSttVad(options: SttVadOptions): SttVad {
 
   return {
     async start() {
+      // stt_base_url이 없으면 STT를 사용할 수 없다 — 조용히 no-op.
+      if (!config.stt_base_url) return;
       if (vad !== null || loading) return;
       loading = true;
       try {

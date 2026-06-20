@@ -34,6 +34,7 @@ import type { createScreenshotSettings } from "../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import type { createSessionStore } from "../io/session-store";
 import type { createSpeakerSelection, SpeakerOption } from "../io/speaker-selection";
+import type { createTtsSettings } from "../io/tts-settings";
 import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../io/vad-settings";
 import type { createVrmSelection } from "../io/vrm-selection";
 import { createLogger } from "../logger";
@@ -50,6 +51,7 @@ type VadSettingsStore = ReturnType<typeof createVadSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
+type TtsSettingsStore = ReturnType<typeof createTtsSettings>;
 type VrmSelectionStore = ReturnType<typeof createVrmSelection>;
 type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 type SessionDiagnosticsStore = ReturnType<typeof createSessionDiagnosticsStore>;
@@ -108,6 +110,8 @@ interface QuickControlsOptions {
   sessionStore?: SessionStore;
   /** 생각중 추임새 설정 store. 없으면 섹션을 그리지 않는다(통합 에이전트가 주입). */
   fillerSettings?: FillerSettingsStore;
+  /** TTS 음성 출력 on/off store. */
+  ttsSettings?: TtsSettingsStore;
 }
 
 interface QuickControls {
@@ -233,6 +237,7 @@ export function createQuickControls({
   sessionDiagnostics,
   sessionStore,
   fillerSettings,
+  ttsSettings,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // 세션 섹션은 설정 창(window)에서만, 두 store가 모두 주입됐을 때 그린다.
@@ -519,6 +524,20 @@ export function createQuickControls({
           </div>
           <button class="yui-switch yui-voice-switch" type="button" role="switch" aria-checked="false" aria-label="${t("voice_input.label")}"></button>
         </div>
+        <div class="yui-row">
+          <div class="yui-row__main">
+            <span class="yui-row__label">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                <path d="M9 10l2.5 2.5L15 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 9h2M18 9h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+              ${t("tts_output.label")}
+            </span>
+            <span class="yui-row__sub">${t("tts_output.sub")}</span>
+          </div>
+          <button class="yui-switch yui-tts-switch" type="button" role="switch" aria-checked="${String(ttsSettings?.get().enabled ?? true)}" aria-label="${t("tts_output.aria")}"></button>
+        </div>
         <div class="yui-gain">
           <div class="yui-gain__head">
             <span class="yui-gain__label">${t("voice_input.silence_label")}</span>
@@ -576,6 +595,7 @@ export function createQuickControls({
   const idleThrottleSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
+  const ttsSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-tts-switch");
   const monitorsEl = el.querySelector<HTMLDivElement>(".yui-monitors")!;
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
   const vrmAddBtn = el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
@@ -676,6 +696,11 @@ export function createQuickControls({
 
   function reflectIdleThrottle(): void {
     idleThrottleSwitchBtn.setAttribute("aria-checked", String(idleThrottleSettings.get().enabled));
+  }
+
+  function reflectTts(): void {
+    if (!ttsSwitchBtn || !ttsSettings) return;
+    ttsSwitchBtn.setAttribute("aria-checked", String(ttsSettings.get().enabled));
   }
 
   function reflectGain(): void {
@@ -1767,6 +1792,7 @@ export function createQuickControls({
 
     reflectSettings();
     reflectIdleThrottle();
+    reflectTts();
     reflectVoiceStatus(voiceStatus.get());
     reflectGain();
     reflectVad();
@@ -1853,6 +1879,13 @@ export function createQuickControls({
     const current = idleThrottleSettings.get().enabled;
     idleThrottleSettings.setEnabled(!current);
     log.info("idle_throttle_toggle", { enabled: !current });
+  }
+
+  function handleTtsSwitchClick(): void {
+    if (!ttsSettings) return;
+    const current = ttsSettings.get().enabled;
+    ttsSettings.setEnabled(!current);
+    log.info("tts_output_toggle", { enabled: !current });
   }
 
   // ── 생각중 추임새 이벤트 핸들러 ──
@@ -2198,6 +2231,9 @@ export function createQuickControls({
   const unsubscribeIdleThrottle = idleThrottleSettings.subscribe(() => {
     if (openState) reflectIdleThrottle();
   });
+  const unsubscribeTts = ttsSettings?.subscribe(() => {
+    if (openState) reflectTts();
+  });
   // 큐 목록 컴포넌트 — 입력 탭 내 .yui-cue-sections에 마운트. 구독·teardown을 컴포넌트 자체가 관리한다.
   const scheduleDividerEl = document.createElement("div");
   scheduleDividerEl.className = "yui-quick__divider";
@@ -2272,6 +2308,7 @@ export function createQuickControls({
 
   switchBtn.addEventListener("click", handleSwitchClick);
   idleThrottleSwitchBtn.addEventListener("click", handleIdleThrottleSwitchClick);
+  ttsSwitchBtn?.addEventListener("click", handleTtsSwitchClick);
   fillerSwitchBtn?.addEventListener("click", handleFillerSwitchClick);
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
   langSegEl.addEventListener("click", handleLangSegClick);
@@ -2324,6 +2361,7 @@ export function createQuickControls({
     proactiveCueList?.destroy();
     unsubscribe();
     unsubscribeIdleThrottle();
+    unsubscribeTts?.();
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();
@@ -2340,6 +2378,7 @@ export function createQuickControls({
     spkRefreshState.clear();
     switchBtn.removeEventListener("click", handleSwitchClick);
     idleThrottleSwitchBtn.removeEventListener("click", handleIdleThrottleSwitchClick);
+    ttsSwitchBtn?.removeEventListener("click", handleTtsSwitchClick);
     fillerSwitchBtn?.removeEventListener("click", handleFillerSwitchClick);
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
     langSegEl.removeEventListener("click", handleLangSegClick);
