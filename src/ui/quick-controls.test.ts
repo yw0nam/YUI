@@ -1243,6 +1243,31 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  // ── window variant: native titlebar is the only header ───────────────────
+
+  it("window variant renders NO custom .yui-quick__bar (native titlebar owns the header)", () => {
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    expect(qc.el.querySelector(".yui-quick__bar")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("popover variant retains the .yui-quick__bar with grip + title + popout + close", () => {
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+
+    const bar = qc.el.querySelector<HTMLElement>(".yui-quick__bar");
+    expect(bar).not.toBeNull();
+    expect(bar!.querySelector(".yui-quick__grip")).not.toBeNull();
+    expect(bar!.querySelector(".yui-quick__title")).not.toBeNull();
+    expect(bar!.querySelector(".yui-iconbtn--popout")).not.toBeNull();
+    expect(bar!.querySelector(".yui-iconbtn--close")).not.toBeNull();
+
+    qc.dispose();
+  });
+
   // ── VRM section ─────────────────────────────────────────────────────────────
 
   // microtask flush — swapVrm is async; let its promise settle before asserting.

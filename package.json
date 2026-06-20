@@ -32,6 +32,8 @@
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "^2.4.0",
     "@tauri-apps/plugin-log": "^2.8.0",
+    "dompurify": "^3.4.11",
+    "marked": "^18.0.5",
     "openai": "^6.42.0",
     "three": "^0.180.0"
   },

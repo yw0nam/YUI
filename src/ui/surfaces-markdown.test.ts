@@ -2,7 +2,7 @@
 /**
  * Tests for surfaces.ts changes:
  * 1. showTool(tool_id) resolves label from tool-labels map.
- * 2. pushSpeech / endSpeech renders inline markdown (links + images).
+ * 2. pushSpeech / endSpeech renders full markdown (marked + DOMPurify).
  *
  * We import createSurfaces and verify DOM output.
  * CSS imports are ignored (no CSS processing in jsdom).
@@ -127,7 +127,7 @@ describe("endSpeech — deferred dwell for TTS playback", () => {
   });
 });
 
-describe("pushSpeech — inline markdown rendering", () => {
+describe("pushSpeech — full markdown rendering", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;
 
@@ -145,6 +145,21 @@ describe("pushSpeech — inline markdown rendering", () => {
     s.pushSpeech("Hello world");
     const text = mount.querySelector(".yui-bubble__text");
     expect(text?.textContent).toBe("Hello world");
+  });
+
+  it("renders **bold** markdown inside the speech bubble", () => {
+    s.beginSpeech();
+    s.pushSpeech("Say **hi** now");
+    const strong = mount.querySelector(".yui-bubble__text strong");
+    expect(strong).not.toBeNull();
+    expect(strong?.textContent).toBe("hi");
+  });
+
+  it("renders a markdown list inside the speech bubble", () => {
+    s.beginSpeech();
+    s.pushSpeech("- one\n- two");
+    const items = mount.querySelectorAll(".yui-bubble__text li");
+    expect(items).toHaveLength(2);
   });
 
   it("renders a markdown link inside the speech bubble", () => {

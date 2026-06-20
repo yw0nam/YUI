@@ -311,11 +311,9 @@ export function createQuickControls({
       </div>`
     : "";
 
+  // window variant: native titlebar owns the header — no custom bar rendered.
   const headerHtml = isWindow
-    ? `
-    <div class="yui-quick__bar">
-      <span class="yui-quick__title">${t("panel.title")}</span>
-    </div>`
+    ? ""
     : `
     <div class="yui-quick__bar" title="${t("panel.drag_hint")}">
       <span class="yui-quick__grip" aria-hidden="true">
@@ -589,7 +587,7 @@ export function createQuickControls({
   const vadValue = el.querySelector<HTMLSpanElement>(".yui-vad__value")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
-  const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar")!;
+  const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
   const popOutBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
   const segEl = el.querySelector<HTMLDivElement>(".yui-field-row .yui-seg:not(.yui-seg--2)")!;
@@ -1730,7 +1728,7 @@ export function createQuickControls({
     }
     dragStartX = e.clientX;
     dragStartY = e.clientY;
-    barEl.classList.add("is-dragging");
+    barEl?.classList.add("is-dragging");
     document.addEventListener("pointermove", handleDocPointerMove);
     document.addEventListener("pointerup", handleDocPointerUp);
   }
@@ -1745,7 +1743,7 @@ export function createQuickControls({
   function handleDocPointerUp(): void {
     if (!dragging) return;
     dragging = false;
-    barEl.classList.remove("is-dragging");
+    barEl?.classList.remove("is-dragging");
     document.removeEventListener("pointermove", handleDocPointerMove);
     document.removeEventListener("pointerup", handleDocPointerUp);
     const x = parseFloat(el.style.left);
@@ -2313,10 +2311,9 @@ export function createQuickControls({
   sessionResetBtn?.addEventListener("click", showSessionConfirm);
   sessionConfirmBtn?.addEventListener("click", handleSessionReset);
   sessionCancelBtn?.addEventListener("click", hideSessionConfirm);
-  barEl.addEventListener("pointerdown", handleBarPointerDown);
+  barEl?.addEventListener("pointerdown", handleBarPointerDown);
   popOutBtn?.addEventListener("click", handlePopOut);
   closeBtn?.addEventListener("click", close);
-
   // 창 variant는 항상 보이므로 즉시 연다.
   if (isWindow) open();
 
@@ -2382,7 +2379,7 @@ export function createQuickControls({
     sessionResetBtn?.removeEventListener("click", showSessionConfirm);
     sessionConfirmBtn?.removeEventListener("click", handleSessionReset);
     sessionCancelBtn?.removeEventListener("click", hideSessionConfirm);
-    barEl.removeEventListener("pointerdown", handleBarPointerDown);
+    barEl?.removeEventListener("pointerdown", handleBarPointerDown);
     popOutBtn?.removeEventListener("click", handlePopOut);
     closeBtn?.removeEventListener("click", close);
     document.removeEventListener("pointermove", handleDocPointerMove);

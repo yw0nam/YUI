@@ -76,6 +76,11 @@ interface SurfacesOptions {
 }
 
 const DEFAULT_DWELL = 5000;
+// 발밑 앵커가 아직 안 들어왔을 때의 입력 하단 폴백(px). 입력 열릴 때 말풍선을
+// 그 위로 들어올리는 계산의 시작점.
+const DEFAULT_INPUT_BOTTOM_PX = 48;
+// 말풍선 하단과 입력 상단 사이 최소 간격(px).
+const BUBBLE_INPUT_GAP_PX = 12;
 
 export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   const el = document.createElement("div");
@@ -154,6 +159,8 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   let hovering = false;
   // dwell 빚이 남아있는지(타이머 점화 보류 가능 상태).
   let dwellArmed = false;
+  // 입력 하단 오프셋(px) — setInputAnchor가 갱신, 입력 열림 중 말풍선 들어올리기에 쓴다.
+  let inputBottomPx = DEFAULT_INPUT_BOTTOM_PX;
 
   function clearDwell(): void {
     if (dwellTimer !== null) {
@@ -241,6 +248,20 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     bubbleEl.addEventListener("transitionend", onEnd);
   }
 
+  // 입력이 열려 있는 동안 말풍선을 입력 위로 들어올려 겹침을 막는다.
+  // 말풍선 하단 = 입력 하단 + 입력 높이 + 간격. 발밑 앵커가 매 프레임 바뀌어도
+  // setInputAnchor가 다시 호출해 값만 갱신한다(클래스 토글은 한 번).
+  function liftBubbleAboveInput(): void {
+    const lift = inputBottomPx + formEl.offsetHeight + BUBBLE_INPUT_GAP_PX;
+    bubbleEl.style.setProperty("--yui-bubble-bottom", `${lift}px`);
+    bubbleEl.classList.add("is-above-input");
+  }
+
+  function resetBubblePosition(): void {
+    bubbleEl.classList.remove("is-above-input");
+    bubbleEl.style.removeProperty("--yui-bubble-bottom");
+  }
+
   // ── tool-status ──
   function showTool(toolId: string): void {
     toolLabel.textContent = getToolLabel(toolId);
@@ -263,6 +284,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     formEl.hidden = false;
     formEl.classList.remove("is-error", "is-pending");
     errorEl.textContent = "";
+    liftBubbleAboveInput();
     requestAnimationFrame(() => {
       formEl.classList.add("is-open");
       field.focus();
@@ -281,6 +303,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
         clearAttachments();
         formEl.classList.remove("is-error", "is-pending");
         errorEl.textContent = "";
+        resetBubblePosition();
       }
     };
     formEl.addEventListener("transitionend", onEnd);
@@ -366,6 +389,9 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   function setInputAnchor(bottomPx: number | null): void {
     if (bottomPx === null) formEl.style.removeProperty("--yui-input-bottom");
     else formEl.style.setProperty("--yui-input-bottom", `${bottomPx}px`);
+    inputBottomPx = bottomPx ?? DEFAULT_INPUT_BOTTOM_PX;
+    // 입력이 떠 있으면(소환됨) 발밑 앵커 변화에 맞춰 말풍선 들어올림을 갱신한다.
+    if (!formEl.hidden) liftBubbleAboveInput();
   }
 
   function handleSubmit(e: Event): void {
