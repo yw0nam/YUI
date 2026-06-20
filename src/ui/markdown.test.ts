@@ -180,4 +180,13 @@ describe("renderMarkdownInline — full markdown", () => {
     expect(node.querySelector("a")).toBeNull();
     expect(node.querySelector("img")).toBeNull();
   });
+
+  it("adds is-broken class when an inline image fails to load", () => {
+    const node = renderMarkdownInline("![x](http://example.com/x.png)");
+    const img = node.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img?.classList.contains("is-broken")).toBe(false);
+    img?.dispatchEvent(new Event("error"));
+    expect(img?.classList.contains("is-broken")).toBe(true);
+  });
 });

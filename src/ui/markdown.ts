@@ -60,5 +60,8 @@ export function renderMarkdownInline(text: string): HTMLSpanElement {
   const container = document.createElement("span");
   const rawHtml = (marked.parse(text, { async: false }) as string).trim();
   container.innerHTML = DOMPurify.sanitize(rawHtml, PURIFY_CONFIG);
+  for (const img of container.querySelectorAll("img")) {
+    img.addEventListener("error", () => img.classList.add("is-broken"));
+  }
   return container;
 }

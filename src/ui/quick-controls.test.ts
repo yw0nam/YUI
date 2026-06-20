@@ -1243,7 +1243,7 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  // ── ISSUE 3: window variant header ───────────────────────────────────────
+  // ── window variant: native titlebar is the only header ───────────────────
 
   it("window variant renders NO custom .yui-quick__bar (native titlebar owns the header)", () => {
     const qc = buildQc({ variant: "window" });
