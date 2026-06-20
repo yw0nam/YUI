@@ -25,6 +25,54 @@ invisible-by-default and warm-when-present (see [`PRODUCT.md`](PRODUCT.md)): the
 character owns the stage, and chrome surfaces only when it has something to say,
 then steps back.
 
+## Features
+
+> YUI is the body for a real agent. Rather than embedding a small on-device LLM, it renders the character and delegates the mind to any backend that speaks the OpenAI Responses API and honors its expression contract — so the character is as capable as the agent behind it.
+
+**🧠 Agent Integration**
+
+| Capability | What it does |
+|---|---|
+| Pluggable agent backend | Drives the character from any OpenAI Responses-API backend that honors the contract — not a fixed embedded LLM |
+| Structured expression contract | Speech + `emotion_id` / `motion_id` / `emotion_text` cues arrive as `generate_express` tool-calls, never inline tags |
+| Expression Broker (MCP) | Publishes YUI's renderable emotion/motion/voice vocabulary so the backend learns what the body can express at runtime |
+| Firing ≠ judgment boundary | Client fires candidate events (idle · OS-event · user); backend judges — no brain in the client |
+
+**🎙️ Voice & Chat I/O**
+
+| Capability | What it does |
+|---|---|
+| Voice input (STT + VAD) | Silero VAD + ONNX segments speech, OpenAI-compatible transcription |
+| Voice output (TTS) | Sentence-queued pipeline, ordered playback, per-sentence emotion-text cue routing |
+| Amplitude lipsync | RMS audio → mouth blendshape, user gain slider |
+| Streaming speech bubble | Markdown-rendered, frosted, invisible-by-default surface |
+
+**🖱️ Desktop-Pet Behavior**
+
+| Capability | What it does |
+|---|---|
+| Window-sit / perch | Sits on a window's top edge, detaches on occlusion / move / close |
+| OS-native drag | Transparent always-on-top overlay, multi-monitor DPI-aware |
+| Tier-1 ambient (backend-independent) | Blink · sway · breath · look-around, `prefers-reduced-motion` compliant |
+| OS context | Active-app / idle / fullscreen / optional screenshot fed to the agent per turn |
+
+**🎨 Rendering & Motion**
+
+| Capability | What it does |
+|---|---|
+| VRM 1.0 hot-swap | three.js + `@pixiv/three-vrm`, GPU cleanup on swap |
+| 10 emotions / 15 motions | Existence-aware fallback chain, config-driven registries |
+| Motion variant pools + ping-pong | Idle/sit cycle through clip pools with smooth dwell transitions |
+| Fit-to-bounds camera | Auto-frames the avatar, wheel zoom, perch pull-back |
+
+**🌐 Platform & Localization**
+
+| Capability | What it does |
+|---|---|
+| Multi-language UI | English · 日本語 · 한국어, persistent locale |
+| Config-driven everything | Endpoints, models, VRM paths, motion sets — no hardcoding |
+| macOS-first | Full OS-event watching on macOS; **Windows partial** (`os_idle_ms` unavailable) |
+
 ## Architecture
 
 The head/brain split rests on one principle: **firing ≠ judgment**. The client
