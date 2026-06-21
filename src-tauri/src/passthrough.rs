@@ -1,21 +1,27 @@
 //! Click-through toggle — sets `set_ignore_cursor_events` on the top-level window
-//! and, on Windows, propagates `WS_EX_TRANSPARENT` to all WebView2 child HWNDs so
-//! mouse input falls through the transparent overlay to the desktop behind it.
+//! and, on Windows, adds `WS_EX_TRANSPARENT` to the WebView2 child HWNDs so mouse
+//! input falls through the transparent overlay to the window behind it. Each child's
+//! baseline style is restored on release, so WebView2's render windows (which carry
+//! the bit natively) keep it instead of being blanked.
 
 use tauri::{command, Runtime, WebviewWindow};
 
 /// `WS_EX_TRANSPARENT` bit (Win32 EXSTYLE flag 0x00000020).
 const WS_EX_TRANSPARENT: u32 = 0x0000_0020;
 
-/// Returns the desired `GWL_EXSTYLE` value: sets `transparent_bit` when `ignore`,
-/// clears it otherwise, preserving all other bits.
+/// Desired `GWL_EXSTYLE` for a child given its BASELINE style (the style it had
+/// before we first touched it): passthrough adds `transparent_bit`, capture
+/// restores the baseline exactly.
 ///
-/// Extracted so the logic is testable without any FFI dependency.
-pub(crate) fn desired_exstyle(current: u32, ignore: bool, transparent_bit: u32) -> u32 {
+/// Restoring the baseline rather than clearing the bit is essential — WebView2's
+/// DirectComposition render windows carry `WS_EX_TRANSPARENT` natively, and
+/// stripping it blanks the rendered surface. Extracted so the logic is testable
+/// without any FFI dependency.
+pub(crate) fn desired_exstyle(baseline: u32, ignore: bool, transparent_bit: u32) -> u32 {
     if ignore {
-        current | transparent_bit
+        baseline | transparent_bit
     } else {
-        current & !transparent_bit
+        baseline
     }
 }
 
@@ -47,6 +53,8 @@ pub fn set_click_through<R: Runtime>(
 #[cfg(target_os = "windows")]
 mod win {
     use super::{desired_exstyle, WS_EX_TRANSPARENT};
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
     use windows::{
         Win32::{
             Foundation::{HWND, LPARAM},
@@ -56,6 +64,13 @@ mod win {
         },
         core::BOOL,
     };
+
+    /// Per-HWND baseline EXSTYLE, captured the first time we touch a child so capture
+    /// can restore it exactly instead of stripping a natively-present transparent bit.
+    fn baselines() -> &'static Mutex<HashMap<isize, u32>> {
+        static B: OnceLock<Mutex<HashMap<isize, u32>>> = OnceLock::new();
+        B.get_or_init(|| Mutex::new(HashMap::new()))
+    }
 
     /// Payload threaded through the `EnumChildWindows` callback via `LPARAM`.
     struct EnumPayload {
@@ -74,7 +89,15 @@ mod win {
         let payload = &*(lparam.0 as *const EnumPayload);
         // SAFETY: GWL_EXSTYLE query is always valid for any top-level or child window.
         let current = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
-        let desired = desired_exstyle(current, payload.ignore, WS_EX_TRANSPARENT);
+        // Baseline = the child's native style, captured the first time we see it.
+        // Restoring to it on capture avoids stripping WS_EX_TRANSPARENT from WebView2's
+        // render windows (which carry it natively and blank without it).
+        let baseline = *baselines()
+            .lock()
+            .unwrap()
+            .entry(hwnd.0 as isize)
+            .or_insert(current);
+        let desired = desired_exstyle(baseline, payload.ignore, WS_EX_TRANSPARENT);
         if desired != current {
             // SAFETY: SetWindowLongPtrW is safe for GWL_EXSTYLE on a valid HWND.
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, desired as isize);
@@ -120,47 +143,38 @@ mod tests {
     // ── desired_exstyle — pure logic, no FFI, runs on any host platform ──────
 
     #[test]
-    fn ignore_true_sets_transparent_bit() {
-        let result = desired_exstyle(0x0000_0000, true, WS_EX_TRANSPARENT);
+    fn passthrough_adds_transparent_bit() {
+        let result = desired_exstyle(0x0000_0008, true, WS_EX_TRANSPARENT);
+        assert_eq!(result, 0x0000_0008 | WS_EX_TRANSPARENT);
+    }
+
+    #[test]
+    fn capture_restores_baseline() {
+        // Baseline lacks the bit; capture returns it unchanged.
+        let result = desired_exstyle(0x0000_0008, false, WS_EX_TRANSPARENT);
+        assert_eq!(result, 0x0000_0008);
+    }
+
+    #[test]
+    fn capture_keeps_natively_present_bit() {
+        // A WebView2 render window whose baseline natively carries WS_EX_TRANSPARENT
+        // must keep it on capture — stripping it blanks the DirectComposition surface.
+        let baseline = WS_EX_TRANSPARENT | 0x0008_0000; // + WS_EX_LAYERED
+        let result = desired_exstyle(baseline, false, WS_EX_TRANSPARENT);
+        assert_eq!(result, baseline);
+    }
+
+    #[test]
+    fn passthrough_preserves_other_bits() {
+        let result = desired_exstyle(0x0004_0000, true, WS_EX_TRANSPARENT);
+        assert_eq!(result & 0x0004_0000, 0x0004_0000, "other bits must be preserved");
         assert_eq!(result & WS_EX_TRANSPARENT, WS_EX_TRANSPARENT);
     }
 
     #[test]
-    fn ignore_false_clears_transparent_bit() {
-        // Start with the bit already set; ignore=false must clear it.
-        let result = desired_exstyle(WS_EX_TRANSPARENT, false, WS_EX_TRANSPARENT);
-        assert_eq!(result & WS_EX_TRANSPARENT, 0);
-    }
-
-    #[test]
-    fn other_bits_preserved_when_setting() {
-        let other: u32 = 0x0000_0008; // some unrelated EXSTYLE bit
-        let current = other;
-        let result = desired_exstyle(current, true, WS_EX_TRANSPARENT);
-        assert_eq!(result & other, other, "other bits must be preserved");
-        assert_eq!(result & WS_EX_TRANSPARENT, WS_EX_TRANSPARENT);
-    }
-
-    #[test]
-    fn other_bits_preserved_when_clearing() {
-        let other: u32 = 0x0000_0008;
-        let current = other | WS_EX_TRANSPARENT;
-        let result = desired_exstyle(current, false, WS_EX_TRANSPARENT);
-        assert_eq!(result & other, other, "other bits must be preserved");
-        assert_eq!(result & WS_EX_TRANSPARENT, 0);
-    }
-
-    #[test]
-    fn idempotent_when_bit_already_set() {
-        let current = WS_EX_TRANSPARENT | 0x0000_0008;
-        let result = desired_exstyle(current, true, WS_EX_TRANSPARENT);
-        assert_eq!(result, current, "idempotent: already-set bit unchanged");
-    }
-
-    #[test]
-    fn idempotent_when_bit_already_cleared() {
-        let current: u32 = 0x0000_0008; // transparent bit absent
-        let result = desired_exstyle(current, false, WS_EX_TRANSPARENT);
-        assert_eq!(result, current, "idempotent: already-clear bit unchanged");
+    fn passthrough_idempotent_when_baseline_has_bit() {
+        let baseline = WS_EX_TRANSPARENT | 0x0000_0008;
+        let result = desired_exstyle(baseline, true, WS_EX_TRANSPARENT);
+        assert_eq!(result, baseline, "idempotent: already-present bit unchanged");
     }
 }
