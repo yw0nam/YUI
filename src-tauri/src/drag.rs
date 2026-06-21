@@ -63,10 +63,10 @@ pub fn drag_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
         e.to_string()
     })?;
 
-    // Detect the drop release and emit `window_drop_release` with the cursor
-    // point. The poll thread is needed because the OS-modal drag loop does not
-    // surface a release to the webview.
-    #[cfg(target_os = "macos")]
+    // Detect the drop release and emit `window_drop_release`. The poll thread
+    // is needed because the OS-modal drag loop does not surface a release to
+    // the webview.
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     crate::os_event_watcher::spawn_drop_release_probe(window.app_handle().clone());
 
     Ok(())

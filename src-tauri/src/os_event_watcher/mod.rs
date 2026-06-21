@@ -16,7 +16,7 @@ use tauri::{command, AppHandle, Emitter};
 pub const OS_EVENT_CHANNEL: &str = "os_event";
 
 /// Channel for the drag-drop release signal emitted after `start_dragging()`.
-#[allow(dead_code)] // consumed by the macOS drop-release probe; dead on other targets
+#[allow(dead_code)] // consumed by platform drop-release probes; dead on unsupported targets
 pub const WINDOW_DROP_RELEASE_CHANNEL: &str = "window_drop_release";
 
 /// `os_event` channel payload — "Rust → Webview" handoff.
@@ -138,10 +138,13 @@ mod macos;
 #[cfg(target_os = "windows")]
 mod windows;
 
-// Drop-release probe, invoked by drag.rs after start_dragging(). macOS-only;
-// emits `window_drop_release` as a bare signal (no payload).
+// Drop-release probe, invoked by drag.rs after start_dragging().
+// Emits `window_drop_release` as a bare signal (no payload).
 #[cfg(target_os = "macos")]
 pub use macos::spawn_drop_release_probe;
+
+#[cfg(target_os = "windows")]
+pub use windows::spawn_drop_release_probe;
 
 // ─── start() — spawns background polling loop ─────────────────────────────────
 
