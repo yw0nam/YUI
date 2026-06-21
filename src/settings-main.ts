@@ -37,6 +37,7 @@ import {
   type SpeakerOption,
 } from "./io/speaker-selection";
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
+import { createTtsSettings, localStorageTtsStorage } from "./io/tts-settings";
 import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
 import { importVoiceFromFile, removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
@@ -71,6 +72,7 @@ async function bootstrap(): Promise<void> {
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
   const fillerSettings = createFillerSettings({ storage: localStorageFillerStorage() });
+  const ttsSettings = createTtsSettings({ storage: localStorageTtsStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
   const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
   // 런타임 chat API 키 store(같은 localStorage 키). 이 창엔 SecretProvider가 없고(디스패처 없음),
@@ -192,6 +194,7 @@ async function bootstrap(): Promise<void> {
       lipsync: lipsyncSettings,
       vad: vadSettings,
       fillerSettings,
+      ttsSettings,
       vrmSelection,
       swapVrm,
       importVrm,
@@ -268,6 +271,7 @@ async function bootstrap(): Promise<void> {
     lipsyncSettings,
     vadSettings,
     fillerSettings,
+    ttsSettings,
     screenshotSettings,
     idleThrottleSettings,
     proactiveSettings,
@@ -316,6 +320,7 @@ async function bootstrap(): Promise<void> {
   lipsyncSettings.subscribe(broadcastSettings);
   vadSettings.subscribe(broadcastSettings);
   fillerSettings.subscribe(broadcastSettings);
+  ttsSettings.subscribe(broadcastSettings);
   screenshotSettings.subscribe(broadcastSettings);
   idleThrottleSettings.subscribe(broadcastSettings);
   proactiveSettings.subscribe(broadcastSettings);

@@ -385,3 +385,28 @@ describe("createSttVad — stop() and dispose()", () => {
     expect(() => stt.stop()).not.toThrow();
   });
 });
+
+describe("createSttVad — no stt_base_url (silently disabled)", () => {
+  it("start() is a no-op and does not throw when stt_base_url is absent", async () => {
+    const { MicVAD } = await import("@ricky0123/vad-web");
+    const configNoStt = {
+      chat_base_url: "http://localhost:8643/v1",
+      chat_endpoint: "/v1/responses",
+    } as unknown as import("../contract").EndpointsConfig;
+
+    const stt = createSttVad({ config: configNoStt, onVoiceSegment: vi.fn() });
+    await expect(stt.start()).resolves.toBeUndefined();
+    // VAD는 시작되지 않아야 한다.
+    expect(MicVAD.new).not.toHaveBeenCalled();
+  });
+
+  it("stop() with no stt_base_url does not throw", () => {
+    const configNoStt = {
+      chat_base_url: "http://localhost:8643/v1",
+      chat_endpoint: "/v1/responses",
+    } as unknown as import("../contract").EndpointsConfig;
+
+    const stt = createSttVad({ config: configNoStt, onVoiceSegment: vi.fn() });
+    expect(() => stt.stop()).not.toThrow();
+  });
+});

@@ -9,6 +9,9 @@ import { type AudioSink, createWebAudioSink } from "./audio-player";
 import { createSentenceSegmenter } from "./sentence-segmenter";
 import { createTtsSynth, type TtsSynth } from "./tts-synth";
 
+/** synth가 이 값으로 reject하면 조용한 skip — error 로그 없이 failed-skip 경로를 밟는다. */
+export const TTS_SKIP: unique symbol = Symbol("TTS_SKIP");
+
 export interface TtsPipelineOptions {
   // synth 주입 시 미사용. config.get()처럼 throw 가능한 값을 eager 평가해 넘기지 말 것.
   config?: EndpointsConfig;
@@ -137,7 +140,11 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
         (err) => {
           inFlight--;
           if (disposed || abort.signal.aborted) return;
-          log.error("synth", { index, error: String(err) });
+          if (err === TTS_SKIP) {
+            log.debug("synth", { index, skip: true });
+          } else {
+            log.error("synth", { index, error: String(err) });
+          }
           failed.add(index);
           drainSynth();
           void pump();

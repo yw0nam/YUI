@@ -854,3 +854,79 @@ describe("createTtsPipeline — observability logging seam", () => {
     expect(infoOrder[infoOrder.length - 1]).toBeLessThan(endOrder[0]);
   });
 });
+
+// ── #tts-skip: synth가 TTS_SKIP sentinel로 reject하면 error 로그 없이 clean skip ──
+
+import { TTS_SKIP } from "./tts-pipeline";
+
+describe("createTtsPipeline — TTS_SKIP sentinel (silent skip)", () => {
+  it("a synth that rejects with TTS_SKIP fires onCuePlay, fires onPlaybackEnd, does NOT call logger.error", async () => {
+    // skip synth: 항상 TTS_SKIP으로 reject한다.
+    const skipSynth = (_input: string, _signal?: AbortSignal): Promise<ArrayBuffer> =>
+      Promise.reject(TTS_SKIP);
+
+    const { sink } = recordingSink();
+    const logger = makeLogger();
+    const onPlaybackEnd = vi.fn();
+    const cuePlays: Array<import("../contract").ExpressArgs | null> = [];
+
+    const pipe = createTtsPipeline({
+      config: CONFIG,
+      synth: skipSynth,
+      sink,
+      logger,
+      onPlaybackEnd,
+      onCuePlay: (cue) => cuePlays.push(cue),
+    });
+
+    pipe.setCue({ emotion_id: "happy", emotion_text: "😊" });
+    pipe.pushTextDelta("Skip me.");
+    pipe.end();
+    await tick();
+
+    // cue는 fire된다(skip-path는 onCuePlay를 실행해야 한다).
+    expect(cuePlays).toHaveLength(1);
+    expect(cuePlays[0]).toMatchObject({ emotion_id: "happy" });
+
+    // 완료 신호도 fire된다.
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+
+    // error 로그는 없다 — TTS_SKIP은 조용한 skip이다.
+    expect(logger.error).not.toHaveBeenCalledWith("synth", expect.anything());
+  });
+
+  it("skip does NOT call logger.error even when pipeline has a mix of skip + real synth (maxInflight:2)", async () => {
+    let callCount = 0;
+    const mixedSynth = (_input: string, _signal?: AbortSignal): Promise<ArrayBuffer> => {
+      callCount++;
+      // 첫 번째 호출은 skip, 두 번째는 real.
+      if (callCount === 1) return Promise.reject(TTS_SKIP);
+      return Promise.resolve(bufFor(1));
+    };
+
+    const { sink, playedOrder, finish } = recordingSink();
+    const logger = makeLogger();
+    const onPlaybackEnd = vi.fn();
+
+    const pipe = createTtsPipeline({
+      config: CONFIG,
+      synth: mixedSynth,
+      sink,
+      logger,
+      onPlaybackEnd,
+      maxInflight: 2,
+    });
+
+    pipe.pushTextDelta("Skip. Play.");
+    pipe.end();
+    await tick();
+
+    // 인덱스 0(skip)은 재생 없음 → 인덱스 1만 재생된다.
+    expect(playedOrder).toEqual([1]);
+    finish();
+    await tick();
+
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+    expect(logger.error).not.toHaveBeenCalledWith("synth", expect.anything());
+  });
+});

@@ -32,6 +32,7 @@ import { createScheduleSettings } from "../io/schedule-settings";
 import { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import { createSessionStore } from "../io/session-store";
 import { createSpeakerSelection, type SpeakerOption } from "../io/speaker-selection";
+import { createTtsSettings } from "../io/tts-settings";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../io/vad-settings";
 import { createVrmSelection } from "../io/vrm-selection";
 import { getLocale, LOCALE_DISPLAY_NAMES, setLocale } from "./i18n";
@@ -388,6 +389,58 @@ describe("createQuickControls — gain row", () => {
 
     idleThrottleSettings.setEnabled(true);
     expect(idleSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  // ── TTS 음성 출력 토글 ─────────────────────────────────────────────────────
+
+  it("clicking the TTS switch toggles ttsSettings.setEnabled", () => {
+    const ttsSettings = createTtsSettings();
+    const qc = buildQc({ ttsSettings });
+    qc.open();
+
+    const ttsSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-tts-switch")!;
+    expect(ttsSettings.get().enabled).toBe(true);
+
+    ttsSwitch.click();
+    expect(ttsSettings.get().enabled).toBe(false);
+    expect(ttsSwitch.getAttribute("aria-checked")).toBe("false");
+
+    ttsSwitch.click();
+    expect(ttsSettings.get().enabled).toBe(true);
+    expect(ttsSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  it("external ttsSettings.setEnabled reflects on the switch while open", () => {
+    const ttsSettings = createTtsSettings();
+    const qc = buildQc({ ttsSettings });
+    qc.open();
+
+    const ttsSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-tts-switch")!;
+    ttsSettings.setEnabled(false);
+    expect(ttsSwitch.getAttribute("aria-checked")).toBe("false");
+
+    ttsSettings.setEnabled(true);
+    expect(ttsSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  it("renders the TTS switch with default aria-checked and clicking is a no-op when ttsSettings is absent", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const ttsSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-tts-switch");
+    expect(ttsSwitch).not.toBeNull();
+    expect(ttsSwitch!.getAttribute("aria-checked")).toBe("true");
+    expect(ttsSwitch!.getAttribute("role")).toBe("switch");
+
+    // No ttsSettings injected — clicking must not throw and aria-checked stays put.
+    expect(() => ttsSwitch!.click()).not.toThrow();
+    expect(ttsSwitch!.getAttribute("aria-checked")).toBe("true");
 
     qc.dispose();
   });

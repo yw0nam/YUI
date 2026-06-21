@@ -171,6 +171,11 @@ const en: Record<string, string> = {
   "voice_input.silence_sub": "Waits this long after speech ends before sending",
   "voice_input.silence_aria": "Silence threshold",
 
+  // TTS output toggle
+  "tts_output.label": "Voice output",
+  "tts_output.sub": "Read replies aloud with TTS; off shows text only",
+  "tts_output.aria": "Voice output",
+
   // cue lists (input tab)
   "cue.schedule_title": "Scheduled greeting",
   "cue.schedule_sub": "Greets you first if you're at your desk at the set time",

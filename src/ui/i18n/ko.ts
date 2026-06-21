@@ -170,6 +170,11 @@ const ko: Record<string, string> = {
   "voice_input.silence_sub": "말이 끝난 뒤 이만큼 기다렸다가 전송해요",
   "voice_input.silence_aria": "침묵 기준",
 
+  // TTS output toggle
+  "tts_output.label": "음성 출력",
+  "tts_output.sub": "TTS로 답변을 읽어줘요. 끄면 텍스트만 표시해요",
+  "tts_output.aria": "음성 출력",
+
   // cue lists (input tab)
   "cue.schedule_title": "시간대 인사",
   "cue.schedule_sub": "정한 시각에 자리에 있으면 먼저 말을 걸어요",
