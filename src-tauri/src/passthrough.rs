@@ -7,6 +7,7 @@
 use tauri::{command, Runtime, WebviewWindow};
 
 /// `WS_EX_TRANSPARENT` bit (Win32 EXSTYLE flag 0x00000020).
+#[cfg(target_os = "windows")]
 const WS_EX_TRANSPARENT: u32 = 0x0000_0020;
 
 /// Desired `GWL_EXSTYLE` for a child given its BASELINE style (the style it had
@@ -17,6 +18,7 @@ const WS_EX_TRANSPARENT: u32 = 0x0000_0020;
 /// DirectComposition render windows carry `WS_EX_TRANSPARENT` natively, and
 /// stripping it blanks the rendered surface. Extracted so the logic is testable
 /// without any FFI dependency.
+#[cfg(target_os = "windows")]
 pub(crate) fn desired_exstyle(baseline: u32, ignore: bool, transparent_bit: u32) -> u32 {
     if ignore {
         baseline | transparent_bit
@@ -133,11 +135,12 @@ fn windows_set_children_transparent<R: Runtime>(
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "windows"))]
 mod tests {
     use super::*;
 
-    // ── desired_exstyle — pure logic, no FFI, runs on any host platform ──────
+    // ── desired_exstyle — pure logic, no FFI (Windows-only: the bit-mask helper
+    //    is compiled only on Windows, so its tests are gated the same way). ──────
 
     #[test]
     fn passthrough_adds_transparent_bit() {
