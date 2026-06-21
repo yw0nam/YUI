@@ -32,10 +32,7 @@ pub(crate) fn desired_exstyle(baseline: u32, ignore: bool, transparent_bit: u32)
 /// so mouse events are not intercepted by the child windows before they reach the
 /// desktop compositor.
 #[command]
-pub fn set_click_through<R: Runtime>(
-    window: WebviewWindow<R>,
-    ignore: bool,
-) -> Result<(), String> {
+pub fn set_click_through<R: Runtime>(window: WebviewWindow<R>, ignore: bool) -> Result<(), String> {
     window
         .set_ignore_cursor_events(ignore)
         .map_err(|e| e.to_string())?;
@@ -56,13 +53,13 @@ mod win {
     use std::collections::HashMap;
     use std::sync::{Mutex, OnceLock};
     use windows::{
+        core::BOOL,
         Win32::{
             Foundation::{HWND, LPARAM},
             UI::WindowsAndMessaging::{
                 EnumChildWindows, GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE,
             },
         },
-        core::BOOL,
     };
 
     /// Per-HWND baseline EXSTYLE, captured the first time we touch a child so capture
@@ -167,7 +164,11 @@ mod tests {
     #[test]
     fn passthrough_preserves_other_bits() {
         let result = desired_exstyle(0x0004_0000, true, WS_EX_TRANSPARENT);
-        assert_eq!(result & 0x0004_0000, 0x0004_0000, "other bits must be preserved");
+        assert_eq!(
+            result & 0x0004_0000,
+            0x0004_0000,
+            "other bits must be preserved"
+        );
         assert_eq!(result & WS_EX_TRANSPARENT, WS_EX_TRANSPARENT);
     }
 
@@ -175,6 +176,9 @@ mod tests {
     fn passthrough_idempotent_when_baseline_has_bit() {
         let baseline = WS_EX_TRANSPARENT | 0x0000_0008;
         let result = desired_exstyle(baseline, true, WS_EX_TRANSPARENT);
-        assert_eq!(result, baseline, "idempotent: already-present bit unchanged");
+        assert_eq!(
+            result, baseline,
+            "idempotent: already-present bit unchanged"
+        );
     }
 }
