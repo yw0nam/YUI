@@ -17,8 +17,15 @@ vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: vi.fn(),
 }));
 
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+}));
+
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   createHitTestController,
+  createTauriHitTestWindow,
   decideTransition,
   type HitTestConfig,
   type HitTestState,
@@ -273,5 +280,34 @@ describe("createHitTestController — suspend/resume", () => {
     await Promise.resolve();
     expect(win.setIgnoreCursorEvents).not.toHaveBeenCalled();
     c.stop();
+  });
+});
+
+// ─── createTauriHitTestWindow — IPC contract ──────────────────────────────────
+
+describe("createTauriHitTestWindow — routes setIgnoreCursorEvents through set_click_through", () => {
+  beforeEach(() => {
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    vi.mocked(getCurrentWindow).mockReturnValue({
+      outerPosition: vi.fn(async () => ({ x: 0, y: 0 })),
+      scaleFactor: vi.fn(async () => 1),
+      setIgnoreCursorEvents: vi.fn(async () => {}),
+    } as never);
+  });
+  afterEach(() => {
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.mocked(invoke).mockReset();
+  });
+
+  it("setIgnoreCursorEvents(true) calls invoke('set_click_through', { ignore: true })", async () => {
+    const w = createTauriHitTestWindow();
+    await w.setIgnoreCursorEvents(true);
+    expect(invoke).toHaveBeenCalledWith("set_click_through", { ignore: true });
+  });
+
+  it("setIgnoreCursorEvents(false) calls invoke('set_click_through', { ignore: false })", async () => {
+    const w = createTauriHitTestWindow();
+    await w.setIgnoreCursorEvents(false);
+    expect(invoke).toHaveBeenCalledWith("set_click_through", { ignore: false });
   });
 });
