@@ -20,6 +20,7 @@
  * Tauri-only: inert in a plain browser (mirrors src/drag.ts's guard).
  */
 
+import { invoke } from "@tauri-apps/api/core";
 import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
 import { createLogger } from "../logger";
 
@@ -143,6 +144,21 @@ function isTauri(): boolean {
   return Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
 }
 
+/**
+ * Production HitTestWindow backed by the real Tauri window.
+ * `setIgnoreCursorEvents` routes through the `set_click_through` command so
+ * Windows child HWNDs (WebView2) also receive the EXSTYLE update.
+ */
+export function createTauriHitTestWindow(): HitTestWindow {
+  const w = getCurrentWindow();
+  return {
+    cursorPosition: () => cursorPosition(),
+    setIgnoreCursorEvents: (ignore: boolean) => invoke<void>("set_click_through", { ignore }),
+    outerPosition: () => w.outerPosition(),
+    scaleFactor: () => w.scaleFactor(),
+  };
+}
+
 export function createHitTestController(opts: HitTestOptions): HitTestController {
   // Mirror drag.ts: inert in a plain browser so Vite/browser dev still boots.
   if (!isTauri()) {
@@ -150,18 +166,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     return { start() {}, stop() {}, suspend() {}, resume() {} };
   }
 
-  // cursorPosition is a module-level function; the rest are Window instance methods.
-  const getWindow =
-    opts.getWindow ??
-    (() => {
-      const w = getCurrentWindow();
-      return {
-        cursorPosition: () => cursorPosition(),
-        setIgnoreCursorEvents: (ignore: boolean) => w.setIgnoreCursorEvents(ignore),
-        outerPosition: () => w.outerPosition(),
-        scaleFactor: () => w.scaleFactor(),
-      };
-    });
+  const getWindow = opts.getWindow ?? createTauriHitTestWindow;
   const moveTarget = opts.moveTarget ?? (globalThis as unknown as EventTarget);
   const schedule =
     opts.schedule ?? ((cb, ms) => globalThis.setTimeout(cb, ms) as unknown as number);

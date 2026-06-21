@@ -19,6 +19,9 @@ mod vrm_import;
 // Bring-your-own-voice import (reference clip copy into app-data).
 mod voice_import;
 
+// Click-through toggle (top-level + Windows child HWNDs).
+mod passthrough;
+
 use std::path::PathBuf;
 use tauri::Manager;
 use time::{OffsetDateTime, UtcOffset};
@@ -211,6 +214,7 @@ pub fn run() {
             vrm_import::remove_user_vrm,
             voice_import::import_voice_file,
             voice_import::remove_user_voice,
+            passthrough::set_click_through,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
