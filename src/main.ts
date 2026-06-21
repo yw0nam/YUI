@@ -310,7 +310,7 @@ async function bootstrap(): Promise<void> {
     bridge.emitVoiceState({ state: snapshot.state, detail: snapshot.detail });
   });
   // 음성입력 on/off 의도를 영속화 — idle이 아니면 켜짐. 다음 실행에서 자동 재개에 쓴다.
-  voiceInputStatus.subscribe((snapshot) => {
+  const unsubscribeSttPersist = voiceInputStatus.subscribe((snapshot) => {
     sttSettings.setEnabled(snapshot.state !== "idle");
   });
   // 설정 동기화(양방향, 루프 가드): 한쪽 편집 → emit → 다른쪽 store 재로드.
@@ -597,6 +597,7 @@ async function bootstrap(): Promise<void> {
       captureIndicator.dispose();
       voiceInputIndicator.dispose();
       unsubscribeVoiceInputStatus();
+      unsubscribeSttPersist();
       void sttVad?.dispose();
       voiceInputStatus.dispose();
       screenshotSettings.dispose();
