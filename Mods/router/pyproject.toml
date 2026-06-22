@@ -5,6 +5,7 @@ description = "YUI Mods router — one HTTP front door path-routing to independe
 requires-python = ">=3.12"
 dependencies = [
     "httpx",
+    "loguru>=0.7",
     "starlette",
     "uvicorn",
 ]

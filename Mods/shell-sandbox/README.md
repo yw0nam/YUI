@@ -36,6 +36,9 @@ The agent adds the MCP tool source at `http://localhost:9001/mcp` directly, or `
 | Tool | Description |
 |---|---|
 | `run(command)` | Run a shell command in the workspace; returns `exit_code`, `stdout`, `stderr`, `truncated`, `timed_out` |
+| `read_file(path, offset?, limit?)` | Read a UTF-8 text file as a line window; returns `content` + `start_line`/`lines_returned`/`total_lines`/`truncated`, or `{error}` |
+| `write_file(path, content)` | Create or overwrite a text file (parent dirs created); returns `{path, bytes_written}` or `{error}` |
+| `edit_file(path, old, new, replace_all?)` | Exact-replace `old`→`new`; requires a unique match unless `replace_all`; returns `{path, replacements}` or `{error}` |
 | `read_image(path)` | Read an image file (png/jpg/jpeg/gif/webp) from the workspace and return it as a viewable image — `run` returns text only |
 
 ## Test
