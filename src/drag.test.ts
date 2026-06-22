@@ -658,4 +658,22 @@ describe("initDrag — window_drop_release", () => {
     await Promise.resolve();
     expect(onDragEnd).toHaveBeenCalledTimes(2);
   });
+
+  it("no phantom drag: a hover move after a window_drop_release end starts no new drag", async () => {
+    down(0, 0);
+    move(100, 0);
+    await Promise.resolve();
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    // OS swallowed pointerup; the gesture ends via the Tauri event, which detaches
+    // the gesture listeners.
+    capturedDropHandler?.();
+    await Promise.resolve();
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+    // A subsequent hover move (no fresh pointerdown) must not start a new drag.
+    move(500, 0);
+    await Promise.resolve();
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+  });
 });

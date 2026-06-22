@@ -190,6 +190,7 @@ export async function initDrag(
   function endGesture(): void {
     if (!started || ended) return;
     ended = true;
+    detach();
     opts.onDragEnd?.();
   }
 
