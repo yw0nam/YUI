@@ -2,7 +2,7 @@
 
 Standalone MCP servers ("Mods") that expose host capabilities to the remote backend agent (Hermes). Each Mod is an independent process, decoupled from the YUI app — the agent attaches them as tool sources alongside the Expression Broker.
 
-Mod convention: a Docker-based MCP server exposed on a port. `desktop_control` is the documented exception — it needs the host GUI, so it runs **host-native** (a container on macOS cannot reach the Mac WindowServer).
+Mod convention: a Docker-based MCP server exposed on a port. Each containerized mod keeps its `Dockerfile` in its own `mcp_server/<mod>/` folder, and `docker-compose.yml` builds and deploys them together (`docker compose up -d --build`); the build context stays `Mods/` so they share `pyproject.toml`/`uv.lock`/the `mcp_server` package. `desktop_control` is the documented exception — it needs the host GUI, so it runs **host-native** (a container on macOS cannot reach the Mac WindowServer); the router likewise runs host-native as a thin proxy.
 
 ## Router
 
@@ -16,7 +16,7 @@ http://host:8080/<mod>/mcp  ->  127.0.0.1:<mod port>/mcp
 uv run mods-router --host 127.0.0.1 --port 8080
 ```
 
-Routing table is the `UPSTREAMS` dict in `router.py` — adding a mod is one line; the external port stays one. The agent then adds each tool source at `http://localhost:8080/<mod>/mcp` (from the remote's view). An unknown mod prefix returns 404; an unreachable mod returns 502.
+Routing table is the `UPSTREAMS` dict in `router.py` — adding a mod is one line; the external port stays one. Currently registered: `desktop` → `127.0.0.1:9000`, `shell` → `127.0.0.1:9001`. The agent then adds each tool source at `http://localhost:8080/<mod>/mcp` (e.g. `/desktop/mcp`, `/shell/mcp`) from the remote's view. An unknown mod prefix returns 404; an unreachable mod returns 502.
 
 MCP's Streamable HTTP transport is SSE, so the router streams responses through unbuffered — there is no body buffering to break long-lived event streams.
 
@@ -58,8 +58,8 @@ The allowlist **is** the safety boundary — there is no client-side config. des
 The server binds `127.0.0.1` only. Reach it from the remote host with an SSH reverse tunnel — either the mod port directly, or the [Router](#router) port to cover every mod with one tunnel:
 
 ```bash
-ssh -R 9000:localhost:9000 ibricks43_external      # this mod only
-ssh -R 8080:localhost:8080 ibricks43_external      # router: all mods, one port
+ssh -R 9000:localhost:9000 <remote-host>      # this mod only
+ssh -R 8080:localhost:8080 <remote-host>      # router: all mods, one port
 ```
 
 The agent then adds the MCP tool source at `http://localhost:9000/mcp` directly, or `http://localhost:8080/desktop/mcp` through the router (from the remote's view).
@@ -86,17 +86,10 @@ An unrestricted shell exposed to the agent, running inside a container against a
 ### Run
 
 ```bash
-docker build -f shell-sandbox.Dockerfile -t yui-shell-sandbox .
-
-docker run --rm -i \
-  -p 127.0.0.1:9001:9001 \
-  -v "$PWD:/work" \
-  --cap-drop ALL \
-  --security-opt no-new-privileges \
-  yui-shell-sandbox
+SHELL_SANDBOX_MOUNT="$PWD" docker compose up -d --build shell-sandbox
 ```
 
-The server binds `0.0.0.0:9001` *inside* the container; `-p 127.0.0.1:9001:9001` publishes it to host loopback only. `-v "$PWD:/work"` mounts the workspace read-write.
+The server binds `0.0.0.0:9001` *inside* the container; the compose `ports` entry publishes it to host loopback only (`127.0.0.1:9001`). `SHELL_SANDBOX_MOUNT` is the host dir mounted read-write at `/work` (defaults to a scratch `./work` so you don't expose originals by accident); `--cap-drop ALL` and `no-new-privileges` are set in `docker-compose.yml`.
 
 Env (all optional): `SHELL_SANDBOX_WORKDIR` (default `/work`), `SHELL_SANDBOX_TIMEOUT` (seconds, default `300`), `SHELL_SANDBOX_MAX_OUTPUT` (chars per stream, default `100000`; output is tail-truncated past this).
 
@@ -112,10 +105,11 @@ The shell is unrestricted by design, so isolation comes entirely from the contai
 ### Expose to the remote agent
 
 ```bash
-ssh -R 9001:localhost:9001 ibricks43_external
+ssh -R 9001:localhost:9001 <remote-host>      # this mod only
+ssh -R 8080:localhost:8080 <remote-host>      # router: all mods, one port
 ```
 
-The agent adds the MCP tool source at `http://localhost:9001/mcp` (from the remote's view).
+The agent adds the MCP tool source at `http://localhost:9001/mcp` directly, or `http://localhost:8080/shell/mcp` through the router (from the remote's view).
 
 ### Tools
 

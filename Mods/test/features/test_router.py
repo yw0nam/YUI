@@ -14,6 +14,9 @@ class TestResolve:
     def test_maps_known_mod_to_base_and_rest(self):
         assert router.resolve("desktop/mcp") == ("http://127.0.0.1:9000", "mcp")
 
+    def test_shell_sandbox_is_registered(self):
+        assert router.resolve("shell/mcp") == ("http://127.0.0.1:9001", "mcp")
+
     def test_unknown_mod_returns_none(self):
         assert router.resolve("nope/mcp") is None
 
