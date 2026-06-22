@@ -4,6 +4,22 @@ Standalone MCP servers ("Mods") that expose host capabilities to the remote back
 
 Mod convention: a Docker-based MCP server exposed on a port. `desktop_control` is the documented exception — it needs the host GUI, so it runs **host-native** (a container on macOS cannot reach the Mac WindowServer).
 
+## Router
+
+`router.py` is one HTTP front door that path-routes to every mod, so a single SSH reverse tunnel exposes them all instead of one port per mod. Each mod stays an independent process on its own port — the router only forwards bytes by URL prefix, so the upstream mod can be written in any language:
+
+```
+http://host:8080/<mod>/mcp  ->  127.0.0.1:<mod port>/mcp
+```
+
+```bash
+uv run mods-router --host 127.0.0.1 --port 8080
+```
+
+Routing table is the `UPSTREAMS` dict in `router.py` — adding a mod is one line; the external port stays one. The agent then adds each tool source at `http://localhost:8080/<mod>/mcp` (from the remote's view). An unknown mod prefix returns 404; an unreachable mod returns 502.
+
+MCP's Streamable HTTP transport is SSE, so the router streams responses through unbuffered — there is no body buffering to break long-lived event streams.
+
 ## desktop-control
 
 Lets the agent see the screen and open/close apps on the local macOS host.
@@ -39,13 +55,14 @@ The allowlist **is** the safety boundary — there is no client-side config. des
 
 ### Expose to the remote agent
 
-The server binds `127.0.0.1` only. Reach it from the remote host with an SSH reverse tunnel:
+The server binds `127.0.0.1` only. Reach it from the remote host with an SSH reverse tunnel — either the mod port directly, or the [Router](#router) port to cover every mod with one tunnel:
 
 ```bash
-ssh -R 9000:localhost:9000 ibricks43_external
+ssh -R 9000:localhost:9000 ibricks43_external      # this mod only
+ssh -R 8080:localhost:8080 ibricks43_external      # router: all mods, one port
 ```
 
-The agent then adds the MCP tool source at `http://localhost:9000/mcp` (from the remote's view).
+The agent then adds the MCP tool source at `http://localhost:9000/mcp` directly, or `http://localhost:8080/desktop/mcp` through the router (from the remote's view).
 
 ### Tools
 
