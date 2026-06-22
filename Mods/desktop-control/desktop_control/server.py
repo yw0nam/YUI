@@ -14,7 +14,7 @@ from fastmcp.utilities.types import Image
 from loguru import logger
 
 # ponytail: loguru's default stderr handler is enough — no core/logger setup module
-from mcp_server.desktop_control import ops
+from desktop_control import ops
 
 ALLOWLIST_ENV = "DESKTOP_CONTROL_ALLOWED_APPS"
 SCREENSHOT_MAX_EDGE_ENV = "DESKTOP_CONTROL_SCREENSHOT_MAX_EDGE"

@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from mcp_server.desktop_control import ops, server
+from desktop_control import ops, server
 
 
 @pytest.fixture

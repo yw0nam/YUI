@@ -7,18 +7,18 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
-from mcp_server import router
+from router import server
 
 
 class TestResolve:
     def test_maps_known_mod_to_base_and_rest(self):
-        assert router.resolve("desktop/mcp") == ("http://127.0.0.1:9000", "mcp")
+        assert server.resolve("desktop/mcp") == ("http://127.0.0.1:9000", "mcp")
 
     def test_shell_sandbox_is_registered(self):
-        assert router.resolve("shell/mcp") == ("http://127.0.0.1:9001", "mcp")
+        assert server.resolve("shell/mcp") == ("http://127.0.0.1:9001", "mcp")
 
     def test_unknown_mod_returns_none(self):
-        assert router.resolve("nope/mcp") is None
+        assert server.resolve("nope/mcp") is None
 
 
 def _fake_upstream():
@@ -36,11 +36,11 @@ class TestProxy:
     @pytest.fixture
     def client(self, monkeypatch):
         transport = httpx.ASGITransport(app=_fake_upstream())
-        monkeypatch.setitem(router.UPSTREAMS, "echo", "http://up")
+        monkeypatch.setitem(server.UPSTREAMS, "echo", "http://up")
         monkeypatch.setattr(
-            router, "_client", lambda: httpx.AsyncClient(transport=transport, timeout=None)
+            server, "_client", lambda: httpx.AsyncClient(transport=transport, timeout=None)
         )
-        return TestClient(router.app)
+        return TestClient(server.app)
 
     def test_forwards_path_method_body_to_upstream(self, client):
         r = client.post("/echo/mcp", content="hello")
@@ -51,12 +51,12 @@ class TestProxy:
         assert client.get("/missing/mcp").status_code == 404
 
     def test_unreachable_upstream_returns_502(self, monkeypatch):
-        monkeypatch.setitem(router.UPSTREAMS, "down", "http://127.0.0.1:1")
+        monkeypatch.setitem(server.UPSTREAMS, "down", "http://127.0.0.1:1")
 
         async def fake_send(*a, **k):
             raise httpx.ConnectError("refused")
 
         client = httpx.AsyncClient()
         monkeypatch.setattr(client, "send", fake_send)
-        monkeypatch.setattr(router, "_client", lambda: client)
-        assert TestClient(router.app).get("/down/mcp").status_code == 502
+        monkeypatch.setattr(server, "_client", lambda: client)
+        assert TestClient(server.app).get("/down/mcp").status_code == 502

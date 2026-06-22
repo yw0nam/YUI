@@ -106,13 +106,17 @@ jobs:
   mods:
     name: mods (uv + pytest)
     runs-on: ubuntu-latest
-    # Mods/ are standalone Python MCP servers; OS calls are mocked, so they run on Linux.
+    # Each Mod is a self-contained uv project; OS calls are mocked, so they run on Linux.
+    strategy:
+      fail-fast: false
+      matrix:
+        mod: [desktop-control, shell-sandbox, router]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
       - run: uv sync --frozen
-        working-directory: Mods
+        working-directory: Mods/${{ matrix.mod }}
       - run: uv run pytest
-        working-directory: Mods
+        working-directory: Mods/${{ matrix.mod }}

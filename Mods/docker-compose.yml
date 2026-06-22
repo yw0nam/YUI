@@ -2,14 +2,14 @@
 #   docker compose up -d --build
 # desktop-control and the router are NOT here: desktop-control is host-native
 # (needs the Mac GUI) and the router is a host-side proxy (`uv run mods-router`)
-# that reaches each mod on 127.0.0.1. Each service's Dockerfile lives in its mod
-# folder; the build context stays Mods/ for the shared pyproject/uv.lock/package.
+# that reaches each mod on 127.0.0.1. Each mod is a self-contained uv project;
+# its build context is its own folder with its own pyproject/uv.lock/Dockerfile.
 
 services:
   shell-sandbox:
     build:
-      context: .
-      dockerfile: mcp_server/shell_sandbox/Dockerfile
+      context: ./shell-sandbox
+      dockerfile: Dockerfile
     image: yui-shell-sandbox
     # Loopback only — reach from the remote agent via SSH reverse tunnel, never 0.0.0.0.
     ports:
