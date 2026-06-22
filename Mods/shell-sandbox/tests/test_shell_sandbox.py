@@ -1,10 +1,10 @@
-"""shell-sandbox MCP — the command-execution core (run_command)."""
+"""shell-sandbox MCP — the command-execution core (run_command) and image reads."""
 
 import sys
 
 import pytest
 
-from shell_sandbox.server import run_command
+from shell_sandbox.server import read_image_file, run_command
 
 
 def test_runs_command_and_captures_stdout(tmp_path):
@@ -50,3 +50,33 @@ def test_timeout_returns_error_without_raising(tmp_path):
     )
     assert out["timed_out"] is True
     assert out["exit_code"] is None
+
+
+def test_read_image_returns_bytes_and_format(tmp_path):
+    (tmp_path / "a.png").write_bytes(b"\x89PNG\r\n\x1a\nFAKE")
+    data, fmt = read_image_file("a.png", workdir=str(tmp_path), max_bytes=1_000_000)
+    assert data == b"\x89PNG\r\n\x1a\nFAKE"
+    assert fmt == "png"
+
+
+def test_read_image_jpg_maps_to_jpeg(tmp_path):
+    (tmp_path / "b.jpg").write_bytes(b"\xff\xd8\xff")
+    _, fmt = read_image_file("b.jpg", workdir=str(tmp_path), max_bytes=1_000_000)
+    assert fmt == "jpeg"
+
+
+def test_read_image_missing_file_raises(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        read_image_file("nope.png", workdir=str(tmp_path), max_bytes=1_000_000)
+
+
+def test_read_image_unsupported_extension_raises(tmp_path):
+    (tmp_path / "c.txt").write_text("x")
+    with pytest.raises(ValueError):
+        read_image_file("c.txt", workdir=str(tmp_path), max_bytes=1_000_000)
+
+
+def test_read_image_oversize_raises(tmp_path):
+    (tmp_path / "big.png").write_bytes(b"x" * 100)
+    with pytest.raises(ValueError):
+        read_image_file("big.png", workdir=str(tmp_path), max_bytes=10)

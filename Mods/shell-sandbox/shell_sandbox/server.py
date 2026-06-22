@@ -13,14 +13,20 @@ import subprocess
 from typing import Any
 
 from fastmcp import FastMCP
+from fastmcp.utilities.types import Image
 from loguru import logger
 
 WORKDIR_ENV = "SHELL_SANDBOX_WORKDIR"
 TIMEOUT_ENV = "SHELL_SANDBOX_TIMEOUT"
 MAX_OUTPUT_ENV = "SHELL_SANDBOX_MAX_OUTPUT"
+MAX_IMAGE_BYTES_ENV = "SHELL_SANDBOX_MAX_IMAGE_BYTES"
 DEFAULT_WORKDIR = "/work"
 DEFAULT_TIMEOUT = 300
 DEFAULT_MAX_OUTPUT = 100_000
+DEFAULT_MAX_IMAGE_BYTES = 10_000_000
+
+# extension -> MCP image format string (jpg and jpeg both map to jpeg)
+_IMAGE_FORMATS = {".png": "png", ".jpg": "jpeg", ".jpeg": "jpeg", ".gif": "gif", ".webp": "webp"}
 
 
 def _tail(text: str, max_output: int) -> tuple[str, bool]:
@@ -59,12 +65,31 @@ def run_command(command: str, *, workdir: str, timeout: int, max_output: int) ->
     }
 
 
+def read_image_file(path: str, *, workdir: str, max_bytes: int) -> tuple[bytes, str]:
+    """Read an image from workdir; return (bytes, format string).
+
+    Relative paths resolve against workdir; absolute paths pass through (the
+    container is the boundary, same as `run`). Raises ValueError for an
+    unsupported extension or an oversize file, FileNotFoundError if missing.
+    """
+    full = path if os.path.isabs(path) else os.path.join(workdir, path)
+    fmt = _IMAGE_FORMATS.get(os.path.splitext(full)[1].lower())
+    if fmt is None:
+        raise ValueError(f"unsupported image type: {os.path.basename(full)!r} (want png/jpg/jpeg/gif/webp)")
+    size = os.path.getsize(full)  # FileNotFoundError if missing
+    if size > max_bytes:
+        raise ValueError(f"image is {size} bytes, over the {max_bytes}-byte limit")
+    with open(full, "rb") as f:
+        return f.read(), fmt
+
+
 mcp = FastMCP(
     name="Shell Sandbox",
     instructions=(
         "Run shell commands inside an isolated container against a mounted workspace. "
         "Use `run` for anything: read files, grep, edit, build, install deps, run tests. "
-        "Commands run in the workspace dir and may read and write it freely."
+        "Commands run in the workspace dir and may read and write it freely. "
+        "`run` returns text only — use `read_image` to actually view an image file."
     ),
 )
 
@@ -95,6 +120,24 @@ def run(command: str) -> dict[str, Any]:
         timeout=_int_env(TIMEOUT_ENV, DEFAULT_TIMEOUT),
         max_output=_int_env(MAX_OUTPUT_ENV, DEFAULT_MAX_OUTPUT),
     )
+
+
+@mcp.tool
+def read_image(path: str) -> Image:
+    """Read an image file from the workspace and return it as a viewable image.
+
+    Args:
+        path: Path to an image (png/jpg/jpeg/gif/webp), relative to the workspace or absolute.
+
+    Use this instead of `run` when you need to actually see an image — `run` returns text only.
+    """
+    data, fmt = read_image_file(
+        path,
+        workdir=os.getenv(WORKDIR_ENV, DEFAULT_WORKDIR),
+        max_bytes=_int_env(MAX_IMAGE_BYTES_ENV, DEFAULT_MAX_IMAGE_BYTES),
+    )
+    logger.info(f"read_image: {path!r} ({len(data)} bytes, {fmt})")
+    return Image(data=data, format=fmt)
 
 
 def main() -> None:
