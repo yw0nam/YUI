@@ -1,10 +1,10 @@
-# shell-sandbox MCP — build context is Mods/ (shared pyproject/uv.lock/mcp_server).
+# shell-sandbox MCP — build context is this mod's own folder (Mods/shell-sandbox/).
 #   docker compose build shell-sandbox   # or: docker compose up -d
 FROM python:3.12-slim
 
 WORKDIR /app
-COPY pyproject.toml uv.lock README.md ./
-COPY mcp_server ./mcp_server
+COPY pyproject.toml uv.lock ./
+COPY shell_sandbox ./shell_sandbox
 RUN pip install --no-cache-dir uv && uv sync --frozen --no-dev
 
 # Commands run here; this is where the host volume gets mounted.

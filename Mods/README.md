@@ -2,7 +2,7 @@
 
 Standalone MCP servers ("Mods") that expose host capabilities to the remote backend agent (Hermes). Each Mod is an independent process, decoupled from the YUI app — the agent attaches them as tool sources alongside the Expression Broker.
 
-Mod convention: a Docker-based MCP server exposed on a port. Each containerized mod keeps its `Dockerfile` in its own `mcp_server/<mod>/` folder, and `docker-compose.yml` builds and deploys them together (`docker compose up -d --build`); the build context stays `Mods/` so they share `pyproject.toml`/`uv.lock`/the `mcp_server` package. `desktop_control` is the documented exception — it needs the host GUI, so it runs **host-native** (a container on macOS cannot reach the Mac WindowServer); the router likewise runs host-native as a thin proxy.
+Mod convention: each mod is a **self-contained `uv` project** in its own folder (`Mods/<mod>/`) with its own `pyproject.toml`, `uv.lock`, and dependency set — no shared lock, so a mod's deps never leak into another (e.g. the shell-sandbox image carries no `pyobjc`). Containerized mods keep a `Dockerfile` whose build context is that same folder; `docker-compose.yml` builds and deploys them together (`docker compose up -d --build`). `desktop-control` is the documented exception — it needs the host GUI, so it runs **host-native** (a container on macOS cannot reach the Mac WindowServer); the router likewise runs host-native as a thin proxy. Run any mod's tests with `cd Mods/<mod> && uv run pytest`.
 
 ## Router
 
@@ -13,10 +13,10 @@ http://host:8080/<mod>/mcp  ->  127.0.0.1:<mod port>/mcp
 ```
 
 ```bash
-uv run mods-router --host 127.0.0.1 --port 8080
+cd Mods/router && uv run mods-router --host 127.0.0.1 --port 8080
 ```
 
-Routing table is the `UPSTREAMS` dict in `router.py` — adding a mod is one line; the external port stays one. Currently registered: `desktop` → `127.0.0.1:9000`, `shell` → `127.0.0.1:9001`. The agent then adds each tool source at `http://localhost:8080/<mod>/mcp` (e.g. `/desktop/mcp`, `/shell/mcp`) from the remote's view. An unknown mod prefix returns 404; an unreachable mod returns 502.
+Routing table is the `UPSTREAMS` dict in `router/server.py` — adding a mod is one line; the external port stays one. Currently registered: `desktop` → `127.0.0.1:9000`, `shell` → `127.0.0.1:9001`. The agent then adds each tool source at `http://localhost:8080/<mod>/mcp` (e.g. `/desktop/mcp`, `/shell/mcp`) from the remote's view. An unknown mod prefix returns 404; an unreachable mod returns 502.
 
 MCP's Streamable HTTP transport is SSE, so the router streams responses through unbuffered — there is no body buffering to break long-lived event streams.
 
@@ -27,7 +27,7 @@ Lets the agent see the screen and open/close apps on the local macOS host.
 ### Run
 
 ```bash
-uv sync
+cd Mods/desktop-control && uv sync
 DESKTOP_CONTROL_ALLOWED_APPS="Safari,Notes,Google Chrome" \
   uv run desktop-control-mcp --transport http --host 127.0.0.1 --port 9000
 ```
@@ -76,7 +76,7 @@ The agent then adds the MCP tool source at `http://localhost:9000/mcp` directly,
 ### Test
 
 ```bash
-uv run pytest
+cd Mods/desktop-control && uv run pytest
 ```
 
 ## shell-sandbox
@@ -86,6 +86,7 @@ An unrestricted shell exposed to the agent, running inside a container against a
 ### Run
 
 ```bash
+cd Mods    # docker-compose.yml lives here
 SHELL_SANDBOX_MOUNT="$PWD" docker compose up -d --build shell-sandbox
 ```
 
@@ -120,5 +121,5 @@ The agent adds the MCP tool source at `http://localhost:9001/mcp` directly, or `
 ### Test
 
 ```bash
-uv run pytest test/features/test_shell_sandbox.py
+cd Mods/shell-sandbox && uv run pytest
 ```

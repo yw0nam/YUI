@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from mcp_server.shell_sandbox.server import run_command
+from shell_sandbox.server import run_command
 
 
 def test_runs_command_and_captures_stdout(tmp_path):
