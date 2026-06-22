@@ -58,8 +58,8 @@ The allowlist **is** the safety boundary — there is no client-side config. des
 The server binds `127.0.0.1` only. Reach it from the remote host with an SSH reverse tunnel — either the mod port directly, or the [Router](#router) port to cover every mod with one tunnel:
 
 ```bash
-ssh -R 9000:localhost:9000 ibricks43_external      # this mod only
-ssh -R 8080:localhost:8080 ibricks43_external      # router: all mods, one port
+ssh -R 9000:localhost:9000 <remote-host>      # this mod only
+ssh -R 8080:localhost:8080 <remote-host>      # router: all mods, one port
 ```
 
 The agent then adds the MCP tool source at `http://localhost:9000/mcp` directly, or `http://localhost:8080/desktop/mcp` through the router (from the remote's view).
@@ -105,8 +105,8 @@ The shell is unrestricted by design, so isolation comes entirely from the contai
 ### Expose to the remote agent
 
 ```bash
-ssh -R 9001:localhost:9001 ibricks43_external      # this mod only
-ssh -R 8080:localhost:8080 ibricks43_external      # router: all mods, one port
+ssh -R 9001:localhost:9001 <remote-host>      # this mod only
+ssh -R 8080:localhost:8080 <remote-host>      # router: all mods, one port
 ```
 
 The agent adds the MCP tool source at `http://localhost:9001/mcp` directly, or `http://localhost:8080/shell/mcp` through the router (from the remote's view).
