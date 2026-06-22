@@ -32,6 +32,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createLogger } from "./logger";
 
@@ -169,14 +170,27 @@ export async function initDrag(
   // A primary press arms; a move past DRAG_THRESHOLD_PX promotes it to a drag,
   // firing onDragStart + the OS-native drag once. A press-release below the
   // threshold is a click and fires nothing.
+  //
+  // On Windows the OS modal move loop swallows the webview pointerup, so
+  // onPointerEnd never fires and callers stay suspended. We subscribe to the
+  // reliable window_drop_release Tauri event as a fallback drag-end signal.
+  // An `ended` guard ensures onDragEnd fires exactly once per gesture regardless
+  // of which path (pointerup/pointercancel or window_drop_release) arrives first.
   let startX = 0;
   let startY = 0;
   let started = false;
+  let ended = false;
 
   function detach(): void {
     el.removeEventListener("pointermove", onPointerMove);
     el.removeEventListener("pointerup", onPointerEnd);
     el.removeEventListener("pointercancel", onPointerEnd);
+  }
+
+  function endGesture(): void {
+    if (!started || ended) return;
+    ended = true;
+    opts.onDragEnd?.();
   }
 
   function onPointerMove(e: Event): void {
@@ -194,8 +208,7 @@ export async function initDrag(
   }
 
   function onPointerEnd(): void {
-    // Fires onDragEnd only when the threshold was crossed (a real drag gesture).
-    if (started) opts.onDragEnd?.();
+    endGesture();
     detach();
   }
 
@@ -206,6 +219,7 @@ export async function initDrag(
     startX = pe.clientX;
     startY = pe.clientY;
     started = false;
+    ended = false;
     (el as Partial<Element>).setPointerCapture?.(pe.pointerId);
     el.addEventListener("pointermove", onPointerMove);
     el.addEventListener("pointerup", onPointerEnd);
@@ -214,9 +228,16 @@ export async function initDrag(
 
   el.addEventListener("pointerdown", onPointerDown);
 
+  // Subscribe once to window_drop_release (reliable on Windows — the OS modal
+  // move loop swallows pointerup but always fires this event on drag release).
+  const unlistenDrop = await listen("window_drop_release", () => {
+    endGesture();
+  });
+
   return function cleanup(): void {
     el.removeEventListener("pointerdown", onPointerDown);
     detach();
     unlistenScale();
+    unlistenDrop();
   };
 }
