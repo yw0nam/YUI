@@ -17,6 +17,7 @@ dependencies = [
 [project.scripts]
 desktop-control-mcp = "mcp_server.desktop_control.server:main"
 mods-router = "mcp_server.router:main"
+shell-sandbox-mcp = "mcp_server.shell_sandbox.server:main"
 
 [dependency-groups]
 dev = [
