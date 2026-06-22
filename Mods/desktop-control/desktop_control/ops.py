@@ -5,8 +5,7 @@ import tempfile
 from pathlib import Path
 
 _LIST_APPS_SCRIPT = (
-    'tell application "System Events" to get name of '
-    "(every process whose background only is false)"
+    'tell application "System Events" to get name of (every process whose background only is false)'
 )
 
 # Safety cap when probing display indices (screencapture -D is 1-based).

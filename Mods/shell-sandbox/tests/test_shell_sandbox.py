@@ -43,7 +43,7 @@ def test_output_is_truncated_to_the_tail(tmp_path):
 
 def test_timeout_returns_error_without_raising(tmp_path):
     out = run_command(
-        f"{sys.executable} -c \"import time; time.sleep(5)\"",
+        f'{sys.executable} -c "import time; time.sleep(5)"',
         workdir=str(tmp_path),
         timeout=1,
         max_output=1000,

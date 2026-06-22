@@ -2,7 +2,7 @@
 
 Standalone MCP servers ("Mods") that expose host capabilities to the remote backend agent (Hermes). Each Mod is an independent process, decoupled from the YUI app — the agent attaches them as tool sources alongside the Expression Broker.
 
-Mod convention: each mod is a **self-contained `uv` project** in its own folder (`Mods/<mod>/`) with its own `pyproject.toml`, `uv.lock`, and dependency set — no shared lock, so a mod's deps never leak into another (e.g. the shell-sandbox image carries no `pyobjc`). Containerized mods keep a `Dockerfile` whose build context is that same folder; `docker-compose.yml` builds and deploys them together (`docker compose up -d --build`). Run any mod's tests with `cd Mods/<mod> && uv run pytest`.
+Mod convention: each mod is a **self-contained `uv` project** in its own folder (`Mods/<mod>/`) with its own `pyproject.toml`, `uv.lock`, and dependency set — no shared lock, so a mod's deps never leak into another (e.g. the shell-sandbox image carries no `pyobjc`). Containerized mods keep a `Dockerfile` whose build context is that same folder; `docker-compose.yml` builds and deploys them together (`docker compose up -d --build`). Run any mod's tests with `cd Mods/<mod> && uv run pytest`. Python lint is **ruff** (format + check, `line-length = 110`), enforced in CI per mod — run it locally with `cd Mods/<mod> && uv run ruff format . && uv run ruff check .`.
 
 ## Mods
 

@@ -37,9 +37,7 @@ class TestProxy:
     def client(self, monkeypatch):
         transport = httpx.ASGITransport(app=_fake_upstream())
         monkeypatch.setitem(server.UPSTREAMS, "echo", "http://up")
-        monkeypatch.setattr(
-            server, "_client", lambda: httpx.AsyncClient(transport=transport, timeout=None)
-        )
+        monkeypatch.setattr(server, "_client", lambda: httpx.AsyncClient(transport=transport, timeout=None))
         return TestClient(server.app)
 
     def test_forwards_path_method_body_to_upstream(self, client):
