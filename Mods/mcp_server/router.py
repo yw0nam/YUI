@@ -52,6 +52,9 @@ async def proxy(request):
         params=request.query_params,
     )
     try:
+        # ponytail: connect-stage only. Once streaming starts the 200 + headers are
+        # already sent, so a mid-stream ReadError can't become a 502 — let it propagate
+        # (abnormal close, which the client retries > silent truncation that looks like clean EOF).
         up = await client.send(upstream, stream=True)  # stream=True: pass SSE through unbuffered
     except httpx.ConnectError:
         await client.aclose()
