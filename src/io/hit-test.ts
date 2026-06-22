@@ -180,6 +180,9 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   let running = false;
   let suspended = false;
   let pollHandle: number | null = null;
+  // Consecutive poll failures: after this many, degrade to CAPTURE.
+  const POLL_FAILURE_THRESHOLD = 3;
+  let pollFailureCount = 0;
 
   function margin(): number {
     return opts.getConfig().hysteresis_margin_px ?? DEFAULTS.hysteresis_margin_px;
@@ -241,11 +244,22 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
         win.outerPosition(),
         win.scaleFactor(),
       ]);
+      pollFailureCount = 0;
       const local = physicalCursorToLocalCss(cursor, origin, sf);
       // Entering CAPTURE uses the tight box (margin 0).
       applySample(opts.isOverInteractive(local.x, local.y, 0));
     } catch (err) {
       log.warn("poll_failed", { error: String(err) });
+      pollFailureCount++;
+      if (pollFailureCount >= POLL_FAILURE_THRESHOLD) {
+        log.warn("poll_failure_threshold_reached", { degrade: "capture" });
+        pollFailureCount = 0;
+        state = "capture";
+        counter = 0;
+        setIgnore(false);
+        stopPoll();
+        return;
+      }
     }
     if (running && !suspended && state === "passthrough") scheduleNextPoll();
   }
@@ -257,6 +271,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     state = "capture";
     counter = 0;
     ignore = false;
+    pollFailureCount = 0;
     moveTarget.addEventListener("pointermove", onPointerMove);
   }
 
@@ -273,6 +288,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     suspended = true;
     state = "capture";
     counter = 0;
+    pollFailureCount = 0;
     stopPoll();
     setIgnore(false);
   }
@@ -281,6 +297,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     suspended = false;
     state = "capture";
     counter = 0;
+    pollFailureCount = 0;
   }
 
   return { start, stop, suspend, resume };
