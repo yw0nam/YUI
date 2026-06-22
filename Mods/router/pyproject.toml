@@ -15,6 +15,7 @@ mods-router = "router.server:main"
 [dependency-groups]
 dev = [
     "pytest>=8.0",
+    "ruff>=0.6",
 ]
 
 [build-system]
@@ -29,3 +30,6 @@ package = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110

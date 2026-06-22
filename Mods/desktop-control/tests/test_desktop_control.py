@@ -18,9 +18,7 @@ def allow_safari_notes(monkeypatch):
 
 class TestListRunningApps:
     def test_returns_ops_result(self):
-        with patch.object(
-            server.ops, "list_running_apps", return_value=["Finder", "Safari"]
-        ) as m:
+        with patch.object(server.ops, "list_running_apps", return_value=["Finder", "Safari"]) as m:
             result = server.list_running_apps()
         assert result == ["Finder", "Safari"]
         m.assert_called_once_with()
@@ -56,9 +54,7 @@ class TestCloseApp:
 
 class TestScreenshot:
     def test_returns_one_image_per_display(self):
-        with patch.object(
-            server.ops, "capture_screens", return_value=[b"\x89PNG", b"\x89PNG"]
-        ):
+        with patch.object(server.ops, "capture_screens", return_value=[b"\x89PNG", b"\x89PNG"]):
             imgs = server.screenshot()
         assert len(imgs) == 2
         assert all(i.to_image_content().mimeType == "image/png" for i in imgs)
@@ -111,10 +107,7 @@ class TestCaptureDisplay:
         with patch.object(ops.subprocess, "run") as run, patch.object(ops, "_run") as sips:
             run.return_value.returncode = 0
             ops._capture_display(1, 1280)
-        assert any(
-            call.args[0][0] == "sips" and "1280" in call.args[0]
-            for call in sips.call_args_list
-        )
+        assert any(call.args[0][0] == "sips" and "1280" in call.args[0] for call in sips.call_args_list)
 
     def test_no_resize_when_max_edge_none(self):
         with patch.object(ops.subprocess, "run") as run, patch.object(ops, "_run") as sips:
@@ -155,21 +148,24 @@ class TestScreenCaptureGranted:
 
 class TestPreflight:
     def test_no_problems_when_both_granted(self):
-        with patch.object(server.ops, "screen_capture_granted", return_value=True), patch.object(
-            server.ops, "automation_granted", return_value=True
+        with (
+            patch.object(server.ops, "screen_capture_granted", return_value=True),
+            patch.object(server.ops, "automation_granted", return_value=True),
         ):
             assert server.preflight() == []
 
     def test_reports_screen_recording_gap(self):
-        with patch.object(server.ops, "screen_capture_granted", return_value=False), patch.object(
-            server.ops, "automation_granted", return_value=True
+        with (
+            patch.object(server.ops, "screen_capture_granted", return_value=False),
+            patch.object(server.ops, "automation_granted", return_value=True),
         ):
             problems = server.preflight()
         assert len(problems) == 1 and "Screen Recording" in problems[0]
 
     def test_reports_automation_gap(self):
-        with patch.object(server.ops, "screen_capture_granted", return_value=True), patch.object(
-            server.ops, "automation_granted", return_value=False
+        with (
+            patch.object(server.ops, "screen_capture_granted", return_value=True),
+            patch.object(server.ops, "automation_granted", return_value=False),
         ):
             problems = server.preflight()
         assert len(problems) == 1 and "Automation" in problems[0]

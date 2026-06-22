@@ -120,3 +120,25 @@ jobs:
         working-directory: Mods/${{ matrix.mod }}
       - run: uv run pytest
         working-directory: Mods/${{ matrix.mod }}
+
+  mods-lint:
+    name: mods-lint (ruff)
+    runs-on: ubuntu-latest
+    # Python lint is ruff-only, enforced per mod (format + check).
+    strategy:
+      fail-fast: false
+      matrix:
+        mod: [desktop-control, shell-sandbox, router]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+        working-directory: Mods/${{ matrix.mod }}
+      - name: Format check (ruff)
+        run: uv run ruff format --check .
+        working-directory: Mods/${{ matrix.mod }}
+      - name: Lint (ruff)
+        run: uv run ruff check .
+        working-directory: Mods/${{ matrix.mod }}
