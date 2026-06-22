@@ -22,6 +22,31 @@ npx @playwright/mcp@latest --cdp-endpoint http://localhost:9222
 
 The agent now drives the Mac browser through its normal Playwright tools.
 
+## Attach the backend agent
+
+The attachment is **configuration, not a chat message** — the agent's Playwright MCP binds to the CDP endpoint when it *starts*, so set the endpoint in its `mcp.json` (on the agent side) and restart it:
+
+```jsonc
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest", "--cdp-endpoint", "http://localhost:9222"]
+    }
+  }
+}
+```
+
+If the agent's Playwright MCP is already running against its own browser, it must be **restarted** with this flag — a running server can't be re-pointed by chatting at it.
+
+Once it's attached, you don't say anything special: the agent's normal browser tools (`browser_navigate`, `browser_click`, `browser_type`, `browser_snapshot`, …) now act on the Mac browser. Just give it the task — e.g. *"open github.com in the browser."*
+
+To confirm the attach worked, ask for something only your Mac session would show:
+
+> "Open github.com with the browser and tell me from a snapshot whether I'm logged in."
+
+Seeing **your** logged-in account means it is driving the Mac browser (this profile). A blank, logged-out browser means it is still on its own browser — the `--cdp-endpoint` flag isn't applied (restart needed) or you haven't logged into the dedicated profile yet.
+
 ## Config
 
 The launcher reads (all optional):
