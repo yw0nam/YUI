@@ -285,6 +285,93 @@ describe("createHitTestController — suspend/resume", () => {
 
 // ─── createTauriHitTestWindow — IPC contract ──────────────────────────────────
 
+// ─── createHitTestController — poll failure hardening ────────────────────────
+// On Windows, cursorPosition() intermittently throws. After N consecutive
+// failures while in PASSTHROUGH the controller must degrade to CAPTURE (safe
+// interactive default) instead of staying stranded click-through.
+
+describe("createHitTestController — poll failure hardening", () => {
+  beforeEach(() => {
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+  });
+  afterEach(() => {
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+  });
+
+  function makePassthroughController(win: FakeWin): {
+    c: ReturnType<typeof import("./hit-test").createHitTestController>;
+    scheduledCb: () => Promise<void>;
+    target: EventTarget;
+  } {
+    const target = new EventTarget();
+    let cb: (() => void) | undefined;
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: target,
+      isOverInteractive: () => false,
+      getConfig: () => cfg,
+      schedule: (callback) => {
+        cb = callback;
+        return 0;
+      },
+      cancel: () => {},
+    });
+    c.start();
+    // Drive two non-interactive moves to flip to PASSTHROUGH.
+    const move = (x: number, y: number): void => {
+      target.dispatchEvent(
+        Object.assign(new Event("pointermove"), { clientX: x, clientY: y }) as Event,
+      );
+    };
+    move(10, 10);
+    move(10, 10);
+    // Return the scheduled poll callback.
+    return { c, scheduledCb: async () => cb?.(), target };
+  }
+
+  it("after 3 consecutive cursorPosition failures in PASSTHROUGH, calls setIgnoreCursorEvents(false) and stops polling", async () => {
+    const win = fakeWindow();
+    win.cursorPosition.mockRejectedValue(new Error("failed to get cursor position"));
+    const { c, scheduledCb } = makePassthroughController(win);
+    // Flush the pointermove debounce (ignore=true should have been called).
+    await Promise.resolve();
+    await Promise.resolve();
+    win.setIgnoreCursorEvents.mockClear();
+
+    // Three consecutive poll failures.
+    await scheduledCb();
+    await Promise.resolve();
+    await scheduledCb();
+    await Promise.resolve();
+    await scheduledCb();
+    await Promise.resolve();
+
+    expect(win.setIgnoreCursorEvents).toHaveBeenCalledWith(false);
+    c.stop();
+  });
+
+  it("a single cursorPosition failure followed by a success does NOT force fallback to CAPTURE", async () => {
+    const win = fakeWindow({ x: 999, y: 999 }); // far outside interactive zone → stay passthrough
+    win.cursorPosition
+      .mockRejectedValueOnce(new Error("transient"))
+      .mockResolvedValue({ x: 999, y: 999 });
+    const { c, scheduledCb } = makePassthroughController(win);
+    await Promise.resolve();
+    await Promise.resolve();
+    win.setIgnoreCursorEvents.mockClear();
+
+    // First poll: failure (counter → 1, but no fallback yet).
+    await scheduledCb();
+    await Promise.resolve();
+    // Second poll: success — failure counter resets; no fallback.
+    await scheduledCb();
+    await Promise.resolve();
+
+    expect(win.setIgnoreCursorEvents).not.toHaveBeenCalledWith(false);
+    c.stop();
+  });
+});
+
 describe("createTauriHitTestWindow — routes setIgnoreCursorEvents through set_click_through", () => {
   beforeEach(() => {
     (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};

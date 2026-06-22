@@ -29,6 +29,15 @@ vi.mock("@tauri-apps/api/window", () => ({
   })),
 }));
 
+// Captures the window_drop_release handler registered by initDrag.
+let capturedDropHandler: (() => void) | undefined;
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn((_event: string, handler: () => void) => {
+    capturedDropHandler = handler;
+    return Promise.resolve(() => {});
+  }),
+}));
+
 import { invoke } from "@tauri-apps/api/core";
 import {
   clampToWorkArea,
@@ -520,6 +529,128 @@ describe("initDrag — onDragEnd", () => {
     await Promise.resolve();
     expect(onDragEnd).toHaveBeenCalledTimes(1);
     // Second gesture: drag again
+    down(0, 0);
+    move(100, 0);
+    await Promise.resolve();
+    up();
+    await Promise.resolve();
+    expect(onDragEnd).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ─── initDrag — window_drop_release reliability (Windows drag-end fix) ────────
+// On Windows the OS modal move loop swallows the webview pointerup, so
+// onDragEnd never fires and the hit-test controller stays suspended.
+// initDrag must also end the gesture via the reliable window_drop_release event.
+
+describe("initDrag — window_drop_release", () => {
+  let el: EventTarget;
+  let cleanup: () => void;
+  let onDragStart: ReturnType<typeof vi.fn>;
+  let onDragEnd: ReturnType<typeof vi.fn>;
+
+  function down(clientX = 0, clientY = 0, buttons = 1): void {
+    const ev = new Event("pointerdown") as Event & {
+      buttons: number;
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+    };
+    Object.assign(ev, { buttons, clientX, clientY, pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  function move(clientX: number, clientY: number): void {
+    const ev = new Event("pointermove") as Event & {
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+    };
+    Object.assign(ev, { clientX, clientY, pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  function up(): void {
+    const ev = new Event("pointerup") as Event & { pointerId: number };
+    Object.assign(ev, { pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  beforeEach(async () => {
+    capturedDropHandler = undefined;
+    el = new EventTarget();
+    onDragStart = vi.fn();
+    onDragEnd = vi.fn();
+    mockInvoke.mockResolvedValue(undefined);
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    cleanup = await initDrag(el, { onDragStart, onDragEnd });
+  });
+
+  afterEach(() => {
+    cleanup();
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.clearAllMocks();
+  });
+
+  it("fires onDragEnd via window_drop_release when pointerup is withheld (Windows case)", async () => {
+    down(0, 0);
+    move(100, 0);
+    await Promise.resolve();
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    // Simulate: OS swallowed pointerup — fire the Tauri event instead.
+    capturedDropHandler?.();
+    await Promise.resolve();
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("dedupes: pointerup fires onDragEnd once; subsequent window_drop_release does NOT fire it again", async () => {
+    down(0, 0);
+    move(100, 0);
+    await Promise.resolve();
+    up(); // normal end via pointerup
+    await Promise.resolve();
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+    // Tauri event arrives late (or both fire) — must not double-fire.
+    capturedDropHandler?.();
+    await Promise.resolve();
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("dedupes: window_drop_release fires onDragEnd once; subsequent pointerup does NOT fire it again", async () => {
+    down(0, 0);
+    move(100, 0);
+    await Promise.resolve();
+    capturedDropHandler?.(); // drop release arrives first (Windows)
+    await Promise.resolve();
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+    up(); // pointerup arrives late — must not double-fire
+    await Promise.resolve();
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("no-op: window_drop_release with no drag in progress does NOT fire onDragEnd", async () => {
+    // No pointerdown at all — stale event from a previous gesture.
+    capturedDropHandler?.();
+    await Promise.resolve();
+    expect(onDragEnd).not.toHaveBeenCalled();
+  });
+
+  it("no-op: window_drop_release fires after a sub-threshold press (no drag started)", async () => {
+    down(0, 0);
+    // No pointermove past threshold — drag never started.
+    capturedDropHandler?.();
+    await Promise.resolve();
+    expect(onDragEnd).not.toHaveBeenCalled();
+  });
+
+  it("second gesture works correctly after a window_drop_release end", async () => {
+    down(0, 0);
+    move(100, 0);
+    await Promise.resolve();
+    capturedDropHandler?.();
+    await Promise.resolve();
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+    // Second gesture.
     down(0, 0);
     move(100, 0);
     await Promise.resolve();
