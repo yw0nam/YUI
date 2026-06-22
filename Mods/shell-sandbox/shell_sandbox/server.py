@@ -38,7 +38,7 @@ def _tail(text: str, max_output: int) -> tuple[str, bool]:
 
 def run_command(command: str, *, workdir: str, timeout: int, max_output: int) -> dict[str, Any]:
     """Run command via the shell in workdir; capture output, never raise on failure/timeout."""
-    logger.info(f"run: {command!r} (cwd={workdir})")
+    logger.info(f"➡️ run: {command!r} (cwd={workdir})")
     try:
         proc = subprocess.run(
             command,
@@ -49,13 +49,14 @@ def run_command(command: str, *, workdir: str, timeout: int, max_output: int) ->
             timeout=timeout,
         )
     except subprocess.TimeoutExpired as exc:
-        logger.warning(f"timeout after {timeout}s: {command!r}")
+        logger.warning(f"⏱️ run timed out after {timeout}s: {command!r}")
         out, _ = _tail(exc.stdout or "", max_output)
         err, _ = _tail(exc.stderr or "", max_output)
         return {"exit_code": None, "stdout": out, "stderr": err, "truncated": False, "timed_out": True}
 
     out, out_trunc = _tail(proc.stdout, max_output)
     err, err_trunc = _tail(proc.stderr, max_output)
+    logger.info(f"⬅️ run: exit={proc.returncode}")
     return {
         "exit_code": proc.returncode,
         "stdout": out,
@@ -83,13 +84,102 @@ def read_image_file(path: str, *, workdir: str, max_bytes: int) -> tuple[bytes, 
         return f.read(), fmt
 
 
+def _resolve(path: str, workdir: str) -> str:
+    """Relative paths resolve against workdir; absolute pass through (container is the boundary)."""
+    return path if os.path.isabs(path) else os.path.join(workdir, path)
+
+
+def read_text_file(
+    path: str, *, workdir: str, offset: int = 1, limit: int = 2000, max_output: int = DEFAULT_MAX_OUTPUT
+) -> dict[str, Any]:
+    """Read a UTF-8 text file as a line window; return content + metadata, or {"error": ...}."""
+    full = _resolve(path, workdir)
+    logger.info(f"🔍 read_file: {path!r} (offset={offset}, limit={limit})")
+    try:
+        with open(full, encoding="utf-8") as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        return {"error": f"file not found: {path!r}"}
+    except IsADirectoryError:
+        return {"error": f"path is a directory, not a file: {path!r}"}
+    except UnicodeDecodeError:
+        return {"error": f"not UTF-8 text: {path!r} (use read_image for images, run for other binary)"}
+
+    total = len(lines)
+    start = max(offset, 1)
+    window = lines[start - 1 : start - 1 + limit]
+    content = "".join(window)
+    char_trunc = len(content) > max_output
+    if char_trunc:
+        content = f"{content[:max_output]}\n…[truncated to {max_output} chars]"
+    truncated = char_trunc or (start - 1 + limit) < total
+    logger.info(f"⬅️ read_file: {len(window)} of {total} lines")
+    return {
+        "content": content,
+        "start_line": start,
+        "lines_returned": len(window),
+        "total_lines": total,
+        "truncated": truncated,
+    }
+
+
+def write_text_file(path: str, content: str, *, workdir: str) -> dict[str, Any]:
+    """Create or overwrite a text file (parent dirs created); return {"path", "bytes_written"} or {"error"}."""
+    full = _resolve(path, workdir)
+    logger.info(f"➡️ write_file: {path!r} ({len(content)} chars)")
+    try:
+        os.makedirs(os.path.dirname(full) or ".", exist_ok=True)
+        with open(full, "w", encoding="utf-8") as f:
+            f.write(content)
+    except IsADirectoryError:
+        return {"error": f"path is a directory, not a file: {path!r}"}
+    except OSError as exc:
+        return {"error": f"could not write {path!r}: {exc}"}
+    written = len(content.encode("utf-8"))
+    logger.info(f"⬅️ write_file: {path!r} ({written} bytes)")
+    return {"path": full, "bytes_written": written}
+
+
+def edit_text_file(
+    path: str, old: str, new: str, *, workdir: str, replace_all: bool = False
+) -> dict[str, Any]:
+    """Exact-replace old→new in a text file; require a unique match unless replace_all. {"error"} on miss/ambiguity."""
+    full = _resolve(path, workdir)
+    logger.info(f"➡️ edit_file: {path!r} (replace_all={replace_all})")
+    try:
+        with open(full, encoding="utf-8") as f:
+            text = f.read()
+    except FileNotFoundError:
+        return {"error": f"file not found: {path!r}"}
+    except IsADirectoryError:
+        return {"error": f"path is a directory, not a file: {path!r}"}
+    except UnicodeDecodeError:
+        return {"error": f"not UTF-8 text: {path!r}"}
+
+    count = text.count(old)
+    if count == 0:
+        return {"error": f"old string not found in {path!r}"}
+    if count > 1 and not replace_all:
+        return {
+            "error": f"old string is not unique in {path!r} ({count} matches) — add context or pass replace_all=true"
+        }
+
+    text = text.replace(old, new) if replace_all else text.replace(old, new, 1)
+    replacements = count if replace_all else 1
+    with open(full, "w", encoding="utf-8") as f:
+        f.write(text)
+    logger.info(f"⬅️ edit_file: {path!r} ({replacements} replaced)")
+    return {"path": full, "replacements": replacements}
+
+
 mcp = FastMCP(
     name="Shell Sandbox",
     instructions=(
         "Run shell commands inside an isolated container against a mounted workspace. "
-        "Use `run` for anything: read files, grep, edit, build, install deps, run tests. "
+        "Use `run` for anything: grep, build, install deps, run tests. "
         "Commands run in the workspace dir and may read and write it freely. "
-        "`run` returns text only — use `read_image` to actually view an image file."
+        "`read_file`/`write_file`/`edit_file` are reliable structured alternatives to shelling out, "
+        "and `read_image` views an image file (`run` returns text only)."
     ),
 )
 
@@ -131,13 +221,64 @@ def read_image(path: str) -> Image:
 
     Use this instead of `run` when you need to actually see an image — `run` returns text only.
     """
+    logger.info(f"🔍 read_image: {path!r}")
     data, fmt = read_image_file(
         path,
         workdir=os.getenv(WORKDIR_ENV, DEFAULT_WORKDIR),
         max_bytes=_int_env(MAX_IMAGE_BYTES_ENV, DEFAULT_MAX_IMAGE_BYTES),
     )
-    logger.info(f"read_image: {path!r} ({len(data)} bytes, {fmt})")
+    logger.info(f"⬅️ read_image: {path!r} ({len(data)} bytes, {fmt})")
     return Image(data=data, format=fmt)
+
+
+@mcp.tool
+def read_file(path: str, offset: int = 1, limit: int = 2000) -> dict[str, Any]:
+    """Read a text file from the workspace as a line window.
+
+    Args:
+        path: File path, relative to the workspace or absolute.
+        offset: 1-based line to start from (default 1).
+        limit: Max lines to return (default 2000).
+
+    Returns content plus start_line, lines_returned, total_lines, truncated; or {"error": ...}.
+    """
+    return read_text_file(
+        path,
+        workdir=os.getenv(WORKDIR_ENV, DEFAULT_WORKDIR),
+        offset=offset,
+        limit=limit,
+        max_output=_int_env(MAX_OUTPUT_ENV, DEFAULT_MAX_OUTPUT),
+    )
+
+
+@mcp.tool
+def write_file(path: str, content: str) -> dict[str, Any]:
+    """Create or overwrite a text file in the workspace (parent dirs are created).
+
+    Args:
+        path: File path, relative to the workspace or absolute.
+        content: Full file content to write.
+
+    Returns {"path", "bytes_written"}, or {"error": ...}.
+    """
+    return write_text_file(path, content, workdir=os.getenv(WORKDIR_ENV, DEFAULT_WORKDIR))
+
+
+@mcp.tool
+def edit_file(path: str, old: str, new: str, replace_all: bool = False) -> dict[str, Any]:
+    """Exact-replace a string in a text file. Fails if `old` is absent, or not unique unless replace_all.
+
+    Args:
+        path: File path, relative to the workspace or absolute.
+        old: Exact string to replace (include enough context to be unique).
+        new: Replacement string.
+        replace_all: Replace every occurrence instead of requiring a unique match.
+
+    Returns {"path", "replacements"}, or {"error": ...}.
+    """
+    return edit_text_file(
+        path, old, new, workdir=os.getenv(WORKDIR_ENV, DEFAULT_WORKDIR), replace_all=replace_all
+    )
 
 
 def main() -> None:

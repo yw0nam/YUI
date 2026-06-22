@@ -8,6 +8,7 @@ only forwards bytes by URL prefix, so a single SSH reverse tunnel exposes them a
 import argparse
 
 import httpx
+from loguru import logger
 from starlette.applications import Starlette
 from starlette.background import BackgroundTask
 from starlette.responses import Response, StreamingResponse
@@ -39,10 +40,13 @@ def _filter(raw) -> list[tuple[bytes, bytes]]:
 
 
 async def proxy(request):
-    target = resolve(request.path_params["path"])
+    path = request.path_params["path"]
+    target = resolve(path)
     if target is None:
+        logger.warning(f"⬅️ 404 unknown mod: {path!r}")
         return Response("unknown mod", status_code=404)
     base, rest = target
+    logger.info(f"➡️ {request.method} /{path} → {base}/{rest}")
 
     client = _client()
     upstream = client.build_request(
@@ -59,7 +63,9 @@ async def proxy(request):
         up = await client.send(upstream, stream=True)  # stream=True: pass SSE through unbuffered
     except httpx.ConnectError:
         await client.aclose()
+        logger.warning(f"⬅️ 502 mod unreachable: {base}")
         return Response(f"mod unreachable: {base}", status_code=502)
+    logger.info(f"⬅️ {up.status_code} {base}/{rest}")
     return StreamingResponse(
         up.aiter_bytes(),
         status_code=up.status_code,

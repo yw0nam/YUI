@@ -55,14 +55,20 @@ mcp = FastMCP(
 @mcp.tool
 def screenshot() -> list[Image]:
     """Capture every display as a PNG image, one per monitor (long edge downscaled to 1280px by default)."""
+    logger.info("🔍 screenshot")
     max_edge = _screenshot_max_edge()
-    return [Image(data=png, format="png") for png in ops.capture_screens(max_edge)]
+    images = [Image(data=png, format="png") for png in ops.capture_screens(max_edge)]
+    logger.info(f"⬅️ screenshot: {len(images)} display(s)")
+    return images
 
 
 @mcp.tool
 def list_running_apps() -> list[str]:
     """Return the names of currently visible (non-background) apps."""
-    return ops.list_running_apps()
+    logger.info("🔍 list_running_apps")
+    apps = ops.list_running_apps()
+    logger.info(f"⬅️ list_running_apps: {len(apps)} app(s)")
+    return apps
 
 
 @mcp.tool
@@ -75,8 +81,9 @@ def open_app(name: str) -> dict[str, Any]:
     allowed = _allowed_apps()
     if name not in allowed:
         return {"error": f"App not allowed: {name!r}. Allowlist: {sorted(allowed)}"}
-    logger.info(f"open_app: {name}")
+    logger.info(f"➡️ open_app: {name}")
     ops.open_app(name)
+    logger.info(f"⬅️ open_app: {name}")
     return {"ok": True, "name": name}
 
 
@@ -90,8 +97,9 @@ def close_app(name: str) -> dict[str, Any]:
     allowed = _allowed_apps()
     if name not in allowed:
         return {"error": f"App not allowed: {name!r}. Allowlist: {sorted(allowed)}"}
-    logger.info(f"close_app: {name}")
+    logger.info(f"➡️ close_app: {name}")
     ops.quit_app(name)
+    logger.info(f"⬅️ close_app: {name}")
     return {"ok": True, "name": name}
 
 
