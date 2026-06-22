@@ -11,7 +11,7 @@ import httpx
 from loguru import logger
 from starlette.applications import Starlette
 from starlette.background import BackgroundTask
-from starlette.responses import Response, StreamingResponse
+from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 # mod name -> upstream base. Add a mod = add a line; the external port stays one.
@@ -29,6 +29,20 @@ def resolve(path: str) -> tuple[str, str] | None:
     mod, _, rest = path.partition("/")
     base = UPSTREAMS.get(mod)
     return None if base is None else (base, rest)
+
+
+def list_mods(base_url: str = "") -> list[dict[str, str]]:
+    """Registered mods as {mod_name, endpoint, upstream} records.
+
+    `endpoint` is the agent-facing router path to attach as an MCP source
+    (`base_url` + `/<mod>/mcp`, derived from the request so it reflects however the
+    agent reached the router); `upstream` is the internal address the router
+    forwards to (operator/debug only — not reachable by the remote agent).
+    """
+    base = base_url.rstrip("/")
+    return [
+        {"mod_name": name, "endpoint": f"{base}/{name}/mcp", "upstream": up} for name, up in UPSTREAMS.items()
+    ]
 
 
 def _client() -> httpx.AsyncClient:
@@ -79,7 +93,20 @@ async def _aclose(up, client):
     await client.aclose()
 
 
-app = Starlette(routes=[Route("/{path:path}", proxy, methods=["GET", "POST", "DELETE"])])
+async def mods_catalog(request):
+    """Router meta endpoint: the registered mods, not proxied to any upstream."""
+    logger.info("🔍 _mods catalog")
+    return JSONResponse(list_mods(str(request.base_url)))
+
+
+# `/_mods` is matched before the catch-all; the leading underscore avoids colliding
+# with a real mod prefix.
+app = Starlette(
+    routes=[
+        Route("/_mods", mods_catalog, methods=["GET"]),
+        Route("/{path:path}", proxy, methods=["GET", "POST", "DELETE"]),
+    ]
+)
 
 
 def main():

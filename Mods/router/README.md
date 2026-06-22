@@ -40,6 +40,15 @@ The router splits the path as `<mod>/<rest>` and forwards to `UPSTREAMS[<mod>]/<
 
 An unregistered prefix returns **404**; a registered-but-unreachable mod returns **502**.
 
+`GET /_mods` is a router meta endpoint (not proxied) that returns the registered mods so a client can discover them without reading the code. `endpoint` is the agent-facing source URL to attach (built from the request, so it reflects however you reached the router); `upstream` is the internal address the router forwards to (operator/debug only — the remote agent can't reach it):
+
+```json
+[
+  { "mod_name": "desktop", "endpoint": "http://localhost:8080/desktop/mcp", "upstream": "http://127.0.0.1:9000" },
+  { "mod_name": "shell",   "endpoint": "http://localhost:8080/shell/mcp",   "upstream": "http://127.0.0.1:9001" }
+]
+```
+
 ## Expose to the remote agent
 
 ```bash
