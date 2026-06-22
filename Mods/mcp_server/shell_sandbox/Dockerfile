@@ -1,5 +1,5 @@
-# shell-sandbox MCP — build context is Mods/
-#   docker build -f shell-sandbox.Dockerfile -t yui-shell-sandbox .
+# shell-sandbox MCP — build context is Mods/ (shared pyproject/uv.lock/mcp_server).
+#   docker compose build shell-sandbox   # or: docker compose up -d
 FROM python:3.12-slim
 
 WORKDIR /app
