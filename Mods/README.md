@@ -14,6 +14,8 @@ Mod convention: each mod is a **self-contained `uv` project** in its own folder 
 
 Each mod's own README covers its run, safety boundary, tools, and tests.
 
+Not a mod, but lives here: [browser-cdp](browser-cdp/) exposes no MCP tools — it bridges the remote agent's own Playwright MCP to your local Mac browser over CDP (use it instead of adding a redundant browser mod).
+
 ## Exposure
 
 Every mod binds `127.0.0.1` only; reach it from the remote agent over an SSH reverse tunnel. The [router](router/) collapses all mods onto one tunnel (`8080`) so you don't forward a port per mod.
