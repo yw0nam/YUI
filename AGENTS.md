@@ -72,6 +72,7 @@ Read these when the trigger applies; they are not loaded by default.
 
 - **Code location / orientation** → `docs/agent-guide/project-structure.md`
 - **Standalone Mods (independent MCP servers)** → `Mods/README.md` — not part of the app runtime or this guide's roster; own Python/uv toolchain + `mods` CI job
+- **Adding a Mod / Mods CI rules** → `docs/agent-guide/mods.md` — per-mod uv-project layout, router registration, the two-loop CI, ruff
 - **IO or backend work (chat/STT/TTS/broker)** → `docs/agent-guide/hermes-integration.md`
 - **Checking how a rule is enforced** → `docs/agent-guide/harness-enforcement.md`
 - **Build / run / find logs** → `docs/agent-guide/build-run.md`

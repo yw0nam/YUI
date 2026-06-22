@@ -5,3 +5,4 @@ __pycache__/
 logs/
 .env
 work/
+serve-all.sh
