@@ -11,7 +11,7 @@ SHELL_SANDBOX_MOUNT="$PWD" docker compose up -d --build shell-sandbox
 
 The server binds `0.0.0.0:9001` *inside* the container; the compose `ports` entry publishes it to host loopback only (`127.0.0.1:9001`). `SHELL_SANDBOX_MOUNT` is the host dir mounted read-write at `/work` (defaults to a scratch `./work` so you don't expose originals by accident); `--cap-drop ALL` and `no-new-privileges` are set in `docker-compose.yml`.
 
-Env (all optional): `SHELL_SANDBOX_WORKDIR` (default `/work`), `SHELL_SANDBOX_TIMEOUT` (seconds, default `300`), `SHELL_SANDBOX_MAX_OUTPUT` (chars per stream, default `100000`; output is tail-truncated past this).
+Env (all optional): `SHELL_SANDBOX_WORKDIR` (default `/work`), `SHELL_SANDBOX_TIMEOUT` (seconds, default `300`), `SHELL_SANDBOX_MAX_OUTPUT` (chars per stream, default `100000`; output is tail-truncated past this), `SHELL_SANDBOX_MAX_IMAGE_BYTES` (default `10000000`; `read_image` rejects files larger than this).
 
 ## Safety boundary (operator responsibility)
 
@@ -36,6 +36,7 @@ The agent adds the MCP tool source at `http://localhost:9001/mcp` directly, or `
 | Tool | Description |
 |---|---|
 | `run(command)` | Run a shell command in the workspace; returns `exit_code`, `stdout`, `stderr`, `truncated`, `timed_out` |
+| `read_image(path)` | Read an image file (png/jpg/jpeg/gif/webp) from the workspace and return it as a viewable image — `run` returns text only |
 
 ## Test
 
