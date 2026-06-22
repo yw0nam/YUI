@@ -12,9 +12,33 @@ http://host:8080/<mod>/mcp  ->  127.0.0.1:<mod port>/mcp
 cd Mods/router && uv run mods-router --host 127.0.0.1 --port 8080
 ```
 
-Runs host-native as a thin proxy. Routing table is the `UPSTREAMS` dict in `router/server.py` — adding a mod is one line; the external port stays one. Currently registered: `desktop` → `127.0.0.1:9000`, `shell` → `127.0.0.1:9001`. The agent then adds each tool source at `http://localhost:8080/<mod>/mcp` (e.g. `/desktop/mcp`, `/shell/mcp`) from the remote's view. An unknown mod prefix returns 404; an unreachable mod returns 502.
+Runs host-native as a thin proxy. MCP's Streamable HTTP transport is SSE, so the router streams responses through unbuffered — there is no body buffering to break long-lived event streams.
 
-MCP's Streamable HTTP transport is SSE, so the router streams responses through unbuffered — there is no body buffering to break long-lived event streams.
+## Register a mod
+
+The routing table is the `UPSTREAMS` dict in `router/server.py` — registering a mod is one line:
+
+```python
+UPSTREAMS = {
+    "desktop": "http://127.0.0.1:9000",
+    "shell":   "http://127.0.0.1:9001",
+}
+```
+
+1. Start the mod on its own loopback port (e.g. shell-sandbox publishes `127.0.0.1:9001`).
+2. Add `"<name>": "http://127.0.0.1:<port>"` to `UPSTREAMS`.
+3. Restart the router. The external tunnel port stays one (`8080`).
+
+## Endpoints
+
+The router splits the path as `<mod>/<rest>` and forwards to `UPSTREAMS[<mod>]/<rest>`:
+
+| Agent hits (remote view) | Forwards to |
+|---|---|
+| `http://localhost:8080/desktop/mcp` | `http://127.0.0.1:9000/mcp` |
+| `http://localhost:8080/shell/mcp` | `http://127.0.0.1:9001/mcp` |
+
+An unregistered prefix returns **404**; a registered-but-unreachable mod returns **502**.
 
 ## Expose to the remote agent
 
