@@ -1397,8 +1397,11 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
+    { name = "httpx" },
     { name = "loguru" },
     { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin'" },
+    { name = "starlette" },
+    { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
@@ -1409,8 +1412,11 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastmcp", specifier = ">=3.2.4" },
+    { name = "httpx" },
     { name = "loguru", specifier = ">=0.7" },
     { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin'", specifier = ">=10" },
+    { name = "starlette" },
+    { name = "uvicorn" },
 ]
 
 [package.metadata.requires-dev]

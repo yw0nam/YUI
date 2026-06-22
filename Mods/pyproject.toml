@@ -8,10 +8,15 @@ dependencies = [
     "fastmcp>=3.2.4",
     "loguru>=0.7",
     "pyobjc-framework-Quartz>=10; sys_platform == 'darwin'",
+    # router imports these directly (already present via fastmcp's HTTP transport)
+    "starlette",
+    "httpx",
+    "uvicorn",
 ]
 
 [project.scripts]
 desktop-control-mcp = "mcp_server.desktop_control.server:main"
+mods-router = "mcp_server.router:main"
 shell-sandbox-mcp = "mcp_server.shell_sandbox.server:main"
 
 [dependency-groups]
