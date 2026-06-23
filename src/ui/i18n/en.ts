@@ -181,7 +181,7 @@ const en: Record<string, string> = {
   "cue.schedule_sub": "Greets you first if you're at your desk at the set time",
   "cue.schedule_add": "+ Add greeting",
   "cue.proactive_title": "Proactive reaction",
-  "cue.proactive_sub": "Speaks up first if you've been quiet for a while at work",
+  "cue.proactive_sub": "Checks in on a repeating schedule if you've been quiet at work",
   "cue.proactive_add": "+ Add reaction",
 
   // endpoints

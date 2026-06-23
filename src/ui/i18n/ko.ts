@@ -45,7 +45,7 @@ const ko: Record<string, string> = {
   "cue.greeting_time_aria": "인사 시각",
   "cue.minutes_word": "무대화",
   "cue.minutes_aria": "무대화 분",
-  "cue.minutes_suffix": "분",
+  "cue.minutes_suffix": "분마다",
   "cue.toggle_aria": "{name} 활성화",
   "cue.toggle_fallback": "큐",
   "cue.delete": "삭제",
@@ -180,7 +180,7 @@ const ko: Record<string, string> = {
   "cue.schedule_sub": "정한 시각에 자리에 있으면 먼저 말을 걸어요",
   "cue.schedule_add": "+ 인사 추가",
   "cue.proactive_title": "주도적 반응",
-  "cue.proactive_sub": "작업 중인데 한동안 말을 안 걸면 먼저 말을 걸어요",
+  "cue.proactive_sub": "작업 중에 한동안 조용하면 주기적으로 먼저 말을 걸어요",
   "cue.proactive_add": "+ 반응 추가",
 
   // endpoints

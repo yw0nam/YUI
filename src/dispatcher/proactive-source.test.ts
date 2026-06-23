@@ -2,10 +2,10 @@
  * proactive-source.test.ts — idle-gap proactive firing source.
  *
  * Locks behavior over the shared `os_event` channel (bare `os_idle_tick`):
- *  - present (idle ≤ present_max) + gap ≥ cue.idle_min*60000 → fire once/session per cue.
+ *  - present (idle ≤ present_max) + gap ≥ cue.idle_min*60000 → fire, then re-fire every cue.idle_min.
  *  - away / null idle → ignore (presence alone does NOT reset the gap).
- *  - noteInteraction() resets the timer + clears latches.
- *  - multiple thresholds fire as the gap grows.
+ *  - noteInteraction() resets the timer + clears the per-cue schedules.
+ *  - multiple thresholds fire as the gap grows; overlapping cues push longest-idle_min first.
  *  - isEnabled()/per-cue enabled gate firing only.
  *  - off-Tauri degrade + start idempotency.
  */
@@ -63,8 +63,8 @@ function cue(over: Partial<ProactiveCue> = {}): ProactiveCue {
   };
 }
 
-describe("proactive_source — fires once when present & gap reached", () => {
-  it("fires when present and gap ≥ idle_min*60000", async () => {
+describe("proactive_source — re-fires every idle_min while present", () => {
+  it("fires at the threshold, then again each period", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
     let t = 0;
@@ -88,10 +88,20 @@ describe("proactive_source — fires once when present & gap reached", () => {
     emit(idleTick(500));
     expect(pushed).toHaveLength(1);
 
-    // again later → no re-fire (latched).
-    t = 20 * MIN;
+    // mid-period (one period not yet elapsed since last fire) → no-op.
+    t = 15 * MIN;
     emit(idleTick(500));
     expect(pushed).toHaveLength(1);
+
+    // one full period after the first fire → re-fire.
+    t = 20 * MIN;
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(2);
+
+    // another period → re-fire again.
+    t = 30 * MIN;
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(3);
   });
 });
 
@@ -170,7 +180,7 @@ describe("proactive_source — gating", () => {
 });
 
 describe("proactive_source — noteInteraction resets", () => {
-  it("noteInteraction() resets timer + clears latches → re-fires after new session", async () => {
+  it("noteInteraction() resets timer + clears schedules → period restarts from new anchor", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
     let t = 0;
@@ -226,7 +236,7 @@ describe("proactive_source — noteInteraction resets", () => {
 });
 
 describe("proactive_source — multiple thresholds", () => {
-  it("each threshold fires once per session as gap grows", async () => {
+  it("each threshold fires as its gap is reached", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
     let t = 0;
@@ -245,24 +255,52 @@ describe("proactive_source — multiple thresholds", () => {
     });
     await src.start();
 
+    // only short_break has reached its period.
     t = 5 * MIN;
     emit(idleTick(500));
     expect(pushed.map((e) => e.event_name)).toEqual(["proactive.short_break"]);
 
+    // short_break re-fires (10min - 5min last fire = one period), mid_check first-fires.
+    // longest idle_min within the same tick is pushed first.
     t = 10 * MIN;
     emit(idleTick(500));
     expect(pushed.map((e) => e.event_name)).toEqual([
       "proactive.short_break",
       "proactive.mid_check",
+      "proactive.short_break",
     ]);
+  });
 
+  it("overlapping cues in one tick push longest idle_min first", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    let t = 0;
+    // intentionally NOT in idle_min order — source must sort.
+    const cues = [
+      cue({ id: "short_break", idle_min: 5 }),
+      cue({ id: "mid_check", idle_min: 10 }),
+      cue({ id: "long_focus", idle_min: 30 }),
+    ];
+    const src = createProactiveSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      getCues: () => cues,
+      isEnabled: () => true,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+
+    // t=30min: all three have reached their period simultaneously (anchor = 0).
     t = 30 * MIN;
     emit(idleTick(500));
     expect(pushed.map((e) => e.event_name)).toEqual([
-      "proactive.short_break",
-      "proactive.mid_check",
       "proactive.long_focus",
+      "proactive.mid_check",
+      "proactive.short_break",
     ]);
+    // every envelope in the tick shares the single tickNow timestamp.
+    expect(pushed.every((e) => e.ts === 30 * MIN)).toBe(true);
   });
 });
 
