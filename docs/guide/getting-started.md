@@ -2,11 +2,26 @@
 
 YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I/O surfaces. The brain and voice services — backend agent, broker, TTS, STT — run as separate, config-swappable processes that YUI points at via `configs/endpoints.json`.
 
-**Required vs optional at a glance** — see the matrix at the end of this guide.
+## Required vs Optional
+
+| Component | Status | What breaks without it |
+|---|---|---|
+| YUI app (`pnpm tauri dev`) | **Required** | — |
+| VRM model in `resources/vrms/` | **Required** | Character fails to load |
+| Expression MCP Broker | **Required** | Agent cannot read YUI's vocabulary; expression/motion calls may be out of range |
+| Backend agent | **Required** | No chat, no character speech |
+| `.env.local` + `VITE_YUI_CHAT_KEY` | **Required** | Chat auth absent |
+| `configs/endpoints.json` wiring | **Required** | Services unreachable |
+| TTS — Irodori or OpenAI-compatible | Optional | Speech bubble works; no audio output |
+| STT | Optional | Text input works; no voice input |
+| Screenshot context | Optional | Agent receives no screen context |
+| Mods (`Mods/`) | Optional | No desktop-control or other Mod capabilities |
+
+Stand up every required component first; add the optional ones when you want voice or extended capabilities.
 
 ---
 
-## 0. Run YUI itself
+## 1. Run YUI itself
 
 ### Prerequisites
 
@@ -35,7 +50,19 @@ cp .env.example .env.local
 
 ---
 
-## 1. Expression MCP Broker (recommended)
+## 2. VRM Placement
+
+Drop a VRM 1.0 model into `resources/vrms/` (filename pattern: `*.vrm`). This directory is gitignored — a fresh checkout must provide its own model.
+
+```
+resources/vrms/your-model.vrm
+```
+
+Vite serves `/vrms/*` from `resources/vrms/`. Without a model the character 404s on load. Per-model framing (margin, FOV) and hit-test alpha threshold are configured in `configs/avatar.json`.
+
+---
+
+## 3. Expression MCP Broker
 
 The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary so the backend agent learns what the body can express at runtime. Publish is best-effort and silently skipped if `broker_base_url` is unset.
 
@@ -48,14 +75,14 @@ The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary s
 
 ---
 
-## 2. Backend Agent (required for chat)
+## 4. Backend Agent
 
 YUI is compatible with any backend served over the OpenAI Responses API (`/v1/responses`). The Hermes agent gateway is recommended.
 
 ### Steps
 
 1. Stand up your backend agent, ensuring it serves the OpenAI Responses API.
-2. Install the Expression MCP broker (step 1) **into the backend agent** so it can call `generate_express` and read the published vocabulary.
+2. Install the Expression MCP broker (step 3) **into the backend agent** so it can call `generate_express` and read the published vocabulary.
 3. Hand the agent the cue contract so it understands how to drive the character:
    - With Hermes: create a profile, add `docs/reference/backend-contract.md` to that profile's context, and instruct it to remember the contract.
    - With other agents: include the contents of `docs/reference/backend-contract.md` in the system prompt or context.
@@ -69,7 +96,7 @@ YUI is compatible with any backend served over the OpenAI Responses API (`/v1/re
 
 ---
 
-## 3. TTS — Voice Output (optional)
+## 5. TTS — Voice Output (optional)
 
 Without TTS, YUI displays text in the speech bubble but produces no audio. Two providers are supported:
 
@@ -102,7 +129,7 @@ In `configs/endpoints.json`:
 
 ---
 
-## 4. STT — Voice Input (optional)
+## 6. STT — Voice Input (optional)
 
 Without STT, text input still works. VAD (Silero + ONNX) runs client-side; STT sends segmented audio to a transcription server.
 
@@ -115,19 +142,7 @@ YUI sends audio to `<stt_base_url>/audio/transcriptions`.
 
 ---
 
-## 5. VRM Placement
-
-Drop a VRM 1.0 model into `resources/vrms/` (filename pattern: `*.vrm`). This directory is gitignored — a fresh checkout must provide its own model.
-
-```
-resources/vrms/your-model.vrm
-```
-
-Vite serves `/vrms/*` from `resources/vrms/`. Without a model the character 404s on load. Per-model framing (margin, FOV) and hit-test alpha threshold are configured in `configs/avatar.json`.
-
----
-
-## 6. Wire It All Together — `configs/endpoints.json`
+## 7. Wire It All Together — `configs/endpoints.json`
 
 After standing up the services above, point YUI at them by editing `configs/endpoints.json`. You can also override individual keys via the in-app Endpoint settings panel.
 
@@ -150,25 +165,8 @@ No values are hardcoded in the application — all service addresses come from t
 
 ---
 
-## 7. Platform Notes
+## 8. Platform Notes
 
 - **macOS-first.** Full OS-event watching (active app, idle, fullscreen) is available on macOS.
 - **Windows partial.** `os_idle_ms` is unavailable on Windows, so idle-triggered and co-working proactive cues are inert.
 - **macOS TCC grants.** The optional screenshot context feature and the `desktop_control` Mod (if used) require Screen Recording permission. App control via the `desktop_control` Mod additionally requires Automation / Apple Events permission. Grant these in System Settings → Privacy & Security.
-
----
-
-## Required vs Optional
-
-| Component | Status | What breaks without it |
-|---|---|---|
-| YUI app (`pnpm tauri dev`) | **Required** | — |
-| VRM model in `resources/vrms/` | **Required** | Character fails to load |
-| Backend agent (step 2) | **Required** | No chat, no character speech |
-| `.env.local` + `VITE_YUI_CHAT_KEY` | **Required** | Chat auth absent |
-| `configs/endpoints.json` wiring | **Required** | Services unreachable |
-| Expression MCP Broker (step 1) | **Recommended** | Agent cannot read YUI's vocabulary; expression/motion calls may be out of range |
-| TTS — Irodori or OpenAI-compatible (step 3) | Optional | Speech bubble works; no audio output |
-| STT (step 4) | Optional | Text input works; no voice input |
-| Screenshot context | Optional | Agent receives no screen context |
-| Mods (`Mods/`) | Optional | No desktop-control or other Mod capabilities |
