@@ -36,7 +36,7 @@ Cite `file:line`, suggest the fix, skip what's fine. Apply obvious mechanical fi
 - **Enum / value completeness** — when the diff adds an emotion/motion id, event name, status, or type constant, *Read* (not just grep) every consumer: the dispatcher classify/route, the renderer resolver, config loaders, the contract types (`src/contract/types.ts`). A value added in one place but unhandled in a switch / allowlist / fallback is a blocker. This is the contract-drift trap.
 - **LLM output trust boundary** — values arriving from the backend (`generate_express` args, speech text, STT) reach the renderer/TTS without shape/vocabulary validation. Unknown emotion/motion ids must hit a defined fallback, not crash or render garbage.
 - **Races & concurrency** — async/poll/teardown ordering: a poll firing after disarm, a finish-waiter never settling, a setPerchTarget racing a drag, Rust threads emitting after release. Check entry *and* exit of every state.
-- **Contract source of truth** — `src/contract/types.ts` is the contract; consumers compile against it. `configs/motions.json` ↔ `docs/motions.md` stay in lockstep.
+- **Contract source of truth** — `src/contract/types.ts` is the contract; consumers compile against it. `configs/motions.json` ↔ `docs/reference/motions.md` stay in lockstep.
 
 **Pass 2 — informational**
 - **Test gaps** — new/changed behavior without a failing-test-first; missing edge-case coverage (empty payload, reduced-motion, non-Tauri fallback, multi-monitor/DPI).

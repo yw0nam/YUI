@@ -11,6 +11,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "lint": "biome check",
     "lint:fix": "biome check --write",
     "format": "biome format --write"
@@ -23,6 +26,7 @@
     "jsdom": "^29.1.1",
     "typescript": "~6.0.2",
     "vite": "^8.0.12",
+    "vitepress": "^1.6.4",
     "vitest": "^4.1.8"
   },
   "dependencies": {

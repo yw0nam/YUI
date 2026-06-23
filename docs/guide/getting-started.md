@@ -31,7 +31,7 @@ cp .env.example .env.local
 # then edit .env.local and set VITE_YUI_CHAT_KEY=<your-key>
 ```
 
-> See the README [Getting started](../README.md#getting-started) and [Runtime assets](../README.md#runtime-assets) sections for VRM placement and worktree setup.
+> See the README [Getting started](https://github.com/yw0nam/YUI/blob/main/README.md#getting-started) and [Runtime assets](https://github.com/yw0nam/YUI/blob/main/README.md#runtime-assets) sections for VRM placement and worktree setup.
 
 ---
 
@@ -57,8 +57,8 @@ YUI is compatible with any backend served over the OpenAI Responses API (`/v1/re
 1. Stand up your backend agent, ensuring it serves the OpenAI Responses API.
 2. Install the Expression MCP broker (step 1) **into the backend agent** so it can call `generate_express` and read the published vocabulary.
 3. Hand the agent the cue contract so it understands how to drive the character:
-   - With Hermes: create a profile, add `docs/backend_contract.md` to that profile's context, and instruct it to remember the contract.
-   - With other agents: include the contents of `docs/backend_contract.md` in the system prompt or context.
+   - With Hermes: create a profile, add `docs/reference/backend-contract.md` to that profile's context, and instruct it to remember the contract.
+   - With other agents: include the contents of `docs/reference/backend-contract.md` in the system prompt or context.
 4. In `configs/endpoints.json`, set:
    ```json
    "chat_base_url": "http://localhost:8643/v1",

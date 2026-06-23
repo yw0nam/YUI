@@ -16,4 +16,4 @@ Mandatory rules have an enforcement point — the gate, not memory, is the sourc
 | Worktree runtime assets linked | `WorktreeCreate` hook + `scripts/worktree-setup.sh` |
 | TDD ordering, UI mock approval, delegation | Working style (no machine gate) |
 
-Hook scripts live in [`.claude/hooks/`](../../.claude/hooks/) and are wired in [`.claude/settings.json`](../../.claude/settings.json); all fail open. The `configs/motions.json` ↔ `docs/motions.md` pair surfaces a non-blocking sync nudge.
+Hook scripts live in [`.claude/hooks/`](../../.claude/hooks/) and are wired in [`.claude/settings.json`](../../.claude/settings.json); all fail open. The `configs/motions.json` ↔ `docs/reference/motions.md` pair surfaces a non-blocking sync nudge.

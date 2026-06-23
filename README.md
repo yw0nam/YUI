@@ -11,7 +11,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![three.js](https://img.shields.io/badge/three.js-000000?logo=three.js&logoColor=white)
 
-<img src="docs/assets/yui-hero.png" alt="YUI — a VRM character living on the desktop as a transparent, always-on-top overlay, with speech bubble, settings panel, and input bar" width="820">
+<img src="docs/public/yui-hero.png" alt="YUI — a VRM character living on the desktop as a transparent, always-on-top overlay, with speech bubble, settings panel, and input bar" width="820">
 
 </div>
 
@@ -20,7 +20,7 @@
 YUI is a VRM character that lives on your desktop — it renders the body, the
 voice, and the on-screen surfaces, and it leaves the thinking to a backend.
 It does not ship an embedded model. Instead it talks to the
-[Hermes Agent](docs/setup.md) (or any backend that speaks the OpenAI Responses
+[Hermes Agent](docs/guide/getting-started.md) (or any backend that speaks the OpenAI Responses
 API and honors YUI's expression contract), so the character is exactly as
 capable as the agent behind it.
 
@@ -80,7 +80,7 @@ stream, while emotion, motion, and voice tags arrive as `generate_express`
 tool-calls with flat arguments `{ emotion_id?, motion_id?, emotion_text? }`.
 `emotion_text` is a per-provider TTS voice tag whose vocabulary the Expression
 Broker publishes so the agent knows what it can ask for. The full cue contract
-handed to the backend lives in [`docs/backend_contract.md`](docs/backend_contract.md).
+handed to the backend lives in [`docs/reference/backend-contract.md`](docs/reference/backend-contract.md).
 
 ## Stack
 
@@ -118,7 +118,7 @@ cd src-tauri && cargo test  # Rust unit tests
 link or copy them from an existing checkout before running. Without the VRM the
 model 404s; without `.env.local` chat auth is absent.
 
-For the backend services and full wiring, see [`docs/setup.md`](docs/setup.md).
+For the backend services and full wiring, see [`docs/guide/getting-started.md`](docs/guide/getting-started.md).
 
 ## Backend wiring
 
@@ -180,11 +180,11 @@ level with `VITE_YUI_LOG_LEVEL` (`debug` · `info` · `warn` · `error`).
 
 - [`AGENTS.md`](AGENTS.md) — contributor guide (work rules, roster, layout)
 - [`PRODUCT.md`](PRODUCT.md) / [`DESIGN.md`](DESIGN.md) — product register + design system
-- [`docs/setup.md`](docs/setup.md) — install and wiring (broker · agent · TTS · STT · VRM)
-- [`docs/backend_contract.md`](docs/backend_contract.md) — the `generate_express` cue contract
-- [`docs/motions.md`](docs/motions.md) — motion catalog
-- [`docs/tts_emotion/`](docs/tts_emotion/) — per-provider `emotion_text` voice tags
-- [`docs/logging.md`](docs/logging.md) — logging convention
+- [`docs/guide/getting-started.md`](docs/guide/getting-started.md) — install and wiring (broker · agent · TTS · STT · VRM)
+- [`docs/reference/backend-contract.md`](docs/reference/backend-contract.md) — the `generate_express` cue contract
+- [`docs/reference/motions.md`](docs/reference/motions.md) — motion catalog
+- [`docs/reference/tts-emotion/`](docs/reference/tts-emotion/) — per-provider `emotion_text` voice tags
+- [`docs/reference/logging.md`](docs/reference/logging.md) — logging convention
 - [`src/contract/types.ts`](src/contract/types.ts) — TS contract shapes
 - [`CHANGELOG.md`](CHANGELOG.md) — landed work
 

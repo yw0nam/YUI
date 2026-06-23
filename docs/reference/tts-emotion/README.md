@@ -14,14 +14,14 @@ The Hermes agent produces `emotion_text`; YUI consumes whatever arrives on the
 `/v1/responses` stream and prepends it to the TTS segment (prefix-only — never
 shown in the speech bubble). The `generate_express` cue contract that carries
 `emotion_text` is described in
-[`../backend_contract.md`](../backend_contract.md);
+[`backend-contract.md`](../backend-contract.md);
 the control envelope shape lives in
-[`../../src/contract/types.ts`](../../src/contract/types.ts).
+[`src/contract/types.ts`](https://github.com/yw0nam/YUI/blob/main/src/contract/types.ts).
 
 ## Provider-switch contract (mandatory)
 
 `emotion_text` vocabulary is **provider-dependent**. Whenever `tts_provider`
-changes in [`configs/endpoints.json`](../../configs/endpoints.json), YUI MUST
+changes in [`configs/endpoints.json`](https://github.com/yw0nam/YUI/blob/main/configs/endpoints.json), YUI MUST
 re-publish the broker's `emotion_text` gate via
 `update_emotion_text(mode, table)` so the gate matches the new provider:
 
@@ -41,7 +41,7 @@ every boot and on every broker reconnect.
 
 ## Adding a new provider
 
-1. Add `docs/tts_emotion/<provider>.md` documenting its rule.
+1. Add `docs/reference/tts-emotion/<provider>.md` documenting its rule.
 2. If the provider uses an `enum` table, add the canonical machine copy under
    `configs/` (no-hardcoding rule).
 3. Ensure YUI's provider-switch path publishes the right `(mode, table)` for
@@ -49,8 +49,8 @@ every boot and on every broker reconnect.
 
 ## See also
 
-- [`../backend_contract.md`](../backend_contract.md) —
+- [`backend-contract.md`](../backend-contract.md) —
   the `generate_express` cue contract handed to the backend agent (the
   `emotion_id` / `motion_id` / `emotion_text` fields and streaming shape).
-- [`../../src/contract/types.ts`](../../src/contract/types.ts) — the control
+- [`src/contract/types.ts`](https://github.com/yw0nam/YUI/blob/main/src/contract/types.ts) — the control
   envelope shape (contract source of truth).
