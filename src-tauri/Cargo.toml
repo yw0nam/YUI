@@ -30,6 +30,7 @@ tauri-plugin-log = "2"
 tauri-plugin-cors-fetch = "5.0.0"
 tauri-plugin-dialog = "2"
 xcap = "0.4.1"
+image = { version = "0.25", features = ["jpeg"], default-features = false }
 base64 = "0.22"
 
 # Windows OS API bindings (cfg-gated, compile-only on Windows)
