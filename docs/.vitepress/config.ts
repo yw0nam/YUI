@@ -7,7 +7,18 @@ export default defineConfig({
   base: '/YUI/',
   lang: 'en-US',
   cleanUrls: true,
-  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/YUI/favicon.svg' }]],
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/YUI/favicon.svg' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    [
+      'link',
+      {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600;700&display=swap',
+      },
+    ],
+  ],
   srcExclude: ['agent-guide/**', 'superpowers/**'],
   themeConfig: {
     nav: [

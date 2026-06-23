@@ -33,6 +33,8 @@
   --yui-dur-fast: 140ms;
 
   --yui-font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Display = a warm humanist for headings only; body stays OS-native. */
+  --yui-font-display: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
 }
 
 /* Force dark-first: VitePress reads these whether or not .dark is set. */
@@ -104,6 +106,16 @@
   --vp-c-brand-soft: var(--yui-accent-faint);
 }
 
+/* Headings wear the warm-humanist display face; body keeps system-ui. */
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.vp-doc h4,
+.VPNavBarTitle .title {
+  font-family: var(--yui-font-display);
+  letter-spacing: -0.01em;
+}
+
 /* Documentation prose: amber arrives only on hover, never at rest. */
 .vp-doc a {
   color: var(--yui-text-dim);
@@ -151,6 +163,13 @@
 }
 .yui-home a:hover {
   color: var(--yui-accent);
+}
+
+.yui-home .hero-title,
+.yui-home .framing-heading,
+.yui-home .setup-heading,
+.yui-home .cta-strip-text h2 {
+  font-family: var(--yui-font-display);
 }
 
 /* ── Hero ─────────────────────────────────────────────────────────────────── */
@@ -288,30 +307,15 @@
   height: auto;
 }
 
-/* ── Section separator ──────────────────────────────────────────────────── */
-.yui-home .sep {
-  height: 1px;
-  background: var(--page-border);
-  margin: 0;
-}
-
 /* ── Body vs Mind ─────────────────────────────────────────────────────────── */
+/* Rhythm comes from varied whitespace, not ruled separators: a wide gap lifts
+   the framing off the hero, a tighter one leads into the setup map. */
 .yui-home .framing {
-  padding: clamp(2.5rem, 5vw, 4rem) 0;
+  padding: clamp(4rem, 9vw, 8rem) 0 clamp(2.5rem, 5vw, 4rem);
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 3rem;
   align-items: start;
-}
-
-.yui-home .framing-label,
-.yui-home .setup-label {
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--yui-text-mute);
-  margin-bottom: 0.6rem;
 }
 
 .yui-home .framing-heading {

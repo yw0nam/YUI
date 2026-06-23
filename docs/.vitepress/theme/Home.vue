@@ -41,26 +41,21 @@ import { withBase } from 'vitepress'
         </div>
       </section>
 
-      <div class="sep"></div>
-
       <!-- Body vs Mind framing -->
       <section class="framing" aria-labelledby="framing-heading">
         <div class="framing-copy">
-          <p class="framing-label">Architecture</p>
           <h2 class="framing-heading" id="framing-heading">
             YUI is the body.<br />Hermes is the brain.
           </h2>
           <p class="framing-body">
-            YUI is the <em>embodied frontend</em> — it handles rendering,
-            sensing, and I/O surfaces. The VRM character, lipsync, speech
-            bubbles, tool-status, text and voice input: these are YUI's entire
-            domain.
+            YUI is the <em>embodied frontend</em>: rendering, sensing, and the
+            I/O surfaces. That is its whole domain.
           </p>
           <p class="framing-body">
             Judgment, persona, memory, and the agent loop belong to the
             <strong>Hermes backend</strong> you connect. YUI fires events and
-            renders whatever Hermes returns. It never decides whether or what to
-            speak — that distinction is the system's load-bearing principle.
+            renders whatever comes back; it never decides whether or what to
+            speak. That line is the system's load-bearing principle.
           </p>
         </div>
 
@@ -85,12 +80,9 @@ import { withBase } from 'vitepress'
         </div>
       </section>
 
-      <div class="sep"></div>
-
       <!-- Setup Map -->
       <section class="setup" aria-labelledby="setup-heading">
         <div class="setup-header">
-          <p class="setup-label">Setup</p>
           <h2 class="setup-heading" id="setup-heading">
             What you need to run YUI
           </h2>
