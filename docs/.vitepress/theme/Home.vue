@@ -12,7 +12,7 @@ import { withBase } from 'vitepress'
           <h1 class="hero-title">The head.<br />Not the brain.</h1>
           <p class="hero-tagline">
             YUI renders a living VRM character on your desktop. It senses text,
-            voice, and screen context — and leaves all judgment to the Hermes
+            voice, and screen context, then leaves all judgment to the Hermes
             backend you wire in.
           </p>
           <div class="hero-cta">
@@ -33,7 +33,7 @@ import { withBase } from 'vitepress'
           <figure class="hero-frame">
             <img
               :src="withBase('/yui-hero.png')"
-              alt="YUI — a VRM character rendered on a desktop, warm and alive in a corner of the screen"
+              alt="YUI, a VRM character rendered on a desktop, warm and alive in a corner of the screen"
               width="3456"
               height="1750"
             />
@@ -61,7 +61,7 @@ import { withBase } from 'vitepress'
 
         <div class="framing-aside">
           <div class="callout">
-            <p class="callout-label">YUI — the head</p>
+            <p class="callout-label">YUI · the head</p>
             <p class="callout-title">Rendering + sensing + I/O</p>
             <p class="callout-body">
               VRM character · lipsync · speech bubble · tool-status chip · text
@@ -69,11 +69,11 @@ import { withBase } from 'vitepress'
             </p>
           </div>
           <div class="callout">
-            <p class="callout-label">Hermes — the brain</p>
+            <p class="callout-label">Hermes · the brain</p>
             <p class="callout-title">Judgment + persona + tools</p>
             <p class="callout-body">
               Agent loop · memory · LLM reasoning · tool execution ·
-              emotion/motion cues · silence decisions — all delegated to the
+              emotion/motion cues · silence decisions, all delegated to the
               backend you supply
             </p>
           </div>
@@ -110,7 +110,7 @@ import { withBase } from 'vitepress'
                 <div>
                   <p class="tier-item-name">Hermes backend agent</p>
                   <p class="tier-item-note">
-                    The brain — any OpenAI-compatible agent running the Responses
+                    The brain: any OpenAI-compatible agent running the Responses
                     API.
                   </p>
                 </div>
@@ -165,7 +165,7 @@ import { withBase } from 'vitepress'
                 <div>
                   <p class="tier-item-name">Standalone Mods</p>
                   <p class="tier-item-note">
-                    Independent MCP servers — memory, tools, integrations.
+                    Independent MCP servers: memory, tools, integrations.
                   </p>
                 </div>
               </li>
@@ -202,7 +202,7 @@ import { withBase } from 'vitepress'
     <footer class="home-footer">
       <div class="footer-inner">
         <p class="footer-copy">
-          YUI — MIT License —
+          YUI · MIT License ·
           <a href="https://github.com/yw0nam/YUI" rel="noopener" target="_blank"
             >github.com/yw0nam/YUI</a
           >

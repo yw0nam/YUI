@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'YUI',
   description:
-    'Embodied VRM desktop companion — the head, not the brain. YUI renders the body and delegates judgment to a Hermes backend.',
+    'Embodied VRM desktop companion: the head, not the brain. YUI renders the body and delegates judgment to a Hermes backend.',
   base: '/YUI/',
   lang: 'en-US',
   cleanUrls: true,
@@ -22,12 +22,12 @@ export default defineConfig({
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: 'YUI: Embodied VRM Companion' }],
     ['meta', { property: 'og:description', content: 'Embodied VRM desktop companion: the head, not the brain. It renders the body and delegates judgment to a Hermes backend.' }],
-    ['meta', { property: 'og:image', content: 'https://yw0nam.github.io/YUI/yui-hero.png' }],
+    ['meta', { property: 'og:image', content: 'https://yw0nam.github.io/YUI/og-card.png' }],
     ['meta', { property: 'og:url', content: 'https://yw0nam.github.io/YUI/' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:title', content: 'YUI: Embodied VRM Companion' }],
     ['meta', { name: 'twitter:description', content: 'The head, not the brain: a VRM desktop companion that renders the body and delegates judgment to a Hermes backend.' }],
-    ['meta', { name: 'twitter:image', content: 'https://yw0nam.github.io/YUI/yui-hero.png' }],
+    ['meta', { name: 'twitter:image', content: 'https://yw0nam.github.io/YUI/og-card.png' }],
   ],
   srcExclude: ['agent-guide/**', 'superpowers/**'],
   themeConfig: {

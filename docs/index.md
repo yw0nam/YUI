@@ -1,6 +1,6 @@
 ---
 layout: page
-title: YUI — Embodied VRM Companion
+title: "YUI: Embodied VRM Companion"
 ---
 
 <Home />
