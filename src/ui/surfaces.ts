@@ -12,6 +12,7 @@
 
 import "./surfaces.css";
 import { subscribe as subscribeLocale, t } from "./i18n";
+import { downscaleToJpeg } from "./image-resize";
 import { renderMarkdownInline } from "./markdown";
 import { getToolLabel } from "./tool-labels";
 
@@ -331,13 +332,10 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   function addFiles(files: FileList | File[]): void {
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const url = reader.result as string;
+      void downscaleToJpeg(file).then((url) => {
         attachments.push(url);
         addChip(url);
-      };
-      reader.readAsDataURL(file);
+      });
     }
   }
 
