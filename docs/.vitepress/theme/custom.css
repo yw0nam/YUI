@@ -151,11 +151,31 @@
 
 /* ── Hero ─────────────────────────────────────────────────────────────────── */
 .yui-home .hero {
+  position: relative;
+  isolation: isolate;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1.05fr;
   gap: 3rem;
   align-items: center;
   padding: clamp(3rem, 7vw, 6rem) 0 clamp(2.5rem, 5vw, 4.5rem);
+}
+
+/* A single warm ember in the corner — the Hearthlight North Star. Diffuse and
+   low-alpha so it reads as ambiance, not an amber fill (10% Warmth Rule). */
+.yui-home .hero::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -12%;
+  right: -6%;
+  width: 46%;
+  aspect-ratio: 1;
+  background: radial-gradient(
+    circle,
+    oklch(0.8 0.13 75 / 0.1) 0%,
+    transparent 68%
+  );
+  pointer-events: none;
 }
 
 .yui-home .hero-eyebrow {
@@ -247,14 +267,21 @@
   align-items: center;
 }
 
-.yui-home .hero-image img {
+/* Frame the product shot: a hairline edge over the dark ground, one Float
+   shadow (Float Rule), corners matching the system radius. */
+.yui-home .hero-frame {
+  margin: 0;
   width: 100%;
-  max-width: 380px;
-  height: auto;
   border-radius: var(--yui-radius);
-  box-shadow: 0 24px 64px oklch(0.08 0.02 70 / 0.55),
-    0 4px 16px oklch(0.08 0.02 70 / 0.3);
+  border: 1px solid var(--page-border);
+  overflow: hidden;
+  box-shadow: 0 16px 48px oklch(0.08 0.02 70 / 0.5);
+}
+
+.yui-home .hero-frame img {
   display: block;
+  width: 100%;
+  height: auto;
 }
 
 /* ── Section separator ──────────────────────────────────────────────────── */
@@ -537,6 +564,9 @@
   }
   .yui-home .hero-image {
     order: -1;
+  }
+  .yui-home .hero-frame {
+    max-width: 460px;
   }
   .yui-home .hero-cta {
     justify-content: center;

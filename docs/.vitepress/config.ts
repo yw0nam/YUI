@@ -7,6 +7,7 @@ export default defineConfig({
   base: '/YUI/',
   lang: 'en-US',
   cleanUrls: true,
+  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/YUI/favicon.svg' }]],
   srcExclude: ['agent-guide/**', 'superpowers/**'],
   themeConfig: {
     nav: [
