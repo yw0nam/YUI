@@ -80,6 +80,10 @@
   /* Nav/local-search chrome */
   --vp-nav-bg-color: oklch(0.13 0.01 72 / 0.88);
   --vp-local-search-bg: var(--yui-bg-raised);
+
+  /* Code surfaces: warm raised ground, not VitePress's cold default grey. */
+  --vp-code-block-bg: var(--yui-bg-raised);
+  --vp-code-line-highlight-color: var(--yui-accent-faint);
 }
 
 /* Mirror onto .dark so the dark class (default) carries the same palette. */
@@ -582,4 +586,69 @@
   .yui-home .setup-tiers {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Content pages — Hearthlight polish ───────────────────────────────────────
+   Shared doc/reference pages inherit VitePress defaults; these warm the few
+   elements the docs actually use (tables, blockquotes, code) into the system. */
+
+/* Inline code: a warm chip rather than the cold default tint. */
+.vp-doc :not(pre) > code {
+  background: var(--yui-bg-card);
+  border: 1px solid var(--page-border, var(--yui-border));
+  border-radius: 6px;
+  color: var(--yui-text);
+  font-size: 0.82em;
+  padding: 0.12em 0.38em;
+}
+
+/* Code blocks: hairline frame + system radius, matching the home surfaces. */
+.vp-doc div[class*='language-'] {
+  border: 1px solid var(--yui-border);
+  border-radius: var(--yui-radius);
+}
+
+/* Tables: tinted header, hairline rules, rounded container — scannable, warm. */
+.vp-doc table {
+  display: table;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--yui-border);
+  border-radius: var(--yui-radius);
+  overflow: hidden;
+}
+.vp-doc th,
+.vp-doc td {
+  border: none;
+  border-bottom: 1px solid var(--yui-border);
+  padding: 0.6rem 0.85rem;
+}
+.vp-doc th {
+  background: var(--yui-bg-raised);
+  color: var(--yui-text);
+  font-weight: 600;
+  text-align: left;
+}
+.vp-doc tr {
+  background: transparent;
+}
+.vp-doc tbody tr:last-child td {
+  border-bottom: none;
+}
+.vp-doc tbody tr:hover td {
+  background: oklch(0.97 0.01 80 / 0.03);
+}
+
+/* Blockquotes: a single amber-soft edge and a faint warm wash — the one
+   sanctioned moment of warmth in body prose (10% Warmth Rule). */
+.vp-doc blockquote {
+  border-left: 2px solid var(--yui-accent-soft);
+  background: var(--yui-accent-faint);
+  border-radius: 0 var(--yui-radius-row) var(--yui-radius-row) 0;
+  padding: 0.6rem 1rem;
+  color: var(--yui-text-dim);
+}
+.vp-doc blockquote > p {
+  margin: 0;
 }
