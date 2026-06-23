@@ -80,8 +80,8 @@ For `schedule` and `proactive` turns there is no user utterance — the agent re
   "trigger": {
     "kind": "schedule",
     "cue": {
-      "label": "아침 인사",
-      "context": "아침 9시에 영우에게 하루 시작 인사를 건네줘",
+      "label": "morning call",
+      "context": "Say good morning to user at 9 AM",
       "local_time": "09:00"
     }
   }
@@ -96,8 +96,8 @@ For `schedule` and `proactive` turns there is no user utterance — the agent re
   "trigger": {
     "kind": "proactive",
     "cue": {
-      "label": "잠깐 환기",
-      "context": "영우가 너무 오래 집중하고 있으면 쉬어가라고 해줘",
+      "label": "focus break reminder",
+      "context": "remind user to take a break if they're focusing for too long",
       "idle_min": 30
     },
     "idle_elapsed_min": 37
@@ -155,24 +155,24 @@ generate_express({ ...cue for that segment... })
 Example:
 
 ```text
-"안녕 영우야!"
+"Hello User!"
 generate_express({ emotion_id: "happy", motion_id: "dance", emotion_text: "🤭" })
-" 오늘 하루는 어땠어?"
+" How was your day?"
 generate_express({ emotion_id: "curious", motion_id: "calm", emotion_text: "😏" })
 ```
 
 This means:
 
-- say `"안녕 영우야!"`;
+- say `"Hello User!"`;
 - place a happy/dance/🤭 cue on that greeting;
-- say `" 오늘 하루는 어땠어?"`;
+- say `" How was your day?"`;
 - place a curious/calm/😏 cue on the question.
 
 ## Streaming Shape
 
 ```text
 event: response.output_text.delta
-data: {"type":"response.output_text.delta","item_id":"msg_1","delta":"안녕 영우야!","sequence_number":2}
+data: {"type":"response.output_text.delta","item_id":"msg_1","delta":"Hello User!","sequence_number":2}
 
 event: response.output_item.added
 data: {"type":"response.output_item.added","output_index":1,"item":{"id":"fc_1","type":"function_call","name":"generate_express","arguments":"{\"emotion_id\":\"happy\",\"motion_id\":\"dance\",\"emotion_text\":\"🤭\"}"},"sequence_number":3}
@@ -181,7 +181,7 @@ event: response.output_item.done
 data: {"type":"response.output_item.done","output_index":1,"item":{"id":"fc_1","type":"function_call","name":"generate_express","arguments":"{\"emotion_id\":\"happy\",\"motion_id\":\"dance\",\"emotion_text\":\"🤭\"}"},"sequence_number":4}
 
 event: response.output_text.delta
-data: {"type":"response.output_text.delta","item_id":"msg_1","delta":" 오늘 하루는 어땠어?","sequence_number":5}
+data: {"type":"response.output_text.delta","item_id":"msg_1","delta":" How was your day?","sequence_number":5}
 
 event: response.output_item.added
 data: {"type":"response.output_item.added","output_index":2,"item":{"id":"fc_2","type":"function_call","name":"generate_express","arguments":"{\"emotion_id\":\"curious\",\"motion_id\":\"calm\",\"emotion_text\":\"😏\"}"},"sequence_number":6}
@@ -190,10 +190,10 @@ event: response.output_item.done
 data: {"type":"response.output_item.done","output_index":2,"item":{"id":"fc_2","type":"function_call","name":"generate_express","arguments":"{\"emotion_id\":\"curious\",\"motion_id\":\"calm\",\"emotion_text\":\"😏\"}"},"sequence_number":7}
 
 event: response.output_text.done
-data: {"type":"response.output_text.done","item_id":"msg_1","text":"안녕 영우야! 오늘 하루는 어땠어?","sequence_number":8}
+data: {"type":"response.output_text.done","item_id":"msg_1","text":"Hello User! How was your day?","sequence_number":8}
 
 event: response.completed
-data: {"type":"response.completed","response":{"id":"resp_1","status":"completed","output":[{"id":"msg_1","type":"message","role":"assistant","content":[{"type":"output_text","text":"안녕 영우야! 오늘 하루는 어땠어?"}]}]},"sequence_number":9}
+data: {"type":"response.completed","response":{"id":"resp_1","status":"completed","output":[{"id":"msg_1","type":"message","role":"assistant","content":[{"type":"output_text","text":"Hello User! How was your day?"}]}]},"sequence_number":9}
 ```
 
 ## Rules
@@ -207,17 +207,17 @@ data: {"type":"response.completed","response":{"id":"resp_1","status":"completed
 ## Bad Patterns
 
 ```text
-"[happy][dance] 안녕 영우야!"
+"[happy][dance] Hello User!"
 ```
 
 ```text
 generate_express({
-  emotion_text: "안녕 영우야!"
+  emotion_text: "Hello User!"
 })
 ```
 
 ```text
-"안녕 영우야! 오늘 하루는 어땠어?"
+"Hello User! How was your day?"
 generate_express({ emotion_id: "happy" })
 ```
 
@@ -251,13 +251,6 @@ Use the broker tool that returns valid ids before choosing values.
 - Do not rely on memorized value lists.
 - The valid set can change.
 - Only `generate_express` changes facial expression, body motion, or voice tone.
-
-`emotion_text` supports emoji combinations when those emoji are valid for the current broker vocabulary, for example:
-
-```text
-👅🫣👅
-🫣💋
-```
 
 ### What does `generate_express({})` mean?
 

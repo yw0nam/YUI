@@ -612,15 +612,18 @@
   border-radius: var(--yui-radius);
 }
 
-/* Tables: tinted header, hairline rules, rounded container — scannable, warm. */
+/* Tables: tinted header, hairline rules, rounded container — scannable, warm.
+   block + overflow-x so a wide table scrolls inside its column instead of
+   spilling into the right "On this page" aside. */
 .vp-doc table {
-  display: table;
-  width: 100%;
+  display: block;
+  width: max-content;
+  max-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   border: 1px solid var(--yui-border);
   border-radius: var(--yui-radius);
-  overflow: hidden;
+  overflow-x: auto;
 }
 .vp-doc th,
 .vp-doc td {

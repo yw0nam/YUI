@@ -38,3 +38,7 @@ resources/vrma/
 
 # Playwright MCP run artifacts
 .playwright-mcp/
+
+# VitePress docs build artifacts
+docs/.vitepress/cache/
+docs/.vitepress/dist/

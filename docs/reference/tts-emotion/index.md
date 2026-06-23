@@ -28,13 +28,13 @@ re-publish the broker's `emotion_text` gate via
 | provider | broker mode | table source | doc |
 |---|---|---|---|
 | `irodori` (default) | `enum` | irodori emoji table — canonical machine copy in `configs/` | [`irodori.md`](./irodori.md) |
-| `openai-compatible` (legacy fishspeech) | `free` | `null` (free-text bracket tags) | [`fishspeech.md`](./fishspeech.md) |
+| `openai` (OpenAI-compatible, legacy fishspeech) | `free` | `null` (free-text bracket tags) | [`fishspeech.md`](./fishspeech.md) |
 
 - `irodori` ⇒ `update_emotion_text("enum", <irodori emoji table>)`. In `enum`
   mode the broker greedily tokenizes `emotion_text` by table keys and drops
   unknown tokens (with a warning) — speech is never blocked.
-- `openai-compatible` / fishspeech ⇒ `update_emotion_text("free", null)`.
-  Pass-through, no validation.
+- `openai` (OpenAI-compatible / legacy fishspeech) ⇒
+  `update_emotion_text("free", null)`. Pass-through, no validation.
 
 The broker keeps this state in-memory and ephemeral, so YUI re-publishes on
 every boot and on every broker reconnect.
