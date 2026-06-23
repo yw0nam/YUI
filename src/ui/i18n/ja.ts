@@ -45,7 +45,7 @@ const ja: Record<string, string> = {
   "cue.greeting_time_aria": "あいさつの時刻",
   "cue.minutes_word": "無操作",
   "cue.minutes_aria": "無操作の分数",
-  "cue.minutes_suffix": "分",
+  "cue.minutes_suffix": "分ごと",
   "cue.toggle_aria": "{name} を有効化",
   "cue.toggle_fallback": "キュー",
   "cue.delete": "削除",
@@ -181,7 +181,7 @@ const ja: Record<string, string> = {
   "cue.schedule_sub": "決めた時刻に席にいると、先に話しかけます",
   "cue.schedule_add": "+ あいさつを追加",
   "cue.proactive_title": "自発的なリアクション",
-  "cue.proactive_sub": "作業中にしばらく話しかけずにいると、先に話しかけます",
+  "cue.proactive_sub": "作業中にしばらく静かにしていると、定期的に先に話しかけます",
   "cue.proactive_add": "+ リアクションを追加",
 
   // endpoints

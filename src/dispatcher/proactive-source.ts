@@ -3,9 +3,11 @@
  *
  * Subscribes to the shared `os_event` channel, reads bare `os_idle_tick`, and
  * fires `proactive.<cue_id>` (tier2) when the user is "present" (OS idle within
- * `present_max_idle_ms`) and the gap since the last interaction has reached
- * `cue.idle_min` minutes. Each cue fires at most once per session; `noteInteraction`
- * re-anchors the gap and clears the latches. `isEnabled()` and per-cue `enabled`
+ * `present_max_idle_ms`) and a cue's gap has reached `cue.idle_min` minutes.
+ * Each cue then re-fires on that same `cue.idle_min` period for as long as the
+ * user stays present. When several cues come due in one tick they share a single
+ * tick timestamp and push longest-`idle_min` first. `noteInteraction` re-anchors
+ * the gap and clears the per-cue schedules. `isEnabled()` and per-cue `enabled`
  * gate firing only — toggling does not stop the subscription. Presence alone does
  * NOT reset the gap.
  *
@@ -46,11 +48,11 @@ export function createProactiveSource(deps: ProactiveSourceDeps): ProactiveSourc
 
   let unlisten: (() => void) | undefined;
   let lastInteractionTs = 0;
-  const fired = new Set<string>();
+  const lastFired = new Map<string, number>();
 
   function noteInteraction(ts?: number): void {
     lastInteractionTs = ts ?? now();
-    fired.clear();
+    lastFired.clear();
   }
 
   function onTick(payload: OsEventPayload): void {
@@ -64,13 +66,18 @@ export function createProactiveSource(deps: ProactiveSourceDeps): ProactiveSourc
 
     if (!isEnabled()) return;
 
-    const gap = now() - lastInteractionTs;
-    for (const cue of getCues()) {
-      if (!cue.enabled || fired.has(cue.id) || gap < cue.idle_min * 60_000) continue;
+    const tickNow = now();
+    const gap = tickNow - lastInteractionTs;
+    // Longest idle_min first so the longer-term cue wins same-tick push order.
+    const cues = [...getCues()].sort((a, b) => b.idle_min - a.idle_min);
+    for (const cue of cues) {
+      if (!cue.enabled) continue;
+      const anchor = lastFired.get(cue.id) ?? lastInteractionTs;
+      if (tickNow - anchor < cue.idle_min * 60_000) continue;
       const env: BusEnvelope = {
         source: "timer_scheduler",
         event_name: `proactive.${cue.id}`,
-        ts: now(),
+        ts: tickNow,
         hint_tier: 2,
         dnd_override: false,
         payload: {
@@ -82,7 +89,7 @@ export function createProactiveSource(deps: ProactiveSourceDeps): ProactiveSourc
         },
       };
       bus.push(env);
-      fired.add(cue.id);
+      lastFired.set(cue.id, tickNow);
     }
   }
 
