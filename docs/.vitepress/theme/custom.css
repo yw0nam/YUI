@@ -33,6 +33,8 @@
   --yui-dur-fast: 140ms;
 
   --yui-font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Display = a warm humanist for headings only; body stays OS-native. */
+  --yui-font-display: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
 }
 
 /* Force dark-first: VitePress reads these whether or not .dark is set. */
@@ -104,6 +106,16 @@
   --vp-c-brand-soft: var(--yui-accent-faint);
 }
 
+/* Headings wear the warm-humanist display face; body keeps system-ui. */
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.vp-doc h4,
+.VPNavBarTitle .title {
+  font-family: var(--yui-font-display);
+  letter-spacing: -0.01em;
+}
+
 /* Documentation prose: amber arrives only on hover, never at rest. */
 .vp-doc a {
   color: var(--yui-text-dim);
@@ -151,6 +163,13 @@
 }
 .yui-home a:hover {
   color: var(--yui-accent);
+}
+
+.yui-home .hero-title,
+.yui-home .framing-heading,
+.yui-home .setup-heading,
+.yui-home .cta-strip-text h2 {
+  font-family: var(--yui-font-display);
 }
 
 /* ── Hero ─────────────────────────────────────────────────────────────────── */
@@ -288,30 +307,15 @@
   height: auto;
 }
 
-/* ── Section separator ──────────────────────────────────────────────────── */
-.yui-home .sep {
-  height: 1px;
-  background: var(--page-border);
-  margin: 0;
-}
-
 /* ── Body vs Mind ─────────────────────────────────────────────────────────── */
+/* Rhythm comes from varied whitespace, not ruled separators: a wide gap lifts
+   the framing off the hero, a tighter one leads into the setup map. */
 .yui-home .framing {
-  padding: clamp(2.5rem, 5vw, 4rem) 0;
+  padding: clamp(4rem, 9vw, 8rem) 0 clamp(2.5rem, 5vw, 4rem);
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 3rem;
   align-items: start;
-}
-
-.yui-home .framing-label,
-.yui-home .setup-label {
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--yui-text-mute);
-  margin-bottom: 0.6rem;
 }
 
 .yui-home .framing-heading {
@@ -651,4 +655,107 @@
 }
 .vp-doc blockquote > p {
   margin: 0;
+}
+
+/* ── Hero first-load motion ───────────────────────────────────────────────────
+   A quiet staggered rise on load: the warm-when-present cue, transform+opacity
+   only. Withheld entirely under reduced-motion (no animation declared there). */
+@media (prefers-reduced-motion: no-preference) {
+  .yui-home .hero-eyebrow,
+  .yui-home .hero-title,
+  .yui-home .hero-tagline,
+  .yui-home .hero-cta,
+  .yui-home .hero-frame {
+    animation: yui-rise 600ms var(--yui-ease) both;
+  }
+  .yui-home .hero-frame {
+    animation-delay: 90ms;
+  }
+  .yui-home .hero-title {
+    animation-delay: 70ms;
+  }
+  .yui-home .hero-tagline {
+    animation-delay: 140ms;
+  }
+  .yui-home .hero-cta {
+    animation-delay: 210ms;
+  }
+}
+
+@keyframes yui-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Branded 404 ──────────────────────────────────────────────────────────────
+   The default VitePress NotFound, recomposed in YUI's calm voice. */
+.yui-404 {
+  position: relative;
+  isolation: isolate;
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4rem 1.5rem;
+  font-family: var(--yui-font);
+}
+.yui-404::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 18%;
+  width: min(420px, 70%);
+  aspect-ratio: 1;
+  background: radial-gradient(circle, oklch(0.8 0.13 75 / 0.08) 0%, transparent 68%);
+  pointer-events: none;
+}
+.yui-404 .yui-404-code {
+  font-family: var(--yui-font-display);
+  font-size: clamp(3.5rem, 12vw, 6rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--yui-text);
+}
+.yui-404 .yui-404-title {
+  margin-top: 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--yui-text);
+}
+.yui-404 .yui-404-sub {
+  margin-top: 0.5rem;
+  max-width: 42ch;
+  font-size: 0.9rem;
+  color: var(--yui-text-mute);
+  line-height: 1.6;
+}
+.yui-404 .yui-404-home {
+  margin-top: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.2rem;
+  background: var(--yui-accent);
+  color: var(--yui-ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: var(--yui-radius-input);
+  text-decoration: none;
+  box-shadow: 0 2px 8px oklch(0.8 0.13 75 / 0.25);
+  transition: background var(--yui-dur-fast) var(--yui-ease),
+    transform var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-404 .yui-404-home:hover {
+  background: var(--yui-accent-hover);
+  transform: translateY(-1px);
+  color: var(--yui-ink);
 }
