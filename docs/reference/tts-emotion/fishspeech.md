@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| provider | `openai-compatible` (legacy fishspeech path) |
-| `tts_provider` | `"openai-compatible"` |
+| provider | OpenAI-compatible (legacy fishspeech path) |
+| `tts_provider` | `"openai"` |
 | broker mode | `free` |
 | table | `null` |
 
