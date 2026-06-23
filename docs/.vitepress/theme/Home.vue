@@ -30,12 +30,14 @@ import { withBase } from 'vitepress'
         </div>
 
         <div class="hero-image">
-          <img
-            :src="withBase('/yui-hero.png')"
-            alt="YUI — a VRM character rendered on a desktop, warm and alive in a corner of the screen"
-            width="760"
-            height="960"
-          />
+          <figure class="hero-frame">
+            <img
+              :src="withBase('/yui-hero.png')"
+              alt="YUI — a VRM character rendered on a desktop, warm and alive in a corner of the screen"
+              width="3456"
+              height="1750"
+            />
+          </figure>
         </div>
       </section>
 
