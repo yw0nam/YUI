@@ -298,7 +298,7 @@ describe("posttool-edit-guard.sh — docs vocabulary guard", () => {
   it("blocks change-narrative vocabulary in docs markdown", () => {
     const r = runHook(
       "posttool-edit-guard.sh",
-      editInput(`${PROJECT}/docs/motions.md`, "이 필드는 더 이상 사용되지 않는다."),
+      editInput(`${PROJECT}/docs/reference/motions.md`, "이 필드는 더 이상 사용되지 않는다."),
     );
     expect(r.status).toBe(0);
     expect(blockReason(r)).toMatch(/더 이상/);
@@ -308,7 +308,7 @@ describe("posttool-edit-guard.sh — docs vocabulary guard", () => {
     const r = runHook(
       "posttool-edit-guard.sh",
       editInput(
-        `${PROJECT}/docs/motions.md`,
+        `${PROJECT}/docs/reference/motions.md`,
         "기존 핸들러를 제거했다. 새 경로로 대체했다.",
         "Write",
       ),
@@ -319,7 +319,10 @@ describe("posttool-edit-guard.sh — docs vocabulary guard", () => {
   it("allows current-state declarative docs", () => {
     const r = runHook(
       "posttool-edit-guard.sh",
-      editInput(`${PROJECT}/docs/motions.md`, "Emotion id는 vrm_expression으로 매핑된다."),
+      editInput(
+        `${PROJECT}/docs/reference/motions.md`,
+        "Emotion id는 vrm_expression으로 매핑된다.",
+      ),
     );
     expect(blockReason(r)).toBeUndefined();
   });
@@ -342,12 +345,12 @@ describe("posttool-edit-guard.sh — docs vocabulary guard", () => {
 });
 
 describe("posttool-edit-guard.sh — motions doc sync nudge", () => {
-  it("nudges docs/motions.md when configs/motions.json changes", () => {
+  it("nudges docs/reference/motions.md when configs/motions.json changes", () => {
     const r = runHook(
       "posttool-edit-guard.sh",
       editInput(`${PROJECT}/configs/motions.json`, '{ "id": "wave" }', "Write"),
     );
-    expect(additionalContext(r)).toMatch(/docs\/motions\.md/);
+    expect(additionalContext(r)).toMatch(/docs\/reference\/motions\.md/);
   });
 
   it("stays silent for unrelated files", () => {

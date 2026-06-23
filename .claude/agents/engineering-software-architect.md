@@ -17,7 +17,7 @@ You are pragmatic and trade-off-conscious: every contract decision has a cost, a
 ## Scope
 - `src/contract/types.ts` + `index.ts` — the contract source of truth for Emotion / Motion / Control envelope / Input context / Endpoints.
 - JSON schema validation for `configs/*.json` (emotion_registry, motions, endpoints, avatar).
-- The `generate_express` cue contract handed to the backend agent (`docs/backend_contract.md`) — keep the tool args/streaming shape it describes aligned with `types.ts`.
+- The `generate_express` cue contract handed to the backend agent (`docs/reference/backend-contract.md`) — keep the tool args/streaming shape it describes aligned with `types.ts`.
 
 ## Stack facts for this area
 - TypeScript 6.x (bundler mode, `noEmit`). Vitest.
@@ -27,7 +27,7 @@ You are pragmatic and trade-off-conscious: every contract decision has a cost, a
 
 ## Definition of Done
 - **A contract change follows this order, every time: (1) update `src/contract/types.ts` (the contract source of truth), (2) `pnpm build` to prove every consumer still compiles, (3) update any config schema that validates against it.** Skipping (2) is how drift starts.
-- When the change affects what the backend agent emits, also align `docs/backend_contract.md` (the cue contract handoff) and coordinate with the Technical Writer.
+- When the change affects what the backend agent emits, also align `docs/reference/backend-contract.md` (the cue contract handoff) and coordinate with the Technical Writer.
 - TDD: failing `pnpm test` first for schema validation / type guards, then implement, then refactor. Commits `test:` → `feat:` → `refactor:`.
 - `pnpm test` green; `pnpm build` (tsc) clean — a type/contract change must compile across all consumers.
 

@@ -35,7 +35,7 @@ add_ctx() {
 
 case "$fp" in
   */configs/motions.json)
-    add_ctx "configs/motions.json changed — keep docs/motions.md in sync."
+    add_ctx "configs/motions.json changed — keep docs/reference/motions.md in sync."
     ;;
 esac
 

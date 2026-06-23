@@ -3,7 +3,7 @@
  *
  * 원칙: loader 테스트는 fake ConfigReader(`read`)를 주입해 in-memory로만 검증한다.
  * drift-guard만 예외적으로 Node fs로 실제 아티팩트(configs/emotion_text/irodori.json ↔
- * docs/tts_emotion/irodori.md)를 읽어 키 집합 일치를 단언한다(편집 drift 방지).
+ * docs/reference/tts-emotion/irodori.md)를 읽어 키 집합 일치를 단언한다(편집 drift 방지).
  */
 
 import { readFileSync } from "node:fs";
@@ -124,7 +124,7 @@ describe("loadEmotionTextTable — default fetch reader routes through asset res
 // ── drift-guard: configs JSON keys ↔ docs md emoji set ───────────────────────
 
 describe("irodori emotion_text drift-guard", () => {
-  /** docs/tts_emotion/irodori.md의 Emoji table에서 첫 컬럼 이모지를 추출. */
+  /** docs/reference/tts-emotion/irodori.md의 Emoji table에서 첫 컬럼 이모지를 추출. */
   function emojiFromMarkdown(md: string): string[] {
     const lines = md.split("\n");
     const start = lines.findIndex((l) => l.startsWith("## Emoji table"));
@@ -144,7 +144,7 @@ describe("irodori emotion_text drift-guard", () => {
     const json = JSON.parse(
       readFileSync(resolve(REPO_ROOT, "configs/emotion_text/irodori.json"), "utf8"),
     ) as Record<string, string>;
-    const md = readFileSync(resolve(REPO_ROOT, "docs/tts_emotion/irodori.md"), "utf8");
+    const md = readFileSync(resolve(REPO_ROOT, "docs/reference/tts-emotion/irodori.md"), "utf8");
 
     const jsonKeys = new Set(Object.keys(json));
     const mdEmoji = new Set(emojiFromMarkdown(md));

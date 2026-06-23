@@ -1,3 +1,4 @@
 strictDepBuilds: false
 allowBuilds:
+  esbuild: true
   protobufjs: false

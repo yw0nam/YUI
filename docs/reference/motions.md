@@ -1,11 +1,11 @@
 # Motion catalog
 
-Human-readable map of every motion id in [`configs/motions.json`](../configs/motions.json) — what it looks like, its playback policy, and the source clip it was extracted from. Keep this in sync with the registry.
+Human-readable map of every motion id in [`configs/motions.json`](https://github.com/yw0nam/YUI/blob/main/configs/motions.json) — what it looks like, its playback policy, and the source clip it was extracted from. Keep this in sync with the registry.
 
 - **Sources**: clips come from three origins.
   - **[Mate Engine](https://github.com/shinyflvre/Mate-Engine)** (Shiny) — the bulk set, extracted from the Unity project (`Assets/MATE ENGINE - Animations/…`) to `.vrma` via the `unity-cli exec → YuiExport.YuiVrmaExport.ExportBatch` pipeline (30 FPS, T-pose reference, model-independent retarget). Used under Mate Engine's non-commercial terms — attribution to Shiny required; commercial use needs separate permission.
   - **[necocoya — EmoteSet_Free_v130](https://booth.pm/ja/items/1065089)** — `sulk` only (Unity Humanoid `06_suneru`, 拗ね = sulk/pout). Attribution to necocoya required; modification/conversion and bundling-with-credit are permitted, standalone resale of the raw file is prohibited.
-  - **[もいらんど — thinking](https://booth.pm/ja/items/5562384)** — `thinking` only. A purchased licensed asset kept at `public/purchased_motions/thinking.vrma`, gitignored and never committed to a public repository (see [`public/purchased_motions/AGENTS.md`](../public/purchased_motions/AGENTS.md)). When the file is absent locally, the renderer falls back to `idle`.
+  - **[もいらんど — thinking](https://booth.pm/ja/items/5562384)** — `thinking` only. A purchased licensed asset kept at `public/purchased_motions/thinking.vrma`, gitignored and never committed to a public repository (see [`public/purchased_motions/AGENTS.md`](https://github.com/yw0nam/YUI/blob/main/public/purchased_motions/AGENTS.md)). When the file is absent locally, the renderer falls back to `idle`.
   - **Original works** authored in Blender by the project author — `falling`, `landing`.
 - Durations are the source clip length.
 - **Pools**: `idle`, `window_sit`, `dance` are single registry entries with a `variants[]` list and `variant_policy: "random"` — each trigger plays a random variant (immediate-repeat avoided). The character-facing id is the pool id; individual variant files are not separate registry entries.
