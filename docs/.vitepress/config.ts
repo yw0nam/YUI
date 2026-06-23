@@ -7,6 +7,7 @@ export default defineConfig({
   base: '/YUI/',
   lang: 'en-US',
   cleanUrls: true,
+  appearance: 'force-dark',
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/YUI/favicon.svg' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
@@ -18,6 +19,15 @@ export default defineConfig({
         href: 'https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600;700&display=swap',
       },
     ],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:title', content: 'YUI: Embodied VRM Companion' }],
+    ['meta', { property: 'og:description', content: 'Embodied VRM desktop companion: the head, not the brain. It renders the body and delegates judgment to a Hermes backend.' }],
+    ['meta', { property: 'og:image', content: 'https://yw0nam.github.io/YUI/yui-hero.png' }],
+    ['meta', { property: 'og:url', content: 'https://yw0nam.github.io/YUI/' }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:title', content: 'YUI: Embodied VRM Companion' }],
+    ['meta', { name: 'twitter:description', content: 'The head, not the brain: a VRM desktop companion that renders the body and delegates judgment to a Hermes backend.' }],
+    ['meta', { name: 'twitter:image', content: 'https://yw0nam.github.io/YUI/yui-hero.png' }],
   ],
   srcExclude: ['agent-guide/**', 'superpowers/**'],
   themeConfig: {
