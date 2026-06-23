@@ -93,8 +93,8 @@ import { withBase } from 'vitepress'
             What you need to run YUI
           </h2>
           <p class="setup-sub">
-            Three required pieces, two optional layers. Start minimal; add voice
-            when you're ready.
+            Three required pieces; everything else is optional. Start minimal;
+            add voice when you're ready.
           </p>
         </div>
 
@@ -134,10 +134,10 @@ import { withBase } from 'vitepress'
             </ul>
           </div>
 
-          <!-- Recommended -->
-          <div class="tier tier--recommended">
-            <span class="tier-badge tier-badge--recommended">Recommended</span>
-            <p class="tier-title">Voice I/O</p>
+          <!-- Optional -->
+          <div class="tier tier--optional">
+            <span class="tier-badge tier-badge--optional">Optional</span>
+            <p class="tier-title">Add-ons</p>
             <ul class="tier-items">
               <li class="tier-item">
                 <span class="tier-item-dot" aria-hidden="true"></span>
@@ -157,14 +157,6 @@ import { withBase } from 'vitepress'
                   </p>
                 </div>
               </li>
-            </ul>
-          </div>
-
-          <!-- Optional -->
-          <div class="tier tier--optional">
-            <span class="tier-badge tier-badge--optional">Optional</span>
-            <p class="tier-title">Extended</p>
-            <ul class="tier-items">
               <li class="tier-item">
                 <span class="tier-item-dot" aria-hidden="true"></span>
                 <div>
