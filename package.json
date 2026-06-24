@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "dev": "vite",
     "dev:auto": "node scripts/dev-auto.mjs",
     "tauri:dev": "node scripts/tauri-dev.mjs",
