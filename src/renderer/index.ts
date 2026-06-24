@@ -35,27 +35,18 @@ import {
   orbitPosition,
 } from "./camera-fit";
 import { createCycleDwell } from "./cycle-dwell";
-import { revertEmotionToNeutral } from "./ease-emotion";
-import {
-  createEmotionResolver,
-  type EmotionResolver,
-  type ResolvedEmotion,
-} from "./emotion-resolver";
+import { type CameraGaze, createCameraGaze } from "./camera-gaze";
+import { type EmotionCrossfade, createEmotionCrossfade } from "./emotion-crossfade";
 import { isActive, shouldRenderFrame } from "./frame-gate";
-import {
-  advanceGaze,
-  type GazeConfig,
-  type GazeState,
-  NEUTRAL_GAZE,
-  splitHeadNeck,
-} from "./gaze-tracker";
-import { cssToGrabCell, grabDimensions, sampleAlphaHit } from "./hit-test";
+import type { GazeConfig } from "./gaze-tracker";
+import { type AlphaHitTest, createAlphaHitTest } from "./alpha-hit-test";
 import {
   createMotionController,
   type MotionController,
   type ResolvedMotion,
 } from "./motion-controller";
 import { resolveBaselineFallback } from "./motion-fallback";
+import { createMouthLipsync, describeExpressions, MOUTH_EXPRESSION_KEY } from "./mouth-lipsync";
 import {
   characterScreenHeight,
   projectToScreen,
@@ -97,49 +88,8 @@ const ORBIT_EASE_RATE = 0.35;
 /** Below this |Δpolar| (radians) the orbit ease is settled (≈0.06°). */
 const ORBIT_SETTLE_EPS = 1e-3;
 
-// ── Per-pixel alpha hit-test ─────────────────────────────────────────────────
-/** Downscale factor (linear) of the drawing buffer for the CPU-side alpha grab. */
-const ALPHA_GRAB_SCALE = 1 / 8;
-/** Cap on the grab width (px) so large displays stay cheap. */
-const ALPHA_GRAB_MAX_W = 128;
-/** Refresh the grab every Nth frame (~20-30Hz) to spare the frame budget. */
-const ALPHA_GRAB_FRAME_GATE = 3;
-/** Fallback alpha threshold (0..1) until config injects one. */
-const DEFAULT_ALPHA_THRESHOLD = 0.1;
-
 /** Idle (ambient-only) frame cap — full refresh is reserved for active animation. */
 const IDLE_FPS = 30;
-
-const DEG2RAD = Math.PI / 180;
-const RAD2DEG = 180 / Math.PI;
-
-/** Default camera-gaze tracking — the "natural" preset; overridden by configs/avatar.json `gaze`. */
-const DEFAULT_GAZE: GazeConfig = {
-  deadDeg: 3,
-  headEngageDeg: 20,
-  disengageDeg: 65,
-  maxHeadYaw: 50,
-  maxHeadPitch: 30,
-  eyeMaxDeg: 25,
-  headNeckSplit: 0.6,
-  smooth: 10,
-};
-
-/** Clamp to [-1, 1] — guards acos/asin domain against float drift. */
-function clampUnit(v: number): number {
-  return Math.min(1, Math.max(-1, v));
-}
-
-/** Merge a partial gaze config over a base, ignoring missing/non-finite keys. */
-function mergeGaze(base: GazeConfig, next: Partial<GazeConfig> | undefined): GazeConfig {
-  if (!next) return { ...base };
-  const out = { ...base };
-  for (const k of Object.keys(base) as (keyof GazeConfig)[]) {
-    const v = next[k];
-    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
-  }
-  return out;
-}
 
 export interface RendererOptions {
   /** VRM을 렌더할 캔버스 마운트 대상. */
@@ -305,72 +255,12 @@ export interface Renderer {
   dispose(): void;
 }
 
-/** VRM mouth-open preset driven exclusively by lip sync (never emotion/ambient). */
-export const MOUTH_EXPRESSION_KEY = "aa" as const;
-
-/**
- * Inspect an expressionManager's expressionMap: list available expression keys
- * and report whether the lipsync mouth key is present. Observability only — lets
- * logs answer "audio played but the mouth didn't move — why?".
- */
-export function describeExpressions(
-  em: { expressionMap?: Record<string, unknown> } | null | undefined,
-): { expressions: string[]; hasMouth: boolean } {
-  const map = em?.expressionMap;
-  const expressions = map ? Object.keys(map) : [];
-  return { expressions, hasMouth: expressions.includes(MOUTH_EXPRESSION_KEY) };
-}
-
-/** Minimal expressionManager surface the mouth state machine needs. */
-interface MouthExpressionManager {
-  setValue(name: string, weight: number): void;
-  getExpression(name: string): unknown;
-}
-
-export interface MouthLipsyncOptions {
-  /** Per-step lerp factor toward the target weight (0..1; 1 = snap). */
-  smoothing?: number;
-}
-
-/** Amplitude-only mouth state machine: target in [0,1], lerped, writes only `aa`. */
-export interface MouthLipsync {
-  /** Set the desired mouth-open target, clamped to [0,1]. */
-  setOpen(value: number): void;
-  /** Advance one frame: lerp current toward target, write the `aa` weight. */
-  step(dt: number, em: MouthExpressionManager): void;
-  /** Ease the mouth back to 0 (closed). */
-  stop(): void;
-  /** Current applied mouth-open weight (0..1) — cheap read for the frame gate. */
-  openValue(): number;
-}
-
-/**
- * Pure amplitude lip-sync mouth driver (no viseme).
- * Owns ONLY the `aa` preset; never touches blink/lookAt/emotion keys.
- * No-ops when the model lacks `aa`. Frame-rate handling is the caller's dt.
- */
-export function createMouthLipsync(options: MouthLipsyncOptions = {}): MouthLipsync {
-  const smoothing = Math.min(1, Math.max(0, options.smoothing ?? 0.4));
-  let target = 0;
-  let current = 0;
-
-  return {
-    setOpen(value) {
-      target = Math.min(1, Math.max(0, value));
-    },
-    step(_dt, em) {
-      if (em.getExpression(MOUTH_EXPRESSION_KEY) == null) return;
-      current += (target - current) * smoothing;
-      em.setValue(MOUTH_EXPRESSION_KEY, current);
-    },
-    stop() {
-      target = 0;
-    },
-    openValue() {
-      return current;
-    },
-  };
-}
+export {
+  createMouthLipsync,
+  describeExpressions,
+  MOUTH_EXPRESSION_KEY,
+} from "./mouth-lipsync";
+export type { MouthLipsync, MouthLipsyncOptions } from "./mouth-lipsync";
 
 export function createRenderer(options: RendererOptions): Renderer {
   const { mount } = options;
@@ -421,94 +311,6 @@ export function createRenderer(options: RendererOptions): Renderer {
   const perchSeatWorld = new THREE.Vector3();
   const perchCamForward = new THREE.Vector3();
   const perchSeatRel = new THREE.Vector3();
-
-  // ── Camera gaze (head/eye tracking) state ────────────────────────────────────
-  // Thresholds: defaults overridden by injected config (and live via setGaze).
-  let gazeConfig: GazeConfig = mergeGaze(DEFAULT_GAZE, options.gaze);
-  // Runtime on/off (persisted by main.ts). Disabled ⇒ eased back to neutral, not snapped.
-  let gazeEnabled = true;
-  // Persistent damped angles (deg) carried frame to frame.
-  let gazeState: GazeState = { ...NEUTRAL_GAZE };
-  // True while the damped gaze is still easing toward target — gates the idle frame cap.
-  let gazeConverging = false;
-  // Cached head/neck bones for the per-frame nudge (refreshed on load; no per-frame lookup).
-  let gazeHeadBone: THREE.Object3D | null = null;
-  let gazeNeckBone: THREE.Object3D | null = null;
-  // True once the loaded VRM's lookAt has been claimed (autoUpdate off) for eye control.
-  let gazeLookAtReady = false;
-  // Scratch reused every frame — no per-frame allocation in the gaze path.
-  const gazeToCam = new THREE.Vector3();
-  const gazeBodyFwd = new THREE.Vector3();
-  const gazeHeadPos = new THREE.Vector3();
-  const gazeHeadQuat = new THREE.Quaternion();
-  const gazeHeadQuatInv = new THREE.Quaternion();
-  const gazeSceneQuat = new THREE.Quaternion();
-  const gazeLocalDir = new THREE.Vector3();
-  const gazeDeltaEuler = new THREE.Euler(0, 0, 0, "YXZ");
-  const gazeDeltaQuat = new THREE.Quaternion();
-
-  // ── Per-pixel alpha hit-test state ───────────────────────────────────────────
-  // Low-res RGBA grab of the silhouette (reused; no per-frame alloc).
-  let alphaGrab: Uint8Array | null = null;
-  let alphaGrabW = 0;
-  let alphaGrabH = 0;
-  let alphaFrame = 0;
-  // Threshold in 0..1 (config-injected); compared as 0..255 against the grab.
-  let alphaThreshold = DEFAULT_ALPHA_THRESHOLD;
-  // Offscreen render target sized to the grab dims — the scene is re-rendered into
-  // it at low res so the readback reads only gw×gh px (not the full device buffer).
-  // Allocated once, resized only when the grab dims change (no per-frame alloc).
-  let alphaTarget: THREE.WebGLRenderTarget | null = null;
-
-  /**
-   * Refresh the low-res alpha grab via an offscreen render target. The scene is
-   * re-rendered into a gw×gh target (the GPU does the downscale) and only those
-   * pixels are read back — far cheaper than reading the full device buffer and
-   * box-sampling on the CPU. MUST run inside the rAF loop. readRenderTargetPixels'
-   * origin is bottom-left, so grab rows stay bottom-up (cssToGrabCell's flip holds).
-   * Frame-gated to spare the budget. No grab while no VRM is loaded.
-   */
-  function refreshAlphaGrab(): void {
-    if (!currentVrm) {
-      alphaGrab = null;
-      return;
-    }
-    if (alphaFrame++ % ALPHA_GRAB_FRAME_GATE !== 0) return;
-    try {
-      const gl = renderer.getContext();
-      // drawingBufferWidth/Height are device px (post devicePixelRatio).
-      const dims = grabDimensions(
-        gl.drawingBufferWidth,
-        gl.drawingBufferHeight,
-        ALPHA_GRAB_SCALE,
-        ALPHA_GRAB_MAX_W,
-      );
-      if (!dims) return;
-      const { gw, gh } = dims;
-      if (!alphaTarget) {
-        alphaTarget = new THREE.WebGLRenderTarget(gw, gh, {
-          depthBuffer: true,
-          stencilBuffer: false,
-        });
-      } else if (alphaTarget.width !== gw || alphaTarget.height !== gh) {
-        alphaTarget.setSize(gw, gh);
-      }
-      const need = gw * gh * 4;
-      if (!alphaGrab || alphaGrab.length < need) alphaGrab = new Uint8Array(need);
-
-      const prevTarget = renderer.getRenderTarget();
-      renderer.setRenderTarget(alphaTarget);
-      renderer.render(scene, camera);
-      renderer.readRenderTargetPixels(alphaTarget, 0, 0, gw, gh, alphaGrab);
-      renderer.setRenderTarget(prevTarget);
-
-      alphaGrabW = gw;
-      alphaGrabH = gh;
-    } catch (err) {
-      log.error("alpha_grab_error", { error: String(err) });
-      alphaGrab = null;
-    }
-  }
 
   /** Reframe the camera to the current model box; no-op when no model is loaded. */
   function fitCamera(): void {
@@ -591,31 +393,26 @@ export function createRenderer(options: RendererOptions): Renderer {
   // update 경로(vrm.update 직전)에서 매 프레임 lerp 반영한다.
   const mouth = createMouthLipsync();
 
-  // ── Emotion 상태 ──────────────────────────────────────────────────────
-  let emotionRegistry: EmotionRegistry | undefined = options.emotionRegistry;
-  let emotionResolver: EmotionResolver | undefined;
-  /** 현재 VRM 기준 expression 존재 술어 (핫스왑마다 재계산). */
-  let hasExpressionCache: ((k: string) => boolean) | undefined;
-  /**
-   * 진행 중 emotion 크로스페이드 상태(없으면 null).
-   *  - prevKey: 페이드 아웃 중인 직전 표정 키(없으면 null).
-   *  - prevWeightAtStart: 페이드 시작 시점의 prev weight(중간 retarget pop 방지).
-   *  - targetKey/targetWeight: 페이드 인 목표 키/weight.
-   *  - startTargetW: 페이드 시작 시점의 target weight(retarget 시 현재 blend에서 출발).
-   *  - startMs/durationMs: 프레임 클록(elapsed*1000) 기준 시작/길이.
-   *  - curPrevW/curTargetW: 현재 프레임 적용 weight(retarget 출발점으로 재사용).
-   */
-  let emotionXfade: {
-    prevKey: string | null;
-    prevWeightAtStart: number;
-    targetKey: string;
-    targetWeight: number;
-    startTargetW: number;
-    startMs: number;
-    durationMs: number;
-    curPrevW: number;
-    curTargetW: number;
-  } | null = null;
+  // ── Per-pixel alpha hit-test ──────────────────────────────────────────
+  // Owns its own low-res silhouette grab + sampling; re-rendered in the rAF loop.
+  const alphaHitTest: AlphaHitTest = createAlphaHitTest({
+    renderer,
+    scene,
+    camera,
+    isVrmLoaded: () => currentVrm != null,
+    mountWidth: () => mount.clientWidth || 1,
+    mountHeight: () => mount.clientHeight || 1,
+    log,
+  });
+
+  // ── Camera gaze (head/eye tracking) ───────────────────────────────────
+  // Owns the damped gaze state + head/neck/lookAt apply; steps each frame in the rAF loop.
+  const gaze: CameraGaze = createCameraGaze({
+    camera,
+    getVrm: () => currentVrm,
+    gaze: options.gaze,
+    log,
+  });
 
   /** mixer "finished" 핸들러 (oneshot 종료 → controller.finish → 복귀 재생). */
   const onMixerFinished = (e: { action: THREE.AnimationAction }): void => {
@@ -663,6 +460,15 @@ export function createRenderer(options: RendererOptions): Renderer {
   // Idle 30fps cap toggle (runtime). Disabled ⇒ idle frames render at full refresh.
   let idleThrottleEnabled = true;
 
+  // ── Emotion crossfade ─────────────────────────────────────────────────
+  // Owns the in-flight crossfade + resolver + per-model has-expression predicate.
+  const emotion: EmotionCrossfade = createEmotionCrossfade({
+    getVrm: () => currentVrm,
+    getElapsedMs: () => elapsed * 1000,
+    registry: options.emotionRegistry,
+    log,
+  });
+
   /** True while a non-baseline motion clip is actively playing via the mixer. */
   function isMotionActive(): boolean {
     if (!currentAction?.isRunning()) return false;
@@ -679,12 +485,12 @@ export function createRenderer(options: RendererOptions): Renderer {
     const active =
       isActive({
         mouthOpen: mouth.openValue(),
-        emotionFading: emotionXfade !== null,
+        emotionFading: emotion.isFading(),
         motionActive: isMotionActive(),
         perchConverging,
       }) ||
       orbitConverging ||
-      gazeConverging;
+      gaze.isConverging();
     const now = performance.now();
     if (!shouldRenderFrame(now, lastRenderMs, active, IDLE_FPS, idleThrottleEnabled)) return;
     lastRenderMs = now;
@@ -719,10 +525,10 @@ export function createRenderer(options: RendererOptions): Renderer {
       // spring bones, so the offset rides into this frame's render.
       stepPerch();
       // camera gaze — same slot as perch: rides the posed head/neck into vrm.update.
-      stepGaze(dt);
+      gaze.step(dt);
       // emotion 크로스페이드 — expressionManager.update()는 vrm.update(dt) 안에서
       // 돌므로 weight를 그 직전에 써야 이번 프레임에 반영된다.
-      stepEmotion(dt);
+      emotion.step(dt);
       // lipsync — emotion과 같은 이유로 vrm.update 직전에 `aa` weight를 쓴다.
       if (currentVrm.expressionManager) {
         mouth.step(dt, currentVrm.expressionManager);
@@ -732,7 +538,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     renderer.render(scene, camera);
     // Refresh the low-res alpha grab (offscreen render-target readback) for the
     // hit-test. Frame-gated; runs in the rAF turn right after the main render.
-    refreshAlphaGrab();
+    alphaHitTest.refresh();
   }
   animate();
 
@@ -777,21 +583,17 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (!currentVrm) return;
     teardownMotion();
     // 진행 중 페이드가 폐기된 VRM에 쓰지 않도록 리셋(핫스왑/dispose 공용).
-    emotionXfade = null;
+    emotion.reset();
     // Drop the perch bone ref so a stale bone can't be pinned on the next VRM.
     perchHipsBone = null;
     perchOffsetY = 0;
     // Drop gaze bone refs + reset damped state so nothing carries to the next VRM.
-    gazeHeadBone = null;
-    gazeNeckBone = null;
-    gazeLookAtReady = false;
-    gazeState = { ...NEUTRAL_GAZE };
-    gazeConverging = false;
+    gaze.onVrmDisposed();
     scene.remove(currentVrm.scene);
     VRMUtils.deepDispose(currentVrm.scene);
     currentVrm = undefined;
     modelBox = undefined; // drop stale bounds so fitCamera no-ops until next load.
-    alphaGrab = null; // stale silhouette can't outlive its VRM.
+    alphaHitTest.clearGrab(); // stale silhouette can't outlive its VRM.
   }
 
   /**
@@ -910,62 +712,6 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (controller) playMotion({ id: controller.baseline() });
   }
 
-  // ── Emotion crossfade ──────────────────────────────────────────────────────
-
-  const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
-  const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
-
-  /**
-   * 현재 VRM 기준 expression 존재 술어를 재계산하고 resolver를 재생성한다.
-   * 존재 집합은 모델별이라 VRM 로드마다 새로 빌드해야 한다.
-   */
-  function recomputeHasExpression(): void {
-    hasExpressionCache = (k: string): boolean =>
-      currentVrm?.expressionManager?.getExpression(k) != null;
-    if (emotionRegistry) {
-      emotionResolver = createEmotionResolver(emotionRegistry, {
-        hasExpression: hasExpressionCache,
-      });
-    }
-  }
-
-  /**
-   * emotion 크로스페이드 한 프레임 진행 — mixer.update 후, vrm.update 직전 호출.
-   * 매 프레임 target/prev weight를 수동 lerp(three-vrm 내장 보간 없음).
-   * blink/blinkLeft/blinkRight/lookAt/mouth 키는 절대 건드리지 않는다(ambient/lipsync 소유).
-   */
-  function stepEmotion(_dt: number): void {
-    if (!emotionXfade || !currentVrm) return;
-    const em = currentVrm.expressionManager;
-    if (!em) return;
-    try {
-      const x = emotionXfade;
-      const now = elapsed * 1000;
-      const t = clamp01((now - x.startMs) / Math.max(1, x.durationMs));
-      x.curTargetW = lerp(x.startTargetW, x.targetWeight, t);
-      x.curPrevW = lerp(x.prevWeightAtStart, 0, t);
-
-      em.setValue(x.targetKey, x.curTargetW);
-      if (x.prevKey && x.prevKey !== x.targetKey) {
-        em.setValue(x.prevKey, x.curPrevW);
-      }
-
-      if (t >= 1) {
-        // prev 키를 1회 0으로 내리고 분리, target은 매 프레임 계속 고정(held).
-        if (x.prevKey && x.prevKey !== x.targetKey) {
-          em.setValue(x.prevKey, 0);
-        }
-        x.prevKey = null;
-        x.curPrevW = 0;
-        // target weight를 핀으로 고정 — 다음 프레임에도 계속 재적용된다.
-        x.startTargetW = x.targetWeight;
-        x.curTargetW = x.targetWeight;
-      }
-    } catch (err) {
-      log.error("step_emotion", { error: String(err) });
-    }
-  }
-
   // ── Window-sit perch pin ─────────────────────────────────────────────────────
 
   /**
@@ -1005,85 +751,6 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
   }
 
-  // ── Camera gaze head/eye tracking ────────────────────────────────────────────
-
-  /**
-   * One frame of camera-gaze tracking — called after mixer.update, before vrm.update,
-   * so the head/neck nudge rides on the posed skeleton into the humanoid/spring apply
-   * and the eyes (driven via lookAt inside vrm.update) compose on the nudged head.
-   *
-   * Reads the camera's eccentricity from the body front (zone weights) and the residual
-   * yaw/pitch from the motion-posed head to the camera (the angle eyes+head must close),
-   * damps toward the shaped targets, then post-multiplies the head/neck bones and sets
-   * the eye yaw/pitch. Additive over whatever motion is playing — a motion already facing
-   * the camera yields a ~0 residual ⇒ ~0 nudge. No-op (no bone writes) once settled.
-   *
-   * ponytail: assumes the playing clip animates head/neck each frame (idle/sit do), so the
-   * post-multiply rides a fresh motion pose; a head-trackless clip would let the nudge
-   * accumulate.
-   */
-  function stepGaze(dt: number): void {
-    if (!currentVrm) {
-      gazeConverging = false;
-      return;
-    }
-    let residualYawDeg = 0;
-    let residualPitchDeg = 0;
-    let eccentricityDeg = 0;
-    const trackable = gazeEnabled && gazeHeadBone !== null;
-    if (trackable) {
-      try {
-        const head = gazeHeadBone as THREE.Object3D;
-        head.getWorldPosition(gazeHeadPos);
-        head.getWorldQuaternion(gazeHeadQuat);
-        // Body front (+Z of the VRM scene) drives the zone eccentricity (camera-from-front).
-        currentVrm.scene.getWorldQuaternion(gazeSceneQuat);
-        gazeBodyFwd.set(0, 0, 1).applyQuaternion(gazeSceneQuat).normalize();
-        gazeToCam.copy(camera.position).sub(gazeHeadPos).normalize();
-        eccentricityDeg = Math.acos(clampUnit(gazeToCam.dot(gazeBodyFwd))) * RAD2DEG;
-        // Residual from the posed head's forward to the camera, in head-local axes
-        // (matches applyYawPitch's euler(pitch·X, yaw·Y, YXZ): yaw=atan2(x,z), pitch=-asin(y)).
-        gazeHeadQuatInv.copy(gazeHeadQuat).invert();
-        gazeLocalDir.copy(gazeToCam).applyQuaternion(gazeHeadQuatInv);
-        residualYawDeg = Math.atan2(gazeLocalDir.x, gazeLocalDir.z) * RAD2DEG;
-        residualPitchDeg = -Math.asin(clampUnit(gazeLocalDir.y)) * RAD2DEG;
-      } catch (err) {
-        log.error("step_gaze_read", { error: String(err) });
-      }
-    }
-
-    const adv = advanceGaze(
-      gazeState,
-      { enabled: trackable, residualYawDeg, residualPitchDeg, eccentricityDeg },
-      gazeConfig,
-      dt,
-    );
-    gazeState = adv.state;
-    gazeConverging = adv.converging;
-    if (!adv.active) return; // settled at neutral — leave the motion/eyes untouched.
-
-    try {
-      const hasNeck = gazeNeckBone !== null;
-      const yawSplit = splitHeadNeck(gazeState.headYaw, gazeConfig.headNeckSplit, hasNeck);
-      const pitchSplit = splitHeadNeck(gazeState.headPitch, gazeConfig.headNeckSplit, hasNeck);
-      if (gazeNeckBone) {
-        gazeDeltaEuler.set(pitchSplit.neck * DEG2RAD, yawSplit.neck * DEG2RAD, 0, "YXZ");
-        gazeNeckBone.quaternion.multiply(gazeDeltaQuat.setFromEuler(gazeDeltaEuler));
-      }
-      if (gazeHeadBone) {
-        gazeDeltaEuler.set(pitchSplit.head * DEG2RAD, yawSplit.head * DEG2RAD, 0, "YXZ");
-        gazeHeadBone.quaternion.multiply(gazeDeltaQuat.setFromEuler(gazeDeltaEuler));
-      }
-      // Eyes — applied inside vrm.update (after the head nudge is copied to raw bones).
-      if (gazeLookAtReady && currentVrm.lookAt) {
-        currentVrm.lookAt.yaw = gazeState.eyeYaw;
-        currentVrm.lookAt.pitch = gazeState.eyePitch;
-      }
-    } catch (err) {
-      log.error("step_gaze_apply", { error: String(err) });
-    }
-  }
-
   // VRM 메타에서 표시 이름을 읽는다 — VRM1.0은 meta.name, VRM0.0은 meta.title. 둘 다 없으면 null.
   function readVrmMetaName(vrm: VRM): string | null {
     const meta = vrm.meta as { name?: unknown; title?: unknown } | undefined;
@@ -1114,12 +781,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     perchHipsBone = vrm.humanoid?.getNormalizedBoneNode("hips") ?? null;
 
     // Cache head/neck for the per-frame gaze nudge; claim lookAt for eye control.
-    gazeHeadBone = vrm.humanoid?.getNormalizedBoneNode("head") ?? null;
-    gazeNeckBone = vrm.humanoid?.getNormalizedBoneNode("neck") ?? null;
-    gazeState = { ...NEUTRAL_GAZE };
-    gazeConverging = false;
-    gazeLookAtReady = vrm.lookAt != null;
-    if (vrm.lookAt) vrm.lookAt.autoUpdate = false; // we drive yaw/pitch ourselves each frame.
+    gaze.onVrmLoaded(vrm);
 
     // Full-body fit-to-bounds: measure in rest pose, before idle animates the arms.
     vrm.scene.updateWorldMatrix(true, true);
@@ -1140,7 +802,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
 
     // emotion: 존재 집합은 모델별이라 핫스왑마다 술어/resolver 재생성.
-    if (emotionRegistry) recomputeHasExpression();
+    emotion.onVrmLoaded();
 
     // 새 VRM 전용 mixer (clip은 VRM-specific이므로 함께 새로 시작).
     mixer = new THREE.AnimationMixer(vrm.scene);
@@ -1181,67 +843,18 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (currentVrm && mixer) playIdleBaseline();
   }
 
-  /** setEmotion 구현 — resolve → 현재 blend에서 retarget → 크로스페이드 시작. */
-  function setEmotion(emotion: EmotionSignal | null): void {
-    // "emotion 없으면 직전 표정 유지" — null은 NO-OP.
-    // 오직 명시적 {id:"neutral"}만 neutral로 전이한다.
-    if (emotion === null) return;
-
-    if (!emotionResolver || !emotionRegistry) {
-      log.warn("set_emotion_no_registry");
-      return;
-    }
-    if (!currentVrm) return;
-
-    try {
-      const resolved: ResolvedEmotion = emotionResolver.resolve(emotion);
-      const now = elapsed * 1000;
-
-      let prevKey: string | null = null;
-      let prevWeightAtStart = 0;
-
-      if (emotionXfade) {
-        if (emotionXfade.targetKey !== resolved.vrm_expression) {
-          // 진행 중 다른 target → 현재 blend된 target weight를 새 prev로(중간 retarget pop 방지).
-          prevKey = emotionXfade.targetKey;
-          prevWeightAtStart = emotionXfade.curTargetW;
-        } else {
-          // 같은 키 → prev 페이드는 그대로 이어가고 target weight/duration만 갱신.
-          prevKey = emotionXfade.prevKey;
-          prevWeightAtStart = emotionXfade.curPrevW;
-        }
-      }
-
-      const startTargetW =
-        emotionXfade && emotionXfade.targetKey === resolved.vrm_expression
-          ? emotionXfade.curTargetW
-          : 0;
-
-      emotionXfade = {
-        prevKey,
-        prevWeightAtStart,
-        targetKey: resolved.vrm_expression,
-        targetWeight: resolved.intensity,
-        startTargetW,
-        startMs: now,
-        durationMs: resolved.transition_ms,
-        curPrevW: prevWeightAtStart,
-        curTargetW: startTargetW,
-      };
-    } catch (err) {
-      log.error("set_emotion", { error: String(err) });
-    }
+  /** setEmotion — emotion crossfade로 위임 (routeDirective에 넘길 안정 참조). */
+  function setEmotion(signal: EmotionSignal | null): void {
+    emotion.setEmotion(signal);
   }
 
   /** 직전 emotion을 명시적 neutral 전이로 천천히 되돌린다 (TTS 재생 종료 시). */
   function easeEmotionToNeutral(durationMs?: number): void {
-    revertEmotionToNeutral(durationMs, { setEmotion });
+    emotion.easeToNeutral(durationMs);
   }
 
   function setEmotionRegistry(registry: EmotionRegistry): void {
-    emotionRegistry = registry;
-    // 현재 VRM 기준 존재 술어 재계산 + resolver 재생성.
-    recomputeHasExpression();
+    emotion.setRegistry(registry);
   }
 
   /** setFraming 구현 — 주어진 키만 merge(생략 키 기본값 유지) 후 재fit. */
@@ -1313,21 +926,10 @@ export function createRenderer(options: RendererOptions): Renderer {
       return projectFeetAnchor(modelBox, camera, mount.clientWidth || 1, mount.clientHeight || 1);
     },
     hitTest(x, y) {
-      if (!alphaGrab || alphaGrabW === 0 || alphaGrabH === 0) return false;
-      const cell = cssToGrabCell(
-        x,
-        y,
-        mount.clientWidth || 1,
-        mount.clientHeight || 1,
-        alphaGrabW,
-        alphaGrabH,
-      );
-      const threshold255 = Math.round(alphaThreshold * 255);
-      return sampleAlphaHit(alphaGrab, alphaGrabW, alphaGrabH, cell.col, cell.row, threshold255);
+      return alphaHitTest.hitTest(x, y);
     },
     setHitTestThreshold(threshold) {
-      if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 1) return;
-      alphaThreshold = threshold;
+      alphaHitTest.setThreshold(threshold);
     },
     getPerchProbe() {
       if (!currentVrm) return null;
@@ -1397,21 +999,20 @@ export function createRenderer(options: RendererOptions): Renderer {
       return idleThrottleEnabled;
     },
     setGaze(next) {
-      gazeConfig = mergeGaze(gazeConfig, next);
+      gaze.setConfig(next);
     },
     setGazeEnabled(enabled) {
-      gazeEnabled = enabled;
+      gaze.setEnabled(enabled);
     },
     getGazeEnabled() {
-      return gazeEnabled;
+      return gaze.getEnabled();
     },
     dispose() {
       cancelAnimationFrame(rafId);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       ro.disconnect();
       disposeCurrent();
-      alphaTarget?.dispose();
-      alphaTarget = null;
+      alphaHitTest.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     },
