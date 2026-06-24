@@ -13,6 +13,7 @@ import {
   REASONING_EFFORTS,
   type ReasoningEffort,
 } from "../io/agent-settings";
+import type { ApiKeySettingsStore } from "../io/api-key-settings";
 import { resolveAssetUrl } from "../io/asset-url";
 import type { ChatKeySettingsStore } from "../io/chat-key-settings";
 import {
@@ -100,6 +101,10 @@ interface QuickControlsOptions {
   endpointsSettings: EndpointsSettingsStore;
   /** chat API 키 오버라이드 store. 빈 값=build-time 키 사용. 값은 시크릿 — 로깅 금지. */
   chatKeySettings: ChatKeySettingsStore;
+  /** STT API 키 오버라이드 store. chat 키와 동일 패턴. 값은 시크릿 — 로깅 금지. */
+  sttKeySettings: ApiKeySettingsStore;
+  /** TTS(openai 호환) API 키 오버라이드 store. 값은 시크릿 — 로깅 금지. */
+  ttsKeySettings: ApiKeySettingsStore;
   /** placeholder로 보여줄 bundled config 기본 엔드포인트(미로드 시 undefined). */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** 오버라이드가 없을 때 음성 엔진 세그가 반영할 bundled config 기본 provider(미로드 시 undefined). */
@@ -150,6 +155,7 @@ const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = [
   { key: "irodori_base_url", labelKey: "endpoints.irodori_base_url.label", url: true },
   { key: "broker_base_url", labelKey: "endpoints.broker_base_url.label", url: true },
   { key: "chat_model", labelKey: "endpoints.chat_model.label", url: false },
+  { key: "tts_voice", labelKey: "endpoints.tts_voice.label", url: false },
 ];
 
 // 눈 아이콘(보임/숨김). 라인 아이콘 스타일을 다른 아이콘 버튼과 맞춘다.
@@ -157,7 +163,6 @@ const CHATKEY_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"
 const CHATKEY_EYE_OFF_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9.6 5.9A9.6 9.6 0 0 1 12 5.5C18 5.5 21.5 12 21.5 12a16 16 0 0 1-2.7 3.3M6.3 7.7A16 16 0 0 0 2.5 12S6 18.5 12 18.5a9.3 9.3 0 0 0 2.7-.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.7 9.8a2.6 2.6 0 0 0 3.6 3.7" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
 const CHATKEY_CLEAR_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
 
-// 음성 엔진 세그먼트(2칸) — tts_provider 오버라이드를 구동. 효과적 provider를 반영한다.
 const VOICE_ENGINES = ["irodori", "openai"] as const;
 type VoiceEngine = (typeof VOICE_ENGINES)[number];
 // voice engine → i18n key for its segment label.
@@ -232,6 +237,8 @@ export function createQuickControls({
   getDefaultInstructions,
   endpointsSettings,
   chatKeySettings,
+  sttKeySettings,
+  ttsKeySettings,
   getEndpointDefaults,
   getDefaultProvider,
   sessionDiagnostics,
@@ -259,10 +266,31 @@ export function createQuickControls({
       `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${t(SEG_LABEL_KEYS[e])}</button>`,
   ).join("");
 
-  const voiceEngineButtonsHtml = VOICE_ENGINES.map(
-    (p) =>
-      `<button class="yui-seg__btn" type="button" role="radio" data-provider="${p}" aria-checked="false" tabindex="-1">${t(VOICE_ENGINE_LABEL_KEYS[p])}</button>`,
+  // TTS 엔진 드롭다운(yui-select) 옵션 — irodori/openai. value=provider로 effectiveProvider 반영.
+  const ttsTypeOptionsHtml = VOICE_ENGINES.map(
+    (p) => `<option value="${p}">${t(VOICE_ENGINE_LABEL_KEYS[p])}</option>`,
   ).join("");
+
+  // 화자 피커 마크업 — 캐릭터 탭에서 TTS·irodori 서브뷰로 이동. 노드는 el 루트 querySelector로
+  // 해석되므로 위치만 바뀔 뿐 화자 JS는 그대로 유효하다. openai 안내 hint도 함께 둔다.
+  const speakerPickerHtml = `
+        <p class="yui-spks-hint" role="status" hidden>${t("speaker.openai_hint")}</p>
+        <div class="yui-spk-scroll">
+          <div class="yui-spks" role="radiogroup" aria-label="${t("speaker.group_aria")}"></div>
+        </div>
+        <div class="yui-spk-foot">
+          <button class="yui-spk yui-spk--add is-ready" type="button">
+            <span class="yui-spk__tick" aria-hidden="true"></span>
+            <span class="yui-spk__body"><span class="yui-spk__name">${t("speaker.add")}</span></span>
+          </button>
+          <p class="yui-spk__import-error" role="status" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
+            <span>${t("speaker.import_error")}</span>
+          </p>
+        </div>`;
 
   // 언어 피커 세그(3칸) — 표시 언어 전환. 호스트가 i18n.subscribe로 재마운트한다.
   const langButtonsHtml = LANG_PICKER_ORDER.map(
@@ -270,25 +298,42 @@ export function createQuickControls({
       `<button class="yui-seg__btn" type="button" role="radio" data-locale="${l}" aria-checked="false" tabindex="-1">${LOCALE_DISPLAY_NAMES[l]}</button>`,
   ).join("");
 
-  // 엔드포인트 필드 행. 라벨/placeholder/value는 빈 채로 두고 reflectEndpoints가 채운다.
+  // 엔드포인트 필드 행 하나. 라벨/placeholder/value는 빈 채로 두고 reflectEndpoints가 채운다.
   // type="text"로 두고 검증 메시지를 직접 제어한다(브라우저 기본 URL 검증 회피).
-  const endpointRowsHtml = ENDPOINT_FIELDS.map(({ key, labelKey, url }) => {
+  function endpointRowHtml(key: keyof EndpointOverrides): string {
+    const def = ENDPOINT_FIELDS.find((f) => f.key === key)!;
     const errId = `yui-ep-err-${key}`;
-    const urlClass = url ? " yui-ep-input--url" : "";
-    const errHtml = url
+    const urlClass = def.url ? " yui-ep-input--url" : "";
+    const errHtml = def.url
       ? `<p class="yui-input-row__error" id="${errId}" role="status">${t("endpoints.url_error")}</p>`
       : "";
     return `
           <div class="yui-input-row" data-ep-field="${key}">
-            <label class="yui-input-row__label" for="yui-ep-${key}">${t(labelKey)}</label>
+            <label class="yui-input-row__label" for="yui-ep-${key}">${t(def.labelKey)}</label>
             <span class="yui-input-row__sub">${t("endpoints.field_sub")}</span>
             <div class="yui-input-wrap">
               <input class="yui-ep-input${urlClass}" id="yui-ep-${key}" type="text" spellcheck="false"
-                inputmode="${url ? "url" : "text"}" autocapitalize="off" autocomplete="off" />
+                inputmode="${def.url ? "url" : "text"}" autocapitalize="off" autocomplete="off" />
             </div>
             ${errHtml}
           </div>`;
-  }).join("");
+  }
+
+  // 서비스별 API 키 행 하나(시크릿). idPrefix/i18nPrefix로 chat/stt/tts를 한 틀에서 찍는다.
+  // input은 항상 type="password" — 토글로만 평문 노출. value/sublabel은 reflect가 채운다.
+  function keyRowHtml(idPrefix: string, i18nPrefix: string): string {
+    return `
+          <div class="yui-input-row yui-chatkey" data-key-prefix="${idPrefix}">
+            <label class="yui-input-row__label" for="yui-${idPrefix}-input">${t(`${i18nPrefix}.label`)}</label>
+            <span class="yui-input-row__sub"></span>
+            <div class="yui-input-wrap yui-chatkey__wrap">
+              <input class="yui-ep-input yui-chatkey__input" id="yui-${idPrefix}-input" type="password"
+                autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="${t(`${i18nPrefix}.label`)}" />
+              <button class="yui-iconbtn yui-chatkey__toggle" type="button" aria-pressed="false" aria-label="${t(`${i18nPrefix}.show`)}" title="${t(`${i18nPrefix}.show`)}">${CHATKEY_EYE_SVG}</button>
+              <button class="yui-iconbtn yui-chatkey__clear" type="button" aria-label="${t(`${i18nPrefix}.clear`)}" title="${t(`${i18nPrefix}.clear`)}">${CHATKEY_CLEAR_SVG}</button>
+            </div>
+          </div>`;
+  }
 
   // 세션 섹션(window 전용). 토큰 점유량 표시 + 대화 초기화 액션. reset은 펫 창 thunk가 race-safe.
   const sessionHtml = hasSession
@@ -442,35 +487,6 @@ export function createQuickControls({
 
         <div class="yui-quick__divider" aria-hidden="true"></div>
 
-        <span class="yui-quick__section">${t("speaker.section")}</span>
-        <div class="yui-field-row">
-          <span class="yui-field-row__label">${t("speaker.engine_label")}</span>
-          <span class="yui-field-row__sub">${t("speaker.engine_sub")}</span>
-          <div class="yui-seg yui-seg--2" role="radiogroup" aria-label="${t("speaker.engine_aria")}" style="--seg:0;">
-            <span class="yui-seg__ind" aria-hidden="true"></span>
-            ${voiceEngineButtonsHtml}
-          </div>
-        </div>
-        <p class="yui-spks-hint" role="status" hidden>${t("speaker.openai_hint")}</p>
-        <div class="yui-spk-scroll">
-          <div class="yui-spks" role="radiogroup" aria-label="${t("speaker.group_aria")}"></div>
-        </div>
-        <div class="yui-spk-foot">
-          <button class="yui-spk yui-spk--add is-ready" type="button">
-            <span class="yui-spk__tick" aria-hidden="true"></span>
-            <span class="yui-spk__body"><span class="yui-spk__name">${t("speaker.add")}</span></span>
-          </button>
-          <p class="yui-spk__import-error" role="status" hidden>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 8v4M12 16h.01" />
-            </svg>
-            <span>${t("speaker.import_error")}</span>
-          </p>
-        </div>
-
-        <div class="yui-quick__divider" aria-hidden="true"></div>
-
         <span class="yui-quick__section">${t("expression.section")}</span>
         <div class="yui-gain">
           <div class="yui-gain__head">
@@ -549,30 +565,65 @@ export function createQuickControls({
       </div>
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-adv" aria-labelledby="yui-tab-adv" tabindex="0" hidden>
-        <span class="yui-quick__section">${t("endpoints.section")}</span>
-        <details class="yui-endpoints">
-          <summary>
-            <span>${t("endpoints.section")}</span>
-            <span class="yui-endpoints__hint">${t("endpoints.summary_hint")}</span>
-          </summary>
+
+        <details class="yui-endpoints yui-svc" data-svc="chat">
+          <summary><span class="svc-name">${t("svc.chat")}</span><span class="yui-endpoints__hint">${t("svc.chat_hint")}</span></summary>
           <div class="yui-endpoints__body">
-            ${endpointRowsHtml}
-            <button class="yui-reset yui-endpoints__reset yui-ep-reset" type="button">${t("endpoints.reset")}</button>
+            <div class="yui-input-row">
+              <label class="yui-input-row__label" for="yui-svc-chat-type">${t("svc.type_label")}</label>
+              <select class="yui-select yui-select--single" id="yui-svc-chat-type" disabled><option>${t("svc.chat_type")}</option></select>
+            </div>
+            ${endpointRowHtml("chat_base_url")}
+            ${endpointRowHtml("chat_model")}
+            ${keyRowHtml("chatkey", "chatkey")}
+            <button class="yui-reset yui-svc-reset" type="button" data-svc-reset="chat">${t("svc.reset_chat")}</button>
           </div>
         </details>
 
-        <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">${t("chatkey.section")}</span>
-        <div class="yui-input-row yui-chatkey">
-          <label class="yui-input-row__label" for="yui-chatkey-input">${t("chatkey.label")}</label>
-          <span class="yui-input-row__sub"></span>
-          <div class="yui-input-wrap yui-chatkey__wrap">
-            <input class="yui-ep-input yui-chatkey__input" id="yui-chatkey-input" type="password"
-              autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="${t("chatkey.label")}" />
-            <button class="yui-iconbtn yui-chatkey__toggle" type="button" aria-pressed="false" aria-label="${t("chatkey.show")}" title="${t("chatkey.show")}">${CHATKEY_EYE_SVG}</button>
-            <button class="yui-iconbtn yui-chatkey__clear" type="button" aria-label="${t("chatkey.clear")}" title="${t("chatkey.clear")}">${CHATKEY_CLEAR_SVG}</button>
+        <details class="yui-endpoints yui-svc" data-svc="stt">
+          <summary><span class="svc-name">${t("svc.stt")}</span><span class="yui-endpoints__hint">${t("svc.stt_hint")}</span></summary>
+          <div class="yui-endpoints__body">
+            <div class="yui-input-row">
+              <label class="yui-input-row__label" for="yui-svc-stt-type">${t("svc.type_label")}</label>
+              <select class="yui-select yui-select--single" id="yui-svc-stt-type" disabled><option>${t("svc.stt_type")}</option></select>
+            </div>
+            ${endpointRowHtml("stt_base_url")}
+            ${keyRowHtml("sttkey", "sttkey")}
+            <button class="yui-reset yui-svc-reset" type="button" data-svc-reset="stt">${t("svc.reset_stt")}</button>
           </div>
-        </div>
+        </details>
+
+        <details class="yui-endpoints yui-svc" data-svc="tts">
+          <summary><span class="svc-name">${t("svc.tts")}</span><span class="yui-endpoints__hint yui-tts-summary-hint"></span></summary>
+          <div class="yui-endpoints__body">
+            <div class="yui-input-row">
+              <label class="yui-input-row__label" for="yui-svc-tts-type">${t("svc.type_label")}</label>
+              <select class="yui-select yui-tts-type" id="yui-svc-tts-type" aria-label="${t("svc.tts_aria")}">${ttsTypeOptionsHtml}</select>
+            </div>
+            <div class="yui-tts-irodori" hidden>
+              ${endpointRowHtml("irodori_base_url")}
+              ${speakerPickerHtml}
+            </div>
+            <div class="yui-tts-openai" hidden>
+              ${endpointRowHtml("tts_base_url")}
+              ${endpointRowHtml("tts_voice")}
+              ${keyRowHtml("ttskey", "ttskey")}
+            </div>
+            <button class="yui-reset yui-svc-reset" type="button" data-svc-reset="tts">${t("svc.reset_tts")}</button>
+          </div>
+        </details>
+
+        <details class="yui-endpoints yui-svc" data-svc="broker">
+          <summary><span class="svc-name">${t("svc.broker")}</span><span class="yui-endpoints__hint">${t("svc.broker_hint")}</span></summary>
+          <div class="yui-endpoints__body">
+            <div class="yui-input-row">
+              <label class="yui-input-row__label" for="yui-svc-broker-type">${t("svc.type_label")}</label>
+              <select class="yui-select yui-select--single" id="yui-svc-broker-type" disabled><option>${t("svc.broker_type")}</option></select>
+            </div>
+            ${endpointRowHtml("broker_base_url")}
+            <button class="yui-reset yui-svc-reset" type="button" data-svc-reset="broker">${t("svc.reset_broker")}</button>
+          </div>
+        </details>
 
         <div class="yui-quick__divider" aria-hidden="true"></div>
         <span class="yui-quick__section">${t("perf.section")}</span>
@@ -610,13 +661,13 @@ export function createQuickControls({
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
   const popOutBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
-  const segEl = el.querySelector<HTMLDivElement>(".yui-field-row .yui-seg:not(.yui-seg--2)")!;
+  const segEl = el.querySelector<HTMLDivElement>(".yui-field-row .yui-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-  // 음성 엔진 세그(2칸) + 화자 비활성 노드(캐릭터 탭).
-  const voiceSegEl = el.querySelector<HTMLDivElement>(".yui-seg--2")!;
-  const voiceSegButtons = Array.from(
-    voiceSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"),
-  );
+  // TTS 엔진 드롭다운 + irodori/openai 서브뷰 컨테이너(고급 탭). 화자 비활성 노드는 그대로.
+  const ttsTypeEl = el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
+  const ttsIrodoriEl = el.querySelector<HTMLDivElement>(".yui-tts-irodori")!;
+  const ttsOpenaiEl = el.querySelector<HTMLDivElement>(".yui-tts-openai")!;
+  const ttsSummaryHintEl = el.querySelector<HTMLSpanElement>(".yui-tts-summary-hint")!;
   const spkScrollEl = el.querySelector<HTMLDivElement>(".yui-spk-scroll")!;
   const spkFootEl = el.querySelector<HTMLDivElement>(".yui-spk-foot")!;
   const spksHintEl = el.querySelector<HTMLParagraphElement>(".yui-spks-hint")!;
@@ -637,19 +688,97 @@ export function createQuickControls({
   // 언어 피커 세그(3칸) 노드.
   const langSegEl = el.querySelector<HTMLDivElement>(".yui-lang-seg")!;
   const langSegButtons = Array.from(langSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-  const epResetBtn = el.querySelector<HTMLButtonElement>(".yui-ep-reset")!;
   // 엔드포인트 입력 — 필드 key별 input 노드 맵.
   const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
   for (const { key } of ENDPOINT_FIELDS) {
     epInputs.set(key, el.querySelector<HTMLInputElement>(`#yui-ep-${key}`)!);
   }
-  // chat API 키 — 값은 시크릿이므로 input.value에만 살고, sublabel/aria는 상태만 노출한다.
-  const chatKeyInput = el.querySelector<HTMLInputElement>(".yui-chatkey__input")!;
-  const chatKeySubEl = el.querySelector<HTMLSpanElement>(".yui-chatkey .yui-input-row__sub")!;
-  const chatKeyToggleBtn = el.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
-  const chatKeyClearBtn = el.querySelector<HTMLButtonElement>(".yui-chatkey__clear")!;
-  // 사용자가 입력한 뒤 아직 commit하지 않았는지 — blur 때 typed 값이 원격 변경보다 우선한다.
-  let chatKeyDirty = false;
+  // per-section reset 버튼 — data-svc-reset 별 노드 맵.
+  const svcResetBtns = new Map<string, HTMLButtonElement>();
+  for (const btn of el.querySelectorAll<HTMLButtonElement>(".yui-svc-reset")) {
+    svcResetBtns.set(btn.dataset.svcReset ?? "", btn);
+  }
+
+  // ── 서비스별 API 키 행(시크릿) — chat/stt/tts를 한 팩토리로 찍는다 ──
+  // 값은 시크릿이므로 input.value에만 살고, sublabel/aria는 상태만 노출한다.
+  // 타이핑은 store에 commit하지 않는다(중간 prefix가 라이브 키가 되는 걸 막음). blur·close·dispose에 한 번 commit.
+  interface KeyRow {
+    reflect(): void;
+    commitIfDirty(): void;
+    subscribe(): () => void;
+    addListeners(): void;
+    removeListeners(): void;
+  }
+  function createKeyRow(idPrefix: string, i18nPrefix: string, store: ApiKeySettingsStore): KeyRow {
+    const row = el.querySelector<HTMLDivElement>(`.yui-input-row[data-key-prefix="${idPrefix}"]`)!;
+    const input = row.querySelector<HTMLInputElement>(".yui-chatkey__input")!;
+    const subEl = row.querySelector<HTMLSpanElement>(".yui-input-row__sub")!;
+    const toggleBtn = row.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
+    const clearBtn = row.querySelector<HTMLButtonElement>(".yui-chatkey__clear")!;
+    let dirty = false;
+
+    function reflect(): void {
+      const key = store.get().apiKey;
+      if (document.activeElement !== input && input.value !== key) {
+        input.value = key;
+        dirty = false;
+      }
+      subEl.textContent = key ? t(`${i18nPrefix}.sub_override`) : t(`${i18nPrefix}.sub_default`);
+    }
+    function commitIfDirty(): void {
+      if (!dirty) return;
+      dirty = false;
+      const v = input.value;
+      if (v) store.setApiKey(v);
+      else store.clear();
+    }
+    function handleInput(): void {
+      dirty = true;
+    }
+    function handleBlur(): void {
+      commitIfDirty();
+      reflect();
+    }
+    function handleToggle(): void {
+      const show = toggleBtn.getAttribute("aria-pressed") !== "true";
+      toggleBtn.setAttribute("aria-pressed", String(show));
+      input.type = show ? "text" : "password";
+      toggleBtn.innerHTML = show ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG;
+      const label = show ? t(`${i18nPrefix}.hide`) : t(`${i18nPrefix}.show`);
+      toggleBtn.setAttribute("aria-label", label);
+      toggleBtn.title = label;
+    }
+    function handleClear(): void {
+      dirty = false;
+      input.value = "";
+      store.clear();
+      log.info(`${idPrefix}_clear`);
+    }
+    return {
+      reflect,
+      commitIfDirty,
+      subscribe: () =>
+        store.subscribe(() => {
+          if (openState) reflect();
+        }),
+      addListeners() {
+        input.addEventListener("input", handleInput);
+        input.addEventListener("blur", handleBlur);
+        toggleBtn.addEventListener("click", handleToggle);
+        clearBtn.addEventListener("click", handleClear);
+      },
+      removeListeners() {
+        input.removeEventListener("input", handleInput);
+        input.removeEventListener("blur", handleBlur);
+        toggleBtn.removeEventListener("click", handleToggle);
+        clearBtn.removeEventListener("click", handleClear);
+      },
+    };
+  }
+  const chatKeyRow = createKeyRow("chatkey", "chatkey", chatKeySettings);
+  const sttKeyRow = createKeyRow("sttkey", "sttkey", sttKeySettings);
+  const ttsKeyRow = createKeyRow("ttskey", "ttskey", ttsKeySettings);
+  const keyRows = [chatKeyRow, sttKeyRow, ttsKeyRow];
 
   // 세션 섹션 노드(window 전용 — 없으면 null).
   const sessionStatEl = el.querySelector<HTMLDivElement>(".yui-session__stat");
@@ -784,18 +913,15 @@ export function createQuickControls({
     return def === "openai" ? "openai" : "irodori";
   }
 
-  // 음성 엔진 세그 + 화자 목록 활성/비활성을 효과적 provider에 맞춰 그린다.
+  // TTS 드롭다운 값 + irodori/openai 서브뷰 표시 + 화자 활성/비활성을 효과적 provider에 맞춰 그린다.
   function reflectVoiceEngine(): void {
     const eff = effectiveProvider();
-    const idx = VOICE_ENGINES.indexOf(eff);
-    voiceSegButtons.forEach((btn, i) => {
-      const selected = i === idx;
-      btn.setAttribute("aria-checked", String(selected));
-      btn.tabIndex = selected ? 0 : -1;
-    });
-    voiceSegEl.style.setProperty("--seg", String(Math.max(0, idx)));
-    // openai는 서버 voice로 말하므로 화자 선택을 비활성 + 안내한다.
+    if (ttsTypeEl.value !== eff) ttsTypeEl.value = eff;
     const openai = eff === "openai";
+    ttsIrodoriEl.hidden = openai;
+    ttsOpenaiEl.hidden = !openai;
+    ttsSummaryHintEl.textContent = t(VOICE_ENGINE_LABEL_KEYS[eff]);
+    // openai는 서버 voice로 말하므로 화자 선택을 비활성 + 안내한다(화자는 irodori 서브뷰 안).
     spkScrollEl.classList.toggle("is-disabled", openai);
     spkFootEl.classList.toggle("is-disabled", openai);
     spksHintEl.hidden = !openai;
@@ -826,15 +952,9 @@ export function createQuickControls({
     }
   }
 
-  // chat API 키 필드를 store에서 그린다. 값은 시크릿 — input.value에만 두고 로깅하지 않는다.
-  // 입력 중인 칸은 덮어쓰지 않는다(원격 변경은 blur 시 적용). 빈 값=기본값 사용 중을 sublabel로 안내.
-  function reflectChatKey(): void {
-    const key = chatKeySettings.get().apiKey;
-    if (document.activeElement !== chatKeyInput && chatKeyInput.value !== key) {
-      chatKeyInput.value = key;
-      chatKeyDirty = false;
-    }
-    chatKeySubEl.textContent = key ? t("chatkey.sub_override") : t("chatkey.sub_default");
+  // 서비스별 키 행을 모두 store에서 그린다(chat/stt/tts). 값은 시크릿 — 로깅하지 않는다.
+  function reflectKeyRows(): void {
+    for (const r of keyRows) r.reflect();
   }
 
   // 세션 진단 readout을 store에서 그린다. contextWindow가 null이면 막대·퍼센트 없이 사용량만.
@@ -1800,7 +1920,7 @@ export function createQuickControls({
     reflectFiller();
     reflectLanguage();
     reflectEndpoints();
-    reflectChatKey();
+    reflectKeyRows();
     reflectVoiceEngine();
     reflectSession();
     renderVrms();
@@ -1831,7 +1951,7 @@ export function createQuickControls({
       gainPreviewing = false;
     }
     stopAudition();
-    commitChatKeyIfDirty();
+    for (const r of keyRows) r.commitIfDirty();
     openState = false;
 
     if (isWindow) {
@@ -2010,39 +2130,14 @@ export function createQuickControls({
     }
   }
 
-  // ── 캐릭터 섹션: 음성 엔진(tts_provider) 세그먼트 ──
-
-  function selectVoiceEngine(index: number, focus = false): void {
-    const clamped = Math.min(VOICE_ENGINES.length - 1, Math.max(0, index));
-    const provider = VOICE_ENGINES[clamped];
+  // ── 고급 섹션: TTS 엔진 드롭다운(tts_provider) ──
+  // native select가 키보드를 소유한다 — change 이벤트로만 store에 쓴다.
+  function handleTtsTypeChange(): void {
+    const provider = ttsTypeEl.value;
+    if (provider !== "irodori" && provider !== "openai") return;
     endpointsSettings.set({ tts_provider: provider });
     log.info("voice_engine_change", { provider });
-    // store 구독(unsubscribeEndpoints)이 reflectVoiceEngine으로 시각/aria/화자 비활성을 갱신한다.
-    if (focus) voiceSegButtons[clamped]?.focus();
-  }
-
-  function handleVoiceSegClick(e: MouseEvent): void {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
-    if (!btn) return;
-    selectVoiceEngine(voiceSegButtons.indexOf(btn));
-  }
-
-  function handleVoiceSegKeydown(e: KeyboardEvent): void {
-    const current = voiceSegButtons.findIndex((b) => b.getAttribute("aria-checked") === "true");
-    const base = current < 0 ? 0 : current;
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      e.preventDefault();
-      selectVoiceEngine(base + 1, true);
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      e.preventDefault();
-      selectVoiceEngine(base - 1, true);
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      selectVoiceEngine(0, true);
-    } else if (e.key === "End") {
-      e.preventDefault();
-      selectVoiceEngine(VOICE_ENGINES.length - 1, true);
-    }
+    // store 구독(unsubscribeEndpoints)이 reflectVoiceEngine으로 값/서브뷰/화자 비활성을 갱신한다.
   }
 
   // ── 대화 섹션: 지침 textarea ──
@@ -2080,55 +2175,35 @@ export function createQuickControls({
     reflectEndpoints();
   }
 
-  function handleResetEndpoints(): void {
-    endpointsSettings.reset();
-    for (const { key } of ENDPOINT_FIELDS) {
+  // ── 서비스별 초기화(per-section reset) ──
+  // 각 섹션이 비우는 엔드포인트 필드 + 키 store. URL/모델은 ""로, 키는 .clear()로 되돌린다.
+  const SVC_RESET_FIELDS: Record<string, (keyof EndpointOverrides)[]> = {
+    chat: ["chat_base_url", "chat_model"],
+    stt: ["stt_base_url"],
+    tts: ["irodori_base_url", "tts_base_url", "tts_voice"],
+    broker: ["broker_base_url"],
+  };
+  const SVC_RESET_KEY: Record<string, ApiKeySettingsStore | undefined> = {
+    chat: chatKeySettings,
+    stt: sttKeySettings,
+    tts: ttsKeySettings,
+    broker: undefined,
+  };
+
+  function handleSvcReset(svc: string): void {
+    const fields = SVC_RESET_FIELDS[svc];
+    if (!fields) return;
+    const patch: Partial<EndpointOverrides> = {};
+    for (const key of fields) patch[key] = "";
+    if (svc === "tts") patch.tts_provider = "";
+    endpointsSettings.set(patch);
+    for (const key of fields) {
       const input = epInputs.get(key)!;
       input.value = "";
       validateEndpointInput(key, input);
     }
-    log.info("endpoints_reset");
-  }
-
-  // ── chat API 키 필드 ──
-  // 값은 시크릿 — 어떤 로그에도 키 자체를 남기지 않는다(상태 전이만 기록).
-
-  // 타이핑은 store에 commit하지 않는다 — 중간 prefix가 라이브 키가 되는 걸 막는다.
-  // blur 때 한 번만 반영한다. 사용자가 입력했는지만 추적(시크릿은 다루지 않음).
-  function handleChatKeyInput(): void {
-    chatKeyDirty = true;
-  }
-
-  // dirty 입력값을 한 번만 commit한다 — blur·close·dispose 공통.
-  function commitChatKeyIfDirty(): void {
-    if (!chatKeyDirty) return;
-    chatKeyDirty = false;
-    const v = chatKeyInput.value;
-    if (v) chatKeySettings.setApiKey(v);
-    else chatKeySettings.clear(); // 빈 값 = 오버라이드 없음
-  }
-
-  // blur 시점에 입력값을 commit한다. 입력하지 않았다면 원격 변경만 반영한다.
-  function handleChatKeyBlur(): void {
-    commitChatKeyIfDirty();
-    reflectChatKey();
-  }
-
-  function handleChatKeyToggle(): void {
-    const show = chatKeyToggleBtn.getAttribute("aria-pressed") !== "true";
-    chatKeyToggleBtn.setAttribute("aria-pressed", String(show));
-    chatKeyInput.type = show ? "text" : "password";
-    chatKeyToggleBtn.innerHTML = show ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG;
-    const label = show ? t("chatkey.hide") : t("chatkey.show");
-    chatKeyToggleBtn.setAttribute("aria-label", label);
-    chatKeyToggleBtn.title = label;
-  }
-
-  function handleChatKeyClear(): void {
-    chatKeyDirty = false;
-    chatKeyInput.value = "";
-    chatKeySettings.clear();
-    log.info("chat_api_key_clear");
+    SVC_RESET_KEY[svc]?.clear();
+    log.info("svc_reset", { svc });
   }
 
   // ── 세션 섹션: 새 대화 시작(reset) ──
@@ -2283,10 +2358,8 @@ export function createQuickControls({
       reflectVoiceEngine();
     }
   });
-  // chat 키 store 갱신(이 창 편집·다른 창 reloadFromStorage)을 필드에 반영. 값은 시크릿.
-  const unsubscribeChatKey = chatKeySettings.subscribe(() => {
-    if (openState) reflectChatKey();
-  });
+  // 키 store 갱신(이 창 편집·다른 창 reloadFromStorage)을 각 행에 반영. 값은 시크릿.
+  const unsubscribeKeyRows = keyRows.map((r) => r.subscribe());
   // 생각중 추임새 store 갱신을 섹션에 반영(다른 창 reloadFromStorage 포함).
   const unsubscribeFiller = fillerSettings?.subscribe(() => {
     if (openState) reflectFiller();
@@ -2327,8 +2400,7 @@ export function createQuickControls({
   tablistEl.addEventListener("keydown", handleTabKeydown);
   segEl.addEventListener("click", handleSegClick);
   segEl.addEventListener("keydown", handleSegKeydown);
-  voiceSegEl.addEventListener("click", handleVoiceSegClick);
-  voiceSegEl.addEventListener("keydown", handleVoiceSegKeydown);
+  ttsTypeEl.addEventListener("change", handleTtsTypeChange);
   vrmsEl.addEventListener("keydown", handleVrmKeydown);
   vrmAddBtn.addEventListener("click", handleVrmAddClick);
   spksEl.addEventListener("keydown", handleSpkKeydown);
@@ -2340,11 +2412,13 @@ export function createQuickControls({
     input.addEventListener("input", handleEndpointInput);
     input.addEventListener("blur", handleEndpointBlur);
   }
-  epResetBtn.addEventListener("click", handleResetEndpoints);
-  chatKeyInput.addEventListener("input", handleChatKeyInput);
-  chatKeyInput.addEventListener("blur", handleChatKeyBlur);
-  chatKeyToggleBtn.addEventListener("click", handleChatKeyToggle);
-  chatKeyClearBtn.addEventListener("click", handleChatKeyClear);
+  const svcResetListeners = new Map<HTMLButtonElement, () => void>();
+  for (const [svc, btn] of svcResetBtns) {
+    const handler = (): void => handleSvcReset(svc);
+    svcResetListeners.set(btn, handler);
+    btn.addEventListener("click", handler);
+  }
+  for (const r of keyRows) r.addListeners();
   sessionResetBtn?.addEventListener("click", showSessionConfirm);
   sessionConfirmBtn?.addEventListener("click", handleSessionReset);
   sessionCancelBtn?.addEventListener("click", hideSessionConfirm);
@@ -2356,7 +2430,7 @@ export function createQuickControls({
 
   function dispose(): void {
     disposed = true;
-    commitChatKeyIfDirty();
+    for (const r of keyRows) r.commitIfDirty();
     scheduleCueList?.destroy();
     proactiveCueList?.destroy();
     unsubscribe();
@@ -2367,7 +2441,7 @@ export function createQuickControls({
     unsubscribeVad();
     unsubscribeAgent();
     unsubscribeEndpoints();
-    unsubscribeChatKey();
+    for (const unsub of unsubscribeKeyRows) unsub();
     unsubscribeFiller?.();
     unsubscribeVrm();
     unsubscribeSpk();
@@ -2397,8 +2471,7 @@ export function createQuickControls({
     tablistEl.removeEventListener("keydown", handleTabKeydown);
     segEl.removeEventListener("click", handleSegClick);
     segEl.removeEventListener("keydown", handleSegKeydown);
-    voiceSegEl.removeEventListener("click", handleVoiceSegClick);
-    voiceSegEl.removeEventListener("keydown", handleVoiceSegKeydown);
+    ttsTypeEl.removeEventListener("change", handleTtsTypeChange);
     vrmsEl.removeEventListener("keydown", handleVrmKeydown);
     vrmAddBtn.removeEventListener("click", handleVrmAddClick);
     spksEl.removeEventListener("keydown", handleSpkKeydown);
@@ -2410,11 +2483,8 @@ export function createQuickControls({
       input.removeEventListener("input", handleEndpointInput);
       input.removeEventListener("blur", handleEndpointBlur);
     }
-    epResetBtn.removeEventListener("click", handleResetEndpoints);
-    chatKeyInput.removeEventListener("input", handleChatKeyInput);
-    chatKeyInput.removeEventListener("blur", handleChatKeyBlur);
-    chatKeyToggleBtn.removeEventListener("click", handleChatKeyToggle);
-    chatKeyClearBtn.removeEventListener("click", handleChatKeyClear);
+    for (const [btn, handler] of svcResetListeners) btn.removeEventListener("click", handler);
+    for (const r of keyRows) r.removeListeners();
     sessionResetBtn?.removeEventListener("click", showSessionConfirm);
     sessionConfirmBtn?.removeEventListener("click", handleSessionReset);
     sessionCancelBtn?.removeEventListener("click", hideSessionConfirm);

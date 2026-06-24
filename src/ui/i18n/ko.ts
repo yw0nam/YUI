@@ -196,6 +196,26 @@ const ko: Record<string, string> = {
   "endpoints.broker_base_url.label": "표현 브로커(Broker) URL",
   "endpoints.chat_model.label": "채팅 모델",
 
+  "endpoints.tts_voice.label": "TTS voice",
+
+  // per-service sections (advanced tab)
+  "svc.type_label": "유형",
+  "svc.chat": "채팅",
+  "svc.chat_hint": "Responses API",
+  "svc.chat_type": "Responses API",
+  "svc.stt": "STT",
+  "svc.stt_hint": "OpenAI 호환",
+  "svc.stt_type": "OpenAI 호환",
+  "svc.tts": "TTS",
+  "svc.tts_aria": "TTS 엔진",
+  "svc.broker": "Broker",
+  "svc.broker_hint": "MCP streamable-http",
+  "svc.broker_type": "MCP streamable-http",
+  "svc.reset_chat": "채팅 되돌리기",
+  "svc.reset_stt": "STT 되돌리기",
+  "svc.reset_tts": "TTS 되돌리기",
+  "svc.reset_broker": "Broker 되돌리기",
+
   // chat API key
   "chatkey.section": "채팅 API 키",
   "chatkey.label": "채팅 API 키",
@@ -204,6 +224,22 @@ const ko: Record<string, string> = {
   "chatkey.show": "키 보기",
   "chatkey.hide": "키 숨기기",
   "chatkey.clear": "키 지우기",
+
+  // STT API key
+  "sttkey.label": "STT API 키",
+  "sttkey.sub_default": "기본값 사용 중 — 비워두면 빌드 시 설정한 키를 써요",
+  "sttkey.sub_override": "이 기기에 저장됨 — 비우면 원래 키로 돌아가요",
+  "sttkey.show": "키 보기",
+  "sttkey.hide": "키 숨기기",
+  "sttkey.clear": "키 지우기",
+
+  // TTS API key
+  "ttskey.label": "TTS API 키",
+  "ttskey.sub_default": "기본값 사용 중 — 비워두면 빌드 시 설정한 키를 써요",
+  "ttskey.sub_override": "이 기기에 저장됨 — 비우면 원래 키로 돌아가요",
+  "ttskey.show": "키 보기",
+  "ttskey.hide": "키 숨기기",
+  "ttskey.clear": "키 지우기",
 
   // performance
   "perf.section": "성능",

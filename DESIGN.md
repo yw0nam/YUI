@@ -158,6 +158,9 @@ A low-emphasis pill (`surfaces.css`) shown while the backend runs a tool. Pill-s
 ### Settings row + switch
 A list row (`quick-controls.css`), 10px corners, 0.5rem padding, with a faint background tint on hover. The label pairs a ~0.95rem name with a ~0.74rem Muted-Ash sub-line. Its switch (2.5rem track) sits calm and grey when off and ignites to a full Hearth Amber track with the knob slid right when on (`aria-checked="true"`); focus shows an amber-soft ring.
 
+### Type dropdown (`yui-select`)
+A custom-styled `<select>` (`quick-controls.css`) used as the per-service type picker in the Advanced tab's collapsible sections. OS chrome is stripped (`appearance:none`) for a Strong-Scrim field with a hairline Edge border, `--yui-radius-input` corners, and an inline amber-free chevron data-URI; on `:focus-visible` it ignites to a Hearth Amber border plus an amber-soft ring (the same warmth moment as the text input). A `--single` variant for inert one-option sections drops the chevron, dims the text to Muted-Ash, and shows a default cursor — present for visual consistency, not interaction.
+
 ### Capture & voice indicators
 Paired status pills at the top edge (`capture-indicator.css`, `voice-input-indicator.css`). Same pill shape and scrim as the tool chip. The capture tell carries an amber pulse dot while the screen is being attached (an always-on privacy cue); the voice tell carries a dot that pulses amber while listening, turns green when a turn fires, and red on error.
 

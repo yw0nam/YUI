@@ -9,6 +9,7 @@
 import "./styles.css";
 import { createConfigStore } from "./config";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
+import { createSttKeySettings, createTtsKeySettings } from "./io/api-key-settings";
 import { resolveAssetUrl } from "./io/asset-url";
 import { selectFetch } from "./io/chat-client";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
@@ -78,6 +79,8 @@ async function bootstrap(): Promise<void> {
   // 런타임 chat API 키 store(같은 localStorage 키). 이 창엔 SecretProvider가 없고(디스패처 없음),
   // 필드 표시 + cross-window 동기화만 담당한다.
   const chatKeySettings = createChatKeySettings({ storage: localStorageChatKeyStorage() });
+  const sttKeySettings = createSttKeySettings();
+  const ttsKeySettings = createTtsKeySettings();
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
   // 세션 포인터 + 진단. 펫 창이 localStorage에 쓰면 storage 이벤트로 이 창이 재로드한다.
@@ -218,6 +221,8 @@ async function bootstrap(): Promise<void> {
       },
       endpointsSettings,
       chatKeySettings,
+      sttKeySettings,
+      ttsKeySettings,
       getEndpointDefaults: () => {
         if (!configLoaded) return undefined;
         try {
@@ -229,6 +234,7 @@ async function bootstrap(): Promise<void> {
             irodori_base_url: e.irodori_base_url ?? "",
             broker_base_url: e.broker_base_url ?? "",
             chat_model: e.chat_model ?? "",
+            tts_voice: e.tts_voice ?? "",
             tts_provider: e.tts_provider ?? "",
           };
         } catch {
@@ -268,6 +274,8 @@ async function bootstrap(): Promise<void> {
     agentSettings,
     endpointsSettings,
     chatKeySettings,
+    sttKeySettings,
+    ttsKeySettings,
     lipsyncSettings,
     vadSettings,
     fillerSettings,
@@ -317,6 +325,8 @@ async function bootstrap(): Promise<void> {
   agentSettings.subscribe(broadcastSettings);
   endpointsSettings.subscribe(broadcastSettings);
   chatKeySettings.subscribe(broadcastSettings);
+  sttKeySettings.subscribe(broadcastSettings);
+  ttsKeySettings.subscribe(broadcastSettings);
   lipsyncSettings.subscribe(broadcastSettings);
   vadSettings.subscribe(broadcastSettings);
   fillerSettings.subscribe(broadcastSettings);

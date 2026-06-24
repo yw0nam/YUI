@@ -290,6 +290,8 @@ async function bootstrap(): Promise<void> {
     agentSettings,
     endpointsSettings,
     chatKeySettings,
+    sttKeySettings,
+    ttsKeySettings,
     lipsyncSettings,
     vadSettings,
     fillerSettings,
@@ -346,6 +348,8 @@ async function bootstrap(): Promise<void> {
     agentSettings,
     endpointsSettings,
     chatKeySettings,
+    sttKeySettings,
+    ttsKeySettings,
     lipsyncSettings,
     vadSettings,
     fillerSettings,
@@ -531,6 +535,8 @@ async function bootstrap(): Promise<void> {
       },
       endpointsSettings,
       chatKeySettings,
+      sttKeySettings,
+      ttsKeySettings,
       getEndpointDefaults: () => {
         try {
           const e = config.get().endpoints;
@@ -541,6 +547,7 @@ async function bootstrap(): Promise<void> {
             irodori_base_url: e.irodori_base_url ?? "",
             broker_base_url: e.broker_base_url ?? "",
             chat_model: e.chat_model ?? "",
+            tts_voice: e.tts_voice ?? "",
             tts_provider: e.tts_provider ?? "",
           };
         } catch {
