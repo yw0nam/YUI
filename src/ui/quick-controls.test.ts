@@ -788,7 +788,7 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("the tts reset clears irodori_base_url + tts_base_url + tts_voice + the tts key", () => {
+  it("the tts reset clears irodori_base_url + tts_base_url + tts_voice + tts_provider + the tts key", () => {
     const ttsKeySettings = createTtsKeySettings({ storage: inMemoryApiKeyStorage() });
     ttsKeySettings.setApiKey("sk-tts-1");
     const qc = buildQc({ ttsKeySettings });
@@ -798,13 +798,30 @@ describe("createQuickControls — gain row", () => {
       irodori_base_url: "http://i",
       tts_base_url: "http://t",
       tts_voice: "alloy",
+      tts_provider: "openai",
     });
 
     qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="tts"]')!.click();
     expect(endpointsSettings.get().irodori_base_url).toBe("");
     expect(endpointsSettings.get().tts_base_url).toBe("");
     expect(endpointsSettings.get().tts_voice).toBe("");
+    expect(endpointsSettings.get().tts_provider).toBe("");
     expect(ttsKeySettings.get().apiKey).toBe("");
+
+    qc.dispose();
+  });
+
+  it("the stt reset clears stt_base_url and the stt key", () => {
+    const sttKeySettings = createSttKeySettings({ storage: inMemoryApiKeyStorage() });
+    sttKeySettings.setApiKey("sk-stt-1");
+    const qc = buildQc({ sttKeySettings });
+    qc.open();
+
+    endpointsSettings.set({ stt_base_url: "https://stt.example.com/v1" });
+
+    qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="stt"]')!.click();
+    expect(endpointsSettings.get().stt_base_url).toBe("");
+    expect(sttKeySettings.get().apiKey).toBe("");
 
     qc.dispose();
   });
