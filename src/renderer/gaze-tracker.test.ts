@@ -16,11 +16,14 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  advanceGaze,
   clampDeg,
   dampAngle,
   type GazeConfig,
+  type GazeState,
   gazeShape,
   gazeTargets,
+  NEUTRAL_GAZE,
   smoothstep,
   splitHeadNeck,
 } from "./gaze-tracker";
@@ -156,6 +159,52 @@ describe("dampAngle — exponential convergence", () => {
     let v = 30;
     for (let i = 0; i < 200; i++) v = dampAngle(v, 0, 10, 0.016);
     expect(v).toBeCloseTo(0, 5);
+  });
+});
+
+describe("advanceGaze — per-frame state advance + gating", () => {
+  const DT = 0.016;
+  const engaged = { enabled: true, residualYawDeg: 42.5, residualPitchDeg: 0, eccentricityDeg: 42.5 };
+
+  it("disabled + already-neutral state ⇒ true no-op (no motion, not converging, not active)", () => {
+    const r = advanceGaze(NEUTRAL_GAZE, { ...engaged, enabled: false }, CFG, DT);
+    expect(r.state).toEqual(NEUTRAL_GAZE);
+    expect(r.converging).toBe(false);
+    expect(r.active).toBe(false);
+  });
+
+  it("disabled + non-neutral state ⇒ eases toward neutral, converging until settled", () => {
+    let s: GazeState = { headYaw: 25, headPitch: 10, eyeYaw: 15, eyePitch: 5 };
+    const first = advanceGaze(s, { ...engaged, enabled: false }, CFG, DT);
+    expect(first.converging).toBe(true);
+    expect(first.active).toBe(true);
+    expect(Math.abs(first.state.headYaw)).toBeLessThan(25); // moved toward 0
+    // run to settle
+    s = first.state;
+    for (let i = 0; i < 400; i++) s = advanceGaze(s, { ...engaged, enabled: false }, CFG, DT).state;
+    const settled = advanceGaze(s, { ...engaged, enabled: false }, CFG, DT);
+    expect(settled.state).toEqual(NEUTRAL_GAZE);
+    expect(settled.converging).toBe(false);
+    expect(settled.active).toBe(false);
+  });
+
+  it("enabled ⇒ converges to the shaped targets, then settles (converging false)", () => {
+    const target = gazeTargets(42.5, 0, 42.5, CFG);
+    let s = NEUTRAL_GAZE;
+    for (let i = 0; i < 400; i++) s = advanceGaze(s, engaged, CFG, DT).state;
+    const settled = advanceGaze(s, engaged, CFG, DT);
+    expect(settled.state.headYaw).toBeCloseTo(target.headYaw, 3);
+    expect(settled.state.eyeYaw).toBeCloseTo(target.eyeYaw, 3);
+    expect(settled.converging).toBe(false);
+    expect(settled.active).toBe(true); // holding eye-contact ⇒ still applied
+  });
+
+  it("enabled but in the dead zone ⇒ targets neutral (eases to 0)", () => {
+    let s: GazeState = { headYaw: 5, headPitch: 0, eyeYaw: 5, eyePitch: 0 };
+    for (let i = 0; i < 400; i++) {
+      s = advanceGaze(s, { enabled: true, residualYawDeg: 2, residualPitchDeg: 0, eccentricityDeg: 2 }, CFG, DT).state;
+    }
+    expect(s).toEqual(NEUTRAL_GAZE);
   });
 });
 
