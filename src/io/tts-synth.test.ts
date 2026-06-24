@@ -111,4 +111,32 @@ describe("createTtsSynth", () => {
     const init = fetchMock.mock.calls[0][1];
     expect(init.signal).toBe(ac.signal);
   });
+
+  it("adds Authorization: Bearer when getApiKey resolves a key, keeping Content-Type", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(2)));
+    const synth = createTtsSynth({
+      config: CONFIG,
+      fetch: fetchMock as unknown as typeof fetch,
+      getApiKey: async () => "sk-tts",
+    });
+    await synth("hi");
+    const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer sk-tts");
+    expect(headers["Content-Type"]).toBe("application/json");
+  });
+
+  it("omits Authorization when getApiKey is absent, empty, or whitespace", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(2)));
+    for (const getApiKey of [undefined, async () => "", async () => "   "]) {
+      const synth = createTtsSynth({
+        config: CONFIG,
+        fetch: fetchMock as unknown as typeof fetch,
+        getApiKey,
+      });
+      await synth("hi");
+    }
+    for (const call of fetchMock.mock.calls) {
+      expect("Authorization" in (call[1].headers as object)).toBe(false);
+    }
+  });
 });

@@ -326,6 +326,38 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
   });
 });
 
+describe("createSttVad — Authorization", () => {
+  it("adds Authorization: Bearer when getApiKey resolves a key, never Content-Type", async () => {
+    const fetchMock = buildFetchMock("ok");
+    vi.stubGlobal("fetch", fetchMock);
+
+    const stt = createSttVad({
+      config: CONFIG,
+      onVoiceSegment: vi.fn(),
+      getApiKey: async () => "sk-stt",
+    });
+    await stt.start();
+    await triggerSpeechEnd!(new Float32Array([0.1]));
+
+    const headers = (fetchMock.mock.calls[0][1].headers ?? {}) as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer sk-stt");
+    // FormData body must keep the browser-set multipart boundary — never set Content-Type.
+    expect("Content-Type" in headers).toBe(false);
+  });
+
+  it("omits Authorization when getApiKey is absent, empty, or whitespace", async () => {
+    for (const getApiKey of [undefined, async () => "", async () => "   "]) {
+      const fetchMock = buildFetchMock("ok");
+      vi.stubGlobal("fetch", fetchMock);
+      const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), getApiKey });
+      await stt.start();
+      await triggerSpeechEnd!(new Float32Array([0.1]));
+      const headers = (fetchMock.mock.calls[0][1].headers ?? {}) as Record<string, string>;
+      expect("Authorization" in headers).toBe(false);
+    }
+  });
+});
+
 describe("createSttVad — STT error resilience", () => {
   it("does not call onVoiceSegment when fetch rejects", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error("network error"));
