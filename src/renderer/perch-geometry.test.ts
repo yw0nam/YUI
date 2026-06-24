@@ -11,6 +11,7 @@
 
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import { clampPolar, orbitPosition } from "./camera-fit";
 import {
   CATCH_D,
   CATCH_MX,
@@ -28,6 +29,7 @@ import {
 
 const CANVAS_W = 800;
 const CANVAS_H = 1200;
+const DEG = Math.PI / 180;
 
 /** Build the fixture camera at (0,1.3,3) looking at (0,1.3,0). */
 function fixtureCamera(zoom = 1): THREE.PerspectiveCamera {
@@ -47,6 +49,103 @@ describe("perch-geometry — exported tunables", () => {
     expect(CATCH_D).toBe(0.23);
     expect(CATCH_MX).toBe(0.0);
     expect(SEAT_DROP_DEFAULT).toBe(0.0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// perch + orbit composition
+//
+// The perch seat-pin re-projects through the live camera every frame, so it must
+// keep converging once fitCamera() places the camera on the orbit sphere. These
+// tests build an orbited camera (azimuth free, polar clamped to the perched band)
+// and prove (a) the seat still projects and (b) the proportional seat-offset step
+// converges to sub-pixel — the rationale for the [60°,120°] perched polar clamp.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** PERCH_PIN_RATE mirror (src/renderer/index.ts). */
+const PIN_RATE = 0.6;
+
+/** Camera on the orbit sphere around `target`, looking at it. */
+function orbitedCamera(
+  target: THREE.Vector3,
+  radius: number,
+  azimuth: number,
+  polar: number,
+): THREE.PerspectiveCamera {
+  const cam = new THREE.PerspectiveCamera(30, CANVAS_W / CANVAS_H, 0.1, 20);
+  cam.position.copy(orbitPosition(target, radius, { azimuth, polar }));
+  cam.lookAt(target);
+  cam.updateProjectionMatrix();
+  cam.updateMatrixWorld();
+  return cam;
+}
+
+/** Iterate the renderer's stepPerch proportional pin in pure math; returns final seat. */
+function runPin(
+  cam: THREE.PerspectiveCamera,
+  seat0: THREE.Vector3,
+  targetTopYpx: number,
+  iters = 40,
+): { seat: THREE.Vector3; lastDelta: number } {
+  const seat = seat0.clone();
+  const forward = new THREE.Vector3();
+  cam.getWorldDirection(forward);
+  let lastDelta = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < iters; i++) {
+    const seatPx = projectToScreen(seat, cam, CANVAS_W, CANVAS_H);
+    if (seatPx === null) throw new Error("seat failed to project");
+    const depth = seat.clone().sub(cam.position).dot(forward);
+    const wpp = worldYPerPixel(cam, depth, CANVAS_H);
+    const delta = seatOffsetWorldY(seatPx.y, targetTopYpx, wpp);
+    seat.y += delta * PIN_RATE;
+    lastDelta = delta;
+  }
+  return { seat, lastDelta };
+}
+
+describe("perch + orbit — clamp on enter, restore free on exit", () => {
+  it("a free polar of 20° is pulled to the 60° floor on perch enter, restored on exit", () => {
+    const free = 20 * DEG;
+    // enter: perched clamp tightens to [60,120]
+    expect(clampPolar(free, true)).toBeCloseTo(60 * DEG, 12);
+    // exit: free range restores the stored angle untouched
+    expect(clampPolar(free, false)).toBeCloseTo(free, 12);
+  });
+
+  it("azimuth is never altered by the clamp (free in both states)", () => {
+    // clampPolar only touches polar — azimuth round-trips through orbitPosition.
+    const target = new THREE.Vector3(0, 1, 0);
+    const az = 1.7;
+    const a = orbitPosition(target, 3, { azimuth: az, polar: clampPolar(20 * DEG, true) });
+    const b = orbitPosition(target, 3, { azimuth: az, polar: clampPolar(20 * DEG, false) });
+    // same azimuth ⇒ same horizontal bearing (x/z direction) even as polar differs.
+    expect(Math.atan2(a.x - target.x, a.z - target.z)).toBeCloseTo(
+      Math.atan2(b.x - target.x, b.z - target.z),
+      9,
+    );
+  });
+});
+
+describe("perch + orbit — seat-pin still converges on an orbited camera", () => {
+  it("perched-clamped polar (60°) + free azimuth: pin converges to sub-pixel", () => {
+    const target = new THREE.Vector3(0, 1.0, 0);
+    const polar = clampPolar(20 * DEG, true); // 60° — perched floor
+    const cam = orbitedCamera(target, 3, 0.6, polar);
+    const { seat, lastDelta } = runPin(cam, new THREE.Vector3(0, 0.9, 0), 360);
+    const finalPx = projectToScreen(seat, cam, CANVAS_W, CANVAS_H)!;
+    expect(Math.abs(finalPx.y - 360)).toBeLessThan(1); // pinned to within a pixel
+    expect(Math.abs(lastDelta)).toBeLessThan(0.01); // settled
+  });
+
+  it("converges across the full perched polar band [60°,120°] at several azimuths", () => {
+    const target = new THREE.Vector3(0, 1.0, 0);
+    for (const polDeg of [60, 90, 120]) {
+      for (const az of [0, 1.2, -2.0, Math.PI]) {
+        const cam = orbitedCamera(target, 3, az, polDeg * DEG);
+        const { lastDelta } = runPin(cam, new THREE.Vector3(0, 0.9, 0), 420);
+        expect(Math.abs(lastDelta)).toBeLessThan(0.02);
+      }
+    }
   });
 });
 
