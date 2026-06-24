@@ -163,7 +163,6 @@ const CHATKEY_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"
 const CHATKEY_EYE_OFF_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9.6 5.9A9.6 9.6 0 0 1 12 5.5C18 5.5 21.5 12 21.5 12a16 16 0 0 1-2.7 3.3M6.3 7.7A16 16 0 0 0 2.5 12S6 18.5 12 18.5a9.3 9.3 0 0 0 2.7-.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.7 9.8a2.6 2.6 0 0 0 3.6 3.7" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
 const CHATKEY_CLEAR_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
 
-// 음성 엔진 세그먼트(2칸) — tts_provider 오버라이드를 구동. 효과적 provider를 반영한다.
 const VOICE_ENGINES = ["irodori", "openai"] as const;
 type VoiceEngine = (typeof VOICE_ENGINES)[number];
 // voice engine → i18n key for its segment label.
@@ -662,7 +661,7 @@ export function createQuickControls({
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
   const popOutBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
-  const segEl = el.querySelector<HTMLDivElement>(".yui-field-row .yui-seg:not(.yui-seg--2)")!;
+  const segEl = el.querySelector<HTMLDivElement>(".yui-field-row .yui-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   // TTS 엔진 드롭다운 + irodori/openai 서브뷰 컨테이너(고급 탭). 화자 비활성 노드는 그대로.
   const ttsTypeEl = el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
@@ -2196,6 +2195,7 @@ export function createQuickControls({
     if (!fields) return;
     const patch: Partial<EndpointOverrides> = {};
     for (const key of fields) patch[key] = "";
+    if (svc === "tts") patch.tts_provider = "";
     endpointsSettings.set(patch);
     for (const key of fields) {
       const input = epInputs.get(key)!;
