@@ -103,6 +103,7 @@ handed to the backend lives in [`docs/backend_contract.md`](docs/backend_contrac
 **Commands**
 
 ```bash
+pnpm setup                  # interactive config: endpoints.json + .env.local, prereq + VRM check
 pnpm install
 pnpm dev                    # Vite dev server (port 1420), browser only
 pnpm tauri dev              # Tauri app (port 1420), transparent pet window
