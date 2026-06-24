@@ -26,6 +26,7 @@ import { createSttKeySettings, createTtsKeySettings } from "../io/api-key-settin
 import { createChatKeySettings } from "../io/chat-key-settings";
 import { createEndpointsSettings } from "../io/endpoints-settings";
 import { createFillerSettings } from "../io/filler-settings";
+import { createGazeSettings } from "../io/gaze-settings";
 import { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import { createLipsyncSettings } from "../io/lipsync-settings";
 import { createProactiveSettings } from "../io/proactive-settings";
@@ -403,6 +404,61 @@ describe("createQuickControls — gain row", () => {
 
     idleThrottleSettings.setEnabled(true);
     expect(idleSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  // ── 카메라 시선 맞춤(gaze) toggle row (Advanced tab) ──────────────────────────
+
+  it("renders the gaze toggle row only when gazeSettings is provided, ON by default", () => {
+    const withoutGaze = buildQc();
+    withoutGaze.open();
+    expect(withoutGaze.el.querySelector(".yui-gaze-switch")).toBeNull();
+    withoutGaze.dispose();
+
+    const qc = buildQc({ gazeSettings: createGazeSettings() });
+    qc.open();
+    const gazeSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-gaze-switch");
+    expect(gazeSwitch).not.toBeNull();
+    expect(gazeSwitch!.getAttribute("aria-checked")).toBe("true");
+    expect(gazeSwitch!.getAttribute("role")).toBe("switch");
+    expect(gazeSwitch!.getAttribute("aria-label")).toBe("카메라 시선 맞춤");
+
+    const row = gazeSwitch!.closest(".yui-row")!;
+    expect(row.querySelector(".yui-row__label")!.textContent).toContain("카메라 시선 맞춤");
+    qc.dispose();
+  });
+
+  it("clicking the gaze switch toggles gazeSettings.setEnabled", () => {
+    const gazeSettings = createGazeSettings();
+    const qc = buildQc({ gazeSettings });
+    qc.open();
+
+    const gazeSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-gaze-switch")!;
+    expect(gazeSettings.get().enabled).toBe(true);
+
+    gazeSwitch.click();
+    expect(gazeSettings.get().enabled).toBe(false);
+    expect(gazeSwitch.getAttribute("aria-checked")).toBe("false");
+
+    gazeSwitch.click();
+    expect(gazeSettings.get().enabled).toBe(true);
+    expect(gazeSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  it("external gazeSettings.setEnabled reflects on the switch while open", () => {
+    const gazeSettings = createGazeSettings();
+    const qc = buildQc({ gazeSettings });
+    qc.open();
+
+    const gazeSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-gaze-switch")!;
+    gazeSettings.setEnabled(false);
+    expect(gazeSwitch.getAttribute("aria-checked")).toBe("false");
+
+    gazeSettings.setEnabled(true);
+    expect(gazeSwitch.getAttribute("aria-checked")).toBe("true");
 
     qc.dispose();
   });
