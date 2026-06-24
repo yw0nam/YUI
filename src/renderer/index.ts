@@ -1020,7 +1020,7 @@ export function createRenderer(options: RendererOptions): Renderer {
    *
    * ponytail: assumes the playing clip animates head/neck each frame (idle/sit do), so the
    * post-multiply rides a fresh motion pose; a head-trackless clip would let the nudge
-   * accumulate. Per-motion gating is deferred.
+   * accumulate.
    */
   function stepGaze(dt: number): void {
     if (!currentVrm) {

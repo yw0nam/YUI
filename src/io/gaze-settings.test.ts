@@ -1,9 +1,8 @@
 /**
  * gaze-settings.test.ts — createGazeSettings reactive store.
  *
- * The persisted-store machinery is exhaustively covered by idle-throttle-settings.test.ts
- * (same core); this pins gaze-settings' own contract: default enabled=true, persist
- * round-trip + notify, same-value skip, and malformed-storage fallback.
+ * Pins gaze-settings' contract: default enabled=true, persist round-trip + notify,
+ * same-value skip, and malformed-storage fallback.
  */
 
 import { describe, expect, it, vi } from "vitest";
