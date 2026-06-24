@@ -197,9 +197,9 @@ describe("orbit angle constants", () => {
     expect(CAMERA_POLAR_DEFAULT).toBeCloseTo(Math.PI / 2, 12);
   });
 
-  it("free polar range is [10°, 170°]", () => {
-    expect(CAMERA_POLAR_FREE_MIN).toBeCloseTo(10 * DEG, 12);
-    expect(CAMERA_POLAR_FREE_MAX).toBeCloseTo(170 * DEG, 12);
+  it("free polar range is near-full [2°, 178°]", () => {
+    expect(CAMERA_POLAR_FREE_MIN).toBeCloseTo(2 * DEG, 12);
+    expect(CAMERA_POLAR_FREE_MAX).toBeCloseTo(178 * DEG, 12);
   });
 
   it("perched polar range is [60°, 120°]", () => {
@@ -300,21 +300,26 @@ describe("orbitPosition — guards", () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // clampPolar — state-dependent polar clamp. azimuth is never clamped here.
-//   not perched: [10°, 170°]   perched: [60°, 120°]
+//   not perched: [2°, 178°]   perched: [60°, 120°]
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("clampPolar — not perched (free viewing [10°, 170°])", () => {
+describe("clampPolar — not perched (near-full free viewing [2°, 178°])", () => {
   it("passes a polar already inside the free range", () => {
     expect(clampPolar(90 * DEG, false)).toBeCloseTo(90 * DEG, 12);
     expect(clampPolar(45 * DEG, false)).toBeCloseTo(45 * DEG, 12);
   });
 
-  it("clamps below 10° up to 10°", () => {
-    expect(clampPolar(2 * DEG, false)).toBeCloseTo(10 * DEG, 12);
+  it("near-overhead (5°) and near-underneath (175°) pass — almost the full sphere", () => {
+    expect(clampPolar(5 * DEG, false)).toBeCloseTo(5 * DEG, 12);
+    expect(clampPolar(175 * DEG, false)).toBeCloseTo(175 * DEG, 12);
   });
 
-  it("clamps above 170° down to 170°", () => {
-    expect(clampPolar(179 * DEG, false)).toBeCloseTo(170 * DEG, 12);
+  it("clamps below 2° up to the 2° pole-epsilon floor", () => {
+    expect(clampPolar(0.5 * DEG, false)).toBeCloseTo(2 * DEG, 12);
+  });
+
+  it("clamps above 178° down to the 178° pole-epsilon ceiling", () => {
+    expect(clampPolar(179.5 * DEG, false)).toBeCloseTo(178 * DEG, 12);
   });
 });
 

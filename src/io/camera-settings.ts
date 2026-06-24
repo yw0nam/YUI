@@ -20,7 +20,7 @@ export interface CameraSettings {
   zoom: number;
   /** Orbit azimuth around +Y (radians). free — wrapped to (-π, π]. */
   azimuth: number;
-  /** Orbit polar from +Y (radians). clamped to the free range [10°, 170°]. */
+  /** Orbit polar from +Y (radians). clamped to the free range [2°, 178°]. */
   polar: number;
 }
 
@@ -81,7 +81,7 @@ export function createCameraSettings(opts?: { storage?: CameraStorage; initial?:
       core.commit({ ...core.get(), azimuth: wrapAzimuth(azimuth) });
     },
 
-    /** Set the orbit polar (radians). clamped to the free range [10°, 170°]. */
+    /** Set the orbit polar (radians). clamped to the free range [2°, 178°]. */
     setPolar(polar: number): void {
       if (!Number.isFinite(polar)) return;
       core.commit({ ...core.get(), polar: clampPolar(polar, false) });

@@ -198,7 +198,7 @@ export interface Renderer {
   /**
    * Orbit viewpoint 설정 (라디안). azimuth는 자유(즉시 적용), polar는 perch 중이면
    * [60°,120°]로 ease되어 좁혀지고 perch 해제 시 저장된 free 각도로 복귀한다.
-   * 클램프(free [10°,170°])·persist는 호출자(src/io + main.ts)가 담당한다.
+   * 클램프(free [2°,178°])·persist는 호출자(src/io + main.ts)가 담당한다.
    */
   setOrbit(angles: OrbitAngles): void;
   /** 현재 적용 중인 orbit 각도 — azimuth + 저장된 free polar 반환. */

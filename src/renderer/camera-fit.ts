@@ -42,10 +42,13 @@ const DEG = Math.PI / 180;
 export const CAMERA_AZIMUTH_DEFAULT = 0;
 /** Head-on default polar (radians) — π/2 = level, straight-on. */
 export const CAMERA_POLAR_DEFAULT = Math.PI / 2;
-/** Free-viewing polar floor (radians). */
-export const CAMERA_POLAR_FREE_MIN = 10 * DEG;
-/** Free-viewing polar ceiling (radians). */
-export const CAMERA_POLAR_FREE_MAX = 170 * DEG;
+/**
+ * Free-viewing polar floor (radians). Near-overhead — a 2° epsilon off the +Y pole
+ * keeps `lookAt` with up=(0,1,0) out of the gimbal singularity (no pole crossing).
+ */
+export const CAMERA_POLAR_FREE_MIN = 2 * DEG;
+/** Free-viewing polar ceiling (radians). Near-underneath — 2° epsilon off the -Y pole. */
+export const CAMERA_POLAR_FREE_MAX = 178 * DEG;
 /** Perched polar floor (radians) — tightened so the seat-pin gain error stays small. */
 export const CAMERA_POLAR_PERCHED_MIN = 60 * DEG;
 /** Perched polar ceiling (radians). */
@@ -53,7 +56,7 @@ export const CAMERA_POLAR_PERCHED_MAX = 120 * DEG;
 
 /**
  * Clamp a polar angle to the active range. azimuth is never clamped.
- *   not perched: [10°, 170°] (free viewing)
+ *   not perched: [2°, 178°] (free viewing)
  *   perched:     [60°, 120°] (keeps the perch seat-pin gain error small)
  * Non-finite input falls back to the head-on default (π/2).
  */

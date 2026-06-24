@@ -407,7 +407,7 @@ describe("localStorageCameraStorage", () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createCameraSettings — orbit angles (azimuth + polar)
-// azimuth is free (wrapped to (-π, π]); polar clamps to the free range [10°, 170°].
+// azimuth is free (wrapped to (-π, π]); polar clamps to the free range [2°, 178°].
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createCameraSettings — orbit defaults", () => {
@@ -475,16 +475,22 @@ describe("createCameraSettings — setPolar", () => {
     expect(store.get().polar).toBeCloseTo(60 * DEG, 12);
   });
 
-  it("clamps polar below the free floor up to 10°", () => {
+  it("clamps polar below the free floor up to the 2° pole-epsilon", () => {
     const store = createCameraSettings();
-    store.setPolar(2 * DEG);
+    store.setPolar(0.5 * DEG);
     expect(store.get().polar).toBeCloseTo(CAMERA_POLAR_FREE_MIN, 12);
   });
 
-  it("clamps polar above the free ceiling down to 170°", () => {
+  it("clamps polar above the free ceiling down to the 178° pole-epsilon", () => {
     const store = createCameraSettings();
     store.setPolar(200 * DEG);
     expect(store.get().polar).toBeCloseTo(CAMERA_POLAR_FREE_MAX, 12);
+  });
+
+  it("near-overhead 5° passes unclamped (near-full free range)", () => {
+    const store = createCameraSettings();
+    store.setPolar(5 * DEG);
+    expect(store.get().polar).toBeCloseTo(5 * DEG, 12);
   });
 
   it("NaN polar is ignored — no change, no notify", () => {
