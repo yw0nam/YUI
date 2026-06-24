@@ -164,7 +164,12 @@ describe("dampAngle — exponential convergence", () => {
 
 describe("advanceGaze — per-frame state advance + gating", () => {
   const DT = 0.016;
-  const engaged = { enabled: true, residualYawDeg: 42.5, residualPitchDeg: 0, eccentricityDeg: 42.5 };
+  const engaged = {
+    enabled: true,
+    residualYawDeg: 42.5,
+    residualPitchDeg: 0,
+    eccentricityDeg: 42.5,
+  };
 
   it("disabled + already-neutral state ⇒ true no-op (no motion, not converging, not active)", () => {
     const r = advanceGaze(NEUTRAL_GAZE, { ...engaged, enabled: false }, CFG, DT);
@@ -202,7 +207,12 @@ describe("advanceGaze — per-frame state advance + gating", () => {
   it("enabled but in the dead zone ⇒ targets neutral (eases to 0)", () => {
     let s: GazeState = { headYaw: 5, headPitch: 0, eyeYaw: 5, eyePitch: 0 };
     for (let i = 0; i < 400; i++) {
-      s = advanceGaze(s, { enabled: true, residualYawDeg: 2, residualPitchDeg: 0, eccentricityDeg: 2 }, CFG, DT).state;
+      s = advanceGaze(
+        s,
+        { enabled: true, residualYawDeg: 2, residualPitchDeg: 0, eccentricityDeg: 2 },
+        CFG,
+        DT,
+      ).state;
     }
     expect(s).toEqual(NEUTRAL_GAZE);
   });

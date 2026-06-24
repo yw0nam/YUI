@@ -54,6 +54,7 @@ import {
 import { createFillerLoop } from "./io/filler-loop";
 import { effectiveFillerPool } from "./io/filler-pool";
 import { createFillerSettings, localStorageFillerStorage } from "./io/filler-settings";
+import { createGazeSettings, localStorageGazeStorage } from "./io/gaze-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
 import {
   createIdleThrottleSettings,
@@ -289,6 +290,10 @@ async function bootstrap(): Promise<void> {
   });
   renderer.setIdleThrottleEnabled(idleThrottleSettings.get().enabled);
   idleThrottleSettings.subscribe((s) => renderer.setIdleThrottleEnabled(s.enabled));
+  // 카메라 시선 맞춤(gaze) on/off. 기본 ON. 변경(토글/크로스윈도우)마다 렌더러로 흘린다.
+  const gazeSettings = createGazeSettings({ storage: localStorageGazeStorage() });
+  renderer.setGazeEnabled(gazeSettings.get().enabled);
+  gazeSettings.subscribe((s) => renderer.setGazeEnabled(s.enabled));
   const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
@@ -310,6 +315,7 @@ async function bootstrap(): Promise<void> {
     screenshotSettings,
     proactiveSettings,
     idleThrottleSettings,
+    gazeSettings,
     ttsSettings,
     cameraSettings,
     sessionStore,
@@ -516,6 +522,7 @@ async function bootstrap(): Promise<void> {
       mount: root,
       settings: screenshotSettings,
       idleThrottleSettings,
+      gazeSettings,
       proactiveSettings,
       scheduleSettings,
       sourceProvider: screenSourceProvider,
@@ -633,6 +640,7 @@ async function bootstrap(): Promise<void> {
       voiceInputStatus.dispose();
       screenshotSettings.dispose();
       idleThrottleSettings.dispose();
+      gazeSettings.dispose();
       ttsSettings.dispose();
       sttSettings.dispose();
       proactiveSettings.dispose();
@@ -1125,6 +1133,8 @@ async function bootstrap(): Promise<void> {
     renderer.setMotionRegistry(cfg.motions);
     // 전신 fit-to-bounds framing knob 주입 — 첫 VRM 로드 전에 설정.
     renderer.setFraming(cfg.avatar.framing ?? {});
+    // 카메라 시선 맞춤 thresholds 주입 (configs/avatar.json gaze; 생략 키는 기본값 유지).
+    renderer.setGaze(cfg.avatar.gaze ?? {});
     // per-pixel alpha hit-test threshold (configs/avatar.json hit_test.alpha_threshold).
     const bootAlpha = cfg.avatar.hit_test?.alpha_threshold;
     if (bootAlpha !== undefined) renderer.setHitTestThreshold(bootAlpha);
@@ -1250,6 +1260,8 @@ async function bootstrap(): Promise<void> {
     if (!changed.has("avatar")) return;
     // framing knob 핫리로드 — 핫스왑 재fit 전에 갱신.
     renderer.setFraming(cfg.avatar.framing ?? {});
+    // gaze thresholds 핫리로드.
+    renderer.setGaze(cfg.avatar.gaze ?? {});
     const reloadAlpha = cfg.avatar.hit_test?.alpha_threshold;
     if (reloadAlpha !== undefined) renderer.setHitTestThreshold(reloadAlpha);
     vrmSelection.setManifest({

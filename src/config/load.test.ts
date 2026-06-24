@@ -715,7 +715,9 @@ describe("loadConfig — avatar.gaze", () => {
   });
 
   it("deadDeg 음수면 실패", async () => {
-    await expectAvatarError(loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", gaze: { deadDeg: -1 } }));
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", gaze: { deadDeg: -1 } }),
+    );
   });
 
   it("disengageDeg > 180이면 실패", async () => {

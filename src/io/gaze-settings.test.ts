@@ -9,9 +9,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createGazeSettings, type GazeSettings, type GazeStorage } from "./gaze-settings";
 
-function fakeStorage(
-  initial?: GazeSettings | null,
-): GazeStorage & { saved: GazeSettings[] } {
+function fakeStorage(initial?: GazeSettings | null): GazeStorage & { saved: GazeSettings[] } {
   const saved: GazeSettings[] = [];
   return {
     saved,

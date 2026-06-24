@@ -663,7 +663,7 @@ function validateAvatar(file: string, raw: unknown): AvatarConfig {
       ): void => {
         const v = rawGaze[k];
         if (v === undefined) return;
-        const lowOk = minInclusive ? v >= min : v > min;
+        const lowOk = typeof v === "number" && (minInclusive ? v >= min : v > min);
         if (typeof v !== "number" || !Number.isFinite(v) || !lowOk || v > max) {
           issues.push(
             `gaze.${k}는 ${minInclusive ? min : `${min} 초과`}..${max} 범위 유한 number여야 함 (받음: ${JSON.stringify(v)})`,

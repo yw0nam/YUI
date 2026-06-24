@@ -42,6 +42,13 @@ import {
   type ResolvedEmotion,
 } from "./emotion-resolver";
 import { isActive, shouldRenderFrame } from "./frame-gate";
+import {
+  advanceGaze,
+  type GazeConfig,
+  type GazeState,
+  NEUTRAL_GAZE,
+  splitHeadNeck,
+} from "./gaze-tracker";
 import { cssToGrabCell, grabDimensions, sampleAlphaHit } from "./hit-test";
 import {
   createMotionController,
@@ -103,6 +110,37 @@ const DEFAULT_ALPHA_THRESHOLD = 0.1;
 /** Idle (ambient-only) frame cap — full refresh is reserved for active animation. */
 const IDLE_FPS = 30;
 
+const DEG2RAD = Math.PI / 180;
+const RAD2DEG = 180 / Math.PI;
+
+/** Default camera-gaze tracking — the "natural" preset; overridden by configs/avatar.json `gaze`. */
+const DEFAULT_GAZE: GazeConfig = {
+  deadDeg: 3,
+  headEngageDeg: 20,
+  disengageDeg: 65,
+  maxHeadYaw: 50,
+  maxHeadPitch: 30,
+  eyeMaxDeg: 25,
+  headNeckSplit: 0.6,
+  smooth: 10,
+};
+
+/** Clamp to [-1, 1] — guards acos/asin domain against float drift. */
+function clampUnit(v: number): number {
+  return Math.min(1, Math.max(-1, v));
+}
+
+/** Merge a partial gaze config over a base, ignoring missing/non-finite keys. */
+function mergeGaze(base: GazeConfig, next: Partial<GazeConfig> | undefined): GazeConfig {
+  if (!next) return { ...base };
+  const out = { ...base };
+  for (const k of Object.keys(base) as (keyof GazeConfig)[]) {
+    const v = next[k];
+    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+  }
+  return out;
+}
+
 export interface RendererOptions {
   /** VRM을 렌더할 캔버스 마운트 대상. */
   mount: HTMLElement;
@@ -118,6 +156,8 @@ export interface RendererOptions {
   emotionRegistry?: EmotionRegistry;
   /** Initial fit-to-bounds framing; live path is setFraming. Omitted keys keep defaults. */
   framing?: { margin?: number; fov?: number };
+  /** Initial camera-gaze tracking thresholds; live path is setGaze. Omitted keys keep defaults. */
+  gaze?: Partial<GazeConfig>;
 }
 
 /** rAF 프레임마다, **vrm.update(dt) 직전에** 전달되는 컨텍스트. */
@@ -249,6 +289,18 @@ export interface Renderer {
   setIdleThrottleEnabled(enabled: boolean): void;
   /** Current idle-throttle toggle state (true = idle cap active). */
   getIdleThrottleEnabled(): boolean;
+  /**
+   * Camera-gaze tracking thresholds 갱신. 주어진(유한) 키만 현재 위에 merge하고
+   * (생략 키 기본값 유지) 즉시 다음 프레임부터 적용된다.
+   */
+  setGaze(gaze: Partial<GazeConfig>): void;
+  /**
+   * Enable/disable camera-gaze head+eye tracking at runtime. Disabled ⇒ the damped
+   * gaze eases back to neutral (no snap) and the motion/eyes are left untouched once settled.
+   */
+  setGazeEnabled(enabled: boolean): void;
+  /** Current gaze toggle state (true = tracking the camera). */
+  getGazeEnabled(): boolean;
   /** rAF 루프 정지 + GPU 리소스 해제. */
   dispose(): void;
 }
@@ -369,6 +421,31 @@ export function createRenderer(options: RendererOptions): Renderer {
   const perchSeatWorld = new THREE.Vector3();
   const perchCamForward = new THREE.Vector3();
   const perchSeatRel = new THREE.Vector3();
+
+  // ── Camera gaze (head/eye tracking) state ────────────────────────────────────
+  // Thresholds: defaults overridden by injected config (and live via setGaze).
+  let gazeConfig: GazeConfig = mergeGaze(DEFAULT_GAZE, options.gaze);
+  // Runtime on/off (persisted by main.ts). Disabled ⇒ eased back to neutral, not snapped.
+  let gazeEnabled = true;
+  // Persistent damped angles (deg) carried frame to frame.
+  let gazeState: GazeState = { ...NEUTRAL_GAZE };
+  // True while the damped gaze is still easing toward target — gates the idle frame cap.
+  let gazeConverging = false;
+  // Cached head/neck bones for the per-frame nudge (refreshed on load; no per-frame lookup).
+  let gazeHeadBone: THREE.Object3D | null = null;
+  let gazeNeckBone: THREE.Object3D | null = null;
+  // True once the loaded VRM's lookAt has been claimed (autoUpdate off) for eye control.
+  let gazeLookAtReady = false;
+  // Scratch reused every frame — no per-frame allocation in the gaze path.
+  const gazeToCam = new THREE.Vector3();
+  const gazeBodyFwd = new THREE.Vector3();
+  const gazeHeadPos = new THREE.Vector3();
+  const gazeHeadQuat = new THREE.Quaternion();
+  const gazeHeadQuatInv = new THREE.Quaternion();
+  const gazeSceneQuat = new THREE.Quaternion();
+  const gazeLocalDir = new THREE.Vector3();
+  const gazeDeltaEuler = new THREE.Euler(0, 0, 0, "YXZ");
+  const gazeDeltaQuat = new THREE.Quaternion();
 
   // ── Per-pixel alpha hit-test state ───────────────────────────────────────────
   // Low-res RGBA grab of the silhouette (reused; no per-frame alloc).
@@ -605,7 +682,9 @@ export function createRenderer(options: RendererOptions): Renderer {
         emotionFading: emotionXfade !== null,
         motionActive: isMotionActive(),
         perchConverging,
-      }) || orbitConverging;
+      }) ||
+      orbitConverging ||
+      gazeConverging;
     const now = performance.now();
     if (!shouldRenderFrame(now, lastRenderMs, active, IDLE_FPS, idleThrottleEnabled)) return;
     lastRenderMs = now;
@@ -639,6 +718,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       // perch seat-pin — after the mixer poses the hips, before vrm.update applies
       // spring bones, so the offset rides into this frame's render.
       stepPerch();
+      // camera gaze — same slot as perch: rides the posed head/neck into vrm.update.
+      stepGaze(dt);
       // emotion 크로스페이드 — expressionManager.update()는 vrm.update(dt) 안에서
       // 돌므로 weight를 그 직전에 써야 이번 프레임에 반영된다.
       stepEmotion(dt);
@@ -700,6 +781,12 @@ export function createRenderer(options: RendererOptions): Renderer {
     // Drop the perch bone ref so a stale bone can't be pinned on the next VRM.
     perchHipsBone = null;
     perchOffsetY = 0;
+    // Drop gaze bone refs + reset damped state so nothing carries to the next VRM.
+    gazeHeadBone = null;
+    gazeNeckBone = null;
+    gazeLookAtReady = false;
+    gazeState = { ...NEUTRAL_GAZE };
+    gazeConverging = false;
     scene.remove(currentVrm.scene);
     VRMUtils.deepDispose(currentVrm.scene);
     currentVrm = undefined;
@@ -918,6 +1005,85 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
   }
 
+  // ── Camera gaze head/eye tracking ────────────────────────────────────────────
+
+  /**
+   * One frame of camera-gaze tracking — called after mixer.update, before vrm.update,
+   * so the head/neck nudge rides on the posed skeleton into the humanoid/spring apply
+   * and the eyes (driven via lookAt inside vrm.update) compose on the nudged head.
+   *
+   * Reads the camera's eccentricity from the body front (zone weights) and the residual
+   * yaw/pitch from the motion-posed head to the camera (the angle eyes+head must close),
+   * damps toward the shaped targets, then post-multiplies the head/neck bones and sets
+   * the eye yaw/pitch. Additive over whatever motion is playing — a motion already facing
+   * the camera yields a ~0 residual ⇒ ~0 nudge. No-op (no bone writes) once settled.
+   *
+   * ponytail: assumes the playing clip animates head/neck each frame (idle/sit do), so the
+   * post-multiply rides a fresh motion pose; a head-trackless clip would let the nudge
+   * accumulate. Per-motion gating is deferred.
+   */
+  function stepGaze(dt: number): void {
+    if (!currentVrm) {
+      gazeConverging = false;
+      return;
+    }
+    let residualYawDeg = 0;
+    let residualPitchDeg = 0;
+    let eccentricityDeg = 0;
+    const trackable = gazeEnabled && gazeHeadBone !== null;
+    if (trackable) {
+      try {
+        const head = gazeHeadBone as THREE.Object3D;
+        head.getWorldPosition(gazeHeadPos);
+        head.getWorldQuaternion(gazeHeadQuat);
+        // Body front (+Z of the VRM scene) drives the zone eccentricity (camera-from-front).
+        currentVrm.scene.getWorldQuaternion(gazeSceneQuat);
+        gazeBodyFwd.set(0, 0, 1).applyQuaternion(gazeSceneQuat).normalize();
+        gazeToCam.copy(camera.position).sub(gazeHeadPos).normalize();
+        eccentricityDeg = Math.acos(clampUnit(gazeToCam.dot(gazeBodyFwd))) * RAD2DEG;
+        // Residual from the posed head's forward to the camera, in head-local axes
+        // (matches applyYawPitch's euler(pitch·X, yaw·Y, YXZ): yaw=atan2(x,z), pitch=-asin(y)).
+        gazeHeadQuatInv.copy(gazeHeadQuat).invert();
+        gazeLocalDir.copy(gazeToCam).applyQuaternion(gazeHeadQuatInv);
+        residualYawDeg = Math.atan2(gazeLocalDir.x, gazeLocalDir.z) * RAD2DEG;
+        residualPitchDeg = -Math.asin(clampUnit(gazeLocalDir.y)) * RAD2DEG;
+      } catch (err) {
+        log.error("step_gaze_read", { error: String(err) });
+      }
+    }
+
+    const adv = advanceGaze(
+      gazeState,
+      { enabled: trackable, residualYawDeg, residualPitchDeg, eccentricityDeg },
+      gazeConfig,
+      dt,
+    );
+    gazeState = adv.state;
+    gazeConverging = adv.converging;
+    if (!adv.active) return; // settled at neutral — leave the motion/eyes untouched.
+
+    try {
+      const hasNeck = gazeNeckBone !== null;
+      const yawSplit = splitHeadNeck(gazeState.headYaw, gazeConfig.headNeckSplit, hasNeck);
+      const pitchSplit = splitHeadNeck(gazeState.headPitch, gazeConfig.headNeckSplit, hasNeck);
+      if (gazeNeckBone) {
+        gazeDeltaEuler.set(pitchSplit.neck * DEG2RAD, yawSplit.neck * DEG2RAD, 0, "YXZ");
+        gazeNeckBone.quaternion.multiply(gazeDeltaQuat.setFromEuler(gazeDeltaEuler));
+      }
+      if (gazeHeadBone) {
+        gazeDeltaEuler.set(pitchSplit.head * DEG2RAD, yawSplit.head * DEG2RAD, 0, "YXZ");
+        gazeHeadBone.quaternion.multiply(gazeDeltaQuat.setFromEuler(gazeDeltaEuler));
+      }
+      // Eyes — applied inside vrm.update (after the head nudge is copied to raw bones).
+      if (gazeLookAtReady && currentVrm.lookAt) {
+        currentVrm.lookAt.yaw = gazeState.eyeYaw;
+        currentVrm.lookAt.pitch = gazeState.eyePitch;
+      }
+    } catch (err) {
+      log.error("step_gaze_apply", { error: String(err) });
+    }
+  }
+
   // VRM 메타에서 표시 이름을 읽는다 — VRM1.0은 meta.name, VRM0.0은 meta.title. 둘 다 없으면 null.
   function readVrmMetaName(vrm: VRM): string | null {
     const meta = vrm.meta as { name?: unknown; title?: unknown } | undefined;
@@ -946,6 +1112,14 @@ export function createRenderer(options: RendererOptions): Renderer {
 
     // Cache the hips bone for the per-frame perch pin (avoids per-frame lookups).
     perchHipsBone = vrm.humanoid?.getNormalizedBoneNode("hips") ?? null;
+
+    // Cache head/neck for the per-frame gaze nudge; claim lookAt for eye control.
+    gazeHeadBone = vrm.humanoid?.getNormalizedBoneNode("head") ?? null;
+    gazeNeckBone = vrm.humanoid?.getNormalizedBoneNode("neck") ?? null;
+    gazeState = { ...NEUTRAL_GAZE };
+    gazeConverging = false;
+    gazeLookAtReady = vrm.lookAt != null;
+    if (vrm.lookAt) vrm.lookAt.autoUpdate = false; // we drive yaw/pitch ourselves each frame.
 
     // Full-body fit-to-bounds: measure in rest pose, before idle animates the arms.
     vrm.scene.updateWorldMatrix(true, true);
@@ -1221,6 +1395,15 @@ export function createRenderer(options: RendererOptions): Renderer {
     },
     getIdleThrottleEnabled() {
       return idleThrottleEnabled;
+    },
+    setGaze(next) {
+      gazeConfig = mergeGaze(gazeConfig, next);
+    },
+    setGazeEnabled(enabled) {
+      gazeEnabled = enabled;
+    },
+    getGazeEnabled() {
+      return gazeEnabled;
     },
     dispose() {
       cancelAnimationFrame(rafId);
