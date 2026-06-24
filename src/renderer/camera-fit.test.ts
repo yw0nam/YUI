@@ -17,7 +17,20 @@
 
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { computeCameraFit, nextZoom } from "./camera-fit";
+import {
+  CAMERA_AZIMUTH_DEFAULT,
+  CAMERA_POLAR_DEFAULT,
+  CAMERA_POLAR_FREE_MAX,
+  CAMERA_POLAR_FREE_MIN,
+  CAMERA_POLAR_PERCHED_MAX,
+  CAMERA_POLAR_PERCHED_MIN,
+  clampPolar,
+  computeCameraFit,
+  nextZoom,
+  orbitPosition,
+} from "./camera-fit";
+
+const DEG = Math.PI / 180;
 
 /** Box spanning [cx±sx/2, cy±sy/2, cz±sz/2]. */
 function boxOf(center: [number, number, number], size: [number, number, number]): THREE.Box3 {
@@ -164,5 +177,162 @@ describe("nextZoom", () => {
     expect(Number.isFinite(r)).toBe(true);
     expect(r).toBeGreaterThanOrEqual(0.5);
     expect(r).toBeLessThanOrEqual(3);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// orbitPosition — camera position on the orbit sphere (radius, polar, azimuth).
+//
+// Orbit model: THREE.Spherical(radius, polar φ from +Y, azimuth θ). Cartesian:
+//   x = radius·sin(φ)·sin(θ), y = radius·cos(φ), z = radius·sin(φ)·cos(θ)
+// Default (azimuth 0, polar 90°) reproduces the head-on position target+(0,0,radius).
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("orbit angle constants", () => {
+  it("default azimuth is 0", () => {
+    expect(CAMERA_AZIMUTH_DEFAULT).toBe(0);
+  });
+
+  it("default polar is 90° (π/2) — straight-on", () => {
+    expect(CAMERA_POLAR_DEFAULT).toBeCloseTo(Math.PI / 2, 12);
+  });
+
+  it("free polar range is [10°, 170°]", () => {
+    expect(CAMERA_POLAR_FREE_MIN).toBeCloseTo(10 * DEG, 12);
+    expect(CAMERA_POLAR_FREE_MAX).toBeCloseTo(170 * DEG, 12);
+  });
+
+  it("perched polar range is [60°, 120°]", () => {
+    expect(CAMERA_POLAR_PERCHED_MIN).toBeCloseTo(60 * DEG, 12);
+    expect(CAMERA_POLAR_PERCHED_MAX).toBeCloseTo(120 * DEG, 12);
+  });
+});
+
+describe("orbitPosition — default angles reproduce head-on", () => {
+  it("(azimuth 0, polar 90°) ⇒ target + (0, 0, radius)", () => {
+    const target = new THREE.Vector3(0.2, 1.1, -0.3);
+    const pos = orbitPosition(target, 3, {
+      azimuth: CAMERA_AZIMUTH_DEFAULT,
+      polar: CAMERA_POLAR_DEFAULT,
+    });
+    expect(pos.x).toBeCloseTo(0.2, 6);
+    expect(pos.y).toBeCloseTo(1.1, 6);
+    expect(pos.z).toBeCloseTo(-0.3 + 3, 6);
+  });
+
+  it("matches computeCameraFit's head-on position at default angles", () => {
+    const fit = computeCameraFit(
+      new THREE.Box3(new THREE.Vector3(-0.3, 0.1, -0.5), new THREE.Vector3(0.3, 1.9, 0.5)),
+      { fov: 30, aspect: 1, margin: 0 },
+    )!;
+    const pos = orbitPosition(fit.target, fit.distance, {
+      azimuth: CAMERA_AZIMUTH_DEFAULT,
+      polar: CAMERA_POLAR_DEFAULT,
+    });
+    expect(pos.x).toBeCloseTo(fit.position.x, 6);
+    expect(pos.y).toBeCloseTo(fit.position.y, 6);
+    expect(pos.z).toBeCloseTo(fit.position.z, 6);
+  });
+
+  it("preserves the orbit radius (distance from target is `radius` at any angle)", () => {
+    const target = new THREE.Vector3(0, 1, 0);
+    for (const az of [0, 0.7, Math.PI]) {
+      for (const pol of [30 * DEG, 90 * DEG, 150 * DEG]) {
+        const pos = orbitPosition(target, 2.5, { azimuth: az, polar: pol });
+        expect(pos.distanceTo(target)).toBeCloseTo(2.5, 6);
+      }
+    }
+  });
+});
+
+describe("orbitPosition — azimuth rotates in the horizontal (xz) plane", () => {
+  it("azimuth 90° moves the camera onto the +X side, z→target.z", () => {
+    const target = new THREE.Vector3(0, 1, 0);
+    const pos = orbitPosition(target, 3, { azimuth: 90 * DEG, polar: 90 * DEG });
+    expect(pos.x).toBeCloseTo(3, 6);
+    expect(pos.y).toBeCloseTo(1, 6);
+    expect(pos.z).toBeCloseTo(0, 6);
+  });
+
+  it("azimuth leaves the camera height (y) unchanged at polar 90°", () => {
+    const target = new THREE.Vector3(0, 1, 0);
+    const a = orbitPosition(target, 3, { azimuth: 0, polar: 90 * DEG });
+    const b = orbitPosition(target, 3, { azimuth: 0.9, polar: 90 * DEG });
+    expect(b.y).toBeCloseTo(a.y, 6);
+  });
+});
+
+describe("orbitPosition — polar tilts vertically (look from above/below)", () => {
+  it("polar < 90° raises the camera above the target (look-from-above)", () => {
+    const target = new THREE.Vector3(0, 1, 0);
+    const pos = orbitPosition(target, 3, { azimuth: 0, polar: 60 * DEG });
+    // y = target.y + radius·cos(60°) = 1 + 3·0.5 = 2.5
+    expect(pos.y).toBeCloseTo(2.5, 6);
+    expect(pos.y).toBeGreaterThan(1);
+  });
+
+  it("polar > 90° drops the camera below the target (look-from-below)", () => {
+    const target = new THREE.Vector3(0, 1, 0);
+    const pos = orbitPosition(target, 3, { azimuth: 0, polar: 120 * DEG });
+    // y = 1 + 3·cos(120°) = 1 - 1.5 = -0.5
+    expect(pos.y).toBeCloseTo(-0.5, 6);
+    expect(pos.y).toBeLessThan(1);
+  });
+});
+
+describe("orbitPosition — guards", () => {
+  it("non-finite radius falls back to a finite position", () => {
+    const target = new THREE.Vector3(0, 1, 0);
+    const pos = orbitPosition(target, Number.NaN, { azimuth: 0, polar: 90 * DEG });
+    expect(Number.isFinite(pos.x)).toBe(true);
+    expect(Number.isFinite(pos.y)).toBe(true);
+    expect(Number.isFinite(pos.z)).toBe(true);
+  });
+
+  it("non-finite angles fall back to a finite position", () => {
+    const target = new THREE.Vector3(0, 1, 0);
+    const pos = orbitPosition(target, 3, { azimuth: Number.NaN, polar: Number.POSITIVE_INFINITY });
+    expect(Number.isFinite(pos.x)).toBe(true);
+    expect(Number.isFinite(pos.y)).toBe(true);
+    expect(Number.isFinite(pos.z)).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// clampPolar — state-dependent polar clamp. azimuth is never clamped here.
+//   not perched: [10°, 170°]   perched: [60°, 120°]
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("clampPolar — not perched (free viewing [10°, 170°])", () => {
+  it("passes a polar already inside the free range", () => {
+    expect(clampPolar(90 * DEG, false)).toBeCloseTo(90 * DEG, 12);
+    expect(clampPolar(45 * DEG, false)).toBeCloseTo(45 * DEG, 12);
+  });
+
+  it("clamps below 10° up to 10°", () => {
+    expect(clampPolar(2 * DEG, false)).toBeCloseTo(10 * DEG, 12);
+  });
+
+  it("clamps above 170° down to 170°", () => {
+    expect(clampPolar(179 * DEG, false)).toBeCloseTo(170 * DEG, 12);
+  });
+});
+
+describe("clampPolar — perched (tightened to [60°, 120°])", () => {
+  it("passes a polar already inside the perched range", () => {
+    expect(clampPolar(90 * DEG, true)).toBeCloseTo(90 * DEG, 12);
+    expect(clampPolar(75 * DEG, true)).toBeCloseTo(75 * DEG, 12);
+  });
+
+  it("a free-but-out-of-perched angle is pulled into range on perch", () => {
+    // 20° is valid free, but perch tightens it to the 60° floor.
+    expect(clampPolar(20 * DEG, true)).toBeCloseTo(60 * DEG, 12);
+    // 150° free → 120° perched ceiling.
+    expect(clampPolar(150 * DEG, true)).toBeCloseTo(120 * DEG, 12);
+  });
+
+  it("non-finite polar falls back to the default (90°)", () => {
+    expect(clampPolar(Number.NaN, true)).toBeCloseTo(CAMERA_POLAR_DEFAULT, 12);
+    expect(clampPolar(Number.POSITIVE_INFINITY, false)).toBeCloseTo(CAMERA_POLAR_DEFAULT, 12);
   });
 });
