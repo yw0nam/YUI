@@ -37,6 +37,7 @@ import { createWebAudioSink } from "./io/audio-player";
 import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import {
+  CAMERA_ORBIT_SENSITIVITY,
   CAMERA_WHEEL_SENSITIVITY,
   CAMERA_ZOOM_MAX,
   CAMERA_ZOOM_MIN,
@@ -163,6 +164,13 @@ async function bootstrap(): Promise<void> {
       });
     },
     onDragEnd: () => hitTestRef?.resume(),
+    // Alt/Option + left-drag orbits the camera. dx → azimuth, dy → polar; clamp/persist
+    // live in cameraSettings, which drives renderer.setOrbit via the subscription below.
+    onOrbit: ({ dx, dy }) => {
+      const cur = cameraSettings.get();
+      cameraSettings.setAzimuth(cur.azimuth + dx * CAMERA_ORBIT_SENSITIVITY);
+      cameraSettings.setPolar(cur.polar - dy * CAMERA_ORBIT_SENSITIVITY);
+    },
   });
 
   // 마우스 휠로 캐릭터 스케일: 클램프 경계·민감도는 io 상수, persist는 store가 소유.
@@ -274,7 +282,11 @@ async function bootstrap(): Promise<void> {
     storage: localStorageCameraStorage(),
   });
   renderer.setZoom(cameraSettings.get().zoom);
-  cameraSettings.subscribe((s) => renderer.setZoom(s.zoom));
+  renderer.setOrbit({ azimuth: cameraSettings.get().azimuth, polar: cameraSettings.get().polar });
+  cameraSettings.subscribe((s) => {
+    renderer.setZoom(s.zoom);
+    renderer.setOrbit({ azimuth: s.azimuth, polar: s.polar });
+  });
   renderer.setIdleThrottleEnabled(idleThrottleSettings.get().enabled);
   idleThrottleSettings.subscribe((s) => renderer.setIdleThrottleEnabled(s.enabled));
   const voiceInputStatus = createVoiceInputStatus();
@@ -525,6 +537,8 @@ async function bootstrap(): Promise<void> {
       resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
       onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
       onGainPreviewEnd: () => renderer.stopMouth(),
+      // Reset the camera viewpoint to head-on (store drives renderer.setOrbit).
+      onResetViewpoint: () => cameraSettings.resetOrbit(),
       // 빈 instructions일 때 placeholder로 보여줄 기본 지침(config 미로드 시 무시).
       getDefaultInstructions: () => {
         try {

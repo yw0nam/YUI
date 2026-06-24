@@ -153,6 +153,11 @@ const en: Record<string, string> = {
   "expression.mouth_aria": "Mouth movement",
   "expression.mouth_hint": "Dragging opens the character's mouth that much in real time",
 
+  // viewpoint (camera orbit)
+  "viewpoint.section": "Viewpoint",
+  "viewpoint.sub": "Alt/Option + drag to orbit, scroll to zoom",
+  "viewpoint.reset": "Reset to front",
+
   // screenshot / input tab
   "screenshot.label": "Attach screenshot",
   "screenshot.sub": "See your screen together while talking",

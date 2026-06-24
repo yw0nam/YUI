@@ -93,6 +93,8 @@ interface QuickControlsOptions {
   resolveAuditionUrl?: (refUrl: string) => Promise<string>;
   onGainPreview: (mouthOpen: number) => void;
   onGainPreviewEnd: () => void;
+  /** Reset the camera viewpoint (orbit angles) to head-on. Renders the section when set. */
+  onResetViewpoint?: () => void;
   onPopOut?: () => void;
   variant?: "popover" | "window";
   /** 빈 instructions일 때 placeholder로 보여줄 기본 지침(config.chat_instructions). */
@@ -232,6 +234,7 @@ export function createQuickControls({
   resolveAuditionUrl,
   onGainPreview,
   onGainPreviewEnd,
+  onResetViewpoint,
   onPopOut,
   variant = "popover",
   getDefaultInstructions,
@@ -503,6 +506,17 @@ export function createQuickControls({
           <input class="yui-gain__slider" type="range" aria-label="${t("expression.mouth_aria")}" />
           <span class="yui-gain__hint">${t("expression.mouth_hint")}</span>
         </div>
+        ${
+          onResetViewpoint
+            ? `
+        <div class="yui-quick__divider" aria-hidden="true"></div>
+        <span class="yui-quick__section">${t("viewpoint.section")}</span>
+        <div class="yui-field-row">
+          <span class="yui-field-row__sub">${t("viewpoint.sub")}</span>
+          <button class="yui-reset yui-viewpoint-reset" type="button">${t("viewpoint.reset")}</button>
+        </div>`
+            : ""
+        }
       </div>
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-input" aria-labelledby="yui-tab-input" tabindex="0" hidden>
@@ -675,6 +689,8 @@ export function createQuickControls({
   const spkImportErrorEl = el.querySelector<HTMLParagraphElement>(".yui-spk__import-error")!;
   const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
+  // 시점 리셋 버튼 — onResetViewpoint 주입 시에만 존재한다(없으면 null).
+  const viewpointResetBtn = el.querySelector<HTMLButtonElement>(".yui-viewpoint-reset");
   // 생각중 추임새 섹션 노드 — fillerSettings 주입 시에만 존재한다(없으면 null).
   const fillerSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-filler-switch");
   const fillerLangSegEl = el.querySelector<HTMLDivElement>(".yui-filler-lang-seg");
@@ -2158,6 +2174,11 @@ export function createQuickControls({
     log.info("instructions_reset");
   }
 
+  function handleResetViewpoint(): void {
+    onResetViewpoint?.();
+    log.info("viewpoint_reset");
+  }
+
   // ── 엔드포인트 섹션 ──
 
   function handleEndpointInput(e: Event): void {
@@ -2408,6 +2429,7 @@ export function createQuickControls({
   instructionsEl.addEventListener("input", handleInstructionsInput);
   instructionsEl.addEventListener("blur", handleInstructionsBlur);
   resetBtn.addEventListener("click", handleResetInstructions);
+  viewpointResetBtn?.addEventListener("click", handleResetViewpoint);
   for (const input of epInputs.values()) {
     input.addEventListener("input", handleEndpointInput);
     input.addEventListener("blur", handleEndpointBlur);
@@ -2479,6 +2501,7 @@ export function createQuickControls({
     instructionsEl.removeEventListener("input", handleInstructionsInput);
     instructionsEl.removeEventListener("blur", handleInstructionsBlur);
     resetBtn.removeEventListener("click", handleResetInstructions);
+    viewpointResetBtn?.removeEventListener("click", handleResetViewpoint);
     for (const input of epInputs.values()) {
       input.removeEventListener("input", handleEndpointInput);
       input.removeEventListener("blur", handleEndpointBlur);

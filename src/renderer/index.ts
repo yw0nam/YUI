@@ -31,8 +31,8 @@ import {
   CAMERA_POLAR_DEFAULT,
   clampPolar,
   computeCameraFit,
-  orbitPosition,
   type OrbitAngles,
+  orbitPosition,
 } from "./camera-fit";
 import { createCycleDwell } from "./cycle-dwell";
 import { revertEmotionToNeutral } from "./ease-emotion";

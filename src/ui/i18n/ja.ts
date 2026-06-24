@@ -153,6 +153,11 @@ const ja: Record<string, string> = {
   "expression.mouth_aria": "口の動き",
   "expression.mouth_hint": "ドラッグするとキャラクターの口が実際にその分だけ開きます",
 
+  // viewpoint (camera orbit)
+  "viewpoint.section": "視点",
+  "viewpoint.sub": "Alt/Option + ドラッグで回転、スクロールでズーム",
+  "viewpoint.reset": "正面に戻す",
+
   // screenshot / input tab
   "screenshot.label": "スクリーンショットを添付",
   "screenshot.sub": "会話しながら画面を一緒に見ます",
