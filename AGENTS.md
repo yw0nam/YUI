@@ -4,7 +4,7 @@
 
 ## Before start it
 
-Load the Karpathy guidelines, vendored at [`.claude/skills/karpathy-guidelines/SKILL.md`](.claude/skills/karpathy-guidelines/SKILL.md): think before coding, simplicity first, surgical changes, goal-driven execution.
+@.claude/skills/karpathy-guidelines/SKILL.md
 
 ## Work Rules (user directive, mandatory)
 
