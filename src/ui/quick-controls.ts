@@ -22,6 +22,7 @@ import {
   isValidEndpointUrl,
 } from "../io/endpoints-settings";
 import type { createFillerSettings } from "../io/filler-settings";
+import type { createGazeSettings } from "../io/gaze-settings";
 import type { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import {
   type createLipsyncSettings,
@@ -45,6 +46,7 @@ import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-s
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type IdleThrottleSettingsStore = ReturnType<typeof createIdleThrottleSettings>;
+type GazeSettingsStore = ReturnType<typeof createGazeSettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
 type ScheduleSettingsStore = ReturnType<typeof createScheduleSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
@@ -119,6 +121,8 @@ interface QuickControlsOptions {
   fillerSettings?: FillerSettingsStore;
   /** TTS 음성 출력 on/off store. */
   ttsSettings?: TtsSettingsStore;
+  /** 카메라 시선 맞춤(gaze) on/off store. 없으면 해당 토글 행을 그리지 않는다. */
+  gazeSettings?: GazeSettingsStore;
 }
 
 interface QuickControls {
@@ -248,6 +252,7 @@ export function createQuickControls({
   sessionStore,
   fillerSettings,
   ttsSettings,
+  gazeSettings,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // 세션 섹션은 설정 창(window)에서만, 두 store가 모두 주입됐을 때 그린다.
@@ -648,6 +653,17 @@ export function createQuickControls({
           </div>
           <button class="yui-switch yui-idle-throttle-switch" type="button" role="switch" aria-checked="false" aria-label="${t("perf.idle_aria")}"></button>
         </div>
+        ${
+          gazeSettings
+            ? `<div class="yui-row">
+          <div class="yui-row__main">
+            <span class="yui-row__label">${t("gaze.label")}</span>
+            <span class="yui-row__sub">${t("gaze.sub")}</span>
+          </div>
+          <button class="yui-switch yui-gaze-switch" type="button" role="switch" aria-checked="${String(gazeSettings.get().enabled)}" aria-label="${t("gaze.aria")}"></button>
+        </div>`
+            : ""
+        }
         ${sessionHtml}
       </div>
 
@@ -658,6 +674,7 @@ export function createQuickControls({
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const idleThrottleSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
+  const gazeSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-gaze-switch");
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const ttsSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-tts-switch");
@@ -846,6 +863,11 @@ export function createQuickControls({
   function reflectTts(): void {
     if (!ttsSwitchBtn || !ttsSettings) return;
     ttsSwitchBtn.setAttribute("aria-checked", String(ttsSettings.get().enabled));
+  }
+
+  function reflectGaze(): void {
+    if (!gazeSwitchBtn || !gazeSettings) return;
+    gazeSwitchBtn.setAttribute("aria-checked", String(gazeSettings.get().enabled));
   }
 
   function reflectGain(): void {
@@ -1929,6 +1951,7 @@ export function createQuickControls({
     reflectSettings();
     reflectIdleThrottle();
     reflectTts();
+    reflectGaze();
     reflectVoiceStatus(voiceStatus.get());
     reflectGain();
     reflectVad();
@@ -2022,6 +2045,13 @@ export function createQuickControls({
     const current = ttsSettings.get().enabled;
     ttsSettings.setEnabled(!current);
     log.info("tts_output_toggle", { enabled: !current });
+  }
+
+  function handleGazeSwitchClick(): void {
+    if (!gazeSettings) return;
+    const current = gazeSettings.get().enabled;
+    gazeSettings.setEnabled(!current);
+    log.info("gaze_toggle", { enabled: !current });
   }
 
   // ── 생각중 추임새 이벤트 핸들러 ──
@@ -2330,6 +2360,9 @@ export function createQuickControls({
   const unsubscribeTts = ttsSettings?.subscribe(() => {
     if (openState) reflectTts();
   });
+  const unsubscribeGaze = gazeSettings?.subscribe(() => {
+    if (openState) reflectGaze();
+  });
   // 큐 목록 컴포넌트 — 입력 탭 내 .yui-cue-sections에 마운트. 구독·teardown을 컴포넌트 자체가 관리한다.
   const scheduleDividerEl = document.createElement("div");
   scheduleDividerEl.className = "yui-quick__divider";
@@ -2403,6 +2436,7 @@ export function createQuickControls({
   switchBtn.addEventListener("click", handleSwitchClick);
   idleThrottleSwitchBtn.addEventListener("click", handleIdleThrottleSwitchClick);
   ttsSwitchBtn?.addEventListener("click", handleTtsSwitchClick);
+  gazeSwitchBtn?.addEventListener("click", handleGazeSwitchClick);
   fillerSwitchBtn?.addEventListener("click", handleFillerSwitchClick);
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
   langSegEl.addEventListener("click", handleLangSegClick);
@@ -2458,6 +2492,7 @@ export function createQuickControls({
     unsubscribe();
     unsubscribeIdleThrottle();
     unsubscribeTts?.();
+    unsubscribeGaze?.();
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();
@@ -2475,6 +2510,7 @@ export function createQuickControls({
     switchBtn.removeEventListener("click", handleSwitchClick);
     idleThrottleSwitchBtn.removeEventListener("click", handleIdleThrottleSwitchClick);
     ttsSwitchBtn?.removeEventListener("click", handleTtsSwitchClick);
+    gazeSwitchBtn?.removeEventListener("click", handleGazeSwitchClick);
     fillerSwitchBtn?.removeEventListener("click", handleFillerSwitchClick);
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
     langSegEl.removeEventListener("click", handleLangSegClick);

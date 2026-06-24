@@ -664,6 +664,91 @@ describe("loadConfig — avatar.hit_test", () => {
   });
 });
 
+// ── avatar.gaze camera tracking ─────────────────────────────────────────────────
+
+describe("loadConfig — avatar.gaze", () => {
+  async function expectAvatarError(p: Promise<unknown>): Promise<void> {
+    await expect(p).rejects.toBeInstanceOf(ConfigError);
+    const err = await p.catch((e) => e);
+    expect((err as ConfigError).file).toBe("avatar.json");
+    expect((err as ConfigError).issues.length).toBeGreaterThan(0);
+  }
+  async function loadWithAvatar(avatar: unknown): Promise<unknown> {
+    const map = goodFixture();
+    map[CONFIG_FILES.avatar] = avatar;
+    return loadConfig({ read: readerOf(map) });
+  }
+
+  const fullGaze = {
+    deadDeg: 3,
+    headEngageDeg: 20,
+    disengageDeg: 65,
+    maxHeadYaw: 50,
+    maxHeadPitch: 30,
+    eyeMaxDeg: 25,
+    headNeckSplit: 0.6,
+    smooth: 10,
+  };
+
+  it("유효한 gaze 전체 블록을 그대로 보존한다", async () => {
+    const cfg = await loadConfig({
+      read: readerOf({
+        ...goodFixture(),
+        "avatar.json": { vrm_url: "/vrms/carlotta.vrm", gaze: fullGaze },
+      }),
+    });
+    expect(cfg.avatar.gaze).toEqual(fullGaze);
+  });
+
+  it("gaze가 없으면 undefined (하위호환 → 렌더러 기본값)", async () => {
+    const cfg = await loadConfig({ read: readerOf(goodFixture()) });
+    expect(cfg.avatar.gaze).toBeUndefined();
+  });
+
+  it("부분 gaze(일부 필드만)도 허용한다", async () => {
+    const cfg = await loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", gaze: { disengageDeg: 70 } });
+    expect((cfg as { avatar: { gaze?: unknown } }).avatar.gaze).toEqual({ disengageDeg: 70 });
+  });
+
+  it("gaze가 객체가 아니면 실패", async () => {
+    await expectAvatarError(loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", gaze: 5 }));
+  });
+
+  it("deadDeg 음수면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", gaze: { deadDeg: -1 } }),
+    );
+  });
+
+  it("disengageDeg > 180이면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", gaze: { disengageDeg: 181 } }),
+    );
+  });
+
+  it("eyeMaxDeg > 90이면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", gaze: { eyeMaxDeg: 91 } }),
+    );
+  });
+
+  it("headNeckSplit이 [0,1] 밖이면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", gaze: { headNeckSplit: 1.2 } }),
+    );
+  });
+
+  it("smooth가 0 이하면 실패", async () => {
+    await expectAvatarError(loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", gaze: { smooth: 0 } }));
+  });
+
+  it("maxHeadYaw가 NaN이면 실패", async () => {
+    await expectAvatarError(
+      loadWithAvatar({ vrm_url: "/vrms/carlotta.vrm", gaze: { maxHeadYaw: Number.NaN } }),
+    );
+  });
+});
+
 // ── irodori_TTS provider (PR-A) ────────────────────────────────────────────────
 
 describe("loadConfig — endpoints irodori provider", () => {

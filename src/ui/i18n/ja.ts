@@ -253,6 +253,9 @@ const ja: Record<string, string> = {
   "perf.idle_sub":
     "キャラクターが静止しているときにフレームレートを下げて電力を節約します。話したり動いたりすると自動でなめらかに戻ります。",
   "perf.idle_aria": "待機中の省電力",
+  "gaze.label": "カメラを見る",
+  "gaze.sub": "キャラクターが目と頭をカメラの視点に向けて視線を合わせます。",
+  "gaze.aria": "カメラを見る",
 
   // session
   "session.section": "セッション",

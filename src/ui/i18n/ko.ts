@@ -252,6 +252,9 @@ const ko: Record<string, string> = {
   "perf.idle_sub":
     "캐릭터가 가만히 있을 때 프레임을 낮춰 전력을 아낍니다. 말하거나 움직일 땐 자동으로 부드러워집니다.",
   "perf.idle_aria": "유휴 시 절전",
+  "gaze.label": "카메라 시선 맞춤",
+  "gaze.sub": "캐릭터가 카메라 쪽으로 눈과 고개를 돌려 시선을 맞춥니다.",
+  "gaze.aria": "카메라 시선 맞춤",
 
   // session
   "session.section": "세션",

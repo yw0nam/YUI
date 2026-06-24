@@ -63,6 +63,17 @@ export interface AvatarConfig {
     /** phase-2용 alpha 임계(현재 미사용, (0,1] 범위만 검증). */
     alpha_threshold?: number;
   };
+  /** 카메라 시선 추적(gaze) knob. 없으면 렌더러 기본값(natural preset). 부분값 허용. */
+  gaze?: {
+    deadDeg?: number;
+    headEngageDeg?: number;
+    disengageDeg?: number;
+    maxHeadYaw?: number;
+    maxHeadPitch?: number;
+    eyeMaxDeg?: number;
+    headNeckSplit?: number;
+    smooth?: number;
+  };
 }
 
 /** configs/guardrails.json — DND/debounce/rate-limit 수치. */
@@ -627,12 +638,59 @@ function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
+  // gaze — optional camera-tracking knob. 부분값 허용(기본값은 렌더러 소유, natural preset).
+  let gaze: AvatarConfig["gaze"];
+  const rawGaze = raw.gaze;
+  if (rawGaze !== undefined) {
+    if (!isObject(rawGaze)) {
+      issues.push(`gaze는 객체여야 함 (받음: ${JSON.stringify(rawGaze)})`);
+    } else {
+      const out: NonNullable<AvatarConfig["gaze"]> = {};
+      // 각도(deg) — 유한 number, 지정 범위. deadDeg만 0 허용, 나머지 각도는 >0.
+      const ranged = (
+        k:
+          | "deadDeg"
+          | "headEngageDeg"
+          | "disengageDeg"
+          | "maxHeadYaw"
+          | "maxHeadPitch"
+          | "eyeMaxDeg"
+          | "headNeckSplit"
+          | "smooth",
+        min: number,
+        max: number,
+        minInclusive: boolean,
+      ): void => {
+        const v = rawGaze[k];
+        if (v === undefined) return;
+        const lowOk = typeof v === "number" && (minInclusive ? v >= min : v > min);
+        if (typeof v !== "number" || !Number.isFinite(v) || !lowOk || v > max) {
+          issues.push(
+            `gaze.${k}는 ${minInclusive ? min : `${min} 초과`}..${max} 범위 유한 number여야 함 (받음: ${JSON.stringify(v)})`,
+          );
+        } else {
+          out[k] = v;
+        }
+      };
+      ranged("deadDeg", 0, 180, true);
+      ranged("headEngageDeg", 0, 180, false);
+      ranged("disengageDeg", 0, 180, false);
+      ranged("maxHeadYaw", 0, 90, false);
+      ranged("maxHeadPitch", 0, 90, false);
+      ranged("eyeMaxDeg", 0, 90, false);
+      ranged("headNeckSplit", 0, 1, true);
+      ranged("smooth", 0, 1000, false);
+      gaze = out;
+    }
+  }
+
   assertValid(file, issues);
   return {
     vrm_url,
     ...(available !== undefined ? { available } : {}),
     ...(framing !== undefined ? { framing } : {}),
     ...(hit_test !== undefined ? { hit_test } : {}),
+    ...(gaze !== undefined ? { gaze } : {}),
   };
 }
 
