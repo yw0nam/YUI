@@ -44,6 +44,7 @@ import {
   VOICE_ENGINE_LABEL_KEYS,
   type VoiceEngine,
 } from "./quick-controls/constants";
+import { createPopover } from "./quick-controls/popover";
 import { createSpeakerList } from "./quick-controls/speaker-list";
 import { buildPanelHtml } from "./quick-controls/template";
 import { createVrmList } from "./quick-controls/vrm-list";
@@ -138,9 +139,6 @@ interface QuickControls {
   dispose(): void;
 }
 
-const VIEWPORT_MARGIN = 12;
-const POS_KEY = "yui.quick.pos";
-
 export const PREVIEW_PEAK_RMS = 0.15;
 const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
 
@@ -151,32 +149,6 @@ export function formatTokenCount(n: number): string {
   const k = n / 1000;
   if (k >= 100) return `${Math.round(k)}K`;
   return `${k.toFixed(1).replace(/\.0$/, "")}K`;
-}
-
-interface SavedPos {
-  x: number;
-  y: number;
-}
-
-function loadSavedPos(): SavedPos | null {
-  try {
-    const raw = globalThis.localStorage?.getItem(POS_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<SavedPos>;
-    if (typeof parsed?.x !== "number" || typeof parsed?.y !== "number") return null;
-    if (!Number.isFinite(parsed.x) || !Number.isFinite(parsed.y)) return null;
-    return { x: parsed.x, y: parsed.y };
-  } catch {
-    return null;
-  }
-}
-
-function savePos(pos: SavedPos): void {
-  try {
-    globalThis.localStorage?.setItem(POS_KEY, JSON.stringify(pos));
-  } catch {
-    // localStorage 사용 불가 시 no-op
-  }
 }
 
 export function createQuickControls({
@@ -361,7 +333,7 @@ export function createQuickControls({
       commitIfDirty,
       subscribe: () =>
         store.subscribe(() => {
-          if (openState) reflect();
+          if (popover.isOpen()) reflect();
         }),
       addListeners() {
         input.addEventListener("input", handleInput);
@@ -411,9 +383,7 @@ export function createQuickControls({
     }
   }
 
-  let openState = false;
   let gainPreviewing = false;
-  let closeRafId: number | null = null;
   let monitorsLoaded = false;
   // dispose 후 in-flight refresh가 무너진 DOM에 재그림/타이머를 쓰지 않게 막는다.
   let disposed = false;
@@ -676,195 +646,43 @@ export function createQuickControls({
     isDisposed: () => disposed,
   });
 
-  // ── 위치 계산 (popover variant) ──
-
-  function clampToViewport(x: number, y: number): { x: number; y: number } {
-    const rect = el.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    let nx = x;
-    let ny = y;
-    if (nx + rect.width > vw - VIEWPORT_MARGIN) nx = vw - VIEWPORT_MARGIN - rect.width;
-    if (nx < VIEWPORT_MARGIN) nx = VIEWPORT_MARGIN;
-    if (ny + rect.height > vh - VIEWPORT_MARGIN) ny = vh - VIEWPORT_MARGIN - rect.height;
-    if (ny < VIEWPORT_MARGIN) ny = VIEWPORT_MARGIN;
-    return { x: nx, y: ny };
-  }
-
-  function placeAt(x: number, y: number): void {
-    el.style.removeProperty("bottom");
-    el.style.transform = "";
-    const c = clampToViewport(x, y);
-    el.style.left = `${c.x}px`;
-    el.style.top = `${c.y}px`;
-  }
-
-  function placeFallback(): void {
-    el.style.removeProperty("left");
-    el.style.removeProperty("top");
-    el.style.left = "50%";
-    el.style.bottom = "9%";
-    el.style.transform = "translate(-50%, 0)";
-  }
-
-  function positionPopover(anchor?: { x: number; y: number }): void {
-    // 우선순위: 저장 위치 > 커서 앵커 > 중앙 하단 fallback.
-    const saved = loadSavedPos();
-    if (saved) {
-      placeAt(saved.x, saved.y);
-      return;
-    }
-    if (anchor) {
-      // 앵커 아래에 열되, 아래 공간이 없으면 위로(기존 동작 보존).
-      const rect = el.getBoundingClientRect();
-      const vh = window.innerHeight;
-      let y = anchor.y;
-      if (y + rect.height > vh - VIEWPORT_MARGIN) y = anchor.y - rect.height;
-      placeAt(anchor.x, y);
-      return;
-    }
-    placeFallback();
-  }
-
-  // ── 드래그 (popover variant) ──
-
-  let dragging = false;
-  let dragStartX = 0;
-  let dragStartY = 0;
-  let dragOriginLeft = 0;
-  let dragOriginTop = 0;
-
-  function handleBarPointerDown(e: PointerEvent): void {
-    if (isWindow) return;
-    if (e.button !== 0) return;
-    // 헤더의 버튼(팝아웃·닫기) 클릭은 드래그로 취급하지 않는다.
-    if ((e.target as HTMLElement).closest(".yui-iconbtn")) return;
-    dragging = true;
-    // 도킹 중에는 left/top을 수치로 직접 제어하므로 그 값을 출발점으로 삼는다.
-    // (스타일 미설정 시에만 레이아웃 rect로 폴백.)
-    const styleLeft = parseFloat(el.style.left);
-    const styleTop = parseFloat(el.style.top);
-    if (Number.isFinite(styleLeft) && Number.isFinite(styleTop)) {
-      dragOriginLeft = styleLeft;
-      dragOriginTop = styleTop;
-    } else {
-      const rect = el.getBoundingClientRect();
-      dragOriginLeft = rect.left;
-      dragOriginTop = rect.top;
-    }
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    barEl?.classList.add("is-dragging");
-    document.addEventListener("pointermove", handleDocPointerMove);
-    document.addEventListener("pointerup", handleDocPointerUp);
-  }
-
-  function handleDocPointerMove(e: PointerEvent): void {
-    if (!dragging) return;
-    const dx = e.clientX - dragStartX;
-    const dy = e.clientY - dragStartY;
-    placeAt(dragOriginLeft + dx, dragOriginTop + dy);
-  }
-
-  function handleDocPointerUp(): void {
-    if (!dragging) return;
-    dragging = false;
-    barEl?.classList.remove("is-dragging");
-    document.removeEventListener("pointermove", handleDocPointerMove);
-    document.removeEventListener("pointerup", handleDocPointerUp);
-    const x = parseFloat(el.style.left);
-    const y = parseFloat(el.style.top);
-    if (Number.isFinite(x) && Number.isFinite(y)) savePos({ x, y });
-  }
-
-  // ── open / close ──
-
-  function open(anchor?: { x: number; y: number }): void {
-    if (openState) return;
-    openState = true;
-
-    if (closeRafId !== null) {
-      cancelAnimationFrame(closeRafId);
-      closeRafId = null;
-    }
-
-    if (!isWindow) mount.appendChild(scrimEl);
-    mount.appendChild(el);
-
-    reflectSettings();
-    reflectIdleThrottle();
-    reflectTts();
-    reflectGaze();
-    reflectVoiceStatus(voiceStatus.get());
-    reflectGain();
-    reflectVad();
-    reflectAgent();
-    reflectFiller();
-    reflectLanguage();
-    reflectEndpoints();
-    reflectKeyRows();
-    reflectVoiceEngine();
-    reflectSession();
-    vrmList.render();
-    speakerList.render();
-
-    if (isWindow) {
-      // 창 variant는 OS 창을 채운다 — 위치 계산/애니메이션 없음.
-      el.classList.add("is-open");
-    } else {
-      positionPopover(anchor);
-    }
-
-    if (settings.get().enabled && !monitorsLoaded) {
-      void loadMonitors();
-    }
-
-    if (!isWindow) {
-      requestAnimationFrame(() => {
-        el.classList.add("is-open");
-      });
-    }
-  }
-
-  function close(): void {
-    if (!openState) return;
-    if (gainPreviewing) {
-      onGainPreviewEnd();
-      gainPreviewing = false;
-    }
-    speakerList.stopAudition();
-    for (const r of keyRows) r.commitIfDirty();
-    openState = false;
-
-    if (isWindow) {
-      // 창 variant는 항상 보이므로 DOM에서 떼지 않는다.
-      return;
-    }
-
-    el.classList.remove("is-open");
-
-    const onEnd = (e: TransitionEvent): void => {
-      if (e.propertyName !== "opacity") return;
-      el.removeEventListener("transitionend", onEnd);
-      if (!el.classList.contains("is-open")) {
-        el.remove();
-        scrimEl.remove();
+  // ── popover 셸 (위치·드래그·open/close 라이프사이클) ──
+  const popover = createPopover({
+    mount,
+    root: el,
+    scrim: scrimEl,
+    bar: barEl,
+    isWindow,
+    onOpen: () => {
+      reflectSettings();
+      reflectIdleThrottle();
+      reflectTts();
+      reflectGaze();
+      reflectVoiceStatus(voiceStatus.get());
+      reflectGain();
+      reflectVad();
+      reflectAgent();
+      reflectFiller();
+      reflectLanguage();
+      reflectEndpoints();
+      reflectKeyRows();
+      reflectVoiceEngine();
+      reflectSession();
+      vrmList.render();
+      speakerList.render();
+      if (settings.get().enabled && !monitorsLoaded) {
+        void loadMonitors();
       }
-    };
-    el.addEventListener("transitionend", onEnd);
-
-    closeRafId = requestAnimationFrame(() => {
-      closeRafId = null;
-      if (!openState && !el.classList.contains("is-open")) {
-        el.remove();
-        scrimEl.remove();
+    },
+    onClose: () => {
+      if (gainPreviewing) {
+        onGainPreviewEnd();
+        gainPreviewing = false;
       }
-    });
-  }
-
-  function isOpen(): boolean {
-    return openState;
-  }
+      speakerList.stopAudition();
+      for (const r of keyRows) r.commitIfDirty();
+    },
+  });
 
   // ── 이벤트 핸들러 ──
 
@@ -955,20 +773,6 @@ export function createQuickControls({
   // openai 엔진에선 화자 관리가 비활성 — 프로그래매틱 클릭(테스트)도 게이팅한다.
   function speakerControlsEnabled(): boolean {
     return effectiveProvider() === "irodori";
-  }
-
-  function handleScrimPointerDown(e: PointerEvent): void {
-    e.stopPropagation();
-    close();
-  }
-
-  function handleDocKeydown(e: KeyboardEvent): void {
-    if (isWindow) return;
-    if (!openState) return;
-    if (e.key === "Escape") {
-      e.preventDefault();
-      close();
-    }
   }
 
   function handlePopOut(): void {
@@ -1181,7 +985,7 @@ export function createQuickControls({
   // ── 구독 ──
 
   const unsubscribe = settings.subscribe((s) => {
-    if (!openState) return;
+    if (!popover.isOpen()) return;
     switchBtn.setAttribute("aria-checked", String(s.enabled));
     el.classList.toggle("is-on", s.enabled);
     if (s.enabled && !monitorsLoaded) {
@@ -1189,13 +993,13 @@ export function createQuickControls({
     }
   });
   const unsubscribeIdleThrottle = idleThrottleSettings.subscribe(() => {
-    if (openState) reflectIdleThrottle();
+    if (popover.isOpen()) reflectIdleThrottle();
   });
   const unsubscribeTts = ttsSettings?.subscribe(() => {
-    if (openState) reflectTts();
+    if (popover.isOpen()) reflectTts();
   });
   const unsubscribeGaze = gazeSettings?.subscribe(() => {
-    if (openState) reflectGaze();
+    if (popover.isOpen()) reflectGaze();
   });
   // 큐 목록 컴포넌트 — 입력 탭 내 .yui-cue-sections에 마운트. 구독·teardown을 컴포넌트 자체가 관리한다.
   const scheduleDividerEl = document.createElement("div");
@@ -1232,16 +1036,16 @@ export function createQuickControls({
 
   const unsubscribeVoice = voiceStatus.subscribe(reflectVoiceStatus);
   const unsubscribeLipsync = lipsync.subscribe(() => {
-    if (openState) reflectGain();
+    if (popover.isOpen()) reflectGain();
   });
   const unsubscribeVad = vad.subscribe(() => {
-    if (openState) reflectVad();
+    if (popover.isOpen()) reflectVad();
   });
   const unsubscribeAgent = agentSettings.subscribe(() => {
-    if (openState) reflectAgent();
+    if (popover.isOpen()) reflectAgent();
   });
   const unsubscribeEndpoints = endpointsSettings.subscribe(() => {
-    if (openState) {
+    if (popover.isOpen()) {
       reflectEndpoints();
       reflectVoiceEngine();
     }
@@ -1250,21 +1054,21 @@ export function createQuickControls({
   const unsubscribeKeyRows = keyRows.map((r) => r.subscribe());
   // 생각중 추임새 store 갱신을 섹션에 반영(다른 창 reloadFromStorage 포함).
   const unsubscribeFiller = fillerSettings?.subscribe(() => {
-    if (openState) reflectFiller();
+    if (popover.isOpen()) reflectFiller();
   });
   // store 갱신(직접 select·다른 창 reloadFromStorage)을 active 행에 반영.
   // 스왑 진행 중엔 건너뛴다 — finally의 renderVrms가 로딩 해제 후 최종 그림을 맡는다.
   const unsubscribeVrm = vrmSelection.subscribe(() => {
-    if (openState && !vrmList.isSwapping()) vrmList.render();
+    if (popover.isOpen() && !vrmList.isSwapping()) vrmList.render();
   });
   // 화자 store 갱신(직접 select·다른 창 reloadFromStorage)을 active 행에 반영.
   // 스왑 진행 중엔 건너뛴다 — finally의 renderSpeakers가 로딩 해제 후 최종 그림을 맡는다.
   const unsubscribeSpk = speakerSelection.subscribe(() => {
-    if (openState && !speakerList.isSwapping()) speakerList.render();
+    if (popover.isOpen() && !speakerList.isSwapping()) speakerList.render();
   });
   // 세션 진단 갱신(이 창의 reset·펫 창 reloadFromStorage)을 readout에 반영.
   const unsubscribeSession = sessionDiagnostics?.subscribe(() => {
-    if (openState) reflectSession();
+    if (popover.isOpen()) reflectSession();
   });
 
   switchBtn.addEventListener("click", handleSwitchClick);
@@ -1277,8 +1081,6 @@ export function createQuickControls({
   fillerFirstTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   fillerRepeatTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
-  scrimEl.addEventListener("pointerdown", handleScrimPointerDown);
-  document.addEventListener("keydown", handleDocKeydown);
   gainSlider.addEventListener("input", handleGainInput);
   gainSlider.addEventListener("pointerup", handleGainEnd);
   gainSlider.addEventListener("blur", handleGainEnd);
@@ -1312,11 +1114,10 @@ export function createQuickControls({
   sessionResetBtn?.addEventListener("click", showSessionConfirm);
   sessionConfirmBtn?.addEventListener("click", handleSessionReset);
   sessionCancelBtn?.addEventListener("click", hideSessionConfirm);
-  barEl?.addEventListener("pointerdown", handleBarPointerDown);
   popOutBtn?.addEventListener("click", handlePopOut);
-  closeBtn?.addEventListener("click", close);
+  closeBtn?.addEventListener("click", popover.close);
   // 창 variant는 항상 보이므로 즉시 연다.
-  if (isWindow) open();
+  if (isWindow) popover.open();
 
   function dispose(): void {
     disposed = true;
@@ -1338,6 +1139,7 @@ export function createQuickControls({
     unsubscribeSpk();
     unsubscribeSession?.();
     speakerList.dispose();
+    popover.dispose();
     switchBtn.removeEventListener("click", handleSwitchClick);
     idleThrottleSwitchBtn.removeEventListener("click", handleIdleThrottleSwitchClick);
     ttsSwitchBtn?.removeEventListener("click", handleTtsSwitchClick);
@@ -1348,8 +1150,6 @@ export function createQuickControls({
     fillerFirstTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     fillerRepeatTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
-    scrimEl.removeEventListener("pointerdown", handleScrimPointerDown);
-    document.removeEventListener("keydown", handleDocKeydown);
     gainSlider.removeEventListener("input", handleGainInput);
     gainSlider.removeEventListener("pointerup", handleGainEnd);
     gainSlider.removeEventListener("blur", handleGainEnd);
@@ -1378,14 +1178,11 @@ export function createQuickControls({
     sessionResetBtn?.removeEventListener("click", showSessionConfirm);
     sessionConfirmBtn?.removeEventListener("click", handleSessionReset);
     sessionCancelBtn?.removeEventListener("click", hideSessionConfirm);
-    barEl?.removeEventListener("pointerdown", handleBarPointerDown);
     popOutBtn?.removeEventListener("click", handlePopOut);
-    closeBtn?.removeEventListener("click", close);
-    document.removeEventListener("pointermove", handleDocPointerMove);
-    document.removeEventListener("pointerup", handleDocPointerUp);
+    closeBtn?.removeEventListener("click", popover.close);
     el.remove();
     scrimEl.remove();
   }
 
-  return { el, open, close, isOpen, dispose };
+  return { el, open: popover.open, close: popover.close, isOpen: popover.isOpen, dispose };
 }
