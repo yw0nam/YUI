@@ -7,6 +7,16 @@
     "debounce_samples": 2,
     "alpha_threshold": 0.1
   },
+  "gaze": {
+    "deadDeg": 3,
+    "headEngageDeg": 20,
+    "disengageDeg": 65,
+    "maxHeadYaw": 50,
+    "maxHeadPitch": 30,
+    "eyeMaxDeg": 25,
+    "headNeckSplit": 0.6,
+    "smooth": 10
+  },
   "available": [
     { "id": "carlotta", "label": "Carlotta", "url": "/vrms/carlotta.vrm", "source": "bundled" },
     { "id": "cantarella", "label": "Cantarella", "url": "/vrms/Cantarella.vrm", "source": "bundled" },
