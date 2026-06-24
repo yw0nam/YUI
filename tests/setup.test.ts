@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mergeEndpoints, setEnvVar, ttsOverrides } from "../scripts/setup.mjs";
+import { mergeEndpoints, setEnvVar, ttsNeedsKey, ttsOverrides } from "../scripts/setup.mjs";
 
 describe("mergeEndpoints", () => {
   it("overrides only non-empty values, preserving the rest", () => {
@@ -47,6 +47,14 @@ describe("ttsOverrides", () => {
 
   it("none returns no overrides", () => {
     expect(ttsOverrides("none", {})).toEqual({});
+  });
+});
+
+describe("ttsNeedsKey", () => {
+  it("openai needs a key; irodori (self-serving) and none do not", () => {
+    expect(ttsNeedsKey("openai")).toBe(true);
+    expect(ttsNeedsKey("irodori")).toBe(false);
+    expect(ttsNeedsKey("none")).toBe(false);
   });
 });
 
