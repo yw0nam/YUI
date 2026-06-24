@@ -27,6 +27,7 @@ const EMPTY: EndpointOverrides = {
   broker_base_url: "",
   chat_model: "",
   tts_provider: "",
+  tts_voice: "",
 };
 
 function baseConfig(): EndpointsConfig {
@@ -600,6 +601,60 @@ describe("createEndpointsSettings — broker_base_url + tts_provider overrides",
     store.reloadFromStorage();
     expect(store.get().broker_base_url).toBe("http://other:3201/mcp");
     expect(store.get().tts_provider).toBe("openai");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// tts_voice — store set/get/persist + mergeEndpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createEndpointsSettings — tts_voice override", () => {
+  it("set({ tts_voice: 'alloy' }) round-trips through get()", () => {
+    const store = createEndpointsSettings();
+    store.set({ tts_voice: "alloy" });
+    expect(store.get().tts_voice).toBe("alloy");
+  });
+
+  it("persists tts_voice via storage.save", () => {
+    const storage: EndpointsStorage = { load: () => null, save: vi.fn() };
+    const store = createEndpointsSettings({ storage });
+    store.set({ tts_voice: "alloy" });
+    expect(storage.save).toHaveBeenCalledWith({ ...EMPTY, tts_voice: "alloy" });
+  });
+
+  it("load coercion fills missing tts_voice with ''", () => {
+    const storage: EndpointsStorage = {
+      load: () => ({ chat_model: "only" }) as unknown as EndpointOverrides,
+      save: vi.fn(),
+    };
+    const store = createEndpointsSettings({ storage });
+    expect(store.get().tts_voice).toBe("");
+  });
+});
+
+describe("mergeEndpoints — tts_voice", () => {
+  it("overlays a non-empty tts_voice onto base", () => {
+    const out = mergeEndpoints(baseConfig(), { ...EMPTY, tts_voice: "alloy" });
+    expect(out.tts_voice).toBe("alloy");
+  });
+
+  it("ignores an empty tts_voice (keeps base default)", () => {
+    const base = baseConfig();
+    base.tts_voice = "shimmer";
+    const out = mergeEndpoints(base, { ...EMPTY, tts_voice: "" });
+    expect(out.tts_voice).toBe("shimmer");
+  });
+
+  it("trims tts_voice before applying", () => {
+    const out = mergeEndpoints(baseConfig(), { ...EMPTY, tts_voice: "  alloy  " });
+    expect(out.tts_voice).toBe("alloy");
+  });
+
+  it("ignores a whitespace-only tts_voice override", () => {
+    const base = baseConfig();
+    base.tts_voice = "shimmer";
+    const out = mergeEndpoints(base, { ...EMPTY, tts_voice: "   " });
+    expect(out.tts_voice).toBe("shimmer");
   });
 });
 
