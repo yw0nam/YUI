@@ -290,6 +290,8 @@ async function bootstrap(): Promise<void> {
     agentSettings,
     endpointsSettings,
     chatKeySettings,
+    sttKeySettings,
+    ttsKeySettings,
     lipsyncSettings,
     vadSettings,
     fillerSettings,
@@ -346,6 +348,8 @@ async function bootstrap(): Promise<void> {
     agentSettings,
     endpointsSettings,
     chatKeySettings,
+    sttKeySettings,
+    ttsKeySettings,
     lipsyncSettings,
     vadSettings,
     fillerSettings,
@@ -531,6 +535,8 @@ async function bootstrap(): Promise<void> {
       },
       endpointsSettings,
       chatKeySettings,
+      sttKeySettings,
+      ttsKeySettings,
       getEndpointDefaults: () => {
         try {
           const e = config.get().endpoints;
