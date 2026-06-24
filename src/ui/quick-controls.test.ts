@@ -652,6 +652,31 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  // ── viewpoint reset (camera orbit) ─────────────────────────────────────────
+
+  it("renders the viewpoint reset button only when onResetViewpoint is provided", () => {
+    const without = buildQc();
+    without.open();
+    expect(without.el.querySelector(".yui-viewpoint-reset")).toBeNull();
+    without.dispose();
+
+    const withReset = buildQc({ onResetViewpoint: vi.fn() });
+    withReset.open();
+    expect(withReset.el.querySelector(".yui-viewpoint-reset")).not.toBeNull();
+    withReset.dispose();
+  });
+
+  it("clicking the viewpoint reset button invokes onResetViewpoint", () => {
+    const onResetViewpoint = vi.fn();
+    const qc = buildQc({ onResetViewpoint });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-viewpoint-reset")!.click();
+    expect(onResetViewpoint).toHaveBeenCalledOnce();
+
+    qc.dispose();
+  });
+
   it("uses getDefaultInstructions() as the textarea placeholder when provided", () => {
     const qc = buildQc({ getDefaultInstructions: () => "default nudge here" });
     qc.open();

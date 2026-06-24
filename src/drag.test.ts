@@ -677,3 +677,158 @@ describe("initDrag — window_drop_release", () => {
     expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
 });
+
+// ─── initDrag — orbit gesture (Alt/Option + left-drag) ─────────────────────────
+// Alt/Option + left-drag rotates the camera (azimuth/polar deltas) instead of
+// moving the OS window. The modifier branch fully consumes the gesture: it
+// preventDefaults + captures the pointer, never fires onDragStart, and never
+// invokes drag_window. It works WITHOUT the Tauri runtime (pure JS callback) so
+// the browser screenshot-verification surface can drive it too. Plain left-drag is
+// unchanged.
+
+describe("initDrag — orbit gesture (Alt + left-drag)", () => {
+  let el: EventTarget;
+  let cleanup: () => void;
+  let onDragStart: ReturnType<typeof vi.fn>;
+  let onOrbit: ReturnType<typeof vi.fn>;
+
+  function down(clientX = 0, clientY = 0, buttons = 1, altKey = false): Event {
+    const ev = new Event("pointerdown", { cancelable: true }) as Event & {
+      buttons: number;
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+      altKey: boolean;
+    };
+    Object.assign(ev, { buttons, clientX, clientY, pointerId: 1, altKey });
+    el.dispatchEvent(ev);
+    return ev;
+  }
+
+  function move(clientX: number, clientY: number, altKey = false): void {
+    const ev = new Event("pointermove", { cancelable: true }) as Event & {
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+      altKey: boolean;
+    };
+    Object.assign(ev, { clientX, clientY, pointerId: 1, altKey });
+    el.dispatchEvent(ev);
+  }
+
+  function up(): void {
+    const ev = new Event("pointerup") as Event & { pointerId: number };
+    Object.assign(ev, { pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  beforeEach(async () => {
+    el = new EventTarget();
+    onDragStart = vi.fn();
+    onOrbit = vi.fn();
+    mockInvoke.mockResolvedValue(undefined);
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    cleanup = await initDrag(el, { onDragStart, onOrbit });
+  });
+
+  afterEach(() => {
+    cleanup();
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.clearAllMocks();
+  });
+
+  it("Alt+left drag routes to onOrbit with pointer deltas, not window-move", async () => {
+    down(10, 10, 1, true);
+    move(40, 25, true); // dx=30, dy=15
+    await Promise.resolve();
+    expect(onOrbit).toHaveBeenCalledTimes(1);
+    expect(onOrbit).toHaveBeenCalledWith({ dx: 30, dy: 15 });
+    // Window-move path must NOT engage.
+    expect(onDragStart).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it("accumulates deltas relative to the previous move (not the start point)", async () => {
+    down(0, 0, 1, true);
+    move(10, 0, true);
+    move(25, 0, true); // dx from previous = 15
+    await Promise.resolve();
+    expect(onOrbit).toHaveBeenNthCalledWith(1, { dx: 10, dy: 0 });
+    expect(onOrbit).toHaveBeenNthCalledWith(2, { dx: 15, dy: 0 });
+  });
+
+  it("consumes the gesture: preventDefault on the modifier pointerdown", () => {
+    const ev = down(0, 0, 1, true);
+    expect(ev.defaultPrevented).toBe(true);
+  });
+
+  it("ends on pointerup: a later move fires no further onOrbit", async () => {
+    down(0, 0, 1, true);
+    move(20, 0, true);
+    await Promise.resolve();
+    expect(onOrbit).toHaveBeenCalledTimes(1);
+    up();
+    move(80, 0, true);
+    await Promise.resolve();
+    expect(onOrbit).toHaveBeenCalledTimes(1);
+  });
+
+  it("plain left-drag (no Alt) does NOT orbit — window-move still engages", async () => {
+    down(0, 0, 1, false);
+    move(100, 0, false);
+    await Promise.resolve();
+    expect(onOrbit).not.toHaveBeenCalled();
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).toHaveBeenCalledWith("drag_window");
+  });
+
+  it("Alt + non-primary button does not orbit", async () => {
+    down(0, 0, 2, true); // right button + Alt
+    move(50, 0, true);
+    await Promise.resolve();
+    expect(onOrbit).not.toHaveBeenCalled();
+  });
+
+  it("after cleanup() an Alt+left drag no longer orbits", async () => {
+    cleanup();
+    down(0, 0, 1, true);
+    move(50, 0, true);
+    await Promise.resolve();
+    expect(onOrbit).not.toHaveBeenCalled();
+  });
+});
+
+describe("initDrag — orbit gesture works without the Tauri runtime (browser)", () => {
+  it("Alt+left drag fires onOrbit in a plain browser; never invokes drag_window", async () => {
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.clearAllMocks();
+    const el = new EventTarget();
+    const onOrbit = vi.fn();
+    const onDragStart = vi.fn();
+    const cleanup = await initDrag(el, { onOrbit, onDragStart });
+
+    const down = new Event("pointerdown", { cancelable: true }) as Event & {
+      buttons: number;
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+      altKey: boolean;
+    };
+    Object.assign(down, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1, altKey: true });
+    el.dispatchEvent(down);
+    const move = new Event("pointermove", { cancelable: true }) as Event & {
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+      altKey: boolean;
+    };
+    Object.assign(move, { clientX: 30, clientY: 0, pointerId: 1, altKey: true });
+    el.dispatchEvent(move);
+    await Promise.resolve();
+
+    expect(onOrbit).toHaveBeenCalledWith({ dx: 30, dy: 0 });
+    expect(onDragStart).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
+    cleanup();
+  });
+});

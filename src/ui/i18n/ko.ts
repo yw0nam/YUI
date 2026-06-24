@@ -152,6 +152,11 @@ const ko: Record<string, string> = {
   "expression.mouth_aria": "입 움직임",
   "expression.mouth_hint": "드래그하면 캐릭터 입이 실제로 그만큼 벌어져요",
 
+  // viewpoint (camera orbit)
+  "viewpoint.section": "시점",
+  "viewpoint.sub": "Alt/Option + 드래그로 회전, 스크롤로 확대",
+  "viewpoint.reset": "정면으로 초기화",
+
   // screenshot / input tab
   "screenshot.label": "스크린샷 첨부",
   "screenshot.sub": "대화할 때 화면을 함께 봐요",

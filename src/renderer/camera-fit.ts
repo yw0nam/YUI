@@ -28,6 +28,63 @@ export interface CameraFit {
   distance: number;
 }
 
+/** Orbit angles on the view sphere (radians). azimuth θ around +Y, polar φ from +Y. */
+export interface OrbitAngles {
+  /** Azimuth around +Y (radians). 0 = head-on; free (unclamped). */
+  azimuth: number;
+  /** Polar from +Y (radians). π/2 = level/head-on. */
+  polar: number;
+}
+
+const DEG = Math.PI / 180;
+
+/** Head-on default azimuth (radians). */
+export const CAMERA_AZIMUTH_DEFAULT = 0;
+/** Head-on default polar (radians) — π/2 = level, straight-on. */
+export const CAMERA_POLAR_DEFAULT = Math.PI / 2;
+/**
+ * Free-viewing polar floor (radians). Near-overhead — a 2° epsilon off the +Y pole
+ * keeps `lookAt` with up=(0,1,0) out of the gimbal singularity (no pole crossing).
+ */
+export const CAMERA_POLAR_FREE_MIN = 2 * DEG;
+/** Free-viewing polar ceiling (radians). Near-underneath — 2° epsilon off the -Y pole. */
+export const CAMERA_POLAR_FREE_MAX = 178 * DEG;
+/** Perched polar floor (radians) — tightened so the seat-pin gain error stays small. */
+export const CAMERA_POLAR_PERCHED_MIN = 60 * DEG;
+/** Perched polar ceiling (radians). */
+export const CAMERA_POLAR_PERCHED_MAX = 120 * DEG;
+
+/**
+ * Clamp a polar angle to the active range. azimuth is never clamped.
+ *   not perched: [2°, 178°] (free viewing)
+ *   perched:     [60°, 120°] (keeps the perch seat-pin gain error small)
+ * Non-finite input falls back to the head-on default (π/2).
+ */
+export function clampPolar(polar: number, perched: boolean): number {
+  if (!Number.isFinite(polar)) return CAMERA_POLAR_DEFAULT;
+  const min = perched ? CAMERA_POLAR_PERCHED_MIN : CAMERA_POLAR_FREE_MIN;
+  const max = perched ? CAMERA_POLAR_PERCHED_MAX : CAMERA_POLAR_FREE_MAX;
+  return Math.min(max, Math.max(min, polar));
+}
+
+/**
+ * Camera position on the orbit sphere of the given `radius` around `target`.
+ * Uses THREE.Spherical(radius, polar, azimuth); default angles (0, π/2) reproduce
+ * the head-on position `target + (0, 0, radius)`. Non-finite radius/angles fall back
+ * to head-on so the camera never lands on a NaN position. Returns a fresh vector.
+ */
+export function orbitPosition(
+  target: THREE.Vector3,
+  radius: number,
+  angles: OrbitAngles,
+): THREE.Vector3 {
+  const r = Number.isFinite(radius) ? radius : 0;
+  const azimuth = Number.isFinite(angles.azimuth) ? angles.azimuth : CAMERA_AZIMUTH_DEFAULT;
+  const polar = Number.isFinite(angles.polar) ? angles.polar : CAMERA_POLAR_DEFAULT;
+  const offset = new THREE.Vector3().setFromSpherical(new THREE.Spherical(r, polar, azimuth));
+  return target.clone().add(offset);
+}
+
 /** Frames `box` head-on; returns null for empty or non-finite inputs. */
 export function computeCameraFit(box: THREE.Box3, opts: CameraFitOptions): CameraFit | null {
   if (box.isEmpty()) return null;

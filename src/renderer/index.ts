@@ -26,7 +26,14 @@ import type {
 } from "../contract";
 import { createLogger } from "../logger";
 import { routeDirective } from "./apply-directive";
-import { computeCameraFit } from "./camera-fit";
+import {
+  CAMERA_AZIMUTH_DEFAULT,
+  CAMERA_POLAR_DEFAULT,
+  clampPolar,
+  computeCameraFit,
+  type OrbitAngles,
+  orbitPosition,
+} from "./camera-fit";
 import { createCycleDwell } from "./cycle-dwell";
 import { revertEmotionToNeutral } from "./ease-emotion";
 import {
@@ -74,6 +81,14 @@ const SEAT_DROP = SEAT_DROP_DEFAULT;
 const PERCH_ZOOM = 1.25;
 /** Per-frame convergence rate for the seat-pin offset (proportional step). */
 const PERCH_PIN_RATE = 0.6;
+/**
+ * Per-frame ease rate for the effective orbit polar (proportional step). Drag nudges
+ * land in ~2 frames (feels direct); the larger jump when the perch clamp tightens the
+ * polar into [60°,120°] eases over several frames instead of snapping.
+ */
+const ORBIT_EASE_RATE = 0.35;
+/** Below this |Δpolar| (radians) the orbit ease is settled (≈0.06°). */
+const ORBIT_SETTLE_EPS = 1e-3;
 
 // ── Per-pixel alpha hit-test ─────────────────────────────────────────────────
 /** Downscale factor (linear) of the drawing buffer for the CPU-side alpha grab. */
@@ -180,6 +195,14 @@ export interface Renderer {
   setZoom(z: number): void;
   /** 현재 적용된 zoom 배율 반환. */
   getZoom(): number;
+  /**
+   * Orbit viewpoint 설정 (라디안). azimuth는 자유(즉시 적용), polar는 perch 중이면
+   * [60°,120°]로 ease되어 좁혀지고 perch 해제 시 저장된 free 각도로 복귀한다.
+   * 클램프(free [2°,178°])·persist는 호출자(src/io + main.ts)가 담당한다.
+   */
+  setOrbit(angles: OrbitAngles): void;
+  /** 현재 적용 중인 orbit 각도 — azimuth + 저장된 free polar 반환. */
+  getOrbit(): OrbitAngles;
   /**
    * 캐릭터 발밑(box 중앙 x/z, 최저 y)의 현재 화면 픽셀 좌표. VRM 미로드 시 null.
    * resize/zoom으로 카메라가 재fit될 때마다 변한다 — UI 입력을 발밑에 붙이는 데 쓴다.
@@ -321,6 +344,15 @@ export function createRenderer(options: RendererOptions): Renderer {
   // Mouse-wheel zoom factor on top of the fit distance: >1 ⇒ closer ⇒ bigger.
   // Bounds/persistence live in src/io + main.ts (setZoom just applies). Default 1 = exact fit.
   let zoom = 1;
+  // Orbit viewpoint on the fit sphere. azimuth/polar are the stored *free* angles
+  // (clamp/persist in src/io + main.ts). effectivePolar is what the camera uses — it
+  // eases toward the free polar, or toward the tightened perched clamp while perched.
+  // azimuth applies directly (no clamp, no ease). Default (0, 90°) = head-on.
+  let azimuth = CAMERA_AZIMUTH_DEFAULT;
+  let polar = CAMERA_POLAR_DEFAULT;
+  let effectivePolar = polar;
+  // True while effectivePolar is still easing toward its target (keeps frames uncapped).
+  let orbitConverging = false;
 
   // ── Window-sit perch state ──────────────────────────────────────────────────
   // Active target's top-edge in pet-window-local px (null = not perched).
@@ -414,9 +446,38 @@ export function createRenderer(options: RendererOptions): Renderer {
     const perchZoom = perchTargetYpx !== null ? PERCH_ZOOM : 1;
     const d = (fit.distance * perchZoom) / zoom; // zoom>1 ⇒ camera closer ⇒ character bigger.
     camera.fov = framing.fov;
-    camera.position.set(fit.target.x, fit.target.y, fit.target.z + d);
+    // Orbit composes with the radius pullback: orbit sets direction, zoom/PERCH_ZOOM
+    // set the radius d. effectivePolar is the eased polar (free, or perched-clamped).
+    const pos = orbitPosition(fit.target, d, { azimuth, polar: effectivePolar });
+    camera.position.copy(pos);
     camera.lookAt(fit.target);
     camera.updateProjectionMatrix();
+  }
+
+  /** Target polar the camera should settle at: tightened to the perched band while perched. */
+  function desiredPolar(): number {
+    return clampPolar(polar, perchTargetYpx !== null);
+  }
+
+  /**
+   * Ease effectivePolar one proportional step toward {@link desiredPolar} and re-fit.
+   * No-op once settled (sub-epsilon) — keeps idle frames off the re-fit path. Runs each
+   * frame from the rAF loop; orbitConverging gates the frame cap while still easing.
+   */
+  function stepOrbit(): void {
+    const target = desiredPolar();
+    const diff = target - effectivePolar;
+    if (Math.abs(diff) <= ORBIT_SETTLE_EPS) {
+      if (effectivePolar !== target) {
+        effectivePolar = target;
+        fitCamera();
+      }
+      orbitConverging = false;
+      return;
+    }
+    effectivePolar += diff * ORBIT_EASE_RATE;
+    orbitConverging = true;
+    fitCamera();
   }
 
   const dir = new THREE.DirectionalLight(0xffffff, Math.PI);
@@ -538,17 +599,22 @@ export function createRenderer(options: RendererOptions): Renderer {
     // frame budget is spared; full refresh is reserved for active animation. Skipped
     // frames do NOT consume the clock delta — it accumulates into the next rendered
     // frame so animation speed is unchanged.
-    const active = isActive({
-      mouthOpen: mouth.openValue(),
-      emotionFading: emotionXfade !== null,
-      motionActive: isMotionActive(),
-      perchConverging,
-    });
+    const active =
+      isActive({
+        mouthOpen: mouth.openValue(),
+        emotionFading: emotionXfade !== null,
+        motionActive: isMotionActive(),
+        perchConverging,
+      }) || orbitConverging;
     const now = performance.now();
     if (!shouldRenderFrame(now, lastRenderMs, active, IDLE_FPS, idleThrottleEnabled)) return;
     lastRenderMs = now;
 
     const dt = clock.getDelta();
+    // Ease the orbit polar toward its target (free, or perched-clamped) and re-fit.
+    // Independent of the VRM — fitCamera no-ops without a model — so the camera settles
+    // even between loads. Cheap when already settled (no re-fit).
+    stepOrbit();
     if (currentVrm) {
       elapsed += dt;
       // 훅을 먼저 — bone/expression 변경이 이번 프레임 vrm.update(spring/expression apply)에 반영되도록.
@@ -1021,6 +1087,20 @@ export function createRenderer(options: RendererOptions): Renderer {
     fitCamera();
   }
 
+  /**
+   * setOrbit 구현 — azimuth는 즉시 적용(재fit), polar는 free 값으로 저장하고 effectivePolar를
+   * desiredPolar로 ease시키도록 orbitConverging을 켠다(매 프레임 stepOrbit이 수렴). 비유한 값 무시.
+   */
+  function setOrbit(angles: OrbitAngles): void {
+    const az = Number.isFinite(angles.azimuth) ? angles.azimuth : azimuth;
+    const pol = Number.isFinite(angles.polar) ? angles.polar : polar;
+    if (az === azimuth && pol === polar) return;
+    azimuth = az;
+    polar = pol;
+    orbitConverging = true; // ease effectivePolar toward the (possibly perched-clamped) target.
+    fitCamera(); // apply the azimuth change immediately.
+  }
+
   return {
     loadVRM,
     onTick(fn) {
@@ -1048,6 +1128,10 @@ export function createRenderer(options: RendererOptions): Renderer {
     setZoom,
     getZoom() {
       return zoom;
+    },
+    setOrbit,
+    getOrbit() {
+      return { azimuth, polar };
     },
     getCharacterAnchor() {
       if (!modelBox) return null;
@@ -1117,13 +1201,17 @@ export function createRenderer(options: RendererOptions): Renderer {
         perchConverging = false;
         if (currentVrm) currentVrm.scene.position.y = 0; // restore baseline.
         if (wasPerched) {
+          orbitConverging = true; // ease the polar back to the stored free angle.
           fitCamera(); // restore normal framing.
           playMotion(null); // perch cleared — explicit return to idle baseline.
         }
         return;
       }
       perchTargetYpx = target.edgeLocalYpx;
-      if (!wasPerched) fitCamera(); // apply PERCH_ZOOM on entry.
+      if (!wasPerched) {
+        orbitConverging = true; // ease the polar into the perched [60°,120°] band.
+        fitCamera(); // apply PERCH_ZOOM on entry.
+      }
     },
     isPerched() {
       return perchTargetYpx !== null;

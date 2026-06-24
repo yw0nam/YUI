@@ -129,6 +129,74 @@ export function clampToWorkArea(
   };
 }
 
+// ─── orbit gesture ──────────────────────────────────────────────────────────
+
+/** Per-move pointer delta (CSS px) fed to the camera-orbit callback. */
+export interface OrbitDelta {
+  dx: number;
+  dy: number;
+}
+
+/**
+ * Attach the Alt/Option + left-drag orbit gesture to `el`. Pure JS (no Tauri IPC),
+ * so it runs in the browser too. The modifier branch fully consumes the gesture:
+ * preventDefault + pointer capture, so it never leaks into the window-move path or
+ * the alpha hit-test click-through. Feeds per-move deltas to `onOrbit`. Returns a
+ * detach function. No-op (returns a no-op) when `onOrbit` is absent.
+ */
+function attachOrbitGesture(el: EventTarget, onOrbit?: (d: OrbitDelta) => void): () => void {
+  if (!onOrbit) return () => {};
+  let orbiting = false;
+  let lastX = 0;
+  let lastY = 0;
+  let pointerId = -1;
+
+  function detachMove(): void {
+    el.removeEventListener("pointermove", onMove);
+    el.removeEventListener("pointerup", onEnd);
+    el.removeEventListener("pointercancel", onEnd);
+  }
+
+  function onDown(e: Event): void {
+    const pe = e as PointerEvent;
+    // Alt/Option + primary (left) only. Plain left-drag falls through to window-move.
+    if (!pe.altKey || (pe.buttons ?? 0) !== 1) return;
+    pe.preventDefault();
+    orbiting = true;
+    lastX = pe.clientX;
+    lastY = pe.clientY;
+    pointerId = pe.pointerId;
+    (el as Partial<Element>).setPointerCapture?.(pointerId);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onEnd);
+    el.addEventListener("pointercancel", onEnd);
+  }
+
+  function onMove(e: Event): void {
+    if (!orbiting) return;
+    const pe = e as PointerEvent;
+    pe.preventDefault();
+    const dx = pe.clientX - lastX;
+    const dy = pe.clientY - lastY;
+    lastX = pe.clientX;
+    lastY = pe.clientY;
+    onOrbit?.({ dx, dy });
+  }
+
+  function onEnd(): void {
+    if (!orbiting) return;
+    orbiting = false;
+    (el as Partial<Element>).releasePointerCapture?.(pointerId);
+    detachMove();
+  }
+
+  el.addEventListener("pointerdown", onDown);
+  return function detach(): void {
+    el.removeEventListener("pointerdown", onDown);
+    detachMove();
+  };
+}
+
 // ─── initDrag ─────────────────────────────────────────────────────────────────
 
 /**
@@ -139,19 +207,31 @@ export function clampToWorkArea(
  *   `DRAG_THRESHOLD_PX`, just before the OS-native drag begins.
  * @param opts.onDragEnd - Fired once per gesture on pointerup/pointercancel
  *   after a threshold-crossing drag. Not fired for sub-threshold clicks.
+ * @param opts.onOrbit - Fired per pointermove during an Alt/Option + left-drag
+ *   with the pointer delta. This branch consumes the gesture (no window-move).
  * @returns A cleanup function. Call it when the surface is torn down.
  */
 export async function initDrag(
   el: EventTarget,
-  opts: { onDragStart?: () => void; onDragEnd?: () => void } = {},
+  opts: {
+    onDragStart?: () => void;
+    onDragEnd?: () => void;
+    onOrbit?: (delta: OrbitDelta) => void;
+  } = {},
 ): Promise<() => void> {
+  // Orbit (Alt+left) is pure JS — attach it before the Tauri gate so it works in the
+  // browser screenshot-verification surface as well as the packaged pet window.
+  const detachOrbit = attachOrbitGesture(el, opts.onOrbit);
+
   // Tauri-only: getCurrentWindow() / onScaleChanged / invoke() require the Tauri
   // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface)
   // there is no window IPC, and getCurrentWindow() throws. Skip gracefully
-  // so bootstrap (renderer + dispatcher) still runs. Drag is a no-op in the browser.
+  // so bootstrap (renderer + dispatcher) still runs. Window-move is a no-op in the browser.
   if (!(globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
     log.debug("drag_disabled", { reason: "non_tauri" });
-    return () => {};
+    return () => {
+      detachOrbit();
+    };
   }
 
   const win = getCurrentWindow();
@@ -217,6 +297,8 @@ export async function initDrag(
     // Only act on primary (left) button; secondary / middle / pen barrel ignore.
     const pe = e as PointerEvent;
     if ((pe.buttons ?? 0) !== 1) return;
+    // Alt/Option + left is the orbit gesture (attachOrbitGesture) — not window-move.
+    if (pe.altKey) return;
     startX = pe.clientX;
     startY = pe.clientY;
     started = false;
@@ -238,6 +320,7 @@ export async function initDrag(
   return function cleanup(): void {
     el.removeEventListener("pointerdown", onPointerDown);
     detach();
+    detachOrbit();
     unlistenScale();
     unlistenDrop();
   };

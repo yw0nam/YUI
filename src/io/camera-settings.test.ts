@@ -10,6 +10,12 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import {
+  CAMERA_AZIMUTH_DEFAULT,
+  CAMERA_POLAR_DEFAULT,
+  CAMERA_POLAR_FREE_MAX,
+  CAMERA_POLAR_FREE_MIN,
+} from "../renderer/camera-fit";
 import type { CameraSettings, CameraStorage } from "./camera-settings";
 import {
   CAMERA_ZOOM_DEFAULT,
@@ -18,6 +24,14 @@ import {
   createCameraSettings,
   localStorageCameraStorage,
 } from "./camera-settings";
+
+const DEG = Math.PI / 180;
+/** Full default settings object — zoom + head-on orbit angles. */
+const DEFAULTS: CameraSettings = {
+  zoom: CAMERA_ZOOM_DEFAULT,
+  azimuth: CAMERA_AZIMUTH_DEFAULT,
+  polar: CAMERA_POLAR_DEFAULT,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -73,7 +87,7 @@ describe("createCameraSettings — setZoom", () => {
     store.subscribe(cb);
     store.setZoom(2);
     expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ zoom: 2 });
+    expect(cb).toHaveBeenCalledWith({ ...DEFAULTS, zoom: 2 });
     // must be a copy, not the internal state reference
     expect(cb.mock.calls[0][0]).not.toBe(store.get());
   });
@@ -187,7 +201,7 @@ describe("createCameraSettings — persistence", () => {
     const saveSpy = vi.spyOn(storage, "save");
     const store = createCameraSettings({ storage });
     store.setZoom(1.5);
-    expect(saveSpy).toHaveBeenCalledWith({ zoom: 1.5 });
+    expect(saveSpy).toHaveBeenCalledWith({ ...DEFAULTS, zoom: 1.5 });
   });
 
   it("a new store created with same storage loads the persisted zoom", () => {
@@ -253,7 +267,7 @@ describe("createCameraSettings — reloadFromStorage", () => {
 
     expect(store.get().zoom).toBe(1.5);
     expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ zoom: 1.5 });
+    expect(cb).toHaveBeenCalledWith({ ...DEFAULTS, zoom: 1.5 });
   });
 
   it("clamps an out-of-range stored value on reload", () => {
@@ -343,9 +357,9 @@ describe("localStorageCameraStorage", () => {
     };
 
     const adapter = localStorageCameraStorage();
-    adapter.save({ zoom: 1.5 });
+    adapter.save({ ...DEFAULTS, zoom: 1.5 });
     const loaded = adapter.load();
-    expect(loaded).toEqual({ zoom: 1.5 });
+    expect(loaded).toEqual({ ...DEFAULTS, zoom: 1.5 });
 
     delete (globalThis as any).localStorage;
   });
@@ -358,7 +372,7 @@ describe("localStorageCameraStorage", () => {
     };
 
     const adapter = localStorageCameraStorage();
-    adapter.save({ zoom: 1.0 });
+    adapter.save({ ...DEFAULTS, zoom: 1.0 });
     expect(written[0][0]).toBe("yui.camera");
 
     delete (globalThis as any).localStorage;
@@ -372,7 +386,7 @@ describe("localStorageCameraStorage", () => {
     };
 
     const adapter = localStorageCameraStorage("my.key");
-    adapter.save({ zoom: 1.0 });
+    adapter.save({ ...DEFAULTS, zoom: 1.0 });
     expect(written[0][0]).toBe("my.key");
 
     delete (globalThis as any).localStorage;
@@ -385,8 +399,160 @@ describe("localStorageCameraStorage", () => {
     const adapter = localStorageCameraStorage();
     expect(() => adapter.load()).not.toThrow();
     expect(adapter.load()).toBeNull();
-    expect(() => adapter.save({ zoom: 1.0 })).not.toThrow();
+    expect(() => adapter.save({ ...DEFAULTS, zoom: 1.0 })).not.toThrow();
 
     if (saved !== undefined) (globalThis as any).localStorage = saved;
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createCameraSettings — orbit angles (azimuth + polar)
+// azimuth is free (wrapped to (-π, π]); polar clamps to the free range [2°, 178°].
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createCameraSettings — orbit defaults", () => {
+  it("defaults to head-on angles (azimuth 0, polar 90°)", () => {
+    const store = createCameraSettings();
+    expect(store.get().azimuth).toBe(CAMERA_AZIMUTH_DEFAULT);
+    expect(store.get().polar).toBeCloseTo(CAMERA_POLAR_DEFAULT, 12);
+  });
+});
+
+describe("createCameraSettings — setAzimuth", () => {
+  it("setAzimuth updates get().azimuth", () => {
+    const store = createCameraSettings();
+    store.setAzimuth(0.5);
+    expect(store.get().azimuth).toBeCloseTo(0.5, 12);
+  });
+
+  it("azimuth is free — values inside (-π, π] pass unchanged", () => {
+    const store = createCameraSettings();
+    store.setAzimuth(2.5);
+    expect(store.get().azimuth).toBeCloseTo(2.5, 12);
+  });
+
+  it("wraps azimuth beyond π into (-π, π] (same orientation)", () => {
+    const store = createCameraSettings();
+    // 3π/2 wraps to -π/2.
+    store.setAzimuth((3 * Math.PI) / 2);
+    expect(store.get().azimuth).toBeCloseTo(-Math.PI / 2, 12);
+  });
+
+  it("notifies and persists; keeps zoom + polar", () => {
+    const storage = makeMemStorage();
+    const saveSpy = vi.spyOn(storage, "save");
+    const store = createCameraSettings({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.setAzimuth(0.5);
+    expect(cb).toHaveBeenCalledOnce();
+    expect(saveSpy).toHaveBeenCalledWith({ ...DEFAULTS, azimuth: 0.5 });
+  });
+
+  it("NaN azimuth is ignored — no change, no notify", () => {
+    const store = createCameraSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.setAzimuth(NaN);
+    expect(store.get().azimuth).toBe(CAMERA_AZIMUTH_DEFAULT);
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("dedup: identical azimuth does not notify twice", () => {
+    const store = createCameraSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.setAzimuth(0.5);
+    store.setAzimuth(0.5);
+    expect(cb).toHaveBeenCalledOnce();
+  });
+});
+
+describe("createCameraSettings — setPolar", () => {
+  it("setPolar updates get().polar inside the free range", () => {
+    const store = createCameraSettings();
+    store.setPolar(60 * DEG);
+    expect(store.get().polar).toBeCloseTo(60 * DEG, 12);
+  });
+
+  it("clamps polar below the free floor up to the 2° pole-epsilon", () => {
+    const store = createCameraSettings();
+    store.setPolar(0.5 * DEG);
+    expect(store.get().polar).toBeCloseTo(CAMERA_POLAR_FREE_MIN, 12);
+  });
+
+  it("clamps polar above the free ceiling down to the 178° pole-epsilon", () => {
+    const store = createCameraSettings();
+    store.setPolar(200 * DEG);
+    expect(store.get().polar).toBeCloseTo(CAMERA_POLAR_FREE_MAX, 12);
+  });
+
+  it("near-overhead 5° passes unclamped (near-full free range)", () => {
+    const store = createCameraSettings();
+    store.setPolar(5 * DEG);
+    expect(store.get().polar).toBeCloseTo(5 * DEG, 12);
+  });
+
+  it("NaN polar is ignored — no change, no notify", () => {
+    const store = createCameraSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.setPolar(NaN);
+    expect(store.get().polar).toBeCloseTo(CAMERA_POLAR_DEFAULT, 12);
+    expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+describe("createCameraSettings — resetOrbit", () => {
+  it("restores head-on angles and keeps zoom", () => {
+    const store = createCameraSettings();
+    store.setZoom(2);
+    store.setAzimuth(1.2);
+    store.setPolar(40 * DEG);
+    store.resetOrbit();
+    expect(store.get().azimuth).toBe(CAMERA_AZIMUTH_DEFAULT);
+    expect(store.get().polar).toBeCloseTo(CAMERA_POLAR_DEFAULT, 12);
+    expect(store.get().zoom).toBe(2);
+  });
+
+  it("is a no-op (no notify) when already at default angles", () => {
+    const store = createCameraSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.resetOrbit();
+    expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+describe("createCameraSettings — orbit persistence + round-trip", () => {
+  it("a new store with the same storage loads persisted azimuth + polar", () => {
+    const storage = makeMemStorage();
+    const store1 = createCameraSettings({ storage });
+    store1.setAzimuth(0.8);
+    store1.setPolar(70 * DEG);
+
+    const store2 = createCameraSettings({ storage });
+    expect(store2.get().azimuth).toBeCloseTo(0.8, 12);
+    expect(store2.get().polar).toBeCloseTo(70 * DEG, 12);
+  });
+
+  it("backward-compat: legacy stored {zoom} fills default orbit angles", () => {
+    const storage: CameraStorage = {
+      load: () => ({ zoom: 1.5 }) as unknown as CameraSettings,
+      save: vi.fn(),
+    };
+    const store = createCameraSettings({ storage });
+    expect(store.get().zoom).toBe(1.5);
+    expect(store.get().azimuth).toBe(CAMERA_AZIMUTH_DEFAULT);
+    expect(store.get().polar).toBeCloseTo(CAMERA_POLAR_DEFAULT, 12);
+  });
+
+  it("out-of-range stored polar is clamped on load", () => {
+    const storage: CameraStorage = {
+      load: () => ({ zoom: 1, azimuth: 0, polar: 300 * DEG }),
+      save: vi.fn(),
+    };
+    const store = createCameraSettings({ storage });
+    expect(store.get().polar).toBeCloseTo(CAMERA_POLAR_FREE_MAX, 12);
   });
 });
