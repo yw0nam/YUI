@@ -169,6 +169,12 @@ export interface SecretProvider {
  */
 export const CHAT_API_KEY_SECRET = "chat_api_key";
 
+/** SecretProvider name for the STT server key (OpenAI-compatible Bearer). */
+export const STT_API_KEY_SECRET = "stt_api_key";
+
+/** SecretProvider name for the OpenAI-compatible TTS server key (Bearer). irodori needs none. */
+export const TTS_API_KEY_SECRET = "tts_api_key";
+
 /** 평문 레코드에서 조회. 실 값은 configs에 두지 않는 게 권장(env/keychain). */
 export function plainSecretProvider(
   secrets: Record<string, string | undefined> = {},

@@ -32,6 +32,8 @@ export interface SttVadOptions {
   onVoiceSegment: (transcript: Transcript) => void;
   /** Reports client-side voice pipeline state for runtime UI. */
   onState?: (state: SttVadRuntimeState, detail?: string) => void;
+  /** Resolves the STT server key (Bearer) per request. Omitted/empty → no auth header. */
+  getApiKey?: () => Promise<string | undefined>;
 }
 
 export interface SttVad {
@@ -100,7 +102,7 @@ function describeStartError(err: unknown): string {
 }
 
 export function createSttVad(options: SttVadOptions): SttVad {
-  const { config, onVoiceSegment, onState } = options;
+  const { config, onVoiceSegment, onState, getApiKey } = options;
   const resolveSilenceMs = (): number =>
     typeof options.silenceMs === "function" ? options.silenceMs() : (options.silenceMs ?? 1500);
 
@@ -114,9 +116,12 @@ export function createSttVad(options: SttVadOptions): SttVad {
     form.append("file", wav, "audio.wav");
 
     try {
+      // Bearer only — never set Content-Type here: FormData needs the browser-set multipart boundary.
+      const key = (await getApiKey?.())?.trim() || undefined;
       const res = await fetch(`${config.stt_base_url}/audio/transcriptions`, {
         method: "POST",
         body: form,
+        headers: key ? { Authorization: `Bearer ${key}` } : undefined,
       });
       if (!res.ok) {
         log.warn("stt_request_failed", { status: res.status });

@@ -1,66 +1,33 @@
 /**
- * chat API 키 오버라이드를 관리하는 reactive 설정 스토어.
- * 변경 시 storage에 persist하고 구독자에게 통지한다. 빈 문자열 = 오버라이드 없음.
- * 값은 시크릿이다 — 절대 로깅하지 않는다.
+ * chat API 키 오버라이드 스토어 — 제네릭 api-key-settings 팩토리의 얇은 래퍼.
+ * storage 키("yui.chat-key")와 동작은 종전과 동일하다. 값은 시크릿 — 절대 로깅하지 않는다.
  */
 
-import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
+import {
+  API_KEY_MAX_LEN,
+  type ApiKeySettings,
+  type ApiKeyStorage,
+  createApiKeySettings,
+  localStorageApiKeyStorage,
+} from "./api-key-settings";
 
-/** 비정상적으로 긴 입력 방어용 상한. 실제 키보다 넉넉하게 잡는다. */
-export const CHAT_KEY_MAX_LEN = 4096;
+/** 비정상적으로 긴 입력 방어용 상한. */
+export const CHAT_KEY_MAX_LEN = API_KEY_MAX_LEN;
 
-export interface ChatKeySettings {
-  apiKey: string; // "" => 오버라이드 없음 (SecretProvider가 fallback으로 폴백)
-}
-
-export type ChatKeyStorage = PersistedStorage<ChatKeySettings>;
-
-function coerceApiKey(v: unknown): string {
-  if (typeof v !== "string") return "";
-  const trimmed = v.trim();
-  return trimmed.length > CHAT_KEY_MAX_LEN ? trimmed.slice(0, CHAT_KEY_MAX_LEN) : trimmed;
-}
-
-function isValidSettings(v: unknown): v is ChatKeySettings {
-  if (v === null || typeof v !== "object") return false;
-  return typeof (v as Record<string, unknown>).apiKey === "string";
-}
+export type ChatKeySettings = ApiKeySettings;
+export type ChatKeyStorage = ApiKeyStorage;
 
 export function createChatKeySettings(opts?: {
   storage?: ChatKeyStorage;
   initial?: ChatKeySettings;
 }) {
-  const core = createPersistedStore<ChatKeySettings>({
-    storage: opts?.storage,
-    initial: opts?.initial,
-    defaults: { apiKey: "" },
-    parse: (v) => (isValidSettings(v) ? { apiKey: coerceApiKey(v.apiKey) } : null),
-    fromInitial: (v) => ({ apiKey: coerceApiKey(v.apiKey) }),
-    equals: (a, b) => a.apiKey === b.apiKey,
-  });
-
-  return {
-    get: core.get,
-
-    setApiKey(v: string): void {
-      if (typeof v !== "string") return;
-      core.commit({ apiKey: coerceApiKey(v) });
-    },
-
-    clear(): void {
-      core.commit({ apiKey: "" });
-    },
-
-    reloadFromStorage: core.reloadFromStorage,
-    subscribe: core.subscribe,
-    dispose: core.dispose,
-  };
+  return createApiKeySettings({ ...opts, maxLen: CHAT_KEY_MAX_LEN });
 }
 
 /** chat-key 스토어 인스턴스 타입 (SecretProvider 주입용). */
 export type ChatKeySettingsStore = ReturnType<typeof createChatKeySettings>;
 
-/** localStorage 기반 ChatKeyStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage 기반 ChatKeyStorage 어댑터. */
 export function localStorageChatKeyStorage(key = "yui.chat-key"): ChatKeyStorage {
-  return localStorageStore<ChatKeySettings>(key);
+  return localStorageApiKeyStorage(key);
 }

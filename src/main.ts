@@ -14,7 +14,13 @@
 
 import "./styles.css";
 import { createTier1Engine } from "./ambient/tier1";
-import { CHAT_API_KEY_SECRET, createConfigStore, loadEmotionTextTable } from "./config";
+import {
+  CHAT_API_KEY_SECRET,
+  createConfigStore,
+  loadEmotionTextTable,
+  STT_API_KEY_SECRET,
+  TTS_API_KEY_SECRET,
+} from "./config";
 import type { WindowRect } from "./contract";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
@@ -25,6 +31,7 @@ import { createScheduleSource } from "./dispatcher/schedule-source";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
+import { createSttKeySettings, createTtsKeySettings } from "./io/api-key-settings";
 import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
 import { createWebAudioSink } from "./io/audio-player";
 import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
@@ -255,6 +262,9 @@ async function bootstrap(): Promise<void> {
   const chatKeySettings = createChatKeySettings({
     storage: localStorageChatKeyStorage(),
   });
+  // 런타임 STT/openai-TTS 키 오버라이드(localStorage). 빈 값=.env.local fallback. 값은 시크릿.
+  const sttKeySettings = createSttKeySettings();
+  const ttsKeySettings = createTtsKeySettings();
   // config.endpoints 위에 오버라이드를 얹은 effective 엔드포인트. 호출 시점에 평가(핫리로드 친화).
   function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
     return mergeEndpoints(config.get().endpoints, endpointsSettings.get());
@@ -612,6 +622,8 @@ async function bootstrap(): Promise<void> {
       agentSettings.dispose();
       endpointsSettings.dispose();
       chatKeySettings.dispose();
+      sttKeySettings.dispose();
+      ttsKeySettings.dispose();
       cameraSettings.dispose();
       vrmSelection.dispose();
       speakerSelection.dispose();
@@ -847,8 +859,16 @@ async function bootstrap(): Promise<void> {
   // dispatcher가 streamChat 호출 시 `await config.secrets.get(CHAT_API_KEY_SECRET)`로 해소한다.
   const config = createConfigStore({
     secrets: createSettingsSecretProvider({
-      chatKey: chatKeySettings,
-      fallback: { [CHAT_API_KEY_SECRET]: import.meta.env.VITE_YUI_CHAT_KEY },
+      stores: {
+        [CHAT_API_KEY_SECRET]: chatKeySettings,
+        [STT_API_KEY_SECRET]: sttKeySettings,
+        [TTS_API_KEY_SECRET]: ttsKeySettings,
+      },
+      fallback: {
+        [CHAT_API_KEY_SECRET]: import.meta.env.VITE_YUI_CHAT_KEY,
+        [STT_API_KEY_SECRET]: import.meta.env.VITE_YUI_STT_KEY,
+        [TTS_API_KEY_SECRET]: import.meta.env.VITE_YUI_TTS_KEY,
+      },
     }),
   });
   // dev에서 런타임 오버라이드도 build-time 키도 없으면 chat 호출이 조용한 401처럼 보인다 →
@@ -856,6 +876,17 @@ async function bootstrap(): Promise<void> {
   if (import.meta.env.DEV && !chatKeySettings.get().apiKey && !import.meta.env.VITE_YUI_CHAT_KEY) {
     log.warn(
       "chat API 키 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. 설정 패널의 채팅 API 키 또는 .env.local(VITE_YUI_CHAT_KEY) 참고.",
+    );
+  }
+  // STT/openai-TTS 키 미설정 경고(키가 필요한 게이트 백엔드에서 401 방지용 힌트). irodori는 키 불필요.
+  if (import.meta.env.DEV && !sttKeySettings.get().apiKey && !import.meta.env.VITE_YUI_STT_KEY) {
+    log.warn(
+      "STT API 키 미설정 — 키를 요구하는 STT 서버라면 401 가능. .env.local(VITE_YUI_STT_KEY) 참고.",
+    );
+  }
+  if (import.meta.env.DEV && !ttsKeySettings.get().apiKey && !import.meta.env.VITE_YUI_TTS_KEY) {
+    log.warn(
+      "TTS API 키 미설정 — openai 호환 TTS가 키를 요구하면 401 가능. .env.local(VITE_YUI_TTS_KEY) 참고. (irodori는 불필요)",
     );
   }
   // synth는 호출 시점에 config(핫리로드)와 selectFetch를 읽는 closure로 주입한다.
@@ -931,6 +962,7 @@ async function bootstrap(): Promise<void> {
           model: eps.tts_model,
           voice: eps.tts_voice,
           speed: eps.tts_speed,
+          getApiKey: () => config.secrets.get(TTS_API_KEY_SECRET),
         })(input, signal);
       },
     },
@@ -1050,6 +1082,7 @@ async function bootstrap(): Promise<void> {
       config: cfg.endpoints,
       // lazy: VAD가 시작될 때마다 침묵 기준을 다시 읽어 슬라이더 변경이 반영되게 한다.
       silenceMs: () => vadSettings.get().silenceMs,
+      getApiKey: () => config.secrets.get(STT_API_KEY_SECRET),
       onVoiceSegment: (transcript) => {
         userInput.submitVoice(transcript);
         proactiveSourceRef?.noteInteraction();
