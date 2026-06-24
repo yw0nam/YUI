@@ -197,6 +197,26 @@ const en: Record<string, string> = {
   "endpoints.broker_base_url.label": "Expression broker URL",
   "endpoints.chat_model.label": "Chat model",
 
+  "endpoints.tts_voice.label": "TTS voice",
+
+  // per-service sections (advanced tab)
+  "svc.type_label": "Type",
+  "svc.chat": "Chat",
+  "svc.chat_hint": "Responses API",
+  "svc.chat_type": "Responses API",
+  "svc.stt": "STT",
+  "svc.stt_hint": "OpenAI-compatible",
+  "svc.stt_type": "OpenAI-compatible",
+  "svc.tts": "TTS",
+  "svc.tts_aria": "TTS engine",
+  "svc.broker": "Broker",
+  "svc.broker_hint": "MCP streamable-http",
+  "svc.broker_type": "MCP streamable-http",
+  "svc.reset_chat": "Reset Chat",
+  "svc.reset_stt": "Reset STT",
+  "svc.reset_tts": "Reset TTS",
+  "svc.reset_broker": "Reset Broker",
+
   // chat API key
   "chatkey.section": "Chat API key",
   "chatkey.label": "Chat API key",
@@ -205,6 +225,22 @@ const en: Record<string, string> = {
   "chatkey.show": "Show key",
   "chatkey.hide": "Hide key",
   "chatkey.clear": "Clear key",
+
+  // STT API key
+  "sttkey.label": "STT API key",
+  "sttkey.sub_default": "Using the default — leave empty to use the build-time key",
+  "sttkey.sub_override": "Saved on this device — clear to return to the original key",
+  "sttkey.show": "Show key",
+  "sttkey.hide": "Hide key",
+  "sttkey.clear": "Clear key",
+
+  // TTS API key
+  "ttskey.label": "TTS API key",
+  "ttskey.sub_default": "Using the default — leave empty to use the build-time key",
+  "ttskey.sub_override": "Saved on this device — clear to return to the original key",
+  "ttskey.show": "Show key",
+  "ttskey.hide": "Hide key",
+  "ttskey.clear": "Clear key",
 
   // performance
   "perf.section": "Performance",

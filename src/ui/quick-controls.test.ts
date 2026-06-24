@@ -22,6 +22,7 @@ import {
   createAgentSettings,
   INSTRUCTIONS_MAX_LEN,
 } from "../io/agent-settings";
+import { createSttKeySettings, createTtsKeySettings } from "../io/api-key-settings";
 import { createChatKeySettings } from "../io/chat-key-settings";
 import { createEndpointsSettings } from "../io/endpoints-settings";
 import { createFillerSettings } from "../io/filler-settings";
@@ -51,6 +52,17 @@ if (typeof (globalThis as { CSS?: { escape?: unknown } }).CSS?.escape !== "funct
 // In-memory AgentStorage so each test starts from a clean store.
 function inMemoryAgentStorage(): AgentStorage {
   let value: AgentSettings | null = null;
+  return {
+    load: () => (value ? { ...value } : null),
+    save: (s) => {
+      value = { ...s };
+    },
+  };
+}
+
+// In-memory ApiKeyStorage so stt/tts key stores don't share localStorage in tests.
+function inMemoryApiKeyStorage(): import("../io/api-key-settings").ApiKeyStorage {
+  let value: { apiKey: string } | null = null;
   return {
     load: () => (value ? { ...value } : null),
     save: (s) => {
@@ -221,6 +233,8 @@ describe("createQuickControls — gain row", () => {
       proactiveSettings,
       scheduleSettings,
       chatKeySettings: createChatKeySettings(),
+      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
       onPopOut,
       vrmSelection,
       swapVrm,
@@ -650,25 +664,37 @@ describe("createQuickControls — gain row", () => {
 
   // ── 엔드포인트 섹션 ───────────────────────────────────────────────────────
 
-  it("renders 6 endpoint fields (5 url + chat_model) in a collapsed details", () => {
-    const qc = buildQc();
+  it("renders four collapsible per-service sections (chat/stt/tts/broker), each with a yui-select", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
 
-    const details = qc.el.querySelector<HTMLDetailsElement>("details.yui-endpoints")!;
-    expect(details).not.toBeNull();
-    expect(details.open).toBe(false); // 기본 접힘
-    const keys = Array.from(
-      qc.el.querySelectorAll<HTMLDivElement>(".yui-endpoints .yui-input-row"),
-    ).map((r) => r.dataset.epField);
-    expect(keys).toEqual([
-      "chat_base_url",
-      "stt_base_url",
-      "tts_base_url",
-      "irodori_base_url",
-      "broker_base_url",
-      "chat_model",
-    ]);
-    expect(qc.el.querySelectorAll(".yui-endpoints .yui-ep-input--url").length).toBe(5);
+    const sections = Array.from(
+      qc.el.querySelectorAll<HTMLDetailsElement>("#yui-panel-adv details.yui-svc"),
+    );
+    expect(sections.map((s) => s.dataset.svc)).toEqual(["chat", "stt", "tts", "broker"]);
+    // collapsible (default collapsed) + each leads with a type dropdown.
+    for (const s of sections) {
+      expect(s.open).toBe(false);
+      expect(s.querySelector(".yui-select")).not.toBeNull();
+    }
+    // single-option sections are inert (--single, disabled); TTS is interactive.
+    expect(sections[0].querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(
+      true,
+    );
+    expect(sections[2].querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(
+      false,
+    );
+
+    // each section carries its own URL field(s) inside it.
+    const fieldIn = (svc: string, key: string): boolean =>
+      !!qc.el.querySelector(`details[data-svc="${svc}"] .yui-input-row[data-ep-field="${key}"]`);
+    expect(fieldIn("chat", "chat_base_url")).toBe(true);
+    expect(fieldIn("chat", "chat_model")).toBe(true);
+    expect(fieldIn("stt", "stt_base_url")).toBe(true);
+    expect(fieldIn("tts", "irodori_base_url")).toBe(true);
+    expect(fieldIn("tts", "tts_base_url")).toBe(true);
+    expect(fieldIn("tts", "tts_voice")).toBe(true);
+    expect(fieldIn("broker", "broker_base_url")).toBe(true);
 
     qc.dispose();
   });
@@ -722,7 +748,7 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("persists an endpoint override into the store and reset() clears it", () => {
+  it("persists an endpoint override into the store and per-section reset clears that section's fields", () => {
     const qc = buildQc();
     qc.open();
 
@@ -733,9 +759,52 @@ describe("createQuickControls — gain row", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     expect(endpointsSettings.get().chat_base_url).toBe("https://api.example.com/v1");
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-ep-reset")!.click();
+    qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="chat"]')!.click();
     expect(endpointsSettings.get().chat_base_url).toBe("");
     expect(input.value).toBe("");
+
+    qc.dispose();
+  });
+
+  it("the chat reset clears chat_base_url + chat_model + the chat key, leaving other sections intact", () => {
+    const chatKeySettings = createChatKeySettings();
+    chatKeySettings.setApiKey("sk-chat-1");
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    endpointsSettings.set({
+      chat_base_url: "https://c/v1",
+      chat_model: "m",
+      stt_base_url: "https://s",
+    });
+
+    qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="chat"]')!.click();
+    expect(endpointsSettings.get().chat_base_url).toBe("");
+    expect(endpointsSettings.get().chat_model).toBe("");
+    expect(chatKeySettings.get().apiKey).toBe("");
+    // STT field is untouched by the chat reset.
+    expect(endpointsSettings.get().stt_base_url).toBe("https://s");
+
+    qc.dispose();
+  });
+
+  it("the tts reset clears irodori_base_url + tts_base_url + tts_voice + the tts key", () => {
+    const ttsKeySettings = createTtsKeySettings({ storage: inMemoryApiKeyStorage() });
+    ttsKeySettings.setApiKey("sk-tts-1");
+    const qc = buildQc({ ttsKeySettings });
+    qc.open();
+
+    endpointsSettings.set({
+      irodori_base_url: "http://i",
+      tts_base_url: "http://t",
+      tts_voice: "alloy",
+    });
+
+    qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="tts"]')!.click();
+    expect(endpointsSettings.get().irodori_base_url).toBe("");
+    expect(endpointsSettings.get().tts_base_url).toBe("");
+    expect(endpointsSettings.get().tts_voice).toBe("");
+    expect(ttsKeySettings.get().apiKey).toBe("");
 
     qc.dispose();
   });
@@ -1012,116 +1081,202 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  // ── voice engine (tts_provider) toggle + broker URL row ─────────────────────
+  // ── STT / TTS API key rows (mirror the chat key, own stores) ────────────────
 
-  function voiceSegButtons(qc: { el: HTMLElement }): HTMLButtonElement[] {
-    const seg = qc.el.querySelector<HTMLDivElement>(".yui-seg--2")!;
-    return Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+  function keyInput(qc: { el: HTMLElement }, prefix: string): HTMLInputElement {
+    return qc.el.querySelector<HTMLInputElement>(
+      `.yui-input-row[data-key-prefix="${prefix}"] .yui-chatkey__input`,
+    )!;
   }
 
-  it("renders a 2-segment voice-engine control in the character panel", () => {
+  it("renders a masked STT key row in the STT section wired to the stt store", () => {
+    const sttKeySettings = createSttKeySettings({ storage: inMemoryApiKeyStorage() });
+    const setSpy = vi.spyOn(sttKeySettings, "setApiKey");
+    const clearSpy = vi.spyOn(sttKeySettings, "clear");
+    const qc = buildQc({ sttKeySettings });
+    qc.open();
+
+    const input = keyInput(qc, "sttkey");
+    expect(input.type).toBe("password");
+    expect(qc.el.querySelector('details[data-svc="stt"]')!.contains(input)).toBe(true);
+
+    input.value = "sk-stt-abc";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("blur", { bubbles: true }));
+    expect(setSpy).toHaveBeenCalledWith("sk-stt-abc");
+    expect(sttKeySettings.get().apiKey).toBe("sk-stt-abc");
+
+    qc.el
+      .querySelector<HTMLButtonElement>(
+        '.yui-input-row[data-key-prefix="sttkey"] .yui-chatkey__clear',
+      )!
+      .click();
+    expect(clearSpy).toHaveBeenCalled();
+    expect(sttKeySettings.get().apiKey).toBe("");
+
+    qc.dispose();
+  });
+
+  it("renders a masked TTS key row in the openai sub-view wired to the tts store", () => {
+    const ttsKeySettings = createTtsKeySettings({ storage: inMemoryApiKeyStorage() });
+    const setSpy = vi.spyOn(ttsKeySettings, "setApiKey");
+    const clearSpy = vi.spyOn(ttsKeySettings, "clear");
+    const qc = buildQc({ ttsKeySettings, getDefaultProvider: () => "openai" });
+    qc.open();
+
+    const input = keyInput(qc, "ttskey");
+    expect(input.type).toBe("password");
+    expect(qc.el.querySelector(".yui-tts-openai")!.contains(input)).toBe(true);
+
+    input.value = "sk-tts-xyz";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("blur", { bubbles: true }));
+    expect(setSpy).toHaveBeenCalledWith("sk-tts-xyz");
+    expect(ttsKeySettings.get().apiKey).toBe("sk-tts-xyz");
+
+    qc.el
+      .querySelector<HTMLButtonElement>(
+        '.yui-input-row[data-key-prefix="ttskey"] .yui-chatkey__clear',
+      )!
+      .click();
+    expect(clearSpy).toHaveBeenCalled();
+    expect(ttsKeySettings.get().apiKey).toBe("");
+
+    qc.dispose();
+  });
+
+  it("the three key rows are independent: editing chat does not touch stt/tts", () => {
+    const sttKeySettings = createSttKeySettings({ storage: inMemoryApiKeyStorage() });
+    const ttsKeySettings = createTtsKeySettings({ storage: inMemoryApiKeyStorage() });
+    const qc = buildQc({ sttKeySettings, ttsKeySettings });
+    qc.open();
+
+    const chat = keyInput(qc, "chatkey");
+    chat.value = "sk-chat-only";
+    chat.dispatchEvent(new Event("input", { bubbles: true }));
+    chat.dispatchEvent(new Event("blur", { bubbles: true }));
+
+    expect(sttKeySettings.get().apiKey).toBe("");
+    expect(ttsKeySettings.get().apiKey).toBe("");
+
+    qc.dispose();
+  });
+
+  // ── TTS engine (tts_provider) dropdown + sub-views + broker URL row ─────────
+
+  function ttsTypeSelect(qc: { el: HTMLElement }): HTMLSelectElement {
+    return qc.el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
+  }
+
+  it("renders an interactive TTS-engine dropdown (irodori/openai) in the TTS section", () => {
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
 
-    const seg = qc.el.querySelector<HTMLDivElement>(".yui-seg--2");
-    expect(seg).not.toBeNull();
-    expect(seg!.getAttribute("role")).toBe("radiogroup");
-    // Lives inside the character tab panel, alongside the speaker list.
-    const charPanel = qc.el.querySelector<HTMLElement>("#yui-panel-char")!;
-    expect(charPanel.contains(seg!)).toBe(true);
-    expect(charPanel.querySelector(".yui-spk-scroll")).not.toBeNull();
-
-    const btns = voiceSegButtons(qc);
-    expect(btns.map((b) => b.dataset.provider)).toEqual(["irodori", "openai"]);
-    expect(btns[1].textContent).toContain("OpenAI");
+    const sel = ttsTypeSelect(qc);
+    expect(sel).not.toBeNull();
+    // lives in the advanced tab's TTS section, not the character panel.
+    expect(qc.el.querySelector('#yui-panel-adv details[data-svc="tts"]')!.contains(sel)).toBe(true);
+    expect(sel.classList.contains("yui-select--single")).toBe(false);
+    expect(Array.from(sel.options).map((o) => o.value)).toEqual(["irodori", "openai"]);
 
     qc.dispose();
   });
 
-  it("reflects the effective provider: bundled default when no override", () => {
+  it("reflects the effective provider on the dropdown: bundled default when no override", () => {
     const qc = buildQc({ getDefaultProvider: () => "openai" });
     qc.open();
-    const btns = voiceSegButtons(qc);
-    expect(btns[0].getAttribute("aria-checked")).toBe("false"); // irodori
-    expect(btns[1].getAttribute("aria-checked")).toBe("true"); // openai
+    expect(ttsTypeSelect(qc).value).toBe("openai");
     qc.dispose();
   });
 
-  it("reflects the effective provider: override wins over the default", () => {
+  it("reflects the effective provider on the dropdown: override wins over the default", () => {
     endpointsSettings.set({ tts_provider: "openai" });
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
-    const btns = voiceSegButtons(qc);
-    expect(btns[1].getAttribute("aria-checked")).toBe("true"); // openai override
+    expect(ttsTypeSelect(qc).value).toBe("openai");
     qc.dispose();
   });
 
-  it("clicking 'OpenAI' persists the override and disables the speaker list with a hint", () => {
+  it("irodori sub-view shows the speaker picker + irodori URL and NO TTS key row", () => {
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
 
-    const btns = voiceSegButtons(qc);
-    btns[1].click(); // openai
-    expect(endpointsSettings.get().tts_provider).toBe("openai");
-    expect(btns[1].getAttribute("aria-checked")).toBe("true");
+    const irodori = qc.el.querySelector<HTMLElement>(".yui-tts-irodori")!;
+    const openai = qc.el.querySelector<HTMLElement>(".yui-tts-openai")!;
+    expect(irodori.hidden).toBe(false);
+    expect(openai.hidden).toBe(true);
+    // speaker picker relocated into the irodori sub-view.
+    expect(irodori.querySelector(".yui-spk-scroll")).not.toBeNull();
+    expect(
+      irodori.querySelector('.yui-input-row[data-ep-field="irodori_base_url"]'),
+    ).not.toBeNull();
+    // no key row in the irodori sub-view.
+    expect(irodori.querySelector('[data-key-prefix="ttskey"]')).toBeNull();
+    // speaker controls are enabled for irodori.
+    expect(qc.el.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(false);
+    expect(qc.el.querySelector<HTMLElement>(".yui-spks-hint")!.hidden).toBe(true);
 
-    const charPanel = qc.el.querySelector<HTMLElement>("#yui-panel-char")!;
-    expect(charPanel.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(
-      true,
-    );
-    expect(charPanel.querySelector(".yui-spk-foot")!.classList.contains("is-disabled")).toBe(true);
-    const hint = charPanel.querySelector<HTMLElement>(".yui-spks-hint")!;
-    expect(hint).not.toBeNull();
+    qc.dispose();
+  });
+
+  it("selecting 'openai' toggles to the openai sub-view: tts_voice field + TTS key row, speaker hidden", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    const sel = ttsTypeSelect(qc);
+    sel.value = "openai";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(endpointsSettings.get().tts_provider).toBe("openai");
+
+    const irodori = qc.el.querySelector<HTMLElement>(".yui-tts-irodori")!;
+    const openai = qc.el.querySelector<HTMLElement>(".yui-tts-openai")!;
+    expect(irodori.hidden).toBe(true);
+    expect(openai.hidden).toBe(false);
+    expect(openai.querySelector('.yui-input-row[data-ep-field="tts_voice"]')).not.toBeNull();
+    expect(openai.querySelector('[data-key-prefix="ttskey"]')).not.toBeNull();
+    // speaker picker disabled + hint shown while openai is effective.
+    expect(qc.el.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(true);
+    expect(qc.el.querySelector(".yui-spk-foot")!.classList.contains("is-disabled")).toBe(true);
+    const hint = qc.el.querySelector<HTMLElement>(".yui-spks-hint")!;
     expect(hint.hidden).toBe(false);
     expect(hint.textContent).toContain("irodori 전용");
 
     qc.dispose();
   });
 
-  it("the voice-engine sub-label reads the approved copy", () => {
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
-    qc.open();
-
-    const seg = qc.el.querySelector<HTMLDivElement>(".yui-seg--2")!;
-    const sub = seg.closest(".yui-field-row")!.querySelector(".yui-field-row__sub")!;
-    expect(sub.textContent).toBe("캐릭터 목소리를 만드는 합성 엔진");
-
-    qc.dispose();
-  });
-
-  it("places the OpenAI speaker hint ABOVE the speaker list, under the voice-engine seg", () => {
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
-    qc.open();
-
-    const seg = qc.el.querySelector(".yui-seg--2")!;
-    const hint = qc.el.querySelector(".yui-spks-hint")!;
-    const list = qc.el.querySelector(".yui-spk-scroll")!;
-    // seg → hint → list in document order
-    expect(seg.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(hint.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-
-    qc.dispose();
-  });
-
-  it("clicking 'irodori' re-enables the speaker list and hides the hint", () => {
+  it("selecting 'irodori' toggles back: speaker picker re-shown, hint hidden", () => {
     endpointsSettings.set({ tts_provider: "openai" });
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
 
-    const btns = voiceSegButtons(qc);
-    btns[0].click(); // irodori
+    const sel = ttsTypeSelect(qc);
+    sel.value = "irodori";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
     expect(endpointsSettings.get().tts_provider).toBe("irodori");
 
-    const charPanel = qc.el.querySelector<HTMLElement>("#yui-panel-char")!;
-    expect(charPanel.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(
-      false,
-    );
-    expect(charPanel.querySelector<HTMLElement>(".yui-spks-hint")!.hidden).toBe(true);
+    expect(qc.el.querySelector<HTMLElement>(".yui-tts-irodori")!.hidden).toBe(false);
+    expect(qc.el.querySelector<HTMLElement>(".yui-tts-openai")!.hidden).toBe(true);
+    expect(qc.el.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(false);
+    expect(qc.el.querySelector<HTMLElement>(".yui-spks-hint")!.hidden).toBe(true);
 
     qc.dispose();
   });
 
-  it("renders a broker_base_url endpoint row that persists and clears on reset", () => {
+  it("binds the openai tts_voice field to the endpoints store", () => {
+    const qc = buildQc({ getDefaultProvider: () => "openai" });
+    qc.open();
+
+    const input = qc.el.querySelector<HTMLInputElement>(
+      '.yui-input-row[data-ep-field="tts_voice"] .yui-ep-input',
+    )!;
+    input.value = "alloy";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(endpointsSettings.get().tts_voice).toBe("alloy");
+
+    qc.dispose();
+  });
+
+  it("renders a broker_base_url endpoint row that persists and clears on the broker reset", () => {
     const qc = buildQc();
     qc.open();
 
@@ -1136,7 +1291,7 @@ describe("createQuickControls — gain row", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     expect(endpointsSettings.get().broker_base_url).toBe("http://localhost:3201/mcp");
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-ep-reset")!.click();
+    qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="broker"]')!.click();
     expect(endpointsSettings.get().broker_base_url).toBe("");
     expect(input.value).toBe("");
 
@@ -2697,6 +2852,8 @@ describe("createQuickControls — session section", () => {
       proactiveSettings: createProactiveSettings(),
       scheduleSettings: createScheduleSettings(),
       chatKeySettings: createChatKeySettings(),
+      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
       onPopOut: vi.fn(),
       vrmSelection: createVrmSelection({
         available: [
@@ -2866,6 +3023,8 @@ describe("createQuickControls — tabs + VAD slider", () => {
       proactiveSettings: createProactiveSettings(),
       scheduleSettings: createScheduleSettings(),
       chatKeySettings: createChatKeySettings(),
+      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
       onPopOut: vi.fn(),
       vrmSelection: createVrmSelection({
         available: [
@@ -3357,6 +3516,8 @@ describe("createQuickControls — language picker", () => {
       proactiveSettings: createProactiveSettings(),
       scheduleSettings: createScheduleSettings(),
       chatKeySettings: createChatKeySettings(),
+      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
       onPopOut: vi.fn(),
       vrmSelection: createVrmSelection({
         available: [

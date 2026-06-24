@@ -197,6 +197,26 @@ const ja: Record<string, string> = {
   "endpoints.broker_base_url.label": "表現ブローカー URL",
   "endpoints.chat_model.label": "チャットモデル",
 
+  "endpoints.tts_voice.label": "TTS voice",
+
+  // per-service sections (advanced tab)
+  "svc.type_label": "種類",
+  "svc.chat": "チャット",
+  "svc.chat_hint": "Responses API",
+  "svc.chat_type": "Responses API",
+  "svc.stt": "STT",
+  "svc.stt_hint": "OpenAI 互換",
+  "svc.stt_type": "OpenAI 互換",
+  "svc.tts": "TTS",
+  "svc.tts_aria": "TTS エンジン",
+  "svc.broker": "Broker",
+  "svc.broker_hint": "MCP streamable-http",
+  "svc.broker_type": "MCP streamable-http",
+  "svc.reset_chat": "チャットを戻す",
+  "svc.reset_stt": "STT を戻す",
+  "svc.reset_tts": "TTS を戻す",
+  "svc.reset_broker": "Broker を戻す",
+
   // chat API key
   "chatkey.section": "チャット API キー",
   "chatkey.label": "チャット API キー",
@@ -205,6 +225,22 @@ const ja: Record<string, string> = {
   "chatkey.show": "キーを表示",
   "chatkey.hide": "キーを隠す",
   "chatkey.clear": "キーを消去",
+
+  // STT API key
+  "sttkey.label": "STT API キー",
+  "sttkey.sub_default": "デフォルトを使用中 — 空欄にするとビルド時のキーを使います",
+  "sttkey.sub_override": "この端末に保存済み — 空欄にすると元のキーに戻ります",
+  "sttkey.show": "キーを表示",
+  "sttkey.hide": "キーを隠す",
+  "sttkey.clear": "キーを消去",
+
+  // TTS API key
+  "ttskey.label": "TTS API キー",
+  "ttskey.sub_default": "デフォルトを使用中 — 空欄にするとビルド時のキーを使います",
+  "ttskey.sub_override": "この端末に保存済み — 空欄にすると元のキーに戻ります",
+  "ttskey.show": "キーを表示",
+  "ttskey.hide": "キーを隠す",
+  "ttskey.clear": "キーを消去",
 
   // performance
   "perf.section": "パフォーマンス",
