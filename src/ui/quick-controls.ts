@@ -10,11 +10,7 @@ import type { ScreenSource } from "../contract";
 import { type createAgentSettings, REASONING_EFFORTS } from "../io/agent-settings";
 import type { ApiKeySettingsStore } from "../io/api-key-settings";
 import type { ChatKeySettingsStore } from "../io/chat-key-settings";
-import {
-  type createEndpointsSettings,
-  type EndpointOverrides,
-  isValidEndpointUrl,
-} from "../io/endpoints-settings";
+import type { createEndpointsSettings, EndpointOverrides } from "../io/endpoints-settings";
 import type { createFillerSettings } from "../io/filler-settings";
 import type { createGazeSettings } from "../io/gaze-settings";
 import type { createIdleThrottleSettings } from "../io/idle-throttle-settings";
@@ -35,20 +31,17 @@ import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../io/
 import type { createVrmSelection } from "../io/vrm-selection";
 import { createLogger } from "../logger";
 import { type CueListInstance, createCueList } from "./cue-list";
-import { getLocale, type Locale, setLocale, t } from "./i18n";
-import {
-  CHATKEY_EYE_OFF_SVG,
-  CHATKEY_EYE_SVG,
-  ENDPOINT_FIELDS,
-  LANG_PICKER_ORDER,
-  VOICE_ENGINE_LABEL_KEYS,
-  type VoiceEngine,
-} from "./quick-controls/constants";
+import { type Locale, setLocale, t } from "./i18n";
+import { CHATKEY_EYE_OFF_SVG, CHATKEY_EYE_SVG, ENDPOINT_FIELDS } from "./quick-controls/constants";
 import { createPopover } from "./quick-controls/popover";
+import { createReflect, validateEndpointInput } from "./quick-controls/reflect";
 import { createSpeakerList } from "./quick-controls/speaker-list";
 import { buildPanelHtml } from "./quick-controls/template";
 import { createVrmList } from "./quick-controls/vrm-list";
-import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
+import type { VoiceInputStatus } from "./voice-input-status";
+
+// formatTokenCount는 reflect 레이어에 산다 — 공개 API 호환을 위해 재노출한다.
+export { formatTokenCount } from "./quick-controls/reflect";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type IdleThrottleSettingsStore = ReturnType<typeof createIdleThrottleSettings>;
@@ -142,15 +135,6 @@ interface QuickControls {
 export const PREVIEW_PEAK_RMS = 0.15;
 const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
 
-// 토큰 수를 "18.2K" / "18K" / "200K" 꼴로 줄여 표기한다. 1000 미만은 그대로,
-// 100K 미만은 소수 1자리(다만 .0은 떼고), 이상은 정수.
-export function formatTokenCount(n: number): string {
-  if (n < 1000) return String(n);
-  const k = n / 1000;
-  if (k >= 100) return `${Math.round(k)}K`;
-  return `${k.toFixed(1).replace(/\.0$/, "")}K`;
-}
-
 export function createQuickControls({
   mount,
   settings,
@@ -226,9 +210,7 @@ export function createQuickControls({
   const vrmAddBtn = el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
   const spksEl = el.querySelector<HTMLDivElement>(".yui-spks")!;
   const gainSlider = el.querySelector<HTMLInputElement>(".yui-gain__slider:not(.yui-vad__slider)")!;
-  const gainValue = el.querySelector<HTMLSpanElement>(".yui-gain__value:not(.yui-vad__value)")!;
   const vadSlider = el.querySelector<HTMLInputElement>(".yui-vad__slider")!;
-  const vadValue = el.querySelector<HTMLSpanElement>(".yui-vad__value")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
@@ -238,12 +220,6 @@ export function createQuickControls({
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   // TTS 엔진 드롭다운 + irodori/openai 서브뷰 컨테이너(고급 탭). 화자 비활성 노드는 그대로.
   const ttsTypeEl = el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
-  const ttsIrodoriEl = el.querySelector<HTMLDivElement>(".yui-tts-irodori")!;
-  const ttsOpenaiEl = el.querySelector<HTMLDivElement>(".yui-tts-openai")!;
-  const ttsSummaryHintEl = el.querySelector<HTMLSpanElement>(".yui-tts-summary-hint")!;
-  const spkScrollEl = el.querySelector<HTMLDivElement>(".yui-spk-scroll")!;
-  const spkFootEl = el.querySelector<HTMLDivElement>(".yui-spk-foot")!;
-  const spksHintEl = el.querySelector<HTMLParagraphElement>(".yui-spks-hint")!;
   const spkAddBtn = el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
   const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
@@ -252,16 +228,12 @@ export function createQuickControls({
   // 생각중 추임새 섹션 노드 — fillerSettings 주입 시에만 존재한다(없으면 null).
   const fillerSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-filler-switch");
   const fillerLangSegEl = el.querySelector<HTMLDivElement>(".yui-filler-lang-seg");
-  const fillerLangBtns = fillerLangSegEl
-    ? Array.from(fillerLangSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"))
-    : [];
   const fillerFirstTextareaEl = el.querySelector<HTMLTextAreaElement>(".yui-filler-first-textarea");
   const fillerRepeatTextareaEl = el.querySelector<HTMLTextAreaElement>(
     ".yui-filler-repeat-textarea",
   );
   // 언어 피커 세그(3칸) 노드.
   const langSegEl = el.querySelector<HTMLDivElement>(".yui-lang-seg")!;
-  const langSegButtons = Array.from(langSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   // 엔드포인트 입력 — 필드 key별 input 노드 맵.
   const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
   for (const { key } of ENDPOINT_FIELDS) {
@@ -355,8 +327,6 @@ export function createQuickControls({
   const keyRows = [chatKeyRow, sttKeyRow, ttsKeyRow];
 
   // 세션 섹션 노드(window 전용 — 없으면 null).
-  const sessionStatEl = el.querySelector<HTMLDivElement>(".yui-session__stat");
-  const sessionValueEl = el.querySelector<HTMLSpanElement>(".yui-session__value");
   const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
   const sessionConfirmEl = el.querySelector<HTMLDivElement>(".yui-confirm");
   const sessionConfirmBtn = el.querySelector<HTMLButtonElement>(".yui-session__confirm");
@@ -388,199 +358,23 @@ export function createQuickControls({
   // dispose 후 in-flight refresh가 무너진 DOM에 재그림/타이머를 쓰지 않게 막는다.
   let disposed = false;
 
-  // ── DOM 동기화 ──
-
-  function reflectSettings(): void {
-    const s = settings.get();
-    const on = s.enabled;
-    switchBtn.setAttribute("aria-checked", String(on));
-    el.classList.toggle("is-on", on);
-  }
-
-  function reflectIdleThrottle(): void {
-    idleThrottleSwitchBtn.setAttribute("aria-checked", String(idleThrottleSettings.get().enabled));
-  }
-
-  function reflectTts(): void {
-    if (!ttsSwitchBtn || !ttsSettings) return;
-    ttsSwitchBtn.setAttribute("aria-checked", String(ttsSettings.get().enabled));
-  }
-
-  function reflectGaze(): void {
-    if (!gazeSwitchBtn || !gazeSettings) return;
-    gazeSwitchBtn.setAttribute("aria-checked", String(gazeSettings.get().enabled));
-  }
-
-  function reflectGain(): void {
-    const gain = lipsync.get().gain;
-    gainSlider.value = String(gain);
-    gainValue.textContent = `${gain.toFixed(1)}×`;
-    gainSlider.style.setProperty(
-      "--fill",
-      String((gain - LIPSYNC_GAIN_MIN) / (LIPSYNC_GAIN_MAX - LIPSYNC_GAIN_MIN)),
-    );
-  }
-
-  function reflectVad(): void {
-    const ms = vad.get().silenceMs;
-    vadSlider.value = String(ms);
-    vadValue.textContent = `${ms} ms`;
-    vadSlider.style.setProperty(
-      "--fill",
-      String((ms - VAD_SILENCE_MIN) / (VAD_SILENCE_MAX - VAD_SILENCE_MIN)),
-    );
-  }
-
-  function reflectAgent(): void {
-    const a = agentSettings.get();
-    const idx = Math.max(0, REASONING_EFFORTS.indexOf(a.reasoning_effort));
-    segButtons.forEach((btn, i) => {
-      const selected = i === idx;
-      btn.setAttribute("aria-checked", String(selected));
-      btn.tabIndex = selected ? 0 : -1;
-    });
-    segEl.style.setProperty("--seg", String(idx));
-    // 입력 중인 textarea는 덮어쓰지 않는다(원격 변경은 blur 시 적용).
-    if (document.activeElement !== instructionsEl && instructionsEl.value !== a.instructions) {
-      instructionsEl.value = a.instructions;
-    }
-  }
-
-  // 생각중 추임새 섹션 — store 상태를 UI에 반영한다.
-  function reflectFiller(): void {
-    if (
-      !fillerSettings ||
-      !fillerSwitchBtn ||
-      !fillerLangSegEl ||
-      !fillerFirstTextareaEl ||
-      !fillerRepeatTextareaEl
-    )
-      return;
-    const s = fillerSettings.get();
-    fillerSwitchBtn.setAttribute("aria-checked", String(s.enabled));
-    // 언어 seg 인디케이터
-    const FILLER_LANGS = ["ja", "en", "ko"] as const;
-    const idx = Math.max(0, FILLER_LANGS.indexOf(s.language));
-    fillerLangBtns.forEach((btn, i) => {
-      const selected = i === idx;
-      btn.setAttribute("aria-checked", String(selected));
-      btn.tabIndex = selected ? 0 : -1;
-    });
-    fillerLangSegEl.style.setProperty("--seg", String(idx));
-    // 두 textarea — 현재 언어의 customPool(first/repeat)을 줄 단위로 표시(미설정 시 빈 값).
-    const pool = s.customPools[s.language];
-    fillerFirstTextareaEl.value = pool ? pool.first.join("\n") : "";
-    fillerRepeatTextareaEl.value = pool ? pool.repeat.join("\n") : "";
-  }
-
-  // 언어 피커 — 현재 표시 언어를 선택 세그로 반영한다.
-  function reflectLanguage(): void {
-    const idx = Math.max(0, LANG_PICKER_ORDER.indexOf(getLocale()));
-    langSegButtons.forEach((btn, i) => {
-      const selected = i === idx;
-      btn.setAttribute("aria-checked", String(selected));
-      btn.tabIndex = selected ? 0 : -1;
-    });
-    langSegEl.style.setProperty("--seg", String(idx));
-  }
-
-  // 효과적 음성 엔진 — 유효한 오버라이드가 있으면 그것, 없으면 bundled 기본값, 최종 폴백 irodori.
-  function effectiveProvider(): VoiceEngine {
-    const ov = endpointsSettings.get().tts_provider;
-    if (ov === "irodori" || ov === "openai") return ov;
-    const def = getDefaultProvider?.();
-    return def === "openai" ? "openai" : "irodori";
-  }
-
-  // TTS 드롭다운 값 + irodori/openai 서브뷰 표시 + 화자 활성/비활성을 효과적 provider에 맞춰 그린다.
-  function reflectVoiceEngine(): void {
-    const eff = effectiveProvider();
-    if (ttsTypeEl.value !== eff) ttsTypeEl.value = eff;
-    const openai = eff === "openai";
-    ttsIrodoriEl.hidden = openai;
-    ttsOpenaiEl.hidden = !openai;
-    ttsSummaryHintEl.textContent = t(VOICE_ENGINE_LABEL_KEYS[eff]);
-    // openai는 서버 voice로 말하므로 화자 선택을 비활성 + 안내한다(화자는 irodori 서브뷰 안).
-    spkScrollEl.classList.toggle("is-disabled", openai);
-    spkFootEl.classList.toggle("is-disabled", openai);
-    spksHintEl.hidden = !openai;
-  }
-
-  // URL 필드 한 칸의 invalid 상태(빈 값=에러 아님)를 토글한다.
-  function validateEndpointInput(key: keyof EndpointOverrides, input: HTMLInputElement): void {
-    const def = ENDPOINT_FIELDS.find((f) => f.key === key)!;
-    if (!def.url) return;
-    const invalid = !isValidEndpointUrl(input.value);
-    const row = input.closest<HTMLDivElement>(".yui-input-row")!;
-    row.classList.toggle("is-invalid", invalid);
-    input.setAttribute("aria-invalid", invalid ? "true" : "false");
-  }
-
-  function reflectEndpoints(): void {
-    const ov = endpointsSettings.get();
-    // placeholder는 config 로드 후에야 채워지므로(패널은 그 전에 생성됨) 매 reflect마다 갱신한다.
-    const defaults = getEndpointDefaults?.();
-    for (const { key } of ENDPOINT_FIELDS) {
-      const input = epInputs.get(key)!;
-      if (defaults) input.placeholder = defaults[key];
-      // 입력 중인 칸은 덮어쓰지 않는다(원격 변경은 blur 시 적용).
-      if (document.activeElement !== input && input.value !== ov[key]) {
-        input.value = ov[key];
-      }
-      validateEndpointInput(key, input);
-    }
-  }
-
-  // 서비스별 키 행을 모두 store에서 그린다(chat/stt/tts). 값은 시크릿 — 로깅하지 않는다.
-  function reflectKeyRows(): void {
-    for (const r of keyRows) r.reflect();
-  }
-
-  // 세션 진단 readout을 store에서 그린다. contextWindow가 null이면 막대·퍼센트 없이 사용량만.
-  function reflectSession(): void {
-    if (!sessionDiagnostics || !sessionValueEl) return;
-    const d = sessionDiagnostics.get();
-
-    // 컨텍스트 사용량 + 슬림 막대.
-    const used = d.usedTokens;
-    const max = d.contextWindow;
-    sessionValueEl.textContent = "";
-    if (used === null) {
-      sessionValueEl.textContent = "—";
-    } else if (max === null || max <= 0) {
-      sessionValueEl.textContent = formatTokenCount(used);
-    } else {
-      const pct = Math.min(100, Math.round((used / max) * 100));
-      sessionValueEl.append(`${formatTokenCount(used)} / ${formatTokenCount(max)}`);
-      const pctEl = document.createElement("span");
-      pctEl.className = "pct";
-      pctEl.textContent = `${pct}%`;
-      sessionValueEl.append(pctEl);
-    }
-    // 막대는 contextWindow를 알 때만 그린다.
-    const hasMeter = used !== null && max !== null && max > 0;
-    let meter = sessionStatEl?.querySelector<HTMLDivElement>(".yui-meter") ?? null;
-    if (hasMeter) {
-      const pct = Math.min(100, Math.round((used! / max!) * 100));
-      if (!meter) {
-        meter = document.createElement("div");
-        meter.className = "yui-meter";
-        meter.innerHTML = `<div class="yui-meter__fill"></div>`;
-        sessionStatEl?.append(meter);
-      }
-      const fill = meter.querySelector<HTMLDivElement>(".yui-meter__fill")!;
-      fill.style.width = `${pct}%`;
-      fill.classList.toggle("is-high", pct >= 85);
-    } else if (meter) {
-      meter.remove();
-    }
-  }
-
-  function reflectVoiceStatus(snapshot: VoiceInputStatusSnapshot): void {
-    const on = snapshot.state !== "idle";
-    voiceSwitchBtn.setAttribute("aria-checked", String(on));
-    el.classList.toggle("is-voice-on", on);
-  }
+  // ── reflect (store→DOM 동기화) 레이어 ──
+  const reflect = createReflect({
+    root: el,
+    settings,
+    idleThrottleSettings,
+    ttsSettings,
+    gazeSettings,
+    lipsync,
+    vad,
+    agentSettings,
+    fillerSettings,
+    endpointsSettings,
+    sessionDiagnostics,
+    keyRows,
+    getEndpointDefaults,
+    getDefaultProvider,
+  });
 
   function renderMonitors(monitors: MonitorInfo[], currentSource: ScreenSource): void {
     monitorsEl.innerHTML = "";
@@ -654,20 +448,20 @@ export function createQuickControls({
     bar: barEl,
     isWindow,
     onOpen: () => {
-      reflectSettings();
-      reflectIdleThrottle();
-      reflectTts();
-      reflectGaze();
-      reflectVoiceStatus(voiceStatus.get());
-      reflectGain();
-      reflectVad();
-      reflectAgent();
-      reflectFiller();
-      reflectLanguage();
-      reflectEndpoints();
-      reflectKeyRows();
-      reflectVoiceEngine();
-      reflectSession();
+      reflect.reflectSettings();
+      reflect.reflectIdleThrottle();
+      reflect.reflectTts();
+      reflect.reflectGaze();
+      reflect.reflectVoiceStatus(voiceStatus.get());
+      reflect.reflectGain();
+      reflect.reflectVad();
+      reflect.reflectAgent();
+      reflect.reflectFiller();
+      reflect.reflectLanguage();
+      reflect.reflectEndpoints();
+      reflect.reflectKeyRows();
+      reflect.reflectVoiceEngine();
+      reflect.reflectSession();
       vrmList.render();
       speakerList.render();
       if (settings.get().enabled && !monitorsLoaded) {
@@ -772,7 +566,7 @@ export function createQuickControls({
 
   // openai 엔진에선 화자 관리가 비활성 — 프로그래매틱 클릭(테스트)도 게이팅한다.
   function speakerControlsEnabled(): boolean {
-    return effectiveProvider() === "irodori";
+    return reflect.effectiveProvider() === "irodori";
   }
 
   function handlePopOut(): void {
@@ -786,7 +580,7 @@ export function createQuickControls({
     const effort = REASONING_EFFORTS[clamped];
     agentSettings.setReasoningEffort(effort);
     log.info("reasoning_effort_change", { effort });
-    // store 구독으로 reflectAgent가 시각/aria를 갱신한다.
+    // store 구독으로 reflect.reflectAgent가 시각/aria를 갱신한다.
     if (focus) segButtons[clamped]?.focus();
   }
 
@@ -821,7 +615,7 @@ export function createQuickControls({
     if (provider !== "irodori" && provider !== "openai") return;
     endpointsSettings.set({ tts_provider: provider });
     log.info("voice_engine_change", { provider });
-    // store 구독(unsubscribeEndpoints)이 reflectVoiceEngine으로 값/서브뷰/화자 비활성을 갱신한다.
+    // store 구독(unsubscribeEndpoints)이 reflect.reflectVoiceEngine으로 값/서브뷰/화자 비활성을 갱신한다.
   }
 
   // ── 대화 섹션: 지침 textarea ──
@@ -833,7 +627,7 @@ export function createQuickControls({
 
   // blur 시점에 입력 중 보류된 원격 변경을 반영한다.
   function handleInstructionsBlur(): void {
-    reflectAgent();
+    reflect.reflectAgent();
   }
 
   function handleResetInstructions(): void {
@@ -861,7 +655,7 @@ export function createQuickControls({
 
   // blur 시점에 입력 중 보류된 원격 변경을 반영한다(지침 textarea와 동일).
   function handleEndpointBlur(): void {
-    reflectEndpoints();
+    reflect.reflectEndpoints();
   }
 
   // ── 서비스별 초기화(per-section reset) ──
@@ -918,7 +712,7 @@ export function createQuickControls({
 
   function handleGainInput(): void {
     const v = parseFloat(gainSlider.value);
-    lipsync.setGain(v); // 값 변경 시 lipsync 구독이 reflectGain으로 게인 행을 다시 그린다
+    lipsync.setGain(v); // 값 변경 시 lipsync 구독이 reflect.reflectGain으로 게인 행을 다시 그린다
     gainPreviewing = true;
     onGainPreview(previewMouth(v));
   }
@@ -935,7 +729,7 @@ export function createQuickControls({
 
   function handleVadInput(): void {
     const ms = parseInt(vadSlider.value, 10);
-    vad.setSilenceMs(ms); // store 구독이 reflectVad로 값 행을 다시 그린다
+    vad.setSilenceMs(ms); // store 구독이 reflect.reflectVad로 값 행을 다시 그린다
   }
 
   function handleVadEnd(): void {
@@ -993,13 +787,13 @@ export function createQuickControls({
     }
   });
   const unsubscribeIdleThrottle = idleThrottleSettings.subscribe(() => {
-    if (popover.isOpen()) reflectIdleThrottle();
+    if (popover.isOpen()) reflect.reflectIdleThrottle();
   });
   const unsubscribeTts = ttsSettings?.subscribe(() => {
-    if (popover.isOpen()) reflectTts();
+    if (popover.isOpen()) reflect.reflectTts();
   });
   const unsubscribeGaze = gazeSettings?.subscribe(() => {
-    if (popover.isOpen()) reflectGaze();
+    if (popover.isOpen()) reflect.reflectGaze();
   });
   // 큐 목록 컴포넌트 — 입력 탭 내 .yui-cue-sections에 마운트. 구독·teardown을 컴포넌트 자체가 관리한다.
   const scheduleDividerEl = document.createElement("div");
@@ -1034,27 +828,27 @@ export function createQuickControls({
 
   mountCueLists();
 
-  const unsubscribeVoice = voiceStatus.subscribe(reflectVoiceStatus);
+  const unsubscribeVoice = voiceStatus.subscribe(reflect.reflectVoiceStatus);
   const unsubscribeLipsync = lipsync.subscribe(() => {
-    if (popover.isOpen()) reflectGain();
+    if (popover.isOpen()) reflect.reflectGain();
   });
   const unsubscribeVad = vad.subscribe(() => {
-    if (popover.isOpen()) reflectVad();
+    if (popover.isOpen()) reflect.reflectVad();
   });
   const unsubscribeAgent = agentSettings.subscribe(() => {
-    if (popover.isOpen()) reflectAgent();
+    if (popover.isOpen()) reflect.reflectAgent();
   });
   const unsubscribeEndpoints = endpointsSettings.subscribe(() => {
     if (popover.isOpen()) {
-      reflectEndpoints();
-      reflectVoiceEngine();
+      reflect.reflectEndpoints();
+      reflect.reflectVoiceEngine();
     }
   });
   // 키 store 갱신(이 창 편집·다른 창 reloadFromStorage)을 각 행에 반영. 값은 시크릿.
   const unsubscribeKeyRows = keyRows.map((r) => r.subscribe());
   // 생각중 추임새 store 갱신을 섹션에 반영(다른 창 reloadFromStorage 포함).
   const unsubscribeFiller = fillerSettings?.subscribe(() => {
-    if (popover.isOpen()) reflectFiller();
+    if (popover.isOpen()) reflect.reflectFiller();
   });
   // store 갱신(직접 select·다른 창 reloadFromStorage)을 active 행에 반영.
   // 스왑 진행 중엔 건너뛴다 — finally의 renderVrms가 로딩 해제 후 최종 그림을 맡는다.
@@ -1068,7 +862,7 @@ export function createQuickControls({
   });
   // 세션 진단 갱신(이 창의 reset·펫 창 reloadFromStorage)을 readout에 반영.
   const unsubscribeSession = sessionDiagnostics?.subscribe(() => {
-    if (popover.isOpen()) reflectSession();
+    if (popover.isOpen()) reflect.reflectSession();
   });
 
   switchBtn.addEventListener("click", handleSwitchClick);
