@@ -24,8 +24,8 @@ import { validateEndpoints } from "./validators/endpoints";
 import { validateFiller } from "./validators/filler";
 import { validateGuardrails } from "./validators/guardrails";
 import { validateMotions } from "./validators/motions";
-import { validateSources } from "./validators/sources";
 import { ConfigError } from "./validators/shared";
+import { validateSources } from "./validators/sources";
 
 export { ConfigError } from "./validators/shared";
 

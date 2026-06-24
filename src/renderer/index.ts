@@ -25,6 +25,7 @@ import type {
   MotionSignal,
 } from "../contract";
 import { createLogger } from "../logger";
+import { type AlphaHitTest, createAlphaHitTest } from "./alpha-hit-test";
 import { routeDirective } from "./apply-directive";
 import {
   CAMERA_AZIMUTH_DEFAULT,
@@ -34,12 +35,11 @@ import {
   type OrbitAngles,
   orbitPosition,
 } from "./camera-fit";
-import { createCycleDwell } from "./cycle-dwell";
 import { type CameraGaze, createCameraGaze } from "./camera-gaze";
-import { type EmotionCrossfade, createEmotionCrossfade } from "./emotion-crossfade";
+import { createCycleDwell } from "./cycle-dwell";
+import { createEmotionCrossfade, type EmotionCrossfade } from "./emotion-crossfade";
 import { isActive, shouldRenderFrame } from "./frame-gate";
 import type { GazeConfig } from "./gaze-tracker";
-import { type AlphaHitTest, createAlphaHitTest } from "./alpha-hit-test";
 import {
   createMotionController,
   type MotionController,
@@ -255,12 +255,12 @@ export interface Renderer {
   dispose(): void;
 }
 
+export type { MouthLipsync, MouthLipsyncOptions } from "./mouth-lipsync";
 export {
   createMouthLipsync,
   describeExpressions,
   MOUTH_EXPRESSION_KEY,
 } from "./mouth-lipsync";
-export type { MouthLipsync, MouthLipsyncOptions } from "./mouth-lipsync";
 
 export function createRenderer(options: RendererOptions): Renderer {
   const { mount } = options;
