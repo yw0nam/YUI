@@ -127,6 +127,8 @@ In `configs/endpoints.json`:
 "tts_voice": "<voice-id>"
 ```
 
+If the server requires auth, set `VITE_YUI_TTS_KEY` in `.env.local` — YUI sends it as `Authorization: Bearer`. irodori is self-serving and needs no key.
+
 ---
 
 ## 6. STT — Voice Input (optional)
@@ -138,7 +140,7 @@ Serve any OpenAI-compatible transcription server at the configured URL, then set
 "stt_base_url": "http://localhost:5517/v1"
 ```
 
-YUI sends audio to `<stt_base_url>/audio/transcriptions`.
+YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` — YUI sends it as `Authorization: Bearer`.
 
 ---
 

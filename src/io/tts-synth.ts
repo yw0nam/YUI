@@ -8,6 +8,8 @@ export interface TtsSynthOptions {
   model?: string;
   voice?: string;
   speed?: number;
+  /** Resolves the TTS server key (Bearer) per request. Omitted/empty → no auth header. */
+  getApiKey?: () => Promise<string | undefined>;
 }
 
 export type TtsSynth = (input: string, signal?: AbortSignal) => Promise<ArrayBuffer>;
@@ -22,9 +24,13 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
     if (opts.voice !== undefined) body.voice = opts.voice;
     if (opts.speed !== undefined) body.speed = opts.speed;
 
+    const key = (await opts.getApiKey?.())?.trim() || undefined;
     const res = await fetchImpl(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(key ? { Authorization: `Bearer ${key}` } : {}),
+      },
       body: JSON.stringify(body),
       signal,
     });

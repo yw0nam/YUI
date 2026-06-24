@@ -32,6 +32,11 @@ export function ttsOverrides(provider, { baseUrl, voice, speaker } = {}) {
   return {};
 }
 
+// openai TTS만 Bearer 키가 필요하다. irodori 는 self-serving 이라 키를 묻지 않는다.
+export function ttsNeedsKey(provider) {
+  return provider === "openai";
+}
+
 // .env 내용에서 key 한 줄만 갱신/추가. 빈 값이면 원본 그대로 둔다. 다른 줄은 보존.
 export function setEnvVar(env, key, value) {
   if (value === "" || value === undefined) return env;
@@ -111,8 +116,11 @@ async function main() {
     tts = ttsOverrides("irodori", { baseUrl: await ask("irodori_base_url", cfg.irodori_base_url) });
   else if (provider === "openai")
     tts = ttsOverrides("openai", { baseUrl: await ask("tts_base_url", cfg.tts_base_url) });
+  // irodori 는 self-serving — 키를 묻지 않는다.
+  const ttsKey = ttsNeedsKey(provider) ? await ask("VITE_YUI_TTS_KEY", "") : "";
   console.log("— STT (optional) —");
   const stt = { stt_base_url: await ask("stt_base_url", cfg.stt_base_url) };
+  const sttKey = await ask("VITE_YUI_STT_KEY", "");
 
   const merged = mergeEndpoints(cfg, { ...chat, ...broker, ...tts, ...stt });
   writeFileSync(cfgPath, `${JSON.stringify(merged, null, 2)}\n`);
@@ -122,7 +130,10 @@ async function main() {
   const seed = existsSync(envPath)
     ? readFileSync(envPath, "utf8")
     : readFileSync(join(root, ".env.example"), "utf8");
-  writeFileSync(envPath, setEnvVar(seed, "VITE_YUI_CHAT_KEY", key));
+  let env = setEnvVar(seed, "VITE_YUI_CHAT_KEY", key);
+  env = setEnvVar(env, "VITE_YUI_STT_KEY", sttKey);
+  env = setEnvVar(env, "VITE_YUI_TTS_KEY", ttsKey);
+  writeFileSync(envPath, env);
   console.log("✓ wrote .env.local");
 
   rl.close();

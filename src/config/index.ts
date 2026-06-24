@@ -20,6 +20,8 @@ export {
   loadConfig,
   plainSecretProvider,
   type SecretProvider,
+  STT_API_KEY_SECRET,
+  TTS_API_KEY_SECRET,
 } from "./load";
 
 export {
