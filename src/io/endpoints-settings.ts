@@ -21,6 +21,7 @@ export interface EndpointOverrides {
   irodori_base_url: string;
   broker_base_url: string;
   chat_model: string;
+  tts_voice: string;
   tts_provider: string;
 }
 
@@ -33,6 +34,7 @@ const FIELDS: readonly (keyof EndpointOverrides)[] = [
   "irodori_base_url",
   "broker_base_url",
   "chat_model",
+  "tts_voice",
   "tts_provider",
 ];
 
@@ -43,6 +45,7 @@ const EMPTY: EndpointOverrides = {
   irodori_base_url: "",
   broker_base_url: "",
   chat_model: "",
+  tts_voice: "",
   tts_provider: "",
 };
 
@@ -112,6 +115,8 @@ export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): En
   urlField("broker_base_url");
   const model = ov.chat_model.trim();
   if (model !== "") out.chat_model = model;
+  const voice = ov.tts_voice.trim();
+  if (voice !== "") out.tts_voice = voice;
   if (ov.tts_provider === "irodori" || ov.tts_provider === "openai") {
     out.tts_provider = ov.tts_provider;
   }
