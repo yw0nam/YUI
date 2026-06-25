@@ -59,22 +59,44 @@ export interface GazeGeometry {
   residualPitchDeg: number;
 }
 
+/** Reusable temporaries for {@link computeGazeGeometry} so the per-frame path allocates nothing. */
+export interface GazeGeometryScratch {
+  bodyFwd: THREE.Vector3;
+  toCam: THREE.Vector3;
+  localDir: THREE.Vector3;
+  invQuat: THREE.Quaternion;
+}
+
+/** Fresh scratch — production callers create one and reuse it; tests can omit it. */
+export function makeGazeGeometryScratch(): GazeGeometryScratch {
+  return {
+    bodyFwd: new THREE.Vector3(),
+    toCam: new THREE.Vector3(),
+    localDir: new THREE.Vector3(),
+    invQuat: new THREE.Quaternion(),
+  };
+}
+
 /**
  * Pure camera-gaze geometry. three-vrm normalizes every VRM to face -Z, so the body
  * front is the scene's local -Z. Both the eccentricity and the residual yaw/pitch are
  * measured in the BODY (scene) frame — independent of the live idle-posed head — so the
  * eyes/head bias toward the camera without chasing idle head motion. The residual matches
  * the apply's euler(pitch·X, yaw·Y, YXZ) rotating -Z: yaw=atan2(-x,-z), pitch=asin(y).
+ *
+ * Pass `scratch` on the per-frame path to avoid allocation; omit it in tests.
  */
 export function computeGazeGeometry(
   cameraPos: THREE.Vector3,
   headPos: THREE.Vector3,
   sceneQuat: THREE.Quaternion,
+  scratch: GazeGeometryScratch = makeGazeGeometryScratch(),
 ): GazeGeometry {
-  const bodyFwd = new THREE.Vector3(0, 0, -1).applyQuaternion(sceneQuat).normalize();
-  const toCam = cameraPos.clone().sub(headPos).normalize();
+  const bodyFwd = scratch.bodyFwd.set(0, 0, -1).applyQuaternion(sceneQuat).normalize();
+  const toCam = scratch.toCam.copy(cameraPos).sub(headPos).normalize();
   const eccentricityDeg = Math.acos(clampUnit(toCam.dot(bodyFwd))) * RAD2DEG;
-  const localDir = toCam.clone().applyQuaternion(sceneQuat.clone().invert());
+  const invQuat = scratch.invQuat.copy(sceneQuat).invert();
+  const localDir = scratch.localDir.copy(toCam).applyQuaternion(invQuat);
   const residualYawDeg = Math.atan2(-localDir.x, -localDir.z) * RAD2DEG;
   const residualPitchDeg = Math.asin(clampUnit(localDir.y)) * RAD2DEG;
   return { eccentricityDeg, residualYawDeg, residualPitchDeg };
@@ -131,9 +153,10 @@ export function createCameraGaze(deps: CameraGazeDeps): CameraGaze {
   let gazeNeckBone: THREE.Object3D | null = null;
   // True once the loaded VRM's lookAt has been claimed (autoUpdate off) for eye control.
   let gazeLookAtReady = false;
-  // Scratch reused every frame for the world-transform reads + bone-nudge apply.
+  // Scratch reused every frame for the world-transform reads + geometry + bone-nudge apply.
   const gazeHeadPos = new THREE.Vector3();
   const gazeSceneQuat = new THREE.Quaternion();
+  const gazeGeoScratch = makeGazeGeometryScratch();
   const gazeDeltaEuler = new THREE.Euler(0, 0, 0, "YXZ");
   const gazeDeltaQuat = new THREE.Quaternion();
 
@@ -166,7 +189,12 @@ export function createCameraGaze(deps: CameraGazeDeps): CameraGaze {
         const head = gazeHeadBone as THREE.Object3D;
         head.getWorldPosition(gazeHeadPos);
         currentVrm.scene.getWorldQuaternion(gazeSceneQuat);
-        const geo = computeGazeGeometry(camera.position, gazeHeadPos, gazeSceneQuat);
+        const geo = computeGazeGeometry(
+          camera.position,
+          gazeHeadPos,
+          gazeSceneQuat,
+          gazeGeoScratch,
+        );
         eccentricityDeg = geo.eccentricityDeg;
         residualYawDeg = geo.residualYawDeg;
         residualPitchDeg = geo.residualPitchDeg;

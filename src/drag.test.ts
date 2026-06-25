@@ -834,7 +834,7 @@ describe("initDrag — orbit gesture works without the Tauri runtime (browser)",
 });
 
 // ─── initDrag — onOrbitStart / onOrbitEnd lifecycle ────────────────────────────
-// onOrbitStart fires once when an Shift+left orbit gesture commits (pointerdown with
+// onOrbitStart fires once when a Shift+left orbit gesture commits (pointerdown with
 // shiftKey + buttons=1). onOrbitEnd fires once on pointerup and also once on
 // pointercancel. Neither fires for a plain (non-Shift) left-drag.
 
@@ -909,5 +909,12 @@ describe("initDrag — onOrbitStart / onOrbitEnd", () => {
     await Promise.resolve();
     expect(onOrbitStart).not.toHaveBeenCalled();
     expect(onOrbitEnd).not.toHaveBeenCalled();
+  });
+
+  it("cleanup() during an active orbit fires onOrbitEnd exactly once", async () => {
+    down(0, 0, 1, true); // orbit starts
+    cleanup();
+    await Promise.resolve();
+    expect(onOrbitEnd).toHaveBeenCalledTimes(1);
   });
 });

@@ -200,6 +200,11 @@ function attachOrbitGesture(
   el.addEventListener("pointerdown", onDown);
   return function detach(): void {
     el.removeEventListener("pointerdown", onDown);
+    // Balance an in-progress orbit so onOrbitEnd (hit-test resume) isn't stranded on teardown.
+    if (orbiting) {
+      orbiting = false;
+      onOrbitEnd?.();
+    }
     detachMove();
   };
 }
