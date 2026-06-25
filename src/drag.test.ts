@@ -832,3 +832,82 @@ describe("initDrag — orbit gesture works without the Tauri runtime (browser)",
     cleanup();
   });
 });
+
+// ─── initDrag — onOrbitStart / onOrbitEnd lifecycle ────────────────────────────
+// onOrbitStart fires once when an Alt+left orbit gesture commits (pointerdown with
+// altKey + buttons=1). onOrbitEnd fires once on pointerup and also once on
+// pointercancel. Neither fires for a plain (non-Alt) left-drag.
+
+describe("initDrag — onOrbitStart / onOrbitEnd", () => {
+  let el: EventTarget;
+  let cleanup: () => void;
+  let onOrbitStart: ReturnType<typeof vi.fn>;
+  let onOrbitEnd: ReturnType<typeof vi.fn>;
+
+  function down(clientX = 0, clientY = 0, buttons = 1, altKey = false): void {
+    const ev = new Event("pointerdown", { cancelable: true }) as Event & {
+      buttons: number;
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+      altKey: boolean;
+    };
+    Object.assign(ev, { buttons, clientX, clientY, pointerId: 1, altKey });
+    el.dispatchEvent(ev);
+  }
+
+  function up(): void {
+    const ev = new Event("pointerup") as Event & { pointerId: number };
+    Object.assign(ev, { pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  function cancel(): void {
+    const ev = new Event("pointercancel") as Event & { pointerId: number };
+    Object.assign(ev, { pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  beforeEach(async () => {
+    el = new EventTarget();
+    onOrbitStart = vi.fn();
+    onOrbitEnd = vi.fn();
+    mockInvoke.mockResolvedValue(undefined);
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    cleanup = await initDrag(el, { onOrbitStart, onOrbitEnd });
+  });
+
+  afterEach(() => {
+    cleanup();
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.clearAllMocks();
+  });
+
+  it("Alt+left pointerdown fires onOrbitStart exactly once", async () => {
+    down(0, 0, 1, true);
+    await Promise.resolve();
+    expect(onOrbitStart).toHaveBeenCalledTimes(1);
+  });
+
+  it("pointerup after Alt+left pointerdown fires onOrbitEnd exactly once", async () => {
+    down(0, 0, 1, true);
+    up();
+    await Promise.resolve();
+    expect(onOrbitEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("pointercancel after Alt+left pointerdown fires onOrbitEnd exactly once", async () => {
+    down(0, 0, 1, true);
+    cancel();
+    await Promise.resolve();
+    expect(onOrbitEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("plain left-drag (no altKey) fires neither onOrbitStart nor onOrbitEnd", async () => {
+    down(0, 0, 1, false);
+    up();
+    await Promise.resolve();
+    expect(onOrbitStart).not.toHaveBeenCalled();
+    expect(onOrbitEnd).not.toHaveBeenCalled();
+  });
+});
