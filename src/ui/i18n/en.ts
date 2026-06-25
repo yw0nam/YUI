@@ -155,7 +155,7 @@ const en: Record<string, string> = {
 
   // viewpoint (camera orbit)
   "viewpoint.section": "Viewpoint",
-  "viewpoint.sub": "Alt/Option + drag to orbit, scroll to zoom",
+  "viewpoint.sub": "Shift + drag to orbit, scroll to zoom",
   "viewpoint.reset": "Reset to front",
 
   // screenshot / input tab
