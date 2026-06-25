@@ -678,41 +678,41 @@ describe("initDrag — window_drop_release", () => {
   });
 });
 
-// ─── initDrag — orbit gesture (Alt/Option + left-drag) ─────────────────────────
-// Alt/Option + left-drag rotates the camera (azimuth/polar deltas) instead of
+// ─── initDrag — orbit gesture (Shift + left-drag) ─────────────────────────
+// Shift + left-drag rotates the camera (azimuth/polar deltas) instead of
 // moving the OS window. The modifier branch fully consumes the gesture: it
 // preventDefaults + captures the pointer, never fires onDragStart, and never
 // invokes drag_window. It works WITHOUT the Tauri runtime (pure JS callback) so
 // the browser screenshot-verification surface can drive it too. Plain left-drag is
 // unchanged.
 
-describe("initDrag — orbit gesture (Alt + left-drag)", () => {
+describe("initDrag — orbit gesture (Shift + left-drag)", () => {
   let el: EventTarget;
   let cleanup: () => void;
   let onDragStart: ReturnType<typeof vi.fn>;
   let onOrbit: ReturnType<typeof vi.fn>;
 
-  function down(clientX = 0, clientY = 0, buttons = 1, altKey = false): Event {
+  function down(clientX = 0, clientY = 0, buttons = 1, shiftKey = false): Event {
     const ev = new Event("pointerdown", { cancelable: true }) as Event & {
       buttons: number;
       clientX: number;
       clientY: number;
       pointerId: number;
-      altKey: boolean;
+      shiftKey: boolean;
     };
-    Object.assign(ev, { buttons, clientX, clientY, pointerId: 1, altKey });
+    Object.assign(ev, { buttons, clientX, clientY, pointerId: 1, shiftKey });
     el.dispatchEvent(ev);
     return ev;
   }
 
-  function move(clientX: number, clientY: number, altKey = false): void {
+  function move(clientX: number, clientY: number, shiftKey = false): void {
     const ev = new Event("pointermove", { cancelable: true }) as Event & {
       clientX: number;
       clientY: number;
       pointerId: number;
-      altKey: boolean;
+      shiftKey: boolean;
     };
-    Object.assign(ev, { clientX, clientY, pointerId: 1, altKey });
+    Object.assign(ev, { clientX, clientY, pointerId: 1, shiftKey });
     el.dispatchEvent(ev);
   }
 
@@ -737,7 +737,7 @@ describe("initDrag — orbit gesture (Alt + left-drag)", () => {
     vi.clearAllMocks();
   });
 
-  it("Alt+left drag routes to onOrbit with pointer deltas, not window-move", async () => {
+  it("Shift+left drag routes to onOrbit with pointer deltas, not window-move", async () => {
     down(10, 10, 1, true);
     move(40, 25, true); // dx=30, dy=15
     await Promise.resolve();
@@ -773,7 +773,7 @@ describe("initDrag — orbit gesture (Alt + left-drag)", () => {
     expect(onOrbit).toHaveBeenCalledTimes(1);
   });
 
-  it("plain left-drag (no Alt) does NOT orbit — window-move still engages", async () => {
+  it("plain left-drag (no Shift) does NOT orbit — window-move still engages", async () => {
     down(0, 0, 1, false);
     move(100, 0, false);
     await Promise.resolve();
@@ -782,14 +782,14 @@ describe("initDrag — orbit gesture (Alt + left-drag)", () => {
     expect(mockInvoke).toHaveBeenCalledWith("drag_window");
   });
 
-  it("Alt + non-primary button does not orbit", async () => {
-    down(0, 0, 2, true); // right button + Alt
+  it("Shift + non-primary button does not orbit", async () => {
+    down(0, 0, 2, true); // right button + Shift
     move(50, 0, true);
     await Promise.resolve();
     expect(onOrbit).not.toHaveBeenCalled();
   });
 
-  it("after cleanup() an Alt+left drag no longer orbits", async () => {
+  it("after cleanup() an Shift+left drag no longer orbits", async () => {
     cleanup();
     down(0, 0, 1, true);
     move(50, 0, true);
@@ -799,7 +799,7 @@ describe("initDrag — orbit gesture (Alt + left-drag)", () => {
 });
 
 describe("initDrag — orbit gesture works without the Tauri runtime (browser)", () => {
-  it("Alt+left drag fires onOrbit in a plain browser; never invokes drag_window", async () => {
+  it("Shift+left drag fires onOrbit in a plain browser; never invokes drag_window", async () => {
     delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
     vi.clearAllMocks();
     const el = new EventTarget();
@@ -812,17 +812,17 @@ describe("initDrag — orbit gesture works without the Tauri runtime (browser)",
       clientX: number;
       clientY: number;
       pointerId: number;
-      altKey: boolean;
+      shiftKey: boolean;
     };
-    Object.assign(down, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1, altKey: true });
+    Object.assign(down, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1, shiftKey: true });
     el.dispatchEvent(down);
     const move = new Event("pointermove", { cancelable: true }) as Event & {
       clientX: number;
       clientY: number;
       pointerId: number;
-      altKey: boolean;
+      shiftKey: boolean;
     };
-    Object.assign(move, { clientX: 30, clientY: 0, pointerId: 1, altKey: true });
+    Object.assign(move, { clientX: 30, clientY: 0, pointerId: 1, shiftKey: true });
     el.dispatchEvent(move);
     await Promise.resolve();
 
@@ -830,5 +830,91 @@ describe("initDrag — orbit gesture works without the Tauri runtime (browser)",
     expect(onDragStart).not.toHaveBeenCalled();
     expect(mockInvoke).not.toHaveBeenCalled();
     cleanup();
+  });
+});
+
+// ─── initDrag — onOrbitStart / onOrbitEnd lifecycle ────────────────────────────
+// onOrbitStart fires once when a Shift+left orbit gesture commits (pointerdown with
+// shiftKey + buttons=1). onOrbitEnd fires once on pointerup and also once on
+// pointercancel. Neither fires for a plain (non-Shift) left-drag.
+
+describe("initDrag — onOrbitStart / onOrbitEnd", () => {
+  let el: EventTarget;
+  let cleanup: () => void;
+  let onOrbitStart: ReturnType<typeof vi.fn>;
+  let onOrbitEnd: ReturnType<typeof vi.fn>;
+
+  function down(clientX = 0, clientY = 0, buttons = 1, shiftKey = false): void {
+    const ev = new Event("pointerdown", { cancelable: true }) as Event & {
+      buttons: number;
+      clientX: number;
+      clientY: number;
+      pointerId: number;
+      shiftKey: boolean;
+    };
+    Object.assign(ev, { buttons, clientX, clientY, pointerId: 1, shiftKey });
+    el.dispatchEvent(ev);
+  }
+
+  function up(): void {
+    const ev = new Event("pointerup") as Event & { pointerId: number };
+    Object.assign(ev, { pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  function cancel(): void {
+    const ev = new Event("pointercancel") as Event & { pointerId: number };
+    Object.assign(ev, { pointerId: 1 });
+    el.dispatchEvent(ev);
+  }
+
+  beforeEach(async () => {
+    el = new EventTarget();
+    onOrbitStart = vi.fn();
+    onOrbitEnd = vi.fn();
+    mockInvoke.mockResolvedValue(undefined);
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    cleanup = await initDrag(el, { onOrbitStart, onOrbitEnd });
+  });
+
+  afterEach(() => {
+    cleanup();
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.clearAllMocks();
+  });
+
+  it("Shift+left pointerdown fires onOrbitStart exactly once", async () => {
+    down(0, 0, 1, true);
+    await Promise.resolve();
+    expect(onOrbitStart).toHaveBeenCalledTimes(1);
+  });
+
+  it("pointerup after Shift+left pointerdown fires onOrbitEnd exactly once", async () => {
+    down(0, 0, 1, true);
+    up();
+    await Promise.resolve();
+    expect(onOrbitEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("pointercancel after Shift+left pointerdown fires onOrbitEnd exactly once", async () => {
+    down(0, 0, 1, true);
+    cancel();
+    await Promise.resolve();
+    expect(onOrbitEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("plain left-drag (no shiftKey) fires neither onOrbitStart nor onOrbitEnd", async () => {
+    down(0, 0, 1, false);
+    up();
+    await Promise.resolve();
+    expect(onOrbitStart).not.toHaveBeenCalled();
+    expect(onOrbitEnd).not.toHaveBeenCalled();
+  });
+
+  it("cleanup() during an active orbit fires onOrbitEnd exactly once", async () => {
+    down(0, 0, 1, true); // orbit starts
+    cleanup();
+    await Promise.resolve();
+    expect(onOrbitEnd).toHaveBeenCalledTimes(1);
   });
 });

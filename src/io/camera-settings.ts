@@ -13,7 +13,7 @@ export const CAMERA_ZOOM_MAX = 3.0;
 export const CAMERA_ZOOM_DEFAULT = 1.0;
 /** 휠 1틱당 줌 변화 민감도 (nextZoom의 exp 지수 계수). */
 export const CAMERA_WHEEL_SENSITIVITY = 0.0015;
-/** Alt+드래그 1px당 orbit 각도 변화(라디안). ~200px 드래그 ≈ 57°. */
+/** Shift+드래그 1px당 orbit 각도 변화(라디안). ~200px 드래그 ≈ 57°. */
 export const CAMERA_ORBIT_SENSITIVITY = 0.005;
 
 export interface CameraSettings {

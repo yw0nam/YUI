@@ -138,14 +138,19 @@ export interface OrbitDelta {
 }
 
 /**
- * Attach the Alt/Option + left-drag orbit gesture to `el`. Pure JS (no Tauri IPC),
+ * Attach the Shift + left-drag orbit gesture to `el`. Pure JS (no Tauri IPC),
  * so it runs in the browser too. The modifier branch fully consumes the gesture:
  * preventDefault + pointer capture, so it never leaks into the window-move path or
  * the alpha hit-test click-through. Feeds per-move deltas to `onOrbit`. Returns a
  * detach function. No-op (returns a no-op) when `onOrbit` is absent.
  */
-function attachOrbitGesture(el: EventTarget, onOrbit?: (d: OrbitDelta) => void): () => void {
-  if (!onOrbit) return () => {};
+function attachOrbitGesture(
+  el: EventTarget,
+  onOrbit?: (d: OrbitDelta) => void,
+  onOrbitStart?: () => void,
+  onOrbitEnd?: () => void,
+): () => void {
+  if (!onOrbit && !onOrbitStart && !onOrbitEnd) return () => {};
   let orbiting = false;
   let lastX = 0;
   let lastY = 0;
@@ -159,14 +164,15 @@ function attachOrbitGesture(el: EventTarget, onOrbit?: (d: OrbitDelta) => void):
 
   function onDown(e: Event): void {
     const pe = e as PointerEvent;
-    // Alt/Option + primary (left) only. Plain left-drag falls through to window-move.
-    if (!pe.altKey || (pe.buttons ?? 0) !== 1) return;
+    // Shift + primary (left) only. Plain left-drag falls through to window-move.
+    if (!pe.shiftKey || (pe.buttons ?? 0) !== 1) return;
     pe.preventDefault();
     orbiting = true;
     lastX = pe.clientX;
     lastY = pe.clientY;
     pointerId = pe.pointerId;
     (el as Partial<Element>).setPointerCapture?.(pointerId);
+    onOrbitStart?.();
     el.addEventListener("pointermove", onMove);
     el.addEventListener("pointerup", onEnd);
     el.addEventListener("pointercancel", onEnd);
@@ -188,11 +194,17 @@ function attachOrbitGesture(el: EventTarget, onOrbit?: (d: OrbitDelta) => void):
     orbiting = false;
     (el as Partial<Element>).releasePointerCapture?.(pointerId);
     detachMove();
+    onOrbitEnd?.();
   }
 
   el.addEventListener("pointerdown", onDown);
   return function detach(): void {
     el.removeEventListener("pointerdown", onDown);
+    // Balance an in-progress orbit so onOrbitEnd (hit-test resume) isn't stranded on teardown.
+    if (orbiting) {
+      orbiting = false;
+      onOrbitEnd?.();
+    }
     detachMove();
   };
 }
@@ -207,8 +219,12 @@ function attachOrbitGesture(el: EventTarget, onOrbit?: (d: OrbitDelta) => void):
  *   `DRAG_THRESHOLD_PX`, just before the OS-native drag begins.
  * @param opts.onDragEnd - Fired once per gesture on pointerup/pointercancel
  *   after a threshold-crossing drag. Not fired for sub-threshold clicks.
- * @param opts.onOrbit - Fired per pointermove during an Alt/Option + left-drag
+ * @param opts.onOrbit - Fired per pointermove during a Shift + left-drag
  *   with the pointer delta. This branch consumes the gesture (no window-move).
+ * @param opts.onOrbitStart - Fired once when a Shift + left orbit gesture
+ *   commits (pointerdown with shiftKey + primary button). Use to suspend hit-test.
+ * @param opts.onOrbitEnd - Fired once when the orbit gesture ends (pointerup or
+ *   pointercancel). Use to resume hit-test.
  * @returns A cleanup function. Call it when the surface is torn down.
  */
 export async function initDrag(
@@ -217,11 +233,13 @@ export async function initDrag(
     onDragStart?: () => void;
     onDragEnd?: () => void;
     onOrbit?: (delta: OrbitDelta) => void;
+    onOrbitStart?: () => void;
+    onOrbitEnd?: () => void;
   } = {},
 ): Promise<() => void> {
-  // Orbit (Alt+left) is pure JS — attach it before the Tauri gate so it works in the
+  // Orbit (Shift+left) is pure JS — attach it before the Tauri gate so it works in the
   // browser screenshot-verification surface as well as the packaged pet window.
-  const detachOrbit = attachOrbitGesture(el, opts.onOrbit);
+  const detachOrbit = attachOrbitGesture(el, opts.onOrbit, opts.onOrbitStart, opts.onOrbitEnd);
 
   // Tauri-only: getCurrentWindow() / onScaleChanged / invoke() require the Tauri
   // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface)
@@ -297,8 +315,8 @@ export async function initDrag(
     // Only act on primary (left) button; secondary / middle / pen barrel ignore.
     const pe = e as PointerEvent;
     if ((pe.buttons ?? 0) !== 1) return;
-    // Alt/Option + left is the orbit gesture (attachOrbitGesture) — not window-move.
-    if (pe.altKey) return;
+    // Shift + left is the orbit gesture (attachOrbitGesture) — not window-move.
+    if (pe.shiftKey) return;
     startX = pe.clientX;
     startY = pe.clientY;
     started = false;

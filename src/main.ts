@@ -151,7 +151,9 @@ async function bootstrap(): Promise<void> {
       });
     },
     onDragEnd: () => hitTestRef?.resume(),
-    // Alt/Option + left-drag orbits the camera. dx → azimuth, dy → polar; clamp/persist
+    onOrbitStart: () => hitTestRef?.suspend(),
+    onOrbitEnd: () => hitTestRef?.resume(),
+    // Shift + left-drag orbits the camera. dx → azimuth, dy → polar; clamp/persist
     // live in cameraSettings, which drives renderer.setOrbit via the subscription below.
     onOrbit: ({ dx, dy }) => {
       const cur = cameraSettings.get();

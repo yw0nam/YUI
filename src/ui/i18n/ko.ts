@@ -154,7 +154,7 @@ const ko: Record<string, string> = {
 
   // viewpoint (camera orbit)
   "viewpoint.section": "시점",
-  "viewpoint.sub": "Alt/Option + 드래그로 회전, 스크롤로 확대",
+  "viewpoint.sub": "Shift + 드래그로 회전, 스크롤로 확대",
   "viewpoint.reset": "정면으로 초기화",
 
   // screenshot / input tab

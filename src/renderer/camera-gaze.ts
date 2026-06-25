@@ -49,6 +49,59 @@ function mergeGaze(base: GazeConfig, next: Partial<GazeConfig> | undefined): Gaz
   return out;
 }
 
+/** Body-relative gaze geometry derived from the camera, head, and body orientation. */
+export interface GazeGeometry {
+  /** Camera angle from the body front (degrees) — drives the zone curve. */
+  eccentricityDeg: number;
+  /** Body-frame yaw to bring the body front onto the camera (degrees). */
+  residualYawDeg: number;
+  /** Body-frame pitch to bring the body front onto the camera (degrees). */
+  residualPitchDeg: number;
+}
+
+/** Reusable temporaries for {@link computeGazeGeometry} so the per-frame path allocates nothing. */
+export interface GazeGeometryScratch {
+  bodyFwd: THREE.Vector3;
+  toCam: THREE.Vector3;
+  localDir: THREE.Vector3;
+  invQuat: THREE.Quaternion;
+}
+
+/** Fresh scratch — production callers create one and reuse it; tests can omit it. */
+export function makeGazeGeometryScratch(): GazeGeometryScratch {
+  return {
+    bodyFwd: new THREE.Vector3(),
+    toCam: new THREE.Vector3(),
+    localDir: new THREE.Vector3(),
+    invQuat: new THREE.Quaternion(),
+  };
+}
+
+/**
+ * Pure camera-gaze geometry. three-vrm normalizes every VRM to face -Z, so the body
+ * front is the scene's local -Z. Both the eccentricity and the residual yaw/pitch are
+ * measured in the BODY (scene) frame — independent of the live idle-posed head — so the
+ * eyes/head bias toward the camera without chasing idle head motion. The residual matches
+ * the apply's euler(pitch·X, yaw·Y, YXZ) rotating -Z: yaw=atan2(-x,-z), pitch=asin(y).
+ *
+ * Pass `scratch` on the per-frame path to avoid allocation; omit it in tests.
+ */
+export function computeGazeGeometry(
+  cameraPos: THREE.Vector3,
+  headPos: THREE.Vector3,
+  sceneQuat: THREE.Quaternion,
+  scratch: GazeGeometryScratch = makeGazeGeometryScratch(),
+): GazeGeometry {
+  const bodyFwd = scratch.bodyFwd.set(0, 0, -1).applyQuaternion(sceneQuat).normalize();
+  const toCam = scratch.toCam.copy(cameraPos).sub(headPos).normalize();
+  const eccentricityDeg = Math.acos(clampUnit(toCam.dot(bodyFwd))) * RAD2DEG;
+  const invQuat = scratch.invQuat.copy(sceneQuat).invert();
+  const localDir = scratch.localDir.copy(toCam).applyQuaternion(invQuat);
+  const residualYawDeg = Math.atan2(-localDir.x, -localDir.z) * RAD2DEG;
+  const residualPitchDeg = Math.asin(clampUnit(localDir.y)) * RAD2DEG;
+  return { eccentricityDeg, residualYawDeg, residualPitchDeg };
+}
+
 /** Logger surface the gaze path needs (matches the renderer logger). */
 interface GazeLog {
   error(event: string, fields?: Record<string, unknown>): void;
@@ -100,14 +153,10 @@ export function createCameraGaze(deps: CameraGazeDeps): CameraGaze {
   let gazeNeckBone: THREE.Object3D | null = null;
   // True once the loaded VRM's lookAt has been claimed (autoUpdate off) for eye control.
   let gazeLookAtReady = false;
-  // Scratch reused every frame — no per-frame allocation in the gaze path.
-  const gazeToCam = new THREE.Vector3();
-  const gazeBodyFwd = new THREE.Vector3();
+  // Scratch reused every frame for the world-transform reads + geometry + bone-nudge apply.
   const gazeHeadPos = new THREE.Vector3();
-  const gazeHeadQuat = new THREE.Quaternion();
-  const gazeHeadQuatInv = new THREE.Quaternion();
   const gazeSceneQuat = new THREE.Quaternion();
-  const gazeLocalDir = new THREE.Vector3();
+  const gazeGeoScratch = makeGazeGeometryScratch();
   const gazeDeltaEuler = new THREE.Euler(0, 0, 0, "YXZ");
   const gazeDeltaQuat = new THREE.Quaternion();
 
@@ -116,11 +165,10 @@ export function createCameraGaze(deps: CameraGazeDeps): CameraGaze {
    * so the head/neck nudge rides on the posed skeleton into the humanoid/spring apply
    * and the eyes (driven via lookAt inside vrm.update) compose on the nudged head.
    *
-   * Reads the camera's eccentricity from the body front (zone weights) and the residual
-   * yaw/pitch from the motion-posed head to the camera (the angle eyes+head must close),
-   * damps toward the shaped targets, then post-multiplies the head/neck bones and sets
-   * the eye yaw/pitch. Additive over whatever motion is playing — a motion already facing
-   * the camera yields a ~0 residual ⇒ ~0 nudge. No-op (no bone writes) once settled.
+   * Reads the camera's eccentricity and residual yaw/pitch in the BODY frame (see
+   * computeGazeGeometry — independent of the live idle-posed head), damps toward the shaped
+   * targets, then post-multiplies the head/neck bones and sets the eye yaw/pitch. Additive
+   * over whatever motion is playing. No-op (no bone writes) once settled.
    *
    * ponytail: assumes the playing clip animates head/neck each frame (idle/sit do), so the
    * post-multiply rides a fresh motion pose; a head-trackless clip would let the nudge
@@ -140,18 +188,16 @@ export function createCameraGaze(deps: CameraGazeDeps): CameraGaze {
       try {
         const head = gazeHeadBone as THREE.Object3D;
         head.getWorldPosition(gazeHeadPos);
-        head.getWorldQuaternion(gazeHeadQuat);
-        // Body front (+Z of the VRM scene) drives the zone eccentricity (camera-from-front).
         currentVrm.scene.getWorldQuaternion(gazeSceneQuat);
-        gazeBodyFwd.set(0, 0, 1).applyQuaternion(gazeSceneQuat).normalize();
-        gazeToCam.copy(camera.position).sub(gazeHeadPos).normalize();
-        eccentricityDeg = Math.acos(clampUnit(gazeToCam.dot(gazeBodyFwd))) * RAD2DEG;
-        // Residual from the posed head's forward to the camera, in head-local axes
-        // (matches applyYawPitch's euler(pitch·X, yaw·Y, YXZ): yaw=atan2(x,z), pitch=-asin(y)).
-        gazeHeadQuatInv.copy(gazeHeadQuat).invert();
-        gazeLocalDir.copy(gazeToCam).applyQuaternion(gazeHeadQuatInv);
-        residualYawDeg = Math.atan2(gazeLocalDir.x, gazeLocalDir.z) * RAD2DEG;
-        residualPitchDeg = -Math.asin(clampUnit(gazeLocalDir.y)) * RAD2DEG;
+        const geo = computeGazeGeometry(
+          camera.position,
+          gazeHeadPos,
+          gazeSceneQuat,
+          gazeGeoScratch,
+        );
+        eccentricityDeg = geo.eccentricityDeg;
+        residualYawDeg = geo.residualYawDeg;
+        residualPitchDeg = geo.residualPitchDeg;
       } catch (err) {
         log.error("step_gaze_read", { error: String(err) });
       }

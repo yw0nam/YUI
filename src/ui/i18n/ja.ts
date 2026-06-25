@@ -155,7 +155,7 @@ const ja: Record<string, string> = {
 
   // viewpoint (camera orbit)
   "viewpoint.section": "視点",
-  "viewpoint.sub": "Alt/Option + ドラッグで回転、スクロールでズーム",
+  "viewpoint.sub": "Shift + ドラッグで回転、スクロールでズーム",
   "viewpoint.reset": "正面に戻す",
 
   // screenshot / input tab
