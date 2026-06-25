@@ -144,8 +144,13 @@ export interface OrbitDelta {
  * the alpha hit-test click-through. Feeds per-move deltas to `onOrbit`. Returns a
  * detach function. No-op (returns a no-op) when `onOrbit` is absent.
  */
-function attachOrbitGesture(el: EventTarget, onOrbit?: (d: OrbitDelta) => void): () => void {
-  if (!onOrbit) return () => {};
+function attachOrbitGesture(
+  el: EventTarget,
+  onOrbit?: (d: OrbitDelta) => void,
+  onOrbitStart?: () => void,
+  onOrbitEnd?: () => void,
+): () => void {
+  if (!onOrbit && !onOrbitStart && !onOrbitEnd) return () => {};
   let orbiting = false;
   let lastX = 0;
   let lastY = 0;
@@ -167,6 +172,7 @@ function attachOrbitGesture(el: EventTarget, onOrbit?: (d: OrbitDelta) => void):
     lastY = pe.clientY;
     pointerId = pe.pointerId;
     (el as Partial<Element>).setPointerCapture?.(pointerId);
+    onOrbitStart?.();
     el.addEventListener("pointermove", onMove);
     el.addEventListener("pointerup", onEnd);
     el.addEventListener("pointercancel", onEnd);
@@ -188,6 +194,7 @@ function attachOrbitGesture(el: EventTarget, onOrbit?: (d: OrbitDelta) => void):
     orbiting = false;
     (el as Partial<Element>).releasePointerCapture?.(pointerId);
     detachMove();
+    onOrbitEnd?.();
   }
 
   el.addEventListener("pointerdown", onDown);
@@ -209,6 +216,10 @@ function attachOrbitGesture(el: EventTarget, onOrbit?: (d: OrbitDelta) => void):
  *   after a threshold-crossing drag. Not fired for sub-threshold clicks.
  * @param opts.onOrbit - Fired per pointermove during an Alt/Option + left-drag
  *   with the pointer delta. This branch consumes the gesture (no window-move).
+ * @param opts.onOrbitStart - Fired once when an Alt/Option + left orbit gesture
+ *   commits (pointerdown with altKey + primary button). Use to suspend hit-test.
+ * @param opts.onOrbitEnd - Fired once when the orbit gesture ends (pointerup or
+ *   pointercancel). Use to resume hit-test.
  * @returns A cleanup function. Call it when the surface is torn down.
  */
 export async function initDrag(
@@ -217,11 +228,13 @@ export async function initDrag(
     onDragStart?: () => void;
     onDragEnd?: () => void;
     onOrbit?: (delta: OrbitDelta) => void;
+    onOrbitStart?: () => void;
+    onOrbitEnd?: () => void;
   } = {},
 ): Promise<() => void> {
   // Orbit (Alt+left) is pure JS — attach it before the Tauri gate so it works in the
   // browser screenshot-verification surface as well as the packaged pet window.
-  const detachOrbit = attachOrbitGesture(el, opts.onOrbit);
+  const detachOrbit = attachOrbitGesture(el, opts.onOrbit, opts.onOrbitStart, opts.onOrbitEnd);
 
   // Tauri-only: getCurrentWindow() / onScaleChanged / invoke() require the Tauri
   // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface)
