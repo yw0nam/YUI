@@ -26,6 +26,7 @@ import type { WindowRect } from "./contract";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import { createEventBus } from "./dispatcher/event-bus";
+import { createGithubSource, type LastSeenMap } from "./dispatcher/github-source";
 import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
 import { createProactiveSource } from "./dispatcher/proactive-source";
 import { createScheduleSource } from "./dispatcher/schedule-source";
@@ -56,6 +57,8 @@ import { createFillerLoop } from "./io/filler-loop";
 import { effectiveFillerPool } from "./io/filler-pool";
 import { createFillerSettings, localStorageFillerStorage } from "./io/filler-settings";
 import { createGazeSettings, localStorageGazeStorage } from "./io/gaze-settings";
+import { githubQuery } from "./io/github-query";
+import { createGithubSettings, localStorageGithubStorage } from "./io/github-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
 import {
   createIdleThrottleSettings,
@@ -66,6 +69,7 @@ import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
 import { ensureRegistered, evictRegistration } from "./io/irodori-voices";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createOsContext } from "./io/os-context";
+import { localStorageStore } from "./io/persisted-store";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
 import { createScheduleSettings, localStorageScheduleStorage } from "./io/schedule-settings";
 import { buildScreenshotBlock } from "./io/screenshot-context";
@@ -236,6 +240,10 @@ async function bootstrap(): Promise<void> {
   const scheduleSettings = createScheduleSettings({
     storage: localStorageScheduleStorage(),
   });
+  // GitHub PR 워처 on/off + 폴 주기 설정. 소스 firing만 게이팅 — 폴 루프는 멈추지 않는다.
+  const githubSettings = createGithubSettings({
+    storage: localStorageGithubStorage(),
+  });
   const lipsyncSettings = createLipsyncSettings({
     storage: localStorageLipsyncStorage(),
   });
@@ -362,6 +370,7 @@ async function bootstrap(): Promise<void> {
     screenshotSettings,
     proactiveSettings,
     scheduleSettings,
+    githubSettings,
     idleThrottleSettings,
     ttsSettings,
   ];
@@ -414,6 +423,7 @@ async function bootstrap(): Promise<void> {
       gazeSettings,
       proactiveSettings,
       scheduleSettings,
+      githubSettings,
       sourceProvider: screenSourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,
@@ -534,6 +544,7 @@ async function bootstrap(): Promise<void> {
       sttSettings.dispose();
       proactiveSettings.dispose();
       scheduleSettings.dispose();
+      githubSettings.dispose();
       lipsyncSettings.dispose();
       vadSettings.dispose();
       fillerSettings.dispose();
@@ -630,6 +641,7 @@ async function bootstrap(): Promise<void> {
     noteInteraction(ts?: number): void;
   } | null = null;
   let scheduleSourceRef: { stop(): void } | null = null;
+  let githubSourceRef: { stop(): void } | null = null;
   // guardrails도 config 로드 후 생성 — 핫리로드 setConfig가 닿게 holder를 둔다.
   let guardrailsRef: Guardrails | null = null;
   // broker client는 config 로드 후 broker_base_url이 있을 때만 만든다. 핫스왑 재publish와
@@ -991,6 +1003,7 @@ async function bootstrap(): Promise<void> {
         dispatcher.stop();
         proactiveSourceRef?.stop();
         scheduleSourceRef?.stop();
+        githubSourceRef?.stop();
         sessionStore.dispose();
         sessionDiagnostics.dispose();
       });
@@ -1086,6 +1099,19 @@ async function bootstrap(): Promise<void> {
     });
     scheduleSourceRef = scheduleSource;
     void scheduleSource.start();
+    // GitHub PR 워처: 자체 폴 루프로 open PR의 CI/리뷰 edge를 github.<event>로 발사한다.
+    // proactive와 같은 presence 임계를 재사용하되 게이트 방향이 반대(LOW idle에서 발사).
+    const lastSeenStore = localStorageStore<LastSeenMap>("yui.github.lastSeen");
+    const githubSource = createGithubSource({
+      bus,
+      githubQuery,
+      present_max_idle_ms: cfg.sources.proactive.present_max_idle_ms,
+      isEnabled: () => githubSettings.get().enabled,
+      getPollIntervalMs: () => githubSettings.get().poll_interval_ms,
+      lastSeenStore,
+    });
+    githubSourceRef = githubSource;
+    void githubSource.start();
     // Expression Broker publish(D6): broker_base_url이 있을 때만 가동(override 병합 effective 기준).
     // publish→start는 fire-and-forget — 부트 임계 경로를 막지 않는다(D4).
     const bootEps = getEndpoints();

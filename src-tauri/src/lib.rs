@@ -22,6 +22,9 @@ mod voice_import;
 // Click-through toggle (top-level + Windows child HWNDs).
 mod passthrough;
 
+// GitHub GraphQL transport — shells `gh api graphql`.
+mod github;
+
 use std::path::PathBuf;
 use tauri::Manager;
 use time::{OffsetDateTime, UtcOffset};
@@ -215,6 +218,7 @@ pub fn run() {
             voice_import::import_voice_file,
             voice_import::remove_user_voice,
             passthrough::set_click_through,
+            github::github_poll,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

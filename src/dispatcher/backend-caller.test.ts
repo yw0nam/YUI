@@ -1010,6 +1010,145 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
   });
 });
 
+// ── github PR transitions (github.* payloads → trigger.kind/pr/pr_catchup) ──────
+
+describe("backend_caller — github PR trigger forwarding", () => {
+  /** decode the flat ClientContext from the system message. */
+  function clientContextOf(input: unknown): Record<string, unknown> {
+    const items = input as Array<{ role: string; content: string }>;
+    const sys = items.find((m) => m.role === "system")!;
+    const json = sys.content.replace(/^client_context:\s*/, "");
+    return JSON.parse(json);
+  }
+
+  it("(a) github.ci_failed → trigger.kind 'github' + trigger.pr; user message is proactive marker", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 20,
+      source: "timer_scheduler",
+      event_name: "github.ci_failed",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        repo: "acme/widgets",
+        number: 42,
+        title: "Add gizmo",
+        url: "https://github.com/acme/widgets/pull/42",
+        event: "ci_failed",
+        from: "PENDING",
+        to: "FAILURE",
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    const trigger = ctx.trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("github");
+    expect(trigger.pr).toEqual({
+      repo: "acme/widgets",
+      number: 42,
+      title: "Add gizmo",
+      url: "https://github.com/acme/widgets/pull/42",
+      event: "ci_failed",
+      from: "PENDING",
+      to: "FAILURE",
+    });
+    expect("pr_catchup" in trigger).toBe(false);
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toBe("(proactive trigger)");
+  });
+
+  it("(b) github.review_changes → trigger.pr.from may be null", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 21,
+      source: "timer_scheduler",
+      event_name: "github.review_changes",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        repo: "acme/widgets",
+        number: 7,
+        title: "Refactor",
+        url: "https://github.com/acme/widgets/pull/7",
+        event: "review_changes",
+        from: null,
+        to: "CHANGES_REQUESTED",
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("github");
+    expect((trigger.pr as Record<string, unknown>).from).toBeNull();
+    expect((trigger.pr as Record<string, unknown>).to).toBe("CHANGES_REQUESTED");
+  });
+
+  it("(c) github.catchup → trigger.pr_catchup with prs/transitions; no trigger.pr", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 22,
+      source: "timer_scheduler",
+      event_name: "github.catchup",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        prs: [
+          {
+            repo: "acme/widgets",
+            number: 42,
+            title: "Add gizmo",
+            url: "https://github.com/acme/widgets/pull/42",
+            transitions: [
+              { kind: "ci", from: "PENDING", to: "FAILURE", ts: 1_717_000_000_000 },
+              { kind: "review", from: null, to: "APPROVED", ts: 1_717_000_001_000 },
+            ],
+          },
+        ],
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("github");
+    expect("pr" in trigger).toBe(false);
+    expect(trigger.pr_catchup).toEqual({
+      prs: [
+        {
+          repo: "acme/widgets",
+          number: 42,
+          title: "Add gizmo",
+          url: "https://github.com/acme/widgets/pull/42",
+          transitions: [
+            { kind: "ci", from: "PENDING", to: "FAILURE", ts: 1_717_000_000_000 },
+            { kind: "review", from: null, to: "APPROVED", ts: 1_717_000_001_000 },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("(d) github.* with malformed payload (missing fields) → kind 'github' but no pr/pr_catchup", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 23,
+      source: "timer_scheduler",
+      event_name: "github.ci_failed",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: { repo: "acme/widgets", number: "not-a-number" },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("github");
+    expect("pr" in trigger).toBe(false);
+    expect("pr_catchup" in trigger).toBe(false);
+  });
+});
+
 // ── usage event → onUsage diagnostic sink ──────────────────────────────────────
 
 describe("backend_caller — usage sink (token accounting channel)", () => {

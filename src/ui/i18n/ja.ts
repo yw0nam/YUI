@@ -256,6 +256,9 @@ const ja: Record<string, string> = {
   "gaze.label": "カメラを見る",
   "gaze.sub": "キャラクターが目と頭をカメラの視点に向けて視線を合わせます。",
   "gaze.aria": "カメラを見る",
+  "github.label": "GitHub PR を見張る",
+  "github.sub": "オープンな PR を定期的に確認し、CI が壊れたりレビューが届いたら先に知らせます。",
+  "github.aria": "GitHub PR を見張る",
 
   // session
   "session.section": "セッション",

@@ -15,6 +15,7 @@ import { selectFetch } from "./io/chat-client";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
 import { createFillerSettings, localStorageFillerStorage } from "./io/filler-settings";
+import { createGithubSettings, localStorageGithubStorage } from "./io/github-settings";
 import {
   createIdleThrottleSettings,
   localStorageIdleThrottleStorage,
@@ -70,6 +71,7 @@ async function bootstrap(): Promise<void> {
   });
   const proactiveSettings = createProactiveSettings({ storage: localStorageProactiveStorage() });
   const scheduleSettings = createScheduleSettings({ storage: localStorageScheduleStorage() });
+  const githubSettings = createGithubSettings({ storage: localStorageGithubStorage() });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
   const fillerSettings = createFillerSettings({ storage: localStorageFillerStorage() });
@@ -192,6 +194,7 @@ async function bootstrap(): Promise<void> {
       idleThrottleSettings,
       proactiveSettings,
       scheduleSettings,
+      githubSettings,
       sourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,
@@ -284,6 +287,7 @@ async function bootstrap(): Promise<void> {
     idleThrottleSettings,
     proactiveSettings,
     scheduleSettings,
+    githubSettings,
     vrmSelection,
     speakerSelection,
     sessionStore,
@@ -335,6 +339,7 @@ async function bootstrap(): Promise<void> {
   idleThrottleSettings.subscribe(broadcastSettings);
   proactiveSettings.subscribe(broadcastSettings);
   scheduleSettings.subscribe(broadcastSettings);
+  githubSettings.subscribe(broadcastSettings);
   // 표시 언어 변경도 cross-window로 알린다 → 펫 창이 받아 UI를 새 언어로 다시 그린다.
   subscribeLocale(broadcastSettings);
   // VRM 선택도 cross-window로 알린다 → 펫 창이 받아 렌더러를 핫스왑한다(Tauri storage 이벤트 불안정 대비).

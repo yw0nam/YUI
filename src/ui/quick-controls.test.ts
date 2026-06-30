@@ -27,6 +27,7 @@ import { createChatKeySettings } from "../io/chat-key-settings";
 import { createEndpointsSettings } from "../io/endpoints-settings";
 import { createFillerSettings } from "../io/filler-settings";
 import { createGazeSettings } from "../io/gaze-settings";
+import { createGithubSettings } from "../io/github-settings";
 import { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import { createLipsyncSettings } from "../io/lipsync-settings";
 import { createProactiveSettings } from "../io/proactive-settings";
@@ -459,6 +460,61 @@ describe("createQuickControls — gain row", () => {
 
     gazeSettings.setEnabled(true);
     expect(gazeSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  // ── GitHub PR 워처 toggle row (Advanced tab) ─────────────────────────────────
+
+  it("renders the github toggle row only when githubSettings is provided, OFF by default", () => {
+    const withoutGithub = buildQc();
+    withoutGithub.open();
+    expect(withoutGithub.el.querySelector(".yui-github-switch")).toBeNull();
+    withoutGithub.dispose();
+
+    const qc = buildQc({ githubSettings: createGithubSettings() });
+    qc.open();
+    const githubSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-github-switch");
+    expect(githubSwitch).not.toBeNull();
+    expect(githubSwitch!.getAttribute("aria-checked")).toBe("false");
+    expect(githubSwitch!.getAttribute("role")).toBe("switch");
+    expect(githubSwitch!.getAttribute("aria-label")).toBe("GitHub PR 지켜보기");
+
+    const row = githubSwitch!.closest(".yui-row")!;
+    expect(row.querySelector(".yui-row__label")!.textContent).toContain("GitHub PR 지켜보기");
+    qc.dispose();
+  });
+
+  it("clicking the github switch toggles githubSettings.setEnabled", () => {
+    const githubSettings = createGithubSettings();
+    const qc = buildQc({ githubSettings });
+    qc.open();
+
+    const githubSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-github-switch")!;
+    expect(githubSettings.get().enabled).toBe(false);
+
+    githubSwitch.click();
+    expect(githubSettings.get().enabled).toBe(true);
+    expect(githubSwitch.getAttribute("aria-checked")).toBe("true");
+
+    githubSwitch.click();
+    expect(githubSettings.get().enabled).toBe(false);
+    expect(githubSwitch.getAttribute("aria-checked")).toBe("false");
+
+    qc.dispose();
+  });
+
+  it("external githubSettings.setEnabled reflects on the switch while open", () => {
+    const githubSettings = createGithubSettings();
+    const qc = buildQc({ githubSettings });
+    qc.open();
+
+    const githubSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-github-switch")!;
+    githubSettings.setEnabled(true);
+    expect(githubSwitch.getAttribute("aria-checked")).toBe("true");
+
+    githubSettings.setEnabled(false);
+    expect(githubSwitch.getAttribute("aria-checked")).toBe("false");
 
     qc.dispose();
   });
