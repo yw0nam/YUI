@@ -271,6 +271,7 @@ export function createGithubSource(deps: GithubSourceDeps): GithubSource {
     // ponytail: present-gate is INVERTED vs proactive/schedule — github fires on LOW
     // idle (user at the keyboard will hear it); null/unknown idle is treated as away.
     const present = lastIdleMs != null && lastIdleMs <= present_max_idle_ms;
+    log.debug("poll_ok", { prs: prs.length, present });
     const byKey = new Map(prs.map((p) => [p.prKey, p]));
     const openKeys = new Set(byKey.keys());
 
