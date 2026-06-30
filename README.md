@@ -179,7 +179,7 @@ level with `VITE_YUI_LOG_LEVEL` (`debug` · `info` · `warn` · `error`).
 
 ## Documentation
 
-- [`AGENTS.md`](AGENTS.md) — contributor guide (work rules, roster, layout)
+- [`AGENTS.md`](AGENTS.md) — project orientation (architecture, core principle, doc index); development work rules and the sub-agent roster live in the `yui-dev-workflow` skill
 - [`PRODUCT.md`](PRODUCT.md) / [`DESIGN.md`](DESIGN.md) — product register + design system
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md) — install and wiring (broker · agent · TTS · STT · VRM)
 - [`docs/reference/backend-contract.md`](docs/reference/backend-contract.md) — the `generate_express` cue contract

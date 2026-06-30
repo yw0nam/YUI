@@ -21,7 +21,7 @@ case "$fp" in
       | head -5)
     if [ -n "$bad" ]; then
       jq -cn --arg b "$bad" \
-        '{decision:"block",reason:("docs are current-state only — change narrative is banned (AGENTS.md). Rewrite declaratively, describing what the system is now. Flagged:\n" + $b)}'
+        '{decision:"block",reason:("Intentional guard: LLMs habitually narrate the diff — \"was X, now Y\", \"previously\", \"no longer\", \"제거했다\" — and this hook deliberately blocks that. Docs here are current-state only: describe what the system IS now, declaratively, as if it had always been this way. No before/after, no change history (rule: yui-dev-workflow skill). Flagged:\n" + $b)}'
       exit 0
     fi
     ;;

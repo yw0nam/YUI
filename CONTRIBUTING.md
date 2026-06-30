@@ -1,8 +1,9 @@
 # Contributing to YUI
 
-Thanks for helping build YUI. This is the short, human-facing guide; the full
-contributor rules (sub-agent roster, layout, on-demand docs) live in
-[`AGENTS.md`](AGENTS.md).
+Thanks for helping build YUI. This is the short, human-facing guide;
+[`AGENTS.md`](AGENTS.md) carries the project orientation and on-demand docs, and
+the `yui-dev-workflow` skill carries the full development work rules and
+sub-agent roster.
 
 ## Quick start
 
@@ -57,6 +58,6 @@ pnpm lint                   # biome
 
 ## Going deeper
 
-- [`AGENTS.md`](AGENTS.md) — canonical contributor guide (work rules, roster, layout)
+- [`AGENTS.md`](AGENTS.md) — project orientation (architecture, core principle, doc index); the `yui-dev-workflow` skill holds the dev work rules and sub-agent roster
 - [`docs/setup.md`](docs/setup.md) — full install & backend wiring
 - [`PRODUCT.md`](PRODUCT.md) / [`DESIGN.md`](DESIGN.md) — product register + design system
