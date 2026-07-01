@@ -1149,6 +1149,148 @@ describe("backend_caller — github PR trigger forwarding", () => {
   });
 });
 
+// ── agent completion triggers (agent.* payloads → trigger.kind/agent/agent_catchup) ──
+
+describe("backend_caller — agent trigger forwarding", () => {
+  /** decode the flat ClientContext from the system message. */
+  function clientContextOf(input: unknown): Record<string, unknown> {
+    const items = input as Array<{ role: string; content: string }>;
+    const sys = items.find((m) => m.role === "system")!;
+    const json = sys.content.replace(/^client_context:\s*/, "");
+    return JSON.parse(json);
+  }
+
+  it("(a) agent.done → trigger.kind 'agent' + trigger.agent; user message is proactive marker", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 30,
+      source: "timer_scheduler",
+      event_name: "agent.done",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        tool: "claude-code",
+        project: "my-widget",
+        cwd: "/home/user/my-widget",
+        status: "success",
+        summary: "Implemented the gizmo feature",
+        ts: 1_717_000_000_000,
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    const trigger = ctx.trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("agent");
+    expect(trigger.agent).toEqual({
+      tool: "claude-code",
+      project: "my-widget",
+      cwd: "/home/user/my-widget",
+      status: "success",
+      summary: "Implemented the gizmo feature",
+      ts: 1_717_000_000_000,
+    });
+    expect("agent_catchup" in trigger).toBe(false);
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toBe("(proactive trigger)");
+  });
+
+  it("(b) agent.done without status → trigger.agent.status absent", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 31,
+      source: "timer_scheduler",
+      event_name: "agent.done",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        tool: "opencode",
+        project: "api",
+        cwd: "/home/user/api",
+        summary: "Refactored the handler",
+        ts: 1_717_000_000_000,
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("agent");
+    expect("status" in (trigger.agent as Record<string, unknown>)).toBe(false);
+  });
+
+  it("(c) agent.catchup → trigger.agent_catchup with count+items; no trigger.agent", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 32,
+      source: "timer_scheduler",
+      event_name: "agent.catchup",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        count: 2,
+        items: [
+          {
+            tool: "claude-code",
+            project: "alpha",
+            status: "success",
+            summary: "Done with alpha",
+            ts: 1_717_000_000_000,
+          },
+          {
+            tool: "opencode",
+            project: "beta",
+            summary: "Done with beta",
+            ts: 1_717_000_001_000,
+          },
+        ],
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("agent");
+    expect("agent" in trigger).toBe(false);
+    expect(trigger.agent_catchup).toEqual({
+      count: 2,
+      items: [
+        {
+          tool: "claude-code",
+          project: "alpha",
+          status: "success",
+          summary: "Done with alpha",
+          ts: 1_717_000_000_000,
+        },
+        {
+          tool: "opencode",
+          project: "beta",
+          summary: "Done with beta",
+          ts: 1_717_000_001_000,
+        },
+      ],
+    });
+  });
+
+  it("(d) agent.done with malformed payload → kind 'agent' but no trigger.agent", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 33,
+      source: "timer_scheduler",
+      event_name: "agent.done",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: { tool: 42 }, // tool is not a string
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("agent");
+    expect("agent" in trigger).toBe(false);
+    expect("agent_catchup" in trigger).toBe(false);
+  });
+});
+
 // ── usage event → onUsage diagnostic sink ──────────────────────────────────────
 
 describe("backend_caller — usage sink (token accounting channel)", () => {

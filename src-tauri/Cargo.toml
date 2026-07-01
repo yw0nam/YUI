@@ -32,6 +32,7 @@ tauri-plugin-dialog = "2"
 xcap = "0.4.1"
 image = { version = "0.25", features = ["jpeg"], default-features = false }
 base64 = "0.22"
+tiny_http = "0.12"
 
 # Windows OS API bindings (cfg-gated, compile-only on Windows)
 [target.'cfg(target_os = "windows")'.dependencies]

@@ -143,6 +143,61 @@ function githubPrOf(env: BusEnvelope): TriggerMeta["pr"] | undefined {
   return undefined;
 }
 
+/** agent completion payload — present on agent.done (single coding-agent task finished). */
+function agentOf(env: BusEnvelope): TriggerMeta["agent"] | undefined {
+  if (env.event_name !== "agent.done") return undefined;
+  const p = env.payload;
+  if (
+    typeof p?.tool !== "string" ||
+    typeof p?.project !== "string" ||
+    typeof p?.cwd !== "string" ||
+    typeof p?.summary !== "string" ||
+    typeof p?.ts !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    tool: p.tool as string,
+    project: p.project as string,
+    cwd: p.cwd as string,
+    ...(p.status === "success" || p.status === "error"
+      ? { status: p.status as "success" | "error" }
+      : {}),
+    summary: p.summary as string,
+    ts: p.ts as number,
+  };
+}
+
+/** agent catch-up payload — present on agent.catchup (burst of buffered completions on return). */
+function agentCatchupOf(env: BusEnvelope): TriggerMeta["agent_catchup"] | undefined {
+  if (env.event_name !== "agent.catchup") return undefined;
+  const count = env.payload?.count;
+  const items = env.payload?.items;
+  if (typeof count !== "number" || !Array.isArray(items)) return undefined;
+  const ok = items.every((raw) => {
+    const item = raw as Record<string, unknown>;
+    return (
+      item != null &&
+      typeof item.tool === "string" &&
+      typeof item.project === "string" &&
+      typeof item.summary === "string" &&
+      typeof item.ts === "number"
+    );
+  });
+  if (!ok) return undefined;
+  // Sanitize each item's optional status to exactly "success"|"error" (mirrors agentOf).
+  const sanitized = (items as Array<Record<string, unknown>>).map((item) => ({
+    tool: item.tool as string,
+    project: item.project as string,
+    ...(item.status === "success" || item.status === "error"
+      ? { status: item.status as "success" | "error" }
+      : {}),
+    summary: item.summary as string,
+    ts: item.ts as number,
+  }));
+  return { count, items: sanitized };
+}
+
 /** github catch-up payload — present on github.catchup (burst of buffered transitions). */
 function githubCatchupOf(env: BusEnvelope): TriggerMeta["pr_catchup"] | undefined {
   if (env.event_name !== "github.catchup") return undefined;
@@ -289,7 +344,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         ? "proactive"
         : eventName.startsWith("github.")
           ? "github"
-          : "user";
+          : eventName.startsWith("agent.")
+            ? "agent"
+            : "user";
 
     // cue: present when payload carries cue_id+label+context; id is omitted from wire shape.
     const p = env.payload;
@@ -312,6 +369,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const pr = githubPrOf(env);
     const prCatchup = githubCatchupOf(env);
 
+    // agent completion payloads (only attach when well-typed).
+    const agent = agentOf(env);
+    const agentCatchup = agentCatchupOf(env);
+
     // screenshot meta only (data_url stripped — rides the user image content-part above).
     const screenshotMeta: ClientContext["screenshot"] = ctx.screenshot
       ? (() => {
@@ -329,6 +390,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         ...(gap_ms != null ? { idle_elapsed_min: Math.round(gap_ms / 60000) } : {}),
         ...(pr ? { pr } : {}),
         ...(prCatchup ? { pr_catchup: prCatchup } : {}),
+        ...(agent ? { agent } : {}),
+        ...(agentCatchup ? { agent_catchup: agentCatchup } : {}),
       },
     };
 

@@ -259,6 +259,10 @@ const ja: Record<string, string> = {
   "github.label": "GitHub PR を見張る",
   "github.sub": "オープンな PR を定期的に確認し、CI が壊れたりレビューが届いたら先に知らせます。",
   "github.aria": "GitHub PR を見張る",
+  "agentNotify.label": "エージェント完了通知",
+  "agentNotify.sub":
+    "Claude Code や opencode などのコーディングエージェントがタスクを終えたら先に知らせます。",
+  "agentNotify.aria": "エージェント完了通知",
 
   // session
   "session.section": "セッション",

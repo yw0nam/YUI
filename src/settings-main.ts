@@ -8,6 +8,10 @@
 
 import "./styles.css";
 import { createConfigStore } from "./config";
+import {
+  createAgentNotifySettings,
+  localStorageAgentNotifyStorage,
+} from "./io/agent-notify-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import { createSttKeySettings, createTtsKeySettings } from "./io/api-key-settings";
 import { resolveAssetUrl } from "./io/asset-url";
@@ -72,6 +76,9 @@ async function bootstrap(): Promise<void> {
   const proactiveSettings = createProactiveSettings({ storage: localStorageProactiveStorage() });
   const scheduleSettings = createScheduleSettings({ storage: localStorageScheduleStorage() });
   const githubSettings = createGithubSettings({ storage: localStorageGithubStorage() });
+  const agentNotifySettings = createAgentNotifySettings({
+    storage: localStorageAgentNotifyStorage(),
+  });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
   const fillerSettings = createFillerSettings({ storage: localStorageFillerStorage() });
@@ -195,6 +202,7 @@ async function bootstrap(): Promise<void> {
       proactiveSettings,
       scheduleSettings,
       githubSettings,
+      agentNotifySettings,
       sourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,
@@ -288,6 +296,7 @@ async function bootstrap(): Promise<void> {
     proactiveSettings,
     scheduleSettings,
     githubSettings,
+    agentNotifySettings,
     vrmSelection,
     speakerSelection,
     sessionStore,
@@ -340,6 +349,7 @@ async function bootstrap(): Promise<void> {
   proactiveSettings.subscribe(broadcastSettings);
   scheduleSettings.subscribe(broadcastSettings);
   githubSettings.subscribe(broadcastSettings);
+  agentNotifySettings.subscribe(broadcastSettings);
   // 표시 언어 변경도 cross-window로 알린다 → 펫 창이 받아 UI를 새 언어로 다시 그린다.
   subscribeLocale(broadcastSettings);
   // VRM 선택도 cross-window로 알린다 → 펫 창이 받아 렌더러를 핫스왑한다(Tauri storage 이벤트 불안정 대비).

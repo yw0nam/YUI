@@ -22,6 +22,8 @@ export interface PanelHtmlOptions {
   gazeEnabled: boolean;
   showGithub: boolean;
   githubEnabled: boolean;
+  showAgentNotify: boolean;
+  agentNotifyEnabled: boolean;
   ttsEnabled: boolean;
 }
 
@@ -35,6 +37,8 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     gazeEnabled,
     showGithub,
     githubEnabled,
+    showAgentNotify,
+    agentNotifyEnabled,
     ttsEnabled,
   } = o;
   const segButtonsHtml = REASONING_EFFORTS.map(
@@ -439,6 +443,17 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
             <span class="yui-row__sub">${t("github.sub")}</span>
           </div>
           <button class="yui-switch yui-github-switch" type="button" role="switch" aria-checked="${String(githubEnabled)}" aria-label="${t("github.aria")}"></button>
+        </div>`
+            : ""
+        }
+        ${
+          showAgentNotify
+            ? `<div class="yui-row">
+          <div class="yui-row__main">
+            <span class="yui-row__label">${t("agentNotify.label")}</span>
+            <span class="yui-row__sub">${t("agentNotify.sub")}</span>
+          </div>
+          <button class="yui-switch yui-agentnotify-switch" type="button" role="switch" aria-checked="${String(agentNotifyEnabled)}" aria-label="${t("agentNotify.aria")}"></button>
         </div>`
             : ""
         }

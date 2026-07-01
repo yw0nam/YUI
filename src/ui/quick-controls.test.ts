@@ -16,6 +16,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../config/load";
+import { createAgentNotifySettings } from "../io/agent-notify-settings";
 import {
   type AgentSettings,
   type AgentStorage,
@@ -515,6 +516,61 @@ describe("createQuickControls — gain row", () => {
 
     githubSettings.setEnabled(false);
     expect(githubSwitch.getAttribute("aria-checked")).toBe("false");
+
+    qc.dispose();
+  });
+
+  // ── Agent completion notifications toggle row (Advanced tab) ─────────────
+
+  it("renders the agentNotify toggle row only when agentNotifySettings is provided, OFF by default", () => {
+    const withoutStore = buildQc();
+    withoutStore.open();
+    expect(withoutStore.el.querySelector(".yui-agentnotify-switch")).toBeNull();
+    withoutStore.dispose();
+
+    const qc = buildQc({ agentNotifySettings: createAgentNotifySettings() });
+    qc.open();
+    const agentNotifySwitch = qc.el.querySelector<HTMLButtonElement>(".yui-agentnotify-switch");
+    expect(agentNotifySwitch).not.toBeNull();
+    expect(agentNotifySwitch!.getAttribute("aria-checked")).toBe("false");
+    expect(agentNotifySwitch!.getAttribute("role")).toBe("switch");
+    expect(agentNotifySwitch!.getAttribute("aria-label")).toBe("에이전트 완료 알림");
+
+    const row = agentNotifySwitch!.closest(".yui-row")!;
+    expect(row.querySelector(".yui-row__label")!.textContent).toContain("에이전트 완료 알림");
+    qc.dispose();
+  });
+
+  it("clicking the agentNotify switch toggles agentNotifySettings.setEnabled", () => {
+    const agentNotifySettings = createAgentNotifySettings();
+    const qc = buildQc({ agentNotifySettings });
+    qc.open();
+
+    const agentNotifySwitch = qc.el.querySelector<HTMLButtonElement>(".yui-agentnotify-switch")!;
+    expect(agentNotifySettings.get().enabled).toBe(false);
+
+    agentNotifySwitch.click();
+    expect(agentNotifySettings.get().enabled).toBe(true);
+    expect(agentNotifySwitch.getAttribute("aria-checked")).toBe("true");
+
+    agentNotifySwitch.click();
+    expect(agentNotifySettings.get().enabled).toBe(false);
+    expect(agentNotifySwitch.getAttribute("aria-checked")).toBe("false");
+
+    qc.dispose();
+  });
+
+  it("external agentNotifySettings.setEnabled reflects on the switch while open", () => {
+    const agentNotifySettings = createAgentNotifySettings();
+    const qc = buildQc({ agentNotifySettings });
+    qc.open();
+
+    const agentNotifySwitch = qc.el.querySelector<HTMLButtonElement>(".yui-agentnotify-switch")!;
+    agentNotifySettings.setEnabled(true);
+    expect(agentNotifySwitch.getAttribute("aria-checked")).toBe("true");
+
+    agentNotifySettings.setEnabled(false);
+    expect(agentNotifySwitch.getAttribute("aria-checked")).toBe("false");
 
     qc.dispose();
   });

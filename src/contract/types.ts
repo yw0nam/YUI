@@ -234,7 +234,7 @@ export interface CueMeta {
 
 /** trigger envelope describing what fired this backend turn. */
 export interface TriggerMeta {
-  kind: "user" | "schedule" | "proactive" | "github";
+  kind: "user" | "schedule" | "proactive" | "github" | "agent";
   cue?: CueMeta;
   /** proactive only: Math.round(gap_ms / 60000). */
   idle_elapsed_min?: number;
@@ -256,6 +256,26 @@ export interface TriggerMeta {
       title: string;
       url: string;
       transitions: Array<{ kind: "ci" | "review"; from: string | null; to: string; ts: number }>;
+    }>;
+  };
+  /** agent.completion — single coding-agent task finished. */
+  agent?: {
+    tool: string; // "claude-code" | "opencode" | <string>
+    project: string;
+    cwd: string;
+    status?: "success" | "error";
+    summary: string; // speech material from the external hook (already summarized or raw)
+    ts: number; // client epoch ms
+  };
+  /** agent.catchup — burst of buffered completions on return. */
+  agent_catchup?: {
+    count: number;
+    items: Array<{
+      tool: string;
+      project: string;
+      status?: "success" | "error";
+      summary: string;
+      ts: number;
     }>;
   };
 }

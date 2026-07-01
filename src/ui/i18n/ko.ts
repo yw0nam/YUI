@@ -258,6 +258,9 @@ const ko: Record<string, string> = {
   "github.label": "GitHub PR 지켜보기",
   "github.sub": "열린 PR을 주기적으로 확인해 CI가 깨지거나 리뷰가 도착하면 먼저 말합니다.",
   "github.aria": "GitHub PR 지켜보기",
+  "agentNotify.label": "에이전트 완료 알림",
+  "agentNotify.sub": "Claude Code, opencode 등 코딩 에이전트가 작업을 마치면 먼저 말합니다.",
+  "agentNotify.aria": "에이전트 완료 알림",
 
   // session
   "session.section": "세션",

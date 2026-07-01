@@ -7,6 +7,7 @@
 import "./quick-controls.css";
 import type { AvatarOption } from "../config/load";
 import type { ScreenSource } from "../contract";
+import type { createAgentNotifySettings } from "../io/agent-notify-settings";
 import { type createAgentSettings, REASONING_EFFORTS } from "../io/agent-settings";
 import type { ApiKeySettingsStore } from "../io/api-key-settings";
 import type { ChatKeySettingsStore } from "../io/chat-key-settings";
@@ -48,6 +49,7 @@ type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type IdleThrottleSettingsStore = ReturnType<typeof createIdleThrottleSettings>;
 type GazeSettingsStore = ReturnType<typeof createGazeSettings>;
 type GithubSettingsStore = ReturnType<typeof createGithubSettings>;
+type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
 type ScheduleSettingsStore = ReturnType<typeof createScheduleSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
@@ -126,6 +128,8 @@ interface QuickControlsOptions {
   gazeSettings?: GazeSettingsStore;
   /** GitHub PR 워처 on/off store. 없으면 해당 토글 행을 그리지 않는다. */
   githubSettings?: GithubSettingsStore;
+  /** 에이전트 완료 알림 on/off store. 없으면 해당 토글 행을 그리지 않는다. */
+  agentNotifySettings?: AgentNotifySettingsStore;
 }
 
 interface QuickControls {
@@ -178,6 +182,7 @@ export function createQuickControls({
   ttsSettings,
   gazeSettings,
   githubSettings,
+  agentNotifySettings,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // 세션 섹션은 설정 창(window)에서만, 두 store가 모두 주입됐을 때 그린다.
@@ -203,6 +208,8 @@ export function createQuickControls({
     gazeEnabled: gazeSettings?.get().enabled ?? false,
     showGithub: !!githubSettings,
     githubEnabled: githubSettings?.get().enabled ?? false,
+    showAgentNotify: !!agentNotifySettings,
+    agentNotifyEnabled: agentNotifySettings?.get().enabled ?? false,
     ttsEnabled: ttsSettings?.get().enabled ?? true,
   });
 
@@ -210,6 +217,7 @@ export function createQuickControls({
   const idleThrottleSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
   const gazeSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-gaze-switch");
   const githubSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-github-switch");
+  const agentNotifySwitchBtn = el.querySelector<HTMLButtonElement>(".yui-agentnotify-switch");
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const ttsSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-tts-switch");
@@ -374,6 +382,7 @@ export function createQuickControls({
     ttsSettings,
     gazeSettings,
     githubSettings,
+    agentNotifySettings,
     lipsync,
     vad,
     agentSettings,
@@ -462,6 +471,7 @@ export function createQuickControls({
       reflect.reflectTts();
       reflect.reflectGaze();
       reflect.reflectGithub();
+      reflect.reflectAgentNotify();
       reflect.reflectVoiceStatus(voiceStatus.get());
       reflect.reflectGain();
       reflect.reflectVad();
@@ -524,6 +534,13 @@ export function createQuickControls({
     const current = githubSettings.get().enabled;
     githubSettings.setEnabled(!current);
     log.info("github_watch_toggle", { enabled: !current });
+  }
+
+  function handleAgentNotifySwitchClick(): void {
+    if (!agentNotifySettings) return;
+    const current = agentNotifySettings.get().enabled;
+    agentNotifySettings.setEnabled(!current);
+    log.info("agent_notify_toggle", { enabled: !current });
   }
 
   // ── 생각중 추임새 이벤트 핸들러 ──
@@ -815,6 +832,9 @@ export function createQuickControls({
   const unsubscribeGithub = githubSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectGithub();
   });
+  const unsubscribeAgentNotify = agentNotifySettings?.subscribe(() => {
+    if (popover.isOpen()) reflect.reflectAgentNotify();
+  });
   // 큐 목록 컴포넌트 — 입력 탭 내 .yui-cue-sections에 마운트. 구독·teardown을 컴포넌트 자체가 관리한다.
   const scheduleDividerEl = document.createElement("div");
   scheduleDividerEl.className = "yui-quick__divider";
@@ -890,6 +910,7 @@ export function createQuickControls({
   ttsSwitchBtn?.addEventListener("click", handleTtsSwitchClick);
   gazeSwitchBtn?.addEventListener("click", handleGazeSwitchClick);
   githubSwitchBtn?.addEventListener("click", handleGithubSwitchClick);
+  agentNotifySwitchBtn?.addEventListener("click", handleAgentNotifySwitchClick);
   fillerSwitchBtn?.addEventListener("click", handleFillerSwitchClick);
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
   langSegEl.addEventListener("click", handleLangSegClick);
@@ -944,6 +965,7 @@ export function createQuickControls({
     unsubscribeTts?.();
     unsubscribeGaze?.();
     unsubscribeGithub?.();
+    unsubscribeAgentNotify?.();
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();
@@ -961,6 +983,7 @@ export function createQuickControls({
     ttsSwitchBtn?.removeEventListener("click", handleTtsSwitchClick);
     gazeSwitchBtn?.removeEventListener("click", handleGazeSwitchClick);
     githubSwitchBtn?.removeEventListener("click", handleGithubSwitchClick);
+    agentNotifySwitchBtn?.removeEventListener("click", handleAgentNotifySwitchClick);
     fillerSwitchBtn?.removeEventListener("click", handleFillerSwitchClick);
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
     langSegEl.removeEventListener("click", handleLangSegClick);

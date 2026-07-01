@@ -259,6 +259,10 @@ const en: Record<string, string> = {
   "github.label": "Watch GitHub PRs",
   "github.sub": "Polls your open pull requests and speaks up when CI breaks or a review lands.",
   "github.aria": "Watch GitHub PRs",
+  "agentNotify.label": "Agent completion notifications",
+  "agentNotify.sub":
+    "Speaks up when a coding agent (Claude Code, opencode, …) finishes a task on your machine.",
+  "agentNotify.aria": "Agent completion notifications",
 
   // session
   "session.section": "Session",

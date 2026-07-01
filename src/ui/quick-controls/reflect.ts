@@ -3,6 +3,8 @@
  * 각 reflect 함수는 한 섹션의 store를 읽어 해당 DOM 노드(스위치·슬라이더·세그·입력·세션 readout)에 그린다.
  * DOM 노드는 deps.root에서 직접 쿼리한다(엔트리의 핸들러가 같은 노드를 쿼리해도 동일 노드라 무해).
  */
+
+import type { createAgentNotifySettings } from "../../io/agent-notify-settings";
 import { type createAgentSettings, REASONING_EFFORTS } from "../../io/agent-settings";
 import {
   type createEndpointsSettings,
@@ -58,6 +60,7 @@ export interface ReflectDeps {
   ttsSettings?: ReturnType<typeof createTtsSettings>;
   gazeSettings?: ReturnType<typeof createGazeSettings>;
   githubSettings?: ReturnType<typeof createGithubSettings>;
+  agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
   lipsync: ReturnType<typeof createLipsyncSettings>;
   vad: ReturnType<typeof createVadSettings>;
   agentSettings: ReturnType<typeof createAgentSettings>;
@@ -78,6 +81,7 @@ export interface Reflect {
   reflectTts(): void;
   reflectGaze(): void;
   reflectGithub(): void;
+  reflectAgentNotify(): void;
   reflectGain(): void;
   reflectVad(): void;
   reflectAgent(): void;
@@ -100,6 +104,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     ttsSettings,
     gazeSettings,
     githubSettings,
+    agentNotifySettings,
     lipsync,
     vad,
     agentSettings,
@@ -115,6 +120,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const idleThrottleSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
   const gazeSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-gaze-switch");
   const githubSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-github-switch");
+  const agentNotifySwitchBtn = root.querySelector<HTMLButtonElement>(".yui-agentnotify-switch");
   const voiceSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const ttsSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-tts-switch");
   const gainSlider = root.querySelector<HTMLInputElement>(
@@ -177,6 +183,11 @@ export function createReflect(deps: ReflectDeps): Reflect {
   function reflectGithub(): void {
     if (!githubSwitchBtn || !githubSettings) return;
     githubSwitchBtn.setAttribute("aria-checked", String(githubSettings.get().enabled));
+  }
+
+  function reflectAgentNotify(): void {
+    if (!agentNotifySwitchBtn || !agentNotifySettings) return;
+    agentNotifySwitchBtn.setAttribute("aria-checked", String(agentNotifySettings.get().enabled));
   }
 
   function reflectGain(): void {
@@ -344,6 +355,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectSettings,
     reflectIdleThrottle,
     reflectGithub,
+    reflectAgentNotify,
     reflectTts,
     reflectGaze,
     reflectGain,

@@ -23,6 +23,7 @@ import {
   TTS_API_KEY_SECRET,
 } from "./config";
 import type { WindowRect } from "./contract";
+import { createAgentSource } from "./dispatcher/agent-source";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import { createEventBus } from "./dispatcher/event-bus";
@@ -32,6 +33,10 @@ import { createProactiveSource } from "./dispatcher/proactive-source";
 import { createScheduleSource } from "./dispatcher/schedule-source";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
+import {
+  createAgentNotifySettings,
+  localStorageAgentNotifyStorage,
+} from "./io/agent-notify-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import { createSttKeySettings, createTtsKeySettings } from "./io/api-key-settings";
 import { resolveAssetUrl } from "./io/asset-url";
@@ -244,6 +249,10 @@ async function bootstrap(): Promise<void> {
   const githubSettings = createGithubSettings({
     storage: localStorageGithubStorage(),
   });
+  // Agent completion 알림 on/off + 수신 포트. 소스 firing만 게이팅.
+  const agentNotifySettings = createAgentNotifySettings({
+    storage: localStorageAgentNotifyStorage(),
+  });
   const lipsyncSettings = createLipsyncSettings({
     storage: localStorageLipsyncStorage(),
   });
@@ -371,6 +380,7 @@ async function bootstrap(): Promise<void> {
     proactiveSettings,
     scheduleSettings,
     githubSettings,
+    agentNotifySettings,
     idleThrottleSettings,
     ttsSettings,
   ];
@@ -424,6 +434,7 @@ async function bootstrap(): Promise<void> {
       proactiveSettings,
       scheduleSettings,
       githubSettings,
+      agentNotifySettings,
       sourceProvider: screenSourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,
@@ -545,6 +556,7 @@ async function bootstrap(): Promise<void> {
       proactiveSettings.dispose();
       scheduleSettings.dispose();
       githubSettings.dispose();
+      agentNotifySettings.dispose();
       lipsyncSettings.dispose();
       vadSettings.dispose();
       fillerSettings.dispose();
@@ -642,6 +654,7 @@ async function bootstrap(): Promise<void> {
   } | null = null;
   let scheduleSourceRef: { stop(): void } | null = null;
   let githubSourceRef: { stop(): void } | null = null;
+  let agentSourceRef: { stop(): void } | null = null;
   // guardrails도 config 로드 후 생성 — 핫리로드 setConfig가 닿게 holder를 둔다.
   let guardrailsRef: Guardrails | null = null;
   // broker client는 config 로드 후 broker_base_url이 있을 때만 만든다. 핫스왑 재publish와
@@ -1004,6 +1017,7 @@ async function bootstrap(): Promise<void> {
         proactiveSourceRef?.stop();
         scheduleSourceRef?.stop();
         githubSourceRef?.stop();
+        agentSourceRef?.stop();
         sessionStore.dispose();
         sessionDiagnostics.dispose();
       });
@@ -1112,6 +1126,14 @@ async function bootstrap(): Promise<void> {
     });
     githubSourceRef = githubSource;
     void githubSource.start();
+    // Agent completion 워처: Tauri IPC 인박스에서 agent.done / idle→present edge에서 agent.catchup을 발사한다.
+    const agentSource = createAgentSource({
+      bus,
+      present_max_idle_ms: cfg.sources.proactive.present_max_idle_ms,
+      isEnabled: () => agentNotifySettings.get().enabled,
+    });
+    agentSourceRef = agentSource;
+    void agentSource.start();
     // Expression Broker publish(D6): broker_base_url이 있을 때만 가동(override 병합 effective 기준).
     // publish→start는 fire-and-forget — 부트 임계 경로를 막지 않는다(D4).
     const bootEps = getEndpoints();
