@@ -164,17 +164,26 @@ mod tests {
 
     #[test]
     fn parse_request_wrong_method_returns_400() {
-        assert_eq!(parse_request("GET", "/agent-done", valid_body()).unwrap_err(), 400);
+        assert_eq!(
+            parse_request("GET", "/agent-done", valid_body()).unwrap_err(),
+            400
+        );
     }
 
     #[test]
     fn parse_request_wrong_path_returns_400() {
-        assert_eq!(parse_request("POST", "/other", valid_body()).unwrap_err(), 400);
+        assert_eq!(
+            parse_request("POST", "/other", valid_body()).unwrap_err(),
+            400
+        );
     }
 
     #[test]
     fn parse_request_malformed_json_returns_400() {
-        assert_eq!(parse_request("POST", "/agent-done", "not json").unwrap_err(), 400);
+        assert_eq!(
+            parse_request("POST", "/agent-done", "not json").unwrap_err(),
+            400
+        );
     }
 
     #[test]
@@ -208,7 +217,11 @@ mod tests {
         let summary = "b".repeat(SUMMARY_MAX_BYTES + 100);
         let p = cap_summary(make_payload(&summary));
         // Length bounded: truncated body ≤ cap, plus marker overhead
-        assert!(p.summary.len() <= SUMMARY_MAX_BYTES + 20, "too long: {}", p.summary.len());
+        assert!(
+            p.summary.len() <= SUMMARY_MAX_BYTES + 20,
+            "too long: {}",
+            p.summary.len()
+        );
         assert!(p.summary.ends_with("[truncated]"));
         assert!(std::str::from_utf8(p.summary.as_bytes()).is_ok());
     }
