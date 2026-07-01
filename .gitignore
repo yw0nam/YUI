@@ -42,3 +42,4 @@ resources/vrma/
 # VitePress docs build artifacts
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+docs/superpowers
