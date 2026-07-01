@@ -12,10 +12,14 @@ use tauri::command;
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
 /// Build the arg list for `std::process::Command::new("gh")`.
+///
+/// `--timeout 30s` prevents a hung `gh` from stalling the poll loop forever.
 pub fn gh_args(query: &str) -> Vec<String> {
     vec![
         "api".to_string(),
         "graphql".to_string(),
+        "--timeout".to_string(),
+        "30s".to_string(),
         "-f".to_string(),
         format!("query={}", query),
     ]
@@ -39,8 +43,15 @@ pub fn map_output(status_success: bool, stdout: String, stderr: String) -> Resul
 #[command]
 pub async fn github_poll(query: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        // Prepend Homebrew paths so `gh` is found when launched from a .app bundle,
+        // which does not inherit the user's shell PATH.
+        let path_val = format!(
+            "/opt/homebrew/bin:/usr/local/bin:{}",
+            std::env::var("PATH").unwrap_or_default()
+        );
         let output = std::process::Command::new("gh")
             .args(gh_args(&query))
+            .env("PATH", path_val)
             .output()
             .map_err(|e| {
                 log::error!("github_poll_spawn_failed error={e}");
@@ -75,22 +86,36 @@ mod tests {
     }
 
     #[test]
+    fn gh_args_has_timeout_flag() {
+        let args = gh_args("{ viewer { login } }");
+        assert!(
+            args.contains(&"--timeout".to_string()),
+            "expected --timeout flag in args"
+        );
+        assert!(
+            args.contains(&"30s".to_string()),
+            "expected 30s timeout value in args"
+        );
+    }
+
+    #[test]
     fn gh_args_has_f_flag_before_query() {
         let args = gh_args("{ viewer { login } }");
-        assert_eq!(args[2], "-f");
+        // --timeout and 30s are inserted after graphql; -f follows at index 4.
+        assert_eq!(args[4], "-f");
     }
 
     #[test]
-    fn gh_args_embeds_query_in_fourth_arg() {
+    fn gh_args_embeds_query_in_sixth_arg() {
         let q = "{ viewer { login } }";
         let args = gh_args(q);
-        assert_eq!(args[3], format!("query={}", q));
+        assert_eq!(args[5], format!("query={}", q));
     }
 
     #[test]
-    fn gh_args_length_is_four() {
+    fn gh_args_length_is_six() {
         let args = gh_args("anything");
-        assert_eq!(args.len(), 4);
+        assert_eq!(args.len(), 6);
     }
 
     // ── map_output ────────────────────────────────────────────────────────────
