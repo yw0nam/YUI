@@ -68,6 +68,7 @@ const en: Record<string, string> = {
   "tabs.char": "Character",
   "tabs.input": "Input",
   "tabs.adv": "Advanced",
+  "tabs.react": "Reactions",
 
   // reasoning effort segment
   "reasoning.label": "Reasoning effort",
@@ -185,7 +186,7 @@ const en: Record<string, string> = {
   "cue.schedule_title": "Scheduled greeting",
   "cue.schedule_sub": "Greets you first if you're at your desk at the set time",
   "cue.schedule_add": "+ Add greeting",
-  "cue.proactive_title": "Proactive reaction",
+  "cue.proactive_title": "Loop reaction",
   "cue.proactive_sub": "Checks in on a repeating schedule if you've been quiet at work",
   "cue.proactive_add": "+ Add reaction",
 
@@ -263,6 +264,18 @@ const en: Record<string, string> = {
   "agentNotify.sub":
     "Speaks up when a coding agent (Claude Code, opencode, …) finishes a task on your machine.",
   "agentNotify.aria": "Agent completion notifications",
+
+  // reactions tab
+  "reactions.watchers_title": "Watchers",
+  "reactions.shared_title": "Shared",
+  "reactions.poll_label": "Poll interval",
+  "reactions.poll_sub": "How often to fetch PR status",
+  "reactions.port_label": "Listener port",
+  "reactions.port_sub": "Port the completion hook server listens on",
+  "reactions.presence_label": "Present when idle for",
+  "reactions.presence_sub": "Treat the session as present if the idle gap is below this",
+  "reactions.seconds_suffix": "s",
+  "reactions.restart_hint": "Restart the app to apply this change",
 
   // session
   "session.section": "Session",

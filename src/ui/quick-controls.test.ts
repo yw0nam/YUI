@@ -31,6 +31,7 @@ import { createGazeSettings } from "../io/gaze-settings";
 import { createGithubSettings } from "../io/github-settings";
 import { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import { createLipsyncSettings } from "../io/lipsync-settings";
+import { createPresenceSettings } from "../io/presence-settings";
 import { createProactiveSettings } from "../io/proactive-settings";
 import { createScheduleSettings } from "../io/schedule-settings";
 import { createSessionDiagnosticsStore } from "../io/session-diagnostics";
@@ -254,16 +255,16 @@ describe("createQuickControls — gain row", () => {
 
   // ── 시간대 인사 · 주도적 반응 cue-list sections ──────────────────────────
 
-  it("mounts both cue-list sections in the input tab", () => {
+  it("mounts both cue-list sections (schedule in input, loop in react tab)", () => {
     const qc = buildQc();
     qc.open();
 
-    // Both section titles are present
+    // Both section titles are present across the panels
     const titles = Array.from(
       qc.el.querySelectorAll<HTMLElement>("[data-testid='cue-list-title']"),
     ).map((el) => el.textContent?.trim() ?? "");
     expect(titles).toContain("시간대 인사");
-    expect(titles).toContain("주도적 반응");
+    expect(titles).toContain("루프 반응");
 
     // Cue rows from default store data are rendered
     const scheduleRows = qc.el.querySelectorAll("#yui-panel-input [data-testid='cue-row']");
@@ -3264,15 +3265,15 @@ describe("createQuickControls — tabs + VAD slider", () => {
     return qc.el.querySelector<HTMLElement>(`#${tab.getAttribute("aria-controls")}`)!;
   }
 
-  it("renders a tablist with 4 tabs and 4 tabpanels", () => {
+  it("renders a tablist with 5 tabs and 5 tabpanels", () => {
     const qc = buildQc();
     qc.open();
 
     const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]');
     expect(tablist).not.toBeNull();
     const t = tabs(qc);
-    expect(t.length).toBe(4);
-    expect(qc.el.querySelectorAll('[role="tabpanel"]').length).toBe(4);
+    expect(t.length).toBe(5);
+    expect(qc.el.querySelectorAll('[role="tabpanel"]').length).toBe(5);
 
     // Each tab is wired to a panel and each panel back to its tab.
     for (const tab of t) {
@@ -3352,8 +3353,8 @@ describe("createQuickControls — tabs + VAD slider", () => {
     t[0].focus();
 
     tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
-    expect(t[3].getAttribute("aria-selected")).toBe("true");
-    expect(panelFor(qc, t[3]).hidden).toBe(false);
+    expect(t[4].getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, t[4]).hidden).toBe(false);
 
     tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
     expect(t[0].getAttribute("aria-selected")).toBe("true");
@@ -3793,6 +3794,297 @@ describe("createQuickControls — language picker", () => {
     // The reasoning-effort field label is keyed; ko renders the Korean copy.
     const label = qc.el.querySelector<HTMLElement>(".yui-field-row__label")!;
     expect(label.textContent).toBe("추론 강도");
+    qc.dispose();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reactions tab — new 5th tab + panel with loop cue, watchers, and shared rows
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createQuickControls — Reactions tab", () => {
+  let mount: HTMLElement;
+
+  beforeEach(() => {
+    let rafId = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return ++rafId;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    try {
+      globalThis.localStorage?.clear();
+    } catch {
+      /* localStorage 미사용 환경 무시 */
+    }
+    setLocale("en");
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    setLocale("en");
+    vi.restoreAllMocks();
+  });
+
+  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    return createQuickControls({
+      mount,
+      settings: makeSettings(),
+      idleThrottleSettings: createIdleThrottleSettings(),
+      sourceProvider: makeSourceProvider(),
+      voiceStatus: makeVoiceStatus(),
+      lipsync: createLipsyncSettings(),
+      vad: createVadSettings(),
+      onGainPreview: vi.fn(),
+      onGainPreviewEnd: vi.fn(),
+      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+      endpointsSettings: createEndpointsSettings(),
+      proactiveSettings: createProactiveSettings(),
+      scheduleSettings: createScheduleSettings(),
+      chatKeySettings: createChatKeySettings(),
+      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
+      onPopOut: vi.fn(),
+      vrmSelection: makeVrmSelection(),
+      swapVrm: vi.fn(async () => {}),
+      importVrm: vi.fn(async () => {}),
+      removeUserVrm: vi.fn(async () => {}),
+      speakerSelection: makeSpeakerSelection(),
+      swapSpeaker: vi.fn(async () => {}),
+      refreshSpeaker: vi.fn(async () => {}),
+      importVoice: vi.fn(async () => {}),
+      removeUserVoice: vi.fn(async () => {}),
+      ...extra,
+    });
+  }
+
+  it("renders the Reactions tab button (#yui-tab-react)", () => {
+    const qc = buildQc();
+    qc.open();
+    const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react");
+    expect(tab).not.toBeNull();
+    expect(tab!.getAttribute("role")).toBe("tab");
+    expect(tab!.getAttribute("aria-controls")).toBe("yui-panel-react");
+    expect(tab!.textContent).toBe("Reactions");
+    qc.dispose();
+  });
+
+  it("renders #yui-panel-react as a tabpanel, hidden by default", () => {
+    const qc = buildQc();
+    qc.open();
+    const panel = qc.el.querySelector<HTMLElement>("#yui-panel-react");
+    expect(panel).not.toBeNull();
+    expect(panel!.getAttribute("role")).toBe("tabpanel");
+    expect(panel!.getAttribute("aria-labelledby")).toBe("yui-tab-react");
+    expect(panel!.hidden).toBe(true);
+    qc.dispose();
+  });
+
+  it("mounts proactiveCueList into .yui-loop-cue-section inside #yui-panel-react", () => {
+    const qc = buildQc();
+    qc.open();
+    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
+    const loopSection = reactPanel.querySelector(".yui-loop-cue-section");
+    expect(loopSection).not.toBeNull();
+    expect(loopSection!.querySelector("[data-testid='cue-section']")).not.toBeNull();
+    qc.dispose();
+  });
+
+  it("schedule cue list stays in #yui-panel-input (.yui-cue-sections), not in react panel", () => {
+    const qc = buildQc();
+    qc.open();
+    const inputPanel = qc.el.querySelector<HTMLElement>("#yui-panel-input")!;
+    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
+    const cueSectionsInInput = inputPanel.querySelector(".yui-cue-sections");
+    expect(cueSectionsInInput).not.toBeNull();
+    expect(cueSectionsInInput!.querySelector("[data-testid='cue-section']")).not.toBeNull();
+    // loop-cue-section must not be inside input panel
+    expect(inputPanel.querySelector(".yui-loop-cue-section")).toBeNull();
+    // cue-sections must not be inside react panel
+    expect(reactPanel.querySelector(".yui-cue-sections")).toBeNull();
+    qc.dispose();
+  });
+
+  it("github switch lives inside #yui-panel-react, not #yui-panel-adv", () => {
+    const qc = buildQc({ githubSettings: createGithubSettings() });
+    qc.open();
+    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
+    const advPanel = qc.el.querySelector<HTMLElement>("#yui-panel-adv")!;
+    const githubSwitch = qc.el.querySelector(".yui-github-switch");
+    expect(githubSwitch).not.toBeNull();
+    expect(reactPanel.contains(githubSwitch)).toBe(true);
+    expect(advPanel.contains(githubSwitch)).toBe(false);
+    qc.dispose();
+  });
+
+  it("agentNotify switch lives inside #yui-panel-react, not #yui-panel-adv", () => {
+    const qc = buildQc({ agentNotifySettings: createAgentNotifySettings() });
+    qc.open();
+    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
+    const advPanel = qc.el.querySelector<HTMLElement>("#yui-panel-adv")!;
+    const agentNotifySwitch = qc.el.querySelector(".yui-agentnotify-switch");
+    expect(agentNotifySwitch).not.toBeNull();
+    expect(reactPanel.contains(agentNotifySwitch)).toBe(true);
+    expect(advPanel.contains(agentNotifySwitch)).toBe(false);
+    qc.dispose();
+  });
+
+  it("renders #yui-github-poll that reflects githubSettings.poll_interval_ms/1000 on open", () => {
+    const githubSettings = createGithubSettings();
+    const qc = buildQc({ githubSettings });
+    qc.open();
+    const pollInput = qc.el.querySelector<HTMLInputElement>("#yui-github-poll");
+    expect(pollInput).not.toBeNull();
+    // Default poll_interval_ms = 60000 → 60 s
+    expect(pollInput!.value).toBe("60");
+    qc.dispose();
+  });
+
+  it("change on #yui-github-poll calls githubSettings.setPollInterval(s * 1000)", () => {
+    const githubSettings = createGithubSettings();
+    const setSpy = vi.spyOn(githubSettings, "setPollInterval");
+    const qc = buildQc({ githubSettings });
+    qc.open();
+    const pollInput = qc.el.querySelector<HTMLInputElement>("#yui-github-poll")!;
+    pollInput.value = "120";
+    pollInput.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(setSpy).toHaveBeenCalledWith(120000);
+    qc.dispose();
+  });
+
+  it("after a valid poll change the input value snaps to stored value via re-reflect", () => {
+    const githubSettings = createGithubSettings();
+    const qc = buildQc({ githubSettings });
+    qc.open();
+    const pollInput = qc.el.querySelector<HTMLInputElement>("#yui-github-poll")!;
+    pollInput.value = "30";
+    pollInput.dispatchEvent(new Event("change", { bubbles: true }));
+    // store floor is 10 s (10000 ms) — 30 is valid, stored as 30000 ms
+    expect(githubSettings.get().poll_interval_ms).toBe(30000);
+    // input reflects stored value (30 s)
+    expect(pollInput.value).toBe("30");
+    qc.dispose();
+  });
+
+  it("renders #yui-agent-port that reflects agentNotifySettings.port on open", () => {
+    const agentNotifySettings = createAgentNotifySettings();
+    const qc = buildQc({ agentNotifySettings });
+    qc.open();
+    const portInput = qc.el.querySelector<HTMLInputElement>("#yui-agent-port");
+    expect(portInput).not.toBeNull();
+    // Default port = 8770
+    expect(portInput!.value).toBe("8770");
+    qc.dispose();
+  });
+
+  it("change on #yui-agent-port calls agentNotifySettings.setPort", () => {
+    const agentNotifySettings = createAgentNotifySettings();
+    const setSpy = vi.spyOn(agentNotifySettings, "setPort");
+    const qc = buildQc({ agentNotifySettings });
+    qc.open();
+    const portInput = qc.el.querySelector<HTMLInputElement>("#yui-agent-port")!;
+    portInput.value = "9000";
+    portInput.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(setSpy).toHaveBeenCalledWith(9000);
+    qc.dispose();
+  });
+
+  it("does not render #yui-presence when presenceSettings is absent", () => {
+    const qc = buildQc();
+    qc.open();
+    expect(qc.el.querySelector("#yui-presence")).toBeNull();
+    qc.dispose();
+  });
+
+  it("renders #yui-presence inside #yui-panel-react when presenceSettings is provided", () => {
+    const presenceSettings = createPresenceSettings();
+    const qc = buildQc({ presenceSettings });
+    qc.open();
+    const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence");
+    expect(presenceInput).not.toBeNull();
+    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
+    expect(reactPanel.contains(presenceInput)).toBe(true);
+    qc.dispose();
+  });
+
+  it("#yui-presence reflects presenceSettings.present_max_idle_ms/1000 on open", () => {
+    const presenceSettings = createPresenceSettings();
+    const qc = buildQc({ presenceSettings });
+    qc.open();
+    const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
+    // Default present_max_idle_ms = 180000 → 180 s
+    expect(presenceInput.value).toBe("180");
+    qc.dispose();
+  });
+
+  it("change on #yui-presence calls presenceSettings.setPresentMaxIdleMs(s * 1000)", () => {
+    const presenceSettings = createPresenceSettings();
+    const setSpy = vi.spyOn(presenceSettings, "setPresentMaxIdleMs");
+    const qc = buildQc({ presenceSettings });
+    qc.open();
+    const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
+    presenceInput.value = "300";
+    presenceInput.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(setSpy).toHaveBeenCalledWith(300000);
+    qc.dispose();
+  });
+
+  it("external presenceSettings.setPresentMaxIdleMs reflects into #yui-presence while open", () => {
+    const presenceSettings = createPresenceSettings();
+    const qc = buildQc({ presenceSettings });
+    qc.open();
+    const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
+    presenceSettings.setPresentMaxIdleMs(60000);
+    expect(presenceInput.value).toBe("60");
+    qc.dispose();
+  });
+
+  // ── Snap-back regression tests ────────────────────────────────────────────
+  // When the store setter silently rejects an out-of-range value (no-op),
+  // the change handler's explicit reflect.*() must snap the input back to the
+  // current stored value so the field never shows an uncommitted state.
+
+  it("below-floor value in #yui-github-poll snaps back: store unchanged, input reverts to 60", () => {
+    const githubSettings = createGithubSettings(); // default poll_interval_ms = 60000
+    const setSpy = vi.spyOn(githubSettings, "setPollInterval");
+    const qc = buildQc({ githubSettings });
+    qc.open();
+    const pollInput = qc.el.querySelector<HTMLInputElement>("#yui-github-poll")!;
+    pollInput.value = "5"; // 5 s → 5000 ms — below the 10 000 ms floor
+    pollInput.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(setSpy).toHaveBeenCalledWith(5000); // setter was invoked but rejected
+    expect(githubSettings.get().poll_interval_ms).toBe(60000); // store unchanged
+    expect(pollInput.value).toBe("60"); // input snapped back
+    qc.dispose();
+  });
+
+  it("below-range value in #yui-agent-port snaps back: store unchanged, input reverts to 8770", () => {
+    const agentNotifySettings = createAgentNotifySettings(); // default port = 8770
+    const setSpy = vi.spyOn(agentNotifySettings, "setPort");
+    const qc = buildQc({ agentNotifySettings });
+    qc.open();
+    const portInput = qc.el.querySelector<HTMLInputElement>("#yui-agent-port")!;
+    portInput.value = "80"; // below the 1024 minimum
+    portInput.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(setSpy).toHaveBeenCalledWith(80); // setter was invoked but rejected
+    expect(agentNotifySettings.get().port).toBe(8770); // store unchanged
+    expect(portInput.value).toBe("8770"); // input snapped back
+    qc.dispose();
+  });
+
+  it("below-floor value in #yui-presence snaps back: store unchanged, input reverts to 180", () => {
+    const presenceSettings = createPresenceSettings(); // default present_max_idle_ms = 180000
+    const setSpy = vi.spyOn(presenceSettings, "setPresentMaxIdleMs");
+    const qc = buildQc({ presenceSettings });
+    qc.open();
+    const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
+    presenceInput.value = "5"; // 5 s → 5000 ms — below the 10 000 ms floor
+    presenceInput.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(setSpy).toHaveBeenCalledWith(5000); // setter was invoked but rejected
+    expect(presenceSettings.get().present_max_idle_ms).toBe(180000); // store unchanged
+    expect(presenceInput.value).toBe("180"); // input snapped back
     qc.dispose();
   });
 });

@@ -68,6 +68,7 @@ const ko: Record<string, string> = {
   "tabs.char": "캐릭터",
   "tabs.input": "입력",
   "tabs.adv": "고급",
+  "tabs.react": "반응",
 
   // reasoning effort segment
   "reasoning.label": "추론 강도",
@@ -184,7 +185,7 @@ const ko: Record<string, string> = {
   "cue.schedule_title": "시간대 인사",
   "cue.schedule_sub": "정한 시각에 자리에 있으면 먼저 말을 걸어요",
   "cue.schedule_add": "+ 인사 추가",
-  "cue.proactive_title": "주도적 반응",
+  "cue.proactive_title": "루프 반응",
   "cue.proactive_sub": "작업 중에 한동안 조용하면 주기적으로 먼저 말을 걸어요",
   "cue.proactive_add": "+ 반응 추가",
 
@@ -261,6 +262,18 @@ const ko: Record<string, string> = {
   "agentNotify.label": "에이전트 완료 알림",
   "agentNotify.sub": "Claude Code, opencode 등 코딩 에이전트가 작업을 마치면 먼저 말합니다.",
   "agentNotify.aria": "에이전트 완료 알림",
+
+  // reactions tab
+  "reactions.watchers_title": "감시",
+  "reactions.shared_title": "공통",
+  "reactions.poll_label": "폴링 간격",
+  "reactions.poll_sub": "PR 상태를 확인하는 주기",
+  "reactions.port_label": "리스너 포트",
+  "reactions.port_sub": "완료 훅 서버가 기다릴 포트",
+  "reactions.presence_label": "자리 비움 허용 시간",
+  "reactions.presence_sub": "이 시간 이하로 자리를 비웠다면 작업 중으로 간주해요",
+  "reactions.seconds_suffix": "초",
+  "reactions.restart_hint": "변경 사항을 적용하려면 앱을 재시작해요",
 
   // session
   "session.section": "세션",

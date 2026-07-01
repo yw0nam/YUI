@@ -68,6 +68,7 @@ const ja: Record<string, string> = {
   "tabs.char": "キャラクター",
   "tabs.input": "入力",
   "tabs.adv": "詳細",
+  "tabs.react": "リアクション",
 
   // reasoning effort segment
   "reasoning.label": "推論の強さ",
@@ -185,7 +186,7 @@ const ja: Record<string, string> = {
   "cue.schedule_title": "時間帯のあいさつ",
   "cue.schedule_sub": "決めた時刻に席にいると、先に話しかけます",
   "cue.schedule_add": "+ あいさつを追加",
-  "cue.proactive_title": "自発的なリアクション",
+  "cue.proactive_title": "ループリアクション",
   "cue.proactive_sub": "作業中にしばらく静かにしていると、定期的に先に話しかけます",
   "cue.proactive_add": "+ リアクションを追加",
 
@@ -263,6 +264,18 @@ const ja: Record<string, string> = {
   "agentNotify.sub":
     "Claude Code や opencode などのコーディングエージェントがタスクを終えたら先に知らせます。",
   "agentNotify.aria": "エージェント完了通知",
+
+  // reactions tab
+  "reactions.watchers_title": "ウォッチャー",
+  "reactions.shared_title": "共通",
+  "reactions.poll_label": "ポーリング間隔",
+  "reactions.poll_sub": "PR の状態を確認する頻度",
+  "reactions.port_label": "リスナーポート",
+  "reactions.port_sub": "完了フックサーバーが待ち受けるポート",
+  "reactions.presence_label": "在席とみなす無操作時間",
+  "reactions.presence_sub": "この時間以内の無操作であれば在席とみなします",
+  "reactions.seconds_suffix": "秒",
+  "reactions.restart_hint": "変更を適用するにはアプリを再起動してください",
 
   // session
   "session.section": "セッション",

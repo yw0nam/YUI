@@ -10,7 +10,10 @@ use tauri::{AppHandle, Emitter};
 pub const AGENT_INBOX_CHANNEL: &str = "agent-inbox";
 
 const SUMMARY_MAX_BYTES: usize = 8192;
-const PORT: u16 = 8770;
+/// Default ingress port; the frontend store also defaults to 8770.
+/// Kept discoverable on the Rust side; the port itself arrives via the command.
+#[allow(dead_code)]
+pub const DEFAULT_PORT: u16 = 8770;
 /// Hard body read ceiling; prevents OOM on oversized payloads.
 const BODY_CEILING_BYTES: usize = 65536; // 8× summary cap
 
@@ -116,27 +119,34 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
 
 // ─── Background listener ──────────────────────────────────────────────────────
 
-/// Spawns the loopback HTTP listener on port 8770.
+/// Spawns the loopback HTTP listener on the given port.
 ///
 /// Bind failure is non-fatal: the app continues without the ingress endpoint.
-pub fn start(app: &AppHandle) {
+pub fn start(app: &AppHandle, port: u16) {
     let app = app.clone();
     thread::Builder::new()
         .name("agent_ingress".into())
         .spawn(move || {
-            let server = match tiny_http::Server::http(("127.0.0.1", PORT)) {
+            let server = match tiny_http::Server::http(("127.0.0.1", port)) {
                 Ok(s) => s,
                 Err(e) => {
-                    log::warn!("agent_ingress_bind_failed port={PORT} error={e}");
+                    log::warn!("agent_ingress_bind_failed port={port} error={e}");
                     return;
                 }
             };
-            log::debug!("agent_ingress_listening port={PORT}");
+            log::debug!("agent_ingress_listening port={port}");
             for request in server.incoming_requests() {
                 handle_request(&app, request);
             }
         })
         .expect("failed to spawn agent_ingress thread");
+}
+
+/// Starts the loopback ingress on `port` — invoked once at boot with the user's
+/// stored port (restart-to-apply; no live rebind). Bind failure is non-fatal.
+#[tauri::command]
+pub fn start_agent_ingress(app: tauri::AppHandle, port: u16) {
+    start(&app, port);
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

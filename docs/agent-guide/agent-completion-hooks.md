@@ -1,8 +1,10 @@
 # Agent Completion Hooks
 
-When a coding agent (Claude Code, opencode, or any compatible tool) finishes a task, it can POST a completion signal to the running YUI app. YUI validates the payload, fires it onto the event bus as a `trigger.kind:"agent"` turn, and sends it to the backend (Hermes). Hermes decides whether and what to speak — an empty response means silence. The hook requires YUI to be running with **Settings → Advanced → Agent completion notifications** enabled. The ingress endpoint listens on loopback only (`127.0.0.1:8770`); remote agents reach it via an SSH reverse tunnel.
+When a coding agent (Claude Code, opencode, or any compatible tool) finishes a task, it can POST a completion signal to the running YUI app. YUI validates the payload, fires it onto the event bus as a `trigger.kind:"agent"` turn, and sends it to the backend (Hermes). Hermes decides whether and what to speak — an empty response means silence. The hook requires YUI to be running with **Settings → Reactions → Agent completion notifications** enabled. The ingress endpoint listens on loopback only; the port defaults to `8770` and is configurable in **Settings → Reactions** — a port change takes effect on app restart. Remote agents reach the endpoint via an SSH reverse tunnel.
 
 ## Endpoint
+
+The examples below use the default port `8770`. Substitute the port you configured in Settings → Reactions if you changed it.
 
 ```
 POST http://127.0.0.1:8770/agent-done
@@ -98,4 +100,4 @@ Any `POST localhost:8770/agent-done` on the remote side reaches the local YUI in
 
 ## Security
 
-The endpoint binds to `127.0.0.1` only and carries no authentication in v1. Do not expose port 8770 beyond localhost or your own SSH tunnel.
+The endpoint binds to `127.0.0.1` only and carries no authentication. Do not expose the listener port beyond localhost or your own SSH tunnel.

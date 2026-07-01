@@ -20,6 +20,7 @@ import {
   LIPSYNC_GAIN_MAX,
   LIPSYNC_GAIN_MIN,
 } from "../../io/lipsync-settings";
+import type { createPresenceSettings } from "../../io/presence-settings";
 import type { createScreenshotSettings } from "../../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
 import type { createTtsSettings } from "../../io/tts-settings";
@@ -73,6 +74,11 @@ export interface ReflectDeps {
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** 오버라이드가 없을 때 효과적 provider가 폴백할 bundled config 기본값(미로드 시 undefined). */
   getDefaultProvider?: () => "openai" | "irodori" | undefined;
+  /** Reactions tab numeric inputs — provided when the feature is enabled. */
+  githubPollInput?: HTMLInputElement;
+  agentPortInput?: HTMLInputElement;
+  presenceInput?: HTMLInputElement;
+  presenceSettings?: ReturnType<typeof createPresenceSettings>;
 }
 
 export interface Reflect {
@@ -82,6 +88,7 @@ export interface Reflect {
   reflectGaze(): void;
   reflectGithub(): void;
   reflectAgentNotify(): void;
+  reflectPresence(): void;
   reflectGain(): void;
   reflectVad(): void;
   reflectAgent(): void;
@@ -114,6 +121,10 @@ export function createReflect(deps: ReflectDeps): Reflect {
     keyRows,
     getEndpointDefaults,
     getDefaultProvider,
+    githubPollInput,
+    agentPortInput,
+    presenceInput,
+    presenceSettings,
   } = deps;
 
   const switchBtn = root.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
@@ -183,11 +194,19 @@ export function createReflect(deps: ReflectDeps): Reflect {
   function reflectGithub(): void {
     if (!githubSwitchBtn || !githubSettings) return;
     githubSwitchBtn.setAttribute("aria-checked", String(githubSettings.get().enabled));
+    if (githubPollInput)
+      githubPollInput.value = String(githubSettings.get().poll_interval_ms / 1000);
   }
 
   function reflectAgentNotify(): void {
     if (!agentNotifySwitchBtn || !agentNotifySettings) return;
     agentNotifySwitchBtn.setAttribute("aria-checked", String(agentNotifySettings.get().enabled));
+    if (agentPortInput) agentPortInput.value = String(agentNotifySettings.get().port);
+  }
+
+  function reflectPresence(): void {
+    if (!presenceInput || !presenceSettings) return;
+    presenceInput.value = String(presenceSettings.get().present_max_idle_ms / 1000);
   }
 
   function reflectGain(): void {
@@ -356,6 +375,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectIdleThrottle,
     reflectGithub,
     reflectAgentNotify,
+    reflectPresence,
     reflectTts,
     reflectGaze,
     reflectGain,

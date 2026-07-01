@@ -75,6 +75,7 @@ import { ensureRegistered, evictRegistration } from "./io/irodori-voices";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createOsContext } from "./io/os-context";
 import { localStorageStore } from "./io/persisted-store";
+import { createPresenceSettings, localStoragePresenceStorage } from "./io/presence-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
 import { createScheduleSettings, localStorageScheduleStorage } from "./io/schedule-settings";
 import { buildScreenshotBlock } from "./io/screenshot-context";
@@ -253,6 +254,8 @@ async function bootstrap(): Promise<void> {
   const agentNotifySettings = createAgentNotifySettings({
     storage: localStorageAgentNotifyStorage(),
   });
+  // Presence window threshold — "present when idle ≤ N ms". Shared by proactive/github/agent sources.
+  const presenceSettings = createPresenceSettings({ storage: localStoragePresenceStorage() });
   const lipsyncSettings = createLipsyncSettings({
     storage: localStorageLipsyncStorage(),
   });
@@ -381,6 +384,7 @@ async function bootstrap(): Promise<void> {
     scheduleSettings,
     githubSettings,
     agentNotifySettings,
+    presenceSettings,
     idleThrottleSettings,
     ttsSettings,
   ];
@@ -435,6 +439,7 @@ async function bootstrap(): Promise<void> {
       scheduleSettings,
       githubSettings,
       agentNotifySettings,
+      presenceSettings,
       sourceProvider: screenSourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,
@@ -557,6 +562,7 @@ async function bootstrap(): Promise<void> {
       scheduleSettings.dispose();
       githubSettings.dispose();
       agentNotifySettings.dispose();
+      presenceSettings.dispose();
       lipsyncSettings.dispose();
       vadSettings.dispose();
       fillerSettings.dispose();
@@ -594,6 +600,9 @@ async function bootstrap(): Promise<void> {
   if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
     void (async () => {
       const { invoke } = await import("@tauri-apps/api/core");
+      void invoke("start_agent_ingress", { port: agentNotifySettings.get().port }).catch((e) =>
+        log.warn("start_agent_ingress_failed", { error: String(e) }),
+      );
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       const { listen } = await import("@tauri-apps/api/event");
       windowDropSource = createWindowDropSource({
@@ -1099,7 +1108,7 @@ async function bootstrap(): Promise<void> {
     // 게이팅. dispatcher 가동 후 start — 발사가 즉시 소비되도록. teardown에서 함께 stop.
     const proactiveSource = createProactiveSource({
       bus,
-      present_max_idle_ms: cfg.sources.proactive.present_max_idle_ms,
+      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
       getCues: () => proactiveSettings.get().entries,
       isEnabled: () => proactiveSettings.get().enabled,
     });
@@ -1119,7 +1128,7 @@ async function bootstrap(): Promise<void> {
     const githubSource = createGithubSource({
       bus,
       githubQuery,
-      present_max_idle_ms: cfg.sources.proactive.present_max_idle_ms,
+      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
       isEnabled: () => githubSettings.get().enabled,
       getPollIntervalMs: () => githubSettings.get().poll_interval_ms,
       lastSeenStore,
@@ -1129,7 +1138,7 @@ async function bootstrap(): Promise<void> {
     // Agent completion 워처: Tauri IPC 인박스에서 agent.done / idle→present edge에서 agent.catchup을 발사한다.
     const agentSource = createAgentSource({
       bus,
-      present_max_idle_ms: cfg.sources.proactive.present_max_idle_ms,
+      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
       isEnabled: () => agentNotifySettings.get().enabled,
     });
     agentSourceRef = agentSource;
