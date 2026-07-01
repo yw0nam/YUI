@@ -255,6 +255,9 @@ const ko: Record<string, string> = {
   "gaze.label": "카메라 시선 맞춤",
   "gaze.sub": "캐릭터가 카메라 쪽으로 눈과 고개를 돌려 시선을 맞춥니다.",
   "gaze.aria": "카메라 시선 맞춤",
+  "github.label": "GitHub PR 지켜보기",
+  "github.sub": "열린 PR을 주기적으로 확인해 CI가 깨지거나 리뷰가 도착하면 먼저 말합니다.",
+  "github.aria": "GitHub PR 지켜보기",
 
   // session
   "session.section": "세션",

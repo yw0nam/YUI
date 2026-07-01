@@ -119,6 +119,9 @@ function classify(env: BusEnvelope): Classification {
   if (n.startsWith("schedule.")) {
     return { tier: 2, target: "backend_caller" };
   }
+  if (n.startsWith("github.")) {
+    return { tier: 2, target: "backend_caller" };
+  }
   if (n === "os.active_app_changed") {
     return { tier: 3, target: "backend_caller" };
   }

@@ -256,6 +256,9 @@ const en: Record<string, string> = {
   "gaze.label": "Look at camera",
   "gaze.sub": "The character turns its eyes and head to follow the camera viewpoint.",
   "gaze.aria": "Look at camera",
+  "github.label": "Watch GitHub PRs",
+  "github.sub": "Polls your open pull requests and speaks up when CI breaks or a review lands.",
+  "github.aria": "Watch GitHub PRs",
 
   // session
   "session.section": "Session",

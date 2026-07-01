@@ -11,6 +11,7 @@ import {
 } from "../../io/endpoints-settings";
 import type { createFillerSettings } from "../../io/filler-settings";
 import type { createGazeSettings } from "../../io/gaze-settings";
+import type { createGithubSettings } from "../../io/github-settings";
 import type { createIdleThrottleSettings } from "../../io/idle-throttle-settings";
 import {
   type createLipsyncSettings,
@@ -56,6 +57,7 @@ export interface ReflectDeps {
   idleThrottleSettings: ReturnType<typeof createIdleThrottleSettings>;
   ttsSettings?: ReturnType<typeof createTtsSettings>;
   gazeSettings?: ReturnType<typeof createGazeSettings>;
+  githubSettings?: ReturnType<typeof createGithubSettings>;
   lipsync: ReturnType<typeof createLipsyncSettings>;
   vad: ReturnType<typeof createVadSettings>;
   agentSettings: ReturnType<typeof createAgentSettings>;
@@ -75,6 +77,7 @@ export interface Reflect {
   reflectIdleThrottle(): void;
   reflectTts(): void;
   reflectGaze(): void;
+  reflectGithub(): void;
   reflectGain(): void;
   reflectVad(): void;
   reflectAgent(): void;
@@ -96,6 +99,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     idleThrottleSettings,
     ttsSettings,
     gazeSettings,
+    githubSettings,
     lipsync,
     vad,
     agentSettings,
@@ -110,6 +114,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const switchBtn = root.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const idleThrottleSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
   const gazeSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-gaze-switch");
+  const githubSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-github-switch");
   const voiceSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const ttsSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-tts-switch");
   const gainSlider = root.querySelector<HTMLInputElement>(
@@ -167,6 +172,11 @@ export function createReflect(deps: ReflectDeps): Reflect {
   function reflectGaze(): void {
     if (!gazeSwitchBtn || !gazeSettings) return;
     gazeSwitchBtn.setAttribute("aria-checked", String(gazeSettings.get().enabled));
+  }
+
+  function reflectGithub(): void {
+    if (!githubSwitchBtn || !githubSettings) return;
+    githubSwitchBtn.setAttribute("aria-checked", String(githubSettings.get().enabled));
   }
 
   function reflectGain(): void {
@@ -333,6 +343,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
   return {
     reflectSettings,
     reflectIdleThrottle,
+    reflectGithub,
     reflectTts,
     reflectGaze,
     reflectGain,

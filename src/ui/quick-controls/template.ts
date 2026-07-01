@@ -20,11 +20,23 @@ export interface PanelHtmlOptions {
   showViewpoint: boolean;
   showGaze: boolean;
   gazeEnabled: boolean;
+  showGithub: boolean;
+  githubEnabled: boolean;
   ttsEnabled: boolean;
 }
 
 export function buildPanelHtml(o: PanelHtmlOptions): string {
-  const { isWindow, hasSession, showFiller, showViewpoint, showGaze, gazeEnabled, ttsEnabled } = o;
+  const {
+    isWindow,
+    hasSession,
+    showFiller,
+    showViewpoint,
+    showGaze,
+    gazeEnabled,
+    showGithub,
+    githubEnabled,
+    ttsEnabled,
+  } = o;
   const segButtonsHtml = REASONING_EFFORTS.map(
     (e) =>
       `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${t(SEG_LABEL_KEYS[e])}</button>`,
@@ -416,6 +428,17 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
             <span class="yui-row__sub">${t("gaze.sub")}</span>
           </div>
           <button class="yui-switch yui-gaze-switch" type="button" role="switch" aria-checked="${String(gazeEnabled)}" aria-label="${t("gaze.aria")}"></button>
+        </div>`
+            : ""
+        }
+        ${
+          showGithub
+            ? `<div class="yui-row">
+          <div class="yui-row__main">
+            <span class="yui-row__label">${t("github.label")}</span>
+            <span class="yui-row__sub">${t("github.sub")}</span>
+          </div>
+          <button class="yui-switch yui-github-switch" type="button" role="switch" aria-checked="${String(githubEnabled)}" aria-label="${t("github.aria")}"></button>
         </div>`
             : ""
         }

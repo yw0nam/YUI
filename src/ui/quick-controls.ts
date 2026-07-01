@@ -13,6 +13,7 @@ import type { ChatKeySettingsStore } from "../io/chat-key-settings";
 import type { createEndpointsSettings, EndpointOverrides } from "../io/endpoints-settings";
 import type { createFillerSettings } from "../io/filler-settings";
 import type { createGazeSettings } from "../io/gaze-settings";
+import type { createGithubSettings } from "../io/github-settings";
 import type { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import {
   type createLipsyncSettings,
@@ -46,6 +47,7 @@ export { formatTokenCount } from "./quick-controls/reflect";
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type IdleThrottleSettingsStore = ReturnType<typeof createIdleThrottleSettings>;
 type GazeSettingsStore = ReturnType<typeof createGazeSettings>;
+type GithubSettingsStore = ReturnType<typeof createGithubSettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
 type ScheduleSettingsStore = ReturnType<typeof createScheduleSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
@@ -122,6 +124,8 @@ interface QuickControlsOptions {
   ttsSettings?: TtsSettingsStore;
   /** 카메라 시선 맞춤(gaze) on/off store. 없으면 해당 토글 행을 그리지 않는다. */
   gazeSettings?: GazeSettingsStore;
+  /** GitHub PR 워처 on/off store. 없으면 해당 토글 행을 그리지 않는다. */
+  githubSettings?: GithubSettingsStore;
 }
 
 interface QuickControls {
@@ -173,6 +177,7 @@ export function createQuickControls({
   fillerSettings,
   ttsSettings,
   gazeSettings,
+  githubSettings,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // 세션 섹션은 설정 창(window)에서만, 두 store가 모두 주입됐을 때 그린다.
@@ -196,12 +201,15 @@ export function createQuickControls({
     showViewpoint: !!onResetViewpoint,
     showGaze: !!gazeSettings,
     gazeEnabled: gazeSettings?.get().enabled ?? false,
+    showGithub: !!githubSettings,
+    githubEnabled: githubSettings?.get().enabled ?? false,
     ttsEnabled: ttsSettings?.get().enabled ?? true,
   });
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const idleThrottleSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
   const gazeSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-gaze-switch");
+  const githubSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-github-switch");
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const ttsSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-tts-switch");
@@ -365,6 +373,7 @@ export function createQuickControls({
     idleThrottleSettings,
     ttsSettings,
     gazeSettings,
+    githubSettings,
     lipsync,
     vad,
     agentSettings,
@@ -452,6 +461,7 @@ export function createQuickControls({
       reflect.reflectIdleThrottle();
       reflect.reflectTts();
       reflect.reflectGaze();
+      reflect.reflectGithub();
       reflect.reflectVoiceStatus(voiceStatus.get());
       reflect.reflectGain();
       reflect.reflectVad();
@@ -507,6 +517,13 @@ export function createQuickControls({
     const current = gazeSettings.get().enabled;
     gazeSettings.setEnabled(!current);
     log.info("gaze_toggle", { enabled: !current });
+  }
+
+  function handleGithubSwitchClick(): void {
+    if (!githubSettings) return;
+    const current = githubSettings.get().enabled;
+    githubSettings.setEnabled(!current);
+    log.info("github_watch_toggle", { enabled: !current });
   }
 
   // ── 생각중 추임새 이벤트 핸들러 ──
@@ -795,6 +812,9 @@ export function createQuickControls({
   const unsubscribeGaze = gazeSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectGaze();
   });
+  const unsubscribeGithub = githubSettings?.subscribe(() => {
+    if (popover.isOpen()) reflect.reflectGithub();
+  });
   // 큐 목록 컴포넌트 — 입력 탭 내 .yui-cue-sections에 마운트. 구독·teardown을 컴포넌트 자체가 관리한다.
   const scheduleDividerEl = document.createElement("div");
   scheduleDividerEl.className = "yui-quick__divider";
@@ -869,6 +889,7 @@ export function createQuickControls({
   idleThrottleSwitchBtn.addEventListener("click", handleIdleThrottleSwitchClick);
   ttsSwitchBtn?.addEventListener("click", handleTtsSwitchClick);
   gazeSwitchBtn?.addEventListener("click", handleGazeSwitchClick);
+  githubSwitchBtn?.addEventListener("click", handleGithubSwitchClick);
   fillerSwitchBtn?.addEventListener("click", handleFillerSwitchClick);
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
   langSegEl.addEventListener("click", handleLangSegClick);
@@ -922,6 +943,7 @@ export function createQuickControls({
     unsubscribeIdleThrottle();
     unsubscribeTts?.();
     unsubscribeGaze?.();
+    unsubscribeGithub?.();
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();
@@ -938,6 +960,7 @@ export function createQuickControls({
     idleThrottleSwitchBtn.removeEventListener("click", handleIdleThrottleSwitchClick);
     ttsSwitchBtn?.removeEventListener("click", handleTtsSwitchClick);
     gazeSwitchBtn?.removeEventListener("click", handleGazeSwitchClick);
+    githubSwitchBtn?.removeEventListener("click", handleGithubSwitchClick);
     fillerSwitchBtn?.removeEventListener("click", handleFillerSwitchClick);
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
     langSegEl.removeEventListener("click", handleLangSegClick);
