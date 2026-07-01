@@ -1,6 +1,6 @@
 ---
 name: Technical Artist
-model: opus
+model: sonnet
 description: Renderer graphics owner for src/renderer/ — use for shaders, VRM expressions, motion playback, lipsync, and frame-budget/perf work on YUI's three.js character.
 color: pink
 emoji: 🎨

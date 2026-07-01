@@ -1,6 +1,6 @@
 ---
 name: Frontend Developer
-model: opus
+model: sonnet
 description: Renderer load + Chat IO owner — use for three.js/VRM loading in src/renderer/ and the src/io/chat-client.ts Responses API SSE parser, including generate_express tool-call capture.
 color: cyan
 emoji: 🖥️

@@ -28,9 +28,9 @@ Specialist definitions are vendored in `.claude/agents/`. Invoke an agent by its
 
 | Area | Agent (`name:`) | Model | Responsibility |
 |---|---|---|---|
-| **Renderer — graphics** | **Technical Artist** | `opus` | `src/renderer/` — shaders, expressions, motion, lipsync, frame-budget/perf |
-| **Renderer — load / Chat IO** | **Frontend Developer** | `opus` | `src/renderer/` three.js/VRM load + `src/io/chat-client.ts` Responses API SSE parser, `generate_express` capture |
-| **Dispatcher** | **Backend Architect** | `opus` | `src/dispatcher/` — event-bus, classify→guardrail→route |
+| **Renderer — graphics** | **Technical Artist** | `sonnet` | `src/renderer/` — shaders, expressions, motion, lipsync, frame-budget/perf |
+| **Renderer — load / Chat IO** | **Frontend Developer** | `sonnet` | `src/renderer/` three.js/VRM load + `src/io/chat-client.ts` Responses API SSE parser, `generate_express` capture |
+| **Dispatcher** | **Backend Architect** | `sonnet` | `src/dispatcher/` — event-bus, classify→guardrail→route |
 | **Audio IO** | **Voice AI Integration Engineer** | `sonnet` | `src/io/tts-pipeline.ts` + `stt-vad.ts` — TTS queue/ordering, VAD→STT |
 | **Tauri / Rust** | **Senior Developer** | `sonnet` | `src-tauri/` — os_event_watcher, IPC contract, `cargo test` |
 | **Contract / Schema** | **Software Architect** | `sonnet` | `src/contract/types.ts` (contract source of truth) + JSON schema validation |

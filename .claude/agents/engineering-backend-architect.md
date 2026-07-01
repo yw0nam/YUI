@@ -1,6 +1,6 @@
 ---
 name: Backend Architect
-model: opus
+model: sonnet
 description: Dispatcher owner for src/dispatcher/ — use for the event bus and the classify→guardrail→route flow that turns fired events into backend calls.
 color: blue
 emoji: 🏗️
