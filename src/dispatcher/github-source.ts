@@ -23,8 +23,11 @@ import type { EventBus } from "./event-bus";
 
 const log = createLogger("github-source");
 
+/** Maximum number of open PRs fetched per poll. */
+const PR_QUERY_LIMIT = 30;
+
 /** One open PR authored by the viewer, with CI rollup + review decision. */
-export const PR_QUERY = `{ viewer { pullRequests(states: OPEN, first: 30,
+export const PR_QUERY = `{ viewer { pullRequests(states: OPEN, first: ${PR_QUERY_LIMIT},
     orderBy: { field: UPDATED_AT, direction: DESC }) { nodes {
       repository { nameWithOwner }
       number title url
@@ -189,7 +192,7 @@ export function createGithubSource(deps: GithubSourceDeps): GithubSource {
   function buffer(prKey: string, t: Transition): void {
     const arr = pending.get(prKey) ?? [];
     arr.push(t);
-    // ponytail: cap 5, oldest dropped; raise if dev wants deeper history.
+    // Caps the buffer at BUFFER_CAP; the oldest entry is dropped when the limit is exceeded.
     if (arr.length > BUFFER_CAP) arr.shift();
     pending.set(prKey, arr);
   }
@@ -268,8 +271,8 @@ export function createGithubSource(deps: GithubSourceDeps): GithubSource {
     }
 
     const ts = now();
-    // ponytail: present-gate is INVERTED vs proactive/schedule — github fires on LOW
-    // idle (user at the keyboard will hear it); null/unknown idle is treated as away.
+    // The present gate is inverted compared to proactive/schedule sources: github fires on
+    // low idle (user at keyboard) rather than high. Null or unknown idle is treated as away.
     const present = lastIdleMs != null && lastIdleMs <= present_max_idle_ms;
     log.debug("poll_ok", { prs: prs.length, present });
     const byKey = new Map(prs.map((p) => [p.prKey, p]));

@@ -29,7 +29,7 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
     // data_url is NOT included here — pixels arrive as the input_image content-part on input[1]
   },
   "trigger": {
-    "kind": "user | schedule | proactive",
+    "kind": "user | schedule | proactive | github",
     "cue": {                                    // present for schedule and proactive kinds
       "label": "short human name",
       "context": "free-text intent the user wrote for the agent",
