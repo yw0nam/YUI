@@ -77,7 +77,7 @@ The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary s
 
 ## 4. Backend Agent
 
-YUI is compatible with any backend served over the OpenAI Responses API (`/v1/responses`). The Hermes agent gateway is recommended.
+YUI is compatible with any backend served over the OpenAI Responses API (`/v1/responses`). The [Hermes Agent](https://github.com/nousresearch/hermes-agent) gateway is recommended.
 
 ### Steps
 

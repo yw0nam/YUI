@@ -20,7 +20,7 @@
 YUI is a VRM character that lives on your desktop — it renders the body, the
 voice, and the on-screen surfaces, and it leaves the thinking to a backend.
 It does not ship an embedded model. Instead it talks to the
-[Hermes Agent](docs/guide/getting-started.md) (or any backend that speaks the OpenAI Responses
+[Hermes Agent](https://github.com/nousresearch/hermes-agent) (or any backend that speaks the OpenAI Responses
 API and honors YUI's expression contract), so the character is exactly as
 capable as the agent behind it.
 
@@ -207,3 +207,13 @@ prohibited.
 
 The `falling` and `landing` clips (`falling_loop.vrma`, `landing.vrma`) are
 original works authored in Blender by the project author.
+
+## License
+
+YUI's source code is licensed under the
+[PolyForm Noncommercial License 1.0.0](LICENSE) — free for noncommercial use,
+modification, and redistribution with attribution. **Commercial use requires
+permission from the author** (https://github.com/yw0nam).
+
+The bundled motion assets (`public/motions/*.vrma`) are **not** covered by this
+license; each follows its original author's terms — see [Credits](#credits) above.
