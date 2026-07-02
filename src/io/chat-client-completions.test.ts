@@ -187,6 +187,24 @@ describe("streamChat — Chat Completions generate_express capture", () => {
     expect(ccCreateMock).toHaveBeenCalledTimes(2);
   });
 
+  it("recognizes an MCP-namespaced mcp_<server>_generate_express tool name", async () => {
+    ccCreateMock
+      .mockResolvedValueOnce(
+        streamOf([
+          toolCallStart(0, "call_1", "mcp_hermes_generate_express", GEN_EXPRESS_ARGS),
+          finishChunk("tool_calls"),
+        ]),
+      )
+      .mockResolvedValueOnce(streamOf([finishChunk("stop")]));
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events[0]).toEqual({
+      type: "express",
+      args: { emotion_id: "happy", motion_id: "embarrassed", emotion_text: "[whisper]" },
+    });
+  });
+
   it("appends the assistant tool_calls message + a role:tool 'ok' result before re-requesting", async () => {
     ccCreateMock
       .mockResolvedValueOnce(
@@ -343,6 +361,33 @@ describe("streamChat — Chat Completions error handling", () => {
     ac.abort();
     const events = await collect(streamChat(CONFIG, req({ signal: ac.signal })));
     expect(events).toEqual([]);
+    expect(ccCreateMock).not.toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// regression: Responses mode is untouched by the CC branch
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("streamChat — Responses mode regression (chat_api unset/'responses')", () => {
+  it("never calls chat.completions.create when chat_api is absent (this mock only stubs chat.completions.create)", async () => {
+    const responsesConfig: EndpointsConfig = { ...CONFIG, chat_api: undefined };
+    const events = await collect(streamChat(responsesConfig, req({ input: [] })));
+    // client.responses is undefined on this mock -> the Responses branch's own
+    // try/catch surfaces it as an error event rather than silently falling
+    // through to the CC branch (which would have called ccCreateMock instead).
+    expect(events).toEqual([
+      {
+        type: "error",
+        message: expect.stringContaining("chat request failed"),
+      },
+    ]);
+    expect(ccCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("never calls chat.completions.create when chat_api is explicitly 'responses'", async () => {
+    const responsesConfig: EndpointsConfig = { ...CONFIG, chat_api: "responses" };
+    await collect(streamChat(responsesConfig, req({ input: [] })));
     expect(ccCreateMock).not.toHaveBeenCalled();
   });
 });
