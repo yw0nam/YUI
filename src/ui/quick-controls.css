@@ -1,9 +1,10 @@
 /* YUI quick-controls 패널 — 우클릭 소환 설정 패널("The Hearthlight" 4번째 표면).
    드래그 헤더 + 스크롤 본문(대화 · 입력 소스 · 표현). 토큰은 ./tokens.css. */
 
-/* 컴포넌트 로컬 토큰: 어두운 입력 필드 바탕(지침 textarea). */
+/* 컴포넌트 로컬 토큰: 어두운 입력 필드 바탕(지침 textarea) + 불투명 패널 바탕. */
 .yui-quick {
   --yui-field: oklch(0.16 0.012 70 / 0.7);
+  --yui-panel-bg: oklch(0.16 0.014 70);
 }
 
 /* ── scrim overlay (popover variant 전용) ── */
@@ -21,15 +22,14 @@
   position: fixed;
   display: flex;
   flex-direction: column;
-  width: min(20rem, 86vw);
+  width: min(25rem, 88vw);
   max-height: 88vh;
   padding: 0 0 0.55rem; /* 헤더는 flush, 본문은 자체 패딩 */
   border-radius: var(--yui-radius);
-  background: var(--yui-scrim-strong);
+  background: var(--yui-panel-bg); /* 불투명 — 뒤 배경이 비치던 scrim 대체 */
   border: 1px solid var(--yui-edge);
   box-shadow: var(--yui-float);
-  backdrop-filter: blur(14px) saturate(1.12);
-  -webkit-backdrop-filter: blur(14px) saturate(1.12);
+  /* backdrop-filter 제거 — 불투명 바탕에서는 장식일 뿐(The Float Rule) */
   color: var(--yui-text);
   font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
   text-shadow: var(--yui-text-shadow);
@@ -155,6 +155,7 @@
 /* ── 스크롤 본문 (헤더·푸터 고정) ── */
 .yui-quick__body {
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
   padding: 0.55rem 0.85rem 0.1rem;
@@ -175,51 +176,115 @@
   background: transparent;
 }
 
-/* ── 탭 스트립 — .yui-seg 시각언어를 tablist로 확장 ── */
-.yui-tabs {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  flex: 0 0 auto;
-  margin: 0.6rem 0.85rem 0.2rem;
-  padding: 0.18rem;
-  border-radius: var(--yui-radius-row);
-  background: oklch(0.5 0.01 70 / 0.2);
-  border: 1px solid var(--yui-edge);
+/* ── 2단 레이아웃 — 왼쪽 세로 rail(.yui-tabs) + 오른쪽 콘텐츠(.yui-quick__body) ── */
+.yui-quick__cols {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-/* window variant: no custom bar — tabs sit below the native macOS titlebar (28px). */
-.yui-quick--window .yui-tabs {
+/* window variant: no custom bar — the row sits below the native macOS titlebar (28px). */
+.yui-quick--window .yui-quick__cols {
   margin-top: calc(28px + 0.4rem);
 }
 
+/* ── 세로 rail — 접히지 않은 이상 아이콘+라벨, 5개 탭 ── */
+.yui-tabs {
+  position: relative;
+  flex: 0 0 8rem;
+  width: 8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.6rem 0.4rem;
+  border-right: 1px solid var(--yui-edge);
+  overflow: hidden;
+  transition:
+    flex-basis var(--yui-dur) var(--yui-ease),
+    width var(--yui-dur) var(--yui-ease);
+}
+
+/* ── rail 접기/펼치기 쉐브론 — rail 맨 위 ── */
+.yui-rail-collapse {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 1.7rem;
+  margin-bottom: 0.3rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-rail-collapse:hover {
+  background: oklch(0.97 0.01 80 / 0.06);
+  color: var(--yui-text-dim);
+}
+
+.yui-rail-collapse svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: 0 0 auto;
+  transition: transform var(--yui-dur) var(--yui-ease);
+}
+
+.yui-rail-collapse:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* 인디케이터 geometry는 rail 상단 고정값 — top = 패딩(0.6rem) + 쉐브론 블록(1.7rem 높이 +
+   0.3rem 마진 + 0.1rem gap = 2.1rem) = 2.7rem. 행 N은 top + N * (행높이 2.3rem + gap 0.1rem). */
 .yui-tabs__ind {
   position: absolute;
-  top: 0.18rem;
-  bottom: 0.18rem;
-  left: 0.18rem;
-  width: calc((100% - 0.36rem) / 5);
-  border-radius: calc(var(--yui-radius-row) - 3px);
+  left: 0.4rem;
+  right: 0.4rem;
+  top: 2.7rem;
+  height: 2.3rem;
+  border-radius: calc(var(--yui-radius-row) - 2px);
   background: var(--yui-accent-faint);
   border: 1px solid var(--yui-accent-soft);
-  transform: translateX(calc(var(--tab, 0) * 100%));
+  transform: translateY(calc(var(--tab, 0) * 2.4rem));
   transition: transform var(--yui-dur) var(--yui-ease);
 }
 
 .yui-tab {
   position: relative;
   z-index: 1;
-  padding: 0.4rem 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 0 0 2.3rem;
+  height: 2.3rem;
+  padding: 0 0.55rem;
   border: 0;
   background: transparent;
   color: var(--yui-text-mute);
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 550;
   line-height: 1.1;
+  text-align: left;
   cursor: pointer;
-  border-radius: calc(var(--yui-radius-row) - 3px);
+  border-radius: calc(var(--yui-radius-row) - 2px);
   transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-tab svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: 0 0 auto;
+}
+
+.yui-tab__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .yui-tab[aria-selected="true"] {
@@ -234,6 +299,26 @@
 .yui-tab:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* ── 접힌 rail — 아이콘만, 라벨은 title/aria-label로만 남는다 ── */
+.yui-quick__cols.is-rail-collapsed .yui-tabs {
+  flex-basis: 3rem;
+  width: 3rem;
+}
+
+.yui-quick__cols.is-rail-collapsed .yui-tab {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+
+.yui-quick__cols.is-rail-collapsed .yui-tab__label {
+  display: none;
+}
+
+.yui-quick__cols.is-rail-collapsed .yui-rail-collapse svg {
+  transform: rotate(180deg);
 }
 
 /* 탭 패널 — 비활성은 hidden, 전환은 opacity 페이드만(slide 금지) */
@@ -2190,7 +2275,9 @@
   .yui-switch::after,
   .yui-source,
   .yui-seg__ind,
+  .yui-tabs,
   .yui-tabs__ind,
+  .yui-rail-collapse svg,
   .yui-mon__tick::after,
   .yui-vrm__tick::after,
   .yui-gain__slider::-webkit-slider-thumb,

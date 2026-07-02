@@ -62,6 +62,8 @@ const ko: Record<string, string> = {
   "panel.drag_hint": "드래그해서 옮기기",
   "panel.pop_out": "창으로 빼기",
   "panel.close": "닫기",
+  "panel.rail_collapse": "섹션 목록 접기",
+  "panel.rail_expand": "섹션 목록 펼치기",
 
   // tabs
   "tabs.talk": "대화",
