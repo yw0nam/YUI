@@ -208,8 +208,9 @@ const ja: Record<string, string> = {
   // per-service sections (advanced tab)
   "svc.type_label": "種類",
   "svc.chat": "チャット",
-  "svc.chat_hint": "Responses API",
-  "svc.chat_type": "Responses API",
+  "svc.chat_aria": "チャット API の種類",
+  "svc.chat_type_responses": "Responses API",
+  "svc.chat_type_completions": "Chat Completions",
   "svc.stt": "STT",
   "svc.stt_hint": "OpenAI 互換",
   "svc.stt_type": "OpenAI 互換",

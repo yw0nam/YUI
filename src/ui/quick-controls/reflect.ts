@@ -28,6 +28,8 @@ import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../../
 import { getLocale, t } from "../i18n";
 import type { VoiceInputStatusSnapshot } from "../voice-input-status";
 import {
+  CHAT_API_LABEL_KEYS,
+  type ChatApi,
   ENDPOINT_FIELDS,
   LANG_PICKER_ORDER,
   VOICE_ENGINE_LABEL_KEYS,
@@ -74,6 +76,8 @@ export interface ReflectDeps {
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** 오버라이드가 없을 때 효과적 provider가 폴백할 bundled config 기본값(미로드 시 undefined). */
   getDefaultProvider?: () => "openai" | "irodori" | undefined;
+  /** 오버라이드가 없을 때 효과적 chat_api가 폴백할 bundled config 기본값(미로드 시 undefined). */
+  getDefaultChatApi?: () => string | undefined;
   /** Reactions tab numeric inputs — provided when the feature is enabled. */
   githubPollInput?: HTMLInputElement;
   agentPortInput?: HTMLInputElement;
@@ -95,12 +99,15 @@ export interface Reflect {
   reflectFiller(): void;
   reflectLanguage(): void;
   reflectVoiceEngine(): void;
+  reflectChatType(): void;
   reflectEndpoints(): void;
   reflectKeyRows(): void;
   reflectSession(): void;
   reflectVoiceStatus(snapshot: VoiceInputStatusSnapshot): void;
   /** 효과적 음성 엔진(reflectVoiceEngine + 엔트리의 speakerControlsEnabled가 쓴다). */
   effectiveProvider(): VoiceEngine;
+  /** 효과적 chat API(reflectChatType이 쓴다). */
+  effectiveChatApi(): ChatApi;
 }
 
 export function createReflect(deps: ReflectDeps): Reflect {
@@ -121,6 +128,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     keyRows,
     getEndpointDefaults,
     getDefaultProvider,
+    getDefaultChatApi,
     githubPollInput,
     agentPortInput,
     presenceInput,
@@ -146,6 +154,8 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const ttsIrodoriEl = root.querySelector<HTMLDivElement>(".yui-tts-irodori")!;
   const ttsOpenaiEl = root.querySelector<HTMLDivElement>(".yui-tts-openai")!;
   const ttsSummaryHintEl = root.querySelector<HTMLSpanElement>(".yui-tts-summary-hint")!;
+  const chatTypeEl = root.querySelector<HTMLSelectElement>(".yui-chat-type")!;
+  const chatSummaryHintEl = root.querySelector<HTMLSpanElement>(".yui-chat-summary-hint")!;
   const spkScrollEl = root.querySelector<HTMLDivElement>(".yui-spk-scroll")!;
   const spkFootEl = root.querySelector<HTMLDivElement>(".yui-spk-foot")!;
   const spksHintEl = root.querySelector<HTMLParagraphElement>(".yui-spks-hint")!;
@@ -304,6 +314,21 @@ export function createReflect(deps: ReflectDeps): Reflect {
     spksHintEl.hidden = !openai;
   }
 
+  // 효과적 chat API — 유효한 오버라이드가 있으면 그것, 없으면 bundled 기본값, 최종 폴백 responses.
+  function effectiveChatApi(): ChatApi {
+    const ov = endpointsSettings.get().chat_api;
+    if (ov === "responses" || ov === "chat_completions") return ov;
+    const def = getDefaultChatApi?.();
+    return def === "chat_completions" ? "chat_completions" : "responses";
+  }
+
+  // Chat API 드롭다운 값 + summary hint를 효과적 chat_api에 맞춰 그린다(서브뷰 없음).
+  function reflectChatType(): void {
+    const eff = effectiveChatApi();
+    if (chatTypeEl.value !== eff) chatTypeEl.value = eff;
+    chatSummaryHintEl.textContent = t(CHAT_API_LABEL_KEYS[eff]);
+  }
+
   function reflectEndpoints(): void {
     const ov = endpointsSettings.get();
     // placeholder는 config 로드 후에야 채워지므로(패널은 그 전에 생성됨) 매 reflect마다 갱신한다.
@@ -384,10 +409,12 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectFiller,
     reflectLanguage,
     reflectVoiceEngine,
+    reflectChatType,
     reflectEndpoints,
     reflectKeyRows,
     reflectSession,
     reflectVoiceStatus,
     effectiveProvider,
+    effectiveChatApi,
   };
 }

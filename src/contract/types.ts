@@ -329,6 +329,11 @@ export interface EndpointsConfig {
    * model을 강제하는 backend엔 4xx가 날 수 있다(prod config는 반드시 설정).
    */
   chat_model?: string;
+  /**
+   * YUI가 사용할 chat 프로토콜. "responses"(default, 기존) | "chat_completions"(신규).
+   * 미설정 시 streamChat은 "responses"로 동작한다(하위호환).
+   */
+  chat_api?: "responses" | "chat_completions";
   /** 별도 ASR 서비스 (OpenAI 호환) → /audio/transcriptions. */
   stt_base_url: string;
   /** 별도 TTS 서비스 (OpenAI 호환) → /audio/speech. */

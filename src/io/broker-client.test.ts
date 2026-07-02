@@ -13,8 +13,10 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "../config/load";
+import type { MotionRegistry } from "../contract";
 import type { Logger } from "../logger";
 import {
+  agentTriggerableMotionIds,
   type BrokerPayload,
   type BrokerVocab,
   createBrokerClient,
@@ -392,6 +394,67 @@ describe("liveness poll", () => {
     client.start();
     client.stop();
     expect(fakeClearInterval).toHaveBeenCalledWith(7);
+  });
+});
+
+describe("agentTriggerableMotionIds", () => {
+  function motions(): MotionRegistry {
+    return {
+      idle: {
+        vrma_path: "/motions/idle.vrma",
+        kind: "ambient",
+        loop: true,
+        priority: 10,
+        interrupt_policy: "ignore",
+      },
+      drag: {
+        vrma_path: "/motions/drag.vrma",
+        kind: "reactive",
+        loop: false,
+        priority: 50,
+        interrupt_policy: "replace",
+      },
+      happy: {
+        vrma_path: "/motions/happy.vrma",
+        kind: "oneshot",
+        loop: false,
+        priority: 60,
+        interrupt_policy: "replace",
+      },
+      sit: {
+        vrma_path: "/motions/sit.vrma",
+        kind: "oneshot",
+        loop: false,
+        priority: 60,
+        interrupt_policy: "replace",
+        broker_publish: false,
+      },
+      window_sit: {
+        vrma_path: "/motions/sit_01.vrma",
+        kind: "state",
+        loop: true,
+        priority: 55,
+        interrupt_policy: "replace",
+        broker_publish: false,
+      },
+    };
+  }
+
+  it("excludes reactive, ambient, and broker_publish:false motions", () => {
+    const ids = agentTriggerableMotionIds(motions());
+    expect(ids).not.toContain("drag");
+    expect(ids).not.toContain("idle");
+    expect(ids).not.toContain("sit");
+    expect([...ids].sort()).toEqual(["happy"]);
+  });
+
+  it("excludes a kind:state motion solely via broker_publish:false (window_sit)", () => {
+    const ids = agentTriggerableMotionIds(motions());
+    expect(ids).not.toContain("window_sit");
+  });
+
+  it("returns an empty array for an empty registry", () => {
+    expect(agentTriggerableMotionIds({})).toEqual([]);
   });
 });
 

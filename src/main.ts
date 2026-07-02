@@ -41,7 +41,12 @@ import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settin
 import { createSttKeySettings, createTtsKeySettings } from "./io/api-key-settings";
 import { resolveAssetUrl } from "./io/asset-url";
 import { createWebAudioSink } from "./io/audio-player";
-import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
+import {
+  agentTriggerableMotionIds,
+  type BrokerClient,
+  createBrokerClient,
+  deriveBrokerPayload,
+} from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import {
   CAMERA_ORBIT_SENSITIVITY,
@@ -52,6 +57,8 @@ import {
   localStorageCameraStorage,
 } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
+import { buildExpressTool } from "./io/chat-completions";
+import { createChatHistoryStore, localStorageChatHistoryStorage } from "./io/chat-history-store";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
 import {
   createEndpointsSettings,
@@ -271,6 +278,9 @@ async function bootstrap(): Promise<void> {
   // wireStorageSync로 동기화하므로 다른 store들과 함께 일찍 만든다(config/dispatcher 비의존).
   const sessionStore = createSessionStore(localStorageSessionStorage());
   const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
+  // 통합 대화 transcript — 두 프로토콜 모드 모두 append하고 CC 모드만 여기서 송신분을 뽑는다.
+  // "새 대화 시작"이 session store들과 함께 비운다(quick-controls). 두 창이 wireStorageSync로 동기화.
+  const chatHistoryStore = createChatHistoryStore({ storage: localStorageChatHistoryStorage() });
   // 사용자 편집 엔드포인트 오버라이드: localStorage가 bundled config를 덮는다(빈 값=폴백).
   const endpointsSettings = createEndpointsSettings({
     storage: localStorageEndpointsStorage(),
@@ -328,6 +338,7 @@ async function bootstrap(): Promise<void> {
     cameraSettings,
     sessionStore,
     sessionDiagnostics,
+    chatHistoryStore,
   ]);
 
   // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
@@ -483,6 +494,7 @@ async function bootstrap(): Promise<void> {
             irodori_base_url: e.irodori_base_url ?? "",
             broker_base_url: e.broker_base_url ?? "",
             chat_model: e.chat_model ?? "",
+            chat_api: e.chat_api ?? "",
             tts_voice: e.tts_voice ?? "",
             tts_provider: e.tts_provider ?? "",
           };
@@ -493,6 +505,13 @@ async function bootstrap(): Promise<void> {
       getDefaultProvider: () => {
         try {
           return config.get().endpoints.tts_provider;
+        } catch {
+          return undefined;
+        }
+      },
+      getDefaultChatApi: () => {
+        try {
+          return config.get().endpoints.chat_api;
         } catch {
           return undefined;
         }
@@ -958,6 +977,20 @@ async function bootstrap(): Promise<void> {
     getFetch: () => selectFetch(),
     getPreviousResponseId: () => sessionStore.get() ?? undefined,
     onResponseId: (id) => sessionStore.set(id),
+    transcript: chatHistoryStore,
+    // CC 모드 generate_express tool 스냅샷 — motion id 열거는 deriveBrokerPayload와 같은
+    // 공유 규칙(agentTriggerableMotionIds)을 쓴다.
+    getExpressTool: () => {
+      try {
+        const cfg = config.get();
+        return buildExpressTool(
+          Object.keys(cfg.emotionRegistry),
+          agentTriggerableMotionIds(cfg.motions),
+        );
+      } catch {
+        return undefined;
+      }
+    },
     onUsage: (usage) => {
       sessionDiagnostics.setUsage(
         usage.total_tokens,
@@ -1033,6 +1066,7 @@ async function bootstrap(): Promise<void> {
         agentSourceRef?.stop();
         sessionStore.dispose();
         sessionDiagnostics.dispose();
+        chatHistoryStore.dispose();
       });
     }
     const { createSttVad } = await import("./io/stt-vad");

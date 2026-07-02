@@ -26,6 +26,7 @@ const EMPTY: EndpointOverrides = {
   irodori_base_url: "",
   broker_base_url: "",
   chat_model: "",
+  chat_api: "",
   tts_provider: "",
   tts_voice: "",
 };
@@ -534,6 +535,34 @@ describe("mergeEndpoints", () => {
     const out = mergeEndpoints(baseConfig(), { ...EMPTY, tts_provider: "openai" });
     expect(out.tts_provider).toBe("openai");
   });
+
+  // ── chat_api override ──
+
+  it("applies chat_api = 'chat_completions'", () => {
+    const out = mergeEndpoints(baseConfig(), { ...EMPTY, chat_api: "chat_completions" });
+    expect(out.chat_api).toBe("chat_completions");
+  });
+
+  it("applies chat_api = 'responses'", () => {
+    const base = baseConfig();
+    base.chat_api = "chat_completions";
+    const out = mergeEndpoints(base, { ...EMPTY, chat_api: "responses" });
+    expect(out.chat_api).toBe("responses");
+  });
+
+  it("ignores an empty chat_api override (keeps base default)", () => {
+    const base = baseConfig();
+    base.chat_api = "responses";
+    const out = mergeEndpoints(base, { ...EMPTY, chat_api: "" });
+    expect(out.chat_api).toBe("responses");
+  });
+
+  it("ignores an unknown chat_api override (keeps base default)", () => {
+    const base = baseConfig();
+    base.chat_api = "responses";
+    const out = mergeEndpoints(base, { ...EMPTY, chat_api: "graphql" });
+    expect(out.chat_api).toBe("responses");
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -601,6 +630,61 @@ describe("createEndpointsSettings — broker_base_url + tts_provider overrides",
     store.reloadFromStorage();
     expect(store.get().broker_base_url).toBe("http://other:3201/mcp");
     expect(store.get().tts_provider).toBe("openai");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// chat_api — store set/get/persist/reload/reset
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createEndpointsSettings — chat_api override", () => {
+  it("set/get a chat_api override and persist it", () => {
+    const storage: EndpointsStorage = { load: () => null, save: vi.fn() };
+    const store = createEndpointsSettings({ storage });
+    store.set({ chat_api: "chat_completions" });
+    expect(store.get().chat_api).toBe("chat_completions");
+    expect(storage.save).toHaveBeenCalledWith({ ...EMPTY, chat_api: "chat_completions" });
+  });
+
+  it("coerces a garbage chat_api value to '' on set (no throw)", () => {
+    const store = createEndpointsSettings();
+    store.set({ chat_api: "graphql" as unknown as string });
+    expect(store.get().chat_api).toBe("");
+  });
+
+  it("coerces a non-string chat_api value to '' on set", () => {
+    const store = createEndpointsSettings();
+    store.set({ chat_api: 7 as unknown as string });
+    expect(store.get().chat_api).toBe("");
+  });
+
+  it("loads a valid chat_api from storage and coerces a garbage one to ''", () => {
+    const good: EndpointsStorage = {
+      load: () => ({ ...EMPTY, chat_api: "chat_completions" }),
+      save: vi.fn(),
+    };
+    expect(createEndpointsSettings({ storage: good }).get().chat_api).toBe("chat_completions");
+    const bad: EndpointsStorage = {
+      load: () => ({ ...EMPTY, chat_api: "garbage" }) as unknown as EndpointOverrides,
+      save: vi.fn(),
+    };
+    expect(createEndpointsSettings({ storage: bad }).get().chat_api).toBe("");
+  });
+
+  it("reset() clears chat_api", () => {
+    const store = createEndpointsSettings({
+      initial: { ...EMPTY, chat_api: "chat_completions" },
+    });
+    store.reset();
+    expect(store.get().chat_api).toBe("");
+  });
+
+  it("reloadFromStorage applies an externally-changed chat_api", () => {
+    const storage = makeMemStorage();
+    const store = createEndpointsSettings({ storage });
+    storage._data = { ...EMPTY, chat_api: "chat_completions" };
+    store.reloadFromStorage();
+    expect(store.get().chat_api).toBe("chat_completions");
   });
 });
 

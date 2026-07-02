@@ -16,6 +16,7 @@ import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settin
 import { createSttKeySettings, createTtsKeySettings } from "./io/api-key-settings";
 import { resolveAssetUrl } from "./io/asset-url";
 import { selectFetch } from "./io/chat-client";
+import { createChatHistoryStore, localStorageChatHistoryStorage } from "./io/chat-history-store";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
 import { createFillerSettings, localStorageFillerStorage } from "./io/filler-settings";
@@ -97,6 +98,8 @@ async function bootstrap(): Promise<void> {
   // 세션 포인터 + 진단. 펫 창이 localStorage에 쓰면 storage 이벤트로 이 창이 재로드한다.
   const sessionStore = createSessionStore(localStorageSessionStorage());
   const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
+  // 통합 대화 transcript — "새 대화 시작"이 여기서 비우면 펫 창이 storage 이벤트로 재로드한다.
+  const chatHistoryStore = createChatHistoryStore({ storage: localStorageChatHistoryStorage() });
 
   // 메인 창과의 실시간 배선(Tauri 이벤트). 이 창엔 렌더러/STT가 없으므로 컨트롤은
   // 메인 창으로 보내고, 음성 상태는 메인 창에서 받아 반영한다. storage 폴백은 아래 유지.
@@ -248,6 +251,7 @@ async function bootstrap(): Promise<void> {
             irodori_base_url: e.irodori_base_url ?? "",
             broker_base_url: e.broker_base_url ?? "",
             chat_model: e.chat_model ?? "",
+            chat_api: e.chat_api ?? "",
             tts_voice: e.tts_voice ?? "",
             tts_provider: e.tts_provider ?? "",
           };
@@ -263,8 +267,17 @@ async function bootstrap(): Promise<void> {
           return undefined;
         }
       },
+      getDefaultChatApi: () => {
+        if (!configLoaded) return undefined;
+        try {
+          return config.get().endpoints.chat_api;
+        } catch {
+          return undefined;
+        }
+      },
       sessionDiagnostics,
       sessionStore,
+      transcript: chatHistoryStore,
     });
 
   // quick-controls는 표시 언어 변경 시 통째로 재마운트한다(setLocale → i18n.subscribe).
@@ -305,6 +318,7 @@ async function bootstrap(): Promise<void> {
     speakerSelection,
     sessionStore,
     sessionDiagnostics,
+    chatHistoryStore,
   ];
   wireStorageSync(resyncStores);
   window.addEventListener("focus", () => {

@@ -43,3 +43,11 @@ export const VOICE_ENGINE_LABEL_KEYS: Record<VoiceEngine, string> = {
   irodori: "speaker.engine_irodori",
   openai: "speaker.engine_openai",
 };
+
+export const CHAT_APIS = ["responses", "chat_completions"] as const;
+export type ChatApi = (typeof CHAT_APIS)[number];
+// chat_api → i18n key for its dropdown option / summary hint label.
+export const CHAT_API_LABEL_KEYS: Record<ChatApi, string> = {
+  responses: "svc.chat_type_responses",
+  chat_completions: "svc.chat_type_completions",
+};

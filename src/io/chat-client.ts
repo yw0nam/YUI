@@ -60,6 +60,7 @@ import type {
   ToolStatus,
   Usage,
 } from "../contract";
+import { type CCMessage, type CCTool, createChunkReducer } from "./chat-completions";
 
 /** 스트림 파싱 중 client로 흘리는 증분 이벤트. */
 export type ChatStreamEvent =
@@ -117,17 +118,32 @@ function parseExpressArgs(raw: unknown): { args: ExpressArgs } | { error: string
   }
 }
 
+/** FLAT express args → renderer seam shape. Only present fields are normalized (no invention). */
+function normalizeExpressIntoEnvelope(
+  envelope: ControlEnvelope,
+  express: ExpressArgs | undefined,
+): void {
+  if (!express) return;
+  if (express.emotion_id !== undefined) envelope.emotion = { id: express.emotion_id as EmotionId };
+  if (express.motion_id !== undefined) envelope.motion = { id: express.motion_id };
+  if (express.emotion_text !== undefined) envelope.emotion_text = express.emotion_text;
+}
+
 export interface ChatRequest {
   /** OpenAI 호환 input (messages / input items). InputContext 인코딩 포함. */
   input: unknown;
   /** server-side 대화 상태 (Responses API). */
   previous_response_id?: string;
-  /** Responses reasoning.effort. when present → sent as reasoning.effort; omit → no reasoning param sent. */
+  /** Responses reasoning.effort / Chat Completions top-level reasoning_effort. 미지정 시 생략. */
   reasoning_effort?: "none" | "minimal" | "low" | "medium";
-  /** instructions 런타임 오버라이드. 비어있지 않으면 config.chat_instructions 대신 사용. */
+  /** instructions 런타임 오버라이드. 비어있지 않으면 config.chat_instructions 대신 사용. Responses 전용(CC는 messages에 이미 포함). */
   instructions?: string;
   /** 중도 취소 (in-flight abort). */
   signal?: AbortSignal;
+  /** Chat Completions mode: 사전 조립된 messages(chat-completions.buildCCMessages). config.chat_api==="chat_completions"일 때 사용. */
+  messages?: CCMessage[];
+  /** Chat Completions mode: client가 선언하는 tools(chat-completions.buildExpressTool). */
+  tools?: CCTool[];
 }
 
 export interface StreamChatOptions {
@@ -155,11 +171,18 @@ export async function selectFetch(): Promise<typeof globalThis.fetch | undefined
 /**
  * baseURL 선택. Tauri는 cors-fetch로 절대 URL을 그대로 쓴다. dev web은 같은 출처
  * `/__hermes` 프록시 마운트로 다시 써 CORS preflight를 피한다. prod web/출처 없음은 그대로.
+ *
+ * Chat Completions mode(chatApi==="chat_completions")는 이 재작성을 항상 건너뛴다 — `/__hermes`는
+ * Responses 백엔드로 고정 프록시되어, CC 요청이 사용자가 설정한 chat_base_url 대신 조용히
+ * 엉뚱한 서버로 가는 사고를 막는다(CC 서버는 자체 CORS를 제공하거나 로컬 개발 옵션을 갖는다).
  */
 export function selectChatBaseUrl(
   configuredBaseUrl: string,
   env?: { isTauri?: boolean; isDev?: boolean; origin?: string },
+  chatApi?: EndpointsConfig["chat_api"],
 ): string {
+  if (chatApi === "chat_completions") return configuredBaseUrl;
+
   const isTauri = env?.isTauri ?? !!(globalThis as any).__TAURI_INTERNALS__;
   const isDev = env?.isDev ?? (import.meta as any).env?.DEV;
   const origin = env?.origin ?? (globalThis as any).location?.origin;
@@ -193,7 +216,7 @@ export async function* streamChat(
   // SDK는 baseURL 뒤에 /responses를 자체 append하므로 baseURL은 API root(예: .../v1)다.
   // apiKey 미지정 시 무인증 placeholder.
   const clientOpts: ConstructorParameters<typeof OpenAI>[0] = {
-    baseURL: selectChatBaseUrl(config.chat_base_url),
+    baseURL: selectChatBaseUrl(config.chat_base_url, undefined, config.chat_api),
     apiKey: opts.apiKey ?? "yui-local-placeholder",
     dangerouslyAllowBrowser: true,
   };
@@ -201,6 +224,11 @@ export async function* streamChat(
     clientOpts.fetch = opts.fetch;
   }
   const client = makeClient(clientOpts);
+
+  if (config.chat_api === "chat_completions") {
+    yield* streamChatCompletions(client, config, request);
+    return;
+  }
 
   // completed에서 조립할 누적 상태.
   let speech_text = "";
@@ -343,15 +371,8 @@ export async function* streamChat(
             };
           }
           // Normalization (chat-client ONLY): FLAT args → renderer seam shape.
-          //   emotion_id→emotion{id}, motion_id→motion{id}, emotion_text→emotion_text.
-          //   Only present fields are normalized; absent ones stay undefined (no invention).
           const envelope: ControlEnvelope = { speech_text };
-          if (express) {
-            if (express.emotion_id !== undefined)
-              envelope.emotion = { id: express.emotion_id as EmotionId };
-            if (express.motion_id !== undefined) envelope.motion = { id: express.motion_id };
-            if (express.emotion_text !== undefined) envelope.emotion_text = express.emotion_text;
-          }
+          normalizeExpressIntoEnvelope(envelope, express);
           if (tool_status) envelope.tool_status = tool_status;
           yield { type: "completed", envelope, responseId: event.response?.id ?? "" };
           break;
@@ -372,4 +393,154 @@ export async function* streamChat(
     //   드롭은 부분 출력이 이미 consumer에 닿았고 빈도 낮아 무음 유지.
     return;
   }
+}
+
+/** Chat Completions 왕복에서 한 tool call의 finalize 결과. */
+interface FinalizedToolCall {
+  id: string | undefined;
+  name: string;
+  argsJson: string;
+}
+
+// ponytail: hard cap against a runaway tool-call loop (design doc §"Tool-call turn loop").
+const MAX_TOOL_ROUNDS = 4;
+
+/** finish_reason==="tool_calls" 왕복을 위해 messages에 이어붙일 두 메시지(assistant tool_calls + 결과들). */
+function appendToolRoundMessages(messages: unknown[], calls: FinalizedToolCall[]): void {
+  messages.push({
+    role: "assistant",
+    content: null,
+    tool_calls: calls.map((c, i) => ({
+      id: c.id ?? `call_${i}`,
+      type: "function",
+      function: { name: c.name, arguments: c.argsJson },
+    })),
+  });
+  for (const c of calls) {
+    messages.push({ role: "tool", tool_call_id: c.id ?? "", content: "ok" });
+  }
+}
+
+/**
+ * Chat Completions API 스트림 호출 — `client.chat.completions.create({ stream: true })`.
+ *
+ * request.messages/tools는 caller(backend-caller)가 chat-completions.ts의 buildCCMessages/
+ * buildExpressTool로 미리 조립한다 — 여기서는 그대로 전달만 한다(브랜치 로직 없음).
+ *
+ * 스트림 청크는 chat-completions.createChunkReducer로 정규화한다. finish_reason이
+ * "tool_calls"면 assistant tool_calls 메시지 + role:"tool" "ok" 결과를 이어붙이고 재요청한다
+ * (텍스트 턴이 나올 때까지, 최대 MAX_TOOL_ROUNDS회 — 이후엔 지금까지의 상태로 마무리한다).
+ */
+async function* streamChatCompletions(
+  client: OpenAI,
+  config: EndpointsConfig,
+  request: ChatRequest,
+): AsyncGenerator<ChatStreamEvent> {
+  let speech_text = "";
+  let express: ExpressArgs | undefined;
+  const emittedExpressKeys = new Set<string>();
+  const messages: unknown[] = [...(request.messages ?? [])];
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    if (request.signal?.aborted) return;
+
+    let stream: AsyncIterable<any>;
+    try {
+      stream = (await client.chat.completions.create(
+        {
+          ...(config.chat_model ? { model: config.chat_model } : {}),
+          messages: messages as any,
+          ...(request.tools?.length ? { tools: request.tools } : {}),
+          ...(request.reasoning_effort ? { reasoning_effort: request.reasoning_effort } : {}),
+          stream: true,
+          stream_options: { include_usage: true },
+        } as any,
+        { signal: request.signal },
+      )) as unknown as AsyncIterable<any>;
+    } catch (err) {
+      if (!request.signal?.aborted) {
+        yield {
+          type: "error",
+          message: `chat request failed: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+      return;
+    }
+
+    const reducer = createChunkReducer();
+    let finishReason: string | undefined;
+    const toolCalls: FinalizedToolCall[] = [];
+
+    try {
+      for await (const chunk of stream) {
+        if (request.signal?.aborted) return;
+        for (const item of reducer.feed(chunk)) {
+          switch (item.kind) {
+            case "text":
+              speech_text += item.text;
+              yield { type: "speech_delta", text: item.text };
+              break;
+            case "tool_call":
+              toolCalls.push(item);
+              break;
+            case "usage":
+              yield {
+                type: "usage",
+                usage: {
+                  input_tokens: item.usage.input_tokens ?? 0,
+                  output_tokens: item.usage.output_tokens ?? 0,
+                  total_tokens: item.usage.total_tokens ?? 0,
+                },
+              };
+              break;
+            case "finish":
+              finishReason = item.reason;
+              break;
+          }
+        }
+      }
+    } catch {
+      // 스트림 도중 abort/네트워크 reject → 조용히 종료(Responses 분기와 동일 정책).
+      return;
+    }
+    // finish_reason 없이 스트림이 끝난 경우(비정상 종료) 미완료 버퍼를 드레인.
+    for (const item of reducer.finish()) {
+      if (item.kind === "tool_call") toolCalls.push(item);
+    }
+
+    for (const call of toolCalls) {
+      if (isExpressTool(call.name)) {
+        const key = call.id ?? `round${round}`;
+        if (!emittedExpressKeys.has(key)) {
+          const result = parseExpressArgs(call.argsJson);
+          if ("args" in result) {
+            express = result.args;
+            emittedExpressKeys.add(key);
+            yield { type: "express", args: result.args };
+          } else {
+            yield { type: "error", message: result.error };
+          }
+        }
+      } else {
+        yield { type: "tool_status", status: { state: "done", tool_id: call.name } };
+      }
+    }
+
+    if (finishReason === "tool_calls" && toolCalls.length > 0) {
+      appendToolRoundMessages(messages, toolCalls);
+      continue;
+    }
+
+    yield { type: "speech_done", text: speech_text };
+    const envelope: ControlEnvelope = { speech_text };
+    normalizeExpressIntoEnvelope(envelope, express);
+    yield { type: "completed", envelope, responseId: "" };
+    return;
+  }
+
+  // MAX_TOOL_ROUNDS 도달 — 텍스트 턴 없이도 지금까지의 상태로 마무리한다.
+  yield { type: "speech_done", text: speech_text };
+  const envelope: ControlEnvelope = { speech_text };
+  normalizeExpressIntoEnvelope(envelope, express);
+  yield { type: "completed", envelope, responseId: "" };
 }

@@ -871,8 +871,12 @@ describe("createQuickControls — gain row", () => {
       expect(s.open).toBe(false);
       expect(s.querySelector(".yui-select")).not.toBeNull();
     }
-    // single-option sections are inert (--single, disabled); TTS is interactive.
+    // single-option sections are inert (--single); STT is the only one left. Chat and TTS
+    // are interactive dropdowns (chat_api / tts_provider).
     expect(sections[0].querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(
+      false,
+    );
+    expect(sections[1].querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(
       true,
     );
     expect(sections[2].querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(
@@ -960,7 +964,7 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  it("the chat reset clears chat_base_url + chat_model + the chat key, leaving other sections intact", () => {
+  it("the chat reset clears chat_base_url + chat_model + chat_api + the chat key, leaving other sections intact", () => {
     const chatKeySettings = createChatKeySettings();
     chatKeySettings.setApiKey("sk-chat-1");
     const qc = buildQc({ chatKeySettings });
@@ -969,12 +973,14 @@ describe("createQuickControls — gain row", () => {
     endpointsSettings.set({
       chat_base_url: "https://c/v1",
       chat_model: "m",
+      chat_api: "chat_completions",
       stt_base_url: "https://s",
     });
 
     qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="chat"]')!.click();
     expect(endpointsSettings.get().chat_base_url).toBe("");
     expect(endpointsSettings.get().chat_model).toBe("");
+    expect(endpointsSettings.get().chat_api).toBe("");
     expect(chatKeySettings.get().apiKey).toBe("");
     // STT field is untouched by the chat reset.
     expect(endpointsSettings.get().stt_base_url).toBe("https://s");
@@ -1483,6 +1489,79 @@ describe("createQuickControls — gain row", () => {
     input.value = "alloy";
     input.dispatchEvent(new Event("input", { bubbles: true }));
     expect(endpointsSettings.get().tts_voice).toBe("alloy");
+
+    qc.dispose();
+  });
+
+  // ── Chat API type (chat_api) dropdown ───────────────────────────────────────
+
+  function chatTypeSelect(qc: { el: HTMLElement }): HTMLSelectElement {
+    return qc.el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
+  }
+
+  it("renders an interactive Chat-API dropdown (responses/chat_completions) in the Chat section", () => {
+    const qc = buildQc({ getDefaultChatApi: () => "responses" });
+    qc.open();
+
+    const sel = chatTypeSelect(qc);
+    expect(sel).not.toBeNull();
+    expect(qc.el.querySelector('#yui-panel-adv details[data-svc="chat"]')!.contains(sel)).toBe(
+      true,
+    );
+    expect(sel.classList.contains("yui-select--single")).toBe(false);
+    expect(sel.disabled).toBe(false);
+    expect(Array.from(sel.options).map((o) => o.value)).toEqual(["responses", "chat_completions"]);
+
+    qc.dispose();
+  });
+
+  it("reflects the effective chat_api on the dropdown: bundled default when no override", () => {
+    const qc = buildQc({ getDefaultChatApi: () => "chat_completions" });
+    qc.open();
+    expect(chatTypeSelect(qc).value).toBe("chat_completions");
+    qc.dispose();
+  });
+
+  it("reflects the effective chat_api on the dropdown: override wins over the default", () => {
+    endpointsSettings.set({ chat_api: "chat_completions" });
+    const qc = buildQc({ getDefaultChatApi: () => "responses" });
+    qc.open();
+    expect(chatTypeSelect(qc).value).toBe("chat_completions");
+    qc.dispose();
+  });
+
+  it("falls back to 'responses' when no override and no default is available", () => {
+    const qc = buildQc();
+    qc.open();
+    expect(chatTypeSelect(qc).value).toBe("responses");
+    qc.dispose();
+  });
+
+  it("selecting 'chat_completions' persists the override and updates the summary hint", () => {
+    const qc = buildQc({ getDefaultChatApi: () => "responses" });
+    qc.open();
+
+    const sel = chatTypeSelect(qc);
+    sel.value = "chat_completions";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(endpointsSettings.get().chat_api).toBe("chat_completions");
+
+    const hint = qc.el.querySelector<HTMLElement>(".yui-chat-summary-hint")!;
+    expect(hint.textContent).not.toBe("");
+    expect(hint.textContent).not.toBe(qc.el.querySelector(".yui-tts-summary-hint")!.textContent);
+
+    qc.dispose();
+  });
+
+  it("selecting 'responses' toggles back and persists the override", () => {
+    endpointsSettings.set({ chat_api: "chat_completions" });
+    const qc = buildQc({ getDefaultChatApi: () => "chat_completions" });
+    qc.open();
+
+    const sel = chatTypeSelect(qc);
+    sel.value = "responses";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(endpointsSettings.get().chat_api).toBe("responses");
 
     qc.dispose();
   });
@@ -3147,6 +3226,29 @@ describe("createQuickControls — session section", () => {
     qc.el.querySelector<HTMLButtonElement>(".yui-pill--go")!.click();
     expect(clearSession).toHaveBeenCalledTimes(1);
     expect(clearDiag).toHaveBeenCalledTimes(1);
+
+    qc.dispose();
+  });
+
+  it("reset confirm flow also clears the transcript store when provided", () => {
+    const transcript = { get: () => [], append: vi.fn(), clear: vi.fn() };
+
+    const qc = buildQc({ variant: "window", transcript });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-link-btn")!.click();
+    qc.el.querySelector<HTMLButtonElement>(".yui-pill--go")!.click();
+    expect(transcript.clear).toHaveBeenCalledTimes(1);
+
+    qc.dispose();
+  });
+
+  it("reset confirm flow works when the transcript store is not provided", () => {
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-link-btn")!.click();
+    expect(() => qc.el.querySelector<HTMLButtonElement>(".yui-pill--go")!.click()).not.toThrow();
 
     qc.dispose();
   });

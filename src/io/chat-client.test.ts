@@ -842,4 +842,56 @@ describe("selectChatBaseUrl", () => {
       selectChatBaseUrl("/v1", { isTauri: false, isDev: true, origin: "http://127.0.0.1:1420" }),
     ).toBe("http://127.0.0.1:1420/__hermes/v1");
   });
+
+  // Chat Completions mode: the /__hermes dev-web proxy mount is hardcoded to the Responses
+  // backend — CC must never be silently rewritten onto it, in any environment.
+  it("chat_completions + dev web: returns the configured URL as-is (no /__hermes rewrite)", () => {
+    expect(
+      selectChatBaseUrl(
+        CONFIGURED,
+        { isTauri: false, isDev: true, origin: "http://127.0.0.1:1420" },
+        "chat_completions",
+      ),
+    ).toBe(CONFIGURED);
+  });
+
+  it("chat_completions + tauri: unchanged passthrough (same as before)", () => {
+    expect(
+      selectChatBaseUrl(
+        CONFIGURED,
+        { isTauri: true, isDev: true, origin: "http://127.0.0.1:1420" },
+        "chat_completions",
+      ),
+    ).toBe(CONFIGURED);
+  });
+
+  it("chat_completions + prod web: unchanged passthrough (same as before)", () => {
+    expect(
+      selectChatBaseUrl(
+        CONFIGURED,
+        { isTauri: false, isDev: false, origin: "https://app.example" },
+        "chat_completions",
+      ),
+    ).toBe(CONFIGURED);
+  });
+
+  it("responses mode (chat_api omitted) is unaffected — still rewrites in dev web", () => {
+    expect(
+      selectChatBaseUrl(CONFIGURED, {
+        isTauri: false,
+        isDev: true,
+        origin: "http://127.0.0.1:1420",
+      }),
+    ).toBe("http://127.0.0.1:1420/__hermes/v1");
+  });
+
+  it("responses mode (chat_api explicit 'responses') is unaffected — still rewrites in dev web", () => {
+    expect(
+      selectChatBaseUrl(
+        CONFIGURED,
+        { isTauri: false, isDev: true, origin: "http://127.0.0.1:1420" },
+        "responses",
+      ),
+    ).toBe("http://127.0.0.1:1420/__hermes/v1");
+  });
 });

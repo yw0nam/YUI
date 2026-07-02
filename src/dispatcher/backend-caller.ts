@@ -30,6 +30,8 @@ import type {
   Usage,
 } from "../contract";
 import { type ChatRequest, streamChat } from "../io/chat-client";
+import { buildCCMessages, type CCTool } from "../io/chat-completions";
+import { type ChatHistoryEntry, selectSendSuffix } from "../io/chat-history-store";
 import type { Logger } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
@@ -88,6 +90,10 @@ export interface BackendCallerDeps {
   onThinkingEnd?: (token: object) => void;
   /** filler 활성 여부 조회 — filler 켜짐 + 풀 non-empty면 true. true일 때만 thinking을 동기로 시작한다(매 턴 호출). */
   getFiller?: () => boolean;
+  /** 통합 대화 transcript — 두 프로토콜 모드 모두 완전히 성공한 턴 이후 append. CC 모드는 여기서 송신분도 뽑는다. */
+  transcript?: { get(): ChatHistoryEntry[]; append(e: ChatHistoryEntry): void };
+  /** CC 모드 generate_express tool 스냅샷(chat-completions.buildExpressTool로 사전 조립, main.ts가 주입). */
+  getExpressTool?: () => CCTool | undefined;
   /** 구조화 로깅(없으면 backend_caller namespace logger). */
   logger?: Logger;
 }
@@ -305,37 +311,20 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   }
 
   /**
-   * InputContext → OpenAI Responses input (user 발화는 user 메시지로만 인코딩).
-   *
-   * System message carries the flat ClientContext:
-   *   { env, screenshot?, trigger }
+   * InputContext → flat ClientContext { env, screenshot?, trigger }, shared by both protocol
+   * encodings (Responses system message / CC client_context system message).
    *   - env: timestamp/timezone + optional active_app/active_window_title (no user utterance).
    *   - screenshot: meta only (enabled/source/captured_at/width/height) — data_url is stripped
-   *     and sent as the user input_image content-part instead.
+   *     and sent as an image content-part instead (see imageDataUrlsOf).
    *   - trigger: { kind, cue?, idle_elapsed_min? }
    *     kind: derived from event_name ("schedule.*"→"schedule", "proactive.*"→"proactive", else "user").
    *     cue: present when payload has cue_id+label+context — carries label/context/local_time?/idle_min?,
    *          id is omitted from the wire shape.
    *     idle_elapsed_min: Math.round(gap_ms/60000) when gap_ms is present (proactive turns).
    *
-   * User message: userText ?? PROACTIVE_MARKER (+ image content-part when screenshot present).
-   * User text is NEVER serialized into the system ClientContext.
+   * User text is NEVER serialized into ClientContext.
    */
-  function encodeInput(ctx: InputContext, env: BusEnvelope): ChatRequest["input"] {
-    const text = ctx.user_text ?? PROACTIVE_MARKER;
-    // 이미지(스크린샷 또는 첨부)가 하나라도 있으면 Responses content-part 배열, 없으면 평문.
-    // 스크린샷 part가 먼저, 그다음 사용자 첨부 이미지들.
-    const hasImage = !!ctx.screenshot?.data_url || !!ctx.user_images?.length;
-    const userContent = hasImage
-      ? [
-          { type: "input_text", text },
-          ...(ctx.screenshot?.data_url
-            ? [{ type: "input_image", image_url: ctx.screenshot.data_url }]
-            : []),
-          ...(ctx.user_images ?? []).map((image_url) => ({ type: "input_image", image_url })),
-        ]
-      : text;
-
+  function buildClientContext(ctx: InputContext, env: BusEnvelope): ClientContext {
     // derive trigger.kind from event_name
     const eventName = env.event_name;
     const kind = eventName.startsWith("schedule.")
@@ -373,7 +362,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const agent = agentOf(env);
     const agentCatchup = agentCatchupOf(env);
 
-    // screenshot meta only (data_url stripped — rides the user image content-part above).
+    // screenshot meta only (data_url stripped — rides the image content-part above).
     const screenshotMeta: ClientContext["screenshot"] = ctx.screenshot
       ? (() => {
           const { data_url: _omit, ...meta } = ctx.screenshot;
@@ -381,7 +370,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         })()
       : undefined;
 
-    const clientContext: ClientContext = {
+    return {
       env: ctx.env,
       ...(screenshotMeta ? { screenshot: screenshotMeta } : {}),
       trigger: {
@@ -394,6 +383,31 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         ...(agentCatchup ? { agent_catchup: agentCatchup } : {}),
       },
     };
+  }
+
+  /** screenshot(있으면 먼저) + user_images 순서로 이미지 data URL을 모은다. */
+  function imageDataUrlsOf(ctx: InputContext): string[] {
+    return [
+      ...(ctx.screenshot?.data_url ? [ctx.screenshot.data_url] : []),
+      ...(ctx.user_images ?? []),
+    ];
+  }
+
+  /**
+   * InputContext → OpenAI Responses input (user 발화는 user 메시지로만 인코딩).
+   * User message: userText ?? PROACTIVE_MARKER (+ image content-part when images present).
+   */
+  function encodeInput(ctx: InputContext, env: BusEnvelope): ChatRequest["input"] {
+    const text = ctx.user_text ?? PROACTIVE_MARKER;
+    const images = imageDataUrlsOf(ctx);
+    const userContent = images.length
+      ? [
+          { type: "input_text", text },
+          ...images.map((image_url) => ({ type: "input_image", image_url })),
+        ]
+      : text;
+
+    const clientContext = buildClientContext(ctx, env);
 
     return [
       {
@@ -466,16 +480,39 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         else externalSignal.addEventListener("abort", () => ac.abort(), { once: true });
       }
       const request: ChatRequest = { input, signal: ac.signal };
+      const isCC = deps.config.chat_api === "chat_completions";
+
+      // agent 설정 반영: reasoning_effort는 두 모드 모두 항상 전송.
+      const agent = deps.getAgentSettings?.();
+      if (agent) request.reasoning_effort = agent.reasoning_effort;
 
       // 직전 response id를 스냅샷해 요청에 싣는다 — 완료 시 reset 감지(R2)를 위해 시작값을 보존.
-      const startPreviousResponseId = deps.getPreviousResponseId?.();
-      if (startPreviousResponseId) request.previous_response_id = startPreviousResponseId;
-
-      // agent 설정 반영: reasoning_effort는 항상 전송, 빈 instructions는 config 폴백을 위해 생략.
-      const agent = deps.getAgentSettings?.();
-      if (agent) {
-        request.reasoning_effort = agent.reasoning_effort;
-        if (agent.instructions.trim()) request.instructions = agent.instructions;
+      // CC 모드는 서버사이드 대화 상태가 없다(transcript로 잇는다) — 스냅샷/persist를 건너뛴다.
+      let startPreviousResponseId: string | undefined;
+      if (isCC) {
+        const clientContext = buildClientContext(ctx, env);
+        const effectiveInstructions = agent?.instructions.trim()
+          ? agent.instructions
+          : deps.config.chat_instructions;
+        const ccTranscript = selectSendSuffix(
+          deps.transcript?.get() ?? [],
+          deps.config.chat_model_context_window,
+        );
+        const imageDataUrls = imageDataUrlsOf(ctx);
+        request.messages = buildCCMessages({
+          ...(effectiveInstructions ? { instructions: effectiveInstructions } : {}),
+          clientContextJson: JSON.stringify(clientContext),
+          transcript: ccTranscript,
+          userText: ctx.user_text ?? PROACTIVE_MARKER,
+          ...(imageDataUrls.length ? { imageDataUrls } : {}),
+        });
+        const tool = deps.getExpressTool?.();
+        if (tool) request.tools = [tool];
+      } else {
+        startPreviousResponseId = deps.getPreviousResponseId?.();
+        if (startPreviousResponseId) request.previous_response_id = startPreviousResponseId;
+        // 빈 instructions는 config 폴백을 위해 생략.
+        if (agent?.instructions.trim()) request.instructions = agent.instructions;
       }
 
       // B3: chat-client의 completed 이벤트에서 ControlEnvelope 수령(SSE 재파싱 X).
@@ -591,11 +628,19 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         log.info("empty_speech", { trigger: env.event_name });
       }
 
-      // 대화 상태 진행: post-stream 가드(abort / streamError / !envelope)를 모두 통과한 이 지점에서만
-      // persist. 시작 시점 id가 그대로일 때만 — in-flight 중 reset/rotation(R2)이 있었다면 그 새 상태를
-      // 죽은 응답으로 되살리지 않는다.
-      if (newResponseId && deps.getPreviousResponseId?.() === startPreviousResponseId) {
+      // 대화 상태 진행(Responses 전용): post-stream 가드(abort / streamError / !envelope)를 모두
+      // 통과한 이 지점에서만 persist. 시작 시점 id가 그대로일 때만 — in-flight 중 reset/rotation(R2)이
+      // 있었다면 그 새 상태를 죽은 응답으로 되살리지 않는다. CC 모드는 스냅샷/persist 자체를 건너뛴다.
+      if (!isCC && newResponseId && deps.getPreviousResponseId?.() === startPreviousResponseId) {
         deps.onResponseId?.(newResponseId);
+      }
+
+      // transcript는 두 모드 모두 여기(post-stream 가드를 모두 통과한 성공 턴)에서만 append한다.
+      if (ctx.user_text !== undefined) {
+        deps.transcript?.append({ role: "user", text: ctx.user_text, ts: Date.now() });
+      }
+      if (envelope.speech_text) {
+        deps.transcript?.append({ role: "assistant", text: envelope.speech_text, ts: Date.now() });
       }
 
       return { ok: true };

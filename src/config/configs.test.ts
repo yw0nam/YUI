@@ -13,6 +13,7 @@ describe("configs/endpoints.json", () => {
     expect(ep.tts_base_url).toMatch(/^https?:\/\//);
     expect(ep.chat_endpoint).toBe("/v1/responses"); // contract §endpoint default
     expect(ep.chat_model).toBe("natsume"); // Hermes 모델 ID (config-driven)
+    expect(ep.chat_api).toBe("responses"); // chat 프로토콜 선택 default
     expect(ep.tts_voice).toBe("ナツメ"); // /v1/audio/voices 등록 레퍼런스 보이스 default
   });
 
