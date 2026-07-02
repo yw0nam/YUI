@@ -3784,6 +3784,187 @@ describe("createQuickControls — tabs + VAD slider", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Settings rail — collapsible two-column layout (talk/character/input/adv/react)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createQuickControls — sections rail collapse", () => {
+  const RAIL_COLLAPSED_KEY = "yui.quickControls.railCollapsed";
+  let mount: HTMLElement;
+
+  beforeEach(() => {
+    let rafId = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return ++rafId;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    try {
+      globalThis.localStorage?.clear();
+    } catch {
+      /* localStorage 미사용 환경 무시 */
+    }
+    setLocale("en");
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+  });
+
+  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    return createQuickControls({
+      mount,
+      settings: makeSettings(),
+      idleThrottleSettings: createIdleThrottleSettings(),
+      sourceProvider: makeSourceProvider(),
+      voiceStatus: makeVoiceStatus(),
+      lipsync: createLipsyncSettings(),
+      vad: createVadSettings(),
+      onGainPreview: vi.fn(),
+      onGainPreviewEnd: vi.fn(),
+      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+      endpointsSettings: createEndpointsSettings(),
+      proactiveSettings: createProactiveSettings(),
+      scheduleSettings: createScheduleSettings(),
+      chatKeySettings: createChatKeySettings(),
+      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
+      onPopOut: vi.fn(),
+      vrmSelection: createVrmSelection({
+        available: [
+          { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
+        ],
+        defaultUrl: "/vrms/carlotta.vrm",
+      }),
+      swapVrm: vi.fn(async () => {}),
+      speakerSelection: createSpeakerSelection({
+        available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
+        defaultId: "natsume",
+      }),
+      swapSpeaker: vi.fn(async () => {}),
+      refreshSpeaker: vi.fn(async () => {}),
+      ...extra,
+    });
+  }
+
+  it("renders expanded by default: aria-expanded=true, no is-rail-collapsed class", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const cols = qc.el.querySelector<HTMLElement>(".yui-quick__cols")!;
+    const collapseBtn = qc.el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
+    expect(collapseBtn).not.toBeNull();
+    expect(collapseBtn.getAttribute("aria-expanded")).toBe("true");
+    expect(cols.classList.contains("is-rail-collapsed")).toBe(false);
+
+    qc.dispose();
+  });
+
+  it("clicking the collapse button toggles is-rail-collapsed + aria-expanded, and persists to localStorage", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const cols = qc.el.querySelector<HTMLElement>(".yui-quick__cols")!;
+    const collapseBtn = qc.el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
+
+    collapseBtn.click();
+    expect(cols.classList.contains("is-rail-collapsed")).toBe(true);
+    expect(collapseBtn.getAttribute("aria-expanded")).toBe("false");
+    expect(globalThis.localStorage.getItem(RAIL_COLLAPSED_KEY)).toBe("true");
+
+    collapseBtn.click();
+    expect(cols.classList.contains("is-rail-collapsed")).toBe(false);
+    expect(collapseBtn.getAttribute("aria-expanded")).toBe("true");
+    expect(globalThis.localStorage.getItem(RAIL_COLLAPSED_KEY)).toBe("false");
+
+    qc.dispose();
+  });
+
+  it("reads the persisted collapsed state on build, applied before first paint", () => {
+    globalThis.localStorage.setItem(RAIL_COLLAPSED_KEY, "true");
+    const qc = buildQc();
+    qc.open();
+
+    const cols = qc.el.querySelector<HTMLElement>(".yui-quick__cols")!;
+    const collapseBtn = qc.el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
+    expect(cols.classList.contains("is-rail-collapsed")).toBe(true);
+    expect(collapseBtn.getAttribute("aria-expanded")).toBe("false");
+
+    qc.dispose();
+  });
+
+  it("tabs stay clickable and switch panels while the rail is collapsed", () => {
+    globalThis.localStorage.setItem(RAIL_COLLAPSED_KEY, "true");
+    const qc = buildQc();
+    qc.open();
+
+    const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const target = tabs[2];
+    target.click();
+
+    expect(target.getAttribute("aria-selected")).toBe("true");
+    const panel = qc.el.querySelector<HTMLElement>(`#${target.getAttribute("aria-controls")}`)!;
+    expect(panel.hidden).toBe(false);
+    for (const tab of tabs) {
+      if (tab === target) continue;
+      expect(tab.getAttribute("aria-selected")).toBe("false");
+    }
+
+    qc.dispose();
+  });
+
+  it("the indicator still tracks the active tab (--tab custom property) while collapsed", () => {
+    globalThis.localStorage.setItem(RAIL_COLLAPSED_KEY, "true");
+    const qc = buildQc();
+    qc.open();
+
+    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
+    const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    tabs[3].click();
+
+    expect(tablist.style.getPropertyValue("--tab")).toBe("3");
+
+    qc.dispose();
+  });
+
+  it("every tab keeps an accessible name (title + aria-label) for the icon-only collapsed state", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    expect(tabs).toHaveLength(5);
+    for (const tab of tabs) {
+      expect(tab.getAttribute("aria-label")).toBeTruthy();
+      expect(tab.getAttribute("title")).toBeTruthy();
+    }
+
+    qc.dispose();
+  });
+
+  it("guards localStorage access — a throwing localStorage does not break construction or the toggle", () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get() {
+        throw new Error("blocked");
+      },
+    });
+
+    expect(() => {
+      const qc = buildQc();
+      qc.open();
+      const collapseBtn = qc.el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
+      collapseBtn.click();
+      qc.dispose();
+    }).not.toThrow();
+
+    if (original) Object.defineProperty(globalThis, "localStorage", original);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Language picker (i18n)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -3969,7 +4150,7 @@ describe("createQuickControls — Reactions tab", () => {
     expect(tab).not.toBeNull();
     expect(tab!.getAttribute("role")).toBe("tab");
     expect(tab!.getAttribute("aria-controls")).toBe("yui-panel-react");
-    expect(tab!.textContent).toBe("Reactions");
+    expect(tab!.textContent?.trim()).toBe("Reactions");
     qc.dispose();
   });
 
