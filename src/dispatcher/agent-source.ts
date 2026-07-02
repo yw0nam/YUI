@@ -95,6 +95,11 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
     if (payload.event_name !== "os_idle_tick") return;
     lastIdleMs = payload.data.os_idle_ms ?? null;
     const present = isPresent();
+    // A mid-away disable must not let previously-buffered completions survive to a
+    // later re-enable — drop the stale buffer now so it can't leak into a future flush.
+    if (!isEnabled() && buffer.size > 0) {
+      buffer.clear();
+    }
     // Flush on the idle→present edge only (not on every present tick).
     // isEnabled() guard mirrors handleInbox — a mid-run toggle must not dispatch
     // a catchup the user has since disabled.

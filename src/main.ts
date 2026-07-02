@@ -600,9 +600,13 @@ async function bootstrap(): Promise<void> {
   if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
     void (async () => {
       const { invoke } = await import("@tauri-apps/api/core");
-      void invoke("start_agent_ingress", { port: agentNotifySettings.get().port }).catch((e) =>
-        log.warn("start_agent_ingress_failed", { error: String(e) }),
-      );
+      // Only bind the loopback ingress when the watcher is on. Restart-to-apply:
+      // toggling enable/port takes effect on next launch (no live rebind).
+      if (agentNotifySettings.get().enabled) {
+        void invoke("start_agent_ingress", { port: agentNotifySettings.get().port }).catch((e) =>
+          log.warn("start_agent_ingress_failed", { error: String(e) }),
+        );
+      }
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       const { listen } = await import("@tauri-apps/api/event");
       windowDropSource = createWindowDropSource({
@@ -656,7 +660,7 @@ async function bootstrap(): Promise<void> {
   // dispatcher는 config 로드 후 생성되므로(backend_caller가 config.get()에 의존), dev 인스펙션
   // 핸들이 참조할 수 있게 forward holder를 둔다.
   let dispatcherRef: Dispatcher | null = null;
-  // 발화 후보 소스도 config(cfg.sources) 로드 후 생성 — teardown에서 stop하도록 holder를 둔다.
+  // 발화 후보 소스 holder — teardown에서 stop하도록 둔다.
   let proactiveSourceRef: {
     stop(): void;
     noteInteraction(ts?: number): void;
@@ -1104,7 +1108,7 @@ async function bootstrap(): Promise<void> {
     // config가 준비된 후에만 dispatcher를 가동(backend_caller가 config.get()에 의존).
     dispatcher.start();
     // tier2 발화 후보 소스: presence 게이트 위에서 proactive.<id>(무대화 N분)와
-    // schedule.<id>(시간대 인사)를 발사한다. cfg.sources의 present knob + 각 설정 store로
+    // schedule.<id>(시간대 인사)를 발사한다. 공유 presence store + 각 설정 store로
     // 게이팅. dispatcher 가동 후 start — 발사가 즉시 소비되도록. teardown에서 함께 stop.
     const proactiveSource = createProactiveSource({
       bus,
@@ -1116,7 +1120,7 @@ async function bootstrap(): Promise<void> {
     void proactiveSource.start();
     const scheduleSource = createScheduleSource({
       bus,
-      present_max_idle_ms: cfg.sources.schedule.present_max_idle_ms,
+      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
       getCues: () => scheduleSettings.get().entries,
       isEnabled: () => scheduleSettings.get().enabled,
     });

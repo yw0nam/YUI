@@ -10,10 +10,6 @@ use tauri::{AppHandle, Emitter};
 pub const AGENT_INBOX_CHANNEL: &str = "agent-inbox";
 
 const SUMMARY_MAX_BYTES: usize = 8192;
-/// Default ingress port; the frontend store also defaults to 8770.
-/// Kept discoverable on the Rust side; the port itself arrives via the command.
-#[allow(dead_code)]
-pub const DEFAULT_PORT: u16 = 8770;
 /// Hard body read ceiling; prevents OOM on oversized payloads.
 const BODY_CEILING_BYTES: usize = 65536; // 8× summary cap
 

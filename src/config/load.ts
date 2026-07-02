@@ -25,7 +25,6 @@ import { validateFiller } from "./validators/filler";
 import { validateGuardrails } from "./validators/guardrails";
 import { validateMotions } from "./validators/motions";
 import { ConfigError } from "./validators/shared";
-import { validateSources } from "./validators/sources";
 
 export { ConfigError } from "./validators/shared";
 
@@ -108,12 +107,6 @@ export interface GuardrailsConfig {
   };
 }
 
-/** configs/sources.json — present-gated firing source presence knob. */
-export interface SourcesConfig {
-  proactive: { present_max_idle_ms: number };
-  schedule: { present_max_idle_ms: number };
-}
-
 /** TTFT filler language — closed union, never crosses the Hermes wire. */
 export type FillerLang = "ja" | "en" | "ko";
 
@@ -142,7 +135,6 @@ export interface AppConfig {
   emotionRegistry: EmotionRegistry;
   motions: MotionRegistry;
   guardrails: GuardrailsConfig;
-  sources: SourcesConfig;
   filler: FillerConfig;
 }
 
@@ -156,7 +148,6 @@ export const CONFIG_FILES: Record<ConfigSection, string> = {
   emotionRegistry: "emotion_registry.json",
   motions: "motions.json",
   guardrails: "guardrails.json",
-  sources: "sources.json",
   filler: "filler.json",
 };
 
@@ -257,23 +248,15 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     fetchReader(opts.baseUrl ?? "/configs", opts.cacheBust, opts.resolveUrl, opts.fetch);
 
   // 파일별 read는 병렬, 검증은 결정적 순서로.
-  const [
-    endpointsRaw,
-    avatarRaw,
-    emotionRegistryRaw,
-    motionsRaw,
-    guardrailsRaw,
-    sourcesRaw,
-    fillerRaw,
-  ] = await Promise.all([
-    read(CONFIG_FILES.endpoints),
-    read(CONFIG_FILES.avatar),
-    read(CONFIG_FILES.emotionRegistry),
-    read(CONFIG_FILES.motions),
-    read(CONFIG_FILES.guardrails),
-    read(CONFIG_FILES.sources),
-    read(CONFIG_FILES.filler),
-  ]);
+  const [endpointsRaw, avatarRaw, emotionRegistryRaw, motionsRaw, guardrailsRaw, fillerRaw] =
+    await Promise.all([
+      read(CONFIG_FILES.endpoints),
+      read(CONFIG_FILES.avatar),
+      read(CONFIG_FILES.emotionRegistry),
+      read(CONFIG_FILES.motions),
+      read(CONFIG_FILES.guardrails),
+      read(CONFIG_FILES.filler),
+    ]);
 
   return {
     endpoints: validateEndpoints(CONFIG_FILES.endpoints, endpointsRaw),
@@ -281,7 +264,6 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     emotionRegistry: validateEmotionRegistry(CONFIG_FILES.emotionRegistry, emotionRegistryRaw),
     motions: validateMotions(CONFIG_FILES.motions, motionsRaw),
     guardrails: validateGuardrails(CONFIG_FILES.guardrails, guardrailsRaw),
-    sources: validateSources(CONFIG_FILES.sources, sourcesRaw),
     filler: validateFiller(CONFIG_FILES.filler, fillerRaw),
   };
 }

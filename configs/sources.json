@@ -1,4 +1,0 @@
-{
-  "proactive": { "present_max_idle_ms": 180000 },
-  "schedule":  { "present_max_idle_ms": 180000 }
-}

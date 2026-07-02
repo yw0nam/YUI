@@ -341,6 +341,46 @@ describe("agent_source — isEnabled gate (spec §6)", () => {
 
     src.stop();
   });
+
+  it("mid-away disable drops the stale buffer, so a later re-enable+return only surfaces new items", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+    let enabled = true;
+
+    const src = createAgentSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => enabled,
+      onInbox,
+      listen,
+    });
+    await src.start();
+
+    // Away — two completions buffered while enabled.
+    emitIdle(idleTick(HIGH_IDLE));
+    emitInbox(done("claude-code", "alpha", 1000));
+    emitInbox(done("claude-code", "beta", 2000));
+    expect(pushed).toHaveLength(0);
+
+    // Disable mid-away.
+    enabled = false;
+    // Next tick (still away) — the stale buffer must be dropped.
+    emitIdle(idleTick(HIGH_IDLE));
+
+    // Re-enable while still away, then a new completion arrives.
+    enabled = true;
+    emitInbox(done("claude-code", "gamma", 3000));
+
+    // Return to present — exactly ONE catchup, containing only the new item.
+    emitIdle(idleTick(LOW_IDLE));
+    expect(pushed).toHaveLength(1);
+    const p = pushed[0].payload as { count: number; items: Array<{ project: string }> };
+    expect(p.count).toBe(1);
+    expect(p.items[0]).toMatchObject({ project: "gamma" });
+
+    src.stop();
+  });
 });
 
 describe("agent_source — malformed payload (spec §7)", () => {
