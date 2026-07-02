@@ -177,7 +177,7 @@ Key reference:
 | `chat_base_url` | `http://localhost:8643/v1` | Backend agent base URL (Responses mode) or Chat Completions endpoint base URL |
 | `chat_endpoint` | `/v1/responses` | Responses API path (Responses mode only) |
 | `chat_model` | `natsume` | Model ID sent to the backend |
-| `chat_model_context_window` | `200000` | Token window (informational) |
+| `chat_model_context_window` | `200000` | Token window — display in Responses mode; also trims the client-side transcript in Chat Completions mode |
 | `stt_base_url` | `http://localhost:5517/v1` | STT server base URL |
 | `tts_provider` | `irodori` | `"irodori"` or `"openai"` |
 | `irodori_base_url` | `http://localhost:8091` | Irodori TTS server |
