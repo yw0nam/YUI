@@ -857,6 +857,51 @@ describe("loadConfig — endpoints broker_base_url", () => {
   });
 });
 
+// ── chat_api (chat 프로토콜 선택) ──────────────────────────────────────────────
+
+describe("loadConfig — endpoints chat_api", () => {
+  function baseEndpoints(): Record<string, unknown> {
+    return {
+      chat_base_url: "http://localhost:8642",
+      chat_endpoint: "/v1/responses",
+      stt_base_url: "http://localhost:5517",
+      tts_base_url: "http://localhost:8092",
+      tts_provider: "openai",
+    };
+  }
+
+  it("chat_api: responses를 그대로 보존한다", async () => {
+    const map = goodFixture();
+    map["endpoints.json"] = { ...baseEndpoints(), chat_api: "responses" };
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.endpoints.chat_api).toBe("responses");
+  });
+
+  it("chat_api: chat_completions를 그대로 보존한다", async () => {
+    const map = goodFixture();
+    map["endpoints.json"] = { ...baseEndpoints(), chat_api: "chat_completions" };
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.endpoints.chat_api).toBe("chat_completions");
+  });
+
+  it("chat_api이 없으면 undefined(선택, default는 상위 레이어 소관)", async () => {
+    const map = goodFixture();
+    map["endpoints.json"] = baseEndpoints();
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.endpoints.chat_api).toBeUndefined();
+  });
+
+  it("chat_api가 enum 밖이면 실패", async () => {
+    const map = goodFixture();
+    map["endpoints.json"] = { ...baseEndpoints(), chat_api: "sse_v2" };
+    const p = loadConfig({ read: readerOf(map) });
+    await expect(p).rejects.toBeInstanceOf(ConfigError);
+    const err = await p.catch((e) => e);
+    expect((err as ConfigError).file).toBe("endpoints.json");
+    expect((err as ConfigError).issues.length).toBeGreaterThan(0);
+  });
+});
+
 // ── context window ────────────────────────────────────────────────────────────
 
 describe("loadConfig — endpoints context window", () => {
