@@ -10,8 +10,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { ChatHistoryEntry } from "./chat-history-store";
 import { buildCCMessages, buildExpressTool, createChunkReducer } from "./chat-completions";
+import type { ChatHistoryEntry } from "./chat-history-store";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // buildCCMessages
@@ -138,9 +138,9 @@ describe("buildExpressTool", () => {
 describe("createChunkReducer — text", () => {
   it("emits a text item per delta.content chunk", () => {
     const reducer = createChunkReducer();
-    expect(reducer.feed({ choices: [{ delta: { content: "Hello" }, finish_reason: null }] })).toEqual([
-      { kind: "text", text: "Hello" },
-    ]);
+    expect(
+      reducer.feed({ choices: [{ delta: { content: "Hello" }, finish_reason: null }] }),
+    ).toEqual([{ kind: "text", text: "Hello" }]);
     expect(
       reducer.feed({ choices: [{ delta: { content: " world" }, finish_reason: null }] }),
     ).toEqual([{ kind: "text", text: " world" }]);
@@ -164,7 +164,9 @@ describe("createChunkReducer — text", () => {
   it("reasoning_content/reasoning/thinking fields never yield text items", () => {
     const reducer = createChunkReducer();
     expect(
-      reducer.feed({ choices: [{ delta: { reasoning_content: "thinking..." }, finish_reason: null }] }),
+      reducer.feed({
+        choices: [{ delta: { reasoning_content: "thinking..." }, finish_reason: null }],
+      }),
     ).toEqual([]);
     expect(
       reducer.feed({ choices: [{ delta: { reasoning: "hmm" }, finish_reason: null }] }),
@@ -205,7 +207,10 @@ describe("createChunkReducer — tool calls", () => {
     expect(
       reducer.feed({
         choices: [
-          { delta: { tool_calls: [{ index: 0, function: { arguments: '{"emo' } }] }, finish_reason: null },
+          {
+            delta: { tool_calls: [{ index: 0, function: { arguments: '{"emo' } }] },
+            finish_reason: null,
+          },
         ],
       }),
     ).toEqual([]);
@@ -222,7 +227,12 @@ describe("createChunkReducer — tool calls", () => {
     ).toEqual([]);
 
     expect(reducer.feed({ choices: [{ delta: {}, finish_reason: "tool_calls" }] })).toEqual([
-      { kind: "tool_call", id: "call_1", name: "generate_express", argsJson: '{"emotion_id":"happy"}' },
+      {
+        kind: "tool_call",
+        id: "call_1",
+        name: "generate_express",
+        argsJson: '{"emotion_id":"happy"}',
+      },
       { kind: "finish", reason: "tool_calls" },
     ]);
   });
@@ -234,7 +244,12 @@ describe("createChunkReducer — tool calls", () => {
         {
           delta: {
             tool_calls: [
-              { index: 0, id: "call_a", type: "function", function: { name: "generate_express", arguments: "" } },
+              {
+                index: 0,
+                id: "call_a",
+                type: "function",
+                function: { name: "generate_express", arguments: "" },
+              },
             ],
           },
           finish_reason: null,
@@ -246,7 +261,12 @@ describe("createChunkReducer — tool calls", () => {
         {
           delta: {
             tool_calls: [
-              { index: 1, id: "call_b", type: "function", function: { name: "generate_express", arguments: "" } },
+              {
+                index: 1,
+                id: "call_b",
+                type: "function",
+                function: { name: "generate_express", arguments: "" },
+              },
             ],
           },
           finish_reason: null,
@@ -254,16 +274,36 @@ describe("createChunkReducer — tool calls", () => {
       ],
     });
     reducer.feed({
-      choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '{"emotion_id":"happy"}' } }] }, finish_reason: null }],
+      choices: [
+        {
+          delta: { tool_calls: [{ index: 0, function: { arguments: '{"emotion_id":"happy"}' } }] },
+          finish_reason: null,
+        },
+      ],
     });
     reducer.feed({
-      choices: [{ delta: { tool_calls: [{ index: 1, function: { arguments: '{"emotion_id":"sad"}' } }] }, finish_reason: null }],
+      choices: [
+        {
+          delta: { tool_calls: [{ index: 1, function: { arguments: '{"emotion_id":"sad"}' } }] },
+          finish_reason: null,
+        },
+      ],
     });
 
     const items = reducer.feed({ choices: [{ delta: {}, finish_reason: "tool_calls" }] });
     expect(items).toEqual([
-      { kind: "tool_call", id: "call_a", name: "generate_express", argsJson: '{"emotion_id":"happy"}' },
-      { kind: "tool_call", id: "call_b", name: "generate_express", argsJson: '{"emotion_id":"sad"}' },
+      {
+        kind: "tool_call",
+        id: "call_a",
+        name: "generate_express",
+        argsJson: '{"emotion_id":"happy"}',
+      },
+      {
+        kind: "tool_call",
+        id: "call_b",
+        name: "generate_express",
+        argsJson: '{"emotion_id":"sad"}',
+      },
       { kind: "finish", reason: "tool_calls" },
     ]);
   });
@@ -275,7 +315,12 @@ describe("createChunkReducer — tool calls", () => {
         {
           delta: {
             tool_calls: [
-              { index: 0, id: "call_1", type: "function", function: { name: "generate_express", arguments: '{"motion_id":"dance"}' } },
+              {
+                index: 0,
+                id: "call_1",
+                type: "function",
+                function: { name: "generate_express", arguments: '{"motion_id":"dance"}' },
+              },
             ],
           },
           finish_reason: null,
@@ -284,7 +329,12 @@ describe("createChunkReducer — tool calls", () => {
     });
     const items = reducer.feed({ choices: [{ delta: {}, finish_reason: "tool_calls" }] });
     expect(items).toEqual([
-      { kind: "tool_call", id: "call_1", name: "generate_express", argsJson: '{"motion_id":"dance"}' },
+      {
+        kind: "tool_call",
+        id: "call_1",
+        name: "generate_express",
+        argsJson: '{"motion_id":"dance"}',
+      },
       { kind: "finish", reason: "tool_calls" },
     ]);
   });
@@ -295,7 +345,14 @@ describe("createChunkReducer — tool calls", () => {
       choices: [
         {
           delta: {
-            tool_calls: [{ index: 0, id: "call_1", type: "function", function: { name: "generate_express", arguments: "{not valid json" } }],
+            tool_calls: [
+              {
+                index: 0,
+                id: "call_1",
+                type: "function",
+                function: { name: "generate_express", arguments: "{not valid json" },
+              },
+            ],
           },
           finish_reason: null,
         },
@@ -314,14 +371,26 @@ describe("createChunkReducer — tool calls", () => {
       choices: [
         {
           delta: {
-            tool_calls: [{ index: 0, id: "call_1", type: "function", function: { name: "generate_express", arguments: '{"emotion_id":"happy"}' } }],
+            tool_calls: [
+              {
+                index: 0,
+                id: "call_1",
+                type: "function",
+                function: { name: "generate_express", arguments: '{"emotion_id":"happy"}' },
+              },
+            ],
           },
           finish_reason: null,
         },
       ],
     });
     expect(reducer.finish()).toEqual([
-      { kind: "tool_call", id: "call_1", name: "generate_express", argsJson: '{"emotion_id":"happy"}' },
+      {
+        kind: "tool_call",
+        id: "call_1",
+        name: "generate_express",
+        argsJson: '{"emotion_id":"happy"}',
+      },
     ]);
     // finish() drains buffers — a second call yields nothing more
     expect(reducer.finish()).toEqual([]);
@@ -377,7 +446,11 @@ describe("createChunkReducer — malformed chunks", () => {
   it("malformed tool_calls entries (missing index) are skipped", () => {
     const reducer = createChunkReducer();
     expect(
-      reducer.feed({ choices: [{ delta: { tool_calls: [{ function: { arguments: "x" } }] }, finish_reason: null }] }),
+      reducer.feed({
+        choices: [
+          { delta: { tool_calls: [{ function: { arguments: "x" } }] }, finish_reason: null },
+        ],
+      }),
     ).toEqual([]);
   });
 });
