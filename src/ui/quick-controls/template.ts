@@ -213,31 +213,33 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
   return `
     ${headerHtml}
     <div class="yui-quick__cols${railCollapsed ? " is-rail-collapsed" : ""}">
-      <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" style="--tab:0;">
+      <div class="yui-rail">
         <button class="yui-rail-collapse" type="button" aria-expanded="${String(!railCollapsed)}" aria-label="${railCollapseLabel}" title="${railCollapseLabel}">
           ${RAIL_COLLAPSE_SVG}
         </button>
-        <span class="yui-tabs__ind" aria-hidden="true"></span>
-        <button class="yui-tab" type="button" role="tab" id="yui-tab-talk" aria-selected="true" aria-controls="yui-panel-talk" tabindex="0" title="${t("tabs.talk")}" aria-label="${t("tabs.talk")}">
-          ${TAB_ICON_TALK}
-          <span class="yui-tab__label">${t("tabs.talk")}</span>
-        </button>
-        <button class="yui-tab" type="button" role="tab" id="yui-tab-char" aria-selected="false" aria-controls="yui-panel-char" tabindex="-1" title="${t("tabs.char")}" aria-label="${t("tabs.char")}">
-          ${TAB_ICON_CHAR}
-          <span class="yui-tab__label">${t("tabs.char")}</span>
-        </button>
-        <button class="yui-tab" type="button" role="tab" id="yui-tab-input" aria-selected="false" aria-controls="yui-panel-input" tabindex="-1" title="${t("tabs.input")}" aria-label="${t("tabs.input")}">
-          ${TAB_ICON_INPUT}
-          <span class="yui-tab__label">${t("tabs.input")}</span>
-        </button>
-        <button class="yui-tab" type="button" role="tab" id="yui-tab-adv" aria-selected="false" aria-controls="yui-panel-adv" tabindex="-1" title="${t("tabs.adv")}" aria-label="${t("tabs.adv")}">
-          ${TAB_ICON_ADV}
-          <span class="yui-tab__label">${t("tabs.adv")}</span>
-        </button>
-        <button class="yui-tab" type="button" role="tab" id="yui-tab-react" aria-selected="false" aria-controls="yui-panel-react" tabindex="-1" title="${t("tabs.react")}" aria-label="${t("tabs.react")}">
-          ${TAB_ICON_REACT}
-          <span class="yui-tab__label">${t("tabs.react")}</span>
-        </button>
+        <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" style="--tab:0;">
+          <span class="yui-tabs__ind" aria-hidden="true"></span>
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-talk" aria-selected="true" aria-controls="yui-panel-talk" tabindex="0" title="${t("tabs.talk")}" aria-label="${t("tabs.talk")}">
+            ${TAB_ICON_TALK}
+            <span class="yui-tab__label">${t("tabs.talk")}</span>
+          </button>
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-char" aria-selected="false" aria-controls="yui-panel-char" tabindex="-1" title="${t("tabs.char")}" aria-label="${t("tabs.char")}">
+            ${TAB_ICON_CHAR}
+            <span class="yui-tab__label">${t("tabs.char")}</span>
+          </button>
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-input" aria-selected="false" aria-controls="yui-panel-input" tabindex="-1" title="${t("tabs.input")}" aria-label="${t("tabs.input")}">
+            ${TAB_ICON_INPUT}
+            <span class="yui-tab__label">${t("tabs.input")}</span>
+          </button>
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-adv" aria-selected="false" aria-controls="yui-panel-adv" tabindex="-1" title="${t("tabs.adv")}" aria-label="${t("tabs.adv")}">
+            ${TAB_ICON_ADV}
+            <span class="yui-tab__label">${t("tabs.adv")}</span>
+          </button>
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-react" aria-selected="false" aria-controls="yui-panel-react" tabindex="-1" title="${t("tabs.react")}" aria-label="${t("tabs.react")}">
+            ${TAB_ICON_REACT}
+            <span class="yui-tab__label">${t("tabs.react")}</span>
+          </button>
+        </div>
       </div>
       <div class="yui-quick__body">
 

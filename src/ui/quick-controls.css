@@ -176,7 +176,7 @@
   background: transparent;
 }
 
-/* ── 2단 레이아웃 — 왼쪽 세로 rail(.yui-tabs) + 오른쪽 콘텐츠(.yui-quick__body) ── */
+/* ── 2단 레이아웃 — 왼쪽 세로 rail(.yui-rail) + 오른쪽 콘텐츠(.yui-quick__body) ── */
 .yui-quick__cols {
   display: flex;
   flex: 1 1 auto;
@@ -188,23 +188,29 @@
   margin-top: calc(28px + 0.4rem);
 }
 
-/* ── 세로 rail — 접히지 않은 이상 아이콘+라벨, 5개 탭 ── */
-.yui-tabs {
+/* ── rail 박스 — 쉐브론(role=tablist 밖) + 탭리스트(.yui-tabs)를 담는 바깥 컨테이너.
+   indicator의 position:absolute 기준(containing block)은 이 요소다. ── */
+.yui-rail {
   position: relative;
   flex: 0 0 8rem;
-  width: 8rem;
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
   padding: 0.6rem 0.4rem;
   border-right: 1px solid var(--yui-edge);
   overflow: hidden;
-  transition:
-    flex-basis var(--yui-dur) var(--yui-ease),
-    width var(--yui-dur) var(--yui-ease);
+  transition: flex-basis var(--yui-dur) var(--yui-ease);
 }
 
-/* ── rail 접기/펼치기 쉐브론 — rail 맨 위 ── */
+/* ── 세로 탭리스트 — 접히지 않은 이상 아이콘+라벨, 5개 탭. role=tablist는 여기에만 붙는다
+   (쉐브론은 형제 요소로 밖에 있다 — tablist는 tab만 소유해야 하는 ARIA 계약). ── */
+.yui-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+/* ── rail 접기/펼치기 쉐브론 — rail 맨 위, tablist 밖 ── */
 .yui-rail-collapse {
   display: grid;
   place-items: center;
@@ -302,9 +308,8 @@
 }
 
 /* ── 접힌 rail — 아이콘만, 라벨은 title/aria-label로만 남는다 ── */
-.yui-quick__cols.is-rail-collapsed .yui-tabs {
+.yui-quick__cols.is-rail-collapsed .yui-rail {
   flex-basis: 3rem;
-  width: 3rem;
 }
 
 .yui-quick__cols.is-rail-collapsed .yui-tab {
@@ -2275,7 +2280,7 @@
   .yui-switch::after,
   .yui-source,
   .yui-seg__ind,
-  .yui-tabs,
+  .yui-rail,
   .yui-tabs__ind,
   .yui-rail-collapse svg,
   .yui-mon__tick::after,

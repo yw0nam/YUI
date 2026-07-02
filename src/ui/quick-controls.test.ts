@@ -3966,6 +3966,41 @@ describe("createQuickControls — sections rail collapse", () => {
 
     if (original) Object.defineProperty(globalThis, "localStorage", original);
   });
+
+  // ── a11y: the collapse button must not be an owned child of role=tablist ──
+
+  it("the collapse button lives outside [role=tablist] (ARIA tablist owns only tabs)", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
+    expect(tablist).not.toBeNull();
+    expect(tablist.querySelector(".yui-rail-collapse")).toBeNull();
+
+    const collapseBtn = qc.el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
+    expect(collapseBtn).not.toBeNull();
+    expect(tablist.contains(collapseBtn)).toBe(false);
+
+    qc.dispose();
+  });
+
+  it("ArrowDown/ArrowRight pressed while the collapse button is focused does not change the selected tab", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const collapseBtn = qc.el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
+    const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const activeBefore = tabs.find((tab) => tab.getAttribute("aria-selected") === "true")!;
+
+    collapseBtn.focus();
+    collapseBtn.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    collapseBtn.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    const activeAfter = tabs.find((tab) => tab.getAttribute("aria-selected") === "true")!;
+    expect(activeAfter).toBe(activeBefore);
+
+    qc.dispose();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
