@@ -208,8 +208,9 @@ const en: Record<string, string> = {
   // per-service sections (advanced tab)
   "svc.type_label": "Type",
   "svc.chat": "Chat",
-  "svc.chat_hint": "Responses API",
-  "svc.chat_type": "Responses API",
+  "svc.chat_aria": "Chat API type",
+  "svc.chat_type_responses": "Responses API",
+  "svc.chat_type_completions": "Chat Completions",
   "svc.stt": "STT",
   "svc.stt_hint": "OpenAI-compatible",
   "svc.stt_type": "OpenAI-compatible",

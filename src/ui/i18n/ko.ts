@@ -207,8 +207,9 @@ const ko: Record<string, string> = {
   // per-service sections (advanced tab)
   "svc.type_label": "유형",
   "svc.chat": "채팅",
-  "svc.chat_hint": "Responses API",
-  "svc.chat_type": "Responses API",
+  "svc.chat_aria": "채팅 API 종류",
+  "svc.chat_type_responses": "Responses API",
+  "svc.chat_type_completions": "Chat Completions",
   "svc.stt": "STT",
   "svc.stt_hint": "OpenAI 호환",
   "svc.stt_type": "OpenAI 호환",

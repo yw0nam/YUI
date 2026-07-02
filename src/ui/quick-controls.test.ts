@@ -871,8 +871,12 @@ describe("createQuickControls — gain row", () => {
       expect(s.open).toBe(false);
       expect(s.querySelector(".yui-select")).not.toBeNull();
     }
-    // single-option sections are inert (--single, disabled); TTS is interactive.
+    // single-option sections are inert (--single); STT is the only one left. Chat and TTS
+    // are interactive dropdowns (chat_api / tts_provider).
     expect(sections[0].querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(
+      false,
+    );
+    expect(sections[1].querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(
       true,
     );
     expect(sections[2].querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(

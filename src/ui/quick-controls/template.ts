@@ -3,6 +3,8 @@ import { INSTRUCTIONS_MAX_LEN, REASONING_EFFORTS } from "../../io/agent-settings
 import type { EndpointOverrides } from "../../io/endpoints-settings";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
 import {
+  CHAT_API_LABEL_KEYS,
+  CHAT_APIS,
   CHATKEY_CLEAR_SVG,
   CHATKEY_EYE_SVG,
   ENDPOINT_FIELDS,
@@ -51,6 +53,11 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
   // TTS 엔진 드롭다운(yui-select) 옵션 — irodori/openai. value=provider로 effectiveProvider 반영.
   const ttsTypeOptionsHtml = VOICE_ENGINES.map(
     (p) => `<option value="${p}">${t(VOICE_ENGINE_LABEL_KEYS[p])}</option>`,
+  ).join("");
+
+  // Chat API 드롭다운(yui-select) 옵션 — responses/chat_completions. value=chat_api로 effectiveChatApi 반영.
+  const chatTypeOptionsHtml = CHAT_APIS.map(
+    (a) => `<option value="${a}">${t(CHAT_API_LABEL_KEYS[a])}</option>`,
   ).join("");
 
   // 화자 피커 마크업 — 캐릭터 탭에서 TTS·irodori 서브뷰로 이동. 노드는 el 루트 querySelector로
@@ -418,11 +425,11 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-adv" aria-labelledby="yui-tab-adv" tabindex="0" hidden>
 
         <details class="yui-endpoints yui-svc" data-svc="chat">
-          <summary><span class="svc-name">${t("svc.chat")}</span><span class="yui-endpoints__hint">${t("svc.chat_hint")}</span></summary>
+          <summary><span class="svc-name">${t("svc.chat")}</span><span class="yui-endpoints__hint yui-chat-summary-hint"></span></summary>
           <div class="yui-endpoints__body">
             <div class="yui-input-row">
               <label class="yui-input-row__label" for="yui-svc-chat-type">${t("svc.type_label")}</label>
-              <select class="yui-select yui-select--single" id="yui-svc-chat-type" disabled><option>${t("svc.chat_type")}</option></select>
+              <select class="yui-select yui-chat-type" id="yui-svc-chat-type" aria-label="${t("svc.chat_aria")}">${chatTypeOptionsHtml}</select>
             </div>
             ${endpointRowHtml("chat_base_url")}
             ${endpointRowHtml("chat_model")}

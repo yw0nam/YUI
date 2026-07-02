@@ -10,6 +10,7 @@ import type { ScreenSource } from "../contract";
 import type { createAgentNotifySettings } from "../io/agent-notify-settings";
 import { type createAgentSettings, REASONING_EFFORTS } from "../io/agent-settings";
 import type { ApiKeySettingsStore } from "../io/api-key-settings";
+import type { createChatHistoryStore } from "../io/chat-history-store";
 import type { ChatKeySettingsStore } from "../io/chat-key-settings";
 import type { createEndpointsSettings, EndpointOverrides } from "../io/endpoints-settings";
 import type { createFillerSettings } from "../io/filler-settings";
@@ -64,6 +65,7 @@ type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 type SessionDiagnosticsStore = ReturnType<typeof createSessionDiagnosticsStore>;
 type SessionStore = ReturnType<typeof createSessionStore>;
 type PresenceSettingsStore = ReturnType<typeof createPresenceSettings>;
+type ChatHistoryStore = ReturnType<typeof createChatHistoryStore>;
 
 interface QuickControlsOptions {
   mount: HTMLElement;
@@ -118,10 +120,14 @@ interface QuickControlsOptions {
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** 오버라이드가 없을 때 음성 엔진 세그가 반영할 bundled config 기본 provider(미로드 시 undefined). */
   getDefaultProvider?: () => "openai" | "irodori" | undefined;
+  /** 오버라이드가 없을 때 Chat API 드롭다운이 반영할 bundled config 기본값(미로드 시 undefined). */
+  getDefaultChatApi?: () => string | undefined;
   /** 세션 진단(컨텍스트 사용량·마지막 압축). window variant에서만 세션 섹션을 그린다. */
   sessionDiagnostics?: SessionDiagnosticsStore;
   /** 현재 세션 id 포인터. "새 대화 시작"이 진단과 함께 비운다. */
   sessionStore?: SessionStore;
+  /** 통합 대화 transcript. "새 대화 시작"이 세션 store들과 함께 비운다(없으면 no-op). */
+  transcript?: Pick<ChatHistoryStore, "clear">;
   /** 생각중 추임새 설정 store. 없으면 섹션을 그리지 않는다(통합 에이전트가 주입). */
   fillerSettings?: FillerSettingsStore;
   /** TTS 음성 출력 on/off store. */
@@ -180,8 +186,10 @@ export function createQuickControls({
   ttsKeySettings,
   getEndpointDefaults,
   getDefaultProvider,
+  getDefaultChatApi,
   sessionDiagnostics,
   sessionStore,
+  transcript,
   fillerSettings,
   ttsSettings,
   gazeSettings,
@@ -245,6 +253,8 @@ export function createQuickControls({
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   // TTS 엔진 드롭다운 + irodori/openai 서브뷰 컨테이너(고급 탭). 화자 비활성 노드는 그대로.
   const ttsTypeEl = el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
+  // Chat API 드롭다운(고급 탭) — 서브뷰 없음(tts_provider와 달리 mode-exclusive 필드가 없다).
+  const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
   const spkAddBtn = el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
   const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
@@ -401,6 +411,7 @@ export function createQuickControls({
     keyRows,
     getEndpointDefaults,
     getDefaultProvider,
+    getDefaultChatApi,
     githubPollInput: githubPollInput ?? undefined,
     agentPortInput: agentPortInput ?? undefined,
     presenceInput: presenceInput ?? undefined,
@@ -495,6 +506,7 @@ export function createQuickControls({
       reflect.reflectEndpoints();
       reflect.reflectKeyRows();
       reflect.reflectVoiceEngine();
+      reflect.reflectChatType();
       reflect.reflectSession();
       vrmList.render();
       speakerList.render();
@@ -666,6 +678,15 @@ export function createQuickControls({
     // store 구독(unsubscribeEndpoints)이 reflect.reflectVoiceEngine으로 값/서브뷰/화자 비활성을 갱신한다.
   }
 
+  // ── 고급 섹션: Chat API 드롭다운(chat_api) — 서브뷰 없음(shared fields) ──
+  function handleChatTypeChange(): void {
+    const api = chatTypeEl.value;
+    if (api !== "responses" && api !== "chat_completions") return;
+    endpointsSettings.set({ chat_api: api });
+    log.info("chat_api_change", { api });
+    // store 구독(unsubscribeEndpoints)이 reflect.reflectChatType으로 값/summary hint를 갱신한다.
+  }
+
   // ── 대화 섹션: 지침 textarea ──
 
   function handleInstructionsInput(): void {
@@ -727,6 +748,9 @@ export function createQuickControls({
     const patch: Partial<EndpointOverrides> = {};
     for (const key of fields) patch[key] = "";
     if (svc === "tts") patch.tts_provider = "";
+    // chat_api is a dropdown enum (like tts_provider) — not in ENDPOINT_FIELDS/epInputs, so it's
+    // patched directly rather than through the text-input reset loop below.
+    if (svc === "chat") patch.chat_api = "";
     endpointsSettings.set(patch);
     for (const key of fields) {
       const input = epInputs.get(key)!;
@@ -752,6 +776,7 @@ export function createQuickControls({
   function handleSessionReset(): void {
     sessionStore?.clear();
     sessionDiagnostics?.clear();
+    transcript?.clear();
     hideSessionConfirm();
     log.info("session_reset");
   }
@@ -919,6 +944,7 @@ export function createQuickControls({
     if (popover.isOpen()) {
       reflect.reflectEndpoints();
       reflect.reflectVoiceEngine();
+      reflect.reflectChatType();
     }
   });
   // 키 store 갱신(이 창 편집·다른 창 reloadFromStorage)을 각 행에 반영. 값은 시크릿.
@@ -965,6 +991,7 @@ export function createQuickControls({
   segEl.addEventListener("click", handleSegClick);
   segEl.addEventListener("keydown", handleSegKeydown);
   ttsTypeEl.addEventListener("change", handleTtsTypeChange);
+  chatTypeEl.addEventListener("change", handleChatTypeChange);
   vrmsEl.addEventListener("keydown", vrmList.handleKeydown);
   vrmAddBtn.addEventListener("click", vrmList.handleAddClick);
   spksEl.addEventListener("keydown", speakerList.handleKeydown);
@@ -1042,6 +1069,7 @@ export function createQuickControls({
     segEl.removeEventListener("click", handleSegClick);
     segEl.removeEventListener("keydown", handleSegKeydown);
     ttsTypeEl.removeEventListener("change", handleTtsTypeChange);
+    chatTypeEl.removeEventListener("change", handleChatTypeChange);
     vrmsEl.removeEventListener("keydown", vrmList.handleKeydown);
     vrmAddBtn.removeEventListener("click", vrmList.handleAddClick);
     spksEl.removeEventListener("keydown", speakerList.handleKeydown);
