@@ -39,6 +39,15 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   if (chat_instructions !== undefined && typeof chat_instructions !== "string") {
     issues.push(`chat_instructions는 문자열이어야 함 (받음: ${JSON.stringify(chat_instructions)})`);
   }
+  // chat_api: optional enum. 설정 시 "responses"|"chat_completions"만 허용, 미설정 시 생략(상위 default).
+  const rawChatApi = raw.chat_api;
+  if (rawChatApi !== undefined && rawChatApi !== "responses" && rawChatApi !== "chat_completions") {
+    issues.push(
+      `chat_api는 "responses" | "chat_completions" 중 하나여야 함 (받음: ${JSON.stringify(rawChatApi)})`,
+    );
+  }
+  const chat_api: EndpointsConfig["chat_api"] =
+    rawChatApi === "responses" || rawChatApi === "chat_completions" ? rawChatApi : undefined;
   // tts_model / tts_voice: optional. 미설정 시 TTS 서비스 기본값.
   const optStr = (k: "tts_model" | "tts_voice"): string | undefined => {
     const v = raw[k];
@@ -184,6 +193,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     chat_endpoint: chat_endpoint as string,
     ...(typeof chat_instructions === "string" ? { chat_instructions } : {}),
     ...(typeof chat_model === "string" ? { chat_model } : {}),
+    ...(chat_api !== undefined ? { chat_api } : {}),
     stt_base_url,
     tts_base_url,
     ...(tts_model !== undefined ? { tts_model } : {}),

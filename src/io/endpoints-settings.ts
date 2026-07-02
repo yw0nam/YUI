@@ -13,6 +13,7 @@ export const ENDPOINT_VALUE_MAX_LEN = 2048;
 /**
  * 편집 가능한 오버라이드 필드. 빈 문자열 = 오버라이드 없음. URL 필드는 isValidEndpointUrl로 검증.
  * tts_provider는 "irodori"|"openai"만 유효 — 그 외(빈 값 포함)는 오버라이드 없음.
+ * chat_api는 "responses"|"chat_completions"만 유효 — 그 외(빈 값 포함)는 오버라이드 없음.
  */
 export interface EndpointOverrides {
   chat_base_url: string;
@@ -21,6 +22,7 @@ export interface EndpointOverrides {
   irodori_base_url: string;
   broker_base_url: string;
   chat_model: string;
+  chat_api: string;
   tts_voice: string;
   tts_provider: string;
 }
@@ -34,6 +36,7 @@ const FIELDS: readonly (keyof EndpointOverrides)[] = [
   "irodori_base_url",
   "broker_base_url",
   "chat_model",
+  "chat_api",
   "tts_voice",
   "tts_provider",
 ];
@@ -45,12 +48,16 @@ const EMPTY: EndpointOverrides = {
   irodori_base_url: "",
   broker_base_url: "",
   chat_model: "",
+  chat_api: "",
   tts_voice: "",
   tts_provider: "",
 };
 
 /** mergeEndpoints가 적용하는 유효 provider 값. 그 외(빈 값 포함)는 오버라이드 없음. */
 const VALID_PROVIDERS = ["irodori", "openai"] as const;
+
+/** mergeEndpoints가 적용하는 유효 chat_api 값. 그 외(빈 값 포함)는 오버라이드 없음. */
+const VALID_CHAT_APIS = ["responses", "chat_completions"] as const;
 
 function coerceField(v: unknown): string {
   if (typeof v !== "string") return "";
@@ -62,9 +69,16 @@ function coerceProvider(v: unknown): string {
   return typeof v === "string" && (VALID_PROVIDERS as readonly string[]).includes(v) ? v : "";
 }
 
-/** 필드별 coercion 디스패치 — tts_provider만 enum-제한, 나머지는 문자열 길이 cap. */
+/** chat_api 전용 coercion — 유효 enum이 아니면 ""(오버라이드 없음)로 떨군다. */
+function coerceChatApi(v: unknown): string {
+  return typeof v === "string" && (VALID_CHAT_APIS as readonly string[]).includes(v) ? v : "";
+}
+
+/** 필드별 coercion 디스패치 — tts_provider/chat_api는 enum-제한, 나머지는 문자열 길이 cap. */
 function coerceFor(key: keyof EndpointOverrides, v: unknown): string {
-  return key === "tts_provider" ? coerceProvider(v) : coerceField(v);
+  if (key === "tts_provider") return coerceProvider(v);
+  if (key === "chat_api") return coerceChatApi(v);
+  return coerceField(v);
 }
 
 function coerce(v: unknown): EndpointOverrides {
@@ -97,8 +111,9 @@ export function isValidEndpointUrl(v: string): boolean {
 /**
  * base EndpointsConfig 위에 오버라이드를 얹어 새 EndpointsConfig를 만든다(base 비변경).
  * URL 필드는 non-empty + isValidEndpointUrl일 때만, chat_model은 non-empty일 때만,
- * tts_provider는 유효 enum("irodori"|"openai")일 때만 적용. 적용 값은 trim한다.
- * 무효 URL/provider는 무시(effective는 base 기본값 유지) — UI가 에러를 따로 노출.
+ * tts_provider는 유효 enum("irodori"|"openai")일 때만, chat_api는 유효 enum("responses"|
+ * "chat_completions")일 때만 적용. 적용 값은 trim한다.
+ * 무효 URL/provider/chat_api는 무시(effective는 base 기본값 유지) — UI가 에러를 따로 노출.
  */
 export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): EndpointsConfig {
   const out: EndpointsConfig = { ...base };
@@ -119,6 +134,9 @@ export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): En
   if (voice !== "") out.tts_voice = voice;
   if (ov.tts_provider === "irodori" || ov.tts_provider === "openai") {
     out.tts_provider = ov.tts_provider;
+  }
+  if (ov.chat_api === "responses" || ov.chat_api === "chat_completions") {
+    out.chat_api = ov.chat_api;
   }
   return out;
 }
