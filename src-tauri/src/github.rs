@@ -12,14 +12,12 @@ use tauri::command;
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
 /// Build the arg list for `std::process::Command::new("gh")`.
-///
-/// `--timeout 30s` prevents a hung `gh` from stalling the poll loop forever.
+// ponytail: no request timeout — `gh api` has no --timeout flag. If a hung
+// `gh` ever stalls the poll loop, wrap the child spawn with a wait-and-kill deadline.
 pub fn gh_args(query: &str) -> Vec<String> {
     vec![
         "api".to_string(),
         "graphql".to_string(),
-        "--timeout".to_string(),
-        "30s".to_string(),
         "-f".to_string(),
         format!("query={}", query),
     ]
@@ -86,36 +84,31 @@ mod tests {
     }
 
     #[test]
-    fn gh_args_has_timeout_flag() {
+    fn gh_args_has_no_timeout_flag() {
         let args = gh_args("{ viewer { login } }");
         assert!(
-            args.contains(&"--timeout".to_string()),
-            "expected --timeout flag in args"
-        );
-        assert!(
-            args.contains(&"30s".to_string()),
-            "expected 30s timeout value in args"
+            !args.contains(&"--timeout".to_string()),
+            "gh api graphql has no --timeout flag; it must not be passed"
         );
     }
 
     #[test]
     fn gh_args_has_f_flag_before_query() {
         let args = gh_args("{ viewer { login } }");
-        // --timeout and 30s are inserted after graphql; -f follows at index 4.
-        assert_eq!(args[4], "-f");
+        assert_eq!(args[2], "-f");
     }
 
     #[test]
-    fn gh_args_embeds_query_in_sixth_arg() {
+    fn gh_args_embeds_query_in_fourth_arg() {
         let q = "{ viewer { login } }";
         let args = gh_args(q);
-        assert_eq!(args[5], format!("query={}", q));
+        assert_eq!(args[3], format!("query={}", q));
     }
 
     #[test]
-    fn gh_args_length_is_six() {
+    fn gh_args_length_is_four() {
         let args = gh_args("anything");
-        assert_eq!(args.len(), 6);
+        assert_eq!(args.len(), 4);
     }
 
     // ── map_output ────────────────────────────────────────────────────────────
