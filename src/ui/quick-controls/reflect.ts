@@ -3,6 +3,8 @@
  * 각 reflect 함수는 한 섹션의 store를 읽어 해당 DOM 노드(스위치·슬라이더·세그·입력·세션 readout)에 그린다.
  * DOM 노드는 deps.root에서 직접 쿼리한다(엔트리의 핸들러가 같은 노드를 쿼리해도 동일 노드라 무해).
  */
+
+import type { createAgentNotifySettings } from "../../io/agent-notify-settings";
 import { type createAgentSettings, REASONING_EFFORTS } from "../../io/agent-settings";
 import {
   type createEndpointsSettings,
@@ -18,6 +20,7 @@ import {
   LIPSYNC_GAIN_MAX,
   LIPSYNC_GAIN_MIN,
 } from "../../io/lipsync-settings";
+import type { createPresenceSettings } from "../../io/presence-settings";
 import type { createScreenshotSettings } from "../../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
 import type { createTtsSettings } from "../../io/tts-settings";
@@ -58,6 +61,7 @@ export interface ReflectDeps {
   ttsSettings?: ReturnType<typeof createTtsSettings>;
   gazeSettings?: ReturnType<typeof createGazeSettings>;
   githubSettings?: ReturnType<typeof createGithubSettings>;
+  agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
   lipsync: ReturnType<typeof createLipsyncSettings>;
   vad: ReturnType<typeof createVadSettings>;
   agentSettings: ReturnType<typeof createAgentSettings>;
@@ -70,6 +74,11 @@ export interface ReflectDeps {
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** 오버라이드가 없을 때 효과적 provider가 폴백할 bundled config 기본값(미로드 시 undefined). */
   getDefaultProvider?: () => "openai" | "irodori" | undefined;
+  /** Reactions tab numeric inputs — provided when the feature is enabled. */
+  githubPollInput?: HTMLInputElement;
+  agentPortInput?: HTMLInputElement;
+  presenceInput?: HTMLInputElement;
+  presenceSettings?: ReturnType<typeof createPresenceSettings>;
 }
 
 export interface Reflect {
@@ -78,6 +87,8 @@ export interface Reflect {
   reflectTts(): void;
   reflectGaze(): void;
   reflectGithub(): void;
+  reflectAgentNotify(): void;
+  reflectPresence(): void;
   reflectGain(): void;
   reflectVad(): void;
   reflectAgent(): void;
@@ -100,6 +111,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     ttsSettings,
     gazeSettings,
     githubSettings,
+    agentNotifySettings,
     lipsync,
     vad,
     agentSettings,
@@ -109,12 +121,17 @@ export function createReflect(deps: ReflectDeps): Reflect {
     keyRows,
     getEndpointDefaults,
     getDefaultProvider,
+    githubPollInput,
+    agentPortInput,
+    presenceInput,
+    presenceSettings,
   } = deps;
 
   const switchBtn = root.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const idleThrottleSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
   const gazeSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-gaze-switch");
   const githubSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-github-switch");
+  const agentNotifySwitchBtn = root.querySelector<HTMLButtonElement>(".yui-agentnotify-switch");
   const voiceSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const ttsSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-tts-switch");
   const gainSlider = root.querySelector<HTMLInputElement>(
@@ -177,6 +194,19 @@ export function createReflect(deps: ReflectDeps): Reflect {
   function reflectGithub(): void {
     if (!githubSwitchBtn || !githubSettings) return;
     githubSwitchBtn.setAttribute("aria-checked", String(githubSettings.get().enabled));
+    if (githubPollInput)
+      githubPollInput.value = String(githubSettings.get().poll_interval_ms / 1000);
+  }
+
+  function reflectAgentNotify(): void {
+    if (!agentNotifySwitchBtn || !agentNotifySettings) return;
+    agentNotifySwitchBtn.setAttribute("aria-checked", String(agentNotifySettings.get().enabled));
+    if (agentPortInput) agentPortInput.value = String(agentNotifySettings.get().port);
+  }
+
+  function reflectPresence(): void {
+    if (!presenceInput || !presenceSettings) return;
+    presenceInput.value = String(presenceSettings.get().present_max_idle_ms / 1000);
   }
 
   function reflectGain(): void {
@@ -344,6 +374,8 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectSettings,
     reflectIdleThrottle,
     reflectGithub,
+    reflectAgentNotify,
+    reflectPresence,
     reflectTts,
     reflectGaze,
     reflectGain,

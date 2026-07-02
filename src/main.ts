@@ -23,6 +23,7 @@ import {
   TTS_API_KEY_SECRET,
 } from "./config";
 import type { WindowRect } from "./contract";
+import { createAgentSource } from "./dispatcher/agent-source";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import { createEventBus } from "./dispatcher/event-bus";
@@ -32,6 +33,10 @@ import { createProactiveSource } from "./dispatcher/proactive-source";
 import { createScheduleSource } from "./dispatcher/schedule-source";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
+import {
+  createAgentNotifySettings,
+  localStorageAgentNotifyStorage,
+} from "./io/agent-notify-settings";
 import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
 import { createSttKeySettings, createTtsKeySettings } from "./io/api-key-settings";
 import { resolveAssetUrl } from "./io/asset-url";
@@ -70,6 +75,7 @@ import { ensureRegistered, evictRegistration } from "./io/irodori-voices";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createOsContext } from "./io/os-context";
 import { localStorageStore } from "./io/persisted-store";
+import { createPresenceSettings, localStoragePresenceStorage } from "./io/presence-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
 import { createScheduleSettings, localStorageScheduleStorage } from "./io/schedule-settings";
 import { buildScreenshotBlock } from "./io/screenshot-context";
@@ -244,6 +250,12 @@ async function bootstrap(): Promise<void> {
   const githubSettings = createGithubSettings({
     storage: localStorageGithubStorage(),
   });
+  // Agent completion 알림 on/off + 수신 포트. 소스 firing만 게이팅.
+  const agentNotifySettings = createAgentNotifySettings({
+    storage: localStorageAgentNotifyStorage(),
+  });
+  // Presence window threshold — "present when idle ≤ N ms". Shared by proactive/github/agent sources.
+  const presenceSettings = createPresenceSettings({ storage: localStoragePresenceStorage() });
   const lipsyncSettings = createLipsyncSettings({
     storage: localStorageLipsyncStorage(),
   });
@@ -371,6 +383,8 @@ async function bootstrap(): Promise<void> {
     proactiveSettings,
     scheduleSettings,
     githubSettings,
+    agentNotifySettings,
+    presenceSettings,
     idleThrottleSettings,
     ttsSettings,
   ];
@@ -424,6 +438,8 @@ async function bootstrap(): Promise<void> {
       proactiveSettings,
       scheduleSettings,
       githubSettings,
+      agentNotifySettings,
+      presenceSettings,
       sourceProvider: screenSourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,
@@ -545,6 +561,8 @@ async function bootstrap(): Promise<void> {
       proactiveSettings.dispose();
       scheduleSettings.dispose();
       githubSettings.dispose();
+      agentNotifySettings.dispose();
+      presenceSettings.dispose();
       lipsyncSettings.dispose();
       vadSettings.dispose();
       fillerSettings.dispose();
@@ -582,6 +600,13 @@ async function bootstrap(): Promise<void> {
   if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
     void (async () => {
       const { invoke } = await import("@tauri-apps/api/core");
+      // Only bind the loopback ingress when the watcher is on. Restart-to-apply:
+      // toggling enable/port takes effect on next launch (no live rebind).
+      if (agentNotifySettings.get().enabled) {
+        void invoke("start_agent_ingress", { port: agentNotifySettings.get().port }).catch((e) =>
+          log.warn("start_agent_ingress_failed", { error: String(e) }),
+        );
+      }
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       const { listen } = await import("@tauri-apps/api/event");
       windowDropSource = createWindowDropSource({
@@ -635,13 +660,14 @@ async function bootstrap(): Promise<void> {
   // dispatcher는 config 로드 후 생성되므로(backend_caller가 config.get()에 의존), dev 인스펙션
   // 핸들이 참조할 수 있게 forward holder를 둔다.
   let dispatcherRef: Dispatcher | null = null;
-  // 발화 후보 소스도 config(cfg.sources) 로드 후 생성 — teardown에서 stop하도록 holder를 둔다.
+  // 발화 후보 소스 holder — teardown에서 stop하도록 둔다.
   let proactiveSourceRef: {
     stop(): void;
     noteInteraction(ts?: number): void;
   } | null = null;
   let scheduleSourceRef: { stop(): void } | null = null;
   let githubSourceRef: { stop(): void } | null = null;
+  let agentSourceRef: { stop(): void } | null = null;
   // guardrails도 config 로드 후 생성 — 핫리로드 setConfig가 닿게 holder를 둔다.
   let guardrailsRef: Guardrails | null = null;
   // broker client는 config 로드 후 broker_base_url이 있을 때만 만든다. 핫스왑 재publish와
@@ -1004,6 +1030,7 @@ async function bootstrap(): Promise<void> {
         proactiveSourceRef?.stop();
         scheduleSourceRef?.stop();
         githubSourceRef?.stop();
+        agentSourceRef?.stop();
         sessionStore.dispose();
         sessionDiagnostics.dispose();
       });
@@ -1081,11 +1108,11 @@ async function bootstrap(): Promise<void> {
     // config가 준비된 후에만 dispatcher를 가동(backend_caller가 config.get()에 의존).
     dispatcher.start();
     // tier2 발화 후보 소스: presence 게이트 위에서 proactive.<id>(무대화 N분)와
-    // schedule.<id>(시간대 인사)를 발사한다. cfg.sources의 present knob + 각 설정 store로
+    // schedule.<id>(시간대 인사)를 발사한다. 공유 presence store + 각 설정 store로
     // 게이팅. dispatcher 가동 후 start — 발사가 즉시 소비되도록. teardown에서 함께 stop.
     const proactiveSource = createProactiveSource({
       bus,
-      present_max_idle_ms: cfg.sources.proactive.present_max_idle_ms,
+      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
       getCues: () => proactiveSettings.get().entries,
       isEnabled: () => proactiveSettings.get().enabled,
     });
@@ -1093,7 +1120,7 @@ async function bootstrap(): Promise<void> {
     void proactiveSource.start();
     const scheduleSource = createScheduleSource({
       bus,
-      present_max_idle_ms: cfg.sources.schedule.present_max_idle_ms,
+      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
       getCues: () => scheduleSettings.get().entries,
       isEnabled: () => scheduleSettings.get().enabled,
     });
@@ -1105,13 +1132,21 @@ async function bootstrap(): Promise<void> {
     const githubSource = createGithubSource({
       bus,
       githubQuery,
-      present_max_idle_ms: cfg.sources.proactive.present_max_idle_ms,
+      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
       isEnabled: () => githubSettings.get().enabled,
       getPollIntervalMs: () => githubSettings.get().poll_interval_ms,
       lastSeenStore,
     });
     githubSourceRef = githubSource;
     void githubSource.start();
+    // Agent completion 워처: Tauri IPC 인박스에서 agent.done / idle→present edge에서 agent.catchup을 발사한다.
+    const agentSource = createAgentSource({
+      bus,
+      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
+      isEnabled: () => agentNotifySettings.get().enabled,
+    });
+    agentSourceRef = agentSource;
+    void agentSource.start();
     // Expression Broker publish(D6): broker_base_url이 있을 때만 가동(override 병합 effective 기준).
     // publish→start는 fire-and-forget — 부트 임계 경로를 막지 않는다(D4).
     const bootEps = getEndpoints();

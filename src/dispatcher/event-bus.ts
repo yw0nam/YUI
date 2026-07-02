@@ -70,6 +70,7 @@ const KNOWN_PREFIXES: ReadonlyArray<{ prefix: string; priority: number }> = [
   { prefix: "proactive.", priority: 2 },
   { prefix: "schedule.", priority: 2 },
   { prefix: "github.", priority: 2 },
+  { prefix: "agent.", priority: 2 },
   { prefix: "periodic_tick", priority: 4 },
   { prefix: "os.", priority: 3 },
 ];

@@ -22,7 +22,10 @@ export interface PanelHtmlOptions {
   gazeEnabled: boolean;
   showGithub: boolean;
   githubEnabled: boolean;
+  showAgentNotify: boolean;
+  agentNotifyEnabled: boolean;
   ttsEnabled: boolean;
+  showPresence: boolean;
 }
 
 export function buildPanelHtml(o: PanelHtmlOptions): string {
@@ -35,7 +38,10 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     gazeEnabled,
     showGithub,
     githubEnabled,
+    showAgentNotify,
+    agentNotifyEnabled,
     ttsEnabled,
+    showPresence,
   } = o;
   const segButtonsHtml = REASONING_EFFORTS.map(
     (e) =>
@@ -111,6 +117,31 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
           </div>`;
   }
 
+  // Numeric input row — label + sub-text + number input + optional suffix/hint.
+  function numRowHtml(opts: {
+    id: string;
+    labelKey: string;
+    subKey: string;
+    min: number;
+    max: number;
+    suffixKey?: string;
+    hintKey?: string;
+  }): string {
+    const { id, labelKey, subKey, min, max, suffixKey, hintKey } = opts;
+    const suffixHtml = suffixKey ? `<span class="yui-cue__suffix">${t(suffixKey)}</span>` : "";
+    const hintHtml = hintKey ? `<p class="yui-field-hint">${t(hintKey)}</p>` : "";
+    return `
+          <div class="yui-input-row">
+            <label class="yui-input-row__label" for="${id}">${t(labelKey)}</label>
+            <span class="yui-input-row__sub">${t(subKey)}</span>
+            <div class="yui-input-wrap">
+              <input class="yui-num-input" id="${id}" type="number" min="${min}" max="${max}" inputmode="numeric" />
+              ${suffixHtml}
+            </div>
+            ${hintHtml}
+          </div>`;
+  }
+
   // 세션 섹션(window 전용). 토큰 점유량 표시 + 대화 초기화 액션. reset은 펫 창 thunk가 race-safe.
   const sessionHtml = hasSession
     ? `
@@ -169,6 +200,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
       <button class="yui-tab" type="button" role="tab" id="yui-tab-char" aria-selected="false" aria-controls="yui-panel-char" tabindex="-1">${t("tabs.char")}</button>
       <button class="yui-tab" type="button" role="tab" id="yui-tab-input" aria-selected="false" aria-controls="yui-panel-input" tabindex="-1">${t("tabs.input")}</button>
       <button class="yui-tab" type="button" role="tab" id="yui-tab-adv" aria-selected="false" aria-controls="yui-panel-adv" tabindex="-1">${t("tabs.adv")}</button>
+      <button class="yui-tab" type="button" role="tab" id="yui-tab-react" aria-selected="false" aria-controls="yui-panel-react" tabindex="-1">${t("tabs.react")}</button>
     </div>
     <div class="yui-quick__body">
 
@@ -350,6 +382,39 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
         </div>
       </div>
 
+      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-react" aria-labelledby="yui-tab-react" tabindex="0" hidden>
+        <div class="yui-loop-cue-section"></div>
+        <div class="yui-quick__divider" aria-hidden="true"></div>
+        <span class="yui-quick__section">${t("reactions.watchers_title")}</span>
+        ${
+          showGithub
+            ? `<div class="yui-row">
+          <div class="yui-row__main">
+            <span class="yui-row__label">${t("github.label")}</span>
+            <span class="yui-row__sub">${t("github.sub")}</span>
+          </div>
+          <button class="yui-switch yui-github-switch" type="button" role="switch" aria-checked="${String(githubEnabled)}" aria-label="${t("github.aria")}"></button>
+        </div>
+        ${numRowHtml({ id: "yui-github-poll", labelKey: "reactions.poll_label", subKey: "reactions.poll_sub", min: 10, max: 3600, suffixKey: "reactions.seconds_suffix" })}`
+            : ""
+        }
+        ${
+          showAgentNotify
+            ? `<div class="yui-row">
+          <div class="yui-row__main">
+            <span class="yui-row__label">${t("agentNotify.label")}</span>
+            <span class="yui-row__sub">${t("agentNotify.sub")}</span>
+          </div>
+          <button class="yui-switch yui-agentnotify-switch" type="button" role="switch" aria-checked="${String(agentNotifyEnabled)}" aria-label="${t("agentNotify.aria")}"></button>
+        </div>
+        ${numRowHtml({ id: "yui-agent-port", labelKey: "reactions.port_label", subKey: "reactions.port_sub", min: 1024, max: 65535, hintKey: "reactions.restart_hint" })}`
+            : ""
+        }
+        <div class="yui-quick__divider" aria-hidden="true"></div>
+        <span class="yui-quick__section">${t("reactions.shared_title")}</span>
+        ${showPresence ? numRowHtml({ id: "yui-presence", labelKey: "reactions.presence_label", subKey: "reactions.presence_sub", min: 10, max: 3600, suffixKey: "reactions.seconds_suffix", hintKey: "reactions.restart_hint" }) : ""}
+      </div>
+
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-adv" aria-labelledby="yui-tab-adv" tabindex="0" hidden>
 
         <details class="yui-endpoints yui-svc" data-svc="chat">
@@ -428,17 +493,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
             <span class="yui-row__sub">${t("gaze.sub")}</span>
           </div>
           <button class="yui-switch yui-gaze-switch" type="button" role="switch" aria-checked="${String(gazeEnabled)}" aria-label="${t("gaze.aria")}"></button>
-        </div>`
-            : ""
-        }
-        ${
-          showGithub
-            ? `<div class="yui-row">
-          <div class="yui-row__main">
-            <span class="yui-row__label">${t("github.label")}</span>
-            <span class="yui-row__sub">${t("github.sub")}</span>
-          </div>
-          <button class="yui-switch yui-github-switch" type="button" role="switch" aria-checked="${String(githubEnabled)}" aria-label="${t("github.aria")}"></button>
         </div>`
             : ""
         }

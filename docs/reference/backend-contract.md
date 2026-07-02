@@ -29,7 +29,7 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
     // data_url is NOT included here — pixels arrive as the input_image content-part on input[1]
   },
   "trigger": {
-    "kind": "user | schedule | proactive | github",
+    "kind": "user | schedule | proactive | github | agent",
     "cue": {                                    // present for schedule and proactive kinds
       "label": "short human name",
       "context": "free-text intent the user wrote for the agent",
@@ -49,6 +49,7 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
 | `schedule` | A user-configured time-of-day cue fired | Proactive marker string | Yes |
 | `proactive` | A user-configured engagement cue fired because the user has been present but not interacting | Proactive marker string | Yes |
 | `github` | A watched GitHub PR changed CI or review state | Proactive marker string | No (carries `pr` or `pr_catchup` instead) |
+| `agent` | An external coding-agent finish-hook posted a completion signal | Proactive marker string | No (carries `agent` or `agent_catchup` instead) |
 
 For `schedule`, `proactive`, and `github` turns there is no user utterance — the agent reads the trigger fields to decide whether and what to say. Firing a turn does not guarantee speech: the client renders whatever text the agent returns, and silence means the agent returns empty or no speech text. No client-side gate decides whether to speak (see `D-NO-SPEAK-GATE`).
 
@@ -178,6 +179,72 @@ For `schedule`, `proactive`, and `github` turns there is no user utterance — t
             { "kind": "review", "from": null, "to": "APPROVED", "ts": 1781000600000 }
           ]
         }
+      ]
+    }
+  }
+}
+```
+
+### Agent completion fields
+
+`agent` turns carry no `cue`. A turn is one of two shapes: a single completion observed while the user is present (`agent`), or a burst of completions buffered while the user was away and flushed on return (`agent_catchup`). The source is an external coding-agent finish-hook that POSTs a completion signal to the running YUI app over loopback HTTP.
+
+`trigger.agent` — single live completion:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `tool` | string | Coding agent that finished (e.g. `"claude-code"`, `"opencode"`) |
+| `project` | string | Project name (typically the directory base name) |
+| `cwd` | string | Absolute working directory at the time of completion |
+| `status` | `"success" \| "error"` | Optional exit status reported by the hook |
+| `summary` | string | Speech material from the hook (raw last message or pre-summarized; capped at 8192 bytes at ingress) |
+| `ts` | number | Epoch millis when the hook fired |
+
+`trigger.agent_catchup` — burst of buffered completions:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `count` | number | Total number of buffered completions in this burst |
+| `items[]` | array | One entry per buffered completion, oldest first |
+| `items[].tool` | string | Coding agent that finished |
+| `items[].project` | string | Project name |
+| `items[].status` | `"success" \| "error"` | Optional exit status |
+| `items[].summary` | string | Speech material from the hook |
+| `items[].ts` | number | Epoch millis when the hook fired |
+
+### Agent examples
+
+**`agent` turn** — live completion while the user is present:
+
+```json
+{
+  "env": { "timestamp": "2026-06-15T16:20:00+09:00", "timezone": "Asia/Seoul" },
+  "trigger": {
+    "kind": "agent",
+    "agent": {
+      "tool": "claude-code",
+      "project": "yui",
+      "cwd": "/Users/you/Desktop/codes/waifu/2026/YUI",
+      "status": "success",
+      "summary": "Extracted dev workflow into yui-dev-workflow skill and slimmed AGENTS.md.",
+      "ts": 1781000000000
+    }
+  }
+}
+```
+
+**`agent` turn** — catch-up burst flushed when the user returns:
+
+```json
+{
+  "env": { "timestamp": "2026-06-15T17:05:00+09:00", "timezone": "Asia/Seoul" },
+  "trigger": {
+    "kind": "agent",
+    "agent_catchup": {
+      "count": 2,
+      "items": [
+        { "tool": "claude-code", "project": "yui", "status": "success", "summary": "Fixed camera gaze head/eye tracking in the Tauri window.", "ts": 1781000000000 },
+        { "tool": "opencode", "project": "api-server", "status": "error", "summary": "Build failed: type error in auth middleware.", "ts": 1781000600000 }
       ]
     }
   }

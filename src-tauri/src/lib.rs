@@ -25,6 +25,9 @@ mod passthrough;
 // GitHub GraphQL transport — shells `gh api graphql`.
 mod github;
 
+// Loopback HTTP ingress — receives agent-done signals, re-emits as Tauri events.
+mod agent_ingress;
+
 use std::path::PathBuf;
 use tauri::Manager;
 use time::{OffsetDateTime, UtcOffset};
@@ -205,6 +208,8 @@ pub fn run() {
 
             // Start OS event polling loop (emits `os_event` IPC to webview).
             os_event_watcher::start(app.handle());
+            // Loopback ingress starts via the `start_agent_ingress` command, invoked
+            // once at boot with the user's stored port (restart-to-apply).
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -219,6 +224,7 @@ pub fn run() {
             voice_import::remove_user_voice,
             passthrough::set_click_through,
             github::github_poll,
+            agent_ingress::start_agent_ingress,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

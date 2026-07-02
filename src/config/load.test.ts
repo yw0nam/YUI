@@ -76,10 +76,6 @@ function goodFixture(): Record<string, unknown> {
         cooldown_ms: 300000,
       },
     },
-    "sources.json": {
-      proactive: { present_max_idle_ms: 180000 },
-      schedule: { present_max_idle_ms: 180000 },
-    },
     "filler.json": {
       gap_ms: 1000,
       gap_jitter_ms: 300,
@@ -1373,104 +1369,6 @@ describe("loadConfig — validation failures throw ConfigError", () => {
       }),
       "emotion_registry.json",
     );
-  });
-});
-
-// ── sources.json (#24 present-gated firing knobs) ──────────────────────────────
-
-describe("loadConfig — sources", () => {
-  async function loadWith(value: unknown): Promise<unknown> {
-    const map = goodFixture();
-    map[CONFIG_FILES.sources] = value;
-    return loadConfig({ read: readerOf(map) });
-  }
-  async function expectSourcesError(p: Promise<unknown>): Promise<void> {
-    await expect(p).rejects.toBeInstanceOf(ConfigError);
-    const err = await p.catch((e) => e);
-    expect((err as ConfigError).file).toBe("sources.json");
-    expect((err as ConfigError).issues.length).toBeGreaterThan(0);
-  }
-
-  it("유효한 sources를 그대로 보존한다", async () => {
-    const cfg = await loadConfig({ read: readerOf(goodFixture()) });
-    expect(cfg.sources.proactive.present_max_idle_ms).toBe(180000);
-    expect(cfg.sources.schedule.present_max_idle_ms).toBe(180000);
-  });
-
-  it("객체가 아니면 ConfigError", async () => {
-    await expectSourcesError(loadWith(42));
-  });
-
-  it("proactive가 객체가 아니면 ConfigError", async () => {
-    await expectSourcesError(
-      loadWith({ proactive: 42, schedule: { present_max_idle_ms: 180000 } }),
-    );
-  });
-
-  it("schedule이 객체가 아니면 ConfigError", async () => {
-    await expectSourcesError(
-      loadWith({ proactive: { present_max_idle_ms: 180000 }, schedule: "bad" }),
-    );
-  });
-
-  it("proactive.present_max_idle_ms가 숫자가 아니면 ConfigError", async () => {
-    await expectSourcesError(
-      loadWith({
-        proactive: { present_max_idle_ms: "x" },
-        schedule: { present_max_idle_ms: 180000 },
-      }),
-    );
-  });
-
-  it("proactive.present_max_idle_ms가 0 이하면 ConfigError", async () => {
-    await expectSourcesError(
-      loadWith({
-        proactive: { present_max_idle_ms: 0 },
-        schedule: { present_max_idle_ms: 180000 },
-      }),
-    );
-  });
-
-  it("proactive.present_max_idle_ms가 < 10000이면 ConfigError", async () => {
-    await expectSourcesError(
-      loadWith({
-        proactive: { present_max_idle_ms: 5000 },
-        schedule: { present_max_idle_ms: 180000 },
-      }),
-    );
-  });
-
-  it("schedule.present_max_idle_ms가 숫자가 아니면 ConfigError", async () => {
-    await expectSourcesError(
-      loadWith({
-        proactive: { present_max_idle_ms: 180000 },
-        schedule: { present_max_idle_ms: null },
-      }),
-    );
-  });
-
-  it("schedule.present_max_idle_ms가 0 이하면 ConfigError", async () => {
-    await expectSourcesError(
-      loadWith({
-        proactive: { present_max_idle_ms: 180000 },
-        schedule: { present_max_idle_ms: -1 },
-      }),
-    );
-  });
-
-  it("schedule.present_max_idle_ms가 < 10000이면 ConfigError", async () => {
-    await expectSourcesError(
-      loadWith({
-        proactive: { present_max_idle_ms: 180000 },
-        schedule: { present_max_idle_ms: 9999 },
-      }),
-    );
-  });
-
-  it("파일 누락(reader reject)은 그대로 전파된다", async () => {
-    const map = goodFixture();
-    delete map["sources.json"];
-    await expect(loadConfig({ read: readerOf(map) })).rejects.toThrow(/missing sources\.json/);
   });
 });
 

@@ -179,7 +179,7 @@
 .yui-tabs {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   flex: 0 0 auto;
   margin: 0.6rem 0.85rem 0.2rem;
   padding: 0.18rem;
@@ -198,7 +198,7 @@
   top: 0.18rem;
   bottom: 0.18rem;
   left: 0.18rem;
-  width: calc((100% - 0.36rem) / 4);
+  width: calc((100% - 0.36rem) / 5);
   border-radius: calc(var(--yui-radius-row) - 3px);
   background: var(--yui-accent-faint);
   border: 1px solid var(--yui-accent-soft);

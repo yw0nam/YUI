@@ -7,6 +7,7 @@
 import "./quick-controls.css";
 import type { AvatarOption } from "../config/load";
 import type { ScreenSource } from "../contract";
+import type { createAgentNotifySettings } from "../io/agent-notify-settings";
 import { type createAgentSettings, REASONING_EFFORTS } from "../io/agent-settings";
 import type { ApiKeySettingsStore } from "../io/api-key-settings";
 import type { ChatKeySettingsStore } from "../io/chat-key-settings";
@@ -20,6 +21,7 @@ import {
   LIPSYNC_GAIN_MAX,
   LIPSYNC_GAIN_MIN,
 } from "../io/lipsync-settings";
+import type { createPresenceSettings } from "../io/presence-settings";
 import type { createProactiveSettings } from "../io/proactive-settings";
 import type { createScheduleSettings } from "../io/schedule-settings";
 import type { MonitorInfo, ScreenSourceProvider } from "../io/screen-source-provider";
@@ -48,6 +50,7 @@ type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type IdleThrottleSettingsStore = ReturnType<typeof createIdleThrottleSettings>;
 type GazeSettingsStore = ReturnType<typeof createGazeSettings>;
 type GithubSettingsStore = ReturnType<typeof createGithubSettings>;
+type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
 type ScheduleSettingsStore = ReturnType<typeof createScheduleSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
@@ -60,6 +63,7 @@ type VrmSelectionStore = ReturnType<typeof createVrmSelection>;
 type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 type SessionDiagnosticsStore = ReturnType<typeof createSessionDiagnosticsStore>;
 type SessionStore = ReturnType<typeof createSessionStore>;
+type PresenceSettingsStore = ReturnType<typeof createPresenceSettings>;
 
 interface QuickControlsOptions {
   mount: HTMLElement;
@@ -126,6 +130,10 @@ interface QuickControlsOptions {
   gazeSettings?: GazeSettingsStore;
   /** GitHub PR 워처 on/off store. 없으면 해당 토글 행을 그리지 않는다. */
   githubSettings?: GithubSettingsStore;
+  /** 에이전트 완료 알림 on/off store. 없으면 해당 토글 행을 그리지 않는다. */
+  agentNotifySettings?: AgentNotifySettingsStore;
+  /** 자리 비움 감지 store. 없으면 Reactions 탭의 presence 행을 그리지 않는다. */
+  presenceSettings?: PresenceSettingsStore;
 }
 
 interface QuickControls {
@@ -178,6 +186,8 @@ export function createQuickControls({
   ttsSettings,
   gazeSettings,
   githubSettings,
+  agentNotifySettings,
+  presenceSettings,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // 세션 섹션은 설정 창(window)에서만, 두 store가 모두 주입됐을 때 그린다.
@@ -203,14 +213,21 @@ export function createQuickControls({
     gazeEnabled: gazeSettings?.get().enabled ?? false,
     showGithub: !!githubSettings,
     githubEnabled: githubSettings?.get().enabled ?? false,
+    showAgentNotify: !!agentNotifySettings,
+    agentNotifyEnabled: agentNotifySettings?.get().enabled ?? false,
     ttsEnabled: ttsSettings?.get().enabled ?? true,
+    showPresence: !!presenceSettings,
   });
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const idleThrottleSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
   const gazeSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-gaze-switch");
   const githubSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-github-switch");
+  const agentNotifySwitchBtn = el.querySelector<HTMLButtonElement>(".yui-agentnotify-switch");
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
+  const githubPollInput = el.querySelector<HTMLInputElement>("#yui-github-poll");
+  const agentPortInput = el.querySelector<HTMLInputElement>("#yui-agent-port");
+  const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const ttsSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-tts-switch");
   const monitorsEl = el.querySelector<HTMLDivElement>(".yui-monitors")!;
@@ -374,6 +391,7 @@ export function createQuickControls({
     ttsSettings,
     gazeSettings,
     githubSettings,
+    agentNotifySettings,
     lipsync,
     vad,
     agentSettings,
@@ -383,6 +401,10 @@ export function createQuickControls({
     keyRows,
     getEndpointDefaults,
     getDefaultProvider,
+    githubPollInput: githubPollInput ?? undefined,
+    agentPortInput: agentPortInput ?? undefined,
+    presenceInput: presenceInput ?? undefined,
+    presenceSettings,
   });
 
   function renderMonitors(monitors: MonitorInfo[], currentSource: ScreenSource): void {
@@ -462,6 +484,8 @@ export function createQuickControls({
       reflect.reflectTts();
       reflect.reflectGaze();
       reflect.reflectGithub();
+      reflect.reflectAgentNotify();
+      reflect.reflectPresence();
       reflect.reflectVoiceStatus(voiceStatus.get());
       reflect.reflectGain();
       reflect.reflectVad();
@@ -524,6 +548,13 @@ export function createQuickControls({
     const current = githubSettings.get().enabled;
     githubSettings.setEnabled(!current);
     log.info("github_watch_toggle", { enabled: !current });
+  }
+
+  function handleAgentNotifySwitchClick(): void {
+    if (!agentNotifySettings) return;
+    const current = agentNotifySettings.get().enabled;
+    agentNotifySettings.setEnabled(!current);
+    log.info("agent_notify_toggle", { enabled: !current });
   }
 
   // ── 생각중 추임새 이벤트 핸들러 ──
@@ -815,10 +846,36 @@ export function createQuickControls({
   const unsubscribeGithub = githubSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectGithub();
   });
-  // 큐 목록 컴포넌트 — 입력 탭 내 .yui-cue-sections에 마운트. 구독·teardown을 컴포넌트 자체가 관리한다.
-  const scheduleDividerEl = document.createElement("div");
-  scheduleDividerEl.className = "yui-quick__divider";
-  scheduleDividerEl.setAttribute("aria-hidden", "true");
+  const unsubscribeAgentNotify = agentNotifySettings?.subscribe(() => {
+    if (popover.isOpen()) reflect.reflectAgentNotify();
+  });
+  const unsubscribePresence = presenceSettings?.subscribe(() => {
+    if (popover.isOpen()) reflect.reflectPresence();
+  });
+
+  function handleGithubPollChange(): void {
+    if (!githubSettings || !githubPollInput) return;
+    const v = Math.round(Number(githubPollInput.value));
+    githubSettings.setPollInterval(v * 1000);
+    reflect.reflectGithub();
+  }
+  function handleAgentPortChange(): void {
+    if (!agentNotifySettings || !agentPortInput) return;
+    agentNotifySettings.setPort(Math.round(Number(agentPortInput.value)));
+    reflect.reflectAgentNotify();
+  }
+  function handlePresenceChange(): void {
+    if (!presenceSettings || !presenceInput) return;
+    const v = Math.round(Number(presenceInput.value));
+    presenceSettings.setPresentMaxIdleMs(v * 1000);
+    reflect.reflectPresence();
+  }
+  githubPollInput?.addEventListener("change", handleGithubPollChange);
+  agentPortInput?.addEventListener("change", handleAgentPortChange);
+  presenceInput?.addEventListener("change", handlePresenceChange);
+
+  // 큐 목록 컴포넌트 — schedule은 입력 탭 .yui-cue-sections, proactive는 Reactions 탭 .yui-loop-cue-section.
+  const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
 
   let scheduleCueList: CueListInstance | null = null;
   let proactiveCueList: CueListInstance | null = null;
@@ -834,9 +891,9 @@ export function createQuickControls({
       trigger: { kind: "time", field: "time" },
       addLabel: t("cue.schedule_add"),
     });
-    cueSectionsMountEl.appendChild(scheduleDividerEl);
+    loopCueMountEl.innerHTML = "";
     proactiveCueList = createCueList({
-      mount: cueSectionsMountEl,
+      mount: loopCueMountEl,
       store: proactiveSettings,
       title: t("cue.proactive_title"),
       sub: t("cue.proactive_sub"),
@@ -890,6 +947,7 @@ export function createQuickControls({
   ttsSwitchBtn?.addEventListener("click", handleTtsSwitchClick);
   gazeSwitchBtn?.addEventListener("click", handleGazeSwitchClick);
   githubSwitchBtn?.addEventListener("click", handleGithubSwitchClick);
+  agentNotifySwitchBtn?.addEventListener("click", handleAgentNotifySwitchClick);
   fillerSwitchBtn?.addEventListener("click", handleFillerSwitchClick);
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
   langSegEl.addEventListener("click", handleLangSegClick);
@@ -944,6 +1002,11 @@ export function createQuickControls({
     unsubscribeTts?.();
     unsubscribeGaze?.();
     unsubscribeGithub?.();
+    unsubscribeAgentNotify?.();
+    unsubscribePresence?.();
+    githubPollInput?.removeEventListener("change", handleGithubPollChange);
+    agentPortInput?.removeEventListener("change", handleAgentPortChange);
+    presenceInput?.removeEventListener("change", handlePresenceChange);
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();
@@ -961,6 +1024,7 @@ export function createQuickControls({
     ttsSwitchBtn?.removeEventListener("click", handleTtsSwitchClick);
     gazeSwitchBtn?.removeEventListener("click", handleGazeSwitchClick);
     githubSwitchBtn?.removeEventListener("click", handleGithubSwitchClick);
+    agentNotifySwitchBtn?.removeEventListener("click", handleAgentNotifySwitchClick);
     fillerSwitchBtn?.removeEventListener("click", handleFillerSwitchClick);
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
     langSegEl.removeEventListener("click", handleLangSegClick);

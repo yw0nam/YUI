@@ -51,10 +51,6 @@ function goodFixture(): Record<string, unknown> {
         cooldown_ms: 300000,
       },
     },
-    "sources.json": {
-      proactive: { present_max_idle_ms: 180000 },
-      schedule: { present_max_idle_ms: 180000 },
-    },
     "filler.json": {
       gap_ms: 1000,
       gap_jitter_ms: 300,
@@ -166,28 +162,6 @@ describe("createConfigStore — guardrails section diff", () => {
     const [nextCfg, changed] = sub.mock.calls[0];
     expect(nextCfg.guardrails.rate_limit.overall_max).toBe(30);
     expect(changed.has("guardrails")).toBe(true);
-    expect(changed.has("motions")).toBe(false);
-  });
-});
-
-describe("createConfigStore — sources section diff", () => {
-  it("sources 변경 → reload() true, changed.has('sources')", async () => {
-    const map = goodFixture();
-    const store = createConfigStore({ read: mutableReader(map) });
-    await store.load();
-
-    const sub = vi.fn();
-    store.subscribe(sub);
-
-    (
-      map["sources.json"] as { proactive: { present_max_idle_ms: number } }
-    ).proactive.present_max_idle_ms = 120000;
-    await expect(store.reload()).resolves.toBe(true);
-
-    expect(sub).toHaveBeenCalledTimes(1);
-    const [nextCfg, changed] = sub.mock.calls[0];
-    expect(nextCfg.sources.proactive.present_max_idle_ms).toBe(120000);
-    expect(changed.has("sources")).toBe(true);
     expect(changed.has("motions")).toBe(false);
   });
 });
