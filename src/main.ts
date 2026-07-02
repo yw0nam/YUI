@@ -52,6 +52,8 @@ import {
   localStorageCameraStorage,
 } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
+import { buildExpressTool } from "./io/chat-completions";
+import { createChatHistoryStore, localStorageChatHistoryStorage } from "./io/chat-history-store";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
 import {
   createEndpointsSettings,
@@ -271,6 +273,9 @@ async function bootstrap(): Promise<void> {
   // wireStorageSync로 동기화하므로 다른 store들과 함께 일찍 만든다(config/dispatcher 비의존).
   const sessionStore = createSessionStore(localStorageSessionStorage());
   const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
+  // 통합 대화 transcript — 두 프로토콜 모드 모두 append하고 CC 모드만 여기서 송신분을 뽑는다.
+  // "새 대화 시작"이 session store들과 함께 비운다(quick-controls). 두 창이 wireStorageSync로 동기화.
+  const chatHistoryStore = createChatHistoryStore({ storage: localStorageChatHistoryStorage() });
   // 사용자 편집 엔드포인트 오버라이드: localStorage가 bundled config를 덮는다(빈 값=폴백).
   const endpointsSettings = createEndpointsSettings({
     storage: localStorageEndpointsStorage(),
@@ -328,6 +333,7 @@ async function bootstrap(): Promise<void> {
     cameraSettings,
     sessionStore,
     sessionDiagnostics,
+    chatHistoryStore,
   ]);
 
   // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
@@ -494,6 +500,13 @@ async function bootstrap(): Promise<void> {
       getDefaultProvider: () => {
         try {
           return config.get().endpoints.tts_provider;
+        } catch {
+          return undefined;
+        }
+      },
+      getDefaultChatApi: () => {
+        try {
+          return config.get().endpoints.chat_api;
         } catch {
           return undefined;
         }
@@ -959,6 +972,26 @@ async function bootstrap(): Promise<void> {
     getFetch: () => selectFetch(),
     getPreviousResponseId: () => sessionStore.get() ?? undefined,
     onResponseId: (id) => sessionStore.set(id),
+    transcript: chatHistoryStore,
+    // CC 모드 generate_express tool 스냅샷 — emotion/motion id 열거는 deriveBrokerPayload와
+    // 동일한 규칙(agent-triggerable만: reactive/ambient/broker_publish:false 제외).
+    getExpressTool: () => {
+      try {
+        const cfg = config.get();
+        const emotionIds = Object.keys(cfg.emotionRegistry);
+        const motionIds = Object.entries(cfg.motions)
+          .filter(
+            ([, entry]) =>
+              entry.kind !== "reactive" &&
+              entry.kind !== "ambient" &&
+              entry.broker_publish !== false,
+          )
+          .map(([id]) => id);
+        return buildExpressTool(emotionIds, motionIds);
+      } catch {
+        return undefined;
+      }
+    },
     onUsage: (usage) => {
       sessionDiagnostics.setUsage(
         usage.total_tokens,
@@ -1034,6 +1067,7 @@ async function bootstrap(): Promise<void> {
         agentSourceRef?.stop();
         sessionStore.dispose();
         sessionDiagnostics.dispose();
+        chatHistoryStore.dispose();
       });
     }
     const { createSttVad } = await import("./io/stt-vad");

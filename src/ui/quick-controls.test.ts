@@ -1510,10 +1510,7 @@ describe("createQuickControls — gain row", () => {
     );
     expect(sel.classList.contains("yui-select--single")).toBe(false);
     expect(sel.disabled).toBe(false);
-    expect(Array.from(sel.options).map((o) => o.value)).toEqual([
-      "responses",
-      "chat_completions",
-    ]);
+    expect(Array.from(sel.options).map((o) => o.value)).toEqual(["responses", "chat_completions"]);
 
     qc.dispose();
   });
