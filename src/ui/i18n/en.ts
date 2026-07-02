@@ -62,6 +62,8 @@ const en: Record<string, string> = {
   "panel.drag_hint": "Drag to move",
   "panel.pop_out": "Pop out to window",
   "panel.close": "Close",
+  "panel.rail_collapse": "Collapse sections rail",
+  "panel.rail_expand": "Expand sections rail",
 
   // tabs
   "tabs.talk": "Talk",

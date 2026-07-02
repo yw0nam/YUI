@@ -62,6 +62,8 @@ const ja: Record<string, string> = {
   "panel.drag_hint": "ドラッグで移動",
   "panel.pop_out": "ウィンドウに切り出す",
   "panel.close": "閉じる",
+  "panel.rail_collapse": "セクション一覧を折りたたむ",
+  "panel.rail_expand": "セクション一覧を広げる",
 
   // tabs
   "tabs.talk": "会話",

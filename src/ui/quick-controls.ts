@@ -153,6 +153,26 @@ interface QuickControls {
 export const PREVIEW_PEAK_RMS = 0.15;
 const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
 
+// ponytail: single boolean, so it's read/written to localStorage directly — no settings-store
+// class for one flag. Guarded so tests/non-browser environments without localStorage don't throw.
+const RAIL_COLLAPSED_KEY = "yui.quickControls.railCollapsed";
+
+function loadRailCollapsed(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(RAIL_COLLAPSED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function saveRailCollapsed(collapsed: boolean): void {
+  try {
+    globalThis.localStorage?.setItem(RAIL_COLLAPSED_KEY, String(collapsed));
+  } catch {
+    // localStorage 사용 불가 시 no-op
+  }
+}
+
 export function createQuickControls({
   mount,
   settings,
@@ -225,6 +245,7 @@ export function createQuickControls({
     agentNotifyEnabled: agentNotifySettings?.get().enabled ?? false,
     ttsEnabled: ttsSettings?.get().enabled ?? true,
     showPresence: !!presenceSettings,
+    railCollapsed: loadRailCollapsed(),
   });
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
@@ -246,6 +267,8 @@ export function createQuickControls({
   const vadSlider = el.querySelector<HTMLInputElement>(".yui-vad__slider")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
+  const railColsEl = el.querySelector<HTMLDivElement>(".yui-quick__cols")!;
+  const railCollapseBtn = el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
   const popOutBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
@@ -831,6 +854,19 @@ export function createQuickControls({
     selectTab(tabButtons.indexOf(btn));
   }
 
+  // ── 섹션 rail 접기/펼치기 ──
+
+  function handleRailCollapseClick(): void {
+    const collapsed = !railColsEl.classList.contains("is-rail-collapsed");
+    railColsEl.classList.toggle("is-rail-collapsed", collapsed);
+    railCollapseBtn.setAttribute("aria-expanded", String(!collapsed));
+    const label = t(collapsed ? "panel.rail_expand" : "panel.rail_collapse");
+    railCollapseBtn.setAttribute("aria-label", label);
+    railCollapseBtn.title = label;
+    saveRailCollapsed(collapsed);
+    log.info("rail_collapse_toggle", { collapsed });
+  }
+
   function handleTabKeydown(e: KeyboardEvent): void {
     const current = tabButtons.findIndex((t) => t.getAttribute("aria-selected") === "true");
     const base = current < 0 ? 0 : current;
@@ -988,6 +1024,7 @@ export function createQuickControls({
   vadSlider.addEventListener("blur", handleVadEnd);
   tablistEl.addEventListener("click", handleTabClick);
   tablistEl.addEventListener("keydown", handleTabKeydown);
+  railCollapseBtn.addEventListener("click", handleRailCollapseClick);
   segEl.addEventListener("click", handleSegClick);
   segEl.addEventListener("keydown", handleSegKeydown);
   ttsTypeEl.addEventListener("change", handleTtsTypeChange);
@@ -1066,6 +1103,7 @@ export function createQuickControls({
     vadSlider.removeEventListener("blur", handleVadEnd);
     tablistEl.removeEventListener("click", handleTabClick);
     tablistEl.removeEventListener("keydown", handleTabKeydown);
+    railCollapseBtn.removeEventListener("click", handleRailCollapseClick);
     segEl.removeEventListener("click", handleSegClick);
     segEl.removeEventListener("keydown", handleSegKeydown);
     ttsTypeEl.removeEventListener("change", handleTtsTypeChange);
