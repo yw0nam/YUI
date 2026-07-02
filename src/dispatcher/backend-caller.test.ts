@@ -13,7 +13,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope, EndpointsConfig, ExpressArgs, InputContext } from "../contract";
+import type { CCTool } from "../io/chat-completions";
 import type { ChatStreamEvent } from "../io/chat-client";
+import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { Logger } from "../logger";
 import type { BusEnvelope } from "./event-bus";
 
@@ -1598,5 +1600,337 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
 
     expect(currentThinkingTurn).toBe(tokenB); // B still owns thinking.
     expect(bTornDown).toBe(false); // B's loop/motion untouched by A's late end.
+  });
+});
+
+// ── Chat Completions (CC) mode — request shape ──────────────────────────────
+
+describe("backend_caller — Chat Completions (CC) mode request shape", () => {
+  const CC_CONFIG: EndpointsConfig = { ...CONFIG, chat_api: "chat_completions" };
+
+  function messagesOf(request: any): Array<{ role: string; content: unknown }> {
+    return request.messages;
+  }
+
+  const TOOL: CCTool = {
+    type: "function",
+    function: {
+      name: "generate_express",
+      description: "d",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  };
+
+  it("builds request.messages (system client_context + transcript + user) + request.tools; no previous_response_id/instructions", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" }, "")];
+    const transcriptEntries: ChatHistoryEntry[] = [
+      { role: "user", text: "이전 질문", ts: 1 },
+      { role: "assistant", text: "이전 답변", ts: 2 },
+    ];
+    caller = createBackendCaller({
+      config: CC_CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      transcript: { get: () => transcriptEntries, append: vi.fn() },
+      getExpressTool: () => TOOL,
+    });
+    await caller.call(userEnv("오늘 뭐해?"));
+    const [, request] = streamChatSpy.mock.calls[0];
+    const msgs = messagesOf(request);
+    expect(Array.isArray(msgs)).toBe(true);
+    expect(
+      msgs.some(
+        (m) => m.role === "system" && typeof m.content === "string" && m.content.startsWith("client_context:"),
+      ),
+    ).toBe(true);
+    expect(msgs).toEqual(
+      expect.arrayContaining([
+        { role: "user", content: "이전 질문" },
+        { role: "assistant", content: "이전 답변" },
+      ]),
+    );
+    expect(msgs[msgs.length - 1]).toEqual({ role: "user", content: "오늘 뭐해?" });
+    expect(request.tools).toEqual([TOOL]);
+    expect("previous_response_id" in request).toBe(false);
+    expect("instructions" in request).toBe(false);
+  });
+
+  it("no getExpressTool dep → request.tools omitted", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" }, "")];
+    caller = createBackendCaller({
+      config: CC_CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+    });
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect("tools" in request).toBe(false);
+  });
+
+  it("no transcript dep → messages still built with empty transcript (no crash)", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" }, "")];
+    caller = createBackendCaller({
+      config: CC_CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+    });
+    const res = await caller.call(userEnv("혼자"));
+    expect(res.ok).toBe(true);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const msgs = messagesOf(request);
+    expect(msgs[msgs.length - 1]).toEqual({ role: "user", content: "혼자" });
+  });
+
+  it("agent instructions override → leading system message carries it", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" }, "")];
+    caller = createBackendCaller({
+      config: CC_CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getAgentSettings: () => ({ reasoning_effort: "medium", instructions: "be terse" }),
+    });
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect(request.reasoning_effort).toBe("medium");
+    expect(messagesOf(request)[0]).toEqual({ role: "system", content: "be terse" });
+    expect("instructions" in request).toBe(false);
+  });
+
+  it("empty agent instructions → falls back to config.chat_instructions", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" }, "")];
+    caller = createBackendCaller({
+      config: { ...CC_CONFIG, chat_instructions: "config nudge" },
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getAgentSettings: () => ({ reasoning_effort: "none", instructions: "" }),
+    });
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect(messagesOf(request)[0]).toEqual({ role: "system", content: "config nudge" });
+  });
+
+  it("proactive turn in CC mode → user message is the proactive marker", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" }, "")];
+    caller = createBackendCaller({
+      config: CC_CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+    });
+    const env: BusEnvelope = {
+      seq_id: 50,
+      source: "timer_scheduler",
+      event_name: "proactive.cowork",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {},
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const msgs = messagesOf(request);
+    expect(msgs[msgs.length - 1]).toEqual({ role: "user", content: "(proactive trigger)" });
+  });
+});
+
+// ── transcript recording (both protocol modes) ──────────────────────────────
+
+describe("backend_caller — transcript recording", () => {
+  function makeTranscript() {
+    const entries: ChatHistoryEntry[] = [];
+    return {
+      append: vi.fn((e: ChatHistoryEntry) => entries.push(e)),
+      get: () => entries,
+    };
+  }
+
+  it("successful user-triggered turn (Responses mode) → user + assistant appended in order", async () => {
+    const transcript = makeTranscript();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      transcript,
+    });
+    scriptedEvents = [completedEvent({ speech_text: "안녕!" })];
+    await caller.call(userEnv("안녕"));
+    expect(transcript.append).toHaveBeenCalledTimes(2);
+    expect(transcript.append).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ role: "user", text: "안녕" }),
+    );
+    expect(transcript.append).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ role: "assistant", text: "안녕!" }),
+    );
+  });
+
+  it("successful user-triggered turn (CC mode) → user + assistant appended too", async () => {
+    const transcript = makeTranscript();
+    caller = createBackendCaller({
+      config: { ...CONFIG, chat_api: "chat_completions" },
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      transcript,
+    });
+    scriptedEvents = [completedEvent({ speech_text: "네" }, "")];
+    await caller.call(userEnv("질문"));
+    expect(transcript.append).toHaveBeenCalledTimes(2);
+    expect(transcript.append).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ role: "user", text: "질문" }),
+    );
+    expect(transcript.append).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ role: "assistant", text: "네" }),
+    );
+  });
+
+  it("proactive turn (no user_text) → assistant appended only", async () => {
+    const transcript = makeTranscript();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      transcript,
+    });
+    scriptedEvents = [completedEvent({ speech_text: "좋은 아침!" })];
+    const env: BusEnvelope = {
+      seq_id: 41,
+      source: "timer_scheduler",
+      event_name: "proactive.cowork",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {},
+    };
+    await caller.call(env);
+    expect(transcript.append).toHaveBeenCalledTimes(1);
+    expect(transcript.append).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "assistant", text: "좋은 아침!" }),
+    );
+  });
+
+  it("empty speech_text → user appended, assistant NOT appended", async () => {
+    const transcript = makeTranscript();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      transcript,
+    });
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv("조용히"));
+    expect(transcript.append).toHaveBeenCalledTimes(1);
+    expect(transcript.append).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "user", text: "조용히" }),
+    );
+  });
+
+  it("error event turn → nothing appended", async () => {
+    const transcript = makeTranscript();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      transcript,
+    });
+    scriptedEvents = [{ type: "error", message: "boom" }];
+    await caller.call(userEnv("안녕"));
+    expect(transcript.append).not.toHaveBeenCalled();
+  });
+
+  it("parse_error turn (no completed event) → nothing appended", async () => {
+    const transcript = makeTranscript();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      transcript,
+    });
+    scriptedEvents = [];
+    await caller.call(userEnv("안녕"));
+    expect(transcript.append).not.toHaveBeenCalled();
+  });
+
+  it("aborted turn → nothing appended", async () => {
+    const transcript = makeTranscript();
+    const ac = new AbortController();
+    ac.abort();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      transcript,
+    });
+    scriptedEvents = [completedEvent({ speech_text: "hi" })];
+    await caller.call(userEnv("안녕"), ac.signal);
+    expect(transcript.append).not.toHaveBeenCalled();
+  });
+
+  it("no transcript dep → does not throw", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "hi" })];
+    const res = await caller.call(userEnv("안녕"));
+    expect(res.ok).toBe(true);
+  });
+});
+
+// ── onResponseId empty-string guard (CC completed events carry responseId:"") ──
+
+describe("backend_caller — onResponseId empty-string guard", () => {
+  it("responseId '' (Responses mode) → onResponseId NOT called", async () => {
+    const onResponseId = vi.fn();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      onResponseId,
+    });
+    scriptedEvents = [completedEvent({ speech_text: "hi" }, "")];
+    await caller.call(userEnv());
+    expect(onResponseId).not.toHaveBeenCalled();
+  });
+
+  it("CC mode → previous_response_id snapshot/persist logic skipped entirely", async () => {
+    const onResponseId = vi.fn();
+    caller = createBackendCaller({
+      config: { ...CONFIG, chat_api: "chat_completions" },
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getPreviousResponseId: () => "resp_prev",
+      onResponseId,
+    });
+    scriptedEvents = [completedEvent({ speech_text: "hi" }, "")];
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect("previous_response_id" in request).toBe(false);
+    expect(onResponseId).not.toHaveBeenCalled();
   });
 });
