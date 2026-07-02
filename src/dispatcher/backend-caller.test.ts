@@ -13,8 +13,8 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope, EndpointsConfig, ExpressArgs, InputContext } from "../contract";
-import type { CCTool } from "../io/chat-completions";
 import type { ChatStreamEvent } from "../io/chat-client";
+import type { CCTool } from "../io/chat-completions";
 import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { Logger } from "../logger";
 import type { BusEnvelope } from "./event-bus";
@@ -1642,7 +1642,10 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     expect(Array.isArray(msgs)).toBe(true);
     expect(
       msgs.some(
-        (m) => m.role === "system" && typeof m.content === "string" && m.content.startsWith("client_context:"),
+        (m) =>
+          m.role === "system" &&
+          typeof m.content === "string" &&
+          m.content.startsWith("client_context:"),
       ),
     ).toBe(true);
     expect(msgs).toEqual(

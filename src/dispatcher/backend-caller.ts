@@ -29,9 +29,9 @@ import type {
   TriggerMeta,
   Usage,
 } from "../contract";
-import { buildCCMessages, type CCTool } from "../io/chat-completions";
 import { type ChatRequest, streamChat } from "../io/chat-client";
-import { selectSendSuffix, type ChatHistoryEntry } from "../io/chat-history-store";
+import { buildCCMessages, type CCTool } from "../io/chat-completions";
+import { type ChatHistoryEntry, selectSendSuffix } from "../io/chat-history-store";
 import type { Logger } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
@@ -387,7 +387,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
   /** screenshot(있으면 먼저) + user_images 순서로 이미지 data URL을 모은다. */
   function imageDataUrlsOf(ctx: InputContext): string[] {
-    return [...(ctx.screenshot?.data_url ? [ctx.screenshot.data_url] : []), ...(ctx.user_images ?? [])];
+    return [
+      ...(ctx.screenshot?.data_url ? [ctx.screenshot.data_url] : []),
+      ...(ctx.user_images ?? []),
+    ];
   }
 
   /**
