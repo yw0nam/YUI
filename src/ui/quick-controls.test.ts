@@ -3839,12 +3839,16 @@ describe("createQuickControls — sections rail collapse", () => {
         defaultUrl: "/vrms/carlotta.vrm",
       }),
       swapVrm: vi.fn(async () => {}),
+      importVrm: vi.fn(async () => {}),
+      removeUserVrm: vi.fn(async () => {}),
       speakerSelection: createSpeakerSelection({
         available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
         defaultId: "natsume",
       }),
       swapSpeaker: vi.fn(async () => {}),
       refreshSpeaker: vi.fn(async () => {}),
+      importVoice: vi.fn(async () => {}),
+      removeUserVoice: vi.fn(async () => {}),
       ...extra,
     });
   }
