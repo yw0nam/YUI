@@ -171,11 +171,18 @@ export async function selectFetch(): Promise<typeof globalThis.fetch | undefined
 /**
  * baseURL 선택. Tauri는 cors-fetch로 절대 URL을 그대로 쓴다. dev web은 같은 출처
  * `/__hermes` 프록시 마운트로 다시 써 CORS preflight를 피한다. prod web/출처 없음은 그대로.
+ *
+ * Chat Completions mode(chatApi==="chat_completions")는 이 재작성을 항상 건너뛴다 — `/__hermes`는
+ * Responses 백엔드로 고정 프록시되어, CC 요청이 사용자가 설정한 chat_base_url 대신 조용히
+ * 엉뚱한 서버로 가는 사고를 막는다(CC 서버는 자체 CORS를 제공하거나 로컬 개발 옵션을 갖는다).
  */
 export function selectChatBaseUrl(
   configuredBaseUrl: string,
   env?: { isTauri?: boolean; isDev?: boolean; origin?: string },
+  chatApi?: EndpointsConfig["chat_api"],
 ): string {
+  if (chatApi === "chat_completions") return configuredBaseUrl;
+
   const isTauri = env?.isTauri ?? !!(globalThis as any).__TAURI_INTERNALS__;
   const isDev = env?.isDev ?? (import.meta as any).env?.DEV;
   const origin = env?.origin ?? (globalThis as any).location?.origin;
@@ -209,7 +216,7 @@ export async function* streamChat(
   // SDK는 baseURL 뒤에 /responses를 자체 append하므로 baseURL은 API root(예: .../v1)다.
   // apiKey 미지정 시 무인증 placeholder.
   const clientOpts: ConstructorParameters<typeof OpenAI>[0] = {
-    baseURL: selectChatBaseUrl(config.chat_base_url),
+    baseURL: selectChatBaseUrl(config.chat_base_url, undefined, config.chat_api),
     apiKey: opts.apiKey ?? "yui-local-placeholder",
     dangerouslyAllowBrowser: true,
   };
