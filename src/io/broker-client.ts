@@ -12,6 +12,7 @@
  */
 
 import type { AppConfig } from "../config/load";
+import type { MotionRegistry } from "../contract";
 import { createLogger, type Logger } from "../logger";
 
 export interface BrokerVocab {
@@ -308,8 +309,22 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
 }
 
 /**
+ * Motion keys the agent may trigger via generate_express/motion cues — excludes reactive, ambient,
+ * and `broker_publish:false` entries. Shared by the broker payload and the CC generate_express
+ * tool's motion_id enum, so both stay in lockstep with the same registry.
+ */
+export function agentTriggerableMotionIds(motions: MotionRegistry): string[] {
+  return Object.entries(motions)
+    .filter(
+      ([, entry]) =>
+        entry.kind !== "reactive" && entry.kind !== "ambient" && entry.broker_publish !== false,
+    )
+    .map(([id]) => id);
+}
+
+/**
  * Pure derivation of the broker payload from loaded config. emotion ids = registry keys; motion ids
- * = agent-triggerable motion keys, excluding reactive, ambient, and `broker_publish:false` entries.
+ * = agent-triggerable motion keys (see agentTriggerableMotionIds).
  * emotion_text mode follows the TTS provider: irodori ⇒ enum with the supplied table; anything else
  * ⇒ free/null. irodori with a missing table falls back to free/null with a warn rather than crashing.
  */
@@ -320,12 +335,7 @@ export function deriveBrokerPayload(
 ): BrokerPayload {
   const log = logger ?? createLogger("broker-client");
   const emotionIds = Object.keys(cfg.emotionRegistry);
-  const motionIds = Object.entries(cfg.motions)
-    .filter(
-      ([, entry]) =>
-        entry.kind !== "reactive" && entry.kind !== "ambient" && entry.broker_publish !== false,
-    )
-    .map(([id]) => id);
+  const motionIds = agentTriggerableMotionIds(cfg.motions);
 
   let emotionText: BrokerPayload["emotionText"];
   if (cfg.endpoints.tts_provider === "irodori") {

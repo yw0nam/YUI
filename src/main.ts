@@ -41,7 +41,12 @@ import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settin
 import { createSttKeySettings, createTtsKeySettings } from "./io/api-key-settings";
 import { resolveAssetUrl } from "./io/asset-url";
 import { createWebAudioSink } from "./io/audio-player";
-import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
+import {
+  agentTriggerableMotionIds,
+  type BrokerClient,
+  createBrokerClient,
+  deriveBrokerPayload,
+} from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import {
   CAMERA_ORBIT_SENSITIVITY,
@@ -973,21 +978,15 @@ async function bootstrap(): Promise<void> {
     getPreviousResponseId: () => sessionStore.get() ?? undefined,
     onResponseId: (id) => sessionStore.set(id),
     transcript: chatHistoryStore,
-    // CC 모드 generate_express tool 스냅샷 — emotion/motion id 열거는 deriveBrokerPayload와
-    // 동일한 규칙(agent-triggerable만: reactive/ambient/broker_publish:false 제외).
+    // CC 모드 generate_express tool 스냅샷 — motion id 열거는 deriveBrokerPayload와 같은
+    // 공유 규칙(agentTriggerableMotionIds)을 쓴다.
     getExpressTool: () => {
       try {
         const cfg = config.get();
-        const emotionIds = Object.keys(cfg.emotionRegistry);
-        const motionIds = Object.entries(cfg.motions)
-          .filter(
-            ([, entry]) =>
-              entry.kind !== "reactive" &&
-              entry.kind !== "ambient" &&
-              entry.broker_publish !== false,
-          )
-          .map(([id]) => id);
-        return buildExpressTool(emotionIds, motionIds);
+        return buildExpressTool(
+          Object.keys(cfg.emotionRegistry),
+          agentTriggerableMotionIds(cfg.motions),
+        );
       } catch {
         return undefined;
       }
