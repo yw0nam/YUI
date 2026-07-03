@@ -10,9 +10,12 @@
 `emotion_text` is the **voice/TTS control channel** of `generate_express` — an
 independent channel from `emotion_id` (the VRM face blendshape). A happy face
 (`emotion_id`) and a whispered voice (`emotion_text`) can fire at the same time.
-The Hermes agent produces `emotion_text`; YUI consumes whatever arrives on the
-`/v1/responses` stream and prepends it to the TTS segment (prefix-only — never
-shown in the speech bubble). The `generate_express` cue contract that carries
+The model behind the active chat endpoint produces `emotion_text` via a
+`generate_express` tool call; YUI consumes whatever arrives — from the
+`/v1/responses` stream in Responses mode, or identically from
+`chat.completion.chunk` tool-call deltas in Chat Completions mode — and
+prepends it to the TTS segment (prefix-only — never shown in the speech
+bubble). The `generate_express` cue contract that carries
 `emotion_text` is described in
 [`backend-contract.md`](../backend-contract.md);
 the control envelope shape lives in
@@ -37,7 +40,10 @@ re-publish the broker's `emotion_text` gate via
   `update_emotion_text("free", null)`. Pass-through, no validation.
 
 The broker keeps this state in-memory and ephemeral, so YUI re-publishes on
-every boot and on every broker reconnect.
+every boot and on every broker reconnect. This publish (and re-publish on
+provider switch) is gated only on `broker_base_url` and runs independent of
+`chat_api` — Chat Completions mode publishes and is read back by its backend
+agent exactly like Responses mode.
 
 ## Adding a new provider
 

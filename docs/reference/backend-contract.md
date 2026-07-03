@@ -1,5 +1,12 @@
 # Backend Agent ↔ Broker Interaction
 
+This contract applies to both chat protocols YUI supports (`chat_api` in
+`configs/endpoints.json`). The sections below describe Responses mode; Chat
+Completions mode carries the same `client_context` shape and the same
+one-way `generate_express` cue, over a different transport — see
+[CC mode transport](#cc-mode-transport-chat-completions) at the end of this
+doc for the deltas.
+
 ## Per-turn client context (client → agent)
 
 Each turn the client sends a Responses API request with two inputs followed by `instructions` (static persona/global rules, config-driven). The inputs are:
@@ -403,3 +410,23 @@ Use the broker tool that returns valid ids before choosing values.
 It is an error. Do not call `generate_express` with no arguments.
 
 To keep the sentence neutral, stream the text without calling `generate_express`.
+
+## CC mode transport (Chat Completions)
+
+In Chat Completions mode (`chat_api: "chat_completions"`) the same two-input
+`client_context` + user layout above is sent as the CC `messages` array
+instead of Responses `input[]`: a `system` message with the persona/global
+instructions (if configured), a `system` message with `client_context: <JSON>`
+(same shape as above), the trimmed conversation transcript, then the `user`
+message.
+
+`generate_express` arrives as `chat.completion.chunk` tool-call deltas
+(`delta.tool_calls[].function.arguments`, accumulated per call index) instead
+of `response.output_item.*` events, but the cue stays one-way in both
+modes — the client declares no tool of its own, runs no client-side
+tool-call round trip, and never returns a tool result for the call. The
+backend agent behind the Chat Completions endpoint reads the broker via
+`get_ids` exactly as a Responses-mode backend agent does, and is expected to
+already know the `generate_express` contract (handed to it per
+[the setup guide](../guide/getting-started.md#4-chat-protocol--backend-agent-or-direct-endpoint))
+rather than discovering it from a client-declared JSON-schema tool.
