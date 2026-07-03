@@ -3,8 +3,10 @@
  *
  * 검증 대상: config.chat_api === "chat_completions" 일 때 streamChat이
  *   client.chat.completions.create({ stream: true, stream_options: { include_usage: true } })
- * 를 호출하고, `chat.completion.chunk` 스트림을 chat-completions.ts의 createChunkReducer를 통해
- * ChatStreamEvent로 매핑하며, finish_reason "tool_calls"에서 tool 왕복 루프(cap 4)를 도는지.
+ * 를 정확히 한 번 호출하고(tools 없음, 왕복 없음), `chat.completion.chunk` 스트림을
+ * chat-completions.ts의 createChunkReducer를 통해 ChatStreamEvent로 매핑하는지. generate_express는
+ * 서버(backend agent)가 emit하는 ONE-WAY cue — client는 tool을 선언하지 않고, 파싱만 하며,
+ * 결과를 되돌려보내지 않는다.
  *
  * D-CHAT-SDK와 동일 원칙: fetch/SSE를 mock하지 않는다. `openai` 모듈을 mock한다.
  */
@@ -106,26 +108,19 @@ describe("streamChat — Chat Completions text streaming", () => {
     expect(ccCreateMock).toHaveBeenCalledOnce();
   });
 
-  it("calls chat.completions.create with messages/tools/stream/stream_options verbatim", async () => {
+  it("calls chat.completions.create with messages/stream/stream_options verbatim; no tools field", async () => {
     ccCreateMock.mockResolvedValueOnce(streamOf([finishChunk("stop")]));
-    const tools = [{ type: "function", function: { name: "generate_express" } }] as any;
     const messages = [{ role: "user", content: "hi" }] as any;
 
-    await collect(streamChat(CONFIG, req({ messages, tools })));
+    await collect(streamChat(CONFIG, req({ messages })));
 
     const [body, options] = ccCreateMock.mock.calls[0];
     expect(body.model).toBe("test-model");
     expect(body.messages).toEqual(messages);
-    expect(body.tools).toBe(tools);
+    expect(body.tools).toBeUndefined();
     expect(body.stream).toBe(true);
     expect(body.stream_options).toEqual({ include_usage: true });
     expect(options?.signal).toBeUndefined();
-  });
-
-  it("omits tools when request.tools is absent/empty", async () => {
-    ccCreateMock.mockResolvedValueOnce(streamOf([finishChunk("stop")]));
-    await collect(streamChat(CONFIG, req({ tools: undefined })));
-    expect(ccCreateMock.mock.calls[0][0].tools).toBeUndefined();
   });
 
   it("sends top-level reasoning_effort only when request.reasoning_effort is set", async () => {
@@ -149,29 +144,31 @@ describe("streamChat — Chat Completions text streaming", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// generate_express capture
+// generate_express capture — one-way parse, single POST, no round-trip
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("streamChat — Chat Completions generate_express capture", () => {
-  it("a fragmented tool call finalized by finish_reason tool_calls -> express event, then re-request; next round's text turn completes", async () => {
-    ccCreateMock
-      .mockResolvedValueOnce(
-        streamOf([
-          toolCallStart(0, "call_1", "generate_express", ""),
-          toolCallArgs(0, GEN_EXPRESS_ARGS),
-          finishChunk("tool_calls"),
-        ]),
-      )
-      .mockResolvedValueOnce(streamOf([textChunk("Hi there"), finishChunk("stop")]));
+  it("interleaved text -> express cue -> text in ONE stream: single create() call, no tools", async () => {
+    ccCreateMock.mockResolvedValueOnce(
+      streamOf([
+        textChunk("Hi "),
+        toolCallStart(0, "call_1", "generate_express", ""),
+        toolCallArgs(0, GEN_EXPRESS_ARGS),
+        finishChunk("tool_calls"), // flushes the buffered call mid-stream; does NOT stop reading
+        textChunk("there"),
+        finishChunk("stop"),
+      ]),
+    );
 
     const events = await collect(streamChat(CONFIG, req()));
 
     expect(events).toEqual([
+      { type: "speech_delta", text: "Hi " },
       {
         type: "express",
         args: { emotion_id: "happy", motion_id: "embarrassed", emotion_text: "[whisper]" },
       },
-      { type: "speech_delta", text: "Hi there" },
+      { type: "speech_delta", text: "there" },
       { type: "speech_done", text: "Hi there" },
       {
         type: "completed",
@@ -184,18 +181,17 @@ describe("streamChat — Chat Completions generate_express capture", () => {
         responseId: "",
       },
     ]);
-    expect(ccCreateMock).toHaveBeenCalledTimes(2);
+    expect(ccCreateMock).toHaveBeenCalledTimes(1);
+    expect(ccCreateMock.mock.calls[0][0].tools).toBeUndefined();
   });
 
-  it("recognizes an MCP-namespaced mcp_<server>_generate_express tool name", async () => {
-    ccCreateMock
-      .mockResolvedValueOnce(
-        streamOf([
-          toolCallStart(0, "call_1", "mcp_hermes_generate_express", GEN_EXPRESS_ARGS),
-          finishChunk("tool_calls"),
-        ]),
-      )
-      .mockResolvedValueOnce(streamOf([finishChunk("stop")]));
+  it("recognizes an MCP-namespaced mcp_<server>_generate_express tool name — one call", async () => {
+    ccCreateMock.mockResolvedValueOnce(
+      streamOf([
+        toolCallStart(0, "call_1", "mcp_hermes_generate_express", GEN_EXPRESS_ARGS),
+        finishChunk("stop"),
+      ]),
+    );
 
     const events = await collect(streamChat(CONFIG, req()));
 
@@ -203,66 +199,31 @@ describe("streamChat — Chat Completions generate_express capture", () => {
       type: "express",
       args: { emotion_id: "happy", motion_id: "embarrassed", emotion_text: "[whisper]" },
     });
+    expect(ccCreateMock).toHaveBeenCalledTimes(1);
   });
 
-  it("appends the assistant tool_calls message + a role:tool 'ok' result before re-requesting", async () => {
-    ccCreateMock
-      .mockResolvedValueOnce(
-        streamOf([
-          toolCallStart(0, "call_1", "generate_express", GEN_EXPRESS_ARGS),
-          finishChunk("tool_calls"),
-        ]),
-      )
-      .mockResolvedValueOnce(streamOf([finishChunk("stop")]));
+  it("malformed generate_express JSON -> error event, one call, messages untouched", async () => {
+    const messages = [{ role: "user", content: "hi" }] as any;
+    ccCreateMock.mockResolvedValueOnce(
+      streamOf([
+        toolCallStart(0, "call_1", "generate_express", "{not valid json"),
+        finishChunk("stop"),
+      ]),
+    );
 
-    await collect(streamChat(CONFIG, req({ messages: [{ role: "user", content: "hi" }] as any })));
-
-    const secondCallMessages = ccCreateMock.mock.calls[1][0].messages;
-    expect(secondCallMessages).toEqual([
-      { role: "user", content: "hi" },
-      {
-        role: "assistant",
-        content: null,
-        tool_calls: [
-          {
-            id: "call_1",
-            type: "function",
-            function: { name: "generate_express", arguments: GEN_EXPRESS_ARGS },
-          },
-        ],
-      },
-      { role: "tool", tool_call_id: "call_1", content: "ok" },
-    ]);
-  });
-
-  it("malformed generate_express JSON -> error event, still loops (tool result appended)", async () => {
-    ccCreateMock
-      .mockResolvedValueOnce(
-        streamOf([
-          toolCallStart(0, "call_1", "generate_express", "{not valid json"),
-          finishChunk("tool_calls"),
-        ]),
-      )
-      .mockResolvedValueOnce(streamOf([finishChunk("stop")]));
-
-    const events = await collect(streamChat(CONFIG, req()));
+    const events = await collect(streamChat(CONFIG, req({ messages })));
 
     expect(events[0].type).toBe("error");
-    expect(ccCreateMock).toHaveBeenCalledTimes(2);
-    const secondCallMessages = ccCreateMock.mock.calls[1][0].messages;
-    expect(secondCallMessages.at(-1)).toEqual({
-      role: "tool",
-      tool_call_id: "call_1",
-      content: "ok",
-    });
+    expect(ccCreateMock).toHaveBeenCalledTimes(1);
+    // no assistant/tool result appended — same array, same contents.
+    expect(messages).toEqual([{ role: "user", content: "hi" }]);
+    expect(ccCreateMock.mock.calls[0][0].messages).toBe(messages);
   });
 
-  it("a non-express tool call yields tool_status done (not express), still loops", async () => {
-    ccCreateMock
-      .mockResolvedValueOnce(
-        streamOf([toolCallStart(0, "call_2", "get_ids", "{}"), finishChunk("tool_calls")]),
-      )
-      .mockResolvedValueOnce(streamOf([finishChunk("stop")]));
+  it("a non-express tool call yields tool_status done (not express), one call", async () => {
+    ccCreateMock.mockResolvedValueOnce(
+      streamOf([toolCallStart(0, "call_2", "get_ids", "{}"), finishChunk("stop")]),
+    );
 
     const events = await collect(streamChat(CONFIG, req()));
 
@@ -271,55 +232,25 @@ describe("streamChat — Chat Completions generate_express capture", () => {
       status: { state: "done", tool_id: "get_ids" },
     });
     expect(events.some((e) => e.type === "express")).toBe(false);
+    expect(ccCreateMock).toHaveBeenCalledTimes(1);
   });
 
-  it("two parallel tool calls in one round both finalize and both get tool results", async () => {
-    ccCreateMock
-      .mockResolvedValueOnce(
-        streamOf([
-          toolCallStart(0, "call_a", "generate_express", GEN_EXPRESS_ARGS),
-          toolCallStart(1, "call_b", "get_ids", "{}"),
-          finishChunk("tool_calls"),
-        ]),
-      )
-      .mockResolvedValueOnce(streamOf([finishChunk("stop")]));
-
-    await collect(streamChat(CONFIG, req()));
-
-    const secondCallMessages = ccCreateMock.mock.calls[1][0].messages;
-    const assistantMsg = secondCallMessages.find((m: any) => m.role === "assistant");
-    expect(assistantMsg.tool_calls.map((tc: any) => tc.id)).toEqual(["call_a", "call_b"]);
-    const toolResults = secondCallMessages.filter((m: any) => m.role === "tool");
-    expect(toolResults).toEqual([
-      { role: "tool", tool_call_id: "call_a", content: "ok" },
-      { role: "tool", tool_call_id: "call_b", content: "ok" },
-    ]);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// tool-call loop cap
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("streamChat — Chat Completions tool-call loop cap", () => {
-  it("caps the tool round-trip loop at 4 requests and still finalizes", async () => {
-    const toolOnlyRound = () =>
+  it("parallel express + non-express tool_calls in one stream -> one express + one tool_status, one call, no appended messages", async () => {
+    const messages = [{ role: "user", content: "hi" }] as any;
+    ccCreateMock.mockResolvedValueOnce(
       streamOf([
-        toolCallStart(0, "call_x", "generate_express", GEN_EXPRESS_ARGS),
-        finishChunk("tool_calls"),
-      ]);
-    ccCreateMock
-      .mockResolvedValueOnce(toolOnlyRound())
-      .mockResolvedValueOnce(toolOnlyRound())
-      .mockResolvedValueOnce(toolOnlyRound())
-      .mockResolvedValueOnce(toolOnlyRound());
+        toolCallStart(0, "call_a", "generate_express", GEN_EXPRESS_ARGS),
+        toolCallStart(1, "call_b", "get_ids", "{}"),
+        finishChunk("stop"),
+      ]),
+    );
 
-    const events = await collect(streamChat(CONFIG, req()));
+    const events = await collect(streamChat(CONFIG, req({ messages })));
 
-    expect(ccCreateMock).toHaveBeenCalledTimes(4);
-    const completedEvent = events.find((e) => e.type === "completed");
-    expect(completedEvent).toBeDefined();
-    expect(events.find((e) => e.type === "speech_done")).toEqual({ type: "speech_done", text: "" });
+    expect(events.filter((e) => e.type === "express")).toHaveLength(1);
+    expect(events.filter((e) => e.type === "tool_status")).toHaveLength(1);
+    expect(ccCreateMock).toHaveBeenCalledTimes(1);
+    expect(messages).toEqual([{ role: "user", content: "hi" }]);
   });
 });
 

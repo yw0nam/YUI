@@ -1,11 +1,11 @@
 /**
- * Pure Chat Completions helpers: request-message builders, the client-declared
- * generate_express tool schema, and a streaming chunk reducer that normalizes
- * `chat.completion.chunk` deltas into renderer-agnostic items. No openai client
- * import, no import from chat-client.ts (chat-client imports from here).
+ * Pure Chat Completions helpers: request-message builders and a streaming chunk
+ * reducer that normalizes `chat.completion.chunk` deltas into renderer-agnostic
+ * items. No openai client import, no import from chat-client.ts (chat-client
+ * imports from here).
  */
 
-import type { ExpressArgs, Usage } from "../contract";
+import type { Usage } from "../contract";
 import type { ChatHistoryEntry } from "./chat-history-store";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -52,43 +52,6 @@ export function buildCCMessages(opts: BuildCCMessagesOpts): CCMessage[] {
   messages.push({ role: "user", content: userContent });
 
   return messages;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// generate_express tool schema (client-declared, CC mode only)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface CCTool {
-  type: "function";
-  function: {
-    name: "generate_express";
-    description: string;
-    parameters: {
-      type: "object";
-      properties: Record<string, { type: "string"; enum?: string[] }>;
-      additionalProperties: false;
-    };
-  };
-}
-
-export function buildExpressTool(emotionIds: string[], motionIds: string[]): CCTool {
-  return {
-    type: "function",
-    function: {
-      name: "generate_express",
-      description:
-        "Sets the expression cue — facial emotion, body motion, and voice tone — for the sentence that follows. Call it between sentences; a cue applies only to the next segment and does not persist across sentences.",
-      parameters: {
-        type: "object",
-        properties: {
-          emotion_id: { type: "string", enum: emotionIds },
-          motion_id: { type: "string", enum: motionIds },
-          emotion_text: { type: "string" },
-        } satisfies Record<keyof ExpressArgs, { type: "string"; enum?: string[] }>,
-        additionalProperties: false,
-      },
-    },
-  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

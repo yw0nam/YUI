@@ -60,7 +60,7 @@ import type {
   ToolStatus,
   Usage,
 } from "../contract";
-import { type CCMessage, type CCTool, createChunkReducer } from "./chat-completions";
+import { type CCMessage, createChunkReducer } from "./chat-completions";
 
 /** 스트림 파싱 중 client로 흘리는 증분 이벤트. */
 export type ChatStreamEvent =
@@ -142,8 +142,6 @@ export interface ChatRequest {
   signal?: AbortSignal;
   /** Chat Completions mode: 사전 조립된 messages(chat-completions.buildCCMessages). config.chat_api==="chat_completions"일 때 사용. */
   messages?: CCMessage[];
-  /** Chat Completions mode: client가 선언하는 tools(chat-completions.buildExpressTool). */
-  tools?: CCTool[];
 }
 
 export interface StreamChatOptions {
@@ -395,150 +393,106 @@ export async function* streamChat(
   }
 }
 
-/** Chat Completions 왕복에서 한 tool call의 finalize 결과. */
-interface FinalizedToolCall {
-  id: string | undefined;
-  name: string;
-  argsJson: string;
-}
-
-// ponytail: hard cap against a runaway tool-call loop (design doc §"Tool-call turn loop").
-const MAX_TOOL_ROUNDS = 4;
-
-/** finish_reason==="tool_calls" 왕복을 위해 messages에 이어붙일 두 메시지(assistant tool_calls + 결과들). */
-function appendToolRoundMessages(messages: unknown[], calls: FinalizedToolCall[]): void {
-  messages.push({
-    role: "assistant",
-    content: null,
-    tool_calls: calls.map((c, i) => ({
-      id: c.id ?? `call_${i}`,
-      type: "function",
-      function: { name: c.name, arguments: c.argsJson },
-    })),
-  });
-  for (const c of calls) {
-    messages.push({ role: "tool", tool_call_id: c.id ?? "", content: "ok" });
-  }
-}
-
 /**
  * Chat Completions API 스트림 호출 — `client.chat.completions.create({ stream: true })`.
  *
- * request.messages/tools는 caller(backend-caller)가 chat-completions.ts의 buildCCMessages/
- * buildExpressTool로 미리 조립한다 — 여기서는 그대로 전달만 한다(브랜치 로직 없음).
+ * ONE-WAY parse: request.messages는 caller(backend-caller)가 chat-completions.ts의
+ * buildCCMessages로 미리 조립한다 — 여기서는 그대로 전달만 한다(브랜치 로직 없음). 서버가
+ * publish된 broker vocabulary를 읽어 generate_express를 emit하고, 이 함수는 그 tool_call을
+ * 스트림에서 파싱만 한다 — client는 tool을 선언하지 않고, 결과를 되돌려보내지도 않는다
+ * (단일 POST, 왕복 없음).
  *
- * 스트림 청크는 chat-completions.createChunkReducer로 정규화한다. finish_reason이
- * "tool_calls"면 assistant tool_calls 메시지 + role:"tool" "ok" 결과를 이어붙이고 재요청한다
- * (텍스트 턴이 나올 때까지, 최대 MAX_TOOL_ROUNDS회 — 이후엔 지금까지의 상태로 마무리한다).
+ * 스트림 청크는 chat-completions.createChunkReducer로 정규화한다. tool_call은 스트림 중
+ * 도착 즉시 인라인으로 처리(express → express event, 그 외 → tool_status done) — finish_reason은
+ * 더 이상 분기에 쓰이지 않는다(왕복이 없으므로 actionable하지 않다).
  */
 async function* streamChatCompletions(
   client: OpenAI,
   config: EndpointsConfig,
   request: ChatRequest,
 ): AsyncGenerator<ChatStreamEvent> {
+  if (request.signal?.aborted) return;
+
   let speech_text = "";
   let express: ExpressArgs | undefined;
-  const emittedExpressKeys = new Set<string>();
-  const messages: unknown[] = [...(request.messages ?? [])];
 
-  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    if (request.signal?.aborted) return;
-
-    let stream: AsyncIterable<any>;
-    try {
-      stream = (await client.chat.completions.create(
-        {
-          ...(config.chat_model ? { model: config.chat_model } : {}),
-          messages: messages as any,
-          ...(request.tools?.length ? { tools: request.tools } : {}),
-          ...(request.reasoning_effort ? { reasoning_effort: request.reasoning_effort } : {}),
-          stream: true,
-          stream_options: { include_usage: true },
-        } as any,
-        { signal: request.signal },
-      )) as unknown as AsyncIterable<any>;
-    } catch (err) {
-      if (!request.signal?.aborted) {
-        yield {
-          type: "error",
-          message: `chat request failed: ${err instanceof Error ? err.message : String(err)}`,
-        };
-      }
-      return;
-    }
-
-    const reducer = createChunkReducer();
-    let finishReason: string | undefined;
-    const toolCalls: FinalizedToolCall[] = [];
-
-    try {
-      for await (const chunk of stream) {
-        if (request.signal?.aborted) return;
-        for (const item of reducer.feed(chunk)) {
-          switch (item.kind) {
-            case "text":
-              speech_text += item.text;
-              yield { type: "speech_delta", text: item.text };
-              break;
-            case "tool_call":
-              toolCalls.push(item);
-              break;
-            case "usage":
-              yield {
-                type: "usage",
-                usage: {
-                  input_tokens: item.usage.input_tokens ?? 0,
-                  output_tokens: item.usage.output_tokens ?? 0,
-                  total_tokens: item.usage.total_tokens ?? 0,
-                },
-              };
-              break;
-            case "finish":
-              finishReason = item.reason;
-              break;
-          }
-        }
-      }
-    } catch {
-      // 스트림 도중 abort/네트워크 reject → 조용히 종료(Responses 분기와 동일 정책).
-      return;
-    }
-    // finish_reason 없이 스트림이 끝난 경우(비정상 종료) 미완료 버퍼를 드레인.
-    for (const item of reducer.finish()) {
-      if (item.kind === "tool_call") toolCalls.push(item);
-    }
-
-    for (const call of toolCalls) {
-      if (isExpressTool(call.name)) {
-        const key = call.id ?? `round${round}`;
-        if (!emittedExpressKeys.has(key)) {
-          const result = parseExpressArgs(call.argsJson);
-          if ("args" in result) {
-            express = result.args;
-            emittedExpressKeys.add(key);
-            yield { type: "express", args: result.args };
-          } else {
-            yield { type: "error", message: result.error };
-          }
-        }
+  // The reducer flushes each tool_call exactly once (buffers clear on flush), so no dedup here.
+  function* handleToolCall(item: {
+    id: string | undefined;
+    name: string;
+    argsJson: string;
+  }): Generator<ChatStreamEvent> {
+    if (isExpressTool(item.name)) {
+      const result = parseExpressArgs(item.argsJson);
+      if ("args" in result) {
+        express = result.args;
+        yield { type: "express", args: result.args };
       } else {
-        yield { type: "tool_status", status: { state: "done", tool_id: call.name } };
+        yield { type: "error", message: result.error };
       }
+    } else {
+      yield { type: "tool_status", status: { state: "done", tool_id: item.name } };
     }
+  }
 
-    if (finishReason === "tool_calls" && toolCalls.length > 0) {
-      appendToolRoundMessages(messages, toolCalls);
-      continue;
+  let stream: AsyncIterable<any>;
+  try {
+    stream = (await client.chat.completions.create(
+      {
+        ...(config.chat_model ? { model: config.chat_model } : {}),
+        messages: (request.messages ?? []) as any,
+        ...(request.reasoning_effort ? { reasoning_effort: request.reasoning_effort } : {}),
+        stream: true,
+        stream_options: { include_usage: true },
+      } as any,
+      { signal: request.signal },
+    )) as unknown as AsyncIterable<any>;
+  } catch (err) {
+    if (!request.signal?.aborted) {
+      yield {
+        type: "error",
+        message: `chat request failed: ${err instanceof Error ? err.message : String(err)}`,
+      };
     }
-
-    yield { type: "speech_done", text: speech_text };
-    const envelope: ControlEnvelope = { speech_text };
-    normalizeExpressIntoEnvelope(envelope, express);
-    yield { type: "completed", envelope, responseId: "" };
     return;
   }
 
-  // MAX_TOOL_ROUNDS 도달 — 텍스트 턴 없이도 지금까지의 상태로 마무리한다.
+  const reducer = createChunkReducer();
+
+  try {
+    for await (const chunk of stream) {
+      if (request.signal?.aborted) return;
+      for (const item of reducer.feed(chunk)) {
+        switch (item.kind) {
+          case "text":
+            speech_text += item.text;
+            yield { type: "speech_delta", text: item.text };
+            break;
+          case "tool_call":
+            yield* handleToolCall(item);
+            break;
+          case "usage":
+            yield {
+              type: "usage",
+              usage: {
+                input_tokens: item.usage.input_tokens ?? 0,
+                output_tokens: item.usage.output_tokens ?? 0,
+                total_tokens: item.usage.total_tokens ?? 0,
+              },
+            };
+            break;
+        }
+      }
+    }
+  } catch {
+    // 스트림 도중 abort/네트워크 reject → 조용히 종료(Responses 분기와 동일 정책).
+    return;
+  }
+  // finish_reason 없이 스트림이 끝난 경우(비정상 종료) 미완료 버퍼를 드레인.
+  for (const item of reducer.finish()) {
+    if (item.kind === "tool_call") yield* handleToolCall(item);
+  }
+
   yield { type: "speech_done", text: speech_text };
   const envelope: ControlEnvelope = { speech_text };
   normalizeExpressIntoEnvelope(envelope, express);

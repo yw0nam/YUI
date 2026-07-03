@@ -3,14 +3,13 @@
  *
  * Pins the contract for src/io/chat-completions.ts:
  *   buildCCMessages(opts) -> CC messages array
- *   buildExpressTool(emotionIds, motionIds) -> CC tool definition
  *   createChunkReducer() -> { feed(chunk), finish() }
  *
  * This module must not import from chat-client.ts (chat-client imports from it).
  */
 
 import { describe, expect, it } from "vitest";
-import { buildCCMessages, buildExpressTool, createChunkReducer } from "./chat-completions";
+import { buildCCMessages, createChunkReducer } from "./chat-completions";
 import type { ChatHistoryEntry } from "./chat-history-store";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,41 +92,6 @@ describe("buildCCMessages", () => {
       imageDataUrls: [],
     });
     expect(msgs[msgs.length - 1]).toEqual({ role: "user", content: "hi" });
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// buildExpressTool
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("buildExpressTool", () => {
-  it("declares a single function tool named generate_express", () => {
-    const tool = buildExpressTool(["happy", "sad"], ["dance", "calm"]);
-    expect(tool.type).toBe("function");
-    expect(tool.function.name).toBe("generate_express");
-    expect(typeof tool.function.description).toBe("string");
-    expect(tool.function.description.length).toBeGreaterThan(0);
-  });
-
-  it("populates emotion_id/motion_id enums from inputs", () => {
-    const tool = buildExpressTool(["happy", "sad"], ["dance", "calm"]);
-    const props = tool.function.parameters.properties as any;
-    expect(props.emotion_id).toEqual({ type: "string", enum: ["happy", "sad"] });
-    expect(props.motion_id).toEqual({ type: "string", enum: ["dance", "calm"] });
-    expect(props.emotion_text).toEqual({ type: "string" });
-  });
-
-  it("marks the parameters object as flat with no additional properties", () => {
-    const tool = buildExpressTool([], []);
-    expect(tool.function.parameters.type).toBe("object");
-    expect(tool.function.parameters.additionalProperties).toBe(false);
-  });
-
-  it("empty id lists produce empty enums", () => {
-    const tool = buildExpressTool([], []);
-    const props = tool.function.parameters.properties as any;
-    expect(props.emotion_id.enum).toEqual([]);
-    expect(props.motion_id.enum).toEqual([]);
   });
 });
 

@@ -1,6 +1,6 @@
 # YUI — Hermes Integration
 
-Chat io has two protocol modes, selected by `chat_api` in `configs/endpoints.json`: `responses` (default), described below, routes to a backend agent such as Hermes over the OpenAI Responses API. `chat_completions` connects directly to any OpenAI-compatible Chat Completions endpoint — broker-independent, with the client declaring its own `generate_express` tool and threading the conversation transcript locally instead of via `previous_response_id`. The rest of this doc covers `responses` mode.
+Chat io has two protocol modes, selected by `chat_api` in `configs/endpoints.json`: `responses` (default), described below, routes to a backend agent such as Hermes over the OpenAI Responses API. `chat_completions` connects over the Chat Completions API to a backend agent honoring the same expression contract — broker-dependent exactly like `responses`, since the client declares no `generate_express` tool of its own and runs no client-side tool-call loop; the backend agent reads the broker via `get_ids` and emits cues as `generate_express` tool-calls in the stream either way. The only client-side deltas are the transport and threading the conversation transcript locally instead of via `previous_response_id`. The rest of this doc covers `responses` mode.
 
 Chat and STT use the **OpenAI-compatible API**; TTS depends on `tts_provider` (irodori is not OpenAI-compatible) and the broker is an MCP. Separate processes, all swappable via config:
 

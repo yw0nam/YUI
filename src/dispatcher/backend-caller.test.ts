@@ -14,7 +14,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope, EndpointsConfig, ExpressArgs, InputContext } from "../contract";
 import type { ChatStreamEvent } from "../io/chat-client";
-import type { CCTool } from "../io/chat-completions";
 import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { Logger } from "../logger";
 import type { BusEnvelope } from "./event-bus";
@@ -1612,16 +1611,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     return request.messages;
   }
 
-  const TOOL: CCTool = {
-    type: "function",
-    function: {
-      name: "generate_express",
-      description: "d",
-      parameters: { type: "object", properties: {}, additionalProperties: false },
-    },
-  };
-
-  it("builds request.messages (system client_context + transcript + user) + request.tools; no previous_response_id/instructions", async () => {
+  it("builds request.messages (system client_context + transcript + user); no tools/previous_response_id/instructions", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" }, "")];
     const transcriptEntries: ChatHistoryEntry[] = [
       { role: "user", text: "이전 질문", ts: 1 },
@@ -1634,7 +1624,6 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       getFetch: async () => undefined,
       onSpeech: speechSink,
       transcript: { get: () => transcriptEntries, append: vi.fn() },
-      getExpressTool: () => TOOL,
     });
     await caller.call(userEnv("오늘 뭐해?"));
     const [, request] = streamChatSpy.mock.calls[0];
@@ -1655,23 +1644,9 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       ]),
     );
     expect(msgs[msgs.length - 1]).toEqual({ role: "user", content: "오늘 뭐해?" });
-    expect(request.tools).toEqual([TOOL]);
+    expect("tools" in request).toBe(false);
     expect("previous_response_id" in request).toBe(false);
     expect("instructions" in request).toBe(false);
-  });
-
-  it("no getExpressTool dep → request.tools omitted", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" }, "")];
-    caller = createBackendCaller({
-      config: CC_CONFIG,
-      renderer: { applyDirective } as never,
-      getApiKey: async () => "k",
-      getFetch: async () => undefined,
-      onSpeech: speechSink,
-    });
-    await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
-    expect("tools" in request).toBe(false);
   });
 
   it("no transcript dep → messages still built with empty transcript (no crash)", async () => {

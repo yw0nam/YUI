@@ -30,7 +30,7 @@ import type {
   Usage,
 } from "../contract";
 import { type ChatRequest, streamChat } from "../io/chat-client";
-import { buildCCMessages, type CCTool } from "../io/chat-completions";
+import { buildCCMessages } from "../io/chat-completions";
 import { type ChatHistoryEntry, selectSendSuffix } from "../io/chat-history-store";
 import type { Logger } from "../logger";
 import { createLogger } from "../logger";
@@ -92,8 +92,6 @@ export interface BackendCallerDeps {
   getFiller?: () => boolean;
   /** 통합 대화 transcript — 두 프로토콜 모드 모두 완전히 성공한 턴 이후 append. CC 모드는 여기서 송신분도 뽑는다. */
   transcript?: { get(): ChatHistoryEntry[]; append(e: ChatHistoryEntry): void };
-  /** CC 모드 generate_express tool 스냅샷(chat-completions.buildExpressTool로 사전 조립, main.ts가 주입). */
-  getExpressTool?: () => CCTool | undefined;
   /** 구조화 로깅(없으면 backend_caller namespace logger). */
   logger?: Logger;
 }
@@ -506,8 +504,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           userText: ctx.user_text ?? PROACTIVE_MARKER,
           ...(imageDataUrls.length ? { imageDataUrls } : {}),
         });
-        const tool = deps.getExpressTool?.();
-        if (tool) request.tools = [tool];
       } else {
         startPreviousResponseId = deps.getPreviousResponseId?.();
         if (startPreviousResponseId) request.previous_response_id = startPreviousResponseId;

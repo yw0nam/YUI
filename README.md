@@ -19,11 +19,11 @@
 
 YUI is a VRM character that lives on your desktop — it renders the body, the
 voice, and the on-screen surfaces, and it leaves the thinking to a backend.
-It does not ship an embedded model. It plugs into either the
-[Hermes Agent](https://github.com/nousresearch/hermes-agent) (or any backend
-that speaks the OpenAI Responses API and honors YUI's expression contract),
-or, in Chat Completions mode, directly into any OpenAI-compatible Chat
-Completions endpoint with no backend agent involved — so the character is
+It does not ship an embedded model. It plugs into a backend agent that speaks
+either the OpenAI Responses API (the
+[Hermes Agent](https://github.com/nousresearch/hermes-agent), or any
+compatible backend) or, in Chat Completions mode, the OpenAI Chat Completions
+API — honoring YUI's expression contract in both cases — so the character is
 exactly as capable as whatever sits behind that connection.
 
 The character owns the screen; chrome stays out of the way and only appears when
@@ -32,15 +32,16 @@ there is something to show, then steps back.
 ## Features
 
 **Agent**
-- Two chat protocols, selected by `chat_api` in `configs/endpoints.json`: an
-  OpenAI Responses-API backend agent, or Chat Completions mode connecting
-  directly to any OpenAI-compatible endpoint (OpenAI, ollama, LM Studio, vLLM,
-  groq, OpenRouter, …) — no fixed embedded model either way
+- Two chat protocols, selected by `chat_api` in `configs/endpoints.json`: a
+  backend agent over the OpenAI Responses API, or over the OpenAI-compatible
+  Chat Completions API — a backend agent honoring YUI's expression contract
+  either way, no fixed embedded model
 - Emotion, motion, and voice cues arrive as structured `generate_express`
   tool-calls, never as inline tags in the text
-- In Responses mode, the Expression Broker (MCP) tells the backend agent which
-  emotions, motions, and voice tags this body can perform; in Chat Completions
-  mode the client declares the same tool itself and needs no broker
+- YUI publishes its emotion/motion/voice vocabulary to the Expression Broker
+  (MCP) in both chat modes, write-only and gated only on `broker_base_url`;
+  the backend agent behind either endpoint reads it back via `get_ids` and
+  emits cues as `generate_express` tool-calls
 
 **Voice & chat**
 - Speech input — Silero VAD + ONNX segment your voice, then an
@@ -136,18 +137,20 @@ base URLs live in `configs/endpoints.json`.
 - **Chat protocol** — selected via `chat_api` (default `responses`):
   - `responses` — routes to a backend agent (Hermes recommended) at
     `localhost:8643` `/v1/responses`
-  - `chat_completions` — connects directly to any OpenAI-compatible Chat
-    Completions endpoint; the client keeps the conversation transcript
-    client-side and declares its own `generate_express` tool, so no backend
-    agent or broker is involved
+  - `chat_completions` — connects over the Chat Completions API to a backend
+    agent honoring the same expression contract; the client keeps the
+    conversation transcript client-side (no `previous_response_id`) and
+    trims it to `chat_model_context_window` — the only client-side
+    differences from Responses mode
 - **STT** — `localhost:5517` `/audio/transcriptions`
 - **TTS** — selected via `tts_provider` (default `irodori`):
   - `irodori` — irodori_TTS at `localhost:8091` `/synthesize`, reference-voice
     based (per-speaker voices in `irodori_voices`)
   - `openai` — OpenAI-compatible `/audio/speech` at `localhost:8092`
-- **Expression Broker** — `localhost:3201/mcp` (streamable-http MCP, Responses
-  mode only); YUI publishes its emotion/motion/voice vocabulary for the agent
-  to read (skipped if unset)
+- **Expression Broker** — `localhost:3201/mcp` (streamable-http MCP); YUI
+  publishes its emotion/motion/voice vocabulary here in both chat modes,
+  gated only on `broker_base_url` (skipped if unset) — the backend agent
+  behind either endpoint reads it back via `get_ids`
 
 The client calls STT and TTS directly — they do not route through Hermes.
 
