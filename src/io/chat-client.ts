@@ -415,25 +415,20 @@ async function* streamChatCompletions(
 
   let speech_text = "";
   let express: ExpressArgs | undefined;
-  const emittedExpressKeys = new Set<string>();
-  let toolCallCounter = 0;
 
+  // The reducer flushes each tool_call exactly once (buffers clear on flush), so no dedup here.
   function* handleToolCall(item: {
     id: string | undefined;
     name: string;
     argsJson: string;
   }): Generator<ChatStreamEvent> {
     if (isExpressTool(item.name)) {
-      const key = item.id ?? `call${toolCallCounter++}`;
-      if (!emittedExpressKeys.has(key)) {
-        const result = parseExpressArgs(item.argsJson);
-        if ("args" in result) {
-          express = result.args;
-          emittedExpressKeys.add(key);
-          yield { type: "express", args: result.args };
-        } else {
-          yield { type: "error", message: result.error };
-        }
+      const result = parseExpressArgs(item.argsJson);
+      if ("args" in result) {
+        express = result.args;
+        yield { type: "express", args: result.args };
+      } else {
+        yield { type: "error", message: result.error };
       }
     } else {
       yield { type: "tool_status", status: { state: "done", tool_id: item.name } };
