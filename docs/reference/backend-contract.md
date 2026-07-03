@@ -428,5 +428,5 @@ tool-call round trip, and never returns a tool result for the call. The
 backend agent behind the Chat Completions endpoint reads the broker via
 `get_ids` exactly as a Responses-mode backend agent does, and is expected to
 already know the `generate_express` contract (handed to it per
-[the setup guide](../guide/getting-started.md#4-chat-protocol--backend-agent-or-direct-endpoint))
+[the setup guide](../guide/getting-started.md#4-chat-protocol--backend-agent-responses-or-chat-completions))
 rather than discovering it from a client-declared JSON-schema tool.

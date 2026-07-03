@@ -19,7 +19,7 @@ YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I
 
 Stand up every required component first; add the optional ones when you want voice or extended capabilities.
 
-YUI selects the chat protocol with the `chat_api` key in `configs/endpoints.json`: **Responses mode** (`"responses"`, the default) and **Chat Completions mode** (`"chat_completions"`) both need the Expression MCP Broker and a backend agent, as above — the backend agent behind either endpoint reads the broker via `get_ids` and emits cues as `generate_express` tool-calls. The only client-side differences in Chat Completions mode are the transport (the Chat Completions API instead of the Responses API) and conversation threading (the client keeps the transcript itself, trimmed to `chat_model_context_window`, instead of relying on `previous_response_id`). See [section 4](#4-chat-protocol--backend-agent-or-direct-endpoint) for both paths.
+YUI selects the chat protocol with the `chat_api` key in `configs/endpoints.json`: **Responses mode** (`"responses"`, the default) and **Chat Completions mode** (`"chat_completions"`) both need the Expression MCP Broker and a backend agent, as above — the backend agent behind either endpoint reads the broker via `get_ids` and emits cues as `generate_express` tool-calls. The only client-side differences in Chat Completions mode are the transport (the Chat Completions API instead of the Responses API) and conversation threading (the client keeps the transcript itself, trimmed to `chat_model_context_window`, instead of relying on `previous_response_id`). See [section 4](#4-chat-protocol--backend-agent-responses-or-chat-completions) for both paths.
 
 ---
 
@@ -77,7 +77,7 @@ The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary s
 
 ---
 
-## 4. Chat Protocol — Backend Agent or Direct Endpoint
+## 4. Chat Protocol — Backend Agent (Responses or Chat Completions)
 
 YUI supports two chat protocols, selected by the `chat_api` key in `configs/endpoints.json`.
 
