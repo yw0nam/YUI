@@ -41,12 +41,7 @@ import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settin
 import { createSttKeySettings, createTtsKeySettings } from "./io/api-key-settings";
 import { resolveAssetUrl } from "./io/asset-url";
 import { createWebAudioSink } from "./io/audio-player";
-import {
-  agentTriggerableMotionIds,
-  type BrokerClient,
-  createBrokerClient,
-  deriveBrokerPayload,
-} from "./io/broker-client";
+import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import {
   CAMERA_ORBIT_SENSITIVITY,
@@ -57,7 +52,6 @@ import {
   localStorageCameraStorage,
 } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
-import { buildExpressTool } from "./io/chat-completions";
 import { createChatHistoryStore, localStorageChatHistoryStorage } from "./io/chat-history-store";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
 import {
@@ -978,19 +972,6 @@ async function bootstrap(): Promise<void> {
     getPreviousResponseId: () => sessionStore.get() ?? undefined,
     onResponseId: (id) => sessionStore.set(id),
     transcript: chatHistoryStore,
-    // CC 모드 generate_express tool 스냅샷 — motion id 열거는 deriveBrokerPayload와 같은
-    // 공유 규칙(agentTriggerableMotionIds)을 쓴다.
-    getExpressTool: () => {
-      try {
-        const cfg = config.get();
-        return buildExpressTool(
-          Object.keys(cfg.emotionRegistry),
-          agentTriggerableMotionIds(cfg.motions),
-        );
-      } catch {
-        return undefined;
-      }
-    },
     onUsage: (usage) => {
       sessionDiagnostics.setUsage(
         usage.total_tokens,
