@@ -42,11 +42,14 @@ export interface DispatcherDeps {
   pumpIntervalMs?: number;
   /**
    * user-initiated 턴(user.text_submitted / user.voice_segment_ready)의 backend call 실패를
-   * 알린다 — superseded_by_user는 에러가 아니므로 제외. main.ts가 UI 에러 표면(showInputError /
-   * voice-input-indicator)으로 연결한다. proactive/schedule/github/agent 턴 실패는 로그만 남고
-   * 여기로 나오지 않는다(silent by design).
+   * source(어느 트리거였는지)와 함께 알린다 — superseded_by_user는 에러가 아니므로 제외.
+   * main.ts가 UI 에러 표면(showInputError / voice-input-indicator)으로 연결한다.
+   * proactive/schedule/github/agent 턴 실패는 로그만 남고 여기로 나오지 않는다(silent by design).
    */
-  onUserTurnFailed?: (reason: Exclude<DropReason, "superseded_by_user">) => void;
+  onUserTurnFailed?: (
+    reason: Exclude<DropReason, "superseded_by_user">,
+    source: UserTurnSource,
+  ) => void;
   /** 구조화 로깅(없으면 dispatcher namespace logger). */
   logger?: Logger;
 }
@@ -153,9 +156,14 @@ function classify(env: BusEnvelope): Classification {
   return { tier: (env.hint_tier ?? 3) as Tier, target: "drop" };
 }
 
-/** user-initiated 턴인지(§274 UI 에러 표면 대상 필터 — proactive/schedule/github/agent는 제외). */
-function isUserInitiated(env: BusEnvelope): boolean {
-  return env.event_name === "user.text_submitted" || env.event_name === "user.voice_segment_ready";
+/** user-initiated 턴의 소스(typed vs voice) — onUserTurnFailed 대상 필터 겸 라우팅 힌트.
+ * proactive/schedule/github/agent 등 그 외 트리거는 undefined(§274 UI 에러 표면 대상 아님). */
+export type UserTurnSource = "text" | "voice";
+
+function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
+  if (env.event_name === "user.text_submitted") return "text";
+  if (env.event_name === "user.voice_segment_ready") return "voice";
+  return undefined;
 }
 
 /**
@@ -296,7 +304,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
           if (res.drop_reason !== "superseded_by_user") {
             recordDrop(env, res.drop_reason);
             noteCallFailure();
-            if (isUserInitiated(env)) deps.onUserTurnFailed?.(res.drop_reason);
+            const source = userTurnSourceOf(env);
+            if (source) deps.onUserTurnFailed?.(res.drop_reason, source);
           }
         }
       })
@@ -305,7 +314,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         log.info("backend_call", { trigger: env.event_name, outcome: "network_drop" });
         recordDrop(env, "network_drop");
         noteCallFailure();
-        if (isUserInitiated(env)) deps.onUserTurnFailed?.("network_drop");
+        const source = userTurnSourceOf(env);
+        if (source) deps.onUserTurnFailed?.("network_drop", source);
       })
       .finally(() => {
         // 이 콜이 여전히 현재 in-flight일 때만 슬롯 해제(abort로 교체됐으면 건드리지 않음).

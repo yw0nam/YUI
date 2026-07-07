@@ -117,7 +117,7 @@ import {
 import { createMockDriver } from "./ui/mock";
 import { createQuickControls } from "./ui/quick-controls";
 import { createSurfaces } from "./ui/surfaces";
-import { turnErrorMessage } from "./ui/turn-error";
+import { routeTurnFailure, turnErrorMessage } from "./ui/turn-error";
 import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
 
@@ -677,6 +677,9 @@ async function bootstrap(): Promise<void> {
   // dispatcher는 config 로드 후 생성되므로(backend_caller가 config.get()에 의존), dev 인스펙션
   // 핸들이 참조할 수 있게 forward holder를 둔다.
   let dispatcherRef: Dispatcher | null = null;
+  // voice-turn 실패 error 표시(~3s) 되돌리기 타이머 — 겹친 실패가 이전 타이머를 남겨 더 늦은
+  // 표시를 일찍 끊지 않도록 재무장 전 항상 clearTimeout한다(dwellTimer/broadcastTimer와 동일 패턴).
+  let voiceTurnErrorTimer: ReturnType<typeof setTimeout> | null = null;
   // 발화 후보 소스 holder — teardown에서 stop하도록 둔다.
   let proactiveSourceRef: {
     stop(): void;
@@ -1037,19 +1040,25 @@ async function bootstrap(): Promise<void> {
       backendCaller,
       guardrails,
       // user-initiated 턴 실패만 표면화(proactive/schedule/github/agent는 로그만 — silent by design).
-      // 입력 폼이 열려 있으면 typed 턴으로 보고 showInputError, 닫혀 있으면 voice 턴으로 보고
-      // voice-input-indicator의 기존 error 상태를 잠깐 재사용한다(새 DOM 없음).
-      onUserTurnFailed: (reason) => {
+      // source(text/voice)로 라우팅한다 — isInputOpen()을 실패 시점에만 보고 판단하면 Escape로
+      // 중도 닫힌 typed 턴이 voice 표면으로 오배선될 수 있어, routeTurnFailure가 source를 우선한다.
+      onUserTurnFailed: (reason, source) => {
         const message = turnErrorMessage(reason);
         if (!message) return;
-        if (surfaces.isInputOpen()) {
+        const action = routeTurnFailure(source, surfaces.isInputOpen());
+        if (action.kind === "show_input_error") {
           surfaces.showInputError(message);
-          return;
+        } else if (action.kind === "voice_error") {
+          // voice-input-indicator의 기존 error 상태를 잠깐 재사용한다(새 DOM 없음). 겹친 실패가
+          // 이전 타이머로 새 표시를 일찍 끊지 않도록 재무장 전 clearTimeout.
+          if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
+          voiceInputStatus.set("error", reason);
+          voiceTurnErrorTimer = setTimeout(() => {
+            voiceTurnErrorTimer = null;
+            if (voiceInputStatus.get().state === "error") voiceInputStatus.set("listening");
+          }, VOICE_TURN_ERROR_DISPLAY_MS);
         }
-        voiceInputStatus.set("error", reason);
-        setTimeout(() => {
-          if (voiceInputStatus.get().state === "error") voiceInputStatus.set("listening");
-        }, VOICE_TURN_ERROR_DISPLAY_MS);
+        // action.kind === "none": typed 턴이 실패 도달 전 이미 닫혔다 — 로그만(dispatcher가 이미 남김).
       },
     });
     dispatcherRef = dispatcher;
@@ -1060,6 +1069,7 @@ async function bootstrap(): Promise<void> {
     if (import.meta.env.DEV) {
       import.meta.hot?.dispose(() => {
         dispatcher.stop();
+        if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
         proactiveSourceRef?.stop();
         scheduleSourceRef?.stop();
         githubSourceRef?.stop();

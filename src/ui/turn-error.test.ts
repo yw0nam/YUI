@@ -8,7 +8,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setLocale, t } from "./i18n";
-import { turnErrorMessage } from "./turn-error";
+import { routeTurnFailure, turnErrorMessage } from "./turn-error";
 
 describe("turnErrorMessage", () => {
   beforeEach(() => setLocale("en"));
@@ -38,5 +38,20 @@ describe("turnErrorMessage", () => {
 
   it("returns undefined for an unclassified reason (defensive — never hit for user turns)", () => {
     expect(turnErrorMessage("guardrail_drop")).toBeUndefined();
+  });
+});
+
+describe("routeTurnFailure", () => {
+  it("text turn + input open -> show the inline input error", () => {
+    expect(routeTurnFailure("text", true)).toEqual({ kind: "show_input_error" });
+  });
+
+  it("text turn + input closed (dismissed mid-flight, e.g. Escape) -> nothing, log-only", () => {
+    expect(routeTurnFailure("text", false)).toEqual({ kind: "none" });
+  });
+
+  it("voice turn -> the voice-indicator error state, regardless of input-open state", () => {
+    expect(routeTurnFailure("voice", false)).toEqual({ kind: "voice_error" });
+    expect(routeTurnFailure("voice", true)).toEqual({ kind: "voice_error" });
   });
 });

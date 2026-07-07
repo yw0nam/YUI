@@ -553,7 +553,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     return { d, sink };
   }
 
-  it("fires for a failed user.text_submitted turn with the classified reason", async () => {
+  it("fires for a failed user.text_submitted turn with the classified reason + source:'text'", async () => {
     const { d, sink } = makeDispatcherWithFailedTurnSink();
     d.start();
     bus.push(env({ event_name: "user.text_submitted" }));
@@ -561,11 +561,11 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     callDeferred[0].resolve({ ok: false, drop_reason: "network_drop" });
     await vi.advanceTimersByTimeAsync(20);
     expect(sink).toHaveBeenCalledTimes(1);
-    expect(sink).toHaveBeenCalledWith("network_drop");
+    expect(sink).toHaveBeenCalledWith("network_drop", "text");
     d.stop();
   });
 
-  it("fires for a failed user.voice_segment_ready turn", async () => {
+  it("fires for a failed user.voice_segment_ready turn with source:'voice'", async () => {
     const { d, sink } = makeDispatcherWithFailedTurnSink();
     d.start();
     bus.push(env({ event_name: "user.voice_segment_ready", payload: { text: "안녕" } }));
@@ -573,7 +573,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     callDeferred[0].resolve({ ok: false, drop_reason: "parse_error" });
     await vi.advanceTimersByTimeAsync(20);
     expect(sink).toHaveBeenCalledTimes(1);
-    expect(sink).toHaveBeenCalledWith("parse_error");
+    expect(sink).toHaveBeenCalledWith("parse_error", "voice");
     d.stop();
   });
 
@@ -584,7 +584,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     await vi.advanceTimersByTimeAsync(20);
     callDeferred[0].resolve({ ok: false, drop_reason: "http_4xx_drop" });
     await vi.advanceTimersByTimeAsync(20);
-    expect(sink).toHaveBeenCalledWith("http_4xx_drop");
+    expect(sink).toHaveBeenCalledWith("http_4xx_drop", "text");
     d.stop();
   });
 
