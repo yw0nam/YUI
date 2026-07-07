@@ -79,6 +79,38 @@ export function localStorageChatHistoryStorage(key = "yui.chat_transcript"): Cha
   return localStorageStore<ChatHistoryEntry[]>(key);
 }
 
+// Code point ranges where one character is estimated at ~1 token: Hangul
+// Jamo/Compatibility Jamo/Syllables, Hiragana/Katakana, CJK Unified
+// Ideographs (+ Extension A), and full-width forms.
+const CJK_RANGES: ReadonlyArray<readonly [number, number]> = [
+  [0x1100, 0x11ff],
+  [0x3040, 0x30ff],
+  [0x3130, 0x318f],
+  [0x3400, 0x4dbf],
+  [0x4e00, 0x9fff],
+  [0xac00, 0xd7a3],
+  [0xff00, 0xffef],
+];
+
+function isCJKCodePoint(codePoint: number): boolean {
+  return CJK_RANGES.some(([start, end]) => codePoint >= start && codePoint <= end);
+}
+
+/**
+ * Token estimate with no tokenizer dependency: CJK characters (Hangul,
+ * Hiragana/Katakana, CJK Unified Ideographs, full-width forms) cost ~1 token
+ * each, everything else costs ~1/4 token (the old flat chars/4 rule).
+ */
+export function estimateTokens(text: string): number {
+  let cjkCount = 0;
+  let otherCount = 0;
+  for (const ch of text) {
+    if (isCJKCodePoint(ch.codePointAt(0) ?? 0)) cjkCount++;
+    else otherCount++;
+  }
+  return Math.ceil(cjkCount + otherCount / 4);
+}
+
 /**
  * Longest newest-first suffix of `entries` whose estimated token cost fits
  * `contextWindow`. The current turn is never included here — the caller
@@ -93,8 +125,7 @@ export function selectSendSuffix(
   let budget = contextWindow;
   let start = entries.length;
   for (let i = entries.length - 1; i >= 0; i--) {
-    // ponytail: char/4 estimate, swap tokenizer if CJK trim misbehaves
-    const cost = Math.ceil(entries[i].text.length / 4);
+    const cost = estimateTokens(entries[i].text);
     if (cost > budget) break;
     budget -= cost;
     start = i;
