@@ -117,11 +117,15 @@ import {
 import { createMockDriver } from "./ui/mock";
 import { createQuickControls } from "./ui/quick-controls";
 import { createSurfaces } from "./ui/surfaces";
+import { turnErrorMessage } from "./ui/turn-error";
 import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
 
 /** 입력 소환 핫키 (window-focus 한정 — 전역 단축키는 후속 tauri-plugin-global-shortcut). */
 const SUMMON_KEY = "/";
+
+/** voice-input-indicator의 backend-turn-failure "error" 표시 유지 시간(ms) — 이후 listening으로 복귀. */
+const VOICE_TURN_ERROR_DISPLAY_MS = 3_000;
 
 const log = createLogger("bootstrap");
 
@@ -1032,6 +1036,21 @@ async function bootstrap(): Promise<void> {
       renderer,
       backendCaller,
       guardrails,
+      // user-initiated 턴 실패만 표면화(proactive/schedule/github/agent는 로그만 — silent by design).
+      // 입력 폼이 열려 있으면 typed 턴으로 보고 showInputError, 닫혀 있으면 voice 턴으로 보고
+      // voice-input-indicator의 기존 error 상태를 잠깐 재사용한다(새 DOM 없음).
+      onUserTurnFailed: (reason) => {
+        const message = turnErrorMessage(reason);
+        if (!message) return;
+        if (surfaces.isInputOpen()) {
+          surfaces.showInputError(message);
+          return;
+        }
+        voiceInputStatus.set("error", reason);
+        setTimeout(() => {
+          if (voiceInputStatus.get().state === "error") voiceInputStatus.set("listening");
+        }, VOICE_TURN_ERROR_DISPLAY_MS);
+      },
     });
     dispatcherRef = dispatcher;
     // 진행 중 backend 턴 ⟷ 입력의 send/stop 토글. stop 클릭 → 명시적 cancel(client-side abort).

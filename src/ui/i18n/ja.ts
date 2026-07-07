@@ -36,6 +36,9 @@ const ja: Record<string, string> = {
   "aria.stop": "停止",
   "aria.remove_attachment": "添付を削除",
   "input.placeholder": "話しかけてみて…",
+  "input.error_auth": "認証失敗 · APIキー確認",
+  "input.error_network": "応答なし · 接続確認",
+  "input.error_parse": "応答処理に失敗",
 
   // capture indicator
   "capture.watching": "画面を見ています",
