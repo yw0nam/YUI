@@ -12,6 +12,7 @@
 import { MicVAD } from "@ricky0123/vad-web";
 import type { EndpointsConfig, InputContext } from "../contract";
 import { createLogger } from "../logger";
+import { createDeadlineSignal } from "./deadline";
 
 const log = createLogger("stt-vad");
 
@@ -24,16 +25,6 @@ const VAD_ASSET_PATH = "/vad/";
 // Deadline so a hung STT request settles instead of silently discarding the captured utterance forever.
 // Magnitude mirrors tts-synth's TTS_SYNTH_TIMEOUT_MS, itself sized off irodori-synth's RETRY_AFTER_CAP_MS (5s).
 export const STT_REQUEST_TIMEOUT_MS = 10_000;
-
-// setTimeout-based (not AbortSignal.timeout) so tests can drive it with fake timers deterministically.
-function createDeadlineSignal(ms: number): { signal: AbortSignal; clear: () => void } {
-  const controller = new AbortController();
-  const timer = setTimeout(
-    () => controller.abort(new DOMException("STT request timed out", "TimeoutError")),
-    ms,
-  );
-  return { signal: controller.signal, clear: () => clearTimeout(timer) };
-}
 
 export interface SttVadOptions {
   config: EndpointsConfig;
@@ -129,7 +120,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
     const form = new FormData();
     form.append("file", wav, "audio.wav");
 
-    const deadline = createDeadlineSignal(STT_REQUEST_TIMEOUT_MS);
+    const deadline = createDeadlineSignal(STT_REQUEST_TIMEOUT_MS, "STT request timed out");
     try {
       // Bearer only — never set Content-Type here: FormData needs the browser-set multipart boundary.
       const key = (await getApiKey?.())?.trim() || undefined;

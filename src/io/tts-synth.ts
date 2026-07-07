@@ -1,6 +1,7 @@
 /** 한 문장 input → POST {tts_base_url}/v1/audio/speech → wav ArrayBuffer. */
 
 import type { EndpointsConfig } from "../contract";
+import { createDeadlineSignal } from "./deadline";
 
 export interface TtsSynthOptions {
   config: EndpointsConfig;
@@ -18,16 +19,6 @@ export type TtsSynth = (input: string, signal?: AbortSignal) => Promise<ArrayBuf
 // Magnitude mirrors irodori-synth's RETRY_AFTER_CAP_MS (5s), with headroom for network + synth time.
 export const TTS_SYNTH_TIMEOUT_MS = 10_000;
 
-// setTimeout-based (not AbortSignal.timeout) so tests can drive it with fake timers deterministically.
-function createDeadlineSignal(ms: number): { signal: AbortSignal; clear: () => void } {
-  const controller = new AbortController();
-  const timer = setTimeout(
-    () => controller.abort(new DOMException("TTS request timed out", "TimeoutError")),
-    ms,
-  );
-  return { signal: controller.signal, clear: () => clearTimeout(timer) };
-}
-
 export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const url = `${opts.config.tts_base_url}/v1/audio/speech`;
@@ -39,7 +30,7 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
     if (opts.speed !== undefined) body.speed = opts.speed;
 
     const key = (await opts.getApiKey?.())?.trim() || undefined;
-    const deadline = createDeadlineSignal(TTS_SYNTH_TIMEOUT_MS);
+    const deadline = createDeadlineSignal(TTS_SYNTH_TIMEOUT_MS, "TTS request timed out");
     const requestSignal = signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal;
 
     try {

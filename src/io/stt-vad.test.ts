@@ -67,7 +67,7 @@ afterEach(() => {
 });
 
 // ── import after mocks ────────────────────────────────────────────────────────
-const { createSttVad } = await import("./stt-vad");
+const { createSttVad, STT_REQUEST_TIMEOUT_MS } = await import("./stt-vad");
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
@@ -395,7 +395,6 @@ describe("createSttVad — per-request deadline (#275)", () => {
 
   it("sends a signal that aborts a hung STT request once STT_REQUEST_TIMEOUT_MS elapses", async () => {
     vi.useFakeTimers();
-    const { STT_REQUEST_TIMEOUT_MS } = await import("./stt-vad");
     const fetchMock = vi.fn((_url: string, init: RequestInit) => {
       return new Promise<Response>((_resolve, reject) => {
         const abortWith = () =>
@@ -435,7 +434,6 @@ describe("createSttVad — per-request deadline (#275)", () => {
     vi.stubGlobal("fetch", fetchMock);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const { STT_REQUEST_TIMEOUT_MS } = await import("./stt-vad");
     const onVoiceSegment = vi.fn();
     const stt = createSttVad({ config: CONFIG, onVoiceSegment });
     await stt.start();
