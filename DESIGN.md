@@ -53,18 +53,18 @@ components:
     rounded: "{rounded.input}"
     padding: "0.55rem 0.7rem"
   tool-status:
-    backgroundColor: "{colors.scrim}"
+    backgroundColor: "{colors.scrim-strong}"
     textColor: "{colors.text-dim}"
     typography: "{typography.label}"
     rounded: "{rounded.chip}"
     padding: "0.28rem 0.7rem"
   voice-indicator:
-    backgroundColor: "{colors.scrim}"
+    backgroundColor: "{colors.scrim-strong}"
     textColor: "{colors.text-dim}"
     rounded: "{rounded.chip}"
     padding: "0.3rem 0.64rem"
   capture-indicator:
-    backgroundColor: "{colors.scrim}"
+    backgroundColor: "{colors.scrim-strong}"
     textColor: "{colors.text-dim}"
     rounded: "{rounded.chip}"
     padding: "0.3rem 0.66rem"
@@ -104,7 +104,7 @@ Near-achromatic warm neutral with a single point of amber. The model is **dark s
 - **Speech White** (`oklch(0.95 0.012 80)`): primary body/speech text on a floating surface; warm, not pure white.
 - **Ash** (`oklch(0.78 0.016 75)`): labels, tool-status, secondary text.
 - **Muted Ash** (`oklch(0.66 0.014 72)`): disabled text, hints, eyebrows.
-- **Scrim** (`oklch(0.21 0.014 70 / 0.64)`): the semi-transparent dark backdrop under every floating surface; a stronger variant (`oklch(0.19 0.014 70 / 0.82)`) sharpens the text input.
+- **Scrim** (`oklch(0.21 0.014 70 / 0.64)`): the semi-transparent dark backdrop under every floating surface; a stronger variant (`oklch(0.19 0.014 70 / 0.82)`) sharpens the text input and the small-label chips (tool-status, capture/voice pills).
 - **Hairline** (`oklch(0.97 0.01 80 / 0.1)`, hover `/ 0.16`): the thin edge that holds a surface outline against a dark backdrop.
 - **Warm Ink** (`oklch(0.22 0.01 70)`): dark body text, retained for light contexts only; never used on a floating surface.
 
@@ -150,10 +150,10 @@ Surfaces are absent at rest and transition in over ~200ms (`--yui-dur`) on an ea
 The primary floating surface (`surfaces.css`). A scrim panel with no tail and no hard border: light Speech White text on Scrim, gently curved (14px), a single Float shadow, and the system's *only* sanctioned frosted backdrop (`blur(10px)`, for legibility). Bottom-anchored at 16% over the character's lower band so the face stays unobscured, width-capped at `min(34ch, 78%)`, height-capped at 34vh with internal scroll and a top fade once it overflows. A blinking amber caret (`oklch(0.8 0.13 75)`) marks streaming onset; inline links wear an amber-soft underline that ignites to full amber on hover/focus.
 
 ### Text input
-A slim field summoned by hotkey, sliding up from the bottom (`surfaces.css`). Stronger scrim (`oklch(0.19 0.014 70 / 0.82)`), 12px corners, transparent inner field. At rest the border is a hairline; on `:focus-within` it ignites to a Hearth Amber border plus an amber-soft ring, the design's signature warmth moment. Submit failure shows an amber inline message, never a side-stripe.
+A slim field summoned by hotkey, sliding up from the bottom (`surfaces.css`). Stronger scrim (`oklch(0.19 0.014 70 / 0.82)`), 12px corners, transparent inner field. At rest the border is a hairline; on `:focus-within` it ignites to a Hearth Amber border plus an amber-soft ring, the design's signature warmth moment. Submit failure shows an Ember Red inline message, never a side-stripe.
 
 ### Tool-status chip
-A low-emphasis pill (`surfaces.css`) shown while the backend runs a tool. Pill-shaped (999px), Scrim background, Ash text, a Float shadow, and a calm opacity dot-pulse (no spinner). Amber is withheld here: work is not a warmth moment.
+A low-emphasis pill (`surfaces.css`) shown while the backend runs a tool. Pill-shaped (999px), Strong-Scrim background, Ash text, a Float shadow, and a calm opacity dot-pulse (no spinner). Amber is withheld here: work is not a warmth moment.
 
 ### Settings row + switch
 A list row (`quick-controls.css`), 10px corners, 0.5rem padding, with a faint background tint on hover. The label pairs a ~0.95rem name with a ~0.74rem Muted-Ash sub-line. Its switch (2.5rem track) sits calm and grey when off and ignites to a full Hearth Amber track with the knob slid right when on (`aria-checked="true"`); focus shows an amber-soft ring.
@@ -162,7 +162,7 @@ A list row (`quick-controls.css`), 10px corners, 0.5rem padding, with a faint ba
 A custom-styled `<select>` (`quick-controls.css`) used as the per-service type picker in the Advanced tab's collapsible sections. OS chrome is stripped (`appearance:none`) for a Strong-Scrim field with a hairline Edge border, `--yui-radius-input` corners, and an inline amber-free chevron data-URI; on `:focus-visible` it ignites to a Hearth Amber border plus an amber-soft ring (the same warmth moment as the text input). A `--single` variant for inert one-option sections drops the chevron, dims the text to Muted-Ash, and shows a default cursor — present for visual consistency, not interaction.
 
 ### Capture & voice indicators
-Paired status pills at the top edge (`capture-indicator.css`, `voice-input-indicator.css`). Same pill shape and scrim as the tool chip. The capture tell carries an amber pulse dot while the screen is being attached (an always-on privacy cue); the voice tell carries a dot that pulses amber while listening, turns green when a turn fires, and red on error.
+Paired status pills at the top edge (`capture-indicator.css`, `voice-input-indicator.css`). Same pill shape and Strong-Scrim as the tool chip. The capture tell carries an amber pulse dot while the screen is being attached (an always-on privacy cue); the voice tell carries a dot that pulses amber while listening, settles to a steady full Hearth Amber when a turn fires (the label carries the state change), and turns Ember Red on error.
 
 ## 6. Do's and Don'ts
 
