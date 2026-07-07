@@ -80,15 +80,19 @@ export function localStorageChatHistoryStorage(key = "yui.chat_transcript"): Cha
 }
 
 // Code point ranges where one character is estimated at ~1 token: Hangul
-// Jamo/Compatibility Jamo/Syllables, Hiragana/Katakana, CJK Unified
-// Ideographs (+ Extension A), and full-width forms.
+// Jamo/Compatibility Jamo/Syllables, Hiragana/Katakana, CJK punctuation, CJK
+// Unified Ideographs (+ Extension A), CJK Compatibility Ideographs, and
+// full-width forms. Supplementary-plane Ext B+ (0x20000+) is skipped — rare
+// enough in chat text that it's not worth the extra range for this heuristic.
 const CJK_RANGES: ReadonlyArray<readonly [number, number]> = [
   [0x1100, 0x11ff],
+  [0x3000, 0x303f],
   [0x3040, 0x30ff],
   [0x3130, 0x318f],
   [0x3400, 0x4dbf],
   [0x4e00, 0x9fff],
   [0xac00, 0xd7a3],
+  [0xf900, 0xfaff],
   [0xff00, 0xffef],
 ];
 

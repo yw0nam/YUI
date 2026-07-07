@@ -402,4 +402,13 @@ describe("estimateTokens", () => {
   it("returns 0 for an empty string", () => {
     expect(estimateTokens("")).toBe(0);
   });
+
+  it("counts an astral-plane emoji (surrogate pair) as one non-CJK char, not two", () => {
+    // "😀" is a single code point encoded as a UTF-16 surrogate pair (length 2
+    // in JS string indexing). Iterating with for-of must treat it as ONE char.
+    const emoji = "😀";
+    expect([...emoji].length).toBe(1);
+    expect(emoji.length).toBe(2);
+    expect(estimateTokens(emoji)).toBe(Math.ceil(1 / 4));
+  });
 });
