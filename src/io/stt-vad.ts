@@ -21,6 +21,20 @@ export type SttVadRuntimeState = "listening" | "asr" | "fired" | "error";
 
 const VAD_ASSET_PATH = "/vad/";
 
+// Deadline so a hung STT request settles instead of silently discarding the captured utterance forever.
+// Magnitude mirrors tts-synth's TTS_SYNTH_TIMEOUT_MS, itself sized off irodori-synth's RETRY_AFTER_CAP_MS (5s).
+export const STT_REQUEST_TIMEOUT_MS = 10_000;
+
+// setTimeout-based (not AbortSignal.timeout) so tests can drive it with fake timers deterministically.
+function createDeadlineSignal(ms: number): { signal: AbortSignal; clear: () => void } {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(new DOMException("STT request timed out", "TimeoutError")),
+    ms,
+  );
+  return { signal: controller.signal, clear: () => clearTimeout(timer) };
+}
+
 export interface SttVadOptions {
   config: EndpointsConfig;
   /**
@@ -115,6 +129,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
     const form = new FormData();
     form.append("file", wav, "audio.wav");
 
+    const deadline = createDeadlineSignal(STT_REQUEST_TIMEOUT_MS);
     try {
       // Bearer only — never set Content-Type here: FormData needs the browser-set multipart boundary.
       const key = (await getApiKey?.())?.trim() || undefined;
@@ -122,6 +137,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
         method: "POST",
         body: form,
         headers: key ? { Authorization: `Bearer ${key}` } : undefined,
+        signal: deadline.signal,
       });
       if (!res.ok) {
         log.warn("stt_request_failed", { status: res.status });
@@ -135,6 +151,8 @@ export function createSttVad(options: SttVadOptions): SttVad {
       log.warn("stt_error", { error: String(err) });
       const detail = err instanceof Error ? err.message : "STT request failed";
       onState?.("error", detail);
+    } finally {
+      deadline.clear();
     }
   }
 
