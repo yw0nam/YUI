@@ -135,6 +135,32 @@ describe("window-drop-source — perch hit", () => {
 });
 
 describe("window-drop-source — no perch", () => {
+  it("pushes user.window_sit_exit when the matched window's edge is covered by a front window at the seat", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+    };
+    // seatGlobal = (300, 400). Front's RECT contains the seat (its surface is what
+    // the user sees there) but its own top-edge catch zone ([44,146]) does not;
+    // Behind's catch zone does (top edge at y=400). Perching on Behind would seat
+    // the character on an invisible edge — must be a miss, not a drop.
+    const front = win({ name: "Front", x: 100, y: 100, width: 600, height: 700, windowNumber: 11 });
+    const behind = win({ name: "Behind", windowNumber: 22 });
+    const invoke = vi.fn(async () => [front, behind]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0].event_name).toBe("user.window_sit_exit");
+    expect(pushed[0].payload).toBeUndefined();
+  });
+
   it("pushes user.window_sit_exit (no payload) when the seat is over no window", async () => {
     const renderer = {
       getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
