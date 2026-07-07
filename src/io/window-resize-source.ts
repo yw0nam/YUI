@@ -78,7 +78,11 @@ export interface ResizeWindow {
 
 /** Wheel-event target seam (defaults to the global window). */
 export interface WheelTarget {
-  addEventListener(type: "wheel", handler: (e: WheelEvent) => void, opts?: AddEventListenerOptions): void;
+  addEventListener(
+    type: "wheel",
+    handler: (e: WheelEvent) => void,
+    opts?: AddEventListenerOptions,
+  ): void;
   removeEventListener(type: "wheel", handler: (e: WheelEvent) => void): void;
 }
 

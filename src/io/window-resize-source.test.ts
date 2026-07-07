@@ -7,11 +7,11 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  createWindowResizeSource,
   MAX_LOGICAL,
   MIN_LOGICAL,
-  RESIZE_STEP,
-  createWindowResizeSource,
   nextBounds,
+  RESIZE_STEP,
   stepFactor,
 } from "./window-resize-source";
 
@@ -49,7 +49,11 @@ describe("nextBounds", () => {
   });
 
   it("returns null (no-op) when already at min and asked to shrink", () => {
-    const atMin = nextBounds({ x: 0, y: 0 }, { width: MIN_LOGICAL.width, height: MIN_LOGICAL.height }, 0.5);
+    const atMin = nextBounds(
+      { x: 0, y: 0 },
+      { width: MIN_LOGICAL.width, height: MIN_LOGICAL.height },
+      0.5,
+    );
     expect(atMin).toBeNull();
   });
 
@@ -61,15 +65,21 @@ describe("nextBounds", () => {
 // ── Wired handler ────────────────────────────────────────────────────────────
 
 /** Stateful fake Tauri window: physical bounds + scale, applies setBoundsLogical. */
-function makeWindow(scale: number, posLogical: { x: number; y: number }, sizeLogical: { width: number; height: number }) {
+function makeWindow(
+  scale: number,
+  posLogical: { x: number; y: number },
+  sizeLogical: { width: number; height: number },
+) {
   const state = {
     pos: { x: posLogical.x * scale, y: posLogical.y * scale },
     size: { width: sizeLogical.width * scale, height: sizeLogical.height * scale },
   };
-  const setBoundsLogical = vi.fn(async (pos: { x: number; y: number }, size: { width: number; height: number }) => {
-    state.pos = { x: pos.x * scale, y: pos.y * scale };
-    state.size = { width: size.width * scale, height: size.height * scale };
-  });
+  const setBoundsLogical = vi.fn(
+    async (pos: { x: number; y: number }, size: { width: number; height: number }) => {
+      state.pos = { x: pos.x * scale, y: pos.y * scale };
+      state.size = { width: size.width * scale, height: size.height * scale };
+    },
+  );
   return {
     state,
     setBoundsLogical,
@@ -135,7 +145,11 @@ describe("window-resize-source — wheel handler", () => {
   });
 
   it("ctrl+wheel up grows the window by RESIZE_STEP (DPI-safe: logical bounds)", async () => {
-    const { win, setBoundsLogical, state } = makeWindow(2, { x: 100, y: 100 }, { width: 400, height: 600 });
+    const { win, setBoundsLogical, state } = makeWindow(
+      2,
+      { x: 100, y: 100 },
+      { width: 400, height: 600 },
+    );
     const { target, fire } = makeTarget();
     const source = createWindowResizeSource({ renderer, getWindow: () => win, target });
     source.start();
