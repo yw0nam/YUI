@@ -254,8 +254,17 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
 
     const seatGlobal = projectSeat(probe, pos, scale);
     // Front-to-back ⇒ first match is the topmost window. U-band catch zone here only.
-    const target = windows.find((w) => inCatchZone(seatGlobal, w, probe.charHpx));
-    if (!target) {
+    const targetIdx = windows.findIndex((w) => inCatchZone(seatGlobal, w, probe.charHpx));
+    if (targetIdx < 0) {
+      pushExit();
+      return;
+    }
+    const target = windows[targetIdx];
+    // Same covered predicate as the occlusion poll, applied at drop time: a window
+    // in front of the match containing the seat means the seat visually lands on
+    // that window's surface, not on the matched top edge — miss, no perch.
+    if (windows.some((w, i) => i < targetIdx && containsSeat(w, seatGlobal))) {
+      log.debug("perch.drop_covered", { targetWindowNumber: target.windowNumber });
       pushExit();
       return;
     }
