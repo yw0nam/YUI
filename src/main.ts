@@ -100,6 +100,7 @@ import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { removeUserVrm } from "./io/vrm-import";
 import { createWindowDropSource } from "./io/window-drop-source";
+import { createWindowResizeSource } from "./io/window-resize-source";
 import { createLogger, initLogger } from "./logger";
 import { createRenderer } from "./renderer";
 import { nextZoom } from "./renderer/camera-fit";
@@ -594,6 +595,7 @@ async function bootstrap(): Promise<void> {
       osContext.stop();
       windowDropDisposed = true;
       windowDropSource?.stop();
+      windowResizeSource?.stop();
       stage.removeEventListener("contextmenu", onContextMenu);
     });
   }
@@ -612,6 +614,8 @@ async function bootstrap(): Promise<void> {
   // plain browser (Vite dev) it is skipped so bootstrap still runs. The DEV mock
   // (__yui_windowSit.drop) exercises the geometry path without a real drag.
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
+  // Ctrl+wheel pet-window resize producer (Tauri-only, same lifecycle as above).
+  let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
   // Guards the teardown/async-assign race: cleanup may run before the IIFE assigns.
   let windowDropDisposed = false;
   if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
@@ -633,11 +637,28 @@ async function bootstrap(): Promise<void> {
         getWindow: getCurrentWindow,
         listen: listen as never,
       });
+      const { LogicalPosition, LogicalSize } = await import("@tauri-apps/api/dpi");
+      windowResizeSource = createWindowResizeSource({
+        renderer,
+        getWindow: () => {
+          const win = getCurrentWindow();
+          return {
+            outerPosition: () => win.outerPosition(),
+            outerSize: () => win.outerSize(),
+            scaleFactor: () => win.scaleFactor(),
+            async setBoundsLogical(pos, size) {
+              await win.setSize(new LogicalSize(size.width, size.height));
+              await win.setPosition(new LogicalPosition(pos.x, pos.y));
+            },
+          };
+        },
+      });
       if (windowDropDisposed) {
         windowDropSource.stop();
         return;
       }
       await windowDropSource.start();
+      windowResizeSource.start();
     })().catch((err) =>
       log.warn("window_drop_source_start_failed", {
         degrade: true,
