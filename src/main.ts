@@ -181,6 +181,7 @@ async function bootstrap(): Promise<void> {
   // 마우스 휠로 캐릭터 스케일: 클램프 경계·민감도는 io 상수, persist는 store가 소유.
   // 드래그는 pointerdown만 쓰므로 wheel과 충돌하지 않는다(drag.ts).
   const onWheelZoom = (e: WheelEvent): void => {
+    if (e.ctrlKey) return; // ctrl+wheel은 창 리사이즈 제스처 (window-resize-source).
     e.preventDefault();
     const next = nextZoom(cameraSettings.get().zoom, e.deltaY, {
       min: CAMERA_ZOOM_MIN,

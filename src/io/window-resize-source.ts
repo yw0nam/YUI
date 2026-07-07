@@ -128,7 +128,13 @@ export function createWindowResizeSource(deps: WindowResizeSourceDeps): WindowRe
           { width: size.width / sf, height: size.height / sf },
           factor,
         );
-        if (next) await win.setBoundsLogical(next.pos, next.size);
+        if (next) {
+          await win.setBoundsLogical(next.pos, next.size);
+          log.debug("resize.applied", {
+            width: Math.round(next.size.width),
+            height: Math.round(next.size.height),
+          });
+        }
       }
     } catch (err) {
       pendingFactor = 1;
