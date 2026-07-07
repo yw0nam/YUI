@@ -7,7 +7,9 @@
  *  B1 package_context — InputContext 조립(user_text + env.timestamp +
  *     env.timezone). active_app/window은 getOsContext 스냅샷이 있을 때만 best-effort로 첨부.
  *  B2 POST — io/chat-client.streamChat(config, req, { fetch, apiKey }). SSE는 chat-client가
- *     소유 — 여기서 직접 파싱하지 않는다. AbortSignal로 in-flight abort.
+ *     소유 — 여기서 직접 파싱하지 않는다. AbortSignal로 in-flight abort. idle-gap watchdog
+ *     (IDLE_TIMEOUT_MS, 매 stream event에 리셋)이 정체된 호출을 abort한다 — TTFT는 첫 gap일 뿐,
+ *     길게 생각/스트리밍하는 정상 턴은 죽이지 않는다.
  *  B3 parse — chat-client의 `completed` 이벤트가 이미 ControlEnvelope를 조립해 준다.
  *     completed 미수신 → parse_error.
  *  B4 speech gate — speech_text가 비어있지 않을 때만 발화. 빈 텍스트 = 침묵,
@@ -16,7 +18,7 @@
  *     emotion/motion을 적용(express→onCue)하고, 그 외엔 completed에서 renderer.applyDirective(envelope).
  *     speech_text→onSpeech + tool_status→onToolStatus(main.ts에서 TTS/UI로 흘린다).
  *
- * silent drop 분류: parse_error(WARN) / network_drop(WARN).
+ * silent drop 분류: parse_error(WARN) / network_drop(WARN, idle timeout 포함).
  */
 
 import type {
@@ -42,6 +44,12 @@ const baseLog = createLogger("backend-caller");
 
 /** proactive/schedule 턴(user_text 없음)의 user 메시지 마커 — 빈 문자열 대신 명시적 신호. */
 const PROACTIVE_MARKER = "(proactive trigger)";
+
+/**
+ * Idle-gap watchdog deadline(ms). 매 stream event(첫 byte 포함)에 리셋되는 정체 기준선 —
+ * 총 소요시간 cap이 아니다. 긴 thinking/스트리밍 턴은 죽이지 않고, 정체된 턴만 abort한다.
+ */
+export const IDLE_TIMEOUT_MS = 45_000;
 
 /** Dispatcher → Backend Caller 출력: { ok, drop_reason? }. */
 export interface BackendCallResult {
@@ -270,6 +278,38 @@ function localIso(ts: number, timeZone: string): string {
     return `${local}${offset}`;
   } catch {
     return d.toISOString();
+  }
+}
+
+/**
+ * Idle-gap watchdog over a stream: yields events as they arrive, but stops (without
+ * throwing) and calls `onIdle` if no event — including the very first — lands within
+ * `ms` of the previous one. The deadline resets on every event, so it never kills a
+ * turn that keeps making progress, only one that stalls.
+ */
+async function* withIdleWatchdog<T>(
+  source: AsyncIterable<T>,
+  ms: number,
+  onIdle: () => void,
+): AsyncGenerator<T> {
+  const it = source[Symbol.asyncIterator]();
+  while (true) {
+    const next = it.next();
+    let timer: ReturnType<typeof setTimeout>;
+    const idle = new Promise<"idle">((resolve) => {
+      timer = setTimeout(() => resolve("idle"), ms);
+    });
+    const race = await Promise.race([next.then((r) => ({ done: r.done, value: r.value })), idle]);
+    clearTimeout(timer!);
+    if (race === "idle") {
+      onIdle();
+      // the abandoned `next` will settle once the aborted stream unwinds — swallow it
+      // so it doesn't surface as an unhandled rejection.
+      next.catch(() => {});
+      return;
+    }
+    if (race.done) return;
+    yield race.value as T;
   }
 }
 
@@ -519,11 +559,17 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       let streamedAny = false;
       // express cue가 스트림 중 1건이라도 왔는가(완료 시 pipeline 소유 분기).
       let cueStreamed = false;
+      // idle-gap watchdog이 정체를 감지해 abort했는가(첫 byte 대기 포함).
+      let idleTimedOut = false;
       try {
-        for await (const ev of streamChat(deps.config, request, {
-          apiKey,
-          fetch: fetchImpl,
-        })) {
+        for await (const ev of withIdleWatchdog(
+          streamChat(deps.config, request, { apiKey, fetch: fetchImpl }),
+          IDLE_TIMEOUT_MS,
+          () => {
+            idleTimedOut = true;
+            ac.abort();
+          },
+        )) {
           switch (ev.type) {
             case "speech_delta":
               // 실제 응답 발화 시작 — 여기서만 thinking 종료(thinkingDone로 첫 delta에서만 발화).
@@ -559,6 +605,13 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         }
         if (streamedAny) deps.onSpeechAbort?.();
         log.warn("network_drop", { stage: "stream_threw", error: String(err) });
+        return { ok: false, drop_reason: "network_drop" };
+      }
+
+      if (idleTimedOut) {
+        // no event (incl. first byte) within IDLE_TIMEOUT_MS of the previous one — stalled.
+        if (streamedAny) deps.onSpeechAbort?.();
+        log.warn("network_drop", { stage: "idle_timeout", idle_ms: IDLE_TIMEOUT_MS });
         return { ok: false, drop_reason: "network_drop" };
       }
 

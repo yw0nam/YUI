@@ -15,7 +15,10 @@
  *
  * state: booting → (start) → running → (stop) → stopped. cooldown은 guardrails의
  *   overall-cap verdict를 매 tick 폴링해 running↔cooldown으로 전이한다. degraded는
- *   선언만 되어 있고 진입 전이가 없다.
+ *   backend call이 연속 DEGRADED_FAILURE_THRESHOLD회 실패하면 진입한다 — 그 동안 tier2/3
+ *   (non-user)은 degraded_drop으로 드롭하고, user-initiated(dnd_override) 턴은 게이트 없이
+ *   계속 backend_caller로 나간다(judgment는 backend 소관). 호출이 1회라도 성공하면 즉시
+ *   running으로 복귀하고 연속 실패 카운터도 리셋된다.
  * observable: queue() / recentDrops(n) / inFlight().
  */
 
@@ -53,7 +56,7 @@ export type DispatcherState =
 export interface DropRecord {
   seq_id?: number;
   event_name: string;
-  reason: DropReason | "stale_pending";
+  reason: DropReason | "stale_pending" | "degraded_drop";
   ts: number;
 }
 
@@ -65,6 +68,7 @@ export const DROP_SEVERITY: Record<DropRecord["reason"], LogLevel> = {
   http_4xx_drop: "error",
   superseded_by_user: "info",
   stale_pending: "info",
+  degraded_drop: "warn",
 };
 
 /** in_flight_backend_call. */
@@ -171,6 +175,8 @@ function tier1Directive(env: BusEnvelope): ControlEnvelope | null {
 
 const DEFAULT_PUMP_MS = 16;
 const MAX_DROP_RECORDS = 50;
+/** 연속 backend call 실패 횟수 — 도달 시 degraded 진입. */
+const DEGRADED_FAILURE_THRESHOLD = 3;
 
 export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   const { bus, renderer, backendCaller, guardrails } = deps;
@@ -185,6 +191,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   // 보류 tier2/3 (2건 이상이면 가장 오래된 것 drop).
   const pending: BusEnvelope[] = [];
   const drops: DropRecord[] = [];
+  // 연속 backend call 실패 카운터 — superseded_by_user는 실패로 세지 않는다.
+  let consecutiveFailures = 0;
 
   const stateSubscribers = new Set<(s: DispatcherState) => void>();
   const busySubscribers = new Set<(busy: boolean) => void>();
@@ -211,6 +219,23 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     drops.push({ seq_id: env.seq_id, event_name: env.event_name, reason, ts: env.ts });
     if (drops.length > MAX_DROP_RECORDS) drops.shift();
     log[DROP_SEVERITY[reason]]("drop", { event_name: env.event_name, reason, seq_id: env.seq_id });
+  }
+
+  /** backend call 성공: 연속 실패 카운터 리셋 + degraded면 즉시 복귀. */
+  function noteCallSuccess(): void {
+    consecutiveFailures = 0;
+    if (state === "degraded") setState("running");
+  }
+
+  /** backend call 실패(superseded_by_user 제외): 임계치 도달 시 degraded 진입. */
+  function noteCallFailure(): void {
+    consecutiveFailures += 1;
+    if (
+      consecutiveFailures >= DEGRADED_FAILURE_THRESHOLD &&
+      (state === "running" || state === "cooldown")
+    ) {
+      setState("degraded");
+    }
   }
 
   /**
@@ -253,15 +278,20 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       .then((res) => {
         if (res.ok) {
           log.info("backend_call", { trigger: env.event_name, outcome: "ok" });
+          noteCallSuccess();
         } else if (res.drop_reason) {
           log.info("backend_call", { trigger: env.event_name, outcome: res.drop_reason });
-          if (res.drop_reason !== "superseded_by_user") recordDrop(env, res.drop_reason);
+          if (res.drop_reason !== "superseded_by_user") {
+            recordDrop(env, res.drop_reason);
+            noteCallFailure();
+          }
         }
       })
       .catch((err) => {
         log.error("backend_call.unexpected_error", { error: String(err) });
         log.info("backend_call", { trigger: env.event_name, outcome: "network_drop" });
         recordDrop(env, "network_drop");
+        noteCallFailure();
       })
       .finally(() => {
         // 이 콜이 여전히 현재 in-flight일 때만 슬롯 해제(abort로 교체됐으면 건드리지 않음).
@@ -270,6 +300,10 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         if (inFlight && inFlight.trigger === env) {
           if (canDrain()) {
             startBackendCall(pending.shift()!);
+          } else if (state === "degraded" && pending.length > 0) {
+            // degraded 진입 순간 이미 보류 중이던 non-user 턴 — stale이니 drop.
+            recordDrop(pending.shift()!, "degraded_drop");
+            setInFlight(null);
           } else {
             setInFlight(null);
           }
@@ -277,9 +311,15 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       });
   }
 
-  /** 지금 보류 1건을 다음 콜로 시작할 수 있는지(콜 완료 직후 슬롯 교체 판정용). */
+  /**
+   * 지금 보류 1건을 다음 콜로 시작할 수 있는지(콜 완료 직후 슬롯 교체 판정용).
+   * degraded 중엔 user 턴(dnd_override)만 drain — 그 외는 drop 대상(위 finally에서 처리).
+   */
   function canDrain(): boolean {
-    return pending.length > 0 && state === "running";
+    if (pending.length === 0) return false;
+    if (state === "running") return true;
+    if (state === "degraded") return pending[0]?.dnd_override === true;
+    return false;
   }
 
   /** tier2/3 enqueue: in-flight 비면 즉시 시작, 아니면 보류(2건 이상이면 oldest drop). */
@@ -366,6 +406,12 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       return;
     }
     if (target === "backend_caller") {
+      // degraded 중엔 non-user(dnd_override 아님) tier2/3을 게이트보다 먼저 드롭한다 —
+      // user-initiated 턴은 judgment를 backend에 맡기려 계속 통과시킨다.
+      if (state === "degraded" && env.dnd_override !== true) {
+        recordDrop(env, "degraded_drop");
+        return;
+      }
       // classify로 tier 획득 후 evaluate. drop이면 enqueue하지 않는다.
       const verdict = guardrails.evaluate(env, tier);
       if (!verdict.pass) {
@@ -380,11 +426,11 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   /**
-   * pump: 매 tick마다 bus를 drain. running/cooldown 모두에서 동작(cooldown 중 tier1 계속).
-   * 그 외 비-running이면 no-op으로 보류 이벤트를 잡아 둔다.
+   * pump: 매 tick마다 bus를 drain. running/cooldown/degraded 모두에서 동작(각각 tier1은 항상 계속).
+   * 그 외(booting/stopped/draining)면 no-op으로 보류 이벤트를 잡아 둔다.
    */
   function pump(): void {
-    if (state !== "running" && state !== "cooldown") return;
+    if (state !== "running" && state !== "cooldown" && state !== "degraded") return;
     let env: BusEnvelope | null;
     while ((env = bus.pop()) !== null) {
       handle(env);
