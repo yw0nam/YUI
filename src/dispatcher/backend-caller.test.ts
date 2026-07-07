@@ -585,6 +585,27 @@ describe("backend_caller — failure classification (§7.3)", () => {
     expect(res.drop_reason).toBe("network_drop");
   });
 
+  it("an error event carrying status:401 surfaces as http_4xx_drop (auth-ish)", async () => {
+    scriptedEvents = [{ type: "error", message: "401 Incorrect API key provided", status: 401 }];
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(false);
+    expect(res.drop_reason).toBe("http_4xx_drop");
+  });
+
+  it("an error event carrying status:403 surfaces as http_4xx_drop (auth-ish)", async () => {
+    scriptedEvents = [{ type: "error", message: "403 Forbidden", status: 403 }];
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(false);
+    expect(res.drop_reason).toBe("http_4xx_drop");
+  });
+
+  it("an error event carrying an unrelated status (e.g. 500) stays network_drop", async () => {
+    scriptedEvents = [{ type: "error", message: "500 internal error", status: 500 }];
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(false);
+    expect(res.drop_reason).toBe("network_drop");
+  });
+
   it("a thrown stream rejects to network_drop (not a crash)", async () => {
     streamChatError = new Error("boom");
     const res = await caller.call(userEnv());

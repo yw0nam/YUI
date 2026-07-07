@@ -287,6 +287,20 @@ describe("streamChat — Chat Completions error handling", () => {
     expect(events).toEqual([{ type: "error", message: "chat request failed: 401 unauthorized" }]);
   });
 
+  it("create() rejecting with an APIError status -> error event carries status", async () => {
+    ccCreateMock.mockRejectedValueOnce(
+      Object.assign(new Error("401 Incorrect API key provided"), { status: 401 }),
+    );
+    const events = await collect(streamChat(CONFIG, req()));
+    expect(events).toEqual([
+      {
+        type: "error",
+        message: "chat request failed: 401 Incorrect API key provided",
+        status: 401,
+      },
+    ]);
+  });
+
   it("already-aborted signal -> generator terminates cleanly without calling create()", async () => {
     const ac = new AbortController();
     ac.abort();
