@@ -589,6 +589,43 @@ describe("streamChat — error handling", () => {
   });
 });
 
+describe("streamChat — create() rejection carries HTTP status", () => {
+  it("openai SDK APIError with status 401 → error event includes status: 401", async () => {
+    createMock.mockRejectedValue(
+      Object.assign(new Error("401 Incorrect API key provided"), { status: 401 }),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events).toEqual([
+      {
+        type: "error",
+        message: "chat request failed: 401 Incorrect API key provided",
+        status: 401,
+      },
+    ]);
+  });
+
+  it("openai SDK APIError with status 403 → error event includes status: 403", async () => {
+    createMock.mockRejectedValue(Object.assign(new Error("403 Forbidden"), { status: 403 }));
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events).toEqual([
+      { type: "error", message: "chat request failed: 403 Forbidden", status: 403 },
+    ]);
+  });
+
+  it("a plain error with no status field → error event omits status (back-compat)", async () => {
+    createMock.mockRejectedValue(new Error("ECONNREFUSED"));
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events).toEqual([{ type: "error", message: "chat request failed: ECONNREFUSED" }]);
+    expect(events[0] && "status" in events[0]).toBe(false);
+  });
+});
+
 describe("streamChat — abort", () => {
   it("already-aborted signal → generator terminates cleanly (no hang)", async () => {
     const ac = new AbortController();

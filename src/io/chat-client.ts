@@ -70,7 +70,7 @@ export type ChatStreamEvent =
   | { type: "tool_status"; status: ToolStatus }
   | { type: "usage"; usage: Usage }
   | { type: "completed"; envelope: ControlEnvelope; responseId: string }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string; status?: number };
 
 /**
  * `new OpenAI(opts)` 로 클라이언트를 만든다. 실제 SDK는 ES class라 `new`가 필요하지만,
@@ -103,6 +103,12 @@ function isExpressTool(name: unknown): boolean {
  */
 function expressCallKey(id: unknown, outputIndex: unknown): string {
   return typeof id === "string" && id.length > 0 ? id : String(outputIndex);
+}
+
+/** openai SDK APIError.status(HTTP status code) 추출 — 없으면 undefined(일반 Error 등). */
+function httpStatusOf(err: unknown): number | undefined {
+  const status = (err as { status?: unknown } | null)?.status;
+  return typeof status === "number" ? status : undefined;
 }
 
 /** express arguments JSON 문자열 파싱. 실패 시 throw 없이 error 메시지를 돌려준다. */
@@ -262,10 +268,13 @@ export async function* streamChat(
   } catch (err) {
     // aborted signal이면 조용히 종료(hang 방지). 그 외(401 인증 실패 / 네트워크 등)는 무음으로
     // 삼키지 않고 error 이벤트로 노출한다 — placeholder 키 401이 "빈 스트림"으로 사라지는 함정 방지.
+    // status: openai SDK APIError가 실어 온 HTTP status(401/403 등)를 그대로 전달 — 있을 때만.
     if (!request.signal?.aborted) {
+      const status = httpStatusOf(err);
       yield {
         type: "error",
         message: `chat request failed: ${err instanceof Error ? err.message : String(err)}`,
+        ...(status !== undefined ? { status } : {}),
       };
     }
     return;
@@ -449,9 +458,11 @@ async function* streamChatCompletions(
     )) as unknown as AsyncIterable<any>;
   } catch (err) {
     if (!request.signal?.aborted) {
+      const status = httpStatusOf(err);
       yield {
         type: "error",
         message: `chat request failed: ${err instanceof Error ? err.message : String(err)}`,
+        ...(status !== undefined ? { status } : {}),
       };
     }
     return;

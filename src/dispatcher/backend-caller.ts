@@ -555,6 +555,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       let envelope: ControlEnvelope | undefined;
       let newResponseId: string | undefined;
       let streamError: string | undefined;
+      // stream error event가 실어 온 HTTP status(openai SDK APIError.status) — 401/403이면
+      // network_drop 대신 http_4xx_drop(auth-ish)으로 세분한다.
+      let streamErrorStatus: number | undefined;
       // 스트리밍 발화: delta가 1건이라도 왔는가(완료 시 onSpeechEnd 구동 분기).
       let streamedAny = false;
       // express cue가 스트림 중 1건이라도 왔는가(완료 시 pipeline 소유 분기).
@@ -593,6 +596,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
               break;
             case "error":
               streamError = ev.message;
+              streamErrorStatus = ev.status;
               break;
             default:
               break;
@@ -622,6 +626,15 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       if (streamError) {
         // delta가 떴으면 말풍선/오디오 정리 — 다음 턴이 없어 영영 갇히지 않게.
         if (streamedAny) deps.onSpeechAbort?.();
+        // auth-ish(401/403) status만 http_4xx_drop으로 세분 — 그 외 4xx/5xx/무status는 network_drop 유지.
+        if (streamErrorStatus === 401 || streamErrorStatus === 403) {
+          log.warn("http_4xx_drop", {
+            stage: "stream_error",
+            status: streamErrorStatus,
+            message: streamError,
+          });
+          return { ok: false, drop_reason: "http_4xx_drop" };
+        }
         log.warn("network_drop", { stage: "stream_error", message: streamError });
         return { ok: false, drop_reason: "network_drop" };
       }

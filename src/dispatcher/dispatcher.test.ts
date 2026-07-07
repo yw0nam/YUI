@@ -536,6 +536,92 @@ describe("dispatcher — structured logging: backend_call events", () => {
   });
 });
 
+describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
+  function makeDispatcherWithFailedTurnSink(): {
+    d: Dispatcher;
+    sink: ReturnType<typeof vi.fn>;
+  } {
+    const sink = vi.fn();
+    const d = createDispatcher({
+      bus,
+      renderer: renderer as never,
+      backendCaller,
+      guardrails,
+      logger,
+      onUserTurnFailed: sink,
+    });
+    return { d, sink };
+  }
+
+  it("fires for a failed user.text_submitted turn with the classified reason + source:'text'", async () => {
+    const { d, sink } = makeDispatcherWithFailedTurnSink();
+    d.start();
+    bus.push(env({ event_name: "user.text_submitted" }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve({ ok: false, drop_reason: "network_drop" });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).toHaveBeenCalledTimes(1);
+    expect(sink).toHaveBeenCalledWith("network_drop", "text");
+    d.stop();
+  });
+
+  it("fires for a failed user.voice_segment_ready turn with source:'voice'", async () => {
+    const { d, sink } = makeDispatcherWithFailedTurnSink();
+    d.start();
+    bus.push(env({ event_name: "user.voice_segment_ready", payload: { text: "안녕" } }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve({ ok: false, drop_reason: "parse_error" });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).toHaveBeenCalledTimes(1);
+    expect(sink).toHaveBeenCalledWith("parse_error", "voice");
+    d.stop();
+  });
+
+  it("passes through http_4xx_drop unchanged", async () => {
+    const { d, sink } = makeDispatcherWithFailedTurnSink();
+    d.start();
+    bus.push(env({ event_name: "user.text_submitted" }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve({ ok: false, drop_reason: "http_4xx_drop" });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).toHaveBeenCalledWith("http_4xx_drop", "text");
+    d.stop();
+  });
+
+  it("does NOT fire for a non-user-initiated trigger (idle.short), even on failure", async () => {
+    const { d, sink } = makeDispatcherWithFailedTurnSink();
+    d.start();
+    bus.push(env({ event_name: "idle.short", dnd_override: undefined, source: "idle_watcher" }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve({ ok: false, drop_reason: "network_drop" });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).not.toHaveBeenCalled();
+    d.stop();
+  });
+
+  it("does NOT fire when the drop_reason is superseded_by_user", async () => {
+    const { d, sink } = makeDispatcherWithFailedTurnSink();
+    d.start();
+    bus.push(env({ event_name: "user.text_submitted" }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve({ ok: false, drop_reason: "superseded_by_user" });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).not.toHaveBeenCalled();
+    d.stop();
+  });
+
+  it("does NOT fire on a successful user turn", async () => {
+    const { d, sink } = makeDispatcherWithFailedTurnSink();
+    d.start();
+    bus.push(env({ event_name: "user.text_submitted" }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).not.toHaveBeenCalled();
+    d.stop();
+  });
+});
+
 describe("dispatcher — structured logging: drop events via logger", () => {
   it("emits logger.warn('drop', ...) for parse_error via DROP_SEVERITY", async () => {
     dispatcher.start();

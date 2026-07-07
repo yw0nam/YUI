@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>YUI — input error state mock</title>
+<style>
+  /* Subset of tokens.css — Hearthlight, OKLCH only. */
+  :root {
+    --yui-accent: oklch(0.8 0.13 75);
+    --yui-accent-soft: oklch(0.8 0.13 75 / 0.45);
+    --yui-text: oklch(0.95 0.012 80);
+    --yui-text-dim: oklch(0.78 0.016 75);
+    --yui-text-mute: oklch(0.66 0.014 72);
+    --yui-scrim: oklch(0.21 0.014 70 / 0.64);
+    --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82);
+    --yui-edge: oklch(0.97 0.01 80 / 0.1);
+    --yui-edge-strong: oklch(0.97 0.01 80 / 0.16);
+    --yui-danger: oklch(0.77 0.11 35);
+    --yui-float: 0 8px 32px oklch(0.12 0.02 70 / 0.4);
+    --yui-text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55);
+    --yui-radius-input: 12px;
+    --yui-radius-chip: 999px;
+    --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --yui-dur: 200ms;
+    --yui-dur-fast: 140ms;
+  }
+
+  /* desktop backdrop stand-in — small pet-window viewport is the realistic case.
+     position:relative (not grid/place-items) so .yui-input's absolute positioning +
+     percentage width resolve against the real viewport, matching surfaces.css. */
+  html, body {
+    height: 100%;
+  }
+  body {
+    position: relative;
+    margin: 0;
+    background:
+      radial-gradient(60% 50% at 30% 20%, oklch(0.5 0.08 250 / 0.7), transparent),
+      radial-gradient(50% 60% at 80% 70%, oklch(0.55 0.1 30 / 0.6), transparent),
+      oklch(0.35 0.02 250);
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+  }
+
+  /* ── input row — copied verbatim from surfaces.css (.yui-input / __row / __field / __error) ── */
+  .yui-input {
+    position: absolute;
+    left: 50%;
+    bottom: 6%;
+    transform: translateX(-50%);
+    width: min(42ch, 84%);
+    display: flex;
+    flex-direction: column;
+    padding: 0.1rem;
+    border-radius: var(--yui-radius-input);
+    background: var(--yui-scrim-strong);
+    border: 1px solid var(--yui-edge);
+    box-shadow: var(--yui-float);
+  }
+  .yui-input:focus-within,
+  .yui-input.is-dragover {
+    border-color: var(--yui-accent);
+    box-shadow: var(--yui-float), 0 0 0 1px var(--yui-accent-soft);
+  }
+  .yui-input__row {
+    display: flex;
+    align-items: center;
+  }
+  .yui-input__attach {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin-left: 0.15rem;
+    border: 0;
+    border-radius: var(--yui-radius-chip);
+    background: transparent;
+    color: var(--yui-text-mute);
+  }
+  .yui-input__attach svg {
+    width: 18px;
+    height: 18px;
+  }
+  .yui-input__field {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0.55rem 0.7rem;
+    border: 0;
+    background: transparent;
+    color: var(--yui-text);
+    font: inherit;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    text-shadow: var(--yui-text-shadow);
+  }
+  .yui-input__field::placeholder {
+    color: var(--yui-text-dim);
+    opacity: 0.7;
+  }
+  /* 인라인 에러 (전송 실패) — side-stripe 금지, 텍스트 색만. surfaces.css:564-577 verbatim. */
+  .yui-input__error {
+    flex: 0 0 auto;
+    padding-right: 0.6rem;
+    color: var(--yui-accent);
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity var(--yui-dur-fast) var(--yui-ease);
+  }
+  .yui-input.is-error .yui-input__error {
+    opacity: 1;
+  }
+  .yui-input__send {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    margin-right: 0.3rem;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: var(--yui-radius-chip);
+    background: var(--yui-accent);
+    color: oklch(0.18 0.01 70);
+  }
+  .yui-input__send svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
+  }
+
+  /* ── mock harness chrome (not part of the real surface) ── */
+  .hint {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    color: var(--yui-text-dim);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    max-width: 60ch;
+  }
+  .hint select {
+    font-size: 0.8rem;
+  }
+  #verdict {
+    font-weight: 700;
+  }
+  #verdict.ok { color: #6f6; }
+  #verdict.overflow { color: #f66; }
+</style>
+</head>
+<body>
+  <div class="hint">
+    mock: pick a candidate error string below — checks whether the row's rendered
+    content (nowrap error text + fixed-width attach/send buttons) overflows the
+    input box at its CSS-defined width (<code>min(42ch, 84%)</code>).<br />
+    <select id="candidate"></select>
+    &nbsp;→ row scrollWidth vs clientWidth: <span id="verdict">—</span>
+  </div>
+
+  <form class="yui-input is-error" novalidate>
+    <div class="yui-input__row">
+      <button type="button" class="yui-input__attach" aria-label="attach">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+        </svg>
+      </button>
+      <input class="yui-input__field" type="text" placeholder="말 걸기…" />
+      <span class="yui-input__error" role="alert" id="errorText"></span>
+      <button class="yui-input__send" type="submit" aria-label="send">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <line x1="8" y1="13" x2="8" y2="3" />
+          <polyline points="4,7 8,3 12,7" />
+        </svg>
+      </button>
+    </div>
+  </form>
+
+  <script>
+    // The 9 candidates: 3 failure reasons × 3 locales (matches the i18n keys added
+    // in src/ui/i18n/{en,ja,ko}.ts for input.error_auth / _network / _parse).
+    const candidates = {
+      "en · auth": "Auth failed · check API key",
+      "en · network": "No response · check connection",
+      "en · parse": "Response parse failed",
+      "ko · auth": "인증 실패 · API 키 확인",
+      "ko · network": "응답 없음 · 연결 확인",
+      "ko · parse": "응답 처리 실패",
+      "ja · auth": "認証失敗 · APIキー確認",
+      "ja · network": "応答なし · 接続確認",
+      "ja · parse": "応答処理に失敗",
+    };
+
+    const select = document.getElementById("candidate");
+    const errorText = document.getElementById("errorText");
+    const verdict = document.getElementById("verdict");
+    const row = document.querySelector(".yui-input__row");
+
+    for (const key of Object.keys(candidates)) {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = `${key}: "${candidates[key]}"`;
+      select.appendChild(opt);
+    }
+
+    function render() {
+      errorText.textContent = candidates[select.value];
+      // overflow check: does the row's content need more space than the box gives it?
+      const overflowed = row.scrollWidth > row.clientWidth;
+      verdict.textContent = `${row.scrollWidth}px / ${row.clientWidth}px${overflowed ? " — OVERFLOW" : " — fits"}`;
+      verdict.className = overflowed ? "overflow" : "ok";
+    }
+    select.addEventListener("change", render);
+    select.value = "en · network"; // longest candidate by character count
+    render();
+  </script>
+</body>
+</html>

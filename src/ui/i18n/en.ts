@@ -36,6 +36,9 @@ const en: Record<string, string> = {
   "aria.stop": "Stop",
   "aria.remove_attachment": "Remove attachment",
   "input.placeholder": "Say something…",
+  "input.error_auth": "Auth failed · check API key",
+  "input.error_network": "No response · check connection",
+  "input.error_parse": "Response parse failed",
 
   // capture indicator
   "capture.watching": "Watching your screen",
