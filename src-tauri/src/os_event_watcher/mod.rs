@@ -5,7 +5,7 @@
 //!
 //! Platform support:
 //!   macOS  — fully implemented (NSWorkspace, CGEventSource, CGWindowList)
-//!   Windows — cfg-gated compile-only stub
+//!   Windows — fully implemented (GetForegroundWindow, GetLastInputInfo, EnumWindows)
 //!   Android — cfg-gated no-op degrade
 //!   other  — idle-source error emitted, no panic
 
@@ -112,19 +112,24 @@ pub struct WindowAtPoint {
 }
 
 /// Lists every foreign on-screen window in front-to-back (topmost first) order,
-/// each in `CGWindowBounds` space (global, top-left origin, points).
+/// each in logical points (top-left origin).
 ///
-/// Excludes YUI's own pid and non-layer-0 chrome (menu bar / Dock / wallpaper).
-/// The frontend uses the full list for the perch top-edge catch zone, whose
-/// U-band lies outside the window bounds and so cannot be resolved by a
-/// point-in-rect hit-test. Non-macOS platforms return `Ok(Vec::new())`.
+/// Excludes YUI's own pid and platform chrome (menu bar / Dock / wallpaper on
+/// macOS; taskbar / desktop on Windows). The frontend uses the full list for
+/// the perch top-edge catch zone, whose U-band lies outside the window bounds
+/// and so cannot be resolved by a point-in-rect hit-test. Platforms without an
+/// enumeration implementation return `Ok(Vec::new())`.
 #[command]
 pub fn list_windows() -> Result<Vec<WindowAtPoint>, String> {
     #[cfg(target_os = "macos")]
     {
         Ok(macos::list_all_windows())
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        Ok(windows::list_all_windows())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         Ok(Vec::new())
     }
