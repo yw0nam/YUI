@@ -71,12 +71,6 @@ const DEFAULT_FRAMING_FOV = 30;
  * Tunable: the seat-contact point sits this far below the hip joint.
  */
 const SEAT_DROP = SEAT_DROP_DEFAULT;
-/**
- * Fit-distance multiplier while perched. Offsetting the character up to pin its
- * seat can push head/feet out of frame; pulling the camera back keeps the pinned
- * pose framed. >1 ⇒ camera further ⇒ character smaller.
- */
-const PERCH_ZOOM = 1.25;
 /** Per-frame convergence rate for the seat-pin offset (proportional step). */
 const PERCH_PIN_RATE = 0.6;
 /**
@@ -223,9 +217,8 @@ export interface Renderer {
   /**
    * Enter/exit perch-align mode. While a target is set, the seat (live hips
    * +SEAT_DROP) is pinned every frame to `edgeLocalYpx` (the target window's top
-   * edge in pet-window-local px) via a dedicated additive vertical offset, and the
-   * camera zooms out by PERCH_ZOOM to keep the lifted pose framed. null clears the
-   * offset and restores normal framing — idle/cycle rendering is unaffected when unset.
+   * edge in pet-window-local px) via a dedicated additive vertical offset. null
+   * clears the offset — idle/cycle rendering is unaffected when unset.
    * The `window_sit` motion itself is driven separately via the normal directive path.
    */
   setPerchTarget(target: { edgeLocalYpx: number } | null): void;
@@ -321,12 +314,10 @@ export function createRenderer(options: RendererOptions): Renderer {
       margin: framing.margin,
     });
     if (!fit) return;
-    // While perched, pull the camera back by PERCH_ZOOM so the lifted pose stays framed.
-    const perchZoom = perchTargetYpx !== null ? PERCH_ZOOM : 1;
-    const d = (fit.distance * perchZoom) / zoom; // zoom>1 ⇒ camera closer ⇒ character bigger.
+    const d = fit.distance / zoom; // zoom>1 ⇒ camera closer ⇒ character bigger.
     camera.fov = framing.fov;
-    // Orbit composes with the radius pullback: orbit sets direction, zoom/PERCH_ZOOM
-    // set the radius d. effectivePolar is the eased polar (free, or perched-clamped).
+    // Orbit composes with the radius: orbit sets direction, zoom sets the radius d.
+    // effectivePolar is the eased polar (free, or perched-clamped).
     const pos = orbitPosition(fit.target, d, { azimuth, polar: effectivePolar });
     camera.position.copy(pos);
     camera.lookAt(fit.target);
@@ -978,7 +969,6 @@ export function createRenderer(options: RendererOptions): Renderer {
         if (currentVrm) currentVrm.scene.position.y = 0; // restore baseline.
         if (wasPerched) {
           orbitConverging = true; // ease the polar back to the stored free angle.
-          fitCamera(); // restore normal framing.
           playMotion(null); // perch cleared — explicit return to idle baseline.
         }
         return;
@@ -986,7 +976,6 @@ export function createRenderer(options: RendererOptions): Renderer {
       perchTargetYpx = target.edgeLocalYpx;
       if (!wasPerched) {
         orbitConverging = true; // ease the polar into the perched [60°,120°] band.
-        fitCamera(); // apply PERCH_ZOOM on entry.
       }
     },
     isPerched() {
