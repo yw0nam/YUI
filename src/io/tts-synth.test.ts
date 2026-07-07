@@ -9,9 +9,9 @@
  * 테스트는 mock fetch만 사용 — 실제 :8092 미접속.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
-import { createTtsSynth } from "./tts-synth";
+import { createTtsSynth, TTS_SYNTH_TIMEOUT_MS } from "./tts-synth";
 
 type FetchFn = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -103,13 +103,63 @@ describe("createTtsSynth", () => {
     await expect(synth("x")).rejects.toThrow(/503/);
   });
 
-  it("passes the AbortSignal through to fetch", async () => {
-    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(2)));
+  it("propagates the caller's abort to the request signal", async () => {
+    const fetchMock = vi.fn<FetchFn>(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          const abortWith = () =>
+            reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError"));
+          if (init.signal?.aborted) abortWith();
+          else init.signal?.addEventListener("abort", abortWith);
+        }),
+    );
     const synth = createTtsSynth({ config: CONFIG, fetch: fetchMock as unknown as typeof fetch });
     const ac = new AbortController();
-    await synth("hi", ac.signal);
+    const pending = synth("hi", ac.signal);
+    ac.abort();
+    await expect(pending).rejects.toThrow();
     const init = fetchMock.mock.calls[0][1];
-    expect(init.signal).toBe(ac.signal);
+    expect(init.signal?.aborted).toBe(true);
+  });
+
+  describe("per-request deadline", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("aborts a hung request once TTS_SYNTH_TIMEOUT_MS elapses", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn<FetchFn>(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            init.signal?.addEventListener("abort", () =>
+              reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError")),
+            );
+          }),
+      );
+      const synth = createTtsSynth({
+        config: CONFIG,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+
+      const pending = synth("hi");
+      const assertion = expect(pending).rejects.toThrow();
+      await vi.advanceTimersByTimeAsync(TTS_SYNTH_TIMEOUT_MS + 10);
+      await assertion;
+    });
+
+    it("does not fire the deadline when the request settles first", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+      const synth = createTtsSynth({
+        config: CONFIG,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+
+      await expect(synth("hi")).resolves.toBeInstanceOf(ArrayBuffer);
+      // No pending timer should remain once the request has already settled.
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 
   it("adds Authorization: Bearer when getApiKey resolves a key, keeping Content-Type", async () => {
