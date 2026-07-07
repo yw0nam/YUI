@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ChatHistoryEntry, ChatHistoryStorage } from "./chat-history-store";
 import {
   createChatHistoryStore,
+  estimateTokens,
   localStorageChatHistoryStorage,
   selectSendSuffix,
 } from "./chat-history-store";
@@ -349,5 +350,65 @@ describe("selectSendSuffix", () => {
   it("returns an empty array for an empty entries array regardless of window", () => {
     expect(selectSendSuffix([], 100)).toEqual([]);
     expect(selectSendSuffix([], null)).toEqual([]);
+  });
+
+  it("drops an older CJK entry that the old chars/4 formula would have kept", () => {
+    // 10 Hangul syllables: old chars/4 estimate = ceil(10/4) = 3 per entry (6
+    // total for both, fits budget 10). CJK-weighted estimate = 10 per entry
+    // (20 total), so only the newest entry fits budget 10.
+    const cjk10 = "가".repeat(10);
+    const entries = [entry("user", cjk10, 1), entry("assistant", cjk10, 2)];
+    expect(selectSendSuffix(entries, 10)).toEqual([entries[1]]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// estimateTokens
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("estimateTokens", () => {
+  it("estimates plain ASCII/English text as chars/4 (unchanged baseline)", () => {
+    expect(estimateTokens("aaaaaaaa")).toBe(2);
+    expect(estimateTokens("hello world")).toBe(Math.ceil("hello world".length / 4));
+  });
+
+  it("estimates Korean (Hangul) text at ~1 token per char, well above chars/4", () => {
+    const text = "안녕하세요오늘도좋은하루되세요";
+    const oldEstimate = Math.ceil(text.length / 4);
+    const newEstimate = estimateTokens(text);
+    expect(newEstimate).toBe(text.length);
+    expect(newEstimate).toBeGreaterThanOrEqual(oldEstimate * 2);
+  });
+
+  it("estimates Japanese (hiragana/katakana/kanji) text at ~1 token per char", () => {
+    const text = "こんにちは今日もいい天気ですね";
+    const oldEstimate = Math.ceil(text.length / 4);
+    const newEstimate = estimateTokens(text);
+    expect(newEstimate).toBe(text.length);
+    expect(newEstimate).toBeGreaterThanOrEqual(oldEstimate * 2);
+  });
+
+  it("estimates full-width forms as CJK-weighted", () => {
+    const text = "ＡＢＣＤ";
+    expect(estimateTokens(text)).toBe(text.length);
+  });
+
+  it("estimates mixed CJK + ASCII text as the sum of per-script weights", () => {
+    // "Hello " = 6 ascii chars -> 6/4; "안녕" = 2 hangul chars -> 2
+    const text = "Hello 안녕";
+    expect(estimateTokens(text)).toBe(Math.ceil(2 + 6 / 4));
+  });
+
+  it("returns 0 for an empty string", () => {
+    expect(estimateTokens("")).toBe(0);
+  });
+
+  it("counts an astral-plane emoji (surrogate pair) as one non-CJK char, not two", () => {
+    // "😀" is a single code point encoded as a UTF-16 surrogate pair (length 2
+    // in JS string indexing). Iterating with for-of must treat it as ONE char.
+    const emoji = "😀";
+    expect([...emoji].length).toBe(1);
+    expect(emoji.length).toBe(2);
+    expect(estimateTokens(emoji)).toBe(Math.ceil(1 / 4));
   });
 });
