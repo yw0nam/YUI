@@ -388,6 +388,68 @@ describe("createSttVad — STT error resilience", () => {
   });
 });
 
+describe("createSttVad — per-request deadline (#275)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("sends a signal that aborts a hung STT request once STT_REQUEST_TIMEOUT_MS elapses", async () => {
+    vi.useFakeTimers();
+    const { STT_REQUEST_TIMEOUT_MS } = await import("./stt-vad");
+    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+      return new Promise<Response>((_resolve, reject) => {
+        const abortWith = () =>
+          reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError"));
+        if (init.signal?.aborted) abortWith();
+        else init.signal?.addEventListener("abort", abortWith);
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const onState = vi.fn();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState });
+    await stt.start();
+
+    const pending = triggerSpeechEnd!(new Float32Array(16));
+    await vi.advanceTimersByTimeAsync(STT_REQUEST_TIMEOUT_MS + 10);
+    await pending;
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const init = fetchMock.mock.calls[0][1];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(onState).toHaveBeenCalledWith("error", expect.any(String));
+    warnSpy.mockRestore();
+  });
+
+  it("logs a warning via the project logger when the deadline drops the utterance", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+      return new Promise<Response>((_resolve, reject) => {
+        const abortWith = () =>
+          reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError"));
+        if (init.signal?.aborted) abortWith();
+        else init.signal?.addEventListener("abort", abortWith);
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const { STT_REQUEST_TIMEOUT_MS } = await import("./stt-vad");
+    const onVoiceSegment = vi.fn();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    await stt.start();
+
+    const pending = triggerSpeechEnd!(new Float32Array(16));
+    await vi.advanceTimersByTimeAsync(STT_REQUEST_TIMEOUT_MS + 10);
+    await pending;
+
+    expect(onVoiceSegment).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+});
+
 describe("createSttVad — stop() and dispose()", () => {
   it("stop() pauses the VAD instance", async () => {
     const onVoiceSegment = vi.fn();
