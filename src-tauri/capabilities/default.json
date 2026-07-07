@@ -10,6 +10,8 @@
     "core:window:allow-start-dragging",
     "core:window:allow-set-ignore-cursor-events",
     "core:window:allow-set-cursor-position",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
     "core:webview:allow-create-webview-window",
     "cors-fetch:default",
     "log:default",
