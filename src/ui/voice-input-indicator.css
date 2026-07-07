@@ -10,11 +10,9 @@
   gap: 0.44rem;
   padding: 0.3rem 0.64rem 0.3rem 0.58rem;
   border-radius: var(--yui-radius-chip);
-  background: var(--yui-scrim);
+  background: var(--yui-scrim-strong);
   border: 1px solid var(--yui-edge);
   box-shadow: var(--yui-float);
-  backdrop-filter: blur(10px) saturate(1.1);
-  -webkit-backdrop-filter: blur(10px) saturate(1.1);
   color: var(--yui-text-dim);
   font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
   font-size: 0.76rem;
@@ -59,13 +57,13 @@
 }
 
 .yui-voice[data-state="fired"] .yui-voice__dot {
-  background: oklch(0.76 0.08 145);
-  box-shadow: 0 0 0 2px oklch(0.76 0.08 145 / 0.18);
+  background: var(--yui-accent);
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
 .yui-voice[data-state="error"] .yui-voice__dot {
-  background: oklch(0.68 0.13 28);
-  box-shadow: 0 0 0 2px oklch(0.68 0.13 28 / 0.2);
+  background: var(--yui-danger);
+  box-shadow: 0 0 0 2px var(--yui-danger-faint);
 }
 
 @keyframes yui-voice-live {

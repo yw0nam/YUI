@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>YUI — indicator contrast &amp; error-token mock</title>
+<style>
+  /* Subset of tokens.css — Hearthlight, OKLCH only. */
+  :root {
+    --yui-accent: oklch(0.8 0.13 75);
+    --yui-accent-soft: oklch(0.8 0.13 75 / 0.45);
+    --yui-text: oklch(0.95 0.012 80);
+    --yui-text-dim: oklch(0.78 0.016 75);
+    --yui-text-mute: oklch(0.66 0.014 72);
+    --yui-scrim: oklch(0.21 0.014 70 / 0.64);
+    --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82);
+    --yui-edge: oklch(0.97 0.01 80 / 0.1);
+    --yui-edge-strong: oklch(0.97 0.01 80 / 0.16);
+    --yui-danger: oklch(0.77 0.11 35);
+    --yui-float: 0 8px 32px oklch(0.12 0.02 70 / 0.4);
+    --yui-text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55);
+    --yui-radius-input: 12px;
+    --yui-radius-chip: 999px;
+    --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --yui-dur: 200ms;
+    --yui-dur-fast: 140ms;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; }
+  body {
+    background: oklch(0.14 0.012 70);
+    color: var(--yui-text);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 2.75rem clamp(1rem, 4vw, 3rem) 6rem;
+  }
+
+  .page { max-width: 1120px; margin: 0 auto; }
+
+  /* ── harness header ── */
+  .harness-header { max-width: 70ch; margin-bottom: 3.2rem; }
+  .harness-header h1 {
+    margin: 0 0 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--yui-text);
+  }
+  .harness-header p {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--yui-text-mute);
+  }
+
+  /* ── section scaffold ── */
+  .doctrine-section {
+    margin-bottom: 4rem;
+    padding-bottom: 3rem;
+    border-bottom: 1px solid oklch(0.97 0.01 80 / 0.08);
+  }
+  .doctrine-section:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .doctrine-section h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--yui-text);
+  }
+  .doctrine-section .rationale {
+    margin: 0 0 2rem;
+    max-width: 72ch;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: var(--yui-text-mute);
+  }
+  .doctrine-section .rationale code {
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 0.92em;
+    color: var(--yui-text-dim);
+  }
+
+  .component-block { margin-bottom: 2.25rem; }
+  .component-block:last-child { margin-bottom: 0; }
+  .component-block h3 {
+    margin: 0 0 0.7rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--yui-text-mute);
+  }
+  .component-block h3 .recommended {
+    margin-left: 0.5rem;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    font-weight: 500;
+    color: var(--yui-accent);
+    opacity: 0.85;
+  }
+
+  /* ── backdrop column headers (once per component-block) ── */
+  .col-headers {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  .col-headers span {
+    font-size: 0.66rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--yui-text-mute);
+  }
+
+  /* ── the three backdrop swatches ── */
+  .swatch-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(260px, 1fr));
+    gap: 1rem;
+  }
+  .swatch {
+    position: relative;
+    min-height: 160px;
+    border-radius: 10px;
+    overflow: hidden;
+    padding: 1.5rem 1.1rem;
+  }
+  .swatch__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.85rem;
+    height: 100%;
+    justify-content: center;
+  }
+  .swatch--white { background: oklch(1 0 0); }
+  .swatch--black { background: oklch(0.14 0.012 260); }
+  .swatch--busy {
+    background: linear-gradient(160deg, oklch(0.88 0.03 240), oklch(0.79 0.045 255));
+  }
+  .swatch--busy .swatch__content { padding-top: 2.9rem; justify-content: flex-start; }
+
+  /* faux window chrome — harness-only decoration simulating a busy IDE/light desktop */
+  .chrome-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 10px;
+    background: oklch(0.94 0.015 240 / 0.55);
+    border-bottom: 1px solid oklch(0.55 0.02 240 / 0.35);
+  }
+  .chrome-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .chrome-dot:nth-child(1) { background: oklch(0.68 0.14 25); }
+  .chrome-dot:nth-child(2) { background: oklch(0.8 0.13 95); }
+  .chrome-dot:nth-child(3) { background: oklch(0.74 0.12 145); }
+  .chrome-title {
+    margin-left: 6px;
+    width: 84px; height: 6px;
+    border-radius: 3px;
+    background: oklch(0.5 0.02 240 / 0.3);
+  }
+  .chrome-toolbar {
+    position: absolute;
+    top: 26px; left: 0; right: 0;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    background: oklch(0.92 0.015 240 / 0.45);
+    border-bottom: 1px solid oklch(0.55 0.02 240 / 0.28);
+  }
+  .chrome-toolbar span {
+    width: 30px; height: 5px;
+    border-radius: 3px;
+    background: oklch(0.5 0.02 240 / 0.28);
+  }
+
+  /* harness-only labels sitting directly on the bare backdrop (not on a YUI surface) —
+     these need backdrop-adaptive color; every YUI surface's own text stays constant. */
+  .tag {
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.2rem;
+  }
+  .swatch--white .tag, .swatch--busy .tag { color: oklch(0.32 0.02 260 / 0.8); }
+  .swatch--black .tag { color: oklch(0.72 0.015 75 / 0.85); }
+
+  .pair { display: flex; flex-direction: column; gap: 0.4rem; width: 100%; }
+  .pair + .pair { margin-top: 0.15rem; }
+
+  /* ════════════════════════════════════════════════════════════
+     Pill geometry — copied verbatim from surfaces.css (.yui-tool),
+     capture-indicator.css (.yui-capture), voice-input-indicator.css
+     (.yui-voice). Position/opacity/pointer-events dropped (static
+     mock, always visible); .is-before / .is-after are mock-only
+     modifiers standing in for the two competing background recipes.
+     ════════════════════════════════════════════════════════════ */
+  .yui-tool, .yui-capture, .yui-voice {
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--yui-radius-chip);
+    border: 1px solid var(--yui-edge);
+    box-shadow: var(--yui-float);
+    font-weight: 500;
+    white-space: nowrap;
+    text-shadow: var(--yui-text-shadow);
+  }
+
+  .yui-tool {
+    gap: 0.4rem;
+    padding: 0.28rem 0.7rem;
+    color: var(--yui-text-dim);
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+  }
+  .yui-tool__dot {
+    width: 0.42rem; height: 0.42rem;
+    border-radius: 50%;
+    background: var(--yui-text-dim);
+    flex: 0 0 auto;
+  }
+
+  .yui-capture {
+    gap: 0.46rem;
+    padding: 0.3rem 0.66rem 0.3rem 0.56rem;
+    color: var(--yui-text-dim);
+    font-size: 0.76rem;
+    letter-spacing: 0.01em;
+  }
+  .yui-capture__live {
+    width: 0.4rem; height: 0.4rem;
+    border-radius: 50%;
+    background: var(--yui-accent);
+    flex: 0 0 auto;
+  }
+
+  .yui-voice {
+    gap: 0.44rem;
+    padding: 0.3rem 0.64rem 0.3rem 0.58rem;
+    color: var(--yui-text-dim);
+    font-size: 0.76rem;
+    letter-spacing: 0.01em;
+  }
+  .yui-voice__dot {
+    width: 0.42rem; height: 0.42rem;
+    border-radius: 50%;
+    background: var(--yui-accent);
+    flex: 0 0 auto;
+  }
+
+  /* ── the two competing background recipes under test (R3 + H2) ── */
+  .yui-tool.is-before, .yui-capture.is-before, .yui-voice.is-before {
+    background: var(--yui-scrim);
+    backdrop-filter: blur(10px) saturate(1.1);
+    -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  }
+  .yui-tool.is-after, .yui-capture.is-after, .yui-voice.is-after {
+    background: var(--yui-scrim-strong);
+  }
+
+  /* ── R2 fired-dot variants (built on the AFTER / scrim-strong chip, since by
+     this point in the bundle the R3 background fix is already the baseline) ── */
+  .yui-voice__dot.is-fired-a {
+    background: oklch(0.76 0.08 145);
+    box-shadow: 0 0 0 2px oklch(0.76 0.08 145 / 0.18);
+  }
+  .yui-voice__dot.is-fired-b {
+    background: var(--yui-accent);
+    box-shadow: 0 0 0 2px var(--yui-accent-soft);
+  }
+  .yui-voice__dot.is-error {
+    background: var(--yui-danger);
+    box-shadow: 0 0 0 2px oklch(0.77 0.11 35 / 0.2);
+  }
+
+  .voice-state-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+  }
+  .voice-state { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-start; }
+
+  /* ── R1: input row shell (verbatim geometry from surfaces.css .yui-input*,
+     position changed from absolute to static to sit inside a grid swatch) ── */
+  .yui-input-demo {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 0.1rem;
+    border-radius: var(--yui-radius-input);
+    background: var(--yui-scrim-strong);
+    border: 1px solid var(--yui-edge);
+    box-shadow: var(--yui-float);
+  }
+  .yui-input-demo__row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 0.7rem;
+  }
+  .yui-input-demo__field {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--yui-text-mute);
+    font-size: 0.95rem;
+  }
+  .yui-input-demo__error {
+    flex: 0 0 auto;
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .yui-input-demo__error.is-before { color: var(--yui-accent); }
+  .yui-input-demo__error.is-after { color: var(--yui-danger); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="harness-header">
+    <h1>YUI — indicator contrast &amp; error-token mock</h1>
+    <p>
+      Standalone visual-approval harness for the doctrine bundle: chip/pill scrim
+      contrast on any backdrop (R3 + H2), the input row's inline error color token
+      (R1), and the voice-indicator "fired" dot variants (R2). Every pair below is
+      shown over three representative desktop backdrops — pure white, a busy light
+      surface, and near-black — because the point of the bundle is the
+      Legible-on-Anything rule: a surface's own self-contrast should carry it
+      regardless of what's underneath.
+    </p>
+  </header>
+
+  <!-- ════════════════════════════════════════════════════════════
+       R3 + H2 — chip / pill surface contrast
+       ════════════════════════════════════════════════════════════ -->
+  <section class="doctrine-section" id="r3-h2">
+    <h2>[R3 + H2] Chip / pill surface contrast</h2>
+    <p class="rationale">
+      <code>--yui-text-dim</code> on the 64%-alpha <code>--yui-scrim</code> measures
+      ~2.65:1 against white — under the guideline for small label text; the 82%-alpha
+      <code>--yui-scrim-strong</code> raises it to ~4.1:1. Alongside the opacity bump,
+      backdrop blur is removed entirely (the frosted backdrop is reserved for the
+      speech bubble only — the bubble-only rule); the extra opacity compensates so
+      the pill still separates cleanly from a busy backdrop without borrowing blur.
+    </p>
+
+    <div class="component-block">
+      <h3>Tool-status chip — "Searching…"</h3>
+      <div class="col-headers"><span>Pure white</span><span>Busy light backdrop</span><span>Near-black</span></div>
+      <div class="swatch-row">
+        <div class="swatch swatch--white">
+          <div class="swatch__content">
+            <div class="pair">
+              <span class="tag">Before</span>
+              <div class="yui-tool is-before"><span class="yui-tool__dot"></span>Searching…</div>
+            </div>
+            <div class="pair">
+              <span class="tag">After</span>
+              <div class="yui-tool is-after"><span class="yui-tool__dot"></span>Searching…</div>
+            </div>
+          </div>
+        </div>
+        <div class="swatch swatch--busy">
+          <div class="chrome-bar"><span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-title"></span></div>
+          <div class="chrome-toolbar"><span></span><span></span><span></span></div>
+          <div class="swatch__content">
+            <div class="pair">
+              <span class="tag">Before</span>
+              <div class="yui-tool is-before"><span class="yui-tool__dot"></span>Searching…</div>
+            </div>
+            <div class="pair">
+              <span class="tag">After</span>
+              <div class="yui-tool is-after"><span class="yui-tool__dot"></span>Searching…</div>
+            </div>
+          </div>
+        </div>
+        <div class="swatch swatch--black">
+          <div class="swatch__content">
+            <div class="pair">
+              <span class="tag">Before</span>
+              <div class="yui-tool is-before"><span class="yui-tool__dot"></span>Searching…</div>
+            </div>
+            <div class="pair">
+              <span class="tag">After</span>
+              <div class="yui-tool is-after"><span class="yui-tool__dot"></span>Searching…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="component-block">
+      <h3>Capture pill — "Watching your screen"</h3>
+      <div class="col-headers"><span>Pure white</span><span>Busy light backdrop</span><span>Near-black</span></div>
+      <div class="swatch-row">
+        <div class="swatch swatch--white">
+          <div class="swatch__content">
+            <div class="pair">
+              <span class="tag">Before</span>
+              <div class="yui-capture is-before"><span class="yui-capture__live"></span>Watching your screen</div>
+            </div>
+            <div class="pair">
+              <span class="tag">After</span>
+              <div class="yui-capture is-after"><span class="yui-capture__live"></span>Watching your screen</div>
+            </div>
+          </div>
+        </div>
+        <div class="swatch swatch--busy">
+          <div class="chrome-bar"><span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-title"></span></div>
+          <div class="chrome-toolbar"><span></span><span></span><span></span></div>
+          <div class="swatch__content">
+            <div class="pair">
+              <span class="tag">Before</span>
+              <div class="yui-capture is-before"><span class="yui-capture__live"></span>Watching your screen</div>
+            </div>
+            <div class="pair">
+              <span class="tag">After</span>
+              <div class="yui-capture is-after"><span class="yui-capture__live"></span>Watching your screen</div>
+            </div>
+          </div>
+        </div>
+        <div class="swatch swatch--black">
+          <div class="swatch__content">
+            <div class="pair">
+              <span class="tag">Before</span>
+              <div class="yui-capture is-before"><span class="yui-capture__live"></span>Watching your screen</div>
+            </div>
+            <div class="pair">
+              <span class="tag">After</span>
+              <div class="yui-capture is-after"><span class="yui-capture__live"></span>Watching your screen</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="component-block">
+      <h3>Voice pill — "Listening"</h3>
+      <div class="col-headers"><span>Pure white</span><span>Busy light backdrop</span><span>Near-black</span></div>
+      <div class="swatch-row">
+        <div class="swatch swatch--white">
+          <div class="swatch__content">
+            <div class="pair">
+              <span class="tag">Before</span>
+              <div class="yui-voice is-before"><span class="yui-voice__dot"></span>Listening</div>
+            </div>
+            <div class="pair">
+              <span class="tag">After</span>
+              <div class="yui-voice is-after"><span class="yui-voice__dot"></span>Listening</div>
+            </div>
+          </div>
+        </div>
+        <div class="swatch swatch--busy">
+          <div class="chrome-bar"><span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-title"></span></div>
+          <div class="chrome-toolbar"><span></span><span></span><span></span></div>
+          <div class="swatch__content">
+            <div class="pair">
+              <span class="tag">Before</span>
+              <div class="yui-voice is-before"><span class="yui-voice__dot"></span>Listening</div>
+            </div>
+            <div class="pair">
+              <span class="tag">After</span>
+              <div class="yui-voice is-after"><span class="yui-voice__dot"></span>Listening</div>
+            </div>
+          </div>
+        </div>
+        <div class="swatch swatch--black">
+          <div class="swatch__content">
+            <div class="pair">
+              <span class="tag">Before</span>
+              <div class="yui-voice is-before"><span class="yui-voice__dot"></span>Listening</div>
+            </div>
+            <div class="pair">
+              <span class="tag">After</span>
+              <div class="yui-voice is-after"><span class="yui-voice__dot"></span>Listening</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════
+       R1 — input-row inline error color
+       ════════════════════════════════════════════════════════════ -->
+  <section class="doctrine-section" id="r1">
+    <h2>[R1] Input-row inline error</h2>
+    <p class="rationale">
+      The current inline error borrows <code>--yui-accent</code> (hue 75), the same
+      hue as every warm "moment" in the system (focus, speech onset) — a failed send
+      reads as one more warm accent, not as wrong. <code>--yui-danger</code> (hue 35)
+      is deliberately hue-separated from Hearth Amber so an error can never be
+      mistaken for a warmth moment, while keeping the same lightness and the
+      no-side-stripe, text-color-only treatment.
+    </p>
+
+    <div class="component-block">
+      <h3>"Network error — check connection"</h3>
+      <div class="col-headers"><span>Pure white</span><span>Busy light backdrop</span><span>Near-black</span></div>
+      <div class="swatch-row">
+        <div class="swatch swatch--white">
+          <div class="swatch__content">
+            <div class="pair">
+              <span class="tag">Before</span>
+              <div class="yui-input-demo">
+                <div class="yui-input-demo__row">
+                  <span class="yui-input-demo__field">말 걸기…</span>
+                  <span class="yui-input-demo__error is-before">Network error — check connection</span>
+                </div>
+              </div>
+            </div>
+            <div class="pair">
+              <span class="tag">After</span>
+              <div class="yui-input-demo">
+                <div class="yui-input-demo__row">
+                  <span class="yui-input-demo__field">말 걸기…</span>
+                  <span class="yui-input-demo__error is-after">Network error — check connection</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="swatch swatch--busy">
+          <div class="chrome-bar"><span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-title"></span></div>
+          <div class="chrome-toolbar"><span></span><span></span><span></span></div>
+          <div class="swatch__content">
+            <div class="pair">
+              <span class="tag">Before</span>
+              <div class="yui-input-demo">
+                <div class="yui-input-demo__row">
+                  <span class="yui-input-demo__field">말 걸기…</span>
+                  <span class="yui-input-demo__error is-before">Network error — check connection</span>
+                </div>
+              </div>
+            </div>
+            <div class="pair">
+              <span class="tag">After</span>
+              <div class="yui-input-demo">
+                <div class="yui-input-demo__row">
+                  <span class="yui-input-demo__field">말 걸기…</span>
+                  <span class="yui-input-demo__error is-after">Network error — check connection</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="swatch swatch--black">
+          <div class="swatch__content">
+            <div class="pair">
+              <span class="tag">Before</span>
+              <div class="yui-input-demo">
+                <div class="yui-input-demo__row">
+                  <span class="yui-input-demo__field">말 걸기…</span>
+                  <span class="yui-input-demo__error is-before">Network error — check connection</span>
+                </div>
+              </div>
+            </div>
+            <div class="pair">
+              <span class="tag">After</span>
+              <div class="yui-input-demo">
+                <div class="yui-input-demo__row">
+                  <span class="yui-input-demo__field">말 걸기…</span>
+                  <span class="yui-input-demo__error is-after">Network error — check connection</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════
+       R2 — voice-indicator "fired" dot
+       ════════════════════════════════════════════════════════════ -->
+  <section class="doctrine-section" id="r2">
+    <h2>[R2] Voice-indicator "fired" dot</h2>
+    <p class="rationale">
+      The current error dot (<code>oklch(0.68 0.13 28)</code>) is an off-token red
+      that collides in meaning with Ember Red without being it; both variants below
+      replace it with the canonical <code>--yui-danger</code>. For the fired state,
+      Variant A formalizes a standalone green success hue (145°); Variant B keeps
+      the fired moment inside the amber family — a steady, non-pulsing accent dot —
+      so "sent" still reads as a warmth moment rather than importing a foreign hue.
+      Both are built on the R3 after-state (scrim-strong, no blur) chip.
+    </p>
+
+    <div class="component-block">
+      <h3>Variant A — formalized green success token</h3>
+      <div class="col-headers"><span>Pure white</span><span>Busy light backdrop</span><span>Near-black</span></div>
+      <div class="swatch-row">
+        <div class="swatch swatch--white">
+          <div class="swatch__content">
+            <div class="voice-state-row">
+              <div class="voice-state"><span class="tag">Listening</span><div class="yui-voice is-after"><span class="yui-voice__dot"></span>Listening</div></div>
+              <div class="voice-state"><span class="tag">Fired</span><div class="yui-voice is-after"><span class="yui-voice__dot is-fired-a"></span>Sent</div></div>
+              <div class="voice-state"><span class="tag">Error</span><div class="yui-voice is-after"><span class="yui-voice__dot is-error"></span>Error</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="swatch swatch--busy">
+          <div class="chrome-bar"><span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-title"></span></div>
+          <div class="chrome-toolbar"><span></span><span></span><span></span></div>
+          <div class="swatch__content">
+            <div class="voice-state-row">
+              <div class="voice-state"><span class="tag">Listening</span><div class="yui-voice is-after"><span class="yui-voice__dot"></span>Listening</div></div>
+              <div class="voice-state"><span class="tag">Fired</span><div class="yui-voice is-after"><span class="yui-voice__dot is-fired-a"></span>Sent</div></div>
+              <div class="voice-state"><span class="tag">Error</span><div class="yui-voice is-after"><span class="yui-voice__dot is-error"></span>Error</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="swatch swatch--black">
+          <div class="swatch__content">
+            <div class="voice-state-row">
+              <div class="voice-state"><span class="tag">Listening</span><div class="yui-voice is-after"><span class="yui-voice__dot"></span>Listening</div></div>
+              <div class="voice-state"><span class="tag">Fired</span><div class="yui-voice is-after"><span class="yui-voice__dot is-fired-a"></span>Sent</div></div>
+              <div class="voice-state"><span class="tag">Error</span><div class="yui-voice is-after"><span class="yui-voice__dot is-error"></span>Error</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="component-block">
+      <h3>Variant B <span class="recommended">(recommended)</span> — amber warmth-moment, steady dot</h3>
+      <div class="col-headers"><span>Pure white</span><span>Busy light backdrop</span><span>Near-black</span></div>
+      <div class="swatch-row">
+        <div class="swatch swatch--white">
+          <div class="swatch__content">
+            <div class="voice-state-row">
+              <div class="voice-state"><span class="tag">Listening</span><div class="yui-voice is-after"><span class="yui-voice__dot"></span>Listening</div></div>
+              <div class="voice-state"><span class="tag">Fired</span><div class="yui-voice is-after"><span class="yui-voice__dot is-fired-b"></span>Sent</div></div>
+              <div class="voice-state"><span class="tag">Error</span><div class="yui-voice is-after"><span class="yui-voice__dot is-error"></span>Error</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="swatch swatch--busy">
+          <div class="chrome-bar"><span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-dot"></span><span class="chrome-title"></span></div>
+          <div class="chrome-toolbar"><span></span><span></span><span></span></div>
+          <div class="swatch__content">
+            <div class="voice-state-row">
+              <div class="voice-state"><span class="tag">Listening</span><div class="yui-voice is-after"><span class="yui-voice__dot"></span>Listening</div></div>
+              <div class="voice-state"><span class="tag">Fired</span><div class="yui-voice is-after"><span class="yui-voice__dot is-fired-b"></span>Sent</div></div>
+              <div class="voice-state"><span class="tag">Error</span><div class="yui-voice is-after"><span class="yui-voice__dot is-error"></span>Error</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="swatch swatch--black">
+          <div class="swatch__content">
+            <div class="voice-state-row">
+              <div class="voice-state"><span class="tag">Listening</span><div class="yui-voice is-after"><span class="yui-voice__dot"></span>Listening</div></div>
+              <div class="voice-state"><span class="tag">Fired</span><div class="yui-voice is-after"><span class="yui-voice__dot is-fired-b"></span>Sent</div></div>
+              <div class="voice-state"><span class="tag">Error</span><div class="yui-voice is-after"><span class="yui-voice__dot is-error"></span>Error</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

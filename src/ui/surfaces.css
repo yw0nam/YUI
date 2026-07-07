@@ -295,7 +295,7 @@
   gap: 0.4rem;
   padding: 0.28rem 0.7rem;
   border-radius: var(--yui-radius-chip);
-  background: var(--yui-scrim);
+  background: var(--yui-scrim-strong);
   border: 1px solid var(--yui-edge);
   box-shadow: var(--yui-float);
 
@@ -565,7 +565,7 @@
 .yui-input__error {
   flex: 0 0 auto;
   padding-right: 0.6rem;
-  color: var(--yui-accent);
+  color: var(--yui-danger);
   font-size: 0.78rem;
   font-weight: 500;
   white-space: nowrap;
