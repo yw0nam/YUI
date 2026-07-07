@@ -41,7 +41,7 @@ use windows::Win32::{
         },
     },
     UI::{
-        HiDpi::GetDpiForWindow,
+        HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI},
         Input::KeyboardAndMouse::{GetAsyncKeyState, GetLastInputInfo, LASTINPUTINFO, VK_LBUTTON},
         WindowsAndMessaging::{
             EnumWindows, GetClassNameW, GetDesktopWindow, GetForegroundWindow, GetShellWindow,
@@ -205,6 +205,8 @@ fn rect_covers_monitor(win: RECT, mon: RECT) -> bool {
 }
 
 /// One enumerated top-level window in physical-pixel screen space.
+/// `dpi` is the effective DPI of the window's monitor — not the window's own
+/// DPI, which diverges for system-aware/unaware apps on mixed-DPI setups.
 #[derive(Debug, Clone, PartialEq)]
 struct PhysicalWindow {
     rect: RECT,
@@ -215,8 +217,8 @@ struct PhysicalWindow {
 }
 
 /// Converts a physical-pixel window rect into the logical-point
-/// `WindowAtPoint` the frontend expects (matches `drag.rs` logical =
-/// physical / scale_factor, scale_factor = dpi / 96).
+/// `WindowAtPoint` the frontend expects (matches `drag.rs` / Tauri logical =
+/// physical / scale_factor, scale_factor = monitor effective dpi / 96).
 fn physical_window_to_at_point(w: &PhysicalWindow) -> Option<WindowAtPoint> {
     if w.dpi == 0 {
         return None;
@@ -401,6 +403,24 @@ fn is_cloaked(hwnd: HWND) -> bool {
     result.is_ok() && cloaked != 0
 }
 
+/// Effective DPI of the monitor hosting `hwnd` (0 when unresolvable).
+///
+/// The MONITOR effective DPI — not `GetDpiForWindow` — is what maps the
+/// physical screen-space rect into Tauri's logical frame: the webview compares
+/// these rects against `outerPosition()/scaleFactor()`, and Tauri's scale
+/// factor is the monitor's, regardless of the foreign window's own DPI
+/// awareness (a system-aware app on a 100% monitor reports its internal 120
+/// DPI, but its on-screen rect is still in that monitor's physical space).
+fn window_monitor_dpi(hwnd: HWND) -> u32 {
+    let hmonitor: HMONITOR = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
+    let (mut dpi_x, mut dpi_y) = (0u32, 0u32);
+    if unsafe { GetDpiForMonitor(hmonitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) }.is_err() {
+        log::debug!("get_dpi_for_monitor_failed skipped=true");
+        return 0;
+    }
+    dpi_x
+}
+
 /// Extended-frame-bounds rect (excludes Win10 invisible resize borders),
 /// falling back to `GetWindowRect` when the DWM call fails.
 fn extended_frame_bounds(hwnd: HWND) -> Option<RECT> {
@@ -456,7 +476,7 @@ unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> windo
     let mut pid: u32 = 0;
     GetWindowThreadProcessId(hwnd, Some(&mut pid));
 
-    let dpi = GetDpiForWindow(hwnd);
+    let dpi = window_monitor_dpi(hwnd);
     let name = window_title(hwnd);
 
     out.push(PhysicalWindow {
