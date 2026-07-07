@@ -14,6 +14,9 @@ body {
   padding: 0;
   /* 투명 창: 캐릭터 실루엣 외 영역은 비워 둔다 (click-through는 Rust hit-test). */
   background: transparent;
+  /* 고정 무대 — 스크롤 없음. Windows는 fractional-DPI 반올림의 1px 미만 오버플로에도
+     클래식 스크롤바를 그리므로 원천 차단한다. */
+  overflow: hidden;
 }
 
 #app {
