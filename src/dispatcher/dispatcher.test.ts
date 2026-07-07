@@ -977,7 +977,9 @@ describe("dispatcher — degraded state (3 consecutive backend call failures)", 
     const callsBefore = (backendCaller.call as ReturnType<typeof vi.fn>).mock.calls.length;
     bus.push(env({ ts: NOW + 100 })); // user.text_submitted, dnd_override: true
     await vi.advanceTimersByTimeAsync(20);
-    expect((backendCaller.call as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsBefore + 1);
+    expect((backendCaller.call as ReturnType<typeof vi.fn>).mock.calls.length).toBe(
+      callsBefore + 1,
+    );
   });
 
   it("exits degraded back to running on the first successful backend call", async () => {

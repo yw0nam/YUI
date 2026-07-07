@@ -671,7 +671,6 @@ describe("backend_caller — idle-gap watchdog", () => {
       expect.objectContaining({ stage: "idle_timeout" }),
     );
   });
-
 });
 
 // ── streaming TTS: speech_delta → onSpeechDelta / onSpeechEnd / onSpeechInterrupt ─
