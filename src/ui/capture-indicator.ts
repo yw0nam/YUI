@@ -43,11 +43,16 @@ export function createCaptureIndicator({
 
   mount.appendChild(el);
 
+  // 기본은 접근성 트리에서 빠진 상태 — 캡처가 켜질 때 show()가 되돌린다.
+  el.hidden = true;
+
   let visible = false;
 
   function show(): void {
     if (visible) return;
     visible = true;
+    // 전이 시작 전에 접근성 트리로 되돌린다 — is-visible보다 먼저.
+    el.hidden = false;
     requestAnimationFrame(() => el.classList.add("is-visible"));
   }
 
@@ -55,6 +60,8 @@ export function createCaptureIndicator({
     if (!visible) return;
     visible = false;
     el.classList.remove("is-visible");
+    // 접근성 트리에서도 완전히 제거한다 — 스크린리더가 유휴 상태를 읽지 않게.
+    el.hidden = true;
   }
 
   // settings 반영 (초기 + 구독)
