@@ -2823,6 +2823,27 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  it("re-enables speaker rows after a provider change that happened while closed", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    // 닫힌 상태에서 openai로 바꾼다 — onOpen이 enabled 기준선을 재동기화해야 한다.
+    endpointsSettings.set({ tts_provider: "openai" });
+    qc.open();
+
+    const refreshDisabled = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-spk[role=radio] .yui-spk__refresh",
+    )!;
+    expect(refreshDisabled.disabled).toBe(true); // openai → 비활성
+
+    // 열린 상태에서 irodori로 되돌리면 행이 다시 활성화돼야 한다(기준선이 stale이면 스킵됨).
+    endpointsSettings.set({ tts_provider: "irodori" });
+    const refreshEnabled = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-spk[role=radio] .yui-spk__refresh",
+    )!;
+    expect(refreshEnabled.disabled).toBe(false);
+
+    qc.dispose();
+  });
+
   it("Enter on a focused non-active speaker row selects it (swaps)", () => {
     const qc = buildQc();
     qc.open();

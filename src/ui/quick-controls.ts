@@ -423,6 +423,8 @@ export function createQuickControls({
   let monitorsLoaded = false;
   // dispose 후 in-flight refresh가 무너진 DOM에 재그림/타이머를 쓰지 않게 막는다.
   let disposed = false;
+  // 화자 활성 기준선 — 열릴 때 재동기화(닫힌 새 provider 변경이 stale하게 남지 않게).
+  let lastSpkEnabled = false;
 
   // ── reflect (store→DOM 동기화) 레이어 ──
   const reflect = createReflect({
@@ -541,6 +543,8 @@ export function createQuickControls({
       reflect.reflectChatType();
       reflect.reflectSession();
       vrmList.render();
+      // 닫힌 동안 provider가 바뀌었을 수 있으니 열릴 때 기준선을 재동기화한다.
+      lastSpkEnabled = speakerControlsEnabled();
       speakerList.render();
       if (settings.get().enabled && !monitorsLoaded) {
         void loadMonitors();
@@ -1070,7 +1074,6 @@ export function createQuickControls({
   const unsubscribeAgent = agentSettings.subscribe(() => {
     if (popover.isOpen()) reflect.reflectAgent();
   });
-  let lastSpkEnabled = speakerControlsEnabled();
   const unsubscribeEndpoints = endpointsSettings.subscribe(() => {
     if (popover.isOpen()) {
       reflect.reflectEndpoints();
