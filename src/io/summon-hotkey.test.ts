@@ -146,6 +146,26 @@ describe("createSummonHotkey — trigger", () => {
     expect(f.deps.focusWindow).toHaveBeenCalledTimes(2);
     expect(f.deps.summonInput).toHaveBeenCalledTimes(1);
   });
+
+  it("사이클 진행 중 도착한 연타(키 리핏)는 흘려 이중 소환하지 않는다", async () => {
+    const f = fakeDeps();
+    // focusWindow를 열어둔 채로 잡아 첫 사이클을 in-flight로 유지한다.
+    let releaseFocus!: () => void;
+    f.deps.focusWindow.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        releaseFocus = resolve;
+      }),
+    );
+    const hotkey = createSummonHotkey(f.deps);
+    await hotkey.apply("CmdOrCtrl+Shift+Y");
+    // 첫 발동은 in-flight, 두 번째는 같은 프레임(아직 focus 미해소) 도착 → 흘려야 한다.
+    f.trigger("CmdOrCtrl+Shift+Y");
+    f.trigger("CmdOrCtrl+Shift+Y");
+    releaseFocus();
+    await flush();
+    expect(f.deps.focusWindow).toHaveBeenCalledTimes(1);
+    expect(f.deps.summonInput).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("createSummonHotkey — fail-soft", () => {

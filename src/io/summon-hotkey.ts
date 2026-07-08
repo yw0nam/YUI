@@ -36,9 +36,15 @@ export function createSummonHotkey(deps: SummonHotkeyDeps): SummonHotkey {
   let registered: string | null = null;
   // apply 직렬화 — 핫리로드 연타가 register/unregister를 겹치지 않게 한다.
   let chain: Promise<void> = Promise.resolve();
+  // 한 번에 하나의 focus+summon 사이클만. summonInput의 is-open 클래스는 rAF 뒤에 붙어
+  // isInputOpen()이 한 프레임 늦으므로, 사이클 진행 중 도착한 연타(키 리핏)를 흘려 이중 소환을 막는다.
+  // ponytail: finally~rAF 사이 ~16ms 잔여 창은 사람 연타로 도달 불가라 남겨둔다.
+  let inFlight = false;
 
   function onTrigger(event: { state: string }): void {
     if (event.state !== "Pressed") return;
+    if (inFlight) return;
+    inFlight = true;
     // 다른 앱에서의 재발동도 창은 항상 앞으로. 소환은 입력이 닫혀 있을 때만 —
     // 키 반복/재발동이 열림 애니메이션·에러 표시를 리셋하지 않게(로컬 "/" 가드와 동일).
     void deps
@@ -46,6 +52,9 @@ export function createSummonHotkey(deps: SummonHotkeyDeps): SummonHotkey {
       .catch((err) => log.warn("focus_failed", { error: String(err) }))
       .then(() => {
         if (!deps.isInputOpen()) deps.summonInput();
+      })
+      .finally(() => {
+        inFlight = false;
       });
   }
 
