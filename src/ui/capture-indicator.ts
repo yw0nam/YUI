@@ -60,8 +60,19 @@ export function createCaptureIndicator({
     if (!visible) return;
     visible = false;
     el.classList.remove("is-visible");
-    // 접근성 트리에서도 완전히 제거한다 — 스크린리더가 유휴 상태를 읽지 않게.
-    el.hidden = true;
+    // 페이드 아웃이 끝난 뒤에 접근성 트리에서 제거한다 — hidden=true가 전이를 죽이지 않게.
+    // 그 사이 다시 show()되면(visible) 취소한다. popover close와 같은 패턴.
+    const settle = (): void => {
+      if (!visible) el.hidden = true;
+    };
+    const onEnd = (e: TransitionEvent): void => {
+      if (e.propertyName !== "opacity") return;
+      el.removeEventListener("transitionend", onEnd);
+      settle();
+    };
+    el.addEventListener("transitionend", onEnd);
+    // 전이가 안 뜨는 환경(reduced-motion·테스트) 폴백.
+    requestAnimationFrame(settle);
   }
 
   // settings 반영 (초기 + 구독)

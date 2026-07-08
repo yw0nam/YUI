@@ -66,4 +66,30 @@ describe("capture-indicator — a11y visibility", () => {
     s.emit(true);
     expect(ind.el.hidden).toBe(false);
   });
+
+  it("defers hidden=true until the fade-out settles (does not cut the transition)", () => {
+    // rAF 폴백을 즉시 실행하지 않고 캡처만 해서 전이 경로를 검증한다.
+    const cbs: FrameRequestCallback[] = [];
+    (
+      globalThis.requestAnimationFrame as unknown as { mockImplementation: (f: unknown) => void }
+    ).mockImplementation?.((cb: FrameRequestCallback) => {
+      cbs.push(cb);
+      return cbs.length;
+    });
+
+    const s = fakeSettings(true);
+    const ind = createCaptureIndicator({ mount, settings: s.store, onActivate: () => {} });
+    // show()의 rAF(is-visible 추가)를 흘려보낸다.
+    for (const cb of cbs.splice(0)) cb(0);
+    expect(ind.el.hidden).toBe(false);
+
+    s.emit(false);
+    // 전이 중: is-visible은 제거됐지만 아직 접근성 트리에 남아 페이드가 재생된다.
+    expect(ind.el.classList.contains("is-visible")).toBe(false);
+    expect(ind.el.hidden).toBe(false);
+
+    // opacity transitionend가 뜨면 그제서야 트리에서 제거된다.
+    ind.el.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "opacity" }));
+    expect(ind.el.hidden).toBe(true);
+  });
 });
