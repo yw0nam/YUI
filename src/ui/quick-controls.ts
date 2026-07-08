@@ -665,8 +665,22 @@ export function createQuickControls({
     }
   }
 
-  // 언어 피커 — 세그 선택 시 표시 언어를 바꾼다. 호스트가 i18n.subscribe로 패널을 재마운트한다.
-  function selectLocale(index: number, focus = false): void {
+  // 언어 피커 — WAI-ARIA "선택이 포커스를 따르지 않는" 라디오 패턴.
+  // setLocale은 UI 전체 언어를 바꾸고 호스트 재마운트를 유발하므로(비쌈·파괴적),
+  // 화살표는 포커스만 옮기고 Space/Enter·클릭에서만 커밋한다.
+
+  // 화살표/Home/End — roving tabindex + 포커스만 이동(커밋·aria-checked 변경 없음).
+  function moveLocaleFocus(index: number): void {
+    const clamped = Math.min(langSegButtons.length - 1, Math.max(0, index));
+    const btn = langSegButtons[clamped];
+    if (!btn) return;
+    for (const b of langSegButtons) b.tabIndex = -1;
+    btn.tabIndex = 0;
+    btn.focus();
+  }
+
+  // 커밋(클릭·Space·Enter) — 표시 언어를 실제로 바꾸는 유일한 경로.
+  function commitLocale(index: number): void {
     const clamped = Math.min(langSegButtons.length - 1, Math.max(0, index));
     const locale = langSegButtons[clamped]?.dataset.locale as Locale | undefined;
     if (!locale) return;
@@ -674,7 +688,7 @@ export function createQuickControls({
     setLocale(locale);
     // locale seg엔 store 구독이 없다 — 재마운트 전까지의 aria/tabindex를 직접 반영한다.
     reflect.reflectLanguage();
-    if (focus) langSegButtons[clamped]?.focus();
+    langSegButtons[clamped]?.focus();
   }
 
   function handleLangSegClick(e: MouseEvent): void {
@@ -682,30 +696,32 @@ export function createQuickControls({
     if (!btn) return;
     const idx = langSegButtons.indexOf(btn);
     if (idx < 0) return;
-    selectLocale(idx);
+    commitLocale(idx);
   }
 
   function handleLangSegKeydown(e: KeyboardEvent): void {
-    const current = langSegButtons.findIndex((b) => b.getAttribute("aria-checked") === "true");
-    const base = current < 0 ? 0 : current;
+    // 화살표 기준은 현재 포커스한 라디오(없으면 체크된 것, 그것도 없으면 0).
+    const focusIdx = langSegButtons.findIndex((b) => b === document.activeElement);
+    const checkedIdx = langSegButtons.findIndex((b) => b.getAttribute("aria-checked") === "true");
+    const base = focusIdx >= 0 ? focusIdx : checkedIdx < 0 ? 0 : checkedIdx;
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {
       e.preventDefault();
-      selectLocale(base + 1, true);
+      moveLocaleFocus(base + 1);
     } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
       e.preventDefault();
-      selectLocale(base - 1, true);
+      moveLocaleFocus(base - 1);
     } else if (e.key === "Home") {
       e.preventDefault();
-      selectLocale(0, true);
+      moveLocaleFocus(0);
     } else if (e.key === "End") {
       e.preventDefault();
-      selectLocale(langSegButtons.length - 1, true);
+      moveLocaleFocus(langSegButtons.length - 1);
     } else if (e.key === " " || e.key === "Enter") {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
       const idx = btn ? langSegButtons.indexOf(btn) : -1;
       if (idx < 0) return;
-      e.preventDefault();
-      selectLocale(idx, true);
+      e.preventDefault(); // 네이티브 버튼 클릭 중복 커밋 방지
+      commitLocale(idx);
     }
   }
 
