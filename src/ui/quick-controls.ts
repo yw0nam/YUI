@@ -293,8 +293,12 @@ export function createQuickControls({
   const fillerRepeatTextareaEl = el.querySelector<HTMLTextAreaElement>(
     ".yui-filler-repeat-textarea",
   );
+  const fillerLangBtns = fillerLangSegEl
+    ? Array.from(fillerLangSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"))
+    : [];
   // 언어 피커 세그(3칸) 노드.
   const langSegEl = el.querySelector<HTMLDivElement>(".yui-lang-seg")!;
+  const langSegButtons = Array.from(langSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   // 엔드포인트 입력 — 필드 key별 input 노드 맵.
   const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
   for (const { key } of ENDPOINT_FIELDS) {
@@ -613,27 +617,96 @@ export function createQuickControls({
       .filter((l) => l.length > 0);
   }
 
-  function handleFillerLangClick(e: MouseEvent): void {
+  const FILLER_LANGS = ["ja", "en", "ko"] as const;
+
+  // 세그 선택 이동 + focus. aria/tabindex는 store 구독(reflectFiller)이 갱신한다.
+  function selectFillerLang(index: number, focus = false): void {
     if (!fillerSettings) return;
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
-    if (!btn) return;
-    const lang = btn.dataset.lang as "ja" | "en" | "ko" | undefined;
-    if (!lang) return;
+    const clamped = Math.min(FILLER_LANGS.length - 1, Math.max(0, index));
+    const lang = FILLER_LANGS[clamped];
     fillerSettings.setLanguage(lang);
     // 언어가 바뀌면 두 textarea를 새 언어의 pool로 즉시 갱신(store 구독보다 선행).
     const pool = fillerSettings.get().customPools[lang];
     if (fillerFirstTextareaEl) fillerFirstTextareaEl.value = pool ? pool.first.join("\n") : "";
     if (fillerRepeatTextareaEl) fillerRepeatTextareaEl.value = pool ? pool.repeat.join("\n") : "";
+    if (focus) fillerLangBtns[clamped]?.focus();
   }
 
-  // 언어 피커 — 세그 클릭 시 표시 언어를 바꾼다. 호스트가 i18n.subscribe로 패널을 재마운트한다.
-  function handleLangSegClick(e: MouseEvent): void {
+  function handleFillerLangClick(e: MouseEvent): void {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
     if (!btn) return;
-    const locale = btn.dataset.locale as Locale | undefined;
+    const idx = fillerLangBtns.indexOf(btn);
+    if (idx < 0) return;
+    selectFillerLang(idx);
+  }
+
+  // 추론 강도 세그와 같은 로빙-포커스 키보드. 화살표는 선택+focus, Space/Enter는 대상 선택.
+  function handleFillerLangKeydown(e: KeyboardEvent): void {
+    const current = fillerLangBtns.findIndex((b) => b.getAttribute("aria-checked") === "true");
+    const base = current < 0 ? 0 : current;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      selectFillerLang(base + 1, true);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      selectFillerLang(base - 1, true);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      selectFillerLang(0, true);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      selectFillerLang(FILLER_LANGS.length - 1, true);
+    } else if (e.key === " " || e.key === "Enter") {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
+      const idx = btn ? fillerLangBtns.indexOf(btn) : -1;
+      if (idx < 0) return;
+      e.preventDefault();
+      selectFillerLang(idx, true);
+    }
+  }
+
+  // 언어 피커 — 세그 선택 시 표시 언어를 바꾼다. 호스트가 i18n.subscribe로 패널을 재마운트한다.
+  function selectLocale(index: number, focus = false): void {
+    const clamped = Math.min(langSegButtons.length - 1, Math.max(0, index));
+    const locale = langSegButtons[clamped]?.dataset.locale as Locale | undefined;
     if (!locale) return;
     log.info("ui_language_change", { locale });
     setLocale(locale);
+    // locale seg엔 store 구독이 없다 — 재마운트 전까지의 aria/tabindex를 직접 반영한다.
+    reflect.reflectLanguage();
+    if (focus) langSegButtons[clamped]?.focus();
+  }
+
+  function handleLangSegClick(e: MouseEvent): void {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
+    if (!btn) return;
+    const idx = langSegButtons.indexOf(btn);
+    if (idx < 0) return;
+    selectLocale(idx);
+  }
+
+  function handleLangSegKeydown(e: KeyboardEvent): void {
+    const current = langSegButtons.findIndex((b) => b.getAttribute("aria-checked") === "true");
+    const base = current < 0 ? 0 : current;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      selectLocale(base + 1, true);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      selectLocale(base - 1, true);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      selectLocale(0, true);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      selectLocale(langSegButtons.length - 1, true);
+    } else if (e.key === " " || e.key === "Enter") {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
+      const idx = btn ? langSegButtons.indexOf(btn) : -1;
+      if (idx < 0) return;
+      e.preventDefault();
+      selectLocale(idx, true);
+    }
   }
 
   // 어느 칸을 편집하든 두 칸의 현재 값을 함께 써서 다른 칸을 덮어쓰지 않게 한다.
@@ -1017,7 +1090,9 @@ export function createQuickControls({
   agentNotifySwitchBtn?.addEventListener("click", handleAgentNotifySwitchClick);
   fillerSwitchBtn?.addEventListener("click", handleFillerSwitchClick);
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
+  fillerLangSegEl?.addEventListener("keydown", handleFillerLangKeydown);
   langSegEl.addEventListener("click", handleLangSegClick);
+  langSegEl.addEventListener("keydown", handleLangSegKeydown);
   fillerFirstTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   fillerRepeatTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
@@ -1096,7 +1171,9 @@ export function createQuickControls({
     agentNotifySwitchBtn?.removeEventListener("click", handleAgentNotifySwitchClick);
     fillerSwitchBtn?.removeEventListener("click", handleFillerSwitchClick);
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
+    fillerLangSegEl?.removeEventListener("keydown", handleFillerLangKeydown);
     langSegEl.removeEventListener("click", handleLangSegClick);
+    langSegEl.removeEventListener("keydown", handleLangSegKeydown);
     fillerFirstTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     fillerRepeatTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
