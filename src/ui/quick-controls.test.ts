@@ -3709,6 +3709,44 @@ describe("createQuickControls — tabs + VAD slider", () => {
     qc.dispose();
   });
 
+  it("ArrowRight on the filler language seg moves selection, tabindex, and calls setLanguage", () => {
+    const fs = makeFillerSettings({ language: "ja" });
+    const spy = vi.spyOn(fs, "setLanguage");
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
+    const btns = Array.from(langSeg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    expect(btns[0].getAttribute("aria-checked")).toBe("true"); // ja
+    expect(btns[0].tabIndex).toBe(0);
+
+    btns[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    expect(spy).toHaveBeenCalledWith("en");
+    expect(btns[1].getAttribute("aria-checked")).toBe("true"); // en
+    expect(btns[0].getAttribute("aria-checked")).toBe("false");
+    expect(btns[1].tabIndex).toBe(0);
+    expect(btns[0].tabIndex).toBe(-1);
+
+    qc.dispose();
+  });
+
+  it("Space on a filler language seg button selects that language", () => {
+    const fs = makeFillerSettings({ language: "ja" });
+    const spy = vi.spyOn(fs, "setLanguage");
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
+    const ko = langSeg.querySelector<HTMLButtonElement>(".yui-seg__btn[data-lang='ko']")!;
+    ko.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+
+    expect(spy).toHaveBeenCalledWith("ko");
+    expect(ko.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
   it("editing 첫 대사 calls setCustomPool with split first lines, preserving repeat", () => {
     const fs = createFillerSettings({
       initial: {
@@ -4159,6 +4197,43 @@ describe("createQuickControls — language picker", () => {
     // The reasoning-effort field label is keyed; ko renders the Korean copy.
     const label = qc.el.querySelector<HTMLElement>(".yui-field-row__label")!;
     expect(label.textContent).toBe("추론 강도");
+    qc.dispose();
+  });
+
+  it("ArrowRight on the language seg moves selection, tabindex, and sets the locale", () => {
+    setLocale("en"); // en = index 1
+    const qc = buildQc();
+    qc.open();
+
+    const seg = qc.el.querySelector<HTMLElement>(".yui-lang-seg")!;
+    const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    expect(btns[1].getAttribute("aria-checked")).toBe("true"); // en
+    expect(btns[1].tabIndex).toBe(0);
+
+    btns[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    expect(getLocale()).toBe("ko"); // index 2
+    expect(btns[2].getAttribute("aria-checked")).toBe("true");
+    expect(btns[1].getAttribute("aria-checked")).toBe("false");
+    expect(btns[2].tabIndex).toBe(0);
+    expect(btns[1].tabIndex).toBe(-1);
+
+    qc.dispose();
+  });
+
+  it("Space on a language seg button selects that locale", () => {
+    setLocale("en");
+    const qc = buildQc();
+    qc.open();
+
+    const koBtn = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-lang-seg .yui-seg__btn[data-locale='ko']",
+    )!;
+    koBtn.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+
+    expect(getLocale()).toBe("ko");
+    expect(koBtn.getAttribute("aria-checked")).toBe("true");
+
     qc.dispose();
   });
 });
