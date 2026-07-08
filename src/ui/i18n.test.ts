@@ -217,6 +217,45 @@ describe("key completeness — every en key must exist in ja and ko", () => {
   });
 });
 
+// The session/cue copy renders verbatim (no "·"-splitting in the renderer), so
+// duplicated segments and untranslated strings ship straight to the UI. Pin the
+// corrected copy. The ko " · " label style is deliberate bilingual copy — only
+// en must be single-language.
+describe("session & cue copy — corrected values", () => {
+  it("en session labels carry no duplicated ' · ' segment", () => {
+    expect(en["session.action_label"]).toBe("Start fresh");
+    expect(en["session.reset"]).toBe("Reset conversation");
+  });
+
+  it("ko session strings are natural Korean (not untranslated English)", () => {
+    const hangul = /[가-힣]/;
+    for (const key of [
+      "session.action_sub",
+      "session.confirm_q",
+      "session.confirm_go",
+      "session.confirm_cancel",
+    ]) {
+      expect(ko[key], `${key} should be Korean`).toMatch(hangul);
+    }
+    // deliberate bilingual labels stay as-is
+    expect(ko["session.action_label"]).toBe("새 대화 시작 · Start fresh");
+    expect(ko["session.reset"]).toBe("대화 초기화 · Reset conversation");
+  });
+
+  it("ko minutes-cue copy reads naturally as '대화 없이 [n] 분마다'", () => {
+    expect(ko["cue.minutes_word"]).toBe("대화 없이");
+    expect(ko["cue.minutes_aria"]).toBe("대화 없는 시간(분)");
+  });
+
+  it("every locale carries the cue delete-confirm keys", () => {
+    for (const dict of [en, ja, ko]) {
+      expect(dict["cue.confirm_q"]).toBeTruthy();
+      expect(dict["cue.confirm_go"]).toBeTruthy();
+      expect(dict["cue.confirm_cancel"]).toBeTruthy();
+    }
+  });
+});
+
 // The voice dot pulses amber while listening/asr and settles to a steady amber
 // when a turn fires — a difference of motion, not color. Under
 // prefers-reduced-motion the pulse is disabled, so those states collapse to an
