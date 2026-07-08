@@ -165,6 +165,8 @@ pub fn run() {
         .plugin(tauri_plugin_cors_fetch::init())
         // OS 파일 피커 — bring-your-own VRM import.
         .plugin(tauri_plugin_dialog::init())
+        // 전역 단축키 — 등록/해제는 JS guest binding이 수행한다(입력 소환 핫키).
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             let log_offset = resolve_log_offset();
             let mut builder = tauri_plugin_log::Builder::new()

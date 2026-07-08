@@ -23,6 +23,7 @@ import { validateEmotionRegistry } from "./validators/emotion-registry";
 import { validateEndpoints } from "./validators/endpoints";
 import { validateFiller } from "./validators/filler";
 import { validateGuardrails } from "./validators/guardrails";
+import { validateHotkeys } from "./validators/hotkeys";
 import { validateMotions } from "./validators/motions";
 import { ConfigError } from "./validators/shared";
 
@@ -128,6 +129,12 @@ export interface FillerConfig {
   pools: Partial<Record<FillerLang, FillerPool>>;
 }
 
+/** configs/hotkeys.json — OS 전역 단축키 accelerator. */
+export interface HotkeysConfig {
+  /** 전역 입력 소환(예: "CmdOrCtrl+Shift+Y"). 빈 문자열/키 없음 = 비활성. */
+  summon_global: string;
+}
+
 /** 로드·검증된 전체 config 묶음 (불변 스냅샷). */
 export interface AppConfig {
   endpoints: EndpointsConfig;
@@ -136,6 +143,7 @@ export interface AppConfig {
   motions: MotionRegistry;
   guardrails: GuardrailsConfig;
   filler: FillerConfig;
+  hotkeys: HotkeysConfig;
 }
 
 /** AppConfig의 도메인 키 — 핫리로드가 "무엇이 바뀌었나"를 통지할 때 쓰는 단위(store.ts). */
@@ -149,6 +157,7 @@ export const CONFIG_FILES: Record<ConfigSection, string> = {
   motions: "motions.json",
   guardrails: "guardrails.json",
   filler: "filler.json",
+  hotkeys: "hotkeys.json",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -248,15 +257,23 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     fetchReader(opts.baseUrl ?? "/configs", opts.cacheBust, opts.resolveUrl, opts.fetch);
 
   // 파일별 read는 병렬, 검증은 결정적 순서로.
-  const [endpointsRaw, avatarRaw, emotionRegistryRaw, motionsRaw, guardrailsRaw, fillerRaw] =
-    await Promise.all([
-      read(CONFIG_FILES.endpoints),
-      read(CONFIG_FILES.avatar),
-      read(CONFIG_FILES.emotionRegistry),
-      read(CONFIG_FILES.motions),
-      read(CONFIG_FILES.guardrails),
-      read(CONFIG_FILES.filler),
-    ]);
+  const [
+    endpointsRaw,
+    avatarRaw,
+    emotionRegistryRaw,
+    motionsRaw,
+    guardrailsRaw,
+    fillerRaw,
+    hotkeysRaw,
+  ] = await Promise.all([
+    read(CONFIG_FILES.endpoints),
+    read(CONFIG_FILES.avatar),
+    read(CONFIG_FILES.emotionRegistry),
+    read(CONFIG_FILES.motions),
+    read(CONFIG_FILES.guardrails),
+    read(CONFIG_FILES.filler),
+    read(CONFIG_FILES.hotkeys),
+  ]);
 
   return {
     endpoints: validateEndpoints(CONFIG_FILES.endpoints, endpointsRaw),
@@ -265,5 +282,6 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     motions: validateMotions(CONFIG_FILES.motions, motionsRaw),
     guardrails: validateGuardrails(CONFIG_FILES.guardrails, guardrailsRaw),
     filler: validateFiller(CONFIG_FILES.filler, fillerRaw),
+    hotkeys: validateHotkeys(CONFIG_FILES.hotkeys, hotkeysRaw),
   };
 }
