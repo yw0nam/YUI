@@ -2762,6 +2762,46 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  it("openai: row click and Enter/Space do NOT swap, and rows are not tabbable", () => {
+    const qc = buildQc({ getDefaultProvider: () => "openai" });
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    expect(rows.length).toBeGreaterThan(0);
+
+    // (c) 비활성 시 모든 행이 Tab에서 건너뛰어진다.
+    for (const r of rows) expect(r.tabIndex).toBe(-1);
+
+    // (a) 비활성 행 클릭은 스왑을 트리거하지 않는다(CSS pointer-events는 키보드를 못 막는다).
+    rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(swapSpeaker).not.toHaveBeenCalled();
+
+    // (b) 포커스 후 Enter/Space도 스왑하지 않는다.
+    rows[1].focus();
+    rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    expect(swapSpeaker).not.toHaveBeenCalled();
+
+    qc.dispose();
+  });
+
+  it("irodori: a row click swaps and the roved row is tabbable (tabIndex 0)", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    // 활성(기본 선택) 행은 roving tabindex 0.
+    const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
+    expect(active.tabIndex).toBe(0);
+
+    // 비활성 행 클릭 → 스왑.
+    rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(swapSpeaker).toHaveBeenCalledOnce();
+    expect(swapSpeaker.mock.calls[0][0]).toMatchObject({ id: "ayase" });
+
+    qc.dispose();
+  });
+
   it("switching the engine to openai while open disables the speaker option buttons", () => {
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
