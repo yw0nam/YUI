@@ -19,6 +19,8 @@ export interface SummonHotkeyDeps {
   /** 창을 앞으로 + 포커스(백그라운드에서 앱 활성화 포함). */
   focusWindow(): Promise<void>;
   summonInput(): void;
+  /** 입력이 이미 열려 있는지 — 열려 있으면 재소환하지 않는다(창만 앞으로). */
+  isInputOpen(): boolean;
 }
 
 export interface SummonHotkey {
@@ -37,10 +39,14 @@ export function createSummonHotkey(deps: SummonHotkeyDeps): SummonHotkey {
 
   function onTrigger(event: { state: string }): void {
     if (event.state !== "Pressed") return;
+    // 다른 앱에서의 재발동도 창은 항상 앞으로. 소환은 입력이 닫혀 있을 때만 —
+    // 키 반복/재발동이 열림 애니메이션·에러 표시를 리셋하지 않게(로컬 "/" 가드와 동일).
     void deps
       .focusWindow()
       .catch((err) => log.warn("focus_failed", { error: String(err) }))
-      .then(() => deps.summonInput());
+      .then(() => {
+        if (!deps.isInputOpen()) deps.summonInput();
+      });
   }
 
   async function applyNow(accelerator: string): Promise<void> {

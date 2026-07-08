@@ -1233,6 +1233,7 @@ async function bootstrap(): Promise<void> {
             await win.setFocus();
           },
           summonInput: () => surfaces.summonInput(),
+          isInputOpen: () => surfaces.isInputOpen(),
         });
         summonHotkeyRef = summonHotkey;
         await summonHotkey.apply(cfg.hotkeys.summon_global);
