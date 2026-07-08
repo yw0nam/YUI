@@ -71,8 +71,9 @@ export function createPopover(deps: PopoverDeps): Popover {
   const FOCUSABLE_SEL = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
   function focusables(): HTMLElement[] {
+    // [hidden] 서브트리(비활성 탭 패널 등)의 컨트롤은 제외한다 — 트랩이 안 보이는 끝으로 새지 않게.
     return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SEL)).filter(
-      (el) => !(el as HTMLButtonElement).disabled,
+      (el) => !(el as HTMLButtonElement).disabled && !el.closest("[hidden]"),
     );
   }
 
