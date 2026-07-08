@@ -144,6 +144,8 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   }
 
   function renderSpeakers(): void {
+    // openai 엔진에선 화자 관리가 비활성 — 실제 disabled로 클릭·Tab을 막는다(시각 흐림은 CSS).
+    const controlsEnabled = speakerControlsEnabled();
     const activeId = speakerSelection.getActiveId();
     // roving tabindex는 마지막으로 화살표가 머문 행이 우선 — 없으면 active로 폴백.
     const ids = speakerSelection.list().map((o) => o.id);
@@ -192,22 +194,28 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       const nameEl = row.querySelector<HTMLSpanElement>(".yui-spk__name")!;
       nameEl.textContent = label;
       if (isUser) {
-        row.querySelector<HTMLButtonElement>(".yui-spk__rename")!.addEventListener("click", (e) => {
+        const renameBtn = row.querySelector<HTMLButtonElement>(".yui-spk__rename")!;
+        renameBtn.disabled = !controlsEnabled;
+        renameBtn.addEventListener("click", (e) => {
           e.stopPropagation(); // 이름 편집은 행 선택을 트리거하지 않는다
           if (speakerControlsEnabled()) startSpkRename(opt.id);
         });
-        row.querySelector<HTMLButtonElement>(".yui-spk__remove")!.addEventListener("click", (e) => {
+        const removeBtn = row.querySelector<HTMLButtonElement>(".yui-spk__remove")!;
+        removeBtn.disabled = !controlsEnabled;
+        removeBtn.addEventListener("click", (e) => {
           e.stopPropagation(); // 삭제는 행 선택을 트리거하지 않는다
           if (speakerControlsEnabled()) void removeUserSpeaker(opt.id);
         });
       }
       const refreshBtn = row.querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
+      refreshBtn.disabled = !controlsEnabled || !hasClip;
       refreshBtn.setAttribute("aria-label", t("aria.refresh_speaker", { name: label }));
       refreshBtn.addEventListener("click", (e) => {
         e.stopPropagation(); // 갱신은 행 선택을 트리거하지 않는다
         if (hasClip) void refreshTo(opt);
       });
       const previewBtn = row.querySelector<HTMLButtonElement>(".yui-spk__preview")!;
+      previewBtn.disabled = !controlsEnabled || !hasClip;
       previewBtn.setAttribute("aria-label", t("aria.preview_speaker", { name: label }));
       previewBtn.addEventListener("click", (e) => {
         e.stopPropagation(); // 미리듣기는 행 선택을 트리거하지 않는다

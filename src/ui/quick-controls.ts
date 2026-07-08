@@ -1054,11 +1054,18 @@ export function createQuickControls({
   const unsubscribeAgent = agentSettings.subscribe(() => {
     if (popover.isOpen()) reflect.reflectAgent();
   });
+  let lastSpkEnabled = speakerControlsEnabled();
   const unsubscribeEndpoints = endpointsSettings.subscribe(() => {
     if (popover.isOpen()) {
       reflect.reflectEndpoints();
       reflect.reflectVoiceEngine();
       reflect.reflectChatType();
+      // provider 변경으로 화자 활성이 바뀌면 목록을 다시 그려 disabled를 재평가한다.
+      const nowSpkEnabled = speakerControlsEnabled();
+      if (nowSpkEnabled !== lastSpkEnabled) {
+        lastSpkEnabled = nowSpkEnabled;
+        speakerList.render();
+      }
     }
   });
   // 키 store 갱신(이 창 편집·다른 창 reloadFromStorage)을 각 행에 반영. 값은 시크릿.
