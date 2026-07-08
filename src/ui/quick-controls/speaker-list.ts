@@ -163,7 +163,8 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       row.dataset.spkId = opt.id;
       const selected = opt.id === activeId;
       row.setAttribute("aria-checked", String(selected));
-      row.tabIndex = opt.id === rovedId ? 0 : -1;
+      // 비활성(openai) 시엔 모든 행이 Tab에서 건너뛰어지게 -1로 고정한다.
+      row.tabIndex = controlsEnabled ? (opt.id === rovedId ? 0 : -1) : -1;
 
       if (isUser && opt.id === spkRenamingId) {
         renderSpkRenamingRow(row, opt);
@@ -223,6 +224,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       });
 
       row.addEventListener("click", () => {
+        if (!speakerControlsEnabled()) return; // openai에선 행 선택 비활성
         void swapToSpeaker(opt);
       });
 
@@ -486,6 +488,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     if (rows.length === 0) return;
 
     if (e.key === "Enter" || e.key === " ") {
+      if (!speakerControlsEnabled()) return; // openai에선 행 선택 비활성
       e.preventDefault();
       const opt = speakerSelection.list().find((o) => o.id === target.dataset.spkId);
       if (opt) void swapToSpeaker(opt);
