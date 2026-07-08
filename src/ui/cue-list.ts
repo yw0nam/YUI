@@ -52,6 +52,7 @@ const CLOCK_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circ
 const SPARKLE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5l1.6 3.9 3.9 1.6-3.9 1.6L12 14.5l-1.6-3.9L6.5 9l3.9-1.6L12 3.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M18.5 15l.7 1.7 1.8.7-1.8.7-.7 1.7-.7-1.7-1.8-.7 1.8-.7.7-1.7z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
 const DELETE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
 const PLUS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
+const CHEVRON_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
   opts: CueListOptions<C, S>,
@@ -300,10 +301,30 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
       deleteBtn.hidden = false;
     });
 
+    // 이름 + 미리보기를 aria-expanded 토글 버튼으로 감싼다. 중첩 컨트롤(스위치·삭제·입력)은
+    // 유효 HTML을 위해 버튼 밖 형제로 남긴다.
+    const labelBtn = document.createElement("button");
+    labelBtn.type = "button";
+    labelBtn.className = "yui-cue__label";
+    labelBtn.setAttribute("data-testid", "cue-toggle");
+    labelBtn.setAttribute("aria-expanded", String(expandedIds.has(cue.id)));
+    const chevron = document.createElement("span");
+    chevron.className = "yui-cue__chevron";
+    chevron.setAttribute("aria-hidden", "true");
+    chevron.innerHTML = CHEVRON_SVG;
+    labelBtn.appendChild(chevron);
+    labelBtn.appendChild(nameEl);
+    labelBtn.appendChild(ctxPreview);
+    labelBtn.addEventListener("click", () => {
+      const expanded = cueEl.classList.toggle("yui-cue--expanded");
+      labelBtn.setAttribute("aria-expanded", String(expanded));
+      if (expanded) expandedIds.add(cue.id);
+      else expandedIds.delete(cue.id);
+    });
+
     collapsed.appendChild(cueSwitch);
-    collapsed.appendChild(nameEl);
+    collapsed.appendChild(labelBtn);
     collapsed.appendChild(triggerEl);
-    collapsed.appendChild(ctxPreview);
     collapsed.appendChild(deleteBtn);
 
     // ── 펼침 편집창 ──
@@ -361,20 +382,6 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     editor.appendChild(nameEdRow);
     editor.appendChild(triggerEdRow);
     editor.appendChild(ctxWrap);
-
-    // 접힌 행 클릭 → 펼치기/접기 토글(삭제/스위치/입력 제외)
-    collapsed.addEventListener("click", (e) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.closest("[data-testid='cue-switch']") ||
-        target.closest("[data-testid='cue-delete']") ||
-        target.closest("input")
-      )
-        return;
-      const expanded = cueEl.classList.toggle("yui-cue--expanded");
-      if (expanded) expandedIds.add(cue.id);
-      else expandedIds.delete(cue.id);
-    });
 
     cueEl.appendChild(collapsed);
     cueEl.appendChild(confirmEl);

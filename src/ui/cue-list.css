@@ -76,6 +76,47 @@
   padding: 0.42rem 0.5rem;
 }
 
+/* 이름 + 미리보기 토글 버튼 — 라벨 행처럼 보이되 박스/보더 없음 */
+.yui-cue__label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 0;
+  background: none;
+  padding: 0.1rem 0.2rem;
+  margin: 0;
+  border-radius: 7px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yui-cue__label:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* 앞머리 셰브런 — 펼침 시 90도 회전 */
+.yui-cue__chevron {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--yui-text-mute);
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-cue__chevron svg {
+  width: 0.68rem;
+  height: 0.68rem;
+}
+
+.yui-cue__label[aria-expanded="true"] .yui-cue__chevron {
+  transform: rotate(90deg);
+}
+
 /* 큐 이름 */
 .yui-cue__name {
   font-size: 0.84rem;
@@ -301,7 +342,8 @@
 @media (prefers-reduced-motion: reduce) {
   .yui-cue__delete,
   .yui-cue-add,
-  .yui-cue__ctx-wrap {
+  .yui-cue__ctx-wrap,
+  .yui-cue__chevron {
     transition-duration: 0ms !important;
   }
 }
