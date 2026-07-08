@@ -78,6 +78,26 @@ function openBrowserSettingsWindow(): void {
   }
 }
 
+/** 설정 창 자신을 닫는다 — Tauri면 현재 창 close, 아니면 window.close() 폴백. throw하지 않는다. */
+export function closeSettingsWindow(): void {
+  if (detectTauri()) {
+    void (async () => {
+      try {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        await getCurrentWindow().close();
+      } catch (err) {
+        log.warn("settings_window_close_failed", { error: String(err) });
+      }
+    })();
+    return;
+  }
+  try {
+    window.close();
+  } catch (err) {
+    log.warn("settings_window_close_failed", { error: String(err) });
+  }
+}
+
 /** 실제 부수효과를 배선한 오프너를 반환한다. 호출 시 한 번씩 Tauri/브라우저로 분기. */
 export function createSettingsWindowOpener(): () => void {
   return () => {

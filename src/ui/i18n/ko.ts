@@ -46,12 +46,15 @@ const ko: Record<string, string> = {
   // cue-list internal labels
   "cue.time_aria": "시각",
   "cue.greeting_time_aria": "인사 시각",
-  "cue.minutes_word": "무대화",
-  "cue.minutes_aria": "무대화 분",
+  "cue.minutes_word": "대화 없이",
+  "cue.minutes_aria": "대화 없는 시간(분)",
   "cue.minutes_suffix": "분마다",
   "cue.toggle_aria": "{name} 활성화",
   "cue.toggle_fallback": "큐",
   "cue.delete": "삭제",
+  "cue.confirm_q": "삭제할까요?",
+  "cue.confirm_go": "삭제",
+  "cue.confirm_cancel": "취소",
   "cue.name_label": "이름",
   "cue.name_aria": "이름",
   "cue.ctx_label": "컨텍스트",
@@ -285,11 +288,11 @@ const ko: Record<string, string> = {
   "session.section": "세션",
   "session.context": "Context",
   "session.action_label": "새 대화 시작 · Start fresh",
-  "session.action_sub": "Start a new conversation. YUI keeps the current memory until you do.",
+  "session.action_sub": "새 대화를 시작해요. 그 전까지 YUI는 현재 기억을 유지해요.",
   "session.reset": "대화 초기화 · Reset conversation",
-  "session.confirm_q": "Start over?",
-  "session.confirm_go": "Start fresh",
-  "session.confirm_cancel": "Cancel",
+  "session.confirm_q": "새로 시작할까요?",
+  "session.confirm_go": "새로 시작",
+  "session.confirm_cancel": "취소",
 };
 
 export default ko;

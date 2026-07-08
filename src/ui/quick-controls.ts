@@ -106,6 +106,8 @@ interface QuickControlsOptions {
   onResetViewpoint?: () => void;
   onPopOut?: () => void;
   variant?: "popover" | "window";
+  /** window variant에서 Escape가 OS 창을 닫는 경로(호스트 주입). 없으면 Escape는 no-op. */
+  onCloseWindow?: () => void;
   /** 빈 instructions일 때 placeholder로 보여줄 기본 지침(config.chat_instructions). */
   getDefaultInstructions?: () => string | undefined;
   /** 사용자 편집 엔드포인트 오버라이드 store. 빈 값=폴백. */
@@ -199,6 +201,7 @@ export function createQuickControls({
   onResetViewpoint,
   onPopOut,
   variant = "popover",
+  onCloseWindow,
   getDefaultInstructions,
   endpointsSettings,
   chatKeySettings,
@@ -386,7 +389,8 @@ export function createQuickControls({
 
   // 세션 섹션 노드(window 전용 — 없으면 null).
   const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
-  const sessionConfirmEl = el.querySelector<HTMLDivElement>(".yui-confirm");
+  // 큐 행도 .yui-confirm 패턴을 쓰므로 세션 것으로 한정한다.
+  const sessionConfirmEl = el.querySelector<HTMLDivElement>(".yui-session .yui-confirm");
   const sessionConfirmBtn = el.querySelector<HTMLButtonElement>(".yui-session__confirm");
   const sessionCancelBtn = el.querySelector<HTMLButtonElement>(".yui-session__cancel");
 
@@ -512,6 +516,7 @@ export function createQuickControls({
     scrim: scrimEl,
     bar: barEl,
     isWindow,
+    closeWindow: onCloseWindow,
     onOpen: () => {
       reflect.reflectSettings();
       reflect.reflectIdleThrottle();
