@@ -176,6 +176,75 @@ describe("createCueList — schedule (time trigger)", () => {
     );
   });
 
+  it("renders the cue label as a collapsed toggle button with a leading chevron", () => {
+    const store = makeScheduleStore({
+      entries: [{ id: "a", label: "아침", context: "아침 인사", time: "09:00", enabled: true }],
+    });
+    createCueList({
+      mount,
+      store,
+      title: "시간대 인사",
+      sub: "",
+      icon: "clock",
+      trigger: { kind: "time", field: "time" },
+      addLabel: "+ 인사 추가",
+    });
+
+    const btn = mount.querySelector<HTMLButtonElement>("[data-testid='cue-toggle']")!;
+    expect(btn).not.toBeNull();
+    expect(btn.tagName).toBe("BUTTON");
+    expect(btn.getAttribute("aria-expanded")).toBe("false");
+    expect(btn.querySelector(".yui-cue__chevron")).not.toBeNull();
+  });
+
+  it("clicking the cue label button toggles expansion and aria-expanded", () => {
+    const store = makeScheduleStore({
+      entries: [{ id: "a", label: "아침", context: "아침 인사", time: "09:00", enabled: true }],
+    });
+    createCueList({
+      mount,
+      store,
+      title: "시간대 인사",
+      sub: "",
+      icon: "clock",
+      trigger: { kind: "time", field: "time" },
+      addLabel: "+ 인사 추가",
+    });
+
+    const row = mount.querySelector<HTMLElement>("[data-testid='cue-row']")!;
+    const btn = row.querySelector<HTMLButtonElement>("[data-testid='cue-toggle']")!;
+    expect(row.classList.contains("yui-cue--expanded")).toBe(false);
+
+    btn.click();
+    expect(row.classList.contains("yui-cue--expanded")).toBe(true);
+    expect(btn.getAttribute("aria-expanded")).toBe("true");
+
+    btn.click();
+    expect(row.classList.contains("yui-cue--expanded")).toBe(false);
+    expect(btn.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("clicking the per-cue switch or delete does not toggle expansion", () => {
+    const store = makeScheduleStore({
+      entries: [{ id: "a", label: "아침", context: "아침 인사", time: "09:00", enabled: true }],
+    });
+    createCueList({
+      mount,
+      store,
+      title: "시간대 인사",
+      sub: "",
+      icon: "clock",
+      trigger: { kind: "time", field: "time" },
+      addLabel: "+ 인사 추가",
+    });
+
+    const row = mount.querySelector<HTMLElement>("[data-testid='cue-row']")!;
+    row.querySelector<HTMLButtonElement>("[data-testid='cue-switch']")!.click();
+    expect(row.classList.contains("yui-cue--expanded")).toBe(false);
+    row.querySelector<HTMLButtonElement>("[data-testid='cue-delete']")!.click();
+    expect(row.classList.contains("yui-cue--expanded")).toBe(false);
+  });
+
   it("renders master switch reflecting store enabled state (true)", () => {
     const store = makeScheduleStore({ enabled: true });
     createCueList({
@@ -711,7 +780,7 @@ describe("createCueList — edit state survives a store-driven re-render", () =>
 
   function expand(id: string): void {
     rowById(id)
-      .querySelector<HTMLElement>(".yui-cue__collapsed")!
+      .querySelector<HTMLButtonElement>("[data-testid='cue-toggle']")!
       .dispatchEvent(new MouseEvent("click", { bubbles: true }));
   }
 
