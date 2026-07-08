@@ -160,13 +160,13 @@
   text-overflow: ellipsis;
 }
 
-/* 삭제 버튼 — hover 시에만 표시 */
+/* 삭제 버튼 — hover 시에만 표시. 아이콘은 작아도 히트 영역은 24px 이상. */
 .yui-cue__delete {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1.5rem;
+  height: 1.5rem;
   border: 0;
   border-radius: 7px;
   background: transparent;
@@ -190,9 +190,21 @@
   color: var(--yui-danger);
 }
 
+/* display: grid가 UA의 [hidden] 규칙을 이기므로 명시적으로 숨긴다(확인 단계). */
+.yui-cue__delete[hidden] {
+  display: none;
+}
+
 .yui-cue__delete svg {
   width: 0.82rem;
   height: 0.82rem;
+}
+
+/* 삭제 확인 행 — 세션 초기화와 같은 .yui-confirm 패턴을 행 안에서 재사용 */
+.yui-cue .yui-confirm {
+  margin: 0;
+  padding: 0.3rem 0.5rem 0.45rem;
+  border-top: 1px solid var(--yui-edge);
 }
 
 /* ── 펼침 편집 창 ── */

@@ -100,6 +100,16 @@
   transform: translate(-50%, 0) scale(1);
 }
 
+/* 스크린리더 전용 낭독 영역 — 화면에는 보이지 않는다. */
+.yui-bubble__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* 입력이 열려 있는 동안 — 말풍선을 입력 위로(--yui-bubble-bottom는 JS가 px로 설정),
    아래로 자라지 않게 높이를 더 죄어 입력 영역을 침범하지 않게 한다. */
 .yui-bubble.is-above-input {

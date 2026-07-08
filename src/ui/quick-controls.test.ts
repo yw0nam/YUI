@@ -1766,6 +1766,47 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  // ── Escape — both variants must close ─────────────────────────────────────
+
+  it("Escape closes the popover variant", () => {
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+    expect(qc.isOpen()).toBe(true);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(qc.isOpen()).toBe(false);
+
+    qc.dispose();
+  });
+
+  it("Escape in the window variant invokes the host's OS-window close path", () => {
+    const onCloseWindow = vi.fn<() => void>();
+    const qc = buildQc({ variant: "window", onCloseWindow });
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(onCloseWindow).toHaveBeenCalledTimes(1);
+
+    qc.dispose();
+  });
+
+  it("Escape in the window variant flushes a dirty typed key before closing", () => {
+    const chatKeySettings = createChatKeySettings();
+    const onCloseWindow = vi.fn<() => void>();
+    const qc = buildQc({ chatKeySettings, variant: "window", onCloseWindow });
+
+    const input = qc.el.querySelector<HTMLInputElement>(
+      ".yui-input-row[data-key-prefix='chatkey'] .yui-chatkey__input",
+    )!;
+    input.value = "sk-escape-999";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(chatKeySettings.get().apiKey).toBe("sk-escape-999");
+    expect(onCloseWindow).toHaveBeenCalledTimes(1);
+
+    qc.dispose();
+  });
+
   // ── VRM section ─────────────────────────────────────────────────────────────
 
   // microtask flush — swapVrm is async; let its promise settle before asserting.
@@ -3219,11 +3260,11 @@ describe("createQuickControls — session section", () => {
 
     // the destructive action is gated behind a confirm affordance
     const link = qc.el.querySelector<HTMLButtonElement>(".yui-link-btn")!;
-    expect(qc.el.querySelector<HTMLElement>(".yui-confirm")!.hidden).toBe(true);
+    expect(qc.el.querySelector<HTMLElement>(".yui-session .yui-confirm")!.hidden).toBe(true);
     link.click();
-    expect(qc.el.querySelector<HTMLElement>(".yui-confirm")!.hidden).toBe(false);
+    expect(qc.el.querySelector<HTMLElement>(".yui-session .yui-confirm")!.hidden).toBe(false);
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-pill--go")!.click();
+    qc.el.querySelector<HTMLButtonElement>(".yui-session .yui-pill--go")!.click();
     expect(clearSession).toHaveBeenCalledTimes(1);
     expect(clearDiag).toHaveBeenCalledTimes(1);
 
@@ -3237,7 +3278,7 @@ describe("createQuickControls — session section", () => {
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-link-btn")!.click();
-    qc.el.querySelector<HTMLButtonElement>(".yui-pill--go")!.click();
+    qc.el.querySelector<HTMLButtonElement>(".yui-session .yui-pill--go")!.click();
     expect(transcript.clear).toHaveBeenCalledTimes(1);
 
     qc.dispose();
@@ -3248,7 +3289,9 @@ describe("createQuickControls — session section", () => {
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-link-btn")!.click();
-    expect(() => qc.el.querySelector<HTMLButtonElement>(".yui-pill--go")!.click()).not.toThrow();
+    expect(() =>
+      qc.el.querySelector<HTMLButtonElement>(".yui-session .yui-pill--go")!.click(),
+    ).not.toThrow();
 
     qc.dispose();
   });
@@ -3261,13 +3304,13 @@ describe("createQuickControls — session section", () => {
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-link-btn")!.click();
-    const cancel = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-pill")).find(
-      (b) => !b.classList.contains("yui-pill--go"),
-    )!;
+    const cancel = Array.from(
+      qc.el.querySelectorAll<HTMLButtonElement>(".yui-session .yui-pill"),
+    ).find((b) => !b.classList.contains("yui-pill--go"))!;
     cancel.click();
 
     expect(clearSession).not.toHaveBeenCalled();
-    expect(qc.el.querySelector<HTMLElement>(".yui-confirm")!.hidden).toBe(true);
+    expect(qc.el.querySelector<HTMLElement>(".yui-session .yui-confirm")!.hidden).toBe(true);
 
     qc.dispose();
   });

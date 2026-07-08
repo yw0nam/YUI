@@ -45,6 +45,8 @@ export interface PopoverDeps {
   bar: HTMLElement | null;
   /** window variant면 드래그·scrim·애니메이션 없이 OS 창을 채운다. */
   isWindow: boolean;
+  /** window variant 전용 — Escape가 OS 창을 닫아야 할 때 호스트가 주입한다. 없으면 Escape는 no-op. */
+  closeWindow?: () => void;
   /** 열릴 때 내용 갱신(reflect/render/monitor 로드). 위치 계산 전에 호출된다(치수 확정). */
   onOpen: () => void;
   /** 닫힐 때 정리(게인 프리뷰·audition·키 커밋). openState=false 전에 호출된다. */
@@ -59,7 +61,7 @@ export interface Popover {
 }
 
 export function createPopover(deps: PopoverDeps): Popover {
-  const { mount, root, scrim, bar, isWindow, onOpen, onClose } = deps;
+  const { mount, root, scrim, bar, isWindow, closeWindow, onOpen, onClose } = deps;
 
   let openState = false;
   let closeRafId: number | null = null;
@@ -237,12 +239,18 @@ export function createPopover(deps: PopoverDeps): Popover {
   }
 
   function handleDocKeydown(e: KeyboardEvent): void {
-    if (isWindow) return;
     if (!openState) return;
-    if (e.key === "Escape") {
+    if (e.key !== "Escape") return;
+    if (isWindow) {
+      // 창 variant는 내부 close()가 패널을 지우지 않는다(항상 표시) — OS 창 닫기는 호스트 몫.
+      if (!closeWindow) return;
       e.preventDefault();
-      close();
+      close(); // 정리(키 커밋·audition 중단)를 먼저 수행한다.
+      closeWindow();
+      return;
     }
+    e.preventDefault();
+    close();
   }
 
   scrim.addEventListener("pointerdown", handleScrimPointerDown);

@@ -113,6 +113,9 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
 
   // ── 상태 반영 ──
 
+  // 펼쳐진 편집창의 cue id — 재렌더에도 살아남아 다시 펼친다.
+  const expandedIds = new Set<string>();
+
   function reflectMaster(enabled: boolean): void {
     masterSwitch.setAttribute("aria-checked", String(enabled));
     sectionEl.classList.toggle("yui-section--off", !enabled);
@@ -219,6 +222,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     cueEl.setAttribute("data-testid", "cue-row");
     cueEl.setAttribute("data-cue-id", cue.id);
     if (!cue.enabled) cueEl.classList.add("yui-cue--off");
+    if (expandedIds.has(cue.id)) cueEl.classList.add("yui-cue--expanded");
 
     // ── 접힌 행 ──
     const collapsed = document.createElement("div");
@@ -255,16 +259,45 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     ctxPreview.setAttribute("data-testid", "cue-ctx-preview");
     ctxPreview.textContent = cue.context;
 
-    // 삭제 버튼
+    // 삭제 버튼 — 즉시 지우지 않고 확인 행을 연다(세션 초기화와 같은 2단계 패턴).
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "yui-cue__delete";
     deleteBtn.setAttribute("aria-label", t("cue.delete"));
     deleteBtn.setAttribute("data-testid", "cue-delete");
     deleteBtn.innerHTML = DELETE_SVG;
+
+    // 삭제 확인 행
+    const confirmEl = document.createElement("div");
+    confirmEl.className = "yui-confirm";
+    confirmEl.hidden = true;
+    const confirmQ = document.createElement("span");
+    confirmQ.className = "yui-confirm__q";
+    confirmQ.textContent = t("cue.confirm_q");
+    const confirmGo = document.createElement("button");
+    confirmGo.type = "button";
+    confirmGo.className = "yui-pill yui-pill--go";
+    confirmGo.setAttribute("data-testid", "cue-delete-confirm");
+    confirmGo.textContent = t("cue.confirm_go");
+    const confirmCancel = document.createElement("button");
+    confirmCancel.type = "button";
+    confirmCancel.className = "yui-pill";
+    confirmCancel.setAttribute("data-testid", "cue-delete-cancel");
+    confirmCancel.textContent = t("cue.confirm_cancel");
+    confirmEl.append(confirmQ, confirmGo, confirmCancel);
+
     deleteBtn.addEventListener("click", (e) => {
       e.stopPropagation();
+      confirmEl.hidden = false;
+      deleteBtn.hidden = true;
+    });
+    confirmGo.addEventListener("click", () => {
+      expandedIds.delete(cue.id);
       store.removeCue(cue.id);
+    });
+    confirmCancel.addEventListener("click", () => {
+      confirmEl.hidden = true;
+      deleteBtn.hidden = false;
     });
 
     collapsed.appendChild(cueSwitch);
@@ -338,20 +371,70 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
         target.closest("input")
       )
         return;
-      cueEl.classList.toggle("yui-cue--expanded");
+      const expanded = cueEl.classList.toggle("yui-cue--expanded");
+      if (expanded) expandedIds.add(cue.id);
+      else expandedIds.delete(cue.id);
     });
 
     cueEl.appendChild(collapsed);
+    cueEl.appendChild(confirmEl);
     cueEl.appendChild(editor);
 
     return cueEl;
   }
 
+  const FOCUSABLE_SEL = "button, input, textarea";
+
   function renderRows(entries: C[]): void {
+    // 전체 재구축이 포커스·입력 중 값을 날리지 않게 — 위치를 기억해 재구축 후 복원한다.
+    const active = document.activeElement;
+    let focusCueId: string | null = null;
+    let focusIdx = -1;
+    let focusValue: string | null = null;
+    let selStart: number | null = null;
+    let selEnd: number | null = null;
+    if (active instanceof HTMLElement && listEl.contains(active)) {
+      const row = active.closest<HTMLElement>("[data-cue-id]");
+      if (row) {
+        focusCueId = row.getAttribute("data-cue-id");
+        focusIdx = Array.from(row.querySelectorAll(FOCUSABLE_SEL)).indexOf(active);
+        if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
+          focusValue = active.value;
+          try {
+            selStart = active.selectionStart;
+            selEnd = active.selectionEnd;
+          } catch {
+            // time/number 입력은 selection API가 없다
+          }
+        }
+      }
+    }
+
     listEl.innerHTML = "";
     for (const cue of entries) {
       listEl.appendChild(buildCueRow(cue));
     }
+
+    if (focusCueId === null || focusIdx < 0) return;
+    const row = Array.from(listEl.querySelectorAll<HTMLElement>("[data-cue-id]")).find(
+      (r) => r.getAttribute("data-cue-id") === focusCueId,
+    );
+    const target = row?.querySelectorAll<HTMLElement>(FOCUSABLE_SEL)[focusIdx];
+    if (!target) return;
+    if (
+      focusValue !== null &&
+      (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
+    ) {
+      target.value = focusValue;
+      if (selStart !== null && selEnd !== null) {
+        try {
+          target.setSelectionRange(selStart, selEnd);
+        } catch {
+          // time/number 입력은 selection API가 없다
+        }
+      }
+    }
+    target.focus();
   }
 
   // ── 초기 렌더 ──

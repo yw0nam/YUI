@@ -37,7 +37,7 @@ import {
 } from "./io/session-diagnostics";
 import { createSessionStore, localStorageSessionStorage } from "./io/session-store";
 import { createSettingsBridge } from "./io/settings-bridge";
-import { wireStorageSync } from "./io/settings-window";
+import { closeSettingsWindow, wireStorageSync } from "./io/settings-window";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
@@ -201,6 +201,8 @@ async function bootstrap(): Promise<void> {
     createQuickControls({
       mount: app,
       variant: "window",
+      // Escape로 설정 창을 닫는다 — 창 variant의 닫기는 OS 창 몫.
+      onCloseWindow: closeSettingsWindow,
       agentSettings,
       settings: screenshotSettings,
       idleThrottleSettings,

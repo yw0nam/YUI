@@ -377,7 +377,7 @@ describe("createCueList — schedule (time trigger)", () => {
     expect(mount.querySelectorAll("[data-testid='cue-row']").length).toBe(1);
   });
 
-  it("clicking delete button calls store.removeCue with the correct id", () => {
+  it("first delete click only reveals the confirm step — no removal yet", () => {
     const store = makeScheduleStore({
       entries: [{ id: "a", label: "아침", context: "", time: "09:00", enabled: true }],
     });
@@ -392,8 +392,53 @@ describe("createCueList — schedule (time trigger)", () => {
     });
 
     const deleteBtn = mount.querySelector<HTMLButtonElement>("[data-testid='cue-delete']")!;
+    const confirmEl = mount.querySelector<HTMLElement>(".yui-cue .yui-confirm")!;
+    expect(confirmEl.hidden).toBe(true);
+
     deleteBtn.click();
+    expect(store.removeCue).not.toHaveBeenCalled();
+    expect(confirmEl.hidden).toBe(false);
+  });
+
+  it("confirm click calls store.removeCue with the correct id", () => {
+    const store = makeScheduleStore({
+      entries: [{ id: "a", label: "아침", context: "", time: "09:00", enabled: true }],
+    });
+    createCueList({
+      mount,
+      store,
+      title: "시간대 인사",
+      sub: "",
+      icon: "clock",
+      trigger: { kind: "time", field: "time" },
+      addLabel: "+ 인사 추가",
+    });
+
+    mount.querySelector<HTMLButtonElement>("[data-testid='cue-delete']")!.click();
+    mount.querySelector<HTMLButtonElement>("[data-testid='cue-delete-confirm']")!.click();
     expect(store.removeCue).toHaveBeenCalledWith("a");
+  });
+
+  it("cancel click hides the confirm step and removes nothing", () => {
+    const store = makeScheduleStore({
+      entries: [{ id: "a", label: "아침", context: "", time: "09:00", enabled: true }],
+    });
+    createCueList({
+      mount,
+      store,
+      title: "시간대 인사",
+      sub: "",
+      icon: "clock",
+      trigger: { kind: "time", field: "time" },
+      addLabel: "+ 인사 추가",
+    });
+
+    mount.querySelector<HTMLButtonElement>("[data-testid='cue-delete']")!.click();
+    mount.querySelector<HTMLButtonElement>("[data-testid='cue-delete-cancel']")!.click();
+
+    expect(store.removeCue).not.toHaveBeenCalled();
+    const confirmEl = mount.querySelector<HTMLElement>(".yui-cue .yui-confirm")!;
+    expect(confirmEl.hidden).toBe(true);
   });
 
   it("store subscription updates the row list on external change", () => {
@@ -626,5 +671,105 @@ describe("createCueList — proactive (minutes trigger)", () => {
 
     const preview = mount.querySelector("[data-testid='cue-ctx-preview']");
     expect(preview?.textContent?.trim()).toContain("5분 넘게 조용하네");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Re-render must not destroy the edit state (expanded editor · focus · typing)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createCueList — edit state survives a store-driven re-render", () => {
+  let mount: HTMLElement;
+
+  beforeEach(() => {
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+  });
+
+  function build(store: ReturnType<typeof makeScheduleStore>) {
+    return createCueList({
+      mount,
+      store,
+      title: "시간대 인사",
+      sub: "",
+      icon: "clock",
+      trigger: { kind: "time", field: "time" },
+      addLabel: "+ 인사 추가",
+    });
+  }
+
+  function rowById(id: string): HTMLElement {
+    return Array.from(mount.querySelectorAll<HTMLElement>("[data-testid='cue-row']")).find(
+      (r) => r.getAttribute("data-cue-id") === id,
+    )!;
+  }
+
+  function expand(id: string): void {
+    rowById(id)
+      .querySelector<HTMLElement>(".yui-cue__collapsed")!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+
+  it("keeps the editor expanded across an external store change", () => {
+    const store = makeScheduleStore();
+    build(store);
+
+    expand("morning");
+    expect(rowById("morning").classList.contains("yui-cue--expanded")).toBe(true);
+
+    // external change (e.g. another cue toggled elsewhere) triggers a full re-render
+    store.updateCue("lunch", { enabled: false });
+
+    expect(rowById("morning").classList.contains("yui-cue--expanded")).toBe(true);
+    expect(rowById("lunch").classList.contains("yui-cue--expanded")).toBe(false);
+  });
+
+  it("collapsing again is remembered across re-renders", () => {
+    const store = makeScheduleStore();
+    build(store);
+
+    expand("morning");
+    expand("morning"); // toggle back closed
+    store.updateCue("lunch", { enabled: false });
+
+    expect(rowById("morning").classList.contains("yui-cue--expanded")).toBe(false);
+  });
+
+  it("restores focus to the equivalent element after a re-render", () => {
+    const store = makeScheduleStore();
+    build(store);
+
+    expand("morning");
+    const nameInput = rowById("morning").querySelector<HTMLInputElement>(".yui-cue__name-input")!;
+    nameInput.focus();
+    expect(document.activeElement).toBe(nameInput);
+
+    store.updateCue("lunch", { enabled: false });
+
+    const restored = rowById("morning").querySelector<HTMLInputElement>(".yui-cue__name-input")!;
+    expect(restored).not.toBe(nameInput); // the row was rebuilt…
+    expect(document.activeElement).toBe(restored); // …but focus came back
+  });
+
+  it("preserves in-progress (uncommitted) typing in the focused field", () => {
+    const store = makeScheduleStore();
+    build(store);
+
+    expand("morning");
+    const ctx = rowById("morning").querySelector<HTMLTextAreaElement>(".yui-cue__ctx-textarea")!;
+    ctx.focus();
+    ctx.value = "아직 커밋 안 된 초안"; // typing without a change event yet
+
+    store.updateCue("lunch", { enabled: false });
+
+    const restored =
+      rowById("morning").querySelector<HTMLTextAreaElement>(".yui-cue__ctx-textarea")!;
+    expect(document.activeElement).toBe(restored);
+    expect(restored.value).toBe("아직 커밋 안 된 초안");
   });
 });

@@ -40,13 +40,15 @@ describe("pushSpeech — auto-scroll to newest line", () => {
     return mount.querySelector(".yui-bubble") as HTMLElement;
   }
 
+  function stub(el: HTMLElement, scrollHeight: number, clientHeight: number): void {
+    Object.defineProperty(el, "scrollHeight", { value: scrollHeight, configurable: true });
+    Object.defineProperty(el, "clientHeight", { value: clientHeight, configurable: true });
+  }
+
   it("scrolls the bubble to the bottom after pushSpeech", () => {
     s.beginSpeech();
     const bubbleEl = bubble();
-    Object.defineProperty(bubbleEl, "scrollHeight", {
-      value: 240,
-      configurable: true,
-    });
+    stub(bubbleEl, 240, 240); // scrollTop 0 → at the bottom before the delta
     s.pushSpeech("A long line that overflows the capped bubble height.");
     expect(bubbleEl.scrollTop).toBe(240);
   });
@@ -54,19 +56,163 @@ describe("pushSpeech — auto-scroll to newest line", () => {
   it("re-scrolls to the new end as more text arrives", () => {
     s.beginSpeech();
     const bubbleEl = bubble();
-    Object.defineProperty(bubbleEl, "scrollHeight", {
-      value: 240,
-      configurable: true,
-    });
+    stub(bubbleEl, 240, 240);
     s.pushSpeech("First chunk.");
     expect(bubbleEl.scrollTop).toBe(240);
 
-    Object.defineProperty(bubbleEl, "scrollHeight", {
-      value: 480,
-      configurable: true,
-    });
+    stub(bubbleEl, 480, 240);
     s.pushSpeech(" Second chunk that grows the content further.");
     expect(bubbleEl.scrollTop).toBe(480);
+  });
+});
+
+describe("pushSpeech — scroll pinning respects the user's scroll position", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function bubble(): HTMLElement {
+    return mount.querySelector(".yui-bubble") as HTMLElement;
+  }
+
+  function stub(el: HTMLElement, scrollHeight: number, clientHeight: number): void {
+    Object.defineProperty(el, "scrollHeight", { value: scrollHeight, configurable: true });
+    Object.defineProperty(el, "clientHeight", { value: clientHeight, configurable: true });
+  }
+
+  it("preserves scrollTop when the user has scrolled up to re-read", () => {
+    s.beginSpeech();
+    const bubbleEl = bubble();
+    stub(bubbleEl, 240, 240);
+    s.pushSpeech("Long overflowing reply.");
+    expect(bubbleEl.scrollTop).toBe(240); // pinned while at the bottom
+
+    // user scrolls up to re-read
+    bubbleEl.scrollTop = 0;
+    stub(bubbleEl, 480, 240);
+    s.pushSpeech(" More text arrives.");
+    expect(bubbleEl.scrollTop).toBe(0); // not yanked back down
+  });
+
+  it("keeps pinning while the user stays at the bottom", () => {
+    s.beginSpeech();
+    const bubbleEl = bubble();
+    stub(bubbleEl, 240, 240);
+    s.pushSpeech("First chunk.");
+    expect(bubbleEl.scrollTop).toBe(240);
+
+    stub(bubbleEl, 480, 240);
+    s.pushSpeech(" Second chunk.");
+    expect(bubbleEl.scrollTop).toBe(480);
+  });
+
+  it("treats within-8px of the bottom as pinned", () => {
+    s.beginSpeech();
+    const bubbleEl = bubble();
+    stub(bubbleEl, 480, 240);
+    bubbleEl.scrollTop = 234; // 480 - 234 - 240 = 6px from the bottom
+    s.pushSpeech("More.");
+    expect(bubbleEl.scrollTop).toBe(480);
+  });
+
+  it("does not yank endSpeech either when the user is reading above", () => {
+    s.beginSpeech();
+    const bubbleEl = bubble();
+    stub(bubbleEl, 480, 240);
+    s.pushSpeech("Long overflowing reply.");
+    bubbleEl.scrollTop = 0;
+    s.endSpeech();
+    expect(bubbleEl.scrollTop).toBe(0);
+  });
+});
+
+describe("aria-live — announce once per utterance on settle, not per delta", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function bubble(): HTMLElement {
+    return mount.querySelector(".yui-bubble") as HTMLElement;
+  }
+
+  function liveRegion(): HTMLElement | null {
+    return mount.querySelector(".yui-bubble__sr");
+  }
+
+  it("the streaming bubble itself is NOT a live region", () => {
+    expect(bubble().getAttribute("aria-live")).toBeNull();
+    expect(bubble().getAttribute("role")).not.toBe("status");
+  });
+
+  it("provides a separate polite live region for speech", () => {
+    const sr = liveRegion();
+    expect(sr).not.toBeNull();
+    expect(sr!.getAttribute("role")).toBe("status");
+    expect(sr!.getAttribute("aria-live")).toBe("polite");
+  });
+
+  it("stream deltas do not touch the live region; endSpeech announces the full text once", () => {
+    const sr = liveRegion()!;
+    s.beginSpeech();
+    s.pushSpeech("Hello");
+    s.pushSpeech(" there");
+    expect(sr.textContent).toBe(""); // nothing announced mid-stream
+
+    s.endSpeech();
+    expect(sr.textContent).toBe("Hello there");
+  });
+
+  it("announces on endSpeech even when the fade is deferred for TTS", () => {
+    const sr = liveRegion()!;
+    s.beginSpeech();
+    s.pushSpeech("Deferred speech");
+    s.endSpeech({ defer: true });
+    expect(sr.textContent).toBe("Deferred speech");
+  });
+
+  it("does not re-mutate the live region when endSpeech fires again for the same text", () => {
+    const sr = liveRegion()!;
+    s.beginSpeech();
+    s.pushSpeech("Barge-in target");
+    s.endSpeech({ defer: true }); // stream end defers the fade for TTS
+    const announced = sr.firstChild;
+    expect(announced).not.toBeNull();
+
+    s.endSpeech(); // barge-in interrupt re-fires endSpeech with unchanged text
+    expect(sr.firstChild).toBe(announced); // same node — no re-announcement mutation
+  });
+
+  it("clears the announcement when a new utterance begins", () => {
+    const sr = liveRegion()!;
+    s.beginSpeech();
+    s.pushSpeech("First");
+    s.endSpeech();
+    expect(sr.textContent).toBe("First");
+
+    s.beginSpeech();
+    expect(sr.textContent).toBe("");
+  });
+
+  it("keeps the tool chip live (discrete updates)", () => {
+    const tool = mount.querySelector(".yui-tool") as HTMLElement;
+    expect(tool.getAttribute("aria-live")).toBe("polite");
+    expect(tool.getAttribute("role")).toBe("status");
   });
 });
 
