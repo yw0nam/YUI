@@ -216,3 +216,23 @@ describe("key completeness — every en key must exist in ja and ko", () => {
     expect(orphans, `ko has orphan keys: ${orphans.join(", ")}`).toHaveLength(0);
   });
 });
+
+// The voice dot pulses amber while listening/asr and settles to a steady amber
+// when a turn fires — a difference of motion, not color. Under
+// prefers-reduced-motion the pulse is disabled, so those states collapse to an
+// identical dot and the text label becomes the sole differentiator. Lock it:
+// every voice.state.* label must be distinct within each locale.
+describe("voice.state labels — distinct per locale (reduced-motion carrier)", () => {
+  for (const [name, dict] of [
+    ["en", en],
+    ["ja", ja],
+    ["ko", ko],
+  ] as const) {
+    it(`${name}: no two voice.state labels share the same text`, () => {
+      const labels = Object.entries(dict)
+        .filter(([k]) => k.startsWith("voice.state."))
+        .map(([, v]) => v);
+      expect(new Set(labels).size).toBe(labels.length);
+    });
+  }
+});
