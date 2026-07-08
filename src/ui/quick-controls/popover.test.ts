@@ -107,4 +107,54 @@ describe("createPopover — focus management", () => {
 
     pop.dispose();
   });
+
+  it("excludes controls inside hidden tab panels from the focus trap", () => {
+    // 실제 quick-controls 구조를 모사 — 비활성 탭은 [hidden]으로 감춘다.
+    const root = document.createElement("div");
+    root.className = "yui-quick";
+    const visible = document.createElement("div");
+    visible.className = "yui-tabpanel";
+    const v1 = document.createElement("button");
+    v1.type = "button";
+    v1.textContent = "v1";
+    const v2 = document.createElement("button");
+    v2.type = "button";
+    v2.textContent = "v2";
+    visible.append(v1, v2);
+    const hiddenPanel = document.createElement("div");
+    hiddenPanel.className = "yui-tabpanel";
+    hiddenPanel.hidden = true;
+    const h1 = document.createElement("button");
+    h1.type = "button";
+    h1.textContent = "h1";
+    hiddenPanel.append(h1);
+    root.append(visible, hiddenPanel);
+
+    const scrim = document.createElement("div");
+    const pop = createPopover({
+      mount,
+      root,
+      scrim,
+      bar: null,
+      isWindow: false,
+      onOpen: () => {},
+      onClose: () => {},
+    });
+    pop.open();
+
+    // 앞쪽 Tab: 마지막 '보이는' 컨트롤(v2)에서 첫 보이는 컨트롤(v1)로 감싼다.
+    v2.focus();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    expect(document.activeElement).toBe(v1);
+
+    // Shift+Tab: 첫 컨트롤에서 마지막 '보이는' 컨트롤(v2)로 — 숨긴 h1이 아니다.
+    v1.focus();
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true }),
+    );
+    expect(document.activeElement).toBe(v2);
+    expect(document.activeElement).not.toBe(h1);
+
+    pop.dispose();
+  });
 });
