@@ -466,7 +466,7 @@ describe("guardrails — interface surface", () => {
   });
 
   it("has NO refund method (consume-on-fire, §6.3)", () => {
-    const g = createGuardrails(config()) as Record<string, unknown>;
+    const g = createGuardrails(config()) as unknown as Record<string, unknown>;
     expect(g.refund).toBeUndefined();
   });
 });

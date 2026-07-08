@@ -3075,7 +3075,7 @@ describe("createQuickControls — gain row", () => {
   });
 
   it("ignores a re-entrant refresh while the same row is already refreshing", async () => {
-    let resolveRefresh: (() => void) | null = null;
+    let resolveRefresh: () => void = () => {};
     refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(
       () =>
         new Promise<void>((res) => {
@@ -3104,7 +3104,7 @@ describe("createQuickControls — gain row", () => {
 
   it("does not render the success note or schedule a dwell timer when disposed mid-refresh", async () => {
     vi.useFakeTimers();
-    let resolveRefresh: (() => void) | null = null;
+    let resolveRefresh: () => void = () => {};
     refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(
       () =>
         new Promise<void>((res) => {
@@ -3193,6 +3193,10 @@ describe("createQuickControls — session section", () => {
         defaultUrl: "/vrms/carlotta.vrm",
       }),
       swapVrm: vi.fn(async () => {}),
+      importVrm: vi.fn(async () => {}),
+      importVoice: vi.fn(async () => {}),
+      removeUserVoice: vi.fn(async () => {}),
+      removeUserVrm: vi.fn(async () => {}),
       speakerSelection: createSpeakerSelection({
         available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
         defaultId: "natsume",
@@ -3389,6 +3393,10 @@ describe("createQuickControls — tabs + VAD slider", () => {
         defaultUrl: "/vrms/carlotta.vrm",
       }),
       swapVrm: vi.fn(async () => {}),
+      importVrm: vi.fn(async () => {}),
+      importVoice: vi.fn(async () => {}),
+      removeUserVoice: vi.fn(async () => {}),
+      removeUserVrm: vi.fn(async () => {}),
       speakerSelection: createSpeakerSelection({
         available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
         defaultId: "natsume",
@@ -4102,6 +4110,10 @@ describe("createQuickControls — language picker", () => {
         defaultUrl: "/vrms/carlotta.vrm",
       }),
       swapVrm: vi.fn(async () => {}),
+      importVrm: vi.fn(async () => {}),
+      importVoice: vi.fn(async () => {}),
+      removeUserVoice: vi.fn(async () => {}),
+      removeUserVrm: vi.fn(async () => {}),
       speakerSelection: createSpeakerSelection({
         available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
         defaultId: "natsume",

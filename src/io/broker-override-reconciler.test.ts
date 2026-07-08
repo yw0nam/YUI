@@ -24,9 +24,9 @@ function fakeBroker(): BrokerClient & {
   return {
     getIds: vi.fn(async () => null),
     publish: vi.fn(async () => {}),
-    start: vi.fn(),
-    stop: vi.fn(),
-    dispose: vi.fn(),
+    start: vi.fn<() => void>(),
+    stop: vi.fn<() => void>(),
+    dispose: vi.fn<() => void>(),
   };
 }
 

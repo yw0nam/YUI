@@ -85,6 +85,7 @@ describe("window-drop-source — perch hit", () => {
     // winOriginPts = (260, 370); seatGlobal = (300, 400) which is the WIN top-left corner.
     const renderer = {
       getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
     };
     const W = win();
     const invoke = vi.fn(async () => [W]);
@@ -114,6 +115,7 @@ describe("window-drop-source — perch hit", () => {
   it("chooses the topmost (first front-to-back) window when several overlap the seat", async () => {
     const renderer = {
       getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
     };
     const top = win({ name: "Top", pid: 1 });
     const back = win({ name: "Back", pid: 2 });
@@ -138,6 +140,7 @@ describe("window-drop-source — no perch", () => {
   it("pushes user.window_sit_exit when the matched window's edge is covered by a front window at the seat", async () => {
     const renderer = {
       getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
     };
     // seatGlobal = (300, 400). Front's RECT contains the seat (its surface is what
     // the user sees there) but its own top-edge catch zone ([44,146]) does not;
@@ -164,6 +167,7 @@ describe("window-drop-source — no perch", () => {
   it("pushes user.window_sit_exit (no payload) when the seat is over no window", async () => {
     const renderer = {
       getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
     };
     // window far away from the seat global point → no catch.
     const invoke = vi.fn(async () => [win({ x: 5000, y: 5000 })]);
@@ -183,7 +187,7 @@ describe("window-drop-source — no perch", () => {
   });
 
   it("pushes user.window_sit_exit and never calls list_windows when getPerchProbe() is null", async () => {
-    const renderer = { getPerchProbe: vi.fn(() => null) };
+    const renderer = { getPerchProbe: vi.fn(() => null), isPerched: vi.fn(() => true) };
     const invoke = vi.fn(async () => [win()]);
     const getWindow = () => makeWindow({ x: 0, y: 0 }, 1);
     const { listen, fire } = makeListen();
@@ -203,7 +207,7 @@ describe("window-drop-source — no perch", () => {
 
 describe("window-drop-source — lifecycle + degrade", () => {
   it("start() registers the release listener", async () => {
-    const renderer = { getPerchProbe: vi.fn(() => null) };
+    const renderer = { getPerchProbe: vi.fn(() => null), isPerched: vi.fn(() => true) };
     const invoke = vi.fn(async () => []);
     const getWindow = () => makeWindow({ x: 0, y: 0 }, 1);
     const { listen } = makeListen();
@@ -214,7 +218,7 @@ describe("window-drop-source — lifecycle + degrade", () => {
   });
 
   it("stop() unlistens the release listener", async () => {
-    const renderer = { getPerchProbe: vi.fn(() => null) };
+    const renderer = { getPerchProbe: vi.fn(() => null), isPerched: vi.fn(() => true) };
     const invoke = vi.fn(async () => []);
     const getWindow = () => makeWindow({ x: 0, y: 0 }, 1);
     const { listen, unlisten } = makeListen();
@@ -228,6 +232,7 @@ describe("window-drop-source — lifecycle + degrade", () => {
   it("does not throw to the caller when invoke('list_windows') rejects", async () => {
     const renderer = {
       getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
     };
     const invoke = vi.fn(async () => {
       throw new Error("IPC boom");
@@ -248,6 +253,7 @@ describe("window-drop-source — lifecycle + degrade", () => {
   it("ignores a malformed release payload without throwing", async () => {
     const renderer = {
       getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
     };
     const invoke = vi.fn(async () => [win()]);
     const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
@@ -580,7 +586,8 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
     await settleRelease(); // armed on 42, gen = 1, tickCb captured.
 
     // Fire one poll tick — it reaches the blocked list_windows (call #2) and awaits.
-    const tickRun = (async () => tickCb?.())();
+    // ponytail: cast — TS CFA narrows the closure-assigned `let` to null here.
+    const tickRun = (async () => (tickCb as (() => void) | null)?.())();
     await Promise.resolve();
     await Promise.resolve();
 

@@ -11,8 +11,15 @@
  *  - parse_error / network drop classification.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ControlEnvelope, EndpointsConfig, ExpressArgs, InputContext } from "../contract";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import type {
+  ControlEnvelope,
+  EndpointsConfig,
+  ExpressArgs,
+  InputContext,
+  ToolStatus,
+  Usage,
+} from "../contract";
 import type { ChatStreamEvent } from "../io/chat-client";
 import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { Logger } from "../logger";
@@ -93,14 +100,14 @@ function makeLogger(): Logger {
 }
 
 let applyDirective: ReturnType<typeof vi.fn>;
-let speechSink: ReturnType<typeof vi.fn>;
-let cueSink: ReturnType<typeof vi.fn>;
-let toolStatusSink: ReturnType<typeof vi.fn>;
-let speechDeltaSink: ReturnType<typeof vi.fn>;
-let speechEndSink: ReturnType<typeof vi.fn>;
-let speechInterruptSink: ReturnType<typeof vi.fn>;
-let speechAbortSink: ReturnType<typeof vi.fn>;
-let usageSink: ReturnType<typeof vi.fn>;
+let speechSink: Mock<(text: string) => void>;
+let cueSink: Mock<(cue: ExpressArgs) => void>;
+let toolStatusSink: Mock<(status: ToolStatus) => void>;
+let speechDeltaSink: Mock<(text: string) => void>;
+let speechEndSink: Mock<() => void>;
+let speechInterruptSink: Mock<() => void>;
+let speechAbortSink: Mock<() => void>;
+let usageSink: Mock<(usage: Usage) => void>;
 let caller: BackendCaller;
 let logger: Logger;
 
@@ -1442,9 +1449,9 @@ describe("backend_caller — usage sink (token accounting channel)", () => {
 // precede speech. Silent/error/abort turns still end thinking via finally.
 
 describe("backend_caller — TTFT thinking lifecycle", () => {
-  let onThinkingStart: ReturnType<typeof vi.fn>;
-  let onThinkingEnd: ReturnType<typeof vi.fn>;
-  let getFiller: ReturnType<typeof vi.fn>;
+  let onThinkingStart: Mock<(token: object) => void>;
+  let onThinkingEnd: Mock<(token: object) => void>;
+  let getFiller: Mock<() => boolean>;
 
   function makeCaller(fillerActive = true) {
     return createBackendCaller({

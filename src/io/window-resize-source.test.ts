@@ -5,7 +5,7 @@
  * re-anchor) plus the wired wheel handler with injected Tauri window seams.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import {
   createWindowResizeSource,
   MAX_LOGICAL,
@@ -125,7 +125,7 @@ async function settle(): Promise<void> {
 }
 
 describe("window-resize-source — wheel handler", () => {
-  let renderer: { isPerched: ReturnType<typeof vi.fn> };
+  let renderer: { isPerched: Mock<() => boolean> };
 
   beforeEach(() => {
     renderer = { isPerched: vi.fn(() => false) };

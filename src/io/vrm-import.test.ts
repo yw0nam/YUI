@@ -17,7 +17,10 @@ import {
 function makeDeps(over: Partial<VrmImportDeps> = {}): VrmImportDeps {
   return {
     openDialog: vi.fn(async () => "/Users/me/Downloads/MyAvatar.vrm"),
-    invoke: vi.fn(async () => ({ id: "MyAvatar", destPath: "/app-data/vrms/MyAvatar.vrm" })),
+    invoke: vi.fn(async () => ({
+      id: "MyAvatar",
+      destPath: "/app-data/vrms/MyAvatar.vrm",
+    })) as unknown as VrmImportDeps["invoke"],
     convertFileSrc: vi.fn((p: string) => `asset://localhost/${encodeURI(p)}`),
     ...over,
   };
@@ -88,7 +91,7 @@ describe("importVrmFromFile — successful pick", () => {
 describe("removeUserVrm", () => {
   it("invokes remove_user_vrm with the id", async () => {
     const invoke = vi.fn(async () => undefined);
-    await removeUserVrm("MyAvatar", { invoke });
+    await removeUserVrm("MyAvatar", { invoke: invoke as unknown as VrmImportDeps["invoke"] });
     expect(invoke).toHaveBeenCalledWith("remove_user_vrm", { id: "MyAvatar" });
   });
 });
