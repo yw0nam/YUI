@@ -2734,6 +2734,55 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  it("openai gates the speaker option buttons with the real disabled attribute", () => {
+    const qc = buildQc({ getDefaultProvider: () => "openai" });
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) {
+      expect(r.querySelector<HTMLButtonElement>(".yui-spk__refresh")!.disabled).toBe(true);
+      expect(r.querySelector<HTMLButtonElement>(".yui-spk__preview")!.disabled).toBe(true);
+    }
+
+    qc.dispose();
+  });
+
+  it("irodori leaves clip-backed speaker option buttons enabled (not disabled)", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    // default speakers all carry a ref_url (clip) → option buttons are enabled.
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    for (const r of rows) {
+      expect(r.querySelector<HTMLButtonElement>(".yui-spk__refresh")!.disabled).toBe(false);
+      expect(r.querySelector<HTMLButtonElement>(".yui-spk__preview")!.disabled).toBe(false);
+    }
+
+    qc.dispose();
+  });
+
+  it("switching the engine to openai while open disables the speaker option buttons", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    const refreshBefore = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-spk[role=radio] .yui-spk__refresh",
+    )!;
+    expect(refreshBefore.disabled).toBe(false);
+
+    const sel = qc.el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
+    sel.value = "openai";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+
+    const refreshAfter = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-spk[role=radio] .yui-spk__refresh",
+    )!;
+    expect(refreshAfter.disabled).toBe(true);
+
+    qc.dispose();
+  });
+
   it("Enter on a focused non-active speaker row selects it (swaps)", () => {
     const qc = buildQc();
     qc.open();
