@@ -12,9 +12,13 @@
     "core:window:allow-set-cursor-position",
     "core:window:allow-set-size",
     "core:window:allow-set-position",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
     "core:webview:allow-create-webview-window",
     "cors-fetch:default",
     "log:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister"
   ]
 }

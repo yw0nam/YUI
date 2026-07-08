@@ -60,6 +60,7 @@ function goodFixture(): Record<string, unknown> {
         ko: { first: ["음…"], repeat: [] },
       },
     },
+    "hotkeys.json": { summon_global: "CmdOrCtrl+Shift+Y" },
   };
 }
 
@@ -163,6 +164,26 @@ describe("createConfigStore — guardrails section diff", () => {
     expect(nextCfg.guardrails.rate_limit.overall_max).toBe(30);
     expect(changed.has("guardrails")).toBe(true);
     expect(changed.has("motions")).toBe(false);
+  });
+});
+
+describe("createConfigStore — hotkeys section diff", () => {
+  it("hotkeys 변경 → reload() true, changed.has('hotkeys')", async () => {
+    const map = goodFixture();
+    const store = createConfigStore({ read: mutableReader(map) });
+    await store.load();
+
+    const sub = vi.fn();
+    store.subscribe(sub);
+
+    (map["hotkeys.json"] as { summon_global: string }).summon_global = "Alt+Space";
+    await expect(store.reload()).resolves.toBe(true);
+
+    expect(sub).toHaveBeenCalledTimes(1);
+    const [nextCfg, changed] = sub.mock.calls[0];
+    expect(nextCfg.hotkeys.summon_global).toBe("Alt+Space");
+    expect(changed.has("hotkeys")).toBe(true);
+    expect(changed.has("avatar")).toBe(false);
   });
 });
 

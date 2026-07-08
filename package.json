@@ -36,6 +36,7 @@
     "@ricky0123/vad-web": "^0.0.30",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "^2.4.0",
+    "@tauri-apps/plugin-global-shortcut": "^2.3.2",
     "@tauri-apps/plugin-log": "^2.8.0",
     "dompurify": "^3.4.11",
     "marked": "^18.0.5",

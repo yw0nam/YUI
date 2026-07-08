@@ -28,6 +28,7 @@ YUI/
     emotion_registry.json     # emotion id → vrm_expression + fallback
     motions.json              # motion registry
     avatar.json               # VRM avatar config
+    hotkeys.json              # global summon accelerator (empty = disabled)
     emotion_text/             # per-provider voice-tag vocabulary (e.g. emotion_text/irodori.json)
   public/motions/           # VRMA motion assets
   motion-preview.html       # Dev motion/emotion inspector (not in Tauri window)

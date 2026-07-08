@@ -85,6 +85,7 @@ function goodFixture(): Record<string, unknown> {
         ko: { first: ["음…", "그건…"], repeat: ["글쎄…", "잠깐만…"] },
       },
     },
+    "hotkeys.json": { summon_global: "CmdOrCtrl+Shift+Y" },
   };
 }
 
@@ -1636,6 +1637,52 @@ describe("loadConfig — filler (reject)", () => {
       pools: { ja: { first: ["うーん…"], repeat: [1] } },
     };
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+});
+
+// ── hotkeys.json ────────────────────────────────────────────────────────────────
+
+function hotkeysFixture(hotkeys: unknown): Record<string, unknown> {
+  const map = goodFixture();
+  map["hotkeys.json"] = hotkeys;
+  return map;
+}
+
+describe("loadConfig — hotkeys (accept)", () => {
+  it("유효한 accelerator 문자열을 그대로 보존한다", async () => {
+    const cfg = await loadConfig({ read: readerOf(goodFixture()) });
+    expect(cfg.hotkeys.summon_global).toBe("CmdOrCtrl+Shift+Y");
+  });
+
+  it("summon_global 키가 없으면 빈 문자열(비활성)", async () => {
+    const cfg = await loadConfig({ read: readerOf(hotkeysFixture({})) });
+    expect(cfg.hotkeys.summon_global).toBe("");
+  });
+
+  it("summon_global이 빈 문자열이면 그대로 비활성", async () => {
+    const cfg = await loadConfig({ read: readerOf(hotkeysFixture({ summon_global: "" })) });
+    expect(cfg.hotkeys.summon_global).toBe("");
+  });
+
+  it("문법이 이상한 문자열도 통과한다 — 유효성은 등록 시점 플러그인이 판정(fail-soft)", async () => {
+    const cfg = await loadConfig({
+      read: readerOf(hotkeysFixture({ summon_global: "NotAKey+++" })),
+    });
+    expect(cfg.hotkeys.summon_global).toBe("NotAKey+++");
+  });
+});
+
+describe("loadConfig — hotkeys (reject)", () => {
+  it("객체가 아니면 ConfigError", async () => {
+    await expect(loadConfig({ read: readerOf(hotkeysFixture(42)) })).rejects.toBeInstanceOf(
+      ConfigError,
+    );
+  });
+
+  it("summon_global이 문자열이 아니면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(hotkeysFixture({ summon_global: 7 })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
   });
 });
 

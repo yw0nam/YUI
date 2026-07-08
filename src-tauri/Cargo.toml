@@ -29,6 +29,7 @@ tauri = { version = "2.11.2", features = ["macos-private-api", "protocol-asset"]
 tauri-plugin-log = "2"
 tauri-plugin-cors-fetch = "5.0.0"
 tauri-plugin-dialog = "2"
+tauri-plugin-global-shortcut = "2"
 xcap = "0.4.1"
 image = { version = "0.25", features = ["jpeg"], default-features = false }
 base64 = "0.22"

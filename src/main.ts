@@ -92,6 +92,7 @@ import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-windo
 import { createSpeechPlayback } from "./io/speech-playback";
 import { createSttSettings, localStorageSttStorage } from "./io/stt-settings";
 import type { SttVad } from "./io/stt-vad";
+import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
 import { TTS_SKIP } from "./io/tts-pipeline";
 import { createTtsSettings, localStorageTtsStorage } from "./io/tts-settings";
@@ -715,6 +716,8 @@ async function bootstrap(): Promise<void> {
   // broker client는 config 로드 후 broker_base_url이 있을 때만 만든다. 핫스왑 재publish와
   // HMR dispose가 닿게 holder를 둔다.
   let brokerRef: BrokerClient | null = null;
+  // 전역 소환 핫키(Tauri 전용) — 핫리로드 재적용이 닿게 holder를 둔다.
+  let summonHotkeyRef: SummonHotkey | null = null;
   // Tauri webview에서 broker(localhost:3201)는 cross-origin → selectFetch로 CORS 우회 fetch 주입.
   // 부트에서 1회 해소해 캐시하고, 재지정(override) 시에도 같은 fetch를 재사용한다.
   let brokerFetch: typeof fetch | undefined;
@@ -1213,6 +1216,32 @@ async function bootstrap(): Promise<void> {
     });
     agentSourceRef = agentSource;
     void agentSource.start();
+    // 전역 소환 핫키: configs/hotkeys.json accelerator를 OS 전역으로 등록(Tauri 전용 —
+    // 브라우저 dev에서는 스킵). 발동 시 창 show+focus 후 입력 소환. 등록 실패는
+    // summon-hotkey가 warn 후 비활성으로 처리한다(fail-soft).
+    if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+      void (async () => {
+        const { register, unregister } = await import("@tauri-apps/plugin-global-shortcut");
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        const summonHotkey = createSummonHotkey({
+          register,
+          unregister,
+          // macOS에서 백그라운드 앱 활성화까지 포함해 앞으로 가져온다(숨김 대비 show 선행).
+          focusWindow: async () => {
+            const win = getCurrentWindow();
+            await win.show();
+            await win.setFocus();
+          },
+          summonInput: () => surfaces.summonInput(),
+          isInputOpen: () => surfaces.isInputOpen(),
+        });
+        summonHotkeyRef = summonHotkey;
+        await summonHotkey.apply(cfg.hotkeys.summon_global);
+        if (import.meta.env.DEV) {
+          import.meta.hot?.dispose(() => void summonHotkey.dispose());
+        }
+      })().catch((err) => log.warn("summon_hotkey_wire_failed", { error: String(err) }));
+    }
     // Expression Broker publish(D6): broker_base_url이 있을 때만 가동(override 병합 effective 기준).
     // publish→start는 fire-and-forget — 부트 임계 경로를 막지 않는다(D4).
     const bootEps = getEndpoints();
@@ -1255,6 +1284,8 @@ async function bootstrap(): Promise<void> {
     if (changed.has("motions")) renderer.setMotionRegistry(cfg.motions);
     // guardrails 수치 핫리로드 — 런타임 DND/카운터 상태는 보존하고 config만 교체.
     if (changed.has("guardrails")) guardrailsRef?.setConfig(cfg.guardrails);
+    // 전역 소환 핫키 핫리로드 — 기존 해제 후 새 accelerator 등록(빈 문자열 = 비활성).
+    if (changed.has("hotkeys")) void summonHotkeyRef?.apply(cfg.hotkeys.summon_global);
     // irodori 화자 manifest 핫리로드 — synth가 다음 발화에서 getActive()로 읽으므로 재로드만 한다.
     if (changed.has("endpoints")) {
       speakerSelection.setManifest({
