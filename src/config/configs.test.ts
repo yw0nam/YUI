@@ -79,6 +79,14 @@ describe("configs/guardrails.json", () => {
   });
 });
 
+describe("configs/hotkeys.json", () => {
+  const h = read("configs/hotkeys.json");
+
+  it("carries the global summon accelerator default", () => {
+    expect(h.summon_global).toBe("CmdOrCtrl+Shift+Y");
+  });
+});
+
 describe("configs/motions.json", () => {
   const m = read("configs/motions.json");
 
