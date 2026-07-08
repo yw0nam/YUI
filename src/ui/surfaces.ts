@@ -91,9 +91,10 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
       <span class="yui-tool__dot" aria-hidden="true"></span>
       <span class="yui-tool__label"></span>
     </div>
-    <div class="yui-bubble" role="status" aria-live="polite" hidden>
+    <div class="yui-bubble" hidden>
       <span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span>
     </div>
+    <span class="yui-bubble__sr" role="status" aria-live="polite"></span>
     <form class="yui-input" novalidate hidden>
       <div class="yui-input__tray"></div>
       <div class="yui-input__row">
@@ -136,6 +137,8 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   const toolLabel = el.querySelector<HTMLSpanElement>(".yui-tool__label")!;
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
   const bubbleText = el.querySelector<HTMLSpanElement>(".yui-bubble__text")!;
+  // 스크린리더 전용 낭독 영역 — 시각 말풍선은 라이브가 아니고, 발화가 정착되면 여기로 한 번 알린다.
+  const bubbleSr = el.querySelector<HTMLSpanElement>(".yui-bubble__sr")!;
   const formEl = el.querySelector<HTMLFormElement>(".yui-input")!;
   const field = el.querySelector<HTMLInputElement>(".yui-input__field")!;
   const errorEl = el.querySelector<HTMLSpanElement>(".yui-input__error")!;
@@ -180,10 +183,19 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     }, dwell);
   }
 
-  // 높이 상한된 말풍선의 최신 줄을 항상 보이게 끝으로 스크롤.
+  // 사용자가 하단에서 이만큼(px) 이내면 자동 스크롤 고정 대상으로 본다.
+  const SCROLL_PIN_SLACK_PX = 8;
+
+  function isPinnedToEnd(): boolean {
+    return (
+      bubbleEl.scrollHeight - bubbleEl.scrollTop - bubbleEl.clientHeight <= SCROLL_PIN_SLACK_PX
+    );
+  }
+
+  // 높이 상한된 말풍선의 최신 줄을 항상 보이게 끝으로 스크롤(pin=false면 위치 유지).
   // 넘칠 때만 is-scrollable을 켜 상단 fade가 적용되게 한다(짧은 발화는 첫 줄을 깎지 않음).
-  function scrollBubbleToEnd(): void {
-    bubbleEl.scrollTop = bubbleEl.scrollHeight;
+  function scrollBubbleToEnd(pin = true): void {
+    if (pin) bubbleEl.scrollTop = bubbleEl.scrollHeight;
     bubbleEl.classList.toggle("is-scrollable", bubbleEl.scrollHeight > bubbleEl.clientHeight);
   }
 
@@ -193,6 +205,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     deferred = false;
     speechRaw = "";
     bubbleText.replaceChildren();
+    bubbleSr.textContent = "";
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-streaming");
     // 다음 프레임에 transition 점화 (hidden 해제 직후 같은 프레임이면 안 움직임)
@@ -201,10 +214,12 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
 
   function pushSpeech(delta: string): void {
     if (bubbleEl.hidden) beginSpeech();
+    // 갱신 전에 측정 — 위로 스크롤해 읽는 중인 사용자를 끌어내리지 않는다.
+    const pin = isPinnedToEnd();
     speechRaw += delta;
     // Re-render the full accumulated text as inline markdown on each delta.
     bubbleText.replaceChildren(renderMarkdownInline(speechRaw));
-    scrollBubbleToEnd();
+    scrollBubbleToEnd(pin);
   }
 
   function endSpeech(opts?: { defer?: boolean }): void {
@@ -212,7 +227,11 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-visible");
     bubbleEl.classList.remove("is-streaming");
-    scrollBubbleToEnd();
+    scrollBubbleToEnd(isPinnedToEnd());
+    // 발화가 정착된 시점에 한 번만 낭독 — 델타마다·barge-in 재호출마다 재낭독하지 않는다.
+    if (bubbleSr.textContent !== bubbleText.textContent) {
+      bubbleSr.textContent = bubbleText.textContent;
+    }
     clearDwell();
     if (opts?.defer) {
       // 재생이 끝날 때까지 페이드 보류 — finishSpeech()가 dwell을 점화한다.
