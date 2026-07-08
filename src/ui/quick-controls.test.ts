@@ -40,7 +40,7 @@ import { createSpeakerSelection, type SpeakerOption } from "../io/speaker-select
 import { createTtsSettings } from "../io/tts-settings";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../io/vad-settings";
 import { createVrmSelection } from "../io/vrm-selection";
-import { getLocale, LOCALE_DISPLAY_NAMES, setLocale } from "./i18n";
+import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "./i18n";
 import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
 
 // jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
@@ -4249,40 +4249,70 @@ describe("createQuickControls — language picker", () => {
     qc.dispose();
   });
 
-  it("ArrowRight on the language seg moves selection, tabindex, and sets the locale", () => {
+  it("arrow keys on the language seg move roving focus only — locale is NOT committed", () => {
     setLocale("en"); // en = index 1
     const qc = buildQc();
     qc.open();
 
+    // 화살표가 setLocale을 부르는지 감시(구독은 setLocale마다 통지).
+    let commits = 0;
+    const unsub = i18nSubscribe(() => {
+      commits += 1;
+    });
+
     const seg = qc.el.querySelector<HTMLElement>(".yui-lang-seg")!;
     const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
     expect(btns[1].getAttribute("aria-checked")).toBe("true"); // en
-    expect(btns[1].tabIndex).toBe(0);
+    btns[1].focus();
 
     btns[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
 
-    expect(getLocale()).toBe("ko"); // index 2
-    expect(btns[2].getAttribute("aria-checked")).toBe("true");
-    expect(btns[1].getAttribute("aria-checked")).toBe("false");
+    // 커밋 없음: locale·aria-checked 그대로, 포커스·roving tabindex만 ko로 이동.
+    expect(commits).toBe(0);
+    expect(getLocale()).toBe("en");
+    expect(btns[1].getAttribute("aria-checked")).toBe("true");
+    expect(btns[2].getAttribute("aria-checked")).toBe("false");
+    expect(document.activeElement).toBe(btns[2]);
     expect(btns[2].tabIndex).toBe(0);
     expect(btns[1].tabIndex).toBe(-1);
 
+    // ArrowLeft로 다시 en 버튼에 포커스만 이동(여전히 커밋 없음).
+    btns[2].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+    expect(commits).toBe(0);
+    expect(getLocale()).toBe("en");
+    expect(document.activeElement).toBe(btns[1]);
+    expect(btns[1].tabIndex).toBe(0);
+
+    unsub();
     qc.dispose();
   });
 
-  it("Space on a language seg button selects that locale", () => {
+  it("Space on the focused locale button commits setLocale exactly once", () => {
     setLocale("en");
     const qc = buildQc();
     qc.open();
 
-    const koBtn = qc.el.querySelector<HTMLButtonElement>(
-      ".yui-lang-seg .yui-seg__btn[data-locale='ko']",
-    )!;
-    koBtn.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    let commits = 0;
+    const unsub = i18nSubscribe(() => {
+      commits += 1;
+    });
 
+    const seg = qc.el.querySelector<HTMLElement>(".yui-lang-seg")!;
+    const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    // 화살표로 ko에 포커스만 옮긴다(커밋 없음).
+    btns[1].focus();
+    btns[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(commits).toBe(0);
+    expect(getLocale()).toBe("en");
+
+    // 포커스된 버튼에서 Space → 커밋(정확히 1회).
+    btns[2].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    expect(commits).toBe(1);
     expect(getLocale()).toBe("ko");
-    expect(koBtn.getAttribute("aria-checked")).toBe("true");
+    expect(btns[2].getAttribute("aria-checked")).toBe("true");
+    expect(btns[1].getAttribute("aria-checked")).toBe("false");
 
+    unsub();
     qc.dispose();
   });
 });
