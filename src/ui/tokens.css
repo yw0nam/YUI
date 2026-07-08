@@ -20,7 +20,7 @@
   /* ── Surface (Scrim) ──
      말풍선·칩 등 떠 있는 표면의 반투명 어두운 바탕. 임의 배경 위 가독의 핵심. */
   --yui-scrim: oklch(0.21 0.014 70 / 0.64);
-  --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82); /* 입력 등 더 또렷해야 할 때 */
+  --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82); /* 입력·소형 라벨 칩이 더 또렷해야 할 때 */
   --yui-edge: oklch(0.97 0.01 80 / 0.1); /* 어두운 배경에서도 표면 외곽을 잡아주는 hairline */
   --yui-edge-strong: oklch(0.97 0.01 80 / 0.16); /* hover 강조 hairline */
 

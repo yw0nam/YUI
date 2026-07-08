@@ -11,11 +11,9 @@
   gap: 0.46rem;
   padding: 0.3rem 0.66rem 0.3rem 0.56rem;
   border-radius: var(--yui-radius-chip);
-  background: var(--yui-scrim);
+  background: var(--yui-scrim-strong);
   border: 1px solid var(--yui-edge);
   box-shadow: var(--yui-float);
-  backdrop-filter: blur(10px) saturate(1.1);
-  -webkit-backdrop-filter: blur(10px) saturate(1.1);
   color: var(--yui-text-dim);
   font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
   font-size: 0.76rem;
