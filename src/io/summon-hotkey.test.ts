@@ -10,6 +10,7 @@
  *  - 빈 문자열: 기존 등록 해제 + 새 등록 없음(비활성).
  *  - register 거부(무효 accelerator/OS 점유): throw 없이 비활성 유지(fail-soft).
  *  - focusWindow 실패해도 summonInput은 호출된다.
+ *  - 입력이 이미 열려 있으면 focusWindow만 하고 summonInput은 건너뛴다.
  *  - dispose(): 등록 해제.
  */
 
@@ -20,6 +21,8 @@ import { createSummonHotkey, type SummonHotkeyTrigger } from "./summon-hotkey";
 function fakeDeps() {
   const handlers = new Map<string, SummonHotkeyTrigger>();
   const calls: string[] = [];
+  // 실제 surfaces처럼 summonInput 후에는 입력이 열려 있다.
+  let inputOpen = false;
   const deps = {
     register: vi.fn(async (accelerator: string, handler: SummonHotkeyTrigger) => {
       handlers.set(accelerator, handler);
@@ -32,7 +35,9 @@ function fakeDeps() {
     }),
     summonInput: vi.fn(() => {
       calls.push("summon");
+      inputOpen = true;
     }),
+    isInputOpen: vi.fn(() => inputOpen),
   };
   return {
     deps,
@@ -126,6 +131,19 @@ describe("createSummonHotkey — trigger", () => {
     await hotkey.apply("CmdOrCtrl+Shift+Y");
     f.trigger("CmdOrCtrl+Shift+Y");
     await flush();
+    expect(f.deps.summonInput).toHaveBeenCalledTimes(1);
+  });
+
+  it("입력이 이미 열려 있으면 focusWindow만 하고 summonInput은 건너뛴다", async () => {
+    const f = fakeDeps();
+    const hotkey = createSummonHotkey(f.deps);
+    await hotkey.apply("CmdOrCtrl+Shift+Y");
+    // 첫 발동이 입력을 연다 → 재발동(키 반복/다른 앱에서 재호출)은 창만 앞으로.
+    f.trigger("CmdOrCtrl+Shift+Y");
+    await flush();
+    f.trigger("CmdOrCtrl+Shift+Y");
+    await flush();
+    expect(f.deps.focusWindow).toHaveBeenCalledTimes(2);
     expect(f.deps.summonInput).toHaveBeenCalledTimes(1);
   });
 });
