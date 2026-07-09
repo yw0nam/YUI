@@ -65,14 +65,16 @@ export function createCaptureIndicator({
     const settle = (): void => {
       if (!visible) el.hidden = true;
     };
+    // 전이가 안 뜨는 환경 폴백. rAF(다음 프레임 ~16ms)는 페이드(--yui-dur 200ms /
+    // -fast 140ms)보다 짧아 전이를 잘라먹으므로, 상한을 넘는 타이머여야 한다.
+    const fb = setTimeout(settle, 400); // ponytail: --yui-dur/-fast 상한 넘는 안전망
     const onEnd = (e: TransitionEvent): void => {
       if (e.propertyName !== "opacity") return;
+      clearTimeout(fb);
       el.removeEventListener("transitionend", onEnd);
       settle();
     };
     el.addEventListener("transitionend", onEnd);
-    // 전이가 안 뜨는 환경(reduced-motion·테스트) 폴백.
-    requestAnimationFrame(settle);
   }
 
   // settings 반영 (초기 + 구독)
