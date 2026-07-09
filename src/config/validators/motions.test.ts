@@ -273,6 +273,28 @@ describe("validateMotions — pingpong / loop_cycles", () => {
   });
 });
 
+describe("validateMotions — crossfade_loop", () => {
+  it("passes crossfade_loop through when loop:true", () => {
+    const entry = baseEntry({ loop: true, crossfade_loop: true });
+    const out = validateMotions(FILE, { idle: entry });
+    expect(out.idle.crossfade_loop).toBe(true);
+  });
+
+  it("rejects a non-boolean crossfade_loop", () => {
+    expectIssue(
+      { idle: baseEntry({ loop: true, crossfade_loop: "true" }) },
+      "crossfade_loop은 boolean이어야 함",
+    );
+  });
+
+  it("rejects crossfade_loop:true without loop:true", () => {
+    expectIssue(
+      { idle: baseEntry({ loop: false, crossfade_loop: true }) },
+      "crossfade_loop:true는 loop:true를 요구함",
+    );
+  });
+});
+
 describe("validateMotions — fade_ms", () => {
   it("rejects a non-integer", () => {
     expectIssue({ idle: baseEntry({ fade_ms: 100.5 }) }, "fade_ms는 0~5000 사이 정수여야 함");
