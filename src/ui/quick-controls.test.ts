@@ -28,7 +28,6 @@ import { createChatKeySettings } from "../io/chat-key-settings";
 import { createEndpointsSettings } from "../io/endpoints-settings";
 import { createFillerSettings } from "../io/filler-settings";
 import { createGazeSettings } from "../io/gaze-settings";
-import { createGithubSettings } from "../io/github-settings";
 import { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import { createLipsyncSettings } from "../io/lipsync-settings";
 import { createPresenceSettings } from "../io/presence-settings";
@@ -462,61 +461,6 @@ describe("createQuickControls — gain row", () => {
 
     gazeSettings.setEnabled(true);
     expect(gazeSwitch.getAttribute("aria-checked")).toBe("true");
-
-    qc.dispose();
-  });
-
-  // ── GitHub PR 워처 toggle row (Advanced tab) ─────────────────────────────────
-
-  it("renders the github toggle row only when githubSettings is provided, OFF by default", () => {
-    const withoutGithub = buildQc();
-    withoutGithub.open();
-    expect(withoutGithub.el.querySelector(".yui-github-switch")).toBeNull();
-    withoutGithub.dispose();
-
-    const qc = buildQc({ githubSettings: createGithubSettings() });
-    qc.open();
-    const githubSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-github-switch");
-    expect(githubSwitch).not.toBeNull();
-    expect(githubSwitch!.getAttribute("aria-checked")).toBe("false");
-    expect(githubSwitch!.getAttribute("role")).toBe("switch");
-    expect(githubSwitch!.getAttribute("aria-label")).toBe("GitHub PR 지켜보기");
-
-    const row = githubSwitch!.closest(".yui-row")!;
-    expect(row.querySelector(".yui-row__label")!.textContent).toContain("GitHub PR 지켜보기");
-    qc.dispose();
-  });
-
-  it("clicking the github switch toggles githubSettings.setEnabled", () => {
-    const githubSettings = createGithubSettings();
-    const qc = buildQc({ githubSettings });
-    qc.open();
-
-    const githubSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-github-switch")!;
-    expect(githubSettings.get().enabled).toBe(false);
-
-    githubSwitch.click();
-    expect(githubSettings.get().enabled).toBe(true);
-    expect(githubSwitch.getAttribute("aria-checked")).toBe("true");
-
-    githubSwitch.click();
-    expect(githubSettings.get().enabled).toBe(false);
-    expect(githubSwitch.getAttribute("aria-checked")).toBe("false");
-
-    qc.dispose();
-  });
-
-  it("external githubSettings.setEnabled reflects on the switch while open", () => {
-    const githubSettings = createGithubSettings();
-    const qc = buildQc({ githubSettings });
-    qc.open();
-
-    const githubSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-github-switch")!;
-    githubSettings.setEnabled(true);
-    expect(githubSwitch.getAttribute("aria-checked")).toBe("true");
-
-    githubSettings.setEnabled(false);
-    expect(githubSwitch.getAttribute("aria-checked")).toBe("false");
 
     qc.dispose();
   });
@@ -4547,18 +4491,6 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 
-  it("github switch lives inside #yui-panel-react, not #yui-panel-adv", () => {
-    const qc = buildQc({ githubSettings: createGithubSettings() });
-    qc.open();
-    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    const advPanel = qc.el.querySelector<HTMLElement>("#yui-panel-adv")!;
-    const githubSwitch = qc.el.querySelector(".yui-github-switch");
-    expect(githubSwitch).not.toBeNull();
-    expect(reactPanel.contains(githubSwitch)).toBe(true);
-    expect(advPanel.contains(githubSwitch)).toBe(false);
-    qc.dispose();
-  });
-
   it("agentNotify switch lives inside #yui-panel-react, not #yui-panel-adv", () => {
     const qc = buildQc({ agentNotifySettings: createAgentNotifySettings() });
     qc.open();
@@ -4568,43 +4500,6 @@ describe("createQuickControls — Reactions tab", () => {
     expect(agentNotifySwitch).not.toBeNull();
     expect(reactPanel.contains(agentNotifySwitch)).toBe(true);
     expect(advPanel.contains(agentNotifySwitch)).toBe(false);
-    qc.dispose();
-  });
-
-  it("renders #yui-github-poll that reflects githubSettings.poll_interval_ms/1000 on open", () => {
-    const githubSettings = createGithubSettings();
-    const qc = buildQc({ githubSettings });
-    qc.open();
-    const pollInput = qc.el.querySelector<HTMLInputElement>("#yui-github-poll");
-    expect(pollInput).not.toBeNull();
-    // Default poll_interval_ms = 60000 → 60 s
-    expect(pollInput!.value).toBe("60");
-    qc.dispose();
-  });
-
-  it("change on #yui-github-poll calls githubSettings.setPollInterval(s * 1000)", () => {
-    const githubSettings = createGithubSettings();
-    const setSpy = vi.spyOn(githubSettings, "setPollInterval");
-    const qc = buildQc({ githubSettings });
-    qc.open();
-    const pollInput = qc.el.querySelector<HTMLInputElement>("#yui-github-poll")!;
-    pollInput.value = "120";
-    pollInput.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(setSpy).toHaveBeenCalledWith(120000);
-    qc.dispose();
-  });
-
-  it("after a valid poll change the input value snaps to stored value via re-reflect", () => {
-    const githubSettings = createGithubSettings();
-    const qc = buildQc({ githubSettings });
-    qc.open();
-    const pollInput = qc.el.querySelector<HTMLInputElement>("#yui-github-poll")!;
-    pollInput.value = "30";
-    pollInput.dispatchEvent(new Event("change", { bubbles: true }));
-    // store floor is 10 s (10000 ms) — 30 is valid, stored as 30000 ms
-    expect(githubSettings.get().poll_interval_ms).toBe(30000);
-    // input reflects stored value (30 s)
-    expect(pollInput.value).toBe("30");
     qc.dispose();
   });
 
@@ -4685,20 +4580,6 @@ describe("createQuickControls — Reactions tab", () => {
   // When the store setter silently rejects an out-of-range value (no-op),
   // the change handler's explicit reflect.*() must snap the input back to the
   // current stored value so the field never shows an uncommitted state.
-
-  it("below-floor value in #yui-github-poll snaps back: store unchanged, input reverts to 60", () => {
-    const githubSettings = createGithubSettings(); // default poll_interval_ms = 60000
-    const setSpy = vi.spyOn(githubSettings, "setPollInterval");
-    const qc = buildQc({ githubSettings });
-    qc.open();
-    const pollInput = qc.el.querySelector<HTMLInputElement>("#yui-github-poll")!;
-    pollInput.value = "5"; // 5 s → 5000 ms — below the 10 000 ms floor
-    pollInput.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(setSpy).toHaveBeenCalledWith(5000); // setter was invoked but rejected
-    expect(githubSettings.get().poll_interval_ms).toBe(60000); // store unchanged
-    expect(pollInput.value).toBe("60"); // input snapped back
-    qc.dispose();
-  });
 
   it("below-range value in #yui-agent-port snaps back: store unchanged, input reverts to 8770", () => {
     const agentNotifySettings = createAgentNotifySettings(); // default port = 8770

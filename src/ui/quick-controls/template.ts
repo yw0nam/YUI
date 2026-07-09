@@ -28,8 +28,6 @@ export interface PanelHtmlOptions {
   showViewpoint: boolean;
   showGaze: boolean;
   gazeEnabled: boolean;
-  showGithub: boolean;
-  githubEnabled: boolean;
   showAgentNotify: boolean;
   agentNotifyEnabled: boolean;
   ttsEnabled: boolean;
@@ -47,8 +45,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showViewpoint,
     showGaze,
     gazeEnabled,
-    showGithub,
-    githubEnabled,
     showAgentNotify,
     agentNotifyEnabled,
     ttsEnabled,
@@ -433,18 +429,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
         <div class="yui-loop-cue-section"></div>
         <div class="yui-quick__divider" aria-hidden="true"></div>
         <span class="yui-quick__section">${t("reactions.watchers_title")}</span>
-        ${
-          showGithub
-            ? `<div class="yui-row">
-          <div class="yui-row__main">
-            <span class="yui-row__label">${t("github.label")}</span>
-            <span class="yui-row__sub">${t("github.sub")}</span>
-          </div>
-          <button class="yui-switch yui-github-switch" type="button" role="switch" aria-checked="${String(githubEnabled)}" aria-label="${t("github.aria")}"></button>
-        </div>
-        ${numRowHtml({ id: "yui-github-poll", labelKey: "reactions.poll_label", subKey: "reactions.poll_sub", min: 10, max: 3600, suffixKey: "reactions.seconds_suffix" })}`
-            : ""
-        }
         ${
           showAgentNotify
             ? `<div class="yui-row">

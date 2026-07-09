@@ -36,7 +36,7 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
     // data_url is NOT included here — pixels arrive as the input_image content-part on input[1]
   },
   "trigger": {
-    "kind": "user | schedule | proactive | github | agent | signals",
+    "kind": "user | schedule | proactive | agent | signals",
     "cue": {                                    // present for schedule and proactive kinds
       "label": "short human name",
       "context": "free-text intent the user wrote for the agent",
@@ -55,11 +55,10 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
 | `user` | User spoke or typed | The user's message text | No |
 | `schedule` | A user-configured time-of-day cue fired | Proactive marker string | Yes |
 | `proactive` | A user-configured engagement cue fired because the user has been present but not interacting | Proactive marker string | Yes |
-| `github` | A watched GitHub PR changed CI or review state | Proactive marker string | No (carries `pr` or `pr_catchup` instead) |
 | `agent` | An external coding-agent finish-hook posted a completion signal | Proactive marker string | No (carries `agent` or `agent_catchup` instead) |
 | `signals` | The remote n8n workflow POSTed a burst to the `/signals` ingress | Proactive marker string | No (carries `signals` instead) |
 
-For `schedule`, `proactive`, `github`, `agent`, and `signals` turns there is no user utterance — the agent reads the trigger fields to decide whether and what to say. Firing a turn does not guarantee speech: the client renders whatever text the agent returns, and silence means the agent returns empty or no speech text. No client-side gate decides whether to speak (see `D-NO-SPEAK-GATE`).
+For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utterance — the agent reads the trigger fields to decide whether and what to say. Firing a turn does not guarantee speech: the client renders whatever text the agent returns, and silence means the agent returns empty or no speech text. No client-side gate decides whether to speak (see `D-NO-SPEAK-GATE`).
 
 ### Cue fields
 
@@ -111,84 +110,6 @@ For `schedule`, `proactive`, `github`, `agent`, and `signals` turns there is no 
       "idle_min": 30
     },
     "idle_elapsed_min": 37
-  }
-}
-```
-
-### GitHub PR fields
-
-`github` turns carry no `cue`. A turn is one of two shapes: a single live transition observed while the user is present (`pr`), or a burst of transitions buffered while the user was away and flushed on return (`pr_catchup`). The watcher fires only on CI failure (`FAILURE`/`ERROR`) and review decisions (`CHANGES_REQUESTED`/`APPROVED`); other states update internal tracking without firing.
-
-`trigger.pr` — single live PR transition:
-
-| Field | Type | Meaning |
-|---|---|---|
-| `repo` | string | `owner/name` of the repository |
-| `number` | number | PR number |
-| `title` | string | PR title |
-| `url` | string | PR web URL |
-| `event` | `"ci_failed" \| "review_changes" \| "review_approved"` | Which transition fired |
-| `from` | string \| null | Previous field value (`null` if unseen) |
-| `to` | string | New field value that triggered the event |
-
-`trigger.pr_catchup` — burst of buffered transitions, grouped per still-open PR:
-
-| Field | Type | Meaning |
-|---|---|---|
-| `prs[]` | array | One entry per PR with buffered transitions |
-| `prs[].repo` | string | `owner/name` of the repository |
-| `prs[].number` | number | PR number |
-| `prs[].title` | string | PR title |
-| `prs[].url` | string | PR web URL |
-| `prs[].transitions[]` | array | Buffered transitions for this PR, oldest first |
-| `prs[].transitions[].kind` | `"ci" \| "review"` | Which field changed |
-| `prs[].transitions[].from` | string \| null | Previous value (`null` if unseen) |
-| `prs[].transitions[].to` | string | New value |
-| `prs[].transitions[].ts` | number | Epoch millis when the transition was observed |
-
-### GitHub examples
-
-**`github` turn** — live CI failure while the user is present:
-
-```json
-{
-  "env": { "timestamp": "2026-06-15T16:20:00+09:00", "timezone": "Asia/Seoul" },
-  "trigger": {
-    "kind": "github",
-    "pr": {
-      "repo": "acme/yui",
-      "number": 263,
-      "title": "feat: github pr watcher",
-      "url": "https://github.com/acme/yui/pull/263",
-      "event": "ci_failed",
-      "from": "SUCCESS",
-      "to": "FAILURE"
-    }
-  }
-}
-```
-
-**`github` turn** — catch-up burst flushed when the user returns:
-
-```json
-{
-  "env": { "timestamp": "2026-06-15T17:05:00+09:00", "timezone": "Asia/Seoul" },
-  "trigger": {
-    "kind": "github",
-    "pr_catchup": {
-      "prs": [
-        {
-          "repo": "acme/yui",
-          "number": 263,
-          "title": "feat: github pr watcher",
-          "url": "https://github.com/acme/yui/pull/263",
-          "transitions": [
-            { "kind": "ci", "from": "SUCCESS", "to": "FAILURE", "ts": 1781000000000 },
-            { "kind": "review", "from": null, "to": "APPROVED", "ts": 1781000600000 }
-          ]
-        }
-      ]
-    }
   }
 }
 ```

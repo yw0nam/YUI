@@ -13,7 +13,6 @@ import {
 } from "../../io/endpoints-settings";
 import type { createFillerSettings } from "../../io/filler-settings";
 import type { createGazeSettings } from "../../io/gaze-settings";
-import type { createGithubSettings } from "../../io/github-settings";
 import type { createIdleThrottleSettings } from "../../io/idle-throttle-settings";
 import {
   type createLipsyncSettings,
@@ -62,7 +61,6 @@ export interface ReflectDeps {
   idleThrottleSettings: ReturnType<typeof createIdleThrottleSettings>;
   ttsSettings?: ReturnType<typeof createTtsSettings>;
   gazeSettings?: ReturnType<typeof createGazeSettings>;
-  githubSettings?: ReturnType<typeof createGithubSettings>;
   agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
   lipsync: ReturnType<typeof createLipsyncSettings>;
   vad: ReturnType<typeof createVadSettings>;
@@ -79,7 +77,6 @@ export interface ReflectDeps {
   /** 오버라이드가 없을 때 효과적 chat_api가 폴백할 bundled config 기본값(미로드 시 undefined). */
   getDefaultChatApi?: () => string | undefined;
   /** Reactions tab numeric inputs — provided when the feature is enabled. */
-  githubPollInput?: HTMLInputElement;
   agentPortInput?: HTMLInputElement;
   presenceInput?: HTMLInputElement;
   presenceSettings?: ReturnType<typeof createPresenceSettings>;
@@ -90,7 +87,6 @@ export interface Reflect {
   reflectIdleThrottle(): void;
   reflectTts(): void;
   reflectGaze(): void;
-  reflectGithub(): void;
   reflectAgentNotify(): void;
   reflectPresence(): void;
   reflectGain(): void;
@@ -117,7 +113,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     idleThrottleSettings,
     ttsSettings,
     gazeSettings,
-    githubSettings,
     agentNotifySettings,
     lipsync,
     vad,
@@ -129,7 +124,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     getEndpointDefaults,
     getDefaultProvider,
     getDefaultChatApi,
-    githubPollInput,
     agentPortInput,
     presenceInput,
     presenceSettings,
@@ -138,7 +132,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const switchBtn = root.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const idleThrottleSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
   const gazeSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-gaze-switch");
-  const githubSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-github-switch");
   const agentNotifySwitchBtn = root.querySelector<HTMLButtonElement>(".yui-agentnotify-switch");
   const voiceSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const ttsSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-tts-switch");
@@ -200,13 +193,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
   function reflectGaze(): void {
     if (!gazeSwitchBtn || !gazeSettings) return;
     gazeSwitchBtn.setAttribute("aria-checked", String(gazeSettings.get().enabled));
-  }
-
-  function reflectGithub(): void {
-    if (!githubSwitchBtn || !githubSettings) return;
-    githubSwitchBtn.setAttribute("aria-checked", String(githubSettings.get().enabled));
-    if (githubPollInput)
-      githubPollInput.value = String(githubSettings.get().poll_interval_ms / 1000);
   }
 
   function reflectAgentNotify(): void {
@@ -400,7 +386,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
   return {
     reflectSettings,
     reflectIdleThrottle,
-    reflectGithub,
     reflectAgentNotify,
     reflectPresence,
     reflectTts,

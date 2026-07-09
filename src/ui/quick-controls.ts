@@ -15,7 +15,6 @@ import type { ChatKeySettingsStore } from "../io/chat-key-settings";
 import type { createEndpointsSettings, EndpointOverrides } from "../io/endpoints-settings";
 import type { createFillerSettings } from "../io/filler-settings";
 import type { createGazeSettings } from "../io/gaze-settings";
-import type { createGithubSettings } from "../io/github-settings";
 import type { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import {
   type createLipsyncSettings,
@@ -50,7 +49,6 @@ export { formatTokenCount } from "./quick-controls/reflect";
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type IdleThrottleSettingsStore = ReturnType<typeof createIdleThrottleSettings>;
 type GazeSettingsStore = ReturnType<typeof createGazeSettings>;
-type GithubSettingsStore = ReturnType<typeof createGithubSettings>;
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
 type ScheduleSettingsStore = ReturnType<typeof createScheduleSettings>;
@@ -136,8 +134,6 @@ interface QuickControlsOptions {
   ttsSettings?: TtsSettingsStore;
   /** 카메라 시선 맞춤(gaze) on/off store. 없으면 해당 토글 행을 그리지 않는다. */
   gazeSettings?: GazeSettingsStore;
-  /** GitHub PR 워처 on/off store. 없으면 해당 토글 행을 그리지 않는다. */
-  githubSettings?: GithubSettingsStore;
   /** 에이전트 완료 알림 on/off store. 없으면 해당 토글 행을 그리지 않는다. */
   agentNotifySettings?: AgentNotifySettingsStore;
   /** 자리 비움 감지 store. 없으면 Reactions 탭의 presence 행을 그리지 않는다. */
@@ -216,7 +212,6 @@ export function createQuickControls({
   fillerSettings,
   ttsSettings,
   gazeSettings,
-  githubSettings,
   agentNotifySettings,
   presenceSettings,
 }: QuickControlsOptions): QuickControls {
@@ -242,8 +237,6 @@ export function createQuickControls({
     showViewpoint: !!onResetViewpoint,
     showGaze: !!gazeSettings,
     gazeEnabled: gazeSettings?.get().enabled ?? false,
-    showGithub: !!githubSettings,
-    githubEnabled: githubSettings?.get().enabled ?? false,
     showAgentNotify: !!agentNotifySettings,
     agentNotifyEnabled: agentNotifySettings?.get().enabled ?? false,
     ttsEnabled: ttsSettings?.get().enabled ?? true,
@@ -255,10 +248,8 @@ export function createQuickControls({
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const idleThrottleSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
   const gazeSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-gaze-switch");
-  const githubSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-github-switch");
   const agentNotifySwitchBtn = el.querySelector<HTMLButtonElement>(".yui-agentnotify-switch");
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
-  const githubPollInput = el.querySelector<HTMLInputElement>("#yui-github-poll");
   const agentPortInput = el.querySelector<HTMLInputElement>("#yui-agent-port");
   const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
@@ -435,7 +426,6 @@ export function createQuickControls({
     idleThrottleSettings,
     ttsSettings,
     gazeSettings,
-    githubSettings,
     agentNotifySettings,
     lipsync,
     vad,
@@ -447,7 +437,6 @@ export function createQuickControls({
     getEndpointDefaults,
     getDefaultProvider,
     getDefaultChatApi,
-    githubPollInput: githubPollInput ?? undefined,
     agentPortInput: agentPortInput ?? undefined,
     presenceInput: presenceInput ?? undefined,
     presenceSettings,
@@ -530,7 +519,6 @@ export function createQuickControls({
       reflect.reflectIdleThrottle();
       reflect.reflectTts();
       reflect.reflectGaze();
-      reflect.reflectGithub();
       reflect.reflectAgentNotify();
       reflect.reflectPresence();
       reflect.reflectVoiceStatus(voiceStatus.get());
@@ -597,13 +585,6 @@ export function createQuickControls({
     const current = gazeSettings.get().enabled;
     gazeSettings.setEnabled(!current);
     log.info("gaze_toggle", { enabled: !current });
-  }
-
-  function handleGithubSwitchClick(): void {
-    if (!githubSettings) return;
-    const current = githubSettings.get().enabled;
-    githubSettings.setEnabled(!current);
-    log.info("github_watch_toggle", { enabled: !current });
   }
 
   function handleAgentNotifySwitchClick(): void {
@@ -1010,9 +991,6 @@ export function createQuickControls({
   const unsubscribeGaze = gazeSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectGaze();
   });
-  const unsubscribeGithub = githubSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectGithub();
-  });
   const unsubscribeAgentNotify = agentNotifySettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectAgentNotify();
   });
@@ -1020,12 +998,6 @@ export function createQuickControls({
     if (popover.isOpen()) reflect.reflectPresence();
   });
 
-  function handleGithubPollChange(): void {
-    if (!githubSettings || !githubPollInput) return;
-    const v = Math.round(Number(githubPollInput.value));
-    githubSettings.setPollInterval(v * 1000);
-    reflect.reflectGithub();
-  }
   function handleAgentPortChange(): void {
     if (!agentNotifySettings || !agentPortInput) return;
     agentNotifySettings.setPort(Math.round(Number(agentPortInput.value)));
@@ -1037,7 +1009,6 @@ export function createQuickControls({
     presenceSettings.setPresentMaxIdleMs(v * 1000);
     reflect.reflectPresence();
   }
-  githubPollInput?.addEventListener("change", handleGithubPollChange);
   agentPortInput?.addEventListener("change", handleAgentPortChange);
   presenceInput?.addEventListener("change", handlePresenceChange);
 
@@ -1121,7 +1092,6 @@ export function createQuickControls({
   ttsSwitchBtn?.addEventListener("click", handleTtsSwitchClick);
   bargeInSwitchBtn?.addEventListener("click", handleBargeInSwitchClick);
   gazeSwitchBtn?.addEventListener("click", handleGazeSwitchClick);
-  githubSwitchBtn?.addEventListener("click", handleGithubSwitchClick);
   agentNotifySwitchBtn?.addEventListener("click", handleAgentNotifySwitchClick);
   fillerSwitchBtn?.addEventListener("click", handleFillerSwitchClick);
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
@@ -1180,10 +1150,8 @@ export function createQuickControls({
     unsubscribeIdleThrottle();
     unsubscribeTts?.();
     unsubscribeGaze?.();
-    unsubscribeGithub?.();
     unsubscribeAgentNotify?.();
     unsubscribePresence?.();
-    githubPollInput?.removeEventListener("change", handleGithubPollChange);
     agentPortInput?.removeEventListener("change", handleAgentPortChange);
     presenceInput?.removeEventListener("change", handlePresenceChange);
     unsubscribeVoice();
@@ -1203,7 +1171,6 @@ export function createQuickControls({
     ttsSwitchBtn?.removeEventListener("click", handleTtsSwitchClick);
     bargeInSwitchBtn?.removeEventListener("click", handleBargeInSwitchClick);
     gazeSwitchBtn?.removeEventListener("click", handleGazeSwitchClick);
-    githubSwitchBtn?.removeEventListener("click", handleGithubSwitchClick);
     agentNotifySwitchBtn?.removeEventListener("click", handleAgentNotifySwitchClick);
     fillerSwitchBtn?.removeEventListener("click", handleFillerSwitchClick);
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);

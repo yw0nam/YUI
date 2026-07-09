@@ -237,30 +237,10 @@ export type SignalItem = Record<string, unknown>;
 
 /** trigger envelope describing what fired this backend turn. */
 export interface TriggerMeta {
-  kind: "user" | "schedule" | "proactive" | "github" | "agent" | "signals";
+  kind: "user" | "schedule" | "proactive" | "agent" | "signals";
   cue?: CueMeta;
   /** proactive only: Math.round(gap_ms / 60000). */
   idle_elapsed_min?: number;
-  /** github.ci_failed / github.review_* — single live PR transition. */
-  pr?: {
-    repo: string;
-    number: number;
-    title: string;
-    url: string;
-    event: "ci_failed" | "review_changes" | "review_approved";
-    from: string | null;
-    to: string;
-  };
-  /** github.catchup — burst of buffered transitions on return. */
-  pr_catchup?: {
-    prs: Array<{
-      repo: string;
-      number: number;
-      title: string;
-      url: string;
-      transitions: Array<{ kind: "ci" | "review"; from: string | null; to: string; ts: number }>;
-    }>;
-  };
   /** agent.completion — single coding-agent task finished. */
   agent?: {
     tool: string; // "claude-code" | "opencode" | <string>
