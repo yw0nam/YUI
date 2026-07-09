@@ -36,7 +36,7 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
     // data_url is NOT included here — pixels arrive as the input_image content-part on input[1]
   },
   "trigger": {
-    "kind": "user | schedule | proactive | github | agent",
+    "kind": "user | schedule | proactive | github | agent | signals",
     "cue": {                                    // present for schedule and proactive kinds
       "label": "short human name",
       "context": "free-text intent the user wrote for the agent",
@@ -57,8 +57,9 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
 | `proactive` | A user-configured engagement cue fired because the user has been present but not interacting | Proactive marker string | Yes |
 | `github` | A watched GitHub PR changed CI or review state | Proactive marker string | No (carries `pr` or `pr_catchup` instead) |
 | `agent` | An external coding-agent finish-hook posted a completion signal | Proactive marker string | No (carries `agent` or `agent_catchup` instead) |
+| `signals` | The remote n8n workflow POSTed a burst to the `/signals` ingress | Proactive marker string | No (carries `signals` instead) |
 
-For `schedule`, `proactive`, and `github` turns there is no user utterance — the agent reads the trigger fields to decide whether and what to say. Firing a turn does not guarantee speech: the client renders whatever text the agent returns, and silence means the agent returns empty or no speech text. No client-side gate decides whether to speak (see `D-NO-SPEAK-GATE`).
+For `schedule`, `proactive`, `github`, `agent`, and `signals` turns there is no user utterance — the agent reads the trigger fields to decide whether and what to say. Firing a turn does not guarantee speech: the client renders whatever text the agent returns, and silence means the agent returns empty or no speech text. No client-side gate decides whether to speak (see `D-NO-SPEAK-GATE`).
 
 ### Cue fields
 
@@ -254,6 +255,32 @@ For `schedule`, `proactive`, and `github` turns there is no user utterance — t
         { "tool": "opencode", "project": "api-server", "status": "error", "summary": "Build failed: type error in auth middleware.", "ts": 1781000600000 }
       ]
     }
+  }
+}
+```
+
+### Signals fields
+
+`signals` turns carry no `cue`. The source is a remote n8n workflow that POSTs `{ "signals": [...] }` to the YUI app's `/signals` ingress; each POST becomes one turn. Items are heterogeneous — GitHub change, Notion task, heartbeat, or any future kind n8n decides to emit — with no uniform tag across them.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `signals[]` | array of opaque objects | The n8n payload's `signals` array, forwarded verbatim. No per-item shape is assumed or validated by the client; taxonomy is owned by n8n + the agent. |
+
+### Signals example
+
+**`signals` turn** — n8n POSTs a mixed burst:
+
+```json
+{
+  "env": { "timestamp": "2026-06-15T16:20:00+09:00", "timezone": "Asia/Seoul" },
+  "trigger": {
+    "kind": "signals",
+    "signals": [
+      { "source": "github", "repo": "acme/yui", "event": "push", "branch": "main" },
+      { "source": "notion", "page_id": "abc123", "title": "Renew domain", "due": "2026-06-20" },
+      { "source": "heartbeat", "ts": 1781000000000 }
+    ]
   }
 }
 ```

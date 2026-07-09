@@ -31,6 +31,7 @@ import { createGithubSource, type LastSeenMap } from "./dispatcher/github-source
 import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
 import { createProactiveSource } from "./dispatcher/proactive-source";
 import { createScheduleSource } from "./dispatcher/schedule-source";
+import { createSignalsSource } from "./dispatcher/signals-source";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
 import {
@@ -711,6 +712,7 @@ async function bootstrap(): Promise<void> {
   let scheduleSourceRef: { stop(): void } | null = null;
   let githubSourceRef: { stop(): void } | null = null;
   let agentSourceRef: { stop(): void } | null = null;
+  let signalsSourceRef: { stop(): void } | null = null;
   // guardrails도 config 로드 후 생성 — 핫리로드 setConfig가 닿게 holder를 둔다.
   let guardrailsRef: Guardrails | null = null;
   // broker client는 config 로드 후 broker_base_url이 있을 때만 만든다. 핫스왑 재publish와
@@ -1099,6 +1101,7 @@ async function bootstrap(): Promise<void> {
         scheduleSourceRef?.stop();
         githubSourceRef?.stop();
         agentSourceRef?.stop();
+        signalsSourceRef?.stop();
         sessionStore.dispose();
         sessionDiagnostics.dispose();
         chatHistoryStore.dispose();
@@ -1221,6 +1224,15 @@ async function bootstrap(): Promise<void> {
     });
     agentSourceRef = agentSource;
     void agentSource.start();
+    // Signals 워처: 같은 loopback ingress(agentNotifySettings 게이트)의 signals-inbox 채널에서
+    // signals.push / idle→present edge에서 signals.catchup을 발사한다 — 페이로드는 opaque 그대로 전달.
+    const signalsSource = createSignalsSource({
+      bus,
+      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
+      isEnabled: () => agentNotifySettings.get().enabled,
+    });
+    signalsSourceRef = signalsSource;
+    void signalsSource.start();
     // 전역 소환 핫키: configs/hotkeys.json accelerator를 OS 전역으로 등록(Tauri 전용 —
     // 브라우저 dev에서는 스킵). 발동 시 창 show+focus 후 입력 소환. 등록 실패는
     // summon-hotkey가 warn 후 비활성으로 처리한다(fail-soft).
