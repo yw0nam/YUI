@@ -65,6 +65,21 @@ export function createPopover(deps: PopoverDeps): Popover {
 
   let openState = false;
   let closeRafId: number | null = null;
+  // popover variant에서 open 직전 포커스를 기억했다가 close 시 복원한다.
+  let prevFocus: HTMLElement | null = null;
+
+  const FOCUSABLE_SEL = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+  function focusables(): HTMLElement[] {
+    // [hidden] 서브트리(비활성 탭 패널 등)의 컨트롤은 제외한다 — 트랩이 안 보이는 끝으로 새지 않게.
+    return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SEL)).filter(
+      (el) => !(el as HTMLButtonElement).disabled && !el.closest("[hidden]"),
+    );
+  }
+
+  function focusFirst(): void {
+    focusables()[0]?.focus();
+  }
 
   // ── 위치 계산 (popover variant) ──
 
@@ -196,6 +211,10 @@ export function createPopover(deps: PopoverDeps): Popover {
         root.classList.add("is-open");
       });
     }
+
+    // 열기 직전 포커스를 기억(popover variant만 복원)하고 첫 컨트롤로 이동한다.
+    prevFocus = isWindow ? null : (document.activeElement as HTMLElement | null);
+    focusFirst();
   }
 
   function close(): void {
@@ -227,6 +246,10 @@ export function createPopover(deps: PopoverDeps): Popover {
         scrim.remove();
       }
     });
+
+    // 포커스를 열기 전 요소로 되돌린다(아직 문서에 있을 때만).
+    if (prevFocus && document.contains(prevFocus)) prevFocus.focus();
+    prevFocus = null;
   }
 
   function isOpen(): boolean {
@@ -240,17 +263,37 @@ export function createPopover(deps: PopoverDeps): Popover {
 
   function handleDocKeydown(e: KeyboardEvent): void {
     if (!openState) return;
-    if (e.key !== "Escape") return;
-    if (isWindow) {
-      // 창 variant는 내부 close()가 패널을 지우지 않는다(항상 표시) — OS 창 닫기는 호스트 몫.
-      if (!closeWindow) return;
+    if (e.key === "Escape") {
+      if (isWindow) {
+        // 창 variant는 내부 close()가 패널을 지우지 않는다(항상 표시) — OS 창 닫기는 호스트 몫.
+        if (!closeWindow) return;
+        e.preventDefault();
+        close(); // 정리(키 커밋·audition 중단)를 먼저 수행한다.
+        closeWindow();
+        return;
+      }
       e.preventDefault();
-      close(); // 정리(키 커밋·audition 중단)를 먼저 수행한다.
-      closeWindow();
+      close();
       return;
     }
-    e.preventDefault();
-    close();
+    // popover variant 포커스 트랩 — Tab이 루트를 벗어나면 반대쪽 끝으로 감싼다.
+    if (e.key === "Tab" && !isWindow) {
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      } else if (!active || !root.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
   }
 
   scrim.addEventListener("pointerdown", handleScrimPointerDown);

@@ -40,7 +40,7 @@ import { createSpeakerSelection, type SpeakerOption } from "../io/speaker-select
 import { createTtsSettings } from "../io/tts-settings";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../io/vad-settings";
 import { createVrmSelection } from "../io/vrm-selection";
-import { getLocale, LOCALE_DISPLAY_NAMES, setLocale } from "./i18n";
+import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "./i18n";
 import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
 
 // jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
@@ -2734,6 +2734,116 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  it("openai gates the speaker option buttons with the real disabled attribute", () => {
+    const qc = buildQc({ getDefaultProvider: () => "openai" });
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) {
+      expect(r.querySelector<HTMLButtonElement>(".yui-spk__refresh")!.disabled).toBe(true);
+      expect(r.querySelector<HTMLButtonElement>(".yui-spk__preview")!.disabled).toBe(true);
+    }
+
+    qc.dispose();
+  });
+
+  it("irodori leaves clip-backed speaker option buttons enabled (not disabled)", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    // default speakers all carry a ref_url (clip) → option buttons are enabled.
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    for (const r of rows) {
+      expect(r.querySelector<HTMLButtonElement>(".yui-spk__refresh")!.disabled).toBe(false);
+      expect(r.querySelector<HTMLButtonElement>(".yui-spk__preview")!.disabled).toBe(false);
+    }
+
+    qc.dispose();
+  });
+
+  it("openai: row click and Enter/Space do NOT swap, and rows are not tabbable", () => {
+    const qc = buildQc({ getDefaultProvider: () => "openai" });
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    expect(rows.length).toBeGreaterThan(0);
+
+    // (c) 비활성 시 모든 행이 Tab에서 건너뛰어진다.
+    for (const r of rows) expect(r.tabIndex).toBe(-1);
+
+    // (a) 비활성 행 클릭은 스왑을 트리거하지 않는다(CSS pointer-events는 키보드를 못 막는다).
+    rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(swapSpeaker).not.toHaveBeenCalled();
+
+    // (b) 포커스 후 Enter/Space도 스왑하지 않는다.
+    rows[1].focus();
+    rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    expect(swapSpeaker).not.toHaveBeenCalled();
+
+    qc.dispose();
+  });
+
+  it("irodori: a row click swaps and the roved row is tabbable (tabIndex 0)", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    // 활성(기본 선택) 행은 roving tabindex 0.
+    const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
+    expect(active.tabIndex).toBe(0);
+
+    // 비활성 행 클릭 → 스왑.
+    rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(swapSpeaker).toHaveBeenCalledOnce();
+    expect(swapSpeaker.mock.calls[0][0]).toMatchObject({ id: "ayase" });
+
+    qc.dispose();
+  });
+
+  it("switching the engine to openai while open disables the speaker option buttons", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    qc.open();
+
+    const refreshBefore = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-spk[role=radio] .yui-spk__refresh",
+    )!;
+    expect(refreshBefore.disabled).toBe(false);
+
+    const sel = qc.el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
+    sel.value = "openai";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+
+    const refreshAfter = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-spk[role=radio] .yui-spk__refresh",
+    )!;
+    expect(refreshAfter.disabled).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("re-enables speaker rows after a provider change that happened while closed", () => {
+    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    // 닫힌 상태에서 openai로 바꾼다 — onOpen이 enabled 기준선을 재동기화해야 한다.
+    endpointsSettings.set({ tts_provider: "openai" });
+    qc.open();
+
+    const refreshDisabled = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-spk[role=radio] .yui-spk__refresh",
+    )!;
+    expect(refreshDisabled.disabled).toBe(true); // openai → 비활성
+
+    // 열린 상태에서 irodori로 되돌리면 행이 다시 활성화돼야 한다(기준선이 stale이면 스킵됨).
+    endpointsSettings.set({ tts_provider: "irodori" });
+    const refreshEnabled = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-spk[role=radio] .yui-spk__refresh",
+    )!;
+    expect(refreshEnabled.disabled).toBe(false);
+
+    qc.dispose();
+  });
+
   it("Enter on a focused non-active speaker row selects it (swaps)", () => {
     const qc = buildQc();
     qc.open();
@@ -3717,6 +3827,44 @@ describe("createQuickControls — tabs + VAD slider", () => {
     qc.dispose();
   });
 
+  it("ArrowRight on the filler language seg moves selection, tabindex, and calls setLanguage", () => {
+    const fs = makeFillerSettings({ language: "ja" });
+    const spy = vi.spyOn(fs, "setLanguage");
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
+    const btns = Array.from(langSeg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    expect(btns[0].getAttribute("aria-checked")).toBe("true"); // ja
+    expect(btns[0].tabIndex).toBe(0);
+
+    btns[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    expect(spy).toHaveBeenCalledWith("en");
+    expect(btns[1].getAttribute("aria-checked")).toBe("true"); // en
+    expect(btns[0].getAttribute("aria-checked")).toBe("false");
+    expect(btns[1].tabIndex).toBe(0);
+    expect(btns[0].tabIndex).toBe(-1);
+
+    qc.dispose();
+  });
+
+  it("Space on a filler language seg button selects that language", () => {
+    const fs = makeFillerSettings({ language: "ja" });
+    const spy = vi.spyOn(fs, "setLanguage");
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
+    const ko = langSeg.querySelector<HTMLButtonElement>(".yui-seg__btn[data-lang='ko']")!;
+    ko.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+
+    expect(spy).toHaveBeenCalledWith("ko");
+    expect(ko.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
   it("editing 첫 대사 calls setCustomPool with split first lines, preserving repeat", () => {
     const fs = createFillerSettings({
       initial: {
@@ -4171,6 +4319,73 @@ describe("createQuickControls — language picker", () => {
     // The reasoning-effort field label is keyed; ko renders the Korean copy.
     const label = qc.el.querySelector<HTMLElement>(".yui-field-row__label")!;
     expect(label.textContent).toBe("추론 강도");
+    qc.dispose();
+  });
+
+  it("arrow keys on the language seg move roving focus only — locale is NOT committed", () => {
+    setLocale("en"); // en = index 1
+    const qc = buildQc();
+    qc.open();
+
+    // 화살표가 setLocale을 부르는지 감시(구독은 setLocale마다 통지).
+    let commits = 0;
+    const unsub = i18nSubscribe(() => {
+      commits += 1;
+    });
+
+    const seg = qc.el.querySelector<HTMLElement>(".yui-lang-seg")!;
+    const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    expect(btns[1].getAttribute("aria-checked")).toBe("true"); // en
+    btns[1].focus();
+
+    btns[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    // 커밋 없음: locale·aria-checked 그대로, 포커스·roving tabindex만 ko로 이동.
+    expect(commits).toBe(0);
+    expect(getLocale()).toBe("en");
+    expect(btns[1].getAttribute("aria-checked")).toBe("true");
+    expect(btns[2].getAttribute("aria-checked")).toBe("false");
+    expect(document.activeElement).toBe(btns[2]);
+    expect(btns[2].tabIndex).toBe(0);
+    expect(btns[1].tabIndex).toBe(-1);
+
+    // ArrowLeft로 다시 en 버튼에 포커스만 이동(여전히 커밋 없음).
+    btns[2].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+    expect(commits).toBe(0);
+    expect(getLocale()).toBe("en");
+    expect(document.activeElement).toBe(btns[1]);
+    expect(btns[1].tabIndex).toBe(0);
+
+    unsub();
+    qc.dispose();
+  });
+
+  it("Space on the focused locale button commits setLocale exactly once", () => {
+    setLocale("en");
+    const qc = buildQc();
+    qc.open();
+
+    let commits = 0;
+    const unsub = i18nSubscribe(() => {
+      commits += 1;
+    });
+
+    const seg = qc.el.querySelector<HTMLElement>(".yui-lang-seg")!;
+    const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    // 화살표로 ko에 포커스만 옮긴다(커밋 없음).
+    btns[1].focus();
+    btns[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(commits).toBe(0);
+    expect(getLocale()).toBe("en");
+
+    // 포커스된 버튼에서 Space → 커밋(정확히 1회).
+    btns[2].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    expect(commits).toBe(1);
+    expect(getLocale()).toBe("ko");
+    expect(btns[2].getAttribute("aria-checked")).toBe("true");
+    expect(btns[1].getAttribute("aria-checked")).toBe("false");
+
+    unsub();
     qc.dispose();
   });
 });

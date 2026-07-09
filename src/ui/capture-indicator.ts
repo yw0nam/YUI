@@ -43,11 +43,16 @@ export function createCaptureIndicator({
 
   mount.appendChild(el);
 
+  // 기본은 접근성 트리에서 빠진 상태 — 캡처가 켜질 때 show()가 되돌린다.
+  el.hidden = true;
+
   let visible = false;
 
   function show(): void {
     if (visible) return;
     visible = true;
+    // 전이 시작 전에 접근성 트리로 되돌린다 — is-visible보다 먼저.
+    el.hidden = false;
     requestAnimationFrame(() => el.classList.add("is-visible"));
   }
 
@@ -55,6 +60,21 @@ export function createCaptureIndicator({
     if (!visible) return;
     visible = false;
     el.classList.remove("is-visible");
+    // 페이드 아웃이 끝난 뒤에 접근성 트리에서 제거한다 — hidden=true가 전이를 죽이지 않게.
+    // 그 사이 다시 show()되면(visible) 취소한다. popover close와 같은 패턴.
+    const settle = (): void => {
+      if (!visible) el.hidden = true;
+    };
+    // 전이가 안 뜨는 환경 폴백. rAF(다음 프레임 ~16ms)는 페이드(--yui-dur 200ms /
+    // -fast 140ms)보다 짧아 전이를 잘라먹으므로, 상한을 넘는 타이머여야 한다.
+    const fb = setTimeout(settle, 400); // ponytail: --yui-dur/-fast 상한 넘는 안전망
+    const onEnd = (e: TransitionEvent): void => {
+      if (e.propertyName !== "opacity") return;
+      clearTimeout(fb);
+      el.removeEventListener("transitionend", onEnd);
+      settle();
+    };
+    el.addEventListener("transitionend", onEnd);
   }
 
   // settings 반영 (초기 + 구독)

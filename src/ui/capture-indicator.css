@@ -32,6 +32,11 @@
     border-color var(--yui-dur-fast) var(--yui-ease);
 }
 
+/* display: inline-flex가 UA의 [hidden] 규칙을 이기므로 명시적으로 숨긴다(캡처 OFF). */
+.yui-capture[hidden] {
+  display: none;
+}
+
 .yui-capture.is-visible {
   opacity: 1;
   transform: translate(-50%, 0);
