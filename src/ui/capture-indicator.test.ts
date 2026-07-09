@@ -61,6 +61,8 @@ describe("capture-indicator — a11y visibility", () => {
     expect(ind.el.hidden).toBe(false);
 
     s.emit(false);
+    // hide는 페이드가 끝난 뒤 트리에서 제거한다(POLISH A). 전이 완료를 흘려보낸다.
+    ind.el.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "opacity" }));
     expect(ind.el.hidden).toBe(true);
 
     s.emit(true);
@@ -68,19 +70,10 @@ describe("capture-indicator — a11y visibility", () => {
   });
 
   it("defers hidden=true until the fade-out settles (does not cut the transition)", () => {
-    // rAF 폴백을 즉시 실행하지 않고 캡처만 해서 전이 경로를 검증한다.
-    const cbs: FrameRequestCallback[] = [];
-    (
-      globalThis.requestAnimationFrame as unknown as { mockImplementation: (f: unknown) => void }
-    ).mockImplementation?.((cb: FrameRequestCallback) => {
-      cbs.push(cb);
-      return cbs.length;
-    });
-
+    // beforeEach의 즉시-rAF 하에서: hidden 제거를 rAF(다음 프레임)로 미루면
+    // 페이드(200ms)보다 짧아 잘린다. emit 직후에도 트리에 남아있어야 한다.
     const s = fakeSettings(true);
     const ind = createCaptureIndicator({ mount, settings: s.store, onActivate: () => {} });
-    // show()의 rAF(is-visible 추가)를 흘려보낸다.
-    for (const cb of cbs.splice(0)) cb(0);
     expect(ind.el.hidden).toBe(false);
 
     s.emit(false);
@@ -91,5 +84,18 @@ describe("capture-indicator — a11y visibility", () => {
     // opacity transitionend가 뜨면 그제서야 트리에서 제거된다.
     ind.el.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "opacity" }));
     expect(ind.el.hidden).toBe(true);
+  });
+
+  it("falls back to a timer (not a frame) when no transitionend fires", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const s = fakeSettings(true);
+    const ind = createCaptureIndicator({ mount, settings: s.store, onActivate: () => {} });
+
+    s.emit(false);
+    // 전이가 아예 없는 환경: 폴백 타이머만이 트리에서 제거한다.
+    expect(ind.el.hidden).toBe(false);
+    vi.advanceTimersByTime(400);
+    expect(ind.el.hidden).toBe(true);
+    vi.useRealTimers();
   });
 });
