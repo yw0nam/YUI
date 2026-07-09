@@ -21,7 +21,8 @@
         "decorations": false,
         "alwaysOnTop": true,
         "resizable": true,
-        "shadow": false
+        "shadow": false,
+        "backgroundThrottling": "disabled"
       }
     ],
     "security": {

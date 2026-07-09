@@ -55,19 +55,10 @@ export interface ConfigStoreOptions extends LoadConfigOptions {
   secrets?: SecretProvider;
 }
 
-const ALL_SECTIONS: readonly ConfigSection[] = [
-  "endpoints",
-  "avatar",
-  "emotionRegistry",
-  "motions",
-  "guardrails",
-  "hotkeys",
-];
-
-/** 두 AppConfig 간 바뀐 section 집합(직렬화 비교 — 순서 무관 비교는 불필요, 파일 그대로 매핑). */
+/** 두 AppConfig 간 바뀐 section 집합. section = AppConfig의 키라 하드리스트 대신 키를 돈다(drift 방지). */
 function diffSections(a: AppConfig, b: AppConfig): Set<ConfigSection> {
   const changed = new Set<ConfigSection>();
-  for (const s of ALL_SECTIONS) {
+  for (const s of Object.keys(b) as ConfigSection[]) {
     if (JSON.stringify(a[s]) !== JSON.stringify(b[s])) changed.add(s);
   }
   return changed;
