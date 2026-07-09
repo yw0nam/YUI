@@ -268,9 +268,6 @@ const en: Record<string, string> = {
   "gaze.label": "Look at camera",
   "gaze.sub": "The character turns its eyes and head to follow the camera viewpoint.",
   "gaze.aria": "Look at camera",
-  "github.label": "Watch GitHub PRs",
-  "github.sub": "Polls your open pull requests and speaks up when CI breaks or a review lands.",
-  "github.aria": "Watch GitHub PRs",
   "agentNotify.label": "Agent completion notifications",
   "agentNotify.sub":
     "Speaks up when a coding agent (Claude Code, opencode, …) finishes a task on your machine.",
@@ -279,8 +276,6 @@ const en: Record<string, string> = {
   // reactions tab
   "reactions.watchers_title": "Watchers",
   "reactions.shared_title": "Shared",
-  "reactions.poll_label": "Poll interval",
-  "reactions.poll_sub": "How often to fetch PR status",
   "reactions.port_label": "Listener port",
   "reactions.port_sub": "Port the completion hook server listens on",
   "reactions.presence_label": "Present when idle for",

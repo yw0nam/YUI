@@ -1,7 +1,7 @@
 /**
  * agent_source — agent completion firing source.
  *
- * Event-driven (inbox push) sibling of github-source. Listens on two channels:
+ * Event-driven (inbox push). Listens on two channels:
  *  1. OS idle ticks (OS_EVENT_CHANNEL) — tracks presence; detects idle→present edge.
  *  2. agent-inbox (onAgentInbox) — receives AgentDone completions from the Tauri side.
  *
@@ -28,7 +28,7 @@ const BUFFER_CAP = 5;
 
 export interface AgentSourceDeps {
   bus: Pick<EventBus, "push">;
-  /** Present iff cached OS idle ≤ this (same semantics as github-source). */
+  /** Present iff cached OS idle ≤ this. */
   present_max_idle_ms: number;
   /** Read on every inbox arrival — gates firing without stopping the listener. */
   isEnabled: () => boolean;

@@ -126,35 +126,6 @@ function userImagesOf(env: BusEnvelope): string[] | undefined {
     : undefined;
 }
 
-/** github live PR transition payload — present on github.ci_failed / github.review_*. */
-function githubPrOf(env: BusEnvelope): TriggerMeta["pr"] | undefined {
-  const n = env.event_name;
-  if (n !== "github.ci_failed" && n !== "github.review_changes" && n !== "github.review_approved") {
-    return undefined;
-  }
-  const p = env.payload;
-  if (
-    typeof p?.repo === "string" &&
-    typeof p?.number === "number" &&
-    typeof p?.title === "string" &&
-    typeof p?.url === "string" &&
-    (p?.event === "ci_failed" || p?.event === "review_changes" || p?.event === "review_approved") &&
-    (typeof p?.from === "string" || p?.from === null) &&
-    typeof p?.to === "string"
-  ) {
-    return {
-      repo: p.repo as string,
-      number: p.number as number,
-      title: p.title as string,
-      url: p.url as string,
-      event: p.event as NonNullable<TriggerMeta["pr"]>["event"],
-      from: p.from as string | null,
-      to: p.to as string,
-    };
-  }
-  return undefined;
-}
-
 /** agent completion payload — present on agent.done (single coding-agent task finished). */
 function agentOf(env: BusEnvelope): TriggerMeta["agent"] | undefined {
   if (env.event_name !== "agent.done") return undefined;
@@ -208,36 +179,6 @@ function agentCatchupOf(env: BusEnvelope): TriggerMeta["agent_catchup"] | undefi
     ts: item.ts as number,
   }));
   return { count, items: sanitized };
-}
-
-/** github catch-up payload — present on github.catchup (burst of buffered transitions). */
-function githubCatchupOf(env: BusEnvelope): TriggerMeta["pr_catchup"] | undefined {
-  if (env.event_name !== "github.catchup") return undefined;
-  const prs = env.payload?.prs;
-  if (!Array.isArray(prs)) return undefined;
-  const ok = prs.every((raw) => {
-    const pr = raw as Record<string, unknown>;
-    return (
-      pr != null &&
-      typeof pr.repo === "string" &&
-      typeof pr.number === "number" &&
-      typeof pr.title === "string" &&
-      typeof pr.url === "string" &&
-      Array.isArray(pr.transitions) &&
-      pr.transitions.every((rawT) => {
-        const t = rawT as Record<string, unknown>;
-        return (
-          t != null &&
-          (t.kind === "ci" || t.kind === "review") &&
-          (typeof t.from === "string" || t.from === null) &&
-          typeof t.to === "string" &&
-          typeof t.ts === "number"
-        );
-      })
-    );
-  });
-  if (!ok) return undefined;
-  return { prs: prs as NonNullable<TriggerMeta["pr_catchup"]>["prs"] };
 }
 
 /**
@@ -380,13 +321,11 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       ? "schedule"
       : eventName.startsWith("proactive.")
         ? "proactive"
-        : eventName.startsWith("github.")
-          ? "github"
-          : eventName.startsWith("agent.")
-            ? "agent"
-            : eventName.startsWith("signals.")
-              ? "signals"
-              : "user";
+        : eventName.startsWith("agent.")
+          ? "agent"
+          : eventName.startsWith("signals.")
+            ? "signals"
+            : "user";
 
     // cue: present when payload carries cue_id+label+context; id is omitted from wire shape.
     const p = env.payload;
@@ -404,10 +343,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
     // idle_elapsed_min: proactive only, derived from gap_ms.
     const gap_ms = typeof p?.gap_ms === "number" ? (p.gap_ms as number) : undefined;
-
-    // github PR transition payloads (only attach when well-typed).
-    const pr = githubPrOf(env);
-    const prCatchup = githubCatchupOf(env);
 
     // agent completion payloads (only attach when well-typed).
     const agent = agentOf(env);
@@ -431,8 +366,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         kind,
         ...(cue ? { cue } : {}),
         ...(gap_ms != null ? { idle_elapsed_min: Math.round(gap_ms / 60000) } : {}),
-        ...(pr ? { pr } : {}),
-        ...(prCatchup ? { pr_catchup: prCatchup } : {}),
         ...(agent ? { agent } : {}),
         ...(agentCatchup ? { agent_catchup: agentCatchup } : {}),
         ...(signals ? { signals } : {}),

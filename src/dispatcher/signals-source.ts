@@ -31,7 +31,7 @@ const BUFFER_CAP = 5;
 
 export interface SignalsSourceDeps {
   bus: Pick<EventBus, "push">;
-  /** Present iff cached OS idle ≤ this (same semantics as github-source/agent-source). */
+  /** Present iff cached OS idle ≤ this (same semantics as agent-source). */
   present_max_idle_ms: number;
   /** Read on every inbox arrival — gates firing without stopping the listener. */
   isEnabled: () => boolean;

@@ -27,7 +27,6 @@ import { createAgentSource } from "./dispatcher/agent-source";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import { createEventBus } from "./dispatcher/event-bus";
-import { createGithubSource, type LastSeenMap } from "./dispatcher/github-source";
 import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
 import { createProactiveSource } from "./dispatcher/proactive-source";
 import { createScheduleSource } from "./dispatcher/schedule-source";
@@ -64,8 +63,6 @@ import { createFillerLoop } from "./io/filler-loop";
 import { effectiveFillerPool } from "./io/filler-pool";
 import { createFillerSettings, localStorageFillerStorage } from "./io/filler-settings";
 import { createGazeSettings, localStorageGazeStorage } from "./io/gaze-settings";
-import { githubQuery } from "./io/github-query";
-import { createGithubSettings, localStorageGithubStorage } from "./io/github-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
 import {
   createIdleThrottleSettings,
@@ -76,7 +73,6 @@ import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
 import { ensureRegistered, evictRegistration } from "./io/irodori-voices";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createOsContext } from "./io/os-context";
-import { localStorageStore } from "./io/persisted-store";
 import { createPresenceSettings, localStoragePresenceStorage } from "./io/presence-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
 import { createScheduleSettings, localStorageScheduleStorage } from "./io/schedule-settings";
@@ -255,15 +251,11 @@ async function bootstrap(): Promise<void> {
   const scheduleSettings = createScheduleSettings({
     storage: localStorageScheduleStorage(),
   });
-  // GitHub PR 워처 on/off + 폴 주기 설정. 소스 firing만 게이팅 — 폴 루프는 멈추지 않는다.
-  const githubSettings = createGithubSettings({
-    storage: localStorageGithubStorage(),
-  });
   // Agent completion 알림 on/off + 수신 포트. 소스 firing만 게이팅.
   const agentNotifySettings = createAgentNotifySettings({
     storage: localStorageAgentNotifyStorage(),
   });
-  // Presence window threshold — "present when idle ≤ N ms". Shared by proactive/github/agent sources.
+  // Presence window threshold — "present when idle ≤ N ms". Shared by proactive/agent sources.
   const presenceSettings = createPresenceSettings({ storage: localStoragePresenceStorage() });
   const lipsyncSettings = createLipsyncSettings({
     storage: localStorageLipsyncStorage(),
@@ -395,7 +387,6 @@ async function bootstrap(): Promise<void> {
     screenshotSettings,
     proactiveSettings,
     scheduleSettings,
-    githubSettings,
     agentNotifySettings,
     presenceSettings,
     idleThrottleSettings,
@@ -450,7 +441,6 @@ async function bootstrap(): Promise<void> {
       gazeSettings,
       proactiveSettings,
       scheduleSettings,
-      githubSettings,
       agentNotifySettings,
       presenceSettings,
       sourceProvider: screenSourceProvider,
@@ -581,7 +571,6 @@ async function bootstrap(): Promise<void> {
       sttSettings.dispose();
       proactiveSettings.dispose();
       scheduleSettings.dispose();
-      githubSettings.dispose();
       agentNotifySettings.dispose();
       presenceSettings.dispose();
       lipsyncSettings.dispose();
@@ -710,7 +699,6 @@ async function bootstrap(): Promise<void> {
     noteInteraction(ts?: number): void;
   } | null = null;
   let scheduleSourceRef: { stop(): void } | null = null;
-  let githubSourceRef: { stop(): void } | null = null;
   let agentSourceRef: { stop(): void } | null = null;
   let signalsSourceRef: { stop(): void } | null = null;
   // guardrails도 config 로드 후 생성 — 핫리로드 setConfig가 닿게 holder를 둔다.
@@ -1066,7 +1054,7 @@ async function bootstrap(): Promise<void> {
       renderer,
       backendCaller,
       guardrails,
-      // user-initiated 턴 실패만 표면화(proactive/schedule/github/agent는 로그만 — silent by design).
+      // user-initiated 턴 실패만 표면화(proactive/schedule/agent는 로그만 — silent by design).
       // source(text/voice)로 라우팅한다 — isInputOpen()을 실패 시점에만 보고 판단하면 Escape로
       // 중도 닫힌 typed 턴이 voice 표면으로 오배선될 수 있어, routeTurnFailure가 source를 우선한다.
       onUserTurnFailed: (reason, source) => {
@@ -1099,7 +1087,6 @@ async function bootstrap(): Promise<void> {
         if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
         proactiveSourceRef?.stop();
         scheduleSourceRef?.stop();
-        githubSourceRef?.stop();
         agentSourceRef?.stop();
         signalsSourceRef?.stop();
         sessionStore.dispose();
@@ -1203,19 +1190,6 @@ async function bootstrap(): Promise<void> {
     });
     scheduleSourceRef = scheduleSource;
     void scheduleSource.start();
-    // GitHub PR 워처: 자체 폴 루프로 open PR의 CI/리뷰 edge를 github.<event>로 발사한다.
-    // proactive와 같은 presence 임계를 재사용하되 게이트 방향이 반대(LOW idle에서 발사).
-    const lastSeenStore = localStorageStore<LastSeenMap>("yui.github.lastSeen");
-    const githubSource = createGithubSource({
-      bus,
-      githubQuery,
-      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
-      isEnabled: () => githubSettings.get().enabled,
-      getPollIntervalMs: () => githubSettings.get().poll_interval_ms,
-      lastSeenStore,
-    });
-    githubSourceRef = githubSource;
-    void githubSource.start();
     // Agent completion 워처: Tauri IPC 인박스에서 agent.done / idle→present edge에서 agent.catchup을 발사한다.
     const agentSource = createAgentSource({
       bus,

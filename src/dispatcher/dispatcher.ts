@@ -44,7 +44,7 @@ export interface DispatcherDeps {
    * user-initiated 턴(user.text_submitted / user.voice_segment_ready)의 backend call 실패를
    * source(어느 트리거였는지)와 함께 알린다 — superseded_by_user는 에러가 아니므로 제외.
    * main.ts가 UI 에러 표면(showInputError / voice-input-indicator)으로 연결한다.
-   * proactive/schedule/github/agent 턴 실패는 로그만 남고 여기로 나오지 않는다(silent by design).
+   * proactive/schedule/agent 턴 실패는 로그만 남고 여기로 나오지 않는다(silent by design).
    */
   onUserTurnFailed?: (
     reason: Exclude<DropReason, "superseded_by_user">,
@@ -133,9 +133,6 @@ function classify(env: BusEnvelope): Classification {
   if (n.startsWith("schedule.")) {
     return { tier: 2, target: "backend_caller" };
   }
-  if (n.startsWith("github.")) {
-    return { tier: 2, target: "backend_caller" };
-  }
   if (n.startsWith("agent.")) {
     return { tier: 2, target: "backend_caller" };
   }
@@ -160,7 +157,7 @@ function classify(env: BusEnvelope): Classification {
 }
 
 /** user-initiated 턴의 소스(typed vs voice) — onUserTurnFailed 대상 필터 겸 라우팅 힌트.
- * proactive/schedule/github/agent 등 그 외 트리거는 undefined(§274 UI 에러 표면 대상 아님). */
+ * proactive/schedule/agent 등 그 외 트리거는 undefined(§274 UI 에러 표면 대상 아님). */
 export type UserTurnSource = "text" | "voice";
 
 function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {

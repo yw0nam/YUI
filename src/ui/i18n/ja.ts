@@ -268,9 +268,6 @@ const ja: Record<string, string> = {
   "gaze.label": "カメラを見る",
   "gaze.sub": "キャラクターが目と頭をカメラの視点に向けて視線を合わせます。",
   "gaze.aria": "カメラを見る",
-  "github.label": "GitHub PR を見張る",
-  "github.sub": "オープンな PR を定期的に確認し、CI が壊れたりレビューが届いたら先に知らせます。",
-  "github.aria": "GitHub PR を見張る",
   "agentNotify.label": "エージェント完了通知",
   "agentNotify.sub":
     "Claude Code や opencode などのコーディングエージェントがタスクを終えたら先に知らせます。",
@@ -279,8 +276,6 @@ const ja: Record<string, string> = {
   // reactions tab
   "reactions.watchers_title": "ウォッチャー",
   "reactions.shared_title": "共通",
-  "reactions.poll_label": "ポーリング間隔",
-  "reactions.poll_sub": "PR の状態を確認する頻度",
   "reactions.port_label": "リスナーポート",
   "reactions.port_sub": "完了フックサーバーが待ち受けるポート",
   "reactions.presence_label": "在席とみなす無操作時間",

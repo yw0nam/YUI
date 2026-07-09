@@ -267,9 +267,6 @@ const ko: Record<string, string> = {
   "gaze.label": "카메라 시선 맞춤",
   "gaze.sub": "캐릭터가 카메라 쪽으로 눈과 고개를 돌려 시선을 맞춥니다.",
   "gaze.aria": "카메라 시선 맞춤",
-  "github.label": "GitHub PR 지켜보기",
-  "github.sub": "열린 PR을 주기적으로 확인해 CI가 깨지거나 리뷰가 도착하면 먼저 말합니다.",
-  "github.aria": "GitHub PR 지켜보기",
   "agentNotify.label": "에이전트 완료 알림",
   "agentNotify.sub": "Claude Code, opencode 등 코딩 에이전트가 작업을 마치면 먼저 말합니다.",
   "agentNotify.aria": "에이전트 완료 알림",
@@ -277,8 +274,6 @@ const ko: Record<string, string> = {
   // reactions tab
   "reactions.watchers_title": "감시",
   "reactions.shared_title": "공통",
-  "reactions.poll_label": "폴링 간격",
-  "reactions.poll_sub": "PR 상태를 확인하는 주기",
   "reactions.port_label": "리스너 포트",
   "reactions.port_sub": "완료 훅 서버가 기다릴 포트",
   "reactions.presence_label": "자리 비움 허용 시간",

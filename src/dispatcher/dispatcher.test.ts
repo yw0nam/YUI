@@ -242,38 +242,6 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
   });
 
-  it("routes github.ci_failed (tier2) to backend_caller, NOT dropped", async () => {
-    dispatcher.start();
-    bus.push(
-      env({
-        source: "timer_scheduler",
-        event_name: "github.ci_failed",
-        ts: NOW,
-        dnd_override: false,
-      }),
-    );
-    await vi.advanceTimersByTimeAsync(20);
-    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
-    expect(logger.info).toHaveBeenCalledWith(
-      "fire",
-      expect.objectContaining({ event_name: "github.ci_failed", tier: 2 }),
-    );
-  });
-
-  it("routes github.catchup (tier2) to backend_caller", async () => {
-    dispatcher.start();
-    bus.push(
-      env({
-        source: "timer_scheduler",
-        event_name: "github.catchup",
-        ts: NOW,
-        dnd_override: false,
-      }),
-    );
-    await vi.advanceTimersByTimeAsync(20);
-    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
-  });
-
   it("routes agent.done (tier2) to backend_caller, NOT dropped", async () => {
     dispatcher.start();
     bus.push(
