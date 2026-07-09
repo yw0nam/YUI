@@ -163,16 +163,22 @@
   scrollbar-color: var(--yui-edge-strong) transparent;
 }
 
-.yui-quick__body::-webkit-scrollbar {
+.yui-quick__body::-webkit-scrollbar,
+.yui-vrm-scroll::-webkit-scrollbar,
+.yui-spk-scroll::-webkit-scrollbar {
   width: 6px;
 }
 
-.yui-quick__body::-webkit-scrollbar-thumb {
+.yui-quick__body::-webkit-scrollbar-thumb,
+.yui-vrm-scroll::-webkit-scrollbar-thumb,
+.yui-spk-scroll::-webkit-scrollbar-thumb {
   background: var(--yui-edge-strong);
   border-radius: 999px;
 }
 
-.yui-quick__body::-webkit-scrollbar-track {
+.yui-quick__body::-webkit-scrollbar-track,
+.yui-vrm-scroll::-webkit-scrollbar-track,
+.yui-spk-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -402,7 +408,8 @@
   min-width: 0;
 }
 
-.yui-row__label {
+.yui-row__label,
+.yui-gain__label {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -411,7 +418,8 @@
   line-height: 1.2;
 }
 
-.yui-row__label svg {
+.yui-row__label svg,
+.yui-gain__label svg {
   width: 0.95rem;
   height: 0.95rem;
   color: var(--yui-text-dim);
@@ -474,14 +482,19 @@
   padding: 0.5rem 0.55rem 0.2rem;
 }
 
-.yui-field-row__label {
+.yui-field-row__label,
+.yui-input-row__label,
+.yui-session__action-label {
   display: block;
   font-size: 0.92rem;
   font-weight: 550;
   line-height: 1.2;
 }
 
-.yui-field-row__sub {
+.yui-field-row__sub,
+.yui-input-row__sub,
+.yui-gain__sub,
+.yui-session__action-sub {
   display: block;
   margin-top: 0.18rem;
   font-size: 0.74rem;
@@ -553,9 +566,17 @@
   width: calc((100% - 0.36rem) / 2);
 }
 
-/* ── 지침 textarea — 어두운 scrim 필드, focus → 앰버 테두리 ── */
+/* ── 어두운 scrim 필드 래퍼 — 지침 textarea(여러 행) · 단일행 입력, focus → 앰버 테두리 ── */
 .yui-textarea-wrap {
   margin-top: 0.5rem;
+}
+
+.yui-input-wrap {
+  margin-top: 0.42rem;
+}
+
+.yui-textarea-wrap,
+.yui-input-wrap {
   border-radius: var(--yui-radius-input);
   background: var(--yui-field);
   border: 1px solid var(--yui-edge);
@@ -564,7 +585,8 @@
     box-shadow var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-textarea-wrap:focus-within {
+.yui-textarea-wrap:focus-within,
+.yui-input-wrap:focus-within {
   border-color: var(--yui-accent);
   box-shadow: 0 0 0 1px var(--yui-accent-soft);
 }
@@ -593,9 +615,19 @@
   color: var(--yui-text-mute);
 }
 
+/* ── 밑줄 링크형 버튼 — 지침 reset(.yui-reset) · 세션 액션(.yui-link-btn) ── */
 .yui-reset {
   display: inline-block;
   margin: 0.4rem 0.15rem 0.2rem;
+}
+
+.yui-link-btn {
+  display: inline-block;
+  margin: 0.5rem 0.15rem 0.1rem;
+}
+
+.yui-reset,
+.yui-link-btn {
   padding: 0;
   border: 0;
   background: transparent;
@@ -612,12 +644,14 @@
     text-decoration-color var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-reset:hover {
+.yui-reset:hover,
+.yui-link-btn:hover {
   color: var(--yui-accent);
   text-decoration-color: var(--yui-accent-soft);
 }
 
-.yui-reset:focus-visible {
+.yui-reset:focus-visible,
+.yui-link-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
   border-radius: 4px;
@@ -674,37 +708,6 @@
 /* 라벨 + 단일행 입력 한 칸 */
 .yui-input-row {
   padding: 0.5rem 0.55rem 0.45rem;
-}
-
-.yui-input-row__label {
-  display: block;
-  font-size: 0.92rem;
-  font-weight: 550;
-  line-height: 1.2;
-}
-
-.yui-input-row__sub {
-  display: block;
-  margin-top: 0.18rem;
-  font-size: 0.74rem;
-  line-height: 1.35;
-  color: var(--yui-text-mute);
-}
-
-/* 어두운 scrim 필드의 단일행 변형 — .yui-textarea-wrap 미러 */
-.yui-input-wrap {
-  margin-top: 0.42rem;
-  border-radius: var(--yui-radius-input);
-  background: var(--yui-field);
-  border: 1px solid var(--yui-edge);
-  transition:
-    border-color var(--yui-dur-fast) var(--yui-ease),
-    box-shadow var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-input-wrap:focus-within {
-  border-color: var(--yui-accent);
-  box-shadow: 0 0 0 1px var(--yui-accent-soft);
 }
 
 .yui-ep-input {
@@ -877,13 +880,17 @@
   color: var(--yui-text-mute);
 }
 
-.yui-monitors {
+.yui-monitors,
+.yui-vrms,
+.yui-spks {
   display: grid;
   gap: 0.25rem;
 }
 
-/* ── 모니터 옵션(radio) ── */
-.yui-mon {
+/* ── 선택 행(radio) 공통 — 모니터(.yui-mon) · VRM(.yui-vrm) · 화자(.yui-spk) ── */
+.yui-mon,
+.yui-vrm,
+.yui-spk {
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -899,11 +906,20 @@
   transition: background var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-mon:hover {
+/* 화자 행은 <button>이 아닌 div[role=radio] — UA border-box가 없어 직접 지정한다. */
+.yui-spk {
+  box-sizing: border-box;
+}
+
+.yui-mon:hover,
+.yui-vrm:hover,
+.yui-spk:hover {
   background: oklch(0.97 0.01 80 / 0.06);
 }
 
-.yui-mon__tick {
+.yui-mon__tick,
+.yui-vrm__tick,
+.yui-spk__tick {
   width: 1.1rem;
   height: 1.1rem;
   border-radius: 50%;
@@ -916,7 +932,9 @@
     background var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-mon__tick::after {
+.yui-mon__tick::after,
+.yui-vrm__tick::after,
+.yui-spk__tick::after {
   content: "";
   width: 0.46rem;
   height: 0.46rem;
@@ -926,16 +944,23 @@
   transition: transform var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-mon[aria-checked="true"] .yui-mon__tick {
+.yui-mon[aria-checked="true"] .yui-mon__tick,
+.yui-vrm[aria-checked="true"] .yui-vrm__tick,
+.yui-spk[aria-checked="true"] .yui-spk__tick {
   border-color: var(--yui-accent);
   background: var(--yui-accent);
 }
 
-.yui-mon[aria-checked="true"] .yui-mon__tick::after {
+.yui-mon[aria-checked="true"] .yui-mon__tick::after,
+.yui-vrm[aria-checked="true"] .yui-vrm__tick::after,
+.yui-spk[aria-checked="true"] .yui-spk__tick::after {
   transform: scale(1);
 }
 
-.yui-mon__body {
+/* body가 행을 채워 뒤따르는 클러스터(배지/힌트 등)를 오른쪽 끝으로 민다. */
+.yui-mon__body,
+.yui-vrm__body,
+.yui-spk__body {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -943,18 +968,42 @@
   gap: 0.5rem;
 }
 
-.yui-mon__name {
+.yui-spk__body {
+  overflow: hidden;
+}
+
+.yui-mon__name,
+.yui-vrm__name,
+.yui-spk__name {
   font-size: 0.88rem;
   font-weight: 500;
 }
 
-.yui-mon__meta {
+.yui-spk__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yui-mon__meta,
+.yui-vrm__meta,
+.yui-spk__meta {
   font-size: 0.72rem;
   color: var(--yui-text-mute);
 }
 
-.yui-mon__badge {
+.yui-mon__badge,
+.yui-vrm__badge {
   margin-left: auto;
+}
+
+.yui-spk__badge {
+  flex: 0 0 auto;
+}
+
+.yui-mon__badge,
+.yui-vrm__badge,
+.yui-spk__badge {
   font-size: 0.64rem;
   letter-spacing: 0.04em;
   color: var(--yui-text-dim);
@@ -964,15 +1013,12 @@
   white-space: nowrap;
 }
 
-/* ── VRM 섹션 — 모니터 선택기(.yui-mon)와 같은 tick+라벨 radiogroup ── */
-.yui-vrms {
-  display: grid;
-  gap: 0.25rem;
-}
+/* ── VRM·화자 목록 — 행/tick/상태 스타일은 위 공통 블록. 여기는 스크롤 캡과 푸터. ── */
 
 /* 목록을 ~4행에서 멈추고 그 이상은 내부 스크롤로 — 패널을 늘리지 않는다.
    부분 5행이 페이드 아래로 비쳐 오버플로를 알린다. */
-.yui-vrm-scroll {
+.yui-vrm-scroll,
+.yui-spk-scroll {
   position: relative;
   max-height: var(--yui-vrm-cap, 9rem);
   overflow-y: auto;
@@ -981,132 +1027,53 @@
   scrollbar-color: var(--yui-edge-strong) transparent;
 }
 
-.yui-vrm-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.yui-vrm-scroll::-webkit-scrollbar-thumb {
-  background: var(--yui-edge-strong);
-  border-radius: 999px;
-}
-
-.yui-vrm-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
 /* "파일에서 추가…" 고정 푸터 — 스크롤 영역 밖. 목록 길이와 무관하게 항상 보인다. */
-.yui-vrm-foot {
+.yui-vrm-foot,
+.yui-spk-foot {
   margin-top: 0.1rem;
   border-top: 1px solid var(--yui-edge);
   padding-top: 0.1rem;
 }
 
-/* ── VRM 옵션(radio) — .yui-mon과 동일 구조 ── */
-.yui-vrm {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.6rem;
-  border: 0;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border-radius: var(--yui-radius-row);
-  color: var(--yui-text);
-  font-family: inherit;
-  cursor: pointer;
-  transition: background var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-vrm:hover {
-  background: oklch(0.97 0.01 80 / 0.06);
-}
-
-.yui-vrm__tick {
-  width: 1.1rem;
-  height: 1.1rem;
-  border-radius: 50%;
-  border: 1.5px solid var(--yui-text-mute);
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  transition:
-    border-color var(--yui-dur-fast) var(--yui-ease),
-    background var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-vrm__tick::after {
-  content: "";
-  width: 0.46rem;
-  height: 0.46rem;
-  border-radius: 50%;
-  background: oklch(0.99 0.01 80);
-  transform: scale(0);
-  transition: transform var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-vrm[aria-checked="true"] .yui-vrm__tick {
-  border-color: var(--yui-accent);
-  background: var(--yui-accent);
-}
-
-.yui-vrm[aria-checked="true"] .yui-vrm__tick::after {
-  transform: scale(1);
-}
-
-.yui-vrm__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-}
-
-.yui-vrm__name {
-  font-size: 0.88rem;
-  font-weight: 500;
-}
-
-.yui-vrm__meta {
-  font-size: 0.72rem;
-  color: var(--yui-text-mute);
-}
-
-.yui-vrm__badge {
-  margin-left: auto;
-  font-size: 0.64rem;
-  letter-spacing: 0.04em;
-  color: var(--yui-text-dim);
-  padding: 0.1rem 0.4rem;
-  border-radius: 999px;
-  border: 1px solid var(--yui-edge);
-  white-space: nowrap;
-}
-
 /* ── 로딩: 클릭한 행은 "바꾸는 중…", 나머지 행은 흐려져 비활성 ── */
-.yui-vrm[aria-busy="true"] .yui-vrm__name {
+.yui-vrm[aria-busy="true"] .yui-vrm__name,
+.yui-spk[aria-busy="true"] .yui-spk__name {
   color: var(--yui-text-dim);
 }
 
 .yui-vrm__hint {
   margin-left: auto;
+}
+
+.yui-spk__hint {
+  flex: 0 0 auto;
+}
+
+.yui-vrm__hint,
+.yui-spk__hint {
   font-size: 0.7rem;
   color: var(--yui-text-mute);
   white-space: nowrap;
 }
 
-.yui-vrm[aria-busy="true"] .yui-vrm__tick {
+.yui-vrm[aria-busy="true"] .yui-vrm__tick,
+.yui-spk[aria-busy="true"] .yui-spk__tick {
   border-color: var(--yui-accent-soft);
   background: transparent;
 }
 
-.yui-vrm[aria-busy="true"] .yui-vrm__tick::after {
+.yui-vrm[aria-busy="true"] .yui-vrm__tick::after,
+.yui-spk[aria-busy="true"] .yui-spk__tick::after {
   width: 0.62rem;
   height: 0.62rem;
   background: transparent;
   border: 1.5px solid var(--yui-accent);
   border-top-color: transparent;
   transform: scale(1);
+}
+
+/* 화자 쪽 스핀은 아래 no-preference 블록에서 게이트된다. */
+.yui-vrm[aria-busy="true"] .yui-vrm__tick::after {
   animation: yui-vrm-spin 0.7s linear infinite;
 }
 
@@ -1117,26 +1084,31 @@
 }
 
 /* 스왑 진행 중 다른 행은 비상호작용 */
-.yui-vrms.is-swapping .yui-vrm:not([aria-busy="true"]) {
+.yui-vrms.is-swapping .yui-vrm:not([aria-busy="true"]),
+.yui-spks.is-swapping .yui-spk:not([aria-busy="true"]) {
   opacity: 0.4;
   pointer-events: none;
 }
 
 /* ── 오류: 선택 되돌림 + warm-red 인라인 안내 ── */
-.yui-vrm.is-error .yui-vrm__name {
+.yui-vrm.is-error .yui-vrm__name,
+.yui-spk.is-error .yui-spk__name {
   color: var(--yui-danger);
 }
 
-.yui-vrm.is-error .yui-vrm__tick {
+.yui-vrm.is-error .yui-vrm__tick,
+.yui-spk.is-error .yui-spk__tick {
   border-color: var(--yui-danger);
   background: transparent;
 }
 
-.yui-vrm.is-error .yui-vrm__tick::after {
+.yui-vrm.is-error .yui-vrm__tick::after,
+.yui-spk.is-error .yui-spk__tick::after {
   transform: scale(0);
 }
 
-.yui-vrm__error {
+.yui-vrm__error,
+.yui-spk__error {
   margin: 0.1rem 0.6rem 0.35rem 2.3rem;
   font-size: 0.72rem;
   line-height: 1.4;
@@ -1144,22 +1116,26 @@
 }
 
 /* ── "파일에서 추가…" ghost 행 — 예약·비활성 ── */
-.yui-vrm--add {
+.yui-vrm--add,
+.yui-spk--add {
   color: var(--yui-text-mute);
   cursor: not-allowed;
   opacity: 0.62;
 }
 
-.yui-vrm--add:hover {
+.yui-vrm--add:hover,
+.yui-spk--add:hover {
   background: transparent;
 }
 
-.yui-vrm--add .yui-vrm__tick {
+.yui-vrm--add .yui-vrm__tick,
+.yui-spk--add .yui-spk__tick {
   border-style: dashed;
   border-color: var(--yui-text-mute);
 }
 
-.yui-vrm--add .yui-vrm__tick::after {
+.yui-vrm--add .yui-vrm__tick::after,
+.yui-spk--add .yui-spk__tick::after {
   content: "+";
   width: auto;
   height: auto;
@@ -1170,12 +1146,14 @@
   line-height: 1;
 }
 
-.yui-vrm--add .yui-vrm__name {
+.yui-vrm--add .yui-vrm__name,
+.yui-spk--add .yui-spk__name {
   font-size: 0.84rem;
   font-weight: 500;
 }
 
-.yui-vrm__soon {
+.yui-vrm__soon,
+.yui-spk__soon {
   margin-left: auto;
   font-size: 0.62rem;
   letter-spacing: 0.04em;
@@ -1187,30 +1165,36 @@
 }
 
 /* ── 활성화된 "파일에서 추가…" 행 — 같은 ghost 레이아웃, 이제 인터랙티브.
-   disabled wash와 준비 중 chip을 떼고 ⊕ tick은 유지한다. ── */
-.yui-vrm--add.is-ready {
+   disabled wash를 떼고 ⊕ tick은 유지한다. ── */
+.yui-vrm--add.is-ready,
+.yui-spk--add.is-ready {
   color: var(--yui-text-dim);
   cursor: pointer;
   opacity: 1;
 }
 
-.yui-vrm--add.is-ready:hover {
+.yui-vrm--add.is-ready:hover,
+.yui-spk--add.is-ready:hover {
   background: oklch(0.97 0.01 80 / 0.06);
 }
 
-.yui-vrm--add.is-ready:hover .yui-vrm__name {
+.yui-vrm--add.is-ready:hover .yui-vrm__name,
+.yui-spk--add.is-ready:hover .yui-spk__name {
   color: var(--yui-text);
 }
 
-.yui-vrm--add.is-ready .yui-vrm__tick {
+.yui-vrm--add.is-ready .yui-vrm__tick,
+.yui-spk--add.is-ready .yui-spk__tick {
   border-color: var(--yui-text-mute);
 }
 
-.yui-vrm--add.is-ready:hover .yui-vrm__tick {
+.yui-vrm--add.is-ready:hover .yui-vrm__tick,
+.yui-spk--add.is-ready:hover .yui-spk__tick {
   border-color: var(--yui-text-dim);
 }
 
-.yui-vrm--add.is-ready .yui-vrm__name {
+.yui-vrm--add.is-ready .yui-vrm__name,
+.yui-spk--add.is-ready .yui-spk__name {
   color: var(--yui-text-dim);
   transition: color var(--yui-dur-fast) var(--yui-ease);
 }
@@ -1218,7 +1202,9 @@
 /* ── user 행의 ✎ 이름 바꾸기 · 🗑 삭제 — .yui-spk__refresh / __preview 미러.
    1.5rem ghost, rest에선 숨김, 호버 시 점화(rename=앰버, remove=warm-red). ── */
 .yui-vrm__rename,
-.yui-vrm__remove {
+.yui-vrm__remove,
+.yui-spk__rename,
+.yui-spk__remove {
   display: grid;
   place-items: center;
   width: 1.5rem;
@@ -1241,42 +1227,54 @@
 .yui-vrm:hover .yui-vrm__rename,
 .yui-vrm:hover .yui-vrm__remove,
 .yui-vrm:focus-within .yui-vrm__rename,
-.yui-vrm:focus-within .yui-vrm__remove {
+.yui-vrm:focus-within .yui-vrm__remove,
+.yui-spk:hover .yui-spk__rename,
+.yui-spk:hover .yui-spk__remove,
+.yui-spk:focus-within .yui-spk__rename,
+.yui-spk:focus-within .yui-spk__remove {
   opacity: 0.7;
 }
 
-.yui-vrm__rename:hover {
+.yui-vrm__rename:hover,
+.yui-spk__rename:hover {
   opacity: 1;
   background: var(--yui-accent-faint);
   color: var(--yui-accent);
 }
 
 /* 삭제는 파괴적 — 호버 시 warm-red(앰버 아님) */
-.yui-vrm__remove:hover {
+.yui-vrm__remove:hover,
+.yui-spk__remove:hover {
   opacity: 1;
   background: var(--yui-danger-faint);
   color: var(--yui-danger);
 }
 
 .yui-vrm__rename:focus-visible,
-.yui-vrm__remove:focus-visible {
+.yui-vrm__remove:focus-visible,
+.yui-spk__rename:focus-visible,
+.yui-spk__remove:focus-visible {
   outline: none;
   opacity: 1;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
-.yui-vrm__remove:focus-visible {
+.yui-vrm__remove:focus-visible,
+.yui-spk__remove:focus-visible {
   box-shadow: 0 0 0 2px var(--yui-danger-soft);
 }
 
 .yui-vrm__rename svg,
-.yui-vrm__remove svg {
+.yui-vrm__remove svg,
+.yui-spk__rename svg,
+.yui-spk__remove svg {
   width: 0.9rem;
   height: 0.9rem;
 }
 
 /* ── 임포트 placeholder 행 — transient, 목록 끝 ── */
-.yui-vrm__loading {
+.yui-vrm__loading,
+.yui-spk__loading {
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -1284,23 +1282,33 @@
   color: var(--yui-text-dim);
 }
 
-.yui-vrm__spin {
+.yui-vrm__spin,
+.yui-spk__spin {
   width: 1.1rem;
   height: 1.1rem;
   flex: 0 0 auto;
   border-radius: 50%;
   border: 1.5px solid var(--yui-accent-soft);
   border-top-color: transparent;
+}
+
+.yui-vrm__spin {
   animation: yui-vrm-spin 0.7s linear infinite;
 }
 
-.yui-vrm__loading-name {
+.yui-spk__spin {
+  animation: yui-spk-spin 0.7s linear infinite;
+}
+
+.yui-vrm__loading-name,
+.yui-spk__loading-name {
   font-size: 0.84rem;
   font-weight: 500;
 }
 
-/* ── 로드 에러 — 인라인, add 행 아래. muted danger. ── */
-.yui-vrm__import-error {
+/* ── 로드/등록 에러 — 인라인, add 행 아래. muted danger. ── */
+.yui-vrm__import-error,
+.yui-spk__import-error {
   display: flex;
   align-items: flex-start;
   gap: 0.4rem;
@@ -1313,11 +1321,13 @@
   color: var(--yui-danger);
 }
 
-.yui-vrm__import-error[hidden] {
+.yui-vrm__import-error[hidden],
+.yui-spk__import-error[hidden] {
   display: none;
 }
 
-.yui-vrm__import-error svg {
+.yui-vrm__import-error svg,
+.yui-spk__import-error svg {
   width: 0.85rem;
   height: 0.85rem;
   flex: 0 0 auto;
@@ -1325,77 +1335,49 @@
 }
 
 /* ── 인라인 이름 편집 — .yui-input-wrap / .yui-ep-input 재사용 ── */
-.yui-vrm--renaming {
+.yui-vrm--renaming,
+.yui-spk--renaming {
   cursor: default;
   background: oklch(0.97 0.01 80 / 0.04);
 }
 
 /* 편집 행 안의 입력 래퍼는 행 안에서 자라며 위쪽 마진을 제거한다(엔드포인트 행 변형 무력화). */
-.yui-vrm--renaming .yui-input-wrap {
+.yui-vrm--renaming .yui-input-wrap,
+.yui-spk--renaming .yui-input-wrap {
   flex: 1;
   min-width: 0;
   margin-top: 0;
 }
 
-.yui-vrm--renaming .yui-ep-input {
+.yui-vrm--renaming .yui-ep-input,
+.yui-spk--renaming .yui-ep-input {
   padding: 0.32rem 0.55rem;
 }
 
-.yui-vrm__rename-hint {
+.yui-vrm__rename-hint,
+.yui-spk__rename-hint {
   flex: 0 0 auto;
   font-size: 0.66rem;
   color: var(--yui-text-mute);
   white-space: nowrap;
 }
 
-.yui-vrm__rename-hint kbd {
+.yui-vrm__rename-hint kbd,
+.yui-spk__rename-hint kbd {
   font-family: inherit;
   font-weight: 650;
   color: var(--yui-text-dim);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yui-vrm__spin {
+  .yui-vrm__spin,
+  .yui-spk__spin {
     animation: none;
   }
 }
 
-/* ── 화자 섹션 — VRM 섹션(.yui-vrm*)을 미러링하되 행은 div[role=radio]다.
-   중첩 ▶ 미리듣기 <button>을 품으려면 행이 <button>일 수 없다(중첩 무효 HTML). ── */
-.yui-spks {
-  display: grid;
-  gap: 0.25rem;
-}
-
-/* 목록을 ~9rem에서 멈추고 그 이상은 내부 스크롤 — 패널을 늘리지 않는다. */
-.yui-spk-scroll {
-  position: relative;
-  max-height: var(--yui-vrm-cap, 9rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--yui-edge-strong) transparent;
-}
-
-.yui-spk-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.yui-spk-scroll::-webkit-scrollbar-thumb {
-  background: var(--yui-edge-strong);
-  border-radius: 999px;
-}
-
-.yui-spk-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* "파일에서 추가…" 고정 푸터 — 스크롤 영역 밖. */
-.yui-spk-foot {
-  margin-top: 0.1rem;
-  border-top: 1px solid var(--yui-edge);
-  padding-top: 0.1rem;
-}
+/* ── 화자 섹션 — 행은 div[role=radio]다. 중첩 ▶ 미리듣기 <button>을 품으려면
+   행이 <button>일 수 없다(중첩 무효 HTML). 목록·행·상태 스타일은 위 공통 블록. ── */
 
 /* OpenAI 호환 엔진일 때 화자 선택을 비활성화 — 클릭/포커스 차단 + 흐리게. */
 .yui-spk-scroll.is-disabled,
@@ -1413,156 +1395,13 @@
   color: var(--yui-text-mute);
 }
 
-/* ── 화자 옵션(radio) ── */
-.yui-spk {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.6rem;
-  border: 0;
-  width: 100%;
-  box-sizing: border-box;
-  text-align: left;
-  background: transparent;
-  border-radius: var(--yui-radius-row);
-  color: var(--yui-text);
-  font-family: inherit;
-  cursor: pointer;
-  transition: background var(--yui-dur-fast) var(--yui-ease);
-}
-
 .yui-spk:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
-.yui-spk:hover {
-  background: oklch(0.97 0.01 80 / 0.06);
-}
-
-.yui-spk__tick {
-  width: 1.1rem;
-  height: 1.1rem;
-  border-radius: 50%;
-  border: 1.5px solid var(--yui-text-mute);
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  transition:
-    border-color var(--yui-dur-fast) var(--yui-ease),
-    background var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-spk__tick::after {
-  content: "";
-  width: 0.46rem;
-  height: 0.46rem;
-  border-radius: 50%;
-  background: oklch(0.99 0.01 80);
-  transform: scale(0);
-  transition: transform var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-spk[aria-checked="true"] .yui-spk__tick {
-  border-color: var(--yui-accent);
-  background: var(--yui-accent);
-}
-
-.yui-spk[aria-checked="true"] .yui-spk__tick::after {
-  transform: scale(1);
-}
-
-/* body가 행을 채워 뒤따르는 클러스터(미리듣기 · 배지/힌트)를 오른쪽 끝으로 민다.
-   단일 grow 소스 — trailing 항목은 source order로 정렬(competing margin-left:auto 금지). */
-.yui-spk__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  overflow: hidden;
-}
-
-.yui-spk__name {
-  font-size: 0.88rem;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.yui-spk__meta {
-  font-size: 0.72rem;
-  color: var(--yui-text-mute);
-}
-
-.yui-spk__badge {
-  flex: 0 0 auto;
-  font-size: 0.64rem;
-  letter-spacing: 0.04em;
-  color: var(--yui-text-dim);
-  padding: 0.1rem 0.4rem;
-  border-radius: 999px;
-  border: 1px solid var(--yui-edge);
-  white-space: nowrap;
-}
-
-/* ── 행별 ▶ 미리듣기(ghost; 호버 시에만 앰버) ── */
-.yui-spk__preview {
-  display: grid;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  flex: 0 0 auto;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--yui-text-mute);
-  cursor: pointer;
-  opacity: 0.7;
-  transition:
-    background var(--yui-dur-fast) var(--yui-ease),
-    color var(--yui-dur-fast) var(--yui-ease),
-    opacity var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-spk:hover .yui-spk__preview {
-  opacity: 1;
-}
-
-.yui-spk__preview:hover {
-  background: var(--yui-accent-faint);
-  color: var(--yui-accent);
-}
-
-.yui-spk__preview:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
-}
-
-.yui-spk__preview:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.yui-spk__preview:disabled:hover {
-  background: transparent;
-  color: var(--yui-text-mute);
-}
-
-.yui-spk__preview svg {
-  width: 0.85rem;
-  height: 0.85rem;
-}
-
-/* 재생 중: 앰버로 채워진 글리프가 차분히 펄스 */
-.yui-spk__preview.is-playing {
-  color: var(--yui-accent);
-  opacity: 1;
-}
-
-/* ── 행별 ↻ 참조-음성 갱신 — preview와 같은 ghost 처리, preview 앞(왼쪽)에 위치 ── */
+/* ── 행별 ▶ 미리듣기 · ↻ 참조-음성 갱신 — ghost, 호버 시에만 앰버. refresh는 preview 앞(왼쪽). ── */
+.yui-spk__preview,
 .yui-spk__refresh {
   display: grid;
   place-items: center;
@@ -1582,33 +1421,49 @@
     opacity var(--yui-dur-fast) var(--yui-ease);
 }
 
+.yui-spk:hover .yui-spk__preview,
 .yui-spk:hover .yui-spk__refresh {
   opacity: 1;
 }
 
+.yui-spk__preview:hover,
 .yui-spk__refresh:hover {
   background: var(--yui-accent-faint);
   color: var(--yui-accent);
 }
 
+.yui-spk__preview:focus-visible,
 .yui-spk__refresh:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
+.yui-spk__preview:disabled,
 .yui-spk__refresh:disabled {
   opacity: 0.3;
   cursor: not-allowed;
 }
 
+.yui-spk__preview:disabled:hover,
 .yui-spk__refresh:disabled:hover {
   background: transparent;
   color: var(--yui-text-mute);
 }
 
+.yui-spk__preview svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
 .yui-spk__refresh svg {
   width: 0.92rem;
   height: 0.92rem;
+}
+
+/* 재생 중: 앰버로 채워진 글리프가 차분히 펄스 */
+.yui-spk__preview.is-playing {
+  color: var(--yui-accent);
+  opacity: 1;
 }
 
 /* refreshing: 비활성 + ↻ glyph가 제자리에서 회전(스왑 스피너와 같은 어휘) */
@@ -1622,59 +1477,6 @@
 .yui-spk__refresh.is-done {
   color: var(--yui-accent);
   opacity: 1;
-}
-
-/* ── 로딩: 클릭한 행은 "바꾸는 중…", 나머지 행은 흐려져 비활성 ── */
-.yui-spk[aria-busy="true"] .yui-spk__name {
-  color: var(--yui-text-dim);
-}
-
-.yui-spk__hint {
-  flex: 0 0 auto;
-  font-size: 0.7rem;
-  color: var(--yui-text-mute);
-  white-space: nowrap;
-}
-
-.yui-spk[aria-busy="true"] .yui-spk__tick {
-  border-color: var(--yui-accent-soft);
-  background: transparent;
-}
-
-.yui-spk[aria-busy="true"] .yui-spk__tick::after {
-  width: 0.62rem;
-  height: 0.62rem;
-  background: transparent;
-  border: 1.5px solid var(--yui-accent);
-  border-top-color: transparent;
-  transform: scale(1);
-}
-
-/* 스왑 진행 중 다른 행은 비상호작용 */
-.yui-spks.is-swapping .yui-spk:not([aria-busy="true"]) {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-/* ── 오류: 선택 되돌림 + warm-red 인라인 안내 ── */
-.yui-spk.is-error .yui-spk__name {
-  color: var(--yui-danger);
-}
-
-.yui-spk.is-error .yui-spk__tick {
-  border-color: var(--yui-danger);
-  background: transparent;
-}
-
-.yui-spk.is-error .yui-spk__tick::after {
-  transform: scale(0);
-}
-
-.yui-spk__error {
-  margin: 0.1rem 0.6rem 0.35rem 2.3rem;
-  font-size: 0.72rem;
-  line-height: 1.4;
-  color: var(--yui-danger);
 }
 
 /* 중립/긍정 인라인 안내 — error와 같은 들여쓰기지만 차분한 dim, never warm-red */
@@ -1693,222 +1495,6 @@
   height: 0.8rem;
   flex: 0 0 auto;
   color: var(--yui-accent);
-}
-
-/* ── "파일에서 추가…" ghost 행 — 예약·비활성 ── */
-.yui-spk--add {
-  color: var(--yui-text-mute);
-  cursor: not-allowed;
-  opacity: 0.62;
-}
-
-.yui-spk--add:hover {
-  background: transparent;
-}
-
-.yui-spk--add .yui-spk__tick {
-  border-style: dashed;
-  border-color: var(--yui-text-mute);
-}
-
-.yui-spk--add .yui-spk__tick::after {
-  content: "+";
-  width: auto;
-  height: auto;
-  background: transparent;
-  transform: none;
-  color: var(--yui-text-mute);
-  font-size: 0.78rem;
-  line-height: 1;
-}
-
-.yui-spk--add .yui-spk__name {
-  font-size: 0.84rem;
-  font-weight: 500;
-}
-
-.yui-spk__soon {
-  margin-left: auto;
-  font-size: 0.62rem;
-  letter-spacing: 0.04em;
-  color: var(--yui-text-mute);
-  padding: 0.1rem 0.4rem;
-  border-radius: 999px;
-  border: 1px dashed var(--yui-edge-strong);
-  white-space: nowrap;
-}
-
-/* ── 활성화된 "파일에서 추가…" 행 — 같은 ghost 레이아웃, 이제 인터랙티브.
-   disabled wash를 떼고 ⊕ tick은 유지한다(VRM --add.is-ready 미러). ── */
-.yui-spk--add.is-ready {
-  color: var(--yui-text-dim);
-  cursor: pointer;
-  opacity: 1;
-}
-
-.yui-spk--add.is-ready:hover {
-  background: oklch(0.97 0.01 80 / 0.06);
-}
-
-.yui-spk--add.is-ready:hover .yui-spk__name {
-  color: var(--yui-text);
-}
-
-.yui-spk--add.is-ready .yui-spk__tick {
-  border-color: var(--yui-text-mute);
-}
-
-.yui-spk--add.is-ready:hover .yui-spk__tick {
-  border-color: var(--yui-text-dim);
-}
-
-.yui-spk--add.is-ready .yui-spk__name {
-  color: var(--yui-text-dim);
-  transition: color var(--yui-dur-fast) var(--yui-ease);
-}
-
-/* ── user 행의 ✎ 이름 바꾸기 · 🗑 삭제 — .yui-vrm__rename / __remove 미러.
-   1.5rem ghost, rest에선 숨김, 호버 시 점화(rename=앰버, remove=warm-red). ── */
-.yui-spk__rename,
-.yui-spk__remove {
-  display: grid;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  flex: 0 0 auto;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--yui-text-mute);
-  cursor: pointer;
-  opacity: 0;
-  transition:
-    background var(--yui-dur-fast) var(--yui-ease),
-    color var(--yui-dur-fast) var(--yui-ease),
-    opacity var(--yui-dur-fast) var(--yui-ease);
-}
-
-/* 아이콘은 행 호버/포커스에서 떠오른다(invisible-by-default) */
-.yui-spk:hover .yui-spk__rename,
-.yui-spk:hover .yui-spk__remove,
-.yui-spk:focus-within .yui-spk__rename,
-.yui-spk:focus-within .yui-spk__remove {
-  opacity: 0.7;
-}
-
-.yui-spk__rename:hover {
-  opacity: 1;
-  background: var(--yui-accent-faint);
-  color: var(--yui-accent);
-}
-
-/* 삭제는 파괴적 — 호버 시 warm-red(앰버 아님) */
-.yui-spk__remove:hover {
-  opacity: 1;
-  background: var(--yui-danger-faint);
-  color: var(--yui-danger);
-}
-
-.yui-spk__rename:focus-visible,
-.yui-spk__remove:focus-visible {
-  outline: none;
-  opacity: 1;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
-}
-
-.yui-spk__remove:focus-visible {
-  box-shadow: 0 0 0 2px var(--yui-danger-soft);
-}
-
-.yui-spk__rename svg,
-.yui-spk__remove svg {
-  width: 0.9rem;
-  height: 0.9rem;
-}
-
-/* ── 임포트 placeholder 행 — transient, 목록 끝 ── */
-.yui-spk__loading {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.6rem;
-  color: var(--yui-text-dim);
-}
-
-.yui-spk__spin {
-  width: 1.1rem;
-  height: 1.1rem;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  border: 1.5px solid var(--yui-accent-soft);
-  border-top-color: transparent;
-  animation: yui-spk-spin 0.7s linear infinite;
-}
-
-.yui-spk__loading-name {
-  font-size: 0.84rem;
-  font-weight: 500;
-}
-
-/* ── 등록 에러 — 인라인, add 행 아래. muted danger. ── */
-.yui-spk__import-error {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.4rem;
-  margin: 0.3rem 0.6rem 0.1rem;
-  padding: 0.4rem 0.55rem;
-  border-radius: var(--yui-radius-row);
-  background: var(--yui-danger-faint);
-  font-size: 0.72rem;
-  line-height: 1.4;
-  color: var(--yui-danger);
-}
-
-.yui-spk__import-error[hidden] {
-  display: none;
-}
-
-.yui-spk__import-error svg {
-  width: 0.85rem;
-  height: 0.85rem;
-  flex: 0 0 auto;
-  margin-top: 0.08rem;
-}
-
-/* ── 인라인 이름 편집 — .yui-input-wrap / .yui-ep-input 재사용 ── */
-.yui-spk--renaming {
-  cursor: default;
-  background: oklch(0.97 0.01 80 / 0.04);
-}
-
-.yui-spk--renaming .yui-input-wrap {
-  flex: 1;
-  min-width: 0;
-  margin-top: 0;
-}
-
-.yui-spk--renaming .yui-ep-input {
-  padding: 0.32rem 0.55rem;
-}
-
-.yui-spk__rename-hint {
-  flex: 0 0 auto;
-  font-size: 0.66rem;
-  color: var(--yui-text-mute);
-  white-space: nowrap;
-}
-
-.yui-spk__rename-hint kbd {
-  font-family: inherit;
-  font-weight: 650;
-  color: var(--yui-text-dim);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .yui-spk__spin {
-    animation: none;
-  }
 }
 
 /* ── 모션은 reduced-motion 선호 뒤에 게이트 ── */
@@ -1961,36 +1547,12 @@
   justify-content: space-between;
 }
 
-.yui-gain__label {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.92rem;
-  font-weight: 550;
-  line-height: 1.2;
-}
-
-.yui-gain__label svg {
-  width: 0.95rem;
-  height: 0.95rem;
-  color: var(--yui-text-dim);
-  flex: 0 0 auto;
-}
-
 .yui-gain__value {
   color: var(--yui-text-dim);
   font-size: 0.8rem;
   font-weight: 650;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
-}
-
-.yui-gain__sub {
-  display: block;
-  margin-top: 0.18rem;
-  font-size: 0.74rem;
-  line-height: 1.35;
-  color: var(--yui-text-mute);
 }
 
 .yui-gain__hint {
@@ -2174,51 +1736,6 @@
 
 .yui-session__action {
   padding: 0.5rem 0 0.2rem;
-}
-
-.yui-session__action-label {
-  display: block;
-  font-size: 0.92rem;
-  font-weight: 550;
-  line-height: 1.2;
-}
-
-.yui-session__action-sub {
-  display: block;
-  margin-top: 0.18rem;
-  font-size: 0.74rem;
-  line-height: 1.35;
-  color: var(--yui-text-mute);
-}
-
-.yui-link-btn {
-  display: inline-block;
-  margin: 0.5rem 0.15rem 0.1rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--yui-text-mute);
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-color: var(--yui-edge-strong);
-  text-underline-offset: 0.18em;
-  transition:
-    color var(--yui-dur-fast) var(--yui-ease),
-    text-decoration-color var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-link-btn:hover {
-  color: var(--yui-accent);
-  text-decoration-color: var(--yui-accent-soft);
-}
-
-.yui-link-btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
-  border-radius: 4px;
 }
 
 .yui-confirm {
