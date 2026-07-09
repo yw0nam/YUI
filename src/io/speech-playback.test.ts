@@ -198,6 +198,60 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
   });
 });
 
+describe("createSpeechPlayback — isSpeaking (barge-in TTS-active window, #279)", () => {
+  it("is false before any delta", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    expect(sp.isSpeaking()).toBe(false);
+  });
+
+  it("is true after onSpeechDelta (first text arrival opens the window)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    expect(sp.isSpeaking()).toBe(true);
+  });
+
+  it("is false after the pipeline fires onPlaybackEnd", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    stub.emitPlaybackEnd();
+    expect(sp.isSpeaking()).toBe(false);
+  });
+
+  it("is false after interrupt()", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    sp.interrupt();
+    expect(sp.isSpeaking()).toBe(false);
+  });
+
+  it("is false after abort()", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    sp.abort();
+    expect(sp.isSpeaking()).toBe(false);
+  });
+});
+
 describe("createSpeechPlayback — dispose", () => {
   it("disposes the underlying pipeline", () => {
     const stub = stubPipelineFactory();

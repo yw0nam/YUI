@@ -20,6 +20,7 @@ import type { EndpointsConfig } from "../contract";
 let capturedOptions: Record<string, unknown> = {};
 let triggerSpeechStart: (() => void) | null = null;
 let triggerSpeechEnd: ((audio: Float32Array) => Promise<void>) | null = null;
+let triggerSpeechRealStart: (() => void) | null = null;
 
 const mockMicVadInstance = {
   start: vi.fn().mockResolvedValue(undefined),
@@ -33,6 +34,7 @@ vi.mock("@ricky0123/vad-web", () => ({
       capturedOptions = opts;
       triggerSpeechStart = opts.onSpeechStart as () => void;
       triggerSpeechEnd = opts.onSpeechEnd as (audio: Float32Array) => Promise<void>;
+      triggerSpeechRealStart = opts.onSpeechRealStart as () => void;
       return mockMicVadInstance;
     }),
   },
@@ -59,6 +61,7 @@ beforeEach(() => {
   capturedOptions = {};
   triggerSpeechStart = null;
   triggerSpeechEnd = null;
+  triggerSpeechRealStart = null;
   vi.clearAllMocks();
 });
 
@@ -171,6 +174,38 @@ describe("createSttVad — runtime state callbacks", () => {
 
     expect(onState).toHaveBeenCalledWith("asr");
     expect(onState).toHaveBeenCalledWith("error", "HTTP 500");
+  });
+});
+
+describe("createSttVad — onSpeechActive (barge-in trigger, #279)", () => {
+  it("fires onSpeechActive when the VAD's onSpeechRealStart callback fires", async () => {
+    const onSpeechActive = vi.fn();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onSpeechActive });
+    await stt.start();
+
+    expect(triggerSpeechRealStart).toBeDefined();
+    triggerSpeechRealStart!();
+
+    expect(onSpeechActive).toHaveBeenCalledOnce();
+  });
+
+  it("does not throw when onSpeechActive is not provided", async () => {
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    await stt.start();
+
+    expect(() => triggerSpeechRealStart!()).not.toThrow();
+  });
+
+  it("onSpeechRealStart is distinct from onSpeechStart — only onState('listening') fires on raw start", async () => {
+    const onState = vi.fn();
+    const onSpeechActive = vi.fn();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState, onSpeechActive });
+    await stt.start();
+
+    triggerSpeechStart!();
+
+    expect(onState).toHaveBeenCalledWith("listening");
+    expect(onSpeechActive).not.toHaveBeenCalled();
   });
 });
 

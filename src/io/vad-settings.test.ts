@@ -71,7 +71,7 @@ describe("createVadSettings — setSilenceMs", () => {
     store.subscribe(cb);
     store.setSilenceMs(2000);
     expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ silenceMs: 2000 });
+    expect(cb).toHaveBeenCalledWith({ silenceMs: 2000, bargeIn: true });
     expect(cb.mock.calls[0][0]).not.toBe(store.get());
   });
 
@@ -132,6 +132,48 @@ describe("createVadSettings — setSilenceMs", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// createVadSettings — bargeIn (#279)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createVadSettings — bargeIn", () => {
+  it("defaults to true when no storage or initial given", () => {
+    const store = createVadSettings();
+    expect(store.get().bargeIn).toBe(true);
+  });
+
+  it("setBargeIn(false) round-trips", () => {
+    const store = createVadSettings();
+    store.setBargeIn(false);
+    expect(store.get().bargeIn).toBe(false);
+  });
+
+  it("setBargeIn preserves the existing silenceMs", () => {
+    const store = createVadSettings();
+    store.setSilenceMs(2200);
+    store.setBargeIn(false);
+    expect(store.get().silenceMs).toBe(2200);
+    expect(store.get().bargeIn).toBe(false);
+  });
+
+  it("setSilenceMs preserves the existing bargeIn", () => {
+    const store = createVadSettings();
+    store.setBargeIn(false);
+    store.setSilenceMs(2200);
+    expect(store.get().bargeIn).toBe(false);
+    expect(store.get().silenceMs).toBe(2200);
+  });
+
+  it("parsing a stored value with no bargeIn key defaults bargeIn to true", () => {
+    const storage: VadStorage = {
+      load: () => ({ silenceMs: 1800 }) as unknown as VadSettings,
+      save: vi.fn(),
+    };
+    const store = createVadSettings({ storage });
+    expect(store.get()).toEqual({ silenceMs: 1800, bargeIn: true });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // createVadSettings — subscribe / unsubscribe / dispose
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -184,7 +226,7 @@ describe("createVadSettings — persistence", () => {
     const saveSpy = vi.spyOn(storage, "save");
     const store = createVadSettings({ storage });
     store.setSilenceMs(2500);
-    expect(saveSpy).toHaveBeenCalledWith({ silenceMs: 2500 });
+    expect(saveSpy).toHaveBeenCalledWith({ silenceMs: 2500, bargeIn: true });
   });
 
   it("a new store created with same storage loads the persisted silenceMs", () => {
@@ -198,7 +240,7 @@ describe("createVadSettings — persistence", () => {
 
   it("stored value out of range is clamped on load: {silenceMs:99000} → 3000", () => {
     const storage: VadStorage = {
-      load: () => ({ silenceMs: 99000 }),
+      load: () => ({ silenceMs: 99000 }) as unknown as VadSettings,
       save: vi.fn(),
     };
     const store = createVadSettings({ storage });
@@ -225,10 +267,13 @@ describe("createVadSettings — persistence", () => {
 
   it("stored > initial: storage value takes priority over initial option", () => {
     const storage: VadStorage = {
-      load: () => ({ silenceMs: 2500 }),
+      load: () => ({ silenceMs: 2500 }) as unknown as VadSettings,
       save: vi.fn(),
     };
-    const store = createVadSettings({ storage, initial: { silenceMs: 800 } });
+    const store = createVadSettings({
+      storage,
+      initial: { silenceMs: 800 } as unknown as VadSettings,
+    });
     expect(store.get().silenceMs).toBe(2500);
   });
 });
@@ -244,18 +289,18 @@ describe("createVadSettings — reloadFromStorage", () => {
     const cb = vi.fn();
     store.subscribe(cb);
 
-    storage._data = { silenceMs: 2500 };
+    storage._data = { silenceMs: 2500 } as unknown as VadSettings;
     store.reloadFromStorage();
 
     expect(store.get().silenceMs).toBe(2500);
     expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ silenceMs: 2500 });
+    expect(cb).toHaveBeenCalledWith({ silenceMs: 2500, bargeIn: true });
   });
 
   it("clamps an out-of-range stored value on reload", () => {
     const storage = makeMemStorage();
     const store = createVadSettings({ storage });
-    storage._data = { silenceMs: 99000 };
+    storage._data = { silenceMs: 99000 } as unknown as VadSettings;
     store.reloadFromStorage();
     expect(store.get().silenceMs).toBe(VAD_SILENCE_MAX);
   });
@@ -296,8 +341,8 @@ describe("localStorageVadStorage", () => {
     };
 
     const adapter = localStorageVadStorage();
-    adapter.save({ silenceMs: 2200 });
-    expect(adapter.load()).toEqual({ silenceMs: 2200 });
+    adapter.save({ silenceMs: 2200, bargeIn: true });
+    expect(adapter.load()).toEqual({ silenceMs: 2200, bargeIn: true });
 
     delete (globalThis as { localStorage?: unknown }).localStorage;
   });
@@ -310,7 +355,7 @@ describe("localStorageVadStorage", () => {
     };
 
     const adapter = localStorageVadStorage();
-    adapter.save({ silenceMs: 1500 });
+    adapter.save({ silenceMs: 1500, bargeIn: true });
     expect(written[0][0]).toBe("yui.vad");
 
     delete (globalThis as { localStorage?: unknown }).localStorage;
