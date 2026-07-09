@@ -628,6 +628,54 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
+  // ── 말 끊기(barge-in) 토글 ─────────────────────────────────────────────────
+
+  it("clicking the barge-in switch toggles vad.setBargeIn", () => {
+    const vad = createVadSettings();
+    const qc = buildQc({ vad });
+    qc.open();
+
+    const bargeInSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-bargein-switch")!;
+    expect(vad.get().bargeIn).toBe(true);
+
+    bargeInSwitch.click();
+    expect(vad.get().bargeIn).toBe(false);
+    expect(bargeInSwitch.getAttribute("aria-checked")).toBe("false");
+
+    bargeInSwitch.click();
+    expect(vad.get().bargeIn).toBe(true);
+    expect(bargeInSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  it("external vad.setBargeIn reflects on the switch while open", () => {
+    const vad = createVadSettings();
+    const qc = buildQc({ vad });
+    qc.open();
+
+    const bargeInSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-bargein-switch")!;
+    vad.setBargeIn(false);
+    expect(bargeInSwitch.getAttribute("aria-checked")).toBe("false");
+
+    vad.setBargeIn(true);
+    expect(bargeInSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  it("renders the barge-in switch with default aria-checked reflecting vadSettings.bargeIn", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const bargeInSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-bargein-switch");
+    expect(bargeInSwitch).not.toBeNull();
+    expect(bargeInSwitch!.getAttribute("aria-checked")).toBe("true");
+    expect(bargeInSwitch!.getAttribute("role")).toBe("switch");
+
+    qc.dispose();
+  });
+
   // ── Slider exists with correct attributes ─────────────────────────────────
 
   it("renders a range slider with min=0.5, max=6, value=2 (default gain)", () => {
