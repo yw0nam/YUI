@@ -1409,6 +1409,104 @@ describe("backend_caller — agent trigger forwarding", () => {
   });
 });
 
+// ── signals ingress (signals.* payloads → trigger.kind/signals, opaque passthrough) ──
+describe("backend_caller — signals trigger forwarding", () => {
+  /** decode the flat ClientContext from the system message. */
+  function clientContextOf(input: unknown): Record<string, unknown> {
+    const items = input as Array<{ role: string; content: string }>;
+    const sys = items.find((m) => m.role === "system")!;
+    const json = sys.content.replace(/^client_context:\s*/, "");
+    return JSON.parse(json);
+  }
+
+  it("(a) signals.push → trigger.kind 'signals' + trigger.signals verbatim; user message is proactive marker", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 40,
+      source: "timer_scheduler",
+      event_name: "signals.push",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        signals: [{ kind: "reminder", payload: { foo: "bar" } }, { kind: "alert" }],
+        ts: 1_717_000_000_000,
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    const trigger = ctx.trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("signals");
+    expect(trigger.signals).toEqual([
+      { kind: "reminder", payload: { foo: "bar" } },
+      { kind: "alert" },
+    ]);
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toBe("(proactive trigger)");
+  });
+
+  it("(b) signals.catchup → trigger.kind 'signals' + trigger.signals (flattened, unmodified)", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 41,
+      source: "timer_scheduler",
+      event_name: "signals.catchup",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        count: 2,
+        signals: [{ id: 1 }, { id: 2 }],
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("signals");
+    expect(trigger.signals).toEqual([{ id: 1 }, { id: 2 }]);
+  });
+
+  it("(c) heterogeneous/nested item shapes pass through unmodified — no structural validation", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const weird = [
+      { a: 1 },
+      { nested: { b: [1, 2, 3] } },
+      { c: null },
+      "not even an object" as never,
+    ];
+    const env: BusEnvelope = {
+      seq_id: 42,
+      source: "timer_scheduler",
+      event_name: "signals.push",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: { signals: weird, ts: 1_717_000_000_000 },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
+    expect(trigger.signals).toEqual(weird);
+  });
+
+  it("(d) signals.push with missing/malformed signals field → kind 'signals' but no trigger.signals", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 43,
+      source: "timer_scheduler",
+      event_name: "signals.push",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: { signals: "not-an-array", ts: 1_717_000_000_000 },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("signals");
+    expect("signals" in trigger).toBe(false);
+  });
+});
+
 // ── usage event → onUsage diagnostic sink ──────────────────────────────────────
 
 describe("backend_caller — usage sink (token accounting channel)", () => {

@@ -306,6 +306,38 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
   });
 
+  it("routes signals.push (tier2, dnd_override false — github parity) to backend_caller, NOT dropped", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "timer_scheduler",
+        event_name: "signals.push",
+        ts: NOW,
+        dnd_override: false,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      "fire",
+      expect.objectContaining({ event_name: "signals.push", tier: 2 }),
+    );
+  });
+
+  it("routes signals.catchup (tier2) to backend_caller", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "timer_scheduler",
+        event_name: "signals.catchup",
+        ts: NOW,
+        dnd_override: false,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
+  });
+
   it("routes user.window_sit_drop (tier1) to renderer with window_sit motion + setPerchTarget, NOT the backend", async () => {
     dispatcher.start();
     bus.push(
