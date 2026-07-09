@@ -247,6 +247,7 @@ export function createQuickControls({
     showAgentNotify: !!agentNotifySettings,
     agentNotifyEnabled: agentNotifySettings?.get().enabled ?? false,
     ttsEnabled: ttsSettings?.get().enabled ?? true,
+    bargeInEnabled: vad.get().bargeIn,
     showPresence: !!presenceSettings,
     railCollapsed: loadRailCollapsed(),
   });
@@ -262,6 +263,7 @@ export function createQuickControls({
   const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const ttsSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-tts-switch");
+  const bargeInSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-bargein-switch");
   const monitorsEl = el.querySelector<HTMLDivElement>(".yui-monitors")!;
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
   const vrmAddBtn = el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
@@ -582,6 +584,12 @@ export function createQuickControls({
     const current = ttsSettings.get().enabled;
     ttsSettings.setEnabled(!current);
     log.info("tts_output_toggle", { enabled: !current });
+  }
+
+  function handleBargeInSwitchClick(): void {
+    const current = vad.get().bargeIn;
+    vad.setBargeIn(!current);
+    log.info("bargein_toggle", { enabled: !current });
   }
 
   function handleGazeSwitchClick(): void {
@@ -1111,6 +1119,7 @@ export function createQuickControls({
   switchBtn.addEventListener("click", handleSwitchClick);
   idleThrottleSwitchBtn.addEventListener("click", handleIdleThrottleSwitchClick);
   ttsSwitchBtn?.addEventListener("click", handleTtsSwitchClick);
+  bargeInSwitchBtn?.addEventListener("click", handleBargeInSwitchClick);
   gazeSwitchBtn?.addEventListener("click", handleGazeSwitchClick);
   githubSwitchBtn?.addEventListener("click", handleGithubSwitchClick);
   agentNotifySwitchBtn?.addEventListener("click", handleAgentNotifySwitchClick);
@@ -1192,6 +1201,7 @@ export function createQuickControls({
     switchBtn.removeEventListener("click", handleSwitchClick);
     idleThrottleSwitchBtn.removeEventListener("click", handleIdleThrottleSwitchClick);
     ttsSwitchBtn?.removeEventListener("click", handleTtsSwitchClick);
+    bargeInSwitchBtn?.removeEventListener("click", handleBargeInSwitchClick);
     gazeSwitchBtn?.removeEventListener("click", handleGazeSwitchClick);
     githubSwitchBtn?.removeEventListener("click", handleGithubSwitchClick);
     agentNotifySwitchBtn?.removeEventListener("click", handleAgentNotifySwitchClick);

@@ -184,6 +184,8 @@ const en: Record<string, string> = {
   "voice_input.silence_label": "Silence threshold",
   "voice_input.silence_sub": "Waits this long after speech ends before sending",
   "voice_input.silence_aria": "Silence threshold",
+  "voice_input.bargein_label": "Barge-in",
+  "voice_input.bargein_aria": "Barge-in (character stops when you speak)",
 
   // TTS output toggle
   "tts_output.label": "Voice output",

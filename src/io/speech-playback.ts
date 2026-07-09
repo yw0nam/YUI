@@ -62,6 +62,8 @@ export interface SpeechPlayback {
    * easeEmotionToNeutral still fires — only the motion reset is suppressed.
    */
   holdMotion(held: boolean): void;
+  /** 오디오가 실제 재생 중인지 — 첫 재생 프레임부터 playback-end/interrupt/abort까지 true. 텍스트만 온 구간은 false. */
+  isSpeaking(): boolean;
   /** 진행 중인 발화를 중단: 파이프라인 폐기·재생성 + 보류 말풍선 즉시 해제. */
   interrupt(): void;
   /** 비정상 종료(에러/네트워크 끊김) 정리: 파이프라인 폐기 + 보류 말풍선 즉시 해제. 다음 턴이 없어 재생성하지 않는다. */
@@ -75,6 +77,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
 
   let motionHeld = false;
   let heldCue: ExpressArgs | null = null;
+  // TTS-active window: opened by the first played audio frame, closed on playback-end/interrupt/abort.
+  let speaking = false;
 
   // fires when a sentence begins playback or its synth fails — audio-timed expression seam.
   function applyCue(cue: ExpressArgs | null): void {
@@ -93,13 +97,18 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   function buildPipeline(): TtsPipeline {
     return factory({
       ...options.pipeline,
-      onAmplitude: (rms) => renderer.setMouthOpen(rms),
+      onAmplitude: (rms) => {
+        // 실제 오디오가 재생될 때만 fire(합성 실패/TTS off 문장은 여기 안 옴) — barge-in의 진짜 신호.
+        speaking = true;
+        renderer.setMouthOpen(rms);
+      },
       onCuePlay: (cue) => applyCue(cue),
       onPlaybackEnd: () => {
         renderer.stopMouth();
         surfaces.finishSpeech();
         // 발화가 끝나면 표정도 함께 neutral로 천천히 회귀 — 직전 emotion이 영영 갇히지 않게.
         renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
+        speaking = false;
         options.onPlaybackEnd?.();
       },
     });
@@ -160,6 +169,9 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
         }
       }
     },
+    isSpeaking() {
+      return speaking;
+    },
     interrupt() {
       stripper.reset();
       pipeline.dispose();
@@ -167,6 +179,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       // 보류 중이던 말풍선을 즉시 해제 (defer 아님).
       surfaces.endSpeech();
       started = false;
+      speaking = false;
     },
     abort() {
       stripper.reset();
@@ -174,6 +187,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       pipeline.dispose();
       surfaces.endSpeech();
       started = false;
+      speaking = false;
     },
     dispose() {
       pipeline.dispose();

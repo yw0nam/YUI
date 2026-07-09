@@ -37,6 +37,11 @@ export interface SttVadOptions {
   onVoiceSegment: (transcript: Transcript) => void;
   /** Reports client-side voice pipeline state for runtime UI. */
   onState?: (state: SttVadRuntimeState, detail?: string) => void;
+  /**
+   * Fires when a sustained utterance begins (past minSpeechFrames) — the barge-in trigger.
+   * Distinct from onState('listening') which fires on raw speech-start.
+   */
+  onSpeechActive?: () => void;
   /** Resolves the STT server key (Bearer) per request. Omitted/empty → no auth header. */
   getApiKey?: () => Promise<string | undefined>;
 }
@@ -107,7 +112,7 @@ function describeStartError(err: unknown): string {
 }
 
 export function createSttVad(options: SttVadOptions): SttVad {
-  const { config, onVoiceSegment, onState, getApiKey } = options;
+  const { config, onVoiceSegment, onState, getApiKey, onSpeechActive } = options;
   const resolveSilenceMs = (): number =>
     typeof options.silenceMs === "function" ? options.silenceMs() : (options.silenceMs ?? 1500);
 
@@ -159,6 +164,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
           baseAssetPath: VAD_ASSET_PATH,
           onnxWASMBasePath: VAD_ASSET_PATH,
           onSpeechStart: () => onState?.("listening"),
+          onSpeechRealStart: () => onSpeechActive?.(),
           onSpeechEnd,
         });
         await vad.start();

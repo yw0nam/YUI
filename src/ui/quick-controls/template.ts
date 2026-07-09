@@ -33,6 +33,7 @@ export interface PanelHtmlOptions {
   showAgentNotify: boolean;
   agentNotifyEnabled: boolean;
   ttsEnabled: boolean;
+  bargeInEnabled: boolean;
   showPresence: boolean;
   /** Initial collapsed state of the sections rail, read from localStorage before first paint. */
   railCollapsed: boolean;
@@ -51,6 +52,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showAgentNotify,
     agentNotifyEnabled,
     ttsEnabled,
+    bargeInEnabled,
     showPresence,
     railCollapsed,
   } = o;
@@ -418,6 +420,12 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
           </div>
           <span class="yui-gain__sub">${t("voice_input.silence_sub")}</span>
           <input class="yui-gain__slider yui-vad__slider" type="range" aria-label="${t("voice_input.silence_aria")}" />
+        </div>
+        <div class="yui-row">
+          <div class="yui-row__main">
+            <span class="yui-row__label">${t("voice_input.bargein_label")}</span>
+          </div>
+          <button class="yui-switch yui-bargein-switch" type="button" role="switch" aria-checked="${String(bargeInEnabled)}" aria-label="${t("voice_input.bargein_aria")}"></button>
         </div>
       </div>
 

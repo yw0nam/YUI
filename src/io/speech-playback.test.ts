@@ -198,6 +198,87 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
   });
 });
 
+describe("createSpeechPlayback — isSpeaking (barge-in TTS-active window, #279)", () => {
+  it("is false before any delta", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    expect(sp.isSpeaking()).toBe(false);
+  });
+
+  it("stays false after a text delta alone — text arrival is not audio", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    expect(sp.isSpeaking()).toBe(false);
+  });
+
+  it("is true once the pipeline actually plays audio (first onAmplitude)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    stub.emitAmplitude(0.4);
+    expect(sp.isSpeaking()).toBe(true);
+  });
+
+  it("stays false when the turn produces no audio (TTS off / every synth failed)", () => {
+    // delta streams and the bubble still closes via onPlaybackEnd, but no chunk ever
+    // reached playback — barge-in must not fire when there is nothing to interrupt.
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    stub.emitPlaybackEnd();
+    expect(sp.isSpeaking()).toBe(false);
+  });
+
+  it("is false after the pipeline fires onPlaybackEnd", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    stub.emitAmplitude(0.4);
+    stub.emitPlaybackEnd();
+    expect(sp.isSpeaking()).toBe(false);
+  });
+
+  it("is false after interrupt()", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    stub.emitAmplitude(0.4);
+    sp.interrupt();
+    expect(sp.isSpeaking()).toBe(false);
+  });
+
+  it("is false after abort()", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    stub.emitAmplitude(0.4);
+    sp.abort();
+    expect(sp.isSpeaking()).toBe(false);
+  });
+});
+
 describe("createSpeechPlayback — dispose", () => {
   it("disposes the underlying pipeline", () => {
     const stub = stubPipelineFactory();
