@@ -118,6 +118,19 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
         issues.push(`${id}.pingpong과 crossfade_loop는 상호 배타임`);
       }
     }
+    // crossfade_loop: loop 끝-처음 crossfade. loop 필수.
+    const rawCrossfadeLoop = entry.crossfade_loop;
+    let crossfade_loop: boolean | undefined;
+    if (rawCrossfadeLoop !== undefined) {
+      if (typeof rawCrossfadeLoop !== "boolean") {
+        issues.push(`${id}.crossfade_loop은 boolean이어야 함`);
+      } else {
+        crossfade_loop = rawCrossfadeLoop;
+      }
+      if (rawCrossfadeLoop === true && entry.loop !== true) {
+        issues.push(`${id}.crossfade_loop:true는 loop:true를 요구함`);
+      }
+    }
     // loop_cycles: [min,max] 왕복 횟수. 양의 정수 2개 + lo<=hi. pingpong:true에서만 유효.
     const rawLoopCycles = entry.loop_cycles;
     let loop_cycles: [number, number] | undefined;
@@ -158,6 +171,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
       ...(variant_policy !== undefined ? { variant_policy } : {}),
       ...(cycle_dwell_ms !== undefined ? { cycle_dwell_ms } : {}),
       ...(pingpong !== undefined ? { pingpong } : {}),
+      ...(crossfade_loop !== undefined ? { crossfade_loop } : {}),
       ...(loop_cycles !== undefined ? { loop_cycles } : {}),
       ...(fade_ms !== undefined ? { fade_ms } : {}),
       ...(broker_publish !== undefined ? { broker_publish } : {}),
