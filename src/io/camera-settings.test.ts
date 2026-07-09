@@ -215,7 +215,7 @@ describe("createCameraSettings — persistence", () => {
 
   it("stored value out of range is clamped on load: {zoom:99} → 3.0", () => {
     const storage: CameraStorage = {
-      load: () => ({ zoom: 99 }),
+      load: () => ({ ...DEFAULTS, zoom: 99 }),
       save: vi.fn(),
     };
     const store = createCameraSettings({ storage });
@@ -242,10 +242,10 @@ describe("createCameraSettings — persistence", () => {
 
   it("stored > initial: storage value takes priority over initial option", () => {
     const storage: CameraStorage = {
-      load: () => ({ zoom: 1.5 }),
+      load: () => ({ ...DEFAULTS, zoom: 1.5 }),
       save: vi.fn(),
     };
-    const store = createCameraSettings({ storage, initial: { zoom: 2.5 } });
+    const store = createCameraSettings({ storage, initial: { ...DEFAULTS, zoom: 2.5 } });
     expect(store.get().zoom).toBe(1.5);
   });
 });
@@ -262,7 +262,7 @@ describe("createCameraSettings — reloadFromStorage", () => {
     store.subscribe(cb);
 
     // 다른 창이 storage를 직접 갱신한 상황을 모사
-    storage._data = { zoom: 1.5 };
+    storage._data = { ...DEFAULTS, zoom: 1.5 };
     store.reloadFromStorage();
 
     expect(store.get().zoom).toBe(1.5);
@@ -273,7 +273,7 @@ describe("createCameraSettings — reloadFromStorage", () => {
   it("clamps an out-of-range stored value on reload", () => {
     const storage = makeMemStorage();
     const store = createCameraSettings({ storage });
-    storage._data = { zoom: 99 };
+    storage._data = { ...DEFAULTS, zoom: 99 };
     store.reloadFromStorage();
     expect(store.get().zoom).toBe(CAMERA_ZOOM_MAX);
   });
@@ -331,13 +331,13 @@ describe("createCameraSettings — reloadFromStorage", () => {
 
 describe("createCameraSettings — initial option", () => {
   it("uses initial.zoom when no storage is provided", () => {
-    const store = createCameraSettings({ initial: { zoom: 2.5 } });
+    const store = createCameraSettings({ initial: { ...DEFAULTS, zoom: 2.5 } });
     expect(store.get().zoom).toBe(2.5);
   });
 
   it("uses initial.zoom when storage returns null", () => {
     const storage: CameraStorage = { load: () => null, save: vi.fn() };
-    const store = createCameraSettings({ storage, initial: { zoom: 2.5 } });
+    const store = createCameraSettings({ storage, initial: { ...DEFAULTS, zoom: 2.5 } });
     expect(store.get().zoom).toBe(2.5);
   });
 });

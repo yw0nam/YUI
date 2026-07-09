@@ -20,7 +20,7 @@ function makeDeps(over: Partial<VoiceImportDeps> = {}): VoiceImportDeps {
     invoke: vi.fn(async () => ({
       id: "MyVoice",
       refPath: "/app-data/references/MyVoice/clip.wav",
-    })),
+    })) as unknown as VoiceImportDeps["invoke"],
     resolveRefUrl: vi.fn(async (p: string) => `asset://localhost/${p}`),
     ...over,
   };
@@ -92,7 +92,7 @@ describe("importVoiceFromFile — successful pick", () => {
 describe("removeUserVoice", () => {
   it("invokes remove_user_voice with the id", async () => {
     const invoke = vi.fn(async () => undefined);
-    await removeUserVoice("MyVoice", { invoke });
+    await removeUserVoice("MyVoice", { invoke: invoke as unknown as VoiceImportDeps["invoke"] });
     expect(invoke).toHaveBeenCalledWith("remove_user_voice", { id: "MyVoice" });
   });
 });

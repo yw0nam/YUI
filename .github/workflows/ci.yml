@@ -22,6 +22,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build # tsc 타입체크 + vite build
+      - run: pnpm typecheck:test # tsc 타입체크 (테스트 파일 포함)
       - run: pnpm test # vitest run
       - run: pnpm docs:build # vitepress build + dead-link check
 

@@ -201,7 +201,7 @@ describe("streamChat — generate_express capture (flat args)", () => {
 
     const express = events.find((e) => e.type === "express");
     expect(express).toBeDefined();
-    if (express!.type !== "express") throw new Error("narrow");
+    if (express?.type !== "express") throw new Error("narrow");
     // FLAT shape — no nested emotion/motion objects.
     expect(express.args.emotion_id).toBe("happy");
     expect(express.args.motion_id).toBe("embarrassed");
@@ -222,7 +222,7 @@ describe("streamChat — generate_express capture (flat args)", () => {
     const events = await collect(streamChat(CONFIG, req()));
     const final = events.find((e) => e.type === "completed");
     expect(final).toBeDefined();
-    if (final!.type !== "completed") throw new Error("narrow");
+    if (final?.type !== "completed") throw new Error("narrow");
     const env = final.envelope;
     // 텍스트와 generate_express가 하나의 정규화된 envelope으로 합쳐진다.
     expect(env.speech_text).toBe("안녕");
@@ -243,7 +243,7 @@ describe("streamChat — generate_express capture (flat args)", () => {
 
     const events = await collect(streamChat(CONFIG, req()));
     const final = events.find((e) => e.type === "completed");
-    if (final!.type !== "completed") throw new Error("narrow");
+    if (final?.type !== "completed") throw new Error("narrow");
     const env = final.envelope;
     expect(env.emotion).toEqual({ id: "thinking" });
     expect(env.motion).toBeUndefined();
@@ -318,7 +318,7 @@ describe("streamChat — generate_express-absent turn", () => {
     const events = await collect(streamChat(CONFIG, req()));
     const final = events.find((e) => e.type === "completed");
     expect(final).toBeDefined();
-    if (final!.type !== "completed") throw new Error("narrow");
+    if (final?.type !== "completed") throw new Error("narrow");
     const env = final.envelope;
     expect(env.speech_text).toBe("그냥 텍스트");
     // 파서는 idle/직전 기본값을 발명하지 않는다 — 그건 consumer의 몫.
@@ -348,7 +348,7 @@ describe("streamChat — live MCP-namespaced generate_express", () => {
 
     const express = events.find((e) => e.type === "express");
     expect(express).toBeDefined();
-    if (express!.type !== "express") throw new Error("narrow");
+    if (express?.type !== "express") throw new Error("narrow");
     expect(express.args.emotion_id).toBe("happy");
     expect(express.args.motion_id).toBe("happy");
     expect(express.args.emotion_text).toBe("[cheerful warm tone]");
@@ -369,7 +369,7 @@ describe("streamChat — live MCP-namespaced generate_express", () => {
     const events = await collect(streamChat(CONFIG, req()));
     const final = events.find((e) => e.type === "completed");
     expect(final).toBeDefined();
-    if (final!.type !== "completed") throw new Error("narrow");
+    if (final?.type !== "completed") throw new Error("narrow");
     const env = final.envelope;
     expect(env.emotion).toEqual({ id: "happy" });
     expect(env.motion).toEqual({ id: "happy" });
@@ -412,7 +412,7 @@ describe("streamChat — live MCP-namespaced generate_express", () => {
 
     const events = await collect(streamChat(CONFIG, req()));
     const final = events.find((e) => e.type === "completed");
-    if (final!.type !== "completed") throw new Error("narrow");
+    if (final?.type !== "completed") throw new Error("narrow");
     const env = final.envelope;
 
     expect(env.emotion).toEqual({ id: "happy" });
@@ -542,7 +542,7 @@ describe("streamChat — per-beat cues (multiple generate_express)", () => {
 
     const events = await collect(streamChat(CONFIG, req()));
     const final = events.find((e) => e.type === "completed");
-    if (final!.type !== "completed") throw new Error("narrow");
+    if (final?.type !== "completed") throw new Error("narrow");
     const env = final.envelope;
     // last cue (CUE_B) wins the fallback envelope, not the first.
     expect(env.emotion).toEqual({ id: "thinking" });
@@ -786,7 +786,7 @@ describe("streamChat — completed responseId", () => {
     const events = await collect(streamChat(CONFIG, req()));
     const final = events.find((e) => e.type === "completed");
     expect(final).toBeDefined();
-    if (final!.type !== "completed") throw new Error("narrow");
+    if (final?.type !== "completed") throw new Error("narrow");
     expect(final.responseId).toBe("resp_abc");
   });
 
@@ -797,7 +797,7 @@ describe("streamChat — completed responseId", () => {
 
     const events = await collect(streamChat(CONFIG, req()));
     const final = events.find((e) => e.type === "completed");
-    if (final!.type !== "completed") throw new Error("narrow");
+    if (final?.type !== "completed") throw new Error("narrow");
     expect(final.responseId).toBe("");
   });
 });
@@ -820,7 +820,7 @@ describe("streamChat — usage event", () => {
 
     const usage = events.find((e) => e.type === "usage");
     expect(usage).toBeDefined();
-    if (usage!.type !== "usage") throw new Error("narrow");
+    if (usage?.type !== "usage") throw new Error("narrow");
     expect(usage.usage).toEqual({
       input_tokens: 120,
       output_tokens: 30,

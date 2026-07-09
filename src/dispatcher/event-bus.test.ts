@@ -49,7 +49,6 @@ describe("event_bus — bus drop conditions (§4.2)", () => {
   });
 
   it("drops a schema-invalid envelope (missing event_name)", () => {
-    // @ts-expect-error intentionally invalid
     expect(bus.push(env({ event_name: undefined }))).toBe(false);
   });
 

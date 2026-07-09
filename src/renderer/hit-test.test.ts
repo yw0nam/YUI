@@ -78,8 +78,9 @@ describe("grabDimensions — offscreen grab size from the device buffer", () => 
 
   it("never returns a zero dimension for a tiny buffer", () => {
     const d = grabDimensions(3, 2, SCALE, MAX_W);
-    expect(d.gw).toBeGreaterThanOrEqual(1);
-    expect(d.gh).toBeGreaterThanOrEqual(1);
+    expect(d).not.toBeNull();
+    expect(d!.gw).toBeGreaterThanOrEqual(1);
+    expect(d!.gh).toBeGreaterThanOrEqual(1);
   });
 
   it("returns null for a non-positive buffer (nothing to grab)", () => {

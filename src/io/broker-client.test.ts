@@ -526,6 +526,18 @@ describe("deriveBrokerPayload", () => {
           broker_publish: false,
         },
       },
+      guardrails: {
+        dnd: { app_blocklist: [], camera_idle_off_ms: 0 },
+        debounce_ms: {
+          idle_watcher: 0,
+          os_event_watcher: 0,
+          backend_push_source: 0,
+          user_input_source: 0,
+        },
+        rate_limit: { window_ms: 0, tier2_max: 0, tier3_max: 0, overall_max: 0, cooldown_ms: 0 },
+      },
+      filler: { gap_ms: 0, gap_jitter_ms: 0, pools: {} },
+      hotkeys: { summon_global: "" },
     };
   }
 

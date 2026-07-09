@@ -16,7 +16,7 @@
  * - `clampToWorkArea` is the TS counterpart of Rust `clamp_to_work_area`.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 // ─── Mock @tauri-apps/api/core before importing drag.ts ─────────────────────
 vi.mock("@tauri-apps/api/core", () => ({
@@ -46,6 +46,7 @@ import {
   invokeGetMonitorsInfo,
   logicalToPhysical,
   type MonitorInfo,
+  type OrbitDelta,
   physicalToLogical,
 } from "./drag";
 
@@ -319,7 +320,7 @@ describe("initDrag", () => {
 describe("initDrag — onDragStart", () => {
   let el: EventTarget;
   let cleanup: () => void;
-  let onDragStart: ReturnType<typeof vi.fn>;
+  let onDragStart: Mock<() => void>;
 
   function down(clientX = 0, clientY = 0, buttons = 1): void {
     const ev = new Event("pointerdown") as Event & {
@@ -433,8 +434,8 @@ describe("initDrag — onDragStart", () => {
 describe("initDrag — onDragEnd", () => {
   let el: EventTarget;
   let cleanup: () => void;
-  let onDragStart: ReturnType<typeof vi.fn>;
-  let onDragEnd: ReturnType<typeof vi.fn>;
+  let onDragStart: Mock<() => void>;
+  let onDragEnd: Mock<() => void>;
 
   function down(clientX = 0, clientY = 0, buttons = 1): void {
     const ev = new Event("pointerdown") as Event & {
@@ -546,8 +547,8 @@ describe("initDrag — onDragEnd", () => {
 describe("initDrag — window_drop_release", () => {
   let el: EventTarget;
   let cleanup: () => void;
-  let onDragStart: ReturnType<typeof vi.fn>;
-  let onDragEnd: ReturnType<typeof vi.fn>;
+  let onDragStart: Mock<() => void>;
+  let onDragEnd: Mock<() => void>;
 
   function down(clientX = 0, clientY = 0, buttons = 1): void {
     const ev = new Event("pointerdown") as Event & {
@@ -689,8 +690,8 @@ describe("initDrag — window_drop_release", () => {
 describe("initDrag — orbit gesture (Shift + left-drag)", () => {
   let el: EventTarget;
   let cleanup: () => void;
-  let onDragStart: ReturnType<typeof vi.fn>;
-  let onOrbit: ReturnType<typeof vi.fn>;
+  let onDragStart: Mock<() => void>;
+  let onOrbit: Mock<(delta: OrbitDelta) => void>;
 
   function down(clientX = 0, clientY = 0, buttons = 1, shiftKey = false): Event {
     const ev = new Event("pointerdown", { cancelable: true }) as Event & {
@@ -841,8 +842,8 @@ describe("initDrag — orbit gesture works without the Tauri runtime (browser)",
 describe("initDrag — onOrbitStart / onOrbitEnd", () => {
   let el: EventTarget;
   let cleanup: () => void;
-  let onOrbitStart: ReturnType<typeof vi.fn>;
-  let onOrbitEnd: ReturnType<typeof vi.fn>;
+  let onOrbitStart: Mock<() => void>;
+  let onOrbitEnd: Mock<() => void>;
 
   function down(clientX = 0, clientY = 0, buttons = 1, shiftKey = false): void {
     const ev = new Event("pointerdown", { cancelable: true }) as Event & {
