@@ -208,6 +208,26 @@ describe("createConfigStore — subscribe lifecycle", () => {
   });
 });
 
+describe("createConfigStore — filler section diff", () => {
+  it("filler 변경 → reload() true, changed.has('filler')", async () => {
+    const map = goodFixture();
+    const store = createConfigStore({ read: mutableReader(map) });
+    await store.load();
+
+    const sub = vi.fn();
+    store.subscribe(sub);
+
+    (map["filler.json"] as { gap_ms: number }).gap_ms = 2000;
+    await expect(store.reload()).resolves.toBe(true);
+
+    expect(sub).toHaveBeenCalledTimes(1);
+    const [nextCfg, changed] = sub.mock.calls[0];
+    expect(nextCfg.filler.gap_ms).toBe(2000);
+    expect(changed.has("filler")).toBe(true);
+    expect(changed.has("avatar")).toBe(false);
+  });
+});
+
 describe("createConfigStore — secrets", () => {
   it("opts.secrets로 넘긴 plainSecretProvider를 store.secrets로 노출한다", async () => {
     const store = createConfigStore({
