@@ -148,6 +148,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const gainValue = root.querySelector<HTMLSpanElement>(".yui-gain__value:not(.yui-vad__value)")!;
   const vadSlider = root.querySelector<HTMLInputElement>(".yui-vad__slider")!;
   const vadValue = root.querySelector<HTMLSpanElement>(".yui-vad__value")!;
+  const bargeInSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-bargein-switch");
   const segEl = root.querySelector<HTMLDivElement>(".yui-field-row .yui-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const ttsTypeEl = root.querySelector<HTMLSelectElement>(".yui-tts-type")!;
@@ -237,6 +238,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
       "--fill",
       String((ms - VAD_SILENCE_MIN) / (VAD_SILENCE_MAX - VAD_SILENCE_MIN)),
     );
+    bargeInSwitchBtn?.setAttribute("aria-checked", String(vad.get().bargeIn));
   }
 
   function reflectAgent(): void {

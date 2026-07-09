@@ -1115,6 +1115,11 @@ async function bootstrap(): Promise<void> {
         proactiveSourceRef?.noteInteraction();
       },
       onState: (state, detail) => voiceInputStatus.set(state, detail),
+      onSpeechActive: () => {
+        if (vadSettings.get().bargeIn && speechPlayback.isSpeaking()) {
+          speechPlayback.interrupt();
+        }
+      },
     });
     voiceInputReady = true;
     // 직전 세션에서 켜둔 채 종료했으면(sttSettings.enabled) 자동 재개. 단일 start로 통일하고,

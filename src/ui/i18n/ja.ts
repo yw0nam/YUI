@@ -184,6 +184,8 @@ const ja: Record<string, string> = {
   "voice_input.silence_label": "無音のしきい値",
   "voice_input.silence_sub": "話し終わってからこの時間だけ待ってから送信します",
   "voice_input.silence_aria": "無音のしきい値",
+  "voice_input.bargein_label": "割り込み",
+  "voice_input.bargein_aria": "割り込み（話すとキャラが止まる）",
 
   // TTS output toggle
   "tts_output.label": "音声出力",

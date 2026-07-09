@@ -183,6 +183,8 @@ const ko: Record<string, string> = {
   "voice_input.silence_label": "침묵 기준",
   "voice_input.silence_sub": "말이 끝난 뒤 이만큼 기다렸다가 전송해요",
   "voice_input.silence_aria": "침묵 기준",
+  "voice_input.bargein_label": "말 끊기",
+  "voice_input.bargein_aria": "말 끊기 (내가 말하면 캐릭터가 멈춤)",
 
   // TTS output toggle
   "tts_output.label": "음성 출력",
