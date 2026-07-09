@@ -51,6 +51,15 @@
  */
 
 import OpenAI from "openai";
+import type {
+  ChatCompletionChunk,
+  ChatCompletionCreateParamsStreaming,
+  ChatCompletionMessageParam,
+} from "openai/resources/chat/completions";
+import type {
+  ResponseCreateParamsStreaming,
+  ResponseStreamEvent,
+} from "openai/resources/responses/responses";
 
 import type {
   ControlEnvelope,
@@ -165,9 +174,9 @@ export interface StreamChatOptions {
  * (CORS 우회 + SSE 스트리밍). 브라우저/vitest는 undefined → 글로벌 fetch.
  */
 export async function selectFetch(): Promise<typeof globalThis.fetch | undefined> {
-  if ((globalThis as any).__TAURI_INTERNALS__) {
-    const corsFetch = (globalThis as any).fetchCORS;
-    if (typeof corsFetch === "function") return corsFetch as typeof globalThis.fetch;
+  const g = globalThis as { __TAURI_INTERNALS__?: unknown; fetchCORS?: unknown };
+  if (g.__TAURI_INTERNALS__) {
+    if (typeof g.fetchCORS === "function") return g.fetchCORS as typeof globalThis.fetch;
   }
   return undefined;
 }
@@ -187,9 +196,10 @@ export function selectChatBaseUrl(
 ): string {
   if (chatApi === "chat_completions") return configuredBaseUrl;
 
-  const isTauri = env?.isTauri ?? !!(globalThis as any).__TAURI_INTERNALS__;
-  const isDev = env?.isDev ?? (import.meta as any).env?.DEV;
-  const origin = env?.origin ?? (globalThis as any).location?.origin;
+  const g = globalThis as { __TAURI_INTERNALS__?: unknown; location?: { origin?: string } };
+  const isTauri = env?.isTauri ?? !!g.__TAURI_INTERNALS__;
+  const isDev = env?.isDev ?? import.meta.env?.DEV;
+  const origin = env?.origin ?? g.location?.origin;
 
   if (isTauri) return configuredBaseUrl;
   if (isDev && origin) {
@@ -248,23 +258,23 @@ export async function* streamChat(
     ? request.instructions
     : config.chat_instructions;
 
-  let stream: AsyncIterable<any>;
+  let stream: AsyncIterable<ResponseStreamEvent>;
   try {
-    stream = (await client.responses.create(
-      {
-        // model: config-driven (EndpointsConfig.chat_model). Hermes Responses는 model 필수 —
-        // 미설정 시 생략(테스트 mock·model-less backend용). prod endpoints.json은 반드시 설정.
-        ...(config.chat_model ? { model: config.chat_model } : {}),
-        // instructions: 요청 오버라이드 우선, 없으면 config nudge. 둘 다 없으면 생략.
-        ...(effectiveInstructions ? { instructions: effectiveInstructions } : {}),
-        // reasoning.effort: 요청에 있을 때만 전달(none/minimal/low/medium 모두 명시 값).
-        ...(request.reasoning_effort ? { reasoning: { effort: request.reasoning_effort } } : {}),
-        input: request.input as any,
-        previous_response_id: request.previous_response_id,
-        stream: true,
-      },
-      { signal: request.signal },
-    )) as unknown as AsyncIterable<any>;
+    const params: ResponseCreateParamsStreaming = {
+      // model: config-driven (EndpointsConfig.chat_model). Hermes Responses는 model 필수 —
+      // 미설정 시 생략(테스트 mock·model-less backend용). prod endpoints.json은 반드시 설정.
+      ...(config.chat_model ? { model: config.chat_model } : {}),
+      // instructions: 요청 오버라이드 우선, 없으면 config nudge. 둘 다 없으면 생략.
+      ...(effectiveInstructions ? { instructions: effectiveInstructions } : {}),
+      // reasoning.effort: 요청에 있을 때만 전달(none/minimal/low/medium 모두 명시 값).
+      ...(request.reasoning_effort ? { reasoning: { effort: request.reasoning_effort } } : {}),
+      // ChatRequest.input은 의도적으로 unknown(OpenAI 호환 input, caller가 인코딩) — 호출 지점에서
+      // SDK가 받는 shape로만 좁혀 캐스트한다.
+      input: request.input as ResponseCreateParamsStreaming["input"],
+      previous_response_id: request.previous_response_id,
+      stream: true,
+    };
+    stream = await client.responses.create(params, { signal: request.signal });
   } catch (err) {
     // aborted signal이면 조용히 종료(hang 방지). 그 외(401 인증 실패 / 네트워크 등)는 무음으로
     // 삼키지 않고 error 이벤트로 노출한다 — placeholder 키 401이 "빈 스트림"으로 사라지는 함정 방지.
@@ -415,6 +425,11 @@ export async function* streamChat(
  * 도착 즉시 인라인으로 처리(express → express event, 그 외 → tool_status done) — finish_reason은
  * 더 이상 분기에 쓰이지 않는다(왕복이 없으므로 actionable하지 않다).
  */
+/** SDK는 model을 필수로 요구하지만 model-less mock/backend는 필드 자체를 생략한다 — 로컬로만 optional 완화. */
+type CCCreateParams = Omit<ChatCompletionCreateParamsStreaming, "model"> & {
+  model?: ChatCompletionCreateParamsStreaming["model"];
+};
+
 async function* streamChatCompletions(
   client: OpenAI,
   config: EndpointsConfig,
@@ -444,18 +459,21 @@ async function* streamChatCompletions(
     }
   }
 
-  let stream: AsyncIterable<any>;
+  let stream: AsyncIterable<ChatCompletionChunk>;
   try {
-    stream = (await client.chat.completions.create(
-      {
-        ...(config.chat_model ? { model: config.chat_model } : {}),
-        messages: (request.messages ?? []) as any,
-        ...(request.reasoning_effort ? { reasoning_effort: request.reasoning_effort } : {}),
-        stream: true,
-        stream_options: { include_usage: true },
-      } as any,
-      { signal: request.signal },
-    )) as unknown as AsyncIterable<any>;
+    const params: CCCreateParams = {
+      ...(config.chat_model ? { model: config.chat_model } : {}),
+      // CCMessage(chat-completions.ts)는 role별 discriminated union이 아닌 느슨한 구조 타입 —
+      // 런타임 shape(role/content)는 SDK의 ChatCompletionMessageParam과 동일하다.
+      messages: (request.messages ?? []) as unknown as ChatCompletionMessageParam[],
+      ...(request.reasoning_effort ? { reasoning_effort: request.reasoning_effort } : {}),
+      stream: true,
+      stream_options: { include_usage: true },
+    };
+    // model 생략을 허용하는 CCCreateParams → SDK가 요구하는 필수-model 타입으로 호출 지점에서 캐스트.
+    stream = await client.chat.completions.create(params as ChatCompletionCreateParamsStreaming, {
+      signal: request.signal,
+    });
   } catch (err) {
     if (!request.signal?.aborted) {
       const status = httpStatusOf(err);
