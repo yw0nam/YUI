@@ -29,6 +29,7 @@ export type {
   ScreenRect,
   // Input context
   ScreenSource,
+  SignalItem,
   ToolStatus,
   // Dispatcher-layer metadata
   TriggerMeta,

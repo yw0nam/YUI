@@ -1,13 +1,16 @@
 //! Loopback HTTP ingress — receives "work done" signals from external coding-agent
-//! finish-hooks and re-emits them as Tauri events into the frontend dispatcher.
+//! finish-hooks and opaque `signals` batches from the remote n8n workflow, then
+//! re-emits both as Tauri events into the frontend dispatcher.
 //!
 //! Binds loopback only; no auth (single-user desktop).
 
+use crate::os_event_watcher::epoch_ms;
 use serde::{Deserialize, Serialize};
 use std::thread;
 use tauri::{AppHandle, Emitter};
 
 pub const AGENT_INBOX_CHANNEL: &str = "agent-inbox";
+pub const SIGNALS_INBOX_CHANNEL: &str = "signals-inbox";
 
 const SUMMARY_MAX_BYTES: usize = 8192;
 /// Hard body read ceiling; prevents OOM on oversized payloads.
@@ -25,6 +28,21 @@ pub struct AgentDonePayload {
     pub ts: i64, // client epoch ms
 }
 
+/// `signals-inbox` event payload — fired when the remote n8n workflow posts to
+/// `/signals`. `signals` is treated as opaque JSON; the client does not
+/// interpret its contents.
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct SignalsPayload {
+    pub signals: Vec<serde_json::Value>,
+    pub ts: i64, // server epoch ms — n8n does not send a timestamp
+}
+
+/// Wire shape of a `/signals` POST body, before the server stamps `ts`.
+#[derive(Deserialize)]
+struct SignalsRequest {
+    signals: Vec<serde_json::Value>,
+}
+
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
 /// Validates and parses a raw HTTP request into an `AgentDonePayload`.
@@ -40,6 +58,28 @@ fn parse_request(method: &str, path: &str, body: &str) -> Result<AgentDonePayloa
         return Err(400);
     }
     serde_json::from_str(body).map_err(|_| 400u16)
+}
+
+/// Validates and parses a raw HTTP request into a `signals` array.
+///
+/// Returns `Err(400)` if method is not POST, path (before any query string) is
+/// not `/signals`, or the body is not valid JSON shaped `{"signals": [...]}`.
+/// Each element of `signals` is passed through as opaque JSON.
+fn parse_signals_request(
+    method: &str,
+    path: &str,
+    body: &str,
+) -> Result<Vec<serde_json::Value>, u16> {
+    if method != "POST" {
+        return Err(400);
+    }
+    let path_only = path.split('?').next().unwrap_or(path);
+    if path_only != "/signals" {
+        return Err(400);
+    }
+    serde_json::from_str::<SignalsRequest>(body)
+        .map(|r| r.signals)
+        .map_err(|_| 400u16)
 }
 
 /// Truncates `summary` to at most `SUMMARY_MAX_BYTES` bytes on a valid UTF-8
@@ -61,6 +101,13 @@ fn emit_agent_event(app: &AppHandle, payload: AgentDonePayload) {
     let result = app.emit(AGENT_INBOX_CHANNEL, payload);
     if let Err(e) = &result {
         log::warn!("agent_ingress_emit_failed error={e}");
+    }
+}
+
+fn emit_signals_event(app: &AppHandle, payload: SignalsPayload) {
+    let result = app.emit(SIGNALS_INBOX_CHANNEL, payload);
+    if let Err(e) = &result {
+        log::warn!("agent_ingress_signals_emit_failed error={e}");
     }
 }
 
@@ -100,10 +147,24 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
         }
     };
 
-    match parse_request(&method, &url, &body) {
-        Ok(payload) => {
+    let path_only = url.split('?').next().unwrap_or(&url);
+    let result = match path_only {
+        "/agent-done" => parse_request(&method, &url, &body).map(|payload| {
             let payload = cap_summary(payload);
             emit_agent_event(app, payload);
+        }),
+        "/signals" => parse_signals_request(&method, &url, &body).map(|signals| {
+            let payload = SignalsPayload {
+                signals,
+                ts: epoch_ms(),
+            };
+            emit_signals_event(app, payload);
+        }),
+        _ => Err(400),
+    };
+
+    match result {
+        Ok(()) => {
             let _ = request.respond(tiny_http::Response::from_string("").with_status_code(200u16));
         }
         Err(code) => {
@@ -241,5 +302,89 @@ mod tests {
         // Result must be valid UTF-8 (no split codepoints) and contain the marker.
         assert!(std::str::from_utf8(p.summary.as_bytes()).is_ok());
         assert!(p.summary.contains("[truncated]"));
+    }
+
+    // ── parse_signals_request ─────────────────────────────────────────────────
+
+    fn valid_signals_body() -> &'static str {
+        r#"{"signals":[{"kind":"reminder","payload":{"foo":"bar"}},{"kind":"alert"}]}"#
+    }
+
+    #[test]
+    fn parse_signals_request_valid_returns_signals() {
+        let signals = parse_signals_request("POST", "/signals", valid_signals_body()).unwrap();
+        assert_eq!(signals.len(), 2);
+        assert_eq!(signals[0]["kind"], "reminder");
+        assert_eq!(signals[1]["kind"], "alert");
+    }
+
+    #[test]
+    fn parse_signals_request_wrong_method_returns_400() {
+        assert_eq!(
+            parse_signals_request("GET", "/signals", valid_signals_body()).unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_signals_request_wrong_path_returns_400() {
+        assert_eq!(
+            parse_signals_request("POST", "/agent-done", valid_signals_body()).unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_signals_request_malformed_json_returns_400() {
+        assert_eq!(
+            parse_signals_request("POST", "/signals", "not json").unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_signals_request_missing_signals_key_returns_400() {
+        assert_eq!(
+            parse_signals_request("POST", "/signals", r#"{"other":[]}"#).unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_signals_request_path_with_query_string_is_accepted() {
+        let signals =
+            parse_signals_request("POST", "/signals?foo=bar", valid_signals_body()).unwrap();
+        assert_eq!(signals.len(), 2);
+    }
+
+    #[test]
+    fn parse_signals_request_empty_array_is_accepted() {
+        let signals = parse_signals_request("POST", "/signals", r#"{"signals":[]}"#).unwrap();
+        assert!(signals.is_empty());
+    }
+
+    // ── handle_request routing (/signals emits signals-inbox) ────────────────
+
+    #[test]
+    fn handle_request_routes_signals_and_stamps_ts() {
+        let signals = parse_signals_request("POST", "/signals", valid_signals_body()).unwrap();
+        let payload = SignalsPayload {
+            signals,
+            ts: epoch_ms(),
+        };
+        assert_eq!(payload.signals.len(), 2);
+        assert!(payload.ts > 0);
+    }
+
+    #[test]
+    fn unknown_path_returns_400() {
+        assert_eq!(
+            parse_request("POST", "/unknown", valid_body()).unwrap_err(),
+            400
+        );
+        assert_eq!(
+            parse_signals_request("POST", "/unknown", valid_signals_body()).unwrap_err(),
+            400
+        );
     }
 }

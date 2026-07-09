@@ -240,6 +240,17 @@ function githubCatchupOf(env: BusEnvelope): TriggerMeta["pr_catchup"] | undefine
   return { prs: prs as NonNullable<TriggerMeta["pr_catchup"]>["prs"] };
 }
 
+/**
+ * opaque signals batch — present on signals.push / signals.catchup. No structural
+ * validation of item contents (firing≠judgment): forwarded verbatim. Only the
+ * top-level shape (payload.signals is an array) is checked for TS narrowing.
+ */
+function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
+  if (!env.event_name.startsWith("signals.")) return undefined;
+  const s = env.payload?.signals;
+  return Array.isArray(s) ? (s as TriggerMeta["signals"]) : undefined;
+}
+
 /** 안전한 timezone 조회(환경에 따라 throw 가능 → fallback). */
 function resolveTimezone(): string {
   try {
@@ -373,7 +384,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           ? "github"
           : eventName.startsWith("agent.")
             ? "agent"
-            : "user";
+            : eventName.startsWith("signals.")
+              ? "signals"
+              : "user";
 
     // cue: present when payload carries cue_id+label+context; id is omitted from wire shape.
     const p = env.payload;
@@ -400,6 +413,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const agent = agentOf(env);
     const agentCatchup = agentCatchupOf(env);
 
+    // opaque signals batch (push or catchup) — forwarded verbatim, no item validation.
+    const signals = signalsOf(env);
+
     // screenshot meta only (data_url stripped — rides the image content-part above).
     const screenshotMeta: ClientContext["screenshot"] = ctx.screenshot
       ? (() => {
@@ -419,6 +435,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         ...(prCatchup ? { pr_catchup: prCatchup } : {}),
         ...(agent ? { agent } : {}),
         ...(agentCatchup ? { agent_catchup: agentCatchup } : {}),
+        ...(signals ? { signals } : {}),
       },
     };
   }

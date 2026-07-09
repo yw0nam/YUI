@@ -232,9 +232,12 @@ export interface CueMeta {
   idle_min?: number;
 }
 
+/** one item in a signals.kind burst. heterogeneous by design — taxonomy owned by n8n + Hermes, client forwards verbatim. */
+export type SignalItem = Record<string, unknown>;
+
 /** trigger envelope describing what fired this backend turn. */
 export interface TriggerMeta {
-  kind: "user" | "schedule" | "proactive" | "github" | "agent";
+  kind: "user" | "schedule" | "proactive" | "github" | "agent" | "signals";
   cue?: CueMeta;
   /** proactive only: Math.round(gap_ms / 60000). */
   idle_elapsed_min?: number;
@@ -278,6 +281,8 @@ export interface TriggerMeta {
       ts: number;
     }>;
   };
+  /** signals.ingress — opaque burst forwarded verbatim from the n8n /signals ingress. no per-item shape assumed. */
+  signals?: SignalItem[];
 }
 
 /**
