@@ -7,6 +7,14 @@
  *  - null/empty active_app_name does not overwrite with a bogus value.
  *  - before start() / without a listen fn: get() is {} and start() no-ops (no throw).
  *  - stop() calls the stored unlisten fn.
+ *  - active_app_changed appends to the recentApps buffer; drainRecentApps returns it in
+ *    order and empties it; maxRecentApps caps the buffer, dropping the oldest entries.
+ *  - peekRecentApps returns a copy without emptying the buffer.
+ *  - drainRecentApps(peeked) removes only the snapshotted entries; a switch that lands after
+ *    the peek survives and carries over to the next turn.
+ *  - drainRecentApps / peekRecentApps re-trim to the *live* cap on every call (not just on
+ *    push), so lowering the cap without a new app switch still yields a capped read.
+ *  - without maxRecentApps injected, the buffer is uncapped (no fallback default).
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -134,5 +142,109 @@ describe("os-context — snapshot from os_event", () => {
   it("stop() before start() is safe (no throw)", () => {
     const os = createOsContext({ listen: fakeListen().listen });
     expect(() => os.stop()).not.toThrow();
+  });
+});
+
+describe("os-context — recentApps buffer", () => {
+  it("drainRecentApps returns injected app switches in order, then empties the buffer", async () => {
+    const f = fakeListen();
+    const os = createOsContext({ listen: f.listen });
+    await os.start();
+    f.emit({ event_name: "active_app_changed", ts: 100, data: { active_app_name: "A" } });
+    f.emit({ event_name: "active_app_changed", ts: 200, data: { active_app_name: "B" } });
+    f.emit({ event_name: "active_app_changed", ts: 300, data: { active_app_name: "C" } });
+
+    expect(os.drainRecentApps()).toEqual([
+      { name: "A", ts: 100 },
+      { name: "B", ts: 200 },
+      { name: "C", ts: 300 },
+    ]);
+    expect(os.drainRecentApps()).toEqual([]);
+  });
+
+  it("maxRecentApps caps the buffer, dropping the oldest entry", async () => {
+    const f = fakeListen();
+    const os = createOsContext({ listen: f.listen, maxRecentApps: () => 2 });
+    await os.start();
+    f.emit({ event_name: "active_app_changed", ts: 100, data: { active_app_name: "A" } });
+    f.emit({ event_name: "active_app_changed", ts: 200, data: { active_app_name: "B" } });
+    f.emit({ event_name: "active_app_changed", ts: 300, data: { active_app_name: "C" } });
+
+    expect(os.drainRecentApps()).toEqual([
+      { name: "B", ts: 200 },
+      { name: "C", ts: 300 },
+    ]);
+  });
+
+  it("without maxRecentApps injected, the buffer is uncapped (no fallback default)", async () => {
+    const f = fakeListen();
+    const os = createOsContext({ listen: f.listen });
+    await os.start();
+    for (let i = 0; i < 15; i++) {
+      f.emit({
+        event_name: "active_app_changed",
+        ts: i,
+        data: { active_app_name: `app-${i}` },
+      });
+    }
+    expect(os.drainRecentApps()).toHaveLength(15);
+  });
+
+  it("peekRecentApps returns a copy of the buffer without emptying it", async () => {
+    const f = fakeListen();
+    const os = createOsContext({ listen: f.listen });
+    await os.start();
+    f.emit({ event_name: "active_app_changed", ts: 100, data: { active_app_name: "A" } });
+    f.emit({ event_name: "active_app_changed", ts: 200, data: { active_app_name: "B" } });
+
+    const expected = [
+      { name: "A", ts: 100 },
+      { name: "B", ts: 200 },
+    ];
+    expect(os.peekRecentApps()).toEqual(expected);
+    // buffer untouched by peek — a second peek sees the same entries.
+    expect(os.peekRecentApps()).toEqual(expected);
+    // drain still sees everything peek saw.
+    expect(os.drainRecentApps()).toEqual(expected);
+    expect(os.drainRecentApps()).toEqual([]);
+  });
+
+  it("lowering the live cap after pushes trims stale entries on the next peek/drain", async () => {
+    const f = fakeListen();
+    let cap = 10;
+    const os = createOsContext({ listen: f.listen, maxRecentApps: () => cap });
+    await os.start();
+    f.emit({ event_name: "active_app_changed", ts: 100, data: { active_app_name: "A" } });
+    f.emit({ event_name: "active_app_changed", ts: 200, data: { active_app_name: "B" } });
+    f.emit({ event_name: "active_app_changed", ts: 300, data: { active_app_name: "C" } });
+
+    // cap lowered without any further app switch — write-time trim never saw this.
+    cap = 2;
+    const expected = [
+      { name: "B", ts: 200 },
+      { name: "C", ts: 300 },
+    ];
+    expect(os.peekRecentApps()).toEqual(expected);
+    expect(os.drainRecentApps()).toEqual(expected);
+  });
+
+  it("drainRecentApps(peeked) removes only the snapshot; a switch after the peek survives", async () => {
+    const f = fakeListen();
+    const os = createOsContext({ listen: f.listen });
+    await os.start();
+    f.emit({ event_name: "active_app_changed", ts: 100, data: { active_app_name: "A" } });
+    f.emit({ event_name: "active_app_changed", ts: 200, data: { active_app_name: "B" } });
+
+    const peeked = os.peekRecentApps(); // snapshot [A, B] — what this turn sent
+    // C switches in mid-request, after the peek.
+    f.emit({ event_name: "active_app_changed", ts: 300, data: { active_app_name: "C" } });
+
+    // drain removes only the peeked entries, returning them; C is not touched.
+    expect(os.drainRecentApps(peeked)).toEqual([
+      { name: "A", ts: 100 },
+      { name: "B", ts: 200 },
+    ]);
+    // C carries over to the next turn instead of being lost.
+    expect(os.drainRecentApps()).toEqual([{ name: "C", ts: 300 }]);
   });
 });

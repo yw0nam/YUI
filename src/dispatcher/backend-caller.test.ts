@@ -449,6 +449,154 @@ describe("backend_caller — os context port", () => {
   });
 });
 
+describe("backend_caller — recent apps package (peek, non-destructive)", () => {
+  /** decode the flat ClientContext from the system message passed to streamChat. */
+  function clientContextOf(input: unknown): Record<string, unknown> {
+    const items = input as Array<{ role: string; content: string }>;
+    const sys = items.find((m) => m.role === "system")!;
+    const json = sys.content.replace(/^client_context:\s*/, "");
+    return JSON.parse(json);
+  }
+
+  it("peekRecentApps stub → env.recent_apps included as name+local ISO timestamp", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const peekRecentApps = vi.fn(() => [
+      { name: "Visual Studio Code", ts: 1_717_000_000_000 },
+      { name: "Slack", ts: 1_717_000_001_000 },
+    ]);
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      peekRecentApps,
+    });
+    await caller.call(userEnv());
+    expect(peekRecentApps).toHaveBeenCalledTimes(1);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    const env = ctx.env as Record<string, unknown>;
+    expect(env.recent_apps).toEqual([
+      { name: "Visual Studio Code", at: expect.any(String) },
+      { name: "Slack", at: expect.any(String) },
+    ]);
+  });
+
+  it("peekRecentApps returns [] → env.recent_apps omitted", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      peekRecentApps: () => [],
+    });
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    const env = ctx.env as Record<string, unknown>;
+    expect("recent_apps" in env).toBe(false);
+  });
+
+  it("peekRecentApps absent → env.recent_apps omitted", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    const env = ctx.env as Record<string, unknown>;
+    expect("recent_apps" in env).toBe(false);
+  });
+});
+
+describe("backend_caller — recent apps commit (drain only on confirmed success)", () => {
+  it("setup-stage reject (getApiKey throws) → drainRecentApps is never called (no loss)", async () => {
+    const peekRecentApps = vi.fn(() => [{ name: "Visual Studio Code", ts: 1_717_000_000_000 }]);
+    const drainRecentApps = vi.fn(() => [{ name: "Visual Studio Code", ts: 1_717_000_000_000 }]);
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => {
+        throw new Error("secret resolve failed");
+      },
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      peekRecentApps,
+      drainRecentApps,
+    });
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(false);
+    expect(res.drop_reason).toBe("network_drop");
+    // packageContext still peeked (best-effort attach attempted before the failure)…
+    expect(peekRecentApps).toHaveBeenCalledTimes(1);
+    // …but the buffer must never be cleared on a client-side failure — no loss.
+    expect(drainRecentApps).not.toHaveBeenCalled();
+  });
+
+  it("no completed event (parse_error) → drainRecentApps is never called", async () => {
+    const drainRecentApps = vi.fn(() => []);
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      drainRecentApps,
+    });
+    scriptedEvents = [{ type: "speech_delta", text: "x" }];
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(false);
+    expect(res.drop_reason).toBe("parse_error");
+    expect(drainRecentApps).not.toHaveBeenCalled();
+  });
+
+  it("a thrown stream (network_drop) → drainRecentApps is never called", async () => {
+    const drainRecentApps = vi.fn(() => []);
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      drainRecentApps,
+    });
+    streamChatError = new Error("boom");
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(false);
+    expect(res.drop_reason).toBe("network_drop");
+    expect(drainRecentApps).not.toHaveBeenCalled();
+  });
+
+  it("confirmed success (completed received, post-stream guards pass) → buffer drained exactly once, after peek", async () => {
+    const calls: string[] = [];
+    const peekRecentApps = vi.fn(() => {
+      calls.push("peek");
+      return [{ name: "Visual Studio Code", ts: 1_717_000_000_000 }];
+    });
+    const drainRecentApps = vi.fn(() => {
+      calls.push("drain");
+      return [{ name: "Visual Studio Code", ts: 1_717_000_000_000 }];
+    });
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      peekRecentApps,
+      drainRecentApps,
+    });
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(true);
+    expect(peekRecentApps).toHaveBeenCalledTimes(1);
+    expect(drainRecentApps).toHaveBeenCalledTimes(1);
+    // packaging (peek) happens before the buffer is committed/cleared (drain).
+    expect(calls).toEqual(["peek", "drain"]);
+  });
+});
+
 describe("backend_caller — flat client_context envelope", () => {
   /** decode the flat ClientContext { env, trigger, screenshot? } from the system message. */
   function clientContextOf(input: unknown): Record<string, unknown> {

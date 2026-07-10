@@ -75,6 +75,7 @@ import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-
 import { createOsContext } from "./io/os-context";
 import { createPresenceSettings, localStoragePresenceStorage } from "./io/presence-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
+import { createRecentAppsSettings, localStorageRecentAppsStorage } from "./io/recent-apps-settings";
 import { createScheduleSettings, localStorageScheduleStorage } from "./io/schedule-settings";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
@@ -257,6 +258,10 @@ async function bootstrap(): Promise<void> {
   });
   // Presence window threshold — "present when idle ≤ N ms". Shared by proactive/agent sources.
   const presenceSettings = createPresenceSettings({ storage: localStoragePresenceStorage() });
+  // Recent-apps buffer cap — os-context caps its app-switch buffer at this value.
+  const recentAppsSettings = createRecentAppsSettings({
+    storage: localStorageRecentAppsStorage(),
+  });
   const lipsyncSettings = createLipsyncSettings({
     storage: localStorageLipsyncStorage(),
   });
@@ -310,7 +315,9 @@ async function bootstrap(): Promise<void> {
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
   // foreground app/title 스냅샷 — backend_caller가 매 요청에 env로 첨부. non-Tauri면 no-op.
-  const osContext = createOsContext();
+  const osContext = createOsContext({
+    maxRecentApps: () => recentAppsSettings.get().recent_apps_max,
+  });
   void osContext.start();
   // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
   // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
@@ -389,6 +396,7 @@ async function bootstrap(): Promise<void> {
     scheduleSettings,
     agentNotifySettings,
     presenceSettings,
+    recentAppsSettings,
     idleThrottleSettings,
     ttsSettings,
   ];
@@ -443,6 +451,7 @@ async function bootstrap(): Promise<void> {
       scheduleSettings,
       agentNotifySettings,
       presenceSettings,
+      recentAppsSettings,
       sourceProvider: screenSourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,
@@ -573,6 +582,7 @@ async function bootstrap(): Promise<void> {
       scheduleSettings.dispose();
       agentNotifySettings.dispose();
       presenceSettings.dispose();
+      recentAppsSettings.dispose();
       lipsyncSettings.dispose();
       vadSettings.dispose();
       fillerSettings.dispose();
@@ -1013,6 +1023,8 @@ async function bootstrap(): Promise<void> {
       return buildScreenshotBlock(s, cap ?? undefined);
     },
     getOsContext: () => osContext.get(),
+    peekRecentApps: () => osContext.peekRecentApps(),
+    drainRecentApps: (only) => osContext.drainRecentApps(only),
     getAgentSettings: () => agentSettings.get(),
     // TTFT thinking: 디스패처는 타이밍만 소유 — effective 풀이 비어있지 않을 때만 타이머 무장.
     getFiller: () => {

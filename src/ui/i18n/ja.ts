@@ -282,6 +282,8 @@ const ja: Record<string, string> = {
   "reactions.presence_sub": "この時間以内の無操作であれば在席とみなします",
   "reactions.seconds_suffix": "秒",
   "reactions.restart_hint": "変更を適用するにはアプリを再起動してください",
+  "reactions.recent_apps_label": "最近のアプリを記憶",
+  "reactions.recent_apps_sub": "次のメッセージに含める最近切り替えたアプリの数です",
 
   // session
   "session.section": "セッション",

@@ -202,6 +202,8 @@ export interface InputContext {
     timezone: string;
     active_app?: { name: string; bundle_id?: string };
     active_window_title?: string;
+    /** Apps switched to since the last utterance, drained on send. */
+    recent_apps?: { name: string; at: string }[];
   };
 
   screenshot?: {
@@ -275,6 +277,8 @@ export interface ClientContext {
     timezone: string;
     active_app?: { name: string; bundle_id?: string };
     active_window_title?: string;
+    /** Apps switched to since the last utterance, drained on send. */
+    recent_apps?: { name: string; at: string }[];
   };
   screenshot?: {
     enabled: boolean;

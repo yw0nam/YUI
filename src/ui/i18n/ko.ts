@@ -280,6 +280,8 @@ const ko: Record<string, string> = {
   "reactions.presence_sub": "이 시간 이하로 자리를 비웠다면 작업 중으로 간주해요",
   "reactions.seconds_suffix": "초",
   "reactions.restart_hint": "변경 사항을 적용하려면 앱을 재시작해요",
+  "reactions.recent_apps_label": "최근 앱 기억",
+  "reactions.recent_apps_sub": "다음 메시지에 실릴 최근 전환 앱 개수예요",
 
   // session
   "session.section": "세션",

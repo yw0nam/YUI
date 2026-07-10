@@ -20,6 +20,7 @@ import {
   LIPSYNC_GAIN_MIN,
 } from "../../io/lipsync-settings";
 import type { createPresenceSettings } from "../../io/presence-settings";
+import type { createRecentAppsSettings } from "../../io/recent-apps-settings";
 import type { createScreenshotSettings } from "../../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
 import type { createTtsSettings } from "../../io/tts-settings";
@@ -80,6 +81,8 @@ export interface ReflectDeps {
   agentPortInput?: HTMLInputElement;
   presenceInput?: HTMLInputElement;
   presenceSettings?: ReturnType<typeof createPresenceSettings>;
+  recentAppsInput?: HTMLInputElement;
+  recentAppsSettings?: ReturnType<typeof createRecentAppsSettings>;
 }
 
 export interface Reflect {
@@ -89,6 +92,7 @@ export interface Reflect {
   reflectGaze(): void;
   reflectAgentNotify(): void;
   reflectPresence(): void;
+  reflectRecentApps(): void;
   reflectGain(): void;
   reflectVad(): void;
   reflectAgent(): void;
@@ -127,6 +131,8 @@ export function createReflect(deps: ReflectDeps): Reflect {
     agentPortInput,
     presenceInput,
     presenceSettings,
+    recentAppsInput,
+    recentAppsSettings,
   } = deps;
 
   const switchBtn = root.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
@@ -204,6 +210,11 @@ export function createReflect(deps: ReflectDeps): Reflect {
   function reflectPresence(): void {
     if (!presenceInput || !presenceSettings) return;
     presenceInput.value = String(presenceSettings.get().present_max_idle_ms / 1000);
+  }
+
+  function reflectRecentApps(): void {
+    if (!recentAppsInput || !recentAppsSettings) return;
+    recentAppsInput.value = String(recentAppsSettings.get().recent_apps_max);
   }
 
   function reflectGain(): void {
@@ -388,6 +399,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectIdleThrottle,
     reflectAgentNotify,
     reflectPresence,
+    reflectRecentApps,
     reflectTts,
     reflectGaze,
     reflectGain,

@@ -23,6 +23,7 @@ import {
 } from "../io/lipsync-settings";
 import type { createPresenceSettings } from "../io/presence-settings";
 import type { createProactiveSettings } from "../io/proactive-settings";
+import type { createRecentAppsSettings } from "../io/recent-apps-settings";
 import type { createScheduleSettings } from "../io/schedule-settings";
 import type { MonitorInfo, ScreenSourceProvider } from "../io/screen-source-provider";
 import type { createScreenshotSettings } from "../io/screenshot-settings";
@@ -63,6 +64,7 @@ type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 type SessionDiagnosticsStore = ReturnType<typeof createSessionDiagnosticsStore>;
 type SessionStore = ReturnType<typeof createSessionStore>;
 type PresenceSettingsStore = ReturnType<typeof createPresenceSettings>;
+type RecentAppsSettingsStore = ReturnType<typeof createRecentAppsSettings>;
 type ChatHistoryStore = ReturnType<typeof createChatHistoryStore>;
 
 interface QuickControlsOptions {
@@ -138,6 +140,8 @@ interface QuickControlsOptions {
   agentNotifySettings?: AgentNotifySettingsStore;
   /** 자리 비움 감지 store. 없으면 Reactions 탭의 presence 행을 그리지 않는다. */
   presenceSettings?: PresenceSettingsStore;
+  /** 최근 앱 기억 개수 cap store. 없으면 Reactions 탭의 recent-apps 행을 그리지 않는다. */
+  recentAppsSettings?: RecentAppsSettingsStore;
 }
 
 interface QuickControls {
@@ -214,6 +218,7 @@ export function createQuickControls({
   gazeSettings,
   agentNotifySettings,
   presenceSettings,
+  recentAppsSettings,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // 세션 섹션은 설정 창(window)에서만, 두 store가 모두 주입됐을 때 그린다.
@@ -242,6 +247,7 @@ export function createQuickControls({
     ttsEnabled: ttsSettings?.get().enabled ?? true,
     bargeInEnabled: vad.get().bargeIn,
     showPresence: !!presenceSettings,
+    showRecentApps: !!recentAppsSettings,
     railCollapsed: loadRailCollapsed(),
   });
 
@@ -252,6 +258,7 @@ export function createQuickControls({
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const agentPortInput = el.querySelector<HTMLInputElement>("#yui-agent-port");
   const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
+  const recentAppsInput = el.querySelector<HTMLInputElement>("#yui-recent-apps");
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const ttsSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-tts-switch");
   const bargeInSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-bargein-switch");
@@ -440,6 +447,8 @@ export function createQuickControls({
     agentPortInput: agentPortInput ?? undefined,
     presenceInput: presenceInput ?? undefined,
     presenceSettings,
+    recentAppsInput: recentAppsInput ?? undefined,
+    recentAppsSettings,
   });
 
   function renderMonitors(monitors: MonitorInfo[], currentSource: ScreenSource): void {
@@ -521,6 +530,7 @@ export function createQuickControls({
       reflect.reflectGaze();
       reflect.reflectAgentNotify();
       reflect.reflectPresence();
+      reflect.reflectRecentApps();
       reflect.reflectVoiceStatus(voiceStatus.get());
       reflect.reflectGain();
       reflect.reflectVad();
@@ -997,6 +1007,9 @@ export function createQuickControls({
   const unsubscribePresence = presenceSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectPresence();
   });
+  const unsubscribeRecentApps = recentAppsSettings?.subscribe(() => {
+    if (popover.isOpen()) reflect.reflectRecentApps();
+  });
 
   function handleAgentPortChange(): void {
     if (!agentNotifySettings || !agentPortInput) return;
@@ -1009,8 +1022,15 @@ export function createQuickControls({
     presenceSettings.setPresentMaxIdleMs(v * 1000);
     reflect.reflectPresence();
   }
+  function handleRecentAppsChange(): void {
+    if (!recentAppsSettings || !recentAppsInput) return;
+    const v = Math.round(Number(recentAppsInput.value));
+    recentAppsSettings.setRecentAppsMax(v);
+    reflect.reflectRecentApps();
+  }
   agentPortInput?.addEventListener("change", handleAgentPortChange);
   presenceInput?.addEventListener("change", handlePresenceChange);
+  recentAppsInput?.addEventListener("change", handleRecentAppsChange);
 
   // 큐 목록 컴포넌트 — schedule은 입력 탭 .yui-cue-sections, proactive는 Reactions 탭 .yui-loop-cue-section.
   const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
@@ -1152,8 +1172,10 @@ export function createQuickControls({
     unsubscribeGaze?.();
     unsubscribeAgentNotify?.();
     unsubscribePresence?.();
+    unsubscribeRecentApps?.();
     agentPortInput?.removeEventListener("change", handleAgentPortChange);
     presenceInput?.removeEventListener("change", handlePresenceChange);
+    recentAppsInput?.removeEventListener("change", handleRecentAppsChange);
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();
