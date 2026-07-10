@@ -282,6 +282,8 @@ const en: Record<string, string> = {
   "reactions.presence_sub": "Treat the session as present if the idle gap is below this",
   "reactions.seconds_suffix": "s",
   "reactions.restart_hint": "Restart the app to apply this change",
+  "reactions.recent_apps_label": "Recent apps to remember",
+  "reactions.recent_apps_sub": "How many recent app switches ride along on the next message",
 
   // session
   "session.section": "Session",

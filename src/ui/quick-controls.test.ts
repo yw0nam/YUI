@@ -32,6 +32,7 @@ import { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import { createLipsyncSettings } from "../io/lipsync-settings";
 import { createPresenceSettings } from "../io/presence-settings";
 import { createProactiveSettings } from "../io/proactive-settings";
+import { createRecentAppsSettings } from "../io/recent-apps-settings";
 import { createScheduleSettings } from "../io/schedule-settings";
 import { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import { createSessionStore } from "../io/session-store";
@@ -4573,6 +4574,36 @@ describe("createQuickControls — Reactions tab", () => {
     const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
     presenceSettings.setPresentMaxIdleMs(60000);
     expect(presenceInput.value).toBe("60");
+    qc.dispose();
+  });
+
+  it("does not render #yui-recent-apps when recentAppsSettings is absent", () => {
+    const qc = buildQc();
+    qc.open();
+    expect(qc.el.querySelector("#yui-recent-apps")).toBeNull();
+    qc.dispose();
+  });
+
+  it("renders #yui-recent-apps inside #yui-panel-react when recentAppsSettings is provided", () => {
+    const recentAppsSettings = createRecentAppsSettings();
+    const qc = buildQc({ recentAppsSettings });
+    qc.open();
+    const recentAppsInput = qc.el.querySelector<HTMLInputElement>("#yui-recent-apps");
+    expect(recentAppsInput).not.toBeNull();
+    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
+    expect(reactPanel.contains(recentAppsInput)).toBe(true);
+    qc.dispose();
+  });
+
+  it("change on #yui-recent-apps calls recentAppsSettings.setRecentAppsMax(n)", () => {
+    const recentAppsSettings = createRecentAppsSettings();
+    const setSpy = vi.spyOn(recentAppsSettings, "setRecentAppsMax");
+    const qc = buildQc({ recentAppsSettings });
+    qc.open();
+    const recentAppsInput = qc.el.querySelector<HTMLInputElement>("#yui-recent-apps")!;
+    recentAppsInput.value = "5";
+    recentAppsInput.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(setSpy).toHaveBeenCalledWith(5);
     qc.dispose();
   });
 

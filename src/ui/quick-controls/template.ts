@@ -33,6 +33,7 @@ export interface PanelHtmlOptions {
   ttsEnabled: boolean;
   bargeInEnabled: boolean;
   showPresence: boolean;
+  showRecentApps: boolean;
   /** Initial collapsed state of the sections rail, read from localStorage before first paint. */
   railCollapsed: boolean;
 }
@@ -50,6 +51,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     ttsEnabled,
     bargeInEnabled,
     showPresence,
+    showRecentApps,
     railCollapsed,
   } = o;
   const segButtonsHtml = REASONING_EFFORTS.map(
@@ -131,7 +133,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
           </div>`;
   }
 
-  // Numeric input row — label + sub-text + number input + optional suffix/hint.
+  // Numeric input row — 2-column like .yui-row: label+sub(+hint) left, number input right.
   function numRowHtml(opts: {
     id: string;
     labelKey: string;
@@ -145,9 +147,11 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     const suffixHtml = suffixKey ? `<span class="yui-cue__suffix">${t(suffixKey)}</span>` : "";
     const hintHtml = hintKey ? `<p class="yui-field-hint">${t(hintKey)}</p>` : "";
     return `
-          <div class="yui-input-row">
-            <label class="yui-input-row__label" for="${id}">${t(labelKey)}</label>
-            <span class="yui-input-row__sub">${t(subKey)}</span>
+          <div class="yui-input-row yui-input-row--inline">
+            <div class="yui-input-row__main">
+              <label class="yui-input-row__label" for="${id}">${t(labelKey)}</label>
+              <span class="yui-input-row__sub">${t(subKey)}</span>
+            </div>
             <div class="yui-input-wrap">
               <input class="yui-num-input" id="${id}" type="number" min="${min}" max="${max}" inputmode="numeric" />
               ${suffixHtml}
@@ -444,6 +448,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
         <div class="yui-quick__divider" aria-hidden="true"></div>
         <span class="yui-quick__section">${t("reactions.shared_title")}</span>
         ${showPresence ? numRowHtml({ id: "yui-presence", labelKey: "reactions.presence_label", subKey: "reactions.presence_sub", min: 10, max: 3600, suffixKey: "reactions.seconds_suffix", hintKey: "reactions.restart_hint" }) : ""}
+        ${showRecentApps ? numRowHtml({ id: "yui-recent-apps", labelKey: "reactions.recent_apps_label", subKey: "reactions.recent_apps_sub", min: 1, max: 50 }) : ""}
       </div>
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-adv" aria-labelledby="yui-tab-adv" tabindex="0" hidden>
