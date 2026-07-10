@@ -6,6 +6,9 @@
  *
  *  B1 package_context — InputContext 조립(user_text + env.timestamp +
  *     env.timezone). active_app/window은 getOsContext 스냅샷이 있을 때만 best-effort로 첨부.
+ *     recent_apps는 peekRecentApps로만 스냅샷(비우지 않음) — 버퍼는 전송 확정(post-stream 가드
+ *     통과) 시점에 drainRecentApps로만 비워, 그 전 클라 실패(setup/stream/parse_error)에서
+ *     앱 이력이 유실되지 않게 한다.
  *  B2 POST — io/chat-client.streamChat(config, req, { fetch, apiKey }). SSE는 chat-client가
  *     소유 — 여기서 직접 파싱하지 않는다. AbortSignal로 in-flight abort. idle-gap watchdog
  *     (IDLE_TIMEOUT_MS, 매 stream event에 리셋)이 정체된 호출을 abort한다 — TTFT는 첫 gap일 뿐,
@@ -80,6 +83,12 @@ export interface BackendCallerDeps {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   /** 현재 foreground app/title 스냅샷. present 시 env.active_app/active_window_title을 채운다. */
   getOsContext?: () => import("../io/os-context").OsContextSnapshot | undefined;
+  /** 직전 발화 이후 전환한 앱 버퍼를 비우지 않고 스냅샷 — B1 패키징 시점에 호출, present 시 env.recent_apps로 첨부.
+   * 버퍼를 비우지 않으므로 packageContext 이후 클라 실패(setup/stream/parse_error)가 나도 유실되지 않는다. */
+  peekRecentApps?: () => import("../io/os-context").RecentApp[];
+  /** 전송 확정(성공 — completed 수신 + post-stream 가드 통과) 시점에만 버퍼를 비운다.
+   * packageContext에서는 호출하지 않는다 — 그 사이 클라 실패가 나면 버퍼를 비우지 않아 다음 턴으로 이월된다. */
+  drainRecentApps?: () => import("../io/os-context").RecentApp[];
   /** per-beat cue sink — 매 express cue를 그대로 흘린다(emotion_id/motion_id/emotion_text). main.ts에서 TTS 파이프라인(speechPlayback.setCue)에 배선 — 문장 재생 시점에 audio-timed 적용. */
   onCue?: (cue: ExpressArgs) => void;
   /** tool_status sink — present 시에만 호출. */
@@ -289,6 +298,11 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const os = deps.getOsContext?.();
     if (os?.activeApp) ctx.env.active_app = { name: os.activeApp };
     if (os?.activeWindowTitle) ctx.env.active_window_title = os.activeWindowTitle;
+    // peek only — the buffer is cleared later, only once this turn's send is confirmed.
+    const recentApps = deps.peekRecentApps?.() ?? [];
+    if (recentApps.length) {
+      ctx.env.recent_apps = recentApps.map((a) => ({ name: a.name, at: localIso(a.ts, tz) }));
+    }
     if (deps.getScreenshot) {
       try {
         const screenshot = await deps.getScreenshot();
@@ -654,6 +668,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       if (envelope.speech_text) {
         deps.transcript?.append({ role: "assistant", text: envelope.speech_text, ts: Date.now() });
       }
+
+      // recent-apps buffer: clear only now that the turn is a confirmed success — same
+      // post-stream guard boundary as transcript/onResponseId above. Any earlier client-side
+      // failure (setup reject, stream throw/error, parse_error) returns before reaching here,
+      // so the buffer survives and carries over to the next turn instead of being lost.
+      deps.drainRecentApps?.();
 
       return { ok: true };
     } finally {

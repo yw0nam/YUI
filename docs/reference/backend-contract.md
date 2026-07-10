@@ -26,7 +26,10 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
     "timestamp": "ISO 8601 local time with offset", // e.g. "2026-06-15T19:30:00+09:00"
     "timezone": "IANA zone (auto-detected)",    // e.g. "Asia/Seoul"
     "active_app": { "name": "foreground app" }, // optional
-    "active_window_title": "foreground window"  // optional
+    "active_window_title": "foreground window", // optional
+    "recent_apps": [                            // optional; apps switched to since the last utterance, oldest→newest
+      { "name": "app name", "at": "ISO 8601 local time" }
+    ]
   },
   "screenshot": {                               // optional; present when screen capture is enabled
     "enabled": true,
