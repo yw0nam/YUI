@@ -10,6 +10,8 @@
  *  - active_app_changed appends to the recentApps buffer; drainRecentApps returns it in
  *    order and empties it; maxRecentApps caps the buffer, dropping the oldest entries.
  *  - peekRecentApps returns a copy without emptying the buffer.
+ *  - drainRecentApps(peeked) removes only the snapshotted entries; a switch that lands after
+ *    the peek survives and carries over to the next turn.
  *  - drainRecentApps / peekRecentApps re-trim to the *live* cap on every call (not just on
  *    push), so lowering the cap without a new app switch still yields a capped read.
  *  - without maxRecentApps injected, the buffer is uncapped (no fallback default).
@@ -224,5 +226,25 @@ describe("os-context — recentApps buffer", () => {
     ];
     expect(os.peekRecentApps()).toEqual(expected);
     expect(os.drainRecentApps()).toEqual(expected);
+  });
+
+  it("drainRecentApps(peeked) removes only the snapshot; a switch after the peek survives", async () => {
+    const f = fakeListen();
+    const os = createOsContext({ listen: f.listen });
+    await os.start();
+    f.emit({ event_name: "active_app_changed", ts: 100, data: { active_app_name: "A" } });
+    f.emit({ event_name: "active_app_changed", ts: 200, data: { active_app_name: "B" } });
+
+    const peeked = os.peekRecentApps(); // snapshot [A, B] — what this turn sent
+    // C switches in mid-request, after the peek.
+    f.emit({ event_name: "active_app_changed", ts: 300, data: { active_app_name: "C" } });
+
+    // drain removes only the peeked entries, returning them; C is not touched.
+    expect(os.drainRecentApps(peeked)).toEqual([
+      { name: "A", ts: 100 },
+      { name: "B", ts: 200 },
+    ]);
+    // C carries over to the next turn instead of being lost.
+    expect(os.drainRecentApps()).toEqual([{ name: "C", ts: 300 }]);
   });
 });

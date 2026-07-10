@@ -86,9 +86,12 @@ export interface BackendCallerDeps {
   /** 직전 발화 이후 전환한 앱 버퍼를 비우지 않고 스냅샷 — B1 패키징 시점에 호출, present 시 env.recent_apps로 첨부.
    * 버퍼를 비우지 않으므로 packageContext 이후 클라 실패(setup/stream/parse_error)가 나도 유실되지 않는다. */
   peekRecentApps?: () => import("../io/os-context").RecentApp[];
-  /** 전송 확정(성공 — completed 수신 + post-stream 가드 통과) 시점에만 버퍼를 비운다.
-   * packageContext에서는 호출하지 않는다 — 그 사이 클라 실패가 나면 버퍼를 비우지 않아 다음 턴으로 이월된다. */
-  drainRecentApps?: () => import("../io/os-context").RecentApp[];
+  /** 전송 확정(성공 — completed 수신 + post-stream 가드 통과) 시점에만, packageContext가 peek한
+   * 스냅샷(peekedApps)만 버퍼에서 제거한다. packageContext에서는 호출하지 않는다 — 그 사이 클라
+   * 실패가 나면 비우지 않아 다음 턴으로 이월되고, peek 이후 전환한 앱도 제거 대상에서 빠져 유실되지 않는다. */
+  drainRecentApps?: (
+    only?: import("../io/os-context").RecentApp[],
+  ) => import("../io/os-context").RecentApp[];
   /** per-beat cue sink — 매 express cue를 그대로 흘린다(emotion_id/motion_id/emotion_text). main.ts에서 TTS 파이프라인(speechPlayback.setCue)에 배선 — 문장 재생 시점에 audio-timed 적용. */
   onCue?: (cue: ExpressArgs) => void;
   /** tool_status sink — present 시에만 호출. */
@@ -283,7 +286,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
    * screenshot은 토글 ON일 때만 getScreenshot 포트로 첨부. 캡처 실패는 턴을 깨뜨리지 않는다 — 로그 후 스크린샷 없이 진행.
    * user_text는 encodeInput에서 user 메시지에만 실린다 — system context에는 포함되지 않는다.
    */
-  async function packageContext(env: BusEnvelope): Promise<InputContext> {
+  async function packageContext(
+    env: BusEnvelope,
+  ): Promise<{ ctx: InputContext; peekedApps: import("../io/os-context").RecentApp[] }> {
     const userText = userTextOf(env);
     const userImages = userImagesOf(env);
     const tz = resolveTimezone();
@@ -298,10 +303,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const os = deps.getOsContext?.();
     if (os?.activeApp) ctx.env.active_app = { name: os.activeApp };
     if (os?.activeWindowTitle) ctx.env.active_window_title = os.activeWindowTitle;
-    // peek only — the buffer is cleared later, only once this turn's send is confirmed.
-    const recentApps = deps.peekRecentApps?.() ?? [];
-    if (recentApps.length) {
-      ctx.env.recent_apps = recentApps.map((a) => ({ name: a.name, at: localIso(a.ts, tz) }));
+    // peek only — the buffer is cleared later, only once this turn's send is confirmed, and
+    // then only these snapshotted entries (drainRecentApps(peekedApps)) so a switch that lands
+    // mid-request survives.
+    const peekedApps = deps.peekRecentApps?.() ?? [];
+    if (peekedApps.length) {
+      ctx.env.recent_apps = peekedApps.map((a) => ({ name: a.name, at: localIso(a.ts, tz) }));
     }
     if (deps.getScreenshot) {
       try {
@@ -311,7 +318,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         log.warn("screenshot.failed", { error: String(err) });
       }
     }
-    return ctx;
+    return { ctx, peekedApps };
   }
 
   /**
@@ -456,7 +463,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       if (deps.getFiller?.()) startThinking();
 
       // B1
-      const ctx = await packageContext(env);
+      const { ctx, peekedApps } = await packageContext(env);
       const input = encodeInput(ctx, env);
       log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 
@@ -673,7 +680,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // post-stream guard boundary as transcript/onResponseId above. Any earlier client-side
       // failure (setup reject, stream throw/error, parse_error) returns before reaching here,
       // so the buffer survives and carries over to the next turn instead of being lost.
-      deps.drainRecentApps?.();
+      // Drain only the peeked snapshot — an app switch that landed mid-request (after peek) was
+      // never sent this turn, so it stays buffered for the next one instead of being discarded.
+      deps.drainRecentApps?.(peekedApps);
 
       return { ok: true };
     } finally {

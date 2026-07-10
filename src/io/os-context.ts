@@ -36,8 +36,10 @@ export interface OsContext {
   get(): OsContextSnapshot;
   start(): Promise<void>;
   stop(): void;
-  /** Returns the buffered app switches since the last drain, then empties the buffer. */
-  drainRecentApps(): RecentApp[];
+  /** Removes buffered app switches and returns them. With `only` (a prior peek snapshot),
+   * removes just those entries by identity — anything pushed after the peek survives, so a
+   * switch that lands mid-request isn't lost. Without `only`, drains the whole buffer. */
+  drainRecentApps(only?: RecentApp[]): RecentApp[];
   /** Returns a copy of the buffered app switches without clearing the buffer. */
   peekRecentApps(): RecentApp[];
 }
@@ -73,11 +75,19 @@ export function createOsContext(opts?: {
     return [...recentApps];
   }
 
-  function drainRecentApps(): RecentApp[] {
+  function drainRecentApps(only?: RecentApp[]): RecentApp[] {
     trimToCap();
-    const drained = recentApps;
-    recentApps = [];
-    return drained;
+    if (only === undefined) {
+      const drained = recentApps;
+      recentApps = [];
+      return drained;
+    }
+    // Remove exactly the snapshotted entries (identity match). Entries pushed after the peek
+    // stay in the buffer and carry over to the next turn.
+    const drop = new Set(only);
+    const removed = recentApps.filter((a) => drop.has(a));
+    recentApps = recentApps.filter((a) => !drop.has(a));
+    return removed;
   }
 
   function onEvent(payload: OsEventPayload): void {

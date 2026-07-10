@@ -1024,7 +1024,7 @@ async function bootstrap(): Promise<void> {
     },
     getOsContext: () => osContext.get(),
     peekRecentApps: () => osContext.peekRecentApps(),
-    drainRecentApps: () => osContext.drainRecentApps(),
+    drainRecentApps: (only) => osContext.drainRecentApps(only),
     getAgentSettings: () => agentSettings.get(),
     // TTFT thinking: 디스패처는 타이밍만 소유 — effective 풀이 비어있지 않을 때만 타이머 무장.
     getFiller: () => {
