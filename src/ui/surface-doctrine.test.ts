@@ -2,7 +2,7 @@
  * surface-doctrine.test.ts
  *
  * Guards two doctrine rules across the small-label-chip surfaces
- * (tool-status, capture, voice indicators):
+ * (tool-status, capture, voice indicators) and the boot-error notice:
  *  - the bubble is the only surface allowed a frosted backdrop-filter;
  *    chips/pills use an opaque-enough scrim instead of blur.
  *  - status colors come from tokens (--yui-accent / --yui-danger), never
@@ -27,7 +27,7 @@ function extractBlock(css: string, selector: string): string {
 }
 
 describe("chip/pill surfaces — no blur, scrim-strong background", () => {
-  for (const file of ["capture-indicator.css", "voice-input-indicator.css"]) {
+  for (const file of ["capture-indicator.css", "voice-input-indicator.css", "boot-error.css"]) {
     it(`${file} has no backdrop-filter (webkit-prefixed included)`, () => {
       expect(read(file)).not.toMatch(/backdrop-filter/);
     });
