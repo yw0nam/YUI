@@ -40,6 +40,13 @@ const ja: Record<string, string> = {
   "input.error_network": "応答なし · 接続確認",
   "input.error_parse": "応答処理に失敗",
 
+  // boot-failure notice
+  "boot.error_title": "YUI を起動できませんでした",
+  "boot.error_config": "設定を読み込めませんでした — {file}",
+  "boot.error_vrm":
+    "VRM モデルが見つかりません — resources/vrms/ に .vrm ファイルを置いて再起動してください。",
+  "boot.error_dismiss": "閉じる",
+
   // capture indicator
   "capture.watching": "画面を見ています",
 

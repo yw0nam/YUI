@@ -109,6 +109,7 @@ import {
   INPUT_FEET_GAP_PX,
   inputBottomFromAnchor,
 } from "./ui/anchor";
+import { showBootError } from "./ui/boot-error";
 import { createCaptureIndicator } from "./ui/capture-indicator";
 import {
   reloadFromStorage as reloadLocaleFromStorage,
@@ -1277,6 +1278,8 @@ async function bootstrap(): Promise<void> {
     if (import.meta.env.DEV) import.meta.hot?.dispose(unsubscribeBrokerOverride);
   } catch (err) {
     log.error("config_or_vrm_load_failed", { error: String(err) });
+    // 부트 실패 = 빈 투명 창. 원인(ConfigError vs VRM)을 사용자에게 보이게 남긴다(#316).
+    showBootError(root, err);
   }
 
   // 핫리로드: avatar manifest가 바뀌면 setManifest로 갱신 후 active VRM 핫스왑.

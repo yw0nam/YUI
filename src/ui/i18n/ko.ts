@@ -40,6 +40,13 @@ const ko: Record<string, string> = {
   "input.error_network": "응답 없음 · 연결 확인",
   "input.error_parse": "응답 처리 실패",
 
+  // boot-failure notice
+  "boot.error_title": "YUI를 시작하지 못했습니다",
+  "boot.error_config": "설정을 불러오지 못했습니다 — {file}",
+  "boot.error_vrm":
+    "VRM 모델을 찾을 수 없습니다 — resources/vrms/에 .vrm 파일을 넣고 다시 시작하세요.",
+  "boot.error_dismiss": "닫기",
+
   // capture indicator
   "capture.watching": "화면 보는 중",
 
