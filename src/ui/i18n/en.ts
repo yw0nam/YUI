@@ -174,6 +174,8 @@ const en: Record<string, string> = {
   "screenshot.source_aria": "Screen to send",
   "screenshot.monitor_primary": "Primary",
   "screenshot.display": "Display {n}",
+  "screenshot.monitors_error": "Could not load the display list.",
+  "screenshot.monitors_empty": "No displays found.",
   "screenshot.foot_on": "While on, this screen is attached to every message.",
   "screenshot.foot_off": "Off by default. Turn on to send your screen too.",
 

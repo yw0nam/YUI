@@ -491,9 +491,33 @@ export function createQuickControls({
     }
   }
 
+  // 목록 대신 띄우는 인라인 안내 — VRM/화자 섹션의 .yui-vrm__error 패턴과 동일한 톤.
+  function renderMonitorsNotice(kind: "error" | "empty"): void {
+    monitorsEl.innerHTML = "";
+    const notice = document.createElement("p");
+    notice.className = kind === "error" ? "yui-mon__error" : "yui-mon__empty";
+    notice.setAttribute("role", "status");
+    notice.textContent = t(
+      kind === "error" ? "screenshot.monitors_error" : "screenshot.monitors_empty",
+    );
+    monitorsEl.appendChild(notice);
+  }
+
   async function loadMonitors(): Promise<void> {
-    const monitors = await sourceProvider.listMonitors();
+    let monitors: MonitorInfo[];
+    try {
+      monitors = await sourceProvider.listMonitors();
+    } catch (err) {
+      // monitorsLoaded를 false로 남겨 다음 열림/토글에서 재시도한다.
+      log.error("monitor_list_failed", { error: String(err) });
+      renderMonitorsNotice("error");
+      return;
+    }
     monitorsLoaded = true;
+    if (monitors.length === 0) {
+      renderMonitorsNotice("empty");
+      return;
+    }
     renderMonitors(monitors, settings.get().source);
   }
 
