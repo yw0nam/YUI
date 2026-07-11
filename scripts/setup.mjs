@@ -37,6 +37,11 @@ export function ttsNeedsKey(provider) {
   return provider === "openai";
 }
 
+// --no-install 이면 마지막 pnpm install 을 건너뛴다.
+export function shouldInstall(argv) {
+  return !argv.includes("--no-install");
+}
+
 // .env 내용에서 key 한 줄만 갱신/추가. 빈 값이면 원본 그대로 둔다. 다른 줄은 보존.
 export function setEnvVar(env, key, value) {
   if (value === "" || value === undefined) return env;
@@ -58,16 +63,22 @@ function have(cmd, args = ["--version"]) {
   }
 }
 
-function checkPrereqs() {
+// 누락된 도구 이름 목록을 돌려준다. 호출측이 fail-fast 를 결정한다.
+export function checkPrereqs(haveCmd = have) {
   const checks = [
-    ["pnpm", have("pnpm")],
-    ["rustc", have("rustc")],
-    ["cargo", have("cargo")],
+    ["pnpm", haveCmd("pnpm")],
+    ["rustc", haveCmd("rustc")],
+    ["cargo", haveCmd("cargo")],
   ];
   console.log("\nPrerequisites:");
   for (const [name, ok] of checks) console.log(`  ${ok ? "✓" : "✗"} ${name}`);
-  if (checks.some(([, ok]) => !ok))
+  const missing = checks.filter(([, ok]) => !ok).map(([name]) => name);
+  if (missing.length) {
     console.log("  → missing tools: see https://v2.tauri.app/start/prerequisites/");
+    if (missing.includes("rustc") || missing.includes("cargo"))
+      console.log("  → install Rust: https://rustup.rs/");
+  }
+  return missing;
 }
 
 function checkVrm() {
@@ -88,7 +99,7 @@ async function main() {
   };
 
   console.log("YUI setup — blank answer keeps the current value.");
-  checkPrereqs();
+  if (checkPrereqs().length) process.exit(1);
   checkVrm();
 
   const cfgPath = join(root, "configs", "endpoints.json");
@@ -138,8 +149,15 @@ async function main() {
 
   rl.close();
 
+  const install = shouldInstall(process.argv);
+  if (install) {
+    console.log("\nRunning pnpm install…");
+    const r = spawnSync("pnpm", ["install"], { cwd: root, stdio: "inherit" });
+    if (r.status !== 0) process.exit(r.status ?? 1);
+  }
+
   console.log("\nNext:");
-  console.log("  pnpm install && pnpm tauri dev");
+  console.log(`  ${install ? "" : "pnpm install && "}pnpm tauri dev`);
   console.log("  External services (separate repos) — see docs/setup.md");
 }
 
