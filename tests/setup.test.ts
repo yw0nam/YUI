@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { mergeEndpoints, setEnvVar, ttsNeedsKey, ttsOverrides } from "../scripts/setup.mjs";
+import {
+  checkPrereqs,
+  mergeEndpoints,
+  setEnvVar,
+  shouldInstall,
+  ttsNeedsKey,
+  ttsOverrides,
+} from "../scripts/setup.mjs";
 
 describe("mergeEndpoints", () => {
   it("overrides only non-empty values, preserving the rest", () => {
@@ -55,6 +62,31 @@ describe("ttsNeedsKey", () => {
     expect(ttsNeedsKey("openai")).toBe(true);
     expect(ttsNeedsKey("irodori")).toBe(false);
     expect(ttsNeedsKey("none")).toBe(false);
+  });
+});
+
+describe("checkPrereqs", () => {
+  it("returns no missing tools when everything is present", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    expect(checkPrereqs(() => true)).toEqual([]);
+    log.mockRestore();
+  });
+
+  it("lists missing tools and prints the rustup link when the Rust toolchain is absent", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    expect(checkPrereqs((cmd) => cmd === "pnpm")).toEqual(["rustc", "cargo"]);
+    expect(log.mock.calls.flat().join("\n")).toContain("https://rustup.rs");
+    log.mockRestore();
+  });
+});
+
+describe("shouldInstall", () => {
+  it("is false when --no-install is passed", () => {
+    expect(shouldInstall(["node", "setup.mjs", "--no-install"])).toBe(false);
+  });
+
+  it("is true otherwise", () => {
+    expect(shouldInstall(["node", "setup.mjs"])).toBe(true);
   });
 });
 
