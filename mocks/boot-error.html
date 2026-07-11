@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YUI — Boot-failure notice (mock)</title>
+    <link rel="stylesheet" href="../src/ui/tokens.css" />
+    <link rel="stylesheet" href="../src/ui/boot-error.css" />
+    <style>
+      /* Mock-only chrome: a busy desktop backdrop (legible-on-anything) and two
+         static stages so both failure classes are visible side by side. */
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        gap: 28px;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 36px 20px;
+        box-sizing: border-box;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at 18% 22%, oklch(0.62 0.16 250 / 0.9), transparent 45%),
+          radial-gradient(circle at 82% 70%, oklch(0.55 0.17 30 / 0.85), transparent 50%),
+          linear-gradient(135deg, oklch(0.95 0.03 90), oklch(0.4 0.05 260));
+      }
+      .stage {
+        width: 420px;
+      }
+      .stage__cap {
+        margin: 0 0 8px 4px;
+        font-size: 12px;
+        font-weight: 600;
+        color: oklch(0.99 0 0 / 0.92);
+        text-shadow: 0 1px 3px oklch(0.1 0 0 / 0.6);
+      }
+      /* In-app the notice is fixed to the top edge; pin it inside each stage here. */
+      .stage .yui-boot-error {
+        position: relative;
+        top: auto;
+        left: auto;
+        transform: none;
+        max-width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <p class="stage__cap">VRM load failure</p>
+      <div class="yui-boot-error" role="alert">
+        <strong class="yui-boot-error__title">YUI failed to start</strong>
+        <button type="button" class="yui-boot-error__dismiss" aria-label="Dismiss">&times;</button>
+        <p class="yui-boot-error__guidance">
+          No VRM model found — put a .vrm file in resources/vrms/ and restart.
+        </p>
+        <p class="yui-boot-error__detail">Error: fetch of /vrms/carlotta.vrm failed (404)</p>
+      </div>
+    </div>
+    <div class="stage">
+      <p class="stage__cap">Config load failure</p>
+      <div class="yui-boot-error" role="alert">
+        <strong class="yui-boot-error__title">YUI failed to start</strong>
+        <button type="button" class="yui-boot-error__dismiss" aria-label="Dismiss">&times;</button>
+        <p class="yui-boot-error__guidance">Could not load settings — endpoints.json</p>
+        <p class="yui-boot-error__detail">chat_base_url: not a valid URL; tts_provider: unknown value "irodorii"</p>
+      </div>
+    </div>
+  </body>
+</html>

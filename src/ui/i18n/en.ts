@@ -40,6 +40,12 @@ const en: Record<string, string> = {
   "input.error_network": "No response · check connection",
   "input.error_parse": "Response parse failed",
 
+  // boot-failure notice
+  "boot.error_title": "YUI failed to start",
+  "boot.error_config": "Could not load settings — {file}",
+  "boot.error_vrm": "No VRM model found — put a .vrm file in resources/vrms/ and restart.",
+  "boot.error_dismiss": "Dismiss",
+
   // capture indicator
   "capture.watching": "Watching your screen",
 

@@ -1,0 +1,63 @@
+/* Boot-failure notice — shown only when boot fails and the window is otherwise blank.
+   Doctrine: own dark scrim + light text (legible-on-anything), no frosted blur
+   (the speech bubble owns the only frosted surface), danger color from tokens. */
+
+.yui-boot-error {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  max-width: min(46ch, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 0.7rem 0.95rem;
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text);
+  text-shadow: var(--yui-text-shadow);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.yui-boot-error__title {
+  display: block;
+  padding-right: 1.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--yui-danger);
+}
+
+.yui-boot-error__guidance {
+  margin: 0.35rem 0 0;
+}
+
+.yui-boot-error__detail {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--yui-text-dim);
+  overflow-wrap: anywhere;
+}
+
+.yui-boot-error__dismiss {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.55rem;
+  border: 0;
+  padding: 0.1rem 0.35rem;
+  background: transparent;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.yui-boot-error__dismiss:hover,
+.yui-boot-error__dismiss:focus-visible {
+  color: var(--yui-text);
+}
