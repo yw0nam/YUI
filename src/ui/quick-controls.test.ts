@@ -4640,3 +4640,165 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 });
+
+describe("createQuickControls — monitor picker error/empty state", () => {
+  let mount: HTMLElement;
+
+  // microtask flush — listMonitors is async; let its promise settle before asserting.
+  const flush = () => new Promise<void>((r) => setTimeout(r, 0));
+
+  beforeEach(() => {
+    let rafId = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return ++rafId;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    try {
+      globalThis.localStorage?.clear();
+    } catch {
+      /* localStorage 미사용 환경 무시 */
+    }
+    setLocale("en");
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+  });
+
+  // Screenshot attach enabled so open() kicks off loadMonitors immediately.
+  function makeEnabledSettings() {
+    return {
+      get: () => ({ enabled: true, source: { kind: "monitor" as const, index: 0 } }),
+      setEnabled: vi.fn(),
+      setSource: vi.fn(),
+      reloadFromStorage: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+      dispose: vi.fn(),
+    };
+  }
+
+  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    return createQuickControls({
+      mount,
+      settings: makeEnabledSettings(),
+      idleThrottleSettings: createIdleThrottleSettings(),
+      sourceProvider: makeSourceProvider(),
+      voiceStatus: makeVoiceStatus(),
+      lipsync: createLipsyncSettings(),
+      vad: createVadSettings(),
+      onGainPreview: vi.fn(),
+      onGainPreviewEnd: vi.fn(),
+      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+      endpointsSettings: createEndpointsSettings(),
+      proactiveSettings: createProactiveSettings(),
+      scheduleSettings: createScheduleSettings(),
+      chatKeySettings: createChatKeySettings(),
+      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
+      onPopOut: vi.fn(),
+      vrmSelection: createVrmSelection({
+        available: [
+          { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
+        ],
+        defaultUrl: "/vrms/carlotta.vrm",
+      }),
+      swapVrm: vi.fn(async () => {}),
+      importVrm: vi.fn(async () => {}),
+      removeUserVrm: vi.fn(async () => {}),
+      speakerSelection: createSpeakerSelection({
+        available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
+        defaultId: "natsume",
+      }),
+      swapSpeaker: vi.fn(async () => {}),
+      refreshSpeaker: vi.fn(async () => {}),
+      importVoice: vi.fn(async () => {}),
+      removeUserVoice: vi.fn(async () => {}),
+      ...extra,
+    });
+  }
+
+  it("renders one .yui-mon radio per monitor on success, no error/empty row", async () => {
+    const qc = buildQc({
+      sourceProvider: {
+        listMonitors: async () => [
+          { index: 0, primary: true, width: 1920, height: 1080 },
+          { index: 1, width: 2560, height: 1440 },
+        ],
+      },
+    });
+    qc.open();
+    await flush();
+
+    const rows = qc.el.querySelectorAll<HTMLButtonElement>(".yui-mon[role=radio]");
+    expect(rows).toHaveLength(2);
+    expect(qc.el.querySelector(".yui-mon__error")).toBeNull();
+    expect(qc.el.querySelector(".yui-mon__empty")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("renders an inline error row when listMonitors() rejects", async () => {
+    const qc = buildQc({
+      sourceProvider: {
+        listMonitors: async () => {
+          throw new Error("enumeration failed");
+        },
+      },
+    });
+    qc.open();
+    await flush();
+
+    const err = qc.el.querySelector<HTMLParagraphElement>(".yui-monitors .yui-mon__error");
+    expect(err).not.toBeNull();
+    expect(err!.getAttribute("role")).toBe("status");
+    expect(err!.textContent).toBe("Could not load the display list.");
+    expect(qc.el.querySelectorAll(".yui-mon[role=radio]")).toHaveLength(0);
+
+    qc.dispose();
+  });
+
+  it("renders an explicit empty state when listMonitors() resolves to []", async () => {
+    const qc = buildQc({
+      sourceProvider: { listMonitors: async () => [] },
+    });
+    qc.open();
+    await flush();
+
+    const empty = qc.el.querySelector<HTMLParagraphElement>(".yui-monitors .yui-mon__empty");
+    expect(empty).not.toBeNull();
+    expect(empty!.getAttribute("role")).toBe("status");
+    expect(empty!.textContent).toBe("No displays found.");
+    expect(qc.el.querySelectorAll(".yui-mon[role=radio]")).toHaveLength(0);
+
+    qc.dispose();
+  });
+
+  it("retries loading on the next open after a failure", async () => {
+    let fail = true;
+    const qc = buildQc({
+      sourceProvider: {
+        listMonitors: async () => {
+          if (fail) throw new Error("enumeration failed");
+          return [{ index: 0, primary: true }];
+        },
+      },
+    });
+    qc.open();
+    await flush();
+    expect(qc.el.querySelector(".yui-mon__error")).not.toBeNull();
+
+    fail = false;
+    qc.close();
+    qc.open();
+    await flush();
+
+    expect(qc.el.querySelector(".yui-mon__error")).toBeNull();
+    expect(qc.el.querySelectorAll(".yui-mon[role=radio]")).toHaveLength(1);
+
+    qc.dispose();
+  });
+});
