@@ -181,6 +181,8 @@ const ja: Record<string, string> = {
   "screenshot.source_aria": "送る画面",
   "screenshot.monitor_primary": "メイン画面",
   "screenshot.display": "ディスプレイ {n}",
+  "screenshot.monitors_error": "画面の一覧を読み込めませんでした。",
+  "screenshot.monitors_empty": "画面が見つかりませんでした。",
   "screenshot.foot_on": "オンの間は、すべてのメッセージにこの画面が添付されます。",
   "screenshot.foot_off": "初期設定はオフです。オンにすると画面も一緒に送ります。",
 

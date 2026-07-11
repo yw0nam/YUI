@@ -180,6 +180,8 @@ const ko: Record<string, string> = {
   "screenshot.source_aria": "보낼 화면",
   "screenshot.monitor_primary": "주 화면",
   "screenshot.display": "디스플레이 {n}",
+  "screenshot.monitors_error": "화면 목록을 불러오지 못했어요.",
+  "screenshot.monitors_empty": "감지된 화면이 없어요.",
   "screenshot.foot_on": "켜져 있는 동안 매 대화에 이 화면이 첨부돼요.",
   "screenshot.foot_off": "기본은 꺼져 있어요. 켜면 화면을 함께 보내요.",
 

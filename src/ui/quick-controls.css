@@ -1135,12 +1135,21 @@
   transform: scale(0);
 }
 
+.yui-mon__error,
 .yui-vrm__error,
 .yui-spk__error {
   margin: 0.1rem 0.6rem 0.35rem 2.3rem;
   font-size: 0.72rem;
   line-height: 1.4;
   color: var(--yui-danger);
+}
+
+/* 모니터 빈 상태 — 오류와 같은 자리, 안내 톤(mute)만 다르다. */
+.yui-mon__empty {
+  margin: 0.1rem 0.6rem 0.35rem 2.3rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--yui-text-mute);
 }
 
 /* ── "파일에서 추가…" ghost 행 — 예약·비활성 ── */
