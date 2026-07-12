@@ -280,6 +280,10 @@ const ko: Record<string, string> = {
   "agentNotify.sub": "Claude Code, opencode 등 코딩 에이전트가 작업을 마치면 먼저 말합니다.",
   "agentNotify.aria": "에이전트 완료 알림",
 
+  // first-run onboarding hint
+  "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",
+  "hint.first_run_no_hotkey": "우클릭하면 컨트롤이 열려요",
+
   // reactions tab
   "reactions.watchers_title": "감시",
   "reactions.shared_title": "공통",
