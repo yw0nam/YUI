@@ -52,6 +52,7 @@ fn open_settings(app: &AppHandle) {
         return;
     }
 
+    // Window params mirror src/io/settings-window.ts — keep both in sync.
     let handle = app.clone();
     if let Err(error) = std::thread::Builder::new()
         .name("yui-settings-window".into())

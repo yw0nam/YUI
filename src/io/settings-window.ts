@@ -51,6 +51,7 @@ async function openTauriSettingsWindow(): Promise<void> {
       }
       return;
     }
+    // Window params mirror src-tauri/src/tray.rs open_settings — keep both in sync.
     const win = new WebviewWindow(SETTINGS_LABEL, {
       url: SETTINGS_URL,
       title: SETTINGS_TITLE,
