@@ -33,11 +33,14 @@ Content-Type: application/json
 | `summary` | string | Yes | Speech material for the backend; capped at 8192 bytes at ingress |
 | `ts` | number | Yes | Epoch milliseconds when the hook fired |
 
+Each snippet first checks that the app's loopback ingress port is open and exits quietly when it isn't — the hook does no work (and, in Variant B, spends nothing on the summary model) unless YUI is running.
+
 ## Variant A — raw last message (zero cost)
 
 Claude Code `Stop` hook that sends the last assistant message as the summary. No model call; the backend agent reads the raw text.
 
 ```bash
+(exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
 last=$(jq -rs '[.[]|select(.type=="assistant")]|last|.message.content[]?|select(.type=="text").text' "$transcript_path")
 jq -n --arg s "$last" --arg cwd "$PWD" \
   '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,summary:$s,ts:(now*1000|floor)}' \
@@ -49,6 +52,7 @@ jq -n --arg s "$last" --arg cwd "$PWD" \
 Summarize the last message with Haiku before POSTing. The backend receives a concise, speech-ready sentence.
 
 ```bash
+(exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
 last=$(jq -rs '[.[]|select(.type=="assistant")]|last|.message.content[]?|select(.type=="text").text' "$transcript_path")
 summary=$(printf '%s' "$last" | claude -p "Summarize what was done in one sentence." --model claude-haiku-4-5)
 jq -n --arg s "$summary" --arg cwd "$PWD" \
@@ -83,6 +87,7 @@ Add the snippet to `.claude/settings.json` (project) or `~/.claude/settings.json
 Any tool that supports a post-run command can POST directly:
 
 ```bash
+(exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
 curl -s -X POST localhost:8770/agent-done \
   -H 'Content-Type: application/json' \
   -d "{\"tool\":\"opencode\",\"project\":\"$(basename $PWD)\",\"cwd\":\"$PWD\",\"summary\":\"$SUMMARY\",\"ts\":$(date +%s)000}"
