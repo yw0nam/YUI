@@ -28,6 +28,9 @@ mod github;
 // Loopback HTTP ingress — receives agent-done signals, re-emits as Tauri events.
 mod agent_ingress;
 
+// System tray controls for window visibility, settings, and quit.
+mod tray;
+
 use std::path::PathBuf;
 use tauri::Manager;
 use time::{OffsetDateTime, UtcOffset};
@@ -210,6 +213,7 @@ pub fn run() {
 
             // Start OS event polling loop (emits `os_event` IPC to webview).
             os_event_watcher::start(app.handle());
+            tray::setup(app.handle())?;
             // Loopback ingress starts via the `start_agent_ingress` command, invoked
             // once at boot with the user's stored port (restart-to-apply).
             Ok(())
