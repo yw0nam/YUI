@@ -25,7 +25,7 @@ log = "0.4"
 time = "0.3"
 # macos-private-api: tauri.conf.json app.macOSPrivateApi=true (투명 창) 필수 feature.
 # protocol-asset: app.security.assetProtocol.enable=true (번들 리소스 convertFileSrc) 필수 feature.
-tauri = { version = "2.11.2", features = ["macos-private-api", "protocol-asset"] }
+tauri = { version = "2.11.2", features = ["macos-private-api", "protocol-asset", "tray-icon"] }
 tauri-plugin-log = "2"
 tauri-plugin-cors-fetch = "5.0.0"
 tauri-plugin-dialog = "2"
