@@ -110,4 +110,33 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
 
     sp.dispose();
   });
+
+  it("releases the deferred bubble when a muted turn submits no audio", async () => {
+    const renderer = {
+      setMouthOpen: vi.fn(),
+      stopMouth: vi.fn(),
+      easeEmotionToNeutral: vi.fn(),
+      applyDirective: vi.fn(),
+      playMotion: vi.fn(),
+    };
+    const surfaces = {
+      beginSpeech: vi.fn(),
+      pushSpeech: vi.fn(),
+      endSpeech: vi.fn(),
+      finishSpeech: vi.fn(),
+    };
+    const synth = vi.fn(async () => new Uint8Array([1, 2, 3, 4]).buffer);
+    const sp = createSpeechPlayback({ renderer, surfaces, pipeline: { synth } });
+
+    sp.interrupt({ muteCurrentTurn: true });
+    sp.onSpeechDelta("late");
+    sp.onSpeechEnd();
+    await tick();
+
+    expect(synth).not.toHaveBeenCalled();
+    expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
+    expect(surfaces.finishSpeech).toHaveBeenCalledTimes(1);
+
+    sp.dispose();
+  });
 });

@@ -65,7 +65,7 @@ export interface SpeechPlayback {
   /** 오디오가 실제 재생 중인지 — 첫 재생 프레임부터 playback-end/interrupt/abort까지 true. 텍스트만 온 구간은 false. */
   isSpeaking(): boolean;
   /** 진행 중인 발화를 중단: 파이프라인 폐기·재생성 + 보류 말풍선 즉시 해제. */
-  interrupt(): void;
+  interrupt(opts?: { muteCurrentTurn?: boolean }): void;
   /** 비정상 종료(에러/네트워크 끊김) 정리: 파이프라인 폐기 + 보류 말풍선 즉시 해제. 다음 턴이 없어 재생성하지 않는다. */
   abort(): void;
   dispose(): void;
@@ -79,6 +79,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   let heldCue: ExpressArgs | null = null;
   // TTS-active window: opened by the first played audio frame, closed on playback-end/interrupt/abort.
   let speaking = false;
+  let muted = false;
 
   // fires when a sentence begins playback or its synth fails — audio-timed expression seam.
   function applyCue(cue: ExpressArgs | null): void {
@@ -126,10 +127,11 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       started = true;
     }
     surfaces.pushSpeech(clean);
-    pipeline.pushTextDelta(clean);
+    if (!muted) pipeline.pushTextDelta(clean);
   }
 
   function end(): void {
+    muted = false;
     if (!started) return;
     // flush held-back emoji carry (discards it — it's all emoji).
     stripper.flush();
@@ -151,6 +153,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       end();
     },
     setCue(cue) {
+      if (muted) return;
       if (motionHeld) {
         heldCue = cue;
       } else {
@@ -172,7 +175,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     isSpeaking() {
       return speaking;
     },
-    interrupt() {
+    interrupt(opts) {
       stripper.reset();
       pipeline.dispose();
       pipeline = buildPipeline();
@@ -180,6 +183,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       surfaces.endSpeech();
       started = false;
       speaking = false;
+      muted = opts?.muteCurrentTurn === true;
     },
     abort() {
       stripper.reset();
@@ -188,6 +192,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       surfaces.endSpeech();
       started = false;
       speaking = false;
+      muted = false;
     },
     dispose() {
       pipeline.dispose();

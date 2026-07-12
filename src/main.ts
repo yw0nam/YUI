@@ -1120,7 +1120,7 @@ async function bootstrap(): Promise<void> {
       onState: (state, detail) => voiceInputStatus.set(state, detail),
       onSpeechActive: () => {
         if (vadSettings.get().bargeIn && speechPlayback.isSpeaking()) {
-          speechPlayback.interrupt();
+          speechPlayback.interrupt({ muteCurrentTurn: true });
         }
       },
     });
