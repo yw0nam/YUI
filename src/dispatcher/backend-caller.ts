@@ -544,6 +544,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
             ac.abort();
           },
         )) {
+          if (externalSignal?.aborted) break;
           switch (ev.type) {
             case "speech_delta":
               // 실제 응답 발화 시작 — 여기서만 thinking 종료(thinkingDone로 첫 delta에서만 발화).
