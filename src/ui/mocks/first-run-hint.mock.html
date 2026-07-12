@@ -81,15 +81,6 @@
     white-space: nowrap;
   }
 
-  /* 힌트 안의 단축키 표기 — surfaces에 새 칩을 만들지 않고 quick-controls.css의
-     .yui-*__rename-hint kbd 패턴을 그대로 따른다: 박스/보더/앰버 없이 인라인
-     굵기+dim 색만. 앰버 예산(≤10%)에 전혀 손대지 않는 조용한 선택. */
-  .yui-bubble kbd {
-    font-family: inherit;
-    font-weight: 650;
-    color: var(--yui-text-dim);
-  }
-
   /* ── mock harness chrome (not part of the real surface) ── */
   .hint {
     position: fixed;
@@ -115,7 +106,7 @@
   </div>
 
   <div class="yui-bubble is-visible" id="bubble" role="status">
-    우클릭하면 컨트롤이 열려요 · <kbd>⌘⇧Y</kbd>로 말 걸 수 있어요
+    우클릭하면 컨트롤이 열려요 · ⌘⇧Y로 말 걸 수 있어요
     <span class="yui-bubble__sr">
       <!-- en: Right-click me for controls · press ⌘⇧Y to talk -->
       <!-- ja: 右クリックでコントロール · ⌘⇧Yで話しかけてね -->
