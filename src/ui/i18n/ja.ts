@@ -282,6 +282,10 @@ const ja: Record<string, string> = {
     "Claude Code や opencode などのコーディングエージェントがタスクを終えたら先に知らせます。",
   "agentNotify.aria": "エージェント完了通知",
 
+  // first-run onboarding hint
+  "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",
+  "hint.first_run_no_hotkey": "右クリックでコントロール",
+
   // reactions tab
   "reactions.watchers_title": "ウォッチャー",
   "reactions.shared_title": "共通",

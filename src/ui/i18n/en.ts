@@ -281,6 +281,10 @@ const en: Record<string, string> = {
     "Speaks up when a coding agent (Claude Code, opencode, …) finishes a task on your machine.",
   "agentNotify.aria": "Agent completion notifications",
 
+  // first-run onboarding hint
+  "hint.first_run": "Right-click me for controls · press {hotkey} to talk",
+  "hint.first_run_no_hotkey": "Right-click me for controls",
+
   // reactions tab
   "reactions.watchers_title": "Watchers",
   "reactions.shared_title": "Shared",

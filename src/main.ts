@@ -63,6 +63,7 @@ import { createFillerLoop } from "./io/filler-loop";
 import { effectiveFillerPool } from "./io/filler-pool";
 import { createFillerSettings, localStorageFillerStorage } from "./io/filler-settings";
 import { createGazeSettings, localStorageGazeStorage } from "./io/gaze-settings";
+import { createHintSettings, localStorageHintStorage } from "./io/hint-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
 import {
   createIdleThrottleSettings,
@@ -111,9 +112,11 @@ import {
 } from "./ui/anchor";
 import { showBootError } from "./ui/boot-error";
 import { createCaptureIndicator } from "./ui/capture-indicator";
+import { maybeShowFirstRunHint } from "./ui/first-run-hint";
 import {
   reloadFromStorage as reloadLocaleFromStorage,
   subscribe as subscribeLocale,
+  t,
 } from "./ui/i18n";
 import { createMockDriver } from "./ui/mock";
 import { createQuickControls } from "./ui/quick-controls";
@@ -312,6 +315,8 @@ async function bootstrap(): Promise<void> {
   const gazeSettings = createGazeSettings({ storage: localStorageGazeStorage() });
   renderer.setGazeEnabled(gazeSettings.get().enabled);
   gazeSettings.subscribe((s) => renderer.setGazeEnabled(s.enabled));
+  // First-run 온보딩 힌트 — 최초 1회만 노출되는 flag.
+  const hintSettings = createHintSettings({ storage: localStorageHintStorage() });
   const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
@@ -1154,6 +1159,15 @@ async function bootstrap(): Promise<void> {
       defaultId: cfg.endpoints.irodori_speaker ?? "",
     });
     await loadVrmSerialized(vrmSelection.getActive().url);
+    // First-run 온보딩 힌트 — 캐릭터가 보이는 즉시 1회, 기존 speech bubble로 노출.
+    maybeShowFirstRunHint({
+      seen: () => hintSettings.get().seen,
+      markSeen: () => hintSettings.setSeen(true),
+      surfaces,
+      hotkey: cfg.hotkeys.summon_global,
+      isMac: /Mac/.test(navigator.platform || navigator.userAgent),
+      t,
+    });
     // 클릭스루 hit-test: 캐릭터/가시 UI 위는 interactive, 그 외 빈 영역은 click-through.
     // interactive = renderer.hitTest(stage-local) ∪ 가시 입력 폼 ∪ 열린 quick-controls.
     // 좌표는 모두 viewport(client) 기준 — renderer.hitTest만 stage 좌상단 기준으로 변환한다.
