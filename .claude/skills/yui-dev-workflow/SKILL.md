@@ -17,30 +17,9 @@ How development happens in YUI: the mandatory work rules, the sub-agent roster, 
 - **GitHub tracker in English.** Issues, issue comments, and PR titles/bodies are written in English (chat with the user is any language); enforced by the `pr-title` CI job.
 - **UI: review existing → propose text structure → mock HTML → implement.** Read `src/ui/`, `DESIGN.md`, `PRODUCT.md` before any UI work; propose structure, get confirmation, create a standalone mock HTML, then implement (detail: `docs/agent-guide/design-context.md`).
 - **Tests accompany behavior.** New or changed behavior ships its test in the same PR; the `test-guard` CI job enforces this (`skip-tests` label bypasses). Write the failing test first (`test:`), then implementation (`feat:`), then refactor if needed (`refactor:`).
-- **Sub-agent-based development.** See `## When to delegate` below.
 - **Verify what you can verify before asking the user.** Anything observable (UI rendering / DOM state / logs) — verify yourself and attach proof to the PR's Runtime-evidence section; ask the user only for things that genuinely require them (audio playback, physical input feel).
 - **Comments: minimal, present-tense only.** Comment only what the code cannot say itself, in one line; no decision-history, spec-citation, or issue-number breadcrumbs.
 - **Docs: current-state only.** Write what the system *is*, declaratively, matching the code — no change-narrative, no PR/issue numbers as prose, no dated changelogs, no future/unbuilt work (`PostToolUse` docs guard enforces this).
-
-## Sub-agent Roster
-
-Specialist definitions are vendored in `.claude/agents/`. Invoke an agent by its exact `name:` (the **Agent** column).
-
-| Area | Agent (`name:`) | Model | Responsibility |
-|---|---|---|---|
-| **Renderer — graphics** | **Technical Artist** | `sonnet` | `src/renderer/` — shaders, expressions, motion, lipsync, frame-budget/perf |
-| **Renderer — load / Chat IO** | **Frontend Developer** | `sonnet` | `src/renderer/` three.js/VRM load + `src/io/chat-client.ts` Responses API SSE parser, `generate_express` capture |
-| **Dispatcher** | **Backend Architect** | `sonnet` | `src/dispatcher/` — event-bus, classify→guardrail→route |
-| **Audio IO** | **Voice AI Integration Engineer** | `sonnet` | `src/io/tts-pipeline.ts` + `stt-vad.ts` — TTS queue/ordering, VAD→STT |
-| **Tauri / Rust** | **Senior Developer** | `sonnet` | `src-tauri/` — os_event_watcher, IPC contract, `cargo test` |
-| **Contract / Schema** | **Software Architect** | `sonnet` | `src/contract/types.ts` (contract source of truth) + JSON schema validation |
-| **UI / Mock** | **UI Designer** | `sonnet` | Mock HTML authoring, DESIGN.md token compliance |
-| **Docs** | **Technical Writer** | `sonnet` | `docs/` updates — reference/backend-contract.md, reference/motions.md, reference/logging.md, reference/tts-emotion/ |
-| **Review** | **Code Reviewer** | `sonnet` | Diff review — correctness / maintainability / security / performance |
-| **Verification** | **Reality Checker** | `sonnet` | Evidence-based gating — Playwright screenshot + app-run log proof of UI/DOM/runtime behavior before certifying |
-| **Performance** | **Performance Benchmarker** | `sonnet` | Frame budget, lipsync/TTS timing, regression checks |
-
-> **No dedicated agent** for Test-writing, `configs/*.json` loaders, or `src/ambient/tier1.ts` — these are handled by the **same agent that owns the area**. The implementing agent writes its own failing tests first.
 
 ### Main Agent Role
 
