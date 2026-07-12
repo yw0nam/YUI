@@ -34,6 +34,7 @@ How development happens in YUI: the mandatory work rules, the sub-agent roster, 
 Default by rule; ask only on the boundary.
 
 - **Delegate to a sub-agent** if ANY: adds/changes behavior (needs TDD), touches a roster specialist area, or spans multiple files/steps.
+- **Delegate to an external CLI agent** (codex/opencode via `agent-send`) — load the `agent-team:agent-team` skill first; roles, session naming, and the spec→review→implement→verify cycle live there. External agents see none of this conversation, so the prompt must carry the YUI rules that apply (worktree→PR, TDD ordering, English tracker) and absolute paths.
 - **Do it directly** if ALL: no new behavior (typo·doc·comment·rename·config), ~20 lines or fewer, single file, mechanical.
 - **Genuinely borderline?** Ask the user one line: "이거 ○○ 작업인데 직접 할까요, 서브에이전트로 위임할까요?"
 
