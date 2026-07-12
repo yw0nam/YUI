@@ -926,6 +926,17 @@ describe("backend_caller — streaming speech deltas (incremental TTS)", () => {
     expect(speechEndSink).not.toHaveBeenCalled();
   });
 
+  it("drops a buffered speech delta yielded after the external signal aborts", async () => {
+    const ac = new AbortController();
+    speechDeltaSink.mockImplementationOnce(() => ac.abort());
+    scriptedEvents = [deltaEvent("first"), deltaEvent("buffered")];
+
+    const res = await caller.call(userEnv(), ac.signal);
+
+    expect(res.drop_reason).toBe("superseded_by_user");
+    expect(speechDeltaSink.mock.calls.map((c) => c[0])).toEqual(["first"]);
+  });
+
   it("error mid-stream with NO prior delta → silent (no abort, no end)", async () => {
     scriptedEvents = [{ type: "error", message: "boom" }];
     await caller.call(userEnv());

@@ -573,6 +573,121 @@ describe("createSpeechPlayback — interrupt swaps the pipeline and releases the
   });
 });
 
+describe("createSpeechPlayback — muted interrupted turn", () => {
+  it("keeps late text in the bubble without sending it to TTS", () => {
+    const multi = multiPipelineFactory();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces,
+      createPipeline: multi.factory,
+    });
+
+    sp.interrupt({ muteCurrentTurn: true });
+    sp.onSpeechDelta("late");
+
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith("late");
+    expect(multi.instances[1].pushTextDelta).not.toHaveBeenCalled();
+  });
+
+  it("ends the deferred bubble and empty pipeline for a muted turn", () => {
+    const multi = multiPipelineFactory();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces,
+      createPipeline: multi.factory,
+    });
+
+    sp.interrupt({ muteCurrentTurn: true });
+    sp.onSpeechDelta("late");
+    sp.onSpeechEnd();
+
+    expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
+    expect(multi.instances[1].end).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears mute when the next turn starts with a plain interrupt", () => {
+    const multi = multiPipelineFactory();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces: spySurfaces(),
+      createPipeline: multi.factory,
+    });
+
+    sp.interrupt({ muteCurrentTurn: true });
+    sp.interrupt();
+    sp.onSpeechDelta("next");
+
+    expect(multi.instances[2].pushTextDelta).toHaveBeenCalledWith("next");
+  });
+
+  it("clears mute when the interrupted turn completes", () => {
+    const multi = multiPipelineFactory();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces: spySurfaces(),
+      createPipeline: multi.factory,
+    });
+
+    sp.interrupt({ muteCurrentTurn: true });
+    sp.onSpeechDelta("late");
+    sp.onSpeechEnd();
+    sp.onSpeech("filler");
+
+    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("filler");
+  });
+
+  it("drops cues while muted without leaking one into a later filler", () => {
+    const multi = multiPipelineFactory();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces: spySurfaces(),
+      createPipeline: multi.factory,
+    });
+
+    sp.interrupt({ muteCurrentTurn: true });
+    sp.holdMotion(true);
+    sp.setCue({ emotion_id: "happy", motion_id: "dance" });
+    sp.onSpeechDelta("late");
+    sp.onSpeechEnd();
+    sp.holdMotion(false);
+    sp.onSpeech("filler");
+
+    expect(multi.instances[1].setCue).not.toHaveBeenCalled();
+    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("filler");
+  });
+
+  it("keeps delta routing unchanged after a plain interrupt", () => {
+    const multi = multiPipelineFactory();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces: spySurfaces(),
+      createPipeline: multi.factory,
+    });
+
+    sp.interrupt();
+    sp.onSpeechDelta("next");
+
+    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("next");
+  });
+
+  it("clears mute when the interrupted turn completes without a delta", () => {
+    const multi = multiPipelineFactory();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces: spySurfaces(),
+      createPipeline: multi.factory,
+    });
+
+    sp.interrupt({ muteCurrentTurn: true });
+    sp.onSpeechEnd();
+    sp.onSpeech("filler");
+
+    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("filler");
+  });
+});
+
 describe("createSpeechPlayback — abort tears down without rebuilding", () => {
   it("disposes the current pipeline and releases the bubble (non-defer), no fresh pipeline", () => {
     const multi = multiPipelineFactory();
