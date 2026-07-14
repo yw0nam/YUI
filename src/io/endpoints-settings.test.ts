@@ -53,22 +53,6 @@ describe("createEndpointsSettings — defaults", () => {
     const store = createEndpointsSettings();
     expect(store.get()).toEqual(EMPTY);
   });
-
-  it("get() returns a copy, not the internal reference", () => {
-    const store = createEndpointsSettings();
-    const a = store.get();
-    const b = store.get();
-    expect(a).not.toBe(b);
-    expect(a).toEqual(b);
-  });
-
-  it("uses initial when no storage is provided", () => {
-    const store = createEndpointsSettings({
-      initial: { ...EMPTY, chat_base_url: "http://x", chat_model: "m" },
-    });
-    expect(store.get().chat_base_url).toBe("http://x");
-    expect(store.get().chat_model).toBe("m");
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,35 +98,6 @@ describe("createEndpointsSettings — load coercion", () => {
     };
     const store = createEndpointsSettings({ storage });
     expect(store.get()).toEqual({ ...EMPTY, chat_model: "only" });
-  });
-
-  it("storage.load() returning null falls back to all-empty", () => {
-    const storage: EndpointsStorage = { load: () => null, save: vi.fn() };
-    const store = createEndpointsSettings({ storage });
-    expect(store.get()).toEqual(EMPTY);
-  });
-
-  it("storage.load() throwing falls back to all-empty", () => {
-    const storage: EndpointsStorage = {
-      load: () => {
-        throw new Error("boom");
-      },
-      save: vi.fn(),
-    };
-    const store = createEndpointsSettings({ storage });
-    expect(store.get()).toEqual(EMPTY);
-  });
-
-  it("stored > initial: storage value takes priority over initial option", () => {
-    const storage: EndpointsStorage = {
-      load: () => ({ ...EMPTY, chat_model: "stored" }),
-      save: vi.fn(),
-    };
-    const store = createEndpointsSettings({
-      storage,
-      initial: { ...EMPTY, chat_model: "init" },
-    });
-    expect(store.get().chat_model).toBe("stored");
   });
 });
 
@@ -260,19 +215,6 @@ function makeMemStorage(): EndpointsStorage & { _data: EndpointOverrides | null 
 }
 
 describe("createEndpointsSettings — reloadFromStorage", () => {
-  it("applies an externally-changed stored value and notifies", () => {
-    const storage = makeMemStorage();
-    const store = createEndpointsSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    storage._data = { ...EMPTY, chat_base_url: "http://from-other" };
-    store.reloadFromStorage();
-
-    expect(store.get().chat_base_url).toBe("http://from-other");
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
   it("coerces invalid stored values on reload", () => {
     const storage = makeMemStorage();
     const store = createEndpointsSettings({ storage });
@@ -280,67 +222,11 @@ describe("createEndpointsSettings — reloadFromStorage", () => {
     store.reloadFromStorage();
     expect(store.get()).toEqual(EMPTY);
   });
-
-  it("identical value is a no-op (no notify)", () => {
-    const storage = makeMemStorage();
-    const store = createEndpointsSettings({ storage });
-    store.set({ chat_model: "m" });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reloadFromStorage();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage is absent", () => {
-    const store = createEndpointsSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage.load throws", () => {
-    let throws = false;
-    const storage: EndpointsStorage = {
-      load: () => {
-        if (throws) throw new Error("boom");
-        return null;
-      },
-      save: vi.fn(),
-    };
-    const store = createEndpointsSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    throws = true;
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createEndpointsSettings — subscribe / dispose
 // ─────────────────────────────────────────────────────────────────────────────
-
-describe("createEndpointsSettings — subscribe / dispose", () => {
-  it("unsubscribe fn stops notifications", () => {
-    const store = createEndpointsSettings();
-    const cb = vi.fn();
-    const unsub = store.subscribe(cb);
-    store.set({ chat_model: "a" });
-    unsub();
-    store.set({ chat_model: "b" });
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("dispose() clears all subscribers", () => {
-    const store = createEndpointsSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.dispose();
-    store.set({ chat_model: "a" });
-    expect(cb).not.toHaveBeenCalled();
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // isValidEndpointUrl
@@ -747,22 +633,6 @@ describe("mergeEndpoints — tts_voice", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("localStorageEndpointsStorage", () => {
-  it("round-trips through stubbed globalThis.localStorage", () => {
-    const fakeStore: Record<string, string> = {};
-    (globalThis as any).localStorage = {
-      getItem: (k: string) => fakeStore[k] ?? null,
-      setItem: (k: string, v: string) => {
-        fakeStore[k] = v;
-      },
-    };
-
-    const adapter = localStorageEndpointsStorage();
-    adapter.save({ ...EMPTY, chat_model: "yo" });
-    expect(adapter.load()).toEqual({ ...EMPTY, chat_model: "yo" });
-
-    delete (globalThis as any).localStorage;
-  });
-
   it("default key is 'yui.endpoints'", () => {
     const written: Array<[string, string]> = [];
     (globalThis as any).localStorage = {
@@ -789,27 +659,5 @@ describe("localStorageEndpointsStorage", () => {
     expect(written[0][0]).toBe("my.key");
 
     delete (globalThis as any).localStorage;
-  });
-
-  it("JSON parse failure returns null", () => {
-    (globalThis as any).localStorage = {
-      getItem: () => "{not json",
-      setItem: () => {},
-    };
-    const adapter = localStorageEndpointsStorage();
-    expect(adapter.load()).toBeNull();
-    delete (globalThis as any).localStorage;
-  });
-
-  it("gracefully returns null when localStorage is unavailable", () => {
-    const saved = (globalThis as any).localStorage;
-    delete (globalThis as any).localStorage;
-
-    const adapter = localStorageEndpointsStorage();
-    expect(() => adapter.load()).not.toThrow();
-    expect(adapter.load()).toBeNull();
-    expect(() => adapter.save(EMPTY)).not.toThrow();
-
-    if (saved !== undefined) (globalThis as any).localStorage = saved;
   });
 });

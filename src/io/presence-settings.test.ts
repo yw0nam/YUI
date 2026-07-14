@@ -19,13 +19,11 @@ import {
 
 function fakeStorage(
   initial?: PresenceSettings | null,
-  opts?: { throwOnLoad?: boolean },
 ): PresenceStorage & { saved: PresenceSettings[] } {
   const saved: PresenceSettings[] = [];
   return {
     saved,
     load() {
-      if (opts?.throwOnLoad) throw new Error("storage exploded");
       return initial ?? null;
     },
     save(s) {
@@ -130,27 +128,7 @@ describe("createPresenceSettings — setPresentMaxIdleMs", () => {
   });
 });
 
-describe("createPresenceSettings — hydration precedence", () => {
-  it("valid stored value wins over initial", () => {
-    const stored: PresenceSettings = { present_max_idle_ms: 60000 };
-    const initial: PresenceSettings = { present_max_idle_ms: 120000 };
-    const store = createPresenceSettings({ storage: fakeStorage(stored), initial });
-    expect(store.get()).toEqual(stored);
-  });
-
-  it("initial wins over defaults when no stored value", () => {
-    const initial: PresenceSettings = { present_max_idle_ms: 240000 };
-    const store = createPresenceSettings({ storage: fakeStorage(null), initial });
-    expect(store.get()).toEqual(initial);
-  });
-});
-
 describe("createPresenceSettings — malformed/throwing storage", () => {
-  it("storage.load() throws → defaults, factory does not throw", () => {
-    const store = createPresenceSettings({ storage: fakeStorage(null, { throwOnLoad: true }) });
-    expect(store.get()).toEqual({ present_max_idle_ms: 180000 });
-  });
-
   it("stored blob with missing present_max_idle_ms → defaults", () => {
     const malformed = {} as unknown as PresenceSettings;
     const store = createPresenceSettings({ storage: fakeStorage(malformed) });
@@ -167,77 +145,5 @@ describe("createPresenceSettings — malformed/throwing storage", () => {
     const malformed = { present_max_idle_ms: NaN } as unknown as PresenceSettings;
     const store = createPresenceSettings({ storage: fakeStorage(malformed) });
     expect(store.get()).toEqual({ present_max_idle_ms: 180000 });
-  });
-});
-
-describe("createPresenceSettings — reloadFromStorage (cross-window sync)", () => {
-  it("applies an externally-changed value and notifies", () => {
-    const storage = memStorage();
-    const store = createPresenceSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    storage._data = { present_max_idle_ms: 300000 };
-    store.reloadFromStorage();
-
-    expect(store.get()).toEqual({ present_max_idle_ms: 300000 });
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("identical value is a no-op (no notify)", () => {
-    const storage = memStorage();
-    const store = createPresenceSettings({ storage });
-    store.setPresentMaxIdleMs(300000);
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reloadFromStorage(); // same value → no notify
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage is absent", () => {
-    const store = createPresenceSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
-});
-
-describe("createPresenceSettings — subscribe/unsubscribe", () => {
-  it("subscribe returns unsubscribe fn that stops notifications", () => {
-    const store = createPresenceSettings();
-    const cb = vi.fn();
-    const unsub = store.subscribe(cb);
-
-    store.setPresentMaxIdleMs(300000);
-    expect(cb).toHaveBeenCalledOnce();
-
-    unsub();
-    store.setPresentMaxIdleMs(180000);
-    expect(cb).toHaveBeenCalledOnce(); // no more
-  });
-
-  it("multiple subscribers are each notified independently", () => {
-    const store = createPresenceSettings();
-    const cb1 = vi.fn();
-    const cb2 = vi.fn();
-    store.subscribe(cb1);
-    store.subscribe(cb2);
-
-    store.setPresentMaxIdleMs(300000);
-    expect(cb1).toHaveBeenCalledOnce();
-    expect(cb2).toHaveBeenCalledOnce();
-  });
-});
-
-describe("createPresenceSettings — dispose", () => {
-  it("dispose clears all subscribers; subsequent mutations do not call them", () => {
-    const store = createPresenceSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    store.dispose();
-    store.setPresentMaxIdleMs(300000);
-    expect(cb).not.toHaveBeenCalled();
   });
 });

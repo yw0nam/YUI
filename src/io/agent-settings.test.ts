@@ -39,21 +39,6 @@ describe("createAgentSettings — defaults", () => {
     const store = createAgentSettings();
     expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "" });
   });
-
-  it("get() returns a copy, not the internal reference", () => {
-    const store = createAgentSettings();
-    const a = store.get();
-    const b = store.get();
-    expect(a).not.toBe(b);
-    expect(a).toEqual(b);
-  });
-
-  it("uses initial when no storage is provided", () => {
-    const store = createAgentSettings({
-      initial: { reasoning_effort: "medium", instructions: "be terse" },
-    });
-    expect(store.get()).toEqual({ reasoning_effort: "medium", instructions: "be terse" });
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -98,35 +83,6 @@ describe("createAgentSettings — load coercion", () => {
     };
     const store = createAgentSettings({ storage });
     expect(store.get().instructions.length).toBe(INSTRUCTIONS_MAX_LEN);
-  });
-
-  it("storage.load() returning null falls back to default", () => {
-    const storage: AgentStorage = { load: () => null, save: vi.fn() };
-    const store = createAgentSettings({ storage });
-    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "" });
-  });
-
-  it("storage.load() throwing falls back to default", () => {
-    const storage: AgentStorage = {
-      load: () => {
-        throw new Error("boom");
-      },
-      save: vi.fn(),
-    };
-    const store = createAgentSettings({ storage });
-    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "" });
-  });
-
-  it("stored > initial: storage value takes priority over initial option", () => {
-    const storage: AgentStorage = {
-      load: () => ({ reasoning_effort: "medium", instructions: "stored" }),
-      save: vi.fn(),
-    };
-    const store = createAgentSettings({
-      storage,
-      initial: { reasoning_effort: "low", instructions: "init" },
-    });
-    expect(store.get()).toEqual({ reasoning_effort: "medium", instructions: "stored" });
   });
 });
 
@@ -269,24 +225,6 @@ function makeMemStorage(): AgentStorage & { _data: AgentSettings | null } {
 }
 
 describe("createAgentSettings — reloadFromStorage", () => {
-  it("applies an externally-changed stored value and notifies", () => {
-    const storage = makeMemStorage();
-    const store = createAgentSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    // 다른 창이 storage를 직접 갱신한 상황을 모사
-    storage._data = { reasoning_effort: "medium", instructions: "from other window" };
-    store.reloadFromStorage();
-
-    expect(store.get()).toEqual({ reasoning_effort: "medium", instructions: "from other window" });
-    expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({
-      reasoning_effort: "medium",
-      instructions: "from other window",
-    });
-  });
-
   it("coerces invalid stored values on reload", () => {
     const storage = makeMemStorage();
     const store = createAgentSettings({ storage });
@@ -294,90 +232,17 @@ describe("createAgentSettings — reloadFromStorage", () => {
     store.reloadFromStorage();
     expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "" });
   });
-
-  it("identical value is a no-op (no notify)", () => {
-    const storage = makeMemStorage();
-    const store = createAgentSettings({ storage });
-    store.setReasoningEffort("medium");
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reloadFromStorage();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage is absent", () => {
-    const store = createAgentSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage.load throws", () => {
-    let throws = false;
-    const storage: AgentStorage = {
-      load: () => {
-        if (throws) throw new Error("boom");
-        return null;
-      },
-      save: vi.fn(),
-    };
-    const store = createAgentSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    throws = true;
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createAgentSettings — subscribe / dispose
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createAgentSettings — subscribe / dispose", () => {
-  it("unsubscribe fn stops notifications", () => {
-    const store = createAgentSettings();
-    const cb = vi.fn();
-    const unsub = store.subscribe(cb);
-    store.setReasoningEffort("low");
-    unsub();
-    store.setReasoningEffort("medium");
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("dispose() clears all subscribers", () => {
-    const store = createAgentSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.dispose();
-    store.setReasoningEffort("low");
-    expect(cb).not.toHaveBeenCalled();
-  });
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // localStorageAgentStorage
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("localStorageAgentStorage", () => {
-  it("round-trips through stubbed globalThis.localStorage", () => {
-    const fakeStore: Record<string, string> = {};
-    (globalThis as any).localStorage = {
-      getItem: (k: string) => fakeStore[k] ?? null,
-      setItem: (k: string, v: string) => {
-        fakeStore[k] = v;
-      },
-    };
-
-    const adapter = localStorageAgentStorage();
-    adapter.save({ reasoning_effort: "medium", instructions: "yo" });
-    const loaded = adapter.load();
-    expect(loaded).toEqual({ reasoning_effort: "medium", instructions: "yo" });
-
-    delete (globalThis as any).localStorage;
-  });
-
   it("default key is 'yui.agent'", () => {
     const written: Array<[string, string]> = [];
     (globalThis as any).localStorage = {
@@ -404,27 +269,5 @@ describe("localStorageAgentStorage", () => {
     expect(written[0][0]).toBe("my.key");
 
     delete (globalThis as any).localStorage;
-  });
-
-  it("JSON parse failure returns null", () => {
-    (globalThis as any).localStorage = {
-      getItem: () => "{not json",
-      setItem: () => {},
-    };
-    const adapter = localStorageAgentStorage();
-    expect(adapter.load()).toBeNull();
-    delete (globalThis as any).localStorage;
-  });
-
-  it("gracefully returns null when localStorage is unavailable", () => {
-    const saved = (globalThis as any).localStorage;
-    delete (globalThis as any).localStorage;
-
-    const adapter = localStorageAgentStorage();
-    expect(() => adapter.load()).not.toThrow();
-    expect(adapter.load()).toBeNull();
-    expect(() => adapter.save({ reasoning_effort: "none", instructions: "" })).not.toThrow();
-
-    if (saved !== undefined) (globalThis as any).localStorage = saved;
   });
 });

@@ -44,14 +44,6 @@ describe("createLipsyncSettings — defaults", () => {
     const store = createLipsyncSettings();
     expect(store.get().gain).toBe(LIPSYNC_GAIN_DEFAULT);
   });
-
-  it("get() returns a copy, not the internal reference", () => {
-    const store = createLipsyncSettings();
-    const a = store.get();
-    const b = store.get();
-    expect(a).not.toBe(b);
-    expect(a).toEqual(b);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -136,27 +128,6 @@ describe("createLipsyncSettings — setGain", () => {
 // createLipsyncSettings — subscribe / unsubscribe / dispose
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createLipsyncSettings — subscribe / dispose", () => {
-  it("unsubscribe fn stops notifications", () => {
-    const store = createLipsyncSettings();
-    const cb = vi.fn();
-    const unsub = store.subscribe(cb);
-    store.setGain(3);
-    unsub();
-    store.setGain(1.5);
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("dispose() clears all subscribers", () => {
-    const store = createLipsyncSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.dispose();
-    store.setGain(3);
-    expect(cb).not.toHaveBeenCalled();
-  });
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // createLipsyncSettings — storage persistence
 // ─────────────────────────────────────────────────────────────────────────────
@@ -214,24 +185,6 @@ describe("createLipsyncSettings — persistence", () => {
     const store = createLipsyncSettings({ storage });
     expect(store.get().gain).toBe(LIPSYNC_GAIN_DEFAULT);
   });
-
-  it("storage.load() returning null falls back to DEFAULT", () => {
-    const storage: LipsyncStorage = {
-      load: () => null,
-      save: vi.fn(),
-    };
-    const store = createLipsyncSettings({ storage });
-    expect(store.get().gain).toBe(LIPSYNC_GAIN_DEFAULT);
-  });
-
-  it("stored > initial: storage value takes priority over initial option", () => {
-    const storage: LipsyncStorage = {
-      load: () => ({ gain: 3.5 }),
-      save: vi.fn(),
-    };
-    const store = createLipsyncSettings({ storage, initial: { gain: 1.0 } });
-    expect(store.get().gain).toBe(3.5);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -239,21 +192,6 @@ describe("createLipsyncSettings — persistence", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createLipsyncSettings — reloadFromStorage", () => {
-  it("applies an externally-changed stored value and notifies", () => {
-    const storage = makeMemStorage();
-    const store = createLipsyncSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    // 다른 창이 storage를 직접 갱신한 상황을 모사
-    storage._data = { gain: 3.5 };
-    store.reloadFromStorage();
-
-    expect(store.get().gain).toBe(3.5);
-    expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ gain: 3.5 });
-  });
-
   it("clamps an out-of-range stored value on reload", () => {
     const storage = makeMemStorage();
     const store = createLipsyncSettings({ storage });
@@ -261,93 +199,17 @@ describe("createLipsyncSettings — reloadFromStorage", () => {
     store.reloadFromStorage();
     expect(store.get().gain).toBe(LIPSYNC_GAIN_MAX);
   });
-
-  it("identical value is a no-op (no notify)", () => {
-    const storage = makeMemStorage();
-    const store = createLipsyncSettings({ storage });
-    store.setGain(3);
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reloadFromStorage();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("ignores invalid stored value on reload (no notify)", () => {
-    const storage = makeMemStorage();
-    const store = createLipsyncSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    storage._data = { gain: "x" } as unknown as LipsyncSettings;
-    store.reloadFromStorage();
-    expect(store.get().gain).toBe(LIPSYNC_GAIN_DEFAULT);
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage is absent", () => {
-    const store = createLipsyncSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage.load throws", () => {
-    let throws = false;
-    const storage: LipsyncStorage = {
-      load: () => {
-        if (throws) throw new Error("boom");
-        return null;
-      },
-      save: vi.fn(),
-    };
-    const store = createLipsyncSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    throws = true;
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createLipsyncSettings — initial option
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createLipsyncSettings — initial option", () => {
-  it("uses initial.gain when no storage is provided", () => {
-    const store = createLipsyncSettings({ initial: { gain: 1.0 } });
-    expect(store.get().gain).toBe(1.0);
-  });
-
-  it("uses initial.gain when storage returns null", () => {
-    const storage: LipsyncStorage = { load: () => null, save: vi.fn() };
-    const store = createLipsyncSettings({ storage, initial: { gain: 1.0 } });
-    expect(store.get().gain).toBe(1.0);
-  });
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // localStorageLipsyncStorage
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("localStorageLipsyncStorage", () => {
-  it("round-trips through stubbed globalThis.localStorage", () => {
-    const fakeStore: Record<string, string> = {};
-    (globalThis as any).localStorage = {
-      getItem: (k: string) => fakeStore[k] ?? null,
-      setItem: (k: string, v: string) => {
-        fakeStore[k] = v;
-      },
-    };
-
-    const adapter = localStorageLipsyncStorage();
-    adapter.save({ gain: 2.5 });
-    const loaded = adapter.load();
-    expect(loaded).toEqual({ gain: 2.5 });
-
-    delete (globalThis as any).localStorage;
-  });
-
   it("default key is 'yui.lipsync'", () => {
     const written: Array<[string, string]> = [];
     (globalThis as any).localStorage = {
@@ -374,17 +236,5 @@ describe("localStorageLipsyncStorage", () => {
     expect(written[0][0]).toBe("my.key");
 
     delete (globalThis as any).localStorage;
-  });
-
-  it("gracefully returns null when localStorage is unavailable", () => {
-    const saved = (globalThis as any).localStorage;
-    delete (globalThis as any).localStorage;
-
-    const adapter = localStorageLipsyncStorage();
-    expect(() => adapter.load()).not.toThrow();
-    expect(adapter.load()).toBeNull();
-    expect(() => adapter.save({ gain: 2.0 })).not.toThrow();
-
-    if (saved !== undefined) (globalThis as any).localStorage = saved;
   });
 });

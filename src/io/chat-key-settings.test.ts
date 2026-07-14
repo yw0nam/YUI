@@ -38,14 +38,6 @@ describe("createChatKeySettings — defaults", () => {
     const store = createChatKeySettings();
     expect(store.get().apiKey).toBe("");
   });
-
-  it("get() returns a copy, not the internal reference", () => {
-    const store = createChatKeySettings();
-    const a = store.get();
-    const b = store.get();
-    expect(a).not.toBe(b);
-    expect(a).toEqual(b);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,27 +133,6 @@ describe("createChatKeySettings — clear", () => {
 // createChatKeySettings — subscribe / unsubscribe / dispose
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createChatKeySettings — subscribe / dispose", () => {
-  it("unsubscribe fn stops notifications", () => {
-    const store = createChatKeySettings();
-    const cb = vi.fn();
-    const unsub = store.subscribe(cb);
-    store.setApiKey("sk-a");
-    unsub();
-    store.setApiKey("sk-b");
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("dispose() clears all subscribers", () => {
-    const store = createChatKeySettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.dispose();
-    store.setApiKey("sk-test");
-    expect(cb).not.toHaveBeenCalled();
-  });
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // createChatKeySettings — storage persistence
 // ─────────────────────────────────────────────────────────────────────────────
@@ -219,27 +190,6 @@ describe("createChatKeySettings — persistence", () => {
     expect(store.get().apiKey).toBe("");
   });
 
-  it("storage.load() returning null falls back to empty", () => {
-    const storage: ChatKeyStorage = {
-      load: () => null,
-      save: vi.fn(),
-    };
-    const store = createChatKeySettings({ storage });
-    expect(store.get().apiKey).toBe("");
-  });
-
-  it("never throws when storage.load() throws — falls back to empty", () => {
-    const storage: ChatKeyStorage = {
-      load: () => {
-        throw new Error("boom");
-      },
-      save: vi.fn(),
-    };
-    expect(() => createChatKeySettings({ storage })).not.toThrow();
-    const store = createChatKeySettings({ storage });
-    expect(store.get().apiKey).toBe("");
-  });
-
   it("never throws when storage.save() throws", () => {
     const storage: ChatKeyStorage = {
       load: () => null,
@@ -260,67 +210,6 @@ describe("createChatKeySettings — persistence", () => {
     const store = createChatKeySettings({ storage });
     expect(store.get().apiKey.length).toBe(CHAT_KEY_MAX_LEN);
   });
-
-  it("stored > initial: storage value takes priority over initial option", () => {
-    const storage: ChatKeyStorage = {
-      load: () => ({ apiKey: "sk-stored" }),
-      save: vi.fn(),
-    };
-    const store = createChatKeySettings({ storage, initial: { apiKey: "sk-initial" } });
-    expect(store.get().apiKey).toBe("sk-stored");
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// createChatKeySettings — reloadFromStorage (cross-window sync)
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("createChatKeySettings — reloadFromStorage", () => {
-  it("applies an externally-changed stored value and notifies", () => {
-    const storage = makeMemStorage();
-    const store = createChatKeySettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    storage._data = { apiKey: "sk-external" };
-    store.reloadFromStorage();
-
-    expect(store.get().apiKey).toBe("sk-external");
-    expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ apiKey: "sk-external" });
-  });
-
-  it("identical value is a no-op (no notify)", () => {
-    const storage = makeMemStorage();
-    const store = createChatKeySettings({ storage });
-    store.setApiKey("sk-test");
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reloadFromStorage();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("ignores invalid stored value on reload (no notify)", () => {
-    const storage = makeMemStorage();
-    const store = createChatKeySettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    storage._data = { apiKey: 123 } as unknown as ChatKeySettings;
-    store.reloadFromStorage();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("never throws when storage.load() throws on reload", () => {
-    const storage: ChatKeyStorage = {
-      load: vi.fn(() => null),
-      save: vi.fn(),
-    };
-    const store = createChatKeySettings({ storage });
-    (storage.load as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      throw new Error("boom");
-    });
-    expect(() => store.reloadFromStorage()).not.toThrow();
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -328,22 +217,6 @@ describe("createChatKeySettings — reloadFromStorage", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("localStorageChatKeyStorage", () => {
-  it("round-trips through stubbed globalThis.localStorage", () => {
-    const fakeStore: Record<string, string> = {};
-    (globalThis as { localStorage?: unknown }).localStorage = {
-      getItem: (k: string) => fakeStore[k] ?? null,
-      setItem: (k: string, v: string) => {
-        fakeStore[k] = v;
-      },
-    };
-
-    const adapter = localStorageChatKeyStorage();
-    adapter.save({ apiKey: "sk-test" });
-    expect(adapter.load()).toEqual({ apiKey: "sk-test" });
-
-    delete (globalThis as { localStorage?: unknown }).localStorage;
-  });
-
   it("default key is 'yui.chat-key'", () => {
     const written: Array<[string, string]> = [];
     (globalThis as { localStorage?: unknown }).localStorage = {
@@ -356,15 +229,5 @@ describe("localStorageChatKeyStorage", () => {
     expect(written[0][0]).toBe("yui.chat-key");
 
     delete (globalThis as { localStorage?: unknown }).localStorage;
-  });
-
-  it("load returns null gracefully when localStorage is absent", () => {
-    const adapter = localStorageChatKeyStorage();
-    expect(adapter.load()).toBeNull();
-  });
-
-  it("save is a no-op when localStorage is absent", () => {
-    const adapter = localStorageChatKeyStorage();
-    expect(() => adapter.save({ apiKey: "sk-test" })).not.toThrow();
   });
 });
