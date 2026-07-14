@@ -12,11 +12,12 @@
 import { MicVAD } from "@ricky0123/vad-web";
 import type { EndpointsConfig } from "../contract";
 import { createLogger } from "../logger";
+import type { VoiceInputState } from "../ui/voice-input-status";
 import { createDeadlineSignal } from "./deadline";
 
 const log = createLogger("stt-vad");
 
-export type SttVadRuntimeState = "listening" | "asr" | "fired" | "error";
+export type SttVadRuntimeState = Exclude<VoiceInputState, "idle">;
 
 const VAD_ASSET_PATH = "/vad/";
 

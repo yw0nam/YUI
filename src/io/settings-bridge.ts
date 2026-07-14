@@ -13,6 +13,7 @@
  */
 
 import { createLogger } from "../logger";
+import type { VoiceInputState } from "../ui/voice-input-status";
 
 const log = createLogger("settings-bridge");
 
@@ -22,7 +23,7 @@ const CH_VOICE_SET = "yui://voice-set";
 const CH_VOICE_STATE = "yui://voice-state";
 
 export interface VoiceStateSnapshot {
-  state: string;
+  state: VoiceInputState;
 }
 
 export interface BridgeTransport {
