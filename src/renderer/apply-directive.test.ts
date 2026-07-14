@@ -151,13 +151,12 @@ describe("routeDirective — combined", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("routeDirective — ignores non-render fields", () => {
-  it("speech_text / tool_status / rich_content / _reserved do not affect routing", () => {
+  it("speech_text / tool_status / _reserved do not affect routing", () => {
     const { setEmotion, playMotion, route } = makeHarness();
     route(
       env({
         speech_text: "hello there",
-        tool_status: { state: "running", label: "검색 중…", tool_id: "web_search" },
-        rich_content: [{ kind: "link", url: "https://x", title: "x" }],
+        tool_status: { state: "running", tool_id: "web_search" },
         _reserved: { visemes: [1, 2, 3] },
         emotion: HAPPY,
         motion: WAVE,

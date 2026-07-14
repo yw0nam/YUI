@@ -85,8 +85,8 @@ describe("createSettingsBridge", () => {
     const cb = vi.fn();
     b.onVoiceState(cb);
 
-    a.emitVoiceState({ state: "listening", detail: "Speech active" });
-    expect(cb).toHaveBeenCalledWith({ state: "listening", detail: "Speech active" });
+    a.emitVoiceState({ state: "listening" });
+    expect(cb).toHaveBeenCalledWith({ state: "listening" });
   });
 
   it("per-listener disposer stops delivery", () => {
