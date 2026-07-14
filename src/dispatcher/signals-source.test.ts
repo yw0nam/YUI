@@ -65,7 +65,7 @@ function batch(items: Array<Record<string, unknown>>, ts = 1000): SignalsBatch {
 }
 
 describe("signals_source — present: immediate signals.push (spec §1)", () => {
-  it("inbox arrival while present → pushes signals.push with signals + ts verbatim", async () => {
+  it("inbox arrival while present → pushes signals.push with signals verbatim", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit: emitIdle } = fakeListen();
     const { onInbox, emit: emitInbox } = fakeInbox();
@@ -90,7 +90,7 @@ describe("signals_source — present: immediate signals.push (spec §1)", () => 
     expect(e.event_name).toBe("signals.push");
     expect(e.hint_tier).toBe(2);
     expect(e.dnd_override).toBe(false);
-    expect(e.payload).toEqual({ signals: [{ kind: "reminder", foo: "bar" }], ts: 8500 });
+    expect(e.payload).toEqual({ signals: [{ kind: "reminder", foo: "bar" }] });
 
     src.stop();
   });
@@ -148,8 +148,7 @@ describe("signals_source — away: buffer + catch-up (spec §2–3)", () => {
     expect(e.source).toBe("timer_scheduler");
     expect(e.hint_tier).toBe(2);
     expect(e.dnd_override).toBe(false);
-    const p = e.payload as { count: number; signals: unknown[] };
-    expect(p.count).toBe(3);
+    const p = e.payload as { signals: unknown[] };
     // Flattened in arrival order.
     expect(p.signals).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
 
@@ -210,9 +209,8 @@ describe("signals_source — buffer cap 5 batches (spec §5)", () => {
 
     emitIdle(idleTick(LOW_IDLE));
     expect(pushed).toHaveLength(1);
-    const p = pushed[0].payload as { count: number; signals: Array<{ id: number }> };
+    const p = pushed[0].payload as { signals: Array<{ id: number }> };
     // Only last 5 batches survive (ids 3..7).
-    expect(p.count).toBe(5);
     expect(p.signals.map((s) => s.id)).toEqual([3, 4, 5, 6, 7]);
 
     src.stop();
@@ -276,8 +274,7 @@ describe("signals_source — isEnabled gate (spec §6)", () => {
     // Return to present — exactly ONE catchup, containing only the new item.
     emitIdle(idleTick(LOW_IDLE));
     expect(pushed).toHaveLength(1);
-    const p = pushed[0].payload as { count: number; signals: Array<{ id: number }> };
-    expect(p.count).toBe(1);
+    const p = pushed[0].payload as { signals: Array<{ id: number }> };
     expect(p.signals[0]).toEqual({ id: 3 });
 
     src.stop();

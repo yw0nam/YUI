@@ -118,18 +118,6 @@ export interface ExpressArgs {
   emotion_text?: string;
 }
 
-/** rich_content 항목. 텍스트 마크다운으로 렌더. */
-export type RichItem =
-  | { kind: "image"; url: string; alt?: string }
-  | { kind: "link"; url: string; title: string; desc?: string }
-  | {
-      kind: "card";
-      title: string;
-      body?: string;
-      image?: string;
-      action?: Record<string, unknown>;
-    };
-
 /** Responses `response.completed` 이벤트의 usage — 현재 세션 토큰 점유량 추적 입력. */
 export interface Usage {
   input_tokens: number;
@@ -140,8 +128,6 @@ export interface Usage {
 /** Hermes 네이티브 tool의 function_call item을 client가 관찰해 도출 (express 아님). */
 export interface ToolStatus {
   state: "idle" | "running" | "done" | "error";
-  /** function_call name 기반 라벨. ex: "검색 중…". */
-  label?: string;
   /** function_call name. */
   tool_id?: string;
 }
@@ -164,9 +150,6 @@ export interface ControlEnvelope {
 
   // --- Hermes 네이티브 tool function_call item 관찰로 도출 ---
   tool_status?: ToolStatus | null;
-
-  /** 발화 텍스트의 마크다운으로 인라인 렌더. */
-  rich_content?: RichItem[];
 
   /** v0에서 전부 무시. */
   _reserved?: {
@@ -198,7 +181,7 @@ export interface InputContext {
     timestamp: string;
     /** ex: "Asia/Seoul". client가 항상 채운다. */
     timezone: string;
-    active_app?: { name: string; bundle_id?: string };
+    active_app?: { name: string };
     active_window_title?: string;
     /** Apps switched to since the last utterance, drained on send. */
     recent_apps?: { name: string; at: string }[];
@@ -273,7 +256,7 @@ export interface ClientContext {
   env: {
     timestamp: string;
     timezone: string;
-    active_app?: { name: string; bundle_id?: string };
+    active_app?: { name: string };
     active_window_title?: string;
     /** Apps switched to since the last utterance, drained on send. */
     recent_apps?: { name: string; at: string }[];

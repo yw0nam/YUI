@@ -22,9 +22,6 @@ mod voice_import;
 // Click-through toggle (top-level + Windows child HWNDs).
 mod passthrough;
 
-// GitHub GraphQL transport — shells `gh api graphql`.
-mod github;
-
 // Loopback HTTP ingress — receives agent-done signals, re-emits as Tauri events.
 mod agent_ingress;
 
@@ -229,7 +226,6 @@ pub fn run() {
             voice_import::import_voice_file,
             voice_import::remove_user_voice,
             passthrough::set_click_through,
-            github::github_poll,
             agent_ingress::start_agent_ingress,
         ])
         .run(tauri::generate_context!())

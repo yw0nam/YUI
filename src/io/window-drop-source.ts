@@ -13,7 +13,7 @@
  *   2. seatGlobal = petPxToGlobalPoints(seatPx, outerPosition, scaleFactor).
  *   3. windows = invoke("list_windows")  (front-to-back, topmost first).
  *   4. target = first window whose catch zone contains the seat (topmost wins).
- *   5. hit → user.window_sit_drop { target_window_rect, edge_local_ypx } + arm
+ *   5. hit → user.window_sit_drop { edge_local_ypx } + arm
  *      the poll on target.windowNumber; miss → user.window_sit_exit.
  *
  * Once armed, the poll re-checks ~1.4 Hz whether the perched window detached.
@@ -278,7 +278,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       ts: Date.now(),
       hint_tier: 1,
       dnd_override: true,
-      payload: { target_window_rect: target, edge_local_ypx: edgeLocalYpx },
+      payload: { edge_local_ypx: edgeLocalYpx },
     });
     arm(target.windowNumber, { x: target.x, y: target.y }, probe.charHpx);
   }

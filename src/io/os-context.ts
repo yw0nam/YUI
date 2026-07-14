@@ -24,7 +24,6 @@ export type { OsEventPayload } from "./tauri-listen";
 export interface OsContextSnapshot {
   activeApp?: string;
   activeWindowTitle?: string;
-  isFullscreen?: boolean;
 }
 
 export interface RecentApp {
@@ -91,13 +90,8 @@ export function createOsContext(opts?: {
   }
 
   function onEvent(payload: OsEventPayload): void {
-    // Fullscreen events carry no app identity — only flip the isFullscreen flag.
-    if (payload.event_name === "fullscreen_entered" || payload.event_name === "fullscreen_exited") {
-      snapshot = { ...snapshot, isFullscreen: payload.data.is_fullscreen === true };
-      return;
-    }
-    // Only foreground-app changes touch the app/title snapshot. Idle ticks are
-    // owned by the cowork source, not consumed here.
+    // Only foreground-app changes touch the app/title snapshot. Idle ticks and
+    // fullscreen events are owned by other sources, not consumed here.
     if (payload.event_name !== "active_app_changed") return;
     const app = nonEmpty(payload.data.active_app_name);
     // A new app may have no readable title — clear it rather than carry the old one.

@@ -5,7 +5,7 @@
  * envelope(idle/timer/os/backend_push/user)을 직접 만들어 넣어 평가 분기를 잠근다.
  *
  * 잠그는 절:
- *  - §6.1 DND: note()로 fullscreen/camera/active_app/manual 4 trigger 토글 + multi-reason union.
+ *  - §6.1 DND: note()로 fullscreen/active_app/manual 3 trigger 토글 + multi-reason union.
  *  - §6.2 Debounce: per-source window (idle 30s / os 5s / backend 10s / user 0).
  *  - §6.3 Rate-limit: tier2 6 / tier3 2 rolling 60min(N 통과·N+1 drop·환불 없음),
  *    전체 20 → cooldownActive() true 후 5min 유지 → 해제.
@@ -21,7 +21,7 @@ const BASE_TS = 1_717_000_000_000;
 /** SOT configs/guardrails.json 미러 (§6 수치). */
 function config(): GuardrailsConfig {
   return {
-    dnd: { app_blocklist: [], camera_idle_off_ms: 30_000 },
+    dnd: { app_blocklist: [] },
     debounce_ms: {
       idle_watcher: 30_000,
       os_event_watcher: 5_000,
@@ -77,49 +77,6 @@ describe("guardrails — DND (§6.1)", () => {
 
     g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_exited" }));
     expect(g.dndState().on).toBe(false);
-  });
-
-  it("os.camera_in_use(payload boolean) toggles the camera reason", () => {
-    const g = createGuardrails(config());
-    g.note(
-      env({
-        source: "os_event_watcher",
-        event_name: "os.camera_in_use",
-        payload: { camera_in_use: true },
-      }),
-    );
-    expect(g.dndState().on).toBe(true);
-    expect(g.dndState().reasons).toContain("camera");
-
-    g.note(
-      env({
-        source: "os_event_watcher",
-        event_name: "os.camera_in_use",
-        payload: { camera_in_use: false },
-      }),
-    );
-    expect(g.dndState().reasons).not.toContain("camera");
-  });
-
-  it("camera DND clears once camera_idle_off_ms elapses since last active signal", () => {
-    const c = clock();
-    const g = createGuardrails(config(), { now: c.now });
-    g.note(
-      env({
-        source: "os_event_watcher",
-        event_name: "os.camera_in_use",
-        payload: { camera_in_use: true },
-      }),
-    );
-    expect(g.dndState().reasons).toContain("camera");
-
-    // before the idle-off window elapses, camera DND is still on
-    c.advance(29_999);
-    expect(g.dndState().reasons).toContain("camera");
-
-    // once now - lastCameraActive >= camera_idle_off_ms, camera DND is considered off
-    c.advance(1);
-    expect(g.dndState().reasons).not.toContain("camera");
   });
 
   it("active_app_changed toggles DND by blocklist membership (the only live trigger)", () => {
@@ -180,9 +137,9 @@ describe("guardrails — DND (§6.1)", () => {
 
   it("note no-ops gracefully on events with undefined payload fields", () => {
     const g = createGuardrails(config());
-    // camera event without a payload boolean — must not throw, must not toggle.
+    // active_app_changed without an active_app_name — must not throw, must not toggle.
     expect(() =>
-      g.note(env({ source: "os_event_watcher", event_name: "os.camera_in_use" })),
+      g.note(env({ source: "os_event_watcher", event_name: "os.active_app_changed" })),
     ).not.toThrow();
     expect(g.dndState().on).toBe(false);
   });

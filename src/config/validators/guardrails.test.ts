@@ -6,7 +6,7 @@ const FILE = "guardrails.json";
 
 function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    dnd: { app_blocklist: ["Zoom"], camera_idle_off_ms: 30000 },
+    dnd: { app_blocklist: ["Zoom"] },
     debounce_ms: {
       idle_watcher: 30000,
       os_event_watcher: 5000,
@@ -47,7 +47,7 @@ describe("validateGuardrails — happy path", () => {
 
   it("accepts an empty app_blocklist and zero debounce/rate values", () => {
     const raw = baseRaw({
-      dnd: { app_blocklist: [], camera_idle_off_ms: 0 },
+      dnd: { app_blocklist: [] },
       debounce_ms: {
         idle_watcher: 0,
         os_event_watcher: 0,
@@ -76,29 +76,15 @@ describe("validateGuardrails — dnd", () => {
 
   it("rejects app_blocklist that isn't a string array", () => {
     expectIssue(
-      baseRaw({ dnd: { app_blocklist: [1, 2], camera_idle_off_ms: 0 } }),
+      baseRaw({ dnd: { app_blocklist: [1, 2] } }),
       "dnd.app_blocklist는 string[]이어야 함",
     );
   });
 
   it("rejects app_blocklist that isn't an array at all", () => {
     expectIssue(
-      baseRaw({ dnd: { app_blocklist: "Zoom", camera_idle_off_ms: 0 } }),
+      baseRaw({ dnd: { app_blocklist: "Zoom" } }),
       "dnd.app_blocklist는 string[]이어야 함",
-    );
-  });
-
-  it("rejects a negative camera_idle_off_ms", () => {
-    expectIssue(
-      baseRaw({ dnd: { app_blocklist: [], camera_idle_off_ms: -1 } }),
-      "dnd.camera_idle_off_ms는 0 이상 유한 number여야 함",
-    );
-  });
-
-  it("rejects a non-finite camera_idle_off_ms", () => {
-    expectIssue(
-      baseRaw({ dnd: { app_blocklist: [], camera_idle_off_ms: Number.POSITIVE_INFINITY } }),
-      "dnd.camera_idle_off_ms는 0 이상 유한 number여야 함",
     );
   });
 });

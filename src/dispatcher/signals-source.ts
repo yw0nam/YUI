@@ -7,7 +7,7 @@
  *     /signals ingress.
  *
  * When present: inbox arrival fires signals.push immediately, carrying the batch's
- * `signals` array and `ts` verbatim.
+ * `signals` array verbatim.
  * When away: batches buffer (BUFFER_CAP = 5, drop oldest batch on overflow).
  * On idle→present edge: if the buffer has content, fires ONE signals.catchup (all
  * buffered batches' items flattened in arrival order), then clears the buffer.
@@ -76,7 +76,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       ts: now(),
       hint_tier: 2,
       dnd_override: false,
-      payload: { count: signals.length, signals },
+      payload: { signals },
     });
     buffer.length = 0;
   }
@@ -113,7 +113,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
           ts: now(),
           hint_tier: 2,
           dnd_override: false,
-          payload: { signals: p.signals, ts: p.ts },
+          payload: { signals: p.signals },
         });
       } else {
         buffer.push(p);

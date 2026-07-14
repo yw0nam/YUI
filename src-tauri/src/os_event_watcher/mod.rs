@@ -23,7 +23,7 @@ pub const WINDOW_DROP_RELEASE_CHANNEL: &str = "window_drop_release";
 #[derive(Debug, Clone, Serialize)]
 pub struct OsEventPayload {
     /// "active_app_changed" | "window_focus_changed" | "fullscreen_entered"
-    /// | "fullscreen_exited" | "os_idle_tick" | "camera_in_use"
+    /// | "fullscreen_exited" | "os_idle_tick"
     pub event_name: String,
     /// client epoch ms
     pub ts: i64,
@@ -42,8 +42,6 @@ pub struct OsEventData {
     /// OS-wide idle (ms). macOS `CGEventSourceSecondsSinceLastEventType`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub os_idle_ms: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub camera_in_use: Option<bool>,
 }
 
 /// Returns current epoch milliseconds.
@@ -379,22 +377,6 @@ mod tests {
         let prev: Option<String> = None;
         let next: Option<String> = Some("Finder".into());
         assert!(prev != next);
-    }
-
-    // ── camera_in_use payload ────────────────────────────────────────────────
-
-    #[test]
-    fn camera_in_use_true_payload_shape() {
-        let p = OsEventPayload {
-            event_name: "camera_in_use".into(),
-            ts: 9000,
-            data: OsEventData {
-                camera_in_use: Some(true),
-                ..Default::default()
-            },
-        };
-        let v = serde_json::to_value(p).unwrap();
-        assert_eq!(v["data"]["camera_in_use"], true);
     }
 
     // ── epoch_ms sanity ──────────────────────────────────────────────────────

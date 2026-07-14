@@ -67,31 +67,13 @@ describe("os-context — snapshot from os_event", () => {
     expect(os.get()).toEqual({ activeApp: "Visual Studio Code", activeWindowTitle: "main.ts" });
   });
 
-  it("os_idle_tick leaves the app/title snapshot unchanged and does not set isFullscreen", async () => {
+  it("os_idle_tick leaves the app/title snapshot unchanged", async () => {
     const f = fakeListen();
     const os = createOsContext({ listen: f.listen });
     await os.start();
     f.emit(appChanged("Visual Studio Code", "main.ts"));
     f.emit({ event_name: "os_idle_tick", ts: 1, data: { os_idle_ms: 5000 } });
     expect(os.get()).toEqual({ activeApp: "Visual Studio Code", activeWindowTitle: "main.ts" });
-    expect(os.get().isFullscreen).toBeUndefined();
-  });
-
-  it("fullscreen_entered sets isFullscreen true", async () => {
-    const f = fakeListen();
-    const os = createOsContext({ listen: f.listen });
-    await os.start();
-    f.emit(fullscreen(true));
-    expect(os.get().isFullscreen).toBe(true);
-  });
-
-  it("fullscreen_exited sets isFullscreen false", async () => {
-    const f = fakeListen();
-    const os = createOsContext({ listen: f.listen });
-    await os.start();
-    f.emit(fullscreen(true));
-    f.emit(fullscreen(false));
-    expect(os.get().isFullscreen).toBe(false);
   });
 
   it("fullscreen events leave the app/title snapshot unchanged", async () => {

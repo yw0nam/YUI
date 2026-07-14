@@ -25,7 +25,7 @@ const NOW = 1_717_000_000_000;
  */
 function permissiveGuardrailsConfig(): GuardrailsConfig {
   return {
-    dnd: { app_blocklist: [], camera_idle_off_ms: 30_000 },
+    dnd: { app_blocklist: [] },
     debounce_ms: {
       idle_watcher: 0,
       os_event_watcher: 0,
@@ -45,7 +45,7 @@ function permissiveGuardrailsConfig(): GuardrailsConfig {
 /** §6 SOT 수치를 그대로 쓰는 guardrails config (게이팅 테스트용). */
 function realGuardrailsConfig(): GuardrailsConfig {
   return {
-    dnd: { app_blocklist: [], camera_idle_off_ms: 30_000 },
+    dnd: { app_blocklist: [] },
     debounce_ms: {
       idle_watcher: 30_000,
       os_event_watcher: 5_000,

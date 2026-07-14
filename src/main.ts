@@ -363,7 +363,7 @@ async function bootstrap(): Promise<void> {
   });
   // 음성 상태(이 창 → 별도 창): 별도 창 indicator가 실제 STT 상태를 반영하게.
   voiceInputStatus.subscribe((snapshot) => {
-    bridge.emitVoiceState({ state: snapshot.state, detail: snapshot.detail });
+    bridge.emitVoiceState({ state: snapshot.state });
   });
   // 음성입력 on/off 의도를 영속화 — idle이 아니면 켜짐. 다음 실행에서 자동 재개에 쓴다.
   const unsubscribeSttPersist = voiceInputStatus.subscribe((snapshot) => {
@@ -831,7 +831,6 @@ async function bootstrap(): Promise<void> {
             hint_tier: 1,
             dnd_override: true,
             payload: {
-              target_window_rect: rect,
               edge_local_ypx: rect.y - pos.y / sf,
             },
           });

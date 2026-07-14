@@ -23,7 +23,6 @@ const CH_VOICE_STATE = "yui://voice-state";
 
 export interface VoiceStateSnapshot {
   state: string;
-  detail?: string;
 }
 
 export interface BridgeTransport {

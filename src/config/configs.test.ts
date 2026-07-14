@@ -65,7 +65,6 @@ describe("configs/guardrails.json", () => {
   const g = read("configs/guardrails.json");
 
   it("carries dnd / debounce_ms / rate_limit blocks with §6 defaults", () => {
-    expect(g.dnd.camera_idle_off_ms).toBe(30000);
     expect(Array.isArray(g.dnd.app_blocklist)).toBe(true);
     expect(g.debounce_ms.idle_watcher).toBe(30000);
     expect(g.debounce_ms.os_event_watcher).toBe(5000);

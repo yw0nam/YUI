@@ -18,7 +18,6 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
   // dnd
   const rawDnd = raw.dnd;
   let app_blocklist: string[] = [];
-  let camera_idle_off_ms = 0;
   if (!isObject(rawDnd)) {
     issues.push(`dnd는 객체여야 함 (받음: ${JSON.stringify(rawDnd)})`);
   } else {
@@ -28,7 +27,6 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
     } else {
       app_blocklist = rawBlocklist as string[];
     }
-    camera_idle_off_ms = nonNegNum(rawDnd, "dnd", "camera_idle_off_ms");
   }
 
   // debounce_ms
@@ -59,5 +57,5 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
   }
 
   assertValid(file, issues);
-  return { dnd: { app_blocklist, camera_idle_off_ms }, debounce_ms, rate_limit };
+  return { dnd: { app_blocklist }, debounce_ms, rate_limit };
 }

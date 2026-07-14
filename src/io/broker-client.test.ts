@@ -527,7 +527,7 @@ describe("deriveBrokerPayload", () => {
         },
       },
       guardrails: {
-        dnd: { app_blocklist: [], camera_idle_off_ms: 0 },
+        dnd: { app_blocklist: [] },
         debounce_ms: {
           idle_watcher: 0,
           os_event_watcher: 0,
