@@ -60,7 +60,7 @@ import {
   subscribe as subscribeLocale,
 } from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls";
-import { createVoiceInputStatus, type VoiceInputState } from "./ui/voice-input-status";
+import { createVoiceInputStatus } from "./ui/voice-input-status";
 
 const log = createLogger("settings-bootstrap");
 
@@ -339,7 +339,7 @@ async function bootstrap(): Promise<void> {
   bridge.onVoiceState((s) => {
     applyingRemoteVoice = true;
     try {
-      voiceInputStatus.set(s.state as VoiceInputState);
+      voiceInputStatus.set(s.state);
     } finally {
       applyingRemoteVoice = false;
     }
