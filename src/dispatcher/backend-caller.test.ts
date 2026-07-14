@@ -95,6 +95,10 @@ function usageEvent(
   return { type: "usage", usage: { input_tokens, output_tokens, total_tokens } };
 }
 
+function toolStatusEvent(status: ToolStatus): ChatStreamEvent {
+  return { type: "tool_status", status };
+}
+
 function makeLogger(): Logger {
   return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 }
@@ -239,12 +243,37 @@ describe("backend_caller — B5 cue forwarding + tool_status callbacks", () => {
     expect(cueSink).not.toHaveBeenCalled();
   });
 
-  it("forwards tool_status to onToolStatus when present", async () => {
-    const status = { state: "running" as const, tool_id: "web_search" };
-    const env: ControlEnvelope = { speech_text: "", tool_status: status };
-    scriptedEvents = [completedEvent(env)];
+  it("forwards each streamed tool_status event to onToolStatus (running spinner, done check)", async () => {
+    const running = { state: "running" as const, tool_id: "web_search" };
+    const done = { state: "done" as const, tool_id: "web_search" };
+    scriptedEvents = [
+      toolStatusEvent(running),
+      toolStatusEvent(done),
+      completedEvent({ speech_text: "" }),
+    ];
     await caller.call(userEnv());
-    expect(toolStatusSink).toHaveBeenCalledWith(status);
+    expect(toolStatusSink).toHaveBeenNthCalledWith(1, running);
+    expect(toolStatusSink).toHaveBeenNthCalledWith(2, done);
+  });
+
+  it("emits an idle status when a running tool never completes (turn drops mid-flight)", async () => {
+    const running = { state: "running" as const, tool_id: "web_search" };
+    scriptedEvents = [toolStatusEvent(running)];
+    streamChatError = new Error("drop");
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(false);
+    expect(toolStatusSink).toHaveBeenNthCalledWith(1, running);
+    expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "idle" });
+  });
+
+  it("does not emit idle when the tool completes normally (done seen)", async () => {
+    scriptedEvents = [
+      toolStatusEvent({ state: "running", tool_id: "web_search" }),
+      toolStatusEvent({ state: "done", tool_id: "web_search" }),
+      completedEvent({ speech_text: "" }),
+    ];
+    await caller.call(userEnv());
+    expect(toolStatusSink).not.toHaveBeenCalledWith({ state: "idle" });
   });
 });
 

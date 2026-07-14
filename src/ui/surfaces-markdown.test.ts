@@ -54,10 +54,10 @@ describe("showTool — tool_id label resolution", () => {
     expect(label?.textContent).toBe("Running…");
   });
 
-  it("shows generic fallback for unknown tool_id", () => {
+  it("humanizes an unmapped tool_id", () => {
     s.showTool("some_unknown_tool");
     const label = mount.querySelector(".yui-tool__label");
-    expect(label?.textContent).toBe("Working…");
+    expect(label?.textContent).toBe("Some unknown tool…");
   });
 
   it("makes tool chip visible", () => {

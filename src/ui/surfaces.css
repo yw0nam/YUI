@@ -346,6 +346,18 @@
   }
 }
 
+/* done — pulse dot이 체크마크로 굳는다(회전 box + 두 변 border). accent = 완료의 warmth. */
+.yui-tool[data-state="done"] .yui-tool__dot {
+  width: 0.3rem;
+  height: 0.5rem;
+  border-radius: 0;
+  background: transparent;
+  border: solid var(--yui-accent);
+  border-width: 0 0.11rem 0.11rem 0;
+  transform: translateY(-0.06rem) rotate(45deg);
+  animation: none;
+}
+
 /* ════════════════════════════════════════════════════════════
    3. Text input — 핫키로 소환되는 slim 필드. 하단에서 슬라이드 업.
       활성 시 앰버 테두리 = warmth 순간. 평소 완전 숨김.
