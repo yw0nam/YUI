@@ -1048,6 +1048,35 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     expect(applyDirective).toHaveBeenCalledWith(env);
     expect(cueSink).not.toHaveBeenCalled();
   });
+
+  it("completed-only backend (no express) with emotion_text → routes emotion_text through onCue, before onSpeech, without emotion_id/motion_id", async () => {
+    const order: string[] = [];
+    cueSink.mockImplementation((c: ExpressArgs) => order.push(`cue:${JSON.stringify(c)}`));
+    speechSink.mockImplementation(() => order.push("speech"));
+    const env: ControlEnvelope = {
+      speech_text: "안녕",
+      emotion: { id: "happy" },
+      emotion_text: "(whisper)",
+    };
+    scriptedEvents = [completedEvent(env)];
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(true);
+    expect(cueSink).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
+    expect(speechSink).toHaveBeenCalledWith("안녕");
+    expect(order).toEqual([`cue:${JSON.stringify({ emotion_text: "(whisper)" })}`, "speech"]);
+  });
+
+  it("completed-only backend with a true silent turn (emotion_text set, empty speech_text) → onCue still fires but onSpeech does not", async () => {
+    const env: ControlEnvelope = {
+      speech_text: "",
+      emotion_text: "(whisper)",
+    };
+    scriptedEvents = [completedEvent(env)];
+    const res = await caller.call(userEnv());
+    expect(res.ok).toBe(true);
+    expect(cueSink).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
+    expect(speechSink).not.toHaveBeenCalled();
+  });
 });
 
 // ── structured logging ──────────────────────────────────────────────────────

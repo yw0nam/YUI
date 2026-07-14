@@ -17,7 +17,8 @@
  *  - motion ABSENT/null → *active* return to idle: call playMotion(null).
  *
  * Out of scope for this layer (other tracks own them):
- * speech_text, tool_status.
+ * speech_text, tool_status, emotion_text (a TTS voice tag routed via the cue channel,
+ * not a render channel).
  */
 
 import type { ControlEnvelope, EmotionSignal, MotionSignal } from "../contract";

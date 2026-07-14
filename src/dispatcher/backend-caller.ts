@@ -651,6 +651,13 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         }
       }
 
+      // completed path only: no per-beat cue carried emotion_text, so route it through the
+      // same cue channel here — emotion_id/motion_id are omitted, applyDirective above already
+      // rendered them and re-sending would double-apply.
+      if (!streamedAny && envelope.emotion_text != null) {
+        deps.onCue?.({ emotion_text: envelope.emotion_text });
+      }
+
       // B4(speech gate): speech_text가 비어있지 않을 때만 발화.
       //   빈 텍스트 = 침묵 — 별도 플래그/판정 없음, drop_reason도 없음.
       if (streamedAny) {
