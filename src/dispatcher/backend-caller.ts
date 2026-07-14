@@ -124,9 +124,10 @@ export interface BackendCaller {
   call(env: BusEnvelope, externalSignal?: AbortSignal): Promise<BackendCallResult>;
 }
 
-/** payload에서 user text 추출(user_input_source는 payload.text에 담는다). */
+/** payload에서 user text 추출 — 키보드는 payload.text, 음성은 payload.transcript.text. */
 function userTextOf(env: BusEnvelope): string | undefined {
-  const t = env.payload?.text;
+  const transcript = env.payload?.transcript as { text?: unknown } | undefined;
+  const t = env.payload?.text ?? transcript?.text;
   return typeof t === "string" ? t : undefined;
 }
 

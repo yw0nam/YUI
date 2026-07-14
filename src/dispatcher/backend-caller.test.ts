@@ -680,6 +680,22 @@ describe("backend_caller — flat client_context envelope", () => {
     expect(trigger.kind).toBe("schedule");
     expect("idle_elapsed_min" in trigger).toBe(false);
   });
+
+  it("(d) voice envelope → user message content is the STT transcript text, not the proactive marker", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 9,
+      source: "user_input_source",
+      event_name: "user.voice_segment_ready",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      dnd_override: true,
+      payload: { transcript: { text: "こんにちは" } },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    expect(userMessageContentOf(request.input)).toBe("こんにちは");
+  });
 });
 
 describe("backend_caller — agent settings (reasoning effort + instructions)", () => {
