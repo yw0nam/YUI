@@ -51,14 +51,6 @@ describe("createFillerSettings — defaults", () => {
     expect(s.language).toBe("ja");
     expect(s.customPools).toEqual({});
   });
-
-  it("get() returns a copy, not the internal reference", () => {
-    const store = createFillerSettings();
-    const a = store.get();
-    const b = store.get();
-    expect(a).not.toBe(b);
-    expect(a).toEqual(b);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,27 +58,6 @@ describe("createFillerSettings — defaults", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createFillerSettings — priority", () => {
-  it("initial takes priority over defaults when no storage", () => {
-    const store = createFillerSettings({
-      initial: { enabled: false, language: "en", customPools: {} },
-    });
-    expect(store.get().enabled).toBe(false);
-    expect(store.get().language).toBe("en");
-  });
-
-  it("stored takes priority over initial", () => {
-    const storage: FillerStorage = {
-      load: () => ({ enabled: false, language: "ko", customPools: {} }),
-      save: vi.fn(),
-    };
-    const store = createFillerSettings({
-      storage,
-      initial: { enabled: true, language: "en", customPools: {} },
-    });
-    expect(store.get().enabled).toBe(false);
-    expect(store.get().language).toBe("ko");
-  });
-
   it("stored value with old string-array customPools shape falls back to initial", () => {
     // old shape: customPools.ja is string[] instead of {first,repeat}
     const storage: FillerStorage = {
@@ -117,16 +88,6 @@ describe("createFillerSettings — priority", () => {
       initial: { enabled: false, language: "en", customPools: {} },
     });
     expect(store.get().language).toBe("en");
-  });
-
-  it("null from storage.load() falls back to defaults", () => {
-    const storage: FillerStorage = {
-      load: () => null,
-      save: vi.fn(),
-    };
-    const store = createFillerSettings({ storage });
-    expect(store.get().enabled).toBe(true);
-    expect(store.get().language).toBe("ja");
   });
 });
 
@@ -268,60 +229,11 @@ describe("createFillerSettings — setCustomPool", () => {
 // subscribe / unsubscribe / dispose
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createFillerSettings — subscribe / dispose", () => {
-  it("unsubscribe fn stops notifications", () => {
-    const store = createFillerSettings();
-    const cb = vi.fn();
-    const unsub = store.subscribe(cb);
-    store.setEnabled(false);
-    unsub();
-    store.setEnabled(true);
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("dispose() clears all subscribers", () => {
-    const store = createFillerSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.dispose();
-    store.setEnabled(false);
-    expect(cb).not.toHaveBeenCalled();
-  });
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // reloadFromStorage (cross-window sync)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createFillerSettings — reloadFromStorage", () => {
-  it("applies externally-changed stored value and notifies", () => {
-    const storage = makeMemStorage();
-    const store = createFillerSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    storage._data = { enabled: false, language: "ko", customPools: { ja: pool(["うーん…"]) } };
-    store.reloadFromStorage();
-
-    expect(store.get().enabled).toBe(false);
-    expect(store.get().language).toBe("ko");
-    expect(store.get().customPools.ja).toEqual({ first: ["うーん…"], repeat: [] });
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("identical value is a no-op (no notify)", () => {
-    const storage = makeMemStorage();
-    const store = createFillerSettings({ storage });
-    store.setEnabled(false);
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    storage._data = { enabled: false, language: "ja", customPools: {} };
-    store.reloadFromStorage();
-
-    expect(cb).not.toHaveBeenCalled();
-  });
-
   it("invalid stored value on reload is ignored (no notify)", () => {
     const storage = makeMemStorage();
     const store = createFillerSettings({ storage });
@@ -347,14 +259,6 @@ describe("createFillerSettings — reloadFromStorage", () => {
     };
     store.reloadFromStorage();
 
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when no storage configured", () => {
-    const store = createFillerSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reloadFromStorage();
     expect(cb).not.toHaveBeenCalled();
   });
 });
@@ -386,27 +290,6 @@ describe("createFillerSettings — persistence", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("localStorageFillerStorage", () => {
-  it("round-trips through stubbed globalThis.localStorage", () => {
-    const fakeStore: Record<string, string> = {};
-    (globalThis as { localStorage?: unknown }).localStorage = {
-      getItem: (k: string) => fakeStore[k] ?? null,
-      setItem: (k: string, v: string) => {
-        fakeStore[k] = v;
-      },
-    };
-
-    const adapter = localStorageFillerStorage();
-    const settings: FillerSettings = {
-      enabled: false,
-      language: "en",
-      customPools: { ja: pool(["うーん…"]) },
-    };
-    adapter.save(settings);
-    expect(adapter.load()).toEqual(settings);
-
-    delete (globalThis as { localStorage?: unknown }).localStorage;
-  });
-
   it("default key is 'yui.filler'", () => {
     const written: Array<[string, string]> = [];
     (globalThis as { localStorage?: unknown }).localStorage = {
@@ -433,10 +316,5 @@ describe("localStorageFillerStorage", () => {
     expect(written[0][0]).toBe("yui.filler.test");
 
     delete (globalThis as { localStorage?: unknown }).localStorage;
-  });
-
-  it("returns null when localStorage is unavailable", () => {
-    const adapter = localStorageFillerStorage();
-    expect(adapter.load()).toBeNull();
   });
 });

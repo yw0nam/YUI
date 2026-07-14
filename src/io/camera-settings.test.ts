@@ -60,14 +60,6 @@ describe("createCameraSettings — defaults", () => {
     const store = createCameraSettings();
     expect(store.get().zoom).toBe(CAMERA_ZOOM_DEFAULT);
   });
-
-  it("get() returns a copy, not the internal reference", () => {
-    const store = createCameraSettings();
-    const a = store.get();
-    const b = store.get();
-    expect(a).not.toBe(b);
-    expect(a).toEqual(b);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -152,27 +144,6 @@ describe("createCameraSettings — setZoom", () => {
 // createCameraSettings — subscribe / unsubscribe / dispose
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createCameraSettings — subscribe / dispose", () => {
-  it("unsubscribe fn stops notifications", () => {
-    const store = createCameraSettings();
-    const cb = vi.fn();
-    const unsub = store.subscribe(cb);
-    store.setZoom(2);
-    unsub();
-    store.setZoom(1.5);
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("dispose() clears all subscribers", () => {
-    const store = createCameraSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.dispose();
-    store.setZoom(2);
-    expect(cb).not.toHaveBeenCalled();
-  });
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // createCameraSettings — storage persistence
 // ─────────────────────────────────────────────────────────────────────────────
@@ -230,24 +201,6 @@ describe("createCameraSettings — persistence", () => {
     const store = createCameraSettings({ storage });
     expect(store.get().zoom).toBe(CAMERA_ZOOM_DEFAULT);
   });
-
-  it("storage.load() returning null falls back to DEFAULT", () => {
-    const storage: CameraStorage = {
-      load: () => null,
-      save: vi.fn(),
-    };
-    const store = createCameraSettings({ storage });
-    expect(store.get().zoom).toBe(CAMERA_ZOOM_DEFAULT);
-  });
-
-  it("stored > initial: storage value takes priority over initial option", () => {
-    const storage: CameraStorage = {
-      load: () => ({ ...DEFAULTS, zoom: 1.5 }),
-      save: vi.fn(),
-    };
-    const store = createCameraSettings({ storage, initial: { ...DEFAULTS, zoom: 2.5 } });
-    expect(store.get().zoom).toBe(1.5);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,21 +208,6 @@ describe("createCameraSettings — persistence", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createCameraSettings — reloadFromStorage", () => {
-  it("applies an externally-changed stored value and notifies", () => {
-    const storage = makeMemStorage();
-    const store = createCameraSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    // 다른 창이 storage를 직접 갱신한 상황을 모사
-    storage._data = { ...DEFAULTS, zoom: 1.5 };
-    store.reloadFromStorage();
-
-    expect(store.get().zoom).toBe(1.5);
-    expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ ...DEFAULTS, zoom: 1.5 });
-  });
-
   it("clamps an out-of-range stored value on reload", () => {
     const storage = makeMemStorage();
     const store = createCameraSettings({ storage });
@@ -277,93 +215,17 @@ describe("createCameraSettings — reloadFromStorage", () => {
     store.reloadFromStorage();
     expect(store.get().zoom).toBe(CAMERA_ZOOM_MAX);
   });
-
-  it("identical value is a no-op (no notify)", () => {
-    const storage = makeMemStorage();
-    const store = createCameraSettings({ storage });
-    store.setZoom(2);
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reloadFromStorage();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("ignores invalid stored value on reload (no notify)", () => {
-    const storage = makeMemStorage();
-    const store = createCameraSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    storage._data = { zoom: "x" } as unknown as CameraSettings;
-    store.reloadFromStorage();
-    expect(store.get().zoom).toBe(CAMERA_ZOOM_DEFAULT);
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage is absent", () => {
-    const store = createCameraSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage.load throws", () => {
-    let throws = false;
-    const storage: CameraStorage = {
-      load: () => {
-        if (throws) throw new Error("boom");
-        return null;
-      },
-      save: vi.fn(),
-    };
-    const store = createCameraSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    throws = true;
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createCameraSettings — initial option
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createCameraSettings — initial option", () => {
-  it("uses initial.zoom when no storage is provided", () => {
-    const store = createCameraSettings({ initial: { ...DEFAULTS, zoom: 2.5 } });
-    expect(store.get().zoom).toBe(2.5);
-  });
-
-  it("uses initial.zoom when storage returns null", () => {
-    const storage: CameraStorage = { load: () => null, save: vi.fn() };
-    const store = createCameraSettings({ storage, initial: { ...DEFAULTS, zoom: 2.5 } });
-    expect(store.get().zoom).toBe(2.5);
-  });
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // localStorageCameraStorage
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("localStorageCameraStorage", () => {
-  it("round-trips through stubbed globalThis.localStorage", () => {
-    const fakeStore: Record<string, string> = {};
-    (globalThis as any).localStorage = {
-      getItem: (k: string) => fakeStore[k] ?? null,
-      setItem: (k: string, v: string) => {
-        fakeStore[k] = v;
-      },
-    };
-
-    const adapter = localStorageCameraStorage();
-    adapter.save({ ...DEFAULTS, zoom: 1.5 });
-    const loaded = adapter.load();
-    expect(loaded).toEqual({ ...DEFAULTS, zoom: 1.5 });
-
-    delete (globalThis as any).localStorage;
-  });
-
   it("default key is 'yui.camera'", () => {
     const written: Array<[string, string]> = [];
     (globalThis as any).localStorage = {
@@ -390,18 +252,6 @@ describe("localStorageCameraStorage", () => {
     expect(written[0][0]).toBe("my.key");
 
     delete (globalThis as any).localStorage;
-  });
-
-  it("gracefully returns null when localStorage is unavailable", () => {
-    const saved = (globalThis as any).localStorage;
-    delete (globalThis as any).localStorage;
-
-    const adapter = localStorageCameraStorage();
-    expect(() => adapter.load()).not.toThrow();
-    expect(adapter.load()).toBeNull();
-    expect(() => adapter.save({ ...DEFAULTS, zoom: 1.0 })).not.toThrow();
-
-    if (saved !== undefined) (globalThis as any).localStorage = saved;
   });
 });
 

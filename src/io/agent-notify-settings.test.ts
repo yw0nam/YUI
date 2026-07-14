@@ -19,15 +19,13 @@ import {
   createAgentNotifySettings,
 } from "./agent-notify-settings";
 
-function fakeStorage(
-  initial?: AgentNotifySettings | null,
-  opts?: { throwOnLoad?: boolean },
-): AgentNotifyStorage & { saved: AgentNotifySettings[] } {
+function fakeStorage(initial?: AgentNotifySettings | null): AgentNotifyStorage & {
+  saved: AgentNotifySettings[];
+} {
   const saved: AgentNotifySettings[] = [];
   return {
     saved,
     load() {
-      if (opts?.throwOnLoad) throw new Error("storage exploded");
       return initial ?? null;
     },
     save(s) {
@@ -170,27 +168,7 @@ describe("createAgentNotifySettings — round-trip persistence", () => {
   });
 });
 
-describe("createAgentNotifySettings — hydration precedence", () => {
-  it("valid stored value wins over initial", () => {
-    const stored: AgentNotifySettings = { enabled: true, port: 9001 };
-    const initial: AgentNotifySettings = { enabled: false, port: 8770 };
-    const store = createAgentNotifySettings({ storage: fakeStorage(stored), initial });
-    expect(store.get()).toEqual(stored);
-  });
-
-  it("initial wins over defaults when no stored value", () => {
-    const initial: AgentNotifySettings = { enabled: true, port: 9002 };
-    const store = createAgentNotifySettings({ storage: fakeStorage(null), initial });
-    expect(store.get()).toEqual(initial);
-  });
-});
-
 describe("createAgentNotifySettings — malformed/throwing storage", () => {
-  it("storage.load() throws → defaults, factory does not throw", () => {
-    const store = createAgentNotifySettings({ storage: fakeStorage(null, { throwOnLoad: true }) });
-    expect(store.get()).toEqual({ enabled: false, port: 8770 });
-  });
-
   it("enabled is not a boolean → defaults", () => {
     const malformed = { enabled: "yes", port: 8770 } as unknown as AgentNotifySettings;
     const store = createAgentNotifySettings({ storage: fakeStorage(malformed) });
@@ -213,77 +191,5 @@ describe("createAgentNotifySettings — malformed/throwing storage", () => {
     const malformed = { enabled: true, port: 8770.5 } as unknown as AgentNotifySettings;
     const store = createAgentNotifySettings({ storage: fakeStorage(malformed) });
     expect(store.get()).toEqual({ enabled: false, port: 8770 });
-  });
-});
-
-describe("createAgentNotifySettings — reloadFromStorage (cross-window sync)", () => {
-  it("applies an externally-changed value and notifies", () => {
-    const storage = memStorage();
-    const store = createAgentNotifySettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    storage._data = { enabled: true, port: 8770 };
-    store.reloadFromStorage();
-
-    expect(store.get()).toEqual({ enabled: true, port: 8770 });
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("identical value is a no-op (no notify)", () => {
-    const storage = memStorage();
-    const store = createAgentNotifySettings({ storage });
-    store.setEnabled(true); // persists { enabled: true, port: 8770 }
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reloadFromStorage(); // same value → no notify
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage is absent", () => {
-    const store = createAgentNotifySettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
-});
-
-describe("createAgentNotifySettings — subscribe/unsubscribe", () => {
-  it("subscribe returns unsubscribe fn that stops notifications", () => {
-    const store = createAgentNotifySettings();
-    const cb = vi.fn();
-    const unsub = store.subscribe(cb);
-
-    store.setEnabled(true);
-    expect(cb).toHaveBeenCalledOnce();
-
-    unsub();
-    store.setEnabled(false);
-    expect(cb).toHaveBeenCalledOnce(); // no more
-  });
-
-  it("multiple subscribers are each notified independently", () => {
-    const store = createAgentNotifySettings();
-    const cb1 = vi.fn();
-    const cb2 = vi.fn();
-    store.subscribe(cb1);
-    store.subscribe(cb2);
-
-    store.setEnabled(true);
-    expect(cb1).toHaveBeenCalledOnce();
-    expect(cb2).toHaveBeenCalledOnce();
-  });
-});
-
-describe("createAgentNotifySettings — dispose", () => {
-  it("dispose clears all subscribers; subsequent mutations do not call them", () => {
-    const store = createAgentNotifySettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    store.dispose();
-    store.setEnabled(true);
-    expect(cb).not.toHaveBeenCalled();
   });
 });

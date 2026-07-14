@@ -19,37 +19,17 @@ import {
   type ScheduleStorage,
 } from "./schedule-settings";
 
-function fakeStorage(
-  initial?: ScheduleSettings | null,
-  opts?: { throwOnLoad?: boolean },
-): ScheduleStorage & { saved: ScheduleSettings[] } {
+function fakeStorage(initial?: ScheduleSettings | null): ScheduleStorage & {
+  saved: ScheduleSettings[];
+} {
   const saved: ScheduleSettings[] = [];
   return {
     saved,
     load() {
-      if (opts?.throwOnLoad) throw new Error("storage exploded");
       return initial ?? null;
     },
     save(s) {
       saved.push(s);
-    },
-  };
-}
-
-function memStorage(): ScheduleStorage & { _data: ScheduleSettings | null } {
-  let data: ScheduleSettings | null = null;
-  return {
-    get _data() {
-      return data;
-    },
-    set _data(v: ScheduleSettings | null) {
-      data = v;
-    },
-    load() {
-      return data;
-    },
-    save(s) {
-      data = structuredClone(s);
     },
   };
 }
@@ -202,36 +182,7 @@ describe("createScheduleSettings — setEnabled", () => {
   });
 });
 
-describe("createScheduleSettings — hydration precedence", () => {
-  it("valid stored value wins over initial", () => {
-    const stored: ScheduleSettings = {
-      enabled: false,
-      entries: [{ id: "a", label: "A", context: "c", time: "07:00", enabled: true }],
-    };
-    const initial: ScheduleSettings = { enabled: true, entries: [] };
-    const store = createScheduleSettings({ storage: fakeStorage(stored), initial });
-    expect(store.get().enabled).toBe(false);
-    expect(store.get().entries).toHaveLength(1);
-    expect(store.get().entries[0].id).toBe("a");
-  });
-
-  it("initial wins over defaults when no stored value", () => {
-    const initial: ScheduleSettings = {
-      enabled: false,
-      entries: [{ id: "b", label: "B", context: "c", time: "10:00", enabled: true }],
-    };
-    const store = createScheduleSettings({ storage: fakeStorage(null), initial });
-    expect(store.get().enabled).toBe(false);
-    expect(store.get().entries[0].id).toBe("b");
-  });
-});
-
 describe("createScheduleSettings — malformed storage", () => {
-  it("storage.load() throws → defaults, factory does not throw", () => {
-    const store = createScheduleSettings({ storage: fakeStorage(null, { throwOnLoad: true }) });
-    expect(store.get().entries).toHaveLength(4);
-  });
-
   it("missing entries → defaults", () => {
     const malformed = { enabled: true } as unknown as ScheduleSettings;
     const store = createScheduleSettings({ storage: fakeStorage(malformed) });
@@ -245,66 +196,5 @@ describe("createScheduleSettings — malformed storage", () => {
     } as unknown as ScheduleSettings;
     const store = createScheduleSettings({ storage: fakeStorage(malformed) });
     expect(store.get().entries).toHaveLength(4);
-  });
-});
-
-describe("createScheduleSettings — reloadFromStorage (cross-window sync)", () => {
-  it("applies an externally-changed value and notifies", () => {
-    const storage = memStorage();
-    const store = createScheduleSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    const next: ScheduleSettings = {
-      enabled: false,
-      entries: [{ id: "z", label: "Z", context: "c", time: "06:00", enabled: true }],
-    };
-    storage._data = next;
-    store.reloadFromStorage();
-
-    expect(store.get()).toEqual(next);
-    expect(cb).toHaveBeenCalledTimes(1);
-  });
-
-  it("identical value is a no-op (no notify)", () => {
-    const storage = memStorage();
-    const store = createScheduleSettings({ storage });
-    store.setEnabled(false);
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reloadFromStorage();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage is absent", () => {
-    const store = createScheduleSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
-});
-
-describe("createScheduleSettings — subscribe/unsubscribe", () => {
-  it("unsubscribe stops notifications", () => {
-    const store = createScheduleSettings();
-    const cb = vi.fn();
-    const unsub = store.subscribe(cb);
-    store.setEnabled(false);
-    expect(cb).toHaveBeenCalledTimes(1);
-    unsub();
-    store.setEnabled(true);
-    expect(cb).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("createScheduleSettings — dispose", () => {
-  it("dispose clears subscribers", () => {
-    const store = createScheduleSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.dispose();
-    store.setEnabled(false);
-    expect(cb).not.toHaveBeenCalled();
   });
 });

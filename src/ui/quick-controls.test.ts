@@ -151,6 +151,45 @@ const USER_VOICE: SpeakerOption = {
   source: "user",
 };
 
+function defaultQcArgs(mount: HTMLElement) {
+  return {
+    mount,
+    settings: makeSettings(),
+    idleThrottleSettings: createIdleThrottleSettings(),
+    sourceProvider: makeSourceProvider(),
+    voiceStatus: makeVoiceStatus(),
+    lipsync: createLipsyncSettings(),
+    vad: createVadSettings(),
+    onGainPreview: vi.fn(),
+    onGainPreviewEnd: vi.fn(),
+    agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+    endpointsSettings: createEndpointsSettings(),
+    proactiveSettings: createProactiveSettings(),
+    scheduleSettings: createScheduleSettings(),
+    chatKeySettings: createChatKeySettings(),
+    sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+    ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
+    onPopOut: vi.fn(),
+    vrmSelection: createVrmSelection({
+      available: [
+        { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
+      ],
+      defaultUrl: "/vrms/carlotta.vrm",
+    }),
+    swapVrm: vi.fn(async () => {}),
+    importVrm: vi.fn(async () => {}),
+    removeUserVrm: vi.fn(async () => {}),
+    speakerSelection: createSpeakerSelection({
+      available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
+      defaultId: "natsume",
+    }),
+    swapSpeaker: vi.fn(async () => {}),
+    refreshSpeaker: vi.fn(async () => {}),
+    importVoice: vi.fn(async () => {}),
+    removeUserVoice: vi.fn(async () => {}),
+  };
+}
+
 describe("createQuickControls — gain row", () => {
   let mount: HTMLElement;
   let onGainPreview: Mock<(mouthOpen: number) => void>;
@@ -223,22 +262,14 @@ describe("createQuickControls — gain row", () => {
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     return createQuickControls({
-      mount,
-      settings: makeSettings(),
-      idleThrottleSettings: createIdleThrottleSettings(),
-      sourceProvider: makeSourceProvider(),
-      voiceStatus: makeVoiceStatus(),
+      ...defaultQcArgs(mount),
       lipsync,
-      vad: createVadSettings(),
       onGainPreview,
       onGainPreviewEnd,
       agentSettings,
       endpointsSettings,
       proactiveSettings,
       scheduleSettings,
-      chatKeySettings: createChatKeySettings(),
-      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
-      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
       onPopOut,
       vrmSelection,
       swapVrm,
@@ -3272,40 +3303,7 @@ describe("createQuickControls — session section", () => {
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     return createQuickControls({
-      mount,
-      settings: makeSettings(),
-      idleThrottleSettings: createIdleThrottleSettings(),
-      sourceProvider: makeSourceProvider(),
-      voiceStatus: makeVoiceStatus(),
-      lipsync: createLipsyncSettings(),
-      vad: createVadSettings(),
-      onGainPreview: vi.fn(),
-      onGainPreviewEnd: vi.fn(),
-      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-      endpointsSettings: createEndpointsSettings(),
-      proactiveSettings: createProactiveSettings(),
-      scheduleSettings: createScheduleSettings(),
-      chatKeySettings: createChatKeySettings(),
-      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
-      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-      onPopOut: vi.fn(),
-      vrmSelection: createVrmSelection({
-        available: [
-          { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
-        ],
-        defaultUrl: "/vrms/carlotta.vrm",
-      }),
-      swapVrm: vi.fn(async () => {}),
-      importVrm: vi.fn(async () => {}),
-      importVoice: vi.fn(async () => {}),
-      removeUserVoice: vi.fn(async () => {}),
-      removeUserVrm: vi.fn(async () => {}),
-      speakerSelection: createSpeakerSelection({
-        available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
-        defaultId: "natsume",
-      }),
-      swapSpeaker: vi.fn(async () => {}),
-      refreshSpeaker: vi.fn(async () => {}),
+      ...defaultQcArgs(mount),
       sessionDiagnostics,
       sessionStore,
       ...extra,
@@ -3472,40 +3470,8 @@ describe("createQuickControls — tabs + VAD slider", () => {
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     return createQuickControls({
-      mount,
-      settings: makeSettings(),
-      idleThrottleSettings: createIdleThrottleSettings(),
-      sourceProvider: makeSourceProvider(),
-      voiceStatus: makeVoiceStatus(),
-      lipsync: createLipsyncSettings(),
+      ...defaultQcArgs(mount),
       vad,
-      onGainPreview: vi.fn(),
-      onGainPreviewEnd: vi.fn(),
-      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-      endpointsSettings: createEndpointsSettings(),
-      proactiveSettings: createProactiveSettings(),
-      scheduleSettings: createScheduleSettings(),
-      chatKeySettings: createChatKeySettings(),
-      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
-      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-      onPopOut: vi.fn(),
-      vrmSelection: createVrmSelection({
-        available: [
-          { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
-        ],
-        defaultUrl: "/vrms/carlotta.vrm",
-      }),
-      swapVrm: vi.fn(async () => {}),
-      importVrm: vi.fn(async () => {}),
-      importVoice: vi.fn(async () => {}),
-      removeUserVoice: vi.fn(async () => {}),
-      removeUserVrm: vi.fn(async () => {}),
-      speakerSelection: createSpeakerSelection({
-        available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
-        defaultId: "natsume",
-      }),
-      swapSpeaker: vi.fn(async () => {}),
-      refreshSpeaker: vi.fn(async () => {}),
       ...extra,
     });
   }
@@ -4007,40 +3973,7 @@ describe("createQuickControls — sections rail collapse", () => {
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     return createQuickControls({
-      mount,
-      settings: makeSettings(),
-      idleThrottleSettings: createIdleThrottleSettings(),
-      sourceProvider: makeSourceProvider(),
-      voiceStatus: makeVoiceStatus(),
-      lipsync: createLipsyncSettings(),
-      vad: createVadSettings(),
-      onGainPreview: vi.fn(),
-      onGainPreviewEnd: vi.fn(),
-      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-      endpointsSettings: createEndpointsSettings(),
-      proactiveSettings: createProactiveSettings(),
-      scheduleSettings: createScheduleSettings(),
-      chatKeySettings: createChatKeySettings(),
-      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
-      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-      onPopOut: vi.fn(),
-      vrmSelection: createVrmSelection({
-        available: [
-          { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
-        ],
-        defaultUrl: "/vrms/carlotta.vrm",
-      }),
-      swapVrm: vi.fn(async () => {}),
-      importVrm: vi.fn(async () => {}),
-      removeUserVrm: vi.fn(async () => {}),
-      speakerSelection: createSpeakerSelection({
-        available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
-        defaultId: "natsume",
-      }),
-      swapSpeaker: vi.fn(async () => {}),
-      refreshSpeaker: vi.fn(async () => {}),
-      importVoice: vi.fn(async () => {}),
-      removeUserVoice: vi.fn(async () => {}),
+      ...defaultQcArgs(mount),
       ...extra,
     });
   }
@@ -4227,40 +4160,7 @@ describe("createQuickControls — language picker", () => {
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     return createQuickControls({
-      mount,
-      settings: makeSettings(),
-      idleThrottleSettings: createIdleThrottleSettings(),
-      sourceProvider: makeSourceProvider(),
-      voiceStatus: makeVoiceStatus(),
-      lipsync: createLipsyncSettings(),
-      vad: createVadSettings(),
-      onGainPreview: vi.fn(),
-      onGainPreviewEnd: vi.fn(),
-      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-      endpointsSettings: createEndpointsSettings(),
-      proactiveSettings: createProactiveSettings(),
-      scheduleSettings: createScheduleSettings(),
-      chatKeySettings: createChatKeySettings(),
-      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
-      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-      onPopOut: vi.fn(),
-      vrmSelection: createVrmSelection({
-        available: [
-          { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
-        ],
-        defaultUrl: "/vrms/carlotta.vrm",
-      }),
-      swapVrm: vi.fn(async () => {}),
-      importVrm: vi.fn(async () => {}),
-      importVoice: vi.fn(async () => {}),
-      removeUserVoice: vi.fn(async () => {}),
-      removeUserVrm: vi.fn(async () => {}),
-      speakerSelection: createSpeakerSelection({
-        available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
-        defaultId: "natsume",
-      }),
-      swapSpeaker: vi.fn(async () => {}),
-      refreshSpeaker: vi.fn(async () => {}),
+      ...defaultQcArgs(mount),
       ...extra,
     });
   }
@@ -4415,32 +4315,9 @@ describe("createQuickControls — Reactions tab", () => {
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     return createQuickControls({
-      mount,
-      settings: makeSettings(),
-      idleThrottleSettings: createIdleThrottleSettings(),
-      sourceProvider: makeSourceProvider(),
-      voiceStatus: makeVoiceStatus(),
-      lipsync: createLipsyncSettings(),
-      vad: createVadSettings(),
-      onGainPreview: vi.fn(),
-      onGainPreviewEnd: vi.fn(),
-      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-      endpointsSettings: createEndpointsSettings(),
-      proactiveSettings: createProactiveSettings(),
-      scheduleSettings: createScheduleSettings(),
-      chatKeySettings: createChatKeySettings(),
-      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
-      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-      onPopOut: vi.fn(),
+      ...defaultQcArgs(mount),
       vrmSelection: makeVrmSelection(),
-      swapVrm: vi.fn(async () => {}),
-      importVrm: vi.fn(async () => {}),
-      removeUserVrm: vi.fn(async () => {}),
       speakerSelection: makeSpeakerSelection(),
-      swapSpeaker: vi.fn(async () => {}),
-      refreshSpeaker: vi.fn(async () => {}),
-      importVoice: vi.fn(async () => {}),
-      removeUserVoice: vi.fn(async () => {}),
       ...extra,
     });
   }
@@ -4683,40 +4560,8 @@ describe("createQuickControls — monitor picker error/empty state", () => {
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     return createQuickControls({
-      mount,
+      ...defaultQcArgs(mount),
       settings: makeEnabledSettings(),
-      idleThrottleSettings: createIdleThrottleSettings(),
-      sourceProvider: makeSourceProvider(),
-      voiceStatus: makeVoiceStatus(),
-      lipsync: createLipsyncSettings(),
-      vad: createVadSettings(),
-      onGainPreview: vi.fn(),
-      onGainPreviewEnd: vi.fn(),
-      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-      endpointsSettings: createEndpointsSettings(),
-      proactiveSettings: createProactiveSettings(),
-      scheduleSettings: createScheduleSettings(),
-      chatKeySettings: createChatKeySettings(),
-      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
-      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-      onPopOut: vi.fn(),
-      vrmSelection: createVrmSelection({
-        available: [
-          { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
-        ],
-        defaultUrl: "/vrms/carlotta.vrm",
-      }),
-      swapVrm: vi.fn(async () => {}),
-      importVrm: vi.fn(async () => {}),
-      removeUserVrm: vi.fn(async () => {}),
-      speakerSelection: createSpeakerSelection({
-        available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
-        defaultId: "natsume",
-      }),
-      swapSpeaker: vi.fn(async () => {}),
-      refreshSpeaker: vi.fn(async () => {}),
-      importVoice: vi.fn(async () => {}),
-      removeUserVoice: vi.fn(async () => {}),
       ...extra,
     });
   }

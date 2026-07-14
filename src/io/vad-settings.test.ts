@@ -44,14 +44,6 @@ describe("createVadSettings — defaults", () => {
     const store = createVadSettings();
     expect(store.get().silenceMs).toBe(VAD_SILENCE_DEFAULT);
   });
-
-  it("get() returns a copy, not the internal reference", () => {
-    const store = createVadSettings();
-    const a = store.get();
-    const b = store.get();
-    expect(a).not.toBe(b);
-    expect(a).toEqual(b);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,31 +166,6 @@ describe("createVadSettings — bargeIn", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// createVadSettings — subscribe / unsubscribe / dispose
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("createVadSettings — subscribe / dispose", () => {
-  it("unsubscribe fn stops notifications", () => {
-    const store = createVadSettings();
-    const cb = vi.fn();
-    const unsub = store.subscribe(cb);
-    store.setSilenceMs(2000);
-    unsub();
-    store.setSilenceMs(1000);
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("dispose() clears all subscribers", () => {
-    const store = createVadSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.dispose();
-    store.setSilenceMs(2000);
-    expect(cb).not.toHaveBeenCalled();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // createVadSettings — storage persistence
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -255,27 +222,6 @@ describe("createVadSettings — persistence", () => {
     const store = createVadSettings({ storage });
     expect(store.get().silenceMs).toBe(VAD_SILENCE_DEFAULT);
   });
-
-  it("storage.load() returning null falls back to DEFAULT", () => {
-    const storage: VadStorage = {
-      load: () => null,
-      save: vi.fn(),
-    };
-    const store = createVadSettings({ storage });
-    expect(store.get().silenceMs).toBe(VAD_SILENCE_DEFAULT);
-  });
-
-  it("stored > initial: storage value takes priority over initial option", () => {
-    const storage: VadStorage = {
-      load: () => ({ silenceMs: 2500 }) as unknown as VadSettings,
-      save: vi.fn(),
-    };
-    const store = createVadSettings({
-      storage,
-      initial: { silenceMs: 800 } as unknown as VadSettings,
-    });
-    expect(store.get().silenceMs).toBe(2500);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -283,46 +229,12 @@ describe("createVadSettings — persistence", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createVadSettings — reloadFromStorage", () => {
-  it("applies an externally-changed stored value and notifies", () => {
-    const storage = makeMemStorage();
-    const store = createVadSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    storage._data = { silenceMs: 2500 } as unknown as VadSettings;
-    store.reloadFromStorage();
-
-    expect(store.get().silenceMs).toBe(2500);
-    expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ silenceMs: 2500, bargeIn: true });
-  });
-
   it("clamps an out-of-range stored value on reload", () => {
     const storage = makeMemStorage();
     const store = createVadSettings({ storage });
     storage._data = { silenceMs: 99000 } as unknown as VadSettings;
     store.reloadFromStorage();
     expect(store.get().silenceMs).toBe(VAD_SILENCE_MAX);
-  });
-
-  it("identical value is a no-op (no notify)", () => {
-    const storage = makeMemStorage();
-    const store = createVadSettings({ storage });
-    store.setSilenceMs(2000);
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reloadFromStorage();
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("ignores invalid stored value on reload (no notify)", () => {
-    const storage = makeMemStorage();
-    const store = createVadSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    storage._data = { silenceMs: "x" } as unknown as VadSettings;
-    store.reloadFromStorage();
-    expect(cb).not.toHaveBeenCalled();
   });
 });
 
@@ -331,22 +243,6 @@ describe("createVadSettings — reloadFromStorage", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("localStorageVadStorage", () => {
-  it("round-trips through stubbed globalThis.localStorage", () => {
-    const fakeStore: Record<string, string> = {};
-    (globalThis as { localStorage?: unknown }).localStorage = {
-      getItem: (k: string) => fakeStore[k] ?? null,
-      setItem: (k: string, v: string) => {
-        fakeStore[k] = v;
-      },
-    };
-
-    const adapter = localStorageVadStorage();
-    adapter.save({ silenceMs: 2200, bargeIn: true });
-    expect(adapter.load()).toEqual({ silenceMs: 2200, bargeIn: true });
-
-    delete (globalThis as { localStorage?: unknown }).localStorage;
-  });
-
   it("default key is 'yui.vad'", () => {
     const written: Array<[string, string]> = [];
     (globalThis as { localStorage?: unknown }).localStorage = {

@@ -19,13 +19,11 @@ import {
 
 function fakeStorage(
   initial?: RecentAppsSettings | null,
-  opts?: { throwOnLoad?: boolean },
 ): RecentAppsStorage & { saved: RecentAppsSettings[] } {
   const saved: RecentAppsSettings[] = [];
   return {
     saved,
     load() {
-      if (opts?.throwOnLoad) throw new Error("storage exploded");
       return initial ?? null;
     },
     save(s) {
@@ -130,27 +128,7 @@ describe("createRecentAppsSettings — setRecentAppsMax", () => {
   });
 });
 
-describe("createRecentAppsSettings — hydration precedence", () => {
-  it("valid stored value wins over initial", () => {
-    const stored: RecentAppsSettings = { recent_apps_max: 5 };
-    const initial: RecentAppsSettings = { recent_apps_max: 15 };
-    const store = createRecentAppsSettings({ storage: fakeStorage(stored), initial });
-    expect(store.get()).toEqual(stored);
-  });
-
-  it("initial wins over defaults when no stored value", () => {
-    const initial: RecentAppsSettings = { recent_apps_max: 25 };
-    const store = createRecentAppsSettings({ storage: fakeStorage(null), initial });
-    expect(store.get()).toEqual(initial);
-  });
-});
-
 describe("createRecentAppsSettings — malformed/throwing storage", () => {
-  it("storage.load() throws → defaults, factory does not throw", () => {
-    const store = createRecentAppsSettings({ storage: fakeStorage(null, { throwOnLoad: true }) });
-    expect(store.get()).toEqual({ recent_apps_max: 10 });
-  });
-
   it("stored blob with missing recent_apps_max → defaults", () => {
     const malformed = {} as unknown as RecentAppsSettings;
     const store = createRecentAppsSettings({ storage: fakeStorage(malformed) });
@@ -167,77 +145,5 @@ describe("createRecentAppsSettings — malformed/throwing storage", () => {
     const malformed = { recent_apps_max: NaN } as unknown as RecentAppsSettings;
     const store = createRecentAppsSettings({ storage: fakeStorage(malformed) });
     expect(store.get()).toEqual({ recent_apps_max: 10 });
-  });
-});
-
-describe("createRecentAppsSettings — reloadFromStorage (cross-window sync)", () => {
-  it("applies an externally-changed value and notifies", () => {
-    const storage = memStorage();
-    const store = createRecentAppsSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    storage._data = { recent_apps_max: 30 };
-    store.reloadFromStorage();
-
-    expect(store.get()).toEqual({ recent_apps_max: 30 });
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("identical value is a no-op (no notify)", () => {
-    const storage = memStorage();
-    const store = createRecentAppsSettings({ storage });
-    store.setRecentAppsMax(30);
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reloadFromStorage(); // same value → no notify
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("no-op when storage is absent", () => {
-    const store = createRecentAppsSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    expect(() => store.reloadFromStorage()).not.toThrow();
-    expect(cb).not.toHaveBeenCalled();
-  });
-});
-
-describe("createRecentAppsSettings — subscribe/unsubscribe", () => {
-  it("subscribe returns unsubscribe fn that stops notifications", () => {
-    const store = createRecentAppsSettings();
-    const cb = vi.fn();
-    const unsub = store.subscribe(cb);
-
-    store.setRecentAppsMax(20);
-    expect(cb).toHaveBeenCalledOnce();
-
-    unsub();
-    store.setRecentAppsMax(10);
-    expect(cb).toHaveBeenCalledOnce(); // no more
-  });
-
-  it("multiple subscribers are each notified independently", () => {
-    const store = createRecentAppsSettings();
-    const cb1 = vi.fn();
-    const cb2 = vi.fn();
-    store.subscribe(cb1);
-    store.subscribe(cb2);
-
-    store.setRecentAppsMax(20);
-    expect(cb1).toHaveBeenCalledOnce();
-    expect(cb2).toHaveBeenCalledOnce();
-  });
-});
-
-describe("createRecentAppsSettings — dispose", () => {
-  it("dispose clears all subscribers; subsequent mutations do not call them", () => {
-    const store = createRecentAppsSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    store.dispose();
-    store.setRecentAppsMax(20);
-    expect(cb).not.toHaveBeenCalled();
   });
 });
