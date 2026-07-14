@@ -2,8 +2,6 @@
 //!
 //! # Responsibilities
 //! - `drag_window` command: called from webview `pointerdown` to initiate OS-native window drag.
-//! - `get_monitors_info` command: returns all monitors with DPI-safe fields for the webview to
-//!   compute logical/physical conversions when needed.
 //! - Pure DPI math helpers (unit-tested without Tauri runtime): `physical_to_logical`,
 //!   `logical_to_physical`, `clamp_to_work_area`.
 //!
@@ -19,32 +17,7 @@
 //! Click/pet-gesture events on the character region belong to the dispatcher. `src/drag.ts` emits
 //! a placeholder `"__yui_gesture_stub"` custom event at the drag-start site as the gesture seam.
 
-use serde::Serialize;
-use tauri::{command, AppHandle, Manager, Runtime, WebviewWindow};
-
-// ─── Serialisable monitor descriptor ────────────────────────────────────────
-
-/// Monitor information returned to the webview.
-///
-/// All size / position values are in **physical pixels** (matching Tauri's
-/// `Monitor::size()` / `Monitor::position()` semantics). `scale_factor` maps
-/// physical → logical: `logical = physical / scale_factor`.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MonitorInfo {
-    /// Human-readable name (may be `None` on some platforms).
-    pub name: Option<String>,
-    /// Physical width in pixels.
-    pub width_px: u32,
-    /// Physical height in pixels.
-    pub height_px: u32,
-    /// Physical X offset of the top-left corner (may be negative on multi-monitor).
-    pub x_px: i32,
-    /// Physical Y offset of the top-left corner.
-    pub y_px: i32,
-    /// Scale factor (physical / logical). 1.0 = 100% DPI, 2.0 = 200% (Retina etc.).
-    pub scale_factor: f64,
-}
+use tauri::{command, Manager, Runtime, WebviewWindow};
 
 // ─── Tauri commands ──────────────────────────────────────────────────────────
 
@@ -70,36 +43,6 @@ pub fn drag_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
     crate::os_event_watcher::spawn_drop_release_probe(window.app_handle().clone());
 
     Ok(())
-}
-
-/// Return info for all available monitors.
-///
-/// The webview uses this to understand the physical/logical pixel mapping on
-/// each screen so it can make correct decisions if manual repositioning is ever
-/// needed (e.g., centering on a target monitor). For the drag path itself this
-/// is informational only — the OS handles DPI-correct placement.
-#[command]
-pub fn get_monitors_info<R: Runtime>(app: AppHandle<R>) -> Result<Vec<MonitorInfo>, String> {
-    // Grab any window to call `available_monitors()` on it.
-    let window = app.get_webview_window("main").ok_or_else(|| {
-        log::warn!("get_monitors_info_no_main_window");
-        "main window not found".to_string()
-    })?;
-    let monitors = window.available_monitors().map_err(|e| {
-        log::warn!("available_monitors_failed error={e}");
-        e.to_string()
-    })?;
-    Ok(monitors
-        .into_iter()
-        .map(|m| MonitorInfo {
-            name: m.name().cloned(),
-            width_px: m.size().width,
-            height_px: m.size().height,
-            x_px: m.position().x,
-            y_px: m.position().y,
-            scale_factor: m.scale_factor(),
-        })
-        .collect())
 }
 
 // ─── Pure DPI math helpers (no Tauri runtime dependency) ────────────────────
@@ -268,40 +211,5 @@ mod tests {
         let (cx, cy) = clamp_to_work_area(1800.0, 50.0, 400.0, 600.0, 1920.0, 0.0, 1920.0, 1080.0);
         assert!((cx - 1920.0).abs() < 1e-9);
         assert!((cy - 50.0).abs() < 1e-9);
-    }
-
-    // ── MonitorInfo serialisation ─────────────────────────────────────────────
-
-    #[test]
-    fn monitor_info_serialises_camel_case() {
-        let m = MonitorInfo {
-            name: Some("Built-in Display".to_string()),
-            width_px: 2560,
-            height_px: 1600,
-            x_px: 0,
-            y_px: 0,
-            scale_factor: 2.0,
-        };
-        let v = serde_json::to_value(&m).unwrap();
-        assert_eq!(v["widthPx"], 2560);
-        assert_eq!(v["heightPx"], 1600);
-        assert_eq!(v["scaleFactor"], 2.0);
-        assert_eq!(v["xPx"], 0);
-        assert_eq!(v["yPx"], 0);
-        assert_eq!(v["name"], "Built-in Display");
-    }
-
-    #[test]
-    fn monitor_info_serialises_null_name() {
-        let m = MonitorInfo {
-            name: None,
-            width_px: 1920,
-            height_px: 1080,
-            x_px: 0,
-            y_px: 0,
-            scale_factor: 1.0,
-        };
-        let v = serde_json::to_value(&m).unwrap();
-        assert!(v["name"].is_null());
     }
 }
