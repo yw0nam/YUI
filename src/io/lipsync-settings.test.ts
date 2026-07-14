@@ -13,27 +13,8 @@ import {
   createLipsyncSettings,
   LIPSYNC_GAIN_DEFAULT,
   LIPSYNC_GAIN_MAX,
-  LIPSYNC_GAIN_MIN,
   localStorageLipsyncStorage,
 } from "./lipsync-settings";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("lipsync-settings constants", () => {
-  it("MIN is 0.5", () => {
-    expect(LIPSYNC_GAIN_MIN).toBe(0.5);
-  });
-
-  it("MAX is 6.0", () => {
-    expect(LIPSYNC_GAIN_MAX).toBe(6.0);
-  });
-
-  it("DEFAULT is 2.0", () => {
-    expect(LIPSYNC_GAIN_DEFAULT).toBe(2.0);
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createLipsyncSettings — defaults

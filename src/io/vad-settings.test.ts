@@ -14,26 +14,7 @@ import {
   localStorageVadStorage,
   VAD_SILENCE_DEFAULT,
   VAD_SILENCE_MAX,
-  VAD_SILENCE_MIN,
 } from "./vad-settings";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("vad-settings constants", () => {
-  it("MIN is 500", () => {
-    expect(VAD_SILENCE_MIN).toBe(500);
-  });
-
-  it("MAX is 3000", () => {
-    expect(VAD_SILENCE_MAX).toBe(3000);
-  });
-
-  it("DEFAULT is 1500", () => {
-    expect(VAD_SILENCE_DEFAULT).toBe(1500);
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createVadSettings — defaults

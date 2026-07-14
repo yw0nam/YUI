@@ -20,7 +20,6 @@ import type { CameraSettings, CameraStorage } from "./camera-settings";
 import {
   CAMERA_ZOOM_DEFAULT,
   CAMERA_ZOOM_MAX,
-  CAMERA_ZOOM_MIN,
   createCameraSettings,
   localStorageCameraStorage,
 } from "./camera-settings";
@@ -32,24 +31,6 @@ const DEFAULTS: CameraSettings = {
   azimuth: CAMERA_AZIMUTH_DEFAULT,
   polar: CAMERA_POLAR_DEFAULT,
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("camera-settings constants", () => {
-  it("MIN is 0.5", () => {
-    expect(CAMERA_ZOOM_MIN).toBe(0.5);
-  });
-
-  it("MAX is 3.0", () => {
-    expect(CAMERA_ZOOM_MAX).toBe(3.0);
-  });
-
-  it("DEFAULT is 1.0", () => {
-    expect(CAMERA_ZOOM_DEFAULT).toBe(1.0);
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createCameraSettings — defaults

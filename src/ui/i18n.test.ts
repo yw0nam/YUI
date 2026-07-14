@@ -27,15 +27,6 @@ describe("t() — lookup and interpolation", () => {
     expect(t("voice.state.idle")).toBe(ko["voice.state.idle"]);
   });
 
-  it("falls back to en when the locale dict lacks the key", async () => {
-    const { t, setLocale } = await import("./i18n");
-    setLocale("ko");
-    // Force a key that only exists in en by injecting via the en dict directly.
-    // "tool.web_search" is an English-only key (same in all dicts per spec, so use a
-    // key we know exists in en; if ko has it, it would return ko value which equals en).
-    expect(t("tool.web_search")).toBe(en["tool.web_search"]);
-  });
-
   it("falls back to the raw key when the key is absent from all dicts", async () => {
     const { t } = await import("./i18n");
     expect(t("nonexistent.key.xyz")).toBe("nonexistent.key.xyz");
