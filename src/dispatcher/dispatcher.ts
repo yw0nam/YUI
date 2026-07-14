@@ -38,6 +38,8 @@ export interface DispatcherDeps {
   backendCaller: BackendCaller;
   /** 가드레일 — DND/debounce/rate-limit 게이트 + cooldown verdict(순수). */
   guardrails: Guardrails;
+  /** 현재 TTS 재생 중인지(playback, not stream). 비-유저 턴 drain을 재생 종료까지 지연시키는 게이트. */
+  isSpeaking?: () => boolean;
   /** pump 주기(ms). default 16(rAF 대략). 테스트는 fake timer로 advance. */
   pumpIntervalMs?: number;
   /**
@@ -323,7 +325,12 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         // busy가 true→true로 유지된다(경계 통지 없음).
         if (inFlight && inFlight.trigger === env) {
           if (canDrain()) {
-            startBackendCall(pending.shift()!);
+            if (shouldHoldForPlayback(pending[0]!)) {
+              // 재생 중 — 슬롯만 비우고 pending 유지. pump가 재생 종료 후 drain한다.
+              setInFlight(null);
+            } else {
+              startBackendCall(pending.shift()!);
+            }
           } else if (state === "degraded" && pending.length > 0) {
             // degraded 진입 순간 이미 보류 중이던 non-user 턴 — stale이니 drop.
             recordDrop(pending.shift()!, "degraded_drop");
@@ -346,9 +353,14 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     return false;
   }
 
+  /** 비-유저 pending 턴은 재생 중이면 붙잡아 둔다(유저 supersede는 즉시). */
+  function shouldHoldForPlayback(head: BusEnvelope): boolean {
+    return userTurnSourceOf(head) === undefined && deps.isSpeaking?.() === true;
+  }
+
   /** tier2/3 enqueue: in-flight 비면 즉시 시작, 아니면 보류(2건 이상이면 oldest drop). */
   function enqueueBackend(env: BusEnvelope): void {
-    if (!inFlight) {
+    if (!inFlight && pending.length === 0) {
       startBackendCall(env);
       return;
     }
@@ -414,6 +426,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     }
   }
 
+  /** 붙잡아 둔 pending을 시작할 수 있으면 시작(재생 종료 후 다음 tick 재시도). */
+  function drainPending(): void {
+    if (inFlight || !canDrain()) return;
+    if (shouldHoldForPlayback(pending[0]!)) return;
+    startBackendCall(pending.shift()!);
+  }
+
   function handle(env: BusEnvelope): void {
     // DND 상태 갱신은 분류/평가 이전에 — note는 envelope→setDnd thin translator.
     guardrails.note(env);
@@ -461,6 +480,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     }
     // backend 평가가 cooldown을 진입시켰거나 타이머가 종료시켰을 수 있다 → state 동기화.
     syncCooldownState();
+    drainPending();
   }
 
   return {
