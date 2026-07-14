@@ -216,6 +216,48 @@ describe("aria-live — announce once per utterance on settle, not per delta", (
   });
 });
 
+describe("tool chip lifecycle (running → done → hide)", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function tool(): HTMLElement {
+    return mount.querySelector(".yui-tool") as HTMLElement;
+  }
+
+  it("showTool marks the chip running and resolves the label from the tool id", () => {
+    s.showTool("web_search");
+    const el = tool();
+    expect(el.hidden).toBe(false);
+    expect(el.dataset.state).toBe("running");
+    expect((el.querySelector(".yui-tool__label") as HTMLElement).textContent).toBe("Searching…");
+  });
+
+  it("finishTool switches a running chip to done then auto-hides", () => {
+    vi.useFakeTimers();
+    s.showTool("web_search");
+    s.finishTool();
+    const el = tool();
+    expect(el.dataset.state).toBe("done");
+    vi.advanceTimersByTime(600);
+    expect(el.classList.contains("is-visible")).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("finishTool is a no-op when no chip is showing", () => {
+    s.finishTool();
+    expect(tool().dataset.state).toBeUndefined();
+  });
+});
+
 describe("pushSpeech — is-scrollable toggle (top-fade only when overflowing)", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;

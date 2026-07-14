@@ -4,7 +4,8 @@
  * Requirements:
  * - English labels by default (tool.* keys stay English in every locale).
  * - Known tool IDs map to specific English labels.
- * - Unknown tool IDs fall back to a generic "Working…" label.
+ * - Unmapped tool IDs are humanized from the id (snake_case → "Title case…").
+ * - Empty tool IDs fall back to a generic "Working…" label.
  * - getToolLabel delegates to the i18n dictionary.
  */
 
@@ -24,12 +25,20 @@ describe("getToolLabel (default English)", () => {
     expect(getToolLabel("terminal")).toBe("Running…");
   });
 
-  it("returns generic fallback for an unknown tool id", () => {
-    expect(getToolLabel("unknown_tool_xyz")).toBe("Working…");
+  it("humanizes an unmapped snake_case tool id", () => {
+    expect(getToolLabel("kb_get_ids")).toBe("Kb get ids…");
+  });
+
+  it("humanizes a single-word unmapped tool id", () => {
+    expect(getToolLabel("summarize")).toBe("Summarize…");
   });
 
   it("returns generic fallback for empty string tool id", () => {
     expect(getToolLabel("")).toBe("Working…");
+  });
+
+  it("returns generic fallback when the id is only separators", () => {
+    expect(getToolLabel("___")).toBe("Working…");
   });
 });
 
@@ -43,7 +52,7 @@ describe("getToolLabel (explicit locale)", () => {
     expect(getToolLabel("web_search", "ko")).toBe("Searching…");
   });
 
-  it("falls back to generic fallback for unknown tools regardless of locale", () => {
-    expect(getToolLabel("no_such_tool", "ja")).toBe("Working…");
+  it("humanizes unmapped tools regardless of locale", () => {
+    expect(getToolLabel("no_such_tool", "ja")).toBe("No such tool…");
   });
 });
