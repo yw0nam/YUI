@@ -1071,6 +1071,7 @@ async function bootstrap(): Promise<void> {
       renderer,
       backendCaller,
       guardrails,
+      isSpeaking: () => speechPlayback.isSpeaking(),
       // user-initiated 턴 실패만 표면화(proactive/schedule/agent는 로그만 — silent by design).
       // source(text/voice)로 라우팅한다 — isInputOpen()을 실패 시점에만 보고 판단하면 Escape로
       // 중도 닫힌 typed 턴이 voice 표면으로 오배선될 수 있어, routeTurnFailure가 source를 우선한다.

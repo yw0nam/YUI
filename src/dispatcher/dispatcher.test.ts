@@ -85,6 +85,7 @@ let backendCaller: BackendCaller;
 let guardrails: Guardrails;
 let dispatcher: Dispatcher;
 let logger: Logger;
+let speaking = false;
 
 function makeBackendCaller(): BackendCaller {
   return {
@@ -107,11 +108,13 @@ beforeEach(() => {
   backendCaller = makeBackendCaller();
   guardrails = createGuardrails(permissiveGuardrailsConfig(), { now: () => Date.now() });
   logger = makeLogger();
+  speaking = false;
   dispatcher = createDispatcher({
     bus,
     renderer: renderer as never,
     backendCaller,
     guardrails,
+    isSpeaking: () => speaking,
     logger,
   });
 });
@@ -393,6 +396,95 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
     await vi.advanceTimersByTimeAsync(20);
     const drops = dispatcher.recentDrops(10);
     expect(drops.some((d) => d.reason === "superseded_by_user")).toBe(true);
+  });
+});
+
+describe("dispatcher — playback-gated drain (§337)", () => {
+  const nonUser = (over: Partial<BusEnvelope> = {}) =>
+    env({
+      source: "backend_push_source",
+      event_name: "proactive.tick",
+      ts: NOW + 1,
+      hint_tier: 2,
+      dnd_override: false,
+      ...over,
+    });
+
+  async function holdNonUserBehindCompletedCall(): Promise<BusEnvelope> {
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    const queued = nonUser();
+    bus.push(queued);
+    await vi.advanceTimersByTimeAsync(20);
+    speaking = true;
+    callDeferred[0].resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(20);
+    return queued;
+  }
+
+  it("holds a queued non-user turn while speech is playing", async () => {
+    const queued = await holdNonUserBehindCompletedCall();
+
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
+    expect(dispatcher.inFlight()).toBeNull();
+    expect(dispatcher.queue()).toContain(queued);
+    expect(dispatcher.recentDrops(10).map((drop) => drop.event_name)).not.toContain(
+      queued.event_name,
+    );
+  });
+
+  it("drains the held non-user turn after playback ends", async () => {
+    await holdNonUserBehindCompletedCall();
+
+    speaking = false;
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(2);
+    expect(dispatcher.inFlight()).not.toBeNull();
+  });
+
+  it("lets a user turn supersede immediately while speech is playing", async () => {
+    dispatcher.start();
+    const first = nonUser({ ts: NOW });
+    const queued = nonUser({ event_name: "proactive.queued", ts: NOW + 1 });
+    bus.push(first);
+    await vi.advanceTimersByTimeAsync(20);
+    bus.push(queued);
+    await vi.advanceTimersByTimeAsync(20);
+    speaking = true;
+
+    bus.push(env({ ts: NOW + 2 }));
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(callDeferred[0].signal?.aborted).toBe(true);
+    expect(dispatcher.recentDrops(10)).toContainEqual(
+      expect.objectContaining({
+        event_name: queued.event_name,
+        reason: "superseded_by_user",
+      }),
+    );
+  });
+
+  it("drains a queued voice turn immediately while speech is playing", async () => {
+    dispatcher.start();
+    bus.push(nonUser({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    bus.push(
+      env({
+        event_name: "user.voice_segment_ready",
+        ts: NOW + 1,
+        payload: { text: "안녕" },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    speaking = true;
+
+    callDeferred[0].resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(2);
+    expect(dispatcher.inFlight()?.trigger.event_name).toBe("user.voice_segment_ready");
   });
 });
 
