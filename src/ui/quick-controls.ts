@@ -36,9 +36,9 @@ import type { createVrmSelection } from "../io/vrm-selection";
 import { createLogger } from "../logger";
 import { type CueListInstance, createCueList } from "./cue-list";
 import { type Locale, setLocale, t } from "./i18n";
-import { CHATKEY_EYE_OFF_SVG, CHATKEY_EYE_SVG, ENDPOINT_FIELDS } from "./quick-controls/constants";
+import { createEndpointsSection } from "./quick-controls/endpoints-section";
 import { createPopover } from "./quick-controls/popover";
-import { createReflect, validateEndpointInput } from "./quick-controls/reflect";
+import { createReflect } from "./quick-controls/reflect";
 import { createSpeakerList } from "./quick-controls/speaker-list";
 import { buildPanelHtml } from "./quick-controls/template";
 import { createVrmList } from "./quick-controls/vrm-list";
@@ -277,10 +277,6 @@ export function createQuickControls({
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
   const segEl = el.querySelector<HTMLDivElement>(".yui-field-row .yui-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-  // TTS 엔진 드롭다운 + irodori/openai 서브뷰 컨테이너(고급 탭). 화자 비활성 노드는 그대로.
-  const ttsTypeEl = el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
-  // Chat API 드롭다운(고급 탭) — 서브뷰 없음(tts_provider와 달리 mode-exclusive 필드가 없다).
-  const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
   const spkAddBtn = el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
   const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
@@ -299,97 +295,19 @@ export function createQuickControls({
   // 언어 피커 세그(3칸) 노드.
   const langSegEl = el.querySelector<HTMLDivElement>(".yui-lang-seg")!;
   const langSegButtons = Array.from(langSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-  // 엔드포인트 입력 — 필드 key별 input 노드 맵.
-  const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
-  for (const { key } of ENDPOINT_FIELDS) {
-    epInputs.set(key, el.querySelector<HTMLInputElement>(`#yui-ep-${key}`)!);
-  }
-  // per-section reset 버튼 — data-svc-reset 별 노드 맵.
-  const svcResetBtns = new Map<string, HTMLButtonElement>();
-  for (const btn of el.querySelectorAll<HTMLButtonElement>(".yui-svc-reset")) {
-    svcResetBtns.set(btn.dataset.svcReset ?? "", btn);
-  }
 
-  // ── 서비스별 API 키 행(시크릿) — chat/stt/tts를 한 팩토리로 찍는다 ──
-  // 값은 시크릿이므로 input.value에만 살고, sublabel/aria는 상태만 노출한다.
-  // 타이핑은 store에 commit하지 않는다(중간 prefix가 라이브 키가 되는 걸 막음). blur·close·dispose에 한 번 commit.
-  interface KeyRow {
-    reflect(): void;
-    commitIfDirty(): void;
-    subscribe(): () => void;
-    addListeners(): void;
-    removeListeners(): void;
-  }
-  function createKeyRow(idPrefix: string, i18nPrefix: string, store: ApiKeySettingsStore): KeyRow {
-    const row = el.querySelector<HTMLDivElement>(`.yui-input-row[data-key-prefix="${idPrefix}"]`)!;
-    const input = row.querySelector<HTMLInputElement>(".yui-chatkey__input")!;
-    const subEl = row.querySelector<HTMLSpanElement>(".yui-input-row__sub")!;
-    const toggleBtn = row.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
-    const clearBtn = row.querySelector<HTMLButtonElement>(".yui-chatkey__clear")!;
-    let dirty = false;
-
-    function reflect(): void {
-      const key = store.get().apiKey;
-      if (document.activeElement !== input && input.value !== key) {
-        input.value = key;
-        dirty = false;
-      }
-      subEl.textContent = key ? t(`${i18nPrefix}.sub_override`) : t(`${i18nPrefix}.sub_default`);
-    }
-    function commitIfDirty(): void {
-      if (!dirty) return;
-      dirty = false;
-      const v = input.value;
-      if (v) store.setApiKey(v);
-      else store.clear();
-    }
-    function handleInput(): void {
-      dirty = true;
-    }
-    function handleBlur(): void {
-      commitIfDirty();
-      reflect();
-    }
-    function handleToggle(): void {
-      const show = toggleBtn.getAttribute("aria-pressed") !== "true";
-      toggleBtn.setAttribute("aria-pressed", String(show));
-      input.type = show ? "text" : "password";
-      toggleBtn.innerHTML = show ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG;
-      const label = show ? t(`${i18nPrefix}.hide`) : t(`${i18nPrefix}.show`);
-      toggleBtn.setAttribute("aria-label", label);
-      toggleBtn.title = label;
-    }
-    function handleClear(): void {
-      dirty = false;
-      input.value = "";
-      store.clear();
-      log.info(`${idPrefix}_clear`);
-    }
-    return {
-      reflect,
-      commitIfDirty,
-      subscribe: () =>
-        store.subscribe(() => {
-          if (popover.isOpen()) reflect();
-        }),
-      addListeners() {
-        input.addEventListener("input", handleInput);
-        input.addEventListener("blur", handleBlur);
-        toggleBtn.addEventListener("click", handleToggle);
-        clearBtn.addEventListener("click", handleClear);
-      },
-      removeListeners() {
-        input.removeEventListener("input", handleInput);
-        input.removeEventListener("blur", handleBlur);
-        toggleBtn.removeEventListener("click", handleToggle);
-        clearBtn.removeEventListener("click", handleClear);
-      },
-    };
-  }
-  const chatKeyRow = createKeyRow("chatkey", "chatkey", chatKeySettings);
-  const sttKeyRow = createKeyRow("sttkey", "sttkey", sttKeySettings);
-  const ttsKeyRow = createKeyRow("ttskey", "ttskey", ttsKeySettings);
-  const keyRows = [chatKeyRow, sttKeyRow, ttsKeyRow];
+  // ── 엔드포인트 섹션(URL 필드·API 키 행·TTS/Chat 드롭다운·서비스별 초기화) ──
+  const endpoints = createEndpointsSection({
+    root: el,
+    endpointsSettings,
+    chatKeySettings,
+    sttKeySettings,
+    ttsKeySettings,
+    getEndpointDefaults,
+    reflectEndpoints: () => reflect.reflectEndpoints(),
+    isOpen: () => popover.isOpen(),
+    log,
+  });
 
   // 세션 섹션 노드(window 전용 — 없으면 null).
   const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
@@ -410,14 +328,6 @@ export function createQuickControls({
   const defaultInstr = getDefaultInstructions?.();
   instructionsEl.placeholder =
     defaultInstr && defaultInstr.length > 0 ? defaultInstr : t("instructions.placeholder_default");
-
-  // 엔드포인트 placeholder — bundled config 기본값(greyed)으로 채운다(미로드 시 빈 채로 둠).
-  const epDefaults = getEndpointDefaults?.();
-  if (epDefaults) {
-    for (const { key } of ENDPOINT_FIELDS) {
-      epInputs.get(key)!.placeholder = epDefaults[key];
-    }
-  }
 
   let gainPreviewing = false;
   let monitorsLoaded = false;
@@ -440,7 +350,7 @@ export function createQuickControls({
     fillerSettings,
     endpointsSettings,
     sessionDiagnostics,
-    keyRows,
+    keyRows: endpoints.keyRows,
     getEndpointDefaults,
     getDefaultProvider,
     getDefaultChatApi,
@@ -580,7 +490,7 @@ export function createQuickControls({
         gainPreviewing = false;
       }
       speakerList.stopAudition();
-      for (const r of keyRows) r.commitIfDirty();
+      endpoints.commitDirtyKeys();
     },
   });
 
@@ -812,25 +722,6 @@ export function createQuickControls({
     }
   }
 
-  // ── 고급 섹션: TTS 엔진 드롭다운(tts_provider) ──
-  // native select가 키보드를 소유한다 — change 이벤트로만 store에 쓴다.
-  function handleTtsTypeChange(): void {
-    const provider = ttsTypeEl.value;
-    if (provider !== "irodori" && provider !== "openai") return;
-    endpointsSettings.set({ tts_provider: provider });
-    log.info("voice_engine_change", { provider });
-    // store 구독(unsubscribeEndpoints)이 reflect.reflectVoiceEngine으로 값/서브뷰/화자 비활성을 갱신한다.
-  }
-
-  // ── 고급 섹션: Chat API 드롭다운(chat_api) — 서브뷰 없음(shared fields) ──
-  function handleChatTypeChange(): void {
-    const api = chatTypeEl.value;
-    if (api !== "responses" && api !== "chat_completions") return;
-    endpointsSettings.set({ chat_api: api });
-    log.info("chat_api_change", { api });
-    // store 구독(unsubscribeEndpoints)이 reflect.reflectChatType으로 값/summary hint를 갱신한다.
-  }
-
   // ── 대화 섹션: 지침 textarea ──
 
   function handleInstructionsInput(): void {
@@ -852,57 +743,6 @@ export function createQuickControls({
   function handleResetViewpoint(): void {
     onResetViewpoint?.();
     log.info("viewpoint_reset");
-  }
-
-  // ── 엔드포인트 섹션 ──
-
-  function handleEndpointInput(e: Event): void {
-    const input = e.target;
-    if (!(input instanceof HTMLInputElement)) return;
-    const row = input.closest<HTMLDivElement>(".yui-input-row");
-    const key = row?.dataset.epField as keyof EndpointOverrides | undefined;
-    if (!key) return;
-    endpointsSettings.set({ [key]: input.value });
-    validateEndpointInput(key, input);
-  }
-
-  // blur 시점에 입력 중 보류된 원격 변경을 반영한다(지침 textarea와 동일).
-  function handleEndpointBlur(): void {
-    reflect.reflectEndpoints();
-  }
-
-  // ── 서비스별 초기화(per-section reset) ──
-  // 각 섹션이 비우는 엔드포인트 필드 + 키 store. URL/모델은 ""로, 키는 .clear()로 되돌린다.
-  const SVC_RESET_FIELDS: Record<string, (keyof EndpointOverrides)[]> = {
-    chat: ["chat_base_url", "chat_model"],
-    stt: ["stt_base_url"],
-    tts: ["irodori_base_url", "tts_base_url", "tts_voice"],
-    broker: ["broker_base_url"],
-  };
-  const SVC_RESET_KEY: Record<string, ApiKeySettingsStore | undefined> = {
-    chat: chatKeySettings,
-    stt: sttKeySettings,
-    tts: ttsKeySettings,
-    broker: undefined,
-  };
-
-  function handleSvcReset(svc: string): void {
-    const fields = SVC_RESET_FIELDS[svc];
-    if (!fields) return;
-    const patch: Partial<EndpointOverrides> = {};
-    for (const key of fields) patch[key] = "";
-    if (svc === "tts") patch.tts_provider = "";
-    // chat_api is a dropdown enum (like tts_provider) — not in ENDPOINT_FIELDS/epInputs, so it's
-    // patched directly rather than through the text-input reset loop below.
-    if (svc === "chat") patch.chat_api = "";
-    endpointsSettings.set(patch);
-    for (const key of fields) {
-      const input = epInputs.get(key)!;
-      input.value = "";
-      validateEndpointInput(key, input);
-    }
-    SVC_RESET_KEY[svc]?.clear();
-    log.info("svc_reset", { svc });
   }
 
   // ── 세션 섹션: 새 대화 시작(reset) ──
@@ -1110,8 +950,6 @@ export function createQuickControls({
       }
     }
   });
-  // 키 store 갱신(이 창 편집·다른 창 reloadFromStorage)을 각 행에 반영. 값은 시크릿.
-  const unsubscribeKeyRows = keyRows.map((r) => r.subscribe());
   // 생각중 추임새 store 갱신을 섹션에 반영(다른 창 reloadFromStorage 포함).
   const unsubscribeFiller = fillerSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectFiller();
@@ -1156,8 +994,6 @@ export function createQuickControls({
   railCollapseBtn.addEventListener("click", handleRailCollapseClick);
   segEl.addEventListener("click", handleSegClick);
   segEl.addEventListener("keydown", handleSegKeydown);
-  ttsTypeEl.addEventListener("change", handleTtsTypeChange);
-  chatTypeEl.addEventListener("change", handleChatTypeChange);
   vrmsEl.addEventListener("keydown", vrmList.handleKeydown);
   vrmAddBtn.addEventListener("click", vrmList.handleAddClick);
   spksEl.addEventListener("keydown", speakerList.handleKeydown);
@@ -1166,17 +1002,6 @@ export function createQuickControls({
   instructionsEl.addEventListener("blur", handleInstructionsBlur);
   resetBtn.addEventListener("click", handleResetInstructions);
   viewpointResetBtn?.addEventListener("click", handleResetViewpoint);
-  for (const input of epInputs.values()) {
-    input.addEventListener("input", handleEndpointInput);
-    input.addEventListener("blur", handleEndpointBlur);
-  }
-  const svcResetListeners = new Map<HTMLButtonElement, () => void>();
-  for (const [svc, btn] of svcResetBtns) {
-    const handler = (): void => handleSvcReset(svc);
-    svcResetListeners.set(btn, handler);
-    btn.addEventListener("click", handler);
-  }
-  for (const r of keyRows) r.addListeners();
   sessionResetBtn?.addEventListener("click", showSessionConfirm);
   sessionConfirmBtn?.addEventListener("click", handleSessionReset);
   sessionCancelBtn?.addEventListener("click", hideSessionConfirm);
@@ -1187,7 +1012,7 @@ export function createQuickControls({
 
   function dispose(): void {
     disposed = true;
-    for (const r of keyRows) r.commitIfDirty();
+    endpoints.dispose();
     scheduleCueList?.destroy();
     proactiveCueList?.destroy();
     unsubscribe();
@@ -1205,7 +1030,6 @@ export function createQuickControls({
     unsubscribeVad();
     unsubscribeAgent();
     unsubscribeEndpoints();
-    for (const unsub of unsubscribeKeyRows) unsub();
     unsubscribeFiller?.();
     unsubscribeVrm();
     unsubscribeSpk();
@@ -1237,8 +1061,6 @@ export function createQuickControls({
     railCollapseBtn.removeEventListener("click", handleRailCollapseClick);
     segEl.removeEventListener("click", handleSegClick);
     segEl.removeEventListener("keydown", handleSegKeydown);
-    ttsTypeEl.removeEventListener("change", handleTtsTypeChange);
-    chatTypeEl.removeEventListener("change", handleChatTypeChange);
     vrmsEl.removeEventListener("keydown", vrmList.handleKeydown);
     vrmAddBtn.removeEventListener("click", vrmList.handleAddClick);
     spksEl.removeEventListener("keydown", speakerList.handleKeydown);
@@ -1247,12 +1069,6 @@ export function createQuickControls({
     instructionsEl.removeEventListener("blur", handleInstructionsBlur);
     resetBtn.removeEventListener("click", handleResetInstructions);
     viewpointResetBtn?.removeEventListener("click", handleResetViewpoint);
-    for (const input of epInputs.values()) {
-      input.removeEventListener("input", handleEndpointInput);
-      input.removeEventListener("blur", handleEndpointBlur);
-    }
-    for (const [btn, handler] of svcResetListeners) btn.removeEventListener("click", handler);
-    for (const r of keyRows) r.removeListeners();
     sessionResetBtn?.removeEventListener("click", showSessionConfirm);
     sessionConfirmBtn?.removeEventListener("click", handleSessionReset);
     sessionCancelBtn?.removeEventListener("click", hideSessionConfirm);
