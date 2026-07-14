@@ -1,0 +1,86 @@
+/**
+ * test-helpers.ts — config/load 테스트 공용 fixture.
+ * known-good 파일 묶음 + in-memory ConfigReader. 실제 configs/*.json shape 미러.
+ */
+
+import type { ConfigReader } from "./load";
+
+// ── fixtures (실제 configs/*.json 미러) ────────────────────────────────────────
+
+/** known-good 파일 묶음. 각 테스트는 이걸 복제·일부 변형해서 쓴다. */
+export function goodFixture(): Record<string, unknown> {
+  return {
+    "endpoints.json": {
+      chat_base_url: "http://localhost:8642",
+      chat_endpoint: "/v1/responses",
+      stt_base_url: "http://localhost:5517",
+      tts_base_url: "http://localhost:8092",
+      tts_provider: "openai",
+      chat_instructions: "Use the generate_express tool with emotion_id, motion_id, emotion_text.",
+    },
+    "avatar.json": { vrm_url: "/vrms/carlotta.vrm" },
+    "emotion_registry.json": {
+      neutral: { vrm_expression: "neutral", fallback: "neutral" },
+      happy: { vrm_expression: "happy", fallback: "neutral" },
+    },
+    "motions.json": {
+      idle: {
+        vrma_path: "assets/motions/idle.vrma",
+        kind: "ambient",
+        loop: true,
+        priority: 0,
+        interrupt_policy: "replace",
+      },
+      drag: {
+        vrma_path: "assets/motions/drag.vrma",
+        kind: "reactive",
+        loop: true,
+        priority: 80,
+        interrupt_policy: "replace",
+      },
+      sit: {
+        vrma_path: "assets/motions/sit.vrma",
+        kind: "state",
+        loop: true,
+        priority: 50,
+        interrupt_policy: "queue",
+      },
+    },
+    "guardrails.json": {
+      dnd: { app_blocklist: [] },
+      debounce_ms: {
+        idle_watcher: 30000,
+        os_event_watcher: 5000,
+        backend_push_source: 10000,
+        user_input_source: 0,
+      },
+      rate_limit: {
+        window_ms: 3600000,
+        tier2_max: 6,
+        tier3_max: 2,
+        overall_max: 20,
+        cooldown_ms: 300000,
+      },
+    },
+    "filler.json": {
+      gap_ms: 1000,
+      gap_jitter_ms: 300,
+      pools: {
+        ja: { first: ["うーん…", "そうだね…"], repeat: ["ええと…", "ちょっと待ってね…"] },
+        en: { first: ["Let me think...", "Hmm..."], repeat: ["Well...", "Just a sec..."] },
+        ko: { first: ["음…", "그건…"], repeat: ["글쎄…", "잠깐만…"] },
+      },
+    },
+    "hotkeys.json": { summon_global: "CmdOrCtrl+Shift+Y" },
+  };
+}
+
+/** in-memory map을 읽는 reader. 파일이 없으면 reject(누락 전파 테스트). */
+export function readerOf(map: Record<string, unknown>): ConfigReader {
+  return async (file) => {
+    if (!(file in map)) {
+      throw new Error(`fake reader: missing ${file}`);
+    }
+    return map[file];
+  };
+}
