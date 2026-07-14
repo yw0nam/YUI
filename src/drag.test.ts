@@ -43,9 +43,7 @@ import {
   clampToWorkArea,
   initDrag,
   invokeDragWindow,
-  invokeGetMonitorsInfo,
   logicalToPhysical,
-  type MonitorInfo,
   type OrbitDelta,
   physicalToLogical,
 } from "./drag";
@@ -69,33 +67,6 @@ describe("invokeDragWindow", () => {
   it("propagates errors from invoke", async () => {
     mockInvoke.mockRejectedValueOnce(new Error("OS drag failed"));
     await expect(invokeDragWindow()).rejects.toThrow("OS drag failed");
-  });
-});
-
-// ─── invokeGetMonitorsInfo ───────────────────────────────────────────────────
-
-describe("invokeGetMonitorsInfo", () => {
-  it("calls invoke with get_monitors_info command and returns data", async () => {
-    const fakeMonitors: MonitorInfo[] = [
-      {
-        name: "Built-in Display",
-        widthPx: 2560,
-        heightPx: 1600,
-        xPx: 0,
-        yPx: 0,
-        scaleFactor: 2.0,
-      },
-    ];
-    mockInvoke.mockResolvedValueOnce(fakeMonitors);
-    const result = await invokeGetMonitorsInfo();
-    expect(mockInvoke).toHaveBeenCalledWith("get_monitors_info");
-    expect(result).toEqual(fakeMonitors);
-  });
-
-  it("returns empty array when no monitors available", async () => {
-    mockInvoke.mockResolvedValueOnce([]);
-    const result = await invokeGetMonitorsInfo();
-    expect(result).toEqual([]);
   });
 });
 

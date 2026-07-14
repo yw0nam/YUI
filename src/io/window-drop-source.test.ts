@@ -107,7 +107,6 @@ describe("window-drop-source — perch hit", () => {
     expect(env.source).toBe("os_event_watcher");
     expect(env.hint_tier).toBe(1);
     expect(env.dnd_override).toBe(true);
-    expect(env.payload?.target_window_rect).toEqual(W);
     // edge_local_ypx = W.y - pos.y/scale = 400 - 740/2 = 400 - 370 = 30.
     expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
   });
@@ -117,8 +116,10 @@ describe("window-drop-source — perch hit", () => {
       getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
       isPerched: vi.fn(() => true),
     };
-    const top = win({ name: "Top", pid: 1 });
-    const back = win({ name: "Back", pid: 2 });
+    // Distinct top edges (both catch the seat at global y=400) so the emitted
+    // edge_local_ypx reveals which window won: top y=400 → 30, back y=440 → 70.
+    const top = win({ name: "Top", pid: 1, y: 400 });
+    const back = win({ name: "Back", pid: 2, y: 440 });
     // list_windows is front-to-back → first match (top) wins.
     const invoke = vi.fn(async () => [top, back]);
     const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
@@ -132,7 +133,8 @@ describe("window-drop-source — perch hit", () => {
     await Promise.resolve();
 
     expect(pushed).toHaveLength(1);
-    expect(pushed[0].payload?.target_window_rect).toEqual(top);
+    // edge = top.y - pos.y/scale = 400 - 740/2 = 30 (back would give 70).
+    expect(pushed[0].payload?.edge_local_ypx).toBeCloseTo(30, 6);
   });
 });
 

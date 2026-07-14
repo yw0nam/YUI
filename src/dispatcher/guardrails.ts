@@ -20,7 +20,7 @@ import type { BusEnvelope } from "./event-bus";
 
 export type { GuardrailsConfig };
 
-export type DndReason = "fullscreen" | "camera" | "active_app" | "manual";
+export type DndReason = "fullscreen" | "active_app" | "manual";
 
 export interface DndState {
   on: boolean;
@@ -39,7 +39,7 @@ export type GuardResult = { pass: true } | { pass: false; reason: DropReason; de
 
 export interface Guardrails {
   dndState(): DndState;
-  /** DND trigger 토글 (os.fullscreen_* / os.camera_in_use / user.dnd_toggle 등). */
+  /** DND trigger 토글 (os.fullscreen_* / os.active_app_changed / user.dnd_toggle 등). */
   setDnd(reason: DndReason, on: boolean): void;
   /** envelope → 최대 1회 setDnd 호출로 옮기는 thin translator(DND 상태 갱신). */
   note(env: BusEnvelope): void;
@@ -58,12 +58,6 @@ export interface CreateGuardrailsOptions {
   now?: () => number;
 }
 
-/** payload[key]가 boolean이면 반환, 아니면 undefined(필드 부재는 graceful no-op). */
-function boolField(env: BusEnvelope, key: string): boolean | undefined {
-  const v = env.payload?.[key];
-  return typeof v === "boolean" ? v : undefined;
-}
-
 /** payload[key]가 non-empty string이면 반환, 아니면 undefined. */
 function strField(env: BusEnvelope, key: string): string | undefined {
   const v = env.payload?.[key];
@@ -78,9 +72,8 @@ export function createGuardrails(
   // 핫리로드로 교체 가능 — 런타임 상태(DND reasons / 카운터 / cooldown)는 보존한다.
   let config = initialConfig;
 
-  // DND 상태의 단일 소스 — setDnd만 변경한다. camera는 idle-off 클록 윈도우로 별도 추적.
+  // DND 상태의 단일 소스 — setDnd만 변경한다.
   const dndReasons = new Set<DndReason>();
-  let lastCameraActive: number | null = null;
 
   // debounce: source별 마지막 통과 시각.
   const lastFire = new Map<Source, number>();
@@ -91,25 +84,15 @@ export function createGuardrails(
   const overallWindow: number[] = [];
   let cooldownUntil = 0;
 
-  /** camera idle-off 클록을 반영해 현재 DND reason 집합을 계산한다. */
   function activeReasons(): DndReason[] {
-    if (
-      dndReasons.has("camera") &&
-      lastCameraActive !== null &&
-      now() - lastCameraActive >= config.dnd.camera_idle_off_ms
-    ) {
-      dndReasons.delete("camera");
-    }
     return [...dndReasons];
   }
 
   function setDnd(reason: DndReason, on: boolean): void {
     if (on) {
       dndReasons.add(reason);
-      if (reason === "camera") lastCameraActive = now();
     } else {
       dndReasons.delete(reason);
-      if (reason === "camera") lastCameraActive = null;
     }
   }
 
@@ -121,12 +104,6 @@ export function createGuardrails(
       case "os.fullscreen_exited":
         setDnd("fullscreen", false);
         return;
-      case "os.camera_in_use": {
-        const inUse = boolField(env, "camera_in_use");
-        if (inUse === undefined) return; // payload 미상 → graceful no-op
-        setDnd("camera", inUse);
-        return;
-      }
       case "os.active_app_changed": {
         const app = strField(env, "active_app_name");
         if (app === undefined) return;

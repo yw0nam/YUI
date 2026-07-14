@@ -17,7 +17,7 @@
  *  - motion ABSENT/null → *active* return to idle: call playMotion(null).
  *
  * Out of scope for this layer (other tracks own them):
- * speech_text, tool_status, rich_content.
+ * speech_text, tool_status.
  */
 
 import type { ControlEnvelope, EmotionSignal, MotionSignal } from "../contract";

@@ -83,8 +83,6 @@ export interface GuardrailsConfig {
   dnd: {
     /** active-app blocklist — 포함된 앱이 전경이면 DND on. */
     app_blocklist: string[];
-    /** 카메라 신호 후 이 시간(ms) 무신호면 camera DND off. */
-    camera_idle_off_ms: number;
   };
   /** per-source debounce window(ms). 0이면 디바운스 없음. */
   debounce_ms: {

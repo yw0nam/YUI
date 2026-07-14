@@ -339,7 +339,7 @@ async function bootstrap(): Promise<void> {
   bridge.onVoiceState((s) => {
     applyingRemoteVoice = true;
     try {
-      voiceInputStatus.set(s.state as VoiceInputState, s.detail);
+      voiceInputStatus.set(s.state as VoiceInputState);
     } finally {
       applyingRemoteVoice = false;
     }

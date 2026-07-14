@@ -14,7 +14,7 @@
  *   adjustment at a higher DPI.
  *   Returns a cleanup function that removes all listeners.
  *
- * - `invokeDragWindow()` / `invokeGetMonitorsInfo()` — thin Tauri IPC wrappers,
+ * - `invokeDragWindow()` — thin Tauri IPC wrapper,
  *   exported separately so callers can be tested with a mocked `invoke`.
  *
  * - `physicalToLogical` / `logicalToPhysical` / `clampToWorkArea` — pure TS
@@ -44,30 +44,6 @@ const log = createLogger("drag");
  */
 const DRAG_THRESHOLD_PX = 4;
 
-// ─── IPC types ────────────────────────────────────────────────────────────────
-
-/**
- * Monitor descriptor returned by the `get_monitors_info` Rust command.
- * Mirrors `src-tauri/src/drag.rs` `MonitorInfo` (serde camelCase).
- */
-export interface MonitorInfo {
-  name: string | null;
-  /** Physical width in pixels. */
-  widthPx: number;
-  /** Physical height in pixels. */
-  heightPx: number;
-  /** Physical X offset of top-left corner. */
-  xPx: number;
-  /** Physical Y offset of top-left corner. */
-  yPx: number;
-  /**
-   * Scale factor mapping physical → logical pixels.
-   * `logical = physical / scaleFactor`.
-   * 1.0 = 100% DPI, 2.0 = 200% (Retina), 1.5 = 150% (Windows HiDPI).
-   */
-  scaleFactor: number;
-}
-
 // ─── IPC wrappers ─────────────────────────────────────────────────────────────
 
 /**
@@ -76,15 +52,6 @@ export interface MonitorInfo {
  */
 export async function invokeDragWindow(): Promise<void> {
   return invoke("drag_window");
-}
-
-/**
- * Invoke the Rust `get_monitors_info` command.
- * Returns physical pixel sizes + scale factors for all available monitors.
- * Informational only for the drag path — the OS handles DPI-correct placement.
- */
-export async function invokeGetMonitorsInfo(): Promise<MonitorInfo[]> {
-  return invoke("get_monitors_info");
 }
 
 // ─── Pure DPI math helpers ────────────────────────────────────────────────────

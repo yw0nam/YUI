@@ -1,7 +1,7 @@
 //! macOS OS polling — active app (NSWorkspace), idle (CGEventSource FFI),
 //! window title + fullscreen (CGWindowList raw FFI), camera best-effort.
 
-#![allow(dead_code)] // camera_in_use + CFBooleanRef are unused FFI bindings
+#![allow(dead_code)] // CFBooleanRef + related bindings are unused FFI bindings
 
 use super::{
     emit_os_event, epoch_ms, idle_ms_from_secs, sanitise_app_name, sanitise_window_title,
@@ -594,14 +594,6 @@ pub fn frontmost_app() -> Option<(i32, String)> {
     let name = name_ns.to_string();
     let pid = app.processIdentifier();
     Some((pid, name))
-}
-
-// ─── camera_in_use — best-effort ─────────────────────────────────────────────
-
-/// Always returns None on macOS (requires privileged IOKit SPI, not public API).
-/// Emitting None signals best-effort degrade.
-pub fn camera_in_use() -> Option<bool> {
-    None
 }
 
 // ─── Background polling loop ──────────────────────────────────────────────────

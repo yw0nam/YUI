@@ -61,7 +61,7 @@ function goodFixture(): Record<string, unknown> {
       },
     },
     "guardrails.json": {
-      dnd: { app_blocklist: [], camera_idle_off_ms: 30000 },
+      dnd: { app_blocklist: [] },
       debounce_ms: {
         idle_watcher: 30000,
         os_event_watcher: 5000,
@@ -132,7 +132,7 @@ describe("loadConfig — guardrails", () => {
   it("SOT 모양을 그대로 보존한다", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
     expect(cfg.guardrails).toEqual({
-      dnd: { app_blocklist: [], camera_idle_off_ms: 30000 },
+      dnd: { app_blocklist: [] },
       debounce_ms: {
         idle_watcher: 30000,
         os_event_watcher: 5000,
