@@ -36,8 +36,11 @@ export interface Surfaces {
   hideSpeech(): void;
 
   // ── tool-status (백엔드 tool 관찰) ──
-  /** tool_id를 넘기면 label 맵에서 표시 문자열을 조회한다. 미등록 id는 generic fallback. */
+  /** tool_id로 running 칩을 띄운다(라벨은 tool-labels 조회, 미매핑은 humanize). */
   showTool(toolId: string): void;
+  /** running 칩을 done(체크)으로 전환 후 잠시 뒤 자동 소멸. 칩이 없으면 무시. */
+  finishTool(): void;
+  /** 칩 즉시 숨김. */
   hideTool(): void;
 
   // ── text input (입력) ──
@@ -283,13 +286,36 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   }
 
   // ── tool-status ──
+  const TOOL_DONE_HOLD_MS = 500;
+  let toolHideTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function clearToolTimer(): void {
+    if (toolHideTimer !== null) {
+      clearTimeout(toolHideTimer);
+      toolHideTimer = null;
+    }
+  }
+
   function showTool(toolId: string): void {
+    clearToolTimer();
     toolLabel.textContent = getToolLabel(toolId);
+    toolEl.dataset.state = "running";
     toolEl.hidden = false;
     requestAnimationFrame(() => toolEl.classList.add("is-visible"));
   }
 
+  function finishTool(): void {
+    if (toolEl.hidden) return;
+    clearToolTimer();
+    toolEl.dataset.state = "done";
+    toolHideTimer = setTimeout(() => {
+      toolHideTimer = null;
+      hideTool();
+    }, TOOL_DONE_HOLD_MS);
+  }
+
   function hideTool(): void {
+    clearToolTimer();
     toolEl.classList.remove("is-visible");
     const onEnd = (e: TransitionEvent): void => {
       if (e.propertyName !== "opacity") return;
@@ -529,6 +555,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     finishSpeech,
     hideSpeech,
     showTool,
+    finishTool,
     hideTool,
     summonInput,
     dismissInput,

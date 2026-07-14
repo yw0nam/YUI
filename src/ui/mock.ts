@@ -38,9 +38,9 @@ interface MockOptions {
 /** userText로부터 도구가 필요한지/어떤 라벨인지 흉내 — 실제론 백엔드 function_call 관찰. */
 function inferTool(userText: string): string | null {
   const t = userText.toLowerCase();
-  if (/검색|찾아|search|뭐야|누구|언제|어디/.test(t)) return "검색 중…";
-  if (/실행|터미널|명령|run|build|테스트/.test(t)) return "터미널 실행 중…";
-  if (/열어|사이트|페이지|browse|링크/.test(t)) return "브라우저 보는 중…";
+  if (/검색|찾아|search|뭐야|누구|언제|어디/.test(t)) return "web_search";
+  if (/실행|터미널|명령|run|build|테스트/.test(t)) return "terminal";
+  if (/열어|사이트|페이지|browse|링크/.test(t)) return "browser";
   return null;
 }
 
@@ -83,12 +83,12 @@ export function createMockDriver(
     cancel();
     const gen = token;
 
-    const toolLabel = inferTool(userText);
-    if (toolLabel) {
-      surfaces.showTool(toolLabel);
+    const toolId = inferTool(userText);
+    if (toolId) {
+      surfaces.showTool(toolId);
       await sleep(toolMs);
       if (gen !== token) return;
-      surfaces.hideTool();
+      surfaces.finishTool();
     }
 
     const line = CANNED_REPLIES[Math.abs(hash(userText)) % CANNED_REPLIES.length];

@@ -848,7 +848,7 @@ async function bootstrap(): Promise<void> {
       // 단계별 시연 헬퍼
       __yuiDemo: {
         input: () => surfaces.summonInput(),
-        tool: (label = "검색 중…") => surfaces.showTool(label),
+        tool: (id = "web_search") => surfaces.showTool(id),
         send: (text = "안녕") => userInput.submit(text),
         reply: (text = "오늘 일정 뭐 있어?") => mock.reply(text),
         proactive: () => mock.proactive(),
@@ -1021,6 +1021,12 @@ async function bootstrap(): Promise<void> {
     onSpeechInterrupt: () => speechPlayback.interrupt(),
     onSpeechAbort: () => speechPlayback.abort(),
     onCue: (cue) => speechPlayback.setCue(cue),
+    onToolStatus: (s) =>
+      s.state === "running"
+        ? surfaces.showTool(s.tool_id ?? "")
+        : s.state === "done"
+          ? surfaces.finishTool()
+          : surfaces.hideTool(),
     getScreenshot: async () => {
       const s = screenshotSettings.get();
       if (!s.enabled) return undefined;

@@ -444,6 +444,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const turnToken = {};
     let thinkingStarted = false;
     let thinkingDone = false;
+    // running tool_status를 흘렸고 아직 done으로 닫히지 않았는지 — finally에서 정리 판단.
+    let toolRunning = false;
     const startThinking = () => {
       if (thinkingStarted || thinkingDone) return;
       thinkingStarted = true;
@@ -562,6 +564,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
               // ControlEnvelope/renderer와 무관한 진단 채널 — sink로만 흘린다.
               deps.onUsage?.(ev.usage);
               break;
+            case "tool_status":
+              // 네이티브 tool 관찰 결과 — 스트리밍 즉시 흘려 running 칩을 띄운다.
+              // endThinking 호출 안 함(:551): tool_status는 thinking을 깨뜨리지 않는다.
+              deps.onToolStatus?.(ev.status);
+              toolRunning = ev.status.state === "running";
+              break;
             case "completed":
               envelope = ev.envelope;
               newResponseId = ev.responseId || undefined;
@@ -643,11 +651,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         }
       }
 
-      // B5(tool_status half): 네이티브 tool 관찰 결과 → onToolStatus(있을 때만).
-      if (envelope.tool_status != null) {
-        deps.onToolStatus?.(envelope.tool_status);
-      }
-
       // B4(speech gate): speech_text가 비어있지 않을 때만 발화.
       //   빈 텍스트 = 침묵 — 별도 플래그/판정 없음, drop_reason도 없음.
       if (streamedAny) {
@@ -688,6 +691,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       return { ok: true };
     } finally {
       endThinking();
+      // running 칩이 done 없이 살아남지 않게 — 죽은 턴(abort·drop·stall) 포함 모든 종료 경로에서
+      // 한 번 idle을 흘려 소비자가 칩을 내리게 한다.
+      if (toolRunning) deps.onToolStatus?.({ state: "idle" });
     }
   }
 
