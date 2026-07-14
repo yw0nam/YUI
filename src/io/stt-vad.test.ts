@@ -159,7 +159,7 @@ describe("createSttVad — runtime state callbacks", () => {
     await triggerSpeechEnd!(new Float32Array([0.1, 0.2]));
 
     expect(onState.mock.calls.map(([state]) => state)).toEqual(["asr", "fired"]);
-    expect(onVoiceSegment).toHaveBeenCalledWith({ text: "hello" });
+    expect(onVoiceSegment).toHaveBeenCalledWith("hello");
   });
 
   it("reports error when STT fails", async () => {
@@ -303,7 +303,7 @@ describe("createSttVad — start() failure handling (#64)", () => {
 });
 
 describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => {
-  it("fetches /audio/transcriptions and calls onVoiceSegment with transcript", async () => {
+  it("fetches /audio/transcriptions and calls onVoiceSegment with text", async () => {
     const fetchMock = buildFetchMock("こんにちは");
     vi.stubGlobal("fetch", fetchMock);
 
@@ -322,9 +322,9 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     expect(init.method).toBe("POST");
     expect(init.body).toBeInstanceOf(FormData);
 
-    // transcript forwarded
+    // text forwarded
     expect(onVoiceSegment).toHaveBeenCalledOnce();
-    expect(onVoiceSegment).toHaveBeenCalledWith({ text: "こんにちは" });
+    expect(onVoiceSegment).toHaveBeenCalledWith("こんにちは");
   });
 
   it("sends audio as a Blob under the key 'file' in FormData", async () => {

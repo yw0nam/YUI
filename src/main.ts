@@ -1118,8 +1118,8 @@ async function bootstrap(): Promise<void> {
       // lazy: VAD가 시작될 때마다 침묵 기준을 다시 읽어 슬라이더 변경이 반영되게 한다.
       silenceMs: () => vadSettings.get().silenceMs,
       getApiKey: () => config.secrets.get(STT_API_KEY_SECRET),
-      onVoiceSegment: (transcript) => {
-        userInput.submitVoice(transcript);
+      onVoiceSegment: (text) => {
+        userInput.submitVoice(text);
         proactiveSourceRef?.noteInteraction();
       },
       onState: (state, detail) => voiceInputStatus.set(state, detail),

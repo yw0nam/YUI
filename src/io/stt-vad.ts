@@ -10,14 +10,12 @@
  */
 
 import { MicVAD } from "@ricky0123/vad-web";
-import type { EndpointsConfig, InputContext } from "../contract";
+import type { EndpointsConfig } from "../contract";
 import { createLogger } from "../logger";
 import { createDeadlineSignal } from "./deadline";
 
 const log = createLogger("stt-vad");
 
-/** STT result — matches InputContext.transcript. */
-export type Transcript = NonNullable<InputContext["transcript"]>;
 export type SttVadRuntimeState = "listening" | "asr" | "fired" | "error";
 
 const VAD_ASSET_PATH = "/vad/";
@@ -34,7 +32,7 @@ export interface SttVadOptions {
    */
   silenceMs?: number | (() => number);
   /** Called once per completed voice segment after STT succeeds. */
-  onVoiceSegment: (transcript: Transcript) => void;
+  onVoiceSegment: (text: string) => void;
   /** Reports client-side voice pipeline state for runtime UI. */
   onState?: (state: SttVadRuntimeState, detail?: string) => void;
   /**
@@ -141,7 +139,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
         return;
       }
       const data = (await res.json()) as { text: string };
-      onVoiceSegment({ text: data.text });
+      onVoiceSegment(data.text);
       onState?.("fired");
     } catch (err) {
       log.warn("stt_error", { error: String(err) });

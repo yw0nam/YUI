@@ -192,8 +192,6 @@ export type ScreenSource =
 export interface InputContext {
   /** 키보드 입력 또는 STT 결과 (내부 전달용; system context에 포함되지 않음). */
   user_text?: string;
-  /** STT 결과. */
-  transcript?: { text: string; confidence?: number; lang?: string };
 
   env: {
     /** ISO 8601. */
