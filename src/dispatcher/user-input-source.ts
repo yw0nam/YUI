@@ -3,17 +3,17 @@
  *
  * Produces:
  *  - user.text_submitted  — keyboard chat submit (tier2, dnd_override=true).
- *  - user.voice_segment_ready — STT transcript from VAD pipeline (tier2, dnd_override=true).
+ *  - user.voice_segment_ready — STT text from VAD pipeline (tier2, dnd_override=true).
+ * Both events carry the utterance in payload.text.
  */
 
-import type { Transcript } from "../io/stt-vad";
 import type { BusEnvelope, EventBus } from "./event-bus";
 
 export interface UserInputSource {
   /** Chat submit → bus push. Pushes when text is non-empty OR ≥1 image is attached. */
   submit(text: string, images?: string[]): void;
-  /** Voice transcript from STT → bus push. Empty transcript text is ignored. */
-  submitVoice(transcript: Transcript): void;
+  /** Voice text from STT → bus push with payload.text. Empty text is ignored. */
+  submitVoice(text: string): void;
 }
 
 export function createUserInputSource(bus: EventBus): UserInputSource {
@@ -32,13 +32,14 @@ export function createUserInputSource(bus: EventBus): UserInputSource {
       bus.push(env);
     },
 
-    submitVoice(transcript) {
-      if (transcript.text.trim().length === 0) return;
+    submitVoice(text) {
+      const trimmed = text.trim();
+      if (trimmed.length === 0) return;
       const env: BusEnvelope = {
         source: "user_input_source",
         event_name: "user.voice_segment_ready",
         ts: Date.now(),
-        payload: { transcript },
+        payload: { text: trimmed },
         hint_tier: 2,
         dnd_override: true,
       };
