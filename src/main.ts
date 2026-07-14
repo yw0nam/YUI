@@ -33,12 +33,6 @@ import { createScheduleSource } from "./dispatcher/schedule-source";
 import { createSignalsSource } from "./dispatcher/signals-source";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
-import {
-  createAgentNotifySettings,
-  localStorageAgentNotifyStorage,
-} from "./io/agent-notify-settings";
-import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
-import { createSttKeySettings, createTtsKeySettings } from "./io/api-key-settings";
 import { resolveAssetUrl } from "./io/asset-url";
 import { createWebAudioSink } from "./io/audio-player";
 import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
@@ -48,55 +42,27 @@ import {
   CAMERA_WHEEL_SENSITIVITY,
   CAMERA_ZOOM_MAX,
   CAMERA_ZOOM_MIN,
-  createCameraSettings,
-  localStorageCameraStorage,
 } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
-import { createChatHistoryStore, localStorageChatHistoryStorage } from "./io/chat-history-store";
-import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
-import {
-  createEndpointsSettings,
-  localStorageEndpointsStorage,
-  mergeEndpoints,
-} from "./io/endpoints-settings";
+import { mergeEndpoints } from "./io/endpoints-settings";
 import { createFillerLoop } from "./io/filler-loop";
 import { effectiveFillerPool } from "./io/filler-pool";
-import { createFillerSettings, localStorageFillerStorage } from "./io/filler-settings";
-import { createGazeSettings, localStorageGazeStorage } from "./io/gaze-settings";
-import { createHintSettings, localStorageHintStorage } from "./io/hint-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
-import {
-  createIdleThrottleSettings,
-  localStorageIdleThrottleStorage,
-} from "./io/idle-throttle-settings";
 import { createIrodoriSynth, type TtsSynth } from "./io/irodori-synth";
 import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
 import { ensureRegistered, evictRegistration } from "./io/irodori-voices";
-import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createOsContext } from "./io/os-context";
-import { createPresenceSettings, localStoragePresenceStorage } from "./io/presence-settings";
-import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
-import { createRecentAppsSettings, localStorageRecentAppsStorage } from "./io/recent-apps-settings";
-import { createScheduleSettings, localStorageScheduleStorage } from "./io/schedule-settings";
 import { buildScreenshotBlock } from "./io/screenshot-context";
-import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
-import {
-  createSessionDiagnosticsStore,
-  localStorageSessionDiagnosticsStorage,
-} from "./io/session-diagnostics";
-import { createSessionStore, localStorageSessionStorage } from "./io/session-store";
 import { createSettingsBridge } from "./io/settings-bridge";
+import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
 import { createSpeechPlayback } from "./io/speech-playback";
-import { createSttSettings, localStorageSttStorage } from "./io/stt-settings";
 import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
 import { TTS_SKIP } from "./io/tts-pipeline";
-import { createTtsSettings, localStorageTtsStorage } from "./io/tts-settings";
 import { createTtsSynth } from "./io/tts-synth";
-import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { removeUserVrm } from "./io/vrm-import";
 import { createWindowDropSource } from "./io/window-drop-source";
@@ -233,76 +199,36 @@ async function bootstrap(): Promise<void> {
     }
   });
 
-  const screenshotSettings = createScreenshotSettings({
-    storage: localStorageScreenshotStorage(),
-  });
-  // TTS 음성 출력 on/off. 기본 ON. OFF면 synth를 건너뛰고 표정/모션·말풍선만 표시.
-  const ttsSettings = createTtsSettings({
-    storage: localStorageTtsStorage(),
-  });
-  // STT 음성입력 on/off 의도. 기본 OFF. 켜둔 채 종료하면 다음 실행에서 자동 재개한다.
-  const sttSettings = createSttSettings({
-    storage: localStorageSttStorage(),
-  });
-  // 유휴 절전(30fps 캡) on/off. 기본 ON.
-  const idleThrottleSettings = createIdleThrottleSettings({
-    storage: localStorageIdleThrottleStorage(),
-  });
-  // 주도적 반응(무대화 N분 → proactive.<id>) 설정. 소스 firing만 게이팅 — 구독은 멈추지 않는다.
-  const proactiveSettings = createProactiveSettings({
-    storage: localStorageProactiveStorage(),
-  });
-  // 시간대 인사(HH:MM → schedule.<id>) 설정.
-  const scheduleSettings = createScheduleSettings({
-    storage: localStorageScheduleStorage(),
-  });
-  // Agent completion 알림 on/off + 수신 포트. 소스 firing만 게이팅.
-  const agentNotifySettings = createAgentNotifySettings({
-    storage: localStorageAgentNotifyStorage(),
-  });
-  // Presence window threshold — "present when idle ≤ N ms". Shared by proactive/agent sources.
-  const presenceSettings = createPresenceSettings({ storage: localStoragePresenceStorage() });
-  // Recent-apps buffer cap — os-context caps its app-switch buffer at this value.
-  const recentAppsSettings = createRecentAppsSettings({
-    storage: localStorageRecentAppsStorage(),
-  });
-  const lipsyncSettings = createLipsyncSettings({
-    storage: localStorageLipsyncStorage(),
-  });
-  const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
-  const agentSettings = createAgentSettings({
-    storage: localStorageAgentStorage(),
-  });
-  // TTFT 추임새(생각중 모션 + 필러 발화) 설정. 두 창이 wireStorageSync로 동기화.
-  const fillerSettings = createFillerSettings({
-    storage: localStorageFillerStorage(),
-  });
-  // 세션 연속성 store: 회전 id 포인터 + 진단(used/window/last-compression). 두 창이
-  // wireStorageSync로 동기화하므로 다른 store들과 함께 일찍 만든다(config/dispatcher 비의존).
-  const sessionStore = createSessionStore(localStorageSessionStorage());
-  const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
-  // 통합 대화 transcript — 두 프로토콜 모드 모두 append하고 CC 모드만 여기서 송신분을 뽑는다.
-  // "새 대화 시작"이 session store들과 함께 비운다(quick-controls). 두 창이 wireStorageSync로 동기화.
-  const chatHistoryStore = createChatHistoryStore({ storage: localStorageChatHistoryStorage() });
-  // 사용자 편집 엔드포인트 오버라이드: localStorage가 bundled config를 덮는다(빈 값=폴백).
-  const endpointsSettings = createEndpointsSettings({
-    storage: localStorageEndpointsStorage(),
-  });
-  // 런타임 chat API 키 오버라이드: localStorage가 build-time 키를 덮는다(빈 값=폴백). 값은 시크릿.
-  const chatKeySettings = createChatKeySettings({
-    storage: localStorageChatKeyStorage(),
-  });
-  // 런타임 STT/openai-TTS 키 오버라이드(localStorage). 빈 값=.env.local fallback. 값은 시크릿.
-  const sttKeySettings = createSttKeySettings();
-  const ttsKeySettings = createTtsKeySettings();
+  const {
+    screenshotSettings,
+    ttsSettings,
+    sttSettings,
+    idleThrottleSettings,
+    proactiveSettings,
+    scheduleSettings,
+    agentNotifySettings,
+    presenceSettings,
+    recentAppsSettings,
+    lipsyncSettings,
+    vadSettings,
+    agentSettings,
+    fillerSettings,
+    sessionStore,
+    sessionDiagnostics,
+    chatHistoryStore,
+    endpointsSettings,
+    chatKeySettings,
+    sttKeySettings,
+    ttsKeySettings,
+    cameraSettings,
+    gazeSettings,
+    hintSettings,
+  } = createSettingsStores();
   // config.endpoints 위에 오버라이드를 얹은 effective 엔드포인트. 호출 시점에 평가(핫리로드 친화).
   function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
     return mergeEndpoints(config.get().endpoints, endpointsSettings.get());
   }
   // 카메라 줌: persist된 배율을 부트 시 적용하고, 변경(휠/크로스윈도우)마다 렌더러로 흘린다.
-  const cameraSettings = createCameraSettings({
-    storage: localStorageCameraStorage(),
-  });
   renderer.setZoom(cameraSettings.get().zoom);
   renderer.setOrbit({ azimuth: cameraSettings.get().azimuth, polar: cameraSettings.get().polar });
   cameraSettings.subscribe((s) => {
@@ -312,11 +238,8 @@ async function bootstrap(): Promise<void> {
   renderer.setIdleThrottleEnabled(idleThrottleSettings.get().enabled);
   idleThrottleSettings.subscribe((s) => renderer.setIdleThrottleEnabled(s.enabled));
   // 카메라 시선 맞춤(gaze) on/off. 기본 ON. 변경(토글/크로스윈도우)마다 렌더러로 흘린다.
-  const gazeSettings = createGazeSettings({ storage: localStorageGazeStorage() });
   renderer.setGazeEnabled(gazeSettings.get().enabled);
   gazeSettings.subscribe((s) => renderer.setGazeEnabled(s.enabled));
-  // First-run 온보딩 힌트 — 최초 1회만 노출되는 flag.
-  const hintSettings = createHintSettings({ storage: localStorageHintStorage() });
   const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
