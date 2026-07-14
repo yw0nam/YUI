@@ -17,7 +17,12 @@
 //! Click/pet-gesture events on the character region belong to the dispatcher. `src/drag.ts` emits
 //! a placeholder `"__yui_gesture_stub"` custom event at the drag-start site as the gesture seam.
 
-use tauri::{command, Manager, Runtime, WebviewWindow};
+use tauri::{command, Runtime, WebviewWindow};
+// `Manager` is only needed for `app_handle()` in the drop-release probe below,
+// which is itself gated to macOS/Windows. Gate the import to match, so other
+// platforms don't see it as unused under `-D warnings`.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use tauri::Manager;
 
 // ─── Tauri commands ──────────────────────────────────────────────────────────
 
