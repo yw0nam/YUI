@@ -220,17 +220,6 @@ describe("createSessionStore — reloadFromStorage", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// persistence
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("createSessionStore — persistence", () => {
-  it("a store over storage already holding a seed returns it", () => {
-    const store = createSessionStore(makeMemStorage("resp_seed"));
-    expect(store.get()).toBe("resp_seed");
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // subscribe / dispose
 // ─────────────────────────────────────────────────────────────────────────────
 

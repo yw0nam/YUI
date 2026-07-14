@@ -316,10 +316,7 @@ describe("dispatcher — routing (§5.1)", () => {
         source: "os_event_watcher",
         event_name: "user.window_sit_drop",
         hint_tier: 1,
-        payload: {
-          target_window_rect: { x: 300, y: 400, width: 520, height: 320 },
-          edge_local_ypx: 30,
-        },
+        payload: { edge_local_ypx: 30 },
       }),
     );
     await vi.advanceTimersByTimeAsync(20);
@@ -351,7 +348,7 @@ describe("dispatcher — routing (§5.1)", () => {
         source: "os_event_watcher",
         event_name: "user.window_sit_drop",
         hint_tier: 1,
-        payload: { target_window_rect: { x: 0, y: 0, width: 1, height: 1 } }, // no edge_local_ypx
+        payload: {}, // no edge_local_ypx
       }),
     );
     await vi.advanceTimersByTimeAsync(20);
