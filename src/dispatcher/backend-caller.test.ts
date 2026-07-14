@@ -690,7 +690,7 @@ describe("backend_caller — flat client_context envelope", () => {
       ts: 1_717_000_000_000,
       hint_tier: 2,
       dnd_override: true,
-      payload: { transcript: { text: "こんにちは" } },
+      payload: { text: "こんにちは" },
     };
     await caller.call(env);
     const [, request] = streamChatSpy.mock.calls[0];

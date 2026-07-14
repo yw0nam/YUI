@@ -3,9 +3,9 @@
  *
  * Locks:
  *  - submit(text) pushes a well-formed user.text_submitted envelope.
- *  - submitVoice(transcript) pushes a user.voice_segment_ready envelope with transcript payload.
+ *  - submitVoice(text) pushes a user.voice_segment_ready envelope with text payload.
  *  - voice envelope: source=user_input_source, dnd_override=true, hint_tier=2.
- *  - payload shape: { transcript: { text, confidence?, lang? } }.
+ *  - payload shape: { text }.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -94,10 +94,10 @@ describe("user_input_source — submit with images", () => {
 });
 
 describe("user_input_source — submitVoice", () => {
-  it("pushes a user.voice_segment_ready envelope with transcript payload", () => {
+  it("pushes a user.voice_segment_ready envelope with text payload", () => {
     const { bus, pushed } = fakeBus();
     const src = createUserInputSource(bus);
-    src.submitVoice({ text: "こんにちは" });
+    src.submitVoice("こんにちは");
 
     expect(pushed).toHaveLength(1);
     const e = pushed[0];
@@ -106,23 +106,21 @@ describe("user_input_source — submitVoice", () => {
     expect(e.dnd_override).toBe(true);
     expect(e.hint_tier).toBe(2);
     expect(typeof e.ts).toBe("number");
-    expect(e.payload?.transcript).toEqual({ text: "こんにちは" });
+    expect(e.payload?.text).toBe("こんにちは");
   });
 
-  it("forwards confidence and lang when present", () => {
+  it("does not push when text is empty", () => {
     const { bus, pushed } = fakeBus();
     const src = createUserInputSource(bus);
-    src.submitVoice({ text: "hello", confidence: 0.95, lang: "en" });
-
-    const e = pushed[0];
-    expect(e.payload?.transcript).toEqual({ text: "hello", confidence: 0.95, lang: "en" });
-  });
-
-  it("does not push when transcript text is empty", () => {
-    const { bus, pushed } = fakeBus();
-    const src = createUserInputSource(bus);
-    src.submitVoice({ text: "" });
-    src.submitVoice({ text: "   " });
+    src.submitVoice("");
+    src.submitVoice("   ");
     expect(pushed).toHaveLength(0);
+  });
+
+  it("trims surrounding whitespace from text", () => {
+    const { bus, pushed } = fakeBus();
+    const src = createUserInputSource(bus);
+    src.submitVoice("  hello  ");
+    expect(pushed[0].payload?.text).toBe("hello");
   });
 });
