@@ -20,7 +20,7 @@
 import type { SignalsBatch } from "../io/signals-inbox";
 import { onSignalsInbox } from "../io/signals-inbox";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
-import { OS_EVENT_CHANNEL, resolveTauriListen } from "../io/tauri-listen";
+import { subscribeOsEvent } from "../io/tauri-listen";
 import { createLogger } from "../logger";
 import type { EventBus } from "./event-bus";
 
@@ -129,19 +129,12 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     running = true;
 
     // Subscribe to OS idle ticks for presence tracking and edge detection.
-    let listen: OsEventListen | undefined;
-    try {
-      listen = deps.listen ?? (await resolveTauriListen());
-    } catch (err) {
-      log.debug("listen_resolve_failed", { degrade: true, error: String(err) });
-    }
-    if (listen) {
-      try {
-        unlistenIdle = await listen(OS_EVENT_CHANNEL, ({ payload }) => onTick(payload));
-      } catch (err) {
-        log.debug("subscribe_idle_failed", { degrade: true, error: String(err) });
-      }
-    }
+    unlistenIdle = await subscribeOsEvent({
+      listen: deps.listen,
+      onTick,
+      log,
+      subscribeTag: "subscribe_idle_failed",
+    });
 
     // Subscribe to signal batches.
     try {

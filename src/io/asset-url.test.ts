@@ -49,6 +49,7 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
     const api = mockTauri();
     const out = await resolveAssetUrl("/configs/endpoints.json", {
       isTauri: () => true,
+      isDev: () => false,
       tauri: async () => api,
     });
     expect(api.resolveResource).toHaveBeenCalledWith("configs/endpoints.json");
@@ -60,6 +61,7 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
     const api = mockTauri();
     const out = await resolveAssetUrl("/vrms/carlotta.vrm", {
       isTauri: () => true,
+      isDev: () => false,
       tauri: async () => api,
     });
     expect(api.resolveResource).toHaveBeenCalledWith("vrms/carlotta.vrm");
@@ -70,6 +72,7 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
     const api = mockTauri();
     const out = await resolveAssetUrl("/references/ナツメ/merged_audio.mp3", {
       isTauri: () => true,
+      isDev: () => false,
       tauri: async () => api,
     });
     expect(api.resolveResource).toHaveBeenCalledWith("references/ナツメ/merged_audio.mp3");
@@ -80,6 +83,7 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
     const api = mockTauri();
     const out = await resolveAssetUrl("/configs/endpoints.json?t=999", {
       isTauri: () => true,
+      isDev: () => false,
       tauri: async () => api,
     });
     // resolveResource에는 쿼리 없는 경로만 넘긴다.
@@ -91,10 +95,41 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
     const api = mockTauri();
     const out = await resolveAssetUrl("https://cdn.example/x.vrm", {
       isTauri: () => true,
+      isDev: () => false,
       tauri: async () => api,
     });
     expect(api.resolveResource).not.toHaveBeenCalled();
     expect(out).toBe("https://cdn.example/x.vrm");
+  });
+});
+
+describe("resolveAssetUrl — dev-Tauri 라이브 서빙 바이패스", () => {
+  it("Tauri여도 dev면 입력 경로를 그대로 반환한다(vite 라이브 서빙 → 핫리로드)", async () => {
+    const out = await resolveAssetUrl("/configs/hotkeys.json", {
+      isTauri: () => true,
+      isDev: () => true,
+      tauri: async () => mockTauri(),
+    });
+    expect(out).toBe("/configs/hotkeys.json");
+  });
+
+  it("dev면 resolveResource/convertFileSrc를 부르지 않는다(번들 복사본 미참조)", async () => {
+    const api = mockTauri();
+    await resolveAssetUrl("/vrms/carlotta.vrm", {
+      isTauri: () => true,
+      isDev: () => true,
+      tauri: async () => api,
+    });
+    expect(api.resolveResource).not.toHaveBeenCalled();
+    expect(api.convertFileSrc).not.toHaveBeenCalled();
+  });
+
+  it("dev 바이패스에서도 캐시버스트 쿼리를 보존한다", async () => {
+    const out = await resolveAssetUrl("/configs/hotkeys.json?t=123", {
+      isTauri: () => true,
+      isDev: () => true,
+    });
+    expect(out).toBe("/configs/hotkeys.json?t=123");
   });
 });
 
@@ -120,6 +155,7 @@ describe("resolveUserFileSrc — Tauri app-data 절대 경로", () => {
     const api = mockTauri();
     const resourceOut = await resolveAssetUrl("/vrms/carlotta.vrm", {
       isTauri: () => true,
+      isDev: () => false,
       tauri: async () => api,
     });
     const userOut = await resolveUserFileSrc("/abs/app-data/vrms/Cat.vrm", {

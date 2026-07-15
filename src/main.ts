@@ -60,6 +60,7 @@ import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-windo
 import { createSpeechPlayback } from "./io/speech-playback";
 import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
+import { isTauri } from "./io/tauri-env";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
 import { TTS_SKIP } from "./io/tts-pipeline";
 import { createTtsSynth } from "./io/tts-synth";
@@ -84,7 +85,6 @@ import {
   subscribe as subscribeLocale,
   t,
 } from "./ui/i18n";
-import { createMockDriver } from "./ui/mock";
 import { createQuickControls } from "./ui/quick-controls";
 import { createSurfaces } from "./ui/surfaces";
 import { routeTurnFailure, turnErrorMessage } from "./ui/turn-error";
@@ -175,7 +175,6 @@ async function bootstrap(): Promise<void> {
   const ambient = createTier1Engine(renderer);
   ambient.start();
   const surfaces = createSurfaces({ mount: root });
-  const mock = createMockDriver(surfaces);
 
   // 채팅 입력을 캐릭터 발밑에 붙인다(reframe 추종). 매 프레임 발밑 화면좌표를 받아
   // 입력 하단 오프셋으로 매핑하되, epsilon 이하 변화는 건너뛰어 var 재기록을 줄인다.
@@ -552,7 +551,7 @@ async function bootstrap(): Promise<void> {
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
   // Guards the teardown/async-assign race: cleanup may run before the IIFE assigns.
   let windowDropDisposed = false;
-  if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+  if (isTauri()) {
     void (async () => {
       const { invoke } = await import("@tauri-apps/api/core");
       // Only bind the loopback ingress when the watcher is on. Restart-to-apply:
@@ -697,6 +696,8 @@ async function bootstrap(): Promise<void> {
 
   // dev 전용: 스크린샷 검증 루프에서 직접 호출할 핸들.
   if (import.meta.env.DEV) {
+    const { createMockDriver } = await import("./ui/mock");
+    const mock = createMockDriver(surfaces);
     Object.assign(globalThis as Record<string, unknown>, {
       __yuiRenderer: renderer,
       __yuiAmbient: ambient,
@@ -739,7 +740,7 @@ async function bootstrap(): Promise<void> {
         drop: async (rect: WindowRect): Promise<void> => {
           let pos = { x: 0, y: 0 };
           let scale = 1;
-          if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+          if (isTauri()) {
             try {
               const { getCurrentWindow } = await import("@tauri-apps/api/window");
               const w = getCurrentWindow();
@@ -1169,7 +1170,7 @@ async function bootstrap(): Promise<void> {
     // 전역 소환 핫키: configs/hotkeys.json accelerator를 OS 전역으로 등록(Tauri 전용 —
     // 브라우저 dev에서는 스킵). 발동 시 창 show+focus 후 입력 소환. 등록 실패는
     // summon-hotkey가 warn 후 비활성으로 처리한다(fail-soft).
-    if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+    if (isTauri()) {
       void (async () => {
         const { register, unregister } = await import("@tauri-apps/plugin-global-shortcut");
         const { getCurrentWindow } = await import("@tauri-apps/api/window");
