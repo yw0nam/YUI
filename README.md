@@ -142,11 +142,11 @@ base URLs live in `configs/endpoints.json`.
     conversation transcript client-side (no `previous_response_id`) and
     trims it to `chat_model_context_window` — the only client-side
     differences from Responses mode
-- **STT** — `localhost:5517` `/audio/transcriptions`
+- **STT** — `localhost:5517` `/v1/audio/transcriptions`
 - **TTS** — selected via `tts_provider` (default `irodori`):
   - `irodori` — irodori_TTS at `localhost:8091` `/synthesize`, reference-voice
     based (per-speaker voices in `irodori_voices`)
-  - `openai` — OpenAI-compatible `/audio/speech` at `localhost:8092`
+  - `openai` — OpenAI-compatible `/v1/audio/speech` at `localhost:8092`
 - **Expression Broker** — `localhost:3201/mcp` (streamable-http MCP); YUI
   publishes its emotion/motion/voice vocabulary here in both chat modes,
   gated only on `broker_base_url` (skipped if unset) — the backend agent
@@ -202,7 +202,6 @@ level with `VITE_YUI_LOG_LEVEL` (`debug` · `info` · `warn` · `error`).
 - [`docs/reference/tts-emotion/`](docs/reference/tts-emotion/) — per-provider `emotion_text` voice tags
 - [`docs/reference/logging.md`](docs/reference/logging.md) — logging convention
 - [`src/contract/types.ts`](src/contract/types.ts) — TS contract shapes
-- [`CHANGELOG.md`](CHANGELOG.md) — landed work
 
 ## Credits
 

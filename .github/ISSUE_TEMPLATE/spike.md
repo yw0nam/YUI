@@ -6,7 +6,7 @@ labels: ["spike"]
 ---
 
 ## 불확실성 / 질문
-<!-- 무엇이 아직 확정 안 됐나. event-dispatcher.md의 A* 참조 -->
+<!-- What remains unresolved? -->
 
 ## 왜 지금 검증해야 하나
 <!-- 어떤 작업이 이걸 막고 있나 (blocking), 어느 마일스톤 exit인가 -->
@@ -18,7 +18,7 @@ labels: ["spike"]
 
 ## 완료 기준 (Definition of Done)
 - [ ] 결론 도출
-- [ ] 결론을 `docs/`에 반영 (contract / prd 결정 로그)
+- [ ] Document the conclusion in the relevant `docs/` file
 - [ ] 관련 OPEN/Assumption 항목 해소 표시
 
 ## 참고

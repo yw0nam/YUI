@@ -15,7 +15,7 @@ pnpm tauri dev    # transparent desktop-pet window
 ```
 
 `pnpm setup` only wires YUI's own config. The backend agent, Expression Broker,
-TTS, and STT are **separate repositories** — see [`docs/setup.md`](docs/setup.md)
+TTS, and STT are **separate repositories** — see [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
 for those. Drop a VRM 1.0 model into `resources/vrms/*.vrm` (gitignored).
 
 ## Workflow
@@ -59,5 +59,5 @@ pnpm lint                   # biome
 ## Going deeper
 
 - [`AGENTS.md`](AGENTS.md) — project orientation (architecture, core principle, doc index); the `yui-dev-workflow` skill holds the dev work rules and sub-agent roster
-- [`docs/setup.md`](docs/setup.md) — full install & backend wiring
+- [`docs/guide/getting-started.md`](docs/guide/getting-started.md) — full install & backend wiring
 - [`PRODUCT.md`](PRODUCT.md) / [`DESIGN.md`](DESIGN.md) — product register + design system

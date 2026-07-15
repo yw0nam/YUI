@@ -2,4 +2,4 @@ blank_issues_enabled: false
 contact_links:
   - name: 설계 문서 (docs/)
     url: https://github.com/yw0nam/YUI/tree/main/docs
-    about: PRD(F1–F9·결정 로그) / contract / event-dispatcher — 이슈 작성 전 먼저 확인
+    about: Review PRODUCT.md and docs/reference/backend-contract.md before opening an issue

@@ -22,14 +22,14 @@ fn action_for(menu_id: &str) -> Option<TrayAction> {
 
 fn toggle_visibility(app: &AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
-        log::warn!("tray main window not found");
+        log::warn!("tray_main_window_not_found window=main");
         return;
     };
 
     match window.is_visible() {
         Ok(true) => {
             if let Err(error) = window.hide() {
-                log::warn!("tray failed to hide main window: {error}");
+                log::warn!("tray_hide_main_window_failed error={error}");
             }
         }
         Ok(false) => {

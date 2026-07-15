@@ -185,7 +185,7 @@ For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utter
 
 ### Signals fields
 
-`signals` turns carry no `cue`. The source is a remote n8n workflow that POSTs `{ "signals": [...] }` to the YUI app's `/signals` ingress; each POST becomes one turn. Items are heterogeneous — GitHub change, Notion task, heartbeat, or any future kind n8n decides to emit — with no uniform tag across them.
+`signals` turns carry no `cue`. The source is a remote n8n workflow that POSTs `{ "signals": [...] }` to the YUI app's `/signals` ingress. While the user is present, each POST becomes one turn. While the user is away, up to five POST batches are buffered; a sixth drops the oldest batch. On the idle-to-present edge, all buffered items are flattened in arrival order into one `signals.catchup` turn. Items are heterogeneous — GitHub change, Notion task, heartbeat, or any future kind n8n decides to emit — with no uniform tag across them.
 
 | Field | Type | Meaning |
 |---|---|---|
