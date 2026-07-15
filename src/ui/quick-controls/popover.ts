@@ -5,6 +5,8 @@
  * 내용 갱신(reflect/render/monitor)은 onOpen 콜백, 게인·audition·키 커밋 정리는 onClose 콜백에 위임한다.
  */
 
+import { localStorageStore } from "../../io/persisted-store";
+
 const VIEWPORT_MARGIN = 12;
 const POS_KEY = "yui.quick.pos";
 
@@ -13,25 +15,17 @@ interface SavedPos {
   y: number;
 }
 
+const posStore = localStorageStore<SavedPos>(POS_KEY);
+
 function loadSavedPos(): SavedPos | null {
-  try {
-    const raw = globalThis.localStorage?.getItem(POS_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<SavedPos>;
-    if (typeof parsed?.x !== "number" || typeof parsed?.y !== "number") return null;
-    if (!Number.isFinite(parsed.x) || !Number.isFinite(parsed.y)) return null;
-    return { x: parsed.x, y: parsed.y };
-  } catch {
-    return null;
-  }
+  const parsed = posStore.load();
+  if (typeof parsed?.x !== "number" || typeof parsed?.y !== "number") return null;
+  if (!Number.isFinite(parsed.x) || !Number.isFinite(parsed.y)) return null;
+  return { x: parsed.x, y: parsed.y };
 }
 
 function savePos(pos: SavedPos): void {
-  try {
-    globalThis.localStorage?.setItem(POS_KEY, JSON.stringify(pos));
-  } catch {
-    // localStorage 사용 불가 시 no-op
-  }
+  posStore.save(pos);
 }
 
 export interface PopoverDeps {
