@@ -139,8 +139,7 @@ fn windows_set_children_transparent<R: Runtime>(
 mod tests {
     use super::*;
 
-    // ── desired_exstyle — pure logic, no FFI (Windows-only: the bit-mask helper
-    //    is compiled only on Windows, so its tests are gated the same way). ──────
+    // ── desired_exstyle — pure logic, no FFI, runs on all platforms. ────────────
 
     #[test]
     fn passthrough_adds_transparent_bit() {
