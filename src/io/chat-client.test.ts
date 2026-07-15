@@ -145,6 +145,26 @@ const completedWithUsage = (text: string, usage: Record<string, unknown>): any =
   return ev;
 };
 
+/** response.reasoning_summary_text.delta — no ChatStreamEvent case handled it before the fix. */
+const reasoningSummaryDelta = (delta: string): any => ({
+  type: "response.reasoning_summary_text.delta",
+  delta,
+  item_id: "rs_1",
+  output_index: 0,
+  summary_index: 0,
+  sequence_number: 0,
+});
+
+/** response.reasoning_text.delta — same "unhandled reasoning event" family. */
+const reasoningTextDelta = (delta: string): any => ({
+  type: "response.reasoning_text.delta",
+  delta,
+  item_id: "rs_1",
+  output_index: 0,
+  content_index: 0,
+  sequence_number: 0,
+});
+
 /** generate_express FLAT args: emotion_id / motion_id / emotion_text. */
 const GEN_EXPRESS_FLAT =
   '{"emotion_id":"happy","motion_id":"embarrassed","emotion_text":"[whisper in small voice]"}';
@@ -838,6 +858,38 @@ describe("streamChat — usage event", () => {
 
     expect(events.some((e) => e.type === "usage")).toBe(false);
     expect(events.some((e) => e.type === "completed")).toBe(true);
+  });
+});
+
+describe("streamChat — reasoning keepalive", () => {
+  it("emits keepalive for response.reasoning_summary_text.delta and response.reasoning_text.delta, before the first speech_delta", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        reasoningSummaryDelta("thinking..."),
+        reasoningTextDelta("more thinking..."),
+        textDelta("hi"),
+        textDone("hi"),
+        completed("hi"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    const keepalives = events.filter((e) => e.type === "keepalive");
+    expect(keepalives.length).toBe(2);
+
+    // keepalives must precede the first speech_delta — they cover the reasoning gap.
+    const firstSpeechIdx = events.findIndex((e) => e.type === "speech_delta");
+    const lastKeepaliveIdx = events.map((e) => e.type).lastIndexOf("keepalive");
+    expect(lastKeepaliveIdx).toBeLessThan(firstSpeechIdx);
+  });
+
+  it("a lone reasoning event with no following text still yields a keepalive (no speech required)", async () => {
+    createMock.mockResolvedValue(streamOf([reasoningSummaryDelta("thinking..."), completed("")]));
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events).toContainEqual({ type: "keepalive" });
   });
 });
 
