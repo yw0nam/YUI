@@ -1,3 +1,5 @@
+import { isTauri } from "./io/tauri-env";
+
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export interface Logger {
@@ -31,16 +33,12 @@ export function getLogLevel(): LogLevel {
   return currentLevel;
 }
 
-function inTauri(): boolean {
-  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-}
-
 // plugin-log sink, populated by initLogger() in Tauri only.
 type PluginLog = typeof import("@tauri-apps/plugin-log");
 let sink: PluginLog | null = null;
 
 export async function initLogger(): Promise<void> {
-  if (!inTauri()) return;
+  if (!isTauri()) return;
   const mod = await import("@tauri-apps/plugin-log");
   sink = mod;
 }

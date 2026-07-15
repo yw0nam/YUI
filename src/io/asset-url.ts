@@ -9,6 +9,8 @@
  * Tauri API는 주입 가능 — 테스트는 실제 @tauri-apps/api를 타지 않고 분기만 검증한다.
  */
 
+import { isTauri } from "./tauri-env";
+
 /** Tauri 번들 리소스 해석에 필요한 최소 API 표면. */
 export interface TauriAssetApi {
   resolveResource(path: string): Promise<string>;
@@ -16,14 +18,10 @@ export interface TauriAssetApi {
 }
 
 export interface ResolveAssetUrlOptions {
-  /** Tauri 런타임 판별. 기본은 globalThis.__TAURI_INTERNALS__ 존재 여부. */
+  /** Tauri 런타임 판별. 기본은 공유 런타임 판별 함수. */
   isTauri?: () => boolean;
   /** Tauri API 로더(주입 가능). 기본은 @tauri-apps/api에서 동적 import. */
   tauri?: () => Promise<TauriAssetApi>;
-}
-
-function defaultIsTauri(): boolean {
-  return !!(globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 }
 
 async function defaultTauri(): Promise<TauriAssetApi> {
@@ -63,8 +61,8 @@ export async function resolveAssetUrl(
   logicalPath: string,
   opts: ResolveAssetUrlOptions = {},
 ): Promise<string> {
-  const isTauri = opts.isTauri ?? defaultIsTauri;
-  if (!isTauri() || isAbsoluteUrl(logicalPath)) return logicalPath;
+  const runtimeIsTauri = opts.isTauri ?? isTauri;
+  if (!runtimeIsTauri() || isAbsoluteUrl(logicalPath)) return logicalPath;
 
   const tauri = await (opts.tauri ?? defaultTauri)();
   const { rel, query } = splitPath(logicalPath);
@@ -85,10 +83,10 @@ export async function resolveUserFileSrc(
 ): Promise<string> {
   if (DANGEROUS_SCHEME.test(absPath)) return "";
   if (SAFE_USER_SRC_SCHEME.test(absPath)) return absPath; // 이미 fetchable — 재변환 금지
-  const isTauri = opts.isTauri ?? defaultIsTauri;
+  const runtimeIsTauri = opts.isTauri ?? isTauri;
   // 스킴이 붙었지만 안전 목록·드라이브 경로 어디에도 없으면 정체불명 — 차단한다.
   if (isAbsoluteUrl(absPath) && !WINDOWS_DRIVE.test(absPath)) return "";
-  if (!isTauri()) return absPath; // dev/브라우저: 절대 fs 경로 그대로 서빙
+  if (!runtimeIsTauri()) return absPath; // dev/브라우저: 절대 fs 경로 그대로 서빙
   const tauri = await (opts.tauri ?? defaultTauri)();
   return tauri.convertFileSrc(absPath);
 }

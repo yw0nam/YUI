@@ -8,6 +8,7 @@
  */
 
 import { createLogger } from "../logger";
+import { isTauri } from "./tauri-env";
 
 const log = createLogger("settings-window");
 
@@ -30,11 +31,6 @@ export function openSettingsWindow(env: SettingsWindowEnv): void {
   } else {
     env.openBrowserWindow();
   }
-}
-
-/** Tauri 런타임 여부 — withGlobalTauri 환경에서 항상 주입되는 내부 핸들로 판별. */
-function detectTauri(): boolean {
-  return !!(globalThis as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 }
 
 /** 이미 떠 있으면 포커스/표시, 없으면 새로 생성. 어떤 단계도 throw하지 않는다. */
@@ -81,7 +77,7 @@ function openBrowserSettingsWindow(): void {
 
 /** 설정 창 자신을 닫는다 — Tauri면 현재 창 close, 아니면 window.close() 폴백. throw하지 않는다. */
 export function closeSettingsWindow(): void {
-  if (detectTauri()) {
+  if (isTauri()) {
     void (async () => {
       try {
         const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -103,7 +99,7 @@ export function closeSettingsWindow(): void {
 export function createSettingsWindowOpener(): () => void {
   return () => {
     openSettingsWindow({
-      isTauri: detectTauri(),
+      isTauri: isTauri(),
       createTauriWindow: () => void openTauriSettingsWindow(),
       openBrowserWindow: openBrowserSettingsWindow,
     });

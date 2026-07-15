@@ -14,6 +14,7 @@
 
 import { createLogger } from "../logger";
 import type { VoiceInputState } from "../ui/voice-input-status";
+import { isTauri } from "./tauri-env";
 
 const log = createLogger("settings-bridge");
 
@@ -42,10 +43,6 @@ export interface SettingsBridge {
   emitVoiceState(snapshot: VoiceStateSnapshot): void;
   onVoiceState(cb: (snapshot: VoiceStateSnapshot) => void): () => void;
   dispose(): void;
-}
-
-function detectTauri(): boolean {
-  return !!(globalThis as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 }
 
 /** Tauri transport. listen은 Promise<UnlistenFn>이므로 동기 disposer로 감싼다. */
@@ -115,7 +112,7 @@ const noopTransport: BridgeTransport = {
 
 function selectTransport(): BridgeTransport {
   try {
-    if (detectTauri()) return createTauriTransport();
+    if (isTauri()) return createTauriTransport();
     if (typeof BroadcastChannel !== "undefined") return createBroadcastTransport();
   } catch (err) {
     log.warn("transport_select_failed", { fallback: "noop", error: String(err) });

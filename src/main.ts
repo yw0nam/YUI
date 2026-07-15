@@ -60,6 +60,7 @@ import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-windo
 import { createSpeechPlayback } from "./io/speech-playback";
 import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
+import { isTauri } from "./io/tauri-env";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
 import { TTS_SKIP } from "./io/tts-pipeline";
 import { createTtsSynth } from "./io/tts-synth";
@@ -549,7 +550,7 @@ async function bootstrap(): Promise<void> {
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
   // Guards the teardown/async-assign race: cleanup may run before the IIFE assigns.
   let windowDropDisposed = false;
-  if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+  if (isTauri()) {
     void (async () => {
       const { invoke } = await import("@tauri-apps/api/core");
       // Only bind the loopback ingress when the watcher is on. Restart-to-apply:
@@ -736,7 +737,7 @@ async function bootstrap(): Promise<void> {
         drop: async (rect: WindowRect): Promise<void> => {
           let pos = { x: 0, y: 0 };
           let scale = 1;
-          if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+          if (isTauri()) {
             try {
               const { getCurrentWindow } = await import("@tauri-apps/api/window");
               const w = getCurrentWindow();
@@ -1166,7 +1167,7 @@ async function bootstrap(): Promise<void> {
     // 전역 소환 핫키: configs/hotkeys.json accelerator를 OS 전역으로 등록(Tauri 전용 —
     // 브라우저 dev에서는 스킵). 발동 시 창 show+focus 후 입력 소환. 등록 실패는
     // summon-hotkey가 warn 후 비활성으로 처리한다(fail-soft).
-    if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+    if (isTauri()) {
       void (async () => {
         const { register, unregister } = await import("@tauri-apps/plugin-global-shortcut");
         const { getCurrentWindow } = await import("@tauri-apps/api/window");

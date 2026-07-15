@@ -6,6 +6,8 @@
 import type { ScreenSource } from "../contract";
 import type { ScreenCapture } from "./screenshot-context";
 
+export { isTauri } from "./tauri-env";
+
 export interface MonitorInfo {
   index: number;
   label?: string;
@@ -27,10 +29,6 @@ export const noopScreenCapturer: ScreenCapturer = {
     return Promise.resolve(null);
   },
 };
-
-export function isTauri(): boolean {
-  return !!(globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
-}
 
 export function createBrowserScreenSourceProvider(screen?: {
   width: number;
