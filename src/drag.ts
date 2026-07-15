@@ -34,6 +34,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isTauri } from "./io/tauri-env";
 import { createLogger } from "./logger";
 
 const log = createLogger("drag");
@@ -212,7 +213,7 @@ export async function initDrag(
   // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface)
   // there is no window IPC, and getCurrentWindow() throws. Skip gracefully
   // so bootstrap (renderer + dispatcher) still runs. Window-move is a no-op in the browser.
-  if (!(globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+  if (!isTauri()) {
     log.debug("drag_disabled", { reason: "non_tauri" });
     return () => {
       detachOrbit();

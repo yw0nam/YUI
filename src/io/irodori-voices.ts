@@ -2,6 +2,7 @@
 
 import { createLogger, type Logger } from "../logger";
 import { resolveAssetUrl } from "./asset-url";
+import { isTauri } from "./tauri-env";
 
 /** ref_url을 fetchable URL로 변환. dev/브라우저 = origin 기준 절대화, Tauri = 번들 리소스 URL. */
 export type RefUrlResolver = (refUrl: string) => Promise<string>;
@@ -31,7 +32,7 @@ export function __resetIrodoriVoiceCache(): void {
  * (상대 vite 경로는 base 없는 URL이라 Tauri fetchCORS가 거부). base 없는(node 테스트) 환경은 원본 유지.
  */
 async function resolveRefUrl(refUrl: string): Promise<string> {
-  if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+  if (isTauri()) {
     return resolveAssetUrl(refUrl);
   }
   const base = (globalThis as { location?: { href?: string } }).location?.href;

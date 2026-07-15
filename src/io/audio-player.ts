@@ -1,5 +1,10 @@
 /** wav clip을 재생하고 입 벌림(0..1) 진폭을 콜백하는 Web Audio sink. */
 
+const audioGlobal = globalThis as unknown as {
+  AudioContext?: typeof AudioContext;
+  webkitAudioContext?: typeof AudioContext;
+};
+
 export interface AudioSink {
   /** onAmplitude는 0..1로 정규화·스무딩된 입 벌림 값을 매 프레임 받는다. */
   play(wav: ArrayBuffer, onAmplitude?: (mouthOpen: number) => void): Promise<void>;
@@ -49,8 +54,8 @@ export function createAmplitudeEnvelope(options: AmplitudeEnvelopeOptions = {}):
 function hasAudioContext(): boolean {
   return (
     typeof globalThis !== "undefined" &&
-    (typeof (globalThis as any).AudioContext !== "undefined" ||
-      typeof (globalThis as any).webkitAudioContext !== "undefined")
+    (typeof audioGlobal.AudioContext !== "undefined" ||
+      typeof audioGlobal.webkitAudioContext !== "undefined")
   );
 }
 
@@ -59,8 +64,7 @@ export function createWebAudioSink(opts?: { getGain?: () => number }): AudioSink
     return { async play() {}, stop() {} };
   }
 
-  const Ctor: typeof AudioContext =
-    (globalThis as any).AudioContext ?? (globalThis as any).webkitAudioContext;
+  const Ctor: typeof AudioContext = (audioGlobal.AudioContext ?? audioGlobal.webkitAudioContext)!;
   let ctx: AudioContext | null = null;
   let current: AudioBufferSourceNode | null = null;
   let rafId: number | null = null;
