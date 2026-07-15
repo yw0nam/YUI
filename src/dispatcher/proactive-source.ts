@@ -17,7 +17,7 @@
 
 import type { ProactiveCue } from "../io/proactive-settings";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
-import { OS_EVENT_CHANNEL, resolveTauriListen } from "../io/tauri-listen";
+import { subscribeOsEvent } from "../io/tauri-listen";
 import { createLogger } from "../logger";
 import type { BusEnvelope, EventBus } from "./event-bus";
 
@@ -96,19 +96,7 @@ export function createProactiveSource(deps: ProactiveSourceDeps): ProactiveSourc
   async function start(): Promise<void> {
     if (unlisten) return;
     lastInteractionTs = now();
-    let listen: OsEventListen | undefined;
-    try {
-      listen = deps.listen ?? (await resolveTauriListen());
-    } catch (err) {
-      log.debug("listen_resolve_failed", { degrade: true, error: String(err) });
-      return;
-    }
-    if (!listen) return;
-    try {
-      unlisten = await listen(OS_EVENT_CHANNEL, ({ payload }) => onTick(payload));
-    } catch (err) {
-      log.debug("subscribe_failed", { degrade: true, error: String(err) });
-    }
+    unlisten = await subscribeOsEvent({ listen: deps.listen, onTick, log });
   }
 
   function stop(): void {

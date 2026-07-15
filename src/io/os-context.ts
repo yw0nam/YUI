@@ -10,12 +10,8 @@
  */
 
 import { createLogger } from "../logger";
-import {
-  OS_EVENT_CHANNEL,
-  type OsEventListen,
-  type OsEventPayload,
-  resolveTauriListen,
-} from "./tauri-listen";
+import type { OsEventListen, OsEventPayload } from "./tauri-listen";
+import { subscribeOsEvent } from "./tauri-listen";
 
 const log = createLogger("os-context");
 
@@ -109,19 +105,7 @@ export function createOsContext(opts?: {
 
   async function start(): Promise<void> {
     if (unlisten) return;
-    let listen: OsEventListen | undefined;
-    try {
-      listen = opts?.listen ?? (await resolveTauriListen());
-    } catch (err) {
-      log.debug("listen_resolve_failed", { degrade: true, error: String(err) });
-      return;
-    }
-    if (!listen) return;
-    try {
-      unlisten = await listen(OS_EVENT_CHANNEL, ({ payload }) => onEvent(payload));
-    } catch (err) {
-      log.debug("subscribe_failed", { degrade: true, error: String(err) });
-    }
+    unlisten = await subscribeOsEvent({ listen: opts?.listen, onTick: onEvent, log });
   }
 
   function stop(): void {
