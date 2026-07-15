@@ -43,4 +43,4 @@ resources/vrma/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
 docs/superpowers
-mocks/*
+src/ui/mocks/

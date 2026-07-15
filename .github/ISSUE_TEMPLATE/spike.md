@@ -1,25 +1,25 @@
 ---
 name: Spike / Verification
-about: 접근을 확정하기 전 검증·조사가 필요한 항목 (OPEN / Assumption)
+about: Something to verify or investigate before committing to an approach (OPEN / Assumption)
 title: "[spike] "
 labels: ["spike"]
 ---
 
-## 불확실성 / 질문
-<!-- 무엇이 아직 확정 안 됐나. event-dispatcher.md의 A* 참조 -->
+## Uncertainty / question
+<!-- What remains unresolved? -->
 
-## 왜 지금 검증해야 하나
-<!-- 어떤 작업이 이걸 막고 있나 (blocking), 어느 마일스톤 exit인가 -->
+## Why verify now
+<!-- What work is this blocking, which milestone exit does it gate -->
 
-## 검증 방법
+## Verification method
 - [ ] web / context7 cross-check
-- [ ] 실측 (코드/명령으로 동작 확인)
-- [ ] 사용자 확인 필요한 결정사항
+- [ ] Measure directly (confirm behavior with code/commands)
+- [ ] Decision that needs user confirmation
 
-## 완료 기준 (Definition of Done)
-- [ ] 결론 도출
-- [ ] 결론을 `docs/`에 반영 (contract / prd 결정 로그)
-- [ ] 관련 OPEN/Assumption 항목 해소 표시
+## Definition of Done
+- [ ] Conclusion reached
+- [ ] Document the conclusion in the relevant `docs/` file
+- [ ] Related OPEN/Assumption items marked resolved
 
-## 참고
+## References
 - `docs/`:

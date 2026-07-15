@@ -75,7 +75,7 @@ components:
 
 # Design System: YUI
 
-The canonical token source is [`src/ui/tokens.css`](src/ui/tokens.css); the frontmatter above mirrors it. Doctrine: OKLCH only, never `#000`/`#fff`, every neutral micro-tinted toward warm amber (~70–80°).
+The canonical token source is [`src/ui/tokens.css`](src/ui/tokens.css); the frontmatter above mirrors it. Doctrine: OKLCH only, never `#000`/`#fff`, every neutral micro-tinted toward warm amber (~72°).
 
 ## 1. Overview
 
@@ -83,7 +83,7 @@ The canonical token source is [`src/ui/tokens.css`](src/ui/tokens.css); the fron
 
 YUI's interface is the dying embers of a fireplace: it burns warmly in a corner of the room without stealing the gaze. The character owns the stage; the chrome lights up only when it has something to say, then recedes into the dark. Color is near-achromatic neutral, warmth carried by a single point of amber. Type is a warm humanist sans; motion is feedback, never choreography. The whole system's purpose is to *step back*.
 
-Every surface floats over an arbitrary desktop background in a transparent, always-on-top window, so each must be legible against any backdrop without a heavy container. The surfaces that ever appear (speech bubble, text input, tool-status chip, capture and voice indicators) are the system's entirety and its signature.
+Every surface floats over an arbitrary desktop background in a transparent, always-on-top window, so each must be legible against any backdrop without a heavy container. The surfaces that ever appear (speech bubble, text input, tool-status chip, capture and voice indicators, boot-failure notice) are the system's entirety and its signature.
 
 This system explicitly rejects the bottom-right SaaS chatbot widget (Intercom/Drift), the messenger chat list (Discord/Slack/KakaoTalk), and the pushy speech bubbles of the old desktop mascot (Clippy). YUI is not a widget, not a messenger, not a mascot.
 
@@ -95,7 +95,7 @@ This system explicitly rejects the bottom-right SaaS chatbot widget (Intercom/Dr
 
 ## 2. Colors
 
-Near-achromatic warm neutral with a single point of amber. The model is **dark scrim + light warm text**: a light surface with dark ink vanishes against a white IDE, so surfaces read like a subtitle, a semi-transparent dark scrim under light warm text with its own shadow. All hues anchor to warm amber (~70–80°).
+Near-achromatic warm neutral with a single point of amber. The model is **dark scrim + light warm text**: a light surface with dark ink vanishes against a white IDE, so surfaces read like a subtitle, a semi-transparent dark scrim under light warm text with its own shadow. All hues anchor to warm amber (~72°).
 
 ### Primary
 - **Hearth Amber** (`oklch(0.8 0.13 75)`): the sole accent and the only carrier of warmth. Used in *moments* only: active input border, speech onset caret, focus and hover. A soft (`/ 0.45`) and faint (`/ 0.16`) variant carry focus rings and underlines.
@@ -153,7 +153,10 @@ The primary floating surface (`surfaces.css`). A scrim panel with no tail and no
 A slim field summoned by hotkey, sliding up from the bottom (`surfaces.css`). Stronger scrim (`oklch(0.19 0.014 70 / 0.82)`), 12px corners, transparent inner field. At rest the border is a hairline; on `:focus-within` it ignites to a Hearth Amber border plus an amber-soft ring, the design's signature warmth moment. Submit failure shows an Ember Red inline message, never a side-stripe.
 
 ### Tool-status chip
-A low-emphasis pill (`surfaces.css`) shown while the backend runs a tool. Pill-shaped (999px), Strong-Scrim background, Ash text, a Float shadow, and a calm opacity dot-pulse (no spinner). Amber is withheld here: work is not a warmth moment.
+A low-emphasis pill (`surfaces.css`) shown while the backend runs a tool. Pill-shaped (999px), Strong-Scrim background, Ash text, a Float shadow, and a calm opacity dot-pulse (no spinner). Amber stays absent while work is in progress; at completion, the dot solidifies into a Hearth Amber checkmark, warming the finish as a small moment.
+
+### Boot-failure notice
+A dismissible floating notice (`boot-error.css`) shown when config or VRM loading fails and the transparent window would otherwise stay blank. Strong Scrim, Speech White guidance, and a single Float shadow preserve the legible-on-anything doctrine; a danger-colored uppercase title names the failure, and a quiet dismiss button removes the notice.
 
 ### Settings row + switch
 A list row (`quick-controls.css`), 10px corners, 0.5rem padding, with a faint background tint on hover. The label pairs a ~0.95rem name with a ~0.74rem Muted-Ash sub-line. Its switch (2.5rem track) sits calm and grey when off and ignites to a full Hearth Amber track with the knob slid right when on (`aria-checked="true"`); focus shows an amber-soft ring.

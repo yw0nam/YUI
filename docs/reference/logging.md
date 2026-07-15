@@ -55,4 +55,4 @@ Level semantics are identical to TypeScript.
 
 ## `console.*` Gate
 
-Raw `console.*` is forbidden in `src/`. The rule is enforced by a Biome `noConsole` lint rule; only `src/logger.ts` is exempt. The `lint` CI job (`pnpm lint`) fails any violation.
+Raw `console.*` is forbidden in `src/`. The rule is enforced by a Biome `noConsole` lint rule, with exemptions for `src/logger.ts`, `scripts/**`, and `src/**/*.live.test.ts`. The `lint` CI job (`pnpm lint`) fails any other violation.

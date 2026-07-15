@@ -142,7 +142,7 @@ Available voice IDs are listed in `configs/endpoints.json` under `irodori_voices
 
 ### Option B — OpenAI-compatible TTS
 
-Any server that implements the OpenAI `/audio/speech` endpoint.
+Any server that implements the OpenAI `/v1/audio/speech` endpoint.
 
 In `configs/endpoints.json`:
 ```json

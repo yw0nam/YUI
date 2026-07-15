@@ -22,32 +22,32 @@ fn action_for(menu_id: &str) -> Option<TrayAction> {
 
 fn toggle_visibility(app: &AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
-        log::warn!("tray main window not found");
+        log::warn!("tray_main_window_not_found window=main");
         return;
     };
 
     match window.is_visible() {
         Ok(true) => {
             if let Err(error) = window.hide() {
-                log::warn!("tray failed to hide main window: {error}");
+                log::warn!("tray_hide_main_window_failed error={error}");
             }
         }
         Ok(false) => {
             if let Err(error) = window.show() {
-                log::warn!("tray failed to show main window: {error}");
+                log::warn!("tray_show_main_window_failed error={error}");
             }
         }
-        Err(error) => log::warn!("tray failed to read main window visibility: {error}"),
+        Err(error) => log::warn!("tray_read_main_window_visibility_failed error={error}"),
     }
 }
 
 fn open_settings(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("settings") {
         if let Err(error) = window.show() {
-            log::warn!("tray failed to show settings window: {error}");
+            log::warn!("tray_show_settings_window_failed error={error}");
         }
         if let Err(error) = window.set_focus() {
-            log::warn!("tray failed to focus settings window: {error}");
+            log::warn!("tray_focus_settings_window_failed error={error}");
         }
         return;
     }
@@ -70,11 +70,11 @@ fn open_settings(app: &AppHandle) {
             .transparent(false)
             .build()
             {
-                log::warn!("tray failed to create settings window: {error}");
+                log::warn!("tray_create_settings_window_failed error={error}");
             }
         })
     {
-        log::warn!("tray failed to spawn settings window thread: {error}");
+        log::warn!("tray_spawn_settings_window_thread_failed error={error}");
     }
 }
 
@@ -103,7 +103,7 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     if let Some(icon) = app.default_window_icon() {
         builder = builder.icon(icon.clone());
     } else {
-        log::warn!("tray default window icon not found");
+        log::warn!("tray_default_window_icon_not_found");
     }
 
     builder.build(app)?;

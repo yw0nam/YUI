@@ -8,7 +8,7 @@ product
 
 Personal use first (currently the developer), with future OSS release in mind.
 
-Usage context: in front of a computer all day. The YUI character **lives on the desktop** as a transparent, always-on-top overlay — not an app you open a separate window for, but a presence living in a corner of your workspace.
+Usage context: in front of a computer all day. The YUI character **lives on the desktop** as a transparent, always-on-top overlay — the main experience is a presence in a corner of the workspace, while settings open in a separate utility window.
 
 Job-to-be-done: a companion that is alive beside you. A character you can talk to via text and voice, that notices screen context, and occasionally initiates conversation. The brain (judgment · memory · tools · persona) is handled by the Hermes backend; YUI handles only the **head** (rendering + sensing + I/O surfaces).
 
@@ -22,7 +22,7 @@ Success looks like: **the UI stays out of the way and the character feels alive.
 
 Three words: **warm · present · unobtrusive**.
 
-The character is the source of personality. The UI chrome's job is to **step back**. Nearly invisible at rest (character owns the stage); surfaces only when strictly needed (speech bubble · tool-status · input), and when it does, it is warm and characterful. Emotional goal: not a tool — **a living presence beside you**.
+The character is the source of personality. The UI chrome's job is to **step back**. Nearly invisible at rest (character owns the stage); surfaces only when strictly needed (speech bubble · tool-status · input), with the system tray as the persistent OS-level surface, and when chrome appears, it is warm and characterful. Emotional goal: not a tool — **a living presence beside you**.
 
 Core tone in one line: **invisible-by-default, warm-when-present.**
 
@@ -37,7 +37,7 @@ Core tone in one line: **invisible-by-default, warm-when-present.**
 ## Design Principles
 
 1. **Character is protagonist, UI is backstage staff.** Chrome recedes by default and only appears when it has something to say, then steps back again. (invisible-by-default)
-2. **Warm when present.** When UI surfaces (speech bubble · tool-status · input), be characterful and warm — never like an enterprise widget. (warm-when-present)
+2. **Warm when present.** When UI surfaces (speech bubble · tool-status · input · system tray), be characterful and warm — never like an enterprise widget. (warm-when-present)
 3. **`firing ≠ judgment` in the UI too.** The client only *renders* the state the backend has determined. The UI does not invent persona · mode · opinions. Surfaces reflect backend signals; they do not fabricate them.
 4. **Legible on anything.** The UI floats over an arbitrary desktop background in a transparent window. Every surface must be legible on any backdrop without heavy containers.
 5. **Calm by default, respectful of attention.** Ambient liveliness is subtle; respect reduced-motion; do not steal attention (rate-limit · DND awareness). A companion does not nag.

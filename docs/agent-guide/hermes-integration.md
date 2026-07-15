@@ -5,8 +5,8 @@ Chat io has two protocol modes, selected by `chat_api` in `configs/endpoints.jso
 Chat and STT use the **OpenAI-compatible API**; TTS depends on `tts_provider` (irodori is not OpenAI-compatible) and the broker is an MCP. Separate processes, all swappable via config:
 
 - **chat → Hermes Agent** `localhost:8643` `/v1/responses`
-- **STT →** `localhost:5517` `/audio/transcriptions`
-- **TTS →** provider-selected via `tts_provider` (default `irodori`): `irodori` → irodori_TTS `irodori_base_url` (`localhost:8091`) `/synthesize` (NOT OpenAI-compatible, reference-voice based, per-speaker voices in `irodori_voices`); `openai` → OpenAI-compatible `/audio/speech` at `tts_base_url` (`localhost:8092`)
+- **STT →** `localhost:5517` `/v1/audio/transcriptions`
+- **TTS →** provider-selected via `tts_provider` (default `irodori`): `irodori` → irodori_TTS `irodori_base_url` (`localhost:8091`) `/synthesize` (NOT OpenAI-compatible, reference-voice based, per-speaker voices in `irodori_voices`); `openai` → OpenAI-compatible `/v1/audio/speech` at `tts_base_url` (`localhost:8092`)
 - **Expression Broker** (config-driven) `broker_base_url` (`localhost:3201/mcp`, streamable-http MCP) — YUI publishes renderable emotion/motion/emotion_text vocabulary, the agent reads it (publish skipped if unset)
 
 **Auth.** Each OpenAI-compatible call carries `Authorization: Bearer` from a key resolved through `SecretProvider` — a runtime settings override, else the `.env.local` fallback: chat `VITE_YUI_CHAT_KEY`, STT `VITE_YUI_STT_KEY`, openai TTS `VITE_YUI_TTS_KEY`. An empty key sends no header. irodori is self-serving and takes no key.
