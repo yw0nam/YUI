@@ -1,15 +1,15 @@
 /**
- * EmotionResolver — VRM expression 결정 + fallback chain 탐색.
+ * EmotionResolver — determines VRM expression + traverses fallback chain.
  * NO three.js import. No rendering side-effects.
  *
- * 책임: registry 조회 + hasExpression 존재 여부 확인 + fallback 체인 탐색 +
- * intensity clamp/default 적용(resolve). 항상 non-null ResolvedEmotion 반환 —
- * 미등록 id 포함 모든 경우 최종 fallback "neutral"로 귀결.
+ * Responsibility: registry lookup + check hasExpression existence + traverse fallback chain +
+ * apply intensity clamp/default (resolve). Always returns non-null ResolvedEmotion —
+ * all cases including unregistered ids resolve to final fallback "neutral".
  *
  * Exported surface (contract):
  *   createEmotionResolver(registry, opts?) → EmotionResolver
  *
- * 상수(실 구현 참고):
+ * Constants (see implementation):
  *   INTENSITY_MIN = 0, INTENSITY_MAX = 1
  *   DEFAULT_INTENSITY = 1, DEFAULT_TRANSITION_MS = 250
  *   FALLBACK_EXPRESSION = "neutral"
@@ -26,7 +26,7 @@ const log = createLogger("emotion-resolver");
 
 export interface ResolvedEmotion {
   id: EmotionId;
-  /** hasExpression 체인 탐색 결과 VRM expression 키 */
+  /** VRM expression key from hasExpression chain traversal. */
   vrm_expression: string;
   /** clamped to [0, 1] */
   intensity: number;
@@ -35,19 +35,19 @@ export interface ResolvedEmotion {
 }
 
 export interface EmotionResolverOptions {
-  /** VRM 모델에 해당 expression 키가 존재하는지 확인. default: () => true */
+  /** Checks if the given expression key exists in the VRM model. Default: () => true */
   hasExpression?: (key: string) => boolean;
-  /** 미등록 id / intensity clamp 경고. default logger.warn */
+  /** Warns on unregistered id / intensity clamp. Default: logger.warn */
   warn?: (m: string) => void;
 }
 
 export interface EmotionResolver {
-  /** 항상 non-null — 미등록 / fallback 전부 실패 시에도 neutral 반환. */
+  /** Always non-null — returns neutral even if unregistered / all fallbacks fail. */
   resolve(signal: EmotionSignal): ResolvedEmotion;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 상수
+// Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
 const INTENSITY_MIN = 0;
@@ -63,9 +63,9 @@ const FALLBACK_EXPRESSION = "neutral";
 /**
  * Creates an EmotionResolver backed by the given registry.
  *
- * - hasExpression: VRM 모델 expression 존재 확인용(주입 시 결정론적 테스트 가능),
- *   default () => true (모든 expression 존재로 간주 ⇒ 첫 키가 즉시 채택, walk 없음).
- * - warn: 미등록 id / intensity clamp 경고, default logger.warn.
+ * - hasExpression: checks VRM model expression existence (enables deterministic tests when injected),
+ *   default () => true (assumes all expressions exist ⇒ first key adopted immediately, no walk).
+ * - warn: warns on unregistered id / intensity clamp; default logger.warn.
  */
 export function createEmotionResolver(
   registry: EmotionRegistry,
@@ -75,12 +75,12 @@ export function createEmotionResolver(
   const warn = opts?.warn ?? ((m: string) => log.warn(m));
 
   /**
-   * 존재 인지(existence-aware) fallback 체인 탐색.
-   * - registry id에서 출발 → entry.vrm_expression 키가 존재하면 그 키 채택.
-   * - 없으면 entry.fallback을 따라간다: fallback이 registry id면 그 entry 체인으로
-   *   재귀, 아니면 literal expression 키로 간주해 hasExpression 검사.
-   * - visited Set(registry id + key 둘 다 기록)으로 사이클 가드.
-   * - 체인이 소진/순환하면 최종 fallback "neutral" 반환(존재 여부 무관).
+   * Existence-aware fallback chain traversal.
+   * - Starts from registry id → if entry.vrm_expression key exists, adopt it.
+   * - Otherwise follows entry.fallback: if fallback is a registry id, recurse into that entry's chain;
+   *   otherwise treat as literal expression key and check hasExpression.
+   * - Cycle guard via visited Set (tracks both registry ids and keys).
+   * - When chain exhausts/cycles, return final fallback "neutral" (regardless of existence).
    */
   function walk(id: string, visited: Set<string>): string {
     if (visited.has(id)) return FALLBACK_EXPRESSION;
@@ -88,11 +88,11 @@ export function createEmotionResolver(
 
     const entry = registry[id as EmotionId];
     if (!entry) {
-      // id가 registry에 없음 → literal expression 키로 간주.
+      // id not in registry → treat as literal expression key.
       return hasExpression(id) ? id : FALLBACK_EXPRESSION;
     }
 
-    // entry 자신의 vrm_expression 키는 항상 검사(id==key 동명이라도).
+    // Always check entry's own vrm_expression key (even if id==key homonymous).
     const key = entry.vrm_expression;
     if (hasExpression(key)) return key;
 
@@ -100,10 +100,10 @@ export function createEmotionResolver(
     if (fb == null) return FALLBACK_EXPRESSION;
 
     if (registry[fb as EmotionId]) {
-      // fallback이 registry id → 그 entry 체인으로 재귀.
+      // fallback is a registry id → recurse into that entry's chain.
       return walk(fb, visited);
     }
-    // literal expression 키.
+    // Treat as literal expression key.
     if (visited.has(fb)) return FALLBACK_EXPRESSION;
     visited.add(fb);
     return hasExpression(fb) ? fb : FALLBACK_EXPRESSION;
@@ -111,7 +111,7 @@ export function createEmotionResolver(
 
   return {
     resolve(signal: EmotionSignal): ResolvedEmotion {
-      // intensity: default 1, 범위 밖이면 warn 1회 후 [0,1] clamp.
+      // intensity: default 1, clamp to [0,1] after warning once if out of range.
       let intensity = signal.intensity ?? DEFAULT_INTENSITY;
       if (intensity < INTENSITY_MIN || intensity > INTENSITY_MAX) {
         warn(
@@ -120,11 +120,11 @@ export function createEmotionResolver(
         intensity = Math.min(INTENSITY_MAX, Math.max(INTENSITY_MIN, intensity));
       }
 
-      // transition_ms: default 250, 0 유효, 음수는 0으로 clamp.
+      // transition_ms: default 250, 0 is valid, negative values clamp to 0.
       let transition_ms = signal.transition_ms ?? DEFAULT_TRANSITION_MS;
       if (transition_ms < 0) transition_ms = 0;
 
-      // 미등록 id → warn 1회 후 neutral.
+      // Unregistered id → warn once, then use neutral.
       const entry = registry[signal.id];
       if (!entry) {
         warn(`[EmotionResolver] unregistered emotion id: "${signal.id}"`);

@@ -1,6 +1,6 @@
 /**
- * InputContext["screenshot"] 블록을 구성하는 순수 인코더.
- * 실제 화면 캡처는 이 모듈의 범위 밖이다 — 네이티브 캡처 레이어가 ScreenCapture를 채운다.
+ * Pure encoder for InputContext["screenshot"] block.
+ * Actual screen capture is outside this module's scope — native capture layer fills ScreenCapture.
  */
 
 import type { InputContext } from "../contract";

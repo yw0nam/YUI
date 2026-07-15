@@ -1,6 +1,6 @@
 /**
- * chat API 키 오버라이드 스토어 — 제네릭 api-key-settings 팩토리의 얇은 래퍼.
- * storage 키("yui.chat-key")와 동작은 종전과 동일하다. 값은 시크릿 — 절대 로깅하지 않는다.
+ * chat API key override store — a thin wrapper over the generic api-key-settings factory.
+ * The storage key ("yui.chat-key") and behavior are unchanged. The value is a secret — never logged.
  */
 
 import {
@@ -11,7 +11,7 @@ import {
   localStorageApiKeyStorage,
 } from "./api-key-settings";
 
-/** 비정상적으로 긴 입력 방어용 상한. */
+/** Upper bound guarding against abnormally long input. */
 export const CHAT_KEY_MAX_LEN = API_KEY_MAX_LEN;
 
 export type ChatKeySettings = ApiKeySettings;
@@ -24,10 +24,10 @@ export function createChatKeySettings(opts?: {
   return createApiKeySettings({ ...opts, maxLen: CHAT_KEY_MAX_LEN });
 }
 
-/** chat-key 스토어 인스턴스 타입 (SecretProvider 주입용). */
+/** chat-key store instance type (for SecretProvider injection). */
 export type ChatKeySettingsStore = ReturnType<typeof createChatKeySettings>;
 
-/** localStorage 기반 ChatKeyStorage 어댑터. */
+/** localStorage-based ChatKeyStorage adapter. */
 export function localStorageChatKeyStorage(key = "yui.chat-key"): ChatKeyStorage {
   return localStorageApiKeyStorage(key);
 }

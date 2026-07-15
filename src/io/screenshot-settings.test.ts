@@ -1,14 +1,14 @@
 /**
  * screenshot-settings.test.ts — createScreenshotSettings reactive store.
  *
- * 검증:
- *  - 기본값(defaults): enabled=false, source={kind:"monitor",index:0}
- *  - 저장된 유효값이 initial보다 우선
- *  - initial이 기본값보다 우선
- *  - 잘못된/throw하는 storage → 기본값, factory는 throw 안 함
- *  - setEnabled/setSource: 실제 변경 시 persist + notify, 동일값이면 skip
+ * Validation:
+ *  - Defaults: enabled=false, source={kind:"monitor",index:0}
+ *  - Stored valid value takes precedence over initial
+ *  - initial takes precedence over defaults
+ *  - Invalid/throwing storage → defaults, factory does not throw
+ *  - setEnabled/setSource: persist + notify on actual change, skip on identical value
  *  - subscribe/unsubscribe
- *  - get()이 shallow copy를 반환(내부 상태 변경 불가)
+ *  - get() returns shallow copy (prevents internal state mutation)
  */
 
 import { describe, expect, it, vi } from "vitest";

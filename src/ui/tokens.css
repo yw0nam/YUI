@@ -3,38 +3,38 @@
    Floating surfaces use a dark scrim + light warm text so they stay legible over any desktop background. */
 
 :root {
-  /* hue anchor: 따뜻한 앰버 ~72° */
+  /* hue anchor: warm amber ~72° */
 
   /* ── Accent: Hearth Amber ──
-     온기·강조의 유일한 액센트. *순간*에만(활성 입력 테두리·발화 onset·focus/hover). 표면의 ≤10%. */
+     Only accent for warmth and emphasis. *Moments only* (active input border·speech onset·focus/hover). ≤10% of surface. */
   --yui-accent: oklch(0.8 0.13 75);
   --yui-accent-soft: oklch(0.8 0.13 75 / 0.45);
   --yui-accent-faint: oklch(0.8 0.13 75 / 0.16);
 
-  /* ── Text (떠 있는 dark scrim 위) ──
-     순백 아님 — 앰버 hue로 미세 틴트한 밝은 warm. */
-  --yui-text: oklch(0.95 0.012 80); /* 본문 발화 */
-  --yui-text-dim: oklch(0.78 0.016 75); /* 라벨·툴상태·부차 */
-  --yui-text-mute: oklch(0.66 0.014 72); /* 비활성·힌트·eyebrow */
+  /* ── Text (over floating dark scrim) ──
+     Not pure white — bright warm, subtly tinted toward amber hue. */
+  --yui-text: oklch(0.95 0.012 80); /* Body speech */
+  --yui-text-dim: oklch(0.78 0.016 75); /* Labels, tool state, secondary */
+  --yui-text-mute: oklch(0.66 0.014 72); /* Inactive, hints, eyebrow */
 
   /* ── Surface (Scrim) ──
-     말풍선·칩 등 떠 있는 표면의 반투명 어두운 바탕. 임의 배경 위 가독의 핵심. */
+     Translucent dark background of floating surfaces like bubble, chip. Key to readability over arbitrary backgrounds. */
   --yui-scrim: oklch(0.21 0.014 70 / 0.64);
-  --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82); /* 입력·소형 라벨 칩이 더 또렷해야 할 때 */
-  --yui-edge: oklch(0.97 0.01 80 / 0.1); /* 어두운 배경에서도 표면 외곽을 잡아주는 hairline */
-  --yui-edge-strong: oklch(0.97 0.01 80 / 0.16); /* hover 강조 hairline */
+  --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82); /* Inputs, small chips need more definition */
+  --yui-edge: oklch(0.97 0.01 80 / 0.1); /* Hairline holding surface edge on dark bg */
+  --yui-edge-strong: oklch(0.97 0.01 80 / 0.16); /* Hover-emphasis hairline */
 
   /* ── Light-context ink (unused by floating surfaces) ── */
   --yui-ink: oklch(0.22 0.01 70);
 
-  /* ── Danger: 절제된 warm-red. 되돌림/실패 안내에만(앰버와 충돌 않게 hue 35). ── */
+  /* ── Danger: restrained warm-red. For undo/failure guidance only (hue 35 to avoid amber conflict). ── */
   --yui-danger: oklch(0.77 0.11 35);
   --yui-danger-soft: oklch(0.77 0.11 35 / 0.45);
   --yui-danger-faint: oklch(0.77 0.11 35 / 0.14);
 
-  /* ── Elevation: 단 한 겹의 부드러운 ambient Float (The Float Rule) ── */
+  /* ── Elevation: single layer of soft ambient float (The Float Rule) ── */
   --yui-float: 0 8px 32px oklch(0.12 0.02 70 / 0.4);
-  --yui-text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55); /* 밝은 배경 보험 */
+  --yui-text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55); /* Light background insurance */
 
   /* ── Shape ── */
   --yui-radius: 14px;
@@ -44,12 +44,12 @@
   --yui-radius-img: 10px;
 
   /* ── Speech bubble layout ── */
-  --yui-bubble-bottom: 16%; /* 캐릭터 하반신 밴드 — 얼굴을 가리지 않게 하단 앵커 */
-  --yui-bubble-max-h: 34vh; /* 긴 발화 높이 상한 — 넘으면 내부 스크롤 */
+  --yui-bubble-bottom: 16%; /* Character's lower-half band — bottom anchor so face isn't hidden */
+  --yui-bubble-max-h: 34vh; /* Long utterance height cap — internal scroll if exceeded */
 
-  /* ── Motion: Responsive, ease-out 지수 곡선(quint). bounce/elastic 금지. ── */
+  /* ── Motion: responsive, ease-out exponential curve (quint). No bounce/elastic. ── */
   --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --yui-dur: 200ms;
   --yui-dur-fast: 140ms;
-  --yui-dwell: 5000ms; /* 발화 settled 후 유지 시간 */
+  --yui-dwell: 5000ms; /* Time to hold after speech settles */
 }

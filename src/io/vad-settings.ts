@@ -1,6 +1,6 @@
 /**
- * VAD 침묵 기준(silence window)을 관리하는 reactive 설정 스토어.
- * 변경 시 storage에 persist하고 구독자에게 통지한다.
+ * Reactive settings store managing the VAD silence window.
+ * On change, persists to storage and notifies subscribers.
  */
 
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
@@ -61,7 +61,7 @@ export function createVadSettings(opts?: { storage?: VadStorage; initial?: VadSe
   };
 }
 
-/** localStorage 기반 VadStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-backed VadStorage adapter. Gracefully no-ops in environments without localStorage. */
 export function localStorageVadStorage(key = "yui.vad"): VadStorage {
   return localStorageStore<VadSettings>(key);
 }

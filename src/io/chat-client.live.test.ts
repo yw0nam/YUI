@@ -1,13 +1,13 @@
 /**
- * chat-client.live.test.ts — 실 Hermes(:8643)에 streamChat 어댑터를 SecretProvider 경로로 돌리는
- * 통합 테스트. CI 미실행(네트워크/백엔드 의존) — `YUI_LIVE=1`일 때만.
+ * chat-client.live.test.ts — integration test running the streamChat adapter against real Hermes (:8643)
+ * via the SecretProvider path. Not run in CI (depends on network/backend) — only when `YUI_LIVE=1`.
  *
- * 실행:
+ * Run:
  *   YUI_LIVE=1 YUI_CHAT_KEY=<API_SERVER_KEY> pnpm exec vitest run src/io/chat-client.live.test.ts
  *
- * 무엇을 증명하나: config의 SecretProvider에서 해소한 키를 streamChat({ apiKey })로 넘기면
- * 키 강제 백엔드에 인증돼 스트리밍 응답이 ChatStreamEvent로 매핑된다 — express 미등록이라
- * speech_delta/done/completed만 온다(정상).
+ * What it proves: passing the key resolved from the config's SecretProvider into streamChat({ apiKey })
+ * authenticates against the key-enforcing backend and the streaming response maps to ChatStreamEvent —
+ * express is unregistered, so only speech_delta/done/completed arrive (expected).
  */
 import { describe, expect, it } from "vitest";
 import { CHAT_API_KEY_SECRET, plainSecretProvider } from "../config";
@@ -16,7 +16,7 @@ import { type ChatStreamEvent, streamChat } from "./chat-client";
 
 const LIVE = process.env.YUI_LIVE === "1";
 
-// 실 endpoints (configs/endpoints.json과 동일). SDK가 baseURL 뒤 /responses를 append → .../v1.
+// Real endpoints (same as configs/endpoints.json). The SDK appends /responses after baseURL → .../v1.
 const endpoints: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",
   chat_endpoint: "/v1/responses",
@@ -26,7 +26,7 @@ const endpoints: EndpointsConfig = {
 
 describe.skipIf(!LIVE)("streamChat — LIVE Hermes (SecretProvider 경로)", () => {
   it("SecretProvider 키 → streamChat → 스트리밍 응답을 ChatStreamEvent로 매핑한다", async () => {
-    // dev SecretProvider: 실제 앱은 keychain 구현으로 교체. 여기선 env에서 주입.
+    // dev SecretProvider: the real app swaps in a keychain implementation. Here it's injected from env.
     const secrets = plainSecretProvider({
       [CHAT_API_KEY_SECRET]: process.env.YUI_CHAT_KEY,
     });
@@ -69,13 +69,13 @@ describe.skipIf(!LIVE)("streamChat — LIVE Hermes (SecretProvider 경로)", () 
     )) {
       events.push(ev);
     }
-    // 핵심: 빈 스트림으로 사라지지 않고 error를 낸다.
+    // Key point: it emits an error instead of vanishing into an empty stream.
     expect(events.some((e) => e.type === "error")).toBe(true);
     expect(events.some((e) => e.type === "completed")).toBe(false);
   }, 30_000);
 });
 
-/** 한 턴을 끝까지 소비해 completed 이벤트(speech_text + responseId)를 돌려준다. */
+/** Consumes one turn to completion and returns the completed event (speech_text + responseId). */
 async function runTurn(
   request: Parameters<typeof streamChat>[1],
   apiKey?: string,
@@ -102,17 +102,17 @@ describe.skipIf(!LIVE)("streamChat — LIVE previous_response_id 대화 스레�
       apiKey,
     );
     console.log("[live] turn1 responseId:", turn1.responseId);
-    // completed 이벤트가 response.id를 surface하는지 — 스레딩의 토대.
+    // Whether the completed event surfaces response.id — the foundation of threading.
     expect(turn1.responseId, "completed가 response.id를 실어야 함").toMatch(/^resp_/);
 
-    // 같은 스레드(previous_response_id 전달) → 직전 턴의 이름을 회상.
+    // Same thread (passing previous_response_id) → recalls the name from the previous turn.
     const withThread = await runTurn(
       { input: "내 이름이 뭐야? 한 단어로 답해줘.", previous_response_id: turn1.responseId },
       apiKey,
     );
     console.log("[live] with-thread:", JSON.stringify(withThread.speech_text));
     expect(withThread.speech_text).toContain("철수");
-    // 회상 응답도 자기 resp_ id를 실어 체인을 이어갈 수 있어야 한다.
+    // The recall response must also carry its own resp_ id so the chain can continue.
     expect(withThread.responseId).toMatch(/^resp_/);
   }, 90_000);
 });

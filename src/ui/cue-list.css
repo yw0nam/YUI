@@ -1,14 +1,14 @@
-/* Cue-list 섹션 컴포넌트 — 시간대 인사 · 주도적 반응 공통 패턴.
-   토큰: src/ui/tokens.css. 로컬 --yui-field는 .yui-quick에서 상속됨. */
+/* Cue-list section component — shared pattern for time-of-day greetings and proactive reactions.
+   Tokens: src/ui/tokens.css. Local --yui-field is inherited from .yui-quick. */
 
-/* ── 큐 목록 컨테이너 ── */
+/* ── Cue list container ── */
 .yui-cue-list {
   display: grid;
   gap: 0;
   margin-top: 0.15rem;
 }
 
-/* ── "+ 추가" 버튼 — base (compound override below) ── */
+/* ── "+ add" button — base (compound override below) ── */
 .yui-cue-add {
   display: flex;
   align-items: center;
@@ -43,14 +43,14 @@
   flex: 0 0 auto;
 }
 
-/* ── 섹션 전체 — master OFF 시 목록·추가 버튼 흐림 ── */
+/* ── Whole section — dim the list and add button when master is OFF ── */
 .yui-section--off .yui-cue-list,
 .yui-section--off .yui-cue-add {
   opacity: 0.38;
   pointer-events: none;
 }
 
-/* ── 개별 큐 행 ── */
+/* ── Individual cue row ── */
 .yui-cue {
   border-radius: var(--yui-radius-row);
   margin-bottom: 0.15rem;
@@ -68,7 +68,7 @@
   border-color: var(--yui-edge-strong);
 }
 
-/* ── 접힌 행 레이아웃 ── */
+/* ── Collapsed row layout ── */
 .yui-cue__collapsed {
   display: flex;
   align-items: center;
@@ -76,7 +76,7 @@
   padding: 0.42rem 0.5rem;
 }
 
-/* 이름 + 미리보기 토글 버튼 — 라벨 행처럼 보이되 박스/보더 없음 */
+/* Name + preview toggle button — looks like a label row but has no box/border */
 .yui-cue__label {
   flex: 1;
   min-width: 0;
@@ -99,7 +99,7 @@
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
-/* 앞머리 셰브런 — 펼침 시 90도 회전 */
+/* Leading chevron — rotates 90 degrees when expanded */
 .yui-cue__chevron {
   flex: 0 0 auto;
   display: grid;
@@ -117,7 +117,7 @@
   transform: rotate(90deg);
 }
 
-/* 큐 이름 */
+/* Cue name */
 .yui-cue__name {
   font-size: 0.84rem;
   font-weight: 550;
@@ -127,7 +127,7 @@
   min-width: 3.2rem;
 }
 
-/* 트리거 영역 */
+/* Trigger area */
 .yui-cue__trigger {
   flex: 0 0 auto;
   display: flex;
@@ -135,7 +135,7 @@
   gap: 0.28rem;
 }
 
-/* 시각 입력 */
+/* Time input */
 .yui-time-input {
   background: var(--yui-field, oklch(0.16 0.012 70 / 0.7));
   border: 1px solid var(--yui-edge);
@@ -157,7 +157,7 @@
   box-shadow: 0 0 0 1px var(--yui-accent-soft);
 }
 
-/* 분 입력 */
+/* Minutes input */
 .yui-num-input {
   background: var(--yui-field, oklch(0.16 0.012 70 / 0.7));
   border: 1px solid var(--yui-edge);
@@ -190,7 +190,7 @@
   flex-shrink: 0;
 }
 
-/* 컨텍스트 미리보기 */
+/* Context preview */
 .yui-cue__ctx-preview {
   flex: 1;
   min-width: 0;
@@ -201,7 +201,7 @@
   text-overflow: ellipsis;
 }
 
-/* 삭제 버튼 — hover 시에만 표시. 아이콘은 작아도 히트 영역은 24px 이상. */
+/* Delete button — shown on hover only. The icon is small but the hit area is at least 24px. */
 .yui-cue__delete {
   flex: 0 0 auto;
   display: grid;
@@ -231,7 +231,7 @@
   color: var(--yui-danger);
 }
 
-/* display: grid가 UA의 [hidden] 규칙을 이기므로 명시적으로 숨긴다(확인 단계). */
+/* display: grid beats the UA's [hidden] rule, so hide it explicitly (confirm step). */
 .yui-cue__delete[hidden] {
   display: none;
 }
@@ -241,14 +241,14 @@
   height: 0.82rem;
 }
 
-/* 삭제 확인 행 — 세션 초기화와 같은 .yui-confirm 패턴을 행 안에서 재사용 */
+/* Delete confirm row — reuses the same .yui-confirm pattern as session reset, inside the row */
 .yui-cue .yui-confirm {
   margin: 0;
   padding: 0.3rem 0.5rem 0.45rem;
   border-top: 1px solid var(--yui-edge);
 }
 
-/* ── 펼침 편집 창 ── */
+/* ── Expanded editor pane ── */
 .yui-cue__editor {
   display: none;
   padding: 0.5rem 0.5rem 0.55rem;
@@ -293,7 +293,7 @@
   box-shadow: 0 0 0 1px var(--yui-accent-soft);
 }
 
-/* 컨텍스트 텍스트에어리어 래퍼 */
+/* Context textarea wrapper */
 .yui-cue__ctx-wrap {
   margin-top: 0.08rem;
   border-radius: var(--yui-radius-input);

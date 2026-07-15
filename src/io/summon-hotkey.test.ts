@@ -1,17 +1,17 @@
 /**
- * summon-hotkey.test.ts — 전역 입력 소환 핫키 등록/해제 모듈.
+ * summon-hotkey.test.ts — global input-summon hotkey register/unregister module.
  *
  * Locks:
- *  - apply(accel): 설정된 accelerator로 register 호출.
- *  - 발동(state "Pressed"): focusWindow → summonInput 순서.
- *  - "Released"는 무시.
- *  - 같은 accelerator 재적용은 no-op(이중 등록 방지).
- *  - accelerator 변경: 이전 unregister 후 새로 register.
- *  - 빈 문자열: 기존 등록 해제 + 새 등록 없음(비활성).
- *  - register 거부(무효 accelerator/OS 점유): throw 없이 비활성 유지(fail-soft).
- *  - focusWindow 실패해도 summonInput은 호출된다.
- *  - 입력이 이미 열려 있으면 focusWindow만 하고 summonInput은 건너뛴다.
- *  - dispose(): 등록 해제.
+ *  - apply(accel): calls register with the configured accelerator.
+ *  - fire (state "Pressed"): focusWindow → summonInput order.
+ *  - "Released" is ignored.
+ *  - re-applying the same accelerator is a no-op (prevents double registration).
+ *  - accelerator change: unregister the previous one, then register the new one.
+ *  - empty string: unregister the existing binding + no new registration (disabled).
+ *  - register rejection (invalid accelerator/OS-occupied): stays disabled without throwing (fail-soft).
+ *  - summonInput is still called even if focusWindow fails.
+ *  - when input is already open, only focusWindow runs and summonInput is skipped.
+ *  - dispose(): unregisters.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -21,7 +21,7 @@ import { createSummonHotkey, type SummonHotkeyTrigger } from "./summon-hotkey";
 function fakeDeps() {
   const handlers = new Map<string, SummonHotkeyTrigger>();
   const calls: string[] = [];
-  // 실제 surfaces처럼 summonInput 후에는 입력이 열려 있다.
+  // Like the real surfaces, input is open after summonInput.
   let inputOpen = false;
   const deps = {
     register: vi.fn(async (accelerator: string, handler: SummonHotkeyTrigger) => {
@@ -48,7 +48,7 @@ function fakeDeps() {
   };
 }
 
-/** trigger 핸들러의 비동기 체인(focus → summon)이 소진될 때까지 대기. */
+/** Waits for the trigger handler's async chain (focus → summon) to drain. */
 async function flush(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -138,7 +138,7 @@ describe("createSummonHotkey — trigger", () => {
     const f = fakeDeps();
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.apply("CmdOrCtrl+Shift+Y");
-    // 첫 발동이 입력을 연다 → 재발동(키 반복/다른 앱에서 재호출)은 창만 앞으로.
+    // First fire opens input → a re-fire (key repeat/re-invoked from another app) only brings the window forward.
     f.trigger("CmdOrCtrl+Shift+Y");
     await flush();
     f.trigger("CmdOrCtrl+Shift+Y");
@@ -149,7 +149,7 @@ describe("createSummonHotkey — trigger", () => {
 
   it("사이클 진행 중 도착한 연타(키 리핏)는 흘려 이중 소환하지 않는다", async () => {
     const f = fakeDeps();
-    // focusWindow를 열어둔 채로 잡아 첫 사이클을 in-flight로 유지한다.
+    // Hold focusWindow open to keep the first cycle in-flight.
     let releaseFocus!: () => void;
     f.deps.focusWindow.mockReturnValueOnce(
       new Promise<void>((resolve) => {
@@ -158,7 +158,7 @@ describe("createSummonHotkey — trigger", () => {
     );
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.apply("CmdOrCtrl+Shift+Y");
-    // 첫 발동은 in-flight, 두 번째는 같은 프레임(아직 focus 미해소) 도착 → 흘려야 한다.
+    // First fire is in-flight; the second arrives in the same frame (focus not yet resolved) → must be dropped.
     f.trigger("CmdOrCtrl+Shift+Y");
     f.trigger("CmdOrCtrl+Shift+Y");
     releaseFocus();

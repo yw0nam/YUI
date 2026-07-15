@@ -1,10 +1,10 @@
 /**
- * 설정 팝아웃 창 오프너 + 창 간 설정 동기화.
+ * Settings pop-out window opener + cross-window settings sync.
  *
- * openSettingsWindow는 주입된 env로 Tauri/브라우저 경로만 가른다(순수, 테스트 가능).
- * createSettingsWindowOpener는 실제 구현을 배선한다 — Tauri면 WebviewWindow("settings"),
- * 아니면 window.open. WebviewWindow는 Tauri 분기 안에서만 dynamic import해 vitest/브라우저가
- * 모듈을 로드하지 않게 한다.
+ * openSettingsWindow branches on injected env for Tauri/browser paths only (pure, testable).
+ * createSettingsWindowOpener wires the real implementation — Tauri: WebviewWindow("settings"),
+ * else: window.open. WebviewWindow dynamic-imported only within Tauri branch so vitest/browser
+ * do not load the module.
  */
 
 import { createLogger } from "../logger";
@@ -18,13 +18,13 @@ const SETTINGS_TITLE = "YUI 설정";
 
 export interface SettingsWindowEnv {
   isTauri: boolean;
-  /** 실제 구현은 WebviewWindow를 띄운다. */
+  /** Real implementation launches WebviewWindow. */
   createTauriWindow: () => void;
-  /** 실제 구현은 window.open으로 폴백 창을 띄운다. */
+  /** Real implementation launches fallback window via window.open. */
   openBrowserWindow: () => void;
 }
 
-/** isTauri면 Tauri 창, 아니면 브라우저 창. 부수효과는 env가 들고 있어 단위 테스트가 쉽다. */
+/** Tauri window if isTauri, else browser window. Side effects held by env for easy unit testing. */
 export function openSettingsWindow(env: SettingsWindowEnv): void {
   if (env.isTauri) {
     env.createTauriWindow();
@@ -33,7 +33,7 @@ export function openSettingsWindow(env: SettingsWindowEnv): void {
   }
 }
 
-/** 이미 떠 있으면 포커스/표시, 없으면 새로 생성. 어떤 단계도 throw하지 않는다. */
+/** If already open, focus and show; else create new. No step throws. */
 async function openTauriSettingsWindow(): Promise<void> {
   try {
     const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
@@ -75,7 +75,7 @@ function openBrowserSettingsWindow(): void {
   }
 }
 
-/** 설정 창 자신을 닫는다 — Tauri면 현재 창 close, 아니면 window.close() 폴백. throw하지 않는다. */
+/** Close the settings window itself — Tauri: close current window, else: window.close() fallback. Does not throw. */
 export function closeSettingsWindow(): void {
   if (isTauri()) {
     void (async () => {
@@ -95,7 +95,7 @@ export function closeSettingsWindow(): void {
   }
 }
 
-/** 실제 부수효과를 배선한 오프너를 반환한다. 호출 시 한 번씩 Tauri/브라우저로 분기. */
+/** Return opener with wired side effects. Branches to Tauri/browser per call. */
 export function createSettingsWindowOpener(): () => void {
   return () => {
     openSettingsWindow({
@@ -106,7 +106,7 @@ export function createSettingsWindowOpener(): () => void {
   };
 }
 
-/** 창 간 동기화: 다른 창의 localStorage write(`storage` 이벤트)에 각 store를 재로드. disposer 반환. */
+/** Cross-window sync: reload each store on other window's localStorage write (`storage` event). Return disposer. */
 export function wireStorageSync(stores: ReadonlyArray<{ reloadFromStorage(): void }>): () => void {
   const onStorage = (): void => {
     for (const s of stores) s.reloadFromStorage();

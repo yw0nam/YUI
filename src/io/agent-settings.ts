@@ -1,6 +1,6 @@
 /**
- * AI 에이전트 요청 정형화(reasoning effort + system instructions override)를 관리하는 reactive 설정 스토어.
- * 변경 시 storage에 persist하고 구독자에게 통지한다.
+ * Reactive settings store managing AI agent request shaping (reasoning effort + system instructions override).
+ * Persists to storage on change and notifies subscribers.
  */
 
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
@@ -10,8 +10,8 @@ export const REASONING_EFFORTS: readonly ReasoningEffort[] = ["none", "minimal",
 export const INSTRUCTIONS_MAX_LEN = 4000;
 
 export interface AgentSettings {
-  reasoning_effort: ReasoningEffort; // 백엔드로 보내는 reasoning.effort 값 ("none" => 추론 안 함)
-  instructions: string; // "" => 호출자가 config.chat_instructions로 폴백
+  reasoning_effort: ReasoningEffort; // reasoning.effort value sent to the backend ("none" => no reasoning)
+  instructions: string; // "" => caller falls back to config.chat_instructions
 }
 
 export type AgentStorage = PersistedStorage<AgentSettings>;
@@ -66,7 +66,7 @@ export function createAgentSettings(opts?: { storage?: AgentStorage; initial?: A
   };
 }
 
-/** localStorage 기반 AgentStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-based AgentStorage adapter. Gracefully ignored in environments without localStorage. */
 export function localStorageAgentStorage(key = "yui.agent"): AgentStorage {
   return localStorageStore<AgentSettings>(key);
 }

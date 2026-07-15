@@ -31,7 +31,7 @@ export function localStorageStore<T>(key: string): PersistedStorage<T> {
       try {
         globalThis.localStorage?.setItem(key, JSON.stringify(s));
       } catch {
-        // localStorage 사용 불가 시 no-op
+        // No-op when localStorage is unavailable
       }
     },
   };
@@ -77,11 +77,11 @@ export function createPersistedStore<T>(cfg: PersistedStoreConfig<T>): Persisted
       const loaded = storage.load();
       stored = parse(loaded) ?? (migrate ? migrate(loaded) : null);
     } catch {
-      // storage 오류 시 다음 우선순위로 폴백
+      // On storage error, fall back to the next priority
     }
   }
 
-  // 우선순위: 저장값 > initial > 기본값
+  // Priority: stored value > initial > defaults
   let state: T = stored
     ? clone(stored)
     : cfg.initial !== undefined
@@ -110,12 +110,12 @@ export function createPersistedStore<T>(cfg: PersistedStoreConfig<T>): Persisted
       try {
         storage?.save(clone(state));
       } catch {
-        // storage 사용 불가 시 in-memory 상태는 유지
+        // Keep in-memory state when storage is unavailable
       }
       notify();
     },
 
-    // 다른 창이 storage를 갱신했을 때 재로드 — 값이 실제로 바뀌었을 때만 통지.
+    // Reload when another window updates storage — notify only when the value actually changed.
     reloadFromStorage(): void {
       if (!storage) return;
       let loaded: T | null;

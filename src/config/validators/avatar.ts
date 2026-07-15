@@ -2,7 +2,7 @@ import type { AvatarConfig, AvatarOption } from "../load";
 import { assertValid, ConfigError, isObject } from "./shared";
 
 const AVATAR_SOURCES: readonly NonNullable<AvatarOption["source"]>[] = ["bundled", "file", "user"];
-/** AvatarOption.id 허용 문자 — 영속화 키이자 CSS 셀렉터 `[data-vrm-id="…"]` 값이므로 공백/특수문자 금지. */
+/** Allowed chars for AvatarOption.id — a persistence key and the CSS selector `[data-vrm-id="…"]` value, so no whitespace/special chars. */
 const AVATAR_ID_RE = /^[A-Za-z0-9._-]+$/;
 
 export function validateAvatar(file: string, raw: unknown): AvatarConfig {
@@ -37,7 +37,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
           );
         }
       }
-      // id는 영속화 키 + CSS 셀렉터 값 — 공백/따옴표 등 특수문자 금지([A-Za-z0-9._-]).
+      // id is a persistence key + CSS selector value — no whitespace/quotes or other special chars ([A-Za-z0-9._-]).
       if (typeof entry.id === "string" && !AVATAR_ID_RE.test(entry.id)) {
         issues.push(
           `available[${i}].id는 [A-Za-z0-9._-]만 허용 (받음: ${JSON.stringify(entry.id)})`,
@@ -59,7 +59,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
         ...(source !== undefined ? { source: source as AvatarOption["source"] } : {}),
       });
     });
-    // id 유일성 — find(x => x.id === …) 해소가 첫 항목만 잡으므로 중복은 영구 unreachable.
+    // id uniqueness — find(x => x.id === …) resolves to the first entry only, so a duplicate is permanently unreachable.
     const seen = new Set<string>();
     available.forEach((opt, i) => {
       if (seen.has(opt.id)) {
@@ -69,7 +69,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     });
   }
 
-  // framing — optional fit-to-bounds knob. 부분값 허용(기본값은 렌더러 소유).
+  // framing — optional fit-to-bounds knob. Partial values allowed (defaults owned by the renderer).
   let framing: AvatarConfig["framing"];
   const rawFraming = raw.framing;
   if (rawFraming !== undefined) {
@@ -96,7 +96,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
-  // hit_test — optional click-through knob. 부분값 허용(기본값은 컨트롤러 소유).
+  // hit_test — optional click-through knob. Partial values allowed (defaults owned by the controller).
   let hit_test: AvatarConfig["hit_test"];
   const rawHitTest = raw.hit_test;
   if (rawHitTest !== undefined) {
@@ -104,7 +104,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
       issues.push(`hit_test은 객체여야 함 (받음: ${JSON.stringify(rawHitTest)})`);
     } else {
       const out: NonNullable<AvatarConfig["hit_test"]> = {};
-      // hysteresis_margin_px / poll_interval_ms: 유한 number. margin은 ≥0, interval은 >0.
+      // hysteresis_margin_px / poll_interval_ms: finite number. margin is ≥0, interval is >0.
       const posNum = (
         k: "hysteresis_margin_px" | "poll_interval_ms",
         minExclusive: boolean,
@@ -121,7 +121,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
       };
       posNum("hysteresis_margin_px", false);
       posNum("poll_interval_ms", true);
-      // debounce_samples: 1 이상 정수.
+      // debounce_samples: integer ≥ 1.
       const ds = rawHitTest.debounce_samples;
       if (ds !== undefined) {
         if (typeof ds !== "number" || !Number.isInteger(ds) || ds < 1) {
@@ -132,7 +132,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
           out.debounce_samples = ds;
         }
       }
-      // alpha_threshold: (0, 1] 범위 유한 number(phase-2 예약).
+      // alpha_threshold: finite number in (0, 1] (reserved for phase-2).
       const at = rawHitTest.alpha_threshold;
       if (at !== undefined) {
         if (typeof at !== "number" || !Number.isFinite(at) || at <= 0 || at > 1) {
@@ -147,7 +147,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
-  // gaze — optional camera-tracking knob. 부분값 허용(기본값은 렌더러 소유, natural preset).
+  // gaze — optional camera-tracking knob. Partial values allowed (defaults owned by the renderer, natural preset).
   let gaze: AvatarConfig["gaze"];
   const rawGaze = raw.gaze;
   if (rawGaze !== undefined) {
@@ -155,7 +155,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
       issues.push(`gaze는 객체여야 함 (받음: ${JSON.stringify(rawGaze)})`);
     } else {
       const out: NonNullable<AvatarConfig["gaze"]> = {};
-      // 각도(deg) — 유한 number, 지정 범위. deadDeg만 0 허용, 나머지 각도는 >0.
+      // angle (deg) — finite number, specified range. Only deadDeg allows 0, other angles are >0.
       const ranged = (
         k:
           | "deadDeg"

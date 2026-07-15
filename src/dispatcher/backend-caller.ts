@@ -1,27 +1,27 @@
 /**
- * Backend caller — B1–B5 호출 시퀀스.
+ * Backend caller — B1–B5 call sequence.
  *
- * tier2/3 event를 backend judgment로 보낸다. firing≠judgment 경계의 backend 쪽:
- * 발화 여부는 speech_text가 비어있는지로만 결정한다(별도 플래그 없음: 침묵 = speech_text "").
+ * Sends tier2/3 events to backend judgment. Backend side of the firing≠judgment boundary:
+ * Speech decision is based solely on whether speech_text is empty (no separate flag: silence = empty speech_text).
  *
- *  B1 package_context — InputContext 조립(user_text + env.timestamp +
- *     env.timezone). active_app/window은 getOsContext 스냅샷이 있을 때만 best-effort로 첨부.
- *     recent_apps는 peekRecentApps로만 스냅샷(비우지 않음) — 버퍼는 전송 확정(post-stream 가드
- *     통과) 시점에 drainRecentApps로만 비워, 그 전 클라 실패(setup/stream/parse_error)에서
- *     앱 이력이 유실되지 않게 한다.
- *  B2 POST — io/chat-client.streamChat(config, req, { fetch, apiKey }). SSE는 chat-client가
- *     소유 — 여기서 직접 파싱하지 않는다. AbortSignal로 in-flight abort. idle-gap watchdog
- *     (IDLE_TIMEOUT_MS, 매 stream event에 리셋)이 정체된 호출을 abort한다 — TTFT는 첫 gap일 뿐,
- *     길게 생각/스트리밍하는 정상 턴은 죽이지 않는다.
- *  B3 parse — chat-client의 `completed` 이벤트가 이미 ControlEnvelope를 조립해 준다.
- *     completed 미수신 → parse_error.
- *  B4 speech gate — speech_text가 비어있지 않을 때만 발화. 빈 텍스트 = 침묵,
- *     별도 플래그 없음. emotion/motion은 침묵과 무관하게 렌더.
- *  B5 dispatch_to_renderer — per-beat cue가 스트리밍되면 TTS 파이프라인이 audio-timed로
- *     emotion/motion을 적용(express→onCue)하고, 그 외엔 completed에서 renderer.applyDirective(envelope).
- *     speech_text→onSpeech + tool_status→onToolStatus(main.ts에서 TTS/UI로 흘린다).
+ *  B1 package_context — Assemble InputContext (user_text + env.timestamp +
+ *     env.timezone). active_app/window attached best-effort only when getOsContext snapshot available.
+ *     recent_apps snapshotted only by peekRecentApps (not cleared) — buffer cleared only by drainRecentApps
+ *     once send confirmed (post-stream guard passed), so app history not lost on prior client failure
+ *     (setup/stream/parse_error).
+ *  B2 POST — io/chat-client.streamChat(config, req, { fetch, apiKey }). SSE owned by chat-client
+ *     — not parsed directly here. In-flight abort via AbortSignal. idle-gap watchdog
+ *     (IDLE_TIMEOUT_MS, resets on each stream event) aborts stalled calls — TTFT is just the first gap,
+ *     normal turns with long thinking/streaming are not killed.
+ *  B3 parse — chat-client's `completed` event already assembled ControlEnvelope.
+ *     No completed received → parse_error.
+ *  B4 speech gate — speak only when speech_text is not empty. Empty text = silence,
+ *     no separate flag. emotion/motion rendered regardless of silence.
+ *  B5 dispatch_to_renderer — when per-beat cue streamed, TTS pipeline applies
+ *     emotion/motion audio-timed (express→onCue), otherwise at completed: renderer.applyDirective(envelope).
+ *     speech_text→onSpeech + tool_status→onToolStatus (flowed to TTS/UI in main.ts).
  *
- * silent drop 분류: parse_error(WARN) / network_drop(WARN, idle timeout 포함).
+ * Silent drop classification: parse_error(WARN) / network_drop(WARN, includes idle timeout).
  */
 
 import type {
@@ -45,16 +45,16 @@ import type { DropReason } from "./guardrails";
 
 const baseLog = createLogger("backend-caller");
 
-/** proactive/schedule 턴(user_text 없음)의 user 메시지 마커 — 빈 문자열 대신 명시적 신호. */
+/** User message marker for proactive/schedule turns (no user_text) — explicit signal instead of empty string. */
 const PROACTIVE_MARKER = "(proactive trigger)";
 
 /**
- * Idle-gap watchdog deadline(ms). 매 stream event(첫 byte 포함)에 리셋되는 정체 기준선 —
- * 총 소요시간 cap이 아니다. 긴 thinking/스트리밍 턴은 죽이지 않고, 정체된 턴만 abort한다.
+ * Idle-gap watchdog deadline (ms). Stall baseline that resets on each stream event (including first byte) —
+ * not a cap on total elapsed time. Does not kill turns with long thinking/streaming, only aborts stalled turns.
  */
 export const IDLE_TIMEOUT_MS = 45_000;
 
-/** Dispatcher → Backend Caller 출력: { ok, drop_reason? }. */
+/** Dispatcher → Backend Caller output: { ok, drop_reason? }. */
 export interface BackendCallResult {
   ok: boolean;
   drop_reason?: DropReason;
@@ -65,72 +65,72 @@ export interface BackendCallerDeps {
   config: EndpointsConfig;
   /** render directive sink (applyDirective). */
   renderer: Pick<Renderer, "applyDirective">;
-  /** Hermes 인증 키 해소(SecretProvider). 없으면 무인증 placeholder. */
+  /** Hermes auth key resolution (SecretProvider). Unauthenticated placeholder if absent. */
   getApiKey: () => Promise<string | undefined>;
-  /** transport fetch 선택(selectFetch). Tauri=cors-fetch, dev=undefined. */
+  /** Transport fetch selection (selectFetch). Tauri=cors-fetch, dev=undefined. */
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
-  /** 발화 텍스트 sink — main.ts가 말풍선 + TTS 파이프라인으로 연결한다. delta-less backend용 fallback. */
+  /** Speech text sink — main.ts connects to speech bubble + TTS pipeline. Fallback for delta-less backend. */
   onSpeech?: (text: string) => void;
-  /** 발화 토큰 증분 sink — speech_delta마다 호출(스트리밍 TTS). main.ts가 말풍선 누적 + 파이프라인 구동으로 연결. */
+  /** Speech token increment sink — called per speech_delta (streaming TTS). main.ts connects to speech bubble accumulation + pipeline driving. */
   onSpeechDelta?: (text: string) => void;
-  /** 발화 스트림 종료 sink — 모든 delta 이후 1회. main.ts가 말풍선 dwell 보류 + 파이프라인 flush로 연결. */
+  /** Speech stream end sink — once after all deltas. main.ts connects to speech bubble dwell retention + pipeline flush. */
   onSpeechEnd?: () => void;
-  /** 발화 중단 sink — call() 진입 시 1회. 직전(superseded) 턴의 잔여 오디오/말풍선을 정리한다. */
+  /** Speech interrupt sink — once on call() entry. Cleans up remaining audio/speech bubble from the previous (superseded) turn. */
   onSpeechInterrupt?: () => void;
-  /** 발화 비정상 종료 sink — 스트림 중 에러/끊김(유저 supersede 아님)으로 끝났고 delta가 1건 이상 왔을 때. 말풍선/오디오를 정리한다. */
+  /** Speech abnormal end sink — when stream ended due to error/disconnect (not user supersede) and at least one delta arrived. Cleans up speech bubble/audio. */
   onSpeechAbort?: () => void;
-  /** 토글 ON일 때 화면 캡처 블록을 조립해 반환(OFF/실패면 undefined). main.ts가 settings+capturer+buildScreenshotBlock로 합성. */
+  /** When toggle is ON, assembles and returns screenshot block (undefined if OFF/failed). main.ts composes with settings+capturer+buildScreenshotBlock. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
-  /** 현재 foreground app/title 스냅샷. present 시 env.active_app/active_window_title을 채운다. */
+  /** Current foreground app/title snapshot. When present, fills env.active_app/active_window_title. */
   getOsContext?: () => import("../io/os-context").OsContextSnapshot | undefined;
-  /** 직전 발화 이후 전환한 앱 버퍼를 비우지 않고 스냅샷 — B1 패키징 시점에 호출, present 시 env.recent_apps로 첨부.
-   * 버퍼를 비우지 않으므로 packageContext 이후 클라 실패(setup/stream/parse_error)가 나도 유실되지 않는다. */
+  /** Snapshot app buffer without clearing, called at B1 packaging, attached to env.recent_apps when present.
+   * Buffer not cleared, so app history not lost even if packageContext fails afterward (setup/stream/parse_error). */
   peekRecentApps?: () => import("../io/os-context").RecentApp[];
-  /** 전송 확정(성공 — completed 수신 + post-stream 가드 통과) 시점에만, packageContext가 peek한
-   * 스냅샷(peekedApps)만 버퍼에서 제거한다. packageContext에서는 호출하지 않는다 — 그 사이 클라
-   * 실패가 나면 비우지 않아 다음 턴으로 이월되고, peek 이후 전환한 앱도 제거 대상에서 빠져 유실되지 않는다. */
+  /** Only at send confirmation (success — completed received + post-stream guard passed), remove only the
+   * snapshot peekedApps from buffer. Not called from packageContext — if client failure occurs between them,
+   * buffer not cleared, carries to next turn, and any app switch after peek also escapes removal. */
   drainRecentApps?: (
     only?: import("../io/os-context").RecentApp[],
   ) => import("../io/os-context").RecentApp[];
-  /** per-beat cue sink — 매 express cue를 그대로 흘린다(emotion_id/motion_id/emotion_text). main.ts에서 TTS 파이프라인(speechPlayback.setCue)에 배선 — 문장 재생 시점에 audio-timed 적용. */
+  /** Per-beat cue sink — passes each express cue as-is (emotion_id/motion_id/emotion_text). main.ts wires to TTS pipeline (speechPlayback.setCue) — applied audio-timed at sentence playback. */
   onCue?: (cue: ExpressArgs) => void;
-  /** tool_status sink — present 시에만 호출. */
+  /** tool_status sink — called only when present. */
   onToolStatus?: (status: ToolStatus) => void;
-  /** 직전 response id 조회 — present 시 요청에 실어 대화를 잇는다. 매 턴 호출(reset/rotation 반영). */
+  /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;
-  /** 새 response id persist — 완전히 성공한 턴 이후에만 호출(대화 상태 진행). */
+  /** New response id persist — called only after a completely successful turn (conversation state progress). */
   onResponseId?: (id: string) => void;
-  /** usage(토큰 점유량) sink — present 시에만 호출. ControlEnvelope와 무관한 진단 채널. */
+  /** usage (token occupancy) sink — called only when present. Diagnostic channel independent of ControlEnvelope. */
   onUsage?: (usage: Usage) => void;
-  /** 현재 agent 설정(추론 강도 + instructions 오버라이드) 스냅샷. present일 때만 요청에 반영. */
+  /** Current agent setting (reasoning effort + instructions override) snapshot. Reflected in request only when present. */
   getAgentSettings?: () => import("../io/agent-settings").AgentSettings;
-  /** TTFT thinking 진입 sink — filler 활성 시 call() 진입에서 동기로 1회. token은 이 call() 고유. main.ts가 thinking 모션 + 필러 발화 루프로 연결. */
+  /** TTFT thinking entry sink — when filler is active, once synchronously on call() entry. token is unique to this call(). main.ts connects to thinking motion + filler speech loop. */
   onThinkingStart?: (token: object) => void;
-  /** TTFT thinking 종료 sink — 첫 speech_delta(실제 응답 발화 시작) / 턴 종료(어느 경로든) 시 1회. start와 동일 token. main.ts가 cross-turn supersede를 token으로 가린다. */
+  /** TTFT thinking end sink — once on first speech_delta (actual response speech start) / turn end (any path). Same token as start. main.ts masks cross-turn supersede by token. */
   onThinkingEnd?: (token: object) => void;
-  /** filler 활성 여부 조회 — filler 켜짐 + 풀 non-empty면 true. true일 때만 thinking을 동기로 시작한다(매 턴 호출). */
+  /** Filler active status query — returns true if filler is on + pool non-empty. Thinking starts synchronously only when true (called per turn). */
   getFiller?: () => boolean;
-  /** 통합 대화 transcript — 두 프로토콜 모드 모두 완전히 성공한 턴 이후 append. CC 모드는 여기서 송신분도 뽑는다. */
+  /** Integrated conversation transcript — append after completely successful turn in both protocol modes. CC mode also extracts send here. */
   transcript?: { get(): ChatHistoryEntry[]; append(e: ChatHistoryEntry): void };
-  /** 구조화 로깅(없으면 backend_caller namespace logger). */
+  /** Structured logging (defaults to backend_caller namespace logger if absent). */
   logger?: Logger;
 }
 
 export interface BackendCaller {
   /**
-   * 한 trigger envelope에 대해 B1–B5를 실행. externalSignal이 abort되면 in-flight 중단.
-   * 절대 throw하지 않는다 — 실패는 { ok:false, drop_reason } 로 표현(dispatcher가 분기).
+   * Execute B1–B5 for one trigger envelope. In-flight aborted if externalSignal aborts.
+   * Never throws — failures expressed as { ok:false, drop_reason } (dispatcher branches).
    */
   call(env: BusEnvelope, externalSignal?: AbortSignal): Promise<BackendCallResult>;
 }
 
-/** payload에서 user text 추출 — 키보드/음성 모두 payload.text. */
+/** Extract user text from payload — both keyboard/voice use payload.text. */
 function userTextOf(env: BusEnvelope): string | undefined {
   const t = env.payload?.text;
   return typeof t === "string" ? t : undefined;
 }
 
-/** payload에서 첨부 이미지(data URLs) 추출 — 모든 원소가 string인 배열일 때만. */
+/** Extract attached images (data URLs) from payload — only when all elements are strings. */
 function userImagesOf(env: BusEnvelope): string[] | undefined {
   const imgs = env.payload?.images;
   return Array.isArray(imgs) && imgs.every((u) => typeof u === "string")
@@ -204,7 +204,7 @@ function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
   return Array.isArray(s) ? (s as TriggerMeta["signals"]) : undefined;
 }
 
-/** 안전한 timezone 조회(환경에 따라 throw 가능 → fallback). */
+/** Safe timezone lookup (may throw depending on environment → fallback). */
 function resolveTimezone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -281,10 +281,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   const log = deps.logger ?? baseLog;
 
   /**
-   * B1: InputContext 조립.
-   * active_app / active_window_title는 getOsContext 스냅샷이 있을 때만 best-effort로 채운다(없으면 생략).
-   * screenshot은 토글 ON일 때만 getScreenshot 포트로 첨부. 캡처 실패는 턴을 깨뜨리지 않는다 — 로그 후 스크린샷 없이 진행.
-   * user_text는 encodeInput에서 user 메시지에만 실린다 — system context에는 포함되지 않는다.
+   * B1: Assemble InputContext.
+   * active_app / active_window_title filled best-effort only when getOsContext snapshot available (omitted if absent).
+   * screenshot attached only when toggle ON via getScreenshot. Capture failure does not break turn — logged then proceeds without screenshot.
+   * user_text only in user message in encodeInput — not included in system context.
    */
   async function packageContext(
     env: BusEnvelope,
@@ -394,7 +394,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     };
   }
 
-  /** screenshot(있으면 먼저) + user_images 순서로 이미지 data URL을 모은다. */
+  /** Collect image data URLs in order: screenshot (if present, first) + user_images. */
   function imageDataUrlsOf(ctx: InputContext): string[] {
     return [
       ...(ctx.screenshot?.data_url ? [ctx.screenshot.data_url] : []),
@@ -403,7 +403,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   }
 
   /**
-   * InputContext → OpenAI Responses input (user 발화는 user 메시지로만 인코딩).
+   * InputContext → OpenAI Responses input (user speech encoded only in user message).
    * User message: userText ?? PROACTIVE_MARKER (+ image content-part when images present).
    */
   function encodeInput(ctx: InputContext, env: BusEnvelope): ChatRequest["input"] {
@@ -432,19 +432,19 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       return { ok: false, drop_reason: "superseded_by_user" };
     }
 
-    // 직전(superseded) 턴의 잔여 오디오/말풍선을 정리 — 첫 delta보다 먼저 1회.
+    // Clean up remaining audio/speech bubble from the previous (superseded) turn — once before first delta.
     deps.onSpeechInterrupt?.();
 
-    // TTFT thinking — filler 활성 시 call() 진입에서 즉시 시작(judgment 아님, 첫 줄은 지연 없음).
-    // 종료는 실제 응답 발화(첫 speech_delta) 시작 시 1회 — 그 전의 usage/express/tool_status는
-    // thinking을 깨뜨리지 않는다. 침묵/에러/abort 턴은 finally가 종료를 보장한다.
-    // call()은 턴이 겹칠 수 있어 상태를 per-invocation local로 둔다(절대 closure/module scope 금지).
-    // turnToken: 이 call() 고유 identity — start/end에 같은 token을 실어 main.ts가
-    // cross-turn supersede(겹친 다음 턴이 이 턴을 추월)에서 stale end를 token으로 가린다.
+    // TTFT thinking — when filler is active, start immediately on call() entry (not judgment, first line no delay).
+    // End once on actual response speech start (first speech_delta) — usage/express/tool_status before don't
+    // break thinking. Silence/error/abort turns guaranteed end by finally.
+    // call() may overlap turns, so keep state per-invocation local (never closure/module scope).
+    // turnToken: unique identity for this call() — same token in start/end so main.ts masks stale end
+    // in cross-turn supersede (overlapping next turn overtakes this turn) by token.
     const turnToken = {};
     let thinkingStarted = false;
     let thinkingDone = false;
-    // running tool_status를 흘렸고 아직 done으로 닫히지 않았는지 — finally에서 정리 판단.
+    // Whether running tool_status was passed and not yet closed with done — cleanup decision in finally.
     let toolRunning = false;
     const startThinking = () => {
       if (thinkingStarted || thinkingDone) return;
@@ -457,11 +457,11 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       if (thinkingStarted) deps.onThinkingEnd?.(turnToken);
     };
 
-    // 전 구간을 try/finally로 감싼다 — 어느 종료 경로든 thinking 종료가 정확히 1회 보장된다
+    // Wrap entire span in try/finally — thinking end guaranteed exactly once on any exit path
     // (setup reject, early abort, stream throw, post-loop abort, streamError, empty/parse_error,
-    // 정상 완료 전부).
+    // normal completion all covered).
     try {
-      // filler 활성이면 첫 줄을 지연 없이 띄운다(동기 시작). disabled/빈 풀이면 시작하지 않는다.
+      // If filler is active, show first line immediately (synchronous start). Don't start if disabled/pool empty.
       if (deps.getFiller?.()) startThinking();
 
       // B1
@@ -469,7 +469,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       const input = encodeInput(ctx, env);
       log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 
-      // B2: fetch/apiKey 해소 후 streamChat. externalSignal을 그대로 전달(abort 위임).
+      // B2: After resolving fetch/apiKey, streamChat. Pass externalSignal as-is (delegate abort).
       let apiKey: string | undefined;
       let fetchImpl: typeof globalThis.fetch | undefined;
       try {
@@ -483,8 +483,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         return { ok: false, drop_reason: "superseded_by_user" };
       }
 
-      // in-flight fetch는 AbortController로 정리한다. 외부 signal(dispatcher의
-      // supersede abort)을 내부 컨트롤러에 링크해 항상 단일 signal을 streamChat에 넘긴다.
+      // Clean up in-flight fetch via AbortController. Link external signal (dispatcher's
+      // supersede abort) to internal controller so always pass single signal to streamChat.
       const ac = new AbortController();
       if (externalSignal) {
         if (externalSignal.aborted) ac.abort();
@@ -493,12 +493,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       const request: ChatRequest = { input, signal: ac.signal };
       const isCC = deps.config.chat_api === "chat_completions";
 
-      // agent 설정 반영: reasoning_effort는 두 모드 모두 항상 전송.
+      // Apply agent settings: reasoning_effort always sent in both modes.
       const agent = deps.getAgentSettings?.();
       if (agent) request.reasoning_effort = agent.reasoning_effort;
 
-      // 직전 response id를 스냅샷해 요청에 싣는다 — 완료 시 reset 감지(R2)를 위해 시작값을 보존.
-      // CC 모드는 서버사이드 대화 상태가 없다(transcript로 잇는다) — 스냅샷/persist를 건너뛴다.
+      // Snapshot previous response id into request — preserve start value to detect reset on completion (R2).
+      // CC mode has no server-side conversation state (stitched by transcript) — skip snapshot/persist.
       let startPreviousResponseId: string | undefined;
       if (isCC) {
         const clientContext = buildClientContext(ctx, env);
@@ -520,22 +520,22 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       } else {
         startPreviousResponseId = deps.getPreviousResponseId?.();
         if (startPreviousResponseId) request.previous_response_id = startPreviousResponseId;
-        // 빈 instructions는 config 폴백을 위해 생략.
+        // Empty instructions omitted for config fallback.
         if (agent?.instructions.trim()) request.instructions = agent.instructions;
       }
 
-      // B3: chat-client의 completed 이벤트에서 ControlEnvelope 수령(SSE 재파싱 X).
+      // B3: Receive ControlEnvelope from chat-client's completed event (no SSE re-parsing).
       let envelope: ControlEnvelope | undefined;
       let newResponseId: string | undefined;
       let streamError: string | undefined;
-      // stream error event가 실어 온 HTTP status(openai SDK APIError.status) — 401/403이면
-      // network_drop 대신 http_4xx_drop(auth-ish)으로 세분한다.
+      // HTTP status carried by stream error event (openai SDK APIError.status) — distinguish
+      // 401/403 as http_4xx_drop (auth-ish) instead of network_drop.
       let streamErrorStatus: number | undefined;
-      // 스트리밍 발화: delta가 1건이라도 왔는가(완료 시 onSpeechEnd 구동 분기).
+      // Streaming speech: did at least one delta arrive (completion drives onSpeechEnd branching).
       let streamedAny = false;
-      // express cue가 스트림 중 1건이라도 왔는가(완료 시 pipeline 소유 분기).
+      // Did at least one express cue arrive during stream (completion drives pipeline ownership branching).
       let cueStreamed = false;
-      // idle-gap watchdog이 정체를 감지해 abort했는가(첫 byte 대기 포함).
+      // Did idle-gap watchdog detect stall and abort (includes first byte wait).
       let idleTimedOut = false;
       try {
         for await (const ev of withIdleWatchdog(
@@ -549,24 +549,24 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           if (externalSignal?.aborted) break;
           switch (ev.type) {
             case "speech_delta":
-              // 실제 응답 발화 시작 — 여기서만 thinking 종료(thinkingDone로 첫 delta에서만 발화).
-              // 그 전의 usage/express/tool_status는 thinking을 깨뜨리지 않는다.
+              // Actual response speech start — end thinking only here (thinkingDone ensures only first delta).
+              // usage/express/tool_status before don't break thinking.
               endThinking();
               deps.onSpeechDelta?.(ev.text);
               streamedAny = true;
               break;
             case "express":
-              // 전체 cue를 그대로 흘린다 — TTS 파이프라인이 문장 재생 시점에 audio-timed 적용.
+              // Pass the entire cue as-is — TTS pipeline applies audio-timed at sentence playback.
               deps.onCue?.(ev.args);
               cueStreamed = true;
               break;
             case "usage":
-              // ControlEnvelope/renderer와 무관한 진단 채널 — sink로만 흘린다.
+              // Diagnostic channel independent of ControlEnvelope/renderer — passes to sink only.
               deps.onUsage?.(ev.usage);
               break;
             case "tool_status":
-              // 네이티브 tool 관찰 결과 — 스트리밍 즉시 흘려 running 칩을 띄운다.
-              // endThinking 호출 안 함(:551): tool_status는 thinking을 깨뜨리지 않는다.
+              // Native tool observation result — pass immediately on streaming to show running chip.
+              // Do not call endThinking (:551): tool_status does not break thinking.
               deps.onToolStatus?.(ev.status);
               toolRunning = ev.status.state === "running";
               break;
@@ -583,7 +583,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           }
         }
       } catch (err) {
-        // abort면 supersede(다음 턴이 정리), 그 외는 network drop — delta가 떴으면 말풍선/오디오 정리.
+        // If abort, supersede (next turn cleans up), otherwise network drop — if delta arrived, clean up speech bubble/audio.
         if (externalSignal?.aborted) {
           return { ok: false, drop_reason: "superseded_by_user" };
         }
@@ -593,7 +593,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       }
 
       if (idleTimedOut) {
-        // no event (incl. first byte) within IDLE_TIMEOUT_MS of the previous one — stalled.
+        // No event (incl. first byte) within IDLE_TIMEOUT_MS of the previous one — stalled.
         if (streamedAny) deps.onSpeechAbort?.();
         log.warn("network_drop", { stage: "idle_timeout", idle_ms: IDLE_TIMEOUT_MS });
         return { ok: false, drop_reason: "network_drop" };
@@ -604,9 +604,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       }
 
       if (streamError) {
-        // delta가 떴으면 말풍선/오디오 정리 — 다음 턴이 없어 영영 갇히지 않게.
+        // If delta arrived, clean up speech bubble/audio — prevent getting stuck forever without next turn.
         if (streamedAny) deps.onSpeechAbort?.();
-        // auth-ish(401/403) status만 http_4xx_drop으로 세분 — 그 외 4xx/5xx/무status는 network_drop 유지.
+        // Distinguish auth-ish (401/403) status as http_4xx_drop — keep other 4xx/5xx/no-status as network_drop.
         if (streamErrorStatus === 401 || streamErrorStatus === 403) {
           log.warn("http_4xx_drop", {
             stage: "stream_error",
@@ -620,16 +620,16 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       }
 
       if (!envelope) {
-        // completed 미수신 = 깨진/빈 응답.
+        // No completed received = broken/empty response.
         log.warn("parse_error", { event_name: env.event_name });
         return { ok: false, drop_reason: "parse_error" };
       }
 
-      // B5(render half): per-beat cue가 스트리밍됐고 발화가 있으면(streamedAny) TTS 파이프라인이
-      //   문장 재생 시점에 cue를 audio-timed 적용한다 — 여기서 중복 적용하지 않는다.
-      //   그 외(cue 없음, 또는 cue는 있으나 침묵 턴)는 completed에서 1회 적용:
-      //   firing≠judgment — silent-turn-with-cue도 emotion/motion을 렌더하고,
-      //   express를 스트리밍하지 않는 completed-only backend도 보존한다.
+      // B5 (render half): when per-beat cue streamed and speech present (streamedAny), TTS pipeline
+      //   applies cue audio-timed at sentence playback — don't double-apply here.
+      //   Otherwise (no cue, or cue but silent turn), apply once at completed:
+      //   firing≠judgment — silent-turn-with-cue still renders emotion/motion,
+      //   and completed-only backend without express streaming is preserved.
       const pipelineOwnsCues = cueStreamed && streamedAny;
       if (pipelineOwnsCues) {
         log.debug("dispatch_to_renderer", {
@@ -646,40 +646,41 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
             motion: envelope.motion ?? null,
           });
         } catch (err) {
-          // renderer 에러 → ambient fallback은 renderer 책임, dispatcher는 계속.
+          // Renderer error → ambient fallback is renderer's responsibility, dispatcher continues.
           log.error("dispatch_to_renderer.error", { error: String(err) });
         }
       }
 
-      // completed path only: no per-beat cue carried emotion_text, so route it through the
-      // same cue channel here — emotion_id/motion_id are omitted, applyDirective above already
+      // Completed path only: no per-beat cue carried emotion_text, so route it through the
+      // same cue channel here — emotion_id/motion_id omitted, applyDirective above already
       // rendered them and re-sending would double-apply.
       if (!streamedAny && envelope.emotion_text != null) {
         deps.onCue?.({ emotion_text: envelope.emotion_text });
       }
 
-      // B4(speech gate): speech_text가 비어있지 않을 때만 발화.
-      //   빈 텍스트 = 침묵 — 별도 플래그/판정 없음, drop_reason도 없음.
+      // B4 (speech gate): speak only when speech_text is not empty.
+      //   Empty text = silence — no separate flag/decision, no drop_reason.
       if (streamedAny) {
-        // 스트리밍 경로: delta로 이미 발화를 구동했으니 종료만 알린다(onSpeech 호출 X).
+        // Streaming path: delta already drove speech, only signal end (don't call onSpeech).
         deps.onSpeechEnd?.();
         log.debug("speech", { text: envelope.speech_text });
       } else if (envelope.speech_text) {
-        // legacy fallback: delta 없이 completed만 주는 backend.
+        // Legacy fallback: backend that only provides completed without delta.
         deps.onSpeech?.(envelope.speech_text);
         log.debug("speech", { text: envelope.speech_text });
       } else {
         log.info("empty_speech", { trigger: env.event_name });
       }
 
-      // 대화 상태 진행(Responses 전용): post-stream 가드(abort / streamError / !envelope)를 모두
-      // 통과한 이 지점에서만 persist. 시작 시점 id가 그대로일 때만 — in-flight 중 reset/rotation(R2)이
-      // 있었다면 그 새 상태를 죽은 응답으로 되살리지 않는다. CC 모드는 스냅샷/persist 자체를 건너뛴다.
+      // Conversation state progress (Responses only): persist only at this point after passing all
+      // post-stream guards (abort / streamError / !envelope). Only when start-time id unchanged —
+      // if reset/rotation (R2) occurred in-flight, don't revive that new state from dead response. CC mode
+      // skips snapshot/persist entirely.
       if (!isCC && newResponseId && deps.getPreviousResponseId?.() === startPreviousResponseId) {
         deps.onResponseId?.(newResponseId);
       }
 
-      // transcript는 두 모드 모두 여기(post-stream 가드를 모두 통과한 성공 턴)에서만 append한다.
+      // Transcript appended here in both modes only (successful turn passing all post-stream guards).
       if (ctx.user_text !== undefined) {
         deps.transcript?.append({ role: "user", text: ctx.user_text, ts: Date.now() });
       }
@@ -687,7 +688,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         deps.transcript?.append({ role: "assistant", text: envelope.speech_text, ts: Date.now() });
       }
 
-      // recent-apps buffer: clear only now that the turn is a confirmed success — same
+      // Recent-apps buffer: clear only now that the turn is a confirmed success — same
       // post-stream guard boundary as transcript/onResponseId above. Any earlier client-side
       // failure (setup reject, stream throw/error, parse_error) returns before reaching here,
       // so the buffer survives and carries over to the next turn instead of being lost.
@@ -698,8 +699,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       return { ok: true };
     } finally {
       endThinking();
-      // running 칩이 done 없이 살아남지 않게 — 죽은 턴(abort·drop·stall) 포함 모든 종료 경로에서
-      // 한 번 idle을 흘려 소비자가 칩을 내리게 한다.
+      // Prevent running chip from surviving without done — on all exit paths including dead turns
+      // (abort·drop·stall), flow one idle so consumer brings chip down.
       if (toolRunning) deps.onToolStatus?.({ state: "idle" });
     }
   }

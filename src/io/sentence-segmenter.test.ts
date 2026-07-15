@@ -1,13 +1,13 @@
 /**
  * sentence-segmenter.test.ts — PURE sentence boundary detection.
  *
- * 대상: createSentenceSegmenter() — push(text)는 누적 후 완성된 문장만 배열로 반환하고
- * 미완성 꼬리는 버퍼에 남긴다. flush()는 남은 버퍼(trim, 비어있지 않을 때)를 반환, 없으면 null.
+ * Target: createSentenceSegmenter() — push(text) accumulates and returns only complete sentences as array,
+ * incomplete tail remains in buffer. flush() returns remaining buffer (trimmed, when non-empty), or null.
  *
- * 경계 규칙:
- *  - 종결부호 run(.!?…。！？) + optional 닫는 인용/괄호 → whitespace/끝.
- *  - newline도 분절.
- *  - 약어 NLP 없음. 각 문장 trim, 빈 문장 drop.
+ * Boundary rules:
+ *  - Terminal punctuation run (.!?…。！？) + optional closing quote/bracket → whitespace/end.
+ *  - Newline also segments.
+ *  - No abbreviation NLP. Each sentence trimmed, empty sentences dropped.
  */
 
 import { describe, expect, it } from "vitest";

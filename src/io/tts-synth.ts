@@ -1,4 +1,4 @@
-/** 한 문장 input → POST {tts_base_url}/v1/audio/speech → wav ArrayBuffer. */
+/** Single-sentence input → POST {tts_base_url}/v1/audio/speech → wav ArrayBuffer. */
 
 import type { EndpointsConfig } from "../contract";
 import { createDeadlineSignal } from "./deadline";

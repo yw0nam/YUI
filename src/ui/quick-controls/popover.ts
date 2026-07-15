@@ -1,8 +1,10 @@
 /**
- * Popover 셸 — 우클릭 소환 패널의 위치·드래그·open/close 라이프사이클.
- * variant="popover"는 펫 창 안에 도킹(드래그·scrim·뷰포트 클램프),
- * variant="window"는 OS 창을 채운다(드래그·scrim·애니메이션 없음, 항상 표시).
- * 내용 갱신(reflect/render/monitor)은 onOpen 콜백, 게인·audition·키 커밋 정리는 onClose 콜백에 위임한다.
+ * Popover shell — positioning, dragging, and the open/close lifecycle of the
+ * right-click summon panel.
+ * variant="popover" docks inside the pet window (drag, scrim, viewport clamp),
+ * variant="window" fills the OS window (no drag/scrim/animation, always shown).
+ * Content refresh (reflect/render/monitor) is delegated to the onOpen callback;
+ * gain/audition/key-commit cleanup is delegated to the onClose callback.
  */
 
 import { localStorageStore } from "../../io/persisted-store";
@@ -29,21 +31,21 @@ function savePos(pos: SavedPos): void {
 }
 
 export interface PopoverDeps {
-  /** scrim·패널을 붙일 마운트 컨테이너. */
+  /** Mount container the scrim and panel attach to. */
   mount: HTMLElement;
-  /** 패널 루트 노드(el). */
+  /** Panel root node (el). */
   root: HTMLElement;
-  /** 바깥 클릭 감지 scrim(popover variant 전용). */
+  /** Outside-click detection scrim (popover variant only). */
   scrim: HTMLElement;
-  /** 드래그 핸들 바 — window variant에선 없다(null). */
+  /** Drag handle bar — absent (null) in the window variant. */
   bar: HTMLElement | null;
-  /** window variant면 드래그·scrim·애니메이션 없이 OS 창을 채운다. */
+  /** When true (window variant), fill the OS window with no drag/scrim/animation. */
   isWindow: boolean;
-  /** window variant 전용 — Escape가 OS 창을 닫아야 할 때 호스트가 주입한다. 없으면 Escape는 no-op. */
+  /** Window variant only — injected by the host when Escape must close the OS window. Without it, Escape is a no-op. */
   closeWindow?: () => void;
-  /** 열릴 때 내용 갱신(reflect/render/monitor 로드). 위치 계산 전에 호출된다(치수 확정). */
+  /** Refresh content on open (reflect/render/monitor load). Called before positioning so dimensions are settled. */
   onOpen: () => void;
-  /** 닫힐 때 정리(게인 프리뷰·audition·키 커밋). openState=false 전에 호출된다. */
+  /** Cleanup on close (gain preview, audition, key commit). Called before openState=false. */
   onClose: () => void;
 }
 
@@ -59,13 +61,13 @@ export function createPopover(deps: PopoverDeps): Popover {
 
   let openState = false;
   let closeRafId: number | null = null;
-  // popover variant에서 open 직전 포커스를 기억했다가 close 시 복원한다.
+  // In the popover variant, remember focus just before open and restore it on close.
   let prevFocus: HTMLElement | null = null;
 
   const FOCUSABLE_SEL = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
   function focusables(): HTMLElement[] {
-    // [hidden] 서브트리(비활성 탭 패널 등)의 컨트롤은 제외한다 — 트랩이 안 보이는 끝으로 새지 않게.
+    // Exclude controls in [hidden] subtrees (e.g. inactive tab panels) so the trap doesn't leak to an invisible end.
     return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SEL)).filter(
       (el) => !(el as HTMLButtonElement).disabled && !el.closest("[hidden]"),
     );
@@ -75,7 +77,7 @@ export function createPopover(deps: PopoverDeps): Popover {
     focusables()[0]?.focus();
   }
 
-  // ── 위치 계산 (popover variant) ──
+  // ── Positioning (popover variant) ──
 
   function clampToViewport(x: number, y: number): { x: number; y: number } {
     const rect = root.getBoundingClientRect();
@@ -107,14 +109,14 @@ export function createPopover(deps: PopoverDeps): Popover {
   }
 
   function positionPopover(anchor?: { x: number; y: number }): void {
-    // 우선순위: 저장 위치 > 커서 앵커 > 중앙 하단 fallback.
+    // Priority: saved position > cursor anchor > bottom-center fallback.
     const saved = loadSavedPos();
     if (saved) {
       placeAt(saved.x, saved.y);
       return;
     }
     if (anchor) {
-      // 앵커 아래에 열되, 아래 공간이 없으면 위로(기존 동작 보존).
+      // Open below the anchor, but flip above it when there's no room below (preserving existing behavior).
       const rect = root.getBoundingClientRect();
       const vh = window.innerHeight;
       let y = anchor.y;
@@ -125,7 +127,7 @@ export function createPopover(deps: PopoverDeps): Popover {
     placeFallback();
   }
 
-  // ── 드래그 (popover variant) ──
+  // ── Drag (popover variant) ──
 
   let dragging = false;
   let dragStartX = 0;
@@ -136,11 +138,11 @@ export function createPopover(deps: PopoverDeps): Popover {
   function handleBarPointerDown(e: PointerEvent): void {
     if (isWindow) return;
     if (e.button !== 0) return;
-    // 헤더의 버튼(팝아웃·닫기) 클릭은 드래그로 취급하지 않는다.
+    // Clicks on the header buttons (pop-out, close) aren't treated as a drag.
     if ((e.target as HTMLElement).closest(".yui-iconbtn")) return;
     dragging = true;
-    // 도킹 중에는 left/top을 수치로 직접 제어하므로 그 값을 출발점으로 삼는다.
-    // (스타일 미설정 시에만 레이아웃 rect로 폴백.)
+    // While docked we drive left/top numerically, so use those values as the origin.
+    // (Fall back to the layout rect only when the style is unset.)
     const styleLeft = parseFloat(root.style.left);
     const styleTop = parseFloat(root.style.top);
     if (Number.isFinite(styleLeft) && Number.isFinite(styleTop)) {
@@ -190,11 +192,11 @@ export function createPopover(deps: PopoverDeps): Popover {
     if (!isWindow) mount.appendChild(scrim);
     mount.appendChild(root);
 
-    // 내용 갱신(reflect/render/monitor)은 호스트가 onOpen으로 주입 — 위치 계산보다 먼저 끝내 치수를 확정한다.
+    // The host injects content refresh (reflect/render/monitor) via onOpen — run it before positioning to settle dimensions.
     onOpen();
 
     if (isWindow) {
-      // 창 variant는 OS 창을 채운다 — 위치 계산/애니메이션 없음.
+      // The window variant fills the OS window — no positioning or animation.
       root.classList.add("is-open");
     } else {
       positionPopover(anchor);
@@ -206,7 +208,7 @@ export function createPopover(deps: PopoverDeps): Popover {
       });
     }
 
-    // 열기 직전 포커스를 기억(popover variant만 복원)하고 첫 컨트롤로 이동한다.
+    // Remember focus just before opening (restored in the popover variant only) and move to the first control.
     prevFocus = isWindow ? null : (document.activeElement as HTMLElement | null);
     focusFirst();
   }
@@ -217,7 +219,7 @@ export function createPopover(deps: PopoverDeps): Popover {
     openState = false;
 
     if (isWindow) {
-      // 창 variant는 항상 보이므로 DOM에서 떼지 않는다.
+      // The window variant is always visible, so don't detach it from the DOM.
       return;
     }
 
@@ -241,7 +243,7 @@ export function createPopover(deps: PopoverDeps): Popover {
       }
     });
 
-    // 포커스를 열기 전 요소로 되돌린다(아직 문서에 있을 때만).
+    // Restore focus to the pre-open element (only if it's still in the document).
     if (prevFocus && document.contains(prevFocus)) prevFocus.focus();
     prevFocus = null;
   }
@@ -259,10 +261,10 @@ export function createPopover(deps: PopoverDeps): Popover {
     if (!openState) return;
     if (e.key === "Escape") {
       if (isWindow) {
-        // 창 variant는 내부 close()가 패널을 지우지 않는다(항상 표시) — OS 창 닫기는 호스트 몫.
+        // In the window variant, internal close() doesn't remove the panel (always shown) — closing the OS window is the host's job.
         if (!closeWindow) return;
         e.preventDefault();
-        close(); // 정리(키 커밋·audition 중단)를 먼저 수행한다.
+        close(); // Run cleanup (key commit, audition abort) first.
         closeWindow();
         return;
       }
@@ -270,7 +272,7 @@ export function createPopover(deps: PopoverDeps): Popover {
       close();
       return;
     }
-    // popover variant 포커스 트랩 — Tab이 루트를 벗어나면 반대쪽 끝으로 감싼다.
+    // Popover variant focus trap — when Tab leaves the root, wrap to the opposite end.
     if (e.key === "Tab" && !isWindow) {
       const items = focusables();
       if (items.length === 0) return;

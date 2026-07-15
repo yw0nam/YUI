@@ -1,12 +1,12 @@
 /**
  * tauri-screen.test.ts — Tauri-backed screen source provider + capturer.
  *
- * 검증:
- *  - createTauriScreenSourceProvider: DTO → MonitorInfo 매핑 (name null 시 label 폴백, primary 매핑)
- *  - createTauriScreenCapturer: capture_screen DTO → ScreenCapture 매핑 (data_url/width/height/captured_at)
- *  - createTauriScreenCapturer: invoke 호출 시 { index, maxEdge } 전달
- *  - createTauriScreenCapturer: kind !== "monitor" 소스면 null 반환 (invoke 미호출)
- *  - createTauriScreenCapturer: invoke reject 시 null 반환 (throw 안 함)
+ * Verifies:
+ *  - createTauriScreenSourceProvider: DTO → MonitorInfo mapping (label fallback when name is null, primary mapping)
+ *  - createTauriScreenCapturer: capture_screen DTO → ScreenCapture mapping (data_url/width/height/captured_at)
+ *  - createTauriScreenCapturer: passes { index, maxEdge } to invoke
+ *  - createTauriScreenCapturer: returns null for a kind !== "monitor" source (invoke not called)
+ *  - createTauriScreenCapturer: returns null when invoke rejects (does not throw)
  */
 
 import { describe, expect, it, vi } from "vitest";

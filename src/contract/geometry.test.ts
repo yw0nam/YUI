@@ -1,9 +1,9 @@
 /**
- * geometry.test.ts — client-only window-sit perch 타입(ScreenRect/WindowRect/PerchTarget)의
- * 모양을 굳힌다. 컴파일 타임 검사(pnpm build)가 1차 게이트지만, 여기서 WindowRect가
- * ScreenRect를 확장하는지와 PerchTarget.edge가 리터럴 union인지를 값으로 고정한다.
+ * geometry.test.ts — locks the shape of client-only window-sit perch types (ScreenRect/WindowRect/PerchTarget).
+ * Compile-time checks (pnpm build) are the primary gate, but this test fixes the value-level assertions that
+ * WindowRect extends ScreenRect and PerchTarget.edge is a literal union.
  *
- * 이 타입들은 backend contract 밖(generate_express/ControlEnvelope 미포함)임을 함께 표시한다.
+ * Also marks that these types are outside the backend contract (excluded from generate_express/ControlEnvelope).
  */
 
 import { describe, expect, expectTypeOf, it } from "vitest";

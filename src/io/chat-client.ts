@@ -7,9 +7,9 @@
  * TYPED Responses events. This module maps those events → our `ChatStreamEvent`
  * and assembles the final `ControlEnvelope`.
  *
- * Transport: Tauri webview는 tauri-plugin-cors-fetch가 주입한 fetch로 CORS 우회 + SSE 스트리밍을
- *   얻는다(plugin-http는 SSE 스트리밍 불가). `selectFetch()`가 환경별 fetch를 골라
- *   `StreamChatOptions.fetch`로 SDK에 주입한다. dev/browser는 글로벌 fetch.
+ * Transport: Tauri webview gets CORS bypass + SSE streaming via the fetch injected by tauri-plugin-cors-fetch
+ *   (plugin-http cannot stream SSE). `selectFetch()` chooses fetch per environment and injects it into
+ *   `StreamChatOptions.fetch` for the SDK. dev/browser use global fetch.
  *
  * express tool naming: the tool is matched by SUFFIX (`name.endsWith("generate_express")`),
  *   so it recognizes both the plain `generate_express` and the MCP-namespaced
@@ -72,7 +72,7 @@ import type {
 import { type CCMessage, createChunkReducer } from "./chat-completions";
 import { isTauri } from "./tauri-env";
 
-/** 스트림 파싱 중 client로 흘리는 증분 이벤트. */
+/** Incremental events streamed to client during parsing. */
 export type ChatStreamEvent =
   | { type: "speech_delta"; text: string }
   | { type: "speech_done"; text: string }
@@ -85,9 +85,9 @@ export type ChatStreamEvent =
   | { type: "keepalive" };
 
 /**
- * `new OpenAI(opts)` 로 클라이언트를 만든다. 실제 SDK는 ES class라 `new`가 필요하지만,
- * 일부 테스트 mock(arrow-wrapped factory)은 생성자로 호출되지 못한다 → "not a constructor"
- * 에 한해 평범한 호출로 폴백한다. 정상 경로(real SDK)는 항상 `new`를 탄다.
+ * Creates a client via `new OpenAI(opts)`. The real SDK is an ES class requiring `new`,
+ * but some test mocks (arrow-wrapped factories) cannot be called as constructors → only
+ * for "not a constructor" fallback to plain call. Normal path (real SDK) always uses `new`.
  */
 function makeClient(opts: ConstructorParameters<typeof OpenAI>[0]): OpenAI {
   try {
@@ -101,29 +101,29 @@ function makeClient(opts: ConstructorParameters<typeof OpenAI>[0]): OpenAI {
 }
 
 /**
- * express tool 식별 — backend가 MCP로 등록하면 이름이 `mcp_<server>_generate_express`로
- * namespaced되어 온다. suffix로 매칭해 namespaced/plain 둘 다 잡되, sibling tool
- * (`..._get_ids` 등)은 generic tool_status로 남긴다.
+ * Identifies express tool — when backend registers via MCP, name arrives as `mcp_<server>_generate_express`.
+ * Matches by suffix to catch both namespaced/plain variants, while sibling tools
+ * (`..._get_ids` etc) remain as generic tool_status.
  */
 function isExpressTool(name: unknown): boolean {
   return typeof name === "string" && name.endsWith("generate_express");
 }
 
 /**
- * per-call dedup key — 한 generate_express call은 added/done/arguments.done에 걸쳐
- * 같은 function-call item id를 공유한다. id가 없으면 output_index로 폴백한다.
+ * Per-call dedup key — one generate_express call shares the same function-call item id across
+ * added/done/arguments.done. Falls back to output_index if id is absent.
  */
 function expressCallKey(id: unknown, outputIndex: unknown): string {
   return typeof id === "string" && id.length > 0 ? id : String(outputIndex);
 }
 
-/** openai SDK APIError.status(HTTP status code) 추출 — 없으면 undefined(일반 Error 등). */
+/** Extracts openai SDK APIError.status (HTTP status code) — undefined if absent (plain Error etc). */
 function httpStatusOf(err: unknown): number | undefined {
   const status = (err as { status?: unknown } | null)?.status;
   return typeof status === "number" ? status : undefined;
 }
 
-/** express arguments JSON 문자열 파싱. 실패 시 throw 없이 error 메시지를 돌려준다. */
+/** Parses express arguments JSON string. On failure, returns error message without throwing. */
 function parseExpressArgs(raw: unknown): { args: ExpressArgs } | { error: string } {
   try {
     return { args: JSON.parse(raw as string) as ExpressArgs };
@@ -148,33 +148,33 @@ function normalizeExpressIntoEnvelope(
 }
 
 export interface ChatRequest {
-  /** OpenAI 호환 input (messages / input items). InputContext 인코딩 포함. */
+  /** OpenAI-compatible input (messages / input items). Includes InputContext encoding. */
   input: unknown;
-  /** server-side 대화 상태 (Responses API). */
+  /** Server-side conversation state (Responses API). */
   previous_response_id?: string;
-  /** Responses reasoning.effort / Chat Completions top-level reasoning_effort. 미지정 시 생략. */
+  /** Responses reasoning.effort / Chat Completions top-level reasoning_effort. Omitted if unset. */
   reasoning_effort?: "none" | "minimal" | "low" | "medium";
-  /** instructions 런타임 오버라이드. 비어있지 않으면 config.chat_instructions 대신 사용. Responses 전용(CC는 messages에 이미 포함). */
+  /** instructions runtime override. Non-empty takes precedence over config.chat_instructions. Responses only (CC already in messages). */
   instructions?: string;
-  /** 중도 취소 (in-flight abort). */
+  /** Mid-flight abort. */
   signal?: AbortSignal;
-  /** Chat Completions mode: 사전 조립된 messages(chat-completions.buildCCMessages). config.chat_api==="chat_completions"일 때 사용. */
+  /** Chat Completions mode: pre-assembled messages (chat-completions.buildCCMessages). Used when config.chat_api==="chat_completions". */
   messages?: CCMessage[];
 }
 
 export interface StreamChatOptions {
   /**
-   * Hermes 인증 키(Bearer). SecretProvider에서 해소해 caller가 넘긴다.
-   * 미지정 시 무인증 로컬용 placeholder — 키를 강제하는 백엔드엔 401이 난다.
+   * Hermes auth key (Bearer). SecretProvider resolves and caller passes it.
+   * Unset defaults to unauthenticated local placeholder — backends enforcing keys return 401.
    */
   apiKey?: string;
-  /** Transport fetch override. Tauri=cors-fetch의 fetchCORS, dev/browser=undefined(글로벌 fetch). */
+  /** Transport fetch override. Tauri uses cors-fetch's fetchCORS, dev/browser undefined (global fetch). */
   fetch?: typeof globalThis.fetch;
 }
 
 /**
- * 환경별 fetch 선택. Tauri webview는 tauri-plugin-cors-fetch가 주입한 `fetchCORS`를 쓴다
- * (CORS 우회 + SSE 스트리밍). 브라우저/vitest는 undefined → 글로벌 fetch.
+ * Selects fetch per environment. Tauri webview uses `fetchCORS` injected by tauri-plugin-cors-fetch
+ * (CORS bypass + SSE streaming). Browser/vitest undefined → global fetch.
  */
 export async function selectFetch(): Promise<typeof globalThis.fetch | undefined> {
   const g = globalThis as { fetchCORS?: unknown };
@@ -185,12 +185,12 @@ export async function selectFetch(): Promise<typeof globalThis.fetch | undefined
 }
 
 /**
- * baseURL 선택. Tauri는 cors-fetch로 절대 URL을 그대로 쓴다. dev web은 같은 출처
- * `/__hermes` 프록시 마운트로 다시 써 CORS preflight를 피한다. prod web/출처 없음은 그대로.
+ * Selects baseURL. Tauri uses absolute URLs directly via cors-fetch. Dev web rewrites to same-origin
+ * `/__hermes` proxy mount to avoid CORS preflight. Prod web/no origin pass through unchanged.
  *
- * Chat Completions mode(chatApi==="chat_completions")는 이 재작성을 항상 건너뛴다 — `/__hermes`는
- * Responses 백엔드로 고정 프록시되어, CC 요청이 사용자가 설정한 chat_base_url 대신 조용히
- * 엉뚱한 서버로 가는 사고를 막는다(CC 서버는 자체 CORS를 제공하거나 로컬 개발 옵션을 갖는다).
+ * Chat Completions mode (chatApi==="chat_completions") always skips this rewrite — `/__hermes` is
+ * hard-proxied to Responses backend, preventing CC requests silently going to wrong server instead of
+ * user-configured chat_base_url (CC servers provide own CORS or local dev options).
  */
 export function selectChatBaseUrl(
   configuredBaseUrl: string,
@@ -217,21 +217,21 @@ export function selectChatBaseUrl(
 }
 
 /**
- * Responses API 스트림 호출. 공식 `openai` SDK 어댑터.
+ * Calls Responses API stream. Official `openai` SDK adapter.
  *
- * SDK가 transport/abort를 소유하므로 fetch/SSE를 직접 다루지 않는다. create() 호출에
- * request.signal을 전달해 in-flight abort를 SDK에 위임하고, 루프 진입 전에도 한 번 guard한다.
+ * SDK owns transport/abort so we don't handle fetch/SSE directly. Pass request.signal to create()
+ * to delegate in-flight abort to SDK, and guard once before loop entry.
  */
 export async function* streamChat(
   config: EndpointsConfig,
   request: ChatRequest,
   opts: StreamChatOptions = {},
 ): AsyncGenerator<ChatStreamEvent> {
-  // 이미 abort된 signal이면 hang 없이 즉시 종료.
+  // Abort immediately without hang if signal already aborted.
   if (request.signal?.aborted) return;
 
-  // SDK는 baseURL 뒤에 /responses를 자체 append하므로 baseURL은 API root(예: .../v1)다.
-  // apiKey 미지정 시 무인증 placeholder.
+  // SDK appends /responses after baseURL, so baseURL is the API root (e.g., .../v1).
+  // Unset apiKey defaults to unauthenticated placeholder.
   const clientOpts: ConstructorParameters<typeof OpenAI>[0] = {
     baseURL: selectChatBaseUrl(config.chat_base_url, undefined, config.chat_api),
     apiKey: opts.apiKey ?? "yui-local-placeholder",
@@ -247,16 +247,16 @@ export async function* streamChat(
     return;
   }
 
-  // completed에서 조립할 누적 상태.
+  // Accumulated state to assemble in completed.
   let speech_text = "";
-  // express는 cue(beat)마다 emit된다. completed envelope은 마지막 cue를 fallback으로 싣는다.
+  // express is emitted per cue (beat). Completed envelope carries last cue as fallback.
   let express: ExpressArgs | undefined;
   let tool_status: ToolStatus | undefined;
-  // 같은 call(id, 없으면 output_index)이 added/done/arguments.done로 여러 번 나타나도
-  // 한 번만 emit한다. 서로 다른 call은 각각 emit된다(per-beat cue).
+  // Same call (id, or output_index if absent) appears multiple times across added/done/arguments.done
+  // but emits once. Different calls each emit (per-beat cue).
   const emittedExpressKeys = new Set<string>();
 
-  // instructions: 요청 오버라이드(비어있지 않으면 우선) → config.chat_instructions로 폴백.
+  // instructions: request override (if non-empty takes priority) → falls back to config.chat_instructions.
   const effectiveInstructions = request.instructions?.trim()
     ? request.instructions
     : config.chat_instructions;
@@ -264,24 +264,24 @@ export async function* streamChat(
   let stream: AsyncIterable<ResponseStreamEvent>;
   try {
     const params: ResponseCreateParamsStreaming = {
-      // model: config-driven (EndpointsConfig.chat_model). Hermes Responses는 model 필수 —
-      // 미설정 시 생략(테스트 mock·model-less backend용). prod endpoints.json은 반드시 설정.
+      // model: config-driven (EndpointsConfig.chat_model). Hermes Responses requires model —
+      // omit if unset (for test mocks and model-less backends). Prod endpoints.json must set.
       ...(config.chat_model ? { model: config.chat_model } : {}),
-      // instructions: 요청 오버라이드 우선, 없으면 config nudge. 둘 다 없으면 생략.
+      // instructions: request override takes priority, fallback to config nudge. Omit if both absent.
       ...(effectiveInstructions ? { instructions: effectiveInstructions } : {}),
-      // reasoning.effort: 요청에 있을 때만 전달(none/minimal/low/medium 모두 명시 값).
+      // reasoning.effort: only pass if present in request (none/minimal/low/medium all explicit).
       ...(request.reasoning_effort ? { reasoning: { effort: request.reasoning_effort } } : {}),
-      // ChatRequest.input은 의도적으로 unknown(OpenAI 호환 input, caller가 인코딩) — 호출 지점에서
-      // SDK가 받는 shape로만 좁혀 캐스트한다.
+      // ChatRequest.input is deliberately unknown (OpenAI-compatible input, caller encodes) — narrow-cast
+      // to the shape SDK expects only at the call site.
       input: request.input as ResponseCreateParamsStreaming["input"],
       previous_response_id: request.previous_response_id,
       stream: true,
     };
     stream = await client.responses.create(params, { signal: request.signal });
   } catch (err) {
-    // aborted signal이면 조용히 종료(hang 방지). 그 외(401 인증 실패 / 네트워크 등)는 무음으로
-    // 삼키지 않고 error 이벤트로 노출한다 — placeholder 키 401이 "빈 스트림"으로 사라지는 함정 방지.
-    // status: openai SDK APIError가 실어 온 HTTP status(401/403 등)를 그대로 전달 — 있을 때만.
+    // Abort silently if aborted signal (prevent hang). Otherwise (401 auth failure / network etc) expose
+    // as error event without silencing — prevent trap where placeholder key 401 disappears as "empty stream".
+    // status: pass through HTTP status (401/403 etc) from openai SDK APIError as-is — only if present.
     if (!request.signal?.aborted) {
       const status = httpStatusOf(err);
       yield {
@@ -313,7 +313,7 @@ export async function* streamChat(
           const item = event.item;
           if (item?.type === "function_call") {
             if (isExpressTool(item.name)) {
-              // 라이브 백엔드는 완성된 arguments를 added/done item에 바로 싣는다.
+              // Live backend embeds complete arguments directly in added/done item.
               const key = expressCallKey(item.id, event.output_index);
               if (!emittedExpressKeys.has(key) && item.arguments) {
                 const result = parseExpressArgs(item.arguments);
@@ -348,7 +348,7 @@ export async function* streamChat(
               }
             }
           }
-          // native tool: 완료는 output_item.done에서 처리.
+          // native tool: completion handled at output_item.done.
           break;
         }
 
@@ -356,7 +356,7 @@ export async function* streamChat(
           const item = event.item;
           if (item?.type === "function_call") {
             if (isExpressTool(item.name)) {
-              // function_call_arguments.* 이벤트가 없는 백엔드는 done item에만 args가 있다.
+              // Backends without function_call_arguments.* events have args only in done item.
               const key = expressCallKey(item.id, event.output_index);
               if (!emittedExpressKeys.has(key) && item.arguments) {
                 const result = parseExpressArgs(item.arguments);
@@ -377,8 +377,8 @@ export async function* streamChat(
         }
 
         case "response.completed": {
-          // 토큰 점유량은 자체 이벤트로만 흘린다(ControlEnvelope에 싣지 않음). usage 블록이
-          // 통째로 없으면 emit 생략, 일부 누락 필드는 0으로 보정.
+          // Token usage flows as its own event only (not in ControlEnvelope). Omit emit if usage block
+          // completely absent; zero-fill any missing fields.
           const rawUsage = event.response?.usage;
           if (rawUsage) {
             yield {
@@ -410,27 +410,25 @@ export async function* streamChat(
       }
     }
   } catch {
-    // 스트림 도중 abort/네트워크 reject → 조용히 종료.
-    // 의도적 비대칭: create() catch는 non-abort 에러를 error로 노출하지만, 여기 mid-stream
-    //   드롭은 부분 출력이 이미 consumer에 닿았고 빈도 낮아 무음 유지.
+    // Abort/network reject mid-stream → terminate silently.
+    // Intentional asymmetry: create() catch exposes non-abort errors, but mid-stream
+    //   drop here stays silent because partial output already reached consumer and frequency is low.
     return;
   }
 }
 
 /**
- * Chat Completions API 스트림 호출 — `client.chat.completions.create({ stream: true })`.
+ * Calls Chat Completions API stream — `client.chat.completions.create({ stream: true })`.
  *
- * ONE-WAY parse: request.messages는 caller(backend-caller)가 chat-completions.ts의
- * buildCCMessages로 미리 조립한다 — 여기서는 그대로 전달만 한다(브랜치 로직 없음). 서버가
- * publish된 broker vocabulary를 읽어 generate_express를 emit하고, 이 함수는 그 tool_call을
- * 스트림에서 파싱만 한다 — client는 tool을 선언하지 않고, 결과를 되돌려보내지도 않는다
- * (단일 POST, 왕복 없음).
+ * ONE-WAY parse: caller (backend-caller) pre-assembles request.messages via chat-completions.ts
+ * buildCCMessages — this just passes through (no branch logic). Server reads published broker vocabulary
+ * and emits generate_express; this function only parses tool_call from stream — client neither declares
+ * tools nor sends results back (single POST, no round-trip).
  *
- * 스트림 청크는 chat-completions.createChunkReducer로 정규화한다. tool_call은 스트림 중
- * 도착 즉시 인라인으로 처리(express → express event, 그 외 → tool_status done) — finish_reason은
- * 더 이상 분기에 쓰이지 않는다(왕복이 없으므로 actionable하지 않다).
+ * Stream chunks normalized via chat-completions.createChunkReducer. tool_call processed inline on arrival
+ * (express → express event, else → tool_status done) — finish_reason no longer branches (no round-trip, not actionable).
  */
-/** SDK는 model을 필수로 요구하지만 model-less mock/backend는 필드 자체를 생략한다 — 로컬로만 optional 완화. */
+/** SDK requires model, but model-less mock/backend omit the field itself — locally relax optional. */
 type CCCreateParams = Omit<ChatCompletionCreateParamsStreaming, "model"> & {
   model?: ChatCompletionCreateParamsStreaming["model"];
 };
@@ -468,14 +466,14 @@ async function* streamChatCompletions(
   try {
     const params: CCCreateParams = {
       ...(config.chat_model ? { model: config.chat_model } : {}),
-      // CCMessage(chat-completions.ts)는 role별 discriminated union이 아닌 느슨한 구조 타입 —
-      // 런타임 shape(role/content)는 SDK의 ChatCompletionMessageParam과 동일하다.
+      // CCMessage (chat-completions.ts) is loose structural type, not discriminated union per role —
+      // runtime shape (role/content) matches SDK's ChatCompletionMessageParam.
       messages: (request.messages ?? []) as unknown as ChatCompletionMessageParam[],
       ...(request.reasoning_effort ? { reasoning_effort: request.reasoning_effort } : {}),
       stream: true,
       stream_options: { include_usage: true },
     };
-    // model 생략을 허용하는 CCCreateParams → SDK가 요구하는 필수-model 타입으로 호출 지점에서 캐스트.
+    // CCCreateParams allows model omission → narrow-cast to SDK's required-model type at call site.
     stream = await client.chat.completions.create(params as ChatCompletionCreateParamsStreaming, {
       signal: request.signal,
     });
@@ -519,10 +517,10 @@ async function* streamChatCompletions(
       }
     }
   } catch {
-    // 스트림 도중 abort/네트워크 reject → 조용히 종료(Responses 분기와 동일 정책).
+    // Abort/network reject mid-stream → terminate silently (same policy as Responses branch).
     return;
   }
-  // finish_reason 없이 스트림이 끝난 경우(비정상 종료) 미완료 버퍼를 드레인.
+  // When stream ends without finish_reason (abnormal termination) drain incomplete buffer.
   for (const item of reducer.finish()) {
     if (item.kind === "tool_call") yield* handleToolCall(item);
   }

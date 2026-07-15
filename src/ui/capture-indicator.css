@@ -1,5 +1,5 @@
-/* YUI capture indicator — R7 항상-ON 프라이버시 tell.
-   스크린샷이 켜져 있는 동안 상단에 상주한다. 토큰은 ./tokens.css. */
+/* YUI capture indicator — R7 always-ON privacy tell.
+   Sits at the top while screenshots are enabled. Tokens live in ./tokens.css. */
 
 .yui-capture {
   position: absolute;
@@ -32,7 +32,7 @@
     border-color var(--yui-dur-fast) var(--yui-ease);
 }
 
-/* display: inline-flex가 UA의 [hidden] 규칙을 이기므로 명시적으로 숨긴다(캡처 OFF). */
+/* display: inline-flex beats the UA's [hidden] rule, so hide it explicitly (capture OFF). */
 .yui-capture[hidden] {
   display: none;
 }
@@ -54,7 +54,7 @@
   flex: 0 0 auto;
 }
 
-/* 앰버 pulse dot — 화면이 첨부되고 있다는 차분한 tell */
+/* Amber pulse dot — a calm tell that the screen is being attached */
 .yui-capture__live {
   width: 0.4rem;
   height: 0.4rem;

@@ -3,8 +3,8 @@ import { describe, it } from "vitest";
 /**
  * Dispatcher acceptance-scenario catalog (TC-01..TC-15).
  *
- * 이 파일은 dispatcher 시나리오 카탈로그를 pending 테스트로 등록한다 — 각 TC는 `it.todo`로
- * pending 표시되어 `pnpm test` 출력에 "구현 대기" 목록으로 드러난다.
+ * This file registers dispatcher scenario catalog as pending tests — each TC is marked pending
+ * with `it.todo` and appears as "awaiting implementation" list in `pnpm test` output.
  */
 describe("event dispatcher acceptance scenarios", () => {
   it.todo("TC-01 morning milestone · DND_OFF · rate 미달 → backend 호출 → 발화 가시");

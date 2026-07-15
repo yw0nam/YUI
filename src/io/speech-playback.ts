@@ -1,29 +1,29 @@
 /**
- * TTS 재생 ↔ 렌더러 입 모양 ↔ 말풍선 수명을 잇는 글루.
+ * Glue connecting TTS playback ↔ renderer mouth shape ↔ speech-bubble lifetime.
  *
- * 세 반쪽을 연결한다:
- *  - tts-pipeline onAmplitude → renderer.setMouthOpen  (입이 TTS 음량을 따라감)
+ * Wires three halves together:
+ *  - tts-pipeline onAmplitude → renderer.setMouthOpen  (mouth follows TTS volume)
  *  - tts-pipeline onPlaybackEnd → renderer.stopMouth + surfaces.finishSpeech + ease emotion → neutral
- *  - onSpeechDelta/onSpeechEnd → 말풍선(페이드 보류) 스트리밍 + 파이프라인 구동
+ *  - onSpeechDelta/onSpeechEnd → speech-bubble streaming (fade deferred) + drives the pipeline
  *
- * 말풍선은 endSpeech({ defer:true })로 보류되고, 재생이 끝나(onPlaybackEnd) finishSpeech()로만
- * dwell→페이드된다. 오디오가 한 번도 재생되지 않는 턴(TTS 비활성/빈 텍스트/전부 실패)에도
- * 파이프라인이 onPlaybackEnd를 발화하므로 말풍선이 영영 갇히지 않는다.
+ * The bubble is held via endSpeech({ defer:true }) and only dwells→fades once playback ends
+ * (onPlaybackEnd) through finishSpeech(). Even on turns where audio never plays (TTS disabled/empty
+ * text/all-failed), the pipeline fires onPlaybackEnd, so the bubble is never trapped forever.
  *
- * interrupt()는 현재 파이프라인을 폐기하고 새로 만들며, 보류 중인 말풍선을 즉시(non-defer) 해제한다.
+ * interrupt() disposes the current pipeline and builds a new one, releasing any held bubble immediately (non-defer).
  */
 
 import type { ControlEnvelope, EmotionId, ExpressArgs } from "../contract";
 import { createEmojiStripper } from "./strip-emoji";
 import { createTtsPipeline, type TtsPipeline, type TtsPipelineOptions } from "./tts-pipeline";
 
-/** 발화 종료 후 표정을 neutral로 되돌리는 ease 시간(ms) — 느리게(스냅 X). */
+/** Ease duration (ms) to return the expression to neutral after speech ends — slow (no snap). */
 const EMOTION_REVERT_MS = 1000;
 
 interface PlaybackRenderer {
   setMouthOpen(value: number): void;
   stopMouth(): void;
-  /** 직전 emotion을 neutral로 천천히 ease (턴 종료 시 표정이 영영 갇히지 않게). */
+  /** Slowly eases the previous emotion to neutral (so the expression isn't trapped forever at turn end). */
   easeEmotionToNeutral(durationMs?: number): void;
   applyDirective(env: ControlEnvelope): void;
   playMotion(motion: { id: string } | null): void;
@@ -39,22 +39,22 @@ interface PlaybackSurfaces {
 export interface SpeechPlaybackOptions {
   renderer: PlaybackRenderer;
   surfaces: PlaybackSurfaces;
-  /** 파이프라인 생성 시 주입할 base 옵션(synth/config 등). onAmplitude/onPlaybackEnd는 여기서 덮어쓴다. */
+  /** Base options injected when building the pipeline (synth/config, etc.). onAmplitude/onPlaybackEnd are overridden here. */
   pipeline?: Omit<TtsPipelineOptions, "onAmplitude" | "onPlaybackEnd" | "onCuePlay">;
-  /** 테스트용 파이프라인 팩토리 주입. */
+  /** Pipeline factory injection for tests. */
   createPipeline?: (opts: TtsPipelineOptions) => TtsPipeline;
   /** Called after stopMouth/finishSpeech/easeEmotionToNeutral on each playback-end. */
   onPlaybackEnd?: () => void;
 }
 
 export interface SpeechPlayback {
-  /** 발화 텍스트 1건(스트리밍 토큰): 말풍선 누적 + TTS 재생 구동. 첫 토큰에 말풍선을 연다. */
+  /** One speech-text unit (streaming token): accumulate into the bubble + drive TTS playback. Opens the bubble on the first token. */
   onSpeechDelta(delta: string): void;
-  /** 발화 종료: 말풍선 dwell 보류 + 파이프라인 flush. delta가 없었다면 no-op. */
+  /** Speech end: defer the bubble dwell + flush the pipeline. no-op if there were no deltas. */
   onSpeechEnd(): void;
-  /** 발화 텍스트 1건(전체): onSpeechDelta + onSpeechEnd 슈가. */
+  /** One speech-text unit (whole): sugar for onSpeechDelta + onSpeechEnd. */
   onSpeech(text: string): void;
-  /** per-beat cue를 파이프라인에 전달. */
+  /** Forwards a per-beat cue to the pipeline. */
   setCue(cue: ExpressArgs | null): void;
   /**
    * While held (true), null-cue applyCue suppresses playMotion(null) so an externally
@@ -62,11 +62,11 @@ export interface SpeechPlayback {
    * easeEmotionToNeutral still fires — only the motion reset is suppressed.
    */
   holdMotion(held: boolean): void;
-  /** 오디오가 실제 재생 중인지 — 첫 재생 프레임부터 playback-end/interrupt/abort까지 true. 텍스트만 온 구간은 false. */
+  /** Whether audio is actually playing — true from the first played frame until playback-end/interrupt/abort. False for text-only stretches. */
   isSpeaking(): boolean;
-  /** 진행 중인 발화를 중단: 파이프라인 폐기·재생성 + 보류 말풍선 즉시 해제. */
+  /** Interrupts an in-progress utterance: dispose/rebuild the pipeline + release the held bubble immediately. */
   interrupt(opts?: { muteCurrentTurn?: boolean }): void;
-  /** 비정상 종료(에러/네트워크 끊김) 정리: 파이프라인 폐기 + 보류 말풍선 즉시 해제. 다음 턴이 없어 재생성하지 않는다. */
+  /** Cleanup on abnormal end (error/network drop): dispose the pipeline + release the held bubble immediately. No rebuild, as there's no next turn. */
   abort(): void;
   dispose(): void;
 }
@@ -99,7 +99,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     return factory({
       ...options.pipeline,
       onAmplitude: (rms) => {
-        // 실제 오디오가 재생될 때만 fire(합성 실패/TTS off 문장은 여기 안 옴) — barge-in의 진짜 신호.
+        // Fires only when real audio plays (synth-failed/TTS-off sentences don't reach here) — the true barge-in signal.
         speaking = true;
         renderer.setMouthOpen(rms);
       },
@@ -107,7 +107,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       onPlaybackEnd: () => {
         renderer.stopMouth();
         surfaces.finishSpeech();
-        // 발화가 끝나면 표정도 함께 neutral로 천천히 회귀 — 직전 emotion이 영영 갇히지 않게.
+        // When speech ends, the expression also slowly returns to neutral — so the previous emotion isn't trapped forever.
         renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
         speaking = false;
         options.onPlaybackEnd?.();
@@ -116,7 +116,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   }
 
   let pipeline = buildPipeline();
-  // 직전 begin/interrupt 이후 delta가 1건 이상 들어왔는가.
+  // Whether at least one delta has arrived since the last begin/interrupt.
   let started = false;
   const stripper = createEmojiStripper();
 
@@ -135,7 +135,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     if (!started) return;
     // flush held-back emoji carry (discards it — it's all emoji).
     stripper.flush();
-    // 재생이 끝날 때까지 말풍선 유지 — onPlaybackEnd가 finishSpeech로 해제한다.
+    // Keep the bubble until playback ends — onPlaybackEnd releases it via finishSpeech.
     surfaces.endSpeech({ defer: true });
     pipeline.end();
     started = false;
@@ -179,7 +179,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       stripper.reset();
       pipeline.dispose();
       pipeline = buildPipeline();
-      // 보류 중이던 말풍선을 즉시 해제 (defer 아님).
+      // Release the held bubble immediately (not deferred).
       surfaces.endSpeech();
       started = false;
       speaking = false;
@@ -187,7 +187,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     },
     abort() {
       stripper.reset();
-      // 비정상 종료: 파이프라인 폐기 + 보류 말풍선 즉시 해제. 다음 턴이 없어 재생성하지 않는다.
+      // Abnormal end: dispose the pipeline + release the held bubble immediately. No rebuild, as there's no next turn.
       pipeline.dispose();
       surfaces.endSpeech();
       started = false;

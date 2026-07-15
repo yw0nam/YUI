@@ -1,9 +1,9 @@
 /**
- * store.test.ts — createConfigStore reactive 스냅샷 + 핫리로드.
+ * store.test.ts — createConfigStore reactive snapshot + hot-reload.
  *
- * 원칙: network/fs 없음. backing map을 MUTATE할 수 있는 fake reader를 주입해 reload()가
- * 변경을 감지하는지 직접 구동한다. 실타이머/start() 폴링에 의존하지 않는다(flaky 회피) —
- * reload()를 직접 호출한다.
+ * Principle: no network/fs. Inject a fake reader whose backing map can be MUTATED and directly
+ * drive whether reload() detects changes. Does not rely on real timers / start() polling (avoids
+ * flakiness) — calls reload() directly.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -11,7 +11,7 @@ import { type ConfigReader, createConfigStore, plainSecretProvider } from "./ind
 
 // ── mutable fake reader ──────────────────────────────────────────────────────
 
-/** good fixture(깊은 복제) — 테스트마다 격리된 backing map. */
+/** good fixture (deep clone) — an isolated backing map per test. */
 function goodFixture(): Record<string, unknown> {
   return {
     "endpoints.json": {
@@ -65,8 +65,8 @@ function goodFixture(): Record<string, unknown> {
 }
 
 /**
- * map을 캡처하는 reader. 테스트가 map[...]을 바꾸면 다음 reload()가 새 값을 본다.
- * reader는 map[file]을 깊은 복제해 넘긴다(스토어 스냅샷이 backing map과 alias되지 않게).
+ * Reader that captures the map. When a test changes map[...], the next reload() sees the new value.
+ * The reader deep-clones map[file] before handing it over (so the store snapshot is not aliased to the backing map).
  */
 function mutableReader(map: Record<string, unknown>): ConfigReader {
   return async (file) => {
@@ -108,7 +108,7 @@ describe("createConfigStore — reload", () => {
     const sub = vi.fn();
     store.subscribe(sub);
 
-    // backing map만 바꾸고 reload — reader가 새 값을 읽는다.
+    // Change only the backing map and reload — the reader reads the new value.
     (map["avatar.json"] as { vrm_url: string }).vrm_url = "/vrms/other.vrm";
     await expect(store.reload()).resolves.toBe(true);
 
@@ -117,7 +117,7 @@ describe("createConfigStore — reload", () => {
     expect(nextCfg.avatar.vrm_url).toBe("/vrms/other.vrm");
     expect(changed.has("avatar")).toBe(true);
     expect(changed.has("motions")).toBe(false);
-    // get()도 새 스냅샷을 반영.
+    // get() reflects the new snapshot too.
     expect(store.get().avatar.vrm_url).toBe("/vrms/other.vrm");
   });
 
@@ -132,11 +132,11 @@ describe("createConfigStore — reload", () => {
     store.subscribe(sub);
     store.onError(onErr);
 
-    // 모션 전부 제거 → "최소 1개" 위반 → ConfigError.
+    // Remove all motions → violates "at least 1" → ConfigError.
     map["motions.json"] = {};
     await expect(store.reload()).resolves.toBe(false);
 
-    // 현재 스냅샷 UNCHANGED.
+    // Current snapshot UNCHANGED.
     expect(store.get()).toBe(before);
     expect(sub).not.toHaveBeenCalled();
     expect(onErr).toHaveBeenCalledTimes(1);
@@ -203,7 +203,7 @@ describe("createConfigStore — subscribe lifecycle", () => {
     unsub();
     (map["avatar.json"] as { vrm_url: string }).vrm_url = "/vrms/b.vrm";
     await store.reload();
-    // 해지 후 추가 호출 없음.
+    // No further calls after unsubscribe.
     expect(sub).toHaveBeenCalledTimes(1);
   });
 });

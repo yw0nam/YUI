@@ -1,8 +1,8 @@
 /**
- * session.test.ts — Usage 타입의 런타임 narrowing 검증.
+ * session.test.ts — validates runtime narrowing of the Usage type.
  *
- * 타입 자체는 컴파일 타임 검사(pnpm build)가 1차 게이트지만, 여기서 필드 접근 가능한지를
- * 런타임 값으로 굳힌다.
+ * The type itself is subject to compile-time checks (pnpm build) as the primary gate, but this test
+ * fixes the value-level assertion that field access is possible at runtime.
  */
 
 import { describe, expect, expectTypeOf, it } from "vitest";

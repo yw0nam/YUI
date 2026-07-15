@@ -131,7 +131,7 @@ export function createFillerSettings(opts?: { storage?: FillerStorage; initial?:
   };
 }
 
-/** localStorage 기반 FillerStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-based FillerStorage adapter. Gracefully ignored in environments without localStorage. */
 export function localStorageFillerStorage(key = "yui.filler"): FillerStorage {
   return localStorageStore<FillerSettings>(key);
 }

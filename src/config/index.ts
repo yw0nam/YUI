@@ -1,6 +1,6 @@
 /**
- * Config barrel — config 로더/스토어의 단일 진입점.
- * 다른 모듈은 `import { ... } from "../config"` 로 접근한다.
+ * Config barrel — single entry point for the config loader/store.
+ * Other modules access it via `import { ... } from "../config"`.
  */
 
 export {

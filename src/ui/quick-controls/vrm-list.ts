@@ -1,4 +1,4 @@
-/** VRM 목록 클러스터 — 캐릭터 탭의 VRM 라디오그룹 렌더·이름편집·임포트·스왑·키보드. */
+/** VRM list cluster — VRM radiogroup in Character tab: render, rename, import, swap, keyboard. */
 import type { AvatarOption } from "../../config/load";
 import type { createVrmSelection } from "../../io/vrm-selection";
 import type { Logger } from "../../logger";
@@ -8,14 +8,14 @@ const VRM_RENAME_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 const VRM_REMOVE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>`;
 
 export interface VrmListDeps {
-  /** 패널 루트(el) — .yui-vrms / .yui-vrm__import-error를 여기서 쿼리한다. */
+  /** Panel root (el) — query .yui-vrms / .yui-vrm__import-error from here. */
   root: HTMLElement;
   vrmSelection: ReturnType<typeof createVrmSelection>;
-  /** 실제 스왑 수행 + 성공 시 store 커밋. 컴포넌트는 store.select를 직접 호출하지 않는다. */
+  /** Perform actual swap + commit store on success. Component does not call store.select directly. */
   swapVrm: (option: AvatarOption) => Promise<void>;
-  /** 파일 선택 → 로드 → addUserOption + 선택까지의 전체 임포트 흐름. reject 시 인라인 에러. */
+  /** Full import flow: file select → load → addUserOption + select. Inline error on reject. */
   importVrm: () => Promise<void>;
-  /** 임포트된 VRM의 app-data 파일을 삭제(idempotent). store 제거와 별개로 호출한다. */
+  /** Delete imported VRM app-data file (idempotent). Called separately from store removal. */
   removeUserVrm: (id: string) => Promise<void>;
   log: Logger;
 }
@@ -24,7 +24,7 @@ export interface VrmList {
   render(): void;
   handleKeydown(e: KeyboardEvent): void;
   handleAddClick(): void;
-  /** 스왑 진행 중 여부 — 엔트리의 open-subscription 가드가 쓴다. */
+  /** Whether swap is in progress — used by entry's open-subscription guard. */
   isSwapping(): boolean;
 }
 
@@ -33,31 +33,31 @@ export function createVrmList(deps: VrmListDeps): VrmList {
   const vrmsEl = deps.root.querySelector<HTMLDivElement>(".yui-vrms")!;
   const vrmImportErrorEl = deps.root.querySelector<HTMLParagraphElement>(".yui-vrm__import-error")!;
 
-  // 스왑 진행 중인 id(중복 스왑 가드) · 직전 오류 행 id(다시 그릴 때 인라인 안내 유지).
+  // Swapping id (guards duplicate swap) · last error row id (keeps inline guidance on re-render).
   let vrmSwapping: string | null = null;
   let vrmErrorId: string | null = null;
-  // 마지막으로 화살표가 머문 행 id — 재그림이 roving tabindex를 active로 되돌리지 않게 유지.
-  // close()에서 일부러 리셋하지 않는다 — 재오픈 시에도 머문 행을 잇고, ids.includes로 가드한다.
+  // Last row id where arrow roved — kept so re-render doesn't snap roving tabindex back to active.
+  // Deliberately not reset in close() — re-open continues from roved row, guarded by ids.includes.
   let vrmRovedId: string | null = null;
-  // 인라인 이름 편집 중인 user 옵션 id(없으면 null) · 임포트 진행 여부.
+  // User option id being renamed inline (null if none) · whether import is in progress.
   let vrmRenamingId: string | null = null;
   let vrmImporting = false;
 
   function renderVrms(): void {
     const activeId = vrmSelection.getActiveId();
     const options = vrmSelection.list();
-    // roving tabindex는 마지막으로 화살표가 머문 행이 우선 — 없으면 active로 폴백.
+    // Roving tabindex prioritizes last roved row — falls back to active if none.
     const ids = options.map((o) => o.id);
     const rovedId = vrmRovedId !== null && ids.includes(vrmRovedId) ? vrmRovedId : activeId;
-    // 더 이상 목록에 없는 행을 편집 중이었다면 편집 상태를 정리한다.
+    // Clean up edit state if row being edited no longer in list.
     if (vrmRenamingId !== null && !ids.includes(vrmRenamingId)) vrmRenamingId = null;
-    // innerHTML 재그림이 포커스를 가진 행을 파괴한다 — 가졌던 경우에만 복원하려고 미리 기록.
+    // innerHTML re-render destroys focused row — pre-record if it had focus, only restore if it did.
     const hadFocus = vrmsEl.contains(document.activeElement);
     vrmsEl.innerHTML = "";
     for (const opt of options) {
       const isUser = opt.source === "user";
       const selected = opt.id === activeId;
-      // user 행은 중첩 버튼/입력을 품으므로 div[role=radio]다(button 안의 button은 무효 HTML).
+      // User row holds nested button/input so it's div[role=radio] (button-in-button is invalid HTML).
       const row = document.createElement(isUser ? "div" : "button");
       if (!isUser) (row as HTMLButtonElement).type = "button";
       row.setAttribute("role", "radio");
@@ -80,7 +80,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
           ${actionsHtml}
           ${badgeHtml}
         `;
-        // 라벨은 신뢰 불가 입력일 수 있다 — textContent로만 넣는다.
+        // Label may be untrusted input — set via textContent only.
         row.querySelector<HTMLSpanElement>(".yui-vrm__name")!.textContent = opt.label;
         row.addEventListener("click", () => {
           void swapTo(opt);
@@ -89,13 +89,13 @@ export function createVrmList(deps: VrmListDeps): VrmList {
           row
             .querySelector<HTMLButtonElement>(".yui-vrm__rename")!
             .addEventListener("click", (e) => {
-              e.stopPropagation(); // 이름 편집은 행 선택을 트리거하지 않는다
+              e.stopPropagation(); // Rename does not trigger row selection
               startRename(opt.id);
             });
           row
             .querySelector<HTMLButtonElement>(".yui-vrm__remove")!
             .addEventListener("click", (e) => {
-              e.stopPropagation(); // 삭제는 행 선택을 트리거하지 않는다
+              e.stopPropagation(); // Remove does not trigger row selection
               void removeUserOption(opt.id);
             });
         }
@@ -103,7 +103,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
 
       vrmsEl.appendChild(row);
 
-      // 직전 오류 행이면 비활성으로 다시 그린 뒤 인라인 안내를 그 아래에 붙인다.
+      // If previous error row, re-render as inactive and attach inline guidance below.
       if (opt.id === vrmErrorId) {
         row.classList.add("is-error");
         row.setAttribute("aria-invalid", "true");
@@ -115,7 +115,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
       }
     }
 
-    // 임포트 진행 중이면 목록 끝에 스피너 placeholder 행을 붙인다(라디오 아님).
+    // If import is in progress, append spinner placeholder row at end (not radio).
     if (vrmImporting) {
       const loading = document.createElement("div");
       loading.className = "yui-vrm__loading";
@@ -124,7 +124,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
       vrmsEl.appendChild(loading);
     }
 
-    // 편집 중이면 입력에 포커스를 두고 종료한다(roving 포커스 복원보다 우선).
+    // If editing, focus input and exit (takes precedence over restoring roving focus).
     if (vrmRenamingId !== null) {
       const input = vrmsEl.querySelector<HTMLInputElement>(".yui-vrm--renaming .yui-ep-input");
       if (input) {
@@ -134,7 +134,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
       return;
     }
 
-    // 재그림 전 라디오그룹이 포커스를 쥐고 있었다면 roving 행으로 포커스를 잇는다.
+    // If radiogroup had focus before re-render, restore focus to roving row.
     if (hadFocus) {
       const roved = vrmRowById(rovedId);
       if (roved) {
@@ -144,7 +144,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
     }
   }
 
-  // user 행을 인라인 이름 편집 모드로 그린다 — 라벨이 입력으로 바뀌고 hint가 뒤따른다.
+  // Render user row in inline rename mode — label becomes input, hint follows.
   function renderRenamingRow(row: HTMLElement, opt: AvatarOption): void {
     row.classList.add("yui-vrm--renaming");
     row.innerHTML = `
@@ -159,15 +159,15 @@ export function createVrmList(deps: VrmListDeps): VrmList {
         e.preventDefault();
         commitRename(opt.id, input.value);
       } else if (e.key === "Escape") {
-        // Esc는 이름 편집만 취소한다 — 패널 닫기(document Escape)로 새지 않게 막는다.
+        // Escape cancels rename only — does not propagate to panel close (document Escape).
         e.preventDefault();
         e.stopPropagation();
         cancelRename();
       }
     });
-    // blur로 빠져나가면 비어있지 않은 값을 커밋한다.
+    // On blur, commit nonempty value.
     input.addEventListener("blur", () => {
-      if (vrmRenamingId !== opt.id) return; // 이미 commit/cancel로 정리됨
+      if (vrmRenamingId !== opt.id) return; // Already cleaned up by commit/cancel
       commitRename(opt.id, input.value);
     });
   }
@@ -186,36 +186,36 @@ export function createVrmList(deps: VrmListDeps): VrmList {
   function commitRename(id: string, label: string): void {
     if (vrmRenamingId !== id) return;
     vrmRenamingId = null;
-    // 빈/공백 label은 store가 거부한다(기존 라벨 유지). 변경 시 store 구독이 재그림.
+    // Empty/whitespace label is rejected by store (keeps existing label). Change triggers store subscription re-render.
     vrmSelection.renameUserOption(id, label);
     log.info("vrm_rename", { id });
     renderVrms();
   }
 
-  // user 옵션 제거 — 파일을 먼저 지우고(성공해야 store/disk 불일치 없음), 그 다음에만
-  // store에서 빼고 active였으면 fallback으로 스왑한다.
+  // Remove user option — delete file first (success required, no store/disk mismatch), then
+  // remove from store and swap to fallback if it was active.
   async function removeUserOption(id: string): Promise<void> {
     const wasActive = vrmSelection.getActiveId() === id;
     log.info("vrm_delete", { id });
     try {
       await removeUserVrm(id);
     } catch (err) {
-      // 파일 삭제 실패 — store 제거를 커밋하지 않고 행을 그대로 둔다(disk와 일치 유지).
+      // File delete failed — do not commit store removal, keep row (maintain disk match).
       log.error("vrm_delete_failed", { id, error: String(err) });
       return;
     }
-    vrmSelection.removeUserOption(id); // active였으면 default로 폴백 + 통지
-    // 비-active 제거는 store가 통지하지 않으므로 목록을 직접 다시 그린다.
+    vrmSelection.removeUserOption(id); // Falls back to default if was active + notify
+    // Non-active removal does not notify store, so re-render list directly.
     if (!wasActive) {
       renderVrms();
       return;
     }
-    // active를 지웠으면 폴백 옵션을 렌더러에 로드한다(store는 이미 default를 가리킴).
+    // Active delete — load fallback option into renderer (store already points to default).
     try {
       await swapVrm(vrmSelection.getActive());
     } catch (err) {
       log.error("vrm_fallback_swap_failed", { error: String(err) });
-      renderVrms(); // 스왑 실패 시 목록을 실제 상태에 맞춰 다시 그린다.
+      renderVrms(); // Swap failed, re-render list to match actual state.
     }
   }
 
@@ -223,10 +223,10 @@ export function createVrmList(deps: VrmListDeps): VrmList {
     vrmImportErrorEl.hidden = !show;
   }
 
-  // "파일에서 추가…" — importing 행을 띄우고 전체 임포트 흐름을 위임한다.
-  // 성공 시 store가 행을 추가하고(구독→재그림), 실패 시 인라인 에러를 띄운다.
+  // "Add from file…" — show importing row and delegate full import flow.
+  // Success: store adds row (subscription → re-render); failure: show inline error.
   async function importVrmFlow(): Promise<void> {
-    if (vrmImporting) return; // 진행 중엔 두 번째 임포트 금지
+    if (vrmImporting) return; // Prevent second import while in progress
     vrmImporting = true;
     setImportError(false);
     renderVrms();
@@ -246,18 +246,18 @@ export function createVrmList(deps: VrmListDeps): VrmList {
   }
 
   async function swapTo(option: AvatarOption): Promise<void> {
-    if (vrmSwapping !== null) return; // 진행 중엔 두 번째 스왑 금지
-    if (option.id === vrmSelection.getActiveId()) return; // 이미 active면 no-op
+    if (vrmSwapping !== null) return; // Prevent second swap while in progress
+    if (option.id === vrmSelection.getActiveId()) return; // Already active, no-op
 
-    // 직전 오류 표시가 있으면 그것만 먼저 지운다(목록 재그림으로 인라인 안내 제거).
+    // If previous error shown, clear it first (re-render removes inline guidance).
     if (vrmErrorId !== null) {
       vrmErrorId = null;
       renderVrms();
     }
     vrmSwapping = option.id;
 
-    // 로딩 반영: 클릭 행에 "바꾸는 중…" + 스피너, 그룹은 busy로 잠근다.
-    // 행을 in-place로 변형해 호출부가 쥔 노드 참조를 유지한다(재그림 안 함).
+    // Reflect loading: "swapping…" + spinner on clicked row, group locked with busy.
+    // Mutate row in-place so caller's node reference persists (no re-render).
     vrmsEl.setAttribute("aria-busy", "true");
     vrmsEl.classList.add("is-swapping");
     const row = vrmRowById(option.id);
@@ -274,13 +274,13 @@ export function createVrmList(deps: VrmListDeps): VrmList {
 
     try {
       await swapVrm(option);
-      vrmRovedId = option.id; // 커밋된 행으로 roving tabindex를 잇는다
+      vrmRovedId = option.id; // Continue roving tabindex from committed row
       log.info("vrm_swap", { id: option.id });
-      // 성공: swapVrm이 store를 커밋했고 구독이 active 행을 옮긴다. 잠금 해제 후 재그림.
+      // Success: swapVrm committed store, subscription moves active row. Unlock, then re-render.
     } catch (err) {
       vrmErrorId = option.id;
       log.error("vrm_swap_failed", { id: option.id, error: String(err) });
-      // 실패: 선택은 그대로(revert는 store가 바뀌지 않아 자동). 오류 행 + 인라인 안내.
+      // Failure: selection stays (no revert, store unchanged). Error row + inline guidance.
     } finally {
       vrmSwapping = null;
       vrmsEl.removeAttribute("aria-busy");
@@ -289,11 +289,11 @@ export function createVrmList(deps: VrmListDeps): VrmList {
     }
   }
 
-  // VRM radiogroup 키보드 — 화자 섹션과 동일한 manual-activation.
-  // Enter/Space는 선택(스왑), 화살표는 roving focus 이동만(래핑), Home/End는 양끝.
+  // VRM radiogroup keyboard — same manual-activation as speaker section.
+  // Enter/Space selects (swaps), arrows move roving focus only (wraps), Home/End jump ends.
   function handleVrmKeydown(e: KeyboardEvent): void {
     if (vrmSwapping !== null) return;
-    // 인라인 이름 편집 입력의 키는 입력 자체가 처리한다 — 라디오 키보드로 새지 않게 막는다.
+    // Inline rename input handles its own keys — guard so it doesn't leak to radio keyboard.
     if ((e.target as HTMLElement).closest(".yui-vrm--renaming")) return;
     const target = (e.target as HTMLElement).closest<HTMLElement>(".yui-vrm[role=radio]");
     if (!target) return;

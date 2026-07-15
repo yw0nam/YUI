@@ -1,6 +1,6 @@
 /**
- * 시각 기반 schedule cue(아침/점심/저녁 등)의 on/off + 항목 목록을 관리하는 reactive 설정 스토어.
- * 변경 시 storage에 persist하고 구독자에게 통지한다. 소스 구독은 멈추지 않고 firing만 게이팅한다.
+ * Reactive settings store managing on/off plus the entry list of time-based schedule cues (morning/lunch/evening, etc.).
+ * Persists to storage on change and notifies subscribers. Does not stop source subscriptions; only gates firing.
  */
 
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
@@ -165,7 +165,7 @@ export function createScheduleSettings(opts?: {
   };
 }
 
-/** localStorage 기반 ScheduleStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-backed ScheduleStorage adapter. Gracefully ignored where localStorage is unavailable. */
 export function localStorageScheduleStorage(key = "yui.schedule"): ScheduleStorage {
   return localStorageStore<ScheduleSettings>(key);
 }

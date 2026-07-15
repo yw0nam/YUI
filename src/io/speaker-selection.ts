@@ -1,10 +1,11 @@
 /**
- * 현재 활성 irodori TTS 화자를 소유하는 reactive 스토어.
- * 선택은 SpeakerOption.id(voice registry 등록 키)로 resolve·persist한다.
- * voice registry 등록은 하지 않는다 — 선택 상태 보유 + 영속화 + active 옵션 해석만 담당.
+ * Reactive store that owns the currently active irodori TTS speaker.
+ * The selection is resolved and persisted by SpeakerOption.id (the voice-registry key).
+ * It does not register with the voice registry — it only holds the selection state,
+ * persists it, and resolves the active option.
  */
 
-/** irodori 화자 항목 — EndpointsConfig.irodori_voices[number] 와 동일 모양. */
+/** An irodori speaker entry — same shape as EndpointsConfig.irodori_voices[number]. */
 export interface SpeakerOption {
   id: string;
   label?: string;
@@ -12,32 +13,32 @@ export interface SpeakerOption {
   source?: "bundled" | "user";
 }
 
-/** override는 저장된 id 문자열 또는 null(override 없음). */
+/** The override is the stored id string, or null (no override). */
 export interface SpeakerSelectionStorage {
   load(): string | null;
   save(id: string | null): void;
 }
 
-/** 임포트된 source:"user" 옵션 목록의 영속화 어댑터. */
+/** Persistence adapter for the list of imported source:"user" options. */
 export interface UserSpeakerStorage {
   load(): SpeakerOption[];
   save(list: SpeakerOption[]): void;
 }
 
-/** defaultId 단일 화자를 manifest 한 항목으로 합성. ref_url은 비어 있을 수 있다(클립 없음). */
+/** Synthesizes a single defaultId speaker as one manifest entry. ref_url may be empty (no clip). */
 function synthesizeOption(defaultId: string): SpeakerOption {
   return { id: defaultId, label: defaultId, ref_url: "" };
 }
 
-/** override 후보를 안전한 모양(비어있지 않은 문자열 또는 null)으로 강제. */
+/** Coerces an override candidate to a safe shape (non-empty string or null). */
 function coerceOverride(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
 }
 
-/** id로 안전한 charset(`^[A-Za-z0-9_-]+$`) — 네이티브 sanitize_stem과 동일. */
+/** Safe charset for an id (`^[A-Za-z0-9_-]+$`) — matches the native sanitize_stem. */
 const SAFE_ID = /^[A-Za-z0-9_-]+$/;
 
-/** 임포트 옵션 한 건을 안전한 source:"user" SpeakerOption으로 강제(불완전하면 null). */
+/** Coerces one imported option into a safe source:"user" SpeakerOption (null if incomplete). */
 function coerceUserSpeaker(v: unknown): SpeakerOption | null {
   if (typeof v !== "object" || v === null) return null;
   const o = v as Record<string, unknown>;
@@ -56,8 +57,8 @@ export function createSpeakerSelection(opts: {
   const storage = opts.storage;
   const userStorage = opts.userStorage;
 
-  // manifest(options + defaultId)는 setManifest로 갱신 가능하므로 가변.
-  // list()는 절대 비지 않는다 — available이 없거나 비면 defaultId로 단일 항목 합성.
+  // The manifest (options + defaultId) is mutable since setManifest can update it.
+  // list() is never empty — if available is missing or empty, synthesize a single entry from defaultId.
   function normalize(available: SpeakerOption[] | undefined, fallbackId: string): SpeakerOption[] {
     return available && available.length > 0
       ? available.map((o) => ({ ...o }))
@@ -67,21 +68,21 @@ export function createSpeakerSelection(opts: {
   let defaultId = opts.defaultId;
   let bundled: SpeakerOption[] = normalize(opts.available, defaultId);
 
-  // 임포트된 user 옵션 — bundled id와 충돌하는 항목은 버린다(bundled 우선).
+  // Imported user options — entries colliding with a bundled id are dropped (bundled wins).
   function isBundledId(id: string): boolean {
     return bundled.some((o) => o.id === id);
   }
   let userOptions: SpeakerOption[] = [];
 
-  // userStorage의 목록을 in-memory userOptions에 union-merge한다 — bundled id 충돌은 버리고
-  // id로 dedupe(reloaded 항목이 우선). 다른 창이 추가한 항목을 잃지 않게 한다.
+  // Union-merges the userStorage list into in-memory userOptions — drops bundled-id collisions
+  // and dedupes by id (reloaded entry wins). Ensures entries added by another window aren't lost.
   function mergeUserOptions(): void {
     if (!userStorage) return;
     let persisted: SpeakerOption[];
     try {
       persisted = userStorage.load();
     } catch {
-      return; // storage 오류 시 기존 user 옵션 보존
+      return; // On storage error, keep the existing user options.
     }
     for (const raw of persisted) {
       const opt = coerceUserSpeaker(raw);
@@ -93,7 +94,7 @@ export function createSpeakerSelection(opts: {
   }
   mergeUserOptions();
 
-  // 해석 대상 전체 목록: bundled 뒤에 user(중복 id 없음).
+  // Full list to resolve against: bundled followed by user (no duplicate ids).
   function options(): SpeakerOption[] {
     return [...bundled, ...userOptions];
   }
@@ -102,18 +103,18 @@ export function createSpeakerSelection(opts: {
     return options().some((o) => o.id === id);
   }
 
-  // 저장된 override를 읽되, 더 이상 list에 없는(stale/removed) id는 없는 것으로 취급.
+  // Read the stored override, but treat an id no longer in the list (stale/removed) as absent.
   let override: string | null = null;
   if (storage) {
     try {
       const loaded = coerceOverride(storage.load());
       if (loaded !== null && hasId(loaded)) override = loaded;
     } catch {
-      // storage 오류 시 override 없음으로 폴백
+      // On storage error, fall back to no override.
     }
   }
 
-  // 해석 우선순위: (1) override(list에 존재) > (2) defaultId 일치 > (3) list[0].
+  // Resolution priority: (1) override (present in list) > (2) defaultId match > (3) list[0].
   function resolve(): SpeakerOption {
     const all = options();
     if (override !== null) {
@@ -139,14 +140,14 @@ export function createSpeakerSelection(opts: {
       return options().map((o) => ({ ...o }));
     },
 
-    /** bundled ∪ user 전체 옵션(dedup, bundled 우선). list()와 동일 결과. */
+    /** All bundled ∪ user options (deduped, bundled wins). Same result as list(). */
     getOptions(): SpeakerOption[] {
       return options().map((o) => ({ ...o }));
     },
 
-    /** 임포트한 user 옵션을 추가/갱신. bundled id와 충돌하면 거부. source는 "user"로 강제. */
+    /** Adds/updates an imported user option. Rejected if it collides with a bundled id. source is forced to "user". */
     addUserVoice(opt: SpeakerOption): void {
-      if (isBundledId(opt.id)) return; // bundled가 항상 우선
+      if (isBundledId(opt.id)) return; // bundled always wins
       const next: SpeakerOption = { ...opt, source: "user" };
       const idx = userOptions.findIndex((o) => o.id === next.id);
       if (idx >= 0) userOptions[idx] = next;
@@ -154,7 +155,7 @@ export function createSpeakerSelection(opts: {
       persistUser();
     },
 
-    /** user 옵션 제거. 현재 선택 중이던 항목이면 default 해석으로 폴백 + 통지. */
+    /** Removes a user option. If it was the current selection, fall back to default resolution + notify. */
     removeUserVoice(id: string): void {
       const idx = userOptions.findIndex((o) => o.id === id);
       if (idx < 0) return;
@@ -167,7 +168,7 @@ export function createSpeakerSelection(opts: {
       notify();
     },
 
-    /** user 옵션의 label 갱신 + persist + (active면) 통지. unknown/bundled id·빈 label은 no-op. */
+    /** Updates a user option's label + persist + (if active) notify. no-op for unknown/bundled id or empty label. */
     renameUserVoice(id: string, label: string): void {
       const trimmed = label.trim();
       if (trimmed.length === 0) return;
@@ -187,8 +188,8 @@ export function createSpeakerSelection(opts: {
     },
 
     select(id: string): void {
-      if (!hasId(id)) return; // 알 수 없는 id — garbage persist 방지
-      if (resolve().id === id) return; // 이미 active면 no-op
+      if (!hasId(id)) return; // unknown id — avoid persisting garbage
+      if (resolve().id === id) return; // no-op if already active
       override = id;
       storage?.save(id);
       notify();
@@ -201,21 +202,21 @@ export function createSpeakerSelection(opts: {
       notify();
     },
 
-    // config 핫리로드: manifest + default 교체. 사용자 override는 보존하되 새 manifest에
-    // 없으면 default 해석으로 폴백. active id가 실제로 바뀐 경우에만 통지.
+    // Config hot-reload: replace manifest + default. Preserve the user override, but fall back to
+    // default resolution if it isn't in the new manifest. Notify only when the active id actually changed.
     setManifest(next: { available?: SpeakerOption[]; defaultId: string }): void {
       const before = resolve().id;
       defaultId = next.defaultId;
       bundled = normalize(next.available, defaultId);
-      // 새 bundled와 id 충돌하는 user 옵션은 드롭(bundled 우선).
+      // Drop user options whose id collides with the new bundled set (bundled wins).
       userOptions = userOptions.filter((u) => !isBundledId(u.id));
       if (override !== null && !hasId(override)) override = null;
       if (resolve().id === before) return;
       notify();
     },
 
-    // 다른 창이 storage를 갱신했을 때 재로드 — user 목록과 override 포인터를 모두 다시 읽고
-    // (cross-window lost-update 방지), 해석 결과가 실제로 바뀌었을 때만 통지.
+    // Reload when another window updated storage — re-read both the user list and the override pointer
+    // (prevents cross-window lost updates), and notify only when the resolved result actually changed.
     reloadFromStorage(): void {
       const before = resolve().id;
       mergeUserOptions();
@@ -243,7 +244,7 @@ export function createSpeakerSelection(opts: {
   };
 }
 
-/** localStorage 기반 SpeakerSelectionStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-backed SpeakerSelectionStorage adapter. Gracefully ignored where localStorage is unavailable. */
 export function localStorageSpeakerStorage(key = "yui.speaker"): SpeakerSelectionStorage {
   return {
     load() {
@@ -258,13 +259,13 @@ export function localStorageSpeakerStorage(key = "yui.speaker"): SpeakerSelectio
         if (id === null) globalThis.localStorage?.removeItem(key);
         else globalThis.localStorage?.setItem(key, id);
       } catch {
-        // localStorage 사용 불가 시 no-op
+        // no-op when localStorage is unavailable
       }
     },
   };
 }
 
-/** localStorage 기반 UserSpeakerStorage 어댑터(임포트 옵션 목록 JSON). 불완전/손상 항목은 드롭. */
+/** localStorage-backed UserSpeakerStorage adapter (imported-option list JSON). Incomplete/corrupt entries are dropped. */
 export function localStorageUserSpeakerStorage(key = "yui.speaker.user"): UserSpeakerStorage {
   return {
     load() {
@@ -284,7 +285,7 @@ export function localStorageUserSpeakerStorage(key = "yui.speaker.user"): UserSp
       try {
         globalThis.localStorage?.setItem(key, JSON.stringify(list));
       } catch {
-        // localStorage 사용 불가 시 no-op
+        // no-op when localStorage is unavailable
       }
     },
   };

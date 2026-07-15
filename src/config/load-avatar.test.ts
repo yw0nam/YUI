@@ -1,5 +1,5 @@
 /**
- * load-avatar.test.ts — loadConfig avatar.* 섹션 단위 테스트.
+ * load-avatar.test.ts — unit tests for the loadConfig avatar.* section.
  * available manifest, framing, hit_test, gaze.
  */
 

@@ -1,12 +1,12 @@
 /**
  * tts-synth.test.ts — per-sentence TTS HTTP call.
  *
- * 대상: createTtsSynth({ config, fetch, model?, voice?, speed? }) → (input, signal?) => Promise<ArrayBuffer>.
+ * Target: createTtsSynth({ config, fetch, model?, voice?, speed? }) → (input, signal?) => Promise<ArrayBuffer>.
  * POST {tts_base_url}/v1/audio/speech, body { input, response_format:"wav", ...model/voice/speed }.
- * 비2xx면 status + (JSON일 때) error.message 포함 Error throw. 성공 시 response.arrayBuffer().
+ * On non-2xx, throws an Error including status + (when JSON) error.message. On success, response.arrayBuffer().
  *
- * VERIFIED FACTS(라이브 프로브 완료): vLLM fishaudio/s2-pro, OpenAI 호환 /v1/audio/speech.
- * 테스트는 mock fetch만 사용 — 실제 :8092 미접속.
+ * VERIFIED FACTS (live probe done): vLLM fishaudio/s2-pro, OpenAI-compatible /v1/audio/speech.
+ * Tests use only a mock fetch — no real :8092 connection.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";

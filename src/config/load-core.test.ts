@@ -1,11 +1,11 @@
 /**
- * load-core.test.ts — loadConfig 코어 계약 단위 테스트.
- * happy path, guardrails, cross-section validation failures, reader 실패 전파,
+ * load-core.test.ts — unit tests for loadConfig core contract.
+ * happy path, guardrails, cross-section validation failures, reader rejection propagation,
  * default fetch reader, filler, hotkeys, plainSecretProvider.
  *
- * 원칙: 절대 network/fetch/fs를 타지 않는다. fake ConfigReader를 주입해
- * in-memory map으로만 검증한다. fail-loud 계약: 스키마 위반이면 ConfigError를 던지고
- * .file은 문제 파일명, .issues는 비어 있지 않다.
+ * Principle: never hit network/fetch/fs. Inject fake ConfigReader and validate
+ * against in-memory map only. Fail-loud contract: schema violations throw ConfigError with
+ * .file set to problematic file name and .issues non-empty.
  */
 
 import { describe, expect, it } from "vitest";
@@ -31,7 +31,7 @@ describe("loadConfig — happy path", () => {
       vrm_expression: "happy",
       fallback: "neutral",
     });
-    // emotion_tts_prefix는 제거됨 — AppConfig에 키가 없어야 한다.
+    // emotion_tts_prefix is removed — AppConfig must not contain this key.
     expect("emotionTtsPrefix" in cfg).toBe(false);
     expect(Object.keys(cfg.motions)).toEqual(["idle", "drag", "sit"]);
     expect(cfg.motions.sit.interrupt_policy).toBe("queue");
@@ -107,14 +107,14 @@ describe("loadConfig — guardrails", () => {
 // ── validation failures ──────────────────────────────────────────────────────
 
 describe("loadConfig — validation failures throw ConfigError", () => {
-  /** good fixture에서 한 파일만 변형해 로드를 시도하는 헬퍼. */
+  /** Helper to modify one file from good fixture and attempt load. */
   async function loadWith(file: string, value: unknown): Promise<unknown> {
     const map = goodFixture();
     map[file] = value;
     return loadConfig({ read: readerOf(map) });
   }
 
-  /** rejects → ConfigError, .file 일치, .issues 비어있지 않음을 한 번에 검사. */
+  /** Checks in one go: rejects with ConfigError, .file matches, .issues non-empty. */
   async function expectConfigError(p: Promise<unknown>, file: string): Promise<void> {
     await expect(p).rejects.toBeInstanceOf(ConfigError);
     const err = await p.catch((e) => e);
@@ -126,7 +126,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
   it("endpoints: chat_base_url이 http URL이 아니면 실패", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.endpoints, {
-        chat_base_url: "localhost:8642", // 스킴 없음
+        chat_base_url: "localhost:8642", // missing scheme
         chat_endpoint: "/v1/responses",
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
@@ -139,7 +139,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.endpoints, {
         chat_base_url: "http://localhost:8642",
-        chat_endpoint: "v1/responses", // 슬래시 없음
+        chat_endpoint: "v1/responses", // missing slash
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
       }),
@@ -154,7 +154,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
         chat_endpoint: "/v1/responses",
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
-        chat_instructions: 123, // 문자열이 아님
+        chat_instructions: 123, // not a string
       }),
       "endpoints.json",
     );
@@ -168,7 +168,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
-        available: ["carlotta"], // 문자열 — 객체가 아님
+        available: ["carlotta"], // string — not an object
       }),
       "avatar.json",
     );
@@ -178,7 +178,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
-        available: { carlotta: "/vrms/carlotta.vrm" }, // 배열이 아님
+        available: { carlotta: "/vrms/carlotta.vrm" }, // not an array
       }),
       "avatar.json",
     );
@@ -188,7 +188,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
-        available: [{ id: "carlotta", label: "Carlotta" }], // url 누락
+        available: [{ id: "carlotta", label: "Carlotta" }], // url missing
       }),
       "avatar.json",
     );
@@ -198,7 +198,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
-        available: [{ id: 1, label: "Carlotta", url: "/vrms/carlotta.vrm" }], // id 숫자
+        available: [{ id: 1, label: "Carlotta", url: "/vrms/carlotta.vrm" }], // id is number
       }),
       "avatar.json",
     );
@@ -210,7 +210,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
         vrm_url: "/vrms/carlotta.vrm",
         available: [
           { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "remote" },
-        ], // bundled|file 밖
+        ], // outside bundled|file
       }),
       "avatar.json",
     );
@@ -222,7 +222,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
         vrm_url: "/vrms/carlotta.vrm",
         available: [
           { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm" },
-          { id: "carlotta", label: "Carlotta 2", url: "/vrms/carlotta2.vrm" }, // 같은 id
+          { id: "carlotta", label: "Carlotta 2", url: "/vrms/carlotta2.vrm" }, // same id
         ],
       }),
       "avatar.json",
@@ -234,7 +234,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
         available: [
-          { id: 'carl"otta', label: "Carlotta", url: "/vrms/carlotta.vrm" }, // 따옴표
+          { id: 'carl"otta', label: "Carlotta", url: "/vrms/carlotta.vrm" }, // quote
         ],
       }),
       "avatar.json",
@@ -246,7 +246,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
         available: [
-          { id: "carl otta", label: "Carlotta", url: "/vrms/carlotta.vrm" }, // 공백
+          { id: "carl otta", label: "Carlotta", url: "/vrms/carlotta.vrm" }, // space
         ],
       }),
       "avatar.json",
@@ -258,7 +258,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
       loadWith(CONFIG_FILES.motions, {
         idle: {
           vrma_path: "assets/motions/idle.vrma",
-          kind: "bogus", // 잘못된 kind
+          kind: "bogus", // invalid kind
           loop: true,
           priority: 0,
           interrupt_policy: "replace",
@@ -272,7 +272,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.motions, {
         idle: {
-          vrma_path: "assets/motions/idle.glb", // 잘못된 확장자
+          vrma_path: "assets/motions/idle.glb", // invalid extension
           kind: "ambient",
           loop: true,
           priority: 0,
@@ -288,14 +288,14 @@ describe("loadConfig — validation failures throw ConfigError", () => {
   });
 
   it("motions: priority가 0~100 범위 밖(또는 비유한)이면 실패", async () => {
-    // typeof number는 통과하지만 범위/유한성으로 걸러야 한다(dispatcher 우선순위 큐 보호).
+    // typeof number passes but must be filtered by range/finiteness (protects dispatcher priority queue).
     await expectConfigError(
       loadWith(CONFIG_FILES.motions, {
         idle: {
           vrma_path: "assets/motions/idle.vrma",
           kind: "ambient",
           loop: true,
-          priority: 200, // 0~100 밖
+          priority: 200, // outside 0~100
           interrupt_policy: "replace",
         },
       }),
@@ -308,7 +308,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
       loadWith(CONFIG_FILES.motions, {
         idle: {
           vrma_path: "/motions/a.vrma",
-          broker_publish: "no", // boolean 아님
+          broker_publish: "no", // not boolean
           kind: "ambient",
           loop: true,
           priority: 0,
@@ -324,7 +324,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
       loadWith(CONFIG_FILES.motions, {
         idle: {
           vrma_path: "/motions/a.vrma",
-          variants: ["/motions/a.vrma", "/motions/b.glb"], // .vrma 아님
+          variants: ["/motions/a.vrma", "/motions/b.glb"], // not .vrma
           kind: "ambient",
           loop: true,
           priority: 0,
@@ -340,7 +340,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
       loadWith(CONFIG_FILES.motions, {
         idle: {
           vrma_path: "/motions/a.vrma",
-          variants: ["/motions/a.vrma"], // 길이 1
+          variants: ["/motions/a.vrma"], // length 1
           kind: "ambient",
           loop: true,
           priority: 0,
@@ -357,7 +357,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
         idle: {
           vrma_path: "/motions/a.vrma",
           variants: ["/motions/a.vrma", "/motions/b.vrma"],
-          variant_policy: "bogus", // random|sequential 밖
+          variant_policy: "bogus", // outside random|sequential
           kind: "ambient",
           loop: true,
           priority: 0,
@@ -373,7 +373,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
       loadWith(CONFIG_FILES.motions, {
         idle: {
           vrma_path: "/motions/a.vrma",
-          variant_policy: "random", // variants 없이 의미 없음
+          variant_policy: "random", // meaningless without variants
           kind: "ambient",
           loop: true,
           priority: 0,
@@ -387,19 +387,19 @@ describe("loadConfig — validation failures throw ConfigError", () => {
   it("emotion_registry: contract enum 밖의 키면 실패(오탈자 fail-loud)", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.emotionRegistry, {
-        hapy: { vrm_expression: "happy", fallback: "neutral" }, // 오탈자
+        hapy: { vrm_expression: "happy", fallback: "neutral" }, // typo
       }),
       "emotion_registry.json",
     );
   });
 });
 
-// ── reader 실패 전파 ────────────────────────────────────────────────────────────
+// ── reader rejection ────────────────────────────────────────────────────────────
 
 describe("loadConfig — reader rejection", () => {
   it("파일 누락(reader reject)은 그대로 전파된다", async () => {
     const map = goodFixture();
-    delete map["avatar.json"]; // reader가 reject
+    delete map["avatar.json"]; // reader rejects
     await expect(loadConfig({ read: readerOf(map) })).rejects.toThrow(/missing avatar\.json/);
   });
 });
@@ -427,7 +427,7 @@ describe("loadConfig — default fetch reader routes through asset resolver", ()
     const fetched: string[] = [];
     const fetchMock = async (url: string) => {
       fetched.push(url);
-      // 원래 파일명을 끝에서 복구해 fixture를 돌려준다.
+      // Recover original filename from the end and return fixture.
       const file = url.replace(/\?.*$/, "").split("/").pop()!;
       return { ok: true, json: async () => goodFixture()[file] } as unknown as Response;
     };

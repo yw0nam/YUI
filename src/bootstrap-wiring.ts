@@ -33,40 +33,43 @@ export function wireVrmSelection(deps: {
   importVrm: () => Promise<void>;
 } {
   const { renderer, log, broadcastSettings } = deps;
-  // VRM 선택 store + 스왑. 펫 창은 renderer-backed: loadVRM 성공 시에만 store 커밋.
-  // config 로드 전이라 fallback default로 시작 — 패널이 일찍 필요하기 때문. config 로드 후
-  // setManifest로 실제 available[]를 주입한다(아래 부트 시퀀스).
+  // VRM selection store + swap. The pet window is renderer-backed: commit the store
+  // only after loadVRM succeeds. Starts with a fallback default since config is not
+  // loaded yet — the panel is needed early. After config loads, setManifest injects
+  // the real available[] (see the boot sequence below).
   const vrmSelection = createVrmSelection({
     defaultUrl: "/vrms/carlotta.vrm",
     storage: localStorageVrmStorage(),
     userStorage: localStorageUserVrmStorage(),
   });
-  // 단일 직렬 스왑 경로: 사용자 스왑·부트·config 핫리로드·크로스윈도우가 모두 이 체인을
-  // 통과한다. loadVRM은 재진입 안전하지 않으므로 직렬화하되, 실패는 호출자에게 전파한다.
+  // Single serial swap path: user swap, boot, config hot-reload, and cross-window all
+  // pass through this chain. loadVRM is not re-entrant safe, so serialize it while
+  // still propagating failures to the caller.
   let vrmSwap: Promise<unknown> = Promise.resolve();
   function loadVrmSerialized(url: string): Promise<VrmLoadResult> {
-    // 논리 경로(/vrms/*.vrm)를 런타임 URL로 변환 — dev passthrough, Tauri 번들 리소스 절대 URL.
+    // Resolve the logical path (/vrms/*.vrm) to a runtime URL — dev passthrough, Tauri bundled-resource absolute URL.
     const next = vrmSwap.then(async () => renderer.loadVRM(await resolveAssetUrl(url)));
-    vrmSwap = next.catch(() => {}); // 체인은 실패해도 살려두고
-    return next; // 이 호출자에게만 reject를 전파한다.
+    vrmSwap = next.catch(() => {}); // keep the chain alive even on failure,
+    return next; // but propagate the reject only to this caller.
   }
-  // 로드 성공 시에만 store 커밋. 실패하면 await가 throw → store 미커밋(UI가 에러+자동 복구).
+  // Commit the store only on load success. On failure the await throws → store not committed (UI shows error + auto-recovers).
   const swapVrm = async (option: { id: string; url: string }): Promise<void> => {
     await loadVrmSerialized(option.url);
     vrmSelection.select(option.id);
   };
-  // BYO-VRM 임포트: 파일 선택 → 복사 → 로드 → (메타 이름이 있으면 그걸로 라벨) → 옵션 추가 + 선택.
-  // 취소(null)는 조용히 무시. 로드 실패면 고아 파일을 지우고 옵션은 추가하지 않은 채 throw한다
-  // (직전 선택/렌더러는 그대로 — 로드가 currentVrm 교체 전에 실패하므로 복구 불필요).
+  // BYO-VRM import: pick file → copy → load → (label from meta name if present) → add option + select.
+  // Cancel (null) is silently ignored. On load failure, delete the orphan file and throw without
+  // adding the option (prior selection/renderer stay as-is — no recovery needed since the load
+  // fails before currentVrm is replaced).
   const importVrm = async (): Promise<void> => {
     const option = await importVrmFromFile();
-    if (option === null) return; // 취소
+    if (option === null) return; // cancel
     let metaName: string | null;
     try {
       const src = await resolveUserFileSrc(option.url);
       ({ metaName } = await loadVrmSerialized(src));
     } catch (err) {
-      // 고아 사본 제거 — 실패하면 삼키지 말고 경고로 드러낸다(원본 에러는 그대로 throw).
+      // Remove the orphan copy — don't swallow a failure, surface it as a warning (the original error is still thrown).
       await removeOrphanVrm(option.id, removeUserVrm, (e) =>
         log.warn("orphan_vrm_cleanup_failed", { error: String(e) }),
       );
@@ -77,7 +80,7 @@ export function wireVrmSelection(deps: {
     vrmSelection.addUserOption(labelled);
     vrmSelection.select(labelled.id);
   };
-  // 이 창에서 고른 VRM을 설정 창 UI에 반영하기 위해 cross-window로 알린다(루프 가드는 broadcastSettings).
+  // Announce cross-window so the VRM picked in this window reflects in the settings-window UI (loop guard lives in broadcastSettings).
   vrmSelection.subscribe(broadcastSettings);
   return { vrmSelection, loadVrmSerialized, swapVrm, importVrm };
 }
@@ -93,14 +96,15 @@ export function wireSpeakerSelection(deps: {
   importVoice: () => Promise<void>;
 } {
   const { getEndpoints, log, broadcastSettings } = deps;
-  // irodori 화자 선택 store. config 로드 전이라 빈 fallback으로 시작 — 패널이 일찍
-  // 필요하기 때문. config 로드 후 setManifest로 실제 irodori_voices·default를 주입한다.
+  // irodori speaker selection store. Starts with an empty fallback since config is not
+  // loaded yet — the panel is needed early. After config loads, setManifest injects the
+  // real irodori_voices and default.
   const speakerSelection = createSpeakerSelection({
     defaultId: "",
     storage: localStorageSpeakerStorage(),
     userStorage: localStorageUserSpeakerStorage(),
   });
-  // 선택 → irodori voice registry 등록 후 store 커밋(swapVrm의 load-then-select 미러).
+  // Select → register in the irodori voice registry, then commit the store (mirrors swapVrm's load-then-select).
   const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
     const f = await selectFetch();
     const eps = getEndpoints();
@@ -114,7 +118,7 @@ export function wireSpeakerSelection(deps: {
     }
     speakerSelection.select(option.id);
   };
-  // 참조 음성 재등록(PUT /voices) — 서버 측 force-refresh만, 화자 선택은 바꾸지 않는다.
+  // Re-register the reference voice (PUT /voices) — server-side force-refresh only, does not change the speaker selection.
   const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
     const f = await selectFetch();
     const eps = getEndpoints();
@@ -126,17 +130,17 @@ export function wireSpeakerSelection(deps: {
       fetch: f,
     });
   };
-  // BYO-voice 임포트: 파일 선택 → 복사 → irodori 등록 → 옵션 추가 + 선택(swapSpeaker의 register-then-select 미러).
-  // 취소(null)는 조용히 무시. 등록 실패(서버 다운/사용 불가 클립)면 고아 사본을 지우고 옵션은
-  // 추가하지 않은 채 throw한다 — 직전 선택은 그대로(등록이 store 커밋 전에 실패하므로 복구 불필요).
+  // BYO-voice import: pick file → copy → register in irodori → add option + select (mirrors swapSpeaker's register-then-select).
+  // Cancel (null) is silently ignored. On register failure (server down / unusable clip), delete the orphan copy and throw
+  // without adding the option — prior selection stays as-is (no recovery needed since registration fails before the store commit).
   const importVoice = async (): Promise<void> => {
     const option = await importVoiceFromFile();
-    if (option === null) return; // 취소
+    if (option === null) return; // cancel
     try {
       const f = await selectFetch();
       const eps = getEndpoints();
       if (!eps.irodori_base_url) throw new Error("irodori provider requires irodori_base_url");
-      // ref_url은 asset:// URL — resolveRef가 그대로 통과시켜 클립을 POST한다.
+      // ref_url is an asset:// URL — resolveRef passes it through as-is and POSTs the clip.
       await ensureRegistered({
         baseUrl: eps.irodori_base_url,
         id: option.id,
@@ -144,7 +148,7 @@ export function wireSpeakerSelection(deps: {
         fetch: f,
       });
     } catch (err) {
-      // 고아 사본 제거 — 실패하면 삼키지 말고 경고로 드러낸다(원본 에러는 그대로 throw).
+      // Remove the orphan copy — don't swallow a failure, surface it as a warning (the original error is still thrown).
       await removeOrphanVoice(option.id, removeUserVoiceFile, (e) =>
         log.warn("orphan_voice_cleanup_failed", { error: String(e) }),
       );
@@ -154,7 +158,7 @@ export function wireSpeakerSelection(deps: {
     speakerSelection.addUserVoice(option);
     speakerSelection.select(option.id);
   };
-  // 이 창에서 고른 화자를 설정 창 UI에 반영하기 위해 cross-window로 알린다.
+  // Announce cross-window so the speaker picked in this window reflects in the settings-window UI.
   speakerSelection.subscribe(broadcastSettings);
   return { speakerSelection, swapSpeaker, refreshSpeaker, importVoice };
 }

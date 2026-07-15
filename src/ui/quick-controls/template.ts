@@ -59,18 +59,18 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
       `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${t(SEG_LABEL_KEYS[e])}</button>`,
   ).join("");
 
-  // TTS 엔진 드롭다운(yui-select) 옵션 — irodori/openai. value=provider로 effectiveProvider 반영.
+  // TTS engine dropdown (yui-select) options — irodori/openai. value=provider reflects effectiveProvider.
   const ttsTypeOptionsHtml = VOICE_ENGINES.map(
     (p) => `<option value="${p}">${t(VOICE_ENGINE_LABEL_KEYS[p])}</option>`,
   ).join("");
 
-  // Chat API 드롭다운(yui-select) 옵션 — responses/chat_completions. value=chat_api로 effectiveChatApi 반영.
+  // Chat API dropdown (yui-select) options — responses/chat_completions. value=chat_api reflects effectiveChatApi.
   const chatTypeOptionsHtml = CHAT_APIS.map(
     (a) => `<option value="${a}">${t(CHAT_API_LABEL_KEYS[a])}</option>`,
   ).join("");
 
-  // 화자 피커 마크업 — 캐릭터 탭에서 TTS·irodori 서브뷰로 이동. 노드는 el 루트 querySelector로
-  // 해석되므로 위치만 바뀔 뿐 화자 JS는 그대로 유효하다. openai 안내 hint도 함께 둔다.
+  // Speaker picker markup — moves from Character tab to TTS·irodori subview. Nodes are queried by el root selector so
+  // position changes but speaker JS stays valid. OpenAI hint accompanies it too.
   const speakerPickerHtml = `
         <p class="yui-spks-hint" role="status" hidden>${t("speaker.openai_hint")}</p>
         <div class="yui-spk-scroll">
@@ -90,14 +90,14 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
           </p>
         </div>`;
 
-  // 언어 피커 세그(3칸) — 표시 언어 전환. 호스트가 i18n.subscribe로 재마운트한다.
+  // Language picker seg (3 positions) — display language switch. Host re-mounts via i18n.subscribe.
   const langButtonsHtml = LANG_PICKER_ORDER.map(
     (l) =>
       `<button class="yui-seg__btn" type="button" role="radio" data-locale="${l}" aria-checked="false" tabindex="-1">${LOCALE_DISPLAY_NAMES[l]}</button>`,
   ).join("");
 
-  // 엔드포인트 필드 행 하나. 라벨/placeholder/value는 빈 채로 두고 reflectEndpoints가 채운다.
-  // type="text"로 두고 검증 메시지를 직접 제어한다(브라우저 기본 URL 검증 회피).
+  // Endpoint field row template. Label/placeholder/value left empty, filled by reflectEndpoints.
+  // Use type="text" and control validation message directly (avoid browser default URL validation).
   function endpointRowHtml(key: keyof EndpointOverrides): string {
     const def = ENDPOINT_FIELDS.find((f) => f.key === key)!;
     const errId = `yui-ep-err-${key}`;
@@ -117,8 +117,8 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
           </div>`;
   }
 
-  // 서비스별 API 키 행 하나(시크릿). idPrefix/i18nPrefix로 chat/stt/tts를 한 틀에서 찍는다.
-  // input은 항상 type="password" — 토글로만 평문 노출. value/sublabel은 reflect가 채운다.
+  // Per-service API key row (secret). Uses idPrefix/i18nPrefix to stamp chat/stt/tts from one template.
+  // Input always type="password" — toggle reveals plaintext only. value/sublabel filled by reflect.
   function keyRowHtml(idPrefix: string, i18nPrefix: string): string {
     return `
           <div class="yui-input-row yui-chatkey" data-key-prefix="${idPrefix}">
@@ -160,7 +160,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
           </div>`;
   }
 
-  // 세션 섹션(window 전용). 토큰 점유량 표시 + 대화 초기화 액션. reset은 펫 창 thunk가 race-safe.
+  // Session section (window-only). Token occupancy display + conversation reset action. Reset is race-safe via pet window thunk.
   const sessionHtml = hasSession
     ? `
       <div class="yui-quick__divider" aria-hidden="true"></div>
@@ -186,7 +186,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
       </div>`
     : "";
 
-  // window variant: native titlebar owns the header — no custom bar rendered.
+  // Window variant: native titlebar owns the header — no custom bar rendered.
   const headerHtml = isWindow
     ? ""
     : `

@@ -1,8 +1,8 @@
 /**
- * 엔드포인트 섹션 — 고급 탭의 엔드포인트 URL 필드, chat/STT/TTS API 키 행(시크릿),
- * TTS 엔진(tts_provider) 드롭다운, Chat API(chat_api) 드롭다운, 서비스별 초기화를 소유한다.
- * VRM/화자 섹션과 같은 패턴: 명시적 deps + shell에서 배선. reflect(store→DOM)는 reflect 레이어가 맡고,
- * 이 모듈은 입력·핸들러·구독·teardown만 맡는다.
+ * Endpoints section — owns endpoint URL fields in Advanced tab, chat/STT/TTS API key rows (secret),
+ * TTS engine (tts_provider) dropdown, Chat API (chat_api) dropdown, and per-service resets.
+ * Same pattern as VRM/speaker sections: explicit deps + wired from shell. reflect (store→DOM) handled by reflect layer;
+ * this module owns inputs, handlers, subscriptions, teardown only.
  */
 import type { ApiKeySettingsStore } from "../../io/api-key-settings";
 import type { ChatKeySettingsStore } from "../../io/chat-key-settings";
@@ -15,26 +15,26 @@ import { validateEndpointInput } from "./reflect";
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 
 export interface EndpointsSectionDeps {
-  /** 패널 루트(el) — 엔드포인트 입력/키 행/드롭다운을 여기서 쿼리한다. */
+  /** Panel root (el) — query endpoint inputs/key rows/dropdowns here. */
   root: HTMLElement;
   endpointsSettings: EndpointsSettingsStore;
-  /** chat API 키 오버라이드 store. 값은 시크릿 — 로깅 금지. */
+  /** chat API key overrides store. Value is secret — no logging. */
   chatKeySettings: ChatKeySettingsStore;
-  /** STT API 키 오버라이드 store. 값은 시크릿 — 로깅 금지. */
+  /** STT API key overrides store. Value is secret — no logging. */
   sttKeySettings: ApiKeySettingsStore;
-  /** TTS(openai 호환) API 키 오버라이드 store. 값은 시크릿 — 로깅 금지. */
+  /** TTS (openai-compatible) API key overrides store. Value is secret — no logging. */
   ttsKeySettings: ApiKeySettingsStore;
-  /** placeholder로 보여줄 bundled config 기본 엔드포인트(미로드 시 undefined). */
+  /** Default bundled-config endpoints to show as placeholder (undefined if not loaded). */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
-  /** blur 시 보류된 원격 변경을 입력에 반영(reflect 레이어의 reflectEndpoints). */
+  /** On blur, reflect pending remote changes to input (reflectEndpoints from reflect layer). */
   reflectEndpoints: () => void;
-  /** 키 행 store 구독이 재그림 전에 확인하는 열림 여부(popover.isOpen). */
+  /** Key row store subscription checks open state before redrawing (popover.isOpen). */
   isOpen: () => boolean;
   log: Logger;
 }
 
-// 서비스별 API 키 행(시크릿). 값은 input.value에만 살고, sublabel/aria는 상태만 노출한다.
-// 타이핑은 store에 commit하지 않는다(중간 prefix가 라이브 키가 되는 걸 막음). blur·close·dispose에 한 번 commit.
+// Per-service API key row (secret). Value lives only in input.value; sublabel/aria only expose state.
+// Typing doesn't commit to store (prevents mid-prefix becoming live key). Commit once on blur/close/dispose.
 interface KeyRow {
   reflect(): void;
   commitIfDirty(): void;
@@ -44,11 +44,11 @@ interface KeyRow {
 }
 
 export interface EndpointsSection {
-  /** 서비스별 키 행 — reflect 레이어의 reflectKeyRows가 각 행의 reflect()를 호출한다. */
+  /** Per-service key rows — reflect layer's reflectKeyRows calls each row's reflect(). */
   keyRows: readonly KeyRow[];
-  /** 보류된 키 입력을 store에 커밋(패널 close 시). */
+  /** Commit pending key inputs to store (on panel close). */
   commitDirtyKeys(): void;
-  /** 영구 teardown — 보류 키 커밋 + 모든 리스너/구독 해제. */
+  /** Permanent teardown — commit pending keys + unsubscribe all listeners. */
   dispose(): void;
 }
 
@@ -65,16 +65,16 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     log,
   } = deps;
 
-  // TTS 엔진 드롭다운 + irodori/openai 서브뷰(고급 탭). Chat API 드롭다운(서브뷰 없음).
+  // TTS engine dropdown + irodori/openai subviews (Advanced tab). Chat API dropdown (no subviews).
   const ttsTypeEl = el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
   const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
 
-  // 엔드포인트 입력 — 필드 key별 input 노드 맵.
+  // Endpoint inputs — map of input nodes by field key.
   const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
   for (const { key } of ENDPOINT_FIELDS) {
     epInputs.set(key, el.querySelector<HTMLInputElement>(`#yui-ep-${key}`)!);
   }
-  // per-section reset 버튼 — data-svc-reset 별 노드 맵.
+  // Per-section reset buttons — map of nodes by data-svc-reset.
   const svcResetBtns = new Map<string, HTMLButtonElement>();
   for (const btn of el.querySelectorAll<HTMLButtonElement>(".yui-svc-reset")) {
     svcResetBtns.set(btn.dataset.svcReset ?? "", btn);
@@ -151,7 +151,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   const ttsKeyRow = createKeyRow("ttskey", "ttskey", ttsKeySettings);
   const keyRows = [chatKeyRow, sttKeyRow, ttsKeyRow];
 
-  // 엔드포인트 placeholder — bundled config 기본값(greyed)으로 채운다(미로드 시 빈 채로 둠).
+  // Endpoint placeholder — fill with bundled-config defaults (greyed) or leave empty if not loaded.
   const epDefaults = getEndpointDefaults?.();
   if (epDefaults) {
     for (const { key } of ENDPOINT_FIELDS) {
@@ -159,26 +159,26 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     }
   }
 
-  // ── 고급 섹션: TTS 엔진 드롭다운(tts_provider) ──
-  // native select가 키보드를 소유한다 — change 이벤트로만 store에 쓴다.
+  // ── Advanced section: TTS engine dropdown (tts_provider) ──
+  // Native select owns keyboard — write to store only on change event.
   function handleTtsTypeChange(): void {
     const provider = ttsTypeEl.value;
     if (provider !== "irodori" && provider !== "openai") return;
     endpointsSettings.set({ tts_provider: provider });
     log.info("voice_engine_change", { provider });
-    // store 구독(unsubscribeEndpoints)이 reflect.reflectVoiceEngine으로 값/서브뷰/화자 비활성을 갱신한다.
+    // Store subscription (unsubscribeEndpoints) calls reflect.reflectVoiceEngine to update value/subviews/speaker-disabled.
   }
 
-  // ── 고급 섹션: Chat API 드롭다운(chat_api) — 서브뷰 없음(shared fields) ──
+  // ── Advanced section: Chat API dropdown (chat_api) — no subviews (shared fields) ──
   function handleChatTypeChange(): void {
     const api = chatTypeEl.value;
     if (api !== "responses" && api !== "chat_completions") return;
     endpointsSettings.set({ chat_api: api });
     log.info("chat_api_change", { api });
-    // store 구독(unsubscribeEndpoints)이 reflect.reflectChatType으로 값/summary hint를 갱신한다.
+    // Store subscription (unsubscribeEndpoints) calls reflect.reflectChatType to update value/summary hint.
   }
 
-  // ── 엔드포인트 섹션 ──
+  // ── Endpoints section ──
 
   function handleEndpointInput(e: Event): void {
     const input = e.target;
@@ -190,13 +190,13 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     validateEndpointInput(key, input);
   }
 
-  // blur 시점에 입력 중 보류된 원격 변경을 반영한다(지침 textarea와 동일).
+  // On blur, reflect pending remote changes from mid-edit (same as instructions textarea).
   function handleEndpointBlur(): void {
     reflectEndpoints();
   }
 
-  // ── 서비스별 초기화(per-section reset) ──
-  // 각 섹션이 비우는 엔드포인트 필드 + 키 store. URL/모델은 ""로, 키는 .clear()로 되돌린다.
+  // ── Per-service resets ──
+  // Each section clears its endpoint fields + key store. URLs/models reset to "", keys call .clear().
   const SVC_RESET_FIELDS: Record<string, (keyof EndpointOverrides)[]> = {
     chat: ["chat_base_url", "chat_model"],
     stt: ["stt_base_url"],
@@ -229,7 +229,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     log.info("svc_reset", { svc });
   }
 
-  // ── 배선 ──
+  // ── Wiring ──
   ttsTypeEl.addEventListener("change", handleTtsTypeChange);
   chatTypeEl.addEventListener("change", handleChatTypeChange);
   for (const input of epInputs.values()) {

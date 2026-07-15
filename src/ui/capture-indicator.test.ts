@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
 /**
- * capture-indicator.test.ts — 프라이버시 a11y.
- * 캡처가 꺼지면 pill이 접근성 트리에서도 빠져야 한다(el.hidden), 시각만 숨기지 않는다.
+ * capture-indicator.test.ts — privacy a11y.
+ * When capture is off, the pill must also leave the accessibility tree (el.hidden),
+ * not just be visually hidden.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,7 +62,7 @@ describe("capture-indicator — a11y visibility", () => {
     expect(ind.el.hidden).toBe(false);
 
     s.emit(false);
-    // hide는 페이드가 끝난 뒤 트리에서 제거한다(POLISH A). 전이 완료를 흘려보낸다.
+    // hide removes it from the tree after the fade completes (POLISH A). Flush the transition end.
     ind.el.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "opacity" }));
     expect(ind.el.hidden).toBe(true);
 
@@ -70,18 +71,18 @@ describe("capture-indicator — a11y visibility", () => {
   });
 
   it("defers hidden=true until the fade-out settles (does not cut the transition)", () => {
-    // beforeEach의 즉시-rAF 하에서: hidden 제거를 rAF(다음 프레임)로 미루면
-    // 페이드(200ms)보다 짧아 잘린다. emit 직후에도 트리에 남아있어야 한다.
+    // Under beforeEach's immediate rAF: deferring hidden removal to a rAF (next frame)
+    // is shorter than the fade (200ms), so it would cut it off. It must stay in the tree right after emit.
     const s = fakeSettings(true);
     const ind = createCaptureIndicator({ mount, settings: s.store, onActivate: () => {} });
     expect(ind.el.hidden).toBe(false);
 
     s.emit(false);
-    // 전이 중: is-visible은 제거됐지만 아직 접근성 트리에 남아 페이드가 재생된다.
+    // Mid-transition: is-visible is removed but it stays in the a11y tree so the fade plays.
     expect(ind.el.classList.contains("is-visible")).toBe(false);
     expect(ind.el.hidden).toBe(false);
 
-    // opacity transitionend가 뜨면 그제서야 트리에서 제거된다.
+    // Only once the opacity transitionend fires is it removed from the tree.
     ind.el.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "opacity" }));
     expect(ind.el.hidden).toBe(true);
   });
@@ -92,7 +93,7 @@ describe("capture-indicator — a11y visibility", () => {
     const ind = createCaptureIndicator({ mount, settings: s.store, onActivate: () => {} });
 
     s.emit(false);
-    // 전이가 아예 없는 환경: 폴백 타이머만이 트리에서 제거한다.
+    // Environment with no transitions at all: only the fallback timer removes it from the tree.
     expect(ind.el.hidden).toBe(false);
     vi.advanceTimersByTime(400);
     expect(ind.el.hidden).toBe(true);

@@ -1,20 +1,20 @@
 /**
- * Config store — loadConfig 위에 reactive 스냅샷 + 핫리로드를 얹는다.
+ * Config store — layers a reactive snapshot + hot-reload on top of loadConfig.
  *
- * 책임:
- *  - 최초 load() 후 검증된 AppConfig 스냅샷 보관 → get().
- *  - subscribe(fn): config 변경 시 (새 config, 바뀐 section 집합) 통지. VRM/motion/proactivity
- *    같은 핫스왑 대상은 구독자가 반응한다(예: main.ts가 avatar 변경 시 renderer.loadVRM 재호출).
- *  - 핫리로드: start(intervalMs) → 주기적으로 재fetch·재검증 → section별 변경 감지 → 통지.
- *    잘못된 편집(ConfigError)은 **현재 config를 유지**하고 onError로만 통지한다 → 편집 실수가
- *    실행 중 앱을 깨지 않는다.
+ * Responsibilities:
+ *  - After the first load(), holds the validated AppConfig snapshot → get().
+ *  - subscribe(fn): on config change, notifies (new config, set of changed sections). Hot-swap
+ *    targets like VRM/motion/proactivity are handled by subscribers (e.g. main.ts re-calls renderer.loadVRM on avatar change).
+ *  - Hot-reload: start(intervalMs) → periodically re-fetch/re-validate → detect per-section changes → notify.
+ *    An invalid edit (ConfigError) **keeps the current config** and only notifies via onError → an editing mistake
+ *    does not break the running app.
  *
- * 민감값(API 키) 정책: SecretProvider는 reload 시 재바인딩되지만, 이미 만들어진
- * 클라이언트의 런타임 교체는 강제하지 않는다 — **다음 호출부터** 새 값이 반영된다.
+ * Sensitive-value (API key) policy: SecretProvider is re-bound on reload, but runtime swap of an
+ * already-created client is not forced — the new value takes effect **from the next call**.
  *
- * 파일 감시 방식: 의존성 0의 **폴링**(재fetch + section별 직렬화 비교). dev(vite 정적 서빙)·Tauri
- * webview 양쪽에서 추가 플러그인 없이 동작한다. Tauri fs-watch로 교체 가능 —
- * 구독/스냅샷 계약은 그대로 두고 트리거만 바꾸면 된다.
+ * File-watching approach: zero-dependency **polling** (re-fetch + per-section serialized compare). Works on both
+ * dev (vite static serving) and Tauri webview without extra plugins. Swappable for Tauri fs-watch —
+ * leave the subscribe/snapshot contract as is and just change the trigger.
  */
 
 import {
@@ -25,37 +25,37 @@ import {
   type SecretProvider,
 } from "./load";
 
-/** 폴링 기본 주기(ms). 너무 잦으면 fetch 낭비, 너무 느리면 편집 반영 지연. */
+/** Default polling interval (ms). Too frequent wastes fetches, too slow delays edit propagation. */
 const DEFAULT_POLL_MS = 1500;
 
 export type ConfigListener = (config: AppConfig, changed: ReadonlySet<ConfigSection>) => void;
 export type ConfigErrorListener = (err: unknown) => void;
 
 export interface ConfigStore {
-  /** 최초 1회 로드. 이후 get()이 유효해진다. 실패 시 throw(부트스트랩에서 처리). */
+  /** Loads once. get() becomes valid afterward. Throws on failure (handled at bootstrap). */
   load(): Promise<AppConfig>;
-  /** 현재 스냅샷. load() 전 호출 시 throw. */
+  /** Current snapshot. Throws if called before load(). */
   get(): AppConfig;
-  /** 재fetch·재검증 후 변경분 통지. 실패해도 현재 스냅샷은 보존하고 false 반환. */
+  /** Notifies the diff after re-fetch/re-validate. Preserves the current snapshot and returns false even on failure. */
   reload(): Promise<boolean>;
-  /** 변경 구독. 즉시 1회 통지하지 않는다(현재 값은 get()으로). unsubscribe 반환. */
+  /** Subscribe to changes. Does not notify once immediately (use get() for the current value). Returns unsubscribe. */
   subscribe(fn: ConfigListener): () => void;
-  /** 핫리로드 폴링 시작(중복 호출 무시). */
+  /** Start hot-reload polling (ignores duplicate calls). */
   start(intervalMs?: number): void;
-  /** 폴링 중지. */
+  /** Stop polling. */
   stop(): void;
-  /** reload 중 발생한 ConfigError 등을 받는다(폴링은 throw하지 않으므로). */
+  /** Receives ConfigError etc. raised during reload (polling never throws). */
   onError(fn: ConfigErrorListener): () => void;
-  /** 시크릿 조회(api_key 등). load 시 주입된 provider. */
+  /** Secret lookup (api_key etc.). Provider injected at load time. */
   readonly secrets: SecretProvider;
 }
 
 export interface ConfigStoreOptions extends LoadConfigOptions {
-  /** api 키 등 시크릿 조회 — 미지정 시 빈 plainSecretProvider. */
+  /** Secret lookup for api keys etc. — empty plainSecretProvider when unspecified. */
   secrets?: SecretProvider;
 }
 
-/** 두 AppConfig 간 바뀐 section 집합. section = AppConfig의 키라 하드리스트 대신 키를 돈다(drift 방지). */
+/** Set of sections that changed between two AppConfigs. section = AppConfig's keys, so iterate keys instead of a hardcoded list (avoids drift). */
 function diffSections(a: AppConfig, b: AppConfig): Set<ConfigSection> {
   const changed = new Set<ConfigSection>();
   for (const s of Object.keys(b) as ConfigSection[]) {
@@ -76,16 +76,16 @@ export function createConfigStore(opts: ConfigStoreOptions = {}): ConfigStore {
   const listeners = new Set<ConfigListener>();
   const errorListeners = new Set<ConfigErrorListener>();
   let timer: ReturnType<typeof setInterval> | null = null;
-  let polling = false; // 재진입(직전 reload 미완) 방지
+  let polling = false; // guard against re-entry (previous reload not yet done)
 
-  // 핫리로드 재fetch는 매번 캐시를 회피해야 한다(브라우저/webview HTTP 캐시).
+  // Hot-reload re-fetch must bypass the cache every time (browser/webview HTTP cache).
   function bustOpts(): LoadConfigOptions {
-    // app 런타임에서는 Date.now() 허용. reader 주입(테스트)이면 cacheBust는 무시된다.
+    // Date.now() is allowed in the app runtime. With an injected reader (tests), cacheBust is ignored.
     return { ...loadOpts, cacheBust: String(Date.now()) };
   }
 
-  // ⚠ 절대 reject하지 않는다(에러는 onError로 흘리고 false 반환). start()의 폴링 재진입
-  //   가드(polling 플래그 + .finally)가 이 불변에 의존한다.
+  // ⚠ Never rejects (errors flow to onError and false is returned). start()'s polling re-entry
+  //   guard (polling flag + .finally) depends on this invariant.
   async function reload(): Promise<boolean> {
     let next: AppConfig;
     try {

@@ -12,9 +12,9 @@ describe("configs/endpoints.json", () => {
     expect(ep.stt_base_url).toMatch(/^https?:\/\//);
     expect(ep.tts_base_url).toMatch(/^https?:\/\//);
     expect(ep.chat_endpoint).toBe("/v1/responses"); // contract §endpoint default
-    expect(ep.chat_model).toBe("natsume"); // Hermes 모델 ID (config-driven)
-    expect(ep.chat_api).toBe("responses"); // chat 프로토콜 선택 default
-    expect(ep.tts_voice).toBe("ナツメ"); // /v1/audio/voices 등록 레퍼런스 보이스 default
+    expect(ep.chat_model).toBe("natsume"); // Hermes model ID (config-driven)
+    expect(ep.chat_api).toBe("responses"); // chat protocol selection default
+    expect(ep.tts_voice).toBe("ナツメ"); // reference voice registered under /v1/audio/voices, default
   });
 
   it("carries a config-driven chat_instructions nudge mentioning generate_express + the 3 channels", () => {
@@ -27,7 +27,7 @@ describe("configs/endpoints.json", () => {
   });
 
   it("chat/stt/tts are three distinct services", () => {
-    // contract: STT/TTS는 Hermes와 무관한 별도 프로세스.
+    // contract: STT/TTS are separate processes, independent of Hermes.
     expect(new Set([ep.chat_base_url, ep.stt_base_url, ep.tts_base_url]).size).toBe(3);
   });
 
@@ -48,7 +48,7 @@ describe("configs/avatar.json", () => {
   it("points at a dev-served VRM url", () => {
     expect(a.vrm_url).toBeTypeOf("string");
     expect(a.vrm_url).toMatch(/\.vrm$/);
-    expect(a.vrm_url.startsWith("/vrms/")).toBe(true); // vite dev 정적 서빙 경로
+    expect(a.vrm_url.startsWith("/vrms/")).toBe(true); // vite dev static-serving path
   });
 
   it("lists carlotta in the available[] VRM manifest", () => {

@@ -18,8 +18,8 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const stt_base_url = httpUrl("stt_base_url");
   const tts_base_url = httpUrl("tts_base_url");
   const chat_endpoint = raw.chat_endpoint;
-  // "/v1/responses" 형태의 경로만 허용. "//host"(protocol-relative)는 base_url과 합쳐도
-  // 경로로 동작하지 않으므로 거부한다.
+  // Only paths like "/v1/responses" are allowed. "//host" (protocol-relative) does not act as a
+  // path even when combined with base_url, so it is rejected.
   if (
     typeof chat_endpoint !== "string" ||
     !chat_endpoint.startsWith("/") ||
@@ -29,17 +29,17 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
       `chat_endpoint는 "/"로 시작하는 경로여야 함 (받음: ${JSON.stringify(chat_endpoint)})`,
     );
   }
-  // chat_model: optional. 있으면 비어있지 않은 문자열이어야 함(모델 ID는 config 소관).
+  // chat_model: optional. If present, must be a non-empty string (model ID is config's concern).
   const chat_model = raw.chat_model;
   if (chat_model !== undefined && (typeof chat_model !== "string" || chat_model.trim() === "")) {
     issues.push(`chat_model은 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(chat_model)})`);
   }
-  // chat_instructions: optional. 있으면 문자열이어야 함(Responses `instructions` nudge, config 소관).
+  // chat_instructions: optional. If present, must be a string (Responses `instructions` nudge, config's concern).
   const chat_instructions = raw.chat_instructions;
   if (chat_instructions !== undefined && typeof chat_instructions !== "string") {
     issues.push(`chat_instructions는 문자열이어야 함 (받음: ${JSON.stringify(chat_instructions)})`);
   }
-  // chat_api: optional enum. 설정 시 "responses"|"chat_completions"만 허용, 미설정 시 생략(상위 default).
+  // chat_api: optional enum. When set, only "responses"|"chat_completions" allowed; omitted when unset (upstream default).
   const rawChatApi = raw.chat_api;
   if (rawChatApi !== undefined && rawChatApi !== "responses" && rawChatApi !== "chat_completions") {
     issues.push(
@@ -48,7 +48,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   }
   const chat_api: EndpointsConfig["chat_api"] =
     rawChatApi === "responses" || rawChatApi === "chat_completions" ? rawChatApi : undefined;
-  // tts_model / tts_voice: optional. 미설정 시 TTS 서비스 기본값.
+  // tts_model / tts_voice: optional. TTS service default when unset.
   const optStr = (k: "tts_model" | "tts_voice"): string | undefined => {
     const v = raw[k];
     if (v !== undefined && (typeof v !== "string" || v.trim() === "")) {
@@ -69,7 +69,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   }
 
   // ── irodori_TTS provider (additive) ──────────────────────────────────────────
-  // tts_provider: optional enum. 미설정 시 irodori로 resolve(출력엔 resolved 값을 박는다).
+  // tts_provider: optional enum. Resolves to irodori when unset (the resolved value is written to the output).
   const rawProvider = raw.tts_provider;
   if (rawProvider !== undefined && rawProvider !== "openai" && rawProvider !== "irodori") {
     issues.push(
@@ -79,7 +79,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const tts_provider: EndpointsConfig["tts_provider"] =
     rawProvider === "openai" ? "openai" : "irodori";
 
-  // provider=irodori면 base_url(http url) + speaker(non-empty)는 필수 — bare config fail-loud.
+  // When provider=irodori, base_url (http url) + speaker (non-empty) are required — bare config fail-loud.
   let irodori_base_url: string | undefined;
   if (raw.irodori_base_url !== undefined || tts_provider === "irodori") {
     irodori_base_url = httpUrl("irodori_base_url");
@@ -93,7 +93,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     }
   }
 
-  // irodori_voices: optional. 배열이며 각 항목은 {id, ref_url("/" 시작), label?}.
+  // irodori_voices: optional. An array where each entry is {id, ref_url (starts with "/"), label?}.
   type IrodoriVoice = NonNullable<EndpointsConfig["irodori_voices"]>[number];
   let irodori_voices: IrodoriVoice[] | undefined;
   const rawVoices = raw.irodori_voices;
@@ -131,7 +131,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     }
   }
 
-  // irodori_num_steps: optional, 정수 ≥ 1.
+  // irodori_num_steps: optional, integer ≥ 1.
   const irodori_num_steps = raw.irodori_num_steps;
   if (
     irodori_num_steps !== undefined &&
@@ -143,7 +143,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
       `irodori_num_steps는 1 이상 정수여야 함 (받음: ${JSON.stringify(irodori_num_steps)})`,
     );
   }
-  // irodori_cfg_scale_text / _speaker / seconds: optional, 유한 number > 0.
+  // irodori_cfg_scale_text / _speaker / seconds: optional, finite number > 0.
   const posNum = (
     k: "irodori_cfg_scale_text" | "irodori_cfg_scale_speaker" | "irodori_seconds",
   ): void => {
@@ -155,12 +155,12 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   posNum("irodori_cfg_scale_text");
   posNum("irodori_cfg_scale_speaker");
   posNum("irodori_seconds");
-  // broker_base_url: optional. 있으면 http(s) URL이어야 함(Expression Broker MCP endpoint).
+  // broker_base_url: optional. If present, must be an http(s) URL (Expression Broker MCP endpoint).
   let broker_base_url: string | undefined;
   if (raw.broker_base_url !== undefined) {
     broker_base_url = httpUrl("broker_base_url");
   }
-  // tts_max_inflight: optional, 정수 ≥ 1.
+  // tts_max_inflight: optional, integer ≥ 1.
   const tts_max_inflight = raw.tts_max_inflight;
   if (
     tts_max_inflight !== undefined &&
@@ -174,7 +174,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   }
 
   // ── context window ───────────────────────────────────────────────────────────
-  // chat_model_context_window: optional, 유한 number > 0. 미설정 시 undefined.
+  // chat_model_context_window: optional, finite number > 0. undefined when unset.
   const chat_model_context_window = raw.chat_model_context_window;
   if (
     chat_model_context_window !== undefined &&

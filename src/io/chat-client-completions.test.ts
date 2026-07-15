@@ -1,14 +1,14 @@
 /**
  * chat-client-completions.test.ts — streamChat's Chat Completions branch.
  *
- * 검증 대상: config.chat_api === "chat_completions" 일 때 streamChat이
+ * Verifies that when config.chat_api === "chat_completions", streamChat calls
  *   client.chat.completions.create({ stream: true, stream_options: { include_usage: true } })
- * 를 정확히 한 번 호출하고(tools 없음, 왕복 없음), `chat.completion.chunk` 스트림을
- * chat-completions.ts의 createChunkReducer를 통해 ChatStreamEvent로 매핑하는지. generate_express는
- * 서버(backend agent)가 emit하는 ONE-WAY cue — client는 tool을 선언하지 않고, 파싱만 하며,
- * 결과를 되돌려보내지 않는다.
+ * exactly once (no tools, no round trip) and maps the `chat.completion.chunk` stream to
+ * ChatStreamEvent via chat-completions.ts's createChunkReducer. generate_express is a
+ * ONE-WAY cue emitted by the server (backend agent) — the client declares no tool, only parses,
+ * and never sends the result back.
  *
- * D-CHAT-SDK와 동일 원칙: fetch/SSE를 mock하지 않는다. `openai` 모듈을 mock한다.
+ * Same principle as D-CHAT-SDK: do not mock fetch/SSE. Mock the `openai` module.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";

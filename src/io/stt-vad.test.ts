@@ -523,7 +523,7 @@ describe("createSttVad — no stt_base_url (silently disabled)", () => {
 
     const stt = createSttVad({ config: configNoStt, onVoiceSegment: vi.fn() });
     await expect(stt.start()).resolves.toBeUndefined();
-    // VAD는 시작되지 않아야 한다.
+    // VAD should not start.
     expect(MicVAD.new).not.toHaveBeenCalled();
   });
 

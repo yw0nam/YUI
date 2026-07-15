@@ -1,12 +1,12 @@
 /**
  * tts-pipeline.test.ts — orchestration: segment → synth (concurrent) → ordered playback.
  *
- * 핵심 보장:
- *  - synth는 동시 실행, 응답이 뒤바뀌어 와도 playback은 submission index 순서로만.
- *  - emotion_text는 문장 emit 시점에 snapshot되어 prefix로 prepend (verbatim free text, 발명 금지).
- *  - synth 에러는 큐를 deadlock시키지 않고 해당 index를 skip.
+ * Core guarantees:
+ *  - synths run concurrently, but playback stays strictly in submission-index order even when responses arrive out of order.
+ *  - emotion_text is snapshotted at sentence-emit time and prepended as a prefix (verbatim free text, never invented).
+ *  - a synth error skips that index without deadlocking the queue.
  *
- * fake synth(제어 가능한 promise) + fake AudioSink(재생 순서 기록)로 검증 — 실제 오디오/네트워크 없음.
+ * Verified with a fake synth (controllable promise) + fake AudioSink (records playback order) — no real audio/network.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -22,14 +22,14 @@ const CONFIG: EndpointsConfig = {
   tts_base_url: "http://localhost:8092",
 };
 
-/** index를 식별 가능한 1바이트 ArrayBuffer. */
+/** A 1-byte ArrayBuffer identifiable by its index. */
 function bufFor(n: number): ArrayBuffer {
   const b = new Uint8Array([n]);
   return b.buffer;
 }
 const bufId = (buf: ArrayBuffer): number => new Uint8Array(buf)[0];
 
-/** 호출 시점에 resolve/reject를 제어할 수 있는 fake synth. */
+/** A fake synth whose resolve/reject can be controlled at call time. */
 function deferredSynth() {
   const resolvers: Array<{
     resolve: (b: ArrayBuffer) => void;
@@ -65,7 +65,7 @@ function deferredSynth() {
   return { synth, resolvers, inputs, signals, peakConcurrency: () => maxConcurrent };
 }
 
-/** 재생 순서를 기록하는 fake sink. play는 외부에서 finish할 때까지 pending. */
+/** A fake sink that records playback order. play stays pending until finished externally. */
 function recordingSink() {
   const playedOrder: number[] = [];
   let finishCurrent: (() => void) | null = null;
@@ -98,16 +98,16 @@ describe("createTtsPipeline — ordered playback", () => {
     await tick();
     expect(resolvers).toHaveLength(3);
 
-    // 역순으로 resolve: 2, then 1, then 0.
+    // Resolve in reverse order: 2, then 1, then 0.
     resolvers[2].resolve(bufFor(2));
     resolvers[1].resolve(bufFor(1));
     await tick();
-    // index 0이 아직 안 왔으므로 아무것도 재생되면 안 된다.
+    // index 0 hasn't arrived yet, so nothing should play.
     expect(playedOrder).toEqual([]);
 
     resolvers[0].resolve(bufFor(0));
     await tick();
-    expect(playedOrder).toEqual([0]); // 0 재생 중, 끝나길 대기
+    expect(playedOrder).toEqual([0]); // 0 is playing, waiting for it to finish
     finish();
     await tick();
     finish();
@@ -373,7 +373,7 @@ describe("createTtsPipeline — error resilience", () => {
     resolvers[1].resolve(bufFor(1));
     resolvers[2].resolve(bufFor(2));
     await tick();
-    // index 0 실패 → skip, 1부터 재생.
+    // index 0 failed → skip, play from 1.
     expect(playedOrder).toEqual([1]);
     finish();
     await tick();
@@ -650,7 +650,7 @@ describe("createTtsPipeline — dispose()", () => {
     expect(stopMock).toHaveBeenCalled();
     expect(signals[0]?.aborted).toBe(true);
 
-    // dispose 이후 늦게 도착한 synth 결과는 재생되지 않는다.
+    // synth results arriving late after dispose are not played.
     resolvers[0].resolve(bufFor(0));
     resolvers[1].resolve(bufFor(1));
     await tick();
@@ -855,13 +855,13 @@ describe("createTtsPipeline — observability logging seam", () => {
   });
 });
 
-// ── #tts-skip: synth가 TTS_SKIP sentinel로 reject하면 error 로그 없이 clean skip ──
+// ── #tts-skip: when synth rejects with the TTS_SKIP sentinel, it's a clean skip with no error log ──
 
 import { TTS_SKIP } from "./tts-pipeline";
 
 describe("createTtsPipeline — TTS_SKIP sentinel (silent skip)", () => {
   it("a synth that rejects with TTS_SKIP fires onCuePlay, fires onPlaybackEnd, does NOT call logger.error", async () => {
-    // skip synth: 항상 TTS_SKIP으로 reject한다.
+    // skip synth: always rejects with TTS_SKIP.
     const skipSynth = (_input: string, _signal?: AbortSignal): Promise<ArrayBuffer> =>
       Promise.reject(TTS_SKIP);
 
@@ -884,14 +884,14 @@ describe("createTtsPipeline — TTS_SKIP sentinel (silent skip)", () => {
     pipe.end();
     await tick();
 
-    // cue는 fire된다(skip-path는 onCuePlay를 실행해야 한다).
+    // the cue still fires (the skip path must run onCuePlay).
     expect(cuePlays).toHaveLength(1);
     expect(cuePlays[0]).toMatchObject({ emotion_id: "happy" });
 
-    // 완료 신호도 fire된다.
+    // the completion signal fires too.
     expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
 
-    // error 로그는 없다 — TTS_SKIP은 조용한 skip이다.
+    // no error log — TTS_SKIP is a silent skip.
     expect(logger.error).not.toHaveBeenCalledWith("synth", expect.anything());
   });
 
@@ -899,7 +899,7 @@ describe("createTtsPipeline — TTS_SKIP sentinel (silent skip)", () => {
     let callCount = 0;
     const mixedSynth = (_input: string, _signal?: AbortSignal): Promise<ArrayBuffer> => {
       callCount++;
-      // 첫 번째 호출은 skip, 두 번째는 real.
+      // first call skips, second is real.
       if (callCount === 1) return Promise.reject(TTS_SKIP);
       return Promise.resolve(bufFor(1));
     };
@@ -921,7 +921,7 @@ describe("createTtsPipeline — TTS_SKIP sentinel (silent skip)", () => {
     pipe.end();
     await tick();
 
-    // 인덱스 0(skip)은 재생 없음 → 인덱스 1만 재생된다.
+    // index 0 (skip) doesn't play → only index 1 plays.
     expect(playedOrder).toEqual([1]);
     finish();
     await tick();

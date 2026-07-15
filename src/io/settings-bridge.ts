@@ -1,15 +1,15 @@
 /**
- * 창 간 설정 브리지 — 팝아웃 설정 창 ↔ 메인 창을 잇는 타입드 버스.
+ * Cross-window settings bridge — a typed bus linking the pop-out settings window ↔ main window.
  *
- * localStorage `storage` 이벤트는 Tauri webview 창 사이에서 안정적으로 전파되지 않는다.
- * Tauri v2 `emit(name, payload)`는 모든 창으로 브로드캐스트하고 `listen`이 받는다 —
- * 그 위에 4개 채널(설정 변경 · 입 프리뷰 · 음성 토글 · 음성 상태)을 얹는다.
+ * The localStorage `storage` event does not propagate reliably between Tauri webview windows.
+ * Tauri v2 `emit(name, payload)` broadcasts to all windows and `listen` receives it —
+ * on top of that we layer 4 channels (settings change · mouth preview · voice toggle · voice status).
  *
- * transport는 주입 가능(단위 테스트용)하며, 생략 시 런타임을 감지해 고른다:
- *   Tauri → @tauri-apps/api/event (Tauri 분기 안에서만 dynamic import)
- *   BroadcastChannel → dev 브라우저 멀티탭
- *   둘 다 없으면 no-op.
- * 모든 transport 호출은 try/catch로 감싸 절대 throw하지 않는다.
+ * The transport is injectable (for unit tests); when omitted it detects the runtime and picks one:
+ *   Tauri → @tauri-apps/api/event (dynamic import only inside the Tauri branch)
+ *   BroadcastChannel → dev browser multi-tab
+ *   neither → no-op.
+ * All transport calls are wrapped in try/catch and never throw.
  */
 
 import { createLogger } from "../logger";
@@ -45,7 +45,7 @@ export interface SettingsBridge {
   dispose(): void;
 }
 
-/** Tauri transport. listen은 Promise<UnlistenFn>이므로 동기 disposer로 감싼다. */
+/** Tauri transport. listen returns Promise<UnlistenFn>, so wrap it in a synchronous disposer. */
 function createTauriTransport(): BridgeTransport {
   const eventMod = import("@tauri-apps/api/event");
   return {
@@ -76,7 +76,7 @@ function createTauriTransport(): BridgeTransport {
   };
 }
 
-/** dev 브라우저 멀티탭용 transport. */
+/** Transport for dev browser multi-tab. */
 function createBroadcastTransport(): BridgeTransport {
   const channel = new BroadcastChannel("yui-settings");
   const routes = new Map<string, Set<(p: unknown) => void>>();
@@ -120,7 +120,7 @@ function selectTransport(): BridgeTransport {
   return noopTransport;
 }
 
-/** envelope: 보낸 창을 식별해 자기 자신이 쏜 이벤트를 무시한다(Tauri global emit 자기 전달 방지). */
+/** envelope: identifies the sending window so it can ignore its own events (prevents Tauri global emit self-delivery). */
 interface BridgeEnvelope {
   __src: string;
   payload: unknown;
@@ -148,7 +148,7 @@ export function createSettingsBridge(transport?: BridgeTransport): SettingsBridg
     let off = (): void => {};
     try {
       off = t.listen(name, (raw) => {
-        // 정상 envelope: 자기 자신이 쏜 것이면 무시. 손상/구형이면 방어적으로 그대로 전달.
+        // Valid envelope: ignore if it's our own. If corrupt/legacy, defensively pass it through as-is.
         const env = raw as Partial<BridgeEnvelope> | undefined;
         if (env && typeof env.__src === "string") {
           if (env.__src === srcId) return;

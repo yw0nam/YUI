@@ -1,21 +1,21 @@
 /**
- * Tier 1 ambient engine — blink / idle sway / breath / look-around 등 로컬 생동감.
+ * Tier 1 ambient engine — local liveliness such as blink / idle sway / breath / look-around.
  *
- * 항상 켜짐, **backend 독립**(네트워크 X). renderer.onTick(rAF) 훅으로 매 프레임
- * bone(head/spine/chest) 회전 + blink expression을 vrm.update 직전에 쓴다.
- * 이 채널들(head/spine/chest 회전, blink)을 ambient가 "소유"한다 — 매 프레임
- * 절대값으로 덮어쓴다. backend motion 재생 중에는 renderer가 weight 합성 책임을 진다
- * (motion 재생 중 idle_sway weight 0.3→0.1).
+ * Always on, **backend-independent** (no network). Via the renderer.onTick(rAF) hook, every frame
+ * it writes bone (head/spine/chest) rotations + the blink expression just before vrm.update.
+ * Ambient "owns" these channels (head/spine/chest rotation, blink) — it overwrites them with
+ * absolute values every frame. While backend motion plays, the renderer takes over weight blending
+ * (idle_sway weight 0.3→0.1 during motion playback).
  *
- * Cue 표:
- *  - blink         : 3~6s 랜덤, 150ms 펄스
- *  - idle_sway     : 항상, head/spine 다주파 sine
- *  - breath        : 4s 주기, chest/spine sine
- *  - look_around   : 30~120s 무작위, head 시선 target shift (damped)
- *  - tap_react     : user.tap 시 1회 head bob(끄덕임) ~220ms
- *  - idle_returned : idle.returned 1회, 살짝 위 시선 ~900ms
+ * Cue table:
+ *  - blink         : random 3~6s, 150ms pulse
+ *  - idle_sway     : always, head/spine multi-frequency sine
+ *  - breath        : 4s period, chest/spine sine
+ *  - look_around   : random 30~120s, head gaze target shift (damped)
+ *  - tap_react     : one head bob (nod) ~220ms on user.tap
+ *  - idle_returned : one idle.returned, slight upward gaze ~900ms
  *
- * 순수 cue 수학은 ./cues.ts. 여기선 타이머·상태·VRM 쓰기만.
+ * Pure cue math lives in ./cues.ts. Here we only handle timers, state, and VRM writes.
  */
 
 import type { VRM } from "@pixiv/three-vrm";
@@ -32,38 +32,38 @@ export type AmbientCue =
   | "idle_returned";
 
 export interface Tier1Engine {
-  /** renderer.onTick 훅 등록 + 주기 cue 시작. */
+  /** Register the renderer.onTick hook + start periodic cues. */
   start(): void;
-  /** 일회성 cue 트리거 (tap_react / idle_returned 등 dispatcher tier1 라우팅). */
+  /** Trigger a one-shot cue (tap_react / idle_returned, etc. routed from dispatcher tier1). */
   trigger(cue: AmbientCue): void;
-  /** 훅 해제 + 정지. */
+  /** Unregister the hook + stop. */
   stop(): void;
 }
 
-// ── 진폭(라디안) — 전부 미묘하게. "살아있다"는 느낌이지 "춤"이 아니다. ──
+// ── Amplitude (radians) — all subtle. It should feel "alive", not like "dancing". ──
 const SWAY = {
   headYaw: 0.05,
   headPitch: 0.035,
   headRoll: 0.03,
   spinePitch: 0.02,
 } as const;
-const BREATH_AMP = 0.022; // 흉부 sine
-const LOOK_LAMBDA = 1.8; // look target 댐핑 속도
-const TAP_BOB_AMP = 0.13; // tap 끄덕임(아래로, pitch+)
-const IDLE_RETURN_AMP = -0.09; // idle 복귀 시 살짝 위(pitch-)
+const BREATH_AMP = 0.022; // chest sine
+const LOOK_LAMBDA = 1.8; // look target damping speed
+const TAP_BOB_AMP = 0.13; // tap nod (downward, pitch+)
+const IDLE_RETURN_AMP = -0.09; // slight upward on idle return (pitch-)
 
-/** VRM별로 1회 해석하는 능력(존재하는 bone/expression). 핫스왑 대비 재해석. */
+/** Capabilities resolved once per VRM (which bones/expressions exist). Re-resolved on hot-swap. */
 interface Caps {
   head: Object3D | null;
   spine: Object3D | null;
   chest: Object3D | null;
-  /** 사용할 blink expression 이름들 ('blink' 단일 또는 blinkLeft/Right). */
+  /** Blink expression names to use (single 'blink', or blinkLeft/Right). */
   blinkNames: string[];
 }
 
 interface OneShot {
   kind: "tap" | "idle_returned";
-  /** tick 안에서 확정. -1 = 아직 미시작(다음 tick의 tMs로 확정). */
+  /** Fixed within a tick. -1 = not yet started (fixed to the next tick's tMs). */
   startMs: number;
 }
 
@@ -81,25 +81,25 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
   let unsub: (() => void) | null = null;
   let started = false;
 
-  // VRM-별 캐시
+  // Per-VRM cache
   let capsVrm: VRM | null = null;
   let caps: Caps | null = null;
 
-  // blink 상태 (ms 기준, ctx.elapsed*1000)
+  // blink state (in ms, ctx.elapsed*1000)
   let nextBlinkAtMs = cues.nextBlinkDelay();
   let blinkStartMs: number | null = null;
 
-  // look_around 상태
+  // look_around state
   let nextLookAtMs = cues.nextLookDelay();
   let lookTargetYaw = 0;
   let lookTargetPitch = 0;
   let lookYaw = 0;
   let lookPitch = 0;
 
-  // 일회성 cue
+  // one-shot cues
   const oneShots: OneShot[] = [];
 
-  // reduced-motion (라이브 반영)
+  // reduced-motion (reflected live)
   let reduce = prefersReducedMotion();
   let mql: MediaQueryList | null = null;
   const onReduceChange = (e: MediaQueryListEvent): void => {
@@ -109,7 +109,7 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
   function resolveCaps(vrm: VRM): Caps {
     const h = vrm.humanoid;
     const head = h?.getNormalizedBoneNode("head") ?? null;
-    // chest가 없는 모델이 있어 upperChest→chest 순으로 폴백.
+    // Some models lack chest, so fall back upperChest→chest.
     const chest =
       h?.getNormalizedBoneNode("upperChest") ?? h?.getNormalizedBoneNode("chest") ?? null;
     const spine = h?.getNormalizedBoneNode("spine") ?? null;
@@ -133,14 +133,14 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
     const { vrm, dt, elapsed } = ctx;
     const tMs = elapsed * 1000;
 
-    // 핫스왑 대응: vrm 바뀌면 능력 재해석.
+    // Hot-swap handling: re-resolve capabilities when vrm changes.
     if (vrm !== capsVrm) {
       capsVrm = vrm;
       caps = resolveCaps(vrm);
     }
     const c = caps!;
 
-    // ── blink (reduced-motion에서도 유지 — 깜빡임은 전정 자극이 아님) ──
+    // ── blink (kept even under reduced-motion — blinking is not vestibular stimulation) ──
     if (blinkStartMs === null && tMs >= nextBlinkAtMs) {
       blinkStartMs = tMs;
     }
@@ -159,7 +159,7 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
       }
     }
 
-    // reduced-motion: blink만 두고 자세는 rest로 고정.
+    // reduced-motion: keep only blink and pin the pose to rest.
     if (reduce) {
       if (c.head) c.head.rotation.set(0, 0, 0);
       if (c.spine) c.spine.rotation.x = 0;
@@ -173,7 +173,7 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
     // ── breath ──
     const breath = cues.breathOffset(elapsed) * BREATH_AMP;
 
-    // ── look_around ── (주기 도달 시 새 target, 매 프레임 damp)
+    // ── look_around ── (new target when the period is reached, damped every frame)
     if (tMs >= nextLookAtMs) {
       const t = cues.nextLookTarget();
       lookTargetYaw = t.yaw;
@@ -183,11 +183,11 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
     lookYaw = cues.damp(lookYaw, lookTargetYaw, LOOK_LAMBDA, dt);
     lookPitch = cues.damp(lookPitch, lookTargetPitch, LOOK_LAMBDA, dt);
 
-    // ── 일회성(one-shot) cue 합성 + 만료 제거 ──
+    // ── Compose one-shot cues + drop expired ones ──
     let bobPitch = 0;
     for (let i = oneShots.length - 1; i >= 0; i--) {
       const os = oneShots[i];
-      if (os.startMs < 0) os.startMs = tMs; // 첫 tick에서 시작 시각 확정
+      if (os.startMs < 0) os.startMs = tMs; // fix the start time on the first tick
       const e = tMs - os.startMs;
       if (os.kind === "tap") {
         bobPitch += TAP_BOB_AMP * cues.bobEnvelope(e, cues.TAP_BOB_MS);
@@ -198,7 +198,7 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
       }
     }
 
-    // ── 합성 후 절대값 쓰기 (이 채널은 ambient 소유) ──
+    // ── After composing, write absolute values (ambient owns these channels) ──
     if (c.head) {
       c.head.rotation.set(
         sway.headPitch * SWAY.headPitch + lookPitch + bobPitch, // x = pitch
@@ -206,7 +206,7 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
         sway.headRoll * SWAY.headRoll, // z = roll
       );
     }
-    // breath/sway를 spine·chest에 분배 (chest가 더 크게 숨쉬도록).
+    // Distribute breath/sway across spine and chest (chest breathes more).
     if (c.spine) c.spine.rotation.x = sway.spinePitch * SWAY.spinePitch + breath * 0.4;
     if (c.chest) c.chest.rotation.x = breath * 0.6;
   }
@@ -222,15 +222,15 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
           mql.addEventListener("change", onReduceChange);
         }
       } catch {
-        /* matchMedia 없음(테스트 등) — 무시 */
+        /* matchMedia unavailable (tests, etc.) — ignore */
       }
       unsub = renderer.onTick(tick);
     },
     trigger(cue) {
-      // 일회성만 큐잉 (주기 cue는 자동). startMs는 다음 tick에서 확정(-1 sentinel).
+      // Queue one-shots only (periodic cues are automatic). startMs is fixed on the next tick (-1 sentinel).
       if (cue === "tap_react") oneShots.push({ kind: "tap", startMs: -1 });
       else if (cue === "idle_returned") oneShots.push({ kind: "idle_returned", startMs: -1 });
-      // blink/idle_sway/breath/look_around 는 주기 엔진이 담당 — no-op.
+      // blink/idle_sway/breath/look_around are handled by the periodic engine — no-op.
     },
     stop() {
       started = false;

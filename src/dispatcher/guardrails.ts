@@ -1,18 +1,18 @@
 /**
  * Guardrails — DND / debounce / rate-limit.
  *
- * 평가 순서: DND → debounce → rate-limit. dispatcher wiring 순서는
- * supersede → classify(tier) → evaluate(env, tier) → route. dnd_override는 evaluate
- * 최상단에서 short-circuit — user-initiated 턴은 모든 게이트를 우회하며 어떤 카운터도 증가시키지 않는다.
+ * Evaluation order: DND → debounce → rate-limit. Dispatcher wiring order is
+ * supersede → classify(tier) → evaluate(env, tier) → route. dnd_override short-circuits
+ * at top of evaluate — user-initiated turns bypass all gates and don't increment any counter.
  *
- *  - DND: Fullscreen / Camera / Active-app blocklist / Manual 4 trigger 중 하나라도 ON이면 DND_ON.
- *               note()는 envelope → setDnd 호출로 옮기는 thin translator(상태는 setDnd가 소유).
- *  - Debounce: per source window. now() − lastFire[source] < window면 drop.
- *  - Rate-limit: per tier rolling window. 슬롯은 발사(=pass) 시 소비, 환불 없음.
- *               전체 overall_max 초과 시 cooldownUntil 설정(진입/종료 전이는 dispatcher가 소유).
+ *  - DND: If any of 4 triggers (Fullscreen / Camera / Active-app blocklist / Manual) is ON, DND_ON.
+ *         note() is thin translator moving envelope → setDnd call (state owned by setDnd).
+ *  - Debounce: per source window. If now() − lastFire[source] < window, drop.
+ *  - Rate-limit: per tier rolling window. Slots consumed on fire (=pass), no refund.
+ *               If overall_max exceeded, set cooldownUntil (entry/exit transition owned by dispatcher).
  *
- * 평가 함수는 순수(verdict만 반환) — dispatcher state를 mutate하지 않고 dispatcher 참조도 없다.
- * 시간은 주입한 now()로만 읽는다(bare Date.now() 금지).
+ * Evaluation functions are pure (return verdict only) — don't mutate dispatcher state, no dispatcher reference.
+ * Time read only via injected now() (bare Date.now() forbidden).
  */
 
 import type { GuardrailsConfig } from "../config/load";
@@ -34,31 +34,31 @@ export type DropReason =
   | "http_4xx_drop"
   | "superseded_by_user";
 
-/** 가드레일 통과/탈락 판정 결과. */
+/** Guardrail pass/drop judgment result. */
 export type GuardResult = { pass: true } | { pass: false; reason: DropReason; detail: string };
 
 export interface Guardrails {
   dndState(): DndState;
-  /** DND trigger 토글 (os.fullscreen_* / os.active_app_changed / user.dnd_toggle 등). */
+  /** DND trigger toggle (os.fullscreen_* / os.active_app_changed / user.dnd_toggle, etc.). */
   setDnd(reason: DndReason, on: boolean): void;
-  /** envelope → 최대 1회 setDnd 호출로 옮기는 thin translator(DND 상태 갱신). */
+  /** Thin translator moving envelope → at most one setDnd call (update DND state). */
   note(env: BusEnvelope): void;
-  /** 순서대로 한 event를 평가. pass=false면 drop. pass 시에만 debounce/rate state mutate. */
+  /** Evaluate one event in order. If pass=false, drop. Mutate debounce/rate state only if pass. */
   evaluate(env: BusEnvelope, tier: 1 | 2 | 3): GuardResult;
-  /** overall-cap 초과로 진입한 cooldown이 아직 유효한지(now < cooldownUntil). */
+  /** Whether cooldown entered by overall-cap exceeding is still valid (now < cooldownUntil). */
   cooldownActive(): boolean;
-  /** 핫리로드: config 수치만 교체(런타임 DND/카운터 상태는 보존). */
+  /** Hot reload: replace only config values (preserve runtime DND/counter state). */
   setConfig(next: GuardrailsConfig): void;
 }
 
 type Source = BusEnvelope["source"];
 
 export interface CreateGuardrailsOptions {
-  /** 시간 주입. default () => Date.now(). 모든 윈도우/쿨다운이 이 함수만 읽는다. */
+  /** Time injection. default () => Date.now(). All windows/cooldowns read only this function. */
   now?: () => number;
 }
 
-/** payload[key]가 non-empty string이면 반환, 아니면 undefined. */
+/** Return if payload[key] is non-empty string, else undefined. */
 function strField(env: BusEnvelope, key: string): string | undefined {
   const v = env.payload?.[key];
   return typeof v === "string" && v.length > 0 ? v : undefined;
@@ -69,16 +69,16 @@ export function createGuardrails(
   opts: CreateGuardrailsOptions = {},
 ): Guardrails {
   const now = opts.now ?? (() => Date.now());
-  // 핫리로드로 교체 가능 — 런타임 상태(DND reasons / 카운터 / cooldown)는 보존한다.
+  // Replaceable by hot reload — preserve runtime state (DND reasons / counters / cooldown).
   let config = initialConfig;
 
-  // DND 상태의 단일 소스 — setDnd만 변경한다.
+  // Single source of DND state — only setDnd changes it.
   const dndReasons = new Set<DndReason>();
 
-  // debounce: source별 마지막 통과 시각.
+  // debounce: last pass time per source.
   const lastFire = new Map<Source, number>();
 
-  // rate-limit: tier별 + 전체 rolling 윈도우(통과 시각 epoch ms).
+  // rate-limit: per tier + overall rolling window (pass times epoch ms).
   const tier2Window: number[] = [];
   const tier3Window: number[] = [];
   const overallWindow: number[] = [];
@@ -118,35 +118,35 @@ export function createGuardrails(
     }
   }
 
-  /** rolling 윈도우에서 now() − window_ms 이전 항목을 앞에서 제거. */
+  /** Remove items from rolling window that are before now() − window_ms. */
   function prune(window: number[]): void {
     const cutoff = now() - config.rate_limit.window_ms;
     while (window.length > 0 && window[0] <= cutoff) window.shift();
   }
 
   function evaluate(env: BusEnvelope, tier: 1 | 2 | 3): GuardResult {
-    // 1) dnd_override: 최상단 short-circuit. 어떤 카운터/디바운스도 증가시키지 않는다.
+    // 1) dnd_override: top-level short-circuit. Don't increment any counter/debounce.
     if (env.dnd_override === true) return { pass: true };
 
-    // 2) DND: 하나라도 on이면 drop.
+    // 2) DND: if any is on, drop.
     const reasons = activeReasons();
     if (reasons.length > 0) {
       return { pass: false, reason: "guardrail_drop", detail: `dnd:${reasons.join(",")}` };
     }
 
-    // 3) cooldown: 진입한 cooldown이 유효하면 drop.
+    // 3) cooldown: if entered cooldown is still valid, drop.
     if (now() < cooldownUntil) {
       return { pass: false, reason: "guardrail_drop", detail: "cooldown" };
     }
 
-    // 4) debounce: source별 윈도우. timer_scheduler는 N/A(자체 1회) → window 0(디바운스 없음).
+    // 4) debounce: per source window. timer_scheduler is N/A (own 1x) → window 0 (no debounce).
     const window = (config.debounce_ms as Record<Source, number>)[env.source] ?? 0;
     const last = lastFire.get(env.source);
     if (window > 0 && last !== undefined && now() - last < window) {
       return { pass: false, reason: "guardrail_drop", detail: `debounce:${env.source}` };
     }
 
-    // 5) rate-limit: tier 윈도우 prune 후 cap, 그 다음 overall cap.
+    // 5) rate-limit: prune tier window then cap, then overall cap.
     prune(tier2Window);
     prune(tier3Window);
     prune(overallWindow);
@@ -161,7 +161,7 @@ export function createGuardrails(
       return { pass: false, reason: "guardrail_drop", detail: "cooldown_entered" };
     }
 
-    // 6) pass: 발사 시점에 슬롯 소비(환불 없음).
+    // 6) pass: consume slot at fire time (no refund).
     lastFire.set(env.source, now());
     if (tier === 2) tier2Window.push(now());
     if (tier === 3) tier3Window.push(now());

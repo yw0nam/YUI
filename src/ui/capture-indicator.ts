@@ -1,6 +1,6 @@
 /**
- * Capture indicator — R7 항상-ON 프라이버시 tell.
- * 스크린샷이 enabled일 때 상단에 상주하며 클릭 시 빠른 설정을 연다.
+ * Capture indicator — R7 always-ON privacy tell.
+ * Sits at the top while screenshots are enabled; clicking it opens quick settings.
  */
 
 import "./capture-indicator.css";
@@ -43,7 +43,7 @@ export function createCaptureIndicator({
 
   mount.appendChild(el);
 
-  // 기본은 접근성 트리에서 빠진 상태 — 캡처가 켜질 때 show()가 되돌린다.
+  // Absent from the a11y tree by default — show() restores it when capture turns on.
   el.hidden = true;
 
   let visible = false;
@@ -51,7 +51,7 @@ export function createCaptureIndicator({
   function show(): void {
     if (visible) return;
     visible = true;
-    // 전이 시작 전에 접근성 트리로 되돌린다 — is-visible보다 먼저.
+    // Restore it to the a11y tree before the transition starts — ahead of is-visible.
     el.hidden = false;
     requestAnimationFrame(() => el.classList.add("is-visible"));
   }
@@ -60,14 +60,14 @@ export function createCaptureIndicator({
     if (!visible) return;
     visible = false;
     el.classList.remove("is-visible");
-    // 페이드 아웃이 끝난 뒤에 접근성 트리에서 제거한다 — hidden=true가 전이를 죽이지 않게.
-    // 그 사이 다시 show()되면(visible) 취소한다. popover close와 같은 패턴.
+    // Remove it from the a11y tree only after the fade-out ends — so hidden=true doesn't kill the transition.
+    // Cancel if show() runs again (visible) in the meantime. Same pattern as popover close.
     const settle = (): void => {
       if (!visible) el.hidden = true;
     };
-    // 전이가 안 뜨는 환경 폴백. rAF(다음 프레임 ~16ms)는 페이드(--yui-dur 200ms /
-    // -fast 140ms)보다 짧아 전이를 잘라먹으므로, 상한을 넘는 타이머여야 한다.
-    const fb = setTimeout(settle, 400); // ponytail: --yui-dur/-fast 상한 넘는 안전망
+    // Fallback for environments where the transition never fires. A rAF (next frame ~16ms) is
+    // shorter than the fade (--yui-dur 200ms / -fast 140ms) and would cut it off, so the timer must exceed that ceiling.
+    const fb = setTimeout(settle, 400); // ponytail: safety net exceeding the --yui-dur/-fast ceiling
     const onEnd = (e: TransitionEvent): void => {
       if (e.propertyName !== "opacity") return;
       clearTimeout(fb);
@@ -77,7 +77,7 @@ export function createCaptureIndicator({
     el.addEventListener("transitionend", onEnd);
   }
 
-  // settings 반영 (초기 + 구독)
+  // Reflect settings (initial + subscription)
   function reflect(enabled: boolean): void {
     if (enabled) show();
     else hide();

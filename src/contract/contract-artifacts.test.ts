@@ -2,10 +2,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// vitest는 프로젝트 루트에서 실행되므로 cwd 기준으로 아티팩트를 읽는다.
+// vitest runs from the project root, so artifacts are read relative to cwd.
 const read = (rel: string): any => JSON.parse(readFileSync(resolve(process.cwd(), rel), "utf-8"));
 
-// canonical emotion vocabulary — 이 테스트가 단일 기준점이다.
+// canonical emotion vocabulary — this test is the single source of truth.
 const EMOTION_IDS = [
   "neutral",
   "happy",

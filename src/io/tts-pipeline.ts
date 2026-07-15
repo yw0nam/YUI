@@ -1,6 +1,6 @@
 /**
- * 발화 텍스트를 문장 분절 → per-sentence TTS → submission index 순서로 재생한다.
- * synth는 동시 실행되고 응답 순서가 뒤바뀌어도 제출 순서대로만 재생된다.
+ * Segments speech text into sentences → per-sentence TTS → plays in submission-index order.
+ * synths run concurrently, but playback stays in submission order even if responses arrive out of order.
  */
 
 import type { EndpointsConfig, ExpressArgs } from "../contract";
@@ -9,21 +9,21 @@ import { type AudioSink, createWebAudioSink } from "./audio-player";
 import { createSentenceSegmenter } from "./sentence-segmenter";
 import { createTtsSynth, type TtsSynth } from "./tts-synth";
 
-/** synth가 이 값으로 reject하면 조용한 skip — error 로그 없이 failed-skip 경로를 밟는다. */
+/** When synth rejects with this value it's a silent skip — takes the failed-skip path with no error log. */
 export const TTS_SKIP: unique symbol = Symbol("TTS_SKIP");
 
 export interface TtsPipelineOptions {
-  // synth 주입 시 미사용. config.get()처럼 throw 가능한 값을 eager 평가해 넘기지 말 것.
+  // Unused when synth is injected. Don't eagerly evaluate a throwable value like config.get() and pass it in.
   config?: EndpointsConfig;
   synth?: TtsSynth;
   sink?: AudioSink;
   fetch?: typeof fetch;
   onAmplitude?: (rms: number) => void;
-  // 마지막 청크 재생이 끝나면(또는 재생할 청크가 없으면) end() 이후 1회 발화.
+  // Fires once after end() when the last chunk finishes playing (or when there are no chunks to play).
   onPlaybackEnd?: () => void;
-  // 각 sentence 재생 시작(또는 synth 실패 skip) 시 1회 발화. null = 이 sentence에 cue 없음.
+  // Fires once when each sentence starts playing (or on synth-failure skip). null = no cue for this sentence.
   onCuePlay?: (cue: ExpressArgs | null) => void;
-  // synth 동시 실행 상한. 기본 1 = 직렬. 함수 형태는 drain마다 평가돼 config를 lazy하게 읽는다.
+  // Concurrent-synth cap. Default 1 = serial. The function form is evaluated per drain, reading config lazily.
   maxInflight?: number | (() => number);
   logger?: Logger;
 }
@@ -46,7 +46,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       return createTtsSynth({ config: options.config, fetch: options.fetch });
     })();
   const sink: AudioSink = options.sink ?? createWebAudioSink();
-  // drain 시점에 평가 — 함수 형태면 hot-reload config 값을 그때그때 읽는다.
+  // Evaluated at drain time — the function form reads the hot-reload config value each time.
   const resolveMaxInflight = (): number => {
     const v =
       typeof options.maxInflight === "function" ? options.maxInflight() : options.maxInflight;
@@ -72,8 +72,8 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   let ended = false;
   let completionFired = false;
 
-  // end()된 뒤 큐가 완전히 비면(재생할 청크 없음) 1회만 onPlaybackEnd 발화.
-  // 청크 재생 중에는 nextToPlay가 이미 증가했더라도 pump가 await 중이라 호출되지 않는다.
+  // Once the queue is fully drained after end() (no chunks left to play), fire onPlaybackEnd exactly once.
+  // While a chunk is playing this isn't called — even though nextToPlay has already advanced, pump is awaiting.
   function maybeFireComplete(): void {
     if (disposed || completionFired) return;
     if (!ended || pumping) return;
@@ -123,7 +123,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     maybeFireComplete();
   }
 
-  // 큐에 쌓인 항목을 cap 내에서만 synth로 dispatch한다.
+  // Dispatch queued items to synth, but only up to the cap.
   function drainSynth(): void {
     while (inFlight < resolveMaxInflight() && pending.length > 0) {
       const { index, input } = pending.shift()!;
@@ -170,7 +170,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   return {
     pushTextDelta(token) {
       if (disposed) return;
-      // 완료 발화 후 새 텍스트가 오면 다음 턴 — 완료 사이클을 리셋한다.
+      // New text after a completion fire means a new turn — reset the completion cycle.
       if (ended || completionFired) {
         ended = false;
         completionFired = false;
@@ -193,7 +193,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       const rest = segmenter.flush();
       if (rest) submit(rest);
       ended = true;
-      // 재생할 청크가 하나도 없으면(빈 입력/전부 실패) 여기서 즉시 완료 발화.
+      // If there are no chunks to play at all (empty input / all failed), fire completion immediately here.
       maybeFireComplete();
     },
 

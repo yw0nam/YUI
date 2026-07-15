@@ -1,28 +1,28 @@
 /**
- * 논리 에셋 경로(`/configs`, `/vrms/x.vrm`, `/references/…`)를 런타임 환경에 맞는 URL로 변환한다.
+ * Converts logical asset paths (`/configs`, `/vrms/x.vrm`, `/references/…`) into URLs for the runtime environment.
  *
- * dev/브라우저는 입력을 그대로 통과시켜 vite 정적 서빙을 보존한다. Tauri 패키징은
- * 선행 슬래시를 떼 resource-relative 경로로 resolveResource → convertFileSrc해 번들 리소스의
- * webview-fetchable 절대 URL을 만든다. 번들 매핑은 src-tauri/tauri.conf.json `bundle.resources`가
- * `configs/`·`vrms/`·`references/`를 resource 루트에 그대로 두는 것에 맞춘다.
+ * dev/browser passes the input through unchanged to preserve vite static serving. Tauri packaging
+ * strips the leading slash to a resource-relative path, then resolveResource → convertFileSrc to build a
+ * webview-fetchable absolute URL for the bundled resource. The bundle mapping matches src-tauri/tauri.conf.json
+ * `bundle.resources` keeping `configs/`, `vrms/`, and `references/` at the resource root as-is.
  *
- * Tauri API는 주입 가능 — 테스트는 실제 @tauri-apps/api를 타지 않고 분기만 검증한다.
+ * The Tauri API is injectable — tests verify the branching without hitting the real @tauri-apps/api.
  */
 
 import { isTauri } from "./tauri-env";
 
-/** Tauri 번들 리소스 해석에 필요한 최소 API 표면. */
+/** Minimal API surface needed to resolve Tauri bundle resources. */
 export interface TauriAssetApi {
   resolveResource(path: string): Promise<string>;
   convertFileSrc(path: string): string;
 }
 
 export interface ResolveAssetUrlOptions {
-  /** Tauri 런타임 판별. 기본은 공유 런타임 판별 함수. */
+  /** Detects the Tauri runtime. Defaults to the shared runtime-detection function. */
   isTauri?: () => boolean;
-  /** dev(vite 라이브 서빙) 판별. 기본 import.meta.env.DEV. dev면 resource 재작성을 건너뛴다. */
+  /** Detects dev (vite live serving). Defaults to import.meta.env.DEV. In dev, resource rewriting is skipped. */
   isDev?: () => boolean;
-  /** Tauri API 로더(주입 가능). 기본은 @tauri-apps/api에서 동적 import. */
+  /** Tauri API loader (injectable). Defaults to a dynamic import from @tauri-apps/api. */
   tauri?: () => Promise<TauriAssetApi>;
 }
 
@@ -38,16 +38,16 @@ async function defaultTauri(): Promise<TauriAssetApi> {
   return { resolveResource, convertFileSrc };
 }
 
-/** http(s)/asset/blob/data 등 이미 절대 스킴이면 변환 대상이 아니다. */
+/** Already-absolute schemes (http(s)/asset/blob/data etc.) are not conversion targets. */
 function isAbsoluteUrl(path: string): boolean {
   return /^[a-z][a-z0-9+.-]*:/i.test(path);
 }
 
-/** convertFileSrc/dev에서 정당하게 오는, webview가 로드 가능한 src 스킴. */
+/** webview-loadable src schemes that legitimately come from convertFileSrc/dev. */
 const SAFE_USER_SRC_SCHEME = /^(asset|blob|https?):/i;
-/** asset src로 통과시키면 안 되는 위험 스킴. */
+/** Dangerous schemes that must not pass through as an asset src. */
 const DANGEROUS_SCHEME = /^(javascript|data|file|vbscript):/i;
-/** 단일 글자 드라이브(예: "C:\…")는 스킴이 아니라 Windows 절대 경로다. */
+/** A single-letter drive (e.g. "C:\…") is a Windows absolute path, not a scheme. */
 const WINDOWS_DRIVE = /^[a-z]:[\\/]/i;
 
 /** "/configs/x.json?t=1" → { rel: "configs/x.json", query: "?t=1" }. */
@@ -59,9 +59,9 @@ function splitPath(logicalPath: string): { rel: string; query: string } {
 }
 
 /**
- * 논리 경로를 현재 런타임의 fetchable URL로 변환한다.
- * dev(브라우저·Tauri dev 모두, vite 라이브 서빙): 입력 그대로 → 핫리로드 보존.
- * prod Tauri 패키징: 번들 리소스 절대 URL(쿼리 보존). 이미 절대 URL이면 어느 환경이든 그대로 둔다.
+ * Converts a logical path into a fetchable URL for the current runtime.
+ * dev (both browser and Tauri dev, vite live serving): input as-is → preserves hot reload.
+ * prod Tauri packaging: bundled-resource absolute URL (query preserved). Already-absolute URLs are left as-is in any environment.
  */
 export async function resolveAssetUrl(
   logicalPath: string,
@@ -78,22 +78,22 @@ export async function resolveAssetUrl(
 }
 
 /**
- * 임포트된 VRM/음성의 app-data 파일 경로를 webview가 로드 가능한 URL로 변환한다.
- * convertFileSrc/dev에서 오는 known-safe 스킴(asset/blob/http(s))만 그대로 통과시키고,
- * 위험 스킴(javascript/data/file/vbscript)은 사용 불가 src로 빈 문자열을 돌려 차단한다.
- * 스킴 없는 절대 경로와 Windows 드라이브 경로는 (Tauri에서) convertFileSrc로 변환한다.
- * 사용 불가 입력의 빈 문자열은 호출부(렌더러 로드/voice 등록)에서 실패로 처리된다.
+ * Converts an imported VRM/voice app-data file path into a webview-loadable URL.
+ * Passes through only known-safe schemes (asset/blob/http(s)) coming from convertFileSrc/dev, and
+ * blocks dangerous schemes (javascript/data/file/vbscript) by returning an empty string as an unusable src.
+ * Scheme-less absolute paths and Windows drive paths are converted via convertFileSrc (under Tauri).
+ * The empty string for unusable input is treated as a failure at the call site (renderer load/voice registration).
  */
 export async function resolveUserFileSrc(
   absPath: string,
   opts: ResolveAssetUrlOptions = {},
 ): Promise<string> {
   if (DANGEROUS_SCHEME.test(absPath)) return "";
-  if (SAFE_USER_SRC_SCHEME.test(absPath)) return absPath; // 이미 fetchable — 재변환 금지
+  if (SAFE_USER_SRC_SCHEME.test(absPath)) return absPath; // already fetchable — do not re-convert
   const runtimeIsTauri = opts.isTauri ?? isTauri;
-  // 스킴이 붙었지만 안전 목록·드라이브 경로 어디에도 없으면 정체불명 — 차단한다.
+  // Has a scheme but matches neither the safe list nor a drive path → unknown; block it.
   if (isAbsoluteUrl(absPath) && !WINDOWS_DRIVE.test(absPath)) return "";
-  if (!runtimeIsTauri()) return absPath; // dev/브라우저: 절대 fs 경로 그대로 서빙
+  if (!runtimeIsTauri()) return absPath; // dev/browser: serve the absolute fs path as-is
   const tauri = await (opts.tauri ?? defaultTauri)();
   return tauri.convertFileSrc(absPath);
 }

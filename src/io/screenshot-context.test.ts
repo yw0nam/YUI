@@ -1,10 +1,10 @@
 /**
  * screenshot-context.test.ts — buildScreenshotBlock pure encoder.
  *
- * 검증:
+ * Verify:
  *  - enabled=false → undefined
- *  - enabled=true, capture 없음 → {enabled:true, source}
- *  - enabled=true, capture 있음 → {enabled:true, source, data_url, captured_at, width, height}
+ *  - enabled=true, no capture → {enabled:true, source}
+ *  - enabled=true, with capture → {enabled:true, source, data_url, captured_at, width, height}
  */
 
 import { describe, expect, it } from "vitest";

@@ -27,7 +27,7 @@ describe("createQuickControls — tabs + VAD slider", () => {
     try {
       globalThis.localStorage?.clear();
     } catch {
-      /* localStorage 미사용 환경 무시 */
+      /* Ignore environments without localStorage */
     }
     // Existing assertions pin Korean copy/selectors; render the panel in ko.
     setLocale("ko");
@@ -101,7 +101,7 @@ describe("createQuickControls — tabs + VAD slider", () => {
     qc.open();
 
     const t = tabs(qc);
-    const target = t[2]; // 입력
+    const target = t[2]; // Input
     target.click();
 
     expect(target.getAttribute("aria-selected")).toBe("true");
@@ -170,7 +170,7 @@ describe("createQuickControls — tabs + VAD slider", () => {
     qc.dispose();
   });
 
-  // ── 침묵 기준 (VAD) 슬라이더 — 입력 탭 ──────────────────────────────────────
+  // ── Silence threshold (VAD) slider — Input tab ──────────────────────────────
 
   it("renders the silence-window slider with min 500 / max 3000 / step 50", () => {
     const qc = buildQc();
@@ -229,7 +229,7 @@ describe("createQuickControls — tabs + VAD slider", () => {
     qc.dispose();
   });
 
-  // ── 생각중 추임새 (filler) section ──────────────────────────────────────────
+  // ── Thinking filler section ──────────────────────────────────────────────────
 
   function makeFillerSettings(initial?: { enabled?: boolean; language?: "ja" | "en" | "ko" }) {
     return createFillerSettings({
@@ -531,7 +531,7 @@ describe("createQuickControls — sections rail collapse", () => {
     try {
       globalThis.localStorage?.clear();
     } catch {
-      /* localStorage 미사용 환경 무시 */
+      /* Ignore environments without localStorage */
     }
     setLocale("en");
   });

@@ -1,7 +1,8 @@
 /**
- * 마지막 OpenAI Responses response.id 하나를 보관하는 reactive localStorage 스토어.
- * previous_response_id로 대화를 잇는 데 쓰이며 앱 재시작 간에도 유지된다. 비어있으면
- * 새 대화다(get()이 null 반환). 변경 시에만 storage에 persist하고 구독자에게 통지한다.
+ * Reactive localStorage store holding the single last OpenAI Responses response.id.
+ * Used as previous_response_id to continue a conversation, and persists across app restarts.
+ * Empty means a new conversation (get() returns null). Persists to storage and notifies
+ * subscribers only on change.
  */
 
 export interface SessionStorage {
@@ -10,7 +11,7 @@ export interface SessionStorage {
   clear(): void;
 }
 
-/** 비어있지 않은 문자열만 유효한 response id로 본다. 그 외(non-string·공백)는 "없음". */
+/** Only a non-empty string counts as a valid response id. Anything else (non-string/blank) is "none". */
 function coerce(v: unknown): string | null {
   if (typeof v !== "string") return null;
   const t = v.trim();
@@ -23,7 +24,7 @@ export function createSessionStore(storage?: SessionStorage) {
     try {
       state = coerce(storage.load());
     } catch {
-      // storage 오류 시 "없음"으로 폴백
+      // On storage error, fall back to "none".
     }
   }
 
@@ -77,7 +78,7 @@ export function createSessionStore(storage?: SessionStorage) {
   };
 }
 
-/** localStorage 기반 SessionStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-backed SessionStorage adapter. Gracefully ignored where localStorage is unavailable. */
 export function localStorageSessionStorage(key = "yui.previous_response_id"): SessionStorage {
   return {
     load() {
@@ -91,14 +92,14 @@ export function localStorageSessionStorage(key = "yui.previous_response_id"): Se
       try {
         globalThis.localStorage?.setItem(key, id);
       } catch {
-        // localStorage 사용 불가 시 no-op
+        // no-op when localStorage is unavailable
       }
     },
     clear() {
       try {
         globalThis.localStorage?.removeItem(key);
       } catch {
-        // localStorage 사용 불가 시 no-op
+        // no-op when localStorage is unavailable
       }
     },
   };

@@ -1,4 +1,4 @@
-/** 한 문장 input → POST {baseUrl}/synthesize (multipart) → wav ArrayBuffer (irodori_TTS). */
+/** Single-sentence input → POST {baseUrl}/synthesize (multipart) → wav ArrayBuffer (irodori_TTS). */
 
 import { createLogger, type Logger } from "../logger";
 
@@ -11,13 +11,13 @@ export interface IrodoriSynthOptions {
   cfgScaleSpeaker?: number;
   seconds?: number;
   logger?: Logger;
-  /** test seam — 503 Retry-After 대기. 기본은 AbortSignal을 존중하는 setTimeout. */
+  /** test seam — waits out a 503 Retry-After. Defaults to a setTimeout that respects AbortSignal. */
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
 }
 
 export type TtsSynth = (input: string, signal?: AbortSignal) => Promise<ArrayBuffer>;
 
-/** status를 실어 보내 호출부가 422/503 등을 분기할 수 있게 한다. */
+/** Carries status so callers can branch on 422/503, etc. */
 export class IrodoriSynthError extends Error {
   readonly status: number;
   constructor(message: string, status: number) {
@@ -30,7 +30,7 @@ export class IrodoriSynthError extends Error {
 const RETRY_AFTER_CAP_MS = 5000;
 const RETRY_AFTER_DEFAULT_MS = 500;
 
-/** detail은 문자열·{msg}[]·기타 — 사람이 읽을 한 줄로 환원, 미문서화 형태는 JSON 폴백. */
+/** detail is a string, {msg}[], or other — reduce to one human-readable line; JSON-fallback for undocumented shapes. */
 function formatDetail(detail: unknown): string {
   if (detail === undefined || detail === null) return "";
   if (typeof detail === "string") return `: ${detail}`;
@@ -49,7 +49,7 @@ function formatDetail(detail: unknown): string {
   }
 }
 
-/** Retry-After(초) 파싱 → ms, 상한 클램프. 헤더 없으면 작은 기본값. */
+/** Parse Retry-After (seconds) → ms, clamped to a cap. Small default when the header is absent. */
 function retryAfterMs(header: string | null): number {
   if (!header) return RETRY_AFTER_DEFAULT_MS;
   const secs = Number(header);
@@ -75,7 +75,7 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-/** Server-Timing의 `total;dur=NNN` 세그먼트에서 ms 추출. */
+/** Extract ms from the `total;dur=NNN` segment of Server-Timing. */
 function parseTotalMs(serverTiming: string | null): number | undefined {
   if (!serverTiming) return undefined;
   const m = /total;dur=([0-9.]+)/.exec(serverTiming);
@@ -117,7 +117,7 @@ export function createIrodoriSynth(opts: IrodoriSynthOptions): TtsSynth {
   return async (input, signal) => {
     let res = await fetchImpl(url, { method: "POST", body: buildForm(input), signal });
 
-    // 503 overloaded: Retry-After를 한 번만 존중해 재시도(transient drop 방지).
+    // 503 overloaded: honor Retry-After once and retry (prevents transient drops).
     if (res.status === 503) {
       const waitMs = retryAfterMs(res.headers.get("Retry-After"));
       log.warn("synth_overloaded", { status: 503, retry: true, wait_ms: waitMs });

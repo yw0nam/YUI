@@ -1,6 +1,6 @@
 /**
- * Transport seam: StreamChatOptions.fetch 주입 → OpenAI 생성자 전달 → streamChat 사용까지,
- * 그리고 selectFetch의 환경별 선택(Tauri=injected fetchCORS, dev=undefined).
+ * Transport seam: StreamChatOptions.fetch injection → passed to the OpenAI constructor → used by streamChat,
+ * and selectFetch's per-environment choice (Tauri=injected fetchCORS, dev=undefined).
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -83,7 +83,7 @@ describe("streamChat — fetch injection seam (D-TAURI-FETCH)", () => {
     await collect(streamChat(CONFIG, req(), {}));
 
     expect(capturedOpts.length).toBeGreaterThan(0);
-    // fetch 키 자체가 없거나 undefined — SDK가 글로벌 fetch 사용
+    // The fetch key is absent or undefined — the SDK uses the global fetch
     expect(capturedOpts[0].fetch == null).toBe(true);
   });
 

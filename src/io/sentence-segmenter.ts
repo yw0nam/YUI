@@ -1,4 +1,4 @@
-/** 텍스트 스트림 토큰을 문장 단위로 분절한다. 순수 로직(no DOM/network). */
+/** Segments text-stream tokens into sentences. Pure logic (no DOM/network). */
 
 export interface SentenceSegmenter {
   push(text: string): string[];
@@ -6,9 +6,9 @@ export interface SentenceSegmenter {
 }
 
 const CLOSERS = "\"'”’」』）)\\]}";
-// ASCII 종결부호는 뒤에 공백/끝이 와야 경계 — "3.14" 오분절 회피.
+// ASCII terminators need trailing whitespace/end to count as a boundary — avoids mis-splitting "3.14".
 const ASCII_TERM = ".!?…";
-// CJK 종결부호는 공백 없이 이어지므로 trailing 공백 불요.
+// CJK terminators run on without spaces, so no trailing whitespace is required.
 const CJK_TERM = "。！？";
 const BOUNDARY = new RegExp(
   `([\\s\\S]*?(?:[${ASCII_TERM}]+[${CLOSERS}]*(?=\\s|$)|[${CJK_TERM}]+[${CLOSERS}]*|\\n))`,

@@ -1,10 +1,10 @@
 /**
  * screen-source-provider.test.ts — createBrowserScreenSourceProvider seam.
  *
- * 검증:
- *  - 주입된 screen dims를 사용해 단일 primary monitor 반환
- *  - screen이 없으면 width/height 생략
- *  - index=0, label="이 화면", primary=true
+ * Verify:
+ *  - returns single primary monitor using injected screen dims
+ *  - omits width/height if screen absent
+ *  - index=0, label="This screen", primary=true
  */
 
 import { describe, expect, it } from "vitest";

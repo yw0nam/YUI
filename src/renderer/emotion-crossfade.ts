@@ -63,16 +63,16 @@ export function createEmotionCrossfade(deps: EmotionCrossfadeDeps): EmotionCross
 
   let emotionRegistry: EmotionRegistry | undefined = deps.registry;
   let emotionResolver: EmotionResolver | undefined;
-  /** 현재 VRM 기준 expression 존재 술어 (핫스왑마다 재계산). */
+  /** Expression existence predicate for the current VRM (recomputed on each hotswap). */
   let hasExpressionCache: ((k: string) => boolean) | undefined;
   /**
-   * 진행 중 emotion 크로스페이드 상태(없으면 null).
-   *  - prevKey: 페이드 아웃 중인 직전 표정 키(없으면 null).
-   *  - prevWeightAtStart: 페이드 시작 시점의 prev weight(중간 retarget pop 방지).
-   *  - targetKey/targetWeight: 페이드 인 목표 키/weight.
-   *  - startTargetW: 페이드 시작 시점의 target weight(retarget 시 현재 blend에서 출발).
-   *  - startMs/durationMs: 프레임 클록(elapsed*1000) 기준 시작/길이.
-   *  - curPrevW/curTargetW: 현재 프레임 적용 weight(retarget 출발점으로 재사용).
+   * In-flight emotion crossfade state (null if none).
+   *  - prevKey: prior expression key fading out (null if none).
+   *  - prevWeightAtStart: prev weight at fade start (prevents mid-retarget pop).
+   *  - targetKey/targetWeight: fade-in target key/weight.
+   *  - startTargetW: target weight at fade start (starts from current blend on retarget).
+   *  - startMs/durationMs: frame clock (elapsed*1000) basis — start and duration.
+   *  - curPrevW/curTargetW: current frame applied weight (reused as retarget starting point).
    */
   let emotionXfade: {
     prevKey: string | null;
@@ -90,8 +90,8 @@ export function createEmotionCrossfade(deps: EmotionCrossfadeDeps): EmotionCross
   const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
   /**
-   * 현재 VRM 기준 expression 존재 술어를 재계산하고 resolver를 재생성한다.
-   * 존재 집합은 모델별이라 VRM 로드마다 새로 빌드해야 한다.
+   * Recomputes the expression existence predicate for the current VRM and regenerates the resolver.
+   * The existence set is per-model so it must be rebuilt on each VRM load.
    */
   function recompute(): void {
     const currentVrm = getVrm();
@@ -105,9 +105,9 @@ export function createEmotionCrossfade(deps: EmotionCrossfadeDeps): EmotionCross
   }
 
   /**
-   * emotion 크로스페이드 한 프레임 진행 — mixer.update 후, vrm.update 직전 호출.
-   * 매 프레임 target/prev weight를 수동 lerp(three-vrm 내장 보간 없음).
-   * blink/blinkLeft/blinkRight/lookAt/mouth 키는 절대 건드리지 않는다(ambient/lipsync 소유).
+   * Advance emotion crossfade one frame — called after mixer.update, before vrm.update.
+   * Manually lerps target/prev weight each frame (no three-vrm built-in interpolation).
+   * Never touches blink/blinkLeft/blinkRight/lookAt/mouth keys (owned by ambient/lipsync).
    */
   function step(_dt: number): void {
     const currentVrm = getVrm();
@@ -127,13 +127,13 @@ export function createEmotionCrossfade(deps: EmotionCrossfadeDeps): EmotionCross
       }
 
       if (t >= 1) {
-        // prev 키를 1회 0으로 내리고 분리, target은 매 프레임 계속 고정(held).
+        // Drop prev key to 0 once and detach; target continues to be held every frame.
         if (x.prevKey && x.prevKey !== x.targetKey) {
           em.setValue(x.prevKey, 0);
         }
         x.prevKey = null;
         x.curPrevW = 0;
-        // target weight를 핀으로 고정 — 다음 프레임에도 계속 재적용된다.
+        // Pin target weight — continues to be reapplied in subsequent frames.
         x.startTargetW = x.targetWeight;
         x.curTargetW = x.targetWeight;
       }
@@ -142,10 +142,10 @@ export function createEmotionCrossfade(deps: EmotionCrossfadeDeps): EmotionCross
     }
   }
 
-  /** setEmotion 구현 — resolve → 현재 blend에서 retarget → 크로스페이드 시작. */
+  /** setEmotion implementation — resolve → retarget from current blend → start crossfade. */
   function setEmotion(emotion: EmotionSignal | null): void {
-    // "emotion 없으면 직전 표정 유지" — null은 NO-OP.
-    // 오직 명시적 {id:"neutral"}만 neutral로 전이한다.
+    // "If no emotion, retain prior expression" — null is a NO-OP.
+    // Only explicit {id:"neutral"} transitions to neutral.
     if (emotion === null) return;
 
     if (!emotionResolver || !emotionRegistry) {
@@ -163,11 +163,11 @@ export function createEmotionCrossfade(deps: EmotionCrossfadeDeps): EmotionCross
 
       if (emotionXfade) {
         if (emotionXfade.targetKey !== resolved.vrm_expression) {
-          // 진행 중 다른 target → 현재 blend된 target weight를 새 prev로(중간 retarget pop 방지).
+          // Different target in flight → use current blended target weight as new prev (prevents mid-retarget pop).
           prevKey = emotionXfade.targetKey;
           prevWeightAtStart = emotionXfade.curTargetW;
         } else {
-          // 같은 키 → prev 페이드는 그대로 이어가고 target weight/duration만 갱신.
+          // Same key → continue prev fade as-is; only update target weight/duration.
           prevKey = emotionXfade.prevKey;
           prevWeightAtStart = emotionXfade.curPrevW;
         }
@@ -194,14 +194,14 @@ export function createEmotionCrossfade(deps: EmotionCrossfadeDeps): EmotionCross
     }
   }
 
-  /** 직전 emotion을 명시적 neutral 전이로 천천히 되돌린다 (TTS 재생 종료 시). */
+  /** Slowly ease the prior emotion back to neutral via explicit neutral transition (on TTS playback end). */
   function easeToNeutral(durationMs?: number): void {
     revertEmotionToNeutral(durationMs, { setEmotion });
   }
 
   function setRegistry(registry: EmotionRegistry): void {
     emotionRegistry = registry;
-    // 현재 VRM 기준 존재 술어 재계산 + resolver 재생성.
+    // Recompute existence predicate for current VRM + regenerate resolver.
     recompute();
   }
 

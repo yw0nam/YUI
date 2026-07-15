@@ -1,13 +1,14 @@
 /**
  * YUI interaction surfaces — speech bubble · tool-status · text input.
  *
- * 세 표면을 하나의 시스템으로 관리한다 (DESIGN.md "The Hearthlight").
- * API는 **상태 렌더러**다 — firing ≠ judgment: 이 컨트롤러는 백엔드가 정한 상태를
- * *그리기만* 한다. judgment(말할지/내용)는 backend, 발화 트리거는 dispatcher/chat-client.
- * 여기에 brain·페르소나·모드 분기를 두지 않는다.
+ * Manages the three surfaces as one system (DESIGN.md "The Hearthlight").
+ * The API is a **state renderer** — firing ≠ judgment: this controller only
+ * *draws* the state the backend decides. Judgment (whether/what to speak) is the
+ * backend's; speech triggers come from dispatcher/chat-client.
+ * No brain, persona, or mode branching lives here.
  *
- * 현재 = 목업 단계: createSurfaces가 DOM/전이/상태를 담당하고, 실제 데이터는
- * mock.ts(스크립트) 또는 (후속) chat-client SSE가 이 API를 호출한다.
+ * Currently = mock stage: createSurfaces owns DOM/transitions/state, and real data
+ * is fed in by mock.ts (script) or (later) the chat-client SSE calling this API.
  */
 
 import "./surfaces.css";
@@ -17,56 +18,56 @@ import { renderMarkdownInline } from "./markdown";
 import { getToolLabel } from "./tool-labels";
 
 export interface Surfaces {
-  /** overlay 루트 (.yui-ui) */
+  /** overlay root (.yui-ui) */
   readonly el: HTMLElement;
 
-  // ── speech bubble (출력) ──
-  /** 말풍선 등장(빈 상태) + 캐럿 ON. 스트리밍 시작 전 호출. */
+  // ── speech bubble (output) ──
+  /** Reveal the bubble (empty) + caret ON. Called before streaming starts. */
   beginSpeech(): void;
-  /** 스트리밍 델타 추가. */
+  /** Append a streaming delta. */
   pushSpeech(delta: string): void;
   /**
-   * 캐럿 OFF. 기본은 dwell 후 자동 페이드(전체 텍스트를 한 번에 줄 때도 사용).
-   * defer=true면 페이드를 보류 — TTS 재생이 끝나 finishSpeech()가 호출될 때까지 말풍선 유지.
+   * Caret OFF. By default, auto-fades after dwell (also used when the full text arrives at once).
+   * When defer=true, the fade is held — the bubble stays until TTS playback ends and finishSpeech() is called.
    */
   endSpeech(opts?: { defer?: boolean }): void;
-  /** 보류된 말풍선(endSpeech defer)을 dwell→페이드로 해제. 비-보류/숨김 상태면 no-op. */
+  /** Release a deferred bubble (endSpeech defer) into dwell→fade. No-op if not deferred/hidden. */
   finishSpeech(): void;
-  /** 즉시 말풍선 숨김(dwell 무시). */
+  /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
 
-  // ── tool-status (백엔드 tool 관찰) ──
-  /** tool_id로 running 칩을 띄운다(라벨은 tool-labels 조회, 미매핑은 humanize). */
+  // ── tool-status (observing backend tools) ──
+  /** Show a running chip for tool_id (label from tool-labels lookup, humanized if unmapped). */
   showTool(toolId: string): void;
-  /** running 칩을 done(체크)으로 전환 후 잠시 뒤 자동 소멸. 칩이 없으면 무시. */
+  /** Transition the running chip to done (check), then auto-dismiss shortly after. Ignored if no chip. */
   finishTool(): void;
-  /** 칩 즉시 숨김. */
+  /** Hide the chip immediately. */
   hideTool(): void;
 
-  // ── text input (입력) ──
-  /** 핫키 소환 — 슬라이드 업 + 포커스. */
+  // ── text input ──
+  /** Hotkey summon — slide up + focus. */
   summonInput(): void;
-  /** 입력 닫기. */
+  /** Close the input. */
   dismissInput(): void;
-  /** 입력 열림 여부. */
+  /** Whether the input is open. */
   isInputOpen(): boolean;
-  /** 제출 콜백 등록. text는 trim된 문자열(이미지만 보낼 땐 빈 문자열), images는 데이터 URL 배열. */
+  /** Register a submit callback. text is trimmed (empty string when sending images only); images is an array of data URLs. */
   onSubmit(cb: (text: string, images: string[]) => void): void;
-  /** 중단 콜백 등록. busy 중 send 버튼을 명시적으로 누를 때만 발화한다. */
+  /** Register a stop callback. Fires only when the send button is explicitly pressed while busy. */
   onStop(cb: () => void): void;
   /**
-   * 처리 중 토글. busy면 send 버튼이 stop으로 바뀌고(is-running + 앰버),
-   * Enter/submit는 no-op이 된다. 중단은 버튼 클릭으로만 발화.
+   * Toggle processing state. When busy, the send button becomes stop (is-running + amber),
+   * and Enter/submit becomes a no-op. Stopping fires only via a button click.
    */
   setBusy(busy: boolean): void;
-  /** 인라인 에러 표시(예: 전송 실패). */
+  /** Show an inline error (e.g. send failure). */
   showInputError(message: string): void;
-  /** 입력 비활성화 토글(처리 중 등). 비활성 시 field disabled + pending 디밍. */
+  /** Toggle the input disabled (e.g. while processing). When disabled, field disabled + pending dimming. */
   setInputEnabled(enabled: boolean): void;
   /**
-   * 입력의 하단 오프셋(px)을 캐릭터 발밑 추적용으로 설정한다. CSS의
-   * `bottom: var(--yui-input-bottom, 4%)`를 픽셀로 덮어쓴다. null이면 var를
-   * 지워 기본 4%로 복귀. width나 slide-up reveal은 건드리지 않는다.
+   * Set the input's bottom offset (px) for tracking the character's feet. Overrides
+   * the CSS `bottom: var(--yui-input-bottom, 4%)` in pixels. null clears the var,
+   * returning to the default 4%. Does not touch width or the slide-up reveal.
    */
   setInputAnchor(bottomPx: number | null): void;
 
@@ -75,15 +76,15 @@ export interface Surfaces {
 
 interface SurfacesOptions {
   mount: HTMLElement;
-  /** dwell(설정값) override. 기본 = --yui-dwell 토큰. */
+  /** dwell (config value) override. Default = --yui-dwell token. */
   dwellMs?: number;
 }
 
 const DEFAULT_DWELL = 5000;
-// 발밑 앵커가 아직 안 들어왔을 때의 입력 하단 폴백(px). 입력 열릴 때 말풍선을
-// 그 위로 들어올리는 계산의 시작점.
+// Fallback input bottom (px) before the feet anchor arrives. The starting point
+// for the calculation that lifts the bubble above the input when it opens.
 const DEFAULT_INPUT_BOTTOM_PX = 48;
-// 말풍선 하단과 입력 상단 사이 최소 간격(px).
+// Minimum gap (px) between the bubble bottom and the input top.
 const BUBBLE_INPUT_GAP_PX = 12;
 
 export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
@@ -140,7 +141,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   const toolLabel = el.querySelector<HTMLSpanElement>(".yui-tool__label")!;
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
   const bubbleText = el.querySelector<HTMLSpanElement>(".yui-bubble__text")!;
-  // 스크린리더 전용 낭독 영역 — 시각 말풍선은 라이브가 아니고, 발화가 정착되면 여기로 한 번 알린다.
+  // Screen-reader-only announce region — the visual bubble is not live; once speech settles, announce once here.
   const bubbleSr = el.querySelector<HTMLSpanElement>(".yui-bubble__sr")!;
   const formEl = el.querySelector<HTMLFormElement>(".yui-input")!;
   const field = el.querySelector<HTMLInputElement>(".yui-input__field")!;
@@ -155,18 +156,18 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   const stopHandlers: Array<() => void> = [];
   // ponytail: no count/size cap — add when context-size bites.
   const attachments: string[] = [];
-  // 백엔드 처리 중 — send 버튼이 stop으로 바뀌고 submit이 막힌다.
+  // Backend processing — the send button becomes stop and submit is blocked.
   let busy = false;
   let dwellTimer: ReturnType<typeof setTimeout> | null = null;
-  // endSpeech({ defer:true })로 페이드를 보류 중인지 — finishSpeech()가 해제한다.
+  // Whether the fade is being held by endSpeech({ defer:true }) — finishSpeech() releases it.
   let deferred = false;
   // Raw accumulated speech text — re-rendered as markdown on each push.
   let speechRaw = "";
-  // 사용자가 말풍선 위에 커서를 올려 읽는 중인지.
+  // Whether the user is hovering over the bubble to read it.
   let hovering = false;
-  // dwell 빚이 남아있는지(타이머 점화 보류 가능 상태).
+  // Whether a dwell debt remains (timer-arming can be held).
   let dwellArmed = false;
-  // 입력 하단 오프셋(px) — setInputAnchor가 갱신, 입력 열림 중 말풍선 들어올리기에 쓴다.
+  // Input bottom offset (px) — updated by setInputAnchor, used to lift the bubble while the input is open.
   let inputBottomPx = DEFAULT_INPUT_BOTTOM_PX;
 
   function clearDwell(): void {
@@ -176,7 +177,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     }
   }
 
-  // dwell 점화 — 넘치는 말풍선을 읽는 중이면 보류(빚만 남기고 타이머는 안 켠다).
+  // Arm dwell — held while reading an overflowing bubble (leaves a debt without starting the timer).
   function armDwell(): void {
     clearDwell();
     if (hovering && bubbleEl.classList.contains("is-scrollable")) return;
@@ -186,7 +187,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     }, dwell);
   }
 
-  // 사용자가 하단에서 이만큼(px) 이내면 자동 스크롤 고정 대상으로 본다.
+  // If the user is within this many px of the bottom, treat as pinned for auto-scroll.
   const SCROLL_PIN_SLACK_PX = 8;
 
   function isPinnedToEnd(): boolean {
@@ -195,8 +196,8 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     );
   }
 
-  // 높이 상한된 말풍선의 최신 줄을 항상 보이게 끝으로 스크롤(pin=false면 위치 유지).
-  // 넘칠 때만 is-scrollable을 켜 상단 fade가 적용되게 한다(짧은 발화는 첫 줄을 깎지 않음).
+  // Scroll a height-capped bubble to the end so the latest line stays visible (keeps position if pin=false).
+  // Only toggle is-scrollable on overflow so the top fade applies (short speech doesn't clip its first line).
   function scrollBubbleToEnd(pin = true): void {
     if (pin) bubbleEl.scrollTop = bubbleEl.scrollHeight;
     bubbleEl.classList.toggle("is-scrollable", bubbleEl.scrollHeight > bubbleEl.clientHeight);
@@ -211,13 +212,13 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     bubbleSr.textContent = "";
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-streaming");
-    // 다음 프레임에 transition 점화 (hidden 해제 직후 같은 프레임이면 안 움직임)
+    // Arm the transition on the next frame (won't animate in the same frame right after clearing hidden)
     requestAnimationFrame(() => bubbleEl.classList.add("is-visible"));
   }
 
   function pushSpeech(delta: string): void {
     if (bubbleEl.hidden) beginSpeech();
-    // 갱신 전에 측정 — 위로 스크롤해 읽는 중인 사용자를 끌어내리지 않는다.
+    // Measure before updating — don't yank down a user who has scrolled up to read.
     const pin = isPinnedToEnd();
     speechRaw += delta;
     // Re-render the full accumulated text as inline markdown on each delta.
@@ -231,13 +232,13 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     bubbleEl.classList.add("is-visible");
     bubbleEl.classList.remove("is-streaming");
     scrollBubbleToEnd(isPinnedToEnd());
-    // 발화가 정착된 시점에 한 번만 낭독 — 델타마다·barge-in 재호출마다 재낭독하지 않는다.
+    // Announce once, when speech settles — not on every delta or barge-in re-call.
     if (bubbleSr.textContent !== bubbleText.textContent) {
       bubbleSr.textContent = bubbleText.textContent;
     }
     clearDwell();
     if (opts?.defer) {
-      // 재생이 끝날 때까지 페이드 보류 — finishSpeech()가 dwell을 점화한다.
+      // Hold the fade until playback ends — finishSpeech() arms the dwell.
       deferred = true;
       return;
     }
@@ -271,9 +272,9 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     bubbleEl.addEventListener("transitionend", onEnd);
   }
 
-  // 입력이 열려 있는 동안 말풍선을 입력 위로 들어올려 겹침을 막는다.
-  // 말풍선 하단 = 입력 하단 + 입력 높이 + 간격. 발밑 앵커가 매 프레임 바뀌어도
-  // setInputAnchor가 다시 호출해 값만 갱신한다(클래스 토글은 한 번).
+  // While the input is open, lift the bubble above it to prevent overlap.
+  // Bubble bottom = input bottom + input height + gap. Even if the feet anchor changes each frame,
+  // setInputAnchor re-calls this to update just the value (class toggle happens once).
   function liftBubbleAboveInput(): void {
     const lift = inputBottomPx + formEl.offsetHeight + BUBBLE_INPUT_GAP_PX;
     bubbleEl.style.setProperty("--yui-bubble-bottom", `${lift}px`);
@@ -389,7 +390,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     chip.className = "yui-chip";
     const img = document.createElement("img");
     img.src = dataUrl;
-    img.alt = ""; // 장식용 썸네일 — 칩의 × 버튼이 첨부 존재를 전달한다.
+    img.alt = ""; // Decorative thumbnail — the chip's × button conveys the attachment's presence.
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "yui-chip__remove";
@@ -408,14 +409,14 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     stopHandlers.push(cb);
   }
 
-  // busy면 send→stop 아이콘 스왑 + 앰버, field 디밍, submit 차단.
+  // When busy: swap send→stop icon + amber, dim the field, block submit.
   function setBusy(value: boolean): void {
     busy = value;
     formEl.classList.toggle("is-running", value);
     sendBtn.setAttribute("aria-label", value ? t("aria.stop") : t("aria.send"));
   }
 
-  // surfaces는 로케일 변경 시 재마운트되지 않으므로 정적 라벨을 직접 갱신한다.
+  // surfaces isn't remounted on locale change, so update the static labels directly.
   function applyLocaleLabels(): void {
     attachBtn.setAttribute("aria-label", t("aria.attach_image"));
     field.placeholder = t("input.placeholder");
@@ -433,13 +434,13 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     if (bottomPx === null) formEl.style.removeProperty("--yui-input-bottom");
     else formEl.style.setProperty("--yui-input-bottom", `${bottomPx}px`);
     inputBottomPx = bottomPx ?? DEFAULT_INPUT_BOTTOM_PX;
-    // 입력이 떠 있으면(소환됨) 발밑 앵커 변화에 맞춰 말풍선 들어올림을 갱신한다.
+    // If the input is up (summoned), update the bubble lift to match the feet anchor change.
     if (!formEl.hidden) liftBubbleAboveInput();
   }
 
   function handleSubmit(e: Event): void {
     e.preventDefault();
-    if (busy) return; // 처리 중엔 Enter/submit no-op — 중단은 버튼 클릭으로만
+    if (busy) return; // While processing, Enter/submit is a no-op — stopping only via a button click
     const text = field.value.trim();
     if (text === "" && attachments.length === 0) return;
     formEl.classList.remove("is-error");
@@ -449,7 +450,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     clearAttachments();
   }
 
-  // busy 중 버튼 클릭 = 중단(submit 가로채기). idle이면 type=submit로 통과.
+  // Button click while busy = stop (intercepts submit). When idle, passes through as type=submit.
   function handleSendClick(e: Event): void {
     if (!busy) return;
     e.preventDefault();
@@ -462,7 +463,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
       dismissInput();
     }
   }
-  // 사용자가 다시 타이핑하면 에러 해제
+  // Clear the error once the user types again
   function clearErrorOnInput(): void {
     if (formEl.classList.contains("is-error")) {
       formEl.classList.remove("is-error");
@@ -470,7 +471,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     }
   }
 
-  // 넘치는 말풍선에 커서를 올리면 auto-hide를 멈춰 읽을 시간을 준다.
+  // Hovering an overflowing bubble pauses auto-hide to give time to read.
   function onBubbleEnter(): void {
     hovering = true;
     if (dwellArmed && bubbleEl.classList.contains("is-scrollable")) clearDwell();
@@ -495,8 +496,8 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
       .map((i) => i.getAsFile())
       .filter((f): f is File => f !== null);
     if (files.length === 0) return;
-    // 텍스트+이미지 혼합 붙여넣기면 텍스트를 살리기 위해 기본 동작을 막지 않는다.
-    // 이미지 전용일 때만 막아 파일명이 필드에 새지 않게 한다.
+    // For a mixed text+image paste, don't block the default so the text is preserved.
+    // Only block for image-only pastes so a filename doesn't leak into the field.
     if (!e.clipboardData?.getData("text")) e.preventDefault();
     addFiles(files);
   }
@@ -505,7 +506,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     formEl.classList.add("is-dragover");
   }
   function onDragLeave(e: DragEvent): void {
-    // 자식 요소로 진입할 때도 dragleave가 발생하므로, 폼을 실제로 벗어날 때만 해제.
+    // dragleave also fires when entering a child element, so clear only when actually leaving the form.
     if (!formEl.contains(e.relatedTarget as Node)) formEl.classList.remove("is-dragover");
   }
   function onDrop(e: DragEvent): void {
@@ -570,7 +571,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   };
 }
 
-/** --yui-dwell 토큰(ms)을 읽는다. 없으면 null. */
+/** Read the --yui-dwell token (ms). null if absent. */
 function readDwellToken(el: HTMLElement): number | null {
   const raw = getComputedStyle(el).getPropertyValue("--yui-dwell").trim();
   if (raw === "") return null;

@@ -1,15 +1,15 @@
 /**
  * YUI bootstrap.
  *
- * 그래프:
+ * Graph:
  *   loadConfig() → createRenderer(mount) → createTier1Engine(renderer)
  *               → createEventBus() + createGuardrails()
  *               → createDispatcher({ bus, guardrails, renderer })
- *               → sources(timer/idle/user_input + Rust os_event) 구독 → dispatcher.start()
- *   io: streamChat(SSE) → express + 텍스트 스트림 → renderer / surfaces / tts-pipeline.
+ *               → subscribe sources(timer/idle/user_input + Rust os_event) → dispatcher.start()
+ *   io: streamChat(SSE) → express + text stream → renderer / surfaces / tts-pipeline.
  *
- *   - .yui-stage: 투명 캐릭터 무대(드래그 영역). renderer가 캔버스로 채운다.
- *   - .yui-ui:    오버레이 — 발화 말풍선·툴상태·텍스트 입력(invisible-by-default).
+ *   - .yui-stage: transparent character stage (drag region). renderer fills with canvas.
+ *   - .yui-ui:    overlay — speech bubble, tool state, text input (invisible-by-default).
  */
 
 import "./styles.css";
@@ -91,10 +91,10 @@ import { routeTurnFailure, turnErrorMessage } from "./ui/turn-error";
 import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
 
-/** 입력 소환 핫키 (window-focus 한정 — 전역 단축키는 후속 tauri-plugin-global-shortcut). */
+/** Input summon hotkey (window-focus only — global shortcuts to follow via tauri-plugin-global-shortcut). */
 const SUMMON_KEY = "/";
 
-/** voice-input-indicator의 backend-turn-failure "error" 표시 유지 시간(ms) — 이후 listening으로 복귀. */
+/** Duration to hold voice-input-indicator backend-turn-failure "error" display(ms) — then return to listening. */
 const VOICE_TURN_ERROR_DISPLAY_MS = 3_000;
 
 const log = createLogger("bootstrap");
@@ -106,8 +106,8 @@ async function bootstrap(): Promise<void> {
     throw new Error("#app mount point not found");
   }
 
-  // 루트(포지셔닝 컨텍스트) > 무대(드래그) + 오버레이(surfaces).
-  // 무대 = 드래그, 오버레이 = pointer 통과(입력만 예외).
+  // Root (positioning context) > stage (drag) + overlay (surfaces).
+  // Stage = drag, overlay = pointer passthrough (input only exception).
   // Drag is handled via initDrag — gesture-stub seam allows per-region filtering.
   app.innerHTML = `
     <div class="yui-root">
@@ -147,10 +147,10 @@ async function bootstrap(): Promise<void> {
     },
   });
 
-  // 마우스 휠로 캐릭터 스케일: 클램프 경계·민감도는 io 상수, persist는 store가 소유.
-  // 드래그는 pointerdown만 쓰므로 wheel과 충돌하지 않는다(drag.ts).
+  // Character scale via mouse wheel: clamp bounds and sensitivity are io constants, persist is owned by store.
+  // Drag uses pointerdown only, so no conflict with wheel (drag.ts).
   const onWheelZoom = (e: WheelEvent): void => {
-    if (e.ctrlKey) return; // ctrl+wheel은 창 리사이즈 제스처 (window-resize-source).
+    if (e.ctrlKey) return; // ctrl+wheel is window-resize gesture (window-resize-source).
     e.preventDefault();
     const next = nextZoom(cameraSettings.get().zoom, e.deltaY, {
       min: CAMERA_ZOOM_MIN,
@@ -170,14 +170,14 @@ async function bootstrap(): Promise<void> {
   }
 
   const renderer = createRenderer({ mount: stage });
-  // Tier 1 ambient: backend 독립, 항상 ON. tick은 vrm 로드 후부터 발화하므로
-  // loadVRM 전에 start해도 안전 (vrm 없는 프레임은 no-op).
+  // Tier 1 ambient: backend-independent, always on. tick fires after VRM loads, so
+  // starting before loadVRM is safe (frames without VRM are no-op).
   const ambient = createTier1Engine(renderer);
   ambient.start();
   const surfaces = createSurfaces({ mount: root });
 
-  // 채팅 입력을 캐릭터 발밑에 붙인다(reframe 추종). 매 프레임 발밑 화면좌표를 받아
-  // 입력 하단 오프셋으로 매핑하되, epsilon 이하 변화는 건너뛰어 var 재기록을 줄인다.
+  // Anchor chat input to character's feet (follow reframe). Each frame, receive feet screen coordinates,
+  // map to input bottom offset, skip changes below epsilon to reduce var rewrites.
   let lastInputBottom: number | null = null;
   const unsubAnchor = renderer.onTick(() => {
     const a = renderer.getCharacterAnchor();
@@ -224,11 +224,11 @@ async function bootstrap(): Promise<void> {
     hintSettings,
     railCollapsedSettings,
   } = createSettingsStores();
-  // config.endpoints 위에 오버라이드를 얹은 effective 엔드포인트. 호출 시점에 평가(핫리로드 친화).
+  // Effective endpoints with overrides layered on config.endpoints. Evaluated at call time (hot-reload friendly).
   function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
     return mergeEndpoints(config.get().endpoints, endpointsSettings.get());
   }
-  // 카메라 줌: persist된 배율을 부트 시 적용하고, 변경(휠/크로스윈도우)마다 렌더러로 흘린다.
+  // Camera zoom: apply persisted zoom ratio at boot, flow to renderer on each change (wheel/cross-window).
   renderer.setZoom(cameraSettings.get().zoom);
   renderer.setOrbit({ azimuth: cameraSettings.get().azimuth, polar: cameraSettings.get().polar });
   cameraSettings.subscribe((s) => {
@@ -237,19 +237,19 @@ async function bootstrap(): Promise<void> {
   });
   renderer.setIdleThrottleEnabled(idleThrottleSettings.get().enabled);
   idleThrottleSettings.subscribe((s) => renderer.setIdleThrottleEnabled(s.enabled));
-  // 카메라 시선 맞춤(gaze) on/off. 기본 ON. 변경(토글/크로스윈도우)마다 렌더러로 흘린다.
+  // Camera gaze on/off. Default on. Flow to renderer on each change (toggle/cross-window).
   renderer.setGazeEnabled(gazeSettings.get().enabled);
   gazeSettings.subscribe((s) => renderer.setGazeEnabled(s.enabled));
   const voiceInputStatus = createVoiceInputStatus();
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
-  // foreground app/title 스냅샷 — backend_caller가 매 요청에 env로 첨부. non-Tauri면 no-op.
+  // Foreground app/title snapshot — backend_caller attaches as env to each request. Non-Tauri is no-op.
   const osContext = createOsContext({
     maxRecentApps: () => recentAppsSettings.get().recent_apps_max,
   });
   void osContext.start();
-  // 팝아웃: Tauri면 별도 WebviewWindow("settings"), 아니면 브라우저 창. 메인 창 편집을
-  // 거기서, 거기 편집을 여기서 반영하도록 wireStorageSync로 storage 이벤트를 양방향 연결한다.
+  // Pop-out: Tauri uses separate WebviewWindow("settings"), otherwise browser window. Wire storage events
+  // bidirectionally so main window edits are reflected here and vice versa.
   const openSettings = createSettingsWindowOpener();
   const disposeStorageSync = wireStorageSync([
     agentSettings,
@@ -272,30 +272,30 @@ async function bootstrap(): Promise<void> {
     railCollapsedSettings,
   ]);
 
-  // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
-  // 시스템(VRM 렌더러 · STT/VAD)에 닿게 한다. storage 폴백은 위 wireStorageSync로 유지.
+  // Real-time wiring with pop-out settings window (Tauri events). Make controls in separate window
+  // reach live systems in this window (VRM renderer, STT/VAD). Storage fallback maintained above via wireStorageSync.
   const bridge = createSettingsBridge();
-  // 입 프리뷰(별도 창 → 이 창 VRM): 게인 슬라이더 드래그가 실제 입을 움직이게.
+  // Mouth preview (separate window → this window VRM): gain slider drag moves actual mouth.
   bridge.onMouthPreview((mouthOpen) => {
     if (mouthOpen == null) renderer.stopMouth();
     else renderer.setMouthOpen(mouthOpen);
   });
-  // 음성 토글(별도 창 → 이 창 STT): 기존 voiceInputStatus 구독이 sttVad를 시작/정지한다.
+  // Voice toggle (separate window → this window STT): existing voiceInputStatus subscription starts/stops sttVad.
   bridge.onVoiceSet((on) => {
     log.info("voice_toggle_received", { on, source: "settings_window" });
     voiceInputStatus.set(on ? "listening" : "idle");
   });
-  // 음성 상태(이 창 → 별도 창): 별도 창 indicator가 실제 STT 상태를 반영하게.
+  // Voice state (this window → separate window): separate window indicator reflects actual STT state.
   voiceInputStatus.subscribe((snapshot) => {
     bridge.emitVoiceState({ state: snapshot.state });
   });
-  // 음성입력 on/off 의도를 영속화 — idle이 아니면 켜짐. 다음 실행에서 자동 재개에 쓴다.
+  // Persist voice input on/off intent — enabled if not idle. Used for auto-resume on next run.
   const unsubscribeSttPersist = voiceInputStatus.subscribe((snapshot) => {
     sttSettings.setEnabled(snapshot.state !== "idle");
   });
-  // 설정 동기화(양방향, 루프 가드): 한쪽 편집 → emit → 다른쪽 store 재로드.
-  // store는 값이 그대로면 no-op이므로 왕복이 종료된다.
-  // 디바운스: 슬라이더 드래그/타이핑 버스트를 200ms 유휴 후 단일 cross-window 이벤트로 합친다.
+  // Settings sync (bidirectional, loop-guarded): one side edits → emit → other side reloads.
+  // Store is no-op if values stay same, so round-trip terminates.
+  // Debounce: consolidate slider drag/typing bursts into single cross-window event after 200ms idle.
   let applyingRemote = false;
   let broadcastTimer: ReturnType<typeof setTimeout> | null = null;
   const broadcastSettings = (): void => {
@@ -306,8 +306,8 @@ async function bootstrap(): Promise<void> {
       bridge.emitSettingsChanged();
     }, 200);
   };
-  // 동일하게 broadcast/reload 되는 설정 store들. cameraSettings는 reload가
-  // 줌까지 전파되어 별도 주석으로 남기므로 배열에서 제외한다.
+  // Settings stores that broadcast/reload identically. cameraSettings excluded from array
+  // since reload propagates to zoom, noted separately.
   type SyncedStore = {
     subscribe(cb: () => void): () => void;
     reloadFromStorage(): void;
@@ -332,18 +332,18 @@ async function bootstrap(): Promise<void> {
   ];
   for (const store of syncedSettingsStores) store.subscribe(broadcastSettings);
   cameraSettings.subscribe(broadcastSettings);
-  // 표시 언어도 창 간 동기화: 변경을 브로드캐스트하고, 원격 변경 시 storage에서 재적용한다.
+  // Display language also syncs cross-window: broadcast changes, reapply from storage on remote change.
   subscribeLocale(broadcastSettings);
   bridge.onSettingsChanged(() => {
     applyingRemote = true;
     try {
       for (const store of syncedSettingsStores) store.reloadFromStorage();
-      // 줌 재로드 → cameraSettings.subscribe(s => renderer.setZoom)가 카메라까지 반영.
+      // Zoom reload → cameraSettings.subscribe(s => renderer.setZoom) propagates to camera.
       cameraSettings.reloadFromStorage();
-      // 다른 창에서 바뀐 표시 언어 반영 → i18n.subscribe 재마운트 구독자가 UI를 다시 그린다.
+      // Reflect display language changed in other window → i18n.subscribe remount callback redraws UI.
       reloadLocaleFromStorage();
-      // VRM 선택은 설정 창에서 store-only로 커밋되므로, 그 변경을 펫 창 렌더러로 반영.
-      // 이 창 자체 스왑은 swapVrm이 이미 로드하므로, 여기선 OTHER 창 변경만 → 이중 로드 회피.
+      // VRM selection is committed store-only in settings window, reflect that change to pet window renderer.
+      // This window's own swap is already loaded by swapVrm, so only OTHER window changes here → avoid double-load.
       const prevVrmUrl = vrmSelection.getActive().url;
       vrmSelection.reloadFromStorage();
       const nextVrmUrl = vrmSelection.getActive().url;
@@ -352,7 +352,7 @@ async function bootstrap(): Promise<void> {
           log.error("vrm_cross_window_swap_failed", { error: String(err) }),
         );
       }
-      // 화자 선택은 store-only — synth가 다음 발화에서 getActive()로 읽으므로 재로드만 한다.
+      // Speaker selection is store-only — synth reads via getActive() on next utterance, so just reload.
       speakerSelection.reloadFromStorage();
     } finally {
       applyingRemote = false;
@@ -404,7 +404,7 @@ async function bootstrap(): Promise<void> {
       onGainPreviewEnd: () => renderer.stopMouth(),
       // Reset the camera viewpoint to head-on (store drives renderer.setOrbit).
       onResetViewpoint: () => cameraSettings.resetOrbit(),
-      // 빈 instructions일 때 placeholder로 보여줄 기본 지침(config 미로드 시 무시).
+      // Default instructions to show as placeholder when empty (ignored if config not loaded).
       getDefaultInstructions: () => {
         try {
           return getEndpoints().chat_instructions;
@@ -468,11 +468,10 @@ async function bootstrap(): Promise<void> {
   let captureIndicator = buildCaptureIndicator();
   let voiceInputIndicator = buildVoiceInputIndicator();
 
-  // Re-mount the localized DOM surfaces when the display language changes.
-  // Deferred to a microtask so the triggering click handler (the picker lives
-  // inside quick-controls) unwinds before its host is disposed. Long-lived
-  // non-UI singletons (renderer, TTS pipeline, VAD, voiceStatus store) and the
-  // dispatcher-wired `surfaces` instance are intentionally NOT re-created here.
+  // Re-mount localized DOM surfaces when display language changes.
+  // Defer to microtask so triggering click handler (picker inside quick-controls) unwinds
+  // before its host is disposed. Long-lived non-UI singletons (renderer, TTS pipeline, VAD,
+  // voiceStatus store) and dispatcher-wired `surfaces` instance intentionally NOT re-created.
   const unsubscribeLocale = subscribeLocale(() => {
     queueMicrotask(() => {
       voiceInputIndicator.dispose();
@@ -535,26 +534,26 @@ async function bootstrap(): Promise<void> {
 
   // ── Dispatcher spine ──────────────────────────────────────────────────────
   // event_bus → dispatcher → backend_caller → streamChat → Hermes → ControlEnvelope →
-  // renderer.applyDirective. user.text_submitted가 이 루프를 구동한다.
-  // bus/dispatcher는 config 로드 전에 만들어도 안전(엔드포인트는 backend_caller가 호출 시점에
-  // config에서 읽는다). 다만 backend_caller는 config 스토어가 필요하므로 config 생성 후 배선한다.
+  // renderer.applyDirective. user.text_submitted drives this loop.
+  // bus/dispatcher safe to create before config load (backend_caller reads endpoints at call time
+  // from config). backend_caller needs config store, so wire after config creation.
   const bus = createEventBus({
     onDrop: (env, reason) => log.info("drop", { event_name: env.event_name, reason }),
   });
   const userInput = createUserInputSource(bus);
   // Window-sit drop producer: Rust window_drop_release → tier1 perch event.
-  // Tauri-only — getCurrentWindow()/invoke/listen require the Tauri runtime; in a
-  // plain browser (Vite dev) it is skipped so bootstrap still runs. The DEV mock
-  // (__yui_windowSit.drop) exercises the geometry path without a real drag.
+  // Tauri-only — getCurrentWindow()/invoke/listen require Tauri runtime; in plain browser
+  // (Vite dev) skipped so bootstrap continues. DEV mock (__yui_windowSit.drop) exercises
+  // geometry path without real drag.
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
   // Ctrl+wheel pet-window resize producer (Tauri-only, same lifecycle as above).
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
-  // Guards the teardown/async-assign race: cleanup may run before the IIFE assigns.
+  // Guard teardown/async-assign race: cleanup may run before IIFE assigns.
   let windowDropDisposed = false;
   if (isTauri()) {
     void (async () => {
       const { invoke } = await import("@tauri-apps/api/core");
-      // Only bind the loopback ingress when the watcher is on. Restart-to-apply:
+      // Only bind loopback ingress when watcher on. Restart-to-apply:
       // toggling enable/port takes effect on next launch (no live rebind).
       if (agentNotifySettings.get().enabled) {
         void invoke("start_agent_ingress", { port: agentNotifySettings.get().port }).catch((e) =>
@@ -628,13 +627,13 @@ async function bootstrap(): Promise<void> {
       void startVoiceInput();
     }
   });
-  // dispatcher는 config 로드 후 생성되므로(backend_caller가 config.get()에 의존), dev 인스펙션
-  // 핸들이 참조할 수 있게 forward holder를 둔다.
+  // dispatcher created after config load (backend_caller depends on config.get()), so dev inspection
+  // handles can reference it via forward holder.
   let dispatcherRef: Dispatcher | null = null;
-  // voice-turn 실패 error 표시(~3s) 되돌리기 타이머 — 겹친 실패가 이전 타이머를 남겨 더 늦은
-  // 표시를 일찍 끊지 않도록 재무장 전 항상 clearTimeout한다(dwellTimer/broadcastTimer와 동일 패턴).
+  // voice-turn failure error display (~3s) restoration timer — overlapping failures leave previous timer,
+  // so always clearTimeout before re-arming to not cut later display early (same pattern as dwellTimer/broadcastTimer).
   let voiceTurnErrorTimer: ReturnType<typeof setTimeout> | null = null;
-  // 발화 후보 소스 holder — teardown에서 stop하도록 둔다.
+  // Utterance candidate sources holder — stop them in teardown.
   let proactiveSourceRef: {
     stop(): void;
     noteInteraction(ts?: number): void;
@@ -642,15 +641,15 @@ async function bootstrap(): Promise<void> {
   let scheduleSourceRef: { stop(): void } | null = null;
   let agentSourceRef: { stop(): void } | null = null;
   let signalsSourceRef: { stop(): void } | null = null;
-  // guardrails도 config 로드 후 생성 — 핫리로드 setConfig가 닿게 holder를 둔다.
+  // guardrails also created after config load — hot-reload setConfig reaches holder.
   let guardrailsRef: Guardrails | null = null;
-  // broker client는 config 로드 후 broker_base_url이 있을 때만 만든다. 핫스왑 재publish와
-  // HMR dispose가 닿게 holder를 둔다.
+  // broker client created after config load, only if broker_base_url present. hot-swap re-publish and
+  // HMR dispose reach holder.
   let brokerRef: BrokerClient | null = null;
-  // 전역 소환 핫키(Tauri 전용) — 핫리로드 재적용이 닿게 holder를 둔다.
+  // Global summon hotkey (Tauri-only) — hot-reload reapply reaches holder.
   let summonHotkeyRef: SummonHotkey | null = null;
-  // Tauri webview에서 broker(localhost:3201)는 cross-origin → selectFetch로 CORS 우회 fetch 주입.
-  // 부트에서 1회 해소해 캐시하고, 재지정(override) 시에도 같은 fetch를 재사용한다.
+  // In Tauri webview, broker (localhost:3201) is cross-origin → inject CORS-bypass fetch via selectFetch.
+  // Resolve once at boot and cache, reuse same fetch on override reassignment.
   let brokerFetch: typeof fetch | undefined;
   function makeBroker(baseUrl: string): BrokerClient {
     return createBrokerClient({
@@ -659,8 +658,8 @@ async function bootstrap(): Promise<void> {
     });
   }
 
-  // irodori provider일 때만 enum 테이블을 best-effort 로드. 실패하면 warn 후 null →
-  // broker가 free 모드로 degrade(D4). 부트/핫스왑을 막지 않는다.
+  // Load enum table best-effort only for irodori provider. On failure, warn then null →
+  // broker degrades to free mode (D4). Doesn't block boot/hot-swap.
   async function loadBrokerTable(
     provider: string | undefined,
   ): Promise<Record<string, string> | null> {
@@ -676,15 +675,15 @@ async function bootstrap(): Promise<void> {
     }
   }
 
-  // 제출 → dispatcher 스파인으로 발사(user.text_submitted). 입력은 열어 둔 채 send→stop로
-  // 전환(subscribeBusy)되고, 턴 완료 시 send로 복귀한다. mock은 dev 데모 전용으로 유지.
+  // Submit → fire to dispatcher spine (user.text_submitted). Keep input open, switch send→stop (subscribeBusy),
+  // return to send on turn complete. mock kept for DEV demo only.
   surfaces.onSubmit((text, images) => {
     userInput.submit(text, images);
-    // YUI와 대화 → 주도적 반응의 무대화 경과 타이머 리셋.
+    // Conversation with YUI → reset proactive response dramatization elapsed timer.
     proactiveSourceRef?.noteInteraction();
   });
 
-  // 핫키: window 포커스 상태에서 SUMMON_KEY로 입력 소환. (Esc/Enter는 입력 내부에서 처리)
+  // Hotkey: summon input via SUMMON_KEY when window focused. (Esc/Enter handled inside input)
   function onKeydown(e: KeyboardEvent): void {
     if (e.key !== SUMMON_KEY || e.metaKey || e.ctrlKey || e.altKey) return;
     if (surfaces.isInputOpen()) return;
@@ -694,7 +693,7 @@ async function bootstrap(): Promise<void> {
   }
   window.addEventListener("keydown", onKeydown);
 
-  // dev 전용: 스크린샷 검증 루프에서 직접 호출할 핸들.
+  // DEV-only: handles for direct invocation from screenshot validation loop.
   if (import.meta.env.DEV) {
     const { createMockDriver } = await import("./ui/mock");
     const mock = createMockDriver(surfaces);
@@ -708,14 +707,14 @@ async function bootstrap(): Promise<void> {
       __yuiAgent: agentSettings,
       __yuiQuick: quickControls,
       __yuiVoiceInputStatus: voiceInputStatus,
-      // DEV-ONLY 트리거: E2E 루프를 콘솔에서 직접 발사한다.
-      //   window.__yui_send("안녕") → user.text_submitted → dispatcher → backend_caller →
-      //   streamChat → Hermes → ControlEnvelope → renderer.applyDirective + 말풍선.
-      // 검증용 임시 핸들.
+      // DEV-ONLY trigger: fire E2E loop directly from console.
+      //   window.__yui_send("hello") → user.text_submitted → dispatcher → backend_caller →
+      //   streamChat → Hermes → ControlEnvelope → renderer.applyDirective + bubble.
+      // Temporary handle for validation.
       __yui_send: (text: string) => userInput.submit(text),
-      // dispatcher 관찰: __yui_dispatcher.inFlight()/queue()/recentDrops().
+      // Dispatcher observation: __yui_dispatcher.inFlight()/queue()/recentDrops().
       __yui_dispatcher: () => dispatcherRef,
-      // DEV-ONLY 트리거: window_sit perch 진입/이탈/드롭을 콘솔에서 직접 발사한다.
+      // DEV-ONLY trigger: fire window_sit perch enter/exit/drop directly from console.
       //   window.__yui_windowSit.enter() → user.window_sit_enter → dispatcher → renderer.
       //   window.__yui_windowSit.drop(rect) → user.window_sit_drop(geometry) → perch align.
       __yui_windowSit: {
@@ -735,8 +734,8 @@ async function bootstrap(): Promise<void> {
             hint_tier: 1,
             dnd_override: true,
           }),
-        // edge_local_ypx를 현재 창 outerPosition/scaleFactor로 계산해 geometry 경로를
-        // 실제 OS 창 없이 구동한다(Tauri면 실값, 아니면 0,0/1 폴백).
+        // Compute edge_local_ypx from current window outerPosition/scaleFactor,
+        // drive geometry path without real OS window (Tauri: actual values, else 0,0/1 fallback).
         drop: async (rect: WindowRect): Promise<void> => {
           let pos = { x: 0, y: 0 };
           let scale = 1;
@@ -762,7 +761,7 @@ async function bootstrap(): Promise<void> {
             },
           });
         },
-        // 점유 시뮬레이션: 실제 두 번째 창 없이 occlusion poll의 이탈 결과(window_sit_exit)를 발사한다.
+        // Occupancy simulation: fire occlusion poll exit result (window_sit_exit) without real second window.
         occlude: (_rect?: WindowRect) =>
           bus.push({
             source: "os_event_watcher",
@@ -772,7 +771,7 @@ async function bootstrap(): Promise<void> {
             dnd_override: true,
           }),
       },
-      // 단계별 시연 헬퍼
+      // Step-by-step demo helpers
       __yuiDemo: {
         input: () => surfaces.summonInput(),
         tool: (id = "web_search") => surfaces.showTool(id),
@@ -786,10 +785,10 @@ async function bootstrap(): Promise<void> {
     });
   }
 
-  // config-driven 로드: configs/*.json → 검증된 AppConfig. endpoints/motions 등은
-  // dispatcher·tts 배선 시 소비. avatar.vrm_url로 VRM을 띄운다.
-  // chat 키는 SecretProvider로 주입 — dev는 Vite env, prod/OSS는 keychain 구현으로 교체.
-  // dispatcher가 streamChat 호출 시 `await config.secrets.get(CHAT_API_KEY_SECRET)`로 해소한다.
+  // Config-driven load: configs/*.json → validated AppConfig. endpoints/motions etc
+  // consumed during dispatcher·tts wiring. VRM displayed via avatar.vrm_url.
+  // Chat key injected via SecretProvider — dev uses Vite env, prod/OSS replaces with keychain impl.
+  // dispatcher resolves via `await config.secrets.get(CHAT_API_KEY_SECRET)` on streamChat call.
   const config = createConfigStore({
     secrets: createSettingsSecretProvider({
       stores: {
@@ -804,14 +803,14 @@ async function bootstrap(): Promise<void> {
       },
     }),
   });
-  // dev에서 런타임 오버라이드도 build-time 키도 없으면 chat 호출이 조용한 401처럼 보인다 →
-  // bootstrap에서 미리 알린다. 키 값 자체는 절대 로깅하지 않는다(시크릿).
+  // No runtime override + no build-time key → chat call looks like silent 401 →
+  // warn early in bootstrap. Never log key value itself (secret).
   if (import.meta.env.DEV && !chatKeySettings.get().apiKey && !import.meta.env.VITE_YUI_CHAT_KEY) {
     log.warn(
       "chat API 키 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. 설정 패널의 채팅 API 키 또는 .env.local(VITE_YUI_CHAT_KEY) 참고.",
     );
   }
-  // STT/openai-TTS 키 미설정 경고(키가 필요한 게이트 백엔드에서 401 방지용 힌트). irodori는 키 불필요.
+  // STT/openai-TTS key warning (prevent 401 on gated backends requiring keys). irodori key not needed.
   if (import.meta.env.DEV && !sttKeySettings.get().apiKey && !import.meta.env.VITE_YUI_STT_KEY) {
     log.warn(
       "STT API 키 미설정 — 키를 요구하는 STT 서버라면 401 가능. .env.local(VITE_YUI_STT_KEY) 참고.",
@@ -822,10 +821,10 @@ async function bootstrap(): Promise<void> {
       "TTS API 키 미설정 — openai 호환 TTS가 키를 요구하면 401 가능. .env.local(VITE_YUI_TTS_KEY) 참고. (irodori는 불필요)",
     );
   }
-  // synth는 호출 시점에 config(핫리로드)와 selectFetch를 읽는 closure로 주입한다.
-  // config.get()을 여기서 eager 평가하면 load() 전 throw로 부트스트랩이 죽으니 금지.
-  // 재생 진폭은 renderer 입 모양으로, 재생 완료는 말풍선 페이드 해제로 흐른다(speech-playback).
-  // irodori synth closure를 화자·튜닝 키별로 메모이즈 + 422 self-heal. 문장마다 재구성하지 않는다.
+  // synth injected as closure reading config (hot-reload) and selectFetch at call time.
+  // Eager eval config.get() here forbidden — throw before load() kills bootstrap.
+  // Playback amplitude flows from renderer mouth shape, completion flows from bubble fade release (speech-playback).
+  // irodori synth closure memoized per speaker/tuning keys + 422 self-heal. Not reconstructed per sentence.
   let irodoriFactory: TtsSynth | undefined;
   const irodoriSynth = async (input: string, signal?: AbortSignal): Promise<ArrayBuffer> => {
     const f = await selectFetch();
@@ -863,11 +862,11 @@ async function bootstrap(): Promise<void> {
     return irodoriFactory(input, signal);
   };
 
-  // 추임새 루프는 speechPlayback로 말하고(speak), speechPlayback의 재생 종료(onPlaybackEnd)가
-  // 루프의 다음 반복을 트리거한다 — 서로를 참조하므로 forward let으로 순환을 끊는다.
+  // Filler loop speaks via speechPlayback (speak), speechPlayback playback completion (onPlaybackEnd)
+  // triggers loop's next iteration — mutual reference, break cycle with forward let.
   let fillerLoop: import("./io/filler-loop").FillerLoop | undefined;
-  // 현재 thinking을 소유한 턴의 token. 턴이 겹치면(supersede) 추월당한 턴의 늦은
-  // onThinkingEnd가 단일 fillerLoop/모션을 정리하지 않게, token이 현재와 다르면 무시한다.
+  // Token of turn owning current thinking. When turns overlap (supersede), late onThinkingEnd
+  // of overtaken turn must not clean up single fillerLoop/motion, so ignore if token differs from current.
   let currentThinkingTurn: object | null = null;
   const speechPlayback = createSpeechPlayback({
     renderer,
@@ -875,10 +874,10 @@ async function bootstrap(): Promise<void> {
     onPlaybackEnd: () => fillerLoop?.onUtteranceDone(),
     pipeline: {
       sink: createWebAudioSink({ getGain: () => lipsyncSettings.get().gain }),
-      // function form → drain마다 lazy 해소(eager config read 없음, 핫리로드 친화).
+      // Function form → lazy resolution each drain (no eager config read, hot-reload friendly).
       maxInflight: () => getEndpoints().tts_max_inflight ?? 1,
       synth: async (input, signal) => {
-        // TTS 비활성(토글 OFF 또는 서버 미설정) 시 조용히 skip — 표정/모션·말풍선은 그대로.
+        // TTS inactive (toggle OFF or server unset) quietly skip — expressions/motions, bubble unchanged.
         if (!ttsSettings.get().enabled) return Promise.reject(TTS_SKIP);
         const eps = getEndpoints();
         if (eps.tts_provider === "irodori") {
@@ -907,12 +906,12 @@ async function bootstrap(): Promise<void> {
     });
   }
 
-  // ── TTFT 추임새 ───────────────────────────────────────────────────────────
-  // 호출 시점에 현재 filler 설정 + config 스냅샷을 라이브로 읽어 effective 풀을 만든다
-  // (부트 시점 캡처 금지 — 핫리로드/설정 변경이 다음 턴에 반영되게).
+  // ── TTFT filler ───────────────────────────────────────────────────────────
+  // Read current filler settings + config snapshot live at call time to create effective pool
+  // (forbidden to capture at boot — hot-reload/settings changes reflected in next turn).
   const effectiveFiller = () => effectiveFillerPool(fillerSettings.get(), config.get().filler);
 
-  // 추임새 루프 — speak(speechPlayback) + 라이브 풀/타이밍. forward let에 대입해 순환을 닫는다.
+  // Filler loop — speak(speechPlayback) + live pools/timing. Close cycle by assigning to forward let.
   fillerLoop = createFillerLoop({
     speak: (t) => speechPlayback.onSpeech(t),
     getPools: effectiveFiller,
@@ -922,10 +921,10 @@ async function bootstrap(): Promise<void> {
     }),
   });
 
-  // ── 세션 연속성 ───────────────────────────────────────────────────────────
-  // 대화 스레딩은 OpenAI Responses의 previous_response_id로 잇는다 — 매 턴 직전 id를 읽어
-  // 보내고(getPreviousResponseId), 성공한 턴의 새 response id를 저장한다(onResponseId).
-  // session store는 위에서 wireStorageSync 대상으로 일찍 만든다.
+  // ── Session continuity ───────────────────────────────────────────────────────────
+  // Conversation threading via OpenAI Responses previous_response_id — read prior id each turn
+  // (getPreviousResponseId), save new response id on success (onResponseId).
+  // session store created early above as wireStorageSync target.
   const backendCaller = createBackendCaller({
     get config() {
       return getEndpoints();
@@ -964,14 +963,14 @@ async function bootstrap(): Promise<void> {
     peekRecentApps: () => osContext.peekRecentApps(),
     drainRecentApps: (only) => osContext.drainRecentApps(only),
     getAgentSettings: () => agentSettings.get(),
-    // TTFT thinking: 디스패처는 타이밍만 소유 — effective 풀이 비어있지 않을 때만 타이머 무장.
+    // TTFT thinking: dispatcher owns only timing — arm timer only if effective pool not empty.
     getFiller: () => {
       const pool = effectiveFiller();
       return pool.first.length > 0 || pool.repeat.length > 0;
     },
-    // 첫 토큰 지연 시: 생각중 모션(loop) + 추임새 루프 시작(첫 대사 → 반복). 루프가 말하기를 소유한다.
+    // First token delay: thinking motion (loop) + filler loop start (first utterance → repeat). Loop owns speaking.
     onThinkingStart: (token) => {
-      // 이 턴이 thinking을 소유한다고 동기로 선언 — 겹친 다음 턴 start가 추월하면 갱신된다.
+      // Synchronously declare this turn owns thinking — overlapping next turn start supersedes if it arrives.
       currentThinkingTurn = token;
       // hold BEFORE the first filler can speak so no filler sentence resets the motion.
       speechPlayback.holdMotion(true);
@@ -981,10 +980,10 @@ async function bootstrap(): Promise<void> {
       renderer.playMotion({ id: "thinking", loop: true });
       fillerLoop?.start();
     },
-    // thinking 종료 → 추임새 루프 정지 + idle baseline 복귀. thinking은 loop:true/kind:"state"라
-    // cue가 없으면 영영 돌고 previousStable도 오염되므로, 종료 시 idle로 되돌려 둘 다 막는다.
-    // (backend 모션 cue priority 70은 도착 시 idle을 그대로 대체한다.)
-    // 추월당한 턴의 늦은 end(token != current)는 무시 — 단일 fillerLoop/모션이 현재 턴 소유다.
+    // Thinking end → filler loop stop + idle baseline return. thinking is loop:true/kind:"state",
+    // so without cue spins forever and pollutes previousStable; end by returning to idle to prevent both.
+    // (backend motion cue priority 70 replaces idle as-is on arrival.)
+    // Ignore late end of overtaken turn (token != current) — single fillerLoop/motion owns current turn.
     onThinkingEnd: (token) => {
       if (token !== currentThinkingTurn) return;
       currentThinkingTurn = null;
@@ -993,10 +992,10 @@ async function bootstrap(): Promise<void> {
       renderer.playMotion(null);
     },
   });
-  // dispatcher/guardrails는 config 로드 후 만든다(guardrails가 cfg.guardrails 수치를 필요로 함).
+  // dispatcher/guardrails created after config load (guardrails needs cfg.guardrails numbers).
   try {
     const cfg = await config.load();
-    // 가드레일 — config 수치로 구성. dispatcher가 note+evaluate+cooldown polling으로 소비.
+    // Guardrails — configured by config numbers. dispatcher consumes via note+evaluate+cooldown polling.
     const guardrails = createGuardrails(cfg.guardrails);
     guardrailsRef = guardrails;
     const dispatcher = createDispatcher({
@@ -1005,9 +1004,9 @@ async function bootstrap(): Promise<void> {
       backendCaller,
       guardrails,
       isSpeaking: () => speechPlayback.isSpeaking(),
-      // user-initiated 턴 실패만 표면화(proactive/schedule/agent는 로그만 — silent by design).
-      // source(text/voice)로 라우팅한다 — isInputOpen()을 실패 시점에만 보고 판단하면 Escape로
-      // 중도 닫힌 typed 턴이 voice 표면으로 오배선될 수 있어, routeTurnFailure가 source를 우선한다.
+      // Surface only user-initiated turn failures (proactive/schedule/agent log only — silent by design).
+      // Route by source (text/voice) — checking isInputOpen() only at failure time risks misrouting
+      // escaped typed turns to voice surface, so routeTurnFailure prioritizes source.
       onUserTurnFailed: (reason, source) => {
         const message = turnErrorMessage(reason);
         if (!message) return;
@@ -1015,8 +1014,8 @@ async function bootstrap(): Promise<void> {
         if (action.kind === "show_input_error") {
           surfaces.showInputError(message);
         } else if (action.kind === "voice_error") {
-          // voice-input-indicator의 기존 error 상태를 잠깐 재사용한다(새 DOM 없음). 겹친 실패가
-          // 이전 타이머로 새 표시를 일찍 끊지 않도록 재무장 전 clearTimeout.
+          // Briefly reuse existing error state of voice-input-indicator (no new DOM).
+          // Overlapping failures: clearTimeout before re-arming so previous timer doesn't cut new display early.
           if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
           voiceInputStatus.set("error", reason);
           voiceTurnErrorTimer = setTimeout(() => {
@@ -1024,14 +1023,14 @@ async function bootstrap(): Promise<void> {
             if (voiceInputStatus.get().state === "error") voiceInputStatus.set("listening");
           }, VOICE_TURN_ERROR_DISPLAY_MS);
         }
-        // action.kind === "none": typed 턴이 실패 도달 전 이미 닫혔다 — 로그만(dispatcher가 이미 남김).
+        // action.kind === "none": typed turn already closed before failure reached — log only (dispatcher already recorded).
       },
     });
     dispatcherRef = dispatcher;
-    // 진행 중 backend 턴 ⟷ 입력의 send/stop 토글. stop 클릭 → 명시적 cancel(client-side abort).
+    // In-flight backend turn ↔ input send/stop toggle. Stop click → explicit cancel (client-side abort).
     dispatcher.subscribeBusy((busy) => surfaces.setBusy(busy));
     surfaces.onStop(() => dispatcher.cancel());
-    // HMR로 모듈이 재실행되면 이전 dispatcher의 setInterval/ in-flight가 남는다 → dispose에서 정지.
+    // HMR module re-run leaves stale dispatcher setInterval/in-flight → stop in dispose.
     if (import.meta.env.DEV) {
       import.meta.hot?.dispose(() => {
         dispatcher.stop();
@@ -1048,7 +1047,7 @@ async function bootstrap(): Promise<void> {
     const { createSttVad } = await import("./io/stt-vad");
     sttVad = createSttVad({
       config: cfg.endpoints,
-      // lazy: VAD가 시작될 때마다 침묵 기준을 다시 읽어 슬라이더 변경이 반영되게 한다.
+      // Lazy: re-read silence threshold each time VAD starts so slider changes take effect.
       silenceMs: () => vadSettings.get().silenceMs,
       getApiKey: () => config.secrets.get(STT_API_KEY_SECRET),
       onVoiceSegment: (text) => {
@@ -1063,8 +1062,8 @@ async function bootstrap(): Promise<void> {
       },
     });
     voiceInputReady = true;
-    // 직전 세션에서 켜둔 채 종료했으면(sttSettings.enabled) 자동 재개. 단일 start로 통일하고,
-    // 서버 미설정이면 start()가 no-op라 onState가 안 와 status는 조용히 idle로 남는다.
+    // Auto-resume if left on in previous session (sttSettings.enabled). Unify on single start;
+    // if server unset, start() is no-op so onState doesn't fire, status quietly stays idle.
     if (
       voiceInputStartRequested ||
       voiceInputStatus.get().state !== "idle" ||
@@ -1072,17 +1071,17 @@ async function bootstrap(): Promise<void> {
     ) {
       void startVoiceInput();
     }
-    // emotion/motion registry를 renderer에 주입 → setEmotion/playMotion(=applyDirective) 동작.
+    // Inject emotion/motion registry into renderer → setEmotion/playMotion (= applyDirective) works.
     renderer.setEmotionRegistry(cfg.emotionRegistry);
     renderer.setMotionRegistry(cfg.motions);
-    // 전신 fit-to-bounds framing knob 주입 — 첫 VRM 로드 전에 설정.
+    // Inject full-body fit-to-bounds framing knob — set before first VRM load.
     renderer.setFraming(cfg.avatar.framing ?? {});
-    // 카메라 시선 맞춤 thresholds 주입 (configs/avatar.json gaze; 생략 키는 기본값 유지).
+    // Inject camera gaze-fit thresholds (configs/avatar.json gaze; omitted keys keep defaults).
     renderer.setGaze(cfg.avatar.gaze ?? {});
-    // per-pixel alpha hit-test threshold (configs/avatar.json hit_test.alpha_threshold).
+    // Per-pixel alpha hit-test threshold (configs/avatar.json hit_test.alpha_threshold).
     const bootAlpha = cfg.avatar.hit_test?.alpha_threshold;
     if (bootAlpha !== undefined) renderer.setHitTestThreshold(bootAlpha);
-    // 실제 manifest 주입 후 부트 로드 → persist된 override가 시작 시점에 적용된다.
+    // Inject actual manifest then boot load → persisted overrides take effect at startup.
     vrmSelection.setManifest({
       available: cfg.avatar.available,
       defaultUrl: cfg.avatar.vrm_url,
@@ -1092,7 +1091,7 @@ async function bootstrap(): Promise<void> {
       defaultId: cfg.endpoints.irodori_speaker ?? "",
     });
     await loadVrmSerialized(vrmSelection.getActive().url);
-    // First-run 온보딩 힌트 — 캐릭터가 보이는 즉시 1회, 기존 speech bubble로 노출.
+    // First-run onboarding hint — once when character visible, exposed via existing speech bubble.
     maybeShowFirstRunHint({
       seen: () => hintSettings.get().seen,
       markSeen: () => hintSettings.setSeen(true),
@@ -1101,9 +1100,9 @@ async function bootstrap(): Promise<void> {
       isMac: /Mac/.test(navigator.platform || navigator.userAgent),
       t,
     });
-    // 클릭스루 hit-test: 캐릭터/가시 UI 위는 interactive, 그 외 빈 영역은 click-through.
-    // interactive = renderer.hitTest(stage-local) ∪ 가시 입력 폼 ∪ 열린 quick-controls.
-    // 좌표는 모두 viewport(client) 기준 — renderer.hitTest만 stage 좌상단 기준으로 변환한다.
+    // Click-through hit-test: interactive over character/visible UI, click-through empty areas elsewhere.
+    // interactive = renderer.hitTest(stage-local) ∪ visible input form ∪ open quick-controls.
+    // All coordinates viewport(client) basis — only renderer.hitTest transforms to stage top-left basis.
     const interactiveRects = (): DOMRect[] => {
       const rects: DOMRect[] = [];
       const inputForm = root.querySelector<HTMLElement>(".yui-input.is-open");
@@ -1123,17 +1122,17 @@ async function bootstrap(): Promise<void> {
         return interactiveRects().some((r) => pointInRect(xClient, yClient, r, marginPx));
       },
       moveTarget: window,
-      // 핫리로드 친화: 매 tick config store에서 읽어 knob 편집이 반영되게 한다.
+      // Hot-reload friendly: read config store each tick so knob edits take effect.
       getConfig: () => config.get().avatar.hit_test ?? {},
     });
     hitTestRef = hitTest;
     hitTest.start();
     if (import.meta.env.DEV) import.meta.hot?.dispose(() => hitTest.stop());
-    // config가 준비된 후에만 dispatcher를 가동(backend_caller가 config.get()에 의존).
+    // Start dispatcher only after config ready (backend_caller depends on config.get()).
     dispatcher.start();
-    // tier2 발화 후보 소스: presence 게이트 위에서 proactive.<id>(무대화 N분)와
-    // schedule.<id>(시간대 인사)를 발사한다. 공유 presence store + 각 설정 store로
-    // 게이팅. dispatcher 가동 후 start — 발사가 즉시 소비되도록. teardown에서 함께 stop.
+    // tier2 utterance candidate sources: fire proactive.<id> (dramatization N mins idle) and
+    // schedule.<id> (time-of-day greeting) over presence gate. Gated by shared presence store + per-setting store.
+    // Start after dispatcher running — firing consumed immediately. Stop together in teardown.
     const proactiveSource = createProactiveSource({
       bus,
       present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
@@ -1150,7 +1149,7 @@ async function bootstrap(): Promise<void> {
     });
     scheduleSourceRef = scheduleSource;
     void scheduleSource.start();
-    // Agent completion 워처: Tauri IPC 인박스에서 agent.done / idle→present edge에서 agent.catchup을 발사한다.
+    // Agent completion watcher: fire agent.done / idle→present edge fires agent.catchup from Tauri IPC inbox.
     const agentSource = createAgentSource({
       bus,
       present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
@@ -1158,8 +1157,8 @@ async function bootstrap(): Promise<void> {
     });
     agentSourceRef = agentSource;
     void agentSource.start();
-    // Signals 워처: 같은 loopback ingress(agentNotifySettings 게이트)의 signals-inbox 채널에서
-    // signals.push / idle→present edge에서 signals.catchup을 발사한다 — 페이로드는 opaque 그대로 전달.
+    // Signals watcher: fire signals.push / idle→present edge fires signals.catchup from signals-inbox channel
+    // of same loopback ingress (gated by agentNotifySettings) — payload passed through opaque.
     const signalsSource = createSignalsSource({
       bus,
       present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
@@ -1167,9 +1166,9 @@ async function bootstrap(): Promise<void> {
     });
     signalsSourceRef = signalsSource;
     void signalsSource.start();
-    // 전역 소환 핫키: configs/hotkeys.json accelerator를 OS 전역으로 등록(Tauri 전용 —
-    // 브라우저 dev에서는 스킵). 발동 시 창 show+focus 후 입력 소환. 등록 실패는
-    // summon-hotkey가 warn 후 비활성으로 처리한다(fail-soft).
+    // Global summon hotkey: register configs/hotkeys.json accelerator OS-globally (Tauri-only —
+    // skipped in browser dev). On fire: show+focus window then summon input. Registration failure:
+    // summon-hotkey warns then treats as inactive (fail-soft).
     if (isTauri()) {
       void (async () => {
         const { register, unregister } = await import("@tauri-apps/plugin-global-shortcut");
@@ -1177,7 +1176,7 @@ async function bootstrap(): Promise<void> {
         const summonHotkey = createSummonHotkey({
           register,
           unregister,
-          // macOS에서 백그라운드 앱 활성화까지 포함해 앞으로 가져온다(숨김 대비 show 선행).
+          // On macOS, include background app activation, bring forward (show before hidden).
           focusWindow: async () => {
             const win = getCurrentWindow();
             await win.show();
@@ -1193,8 +1192,8 @@ async function bootstrap(): Promise<void> {
         }
       })().catch((err) => log.warn("summon_hotkey_wire_failed", { error: String(err) }));
     }
-    // Expression Broker publish(D6): broker_base_url이 있을 때만 가동(override 병합 effective 기준).
-    // publish→start는 fire-and-forget — 부트 임계 경로를 막지 않는다(D4).
+    // Expression Broker publish(D6): only runs if broker_base_url present (effective override-merged).
+    // publish→start is fire-and-forget — doesn't block boot critical path (D4).
     const bootEps = getEndpoints();
     brokerFetch = (await selectFetch()) ?? undefined;
     if (bootEps.broker_base_url) {
@@ -1206,8 +1205,8 @@ async function bootstrap(): Promise<void> {
       log.debug("broker_disabled", { reason: "no_broker_base_url" });
     }
 
-    // 오버라이드(음성 엔진·broker URL) 변경을 라이브로 broker에 반영. config.subscribe는
-    // 디스크 편집만 보므로 별도로 배선한다(best-effort).
+    // Reflect override changes (voice engine, broker URL) live to broker. config.subscribe sees
+    // disk edits only, so wire separately (best-effort).
     const brokerReconciler = createBrokerOverrideReconciler({
       getEffectiveEndpoints: getEndpoints,
       getBroker: () => brokerRef,
@@ -1225,29 +1224,29 @@ async function bootstrap(): Promise<void> {
     if (import.meta.env.DEV) import.meta.hot?.dispose(unsubscribeBrokerOverride);
   } catch (err) {
     log.error("config_or_vrm_load_failed", { error: String(err) });
-    // 부트 실패 = 빈 투명 창. 원인(ConfigError vs VRM)을 사용자에게 보이게 남긴다(#316).
+    // Boot failure = empty transparent window. Preserve cause (ConfigError vs VRM) visible to user (#316).
     showBootError(root, err);
   }
 
-  // 핫리로드: avatar manifest가 바뀌면 setManifest로 갱신 후 active VRM 핫스왑.
-  // override-wins: config vrm_url 편집은 사용자의 localStorage 선택을 덮지 않는다(agent-settings와 동일).
+  // Hot-reload: when avatar manifest changes, update via setManifest then hot-swap active VRM.
+  // override-wins: config vrm_url edits don't overwrite user's localStorage selection (same as agent-settings).
   config.subscribe((cfg, changed) => {
-    // emotion/motion registry 핫리로드 → renderer 재주입(즉시 반영).
+    // emotion/motion registry hot-reload → renderer re-inject (immediate effect).
     if (changed.has("emotionRegistry")) renderer.setEmotionRegistry(cfg.emotionRegistry);
     if (changed.has("motions")) renderer.setMotionRegistry(cfg.motions);
-    // guardrails 수치 핫리로드 — 런타임 DND/카운터 상태는 보존하고 config만 교체.
+    // guardrails numbers hot-reload — preserve runtime DND/counter state, replace config only.
     if (changed.has("guardrails")) guardrailsRef?.setConfig(cfg.guardrails);
-    // 전역 소환 핫키 핫리로드 — 기존 해제 후 새 accelerator 등록(빈 문자열 = 비활성).
+    // Global summon hotkey hot-reload — unregister existing, register new accelerator (empty string = inactive).
     if (changed.has("hotkeys")) void summonHotkeyRef?.apply(cfg.hotkeys.summon_global);
-    // irodori 화자 manifest 핫리로드 — synth가 다음 발화에서 getActive()로 읽으므로 재로드만 한다.
+    // irodori speaker manifest hot-reload — synth reads via getActive() on next utterance, so just reload.
     if (changed.has("endpoints")) {
       speakerSelection.setManifest({
         available: cfg.endpoints.irodori_voices,
         defaultId: cfg.endpoints.irodori_speaker ?? "",
       });
     }
-    // broker re-publish(D6): renderable vocab을 만드는 config 섹션이 바뀌면 동기화. best-effort.
-    // override 병합 effective 엔드포인트로 발행해 디스크 편집이 사용자 오버라이드를 덮지 않게 한다.
+    // Broker re-publish(D6): sync when config section building renderable vocab changes. Best-effort.
+    // Publish via override-merged effective endpoints so disk edits don't overwrite user overrides.
     if (
       brokerRef &&
       (changed.has("emotionRegistry") || changed.has("motions") || changed.has("endpoints"))
@@ -1258,9 +1257,9 @@ async function bootstrap(): Promise<void> {
       });
     }
     if (!changed.has("avatar")) return;
-    // framing knob 핫리로드 — 핫스왑 재fit 전에 갱신.
+    // Framing knob hot-reload — update before hot-swap re-fit.
     renderer.setFraming(cfg.avatar.framing ?? {});
-    // gaze thresholds 핫리로드.
+    // Gaze thresholds hot-reload.
     renderer.setGaze(cfg.avatar.gaze ?? {});
     const reloadAlpha = cfg.avatar.hit_test?.alpha_threshold;
     if (reloadAlpha !== undefined) renderer.setHitTestThreshold(reloadAlpha);
@@ -1278,20 +1277,20 @@ async function bootstrap(): Promise<void> {
       error: String(err),
     }),
   );
-  // dev에서만 폴링 watcher 가동 — configs/*.json 편집 시 즉시 반영.
+  // DEV-only: polling watcher runs — edits to configs/*.json reflected immediately.
   if (import.meta.env.DEV) {
     config.start();
     Object.assign(globalThis as Record<string, unknown>, {
       __yuiConfig: config,
     });
-    // HMR로 모듈이 재실행되면 이전 store의 setInterval이 쌓인다 → dispose에서 중지.
+    // HMR module re-run stacks previous store's setInterval → stop in dispose.
     import.meta.hot?.dispose(() => config.stop());
-    // broker liveness poll의 setInterval도 HMR 간에 누수되지 않게 정리한다.
+    // Broker liveness poll setInterval also cleaned up between HMR to prevent leak.
     import.meta.hot?.dispose(() => brokerRef?.dispose());
   }
 }
 
-/** 포커스가 이미 입력류에 있으면 핫키를 가로채지 않는다. */
+/** Don't intercept hotkey if focus already on input element. */
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName;

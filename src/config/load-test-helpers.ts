@@ -1,13 +1,13 @@
 /**
- * test-helpers.ts — config/load 테스트 공용 fixture.
- * known-good 파일 묶음 + in-memory ConfigReader. 실제 configs/*.json shape 미러.
+ * test-helpers.ts — shared fixtures for config/load tests.
+ * known-good file bundle + in-memory ConfigReader. Mirrors the real configs/*.json shape.
  */
 
 import type { ConfigReader } from "./load";
 
-// ── fixtures (실제 configs/*.json 미러) ────────────────────────────────────────
+// ── fixtures (mirror the real configs/*.json) ─────────────────────────────────
 
-/** known-good 파일 묶음. 각 테스트는 이걸 복제·일부 변형해서 쓴다. */
+/** known-good file bundle. Each test clones and lightly mutates it. */
 export function goodFixture(): Record<string, unknown> {
   return {
     "endpoints.json": {
@@ -75,7 +75,7 @@ export function goodFixture(): Record<string, unknown> {
   };
 }
 
-/** in-memory map을 읽는 reader. 파일이 없으면 reject(누락 전파 테스트). */
+/** Reader over an in-memory map. Rejects when a file is absent (tests missing-file propagation). */
 export function readerOf(map: Record<string, unknown>): ConfigReader {
   return async (file) => {
     if (!(file in map)) {

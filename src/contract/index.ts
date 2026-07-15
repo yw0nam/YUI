@@ -1,6 +1,6 @@
 /**
- * Contract barrel — wire contract 타입의 단일 진입점.
- * 다른 모듈은 `import { ... } from "../contract"` 로 접근한다.
+ * Contract barrel — single entry point for the wire contract types.
+ * Other modules access them via `import { ... } from "../contract"`.
  */
 export type {
   // Flat system-message context (client → backend each turn)

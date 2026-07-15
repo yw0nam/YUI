@@ -1,6 +1,6 @@
 /**
- * idle-gap 기반 proactive cue(잠깐 환기/슬슬 체크 등)의 on/off + 항목 목록을 관리하는 reactive 설정 스토어.
- * 변경 시 storage에 persist하고 구독자에게 통지한다. 소스 구독은 멈추지 않고 firing만 게이팅한다.
+ * Reactive settings store managing on/off plus the entry list of idle-gap-based proactive cues (quick break/gentle check, etc.).
+ * Persists to storage on change and notifies subscribers. Does not stop source subscriptions; only gates firing.
  */
 
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
@@ -9,7 +9,7 @@ export interface ProactiveCue {
   id: string;
   label: string;
   context: string;
-  /** 마지막 상호작용 이후 경과 분(minutes). */
+  /** Minutes elapsed since the last interaction. */
   idle_min: number;
   enabled: boolean;
 }
@@ -72,7 +72,7 @@ function isValidSettings(v: unknown): v is ProactiveSettings {
   return s.entries.every(isValidCue);
 }
 
-/** 구버전 { enabled } (entries 없음) → enabled 유지 + seed entries 채움. */
+/** Legacy { enabled } (no entries) → keep enabled + fill in seed entries. */
 function migrate(v: unknown): ProactiveSettings | null {
   if (v === null || typeof v !== "object") return null;
   const s = v as Record<string, unknown>;
@@ -170,7 +170,7 @@ export function createProactiveSettings(opts?: {
   };
 }
 
-/** localStorage 기반 ProactiveStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-backed ProactiveStorage adapter. Gracefully ignored where localStorage is unavailable. */
 export function localStorageProactiveStorage(key = "yui.proactive"): ProactiveStorage {
   return localStorageStore<ProactiveSettings>(key);
 }

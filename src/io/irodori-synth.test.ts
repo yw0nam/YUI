@@ -1,12 +1,12 @@
 /**
  * irodori-synth.test.ts — irodori_TTS per-sentence synth.
  *
- * 대상: createIrodoriSynth({ baseUrl, referenceId, fetch?, num/cfg/seconds?, logger? })
+ * Target: createIrodoriSynth({ baseUrl, referenceId, fetch?, num/cfg/seconds?, logger? })
  *   → (input, signal?) => Promise<ArrayBuffer>.
- * POST {baseUrl}/synthesize, multipart/form-data: text + reference_id + (정의된) tunables.
- * 비2xx → status + detail(문자열 | 배열 msg join) 포함 Error throw. 성공 → response.arrayBuffer().
+ * POSTs {baseUrl}/synthesize multipart/form-data: text + reference_id + defined tunables.
+ * Non-2xx → throws Error with status + detail (string | joined array msgs). Success → response.arrayBuffer().
  *
- * 라이브 8091 계약(프로브 완료) 기준. 테스트는 mock fetch만 사용 — 실제 서버 미접속.
+ * Based on live 8091 contract (probe complete). Tests use mock fetch only — no real server.
  */
 
 import { describe, expect, it, vi } from "vitest";

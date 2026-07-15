@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
- * popover.test.ts — 포커스 관리(a11y).
- * open() 시 첫 컨트롤로 포커스 이동, close() 시 열기 전 요소로 복원,
- * 그리고 Tab/Shift+Tab 포커스 트랩(popover variant).
+ * popover.test.ts — focus management (a11y).
+ * open() moves focus to the first control, close() restores it to the element
+ * focused before open, plus the Tab/Shift+Tab focus trap (popover variant).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -25,7 +25,7 @@ describe("createPopover — focus management", () => {
   let mount: HTMLElement;
 
   beforeEach(() => {
-    // rAF 동기화 — open()의 is-open 전이가 테스트에서 즉시 일어나게.
+    // Sync rAF so open()'s is-open transition happens immediately in the test.
     let rafId = 0;
     vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
       cb(0);
@@ -109,7 +109,7 @@ describe("createPopover — focus management", () => {
   });
 
   it("excludes controls inside hidden tab panels from the focus trap", () => {
-    // 실제 quick-controls 구조를 모사 — 비활성 탭은 [hidden]으로 감춘다.
+    // Mirror the real quick-controls structure — inactive tabs are hidden via [hidden].
     const root = document.createElement("div");
     root.className = "yui-quick";
     const visible = document.createElement("div");
@@ -142,12 +142,12 @@ describe("createPopover — focus management", () => {
     });
     pop.open();
 
-    // 앞쪽 Tab: 마지막 '보이는' 컨트롤(v2)에서 첫 보이는 컨트롤(v1)로 감싼다.
+    // Forward Tab: wrap from the last visible control (v2) to the first visible one (v1).
     v2.focus();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
     expect(document.activeElement).toBe(v1);
 
-    // Shift+Tab: 첫 컨트롤에서 마지막 '보이는' 컨트롤(v2)로 — 숨긴 h1이 아니다.
+    // Shift+Tab: from the first control to the last visible control (v2) — not the hidden h1.
     v1.focus();
     document.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true }),

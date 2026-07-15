@@ -1,6 +1,6 @@
 /**
- * Tauri-backed 화면 열거 + 캡처 구현, 그리고 환경별 selector.
- * invoke는 테스트 주입 가능(기본값은 @tauri-apps/api/core 실제 invoke).
+ * Tauri-backed screen enumeration + capture implementation, plus per-environment selectors.
+ * invoke is test-injectable (defaults to the real @tauri-apps/api/core invoke).
  */
 
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";

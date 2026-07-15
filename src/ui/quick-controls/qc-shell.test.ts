@@ -82,7 +82,7 @@ describe("createQuickControls — shell", () => {
     try {
       globalThis.localStorage?.clear();
     } catch {
-      /* localStorage 미사용 환경 무시 */
+      /* Ignore environments without localStorage */
     }
     // Existing assertions pin Korean copy/selectors; render the panel in ko.
     setLocale("ko");
@@ -290,7 +290,7 @@ describe("createQuickControls — session section", () => {
     try {
       globalThis.localStorage?.clear();
     } catch {
-      /* localStorage 미사용 환경 무시 */
+      /* Ignore environments without localStorage */
     }
     // Existing assertions pin Korean copy/selectors; render the panel in ko.
     setLocale("ko");
@@ -455,7 +455,7 @@ describe("createQuickControls — language picker", () => {
     try {
       globalThis.localStorage?.clear();
     } catch {
-      /* localStorage 미사용 환경 무시 */
+      /* Ignore environments without localStorage */
     }
     setLocale("en");
   });
@@ -528,7 +528,7 @@ describe("createQuickControls — language picker", () => {
     const qc = buildQc();
     qc.open();
 
-    // 화살표가 setLocale을 부르는지 감시(구독은 setLocale마다 통지).
+    // Watch whether arrow keys call setLocale (subscription notifies on each setLocale).
     let commits = 0;
     const unsub = i18nSubscribe(() => {
       commits += 1;
@@ -541,7 +541,7 @@ describe("createQuickControls — language picker", () => {
 
     btns[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
 
-    // 커밋 없음: locale·aria-checked 그대로, 포커스·roving tabindex만 ko로 이동.
+    // No commit: locale and aria-checked stay put, only focus and roving tabindex move to ko.
     expect(commits).toBe(0);
     expect(getLocale()).toBe("en");
     expect(btns[1].getAttribute("aria-checked")).toBe("true");
@@ -550,7 +550,7 @@ describe("createQuickControls — language picker", () => {
     expect(btns[2].tabIndex).toBe(0);
     expect(btns[1].tabIndex).toBe(-1);
 
-    // ArrowLeft로 다시 en 버튼에 포커스만 이동(여전히 커밋 없음).
+    // ArrowLeft moves focus back to en button only (still no commit).
     btns[2].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
     expect(commits).toBe(0);
     expect(getLocale()).toBe("en");
@@ -573,13 +573,13 @@ describe("createQuickControls — language picker", () => {
 
     const seg = qc.el.querySelector<HTMLElement>(".yui-lang-seg")!;
     const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-    // 화살표로 ko에 포커스만 옮긴다(커밋 없음).
+    // Move focus to ko using arrow keys (no commit).
     btns[1].focus();
     btns[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
     expect(commits).toBe(0);
     expect(getLocale()).toBe("en");
 
-    // 포커스된 버튼에서 Space → 커밋(정확히 1회).
+    // Space on focused button → commit (exactly once).
     btns[2].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
     expect(commits).toBe(1);
     expect(getLocale()).toBe("ko");
@@ -610,7 +610,7 @@ describe("createQuickControls — Reactions tab", () => {
     try {
       globalThis.localStorage?.clear();
     } catch {
-      /* localStorage 미사용 환경 무시 */
+      /* Ignore environments without localStorage */
     }
     setLocale("en");
   });
@@ -844,7 +844,7 @@ describe("createQuickControls — monitor picker error/empty state", () => {
     try {
       globalThis.localStorage?.clear();
     } catch {
-      /* localStorage 미사용 환경 무시 */
+      /* Ignore environments without localStorage */
     }
     setLocale("en");
   });

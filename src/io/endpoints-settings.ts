@@ -1,19 +1,19 @@
 /**
- * 사용자가 편집 가능한 엔드포인트 오버라이드(서버 주소·모델)를 관리하는 reactive 설정 스토어.
- * 빈 값("")은 "오버라이드 없음" — bundled config 기본값으로 폴백한다. 변경 시 storage에
- * persist하고 구독자에게 통지한다. checked-in configs/endpoints.json은 mutate하지 않는다.
+ * Reactive settings store managing user-editable endpoint overrides (server addresses and models).
+ * An empty value ("") means "no override" — falls back to the bundled config default. Persists to
+ * storage on change and notifies subscribers. Never mutates the checked-in configs/endpoints.json.
  */
 
 import type { EndpointsConfig } from "../contract";
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
 
-/** 각 필드 최대 길이(과도하게 긴 storage 값은 ""로 절단하지 않고 cap만 적용). */
+/** Max length per field (overly long storage values are capped, not reset to ""). */
 export const ENDPOINT_VALUE_MAX_LEN = 2048;
 
 /**
- * 편집 가능한 오버라이드 필드. 빈 문자열 = 오버라이드 없음. URL 필드는 isValidEndpointUrl로 검증.
- * tts_provider는 "irodori"|"openai"만 유효 — 그 외(빈 값 포함)는 오버라이드 없음.
- * chat_api는 "responses"|"chat_completions"만 유효 — 그 외(빈 값 포함)는 오버라이드 없음.
+ * Editable override fields. Empty string = no override. URL fields are validated by isValidEndpointUrl.
+ * tts_provider is valid only as "irodori"|"openai" — anything else (including empty) means no override.
+ * chat_api is valid only as "responses"|"chat_completions" — anything else (including empty) means no override.
  */
 export interface EndpointOverrides {
   chat_base_url: string;
@@ -53,10 +53,10 @@ const EMPTY: EndpointOverrides = {
   tts_provider: "",
 };
 
-/** mergeEndpoints가 적용하는 유효 provider 값. 그 외(빈 값 포함)는 오버라이드 없음. */
+/** Valid provider values that mergeEndpoints applies. Anything else (including empty) means no override. */
 const VALID_PROVIDERS = ["irodori", "openai"] as const;
 
-/** mergeEndpoints가 적용하는 유효 chat_api 값. 그 외(빈 값 포함)는 오버라이드 없음. */
+/** Valid chat_api values that mergeEndpoints applies. Anything else (including empty) means no override. */
 const VALID_CHAT_APIS = ["responses", "chat_completions"] as const;
 
 function coerceField(v: unknown): string {
@@ -64,17 +64,17 @@ function coerceField(v: unknown): string {
   return v.length > ENDPOINT_VALUE_MAX_LEN ? v.slice(0, ENDPOINT_VALUE_MAX_LEN) : v;
 }
 
-/** tts_provider 전용 coercion — 유효 enum이 아니면 ""(오버라이드 없음)로 떨군다. */
+/** tts_provider-specific coercion — drops to "" (no override) if not a valid enum. */
 function coerceProvider(v: unknown): string {
   return typeof v === "string" && (VALID_PROVIDERS as readonly string[]).includes(v) ? v : "";
 }
 
-/** chat_api 전용 coercion — 유효 enum이 아니면 ""(오버라이드 없음)로 떨군다. */
+/** chat_api-specific coercion — drops to "" (no override) if not a valid enum. */
 function coerceChatApi(v: unknown): string {
   return typeof v === "string" && (VALID_CHAT_APIS as readonly string[]).includes(v) ? v : "";
 }
 
-/** 필드별 coercion 디스패치 — tts_provider/chat_api는 enum-제한, 나머지는 문자열 길이 cap. */
+/** Per-field coercion dispatch — tts_provider/chat_api are enum-restricted, the rest are string-length capped. */
 function coerceFor(key: keyof EndpointOverrides, v: unknown): string {
   if (key === "tts_provider") return coerceProvider(v);
   if (key === "chat_api") return coerceChatApi(v);
@@ -93,8 +93,8 @@ function equals(a: EndpointOverrides, b: EndpointOverrides): boolean {
 }
 
 /**
- * URL 오버라이드 유효성. 빈/공백 문자열은 "오버라이드 없음" → 유효(에러 아님)로 본다.
- * 비어있지 않으면 trim 후 `http(s)://`로 시작하고 URL로 파싱돼야 한다.
+ * URL override validity. Empty/whitespace strings count as "no override" → valid (not an error).
+ * If non-empty, after trimming it must start with `http(s)://` and parse as a URL.
  */
 export function isValidEndpointUrl(v: string): boolean {
   const t = v.trim();
@@ -109,11 +109,11 @@ export function isValidEndpointUrl(v: string): boolean {
 }
 
 /**
- * base EndpointsConfig 위에 오버라이드를 얹어 새 EndpointsConfig를 만든다(base 비변경).
- * URL 필드는 non-empty + isValidEndpointUrl일 때만, chat_model은 non-empty일 때만,
- * tts_provider는 유효 enum("irodori"|"openai")일 때만, chat_api는 유효 enum("responses"|
- * "chat_completions")일 때만 적용. 적용 값은 trim한다.
- * 무효 URL/provider/chat_api는 무시(effective는 base 기본값 유지) — UI가 에러를 따로 노출.
+ * Builds a new EndpointsConfig by layering overrides onto the base EndpointsConfig (base unchanged).
+ * URL fields apply only when non-empty + isValidEndpointUrl, chat_model only when non-empty,
+ * tts_provider only when a valid enum ("irodori"|"openai"), and chat_api only when a valid enum
+ * ("responses"|"chat_completions"). Applied values are trimmed.
+ * Invalid URL/provider/chat_api are ignored (effective keeps the base default) — the UI surfaces the error separately.
  */
 export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): EndpointsConfig {
   const out: EndpointsConfig = { ...base };
@@ -175,7 +175,7 @@ export function createEndpointsSettings(opts?: {
   };
 }
 
-/** localStorage 기반 EndpointsStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-based EndpointsStorage adapter. Gracefully ignored in environments without localStorage. */
 export function localStorageEndpointsStorage(key = "yui.endpoints"): EndpointsStorage {
   return localStorageStore<EndpointOverrides>(key);
 }

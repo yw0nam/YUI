@@ -1,16 +1,16 @@
 /**
- * 목업 드라이버 — 시드 데이터로 세 surface의 모든 상태를 재생한다.
+ * Mock driver — replays all surface states from seed data.
  *
- * 실제 데이터(chat-client SSE: express function_call + output_text 스트림, tts-pipeline)는
- * 후속 작업에서 같은 Surfaces API를 호출해 이 드라이버를 대체한다. 여기엔 brain이 없다 —
- * 스크립트가 백엔드 응답을 *흉내*낼 뿐(firing ≠ judgment).
+ * Real data (chat-client SSE: express function_call + output_text stream, tts-pipeline)
+ * will replace this driver in follow-up work by calling the same Surfaces API. No brain here —
+ * script only mimics backend responses (firing ≠ judgment).
  *
- * dev 핸들(__yuiDemo)로 스크린샷 검증 루프에서 단계를 직접 호출할 수 있다.
+ * Call steps directly from screenshot verification loop via dev handle (__yuiDemo).
  */
 
 import type { Surfaces } from "./surfaces";
 
-/** 발화를 토큰(어절+공백)으로 쪼갠다 — output_text.delta 스트림 흉내. */
+/** Split utterances into tokens (words + spaces) — mimics output_text.delta stream. */
 function tokenize(text: string): string[] {
   return text.match(/\S+\s*/g) ?? [text];
 }
@@ -18,24 +18,24 @@ function tokenize(text: string): string[] {
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 export interface MockDriver {
-  /** 입력 제출에 대한 응답 1턴 재생: (tool) → 발화 스트림 → settle → fade. */
+  /** Reply to input submission in one turn: (tool) → speech stream → settle → fade. */
   reply(userText: string): Promise<void>;
-  /** 선제 발화(입력 없이) — backend-initiated 발화 경로 시연. */
+  /** Proactive speech (no input) — demonstrates backend-initiated speech path. */
   proactive(line?: string): Promise<void>;
-  /** 발화 스트림만 재생(도구 없음). */
+  /** Play back speech stream only (no tool). */
   speak(line: string): Promise<void>;
-  /** 진행 중 재생 취소 플래그. */
+  /** In-flight playback cancellation flag. */
   cancel(): void;
 }
 
 interface MockOptions {
-  /** 토큰 간 간격(ms). 기본 45. */
+  /** Delay between tokens (ms). Default 45. */
   tokenDelayMs?: number;
-  /** tool-status 지속(ms). 기본 1300. */
+  /** Tool-status duration (ms). Default 1300. */
   toolMs?: number;
 }
 
-/** userText로부터 도구가 필요한지/어떤 라벨인지 흉내 — 실제론 백엔드 function_call 관찰. */
+/** Guess if/which tool is needed from userText — actually observes backend function_call. */
 function inferTool(userText: string): string | null {
   const t = userText.toLowerCase();
   if (/검색|찾아|search|뭐야|누구|언제|어디/.test(t)) return "web_search";
@@ -56,7 +56,7 @@ export function createMockDriver(
   surfaces: Surfaces,
   { tokenDelayMs = 45, toolMs = 1300 }: MockOptions = {},
 ): MockDriver {
-  let token = 0; // 취소 세대
+  let token = 0; // Cancellation generation
 
   function cancel(): void {
     token += 1;
@@ -65,7 +65,7 @@ export function createMockDriver(
   async function streamLine(line: string, gen: number): Promise<void> {
     surfaces.beginSpeech();
     for (const tok of tokenize(line)) {
-      if (gen !== token) return; // 취소됨
+      if (gen !== token) return; // Canceled
       surfaces.pushSpeech(tok);
       await sleep(tokenDelayMs);
     }
@@ -104,7 +104,7 @@ export function createMockDriver(
   return { reply, proactive, speak, cancel };
 }
 
-/** 결정적 캔드 응답 선택용 작은 해시 (Math.random 회피 — 재현 가능). */
+/** Small hash for deterministic canned-response selection (avoids Math.random — reproducible). */
 function hash(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
