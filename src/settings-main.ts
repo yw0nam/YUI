@@ -28,6 +28,10 @@ import { ensureRegistered, updateVoice } from "./io/irodori-voices";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createPresenceSettings, localStoragePresenceStorage } from "./io/presence-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
+import {
+  createRailCollapsedSettings,
+  localStorageRailCollapsedStorage,
+} from "./io/rail-collapsed-settings";
 import { createRecentAppsSettings, localStorageRecentAppsStorage } from "./io/recent-apps-settings";
 import { createScheduleSettings, localStorageScheduleStorage } from "./io/schedule-settings";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
@@ -83,6 +87,9 @@ async function bootstrap(): Promise<void> {
   const presenceSettings = createPresenceSettings({ storage: localStoragePresenceStorage() });
   const recentAppsSettings = createRecentAppsSettings({
     storage: localStorageRecentAppsStorage(),
+  });
+  const railCollapsedSettings = createRailCollapsedSettings({
+    storage: localStorageRailCollapsedStorage(),
   });
   const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
   const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
@@ -213,6 +220,7 @@ async function bootstrap(): Promise<void> {
       agentNotifySettings,
       presenceSettings,
       recentAppsSettings,
+      railCollapsedSettings,
       sourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,
@@ -323,6 +331,7 @@ async function bootstrap(): Promise<void> {
     sessionStore,
     sessionDiagnostics,
     chatHistoryStore,
+    railCollapsedSettings,
   ];
   wireStorageSync(resyncStores);
   window.addEventListener("focus", () => {
