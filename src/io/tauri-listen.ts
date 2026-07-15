@@ -6,6 +6,8 @@
  * the channel name and runtime guard live in one place.
  */
 
+import { isTauri } from "./tauri-env";
+
 /** `os_event` channel payload — mirrors src-tauri OsEventPayload (snake_case over IPC). */
 export interface OsEventPayload {
   event_name: string;
@@ -28,7 +30,7 @@ export const OS_EVENT_CHANNEL = "os_event";
 
 /** Resolve the real Tauri `listen`, but only under the Tauri runtime. */
 export async function resolveTauriListen(): Promise<OsEventListen | undefined> {
-  if (!(globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+  if (!isTauri()) {
     return undefined;
   }
   const { listen } = await import("@tauri-apps/api/event");

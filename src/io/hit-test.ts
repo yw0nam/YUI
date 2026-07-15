@@ -23,6 +23,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
 import { createLogger } from "../logger";
+import { isTauri } from "./tauri-env";
 
 const log = createLogger("hit-test");
 
@@ -138,10 +139,6 @@ export interface HitTestOptions {
   schedule?: (cb: () => void, ms: number) => number;
   /** clearTimeout seam. Default: globalThis.clearTimeout. */
   cancel?: (handle: number) => void;
-}
-
-function isTauri(): boolean {
-  return Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
 }
 
 /**

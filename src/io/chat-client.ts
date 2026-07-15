@@ -70,6 +70,7 @@ import type {
   Usage,
 } from "../contract";
 import { type CCMessage, createChunkReducer } from "./chat-completions";
+import { isTauri } from "./tauri-env";
 
 /** 스트림 파싱 중 client로 흘리는 증분 이벤트. */
 export type ChatStreamEvent =
@@ -174,8 +175,8 @@ export interface StreamChatOptions {
  * (CORS 우회 + SSE 스트리밍). 브라우저/vitest는 undefined → 글로벌 fetch.
  */
 export async function selectFetch(): Promise<typeof globalThis.fetch | undefined> {
-  const g = globalThis as { __TAURI_INTERNALS__?: unknown; fetchCORS?: unknown };
-  if (g.__TAURI_INTERNALS__) {
+  const g = globalThis as { fetchCORS?: unknown };
+  if (isTauri()) {
     if (typeof g.fetchCORS === "function") return g.fetchCORS as typeof globalThis.fetch;
   }
   return undefined;
@@ -196,12 +197,12 @@ export function selectChatBaseUrl(
 ): string {
   if (chatApi === "chat_completions") return configuredBaseUrl;
 
-  const g = globalThis as { __TAURI_INTERNALS__?: unknown; location?: { origin?: string } };
-  const isTauri = env?.isTauri ?? !!g.__TAURI_INTERNALS__;
+  const g = globalThis as { location?: { origin?: string } };
+  const tauriRuntime = env?.isTauri ?? isTauri();
   const isDev = env?.isDev ?? import.meta.env?.DEV;
   const origin = env?.origin ?? g.location?.origin;
 
-  if (isTauri) return configuredBaseUrl;
+  if (tauriRuntime) return configuredBaseUrl;
   if (isDev && origin) {
     let path = configuredBaseUrl;
     if (/^[a-z]+:\/\//i.test(configuredBaseUrl)) {
