@@ -19,8 +19,30 @@ if printf '%s' "$cmd" | grep -qE '(^|[;&|[:space:]])(cat|less|more|head|tail|bat
   deny ".env.local holds VITE_YUI_CHAT_KEY — reading it into the transcript is blocked. Check existence with ls; scripts/worktree-setup.sh copies it without exposing contents."
 fi
 
-if printf '%s' "$cmd" | grep -qE '(^|[;&|[:space:]])git([[:space:]]+-[^[:space:]]+)*[[:space:]]+(commit|push)([[:space:]]|$)'; then
-  branch=$(git -C "${cwd:-.}" branch --show-current 2>/dev/null) || branch=""
+git_cmd=$(printf '%s' "$cmd" | sed "s/'[^']*'//g; s/\"[^\"]*\"//g") || git_cmd=""
+if printf '%s' "$git_cmd" | grep -qE '(^|[;&|[:space:]])git(([[:space:]]+-[^[:space:];&|]+)*[[:space:]]+|[[:space:]]+-C[[:space:]]+([^[:space:];&|]+[[:space:]]+)?)(commit|push)([[:space:]]|$)'; then
+  git_dir="${cwd:-.}"
+  target=$(printf '%s' "$cmd" \
+    | grep -oE '(^|[;&|[:space:]])git[[:space:]]+-C[[:space:]]+("[^"]*"|'"'"'[^'"'"']*'"'"'|[^[:space:];&|]+)' \
+    | head -1 \
+    | sed -E 's/^.*git[[:space:]]+-C[[:space:]]+//') || target=""
+  if [ -z "$target" ]; then
+    target=$(printf '%s' "$cmd" \
+      | grep -oE '(^|[;&|])[[:space:]]*cd[[:space:]]+("[^"]*"|'"'"'[^'"'"']*'"'"'|[^[:space:];&|]+)' \
+      | tail -1 \
+      | sed -E 's/^.*cd[[:space:]]+//') || target=""
+  fi
+  case "$target" in
+    \"*\") target=${target#\"}; target=${target%\"} ;;
+    \'*\') target=${target#\'}; target=${target%\'} ;;
+  esac
+  if [ -n "$target" ] && ! printf '%s' "$target" | grep -q '[[:space:]]'; then
+    case "$target" in
+      /*) git_dir="$target" ;;
+      *) git_dir="${cwd:-.}/$target" ;;
+    esac
+  fi
+  branch=$(git -C "$git_dir" branch --show-current 2>/dev/null) || branch=""
   if [ "$branch" = "main" ]; then
     deny "Current branch is main — work happens in a worktree and lands via PR (AGENTS.md). The agent cannot commit/push to main; request the user to run it directly."
   fi
