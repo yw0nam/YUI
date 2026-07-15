@@ -31,6 +31,10 @@ export function deltaEvent(text: string): ChatStreamEvent {
   return { type: "speech_delta", text };
 }
 
+export function keepaliveEvent(): ChatStreamEvent {
+  return { type: "keepalive" };
+}
+
 export function expressEvent(args: ExpressArgs): ChatStreamEvent {
   return { type: "express", args };
 }
