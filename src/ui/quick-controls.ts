@@ -6,7 +6,6 @@
 
 import "./quick-controls.css";
 import type { AvatarOption } from "../config/load";
-import type { ScreenSource } from "../contract";
 import type { createAgentNotifySettings } from "../io/agent-notify-settings";
 import { type createAgentSettings, REASONING_EFFORTS } from "../io/agent-settings";
 import type { ApiKeySettingsStore } from "../io/api-key-settings";
@@ -26,7 +25,7 @@ import type { createProactiveSettings } from "../io/proactive-settings";
 import type { RailCollapsedSettingsStore } from "../io/rail-collapsed-settings";
 import type { createRecentAppsSettings } from "../io/recent-apps-settings";
 import type { createScheduleSettings } from "../io/schedule-settings";
-import type { MonitorInfo, ScreenSourceProvider } from "../io/screen-source-provider";
+import type { ScreenSourceProvider } from "../io/screen-source-provider";
 import type { createScreenshotSettings } from "../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import type { createSessionStore } from "../io/session-store";
@@ -38,6 +37,7 @@ import { createLogger } from "../logger";
 import { type CueListInstance, createCueList } from "./cue-list";
 import { type Locale, setLocale, t } from "./i18n";
 import { createEndpointsSection } from "./quick-controls/endpoints-section";
+import { createMonitorsSection } from "./quick-controls/monitors-section";
 import { createPopover } from "./quick-controls/popover";
 import { createReflect } from "./quick-controls/reflect";
 import { createSpeakerList } from "./quick-controls/speaker-list";
@@ -246,7 +246,7 @@ export function createQuickControls({
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const ttsSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-tts-switch");
   const bargeInSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-bargein-switch");
-  const monitorsEl = el.querySelector<HTMLDivElement>(".yui-monitors")!;
+  const monitorsSection = createMonitorsSection({ root: el, sourceProvider, settings, log });
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
   const vrmAddBtn = el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
   const spksEl = el.querySelector<HTMLDivElement>(".yui-spks")!;
@@ -314,7 +314,6 @@ export function createQuickControls({
     defaultInstr && defaultInstr.length > 0 ? defaultInstr : t("instructions.placeholder_default");
 
   let gainPreviewing = false;
-  let monitorsLoaded = false;
   // dispose 후 in-flight refresh가 무너진 DOM에 재그림/타이머를 쓰지 않게 막는다.
   let disposed = false;
   // 화자 활성 기준선 — 열릴 때 재동기화(닫힌 새 provider 변경이 stale하게 남지 않게).
@@ -344,76 +343,6 @@ export function createQuickControls({
     recentAppsInput: recentAppsInput ?? undefined,
     recentAppsSettings,
   });
-
-  function renderMonitors(monitors: MonitorInfo[], currentSource: ScreenSource): void {
-    monitorsEl.innerHTML = "";
-    for (const mon of monitors) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.setAttribute("role", "radio");
-      const selected = currentSource.kind === "monitor" && currentSource.index === mon.index;
-      btn.setAttribute("aria-checked", String(selected));
-      btn.className = "yui-mon";
-
-      const metaText =
-        mon.width !== undefined && mon.height !== undefined ? `${mon.width} × ${mon.height}` : "";
-      const badgeHtml = mon.primary
-        ? `<span class="yui-mon__badge">${t("screenshot.monitor_primary")}</span>`
-        : "";
-
-      btn.innerHTML = `
-        <span class="yui-mon__tick" aria-hidden="true"></span>
-        <span class="yui-mon__body">
-          <span class="yui-mon__name">${t("screenshot.display", { n: mon.index + 1 })}</span>
-          ${metaText ? `<span class="yui-mon__meta">${metaText}</span>` : ""}
-        </span>
-        ${badgeHtml}
-      `;
-
-      btn.addEventListener("click", () => {
-        const label = mon.label ?? t("screenshot.display", { n: mon.index + 1 });
-        const source: ScreenSource = { kind: "monitor", index: mon.index, label };
-        settings.setSource(source);
-        // 라디오 상태 즉시 반영
-        monitorsEl.querySelectorAll<HTMLButtonElement>(".yui-mon").forEach((b) => {
-          b.setAttribute("aria-checked", "false");
-        });
-        btn.setAttribute("aria-checked", "true");
-      });
-
-      monitorsEl.appendChild(btn);
-    }
-  }
-
-  // 목록 대신 띄우는 인라인 안내 — VRM/화자 섹션의 .yui-vrm__error 패턴과 동일한 톤.
-  function renderMonitorsNotice(kind: "error" | "empty"): void {
-    monitorsEl.innerHTML = "";
-    const notice = document.createElement("p");
-    notice.className = kind === "error" ? "yui-mon__error" : "yui-mon__empty";
-    notice.setAttribute("role", "status");
-    notice.textContent = t(
-      kind === "error" ? "screenshot.monitors_error" : "screenshot.monitors_empty",
-    );
-    monitorsEl.appendChild(notice);
-  }
-
-  async function loadMonitors(): Promise<void> {
-    let monitors: MonitorInfo[];
-    try {
-      monitors = await sourceProvider.listMonitors();
-    } catch (err) {
-      // monitorsLoaded를 false로 남겨 다음 열림/토글에서 재시도한다.
-      log.error("monitor_list_failed", { error: String(err) });
-      renderMonitorsNotice("error");
-      return;
-    }
-    monitorsLoaded = true;
-    if (monitors.length === 0) {
-      renderMonitorsNotice("empty");
-      return;
-    }
-    renderMonitors(monitors, settings.get().source);
-  }
 
   // ── VRM 섹션 ──
 
@@ -464,8 +393,8 @@ export function createQuickControls({
       // 닫힌 동안 provider가 바뀌었을 수 있으니 열릴 때 기준선을 재동기화한다.
       lastSpkEnabled = speakerControlsEnabled();
       speakerList.render();
-      if (settings.get().enabled && !monitorsLoaded) {
-        void loadMonitors();
+      if (settings.get().enabled && !monitorsSection.isLoaded()) {
+        void monitorsSection.load();
       }
     },
     onClose: () => {
@@ -484,8 +413,8 @@ export function createQuickControls({
     const current = settings.get().enabled;
     settings.setEnabled(!current);
     log.info("screenshot_attach_toggle", { enabled: !current });
-    if (!current && !monitorsLoaded) {
-      void loadMonitors();
+    if (!current && !monitorsSection.isLoaded()) {
+      void monitorsSection.load();
     }
   }
 
@@ -836,8 +765,8 @@ export function createQuickControls({
     if (!popover.isOpen()) return;
     switchBtn.setAttribute("aria-checked", String(s.enabled));
     el.classList.toggle("is-on", s.enabled);
-    if (s.enabled && !monitorsLoaded) {
-      void loadMonitors();
+    if (s.enabled && !monitorsSection.isLoaded()) {
+      void monitorsSection.load();
     }
   });
   const unsubscribeIdleThrottle = idleThrottleSettings.subscribe(() => {
