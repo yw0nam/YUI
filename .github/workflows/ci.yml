@@ -86,8 +86,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: chg
+        with:
+          filters: |
+            rust:
+              - 'src-tauri/**'
+              - '.github/workflows/ci.yml'
       # Tauri v2 Linux 빌드 의존성 (공식 prerequisites, Ubuntu 24.04).
       - name: Install Tauri system deps
+        if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -96,14 +104,19 @@ jobs:
             libxdo-dev libssl-dev \
             libayatana-appindicator3-dev librsvg2-dev
       - uses: dtolnay/rust-toolchain@stable
+        if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
         with:
           workspaces: src-tauri
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+        if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
+        if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+        if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
 
   mods:
     name: mods (uv + pytest)
