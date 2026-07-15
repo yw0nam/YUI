@@ -80,7 +80,9 @@ export type ChatStreamEvent =
   | { type: "tool_status"; status: ToolStatus }
   | { type: "usage"; usage: Usage }
   | { type: "completed"; envelope: ControlEnvelope; responseId: string }
-  | { type: "error"; message: string; status?: number };
+  | { type: "error"; message: string; status?: number }
+  /** wire activity during reasoning — resets the caller's idle watchdog without ending "thinking". */
+  | { type: "keepalive" };
 
 /**
  * Creates a client via `new OpenAI(opts)`. The real SDK is an ES class requiring `new`,
@@ -402,6 +404,8 @@ export async function* streamChat(
         }
 
         default:
+          // reasoning events carry no speech/tool payload but prove the wire is alive.
+          if (event.type.startsWith("response.reasoning")) yield { type: "keepalive" };
           break;
       }
     }

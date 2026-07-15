@@ -12,7 +12,14 @@ import type { ChatStreamEvent } from "../io/chat-client";
 import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { Logger } from "../logger";
 import type { BusEnvelope } from "./event-bus";
-import { CONFIG, completedEvent, deltaEvent, makeLogger, userEnv } from "./test-helpers";
+import {
+  CONFIG,
+  completedEvent,
+  deltaEvent,
+  keepaliveEvent,
+  makeLogger,
+  userEnv,
+} from "./test-helpers";
 
 let scriptedEvents: ChatStreamEvent[] = [];
 let streamChatError: Error | null = null;
@@ -199,6 +206,23 @@ describe("backend_caller — idle-gap watchdog", () => {
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     const res = await p;
     expect(res.ok).toBe(true);
+  });
+
+  it("keepalive events during a long reasoning phase reset the watchdog — no idle_timeout even though the gap to first speech exceeds the deadline", async () => {
+    const gap = IDLE_TIMEOUT_MS - 5_000;
+    scriptedEvents = [
+      keepaliveEvent(),
+      keepaliveEvent(),
+      keepaliveEvent(),
+      deltaEvent("a"),
+      completedEvent({ speech_text: "a" }),
+    ];
+    scriptedGaps = [gap, gap, gap, 0, 0]; // sum of gaps ≈ 3x the deadline
+    const p = caller.call(userEnv());
+    await vi.advanceTimersByTimeAsync(gap * 3 + 1_000);
+    const res = await p;
+    expect(res.ok).toBe(true);
+    expect(res.drop_reason).toBeUndefined();
   });
 
   it("logs logger.warn('network_drop', { stage: 'idle_timeout', ... }) on expiry", async () => {
