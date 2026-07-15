@@ -15,6 +15,10 @@ import {
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./lipsync-settings";
 import { createPresenceSettings, localStoragePresenceStorage } from "./presence-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./proactive-settings";
+import {
+  createRailCollapsedSettings,
+  localStorageRailCollapsedStorage,
+} from "./rail-collapsed-settings";
 import { createRecentAppsSettings, localStorageRecentAppsStorage } from "./recent-apps-settings";
 import { createScheduleSettings, localStorageScheduleStorage } from "./schedule-settings";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./screenshot-settings";
@@ -100,6 +104,9 @@ export function createSettingsStores() {
   const gazeSettings = createGazeSettings({ storage: localStorageGazeStorage() });
   // First-run 온보딩 힌트 — 최초 1회만 노출되는 flag.
   const hintSettings = createHintSettings({ storage: localStorageHintStorage() });
+  const railCollapsedSettings = createRailCollapsedSettings({
+    storage: localStorageRailCollapsedStorage(),
+  });
 
   return {
     screenshotSettings,
@@ -125,5 +132,6 @@ export function createSettingsStores() {
     cameraSettings,
     gazeSettings,
     hintSettings,
+    railCollapsedSettings,
   };
 }

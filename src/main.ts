@@ -223,6 +223,7 @@ async function bootstrap(): Promise<void> {
     cameraSettings,
     gazeSettings,
     hintSettings,
+    railCollapsedSettings,
   } = createSettingsStores();
   // config.endpoints 위에 오버라이드를 얹은 effective 엔드포인트. 호출 시점에 평가(핫리로드 친화).
   function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
@@ -269,6 +270,7 @@ async function bootstrap(): Promise<void> {
     sessionStore,
     sessionDiagnostics,
     chatHistoryStore,
+    railCollapsedSettings,
   ]);
 
   // 팝아웃 설정 창과의 실시간 배선(Tauri 이벤트). 별도 창의 컨트롤이 이 창의 살아있는
@@ -381,6 +383,7 @@ async function bootstrap(): Promise<void> {
       agentNotifySettings,
       presenceSettings,
       recentAppsSettings,
+      railCollapsedSettings,
       sourceProvider: screenSourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,

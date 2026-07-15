@@ -23,6 +23,7 @@ import {
 } from "../io/lipsync-settings";
 import type { createPresenceSettings } from "../io/presence-settings";
 import type { createProactiveSettings } from "../io/proactive-settings";
+import type { RailCollapsedSettingsStore } from "../io/rail-collapsed-settings";
 import type { createRecentAppsSettings } from "../io/recent-apps-settings";
 import type { createScheduleSettings } from "../io/schedule-settings";
 import type { MonitorInfo, ScreenSourceProvider } from "../io/screen-source-provider";
@@ -142,6 +143,8 @@ interface QuickControlsOptions {
   presenceSettings?: PresenceSettingsStore;
   /** 최근 앱 기억 개수 cap store. 없으면 Reactions 탭의 recent-apps 행을 그리지 않는다. */
   recentAppsSettings?: RecentAppsSettingsStore;
+  /** 섹션 rail 접힘 상태 store. */
+  railCollapsedSettings?: RailCollapsedSettingsStore;
 }
 
 interface QuickControls {
@@ -154,26 +157,6 @@ interface QuickControls {
 
 export const PREVIEW_PEAK_RMS = 0.15;
 const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
-
-// ponytail: single boolean, so it's read/written to localStorage directly — no settings-store
-// class for one flag. Guarded so tests/non-browser environments without localStorage don't throw.
-const RAIL_COLLAPSED_KEY = "yui.quickControls.railCollapsed";
-
-function loadRailCollapsed(): boolean {
-  try {
-    return globalThis.localStorage?.getItem(RAIL_COLLAPSED_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function saveRailCollapsed(collapsed: boolean): void {
-  try {
-    globalThis.localStorage?.setItem(RAIL_COLLAPSED_KEY, String(collapsed));
-  } catch {
-    // localStorage 사용 불가 시 no-op
-  }
-}
 
 export function createQuickControls({
   mount,
@@ -219,6 +202,7 @@ export function createQuickControls({
   agentNotifySettings,
   presenceSettings,
   recentAppsSettings,
+  railCollapsedSettings,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // 세션 섹션은 설정 창(window)에서만, 두 store가 모두 주입됐을 때 그린다.
@@ -248,7 +232,7 @@ export function createQuickControls({
     bargeInEnabled: vad.get().bargeIn,
     showPresence: !!presenceSettings,
     showRecentApps: !!recentAppsSettings,
-    railCollapsed: loadRailCollapsed(),
+    railCollapsed: railCollapsedSettings?.get() ?? false,
   });
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
@@ -824,7 +808,7 @@ export function createQuickControls({
     const label = t(collapsed ? "panel.rail_expand" : "panel.rail_collapse");
     railCollapseBtn.setAttribute("aria-label", label);
     railCollapseBtn.title = label;
-    saveRailCollapsed(collapsed);
+    railCollapsedSettings?.setCollapsed(collapsed);
     log.info("rail_collapse_toggle", { collapsed });
   }
 

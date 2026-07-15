@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFillerSettings } from "../../io/filler-settings";
+import {
+  createRailCollapsedSettings,
+  localStorageRailCollapsedStorage,
+} from "../../io/rail-collapsed-settings";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../io/vad-settings";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "../quick-controls";
@@ -540,6 +544,9 @@ describe("createQuickControls — sections rail collapse", () => {
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     return createQuickControls({
       ...defaultQcArgs(mount),
+      railCollapsedSettings: createRailCollapsedSettings({
+        storage: localStorageRailCollapsedStorage(),
+      }),
       ...extra,
     });
   }
