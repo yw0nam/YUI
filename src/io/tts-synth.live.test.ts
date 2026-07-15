@@ -1,5 +1,5 @@
 /**
- * 실 TTS 서비스(:8092)에 대한 통합 테스트 — `YUI_LIVE=1`일 때만 실행.
+ * Integration test against the real TTS service (:8092) — runs only when `YUI_LIVE=1`.
  *   YUI_LIVE=1 pnpm exec vitest run src/io/tts-synth.live.test.ts
  */
 import { describe, expect, it } from "vitest";
@@ -17,7 +17,7 @@ const endpoints: EndpointsConfig = {
   tts_base_url: "http://localhost:8092",
 };
 
-/** RIFF....WAVE 헤더 확인(첫 4바이트 "RIFF", 8~11바이트 "WAVE"). */
+/** Check the RIFF....WAVE header (first 4 bytes "RIFF", bytes 8-11 "WAVE"). */
 function isWav(buf: ArrayBuffer): boolean {
   if (buf.byteLength < 12) return false;
   const b = new Uint8Array(buf);
@@ -52,7 +52,7 @@ describe.skipIf(!LIVE)("tts-synth — LIVE :8092 (fishaudio/s2-pro)", () => {
     tts.pushTextDelta("First sentence. Second sentence! Third one?");
     tts.end();
 
-    // 모든 synth+재생이 끝날 때까지 대기(폴링).
+    // Wait (poll) until every synth + playback has finished.
     const deadline = Date.now() + 55_000;
     while (playedBytes.length < 3 && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 200));

@@ -61,9 +61,9 @@ describe("maybeShowFirstRunHint", () => {
 
     maybeShowFirstRunHint(deps);
 
-    // markdown-escape는 CommonMark 구두점 전체에 균일 적용 — marked가 \+를 +로 되돌린다.
+    // Markdown escape uniformly applies to all CommonMark punctuation — marked converts \+ back to +.
     expect(t).toHaveBeenCalledWith("hint.first_run", { hotkey: "Ctrl\\+Shift\\+Y" });
-    // fake t는 vars를 JSON.stringify하므로 백슬래시가 한 번 더 이스케이프된다.
+    // The fake t stringifies vars with JSON, so backslashes get extra-escaped.
     expect(pushSpeech).toHaveBeenCalledWith('hint.first_run:{"hotkey":"Ctrl\\\\+Shift\\\\+Y"}');
   });
 

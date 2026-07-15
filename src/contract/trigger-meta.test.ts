@@ -1,6 +1,6 @@
 /**
- * trigger-meta.test.ts — TriggerMeta.kind "signals" 모양을 굳힌다. 컴파일 타임 검사(pnpm build)가
- * 1차 게이트지만, 여기서 signals가 opaque 배열(구조 미지정)로 남아있는지를 값으로 고정한다.
+ * trigger-meta.test.ts — locks the shape of TriggerMeta.kind "signals". Compile-time checks (pnpm build) are
+ * the primary gate, but this test fixes the value-level assertion that signals remains an opaque array (structure unspecified).
  */
 
 import { describe, expect, expectTypeOf, it } from "vitest";

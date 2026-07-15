@@ -161,11 +161,11 @@ fn date_rotating_target(dir: PathBuf, base: String, offset: UtcOffset) -> tauri_
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // window.fetch를 Rust로 라우팅 → CORS 우회 + SSE 스트리밍 지원(plugin-http는 스트리밍 불가).
+        // Window.fetch routed to Rust → CORS bypass + SSE streaming support (plugin-http doesn't support streaming).
         .plugin(tauri_plugin_cors_fetch::init())
-        // OS 파일 피커 — bring-your-own VRM import.
+        // OS file picker — bring-your-own VRM import.
         .plugin(tauri_plugin_dialog::init())
-        // 전역 단축키 — 등록/해제는 JS guest binding이 수행한다(입력 소환 핫키).
+        // Global hotkey — registration/removal handled by JS guest binding (input summon hotkey).
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             let log_offset = resolve_log_offset();

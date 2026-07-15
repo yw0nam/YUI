@@ -1,6 +1,6 @@
 /**
- * 스크린샷 기능의 활성화 여부와 소스를 관리하는 reactive 설정 스토어.
- * 변경 시 storage에 persist하고 구독자에게 통지한다.
+ * Reactive settings store that manages screenshot feature enabled state and source.
+ * Persists to storage and notifies subscribers on change.
  */
 
 import type { ScreenSource } from "../contract";
@@ -56,7 +56,7 @@ export function createScreenshotSettings(opts?: {
   };
 }
 
-/** localStorage 기반 ScreenshotStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-based ScreenshotStorage adapter; gracefully ignored when localStorage is unavailable. */
 export function localStorageScreenshotStorage(key = "yui.screenshot"): ScreenshotStorage {
   return localStorageStore<ScreenshotSettings>(key);
 }

@@ -1,9 +1,9 @@
 /**
- * 설정 창(팝아웃) 부트스트랩 — settings.html 진입점.
+ * Settings window (pop-out) bootstrap — settings.html entry point.
  *
- * 펫 창의 quick-controls를 variant:"window"로 단독 마운트한다. 렌더러/VRM 없음(설정 전용).
- * 메인 창과의 동기화: localStorage write를 `storage` 이벤트로 받아 store를 재로드하고,
- * 포커스 시에도 한 번 재로드한다(Tauri는 창 간 storage 이벤트를 못 쏠 수 있음).
+ * Mounts the pet window's quick-controls standalone with variant:"window". No renderer/VRM (settings only).
+ * Sync with the main window: receive localStorage writes via the `storage` event and reload the store,
+ * plus reload once on focus (Tauri may not emit cross-window storage events).
  */
 
 import "./styles.css";
@@ -97,24 +97,24 @@ async function bootstrap(): Promise<void> {
   const ttsSettings = createTtsSettings({ storage: localStorageTtsStorage() });
   const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
   const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
-  // 런타임 chat API 키 store(같은 localStorage 키). 이 창엔 SecretProvider가 없고(디스패처 없음),
-  // 필드 표시 + cross-window 동기화만 담당한다.
+  // Runtime chat API key store (same localStorage key). This window has no SecretProvider (no dispatcher);
+  // it only handles field display + cross-window sync.
   const chatKeySettings = createChatKeySettings({ storage: localStorageChatKeyStorage() });
   const sttKeySettings = createSttKeySettings();
   const ttsKeySettings = createTtsKeySettings();
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
-  // 세션 포인터 + 진단. 펫 창이 localStorage에 쓰면 storage 이벤트로 이 창이 재로드한다.
+  // Session pointer + diagnostics. When the pet window writes to localStorage, this window reloads via the storage event.
   const sessionStore = createSessionStore(localStorageSessionStorage());
   const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
-  // 통합 대화 transcript — "새 대화 시작"이 여기서 비우면 펫 창이 storage 이벤트로 재로드한다.
+  // Unified conversation transcript — when "start new conversation" clears it here, the pet window reloads via the storage event.
   const chatHistoryStore = createChatHistoryStore({ storage: localStorageChatHistoryStorage() });
 
-  // 메인 창과의 실시간 배선(Tauri 이벤트). 이 창엔 렌더러/STT가 없으므로 컨트롤은
-  // 메인 창으로 보내고, 음성 상태는 메인 창에서 받아 반영한다. storage 폴백은 아래 유지.
+  // Real-time wiring with main window (Tauri events). This window has no renderer/STT, so send controls
+  // to main window, receive voice state from main window and reflect. Storage fallback maintained below.
   const bridge = createSettingsBridge();
 
-  // 기본 지침 placeholder를 위한 config는 best-effort로만 로드한다(실패 → 일반 placeholder).
+  // Config for default instructions placeholder loaded best-effort only (failure → generic placeholder).
   const config = createConfigStore();
   let configLoaded = false;
   try {
@@ -124,9 +124,9 @@ async function bootstrap(): Promise<void> {
     log.warn("config_load_failed", { error: String(err) });
   }
 
-  // VRM 선택 store + 스왑. 이 창엔 렌더러가 없으므로 store-only 커밋.
-  // 메인 창이 storage 재로드로 실제 VRM을 핫스왑한다.
-  // fallback default로 만든 뒤, config가 로드됐으면 실제 available[]를 주입한다(메인 창과 동일).
+  // VRM selection store + swap. This window has no renderer, so store-only commit.
+  // Main window hot-swaps actual VRM via storage reload.
+  // Create with fallback default, inject actual available[] if config loaded (same as main window).
   const vrmSelection = createVrmSelection({
     defaultUrl: "/vrms/carlotta.vrm",
     storage: localStorageVrmStorage(),
@@ -143,9 +143,9 @@ async function bootstrap(): Promise<void> {
   const swapVrm = async (option: { id: string }): Promise<void> => {
     vrmSelection.select(option.id);
   };
-  // BYO-VRM 임포트(설정 창) — 렌더러가 없으므로 로드/메타는 펫 창에 맡긴다. 파일을 복사해
-  // 파일명 stem 라벨로 옵션을 추가하고 선택만 한다. 펫 창이 cross-window로 실제 로드를 수행한다.
-  // 취소(null)는 조용히 무시.
+  // BYO-VRM import (settings window) — no renderer, delegate load/metadata to pet window. Copy file,
+  // add option with filename stem label, select only. Pet window performs actual load cross-window.
+  // Cancel (null) silently ignored.
   const importVrm = async (): Promise<void> => {
     const option = await importVrmFromFile();
     if (option === null) return;
@@ -153,8 +153,8 @@ async function bootstrap(): Promise<void> {
     vrmSelection.select(option.id);
   };
 
-  // irodori 화자 선택 store. 이 창엔 synth가 없으므로 store-only 커밋 — 등록은
-  // 펫 창의 synth 경로가 다음 발화에서 수행한다(swapVrm가 select-only인 것과 동일).
+  // irodori speaker selection store. This window has no synth, so store-only commit — registration
+  // performed by pet window's synth path on next utterance (same as swapVrm being select-only).
   const speakerSelection = createSpeakerSelection({
     defaultId: "",
     storage: localStorageSpeakerStorage(),
@@ -174,16 +174,16 @@ async function bootstrap(): Promise<void> {
   const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
     speakerSelection.select(option.id);
   };
-  // 참조 음성 재등록 — 펫 창과 달리 synth가 없지만, 갱신은 서버 직접 호출이므로 여기서도 수행한다.
-  // config 미로드/irodori_base_url 없으면 throw → UI가 에러를 노출한다.
+  // Reference voice re-registration — unlike pet window, no synth, but update is direct server call,
+  // so perform here too. Throw if config not loaded/irodori_base_url missing → UI exposes error.
   const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
     const irodoriBaseUrl = configLoaded ? config.get().endpoints.irodori_base_url : undefined;
     if (!irodoriBaseUrl) throw new Error("irodori provider requires irodori_base_url");
     const f = await selectFetch();
     await updateVoice({ baseUrl: irodoriBaseUrl, id: option.id, refUrl: option.ref_url, fetch: f });
   };
-  // BYO-voice 임포트(설정 창) — 등록은 서버 직접 호출이라 여기서도 수행한다(refreshSpeaker와 동일).
-  // 파일 복사 → irodori 등록 → 옵션 추가 + 선택. 취소(null)는 무시. 등록 실패면 고아 사본 제거 후 throw.
+  // BYO-voice import (settings window) — registration is direct server call, perform here too (same as refreshSpeaker).
+  // Copy file → irodori register → add option + select. Cancel (null) ignored. Registration failure: remove orphan copy then throw.
   const importVoice = async (): Promise<void> => {
     const option = await importVoiceFromFile();
     if (option === null) return;
@@ -198,7 +198,7 @@ async function bootstrap(): Promise<void> {
         fetch: f,
       });
     } catch (err) {
-      await removeUserVoiceFile(option.id).catch(() => {}); // 고아 사본 제거(best-effort)
+      await removeUserVoiceFile(option.id).catch(() => {}); // Remove orphan copy (best-effort)
       log.error("imported_voice_register_failed", { error: String(err) });
       throw err;
     }
@@ -210,7 +210,7 @@ async function bootstrap(): Promise<void> {
     createQuickControls({
       mount: app,
       variant: "window",
-      // Escape로 설정 창을 닫는다 — 창 variant의 닫기는 OS 창 몫.
+      // Close settings window with Escape — closing for window variant is OS window's job.
       onCloseWindow: closeSettingsWindow,
       agentSettings,
       settings: screenshotSettings,
@@ -237,7 +237,7 @@ async function bootstrap(): Promise<void> {
       importVoice,
       removeUserVoice: removeUserVoiceFile,
       resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
-      // 렌더러는 메인 창에 있으므로 게인 프리뷰를 브리지로 전달 → 메인 창 VRM 입이 움직인다.
+      // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
       onGainPreviewEnd: () => bridge.emitMouthPreview(null),
       getDefaultInstructions: () => {
@@ -292,10 +292,10 @@ async function bootstrap(): Promise<void> {
       transcript: chatHistoryStore,
     });
 
-  // quick-controls는 표시 언어 변경 시 통째로 재마운트한다(setLocale → i18n.subscribe).
-  // 컴포넌트가 자기 클릭 핸들러 도중 자신을 파괴하지 않도록 마이크로태스크로 미룬다.
+  // quick-controls fully re-mounts on display language change (setLocale → i18n.subscribe).
+  // Defer to microtask so component doesn't destroy itself during its own click handler.
   let quickControls = buildQuickControls();
-  // window variant는 생성 시 자동으로 열리지만 멱등하므로 방어적으로 한 번 더 호출.
+  // window variant auto-opens on creation but is idempotent, so defensively call once more.
   quickControls.open();
 
   const unsubscribeLocale = subscribeLocale(() => {
@@ -307,8 +307,8 @@ async function bootstrap(): Promise<void> {
   });
   window.addEventListener("beforeunload", unsubscribeLocale);
 
-  // 메인 창의 편집을 반영: cross-window storage 이벤트 + 포커스 폴백.
-  // vrmSelection도 함께 재로드해 펫 창에서 바뀐 선택이 이 창 UI에 반영되게 한다.
+  // Reflect main window edits: cross-window storage event + focus fallback.
+  // Also reload vrmSelection so pet window selection changes reflected in this window UI.
   const resyncStores = [
     agentSettings,
     endpointsSettings,
@@ -339,8 +339,8 @@ async function bootstrap(): Promise<void> {
     reloadLocaleFromStorage();
   });
 
-  // 음성 토글(이 창 → 메인 STT)과 음성 상태 반영(메인 → 이 창). 컴포넌트가 로컬
-  // voiceInputStatus를 구동하므로 그 변화를 메인으로 보내고, 메인의 실제 STT 상태를 받아 반영한다.
+  // Voice toggle (this window → main STT) and voice state reflection (main → this window).
+  // Component drives local voiceInputStatus, so send changes to main, receive actual STT state and reflect.
   let applyingRemoteVoice = false;
   voiceInputStatus.subscribe((snap) => {
     if (!applyingRemoteVoice) bridge.emitVoiceSet(snap.state !== "idle");
@@ -354,8 +354,8 @@ async function bootstrap(): Promise<void> {
     }
   });
 
-  // 설정 동기화(양방향, 루프 가드): 이 창 편집 → emit; 메인 알림 → 세 store 재로드.
-  // 디바운스: 슬라이더 드래그/타이핑 버스트를 200ms 유휴 후 단일 cross-window 이벤트로 합친다.
+  // Settings sync (bidirectional, loop-guarded): this window edit → emit; main notification → reload stores.
+  // Debounce: consolidate slider drag/typing bursts into single cross-window event after 200ms idle.
   let applyingRemote = false;
   let broadcastTimer: ReturnType<typeof setTimeout> | null = null;
   const broadcastSettings = (): void => {
@@ -382,11 +382,11 @@ async function bootstrap(): Promise<void> {
   agentNotifySettings.subscribe(broadcastSettings);
   presenceSettings.subscribe(broadcastSettings);
   recentAppsSettings.subscribe(broadcastSettings);
-  // 표시 언어 변경도 cross-window로 알린다 → 펫 창이 받아 UI를 새 언어로 다시 그린다.
+  // Display language change also signaled cross-window → pet window receives and redraws UI in new language.
   subscribeLocale(broadcastSettings);
-  // VRM 선택도 cross-window로 알린다 → 펫 창이 받아 렌더러를 핫스왑한다(Tauri storage 이벤트 불안정 대비).
+  // VRM selection also signaled cross-window → pet window receives and hot-swaps renderer (backup for Tauri storage event instability).
   vrmSelection.subscribe(broadcastSettings);
-  // 화자 선택도 cross-window로 알린다 → 펫 창이 받아 다음 발화에서 새 화자로 합성한다.
+  // Speaker selection also signaled cross-window → pet window receives and synthesizes with new speaker on next utterance.
   speakerSelection.subscribe(broadcastSettings);
   bridge.onSettingsChanged(() => {
     applyingRemote = true;

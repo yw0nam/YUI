@@ -1,6 +1,6 @@
 /**
- * 카메라 시선 추적(gaze) on/off를 관리하는 reactive 설정 스토어.
- * 변경 시 storage에 persist하고 구독자에게 통지한다.
+ * Reactive settings store managing camera gaze tracking on/off.
+ * Persists to storage on change and notifies subscribers.
  */
 
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
@@ -43,7 +43,7 @@ export function createGazeSettings(opts?: { storage?: GazeStorage; initial?: Gaz
   };
 }
 
-/** localStorage 기반 GazeStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-based GazeStorage adapter. Gracefully ignored in environments without localStorage. */
 export function localStorageGazeStorage(key = "yui.gaze"): GazeStorage {
   return localStorageStore<GazeSettings>(key);
 }

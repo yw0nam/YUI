@@ -1,35 +1,35 @@
-/** irodori_TTS voice registry — synth 전에 voice id 존재를 멱등하게 보장한다. */
+/** irodori_TTS voice registry — idempotently ensures a voice id exists before synth. */
 
 import { createLogger, type Logger } from "../logger";
 import { resolveAssetUrl } from "./asset-url";
 import { isTauri } from "./tauri-env";
 
-/** ref_url을 fetchable URL로 변환. dev/브라우저 = origin 기준 절대화, Tauri = 번들 리소스 URL. */
+/** Converts a ref_url into a fetchable URL. dev/browser = absolutized against origin, Tauri = bundle resource URL. */
 export type RefUrlResolver = (refUrl: string) => Promise<string>;
 
 export interface EnsureRegisteredOptions {
   baseUrl: string;
   id: string;
-  /** vite 서빙 경로(예: "/references/ナツメ/merged_audio.mp3"). */
+  /** vite serving path (e.g. "/references/ナツメ/merged_audio.mp3"). */
   refUrl: string;
   fetch?: typeof fetch;
-  /** ref_url 변환기(주입 가능). 기본은 resolveRefUrl(dev origin 절대화 / Tauri 번들). */
+  /** ref_url resolver (injectable). Defaults to resolveRefUrl (dev origin absolutization / Tauri bundle). */
   resolveRef?: RefUrlResolver;
   logger?: Logger;
 }
 
-// 동시/반복 호출이 중복 등록하지 않도록 in-flight/완료 약속을 캐시. 실패 시 항목 삭제로 재시도 허용.
+// Cache in-flight/settled promises so concurrent/repeat calls don't register twice. On failure, delete the entry to allow retry.
 const inflight = new Map<string, Promise<void>>();
 
-/** test-only: 케이스 간 캐시 누수 방지. */
+/** test-only: prevents cache leakage between cases. */
 export function __resetIrodoriVoiceCache(): void {
   inflight.clear();
 }
 
 /**
- * ref_url을 fetchable URL로 변환한다.
- * Tauri 패키징은 번들 리소스 절대 URL(resolveAssetUrl). dev/브라우저는 origin 기준 절대화
- * (상대 vite 경로는 base 없는 URL이라 Tauri fetchCORS가 거부). base 없는(node 테스트) 환경은 원본 유지.
+ * Converts a ref_url into a fetchable URL.
+ * Tauri packaging uses a bundle-resource absolute URL (resolveAssetUrl). dev/browser absolutizes against origin
+ * (a relative vite path is a base-less URL that Tauri fetchCORS rejects). Base-less environments (node tests) keep the original.
  */
 async function resolveRefUrl(refUrl: string): Promise<string> {
   if (isTauri()) {
@@ -44,7 +44,7 @@ async function resolveRefUrl(refUrl: string): Promise<string> {
   }
 }
 
-/** 서버 측 voice 삭제(재시작·DELETE)로 422가 나면 메모를 비워 재등록을 허용한다. */
+/** When server-side voice deletion (restart/DELETE) causes a 422, clear the memo to allow re-registration. */
 export function evictRegistration(baseUrl: string, id: string): void {
   inflight.delete(`${baseUrl}::${id}`);
 }
@@ -87,14 +87,14 @@ export interface UpdateVoiceOptions {
   id: string;
   refUrl: string;
   fetch?: typeof fetch;
-  /** ref_url 변환기(주입 가능). 기본은 resolveRefUrl. */
+  /** ref_url resolver (injectable). Defaults to resolveRefUrl. */
   resolveRef?: RefUrlResolver;
   logger?: Logger;
 }
 
 /**
- * 명시적 force-refresh: 기존 voice의 reference latent를 새 클립으로 갱신한다.
- * ensureRegistered와 달리 멱등하지 않다 — GET-check·memoize 없이 항상 ref를 fetch해 PUT한다.
+ * Explicit force-refresh: updates an existing voice's reference latent with a new clip.
+ * Unlike ensureRegistered, not idempotent — always fetches the ref and PUTs, without GET-check or memoize.
  */
 export async function updateVoice(opts: UpdateVoiceOptions): Promise<void> {
   const log = opts.logger ?? createLogger("irodori-voices");
@@ -124,7 +124,7 @@ export async function updateVoice(opts: UpdateVoiceOptions): Promise<void> {
 export function ensureRegistered(opts: EnsureRegisteredOptions): Promise<void> {
   const log = opts.logger ?? createLogger("irodori-voices");
 
-  // refUrl 없는 화자는 등록할 클립이 없다 — fetch/POST 없이 no-op, 캐시도 남기지 않는다(나중에 실 refUrl이 오면 등록).
+  // A voice with no refUrl has no clip to register — no-op without fetch/POST, and leave no cache entry (register later when a real refUrl arrives).
   if (!opts.refUrl) {
     log.debug("voice_register_skipped", { id: opts.id, reason: "empty_ref_url" });
     return Promise.resolve();

@@ -1,52 +1,55 @@
 /**
- * Global summon hotkey — configs/hotkeys.json의 accelerator를 OS 전역 단축키로 등록하고,
- * 발동 시 창을 앞으로 가져온 뒤 입력을 소환한다.
+ * Global summon hotkey — registers the configs/hotkeys.json accelerator as an OS-wide
+ * shortcut and, when fired, brings the window forward and summons the input.
  *
- * fail-soft: 무효 accelerator/OS 점유로 register가 거부되면 warn 후 비활성으로 남는다 —
- * 부트/핫리로드를 깨지 않는다. 등록/해제 API는 주입받아(non-Tauri/테스트) 런타임에 묶이지 않는다.
+ * fail-soft: if register is rejected (invalid accelerator / OS already holds it), warn and
+ * stay inactive — never break boot/hot-reload. Register/unregister APIs are injected
+ * (non-Tauri/tests) so this isn't bound to the runtime.
  */
 
 import { createLogger } from "../logger";
 
 const log = createLogger("summon-hotkey");
 
-/** 플러그인 shortcut 이벤트 핸들러 — state "Pressed" | "Released". */
+/** Plugin shortcut event handler — state "Pressed" | "Released". */
 export type SummonHotkeyTrigger = (event: { state: string }) => void;
 
 export interface SummonHotkeyDeps {
   register(accelerator: string, handler: SummonHotkeyTrigger): Promise<void>;
   unregister(accelerator: string): Promise<void>;
-  /** 창을 앞으로 + 포커스(백그라운드에서 앱 활성화 포함). */
+  /** Bring the window forward + focus (including activating the app from the background). */
   focusWindow(): Promise<void>;
   summonInput(): void;
-  /** 입력이 이미 열려 있는지 — 열려 있으면 재소환하지 않는다(창만 앞으로). */
+  /** Whether the input is already open — if so, don't re-summon (just bring the window forward). */
   isInputOpen(): boolean;
 }
 
 export interface SummonHotkey {
-  /** accelerator 적용: 기존 등록 해제 후 재등록. 빈 문자열 = 비활성. 절대 reject하지 않는다. */
+  /** Apply an accelerator: unregister the existing one, then re-register. Empty string = inactive. Never rejects. */
   apply(accelerator: string): Promise<void>;
-  /** 현재 등록된 accelerator. 비활성이면 null. */
+  /** Currently registered accelerator. null when inactive. */
   current(): string | null;
-  /** 등록 해제(teardown/HMR). */
+  /** Unregister (teardown/HMR). */
   dispose(): Promise<void>;
 }
 
 export function createSummonHotkey(deps: SummonHotkeyDeps): SummonHotkey {
   let registered: string | null = null;
-  // apply 직렬화 — 핫리로드 연타가 register/unregister를 겹치지 않게 한다.
+  // Serialize apply — keeps hot-reload key mashing from overlapping register/unregister.
   let chain: Promise<void> = Promise.resolve();
-  // 한 번에 하나의 focus+summon 사이클만. summonInput의 is-open 클래스는 rAF 뒤에 붙어
-  // isInputOpen()이 한 프레임 늦으므로, 사이클 진행 중 도착한 연타(키 리핏)를 흘려 이중 소환을 막는다.
-  // ponytail: finally~rAF 사이 ~16ms 잔여 창은 사람 연타로 도달 불가라 남겨둔다.
+  // Only one focus+summon cycle at a time. summonInput's is-open class is attached after an rAF,
+  // so isInputOpen() lags by one frame; drop repeats (key repeat) arriving mid-cycle to prevent
+  // double summons.
+  // ponytail: the ~16ms residual window between finally and rAF is unreachable by human mashing, so leave it.
   let inFlight = false;
 
   function onTrigger(event: { state: string }): void {
     if (event.state !== "Pressed") return;
     if (inFlight) return;
     inFlight = true;
-    // 다른 앱에서의 재발동도 창은 항상 앞으로. 소환은 입력이 닫혀 있을 때만 —
-    // 키 반복/재발동이 열림 애니메이션·에러 표시를 리셋하지 않게(로컬 "/" 가드와 동일).
+    // Even re-firing from another app always brings the window forward. Summon only when the
+    // input is closed — so key repeat/re-fire doesn't reset the open animation or error display
+    // (same as the local "/" guard).
     void deps
       .focusWindow()
       .catch((err) => log.warn("focus_failed", { error: String(err) }))
@@ -77,7 +80,7 @@ export function createSummonHotkey(deps: SummonHotkeyDeps): SummonHotkey {
       registered = accelerator;
       log.info("registered", { accelerator });
     } catch (err) {
-      // 무효 accelerator 또는 OS/타 앱 점유 — 비활성으로 남긴다(fail-soft).
+      // Invalid accelerator or held by the OS/another app — stay inactive (fail-soft).
       log.warn("register_failed", { accelerator, error: String(err) });
     }
   }

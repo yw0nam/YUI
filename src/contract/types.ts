@@ -1,11 +1,11 @@
 /**
- * YUI ↔ Hermes contract — TypeScript types. 이 타입이 wire 스키마의 source of truth다.
+ * YUI ↔ Hermes contract — TypeScript types. These types are the wire schema source of truth.
  *
- * 전송 규약 요지:
- *  - 제어신호(emotion_id/motion_id/emotion_text)는 서버사이드 `generate_express` tool-call의
- *    arguments로 도착 (flat 문자열 인자).
- *  - 발화 텍스트는 tool-call이 아니라 별도 assistant 텍스트 스트림(response.output_text.delta).
- *  - generate_express·emotion은 둘 다 optional — 없는 턴은 idle + 직전 표정 유지.
+ * Transmission protocol summary:
+ *  - Control signals (emotion_id/motion_id/emotion_text) arrive as arguments to the server-side
+ *    `generate_express` tool-call (flat string arguments).
+ *  - Speech text is not a tool-call but a separate assistant text stream (response.output_text.delta).
+ *  - Both generate_express and emotion are optional — turns without them remain idle and retain the prior expression.
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -13,8 +13,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * backend가 turn마다 보낼 수 있는 emotion enum.
- * 표준 6종은 VRM 1.0 preset 그대로, 확장 4종은 fallback 체인으로 매핑.
+ * Emotion enum that the backend can send each turn.
+ * The standard 6 emotions match the VRM 1.0 preset as-is; the 4 extended emotions map via fallback chain.
  */
 export type EmotionId =
   | "neutral"
@@ -30,20 +30,20 @@ export type EmotionId =
 
 export interface EmotionSignal {
   id: EmotionId;
-  /** 0.0~1.0, default 1.0. 범위 밖이면 client가 클램프 + 경고. */
+  /** 0.0~1.0, default 1.0. Client clamps and warns if out of range. */
   intensity?: number;
-  /** 보간 시간(ms), default 250. */
+  /** Transition time in milliseconds, default 250. */
   transition_ms?: number;
 }
 
 /**
- * configs/emotion_registry.json 한 항목.
- * emotion enum → VRM expression 키 + fallback 체인. 최종 fallback은 항상 "neutral".
+ * A single entry from configs/emotion_registry.json.
+ * emotion enum → VRM expression key + fallback chain. Final fallback is always "neutral".
  */
 export interface EmotionRegistryEntry {
-  /** VRM expression 키 (표준 preset 키 또는 모델 커스텀 키). */
+  /** VRM expression key (standard preset key or model-custom key). */
   vrm_expression: string;
-  /** 해당 expression이 없을 때 폴백할 emotion id 또는 expression 키. */
+  /** Emotion id or expression key to fall back to when the expression is unavailable. */
   fallback: string;
 }
 
@@ -59,40 +59,40 @@ export type InterruptPolicy = "replace" | "queue" | "ignore";
 export interface MotionSignal {
   /** registry key. */
   id: string;
-  /** registry default 오버라이드. */
+  /** Overrides registry default. */
   loop?: boolean;
-  /** 0.25~2.5, default 1.0. */
+  /** Speed multiplier: 0.25~2.5, default 1.0. */
   speed?: number;
-  /** crossfade(ms), default 200. */
+  /** Crossfade duration in milliseconds, default 200. */
   fade_ms?: number;
 }
 
 /**
- * configs/motions.json 한 항목. registry가 priority/interrupt의 진실의 원천 —
- * backend는 ID 문자열만 알면 된다.
+ * A single entry from configs/motions.json. The registry is the source of truth for priority/interrupt —
+ * the backend only needs to know the ID string.
  */
 export interface MotionRegistryEntry {
-  /** VRMA 파일 경로 (Vite public → "/motions/<id>.vrma"). variants 사용 시 기본/대표 경로(=variants[0]). */
+  /** VRMA file path (Vite public → "/motions/<id>.vrma"). When variants are used, this is the default/representative path (=variants[0]). */
   vrma_path: string;
-  /** 2개 이상의 VRMA 풀. 있으면 클라이언트가 entry마다 한 개를 골라 재생(variant_policy). 없으면 vrma_path 단일 사용. */
+  /** Pool of 2+ VRMAs. If present, the client selects one per entry for playback (variant_policy); otherwise uses vrma_path alone. */
   variants?: string[];
-  /** variants가 있을 때 선택 정책. default "random". */
+  /** Selection policy when variants exist. Default "random". */
   variant_policy?: "random" | "sequential";
-  /** cycle 모션이 다음 variant로 swap하기 전 마지막(정착) 프레임을 유지할 ms. 없으면/0이면 즉시 swap. variants>1 + loop 필요. */
+  /** Milliseconds to hold the final (settling) frame before swapping to the next variant in a cycle motion. If absent/0, swap immediately. Requires variants>1 + loop. */
   cycle_dwell_ms?: number;
-  /** entry-level default crossfade ms — signal이 fade_ms를 생략할 때 쓰인다. 없으면 200으로 폴백. */
+  /** Entry-level default crossfade in milliseconds — used when signal omits fade_ms. Falls back to 200 if absent. */
   fade_ms?: number;
-  /** true면 단일 variant loop 모션이 hard LoopRepeat 대신 loop 이음매를 self-crossfade 한다. */
+  /** If true, single-variant loop motions self-crossfade loop seams instead of using hard LoopRepeat. */
   crossfade_loop?: boolean;
   /** ping-pong (forward↔reverse) loop. requires loop=true. mutually exclusive with crossfade_loop. */
   pingpong?: boolean;
   /** [min,max] ping-pong round trips before a multi-variant motion swaps variant. default [1,1]. ignored for single-variant (continuous). */
   loop_cycles?: [number, number];
-  /** false면 broker(agent) 어휘에서 제외 — 로컬 렌더만. default true. */
+  /** If false, excluded from broker (agent) vocabulary — local render only. Default true. */
   broker_publish?: boolean;
   kind: MotionKind;
   loop: boolean;
-  /** 0~100, 높을수록 우선. */
+  /** 0~100, higher is higher priority. */
   priority: number;
   interrupt_policy: InterruptPolicy;
 }
@@ -104,28 +104,28 @@ export type MotionRegistry = Record<string, MotionRegistryEntry>;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * `generate_express` tool-call의 arguments = transport 페이로드.
- * FLAT 문자열 인자 — 이것만이 실제로 wire를 타는 제어 필드다. 전부 optional이며
- * generate_express 없는 턴은 비어 있다.
- * 침묵은 speech_text가 빈 문자열인 것으로 표현한다.
+ * Arguments of the `generate_express` tool-call = transport payload.
+ * FLAT string arguments — these are the only control fields that actually traverse the wire. All are optional;
+ * turns without generate_express are empty.
+ * Silence is represented by speech_text being an empty string.
  */
 export interface ExpressArgs {
-  /** emotion enum id. 없으면 직전 표정 유지. client가 EmotionSignal{id}로 정규화. */
+  /** Emotion enum id. If absent, retain prior expression. Client normalizes to EmotionSignal{id}. */
   emotion_id?: string;
-  /** motion registry key. 없으면 client가 emotion에서 파생. MotionSignal{id}로 정규화. */
+  /** Motion registry key. If absent, client derives from emotion. Normalized to MotionSignal{id}. */
   motion_id?: string;
-  /** TTS voice tag(예: "[whisper in small voice]") — 자유 텍스트. emotion_text 채널로 정규화. */
+  /** TTS voice tag (example: "[whisper in small voice]") — free text. Normalized via emotion_text channel. */
   emotion_text?: string;
 }
 
-/** Responses `response.completed` 이벤트의 usage — 현재 세션 토큰 점유량 추적 입력. */
+/** Usage from Responses `response.completed` event — input for tracking current session token consumption. */
 export interface Usage {
   input_tokens: number;
   output_tokens: number;
   total_tokens: number;
 }
 
-/** Hermes 네이티브 tool의 function_call item을 client가 관찰해 도출 (express 아님). */
+/** Derived from client observation of function_call items from native Hermes tools (not express). */
 export interface ToolStatus {
   state: "idle" | "running" | "done" | "error";
   /** function_call name. */
@@ -133,25 +133,25 @@ export interface ToolStatus {
 }
 
 /**
- * client 내부 정규화 형태. express arguments + 텍스트 스트림 + 네이티브
- * function_call 관찰을 합친 render directive 입력. wire 스키마가 아니라 client가 재구성하는 형태.
+ * Client-internal normalized form. Combines express arguments + text stream + native
+ * function_call observation into render directive input. Not a wire schema but a form reconstructed by the client.
  */
 export interface ControlEnvelope {
-  // --- generate_express tool-call arguments (있을 때만) ---
-  // 침묵은 speech_text가 빈 문자열인 것으로 표현한다.
+  // --- generate_express tool-call arguments (only when present) ---
+  // Silence is represented by speech_text being an empty string.
   emotion?: EmotionSignal | null;
   motion?: MotionSignal | null;
-  /** generate_express.emotion_text — TTS voice tag 자유 텍스트. backend-caller가 onCue로 라우팅, tts-pipeline이 문장 합성에 prefix. */
+  /** generate_express.emotion_text — free text for TTS voice tag. Backend-caller routes via onCue; tts-pipeline prefixes to sentence synthesis. */
   emotion_text?: string | null;
 
-  // --- 텍스트 스트림에서 조립 (tool 필드 아님) ---
-  /** response.output_text.delta 누적. 발화 없으면 "". */
+  // --- Assembled from text stream (not a tool field) ---
+  /** Accumulated response.output_text.delta. Empty string if no utterance. */
   speech_text: string;
 
-  // --- Hermes 네이티브 tool function_call item 관찰로 도출 ---
+  // --- Derived from observation of native Hermes tool function_call items ---
   tool_status?: ToolStatus | null;
 
-  /** v0에서 전부 무시. */
+  /** All ignored in v0. */
   _reserved?: {
     expression_frames?: unknown[];
     visemes?: unknown[];
@@ -162,7 +162,7 @@ export interface ControlEnvelope {
 // Input Context Schema (client → backend)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** 캡처 소스. 사용자가 monitor / browser tab / window 중 선택. */
+/** Capture source. User selects from monitor / browser tab / window. */
 export type ScreenSource =
   | { kind: "monitor"; index: number; label?: string }
   | { kind: "browser_tab"; browser: string; tab_title: string; url?: string }
@@ -173,13 +173,13 @@ export type ScreenSource =
  * for assembly into the Responses API request — NOT serialized to the system message.
  */
 export interface InputContext {
-  /** 키보드 입력 또는 STT 결과 (내부 전달용; system context에 포함되지 않음). */
+  /** Keyboard input or STT result (internal use only; not included in system context). */
   user_text?: string;
 
   env: {
     /** ISO 8601. */
     timestamp: string;
-    /** ex: "Asia/Seoul". client가 항상 채운다. */
+    /** Example: "Asia/Seoul". Always filled by client. */
     timezone: string;
     active_app?: { name: string };
     active_window_title?: string;
@@ -188,17 +188,17 @@ export interface InputContext {
   };
 
   screenshot?: {
-    /** 토글 상태 자체를 명시. */
+    /** Explicitly specifies the toggle state itself. */
     enabled: boolean;
     source: ScreenSource;
-    /** "data:image/png;base64,..." or "https://...". 내부 전달용; system context에서 제거됨. */
+    /** "data:image/png;base64,..." or "https://...". Internal use only; removed from system context. */
     data_url?: string;
     captured_at?: string;
     width?: number;
     height?: number;
   };
 
-  /** 사용자가 첨부한 이미지 (data URLs). 내부 전달용; system context에는 포함되지 않음. */
+  /** User-attached images (data URLs). Internal use only; not included in system context. */
   user_images?: string[];
 }
 
@@ -275,70 +275,70 @@ export interface ClientContext {
 // Endpoint config
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** configs/endpoints.json. chat/stt/tts 세 base URL은 서로 다른 프로세스. */
+/** configs/endpoints.json. The three base URLs (chat/stt/tts) are separate processes. */
 export interface EndpointsConfig {
   /**
-   * Hermes API root (SSH 터널, 예: `http://localhost:8643/v1`). openai SDK가 이 뒤에 `/responses`를
-   * 자체 append하므로 `/v1`까지 포함한 root다(streamChat은 이 값만 baseURL로 쓴다).
+   * Hermes API root (SSH tunnel, example: `http://localhost:8643/v1`). The OpenAI SDK appends `/responses` after this,
+   * so this is the root including `/v1` (streamChat uses only this value as baseURL).
    */
   chat_base_url: string;
   /**
-   * 정보용/비-SDK 폴백 경로. default "/v1/responses", fallback "/v1/chat/completions".
-   * ⚠ SDK 경로(streamChat)는 이 필드를 쓰지 않는다 — chat_base_url + SDK append로 결정.
-   *   `chat_base_url + chat_endpoint`로 합치지 말 것(이미 `/v1` 중복).
+   * Informational / non-SDK fallback path. Default "/v1/responses", fallback "/v1/chat/completions".
+   * ⚠ SDK path (streamChat) does not use this field — determined by chat_base_url + SDK append.
+   *   Do not combine as `chat_base_url + chat_endpoint` (already has `/v1` duplication).
    */
   chat_endpoint: string;
   /**
-   * Responses API `instructions` 필드로 보낼 시스템 nudge (config-driven, 하드코딩 금지).
-   * generate_express tool 사용을 유도한다(emotion_id/motion_id/emotion_text). 미설정 시 생략.
+   * System nudge to send in the Responses API `instructions` field (config-driven, not hard-coded).
+   * Encourages use of the generate_express tool (emotion_id/motion_id/emotion_text). Omitted if not set.
    */
   chat_instructions?: string;
   /**
-   * Hermes chat 모델 ID (OpenAI Responses `model` 파라미터). 예: "natsume" (Hermes `/v1/models`).
-   * 모델 ID는 config 소관(하드코딩 금지). 미설정 시 streamChat은 model을 생략한다 —
-   * model을 강제하는 backend엔 4xx가 날 수 있다(prod config는 반드시 설정).
+   * Hermes chat model ID (OpenAI Responses `model` parameter). Example: "natsume" (from Hermes `/v1/models`).
+   * Model ID is under config ownership (not hard-coded). If not set, streamChat omits model —
+   * backends that require model may return 4xx (prod config must set this).
    */
   chat_model?: string;
   /**
-   * YUI가 사용할 chat 프로토콜. "responses"(default, 기존) | "chat_completions"(신규).
-   * 미설정 시 streamChat은 "responses"로 동작한다(하위호환).
+   * Chat protocol for YUI to use. "responses" (default, legacy) | "chat_completions" (new).
+   * If not set, streamChat operates as "responses" (backward compatible).
    */
   chat_api?: "responses" | "chat_completions";
-  /** 별도 ASR 서비스 (OpenAI 호환) → /audio/transcriptions. */
+  /** Separate ASR service (OpenAI-compatible) → /audio/transcriptions. */
   stt_base_url: string;
-  /** 별도 TTS 서비스 (OpenAI 호환) → /audio/speech. */
+  /** Separate TTS service (OpenAI-compatible) → /audio/speech. */
   tts_base_url: string;
-  /** /v1/audio/speech model/voice/speed. 미설정 시 서비스 default. */
+  /** /v1/audio/speech model/voice/speed. Uses service default if not set. */
   tts_model?: string;
   tts_voice?: string;
   tts_speed?: number;
-  /** TTS 합성 경로 선택. 미설정 시 loader가 "irodori"로 resolve한다. */
+  /** TTS synthesis path selection. If not set, loader resolves to "irodori". */
   tts_provider?: "openai" | "irodori";
-  /** irodori_TTS 서버 root (http(s), 예: `http://localhost:8091`). provider=irodori일 때 필수. */
+  /** irodori_TTS server root (http(s), example: `http://localhost:8091`). Required when provider=irodori. */
   irodori_base_url?: string;
-  /** 활성 화자 reference_id(voice registry 등록 키). provider=irodori일 때 필수. */
+  /** Active speaker reference_id (voice registry registration key). Required when provider=irodori. */
   irodori_speaker?: string;
-  /** 선택 가능한 화자 목록 — UI 표시 + voice registry 등록 소스. ref_url은 vite 서빙 경로(`/references/…`). */
+  /** List of available speakers — UI display + voice registry registration source. ref_url is a vite serving path (`/references/…`). */
   irodori_voices?: Array<{ id: string; label?: string; ref_url: string }>;
-  /** diffusion step 수(품질/속도 trade-off). 미설정 시 서버 default. */
+  /** Number of diffusion steps (quality/speed trade-off). Uses server default if not set. */
   irodori_num_steps?: number;
-  /** emotion(text) adherence cfg scale. 미설정 시 서버 default. */
+  /** Emotion (text) adherence cfg scale. Uses server default if not set. */
   irodori_cfg_scale_text?: number;
-  /** speaker adherence cfg scale. 미설정 시 서버 default. */
+  /** Speaker adherence cfg scale. Uses server default if not set. */
   irodori_cfg_scale_speaker?: number;
-  /** 목표 발화 길이(초). 미설정 시 서버 default. */
+  /** Target utterance length in seconds. Uses server default if not set. */
   irodori_seconds?: number;
-  /** provider 무관 합성 동시성 상한. default 1(serial) — loader가 아니라 consumer(tts-pipeline)가 적용. */
+  /** Provider-agnostic synthesis concurrency limit. Default 1 (serial) — applied by consumer (tts-pipeline), not loader. */
   tts_max_inflight?: number;
-  /** Expression Broker MCP endpoint(streamable-http, 예: `http://localhost:3201/mcp`). 미설정 시 vocab publish 스킵. */
+  /** Expression Broker MCP endpoint (streamable-http, example: `http://localhost:3201/mcp`). Skips vocab publish if not set. */
   broker_base_url?: string;
-  /** 활성 chat 모델의 최대 컨텍스트 토큰 수. */
+  /** Maximum context token count for the active chat model. */
   chat_model_context_window?: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ── Client-only geometry (window-sit perch) ──
-// backend contract 밖 — generate_express / ControlEnvelope에 싣지 않는 순수 렌더 입력.
+// Outside backend contract — pure render input not carried in generate_express / ControlEnvelope.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** A rectangle in global screen coordinates (points, top-left origin). */

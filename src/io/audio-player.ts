@@ -1,4 +1,4 @@
-/** wav clip을 재생하고 입 벌림(0..1) 진폭을 콜백하는 Web Audio sink. */
+/** Web Audio sink that plays a wav clip and calls back with mouth-open (0..1) amplitude. */
 
 const audioGlobal = globalThis as unknown as {
   AudioContext?: typeof AudioContext;
@@ -6,30 +6,30 @@ const audioGlobal = globalThis as unknown as {
 };
 
 export interface AudioSink {
-  /** onAmplitude는 0..1로 정규화·스무딩된 입 벌림 값을 매 프레임 받는다. */
+  /** onAmplitude receives the normalized, smoothed mouth-open value (0..1) every frame. */
   play(wav: ArrayBuffer, onAmplitude?: (mouthOpen: number) => void): Promise<void>;
   stop(): void;
 }
 
 export interface AmplitudeEnvelopeOptions {
-  /** push마다 매핑 목표로 향하는 lerp 비율 (0..1; 1 = snap). */
+  /** lerp ratio toward the mapped target on each push (0..1; 1 = snap). */
   smoothing?: number;
-  /** 조용한 음성도 입이 벌어지게 raw RMS에 곱하는 게인. */
+  /** Gain multiplied into raw RMS so even quiet audio opens the mouth. */
   gain?: number;
 }
 
-/** raw per-frame RMS(≈0..1)를 0..1 입 벌림 값으로 정규화·스무딩하는 순수 스테이지. */
+/** Pure stage that normalizes and smooths raw per-frame RMS (≈0..1) into a 0..1 mouth-open value. */
 export interface AmplitudeEnvelope {
-  /** 한 프레임 RMS를 흘려보내고 스무딩된 입 벌림 값(0..1)을 반환. */
+  /** Feeds in one frame's RMS and returns the smoothed mouth-open value (0..1). */
   push(rms: number): number;
-  /** 누적 에너지를 0으로 리셋(재생 종료/정지 시). */
+  /** Resets accumulated energy to 0 (on playback end/stop). */
   reset(): void;
 }
 
 /**
- * 진폭 → 입 벌림 엔벨로프 (amplitude-only).
- * raw RMS를 게인으로 스케일·clamp한 뒤 light smoothing으로 ease한다.
- * raw에 단조 증가(louder in → not quieter out)하며 항상 finite 0..1.
+ * Amplitude → mouth-open envelope (amplitude-only).
+ * Scales and clamps raw RMS by gain, then eases with light smoothing.
+ * Monotonic in raw (louder in → not quieter out) and always finite 0..1.
  */
 export function createAmplitudeEnvelope(options: AmplitudeEnvelopeOptions = {}): AmplitudeEnvelope {
   const smoothing = Math.min(1, Math.max(0, options.smoothing ?? 0.4));
@@ -84,7 +84,7 @@ export function createWebAudioSink(opts?: { getGain?: () => number }): AudioSink
   return {
     async play(wav, onAmplitude) {
       const audioCtx = ensureCtx();
-      // decodeAudioData가 ArrayBuffer를 detach하므로 복사본을 넘긴다.
+      // decodeAudioData detaches the ArrayBuffer, so pass a copy.
       const buffer = await audioCtx.decodeAudioData(wav.slice(0));
 
       return new Promise<void>((resolve) => {

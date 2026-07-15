@@ -1,24 +1,24 @@
 /**
- * Dispatcher — firing≠judgment 경계를 강제하는 단일 라우터.
+ * Dispatcher — the single router that enforces the firing≠judgment boundary.
  *
- * 흐름:
+ * Flow:
  *  1. event_bus.pop() → classify → tier.
- *  2. guardrails로 evaluate — user_input은 dnd_override=true로 통과.
- *  3. conflict resolution: user.text_submitted 도착 → in-flight backend abort +
- *     큐의 tier2/3 drop(superseded_by_user).
- *  4. 라우팅:
- *     · tier1 (user.drag_*, idle.returned, user.tap 즉시 half) → renderer (로컬, backend X).
+ *  2. evaluate via guardrails — user_input passes with dnd_override=true.
+ *  3. conflict resolution: user.text_submitted arrives → abort in-flight backend +
+ *     drop tier2/3 from the queue (superseded_by_user).
+ *  4. Routing:
+ *     · tier1 (user.drag_*, idle.returned, user.tap immediate half) → renderer (local, no backend).
  *     · tier2/3 (user.text_submitted, idle.*, time_milestone.*, os.active_app_changed) → backend_caller.
  *
- * 단일 in-flight backend call. 보류 tier2/3은 로컬 pending에 1건만 유지
- * (2건 이상 보류 시 가장 오래된 것 drop).
+ * Single in-flight backend call. Deferred tier2/3 keeps only one item in local pending
+ * (with two or more deferred, the oldest is dropped).
  *
- * state: booting → (start) → running → (stop) → stopped. cooldown은 guardrails의
- *   overall-cap verdict를 매 tick 폴링해 running↔cooldown으로 전이한다. degraded는
- *   backend call이 연속 DEGRADED_FAILURE_THRESHOLD회 실패하면 진입한다 — 그 동안 tier2/3
- *   (non-user)은 degraded_drop으로 드롭하고, user-initiated(dnd_override) 턴은 게이트 없이
- *   계속 backend_caller로 나간다(judgment는 backend 소관). 호출이 1회라도 성공하면 즉시
- *   running으로 복귀하고 연속 실패 카운터도 리셋된다.
+ * state: booting → (start) → running → (stop) → stopped. cooldown polls the guardrails'
+ *   overall-cap verdict every tick to transition running↔cooldown. degraded is entered when
+ *   the backend call fails DEGRADED_FAILURE_THRESHOLD times in a row — during it, tier2/3
+ *   (non-user) is dropped as degraded_drop, while user-initiated (dnd_override) turns keep
+ *   going out to backend_caller without a gate (judgment belongs to the backend). A single
+ *   successful call immediately returns to running and resets the consecutive-failure counter.
  * observable: queue() / recentDrops(n) / inFlight().
  */
 
@@ -36,23 +36,24 @@ export interface DispatcherDeps {
   bus: EventBus;
   renderer: Pick<Renderer, "applyDirective" | "setPerchTarget">;
   backendCaller: BackendCaller;
-  /** 가드레일 — DND/debounce/rate-limit 게이트 + cooldown verdict(순수). */
+  /** Guardrails — DND/debounce/rate-limit gate + cooldown verdict (pure). */
   guardrails: Guardrails;
-  /** 현재 TTS 재생 중인지(playback, not stream). 비-유저 턴 drain을 재생 종료까지 지연시키는 게이트. */
+  /** Whether TTS is currently playing (playback, not stream). Gate that defers non-user-turn drain until playback ends. */
   isSpeaking?: () => boolean;
-  /** pump 주기(ms). default 16(rAF 대략). 테스트는 fake timer로 advance. */
+  /** pump interval (ms). default 16 (roughly rAF). Tests advance with a fake timer. */
   pumpIntervalMs?: number;
   /**
-   * user-initiated 턴(user.text_submitted / user.voice_segment_ready)의 backend call 실패를
-   * source(어느 트리거였는지)와 함께 알린다 — superseded_by_user는 에러가 아니므로 제외.
-   * main.ts가 UI 에러 표면(showInputError / voice-input-indicator)으로 연결한다.
-   * proactive/schedule/agent 턴 실패는 로그만 남고 여기로 나오지 않는다(silent by design).
+   * Report a backend call failure of a user-initiated turn (user.text_submitted /
+   * user.voice_segment_ready) along with its source (which trigger it was) —
+   * superseded_by_user is excluded since it is not an error.
+   * main.ts wires this to the UI error surface (showInputError / voice-input-indicator).
+   * proactive/schedule/agent turn failures are only logged and never surface here (silent by design).
    */
   onUserTurnFailed?: (
     reason: Exclude<DropReason, "superseded_by_user">,
     source: UserTurnSource,
   ) => void;
-  /** 구조화 로깅(없으면 dispatcher namespace logger). */
+  /** Structured logging (defaults to the dispatcher namespace logger). */
   logger?: Logger;
 }
 
@@ -64,7 +65,7 @@ export type DispatcherState =
   | "draining"
   | "stopped";
 
-/** recent_drops 항목. */
+/** recent_drops entry. */
 export interface DropRecord {
   seq_id?: number;
   event_name: string;
@@ -72,7 +73,7 @@ export interface DropRecord {
   ts: number;
 }
 
-/** drop reason → log severity. Record가 누락 key를 컴파일 에러로 강제한다. */
+/** drop reason → log severity. Record forces a missing key to be a compile error. */
 export const DROP_SEVERITY: Record<DropRecord["reason"], LogLevel> = {
   guardrail_drop: "info",
   parse_error: "warn",
@@ -91,21 +92,21 @@ export interface InFlightInfo {
 
 export interface Dispatcher {
   state(): DispatcherState;
-  /** sources 구독 + 처리 루프 시작 (booting → running). */
+  /** Subscribe to sources + start the processing loop (booting → running). */
   start(): void;
-  /** 처리 루프 정지 + in-flight abort → stopped. */
+  /** Stop the processing loop + abort in-flight → stopped. */
   stop(): void;
-  /** 현재 보류 큐 + bus 미처리분 스냅샷. */
+  /** Snapshot of the current deferred queue + unprocessed bus items. */
   queue(): BusEnvelope[];
-  /** 최근 n drop(reason 포함). */
+  /** Most recent n drops (reason included). */
   recentDrops(n?: number): DropRecord[];
-  /** 진행 중 backend call(없으면 null). */
+  /** In-progress backend call (null if none). */
   inFlight(): InFlightInfo | null;
-  /** 진행 중 call abort + 보류 tier2/3 drop(client-only). bus sweep/tier1은 안 함. */
+  /** Abort the in-progress call + drop deferred tier2/3 (client-only). Does not sweep the bus or touch tier1. */
   cancel(): void;
-  /** 상태 전이 구독. 매 전이마다 콜백 호출, unsubscribe fn 반환. */
+  /** Subscribe to state transitions. Callback runs on every transition; returns an unsubscribe fn. */
   subscribeState(cb: (s: DispatcherState) => void): () => void;
-  /** busy(=in-flight 유무) 전이 구독. idle⟷busy 경계에서만 호출, unsubscribe fn 반환. */
+  /** Subscribe to busy (= in-flight presence) transitions. Runs only at the idle⟷busy boundary; returns an unsubscribe fn. */
   subscribeBusy(cb: (busy: boolean) => void): () => void;
 }
 
@@ -118,8 +119,8 @@ interface Classification {
 }
 
 /**
- * classify. 다루는 event만 라우팅, 나머지는 drop(=no-op).
- * user.tap은 tier1 즉시 half로 처리한다.
+ * classify. Only handled events are routed; the rest are dropped (= no-op).
+ * user.tap is handled as a tier1 immediate half.
  */
 function classify(env: BusEnvelope): Classification {
   const n = env.event_name;
@@ -158,8 +159,8 @@ function classify(env: BusEnvelope): Classification {
   return { tier: (env.hint_tier ?? 3) as Tier, target: "drop" };
 }
 
-/** user-initiated 턴의 소스(typed vs voice) — onUserTurnFailed 대상 필터 겸 라우팅 힌트.
- * proactive/schedule/agent 등 그 외 트리거는 undefined(§274 UI 에러 표면 대상 아님). */
+/** Source of a user-initiated turn (typed vs voice) — filters onUserTurnFailed targets and hints routing.
+ * Other triggers such as proactive/schedule/agent are undefined (§274, not a UI error-surface target). */
 export type UserTurnSource = "text" | "voice";
 
 function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
@@ -169,10 +170,10 @@ function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
 }
 
 /**
- * tier1 event → render directive 매핑(로컬, backend 독립).
- *  - drag_start → motion "drag" 재생 / drag_end → idle 복귀(motion null).
- *  - user.tap / idle.returned → 빈 directive(hold).
- * 반환 null이면 render 안 함.
+ * tier1 event → render directive mapping (local, backend-independent).
+ *  - drag_start → play motion "drag" / drag_end → return to idle (motion null).
+ *  - user.tap / idle.returned → empty directive (hold).
+ * Returning null means no render.
  */
 function tier1Directive(env: BusEnvelope): ControlEnvelope | null {
   switch (env.event_name) {
@@ -188,7 +189,7 @@ function tier1Directive(env: BusEnvelope): ControlEnvelope | null {
       return { speech_text: "", motion: null };
     case "user.tap":
     case "idle.returned":
-      // 빈 directive(emotion/motion 미지정 = hold).
+      // empty directive (emotion/motion unset = hold).
       return { speech_text: "" };
     default:
       return null;
@@ -197,7 +198,7 @@ function tier1Directive(env: BusEnvelope): ControlEnvelope | null {
 
 const DEFAULT_PUMP_MS = 16;
 const MAX_DROP_RECORDS = 50;
-/** 연속 backend call 실패 횟수 — 도달 시 degraded 진입. */
+/** Consecutive backend call failure count — degraded is entered on reaching it. */
 const DEGRADED_FAILURE_THRESHOLD = 3;
 
 export function createDispatcher(deps: DispatcherDeps): Dispatcher {
@@ -208,18 +209,18 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   let state: DispatcherState = "booting";
   let timer: ReturnType<typeof setInterval> | null = null;
 
-  // 단일 in-flight backend call (1건만, 나머지 보류).
+  // Single in-flight backend call (only one; the rest are deferred).
   let inFlight: { trigger: BusEnvelope; started_at: number; abort: AbortController } | null = null;
-  // 보류 tier2/3 (2건 이상이면 가장 오래된 것 drop).
+  // Deferred tier2/3 (with two or more, the oldest is dropped).
   const pending: BusEnvelope[] = [];
   const drops: DropRecord[] = [];
-  // 연속 backend call 실패 카운터 — superseded_by_user는 실패로 세지 않는다.
+  // Consecutive backend call failure counter — superseded_by_user does not count as a failure.
   let consecutiveFailures = 0;
 
   const stateSubscribers = new Set<(s: DispatcherState) => void>();
   const busySubscribers = new Set<(busy: boolean) => void>();
 
-  /** 상태 전이의 단일 경로: 할당 + state_change 로그 + 구독자 통지. */
+  /** Single path for state transitions: assign + state_change log + notify subscribers. */
   function setState(next: DispatcherState): void {
     if (next === state) return;
     const from = state;
@@ -228,7 +229,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     for (const cb of stateSubscribers) cb(next);
   }
 
-  /** in-flight 할당의 단일 경로: idle⟷busy 경계(null↔non-null)에서만 구독자 통지. */
+  /** Single path for in-flight assignment: notify subscribers only at the idle⟷busy boundary (null↔non-null). */
   function setInFlight(next: typeof inFlight): void {
     const wasBusy = inFlight !== null;
     inFlight = next;
@@ -243,13 +244,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     log[DROP_SEVERITY[reason]]("drop", { event_name: env.event_name, reason, seq_id: env.seq_id });
   }
 
-  /** backend call 성공: 연속 실패 카운터 리셋 + degraded면 즉시 복귀. */
+  /** Backend call success: reset the consecutive-failure counter + return immediately if degraded. */
   function noteCallSuccess(): void {
     consecutiveFailures = 0;
     if (state === "degraded") setState("running");
   }
 
-  /** backend call 실패(superseded_by_user 제외): 임계치 도달 시 degraded 진입. */
+  /** Backend call failure (excluding superseded_by_user): enter degraded on reaching the threshold. */
   function noteCallFailure(): void {
     consecutiveFailures += 1;
     if (
@@ -261,9 +262,10 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   /**
-   * user.text_submitted 도착 → in-flight abort + 보류 tier2/3 전부 drop +
-   * bus에 아직 남아 있는 tier2/3도 sweep해 drop. tier1은 그대로 즉시 처리해 남긴다.
-   * (bus는 우선순위 큐라 user가 먼저 pop되므로, 같은 pump의 후행 tier2/3까지 here에서 비운다.)
+   * user.text_submitted arrives → abort in-flight + drop all deferred tier2/3 +
+   * sweep and drop any tier2/3 still left in the bus. tier1 is processed immediately and kept.
+   * (Since the bus is a priority queue where user pops first, this also clears trailing tier2/3
+   * from the same pump here.)
    */
   function supersedeByUser(): void {
     if (inFlight) {
@@ -274,7 +276,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     while (pending.length > 0) {
       recordDrop(pending.shift()!, "superseded_by_user");
     }
-    // bus에 남은 tier2/3 sweep: backend로 갈 것은 drop, tier1은 즉시 렌더해 보존.
+    // Sweep tier2/3 left in the bus: drop what would go to the backend, render tier1 immediately to preserve it.
     let env: BusEnvelope | null;
     const tier1Leftover: BusEnvelope[] = [];
     while ((env = bus.pop()) !== null) {
@@ -289,7 +291,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     for (const t of tier1Leftover) renderTier1(t);
   }
 
-  /** tier2/3 backend call 시작(in-flight 점유). 완료 시 슬롯 비우고 보류 1건 drain. */
+  /** Start a tier2/3 backend call (occupies in-flight). On completion, free the slot and drain one deferred item. */
   function startBackendCall(env: BusEnvelope): void {
     const abort = new AbortController();
     const started_at = Date.now();
@@ -320,19 +322,19 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         if (source) deps.onUserTurnFailed?.("network_drop", source);
       })
       .finally(() => {
-        // 이 콜이 여전히 현재 in-flight일 때만 슬롯 해제(abort로 교체됐으면 건드리지 않음).
-        // 곧장 drain할 보류가 있으면 슬롯을 비우지 않고 바로 다음 콜로 교체해
-        // busy가 true→true로 유지된다(경계 통지 없음).
+        // Release the slot only if this call is still the current in-flight (leave it if replaced by an abort).
+        // If there is a deferred item to drain right away, replace with the next call instead of freeing the slot,
+        // keeping busy at true→true (no boundary notification).
         if (inFlight && inFlight.trigger === env) {
           if (canDrain()) {
             if (shouldHoldForPlayback(pending[0]!)) {
-              // 재생 중 — 슬롯만 비우고 pending 유지. pump가 재생 종료 후 drain한다.
+              // Playing — free the slot only and keep pending. pump drains it after playback ends.
               setInFlight(null);
             } else {
               startBackendCall(pending.shift()!);
             }
           } else if (state === "degraded" && pending.length > 0) {
-            // degraded 진입 순간 이미 보류 중이던 non-user 턴 — stale이니 drop.
+            // Non-user turn already deferred at the moment degraded was entered — stale, so drop.
             recordDrop(pending.shift()!, "degraded_drop");
             setInFlight(null);
           } else {
@@ -343,8 +345,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   /**
-   * 지금 보류 1건을 다음 콜로 시작할 수 있는지(콜 완료 직후 슬롯 교체 판정용).
-   * degraded 중엔 user 턴(dnd_override)만 drain — 그 외는 drop 대상(위 finally에서 처리).
+   * Whether one deferred item can now start as the next call (used to decide slot replacement right after a call completes).
+   * During degraded, only user turns (dnd_override) drain — everything else is a drop target (handled in the finally above).
    */
   function canDrain(): boolean {
     if (pending.length === 0) return false;
@@ -353,25 +355,25 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     return false;
   }
 
-  /** 비-유저 pending 턴은 재생 중이면 붙잡아 둔다(유저 supersede는 즉시). */
+  /** Hold a non-user pending turn while playback is ongoing (user supersede is immediate). */
   function shouldHoldForPlayback(head: BusEnvelope): boolean {
     return userTurnSourceOf(head) === undefined && deps.isSpeaking?.() === true;
   }
 
-  /** tier2/3 enqueue: in-flight 비면 즉시 시작, 아니면 보류(2건 이상이면 oldest drop). */
+  /** tier2/3 enqueue: start immediately if in-flight is empty, otherwise defer (with two or more, drop the oldest). */
   function enqueueBackend(env: BusEnvelope): void {
     if (!inFlight && pending.length === 0) {
       startBackendCall(env);
       return;
     }
     pending.push(env);
-    // 2건 이상 보류 시 가장 오래된 것 drop(stale).
+    // With two or more deferred, drop the oldest (stale).
     while (pending.length > 1) {
       recordDrop(pending.shift()!, "stale_pending");
     }
   }
 
-  /** tier1 event → renderer.applyDirective (로컬, backend 독립). */
+  /** tier1 event → renderer.applyDirective (local, backend-independent). */
   function renderTier1(env: BusEnvelope): void {
     const directive = tier1Directive(env);
     if (!directive) return;
@@ -414,8 +416,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   /**
-   * dispatcher가 running ↔ cooldown 전이를 소유한다. guardrail은 verdict만 반환하고
-   * 전이에 관여하지 않으므로, 매 tick cooldownActive()를 폴링해 state를 동기화한다(진입/종료 함께).
+   * The dispatcher owns the running ↔ cooldown transition. Since the guardrail only returns a verdict
+   * and takes no part in the transition, this polls cooldownActive() every tick to sync state (both entry and exit).
    */
   function syncCooldownState(): void {
     const inCooldown = guardrails.cooldownActive();
@@ -426,7 +428,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     }
   }
 
-  /** 붙잡아 둔 pending을 시작할 수 있으면 시작(재생 종료 후 다음 tick 재시도). */
+  /** Start the held pending if it can start (retried on the next tick after playback ends). */
   function drainPending(): void {
     if (inFlight || !canDrain()) return;
     if (shouldHoldForPlayback(pending[0]!)) return;
@@ -434,28 +436,28 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   function handle(env: BusEnvelope): void {
-    // DND 상태 갱신은 분류/평가 이전에 — note는 envelope→setDnd thin translator.
+    // Update DND state before classification/evaluation — note is a thin envelope→setDnd translator.
     guardrails.note(env);
 
-    // user.text_submitted는 분류 전에 supersede를 먼저 적용한다.
+    // For user.text_submitted, apply supersede before classification.
     if (env.event_name === "user.text_submitted") {
       supersedeByUser();
     }
 
     const { tier, target } = classify(env);
     if (target === "tier1") {
-      // tier1은 절대 게이트하지 않는다(DND/cooldown 무관).
+      // tier1 is never gated (independent of DND/cooldown).
       renderTier1(env);
       return;
     }
     if (target === "backend_caller") {
-      // degraded 중엔 non-user(dnd_override 아님) tier2/3을 게이트보다 먼저 드롭한다 —
-      // user-initiated 턴은 judgment를 backend에 맡기려 계속 통과시킨다.
+      // During degraded, drop non-user (not dnd_override) tier2/3 before gate —
+      // keep passing user-initiated turns to delegate judgment to backend.
       if (state === "degraded" && env.dnd_override !== true) {
         recordDrop(env, "degraded_drop");
         return;
       }
-      // classify로 tier 획득 후 evaluate. drop이면 enqueue하지 않는다.
+      // After classifying to get tier, evaluate. If drop, don't enqueue.
       const verdict = guardrails.evaluate(env, tier);
       if (!verdict.pass) {
         recordDrop(env, verdict.reason);
@@ -465,12 +467,12 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       enqueueBackend(env);
       return;
     }
-    // target === "drop": 다루지 않는 event (no-op — bus가 이미 미지의 event_name은 거름).
+    // target === "drop": unhandled event (no-op — bus already filters unknown event_name).
   }
 
   /**
-   * pump: 매 tick마다 bus를 drain. running/cooldown/degraded 모두에서 동작(각각 tier1은 항상 계속).
-   * 그 외(booting/stopped/draining)면 no-op으로 보류 이벤트를 잡아 둔다.
+   * pump: drain bus every tick. Operates in running/cooldown/degraded all (tier1 always continues each).
+   * Otherwise (booting/stopped/draining) hold pending events as no-op.
    */
   function pump(): void {
     if (state !== "running" && state !== "cooldown" && state !== "degraded") return;
@@ -478,7 +480,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     while ((env = bus.pop()) !== null) {
       handle(env);
     }
-    // backend 평가가 cooldown을 진입시켰거나 타이머가 종료시켰을 수 있다 → state 동기화.
+    // Backend evaluation may have entered cooldown or timer may have expired → sync state.
     syncCooldownState();
     drainPending();
   }
@@ -491,7 +493,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       if (state === "running") return;
       setState("running");
       timer = setInterval(pump, pumpMs);
-      // 즉시 한 번 drain(첫 tick 전 push된 event 대응).
+      // Drain once immediately (handle event pushed before first tick).
       pump();
     },
     stop() {
@@ -507,7 +509,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       setState("stopped");
     },
     queue() {
-      // 보류 + bus 미처리분(스냅샷)을 합쳐 노출.
+      // Expose combined pending + unprocessed bus snapshot.
       return [...pending, ...bus.snapshot()];
     },
     recentDrops(n = 10) {
@@ -517,7 +519,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       return inFlight ? { trigger: inFlight.trigger, started_at: inFlight.started_at } : null;
     },
     cancel() {
-      // client-only abort: 진행 중 call abort + 보류 drop. bus sweep/tier1 렌더는 안 함.
+      // client-only abort: abort in-flight call + drop pending. Don't do bus sweep/tier1 render.
       if (inFlight) {
         log.info("abort", {
           event_name: inFlight.trigger.event_name,

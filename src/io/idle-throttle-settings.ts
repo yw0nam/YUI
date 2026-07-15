@@ -1,6 +1,6 @@
 /**
- * 유휴 절전(30fps 캡) on/off를 관리하는 reactive 설정 스토어.
- * 변경 시 storage에 persist하고 구독자에게 통지한다.
+ * Reactive settings store managing idle power-saving (30fps cap) on/off.
+ * Persists to storage on change and notifies subscribers.
  */
 
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
@@ -46,7 +46,7 @@ export function createIdleThrottleSettings(opts?: {
   };
 }
 
-/** localStorage 기반 IdleThrottleStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-backed IdleThrottleStorage adapter. Gracefully ignored where localStorage is unavailable. */
 export function localStorageIdleThrottleStorage(key = "yui.idle-throttle"): IdleThrottleStorage {
   return localStorageStore<IdleThrottleSettings>(key);
 }

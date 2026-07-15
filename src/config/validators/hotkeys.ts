@@ -8,12 +8,12 @@ export function validateHotkeys(file: string, raw: unknown): HotkeysConfig {
   const v = raw.summon_global;
   let summon_global = "";
   if (v === undefined || v === "") {
-    // 키 없음/빈 문자열 = 비활성.
+    // Missing key / empty string = disabled.
     summon_global = "";
   } else if (typeof v !== "string") {
     issues.push(`summon_global은 문자열이어야 함 (받음: ${JSON.stringify(v)})`);
   } else {
-    // accelerator 문법 판정은 등록 시점의 플러그인/OS 소관 — 여기서는 통과(fail-soft).
+    // Accelerator syntax validation is the plugin/OS's job at registration time — pass here (fail-soft).
     summon_global = v;
   }
 

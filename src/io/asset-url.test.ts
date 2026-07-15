@@ -1,15 +1,15 @@
 /**
- * asset-url.test.ts — 논리 에셋 경로 → 런타임 URL resolver 단위 테스트.
+ * asset-url.test.ts — unit tests for the logical asset path → runtime URL resolver.
  *
- * dev/브라우저(__TAURI_INTERNALS__ 없음)는 입력 경로를 그대로 통과시키고(vite 서빙 보존),
- * Tauri 패키징은 resolveResource + convertFileSrc로 번들 리소스 절대 URL을 만든다.
- * Tauri API는 주입 가능 — 실제 @tauri-apps/api를 타지 않고 mock으로 분기를 검증한다.
+ * dev/browser (no __TAURI_INTERNALS__) passes the input path through as-is (preserving vite serving),
+ * while Tauri packaging builds a bundled-resource absolute URL via resolveResource + convertFileSrc.
+ * The Tauri API is injectable — branches are verified with a mock instead of hitting the real @tauri-apps/api.
  */
 
 import { describe, expect, it, vi } from "vitest";
 import { resolveAssetUrl, resolveUserFileSrc, type TauriAssetApi } from "./asset-url";
 
-/** 번들 리소스 경로를 흉내내는 mock — resolveResource는 절대 fs 경로, convertFileSrc는 asset URL. */
+/** Mock imitating bundle-resource paths — resolveResource yields an absolute fs path, convertFileSrc an asset URL. */
 function mockTauri(): TauriAssetApi {
   return {
     resolveResource: vi.fn(async (p: string) => `/app/resources/${p}`),
@@ -86,7 +86,7 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
       isDev: () => false,
       tauri: async () => api,
     });
-    // resolveResource에는 쿼리 없는 경로만 넘긴다.
+    // Only the query-less path is passed to resolveResource.
     expect(api.resolveResource).toHaveBeenCalledWith("configs/endpoints.json");
     expect(out.endsWith("?t=999")).toBe(true);
   });
@@ -134,7 +134,7 @@ describe("resolveAssetUrl — dev-Tauri 라이브 서빙 바이패스", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// resolveUserFileSrc — 임포트된 app-data 절대 파일 경로 → webview URL
+// resolveUserFileSrc — imported app-data absolute file path → webview URL
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("resolveUserFileSrc — Tauri app-data 절대 경로", () => {

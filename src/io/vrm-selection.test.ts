@@ -260,7 +260,7 @@ describe("createVrmSelection — reloadFromStorage", () => {
     const cb = vi.fn();
     store.subscribe(cb);
 
-    // 다른 창이 storage를 직접 갱신한 상황을 모사
+    // Simulate other window directly updating storage
     storage._data = "miko";
     store.reloadFromStorage();
 

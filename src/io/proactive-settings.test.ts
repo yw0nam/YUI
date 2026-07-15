@@ -1,13 +1,13 @@
 /**
  * proactive-settings.test.ts — createProactiveSettings reactive store (idle-gap cue list).
  *
- * 검증:
- *  - 기본값: enabled=true, 3개 seed entry
- *  - get()이 deep clone 반환
+ * Verify:
+ *  - defaults: enabled=true, 3 seed entries
+ *  - get() returns deep clone
  *  - addCue/updateCue(valid+invalid idle_min/label)/removeCue
- *  - setEnabled: 변경 시 persist + notify, 동일값 skip
- *  - hydration 우선순위 + malformed 폴백
- *  - migration: 구버전 { enabled } (no entries) → enabled 유지 + seed entries 채움
+ *  - setEnabled: on change persist + notify, skip if same
+ *  - hydration priority + malformed fallback
+ *  - migration: old { enabled } (no entries) → keep enabled + fill seed entries
  *  - reloadFromStorage, subscribe/unsubscribe, dispose
  */
 

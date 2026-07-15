@@ -1,14 +1,14 @@
 /**
  * broker-client.test.ts — Expression Broker MCP write-only client.
  *
- * 대상: createBrokerClient({ baseUrl, fetch?, logger?, pollIntervalMs?, setInterval?, clearInterval? }).
- *   stateless, best-effort writer. getIds()/publish() — MCP streamable-http(initialize → notifications/initialized → tools/call).
- *   응답은 SSE 프레이밍(`event: message\ndata: {json}`); result.content[0].text는 JSON 문자열(JSON.parse).
- *   D4: 어떤 transport 실패도 throw하지 않는다(warn 후 degrade). D7: publish 멱등 + liveness poll로 재발행.
+ * Covers: createBrokerClient({ baseUrl, fetch?, logger?, pollIntervalMs?, setInterval?, clearInterval? }).
+ *   A stateless, best-effort writer. getIds()/publish() — MCP streamable-http (initialize → notifications/initialized → tools/call).
+ *   Responses use SSE framing (`event: message\ndata: {json}`); result.content[0].text is a JSON string (JSON.parse).
+ *   D4: no transport failure ever throws (warn, then degrade). D7: publish is idempotent + re-published on liveness poll.
  *
- * deriveBrokerPayload: AppConfig → BrokerPayload(순수, no I/O).
+ * deriveBrokerPayload: AppConfig → BrokerPayload (pure, no I/O).
  *
- * 테스트는 주입한 fake fetch만 사용 — 실제 broker 미접속.
+ * Tests use only an injected fake fetch — no real broker connection.
  */
 
 import { describe, expect, it, vi } from "vitest";

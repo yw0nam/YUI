@@ -79,7 +79,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     try {
       globalThis.localStorage?.clear();
     } catch {
-      /* localStorage 미사용 환경 무시 */
+      /* Ignore environments without localStorage */
     }
     // Existing assertions pin Korean copy/selectors; render the panel in ko.
     setLocale("ko");
@@ -114,7 +114,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     });
   }
 
-  // ── 엔드포인트 섹션 ───────────────────────────────────────────────────────
+  // ── Endpoint section ─────────────────────────────────────────────────────
 
   it("renders four collapsible per-service sections (chat/stt/tts/broker), each with a yui-select", () => {
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
@@ -156,10 +156,10 @@ describe("createQuickControls — endpoints + API keys", () => {
   });
 
   it("populates endpoint placeholders from getEndpointDefaults() on open even when defaults arrive after construction", () => {
-    // 패널은 config 로드 전에 생성된다 — 생성 시점엔 defaults가 없고 open() 시점에 채워져야 한다.
+    // Panel is created before config is loaded — defaults are absent at creation time and must be filled at open() time.
     let defaults: Record<string, string> | undefined;
     const qc = buildQc({ getEndpointDefaults: () => defaults as never });
-    // 생성 후 config가 로드된 상태를 모사.
+    // Simulate config being loaded after creation.
     defaults = {
       chat_base_url: "http://localhost:8643/v1",
       stt_base_url: "http://localhost:5517/v1",
@@ -188,16 +188,16 @@ describe("createQuickControls — endpoints + API keys", () => {
     )!;
     const row = input.closest<HTMLDivElement>(".yui-input-row")!;
 
-    input.value = "localhost:5517"; // 스킴 없음 → invalid
+    input.value = "localhost:5517"; // No scheme → invalid
     input.dispatchEvent(new Event("input", { bubbles: true }));
     expect(row.classList.contains("is-invalid")).toBe(true);
     expect(input.getAttribute("aria-invalid")).toBe("true");
 
-    input.value = "https://localhost:5517/v1"; // valid
+    input.value = "https://localhost:5517/v1"; // Valid
     input.dispatchEvent(new Event("input", { bubbles: true }));
     expect(row.classList.contains("is-invalid")).toBe(false);
 
-    input.value = ""; // 빈 값 = override 없음 → 에러 아님
+    input.value = ""; // Empty value = no override → no error
     input.dispatchEvent(new Event("input", { bubbles: true }));
     expect(row.classList.contains("is-invalid")).toBe(false);
 

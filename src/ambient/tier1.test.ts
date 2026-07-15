@@ -3,10 +3,10 @@ import type { Renderer, TickContext, TickFn } from "../renderer";
 import { createTier1Engine, type Tier1Engine } from "./tier1";
 
 /**
- * Tier1 엔진을 **헤드리스로 결정적 구동**한다 (브라우저/ rAF 없이).
- * fake renderer가 onTick(fn)을 붙잡고, fake VRM에 합성 프레임을 흘려 보낸다.
- * → cues 단위 테스트보다 강한 통합 검증: 엔진이 실제로 bone을 움직이고 blink하며
- *   trigger에 반응하는지. (preview 환경은 rAF를 throttle하므로 거기선 검증 불가.)
+ * Drive Tier1 engine **headless deterministically** (without browser / rAF).
+ * fake renderer captures onTick(fn), flow synthetic frames through fake VRM.
+ * → Stronger integration validation than cue-unit tests: does engine actually move bones, blink,
+ *   and react to triggers? (preview environment throttles rAF, so can't validate there.)
  */
 
 interface FakeBone {
@@ -56,7 +56,7 @@ function makeVrm(opts: { blink?: boolean } = {}) {
   return { vrm, bones, exprValues, elapsed: 0 };
 }
 
-/** onTick을 붙잡는 최소 fake renderer. */
+/** Minimal fake renderer that captures onTick. */
 function makeRenderer(): { renderer: Renderer; getTick: () => TickFn } {
   let tick: TickFn | null = null;
   const renderer = {
@@ -75,7 +75,7 @@ function makeRenderer(): { renderer: Renderer; getTick: () => TickFn } {
   return { renderer, getTick: () => tick! };
 }
 
-/** 합성 프레임 구동기: 60fps로 durationS초 동안 tick 호출, 샘플 수집. elapsed는 호출 간 누적. */
+/** Synthetic frame driver: call tick for durationS seconds at 60fps, collect samples. elapsed accumulates between calls. */
 function drive(tick: TickFn, m: ReturnType<typeof makeVrm>, durationS: number, fps = 60) {
   const dt = 1 / fps;
   const n = Math.round(durationS * fps);
@@ -137,8 +137,8 @@ describe("Tier1Engine — drives a VRM (headless)", () => {
     createTier1Engine(renderer).start();
     const samples = drive(getTick(), m, 7);
     const blinkMax = Math.max(...samples.map((s) => s.blink));
-    // 60fps로 150ms 삼각 펄스를 샘플링하면 정점(75ms)에 프레임이 정확히 안 맞아
-    // 한 프레임 최대치는 ~0.89가 한계 — 눈은 사실상 다 감긴다.
+    // Sampling 150ms triangle pulse at 60fps, frame doesn't align exactly at peak (75ms),
+    // so max per frame is ~0.89 limit — eyes effectively fully closed.
     expect(blinkMax).toBeGreaterThan(0.85);
     // and re-opens (not stuck shut)
     expect(samples[samples.length - 1].blink).toBeLessThan(0.1);
@@ -156,12 +156,12 @@ describe("Tier1Engine — drives a VRM (headless)", () => {
     const before = m.bones.head.rotation.x;
 
     engine.trigger("tap_react");
-    // advance ~110ms (≈ bob peak at 220ms/2) → big deviation
+    // advance ~110ms (≈ bob peak at 220ms/2) → large deviation
     const peak = drive(tick, m, 0.11);
     const peakX = peak[peak.length - 1].headX;
     expect(Math.abs(peakX - before)).toBeGreaterThan(0.05); // bob is visible
 
-    // after the bob fully elapses, pitch returns to sway-only magnitude
+    // After bob fully elapses, pitch returns to sway-only magnitude
     drive(tick, m, 0.5);
     const after = m.bones.head.rotation.x;
     expect(Math.abs(after)).toBeLessThan(0.1);

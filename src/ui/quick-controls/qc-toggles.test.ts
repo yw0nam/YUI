@@ -81,7 +81,7 @@ describe("createQuickControls — toggles + gain row", () => {
     try {
       globalThis.localStorage?.clear();
     } catch {
-      /* localStorage 미사용 환경 무시 */
+      /* Ignore environments without localStorage */
     }
     // Existing assertions pin Korean copy/selectors; render the panel in ko.
     setLocale("ko");
@@ -138,7 +138,7 @@ describe("createQuickControls — toggles + gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    // The first master switch belongs to the schedule section (시간대 인사)
+    // The first master switch belongs to the schedule section (time-of-day greeting)
     const masterSwitches = Array.from(
       qc.el.querySelectorAll<HTMLButtonElement>("[data-testid='cue-list-master-switch']"),
     );
@@ -217,7 +217,7 @@ describe("createQuickControls — toggles + gain row", () => {
     expect(() => qc.dispose()).not.toThrow();
   });
 
-  // ── 유휴 절전 toggle row (Advanced tab) ──────────────────────────────────
+  // ── Idle power-saving toggle row (Advanced tab) ──────────────────────────
 
   it("renders the idle-throttle toggle row in the Advanced tab, ON by default", () => {
     const qc = buildQc();
@@ -272,7 +272,7 @@ describe("createQuickControls — toggles + gain row", () => {
     qc.dispose();
   });
 
-  // ── 카메라 시선 맞춤(gaze) toggle row (Advanced tab) ──────────────────────────
+  // ── Camera gaze alignment toggle row (Advanced tab) ────────────────────────
 
   it("renders the gaze toggle row only when gazeSettings is provided, ON by default", () => {
     const withoutGaze = buildQc();
@@ -382,7 +382,7 @@ describe("createQuickControls — toggles + gain row", () => {
     qc.dispose();
   });
 
-  // ── TTS 음성 출력 토글 ─────────────────────────────────────────────────────
+  // ── TTS voice output toggle ──────────────────────────────────────────────────
 
   it("clicking the TTS switch toggles ttsSettings.setEnabled", () => {
     const ttsSettings = createTtsSettings();
@@ -434,7 +434,7 @@ describe("createQuickControls — toggles + gain row", () => {
     qc.dispose();
   });
 
-  // ── 말 끊기(barge-in) 토글 ─────────────────────────────────────────────────
+  // ── Barge-in toggle ─────────────────────────────────────────────────────────
 
   it("clicking the barge-in switch toggles vad.setBargeIn", () => {
     const vad = createVadSettings();

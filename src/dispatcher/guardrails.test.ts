@@ -1,15 +1,15 @@
 /**
- * guardrails.test.ts — DND / debounce / rate-limit 단위 테스트.
+ * guardrails.test.ts — DND / debounce / rate-limit unit tests.
  *
- * 원칙: 시간은 주입한 now()로만 구동한다(bare Date.now() 의존 금지). 모든 source의 합성
- * envelope(idle/timer/os/backend_push/user)을 직접 만들어 넣어 평가 분기를 잠근다.
+ * Principle: time driven only by injected now() (no bare Date.now() dependency). Directly create
+ * envelope composites from all sources (idle/timer/os/backend_push/user), locking evaluation branches.
  *
- * 잠그는 절:
- *  - §6.1 DND: note()로 fullscreen/active_app/manual 3 trigger 토글 + multi-reason union.
+ * Sections locked:
+ *  - §6.1 DND: toggle 3 triggers (fullscreen/active_app/manual) via note() + multi-reason union.
  *  - §6.2 Debounce: per-source window (idle 30s / os 5s / backend 10s / user 0).
- *  - §6.3 Rate-limit: tier2 6 / tier3 2 rolling 60min(N 통과·N+1 drop·환불 없음),
- *    전체 20 → cooldownActive() true 후 5min 유지 → 해제.
- *  - §6.4 평가 순서 + dnd_override short-circuit(어떤 카운터도 증가 X).
+ *  - §6.3 Rate-limit: tier2 6 / tier3 2 rolling 60min (N pass, N+1 drop, no refund),
+ *    overall 20 → cooldownActive() true then 5min hold → release.
+ *  - §6.4 Evaluation order + dnd_override short-circuit (no counter increment).
  */
 
 import { describe, expect, it } from "vitest";
@@ -18,7 +18,7 @@ import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guar
 
 const BASE_TS = 1_717_000_000_000;
 
-/** SOT configs/guardrails.json 미러 (§6 수치). */
+/** SOT configs/guardrails.json mirror (§6 values). */
 function config(): GuardrailsConfig {
   return {
     dnd: { app_blocklist: [] },
@@ -38,7 +38,7 @@ function config(): GuardrailsConfig {
   };
 }
 
-/** 주입 가능한 시계 — 테스트가 .now를 밀어 시간을 진행시킨다. */
+/** Injectable clock — test pushes .now to advance time. */
 function clock(start = BASE_TS): {
   now: () => number;
   set: (t: number) => void;
@@ -56,7 +56,7 @@ function clock(start = BASE_TS): {
   };
 }
 
-/** 합성 envelope. source/event_name/payload는 호출부가 덮는다. */
+/** Composite envelope. Caller overrides source/event_name/payload. */
 function env(over: Partial<BusEnvelope> = {}): BusEnvelope {
   return {
     source: "idle_watcher",

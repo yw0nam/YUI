@@ -1,5 +1,5 @@
 /**
- * load-motions.test.ts — loadConfig motions.* 섹션 단위 테스트.
+ * load-motions.test.ts — unit tests for the loadConfig motions.* section.
  * variants/variant_policy, cycle_dwell_ms, pingpong·loop_cycles, fade_ms.
  */
 
@@ -75,9 +75,9 @@ describe("loadConfig — motions.variants", () => {
   });
 });
 
-// ── motions.cycle_dwell_ms (cycle 정착 프레임 유지) ──────────────────────────────
+// ── motions.cycle_dwell_ms (hold on the cycle's settle frame) ──────────────────
 
-/** cycle 모션 한 항목(variants>1 + loop:true)을 motions.json으로 깔아주는 fixture. */
+/** Fixture that lays down one cycle motion (variants>1 + loop:true) into motions.json. */
 function cycleMotionFixture(dwell?: number): Record<string, unknown> {
   const map = goodFixture();
   map["motions.json"] = {
@@ -142,7 +142,7 @@ describe("loadConfig — motions.cycle_dwell_ms", () => {
 
 // ── motions.pingpong / loop_cycles (ping-pong loop) ─────────────────────────────
 
-/** multi-variant loop 항목에 pingpong/loop_cycles를 깔아주는 fixture. */
+/** Fixture that seeds pingpong/loop_cycles on a multi-variant loop entry. */
 function pingpongMotionFixture(over: Record<string, unknown>): Record<string, unknown> {
   const map = goodFixture();
   map["motions.json"] = {
@@ -234,7 +234,7 @@ describe("loadConfig — motions.pingpong / loop_cycles", () => {
 
 // ── motions.fade_ms (entry-level default crossfade) ─────────────────────────────
 
-/** 한 모션 항목에 fade_ms를 깔아주는 fixture. */
+/** Fixture that seeds fade_ms on a single motion entry. */
 function fadeMotionFixture(fade?: number): Record<string, unknown> {
   const map = goodFixture();
   map["motions.json"] = {

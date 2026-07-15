@@ -1,7 +1,8 @@
 /**
- * STT(음성입력) on/off 의도를 영속화하는 reactive 설정 스토어.
- * 듣기 상태(voiceInputStatus)와 별개로, 사용자가 음성입력을 켜둔 채 종료했는지를 기억해
- * 다음 실행에서 자동 재개하는 데 쓴다. 변경 시 storage에 persist하고 구독자에게 통지한다.
+ * Reactive settings store that persists the STT (voice-input) on/off intent.
+ * Separate from the listening state (voiceInputStatus), it remembers whether the user
+ * quit with voice input left on, so the next run can auto-resume. On change it persists
+ * to storage and notifies subscribers.
  */
 
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
@@ -44,7 +45,7 @@ export function createSttSettings(opts?: { storage?: SttStorage; initial?: SttSe
   };
 }
 
-/** localStorage 기반 SttStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-backed SttStorage adapter. Gracefully ignored where localStorage is unavailable. */
 export function localStorageSttStorage(key = "yui.stt"): SttStorage {
   return localStorageStore<SttSettings>(key);
 }

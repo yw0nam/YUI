@@ -1,8 +1,8 @@
 /**
- * 카메라 줌 + 궤도(orbit) 시점을 관리하는 reactive 설정 스토어.
- * 변경 시 storage에 persist하고 구독자에게 통지한다. zoom > 1 ⇒ 캐릭터가 더 크게 보임
- * (fit 거리를 줌으로 나눠 카메라가 가까워진다 — 적용은 renderer.fitCamera).
- * azimuth/polar(라디안)은 fit 시점을 구 위에서 회전시킨다(적용은 renderer.setOrbit).
+ * Reactive settings store managing camera zoom + orbit viewpoint.
+ * Persists to storage on change and notifies subscribers. zoom > 1 ⇒ the character appears larger
+ * (the fit distance is divided by zoom so the camera moves closer — applied in renderer.fitCamera).
+ * azimuth/polar (radians) rotate the fit viewpoint over a sphere (applied in renderer.setOrbit).
  */
 
 import { CAMERA_AZIMUTH_DEFAULT, CAMERA_POLAR_DEFAULT, clampPolar } from "../renderer/camera-fit";
@@ -11,9 +11,9 @@ import { createPersistedStore, localStorageStore, type PersistedStorage } from "
 export const CAMERA_ZOOM_MIN = 0.5;
 export const CAMERA_ZOOM_MAX = 3.0;
 export const CAMERA_ZOOM_DEFAULT = 1.0;
-/** 휠 1틱당 줌 변화 민감도 (nextZoom의 exp 지수 계수). */
+/** Zoom-change sensitivity per wheel tick (exp exponent coefficient in nextZoom). */
 export const CAMERA_WHEEL_SENSITIVITY = 0.0015;
-/** Shift+드래그 1px당 orbit 각도 변화(라디안). ~200px 드래그 ≈ 57°. */
+/** Orbit angle change per 1px of Shift+drag (radians). ~200px drag ≈ 57°. */
 export const CAMERA_ORBIT_SENSITIVITY = 0.005;
 
 export interface CameraSettings {
@@ -102,7 +102,7 @@ export function createCameraSettings(opts?: { storage?: CameraStorage; initial?:
   };
 }
 
-/** localStorage 기반 CameraStorage 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-based CameraStorage adapter. Gracefully ignored in environments without localStorage. */
 export function localStorageCameraStorage(key = "yui.camera"): CameraStorage {
   return localStorageStore<CameraSettings>(key);
 }

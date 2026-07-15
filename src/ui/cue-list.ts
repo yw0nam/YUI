@@ -1,12 +1,12 @@
 /**
- * 재사용 가능한 큐 목록 섹션 컴포넌트.
- * 시간대 인사(trigger: "time") · 주도적 반응(trigger: "minutes") 양쪽에 쓰인다.
+ * Reusable cue-list section component.
+ * Used for both time-of-day greetings (trigger: "time") and proactive reactions (trigger: "minutes").
  */
 
 import "./cue-list.css";
 import { t } from "./i18n";
 
-// ── 스토어 구조 인터페이스 (스케줄/프로액티브 양쪽에 맞는 최소 공통 형태) ──
+// ── Store shape interfaces (minimal common form fitting both schedule and proactive) ──
 
 interface CueBase {
   id: string;
@@ -29,7 +29,7 @@ interface CueStore<C extends CueBase, S extends SettingsBase<C>> {
   subscribe(cb: (s: S) => void): () => void;
 }
 
-// ── 트리거 설명 ──
+// ── Trigger description ──
 
 type TriggerKind = { kind: "time"; field: string } | { kind: "minutes"; field: string };
 
@@ -38,7 +38,7 @@ export interface CueListOptions<C extends CueBase, S extends SettingsBase<C>> {
   store: CueStore<C, S>;
   title: string;
   sub: string;
-  /** "clock" = 시계 SVG, "sparkle" = 반짝임 SVG */
+  /** "clock" = clock SVG, "sparkle" = sparkle SVG */
   icon: "clock" | "sparkle";
   trigger: TriggerKind;
   addLabel: string;
@@ -61,12 +61,12 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
 
   const iconSvg = icon === "clock" ? CLOCK_SVG : SPARKLE_SVG;
 
-  // ── 섹션 루트 ──
+  // ── Section root ──
   const sectionEl = document.createElement("div");
   sectionEl.className = "yui-section";
   sectionEl.setAttribute("data-testid", "cue-section");
 
-  // ── 헤더 행 ──
+  // ── Header row ──
   const headerRow = document.createElement("div");
   headerRow.className = "yui-row";
 
@@ -97,12 +97,12 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
   headerRow.appendChild(masterSwitch);
   sectionEl.appendChild(headerRow);
 
-  // ── 큐 목록 ──
+  // ── Cue list ──
   const listEl = document.createElement("div");
   listEl.className = "yui-cue-list";
   sectionEl.appendChild(listEl);
 
-  // ── 추가 버튼 ──
+  // ── Add button ──
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.className = "yui-cue-add";
@@ -112,9 +112,9 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
 
   mount.appendChild(sectionEl);
 
-  // ── 상태 반영 ──
+  // ── State reflection ──
 
-  // 펼쳐진 편집창의 cue id — 재렌더에도 살아남아 다시 펼친다.
+  // Cue ids of expanded editors — survive re-renders so they re-expand.
   const expandedIds = new Set<string>();
 
   function reflectMaster(enabled: boolean): void {
@@ -225,11 +225,11 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     if (!cue.enabled) cueEl.classList.add("yui-cue--off");
     if (expandedIds.has(cue.id)) cueEl.classList.add("yui-cue--expanded");
 
-    // ── 접힌 행 ──
+    // ── Collapsed row ──
     const collapsed = document.createElement("div");
     collapsed.className = "yui-cue__collapsed";
 
-    // 큐 스위치
+    // Cue switch
     const cueSwitch = document.createElement("button");
     cueSwitch.type = "button";
     cueSwitch.className = "yui-switch yui-switch--sm";
@@ -246,21 +246,21 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
       } as Partial<Omit<C, "id">>);
     });
 
-    // 라벨(이름)
+    // Label (name)
     const nameEl = document.createElement("span");
     nameEl.className = "yui-cue__name";
     nameEl.textContent = cue.label;
 
-    // 트리거 컨트롤
+    // Trigger control
     const triggerEl = buildTriggerInput(cue);
 
-    // 컨텍스트 미리보기
+    // Context preview
     const ctxPreview = document.createElement("span");
     ctxPreview.className = "yui-cue__ctx-preview";
     ctxPreview.setAttribute("data-testid", "cue-ctx-preview");
     ctxPreview.textContent = cue.context;
 
-    // 삭제 버튼 — 즉시 지우지 않고 확인 행을 연다(세션 초기화와 같은 2단계 패턴).
+    // Delete button — opens a confirm row instead of deleting immediately (same 2-step pattern as session reset).
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "yui-cue__delete";
@@ -268,7 +268,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     deleteBtn.setAttribute("data-testid", "cue-delete");
     deleteBtn.innerHTML = DELETE_SVG;
 
-    // 삭제 확인 행
+    // Delete confirm row
     const confirmEl = document.createElement("div");
     confirmEl.className = "yui-confirm";
     confirmEl.hidden = true;
@@ -301,8 +301,8 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
       deleteBtn.hidden = false;
     });
 
-    // 이름 + 미리보기를 aria-expanded 토글 버튼으로 감싼다. 중첩 컨트롤(스위치·삭제·입력)은
-    // 유효 HTML을 위해 버튼 밖 형제로 남긴다.
+    // Wrap name + preview in the aria-expanded toggle button. Nested controls (switch, delete, inputs)
+    // stay as siblings outside the button to keep valid HTML.
     const labelBtn = document.createElement("button");
     labelBtn.type = "button";
     labelBtn.className = "yui-cue__label";
@@ -327,11 +327,11 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     collapsed.appendChild(triggerEl);
     collapsed.appendChild(deleteBtn);
 
-    // ── 펼침 편집창 ──
+    // ── Expanded editor ──
     const editor = document.createElement("div");
     editor.className = "yui-cue__editor";
 
-    // 이름 편집 행
+    // Name edit row
     const nameEdRow = document.createElement("div");
     nameEdRow.className = "yui-cue__ed-row";
     const nameEdLabel = document.createElement("span");
@@ -355,10 +355,10 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     nameEdRow.appendChild(nameEdLabel);
     nameEdRow.appendChild(nameInput);
 
-    // 트리거 편집 행
+    // Trigger edit row
     const triggerEdRow = buildEditorTrigger(cue);
 
-    // 컨텍스트 텍스트에어리어
+    // Context textarea
     const ctxWrap = document.createElement("div");
     ctxWrap.className = "yui-cue__ctx-wrap";
 
@@ -393,7 +393,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
   const FOCUSABLE_SEL = "button, input, textarea";
 
   function renderRows(entries: C[]): void {
-    // 전체 재구축이 포커스·입력 중 값을 날리지 않게 — 위치를 기억해 재구축 후 복원한다.
+    // Full rebuild preserves focus/input value — store position, rebuild, restore.
     const active = document.activeElement;
     let focusCueId: string | null = null;
     let focusIdx = -1;
@@ -411,7 +411,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
             selStart = active.selectionStart;
             selEnd = active.selectionEnd;
           } catch {
-            // time/number 입력은 selection API가 없다
+            // time/number inputs have no selection API
           }
         }
       }
@@ -437,19 +437,19 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
         try {
           target.setSelectionRange(selStart, selEnd);
         } catch {
-          // time/number 입력은 selection API가 없다
+          // time/number inputs have no selection API
         }
       }
     }
     target.focus();
   }
 
-  // ── 초기 렌더 ──
+  // ── Initial render ──
   const initial = store.get();
   reflectMaster(initial.enabled);
   renderRows(initial.entries);
 
-  // ── 이벤트 연결 ──
+  // ── Event wiring ──
 
   function handleMasterClick(): void {
     store.setEnabled(!store.get().enabled);
@@ -461,7 +461,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     store.addCue();
   });
 
-  // ── 구독 ──
+  // ── Subscriptions ──
   const unsubscribe = store.subscribe((s) => {
     reflectMaster(s.enabled);
     renderRows(s.entries);

@@ -1,14 +1,14 @@
 /**
  * schedule-settings.test.ts — createScheduleSettings reactive store (TDD red).
  *
- * 검증:
- *  - 기본값(defaults): enabled=true, 4개 seed entry
- *  - get()이 deep clone 반환(entry mutation이 내부 상태에 영향 없음)
+ * Verify:
+ *  - defaults: enabled=true, 4 seed entries
+ *  - get() returns deep clone (entry mutation does not affect internal state)
  *  - addCue/updateCue/removeCue: persist + notify + validation
- *  - setEnabled: 실제 변경 시 persist + notify, 동일값이면 skip
- *  - hydration 우선순위: 저장값 > initial > 기본값
- *  - malformed storage → 기본값 폴백
- *  - reloadFromStorage: 크로스윈도우 재로드, 동일값/부재 시 no-op
+ *  - setEnabled: on actual change persist + notify, skip if same
+ *  - hydration priority: saved > initial > defaults
+ *  - malformed storage → fallback to defaults
+ *  - reloadFromStorage: cross-window reload, no-op if same/absent
  *  - subscribe/unsubscribe, dispose
  */
 

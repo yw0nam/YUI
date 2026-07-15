@@ -1,14 +1,14 @@
 /**
  * chat-client.test.ts — openai-SDK adapter.
  *
- * 검증 대상: streamChat(config, request)가 공식 `openai` SDK의
+ * Verify: streamChat(config, request) maps the official `openai` SDK's
  *   client.responses.create({ stream: true }) → async-iterable of TYPED Responses events
- * 를 우리 ChatStreamEvent / ControlEnvelope로 매핑하는지.
+ * to our ChatStreamEvent / ControlEnvelope.
  *
- * 결정 D-CHAT-SDK: SSE framing/chunk-split/abort는 SDK 소유.
- * → 절대 fetch/ReadableStream/raw-bytes를 mock하지 않는다. `openai` 모듈을 mock한다.
+ * Decision D-CHAT-SDK: SSE framing/chunk-split/abort are SDK-owned.
+ * → Never mock fetch/ReadableStream/raw-bytes. Mock the `openai` module instead.
  *
- * 이벤트 shape 원천: openai@6.42 d.ts.
+ * Event shape source: openai@6.42 d.ts.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -31,12 +31,12 @@ afterEach(() => vi.clearAllMocks());
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-/** typed SDK 이벤트 배열 → async-iterable (responses.create stream 결과 모사). */
+/** Typed SDK event array → async-iterable (mock responses.create stream result). */
 async function* streamOf(events: any[]): AsyncGenerator<any> {
   for (const ev of events) yield ev;
 }
 
-/** 제너레이터를 끝까지 소진해 yield된 ChatStreamEvent를 모은다. */
+/** Consumes the generator completely and collects yielded ChatStreamEvent objects. */
 async function collect(gen: AsyncGenerator<ChatStreamEvent>): Promise<ChatStreamEvent[]> {
   const out: ChatStreamEvent[] = [];
   for await (const ev of gen) out.push(ev);
@@ -55,7 +55,7 @@ const req = (over: Partial<ChatRequest> = {}): ChatRequest => ({
   ...over,
 });
 
-// 이벤트 빌더(verified shapes) ──────────────────────────────────────────────────
+// Event builders (verified shapes) ──────────────────────────────────────────────────
 const textDelta = (delta: string): any => ({
   type: "response.output_text.delta",
   delta,
@@ -110,7 +110,7 @@ const fnArgsDone = (name: string, item_id: string, output_index: number, args: s
   type: "response.function_call_arguments.done",
   item_id,
   output_index,
-  name, // ← name IS present here; express는 여기서 식별된다
+  name, // ← name IS present here; express is identified here
   arguments: args,
 });
 
@@ -120,7 +120,7 @@ const fnItemDone = (name: string, id: string, output_index: number, args: string
   item: { type: "function_call", id, name, arguments: args, status: "completed" },
 });
 
-/** response.completed — output[]엔 message item만, function_call은 빠진다. */
+/** response.completed — output[] contains only message items; function_call is absent. */
 const completed = (text: string): any => ({
   type: "response.completed",
   response: {
@@ -224,7 +224,7 @@ describe("streamChat — generate_express capture (flat args)", () => {
     expect(final).toBeDefined();
     if (final?.type !== "completed") throw new Error("narrow");
     const env = final.envelope;
-    // 텍스트와 generate_express가 하나의 정규화된 envelope으로 합쳐진다.
+    // Text and generate_express are merged into a single normalized envelope.
     expect(env.speech_text).toBe("안녕");
     // Normalized to the unchanged downstream renderer seam (EmotionSignal / MotionSignal).
     expect(env.emotion).toEqual({ id: "happy" });
@@ -258,7 +258,7 @@ describe("streamChat — generate_express capture (flat args)", () => {
       textDone("hi"),
       completed("hi"),
     ];
-    // sanity: 최종 payload에 function_call이 정말 없음을 잠근다.
+    // Sanity: lock down that the final payload has no function_call.
     const compl = stream.find((e) => e.type === "response.completed") as any;
     expect(compl.response.output.some((o: any) => o.type === "function_call")).toBe(false);
 
@@ -290,7 +290,7 @@ describe("streamChat — native tool → tool_status", () => {
     expect(statuses[1].status.state).toBe("done");
     expect(statuses[1].status.tool_id).toBe("web_search");
 
-    // web_search는 express로 새지 않는다.
+    // web_search does not leak as express.
     expect(events.some((e) => e.type === "express")).toBe(false);
   });
 
@@ -321,11 +321,11 @@ describe("streamChat — generate_express-absent turn", () => {
     if (final?.type !== "completed") throw new Error("narrow");
     const env = final.envelope;
     expect(env.speech_text).toBe("그냥 텍스트");
-    // 파서는 idle/직전 기본값을 발명하지 않는다 — 그건 consumer의 몫.
+    // Parser does not invent idle/prior defaults — that is the consumer's job.
     expect(env.emotion).toBeUndefined();
     expect(env.motion).toBeUndefined();
     expect(env.emotion_text).toBeUndefined();
-    // 침묵은 빈 speech_text로 표현된다 — 클라이언트에 speak 게이트가 없다.
+    // Silence is represented as empty speech_text — no speak gate on client.
   });
 });
 
@@ -566,9 +566,9 @@ describe("streamChat — error handling", () => {
   });
 
   it("malformed generate_express arguments → error event; generator does NOT throw and runs to completion", async () => {
-    // NOTE for implementer: generate_express arguments가 깨진 JSON일 때 — error를 emit한다고 가정.
-    // (대안: 조용히 skip. 확정 시 이 테스트를 갱신할 것.) 핵심 보장: 제너레이터가 throw하지 않고
-    // completed까지 정상 진행한다.
+    // NOTE for implementer: when generate_express arguments are broken JSON — assume it emits error.
+    // (Alternative: silently skip. Update this test when confirmed.) Core guarantee: generator does not throw
+    // and runs normally to completed.
     createMock.mockResolvedValue(
       streamOf([
         fnAdded("generate_express", "fc_1", 0),
@@ -584,7 +584,7 @@ describe("streamChat — error handling", () => {
     const events = await collect(streamChat(CONFIG, req()));
 
     expect(events.some((e) => e.type === "error")).toBe(true);
-    // 깨진 express에도 불구하고 스트림은 끝까지 진행해 completed를 낸다.
+    // Despite broken express, stream runs to completion and emits completed.
     expect(events.some((e) => e.type === "completed")).toBe(true);
   });
 });
@@ -630,23 +630,23 @@ describe("streamChat — abort", () => {
   it("already-aborted signal → generator terminates cleanly (no hang)", async () => {
     const ac = new AbortController();
     ac.abort();
-    // SDK가 aborted signal에 던질 수도 있으므로 reject로 모사.
+    // SDK may throw on aborted signal, so mock it as rejection.
     createMock.mockRejectedValue(Object.assign(new Error("aborted"), { name: "AbortError" }));
 
-    // NOTE for implementer: 이미 abort된 signal에서 streamChat은 hang 없이 종료해야 한다
-    // (조용히 종료하거나 error 1회 emit). 둘 다 허용 — 핵심은 제너레이터가 끝난다는 것.
+    // NOTE for implementer: streamChat must terminate without hang on already-aborted signal
+    // (terminate silently or emit error once). Both acceptable — core is generator finishes.
     let events: ChatStreamEvent[] = [];
     await expect(async () => {
       events = await collect(streamChat(CONFIG, req({ signal: ac.signal })));
     }).not.toThrow();
 
-    // error를 냈다면 한 번만, 아니면 0개. 어느 쪽이든 깨끗이 종료한다.
+    // If error emitted, exactly once; otherwise 0. Either way, terminates cleanly.
     expect(events.filter((e) => e.type !== "error").length).toBe(0);
   });
 
   it("forwards request.signal into the SDK create() options", async () => {
-    // NOTE for implementer: signal wiring shape이 확정되면 강화할 것 —
-    // 현재는 create() 옵션 객체에 동일한 AbortSignal이 전달되는지만 soft하게 본다.
+    // NOTE for implementer: strengthen this once signal wiring shape is confirmed —
+    // currently just softly checking that the same AbortSignal is passed in create() options object.
     const ac = new AbortController();
     createMock.mockResolvedValue(streamOf([completed("")]));
 

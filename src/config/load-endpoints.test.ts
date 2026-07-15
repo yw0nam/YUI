@@ -1,5 +1,5 @@
 /**
- * load-endpoints.test.ts — loadConfig endpoints.* 섹션 단위 테스트.
+ * load-endpoints.test.ts — unit tests for loadConfig endpoints.* section.
  * irodori_TTS provider, broker_base_url, chat_api, context window.
  */
 
@@ -11,7 +11,7 @@ import { goodFixture, readerOf } from "./load-test-helpers";
 // ── irodori_TTS provider (PR-A) ────────────────────────────────────────────────
 
 describe("loadConfig — endpoints irodori provider", () => {
-  /** openai 필드는 유지하되 irodori 필드를 채운 valid endpoints. */
+  /** Valid endpoints keeping openai fields but populating irodori fields. */
   function irodoriEndpoints(): Record<string, unknown> {
     return {
       chat_base_url: "http://localhost:8642",
@@ -120,7 +120,7 @@ describe("loadConfig — endpoints broker_base_url", () => {
   });
 });
 
-// ── chat_api (chat 프로토콜 선택) ──────────────────────────────────────────────
+// ── chat_api (chat protocol selection) ──────────────────────────────────────────────
 
 describe("loadConfig — endpoints chat_api", () => {
   function baseEndpoints(): Record<string, unknown> {
@@ -251,7 +251,7 @@ describe("loadConfig — endpoints irodori validation failures", () => {
         chat_endpoint: "/v1/responses",
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
-        // tts_provider 생략 → irodori default
+        // tts_provider omitted → irodori default
         irodori_speaker: "ナツメ",
       }),
     );
@@ -278,7 +278,7 @@ describe("loadConfig — endpoints irodori validation failures", () => {
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
         tts_provider: "irodori",
-        irodori_base_url: "localhost:8091", // 스킴 없음
+        irodori_base_url: "localhost:8091", // missing scheme
         irodori_speaker: "ナツメ",
       }),
     );
@@ -294,7 +294,7 @@ describe("loadConfig — endpoints irodori validation failures", () => {
         tts_provider: "irodori",
         irodori_base_url: "http://localhost:8091",
         irodori_speaker: "ナツメ",
-        irodori_voices: { ナツメ: "/references/ナツメ/merged_audio.mp3" }, // 객체
+        irodori_voices: { ナツメ: "/references/ナツメ/merged_audio.mp3" }, // object
       }),
     );
   });
@@ -310,7 +310,7 @@ describe("loadConfig — endpoints irodori validation failures", () => {
         irodori_base_url: "http://localhost:8091",
         irodori_speaker: "ナツメ",
         irodori_voices: [
-          { id: "ナツメ", ref_url: "references/ナツメ/merged_audio.mp3" }, // 슬래시 없음
+          { id: "ナツメ", ref_url: "references/ナツメ/merged_audio.mp3" }, // missing slash
         ],
       }),
     );

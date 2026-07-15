@@ -20,8 +20,8 @@ import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guar
 const NOW = 1_717_000_000_000;
 
 /**
- * 스파인(라우팅/supersede) 테스트용 permissive guardrails config — debounce 0, 넉넉한 cap.
- * 가드레일 자체 검증은 guardrails.test.ts 소관이므로 여기서는 간섭하지 않는다.
+ * Permissive guardrails config for routing/supersede testing — debounce 0, generous cap.
+ * Guardrails validation itself is guardrails.test.ts responsibility, so we don't interfere here.
  */
 function permissiveGuardrailsConfig(): GuardrailsConfig {
   return {
@@ -42,7 +42,7 @@ function permissiveGuardrailsConfig(): GuardrailsConfig {
   };
 }
 
-/** §6 SOT 수치를 그대로 쓰는 guardrails config (게이팅 테스트용). */
+/** Guardrails config using §6 SOT values as-is (for gating testing). */
 function realGuardrailsConfig(): GuardrailsConfig {
   return {
     dnd: { app_blocklist: [] },
@@ -804,7 +804,7 @@ describe("dispatcher — structured logging: drop events via logger", () => {
 // ── guardrail gating ───────────────────────────
 
 describe("dispatcher — guardrail gating (§6)", () => {
-  /** real-config(§6 수치) 가드레일을 단 dispatcher를 만든다. */
+  /** Create dispatcher with real-config (§6 values) guardrails. */
   function makeGated(): { d: Dispatcher; g: Guardrails } {
     const g = createGuardrails(realGuardrailsConfig(), { now: () => Date.now() });
     const d = createDispatcher({

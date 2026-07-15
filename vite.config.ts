@@ -4,9 +4,9 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 import { resolveVitePort } from "./scripts/dev-port.mjs";
 
-// dev 정적 서빙: /vrms/* → resources/vrms/, /configs/* → configs/.
-// VRM 에셋(resources/vrms, gitignore됨)·런타임 config를 publicDir 없이 클린 URL로 노출.
-// prod(Tauri)는 bundle.resources + asset 프로토콜로 서빙 — 같은 논리 경로를 src/io/asset-url.ts가 변환.
+// Dev static serving: /vrms/* → resources/vrms/, /configs/* → configs/.
+// Exposes VRM assets (resources/vrms, gitignored) and runtime config at clean URLs without a publicDir.
+// prod (Tauri) serves via bundle.resources + the asset protocol — src/io/asset-url.ts resolves the same logical paths.
 const MIME: Record<string, string> = {
   ".vrm": "application/octet-stream",
   ".vrma": "application/octet-stream",
@@ -25,11 +25,11 @@ function serveDir(prefix: string, dir: string): Plugin {
   return {
     name: `yui-serve:${prefix}`,
     configureServer(server) {
-      // connect가 prefix를 벗겨 req.url을 넘긴다 (예: /vrms/x.vrm → /x.vrm).
+      // connect strips the prefix and passes req.url (e.g. /vrms/x.vrm → /x.vrm).
       server.middlewares.use(prefix, (req, res, next) => {
         const rel = decodeURIComponent((req.url ?? "/").split("?")[0]);
         const file = normalize(resolve(root, `.${rel}`));
-        // path traversal 차단 + 실제 파일만.
+        // Block path traversal + real files only.
         if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) {
           return next();
         }
@@ -40,9 +40,9 @@ function serveDir(prefix: string, dir: string): Plugin {
   };
 }
 
-// dev 포트는 YUI_DEV_PORT(설정 시) 아니면 1420, strictPort로 충돌 시 즉시 실패 —
-// launcher(scripts/*.mjs)가 빈 포트를 골라 tauri.conf.json devUrl과 동기화한다.
-// clearScreen: false → tauri CLI 로그가 vite 로그에 가려지지 않게.
+// Dev port is YUI_DEV_PORT (when set) else 1420, with strictPort failing fast on conflict —
+// the launcher (scripts/*.mjs) picks a free port and syncs it with tauri.conf.json devUrl.
+// clearScreen: false → keeps tauri CLI logs from being hidden by vite logs.
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig(({ command }) => ({
@@ -51,15 +51,15 @@ export default defineConfig(({ command }) => ({
     port: resolveVitePort(),
     strictPort: true,
     host: "127.0.0.1",
-    // 같은 출처 /__hermes → Hermes로 프록시 (web chat CORS preflight 회피, SSE 스트리밍).
-    // :8643은 configs/endpoints.json chat_base_url과 동기 유지.
+    // Same-origin /__hermes → proxy to Hermes (avoids web chat CORS preflight, SSE streaming).
+    // :8643 stays in sync with chat_base_url in configs/endpoints.json.
     proxy: {
       "/__hermes": {
         target: "http://localhost:8643",
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/__hermes/, ""),
-        // Hermes는 Origin을 allowlist 검사 → 1420 외 워크트리 dev 포트는 403.
-        // changeOrigin은 Host만 바꾸므로 Origin을 허용 값으로 덮어써 어떤 포트든 통과시킨다.
+        // Hermes allowlist-checks the Origin → worktree dev ports other than 1420 get 403.
+        // changeOrigin only changes Host, so overwrite Origin with an allowed value to let any port through.
         configure: (proxy) => {
           const origin = process.env.YUI_HERMES_ORIGIN ?? "http://localhost:1420";
           proxy.on("proxyReq", (proxyReq) => proxyReq.setHeader("origin", origin));
@@ -78,7 +78,7 @@ export default defineConfig(({ command }) => ({
       input: {
         main: resolve(__dirname, "index.html"),
         settings: resolve(__dirname, "settings.html"),
-        // motion-preview는 dev 전용 — prod 번들에서 제외.
+        // motion-preview is dev-only — excluded from the prod bundle.
         ...(command === "serve"
           ? { motionPreview: resolve(__dirname, "motion-preview.html") }
           : {}),

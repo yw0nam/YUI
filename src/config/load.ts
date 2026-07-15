@@ -1,19 +1,19 @@
 /**
- * Config loader — configs/*.json 로더 + 검증.
+ * Config loader — configs/*.json loader + validation.
  *
- * config-driven 원칙: API 엔드포인트 / 모델 / VRM 경로 / 모션셋을 하드코딩하지 않는다.
- * OSS 단계에서 API 키는 평문 config 대신 OS keychain(Tauri secure storage)로.
+ * config-driven principle: never hardcode API endpoints / models / VRM paths / motion sets.
+ * In the OSS phase, API keys live in the OS keychain (Tauri secure storage) rather than plaintext config.
  *
- * 로드 대상(YUI 루트 configs/, vite dev는 `/configs/*`로 서빙):
+ * Load targets (configs/ at the YUI root; vite dev serves them under `/configs/*`):
  *  - endpoints.json          → EndpointsConfig (chat/stt/tts base url + chat endpoint)
  *  - avatar.json             → AvatarConfig (vrm_url)
  *  - emotion_registry.json   → EmotionRegistry (emotion id → vrm_expression + fallback)
- *  - motions.json            → MotionRegistry (id → vrma_path + 재생 정책)
+ *  - motions.json            → MotionRegistry (id → vrma_path + playback policy)
  *
- * 이 파일은 순수 로드 + 검증만 담당한다(부수효과 없음, reader 주입 가능 → 테스트). 핫리로드/
- * 구독은 store.ts(createConfigStore)가 이 loadConfig를 감싸 제공한다.
+ * This file does pure load + validation only (no side effects, reader injectable → testable). Hot-reload/
+ * subscription is layered on by store.ts (createConfigStore), which wraps this loadConfig.
  *
- * 합의된 contract는 도메인별 분리 파일이다. 구현은 분리 파일을 따른다.
+ * The agreed contract is split into per-domain files. The implementation follows those split files.
  */
 
 import type { EmotionRegistry, EndpointsConfig, MotionRegistry } from "../contract";
@@ -29,42 +29,42 @@ import { ConfigError } from "./validators/shared";
 
 export { ConfigError } from "./validators/shared";
 
-/** 논리 경로 → 런타임 URL 변환기. dev = identity, Tauri = 번들 리소스 절대 URL. */
+/** Logical path → runtime URL resolver. dev = identity, Tauri = absolute bundled-resource URL. */
 export type AssetUrlResolver = (logicalPath: string) => Promise<string>;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Config 타입 (contract 파생 + loader 전용)
+// Config types (contract-derived + loader-only)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** 선택 가능한 VRM 한 개 (모델 스왑 manifest 항목). */
+/** A single selectable VRM (model-swap manifest entry). */
 export interface AvatarOption {
-  /** 안정 키 (예: "carlotta"). 선택 상태 영속화에 쓰임. */
+  /** Stable key (e.g. "carlotta"). Used to persist selection state. */
   id: string;
-  /** 표시 이름 (예: "Carlotta"). */
+  /** Display name (e.g. "Carlotta"). */
   label: string;
-  /** vrm_url과 동일 의미 — vite 경로 또는 절대 URL. */
+  /** Same meaning as vrm_url — vite path or absolute URL. */
   url: string;
-  /** "user" = OS 파일 피커로 임포트한 항목, "file" = 설정 파일에 명시된 외부 경로. 미지정 시 미상. */
+  /** "user" = imported via the OS file picker, "file" = external path declared in the config file. Unknown when unset. */
   source?: "bundled" | "file" | "user";
 }
 
-/** configs/avatar.json — 로드할 VRM (렌더러 입력). */
+/** configs/avatar.json — VRM to load (renderer input). */
 export interface AvatarConfig {
-  /** vite dev 정적 서빙 경로(`/vrms/*.vrm`) 또는 절대 URL. 기본 선택. */
+  /** vite dev static-serving path (`/vrms/*.vrm`) or absolute URL. Default selection. */
   vrm_url: string;
-  /** 선택 가능한 VRM 목록. 없으면 vrm_url 단일 모델. */
+  /** List of selectable VRMs. Absent → vrm_url is the single model. */
   available?: AvatarOption[];
-  /** 전신 fit-to-bounds 카메라 knob. 없으면 렌더러 기본값. */
+  /** Full-body fit-to-bounds camera knob. Absent → renderer default. */
   framing?: { margin?: number; fov?: number };
-  /** 클릭스루 hit-test knob. 없으면 컨트롤러 기본값. */
+  /** Click-through hit-test knob. Absent → controller default. */
   hit_test?: {
     hysteresis_margin_px?: number;
     poll_interval_ms?: number;
     debounce_samples?: number;
-    /** phase-2용 alpha 임계(현재 미사용, (0,1] 범위만 검증). */
+    /** alpha threshold for phase-2 (currently unused, only the (0,1] range is validated). */
     alpha_threshold?: number;
   };
-  /** 카메라 시선 추적(gaze) knob. 없으면 렌더러 기본값(natural preset). 부분값 허용. */
+  /** Camera gaze-tracking knob. Absent → renderer default (natural preset). Partial values allowed. */
   gaze?: {
     deadDeg?: number;
     headEngageDeg?: number;
@@ -77,14 +77,14 @@ export interface AvatarConfig {
   };
 }
 
-/** configs/guardrails.json — DND/debounce/rate-limit 수치. */
+/** configs/guardrails.json — DND/debounce/rate-limit values. */
 export interface GuardrailsConfig {
   /** DND. */
   dnd: {
-    /** active-app blocklist — 포함된 앱이 전경이면 DND on. */
+    /** active-app blocklist — DND on when a listed app is in the foreground. */
     app_blocklist: string[];
   };
-  /** per-source debounce window(ms). 0이면 디바운스 없음. */
+  /** per-source debounce window (ms). 0 = no debounce. */
   debounce_ms: {
     idle_watcher: number;
     os_event_watcher: number;
@@ -93,15 +93,15 @@ export interface GuardrailsConfig {
   };
   /** rolling rate-limit. */
   rate_limit: {
-    /** rolling 윈도우 길이(ms). */
+    /** rolling window length (ms). */
     window_ms: number;
-    /** tier2 상한. */
+    /** tier2 cap. */
     tier2_max: number;
-    /** tier3 상한. */
+    /** tier3 cap. */
     tier3_max: number;
-    /** backend 호출 전체 상한 — 초과 시 cooldown 진입. */
+    /** overall cap on backend calls — entering cooldown when exceeded. */
     overall_max: number;
-    /** overall 초과 시 cooldown 지속(ms). */
+    /** cooldown duration (ms) after overall is exceeded. */
     cooldown_ms: number;
   };
 }
@@ -127,13 +127,13 @@ export interface FillerConfig {
   pools: Partial<Record<FillerLang, FillerPool>>;
 }
 
-/** configs/hotkeys.json — OS 전역 단축키 accelerator. */
+/** configs/hotkeys.json — OS global-hotkey accelerators. */
 export interface HotkeysConfig {
-  /** 전역 입력 소환(예: "CmdOrCtrl+Shift+Y"). 빈 문자열/키 없음 = 비활성. */
+  /** Global summon input (e.g. "CmdOrCtrl+Shift+Y"). Empty string / no key = disabled. */
   summon_global: string;
 }
 
-/** 로드·검증된 전체 config 묶음 (불변 스냅샷). */
+/** Full loaded and validated config bundle (immutable snapshot). */
 export interface AppConfig {
   endpoints: EndpointsConfig;
   avatar: AvatarConfig;
@@ -144,10 +144,10 @@ export interface AppConfig {
   hotkeys: HotkeysConfig;
 }
 
-/** AppConfig의 도메인 키 — 핫리로드가 "무엇이 바뀌었나"를 통지할 때 쓰는 단위(store.ts). */
+/** AppConfig domain keys — the unit hot-reload uses to notify "what changed" (store.ts). */
 export type ConfigSection = keyof AppConfig;
 
-/** loadConfig가 fetch하는 configs/ 파일들 (section → 파일명). */
+/** configs/ files that loadConfig fetches (section → filename). */
 export const CONFIG_FILES: Record<ConfigSection, string> = {
   endpoints: "endpoints.json",
   avatar: "avatar.json",
@@ -159,23 +159,23 @@ export const CONFIG_FILES: Record<ConfigSection, string> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// API 키 추상화 (OSS 진입 시 OS keychain 이주용 레이어)
+// API-key abstraction (migration layer toward the OS keychain at OSS entry)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 시크릿(예: chat api_key) 조회 추상화. 평문(plainSecretProvider) 또는
- * Tauri secure storage / OS keychain 구현으로 **호출부 변경 없이** 교체한다.
- * 비동기 시그니처는 keychain 접근(IPC)을 미리 수용하기 위함이다.
+ * Secret (e.g. chat api_key) lookup abstraction. Swap between plaintext (plainSecretProvider)
+ * and a Tauri secure storage / OS keychain implementation **without changing call sites**.
+ * The async signature is there to accommodate keychain access (IPC) up front.
  */
 export interface SecretProvider {
-  /** 없으면 undefined. 절대 throw하지 않는다(키 부재는 정상 — 로컬 Hermes는 무인증). */
+  /** undefined when absent. Never throws (a missing key is normal — local Hermes is unauthenticated). */
   get(key: string): Promise<string | undefined>;
 }
 
 /**
- * SecretProvider에서 Hermes chat 키를 찾을 때 쓰는 이름. backend env `API_SERVER_KEY`에 대응.
- * 호출부(dispatcher): `streamChat(ep, req, { apiKey: await secrets.get(CHAT_API_KEY_SECRET) })`.
- * (chat-client가 아니라 여기에 둔다 — secret 이름은 config/SecretProvider 소관, openai SDK 무관.)
+ * Name used to look up the Hermes chat key in the SecretProvider. Corresponds to backend env `API_SERVER_KEY`.
+ * Call site (dispatcher): `streamChat(ep, req, { apiKey: await secrets.get(CHAT_API_KEY_SECRET) })`.
+ * (Kept here rather than in chat-client — the secret name is config/SecretProvider's concern, unrelated to the openai SDK.)
  */
 export const CHAT_API_KEY_SECRET = "chat_api_key";
 
@@ -185,7 +185,7 @@ export const STT_API_KEY_SECRET = "stt_api_key";
 /** SecretProvider name for the OpenAI-compatible TTS server key (Bearer). irodori needs none. */
 export const TTS_API_KEY_SECRET = "tts_api_key";
 
-/** 평문 레코드에서 조회. 실 값은 configs에 두지 않는 게 권장(env/keychain). */
+/** Looks up from a plaintext record. Real values are best kept out of configs (env/keychain). */
 export function plainSecretProvider(
   secrets: Record<string, string | undefined> = {},
 ): SecretProvider {
@@ -201,25 +201,25 @@ export function plainSecretProvider(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 파일 1개의 원시 JSON을 읽어 파싱해 반환. path는 파일명(예: "endpoints.json").
- * 기본 구현은 fetch(`<baseUrl>/<file>`); 테스트는 fake reader를 주입한다.
+ * Reads and parses one file's raw JSON. path is the filename (e.g. "endpoints.json").
+ * The default implementation is fetch(`<baseUrl>/<file>`); tests inject a fake reader.
  */
 export type ConfigReader = (file: string) => Promise<unknown>;
 
 export interface LoadConfigOptions {
-  /** 파일 reader 주입(테스트). 미지정 시 fetch 기반 기본 reader. */
+  /** File reader injection (tests). Defaults to the fetch-based reader when unset. */
   read?: ConfigReader;
-  /** 기본 reader가 붙일 prefix. default `/configs`. */
+  /** Prefix the default reader prepends. default `/configs`. */
   baseUrl?: string;
-  /** 캐시 회피용 쿼리(핫리로드 재fetch 시 store가 넘김). */
+  /** Cache-busting query (passed by the store on hot-reload refetch). */
   cacheBust?: string;
-  /** 논리 경로 → 런타임 URL 변환기(주입 가능). 기본은 resolveAssetUrl(dev passthrough / Tauri 번들). */
+  /** Logical path → runtime URL resolver (injectable). Defaults to resolveAssetUrl (dev passthrough / Tauri bundle). */
   resolveUrl?: AssetUrlResolver;
-  /** fetch 주입(테스트). 미지정 시 globalThis.fetch. */
+  /** fetch injection (tests). Defaults to globalThis.fetch when unset. */
   fetch?: typeof fetch;
 }
 
-/** fetch 기반 기본 reader (브라우저/Tauri webview 런타임). */
+/** Default fetch-based reader (browser/Tauri webview runtime). */
 function fetchReader(
   baseUrl: string,
   cacheBust?: string,
@@ -246,15 +246,15 @@ function fetchReader(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * configs/*.json 전체를 읽어 검증된 AppConfig로 조립한다.
- * 어느 파일이든 누락/스키마 위반이면 ConfigError로 즉시 실패한다(fail-loud, 부분 로드 없음).
+ * Reads all configs/*.json and assembles a validated AppConfig.
+ * Any missing file or schema violation fails immediately with ConfigError (fail-loud, no partial load).
  */
 export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfig> {
   const read =
     opts.read ??
     fetchReader(opts.baseUrl ?? "/configs", opts.cacheBust, opts.resolveUrl, opts.fetch);
 
-  // 파일별 read는 병렬, 검증은 결정적 순서로.
+  // Per-file reads run in parallel; validation runs in deterministic order.
   const [
     endpointsRaw,
     avatarRaw,

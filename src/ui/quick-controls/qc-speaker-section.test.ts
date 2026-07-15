@@ -77,7 +77,7 @@ describe("createQuickControls — speaker section", () => {
     try {
       globalThis.localStorage?.clear();
     } catch {
-      /* localStorage 미사용 환경 무시 */
+      /* Ignore environments without localStorage */
     }
     // Existing assertions pin Korean copy/selectors; render the panel in ko.
     setLocale("ko");
@@ -115,7 +115,7 @@ describe("createQuickControls — speaker section", () => {
   // microtask flush — also declared in qc-vrm-section.test.ts; each split file needs its own copy.
   const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 
-  // ── 화자 (Speaker) section (PR-B B3) ─────────────────────────────────────────
+  // ── Speaker section (PR-B B3) ───────────────────────────────────────────────
 
   it("renders one .yui-spk radio per speakerSelection.list() entry", () => {
     const qc = buildQc();
@@ -270,7 +270,7 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  // ── 화자: user (imported) voice management — mirrors the VRM section ─────────
+  // ── Speaker: user (imported) voice management — mirrors the VRM section ──────
 
   function withUserVoice() {
     speakerSelection = makeSpeakerSelection();
@@ -561,14 +561,14 @@ describe("createQuickControls — speaker section", () => {
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     expect(rows.length).toBeGreaterThan(0);
 
-    // (c) 비활성 시 모든 행이 Tab에서 건너뛰어진다.
+    // (c) When inactive, all rows are skipped in Tab navigation.
     for (const r of rows) expect(r.tabIndex).toBe(-1);
 
-    // (a) 비활성 행 클릭은 스왑을 트리거하지 않는다(CSS pointer-events는 키보드를 못 막는다).
+    // (a) Clicking an inactive row does not trigger swap (CSS pointer-events cannot block keyboard).
     rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(swapSpeaker).not.toHaveBeenCalled();
 
-    // (b) 포커스 후 Enter/Space도 스왑하지 않는다.
+    // (b) Enter/Space after focus also does not swap.
     rows[1].focus();
     rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
@@ -582,11 +582,11 @@ describe("createQuickControls — speaker section", () => {
     qc.open();
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-    // 활성(기본 선택) 행은 roving tabindex 0.
+    // Active (default selected) row has roving tabindex 0.
     const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
     expect(active.tabIndex).toBe(0);
 
-    // 비활성 행 클릭 → 스왑.
+    // Click inactive row → swap.
     rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(swapSpeaker).toHaveBeenCalledOnce();
     expect(swapSpeaker.mock.calls[0][0]).toMatchObject({ id: "ayase" });
@@ -617,16 +617,16 @@ describe("createQuickControls — speaker section", () => {
 
   it("re-enables speaker rows after a provider change that happened while closed", () => {
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
-    // 닫힌 상태에서 openai로 바꾼다 — onOpen이 enabled 기준선을 재동기화해야 한다.
+    // Change to openai while closed — onOpen must resynchronize the enabled baseline.
     endpointsSettings.set({ tts_provider: "openai" });
     qc.open();
 
     const refreshDisabled = qc.el.querySelector<HTMLButtonElement>(
       ".yui-spk[role=radio] .yui-spk__refresh",
     )!;
-    expect(refreshDisabled.disabled).toBe(true); // openai → 비활성
+    expect(refreshDisabled.disabled).toBe(true); // openai → inactive
 
-    // 열린 상태에서 irodori로 되돌리면 행이 다시 활성화돼야 한다(기준선이 stale이면 스킵됨).
+    // Return to irodori while open — rows must re-enable (baseline is stale, so skip).
     endpointsSettings.set({ tts_provider: "irodori" });
     const refreshEnabled = qc.el.querySelector<HTMLButtonElement>(
       ".yui-spk[role=radio] .yui-spk__refresh",
@@ -867,7 +867,7 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  // ── 화자 행 참조-음성 갱신(refresh) 버튼 ────────────────────────────────────
+  // ── Speaker row reference-voice refresh button ──────────────────────────────
 
   it("renders a .yui-spk__refresh button per speaker row, before the ▶ preview", () => {
     const qc = buildQc();

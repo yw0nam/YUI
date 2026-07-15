@@ -18,21 +18,21 @@ import type { BrokerClient, BrokerPayload } from "./broker-client";
 import { isValidEndpointUrl } from "./endpoints-settings";
 
 export interface BrokerOverrideReconcilerOptions {
-  /** 효과적(오버라이드 병합) 엔드포인트 — 호출 시점에 평가. */
+  /** Effective (override-merged) endpoints — evaluated at call time. */
   getEffectiveEndpoints: () => EndpointsConfig;
   getBroker: () => BrokerClient | null;
   setBroker: (b: BrokerClient | null) => void;
-  /** 새 broker_base_url로 클라이언트 생성(CORS 우회 fetch는 주입부에서 바인딩). */
+  /** Creates a client for a new broker_base_url (the CORS-bypassing fetch is bound at the injection site). */
   createBroker: (baseUrl: string) => BrokerClient;
-  /** provider별 emotion_text 테이블 로드(irodori만 enum, 그 외 null). */
+  /** Loads the per-provider emotion_text table (enum only for irodori, null otherwise). */
   loadTable: (provider: string | undefined) => Promise<Record<string, string> | null>;
-  /** 효과적 엔드포인트 + 테이블 → publish payload(merged provider를 반영). */
+  /** Effective endpoints + table → publish payload (reflecting the merged provider). */
   derivePayload: (eff: EndpointsConfig, table: Record<string, string> | null) => BrokerPayload;
   logger?: Logger;
 }
 
 export interface BrokerOverrideReconciler {
-  /** 오버라이드 변경 1회를 broker에 반영(provider 재발행 / URL 재지정). */
+  /** Reflects a single override change to the broker (provider re-publish / URL retarget). */
   onChange: () => Promise<void>;
 }
 
@@ -61,7 +61,7 @@ export function createBrokerOverrideReconciler(
       const provider = eff.tts_provider;
       const url = brokerUrlOf(eff);
 
-      // URL 변경이 우선 — 새 클라이언트가 생기면 그쪽으로 첫 발행을 싣는다.
+      // URL change takes priority — when a new client is created, the first publish rides on it.
       if (url !== lastBrokerUrl) {
         const old = opts.getBroker();
         old?.dispose();
@@ -78,7 +78,7 @@ export function createBrokerOverrideReconciler(
         return;
       }
 
-      // URL 동일 + provider 변경 → 기존 클라이언트로 재발행(있을 때만).
+      // Same URL + provider change → re-publish on the existing client (only if present).
       if (provider !== lastProvider) {
         lastProvider = provider;
         const broker = opts.getBroker();

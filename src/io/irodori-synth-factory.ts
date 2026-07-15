@@ -20,7 +20,7 @@ export interface IrodoriSynthParams {
 }
 
 export interface IrodoriSynthFactoryDeps {
-  /** 현재 활성 화자·튜닝 파라미터를 호출 시점에 읽는다(핫리로드 친화). */
+  /** Reads the currently active voice and tuning params at call time (hot-reload friendly). */
   getParams: () => IrodoriSynthParams;
   ensureRegistered: (args: {
     baseUrl: string;
@@ -72,7 +72,7 @@ export function createIrodoriSynthFactory(deps: IrodoriSynthFactoryDeps): TtsSyn
       return await synth(input, signal);
     } catch (err) {
       if (!is422(err)) throw err;
-      // 서버가 voice를 잊었다 — 메모 제거 → 단 한 번 재등록 → 단 한 번 재시도.
+      // Server forgot the voice — evict the memo, re-register once, retry once.
       deps.evictRegistration(params.baseUrl, params.referenceId);
       await deps.ensureRegistered({
         baseUrl: params.baseUrl,

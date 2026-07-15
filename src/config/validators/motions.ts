@@ -33,7 +33,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
     if (typeof entry.loop !== "boolean") {
       issues.push(`${id}.loop은 boolean이어야 함`);
     }
-    // priority 0~100. typeof number는 NaN/Infinity를 통과시키므로 범위까지 본다.
+    // priority 0~100. typeof number lets NaN/Infinity through, so check the range too.
     if (
       typeof entry.priority !== "number" ||
       !Number.isFinite(entry.priority) ||
@@ -47,7 +47,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
     if (!INTERRUPT_POLICIES.includes(entry.interrupt_policy as InterruptPolicy)) {
       issues.push(`${id}.interrupt_policy는 ${INTERRUPT_POLICIES.join("|")} 중 하나여야 함`);
     }
-    // variants: 있으면 .vrma 문자열 2개 이상 풀. 1개짜리는 무의미.
+    // variants: if present, a pool of 2+ .vrma strings. A single one is meaningless.
     const rawVariants = entry.variants;
     let variants: string[] | undefined;
     if (rawVariants !== undefined) {
@@ -70,7 +70,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
         variant_policy = rawVariantPolicy as MotionRegistryEntry["variant_policy"];
       }
     }
-    // variants 없는 variant_policy는 resolve()가 무시하는 dead 필드 — fail-loud.
+    // variant_policy without variants is a dead field ignored by resolve() — fail-loud.
     if (rawVariantPolicy !== undefined && rawVariants === undefined) {
       issues.push(`${id}.variant_policy는 variants 없이 의미 없음 (variants 필요)`);
     }
@@ -83,7 +83,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
         broker_publish = rawBrokerPublish;
       }
     }
-    // cycle_dwell_ms: cycle 모션이 다음 variant로 swap하기 전 정착 프레임 유지 ms.
+    // cycle_dwell_ms: ms to hold the settled frame before a cycle motion swaps to the next variant.
     const rawCycleDwell = entry.cycle_dwell_ms;
     let cycle_dwell_ms: number | undefined;
     if (rawCycleDwell !== undefined) {
@@ -97,12 +97,12 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
       } else {
         cycle_dwell_ms = rawCycleDwell;
       }
-      // cycle 모션(variants>1 + loop)이 아니면 resolve()가 무시하는 dead 필드 — fail-loud.
+      // A dead field ignored by resolve() unless this is a cycle motion (variants>1 + loop) — fail-loud.
       if (!(Array.isArray(variants) && variants.length > 1 && entry.loop === true)) {
         issues.push(`${id}.cycle_dwell_ms는 cycle 모션(variants>1 + loop)에만 유효함`);
       }
     }
-    // pingpong: forward↔reverse loop. loop 필수, crossfade_loop와 상호 배타.
+    // pingpong: forward↔reverse loop. Requires loop, mutually exclusive with crossfade_loop.
     const rawPingpong = entry.pingpong;
     let pingpong: boolean | undefined;
     if (rawPingpong !== undefined) {
@@ -118,7 +118,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
         issues.push(`${id}.pingpong과 crossfade_loop는 상호 배타임`);
       }
     }
-    // crossfade_loop: loop 끝-처음 crossfade. loop 필수.
+    // crossfade_loop: crossfade from loop end to start. Requires loop.
     const rawCrossfadeLoop = entry.crossfade_loop;
     let crossfade_loop: boolean | undefined;
     if (rawCrossfadeLoop !== undefined) {
@@ -131,7 +131,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
         issues.push(`${id}.crossfade_loop:true는 loop:true를 요구함`);
       }
     }
-    // loop_cycles: [min,max] 왕복 횟수. 양의 정수 2개 + lo<=hi. pingpong:true에서만 유효.
+    // loop_cycles: [min,max] round-trip count. Two positive integers + lo<=hi. Valid only with pingpong:true.
     const rawLoopCycles = entry.loop_cycles;
     let loop_cycles: [number, number] | undefined;
     if (rawLoopCycles !== undefined) {
@@ -145,12 +145,12 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
       } else {
         loop_cycles = [rawLoopCycles[0] as number, rawLoopCycles[1] as number];
       }
-      // pingpong:true가 아니면 resolve()가 무시하는 dead 필드 — fail-loud.
+      // A dead field ignored by resolve() unless pingpong:true — fail-loud.
       if (rawPingpong !== true) {
         issues.push(`${id}.loop_cycles는 pingpong:true 없이 의미 없음`);
       }
     }
-    // fade_ms: entry-level default crossfade ms. 모든 항목에 유효.
+    // fade_ms: entry-level default crossfade ms. Valid for all entries.
     const rawFade = entry.fade_ms;
     let fade_ms: number | undefined;
     if (rawFade !== undefined) {

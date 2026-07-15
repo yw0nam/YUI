@@ -1,6 +1,6 @@
 /**
- * 모니터 열거 seam. Tauri 네이티브 구현은 나중에 교체한다.
- * 브라우저는 자신의 화면 하나만 인식한다.
+ * Monitor enumeration seam. The Tauri native implementation is swapped in later.
+ * The browser only recognizes its own single screen.
  */
 
 import type { ScreenSource } from "../contract";

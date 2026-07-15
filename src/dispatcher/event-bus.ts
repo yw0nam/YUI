@@ -1,20 +1,20 @@
 /**
- * Event bus — 모든 발화 후보 event의 단일 수집 지점.
+ * Event bus — single collection point for all speech candidate events.
  *
- * 큐 정책:
- *  - 자료구조: priority heap, key = (tier ASC, ts ASC), 동일 tier FIFO(삽입순).
- *  - 용량 100. 초과 시 우선순위 가장 낮은 항목부터 drop + onDrop 콜백/로그.
- *  - Bus drop 조건: schema invalid / 미지의 event_name / ts ±60s 벗어남.
+ * Queue policy:
+ *  - Data structure: priority heap, key = (tier ASC, ts ASC), same tier FIFO (insertion order).
+ *  - Capacity 100. Exceeding drops lowest-priority items first + onDrop callback/log.
+ *  - Bus drop conditions: schema invalid / unknown event_name / ts ±60s out of window.
  *
- * 우선순위(낮을수록 우선): user.* (0) < backend.push.* (1) <
+ * Priority (lower = earlier): user.* (0) < backend.push.* (1) <
  *   idle.* · time_milestone.* (2) < os.* (3) < internal (4).
  *
- * 본 모듈은 firing 채집 + 정렬만 한다 — tier 최종 결정/라우팅은 dispatcher 책임.
+ * This module only collects firing + sorts — final tier decision/routing is dispatcher responsibility.
  */
 
-/** event_bus envelope. seq_id는 bus가 부여. */
+/** event_bus envelope. seq_id assigned by bus. */
 export interface BusEnvelope {
-  /** bus가 부여 (monotonic). push 시점엔 비어 있어도 됨. */
+  /** Assigned by bus (monotonic). May be empty at push time. */
   seq_id?: number;
   source:
     | "timer_scheduler"
@@ -27,13 +27,13 @@ export interface BusEnvelope {
   /** client epoch ms. */
   ts: number;
   payload?: Record<string, unknown>;
-  /** source 추정 tier. dispatcher가 최종 결정. */
+  /** Source-estimated tier. Dispatcher makes final decision. */
   hint_tier?: 1 | 2 | 3;
-  /** user-initiated만 true (DND/debounce 우회). */
+  /** True only for user-initiated (DND/debounce bypass). */
   dnd_override?: boolean;
 }
 
-/** bus-drop / capacity-drop 분류. */
+/** bus-drop / capacity-drop classification. */
 export type BusDropReason =
   | "schema_invalid"
   | "unknown_event_name"
@@ -41,26 +41,26 @@ export type BusDropReason =
   | "capacity_overflow";
 
 export interface EventBusOptions {
-  /** drop 발생 시 콜백 (dev 로깅/관찰). */
+  /** Callback on drop (dev logging/observation). */
   onDrop?: (env: BusEnvelope, reason: BusDropReason) => void;
-  /** 큐 용량. default 100. */
+  /** Queue capacity. default 100. */
   capacity?: number;
-  /** ts 허용 윈도우(ms). default 60_000 (±60s). */
+  /** ts allowed window (ms). default 60_000 (±60s). */
   tsWindowMs?: number;
 }
 
 export interface EventBus {
-  /** event를 큐에 push. 검증 통과 시 seq_id 부여 후 true. drop이면 false. */
+  /** Push event to queue. After validation passes, assign seq_id and return true. false if dropped. */
   push(env: BusEnvelope): boolean;
-  /** dispatcher가 다음 처리 대상을 꺼냄 (tier ASC, ts ASC, FIFO). 비면 null. */
+  /** Dispatcher removes next target (tier ASC, ts ASC, FIFO). null if empty. */
   pop(): BusEnvelope | null;
-  /** 현재 큐 스냅샷 (정렬되지 않은 raw 배열, dev inspection). */
+  /** Current queue snapshot (unsorted raw array, dev inspection). */
   snapshot(): BusEnvelope[];
 }
 
 /**
- * event_name → 우선순위 priority. 낮을수록 먼저 pop.
- * 미지의 prefix는 unknown_event_name으로 bus-drop되므로 여기 도달하지 않는다.
+ * event_name → priority. Lower = pop earlier.
+ * Unknown prefix bus-drops as unknown_event_name, doesn't reach here.
  */
 const KNOWN_PREFIXES: ReadonlyArray<{ prefix: string; priority: number }> = [
   { prefix: "user.", priority: 0 },
@@ -93,13 +93,13 @@ const VALID_SOURCES = new Set<BusEnvelope["source"]>([
 interface QueueItem {
   env: BusEnvelope;
   priority: number;
-  /** 삽입 순서(동일 priority+ts FIFO 보장). */
+  /** Insertion order (ensures same priority+ts FIFO). */
   seq: number;
 }
 
 /**
- * 정렬 비교: priority ASC → ts ASC → seq ASC(FIFO).
- * 반환 < 0 이면 a가 b보다 먼저 pop.
+ * Sort comparison: priority ASC → ts ASC → seq ASC (FIFO).
+ * Return < 0 if a pops before b.
  */
 function compare(a: QueueItem, b: QueueItem): number {
   if (a.priority !== b.priority) return a.priority - b.priority;
@@ -112,8 +112,8 @@ export function createEventBus(opts: EventBusOptions = {}): EventBus {
   const tsWindowMs = opts.tsWindowMs ?? 60_000;
   const onDrop = opts.onDrop;
 
-  // 단순 정렬 배열 — 용량 100 규모에선 binary-heap보다 명료하고 충분히 빠르다.
-  // 정렬 불변식은 push/pop 시점에 유지한다.
+  // Simple sorted array — for capacity 100, clearer and fast enough vs binary-heap.
+  // Sort invariant maintained at push/pop.
   const items: QueueItem[] = [];
   let nextSeqId = 1;
   let insertCounter = 0;
@@ -150,11 +150,11 @@ export function createEventBus(opts: EventBusOptions = {}): EventBus {
       env.seq_id = nextSeqId++;
       const item: QueueItem = { env, priority, seq: insertCounter++ };
 
-      // 삽입 후 정렬 유지(작은 N — 삽입정렬 수준).
+      // Maintain sort after insertion (small N — insertion-sort level).
       items.push(item);
       items.sort(compare);
 
-      // 용량 초과 → 우선순위 가장 낮은(=정렬 끝) 1건 drop.
+      // Exceed capacity → drop 1 item with lowest priority (=end of sort).
       if (items.length > capacity) {
         const evicted = items.pop()!;
         drop(evicted.env, "capacity_overflow");

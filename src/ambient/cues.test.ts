@@ -18,7 +18,7 @@ import {
   TAP_BOB_MS,
 } from "./cues";
 
-/** 결정적 rng 시퀀스 (테스트용). */
+/** Deterministic rng sequence (for tests). */
 const seq = (values: number[]): Rng => {
   let i = 0;
   return () => values[i++ % values.length];

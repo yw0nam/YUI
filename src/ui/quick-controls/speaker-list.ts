@@ -1,9 +1,9 @@
 /**
- * 화자 목록 클러스터 — 고급 탭 irodori 서브뷰의 화자 라디오그룹.
- * VRM 섹션을 미러링하되 한 가지만 다르다: 행이 <button>이 아닌 div[role=radio]다
- * (중첩 ▶ 미리듣기 <button>을 품으려면 — button 안의 button은 무효 HTML이라 파서가 빼낸다).
- * 그래서 roving tabindex/Enter·Space/화살표 키보드를 직접 배선한다.
- * 추가로 참조-음성 재등록(refresh) + 단일 audition 미리듣기를 소유한다.
+ * Speaker list cluster — speaker radiogroup in Advanced tab irodori subview.
+ * Mirrors VRM section but differs in one way: rows are div[role=radio], not <button>
+ * (to hold nested ▶ preview <button> — button-in-button is invalid HTML, parser strips it).
+ * So wires roving tabindex/Enter·Space/arrow keyboard directly.
+ * Additionally owns reference-voice refresh + single audition preview.
  */
 import { resolveAssetUrl } from "../../io/asset-url";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
@@ -21,23 +21,23 @@ const SPK_REMOVE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 const REFRESH_DONE_DWELL_MS = 2400;
 
 export interface SpeakerListDeps {
-  /** 패널 루트(el) — .yui-spks / .yui-spk__import-error를 여기서 쿼리한다. */
+  /** Panel root (el) — query .yui-spks / .yui-spk__import-error from here. */
   root: HTMLElement;
   speakerSelection: ReturnType<typeof createSpeakerSelection>;
-  /** 실제 화자 스왑 수행 + 성공 시 store 커밋. 컴포넌트는 store.select를 직접 호출하지 않는다. */
+  /** Perform actual speaker swap + commit store on success. Component does not call store.select directly. */
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
-  /** 화자의 참조 음성 재등록(PUT /voices). 서버 측 갱신만 — 화자 선택/store는 바꾸지 않는다. */
+  /** Refresh speaker reference voice (PUT /voices). Server-side update only — does not change speaker selection/store. */
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
-  /** 파일 선택 → 등록 → addUserVoice + 선택까지의 전체 임포트 흐름. reject 시 인라인 에러. */
+  /** Full import flow: file select → register → addUserVoice + select. Inline error on reject. */
   importVoice: () => Promise<void>;
-  /** 임포트된 음성의 app-data 파일을 삭제(idempotent). store 제거와 별개로 호출한다. */
+  /** Delete imported voice app-data file (idempotent). Called separately from store removal. */
   removeUserVoice: (id: string) => Promise<void>;
-  /** 미리듣기 ref_url을 fetchable URL로 변환(주입 가능). 기본은 resolveAssetUrl. */
+  /** Convert audition ref_url to fetchable URL (injectable). Default is resolveAssetUrl. */
   resolveAuditionUrl?: (refUrl: string) => Promise<string>;
   log: Logger;
-  /** 효과적 음성 엔진이 irodori일 때만 화자 관리가 활성. openai면 게이팅한다. */
+  /** Speaker management is active only when effective voice engine is irodori. Gates when openai. */
   speakerControlsEnabled: () => boolean;
-  /** dispose 후 in-flight refresh가 무너진 DOM에 재그림/타이머를 쓰지 않게 막는다. */
+  /** After dispose, prevent in-flight refresh from re-rendering/timering on torn-down DOM. */
   isDisposed: () => boolean;
 }
 
@@ -45,11 +45,11 @@ export interface SpeakerList {
   render(): void;
   handleKeydown(e: KeyboardEvent): void;
   handleAddClick(): void;
-  /** 스왑 진행 중 여부 — 엔트리의 open-subscription 가드가 쓴다. */
+  /** Whether swap is in progress — used by entry's open-subscription guard. */
   isSwapping(): boolean;
-  /** 미리듣기 중지(패널 close 시). */
+  /** Stop audition (when panel closes). */
   stopAudition(): void;
-  /** 영구 teardown — audition 정지 + refresh 타이머/상태 정리. */
+  /** Permanent teardown — stop audition + clean refresh timers/state. */
   dispose(): void;
 }
 
@@ -70,17 +70,17 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
 
   let spkSwapping: string | null = null;
   let spkErrorId: string | null = null;
-  // 인라인 이름 편집 중인 user 화자 id(없으면 null) · 임포트 진행 여부.
+  // User speaker id being renamed inline (null if none) · whether import is in progress.
   let spkRenamingId: string | null = null;
   let spkImporting = false;
-  // 마지막으로 화살표가 머문 행 id — 재그림이 roving tabindex를 active로 되돌리지 않게 유지.
-  // close()에서 일부러 리셋하지 않는다 — 재오픈 시에도 머문 행을 잇고, ids.includes로 가드한다.
+  // Last row id where arrow roved — kept so re-render doesn't snap roving tabindex back to active.
+  // Deliberately not reset in close() — re-open continues from roved row, guarded by ids.includes.
   let spkRovedId: string | null = null;
 
-  // 행별 참조-음성 갱신 상태 — renderSpeakers 재그림을 살아남도록 id별로 보관.
+  // Per-row reference-voice refresh state — kept per-id so survives renderSpeakers re-render.
   type RefreshState = "refreshing" | "done" | "error";
   const spkRefreshState = new Map<string, RefreshState>();
-  // "done" 상태를 일정 시간 후 idle로 되돌리는 타이머(중복 갱신·dispose 시 정리).
+  // Timer to revert "done" state to idle after delay (cleaned up on duplicate refresh/dispose).
   const spkRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   function clearRefreshTimer(id: string): void {
@@ -91,7 +91,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     }
   }
 
-  // 미리듣기는 단일 audition — 하나를 재생하면 다른 것은 멈춘다.
+  // Audition is single — playing one stops others.
   let auditionAudio: HTMLAudioElement | null = null;
   let auditionBtn: HTMLButtonElement | null = null;
 
@@ -107,32 +107,32 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     }
   }
 
-  // 미리듣기 ref_url을 fetchable URL로 변환한다(패키징 시 /references/* 404 회피).
-  // Tauri는 번들 리소스 절대 URL, dev/브라우저는 원본 통과 — irodori-voices와 같은 resolver.
+  // Convert audition ref_url to fetchable URL (avoid /references/* 404 on packaging).
+  // Tauri: absolute URL to bundled resource; dev/browser: pass through original — same resolver as irodori-voices.
   const resolveAudition = resolveAuditionUrl ?? resolveAssetUrl;
 
   function toggleAudition(btn: HTMLButtonElement, refUrl: string): void {
     if (auditionBtn === btn) {
-      stopAudition(); // 같은 버튼 재클릭 → 정지 토글
+      stopAudition(); // Same button re-click → toggle stop
       return;
     }
-    stopAudition(); // 다른 클립 재생 중이면 먼저 멈춘다
+    stopAudition(); // If different clip is playing, stop it first
     btn.classList.add("is-playing");
     btn.innerHTML = SPK_PAUSE_SVG;
-    auditionBtn = btn; // resolver 대기 동안 같은 버튼 재클릭이 정지 토글로 동작하도록 선점
+    auditionBtn = btn; // Preempt same button re-click while resolver waits so it toggles stop
     const fail = (): void => {
       if (auditionBtn === btn) stopAudition();
     };
-    // ref_url을 먼저 자산 프로토콜로 해석한 뒤 Audio를 만든다 — bundled·user 행 모두.
+    // Resolve ref_url to asset protocol first, then create Audio — for both bundled and user rows.
     void resolveAudition(refUrl)
       .then((url) => {
-        if (auditionBtn !== btn) return; // 대기 중 다른 클립이 시작/정지됨
+        if (auditionBtn !== btn) return; // Different clip started/stopped while waiting
         const audio = new Audio(url);
         audio.addEventListener("ended", () => {
           if (auditionBtn === btn) stopAudition();
         });
         auditionAudio = audio;
-        // play()는 Promise 또는(구형/일부 환경) undefined를 반환할 수 있다 — 둘 다 안전 처리.
+        // play() returns Promise or (old/some envs) undefined — handle both safely.
         try {
           const p = audio.play();
           if (p && typeof p.then === "function") p.catch(fail);
@@ -144,16 +144,16 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   }
 
   function renderSpeakers(): void {
-    // openai 엔진에선 화자 관리가 비활성 — 실제 disabled로 클릭·Tab을 막는다(시각 흐림은 CSS).
+    // With openai engine, speaker management is inactive — actually disabled with real disabled attr (CSS dims).
     const controlsEnabled = speakerControlsEnabled();
     const activeId = speakerSelection.getActiveId();
-    // roving tabindex는 마지막으로 화살표가 머문 행이 우선 — 없으면 active로 폴백.
+    // Roving tabindex prioritizes last roved row — falls back to active if none.
     const ids = speakerSelection.list().map((o) => o.id);
     const rovedId = spkRovedId !== null && ids.includes(spkRovedId) ? spkRovedId : activeId;
-    // 더 이상 목록에 없는 행을 편집 중이었다면 편집 상태를 정리한다.
+    // Clean up edit state if row being edited no longer in list.
     if (spkRenamingId !== null && !ids.includes(spkRenamingId)) spkRenamingId = null;
     const hadFocus = spksEl.contains(document.activeElement);
-    stopAudition(); // 재그림이 미리듣기 버튼 노드를 파괴하므로 audition 정리
+    stopAudition(); // Re-render destroys audition button nodes, so clean audition
     spksEl.innerHTML = "";
     for (const opt of speakerSelection.list()) {
       const isUser = opt.source === "user";
@@ -163,7 +163,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       row.dataset.spkId = opt.id;
       const selected = opt.id === activeId;
       row.setAttribute("aria-checked", String(selected));
-      // 비활성(openai) 시엔 모든 행이 Tab에서 건너뛰어지게 -1로 고정한다.
+      // When inactive (openai), all rows get -1 to skip Tab navigation.
       row.tabIndex = controlsEnabled ? (opt.id === rovedId ? 0 : -1) : -1;
 
       if (isUser && opt.id === spkRenamingId) {
@@ -178,7 +178,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       const badgeHtml = selected
         ? `<span class="yui-spk__badge">${t("speaker.in_use")}</span>`
         : "";
-      // user 행은 ✎ 이름 바꾸기 · 🗑 삭제를 ↻/▶ 앞에 더한다.
+      // User rows add ✎ rename · 🗑 remove buttons before ↻/▶.
       const userActionsHtml = isUser
         ? `<button class="yui-spk__rename" type="button" title="${t("speaker.rename")}" aria-label="${t("speaker.rename")}">${SPK_RENAME_SVG}</button>` +
           `<button class="yui-spk__remove" type="button" title="${t("speaker.remove")}" aria-label="${t("speaker.remove")}">${SPK_REMOVE_SVG}</button>`
@@ -191,20 +191,20 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
         <button class="yui-spk__preview" type="button" title="${t("speaker.preview")}" ${hasClip ? "" : "disabled"}>${SPK_PLAY_SVG}</button>
         ${badgeHtml}
       `;
-      // 라벨은 신뢰 불가 입력일 수 있다 — textContent로만 넣는다.
+      // Label may be untrusted input — set via textContent only.
       const nameEl = row.querySelector<HTMLSpanElement>(".yui-spk__name")!;
       nameEl.textContent = label;
       if (isUser) {
         const renameBtn = row.querySelector<HTMLButtonElement>(".yui-spk__rename")!;
         renameBtn.disabled = !controlsEnabled;
         renameBtn.addEventListener("click", (e) => {
-          e.stopPropagation(); // 이름 편집은 행 선택을 트리거하지 않는다
+          e.stopPropagation(); // Rename does not trigger row selection
           if (speakerControlsEnabled()) startSpkRename(opt.id);
         });
         const removeBtn = row.querySelector<HTMLButtonElement>(".yui-spk__remove")!;
         removeBtn.disabled = !controlsEnabled;
         removeBtn.addEventListener("click", (e) => {
-          e.stopPropagation(); // 삭제는 행 선택을 트리거하지 않는다
+          e.stopPropagation(); // Remove does not trigger row selection
           if (speakerControlsEnabled()) void removeUserSpeaker(opt.id);
         });
       }
@@ -212,23 +212,23 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       refreshBtn.disabled = !controlsEnabled || !hasClip;
       refreshBtn.setAttribute("aria-label", t("aria.refresh_speaker", { name: label }));
       refreshBtn.addEventListener("click", (e) => {
-        e.stopPropagation(); // 갱신은 행 선택을 트리거하지 않는다
+        e.stopPropagation(); // Refresh does not trigger row selection
         if (hasClip) void refreshTo(opt);
       });
       const previewBtn = row.querySelector<HTMLButtonElement>(".yui-spk__preview")!;
       previewBtn.disabled = !controlsEnabled || !hasClip;
       previewBtn.setAttribute("aria-label", t("aria.preview_speaker", { name: label }));
       previewBtn.addEventListener("click", (e) => {
-        e.stopPropagation(); // 미리듣기는 행 선택을 트리거하지 않는다
+        e.stopPropagation(); // Preview does not trigger row selection
         if (hasClip) toggleAudition(previewBtn, opt.ref_url);
       });
 
       row.addEventListener("click", () => {
-        if (!speakerControlsEnabled()) return; // openai에선 행 선택 비활성
+        if (!speakerControlsEnabled()) return; // Row selection inactive with openai
         void swapToSpeaker(opt);
       });
 
-      // 저장된 refresh 상태를 재그림 후에도 시각/aria에 반영한다.
+      // Reflect saved refresh state in visuals/aria even after re-render.
       if (refreshState === "refreshing") {
         refreshBtn.classList.add("is-refreshing");
         refreshBtn.disabled = true;
@@ -276,7 +276,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       }
     }
 
-    // 임포트 진행 중이면 목록 끝에 스피너 placeholder 행을 붙인다(라디오 아님).
+    // If import is in progress, append spinner placeholder row at end (not radio).
     if (spkImporting) {
       const loading = document.createElement("div");
       loading.className = "yui-spk__loading";
@@ -285,7 +285,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       spksEl.appendChild(loading);
     }
 
-    // 편집 중이면 입력에 포커스를 두고 종료한다(roving 포커스 복원보다 우선).
+    // If editing, focus input and exit (takes precedence over restoring roving focus).
     if (spkRenamingId !== null) {
       const input = spksEl.querySelector<HTMLInputElement>(".yui-spk--renaming .yui-ep-input");
       if (input) {
@@ -304,7 +304,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     }
   }
 
-  // user 화자 행을 인라인 이름 편집 모드로 그린다 — 라벨이 입력으로 바뀌고 hint가 뒤따른다.
+  // Render user speaker row in inline rename mode — label becomes input, hint follows.
   function renderSpkRenamingRow(row: HTMLElement, opt: SpeakerOption): void {
     row.classList.add("yui-spk--renaming");
     row.innerHTML = `
@@ -319,15 +319,15 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
         e.preventDefault();
         commitSpkRename(opt.id, input.value);
       } else if (e.key === "Escape") {
-        // Esc는 이름 편집만 취소한다 — 패널 닫기(document Escape)로 새지 않게 막는다.
+        // Escape cancels rename only — does not propagate to panel close (document Escape).
         e.preventDefault();
         e.stopPropagation();
         cancelSpkRename();
       }
     });
-    // blur로 빠져나가면 비어있지 않은 값을 커밋한다.
+    // On blur, commit nonempty value.
     input.addEventListener("blur", () => {
-      if (spkRenamingId !== opt.id) return; // 이미 commit/cancel로 정리됨
+      if (spkRenamingId !== opt.id) return; // Already cleaned up by commit/cancel
       commitSpkRename(opt.id, input.value);
     });
   }
@@ -346,36 +346,36 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   function commitSpkRename(id: string, label: string): void {
     if (spkRenamingId !== id) return;
     spkRenamingId = null;
-    // 빈/공백 label은 store가 거부한다(기존 라벨 유지). 변경 시 store 구독이 재그림.
+    // Empty/whitespace label is rejected by store (keeps existing label). Change triggers store subscription re-render.
     speakerSelection.renameUserVoice(id, label);
     log.info("voice_rename", { id });
     renderSpeakers();
   }
 
-  // user 화자 제거 — 파일을 먼저 지우고(성공해야 store/disk 불일치 없음 → 다음 발화의 서버
-  // 422 방지), 그 다음에만 store에서 빼고 active였으면 fallback으로 스왑한다.
+  // Remove user speaker — delete file first (success required, no store/disk mismatch to prevent 422), then
+  // remove from store and swap to fallback if it was active.
   async function removeUserSpeaker(id: string): Promise<void> {
     const wasActive = speakerSelection.getActiveId() === id;
     log.info("voice_delete", { id });
     try {
       await removeUserVoice(id);
     } catch (err) {
-      // 파일 삭제 실패 — store 제거를 커밋하지 않고 행을 그대로 둔다(disk와 일치 유지).
+      // File delete failed — do not commit store removal, keep row (maintain disk match).
       log.error("voice_delete_failed", { id, error: String(err) });
       return;
     }
-    speakerSelection.removeUserVoice(id); // active였으면 default로 폴백 + 통지
-    // 비-active 제거는 store가 통지하지 않으므로 목록을 직접 다시 그린다.
+    speakerSelection.removeUserVoice(id); // Falls back to default if was active + notify
+    // Non-active removal does not notify store, so re-render list directly.
     if (!wasActive) {
       renderSpeakers();
       return;
     }
-    // active를 지웠으면 폴백 화자를 서버에 등록·커밋한다(store는 이미 default를 가리킴).
+    // Active delete — load fallback speaker into server (store already points to default).
     try {
       await swapSpeaker(speakerSelection.getActive());
     } catch (err) {
       log.error("voice_fallback_swap_failed", { error: String(err) });
-      renderSpeakers(); // 스왑 실패 시 목록을 실제 상태에 맞춰 다시 그린다.
+      renderSpeakers(); // Swap failed, re-render list to match actual state.
     }
   }
 
@@ -383,10 +383,10 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     spkImportErrorEl.hidden = !show;
   }
 
-  // "파일에서 추가…" — importing 행을 띄우고 전체 임포트 흐름을 위임한다.
-  // 성공 시 store가 행을 추가하고(구독→재그림), 실패 시 인라인 에러를 띄운다.
+  // "Add from file…" — show importing row and delegate full import flow.
+  // Success: store adds row (subscription → re-render); failure: show inline error.
   async function importVoiceFlow(): Promise<void> {
-    if (spkImporting) return; // 진행 중엔 두 번째 임포트 금지
+    if (spkImporting) return; // Prevent second import while in progress
     spkImporting = true;
     setSpkImportError(false);
     renderSpeakers();
@@ -406,8 +406,8 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   }
 
   async function swapToSpeaker(option: SpeakerOption): Promise<void> {
-    if (spkSwapping !== null) return; // 진행 중엔 두 번째 스왑 금지
-    if (option.id === speakerSelection.getActiveId()) return; // 이미 active면 no-op
+    if (spkSwapping !== null) return; // Prevent second swap while in progress
+    if (option.id === speakerSelection.getActiveId()) return; // Already active, no-op
 
     if (spkErrorId !== null) {
       spkErrorId = null;
@@ -420,7 +420,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     const row = spkRowById(option.id);
     if (row) {
       row.setAttribute("aria-busy", "true");
-      // 미리듣기 버튼은 스왑 중 숨기고 "바꾸는 중…" 힌트를 그 자리에 둔다.
+      // Hide preview button during swap, show "swapping…" hint in its place.
       row.querySelector(".yui-spk__preview")?.remove();
       const body = row.querySelector(".yui-spk__body");
       if (body && !row.querySelector(".yui-spk__hint")) {
@@ -433,7 +433,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
 
     try {
       await swapSpeaker(option);
-      spkRovedId = option.id; // 커밋된 행으로 roving tabindex를 잇는다
+      spkRovedId = option.id; // carry the roving tabindex over to the committed row
       log.info("voice_swap", { id: option.id });
     } catch (err) {
       spkErrorId = option.id;
@@ -446,8 +446,8 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     }
   }
 
-  // 참조 음성 재등록 — 서버 측 갱신만, 화자 선택/store는 바꾸지 않는다.
-  // 재진입 가드: 같은 id가 이미 갱신 중이면 무시한다.
+  // Reference voice refresh — server-side update only, do not change speaker selection/store.
+  // Re-entry guard: ignore if the same id is already refreshing.
   async function refreshTo(option: SpeakerOption): Promise<void> {
     if (spkRefreshState.get(option.id) === "refreshing") return;
     clearRefreshTimer(option.id);
@@ -459,7 +459,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       spkRefreshState.set(option.id, "done");
       log.info("reference_voice_update", { id: option.id });
       renderSpeakers();
-      // 일정 시간 후 idle로 되돌린다(상태 삭제 + 재그림).
+      // After a delay, reset to idle state (delete state + re-render).
       spkRefreshTimers.set(
         option.id,
         setTimeout(() => {
@@ -476,11 +476,11 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     }
   }
 
-  // 화자 radiogroup 키보드 — div[role=radio]라 직접 배선한다.
-  // manual-activation: 화살표는 roving focus 이동만, Enter/Space가 커밋 — 매 화살표마다 ▶ 미리듣기/스왑 비용을 피한다.
+  // Speaker radiogroup keyboard — wire directly as div[role=radio].
+  // Manual-activation: arrows only move roving focus, Enter/Space commits — avoids preview/swap cost on every arrow.
   function handleSpkKeydown(e: KeyboardEvent): void {
     if (spkSwapping !== null) return;
-    // 인라인 이름 편집 입력의 키는 입력 자체가 처리한다 — 라디오 키보드로 새지 않게 막는다.
+    // Inline name editing input handles its own keys — prevent leaking to radio keyboard.
     if ((e.target as HTMLElement).closest(".yui-spk--renaming")) return;
     const target = (e.target as HTMLElement).closest<HTMLDivElement>(".yui-spk[role=radio]");
     if (!target) return;
@@ -488,7 +488,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     if (rows.length === 0) return;
 
     if (e.key === "Enter" || e.key === " ") {
-      if (!speakerControlsEnabled()) return; // openai에선 행 선택 비활성
+      if (!speakerControlsEnabled()) return; // Disable row selection for OpenAI
       e.preventDefault();
       const opt = speakerSelection.list().find((o) => o.id === target.dataset.spkId);
       if (opt) void swapToSpeaker(opt);
@@ -506,7 +506,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     const wrapped = (next + rows.length) % rows.length;
     const focusTarget = rows[wrapped];
     spkRovedId = focusTarget.dataset.spkId ?? null;
-    // roving tabindex 이동: 새 행만 0, 나머지 -1.
+    // Roving tabindex move: new row only 0, rest -1.
     for (const r of rows) r.tabIndex = -1;
     focusTarget.tabIndex = 0;
     focusTarget.focus();

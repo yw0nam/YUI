@@ -77,7 +77,7 @@ describe("createQuickControls — VRM section", () => {
     try {
       globalThis.localStorage?.clear();
     } catch {
-      /* localStorage 미사용 환경 무시 */
+      /* Ignore environments without localStorage */
     }
     // Existing assertions pin Korean copy/selectors; render the panel in ko.
     setLocale("ko");
@@ -237,7 +237,7 @@ describe("createQuickControls — VRM section", () => {
     expect(add.disabled).toBe(false);
     expect(add.hasAttribute("aria-disabled")).toBe(false);
     expect(add.classList.contains("is-ready")).toBe(true);
-    // the 준비 중 chip is gone now that import is wired
+    // the "preparing" chip is gone now that import is wired
     expect(add.querySelector(".yui-vrm__soon")).toBeNull();
     // it is NOT a radio (excluded from the radiogroup roving order)
     expect(add.getAttribute("role")).not.toBe("radio");

@@ -1,24 +1,24 @@
 /**
- * emotion-text.ts — provider별 emotion_text 이모지 테이블 로더.
+ * emotion-text.ts — per-provider emotion_text emoji table loader.
  *
  * configs/emotion_text/<provider>.json = `{ "<emoji>": "<English meaning hint>" }`.
- * irodori는 이 테이블을 Expression Broker에 enum vocab으로 publish한다(broker-client, 별도 unit).
- * 순수 로드+검증만 담당(부수효과 없음, reader 주입 가능 → 테스트). fail-loud ConfigError.
+ * irodori publishes this table to the Expression Broker as enum vocab (broker-client, separate unit).
+ * Pure load + validation only (no side effects, reader injectable → testable). fail-loud ConfigError.
  */
 
 import { resolveAssetUrl } from "../io/asset-url";
 import { type AssetUrlResolver, ConfigError, type ConfigReader } from "./load";
 
 export interface LoadEmotionTextOptions {
-  /** configs/emotion_text/<provider>.json의 provider 키(예: "irodori"). */
+  /** provider key in configs/emotion_text/<provider>.json (e.g. "irodori"). */
   provider: string;
-  /** 파일 reader 주입(테스트). 미지정 시 fetch 기반 기본 reader. */
+  /** File reader injection (tests). Defaults to the fetch-based reader when unset. */
   read?: ConfigReader;
-  /** 기본 reader가 붙일 prefix. default `/configs`. */
+  /** Prefix the default reader prepends. default `/configs`. */
   baseUrl?: string;
-  /** 논리 경로 → 런타임 URL 변환기(주입 가능). 기본은 resolveAssetUrl. */
+  /** Logical path → runtime URL resolver (injectable). Defaults to resolveAssetUrl. */
   resolveUrl?: AssetUrlResolver;
-  /** fetch 주입(테스트). 미지정 시 globalThis.fetch. */
+  /** fetch injection (tests). Defaults to globalThis.fetch when unset. */
   fetch?: typeof fetch;
 }
 
@@ -26,7 +26,7 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/** fetch 기반 기본 reader (브라우저/Tauri webview 런타임). */
+/** Default fetch-based reader (browser/Tauri webview runtime). */
 function fetchReader(
   baseUrl: string,
   resolveUrl: AssetUrlResolver = resolveAssetUrl,
@@ -47,8 +47,8 @@ function fetchReader(
 }
 
 /**
- * configs/emotion_text/<provider>.json을 읽어 검증된 Record<string,string>로 반환한다.
- * 객체가 아님 / 빈 객체 / 비-문자열 값이면 ConfigError로 즉시 실패한다(fail-loud).
+ * Reads configs/emotion_text/<provider>.json and returns a validated Record<string,string>.
+ * Fails immediately with ConfigError on non-object / empty object / non-string value (fail-loud).
  */
 export async function loadEmotionTextTable(
   opts: LoadEmotionTextOptions,

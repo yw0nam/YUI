@@ -1,9 +1,9 @@
 /**
- * emotion-text.test.ts — loadEmotionTextTable 단위 테스트 + irodori 테이블 drift-guard.
+ * emotion-text.test.ts — loadEmotionTextTable unit tests + irodori table drift-guard.
  *
- * 원칙: loader 테스트는 fake ConfigReader(`read`)를 주입해 in-memory로만 검증한다.
- * drift-guard만 예외적으로 Node fs로 실제 아티팩트(configs/emotion_text/irodori.json ↔
- * docs/reference/tts-emotion/irodori.md)를 읽어 키 집합 일치를 단언한다(편집 drift 방지).
+ * Principle: loader tests inject a fake ConfigReader (`read`) and validate in-memory only.
+ * Only the drift-guard is an exception — it reads the real artifacts via Node fs (configs/emotion_text/irodori.json ↔
+ * docs/reference/tts-emotion/irodori.md) and asserts the key sets match (guards against edit drift).
  */
 
 import { readFileSync } from "node:fs";
@@ -124,7 +124,7 @@ describe("loadEmotionTextTable — default fetch reader routes through asset res
 // ── drift-guard: configs JSON keys ↔ docs md emoji set ───────────────────────
 
 describe("irodori emotion_text drift-guard", () => {
-  /** docs/reference/tts-emotion/irodori.md의 Emoji table에서 첫 컬럼 이모지를 추출. */
+  /** Extracts the first-column emoji from the Emoji table in docs/reference/tts-emotion/irodori.md. */
   function emojiFromMarkdown(md: string): string[] {
     const lines = md.split("\n");
     const start = lines.findIndex((l) => l.startsWith("## Emoji table"));

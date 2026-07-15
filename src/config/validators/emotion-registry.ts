@@ -1,7 +1,7 @@
 import type { EmotionId, EmotionRegistry, EmotionRegistryEntry } from "../../contract";
 import { assertValid, ConfigError, isObject } from "./shared";
 
-/** emotion enum 10종. registry 키는 이 집합에 한정(오탈자 키 fail-loud). */
+/** 10 emotion enum values. Registry keys are limited to this set (typo keys fail-loud). */
 const EMOTION_IDS: ReadonlySet<EmotionId> = new Set<EmotionId>([
   "neutral",
   "happy",

@@ -1,15 +1,15 @@
 /**
- * Renderer — three.js + @pixiv/three-vrm 출력 레이어.
+ * Renderer — three.js + @pixiv/three-vrm output layer.
  *
- * VRM 로드 + 핫스왑:
- *  - three.js scene/camera/light + rAF 루프 (vrm.update).
- *  - VRMLoaderPlugin으로 VRM 로드, VRMUtils 최적화, 투명 배경(펫 창).
- *  - loadVRM 재호출 = 핫스왑 (기존 모델 deepDispose 후 교체).
+ * VRM loading + hotswap:
+ *  - three.js scene/camera/light + rAF loop (vrm.update).
+ *  - Load VRM via VRMLoaderPlugin, optimize with VRMUtils, transparent background (pet window).
+ *  - Re-call loadVRM = hotswap (deepDispose old model, then replace).
  *
- * applyDirective: ControlEnvelope의 emotion/motion 채널을 setEmotion/
- *   playMotion으로 라우팅. 순수 dispatch는 ./apply-directive.
+ * applyDirective: routes ControlEnvelope emotion/motion channels to setEmotion/
+ *   playMotion. Pure dispatch is ./apply-directive.
  *
- * three-vrm 3.x 공식 경로(GLTFLoader.register(VRMLoaderPlugin) → gltf.userData.vrm,
+ * three-vrm 3.x official path (GLTFLoader.register(VRMLoaderPlugin) → gltf.userData.vrm,
  *   VRMUtils.removeUnnecessaryVertices/combineSkeletons/combineMorphs, deepDispose).
  */
 
@@ -86,16 +86,16 @@ const ORBIT_SETTLE_EPS = 1e-3;
 const IDLE_FPS = 30;
 
 export interface RendererOptions {
-  /** VRM을 렌더할 캔버스 마운트 대상. */
+  /** Canvas element to mount the VRM render. */
   mount: HTMLElement;
   /**
-   * motion registry (configs/motions.json). 주입하면 playMotion이 동작한다.
-   * 없으면 playMotion은 warn 후 no-op. setMotionRegistry로 나중에 주입 가능.
+   * motion registry (configs/motions.json). When injected, playMotion operates.
+   * If absent, playMotion warns then no-ops. Can be injected later via setMotionRegistry.
    */
   motionRegistry?: MotionRegistry;
   /**
-   * emotion registry (configs/emotion_registry.json). 주입하면 setEmotion이 동작한다.
-   * 없으면 setEmotion은 warn 후 no-op. setEmotionRegistry로 나중에 주입 가능.
+   * emotion registry (configs/emotion_registry.json). When injected, setEmotion operates.
+   * If absent, setEmotion warns then no-ops. Can be injected later via setEmotionRegistry.
    */
   emotionRegistry?: EmotionRegistry;
   /** Initial fit-to-bounds framing; live path is setFraming. Omitted keys keep defaults. */
@@ -104,92 +104,92 @@ export interface RendererOptions {
   gaze?: Partial<GazeConfig>;
 }
 
-/** rAF 프레임마다, **vrm.update(dt) 직전에** 전달되는 컨텍스트. */
+/** Context passed every rAF frame, **before vrm.update(dt)**. */
 export interface TickContext {
-  /** 현재 로드된 VRM (훅은 vrm이 있을 때만 호출됨). */
+  /** Currently loaded VRM (hook is invoked only when vrm exists). */
   readonly vrm: VRM;
-  /** 직전 프레임과의 시간차(초). */
+  /** Time elapsed since the previous frame (seconds). */
   readonly dt: number;
-  /** 첫 프레임 이후 누적 경과 시간(초). */
+  /** Total elapsed time since the first frame (seconds). */
   readonly elapsed: number;
 }
 
-/** 프레임 훅. bone/expression 변경은 여기서(=vrm.update 전) 해야 spring bone에 반영된다. */
+/** Frame hook. Bone/expression changes must be made here (before vrm.update) to reflect in spring bone. */
 export type TickFn = (ctx: TickContext) => void;
 
-/** loadVRM 결과 — VRMC_vrm/VRM0 메타에서 읽은 모델 이름(없으면 null). */
+/** loadVRM result — model name read from VRMC_vrm/VRM0 meta (null if absent). */
 export interface VrmLoadResult {
   metaName: string | null;
 }
 
 export interface Renderer {
-  /** VRM 로드 또는 핫스왑. 기존 모델이 있으면 새 모델 준비 후 dispose하고 교체. 메타 이름을 반환. */
+  /** Load or hotswap VRM. If an existing model exists, prepare new model, dispose old, then replace. Returns meta name. */
   loadVRM(url: string): Promise<VrmLoadResult>;
   /**
-   * 프레임 훅 등록. vrm.update(dt) **직전에** 호출되며,
-   * currentVrm이 있을 때만 발화한다. 등록 해제 함수를 반환.
+   * Register frame hook. Called **before vrm.update(dt)**;
+   * fires only when currentVrm exists. Returns unregister function.
    */
   onTick(fn: TickFn): () => void;
   /**
-   * 렌더 규약대로 render directive 적용.
-   * emotion → setEmotion (present만, 없으면 hold/no-op), motion → playMotion
-   * (없거나 null이면 idle 복귀). 순수 라우팅은 ./apply-directive routeDirective가 담당.
+   * Apply render directive per render contract.
+   * emotion → setEmotion (only if present, otherwise hold/no-op), motion → playMotion
+   * (if absent or null, return to idle). Pure routing is handled by ./apply-directive routeDirective.
    */
   applyDirective(env: ControlEnvelope): void;
   /**
-   * emotion → expression GPU 크로스페이드 전이.
-   * registry가 주입돼 있고 VRM이 로드된 경우에만 동작.
-   * emotion === null이면 NO-OP(직전 표정 유지). neutral 복귀는 명시적 {id:"neutral"}만.
+   * emotion → expression GPU crossfade transition.
+   * Operates only when registry is injected and VRM is loaded.
+   * emotion === null is a NO-OP (retains prior expression). Returns to neutral only via explicit {id:"neutral"}.
    */
   setEmotion(emotion: EmotionSignal | null): void;
   /**
-   * 직전 emotion을 neutral로 천천히 ease시킨다 (턴의 TTS 재생 종료 시). 명시적
-   * {id:"neutral"} 전이를 긴 transition_ms로 흘려보내 setEmotion 크로스페이드를 그대로 재사용한다.
-   * durationMs 미지정 시 느린 기본값. registry/VRM 미주입이면 setEmotion이 no-op.
+   * Slowly ease the prior emotion to neutral (on turn's TTS playback end). Reuses setEmotion
+   * crossfade by sending explicit {id:"neutral"} transition with long transition_ms.
+   * If durationMs unspecified, uses slow default. If registry/VRM not injected, setEmotion no-ops.
    */
   easeEmotionToNeutral(durationMs?: number): void;
   /**
-   * emotion registry 주입(또는 교체). 주입 시 현재 VRM 기준 hasExpression 술어를
-   * 재계산하고 EmotionResolver를 (재)생성한다.
+   * Inject (or replace) emotion registry. When injected, recomputes hasExpression predicate
+   * relative to current VRM and (re)generates EmotionResolver.
    */
   setEmotionRegistry(registry: EmotionRegistry): void;
   /**
-   * 립싱크 입 벌림 목표 설정 (amplitude-only). value는 [0,1]로 clamp되며
-   * 매 프레임 `aa` 프리셋으로 부드럽게(lerp) 반영된다. blink/lookAt/emotion 키는 건드리지 않는다.
+   * Set lipsync mouth-open target (amplitude-only). Value is clamped to [0,1] and
+   * smoothly (lerp) applied each frame via `aa` preset. Does not touch blink/lookAt/emotion keys.
    */
   setMouthOpen(value: number): void;
-  /** 립싱크 정지 — 입을 0(닫힘)으로 ease한다. */
+  /** Stop lipsync — ease mouth to 0 (closed). */
   stopMouth(): void;
-  /** motion registry 조회 후 VRMA 재생. registry가 주입돼 있어야 동작. */
+  /** Lookup motion registry and play VRMA. Registry must be injected to operate. */
   playMotion(motion: MotionSignal | null): void;
   /**
-   * motion registry 주입(또는 교체). 주입 시 MotionController를 (재)생성하고,
-   * VRM이 이미 로드돼 있으면 idle baseline을 재생한다.
+   * Inject (or replace) motion registry. When injected, (re)generates MotionController; if
+   * VRM is already loaded, plays the idle baseline.
    */
   setMotionRegistry(registry: MotionRegistry): void;
   /**
-   * Fit-to-bounds framing 갱신. 주어진 키만 현재 framing 위에 merge하고
-   * (생략 키는 기본값 유지) VRM이 로드돼 있으면 즉시 재fit한다.
+   * Update fit-to-bounds framing. Merge only given keys onto current framing
+   * (omitted keys retain defaults); if VRM is loaded, immediately refit.
    */
   setFraming(framing: { margin?: number; fov?: number }): void;
   /**
-   * Mouse-wheel zoom 배율 설정. fit 거리에 곱해지는 factor (>1 ⇒ 더 가까이 ⇒ 더 크게).
-   * 비유한/동일 값은 no-op. 클램프·persist는 호출자(src/io + main.ts)가 담당한다.
+   * Set mouse-wheel zoom multiplier. Factor multiplied by fit distance (>1 ⇒ closer ⇒ larger).
+   * Non-finite or identical values are no-ops. Clamping and persistence are caller's responsibility (src/io + main.ts).
    */
   setZoom(z: number): void;
-  /** 현재 적용된 zoom 배율 반환. */
+  /** Returns the currently applied zoom multiplier. */
   getZoom(): number;
   /**
-   * Orbit viewpoint 설정 (라디안). azimuth는 자유(즉시 적용), polar는 perch 중이면
-   * [60°,120°]로 ease되어 좁혀지고 perch 해제 시 저장된 free 각도로 복귀한다.
-   * 클램프(free [2°,178°])·persist는 호출자(src/io + main.ts)가 담당한다.
+   * Set orbit viewpoint (radians). azimuth is free (immediately applied); polar eases and narrows to [60°,120°]
+   * while perched, then returns to saved free angle on perch release.
+   * Clamping (free [2°,178°]) and persistence are caller's responsibility (src/io + main.ts).
    */
   setOrbit(angles: OrbitAngles): void;
-  /** 현재 적용 중인 orbit 각도 — azimuth + 저장된 free polar 반환. */
+  /** Returns currently applied orbit angles — azimuth + saved free polar. */
   getOrbit(): OrbitAngles;
   /**
-   * 캐릭터 발밑(box 중앙 x/z, 최저 y)의 현재 화면 픽셀 좌표. VRM 미로드 시 null.
-   * resize/zoom으로 카메라가 재fit될 때마다 변한다 — UI 입력을 발밑에 붙이는 데 쓴다.
+   * Current screen pixel coordinates of character's feet (box center x/z, lowest y). null if VRM not loaded.
+   * Changes whenever camera is refit via resize/zoom — used to pin UI input to feet.
    */
   getCharacterAnchor(): ScreenAnchor | null;
   /**
@@ -222,7 +222,7 @@ export interface Renderer {
    * The `window_sit` motion itself is driven separately via the normal directive path.
    */
   setPerchTarget(target: { edgeLocalYpx: number } | null): void;
-  /** 현재 perch 활성 여부 — occlusion poll이 perch 종료를 감지하는 데 쓴다. */
+  /** Current perch active state — used by occlusion poll to detect perch end. */
   isPerched(): boolean;
   /**
    * Enable/disable the idle 30fps cap at runtime. Enabled (default) caps ambient-only
@@ -233,8 +233,8 @@ export interface Renderer {
   /** Current idle-throttle toggle state (true = idle cap active). */
   getIdleThrottleEnabled(): boolean;
   /**
-   * Camera-gaze tracking thresholds 갱신. 주어진(유한) 키만 현재 위에 merge하고
-   * (생략 키 기본값 유지) 즉시 다음 프레임부터 적용된다.
+   * Update camera-gaze tracking thresholds. Merge only given (finite) keys onto current
+   * (omitted keys retain defaults); applies immediately starting next frame.
    */
   setGaze(gaze: Partial<GazeConfig>): void;
   /**
@@ -244,7 +244,7 @@ export interface Renderer {
   setGazeEnabled(enabled: boolean): void;
   /** Current gaze toggle state (true = tracking the camera). */
   getGazeEnabled(): boolean;
-  /** rAF 루프 정지 + GPU 리소스 해제. */
+  /** Stop rAF loop + release GPU resources. */
   dispose(): void;
 }
 
@@ -260,7 +260,7 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setClearColor(0x000000, 0); // 투명 배경 — 펫 창에서 캐릭터만 보이게.
+  renderer.setClearColor(0x000000, 0); // transparent background — character only in pet window.
   mount.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
@@ -355,33 +355,33 @@ export function createRenderer(options: RendererOptions): Renderer {
   scene.add(dir);
   scene.add(new THREE.AmbientLight(0xffffff, Math.PI * 0.3));
 
-  // GLTFLoader는 VRM/VRMA 둘 다 로드 (three-vrm-animation 공식 예제).
+  // GLTFLoader loads both VRM/VRMA (three-vrm-animation official example).
   const loader = new GLTFLoader();
   loader.register((parser) => new VRMLoaderPlugin(parser));
   loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
   let currentVrm: VRM | undefined;
 
-  // ── Motion playback 상태 ──────────────────────────────────────────────
+  // ── Motion playback state ──────────────────────────────────────────────
   let motionRegistry: MotionRegistry | undefined = options.motionRegistry;
   let controller: MotionController | undefined = motionRegistry
     ? createMotionController(motionRegistry)
     : undefined;
-  /** 현재 VRM 전용 AnimationMixer (핫스왑마다 재생성). */
+  /** AnimationMixer for current VRM only (recreated on each hotswap). */
   let mixer: THREE.AnimationMixer | undefined;
-  /** (vrma_path → AnimationClip) 캐시 — clip은 VRM 전용이라 핫스왑 시 비운다. */
+  /** (vrma_path → AnimationClip) cache — clips are VRM-specific so cleared on hotswap. */
   const clipCache = new Map<string, THREE.AnimationClip>();
-  /** 현재 재생 중인 AnimationAction (crossfade의 prev). */
+  /** Currently playing AnimationAction (prev in crossfade). */
   let currentAction: THREE.AnimationAction | undefined;
-  /** mixer "finished" 이벤트 → AnimationAction → 모션 id 역참조. */
+  /** mixer "finished" event → AnimationAction → motion id reverse lookup. */
   const actionToId = new Map<THREE.AnimationAction, string>();
-  /** 핫스왑 race guard: 로드 비동기 사이에 VRM이 바뀌면 폐기. */
+  /** Hotswap race guard: if VRM changes during load async, discard. */
   let vrmEpoch = 0;
-  /** cycle 모션의 variant swap 전 dwell(정착 프레임 유지) 스케줄러 — startMotion이 취소 chokepoint. */
+  /** Scheduler for dwell (settling frame hold) before cycle motion variant swap — startMotion is cancel chokepoint. */
   const cycleDwell = createCycleDwell();
 
-  // ── Lipsync 상태 ──────────────────────────────────────────────────────
-  // 입(`aa`)은 lipsync 전용 — ambient/emotion와 분리. emotion crossfade와 같은
-  // update 경로(vrm.update 직전)에서 매 프레임 lerp 반영한다.
+  // ── Lipsync state ──────────────────────────────────────────────────────
+  // Mouth (`aa`) is lipsync-only — separate from ambient/emotion. Applied each frame via lerp in same
+  // update path as emotion crossfade (before vrm.update).
   const mouth = createMouthLipsync();
 
   // ── Per-pixel alpha hit-test ──────────────────────────────────────────
@@ -405,13 +405,13 @@ export function createRenderer(options: RendererOptions): Renderer {
     log,
   });
 
-  /** mixer "finished" 핸들러 (oneshot 종료 → controller.finish → 복귀 재생). */
+  /** mixer "finished" handler (oneshot end → controller.finish → return playback). */
   const onMixerFinished = (e: { action: THREE.AnimationAction }): void => {
     try {
       const id = actionToId.get(e.action);
       actionToId.delete(e.action);
       if (!controller || !id) return;
-      // cycle 모션이면 정착 마지막 프레임을 cycle_dwell_ms만큼 유지한 뒤 swap.
+      // if cycle motion, hold settling final frame for cycle_dwell_ms then swap.
       const isCycle = controller.current()?.cycle ?? false;
       const dwell = motionRegistry?.[id]?.cycle_dwell_ms;
       const swap = (): void => {
@@ -493,7 +493,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     stepOrbit();
     if (currentVrm) {
       elapsed += dt;
-      // 훅을 먼저 — bone/expression 변경이 이번 프레임 vrm.update(spring/expression apply)에 반영되도록.
+      // Hooks first — bone/expression changes must be reflected in this frame's vrm.update(spring/expression apply).
       if (tickHooks.size > 0) {
         const ctx: TickContext = { vrm: currentVrm, dt, elapsed };
         for (const fn of tickHooks) {
@@ -504,7 +504,7 @@ export function createRenderer(options: RendererOptions): Renderer {
           }
         }
       }
-      // mixer 먼저 — bone 갱신 후 vrm.update가 spring/expression을 apply.
+      // Mixer first — after bone update, vrm.update applies spring/expression.
       if (mixer) {
         try {
           mixer.update(dt);
@@ -517,10 +517,10 @@ export function createRenderer(options: RendererOptions): Renderer {
       stepPerch();
       // camera gaze — same slot as perch: rides the posed head/neck into vrm.update.
       gaze.step(dt);
-      // emotion 크로스페이드 — expressionManager.update()는 vrm.update(dt) 안에서
-      // 돌므로 weight를 그 직전에 써야 이번 프레임에 반영된다.
+      // emotion crossfade — expressionManager.update() runs inside vrm.update(dt),
+      // so weight must be written before to reflect in this frame.
       emotion.step(dt);
-      // lipsync — emotion과 같은 이유로 vrm.update 직전에 `aa` weight를 쓴다.
+      // lipsync — same reason as emotion: write `aa` weight before vrm.update.
       if (currentVrm.expressionManager) {
         mouth.step(dt, currentVrm.expressionManager);
       }
@@ -553,9 +553,9 @@ export function createRenderer(options: RendererOptions): Renderer {
   }
   document.addEventListener("visibilitychange", onVisibilityChange);
 
-  /** mixer/clip/action 캐시 + controller 상태를 모두 폐기 (핫스왑/dispose 공용). */
+  /** Tear down mixer/clip/action cache + controller state (shared hotswap/dispose). */
   function teardownMotion(): void {
-    cycleDwell.cancel(); // 폐기될 mixer에 stale swap이 발화하지 않도록.
+    cycleDwell.cancel(); // prevent stale swap on mixer being disposed.
     if (mixer) {
       mixer.removeEventListener("finished", onMixerFinished as never);
       mixer.stopAllAction();
@@ -565,15 +565,15 @@ export function createRenderer(options: RendererOptions): Renderer {
     clipCache.clear();
     actionToId.clear();
     currentAction = undefined;
-    // controller는 단순 no-op reset 수단이 없으므로 재생성해 current/queue를 비운다.
-    // (clip은 VRM-specific이라 어차피 새 VRM에서 idle baseline을 다시 깔아야 한다.)
+    // Controller has no simple no-op reset, so recreate to empty current/queue.
+    // (Clips are VRM-specific so idle baseline must be replayed on next VRM anyway.)
     if (motionRegistry) controller = createMotionController(motionRegistry);
   }
 
   function disposeCurrent(): void {
     if (!currentVrm) return;
     teardownMotion();
-    // 진행 중 페이드가 폐기된 VRM에 쓰지 않도록 리셋(핫스왑/dispose 공용).
+    // Reset in-flight fade so it doesn't write to disposed VRM (shared hotswap/dispose).
     emotion.reset();
     // Drop the perch bone ref so a stale bone can't be pinned on the next VRM.
     perchHipsBone = null;
@@ -588,9 +588,9 @@ export function createRenderer(options: RendererOptions): Renderer {
   }
 
   /**
-   * vrma_path → AnimationClip (현재 VRM 전용). 캐시 적중 시 즉시 반환.
-   * GLTFLoader + VRMAnimationLoaderPlugin로 .vrma 로드 → gltf.userData.vrmAnimations[0]
-   * → createVRMAnimationClip(vrmAnimation, currentVrm) (three-vrm-animation 공식 경로).
+   * vrma_path → AnimationClip (current VRM only). Returns immediately on cache hit.
+   * Load .vrma via GLTFLoader + VRMAnimationLoaderPlugin → gltf.userData.vrmAnimations[0]
+   * → createVRMAnimationClip(vrmAnimation, currentVrm) (three-vrm-animation official path).
    */
   async function loadClip(vrmaPath: string): Promise<THREE.AnimationClip | null> {
     const cached = clipCache.get(vrmaPath);
@@ -599,7 +599,7 @@ export function createRenderer(options: RendererOptions): Renderer {
 
     const epoch = vrmEpoch;
     const gltf = await loader.loadAsync(vrmaPath);
-    // 로드 도중 핫스왑이 일어났으면 폐기.
+    // If hotswap happened during load, discard.
     if (epoch !== vrmEpoch || !currentVrm) return null;
 
     const vrmAnimations = gltf.userData.vrmAnimations as unknown[] | undefined;
@@ -615,11 +615,11 @@ export function createRenderer(options: RendererOptions): Renderer {
   }
 
   /**
-   * resolve된 모션을 실제 재생 (clip 로드 → action 구성 → crossfade).
-   * controller.commit은 호출자(playMotion/finish)가 결정과 함께 수행한다.
+   * Actually play resolved motion (load clip → compose action → crossfade).
+   * controller.commit is performed by caller (playMotion/finish) with the decision.
    */
   async function startMotion(motion: ResolvedMotion): Promise<void> {
-    // 단일 play sink — 어떤 새 모션이든 대기 중 dwell swap을 취소(인터럽트 지연·stale swap 방지).
+    // Single play sink — cancel any pending dwell swap for new motion (prevents interrupt delay/stale swap).
     cycleDwell.cancel();
     if (!currentVrm || !mixer) return;
     const epoch = vrmEpoch;
@@ -653,11 +653,11 @@ export function createRenderer(options: RendererOptions): Renderer {
       const action = mixer.clipAction(clip);
       action.timeScale = motion.speed;
       if (motion.loop && !motion.cycle) {
-        // plain loop 또는 단일 variant pingpong(continuous).
+        // plain loop or single-variant pingpong (continuous).
         action.setLoop(motion.pingpong ? THREE.LoopPingPong : THREE.LoopRepeat, Infinity);
         action.clampWhenFinished = false;
       } else {
-        // oneshot 또는 cycle: pingpong이면 2N reps 후, 아니면 1회 재생 후 finished로 controller.finish 구동.
+        // oneshot or cycle: if pingpong then after 2N reps, otherwise once then controller.finish via finished.
         action.setLoop(
           motion.pingpong ? THREE.LoopPingPong : THREE.LoopOnce,
           motion.pingpong ? motion.loop_reps : 1,
@@ -698,7 +698,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (idle) void startMotion(idle);
   }
 
-  /** registry가 있으면 baseline을 깔아 항상 ambient가 돌게 한다. */
+  /** If registry exists, lay down baseline so ambient always plays. */
   function playIdleBaseline(): void {
     if (controller) playMotion({ id: controller.baseline() });
   }
@@ -742,7 +742,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
   }
 
-  // VRM 메타에서 표시 이름을 읽는다 — VRM1.0은 meta.name, VRM0.0은 meta.title. 둘 다 없으면 null.
+  // Read display name from VRM meta — VRM1.0 uses meta.name, VRM0.0 uses meta.title. null if neither.
   function readVrmMetaName(vrm: VRM): string | null {
     const meta = vrm.meta as { name?: unknown; title?: unknown } | undefined;
     const raw = typeof meta?.name === "string" ? meta.name : meta?.title;
@@ -754,17 +754,17 @@ export function createRenderer(options: RendererOptions): Renderer {
   async function loadVRM(url: string): Promise<VrmLoadResult> {
     const gltf = await loader.loadAsync(url);
     const vrm = gltf.userData.vrm as VRM;
-    // 성능 최적화 (three-vrm 공식 권장).
+    // Performance optimization (three-vrm official recommendation).
     VRMUtils.removeUnnecessaryVertices(gltf.scene);
     VRMUtils.combineSkeletons(gltf.scene);
     VRMUtils.combineMorphs(vrm);
     vrm.scene.traverse((obj) => {
       obj.frustumCulled = false;
     });
-    VRMUtils.rotateVRM0(vrm); // VRM0.0이면 +Z 정면으로 회전, 1.0은 no-op.
+    VRMUtils.rotateVRM0(vrm); // If VRM0.0, rotate to +Z front; VRM1.0 is no-op.
 
-    disposeCurrent(); // 핫스왑: 새 모델을 다 준비한 뒤 직전 모델 해제.
-    vrmEpoch += 1; // 직전 모델에 묶인 비동기 clip 로드 무효화.
+    disposeCurrent(); // Hotswap: prepare new model fully, then release prior.
+    vrmEpoch += 1; // Invalidate async clip loads tied to prior model.
     currentVrm = vrm;
     scene.add(vrm.scene);
 
@@ -792,25 +792,25 @@ export function createRenderer(options: RendererOptions): Renderer {
       });
     }
 
-    // emotion: 존재 집합은 모델별이라 핫스왑마다 술어/resolver 재생성.
+    // emotion: existence set is per-model so predicate/resolver recreated on each hotswap.
     emotion.onVrmLoaded();
 
-    // 새 VRM 전용 mixer (clip은 VRM-specific이므로 함께 새로 시작).
+    // New mixer for this VRM (clips are VRM-specific so start fresh).
     mixer = new THREE.AnimationMixer(vrm.scene);
     mixer.addEventListener("finished", onMixerFinished as never);
 
-    playIdleBaseline(); // registry가 있으면 idle ambient를 자동 재생.
+    playIdleBaseline(); // If registry exists, auto-play idle ambient.
 
     return { metaName: readVrmMetaName(vrm) };
   }
 
-  /** playMotion 구현 — request → (play/queue/ignore) → commit + 실제 재생. */
+  /** playMotion implementation — request → (play/queue/ignore) → commit + actual playback. */
   function playMotion(motion: MotionSignal | null): void {
     if (!controller) {
       log.warn("play_motion_no_registry");
       return;
     }
-    if (!currentVrm || !mixer) return; // VRM 미로드 시 재생 불가.
+    if (!currentVrm || !mixer) return; // Playback not possible if VRM not loaded.
     // While perched, an implicit idle return (null) is a no-op so the held window_sit
     // survives emotion-only cues. Only an explicit exit (setPerchTarget(null)) lands idle.
     if (suppressIdleReturn(motion, perchTargetYpx !== null)) return;
@@ -820,8 +820,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       if (decision.action === "play") {
         void startMotion(decision.motion);
       }
-      // "queue"는 commit으로 슬롯에 저장됨 — finish 시 drain.
-      // "ignore"는 no-op.
+      // "queue" is stored in slot via commit — drained on finish.
+      // "ignore" is no-op.
     } catch (err) {
       log.error("play_motion", { error: String(err) });
     }
@@ -830,16 +830,16 @@ export function createRenderer(options: RendererOptions): Renderer {
   function setMotionRegistry(registry: MotionRegistry): void {
     motionRegistry = registry;
     controller = createMotionController(registry);
-    // VRM이 이미 떠 있으면 즉시 idle baseline 시작.
+    // If VRM is already loaded, immediately start idle baseline.
     if (currentVrm && mixer) playIdleBaseline();
   }
 
-  /** setEmotion — emotion crossfade로 위임 (routeDirective에 넘길 안정 참조). */
+  /** setEmotion — delegate to emotion crossfade (stable reference for routeDirective). */
   function setEmotion(signal: EmotionSignal | null): void {
     emotion.setEmotion(signal);
   }
 
-  /** 직전 emotion을 명시적 neutral 전이로 천천히 되돌린다 (TTS 재생 종료 시). */
+  /** Slowly ease prior emotion back to neutral via explicit transition (on TTS end). */
   function easeEmotionToNeutral(durationMs?: number): void {
     emotion.easeToNeutral(durationMs);
   }
@@ -848,7 +848,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     emotion.setRegistry(registry);
   }
 
-  /** setFraming 구현 — 주어진 키만 merge(생략 키 기본값 유지) 후 재fit. */
+  /** setFraming implementation — merge only given keys (omitted retain defaults), then refit. */
   function setFraming(next: { margin?: number; fov?: number }): void {
     framing = {
       margin: next.margin ?? framing.margin,
@@ -857,7 +857,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     fitCamera();
   }
 
-  /** setZoom 구현 — 비유한/동일 값은 무시, 그 외엔 zoom 갱신 후 재fit. */
+  /** setZoom implementation — ignore non-finite/identical, otherwise update zoom then refit. */
   function setZoom(z: number): void {
     if (!Number.isFinite(z)) return;
     if (z === zoom) return;
@@ -866,8 +866,8 @@ export function createRenderer(options: RendererOptions): Renderer {
   }
 
   /**
-   * setOrbit 구현 — azimuth는 즉시 적용(재fit), polar는 free 값으로 저장하고 effectivePolar를
-   * desiredPolar로 ease시키도록 orbitConverging을 켠다(매 프레임 stepOrbit이 수렴). 비유한 값 무시.
+   * setOrbit implementation — azimuth applies immediately (refit); polar is saved as free value and
+   * orbitConverging is enabled to ease effectivePolar toward desiredPolar (stepOrbit converges each frame). Non-finite ignored.
    */
   function setOrbit(angles: OrbitAngles): void {
     const az = Number.isFinite(angles.azimuth) ? angles.azimuth : azimuth;

@@ -1,6 +1,6 @@
 /**
- * Quick-controls 섹션 rail의 접힘 상태(boolean) reactive 스토어.
- * 변경 시 storage에 persist하고 구독자에게 통지한다.
+ * Reactive store for the collapsed state (boolean) of the Quick-controls section rail.
+ * Persists to storage on change and notifies subscribers.
  */
 
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
@@ -36,7 +36,7 @@ export function createRailCollapsedSettings(opts?: {
 
 export type RailCollapsedSettingsStore = ReturnType<typeof createRailCollapsedSettings>;
 
-/** localStorage 기반 어댑터. localStorage 미사용 환경에서 gracefully 무시. */
+/** localStorage-backed adapter. Gracefully ignored where localStorage is unavailable. */
 export function localStorageRailCollapsedStorage(
   key = "yui.quickControls.railCollapsed",
 ): RailCollapsedStorage {

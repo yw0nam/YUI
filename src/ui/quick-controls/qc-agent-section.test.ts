@@ -76,7 +76,7 @@ describe("createQuickControls — agent section", () => {
     try {
       globalThis.localStorage?.clear();
     } catch {
-      /* localStorage 미사용 환경 무시 */
+      // Ignore environments without localStorage
     }
     // Existing assertions pin Korean copy/selectors; render the panel in ko.
     setLocale("ko");
@@ -111,7 +111,7 @@ describe("createQuickControls — agent section", () => {
     });
   }
 
-  // ── 대화 (Agent) section: reasoning effort segmented control ───────────────
+  // ── Chat (Agent) section: reasoning effort segmented control ───────────────
 
   it("clicking the Medium segment sets reasoning_effort and marks it selected", () => {
     const qc = buildQc();
@@ -152,7 +152,7 @@ describe("createQuickControls — agent section", () => {
     qc.dispose();
   });
 
-  // ── 대화 (Agent) section: instructions textarea ───────────────────────────
+  // ── Chat (Agent) section: instructions textarea ───────────────────────────
 
   it("typing into the instructions textarea calls setInstructions", () => {
     const qc = buildQc();

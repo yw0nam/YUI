@@ -5,7 +5,7 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
   if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
   const issues: string[] = [];
 
-  /** obj[key]가 유한 number ≥ 0인지. 아니면 issue 추가하고 0 반환. */
+  /** Whether obj[key] is a finite number ≥ 0. Otherwise records an issue and returns 0. */
   const nonNegNum = (obj: Record<string, unknown>, path: string, key: string): number => {
     const v = obj[key];
     if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {

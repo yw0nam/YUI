@@ -1,12 +1,13 @@
 /**
  * irodori-voices.test.ts — voice registry idempotent registration.
  *
- * 대상: ensureRegistered({ baseUrl, id, refUrl, fetch?, logger? }) => Promise<void>.
- *   GET {baseUrl}/voices → 이미 등록(voice_id 포함)이면 no-op.
- *   미등록이면 fetch(refUrl).blob() → POST {baseUrl}/voices multipart(reference_audio + voice_id).
- *   module-level memoize(`${baseUrl}::${id}`) — 동시/반복 호출 중복 등록 방지, 실패 시 캐시 삭제로 재시도 허용.
+ * Target: ensureRegistered({ baseUrl, id, refUrl, fetch?, logger? }) => Promise<void>.
+ *   GET {baseUrl}/voices → if already registered (voice_id present) no-op.
+ *   If unregistered: fetch(refUrl).blob() → POST {baseUrl}/voices multipart(reference_audio + voice_id).
+ *   Module-level memoize(`${baseUrl}::${id}`) — prevents duplicate registration on concurrent/repeated calls,
+ *   allows retry on failure by cache eviction.
  *
- * 테스트는 mock fetch만 사용 — 실제 서버 미접속. 케이스 간 누수 방지를 위해 매번 캐시 리셋.
+ * Tests use mock fetch only — no real server. Reset cache per case to prevent leakage.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
