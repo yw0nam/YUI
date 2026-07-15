@@ -20,8 +20,14 @@ export interface TauriAssetApi {
 export interface ResolveAssetUrlOptions {
   /** Tauri 런타임 판별. 기본은 공유 런타임 판별 함수. */
   isTauri?: () => boolean;
+  /** dev(vite 라이브 서빙) 판별. 기본 import.meta.env.DEV. dev면 resource 재작성을 건너뛴다. */
+  isDev?: () => boolean;
   /** Tauri API 로더(주입 가능). 기본은 @tauri-apps/api에서 동적 import. */
   tauri?: () => Promise<TauriAssetApi>;
+}
+
+function defaultIsDev(): boolean {
+  return !!import.meta.env?.DEV;
 }
 
 async function defaultTauri(): Promise<TauriAssetApi> {
@@ -54,15 +60,16 @@ function splitPath(logicalPath: string): { rel: string; query: string } {
 
 /**
  * 논리 경로를 현재 런타임의 fetchable URL로 변환한다.
- * dev/브라우저: 입력 그대로. Tauri: 번들 리소스 절대 URL(쿼리 보존).
- * 이미 절대 URL이면 어느 환경이든 그대로 둔다.
+ * dev(브라우저·Tauri dev 모두, vite 라이브 서빙): 입력 그대로 → 핫리로드 보존.
+ * prod Tauri 패키징: 번들 리소스 절대 URL(쿼리 보존). 이미 절대 URL이면 어느 환경이든 그대로 둔다.
  */
 export async function resolveAssetUrl(
   logicalPath: string,
   opts: ResolveAssetUrlOptions = {},
 ): Promise<string> {
   const runtimeIsTauri = opts.isTauri ?? isTauri;
-  if (!runtimeIsTauri() || isAbsoluteUrl(logicalPath)) return logicalPath;
+  const isDev = opts.isDev ?? defaultIsDev;
+  if (!runtimeIsTauri() || isDev() || isAbsoluteUrl(logicalPath)) return logicalPath;
 
   const tauri = await (opts.tauri ?? defaultTauri)();
   const { rel, query } = splitPath(logicalPath);

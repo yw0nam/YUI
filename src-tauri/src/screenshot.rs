@@ -48,6 +48,26 @@ pub struct CaptureDto {
     pub height: u32,
 }
 
+fn build_screen_source<E: std::fmt::Display>(
+    index: u32,
+    name: Result<String, E>,
+    width: Result<u32, E>,
+    height: Result<u32, E>,
+    is_primary: Result<bool, E>,
+) -> ScreenSourceDto {
+    if name.is_err() || width.is_err() || height.is_err() || is_primary.is_err() {
+        log::warn!("monitor_metadata_unavailable index={index}");
+    }
+
+    ScreenSourceDto {
+        index,
+        name: name.ok(),
+        width: width.unwrap_or(0),
+        height: height.unwrap_or(0),
+        is_primary: is_primary.unwrap_or(false),
+    }
+}
+
 // ─── Pure resize helper ───────────────────────────────────────────────────────
 
 /// Scale `(width, height)` down so `max(w, h) ≤ max_edge`.
@@ -121,12 +141,8 @@ pub fn list_screen_sources() -> Result<Vec<ScreenSourceDto>, String> {
     Ok(monitors
         .into_iter()
         .enumerate()
-        .map(|(i, m)| ScreenSourceDto {
-            index: i as u32,
-            name: m.name().ok(),
-            width: m.width().unwrap_or(0),
-            height: m.height().unwrap_or(0),
-            is_primary: m.is_primary().unwrap_or(false),
+        .map(|(i, m)| {
+            build_screen_source(i as u32, m.name(), m.width(), m.height(), m.is_primary())
         })
         .collect())
 }
@@ -166,6 +182,37 @@ pub async fn capture_screen(index: u32, max_edge: u32) -> Result<CaptureDto, Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── build_screen_source ──
+
+    #[test]
+    fn build_screen_source_preserves_available_metadata() {
+        let dto = build_screen_source(
+            3,
+            Result::<_, &str>::Ok("Studio Display".to_string()),
+            Result::<_, &str>::Ok(5120),
+            Result::<_, &str>::Ok(2880),
+            Result::<_, &str>::Ok(true),
+        );
+
+        assert_eq!(dto.index, 3);
+        assert_eq!(dto.name.as_deref(), Some("Studio Display"));
+        assert_eq!(dto.width, 5120);
+        assert_eq!(dto.height, 2880);
+        assert!(dto.is_primary);
+    }
+
+    #[test]
+    fn build_screen_source_preserves_index_with_unavailable_metadata() {
+        let dto =
+            build_screen_source::<&str>(4, Err("boom"), Err("boom"), Err("boom"), Err("boom"));
+
+        assert_eq!(dto.index, 4);
+        assert_eq!(dto.name, None);
+        assert_eq!(dto.width, 0);
+        assert_eq!(dto.height, 0);
+        assert!(!dto.is_primary);
+    }
 
     // ── fit_long_edge ─────────────────────────────────────────────────────────
 

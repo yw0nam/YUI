@@ -22,7 +22,7 @@ pub const WINDOW_DROP_RELEASE_CHANNEL: &str = "window_drop_release";
 /// `os_event` channel payload — "Rust → Webview" handoff.
 #[derive(Debug, Clone, Serialize)]
 pub struct OsEventPayload {
-    /// "active_app_changed" | "window_focus_changed" | "fullscreen_entered"
+    /// "active_app_changed" | "fullscreen_entered"
     /// | "fullscreen_exited" | "os_idle_tick"
     pub event_name: String,
     /// client epoch ms

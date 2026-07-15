@@ -85,7 +85,6 @@ import {
   subscribe as subscribeLocale,
   t,
 } from "./ui/i18n";
-import { createMockDriver } from "./ui/mock";
 import { createQuickControls } from "./ui/quick-controls";
 import { createSurfaces } from "./ui/surfaces";
 import { routeTurnFailure, turnErrorMessage } from "./ui/turn-error";
@@ -176,7 +175,6 @@ async function bootstrap(): Promise<void> {
   const ambient = createTier1Engine(renderer);
   ambient.start();
   const surfaces = createSurfaces({ mount: root });
-  const mock = createMockDriver(surfaces);
 
   // 채팅 입력을 캐릭터 발밑에 붙인다(reframe 추종). 매 프레임 발밑 화면좌표를 받아
   // 입력 하단 오프셋으로 매핑하되, epsilon 이하 변화는 건너뛰어 var 재기록을 줄인다.
@@ -695,6 +693,8 @@ async function bootstrap(): Promise<void> {
 
   // dev 전용: 스크린샷 검증 루프에서 직접 호출할 핸들.
   if (import.meta.env.DEV) {
+    const { createMockDriver } = await import("./ui/mock");
+    const mock = createMockDriver(surfaces);
     Object.assign(globalThis as Record<string, unknown>, {
       __yuiRenderer: renderer,
       __yuiAmbient: ambient,
