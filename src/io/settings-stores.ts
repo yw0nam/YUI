@@ -30,6 +30,7 @@ import { createSessionStore, localStorageSessionStorage } from "./session-store"
 import { createSttSettings, localStorageSttStorage } from "./stt-settings";
 import { createTtsSettings, localStorageTtsStorage } from "./tts-settings";
 import { createVadSettings, localStorageVadStorage } from "./vad-settings";
+import { createWorkflowSettings, localStorageWorkflowStorage } from "./workflow-settings";
 
 // localStorage-backed settings/state stores. Pure instantiation — no wiring, no renderer,
 // no dispatcher. bootstrap() destructures the bag and owns the wiring (renderer, storage-sync).
@@ -56,6 +57,9 @@ export function createSettingsStores() {
   // Time-of-day greeting (HH:MM → schedule.<id>) settings.
   const scheduleSettings = createScheduleSettings({
     storage: localStorageScheduleStorage(),
+  });
+  const workflowSettings = createWorkflowSettings({
+    storage: localStorageWorkflowStorage(),
   });
   // Agent-completion notification on/off + listen port. Gates only source firing.
   const agentNotifySettings = createAgentNotifySettings({
@@ -115,6 +119,7 @@ export function createSettingsStores() {
     idleThrottleSettings,
     proactiveSettings,
     scheduleSettings,
+    workflowSettings,
     agentNotifySettings,
     presenceSettings,
     recentAppsSettings,

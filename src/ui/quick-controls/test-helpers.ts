@@ -22,6 +22,7 @@ import { createScheduleSettings } from "../../io/schedule-settings";
 import { createSpeakerSelection, type SpeakerOption } from "../../io/speaker-selection";
 import { createVadSettings } from "../../io/vad-settings";
 import { createVrmSelection } from "../../io/vrm-selection";
+import { createWorkflowSettings } from "../../io/workflow-settings";
 
 // jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
 // Escapes ASCII chars that aren't safe identifier chars; non-ASCII passes through (safe unescaped).
@@ -146,6 +147,7 @@ export function defaultQcArgs(mount: HTMLElement) {
     endpointsSettings: createEndpointsSettings(),
     proactiveSettings: createProactiveSettings(),
     scheduleSettings: createScheduleSettings(),
+    workflowSettings: createWorkflowSettings(),
     chatKeySettings: createChatKeySettings(),
     sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
     ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),

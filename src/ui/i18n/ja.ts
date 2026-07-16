@@ -298,6 +298,19 @@ const ja: Record<string, string> = {
   "reactions.recent_apps_label": "最近のアプリを記憶",
   "reactions.recent_apps_sub": "次のメッセージに含める最近切り替えたアプリの数です",
 
+  // workflows
+  "workflows.title": "ワークフロー",
+  "workflows.sub": "保存したエンドポイントをすぐに実行します。▶ の初回実行で接続も確認できます。",
+  "workflows.label_label": "名前",
+  "workflows.label_ph": "例: 朝のダイジェスト",
+  "workflows.url_label": "URL",
+  "workflows.url_ph": "https://…",
+  "workflows.url_error": "正しい URL を入力してください。例: https://example.com/hook",
+  "workflows.add": "追加",
+  "workflows.empty": "ワークフローはまだありません。下から追加してください。",
+  "workflows.fire_aria": "{name} を実行",
+  "workflows.delete_aria": "{name} を削除",
+
   // session
   "session.section": "セッション",
   "session.context": "コンテキスト",

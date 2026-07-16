@@ -58,6 +58,7 @@ import {
   localStorageUserVrmStorage,
   localStorageVrmStorage,
 } from "./io/vrm-selection";
+import { createWorkflowSettings, localStorageWorkflowStorage } from "./io/workflow-settings";
 import { createLogger, initLogger } from "./logger";
 import {
   reloadFromStorage as reloadLocaleFromStorage,
@@ -81,6 +82,7 @@ async function bootstrap(): Promise<void> {
   });
   const proactiveSettings = createProactiveSettings({ storage: localStorageProactiveStorage() });
   const scheduleSettings = createScheduleSettings({ storage: localStorageScheduleStorage() });
+  const workflowSettings = createWorkflowSettings({ storage: localStorageWorkflowStorage() });
   const agentNotifySettings = createAgentNotifySettings({
     storage: localStorageAgentNotifyStorage(),
   });
@@ -217,6 +219,7 @@ async function bootstrap(): Promise<void> {
       idleThrottleSettings,
       proactiveSettings,
       scheduleSettings,
+      workflowSettings,
       agentNotifySettings,
       presenceSettings,
       recentAppsSettings,
@@ -323,6 +326,7 @@ async function bootstrap(): Promise<void> {
     idleThrottleSettings,
     proactiveSettings,
     scheduleSettings,
+    workflowSettings,
     agentNotifySettings,
     presenceSettings,
     recentAppsSettings,
@@ -379,6 +383,7 @@ async function bootstrap(): Promise<void> {
   idleThrottleSettings.subscribe(broadcastSettings);
   proactiveSettings.subscribe(broadcastSettings);
   scheduleSettings.subscribe(broadcastSettings);
+  workflowSettings.subscribe(broadcastSettings);
   agentNotifySettings.subscribe(broadcastSettings);
   presenceSettings.subscribe(broadcastSettings);
   recentAppsSettings.subscribe(broadcastSettings);

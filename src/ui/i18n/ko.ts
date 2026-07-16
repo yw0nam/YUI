@@ -296,6 +296,19 @@ const ko: Record<string, string> = {
   "reactions.recent_apps_label": "최근 앱 기억",
   "reactions.recent_apps_sub": "다음 메시지에 실릴 최근 전환 앱 개수예요",
 
+  // workflows
+  "workflows.title": "워크플로",
+  "workflows.sub": "저장한 엔드포인트를 바로 실행해요. ▶ 첫 실행으로 연결 상태도 확인할 수 있어요.",
+  "workflows.label_label": "이름",
+  "workflows.label_ph": "예: 아침 요약",
+  "workflows.url_label": "URL",
+  "workflows.url_ph": "https://…",
+  "workflows.url_error": "올바른 URL을 입력하세요. 예: https://example.com/hook",
+  "workflows.add": "추가",
+  "workflows.empty": "아직 워크플로가 없어요. 아래에서 추가해 보세요.",
+  "workflows.fire_aria": "{name} 실행",
+  "workflows.delete_aria": "{name} 삭제",
+
   // session
   "session.section": "세션",
   "session.context": "Context",

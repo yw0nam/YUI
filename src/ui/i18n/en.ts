@@ -297,6 +297,20 @@ const en: Record<string, string> = {
   "reactions.recent_apps_label": "Recent apps to remember",
   "reactions.recent_apps_sub": "How many recent app switches ride along on the next message",
 
+  // workflows
+  "workflows.title": "Workflows",
+  "workflows.sub":
+    "Fire a saved endpoint on demand; ▶ runs it, and the first run doubles as your connection test.",
+  "workflows.label_label": "Label",
+  "workflows.label_ph": "e.g. Morning digest",
+  "workflows.url_label": "URL",
+  "workflows.url_ph": "https://…",
+  "workflows.url_error": "Enter a valid URL, e.g. https://example.com/hook",
+  "workflows.add": "Add",
+  "workflows.empty": "No workflows yet; add one below.",
+  "workflows.fire_aria": "Fire {name}",
+  "workflows.delete_aria": "Delete {name}",
+
   // session
   "session.section": "Session",
   "session.context": "Context",

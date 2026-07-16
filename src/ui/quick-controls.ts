@@ -33,6 +33,7 @@ import type { createSpeakerSelection, SpeakerOption } from "../io/speaker-select
 import type { createTtsSettings } from "../io/tts-settings";
 import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../io/vad-settings";
 import type { createVrmSelection } from "../io/vrm-selection";
+import type { createWorkflowSettings } from "../io/workflow-settings";
 import { createLogger } from "../logger";
 import { type CueListInstance, createCueList } from "./cue-list";
 import { type Locale, setLocale, t } from "./i18n";
@@ -43,6 +44,7 @@ import { createReflect } from "./quick-controls/reflect";
 import { createSpeakerList } from "./quick-controls/speaker-list";
 import { buildPanelHtml } from "./quick-controls/template";
 import { createVrmList } from "./quick-controls/vrm-list";
+import { createWorkflowsSection } from "./quick-controls/workflows-section";
 import type { VoiceInputStatus } from "./voice-input-status";
 
 // formatTokenCount lives in reflect layer — re-exported for public API compatibility.
@@ -54,6 +56,7 @@ type GazeSettingsStore = ReturnType<typeof createGazeSettings>;
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
 type ScheduleSettingsStore = ReturnType<typeof createScheduleSettings>;
+type WorkflowSettingsStore = ReturnType<typeof createWorkflowSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
@@ -77,6 +80,8 @@ interface QuickControlsOptions {
   proactiveSettings: ProactiveSettingsStore;
   /** Time-based schedule cue on/off + cue list store. */
   scheduleSettings: ScheduleSettingsStore;
+  /** Saved webhook workflows fired from the Reactions tab. */
+  workflowSettings: WorkflowSettingsStore;
   sourceProvider: ScreenSourceProvider;
   voiceStatus: VoiceInputStatus;
   lipsync: LipsyncSettingsStore;
@@ -164,6 +169,7 @@ export function createQuickControls({
   idleThrottleSettings,
   proactiveSettings,
   scheduleSettings,
+  workflowSettings,
   sourceProvider,
   voiceStatus,
   lipsync,
@@ -292,6 +298,7 @@ export function createQuickControls({
     isOpen: () => popover.isOpen(),
     log,
   });
+  const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
 
   // Session section node (window only — null otherwise).
   const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
@@ -926,6 +933,7 @@ export function createQuickControls({
   function dispose(): void {
     disposed = true;
     endpoints.dispose();
+    workflows.dispose();
     scheduleCueList?.destroy();
     proactiveCueList?.destroy();
     unsubscribe();
