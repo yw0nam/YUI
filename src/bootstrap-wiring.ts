@@ -12,6 +12,7 @@ import { ensureRegistered, updateVoice } from "./io/irodori-voices";
 import type { PresenceSettings } from "./io/presence-settings";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
+import type { SettingsBridge } from "./io/settings-bridge";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
@@ -35,6 +36,10 @@ import { createWindowDropSource } from "./io/window-drop-source";
 import { createWindowResizeSource } from "./io/window-resize-source";
 import type { Logger } from "./logger";
 import type { Renderer, VrmLoadResult } from "./renderer";
+import {
+  reloadFromStorage as reloadLocaleFromStorage,
+  subscribe as subscribeLocale,
+} from "./ui/i18n";
 import type { Surfaces } from "./ui/surfaces";
 
 export function wireVrmSelection(deps: {
@@ -176,6 +181,109 @@ export function wireSpeakerSelection(deps: {
   // Announce cross-window so the speaker picked in this window reflects in the settings-window UI.
   speakerSelection.subscribe(broadcastSettings);
   return { speakerSelection, swapSpeaker, refreshSpeaker, importVoice };
+}
+
+/** A settings store that participates in cross-window sync: broadcasts local edits and reloads remote ones. */
+export type SyncedStore = {
+  subscribe(cb: () => void): () => void;
+  reloadFromStorage(): void;
+};
+
+/**
+ * Cross-window settings broadcast half (loop-guarded, debounced). Local edits to any synced store
+ * (plus camera + display language) emit a single settings-changed event after a 200ms idle. Must be
+ * wired BEFORE the VRM/speaker selections, since they broadcast through the returned `broadcastSettings`.
+ * `runApplyingRemote` is handed to the reload half so remote applies suppress re-broadcast (loop guard).
+ */
+export function createSettingsBroadcast(deps: {
+  bridge: Pick<SettingsBridge, "emitSettingsChanged">;
+  syncedStores: SyncedStore[];
+  cameraSettings: Pick<SyncedStore, "subscribe">;
+}): {
+  broadcastSettings: () => void;
+  runApplyingRemote: (apply: () => void) => void;
+  dispose: () => void;
+} {
+  const { bridge, syncedStores, cameraSettings } = deps;
+  let applyingRemote = false;
+  let broadcastTimer: ReturnType<typeof setTimeout> | null = null;
+  // Debounce: consolidate slider drag/typing bursts into a single cross-window event after 200ms idle.
+  // No-op while a remote apply is in flight, so the round-trip terminates.
+  const broadcastSettings = (): void => {
+    if (applyingRemote) return;
+    if (broadcastTimer) clearTimeout(broadcastTimer);
+    broadcastTimer = setTimeout(() => {
+      broadcastTimer = null;
+      bridge.emitSettingsChanged();
+    }, 200);
+  };
+  // Wrap the reload path so store writes during a remote apply don't re-broadcast (loop guard).
+  const runApplyingRemote = (apply: () => void): void => {
+    applyingRemote = true;
+    try {
+      apply();
+    } finally {
+      applyingRemote = false;
+    }
+  };
+  for (const store of syncedStores) store.subscribe(broadcastSettings);
+  cameraSettings.subscribe(broadcastSettings);
+  // Display language also syncs cross-window: broadcast changes here, reapply from storage on remote change.
+  subscribeLocale(broadcastSettings);
+  const dispose = (): void => {
+    if (broadcastTimer) clearTimeout(broadcastTimer);
+  };
+  return { broadcastSettings, runApplyingRemote, dispose };
+}
+
+/**
+ * Cross-window settings reload half. On a remote settings-changed event, reload every synced store
+ * (plus camera zoom, display language, VRM/speaker selection) under the broadcast loop guard. Must be
+ * wired AFTER the VRM/speaker selections exist. Only OTHER-window changes reach here, so the VRM is
+ * hot-swapped only when its URL actually changed (this window's own swap already loaded it).
+ */
+export function wireSettingsReload(deps: {
+  bridge: Pick<SettingsBridge, "onSettingsChanged">;
+  syncedStores: SyncedStore[];
+  cameraSettings: Pick<SyncedStore, "reloadFromStorage">;
+  runApplyingRemote: (apply: () => void) => void;
+  vrmSelection: Pick<ReturnType<typeof createVrmSelection>, "getActive" | "reloadFromStorage">;
+  loadVrmSerialized: (url: string) => Promise<VrmLoadResult>;
+  speakerSelection: Pick<ReturnType<typeof createSpeakerSelection>, "reloadFromStorage">;
+  log: Logger;
+}): void {
+  const {
+    bridge,
+    syncedStores,
+    cameraSettings,
+    runApplyingRemote,
+    vrmSelection,
+    loadVrmSerialized,
+    speakerSelection,
+    log,
+  } = deps;
+  bridge.onSettingsChanged(() => {
+    runApplyingRemote(() => {
+      for (const store of syncedStores) store.reloadFromStorage();
+      // Zoom reload → cameraSettings.subscribe(s => renderer.setZoom) propagates to the camera.
+      cameraSettings.reloadFromStorage();
+      // Display language changed in the other window → i18n.subscribe remount callback redraws UI.
+      reloadLocaleFromStorage();
+      // VRM selection is committed store-only in the settings window; reflect it to this window's renderer.
+      // This window's own swap is already loaded by swapVrm, so only OTHER-window changes reach here → avoid double-load.
+      const prevVrmUrl = vrmSelection.getActive().url;
+      vrmSelection.reloadFromStorage();
+      const nextVrmUrl = vrmSelection.getActive().url;
+      if (nextVrmUrl !== prevVrmUrl) {
+        void loadVrmSerialized(nextVrmUrl).catch((err) =>
+          log.error("vrm_cross_window_swap_failed", { error: String(err) }),
+        );
+      }
+      // Speaker selection is store-only — synth reads via getActive() on the next utterance, so just reload.
+      speakerSelection.reloadFromStorage();
+    });
+    log.info("settings_change_received", { source: "settings_window" });
+  });
 }
 
 /**
