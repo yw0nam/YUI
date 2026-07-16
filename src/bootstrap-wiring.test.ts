@@ -64,8 +64,10 @@ import {
   wireBroker,
   wireDispatcherSources,
   wireSettingsReload,
+  wireVoiceInput,
 } from "./bootstrap-wiring";
 import { reloadFromStorage as reloadLocaleFromStorage } from "./ui/i18n";
+import { createVoiceInputStatus } from "./ui/voice-input-status";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 
@@ -274,5 +276,89 @@ describe("wireBroker", () => {
     handle.dispose();
     expect(unsub).toHaveBeenCalledTimes(1);
     expect(brokerClient.dispose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("wireVoiceInput", () => {
+  // Real voiceInputStatus store for fidelity; fake engine + settings so we can assert lifecycle calls.
+  const makeSttVad = () => ({
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn(),
+    dispose: vi.fn(),
+  });
+  const makeSttSettings = (enabled: boolean) => ({
+    get: () => ({ enabled }),
+    setEnabled: vi.fn(),
+  });
+  // start() runs fire-and-forget out of the subscribe/setStt callbacks — drain a microtask to observe it.
+  const flush = (): Promise<void> => Promise.resolve();
+
+  it("auto-resumes on setStt when sttSettings.enabled is true", async () => {
+    const voiceInputStatus = createVoiceInputStatus();
+    const sttVad = makeSttVad();
+    wireVoiceInput({ voiceInputStatus, sttSettings: makeSttSettings(true) }).setStt(
+      sttVad as never,
+    );
+    await flush();
+    expect(sttVad.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts on listening and stops on idle after the engine is bound", async () => {
+    const voiceInputStatus = createVoiceInputStatus();
+    const sttVad = makeSttVad();
+    wireVoiceInput({ voiceInputStatus, sttSettings: makeSttSettings(false) }).setStt(
+      sttVad as never,
+    );
+    await flush();
+    expect(sttVad.start).not.toHaveBeenCalled();
+    voiceInputStatus.set("listening");
+    await flush();
+    expect(sttVad.start).toHaveBeenCalledTimes(1);
+    voiceInputStatus.set("idle");
+    expect(sttVad.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("defers a pre-bind listening request until setStt, then starts", async () => {
+    const voiceInputStatus = createVoiceInputStatus();
+    const sttVad = makeSttVad();
+    const voiceInput = wireVoiceInput({
+      voiceInputStatus,
+      sttSettings: makeSttSettings(false),
+    });
+    voiceInputStatus.set("listening");
+    await flush();
+    // No engine yet → start not called.
+    expect(sttVad.start).not.toHaveBeenCalled();
+    voiceInput.setStt(sttVad as never);
+    await flush();
+    // startRequested path resumes once bound.
+    expect(sttVad.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists on/off intent to sttSettings", () => {
+    const voiceInputStatus = createVoiceInputStatus();
+    const sttSettings = makeSttSettings(false);
+    wireVoiceInput({ voiceInputStatus, sttSettings });
+    voiceInputStatus.set("listening");
+    expect(sttSettings.setEnabled).toHaveBeenLastCalledWith(true);
+    voiceInputStatus.set("idle");
+    expect(sttSettings.setEnabled).toHaveBeenLastCalledWith(false);
+  });
+
+  it("dispose unsubscribes from the status store and disposes the engine", async () => {
+    const voiceInputStatus = createVoiceInputStatus();
+    const sttVad = makeSttVad();
+    const voiceInput = wireVoiceInput({
+      voiceInputStatus,
+      sttSettings: makeSttSettings(false),
+    });
+    voiceInput.setStt(sttVad as never);
+    await flush();
+    voiceInput.dispose();
+    expect(sttVad.dispose).toHaveBeenCalledTimes(1);
+    sttVad.start.mockClear();
+    voiceInputStatus.set("listening");
+    await flush();
+    expect(sttVad.start).not.toHaveBeenCalled();
   });
 });

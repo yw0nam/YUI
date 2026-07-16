@@ -22,6 +22,7 @@ import {
   wireSettingsReload,
   wireSpeakerSelection,
   wireSummonHotkey,
+  wireVoiceInput,
   wireVrmSelection,
   wireWindowSources,
 } from "./bootstrap-wiring";
@@ -61,7 +62,6 @@ import { createSettingsBridge } from "./io/settings-bridge";
 import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
 import { createSpeechPlayback } from "./io/speech-playback";
-import type { SttVad } from "./io/stt-vad";
 import type { SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
@@ -287,10 +287,6 @@ async function bootstrap(): Promise<void> {
   voiceInputStatus.subscribe((snapshot) => {
     bridge.emitVoiceState({ state: snapshot.state });
   });
-  // Persist voice input on/off intent — enabled if not idle. Used for auto-resume on next run.
-  const unsubscribeSttPersist = voiceInputStatus.subscribe((snapshot) => {
-    sttSettings.setEnabled(snapshot.state !== "idle");
-  });
   // Cross-window settings sync (bidirectional, loop-guarded, debounced): one side edits → emit →
   // other side reloads. cameraSettings is excluded from the array since its reload propagates to
   // zoom (handled inside wireSettingsReload). The broadcast half is wired first so the VRM/speaker
@@ -470,9 +466,7 @@ async function bootstrap(): Promise<void> {
       disposeStorageSync();
       captureIndicator.dispose();
       voiceInputIndicator.dispose();
-      unsubscribeVoiceInputStatus();
-      unsubscribeSttPersist();
-      void sttVad?.dispose();
+      voiceInput.dispose();
       voiceInputStatus.dispose();
       screenshotSettings.dispose();
       idleThrottleSettings.dispose();
@@ -514,35 +508,9 @@ async function bootstrap(): Promise<void> {
   // producer + agent loopback ingress bind. Tauri-only; owns its own HMR teardown.
   // DEV mock (__yui_windowSit.drop) exercises the geometry path without a real drag.
   wireWindowSources({ bus, renderer, agentNotifySettings, log });
-  let sttVad: SttVad | null = null;
-  let voiceInputReady = false;
-  let voiceInputStartRequested = false;
-
-  async function startVoiceInput(): Promise<void> {
-    voiceInputStartRequested = true;
-    if (!voiceInputReady || !sttVad) return;
-    try {
-      await sttVad.start();
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : "Voice input failed";
-      voiceInputStatus.set("error", detail);
-    }
-  }
-
-  function stopVoiceInput(): void {
-    voiceInputStartRequested = false;
-    sttVad?.stop();
-  }
-
-  const unsubscribeVoiceInputStatus = voiceInputStatus.subscribe((snapshot) => {
-    if (snapshot.state === "idle") {
-      stopVoiceInput();
-      return;
-    }
-    if (snapshot.state === "listening") {
-      void startVoiceInput();
-    }
-  });
+  // Voice input (STT/VAD) lifecycle — start/stop driven by voiceInputStatus, intent persisted to
+  // sttSettings, STT engine bound post-config via setStt. Barge-in/submit wiring lives at createSttVad below.
+  const voiceInput = wireVoiceInput({ voiceInputStatus, sttSettings });
   // dispatcher created after config load (backend_caller depends on config.get()), so dev inspection
   // handles can reference it via forward holder.
   let dispatcherRef: Dispatcher | null = null;
@@ -935,7 +903,7 @@ async function bootstrap(): Promise<void> {
       });
     }
     const { createSttVad } = await import("./io/stt-vad");
-    sttVad = createSttVad({
+    const sttVad = createSttVad({
       config: cfg.endpoints,
       // Lazy: re-read silence threshold each time VAD starts so slider changes take effect.
       silenceMs: () => vadSettings.get().silenceMs,
@@ -951,16 +919,8 @@ async function bootstrap(): Promise<void> {
         }
       },
     });
-    voiceInputReady = true;
-    // Auto-resume if left on in previous session (sttSettings.enabled). Unify on single start;
-    // if server unset, start() is no-op so onState doesn't fire, status quietly stays idle.
-    if (
-      voiceInputStartRequested ||
-      voiceInputStatus.get().state !== "idle" ||
-      sttSettings.get().enabled
-    ) {
-      void startVoiceInput();
-    }
+    // Bind the engine + auto-resume if left on last session (handled inside wireVoiceInput).
+    voiceInput.setStt(sttVad);
     // Inject emotion/motion registry into renderer → setEmotion/playMotion (= applyDirective) works.
     renderer.setEmotionRegistry(cfg.emotionRegistry);
     renderer.setMotionRegistry(cfg.motions);

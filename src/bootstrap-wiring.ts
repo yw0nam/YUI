@@ -22,6 +22,7 @@ import {
   localStorageUserSpeakerStorage,
   type SpeakerOption,
 } from "./io/speaker-selection";
+import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
 import {
@@ -44,6 +45,7 @@ import {
   subscribe as subscribeLocale,
 } from "./ui/i18n";
 import type { Surfaces } from "./ui/surfaces";
+import type { VoiceInputStatus } from "./ui/voice-input-status";
 
 export function wireVrmSelection(deps: {
   renderer: Renderer;
@@ -523,4 +525,65 @@ export async function wireBroker(deps: {
   };
 
   return { onConfigChange, dispose };
+}
+
+/**
+ * STT/VAD voice-input lifecycle: start/stop driven by the voiceInputStatus store, on/off intent
+ * persisted to sttSettings for next-run auto-resume, and the STT engine bound post-config via setStt
+ * (which also auto-resumes if voice was left on last session). The engine's submit/barge-in callbacks
+ * are wired at the createSttVad call site, not here — this seam only owns the lifecycle.
+ */
+export function wireVoiceInput(deps: {
+  voiceInputStatus: VoiceInputStatus;
+  sttSettings: { get(): { enabled: boolean }; setEnabled(enabled: boolean): void };
+}): {
+  setStt: (stt: SttVad) => void;
+  dispose: () => void;
+} {
+  const { voiceInputStatus, sttSettings } = deps;
+  let sttVad: SttVad | null = null;
+  let ready = false;
+  let startRequested = false;
+
+  async function startVoiceInput(): Promise<void> {
+    startRequested = true;
+    if (!ready || !sttVad) return;
+    try {
+      await sttVad.start();
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "Voice input failed";
+      voiceInputStatus.set("error", detail);
+    }
+  }
+  function stopVoiceInput(): void {
+    startRequested = false;
+    sttVad?.stop();
+  }
+  const unsubscribeStatus = voiceInputStatus.subscribe((snapshot) => {
+    if (snapshot.state === "idle") {
+      stopVoiceInput();
+      return;
+    }
+    if (snapshot.state === "listening") {
+      void startVoiceInput();
+    }
+  });
+  // Persist voice input on/off intent — enabled if not idle. Used for auto-resume on next run.
+  const unsubscribePersist = voiceInputStatus.subscribe((snapshot) => {
+    sttSettings.setEnabled(snapshot.state !== "idle");
+  });
+  // Bind the STT engine once config is loaded; mark ready then auto-resume if left on last session.
+  const setStt = (stt: SttVad): void => {
+    sttVad = stt;
+    ready = true;
+    if (startRequested || voiceInputStatus.get().state !== "idle" || sttSettings.get().enabled) {
+      void startVoiceInput();
+    }
+  };
+  const dispose = (): void => {
+    unsubscribeStatus();
+    unsubscribePersist();
+    void sttVad?.dispose();
+  };
+  return { setStt, dispose };
 }
