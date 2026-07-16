@@ -15,7 +15,10 @@
 import "./styles.css";
 import { createTier1Engine } from "./ambient/tier1";
 import {
+  createSettingsBroadcast,
+  type SyncedStore,
   wireDispatcherSources,
+  wireSettingsReload,
   wireSpeakerSelection,
   wireSummonHotkey,
   wireVrmSelection,
@@ -80,11 +83,7 @@ import {
 import { showBootError } from "./ui/boot-error";
 import { createCaptureIndicator } from "./ui/capture-indicator";
 import { maybeShowFirstRunHint } from "./ui/first-run-hint";
-import {
-  reloadFromStorage as reloadLocaleFromStorage,
-  subscribe as subscribeLocale,
-  t,
-} from "./ui/i18n";
+import { subscribe as subscribeLocale, t } from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls";
 import { createSurfaces } from "./ui/surfaces";
 import { routeTurnFailure, turnErrorMessage } from "./ui/turn-error";
@@ -294,25 +293,10 @@ async function bootstrap(): Promise<void> {
   const unsubscribeSttPersist = voiceInputStatus.subscribe((snapshot) => {
     sttSettings.setEnabled(snapshot.state !== "idle");
   });
-  // Settings sync (bidirectional, loop-guarded): one side edits → emit → other side reloads.
-  // Store is no-op if values stay same, so round-trip terminates.
-  // Debounce: consolidate slider drag/typing bursts into single cross-window event after 200ms idle.
-  let applyingRemote = false;
-  let broadcastTimer: ReturnType<typeof setTimeout> | null = null;
-  const broadcastSettings = (): void => {
-    if (applyingRemote) return;
-    if (broadcastTimer) clearTimeout(broadcastTimer);
-    broadcastTimer = setTimeout(() => {
-      broadcastTimer = null;
-      bridge.emitSettingsChanged();
-    }, 200);
-  };
-  // Settings stores that broadcast/reload identically. cameraSettings excluded from array
-  // since reload propagates to zoom, noted separately.
-  type SyncedStore = {
-    subscribe(cb: () => void): () => void;
-    reloadFromStorage(): void;
-  };
+  // Cross-window settings sync (bidirectional, loop-guarded, debounced): one side edits → emit →
+  // other side reloads. cameraSettings is excluded from the array since its reload propagates to
+  // zoom (handled inside wireSettingsReload). The broadcast half is wired first so the VRM/speaker
+  // selections below can broadcast through it; the reload half is wired after they exist.
   const syncedSettingsStores: SyncedStore[] = [
     agentSettings,
     endpointsSettings,
@@ -332,35 +316,11 @@ async function bootstrap(): Promise<void> {
     idleThrottleSettings,
     ttsSettings,
   ];
-  for (const store of syncedSettingsStores) store.subscribe(broadcastSettings);
-  cameraSettings.subscribe(broadcastSettings);
-  // Display language also syncs cross-window: broadcast changes, reapply from storage on remote change.
-  subscribeLocale(broadcastSettings);
-  bridge.onSettingsChanged(() => {
-    applyingRemote = true;
-    try {
-      for (const store of syncedSettingsStores) store.reloadFromStorage();
-      // Zoom reload → cameraSettings.subscribe(s => renderer.setZoom) propagates to camera.
-      cameraSettings.reloadFromStorage();
-      // Reflect display language changed in other window → i18n.subscribe remount callback redraws UI.
-      reloadLocaleFromStorage();
-      // VRM selection is committed store-only in settings window, reflect that change to pet window renderer.
-      // This window's own swap is already loaded by swapVrm, so only OTHER window changes here → avoid double-load.
-      const prevVrmUrl = vrmSelection.getActive().url;
-      vrmSelection.reloadFromStorage();
-      const nextVrmUrl = vrmSelection.getActive().url;
-      if (nextVrmUrl !== prevVrmUrl) {
-        void loadVrmSerialized(nextVrmUrl).catch((err) =>
-          log.error("vrm_cross_window_swap_failed", { error: String(err) }),
-        );
-      }
-      // Speaker selection is store-only — synth reads via getActive() on next utterance, so just reload.
-      speakerSelection.reloadFromStorage();
-    } finally {
-      applyingRemote = false;
-    }
-    log.info("settings_change_received", { source: "settings_window" });
-  });
+  const {
+    broadcastSettings,
+    runApplyingRemote,
+    dispose: disposeSettingsBroadcast,
+  } = createSettingsBroadcast({ bridge, syncedStores: syncedSettingsStores, cameraSettings });
   const { vrmSelection, loadVrmSerialized, swapVrm, importVrm } = wireVrmSelection({
     renderer,
     log,
@@ -371,6 +331,16 @@ async function bootstrap(): Promise<void> {
     getEndpoints,
     log,
     broadcastSettings,
+  });
+  wireSettingsReload({
+    bridge,
+    syncedStores: syncedSettingsStores,
+    cameraSettings,
+    runApplyingRemote,
+    vrmSelection,
+    loadVrmSerialized,
+    speakerSelection,
+    log,
   });
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
@@ -497,7 +467,7 @@ async function bootstrap(): Promise<void> {
       unsubAnchor();
       unsubscribeLocale();
       quickControls.dispose();
-      if (broadcastTimer) clearTimeout(broadcastTimer);
+      disposeSettingsBroadcast();
       bridge.dispose();
       disposeStorageSync();
       captureIndicator.dispose();
