@@ -1,13 +1,25 @@
 /** Bootstrap wiring helpers extracted from main.ts: VRM + speaker selection stores and their swap/import flows. */
+import type { WindowRect } from "./contract";
+import { createAgentSource } from "./dispatcher/agent-source";
+import type { EventBus } from "./dispatcher/event-bus";
+import { createProactiveSource, type ProactiveSource } from "./dispatcher/proactive-source";
+import { createScheduleSource, type ScheduleSource } from "./dispatcher/schedule-source";
+import { createSignalsSource, type SignalsSource } from "./dispatcher/signals-source";
+import type { AgentNotifySettings } from "./io/agent-notify-settings";
 import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
 import { selectFetch } from "./io/chat-client";
 import { ensureRegistered, updateVoice } from "./io/irodori-voices";
+import type { PresenceSettings } from "./io/presence-settings";
+import type { ProactiveSettings } from "./io/proactive-settings";
+import type { ScheduleSettings } from "./io/schedule-settings";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
   localStorageUserSpeakerStorage,
   type SpeakerOption,
 } from "./io/speaker-selection";
+import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
+import { isTauri } from "./io/tauri-env";
 import {
   importVoiceFromFile,
   removeOrphanVoice,
@@ -19,8 +31,11 @@ import {
   localStorageUserVrmStorage,
   localStorageVrmStorage,
 } from "./io/vrm-selection";
+import { createWindowDropSource } from "./io/window-drop-source";
+import { createWindowResizeSource } from "./io/window-resize-source";
 import type { Logger } from "./logger";
 import type { Renderer, VrmLoadResult } from "./renderer";
+import type { Surfaces } from "./ui/surfaces";
 
 export function wireVrmSelection(deps: {
   renderer: Renderer;
@@ -161,4 +176,160 @@ export function wireSpeakerSelection(deps: {
   // Announce cross-window so the speaker picked in this window reflects in the settings-window UI.
   speakerSelection.subscribe(broadcastSettings);
   return { speakerSelection, swapSpeaker, refreshSpeaker, importVoice };
+}
+
+/**
+ * Window-sit drop + ctrl+wheel resize producers, plus the agent loopback ingress bind.
+ * Tauri-only — getCurrentWindow()/invoke/listen require the Tauri runtime; in a plain browser
+ * (Vite dev) this is skipped so bootstrap continues. Owns its own HMR teardown.
+ */
+export function wireWindowSources(deps: {
+  bus: EventBus;
+  renderer: Renderer;
+  agentNotifySettings: { get(): AgentNotifySettings };
+  log: Logger;
+}): void {
+  const { bus, renderer, agentNotifySettings, log } = deps;
+  if (!isTauri()) return;
+  let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
+  let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
+  // Guard teardown/async-assign race: cleanup may run before the IIFE assigns.
+  let windowDropDisposed = false;
+  if (import.meta.env.DEV) {
+    import.meta.hot?.dispose(() => {
+      windowDropDisposed = true;
+      windowDropSource?.stop();
+      windowResizeSource?.stop();
+    });
+  }
+  void (async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    // Only bind loopback ingress when watcher on. Restart-to-apply:
+    // toggling enable/port takes effect on next launch (no live rebind).
+    if (agentNotifySettings.get().enabled) {
+      void invoke("start_agent_ingress", { port: agentNotifySettings.get().port }).catch((e) =>
+        log.warn("start_agent_ingress_failed", { error: String(e) }),
+      );
+    }
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { listen } = await import("@tauri-apps/api/event");
+    windowDropSource = createWindowDropSource({
+      bus,
+      renderer,
+      invoke: (cmd) => invoke(cmd) as Promise<WindowRect[]>,
+      getWindow: getCurrentWindow,
+      listen: listen as never,
+    });
+    const { LogicalPosition, LogicalSize } = await import("@tauri-apps/api/dpi");
+    windowResizeSource = createWindowResizeSource({
+      renderer,
+      getWindow: () => {
+        const win = getCurrentWindow();
+        return {
+          outerPosition: () => win.outerPosition(),
+          outerSize: () => win.outerSize(),
+          scaleFactor: () => win.scaleFactor(),
+          async setBoundsLogical(pos, size) {
+            await win.setSize(new LogicalSize(size.width, size.height));
+            await win.setPosition(new LogicalPosition(pos.x, pos.y));
+          },
+        };
+      },
+    });
+    if (windowDropDisposed) {
+      windowDropSource.stop();
+      return;
+    }
+    await windowDropSource.start();
+    windowResizeSource.start();
+  })().catch((err) =>
+    log.warn("window_drop_source_start_failed", {
+      degrade: true,
+      error: String(err),
+    }),
+  );
+}
+
+/**
+ * tier2 utterance candidate sources: proactive.<id> (idle dramatization) + schedule.<id>
+ * (time-of-day greeting) + agent.done/catchup + signals.push/catchup, all over the presence gate.
+ * Created and started; the started refs are returned for interaction-notes and teardown.
+ */
+export function wireDispatcherSources(deps: {
+  bus: EventBus;
+  presenceSettings: { get(): PresenceSettings };
+  proactiveSettings: { get(): ProactiveSettings };
+  scheduleSettings: { get(): ScheduleSettings };
+  agentNotifySettings: { get(): AgentNotifySettings };
+}): {
+  proactiveSource: ProactiveSource;
+  scheduleSource: ScheduleSource;
+  agentSource: ReturnType<typeof createAgentSource>;
+  signalsSource: SignalsSource;
+} {
+  const { bus, presenceSettings, proactiveSettings, scheduleSettings, agentNotifySettings } = deps;
+  const proactiveSource = createProactiveSource({
+    bus,
+    present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
+    getCues: () => proactiveSettings.get().entries,
+    isEnabled: () => proactiveSettings.get().enabled,
+  });
+  void proactiveSource.start();
+  const scheduleSource = createScheduleSource({
+    bus,
+    present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
+    getCues: () => scheduleSettings.get().entries,
+    isEnabled: () => scheduleSettings.get().enabled,
+  });
+  void scheduleSource.start();
+  const agentSource = createAgentSource({
+    bus,
+    present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
+    isEnabled: () => agentNotifySettings.get().enabled,
+  });
+  void agentSource.start();
+  const signalsSource = createSignalsSource({
+    bus,
+    present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
+    isEnabled: () => agentNotifySettings.get().enabled,
+  });
+  void signalsSource.start();
+  return { proactiveSource, scheduleSource, agentSource, signalsSource };
+}
+
+/**
+ * Global summon hotkey (Tauri-only — skipped in browser dev). Registers the configured
+ * accelerator OS-globally; on fire, show+focus the window then summon input. Registration
+ * failure fails soft (summon-hotkey warns, treats as inactive). onReady hands the handle
+ * back for hot-reload re-apply. Owns its own HMR teardown.
+ */
+export function wireSummonHotkey(deps: {
+  surfaces: Pick<Surfaces, "summonInput" | "isInputOpen">;
+  accelerator: string;
+  onReady: (hotkey: SummonHotkey) => void;
+  log: Logger;
+}): void {
+  const { surfaces, accelerator, onReady, log } = deps;
+  if (!isTauri()) return;
+  void (async () => {
+    const { register, unregister } = await import("@tauri-apps/plugin-global-shortcut");
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const summonHotkey = createSummonHotkey({
+      register,
+      unregister,
+      // On macOS, include background app activation, bring forward (show before hidden).
+      focusWindow: async () => {
+        const win = getCurrentWindow();
+        await win.show();
+        await win.setFocus();
+      },
+      summonInput: () => surfaces.summonInput(),
+      isInputOpen: () => surfaces.isInputOpen(),
+    });
+    onReady(summonHotkey);
+    await summonHotkey.apply(accelerator);
+    if (import.meta.env.DEV) {
+      import.meta.hot?.dispose(() => void summonHotkey.dispose());
+    }
+  })().catch((err) => log.warn("summon_hotkey_wire_failed", { error: String(err) }));
 }
