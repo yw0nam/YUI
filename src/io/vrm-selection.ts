@@ -115,7 +115,7 @@ export function createVrmSelection(opts: {
   if (storage) {
     try {
       const loaded = coerceOverride(storage.load());
-      if (loaded !== null && hasId(loaded)) override = loaded;
+      if (loaded !== null) override = loaded;
     } catch {
       // Fall back to no override on storage error
     }

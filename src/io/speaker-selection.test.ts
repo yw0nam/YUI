@@ -439,6 +439,27 @@ describe("createSpeakerSelection — setManifest", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// boot-order regression — saved override arrives before the real manifest
+// (config is injected asynchronously; storage.load() is synchronous at construction)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createSpeakerSelection — boot-order regression", () => {
+  it("a saved override not yet in the creation-time manifest survives to setManifest()", () => {
+    const storage = makeMemStorage();
+    storage._data = "miko"; // saved id — but "miko" isn't in the manifest at construction time
+    const store = createSpeakerSelection({
+      defaultId: "carlotta", // only a synthesized default exists at boot
+      storage,
+    });
+
+    // The real config manifest arrives after construction (async injection).
+    store.setManifest({ available: SAMPLE, defaultId: "carlotta" });
+
+    expect(store.getActive().id).toBe("miko");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // subscribe / dispose
 // ─────────────────────────────────────────────────────────────────────────────
 

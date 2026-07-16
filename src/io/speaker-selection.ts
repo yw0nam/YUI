@@ -108,7 +108,7 @@ export function createSpeakerSelection(opts: {
   if (storage) {
     try {
       const loaded = coerceOverride(storage.load());
-      if (loaded !== null && hasId(loaded)) override = loaded;
+      if (loaded !== null) override = loaded;
     } catch {
       // On storage error, fall back to no override.
     }
