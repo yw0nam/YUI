@@ -17,6 +17,7 @@ import { createTier1Engine } from "./ambient/tier1";
 import {
   createSettingsBroadcast,
   type SyncedStore,
+  wireBroker,
   wireDispatcherSources,
   wireSettingsReload,
   wireSpeakerSelection,
@@ -27,7 +28,6 @@ import {
 import {
   CHAT_API_KEY_SECRET,
   createConfigStore,
-  loadEmotionTextTable,
   STT_API_KEY_SECRET,
   TTS_API_KEY_SECRET,
 } from "./config";
@@ -40,8 +40,6 @@ import { createUserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
 import { resolveAssetUrl } from "./io/asset-url";
 import { createWebAudioSink } from "./io/audio-player";
-import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
-import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import {
   CAMERA_ORBIT_SENSITIVITY,
   CAMERA_WHEEL_SENSITIVITY,
@@ -561,37 +559,11 @@ async function bootstrap(): Promise<void> {
   let signalsSourceRef: { stop(): void } | null = null;
   // guardrails also created after config load — hot-reload setConfig reaches holder.
   let guardrailsRef: Guardrails | null = null;
-  // broker client created after config load, only if broker_base_url present. hot-swap re-publish and
-  // HMR dispose reach holder.
-  let brokerRef: BrokerClient | null = null;
   // Global summon hotkey (Tauri-only) — hot-reload reapply reaches holder.
   let summonHotkeyRef: SummonHotkey | null = null;
-  // In Tauri webview, broker (localhost:3201) is cross-origin → inject CORS-bypass fetch via selectFetch.
-  // Resolve once at boot and cache, reuse same fetch on override reassignment.
-  let brokerFetch: typeof fetch | undefined;
-  function makeBroker(baseUrl: string): BrokerClient {
-    return createBrokerClient({
-      baseUrl,
-      ...(brokerFetch ? { fetch: brokerFetch } : {}),
-    });
-  }
-
-  // Load enum table best-effort only for irodori provider. On failure, warn then null →
-  // broker degrades to free mode (D4). Doesn't block boot/hot-swap.
-  async function loadBrokerTable(
-    provider: string | undefined,
-  ): Promise<Record<string, string> | null> {
-    if (provider !== "irodori") return null;
-    try {
-      return await loadEmotionTextTable({ provider: "irodori" });
-    } catch (err) {
-      log.warn("emotion_text_load_failed", {
-        fallback: "free",
-        error: String(err),
-      });
-      return null;
-    }
-  }
+  // Expression Broker handle — created after config load only if broker_base_url present.
+  // config.subscribe re-publish and HMR dispose reach it via this holder.
+  let brokerHandle: Awaited<ReturnType<typeof wireBroker>> | null = null;
 
   // Submit → fire to dispatcher spine (user.text_submitted). Keep input open, switch send→stop (subscribeBusy),
   // return to send on turn complete. mock kept for DEV demo only.
@@ -1071,36 +1043,15 @@ async function bootstrap(): Promise<void> {
       },
       log,
     });
-    // Expression Broker publish(D6): only runs if broker_base_url present (effective override-merged).
-    // publish→start is fire-and-forget — doesn't block boot critical path (D4).
-    const bootEps = getEndpoints();
-    brokerFetch = (await selectFetch()) ?? undefined;
-    if (bootEps.broker_base_url) {
-      const table = await loadBrokerTable(bootEps.tts_provider);
-      brokerRef = makeBroker(bootEps.broker_base_url);
-      const payload = deriveBrokerPayload({ ...cfg, endpoints: bootEps }, table);
-      void brokerRef.publish(payload).then(() => brokerRef?.start());
-    } else {
-      log.debug("broker_disabled", { reason: "no_broker_base_url" });
-    }
-
-    // Reflect override changes (voice engine, broker URL) live to broker. config.subscribe sees
-    // disk edits only, so wire separately (best-effort).
-    const brokerReconciler = createBrokerOverrideReconciler({
-      getEffectiveEndpoints: getEndpoints,
-      getBroker: () => brokerRef,
-      setBroker: (b) => {
-        brokerRef = b;
-      },
-      createBroker: makeBroker,
-      loadTable: loadBrokerTable,
-      derivePayload: (eff, table) =>
-        deriveBrokerPayload({ ...config.get(), endpoints: eff }, table),
+    // Expression Broker publish (D6): fire-and-forget initial publish + live override reconcile.
+    // Owns its own fetch resolution + client lifecycle; disk-config re-publish flows via onConfigChange below.
+    brokerHandle = await wireBroker({
+      getConfig: () => config.get(),
+      getEndpoints,
+      endpointsSettings,
+      log,
     });
-    const unsubscribeBrokerOverride = endpointsSettings.subscribe(() => {
-      void brokerReconciler.onChange();
-    });
-    if (import.meta.env.DEV) import.meta.hot?.dispose(unsubscribeBrokerOverride);
+    if (import.meta.env.DEV) import.meta.hot?.dispose(() => brokerHandle?.dispose());
   } catch (err) {
     log.error("config_or_vrm_load_failed", { error: String(err) });
     // Boot failure = empty transparent window. Preserve cause (ConfigError vs VRM) visible to user (#316).
@@ -1124,17 +1075,8 @@ async function bootstrap(): Promise<void> {
         defaultId: cfg.endpoints.irodori_speaker ?? "",
       });
     }
-    // Broker re-publish(D6): sync when config section building renderable vocab changes. Best-effort.
-    // Publish via override-merged effective endpoints so disk edits don't overwrite user overrides.
-    if (
-      brokerRef &&
-      (changed.has("emotionRegistry") || changed.has("motions") || changed.has("endpoints"))
-    ) {
-      const eff = getEndpoints();
-      void loadBrokerTable(eff.tts_provider).then((table) => {
-        void brokerRef?.publish(deriveBrokerPayload({ ...cfg, endpoints: eff }, table));
-      });
-    }
+    // Broker re-publish on disk-config edits that change renderable vocab (best-effort; override-merged inside).
+    brokerHandle?.onConfigChange(cfg, changed);
     if (!changed.has("avatar")) return;
     // Framing knob hot-reload — update before hot-swap re-fit.
     renderer.setFraming(cfg.avatar.framing ?? {});
@@ -1164,8 +1106,6 @@ async function bootstrap(): Promise<void> {
     });
     // HMR module re-run stacks previous store's setInterval → stop in dispose.
     import.meta.hot?.dispose(() => config.stop());
-    // Broker liveness poll setInterval also cleaned up between HMR to prevent leak.
-    import.meta.hot?.dispose(() => brokerRef?.dispose());
   }
 }
 

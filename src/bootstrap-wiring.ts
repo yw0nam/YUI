@@ -1,5 +1,6 @@
 /** Bootstrap wiring helpers extracted from main.ts: VRM + speaker selection stores and their swap/import flows. */
-import type { WindowRect } from "./contract";
+import { type AppConfig, type ConfigSection, loadEmotionTextTable } from "./config";
+import type { EndpointsConfig, WindowRect } from "./contract";
 import { createAgentSource } from "./dispatcher/agent-source";
 import type { EventBus } from "./dispatcher/event-bus";
 import { createProactiveSource, type ProactiveSource } from "./dispatcher/proactive-source";
@@ -7,6 +8,8 @@ import { createScheduleSource, type ScheduleSource } from "./dispatcher/schedule
 import { createSignalsSource, type SignalsSource } from "./dispatcher/signals-source";
 import type { AgentNotifySettings } from "./io/agent-notify-settings";
 import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
+import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
+import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { selectFetch } from "./io/chat-client";
 import { ensureRegistered, updateVoice } from "./io/irodori-voices";
 import type { PresenceSettings } from "./io/presence-settings";
@@ -440,4 +443,84 @@ export function wireSummonHotkey(deps: {
       import.meta.hot?.dispose(() => void summonHotkey.dispose());
     }
   })().catch((err) => log.warn("summon_hotkey_wire_failed", { error: String(err) }));
+}
+
+/**
+ * Expression Broker publish (D6). Resolves the CORS-bypass fetch once, does the fire-and-forget
+ * initial publish when broker_base_url is present (never blocks boot), and wires the override
+ * reconciler so live voice-engine / broker-URL edits retarget the client. `onConfigChange` is
+ * called from the caller's config.subscribe to re-publish on disk edits that change renderable
+ * vocab; effective (override-merged) endpoints are used so disk edits don't clobber user overrides.
+ */
+export async function wireBroker(deps: {
+  getConfig: () => AppConfig;
+  getEndpoints: () => EndpointsConfig;
+  endpointsSettings: { subscribe(cb: () => void): () => void };
+  log: Logger;
+}): Promise<{
+  onConfigChange: (cfg: AppConfig, changed: ReadonlySet<ConfigSection>) => void;
+  dispose: () => void;
+}> {
+  const { getConfig, getEndpoints, endpointsSettings, log } = deps;
+  // In the Tauri webview the broker (localhost:3201) is cross-origin → inject the CORS-bypass fetch.
+  // Resolved once and reused when the client is retargeted.
+  const brokerFetch = (await selectFetch()) ?? undefined;
+  let broker: BrokerClient | null = null;
+  const makeBroker = (baseUrl: string): BrokerClient =>
+    createBrokerClient({ baseUrl, ...(brokerFetch ? { fetch: brokerFetch } : {}) });
+  // Enum table best-effort only for irodori; on failure the broker degrades to free mode.
+  const loadBrokerTable = async (
+    provider: string | undefined,
+  ): Promise<Record<string, string> | null> => {
+    if (provider !== "irodori") return null;
+    try {
+      return await loadEmotionTextTable({ provider: "irodori" });
+    } catch (err) {
+      log.warn("emotion_text_load_failed", { fallback: "free", error: String(err) });
+      return null;
+    }
+  };
+
+  const bootEps = getEndpoints();
+  if (bootEps.broker_base_url) {
+    const table = await loadBrokerTable(bootEps.tts_provider);
+    broker = makeBroker(bootEps.broker_base_url);
+    const payload = deriveBrokerPayload({ ...getConfig(), endpoints: bootEps }, table);
+    void broker.publish(payload).then(() => broker?.start());
+  } else {
+    log.debug("broker_disabled", { reason: "no_broker_base_url" });
+  }
+
+  const reconciler = createBrokerOverrideReconciler({
+    getEffectiveEndpoints: getEndpoints,
+    getBroker: () => broker,
+    setBroker: (b) => {
+      broker = b;
+    },
+    createBroker: makeBroker,
+    loadTable: loadBrokerTable,
+    derivePayload: (eff, table) => deriveBrokerPayload({ ...getConfig(), endpoints: eff }, table),
+  });
+  const unsubscribeOverride = endpointsSettings.subscribe(() => {
+    void reconciler.onChange();
+  });
+
+  const onConfigChange = (cfg: AppConfig, changed: ReadonlySet<ConfigSection>): void => {
+    if (
+      broker &&
+      (changed.has("emotionRegistry") || changed.has("motions") || changed.has("endpoints"))
+    ) {
+      const eff = getEndpoints();
+      void loadBrokerTable(eff.tts_provider).then((table) => {
+        void broker?.publish(deriveBrokerPayload({ ...cfg, endpoints: eff }, table));
+      });
+    }
+  };
+
+  const dispose = (): void => {
+    unsubscribeOverride();
+    broker?.dispose();
+  };
+
+  return { onConfigChange, dispose };
 }

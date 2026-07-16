@@ -36,8 +36,32 @@ vi.mock("./ui/i18n", () => ({
   reloadFromStorage: vi.fn(),
 }));
 
+// Broker fakes for wireBroker: a single captured client so tests can assert publish/start/dispose.
+const { brokerClient, createBrokerClient, deriveBrokerPayload, createReconciler, selectFetch } =
+  vi.hoisted(() => {
+    const brokerClient = {
+      publish: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn(),
+      dispose: vi.fn(),
+    };
+    return {
+      brokerClient,
+      createBrokerClient: vi.fn(() => brokerClient),
+      deriveBrokerPayload: vi.fn(() => ({ derived: true })),
+      createReconciler: vi.fn(() => ({ onChange: vi.fn().mockResolvedValue(undefined) })),
+      selectFetch: vi.fn().mockResolvedValue(undefined),
+    };
+  });
+vi.mock("./io/broker-client", () => ({ createBrokerClient, deriveBrokerPayload }));
+vi.mock("./io/broker-override-reconciler", () => ({
+  createBrokerOverrideReconciler: createReconciler,
+}));
+vi.mock("./io/chat-client", () => ({ selectFetch }));
+vi.mock("./config", () => ({ loadEmotionTextTable: vi.fn().mockResolvedValue(null) }));
+
 import {
   createSettingsBroadcast,
+  wireBroker,
   wireDispatcherSources,
   wireSettingsReload,
 } from "./bootstrap-wiring";
@@ -176,5 +200,79 @@ describe("wireSettingsReload", () => {
     const changed = setup({ before: "a.vrm", after: "b.vrm" });
     changed.fire();
     expect(changed.loadVrmSerialized).toHaveBeenCalledWith("b.vrm");
+  });
+});
+
+describe("wireBroker", () => {
+  beforeEach(() => {
+    brokerClient.publish.mockClear();
+    brokerClient.start.mockClear();
+    brokerClient.dispose.mockClear();
+    createBrokerClient.mockClear();
+    deriveBrokerPayload.mockClear();
+  });
+
+  // wireBroker fires publish().then(start) fire-and-forget — drain the microtask queue to observe it.
+  const flush = async (): Promise<void> => {
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+
+  const makeDeps = (endpoints: Record<string, unknown>) => {
+    const unsub = vi.fn();
+    const endpointsSettings = { subscribe: vi.fn(() => unsub) };
+    return {
+      deps: {
+        getConfig: () => ({ emotionRegistry: {}, motions: {}, endpoints: {} }) as never,
+        getEndpoints: () => endpoints as never,
+        endpointsSettings,
+        log: noopLog,
+      },
+      unsub,
+    };
+  };
+
+  it("publishes then starts when broker_base_url is present", async () => {
+    const { deps } = makeDeps({ broker_base_url: "http://localhost:3201", tts_provider: "openai" });
+    await wireBroker(deps);
+    expect(createBrokerClient).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: "http://localhost:3201" }),
+    );
+    expect(brokerClient.publish).toHaveBeenCalledTimes(1);
+    await flush();
+    expect(brokerClient.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing when broker_base_url is empty", async () => {
+    const { deps } = makeDeps({ broker_base_url: "" });
+    await wireBroker(deps);
+    expect(createBrokerClient).not.toHaveBeenCalled();
+    expect(brokerClient.publish).not.toHaveBeenCalled();
+  });
+
+  it("re-publishes only on config sections that change renderable vocab", async () => {
+    const { deps } = makeDeps({ broker_base_url: "http://localhost:3201", tts_provider: "openai" });
+    const handle = await wireBroker(deps);
+    await flush();
+    brokerClient.publish.mockClear();
+    const fakeCfg = { emotionRegistry: {}, motions: {}, endpoints: {} } as never;
+    handle.onConfigChange(fakeCfg, new Set(["motions"]) as never);
+    await flush();
+    expect(brokerClient.publish).toHaveBeenCalledTimes(1);
+    brokerClient.publish.mockClear();
+    handle.onConfigChange(fakeCfg, new Set(["guardrails"]) as never);
+    await flush();
+    expect(brokerClient.publish).not.toHaveBeenCalled();
+  });
+
+  it("dispose unsubscribes the override listener and disposes the client", async () => {
+    const { deps, unsub } = makeDeps({
+      broker_base_url: "http://localhost:3201",
+      tts_provider: "openai",
+    });
+    const handle = await wireBroker(deps);
+    handle.dispose();
+    expect(unsub).toHaveBeenCalledTimes(1);
+    expect(brokerClient.dispose).toHaveBeenCalledTimes(1);
   });
 });
