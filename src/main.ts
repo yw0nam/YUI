@@ -14,7 +14,13 @@
 
 import "./styles.css";
 import { createTier1Engine } from "./ambient/tier1";
-import { wireSpeakerSelection, wireVrmSelection } from "./bootstrap-wiring";
+import {
+  wireDispatcherSources,
+  wireSpeakerSelection,
+  wireSummonHotkey,
+  wireVrmSelection,
+  wireWindowSources,
+} from "./bootstrap-wiring";
 import {
   CHAT_API_KEY_SECRET,
   createConfigStore,
@@ -23,14 +29,10 @@ import {
   TTS_API_KEY_SECRET,
 } from "./config";
 import type { WindowRect } from "./contract";
-import { createAgentSource } from "./dispatcher/agent-source";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
-import { createProactiveSource } from "./dispatcher/proactive-source";
-import { createScheduleSource } from "./dispatcher/schedule-source";
-import { createSignalsSource } from "./dispatcher/signals-source";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
 import { resolveAssetUrl } from "./io/asset-url";
@@ -59,15 +61,13 @@ import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
 import { createSpeechPlayback } from "./io/speech-playback";
 import type { SttVad } from "./io/stt-vad";
-import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
+import type { SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
 import { TTS_SKIP } from "./io/tts-pipeline";
 import { createTtsSynth } from "./io/tts-synth";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { removeUserVrm } from "./io/vrm-import";
-import { createWindowDropSource } from "./io/window-drop-source";
-import { createWindowResizeSource } from "./io/window-resize-source";
 import { createLogger, initLogger } from "./logger";
 import { createRenderer } from "./renderer";
 import { nextZoom } from "./renderer/camera-fit";
@@ -529,9 +529,6 @@ async function bootstrap(): Promise<void> {
       vrmSelection.dispose();
       speakerSelection.dispose();
       osContext.stop();
-      windowDropDisposed = true;
-      windowDropSource?.stop();
-      windowResizeSource?.stop();
       stage.removeEventListener("contextmenu", onContextMenu);
     });
   }
@@ -545,63 +542,10 @@ async function bootstrap(): Promise<void> {
     onDrop: (env, reason) => log.info("drop", { event_name: env.event_name, reason }),
   });
   const userInput = createUserInputSource(bus);
-  // Window-sit drop producer: Rust window_drop_release → tier1 perch event.
-  // Tauri-only — getCurrentWindow()/invoke/listen require Tauri runtime; in plain browser
-  // (Vite dev) skipped so bootstrap continues. DEV mock (__yui_windowSit.drop) exercises
-  // geometry path without real drag.
-  let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
-  // Ctrl+wheel pet-window resize producer (Tauri-only, same lifecycle as above).
-  let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
-  // Guard teardown/async-assign race: cleanup may run before IIFE assigns.
-  let windowDropDisposed = false;
-  if (isTauri()) {
-    void (async () => {
-      const { invoke } = await import("@tauri-apps/api/core");
-      // Only bind loopback ingress when watcher on. Restart-to-apply:
-      // toggling enable/port takes effect on next launch (no live rebind).
-      if (agentNotifySettings.get().enabled) {
-        void invoke("start_agent_ingress", { port: agentNotifySettings.get().port }).catch((e) =>
-          log.warn("start_agent_ingress_failed", { error: String(e) }),
-        );
-      }
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      const { listen } = await import("@tauri-apps/api/event");
-      windowDropSource = createWindowDropSource({
-        bus,
-        renderer,
-        invoke: (cmd) => invoke(cmd) as Promise<WindowRect[]>,
-        getWindow: getCurrentWindow,
-        listen: listen as never,
-      });
-      const { LogicalPosition, LogicalSize } = await import("@tauri-apps/api/dpi");
-      windowResizeSource = createWindowResizeSource({
-        renderer,
-        getWindow: () => {
-          const win = getCurrentWindow();
-          return {
-            outerPosition: () => win.outerPosition(),
-            outerSize: () => win.outerSize(),
-            scaleFactor: () => win.scaleFactor(),
-            async setBoundsLogical(pos, size) {
-              await win.setSize(new LogicalSize(size.width, size.height));
-              await win.setPosition(new LogicalPosition(pos.x, pos.y));
-            },
-          };
-        },
-      });
-      if (windowDropDisposed) {
-        windowDropSource.stop();
-        return;
-      }
-      await windowDropSource.start();
-      windowResizeSource.start();
-    })().catch((err) =>
-      log.warn("window_drop_source_start_failed", {
-        degrade: true,
-        error: String(err),
-      }),
-    );
-  }
+  // Window-sit drop producer (Rust window_drop_release → tier1 perch) + ctrl+wheel resize
+  // producer + agent loopback ingress bind. Tauri-only; owns its own HMR teardown.
+  // DEV mock (__yui_windowSit.drop) exercises the geometry path without a real drag.
+  wireWindowSources({ bus, renderer, agentNotifySettings, log });
   let sttVad: SttVad | null = null;
   let voiceInputReady = false;
   let voiceInputStartRequested = false;
@@ -1134,68 +1078,29 @@ async function bootstrap(): Promise<void> {
     if (import.meta.env.DEV) import.meta.hot?.dispose(() => hitTest.stop());
     // Start dispatcher only after config ready (backend_caller depends on config.get()).
     dispatcher.start();
-    // tier2 utterance candidate sources: fire proactive.<id> (dramatization N mins idle) and
-    // schedule.<id> (time-of-day greeting) over presence gate. Gated by shared presence store + per-setting store.
-    // Start after dispatcher running — firing consumed immediately. Stop together in teardown.
-    const proactiveSource = createProactiveSource({
+    // tier2 utterance candidate sources (proactive/schedule/agent/signals). Start after the
+    // dispatcher is running — firing is consumed immediately. Stop together in teardown.
+    const { proactiveSource, scheduleSource, agentSource, signalsSource } = wireDispatcherSources({
       bus,
-      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
-      getCues: () => proactiveSettings.get().entries,
-      isEnabled: () => proactiveSettings.get().enabled,
+      presenceSettings,
+      proactiveSettings,
+      scheduleSettings,
+      agentNotifySettings,
     });
     proactiveSourceRef = proactiveSource;
-    void proactiveSource.start();
-    const scheduleSource = createScheduleSource({
-      bus,
-      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
-      getCues: () => scheduleSettings.get().entries,
-      isEnabled: () => scheduleSettings.get().enabled,
-    });
     scheduleSourceRef = scheduleSource;
-    void scheduleSource.start();
-    // Agent completion watcher: fire agent.done / idle→present edge fires agent.catchup from Tauri IPC inbox.
-    const agentSource = createAgentSource({
-      bus,
-      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
-      isEnabled: () => agentNotifySettings.get().enabled,
-    });
     agentSourceRef = agentSource;
-    void agentSource.start();
-    // Signals watcher: fire signals.push / idle→present edge fires signals.catchup from signals-inbox channel
-    // of same loopback ingress (gated by agentNotifySettings) — payload passed through opaque.
-    const signalsSource = createSignalsSource({
-      bus,
-      present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
-      isEnabled: () => agentNotifySettings.get().enabled,
-    });
     signalsSourceRef = signalsSource;
-    void signalsSource.start();
-    // Global summon hotkey: register configs/hotkeys.json accelerator OS-globally (Tauri-only —
-    // skipped in browser dev). On fire: show+focus window then summon input. Registration failure:
-    // summon-hotkey warns then treats as inactive (fail-soft).
-    if (isTauri()) {
-      void (async () => {
-        const { register, unregister } = await import("@tauri-apps/plugin-global-shortcut");
-        const { getCurrentWindow } = await import("@tauri-apps/api/window");
-        const summonHotkey = createSummonHotkey({
-          register,
-          unregister,
-          // On macOS, include background app activation, bring forward (show before hidden).
-          focusWindow: async () => {
-            const win = getCurrentWindow();
-            await win.show();
-            await win.setFocus();
-          },
-          summonInput: () => surfaces.summonInput(),
-          isInputOpen: () => surfaces.isInputOpen(),
-        });
-        summonHotkeyRef = summonHotkey;
-        await summonHotkey.apply(cfg.hotkeys.summon_global);
-        if (import.meta.env.DEV) {
-          import.meta.hot?.dispose(() => void summonHotkey.dispose());
-        }
-      })().catch((err) => log.warn("summon_hotkey_wire_failed", { error: String(err) }));
-    }
+    // Global summon hotkey: register configs/hotkeys.json accelerator OS-globally. onReady holds
+    // the handle so the config.subscribe below can re-apply it on hot-reload.
+    wireSummonHotkey({
+      surfaces,
+      accelerator: cfg.hotkeys.summon_global,
+      onReady: (hk) => {
+        summonHotkeyRef = hk;
+      },
+      log,
+    });
     // Expression Broker publish(D6): only runs if broker_base_url present (effective override-merged).
     // publish→start is fire-and-forget — doesn't block boot critical path (D4).
     const bootEps = getEndpoints();
