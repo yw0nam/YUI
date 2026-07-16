@@ -1,0 +1,215 @@
+.yui-wf-list {
+  display: grid;
+  gap: 0;
+  margin-top: 0.15rem;
+}
+
+.yui-wf {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.42rem 0.5rem;
+  margin-bottom: 0.15rem;
+  overflow: hidden;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-row);
+  background: oklch(0.97 0.01 80 / 0.03);
+  transition: background var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-wf__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--yui-text);
+  font-size: 0.84rem;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yui-wf__fire,
+.yui-wf__delete {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+}
+
+.yui-wf__fire {
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-wf__fire:hover {
+  background: var(--yui-accent-faint);
+  color: var(--yui-accent);
+}
+
+.yui-wf__fire:focus-visible,
+.yui-wf__delete:focus-visible,
+.yui-wf-add-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-wf__fire svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.yui-wf--fired-ok .yui-wf__fire {
+  background: var(--yui-accent-faint);
+  color: var(--yui-accent);
+}
+
+.yui-wf--fired-err .yui-wf__fire {
+  background: var(--yui-danger-faint);
+  color: var(--yui-danger);
+}
+
+.yui-wf__delete {
+  opacity: 0;
+  transition:
+    opacity var(--yui-dur-fast) var(--yui-ease),
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-wf:hover .yui-wf__delete,
+.yui-wf:focus-within .yui-wf__delete {
+  opacity: 0.65;
+}
+
+.yui-wf__delete:hover,
+.yui-wf__delete:focus-visible {
+  background: var(--yui-danger-faint);
+  color: var(--yui-danger);
+  opacity: 1;
+}
+
+.yui-wf__delete svg {
+  width: 0.82rem;
+  height: 0.82rem;
+}
+
+.yui-wf-empty {
+  margin: 0;
+  padding: 0.6rem 0.55rem 0.4rem;
+  color: var(--yui-text-mute);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.yui-wf-add {
+  margin-top: 0.2rem;
+}
+
+.yui-wf-add .yui-input-row {
+  padding: 0.42rem 0.55rem 0.3rem;
+}
+
+.yui-input-row__label-sm {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--yui-text-mute);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.yui-wf-add .yui-input-wrap {
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-input);
+  background: var(--yui-field);
+  transition:
+    border-color var(--yui-dur-fast) var(--yui-ease),
+    box-shadow var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-wf-add .yui-input-wrap:focus-within {
+  border-color: var(--yui-accent);
+  box-shadow: 0 0 0 1px var(--yui-accent-soft);
+}
+
+.yui-wf-add .yui-input-row.is-invalid .yui-input-wrap {
+  border-color: var(--yui-danger);
+  background: var(--yui-danger-faint);
+}
+
+.yui-wf-add .yui-input-row.is-invalid .yui-input-wrap:focus-within {
+  box-shadow: 0 0 0 1px var(--yui-danger-soft);
+}
+
+.yui-wf-add .yui-input-row__error {
+  display: none;
+  margin: 0.3rem 0.1rem 0;
+  color: var(--yui-danger);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.yui-wf-add .yui-input-row.is-invalid .yui-input-row__error {
+  display: block;
+}
+
+.yui-wf-add__actions {
+  padding: 0.35rem 0.55rem 0.1rem;
+}
+
+.yui-pill-add,
+.yui-wf-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.34rem 0.75rem;
+  border: 1px solid var(--yui-accent-soft);
+  border-radius: var(--yui-radius-chip);
+  background: var(--yui-accent-faint);
+  color: var(--yui-accent);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    border-color var(--yui-dur-fast) var(--yui-ease),
+    background var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-pill-add svg,
+.yui-wf-add-btn svg {
+  width: 0.72rem;
+  height: 0.72rem;
+}
+
+.yui-pill-add:hover,
+.yui-wf-add-btn:hover {
+  background: var(--yui-accent-soft);
+}
+
+.yui-pill-add:disabled,
+.yui-wf-add-btn:disabled {
+  border-color: var(--yui-edge);
+  background: transparent;
+  color: var(--yui-text-mute);
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-wf,
+  .yui-wf__delete,
+  .yui-wf__fire,
+  .yui-wf-add .yui-input-wrap,
+  .yui-pill-add,
+  .yui-wf-add-btn {
+    transition-duration: 0ms !important;
+  }
+}

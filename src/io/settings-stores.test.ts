@@ -20,6 +20,7 @@ describe("createSettingsStores", () => {
       "idleThrottleSettings",
       "proactiveSettings",
       "scheduleSettings",
+      "workflowSettings",
       "agentNotifySettings",
       "presenceSettings",
       "recentAppsSettings",

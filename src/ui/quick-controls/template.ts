@@ -446,6 +446,31 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
             : ""
         }
         <div class="yui-quick__divider" aria-hidden="true"></div>
+        <span class="yui-quick__section">${t("workflows.title")}</span>
+        <p class="yui-field-hint">${t("workflows.sub")}</p>
+        <div class="yui-wf-list"></div>
+        <div class="yui-wf-add">
+          <div class="yui-input-row" data-wf-field="label">
+            <label class="yui-input-row__label-sm" for="yui-wf-label">${t("workflows.label_label")}</label>
+            <div class="yui-input-wrap">
+              <input class="yui-ep-input yui-wf-label-input" id="yui-wf-label" type="text" placeholder="${t("workflows.label_ph")}" />
+            </div>
+          </div>
+          <div class="yui-input-row" data-wf-field="url">
+            <label class="yui-input-row__label-sm" for="yui-wf-url">${t("workflows.url_label")}</label>
+            <div class="yui-input-wrap">
+              <input class="yui-ep-input yui-wf-url-input" id="yui-wf-url" type="text" inputmode="url" placeholder="${t("workflows.url_ph")}" />
+            </div>
+            <p class="yui-input-row__error">${t("workflows.url_error")}</p>
+          </div>
+          <div class="yui-wf-add__actions">
+            <button class="yui-pill-add yui-wf-add-btn" type="button" disabled>
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+              ${t("workflows.add")}
+            </button>
+          </div>
+        </div>
+        <div class="yui-quick__divider" aria-hidden="true"></div>
         <span class="yui-quick__section">${t("reactions.shared_title")}</span>
         ${showPresence ? numRowHtml({ id: "yui-presence", labelKey: "reactions.presence_label", subKey: "reactions.presence_sub", min: 10, max: 3600, suffixKey: "reactions.seconds_suffix", hintKey: "reactions.restart_hint" }) : ""}
         ${showRecentApps ? numRowHtml({ id: "yui-recent-apps", labelKey: "reactions.recent_apps_label", subKey: "reactions.recent_apps_sub", min: 1, max: 50 }) : ""}

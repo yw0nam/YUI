@@ -205,6 +205,7 @@ async function bootstrap(): Promise<void> {
     idleThrottleSettings,
     proactiveSettings,
     scheduleSettings,
+    workflowSettings,
     agentNotifySettings,
     presenceSettings,
     recentAppsSettings,
@@ -324,6 +325,7 @@ async function bootstrap(): Promise<void> {
     screenshotSettings,
     proactiveSettings,
     scheduleSettings,
+    workflowSettings,
     agentNotifySettings,
     presenceSettings,
     recentAppsSettings,
@@ -379,6 +381,7 @@ async function bootstrap(): Promise<void> {
       gazeSettings,
       proactiveSettings,
       scheduleSettings,
+      workflowSettings,
       agentNotifySettings,
       presenceSettings,
       recentAppsSettings,
@@ -510,6 +513,7 @@ async function bootstrap(): Promise<void> {
       sttSettings.dispose();
       proactiveSettings.dispose();
       scheduleSettings.dispose();
+      workflowSettings.dispose();
       agentNotifySettings.dispose();
       presenceSettings.dispose();
       recentAppsSettings.dispose();
