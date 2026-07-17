@@ -40,6 +40,9 @@ const ja: Record<string, string> = {
   "input.error_network": "応答なし · 接続確認",
   "input.error_parse": "応答処理に失敗",
 
+  // chain-break (404) recovery notice
+  "chain.reset_notice": "会話コンテキストがリセットされました",
+
   // boot-failure notice
   "boot.error_title": "YUI を起動できませんでした",
   "boot.error_config": "設定を読み込めませんでした — {file}",

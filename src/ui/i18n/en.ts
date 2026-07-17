@@ -40,6 +40,9 @@ const en: Record<string, string> = {
   "input.error_network": "No response · check connection",
   "input.error_parse": "Response parse failed",
 
+  // chain-break (404) recovery notice
+  "chain.reset_notice": "Conversation context was reset",
+
   // boot-failure notice
   "boot.error_title": "YUI failed to start",
   "boot.error_config": "Could not load settings — {file}",

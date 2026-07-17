@@ -100,6 +100,10 @@ export interface BackendCallerDeps {
   getPreviousResponseId?: () => string | undefined;
   /** New response id persist — called only after a completely successful turn (conversation state progress). */
   onResponseId?: (id: string) => void;
+  /** Stored previous_response_id invalidation sink — called once when a 404 chain-break is detected, before the retry. */
+  onResponseIdInvalid?: () => void;
+  /** Chain-break UI notice sink — called once alongside onResponseIdInvalid so the user sees the context reset. */
+  onChainReset?: () => void;
   /** usage (token occupancy) sink — called only when present. Diagnostic channel independent of ControlEnvelope. */
   onUsage?: (usage: Usage) => void;
   /** Current agent setting (reasoning effort + instructions override) snapshot. Reflected in request only when present. */
@@ -527,102 +531,136 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // B3: Receive ControlEnvelope from chat-client's completed event (no SSE re-parsing).
       let envelope: ControlEnvelope | undefined;
       let newResponseId: string | undefined;
-      let streamError: string | undefined;
-      // HTTP status carried by stream error event (openai SDK APIError.status) — distinguish
-      // 401/403 as http_4xx_drop (auth-ish) instead of network_drop.
-      let streamErrorStatus: number | undefined;
       // Streaming speech: did at least one delta arrive (completion drives onSpeechEnd branching).
       let streamedAny = false;
       // Did at least one express cue arrive during stream (completion drives pipeline ownership branching).
       let cueStreamed = false;
-      // Did idle-gap watchdog detect stall and abort (includes first byte wait).
-      let idleTimedOut = false;
-      try {
-        for await (const ev of withIdleWatchdog(
-          streamChat(deps.config, request, { apiKey, fetch: fetchImpl }),
-          IDLE_TIMEOUT_MS,
-          () => {
-            idleTimedOut = true;
-            ac.abort();
-          },
-        )) {
-          if (externalSignal?.aborted) break;
-          switch (ev.type) {
-            case "speech_delta":
-              // Actual response speech start — end thinking only here (thinkingDone ensures only first delta).
-              // usage/express/tool_status before don't break thinking.
-              endThinking();
-              deps.onSpeechDelta?.(ev.text);
-              streamedAny = true;
-              break;
-            case "express":
-              // Pass the entire cue as-is — TTS pipeline applies audio-timed at sentence playback.
-              deps.onCue?.(ev.args);
-              cueStreamed = true;
-              break;
-            case "usage":
-              // Diagnostic channel independent of ControlEnvelope/renderer — passes to sink only.
-              deps.onUsage?.(ev.usage);
-              break;
-            case "tool_status":
-              // Native tool observation result — pass immediately on streaming to show running chip.
-              // Do not call endThinking (:551): tool_status does not break thinking.
-              deps.onToolStatus?.(ev.status);
-              toolRunning = ev.status.state === "running";
-              break;
-            case "completed":
-              envelope = ev.envelope;
-              newResponseId = ev.responseId || undefined;
-              break;
-            case "error":
-              streamError = ev.message;
-              streamErrorStatus = ev.status;
-              break;
-            default:
-              break;
+      // Chain-break 404 recovery: retry at most once, so this flips true before the retry attempt.
+      let chainBreakRetried = false;
+      // Attempt loop: body runs once, `continue`s exactly once on a 404 chain-break, then always exits via break/return.
+      while (true) {
+        streamedAny = false;
+        cueStreamed = false;
+        let streamError: string | undefined;
+        // HTTP status carried by stream error event (openai SDK APIError.status) — distinguish
+        // 401/403 as http_4xx_drop (auth-ish) instead of network_drop.
+        let streamErrorStatus: number | undefined;
+        // Did idle-gap watchdog detect stall and abort (includes first byte wait).
+        let idleTimedOut = false;
+        try {
+          for await (const ev of withIdleWatchdog(
+            streamChat(deps.config, request, { apiKey, fetch: fetchImpl }),
+            IDLE_TIMEOUT_MS,
+            () => {
+              idleTimedOut = true;
+              ac.abort();
+            },
+          )) {
+            if (externalSignal?.aborted) break;
+            switch (ev.type) {
+              case "speech_delta":
+                // Actual response speech start — end thinking only here (thinkingDone ensures only first delta).
+                // usage/express/tool_status before don't break thinking.
+                endThinking();
+                deps.onSpeechDelta?.(ev.text);
+                streamedAny = true;
+                break;
+              case "express":
+                // Pass the entire cue as-is — TTS pipeline applies audio-timed at sentence playback.
+                deps.onCue?.(ev.args);
+                cueStreamed = true;
+                break;
+              case "usage":
+                // Diagnostic channel independent of ControlEnvelope/renderer — passes to sink only.
+                deps.onUsage?.(ev.usage);
+                break;
+              case "tool_status":
+                // Native tool observation result — pass immediately on streaming to show running chip.
+                // Do not call endThinking (:551): tool_status does not break thinking.
+                deps.onToolStatus?.(ev.status);
+                toolRunning = ev.status.state === "running";
+                break;
+              case "completed":
+                envelope = ev.envelope;
+                newResponseId = ev.responseId || undefined;
+                break;
+              case "error":
+                streamError = ev.message;
+                streamErrorStatus = ev.status;
+                break;
+              default:
+                break;
+            }
           }
+        } catch (err) {
+          // If abort, supersede (next turn cleans up), otherwise network drop — if delta arrived, clean up speech bubble/audio.
+          if (externalSignal?.aborted) {
+            return { ok: false, drop_reason: "superseded_by_user" };
+          }
+          if (streamedAny) deps.onSpeechAbort?.();
+          log.warn("network_drop", { stage: "stream_threw", error: String(err) });
+          return { ok: false, drop_reason: "network_drop" };
         }
-      } catch (err) {
-        // If abort, supersede (next turn cleans up), otherwise network drop — if delta arrived, clean up speech bubble/audio.
+
+        if (idleTimedOut) {
+          // No event (incl. first byte) within IDLE_TIMEOUT_MS of the previous one — stalled.
+          if (streamedAny) deps.onSpeechAbort?.();
+          log.warn("network_drop", { stage: "idle_timeout", idle_ms: IDLE_TIMEOUT_MS });
+          return { ok: false, drop_reason: "network_drop" };
+        }
+
         if (externalSignal?.aborted) {
           return { ok: false, drop_reason: "superseded_by_user" };
         }
-        if (streamedAny) deps.onSpeechAbort?.();
-        log.warn("network_drop", { stage: "stream_threw", error: String(err) });
-        return { ok: false, drop_reason: "network_drop" };
-      }
 
-      if (idleTimedOut) {
-        // No event (incl. first byte) within IDLE_TIMEOUT_MS of the previous one — stalled.
-        if (streamedAny) deps.onSpeechAbort?.();
-        log.warn("network_drop", { stage: "idle_timeout", idle_ms: IDLE_TIMEOUT_MS });
-        return { ok: false, drop_reason: "network_drop" };
-      }
-
-      if (externalSignal?.aborted) {
-        return { ok: false, drop_reason: "superseded_by_user" };
-      }
-
-      if (streamError) {
-        // If delta arrived, clean up speech bubble/audio — prevent getting stuck forever without next turn.
-        if (streamedAny) deps.onSpeechAbort?.();
-        // Distinguish auth-ish (401/403) status as http_4xx_drop — keep other 4xx/5xx/no-status as network_drop.
-        if (streamErrorStatus === 401 || streamErrorStatus === 403) {
-          log.warn("http_4xx_drop", {
+        if (streamError) {
+          // If delta arrived, clean up speech bubble/audio — prevent getting stuck forever without next turn.
+          if (streamedAny) deps.onSpeechAbort?.();
+          // Distinguish auth-ish (401/403) status as http_4xx_drop — keep other 4xx/5xx/no-status as network_drop.
+          if (streamErrorStatus === 401 || streamErrorStatus === 403) {
+            log.warn("http_4xx_drop", {
+              stage: "stream_error",
+              status: streamErrorStatus,
+              message: streamError,
+            });
+            return { ok: false, drop_reason: "http_4xx_drop" };
+          }
+          // Chain break: previous_response_id points at a response the backend no longer holds
+          // (server-side conversation state lost/expired). Retry once without it, but only if
+          // nothing streamed yet this attempt — a partial reply already rendered can't be resent.
+          if (
+            !chainBreakRetried &&
+            streamErrorStatus === 404 &&
+            startPreviousResponseId &&
+            !streamedAny
+          ) {
+            chainBreakRetried = true;
+            log.warn("chain_break_404", {
+              status: streamErrorStatus,
+              message: streamError,
+              previous_response_id: startPreviousResponseId,
+            });
+            deps.onResponseIdInvalid?.();
+            deps.onChainReset?.();
+            delete request.previous_response_id;
+            startPreviousResponseId = undefined;
+            continue;
+          }
+          log.warn("network_drop", {
             stage: "stream_error",
-            status: streamErrorStatus,
             message: streamError,
+            status: streamErrorStatus,
           });
-          return { ok: false, drop_reason: "http_4xx_drop" };
+          return { ok: false, drop_reason: "network_drop" };
         }
-        log.warn("network_drop", { stage: "stream_error", message: streamError });
-        return { ok: false, drop_reason: "network_drop" };
-      }
 
-      if (!envelope) {
-        // No completed received = broken/empty response.
-        log.warn("parse_error", { event_name: env.event_name });
-        return { ok: false, drop_reason: "parse_error" };
+        if (!envelope) {
+          // No completed received = broken/empty response.
+          log.warn("parse_error", { event_name: env.event_name });
+          return { ok: false, drop_reason: "parse_error" };
+        }
+
+        break;
       }
 
       // B5 (render half): when per-beat cue streamed and speech present (streamedAny), TTS pipeline
