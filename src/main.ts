@@ -40,7 +40,6 @@ import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
 import { resolveAssetUrl } from "./io/asset-url";
-import { createWebAudioSink } from "./io/audio-player";
 import {
   CAMERA_ORBIT_SENSITIVITY,
   CAMERA_WHEEL_SENSITIVITY,
@@ -49,24 +48,16 @@ import {
 } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
 import { mergeEndpoints } from "./io/endpoints-settings";
-import { createFillerLoop } from "./io/filler-loop";
-import { effectiveFillerPool } from "./io/filler-pool";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
-import { createIrodoriSynth, type TtsSynth } from "./io/irodori-synth";
-import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
-import { ensureRegistered, evictRegistration } from "./io/irodori-voices";
 import { createOsContext } from "./io/os-context";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsBridge } from "./io/settings-bridge";
 import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
-import { createSpeechPlayback } from "./io/speech-playback";
 import type { SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
-import { TTS_SKIP } from "./io/tts-pipeline";
-import { createTtsSynth } from "./io/tts-synth";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { removeUserVrm } from "./io/vrm-import";
 import { createLogger, initLogger } from "./logger";
@@ -87,6 +78,7 @@ import { createSurfaces } from "./ui/surfaces";
 import { routeTurnFailure, turnErrorMessage } from "./ui/turn-error";
 import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
+import { wireVoicePipeline } from "./voice-pipeline-wiring";
 
 /** Input summon hotkey (window-focus only — global shortcuts to follow via tauri-plugin-global-shortcut). */
 const SUMMON_KEY = "/";
@@ -509,7 +501,7 @@ async function bootstrap(): Promise<void> {
   // DEV mock (__yui_windowSit.drop) exercises the geometry path without a real drag.
   wireWindowSources({ bus, renderer, agentNotifySettings, log });
   // Voice input (STT/VAD) lifecycle — start/stop driven by voiceInputStatus, intent persisted to
-  // sttSettings, STT engine bound post-config via setStt. Barge-in/submit wiring lives at createSttVad below.
+  // sttSettings, STT engine bound post-config via setStt. Barge-in/submit wiring joins the voice pipeline below.
   const voiceInput = wireVoiceInput({ voiceInputStatus, sttSettings });
   // dispatcher created after config load (backend_caller depends on config.get()), so dev inspection
   // handles can reference it via forward holder.
@@ -679,105 +671,30 @@ async function bootstrap(): Promise<void> {
       "TTS API 키 미설정 — openai 호환 TTS가 키를 요구하면 401 가능. .env.local(VITE_YUI_TTS_KEY) 참고. (irodori는 불필요)",
     );
   }
-  // synth injected as closure reading config (hot-reload) and selectFetch at call time.
-  // Eager eval config.get() here forbidden — throw before load() kills bootstrap.
-  // Playback amplitude flows from renderer mouth shape, completion flows from bubble fade release (speech-playback).
-  // irodori synth closure memoized per speaker/tuning keys + 422 self-heal. Not reconstructed per sentence.
-  let irodoriFactory: TtsSynth | undefined;
-  const irodoriSynth = async (input: string, signal?: AbortSignal): Promise<ArrayBuffer> => {
-    const f = await selectFetch();
-    irodoriFactory ??= createIrodoriSynthFactory({
-      getParams: () => {
-        const eps = getEndpoints();
-        const active = speakerSelection.getActive();
-        if (!eps.irodori_base_url || !active.id) {
-          throw new Error("irodori provider requires irodori_base_url + irodori_speaker");
-        }
-        return {
-          baseUrl: eps.irodori_base_url,
-          referenceId: active.id,
-          refUrl: active.ref_url,
-          numSteps: eps.irodori_num_steps,
-          cfgScaleText: eps.irodori_cfg_scale_text,
-          cfgScaleSpeaker: eps.irodori_cfg_scale_speaker,
-          seconds: eps.irodori_seconds,
-        };
-      },
-      ensureRegistered,
-      evictRegistration,
-      buildSynth: (p, fetchImpl) =>
-        createIrodoriSynth({
-          baseUrl: p.baseUrl,
-          referenceId: p.referenceId,
-          fetch: fetchImpl,
-          numSteps: p.numSteps,
-          cfgScaleText: p.cfgScaleText,
-          cfgScaleSpeaker: p.cfgScaleSpeaker,
-          seconds: p.seconds,
-        }),
-      fetch: f ?? globalThis.fetch,
-    });
-    return irodoriFactory(input, signal);
-  };
-
-  // Filler loop speaks via speechPlayback (speak), speechPlayback playback completion (onPlaybackEnd)
-  // triggers loop's next iteration — mutual reference, break cycle with forward let.
-  let fillerLoop: import("./io/filler-loop").FillerLoop | undefined;
-  // Token of turn owning current thinking. When turns overlap (supersede), late onThinkingEnd
-  // of overtaken turn must not clean up single fillerLoop/motion, so ignore if token differs from current.
-  let currentThinkingTurn: object | null = null;
-  const speechPlayback = createSpeechPlayback({
+  const voice = wireVoicePipeline({
     renderer,
     surfaces,
-    onPlaybackEnd: () => fillerLoop?.onUtteranceDone(),
-    pipeline: {
-      sink: createWebAudioSink({ getGain: () => lipsyncSettings.get().gain }),
-      // Function form → lazy resolution each drain (no eager config read, hot-reload friendly).
-      maxInflight: () => getEndpoints().tts_max_inflight ?? 1,
-      synth: async (input, signal) => {
-        // TTS inactive (toggle OFF or server unset) quietly skip — expressions/motions, bubble unchanged.
-        if (!ttsSettings.get().enabled) return Promise.reject(TTS_SKIP);
-        const eps = getEndpoints();
-        if (eps.tts_provider === "irodori") {
-          if (!eps.irodori_base_url || !speakerSelection.getActive().id) {
-            return Promise.reject(TTS_SKIP);
-          }
-          return irodoriSynth(input, signal);
-        }
-        if (!eps.tts_base_url) return Promise.reject(TTS_SKIP);
-        const f = await selectFetch();
-        return createTtsSynth({
-          config: eps,
-          fetch: f,
-          model: eps.tts_model,
-          voice: eps.tts_voice,
-          speed: eps.tts_speed,
-          getApiKey: () => config.secrets.get(TTS_API_KEY_SECRET),
-        })(input, signal);
-      },
+    getEndpoints,
+    getFillerConfig: () => config.get().filler,
+    getTtsApiKey: () => config.secrets.get(TTS_API_KEY_SECRET),
+    getSttApiKey: () => config.secrets.get(STT_API_KEY_SECRET),
+    ttsSettings,
+    lipsyncSettings,
+    fillerSettings,
+    vadSettings,
+    speakerSelection,
+    voiceInputStatus,
+    onVoiceSegment: (text) => {
+      userInput.submitVoice(text);
+      proactiveSourceRef?.noteInteraction();
     },
   });
   if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => speechPlayback.dispose());
+    import.meta.hot?.dispose(() => voice.dispose());
     Object.assign(globalThis as Record<string, unknown>, {
-      __yuiSpeech: speechPlayback,
+      __yuiSpeech: voice.speechPlayback,
     });
   }
-
-  // ── TTFT filler ───────────────────────────────────────────────────────────
-  // Read current filler settings + config snapshot live at call time to create effective pool
-  // (forbidden to capture at boot — hot-reload/settings changes reflected in next turn).
-  const effectiveFiller = () => effectiveFillerPool(fillerSettings.get(), config.get().filler);
-
-  // Filler loop — speak(speechPlayback) + live pools/timing. Close cycle by assigning to forward let.
-  fillerLoop = createFillerLoop({
-    speak: (t) => speechPlayback.onSpeech(t),
-    getPools: effectiveFiller,
-    getTiming: () => ({
-      gapMs: config.get().filler.gap_ms,
-      jitterMs: config.get().filler.gap_jitter_ms,
-    }),
-  });
 
   // ── Session continuity ───────────────────────────────────────────────────────────
   // Conversation threading via OpenAI Responses previous_response_id — read prior id each turn
@@ -799,12 +716,12 @@ async function bootstrap(): Promise<void> {
         getEndpoints().chat_model_context_window ?? null,
       );
     },
-    onSpeech: (text) => speechPlayback.onSpeech(text),
-    onSpeechDelta: (text) => speechPlayback.onSpeechDelta(text),
-    onSpeechEnd: () => speechPlayback.onSpeechEnd(),
-    onSpeechInterrupt: () => speechPlayback.interrupt(),
-    onSpeechAbort: () => speechPlayback.abort(),
-    onCue: (cue) => speechPlayback.setCue(cue),
+    onSpeech: (text) => voice.speechPlayback.onSpeech(text),
+    onSpeechDelta: (text) => voice.speechPlayback.onSpeechDelta(text),
+    onSpeechEnd: () => voice.speechPlayback.onSpeechEnd(),
+    onSpeechInterrupt: () => voice.speechPlayback.interrupt(),
+    onSpeechAbort: () => voice.speechPlayback.abort(),
+    onCue: (cue) => voice.speechPlayback.setCue(cue),
     onToolStatus: (s) =>
       s.state === "running"
         ? surfaces.showTool(s.tool_id ?? "")
@@ -821,34 +738,9 @@ async function bootstrap(): Promise<void> {
     peekRecentApps: () => osContext.peekRecentApps(),
     drainRecentApps: (only) => osContext.drainRecentApps(only),
     getAgentSettings: () => agentSettings.get(),
-    // TTFT thinking: dispatcher owns only timing — arm timer only if effective pool not empty.
-    getFiller: () => {
-      const pool = effectiveFiller();
-      return pool.first.length > 0 || pool.repeat.length > 0;
-    },
-    // First token delay: thinking motion (loop) + filler loop start (first utterance → repeat). Loop owns speaking.
-    onThinkingStart: (token) => {
-      // Synchronously declare this turn owns thinking — overlapping next turn start supersedes if it arrives.
-      currentThinkingTurn = token;
-      // hold BEFORE the first filler can speak so no filler sentence resets the motion.
-      speechPlayback.holdMotion(true);
-      // Motion yields when a higher-priority state is current (e.g. window_sit perch:
-      // thinking is interrupt_policy "ignore"), but the filler voice always speaks —
-      // the utterance is independent of the motion decision.
-      renderer.playMotion({ id: "thinking", loop: true });
-      fillerLoop?.start();
-    },
-    // Thinking end → filler loop stop + idle baseline return. thinking is loop:true/kind:"state",
-    // so without cue spins forever and pollutes previousStable; end by returning to idle to prevent both.
-    // (backend motion cue priority 70 replaces idle as-is on arrival.)
-    // Ignore late end of overtaken turn (token != current) — single fillerLoop/motion owns current turn.
-    onThinkingEnd: (token) => {
-      if (token !== currentThinkingTurn) return;
-      currentThinkingTurn = null;
-      speechPlayback.holdMotion(false);
-      fillerLoop?.stop();
-      renderer.playMotion(null);
-    },
+    getFiller: voice.hasFiller,
+    onThinkingStart: voice.onThinkingStart,
+    onThinkingEnd: voice.onThinkingEnd,
   });
   // dispatcher/guardrails created after config load (guardrails needs cfg.guardrails numbers).
   try {
@@ -861,7 +753,7 @@ async function bootstrap(): Promise<void> {
       renderer,
       backendCaller,
       guardrails,
-      isSpeaking: () => speechPlayback.isSpeaking(),
+      isSpeaking: () => voice.speechPlayback.isSpeaking(),
       // Surface only user-initiated turn failures (proactive/schedule/agent log only — silent by design).
       // Route by source (text/voice) — checking isInputOpen() only at failure time risks misrouting
       // escaped typed turns to voice surface, so routeTurnFailure prioritizes source.
@@ -902,23 +794,7 @@ async function bootstrap(): Promise<void> {
         chatHistoryStore.dispose();
       });
     }
-    const { createSttVad } = await import("./io/stt-vad");
-    const sttVad = createSttVad({
-      config: cfg.endpoints,
-      // Lazy: re-read silence threshold each time VAD starts so slider changes take effect.
-      silenceMs: () => vadSettings.get().silenceMs,
-      getApiKey: () => config.secrets.get(STT_API_KEY_SECRET),
-      onVoiceSegment: (text) => {
-        userInput.submitVoice(text);
-        proactiveSourceRef?.noteInteraction();
-      },
-      onState: (state, detail) => voiceInputStatus.set(state, detail),
-      onSpeechActive: () => {
-        if (vadSettings.get().bargeIn && speechPlayback.isSpeaking()) {
-          speechPlayback.interrupt({ muteCurrentTurn: true });
-        }
-      },
-    });
+    const sttVad = await voice.createSttEngine(cfg.endpoints);
     // Bind the engine + auto-resume if left on last session (handled inside wireVoiceInput).
     voiceInput.setStt(sttVad);
     // Inject emotion/motion registry into renderer → setEmotion/playMotion (= applyDirective) works.
