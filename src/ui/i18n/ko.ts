@@ -40,6 +40,9 @@ const ko: Record<string, string> = {
   "input.error_network": "응답 없음 · 연결 확인",
   "input.error_parse": "응답 처리 실패",
 
+  // chain-break (404) recovery notice
+  "chain.reset_notice": "대화 컨텍스트가 초기화되었습니다",
+
   // boot-failure notice
   "boot.error_title": "YUI를 시작하지 못했습니다",
   "boot.error_config": "설정을 불러오지 못했습니다 — {file}",

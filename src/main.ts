@@ -71,6 +71,7 @@ import {
 } from "./ui/anchor";
 import { showBootError } from "./ui/boot-error";
 import { createCaptureIndicator } from "./ui/capture-indicator";
+import { showChainResetNotice } from "./ui/chain-reset-notice";
 import { maybeShowFirstRunHint } from "./ui/first-run-hint";
 import { subscribe as subscribeLocale, t } from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls";
@@ -709,6 +710,8 @@ async function bootstrap(): Promise<void> {
     getFetch: () => selectFetch(),
     getPreviousResponseId: () => sessionStore.get() ?? undefined,
     onResponseId: (id) => sessionStore.set(id),
+    onResponseIdInvalid: () => sessionStore.clear(),
+    onChainReset: () => showChainResetNotice({ surfaces, t }),
     transcript: chatHistoryStore,
     onUsage: (usage) => {
       sessionDiagnostics.setUsage(
