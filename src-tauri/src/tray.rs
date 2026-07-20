@@ -1,7 +1,7 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Manager, WebviewUrl, WebviewWindowBuilder,
+    AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -30,11 +30,15 @@ fn toggle_visibility(app: &AppHandle) {
         Ok(true) => {
             if let Err(error) = window.hide() {
                 log::warn!("tray_hide_main_window_failed error={error}");
+            } else if let Err(error) = window.emit("tray_toggle", false) {
+                log::warn!("tray_toggle_emit_failed visible=false error={error}");
             }
         }
         Ok(false) => {
             if let Err(error) = window.show() {
                 log::warn!("tray_show_main_window_failed error={error}");
+            } else if let Err(error) = window.emit("tray_toggle", true) {
+                log::warn!("tray_toggle_emit_failed visible=true error={error}");
             }
         }
         Err(error) => log::warn!("tray_read_main_window_visibility_failed error={error}"),

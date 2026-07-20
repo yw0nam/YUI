@@ -96,10 +96,12 @@
   },
   "peek": {
     "vrma_path": "/motions/peek.vrma",
-    "kind": "oneshot",
-    "loop": false,
-    "priority": 70,
-    "interrupt_policy": "replace"
+    "fade_ms": 700,
+    "kind": "state",
+    "loop": true,
+    "priority": 55,
+    "interrupt_policy": "replace",
+    "broker_publish": false
   },
   "sleeping": {
     "vrma_path": "/motions/sleeping.vrma",

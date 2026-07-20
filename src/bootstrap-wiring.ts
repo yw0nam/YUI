@@ -299,10 +299,11 @@ export function wireSettingsReload(deps: {
 export function wireWindowSources(deps: {
   bus: EventBus;
   renderer: Renderer;
+  peekActive: () => boolean;
   agentNotifySettings: { get(): AgentNotifySettings };
   log: Logger;
 }): void {
-  const { bus, renderer, agentNotifySettings, log } = deps;
+  const { bus, renderer, peekActive, agentNotifySettings, log } = deps;
   if (!isTauri()) return;
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
@@ -332,6 +333,7 @@ export function wireWindowSources(deps: {
       invoke: (cmd) => invoke(cmd) as Promise<WindowRect[]>,
       getWindow: getCurrentWindow,
       listen: listen as never,
+      peekActive,
     });
     const { LogicalPosition, LogicalSize } = await import("@tauri-apps/api/dpi");
     windowResizeSource = createWindowResizeSource({
@@ -410,6 +412,54 @@ export function wireDispatcherSources(deps: {
   return { proactiveSource, scheduleSource, agentSource, signalsSource };
 }
 
+export async function wirePeekExitTriggers(deps: {
+  bus: EventBus;
+  peek: { active(): boolean; exit(): Promise<void> };
+  win: {
+    onFocusChanged(handler: (event: { payload: boolean }) => void): Promise<() => void>;
+    listen(event: "tray_toggle", handler: () => void): Promise<() => void>;
+  };
+}): Promise<() => void> {
+  const exitPeek = async (): Promise<void> => {
+    if (!deps.peek.active()) return;
+    await deps.peek.exit();
+    deps.bus.push({
+      source: "os_event_watcher",
+      event_name: "user.peek_exit",
+      ts: Date.now(),
+      hint_tier: 1,
+      dnd_override: true,
+    });
+  };
+  const unlistenFocus = await deps.win.onFocusChanged((event) => {
+    if (event.payload) void exitPeek();
+  });
+  const unlistenTray = await deps.win.listen("tray_toggle", () => void exitPeek());
+  return () => {
+    unlistenFocus();
+    unlistenTray();
+  };
+}
+
+export async function showAndFocusFromSummon(deps: {
+  bus: EventBus;
+  peek: { active(): boolean; exit(): Promise<void> };
+  win: { show(): Promise<void>; setFocus(): Promise<void> };
+}): Promise<void> {
+  await deps.win.show();
+  if (deps.peek.active()) {
+    await deps.peek.exit();
+    deps.bus.push({
+      source: "user_input_source",
+      event_name: "user.peek_exit",
+      ts: Date.now(),
+      hint_tier: 1,
+      dnd_override: true,
+    });
+  }
+  await deps.win.setFocus();
+}
+
 /**
  * Global summon hotkey (Tauri-only — skipped in browser dev). Registers the configured
  * accelerator OS-globally; on fire, show+focus the window then summon input. Registration
@@ -418,11 +468,13 @@ export function wireDispatcherSources(deps: {
  */
 export function wireSummonHotkey(deps: {
   surfaces: Pick<Surfaces, "summonInput" | "isInputOpen">;
+  bus: EventBus;
+  peek: { active(): boolean; exit(): Promise<void> };
   accelerator: string;
   onReady: (hotkey: SummonHotkey) => void;
   log: Logger;
 }): void {
-  const { surfaces, accelerator, onReady, log } = deps;
+  const { surfaces, accelerator, onReady, log, bus, peek } = deps;
   if (!isTauri()) return;
   void (async () => {
     const { register, unregister } = await import("@tauri-apps/plugin-global-shortcut");
@@ -432,9 +484,7 @@ export function wireSummonHotkey(deps: {
       unregister,
       // On macOS, include background app activation, bring forward (show before hidden).
       focusWindow: async () => {
-        const win = getCurrentWindow();
-        await win.show();
-        await win.setFocus();
+        await showAndFocusFromSummon({ win: getCurrentWindow(), peek, bus });
       },
       summonInput: () => surfaces.summonInput(),
       isInputOpen: () => surfaces.isInputOpen(),

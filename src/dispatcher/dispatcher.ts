@@ -35,6 +35,7 @@ const baseLog = createLogger("dispatcher");
 export interface DispatcherDeps {
   bus: EventBus;
   renderer: Pick<Renderer, "applyDirective" | "setPerchTarget">;
+  peek?: { enter(): Promise<void>; exit(): Promise<void> };
   backendCaller: BackendCaller;
   /** Guardrails — DND/debounce/rate-limit gate + cooldown verdict (pure). */
   guardrails: Guardrails;
@@ -152,7 +153,9 @@ function classify(env: BusEnvelope): Classification {
     n === "user.tap" ||
     n === "user.window_sit_enter" ||
     n === "user.window_sit_exit" ||
-    n === "user.window_sit_drop"
+    n === "user.window_sit_drop" ||
+    n === "user.peek_drop" ||
+    n === "user.peek_exit"
   ) {
     return { tier: 1, target: "tier1" };
   }
@@ -186,6 +189,10 @@ function tier1Directive(env: BusEnvelope): ControlEnvelope | null {
     case "user.window_sit_drop":
       return { speech_text: "", motion: { id: "window_sit" } };
     case "user.window_sit_exit":
+      return { speech_text: "", motion: null };
+    case "user.peek_drop":
+      return { speech_text: "", motion: { id: "peek" } };
+    case "user.peek_exit":
       return { speech_text: "", motion: null };
     case "user.tap":
     case "idle.returned":
@@ -380,11 +387,30 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     log.info("fire", { seq_id: env.seq_id, event_name: env.event_name, tier: 1 });
     // perch-clear first so applyDirective's motion is the last playMotion and is
     // not clobbered by setPerchTarget(null)'s internal playMotion(null).
+    applyPeekState(env);
     applyPerchTarget(env);
     try {
       renderer.applyDirective(directive);
     } catch (err) {
       log.error("tier1.render_error", { error: String(err) });
+    }
+  }
+
+  function applyPeekState(env: BusEnvelope): void {
+    if (!deps.peek) return;
+    try {
+      const operation =
+        env.event_name === "user.peek_drop"
+          ? deps.peek.enter()
+          : env.event_name === "user.peek_exit" ||
+              env.event_name === "user.drag_start" ||
+              env.event_name === "user.window_sit_drop" ||
+              env.event_name === "user.window_sit_enter"
+            ? deps.peek.exit()
+            : null;
+      void operation?.catch((err) => log.error("tier1.peek_state_error", { error: String(err) }));
+    } catch (err) {
+      log.error("tier1.peek_state_error", { error: String(err) });
     }
   }
 
@@ -399,6 +425,10 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   function applyPerchTarget(env: BusEnvelope): void {
     try {
       if (env.event_name === "user.window_sit_exit" || env.event_name === "user.drag_start") {
+        renderer.setPerchTarget(null);
+        return;
+      }
+      if (env.event_name === "user.peek_drop") {
         renderer.setPerchTarget(null);
         return;
       }

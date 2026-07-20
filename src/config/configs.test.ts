@@ -244,10 +244,11 @@ describe("configs/motions.json", () => {
     expect(published).not.toContain("landing");
     expect(published).not.toContain("suneru");
     expect(published).not.toContain("thinking");
+    expect(published).not.toContain("peek");
   });
 
   it("registers the standing-gesture batch as oneshot p70", () => {
-    for (const id of ["sheepish", "calm", "peek"]) {
+    for (const id of ["sheepish", "calm"]) {
       expect(m[id], id).toBeDefined();
       expect(m[id].vrma_path, `${id}.vrma_path`).toMatch(/\.vrma$/);
       expect(m[id].kind, `${id}.kind`).toBe("oneshot");
@@ -255,6 +256,18 @@ describe("configs/motions.json", () => {
       expect(m[id].priority, `${id}.priority`).toBe(70);
       expect(m[id].interrupt_policy, `${id}.interrupt_policy`).toBe("replace");
     }
+  });
+
+  it("registers peek as a looping held state for side perches", () => {
+    expect(m.peek).toEqual({
+      vrma_path: "/motions/peek.vrma",
+      fade_ms: 700,
+      kind: "state",
+      loop: true,
+      priority: 55,
+      interrupt_policy: "replace",
+      broker_publish: false,
+    });
   });
 
   it("registers thinking as a looping state TTFT-filler motion (purchased, broker-excluded, p50)", () => {

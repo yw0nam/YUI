@@ -252,8 +252,7 @@ describe("createHitTestController — suspend/resume", () => {
 
     // suspend forces back to interactive (ignore=false).
     c.suspend();
-    await Promise.resolve();
-    expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(false);
+    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(false));
 
     win.setIgnoreCursorEvents.mockClear();
     // moves during suspend never flip to passthrough
@@ -279,6 +278,50 @@ describe("createHitTestController — suspend/resume", () => {
     c.suspend();
     await Promise.resolve();
     expect(win.setIgnoreCursorEvents).not.toHaveBeenCalled();
+    c.stop();
+  });
+
+  it('suspend("passthrough") forces click-through through the controller', async () => {
+    const win = fakeWindow();
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: new EventTarget(),
+      isOverInteractive: () => false,
+      getConfig: () => cfg,
+      schedule: () => 0,
+      cancel: () => {},
+    });
+    c.start();
+    c.suspend("passthrough");
+    await Promise.resolve();
+    expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(true);
+
+    c.resume();
+    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(false));
+    c.stop();
+  });
+
+  it("serializes rapid passthrough suspend and resume flips", async () => {
+    let resolveFirst: (() => void) | undefined;
+    const win = fakeWindow();
+    win.setIgnoreCursorEvents
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (resolveFirst = resolve)))
+      .mockResolvedValue(undefined);
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: new EventTarget(),
+      isOverInteractive: () => false,
+      getConfig: () => cfg,
+      schedule: () => 0,
+      cancel: () => {},
+    });
+    c.start();
+    c.suspend("passthrough");
+    c.resume();
+    await Promise.resolve();
+    expect(win.setIgnoreCursorEvents).toHaveBeenCalledTimes(1);
+    resolveFirst?.();
+    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenNthCalledWith(2, false));
     c.stop();
   });
 });
@@ -346,7 +389,7 @@ describe("createHitTestController — poll failure hardening", () => {
     await scheduledCb();
     await Promise.resolve();
 
-    expect(win.setIgnoreCursorEvents).toHaveBeenCalledWith(false);
+    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenCalledWith(false));
     c.stop();
   });
 

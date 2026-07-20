@@ -35,12 +35,24 @@ export interface CatchZoneOpts {
   mx?: number;
 }
 
+/** Side catch-zone band tuning, as fractions of the character's screen height. */
+export interface SideCatchZoneOpts {
+  /** Band extending away from the window (default {@link SIDE_OUT}). */
+  out?: number;
+  /** Band extending into the window (default {@link SIDE_IN}). */
+  in?: number;
+}
+
 /** Catch-zone "up" band: fraction of char screen height above the window top. */
 export const CATCH_U = 0.28;
 /** Catch-zone "down" band: fraction of char screen height below the window top. */
 export const CATCH_D = 0.23;
 /** Catch-zone horizontal margin: fraction of window width on each side. */
 export const CATCH_MX = 0.0;
+/** Side catch-zone band extending away from the window edge. */
+export const SIDE_OUT = 0.28;
+/** Side catch-zone band extending into the window interior. */
+export const SIDE_IN = 0.23;
 /** Default seat drop below the hip bone (world units). Tuned visually later. */
 export const SEAT_DROP_DEFAULT = 0.0;
 
@@ -152,6 +164,29 @@ export function inCatchZone(
     seatGlobalPts.y >= top &&
     seatGlobalPts.y <= bottom
   );
+}
+
+/** Return the side edge whose horizontal catch band contains the seat point. */
+export function inSideCatchZone(
+  seatGlobalPts: ScreenPoint,
+  win: ScreenRect,
+  charHpx: number,
+  opts?: SideCatchZoneOpts,
+): "left" | "right" | null {
+  if (seatGlobalPts.y < win.y || seatGlobalPts.y > win.y + win.height) return null;
+
+  const out = (opts?.out ?? SIDE_OUT) * charHpx;
+  const inside = (opts?.in ?? SIDE_IN) * charHpx;
+  const leftEdge = win.x;
+  if (seatGlobalPts.x >= leftEdge - out && seatGlobalPts.x <= leftEdge + inside) {
+    return "left";
+  }
+
+  const rightEdge = win.x + win.width;
+  if (seatGlobalPts.x >= rightEdge - inside && seatGlobalPts.x <= rightEdge + out) {
+    return "right";
+  }
+  return null;
 }
 
 /**

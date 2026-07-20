@@ -80,6 +80,8 @@ let bus: EventBus;
 let applyDirective: ReturnType<typeof vi.fn>;
 let setPerchTarget: ReturnType<typeof vi.fn>;
 let renderer: { applyDirective: typeof applyDirective; setPerchTarget: typeof setPerchTarget };
+let peekEnter: ReturnType<typeof vi.fn<() => Promise<void>>>;
+let peekExit: ReturnType<typeof vi.fn<() => Promise<void>>>;
 let callDeferred: Array<{ resolve: (r: BackendCallResult) => void; signal?: AbortSignal }>;
 let backendCaller: BackendCaller;
 let guardrails: Guardrails;
@@ -103,6 +105,8 @@ beforeEach(() => {
   bus = createEventBus();
   applyDirective = vi.fn();
   setPerchTarget = vi.fn();
+  peekEnter = vi.fn().mockResolvedValue(undefined);
+  peekExit = vi.fn().mockResolvedValue(undefined);
   renderer = { applyDirective, setPerchTarget };
   callDeferred = [];
   backendCaller = makeBackendCaller();
@@ -115,6 +119,7 @@ beforeEach(() => {
     backendCaller,
     guardrails,
     isSpeaking: () => speaking,
+    peek: { enter: peekEnter, exit: peekExit },
     logger,
   });
 });
@@ -195,6 +200,53 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(applyDirective).toHaveBeenCalled();
     const arg = applyDirective.mock.calls[0][0];
     expect(arg.motion).toBeNull();
+  });
+
+  it("routes peek drop/exit as tier1 directives and drives the peek side-channel", async () => {
+    dispatcher.start();
+    bus.push(env({ event_name: "user.peek_drop", hint_tier: 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    expect(setPerchTarget).toHaveBeenCalledWith(null);
+    expect(peekEnter).toHaveBeenCalledTimes(1);
+    expect(applyDirective).toHaveBeenLastCalledWith({ speech_text: "", motion: { id: "peek" } });
+
+    bus.push(env({ event_name: "user.peek_exit", hint_tier: 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(peekExit).toHaveBeenCalledTimes(1);
+    expect(applyDirective).toHaveBeenLastCalledWith({ speech_text: "", motion: null });
+  });
+
+  it("exits peek for drag and either sit entry path", async () => {
+    dispatcher.start();
+    for (const event_name of ["user.drag_start", "user.window_sit_enter", "user.window_sit_drop"]) {
+      bus.push(
+        env({
+          event_name,
+          hint_tier: 1,
+          payload: event_name === "user.window_sit_drop" ? { edge_local_ypx: 30 } : undefined,
+        }),
+      );
+      await vi.advanceTimersByTimeAsync(20);
+    }
+    expect(peekExit).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps peek events renderable when the optional side-channel is absent", async () => {
+    dispatcher.stop();
+    dispatcher = createDispatcher({
+      bus,
+      renderer: renderer as never,
+      backendCaller,
+      guardrails,
+      logger,
+    });
+    dispatcher.start();
+    bus.push(env({ event_name: "user.peek_drop", hint_tier: 1 }));
+    bus.push(env({ event_name: "user.peek_exit", hint_tier: 1, ts: NOW + 1 }));
+    await vi.advanceTimersByTimeAsync(40);
+    expect(applyDirective).toHaveBeenCalledTimes(2);
   });
 
   it("routes proactive.cowork (tier2) to the backend caller", async () => {

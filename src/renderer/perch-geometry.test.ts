@@ -18,9 +18,12 @@ import {
   CATCH_U,
   characterScreenHeight,
   inCatchZone,
+  inSideCatchZone,
   petPxToGlobalPoints,
   projectToScreen,
   SEAT_DROP_DEFAULT,
+  SIDE_IN,
+  SIDE_OUT,
   seatAnchorWorld,
   seatAnchorWorldInto,
   seatOffsetWorldY,
@@ -48,7 +51,49 @@ describe("perch-geometry — exported tunables", () => {
     expect(CATCH_U).toBe(0.28);
     expect(CATCH_D).toBe(0.23);
     expect(CATCH_MX).toBe(0.0);
+    expect(SIDE_OUT).toBe(0.28);
+    expect(SIDE_IN).toBe(0.23);
     expect(SEAT_DROP_DEFAULT).toBe(0.0);
+  });
+});
+
+describe("inSideCatchZone", () => {
+  const WIN = { x: 300, y: 400, width: 520, height: 320 };
+  const CHAR_H = 200;
+
+  it("accepts both the outside and inside portions of the left edge band", () => {
+    expect(inSideCatchZone({ x: WIN.x - SIDE_OUT * CHAR_H, y: 500 }, WIN, CHAR_H)).toBe("left");
+    expect(inSideCatchZone({ x: WIN.x + SIDE_IN * CHAR_H, y: 500 }, WIN, CHAR_H)).toBe("left");
+  });
+
+  it("accepts both the inside and outside portions of the right edge band", () => {
+    const edge = WIN.x + WIN.width;
+    expect(inSideCatchZone({ x: edge - SIDE_IN * CHAR_H, y: 500 }, WIN, CHAR_H)).toBe("right");
+    expect(inSideCatchZone({ x: edge + SIDE_OUT * CHAR_H, y: 500 }, WIN, CHAR_H)).toBe("right");
+  });
+
+  it("rejects points beyond the horizontal bands or vertical window range", () => {
+    expect(inSideCatchZone({ x: WIN.x + WIN.width / 2, y: 500 }, WIN, CHAR_H)).toBeNull();
+    expect(
+      inSideCatchZone({ x: WIN.x - SIDE_OUT * CHAR_H - 0.01, y: 500 }, WIN, CHAR_H),
+    ).toBeNull();
+    expect(
+      inSideCatchZone({ x: WIN.x + WIN.width + SIDE_OUT * CHAR_H + 0.01, y: 500 }, WIN, CHAR_H),
+    ).toBeNull();
+    expect(inSideCatchZone({ x: WIN.x, y: WIN.y - 0.01 }, WIN, CHAR_H)).toBeNull();
+    expect(inSideCatchZone({ x: WIN.x, y: WIN.y + WIN.height + 0.01 }, WIN, CHAR_H)).toBeNull();
+  });
+
+  it("includes vertical boundaries and lets the left edge win for overlapping bands", () => {
+    expect(inSideCatchZone({ x: WIN.x, y: WIN.y }, WIN, CHAR_H)).toBe("left");
+    expect(inSideCatchZone({ x: WIN.x, y: WIN.y + WIN.height }, WIN, CHAR_H)).toBe("left");
+    const narrow = { x: 300, y: 400, width: 10, height: 320 };
+    expect(inSideCatchZone({ x: 305, y: 500 }, narrow, CHAR_H)).toBe("left");
+  });
+
+  it("supports independent out and in overrides", () => {
+    expect(inSideCatchZone({ x: WIN.x - 30, y: 500 }, WIN, CHAR_H, { out: 0.1 })).toBeNull();
+    expect(inSideCatchZone({ x: WIN.x + 30, y: 500 }, WIN, CHAR_H, { in: 0.1 })).toBeNull();
   });
 });
 
