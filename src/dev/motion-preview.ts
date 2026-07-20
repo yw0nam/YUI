@@ -11,8 +11,8 @@
  *   - Registry list rendered from the imported JSON, grouped by MotionKind.
  *   - Playback controls compose MotionSignal overrides passed to renderer.playMotion().
  *
- * Status bar tracks last-requested motion UI-side (renderer does not surface current motion
- * back to UI). Oneshot auto-return-to-idle is not reflected in status.
+ * Status bar polls renderer.getCurrentMotion() per frame, so it reflects the committed
+ * motion including variant resolution and oneshot auto-return-to-idle.
  */
 
 import "./motion-preview.css";
@@ -57,7 +57,7 @@ const EMOTION_ORDER: EmotionId[] = [
 // ─── State ───────────────────────────────────────────────────────────────────
 
 interface PlaybackState {
-  /** ID of the motion the user last requested (not necessarily what the renderer is playing). */
+  /** ID of the committed motion (synced from renderer.getCurrentMotion each frame). */
   activeId: string | null;
   /** Elapsed seconds since last play action. */
   elapsedStart: number;
@@ -70,6 +70,78 @@ const state: PlaybackState = {
   elapsedStart: 0,
   fps: 0,
 };
+
+// ─── Live-motion polling (set in main once the renderer exists) ──────────────
+
+/** Reads renderer.getCurrentMotion(); null until the renderer is created. */
+let liveMotion: (() => { id: string; vrma_path: string } | null) | null = null;
+let liveRegistry: MotionRegistry | null = null;
+/** `${id}|${vrma_path}` of the last synced motion — gates per-frame DOM writes. */
+let lastLiveKey = "";
+
+/** "/motions/idle_03.vrma" → "idle_03" */
+function variantName(vrmaPath: string): string {
+  return vrmaPath.slice(vrmaPath.lastIndexOf("/") + 1).replace(/\.vrma$/, "");
+}
+
+/**
+ * Preview-only: expand each pooled entry's variants into individually playable
+ * single-vrma entries (idle_01, sit_02, …) inserted right after their pool, so a
+ * specific variant can be selected directly instead of via the pool's random pick.
+ */
+function expandVariantEntries(reg: MotionRegistry): {
+  registry: MotionRegistry;
+  variantIds: Set<string>;
+} {
+  const out: MotionRegistry = {};
+  const variantIds = new Set<string>();
+  for (const [id, entry] of Object.entries(reg)) {
+    out[id] = entry;
+    if (!entry.variants || entry.variants.length === 0) continue;
+    for (const v of entry.variants) {
+      const childId = variantName(v);
+      if (reg[childId] || out[childId]) continue;
+      const {
+        variants: _v,
+        variant_policy: _p,
+        loop_cycles: _l,
+        cycle_dwell_ms: _c,
+        ...rest
+      } = entry;
+      out[childId] = { ...rest, vrma_path: v };
+      variantIds.add(childId);
+    }
+  }
+  return { registry: out, variantIds };
+}
+
+/** Sync row highlight / status bar / idle sub-line to the committed motion. */
+function syncLiveMotion(): { id: string; vrma_path: string } | null {
+  const cur = liveMotion?.() ?? null;
+  const key = cur ? `${cur.id}|${cur.vrma_path}` : "";
+  if (key === lastLiveKey) return cur;
+  lastLiveKey = key;
+
+  state.activeId = cur?.id ?? null;
+  state.elapsedStart = performance.now(); // per-clip: resets on variant swap too
+
+  setActiveRow(cur?.id ?? null);
+
+  const entry = cur && liveRegistry ? liveRegistry[cur.id] : undefined;
+  statusNow.textContent = cur ? cur.id : "none";
+  statusKind.textContent = entry ? entry.kind : "-";
+  statusPriority.textContent = entry ? `p${entry.priority}` : "-";
+
+  const subLine = document.getElementById("idle-sub-line");
+  const variants = liveRegistry?.idle?.variants;
+  if (subLine && cur && cur.id === "idle" && variants) {
+    const idx = variants.indexOf(cur.vrma_path);
+    if (idx >= 0) {
+      subLine.innerHTML = `variant <span>${idx + 1}/${variants.length}</span> &middot; ${variantName(cur.vrma_path)}`;
+    }
+  }
+  return cur;
+}
 
 /** ID of the emotion the user last applied (or null if none applied yet). */
 let activeEmotionId: EmotionId | null = null;
@@ -145,6 +217,7 @@ function setActiveRow(id: string | null): void {
 function buildRegistryList(
   motionsRegistry: MotionRegistry,
   doPlayById: (id: string) => void,
+  variantIds: Set<string> = new Set(),
 ): void {
   registryList.innerHTML = "";
 
@@ -175,7 +248,7 @@ function buildRegistryList(
       if (!entry) continue;
 
       const row = document.createElement("div");
-      row.className = "motion-row";
+      row.className = variantIds.has(id) ? "motion-row variant-row" : "motion-row";
       row.dataset.motionId = id;
       row.tabIndex = 0;
       row.setAttribute("role", "row");
@@ -350,13 +423,17 @@ function rafLoop(): void {
     fpsLast = now;
   }
 
+  const cur = syncLiveMotion();
+
   const elapsedSec =
     state.activeId !== null ? ((performance.now() - state.elapsedStart) / 1000).toFixed(1) : "0.0";
 
   statusElapsed.textContent = `${elapsedSec}s`;
   statusFps.textContent = `${state.fps}fps`;
+  const variant = cur ? variantName(cur.vrma_path) : null;
+  const variantHint = cur && variant !== cur.id ? ` (${variant})` : "";
   const emotionHint = activeEmotionId !== null ? ` · em:${activeEmotionId}` : "";
-  viewportStatus.textContent = `${state.activeId ?? "none"}${emotionHint} · ${state.fps}fps`;
+  viewportStatus.textContent = `${cur?.id ?? "none"}${variantHint}${emotionHint} · ${state.fps}fps`;
 }
 
 // ─── Slider display updates ───────────────────────────────────────────────────
@@ -410,10 +487,13 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Expand pooled variants into directly selectable entries (preview-only).
+  const { registry: expandedRegistry, variantIds } = expandVariantEntries(motionsRegistry);
+
   // 2. Create renderer with both registries injected.
   const renderer = createRenderer({
     mount,
-    motionRegistry: motionsRegistry,
+    motionRegistry: expandedRegistry,
     emotionRegistry: emotionsRegistry,
   });
 
@@ -431,10 +511,7 @@ async function main(): Promise<void> {
     const overrides = currentSignalOverrides();
     const signal: MotionSignal = { id, ...overrides };
     renderer.playMotion(signal);
-    state.activeId = id;
-    state.elapsedStart = performance.now();
-    setActiveRow(id);
-    updateStatusBar();
+    // Row highlight / status bar follow via syncLiveMotion polling in rafLoop.
   }
 
   function doIdleReturn(): void {
@@ -461,24 +538,9 @@ async function main(): Promise<void> {
     setActiveEmotionRow(id);
   }
 
-  // ─── Status bar ─────────────────────────────────────────────────────────────
-
-  function updateStatusBar(): void {
-    if (state.activeId === null) {
-      statusNow.textContent = "none";
-      statusKind.textContent = "-";
-      statusPriority.textContent = "-";
-      return;
-    }
-    const entry = motionsRegistry[state.activeId];
-    statusNow.textContent = state.activeId;
-    statusKind.textContent = entry ? entry.kind : "-";
-    statusPriority.textContent = entry ? `p${entry.priority}` : "-";
-  }
-
   // 3. Build the registry list + crossfade dropdown (needs registry).
-  buildRegistryList(motionsRegistry, doPlayById);
-  buildCrossfadeOptions(motionsRegistry);
+  buildRegistryList(expandedRegistry, doPlayById, variantIds);
+  buildCrossfadeOptions(expandedRegistry);
 
   // 4. Build emotion rows from the emotion registry.
   buildEmotionList(emotionsRegistry, doSetEmotion);
@@ -511,7 +573,9 @@ async function main(): Promise<void> {
     // null is a no-op in the renderer — do not change activeEmotionId or row highlight.
   });
 
-  // 7. Start rAF loop for fps/elapsed display.
+  // 7. Start rAF loop for fps/elapsed/current-motion display.
+  liveMotion = () => renderer.getCurrentMotion();
+  liveRegistry = expandedRegistry;
   requestAnimationFrame(rafLoop);
 
   // dev-only perch hook: drive setPerchTarget from Playwright / console.
@@ -528,11 +592,7 @@ async function main(): Promise<void> {
   // 8. Load VRM — renderer auto-plays idle baseline on load.
   try {
     await renderer.loadVRM(VRM_URL);
-    // Reflect idle baseline in UI state (renderer sets it on load when registry is set)
-    state.activeId = "idle";
-    state.elapsedStart = performance.now();
-    setActiveRow("idle");
-    updateStatusBar();
+    // Idle baseline auto-plays on load; syncLiveMotion picks it up next frame.
   } catch (err) {
     log.error("vrm_load_failed", { error: String(err) });
   }
