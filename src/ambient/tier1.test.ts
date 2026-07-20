@@ -132,16 +132,23 @@ describe("Tier1Engine — drives a VRM (headless)", () => {
   });
 
   it("blinks at least once within ~7s and reaches near-full closure", () => {
-    const { renderer, getTick } = makeRenderer();
-    const m = makeVrm();
-    createTier1Engine(renderer).start();
-    const samples = drive(getTick(), m, 7);
-    const blinkMax = Math.max(...samples.map((s) => s.blink));
-    // Sampling 150ms triangle pulse at 60fps, frame doesn't align exactly at peak (75ms),
-    // so max per frame is ~0.89 limit — eyes effectively fully closed.
-    expect(blinkMax).toBeGreaterThan(0.85);
-    // and re-opens (not stuck shut)
-    expect(samples[samples.length - 1].blink).toBeLessThan(0.1);
+    // Pin rng: blink schedule is Math.random-based, and an unlucky second blink
+    // can straddle the final frame. 0.5 → blink at 4.5s, next at ~9.15s (outside window).
+    const rand = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      const { renderer, getTick } = makeRenderer();
+      const m = makeVrm();
+      createTier1Engine(renderer).start();
+      const samples = drive(getTick(), m, 7);
+      const blinkMax = Math.max(...samples.map((s) => s.blink));
+      // Sampling 150ms triangle pulse at 60fps, frame doesn't align exactly at peak (75ms),
+      // so max per frame is ~0.89 limit — eyes effectively fully closed.
+      expect(blinkMax).toBeGreaterThan(0.85);
+      // and re-opens (not stuck shut)
+      expect(samples[samples.length - 1].blink).toBeLessThan(0.1);
+    } finally {
+      rand.mockRestore();
+    }
   });
 
   it("tap_react one-shot adds a transient head pitch bob, then settles back", () => {

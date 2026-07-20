@@ -47,21 +47,21 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 
 13 variants.
 
-| variant file | source clip | ~len |
-|---|---|---|
-| idle_01.vrma | PET_MISC/HoverReaction | 2.5s |
-| idle_02.vrma | UPDATE_2/PET_IDLE_UPDATE2_01 | 16.5s |
-| idle_03.vrma | UPDATE_2/PET_IDLE_UPDATE2_02 | 13.2s |
-| idle_04.vrma | UPDATE_2/PET_IDLE_UPDATE2_03 | 11.4s |
-| idle_05.vrma | UPDATE_2/PET_IDLE_UPDATE2_04 | 12.0s |
-| idle_06.vrma | PET_IDLE/PET_IDLE_6 | 5.7s |
-| idle_07.vrma | PET_IDLE/PET_IDLE_7 | 9.3s |
-| idle_08.vrma | PET_IDLE/PET_IDLE_8 | 6.0s |
-| idle_09.vrma | PET_IDLE/PET_IDLE_9 | 10.0s |
-| idle_10.vrma | PET_IDLE/PET_IDLE_10 | 11.0s |
-| idle_11.vrma | PET_IDLE/PET_IDLE_11 | 4.1s |
-| idle_12.vrma | PET_IDLE/PET_IDLE_12 | 3.5s |
-| idle_13.vrma | PET_IDLE/PET_IDLE_13 | 4.1s |
+| variant file | description | source clip | ~len |
+|---|---|---|---|
+| idle_01.vrma | Standing, hands framed together at the chest, slight turn — playful. | PET_MISC/HoverReaction | 2.5s |
+| idle_02.vrma | Standing, arm lifts to the chin then crosses at the chest, cape swirling — energetic. | UPDATE_2/PET_IDLE_UPDATE2_01 | 16.5s |
+| idle_03.vrma | Standing, one arm raised high in an open-palm wave — cheerful greeting. | UPDATE_2/PET_IDLE_UPDATE2_02 | 13.2s |
+| idle_04.vrma | Standing, 3/4 turn, one hand raised to touch her hair — coy. | UPDATE_2/PET_IDLE_UPDATE2_03 | 11.4s |
+| idle_05.vrma | Standing, both arms thrown overhead in a big stretch, cape flaring wide — energetic. | UPDATE_2/PET_IDLE_UPDATE2_04 | 12.0s |
+| idle_06.vrma | Standing, quick half-turn with a leg cross and hip dip, hair swinging out — playful twirl. | PET_IDLE/PET_IDLE_6 | 5.7s |
+| idle_07.vrma | Standing, glancing back over the shoulder with one hand raised in a small wave, hair swept aside — flirty. | PET_IDLE/PET_IDLE_7 | 9.3s |
+| idle_08.vrma | Standing, arms sweep open wide then settle back at sides, sleeves fluttering — breezy sway. | PET_IDLE/PET_IDLE_8 | 6.0s |
+| idle_09.vrma | Hands on hips, confident smirk, quick turn sends hair whipping to the side — playful, sassy. | PET_IDLE/PET_IDLE_9 | 10.0s |
+| idle_10.vrma | Side turn, hair caught in a windswept flick, hands settle clasped behind the back — coy, flirty. | PET_IDLE/PET_IDLE_10 | 11.0s |
+| idle_11.vrma | Standing, hands raised to shoulder height with fingers curled like claws, playful jab — feisty. | PET_IDLE/PET_IDLE_11 | 4.1s |
+| idle_12.vrma | Standing, weight shifted onto one hip, subtle head tilt and knowing smile — sultry calm. | PET_IDLE/PET_IDLE_12 | 3.5s |
+| idle_13.vrma | Standing, glances back over the shoulder then leans in with hip cocked — flirty tease. | PET_IDLE/PET_IDLE_13 | 4.1s |
 
 ## `window_sit` variants (random)
 

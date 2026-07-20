@@ -162,6 +162,8 @@ export interface Renderer {
   stopMouth(): void;
   /** Lookup motion registry and play VRMA. Registry must be injected to operate. */
   playMotion(motion: MotionSignal | null): void;
+  /** Currently committed motion (variant-resolved) — null before any playback. */
+  getCurrentMotion(): { id: string; vrma_path: string } | null;
   /**
    * Inject (or replace) motion registry. When injected, (re)generates MotionController; if
    * VRM is already loaded, plays the idle baseline.
@@ -900,6 +902,10 @@ export function createRenderer(options: RendererOptions): Renderer {
       mouth.stop();
     },
     playMotion,
+    getCurrentMotion() {
+      const cur = controller?.current();
+      return cur ? { id: cur.id, vrma_path: cur.vrma_path } : null;
+    },
     setMotionRegistry,
     setEmotionRegistry,
     setFraming,
