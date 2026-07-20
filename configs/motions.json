@@ -1,20 +1,11 @@
 {
   "idle": {
-    "vrma_path": "/motions/idle_01.vrma",
+    "vrma_path": "/motions/calm.vrma",
     "variants": [
+      "/motions/calm.vrma",
       "/motions/idle_01.vrma",
-      "/motions/idle_02.vrma",
-      "/motions/idle_03.vrma",
       "/motions/idle_04.vrma",
-      "/motions/idle_05.vrma",
-      "/motions/idle_06.vrma",
-      "/motions/idle_07.vrma",
-      "/motions/idle_08.vrma",
-      "/motions/idle_09.vrma",
-      "/motions/idle_10.vrma",
-      "/motions/idle_11.vrma",
-      "/motions/idle_12.vrma",
-      "/motions/idle_13.vrma"
+      "/motions/idle_12.vrma"
     ],
     "variant_policy": "random",
     "pingpong": true,
@@ -23,6 +14,27 @@
     "loop": true,
     "priority": 0,
     "interrupt_policy": "replace"
+  },
+  "idle_lively": {
+    "vrma_path": "/motions/idle_02.vrma",
+    "variants": [
+      "/motions/idle_02.vrma",
+      "/motions/idle_03.vrma",
+      "/motions/idle_05.vrma",
+      "/motions/idle_06.vrma",
+      "/motions/idle_07.vrma",
+      "/motions/idle_08.vrma",
+      "/motions/idle_09.vrma",
+      "/motions/idle_10.vrma",
+      "/motions/idle_11.vrma",
+      "/motions/idle_13.vrma"
+    ],
+    "variant_policy": "random",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": true
   },
   "drag": {
     "vrma_path": "/motions/drag.vrma",

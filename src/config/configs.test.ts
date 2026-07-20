@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { validateMotions } from "./validators/motions";
 
 const read = (rel: string): any => JSON.parse(readFileSync(resolve(process.cwd(), rel), "utf-8"));
 
@@ -100,8 +101,11 @@ describe("configs/motions.json", () => {
     }
   });
 
-  it("idle is ambient kind with priority 0", () => {
+  it("idle keeps its renderer-critical ambient baseline shape", () => {
+    expect(m.idle).toBeDefined();
     expect(m.idle.kind).toBe("ambient");
+    expect(m.idle.loop).toBe(true);
+    expect(m.idle.vrma_path).toBe("/motions/calm.vrma");
     expect(m.idle.priority).toBe(0);
     expect(m.idle.interrupt_policy).toBe("replace");
   });
@@ -120,13 +124,51 @@ describe("configs/motions.json", () => {
     }
   });
 
-  it("idle is a random-variant ambient pool (>=5 variants)", () => {
-    expect(Array.isArray(m.idle.variants)).toBe(true);
-    expect(m.idle.variants.length).toBeGreaterThanOrEqual(5);
+  it("idle is the exact calm random-variant ambient pool", () => {
+    expect(m.idle.variants).toEqual([
+      "/motions/calm.vrma",
+      "/motions/idle_01.vrma",
+      "/motions/idle_04.vrma",
+      "/motions/idle_12.vrma",
+    ]);
     expect(m.idle.variant_policy).toBe("random");
-    for (const v of m.idle.variants) {
-      expect(v, "idle.variant").toMatch(/\.vrma$/);
-    }
+  });
+
+  it("idle_lively is the exact broker-published lively oneshot pool", () => {
+    expect(m.idle_lively.variants).toEqual([
+      "/motions/idle_02.vrma",
+      "/motions/idle_03.vrma",
+      "/motions/idle_05.vrma",
+      "/motions/idle_06.vrma",
+      "/motions/idle_07.vrma",
+      "/motions/idle_08.vrma",
+      "/motions/idle_09.vrma",
+      "/motions/idle_10.vrma",
+      "/motions/idle_11.vrma",
+      "/motions/idle_13.vrma",
+    ]);
+    expect(m.idle_lively.kind).toBe("oneshot");
+    expect(m.idle_lively.loop).toBe(false);
+    expect(m.idle_lively.broker_publish).toBe(true);
+    expect(m.idle_lively.variants.every((path: string) => !m.idle.variants.includes(path))).toBe(
+      true,
+    );
+
+    const idleVariants = m.idle.variants.filter((path: string) => /idle_\d{2}\.vrma$/.test(path));
+    const partition = [...idleVariants, ...m.idle_lively.variants];
+    const originalIdleClips = Array.from(
+      { length: 13 },
+      (_, index) => `/motions/idle_${String(index + 1).padStart(2, "0")}.vrma`,
+    );
+    expect(partition).toHaveLength(13);
+    expect(new Set(partition).size).toBe(13);
+    expect([...partition].sort()).toEqual(originalIdleClips);
+    expect(m.idle.variants).toContain("/motions/calm.vrma");
+    expect(m.idle_lively.variants).not.toContain("/motions/calm.vrma");
+  });
+
+  it("passes the real motion registry through validation", () => {
+    expect(() => validateMotions("configs/motions.json", m)).not.toThrow();
   });
 
   it("dance is a random-variant oneshot pool (plays a random dance per trigger)", () => {

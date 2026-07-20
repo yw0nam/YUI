@@ -8,9 +8,9 @@ Human-readable map of every motion id in [`configs/motions.json`](https://github
   - **[もいらんど — thinking](https://booth.pm/ja/items/5562384)** — `thinking` only. A purchased licensed asset kept at `public/purchased_motions/thinking.vrma`, gitignored and never committed to a public repository (see [`public/purchased_motions/AGENTS.md`](https://github.com/yw0nam/YUI/blob/main/public/purchased_motions/AGENTS.md)). When the file is absent locally, the renderer falls back to `idle`.
   - **Original works** authored in Blender by the project author — `falling`, `landing`.
 - Durations are the source clip length.
-- **Pools**: `idle`, `window_sit`, `dance` are single registry entries with a `variants[]` list and `variant_policy: "random"` — each trigger plays a random variant (immediate-repeat avoided). The character-facing id is the pool id; individual variant files are not separate registry entries.
+- **Pools**: `idle`, `idle_lively`, `window_sit`, `dance` are single registry entries with a `variants[]` list and `variant_policy: "random"` — each trigger plays a random variant (immediate-repeat avoided). The character-facing id is the pool id; individual variant files are not separate registry entries.
 - **Triggers**: AI via `generate_express` `motion_id` plays any broker-published oneshot/pool; `idle` is the ambient baseline; `drag` is the reactive pickup; `window_sit` is a held state engaged by a dev trigger; `thinking` is a client-played TTFT latency affordance (loops from the start of a backend turn until the response speech begins).
-- **Broker publication** (`broker_publish`, default `true`): a `false` entry stays renderable locally but is kept out of the agent-facing broker vocabulary, so the agent never selects it. The broker-published, agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, dance, sulk`. Excluded from the broker: `idle` (ambient baseline, auto-played), `drag` (`kind: reactive` pickup), `window_sit` (`broker_publish: false`), `thinking` (`broker_publish: false`, client-played TTFT affordance), and `falling`, `landing` (`broker_publish: false`) — registered but not currently triggered by any code.
+- **Broker publication** (`broker_publish`, default `true`): a `false` entry stays renderable locally but is kept out of the agent-facing broker vocabulary, so the agent never selects it. The broker-published, agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, peek, sleeping, idle_lively, dance, sulk`. Excluded from the broker: `idle` (ambient baseline, auto-played), `drag` (`kind: reactive` pickup), `window_sit` (`broker_publish: false`), `thinking` (`broker_publish: false`, client-played TTFT affordance), and `falling`, `landing` (`broker_publish: false`) — registered but not currently triggered by any code.
 - **Missing-clip fallback**: any motion whose clip fails to load (missing or invalid `.vrma` for the live VRM — e.g. a gitignored purchased motion absent locally) recovers to `idle`. The renderer force-commits `idle` so the failed id never pins controller state or blocks a later idle by priority.
 
 ## Naming convention
@@ -25,7 +25,8 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 
 | id | kind | loop | description | source clip | ~len |
 |---|---|---|---|---|---|
-| `idle` | ambient | yes (cycle) | Ambient baseline — random idle variant pool (see below). `pingpong: true` with `loop_cycles: [1, 3]`: each variant plays forward↔reverse a random 1–3 round trips, then rotates to a fresh variant. | PET_IDLE / PET_MISC | — |
+| `idle` | ambient | yes (cycle) | Calm ambient baseline — random pool of `calm.vrma` and the three calmest idle variants (see below). `pingpong: true` with `loop_cycles: [1, 3]`: each variant plays forward↔reverse a random 1–3 round trips, then rotates to a fresh variant. | PET_POSE / PET_IDLE / PET_MISC | — |
+| `idle_lively` | oneshot | no | Broker-published random lively-fidget pool (see below). Plays one variant once, then returns to the prior stable motion. | PET_IDLE / UPDATE_2 | — |
 | `drag` | reactive | yes | Pickup reaction while the window is being dragged. `broker_publish: false`. | PET_MISC/PET_DRAGGING | — |
 | `falling` | reactive | yes | Falling loop — arms up, spring-bone flutter. Registered but not currently triggered by any code. `broker_publish: false`. | Original (Blender, project author) | 2.5s |
 | `landing` | oneshot | no | Landing impact then settle. Registered but not currently triggered by any code. `broker_publish: false`. | Original (Blender, project author) | 1.8s |
@@ -43,16 +44,25 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 
 > `sheepish` and `calm` are **standing gestures**, not sitting.
 
-## `idle` variants (ambient, random)
+## `idle` variants (ambient baseline pool)
 
-13 variants.
+4 variants.
 
 | variant file | description | source clip | ~len |
 |---|---|---|---|
+| calm.vrma | Calm standing gesture; hands folded together in front. | PET_POSE/PET_POSE_3 | 5.0s |
 | idle_01.vrma | Standing, hands framed together at the chest, slight turn — playful. | PET_MISC/HoverReaction | 2.5s |
+| idle_04.vrma | Standing, 3/4 turn, one hand raised to touch her hair — coy. | UPDATE_2/PET_IDLE_UPDATE2_03 | 11.4s |
+| idle_12.vrma | Standing, weight shifted onto one hip, subtle head tilt and knowing smile — sultry calm. | PET_IDLE/PET_IDLE_12 | 3.5s |
+
+## `idle_lively` variants (oneshot, random)
+
+10 variants.
+
+| variant file | description | source clip | ~len |
+|---|---|---|---|
 | idle_02.vrma | Standing, arm lifts to the chin then crosses at the chest, cape swirling — energetic. | UPDATE_2/PET_IDLE_UPDATE2_01 | 16.5s |
 | idle_03.vrma | Standing, one arm raised high in an open-palm wave — cheerful greeting. | UPDATE_2/PET_IDLE_UPDATE2_02 | 13.2s |
-| idle_04.vrma | Standing, 3/4 turn, one hand raised to touch her hair — coy. | UPDATE_2/PET_IDLE_UPDATE2_03 | 11.4s |
 | idle_05.vrma | Standing, both arms thrown overhead in a big stretch, cape flaring wide — energetic. | UPDATE_2/PET_IDLE_UPDATE2_04 | 12.0s |
 | idle_06.vrma | Standing, quick half-turn with a leg cross and hip dip, hair swinging out — playful twirl. | PET_IDLE/PET_IDLE_6 | 5.7s |
 | idle_07.vrma | Standing, glancing back over the shoulder with one hand raised in a small wave, hair swept aside — flirty. | PET_IDLE/PET_IDLE_7 | 9.3s |
@@ -60,7 +70,6 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 | idle_09.vrma | Hands on hips, confident smirk, quick turn sends hair whipping to the side — playful, sassy. | PET_IDLE/PET_IDLE_9 | 10.0s |
 | idle_10.vrma | Side turn, hair caught in a windswept flick, hands settle clasped behind the back — coy, flirty. | PET_IDLE/PET_IDLE_10 | 11.0s |
 | idle_11.vrma | Standing, hands raised to shoulder height with fingers curled like claws, playful jab — feisty. | PET_IDLE/PET_IDLE_11 | 4.1s |
-| idle_12.vrma | Standing, weight shifted onto one hip, subtle head tilt and knowing smile — sultry calm. | PET_IDLE/PET_IDLE_12 | 3.5s |
 | idle_13.vrma | Standing, glances back over the shoulder then leans in with hip cocked — flirty tease. | PET_IDLE/PET_IDLE_13 | 4.1s |
 
 ## `window_sit` variants (random)
