@@ -198,12 +198,14 @@ function agentCatchupOf(env: BusEnvelope): TriggerMeta["agent_catchup"] | undefi
 }
 
 /**
- * opaque signals batch — present on signals.push / signals.catchup. No structural
+ * opaque signals batch — present on signals events and proactive.tap_bored. No structural
  * validation of item contents (firing≠judgment): forwarded verbatim. Only the
  * top-level shape (payload.signals is an array) is checked for TS narrowing.
  */
 function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
-  if (!env.event_name.startsWith("signals.")) return undefined;
+  if (!env.event_name.startsWith("signals.") && env.event_name !== "proactive.tap_bored") {
+    return undefined;
+  }
   const s = env.payload?.signals;
   return Array.isArray(s) ? (s as TriggerMeta["signals"]) : undefined;
 }

@@ -9,7 +9,11 @@ const TAP_DEFAULTS: TapConfig = {
   spam_window_ms: 3000,
   region_radius_frac: 0.18,
   region_motions: { chest: "embarrassed", hips: "embarrassed" },
-  spam_motion: "sulk",
+  bored_cue: {
+    label: "bored poking",
+    context:
+      "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
+  },
 };
 
 export function validateAvatar(file: string, raw: unknown): AvatarConfig {
@@ -157,6 +161,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const tap: TapConfig = {
     ...TAP_DEFAULTS,
     region_motions: { ...TAP_DEFAULTS.region_motions },
+    bored_cue: { ...TAP_DEFAULTS.bored_cue },
   };
   const rawTap = raw.tap;
   if (rawTap !== undefined) {
@@ -226,14 +231,22 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
         }
       }
 
-      const spamMotion = rawTap.spam_motion;
-      if (spamMotion !== undefined) {
-        if (typeof spamMotion !== "string" || spamMotion.length === 0) {
-          issues.push(
-            `tap.spam_motion은 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(spamMotion)})`,
-          );
+      const boredCue = rawTap.bored_cue;
+      if (boredCue !== undefined) {
+        if (!isObject(boredCue)) {
+          issues.push(`tap.bored_cue은 객체여야 함 (받음: ${JSON.stringify(boredCue)})`);
         } else {
-          tap.spam_motion = spamMotion;
+          for (const field of ["label", "context"] as const) {
+            const value = boredCue[field];
+            if (value === undefined) continue;
+            if (typeof value !== "string" || value.length === 0) {
+              issues.push(
+                `tap.bored_cue.${field}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(value)})`,
+              );
+            } else {
+              tap.bored_cue[field] = value;
+            }
+          }
         }
       }
     }

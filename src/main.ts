@@ -836,12 +836,6 @@ async function bootstrap(): Promise<void> {
       defaultId: cfg.endpoints.irodori_speaker ?? "",
     });
     await loadVrmSerialized(vrmSelection.getActive().url);
-    tapSourceRef = createTapSource({
-      bus,
-      renderer,
-      ambient,
-      config: cfg.avatar.tap,
-    });
     // First-run onboarding hint — once when character visible, exposed via existing speech bubble.
     maybeShowFirstRunHint({
       seen: () => hintSettings.get().seen,
@@ -914,6 +908,13 @@ async function bootstrap(): Promise<void> {
     scheduleSourceRef = scheduleSource;
     agentSourceRef = agentSource;
     signalsSourceRef = signalsSource;
+    tapSourceRef = createTapSource({
+      bus,
+      renderer,
+      ambient,
+      config: cfg.avatar.tap,
+      drainSignals: () => signalsSource.drain(),
+    });
     // Global summon hotkey: register configs/hotkeys.json accelerator OS-globally. onReady holds
     // the handle so the config.subscribe below can re-apply it on hot-reload.
     wireSummonHotkey({

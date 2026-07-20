@@ -13,6 +13,7 @@ const { created, started, makeSource } = vi.hoisted(() => {
       },
       stop: () => {},
       noteInteraction: () => {},
+      drain: () => [],
     };
   };
   return { created, started, makeSource };
@@ -199,6 +200,7 @@ describe("wireDispatcherSources", () => {
     // isEnabled reads live from the per-feature store.
     expect((created.schedule as { isEnabled: () => boolean }).isEnabled()).toBe(false);
     expect((created.signals as { isEnabled: () => boolean }).isEnabled()).toBe(true);
+    expect(result.signalsSource.drain()).toEqual([]);
   });
 });
 

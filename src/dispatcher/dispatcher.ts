@@ -152,7 +152,6 @@ function classify(env: BusEnvelope): Classification {
     n === "idle.returned" ||
     n === "user.tap" ||
     n === "user.tap_region" ||
-    n === "user.tap_spam" ||
     n === "user.window_sit_enter" ||
     n === "user.window_sit_exit" ||
     n === "user.window_sit_drop" ||
@@ -177,7 +176,7 @@ function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
 /**
  * tier1 event → render directive mapping (local, backend-independent).
  *  - drag_start → play motion "drag" / drag_end → return to idle (motion null).
- *  - user.tap → observability only; tap_region/tap_spam → payload motion.
+ *  - user.tap → observability only; tap_region → payload motion.
  *  - idle.returned → empty directive (hold).
  * Returning null means no render.
  */
@@ -199,8 +198,7 @@ function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
       return { speech_text: "", motion: null };
     case "user.tap":
       return null;
-    case "user.tap_region":
-    case "user.tap_spam": {
+    case "user.tap_region": {
       const motionId = env.payload?.motion_id;
       if (typeof motionId !== "string" || motionId.length === 0) {
         log.warn("tap_motion.malformed", { seq_id: env.seq_id, payload: env.payload });

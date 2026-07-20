@@ -7,10 +7,16 @@ const config: TapConfig = {
   spam_window_ms: 3_000,
   region_radius_frac: 0.18,
   region_motions: { chest: "shy", hips: "flustered" },
-  spam_motion: "sulk",
+  bored_cue: {
+    label: "wants attention",
+    context: "The user is poking repeatedly.",
+  },
 };
 
-function harness(points: TapPoints | null = null) {
+function harness(
+  points: TapPoints | null = null,
+  drainSignals: (() => Array<Record<string, unknown>>) | undefined = undefined,
+) {
   const pushed: BusEnvelope[] = [];
   const bus = {
     push: vi.fn((env: BusEnvelope) => {
@@ -21,7 +27,7 @@ function harness(points: TapPoints | null = null) {
   const ambient = { trigger: vi.fn() };
   const renderer = { getTapPoints: vi.fn(() => points) };
   let time = 1_000;
-  const source = createTapSource({ bus, ambient, renderer, config, now: () => time });
+  const source = createTapSource({ bus, ambient, renderer, config, now: () => time, drainSignals });
   return { source, pushed, ambient, renderer, setTime: (next: number) => (time = next) };
 }
 
@@ -64,59 +70,93 @@ describe("createTapSource", () => {
     ]);
   });
 
-  it("fires one local and one proactive spam event, clears the streak, and makes the fifth click plain", () => {
+  it("fires one bored candidate without a motion event, clears the streak, and makes the fifth click plain", () => {
     const { source, pushed, ambient, setTime } = harness(null);
     for (const time of [1_000, 1_500, 2_000, 2_500, 2_600]) {
       setTime(time);
       source.handleClick({ x: 1, y: 2 });
     }
 
-    expect(pushed.filter((env) => env.event_name === "user.tap_spam")).toEqual([
+    expect(pushed.filter((env) => env.event_name === "proactive.tap_bored")).toEqual([
       {
         source: "os_event_watcher",
-        event_name: "user.tap_spam",
-        ts: 2_500,
-        hint_tier: 1,
-        dnd_override: true,
-        payload: { motion_id: "sulk" },
-      },
-    ]);
-    expect(pushed.filter((env) => env.event_name === "proactive.tap_spam")).toEqual([
-      {
-        source: "os_event_watcher",
-        event_name: "proactive.tap_spam",
+        event_name: "proactive.tap_bored",
         ts: 2_500,
         hint_tier: 2,
-        payload: { count: 4, window_ms: 3_000 },
+        payload: {
+          cue_id: "tap_bored",
+          label: "wants attention",
+          context: "The user is poking repeatedly.",
+        },
       },
     ]);
     expect(pushed.at(-1)?.event_name).toBe("user.tap");
     expect(ambient.trigger).toHaveBeenCalledTimes(4);
   });
 
-  it("expires a click exactly at the window boundary and never spams spaced clicks", () => {
+  it("expires a click exactly at the window boundary and never fires bored for spaced clicks", () => {
     const { source, pushed, setTime } = harness(null);
     for (const time of [0, 3_000, 6_000, 9_000, 12_000]) {
       setTime(time);
       source.handleClick({ x: 1, y: 2 });
     }
-    expect(pushed.some((env) => env.event_name.endsWith("tap_spam"))).toBe(false);
+    expect(pushed.some((env) => env.event_name === "proactive.tap_bored")).toBe(false);
   });
 
-  it("does not also emit a region or bob reaction for the spam-completing click", () => {
-    const { source, pushed, ambient, setTime } = harness({
-      chest: { x: 1, y: 2 },
-      hips: null,
-      charHpx: 200,
-    });
+  it("keeps the region reaction, suppresses bored, and resets when a region tap completes the streak", () => {
+    const drainSignals = vi.fn(() => [{ id: "buffered" }]);
+    const { source, pushed, ambient, setTime } = harness(
+      {
+        chest: { x: 1, y: 2 },
+        hips: null,
+        charHpx: 200,
+      },
+      drainSignals,
+    );
+    for (const time of [1_000, 1_100, 1_200]) {
+      setTime(time);
+      source.handleClick({ x: 100, y: 100 });
+    }
+    setTime(1_300);
+    source.handleClick({ x: 1, y: 2 });
+    setTime(1_400);
+    source.handleClick({ x: 100, y: 100 });
+
+    expect(pushed.filter((env) => env.event_name === "user.tap_region")).toHaveLength(1);
+    expect(pushed.filter((env) => env.event_name === "proactive.tap_bored")).toHaveLength(0);
+    expect(ambient.trigger).toHaveBeenCalledTimes(4);
+    expect(drainSignals).not.toHaveBeenCalled();
+  });
+
+  it("adds drained signals only when non-empty and drains only on the firing click", () => {
+    const drainSignals = vi.fn(() => [{ kind: "calendar", title: "Meeting soon" }]);
+    const { source, pushed, setTime } = harness(null, drainSignals);
+
     for (const time of [1_000, 1_100, 1_200, 1_300]) {
       setTime(time);
       source.handleClick({ x: 1, y: 2 });
     }
 
-    expect(pushed.filter((env) => env.event_name === "user.tap_region")).toHaveLength(3);
-    expect(pushed.filter((env) => env.event_name === "user.tap_spam")).toHaveLength(1);
-    expect(ambient.trigger).not.toHaveBeenCalled();
+    expect(drainSignals).toHaveBeenCalledOnce();
+    expect(pushed.at(-1)?.payload).toEqual({
+      cue_id: "tap_bored",
+      label: "wants attention",
+      context: "The user is poking repeatedly.",
+      signals: [{ kind: "calendar", title: "Meeting soon" }],
+    });
+  });
+
+  it("omits signals when the firing-click drain is empty", () => {
+    const drainSignals = vi.fn(() => []);
+    const { source, pushed, setTime } = harness(null, drainSignals);
+
+    for (const time of [1_000, 1_100, 1_200, 1_300]) {
+      setTime(time);
+      source.handleClick({ x: 1, y: 2 });
+    }
+
+    expect(drainSignals).toHaveBeenCalledOnce();
+    expect(pushed.at(-1)?.payload).not.toHaveProperty("signals");
   });
 
   it("degrades malformed renderer results to a plain tap without throwing", () => {

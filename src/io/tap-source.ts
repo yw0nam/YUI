@@ -1,4 +1,5 @@
 import type { TapConfig } from "../config/load";
+import type { SignalItem } from "../contract";
 import type { EventBus } from "../dispatcher/event-bus";
 import { createLogger } from "../logger";
 import { type CssPoint, classifyTapRegion, type TapRegionBones } from "../renderer/tap-region";
@@ -20,6 +21,7 @@ export interface TapSourceDeps {
   renderer: { getTapPoints(): TapPoints | null };
   ambient: { trigger(cue: "tap_react"): void };
   config: TapConfig;
+  drainSignals?: () => SignalItem[];
   now?: () => number;
 }
 
@@ -65,38 +67,40 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
         }
         clicks.push(ts);
 
-        if (clicks.length >= deps.config.spam_count) {
-          clicks.length = 0;
-          deps.bus.push({
-            source: "os_event_watcher",
-            event_name: "user.tap_spam",
-            ts,
-            hint_tier: 1,
-            dnd_override: true,
-            payload: { motion_id: deps.config.spam_motion },
-          });
-          deps.bus.push({
-            source: "os_event_watcher",
-            event_name: "proactive.tap_spam",
-            ts,
-            hint_tier: 2,
-            payload: {
-              count: deps.config.spam_count,
-              window_ms: deps.config.spam_window_ms,
-            },
-          });
-          return;
-        }
-
-        const points = deps.renderer.getTapPoints();
+        let points = deps.renderer.getTapPoints();
         if (points !== null && !isTapPoints(points)) {
           log.warn("invalid tap projection", points);
-          pushPlainTap(ts);
-          return;
+          points = null;
         }
         const region = points
           ? classifyTapRegion(pos, points, points.charHpx, deps.config.region_radius_frac)
           : null;
+
+        if (clicks.length >= deps.config.spam_count) {
+          clicks.length = 0;
+          if (!region) {
+            let signals: SignalItem[] = [];
+            try {
+              signals = deps.drainSignals?.() ?? [];
+            } catch (error) {
+              log.warn("signal drain failed", error);
+            }
+            deps.bus.push({
+              source: "os_event_watcher",
+              event_name: "proactive.tap_bored",
+              ts,
+              hint_tier: 2,
+              payload: {
+                cue_id: "tap_bored",
+                label: deps.config.bored_cue.label,
+                context: deps.config.bored_cue.context,
+                ...(signals.length > 0 ? { signals } : {}),
+              },
+            });
+            return;
+          }
+        }
+
         if (!region) {
           pushPlainTap(ts);
           return;

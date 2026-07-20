@@ -29,7 +29,11 @@ describe("validateAvatar — happy path", () => {
         spam_window_ms: 3000,
         region_radius_frac: 0.18,
         region_motions: { chest: "embarrassed", hips: "embarrassed" },
-        spam_motion: "sulk",
+        bored_cue: {
+          label: "bored poking",
+          context:
+            "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
+        },
       },
     });
   });
@@ -209,10 +213,14 @@ describe("validateAvatar — hit_test", () => {
 });
 
 describe("validateAvatar — tap", () => {
-  it("merges a partial block and partial region motions over defaults", () => {
+  it("merges partial tap blocks over defaults", () => {
     const out = validateAvatar(FILE, {
       vrm_url: "/v.vrm",
-      tap: { spam_count: 6, region_motions: { hips: "wave" } },
+      tap: {
+        spam_count: 6,
+        region_motions: { hips: "wave" },
+        bored_cue: { label: "custom label" },
+      },
     });
 
     expect(out.tap).toEqual({
@@ -220,7 +228,11 @@ describe("validateAvatar — tap", () => {
       spam_window_ms: 3000,
       region_radius_frac: 0.18,
       region_motions: { chest: "embarrassed", hips: "wave" },
-      spam_motion: "sulk",
+      bored_cue: {
+        label: "custom label",
+        context:
+          "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
+      },
     });
   });
 
@@ -282,14 +294,19 @@ describe("validateAvatar — tap", () => {
     );
   });
 
-  it("rejects an empty or non-string spam_motion", () => {
+  it("rejects a non-object bored_cue", () => {
+    expectIssue({ vrm_url: "/v.vrm", tap: { bored_cue: "nope" } }, "tap.bored_cue은 객체여야 함");
+  });
+
+  it.each([
+    ["label", ""],
+    ["label", 1],
+    ["context", ""],
+    ["context", 1],
+  ] as const)("rejects an empty or non-string bored_cue.%s", (field, value) => {
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { spam_motion: "" } },
-      "tap.spam_motion은 비어 있지 않은 문자열",
-    );
-    expectIssue(
-      { vrm_url: "/v.vrm", tap: { spam_motion: 1 } },
-      "tap.spam_motion은 비어 있지 않은 문자열",
+      { vrm_url: "/v.vrm", tap: { bored_cue: { [field]: value } } },
+      `tap.bored_cue.${field}는 비어 있지 않은 문자열`,
     );
   });
 });

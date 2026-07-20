@@ -57,7 +57,7 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
 |---|---|---|---|
 | `user` | User spoke or typed | The user's message text | No |
 | `schedule` | A user-configured time-of-day cue fired | Proactive marker string | Yes |
-| `proactive` | A user-configured engagement cue fired because the user has been present but not interacting | Proactive marker string | Yes |
+| `proactive` | A configured engagement cue or tap-bored cue fired | Proactive marker string | Yes |
 | `agent` | An external coding-agent finish-hook posted a completion signal | Proactive marker string | No (carries `agent` or `agent_catchup` instead) |
 | `signals` | The remote n8n workflow POSTed a burst to the `/signals` ingress | Proactive marker string | No (carries `signals` instead) |
 
@@ -70,8 +70,8 @@ For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utter
 | `label` | string | schedule, proactive | Short human-readable name the user gave this cue |
 | `context` | string | schedule, proactive | Free-text intent the user wrote; the agent reads this to determine its response |
 | `local_time` | string (`HH:MM`) | schedule | Configured clock time at which this cue fires |
-| `idle_min` | number | proactive | Configured idle threshold in minutes; cue fires once this threshold is reached |
-| `idle_elapsed_min` | number | proactive | Actual elapsed minutes since the last user interaction at the moment the cue fired |
+| `idle_min` | number | idle proactive cues | Configured idle threshold in minutes; cue fires once this threshold is reached |
+| `idle_elapsed_min` | number | idle proactive cues | Actual elapsed minutes since the last user interaction at the moment the cue fired |
 
 ### Per-kind examples
 
@@ -185,11 +185,11 @@ For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utter
 
 ### Signals fields
 
-`signals` turns carry no `cue`. The source is a remote n8n workflow that POSTs `{ "signals": [...] }` to the YUI app's `/signals` ingress. While the user is present, each POST becomes one turn. While the user is away, up to five POST batches are buffered; a sixth drops the oldest batch. On the idle-to-present edge, all buffered items are flattened in arrival order into one `signals.catchup` turn. Items are heterogeneous — GitHub change, Notion task, heartbeat, or any future kind n8n decides to emit — with no uniform tag across them.
+`signals` turns carry no `cue`. A `proactive.tap_bored` turn carries its configured cue and may also carry drained buffered signals. The source is a remote n8n workflow that POSTs `{ "signals": [...] }` to the YUI app's `/signals` ingress. While the user is present, each POST becomes one turn. While the user is away, up to five POST batches are buffered; a sixth drops the oldest batch. On the idle-to-present edge, all buffered items are flattened in arrival order into one `signals.catchup` turn. Items are heterogeneous — GitHub change, Notion task, heartbeat, or any future kind n8n decides to emit — with no uniform tag across them.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `signals[]` | array of opaque objects | The n8n payload's `signals` array, forwarded verbatim. No per-item shape is assumed or validated by the client; taxonomy is owned by n8n + the agent. |
+| `signals[]` | array of opaque objects | The n8n payload's signals, forwarded verbatim on `signals.*` turns or drained into `proactive.tap_bored`. No per-item shape is assumed or validated by the client; taxonomy is owned by n8n + the agent. |
 
 ### Signals example
 

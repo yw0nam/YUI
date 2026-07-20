@@ -53,7 +53,7 @@ export interface TapConfig {
   spam_window_ms: number;
   region_radius_frac: number;
   region_motions: { chest: string; hips: string };
-  spam_motion: string;
+  bored_cue: { label: string; context: string };
 }
 
 /** configs/avatar.json — VRM to load (renderer input). */

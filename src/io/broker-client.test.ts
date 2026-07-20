@@ -475,7 +475,11 @@ describe("deriveBrokerPayload", () => {
           spam_window_ms: 3000,
           region_radius_frac: 0.18,
           region_motions: { chest: "embarrassed", hips: "embarrassed" },
-          spam_motion: "sulk",
+          bored_cue: {
+            label: "bored poking",
+            context:
+              "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
+          },
         },
       },
       emotionRegistry: {
