@@ -7,8 +7,7 @@
  *   the start point and waits: only once a `pointermove` crosses
  *   `DRAG_THRESHOLD_PX` does it fire `opts.onDragStart` (once) and invoke the Rust
  *   `drag_window` command via Tauri IPC — the OS then owns the pointer and moves
- *   the window natively. A sub-threshold press-release is a click and fires
- *   nothing.
+ *   the window natively. A sub-threshold press-release fires `opts.onClick`.
  *   Installs an `onScaleChanged` listener that logs DPI changes when the window
  *   moves across monitors, keeping the seam open for re-centering / UI
  *   adjustment at a higher DPI.
@@ -179,6 +178,69 @@ function attachOrbitGesture(
 
 // ─── initDrag ─────────────────────────────────────────────────────────────────
 
+function attachClickGesture(
+  el: EventTarget,
+  onClick?: (pos: { x: number; y: number }) => void,
+): () => void {
+  let pointerId: number | null = null;
+  let startX = 0;
+  let startY = 0;
+  let crossedThreshold = false;
+
+  function detachGesture(): void {
+    el.removeEventListener("pointermove", onMove);
+    el.removeEventListener("pointerup", onUp);
+    el.removeEventListener("pointercancel", onCancel);
+  }
+
+  function clearGesture(): void {
+    detachGesture();
+    pointerId = null;
+  }
+
+  function onDown(e: Event): void {
+    const pe = e as PointerEvent;
+    if ((pe.buttons ?? 0) !== 1 || pe.shiftKey) return;
+    if (pointerId !== null) {
+      if (pe.pointerId !== pointerId) return;
+      clearGesture();
+    }
+    pointerId = pe.pointerId;
+    startX = pe.clientX;
+    startY = pe.clientY;
+    crossedThreshold = false;
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onCancel);
+  }
+
+  function onMove(e: Event): void {
+    const pe = e as PointerEvent;
+    if (pe.pointerId !== pointerId || crossedThreshold) return;
+    crossedThreshold = Math.hypot(pe.clientX - startX, pe.clientY - startY) >= DRAG_THRESHOLD_PX;
+  }
+
+  function onUp(e: Event): void {
+    const pe = e as PointerEvent;
+    if (pe.pointerId !== pointerId) return;
+    if (pe.button !== undefined && pe.button !== 0) return;
+    const click = !crossedThreshold;
+    clearGesture();
+    if (click) onClick?.({ x: pe.clientX, y: pe.clientY });
+  }
+
+  function onCancel(e: Event): void {
+    if ((e as PointerEvent).pointerId !== pointerId) return;
+    clearGesture();
+  }
+
+  el.addEventListener("pointerdown", onDown);
+  return () => {
+    el.removeEventListener("pointerdown", onDown);
+    clearGesture();
+  };
+}
+
 /**
  * Attach OS-native drag to `el`, gated by a move threshold.
  *
@@ -187,6 +249,8 @@ function attachOrbitGesture(
  *   `DRAG_THRESHOLD_PX`, just before the OS-native drag begins.
  * @param opts.onDragEnd - Fired once per gesture on pointerup/pointercancel
  *   after a threshold-crossing drag. Not fired for sub-threshold clicks.
+ * @param opts.onClick - Fired once for a sub-threshold primary press-release,
+ *   with the pointerup viewport coordinates.
  * @param opts.onOrbit - Fired per pointermove during a Shift + left-drag
  *   with the pointer delta. This branch consumes the gesture (no window-move).
  * @param opts.onOrbitStart - Fired once when a Shift + left orbit gesture
@@ -200,6 +264,7 @@ export async function initDrag(
   opts: {
     onDragStart?: () => void;
     onDragEnd?: () => void;
+    onClick?: (pos: { x: number; y: number }) => void;
     onOrbit?: (delta: OrbitDelta) => void;
     onOrbitStart?: () => void;
     onOrbitEnd?: () => void;
@@ -208,6 +273,7 @@ export async function initDrag(
   // Orbit (Shift+left) is pure JS — attach it before the Tauri gate so it works in the
   // browser screenshot-verification surface as well as the packaged pet window.
   const detachOrbit = attachOrbitGesture(el, opts.onOrbit, opts.onOrbitStart, opts.onOrbitEnd);
+  const detachClick = attachClickGesture(el, opts.onClick);
 
   // Tauri-only: getCurrentWindow() / onScaleChanged / invoke() require the Tauri
   // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface)
@@ -216,6 +282,7 @@ export async function initDrag(
   if (!isTauri()) {
     log.debug("drag_disabled", { reason: "non_tauri" });
     return () => {
+      detachClick();
       detachOrbit();
     };
   }
@@ -234,8 +301,8 @@ export async function initDrag(
 
   // ── threshold gesture detector ─────────────────────────────────────────────
   // A primary press arms; a move past DRAG_THRESHOLD_PX promotes it to a drag,
-  // firing onDragStart + the OS-native drag once. A press-release below the
-  // threshold is a click and fires nothing.
+  // firing onDragStart + the OS-native drag once. The shared click detector
+  // handles a press-release below the threshold.
   //
   // On Windows the OS modal move loop swallows the webview pointerup, so
   // onPointerEnd never fires and callers stay suspended. We subscribe to the
@@ -246,11 +313,13 @@ export async function initDrag(
   let startY = 0;
   let started = false;
   let ended = false;
+  let activePointerId: number | null = null;
 
   function detach(): void {
     el.removeEventListener("pointermove", onPointerMove);
-    el.removeEventListener("pointerup", onPointerEnd);
-    el.removeEventListener("pointercancel", onPointerEnd);
+    el.removeEventListener("pointerup", onPointerUp);
+    el.removeEventListener("pointercancel", onPointerCancel);
+    activePointerId = null;
   }
 
   function endGesture(): void {
@@ -263,6 +332,7 @@ export async function initDrag(
   function onPointerMove(e: Event): void {
     if (started) return;
     const pe = e as PointerEvent;
+    if (pe.pointerId !== activePointerId) return;
     const dx = pe.clientX - startX;
     const dy = pe.clientY - startY;
     if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
@@ -274,7 +344,16 @@ export async function initDrag(
     });
   }
 
-  function onPointerEnd(): void {
+  function onPointerUp(e: Event): void {
+    const pe = e as PointerEvent;
+    if (pe.pointerId !== activePointerId) return;
+    if (pe.button !== undefined && pe.button !== 0) return;
+    endGesture();
+    detach();
+  }
+
+  function onPointerCancel(e: Event): void {
+    if ((e as PointerEvent).pointerId !== activePointerId) return;
     endGesture();
     detach();
   }
@@ -282,17 +361,18 @@ export async function initDrag(
   function onPointerDown(e: Event): void {
     // Only act on primary (left) button; secondary / middle / pen barrel ignore.
     const pe = e as PointerEvent;
-    if ((pe.buttons ?? 0) !== 1) return;
+    if (activePointerId !== null || (pe.buttons ?? 0) !== 1) return;
     // Shift + left is the orbit gesture (attachOrbitGesture) — not window-move.
     if (pe.shiftKey) return;
     startX = pe.clientX;
     startY = pe.clientY;
     started = false;
     ended = false;
+    activePointerId = pe.pointerId;
     (el as Partial<Element>).setPointerCapture?.(pe.pointerId);
     el.addEventListener("pointermove", onPointerMove);
-    el.addEventListener("pointerup", onPointerEnd);
-    el.addEventListener("pointercancel", onPointerEnd);
+    el.addEventListener("pointerup", onPointerUp);
+    el.addEventListener("pointercancel", onPointerCancel);
   }
 
   el.addEventListener("pointerdown", onPointerDown);
@@ -306,6 +386,7 @@ export async function initDrag(
   return function cleanup(): void {
     el.removeEventListener("pointerdown", onPointerDown);
     detach();
+    detachClick();
     detachOrbit();
     unlistenScale();
     unlistenDrop();

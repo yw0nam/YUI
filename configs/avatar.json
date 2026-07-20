@@ -7,6 +7,13 @@
     "debounce_samples": 2,
     "alpha_threshold": 0.1
   },
+  "tap": {
+    "spam_count": 4,
+    "spam_window_ms": 3000,
+    "region_radius_frac": 0.18,
+    "region_motions": { "chest": "embarrassed", "hips": "embarrassed" },
+    "spam_motion": "sulk"
+  },
   "gaze": {
     "deadDeg": 3,
     "headEngageDeg": 20,

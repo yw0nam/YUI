@@ -12,7 +12,16 @@ import { goodFixture, readerOf } from "./load-test-helpers";
 describe("loadConfig — avatar.available", () => {
   it("available가 없으면 vrm_url만 담고 available는 undefined", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
-    expect(cfg.avatar).toEqual({ vrm_url: "/vrms/carlotta.vrm" });
+    expect(cfg.avatar).toEqual({
+      vrm_url: "/vrms/carlotta.vrm",
+      tap: {
+        spam_count: 4,
+        spam_window_ms: 3000,
+        region_radius_frac: 0.18,
+        region_motions: { chest: "embarrassed", hips: "embarrassed" },
+        spam_motion: "sulk",
+      },
+    });
     expect(cfg.avatar.available).toBeUndefined();
   });
 

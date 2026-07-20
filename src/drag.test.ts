@@ -397,6 +397,120 @@ describe("initDrag — onDragStart", () => {
   });
 });
 
+describe.each([
+  ["Tauri", true],
+  ["browser", false],
+] as const)("initDrag — onClick (%s)", (_runtime, tauri) => {
+  let el: EventTarget;
+  let cleanup: () => void;
+  let onClick: Mock<(pos: { x: number; y: number }) => void>;
+
+  function pointer(
+    type: "pointerdown" | "pointermove" | "pointerup" | "pointercancel",
+    {
+      clientX = 0,
+      clientY = 0,
+      pointerId = 1,
+      buttons = type === "pointerdown" ? 1 : 0,
+      button = type === "pointerup" ? 0 : -1,
+      shiftKey = false,
+    }: Partial<PointerEvent> = {},
+  ): void {
+    const event = new Event(type, { cancelable: true });
+    Object.assign(event, { clientX, clientY, pointerId, buttons, button, shiftKey });
+    el.dispatchEvent(event);
+  }
+
+  beforeEach(async () => {
+    el = new EventTarget();
+    onClick = vi.fn();
+    mockInvoke.mockResolvedValue(undefined);
+    if (tauri) {
+      (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    } else {
+      delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    }
+    cleanup = await initDrag(el, { onClick });
+  });
+
+  afterEach(() => {
+    cleanup();
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.clearAllMocks();
+  });
+
+  it("fires once for a sub-threshold primary press-release using pointerup viewport coordinates", () => {
+    pointer("pointerdown", { clientX: 10, clientY: 20 });
+    pointer("pointermove", { clientX: 12, clientY: 21 });
+    pointer("pointerup", { clientX: 13, clientY: 22 });
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(onClick).toHaveBeenCalledWith({ x: 13, y: 22 });
+  });
+
+  it("does not fire after crossing the drag threshold", () => {
+    pointer("pointerdown");
+    pointer("pointermove", { clientX: 10 });
+    pointer("pointerup", { clientX: 10 });
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("does not fire after the Windows drag-release fallback ends a drag", () => {
+    if (!tauri) return;
+    pointer("pointerdown");
+    pointer("pointermove", { clientX: 10 });
+    capturedDropHandler?.();
+    pointer("pointerup", { clientX: 10 });
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("does not fire for an orbit gesture", () => {
+    pointer("pointerdown", { shiftKey: true });
+    pointer("pointerup", { shiftKey: true });
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("does not arm for a non-primary press", () => {
+    pointer("pointerdown", { buttons: 2, button: 2 });
+    pointer("pointerup", { button: 2 });
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("pointercancel aborts without firing", () => {
+    pointer("pointerdown");
+    pointer("pointercancel");
+    pointer("pointerup");
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("an unrelated pointerup neither fires nor terminates the armed gesture", () => {
+    pointer("pointerdown", { clientX: 1, clientY: 2, pointerId: 7 });
+    pointer("pointerup", { clientX: 30, clientY: 40, pointerId: 8 });
+    expect(onClick).not.toHaveBeenCalled();
+    pointer("pointerup", { clientX: 3, clientY: 4, pointerId: 7 });
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(onClick).toHaveBeenCalledWith({ x: 3, y: 4 });
+  });
+
+  it("re-arms a stale gesture when the same pointer starts a fresh press", () => {
+    pointer("pointerdown", { clientX: 1, clientY: 2, pointerId: 7 });
+    pointer("pointermove", { clientX: 20, clientY: 2, pointerId: 7 });
+    if (tauri) capturedDropHandler?.();
+    pointer("pointerdown", { clientX: 10, clientY: 20, pointerId: 7 });
+    pointer("pointermove", { clientX: 12, clientY: 21, pointerId: 7 });
+    pointer("pointerup", { clientX: 11, clientY: 21, pointerId: 7 });
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(onClick).toHaveBeenCalledWith({ x: 11, y: 21 });
+  });
+
+  it("a non-primary pointerup neither fires nor terminates the armed gesture", () => {
+    pointer("pointerdown", { pointerId: 7 });
+    pointer("pointerup", { pointerId: 7, button: 2 });
+    expect(onClick).not.toHaveBeenCalled();
+    pointer("pointerup", { clientX: 5, clientY: 6, pointerId: 7, button: 0 });
+    expect(onClick).toHaveBeenCalledWith({ x: 5, y: 6 });
+  });
+});
+
 // ─── initDrag — onDragEnd gesture DI ───────────────────────────────────────────
 // onDragEnd fires once per gesture after a threshold-crossing drag releases via
 // pointerup or pointercancel. It does NOT fire for sub-threshold press-release (a

@@ -58,6 +58,7 @@ import { createSettingsBridge } from "./io/settings-bridge";
 import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
 import type { SummonHotkey } from "./io/summon-hotkey";
+import { createTapSource, type TapSource } from "./io/tap-source";
 import { isTauri } from "./io/tauri-env";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
@@ -116,7 +117,9 @@ async function bootstrap(): Promise<void> {
   // it gets the hit_test knob). Drag suspends toggling so the OS-native drag is
   // never interrupted by a mid-gesture ignore flip.
   let hitTestRef: HitTestController | null = null;
+  let tapSourceRef: TapSource | null = null;
   const cleanupDrag = await initDrag(stage, {
+    onClick: (pos) => tapSourceRef?.handleClick(pos),
     onDragStart: () => {
       hitTestRef?.suspend();
       bus.push({
@@ -833,6 +836,12 @@ async function bootstrap(): Promise<void> {
       defaultId: cfg.endpoints.irodori_speaker ?? "",
     });
     await loadVrmSerialized(vrmSelection.getActive().url);
+    tapSourceRef = createTapSource({
+      bus,
+      renderer,
+      ambient,
+      config: cfg.avatar.tap,
+    });
     // First-run onboarding hint — once when character visible, exposed via existing speech bubble.
     maybeShowFirstRunHint({
       seen: () => hintSettings.get().seen,

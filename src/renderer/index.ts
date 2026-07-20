@@ -216,6 +216,12 @@ export interface Renderer {
    * is loaded or bones/projection are unavailable.
    */
   getPerchProbe(): { seatPx: { x: number; y: number }; charHpx: number } | null;
+  /** Live chest/hips projections in viewport CSS px plus the character's current screen height. */
+  getTapPoints(): {
+    chest: { x: number; y: number } | null;
+    hips: { x: number; y: number } | null;
+    charHpx: number;
+  } | null;
   /**
    * Enter/exit perch-align mode. While a target is set, the seat (live hips
    * +SEAT_DROP) is pinned every frame to `edgeLocalYpx` (the target window's top
@@ -881,6 +887,24 @@ export function createRenderer(options: RendererOptions): Renderer {
     fitCamera(); // apply the azimuth change immediately.
   }
 
+  function liveCharacterHeight(head: THREE.Object3D, w: number, h: number): number | null {
+    const liveBox = currentVrm ? new THREE.Box3().setFromObject(currentVrm.scene) : null;
+    const box = liveBox && !liveBox.isEmpty() ? liveBox : modelBox;
+    if (!box) return null;
+    const feetWorld = new THREE.Vector3(
+      (box.min.x + box.max.x) / 2,
+      box.min.y,
+      (box.min.z + box.max.z) / 2,
+    );
+    return characterScreenHeight(
+      head.getWorldPosition(new THREE.Vector3()),
+      feetWorld,
+      camera,
+      w,
+      h,
+    );
+  }
+
   return {
     loadVRM,
     onTick(fn) {
@@ -943,28 +967,26 @@ export function createRenderer(options: RendererOptions): Renderer {
       const seatPx = projectToScreen(seat, camera, w, h);
       if (!seatPx) return null;
 
-      // On-screen height: head top vs the live posed model's lowest point.
-      // Recompute a live box so it tracks the current pose/scale (modelBox is the idle fallback).
-      const headWorld = head.getWorldPosition(new THREE.Vector3());
-      const liveBox = new THREE.Box3().setFromObject(currentVrm.scene);
-      const feetWorld = liveBox.isEmpty()
-        ? modelBox
-          ? new THREE.Vector3(
-              (modelBox.min.x + modelBox.max.x) / 2,
-              modelBox.min.y,
-              (modelBox.min.z + modelBox.max.z) / 2,
-            )
-          : null
-        : new THREE.Vector3(
-            (liveBox.min.x + liveBox.max.x) / 2,
-            liveBox.min.y,
-            (liveBox.min.z + liveBox.max.z) / 2,
-          );
-      if (!feetWorld) return null;
-      const charHpx = characterScreenHeight(headWorld, feetWorld, camera, w, h);
+      const charHpx = liveCharacterHeight(head, w, h);
       if (charHpx === null) return null;
 
       return { seatPx: { x: seatPx.x, y: seatPx.y }, charHpx };
+    },
+    getTapPoints() {
+      if (!currentVrm) return null;
+      const humanoid = currentVrm.humanoid;
+      const head = humanoid?.getNormalizedBoneNode("head");
+      if (!head) return null;
+      const w = mount.clientWidth || 1;
+      const h = mount.clientHeight || 1;
+      camera.updateMatrixWorld();
+      const charHpx = liveCharacterHeight(head, w, h);
+      if (charHpx === null || !Number.isFinite(charHpx) || charHpx <= 0) return null;
+      const project = (bone: THREE.Object3D | null | undefined) =>
+        bone ? projectToScreen(bone.getWorldPosition(new THREE.Vector3()), camera, w, h) : null;
+      const chest =
+        humanoid?.getNormalizedBoneNode("upperChest") ?? humanoid?.getNormalizedBoneNode("chest");
+      return { chest: project(chest), hips: project(perchHipsBone), charHpx };
     },
     setPerchTarget(target) {
       const wasPerched = perchTargetYpx !== null;

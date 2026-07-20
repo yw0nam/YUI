@@ -1,9 +1,16 @@
-import type { AvatarConfig, AvatarOption } from "../load";
+import type { AvatarConfig, AvatarOption, TapConfig } from "../load";
 import { assertValid, ConfigError, isObject } from "./shared";
 
 const AVATAR_SOURCES: readonly NonNullable<AvatarOption["source"]>[] = ["bundled", "file", "user"];
 /** Allowed chars for AvatarOption.id — a persistence key and the CSS selector `[data-vrm-id="…"]` value, so no whitespace/special chars. */
 const AVATAR_ID_RE = /^[A-Za-z0-9._-]+$/;
+const TAP_DEFAULTS: TapConfig = {
+  spam_count: 4,
+  spam_window_ms: 3000,
+  region_radius_frac: 0.18,
+  region_motions: { chest: "embarrassed", hips: "embarrassed" },
+  spam_motion: "sulk",
+};
 
 export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
@@ -147,6 +154,91 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
+  const tap: TapConfig = {
+    ...TAP_DEFAULTS,
+    region_motions: { ...TAP_DEFAULTS.region_motions },
+  };
+  const rawTap = raw.tap;
+  if (rawTap !== undefined) {
+    if (!isObject(rawTap)) {
+      issues.push(`tap은 객체여야 함 (받음: ${JSON.stringify(rawTap)})`);
+    } else {
+      const spamCount = rawTap.spam_count;
+      if (spamCount !== undefined) {
+        if (typeof spamCount !== "number" || !Number.isInteger(spamCount) || spamCount < 2) {
+          issues.push(`tap.spam_count는 2 이상 정수여야 함 (받음: ${JSON.stringify(spamCount)})`);
+        } else {
+          tap.spam_count = spamCount;
+        }
+      }
+
+      const spamWindowMs = rawTap.spam_window_ms;
+      if (spamWindowMs !== undefined) {
+        if (
+          typeof spamWindowMs !== "number" ||
+          !Number.isInteger(spamWindowMs) ||
+          spamWindowMs < 1 ||
+          spamWindowMs > 60_000
+        ) {
+          issues.push(
+            `tap.spam_window_ms는 1..60000 범위 정수여야 함 (받음: ${JSON.stringify(spamWindowMs)})`,
+          );
+        } else {
+          tap.spam_window_ms = spamWindowMs;
+        }
+      }
+
+      const radiusFrac = rawTap.region_radius_frac;
+      if (radiusFrac !== undefined) {
+        if (
+          typeof radiusFrac !== "number" ||
+          !Number.isFinite(radiusFrac) ||
+          radiusFrac <= 0 ||
+          radiusFrac > 1
+        ) {
+          issues.push(
+            `tap.region_radius_frac는 (0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(radiusFrac)})`,
+          );
+        } else {
+          tap.region_radius_frac = radiusFrac;
+        }
+      }
+
+      const regionMotions = rawTap.region_motions;
+      if (regionMotions !== undefined) {
+        if (!isObject(regionMotions)) {
+          issues.push(`tap.region_motions은 객체여야 함 (받음: ${JSON.stringify(regionMotions)})`);
+        } else {
+          for (const key of Object.keys(regionMotions)) {
+            if (key !== "chest" && key !== "hips") {
+              issues.push(`tap.region_motions.${key}는 허용되지 않는 키`);
+              continue;
+            }
+            const motion = regionMotions[key];
+            if (typeof motion !== "string" || motion.length === 0) {
+              issues.push(
+                `tap.region_motions.${key}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(motion)})`,
+              );
+            } else {
+              tap.region_motions[key] = motion;
+            }
+          }
+        }
+      }
+
+      const spamMotion = rawTap.spam_motion;
+      if (spamMotion !== undefined) {
+        if (typeof spamMotion !== "string" || spamMotion.length === 0) {
+          issues.push(
+            `tap.spam_motion은 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(spamMotion)})`,
+          );
+        } else {
+          tap.spam_motion = spamMotion;
+        }
+      }
+    }
+  }
+
   // gaze — optional camera-tracking knob. Partial values allowed (defaults owned by the renderer, natural preset).
   let gaze: AvatarConfig["gaze"];
   const rawGaze = raw.gaze;
@@ -196,6 +288,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   assertValid(file, issues);
   return {
     vrm_url,
+    tap,
     ...(available !== undefined ? { available } : {}),
     ...(framing !== undefined ? { framing } : {}),
     ...(hit_test !== undefined ? { hit_test } : {}),

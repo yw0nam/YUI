@@ -175,11 +175,67 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
-  it("user.tap fires a tier1 render reaction immediately", async () => {
+  it("user.tap is observability-only and leaves the current motion untouched", async () => {
     dispatcher.start();
     bus.push(env({ event_name: "user.tap", hint_tier: 1 }));
     await vi.advanceTimersByTimeAsync(20);
-    expect(applyDirective).toHaveBeenCalled();
+    expect(applyDirective).not.toHaveBeenCalled();
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["user.tap_region", "embarrassed"],
+    ["user.tap_spam", "sulk"],
+  ])("routes %s (tier1) to the payload motion", async (eventName, motionId) => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: eventName,
+        hint_tier: 1,
+        payload: { motion_id: motionId },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(applyDirective).toHaveBeenCalledWith({
+      speech_text: "",
+      motion: { id: motionId },
+    });
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    undefined,
+    {},
+    { motion_id: "" },
+    { motion_id: 7 },
+  ])("drops malformed tap motion payload %j with a warning", async (payload) => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.tap_region",
+        hint_tier: 1,
+        payload,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(applyDirective).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it("routes proactive.tap_spam (tier2) to the backend caller", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "proactive.tap_spam",
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
   });
 
   it("routes user.window_sit_enter (tier1) to renderer with window_sit motion, NOT the backend", async () => {
@@ -915,6 +971,38 @@ describe("dispatcher — guardrail gating (§6)", () => {
     );
     await vi.advanceTimersByTimeAsync(20);
     expect(applyDirective).toHaveBeenCalled();
+    d.stop();
+  });
+
+  it("renders local tap spam while DND drops its proactive speech candidate", async () => {
+    const { d, g } = makeGated();
+    d.start();
+    g.setDnd("manual", true);
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.tap_spam",
+        hint_tier: 1,
+        dnd_override: true,
+        payload: { motion_id: "sulk" },
+      }),
+    );
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "proactive.tap_spam",
+        hint_tier: 2,
+        dnd_override: false,
+        payload: { count: 4, window_ms: 3_000 },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(applyDirective).toHaveBeenCalledWith({
+      speech_text: "",
+      motion: { id: "sulk" },
+    });
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    expect(d.recentDrops(10).some((dr) => dr.reason === "guardrail_drop")).toBe(true);
     d.stop();
   });
 

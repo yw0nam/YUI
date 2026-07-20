@@ -22,7 +22,16 @@ function expectIssue(raw: unknown, fragment: string): void {
 describe("validateAvatar — happy path", () => {
   it("accepts a bare vrm_url", () => {
     const out = validateAvatar(FILE, { vrm_url: "/vrms/carlotta.vrm" });
-    expect(out).toEqual({ vrm_url: "/vrms/carlotta.vrm" });
+    expect(out).toEqual({
+      vrm_url: "/vrms/carlotta.vrm",
+      tap: {
+        spam_count: 4,
+        spam_window_ms: 3000,
+        region_radius_frac: 0.18,
+        region_motions: { chest: "embarrassed", hips: "embarrassed" },
+        spam_motion: "sulk",
+      },
+    });
   });
 
   it("accepts an available[] manifest with distinct ids", () => {
@@ -195,6 +204,92 @@ describe("validateAvatar — hit_test", () => {
     expectIssue(
       { vrm_url: "/v.vrm", hit_test: { alpha_threshold: 1.5 } },
       "hit_test.alpha_threshold는 (0, 1]",
+    );
+  });
+});
+
+describe("validateAvatar — tap", () => {
+  it("merges a partial block and partial region motions over defaults", () => {
+    const out = validateAvatar(FILE, {
+      vrm_url: "/v.vrm",
+      tap: { spam_count: 6, region_motions: { hips: "wave" } },
+    });
+
+    expect(out.tap).toEqual({
+      spam_count: 6,
+      spam_window_ms: 3000,
+      region_radius_frac: 0.18,
+      region_motions: { chest: "embarrassed", hips: "wave" },
+      spam_motion: "sulk",
+    });
+  });
+
+  it("rejects a non-object tap block", () => {
+    expectIssue({ vrm_url: "/v.vrm", tap: "nope" }, "tap은 객체여야 함");
+  });
+
+  it.each([1, 2.5, Number.NaN, "4"])("rejects invalid spam_count: %s", (spam_count) => {
+    expectIssue({ vrm_url: "/v.vrm", tap: { spam_count } }, "tap.spam_count는 2 이상 정수");
+  });
+
+  it.each([0, 60001, 1.5, "3000"])("rejects invalid spam_window_ms: %s", (spam_window_ms) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { spam_window_ms } },
+      "tap.spam_window_ms는 1..60000 범위 정수",
+    );
+  });
+
+  it.each([
+    0,
+    1.01,
+    Number.NaN,
+    "0.18",
+  ])("rejects invalid region_radius_frac: %s", (region_radius_frac) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_radius_frac } },
+      "tap.region_radius_frac는 (0, 1]",
+    );
+  });
+
+  it("accepts inclusive numeric boundaries", () => {
+    const out = validateAvatar(FILE, {
+      vrm_url: "/v.vrm",
+      tap: { spam_count: 2, spam_window_ms: 60_000, region_radius_frac: 1 },
+    });
+
+    expect(out.tap).toMatchObject({ spam_count: 2, spam_window_ms: 60_000, region_radius_frac: 1 });
+    expect(
+      validateAvatar(FILE, { vrm_url: "/v.vrm", tap: { spam_window_ms: 1 } }).tap.spam_window_ms,
+    ).toBe(1);
+  });
+
+  it("rejects invalid or unknown region motion entries", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_motions: [] } },
+      "tap.region_motions은 객체여야 함",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_motions: { head: "wave" } } },
+      "tap.region_motions.head는 허용되지 않는 키",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_motions: { chest: "" } } },
+      "tap.region_motions.chest는 비어 있지 않은 문자열",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_motions: { hips: 1 } } },
+      "tap.region_motions.hips는 비어 있지 않은 문자열",
+    );
+  });
+
+  it("rejects an empty or non-string spam_motion", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { spam_motion: "" } },
+      "tap.spam_motion은 비어 있지 않은 문자열",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { spam_motion: 1 } },
+      "tap.spam_motion은 비어 있지 않은 문자열",
     );
   });
 });

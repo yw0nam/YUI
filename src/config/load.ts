@@ -48,6 +48,14 @@ export interface AvatarOption {
   source?: "bundled" | "file" | "user";
 }
 
+export interface TapConfig {
+  spam_count: number;
+  spam_window_ms: number;
+  region_radius_frac: number;
+  region_motions: { chest: string; hips: string };
+  spam_motion: string;
+}
+
 /** configs/avatar.json — VRM to load (renderer input). */
 export interface AvatarConfig {
   /** vite dev static-serving path (`/vrms/*.vrm`) or absolute URL. Default selection. */
@@ -64,6 +72,8 @@ export interface AvatarConfig {
     /** alpha threshold for phase-2 (currently unused, only the (0,1] range is validated). */
     alpha_threshold?: number;
   };
+  /** Tap reaction knobs. Defaults are applied by the validator. */
+  tap: TapConfig;
   /** Camera gaze-tracking knob. Absent → renderer default (natural preset). Partial values allowed. */
   gaze?: {
     deadDeg?: number;
