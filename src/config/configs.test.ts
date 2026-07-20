@@ -60,6 +60,15 @@ describe("configs/avatar.json", () => {
     expect(carlotta.url).toBe(a.vrm_url); // seed selection == default vrm_url
     expect(carlotta.source).toBe("bundled");
   });
+
+  it("carries side-peek geometry and mirroring defaults", () => {
+    expect(a.peek).toEqual({
+      side_out_frac: 0.28,
+      side_in_frac: 0.23,
+      inset_frac: 0.12,
+      mirror_side: "right",
+    });
+  });
 });
 
 describe("configs/guardrails.json", () => {

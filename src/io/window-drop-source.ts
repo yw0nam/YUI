@@ -26,11 +26,17 @@
  * degrade to a warn log (mirrors os-context.ts).
  */
 
+import type { PeekConfig } from "../config/load";
 import type { ScreenRect, WindowRect } from "../contract";
 import type { EventBus } from "../dispatcher/event-bus";
 import { createLogger } from "../logger";
 import type { ScreenPoint } from "../renderer/perch-geometry";
-import { inCatchZone, inSideCatchZone, petPxToGlobalPoints } from "../renderer/perch-geometry";
+import {
+  inCatchZone,
+  inSideCatchZone,
+  peekTargetPx,
+  petPxToGlobalPoints,
+} from "../renderer/perch-geometry";
 
 const log = createLogger("window-drop");
 
@@ -77,6 +83,8 @@ export interface WindowDropSourceDeps {
   pollIntervalMs?: number;
   /** Whether side-peek intent is currently active. */
   peekActive?: () => boolean;
+  /** Returns the current side-peek configuration. */
+  getPeekConfig: () => PeekConfig;
   /** Injectable timer fns (fake timers in tests). */
   setInterval?: typeof setInterval;
   clearInterval?: typeof clearInterval;
@@ -101,12 +109,59 @@ function containsSeat(win: ScreenRect, seat: ScreenPoint): boolean {
   );
 }
 
+/**
+ * Drop-time geometry dump — seat point, character height, and per-window catch-zone
+ * verdicts for the frontmost windows. Diagnostic only; the decision path never reads it.
+ */
+function logDropGeometry(
+  seat: ScreenPoint,
+  windows: WindowRect[],
+  charHpx: number,
+  pos: { x: number; y: number },
+  scale: number,
+  peekConfig: PeekConfig,
+): void {
+  const r = Math.round;
+  log.debug("drop.geometry", {
+    seatX: r(seat.x),
+    seatY: r(seat.y),
+    charHpx: r(charHpx),
+    winOriginX: r(pos.x / (scale > 0 ? scale : 1)),
+    winOriginY: r(pos.y / (scale > 0 ? scale : 1)),
+    scale,
+    windowCount: windows.length,
+  });
+  for (const [i, w] of windows.slice(0, 6).entries()) {
+    const out = peekConfig.side_out_frac * charHpx;
+    const inside = peekConfig.side_in_frac * charHpx;
+    const sideOpts = { out: peekConfig.side_out_frac, in: peekConfig.side_in_frac };
+    log.debug("drop.window", {
+      z: i,
+      windowNumber: w.windowNumber,
+      x: r(w.x),
+      y: r(w.y),
+      w: r(w.width),
+      h: r(w.height),
+      // Seat offset from each vertical edge: negative = outside the window.
+      dxLeft: r(seat.x - w.x),
+      dxRight: r(seat.x - (w.x + w.width)),
+      dyTop: r(seat.y - w.y),
+      leftBand: `${r(w.x - out)}..${r(w.x + inside)}`,
+      rightBand: `${r(w.x + w.width - inside)}..${r(w.x + w.width + out)}`,
+      vBand: `${r(w.y)}..${r(w.y + w.height)}`,
+      top: inCatchZone(seat, w, charHpx),
+      side: inSideCatchZone(seat, w, charHpx, sideOpts),
+    });
+  }
+}
+
 export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSource {
   const { bus, renderer, invoke, getWindow, listen } = deps;
   const pollMs = deps.pollIntervalMs ?? DEFAULT_POLL_MS;
   const setIntervalImpl = deps.setInterval ?? setInterval;
   const clearIntervalImpl = deps.clearInterval ?? clearInterval;
   const peekActive = deps.peekActive ?? (() => false);
+  const getPeekConfig = deps.getPeekConfig;
 
   let unlisten: (() => void) | undefined;
 
@@ -277,11 +332,14 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     ]);
 
     const seatGlobal = projectSeat(probe, pos, scale);
+    const peekConfig = getPeekConfig();
+    const sideOpts = { out: peekConfig.side_out_frac, in: peekConfig.side_in_frac };
+    logDropGeometry(seatGlobal, windows, probe.charHpx, pos, scale, peekConfig);
     // Front-to-back ⇒ first match is the topmost window. U-band catch zone here only.
     const targetIdx = windows.findIndex((w) => inCatchZone(seatGlobal, w, probe.charHpx));
     if (targetIdx < 0) {
       const sideTargetIdx = windows.findIndex(
-        (w) => inSideCatchZone(seatGlobal, w, probe.charHpx) !== null,
+        (w) => inSideCatchZone(seatGlobal, w, probe.charHpx, sideOpts) !== null,
       );
       if (sideTargetIdx < 0) {
         pushExit();
@@ -293,18 +351,22 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         pushExit();
         return;
       }
-      const side = inSideCatchZone(seatGlobal, sideTarget, probe.charHpx);
+      const side = inSideCatchZone(seatGlobal, sideTarget, probe.charHpx, sideOpts);
       if (side === null) {
         pushExit();
         return;
       }
+      const sf = scale > 0 ? scale : 1;
+      const edgeXpx = side === "left" ? sideTarget.x : sideTarget.x + sideTarget.width;
+      const edgeLocalXpx = edgeXpx - pos.x / sf;
+      const targetLocalXpx = peekTargetPx(edgeLocalXpx, side, probe.charHpx, peekConfig.inset_frac);
       bus.push({
         source: "os_event_watcher",
         event_name: "user.peek_drop",
         ts: Date.now(),
         hint_tier: 1,
         dnd_override: true,
-        payload: { side },
+        payload: { side, target_local_xpx: targetLocalXpx },
       });
       arm("peek", sideTarget.windowNumber, { x: sideTarget.x, y: sideTarget.y }, probe.charHpx);
       return;

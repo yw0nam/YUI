@@ -18,6 +18,8 @@ export {
   type GuardrailsConfig,
   type LoadConfigOptions,
   loadConfig,
+  PEEK_DEFAULTS,
+  type PeekConfig,
   plainSecretProvider,
   type SecretProvider,
   STT_API_KEY_SECRET,

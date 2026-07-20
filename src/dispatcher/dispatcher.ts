@@ -22,6 +22,7 @@
  * observable: queue() / recentDrops(n) / inFlight().
  */
 
+import type { PeekConfig } from "../config/load";
 import type { ControlEnvelope } from "../contract";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
@@ -34,7 +35,11 @@ const baseLog = createLogger("dispatcher");
 
 export interface DispatcherDeps {
   bus: EventBus;
-  renderer: Pick<Renderer, "applyDirective" | "setPerchTarget">;
+  renderer: Pick<
+    Renderer,
+    "applyDirective" | "setPerchTarget" | "setPeekTarget" | "setMotionMirror"
+  >;
+  peekConfig: () => PeekConfig;
   peek?: { enter(): Promise<void>; exit(): Promise<void> };
   backendCaller: BackendCaller;
   /** Guardrails — DND/debounce/rate-limit gate + cooldown verdict (pure). */
@@ -212,6 +217,24 @@ function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
     default:
       return null;
   }
+}
+
+interface PeekDropPayload {
+  side: "left" | "right";
+  targetLocalXpx: number;
+}
+
+function parsePeekDropPayload(env: BusEnvelope): PeekDropPayload | null {
+  const side = env.payload?.side;
+  const targetLocalXpx = env.payload?.target_local_xpx;
+  if (
+    (side !== "left" && side !== "right") ||
+    typeof targetLocalXpx !== "number" ||
+    !Number.isFinite(targetLocalXpx)
+  ) {
+    return null;
+  }
+  return { side, targetLocalXpx };
 }
 
 const DEFAULT_PUMP_MS = 16;
@@ -393,13 +416,16 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /** tier1 event → renderer.applyDirective (local, backend-independent). */
   function renderTier1(env: BusEnvelope): void {
+    const peekDrop = env.event_name === "user.peek_drop" ? parsePeekDropPayload(env) : null;
+    if (env.event_name === "user.peek_drop" && !peekDrop) {
+      log.warn("peek_drop.malformed", { seq_id: env.seq_id, payload: env.payload });
+      return;
+    }
     const directive = tier1Directive(env, log);
     if (!directive) return;
     log.info("fire", { seq_id: env.seq_id, event_name: env.event_name, tier: 1 });
-    // perch-clear first so applyDirective's motion is the last playMotion and is
-    // not clobbered by setPerchTarget(null)'s internal playMotion(null).
+    applyPinTargets(env, peekDrop);
     applyPeekState(env);
-    applyPerchTarget(env);
     try {
       renderer.applyDirective(directive);
     } catch (err) {
@@ -425,21 +451,25 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     }
   }
 
-  /**
-   * Perch-target side-channel — client-only geometry handed to the renderer,
-   * NOT carried in the ControlEnvelope (keeps the agent contract clean):
-   *  - window_sit_drop → setPerchTarget({edgeLocalYpx}); skip + warn if malformed.
-   *  - window_sit_exit → setPerchTarget(null), always clear the perch.
-   *  - drag_start → setPerchTarget(null), unpin the stale edge at grab.
-   *  - window_sit_enter (sit-in-place) → no perch target.
-   */
-  function applyPerchTarget(env: BusEnvelope): void {
+  function applyPinTargets(env: BusEnvelope, peekDrop: PeekDropPayload | null): void {
     try {
-      if (env.event_name === "user.window_sit_exit" || env.event_name === "user.drag_start") {
+      if (peekDrop) {
         renderer.setPerchTarget(null);
+        renderer.setMotionMirror(peekDrop.side === deps.peekConfig().mirror_side);
+        renderer.setPeekTarget({ targetXpx: peekDrop.targetLocalXpx });
         return;
       }
-      if (env.event_name === "user.peek_drop") {
+
+      if (
+        env.event_name === "user.peek_exit" ||
+        env.event_name === "user.drag_start" ||
+        env.event_name.startsWith("user.window_sit_")
+      ) {
+        renderer.setPeekTarget(null);
+        renderer.setMotionMirror(false);
+      }
+
+      if (env.event_name === "user.window_sit_exit" || env.event_name === "user.drag_start") {
         renderer.setPerchTarget(null);
         return;
       }
@@ -452,7 +482,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         renderer.setPerchTarget({ edgeLocalYpx: edge });
       }
     } catch (err) {
-      log.error("tier1.perch_target_error", { error: String(err) });
+      log.error("tier1.pin_target_error", { error: String(err) });
     }
   }
 

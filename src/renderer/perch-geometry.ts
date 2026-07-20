@@ -219,3 +219,19 @@ export function seatOffsetWorldY(
 ): number {
   return -(targetTopScreenYpx - seatScreenYpx) * worldYPerPixel;
 }
+
+/** Resolve the horizontal center target inside the selected window edge. */
+export function peekTargetPx(
+  edgeLocalXpx: number,
+  side: "left" | "right",
+  charHpx: number,
+  insetFrac: number,
+): number {
+  const inset = insetFrac * charHpx;
+  return side === "left" ? edgeLocalXpx + inset : edgeLocalXpx - inset;
+}
+
+/** Convert a horizontal pixel delta into one proportional world-offset step. */
+export function peekOffsetIncrement(pixelDelta: number, worldPerPixel: number, rate = 0.6): number {
+  return pixelDelta * worldPerPixel * rate;
+}

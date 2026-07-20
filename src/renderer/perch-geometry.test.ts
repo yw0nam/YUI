@@ -19,6 +19,8 @@ import {
   characterScreenHeight,
   inCatchZone,
   inSideCatchZone,
+  peekOffsetIncrement,
+  peekTargetPx,
   petPxToGlobalPoints,
   projectToScreen,
   SEAT_DROP_DEFAULT,
@@ -94,6 +96,30 @@ describe("inSideCatchZone", () => {
   it("supports independent out and in overrides", () => {
     expect(inSideCatchZone({ x: WIN.x - 30, y: 500 }, WIN, CHAR_H, { out: 0.1 })).toBeNull();
     expect(inSideCatchZone({ x: WIN.x + 30, y: 500 }, WIN, CHAR_H, { in: 0.1 })).toBeNull();
+    const edge = WIN.x + WIN.width;
+    expect(inSideCatchZone({ x: edge + 30, y: 500 }, WIN, CHAR_H, { out: 0.1 })).toBeNull();
+    expect(inSideCatchZone({ x: edge - 30, y: 500 }, WIN, CHAR_H, { in: 0.1 })).toBeNull();
+  });
+});
+
+describe("peekTargetPx", () => {
+  it("moves left-side targets right into the window and right-side targets left", () => {
+    expect(peekTargetPx(300, "left", 200, 0.12)).toBe(324);
+    expect(peekTargetPx(820, "right", 200, 0.12)).toBe(796);
+  });
+
+  it("returns the edge for zero inset and moves farther for larger inset", () => {
+    expect(peekTargetPx(300, "left", 200, 0)).toBe(300);
+    expect(peekTargetPx(300, "left", 200, 0.4)).toBe(380);
+    expect(peekTargetPx(820, "right", 200, 0.4)).toBe(740);
+  });
+});
+
+describe("peekOffsetIncrement", () => {
+  it("preserves the pixel-delta sign and applies the perch pin rate", () => {
+    expect(peekOffsetIncrement(10, 0.02)).toBeCloseTo(0.12);
+    expect(peekOffsetIncrement(-10, 0.02)).toBeCloseTo(-0.12);
+    expect(peekOffsetIncrement(0, 0.02)).toBe(0);
   });
 });
 

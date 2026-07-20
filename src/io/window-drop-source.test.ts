@@ -14,9 +14,23 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PEEK_DEFAULTS } from "../config/load";
 import type { WindowRect } from "../contract";
 import type { BusEnvelope, EventBus } from "../dispatcher/event-bus";
-import { createWindowDropSource } from "./window-drop-source";
+import {
+  createWindowDropSource as createWindowDropSourceImpl,
+  type WindowDropSourceDeps,
+} from "./window-drop-source";
+
+function createWindowDropSource(
+  deps: Omit<WindowDropSourceDeps, "getPeekConfig"> &
+    Partial<Pick<WindowDropSourceDeps, "getPeekConfig">>,
+) {
+  return createWindowDropSourceImpl({
+    ...deps,
+    getPeekConfig: deps.getPeekConfig ?? (() => PEEK_DEFAULTS),
+  });
+}
 
 const RELEASE_EVENT = "window_drop_release";
 
@@ -209,9 +223,9 @@ describe("window-drop-source — no perch", () => {
 
 describe("window-drop-source — side peek drop", () => {
   it.each([
-    ["left", 300],
-    ["right", 820],
-  ] as const)("pushes user.peek_drop with side %s and arms its poll", async (side, seatX) => {
+    ["left", 200, 200],
+    ["right", 720, 720],
+  ] as const)("pushes user.peek_drop with side %s and its resolved local target", async (side, seatX, edgeLocalXpx) => {
     vi.useFakeTimers();
     const peek = { active: true };
     const renderer = {
@@ -225,7 +239,7 @@ describe("window-drop-source — side peek drop", () => {
       bus,
       renderer,
       invoke,
-      getWindow: () => makeWindow({ x: 0, y: 0 }, 1),
+      getWindow: () => makeWindow({ x: 200, y: 0 }, 2),
       listen,
       peekActive: () => peek.active,
     });
@@ -238,13 +252,52 @@ describe("window-drop-source — side peek drop", () => {
       source: "os_event_watcher",
       hint_tier: 1,
       dnd_override: true,
-      payload: { side },
+      payload: {
+        side,
+        target_local_xpx: side === "left" ? edgeLocalXpx + 24 : edgeLocalXpx - 24,
+      },
     });
 
     invoke.mockImplementation(async () => []);
     await tick();
     expect(pushed.at(-1)?.event_name).toBe("user.peek_exit");
     vi.useRealTimers();
+  });
+
+  it("reads configured catch-band fractions for each drop", async () => {
+    const peek = {
+      side_out_frac: 0.1,
+      side_in_frac: 0.1,
+      inset_frac: 0.12,
+      mirror_side: "right" as const,
+    };
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 250, y: 300 }, charHpx: 200 })),
+      isPerched: vi.fn(() => false),
+    };
+    const target = win({ x: 300, y: 100, width: 520, height: 500 });
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke: vi.fn(async () => [target]),
+      getWindow: () => makeWindow({ x: 0, y: 0 }, 1),
+      listen,
+      getPeekConfig: () => peek,
+    });
+
+    await source.start();
+    fire({});
+    await settleRelease();
+    expect(pushed.at(-1)?.event_name).toBe("user.window_sit_exit");
+
+    peek.side_out_frac = 0.3;
+    fire({});
+    await settleRelease();
+    expect(pushed.at(-1)).toMatchObject({
+      event_name: "user.peek_drop",
+      payload: { side: "left", target_local_xpx: 324 },
+    });
   });
 
   it("gives a top-edge candidate precedence over a side-edge candidate", async () => {

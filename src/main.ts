@@ -30,6 +30,8 @@ import {
 import {
   CHAT_API_KEY_SECRET,
   createConfigStore,
+  PEEK_DEFAULTS,
+  type PeekConfig,
   STT_API_KEY_SECRET,
   TTS_API_KEY_SECRET,
 } from "./config";
@@ -503,6 +505,7 @@ async function bootstrap(): Promise<void> {
   });
   const userInput = createUserInputSource(bus);
   let peekStateRef: ReturnType<typeof createPeekState> | null = null;
+  let peekConfig: PeekConfig = { ...PEEK_DEFAULTS };
   // Window-sit drop producer (Rust window_drop_release → tier1 perch) + ctrl+wheel resize
   // producer + agent loopback ingress bind. Tauri-only; owns its own HMR teardown.
   // DEV mock (__yui_windowSit.drop) exercises the geometry path without a real drag.
@@ -510,6 +513,7 @@ async function bootstrap(): Promise<void> {
     bus,
     renderer,
     peekActive: () => peekStateRef?.active() ?? false,
+    getPeekConfig: () => peekConfig,
     agentNotifySettings,
     log,
   });
@@ -760,6 +764,7 @@ async function bootstrap(): Promise<void> {
   // dispatcher/guardrails created after config load (guardrails needs cfg.guardrails numbers).
   try {
     const cfg = await config.load();
+    peekConfig = cfg.avatar.peek;
     // Guardrails — configured by config numbers. dispatcher consumes via note+evaluate+cooldown polling.
     const guardrails = createGuardrails(cfg.guardrails);
     guardrailsRef = guardrails;
@@ -772,6 +777,7 @@ async function bootstrap(): Promise<void> {
         enter: () => peekStateRef?.enter() ?? Promise.resolve(),
         exit: () => peekStateRef?.exit() ?? Promise.resolve(),
       },
+      peekConfig: () => peekConfig,
       isSpeaking: () => voice.speechPlayback.isSpeaking(),
       // Surface only user-initiated turn failures (proactive/schedule/agent log only — silent by design).
       // Route by source (text/voice) — checking isInputOpen() only at failure time risks misrouting
@@ -948,6 +954,7 @@ async function bootstrap(): Promise<void> {
   // Hot-reload: when avatar manifest changes, update via setManifest then hot-swap active VRM.
   // override-wins: config vrm_url edits don't overwrite user's localStorage selection (same as agent-settings).
   config.subscribe((cfg, changed) => {
+    if (changed.has("avatar")) peekConfig = cfg.avatar.peek;
     // emotion/motion registry hot-reload → renderer re-inject (immediate effect).
     if (changed.has("emotionRegistry")) renderer.setEmotionRegistry(cfg.emotionRegistry);
     if (changed.has("motions")) renderer.setMotionRegistry(cfg.motions);
