@@ -19,6 +19,7 @@ import {
   type SyncedStore,
   wireBroker,
   wireDispatcherSources,
+  wirePeekExitTriggers,
   wireSettingsReload,
   wireSpeakerSelection,
   wireSummonHotkey,
@@ -50,6 +51,7 @@ import { selectFetch } from "./io/chat-client";
 import { mergeEndpoints } from "./io/endpoints-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
 import { createOsContext } from "./io/os-context";
+import { createPeekState } from "./io/peek-state";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsBridge } from "./io/settings-bridge";
@@ -497,10 +499,17 @@ async function bootstrap(): Promise<void> {
     onDrop: (env, reason) => log.info("drop", { event_name: env.event_name, reason }),
   });
   const userInput = createUserInputSource(bus);
+  let peekStateRef: ReturnType<typeof createPeekState> | null = null;
   // Window-sit drop producer (Rust window_drop_release → tier1 perch) + ctrl+wheel resize
   // producer + agent loopback ingress bind. Tauri-only; owns its own HMR teardown.
   // DEV mock (__yui_windowSit.drop) exercises the geometry path without a real drag.
-  wireWindowSources({ bus, renderer, agentNotifySettings, log });
+  wireWindowSources({
+    bus,
+    renderer,
+    peekActive: () => peekStateRef?.active() ?? false,
+    agentNotifySettings,
+    log,
+  });
   // Voice input (STT/VAD) lifecycle — start/stop driven by voiceInputStatus, intent persisted to
   // sttSettings, STT engine bound post-config via setStt. Barge-in/submit wiring joins the voice pipeline below.
   const voiceInput = wireVoiceInput({ voiceInputStatus, sttSettings });
@@ -756,6 +765,10 @@ async function bootstrap(): Promise<void> {
       renderer,
       backendCaller,
       guardrails,
+      peek: {
+        enter: () => peekStateRef?.enter() ?? Promise.resolve(),
+        exit: () => peekStateRef?.exit() ?? Promise.resolve(),
+      },
       isSpeaking: () => voice.speechPlayback.isSpeaking(),
       // Surface only user-initiated turn failures (proactive/schedule/agent log only — silent by design).
       // Route by source (text/voice) — checking isInputOpen() only at failure time risks misrouting
@@ -856,7 +869,27 @@ async function bootstrap(): Promise<void> {
     });
     hitTestRef = hitTest;
     hitTest.start();
-    if (import.meta.env.DEV) import.meta.hot?.dispose(() => hitTest.stop());
+    let disposePeekExitTriggers: (() => void) | null = null;
+    if (isTauri()) {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const win = getCurrentWindow();
+      peekStateRef = createPeekState({ getWindow: getCurrentWindow, hitTest });
+      disposePeekExitTriggers = await wirePeekExitTriggers({
+        bus,
+        peek: peekStateRef,
+        win: {
+          onFocusChanged: (handler) => win.onFocusChanged(handler),
+          listen: (event, handler) => win.listen(event, handler),
+        },
+      });
+    }
+    if (import.meta.env.DEV) {
+      import.meta.hot?.dispose(() => {
+        disposePeekExitTriggers?.();
+        void peekStateRef?.dispose();
+        hitTest.stop();
+      });
+    }
     // Start dispatcher only after config ready (backend_caller depends on config.get()).
     dispatcher.start();
     // tier2 utterance candidate sources (proactive/schedule/agent/signals). Start after the
@@ -876,6 +909,11 @@ async function bootstrap(): Promise<void> {
     // the handle so the config.subscribe below can re-apply it on hot-reload.
     wireSummonHotkey({
       surfaces,
+      bus,
+      peek: {
+        active: () => peekStateRef?.active() ?? false,
+        exit: () => peekStateRef?.exit() ?? Promise.resolve(),
+      },
       accelerator: cfg.hotkeys.summon_global,
       onReady: (hk) => {
         summonHotkeyRef = hk;

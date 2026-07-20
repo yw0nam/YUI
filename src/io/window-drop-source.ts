@@ -4,7 +4,7 @@
  *
  * Client-firing, backend-bypassed (firing ≠ judgment): on a drag-release the
  * client decides whether the character's *seat* landed over a foreign window's
- * top-edge catch zone, and emits a tier1 bus event the dispatcher renders
+ * top- or side-edge catch zone, and emits a tier1 bus event the dispatcher renders
  * locally. No brain, no agent call.
  *
  * Flow on each release:
@@ -16,13 +16,10 @@
  *   5. hit → user.window_sit_drop { edge_local_ypx } + arm
  *      the poll on target.windowNumber; miss → user.window_sit_exit.
  *
- * Once armed, the poll re-checks ~1.4 Hz whether the perched window detached.
- * The held-perch test is arm-baseline delta: a perch is lost when the armed
- * window is gone from the list, is covered by an earlier z-order window, or has
- * moved more than MOVE_TH from its arm-time top-left. A seat parked above the
- * window's top edge (animation bob) yields zero displacement → no false detach.
- * Loss fires user.window_sit_exit through the bus and disarms. The poll never
- * calls setPerchTarget directly — it preserves the bus→dispatcher→renderer path.
+ * Once armed, the poll re-checks ~1.4 Hz whether the target window detached.
+ * Sit loses on gone, covered, or moved; peek loses on gone or moved because its
+ * target is expected to cover YUI. Loss fires the matching exit through the bus
+ * and disarms. The poll never mutates renderer state directly.
  *
  * Tauri deps (invoke / getWindow / listen) are injected so the module is unit-
  * testable without the Tauri runtime. Never throws to the caller — failures
@@ -33,7 +30,7 @@ import type { ScreenRect, WindowRect } from "../contract";
 import type { EventBus } from "../dispatcher/event-bus";
 import { createLogger } from "../logger";
 import type { ScreenPoint } from "../renderer/perch-geometry";
-import { inCatchZone, petPxToGlobalPoints } from "../renderer/perch-geometry";
+import { inCatchZone, inSideCatchZone, petPxToGlobalPoints } from "../renderer/perch-geometry";
 
 const log = createLogger("window-drop");
 
@@ -78,6 +75,8 @@ export interface WindowDropSourceDeps {
   listen: DropListen;
   /** Poll cadence in ms (default {@link DEFAULT_POLL_MS}). */
   pollIntervalMs?: number;
+  /** Whether side-peek intent is currently active. */
+  peekActive?: () => boolean;
   /** Injectable timer fns (fake timers in tests). */
   setInterval?: typeof setInterval;
   clearInterval?: typeof clearInterval;
@@ -107,24 +106,37 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   const pollMs = deps.pollIntervalMs ?? DEFAULT_POLL_MS;
   const setIntervalImpl = deps.setInterval ?? setInterval;
   const clearIntervalImpl = deps.clearInterval ?? clearInterval;
+  const peekActive = deps.peekActive ?? (() => false);
 
   let unlisten: (() => void) | undefined;
 
   // ── Occlusion poll state ──
   let armedWindowNumber: number | null = null;
   let armedRect: { x: number; y: number } | null = null;
+  let armedKind: "sit" | "peek" | null = null;
   let pollTimer: ReturnType<typeof setInterval> | null = null;
   let lostStreak = 0;
   // Bumped on every (re)arm; a tick captures it before awaiting and discards a
   // stale result if a fresh drop re-armed mid-await.
   let pollGen = 0;
 
-  /** Push the leave/interrupt envelope (no payload) — reused for miss + no-probe + occlusion. Disarms. */
+  /** Push the sit leave/interrupt envelope for a miss or missing probe. */
   function pushExit(): void {
     disarm();
     bus.push({
       source: "os_event_watcher",
       event_name: "user.window_sit_exit",
+      ts: Date.now(),
+      hint_tier: 1,
+      dnd_override: true,
+    });
+  }
+
+  function pushArmedExit(kind: "sit" | "peek"): void {
+    disarm();
+    bus.push({
+      source: "os_event_watcher",
+      event_name: kind === "sit" ? "user.window_sit_exit" : "user.peek_exit",
       ts: Date.now(),
       hint_tier: 1,
       dnd_override: true,
@@ -139,15 +151,23 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   }
 
   function disarm(): void {
+    pollGen++;
     stopPoll();
     armedWindowNumber = null;
     armedRect = null;
+    armedKind = null;
     lostStreak = 0;
   }
 
-  function arm(windowNumber: number, armRect: { x: number; y: number }, charHpx: number): void {
+  function arm(
+    kind: "sit" | "peek",
+    windowNumber: number,
+    armRect: { x: number; y: number },
+    charHpx: number,
+  ): void {
     armedWindowNumber = windowNumber;
     armedRect = { x: armRect.x, y: armRect.y };
+    armedKind = kind;
     lostStreak = 0;
     stopPoll();
     pollGen++;
@@ -174,8 +194,10 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   }
 
   async function tick(): Promise<void> {
-    // Perch ended elsewhere (manual re-grab / dev exit) → silent disarm, no exit.
-    if (!renderer.isPerched()) {
+    const kind = armedKind;
+    if (kind === null) return;
+    // Held state ended elsewhere (manual re-grab / summon / dev exit) → silent disarm.
+    if ((kind === "sit" && !renderer.isPerched()) || (kind === "peek" && !peekActive())) {
       disarm();
       return;
     }
@@ -189,7 +211,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     ]);
     // A fresh drop re-armed mid-await → this result is stale; discard.
     if (gen !== pollGen) return;
-    if (!renderer.isPerched()) {
+    if ((kind === "sit" && !renderer.isPerched()) || (kind === "peek" && !peekActive())) {
       disarm();
       return;
     }
@@ -200,18 +222,20 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     let covering = false;
     const seat = probe ? projectSeat(probe, pos, scale) : null;
     const armedIdx = windows.findIndex((w) => w.windowNumber === armedWindowNumber);
-    if (!probe) {
+    if (!probe && kind === "sit") {
       // No live probe → treat as gone (unambiguous): the seat is unknowable.
       reason = "gone";
     } else if (armedIdx < 0) {
       reason = "gone";
-    } else if (seat) {
-      // A window earlier in the front-to-back list (above the armed one) covers the seat.
-      covering = windows.some((w, i) => i < armedIdx && containsSeat(w, seat));
+    } else {
       const w = windows[armedIdx];
       dx = armedRect ? w.x - armedRect.x : 0;
       dy = armedRect ? w.y - armedRect.y : 0;
       const moved = armedRect != null && (Math.abs(dx) > MOVE_TH || Math.abs(dy) > MOVE_TH);
+      if (kind === "sit" && seat) {
+        // A window earlier in the front-to-back list (above the armed one) covers the seat.
+        covering = windows.some((candidate, i) => i < armedIdx && containsSeat(candidate, seat));
+      }
       if (covering) reason = "covered";
       else if (moved) reason = "moved";
     }
@@ -231,7 +255,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       lostStreak++;
       // gone is unambiguous (1 tick); covered/moved ride out the debounce.
       const need = reason === "gone" ? 1 : AMBIGUOUS_LOST_TICKS;
-      if (lostStreak >= need) pushExit();
+      if (lostStreak >= need) pushArmedExit(kind);
     } else {
       lostStreak = 0;
     }
@@ -256,7 +280,33 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     // Front-to-back ⇒ first match is the topmost window. U-band catch zone here only.
     const targetIdx = windows.findIndex((w) => inCatchZone(seatGlobal, w, probe.charHpx));
     if (targetIdx < 0) {
-      pushExit();
+      const sideTargetIdx = windows.findIndex(
+        (w) => inSideCatchZone(seatGlobal, w, probe.charHpx) !== null,
+      );
+      if (sideTargetIdx < 0) {
+        pushExit();
+        return;
+      }
+      const sideTarget = windows[sideTargetIdx];
+      if (windows.some((w, i) => i < sideTargetIdx && containsSeat(w, seatGlobal))) {
+        log.debug("peek.drop_covered", { targetWindowNumber: sideTarget.windowNumber });
+        pushExit();
+        return;
+      }
+      const side = inSideCatchZone(seatGlobal, sideTarget, probe.charHpx);
+      if (side === null) {
+        pushExit();
+        return;
+      }
+      bus.push({
+        source: "os_event_watcher",
+        event_name: "user.peek_drop",
+        ts: Date.now(),
+        hint_tier: 1,
+        dnd_override: true,
+        payload: { side },
+      });
+      arm("peek", sideTarget.windowNumber, { x: sideTarget.x, y: sideTarget.y }, probe.charHpx);
       return;
     }
     const target = windows[targetIdx];
@@ -280,7 +330,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       dnd_override: true,
       payload: { edge_local_ypx: edgeLocalYpx },
     });
-    arm(target.windowNumber, { x: target.x, y: target.y }, probe.charHpx);
+    arm("sit", target.windowNumber, { x: target.x, y: target.y }, probe.charHpx);
   }
 
   return {

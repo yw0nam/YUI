@@ -118,10 +118,10 @@ export interface HitTestWindow {
 export interface HitTestController {
   start(): void;
   stop(): void;
-  /** Force CAPTURE (ignore=false) and stop toggling — wire to onDragStart. */
-  suspend(): void;
-  /** Resume normal toggling — wire to onDragEnd. */
-  resume(): void;
+  /** Stop toggling, force the cursor mode, and assign suspension ownership. */
+  suspend(mode?: "capture" | "passthrough", owner?: string): void;
+  /** Resume normal toggling when the caller owns the suspension. */
+  resume(owner?: string): void;
 }
 
 export interface HitTestOptions {
@@ -176,7 +176,9 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   let ignore = false;
   let running = false;
   let suspended = false;
+  let suspendedOwner: string | null = null;
   let pollHandle: number | null = null;
+  let ignoreChain = Promise.resolve();
   // Consecutive poll failures: after this many, degrade to CAPTURE.
   const POLL_FAILURE_THRESHOLD = 3;
   let pollFailureCount = 0;
@@ -189,8 +191,13 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   function setIgnore(next: boolean): void {
     if (ignore === next) return;
     ignore = next;
-    win?.setIgnoreCursorEvents(next).catch((err: unknown) => {
-      log.warn("set_ignore_failed", { ignore: next, error: String(err) });
+    const target = win;
+    ignoreChain = ignoreChain.then(async () => {
+      try {
+        await target?.setIgnoreCursorEvents(next);
+      } catch (err) {
+        log.warn("set_ignore_failed", { ignore: next, error: String(err) });
+      }
     });
   }
 
@@ -268,6 +275,8 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     state = "capture";
     counter = 0;
     ignore = false;
+    suspended = false;
+    suspendedOwner = null;
     pollFailureCount = 0;
     moveTarget.addEventListener("pointermove", onPointerMove);
   }
@@ -281,20 +290,24 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     win = null;
   }
 
-  function suspend(): void {
+  function suspend(mode: "capture" | "passthrough" = "capture", owner = "default"): void {
     suspended = true;
+    suspendedOwner = owner;
     state = "capture";
     counter = 0;
     pollFailureCount = 0;
     stopPoll();
-    setIgnore(false);
+    setIgnore(mode === "passthrough");
   }
 
-  function resume(): void {
+  function resume(owner = "default"): void {
+    if (suspendedOwner !== owner) return;
     suspended = false;
+    suspendedOwner = null;
     state = "capture";
     counter = 0;
     pollFailureCount = 0;
+    setIgnore(false);
   }
 
   return { start, stop, suspend, resume };

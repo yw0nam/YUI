@@ -207,6 +207,95 @@ describe("window-drop-source — no perch", () => {
   });
 });
 
+describe("window-drop-source — side peek drop", () => {
+  it.each([
+    ["left", 300],
+    ["right", 820],
+  ] as const)("pushes user.peek_drop with side %s and arms its poll", async (side, seatX) => {
+    vi.useFakeTimers();
+    const peek = { active: true };
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: seatX, y: 300 }, charHpx: 200 })),
+      isPerched: vi.fn(() => false),
+    };
+    const target = win({ x: 300, y: 100, width: 520, height: 500, windowNumber: 42 });
+    const invoke = vi.fn(async () => [target]);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow: () => makeWindow({ x: 0, y: 0 }, 1),
+      listen,
+      peekActive: () => peek.active,
+    });
+
+    await source.start();
+    fire({});
+    await settleRelease();
+    expect(pushed.at(-1)).toMatchObject({
+      event_name: "user.peek_drop",
+      source: "os_event_watcher",
+      hint_tier: 1,
+      dnd_override: true,
+      payload: { side },
+    });
+
+    invoke.mockImplementation(async () => []);
+    await tick();
+    expect(pushed.at(-1)?.event_name).toBe("user.peek_exit");
+    vi.useRealTimers();
+  });
+
+  it("gives a top-edge candidate precedence over a side-edge candidate", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 300, y: 300 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const side = win({ x: 320, y: 150, height: 500, windowNumber: 11 });
+    const top = win({ x: 100, y: 300, width: 500, windowNumber: 22 });
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke: vi.fn(async () => [side, top]),
+      getWindow: () => makeWindow({ x: 0, y: 0 }, 1),
+      listen,
+      peekActive: () => true,
+    });
+
+    await source.start();
+    fire({});
+    await settleRelease();
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0].event_name).toBe("user.window_sit_drop");
+  });
+
+  it("treats a covered side candidate as a miss", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 300, y: 300 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const cover = win({ x: 0, y: 0, width: 1000, height: 1000, windowNumber: 11 });
+    const behind = win({ x: 300, y: 100, height: 500, windowNumber: 22 });
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke: vi.fn(async () => [cover, behind]),
+      getWindow: () => makeWindow({ x: 0, y: 0 }, 1),
+      listen,
+      peekActive: () => true,
+    });
+
+    await source.start();
+    fire({});
+    await settleRelease();
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0].event_name).toBe("user.window_sit_exit");
+  });
+});
+
 describe("window-drop-source — lifecycle + degrade", () => {
   it("start() registers the release listener", async () => {
     const renderer = { getPerchProbe: vi.fn(() => null), isPerched: vi.fn(() => true) };
@@ -304,6 +393,137 @@ async function tick(): Promise<void> {
 async function settleRelease(): Promise<void> {
   for (let i = 0; i < 8; i++) await Promise.resolve();
 }
+
+describe("window-drop-source — peek loss poll", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function armPeek() {
+    const state = { active: true, probe: true };
+    const renderer = {
+      getPerchProbe: vi.fn(() =>
+        state.probe ? { seatPx: { x: 300, y: 300 }, charHpx: 200 } : null,
+      ),
+      isPerched: vi.fn(() => false),
+    };
+    const armed = win({ x: 300, y: 100, width: 520, height: 500, windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow: () => makeWindow({ x: 0, y: 0 }, 1),
+      listen,
+      peekActive: () => state.active,
+    });
+    await source.start();
+    fire({});
+    await settleRelease();
+    expect(pushed.at(-1)?.event_name).toBe("user.peek_drop");
+    return { source, state, renderer, armed, invoke };
+  }
+
+  it("pushes user.peek_exit when the armed window is gone", async () => {
+    const { invoke } = await armPeek();
+    invoke.mockImplementation(async () => []);
+    await tick();
+    expect(pushed.filter((e) => e.event_name === "user.peek_exit")).toHaveLength(1);
+  });
+
+  it("pushes user.peek_exit after a moved window exceeds the debounce", async () => {
+    const { armed, invoke } = await armPeek();
+    invoke.mockImplementation(async () => [{ ...armed, x: armed.x + 20 }]);
+    await tick();
+    expect(pushed.some((e) => e.event_name === "user.peek_exit")).toBe(false);
+    await tick();
+    expect(pushed.filter((e) => e.event_name === "user.peek_exit")).toHaveLength(1);
+  });
+
+  it("still detects peek movement after the renderer probe disappears", async () => {
+    const { state, armed, invoke } = await armPeek();
+    state.probe = false;
+    invoke.mockImplementation(async () => [{ ...armed, y: armed.y + 20 }]);
+    await tick();
+    await tick();
+    expect(pushed.filter((e) => e.event_name === "user.peek_exit")).toHaveLength(1);
+  });
+
+  it("does not exit peek when a front window covers the seat", async () => {
+    const { armed, invoke } = await armPeek();
+    const cover = win({ x: 0, y: 0, width: 1000, height: 1000, windowNumber: 99 });
+    invoke.mockImplementation(async () => [cover, armed]);
+    await tick();
+    await tick();
+    await tick();
+    expect(pushed.some((e) => e.event_name === "user.peek_exit")).toBe(false);
+  });
+
+  it("silently disarms when peek intent is inactive", async () => {
+    const { state, invoke } = await armPeek();
+    state.active = false;
+    invoke.mockImplementation(async () => []);
+    await tick();
+    await tick();
+    expect(pushed.some((e) => e.event_name === "user.peek_exit")).toBe(false);
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("disarm invalidates an in-flight tick so it cannot emit a second exit", async () => {
+    let tickCb: (() => void) | null = null;
+    const fakeSetInterval = ((cb: () => void) => {
+      tickCb = cb;
+      return 1 as unknown as ReturnType<typeof setInterval>;
+    }) as typeof setInterval;
+    const fakeClearInterval = (() => {
+      tickCb = null;
+    }) as typeof clearInterval;
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 300, y: 300 }, charHpx: 200 })),
+      isPerched: vi.fn(() => false),
+    };
+    const armed = win({ x: 300, y: 100, height: 500, windowNumber: 42 });
+    const far = win({ x: 5000, y: 5000, windowNumber: 77 });
+    let resolveTick!: (windows: WindowRect[]) => void;
+    const pendingTick = new Promise<WindowRect[]>((resolve) => (resolveTick = resolve));
+    let call = 0;
+    const invoke = vi.fn(async () => {
+      call++;
+      if (call === 1) return [armed];
+      if (call === 2) return pendingTick;
+      return [far];
+    });
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow: () => makeWindow({ x: 0, y: 0 }, 1),
+      listen,
+      peekActive: () => true,
+      setInterval: fakeSetInterval,
+      clearInterval: fakeClearInterval,
+    });
+    await source.start();
+    fire({});
+    await settleRelease();
+
+    (tickCb as (() => void) | null)?.();
+    await Promise.resolve();
+    await Promise.resolve();
+    fire({});
+    await settleRelease();
+    expect(pushed.filter((e) => e.event_name.endsWith("_exit"))).toHaveLength(1);
+
+    resolveTick([]);
+    await settleRelease();
+    expect(pushed.filter((e) => e.event_name.endsWith("_exit"))).toHaveLength(1);
+  });
+});
 
 describe("window-drop-source — occlusion poll arm/hold (J1)", () => {
   beforeEach(() => {
