@@ -85,7 +85,13 @@ function checkVrm() {
   const dir = join(root, "resources", "vrms");
   const models = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".vrm")) : [];
   if (models.length) console.log(`\n✓ VRM model(s): ${models.join(", ")}`);
-  else console.log("\n✗ No VRM in resources/vrms/ — drop a VRM 1.0 *.vrm there before running.");
+  else {
+    // ponytail: guidance only — no bundle/auto-download; VRM licenses vary per model.
+    console.log("\n✗ No VRM in resources/vrms/ — drop a VRM 1.0 *.vrm there before running.");
+    console.log("  → samples: https://github.com/madjin/vrm-samples");
+    console.log("  → recommended: download a model you like from https://hub.vroid.com/en");
+    console.log("  (check each model's license before use)");
+  }
 }
 
 async function main() {
