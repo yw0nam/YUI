@@ -271,6 +271,7 @@ describe("configs/motions.json", () => {
     expect(m.peek).toEqual({
       vrma_path: "/motions/peek.vrma",
       fade_ms: 700,
+      crossfade_loop: true,
       kind: "state",
       loop: true,
       priority: 55,

@@ -882,7 +882,7 @@ async function bootstrap(): Promise<void> {
     if (isTauri()) {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       const win = getCurrentWindow();
-      peekStateRef = createPeekState({ getWindow: getCurrentWindow, hitTest });
+      peekStateRef = createPeekState({ getWindow: getCurrentWindow });
       disposePeekExitTriggers = await wirePeekExitTriggers({
         bus,
         peek: peekStateRef,
