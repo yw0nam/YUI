@@ -18,7 +18,10 @@ export interface TapSource {
 
 export interface TapSourceDeps {
   bus: Pick<EventBus, "push">;
-  renderer: { getTapPoints(): TapPoints | null };
+  renderer: {
+    getTapPoints(): TapPoints | null;
+    getCurrentMotion(): { id: string; vrma_path: string } | null;
+  };
   ambient: { trigger(cue: "tap_react"): void };
   config: TapConfig;
   drainSignals?: () => SignalItem[];
@@ -106,13 +109,22 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
           return;
         }
 
+        const motionId = deps.config.region_motions[region];
+        let currentMotion: { id: string; vrma_path: string } | null = null;
+        try {
+          currentMotion = deps.renderer.getCurrentMotion();
+        } catch (error) {
+          log.warn("current motion read failed", error);
+        }
+        if (currentMotion?.id === motionId) return;
+
         deps.bus.push({
           source: "os_event_watcher",
           event_name: "user.tap_region",
           ts,
           hint_tier: 1,
           dnd_override: true,
-          payload: { motion_id: deps.config.region_motions[region] },
+          payload: { motion_id: motionId },
         });
       } catch (error) {
         log.warn("tap handling failed", error);

@@ -16,6 +16,10 @@ const config: TapConfig = {
 function harness(
   points: TapPoints | null = null,
   drainSignals: (() => Array<Record<string, unknown>>) | undefined = undefined,
+  currentMotion:
+    | { id: string; vrma_path: string }
+    | null
+    | (() => { id: string; vrma_path: string } | null) = null,
 ) {
   const pushed: BusEnvelope[] = [];
   const bus = {
@@ -25,7 +29,12 @@ function harness(
     }),
   } as Pick<EventBus, "push">;
   const ambient = { trigger: vi.fn() };
-  const renderer = { getTapPoints: vi.fn(() => points) };
+  const renderer = {
+    getTapPoints: vi.fn(() => points),
+    getCurrentMotion: vi.fn(() =>
+      typeof currentMotion === "function" ? currentMotion() : currentMotion,
+    ),
+  };
   let time = 1_000;
   const source = createTapSource({ bus, ambient, renderer, config, now: () => time, drainSignals });
   return { source, pushed, ambient, renderer, setTime: (next: number) => (time = next) };
@@ -70,6 +79,71 @@ describe("createTapSource", () => {
     ]);
   });
 
+  it("suppresses a region tap while its mapped motion is already playing", () => {
+    const { source, pushed, ambient } = harness(
+      {
+        chest: { x: 50, y: 60 },
+        hips: null,
+        charHpx: 200,
+      },
+      undefined,
+      { id: "shy", vrma_path: "/motions/shy.vrma" },
+    );
+
+    source.handleClick({ x: 50, y: 60 });
+
+    expect(pushed).toEqual([]);
+    expect(ambient.trigger).not.toHaveBeenCalled();
+  });
+
+  it("fires a region tap while a different motion is playing", () => {
+    const { source, pushed } = harness(
+      {
+        chest: { x: 50, y: 60 },
+        hips: null,
+        charHpx: 200,
+      },
+      undefined,
+      { id: "wave", vrma_path: "/motions/wave.vrma" },
+    );
+
+    source.handleClick({ x: 50, y: 60 });
+
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0]?.event_name).toBe("user.tap_region");
+  });
+
+  it("fires a region tap when no motion is playing", () => {
+    const { source, pushed } = harness({
+      chest: { x: 50, y: 60 },
+      hips: null,
+      charHpx: 200,
+    });
+
+    source.handleClick({ x: 50, y: 60 });
+
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0]?.event_name).toBe("user.tap_region");
+  });
+
+  it("fires a region tap when reading the current motion fails", () => {
+    const { source, pushed } = harness(
+      {
+        chest: { x: 50, y: 60 },
+        hips: null,
+        charHpx: 200,
+      },
+      undefined,
+      () => {
+        throw new Error("renderer unavailable");
+      },
+    );
+
+    expect(() => source.handleClick({ x: 50, y: 60 })).not.toThrow();
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0]?.event_name).toBe("user.tap_region");
+  });
+
   it("fires one bored candidate without a motion event, clears the streak, and makes the fifth click plain", () => {
     const { source, pushed, ambient, setTime } = harness(null);
     for (const time of [1_000, 1_500, 2_000, 2_500, 2_600]) {
@@ -103,7 +177,7 @@ describe("createTapSource", () => {
     expect(pushed.some((env) => env.event_name === "proactive.tap_bored")).toBe(false);
   });
 
-  it("keeps the region reaction, suppresses bored, and resets when a region tap completes the streak", () => {
+  it("suppresses a repeated region reaction and bored, then resets when that tap completes the streak", () => {
     const drainSignals = vi.fn(() => [{ id: "buffered" }]);
     const { source, pushed, ambient, setTime } = harness(
       {
@@ -112,6 +186,7 @@ describe("createTapSource", () => {
         charHpx: 200,
       },
       drainSignals,
+      { id: "shy", vrma_path: "/motions/shy.vrma" },
     );
     for (const time of [1_000, 1_100, 1_200]) {
       setTime(time);
@@ -119,13 +194,16 @@ describe("createTapSource", () => {
     }
     setTime(1_300);
     source.handleClick({ x: 1, y: 2 });
-    setTime(1_400);
-    source.handleClick({ x: 100, y: 100 });
+    for (const time of [1_400, 1_500, 1_600, 1_700]) {
+      setTime(time);
+      source.handleClick({ x: 100, y: 100 });
+    }
 
-    expect(pushed.filter((env) => env.event_name === "user.tap_region")).toHaveLength(1);
-    expect(pushed.filter((env) => env.event_name === "proactive.tap_bored")).toHaveLength(0);
-    expect(ambient.trigger).toHaveBeenCalledTimes(4);
-    expect(drainSignals).not.toHaveBeenCalled();
+    expect(pushed.filter((env) => env.event_name === "user.tap_region")).toHaveLength(0);
+    expect(pushed.filter((env) => env.event_name === "proactive.tap_bored")).toHaveLength(1);
+    expect(pushed.at(-1)?.ts).toBe(1_700);
+    expect(ambient.trigger).toHaveBeenCalledTimes(6);
+    expect(drainSignals).toHaveBeenCalledOnce();
   });
 
   it("adds drained signals only when non-empty and drains only on the firing click", () => {
