@@ -120,6 +120,31 @@ describe("signals_source — present: immediate signals.push (spec §1)", () => 
 });
 
 describe("signals_source — away: buffer + catch-up (spec §2–3)", () => {
+  it("drain returns buffered items in arrival order, clears them, and prevents catch-up on return", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+    const src = createSignalsSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+    });
+    await src.start();
+
+    emitIdle(idleTick(HIGH_IDLE));
+    emitInbox(batch([{ id: 1 }]));
+    emitInbox(batch([{ id: 2 }, { id: 3 }]));
+
+    expect(src.drain()).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
+    expect(src.drain()).toEqual([]);
+    emitIdle(idleTick(LOW_IDLE));
+    expect(pushed).toEqual([]);
+
+    src.stop();
+  });
+
   it("away: inbox arrivals are buffered (nothing pushed); present tick → ONE signals.catchup; buffer cleared", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit: emitIdle } = fakeListen();

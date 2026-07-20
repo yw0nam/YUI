@@ -26,7 +26,20 @@ describe("loadConfig — happy path", () => {
       tts_provider: "openai",
       chat_instructions: "Use the generate_express tool with emotion_id, motion_id, emotion_text.",
     });
-    expect(cfg.avatar).toEqual({ vrm_url: "/vrms/carlotta.vrm" });
+    expect(cfg.avatar).toEqual({
+      vrm_url: "/vrms/carlotta.vrm",
+      tap: {
+        spam_count: 4,
+        spam_window_ms: 3000,
+        region_radius_frac: 0.18,
+        region_motions: { chest: "embarrassed", hips: "embarrassed" },
+        bored_cue: {
+          label: "bored poking",
+          context:
+            "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
+        },
+      },
+    });
     expect(cfg.emotionRegistry.happy).toEqual({
       vrm_expression: "happy",
       fallback: "neutral",

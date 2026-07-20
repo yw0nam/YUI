@@ -7,7 +7,7 @@
  *  3. conflict resolution: user.text_submitted arrives → abort in-flight backend +
  *     drop tier2/3 from the queue (superseded_by_user).
  *  4. Routing:
- *     · tier1 (user.drag_*, idle.returned, user.tap immediate half) → renderer (local, no backend).
+ *     · tier1 (drag/window/tap reactions, idle.returned) → local handling (no backend).
  *     · tier2/3 (user.text_submitted, idle.*, time_milestone.*, os.active_app_changed) → backend_caller.
  *
  * Single in-flight backend call. Deferred tier2/3 keeps only one item in local pending
@@ -121,7 +121,7 @@ interface Classification {
 
 /**
  * classify. Only handled events are routed; the rest are dropped (= no-op).
- * user.tap is handled as a tier1 immediate half.
+ * Tap reactions are handled as tier1 local events.
  */
 function classify(env: BusEnvelope): Classification {
   const n = env.event_name;
@@ -151,6 +151,7 @@ function classify(env: BusEnvelope): Classification {
     n === "user.drag_end" ||
     n === "idle.returned" ||
     n === "user.tap" ||
+    n === "user.tap_region" ||
     n === "user.window_sit_enter" ||
     n === "user.window_sit_exit" ||
     n === "user.window_sit_drop" ||
@@ -175,10 +176,11 @@ function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
 /**
  * tier1 event → render directive mapping (local, backend-independent).
  *  - drag_start → play motion "drag" / drag_end → return to idle (motion null).
- *  - user.tap / idle.returned → empty directive (hold).
+ *  - user.tap → observability only; tap_region → payload motion.
+ *  - idle.returned → empty directive (hold).
  * Returning null means no render.
  */
-function tier1Directive(env: BusEnvelope): ControlEnvelope | null {
+function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
   switch (env.event_name) {
     case "user.drag_start":
       return { speech_text: "", motion: { id: "drag" } };
@@ -195,6 +197,15 @@ function tier1Directive(env: BusEnvelope): ControlEnvelope | null {
     case "user.peek_exit":
       return { speech_text: "", motion: null };
     case "user.tap":
+      return null;
+    case "user.tap_region": {
+      const motionId = env.payload?.motion_id;
+      if (typeof motionId !== "string" || motionId.length === 0) {
+        log.warn("tap_motion.malformed", { seq_id: env.seq_id, payload: env.payload });
+        return null;
+      }
+      return { speech_text: "", motion: { id: motionId } };
+    }
     case "idle.returned":
       // empty directive (emotion/motion unset = hold).
       return { speech_text: "" };
@@ -382,7 +393,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /** tier1 event → renderer.applyDirective (local, backend-independent). */
   function renderTier1(env: BusEnvelope): void {
-    const directive = tier1Directive(env);
+    const directive = tier1Directive(env, log);
     if (!directive) return;
     log.info("fire", { seq_id: env.seq_id, event_name: env.event_name, tier: 1 });
     // perch-clear first so applyDirective's motion is the last playMotion and is

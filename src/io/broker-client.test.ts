@@ -468,7 +468,20 @@ describe("deriveBrokerPayload", () => {
         tts_base_url: "http://localhost:8092",
         tts_provider: provider,
       },
-      avatar: { vrm_url: "/vrms/carlotta.vrm" },
+      avatar: {
+        vrm_url: "/vrms/carlotta.vrm",
+        tap: {
+          spam_count: 4,
+          spam_window_ms: 3000,
+          region_radius_frac: 0.18,
+          region_motions: { chest: "embarrassed", hips: "embarrassed" },
+          bored_cue: {
+            label: "bored poking",
+            context:
+              "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
+          },
+        },
+      },
       emotionRegistry: {
         neutral: { vrm_expression: "neutral", fallback: "neutral" },
         happy: { vrm_expression: "happy", fallback: "neutral" },

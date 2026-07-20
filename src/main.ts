@@ -58,6 +58,7 @@ import { createSettingsBridge } from "./io/settings-bridge";
 import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
 import type { SummonHotkey } from "./io/summon-hotkey";
+import { createTapSource, type TapSource } from "./io/tap-source";
 import { isTauri } from "./io/tauri-env";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
@@ -116,7 +117,9 @@ async function bootstrap(): Promise<void> {
   // it gets the hit_test knob). Drag suspends toggling so the OS-native drag is
   // never interrupted by a mid-gesture ignore flip.
   let hitTestRef: HitTestController | null = null;
+  let tapSourceRef: TapSource | null = null;
   const cleanupDrag = await initDrag(stage, {
+    onClick: (pos) => tapSourceRef?.handleClick(pos),
     onDragStart: () => {
       hitTestRef?.suspend();
       bus.push({
@@ -905,6 +908,13 @@ async function bootstrap(): Promise<void> {
     scheduleSourceRef = scheduleSource;
     agentSourceRef = agentSource;
     signalsSourceRef = signalsSource;
+    tapSourceRef = createTapSource({
+      bus,
+      renderer,
+      ambient,
+      config: cfg.avatar.tap,
+      drainSignals: () => signalsSource.drain(),
+    });
     // Global summon hotkey: register configs/hotkeys.json accelerator OS-globally. onReady holds
     // the handle so the config.subscribe below can re-apply it on hot-reload.
     wireSummonHotkey({

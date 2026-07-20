@@ -12,7 +12,20 @@ import { goodFixture, readerOf } from "./load-test-helpers";
 describe("loadConfig — avatar.available", () => {
   it("available가 없으면 vrm_url만 담고 available는 undefined", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
-    expect(cfg.avatar).toEqual({ vrm_url: "/vrms/carlotta.vrm" });
+    expect(cfg.avatar).toEqual({
+      vrm_url: "/vrms/carlotta.vrm",
+      tap: {
+        spam_count: 4,
+        spam_window_ms: 3000,
+        region_radius_frac: 0.18,
+        region_motions: { chest: "embarrassed", hips: "embarrassed" },
+        bored_cue: {
+          label: "bored poking",
+          context:
+            "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
+        },
+      },
+    });
     expect(cfg.avatar.available).toBeUndefined();
   });
 

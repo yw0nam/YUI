@@ -22,7 +22,20 @@ function expectIssue(raw: unknown, fragment: string): void {
 describe("validateAvatar — happy path", () => {
   it("accepts a bare vrm_url", () => {
     const out = validateAvatar(FILE, { vrm_url: "/vrms/carlotta.vrm" });
-    expect(out).toEqual({ vrm_url: "/vrms/carlotta.vrm" });
+    expect(out).toEqual({
+      vrm_url: "/vrms/carlotta.vrm",
+      tap: {
+        spam_count: 4,
+        spam_window_ms: 3000,
+        region_radius_frac: 0.18,
+        region_motions: { chest: "embarrassed", hips: "embarrassed" },
+        bored_cue: {
+          label: "bored poking",
+          context:
+            "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
+        },
+      },
+    });
   });
 
   it("accepts an available[] manifest with distinct ids", () => {
@@ -195,6 +208,105 @@ describe("validateAvatar — hit_test", () => {
     expectIssue(
       { vrm_url: "/v.vrm", hit_test: { alpha_threshold: 1.5 } },
       "hit_test.alpha_threshold는 (0, 1]",
+    );
+  });
+});
+
+describe("validateAvatar — tap", () => {
+  it("merges partial tap blocks over defaults", () => {
+    const out = validateAvatar(FILE, {
+      vrm_url: "/v.vrm",
+      tap: {
+        spam_count: 6,
+        region_motions: { hips: "wave" },
+        bored_cue: { label: "custom label" },
+      },
+    });
+
+    expect(out.tap).toEqual({
+      spam_count: 6,
+      spam_window_ms: 3000,
+      region_radius_frac: 0.18,
+      region_motions: { chest: "embarrassed", hips: "wave" },
+      bored_cue: {
+        label: "custom label",
+        context:
+          "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
+      },
+    });
+  });
+
+  it("rejects a non-object tap block", () => {
+    expectIssue({ vrm_url: "/v.vrm", tap: "nope" }, "tap은 객체여야 함");
+  });
+
+  it.each([1, 2.5, Number.NaN, "4"])("rejects invalid spam_count: %s", (spam_count) => {
+    expectIssue({ vrm_url: "/v.vrm", tap: { spam_count } }, "tap.spam_count는 2 이상 정수");
+  });
+
+  it.each([0, 60001, 1.5, "3000"])("rejects invalid spam_window_ms: %s", (spam_window_ms) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { spam_window_ms } },
+      "tap.spam_window_ms는 1..60000 범위 정수",
+    );
+  });
+
+  it.each([
+    0,
+    1.01,
+    Number.NaN,
+    "0.18",
+  ])("rejects invalid region_radius_frac: %s", (region_radius_frac) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_radius_frac } },
+      "tap.region_radius_frac는 (0, 1]",
+    );
+  });
+
+  it("accepts inclusive numeric boundaries", () => {
+    const out = validateAvatar(FILE, {
+      vrm_url: "/v.vrm",
+      tap: { spam_count: 2, spam_window_ms: 60_000, region_radius_frac: 1 },
+    });
+
+    expect(out.tap).toMatchObject({ spam_count: 2, spam_window_ms: 60_000, region_radius_frac: 1 });
+    expect(
+      validateAvatar(FILE, { vrm_url: "/v.vrm", tap: { spam_window_ms: 1 } }).tap.spam_window_ms,
+    ).toBe(1);
+  });
+
+  it("rejects invalid or unknown region motion entries", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_motions: [] } },
+      "tap.region_motions은 객체여야 함",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_motions: { head: "wave" } } },
+      "tap.region_motions.head는 허용되지 않는 키",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_motions: { chest: "" } } },
+      "tap.region_motions.chest는 비어 있지 않은 문자열",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_motions: { hips: 1 } } },
+      "tap.region_motions.hips는 비어 있지 않은 문자열",
+    );
+  });
+
+  it("rejects a non-object bored_cue", () => {
+    expectIssue({ vrm_url: "/v.vrm", tap: { bored_cue: "nope" } }, "tap.bored_cue은 객체여야 함");
+  });
+
+  it.each([
+    ["label", ""],
+    ["label", 1],
+    ["context", ""],
+    ["context", 1],
+  ] as const)("rejects an empty or non-string bored_cue.%s", (field, value) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { bored_cue: { [field]: value } } },
+      `tap.bored_cue.${field}는 비어 있지 않은 문자열`,
     );
   });
 });

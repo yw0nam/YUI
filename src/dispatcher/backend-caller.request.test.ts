@@ -296,6 +296,33 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     expect(trigger.idle_elapsed_min).toBe(60);
   });
 
+  it("proactive.tap_bored forwards its cue and drained signals", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const signals = [{ kind: "reminder", payload: { title: "Stretch" } }, { kind: "alert" }];
+    const env: BusEnvelope = {
+      seq_id: 12,
+      source: "os_event_watcher",
+      event_name: "proactive.tap_bored",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        cue_id: "tap_bored",
+        label: "bored poking",
+        context: "The user wants attention.",
+        signals,
+      },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("proactive");
+    expect(trigger.cue).toEqual({
+      label: "bored poking",
+      context: "The user wants attention.",
+    });
+    expect(trigger.signals).toEqual(signals);
+  });
+
   it("(c) user.text_submitted envelope (no cue_id) → trigger.cue absent", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv("안녕"));

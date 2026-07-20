@@ -17,6 +17,7 @@
  * interpretation is Hermes's job. No speak/don't-speak gate and no persona state live here.
  */
 
+import type { SignalItem } from "../contract";
 import type { SignalsBatch } from "../io/signals-inbox";
 import { onSignalsInbox } from "../io/signals-inbox";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
@@ -46,6 +47,7 @@ export interface SignalsSourceDeps {
 export interface SignalsSource {
   start(): Promise<void>;
   stop(): void;
+  drain(): SignalItem[];
 }
 
 export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
@@ -66,10 +68,16 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     return lastIdleMs != null && lastIdleMs <= present_max_idle_ms;
   }
 
+  function drain(): SignalItem[] {
+    const signals = buffer.flatMap((batch) => batch.signals);
+    buffer.length = 0;
+    return signals;
+  }
+
   /** Flatten all buffered batches' items in arrival order, emit ONE catchup. */
   function flushCatchup(): void {
     if (buffer.length === 0) return;
-    const signals = buffer.flatMap((b) => b.signals);
+    const signals = drain();
     bus.push({
       source: "timer_scheduler",
       event_name: "signals.catchup",
@@ -78,7 +86,6 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       dnd_override: false,
       payload: { signals },
     });
-    buffer.length = 0;
   }
 
   function onTick(payload: OsEventPayload): void {
@@ -153,5 +160,5 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     unlistenInbox = undefined;
   }
 
-  return { start, stop };
+  return { start, stop, drain };
 }
