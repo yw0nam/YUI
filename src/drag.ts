@@ -181,7 +181,7 @@ function attachOrbitGesture(
 function attachClickGesture(
   el: EventTarget,
   onClick?: (pos: { x: number; y: number }) => void,
-): () => void {
+): { reset: () => void; dispose: () => void } {
   let pointerId: number | null = null;
   let startX = 0;
   let startY = 0;
@@ -235,9 +235,12 @@ function attachClickGesture(
   }
 
   el.addEventListener("pointerdown", onDown);
-  return () => {
-    el.removeEventListener("pointerdown", onDown);
-    clearGesture();
+  return {
+    reset: clearGesture,
+    dispose: () => {
+      el.removeEventListener("pointerdown", onDown);
+      clearGesture();
+    },
   };
 }
 
@@ -273,7 +276,7 @@ export async function initDrag(
   // Orbit (Shift+left) is pure JS — attach it before the Tauri gate so it works in the
   // browser screenshot-verification surface as well as the packaged pet window.
   const detachOrbit = attachOrbitGesture(el, opts.onOrbit, opts.onOrbitStart, opts.onOrbitEnd);
-  const detachClick = attachClickGesture(el, opts.onClick);
+  const clickGesture = attachClickGesture(el, opts.onClick);
 
   // Tauri-only: getCurrentWindow() / onScaleChanged / invoke() require the Tauri
   // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface)
@@ -282,7 +285,7 @@ export async function initDrag(
   if (!isTauri()) {
     log.debug("drag_disabled", { reason: "non_tauri" });
     return () => {
-      detachClick();
+      clickGesture.dispose();
       detachOrbit();
     };
   }
@@ -381,12 +384,13 @@ export async function initDrag(
   // move loop swallows pointerup but always fires this event on drag release).
   const unlistenDrop = await listen("window_drop_release", () => {
     endGesture();
+    clickGesture.reset();
   });
 
   return function cleanup(): void {
     el.removeEventListener("pointerdown", onPointerDown);
     detach();
-    detachClick();
+    clickGesture.dispose();
     detachOrbit();
     unlistenScale();
     unlistenDrop();

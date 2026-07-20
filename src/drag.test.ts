@@ -463,6 +463,17 @@ describe.each([
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it("re-arms with a different pointer after the Windows drag-release fallback", () => {
+    if (!tauri) return;
+    pointer("pointerdown", { pointerId: 1 });
+    pointer("pointermove", { clientX: 10, pointerId: 1 });
+    capturedDropHandler?.();
+    pointer("pointerdown", { clientX: 20, clientY: 30, pointerId: 2 });
+    pointer("pointerup", { clientX: 21, clientY: 31, pointerId: 2 });
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(onClick).toHaveBeenCalledWith({ x: 21, y: 31 });
+  });
+
   it("does not fire for an orbit gesture", () => {
     pointer("pointerdown", { shiftKey: true });
     pointer("pointerup", { shiftKey: true });
