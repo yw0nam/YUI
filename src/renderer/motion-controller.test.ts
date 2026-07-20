@@ -639,7 +639,7 @@ describe("resolve() — random avoids immediate variant repeat", () => {
 
 describe("finish() — idle cycle re-randomizes", () => {
   it("finish('idle') returns a fresh idle variant differing from the played one", () => {
-    // rng sequence: 0 → idle_01 (committed), 0 → would repeat so bumps to idle_02.
+    // rng sequence: 0 → calm (committed), 0 → would repeat so bumps to idle_01.
     const seq = [0, 0];
     let i = 0;
     const rng = (): number => seq[Math.min(i++, seq.length - 1)]!;
@@ -647,7 +647,7 @@ describe("finish() — idle cycle re-randomizes", () => {
 
     const idle = mc.resolve({ id: "idle" });
     mc.commit({ action: "play", motion: idle! });
-    expect(idle!.vrma_path).toBe("/motions/idle_01.vrma");
+    expect(idle!.vrma_path).toBe("/motions/calm.vrma");
 
     const afterFinish = mc.finish("idle");
     expect(afterFinish.action).toBe("play");
@@ -655,11 +655,10 @@ describe("finish() — idle cycle re-randomizes", () => {
       expect(afterFinish.motion.id).toBe("idle");
       expect(afterFinish.motion.cycle).toBe(true);
       expect([
+        "/motions/calm.vrma",
         "/motions/idle_01.vrma",
-        "/motions/idle_02.vrma",
-        "/motions/idle_03.vrma",
         "/motions/idle_04.vrma",
-        "/motions/idle_05.vrma",
+        "/motions/idle_12.vrma",
       ]).toContain(afterFinish.motion.vrma_path);
       expect(afterFinish.motion.vrma_path).not.toBe(idle!.vrma_path);
     }
