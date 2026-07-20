@@ -57,15 +57,12 @@ import { createMotionStartGeneration } from "./motion-start-generation";
 import { createMouthLipsync, describeExpressions, MOUTH_EXPRESSION_KEY } from "./mouth-lipsync";
 import {
   characterScreenHeight,
-  peekOffsetIncrement,
   projectToScreen,
   SEAT_DROP_DEFAULT,
   seatAnchorWorld,
-  seatAnchorWorldInto,
-  seatOffsetWorldY,
-  worldYPerPixel,
 } from "./perch-geometry";
 import { suppressIdleReturn } from "./perch-hold";
+import { createPinController, type PinController } from "./pin-controller";
 import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
 import { recenterClipRootMotion } from "./recenter-root-motion";
 
@@ -80,8 +77,6 @@ const DEFAULT_FRAMING_FOV = 30;
  * Tunable: the seat-contact point sits this far below the hip joint.
  */
 const SEAT_DROP = SEAT_DROP_DEFAULT;
-/** Per-frame convergence rate for the seat-pin offset (proportional step). */
-const PERCH_PIN_RATE = 0.6;
 /**
  * Per-frame ease rate for the effective orbit polar (proportional step). Drag nudges
  * land in ~2 frames (feels direct); the larger jump when the perch clamp tightens the
@@ -310,30 +305,12 @@ export function createRenderer(options: RendererOptions): Renderer {
   // True while effectivePolar is still easing toward its target (keeps frames uncapped).
   let orbitConverging = false;
 
-  // ── Window-sit perch state ──────────────────────────────────────────────────
-  // Active target's top-edge in pet-window-local px (null = not perched).
-  let perchTargetYpx: number | null = null;
-  // Dedicated additive vertical offset we fully own — never clobbers root-motion
-  // recentering. Applied onto vrm.scene.position.y after the mixer writes each frame.
-  let perchOffsetY = 0;
-  // Cached hips bone for the per-frame pin (refreshed on load; no per-frame lookup).
-  let perchHipsBone: THREE.Object3D | null = null;
-  // True while the seat-pin offset is still stepping toward the target (not settled).
-  let perchConverging = false;
-  // Scratch vectors reused every frame — no per-frame allocation in the pin path.
-  const perchHipsWorld = new THREE.Vector3();
-  const perchSeatWorld = new THREE.Vector3();
-  const perchCamForward = new THREE.Vector3();
-  const perchSeatRel = new THREE.Vector3();
-
-  // ── Side-peek pin state ─────────────────────────────────────────────────────
-  let peekTarget: { targetXpx: number } | null = null;
-  let peekOffset = 0;
-  let peekConverging = false;
-  const peekHipsWorld = new THREE.Vector3();
-  const peekCamForward = new THREE.Vector3();
-  const peekHipsRel = new THREE.Vector3();
-  const peekCameraRight = new THREE.Vector3();
+  // Owns both pin state machines + scene-position apply.
+  const pins: PinController = createPinController({
+    log,
+    mountWidth: () => mount.clientWidth || 1,
+    mountHeight: () => mount.clientHeight || 1,
+  });
   const liveBoxScratch = new THREE.Box3();
   const liveFeetScratch = new THREE.Vector3();
   const liveHeadScratch = new THREE.Vector3();
@@ -359,7 +336,7 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   /** Target polar the camera should settle at: tightened to the perched band while perched. */
   function desiredPolar(): number {
-    return clampPolar(polar, perchTargetYpx !== null);
+    return clampPolar(polar, pins.isPerched());
   }
 
   /**
@@ -514,7 +491,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         mouthOpen: mouth.openValue(),
         emotionFading: emotion.isFading(),
         motionActive: isMotionActive(),
-        perchConverging: perchConverging || peekConverging,
+        perchConverging: pins.isConverging(),
       }) ||
       orbitConverging ||
       gaze.isConverging();
@@ -550,8 +527,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       }
       // perch seat-pin — after the mixer poses the hips, before vrm.update applies
       // spring bones, so the offset rides into this frame's render.
-      stepPerch();
-      stepPeek();
+      pins.step(camera);
       // camera gaze — same slot as perch: rides the posed head/neck into vrm.update.
       gaze.step(dt);
       // emotion crossfade — expressionManager.update() runs inside vrm.update(dt),
@@ -614,18 +590,10 @@ export function createRenderer(options: RendererOptions): Renderer {
     teardownMotion();
     // Reset in-flight fade so it doesn't write to disposed VRM (shared hotswap/dispose).
     emotion.reset();
-    // Drop the perch bone ref so a stale bone can't be pinned on the next VRM.
-    perchHipsBone = null;
-    perchOffsetY = 0;
-    perchConverging = false;
-    peekTarget = null;
-    peekOffset = 0;
-    peekConverging = false;
+    pins.onVrmDisposed();
     // Drop gaze bone refs + reset damped state so nothing carries to the next VRM.
     gaze.onVrmDisposed();
     if (currentVrm) {
-      currentVrm.scene.position.x = 0;
-      currentVrm.scene.position.z = 0;
       scene.remove(currentVrm.scene);
       VRMUtils.deepDispose(currentVrm.scene);
       currentVrm = undefined;
@@ -773,69 +741,6 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (controller) playMotion({ id: controller.baseline() });
   }
 
-  // ── Window-sit perch pin ─────────────────────────────────────────────────────
-
-  /**
-   * One frame of seat-pin alignment — called after mixer.update, before vrm.update.
-   * Projects the live hips (+SEAT_DROP) seat to px, measures how far it is from the
-   * target edge in world-Y, and steps a dedicated additive vertical offset toward it.
-   *
-   * The VRMA clip animates the hips *bone*, never vrm.scene.position — so scene.position.y
-   * is a channel we fully own (no clobbering root recentering). We set it absolutely from
-   * the accumulated offset. Proportional step (PERCH_PIN_RATE) ⇒ converges in ~1-2 frames
-   * and re-pins for free across window_sit variant swaps (each new pose's seat re-aligns).
-   * No-op when unset.
-   */
-  function stepPerch(): void {
-    if (perchTargetYpx === null || !currentVrm || !perchHipsBone) return;
-    try {
-      const w = mount.clientWidth || 1;
-      const h = mount.clientHeight || 1;
-      // Live posed hips → seat-contact world point (hips dropped by SEAT_DROP on Y).
-      perchHipsBone.getWorldPosition(perchHipsWorld);
-      seatAnchorWorldInto(perchSeatWorld, perchHipsWorld, SEAT_DROP);
-      const seatPx = projectToScreen(perchSeatWorld, camera, w, h);
-      if (!seatPx) return;
-      // View-axis depth: project (seat − eye) onto camera forward. worldYPerPixel's
-      // perspective formula expects on-axis depth, not Euclidean distance.
-      camera.getWorldDirection(perchCamForward);
-      const depth = perchSeatRel.copy(perchSeatWorld).sub(camera.position).dot(perchCamForward);
-      const wpp = worldYPerPixel(camera, depth, h);
-      const delta = seatOffsetWorldY(seatPx.y, perchTargetYpx, wpp);
-      // Sub-pixel residual ⇒ settled; lets the frame gate drop to idle fps once pinned.
-      perchConverging = Math.abs(delta) > wpp;
-      // Proportional step toward the target offset (converges in a couple frames).
-      perchOffsetY += delta * PERCH_PIN_RATE;
-      currentVrm.scene.position.y = perchOffsetY;
-    } catch (err) {
-      log.error("step_perch", { error: String(err) });
-    }
-  }
-
-  function stepPeek(): void {
-    if (peekTarget === null || !currentVrm || !perchHipsBone) return;
-    try {
-      const w = mount.clientWidth || 1;
-      const h = mount.clientHeight || 1;
-      perchHipsBone.getWorldPosition(peekHipsWorld);
-      const hipsPx = projectToScreen(peekHipsWorld, camera, w, h);
-      if (!hipsPx) return;
-
-      camera.getWorldDirection(peekCamForward);
-      const depth = peekHipsRel.copy(peekHipsWorld).sub(camera.position).dot(peekCamForward);
-      // Perspective world-units-per-pixel is identical on both axes for square pixels.
-      const worldPerPixel = worldYPerPixel(camera, depth, h);
-      const pixelDelta = peekTarget.targetXpx - hipsPx.x;
-      peekConverging = Math.abs(pixelDelta) > 1;
-      peekOffset += peekOffsetIncrement(pixelDelta, worldPerPixel, PERCH_PIN_RATE);
-      peekCameraRight.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
-      currentVrm.scene.position.x = peekCameraRight.x * peekOffset;
-      currentVrm.scene.position.z = peekCameraRight.z * peekOffset;
-    } catch (err) {
-      log.error("step_peek", { error: String(err) });
-    }
-  }
-
   // Read display name from VRM meta — VRM1.0 uses meta.name, VRM0.0 uses meta.title. null if neither.
   function readVrmMetaName(vrm: VRM): string | null {
     const meta = vrm.meta as { name?: unknown; title?: unknown } | undefined;
@@ -876,8 +781,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     currentVrm = vrm;
     scene.add(vrm.scene);
 
-    // Cache the hips bone for the per-frame perch pin (avoids per-frame lookups).
-    perchHipsBone = vrm.humanoid?.getNormalizedBoneNode("hips") ?? null;
+    pins.onVrmLoaded(vrm);
     rebuildBoneNameSwap(vrm);
 
     // Cache head/neck for the per-frame gaze nudge; claim lookAt for eye control.
@@ -922,7 +826,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (!currentVrm || !mixer) return; // Playback not possible if VRM not loaded.
     // While perched, an implicit idle return (null) is a no-op so the held window_sit
     // survives emotion-only cues. Only an explicit exit (setPerchTarget(null)) lands idle.
-    if (suppressIdleReturn(motion, perchTargetYpx !== null)) return;
+    if (suppressIdleReturn(motion, pins.isPerched())) return;
     try {
       const decision = controller.request(motion);
       controller.commit(decision);
@@ -1052,7 +956,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     getPerchProbe() {
       if (!currentVrm) return null;
       const head = currentVrm.humanoid?.getNormalizedBoneNode("head");
-      const hips = perchHipsBone;
+      const hips = pins.hipsBone();
       if (!head || !hips) return null;
       const w = mount.clientWidth || 1;
       const h = mount.clientHeight || 1;
@@ -1083,49 +987,23 @@ export function createRenderer(options: RendererOptions): Renderer {
         bone ? projectToScreen(bone.getWorldPosition(new THREE.Vector3()), camera, w, h) : null;
       const chest =
         humanoid?.getNormalizedBoneNode("upperChest") ?? humanoid?.getNormalizedBoneNode("chest");
-      return { chest: project(chest), hips: project(perchHipsBone), charHpx };
+      return { chest: project(chest), hips: project(pins.hipsBone()), charHpx };
     },
     setPerchTarget(target) {
-      const wasPerched = perchTargetYpx !== null;
+      const changed = pins.setPerchTarget(target);
+      if (!changed) return;
       if (target === null) {
-        perchTargetYpx = null;
-        perchOffsetY = 0;
-        perchConverging = false;
-        if (currentVrm) currentVrm.scene.position.y = 0; // restore baseline.
-        if (wasPerched) {
-          orbitConverging = true; // ease the polar back to the stored free angle.
-          playMotion(null); // perch cleared — explicit return to idle baseline.
-        }
+        orbitConverging = true; // ease the polar back to the stored free angle.
+        playMotion(null); // perch cleared — explicit return to idle baseline.
         return;
       }
-      if (peekTarget !== null) {
-        log.warn("perch_pin_conflict", { active: "peek", requested: "perch" });
-        return;
-      }
-      perchTargetYpx = target.edgeLocalYpx;
-      if (!wasPerched) {
-        orbitConverging = true; // ease the polar into the perched [60°,120°] band.
-      }
+      orbitConverging = true; // ease the polar into the perched [60°,120°] band.
     },
     isPerched() {
-      return perchTargetYpx !== null;
+      return pins.isPerched();
     },
     setPeekTarget(target) {
-      if (target === null) {
-        peekTarget = null;
-        peekOffset = 0;
-        peekConverging = false;
-        if (currentVrm) {
-          currentVrm.scene.position.x = 0;
-          currentVrm.scene.position.z = 0;
-        }
-        return;
-      }
-      if (perchTargetYpx !== null) {
-        log.warn("perch_pin_conflict", { active: "perch", requested: "peek" });
-        return;
-      }
-      peekTarget = target;
+      pins.setPeekTarget(target);
     },
     setMotionMirror(on) {
       motionMirror = on;
