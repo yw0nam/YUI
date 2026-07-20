@@ -11,6 +11,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PeekConfig } from "../config/load";
 import type { Logger } from "../logger";
 import type { BackendCaller, BackendCallResult } from "./backend-caller";
 import { createDispatcher, type Dispatcher, DROP_SEVERITY } from "./dispatcher";
@@ -79,7 +80,14 @@ function makeLogger(): Logger {
 let bus: EventBus;
 let applyDirective: ReturnType<typeof vi.fn>;
 let setPerchTarget: ReturnType<typeof vi.fn>;
-let renderer: { applyDirective: typeof applyDirective; setPerchTarget: typeof setPerchTarget };
+let setPeekTarget: ReturnType<typeof vi.fn>;
+let setMotionMirror: ReturnType<typeof vi.fn>;
+let renderer: {
+  applyDirective: typeof applyDirective;
+  setPerchTarget: typeof setPerchTarget;
+  setPeekTarget: typeof setPeekTarget;
+  setMotionMirror: typeof setMotionMirror;
+};
 let peekEnter: ReturnType<typeof vi.fn<() => Promise<void>>>;
 let peekExit: ReturnType<typeof vi.fn<() => Promise<void>>>;
 let callDeferred: Array<{ resolve: (r: BackendCallResult) => void; signal?: AbortSignal }>;
@@ -88,6 +96,13 @@ let guardrails: Guardrails;
 let dispatcher: Dispatcher;
 let logger: Logger;
 let speaking = false;
+
+const PEEK_CONFIG: PeekConfig = {
+  side_out_frac: 0.28,
+  side_in_frac: 0.23,
+  inset_frac: 0.12,
+  mirror_side: "right",
+};
 
 function makeBackendCaller(): BackendCaller {
   return {
@@ -105,15 +120,17 @@ beforeEach(() => {
   bus = createEventBus();
   applyDirective = vi.fn();
   setPerchTarget = vi.fn();
+  setPeekTarget = vi.fn();
+  setMotionMirror = vi.fn();
   peekEnter = vi.fn().mockResolvedValue(undefined);
   peekExit = vi.fn().mockResolvedValue(undefined);
-  renderer = { applyDirective, setPerchTarget };
+  renderer = { applyDirective, setPerchTarget, setPeekTarget, setMotionMirror };
   callDeferred = [];
   backendCaller = makeBackendCaller();
   guardrails = createGuardrails(permissiveGuardrailsConfig(), { now: () => Date.now() });
   logger = makeLogger();
   speaking = false;
-  dispatcher = createDispatcher({
+  const deps = {
     bus,
     renderer: renderer as never,
     backendCaller,
@@ -121,7 +138,9 @@ beforeEach(() => {
     isSpeaking: () => speaking,
     peek: { enter: peekEnter, exit: peekExit },
     logger,
-  });
+    peekConfig: () => PEEK_CONFIG,
+  };
+  dispatcher = createDispatcher(deps);
 });
 afterEach(() => {
   dispatcher.stop();
@@ -270,20 +289,134 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(arg.motion).toBeNull();
   });
 
-  it("routes peek drop/exit as tier1 directives and drives the peek side-channel", async () => {
+  it("configures a valid peek drop before routing its tier1 directive", async () => {
     dispatcher.start();
-    bus.push(env({ event_name: "user.peek_drop", hint_tier: 1 }));
+    bus.push(
+      env({
+        event_name: "user.peek_drop",
+        hint_tier: 1,
+        payload: { side: "right", target_local_xpx: 240 },
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
 
     expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     expect(setPerchTarget).toHaveBeenCalledWith(null);
+    expect(setMotionMirror).toHaveBeenCalledWith(true);
+    expect(setPeekTarget).toHaveBeenCalledWith({ targetXpx: 240 });
     expect(peekEnter).toHaveBeenCalledTimes(1);
     expect(applyDirective).toHaveBeenLastCalledWith({ speech_text: "", motion: { id: "peek" } });
+    expect(setPerchTarget.mock.invocationCallOrder[0]).toBeLessThan(
+      setMotionMirror.mock.invocationCallOrder[0],
+    );
+    expect(setMotionMirror.mock.invocationCallOrder[0]).toBeLessThan(
+      setPeekTarget.mock.invocationCallOrder[0],
+    );
+    expect(setPeekTarget.mock.invocationCallOrder[0]).toBeLessThan(
+      applyDirective.mock.invocationCallOrder[0],
+    );
 
     bus.push(env({ event_name: "user.peek_exit", hint_tier: 1 }));
     await vi.advanceTimersByTimeAsync(20);
     expect(peekExit).toHaveBeenCalledTimes(1);
+    expect(setPeekTarget).toHaveBeenLastCalledWith(null);
+    expect(setMotionMirror).toHaveBeenLastCalledWith(false);
     expect(applyDirective).toHaveBeenLastCalledWith({ speech_text: "", motion: null });
+  });
+
+  it("mirrors only the configured peek side", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        event_name: "user.peek_drop",
+        hint_tier: 1,
+        payload: { side: "left", target_local_xpx: 80 },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(setMotionMirror).toHaveBeenCalledWith(false);
+    expect(setPeekTarget).toHaveBeenCalledWith({ targetXpx: 80 });
+  });
+
+  it("reads the configured mirror side when each peek drop is handled", async () => {
+    let livePeekConfig = PEEK_CONFIG;
+    dispatcher.stop();
+    dispatcher = createDispatcher({
+      bus,
+      renderer: renderer as never,
+      backendCaller,
+      guardrails,
+      logger,
+      peekConfig: () => livePeekConfig,
+    });
+    dispatcher.start();
+    livePeekConfig = { ...PEEK_CONFIG, mirror_side: "left" };
+
+    bus.push(
+      env({
+        event_name: "user.peek_drop",
+        hint_tier: 1,
+        payload: { side: "left", target_local_xpx: 80 },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(setMotionMirror).toHaveBeenCalledWith(true);
+  });
+
+  it.each([
+    undefined,
+    {},
+    { side: "left" },
+    { side: "right", target_local_xpx: Number.NaN },
+    { side: "right", target_local_xpx: Number.POSITIVE_INFINITY },
+    { side: "top", target_local_xpx: 20 },
+  ])("aborts malformed peek drop payload %j without any side effects", async (payload) => {
+    dispatcher.start();
+    bus.push(env({ event_name: "user.peek_drop", hint_tier: 1, payload }));
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      "peek_drop.malformed",
+      expect.objectContaining({ payload }),
+    );
+    expect(setPerchTarget).not.toHaveBeenCalled();
+    expect(setMotionMirror).not.toHaveBeenCalled();
+    expect(setPeekTarget).not.toHaveBeenCalled();
+    expect(peekEnter).not.toHaveBeenCalled();
+    expect(applyDirective).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["user.peek_exit", undefined],
+    ["user.drag_start", undefined],
+    ["user.window_sit_enter", undefined],
+    ["user.window_sit_exit", undefined],
+    ["user.window_sit_drop", { edge_local_ypx: 30 }],
+  ] as const)("clears the peek target and mirror on %s", async (event_name, payload) => {
+    dispatcher.start();
+    bus.push(env({ event_name, hint_tier: 1, payload }));
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(setPeekTarget).toHaveBeenCalledWith(null);
+    expect(setMotionMirror).toHaveBeenCalledWith(false);
+  });
+
+  it("clears the peek pin before setting the perch pin on peek-to-sit transition", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        event_name: "user.window_sit_drop",
+        hint_tier: 1,
+        payload: { edge_local_ypx: 30 },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(setPeekTarget.mock.invocationCallOrder[0]).toBeLessThan(
+      setPerchTarget.mock.invocationCallOrder[0],
+    );
   });
 
   it("exits peek for drag and either sit entry path", async () => {
@@ -306,12 +439,19 @@ describe("dispatcher — routing (§5.1)", () => {
     dispatcher = createDispatcher({
       bus,
       renderer: renderer as never,
+      peekConfig: () => PEEK_CONFIG,
       backendCaller,
       guardrails,
       logger,
     });
     dispatcher.start();
-    bus.push(env({ event_name: "user.peek_drop", hint_tier: 1 }));
+    bus.push(
+      env({
+        event_name: "user.peek_drop",
+        hint_tier: 1,
+        payload: { side: "left", target_local_xpx: 80 },
+      }),
+    );
     bus.push(env({ event_name: "user.peek_exit", hint_tier: 1, ts: NOW + 1 }));
     await vi.advanceTimersByTimeAsync(40);
     expect(applyDirective).toHaveBeenCalledTimes(2);
@@ -754,6 +894,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     const d = createDispatcher({
       bus,
       renderer: renderer as never,
+      peekConfig: () => PEEK_CONFIG,
       backendCaller,
       guardrails,
       logger,
@@ -930,6 +1071,7 @@ describe("dispatcher — guardrail gating (§6)", () => {
     const d = createDispatcher({
       bus,
       renderer: renderer as never,
+      peekConfig: () => PEEK_CONFIG,
       backendCaller,
       guardrails: g,
       logger,
@@ -1013,6 +1155,7 @@ describe("dispatcher — guardrail gating (§6)", () => {
     const d = createDispatcher({
       bus,
       renderer: renderer as never,
+      peekConfig: () => PEEK_CONFIG,
       backendCaller,
       guardrails: g,
       logger,
@@ -1204,6 +1347,7 @@ describe("dispatcher — cooldown state mirror (§6.3/§9)", () => {
     const d = createDispatcher({
       bus,
       renderer: renderer as never,
+      peekConfig: () => PEEK_CONFIG,
       backendCaller,
       guardrails: g,
       logger,

@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { AppConfig } from "../config/load";
+import { type AppConfig, PEEK_DEFAULTS } from "../config/load";
 import type { MotionRegistry } from "../contract";
 import type { Logger } from "../logger";
 import {
@@ -470,6 +470,7 @@ describe("deriveBrokerPayload", () => {
       },
       avatar: {
         vrm_url: "/vrms/carlotta.vrm",
+        peek: PEEK_DEFAULTS,
         tap: {
           spam_count: 4,
           spam_window_ms: 3000,

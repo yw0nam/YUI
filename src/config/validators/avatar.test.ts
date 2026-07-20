@@ -24,6 +24,12 @@ describe("validateAvatar — happy path", () => {
     const out = validateAvatar(FILE, { vrm_url: "/vrms/carlotta.vrm" });
     expect(out).toEqual({
       vrm_url: "/vrms/carlotta.vrm",
+      peek: {
+        side_out_frac: 0.28,
+        side_in_frac: 0.23,
+        inset_frac: 0.12,
+        mirror_side: "right",
+      },
       tap: {
         spam_count: 4,
         spam_window_ms: 3000,
@@ -308,6 +314,48 @@ describe("validateAvatar — tap", () => {
       { vrm_url: "/v.vrm", tap: { bored_cue: { [field]: value } } },
       `tap.bored_cue.${field}는 비어 있지 않은 문자열`,
     );
+  });
+});
+
+describe("validateAvatar — peek", () => {
+  it("merges partial peek blocks over defaults", () => {
+    const out = validateAvatar(FILE, {
+      vrm_url: "/v.vrm",
+      peek: { side_out_frac: 0.5, mirror_side: "left" },
+    });
+
+    expect(out.peek).toEqual({
+      side_out_frac: 0.5,
+      side_in_frac: 0.23,
+      inset_frac: 0.12,
+      mirror_side: "left",
+    });
+  });
+
+  it("rejects a non-object peek block", () => {
+    expectIssue({ vrm_url: "/v.vrm", peek: "nope" }, "peek은 객체여야 함");
+  });
+
+  it.each([
+    ["side_out_frac", 0],
+    ["side_out_frac", 2.01],
+    ["side_in_frac", Number.NaN],
+    ["side_in_frac", "0.23"],
+  ])("rejects invalid %s: %s", (field, value) => {
+    expectIssue({ vrm_url: "/v.vrm", peek: { [field]: value } }, `peek.${field}는 (0, 2]`);
+  });
+
+  it.each([
+    -0.01,
+    1.01,
+    Number.POSITIVE_INFINITY,
+    "0.12",
+  ])("rejects invalid inset_frac: %s", (inset_frac) => {
+    expectIssue({ vrm_url: "/v.vrm", peek: { inset_frac } }, "peek.inset_frac는 [0, 1]");
+  });
+
+  it.each(["up", true, 1])("rejects invalid mirror_side: %s", (mirror_side) => {
+    expectIssue({ vrm_url: "/v.vrm", peek: { mirror_side } }, "peek.mirror_side는 left|right|none");
   });
 });
 

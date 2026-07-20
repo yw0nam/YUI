@@ -1,4 +1,10 @@
-import type { AvatarConfig, AvatarOption, TapConfig } from "../load";
+import {
+  type AvatarConfig,
+  type AvatarOption,
+  PEEK_DEFAULTS,
+  type PeekConfig,
+  type TapConfig,
+} from "../load";
 import { assertValid, ConfigError, isObject } from "./shared";
 
 const AVATAR_SOURCES: readonly NonNullable<AvatarOption["source"]>[] = ["bundled", "file", "user"];
@@ -252,6 +258,51 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
+  const peek: PeekConfig = { ...PEEK_DEFAULTS };
+  const rawPeek = raw.peek;
+  if (rawPeek !== undefined) {
+    if (!isObject(rawPeek)) {
+      issues.push(`peek은 객체여야 함 (받음: ${JSON.stringify(rawPeek)})`);
+    } else {
+      for (const field of ["side_out_frac", "side_in_frac"] as const) {
+        const value = rawPeek[field];
+        if (value === undefined) continue;
+        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0 || value > 2) {
+          issues.push(
+            `peek.${field}는 (0, 2] 범위 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
+          );
+        } else {
+          peek[field] = value;
+        }
+      }
+      const insetFrac = rawPeek.inset_frac;
+      if (insetFrac !== undefined) {
+        if (
+          typeof insetFrac !== "number" ||
+          !Number.isFinite(insetFrac) ||
+          insetFrac < 0 ||
+          insetFrac > 1
+        ) {
+          issues.push(
+            `peek.inset_frac는 [0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(insetFrac)})`,
+          );
+        } else {
+          peek.inset_frac = insetFrac;
+        }
+      }
+      const mirrorSide = rawPeek.mirror_side;
+      if (mirrorSide !== undefined) {
+        if (mirrorSide !== "left" && mirrorSide !== "right" && mirrorSide !== "none") {
+          issues.push(
+            `peek.mirror_side는 left|right|none 중 하나여야 함 (받음: ${JSON.stringify(mirrorSide)})`,
+          );
+        } else {
+          peek.mirror_side = mirrorSide;
+        }
+      }
+    }
+  }
+
   // gaze — optional camera-tracking knob. Partial values allowed (defaults owned by the renderer, natural preset).
   let gaze: AvatarConfig["gaze"];
   const rawGaze = raw.gaze;
@@ -302,6 +353,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   return {
     vrm_url,
     tap,
+    peek,
     ...(available !== undefined ? { available } : {}),
     ...(framing !== undefined ? { framing } : {}),
     ...(hit_test !== undefined ? { hit_test } : {}),

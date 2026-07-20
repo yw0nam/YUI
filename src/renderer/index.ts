@@ -13,7 +13,13 @@
  *   VRMUtils.removeUnnecessaryVertices/combineSkeletons/combineMorphs, deepDispose).
  */
 
-import { type VRM, VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
+import {
+  type VRM,
+  VRMHumanBoneList,
+  type VRMHumanBoneName,
+  VRMLoaderPlugin,
+  VRMUtils,
+} from "@pixiv/three-vrm";
 import { createVRMAnimationClip, VRMAnimationLoaderPlugin } from "@pixiv/three-vrm-animation";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -40,15 +46,18 @@ import { createCycleDwell } from "./cycle-dwell";
 import { createEmotionCrossfade, type EmotionCrossfade } from "./emotion-crossfade";
 import { isActive, shouldRenderFrame } from "./frame-gate";
 import type { GazeConfig } from "./gaze-tracker";
+import { mirrorClipTracks } from "./mirror-clip";
 import {
   createMotionController,
   type MotionController,
   type ResolvedMotion,
 } from "./motion-controller";
 import { resolveBaselineFallback } from "./motion-fallback";
+import { createMotionStartGeneration } from "./motion-start-generation";
 import { createMouthLipsync, describeExpressions, MOUTH_EXPRESSION_KEY } from "./mouth-lipsync";
 import {
   characterScreenHeight,
+  peekOffsetIncrement,
   projectToScreen,
   SEAT_DROP_DEFAULT,
   seatAnchorWorld,
@@ -232,6 +241,10 @@ export interface Renderer {
   setPerchTarget(target: { edgeLocalYpx: number } | null): void;
   /** Current perch active state — used by occlusion poll to detect perch end. */
   isPerched(): boolean;
+  /** Set the side-peek edge pin, or clear it and restore the horizontal baseline. */
+  setPeekTarget(target: { targetXpx: number } | null): void;
+  /** Select mirrored clips for motions started after this call without restarting playback. */
+  setMotionMirror(on: boolean): void;
   /**
    * Enable/disable the idle 30fps cap at runtime. Enabled (default) caps ambient-only
    * frames to IDLE_FPS; disabled renders idle frames at full refresh. Pause-on-hidden
@@ -313,6 +326,18 @@ export function createRenderer(options: RendererOptions): Renderer {
   const perchCamForward = new THREE.Vector3();
   const perchSeatRel = new THREE.Vector3();
 
+  // ── Side-peek pin state ─────────────────────────────────────────────────────
+  let peekTarget: { targetXpx: number } | null = null;
+  let peekOffset = 0;
+  let peekConverging = false;
+  const peekHipsWorld = new THREE.Vector3();
+  const peekCamForward = new THREE.Vector3();
+  const peekHipsRel = new THREE.Vector3();
+  const peekCameraRight = new THREE.Vector3();
+  const liveBoxScratch = new THREE.Box3();
+  const liveFeetScratch = new THREE.Vector3();
+  const liveHeadScratch = new THREE.Vector3();
+
   /** Reframe the camera to the current model box; no-op when no model is loaded. */
   function fitCamera(): void {
     if (!modelBox) return;
@@ -384,6 +409,9 @@ export function createRenderer(options: RendererOptions): Renderer {
   const actionToId = new Map<THREE.AnimationAction, string>();
   /** Hotswap race guard: if VRM changes during load async, discard. */
   let vrmEpoch = 0;
+  const motionStartGeneration = createMotionStartGeneration();
+  let motionMirror = false;
+  const boneNameSwap = new Map<string, string>();
   /** Scheduler for dwell (settling frame hold) before cycle motion variant swap — startMotion is cancel chokepoint. */
   const cycleDwell = createCycleDwell();
 
@@ -486,7 +514,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         mouthOpen: mouth.openValue(),
         emotionFading: emotion.isFading(),
         motionActive: isMotionActive(),
-        perchConverging,
+        perchConverging: perchConverging || peekConverging,
       }) ||
       orbitConverging ||
       gaze.isConverging();
@@ -523,6 +551,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       // perch seat-pin — after the mixer poses the hips, before vrm.update applies
       // spring bones, so the offset rides into this frame's render.
       stepPerch();
+      stepPeek();
       // camera gaze — same slot as perch: rides the posed head/neck into vrm.update.
       gaze.step(dt);
       // emotion crossfade — expressionManager.update() runs inside vrm.update(dt),
@@ -564,6 +593,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   /** Tear down mixer/clip/action cache + controller state (shared hotswap/dispose). */
   function teardownMotion(): void {
     cycleDwell.cancel(); // prevent stale swap on mixer being disposed.
+    motionStartGeneration.invalidate();
     if (mixer) {
       mixer.removeEventListener("finished", onMixerFinished as never);
       mixer.stopAllAction();
@@ -571,6 +601,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       mixer = undefined;
     }
     clipCache.clear();
+    motionMirror = false;
+    boneNameSwap.clear();
     actionToId.clear();
     currentAction = undefined;
     // Controller has no simple no-op reset, so recreate to empty current/queue.
@@ -579,18 +611,25 @@ export function createRenderer(options: RendererOptions): Renderer {
   }
 
   function disposeCurrent(): void {
-    if (!currentVrm) return;
     teardownMotion();
     // Reset in-flight fade so it doesn't write to disposed VRM (shared hotswap/dispose).
     emotion.reset();
     // Drop the perch bone ref so a stale bone can't be pinned on the next VRM.
     perchHipsBone = null;
     perchOffsetY = 0;
+    perchConverging = false;
+    peekTarget = null;
+    peekOffset = 0;
+    peekConverging = false;
     // Drop gaze bone refs + reset damped state so nothing carries to the next VRM.
     gaze.onVrmDisposed();
-    scene.remove(currentVrm.scene);
-    VRMUtils.deepDispose(currentVrm.scene);
-    currentVrm = undefined;
+    if (currentVrm) {
+      currentVrm.scene.position.x = 0;
+      currentVrm.scene.position.z = 0;
+      scene.remove(currentVrm.scene);
+      VRMUtils.deepDispose(currentVrm.scene);
+      currentVrm = undefined;
+    }
     modelBox = undefined; // drop stale bounds so fitCamera no-ops until next load.
     alphaHitTest.clearGrab(); // stale silhouette can't outlive its VRM.
   }
@@ -600,10 +639,22 @@ export function createRenderer(options: RendererOptions): Renderer {
    * Load .vrma via GLTFLoader + VRMAnimationLoaderPlugin → gltf.userData.vrmAnimations[0]
    * → createVRMAnimationClip(vrmAnimation, currentVrm) (three-vrm-animation official path).
    */
-  async function loadClip(vrmaPath: string): Promise<THREE.AnimationClip | null> {
-    const cached = clipCache.get(vrmaPath);
+  async function loadClip(
+    vrmaPath: string,
+    mirrored: boolean,
+  ): Promise<THREE.AnimationClip | null> {
+    const cacheKey = mirrored ? `${vrmaPath}#mirror` : vrmaPath;
+    const cached = clipCache.get(cacheKey);
     if (cached) return cached;
     if (!currentVrm) return null;
+
+    if (mirrored) {
+      const upright = await loadClip(vrmaPath, false);
+      if (!upright) return null;
+      const clip = mirrorClipTracks(upright, boneNameSwap);
+      clipCache.set(cacheKey, clip);
+      return clip;
+    }
 
     const epoch = vrmEpoch;
     const gltf = await loader.loadAsync(vrmaPath);
@@ -618,7 +669,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
     const clip = createVRMAnimationClip(vrmAnimation as never, currentVrm);
     recenterClipRootMotion(clip); // strip baked horizontal root drift so the pet stays centered.
-    clipCache.set(vrmaPath, clip);
+    clipCache.set(cacheKey, clip);
     return clip;
   }
 
@@ -627,12 +678,15 @@ export function createRenderer(options: RendererOptions): Renderer {
    * controller.commit is performed by caller (playMotion/finish) with the decision.
    */
   async function startMotion(motion: ResolvedMotion): Promise<void> {
+    const startToken = motionStartGeneration.begin();
+    const mirrored = motionMirror;
     // Single play sink — cancel any pending dwell swap for new motion (prevents interrupt delay/stale swap).
     cycleDwell.cancel();
     if (!currentVrm || !mixer) return;
     const epoch = vrmEpoch;
     try {
-      let clip = await loadClip(motion.vrma_path);
+      let clip = await loadClip(motion.vrma_path, mirrored);
+      if (!motionStartGeneration.isCurrent(startToken)) return;
       if (!clip) {
         // Real load failure (clip missing/invalid for the live VRM) → fall back to idle.
         // A hotswap/teardown drop (epoch changed / no vrm / no mixer) just returns silently.
@@ -649,7 +703,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       // re-playing the same clip returns prev === action and the crossfade is skipped.
       // Swap to a cloned clip so the new action differs and crossFadeFrom can blend.
       if (motion.cycle && fadeMs > 0 && prev && prev.getClip().uuid === clip.uuid) {
-        const cloneKey = `${motion.vrma_path}#xfade`;
+        const activeClipKey = mirrored ? `${motion.vrma_path}#mirror` : motion.vrma_path;
+        const cloneKey = `${activeClipKey}#xfade`;
         let cloneClip = clipCache.get(cloneKey);
         if (!cloneClip) {
           cloneClip = clip.clone();
@@ -688,7 +743,14 @@ export function createRenderer(options: RendererOptions): Renderer {
     } catch (err) {
       log.error("start_motion", { error: String(err) });
       // Loader threw for the live VRM → recover to idle. Drops (hotswap/teardown) return silently.
-      if (epoch === vrmEpoch && currentVrm && mixer) fallbackToBaseline(motion.id);
+      if (
+        motionStartGeneration.isCurrent(startToken) &&
+        epoch === vrmEpoch &&
+        currentVrm &&
+        mixer
+      ) {
+        fallbackToBaseline(motion.id);
+      }
     }
   }
 
@@ -750,6 +812,30 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
   }
 
+  function stepPeek(): void {
+    if (peekTarget === null || !currentVrm || !perchHipsBone) return;
+    try {
+      const w = mount.clientWidth || 1;
+      const h = mount.clientHeight || 1;
+      perchHipsBone.getWorldPosition(peekHipsWorld);
+      const hipsPx = projectToScreen(peekHipsWorld, camera, w, h);
+      if (!hipsPx) return;
+
+      camera.getWorldDirection(peekCamForward);
+      const depth = peekHipsRel.copy(peekHipsWorld).sub(camera.position).dot(peekCamForward);
+      // Perspective world-units-per-pixel is identical on both axes for square pixels.
+      const worldPerPixel = worldYPerPixel(camera, depth, h);
+      const pixelDelta = peekTarget.targetXpx - hipsPx.x;
+      peekConverging = Math.abs(pixelDelta) > 1;
+      peekOffset += peekOffsetIncrement(pixelDelta, worldPerPixel, PERCH_PIN_RATE);
+      peekCameraRight.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+      currentVrm.scene.position.x = peekCameraRight.x * peekOffset;
+      currentVrm.scene.position.z = peekCameraRight.z * peekOffset;
+    } catch (err) {
+      log.error("step_peek", { error: String(err) });
+    }
+  }
+
   // Read display name from VRM meta — VRM1.0 uses meta.name, VRM0.0 uses meta.title. null if neither.
   function readVrmMetaName(vrm: VRM): string | null {
     const meta = vrm.meta as { name?: unknown; title?: unknown } | undefined;
@@ -757,6 +843,20 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (typeof raw !== "string") return null;
     const trimmed = raw.trim();
     return trimmed.length > 0 ? trimmed : null;
+  }
+
+  function rebuildBoneNameSwap(vrm: VRM): void {
+    boneNameSwap.clear();
+    for (const leftName of VRMHumanBoneList) {
+      if (!leftName.startsWith("left")) continue;
+      const rightName = `right${leftName.slice(4)}` as VRMHumanBoneName;
+      const leftNode = vrm.humanoid?.getNormalizedBoneNode(leftName);
+      const rightNode = vrm.humanoid?.getNormalizedBoneNode(rightName);
+      if (!leftNode || !rightNode) continue;
+      boneNameSwap.set(leftNode.name, rightNode.name);
+      boneNameSwap.set(rightNode.name, leftNode.name);
+    }
+    if (boneNameSwap.size === 0) log.warn("bone_name_swap_empty");
   }
 
   async function loadVRM(url: string): Promise<VrmLoadResult> {
@@ -778,6 +878,7 @@ export function createRenderer(options: RendererOptions): Renderer {
 
     // Cache the hips bone for the per-frame perch pin (avoids per-frame lookups).
     perchHipsBone = vrm.humanoid?.getNormalizedBoneNode("hips") ?? null;
+    rebuildBoneNameSwap(vrm);
 
     // Cache head/neck for the per-frame gaze nudge; claim lookAt for eye control.
     gaze.onVrmLoaded(vrm);
@@ -888,17 +989,13 @@ export function createRenderer(options: RendererOptions): Renderer {
   }
 
   function liveCharacterHeight(head: THREE.Object3D, w: number, h: number): number | null {
-    const liveBox = currentVrm ? new THREE.Box3().setFromObject(currentVrm.scene) : null;
+    const liveBox = currentVrm ? liveBoxScratch.setFromObject(currentVrm.scene) : null;
     const box = liveBox && !liveBox.isEmpty() ? liveBox : modelBox;
     if (!box) return null;
-    const feetWorld = new THREE.Vector3(
-      (box.min.x + box.max.x) / 2,
-      box.min.y,
-      (box.min.z + box.max.z) / 2,
-    );
+    liveFeetScratch.set((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
     return characterScreenHeight(
-      head.getWorldPosition(new THREE.Vector3()),
-      feetWorld,
+      head.getWorldPosition(liveHeadScratch),
+      liveFeetScratch,
       camera,
       w,
       h,
@@ -1001,6 +1098,10 @@ export function createRenderer(options: RendererOptions): Renderer {
         }
         return;
       }
+      if (peekTarget !== null) {
+        log.warn("perch_pin_conflict", { active: "peek", requested: "perch" });
+        return;
+      }
       perchTargetYpx = target.edgeLocalYpx;
       if (!wasPerched) {
         orbitConverging = true; // ease the polar into the perched [60°,120°] band.
@@ -1008,6 +1109,26 @@ export function createRenderer(options: RendererOptions): Renderer {
     },
     isPerched() {
       return perchTargetYpx !== null;
+    },
+    setPeekTarget(target) {
+      if (target === null) {
+        peekTarget = null;
+        peekOffset = 0;
+        peekConverging = false;
+        if (currentVrm) {
+          currentVrm.scene.position.x = 0;
+          currentVrm.scene.position.z = 0;
+        }
+        return;
+      }
+      if (perchTargetYpx !== null) {
+        log.warn("perch_pin_conflict", { active: "perch", requested: "peek" });
+        return;
+      }
+      peekTarget = target;
+    },
+    setMotionMirror(on) {
+      motionMirror = on;
     },
     setIdleThrottleEnabled(enabled) {
       idleThrottleEnabled = enabled;

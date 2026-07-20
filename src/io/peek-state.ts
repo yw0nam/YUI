@@ -7,10 +7,6 @@ export interface PeekStateDeps {
     setAlwaysOnTop(value: boolean): Promise<void>;
     setAlwaysOnBottom(value: boolean): Promise<void>;
   };
-  hitTest: {
-    suspend(mode?: "capture" | "passthrough", owner?: string): void;
-    resume(owner?: string): void;
-  };
 }
 
 export interface PeekState {
@@ -46,7 +42,6 @@ export function createPeekState(deps: PeekStateDeps): PeekState {
     if (activeIntent) return chain;
     activeIntent = true;
     return enqueue(async () => {
-      await attempt("suspend_passthrough", () => deps.hitTest.suspend("passthrough", "peek"));
       await attempt("always_on_top_false", () => deps.getWindow().setAlwaysOnTop(false));
       await attempt("always_on_bottom_true", () => deps.getWindow().setAlwaysOnBottom(true));
     });
@@ -60,8 +55,7 @@ export function createPeekState(deps: PeekStateDeps): PeekState {
         deps.getWindow().setAlwaysOnBottom(false),
       );
       const top = await attempt("always_on_top_true", () => deps.getWindow().setAlwaysOnTop(true));
-      const resumed = await attempt("hit_test_resume", () => deps.hitTest.resume("peek"));
-      dirty = !(bottom && top && resumed);
+      dirty = !(bottom && top);
     });
   }
 

@@ -1,5 +1,10 @@
 /** Bootstrap wiring helpers extracted from main.ts: VRM + speaker selection stores and their swap/import flows. */
-import { type AppConfig, type ConfigSection, loadEmotionTextTable } from "./config";
+import {
+  type AppConfig,
+  type ConfigSection,
+  loadEmotionTextTable,
+  type PeekConfig,
+} from "./config";
 import type { EndpointsConfig, WindowRect } from "./contract";
 import { createAgentSource } from "./dispatcher/agent-source";
 import type { EventBus } from "./dispatcher/event-bus";
@@ -300,10 +305,11 @@ export function wireWindowSources(deps: {
   bus: EventBus;
   renderer: Renderer;
   peekActive: () => boolean;
+  getPeekConfig: () => PeekConfig;
   agentNotifySettings: { get(): AgentNotifySettings };
   log: Logger;
 }): void {
-  const { bus, renderer, peekActive, agentNotifySettings, log } = deps;
+  const { bus, renderer, peekActive, getPeekConfig, agentNotifySettings, log } = deps;
   if (!isTauri()) return;
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
@@ -334,6 +340,7 @@ export function wireWindowSources(deps: {
       getWindow: getCurrentWindow,
       listen: listen as never,
       peekActive,
+      getPeekConfig,
     });
     const { LogicalPosition, LogicalSize } = await import("@tauri-apps/api/dpi");
     windowResizeSource = createWindowResizeSource({

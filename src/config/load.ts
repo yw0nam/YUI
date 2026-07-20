@@ -56,6 +56,20 @@ export interface TapConfig {
   bored_cue: { label: string; context: string };
 }
 
+export interface PeekConfig {
+  side_out_frac: number;
+  side_in_frac: number;
+  inset_frac: number;
+  mirror_side: "left" | "right" | "none";
+}
+
+export const PEEK_DEFAULTS: PeekConfig = {
+  side_out_frac: 0.28,
+  side_in_frac: 0.23,
+  inset_frac: 0.12,
+  mirror_side: "right",
+};
+
 /** configs/avatar.json — VRM to load (renderer input). */
 export interface AvatarConfig {
   /** vite dev static-serving path (`/vrms/*.vrm`) or absolute URL. Default selection. */
@@ -74,6 +88,8 @@ export interface AvatarConfig {
   };
   /** Tap reaction knobs. Defaults are applied by the validator. */
   tap: TapConfig;
+  /** Side-peek geometry and mirroring knobs. Defaults are applied by the validator. */
+  peek: PeekConfig;
   /** Camera gaze-tracking knob. Absent → renderer default (natural preset). Partial values allowed. */
   gaze?: {
     deadDeg?: number;

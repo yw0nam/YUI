@@ -28,6 +28,12 @@ describe("loadConfig — happy path", () => {
     });
     expect(cfg.avatar).toEqual({
       vrm_url: "/vrms/carlotta.vrm",
+      peek: {
+        side_out_frac: 0.28,
+        side_in_frac: 0.23,
+        inset_frac: 0.12,
+        mirror_side: "right",
+      },
       tap: {
         spam_count: 4,
         spam_window_ms: 3000,
