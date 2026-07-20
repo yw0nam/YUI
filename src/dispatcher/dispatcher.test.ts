@@ -11,6 +11,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PeekConfig } from "../config/load";
 import type { Logger } from "../logger";
 import type { BackendCaller, BackendCallResult } from "./backend-caller";
 import { createDispatcher, type Dispatcher, DROP_SEVERITY } from "./dispatcher";
@@ -96,11 +97,11 @@ let dispatcher: Dispatcher;
 let logger: Logger;
 let speaking = false;
 
-const PEEK_CONFIG = {
+const PEEK_CONFIG: PeekConfig = {
   side_out_frac: 0.28,
   side_in_frac: 0.23,
   inset_frac: 0.12,
-  mirror_side: "right" as const,
+  mirror_side: "right",
 };
 
 function makeBackendCaller(): BackendCaller {
