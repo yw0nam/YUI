@@ -301,6 +301,38 @@ describe("createHitTestController — suspend/resume", () => {
     c.stop();
   });
 
+  it("ignores a stale owner resume and resumes only for the current owner", async () => {
+    const win = fakeWindow();
+    const target = new EventTarget();
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: target,
+      isOverInteractive: () => false,
+      getConfig: () => cfg,
+      schedule: () => 0,
+      cancel: () => {},
+    });
+    c.start();
+    c.suspend("passthrough", "peek");
+    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(true));
+
+    c.suspend("capture");
+    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(false));
+    win.setIgnoreCursorEvents.mockClear();
+
+    c.resume("peek");
+    move(target);
+    move(target);
+    await Promise.resolve();
+    expect(win.setIgnoreCursorEvents).not.toHaveBeenCalled();
+
+    c.resume();
+    move(target);
+    move(target);
+    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(true));
+    c.stop();
+  });
+
   it("serializes rapid passthrough suspend and resume flips", async () => {
     let resolveFirst: (() => void) | undefined;
     const win = fakeWindow();

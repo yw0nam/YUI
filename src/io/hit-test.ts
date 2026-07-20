@@ -118,10 +118,10 @@ export interface HitTestWindow {
 export interface HitTestController {
   start(): void;
   stop(): void;
-  /** Stop toggling and force either cursor capture or passthrough. */
-  suspend(mode?: "capture" | "passthrough"): void;
-  /** Resume normal toggling — wire to onDragEnd. */
-  resume(): void;
+  /** Stop toggling, force the cursor mode, and assign suspension ownership. */
+  suspend(mode?: "capture" | "passthrough", owner?: string): void;
+  /** Resume normal toggling when the caller owns the suspension. */
+  resume(owner?: string): void;
 }
 
 export interface HitTestOptions {
@@ -176,6 +176,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   let ignore = false;
   let running = false;
   let suspended = false;
+  let suspendedOwner: string | null = null;
   let pollHandle: number | null = null;
   let ignoreChain = Promise.resolve();
   // Consecutive poll failures: after this many, degrade to CAPTURE.
@@ -274,6 +275,8 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     state = "capture";
     counter = 0;
     ignore = false;
+    suspended = false;
+    suspendedOwner = null;
     pollFailureCount = 0;
     moveTarget.addEventListener("pointermove", onPointerMove);
   }
@@ -287,8 +290,9 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     win = null;
   }
 
-  function suspend(mode: "capture" | "passthrough" = "capture"): void {
+  function suspend(mode: "capture" | "passthrough" = "capture", owner = "default"): void {
     suspended = true;
+    suspendedOwner = owner;
     state = "capture";
     counter = 0;
     pollFailureCount = 0;
@@ -296,8 +300,10 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     setIgnore(mode === "passthrough");
   }
 
-  function resume(): void {
+  function resume(owner = "default"): void {
+    if (suspendedOwner !== owner) return;
     suspended = false;
+    suspendedOwner = null;
     state = "capture";
     counter = 0;
     pollFailureCount = 0;

@@ -3,6 +3,7 @@ import { createPeekState } from "./peek-state";
 
 function fixture() {
   const calls: string[] = [];
+  let suspendedOwner: string | null = null;
   const win = {
     setAlwaysOnTop: vi.fn(async (value: boolean) => {
       calls.push(`top:${value}`);
@@ -12,8 +13,16 @@ function fixture() {
     }),
   };
   const hitTest = {
-    suspend: vi.fn((mode?: "capture" | "passthrough") => calls.push(`suspend:${mode}`)),
-    resume: vi.fn(() => calls.push("resume")),
+    suspend: vi.fn((mode?: "capture" | "passthrough", owner = "default") => {
+      suspendedOwner = owner;
+      calls.push(`suspend:${mode}:${owner}`);
+    }),
+    resume: vi.fn((owner = "default") => {
+      if (suspendedOwner !== owner) return;
+      suspendedOwner = null;
+      calls.push(`resume:${owner}`);
+    }),
+    suspended: () => suspendedOwner !== null,
   };
   return { calls, win, hitTest, state: createPeekState({ getWindow: () => win, hitTest }) };
 }
@@ -24,18 +33,18 @@ describe("createPeekState", () => {
     const entering = state.enter();
     expect(state.active()).toBe(true);
     await entering;
-    expect(calls).toEqual(["suspend:passthrough", "top:false", "bottom:true"]);
+    expect(calls).toEqual(["suspend:passthrough:peek", "top:false", "bottom:true"]);
 
     const exiting = state.exit();
     expect(state.active()).toBe(false);
     await exiting;
     expect(calls).toEqual([
-      "suspend:passthrough",
+      "suspend:passthrough:peek",
       "top:false",
       "bottom:true",
       "bottom:false",
       "top:true",
-      "resume",
+      "resume:peek",
     ]);
   });
 
@@ -49,15 +58,15 @@ describe("createPeekState", () => {
     const exiting = state.exit();
     expect(state.active()).toBe(false);
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
-    expect(calls).toEqual(["suspend:passthrough"]);
+    expect(calls).toEqual(["suspend:passthrough:peek"]);
     release?.();
     await Promise.all([entering, exiting]);
     expect(calls).toEqual([
-      "suspend:passthrough",
+      "suspend:passthrough:peek",
       "bottom:true",
       "bottom:false",
       "top:true",
-      "resume",
+      "resume:peek",
     ]);
   });
 
@@ -78,8 +87,8 @@ describe("createPeekState", () => {
     await Promise.all([exiting, entering]);
     expect(calls).toEqual([
       "top:true",
-      "resume",
-      "suspend:passthrough",
+      "resume:peek",
+      "suspend:passthrough:peek",
       "top:false",
       "bottom:true",
     ]);
@@ -90,12 +99,12 @@ describe("createPeekState", () => {
     await Promise.all([state.enter(), state.enter()]);
     await Promise.all([state.exit(), state.exit()]);
     expect(calls).toEqual([
-      "suspend:passthrough",
+      "suspend:passthrough:peek",
       "top:false",
       "bottom:true",
       "bottom:false",
       "top:true",
-      "resume",
+      "resume:peek",
     ]);
   });
 
@@ -107,7 +116,7 @@ describe("createPeekState", () => {
     await expect(state.exit()).resolves.toBeUndefined();
     expect(win.setAlwaysOnTop).toHaveBeenLastCalledWith(true);
     expect(hitTest.resume).toHaveBeenCalled();
-    expect(calls).toEqual(["top:true", "resume"]);
+    expect(calls).toEqual(["top:true", "resume:peek"]);
 
     await state.exit();
     expect(win.setAlwaysOnBottom).toHaveBeenLastCalledWith(false);
@@ -123,5 +132,18 @@ describe("createPeekState", () => {
     expect(win.setAlwaysOnBottom).toHaveBeenLastCalledWith(false);
     expect(win.setAlwaysOnTop).toHaveBeenLastCalledWith(true);
     expect(hitTest.resume).toHaveBeenCalledOnce();
+  });
+
+  it("restores z-order without releasing a later drag suspension", async () => {
+    const { state, win, hitTest } = fixture();
+    await state.enter();
+    hitTest.suspend("capture");
+
+    await state.exit();
+
+    expect(win.setAlwaysOnBottom).toHaveBeenLastCalledWith(false);
+    expect(win.setAlwaysOnTop).toHaveBeenLastCalledWith(true);
+    expect(hitTest.resume).toHaveBeenLastCalledWith("peek");
+    expect(hitTest.suspended()).toBe(true);
   });
 });
