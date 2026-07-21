@@ -7,7 +7,7 @@
  * via keyboard, the delete-file-then-store-remove-then-active-fallback-swap ordering,
  * the reentrancy-guarded import flow with inline error, and row lookup/keyboard nav.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../logger";
 import { createUserAssetList, resolveRovedId, type UserAssetListConfig } from "./user-asset-list";
 
@@ -49,27 +49,18 @@ function makeHarness(overrides: Partial<UserAssetListConfig<FakeOption>> = {}) {
   document.body.appendChild(containerEl);
   document.body.appendChild(importErrorEl);
 
-  let options: FakeOption[] = overrides.getOptions
-    ? overrides.getOptions()
-    : [
-        { id: "a", label: "A" },
-        { id: "b", label: "B" },
-      ];
+  let options: FakeOption[] = [
+    { id: "a", label: "A" },
+    { id: "b", label: "B" },
+  ];
   let activeId = "a";
-  const renameFn = vi.fn((id: string, label: string) => {
-    const opt = options.find((o) => o.id === id);
-    if (opt) opt.label = label;
-  });
-  const removeFile = vi.fn(async () => {});
-  const removeFromStore = vi.fn((id: string) => {
-    options = options.filter((o) => o.id !== id);
-    if (activeId === id) activeId = options[0]?.id ?? "a";
-  });
-  const swap = vi.fn(async (option: FakeOption) => {
-    activeId = option.id;
-  });
-  const importFn = vi.fn(async () => {});
-  const render = vi.fn(() => {
+  const log = makeLogger();
+
+  // Forward ref: the default render below reads it, but it's only ever called after
+  // createUserAssetList (and thus the `list =` assignment) below has completed.
+  let list!: ReturnType<typeof createUserAssetList<FakeOption>>;
+
+  const defaultRender = vi.fn(() => {
     // Re-render rows into containerEl to mirror a domain's render loop closely enough for
     // row-lookup/keyboard-nav assertions (rename-row markup is left to renderRenamingRow itself).
     containerEl.innerHTML = "";
@@ -81,9 +72,8 @@ function makeHarness(overrides: Partial<UserAssetListConfig<FakeOption>> = {}) {
       containerEl.appendChild(row);
     }
   });
-  const log = makeLogger();
 
-  const list = createUserAssetList<FakeOption>({
+  const cfg = {
     containerEl,
     importErrorEl,
     classPrefix: "yui-fake",
@@ -94,17 +84,40 @@ function makeHarness(overrides: Partial<UserAssetListConfig<FakeOption>> = {}) {
     getOptions: () => options,
     getActiveId: () => activeId,
     getActive: () => options.find((o) => o.id === activeId)!,
-    getLabel: (opt) => opt.label ?? opt.id,
-    rename: renameFn,
-    removeFile,
-    removeFromStore,
-    swap,
-    importFn,
-    render,
+    getLabel: (opt: FakeOption) => opt.label ?? opt.id,
+    rename: vi.fn((id: string, label: string) => {
+      const opt = options.find((o) => o.id === id);
+      if (opt) opt.label = label;
+    }),
+    removeFile: vi.fn(async (_id: string) => {}),
+    removeFromStore: vi.fn((id: string) => {
+      options = options.filter((o) => o.id !== id);
+      if (activeId === id) activeId = options[0]?.id ?? "a";
+    }),
+    swap: vi.fn(async (option: FakeOption) => {
+      activeId = option.id;
+    }),
+    importFn: vi.fn(async () => {}),
+    render: defaultRender,
     ...overrides,
-  });
+  };
 
-  return { list, containerEl, importErrorEl, renameFn, removeFile, removeFromStore, swap, importFn, render, log };
+  list = createUserAssetList<FakeOption>(cfg);
+  // Delegated listener, mirroring how a domain wires the container in the real app.
+  containerEl.addEventListener("keydown", (e) => list.handleKeydown(e as KeyboardEvent));
+
+  return {
+    list,
+    containerEl,
+    importErrorEl,
+    renameFn: cfg.rename,
+    removeFile: cfg.removeFile,
+    removeFromStore: cfg.removeFromStore,
+    swap: cfg.swap,
+    importFn: cfg.importFn,
+    render: cfg.render,
+    log,
+  };
 }
 
 describe("resolveRovedId", () => {
@@ -171,11 +184,16 @@ describe("rename FSM", () => {
 
 describe("remove flow", () => {
   it("deletes the file first; on failure, does not touch the store and does not render", async () => {
-    const h = makeHarness({ removeFile: vi.fn(async () => Promise.reject(new Error("disk error"))) });
+    const h = makeHarness({
+      removeFile: vi.fn(async () => Promise.reject(new Error("disk error"))),
+    });
     await h.list.remove("b");
     expect(h.removeFromStore).not.toHaveBeenCalled();
     expect(h.render).not.toHaveBeenCalled();
-    expect(h.log.error).toHaveBeenCalledWith("fake_delete_failed", { id: "b", error: "Error: disk error" });
+    expect(h.log.error).toHaveBeenCalledWith("fake_delete_failed", {
+      id: "b",
+      error: "Error: disk error",
+    });
   });
 
   it("removes from the store and renders directly when the removed option was not active", async () => {
@@ -197,7 +215,9 @@ describe("remove flow", () => {
   it("renders when the fallback swap itself fails", async () => {
     const h = makeHarness({ swap: vi.fn(async () => Promise.reject(new Error("swap failed"))) });
     await h.list.remove("a");
-    expect(h.log.error).toHaveBeenCalledWith("fake_fallback_swap_failed", { error: "Error: swap failed" });
+    expect(h.log.error).toHaveBeenCalledWith("fake_fallback_swap_failed", {
+      error: "Error: swap failed",
+    });
     expect(h.render).toHaveBeenCalledTimes(1);
   });
 });
@@ -266,7 +286,9 @@ describe("row lookup + keyboard nav", () => {
     const h = makeHarness();
     h.render();
     const rowB = h.list.rowById("b")!;
-    rowB.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    rowB.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+    );
     expect(h.swap).toHaveBeenCalledWith({ id: "b", label: "B" });
   });
 
@@ -275,7 +297,9 @@ describe("row lookup + keyboard nav", () => {
     const h = makeHarness({ canActivate });
     h.render();
     const rowB = h.list.rowById("b")!;
-    rowB.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    rowB.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+    );
     expect(h.swap).not.toHaveBeenCalled();
   });
 
@@ -284,13 +308,17 @@ describe("row lookup + keyboard nav", () => {
     h.render();
     const rowA = h.list.rowById("a")!;
     rowA.tabIndex = 0;
-    rowA.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    rowA.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+    );
     expect(h.list.getRovedId()).toBe("b");
     const rowB = h.list.rowById("b")!;
     expect(rowB.tabIndex).toBe(0);
     expect(rowA.tabIndex).toBe(-1);
 
-    rowB.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    rowB.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+    );
     expect(h.list.getRovedId()).toBe("a"); // wraps back to the first row
   });
 
@@ -298,7 +326,9 @@ describe("row lookup + keyboard nav", () => {
     const h = makeHarness();
     h.list.startRename("a"); // triggers render(), builds renaming markup for "a"
     const input = h.containerEl.querySelector<HTMLInputElement>(".yui-ep-input")!;
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+    );
     expect(h.list.getRovedId()).toBeNull(); // unaffected — the renaming guard short-circuited
   });
 
@@ -313,10 +343,14 @@ describe("row lookup + keyboard nav", () => {
     const h = makeHarness({ swap });
     h.render();
     const rowB = h.list.rowById("b")!;
-    rowB.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    rowB.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+    );
     expect(h.list.isSwapping()).toBe(true);
 
-    rowB.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    rowB.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+    );
     expect(h.list.getRovedId()).toBeNull(); // second keydown swallowed while swapping
 
     resolveSwap();
