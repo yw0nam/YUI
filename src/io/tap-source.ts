@@ -49,6 +49,7 @@ function isTapPoints(value: unknown): value is TapPoints {
 export function createTapSource(deps: TapSourceDeps): TapSource {
   const now = deps.now ?? Date.now;
   const clicks: number[] = [];
+  let lastTouchCueTs = Number.NEGATIVE_INFINITY;
 
   function pushPlainTap(ts: number): void {
     deps.ambient.trigger("tap_react");
@@ -109,6 +110,19 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
           return;
         }
 
+        // ponytail: one cooldown shared across both regions — go per-region if it bites.
+        const cue = deps.config.region_cues?.[region];
+        if (cue && ts - lastTouchCueTs >= deps.config.touch_cue_cooldown_ms) {
+          lastTouchCueTs = ts;
+          deps.bus.push({
+            source: "os_event_watcher",
+            event_name: `proactive.touch_${region}`,
+            ts,
+            hint_tier: 2,
+            payload: { cue_id: `touch_${region}`, label: cue.label, context: cue.context },
+          });
+        }
+
         const motionId = deps.config.region_motions[region];
         let currentMotion: { id: string; vrma_path: string } | null = null;
         try {
@@ -118,13 +132,14 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
         }
         if (currentMotion?.id === motionId) return;
 
+        const emotionId = deps.config.region_emotions?.[region];
         deps.bus.push({
           source: "os_event_watcher",
           event_name: "user.tap_region",
           ts,
           hint_tier: 1,
           dnd_override: true,
-          payload: { motion_id: motionId },
+          payload: { motion_id: motionId, ...(emotionId ? { emotion_id: emotionId } : {}) },
         });
       } catch (error) {
         log.warn("tap handling failed", error);

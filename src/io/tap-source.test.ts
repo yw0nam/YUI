@@ -290,7 +290,12 @@ describe("createTapSource", () => {
   });
 
   it("suppresses the touch candidate within the cooldown and fires again after it elapses", () => {
-    const { source, pushed, setTime } = harness(bothRegionsPoints(), undefined, null, touchConfig());
+    const { source, pushed, setTime } = harness(
+      bothRegionsPoints(),
+      undefined,
+      null,
+      touchConfig(),
+    );
     const touches = () => pushed.filter((env) => env.event_name === "proactive.touch_chest");
 
     source.handleClick({ x: 50, y: 60 });
@@ -307,7 +312,12 @@ describe("createTapSource", () => {
   });
 
   it("shares one cooldown across regions", () => {
-    const { source, pushed, setTime } = harness(bothRegionsPoints(), undefined, null, touchConfig());
+    const { source, pushed, setTime } = harness(
+      bothRegionsPoints(),
+      undefined,
+      null,
+      touchConfig(),
+    );
 
     source.handleClick({ x: 50, y: 60 });
     setTime(2_000);

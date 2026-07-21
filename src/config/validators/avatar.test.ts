@@ -364,7 +364,10 @@ describe("validateAvatar — tap touch reactions", () => {
   });
 
   it("rejects malformed region_cues", () => {
-    expectIssue({ vrm_url: "/v.vrm", tap: { region_cues: "nope" } }, "tap.region_cues은 객체여야 함");
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_cues: "nope" } },
+      "tap.region_cues은 객체여야 함",
+    );
     expectIssue(
       { vrm_url: "/v.vrm", tap: { region_cues: { head: { label: "a", context: "b" } } } },
       "tap.region_cues.head는 허용되지 않는 키",
@@ -390,7 +393,11 @@ describe("validateAvatar — tap touch reactions", () => {
     );
   });
 
-  it.each([0, 1.5, "4000"])("rejects invalid touch_emotion_hold_ms: %s", (touch_emotion_hold_ms) => {
+  it.each([
+    0,
+    1.5,
+    "4000",
+  ])("rejects invalid touch_emotion_hold_ms: %s", (touch_emotion_hold_ms) => {
     expectIssue(
       { vrm_url: "/v.vrm", tap: { touch_emotion_hold_ms } },
       "tap.touch_emotion_hold_ms는 1 이상 정수",

@@ -294,25 +294,25 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
-  it.each(["", 7])(
-    "degrades malformed tap emotion_id %j to a motion-only directive",
-    async (emotionId) => {
-      dispatcher.start();
-      bus.push(
-        env({
-          source: "os_event_watcher",
-          event_name: "user.tap_region",
-          hint_tier: 1,
-          payload: { motion_id: "embarrassed", emotion_id: emotionId },
-        }),
-      );
-      await vi.advanceTimersByTimeAsync(20);
-      expect(applyDirective).toHaveBeenCalledWith({
-        speech_text: "",
-        motion: { id: "embarrassed" },
-      });
-    },
-  );
+  it.each([
+    "",
+    7,
+  ])("degrades malformed tap emotion_id %j to a motion-only directive", async (emotionId) => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.tap_region",
+        hint_tier: 1,
+        payload: { motion_id: "embarrassed", emotion_id: emotionId },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(applyDirective).toHaveBeenCalledWith({
+      speech_text: "",
+      motion: { id: "embarrassed" },
+    });
+  });
 
   it("routes proactive.tap_bored (tier2) to the backend caller", async () => {
     dispatcher.start();

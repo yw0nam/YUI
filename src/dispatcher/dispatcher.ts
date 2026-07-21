@@ -22,8 +22,8 @@
  * observable: queue() / recentDrops(n) / inFlight().
  */
 
-import type { PeekConfig } from "../config/load";
-import type { ControlEnvelope } from "../contract";
+import type { PeekConfig, TapConfig } from "../config/load";
+import type { ControlEnvelope, EmotionId } from "../contract";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
@@ -37,9 +37,15 @@ export interface DispatcherDeps {
   bus: EventBus;
   renderer: Pick<
     Renderer,
-    "applyDirective" | "setPerchTarget" | "setPeekTarget" | "setMotionMirror"
+    | "applyDirective"
+    | "setPerchTarget"
+    | "setPeekTarget"
+    | "setMotionMirror"
+    | "easeEmotionToNeutral"
   >;
   peekConfig: () => PeekConfig;
+  /** Tap knobs — touch_emotion_hold_ms drives the tap-emotion revert timer. */
+  tapConfig: () => TapConfig;
   peek?: { enter(): Promise<void>; exit(): Promise<void> };
   backendCaller: BackendCaller;
   /** Guardrails — DND/debounce/rate-limit gate + cooldown verdict (pure). */
@@ -209,7 +215,15 @@ function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
         log.warn("tap_motion.malformed", { seq_id: env.seq_id, payload: env.payload });
         return null;
       }
-      return { speech_text: "", motion: { id: motionId } };
+      // emotion is enrichment, motion is primary — a malformed emotion_id degrades to motion-only.
+      const emotionId = env.payload?.emotion_id;
+      return {
+        speech_text: "",
+        motion: { id: motionId },
+        ...(typeof emotionId === "string" && emotionId.length > 0
+          ? { emotion: { id: emotionId as EmotionId } }
+          : {}),
+      };
     }
     case "idle.returned":
       // empty directive (emotion/motion unset = hold).
@@ -257,6 +271,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   const drops: DropRecord[] = [];
   // Consecutive backend call failure counter — superseded_by_user does not count as a failure.
   let consecutiveFailures = 0;
+  // Pending tap-emotion revert — replaced per emotion tap, cleared on stop.
+  let emotionRevertTimer: ReturnType<typeof setTimeout> | null = null;
 
   const stateSubscribers = new Set<(s: DispatcherState) => void>();
   const busySubscribers = new Set<(busy: boolean) => void>();
@@ -414,6 +430,26 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     }
   }
 
+  /**
+   * Ease a locally applied tap emotion back to neutral after the hold —
+   * a silent backend turn never triggers the playback-end revert, so without
+   * this the face would stay on the tap emotion indefinitely.
+   */
+  function scheduleTapEmotionRevert(): void {
+    if (emotionRevertTimer !== null) clearTimeout(emotionRevertTimer);
+    // ponytail: pending revert may fade a concurrent backend expression early — cancel-on-backend-emotion if it bites.
+    emotionRevertTimer = setTimeout(() => {
+      emotionRevertTimer = null;
+      renderer.easeEmotionToNeutral();
+    }, deps.tapConfig().touch_emotion_hold_ms);
+  }
+
+  function clearTapEmotionRevert(): void {
+    if (emotionRevertTimer === null) return;
+    clearTimeout(emotionRevertTimer);
+    emotionRevertTimer = null;
+  }
+
   /** tier1 event → renderer.applyDirective (local, backend-independent). */
   function renderTier1(env: BusEnvelope): void {
     const peekDrop = env.event_name === "user.peek_drop" ? parsePeekDropPayload(env) : null;
@@ -428,6 +464,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     applyPeekState(env);
     try {
       renderer.applyDirective(directive);
+      if (env.event_name === "user.tap_region" && directive.emotion) scheduleTapEmotionRevert();
     } catch (err) {
       log.error("tier1.render_error", { error: String(err) });
     }
@@ -577,6 +614,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         setInFlight(null);
       }
       pending.length = 0;
+      clearTapEmotionRevert();
       setState("stopped");
     },
     queue() {

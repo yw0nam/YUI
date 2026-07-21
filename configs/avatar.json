@@ -18,6 +18,19 @@
     "spam_window_ms": 3000,
     "region_radius_frac": 0.18,
     "region_motions": { "chest": "embarrassed", "hips": "embarrassed" },
+    "region_emotions": { "chest": "embarrassed", "hips": "embarrassed" },
+    "region_cues": {
+      "chest": {
+        "label": "chest poked",
+        "context": "The user just poked my chest. React in character — flustered, a little embarrassed. Keep it short."
+      },
+      "hips": {
+        "label": "butt poked",
+        "context": "The user just poked my butt. React in character — surprised and embarrassed. Keep it short."
+      }
+    },
+    "touch_cue_cooldown_ms": 60000,
+    "touch_emotion_hold_ms": 4000,
     "bored_cue": {
       "label": "bored poking",
       "context": "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment."
