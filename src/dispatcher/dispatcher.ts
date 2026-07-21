@@ -437,7 +437,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
    */
   function scheduleTapEmotionRevert(): void {
     if (emotionRevertTimer !== null) clearTimeout(emotionRevertTimer);
-    // While speech is playing, the TTS cue path owns the expression and its playback-end revert applies.
+    // While speech is playing, the TTS cue path owns the expression; playback end/interrupt/abort each ease it to neutral.
     emotionRevertTimer = setTimeout(() => {
       emotionRevertTimer = null;
       if (deps.isSpeaking?.() === true) return;
