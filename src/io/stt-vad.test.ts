@@ -57,6 +57,23 @@ function buildFetchMock(responseText = "hello world") {
   } as unknown as Response);
 }
 
+/** Replace the default MicVAD.new mock with one that resolves only when `resolve` is called. */
+async function deferMicVadLoad(): Promise<{ resolve: () => void }> {
+  const { MicVAD } = await import("@ricky0123/vad-web");
+  let resolve!: () => void;
+  const gate = new Promise<void>((r) => {
+    resolve = r;
+  });
+  (MicVAD.new as ReturnType<typeof vi.fn>).mockImplementationOnce(
+    async (opts: Record<string, unknown>) => {
+      capturedOptions = opts;
+      await gate;
+      return mockMicVadInstance;
+    },
+  );
+  return { resolve };
+}
+
 beforeEach(() => {
   capturedOptions = {};
   triggerSpeechStart = null;
@@ -514,29 +531,8 @@ describe("createSttVad — stop() and dispose()", () => {
 });
 
 describe("createSttVad — stop()/dispose() during in-flight MicVAD.new load", () => {
-  /** Replace the default MicVAD.new mock with one that resolves only when `resolve` is called. */
-  function deferMicVadLoad(): { resolve: () => void } {
-    let resolve!: () => void;
-    const gate = new Promise<void>((r) => {
-      resolve = r;
-    });
-    (MicVAD.new as ReturnType<typeof vi.fn>).mockImplementationOnce(
-      async (opts: Record<string, unknown>) => {
-        capturedOptions = opts;
-        await gate;
-        return mockMicVadInstance;
-      },
-    );
-    return { resolve };
-  }
-
-  let MicVAD: Awaited<typeof import("@ricky0123/vad-web")>["MicVAD"];
-  beforeEach(async () => {
-    ({ MicVAD } = await import("@ricky0123/vad-web"));
-  });
-
   it("dispose() called mid-load destroys the instance once loaded and never starts the mic", async () => {
-    const { resolve } = deferMicVadLoad();
+    const { resolve } = await deferMicVadLoad();
     const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
 
     const startPromise = stt.start();
@@ -550,7 +546,7 @@ describe("createSttVad — stop()/dispose() during in-flight MicVAD.new load", (
   });
 
   it("stop() called mid-load leaves the instance paused (never started) once loaded", async () => {
-    const { resolve } = deferMicVadLoad();
+    const { resolve } = await deferMicVadLoad();
     const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
 
     const startPromise = stt.start();
@@ -562,7 +558,7 @@ describe("createSttVad — stop()/dispose() during in-flight MicVAD.new load", (
   });
 
   it("dispose() wins when both stop() and dispose() are requested mid-load", async () => {
-    const { resolve } = deferMicVadLoad();
+    const { resolve } = await deferMicVadLoad();
     const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
 
     const startPromise = stt.start();
@@ -577,7 +573,7 @@ describe("createSttVad — stop()/dispose() during in-flight MicVAD.new load", (
   });
 
   it("a fresh start() after a mid-load dispose() creates and starts a new VAD instance", async () => {
-    const { resolve } = deferMicVadLoad();
+    const { resolve } = await deferMicVadLoad();
     const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
 
     const startPromise = stt.start();
@@ -588,8 +584,52 @@ describe("createSttVad — stop()/dispose() during in-flight MicVAD.new load", (
 
     await stt.start();
 
+    const { MicVAD } = await import("@ricky0123/vad-web");
     expect(MicVAD.new).toHaveBeenCalledTimes(2);
     expect(mockMicVadInstance.start).toHaveBeenCalledOnce();
+  });
+});
+
+describe("createSttVad — start() resumes a paused instance instead of no-op'ing (#429)", () => {
+  it("start() after stop() resumes the same instance (vad.start() called again, no reload)", async () => {
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    await stt.start();
+    stt.stop();
+    expect(mockMicVadInstance.pause).toHaveBeenCalledOnce();
+
+    await stt.start();
+
+    const { MicVAD } = await import("@ricky0123/vad-web");
+    expect(MicVAD.new).toHaveBeenCalledOnce();
+    expect(mockMicVadInstance.start).toHaveBeenCalledTimes(2);
+  });
+
+  it("start() after a mid-load stop() resumes using the already-loaded instance (no reload)", async () => {
+    const { resolve } = await deferMicVadLoad();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+
+    const startPromise = stt.start();
+    stt.stop();
+    resolve();
+    await startPromise;
+    expect(mockMicVadInstance.start).not.toHaveBeenCalled();
+
+    await stt.start();
+
+    const { MicVAD } = await import("@ricky0123/vad-web");
+    expect(MicVAD.new).toHaveBeenCalledOnce();
+    expect(mockMicVadInstance.start).toHaveBeenCalledOnce();
+  });
+
+  it("repeated start() calls while already running stay idempotent (no reload, no throw)", async () => {
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    await stt.start();
+
+    await expect(stt.start()).resolves.toBeUndefined();
+    await expect(stt.start()).resolves.toBeUndefined();
+
+    const { MicVAD } = await import("@ricky0123/vad-web");
+    expect(MicVAD.new).toHaveBeenCalledOnce();
   });
 });
 
