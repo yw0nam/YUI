@@ -219,4 +219,55 @@ describe("createProactiveSettings — migration from old { enabled } shape", () 
     expect(s.entries).toHaveLength(3);
     expect(s.entries.map((e) => e.id)).toEqual(["short_break", "mid_check", "long_focus"]);
   });
+
+  it("{ enabled: false } (no entries) + locale: en → keeps enabled, fills English seed entries", () => {
+    const storage = memStorage();
+    storage._data = { enabled: false } as unknown as ProactiveSettings;
+    const store = createProactiveSettings({ storage, locale: "en" });
+    const s = store.get();
+    expect(s.enabled).toBe(false);
+    expect(s.entries).toHaveLength(3);
+    const shortBreak = s.entries.find((e) => e.id === "short_break")!;
+    expect(shortBreak.label).toBe("Quick break");
+  });
+});
+
+describe("createProactiveSettings — locale", () => {
+  it("fresh storage + locale: en → English seed entries", () => {
+    const store = createProactiveSettings({ storage: fakeStorage(null), locale: "en" });
+    const s = store.get();
+    const shortBreak = s.entries.find((e) => e.id === "short_break")!;
+    expect(shortBreak.label).toBe("Quick break");
+    expect(shortBreak.context).toBe(
+      "It's been quiet for over 5 minutes. Gently suggest looking up and getting a bit of fresh air.",
+    );
+  });
+
+  it("fresh storage + locale: ja → Japanese seed entries", () => {
+    const store = createProactiveSettings({ storage: fakeStorage(null), locale: "ja" });
+    const s = store.get();
+    const midCheck = s.entries.find((e) => e.id === "mid_check")!;
+    expect(midCheck.label).toBe("そろそろチェック");
+    expect(midCheck.context).toBe(
+      "10分以上話してないね。作業が順調か気軽に聞いてみて。重くならないように。",
+    );
+  });
+
+  it("persisted settings + locale: en → persisted data wins, nothing overwritten", () => {
+    const persisted: ProactiveSettings = {
+      enabled: true,
+      entries: [
+        {
+          id: "short_break",
+          label: "user edited",
+          context: "user edited context",
+          idle_min: 7,
+          enabled: true,
+        },
+      ],
+    };
+    const store = createProactiveSettings({ storage: fakeStorage(persisted), locale: "en" });
+    const s = store.get();
+    expect(s.entries).toEqual(persisted.entries);
+  });
 });

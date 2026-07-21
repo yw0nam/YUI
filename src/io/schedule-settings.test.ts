@@ -198,3 +198,43 @@ describe("createScheduleSettings — malformed storage", () => {
     expect(store.get().entries).toHaveLength(4);
   });
 });
+
+describe("createScheduleSettings — locale", () => {
+  it("fresh storage + locale: en → English seed entries", () => {
+    const store = createScheduleSettings({ storage: fakeStorage(null), locale: "en" });
+    const s = store.get();
+    const morning = s.entries.find((e) => e.id === "morning")!;
+    expect(morning.label).toBe("Morning");
+    expect(morning.context).toBe(
+      "A morning greeting to start the day. Lightly ask how they're doing as they settle in.",
+    );
+  });
+
+  it("fresh storage + locale: ja → Japanese seed entries", () => {
+    const store = createScheduleSettings({ storage: fakeStorage(null), locale: "ja" });
+    const s = store.get();
+    const lateNight = s.entries.find((e) => e.id === "late_night")!;
+    expect(lateNight.label).toBe("深夜");
+    expect(lateNight.context).toBe(
+      "もうかなり遅いよ。そろそろ休んだら？無理しないでって、やさしく気遣ってあげて。",
+    );
+  });
+
+  it("persisted settings + locale: en → persisted data wins, nothing overwritten", () => {
+    const persisted: ScheduleSettings = {
+      enabled: true,
+      entries: [
+        {
+          id: "morning",
+          label: "user edited",
+          context: "user edited context",
+          time: "07:15",
+          enabled: true,
+        },
+      ],
+    };
+    const store = createScheduleSettings({ storage: fakeStorage(persisted), locale: "en" });
+    const s = store.get();
+    expect(s.entries).toEqual(persisted.entries);
+  });
+});

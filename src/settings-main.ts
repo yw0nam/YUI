@@ -61,6 +61,7 @@ import {
 import { createWorkflowSettings, localStorageWorkflowStorage } from "./io/workflow-settings";
 import { createLogger, initLogger } from "./logger";
 import {
+  getLocale,
   reloadFromStorage as reloadLocaleFromStorage,
   subscribe as subscribeLocale,
 } from "./ui/i18n";
@@ -80,8 +81,14 @@ async function bootstrap(): Promise<void> {
   const idleThrottleSettings = createIdleThrottleSettings({
     storage: localStorageIdleThrottleStorage(),
   });
-  const proactiveSettings = createProactiveSettings({ storage: localStorageProactiveStorage() });
-  const scheduleSettings = createScheduleSettings({ storage: localStorageScheduleStorage() });
+  const proactiveSettings = createProactiveSettings({
+    storage: localStorageProactiveStorage(),
+    locale: getLocale(),
+  });
+  const scheduleSettings = createScheduleSettings({
+    storage: localStorageScheduleStorage(),
+    locale: getLocale(),
+  });
   const workflowSettings = createWorkflowSettings({ storage: localStorageWorkflowStorage() });
   const agentNotifySettings = createAgentNotifySettings({
     storage: localStorageAgentNotifyStorage(),

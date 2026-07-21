@@ -21,11 +21,13 @@ export interface ScheduleSettings {
 
 export type ScheduleStorage = PersistedStorage<ScheduleSettings>;
 
+/** Locale for seeding default cue text. Structurally compatible with ui's Locale — not imported to keep io free of ui. */
+export type CueLocale = "en" | "ja" | "ko";
+
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-const DEFAULT_SETTINGS: ScheduleSettings = {
-  enabled: true,
-  entries: [
+const SEED_ENTRIES: Record<CueLocale, ScheduledCue[]> = {
+  ko: [
     {
       id: "morning",
       label: "아침",
@@ -55,7 +57,73 @@ const DEFAULT_SETTINGS: ScheduleSettings = {
       enabled: true,
     },
   ],
+  en: [
+    {
+      id: "morning",
+      label: "Morning",
+      context:
+        "A morning greeting to start the day. Lightly ask how they're doing as they settle in.",
+      time: "09:00",
+      enabled: true,
+    },
+    {
+      id: "lunch",
+      label: "Lunch",
+      context: "It's lunchtime. Casually ask if they've eaten and how the morning went.",
+      time: "12:00",
+      enabled: true,
+    },
+    {
+      id: "evening",
+      label: "Evening",
+      context: "Time to wrap up the day. Lightly ask how today went.",
+      time: "18:00",
+      enabled: true,
+    },
+    {
+      id: "late_night",
+      label: "Late night",
+      context:
+        "It's really late. Gently suggest getting some rest — tell them not to push too hard.",
+      time: "23:00",
+      enabled: true,
+    },
+  ],
+  ja: [
+    {
+      id: "morning",
+      label: "朝",
+      context: "一日を始める朝のあいさつ。席に着いたばかりの相手に、軽く調子を聞いてあげて。",
+      time: "09:00",
+      enabled: true,
+    },
+    {
+      id: "lunch",
+      label: "昼",
+      context: "お昼の時間だよ。ご飯は食べたか、午前中はどうだったか気軽に聞いてみて。",
+      time: "12:00",
+      enabled: true,
+    },
+    {
+      id: "evening",
+      label: "夕方",
+      context: "そろそろ一日の締めくくり。今日はどうだったか軽く聞いてあげて。",
+      time: "18:00",
+      enabled: true,
+    },
+    {
+      id: "late_night",
+      label: "深夜",
+      context: "もうかなり遅いよ。そろそろ休んだら？無理しないでって、やさしく気遣ってあげて。",
+      time: "23:00",
+      enabled: true,
+    },
+  ],
 };
+
+export function defaultSettings(locale: CueLocale): ScheduleSettings {
+  return { enabled: true, entries: structuredClone(SEED_ENTRIES[locale]) };
+}
 
 function isValidCue(v: unknown): v is ScheduledCue {
   if (v === null || typeof v !== "object") return false;
@@ -81,11 +149,12 @@ function isValidSettings(v: unknown): v is ScheduleSettings {
 export function createScheduleSettings(opts?: {
   storage?: ScheduleStorage;
   initial?: ScheduleSettings;
+  locale?: CueLocale;
 }) {
   const core = createPersistedStore<ScheduleSettings>({
     storage: opts?.storage,
     initial: opts?.initial,
-    defaults: DEFAULT_SETTINGS,
+    defaults: defaultSettings(opts?.locale ?? "ko"),
     parse: (v) => (isValidSettings(v) ? v : null),
     clone: structuredClone,
     equals: (a, b) => JSON.stringify(a) === JSON.stringify(b),
