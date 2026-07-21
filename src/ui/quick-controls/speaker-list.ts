@@ -9,6 +9,7 @@ import { resolveAssetUrl } from "../../io/asset-url";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
+import { createUserAssetList, resolveRovedId } from "./user-asset-list";
 
 const SPK_PLAY_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
 const SPK_PAUSE_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="6" width="3.4" height="12" rx="0.8"/><rect x="13.6" y="6" width="3.4" height="12" rx="0.8"/></svg>`;
@@ -68,14 +69,30 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   const spksEl = deps.root.querySelector<HTMLDivElement>(".yui-spks")!;
   const spkImportErrorEl = deps.root.querySelector<HTMLParagraphElement>(".yui-spk__import-error")!;
 
-  let spkSwapping: string | null = null;
-  let spkErrorId: string | null = null;
-  // User speaker id being renamed inline (null if none) · whether import is in progress.
-  let spkRenamingId: string | null = null;
-  let spkImporting = false;
-  // Last row id where arrow roved — kept so re-render doesn't snap roving tabindex back to active.
-  // Deliberately not reset in close() — re-open continues from roved row, guarded by ids.includes.
-  let spkRovedId: string | null = null;
+  const list = createUserAssetList<SpeakerOption>({
+    containerEl: spksEl,
+    importErrorEl: spkImportErrorEl,
+    classPrefix: "yui-spk",
+    datasetKey: "spkId",
+    i18nNamespace: "speaker",
+    logPrefix: "voice",
+    log,
+    getOptions: () => speakerSelection.list(),
+    getActiveId: () => speakerSelection.getActiveId(),
+    getActive: () => speakerSelection.getActive(),
+    getLabel: (opt) => opt.label ?? opt.id,
+    rename: (id, label) => speakerSelection.renameUserVoice(id, label),
+    removeFile: removeUserVoice,
+    removeFromStore: (id) => speakerSelection.removeUserVoice(id),
+    swap: swapSpeaker,
+    importFn: importVoice,
+    render: () => renderSpeakers(),
+    canActivate: speakerControlsEnabled,
+    onRowBusy: (row) => {
+      // Hide preview button during swap, show "swapping…" hint in its place.
+      row.querySelector(".yui-spk__preview")?.remove();
+    },
+  });
 
   // Per-row reference-voice refresh state — kept per-id so survives renderSpeakers re-render.
   type RefreshState = "refreshing" | "done" | "error";
@@ -149,9 +166,9 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     const activeId = speakerSelection.getActiveId();
     // Roving tabindex prioritizes last roved row — falls back to active if none.
     const ids = speakerSelection.list().map((o) => o.id);
-    const rovedId = spkRovedId !== null && ids.includes(spkRovedId) ? spkRovedId : activeId;
+    const rovedId = resolveRovedId(list.getRovedId(), ids, activeId);
     // Clean up edit state if row being edited no longer in list.
-    if (spkRenamingId !== null && !ids.includes(spkRenamingId)) spkRenamingId = null;
+    list.reconcileRenaming(ids);
     const hadFocus = spksEl.contains(document.activeElement);
     stopAudition(); // Re-render destroys audition button nodes, so clean audition
     spksEl.innerHTML = "";
@@ -166,8 +183,8 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       // When inactive (openai), all rows get -1 to skip Tab navigation.
       row.tabIndex = controlsEnabled ? (opt.id === rovedId ? 0 : -1) : -1;
 
-      if (isUser && opt.id === spkRenamingId) {
-        renderSpkRenamingRow(row, opt);
+      if (isUser && opt.id === list.getRenamingId()) {
+        list.renderRenamingRow(row, opt);
         spksEl.appendChild(row);
         continue;
       }
@@ -199,13 +216,13 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
         renameBtn.disabled = !controlsEnabled;
         renameBtn.addEventListener("click", (e) => {
           e.stopPropagation(); // Rename does not trigger row selection
-          if (speakerControlsEnabled()) startSpkRename(opt.id);
+          if (speakerControlsEnabled()) list.startRename(opt.id);
         });
         const removeBtn = row.querySelector<HTMLButtonElement>(".yui-spk__remove")!;
         removeBtn.disabled = !controlsEnabled;
         removeBtn.addEventListener("click", (e) => {
           e.stopPropagation(); // Remove does not trigger row selection
-          if (speakerControlsEnabled()) void removeUserSpeaker(opt.id);
+          if (speakerControlsEnabled()) void list.remove(opt.id);
         });
       }
       const refreshBtn = row.querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
@@ -225,7 +242,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
 
       row.addEventListener("click", () => {
         if (!speakerControlsEnabled()) return; // Row selection inactive with openai
-        void swapToSpeaker(opt);
+        void list.swapTo(opt);
       });
 
       // Reflect saved refresh state in visuals/aria even after re-render.
@@ -251,7 +268,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
 
       spksEl.appendChild(row);
 
-      if (opt.id === spkErrorId) {
+      if (opt.id === list.getErrorId()) {
         row.classList.add("is-error");
         row.setAttribute("aria-invalid", "true");
         const err = document.createElement("p");
@@ -277,7 +294,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     }
 
     // If import is in progress, append spinner placeholder row at end (not radio).
-    if (spkImporting) {
+    if (list.isImporting()) {
       const loading = document.createElement("div");
       loading.className = "yui-spk__loading";
       loading.setAttribute("role", "status");
@@ -286,163 +303,14 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     }
 
     // If editing, focus input and exit (takes precedence over restoring roving focus).
-    if (spkRenamingId !== null) {
-      const input = spksEl.querySelector<HTMLInputElement>(".yui-spk--renaming .yui-ep-input");
-      if (input) {
-        input.focus();
-        input.select();
-      }
-      return;
-    }
+    if (list.focusIfRenaming()) return;
 
     if (hadFocus) {
-      const roved = spkRowById(rovedId);
+      const roved = list.rowById(rovedId);
       if (roved) {
         roved.focus();
         roved.scrollIntoView?.({ block: "nearest" });
       }
-    }
-  }
-
-  // Render user speaker row in inline rename mode — label becomes input, hint follows.
-  function renderSpkRenamingRow(row: HTMLElement, opt: SpeakerOption): void {
-    row.classList.add("yui-spk--renaming");
-    row.innerHTML = `
-      <span class="yui-spk__tick" aria-hidden="true"></span>
-      <span class="yui-input-wrap"><input class="yui-ep-input" type="text" aria-label="${t("speaker.name_aria")}" /></span>
-      <span class="yui-spk__rename-hint"><kbd>Enter</kbd> ${t("speaker.rename_hint_save")} · <kbd>Esc</kbd> ${t("speaker.rename_hint_cancel")}</span>
-    `;
-    const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
-    input.value = opt.label ?? opt.id;
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        commitSpkRename(opt.id, input.value);
-      } else if (e.key === "Escape") {
-        // Escape cancels rename only — does not propagate to panel close (document Escape).
-        e.preventDefault();
-        e.stopPropagation();
-        cancelSpkRename();
-      }
-    });
-    // On blur, commit nonempty value.
-    input.addEventListener("blur", () => {
-      if (spkRenamingId !== opt.id) return; // Already cleaned up by commit/cancel
-      commitSpkRename(opt.id, input.value);
-    });
-  }
-
-  function startSpkRename(id: string): void {
-    spkRenamingId = id;
-    renderSpeakers();
-  }
-
-  function cancelSpkRename(): void {
-    if (spkRenamingId === null) return;
-    spkRenamingId = null;
-    renderSpeakers();
-  }
-
-  function commitSpkRename(id: string, label: string): void {
-    if (spkRenamingId !== id) return;
-    spkRenamingId = null;
-    // Empty/whitespace label is rejected by store (keeps existing label). Change triggers store subscription re-render.
-    speakerSelection.renameUserVoice(id, label);
-    log.info("voice_rename", { id });
-    renderSpeakers();
-  }
-
-  // Remove user speaker — delete file first (success required, no store/disk mismatch to prevent 422), then
-  // remove from store and swap to fallback if it was active.
-  async function removeUserSpeaker(id: string): Promise<void> {
-    const wasActive = speakerSelection.getActiveId() === id;
-    log.info("voice_delete", { id });
-    try {
-      await removeUserVoice(id);
-    } catch (err) {
-      // File delete failed — do not commit store removal, keep row (maintain disk match).
-      log.error("voice_delete_failed", { id, error: String(err) });
-      return;
-    }
-    speakerSelection.removeUserVoice(id); // Falls back to default if was active + notify
-    // Non-active removal does not notify store, so re-render list directly.
-    if (!wasActive) {
-      renderSpeakers();
-      return;
-    }
-    // Active delete — load fallback speaker into server (store already points to default).
-    try {
-      await swapSpeaker(speakerSelection.getActive());
-    } catch (err) {
-      log.error("voice_fallback_swap_failed", { error: String(err) });
-      renderSpeakers(); // Swap failed, re-render list to match actual state.
-    }
-  }
-
-  function setSpkImportError(show: boolean): void {
-    spkImportErrorEl.hidden = !show;
-  }
-
-  // "Add from file…" — show importing row and delegate full import flow.
-  // Success: store adds row (subscription → re-render); failure: show inline error.
-  async function importVoiceFlow(): Promise<void> {
-    if (spkImporting) return; // Prevent second import while in progress
-    spkImporting = true;
-    setSpkImportError(false);
-    renderSpeakers();
-    try {
-      await importVoice();
-    } catch (err) {
-      setSpkImportError(true);
-      log.error("voice_import_failed", { error: String(err) });
-    } finally {
-      spkImporting = false;
-      renderSpeakers();
-    }
-  }
-
-  function spkRowById(id: string): HTMLDivElement | null {
-    return spksEl.querySelector<HTMLDivElement>(`.yui-spk[data-spk-id="${CSS.escape(id)}"]`);
-  }
-
-  async function swapToSpeaker(option: SpeakerOption): Promise<void> {
-    if (spkSwapping !== null) return; // Prevent second swap while in progress
-    if (option.id === speakerSelection.getActiveId()) return; // Already active, no-op
-
-    if (spkErrorId !== null) {
-      spkErrorId = null;
-      renderSpeakers();
-    }
-    spkSwapping = option.id;
-
-    spksEl.setAttribute("aria-busy", "true");
-    spksEl.classList.add("is-swapping");
-    const row = spkRowById(option.id);
-    if (row) {
-      row.setAttribute("aria-busy", "true");
-      // Hide preview button during swap, show "swapping…" hint in its place.
-      row.querySelector(".yui-spk__preview")?.remove();
-      const body = row.querySelector(".yui-spk__body");
-      if (body && !row.querySelector(".yui-spk__hint")) {
-        const hint = document.createElement("span");
-        hint.className = "yui-spk__hint";
-        hint.textContent = t("speaker.swapping");
-        body.insertAdjacentElement("afterend", hint);
-      }
-    }
-
-    try {
-      await swapSpeaker(option);
-      spkRovedId = option.id; // carry the roving tabindex over to the committed row
-      log.info("voice_swap", { id: option.id });
-    } catch (err) {
-      spkErrorId = option.id;
-      log.error("voice_swap_failed", { id: option.id, error: String(err) });
-    } finally {
-      spkSwapping = null;
-      spksEl.removeAttribute("aria-busy");
-      spksEl.classList.remove("is-swapping");
-      renderSpeakers();
     }
   }
 
@@ -476,48 +344,6 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     }
   }
 
-  // Speaker radiogroup keyboard — wire directly as div[role=radio].
-  // Manual-activation: arrows only move roving focus, Enter/Space commits — avoids preview/swap cost on every arrow.
-  function handleSpkKeydown(e: KeyboardEvent): void {
-    if (spkSwapping !== null) return;
-    // Inline name editing input handles its own keys — prevent leaking to radio keyboard.
-    if ((e.target as HTMLElement).closest(".yui-spk--renaming")) return;
-    const target = (e.target as HTMLElement).closest<HTMLDivElement>(".yui-spk[role=radio]");
-    if (!target) return;
-    const rows = Array.from(spksEl.querySelectorAll<HTMLDivElement>(".yui-spk[role=radio]"));
-    if (rows.length === 0) return;
-
-    if (e.key === "Enter" || e.key === " ") {
-      if (!speakerControlsEnabled()) return; // Disable row selection for OpenAI
-      e.preventDefault();
-      const opt = speakerSelection.list().find((o) => o.id === target.dataset.spkId);
-      if (opt) void swapToSpeaker(opt);
-      return;
-    }
-
-    const current = Math.max(0, rows.indexOf(target));
-    let next = -1;
-    if (e.key === "ArrowDown" || e.key === "ArrowRight") next = current + 1;
-    else if (e.key === "ArrowUp" || e.key === "ArrowLeft") next = current - 1;
-    else if (e.key === "Home") next = 0;
-    else if (e.key === "End") next = rows.length - 1;
-    else return;
-    e.preventDefault();
-    const wrapped = (next + rows.length) % rows.length;
-    const focusTarget = rows[wrapped];
-    spkRovedId = focusTarget.dataset.spkId ?? null;
-    // Roving tabindex move: new row only 0, rest -1.
-    for (const r of rows) r.tabIndex = -1;
-    focusTarget.tabIndex = 0;
-    focusTarget.focus();
-    focusTarget.scrollIntoView?.({ block: "nearest" });
-  }
-
-  function handleAddClick(): void {
-    if (!speakerControlsEnabled()) return;
-    void importVoiceFlow();
-  }
-
   function dispose(): void {
     stopAudition();
     for (const timer of spkRefreshTimers.values()) clearTimeout(timer);
@@ -527,9 +353,9 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
 
   return {
     render: renderSpeakers,
-    handleKeydown: handleSpkKeydown,
-    handleAddClick,
-    isSwapping: () => spkSwapping !== null,
+    handleKeydown: list.handleKeydown,
+    handleAddClick: list.handleAddClick,
+    isSwapping: list.isSwapping,
     stopAudition,
     dispose,
   };
