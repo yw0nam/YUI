@@ -646,6 +646,70 @@ describe("streamChat — create() rejection carries HTTP status", () => {
   });
 });
 
+describe("streamChat — mid-stream thrown error (SDK stream drop)", () => {
+  /** Async-iterable that yields some events then throws — models a stream dropping mid-flight. */
+  async function* streamThatThrows(
+    events: any[],
+    err: unknown,
+    onBeforeThrow?: () => void,
+  ): AsyncGenerator<any> {
+    for (const ev of events) yield ev;
+    onBeforeThrow?.();
+    throw err;
+  }
+
+  it("APIError-shaped error (status 404) thrown mid-iteration, no prior events → error event carries status 404", async () => {
+    createMock.mockResolvedValue(
+      streamThatThrows(
+        [],
+        Object.assign(new Error("Previous response not found"), { status: 404 }),
+      ),
+    );
+
+    const events = await collect(streamChat(CONFIG, req({ previous_response_id: "resp_dead" })));
+
+    expect(events).toEqual([
+      { type: "error", message: "chat stream failed: Previous response not found", status: 404 },
+    ]);
+  });
+
+  it("APIError-shaped error thrown after partial output → error event still carries status (caller decides retry eligibility)", async () => {
+    createMock.mockResolvedValue(
+      streamThatThrows(
+        [textDelta("일부")],
+        Object.assign(new Error("Previous response not found"), { status: 404 }),
+      ),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events).toContainEqual({
+      type: "error",
+      message: "chat stream failed: Previous response not found",
+      status: 404,
+    });
+  });
+
+  it("plain Error with no status field thrown mid-iteration → generator terminates silently (no error event)", async () => {
+    createMock.mockResolvedValue(streamThatThrows([textDelta("hi")], new Error("ECONNRESET")));
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events.some((e) => e.type === "error")).toBe(false);
+  });
+
+  it("signal aborted just before the mid-stream throw → terminates silently regardless of status", async () => {
+    const ac = new AbortController();
+    createMock.mockResolvedValue(
+      streamThatThrows([], Object.assign(new Error("boom"), { status: 404 }), () => ac.abort()),
+    );
+
+    const events = await collect(streamChat(CONFIG, req({ signal: ac.signal })));
+
+    expect(events).toEqual([]);
+  });
+});
+
 describe("streamChat — abort", () => {
   it("already-aborted signal → generator terminates cleanly (no hang)", async () => {
     const ac = new AbortController();
