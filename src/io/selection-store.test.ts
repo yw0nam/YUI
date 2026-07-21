@@ -7,7 +7,11 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { SelectionOverrideStorage, UserOptionStorage } from "./selection-store";
-import { createSelectionStore, localStorageOverrideStorage, localStorageUserOptionStorage } from "./selection-store";
+import {
+  createSelectionStore,
+  localStorageOverrideStorage,
+  localStorageUserOptionStorage,
+} from "./selection-store";
 
 /** Minimal option shape: default-match is by `url`, not `id` (mirrors the VRM domain). */
 interface TestOption {
@@ -75,7 +79,9 @@ function makeMemUserStorage(): UserOptionStorage<TestOption> & { _data: TestOpti
   };
 }
 
-function makeStore(overrides: Partial<Parameters<typeof createSelectionStore<TestOption>>[0]> = {}) {
+function makeStore(
+  overrides: Partial<Parameters<typeof createSelectionStore<TestOption>>[0]> = {},
+) {
   return createSelectionStore<TestOption>({
     available: SAMPLE,
     defaultValue: "/a.res",
@@ -94,7 +100,9 @@ describe("createSelectionStore", () => {
       coerceUser,
       isDefault,
     });
-    expect(store.list()).toEqual([{ id: "synth", label: "Synth", url: "/only.res", source: "bundled" }]);
+    expect(store.list()).toEqual([
+      { id: "synth", label: "Synth", url: "/only.res", source: "bundled" },
+    ]);
     expect(store.getActiveId()).toBe("synth");
   });
 
@@ -288,7 +296,9 @@ describe("localStorageUserOptionStorage", () => {
     expect(adapter.load()).toEqual([{ id: "ok", label: "ok", url: "/ok.res", source: "user" }]);
 
     adapter.save([{ id: "ok", label: "ok", url: "/ok.res", source: "user" }]);
-    expect(JSON.parse(store.get("test.user")!)).toEqual([{ id: "ok", label: "ok", url: "/ok.res", source: "user" }]);
+    expect(JSON.parse(store.get("test.user")!)).toEqual([
+      { id: "ok", label: "ok", url: "/ok.res", source: "user" },
+    ]);
     vi.unstubAllGlobals();
   });
 });
