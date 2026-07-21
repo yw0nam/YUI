@@ -106,16 +106,19 @@ function makeHarness(overrides: Partial<UserAssetListConfig<FakeOption>> = {}) {
   // Delegated listener, mirroring how a domain wires the container in the real app.
   containerEl.addEventListener("keydown", (e) => list.handleKeydown(e as KeyboardEvent));
 
+  // The `...overrides` spread above widens each field's static type to the plain interface
+  // signature (Partial<UserAssetListConfig<FakeOption>>'s declared shape). Every caller in this
+  // file actually passes vi.fn() for these, so vi.mocked(...) restores the Mock type for assertions.
   return {
     list,
     containerEl,
     importErrorEl,
-    renameFn: cfg.rename,
-    removeFile: cfg.removeFile,
-    removeFromStore: cfg.removeFromStore,
-    swap: cfg.swap,
-    importFn: cfg.importFn,
-    render: cfg.render,
+    renameFn: vi.mocked(cfg.rename),
+    removeFile: vi.mocked(cfg.removeFile),
+    removeFromStore: vi.mocked(cfg.removeFromStore),
+    swap: vi.mocked(cfg.swap),
+    importFn: vi.mocked(cfg.importFn),
+    render: vi.mocked(cfg.render),
     log,
   };
 }
