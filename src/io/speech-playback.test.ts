@@ -153,6 +153,44 @@ describe("createSpeechPlayback — emotion eases back to neutral when playback e
   });
 });
 
+describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not just natural playback end", () => {
+  it("eases to neutral when abort() cuts off mid-speech", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    stub.emitAmplitude(0.4);
+    expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
+    sp.abort();
+    expect(renderer.easeEmotionToNeutral).toHaveBeenCalledTimes(1);
+  });
+
+  it("eases to neutral when interrupt() cuts off mid-speech (barge-in)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    stub.emitAmplitude(0.4);
+    expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
+    sp.interrupt();
+    expect(renderer.easeEmotionToNeutral).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not ease on interrupt() when nothing was speaking (routine pre-turn cleanup, no-op)", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.interrupt();
+    expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
+  });
+});
+
 describe("createSpeechPlayback — bubble defers until playback ends", () => {
   it("shows the bubble with a deferred dwell, then drives the pipeline", () => {
     const stub = stubPipelineFactory();

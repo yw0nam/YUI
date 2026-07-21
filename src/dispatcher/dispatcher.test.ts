@@ -736,6 +736,35 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
     await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms * 2);
     expect(easeEmotionToNeutral).not.toHaveBeenCalled();
   });
+
+  it("skips the revert and does not reschedule when speech is playing at fire time", async () => {
+    dispatcher.start();
+    pushEmotionTap();
+    await vi.advanceTimersByTimeAsync(20);
+    speaking = true;
+    await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms);
+    expect(easeEmotionToNeutral).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms * 2);
+    expect(easeEmotionToNeutral).not.toHaveBeenCalled();
+  });
+
+  it("eases exactly once when the isSpeaking dep is absent", async () => {
+    const d = createDispatcher({
+      bus,
+      renderer: renderer as never,
+      peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
+      backendCaller,
+      guardrails,
+      logger,
+    });
+    d.start();
+    pushEmotionTap();
+    await vi.advanceTimersByTimeAsync(20);
+    await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms);
+    expect(easeEmotionToNeutral).toHaveBeenCalledTimes(1);
+    d.stop();
+  });
 });
 
 describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path)", () => {

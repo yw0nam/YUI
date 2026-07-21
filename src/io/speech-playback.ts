@@ -182,6 +182,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       // Release the held bubble immediately (not deferred).
       surfaces.endSpeech();
       started = false;
+      // Also runs as routine pre-turn cleanup when nothing was speaking — only ease if it cut off real audio.
+      if (speaking) renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
       speaking = false;
       muted = opts?.muteCurrentTurn === true;
     },
@@ -191,6 +193,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       pipeline.dispose();
       surfaces.endSpeech();
       started = false;
+      // Terminal like onPlaybackEnd — no next turn to re-assert an expression, so always ease.
+      renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
       speaking = false;
       muted = false;
     },
