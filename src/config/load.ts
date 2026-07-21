@@ -54,7 +54,32 @@ export interface TapConfig {
   region_radius_frac: number;
   region_motions: { chest: string; hips: string };
   bored_cue: { label: string; context: string };
+  /** Emotion applied alongside the region motion. Absent region → motion only. */
+  region_emotions?: { chest?: string; hips?: string };
+  /** Touch speech cue handed to the backend on a region tap. Absent region → no candidate. */
+  region_cues?: {
+    chest?: { label: string; context: string };
+    hips?: { label: string; context: string };
+  };
+  /** Cooldown (ms) shared by all touch speech candidates. */
+  touch_cue_cooldown_ms: number;
+  /** Hold (ms) before a region-tap emotion eases back to neutral. */
+  touch_emotion_hold_ms: number;
 }
+
+export const TAP_DEFAULTS: TapConfig = {
+  spam_count: 4,
+  spam_window_ms: 3000,
+  region_radius_frac: 0.18,
+  region_motions: { chest: "embarrassed", hips: "embarrassed" },
+  bored_cue: {
+    label: "bored poking",
+    context:
+      "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
+  },
+  touch_cue_cooldown_ms: 60_000,
+  touch_emotion_hold_ms: 4_000,
+};
 
 export interface PeekConfig {
   side_out_frac: number;

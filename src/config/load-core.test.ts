@@ -44,6 +44,8 @@ describe("loadConfig — happy path", () => {
           context:
             "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
         },
+        touch_cue_cooldown_ms: 60_000,
+        touch_emotion_hold_ms: 4000,
       },
     });
     expect(cfg.emotionRegistry.happy).toEqual({

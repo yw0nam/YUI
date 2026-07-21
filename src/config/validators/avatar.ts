@@ -3,6 +3,7 @@ import {
   type AvatarOption,
   PEEK_DEFAULTS,
   type PeekConfig,
+  TAP_DEFAULTS,
   type TapConfig,
 } from "../load";
 import { assertValid, ConfigError, isObject } from "./shared";
@@ -10,17 +11,6 @@ import { assertValid, ConfigError, isObject } from "./shared";
 const AVATAR_SOURCES: readonly NonNullable<AvatarOption["source"]>[] = ["bundled", "file", "user"];
 /** Allowed chars for AvatarOption.id — a persistence key and the CSS selector `[data-vrm-id="…"]` value, so no whitespace/special chars. */
 const AVATAR_ID_RE = /^[A-Za-z0-9._-]+$/;
-const TAP_DEFAULTS: TapConfig = {
-  spam_count: 4,
-  spam_window_ms: 3000,
-  region_radius_frac: 0.18,
-  region_motions: { chest: "embarrassed", hips: "embarrassed" },
-  bored_cue: {
-    label: "bored poking",
-    context:
-      "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
-  },
-};
 
 export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
@@ -253,6 +243,96 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
               tap.bored_cue[field] = value;
             }
           }
+        }
+      }
+
+      const regionEmotions = rawTap.region_emotions;
+      if (regionEmotions !== undefined) {
+        if (!isObject(regionEmotions)) {
+          issues.push(
+            `tap.region_emotions은 객체여야 함 (받음: ${JSON.stringify(regionEmotions)})`,
+          );
+        } else {
+          const out: NonNullable<TapConfig["region_emotions"]> = {};
+          for (const key of Object.keys(regionEmotions)) {
+            if (key !== "chest" && key !== "hips") {
+              issues.push(`tap.region_emotions.${key}는 허용되지 않는 키`);
+              continue;
+            }
+            const emotion = regionEmotions[key];
+            if (typeof emotion !== "string" || emotion.length === 0) {
+              issues.push(
+                `tap.region_emotions.${key}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(emotion)})`,
+              );
+            } else {
+              out[key] = emotion;
+            }
+          }
+          tap.region_emotions = out;
+        }
+      }
+
+      const regionCues = rawTap.region_cues;
+      if (regionCues !== undefined) {
+        if (!isObject(regionCues)) {
+          issues.push(`tap.region_cues은 객체여야 함 (받음: ${JSON.stringify(regionCues)})`);
+        } else {
+          const out: NonNullable<TapConfig["region_cues"]> = {};
+          for (const key of Object.keys(regionCues)) {
+            if (key !== "chest" && key !== "hips") {
+              issues.push(`tap.region_cues.${key}는 허용되지 않는 키`);
+              continue;
+            }
+            const cue = regionCues[key];
+            if (!isObject(cue)) {
+              issues.push(`tap.region_cues.${key}는 객체여야 함 (받음: ${JSON.stringify(cue)})`);
+              continue;
+            }
+            const { label, context } = cue;
+            if (
+              typeof label !== "string" ||
+              label.length === 0 ||
+              typeof context !== "string" ||
+              context.length === 0
+            ) {
+              issues.push(
+                `tap.region_cues.${key}의 label/context는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(cue)})`,
+              );
+            } else {
+              out[key] = { label, context };
+            }
+          }
+          tap.region_cues = out;
+        }
+      }
+
+      const touchCueCooldownMs = rawTap.touch_cue_cooldown_ms;
+      if (touchCueCooldownMs !== undefined) {
+        if (
+          typeof touchCueCooldownMs !== "number" ||
+          !Number.isInteger(touchCueCooldownMs) ||
+          touchCueCooldownMs < 0
+        ) {
+          issues.push(
+            `tap.touch_cue_cooldown_ms는 0 이상 정수여야 함 (받음: ${JSON.stringify(touchCueCooldownMs)})`,
+          );
+        } else {
+          tap.touch_cue_cooldown_ms = touchCueCooldownMs;
+        }
+      }
+
+      const touchEmotionHoldMs = rawTap.touch_emotion_hold_ms;
+      if (touchEmotionHoldMs !== undefined) {
+        if (
+          typeof touchEmotionHoldMs !== "number" ||
+          !Number.isInteger(touchEmotionHoldMs) ||
+          touchEmotionHoldMs < 1
+        ) {
+          issues.push(
+            `tap.touch_emotion_hold_ms는 1 이상 정수여야 함 (받음: ${JSON.stringify(touchEmotionHoldMs)})`,
+          );
+        } else {
+          tap.touch_emotion_hold_ms = touchEmotionHoldMs;
         }
       }
     }

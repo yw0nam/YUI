@@ -40,6 +40,8 @@ describe("validateAvatar — happy path", () => {
           context:
             "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
         },
+        touch_cue_cooldown_ms: 60_000,
+        touch_emotion_hold_ms: 4000,
       },
     });
   });
@@ -239,6 +241,8 @@ describe("validateAvatar — tap", () => {
         context:
           "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
       },
+      touch_cue_cooldown_ms: 60_000,
+      touch_emotion_hold_ms: 4000,
     });
   });
 
@@ -314,6 +318,95 @@ describe("validateAvatar — tap", () => {
       { vrm_url: "/v.vrm", tap: { bored_cue: { [field]: value } } },
       `tap.bored_cue.${field}는 비어 있지 않은 문자열`,
     );
+  });
+});
+
+describe("validateAvatar — tap touch reactions", () => {
+  it("applies touch defaults and leaves cues/emotions undefined when absent", () => {
+    const out = validateAvatar(FILE, { vrm_url: "/v.vrm", tap: { spam_count: 3 } });
+    expect(out.tap.touch_cue_cooldown_ms).toBe(60_000);
+    expect(out.tap.touch_emotion_hold_ms).toBe(4_000);
+    expect(out.tap.region_emotions).toBeUndefined();
+    expect(out.tap.region_cues).toBeUndefined();
+  });
+
+  it("keeps configured region_emotions, region_cues, and touch timing knobs", () => {
+    const out = validateAvatar(FILE, {
+      vrm_url: "/v.vrm",
+      tap: {
+        region_emotions: { chest: "embarrassed" },
+        region_cues: { hips: { label: "butt poked", context: "React in character." } },
+        touch_cue_cooldown_ms: 1_000,
+        touch_emotion_hold_ms: 250,
+      },
+    });
+    expect(out.tap.region_emotions).toEqual({ chest: "embarrassed" });
+    expect(out.tap.region_cues).toEqual({
+      hips: { label: "butt poked", context: "React in character." },
+    });
+    expect(out.tap.touch_cue_cooldown_ms).toBe(1_000);
+    expect(out.tap.touch_emotion_hold_ms).toBe(250);
+  });
+
+  it("rejects invalid or unknown region emotion entries", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_emotions: [] } },
+      "tap.region_emotions은 객체여야 함",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_emotions: { head: "happy" } } },
+      "tap.region_emotions.head는 허용되지 않는 키",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_emotions: { chest: "" } } },
+      "tap.region_emotions.chest는 비어 있지 않은 문자열",
+    );
+  });
+
+  it("rejects malformed region_cues", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_cues: "nope" } },
+      "tap.region_cues은 객체여야 함",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_cues: { head: { label: "a", context: "b" } } } },
+      "tap.region_cues.head는 허용되지 않는 키",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_cues: { chest: "nope" } } },
+      "tap.region_cues.chest는 객체여야 함",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_cues: { chest: { label: "", context: "b" } } } },
+      "tap.region_cues.chest",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { region_cues: { chest: { label: "a" } } } },
+      "tap.region_cues.chest",
+    );
+  });
+
+  it.each([-1, 1.5, "0"])("rejects invalid touch_cue_cooldown_ms: %s", (touch_cue_cooldown_ms) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { touch_cue_cooldown_ms } },
+      "tap.touch_cue_cooldown_ms는 0 이상 정수",
+    );
+  });
+
+  it.each([
+    0,
+    1.5,
+    "4000",
+  ])("rejects invalid touch_emotion_hold_ms: %s", (touch_emotion_hold_ms) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", tap: { touch_emotion_hold_ms } },
+      "tap.touch_emotion_hold_ms는 1 이상 정수",
+    );
+  });
+
+  it("accepts a zero cooldown", () => {
+    const out = validateAvatar(FILE, { vrm_url: "/v.vrm", tap: { touch_cue_cooldown_ms: 0 } });
+    expect(out.tap.touch_cue_cooldown_ms).toBe(0);
   });
 });
 

@@ -23,6 +23,8 @@ export {
   plainSecretProvider,
   type SecretProvider,
   STT_API_KEY_SECRET,
+  TAP_DEFAULTS,
+  type TapConfig,
   TTS_API_KEY_SECRET,
 } from "./load";
 
