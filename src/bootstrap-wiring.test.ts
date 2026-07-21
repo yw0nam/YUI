@@ -67,6 +67,7 @@ import {
   wireDispatcherSources,
   wirePeekExitTriggers,
   wireSettingsReload,
+  wireStopControl,
   wireVoiceInput,
 } from "./bootstrap-wiring";
 import { reloadFromStorage as reloadLocaleFromStorage } from "./ui/i18n";
@@ -461,5 +462,25 @@ describe("wireVoiceInput", () => {
     voiceInputStatus.set("listening");
     await flush();
     expect(sttVad.start).not.toHaveBeenCalled();
+  });
+});
+
+describe("wireStopControl", () => {
+  it("stop click cancels the in-flight turn and aborts speech playback", () => {
+    let stopCb: (() => void) | null = null;
+    const cancel = vi.fn();
+    const abortSpeech = vi.fn();
+    wireStopControl({
+      onStop: (cb) => {
+        stopCb = cb;
+      },
+      cancel,
+      abortSpeech,
+    });
+
+    expect(cancel).not.toHaveBeenCalled();
+    stopCb!();
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(abortSpeech).toHaveBeenCalledTimes(1);
   });
 });

@@ -22,6 +22,7 @@ import {
   wirePeekExitTriggers,
   wireSettingsReload,
   wireSpeakerSelection,
+  wireStopControl,
   wireSummonHotkey,
   wireVoiceInput,
   wireVrmSelection,
@@ -802,9 +803,13 @@ async function bootstrap(): Promise<void> {
       },
     });
     dispatcherRef = dispatcher;
-    // In-flight backend turn ↔ input send/stop toggle. Stop click → explicit cancel (client-side abort).
+    // In-flight backend turn ↔ input send/stop toggle. Stop click → explicit cancel + speech abort.
     dispatcher.subscribeBusy((busy) => surfaces.setBusy(busy));
-    surfaces.onStop(() => dispatcher.cancel());
+    wireStopControl({
+      onStop: (cb) => surfaces.onStop(cb),
+      cancel: () => dispatcher.cancel(),
+      abortSpeech: () => voice.speechPlayback.abort(),
+    });
     // HMR module re-run leaves stale dispatcher setInterval/in-flight → stop in dispose.
     if (import.meta.env.DEV) {
       import.meta.hot?.dispose(() => {
