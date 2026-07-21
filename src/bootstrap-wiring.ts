@@ -247,6 +247,22 @@ export function createSettingsBroadcast(deps: {
 }
 
 /**
+ * Stop click → client-side cancel of the in-flight turn AND immediate speech abort.
+ * cancel() alone leaves already-queued TTS segments playing: backend-caller's superseded
+ * path defers speech cleanup to the next turn, which never comes on an explicit stop.
+ */
+export function wireStopControl(deps: {
+  onStop: (cb: () => void) => void;
+  cancel: () => void;
+  abortSpeech: () => void;
+}): void {
+  deps.onStop(() => {
+    deps.cancel();
+    deps.abortSpeech();
+  });
+}
+
+/**
  * Cross-window settings reload half. On a remote settings-changed event, reload every synced store
  * (plus camera zoom, display language, VRM/speaker selection) under the broadcast loop guard. Must be
  * wired AFTER the VRM/speaker selections exist. Only OTHER-window changes reach here, so the VRM is
