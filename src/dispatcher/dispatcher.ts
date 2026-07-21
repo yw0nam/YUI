@@ -437,9 +437,10 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
    */
   function scheduleTapEmotionRevert(): void {
     if (emotionRevertTimer !== null) clearTimeout(emotionRevertTimer);
-    // ponytail: pending revert may fade a concurrent backend expression early — cancel-on-backend-emotion if it bites.
+    // While speech is playing, the TTS cue path owns the expression and its playback-end revert applies.
     emotionRevertTimer = setTimeout(() => {
       emotionRevertTimer = null;
+      if (deps.isSpeaking?.() === true) return;
       renderer.easeEmotionToNeutral();
     }, deps.tapConfig().touch_emotion_hold_ms);
   }
