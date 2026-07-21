@@ -117,6 +117,11 @@ export function createSttVad(options: SttVadOptions): SttVad {
 
   let vad: Awaited<ReturnType<typeof MicVAD.new>> | null = null;
   let loading = false;
+  let startPromise: Promise<void> | null = null;
+  // Set by stop()/dispose() when they land during an in-flight load, so the load
+  // can apply the requested outcome once MicVAD.new settles instead of racing it.
+  let stopRequested = false;
+  let disposeRequested = false;
 
   async function onSpeechEnd(audio: Float32Array): Promise<void> {
     onState?.("asr");
@@ -151,14 +156,13 @@ export function createSttVad(options: SttVadOptions): SttVad {
     }
   }
 
-  return {
-    async start() {
-      // Without stt_base_url, STT is unavailable — silently no-op.
-      if (!config.stt_base_url) return;
-      if (vad !== null || loading) return;
-      loading = true;
+  function load(): Promise<void> {
+    loading = true;
+    stopRequested = false;
+    disposeRequested = false;
+    return (async () => {
       try {
-        vad = await MicVAD.new({
+        const instance = await MicVAD.new({
           redemptionMs: resolveSilenceMs(),
           baseAssetPath: VAD_ASSET_PATH,
           onnxWASMBasePath: VAD_ASSET_PATH,
@@ -166,6 +170,12 @@ export function createSttVad(options: SttVadOptions): SttVad {
           onSpeechRealStart: () => onSpeechActive?.(),
           onSpeechEnd,
         });
+        if (disposeRequested) {
+          await instance.destroy();
+          return;
+        }
+        vad = instance;
+        if (stopRequested) return; // stop() landed mid-load — leave it paused, don't start
         await vad.start();
       } catch (err) {
         // getUserMedia / VAD asset load can fail (e.g. denied mic permission); surface it instead of throwing.
@@ -174,14 +184,34 @@ export function createSttVad(options: SttVadOptions): SttVad {
         onState?.("error", describeStartError(err));
       } finally {
         loading = false;
+        startPromise = null;
       }
+    })();
+  }
+
+  return {
+    start(): Promise<void> {
+      // Without stt_base_url, STT is unavailable — silently no-op.
+      if (!config.stt_base_url) return Promise.resolve();
+      if (vad !== null || loading) return startPromise ?? Promise.resolve();
+      startPromise = load();
+      return startPromise;
     },
 
     stop() {
+      if (loading) {
+        stopRequested = true;
+        return;
+      }
       vad?.pause();
     },
 
     async dispose() {
+      if (loading) {
+        disposeRequested = true;
+        await startPromise;
+        return;
+      }
       if (vad) {
         await vad.destroy();
         vad = null;
