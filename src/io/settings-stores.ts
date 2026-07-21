@@ -14,7 +14,11 @@ import {
 } from "./idle-throttle-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./lipsync-settings";
 import { createPresenceSettings, localStoragePresenceStorage } from "./presence-settings";
-import { createProactiveSettings, localStorageProactiveStorage } from "./proactive-settings";
+import {
+  type CueLocale,
+  createProactiveSettings,
+  localStorageProactiveStorage,
+} from "./proactive-settings";
 import {
   createRailCollapsedSettings,
   localStorageRailCollapsedStorage,
@@ -34,7 +38,7 @@ import { createWorkflowSettings, localStorageWorkflowStorage } from "./workflow-
 
 // localStorage-backed settings/state stores. Pure instantiation — no wiring, no renderer,
 // no dispatcher. bootstrap() destructures the bag and owns the wiring (renderer, storage-sync).
-export function createSettingsStores() {
+export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const screenshotSettings = createScreenshotSettings({
     storage: localStorageScreenshotStorage(),
   });
@@ -53,10 +57,12 @@ export function createSettingsStores() {
   // Proactive-reaction (no interaction for N min → proactive.<id>) settings. Gates only source firing — subscriptions aren't stopped.
   const proactiveSettings = createProactiveSettings({
     storage: localStorageProactiveStorage(),
+    locale: opts?.locale,
   });
   // Time-of-day greeting (HH:MM → schedule.<id>) settings.
   const scheduleSettings = createScheduleSettings({
     storage: localStorageScheduleStorage(),
+    locale: opts?.locale,
   });
   const workflowSettings = createWorkflowSettings({
     storage: localStorageWorkflowStorage(),

@@ -79,7 +79,7 @@ import { showBootError } from "./ui/boot-error";
 import { createCaptureIndicator } from "./ui/capture-indicator";
 import { showChainResetNotice } from "./ui/chain-reset-notice";
 import { maybeShowFirstRunHint } from "./ui/first-run-hint";
-import { subscribe as subscribeLocale, t } from "./ui/i18n";
+import { getLocale, subscribe as subscribeLocale, t } from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls";
 import { createSurfaces } from "./ui/surfaces";
 import { routeTurnFailure, turnErrorMessage } from "./ui/turn-error";
@@ -222,7 +222,7 @@ async function bootstrap(): Promise<void> {
     gazeSettings,
     hintSettings,
     railCollapsedSettings,
-  } = createSettingsStores();
+  } = createSettingsStores({ locale: getLocale() });
   // Effective endpoints with overrides layered on config.endpoints. Evaluated at call time (hot-reload friendly).
   function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
     return mergeEndpoints(config.get().endpoints, endpointsSettings.get());

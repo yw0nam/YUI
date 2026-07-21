@@ -21,9 +21,11 @@ export interface ProactiveSettings {
 
 export type ProactiveStorage = PersistedStorage<ProactiveSettings>;
 
-const DEFAULT_SETTINGS: ProactiveSettings = {
-  enabled: true,
-  entries: [
+/** Locale for seeding default cue text. Structurally compatible with ui's Locale — not imported to keep io free of ui. */
+export type CueLocale = "en" | "ja" | "ko";
+
+const SEED_ENTRIES: Record<CueLocale, ProactiveCue[]> = {
+  ko: [
     {
       id: "short_break",
       label: "잠깐 환기",
@@ -46,7 +48,60 @@ const DEFAULT_SETTINGS: ProactiveSettings = {
       enabled: true,
     },
   ],
+  en: [
+    {
+      id: "short_break",
+      label: "Quick break",
+      context:
+        "It's been quiet for over 5 minutes. Gently suggest looking up and getting a bit of fresh air.",
+      idle_min: 5,
+      enabled: true,
+    },
+    {
+      id: "mid_check",
+      label: "Check-in",
+      context:
+        "No word for over 10 minutes. Casually ask how the work is going. Keep it light, not pushy.",
+      idle_min: 10,
+      enabled: true,
+    },
+    {
+      id: "long_focus",
+      label: "Long focus",
+      context:
+        "It's been a whole 30 minutes. Suggest a short break — sitting that long is rough on the body.",
+      idle_min: 30,
+      enabled: true,
+    },
+  ],
+  ja: [
+    {
+      id: "short_break",
+      label: "ひと息",
+      context: "5分以上静かだね。ちょっと顔を上げて息抜きするように、軽く声をかけてあげて。",
+      idle_min: 5,
+      enabled: true,
+    },
+    {
+      id: "mid_check",
+      label: "そろそろチェック",
+      context: "10分以上話してないね。作業が順調か気軽に聞いてみて。重くならないように。",
+      idle_min: 10,
+      enabled: true,
+    },
+    {
+      id: "long_focus",
+      label: "長時間集中",
+      context: "もう30分だよ。少し休憩したら？座りっぱなしは体がつらいでしょ。",
+      idle_min: 30,
+      enabled: true,
+    },
+  ],
 };
+
+export function defaultSettings(locale: CueLocale): ProactiveSettings {
+  return { enabled: true, entries: structuredClone(SEED_ENTRIES[locale]) };
+}
 
 function isValidIdleMin(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v) && v > 0;
@@ -72,24 +127,27 @@ function isValidSettings(v: unknown): v is ProactiveSettings {
   return s.entries.every(isValidCue);
 }
 
-/** Legacy { enabled } (no entries) → keep enabled + fill in seed entries. */
-function migrate(v: unknown): ProactiveSettings | null {
-  if (v === null || typeof v !== "object") return null;
-  const s = v as Record<string, unknown>;
-  if (typeof s.enabled === "boolean" && !Array.isArray(s.entries)) {
-    return { enabled: s.enabled, entries: structuredClone(DEFAULT_SETTINGS.entries) };
-  }
-  return null;
-}
-
 export function createProactiveSettings(opts?: {
   storage?: ProactiveStorage;
   initial?: ProactiveSettings;
+  locale?: CueLocale;
 }) {
+  const defaults = defaultSettings(opts?.locale ?? "ko");
+
+  // Legacy { enabled } (no entries) → keep enabled + fill in seed entries.
+  function migrate(v: unknown): ProactiveSettings | null {
+    if (v === null || typeof v !== "object") return null;
+    const s = v as Record<string, unknown>;
+    if (typeof s.enabled === "boolean" && !Array.isArray(s.entries)) {
+      return { enabled: s.enabled, entries: structuredClone(defaults.entries) };
+    }
+    return null;
+  }
+
   const core = createPersistedStore<ProactiveSettings>({
     storage: opts?.storage,
     initial: opts?.initial,
-    defaults: DEFAULT_SETTINGS,
+    defaults,
     parse: (v) => (isValidSettings(v) ? v : null),
     migrate,
     clone: structuredClone,
