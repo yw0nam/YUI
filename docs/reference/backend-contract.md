@@ -57,7 +57,7 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
 |---|---|---|---|
 | `user` | User spoke or typed | The user's message text | No |
 | `schedule` | A user-configured time-of-day cue fired | Proactive marker string | Yes |
-| `proactive` | A configured engagement cue or tap-bored cue fired | Proactive marker string | Yes |
+| `proactive` | A configured engagement cue, tap-bored cue, or region-touch cue fired | Proactive marker string | Yes |
 | `agent` | An external coding-agent finish-hook posted a completion signal | Proactive marker string | No (carries `agent` or `agent_catchup` instead) |
 | `signals` | The remote n8n workflow POSTed a burst to the `/signals` ingress | Proactive marker string | No (carries `signals` instead) |
 
@@ -113,6 +113,21 @@ For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utter
       "idle_min": 30
     },
     "idle_elapsed_min": 37
+  }
+}
+```
+
+**`proactive.touch_*` turn** — the user tapped a configured body region (`touch_chest` or `touch_hips`). The turn carries that region's configured cue; a shared client-side cooldown limits how often touch turns fire:
+
+```json
+{
+  "env": { "timestamp": "2026-06-15T15:10:00+09:00", "timezone": "Asia/Seoul" },
+  "trigger": {
+    "kind": "proactive",
+    "cue": {
+      "label": "chest poked",
+      "context": "The user just poked my chest. React in character — flustered, a little embarrassed. Keep it short."
+    }
   }
 }
 ```
