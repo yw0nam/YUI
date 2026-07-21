@@ -193,7 +193,10 @@ export function createSttVad(options: SttVadOptions): SttVad {
     start(): Promise<void> {
       // Without stt_base_url, STT is unavailable — silently no-op.
       if (!config.stt_base_url) return Promise.resolve();
-      if (vad !== null || loading) return startPromise ?? Promise.resolve();
+      if (loading) return startPromise ?? Promise.resolve();
+      // MicVAD.start() is itself idempotent (no-ops if already listening) and resumes
+      // cleanly from a paused state, so reuse the loaded instance instead of reloading.
+      if (vad !== null) return vad.start();
       startPromise = load();
       return startPromise;
     },
