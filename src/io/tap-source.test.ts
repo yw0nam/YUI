@@ -11,6 +11,8 @@ const config: TapConfig = {
     label: "wants attention",
     context: "The user is poking repeatedly.",
   },
+  touch_cue_cooldown_ms: 60_000,
+  touch_emotion_hold_ms: 4_000,
 };
 
 function harness(
@@ -20,6 +22,7 @@ function harness(
     | { id: string; vrma_path: string }
     | null
     | (() => { id: string; vrma_path: string } | null) = null,
+  configOverride: TapConfig = config,
 ) {
   const pushed: BusEnvelope[] = [];
   const bus = {
@@ -36,8 +39,29 @@ function harness(
     ),
   };
   let time = 1_000;
-  const source = createTapSource({ bus, ambient, renderer, config, now: () => time, drainSignals });
+  const source = createTapSource({
+    bus,
+    ambient,
+    renderer,
+    config: configOverride,
+    now: () => time,
+    drainSignals,
+  });
   return { source, pushed, ambient, renderer, setTime: (next: number) => (time = next) };
+}
+
+function bothRegionsPoints(): TapPoints {
+  return { chest: { x: 50, y: 60 }, hips: { x: 50, y: 120 }, charHpx: 200 };
+}
+
+function touchConfig(): TapConfig {
+  return {
+    ...config,
+    region_cues: {
+      chest: { label: "chest poked", context: "The user just poked my chest." },
+      hips: { label: "butt poked", context: "The user just poked my butt." },
+    },
+  };
 }
 
 describe("createTapSource", () => {
@@ -235,6 +259,96 @@ describe("createTapSource", () => {
 
     expect(drainSignals).toHaveBeenCalledOnce();
     expect(pushed.at(-1)?.payload).not.toHaveProperty("signals");
+  });
+
+  it("fires one tier2 touch candidate alongside the tier1 region push", () => {
+    const { source, pushed } = harness(bothRegionsPoints(), undefined, null, touchConfig());
+    source.handleClick({ x: 50, y: 60 });
+
+    expect(pushed).toEqual([
+      {
+        source: "os_event_watcher",
+        event_name: "proactive.touch_chest",
+        ts: 1_000,
+        hint_tier: 2,
+        payload: {
+          cue_id: "touch_chest",
+          label: "chest poked",
+          context: "The user just poked my chest.",
+        },
+      },
+      {
+        source: "os_event_watcher",
+        event_name: "user.tap_region",
+        ts: 1_000,
+        hint_tier: 1,
+        dnd_override: true,
+        payload: { motion_id: "shy" },
+      },
+    ]);
+    expect(pushed[0]).not.toHaveProperty("dnd_override");
+  });
+
+  it("suppresses the touch candidate within the cooldown and fires again after it elapses", () => {
+    const { source, pushed, setTime } = harness(bothRegionsPoints(), undefined, null, touchConfig());
+    const touches = () => pushed.filter((env) => env.event_name === "proactive.touch_chest");
+
+    source.handleClick({ x: 50, y: 60 });
+    setTime(2_000);
+    source.handleClick({ x: 50, y: 60 });
+
+    expect(touches()).toHaveLength(1);
+    expect(pushed.filter((env) => env.event_name === "user.tap_region")).toHaveLength(2);
+
+    setTime(61_000);
+    source.handleClick({ x: 50, y: 60 });
+    expect(touches()).toHaveLength(2);
+    expect(touches().at(-1)?.ts).toBe(61_000);
+  });
+
+  it("shares one cooldown across regions", () => {
+    const { source, pushed, setTime } = harness(bothRegionsPoints(), undefined, null, touchConfig());
+
+    source.handleClick({ x: 50, y: 60 });
+    setTime(2_000);
+    source.handleClick({ x: 50, y: 120 });
+
+    expect(pushed.filter((env) => env.event_name.startsWith("proactive.touch_"))).toEqual([
+      expect.objectContaining({ event_name: "proactive.touch_chest" }),
+    ]);
+    expect(pushed.at(-1)?.payload).toEqual({ motion_id: "flustered" });
+  });
+
+  it("pushes no touch candidate when region_cues is absent", () => {
+    const { source, pushed } = harness(bothRegionsPoints());
+    source.handleClick({ x: 50, y: 60 });
+
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0]?.event_name).toBe("user.tap_region");
+  });
+
+  it("still fires the touch candidate when the mapped motion is already playing", () => {
+    const { source, pushed } = harness(
+      bothRegionsPoints(),
+      undefined,
+      { id: "shy", vrma_path: "/motions/shy.vrma" },
+      touchConfig(),
+    );
+    source.handleClick({ x: 50, y: 60 });
+
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0]?.event_name).toBe("proactive.touch_chest");
+  });
+
+  it("adds emotion_id to the tier1 payload when region_emotions is configured", () => {
+    const { source, pushed } = harness(bothRegionsPoints(), undefined, null, {
+      ...config,
+      region_emotions: { chest: "embarrassed" },
+    });
+    source.handleClick({ x: 50, y: 60 });
+
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0]?.payload).toEqual({ motion_id: "shy", emotion_id: "embarrassed" });
   });
 
   it("degrades malformed renderer results to a plain tap without throwing", () => {

@@ -11,7 +11,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PeekConfig } from "../config/load";
+import type { PeekConfig, TapConfig } from "../config/load";
 import type { Logger } from "../logger";
 import type { BackendCaller, BackendCallResult } from "./backend-caller";
 import { createDispatcher, type Dispatcher, DROP_SEVERITY } from "./dispatcher";
@@ -82,11 +82,13 @@ let applyDirective: ReturnType<typeof vi.fn>;
 let setPerchTarget: ReturnType<typeof vi.fn>;
 let setPeekTarget: ReturnType<typeof vi.fn>;
 let setMotionMirror: ReturnType<typeof vi.fn>;
+let easeEmotionToNeutral: ReturnType<typeof vi.fn>;
 let renderer: {
   applyDirective: typeof applyDirective;
   setPerchTarget: typeof setPerchTarget;
   setPeekTarget: typeof setPeekTarget;
   setMotionMirror: typeof setMotionMirror;
+  easeEmotionToNeutral: typeof easeEmotionToNeutral;
 };
 let peekEnter: ReturnType<typeof vi.fn<() => Promise<void>>>;
 let peekExit: ReturnType<typeof vi.fn<() => Promise<void>>>;
@@ -102,6 +104,16 @@ const PEEK_CONFIG: PeekConfig = {
   side_in_frac: 0.23,
   inset_frac: 0.12,
   mirror_side: "right",
+};
+
+const TAP_CONFIG: TapConfig = {
+  spam_count: 4,
+  spam_window_ms: 3_000,
+  region_radius_frac: 0.18,
+  region_motions: { chest: "embarrassed", hips: "embarrassed" },
+  bored_cue: { label: "bored poking", context: "The user is poking repeatedly." },
+  touch_cue_cooldown_ms: 60_000,
+  touch_emotion_hold_ms: 4_000,
 };
 
 function makeBackendCaller(): BackendCaller {
@@ -122,9 +134,16 @@ beforeEach(() => {
   setPerchTarget = vi.fn();
   setPeekTarget = vi.fn();
   setMotionMirror = vi.fn();
+  easeEmotionToNeutral = vi.fn();
   peekEnter = vi.fn().mockResolvedValue(undefined);
   peekExit = vi.fn().mockResolvedValue(undefined);
-  renderer = { applyDirective, setPerchTarget, setPeekTarget, setMotionMirror };
+  renderer = {
+    applyDirective,
+    setPerchTarget,
+    setPeekTarget,
+    setMotionMirror,
+    easeEmotionToNeutral,
+  };
   callDeferred = [];
   backendCaller = makeBackendCaller();
   guardrails = createGuardrails(permissiveGuardrailsConfig(), { now: () => Date.now() });
@@ -139,6 +158,7 @@ beforeEach(() => {
     peek: { enter: peekEnter, exit: peekExit },
     logger,
     peekConfig: () => PEEK_CONFIG,
+    tapConfig: () => TAP_CONFIG,
   };
   dispatcher = createDispatcher(deps);
 });
@@ -255,6 +275,45 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(logger.warn).toHaveBeenCalled();
   });
 
+  it("routes user.tap_region with emotion_id to the payload motion + emotion", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.tap_region",
+        hint_tier: 1,
+        payload: { motion_id: "embarrassed", emotion_id: "embarrassed" },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(applyDirective).toHaveBeenCalledWith({
+      speech_text: "",
+      motion: { id: "embarrassed" },
+      emotion: { id: "embarrassed" },
+    });
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it.each(["", 7])(
+    "degrades malformed tap emotion_id %j to a motion-only directive",
+    async (emotionId) => {
+      dispatcher.start();
+      bus.push(
+        env({
+          source: "os_event_watcher",
+          event_name: "user.tap_region",
+          hint_tier: 1,
+          payload: { motion_id: "embarrassed", emotion_id: emotionId },
+        }),
+      );
+      await vi.advanceTimersByTimeAsync(20);
+      expect(applyDirective).toHaveBeenCalledWith({
+        speech_text: "",
+        motion: { id: "embarrassed" },
+      });
+    },
+  );
+
   it("routes proactive.tap_bored (tier2) to the backend caller", async () => {
     dispatcher.start();
     bus.push(
@@ -349,6 +408,7 @@ describe("dispatcher — routing (§5.1)", () => {
       guardrails,
       logger,
       peekConfig: () => livePeekConfig,
+      tapConfig: () => TAP_CONFIG,
     });
     dispatcher.start();
     livePeekConfig = { ...PEEK_CONFIG, mirror_side: "left" };
@@ -440,6 +500,7 @@ describe("dispatcher — routing (§5.1)", () => {
       bus,
       renderer: renderer as never,
       peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails,
       logger,
@@ -615,6 +676,65 @@ describe("dispatcher — routing (§5.1)", () => {
     const arg = applyDirective.mock.calls[0][0];
     expect(arg.motion?.id).toBe("window_sit");
     expect(setPerchTarget).not.toHaveBeenCalled();
+  });
+});
+
+describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
+  function pushEmotionTap(ts = NOW): void {
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.tap_region",
+        hint_tier: 1,
+        ts,
+        payload: { motion_id: "embarrassed", emotion_id: "embarrassed" },
+      }),
+    );
+  }
+
+  it("eases the tap emotion back to neutral after touch_emotion_hold_ms", async () => {
+    dispatcher.start();
+    pushEmotionTap();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(applyDirective).toHaveBeenCalledTimes(1);
+    expect(easeEmotionToNeutral).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms);
+    expect(easeEmotionToNeutral).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces the pending revert on a second emotion tap instead of stacking", async () => {
+    dispatcher.start();
+    pushEmotionTap();
+    await vi.advanceTimersByTimeAsync(20);
+    pushEmotionTap(NOW + 20);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(easeEmotionToNeutral).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms);
+    expect(easeEmotionToNeutral).toHaveBeenCalledTimes(1);
+  });
+
+  it("schedules no revert for a motion-only tap_region", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.tap_region",
+        hint_tier: 1,
+        payload: { motion_id: "embarrassed" },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20 + TAP_CONFIG.touch_emotion_hold_ms * 2);
+    expect(applyDirective).toHaveBeenCalledTimes(1);
+    expect(easeEmotionToNeutral).not.toHaveBeenCalled();
+  });
+
+  it("stop() clears a pending revert", async () => {
+    dispatcher.start();
+    pushEmotionTap();
+    await vi.advanceTimersByTimeAsync(20);
+    dispatcher.stop();
+    await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms * 2);
+    expect(easeEmotionToNeutral).not.toHaveBeenCalled();
   });
 });
 
@@ -895,6 +1015,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
       bus,
       renderer: renderer as never,
       peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails,
       logger,
@@ -1072,6 +1193,7 @@ describe("dispatcher — guardrail gating (§6)", () => {
       bus,
       renderer: renderer as never,
       peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails: g,
       logger,
@@ -1156,6 +1278,7 @@ describe("dispatcher — guardrail gating (§6)", () => {
       bus,
       renderer: renderer as never,
       peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails: g,
       logger,
@@ -1348,6 +1471,7 @@ describe("dispatcher — cooldown state mirror (§6.3/§9)", () => {
       bus,
       renderer: renderer as never,
       peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails: g,
       logger,
