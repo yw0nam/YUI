@@ -34,6 +34,39 @@ export function touchEnv(region: "chest" | "hips" = "chest"): BusEnvelope {
   };
 }
 
+export function dragHeldEnv(): BusEnvelope {
+  return {
+    seq_id: 3,
+    source: "os_event_watcher",
+    event_name: "proactive.drag_held",
+    ts: 1_717_000_000_000,
+    payload: { cue_id: "drag_held", label: "dragged around", context: "put me down" },
+    hint_tier: 2,
+  };
+}
+
+export function windowSitEnv(): BusEnvelope {
+  return {
+    seq_id: 4,
+    source: "os_event_watcher",
+    event_name: "proactive.window_sit",
+    ts: 1_717_000_000_000,
+    payload: { cue_id: "window_sit", label: "sat on window", context: "sat down" },
+    hint_tier: 2,
+  };
+}
+
+export function peekEnv(): BusEnvelope {
+  return {
+    seq_id: 5,
+    source: "os_event_watcher",
+    event_name: "proactive.peek",
+    ts: 1_717_000_000_000,
+    payload: { cue_id: "peek", label: "peeking", context: "peeking out" },
+    hint_tier: 2,
+  };
+}
+
 export function completedEvent(env: ControlEnvelope, responseId = "resp_new"): ChatStreamEvent {
   return { type: "completed", envelope: env, responseId };
 }

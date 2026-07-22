@@ -43,6 +43,24 @@ describe("validateAvatar — happy path", () => {
         touch_cue_cooldown_ms: 60_000,
         touch_emotion_hold_ms: 4000,
       },
+      drag_hold_ms: 5000,
+      gesture_cues: {
+        drag_held: {
+          label: "dragged around",
+          context:
+            "The user has been dragging me around for a while — ask them to put me down. Keep it short.",
+        },
+        window_sit: {
+          label: "sat on window",
+          context:
+            "I just sat down on the edge of a window — say something fitting. Keep it short.",
+        },
+        peek: {
+          label: "peeking",
+          context:
+            "I'm peeking out from the edge of the screen — say something playful. Keep it short.",
+        },
+      },
     });
   });
 
@@ -449,6 +467,97 @@ describe("validateAvatar — peek", () => {
 
   it.each(["up", true, 1])("rejects invalid mirror_side: %s", (mirror_side) => {
     expectIssue({ vrm_url: "/v.vrm", peek: { mirror_side } }, "peek.mirror_side는 left|right|none");
+  });
+});
+
+describe("validateAvatar — drag_hold_ms", () => {
+  it("defaults to 5000 when absent", () => {
+    const out = validateAvatar(FILE, { vrm_url: "/v.vrm" });
+    expect(out.drag_hold_ms).toBe(5000);
+  });
+
+  it("accepts a configured value", () => {
+    const out = validateAvatar(FILE, { vrm_url: "/v.vrm", drag_hold_ms: 3000 });
+    expect(out.drag_hold_ms).toBe(3000);
+  });
+
+  it.each([0, -1, 1.5, "5000", Number.NaN])("rejects invalid drag_hold_ms: %s", (drag_hold_ms) => {
+    expectIssue({ vrm_url: "/v.vrm", drag_hold_ms }, "drag_hold_ms는 1 이상 정수");
+  });
+});
+
+describe("validateAvatar — gesture_cues", () => {
+  const FULL = {
+    drag_held: { label: "dragged around", context: "put me down" },
+    window_sit: { label: "sat on window", context: "say something" },
+    peek: { label: "peeking", context: "say something playful" },
+  };
+
+  it("defaults to the authored cues when absent", () => {
+    const out = validateAvatar(FILE, { vrm_url: "/v.vrm" });
+    expect(out.gesture_cues).toEqual({
+      drag_held: {
+        label: "dragged around",
+        context:
+          "The user has been dragging me around for a while — ask them to put me down. Keep it short.",
+      },
+      window_sit: {
+        label: "sat on window",
+        context: "I just sat down on the edge of a window — say something fitting. Keep it short.",
+      },
+      peek: {
+        label: "peeking",
+        context:
+          "I'm peeking out from the edge of the screen — say something playful. Keep it short.",
+      },
+    });
+  });
+
+  it("merges a partial gesture_cues block over defaults", () => {
+    const out = validateAvatar(FILE, {
+      vrm_url: "/v.vrm",
+      gesture_cues: { drag_held: { label: "held too long", context: "put me down now" } },
+    });
+    expect(out.gesture_cues.drag_held).toEqual({
+      label: "held too long",
+      context: "put me down now",
+    });
+    expect(out.gesture_cues.window_sit.label).toBe("sat on window");
+  });
+
+  it("accepts a full gesture_cues block", () => {
+    const out = validateAvatar(FILE, { vrm_url: "/v.vrm", gesture_cues: FULL });
+    expect(out.gesture_cues).toEqual(FULL);
+  });
+
+  it("rejects a non-object gesture_cues block", () => {
+    expectIssue({ vrm_url: "/v.vrm", gesture_cues: "nope" }, "gesture_cues은 객체여야 함");
+  });
+
+  it("rejects an unknown gesture_cues key", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", gesture_cues: { tap_bored: { label: "a", context: "b" } } },
+      "gesture_cues.tap_bored는 허용되지 않는 키",
+    );
+  });
+
+  it("rejects a non-object cue entry", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", gesture_cues: { drag_held: "nope" } },
+      "gesture_cues.drag_held는 객체여야 함",
+    );
+  });
+
+  it.each([
+    ["label", ""],
+    ["label", 1],
+    ["context", ""],
+    ["context", 1],
+  ] as const)("rejects an empty or non-string gesture_cues.drag_held.%s", (field, value) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", gesture_cues: { drag_held: { [field]: value } } },
+      `gesture_cues.drag_held.${field}는 비어 있지 않은 문자열`,
+    );
   });
 });
 
