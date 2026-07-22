@@ -168,6 +168,15 @@ export type ScreenSource =
   | { kind: "browser_tab"; browser: string; tab_title: string; url?: string }
   | { kind: "window"; app: string; window_title: string };
 
+export interface Posture {
+  state: "sitting" | "peeking" | "dragging";
+  perched_on?: {
+    /** Stable app-owner name. */
+    app?: string;
+    window_title?: string;
+  };
+}
+
 /**
  * Internal shape returned by packageContext. Carries user utterance and screenshot data_url
  * for assembly into the Responses API request — NOT serialized to the system message.
@@ -183,6 +192,7 @@ export interface InputContext {
     timezone: string;
     active_app?: { name: string };
     active_window_title?: string;
+    posture?: Posture;
     /** Apps switched to since the last utterance, drained on send. */
     recent_apps?: { name: string; at: string }[];
   };
@@ -258,6 +268,7 @@ export interface ClientContext {
     timezone: string;
     active_app?: { name: string };
     active_window_title?: string;
+    posture?: Posture;
     /** Apps switched to since the last utterance, drained on send. */
     recent_apps?: { name: string; at: string }[];
   };
@@ -352,6 +363,7 @@ export interface ScreenRect {
 /** An on-screen foreign window (matches the Rust `list_windows()` / `WindowAtPoint` payload, points). */
 export interface WindowRect extends ScreenRect {
   name: string | null;
+  ownerName: string | null;
   pid: number;
   /** kCGWindowNumber — stable window identity used to track the perched window across the stack. */
   windowNumber: number;

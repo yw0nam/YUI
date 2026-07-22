@@ -23,7 +23,7 @@
  */
 
 import type { PeekConfig, TapConfig } from "../config/load";
-import type { ControlEnvelope, EmotionId } from "../contract";
+import type { ControlEnvelope, EmotionId, Posture } from "../contract";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
@@ -114,6 +114,8 @@ export interface Dispatcher {
   recentDrops(n?: number): DropRecord[];
   /** In-progress backend call (null if none). */
   inFlight(): InFlightInfo | null;
+  /** Current physical posture. Undefined means idle. */
+  getPosture(): Posture | undefined;
   /** Abort the in-progress call + drop deferred tier2/3 (client-only). Does not sweep the bus or touch tier1. */
   cancel(): void;
   /** Subscribe to state transitions. Callback runs on every transition; returns an unsubscribe fn. */
@@ -273,6 +275,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   let consecutiveFailures = 0;
   // Pending tap-emotion revert — replaced per emotion tap, cleared on stop.
   let emotionRevertTimer: ReturnType<typeof setTimeout> | null = null;
+  let posture: Posture | undefined;
 
   const stateSubscribers = new Set<(s: DispatcherState) => void>();
   const busySubscribers = new Set<(busy: boolean) => void>();
@@ -458,6 +461,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       log.warn("peek_drop.malformed", { seq_id: env.seq_id, payload: env.payload });
       return;
     }
+    updatePosture(env);
     const directive = tier1Directive(env, log);
     if (!directive) return;
     log.info("fire", { seq_id: env.seq_id, event_name: env.event_name, tier: 1 });
@@ -468,6 +472,37 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       if (env.event_name === "user.tap_region" && directive.emotion) scheduleTapEmotionRevert();
     } catch (err) {
       log.error("tier1.render_error", { error: String(err) });
+    }
+  }
+
+  function updatePosture(env: BusEnvelope): void {
+    const app = env.payload?.app;
+    const windowTitle = env.payload?.window_title;
+    const perched_on =
+      typeof app === "string" || typeof windowTitle === "string"
+        ? {
+            ...(typeof app === "string" ? { app } : {}),
+            ...(typeof windowTitle === "string" ? { window_title: windowTitle } : {}),
+          }
+        : undefined;
+    switch (env.event_name) {
+      case "user.window_sit_drop":
+        posture = { state: "sitting", ...(perched_on ? { perched_on } : {}) };
+        break;
+      case "user.window_sit_enter":
+        posture = { state: "sitting" };
+        break;
+      case "user.peek_drop":
+        posture = { state: "peeking", ...(perched_on ? { perched_on } : {}) };
+        break;
+      case "user.drag_start":
+        posture = { state: "dragging" };
+        break;
+      case "user.window_sit_exit":
+      case "user.peek_exit":
+      case "user.drag_end":
+        posture = undefined;
+        break;
     }
   }
 
@@ -627,6 +662,9 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     },
     inFlight() {
       return inFlight ? { trigger: inFlight.trigger, started_at: inFlight.started_at } : null;
+    },
+    getPosture() {
+      return posture;
     },
     cancel() {
       // client-only abort: abort in-flight call + drop pending. Don't do bus sweep/tier1 render.

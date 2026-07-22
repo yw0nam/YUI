@@ -83,6 +83,7 @@ extern "C" {
 extern "C" {
     static kCGWindowNumber: CFStringRef;
     static kCGWindowOwnerPID: CFStringRef;
+    static kCGWindowOwnerName: CFStringRef;
     static kCGWindowName: CFStringRef;
     static kCGWindowLayer: CFStringRef;
     static kCGWindowBounds: CFStringRef;
@@ -326,12 +327,13 @@ impl ScreenRect {
     }
 }
 
-/// One enumerated on-screen window: rect (points), owner pid, optional name.
+/// One enumerated on-screen window: rect (points), owner pid/name, optional window name.
 #[derive(Debug, Clone, PartialEq)]
 pub struct WindowRect {
     pub rect: ScreenRect,
     pub pid: i32,
     pub name: Option<String>,
+    pub owner_name: Option<String>,
     pub window_number: u32,
 }
 
@@ -378,6 +380,7 @@ fn window_rect_to_at_point(w: WindowRect) -> WindowAtPoint {
         width: w.rect.width,
         height: w.rect.height,
         name: w.name,
+        owner_name: w.owner_name,
         pid: w.pid,
         window_number: w.window_number,
     }
@@ -483,10 +486,20 @@ fn enumerate_windows() -> Vec<WindowRect> {
             }
         };
 
+        let owner_name = unsafe {
+            let owner_name_ref = CFDictionaryGetValue(dict, kCGWindowOwnerName);
+            if owner_name_ref.is_null() {
+                None
+            } else {
+                cfstring_to_string(owner_name_ref).filter(|s| !s.is_empty())
+            }
+        };
+
         collected.push(WindowRect {
             rect,
             pid,
             name,
+            owner_name,
             window_number,
         });
     }
@@ -742,6 +755,7 @@ mod tests {
             },
             pid,
             name: None,
+            owner_name: None,
             window_number: 0,
         }
     }
