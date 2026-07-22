@@ -45,8 +45,20 @@ import type { DropReason } from "./guardrails";
 
 const baseLog = createLogger("backend-caller");
 
-/** User message marker for proactive/schedule turns (no user_text) — explicit signal instead of empty string. */
-const PROACTIVE_MARKER = "(proactive trigger)";
+/**
+ * User message for non-user turns (no user_text) — a neutral, per-trigger event notice
+ * (English, parenthetical) instead of an empty string. No persona/tone, no payload interpolation.
+ */
+function backgroundMarker(eventName: string): string {
+  if (eventName === "proactive.tap_bored") return "(the user is poking the character)";
+  if (eventName.startsWith("proactive.")) return "(the user has gone quiet)";
+  if (eventName.startsWith("schedule.")) return "(a scheduled time has arrived)";
+  if (eventName === "agent.done") return "(a coding-agent task just finished)";
+  if (eventName === "agent.catchup") return "(coding-agent tasks finished while away)";
+  if (eventName === "signals.push") return "(a new external signal arrived)";
+  if (eventName === "signals.catchup") return "(external signals arrived while away)";
+  return "(background trigger)";
+}
 
 /**
  * Idle-gap watchdog deadline (ms). Stall baseline that resets on each stream event (including first byte) —
@@ -410,10 +422,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
   /**
    * InputContext → OpenAI Responses input (user speech encoded only in user message).
-   * User message: userText ?? PROACTIVE_MARKER (+ image content-part when images present).
+   * User message: userText ?? backgroundMarker(env.event_name) (+ image content-part when images present).
    */
   function encodeInput(ctx: InputContext, env: BusEnvelope): ChatRequest["input"] {
-    const text = ctx.user_text ?? PROACTIVE_MARKER;
+    const text = ctx.user_text ?? backgroundMarker(env.event_name);
     const images = imageDataUrlsOf(ctx);
     const userContent = images.length
       ? [
@@ -520,7 +532,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           ...(effectiveInstructions ? { instructions: effectiveInstructions } : {}),
           clientContextJson: JSON.stringify(clientContext),
           transcript: ccTranscript,
-          userText: ctx.user_text ?? PROACTIVE_MARKER,
+          userText: ctx.user_text ?? backgroundMarker(env.event_name),
           ...(imageDataUrls.length ? { imageDataUrls } : {}),
         });
       } else {
