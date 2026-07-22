@@ -419,7 +419,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /** tier2/3 enqueue: start immediately if in-flight is empty, otherwise defer (with two or more, drop the oldest). */
   function enqueueBackend(env: BusEnvelope): void {
-    if (!inFlight && pending.length === 0) {
+    if (!inFlight && pending.length === 0 && !shouldHoldForPlayback(env)) {
       startBackendCall(env);
       return;
     }

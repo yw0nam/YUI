@@ -872,6 +872,26 @@ describe("dispatcher — playback-gated drain (§337)", () => {
     );
   });
 
+  it("defers a non-user turn that arrives via the fast path while speech is playing", async () => {
+    dispatcher.start();
+    speaking = true;
+    const queued = nonUser();
+    bus.push(queued);
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    expect(dispatcher.queue()).toContain(queued);
+    expect(dispatcher.recentDrops(10).map((drop) => drop.event_name)).not.toContain(
+      queued.event_name,
+    );
+
+    speaking = false;
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
+    expect(dispatcher.inFlight()).not.toBeNull();
+  });
+
   it("drains a queued voice turn immediately while speech is playing", async () => {
     dispatcher.start();
     bus.push(nonUser({ ts: NOW }));
