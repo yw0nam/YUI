@@ -261,7 +261,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(it's the time of day I check in on the user)");
+    expect(userMsg.content).toBe("(it's the time of day the character checks in on the user)");
   });
 
   it("(b) proactive envelope with cue → trigger.cue has label/context/idle_min, NO id/local_time; idle_elapsed_min on trigger", async () => {
@@ -311,13 +311,13 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(the user just poked at me)");
+    expect(userMsg.content).toBe("(the user just poked at the character)");
   });
 
   it.each([
-    ["proactive.drag_held", "(the user keeps dragging me around)"],
-    ["proactive.window_sit", "(I just settled onto a window's edge)"],
-    ["proactive.peek", "(I'm peeking out from the screen edge)"],
+    ["proactive.drag_held", "(the user keeps dragging the character around)"],
+    ["proactive.window_sit", "(the character just settled onto a window's edge)"],
+    ["proactive.peek", "(the character is peeking out from the screen edge)"],
   ] as const)("%s user message is its reflex-gesture marker", async (eventName, marker) => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     const env: BusEnvelope = {
@@ -364,7 +364,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(the user keeps poking at me)");
+    expect(userMsg.content).toBe("(the user keeps poking at the character)");
   });
 
   it("(c) user.text_submitted envelope (no cue_id) → trigger.cue absent", async () => {
@@ -559,7 +559,7 @@ describe("backend_caller — signals trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(a new signal just reached me)");
+    expect(userMsg.content).toBe("(a new signal just arrived for the character)");
   });
 
   it("(b) signals.catchup → trigger.kind 'signals' + trigger.signals (flattened, unmodified)", async () => {
@@ -743,7 +743,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     const msgs = messagesOf(request);
     expect(msgs[msgs.length - 1]).toEqual({
       role: "user",
-      content: "(the user has gone quiet on me for a while)",
+      content: "(the user has gone quiet on the character for a while)",
     });
   });
 
@@ -769,7 +769,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     const msgs = messagesOf(request);
     expect(msgs[msgs.length - 1]).toEqual({
       role: "user",
-      content: "(something just caught my attention)",
+      content: "(something just caught the character's attention)",
     });
   });
 });
