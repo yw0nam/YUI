@@ -76,19 +76,22 @@ For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utter
 
 ### Background markers
 
-When there is no user utterance, `input[1]` carries a short, per-`event_name` notice of what fired, framed from the character's own first-person POV — the character is "I/me", the operator is "the user" — so the agent self-identifies as the actor. It states what happened, never how to respond (firing ≠ judgment). The string is client-only framing so the agent has a concrete stimulus in the user turn; all situational detail still lives in `client_context.trigger`.
+When there is no user utterance, `input[1]` carries a short, per-`event_name` notice of what fired. The string rides in the user role, so it names both parties explicitly in third person — "the character" and "the user" — rather than "I"/"me". It states what happened, never how to respond (firing ≠ judgment). The string is client-only framing so the agent has a concrete stimulus in the user turn; all situational detail still lives in `client_context.trigger`.
 
 | `event_name` | Marker text |
 |---|---|
-| `proactive.tap_bored` | `(the user keeps poking at me)` |
-| `proactive.touch_*` | `(the user just poked at me)` |
-| `proactive.*` (other) | `(the user has gone quiet on me for a while)` |
-| `schedule.*` | `(it's the time of day I check in on the user)` |
+| `proactive.tap_bored` | `(the user keeps poking at the character)` |
+| `proactive.touch_*` | `(the user just poked at the character)` |
+| `proactive.drag_held` | `(the user keeps dragging the character around)` |
+| `proactive.window_sit` | `(the character just settled onto a window's edge)` |
+| `proactive.peek` | `(the character is peeking out from the screen edge)` |
+| `proactive.*` (other) | `(the user has gone quiet on the character for a while)` |
+| `schedule.*` | `(it's the time of day the character checks in on the user)` |
 | `agent.done` | `(one of the user's coding tasks just finished)` |
 | `agent.catchup` | `(the user's coding tasks wrapped up while away)` |
-| `signals.push` | `(a new signal just reached me)` |
+| `signals.push` | `(a new signal just arrived for the character)` |
 | `signals.catchup` | `(signals piled up while the user was away)` |
-| any other | `(something just caught my attention)` |
+| any other | `(something just caught the character's attention)` |
 
 ### Cue fields
 
