@@ -47,26 +47,23 @@ const baseLog = createLogger("backend-caller");
 
 /**
  * User message for non-user turns (no user_text) — a short, per-trigger notice. Delivered in a
- * role: "user" message, so both parties are named explicitly in third person ("the character" /
- * "the user") rather than "I"/"me" — first person here would read as the user's own action.
- * Describes what happened, never how to respond (firing ≠ judgment). No payload interpolation.
+ * role: "user" message, so it is written from the user's POV: "I" is the user, "you" is the
+ * agent. Describes what happened, never how to respond (firing ≠ judgment). No payload
+ * interpolation.
  */
 function backgroundMarker(eventName: string): string {
-  if (eventName === "proactive.tap_bored") return "(the user keeps poking at the character)";
-  if (eventName.startsWith("proactive.touch_")) return "(the user just poked at the character)";
-  if (eventName === "proactive.drag_held") return "(the user keeps dragging the character around)";
-  if (eventName === "proactive.window_sit")
-    return "(the character just settled onto a window's edge)";
-  if (eventName === "proactive.peek") return "(the character is peeking out from the screen edge)";
-  if (eventName.startsWith("proactive."))
-    return "(the user has gone quiet on the character for a while)";
-  if (eventName.startsWith("schedule."))
-    return "(it's the time of day the character checks in on the user)";
-  if (eventName === "agent.done") return "(one of the user's coding tasks just finished)";
-  if (eventName === "agent.catchup") return "(the user's coding tasks wrapped up while away)";
-  if (eventName === "signals.push") return "(a new signal just arrived for the character)";
-  if (eventName === "signals.catchup") return "(signals piled up while the user was away)";
-  return "(something just caught the character's attention)";
+  if (eventName === "proactive.tap_bored") return "(I keep poking at you)";
+  if (eventName.startsWith("proactive.touch_")) return "(I just poked you)";
+  if (eventName === "proactive.drag_held") return "(I keep dragging you around)";
+  if (eventName === "proactive.window_sit") return "(I just sat you down on a window's edge)";
+  if (eventName === "proactive.peek") return "(I left you peeking out from the screen edge)";
+  if (eventName.startsWith("proactive.")) return "(I've gone quiet for a while)";
+  if (eventName.startsWith("schedule.")) return "(it's the time of day you check in on me)";
+  if (eventName === "agent.done") return "(one of my coding tasks just finished)";
+  if (eventName === "agent.catchup") return "(my coding tasks wrapped up while I was away)";
+  if (eventName === "signals.push") return "(a new signal just arrived for you)";
+  if (eventName === "signals.catchup") return "(signals piled up while I was away)";
+  return "(something just caught your attention)";
 }
 
 /**
