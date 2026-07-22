@@ -6,20 +6,15 @@
  * no repeat while sustained, no cooldown. noteDragEnd disarms; the next noteDragStart re-arms.
  */
 
+import type { GestureCueConfig } from "../config/load";
 import type { EventBus } from "../dispatcher/event-bus";
-
-/** Authored label/context for the drag_held cue (configs/avatar.json gesture_cues.drag_held). */
-export interface DragHoldCue {
-  label: string;
-  context: string;
-}
 
 export interface DragHoldSourceDeps {
   bus: Pick<EventBus, "push">;
-  /** Hold duration (ms) before the reflex fires. */
-  holdMs: number;
-  /** Cue read at fire time (label/context from config). */
-  getCue: () => DragHoldCue;
+  /** Hold duration (ms) before the reflex fires — read at arm time so config hot-reload applies. */
+  getHoldMs: () => number;
+  /** Cue read at fire time (label/context from config, live). */
+  getCue: () => GestureCueConfig;
   /** Injectable clock; defaults to Date.now. */
   now?: () => number;
   /** Injectable timer fns (fake timers in tests). */
@@ -35,7 +30,7 @@ export interface DragHoldSource {
 }
 
 export function createDragHoldSource(deps: DragHoldSourceDeps): DragHoldSource {
-  const { bus, holdMs, getCue } = deps;
+  const { bus, getHoldMs, getCue } = deps;
   const now = deps.now ?? Date.now;
   const setTimeoutImpl = deps.setTimeout ?? setTimeout;
   const clearTimeoutImpl = deps.clearTimeout ?? clearTimeout;
@@ -62,7 +57,7 @@ export function createDragHoldSource(deps: DragHoldSourceDeps): DragHoldSource {
           hint_tier: 2,
           payload: { cue_id: "drag_held", label: cue.label, context: cue.context },
         });
-      }, holdMs);
+      }, getHoldMs());
     },
     noteDragEnd() {
       disarm();

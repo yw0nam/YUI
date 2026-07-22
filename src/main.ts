@@ -944,8 +944,8 @@ async function bootstrap(): Promise<void> {
     });
     dragHoldRef = createDragHoldSource({
       bus,
-      holdMs: cfg.avatar.drag_hold_ms,
-      getCue: () => cfg.avatar.gesture_cues.drag_held,
+      getHoldMs: () => config.get().avatar.drag_hold_ms,
+      getCue: () => gestureCuesConfig.drag_held,
     });
     // Global summon hotkey: register configs/hotkeys.json accelerator OS-globally. onReady holds
     // the handle so the config.subscribe below can re-apply it on hot-reload.

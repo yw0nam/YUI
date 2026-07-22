@@ -66,7 +66,7 @@ describe("drag-hold-source", () => {
     const timers = makeFakeTimers();
     const source = createDragHoldSource({
       bus,
-      holdMs: 5000,
+      getHoldMs: () => 5000,
       getCue: () => CUE,
       now: () => 1_000,
       setTimeout: timers.fakeSetTimeout,
@@ -86,11 +86,52 @@ describe("drag-hold-source", () => {
     });
   });
 
+  it("reads the cue live at fire time (config hot-reload)", () => {
+    const timers = makeFakeTimers();
+    let cue = { label: "old", context: "old ctx" };
+    const source = createDragHoldSource({
+      bus,
+      getHoldMs: () => 5000,
+      getCue: () => cue,
+      now: () => 1_000,
+      setTimeout: timers.fakeSetTimeout,
+      clearTimeout: timers.fakeClearTimeout,
+    });
+
+    source.noteDragStart();
+    cue = { label: "new", context: "new ctx" };
+    timers.fireLatest();
+
+    expect(pushed[0]).toMatchObject({ payload: { label: "new", context: "new ctx" } });
+  });
+
+  it("reads holdMs live at arm time (config hot-reload)", () => {
+    const delays: number[] = [];
+    const capturingSetTimeout = ((_cb: () => void, ms?: number) => {
+      delays.push(ms ?? 0);
+      return 1 as unknown as ReturnType<typeof setTimeout>;
+    }) as typeof setTimeout;
+    let holdMs = 5000;
+    const source = createDragHoldSource({
+      bus,
+      getHoldMs: () => holdMs,
+      getCue: () => CUE,
+      setTimeout: capturingSetTimeout,
+      clearTimeout: (() => {}) as typeof clearTimeout,
+    });
+
+    source.noteDragStart();
+    holdMs = 8000;
+    source.noteDragStart();
+
+    expect(delays).toEqual([5000, 8000]);
+  });
+
   it("noteDragEnd cancels a pending timer — no fire", () => {
     const timers = makeFakeTimers();
     const source = createDragHoldSource({
       bus,
-      holdMs: 5000,
+      getHoldMs: () => 5000,
       getCue: () => CUE,
       setTimeout: timers.fakeSetTimeout,
       clearTimeout: timers.fakeClearTimeout,
@@ -108,7 +149,7 @@ describe("drag-hold-source", () => {
     const timers = makeFakeTimers();
     const source = createDragHoldSource({
       bus,
-      holdMs: 5000,
+      getHoldMs: () => 5000,
       getCue: () => CUE,
       setTimeout: timers.fakeSetTimeout,
       clearTimeout: timers.fakeClearTimeout,
@@ -126,7 +167,7 @@ describe("drag-hold-source", () => {
     const timers = makeFakeTimers();
     const source = createDragHoldSource({
       bus,
-      holdMs: 5000,
+      getHoldMs: () => 5000,
       getCue: () => CUE,
       setTimeout: timers.fakeSetTimeout,
       clearTimeout: timers.fakeClearTimeout,
@@ -146,7 +187,7 @@ describe("drag-hold-source", () => {
     const timers = makeFakeTimers();
     const source = createDragHoldSource({
       bus,
-      holdMs: 5000,
+      getHoldMs: () => 5000,
       getCue: () => CUE,
       setTimeout: timers.fakeSetTimeout,
       clearTimeout: timers.fakeClearTimeout,
