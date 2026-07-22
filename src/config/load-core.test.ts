@@ -47,6 +47,24 @@ describe("loadConfig — happy path", () => {
         touch_cue_cooldown_ms: 60_000,
         touch_emotion_hold_ms: 4000,
       },
+      drag_hold_ms: 5000,
+      gesture_cues: {
+        drag_held: {
+          label: "dragged around",
+          context:
+            "The user has been dragging me around for a while — ask them to put me down. Keep it short.",
+        },
+        window_sit: {
+          label: "sat on window",
+          context:
+            "I just sat down on the edge of a window — say something fitting. Keep it short.",
+        },
+        peek: {
+          label: "peeking",
+          context:
+            "I'm peeking out from the edge of the screen — say something playful. Keep it short.",
+        },
+      },
     });
     expect(cfg.emotionRegistry.happy).toEqual({
       vrm_expression: "happy",

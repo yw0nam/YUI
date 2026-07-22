@@ -314,6 +314,28 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     expect(userMsg.content).toBe("(the user just poked at me)");
   });
 
+  it.each([
+    ["proactive.drag_held", "(the user keeps dragging me around)"],
+    ["proactive.window_sit", "(I just settled onto a window's edge)"],
+    ["proactive.peek", "(I'm peeking out from the screen edge)"],
+  ] as const)("%s user message is its reflex-gesture marker", async (eventName, marker) => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 14,
+      source: "os_event_watcher",
+      event_name: eventName,
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: { cue_id: eventName.split(".")[1], label: "label", context: "context" },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toBe(marker);
+  });
+
   it("proactive.tap_bored forwards its cue and drained signals", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     const signals = [{ kind: "reminder", payload: { title: "Stretch" } }, { kind: "alert" }];

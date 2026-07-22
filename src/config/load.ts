@@ -95,6 +95,38 @@ export const PEEK_DEFAULTS: PeekConfig = {
   mirror_side: "right",
 };
 
+/** Authored label/context for one reflex-gesture speech candidate. */
+export interface GestureCueConfig {
+  label: string;
+  context: string;
+}
+
+/** Reflex-gesture speech cues — drag-hold / window-sit / peek. */
+export interface GestureCuesConfig {
+  drag_held: GestureCueConfig;
+  window_sit: GestureCueConfig;
+  peek: GestureCueConfig;
+}
+
+export const GESTURE_CUES_DEFAULTS: GestureCuesConfig = {
+  drag_held: {
+    label: "dragged around",
+    context:
+      "The user has been dragging me around for a while — ask them to put me down. Keep it short.",
+  },
+  window_sit: {
+    label: "sat on window",
+    context: "I just sat down on the edge of a window — say something fitting. Keep it short.",
+  },
+  peek: {
+    label: "peeking",
+    context: "I'm peeking out from the edge of the screen — say something playful. Keep it short.",
+  },
+};
+
+/** Default drag-hold threshold (ms) before proactive.drag_held fires. */
+export const DRAG_HOLD_MS_DEFAULT = 5000;
+
 /** configs/avatar.json — VRM to load (renderer input). */
 export interface AvatarConfig {
   /** vite dev static-serving path (`/vrms/*.vrm`) or absolute URL. Default selection. */
@@ -115,6 +147,10 @@ export interface AvatarConfig {
   tap: TapConfig;
   /** Side-peek geometry and mirroring knobs. Defaults are applied by the validator. */
   peek: PeekConfig;
+  /** Drag-hold reflex threshold (ms) — proactive.drag_held fires once a drag has been held this long. */
+  drag_hold_ms: number;
+  /** Reflex-gesture speech cues (drag-hold / window-sit / peek). Defaults are applied by the validator. */
+  gesture_cues: GestureCuesConfig;
   /** Camera gaze-tracking knob. Absent → renderer default (natural preset). Partial values allowed. */
   gaze?: {
     deadDeg?: number;

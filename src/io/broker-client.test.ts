@@ -12,7 +12,13 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { type AppConfig, PEEK_DEFAULTS, TAP_DEFAULTS } from "../config/load";
+import {
+  type AppConfig,
+  DRAG_HOLD_MS_DEFAULT,
+  GESTURE_CUES_DEFAULTS,
+  PEEK_DEFAULTS,
+  TAP_DEFAULTS,
+} from "../config/load";
 import type { MotionRegistry } from "../contract";
 import type { Logger } from "../logger";
 import {
@@ -472,6 +478,8 @@ describe("deriveBrokerPayload", () => {
         vrm_url: "/vrms/carlotta.vrm",
         peek: PEEK_DEFAULTS,
         tap: TAP_DEFAULTS,
+        drag_hold_ms: DRAG_HOLD_MS_DEFAULT,
+        gesture_cues: GESTURE_CUES_DEFAULTS,
       },
       emotionRegistry: {
         neutral: { vrm_expression: "neutral", fallback: "neutral" },

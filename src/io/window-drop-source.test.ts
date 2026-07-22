@@ -14,7 +14,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PEEK_DEFAULTS } from "../config/load";
+import { GESTURE_CUES_DEFAULTS, PEEK_DEFAULTS } from "../config/load";
 import type { WindowRect } from "../contract";
 import type { BusEnvelope, EventBus } from "../dispatcher/event-bus";
 import {
@@ -23,12 +23,13 @@ import {
 } from "./window-drop-source";
 
 function createWindowDropSource(
-  deps: Omit<WindowDropSourceDeps, "getPeekConfig"> &
-    Partial<Pick<WindowDropSourceDeps, "getPeekConfig">>,
+  deps: Omit<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues"> &
+    Partial<Pick<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues">>,
 ) {
   return createWindowDropSourceImpl({
     ...deps,
     getPeekConfig: deps.getPeekConfig ?? (() => PEEK_DEFAULTS),
+    getGestureCues: deps.getGestureCues ?? (() => GESTURE_CUES_DEFAULTS),
   });
 }
 
@@ -115,14 +116,62 @@ describe("window-drop-source — perch hit", () => {
     await Promise.resolve();
 
     expect(invoke).toHaveBeenCalledWith("list_windows");
-    expect(pushed).toHaveLength(1);
-    const env = pushed[0];
-    expect(env.event_name).toBe("user.window_sit_drop");
+    expect(pushed).toHaveLength(2);
+    const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
     expect(env.source).toBe("os_event_watcher");
     expect(env.hint_tier).toBe(1);
     expect(env.dnd_override).toBe(true);
     // edge_local_ypx = W.y - pos.y/scale = 400 - 740/2 = 400 - 370 = 30.
     expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
+  });
+
+  it("also pushes proactive.window_sit composing the sat-on window name into the cue context", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const W = win({ name: "Notes" });
+    const invoke = vi.fn(async () => [W]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    await source.start();
+    fire({ point: { x: 123, y: 456 } });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const env = pushed.find((e) => e.event_name === "proactive.window_sit")!;
+    expect(env).toBeDefined();
+    expect(env.source).toBe("os_event_watcher");
+    expect(env.hint_tier).toBe(2);
+    expect(env.payload).toEqual({
+      cue_id: "window_sit",
+      label: GESTURE_CUES_DEFAULTS.window_sit.label,
+      context: `${GESTURE_CUES_DEFAULTS.window_sit.context} (currently perched on: Notes)`,
+    });
+  });
+
+  it("proactive.window_sit context has no perch suffix when the target window has no name", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const W = win({ name: null });
+    const invoke = vi.fn(async () => [W]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    await source.start();
+    fire({ point: { x: 123, y: 456 } });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const env = pushed.find((e) => e.event_name === "proactive.window_sit")!;
+    expect(env.payload?.context).toBe(GESTURE_CUES_DEFAULTS.window_sit.context);
   });
 
   it("chooses the topmost (first front-to-back) window when several overlap the seat", async () => {
@@ -146,9 +195,10 @@ describe("window-drop-source — perch hit", () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(pushed).toHaveLength(1);
+    expect(pushed).toHaveLength(2);
     // edge = top.y - pos.y/scale = 400 - 740/2 = 30 (back would give 70).
-    expect(pushed[0].payload?.edge_local_ypx).toBeCloseTo(30, 6);
+    const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
+    expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
   });
 });
 
@@ -320,8 +370,85 @@ describe("window-drop-source — side peek drop", () => {
     await source.start();
     fire({});
     await settleRelease();
-    expect(pushed).toHaveLength(1);
-    expect(pushed[0].event_name).toBe("user.window_sit_drop");
+    expect(pushed).toHaveLength(2);
+    expect(pushed.find((e) => e.event_name === "user.window_sit_drop")).toBeDefined();
+  });
+
+  it("also pushes proactive.peek composing the side-target window name into the cue context", async () => {
+    vi.useFakeTimers();
+    const peek = { active: true };
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 200, y: 300 }, charHpx: 200 })),
+      isPerched: vi.fn(() => false),
+    };
+    const target = win({
+      x: 300,
+      y: 100,
+      width: 520,
+      height: 500,
+      windowNumber: 42,
+      name: "Terminal",
+    });
+    const invoke = vi.fn(async () => [target]);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow: () => makeWindow({ x: 200, y: 0 }, 2),
+      listen,
+      peekActive: () => peek.active,
+    });
+
+    await source.start();
+    fire({});
+    await settleRelease();
+
+    const env = pushed.find((e) => e.event_name === "proactive.peek")!;
+    expect(env).toBeDefined();
+    expect(env.source).toBe("os_event_watcher");
+    expect(env.hint_tier).toBe(2);
+    expect(env.payload).toEqual({
+      cue_id: "peek",
+      label: GESTURE_CUES_DEFAULTS.peek.label,
+      context: `${GESTURE_CUES_DEFAULTS.peek.context} (currently perched on: Terminal)`,
+    });
+    vi.useRealTimers();
+  });
+
+  it("proactive.peek context has no perch suffix when the side target has no name", async () => {
+    vi.useFakeTimers();
+    const peek = { active: true };
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 200, y: 300 }, charHpx: 200 })),
+      isPerched: vi.fn(() => false),
+    };
+    const target = win({
+      x: 300,
+      y: 100,
+      width: 520,
+      height: 500,
+      windowNumber: 42,
+      name: null,
+    });
+    const invoke = vi.fn(async () => [target]);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow: () => makeWindow({ x: 200, y: 0 }, 2),
+      listen,
+      peekActive: () => peek.active,
+    });
+
+    await source.start();
+    fire({});
+    await settleRelease();
+
+    const env = pushed.find((e) => e.event_name === "proactive.peek")!;
+    expect(env.payload?.context).toBe(GESTURE_CUES_DEFAULTS.peek.context);
+    vi.useRealTimers();
   });
 
   it("treats a covered side candidate as a miss", async () => {

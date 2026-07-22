@@ -1,6 +1,9 @@
 import {
   type AvatarConfig,
   type AvatarOption,
+  DRAG_HOLD_MS_DEFAULT,
+  GESTURE_CUES_DEFAULTS,
+  type GestureCuesConfig,
   PEEK_DEFAULTS,
   type PeekConfig,
   TAP_DEFAULTS,
@@ -383,6 +386,55 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
+  let drag_hold_ms = DRAG_HOLD_MS_DEFAULT;
+  const rawDragHoldMs = raw.drag_hold_ms;
+  if (rawDragHoldMs !== undefined) {
+    if (
+      typeof rawDragHoldMs !== "number" ||
+      !Number.isInteger(rawDragHoldMs) ||
+      rawDragHoldMs < 1
+    ) {
+      issues.push(`drag_hold_ms는 1 이상 정수여야 함 (받음: ${JSON.stringify(rawDragHoldMs)})`);
+    } else {
+      drag_hold_ms = rawDragHoldMs;
+    }
+  }
+
+  const gesture_cues: GestureCuesConfig = {
+    drag_held: { ...GESTURE_CUES_DEFAULTS.drag_held },
+    window_sit: { ...GESTURE_CUES_DEFAULTS.window_sit },
+    peek: { ...GESTURE_CUES_DEFAULTS.peek },
+  };
+  const rawGestureCues = raw.gesture_cues;
+  if (rawGestureCues !== undefined) {
+    if (!isObject(rawGestureCues)) {
+      issues.push(`gesture_cues은 객체여야 함 (받음: ${JSON.stringify(rawGestureCues)})`);
+    } else {
+      for (const key of Object.keys(rawGestureCues)) {
+        if (key !== "drag_held" && key !== "window_sit" && key !== "peek") {
+          issues.push(`gesture_cues.${key}는 허용되지 않는 키`);
+          continue;
+        }
+        const cue = rawGestureCues[key];
+        if (!isObject(cue)) {
+          issues.push(`gesture_cues.${key}는 객체여야 함 (받음: ${JSON.stringify(cue)})`);
+          continue;
+        }
+        for (const field of ["label", "context"] as const) {
+          const value = cue[field];
+          if (value === undefined) continue;
+          if (typeof value !== "string" || value.length === 0) {
+            issues.push(
+              `gesture_cues.${key}.${field}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(value)})`,
+            );
+          } else {
+            gesture_cues[key as keyof GestureCuesConfig][field] = value;
+          }
+        }
+      }
+    }
+  }
+
   // gaze — optional camera-tracking knob. Partial values allowed (defaults owned by the renderer, natural preset).
   let gaze: AvatarConfig["gaze"];
   const rawGaze = raw.gaze;
@@ -434,6 +486,8 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     vrm_url,
     tap,
     peek,
+    drag_hold_ms,
+    gesture_cues,
     ...(available !== undefined ? { available } : {}),
     ...(framing !== undefined ? { framing } : {}),
     ...(hit_test !== undefined ? { hit_test } : {}),

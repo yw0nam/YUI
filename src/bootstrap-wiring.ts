@@ -2,6 +2,7 @@
 import {
   type AppConfig,
   type ConfigSection,
+  type GestureCuesConfig,
   loadEmotionTextTable,
   type PeekConfig,
 } from "./config";
@@ -322,10 +323,12 @@ export function wireWindowSources(deps: {
   renderer: Renderer;
   peekActive: () => boolean;
   getPeekConfig: () => PeekConfig;
+  getGestureCues: () => GestureCuesConfig;
   agentNotifySettings: { get(): AgentNotifySettings };
   log: Logger;
 }): void {
-  const { bus, renderer, peekActive, getPeekConfig, agentNotifySettings, log } = deps;
+  const { bus, renderer, peekActive, getPeekConfig, getGestureCues, agentNotifySettings, log } =
+    deps;
   if (!isTauri()) return;
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
@@ -357,6 +360,7 @@ export function wireWindowSources(deps: {
       listen: listen as never,
       peekActive,
       getPeekConfig,
+      getGestureCues,
     });
     const { LogicalPosition, LogicalSize } = await import("@tauri-apps/api/dpi");
     windowResizeSource = createWindowResizeSource({

@@ -14,12 +14,15 @@ import {
   CONFIG,
   completedEvent,
   deltaEvent,
+  dragHeldEnv,
   expressEvent,
   makeLogger,
+  peekEnv,
   toolStatusEvent,
   touchEnv,
   usageEvent,
   userEnv,
+  windowSitEnv,
 } from "./test-helpers";
 
 let scriptedEvents: ChatStreamEvent[] = [];
@@ -470,6 +473,18 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
     caller = makeCaller(true);
     scriptedEvents = [deltaEvent("꺅"), completedEvent({ speech_text: "꺅" })];
     await caller.call(touchEnv());
+    expect(onThinkingStart).not.toHaveBeenCalled();
+    expect(onThinkingEnd).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["proactive.drag_held", dragHeldEnv],
+    ["proactive.window_sit", windowSitEnv],
+    ["proactive.peek", peekEnv],
+  ] as const)("reflex turn (%s) skips thinking even when getFiller true", async (_name, env) => {
+    caller = makeCaller(true);
+    scriptedEvents = [deltaEvent("꺅"), completedEvent({ speech_text: "꺅" })];
+    await caller.call(env());
     expect(onThinkingStart).not.toHaveBeenCalled();
     expect(onThinkingEnd).not.toHaveBeenCalled();
   });
