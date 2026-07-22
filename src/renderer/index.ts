@@ -63,6 +63,7 @@ import {
 } from "./perch-geometry";
 import { suppressIdleReturn } from "./perch-hold";
 import { createPinController, type PinController } from "./pin-controller";
+import { clampPixelRatio } from "./pixel-ratio";
 import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
 import { recenterClipRootMotion } from "./recenter-root-motion";
 
@@ -275,7 +276,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   const { mount } = options;
 
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setPixelRatio(clampPixelRatio(window.devicePixelRatio));
   renderer.setClearColor(0x000000, 0); // transparent background — character only in pet window.
   mount.appendChild(renderer.domElement);
 
