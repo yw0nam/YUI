@@ -180,12 +180,14 @@ describe("wireDispatcherSources", () => {
 
   it("creates and starts all four utterance sources", () => {
     const bus = {} as never;
+    const pipelineBusy = { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) };
     const result = wireDispatcherSources({
       bus,
       presenceSettings: { get: () => ({ present_max_idle_ms: 5000 }) },
       proactiveSettings: { get: () => ({ enabled: true, entries: [] }) },
       scheduleSettings: { get: () => ({ enabled: false, entries: [] }) },
       agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
+      pipelineBusy,
     });
 
     expect(Object.keys(result).sort()).toEqual([
@@ -201,6 +203,13 @@ describe("wireDispatcherSources", () => {
     // isEnabled reads live from the per-feature store.
     expect((created.schedule as { isEnabled: () => boolean }).isEnabled()).toBe(false);
     expect((created.signals as { isEnabled: () => boolean }).isEnabled()).toBe(true);
+    // pipelineBusy is forwarded to both agent + signals sources (not proactive/schedule).
+    expect((created.agent as { isPipelineBusy: () => boolean }).isPipelineBusy).toBe(
+      pipelineBusy.isBusy,
+    );
+    expect((created.signals as { subscribePipelineBusy: unknown }).subscribePipelineBusy).toBe(
+      pipelineBusy.subscribe,
+    );
     expect(result.signalsSource.drain()).toEqual([]);
   });
 });

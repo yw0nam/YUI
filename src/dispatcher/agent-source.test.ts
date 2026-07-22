@@ -383,6 +383,115 @@ describe("agent_source — isEnabled gate (spec §6)", () => {
   });
 });
 
+function fakePipelineBusy(initialBusy: boolean): {
+  isPipelineBusy: () => boolean;
+  subscribePipelineBusy: (cb: (busy: boolean) => void) => () => void;
+  setBusy: (busy: boolean) => void;
+} {
+  let current = initialBusy;
+  let cb: ((busy: boolean) => void) | undefined;
+  return {
+    isPipelineBusy: () => current,
+    subscribePipelineBusy: vi.fn((c: (busy: boolean) => void) => {
+      cb = c;
+      return vi.fn();
+    }),
+    setBusy: (busy: boolean) => {
+      current = busy;
+      cb?.(busy);
+    },
+  };
+}
+
+describe("agent_source — pipeline-busy buffering (spec §2b/#451)", () => {
+  it("present + busy: inbox arrival buffers (no agent.done fired)", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+    const pipelineBusy = fakePipelineBusy(true);
+
+    const src = createAgentSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+      isPipelineBusy: pipelineBusy.isPipelineBusy,
+      subscribePipelineBusy: pipelineBusy.subscribePipelineBusy,
+    });
+    await src.start();
+
+    emitIdle(idleTick(LOW_IDLE)); // present
+    emitInbox(done("claude-code", "widget", 1000));
+    expect(pushed).toHaveLength(0);
+
+    src.stop();
+  });
+
+  it("busy→idle edge (subscribePipelineBusy callback fires false) flushes ONE agent.catchup, ts-ordered, buffer cleared", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+    const pipelineBusy = fakePipelineBusy(true);
+
+    const src = createAgentSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+      isPipelineBusy: pipelineBusy.isPipelineBusy,
+      subscribePipelineBusy: pipelineBusy.subscribePipelineBusy,
+    });
+    await src.start();
+
+    emitIdle(idleTick(LOW_IDLE)); // present, but busy
+    emitInbox(done("claude-code", "alpha", 2000));
+    emitInbox(done("claude-code", "beta", 1000));
+    expect(pushed).toHaveLength(0);
+
+    // busy → idle edge.
+    pipelineBusy.setBusy(false);
+
+    expect(pushed).toHaveLength(1);
+    const e = pushed[0];
+    expect(e.event_name).toBe("agent.catchup");
+    const p = e.payload as { count: number; items: Array<{ project: string; ts: number }> };
+    expect(p.count).toBe(2);
+    expect(p.items.map((i) => i.project)).toEqual(["beta", "alpha"]); // ts ascending
+
+    // A second busy→idle edge with an empty buffer fires nothing further.
+    pipelineBusy.setBusy(true);
+    pipelineBusy.setBusy(false);
+    expect(pushed).toHaveLength(1);
+
+    src.stop();
+  });
+
+  it("present + idle (isPipelineBusy: () => false): fires immediately (existing behavior preserved)", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+
+    const src = createAgentSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+      isPipelineBusy: () => false,
+    });
+    await src.start();
+
+    emitIdle(idleTick(LOW_IDLE));
+    emitInbox(done("claude-code", "widget", 1000));
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0].event_name).toBe("agent.done");
+
+    src.stop();
+  });
+});
+
 describe("agent_source — malformed payload (spec §7)", () => {
   it("null or undefined payload does not crash", async () => {
     const { bus } = fakeBus();

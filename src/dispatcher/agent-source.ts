@@ -5,10 +5,11 @@
  *  1. OS idle ticks (OS_EVENT_CHANNEL) — tracks presence; detects idle→present edge.
  *  2. agent-inbox (onAgentInbox) — receives AgentDone completions from the Tauri side.
  *
- * When present: inbox arrival fires agent.done immediately.
- * When away: completions buffer per-tool (BUFFER_CAP = 5, drop oldest on overflow).
- * On idle→present edge: if buffer has content, fires ONE agent.catchup (flatten all
- * tools, sort by ts ascending), then clears the buffer.
+ * When present AND the pipeline is idle: inbox arrival fires agent.done immediately.
+ * When present-but-busy (backend call in flight or speech playing) OR away: completions
+ * buffer per-tool (BUFFER_CAP = 5, drop oldest on overflow).
+ * On the idle→present edge OR the busy→idle edge: if buffer has content, fires ONE
+ * agent.catchup (flatten all tools, sort by ts ascending), then clears the buffer.
  *
  * firing ≠ judgment: this only fires candidate events — the backend decides whether/what to
  * speak. No speak/don't-speak gate and no persona state live here.
@@ -38,6 +39,10 @@ export interface AgentSourceDeps {
   listen?: OsEventListen;
   /** Injectable clock; defaults to Date.now. */
   now?: () => number;
+  /** Whether the dispatcher pipeline is busy (backend call in flight or speech playing). Absent = never busy. */
+  isPipelineBusy?: () => boolean;
+  /** Subscribe to pipeline-busy transitions; used to flush the buffer on the busy→idle edge. */
+  subscribePipelineBusy?: (cb: (busy: boolean) => void) => () => void;
 }
 
 export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<void>; stop(): void } {
@@ -50,12 +55,17 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
   let running = false;
   let unlistenIdle: (() => void) | undefined;
   let unlistenInbox: (() => void) | undefined;
+  let unlistenBusy: (() => void) | undefined;
 
-  /** Per-tool buffered completions (away accumulation). */
+  /** Per-tool buffered completions (away or busy accumulation). */
   const buffer = new Map<string, AgentDone[]>();
 
   function isPresent(): boolean {
     return lastIdleMs != null && lastIdleMs <= present_max_idle_ms;
+  }
+
+  function isBusy(): boolean {
+    return deps.isPipelineBusy?.() ?? false;
   }
 
   /** Flatten all buffered items across tools, sort by ts ascending, emit ONE catchup. */
@@ -91,6 +101,12 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
     buffer.clear();
   }
 
+  /** Flush iff enabled, buffer non-empty, present, and the pipeline is idle. */
+  function maybeFlush(): void {
+    if (!isEnabled() || buffer.size === 0 || !isPresent() || isBusy()) return;
+    flushCatchup();
+  }
+
   function onTick(payload: OsEventPayload): void {
     if (payload.event_name !== "os_idle_tick") return;
     lastIdleMs = payload.data.os_idle_ms ?? null;
@@ -103,8 +119,8 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
     // Flush on the idle→present edge only (not on every present tick).
     // isEnabled() guard mirrors handleInbox — a mid-run toggle must not dispatch
     // a catchup the user has since disabled.
-    if (!wasPresent && present && buffer.size > 0 && isEnabled()) {
-      flushCatchup();
+    if (!wasPresent && present) {
+      maybeFlush();
     }
     wasPresent = present;
   }
@@ -117,8 +133,7 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
         log.debug("inbox_malformed", { degrade: true });
         return;
       }
-      const present = isPresent();
-      if (present) {
+      if (isPresent() && !isBusy()) {
         bus.push({
           source: "timer_scheduler",
           event_name: "agent.done",
@@ -165,6 +180,11 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
     } catch (err) {
       log.debug("subscribe_inbox_failed", { degrade: true, error: String(err) });
     }
+
+    // Flush on the busy→idle edge (mirrors the idle→present edge above).
+    unlistenBusy = deps.subscribePipelineBusy?.((busy) => {
+      if (!busy) maybeFlush();
+    });
   }
 
   function stop(): void {
@@ -173,6 +193,8 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
     unlistenIdle = undefined;
     unlistenInbox?.();
     unlistenInbox = undefined;
+    unlistenBusy?.();
+    unlistenBusy = undefined;
   }
 
   return { start, stop };

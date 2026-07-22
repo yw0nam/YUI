@@ -1510,6 +1510,45 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
   });
 });
 
+describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = inFlight || speaking)", () => {
+  it("isPipelineBusy() is false at rest, true while a call is in flight", async () => {
+    dispatcher.start();
+    expect(dispatcher.isPipelineBusy()).toBe(false);
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    expect(dispatcher.isPipelineBusy()).toBe(true);
+  });
+
+  it("subscribePipelineBusy fires true when the call starts", async () => {
+    const seen: boolean[] = [];
+    dispatcher.subscribePipelineBusy((b) => seen.push(b));
+    dispatcher.start();
+    bus.push(env());
+    // The busy edge is polled at the top of each pump tick, so allow a couple of ticks.
+    await vi.advanceTimersByTimeAsync(50);
+    expect(seen).toEqual([true]);
+  });
+
+  it("stays busy past inFlight completion while speaking; fires false only after speech ends", async () => {
+    const seen: boolean[] = [];
+    dispatcher.subscribePipelineBusy((b) => seen.push(b));
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(50);
+    expect(seen).toEqual([true]);
+
+    speaking = true;
+    callDeferred[0].resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(dispatcher.isPipelineBusy()).toBe(true);
+    expect(seen).toEqual([true]); // no false fired yet — still speaking
+
+    speaking = false;
+    await vi.advanceTimersByTimeAsync(50);
+    expect(seen).toEqual([true, false]);
+  });
+});
+
 describe("dispatcher — cooldown state mirror (§6.3/§9)", () => {
   it("overall-cap overflow flips state() to 'cooldown' and back to 'running'; tier1 still renders", async () => {
     const cfg = realGuardrailsConfig();
