@@ -257,11 +257,11 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     expect((trigger.cue as Record<string, unknown>).idle_min).toBeUndefined();
     // idle_elapsed_min absent (no gap_ms on this envelope)
     expect("idle_elapsed_min" in trigger).toBe(false);
-    // user message is the proactive marker (no user text for schedule/proactive)
+    // user message is the schedule background marker (no user text for schedule/proactive)
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(proactive trigger)");
+    expect(userMsg.content).toBe("(a scheduled time has arrived)");
   });
 
   it("(b) proactive envelope with cue → trigger.cue has label/context/idle_min, NO id/local_time; idle_elapsed_min on trigger", async () => {
@@ -321,6 +321,10 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
       context: "The user wants attention.",
     });
     expect(trigger.signals).toEqual(signals);
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toBe("(the user is poking the character)");
   });
 
   it("(c) user.text_submitted envelope (no cue_id) → trigger.cue absent", async () => {
@@ -379,7 +383,7 @@ describe("backend_caller — agent trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(proactive trigger)");
+    expect(userMsg.content).toBe("(a coding-agent task just finished)");
   });
 
   it("(b) agent.done without status → trigger.agent.status absent", async () => {
@@ -455,6 +459,10 @@ describe("backend_caller — agent trigger forwarding", () => {
         },
       ],
     });
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toBe("(coding-agent tasks finished while away)");
   });
 
   it("(d) agent.done with malformed payload → kind 'agent' but no trigger.agent", async () => {
@@ -511,7 +519,7 @@ describe("backend_caller — signals trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(proactive trigger)");
+    expect(userMsg.content).toBe("(a new external signal arrived)");
   });
 
   it("(b) signals.catchup → trigger.kind 'signals' + trigger.signals (flattened, unmodified)", async () => {
@@ -532,6 +540,10 @@ describe("backend_caller — signals trigger forwarding", () => {
     const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
     expect(trigger.kind).toBe("signals");
     expect(trigger.signals).toEqual([{ id: 1 }, { id: 2 }]);
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toBe("(external signals arrived while away)");
   });
 
   it("(c) heterogeneous/nested item shapes pass through unmodified — no structural validation", async () => {
@@ -669,7 +681,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     expect(messagesOf(request)[0]).toEqual({ role: "system", content: "config nudge" });
   });
 
-  it("proactive turn in CC mode → user message is the proactive marker", async () => {
+  it("proactive turn in CC mode → user message is the proactive background marker", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" }, "")];
     caller = createBackendCaller({
       config: CC_CONFIG,
@@ -689,7 +701,33 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     await caller.call(env);
     const [, request] = streamChatSpy.mock.calls[0];
     const msgs = messagesOf(request);
-    expect(msgs[msgs.length - 1]).toEqual({ role: "user", content: "(proactive trigger)" });
+    expect(msgs[msgs.length - 1]).toEqual({
+      role: "user",
+      content: "(the user has gone quiet)",
+    });
+  });
+
+  it("unmapped event_name in CC mode → user message is the fallback background marker", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" }, "")];
+    caller = createBackendCaller({
+      config: CC_CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+    });
+    const env: BusEnvelope = {
+      seq_id: 51,
+      source: "timer_scheduler",
+      event_name: "unknown.something",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {},
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const msgs = messagesOf(request);
+    expect(msgs[msgs.length - 1]).toEqual({ role: "user", content: "(background trigger)" });
   });
 });
 
