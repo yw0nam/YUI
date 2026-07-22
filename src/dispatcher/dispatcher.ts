@@ -457,15 +457,25 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   /** tier1 event → renderer.applyDirective (local, backend-independent). */
   function renderTier1(env: BusEnvelope): void {
     const peekDrop = env.event_name === "user.peek_drop" ? parsePeekDropPayload(env) : null;
+    const sitDropEdge =
+      env.event_name === "user.window_sit_drop" &&
+      typeof env.payload?.edge_local_ypx === "number" &&
+      Number.isFinite(env.payload.edge_local_ypx)
+        ? env.payload.edge_local_ypx
+        : null;
     if (env.event_name === "user.peek_drop" && !peekDrop) {
       log.warn("peek_drop.malformed", { seq_id: env.seq_id, payload: env.payload });
+      return;
+    }
+    if (env.event_name === "user.window_sit_drop" && sitDropEdge === null) {
+      log.warn("perch_target.malformed", { seq_id: env.seq_id, payload: env.payload });
       return;
     }
     updatePosture(env);
     const directive = tier1Directive(env, log);
     if (!directive) return;
     log.info("fire", { seq_id: env.seq_id, event_name: env.event_name, tier: 1 });
-    applyPinTargets(env, peekDrop);
+    applyPinTargets(env, peekDrop, sitDropEdge);
     applyPeekState(env);
     try {
       renderer.applyDirective(directive);
@@ -524,7 +534,11 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     }
   }
 
-  function applyPinTargets(env: BusEnvelope, peekDrop: PeekDropPayload | null): void {
+  function applyPinTargets(
+    env: BusEnvelope,
+    peekDrop: PeekDropPayload | null,
+    sitDropEdge: number | null,
+  ): void {
     try {
       if (peekDrop) {
         renderer.setPerchTarget(null);
@@ -546,13 +560,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         renderer.setPerchTarget(null);
         return;
       }
-      if (env.event_name === "user.window_sit_drop") {
-        const edge = env.payload?.edge_local_ypx;
-        if (typeof edge !== "number" || !Number.isFinite(edge)) {
-          log.warn("perch_target.malformed", { seq_id: env.seq_id, payload: env.payload });
-          return;
-        }
-        renderer.setPerchTarget({ edgeLocalYpx: edge });
+      if (env.event_name === "user.window_sit_drop" && sitDropEdge !== null) {
+        renderer.setPerchTarget({ edgeLocalYpx: sitDropEdge });
       }
     } catch (err) {
       log.error("tier1.pin_target_error", { error: String(err) });
