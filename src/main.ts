@@ -143,6 +143,13 @@ async function bootstrap(): Promise<void> {
     onDragEnd: () => {
       hitTestRef?.resume();
       dragHoldRef?.noteDragEnd();
+      bus.push({
+        source: "os_event_watcher",
+        event_name: "user.drag_end",
+        ts: Date.now(),
+        hint_tier: 1,
+        dnd_override: true,
+      });
     },
     onOrbitStart: () => hitTestRef?.suspend(),
     onOrbitEnd: () => hitTestRef?.resume(),
@@ -768,6 +775,7 @@ async function bootstrap(): Promise<void> {
       return buildScreenshotBlock(s, cap ?? undefined);
     },
     getOsContext: () => osContext.get(),
+    getPosture: () => dispatcherRef?.getPosture(),
     peekRecentApps: () => osContext.peekRecentApps(),
     drainRecentApps: (only) => osContext.drainRecentApps(only),
     getAgentSettings: () => agentSettings.get(),

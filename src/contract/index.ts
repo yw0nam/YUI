@@ -24,6 +24,7 @@ export type {
   MotionRegistryEntry,
   MotionSignal,
   PerchTarget,
+  Posture,
   // Client-only geometry (window-sit perch)
   ScreenRect,
   // Input context

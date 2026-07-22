@@ -25,6 +25,7 @@ describe("WindowRect", () => {
       width: 1280,
       height: 720,
       name: "Safari",
+      ownerName: "Safari",
       pid: 4242,
       windowNumber: 88,
     };
@@ -42,6 +43,7 @@ describe("WindowRect", () => {
       width: 1,
       height: 1,
       name: null,
+      ownerName: null,
       pid: 1,
       windowNumber: 1,
     };

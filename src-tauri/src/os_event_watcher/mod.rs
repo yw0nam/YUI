@@ -104,6 +104,7 @@ pub struct WindowAtPoint {
     pub width: f64,
     pub height: f64,
     pub name: Option<String>,
+    pub owner_name: Option<String>,
     pub pid: i32,
     /// Stable CoreGraphics window identity (`kCGWindowNumber`).
     pub window_number: u32,
@@ -401,7 +402,8 @@ mod tests {
             y: 200.0,
             width: 800.0,
             height: 600.0,
-            name: Some("Safari".into()),
+            name: Some("Start Page".into()),
+            owner_name: Some("Safari".into()),
             pid: 4321,
             window_number: 8765,
         };
@@ -410,7 +412,8 @@ mod tests {
         assert_eq!(v["y"], 200.0);
         assert_eq!(v["width"], 800.0);
         assert_eq!(v["height"], 600.0);
-        assert_eq!(v["name"], "Safari");
+        assert_eq!(v["name"], "Start Page");
+        assert_eq!(v["ownerName"], "Safari");
         assert_eq!(v["pid"], 4321);
         assert_eq!(v["windowNumber"], 8765);
     }
@@ -423,11 +426,13 @@ mod tests {
             width: 10.0,
             height: 10.0,
             name: None,
+            owner_name: None,
             pid: 1,
             window_number: 42,
         };
         let v = serde_json::to_value(&w).unwrap();
         assert!(v["name"].is_null());
+        assert!(v["ownerName"].is_null());
         assert_eq!(v["windowNumber"], 42);
     }
 }

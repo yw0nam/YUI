@@ -116,6 +116,8 @@ export interface BackendCallerDeps {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   /** Current foreground app/title snapshot. When present, fills env.active_app/active_window_title. */
   getOsContext?: () => import("../io/os-context").OsContextSnapshot | undefined;
+  /** Current physical posture. Undefined means idle. */
+  getPosture?: () => import("../contract").Posture | undefined;
   /** Snapshot app buffer without clearing, called at B1 packaging, attached to env.recent_apps when present.
    * Buffer not cleared, so app history not lost even if packageContext fails afterward (setup/stream/parse_error). */
   peekRecentApps?: () => import("../io/os-context").RecentApp[];
@@ -342,6 +344,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const os = deps.getOsContext?.();
     if (os?.activeApp) ctx.env.active_app = { name: os.activeApp };
     if (os?.activeWindowTitle) ctx.env.active_window_title = os.activeWindowTitle;
+    const posture = deps.getPosture?.();
+    if (posture) ctx.env.posture = posture;
     // peek only — the buffer is cleared later, only once this turn's send is confirmed, and
     // then only these snapshotted entries (drainRecentApps(peekedApps)) so a switch that lands
     // mid-request survives.
@@ -363,7 +367,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   /**
    * InputContext → flat ClientContext { env, screenshot?, trigger }, shared by both protocol
    * encodings (Responses system message / CC client_context system message).
-   *   - env: timestamp/timezone + optional active_app/active_window_title (no user utterance).
+   *   - env: timestamp/timezone + optional active_app/active_window_title/posture (no user utterance).
    *   - screenshot: meta only (enabled/source/captured_at/width/height) — data_url is stripped
    *     and sent as an image content-part instead (see imageDataUrlsOf).
    *   - trigger: { kind, cue?, idle_elapsed_min? }

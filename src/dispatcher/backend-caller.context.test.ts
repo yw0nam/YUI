@@ -334,6 +334,52 @@ describe("backend_caller — os context port", () => {
   });
 });
 
+describe("backend_caller — posture context port", () => {
+  function clientContextOf(input: unknown): Record<string, unknown> {
+    const items = input as Array<{ role: string; content: string }>;
+    const sys = items.find((m) => m.role === "system")!;
+    return JSON.parse(sys.content.replace(/^client_context:\s*/, ""));
+  }
+
+  it("attaches the current posture to env", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getPosture: () => ({
+        state: "sitting",
+        perched_on: { app: "Notes", window_title: "Meeting notes" },
+      }),
+    });
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    expect((ctx.env as Record<string, unknown>).posture).toEqual({
+      state: "sitting",
+      perched_on: { app: "Notes", window_title: "Meeting notes" },
+    });
+  });
+
+  it("omits posture from env while idle", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      getPosture: () => undefined,
+    });
+    await caller.call(userEnv());
+    const [, request] = streamChatSpy.mock.calls[0];
+    const ctx = clientContextOf(request.input);
+    expect("posture" in (ctx.env as Record<string, unknown>)).toBe(false);
+  });
+});
+
 describe("backend_caller — recent apps package (peek, non-destructive)", () => {
   /** decode the flat ClientContext from the system message passed to streamChat. */
   function clientContextOf(input: unknown): Record<string, unknown> {

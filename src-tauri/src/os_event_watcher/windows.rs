@@ -234,6 +234,7 @@ fn physical_window_to_at_point(w: &PhysicalWindow) -> Option<WindowAtPoint> {
         width,
         height,
         name: w.name.clone(),
+        owner_name: None, // Enumerated Windows windows do not resolve app-owner names.
         pid: w.pid,
         window_number: w.window_number,
     })

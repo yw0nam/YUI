@@ -27,6 +27,13 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
     "timezone": "IANA zone (auto-detected)",    // e.g. "Asia/Seoul"
     "active_app": { "name": "foreground app" }, // optional
     "active_window_title": "foreground window", // optional
+    "posture": {                                // optional; absent while idle
+      "state": "sitting | peeking | dragging",
+      "perched_on": {                           // sitting/peeking only; optional when identity is unavailable
+        "app": "Visual Studio Code",            // primary app-owner identifier
+        "window_title": "window the character is perched on" // secondary; optional
+      }
+    },
     "recent_apps": [                            // optional; apps switched to since the last utterance, oldest→newest
       { "name": "app name", "at": "ISO 8601 local time" }
     ]
@@ -50,6 +57,10 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
   }
 }
 ```
+
+`env.posture` reports the character's current physical posture on every turn. The field is absent while the character is idle. `state` is `"sitting"`, `"peeking"`, or `"dragging"`. Sitting and peeking may include `perched_on.app`, the primary and stable app-owner name, and `perched_on.window_title`, the secondary window title. Window titles are often unavailable without Screen Recording permission. `perched_on.app` is currently populated on macOS only; on Windows only `window_title` may appear. Either identity field may be omitted independently, and `perched_on` is omitted when both are unavailable. Dragging never includes `perched_on` because the cursor, rather than a window, holds the character.
+
+`env.active_window_title` and `env.posture.perched_on.window_title` describe different windows. `active_window_title` is the currently focused OS window, while `perched_on.window_title` is the window supporting the character. They can differ when focus moves away from the perched window.
 
 ### `trigger.kind` values
 

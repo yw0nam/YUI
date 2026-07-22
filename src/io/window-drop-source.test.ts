@@ -81,6 +81,7 @@ const win = (over: Partial<WindowRect> = {}): WindowRect => ({
   width: 520,
   height: 320,
   name: "Other",
+  ownerName: "Visual Studio Code",
   pid: 999,
   windowNumber: 7,
   ...over,
@@ -121,6 +122,8 @@ describe("window-drop-source — perch hit", () => {
     expect(env.source).toBe("os_event_watcher");
     expect(env.hint_tier).toBe(1);
     expect(env.dnd_override).toBe(true);
+    expect(env.payload?.app).toBe("Visual Studio Code");
+    expect(env.payload?.window_title).toBe("Other");
     // edge_local_ypx = W.y - pos.y/scale = 400 - 740/2 = 400 - 370 = 30.
     expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
   });
@@ -304,6 +307,8 @@ describe("window-drop-source — side peek drop", () => {
       dnd_override: true,
       payload: {
         side,
+        app: "Visual Studio Code",
+        window_title: "Other",
         target_local_xpx: side === "left" ? edgeLocalXpx + 24 : edgeLocalXpx - 24,
       },
     });

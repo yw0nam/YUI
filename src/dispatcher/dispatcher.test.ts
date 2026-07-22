@@ -175,6 +175,109 @@ describe("dispatcher — state machine (§9)", () => {
   });
 });
 
+describe("dispatcher — posture", () => {
+  async function pushPostureEvent(event_name: string, payload?: Record<string, unknown>) {
+    bus.push(env({ event_name, hint_tier: 1, payload }));
+    await vi.advanceTimersByTimeAsync(20);
+  }
+
+  it.each([
+    [
+      "user.window_sit_drop",
+      { edge_local_ypx: 30, app: "Notes", window_title: "Meeting notes" },
+      { state: "sitting", perched_on: { app: "Notes", window_title: "Meeting notes" } },
+    ],
+    ["user.window_sit_enter", undefined, { state: "sitting" }],
+    [
+      "user.peek_drop",
+      { side: "left", target_local_xpx: 120, app: "Messages", window_title: "Alice" },
+      { state: "peeking", perched_on: { app: "Messages", window_title: "Alice" } },
+    ],
+    ["user.drag_start", undefined, { state: "dragging" }],
+  ] as const)("derives posture from %s", async (event_name, payload, expected) => {
+    dispatcher.start();
+    await pushPostureEvent(event_name, payload);
+    expect(dispatcher.getPosture()).toEqual(expected);
+  });
+
+  it("replaces sitting posture with the next peeking posture", async () => {
+    dispatcher.start();
+    await pushPostureEvent("user.window_sit_drop", {
+      edge_local_ypx: 30,
+      app: "Notes",
+      window_title: "Meeting notes",
+    });
+    expect(dispatcher.getPosture()).toEqual({
+      state: "sitting",
+      perched_on: { app: "Notes", window_title: "Meeting notes" },
+    });
+
+    await pushPostureEvent("user.peek_drop", {
+      side: "left",
+      target_local_xpx: 120,
+      app: "Messages",
+      window_title: "Alice",
+    });
+    expect(dispatcher.getPosture()).toEqual({
+      state: "peeking",
+      perched_on: { app: "Messages", window_title: "Alice" },
+    });
+  });
+
+  it.each([
+    [
+      "user.window_sit_drop",
+      { edge_local_ypx: 30, app: "Notes", window_title: null },
+      { state: "sitting", perched_on: { app: "Notes" } },
+    ],
+    [
+      "user.peek_drop",
+      { side: "right", target_local_xpx: 120, app: null, window_title: "Alice" },
+      { state: "peeking", perched_on: { window_title: "Alice" } },
+    ],
+  ] as const)("omits null identity fields from %s posture", async (event_name, payload, expected) => {
+    dispatcher.start();
+    await pushPostureEvent(event_name, payload);
+    expect(dispatcher.getPosture()).toEqual(expected);
+  });
+
+  it.each([
+    [
+      "user.window_sit_drop",
+      { edge_local_ypx: 30, app: null, window_title: null },
+      { state: "sitting" },
+    ],
+    [
+      "user.peek_drop",
+      { side: "right", target_local_xpx: 120, app: null, window_title: null },
+      { state: "peeking" },
+    ],
+  ] as const)("omits perched_on when %s has no identity", async (event_name, payload, expected) => {
+    dispatcher.start();
+    await pushPostureEvent(event_name, payload);
+    expect(dispatcher.getPosture()).toEqual(expected);
+  });
+
+  it.each([
+    [
+      "user.window_sit_drop",
+      { edge_local_ypx: 30, app: "Notes", window_title: "Meeting notes" },
+      "user.window_sit_exit",
+    ],
+    [
+      "user.peek_drop",
+      { side: "left", target_local_xpx: 120, app: "Messages", window_title: "Alice" },
+      "user.peek_exit",
+    ],
+    ["user.drag_start", undefined, "user.drag_end"],
+  ] as const)("clears posture on %s", async (startEvent, payload, clearEvent) => {
+    dispatcher.start();
+    await pushPostureEvent(startEvent, payload);
+    await pushPostureEvent(clearEvent);
+    expect(dispatcher.getPosture()).toBeUndefined();
+  });
+});
+
 describe("dispatcher — routing (§5.1)", () => {
   it("routes user.text_submitted (tier2) to the backend caller", async () => {
     dispatcher.start();
@@ -446,6 +549,7 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(setPeekTarget).not.toHaveBeenCalled();
     expect(peekEnter).not.toHaveBeenCalled();
     expect(applyDirective).not.toHaveBeenCalled();
+    expect(dispatcher.getPosture()).toBeUndefined();
   });
 
   it.each([
@@ -662,7 +766,7 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(setPerchTarget).not.toHaveBeenCalled();
   });
 
-  it("skips setPerchTarget when user.window_sit_drop payload is malformed (still renders window_sit)", async () => {
+  it("aborts a malformed window sit drop without setting posture", async () => {
     dispatcher.start();
     bus.push(
       env({
@@ -673,9 +777,14 @@ describe("dispatcher — routing (§5.1)", () => {
       }),
     );
     await vi.advanceTimersByTimeAsync(20);
-    const arg = applyDirective.mock.calls[0][0];
-    expect(arg.motion?.id).toBe("window_sit");
+    expect(logger.warn).toHaveBeenCalledWith(
+      "perch_target.malformed",
+      expect.objectContaining({ payload: {} }),
+    );
+    expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(setPerchTarget).not.toHaveBeenCalled();
+    expect(applyDirective).not.toHaveBeenCalled();
+    expect(dispatcher.getPosture()).toBeUndefined();
   });
 });
 

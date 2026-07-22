@@ -386,7 +386,12 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         ts: Date.now(),
         hint_tier: 1,
         dnd_override: true,
-        payload: { side, target_local_xpx: targetLocalXpx },
+        payload: {
+          side,
+          target_local_xpx: targetLocalXpx,
+          app: sideTarget.ownerName,
+          window_title: sideTarget.name,
+        },
       });
       arm("peek", sideTarget.windowNumber, { x: sideTarget.x, y: sideTarget.y }, probe.charHpx);
       return;
@@ -422,7 +427,11 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       ts: Date.now(),
       hint_tier: 1,
       dnd_override: true,
-      payload: { edge_local_ypx: edgeLocalYpx },
+      payload: {
+        edge_local_ypx: edgeLocalYpx,
+        app: target.ownerName,
+        window_title: target.name,
+      },
     });
     arm("sit", target.windowNumber, { x: target.x, y: target.y }, probe.charHpx);
   }
