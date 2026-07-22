@@ -31,6 +31,8 @@ import {
 import {
   CHAT_API_KEY_SECRET,
   createConfigStore,
+  GESTURE_CUES_DEFAULTS,
+  type GestureCuesConfig,
   PEEK_DEFAULTS,
   type PeekConfig,
   STT_API_KEY_SECRET,
@@ -53,6 +55,7 @@ import {
   CAMERA_ZOOM_MIN,
 } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
+import { createDragHoldSource, type DragHoldSource } from "./io/drag-hold-source";
 import { mergeEndpoints } from "./io/endpoints-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
 import { createOsContext } from "./io/os-context";
@@ -123,10 +126,12 @@ async function bootstrap(): Promise<void> {
   // never interrupted by a mid-gesture ignore flip.
   let hitTestRef: HitTestController | null = null;
   let tapSourceRef: TapSource | null = null;
+  let dragHoldRef: DragHoldSource | null = null;
   const cleanupDrag = await initDrag(stage, {
     onClick: (pos) => tapSourceRef?.handleClick(pos),
     onDragStart: () => {
       hitTestRef?.suspend();
+      dragHoldRef?.noteDragStart();
       bus.push({
         source: "os_event_watcher",
         event_name: "user.drag_start",
@@ -135,7 +140,10 @@ async function bootstrap(): Promise<void> {
         dnd_override: true,
       });
     },
-    onDragEnd: () => hitTestRef?.resume(),
+    onDragEnd: () => {
+      hitTestRef?.resume();
+      dragHoldRef?.noteDragEnd();
+    },
     onOrbitStart: () => hitTestRef?.suspend(),
     onOrbitEnd: () => hitTestRef?.resume(),
     // Shift + left-drag orbits the camera. dx → azimuth, dy → polar; clamp/persist
@@ -510,6 +518,7 @@ async function bootstrap(): Promise<void> {
   let peekStateRef: ReturnType<typeof createPeekState> | null = null;
   let peekConfig: PeekConfig = { ...PEEK_DEFAULTS };
   let tapConfig: TapConfig = TAP_DEFAULTS;
+  let gestureCuesConfig: GestureCuesConfig = GESTURE_CUES_DEFAULTS;
   // Window-sit drop producer (Rust window_drop_release → tier1 perch) + ctrl+wheel resize
   // producer + agent loopback ingress bind. Tauri-only; owns its own HMR teardown.
   // DEV mock (__yui_windowSit.drop) exercises the geometry path without a real drag.
@@ -518,6 +527,7 @@ async function bootstrap(): Promise<void> {
     renderer,
     peekActive: () => peekStateRef?.active() ?? false,
     getPeekConfig: () => peekConfig,
+    getGestureCues: () => gestureCuesConfig,
     agentNotifySettings,
     log,
   });
@@ -770,6 +780,7 @@ async function bootstrap(): Promise<void> {
     const cfg = await config.load();
     peekConfig = cfg.avatar.peek;
     tapConfig = cfg.avatar.tap;
+    gestureCuesConfig = cfg.avatar.gesture_cues;
     // Guardrails — configured by config numbers. dispatcher consumes via note+evaluate+cooldown polling.
     const guardrails = createGuardrails(cfg.guardrails);
     guardrailsRef = guardrails;
@@ -931,6 +942,11 @@ async function bootstrap(): Promise<void> {
       config: cfg.avatar.tap,
       drainSignals: () => signalsSource.drain(),
     });
+    dragHoldRef = createDragHoldSource({
+      bus,
+      holdMs: cfg.avatar.drag_hold_ms,
+      getCue: () => cfg.avatar.gesture_cues.drag_held,
+    });
     // Global summon hotkey: register configs/hotkeys.json accelerator OS-globally. onReady holds
     // the handle so the config.subscribe below can re-apply it on hot-reload.
     wireSummonHotkey({
@@ -967,6 +983,7 @@ async function bootstrap(): Promise<void> {
     if (changed.has("avatar")) {
       peekConfig = cfg.avatar.peek;
       tapConfig = cfg.avatar.tap;
+      gestureCuesConfig = cfg.avatar.gesture_cues;
     }
     // emotion/motion registry hot-reload → renderer re-inject (immediate effect).
     if (changed.has("emotionRegistry")) renderer.setEmotionRegistry(cfg.emotionRegistry);

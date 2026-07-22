@@ -148,6 +148,21 @@ When there is no user utterance, `input[1]` carries a short, per-`event_name` no
 }
 ```
 
+**`proactive.drag_held` / `proactive.window_sit` / `proactive.peek` turns** — reflex reactions to a physical gesture (`configs/avatar.json` `gesture_cues`): a drag held past `drag_hold_ms`, the character settling onto a foreign window's top edge, or peeking from a screen edge. Each fires once per gesture occurrence — no repeat while sustained, no cooldown. These are REFLEX turns: the client skips the TTFT thinking filler since a deliberative pause before an immediate reaction feels wrong. `window_sit`/`peek` compose the sat-on/peeked-at window's name into `cue.context` at fire time when known:
+
+```json
+{
+  "env": { "timestamp": "2026-06-15T15:12:00+09:00", "timezone": "Asia/Seoul" },
+  "trigger": {
+    "kind": "proactive",
+    "cue": {
+      "label": "sat on window",
+      "context": "I just sat down on the edge of a window — say something fitting. Keep it short. (currently perched on: Notes)"
+    }
+  }
+}
+```
+
 ### Agent completion fields
 
 `agent` turns carry no `cue`. A turn is one of two shapes: a single completion observed while the user is present (`agent`), or a burst of completions buffered while the user was away and flushed on return (`agent_catchup`). The source is an external coding-agent finish-hook that POSTs a completion signal to the running YUI app over loopback HTTP.

@@ -36,6 +36,21 @@
       "context": "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment."
     }
   },
+  "drag_hold_ms": 5000,
+  "gesture_cues": {
+    "drag_held": {
+      "label": "dragged around",
+      "context": "The user has been dragging me around for a while — ask them to put me down. Keep it short."
+    },
+    "window_sit": {
+      "label": "sat on window",
+      "context": "I just sat down on the edge of a window — say something fitting. Keep it short."
+    },
+    "peek": {
+      "label": "peeking",
+      "context": "I'm peeking out from the edge of the screen — say something playful. Keep it short."
+    }
+  },
   "gaze": {
     "deadDeg": 3,
     "headEngageDeg": 20,

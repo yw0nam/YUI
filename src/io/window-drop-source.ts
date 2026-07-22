@@ -26,7 +26,7 @@
  * degrade to a warn log (mirrors os-context.ts).
  */
 
-import type { PeekConfig } from "../config/load";
+import type { GestureCuesConfig, PeekConfig } from "../config/load";
 import type { ScreenRect, WindowRect } from "../contract";
 import type { EventBus } from "../dispatcher/event-bus";
 import { createLogger } from "../logger";
@@ -85,6 +85,8 @@ export interface WindowDropSourceDeps {
   peekActive?: () => boolean;
   /** Returns the current side-peek configuration. */
   getPeekConfig: () => PeekConfig;
+  /** Returns the current reflex-gesture speech cues (window_sit / peek used here). */
+  getGestureCues: () => GestureCuesConfig;
   /** Injectable timer fns (fake timers in tests). */
   setInterval?: typeof setInterval;
   clearInterval?: typeof clearInterval;
@@ -97,6 +99,11 @@ export interface WindowDropSource {
   stop(): void;
   /** Alias of stop() for HMR-dispose call sites. */
   dispose(): void;
+}
+
+/** Compose the sat-on/peeked-at window name into a cue's base context (no name → base unchanged). */
+function withPerchedOn(baseContext: string, name: string | null): string {
+  return name ? `${baseContext} (currently perched on: ${name})` : baseContext;
 }
 
 /** Point-in-rect: is the seat actually over this window's surface (points). */
@@ -162,6 +169,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   const clearIntervalImpl = deps.clearInterval ?? clearInterval;
   const peekActive = deps.peekActive ?? (() => false);
   const getPeekConfig = deps.getPeekConfig;
+  const getGestureCues = deps.getGestureCues;
 
   let unlisten: (() => void) | undefined;
 
@@ -360,6 +368,18 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       const edgeXpx = side === "left" ? sideTarget.x : sideTarget.x + sideTarget.width;
       const edgeLocalXpx = edgeXpx - pos.x / sf;
       const targetLocalXpx = peekTargetPx(edgeLocalXpx, side, probe.charHpx, peekConfig.inset_frac);
+      const peekCue = getGestureCues().peek;
+      bus.push({
+        source: "os_event_watcher",
+        event_name: "proactive.peek",
+        ts: Date.now(),
+        hint_tier: 2,
+        payload: {
+          cue_id: "peek",
+          label: peekCue.label,
+          context: withPerchedOn(peekCue.context, sideTarget.name),
+        },
+      });
       bus.push({
         source: "os_event_watcher",
         event_name: "user.peek_drop",
@@ -384,6 +404,18 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     // Global top edge → pet-window-local px (winOriginPts = pos / scale).
     const sf = scale > 0 ? scale : 1;
     const edgeLocalYpx = target.y - pos.y / sf;
+    const windowSitCue = getGestureCues().window_sit;
+    bus.push({
+      source: "os_event_watcher",
+      event_name: "proactive.window_sit",
+      ts: Date.now(),
+      hint_tier: 2,
+      payload: {
+        cue_id: "window_sit",
+        label: windowSitCue.label,
+        context: withPerchedOn(windowSitCue.context, target.name),
+      },
+    });
     bus.push({
       source: "os_event_watcher",
       event_name: "user.window_sit_drop",
