@@ -33,7 +33,7 @@
     "touch_emotion_hold_ms": 4000,
     "bored_cue": {
       "label": "bored poking",
-      "context": "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment."
+      "context": "The user keeps poking at me with no particular spot in mind — probably bored and wanting my attention. Fold in any accumulated signals and say something that fits the moment."
     }
   },
   "drag_hold_ms": 5000,
