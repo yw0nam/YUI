@@ -31,7 +31,6 @@ export function touchEnv(region: "chest" | "hips" = "chest"): BusEnvelope {
     ts: 1_717_000_000_000,
     payload: { cue_id: `touch_${region}`, label: `${region} poked`, context: "poked" },
     hint_tier: 2,
-    dnd_override: true,
   };
 }
 

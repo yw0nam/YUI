@@ -14,7 +14,7 @@ Each turn the client sends a Responses API request with two inputs followed by `
 | Index | Role | Content |
 |---|---|---|
 | `input[0]` | `system` | `client_context: <JSON>` — current context (no user utterance) |
-| `input[1]` | `user` | The user's message text, or a proactive marker when no user utterance exists |
+| `input[1]` | `user` | The user's message text, or a per-trigger background marker when no user utterance exists (see [Background markers](#background-markers)) |
 
 When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "input_text", text }, { type: "input_image", image_url }]`. Otherwise it is plain text.
 
@@ -56,12 +56,28 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
 | `kind` | What fired | User content | `cue` present |
 |---|---|---|---|
 | `user` | User spoke or typed | The user's message text | No |
-| `schedule` | A user-configured time-of-day cue fired | Proactive marker string | Yes |
-| `proactive` | A configured engagement cue, tap-bored cue, or region-touch cue fired | Proactive marker string | Yes |
-| `agent` | An external coding-agent finish-hook posted a completion signal | Proactive marker string | No (carries `agent` or `agent_catchup` instead) |
-| `signals` | The remote n8n workflow POSTed a burst to the `/signals` ingress | Proactive marker string | No (carries `signals` instead) |
+| `schedule` | A user-configured time-of-day cue fired | Background marker | Yes |
+| `proactive` | A configured engagement cue, tap-bored cue, or region-touch cue fired | Background marker | Yes |
+| `agent` | An external coding-agent finish-hook posted a completion signal | Background marker | No (carries `agent` or `agent_catchup` instead) |
+| `signals` | The remote n8n workflow POSTed a burst to the `/signals` ingress | Background marker | No (carries `signals` instead) |
 
 For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utterance — the agent reads the trigger fields to decide whether and what to say. Firing a turn does not guarantee speech: the client renders whatever text the agent returns, and silence means the agent returns empty or no speech text. No client-side gate decides whether to speak (see `D-NO-SPEAK-GATE`).
+
+### Background markers
+
+When there is no user utterance, `input[1]` carries a short, neutral, per-`event_name` notice of what fired — never an instruction on how to respond (firing ≠ judgment). The string is client-only framing so the agent has a concrete stimulus in the user turn; all situational detail still lives in `client_context.trigger`.
+
+| `event_name` | Marker text |
+|---|---|
+| `proactive.tap_bored` | `(the user is poking the character)` |
+| `proactive.touch_*` | `(the user is touching the character)` |
+| `proactive.*` (other) | `(the user has gone quiet)` |
+| `schedule.*` | `(a scheduled time has arrived)` |
+| `agent.done` | `(a coding-agent task just finished)` |
+| `agent.catchup` | `(coding-agent tasks finished while away)` |
+| `signals.push` | `(a new external signal arrived)` |
+| `signals.catchup` | `(external signals arrived while away)` |
+| any other | `(background trigger)` |
 
 ### Cue fields
 
