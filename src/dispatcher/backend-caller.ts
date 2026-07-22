@@ -51,6 +51,7 @@ const baseLog = createLogger("backend-caller");
  */
 function backgroundMarker(eventName: string): string {
   if (eventName === "proactive.tap_bored") return "(the user is poking the character)";
+  if (eventName.startsWith("proactive.touch_")) return "(the user is touching the character)";
   if (eventName.startsWith("proactive.")) return "(the user has gone quiet)";
   if (eventName.startsWith("schedule.")) return "(a scheduled time has arrived)";
   if (eventName === "agent.done") return "(a coding-agent task just finished)";
@@ -58,6 +59,15 @@ function backgroundMarker(eventName: string): string {
   if (eventName === "signals.push") return "(a new external signal arrived)";
   if (eventName === "signals.catchup") return "(external signals arrived while away)";
   return "(background trigger)";
+}
+
+/**
+ * Reflex turns are immediate reactions to physical interaction — they skip the TTFT thinking
+ * filler, since a deliberative "thinking" bridge before a reflex reaction feels wrong.
+ * Client-only render policy; never sent to the backend.
+ */
+function isReflexTurn(eventName: string): boolean {
+  return eventName.startsWith("proactive.touch_");
 }
 
 /**
@@ -479,8 +489,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     // (setup reject, early abort, stream throw, post-loop abort, streamError, empty/parse_error,
     // normal completion all covered).
     try {
-      // If filler is active, show first line immediately (synchronous start). Don't start if disabled/pool empty.
-      if (deps.getFiller?.()) startThinking();
+      // If filler is active, show first line immediately (synchronous start). Don't start if disabled/pool empty,
+      // or on a reflex turn — a "thinking" bridge before an immediate reaction reads as dissonant.
+      if (deps.getFiller?.() && !isReflexTurn(env.event_name)) startThinking();
 
       // B1
       const { ctx, peekedApps } = await packageContext(env);
