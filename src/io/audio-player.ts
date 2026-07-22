@@ -67,6 +67,7 @@ export function createWebAudioSink(opts?: { getGain?: () => number }): AudioSink
   const Ctor: typeof AudioContext = (audioGlobal.AudioContext ?? audioGlobal.webkitAudioContext)!;
   let ctx: AudioContext | null = null;
   let current: AudioBufferSourceNode | null = null;
+  let currentAnalyser: AnalyserNode | null = null;
   let rafId: number | null = null;
 
   function ensureCtx(): AudioContext {
@@ -99,6 +100,7 @@ export function createWebAudioSink(opts?: { getGain?: () => number }): AudioSink
         analyser.connect(audioCtx.destination);
 
         current = source;
+        currentAnalyser = analyser;
 
         const envelope = createAmplitudeEnvelope({ gain: opts?.getGain?.() });
 
@@ -118,8 +120,11 @@ export function createWebAudioSink(opts?: { getGain?: () => number }): AudioSink
         };
 
         source.onended = () => {
+          source.disconnect();
+          analyser.disconnect();
           if (current === source) {
             current = null;
+            currentAnalyser = null;
             cancelRaf();
           }
           envelope.reset();
@@ -135,12 +140,16 @@ export function createWebAudioSink(opts?: { getGain?: () => number }): AudioSink
       cancelRaf();
       if (current) {
         const s = current;
+        const a = currentAnalyser;
         current = null;
+        currentAnalyser = null;
         try {
           s.stop();
         } catch {
           /* already stopped */
         }
+        s.disconnect();
+        a?.disconnect();
       }
     },
   };

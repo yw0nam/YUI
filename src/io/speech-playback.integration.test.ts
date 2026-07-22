@@ -10,6 +10,7 @@ import { createSpeechPlayback } from "./speech-playback";
 class FakeAnalyser {
   fftSize = 256;
   connect = vi.fn();
+  disconnect = vi.fn();
   getByteTimeDomainData(arr: Uint8Array): void {
     for (let i = 0; i < arr.length; i++) arr[i] = i % 2 === 0 ? 192 : 64;
   }
@@ -18,6 +19,7 @@ class FakeBufferSource {
   buffer: unknown = null;
   onended: (() => void) | null = null;
   connect = vi.fn();
+  disconnect = vi.fn();
   start = vi.fn(() => setTimeout(() => this.onended?.(), 0));
   stop = vi.fn(() => this.onended?.());
 }

@@ -89,6 +89,7 @@ describe("createAmplitudeEnvelope — smoothing", () => {
 class FakeAnalyser {
   fftSize = 256;
   connect = vi.fn();
+  disconnect = vi.fn();
   getByteTimeDomainData(arr: Uint8Array): void {
     // a ±64 square around the 128 midpoint → non-zero RMS
     for (let i = 0; i < arr.length; i++) arr[i] = i % 2 === 0 ? 192 : 64;
@@ -99,6 +100,7 @@ class FakeBufferSource {
   buffer: unknown = null;
   onended: (() => void) | null = null;
   connect = vi.fn();
+  disconnect = vi.fn();
   start = vi.fn(() => {
     // emulate a clip that ends on the next macrotask
     setTimeout(() => this.onended?.(), 0);
@@ -293,5 +295,78 @@ describe("createWebAudioSink — getGain option", () => {
       expect(v).toBeGreaterThanOrEqual(0);
       expect(v).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. Sink: source + analyser nodes are disconnected after playback (no leak)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Each play() builds a fresh source → analyser → destination graph. Once the
+// clip is done (either it ends naturally or stop() cuts it short), both nodes
+// must be disconnected so the finished source and its decoded buffer aren't
+// kept alive by a still-connected analyser.
+
+describe("createWebAudioSink — node cleanup", () => {
+  let rafCbs: FrameRequestCallback[];
+  let sources: FakeBufferSource[];
+  let analysers: FakeAnalyser[];
+
+  class TrackingAudioContext extends FakeAudioContext {
+    createBufferSource() {
+      const s = super.createBufferSource() as FakeBufferSource;
+      sources.push(s);
+      return s;
+    }
+    createAnalyser() {
+      const a = super.createAnalyser() as FakeAnalyser;
+      analysers.push(a);
+      return a;
+    }
+  }
+
+  beforeEach(() => {
+    rafCbs = [];
+    sources = [];
+    analysers = [];
+    (globalThis as any).AudioContext = TrackingAudioContext;
+    (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => {
+      rafCbs.push(cb);
+      return rafCbs.length;
+    };
+    (globalThis as any).cancelAnimationFrame = vi.fn();
+  });
+
+  afterEach(() => {
+    delete (globalThis as any).AudioContext;
+    delete (globalThis as any).requestAnimationFrame;
+    delete (globalThis as any).cancelAnimationFrame;
+  });
+
+  it("disconnects source and analyser when playback ends naturally", async () => {
+    const sink = createWebAudioSink();
+    const wav = new Uint8Array([1, 2, 3, 4]).buffer;
+
+    const playing = sink.play(wav);
+    await Promise.resolve();
+    await Promise.resolve();
+    await playing; // onended fires via the fake's start()-scheduled setTimeout
+
+    expect(sources[0].disconnect).toHaveBeenCalled();
+    expect(analysers[0].disconnect).toHaveBeenCalled();
+  });
+
+  it("disconnects source and analyser when stop() cuts playback short", async () => {
+    const sink = createWebAudioSink();
+    const wav = new Uint8Array([1, 2, 3, 4]).buffer;
+
+    const playing = sink.play(wav);
+    await Promise.resolve();
+    await Promise.resolve();
+    sink.stop();
+    await playing;
+
+    expect(sources[0].disconnect).toHaveBeenCalled();
+    expect(analysers[0].disconnect).toHaveBeenCalled();
   });
 });
