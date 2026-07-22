@@ -165,7 +165,7 @@ When there is no user utterance, `input[1]` carries a short, per-`event_name` no
 
 ### Agent completion fields
 
-`agent` turns carry no `cue`. A turn is one of two shapes: a single completion observed while the user is present (`agent`), or a burst of completions buffered while the user was away and flushed on return (`agent_catchup`). The source is an external coding-agent finish-hook that POSTs a completion signal to the running YUI app over loopback HTTP.
+`agent` turns carry no `cue`. A turn is one of two shapes: a single completion observed while the user is present and the pipeline is idle (`agent`), or a burst of buffered completions flushed as one turn (`agent_catchup`). Completions buffer while the user is away or while the pipeline is busy (a backend call in flight or speech playback ongoing); the buffer flushes on the return-to-present or busy-to-idle edge. The source is an external coding-agent finish-hook that POSTs a completion signal to the running YUI app over loopback HTTP.
 
 `trigger.agent` — single live completion:
 
@@ -231,7 +231,7 @@ When there is no user utterance, `input[1]` carries a short, per-`event_name` no
 
 ### Signals fields
 
-`signals` turns carry no `cue`. A `proactive.tap_bored` turn carries its configured cue and may also carry drained buffered signals. The source is a remote n8n workflow that POSTs `{ "signals": [...] }` to the YUI app's `/signals` ingress. While the user is present, each POST becomes one turn. While the user is away, up to five POST batches are buffered; a sixth drops the oldest batch. On the idle-to-present edge, all buffered items are flattened in arrival order into one `signals.catchup` turn. Items are heterogeneous — GitHub change, Notion task, heartbeat, or any future kind n8n decides to emit — with no uniform tag across them.
+`signals` turns carry no `cue`. A `proactive.tap_bored` turn carries its configured cue and may also carry drained buffered signals. The source is a remote n8n workflow that POSTs `{ "signals": [...] }` to the YUI app's `/signals` ingress. While the user is present and the pipeline is idle, each POST becomes one turn. While the user is away or the pipeline is busy (a backend call in flight or speech playback ongoing), up to five POST batches are buffered; a sixth drops the oldest batch. On the return-to-present or busy-to-idle edge, all buffered items are flattened in arrival order into one `signals.catchup` turn. Items are heterogeneous — GitHub change, Notion task, heartbeat, or any future kind n8n decides to emit — with no uniform tag across them.
 
 | Field | Type | Meaning |
 |---|---|---|

@@ -930,6 +930,10 @@ async function bootstrap(): Promise<void> {
       proactiveSettings,
       scheduleSettings,
       agentNotifySettings,
+      pipelineBusy: {
+        isBusy: dispatcher.isPipelineBusy,
+        subscribe: dispatcher.subscribePipelineBusy,
+      },
     });
     proactiveSourceRef = proactiveSource;
     scheduleSourceRef = scheduleSource;

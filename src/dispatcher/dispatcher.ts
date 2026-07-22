@@ -120,6 +120,10 @@ export interface Dispatcher {
   subscribeState(cb: (s: DispatcherState) => void): () => void;
   /** Subscribe to busy (= in-flight presence) transitions. Runs only at the idle⟷busy boundary; returns an unsubscribe fn. */
   subscribeBusy(cb: (busy: boolean) => void): () => void;
+  /** Whether the pipeline is busy — in-flight call OR speech still playing. Separate from subscribeBusy (in-flight-only). */
+  isPipelineBusy(): boolean;
+  /** Subscribe to pipeline-busy transitions (in-flight OR speaking). Fires only at the idle⟷busy boundary; returns an unsubscribe fn. */
+  subscribePipelineBusy(cb: (busy: boolean) => void): () => void;
 }
 
 type Tier = 1 | 2 | 3;
@@ -276,6 +280,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   const stateSubscribers = new Set<(s: DispatcherState) => void>();
   const busySubscribers = new Set<(busy: boolean) => void>();
+  const pipelineBusySubscribers = new Set<(busy: boolean) => void>();
+  let wasPipelineBusy = false;
+
+  /** Pipeline-busy = a backend call is in flight OR speech is still playing. */
+  function currentPipelineBusy(): boolean {
+    return inFlight !== null || deps.isSpeaking?.() === true;
+  }
 
   /** Single path for state transitions: assign + state_change log + notify subscribers. */
   function setState(next: DispatcherState): void {
@@ -419,7 +430,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /** tier2/3 enqueue: start immediately if in-flight is empty, otherwise defer (with two or more, drop the oldest). */
   function enqueueBackend(env: BusEnvelope): void {
-    if (!inFlight && pending.length === 0) {
+    if (!inFlight && pending.length === 0 && !shouldHoldForPlayback(env)) {
       startBackendCall(env);
       return;
     }
@@ -584,6 +595,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
    * Otherwise (booting/stopped/draining) hold pending events as no-op.
    */
   function pump(): void {
+    // Pipeline-busy edge check runs every tick regardless of state (mirrors playback ending
+    // while the dispatcher itself is idle/booting).
+    const nowBusy = currentPipelineBusy();
+    if (nowBusy !== wasPipelineBusy) {
+      wasPipelineBusy = nowBusy;
+      for (const cb of pipelineBusySubscribers) cb(nowBusy);
+    }
     if (state !== "running" && state !== "cooldown" && state !== "degraded") return;
     let env: BusEnvelope | null;
     while ((env = bus.pop()) !== null) {
@@ -652,6 +670,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       busySubscribers.add(cb);
       return () => {
         busySubscribers.delete(cb);
+      };
+    },
+    isPipelineBusy: currentPipelineBusy,
+    subscribePipelineBusy(cb) {
+      pipelineBusySubscribers.add(cb);
+      return () => {
+        pipelineBusySubscribers.delete(cb);
       };
     },
   };

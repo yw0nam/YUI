@@ -872,6 +872,26 @@ describe("dispatcher — playback-gated drain (§337)", () => {
     );
   });
 
+  it("defers a non-user turn that arrives via the fast path while speech is playing", async () => {
+    dispatcher.start();
+    speaking = true;
+    const queued = nonUser();
+    bus.push(queued);
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    expect(dispatcher.queue()).toContain(queued);
+    expect(dispatcher.recentDrops(10).map((drop) => drop.event_name)).not.toContain(
+      queued.event_name,
+    );
+
+    speaking = false;
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
+    expect(dispatcher.inFlight()).not.toBeNull();
+  });
+
   it("drains a queued voice turn immediately while speech is playing", async () => {
     dispatcher.start();
     bus.push(nonUser({ ts: NOW }));
@@ -1487,6 +1507,45 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     callDeferred[0].resolve({ ok: true });
     await vi.advanceTimersByTimeAsync(20);
     expect(seen).toEqual([true]);
+  });
+});
+
+describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = inFlight || speaking)", () => {
+  it("isPipelineBusy() is false at rest, true while a call is in flight", async () => {
+    dispatcher.start();
+    expect(dispatcher.isPipelineBusy()).toBe(false);
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    expect(dispatcher.isPipelineBusy()).toBe(true);
+  });
+
+  it("subscribePipelineBusy fires true when the call starts", async () => {
+    const seen: boolean[] = [];
+    dispatcher.subscribePipelineBusy((b) => seen.push(b));
+    dispatcher.start();
+    bus.push(env());
+    // The busy edge is polled at the top of each pump tick, so allow a couple of ticks.
+    await vi.advanceTimersByTimeAsync(50);
+    expect(seen).toEqual([true]);
+  });
+
+  it("stays busy past inFlight completion while speaking; fires false only after speech ends", async () => {
+    const seen: boolean[] = [];
+    dispatcher.subscribePipelineBusy((b) => seen.push(b));
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(50);
+    expect(seen).toEqual([true]);
+
+    speaking = true;
+    callDeferred[0].resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(dispatcher.isPipelineBusy()).toBe(true);
+    expect(seen).toEqual([true]); // no false fired yet — still speaking
+
+    speaking = false;
+    await vi.advanceTimersByTimeAsync(50);
+    expect(seen).toEqual([true, false]);
   });
 });
 

@@ -6,11 +6,13 @@
  *  2. signals-inbox (onSignalsInbox) — receives opaque signal batches from the Rust
  *     /signals ingress.
  *
- * When present: inbox arrival fires signals.push immediately, carrying the batch's
- * `signals` array verbatim.
- * When away: batches buffer (BUFFER_CAP = 5, drop oldest batch on overflow).
- * On idle→present edge: if the buffer has content, fires ONE signals.catchup (all
- * buffered batches' items flattened in arrival order), then clears the buffer.
+ * When present AND the pipeline is idle: inbox arrival fires signals.push immediately,
+ * carrying the batch's `signals` array verbatim.
+ * When present-but-busy (backend call in flight or speech playing) OR away: batches
+ * buffer (BUFFER_CAP = 5, drop oldest batch on overflow).
+ * On the idle→present edge OR the busy→idle edge: if the buffer has content, fires ONE
+ * signals.catchup (all buffered batches' items flattened in arrival order), then clears
+ * the buffer.
  *
  * firing ≠ judgment: `signals` is opaque — this source never inspects, validates, or
  * reshapes item contents. It only buffers/flattens/forwards the array verbatim;
@@ -42,6 +44,10 @@ export interface SignalsSourceDeps {
   listen?: OsEventListen;
   /** Injectable clock; defaults to Date.now. */
   now?: () => number;
+  /** Whether the dispatcher pipeline is busy (backend call in flight or speech playing). Absent = never busy. */
+  isPipelineBusy?: () => boolean;
+  /** Subscribe to pipeline-busy transitions; used to flush the buffer on the busy→idle edge. */
+  subscribePipelineBusy?: (cb: (busy: boolean) => void) => () => void;
 }
 
 export interface SignalsSource {
@@ -60,12 +66,17 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   let running = false;
   let unlistenIdle: (() => void) | undefined;
   let unlistenInbox: (() => void) | undefined;
+  let unlistenBusy: (() => void) | undefined;
 
-  /** Buffered batches (away accumulation), oldest first. */
+  /** Buffered batches (away or busy accumulation), oldest first. */
   const buffer: SignalsBatch[] = [];
 
   function isPresent(): boolean {
     return lastIdleMs != null && lastIdleMs <= present_max_idle_ms;
+  }
+
+  function isBusy(): boolean {
+    return deps.isPipelineBusy?.() ?? false;
   }
 
   function drain(): SignalItem[] {
@@ -88,6 +99,12 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     });
   }
 
+  /** Flush iff enabled, buffer non-empty, present, and the pipeline is idle. */
+  function maybeFlush(): void {
+    if (!isEnabled() || buffer.length === 0 || !isPresent() || isBusy()) return;
+    flushCatchup();
+  }
+
   function onTick(payload: OsEventPayload): void {
     if (payload.event_name !== "os_idle_tick") return;
     lastIdleMs = payload.data.os_idle_ms ?? null;
@@ -98,8 +115,8 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       buffer.length = 0;
     }
     // Flush on the idle→present edge only (not on every present tick).
-    if (!wasPresent && present && buffer.length > 0 && isEnabled()) {
-      flushCatchup();
+    if (!wasPresent && present) {
+      maybeFlush();
     }
     wasPresent = present;
   }
@@ -112,8 +129,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
         log.debug("inbox_malformed", { degrade: true });
         return;
       }
-      const present = isPresent();
-      if (present) {
+      if (isPresent() && !isBusy()) {
         bus.push({
           source: "timer_scheduler",
           event_name: "signals.push",
@@ -150,6 +166,11 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     } catch (err) {
       log.debug("subscribe_inbox_failed", { degrade: true, error: String(err) });
     }
+
+    // Flush on the busy→idle edge (mirrors the idle→present edge above).
+    unlistenBusy = deps.subscribePipelineBusy?.((busy) => {
+      if (!busy) maybeFlush();
+    });
   }
 
   function stop(): void {
@@ -158,6 +179,8 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     unlistenIdle = undefined;
     unlistenInbox?.();
     unlistenInbox = undefined;
+    unlistenBusy?.();
+    unlistenBusy = undefined;
   }
 
   return { start, stop, drain };

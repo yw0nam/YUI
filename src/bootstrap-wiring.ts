@@ -403,13 +403,21 @@ export function wireDispatcherSources(deps: {
   proactiveSettings: { get(): ProactiveSettings };
   scheduleSettings: { get(): ScheduleSettings };
   agentNotifySettings: { get(): AgentNotifySettings };
+  pipelineBusy: { isBusy: () => boolean; subscribe: (cb: (busy: boolean) => void) => () => void };
 }): {
   proactiveSource: ProactiveSource;
   scheduleSource: ScheduleSource;
   agentSource: ReturnType<typeof createAgentSource>;
   signalsSource: SignalsSource;
 } {
-  const { bus, presenceSettings, proactiveSettings, scheduleSettings, agentNotifySettings } = deps;
+  const {
+    bus,
+    presenceSettings,
+    proactiveSettings,
+    scheduleSettings,
+    agentNotifySettings,
+    pipelineBusy,
+  } = deps;
   const proactiveSource = createProactiveSource({
     bus,
     present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
@@ -428,12 +436,16 @@ export function wireDispatcherSources(deps: {
     bus,
     present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
     isEnabled: () => agentNotifySettings.get().enabled,
+    isPipelineBusy: pipelineBusy.isBusy,
+    subscribePipelineBusy: pipelineBusy.subscribe,
   });
   void agentSource.start();
   const signalsSource = createSignalsSource({
     bus,
     present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
     isEnabled: () => agentNotifySettings.get().enabled,
+    isPipelineBusy: pipelineBusy.isBusy,
+    subscribePipelineBusy: pipelineBusy.subscribe,
   });
   void signalsSource.start();
   return { proactiveSource, scheduleSource, agentSource, signalsSource };
