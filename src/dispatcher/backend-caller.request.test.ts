@@ -296,6 +296,24 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     expect(trigger.idle_elapsed_min).toBe(60);
   });
 
+  it("proactive.touch_* user message is the touch marker (not the idle marker)", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 13,
+      source: "os_event_watcher",
+      event_name: "proactive.touch_chest",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: { cue_id: "touch_chest", label: "chest poked", context: "poked" },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toBe("(the user is touching the character)");
+  });
+
   it("proactive.tap_bored forwards its cue and drained signals", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     const signals = [{ kind: "reminder", payload: { title: "Stretch" } }, { kind: "alert" }];
