@@ -13,7 +13,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // CSS imports are not handled in jsdom — mock them
 vi.mock("./surfaces.css", () => ({}));
 vi.mock("./tokens.css", () => ({}));
+vi.mock("./markdown", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./markdown")>();
+  return {
+    ...actual,
+    renderMarkdownInline: vi.fn(actual.renderMarkdownInline),
+  };
+});
 
+import { renderMarkdownInline } from "./markdown";
 import { createSurfaces } from "./surfaces";
 
 function makeSurfaces() {
@@ -191,8 +199,43 @@ describe("pushSpeech — full markdown rendering", () => {
     s.beginSpeech();
     s.pushSpeech("Hello ");
     s.pushSpeech("world");
+    s.endSpeech();
     const text = mount.querySelector(".yui-bubble__text");
     expect(text?.textContent).toContain("Hello");
     expect(text?.textContent).toContain("world");
+  });
+});
+
+describe("pushSpeech — throttled markdown rendering", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.mocked(renderMarkdownInline).mockClear();
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+    vi.useRealTimers();
+  });
+
+  it("throttles rapid deltas and flushes the complete text in endSpeech", () => {
+    const deltas = Array.from({ length: 20 }, (_, i) => `chunk-${i} `);
+    const expected = deltas.join("");
+
+    s.beginSpeech();
+    for (const delta of deltas) s.pushSpeech(delta);
+
+    expect(renderMarkdownInline).toHaveBeenCalledTimes(1);
+    expect(mount.querySelector(".yui-bubble__text")?.textContent).not.toBe(expected);
+
+    s.endSpeech();
+
+    expect(renderMarkdownInline).toHaveBeenCalledTimes(2);
+    expect(renderMarkdownInline).toHaveBeenLastCalledWith(expected);
+    expect(mount.querySelector(".yui-bubble__text")?.textContent).toBe(expected);
   });
 });

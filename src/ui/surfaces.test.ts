@@ -28,12 +28,15 @@ describe("pushSpeech — auto-scroll to newest line", () => {
   let s: ReturnType<typeof createSurfaces>;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     ({ s, mount } = makeSurfaces());
   });
 
   afterEach(() => {
     s.dispose();
     mount.remove();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   function bubble(): HTMLElement {
@@ -60,6 +63,7 @@ describe("pushSpeech — auto-scroll to newest line", () => {
     s.pushSpeech("First chunk.");
     expect(bubbleEl.scrollTop).toBe(240);
 
+    vi.advanceTimersByTime(50);
     stub(bubbleEl, 480, 240);
     s.pushSpeech(" Second chunk that grows the content further.");
     expect(bubbleEl.scrollTop).toBe(480);
@@ -71,12 +75,15 @@ describe("pushSpeech — scroll pinning respects the user's scroll position", ()
   let s: ReturnType<typeof createSurfaces>;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     ({ s, mount } = makeSurfaces());
   });
 
   afterEach(() => {
     s.dispose();
     mount.remove();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   function bubble(): HTMLElement {
@@ -97,6 +104,7 @@ describe("pushSpeech — scroll pinning respects the user's scroll position", ()
 
     // user scrolls up to re-read
     bubbleEl.scrollTop = 0;
+    vi.advanceTimersByTime(50);
     stub(bubbleEl, 480, 240);
     s.pushSpeech(" More text arrives.");
     expect(bubbleEl.scrollTop).toBe(0); // not yanked back down
@@ -109,6 +117,7 @@ describe("pushSpeech — scroll pinning respects the user's scroll position", ()
     s.pushSpeech("First chunk.");
     expect(bubbleEl.scrollTop).toBe(240);
 
+    vi.advanceTimersByTime(50);
     stub(bubbleEl, 480, 240);
     s.pushSpeech(" Second chunk.");
     expect(bubbleEl.scrollTop).toBe(480);
@@ -255,6 +264,62 @@ describe("tool chip lifecycle (running → done → hide)", () => {
   it("finishTool is a no-op when no chip is showing", () => {
     s.finishTool();
     expect(tool().dataset.state).toBeUndefined();
+  });
+});
+
+describe("surface hide fallback", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+    vi.useRealTimers();
+  });
+
+  function opacityTransitionEnd(el: HTMLElement): void {
+    const event = new Event("transitionend") as TransitionEvent & { propertyName: string };
+    Object.defineProperty(event, "propertyName", { value: "opacity", configurable: true });
+    el.dispatchEvent(event);
+  }
+
+  it("hideSpeech settles after 400ms without transitionend and repeated stray hides stay harmless", () => {
+    const bubble = mount.querySelector(".yui-bubble") as HTMLElement;
+    s.beginSpeech();
+
+    s.hideSpeech();
+    s.hideSpeech();
+    expect(bubble.hidden).toBe(false);
+
+    vi.advanceTimersByTime(400);
+    expect(bubble.hidden).toBe(true);
+
+    s.beginSpeech();
+    bubble.classList.add("is-visible");
+    opacityTransitionEnd(bubble);
+    expect(bubble.hidden).toBe(false);
+  });
+
+  it("hideTool settles after 400ms without transitionend and repeated stray hides stay harmless", () => {
+    const tool = mount.querySelector(".yui-tool") as HTMLElement;
+    s.showTool("web_search");
+
+    s.hideTool();
+    s.hideTool();
+    expect(tool.hidden).toBe(false);
+
+    vi.advanceTimersByTime(400);
+    expect(tool.hidden).toBe(true);
+
+    s.showTool("browser");
+    tool.classList.add("is-visible");
+    opacityTransitionEnd(tool);
+    expect(tool.hidden).toBe(false);
   });
 });
 
