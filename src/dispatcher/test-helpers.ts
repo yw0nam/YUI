@@ -23,6 +23,17 @@ export function userEnv(text = "안녕"): BusEnvelope {
   };
 }
 
+export function touchEnv(region: "chest" | "hips" = "chest"): BusEnvelope {
+  return {
+    seq_id: 2,
+    source: "os_event_watcher",
+    event_name: `proactive.touch_${region}`,
+    ts: 1_717_000_000_000,
+    payload: { cue_id: `touch_${region}`, label: `${region} poked`, context: "poked" },
+    hint_tier: 2,
+  };
+}
+
 export function completedEvent(env: ControlEnvelope, responseId = "resp_new"): ChatStreamEvent {
   return { type: "completed", envelope: env, responseId };
 }

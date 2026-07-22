@@ -17,6 +17,7 @@ import {
   expressEvent,
   makeLogger,
   toolStatusEvent,
+  touchEnv,
   usageEvent,
   userEnv,
 } from "./test-helpers";
@@ -461,6 +462,14 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
     caller = makeCaller(false);
     scriptedEvents = [deltaEvent("hi"), completedEvent({ speech_text: "hi" })];
     await caller.call(userEnv());
+    expect(onThinkingStart).not.toHaveBeenCalled();
+    expect(onThinkingEnd).not.toHaveBeenCalled();
+  });
+
+  it("reflex turn (proactive.touch_*) skips thinking even when getFiller true", async () => {
+    caller = makeCaller(true);
+    scriptedEvents = [deltaEvent("꺅"), completedEvent({ speech_text: "꺅" })];
+    await caller.call(touchEnv());
     expect(onThinkingStart).not.toHaveBeenCalled();
     expect(onThinkingEnd).not.toHaveBeenCalled();
   });

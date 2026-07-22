@@ -45,8 +45,32 @@ import type { DropReason } from "./guardrails";
 
 const baseLog = createLogger("backend-caller");
 
-/** User message marker for proactive/schedule turns (no user_text) — explicit signal instead of empty string. */
-const PROACTIVE_MARKER = "(proactive trigger)";
+/**
+ * User message for non-user turns (no user_text) — a short, per-trigger notice framed from the
+ * character's first-person POV (the character is "I/me", the operator is "the user") so the agent
+ * self-identifies as the actor. Describes what happened, never how to respond (firing ≠ judgment).
+ * No payload interpolation.
+ */
+function backgroundMarker(eventName: string): string {
+  if (eventName === "proactive.tap_bored") return "(the user keeps poking at me)";
+  if (eventName.startsWith("proactive.touch_")) return "(the user just poked at me)";
+  if (eventName.startsWith("proactive.")) return "(the user has gone quiet on me for a while)";
+  if (eventName.startsWith("schedule.")) return "(it's the time of day I check in on the user)";
+  if (eventName === "agent.done") return "(one of the user's coding tasks just finished)";
+  if (eventName === "agent.catchup") return "(the user's coding tasks wrapped up while away)";
+  if (eventName === "signals.push") return "(a new signal just reached me)";
+  if (eventName === "signals.catchup") return "(signals piled up while the user was away)";
+  return "(something just caught my attention)";
+}
+
+/**
+ * Reflex turns are immediate reactions to physical interaction — they skip the TTFT thinking
+ * filler, since a deliberative "thinking" bridge before a reflex reaction feels wrong.
+ * Client-only render policy; never sent to the backend.
+ */
+function isReflexTurn(eventName: string): boolean {
+  return eventName.startsWith("proactive.touch_");
+}
 
 /**
  * Idle-gap watchdog deadline (ms). Stall baseline that resets on each stream event (including first byte) —
@@ -410,10 +434,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
   /**
    * InputContext → OpenAI Responses input (user speech encoded only in user message).
-   * User message: userText ?? PROACTIVE_MARKER (+ image content-part when images present).
+   * User message: userText ?? backgroundMarker(env.event_name) (+ image content-part when images present).
    */
   function encodeInput(ctx: InputContext, env: BusEnvelope): ChatRequest["input"] {
-    const text = ctx.user_text ?? PROACTIVE_MARKER;
+    const text = ctx.user_text ?? backgroundMarker(env.event_name);
     const images = imageDataUrlsOf(ctx);
     const userContent = images.length
       ? [
@@ -467,8 +491,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     // (setup reject, early abort, stream throw, post-loop abort, streamError, empty/parse_error,
     // normal completion all covered).
     try {
-      // If filler is active, show first line immediately (synchronous start). Don't start if disabled/pool empty.
-      if (deps.getFiller?.()) startThinking();
+      // If filler is active, show first line immediately (synchronous start). Don't start if disabled/pool empty,
+      // or on a reflex turn — a "thinking" bridge before an immediate reaction reads as dissonant.
+      if (deps.getFiller?.() && !isReflexTurn(env.event_name)) startThinking();
 
       // B1
       const { ctx, peekedApps } = await packageContext(env);
@@ -520,7 +545,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           ...(effectiveInstructions ? { instructions: effectiveInstructions } : {}),
           clientContextJson: JSON.stringify(clientContext),
           transcript: ccTranscript,
-          userText: ctx.user_text ?? PROACTIVE_MARKER,
+          userText: ctx.user_text ?? backgroundMarker(env.event_name),
           ...(imageDataUrls.length ? { imageDataUrls } : {}),
         });
       } else {
