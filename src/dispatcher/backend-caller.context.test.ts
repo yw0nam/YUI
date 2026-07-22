@@ -572,7 +572,7 @@ describe("backend_caller — flat client_context envelope", () => {
     expect("ts" in trigger).toBe(false);
     expect("seq_id" in trigger).toBe(false);
     // proactive turn (no user_text) → proactive background marker string
-    expect(userMessageContentOf(request.input)).toBe("(the user has gone quiet on me for a while)");
+    expect(userMessageContentOf(request.input)).toBe("(I've gone quiet for a while)");
   });
 
   it("(b) user turn → trigger.kind is 'user'; env has timestamp/timezone; no user_text in system object", async () => {
