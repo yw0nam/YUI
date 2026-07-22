@@ -46,24 +46,27 @@ import type { DropReason } from "./guardrails";
 const baseLog = createLogger("backend-caller");
 
 /**
- * User message for non-user turns (no user_text) — a short, per-trigger notice framed from the
- * character's first-person POV (the character is "I/me", the operator is "the user") so the agent
- * self-identifies as the actor. Describes what happened, never how to respond (firing ≠ judgment).
- * No payload interpolation.
+ * User message for non-user turns (no user_text) — a short, per-trigger notice. Delivered in a
+ * role: "user" message, so both parties are named explicitly in third person ("the character" /
+ * "the user") rather than "I"/"me" — first person here would read as the user's own action.
+ * Describes what happened, never how to respond (firing ≠ judgment). No payload interpolation.
  */
 function backgroundMarker(eventName: string): string {
-  if (eventName === "proactive.tap_bored") return "(the user keeps poking at me)";
-  if (eventName.startsWith("proactive.touch_")) return "(the user just poked at me)";
-  if (eventName === "proactive.drag_held") return "(the user keeps dragging me around)";
-  if (eventName === "proactive.window_sit") return "(I just settled onto a window's edge)";
-  if (eventName === "proactive.peek") return "(I'm peeking out from the screen edge)";
-  if (eventName.startsWith("proactive.")) return "(the user has gone quiet on me for a while)";
-  if (eventName.startsWith("schedule.")) return "(it's the time of day I check in on the user)";
+  if (eventName === "proactive.tap_bored") return "(the user keeps poking at the character)";
+  if (eventName.startsWith("proactive.touch_")) return "(the user just poked at the character)";
+  if (eventName === "proactive.drag_held") return "(the user keeps dragging the character around)";
+  if (eventName === "proactive.window_sit")
+    return "(the character just settled onto a window's edge)";
+  if (eventName === "proactive.peek") return "(the character is peeking out from the screen edge)";
+  if (eventName.startsWith("proactive."))
+    return "(the user has gone quiet on the character for a while)";
+  if (eventName.startsWith("schedule."))
+    return "(it's the time of day the character checks in on the user)";
   if (eventName === "agent.done") return "(one of the user's coding tasks just finished)";
   if (eventName === "agent.catchup") return "(the user's coding tasks wrapped up while away)";
-  if (eventName === "signals.push") return "(a new signal just reached me)";
+  if (eventName === "signals.push") return "(a new signal just arrived for the character)";
   if (eventName === "signals.catchup") return "(signals piled up while the user was away)";
-  return "(something just caught my attention)";
+  return "(something just caught the character's attention)";
 }
 
 /**
