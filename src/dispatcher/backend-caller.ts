@@ -46,19 +46,21 @@ import type { DropReason } from "./guardrails";
 const baseLog = createLogger("backend-caller");
 
 /**
- * User message for non-user turns (no user_text) — a neutral, per-trigger event notice
- * (English, parenthetical) instead of an empty string. No persona/tone, no payload interpolation.
+ * User message for non-user turns (no user_text) — a short, per-trigger notice framed from the
+ * character's first-person POV (the character is "I/me", the operator is "the user") so the agent
+ * self-identifies as the actor. Describes what happened, never how to respond (firing ≠ judgment).
+ * No payload interpolation.
  */
 function backgroundMarker(eventName: string): string {
-  if (eventName === "proactive.tap_bored") return "(the user is poking the character)";
-  if (eventName.startsWith("proactive.touch_")) return "(the user is touching the character)";
-  if (eventName.startsWith("proactive.")) return "(the user has gone quiet)";
-  if (eventName.startsWith("schedule.")) return "(a scheduled time has arrived)";
-  if (eventName === "agent.done") return "(a coding-agent task just finished)";
-  if (eventName === "agent.catchup") return "(coding-agent tasks finished while away)";
-  if (eventName === "signals.push") return "(a new external signal arrived)";
-  if (eventName === "signals.catchup") return "(external signals arrived while away)";
-  return "(background trigger)";
+  if (eventName === "proactive.tap_bored") return "(the user keeps poking at me)";
+  if (eventName.startsWith("proactive.touch_")) return "(the user just poked at me)";
+  if (eventName.startsWith("proactive.")) return "(the user has gone quiet on me for a while)";
+  if (eventName.startsWith("schedule.")) return "(it's the time of day I check in on the user)";
+  if (eventName === "agent.done") return "(one of the user's coding tasks just finished)";
+  if (eventName === "agent.catchup") return "(the user's coding tasks wrapped up while away)";
+  if (eventName === "signals.push") return "(a new signal just reached me)";
+  if (eventName === "signals.catchup") return "(signals piled up while the user was away)";
+  return "(something just caught my attention)";
 }
 
 /**

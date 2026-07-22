@@ -261,7 +261,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(a scheduled time has arrived)");
+    expect(userMsg.content).toBe("(it's the time of day I check in on the user)");
   });
 
   it("(b) proactive envelope with cue → trigger.cue has label/context/idle_min, NO id/local_time; idle_elapsed_min on trigger", async () => {
@@ -311,7 +311,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(the user is touching the character)");
+    expect(userMsg.content).toBe("(the user just poked at me)");
   });
 
   it("proactive.tap_bored forwards its cue and drained signals", async () => {
@@ -342,7 +342,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(the user is poking the character)");
+    expect(userMsg.content).toBe("(the user keeps poking at me)");
   });
 
   it("(c) user.text_submitted envelope (no cue_id) → trigger.cue absent", async () => {
@@ -401,7 +401,7 @@ describe("backend_caller — agent trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(a coding-agent task just finished)");
+    expect(userMsg.content).toBe("(one of the user's coding tasks just finished)");
   });
 
   it("(b) agent.done without status → trigger.agent.status absent", async () => {
@@ -480,7 +480,7 @@ describe("backend_caller — agent trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(coding-agent tasks finished while away)");
+    expect(userMsg.content).toBe("(the user's coding tasks wrapped up while away)");
   });
 
   it("(d) agent.done with malformed payload → kind 'agent' but no trigger.agent", async () => {
@@ -537,7 +537,7 @@ describe("backend_caller — signals trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(a new external signal arrived)");
+    expect(userMsg.content).toBe("(a new signal just reached me)");
   });
 
   it("(b) signals.catchup → trigger.kind 'signals' + trigger.signals (flattened, unmodified)", async () => {
@@ -561,7 +561,7 @@ describe("backend_caller — signals trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(external signals arrived while away)");
+    expect(userMsg.content).toBe("(signals piled up while the user was away)");
   });
 
   it("(c) heterogeneous/nested item shapes pass through unmodified — no structural validation", async () => {
@@ -721,7 +721,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     const msgs = messagesOf(request);
     expect(msgs[msgs.length - 1]).toEqual({
       role: "user",
-      content: "(the user has gone quiet)",
+      content: "(the user has gone quiet on me for a while)",
     });
   });
 
@@ -745,7 +745,10 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     await caller.call(env);
     const [, request] = streamChatSpy.mock.calls[0];
     const msgs = messagesOf(request);
-    expect(msgs[msgs.length - 1]).toEqual({ role: "user", content: "(background trigger)" });
+    expect(msgs[msgs.length - 1]).toEqual({
+      role: "user",
+      content: "(something just caught my attention)",
+    });
   });
 });
 
