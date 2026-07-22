@@ -315,9 +315,9 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
   });
 
   it.each([
-    ["proactive.drag_held", "(the user keeps dragging the character around)"],
-    ["proactive.window_sit", "(the character just sat on a window)"],
-    ["proactive.peek", "(the character is peeking from the screen edge)"],
+    ["proactive.drag_held", "(the user keeps dragging me around)"],
+    ["proactive.window_sit", "(I just settled onto a window's edge)"],
+    ["proactive.peek", "(I'm peeking out from the screen edge)"],
   ] as const)("%s user message is its reflex-gesture marker", async (eventName, marker) => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     const env: BusEnvelope = {

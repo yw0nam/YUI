@@ -54,9 +54,9 @@ const baseLog = createLogger("backend-caller");
 function backgroundMarker(eventName: string): string {
   if (eventName === "proactive.tap_bored") return "(the user keeps poking at me)";
   if (eventName.startsWith("proactive.touch_")) return "(the user just poked at me)";
-  if (eventName === "proactive.drag_held") return "(the user keeps dragging the character around)";
-  if (eventName === "proactive.window_sit") return "(the character just sat on a window)";
-  if (eventName === "proactive.peek") return "(the character is peeking from the screen edge)";
+  if (eventName === "proactive.drag_held") return "(the user keeps dragging me around)";
+  if (eventName === "proactive.window_sit") return "(I just settled onto a window's edge)";
+  if (eventName === "proactive.peek") return "(I'm peeking out from the screen edge)";
   if (eventName.startsWith("proactive.")) return "(the user has gone quiet on me for a while)";
   if (eventName.startsWith("schedule.")) return "(it's the time of day I check in on the user)";
   if (eventName === "agent.done") return "(one of the user's coding tasks just finished)";
