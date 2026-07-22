@@ -44,7 +44,14 @@ link_asset() {
   echo "worktree-setup: linked $dst -> $src"
 }
 
-link_asset "$MAIN/resources/vrms/carlotta.vrm" "$WT/resources/vrms/carlotta.vrm"
+# Link every bundled VRM (configs/avatar.json lists several; a worktree missing any
+# selectable VRM serves index.html for it and boot fails on the VRM parse).
+if [ -d "$MAIN/resources/vrms" ]; then
+  mkdir -p "$WT/resources/vrms"
+  for f in "$MAIN/resources/vrms"/*.vrm; do
+    [ -e "$f" ] && link_asset "$f" "$WT/resources/vrms/$(basename "$f")"
+  done
+fi
 link_asset "$MAIN/resources/references" "$WT/resources/references"
 
 # Purchased motions: AGENTS.md is tracked but the .vrma files are gitignored, so the
