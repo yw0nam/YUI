@@ -81,6 +81,7 @@ interface SurfacesOptions {
 }
 
 const DEFAULT_DWELL = 5000;
+const SPEECH_RENDER_INTERVAL_MS = 50;
 // Fallback input bottom (px) before the feet anchor arrives. The starting point
 // for the calculation that lifts the bubble above the input when it opens.
 const DEFAULT_INPUT_BOTTOM_PX = 48;
@@ -161,8 +162,9 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   let dwellTimer: ReturnType<typeof setTimeout> | null = null;
   // Whether the fade is being held by endSpeech({ defer:true }) — finishSpeech() releases it.
   let deferred = false;
-  // Raw accumulated speech text — re-rendered as markdown on each push.
+  // Raw accumulated speech text — rendered as markdown at a bounded cadence.
   let speechRaw = "";
+  let lastRenderAt = Number.NEGATIVE_INFINITY;
   // Whether the user is hovering over the bubble to read it.
   let hovering = false;
   // Whether a dwell debt remains (timer-arming can be held).
@@ -208,6 +210,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     clearDwell();
     deferred = false;
     speechRaw = "";
+    lastRenderAt = Number.NEGATIVE_INFINITY;
     bubbleText.replaceChildren();
     bubbleSr.textContent = "";
     bubbleEl.hidden = false;
@@ -218,20 +221,24 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
 
   function pushSpeech(delta: string): void {
     if (bubbleEl.hidden) beginSpeech();
+    speechRaw += delta;
+    const now = performance.now();
+    if (now - lastRenderAt < SPEECH_RENDER_INTERVAL_MS) return;
     // Measure before updating — don't yank down a user who has scrolled up to read.
     const pin = isPinnedToEnd();
-    speechRaw += delta;
-    // Re-render the full accumulated text as inline markdown on each delta.
     bubbleText.replaceChildren(renderMarkdownInline(speechRaw));
+    lastRenderAt = now;
     scrollBubbleToEnd(pin);
   }
 
   function endSpeech(opts?: { defer?: boolean }): void {
     if (bubbleEl.hidden && speechRaw === "") return;
+    const pin = isPinnedToEnd();
+    if (speechRaw !== "") bubbleText.replaceChildren(renderMarkdownInline(speechRaw));
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-visible");
     bubbleEl.classList.remove("is-streaming");
-    scrollBubbleToEnd(isPinnedToEnd());
+    scrollBubbleToEnd(pin);
     // Announce once, when speech settles — not on every delta or barge-in re-call.
     if (bubbleSr.textContent !== bubbleText.textContent) {
       bubbleSr.textContent = bubbleText.textContent;
@@ -259,16 +266,26 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     clearDwell();
     dwellArmed = false;
     deferred = false;
+    lastRenderAt = Number.NEGATIVE_INFINITY;
     bubbleEl.classList.remove("is-visible", "is-streaming");
-    const onEnd = (e: TransitionEvent): void => {
-      if (e.propertyName !== "opacity") return;
+    let fb: ReturnType<typeof setTimeout>;
+    function settle(): void {
       bubbleEl.removeEventListener("transitionend", onEnd);
       if (!bubbleEl.classList.contains("is-visible")) {
         bubbleEl.hidden = true;
         speechRaw = "";
         bubbleText.replaceChildren();
       }
-    };
+    }
+    function onEnd(e: TransitionEvent): void {
+      if (e.propertyName !== "opacity") return;
+      clearTimeout(fb);
+      bubbleEl.removeEventListener("transitionend", onEnd);
+      settle();
+    }
+    // Fallback for environments where the transition never fires. A rAF (next frame ~16ms) is
+    // shorter than the fade (--yui-dur 200ms / -fast 140ms) and would cut it off, so the timer must exceed that ceiling.
+    fb = setTimeout(settle, 400); // ponytail: safety net exceeding the --yui-dur/-fast ceiling
     bubbleEl.addEventListener("transitionend", onEnd);
   }
 
@@ -318,11 +335,20 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   function hideTool(): void {
     clearToolTimer();
     toolEl.classList.remove("is-visible");
-    const onEnd = (e: TransitionEvent): void => {
-      if (e.propertyName !== "opacity") return;
+    let fb: ReturnType<typeof setTimeout>;
+    function settle(): void {
       toolEl.removeEventListener("transitionend", onEnd);
       if (!toolEl.classList.contains("is-visible")) toolEl.hidden = true;
-    };
+    }
+    function onEnd(e: TransitionEvent): void {
+      if (e.propertyName !== "opacity") return;
+      clearTimeout(fb);
+      toolEl.removeEventListener("transitionend", onEnd);
+      settle();
+    }
+    // Fallback for environments where the transition never fires. A rAF (next frame ~16ms) is
+    // shorter than the fade (--yui-dur 200ms / -fast 140ms) and would cut it off, so the timer must exceed that ceiling.
+    fb = setTimeout(settle, 400); // ponytail: safety net exceeding the --yui-dur/-fast ceiling
     toolEl.addEventListener("transitionend", onEnd);
   }
 
