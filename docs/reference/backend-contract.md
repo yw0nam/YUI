@@ -76,22 +76,22 @@ For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utter
 
 ### Background markers
 
-When there is no user utterance, `input[1]` carries a short, per-`event_name` notice of what fired. The string rides in the user role, so it names both parties explicitly in third person — "the character" and "the user" — rather than "I"/"me". It states what happened, never how to respond (firing ≠ judgment). The string is client-only framing so the agent has a concrete stimulus in the user turn; all situational detail still lives in `client_context.trigger`.
+When there is no user utterance, `input[1]` carries a short, per-`event_name` notice of what fired. The string rides in the user role, so it is written from the user's POV: "I" is the user, "you" is the agent. "You" is the on-screen VRM avatar — the agent's body — so window_sit/peek markers describe the user placing that body (drag & drop) and the agent's body ending up perched or peeking. It states what happened, never how to respond (firing ≠ judgment). The string is client-only framing so the agent has a concrete stimulus in the user turn; all situational detail still lives in `client_context.trigger`.
 
 | `event_name` | Marker text |
 |---|---|
-| `proactive.tap_bored` | `(the user keeps poking at the character)` |
-| `proactive.touch_*` | `(the user just poked at the character)` |
-| `proactive.drag_held` | `(the user keeps dragging the character around)` |
-| `proactive.window_sit` | `(the character just settled onto a window's edge)` |
-| `proactive.peek` | `(the character is peeking out from the screen edge)` |
-| `proactive.*` (other) | `(the user has gone quiet on the character for a while)` |
-| `schedule.*` | `(it's the time of day the character checks in on the user)` |
-| `agent.done` | `(one of the user's coding tasks just finished)` |
-| `agent.catchup` | `(the user's coding tasks wrapped up while away)` |
-| `signals.push` | `(a new signal just arrived for the character)` |
-| `signals.catchup` | `(signals piled up while the user was away)` |
-| any other | `(something just caught the character's attention)` |
+| `proactive.tap_bored` | `(I keep poking at you)` |
+| `proactive.touch_*` | `(I just poked you)` |
+| `proactive.drag_held` | `(I keep dragging you around)` |
+| `proactive.window_sit` | `(I just sat you down on a window's edge)` |
+| `proactive.peek` | `(I left you peeking out from the screen edge)` |
+| `proactive.*` (other) | `(I've gone quiet for a while)` |
+| `schedule.*` | `(it's the time of day you check in on me)` |
+| `agent.done` | `(one of my coding tasks just finished)` |
+| `agent.catchup` | `(my coding tasks wrapped up while I was away)` |
+| `signals.push` | `(a new signal just arrived for you)` |
+| `signals.catchup` | `(signals piled up while I was away)` |
+| any other | `(something just caught your attention)` |
 
 ### Cue fields
 
