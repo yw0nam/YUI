@@ -34,6 +34,7 @@ export interface PanelHtmlOptions {
   bargeInEnabled: boolean;
   showPresence: boolean;
   showRecentApps: boolean;
+  showDevtools: boolean;
   /** Initial collapsed state of the sections rail, read from localStorage before first paint. */
   railCollapsed: boolean;
 }
@@ -52,6 +53,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     bargeInEnabled,
     showPresence,
     showRecentApps,
+    showDevtools,
     railCollapsed,
   } = o;
   const segButtonsHtml = REASONING_EFFORTS.map(
@@ -558,6 +560,18 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
             : ""
         }
         ${sessionHtml}
+        ${
+          showDevtools
+            ? `<div class="yui-quick__divider" aria-hidden="true"></div>
+        <div class="yui-row">
+          <div class="yui-row__main">
+            <span class="yui-row__label">${t("devtools.label")}</span>
+            <span class="yui-row__sub">${t("devtools.sub")}</span>
+          </div>
+          <button class="yui-link-btn yui-devtools-open" type="button">${t("devtools.open")}</button>
+        </div>`
+            : ""
+        }
       </div>
 
       </div>

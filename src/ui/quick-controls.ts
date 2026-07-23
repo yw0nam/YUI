@@ -111,6 +111,7 @@ interface QuickControlsOptions {
   /** Reset the camera viewpoint (orbit angles) to head-on. Renders the section when set. */
   onResetViewpoint?: () => void;
   onPopOut?: () => void;
+  onOpenDevtools?: () => void;
   variant?: "popover" | "window";
   /** In window variant, path for Escape to close OS window (host injected). Without it, Escape is no-op. */
   onCloseWindow?: () => void;
@@ -189,6 +190,7 @@ export function createQuickControls({
   onGainPreviewEnd,
   onResetViewpoint,
   onPopOut,
+  onOpenDevtools,
   variant = "popover",
   onCloseWindow,
   getDefaultInstructions,
@@ -238,6 +240,7 @@ export function createQuickControls({
     bargeInEnabled: vad.get().bargeIn,
     showPresence: !!presenceSettings,
     showRecentApps: !!recentAppsSettings,
+    showDevtools: !isWindow && !!onOpenDevtools,
     railCollapsed: railCollapsedSettings?.get() ?? false,
   });
 
@@ -264,6 +267,7 @@ export function createQuickControls({
   const railCollapseBtn = el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
   const popOutBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout");
+  const devtoolsBtn = el.querySelector<HTMLButtonElement>(".yui-devtools-open");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
   const segEl = el.querySelector<HTMLDivElement>(".yui-field-row .yui-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
@@ -926,6 +930,7 @@ export function createQuickControls({
   sessionConfirmBtn?.addEventListener("click", handleSessionReset);
   sessionCancelBtn?.addEventListener("click", hideSessionConfirm);
   popOutBtn?.addEventListener("click", handlePopOut);
+  devtoolsBtn?.addEventListener("click", () => onOpenDevtools?.());
   closeBtn?.addEventListener("click", popover.close);
   // window variant is always visible, so open it immediately.
   if (isWindow) popover.open();

@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "devtools",
+  "description": "developer tools window with local config and bundled asset access",
+  "windows": ["devtools"],
+  "permissions": [
+    "core:default",
+    "log:default"
+  ]
+}
