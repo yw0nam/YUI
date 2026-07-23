@@ -24,6 +24,8 @@ describe("createSettingsStores", () => {
       "agentNotifySettings",
       "presenceSettings",
       "recentAppsSettings",
+      "contextSettings",
+      "contextHistory",
       "lipsyncSettings",
       "vadSettings",
       "agentSettings",

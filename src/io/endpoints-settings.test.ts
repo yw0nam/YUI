@@ -26,6 +26,7 @@ const EMPTY: EndpointOverrides = {
   irodori_base_url: "",
   broker_base_url: "",
   chat_model: "",
+  chat_model_context_window: "",
   chat_api: "",
   tts_provider: "",
   tts_voice: "",
@@ -270,6 +271,16 @@ describe("mergeEndpoints", () => {
   it("returns base unchanged when all overrides are empty", () => {
     const base = baseConfig();
     expect(mergeEndpoints(base, EMPTY)).toEqual(base);
+  });
+
+  it("stores only positive digit strings and merges the context window as a number", () => {
+    const store = createEndpointsSettings();
+    store.set({ chat_model_context_window: "128000" });
+    expect(store.get().chat_model_context_window).toBe("128000");
+    expect(mergeEndpoints(baseConfig(), store.get()).chat_model_context_window).toBe(128000);
+
+    store.set({ chat_model_context_window: "0" });
+    expect(store.get().chat_model_context_window).toBe("");
   });
 
   it("does not mutate the base config", () => {
