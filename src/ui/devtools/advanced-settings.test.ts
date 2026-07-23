@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createContextSettings } from "../../io/context-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
 import { createRecentAppsSettings } from "../../io/recent-apps-settings";
+import { setLocale } from "../i18n";
 import { createAdvancedSettings } from "./advanced-settings";
 
 describe("Advanced Settings", () => {
+  beforeEach(() => setLocale("en"));
+
   it("binds context toggles and numeric settings to their existing stores", () => {
     const mount = document.createElement("section");
     const context = createContextSettings();
@@ -26,5 +29,22 @@ describe("Advanced Settings", () => {
     window.value = "64000";
     window.dispatchEvent(new Event("input"));
     expect(endpoints.get().chat_model_context_window).toBe("64000");
+  });
+
+  it("renders localized headings, labels, sub-lines, and placeholders", () => {
+    setLocale("ja");
+    const mount = document.createElement("section");
+    createAdvancedSettings(mount, {
+      context: createContextSettings(),
+      recentApps: createRecentAppsSettings(),
+      endpoints: createEndpointsSettings(),
+    });
+
+    expect(mount.textContent).toContain("コンテキスト信号");
+    expect(mount.textContent).toContain("アクティブなウィンドウタイトルを含める");
+    expect(mount.querySelector('[role="switch"]')?.getAttribute("aria-label")).toBe("最近のアプリ");
+    expect(mount.querySelector<HTMLInputElement>("#devtools-context-window")?.placeholder).toBe(
+      "デフォルト",
+    );
   });
 });
