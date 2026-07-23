@@ -4,7 +4,7 @@ import type { BusEnvelope } from "./event-bus";
 
 const ENV: BusEnvelope = {
   seq_id: 1,
-  source: "text_input",
+  source: "user_input_source",
   event_name: "user.text",
   ts: 1_717_000_000_000,
   hint_tier: 3,
