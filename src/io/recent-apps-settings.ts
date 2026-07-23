@@ -12,11 +12,14 @@ export interface RecentAppsSettings {
 export type RecentAppsStorage = PersistedStorage<RecentAppsSettings>;
 
 export const RECENT_APPS_FLOOR = 1;
+export const RECENT_APPS_CEIL = 50;
 
 const DEFAULT_SETTINGS: RecentAppsSettings = { recent_apps_max: 10 };
 
 function isValidRecentAppsMax(v: unknown): v is number {
-  return typeof v === "number" && Number.isInteger(v) && v >= RECENT_APPS_FLOOR;
+  return (
+    typeof v === "number" && Number.isInteger(v) && v >= RECENT_APPS_FLOOR && v <= RECENT_APPS_CEIL
+  );
 }
 
 function isValidSettings(v: unknown): v is RecentAppsSettings {

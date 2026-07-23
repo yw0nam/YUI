@@ -133,6 +133,72 @@ describe("backend_caller — B1 package_context (contract §4 InputContext)", ()
   });
 });
 
+describe("backend_caller — context policy and sent history", () => {
+  it("does not peek or drain recent apps while the signal is disabled", async () => {
+    const peekRecentApps = vi.fn(() => [{ name: "Code", ts: Date.now() }]);
+    const drainRecentApps = vi.fn();
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      getContextPolicy: () => ({
+        recent_apps: false,
+        active_app: true,
+        active_window_title: true,
+        posture: true,
+        screenshot: true,
+      }),
+      peekRecentApps,
+      drainRecentApps,
+    });
+
+    await caller.call(userEnv());
+
+    expect(peekRecentApps).not.toHaveBeenCalled();
+    expect(drainRecentApps).not.toHaveBeenCalled();
+  });
+
+  it("appends history only after a confirmed successful turn", async () => {
+    const contextHistory = { append: vi.fn() };
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      getContextPolicy: () => ({
+        recent_apps: true,
+        active_app: true,
+        active_window_title: false,
+        posture: true,
+        screenshot: true,
+      }),
+      getOsContext: () => ({ activeApp: "Code", activeWindowTitle: "secret" }),
+      contextHistory,
+    });
+
+    scriptedEvents = [];
+    await caller.call(userEnv());
+    expect(contextHistory.append).not.toHaveBeenCalled();
+
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    await caller.call(userEnv());
+    expect(contextHistory.append).toHaveBeenCalledOnce();
+    expect(contextHistory.append).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event_name: "user.text_submitted",
+        trigger_kind: "user",
+        included: ["active_app"],
+        excluded: ["active_window_title"],
+        client_context: expect.objectContaining({
+          env: expect.not.objectContaining({ active_window_title: expect.anything() }),
+        }),
+      }),
+    );
+  });
+});
+
 describe("backend_caller — screenshot port", () => {
   const SCREENSHOT: NonNullable<InputContext["screenshot"]> = {
     enabled: true,

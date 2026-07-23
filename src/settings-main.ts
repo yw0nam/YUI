@@ -18,6 +18,7 @@ import { resolveAssetUrl } from "./io/asset-url";
 import { selectFetch } from "./io/chat-client";
 import { createChatHistoryStore, localStorageChatHistoryStorage } from "./io/chat-history-store";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
+import { createContextSettings, localStorageContextSettings } from "./io/context-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
 import { createFillerSettings, localStorageFillerStorage } from "./io/filler-settings";
 import {
@@ -97,6 +98,7 @@ async function bootstrap(): Promise<void> {
   const recentAppsSettings = createRecentAppsSettings({
     storage: localStorageRecentAppsStorage(),
   });
+  const contextSettings = createContextSettings({ storage: localStorageContextSettings() });
   const railCollapsedSettings = createRailCollapsedSettings({
     storage: localStorageRailCollapsedStorage(),
   });
@@ -273,6 +275,7 @@ async function bootstrap(): Promise<void> {
             irodori_base_url: e.irodori_base_url ?? "",
             broker_base_url: e.broker_base_url ?? "",
             chat_model: e.chat_model ?? "",
+            chat_model_context_window: e.chat_model_context_window?.toString() ?? "",
             chat_api: e.chat_api ?? "",
             tts_voice: e.tts_voice ?? "",
             tts_provider: e.tts_provider ?? "",
@@ -337,6 +340,7 @@ async function bootstrap(): Promise<void> {
     agentNotifySettings,
     presenceSettings,
     recentAppsSettings,
+    contextSettings,
     vrmSelection,
     speakerSelection,
     sessionStore,

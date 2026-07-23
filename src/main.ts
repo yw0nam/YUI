@@ -55,6 +55,7 @@ import {
   CAMERA_ZOOM_MIN,
 } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
+import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { createDragHoldSource, type DragHoldSource } from "./io/drag-hold-source";
 import { mergeEndpoints } from "./io/endpoints-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
@@ -224,6 +225,8 @@ async function bootstrap(): Promise<void> {
     agentNotifySettings,
     presenceSettings,
     recentAppsSettings,
+    contextSettings,
+    contextHistory,
     lipsyncSettings,
     vadSettings,
     agentSettings,
@@ -267,6 +270,7 @@ async function bootstrap(): Promise<void> {
   // Pop-out: Tauri uses separate WebviewWindow("settings"), otherwise browser window. Wire storage events
   // bidirectionally so main window edits are reflected here and vice versa.
   const openSettings = createSettingsWindowOpener();
+  const openDevtools = createDevtoolsWindowOpener();
   const disposeStorageSync = wireStorageSync([
     agentSettings,
     endpointsSettings,
@@ -285,6 +289,9 @@ async function bootstrap(): Promise<void> {
     sessionStore,
     sessionDiagnostics,
     chatHistoryStore,
+    recentAppsSettings,
+    contextSettings,
+    contextHistory,
     railCollapsedSettings,
   ]);
 
@@ -387,6 +394,7 @@ async function bootstrap(): Promise<void> {
       resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
       onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
       onGainPreviewEnd: () => renderer.stopMouth(),
+      onOpenDevtools: openDevtools,
       // Reset the camera viewpoint to head-on (store drives renderer.setOrbit).
       onResetViewpoint: () => cameraSettings.resetOrbit(),
       // Default instructions to show as placeholder when empty (ignored if config not loaded).
@@ -411,6 +419,7 @@ async function bootstrap(): Promise<void> {
             irodori_base_url: e.irodori_base_url ?? "",
             broker_base_url: e.broker_base_url ?? "",
             chat_model: e.chat_model ?? "",
+            chat_model_context_window: e.chat_model_context_window?.toString() ?? "",
             chat_api: e.chat_api ?? "",
             tts_voice: e.tts_voice ?? "",
             tts_provider: e.tts_provider ?? "",
@@ -497,6 +506,8 @@ async function bootstrap(): Promise<void> {
       agentNotifySettings.dispose();
       presenceSettings.dispose();
       recentAppsSettings.dispose();
+      contextSettings.dispose();
+      contextHistory.dispose();
       lipsyncSettings.dispose();
       vadSettings.dispose();
       fillerSettings.dispose();
@@ -776,8 +787,19 @@ async function bootstrap(): Promise<void> {
     },
     getOsContext: () => osContext.get(),
     getPosture: () => dispatcherRef?.getPosture(),
+    getContextPolicy: () => {
+      const context = contextSettings.get();
+      return {
+        recent_apps: context.send_recent_apps,
+        active_app: context.send_active_app,
+        active_window_title: context.send_window_title,
+        posture: context.send_posture,
+        screenshot: screenshotSettings.get().enabled,
+      };
+    },
     peekRecentApps: () => osContext.peekRecentApps(),
     drainRecentApps: (only) => osContext.drainRecentApps(only),
+    contextHistory,
     getAgentSettings: () => agentSettings.get(),
     getFiller: voice.hasFiller,
     onThinkingStart: voice.onThinkingStart,

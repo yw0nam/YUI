@@ -131,6 +131,21 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
+  it("renders the Developer Tools row only when its opener is provided", () => {
+    const onOpenDevtools = vi.fn();
+    const qc = buildQc({ onOpenDevtools });
+    qc.open();
+
+    const button = qc.el.querySelector<HTMLButtonElement>(".yui-devtools-open");
+    expect(button).not.toBeNull();
+    button!.click();
+    expect(onOpenDevtools).toHaveBeenCalledOnce();
+
+    qc.dispose();
+    const withoutOpener = buildQc();
+    expect(withoutOpener.el.querySelector(".yui-devtools-open")).toBeNull();
+  });
+
   it("clicking the header close button closes the panel", () => {
     const qc = buildQc();
     qc.open();

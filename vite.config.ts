@@ -45,7 +45,7 @@ function serveDir(prefix: string, dir: string): Plugin {
 // clearScreen: false → keeps tauri CLI logs from being hidden by vite logs.
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(() => ({
   clearScreen: false,
   server: {
     port: resolveVitePort(),
@@ -78,10 +78,7 @@ export default defineConfig(({ command }) => ({
       input: {
         main: resolve(__dirname, "index.html"),
         settings: resolve(__dirname, "settings.html"),
-        // motion-preview is dev-only — excluded from the prod bundle.
-        ...(command === "serve"
-          ? { motionPreview: resolve(__dirname, "motion-preview.html") }
-          : {}),
+        devtools: resolve(__dirname, "devtools.html"),
       },
     },
   },

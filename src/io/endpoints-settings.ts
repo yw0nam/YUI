@@ -22,6 +22,7 @@ export interface EndpointOverrides {
   irodori_base_url: string;
   broker_base_url: string;
   chat_model: string;
+  chat_model_context_window: string;
   chat_api: string;
   tts_voice: string;
   tts_provider: string;
@@ -36,6 +37,7 @@ const FIELDS: readonly (keyof EndpointOverrides)[] = [
   "irodori_base_url",
   "broker_base_url",
   "chat_model",
+  "chat_model_context_window",
   "chat_api",
   "tts_voice",
   "tts_provider",
@@ -48,6 +50,7 @@ const EMPTY: EndpointOverrides = {
   irodori_base_url: "",
   broker_base_url: "",
   chat_model: "",
+  chat_model_context_window: "",
   chat_api: "",
   tts_voice: "",
   tts_provider: "",
@@ -74,10 +77,15 @@ function coerceChatApi(v: unknown): string {
   return typeof v === "string" && (VALID_CHAT_APIS as readonly string[]).includes(v) ? v : "";
 }
 
+function coerceContextWindow(v: unknown): string {
+  return typeof v === "string" && /^[1-9]\d*$/.test(v) ? v : "";
+}
+
 /** Per-field coercion dispatch — tts_provider/chat_api are enum-restricted, the rest are string-length capped. */
 function coerceFor(key: keyof EndpointOverrides, v: unknown): string {
   if (key === "tts_provider") return coerceProvider(v);
   if (key === "chat_api") return coerceChatApi(v);
+  if (key === "chat_model_context_window") return coerceContextWindow(v);
   return coerceField(v);
 }
 
@@ -130,6 +138,9 @@ export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): En
   urlField("broker_base_url");
   const model = ov.chat_model.trim();
   if (model !== "") out.chat_model = model;
+  if (ov.chat_model_context_window !== "") {
+    out.chat_model_context_window = Number(ov.chat_model_context_window);
+  }
   const voice = ov.tts_voice.trim();
   if (voice !== "") out.tts_voice = voice;
   if (ov.tts_provider === "irodori" || ov.tts_provider === "openai") {

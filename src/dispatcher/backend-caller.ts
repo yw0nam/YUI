@@ -25,25 +25,33 @@
  */
 
 import type {
-  ClientContext,
   ControlEnvelope,
   EndpointsConfig,
   ExpressArgs,
   InputContext,
   ToolStatus,
-  TriggerMeta,
   Usage,
 } from "../contract";
 import { type ChatRequest, streamChat } from "../io/chat-client";
 import { buildCCMessages } from "../io/chat-completions";
 import { type ChatHistoryEntry, selectSendSuffix } from "../io/chat-history-store";
+import type { ContextHistoryEntry } from "../io/context-history";
 import type { Logger } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
+import {
+  ALL_CONTEXT_SIGNALS,
+  buildContext,
+  type ContextPolicy,
+  imageDataUrlsOf,
+} from "./context-builder";
 import type { BusEnvelope } from "./event-bus";
 import type { DropReason } from "./guardrails";
 
 const baseLog = createLogger("backend-caller");
+const DEFAULT_CONTEXT_POLICY: ContextPolicy = Object.fromEntries(
+  ALL_CONTEXT_SIGNALS.map((signal) => [signal, true]),
+) as unknown as ContextPolicy;
 
 /**
  * User message for non-user turns (no user_text) — a short, per-trigger notice. Delivered in a
@@ -118,6 +126,8 @@ export interface BackendCallerDeps {
   getOsContext?: () => import("../io/os-context").OsContextSnapshot | undefined;
   /** Current physical posture. Undefined means idle. */
   getPosture?: () => import("../contract").Posture | undefined;
+  /** Per-turn signal inclusion policy. Defaults to all signals enabled. */
+  getContextPolicy?: () => ContextPolicy;
   /** Snapshot app buffer without clearing, called at B1 packaging, attached to env.recent_apps when present.
    * Buffer not cleared, so app history not lost even if packageContext fails afterward (setup/stream/parse_error). */
   peekRecentApps?: () => import("../io/os-context").RecentApp[];
@@ -151,6 +161,8 @@ export interface BackendCallerDeps {
   getFiller?: () => boolean;
   /** Integrated conversation transcript — append after completely successful turn in both protocol modes. CC mode also extracts send here. */
   transcript?: { get(): ChatHistoryEntry[]; append(e: ChatHistoryEntry): void };
+  /** Local sent-context history, appended only after the turn is confirmed successful. */
+  contextHistory?: { append(entry: ContextHistoryEntry): void };
   /** Structured logging (defaults to backend_caller namespace logger if absent). */
   logger?: Logger;
 }
@@ -161,129 +173,6 @@ export interface BackendCaller {
    * Never throws — failures expressed as { ok:false, drop_reason } (dispatcher branches).
    */
   call(env: BusEnvelope, externalSignal?: AbortSignal): Promise<BackendCallResult>;
-}
-
-/** Extract user text from payload — both keyboard/voice use payload.text. */
-function userTextOf(env: BusEnvelope): string | undefined {
-  const t = env.payload?.text;
-  return typeof t === "string" ? t : undefined;
-}
-
-/** Extract attached images (data URLs) from payload — only when all elements are strings. */
-function userImagesOf(env: BusEnvelope): string[] | undefined {
-  const imgs = env.payload?.images;
-  return Array.isArray(imgs) && imgs.every((u) => typeof u === "string")
-    ? (imgs as string[])
-    : undefined;
-}
-
-/** agent completion payload — present on agent.done (single coding-agent task finished). */
-function agentOf(env: BusEnvelope): TriggerMeta["agent"] | undefined {
-  if (env.event_name !== "agent.done") return undefined;
-  const p = env.payload;
-  if (
-    typeof p?.tool !== "string" ||
-    typeof p?.project !== "string" ||
-    typeof p?.cwd !== "string" ||
-    typeof p?.summary !== "string" ||
-    typeof p?.ts !== "number"
-  ) {
-    return undefined;
-  }
-  return {
-    tool: p.tool as string,
-    project: p.project as string,
-    cwd: p.cwd as string,
-    ...(p.status === "success" || p.status === "error"
-      ? { status: p.status as "success" | "error" }
-      : {}),
-    summary: p.summary as string,
-    ts: p.ts as number,
-  };
-}
-
-/** agent catch-up payload — present on agent.catchup (burst of buffered completions on return). */
-function agentCatchupOf(env: BusEnvelope): TriggerMeta["agent_catchup"] | undefined {
-  if (env.event_name !== "agent.catchup") return undefined;
-  const count = env.payload?.count;
-  const items = env.payload?.items;
-  if (typeof count !== "number" || !Array.isArray(items)) return undefined;
-  const ok = items.every((raw) => {
-    const item = raw as Record<string, unknown>;
-    return (
-      item != null &&
-      typeof item.tool === "string" &&
-      typeof item.project === "string" &&
-      typeof item.summary === "string" &&
-      typeof item.ts === "number"
-    );
-  });
-  if (!ok) return undefined;
-  // Sanitize each item's optional status to exactly "success"|"error" (mirrors agentOf).
-  const sanitized = (items as Array<Record<string, unknown>>).map((item) => ({
-    tool: item.tool as string,
-    project: item.project as string,
-    ...(item.status === "success" || item.status === "error"
-      ? { status: item.status as "success" | "error" }
-      : {}),
-    summary: item.summary as string,
-    ts: item.ts as number,
-  }));
-  return { count, items: sanitized };
-}
-
-/**
- * opaque signals batch — present on signals events and proactive.tap_bored. No structural
- * validation of item contents (firing≠judgment): forwarded verbatim. Only the
- * top-level shape (payload.signals is an array) is checked for TS narrowing.
- */
-function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
-  if (!env.event_name.startsWith("signals.") && env.event_name !== "proactive.tap_bored") {
-    return undefined;
-  }
-  const s = env.payload?.signals;
-  return Array.isArray(s) ? (s as TriggerMeta["signals"]) : undefined;
-}
-
-/** Safe timezone lookup (may throw depending on environment → fallback). */
-function resolveTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  } catch {
-    return "UTC";
-  }
-}
-
-/**
- * Local ISO 8601 wall-clock string with timezone offset (e.g. "2026-06-15T09:00:12+09:00").
- * Falls back to UTC toISOString() if formatting throws.
- */
-function localIso(ts: number, timeZone: string): string {
-  const d = new Date(ts);
-  try {
-    const local = new Intl.DateTimeFormat("sv-SE", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    })
-      .format(d)
-      .replace(" ", "T");
-
-    const name = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" })
-      .formatToParts(d)
-      .find((p) => p.type === "timeZoneName")?.value;
-    const offset =
-      name && name !== "GMT" && name !== "UTC" ? name.replace(/^(?:GMT|UTC)/, "") : "+00:00";
-
-    return `${local}${offset}`;
-  } catch {
-    return d.toISOString();
-  }
 }
 
 /**
@@ -322,134 +211,14 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   const log = deps.logger ?? baseLog;
 
   /**
-   * B1: Assemble InputContext.
-   * active_app / active_window_title filled best-effort only when getOsContext snapshot available (omitted if absent).
-   * screenshot attached only when toggle ON via getScreenshot. Capture failure does not break turn — logged then proceeds without screenshot.
-   * user_text only in user message in encodeInput — not included in system context.
-   */
-  async function packageContext(
-    env: BusEnvelope,
-  ): Promise<{ ctx: InputContext; peekedApps: import("../io/os-context").RecentApp[] }> {
-    const userText = userTextOf(env);
-    const userImages = userImagesOf(env);
-    const tz = resolveTimezone();
-    const ctx: InputContext = {
-      ...(userText !== undefined ? { user_text: userText } : {}),
-      ...(userImages?.length ? { user_images: userImages } : {}),
-      env: {
-        timestamp: localIso(env.ts, tz),
-        timezone: tz,
-      },
-    };
-    const os = deps.getOsContext?.();
-    if (os?.activeApp) ctx.env.active_app = { name: os.activeApp };
-    if (os?.activeWindowTitle) ctx.env.active_window_title = os.activeWindowTitle;
-    const posture = deps.getPosture?.();
-    if (posture) ctx.env.posture = posture;
-    // peek only — the buffer is cleared later, only once this turn's send is confirmed, and
-    // then only these snapshotted entries (drainRecentApps(peekedApps)) so a switch that lands
-    // mid-request survives.
-    const peekedApps = deps.peekRecentApps?.() ?? [];
-    if (peekedApps.length) {
-      ctx.env.recent_apps = peekedApps.map((a) => ({ name: a.name, at: localIso(a.ts, tz) }));
-    }
-    if (deps.getScreenshot) {
-      try {
-        const screenshot = await deps.getScreenshot();
-        if (screenshot) ctx.screenshot = screenshot;
-      } catch (err) {
-        log.warn("screenshot.failed", { error: String(err) });
-      }
-    }
-    return { ctx, peekedApps };
-  }
-
-  /**
-   * InputContext → flat ClientContext { env, screenshot?, trigger }, shared by both protocol
-   * encodings (Responses system message / CC client_context system message).
-   *   - env: timestamp/timezone + optional active_app/active_window_title/posture (no user utterance).
-   *   - screenshot: meta only (enabled/source/captured_at/width/height) — data_url is stripped
-   *     and sent as an image content-part instead (see imageDataUrlsOf).
-   *   - trigger: { kind, cue?, idle_elapsed_min? }
-   *     kind: derived from event_name ("schedule.*"→"schedule", "proactive.*"→"proactive", else "user").
-   *     cue: present when payload has cue_id+label+context — carries label/context/local_time?/idle_min?,
-   *          id is omitted from the wire shape.
-   *     idle_elapsed_min: Math.round(gap_ms/60000) when gap_ms is present (proactive turns).
-   *
-   * User text is NEVER serialized into ClientContext.
-   */
-  function buildClientContext(ctx: InputContext, env: BusEnvelope): ClientContext {
-    // derive trigger.kind from event_name
-    const eventName = env.event_name;
-    const kind = eventName.startsWith("schedule.")
-      ? "schedule"
-      : eventName.startsWith("proactive.")
-        ? "proactive"
-        : eventName.startsWith("agent.")
-          ? "agent"
-          : eventName.startsWith("signals.")
-            ? "signals"
-            : "user";
-
-    // cue: present when payload carries cue_id+label+context; id is omitted from wire shape.
-    const p = env.payload;
-    const cue =
-      typeof p?.cue_id === "string" &&
-      typeof p?.label === "string" &&
-      typeof p?.context === "string"
-        ? {
-            label: p.label as string,
-            context: p.context as string,
-            ...(typeof p.local_time === "string" ? { local_time: p.local_time as string } : {}),
-            ...(typeof p.idle_min === "number" ? { idle_min: p.idle_min as number } : {}),
-          }
-        : undefined;
-
-    // idle_elapsed_min: proactive only, derived from gap_ms.
-    const gap_ms = typeof p?.gap_ms === "number" ? (p.gap_ms as number) : undefined;
-
-    // agent completion payloads (only attach when well-typed).
-    const agent = agentOf(env);
-    const agentCatchup = agentCatchupOf(env);
-
-    // opaque signals batch (push or catchup) — forwarded verbatim, no item validation.
-    const signals = signalsOf(env);
-
-    // screenshot meta only (data_url stripped — rides the image content-part above).
-    const screenshotMeta: ClientContext["screenshot"] = ctx.screenshot
-      ? (() => {
-          const { data_url: _omit, ...meta } = ctx.screenshot;
-          return meta;
-        })()
-      : undefined;
-
-    return {
-      env: ctx.env,
-      ...(screenshotMeta ? { screenshot: screenshotMeta } : {}),
-      trigger: {
-        kind,
-        ...(cue ? { cue } : {}),
-        ...(gap_ms != null ? { idle_elapsed_min: Math.round(gap_ms / 60000) } : {}),
-        ...(agent ? { agent } : {}),
-        ...(agentCatchup ? { agent_catchup: agentCatchup } : {}),
-        ...(signals ? { signals } : {}),
-      },
-    };
-  }
-
-  /** Collect image data URLs in order: screenshot (if present, first) + user_images. */
-  function imageDataUrlsOf(ctx: InputContext): string[] {
-    return [
-      ...(ctx.screenshot?.data_url ? [ctx.screenshot.data_url] : []),
-      ...(ctx.user_images ?? []),
-    ];
-  }
-
-  /**
    * InputContext → OpenAI Responses input (user speech encoded only in user message).
    * User message: userText ?? backgroundMarker(env.event_name) (+ image content-part when images present).
    */
-  function encodeInput(ctx: InputContext, env: BusEnvelope): ChatRequest["input"] {
+  function encodeInput(
+    ctx: InputContext,
+    env: BusEnvelope,
+    clientContext: Awaited<ReturnType<typeof buildContext>>["clientContext"],
+  ): ChatRequest["input"] {
     const text = ctx.user_text ?? backgroundMarker(env.event_name);
     const images = imageDataUrlsOf(ctx);
     const userContent = images.length
@@ -458,8 +227,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           ...images.map((image_url) => ({ type: "input_image", image_url })),
         ]
       : text;
-
-    const clientContext = buildClientContext(ctx, env);
 
     return [
       {
@@ -509,8 +276,19 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       if (deps.getFiller?.() && !isReflexTurn(env.event_name)) startThinking();
 
       // B1
-      const { ctx, peekedApps } = await packageContext(env);
-      const input = encodeInput(ctx, env);
+      const policy = deps.getContextPolicy?.() ?? DEFAULT_CONTEXT_POLICY;
+      const { ctx, clientContext, record, peekedApps } = await buildContext(
+        env,
+        {
+          getScreenshot: deps.getScreenshot,
+          getOsContext: deps.getOsContext,
+          getPosture: deps.getPosture,
+          peekRecentApps: deps.peekRecentApps,
+          onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
+        },
+        policy,
+      );
+      const input = encodeInput(ctx, env, clientContext);
       log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 
       // B2: After resolving fetch/apiKey, streamChat. Pass externalSignal as-is (delegate abort).
@@ -545,7 +323,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // CC mode has no server-side conversation state (stitched by transcript) — skip snapshot/persist.
       let startPreviousResponseId: string | undefined;
       if (isCC) {
-        const clientContext = buildClientContext(ctx, env);
         const effectiveInstructions = agent?.instructions.trim()
           ? agent.instructions
           : deps.config.chat_instructions;
@@ -765,6 +542,14 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       if (envelope.speech_text) {
         deps.transcript?.append({ role: "assistant", text: envelope.speech_text, ts: Date.now() });
       }
+      deps.contextHistory?.append({
+        ts: Date.now(),
+        event_name: env.event_name,
+        trigger_kind: clientContext.trigger.kind,
+        included: record.included,
+        excluded: record.excluded,
+        client_context: clientContext,
+      });
 
       // Recent-apps buffer: clear only now that the turn is a confirmed success — same
       // post-stream guard boundary as transcript/onResponseId above. Any earlier client-side
@@ -772,7 +557,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // so the buffer survives and carries over to the next turn instead of being lost.
       // Drain only the peeked snapshot — an app switch that landed mid-request (after peek) was
       // never sent this turn, so it stays buffered for the next one instead of being discarded.
-      deps.drainRecentApps?.(peekedApps);
+      if (policy.recent_apps) deps.drainRecentApps?.(peekedApps);
 
       return { ok: true };
     } finally {
