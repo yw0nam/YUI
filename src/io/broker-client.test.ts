@@ -27,6 +27,7 @@ import {
   type BrokerVocab,
   createBrokerClient,
   deriveBrokerPayload,
+  filterMotionsByBlockedTags,
 } from "./broker-client";
 
 type FetchFn = (input: unknown, init?: RequestInit) => Promise<Response>;
@@ -422,6 +423,7 @@ describe("agentTriggerableMotionIds", () => {
       },
       happy: {
         vrma_path: "/motions/happy.vrma",
+        tags: ["energetic", "playful"],
         kind: "oneshot",
         loop: false,
         priority: 60,
@@ -461,6 +463,55 @@ describe("agentTriggerableMotionIds", () => {
 
   it("returns an empty array for an empty registry", () => {
     expect(agentTriggerableMotionIds({})).toEqual([]);
+  });
+
+  it("excludes agent-triggerable motions with a blocked tag", () => {
+    expect(agentTriggerableMotionIds(motions(), ["energetic"])).toEqual([]);
+  });
+});
+
+describe("filterMotionsByBlockedTags", () => {
+  const motions: MotionRegistry = {
+    calm: {
+      vrma_path: "/motions/calm.vrma",
+      kind: "oneshot",
+      loop: false,
+      priority: 60,
+      interrupt_policy: "replace",
+    },
+    dance: {
+      vrma_path: "/motions/dance.vrma",
+      tags: ["energetic"],
+      kind: "oneshot",
+      loop: false,
+      priority: 60,
+      interrupt_policy: "replace",
+    },
+    wave: {
+      vrma_path: "/motions/wave.vrma",
+      tags: ["friendly", "energetic"],
+      kind: "oneshot",
+      loop: false,
+      priority: 60,
+      interrupt_policy: "replace",
+    },
+  };
+
+  it("keeps untagged motions", () => {
+    expect(filterMotionsByBlockedTags(["calm"], motions, ["energetic"])).toEqual(["calm"]);
+  });
+
+  it("excludes a motion whose tag intersects blocked tags", () => {
+    expect(filterMotionsByBlockedTags(["dance"], motions, ["energetic"])).toEqual([]);
+  });
+
+  it("returns identical ids when blocked tags are empty", () => {
+    const ids = ["calm", "dance", "wave"];
+    expect(filterMotionsByBlockedTags(ids, motions, [])).toEqual(ids);
+  });
+
+  it("excludes a multi-tag motion when any tag is blocked", () => {
+    expect(filterMotionsByBlockedTags(["wave"], motions, ["friendly"])).toEqual([]);
   });
 });
 
@@ -502,6 +553,7 @@ describe("deriveBrokerPayload", () => {
         },
         happy: {
           vrma_path: "/motions/happy.vrma",
+          tags: ["energetic"],
           kind: "oneshot",
           loop: false,
           priority: 60,
@@ -538,6 +590,7 @@ describe("deriveBrokerPayload", () => {
           broker_publish: false,
         },
       },
+      motionFilter: { blocked_tags: [] },
       guardrails: {
         dnd: { app_blocklist: [] },
         debounce_ms: {
@@ -564,6 +617,19 @@ describe("deriveBrokerPayload", () => {
     expect(p.motionIds).not.toContain("idle");
     expect(p.motionIds).not.toContain("sit");
     expect([...p.motionIds].sort()).toEqual(["embarrassed", "happy", "laugh"]);
+  });
+
+  it("excludes motions in a blocked category from the published motion ids", () => {
+    const cfg = baseConfig("openai");
+    cfg.motionFilter.blocked_tags = ["energetic"];
+    const p = deriveBrokerPayload(cfg, null);
+    expect(p.motionIds).not.toContain("happy");
+    expect([...p.motionIds].sort()).toEqual(["embarrassed", "laugh"]);
+  });
+
+  it("keeps the previous published motion ids when the filter is empty", () => {
+    const p = deriveBrokerPayload(baseConfig("openai"), null);
+    expect(p.motionIds).toEqual(["happy", "laugh", "embarrassed"]);
   });
 
   it("excludes a kind:state motion solely via broker_publish:false (window_sit)", () => {

@@ -90,6 +90,8 @@ export interface MotionRegistryEntry {
   loop_cycles?: [number, number];
   /** If false, excluded from broker (agent) vocabulary — local render only. Default true. */
   broker_publish?: boolean;
+  /** Categories used to filter the agent-facing motion vocabulary. */
+  tags?: string[];
   kind: MotionKind;
   loop: boolean;
   /** 0~100, higher is higher priority. */

@@ -27,6 +27,7 @@ YUI/
     endpoints.json            # chat/stt/tts base urls + tts_provider + irodori_* + broker_base_url
     emotion_registry.json     # emotion id → vrm_expression + fallback
     motions.json              # motion registry
+    motion-filter.json        # user-selected motion category deny-list (blocked_tags) hidden from the agent-facing catalog
     avatar.json               # VRM avatar config
     filler.json               # filler motion timing and pool config
     guardrails.json           # dispatcher cooldown and suppression config

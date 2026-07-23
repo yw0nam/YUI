@@ -46,6 +46,7 @@ export function goodFixture(): Record<string, unknown> {
         interrupt_policy: "queue",
       },
     },
+    "motion-filter.json": { blocked_tags: [] },
     "guardrails.json": {
       dnd: { app_blocklist: [] },
       debounce_ms: {

@@ -599,7 +599,10 @@ export async function wireBroker(deps: {
   const onConfigChange = (cfg: AppConfig, changed: ReadonlySet<ConfigSection>): void => {
     if (
       broker &&
-      (changed.has("emotionRegistry") || changed.has("motions") || changed.has("endpoints"))
+      (changed.has("emotionRegistry") ||
+        changed.has("motions") ||
+        changed.has("motionFilter") ||
+        changed.has("endpoints"))
     ) {
       const eff = getEndpoints();
       void loadBrokerTable(eff.tts_provider).then((table) => {

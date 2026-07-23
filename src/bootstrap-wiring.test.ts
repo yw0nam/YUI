@@ -373,6 +373,10 @@ describe("wireBroker", () => {
     await flush();
     expect(brokerClient.publish).toHaveBeenCalledTimes(1);
     brokerClient.publish.mockClear();
+    handle.onConfigChange(fakeCfg, new Set(["motionFilter"]) as never);
+    await flush();
+    expect(brokerClient.publish).toHaveBeenCalledTimes(1);
+    brokerClient.publish.mockClear();
     handle.onConfigChange(fakeCfg, new Set(["guardrails"]) as never);
     await flush();
     expect(brokerClient.publish).not.toHaveBeenCalled();

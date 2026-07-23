@@ -83,6 +83,15 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
         broker_publish = rawBrokerPublish;
       }
     }
+    const rawTags = entry.tags;
+    let tags: string[] | undefined;
+    if (rawTags !== undefined) {
+      if (!Array.isArray(rawTags) || rawTags.some((tag) => typeof tag !== "string")) {
+        issues.push(`${id}.tags는 문자열 배열이어야 함`);
+      } else {
+        tags = rawTags as string[];
+      }
+    }
     // cycle_dwell_ms: ms to hold the settled frame before a cycle motion swaps to the next variant.
     const rawCycleDwell = entry.cycle_dwell_ms;
     let cycle_dwell_ms: number | undefined;
@@ -175,6 +184,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
       ...(loop_cycles !== undefined ? { loop_cycles } : {}),
       ...(fade_ms !== undefined ? { fade_ms } : {}),
       ...(broker_publish !== undefined ? { broker_publish } : {}),
+      ...(tags !== undefined ? { tags } : {}),
       kind: entry.kind as MotionKind,
       loop: entry.loop as boolean,
       priority: entry.priority as number,

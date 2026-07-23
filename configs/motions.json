@@ -30,6 +30,7 @@
       "/motions/idle_13.vrma"
     ],
     "variant_policy": "random",
+    "tags": ["energetic"],
     "kind": "oneshot",
     "loop": false,
     "priority": 70,
@@ -169,6 +170,7 @@
       "/motions/dance_13.vrma"
     ],
     "variant_policy": "random",
+    "tags": ["energetic"],
     "kind": "oneshot",
     "loop": false,
     "priority": 70,

@@ -308,18 +308,32 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   };
 }
 
+export function filterMotionsByBlockedTags(
+  ids: string[],
+  motions: MotionRegistry,
+  blockedTags: string[],
+): string[] {
+  if (blockedTags.length === 0) return ids;
+  const blocked = new Set(blockedTags);
+  return ids.filter((id) => !motions[id]?.tags?.some((tag) => blocked.has(tag)));
+}
+
 /**
  * Motion keys the agent may trigger via generate_express/motion cues — excludes reactive, ambient,
  * and `broker_publish:false` entries. Shared by the broker payload and the CC generate_express
  * tool's motion_id enum, so both stay in lockstep with the same registry.
  */
-export function agentTriggerableMotionIds(motions: MotionRegistry): string[] {
-  return Object.entries(motions)
+export function agentTriggerableMotionIds(
+  motions: MotionRegistry,
+  blockedTags: string[] = [],
+): string[] {
+  const ids = Object.entries(motions)
     .filter(
       ([, entry]) =>
         entry.kind !== "reactive" && entry.kind !== "ambient" && entry.broker_publish !== false,
     )
     .map(([id]) => id);
+  return filterMotionsByBlockedTags(ids, motions, blockedTags);
 }
 
 /**
@@ -335,7 +349,7 @@ export function deriveBrokerPayload(
 ): BrokerPayload {
   const log = logger ?? createLogger("broker-client");
   const emotionIds = Object.keys(cfg.emotionRegistry);
-  const motionIds = agentTriggerableMotionIds(cfg.motions);
+  const motionIds = agentTriggerableMotionIds(cfg.motions, cfg.motionFilter.blocked_tags);
 
   let emotionText: BrokerPayload["emotionText"];
   if (cfg.endpoints.tts_provider === "irodori") {

@@ -167,6 +167,22 @@ describe("validateMotions — broker_publish", () => {
   });
 });
 
+describe("validateMotions — tags", () => {
+  it("accepts and preserves string tags", () => {
+    const entry = baseEntry({ tags: ["energetic", "playful"] });
+    const out = validateMotions(FILE, { dance: entry });
+    expect(out.dance).toEqual(entry);
+  });
+
+  it("rejects tags that are not an array", () => {
+    expectIssue({ dance: baseEntry({ tags: "energetic" }) }, "tags는 문자열 배열이어야 함");
+  });
+
+  it("rejects tags containing non-string values", () => {
+    expectIssue({ dance: baseEntry({ tags: ["energetic", 1] }) }, "tags는 문자열 배열이어야 함");
+  });
+});
+
 describe("validateMotions — cycle_dwell_ms", () => {
   it("rejects a non-integer", () => {
     expectIssue(

@@ -24,6 +24,7 @@ import { validateEndpoints } from "./validators/endpoints";
 import { validateFiller } from "./validators/filler";
 import { validateGuardrails } from "./validators/guardrails";
 import { validateHotkeys } from "./validators/hotkeys";
+import { validateMotionFilter } from "./validators/motion-filter";
 import { validateMotions } from "./validators/motions";
 import { ConfigError } from "./validators/shared";
 
@@ -220,12 +221,18 @@ export interface HotkeysConfig {
   summon_global: string;
 }
 
+/** configs/motion-filter.json — user-selected categories hidden from the agent-facing catalog. */
+export interface MotionFilterConfig {
+  blocked_tags: string[];
+}
+
 /** Full loaded and validated config bundle (immutable snapshot). */
 export interface AppConfig {
   endpoints: EndpointsConfig;
   avatar: AvatarConfig;
   emotionRegistry: EmotionRegistry;
   motions: MotionRegistry;
+  motionFilter: MotionFilterConfig;
   guardrails: GuardrailsConfig;
   filler: FillerConfig;
   hotkeys: HotkeysConfig;
@@ -240,6 +247,7 @@ export const CONFIG_FILES: Record<ConfigSection, string> = {
   avatar: "avatar.json",
   emotionRegistry: "emotion_registry.json",
   motions: "motions.json",
+  motionFilter: "motion-filter.json",
   guardrails: "guardrails.json",
   filler: "filler.json",
   hotkeys: "hotkeys.json",
@@ -347,6 +355,7 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     avatarRaw,
     emotionRegistryRaw,
     motionsRaw,
+    motionFilterRaw,
     guardrailsRaw,
     fillerRaw,
     hotkeysRaw,
@@ -355,6 +364,7 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     read(CONFIG_FILES.avatar),
     read(CONFIG_FILES.emotionRegistry),
     read(CONFIG_FILES.motions),
+    read(CONFIG_FILES.motionFilter),
     read(CONFIG_FILES.guardrails),
     read(CONFIG_FILES.filler),
     read(CONFIG_FILES.hotkeys),
@@ -365,6 +375,7 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     avatar: validateAvatar(CONFIG_FILES.avatar, avatarRaw),
     emotionRegistry: validateEmotionRegistry(CONFIG_FILES.emotionRegistry, emotionRegistryRaw),
     motions: validateMotions(CONFIG_FILES.motions, motionsRaw),
+    motionFilter: validateMotionFilter(CONFIG_FILES.motionFilter, motionFilterRaw),
     guardrails: validateGuardrails(CONFIG_FILES.guardrails, guardrailsRaw),
     filler: validateFiller(CONFIG_FILES.filler, fillerRaw),
     hotkeys: validateHotkeys(CONFIG_FILES.hotkeys, hotkeysRaw),
