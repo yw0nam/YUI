@@ -4,6 +4,8 @@ import { createSttKeySettings, createTtsKeySettings } from "./api-key-settings";
 import { createCameraSettings, localStorageCameraStorage } from "./camera-settings";
 import { createChatHistoryStore, localStorageChatHistoryStorage } from "./chat-history-store";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./chat-key-settings";
+import { createContextHistory, localStorageContextHistory } from "./context-history";
+import { createContextSettings, localStorageContextSettings } from "./context-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./endpoints-settings";
 import { createFillerSettings, localStorageFillerStorage } from "./filler-settings";
 import { createGazeSettings, localStorageGazeStorage } from "./gaze-settings";
@@ -77,6 +79,12 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const recentAppsSettings = createRecentAppsSettings({
     storage: localStorageRecentAppsStorage(),
   });
+  const contextSettings = createContextSettings({
+    storage: localStorageContextSettings(),
+  });
+  const contextHistory = createContextHistory({
+    storage: localStorageContextHistory(),
+  });
   const lipsyncSettings = createLipsyncSettings({
     storage: localStorageLipsyncStorage(),
   });
@@ -129,6 +137,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     agentNotifySettings,
     presenceSettings,
     recentAppsSettings,
+    contextSettings,
+    contextHistory,
     lipsyncSettings,
     vadSettings,
     agentSettings,
