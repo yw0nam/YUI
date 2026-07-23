@@ -1,13 +1,14 @@
 import type { ContextHistoryEntry, createContextHistory } from "../../io/context-history";
+import { t } from "../i18n";
 
 type ContextHistoryStore = ReturnType<typeof createContextHistory>;
 
 const SIGNAL_LABELS: Record<string, string> = {
-  active_app: "app",
-  active_window_title: "title",
-  posture: "posture",
-  recent_apps: "recent apps",
-  screenshot: "screenshot",
+  active_app: "devtools.signal.active_app",
+  active_window_title: "devtools.signal.active_window_title",
+  posture: "devtools.signal.posture",
+  recent_apps: "devtools.signal.recent_apps",
+  screenshot: "devtools.signal.screenshot",
 };
 
 function timeOf(ts: number): string {
@@ -20,7 +21,8 @@ function timeOf(ts: number): string {
 }
 
 function signalLabel(signal: string): string {
-  return SIGNAL_LABELS[signal] ?? signal.replaceAll("_", " ");
+  const key = SIGNAL_LABELS[signal];
+  return key ? t(key) : signal.replaceAll("_", " ");
 }
 
 export function createContextInspector(
@@ -29,10 +31,11 @@ export function createContextInspector(
 ): { dispose(): void } {
   mount.classList.add("devtools-inspector");
   mount.innerHTML = `
-    <div class="devtools-turns" role="listbox" aria-label="Recent turns"></div>
+    <div class="devtools-turns" role="listbox"></div>
     <div class="devtools-context-detail"></div>
   `;
   const list = mount.querySelector<HTMLDivElement>(".devtools-turns")!;
+  list.setAttribute("aria-label", t("devtools.inspector.turns_aria"));
   const detail = mount.querySelector<HTMLDivElement>(".devtools-context-detail")!;
   let selectedTs: number | null = null;
 
@@ -41,8 +44,11 @@ export function createContextInspector(
     if (!entry) {
       const empty = document.createElement("div");
       empty.className = "devtools-empty";
-      empty.innerHTML =
-        "<strong>No sent context yet</strong><span>Successful turns appear here.</span>";
+      const title = document.createElement("strong");
+      title.textContent = t("devtools.inspector.empty_title");
+      const sub = document.createElement("span");
+      sub.textContent = t("devtools.inspector.empty_sub");
+      empty.append(title, sub);
       detail.appendChild(empty);
       return;
     }
@@ -71,7 +77,7 @@ export function createContextInspector(
       pill.append(signalLabel(signal), " ");
       const tag = document.createElement("span");
       tag.className = "devtools-off-tag";
-      tag.textContent = "OFF";
+      tag.textContent = t("devtools.inspector.off");
       pill.appendChild(tag);
       signals.appendChild(pill);
     }
@@ -104,7 +110,7 @@ export function createContextInspector(
       `;
       row.querySelector(".devtools-kind")!.textContent = entry.trigger_kind;
       row.querySelector(".devtools-turn__summary")!.textContent =
-        entry.included.map(signalLabel).join(" · ") || "baseline only";
+        entry.included.map(signalLabel).join(" · ") || t("devtools.inspector.baseline_only");
       row.addEventListener("click", () => {
         selectedTs = entry.ts;
         render(entries);

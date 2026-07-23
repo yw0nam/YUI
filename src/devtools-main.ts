@@ -9,6 +9,12 @@ import { createRecentAppsSettings, localStorageRecentAppsStorage } from "./io/re
 import { wireStorageSync } from "./io/settings-window";
 import { createLogger, initLogger } from "./logger";
 import { createDevtoolsShell } from "./ui/devtools/shell";
+import {
+  getLocale,
+  reloadFromStorage as reloadLocaleFromStorage,
+  subscribe as subscribeLocale,
+  t,
+} from "./ui/i18n";
 
 const log = createLogger("devtools-bootstrap");
 
@@ -34,25 +40,38 @@ async function bootstrap(): Promise<void> {
   }
 
   const stores = [history, contextSettings, recentAppsSettings, endpointsSettings];
-  const shell = createDevtoolsShell({
-    mount,
-    history,
-    contextSettings,
-    recentAppsSettings,
-    endpointsSettings,
-    defaultContextWindow,
-    loadMotionPreview: async (section) => {
-      const { mountMotionPreview } = await import("./ui/devtools/motion-preview");
-      await mountMotionPreview(section);
-    },
+  document.documentElement.lang = getLocale();
+  const buildShell = (): ReturnType<typeof createDevtoolsShell> => {
+    document.title = t("devtools.label");
+    return createDevtoolsShell({
+      mount,
+      history,
+      contextSettings,
+      recentAppsSettings,
+      endpointsSettings,
+      defaultContextWindow,
+      loadMotionPreview: async (section) => {
+        const { mountMotionPreview } = await import("./ui/devtools/motion-preview");
+        await mountMotionPreview(section);
+      },
+    });
+  };
+  let shell = buildShell();
+  const unsubscribeLocale = subscribeLocale(() => {
+    queueMicrotask(() => {
+      shell.dispose();
+      shell = buildShell();
+    });
   });
   const disposeStorageSync = wireStorageSync(stores);
   const reload = (): void => {
     for (const store of stores) store.reloadFromStorage();
+    reloadLocaleFromStorage();
   };
   window.addEventListener("focus", reload);
   window.addEventListener("beforeunload", () => {
     disposeStorageSync();
+    unsubscribeLocale();
     shell.dispose();
     for (const store of stores) store.dispose();
   });

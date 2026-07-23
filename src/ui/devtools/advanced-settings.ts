@@ -1,6 +1,7 @@
 import type { ContextSettings, createContextSettings } from "../../io/context-settings";
 import type { createEndpointsSettings } from "../../io/endpoints-settings";
-import type { createRecentAppsSettings } from "../../io/recent-apps-settings";
+import { type createRecentAppsSettings, RECENT_APPS_CEIL } from "../../io/recent-apps-settings";
+import { t } from "../i18n";
 
 type ContextStore = ReturnType<typeof createContextSettings>;
 type RecentAppsStore = ReturnType<typeof createRecentAppsSettings>;
@@ -8,28 +9,28 @@ type EndpointsStore = ReturnType<typeof createEndpointsSettings>;
 
 const TOGGLES: Array<{
   key: keyof ContextSettings;
-  label: string;
-  sub: string;
+  labelKey: string;
+  subKey: string;
 }> = [
   {
     key: "send_recent_apps",
-    label: "Recent apps",
-    sub: "Include buffered foreground app changes",
+    labelKey: "devtools.advanced.recent_apps_label",
+    subKey: "devtools.advanced.recent_apps_sub",
   },
   {
     key: "send_active_app",
-    label: "Active app",
-    sub: "Include the current foreground application",
+    labelKey: "devtools.advanced.active_app_label",
+    subKey: "devtools.advanced.active_app_sub",
   },
   {
     key: "send_window_title",
-    label: "Window title",
-    sub: "Include the active window title",
+    labelKey: "devtools.advanced.window_title_label",
+    subKey: "devtools.advanced.window_title_sub",
   },
   {
     key: "send_posture",
-    label: "Posture",
-    sub: "Include the character's current posture",
+    labelKey: "devtools.advanced.posture_label",
+    subKey: "devtools.advanced.posture_sub",
   },
 ];
 
@@ -45,7 +46,7 @@ export function createAdvancedSettings(
   mount.classList.add("devtools-advanced");
   const heading = document.createElement("h2");
   heading.className = "devtools-section-title";
-  heading.textContent = "Context signals";
+  heading.textContent = t("devtools.advanced.context_signals");
   mount.appendChild(heading);
 
   const switches = new Map<keyof ContextSettings, HTMLButtonElement>();
@@ -59,10 +60,11 @@ export function createAdvancedSettings(
       </div>
       <button class="yui-switch" type="button" role="switch"></button>
     `;
-    row.querySelector(".yui-row__label")!.textContent = toggle.label;
-    row.querySelector(".yui-row__sub")!.textContent = toggle.sub;
+    const label = t(toggle.labelKey);
+    row.querySelector(".yui-row__label")!.textContent = label;
+    row.querySelector(".yui-row__sub")!.textContent = t(toggle.subKey);
     const button = row.querySelector<HTMLButtonElement>(".yui-switch")!;
-    button.setAttribute("aria-label", toggle.label);
+    button.setAttribute("aria-label", label);
     button.addEventListener("click", () => {
       deps.context.set({ [toggle.key]: !deps.context.get()[toggle.key] });
     });
@@ -74,7 +76,7 @@ export function createAdvancedSettings(
   separator.className = "devtools-separator";
   const limitsHeading = document.createElement("h2");
   limitsHeading.className = "devtools-section-title";
-  limitsHeading.textContent = "Limits";
+  limitsHeading.textContent = t("devtools.advanced.limits");
   mount.append(separator, limitsHeading);
 
   function numericRow(label: string, sub: string, id: string): HTMLInputElement {
@@ -97,21 +99,22 @@ export function createAdvancedSettings(
   }
 
   const recentApps = numericRow(
-    "Recent apps cap",
-    "Maximum buffered app switches",
+    t("devtools.advanced.recent_apps_cap_label"),
+    t("devtools.advanced.recent_apps_cap_sub"),
     "devtools-recent-apps-cap",
   );
-  recentApps.max = "50";
+  recentApps.max = String(RECENT_APPS_CEIL);
   recentApps.addEventListener("change", () => {
     deps.recentApps.setRecentAppsMax(Number(recentApps.value));
   });
 
   const contextWindow = numericRow(
-    "Context window (tokens)",
-    "Empty uses the bundled endpoint configuration",
+    t("devtools.advanced.context_window_label"),
+    t("devtools.advanced.context_window_sub"),
     "devtools-context-window",
   );
-  contextWindow.placeholder = deps.defaultContextWindow?.toString() ?? "Default";
+  contextWindow.placeholder =
+    deps.defaultContextWindow?.toString() ?? t("devtools.advanced.context_window_default");
   contextWindow.addEventListener("input", () => {
     deps.endpoints.set({ chat_model_context_window: contextWindow.value });
   });

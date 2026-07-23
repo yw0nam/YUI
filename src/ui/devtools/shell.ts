@@ -2,6 +2,7 @@ import type { createContextHistory } from "../../io/context-history";
 import type { createContextSettings } from "../../io/context-settings";
 import type { createEndpointsSettings } from "../../io/endpoints-settings";
 import type { createRecentAppsSettings } from "../../io/recent-apps-settings";
+import { t } from "../i18n";
 import { createAdvancedSettings } from "./advanced-settings";
 import { createContextInspector } from "./context-inspector";
 
@@ -17,10 +18,10 @@ export interface DevtoolsShellOptions {
   loadMotionPreview: (mount: HTMLElement) => Promise<void>;
 }
 
-const SECTIONS: Array<{ id: DevtoolsSection; label: string }> = [
-  { id: "context", label: "Context Inspector" },
-  { id: "advanced", label: "Advanced Settings" },
-  { id: "motion", label: "Motion Preview" },
+const SECTIONS: Array<{ id: DevtoolsSection; labelKey: string }> = [
+  { id: "context", labelKey: "devtools.nav.context" },
+  { id: "advanced", labelKey: "devtools.nav.advanced" },
+  { id: "motion", labelKey: "devtools.nav.motion" },
 ];
 
 export function createDevtoolsShell(options: DevtoolsShellOptions): {
@@ -29,14 +30,16 @@ export function createDevtoolsShell(options: DevtoolsShellOptions): {
 } {
   options.mount.innerHTML = `
     <main class="devtools">
-      <header class="devtools-header">Developer Tools</header>
+      <header class="devtools-header"></header>
       <div class="devtools-body">
-        <nav class="devtools-nav" aria-label="Developer tools sections"></nav>
+        <nav class="devtools-nav"></nav>
         <div class="devtools-content"></div>
       </div>
     </main>
   `;
+  options.mount.querySelector<HTMLElement>(".devtools-header")!.textContent = t("devtools.label");
   const nav = options.mount.querySelector<HTMLElement>(".devtools-nav")!;
+  nav.setAttribute("aria-label", t("devtools.nav_aria"));
   const content = options.mount.querySelector<HTMLElement>(".devtools-content")!;
   const panels = new Map<DevtoolsSection, HTMLElement>();
   let active: DevtoolsSection = "context";
@@ -47,7 +50,7 @@ export function createDevtoolsShell(options: DevtoolsShellOptions): {
     button.type = "button";
     button.className = "yui-tab devtools-nav__item";
     button.dataset.section = section.id;
-    button.textContent = section.label;
+    button.textContent = t(section.labelKey);
     button.addEventListener("click", () => activate(section.id));
     nav.appendChild(button);
 
@@ -82,7 +85,10 @@ export function createDevtoolsShell(options: DevtoolsShellOptions): {
     if (section === "motion" && !motionLoaded) {
       motionLoaded = true;
       const panel = panels.get("motion")!;
-      panel.innerHTML = '<div class="devtools-loading">Loading motion preview…</div>';
+      const loading = document.createElement("div");
+      loading.className = "devtools-loading";
+      loading.textContent = t("devtools.loading_motion");
+      panel.replaceChildren(loading);
       void options.loadMotionPreview(panel);
     }
   }
