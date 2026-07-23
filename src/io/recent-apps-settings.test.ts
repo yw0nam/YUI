@@ -109,6 +109,18 @@ describe("createRecentAppsSettings — setRecentAppsMax", () => {
     expect(store.get().recent_apps_max).toBe(1);
   });
 
+  it("accepts exactly 50 (at ceiling)", () => {
+    const store = createRecentAppsSettings();
+    store.setRecentAppsMax(50);
+    expect(store.get().recent_apps_max).toBe(50);
+  });
+
+  it("rejects 51 (above RECENT_APPS_CEIL of 50)", () => {
+    const store = createRecentAppsSettings();
+    store.setRecentAppsMax(51);
+    expect(store.get().recent_apps_max).toBe(10);
+  });
+
   it("rejects non-integer values", () => {
     const store = createRecentAppsSettings();
     store.setRecentAppsMax(2.5);
@@ -137,6 +149,12 @@ describe("createRecentAppsSettings — malformed/throwing storage", () => {
 
   it("stored blob with below-floor value → defaults", () => {
     const malformed = { recent_apps_max: 0 } as unknown as RecentAppsSettings;
+    const store = createRecentAppsSettings({ storage: fakeStorage(malformed) });
+    expect(store.get()).toEqual({ recent_apps_max: 10 });
+  });
+
+  it("stored blob with above-ceiling value → defaults", () => {
+    const malformed = { recent_apps_max: 51 } as unknown as RecentAppsSettings;
     const store = createRecentAppsSettings({ storage: fakeStorage(malformed) });
     expect(store.get()).toEqual({ recent_apps_max: 10 });
   });
