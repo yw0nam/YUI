@@ -16,6 +16,8 @@
 ```
 YUI/
   index.html                # Vite entry
+  settings.html             # Settings-window Vite entry
+  devtools.html             # Developer Tools Vite entry
   vite.config.ts            # dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1
   biome.json                # Format + lint config (curated rule set)
   .claude/
@@ -33,14 +35,13 @@ YUI/
     hotkeys.json              # global summon accelerator (empty = disabled)
     emotion_text/             # per-provider voice-tag vocabulary (e.g. emotion_text/irodori.json)
   public/motions/           # VRMA motion assets
-  motion-preview.html       # Dev motion/emotion inspector (not in Tauri window)
   src/
-    dev/                    # Dev-only tooling (motion-preview.ts, motion-preview.css)
     main.ts                 # Application entry and orchestration
     bootstrap-wiring.ts     # VRM + speaker selection bootstrap wiring
     logger.ts               # Namespaced frontend logger
     drag.ts                 # Main-window drag behavior
     settings-main.ts        # Settings-window entry
+    devtools-main.ts        # Developer Tools window entry
     contract/               # TS contract types — source of truth (types.ts, index.ts)
     renderer/               # three.js + VRM (index.ts, emotion-resolver.ts, motion-controller.ts)
     io/                     # I/O layer (chat-client.ts, tts-pipeline.ts, stt-vad.ts, os-context.ts, etc.)
@@ -51,6 +52,7 @@ YUI/
       surfaces.ts             # Speech bubble, text input, and tool-status chip
       quick-controls.ts       # Quick-controls shell
       quick-controls/         # monitors-section.ts, endpoints-section.ts, popover.ts, template.ts, and selection helpers
+      devtools/               # Context inspector, advanced settings, and lazy motion/emotion preview
       i18n.ts + i18n/         # UI translation runtime and locale catalogs
       markdown.ts             # Speech markdown rendering
       cue-list.ts             # Schedule/proactive cue list

@@ -1,0 +1,565 @@
+/*
+ * Motion Preview dev tool — styles.
+ * Palette: OKLCH warm-neutral only. No hex. No side-stripe borders.
+ * Scoped to the lazy-loaded Developer Tools section.
+ */
+
+.motion-preview {
+  --surface-ground: oklch(16% 0.008 70);
+  --surface-panel: oklch(20% 0.01 70);
+  --surface-raised: oklch(24% 0.01 70);
+  --surface-hover: oklch(27% 0.01 70);
+  --surface-active-bg: oklch(24% 0.025 70);
+
+  --text-primary: oklch(92% 0.008 70);
+  --text-secondary: oklch(62% 0.008 70);
+  --text-tertiary: oklch(44% 0.008 70);
+
+  --accent: oklch(78% 0.12 70);
+  --accent-dim: oklch(62% 0.08 70);
+
+  --border: oklch(30% 0.01 70);
+  --border-subtle: oklch(26% 0.008 70);
+
+  --rail-width: 38%;
+  --viewport-width: 62%;
+
+  --row-height: 38px;
+  --section-label-size: 10px;
+  --body-size: 12.5px;
+  --detail-size: 11px;
+
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  display: grid;
+  grid-template-columns: var(--viewport-width) var(--rail-width);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-ground);
+  color: var(--text-primary);
+  font-size: var(--body-size);
+  line-height: 1.4;
+}
+
+@scope (.motion-preview) {
+  /* VRM Viewport */
+
+  .motion-preview__viewport {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background-color: var(--surface-ground);
+    background-image:
+      linear-gradient(45deg, oklch(22% 0.008 70) 25%, transparent 25%),
+      linear-gradient(-45deg, oklch(22% 0.008 70) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, oklch(22% 0.008 70) 75%),
+      linear-gradient(-45deg, transparent 75%, oklch(22% 0.008 70) 75%);
+    background-size: 20px 20px;
+    background-position:
+      0 0,
+      0 10px,
+      10px -10px,
+      -10px 0px;
+  }
+
+  /* renderer uses setSize(w,h,false) — CSS must size the canvas to the mount,
+   else it renders at its devicePixelRatio buffer size and overflows. */
+  #vrm-mount {
+    position: absolute;
+    inset: 0;
+  }
+
+  #vrm-mount canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .viewport-label {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    font-size: var(--detail-size);
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .viewport-status {
+    position: absolute;
+    bottom: 12px;
+    right: 14px;
+    font-size: 10px;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+    opacity: 0.6;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* Control Rail */
+
+  .motion-preview__rail {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-panel);
+    box-shadow: inset 1px 0 0 var(--border);
+    overflow: hidden;
+  }
+
+  .rail-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .rail-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+  .rail-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .rail-scroll::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+  }
+
+  /* Section header */
+
+  .section {
+    padding: 0 0 8px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px 8px;
+    position: sticky;
+    top: 0;
+    background: var(--surface-panel);
+    z-index: 1;
+  }
+
+  .section-label {
+    font-size: var(--section-label-size);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+
+  .section-divider {
+    flex: 1;
+    height: 1px;
+    background: var(--border-subtle);
+  }
+
+  /* Motion groups */
+
+  .group {
+    margin-bottom: 2px;
+  }
+
+  .group-label {
+    padding: 6px 16px 4px;
+    font-size: var(--section-label-size);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    opacity: 0.7;
+  }
+
+  /* Motion rows */
+
+  .motion-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+    height: var(--row-height);
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .motion-row {
+      transition: background 150ms var(--ease-out);
+    }
+  }
+
+  .motion-row:hover {
+    background: var(--surface-hover);
+  }
+
+  /* Variant sub-rows — preview-only expanded pool entries (idle_01, sit_02, …) */
+  .motion-row.variant-row {
+    padding-left: 34px;
+    opacity: 0.85;
+  }
+
+  /* Active / playing row: amber tint background + filled dot — no side stripe */
+  .motion-row.state-playing {
+    background: var(--surface-active-bg);
+  }
+  .motion-row.state-playing:hover {
+    background: oklch(26% 0.03 70);
+  }
+
+  /* Status dot */
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .dot {
+      transition:
+        background 150ms var(--ease-out),
+        border-color 150ms var(--ease-out);
+    }
+  }
+
+  .dot-hollow {
+    background: transparent;
+    border: 1.5px solid var(--text-tertiary);
+  }
+
+  .dot-filled {
+    background: var(--accent);
+    border: 1.5px solid var(--accent);
+    box-shadow: 0 0 6px oklch(78% 0.12 70 / 0.4);
+  }
+
+  /* Row content */
+  .row-name {
+    flex: 1;
+    font-size: var(--body-size);
+    color: var(--text-primary);
+    font-weight: 450;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .motion-row.state-playing .row-name {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .row-tags {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .tag {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  .tag-loop {
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: oklch(28% 0.008 70);
+    color: var(--text-tertiary);
+  }
+
+  .motion-row.state-playing .tag {
+    color: var(--accent-dim);
+  }
+
+  .motion-row.state-playing .tag-loop {
+    background: oklch(28% 0.02 70);
+    color: var(--accent-dim);
+  }
+
+  /* Play button */
+  .btn-play {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 10px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .btn-play {
+      transition:
+        background 150ms var(--ease-out),
+        color 150ms var(--ease-out);
+    }
+  }
+
+  .btn-play:hover {
+    background: oklch(32% 0.01 70);
+    color: var(--text-primary);
+  }
+
+  .motion-row.state-playing .btn-play {
+    color: var(--accent);
+  }
+
+  /* Sub-line (variant info for idle) */
+  .sub-line {
+    padding: 0 16px 8px 33px;
+    font-size: var(--detail-size);
+    color: var(--text-tertiary);
+    letter-spacing: 0.01em;
+    margin-top: -4px;
+  }
+
+  .sub-line span {
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Separator between sections */
+
+  .section-sep {
+    height: 1px;
+    margin: 8px 16px;
+    background: var(--border-subtle);
+  }
+
+  /* PLAYBACK section */
+
+  .playback-section {
+    padding: 0 0 10px;
+  }
+
+  .playback-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+    height: var(--row-height);
+  }
+
+  .playback-label {
+    font-size: var(--detail-size);
+    color: var(--text-secondary);
+    width: 72px;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+  }
+
+  .playback-control {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Checkbox */
+  .cb-wrap {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+  }
+
+  .cb-wrap input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .cb-label {
+    font-size: var(--body-size);
+    color: var(--text-primary);
+  }
+
+  /* Sliders */
+  .slider-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    input[type="range"]::-webkit-slider-thumb {
+      transition: background 150ms var(--ease-out);
+    }
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover,
+  input[type="range"]:focus::-webkit-slider-thumb {
+    background: var(--accent);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    cursor: pointer;
+    border: none;
+  }
+
+  .slider-value {
+    font-size: var(--detail-size);
+    color: var(--text-secondary);
+    min-width: 38px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+
+  /* Select / dropdown */
+  select {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: inherit;
+    font-size: var(--detail-size);
+    cursor: pointer;
+    outline: none;
+    flex: 1;
+    height: 26px;
+  }
+
+  select:focus {
+    border-color: var(--accent);
+  }
+
+  /* Action buttons */
+  .btn-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 16px 6px;
+  }
+
+  .btn {
+    padding: 5px 12px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--detail-size);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .btn {
+      transition:
+        background 150ms var(--ease-out),
+        border-color 150ms var(--ease-out),
+        color 150ms var(--ease-out);
+    }
+  }
+
+  .btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--text-tertiary);
+  }
+
+  .btn-primary {
+    background: oklch(28% 0.03 70);
+    border-color: oklch(40% 0.06 70);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .btn-primary:hover {
+    background: oklch(32% 0.04 70);
+    border-color: var(--accent);
+  }
+
+  .btn-stop {
+    color: var(--text-secondary);
+  }
+
+  .btn-idle {
+    margin-left: auto;
+  }
+
+  /* EMOTION section — no additional rules needed.
+ * Rows use .motion-row / .dot / .row-name / .state-playing / .tag / .btn-play.
+ * Sliders use .playback-row / .playback-label / .playback-control / .slider-wrap / .slider-value.
+ * Buttons use .btn-row / .btn / .btn-primary / .btn-stop.
+ * Active emotion highlight reuses the same amber .state-playing treatment as motion rows.
+ */
+
+  /* Status bar */
+
+  .status-bar {
+    flex-shrink: 0;
+    height: 30px;
+    background: oklch(18% 0.008 70);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+  }
+
+  .status-text {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+
+  .status-text .status-key {
+    color: var(--text-tertiary);
+  }
+
+  .status-text .status-val {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .status-text .status-accent {
+    color: var(--accent);
+    font-weight: 500;
+  }
+}

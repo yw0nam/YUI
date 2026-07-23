@@ -1,14 +1,10 @@
 /**
- * Motion Preview dev tool entry point.
- *
- * A SEPARATE Vite entry (motion-preview.html), never loaded inside the Tauri pet window.
- * Purpose: screenshot-verification surface for VRM motions.
+ * Motion and emotion preview, lazy-loaded by the Developer Tools window.
  *
  * Architecture:
- *   - Imports motions.json directly (Vite JSON import, NOT src/config/load.ts which is Node/fs).
- *   - Uses createRenderer({ mount, motionRegistry }) from src/renderer.
- *   - Loads /vrms/carlotta.vrm (served via public/vrms symlink -> resources/vrms).
- *   - Registry list rendered from the imported JSON, grouped by MotionKind.
+ *   - Loads validated runtime config through createConfigStore.
+ *   - Resolves the configured VRM through resolveAssetUrl.
+ *   - Registry list is grouped by MotionKind.
  *   - Playback controls compose MotionSignal overrides passed to renderer.playMotion().
  *
  * Status bar polls renderer.getCurrentMotion() per frame, so it reflects the committed
@@ -16,26 +12,56 @@
  */
 
 import "./motion-preview.css";
+import { createConfigStore } from "../../config";
 import type {
   EmotionId,
   EmotionRegistry,
   MotionKind,
   MotionRegistry,
   MotionSignal,
-} from "../contract";
-import { createLogger } from "../logger";
-import { createRenderer } from "../renderer";
+} from "../../contract";
+import { resolveAssetUrl } from "../../io/asset-url";
+import { createLogger } from "../../logger";
+import { createRenderer } from "../../renderer";
 
 const log = createLogger("motion-preview");
 
-// ─── Runtime config URLs (served by the custom dev middleware at /configs/*) ──
-// Do NOT statically import — Vite rewrites JSON imports to ?import, the middleware
-// returns raw JSON (not a JS module), and the browser rejects the whole ES module graph.
-const CONFIG_URL = "/configs/motions.json";
-const EMOTION_CONFIG_URL = "/configs/emotion_registry.json";
-
-// ─── VRM URL (configurable; default uses the gitignored symlink) ──────────────
-const VRM_URL = "/vrms/carlotta.vrm";
+const previewRoot = document.querySelector<HTMLElement>('[data-panel="motion"]');
+if (!previewRoot) throw new Error("motion preview mount not found");
+previewRoot.className = "devtools-panel motion-preview";
+previewRoot.innerHTML = `
+  <div class="motion-preview__viewport">
+    <div class="viewport-label">VRM Viewport</div>
+    <div id="vrm-mount"></div>
+    <div class="viewport-status" id="viewport-status">idle · 0fps</div>
+  </div>
+  <div class="motion-preview__rail">
+    <div class="rail-scroll">
+      <div class="section">
+        <div class="section-header"><span class="section-label">Registry</span><div class="section-divider"></div></div>
+        <div id="registry-list"></div>
+      </div>
+      <div class="section-sep"></div>
+      <div class="playback-section">
+        <div class="section-header"><span class="section-label">Playback</span><div class="section-divider"></div></div>
+        <div class="playback-row"><span class="playback-label">loop</span><div class="playback-control"><label class="cb-wrap"><input type="checkbox" id="cb-loop" checked /><span class="cb-label">enabled</span></label></div></div>
+        <div class="playback-row"><span class="playback-label">speed</span><div class="playback-control"><div class="slider-wrap"><input type="range" id="sl-speed" min="0.25" max="2.5" step="0.05" value="1.0" /><span class="slider-value" id="val-speed">1x</span></div></div></div>
+        <div class="playback-row"><span class="playback-label">fade</span><div class="playback-control"><div class="slider-wrap"><input type="range" id="sl-fade" min="0" max="600" step="10" value="200" /><span class="slider-value" id="val-fade">200ms</span></div></div></div>
+        <div class="playback-row"><span class="playback-label">crossfade →</span><div class="playback-control"><select id="sel-crossfade"></select></div></div>
+        <div class="btn-row"><button class="btn btn-primary" id="btn-play">play</button><button class="btn btn-stop" id="btn-stop">stop</button><button class="btn btn-idle" id="btn-idle">→ idle</button></div>
+      </div>
+      <div class="section-sep"></div>
+      <div class="section">
+        <div class="section-header"><span class="section-label">Emotion</span><div class="section-divider"></div></div>
+        <div id="emotion-list"></div>
+        <div class="playback-row"><span class="playback-label">intensity</span><div class="playback-control"><div class="slider-wrap"><input type="range" id="sl-intensity" min="0" max="1" step="0.05" value="1" /><span class="slider-value" id="val-intensity">1.00</span></div></div></div>
+        <div class="playback-row"><span class="playback-label">transition</span><div class="playback-control"><div class="slider-wrap"><input type="range" id="sl-transition" min="0" max="1000" step="10" value="250" /><span class="slider-value" id="val-transition">250ms</span></div></div></div>
+        <div class="btn-row"><button class="btn btn-primary" id="btn-neutral">→ neutral</button><button class="btn btn-stop" id="btn-hold">hold (null)</button></div>
+      </div>
+    </div>
+    <div class="status-bar"><span class="status-text"><span class="status-key">now: </span><span class="status-accent" id="status-now">loading</span><span class="status-key"> · </span><span class="status-val" id="status-kind">-</span><span class="status-key"> · </span><span class="status-val" id="status-priority">-</span><span class="status-key"> · </span><span class="status-val" id="status-elapsed">0.0s</span><span class="status-key"> · </span><span class="status-val" id="status-fps">0fps</span></span></div>
+  </div>
+`;
 
 // ─── Motion kind display order ────────────────────────────────────────────────
 const KIND_ORDER: MotionKind[] = ["ambient", "reactive", "state", "oneshot"];
@@ -464,23 +490,14 @@ slTransition.addEventListener("input", () => {
 // code that depends on it runs. All init that needs the registry is inside here.
 
 async function main(): Promise<void> {
-  // 1. Fetch both registries at runtime (static import breaks the ES module
-  //    graph — see module-level comment for the full explanation).
   let motionsRegistry: MotionRegistry;
   let emotionsRegistry: EmotionRegistry;
+  let vrmUrl: string;
   try {
-    const [motionsRes, emotionRes] = await Promise.all([
-      fetch(CONFIG_URL),
-      fetch(EMOTION_CONFIG_URL),
-    ]);
-    if (!motionsRes.ok) {
-      throw new Error(`HTTP ${motionsRes.status} ${motionsRes.statusText} (motions)`);
-    }
-    if (!emotionRes.ok) {
-      throw new Error(`HTTP ${emotionRes.status} ${emotionRes.statusText} (emotions)`);
-    }
-    motionsRegistry = (await motionsRes.json()) as MotionRegistry;
-    emotionsRegistry = (await emotionRes.json()) as EmotionRegistry;
+    const config = await createConfigStore().load();
+    motionsRegistry = config.motions;
+    emotionsRegistry = config.emotionRegistry;
+    vrmUrl = await resolveAssetUrl(config.avatar.vrm_url);
   } catch (err) {
     log.error("registry_load_failed", { error: String(err) });
     viewportStatus.textContent = "registry load failed";
@@ -591,11 +608,15 @@ async function main(): Promise<void> {
 
   // 8. Load VRM — renderer auto-plays idle baseline on load.
   try {
-    await renderer.loadVRM(VRM_URL);
+    await renderer.loadVRM(vrmUrl);
     // Idle baseline auto-plays on load; syncLiveMotion picks it up next frame.
   } catch (err) {
     log.error("vrm_load_failed", { error: String(err) });
   }
 }
 
-void main();
+const ready = main();
+
+export async function mountMotionPreview(_mount: HTMLElement): Promise<void> {
+  await ready;
+}
