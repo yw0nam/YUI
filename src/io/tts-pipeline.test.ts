@@ -496,6 +496,42 @@ describe("createTtsPipeline — onPlaybackEnd signal", () => {
     expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
     errSpy.mockRestore();
   });
+
+  it("fires turn N's onPlaybackEnd exactly once when turn N+1's first delta arrives while N's last chunk is still playing", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, playedOrder, finish } = recordingSink();
+    const onPlaybackEnd = vi.fn();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+
+    // Turn N: one sentence, end() called while its only chunk is still playing.
+    pipe.pushTextDelta("First.");
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    expect(playedOrder).toEqual([0]); // chunk 0 is playing now
+    pipe.end();
+    await tick();
+    expect(onPlaybackEnd).not.toHaveBeenCalled();
+
+    // Turn N+1's first delta arrives before turn N's chunk finishes playing.
+    pipe.pushTextDelta("Second.");
+    await tick();
+
+    // Turn N's chunk finishes — its onPlaybackEnd must fire now, not be dropped.
+    finish();
+    await tick();
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+
+    // Turn N+1 proceeds and completes its own cycle independently.
+    expect(resolvers).toHaveLength(2);
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    expect(playedOrder).toEqual([0, 1]);
+    pipe.end();
+    finish();
+    await tick();
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("createTtsPipeline — setCue / onCuePlay", () => {
