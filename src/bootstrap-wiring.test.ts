@@ -60,10 +60,40 @@ vi.mock("./io/broker-override-reconciler", () => ({
 vi.mock("./io/chat-client", () => ({ selectFetch }));
 vi.mock("./config", () => ({ loadEmotionTextTable: vi.fn().mockResolvedValue(null) }));
 
+// Fake bridge for wireCrossWindowSync: captures the onMouthPreview/onVoiceSet callbacks so
+// tests can invoke them directly (a real bridge instance never delivers its own emits to itself).
+const { fakeBridge, createSettingsBridge } = vi.hoisted(() => {
+  const fakeBridge = {
+    emitSettingsChanged: vi.fn(),
+    onSettingsChanged: vi.fn(() => vi.fn()),
+    emitMouthPreview: vi.fn(),
+    onMouthPreview: vi.fn(),
+    emitVoiceSet: vi.fn(),
+    onVoiceSet: vi.fn(),
+    emitVoiceState: vi.fn(),
+    onVoiceState: vi.fn(),
+    dispose: vi.fn(),
+  };
+  return { fakeBridge, createSettingsBridge: vi.fn(() => fakeBridge) };
+});
+vi.mock("./io/settings-bridge", () => ({ createSettingsBridge }));
+const { wireStorageSyncDispose, wireStorageSync } = vi.hoisted(() => {
+  const wireStorageSyncDispose = vi.fn();
+  return { wireStorageSyncDispose, wireStorageSync: vi.fn(() => wireStorageSyncDispose) };
+});
+vi.mock("./io/settings-window", () => ({ wireStorageSync }));
+const { mockDriver, createMockDriver } = vi.hoisted(() => {
+  const mockDriver = { reply: vi.fn(), proactive: vi.fn(), speak: vi.fn() };
+  return { mockDriver, createMockDriver: vi.fn(() => mockDriver) };
+});
+vi.mock("./ui/mock", () => ({ createMockDriver }));
+
 import {
   createSettingsBroadcast,
   showAndFocusFromSummon,
   wireBroker,
+  wireCrossWindowSync,
+  wireDevGlobals,
   wireDispatcherSources,
   wirePeekExitTriggers,
   wireSettingsReload,
@@ -491,5 +521,149 @@ describe("wireStopControl", () => {
     stopCb!();
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(abortSpeech).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("wireCrossWindowSync", () => {
+  beforeEach(() => {
+    fakeBridge.onMouthPreview.mockClear();
+    fakeBridge.onVoiceSet.mockClear();
+    fakeBridge.emitVoiceState.mockClear();
+    fakeBridge.dispose.mockClear();
+    createSettingsBridge.mockClear();
+    wireStorageSync.mockClear();
+    wireStorageSyncDispose.mockClear();
+  });
+
+  const makeDeps = () => {
+    const renderer = { setMouthOpen: vi.fn(), stopMouth: vi.fn() };
+    const voiceInputStatus = createVoiceInputStatus();
+    const log = { info: vi.fn(), warn: () => {}, error: () => {}, debug: () => {} };
+    const cameraSettings = { subscribe: vi.fn() };
+    const storageSyncStores = [{ reloadFromStorage: vi.fn() }];
+    const syncedStores = [{ subscribe: vi.fn(), reloadFromStorage: vi.fn() }];
+    return { renderer, voiceInputStatus, log, cameraSettings, storageSyncStores, syncedStores };
+  };
+
+  it("wires storage sync with the given store list", () => {
+    const deps = makeDeps();
+    wireCrossWindowSync(deps as never);
+    expect(wireStorageSync).toHaveBeenCalledWith(deps.storageSyncStores);
+  });
+
+  it("routes mouth preview to the renderer", () => {
+    const deps = makeDeps();
+    wireCrossWindowSync(deps as never);
+    const onMouthPreview = fakeBridge.onMouthPreview.mock.calls[0][0] as (v: number | null) => void;
+    onMouthPreview(0.5);
+    expect(deps.renderer.setMouthOpen).toHaveBeenCalledWith(0.5);
+    onMouthPreview(null);
+    expect(deps.renderer.stopMouth).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes the voice toggle to voiceInputStatus and logs it", () => {
+    const deps = makeDeps();
+    wireCrossWindowSync(deps as never);
+    const onVoiceSet = fakeBridge.onVoiceSet.mock.calls[0][0] as (on: boolean) => void;
+    onVoiceSet(true);
+    expect(deps.voiceInputStatus.get().state).toBe("listening");
+    expect(deps.log.info).toHaveBeenCalledWith(
+      "voice_toggle_received",
+      expect.objectContaining({ on: true }),
+    );
+    onVoiceSet(false);
+    expect(deps.voiceInputStatus.get().state).toBe("idle");
+  });
+
+  it("publishes voice status changes through the bridge", () => {
+    const deps = makeDeps();
+    wireCrossWindowSync(deps as never);
+    deps.voiceInputStatus.set("listening");
+    expect(fakeBridge.emitVoiceState).toHaveBeenCalledWith({ state: "listening" });
+  });
+
+  it("dispose tears down storage sync and the bridge", () => {
+    const deps = makeDeps();
+    const { dispose } = wireCrossWindowSync(deps as never);
+    dispose();
+    expect(wireStorageSyncDispose).toHaveBeenCalledTimes(1);
+    expect(fakeBridge.dispose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("wireDevGlobals", () => {
+  afterEach(() => {
+    for (const key of [
+      "__yuiRenderer",
+      "__yuiAmbient",
+      "__yuiSurfaces",
+      "__yuiMock",
+      "__yuiScreenshot",
+      "__yuiLipsync",
+      "__yuiAgent",
+      "__yuiQuick",
+      "__yuiVoiceInputStatus",
+      "__yui_send",
+      "__yui_dispatcher",
+      "__yui_windowSit",
+      "__yuiDemo",
+    ]) {
+      delete (globalThis as Record<string, unknown>)[key];
+    }
+    createMockDriver.mockClear();
+  });
+
+  const makeDeps = () => {
+    const dispatcher = { id: "dispatcher" };
+    return {
+      renderer: { id: "renderer" },
+      ambient: { trigger: vi.fn() },
+      surfaces: { summonInput: vi.fn(), showTool: vi.fn() },
+      screenshotSettings: { id: "screenshot" },
+      lipsyncSettings: { id: "lipsync" },
+      agentSettings: { id: "agent" },
+      quickControls: { id: "quick" },
+      voiceInputStatus: createVoiceInputStatus(),
+      userInput: { submit: vi.fn() },
+      bus: { push: vi.fn() },
+      getDispatcher: () => dispatcher,
+    };
+  };
+
+  it("installs debug globals referencing the live instances", async () => {
+    const deps = makeDeps();
+    await wireDevGlobals(deps as never);
+    const g = globalThis as Record<string, unknown>;
+    expect(g.__yuiRenderer).toBe(deps.renderer);
+    expect(g.__yuiSurfaces).toBe(deps.surfaces);
+    expect(g.__yuiMock).toBe(mockDriver);
+    expect(g.__yuiQuick).toBe(deps.quickControls);
+    expect((g.__yui_dispatcher as () => unknown)()).toEqual({ id: "dispatcher" });
+  });
+
+  it("__yui_send submits text through userInput", async () => {
+    const deps = makeDeps();
+    await wireDevGlobals(deps as never);
+    (globalThis as unknown as Record<string, (text: string) => void>).__yui_send("hello");
+    expect(deps.userInput.submit).toHaveBeenCalledWith("hello");
+  });
+
+  it("__yui_windowSit.enter pushes a window_sit_enter event", async () => {
+    const deps = makeDeps();
+    await wireDevGlobals(deps as never);
+    const windowSit = (globalThis as unknown as Record<string, { enter: () => void }>)
+      .__yui_windowSit;
+    windowSit.enter();
+    expect(deps.bus.push).toHaveBeenCalledWith(
+      expect.objectContaining({ event_name: "user.window_sit_enter" }),
+    );
+  });
+
+  it("__yuiDemo.tap triggers the ambient cue", async () => {
+    const deps = makeDeps();
+    await wireDevGlobals(deps as never);
+    const demo = (globalThis as unknown as Record<string, { tap: () => void }>).__yuiDemo;
+    demo.tap();
+    expect(deps.ambient.trigger).toHaveBeenCalledWith("tap_react");
   });
 });
