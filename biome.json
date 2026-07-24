@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["src/**", "scripts/**", "tests/**", "*.ts", "*.mjs", "*.json"],
+    "includes": ["src/**", "scripts/**", "tests/**", "n8n/**", "*.ts", "*.mjs", "*.json"],
     "experimentalScannerIgnores": ["public/vad", "dist", "src-tauri/target"]
   },
   "formatter": {

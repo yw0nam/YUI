@@ -2,6 +2,8 @@
 
 These SDK files define YUI's n8n signal collection and dispatch layer. Collectors write opaque signal payloads to the n8n data table `signal_queue`; the dispatcher sends pending rows together as one digest. CI failures are the only fast path: the repository-status collector records them as sent and posts them immediately.
 
+They live in `n8n/` rather than `scripts/` because they are deployment artifacts for the n8n instance, not commands the repository runs. CI still gates them like any other TypeScript: `pnpm build` typechecks them against `@n8n/workflow-sdk`, `pnpm lint` formats and lints them, and `tests/n8n/workflows.test.ts` imports each one so an invalid node configuration fails the build.
+
 ## Queue schema
 
 The workflows use data table ID `hcb8ErVh7YIFOUbs` (`signal_queue`). Its columns are:

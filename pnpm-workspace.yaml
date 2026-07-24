@@ -1,4 +1,7 @@
 strictDepBuilds: false
 allowBuilds:
+  cpu-features: false
   esbuild: true
+  isolated-vm: false
   protobufjs: false
+  ssh2: false
