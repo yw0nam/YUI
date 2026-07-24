@@ -63,7 +63,7 @@ export function nextBounds(
 }
 
 /** Tauri window seam the source reads/writes at wheel time. */
-export interface ResizeWindow {
+interface ResizeWindow {
   /** Physical px (Tauri outerPosition). */
   outerPosition(): Promise<{ x: number; y: number }>;
   /** Physical px (Tauri outerSize). */
@@ -77,7 +77,7 @@ export interface ResizeWindow {
 }
 
 /** Wheel-event target seam (defaults to the global window). */
-export interface WheelTarget {
+interface WheelTarget {
   addEventListener(
     type: "wheel",
     handler: (e: WheelEvent) => void,
@@ -86,7 +86,7 @@ export interface WheelTarget {
   removeEventListener(type: "wheel", handler: (e: WheelEvent) => void): void;
 }
 
-export interface WindowResizeSourceDeps {
+interface WindowResizeSourceDeps {
   renderer: { isPerched(): boolean };
   /** Resolve the pet window (lazily — `getCurrentWindow()` throws off-Tauri). */
   getWindow: () => ResizeWindow;

@@ -5,6 +5,7 @@
 
 import "./capture-indicator.css";
 import type { createScreenshotSettings } from "../io/screenshot-settings";
+import { afterFadeOut } from "./fade-out";
 import { t } from "./i18n";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
@@ -62,19 +63,9 @@ export function createCaptureIndicator({
     el.classList.remove("is-visible");
     // Remove it from the a11y tree only after the fade-out ends — so hidden=true doesn't kill the transition.
     // Cancel if show() runs again (visible) in the meantime. Same pattern as popover close.
-    const settle = (): void => {
+    afterFadeOut(el, () => {
       if (!visible) el.hidden = true;
-    };
-    // Fallback for environments where the transition never fires. A rAF (next frame ~16ms) is
-    // shorter than the fade (--yui-dur 200ms / -fast 140ms) and would cut it off, so the timer must exceed that ceiling.
-    const fb = setTimeout(settle, 400); // ponytail: safety net exceeding the --yui-dur/-fast ceiling
-    const onEnd = (e: TransitionEvent): void => {
-      if (e.propertyName !== "opacity") return;
-      clearTimeout(fb);
-      el.removeEventListener("transitionend", onEnd);
-      settle();
-    };
-    el.addEventListener("transitionend", onEnd);
+    });
   }
 
   // Reflect settings (initial + subscription)

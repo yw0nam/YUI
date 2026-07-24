@@ -26,7 +26,7 @@ function isValidSettings(v: unknown): v is ApiKeySettings {
   return typeof (v as Record<string, unknown>).apiKey === "string";
 }
 
-export interface CreateApiKeySettingsOptions {
+interface CreateApiKeySettingsOptions {
   /** Explicit storage adapter (takes precedence over storageKey). */
   storage?: ApiKeyStorage;
   /** Convenience: build a localStorage adapter from this key. */

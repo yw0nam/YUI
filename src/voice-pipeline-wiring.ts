@@ -24,7 +24,7 @@ type VoiceRenderer = Pick<
 
 type VoiceSurfaces = Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech" | "finishSpeech">;
 
-export interface VoicePipelineDeps {
+interface VoicePipelineDeps {
   renderer: VoiceRenderer;
   surfaces: VoiceSurfaces;
   getEndpoints: () => EndpointsConfig;

@@ -10,7 +10,7 @@ import { t } from "../i18n";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 
-export interface MonitorsSectionDeps {
+interface MonitorsSectionDeps {
   /** Panel root (el) — query monitor list here. */
   root: HTMLElement;
   /** Provides list of displayable screen sources. */

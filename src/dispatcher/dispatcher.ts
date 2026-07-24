@@ -33,7 +33,7 @@ import type { DropReason, Guardrails } from "./guardrails";
 
 const baseLog = createLogger("dispatcher");
 
-export interface DispatcherDeps {
+interface DispatcherDeps {
   bus: EventBus;
   renderer: Pick<
     Renderer,
@@ -69,13 +69,7 @@ export interface DispatcherDeps {
   logger?: Logger;
 }
 
-export type DispatcherState =
-  | "booting"
-  | "running"
-  | "cooldown"
-  | "degraded"
-  | "draining"
-  | "stopped";
+type DispatcherState = "booting" | "running" | "cooldown" | "degraded" | "draining" | "stopped";
 
 /** recent_drops entry. */
 export interface DropRecord {
@@ -97,7 +91,7 @@ export const DROP_SEVERITY: Record<DropRecord["reason"], LogLevel> = {
 };
 
 /** in_flight_backend_call. */
-export interface InFlightInfo {
+interface InFlightInfo {
   trigger: BusEnvelope;
   started_at: number;
 }

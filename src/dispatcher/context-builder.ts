@@ -20,12 +20,12 @@ export interface ContextPolicy {
   screenshot: boolean;
 }
 
-export interface ContextRecord {
+interface ContextRecord {
   included: ContextSignal[];
   excluded: ContextSignal[];
 }
 
-export interface ContextProviders {
+interface ContextProviders {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   getOsContext?: () => OsContextSnapshot | undefined;
   getPosture?: () => Posture | undefined;

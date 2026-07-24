@@ -14,7 +14,7 @@ const log = createLogger("summon-hotkey");
 /** Plugin shortcut event handler — state "Pressed" | "Released". */
 export type SummonHotkeyTrigger = (event: { state: string }) => void;
 
-export interface SummonHotkeyDeps {
+interface SummonHotkeyDeps {
   register(accelerator: string, handler: SummonHotkeyTrigger): Promise<void>;
   unregister(accelerator: string): Promise<void>;
   /** Bring the window forward + focus (including activating the app from the background). */

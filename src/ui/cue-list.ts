@@ -33,7 +33,7 @@ interface CueStore<C extends CueBase, S extends SettingsBase<C>> {
 
 type TriggerKind = { kind: "time"; field: string } | { kind: "minutes"; field: string };
 
-export interface CueListOptions<C extends CueBase, S extends SettingsBase<C>> {
+interface CueListOptions<C extends CueBase, S extends SettingsBase<C>> {
   mount: HTMLElement;
   store: CueStore<C, S>;
   title: string;

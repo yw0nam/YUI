@@ -2,7 +2,7 @@ import { createLogger } from "../logger";
 
 const log = createLogger("peek-state");
 
-export interface PeekStateDeps {
+interface PeekStateDeps {
   getWindow: () => {
     setAlwaysOnTop(value: boolean): Promise<void>;
     setAlwaysOnBottom(value: boolean): Promise<void>;

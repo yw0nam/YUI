@@ -10,7 +10,7 @@
 import type { SecretProvider } from "../config/load";
 import type { ApiKeySettingsStore } from "./api-key-settings";
 
-export interface SettingsSecretProviderOptions {
+interface SettingsSecretProviderOptions {
   /** secret name → runtime override store. No override if apiKey is empty. */
   stores: Record<string, ApiKeySettingsStore>;
   /** build-time value (e.g., VITE_YUI_*). Used only when store is empty. */

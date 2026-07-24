@@ -32,7 +32,7 @@ const log = createLogger("signals-source");
 /** Buffered-batch cap — oldest batch dropped when exceeded. */
 const BUFFER_CAP = 5;
 
-export interface SignalsSourceDeps {
+interface SignalsSourceDeps {
   bus: Pick<EventBus, "push">;
   /** Present iff cached OS idle ≤ this (same semantics as agent-source). */
   present_max_idle_ms: number;

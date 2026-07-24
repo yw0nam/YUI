@@ -24,7 +24,7 @@ interface EmotionLog {
   error(event: string, fields?: Record<string, unknown>): void;
 }
 
-export interface EmotionCrossfadeDeps {
+interface EmotionCrossfadeDeps {
   /** The live VRM (or undefined) — read fresh each call; never cached across frames. */
   getVrm: () => VRM | undefined;
   /** Frame clock in ms (elapsed*1000) — read live so step/setEmotion share the same value. */

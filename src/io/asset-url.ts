@@ -17,7 +17,7 @@ export interface TauriAssetApi {
   convertFileSrc(path: string): string;
 }
 
-export interface ResolveAssetUrlOptions {
+interface ResolveAssetUrlOptions {
   /** Detects the Tauri runtime. Defaults to the shared runtime-detection function. */
   isTauri?: () => boolean;
   /** Detects dev (vite live serving). Defaults to import.meta.env.DEV. In dev, resource rewriting is skipped. */

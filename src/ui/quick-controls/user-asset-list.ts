@@ -9,7 +9,7 @@
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 
-export interface UserAssetOption {
+interface UserAssetOption {
   id: string;
   label?: string;
 }

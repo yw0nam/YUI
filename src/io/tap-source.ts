@@ -16,7 +16,7 @@ export interface TapSource {
   handleClick(pos: CssPoint): void;
 }
 
-export interface TapSourceDeps {
+interface TapSourceDeps {
   bus: Pick<EventBus, "push">;
   renderer: {
     getTapPoints(): TapPoints | null;

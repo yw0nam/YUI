@@ -107,7 +107,7 @@ interface GazeLog {
   error(event: string, fields?: Record<string, unknown>): void;
 }
 
-export interface CameraGazeDeps {
+interface CameraGazeDeps {
   camera: THREE.Camera;
   /** The live VRM (or undefined) — read fresh each step; never cached across frames. */
   getVrm: () => VRM | undefined;

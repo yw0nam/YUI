@@ -11,7 +11,7 @@ export interface AudioSink {
   stop(): void;
 }
 
-export interface AmplitudeEnvelopeOptions {
+interface AmplitudeEnvelopeOptions {
   /** lerp ratio toward the mapped target on each push (0..1; 1 = snap). */
   smoothing?: number;
   /** Gain multiplied into raw RMS so even quiet audio opens the mouth. */

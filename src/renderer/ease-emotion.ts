@@ -16,7 +16,7 @@ import type { EmotionSignal } from "../contract";
 export const DEFAULT_EMOTION_REVERT_MS = 1000;
 
 /** Sink the revert is routed into (Renderer.setEmotion). */
-export interface EmotionSink {
+interface EmotionSink {
   setEmotion(emotion: EmotionSignal | null): void;
 }
 

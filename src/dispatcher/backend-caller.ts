@@ -101,7 +101,7 @@ export interface BackendCallResult {
   drop_reason?: DropReason;
 }
 
-export interface BackendCallerDeps {
+interface BackendCallerDeps {
   /** chat endpoint config. */
   config: EndpointsConfig;
   /** render directive sink (applyDirective). */

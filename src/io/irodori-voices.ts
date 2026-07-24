@@ -5,9 +5,9 @@ import { resolveAssetUrl } from "./asset-url";
 import { isTauri } from "./tauri-env";
 
 /** Converts a ref_url into a fetchable URL. dev/browser = absolutized against origin, Tauri = bundle resource URL. */
-export type RefUrlResolver = (refUrl: string) => Promise<string>;
+type RefUrlResolver = (refUrl: string) => Promise<string>;
 
-export interface EnsureRegisteredOptions {
+interface EnsureRegisteredOptions {
   baseUrl: string;
   id: string;
   /** vite serving path (e.g. "/references/ナツメ/merged_audio.mp3"). */
@@ -82,7 +82,7 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
   log.info("voice_registered", { id: opts.id });
 }
 
-export interface UpdateVoiceOptions {
+interface UpdateVoiceOptions {
   baseUrl: string;
   id: string;
   refUrl: string;

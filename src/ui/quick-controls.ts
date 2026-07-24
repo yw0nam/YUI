@@ -562,7 +562,8 @@ export function createQuickControls({
 
   function handleLangSegKeydown(e: KeyboardEvent): void {
     // Arrow baseline: currently focused radio (else checked one, else 0).
-    const focusIdx = langSegButtons.findIndex((b) => b === document.activeElement);
+    // Cast is identity-safe: indexOf compares by ===, so a non-button activeElement yields -1.
+    const focusIdx = langSegButtons.indexOf(document.activeElement as HTMLButtonElement);
     const checkedIdx = langSegButtons.findIndex((b) => b.getAttribute("aria-checked") === "true");
     const base = focusIdx >= 0 ? focusIdx : checkedIdx < 0 ? 0 : checkedIdx;
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {

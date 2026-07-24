@@ -24,7 +24,7 @@ export interface VoiceImportDeps {
 }
 
 /** Only the bits removeUserVoice needs. */
-export type VoiceRemoveDeps = Pick<VoiceImportDeps, "invoke">;
+type VoiceRemoveDeps = Pick<VoiceImportDeps, "invoke">;
 
 async function defaultDeps(): Promise<VoiceImportDeps> {
   const [{ open }, { invoke }, { resolveUserFileSrc }] = await Promise.all([

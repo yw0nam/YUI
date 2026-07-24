@@ -20,9 +20,9 @@ import type { BusEnvelope } from "./event-bus";
 
 export type { GuardrailsConfig };
 
-export type DndReason = "fullscreen" | "active_app" | "manual";
+type DndReason = "fullscreen" | "active_app" | "manual";
 
-export interface DndState {
+interface DndState {
   on: boolean;
   reasons: DndReason[];
 }
@@ -35,7 +35,7 @@ export type DropReason =
   | "superseded_by_user";
 
 /** Guardrail pass/drop judgment result. */
-export type GuardResult = { pass: true } | { pass: false; reason: DropReason; detail: string };
+type GuardResult = { pass: true } | { pass: false; reason: DropReason; detail: string };
 
 export interface Guardrails {
   dndState(): DndState;
@@ -53,7 +53,7 @@ export interface Guardrails {
 
 type Source = BusEnvelope["source"];
 
-export interface CreateGuardrailsOptions {
+interface CreateGuardrailsOptions {
   /** Time injection. default () => Date.now(). All windows/cooldowns read only this function. */
   now?: () => number;
 }

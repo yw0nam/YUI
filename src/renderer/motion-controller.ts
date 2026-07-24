@@ -43,12 +43,12 @@ export interface ResolvedMotion {
   interrupt_policy: InterruptPolicy;
 }
 
-export type MotionDecision =
+type MotionDecision =
   | { action: "play"; motion: ResolvedMotion }
   | { action: "queue"; motion: ResolvedMotion }
   | { action: "ignore"; reason: string };
 
-export interface MotionControllerOptions {
+interface MotionControllerOptions {
   /** default "idle" */
   baselineId?: string;
   /** default Math.random — injectable for deterministic variant tests */

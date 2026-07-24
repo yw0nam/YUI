@@ -54,7 +54,7 @@ export const NEUTRAL_GAZE: GazeState = { headYaw: 0, headPitch: 0, eyeYaw: 0, ey
 const SETTLE_EPS_DEG = 0.05;
 
 /** Per-frame inputs for {@link advanceGaze}. residual/eccentricity are ignored when disabled. */
-export interface GazeInput {
+interface GazeInput {
   /** Gaze tracking on. Off (or no camera/VRM) ⇒ targets are neutral and the state eases home. */
   enabled: boolean;
   /** Residual yaw (deg) from the posed-head forward to the camera. */

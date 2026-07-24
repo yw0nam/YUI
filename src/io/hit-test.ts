@@ -124,7 +124,7 @@ export interface HitTestController {
   resume(owner?: string): void;
 }
 
-export interface HitTestOptions {
+interface HitTestOptions {
   /** Returns the live Tauri window. Default: getCurrentWindow(). */
   getWindow?: () => HitTestWindow;
   /** EventTarget for pointermove in CAPTURE. Default: window. */

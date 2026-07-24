@@ -17,7 +17,7 @@ export interface UserOptionStorage<T> {
 }
 
 /** Minimal shape a domain's option type must satisfy. */
-export interface SelectionOption {
+interface SelectionOption {
   id: string;
   label?: string;
   source?: string;
