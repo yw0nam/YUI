@@ -15,9 +15,10 @@
 import "./styles.css";
 import { createTier1Engine } from "./ambient/tier1";
 import {
-  createSettingsBroadcast,
   type SyncedStore,
   wireBroker,
+  wireCrossWindowSync,
+  wireDevGlobals,
   wireDispatcherSources,
   wirePeekExitTriggers,
   wireSettingsReload,
@@ -40,7 +41,6 @@ import {
   type TapConfig,
   TTS_API_KEY_SECRET,
 } from "./config";
-import type { WindowRect } from "./contract";
 import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import { createEventBus } from "./dispatcher/event-bus";
@@ -63,9 +63,8 @@ import { createOsContext } from "./io/os-context";
 import { createPeekState } from "./io/peek-state";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createSettingsSecretProvider } from "./io/secret-provider";
-import { createSettingsBridge } from "./io/settings-bridge";
 import { createSettingsStores } from "./io/settings-stores";
-import { createSettingsWindowOpener, wireStorageSync } from "./io/settings-window";
+import { createSettingsWindowOpener } from "./io/settings-window";
 import type { SummonHotkey } from "./io/summon-hotkey";
 import { createTapSource, type TapSource } from "./io/tap-source";
 import { isTauri } from "./io/tauri-env";
@@ -106,6 +105,17 @@ async function bootstrap(): Promise<void> {
   const app = document.querySelector<HTMLDivElement>("#app");
   if (!app) {
     throw new Error("#app mount point not found");
+  }
+
+  // Disposer collection: every long-lived resource created below registers its own teardown
+  // here at its creation site, instead of a separately hand-maintained list. Drained LIFO
+  // (reverse of registration) — a single hot.dispose() registration for the whole module, so
+  // a later resource can never silently displace an earlier one's teardown.
+  const disposers: Array<() => void> = [];
+  if (import.meta.env.DEV) {
+    import.meta.hot?.dispose(() => {
+      while (disposers.length) disposers.pop()!();
+    });
   }
 
   // Root (positioning context) > stage (drag) + overlay (surfaces).
@@ -176,14 +186,8 @@ async function bootstrap(): Promise<void> {
     cameraSettings.setZoom(next);
   };
   stage.addEventListener("wheel", onWheelZoom, { passive: false });
-
-  // Register drag + wheel cleanup on HMR dispose in dev.
-  if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => {
-      cleanupDrag();
-      stage.removeEventListener("wheel", onWheelZoom);
-    });
-  }
+  disposers.push(() => cleanupDrag());
+  disposers.push(() => stage.removeEventListener("wheel", onWheelZoom));
 
   const renderer = createRenderer({ mount: stage });
   // Tier 1 ambient: backend-independent, always on. tick fires after VRM loads, so
@@ -213,6 +217,7 @@ async function bootstrap(): Promise<void> {
       lastInputBottom = bottom;
     }
   });
+  disposers.push(() => unsubAnchor());
 
   const {
     screenshotSettings,
@@ -243,6 +248,38 @@ async function bootstrap(): Promise<void> {
     hintSettings,
     railCollapsedSettings,
   } = createSettingsStores({ locale: getLocale() });
+  // Every one-shot store above shares the same lifecycle. Registering them together here —
+  // instead of a separately hand-maintained dispose list — is the whole point of the disposer
+  // collection: add a store to the destructure above, add it to this array too.
+  for (const store of [
+    screenshotSettings,
+    ttsSettings,
+    sttSettings,
+    idleThrottleSettings,
+    proactiveSettings,
+    scheduleSettings,
+    workflowSettings,
+    agentNotifySettings,
+    presenceSettings,
+    recentAppsSettings,
+    contextSettings,
+    contextHistory,
+    lipsyncSettings,
+    vadSettings,
+    agentSettings,
+    fillerSettings,
+    sessionStore,
+    sessionDiagnostics,
+    chatHistoryStore,
+    endpointsSettings,
+    chatKeySettings,
+    sttKeySettings,
+    ttsKeySettings,
+    cameraSettings,
+    gazeSettings,
+  ]) {
+    disposers.push(() => store.dispose());
+  }
   // Effective endpoints with overrides layered on config.endpoints. Evaluated at call time (hot-reload friendly).
   function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
     return mergeEndpoints(config.get().endpoints, endpointsSettings.get());
@@ -260,6 +297,7 @@ async function bootstrap(): Promise<void> {
   renderer.setGazeEnabled(gazeSettings.get().enabled);
   gazeSettings.subscribe((s) => renderer.setGazeEnabled(s.enabled));
   const voiceInputStatus = createVoiceInputStatus();
+  disposers.push(() => voiceInputStatus.dispose());
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
   // Foreground app/title snapshot — backend_caller attaches as env to each request. Non-Tauri is no-op.
@@ -267,55 +305,15 @@ async function bootstrap(): Promise<void> {
     maxRecentApps: () => recentAppsSettings.get().recent_apps_max,
   });
   void osContext.start();
+  disposers.push(() => osContext.stop());
   // Pop-out: Tauri uses separate WebviewWindow("settings"), otherwise browser window. Wire storage events
   // bidirectionally so main window edits are reflected here and vice versa.
   const openSettings = createSettingsWindowOpener();
   const openDevtools = createDevtoolsWindowOpener();
-  const disposeStorageSync = wireStorageSync([
-    agentSettings,
-    endpointsSettings,
-    chatKeySettings,
-    sttKeySettings,
-    ttsKeySettings,
-    lipsyncSettings,
-    vadSettings,
-    fillerSettings,
-    screenshotSettings,
-    proactiveSettings,
-    idleThrottleSettings,
-    gazeSettings,
-    ttsSettings,
-    cameraSettings,
-    sessionStore,
-    sessionDiagnostics,
-    chatHistoryStore,
-    recentAppsSettings,
-    contextSettings,
-    contextHistory,
-    railCollapsedSettings,
-  ]);
-
-  // Real-time wiring with pop-out settings window (Tauri events). Make controls in separate window
-  // reach live systems in this window (VRM renderer, STT/VAD). Storage fallback maintained above via wireStorageSync.
-  const bridge = createSettingsBridge();
-  // Mouth preview (separate window → this window VRM): gain slider drag moves actual mouth.
-  bridge.onMouthPreview((mouthOpen) => {
-    if (mouthOpen == null) renderer.stopMouth();
-    else renderer.setMouthOpen(mouthOpen);
-  });
-  // Voice toggle (separate window → this window STT): existing voiceInputStatus subscription starts/stops sttVad.
-  bridge.onVoiceSet((on) => {
-    log.info("voice_toggle_received", { on, source: "settings_window" });
-    voiceInputStatus.set(on ? "listening" : "idle");
-  });
-  // Voice state (this window → separate window): separate window indicator reflects actual STT state.
-  voiceInputStatus.subscribe((snapshot) => {
-    bridge.emitVoiceState({ state: snapshot.state });
-  });
   // Cross-window settings sync (bidirectional, loop-guarded, debounced): one side edits → emit →
   // other side reloads. cameraSettings is excluded from the array since its reload propagates to
-  // zoom (handled inside wireSettingsReload). The broadcast half is wired first so the VRM/speaker
-  // selections below can broadcast through it; the reload half is wired after they exist.
+  // zoom (handled inside wireSettingsReload). Wired before the VRM/speaker selections below so they
+  // can broadcast through the returned `broadcastSettings`; wireSettingsReload is wired after they exist.
   const syncedSettingsStores: SyncedStore[] = [
     agentSettings,
     endpointsSettings,
@@ -336,21 +334,54 @@ async function bootstrap(): Promise<void> {
     ttsSettings,
   ];
   const {
+    bridge,
     broadcastSettings,
     runApplyingRemote,
-    dispose: disposeSettingsBroadcast,
-  } = createSettingsBroadcast({ bridge, syncedStores: syncedSettingsStores, cameraSettings });
+    dispose: disposeCrossWindowSync,
+  } = wireCrossWindowSync({
+    renderer,
+    voiceInputStatus,
+    storageSyncStores: [
+      agentSettings,
+      endpointsSettings,
+      chatKeySettings,
+      sttKeySettings,
+      ttsKeySettings,
+      lipsyncSettings,
+      vadSettings,
+      fillerSettings,
+      screenshotSettings,
+      proactiveSettings,
+      idleThrottleSettings,
+      gazeSettings,
+      ttsSettings,
+      cameraSettings,
+      sessionStore,
+      sessionDiagnostics,
+      chatHistoryStore,
+      recentAppsSettings,
+      contextSettings,
+      contextHistory,
+      railCollapsedSettings,
+    ],
+    syncedStores: syncedSettingsStores,
+    cameraSettings,
+    log,
+  });
+  disposers.push(() => disposeCrossWindowSync());
   const { vrmSelection, loadVrmSerialized, swapVrm, importVrm } = wireVrmSelection({
     renderer,
     log,
     broadcastSettings,
   });
+  disposers.push(() => vrmSelection.dispose());
 
   const { speakerSelection, swapSpeaker, refreshSpeaker, importVoice } = wireSpeakerSelection({
     getEndpoints,
     log,
     broadcastSettings,
   });
+  disposers.push(() => speakerSelection.dispose());
   wireSettingsReload({
     bridge,
     syncedStores: syncedSettingsStores,
@@ -447,6 +478,7 @@ async function bootstrap(): Promise<void> {
   // DOM surfaces re-mounted on locale change (see i18n subscriber below). Held in
   // let bindings; onActivate arrows read the live binding, so recreating is safe.
   let quickControls = buildQuickControls();
+  disposers.push(() => quickControls.dispose());
   const buildCaptureIndicator = (): ReturnType<typeof createCaptureIndicator> =>
     createCaptureIndicator({
       mount: root,
@@ -460,7 +492,9 @@ async function bootstrap(): Promise<void> {
       onActivate: () => quickControls.open(),
     });
   let captureIndicator = buildCaptureIndicator();
+  disposers.push(() => captureIndicator.dispose());
   let voiceInputIndicator = buildVoiceInputIndicator();
+  disposers.push(() => voiceInputIndicator.dispose());
 
   // Re-mount localized DOM surfaces when display language changes.
   // Defer to microtask so triggering click handler (picker inside quick-controls) unwinds
@@ -476,54 +510,14 @@ async function bootstrap(): Promise<void> {
       voiceInputIndicator = buildVoiceInputIndicator();
     });
   });
+  disposers.push(() => unsubscribeLocale());
 
   function onContextMenu(e: MouseEvent): void {
     e.preventDefault();
     quickControls.open({ x: e.clientX, y: e.clientY });
   }
   stage.addEventListener("contextmenu", onContextMenu);
-
-  if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => {
-      unsubAnchor();
-      unsubscribeLocale();
-      quickControls.dispose();
-      disposeSettingsBroadcast();
-      bridge.dispose();
-      disposeStorageSync();
-      captureIndicator.dispose();
-      voiceInputIndicator.dispose();
-      voiceInput.dispose();
-      voiceInputStatus.dispose();
-      screenshotSettings.dispose();
-      idleThrottleSettings.dispose();
-      gazeSettings.dispose();
-      ttsSettings.dispose();
-      sttSettings.dispose();
-      proactiveSettings.dispose();
-      scheduleSettings.dispose();
-      workflowSettings.dispose();
-      agentNotifySettings.dispose();
-      presenceSettings.dispose();
-      recentAppsSettings.dispose();
-      contextSettings.dispose();
-      contextHistory.dispose();
-      lipsyncSettings.dispose();
-      vadSettings.dispose();
-      fillerSettings.dispose();
-      agentSettings.dispose();
-      endpointsSettings.dispose();
-      chatKeySettings.dispose();
-      sttKeySettings.dispose();
-      ttsKeySettings.dispose();
-      cameraSettings.dispose();
-      vrmSelection.dispose();
-      speakerSelection.dispose();
-      osContext.stop();
-      stage.removeEventListener("contextmenu", onContextMenu);
-      window.removeEventListener("keydown", onKeydown);
-    });
-  }
+  disposers.push(() => stage.removeEventListener("contextmenu", onContextMenu));
 
   // ── Dispatcher spine ──────────────────────────────────────────────────────
   // event_bus → dispatcher → backend_caller → streamChat → Hermes → ControlEnvelope →
@@ -553,12 +547,16 @@ async function bootstrap(): Promise<void> {
   // Voice input (STT/VAD) lifecycle — start/stop driven by voiceInputStatus, intent persisted to
   // sttSettings, STT engine bound post-config via setStt. Barge-in/submit wiring joins the voice pipeline below.
   const voiceInput = wireVoiceInput({ voiceInputStatus, sttSettings });
+  disposers.push(() => voiceInput.dispose());
   // dispatcher created after config load (backend_caller depends on config.get()), so dev inspection
   // handles can reference it via forward holder.
   let dispatcherRef: Dispatcher | null = null;
   // voice-turn failure error display (~3s) restoration timer — overlapping failures leave previous timer,
   // so always clearTimeout before re-arming to not cut later display early (same pattern as dwellTimer/broadcastTimer).
   let voiceTurnErrorTimer: ReturnType<typeof setTimeout> | null = null;
+  disposers.push(() => {
+    if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
+  });
   // Utterance candidate sources holder — stop them in teardown.
   let proactiveSourceRef: {
     stop(): void;
@@ -567,6 +565,10 @@ async function bootstrap(): Promise<void> {
   let scheduleSourceRef: { stop(): void } | null = null;
   let agentSourceRef: { stop(): void } | null = null;
   let signalsSourceRef: { stop(): void } | null = null;
+  disposers.push(() => proactiveSourceRef?.stop());
+  disposers.push(() => scheduleSourceRef?.stop());
+  disposers.push(() => agentSourceRef?.stop());
+  disposers.push(() => signalsSourceRef?.stop());
   // guardrails also created after config load — hot-reload setConfig reaches holder.
   let guardrailsRef: Guardrails | null = null;
   // Global summon hotkey (Tauri-only) — hot-reload reapply reaches holder.
@@ -592,96 +594,22 @@ async function bootstrap(): Promise<void> {
     surfaces.summonInput();
   }
   window.addEventListener("keydown", onKeydown);
+  disposers.push(() => window.removeEventListener("keydown", onKeydown));
 
   // DEV-only: handles for direct invocation from screenshot validation loop.
   if (import.meta.env.DEV) {
-    const { createMockDriver } = await import("./ui/mock");
-    const mock = createMockDriver(surfaces);
-    Object.assign(globalThis as Record<string, unknown>, {
-      __yuiRenderer: renderer,
-      __yuiAmbient: ambient,
-      __yuiSurfaces: surfaces,
-      __yuiMock: mock,
-      __yuiScreenshot: screenshotSettings,
-      __yuiLipsync: lipsyncSettings,
-      __yuiAgent: agentSettings,
-      __yuiQuick: quickControls,
-      __yuiVoiceInputStatus: voiceInputStatus,
-      // DEV-ONLY trigger: fire E2E loop directly from console.
-      //   window.__yui_send("hello") → user.text_submitted → dispatcher → backend_caller →
-      //   streamChat → Hermes → ControlEnvelope → renderer.applyDirective + bubble.
-      // Temporary handle for validation.
-      __yui_send: (text: string) => userInput.submit(text),
-      // Dispatcher observation: __yui_dispatcher.inFlight()/queue()/recentDrops().
-      __yui_dispatcher: () => dispatcherRef,
-      // DEV-ONLY trigger: fire window_sit perch enter/exit/drop directly from console.
-      //   window.__yui_windowSit.enter() → user.window_sit_enter → dispatcher → renderer.
-      //   window.__yui_windowSit.drop(rect) → user.window_sit_drop(geometry) → perch align.
-      __yui_windowSit: {
-        enter: () =>
-          bus.push({
-            source: "user_input_source",
-            event_name: "user.window_sit_enter",
-            ts: Date.now(),
-            hint_tier: 1,
-            dnd_override: true,
-          }),
-        exit: () =>
-          bus.push({
-            source: "user_input_source",
-            event_name: "user.window_sit_exit",
-            ts: Date.now(),
-            hint_tier: 1,
-            dnd_override: true,
-          }),
-        // Compute edge_local_ypx from current window outerPosition/scaleFactor,
-        // drive geometry path without real OS window (Tauri: actual values, else 0,0/1 fallback).
-        drop: async (rect: WindowRect): Promise<void> => {
-          let pos = { x: 0, y: 0 };
-          let scale = 1;
-          if (isTauri()) {
-            try {
-              const { getCurrentWindow } = await import("@tauri-apps/api/window");
-              const w = getCurrentWindow();
-              pos = await w.outerPosition();
-              scale = await w.scaleFactor();
-            } catch {
-              /* fallback to 0,0 / 1 */
-            }
-          }
-          const sf = scale > 0 ? scale : 1;
-          bus.push({
-            source: "os_event_watcher",
-            event_name: "user.window_sit_drop",
-            ts: Date.now(),
-            hint_tier: 1,
-            dnd_override: true,
-            payload: {
-              edge_local_ypx: rect.y - pos.y / sf,
-            },
-          });
-        },
-        // Occupancy simulation: fire occlusion poll exit result (window_sit_exit) without real second window.
-        occlude: (_rect?: WindowRect) =>
-          bus.push({
-            source: "os_event_watcher",
-            event_name: "user.window_sit_exit",
-            ts: Date.now(),
-            hint_tier: 1,
-            dnd_override: true,
-          }),
-      },
-      // Step-by-step demo helpers
-      __yuiDemo: {
-        input: () => surfaces.summonInput(),
-        tool: (id = "web_search") => surfaces.showTool(id),
-        send: (text = "안녕") => userInput.submit(text),
-        reply: (text = "오늘 일정 뭐 있어?") => mock.reply(text),
-        proactive: () => mock.proactive(),
-        speak: (line = "응, 듣고 있어. 그거 지금 같이 볼까?") => mock.speak(line),
-        tap: () => ambient.trigger("tap_react"),
-        idleReturn: () => ambient.trigger("idle_returned"),
-      },
+    await wireDevGlobals({
+      renderer,
+      ambient,
+      surfaces,
+      screenshotSettings,
+      lipsyncSettings,
+      agentSettings,
+      quickControls,
+      voiceInputStatus,
+      userInput,
+      bus,
+      getDispatcher: () => dispatcherRef,
     });
   }
 
@@ -739,8 +667,8 @@ async function bootstrap(): Promise<void> {
       proactiveSourceRef?.noteInteraction();
     },
   });
+  disposers.push(() => voice.dispose());
   if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => voice.dispose());
     Object.assign(globalThis as Record<string, unknown>, {
       __yuiSpeech: voice.speechPlayback,
     });
@@ -850,6 +778,8 @@ async function bootstrap(): Promise<void> {
       },
     });
     dispatcherRef = dispatcher;
+    // HMR module re-run leaves stale dispatcher setInterval/in-flight → stop in dispose.
+    disposers.push(() => dispatcher.stop());
     // In-flight backend turn ↔ input send/stop toggle. Stop click → explicit cancel + speech abort.
     dispatcher.subscribeBusy((busy) => surfaces.setBusy(busy));
     wireStopControl({
@@ -857,20 +787,6 @@ async function bootstrap(): Promise<void> {
       cancel: () => dispatcher.cancel(),
       abortSpeech: () => voice.speechPlayback.abort(),
     });
-    // HMR module re-run leaves stale dispatcher setInterval/in-flight → stop in dispose.
-    if (import.meta.env.DEV) {
-      import.meta.hot?.dispose(() => {
-        dispatcher.stop();
-        if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
-        proactiveSourceRef?.stop();
-        scheduleSourceRef?.stop();
-        agentSourceRef?.stop();
-        signalsSourceRef?.stop();
-        sessionStore.dispose();
-        sessionDiagnostics.dispose();
-        chatHistoryStore.dispose();
-      });
-    }
     const sttVad = await voice.createSttEngine(cfg.endpoints);
     // Bind the engine + auto-resume if left on last session (handled inside wireVoiceInput).
     voiceInput.setStt(sttVad);
@@ -930,6 +846,7 @@ async function bootstrap(): Promise<void> {
     });
     hitTestRef = hitTest;
     hitTest.start();
+    disposers.push(() => hitTest.stop());
     let disposePeekExitTriggers: (() => void) | null = null;
     if (isTauri()) {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -944,13 +861,8 @@ async function bootstrap(): Promise<void> {
         },
       });
     }
-    if (import.meta.env.DEV) {
-      import.meta.hot?.dispose(() => {
-        disposePeekExitTriggers?.();
-        void peekStateRef?.dispose();
-        hitTest.stop();
-      });
-    }
+    disposers.push(() => disposePeekExitTriggers?.());
+    disposers.push(() => void peekStateRef?.dispose());
     // Start dispatcher only after config ready (backend_caller depends on config.get()).
     dispatcher.start();
     // tier2 utterance candidate sources (proactive/schedule/agent/signals). Start after the
@@ -1005,7 +917,7 @@ async function bootstrap(): Promise<void> {
       endpointsSettings,
       log,
     });
-    if (import.meta.env.DEV) import.meta.hot?.dispose(() => brokerHandle?.dispose());
+    disposers.push(() => brokerHandle?.dispose());
   } catch (err) {
     log.error("config_or_vrm_load_failed", { error: String(err) });
     // Boot failure = empty transparent window. Preserve cause (ConfigError vs VRM) visible to user (#316).
@@ -1064,7 +976,7 @@ async function bootstrap(): Promise<void> {
       __yuiConfig: config,
     });
     // HMR module re-run stacks previous store's setInterval → stop in dispose.
-    import.meta.hot?.dispose(() => config.stop());
+    disposers.push(() => config.stop());
   }
 }
 
