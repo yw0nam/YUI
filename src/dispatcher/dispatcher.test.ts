@@ -173,6 +173,69 @@ describe("dispatcher — state machine (§9)", () => {
     dispatcher.start();
     expect(dispatcher.state()).toBe("running");
   });
+
+  it("start() called again from cooldown does not stack a second pump interval", async () => {
+    const cfg = realGuardrailsConfig();
+    cfg.rate_limit.tier2_max = 1000;
+    const g = createGuardrails(cfg, { now: () => Date.now() });
+    const d = createDispatcher({
+      bus,
+      renderer: renderer as never,
+      peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
+      backendCaller,
+      guardrails: g,
+      logger,
+    });
+    d.start();
+    // exceed rate_limit.overall_max to force cooldown.
+    for (let i = 0; i < 21; i++) {
+      g.evaluate(
+        env({
+          source: "user_input_source",
+          event_name: "user.text_submitted",
+          ts: NOW + i,
+          dnd_override: false,
+        }),
+        2,
+      );
+    }
+    // let the running pump interval observe cooldownActive() and sync state.
+    await vi.advanceTimersByTimeAsync(20);
+    expect(d.state()).toBe("cooldown");
+
+    const timerCountBeforeRestart = vi.getTimerCount();
+    d.start();
+    expect(vi.getTimerCount()).toBe(timerCountBeforeRestart);
+
+    d.stop();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("start() called again from degraded does not stack a second pump interval", async () => {
+    dispatcher.start();
+    for (let i = 0; i < 3; i++) {
+      bus.push(
+        env({
+          source: "idle_watcher",
+          event_name: "idle.short",
+          ts: NOW + i,
+          dnd_override: false,
+        }),
+      );
+      await vi.advanceTimersByTimeAsync(20);
+      callDeferred[callDeferred.length - 1].resolve({ ok: false, drop_reason: "network_drop" });
+      await vi.advanceTimersByTimeAsync(20);
+    }
+    expect(dispatcher.state()).toBe("degraded");
+
+    const timerCountBeforeRestart = vi.getTimerCount();
+    dispatcher.start();
+    expect(vi.getTimerCount()).toBe(timerCountBeforeRestart);
+
+    dispatcher.stop();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });
 
 describe("dispatcher — posture", () => {
@@ -908,6 +971,54 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
     );
     // now a new user message supersedes
     bus.push(env({ ts: NOW + 2 }));
+    await vi.advanceTimersByTimeAsync(20);
+    const drops = dispatcher.recentDrops(10);
+    expect(drops.some((d) => d.reason === "superseded_by_user")).toBe(true);
+  });
+
+  it("aborts the in-flight backend call when a new user.voice_segment_ready arrives", async () => {
+    dispatcher.start();
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(callDeferred).toHaveLength(1);
+    const first = callDeferred[0];
+    expect(first.signal?.aborted).toBe(false);
+
+    // voice turn arrives while first is in flight
+    bus.push(
+      env({
+        event_name: "user.voice_segment_ready",
+        ts: NOW + 1,
+        payload: { text: "안녕" },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(first.signal?.aborted).toBe(true);
+  });
+
+  it("drops queued tier2 events with superseded_by_user when a voice turn arrives", async () => {
+    dispatcher.start();
+    // first user text occupies the in-flight slot
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    // queue a tier2 idle.short behind it (won't run while in-flight)
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
+    // now a voice turn supersedes
+    bus.push(
+      env({
+        event_name: "user.voice_segment_ready",
+        ts: NOW + 2,
+        payload: { text: "안녕" },
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
     const drops = dispatcher.recentDrops(10);
     expect(drops.some((d) => d.reason === "superseded_by_user")).toBe(true);

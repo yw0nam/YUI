@@ -69,18 +69,20 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   let submitted = 0;
   let nextToPlay = 0;
   let pumping = false;
-  let ended = false;
-  let completionFired = false;
+  // Submitted-count boundaries queued by end() calls not yet fully played. A new turn's
+  // pushTextDelta can submit more segments before an earlier turn's boundary is reached,
+  // so boundaries are tracked independently — each fires onPlaybackEnd exactly once, in order.
+  const pendingCompletions: number[] = [];
 
-  // Once the queue is fully drained after end() (no chunks left to play), fire onPlaybackEnd exactly once.
-  // While a chunk is playing this isn't called — even though nextToPlay has already advanced, pump is awaiting.
+  // Once playback catches up to a queued boundary (no chunk still playing), fire onPlaybackEnd
+  // for it. While a chunk is playing this isn't called — pump is awaiting sink.play.
   function maybeFireComplete(): void {
-    if (disposed || completionFired) return;
-    if (!ended || pumping) return;
-    if (nextToPlay !== submitted) return;
-    completionFired = true;
-    log.info("playback", { state: "complete", segments: submitted });
-    options.onPlaybackEnd?.();
+    if (disposed || pumping) return;
+    while (pendingCompletions.length > 0 && nextToPlay >= pendingCompletions[0]) {
+      pendingCompletions.shift();
+      log.info("playback", { state: "complete", segments: nextToPlay });
+      options.onPlaybackEnd?.();
+    }
   }
 
   async function pump(): Promise<void> {
@@ -170,11 +172,6 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   return {
     pushTextDelta(token) {
       if (disposed) return;
-      // New text after a completion fire means a new turn — reset the completion cycle.
-      if (ended || completionFired) {
-        ended = false;
-        completionFired = false;
-      }
       for (const sentence of segmenter.push(token)) submit(sentence);
     },
 
@@ -192,7 +189,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       if (disposed) return;
       const rest = segmenter.flush();
       if (rest) submit(rest);
-      ended = true;
+      pendingCompletions.push(submitted);
       // If there are no chunks to play at all (empty input / all failed), fire completion immediately here.
       maybeFireComplete();
     },
@@ -206,6 +203,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       failed.clear();
       cues.clear();
       pending.length = 0;
+      pendingCompletions.length = 0;
     },
   };
 }
