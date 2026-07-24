@@ -70,7 +70,7 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
 | `schedule` | A user-configured time-of-day cue fired | Background marker | Yes |
 | `proactive` | A configured engagement cue, tap-bored cue, or region-touch cue fired | Background marker | Yes |
 | `agent` | An external coding-agent finish-hook posted a completion signal | Background marker | No (carries `agent` or `agent_catchup` instead) |
-| `signals` | The remote n8n workflow POSTed a burst to the `/signals` ingress | Background marker | No (carries `signals` instead) |
+| `signals` | An external producer POSTed a burst to the `/signals` ingress | Background marker | No (carries `signals` instead) |
 
 For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utterance — the agent reads the trigger fields to decide whether and what to say. Firing a turn does not guarantee speech: the client renders whatever text the agent returns, and silence means the agent returns empty or no speech text. No client-side gate decides whether to speak (see `D-NO-SPEAK-GATE`).
 
@@ -245,15 +245,15 @@ When there is no user utterance, `input[1]` carries a short, per-`event_name` no
 
 ### Signals fields
 
-`signals` turns carry no `cue`. A `proactive.tap_bored` turn carries its configured cue and may also carry drained buffered signals. The source is a remote n8n workflow that POSTs `{ "signals": [...] }` to the YUI app's `/signals` ingress. While the user is present and the pipeline is idle, each POST becomes one turn. While the user is away or the pipeline is busy (a backend call in flight or speech playback ongoing), up to five POST batches are buffered; a sixth drops the oldest batch. On the return-to-present or busy-to-idle edge, all buffered items are flattened in arrival order into one `signals.catchup` turn. Items are heterogeneous — GitHub change, Notion task, heartbeat, or any future kind n8n decides to emit — with no uniform tag across them.
+`signals` turns carry no `cue`. A `proactive.tap_bored` turn carries its configured cue and may also carry drained buffered signals. The source is any external producer that POSTs `{ "signals": [...] }` to the YUI app's `/signals` ingress — n8n in the current deployment, though the client neither knows nor validates which one. While the user is present and the pipeline is idle, each POST becomes one turn. While the user is away or the pipeline is busy (a backend call in flight or speech playback ongoing), up to five POST batches are buffered; a sixth drops the oldest batch. On the return-to-present or busy-to-idle edge, all buffered items are flattened in arrival order into one `signals.catchup` turn. Items are heterogeneous — GitHub change, Notion task, heartbeat, or any future kind the producer decides to emit — with no uniform tag across them.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `signals[]` | array of opaque objects | The n8n payload's signals, forwarded verbatim on `signals.*` turns or drained into `proactive.tap_bored`. No per-item shape is assumed or validated by the client; taxonomy is owned by n8n + the agent. |
+| `signals[]` | array of opaque objects | The producer's signals, forwarded verbatim on `signals.*` turns or drained into `proactive.tap_bored`. No per-item shape is assumed or validated by the client; taxonomy is owned by the producer + the agent. |
 
 ### Signals example
 
-**`signals` turn** — n8n POSTs a mixed burst:
+**`signals` turn** — the producer POSTs a mixed burst:
 
 ```json
 {
