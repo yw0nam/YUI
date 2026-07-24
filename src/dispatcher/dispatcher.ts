@@ -597,8 +597,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     // Update DND state before classification/evaluation — note is a thin envelope→setDnd translator.
     guardrails.note(env);
 
-    // For user.text_submitted, apply supersede before classification.
-    if (env.event_name === "user.text_submitted") {
+    // For a user-initiated turn (typed or voice), apply supersede before classification.
+    if (userTurnSourceOf(env) !== undefined) {
       supersedeByUser();
     }
 
@@ -656,6 +656,10 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     },
     start() {
       if (state === "running") return;
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
       setState("running");
       timer = setInterval(pump, pumpMs);
       // Drain once immediately (handle event pushed before first tick).
