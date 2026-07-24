@@ -26,6 +26,9 @@ import {
 } from "./test-helpers";
 
 let scriptedEvents: ChatStreamEvent[] = [];
+// events for a second streamChat() invocation within the same call() (404 chain-break retry).
+// null = reuse scriptedEvents for every invocation (existing single-attempt tests' behavior).
+let scriptedEventsRetry: ChatStreamEvent[] | null = null;
 let streamChatError: Error | null = null;
 // per-event delay (ms) before yielding scriptedEvents[i], parallel array (default 0).
 let scriptedGaps: number[] = [];
@@ -41,13 +44,16 @@ function sleep(ms: number): Promise<void> {
 vi.mock("../io/chat-client", () => ({
   async *streamChat(...args: unknown[]) {
     streamChatSpy(...args);
-    for (let i = 0; i < scriptedEvents.length; i++) {
+    const isRetryAttempt = streamChatSpy.mock.calls.length > 1;
+    const events =
+      isRetryAttempt && scriptedEventsRetry !== null ? scriptedEventsRetry : scriptedEvents;
+    for (let i = 0; i < events.length; i++) {
       if (hangAtIndex === i) await sleep(2 ** 31 - 1); // never resolves in practice
       const gap = scriptedGaps[i] ?? 0;
       if (gap > 0) await sleep(gap);
-      yield scriptedEvents[i];
+      yield events[i];
     }
-    if (hangAtIndex === scriptedEvents.length) await sleep(2 ** 31 - 1);
+    if (hangAtIndex === events.length) await sleep(2 ** 31 - 1);
     // yield scripted events first, then throw — models a stream that drops mid-flight.
     if (streamChatError) throw streamChatError;
   },
@@ -69,6 +75,7 @@ let logger: Logger;
 
 beforeEach(() => {
   scriptedEvents = [];
+  scriptedEventsRetry = null;
   streamChatError = null;
   scriptedGaps = [];
   hangAtIndex = null;
@@ -694,6 +701,58 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
 
     expect(currentThinkingTurn).toBe(tokenB); // B still owns thinking.
     expect(bTornDown).toBe(false); // B's loop/motion untouched by A's late end.
+  });
+});
+
+// ── 404 chain-break retry: per-attempt state must not leak ─────────────────────
+
+describe("backend_caller — 404 chain-break retry does not leak attempt-1 envelope", () => {
+  it("retry attempt with neither completed nor error → parse_error, attempt-1 responseId not persisted", async () => {
+    const onResponseId = vi.fn();
+    const onResponseIdInvalid = vi.fn();
+    const onChainReset = vi.fn();
+    let stored: string | undefined = "resp_dead";
+    const getPreviousResponseId = vi.fn(() => stored);
+    onResponseIdInvalid.mockImplementation(() => {
+      stored = undefined;
+    });
+
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      onSpeech: speechSink,
+      onSpeechDelta: speechDeltaSink,
+      onSpeechEnd: speechEndSink,
+      onSpeechInterrupt: speechInterruptSink,
+      onSpeechAbort: speechAbortSink,
+      onCue: cueSink,
+      onToolStatus: toolStatusSink,
+      onUsage: usageSink,
+      getPreviousResponseId,
+      onResponseId,
+      onResponseIdInvalid,
+      onChainReset,
+      logger,
+    });
+
+    // Attempt 1: silent completed (no speech_delta) — sets `envelope`/`newResponseId` —
+    // then a 404 chain-break error triggers the retry.
+    scriptedEvents = [
+      completedEvent({ speech_text: "" }, "resp_attempt1"),
+      { type: "error", message: "Previous response not found: resp_dead", status: 404 },
+    ];
+    // Attempt 2 (the retry): stream ends with neither `completed` nor `error`.
+    scriptedEventsRetry = [];
+
+    const res = await caller.call(userEnv());
+
+    expect(streamChatSpy).toHaveBeenCalledTimes(2);
+    expect(res.ok).toBe(false);
+    expect(res.drop_reason).toBe("parse_error");
+    expect(applyDirective).not.toHaveBeenCalled();
+    expect(onResponseId).not.toHaveBeenCalled();
   });
 });
 

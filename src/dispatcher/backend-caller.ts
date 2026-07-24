@@ -356,6 +356,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       let chainBreakRetried = false;
       // Attempt loop: body runs once, `continue`s exactly once on a 404 chain-break, then always exits via break/return.
       while (true) {
+        envelope = undefined;
+        newResponseId = undefined;
         streamedAny = false;
         cueStreamed = false;
         let streamError: string | undefined;
