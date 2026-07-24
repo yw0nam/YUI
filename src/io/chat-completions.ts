@@ -12,7 +12,7 @@ import type { ChatHistoryEntry } from "./chat-history-store";
 // Request messages
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type CCContentPart =
+type CCContentPart =
   | { type: "image_url"; image_url: { url: string } }
   | { type: "text"; text: string };
 
@@ -21,7 +21,7 @@ export interface CCMessage {
   content: string | CCContentPart[];
 }
 
-export interface BuildCCMessagesOpts {
+interface BuildCCMessagesOpts {
   instructions?: string;
   clientContextJson: string;
   transcript: ChatHistoryEntry[];
@@ -58,7 +58,7 @@ export function buildCCMessages(opts: BuildCCMessagesOpts): CCMessage[] {
 // Streaming chunk reducer
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type ReducerItem =
+type ReducerItem =
   | { kind: "text"; text: string }
   | { kind: "tool_call"; id: string | undefined; name: string; argsJson: string }
   | { kind: "usage"; usage: Partial<Usage> }

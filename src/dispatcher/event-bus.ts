@@ -34,13 +34,13 @@ export interface BusEnvelope {
 }
 
 /** bus-drop / capacity-drop classification. */
-export type BusDropReason =
+type BusDropReason =
   | "schema_invalid"
   | "unknown_event_name"
   | "ts_out_of_window"
   | "capacity_overflow";
 
-export interface EventBusOptions {
+interface EventBusOptions {
   /** Callback on drop (dev logging/observation). */
   onDrop?: (env: BusEnvelope, reason: BusDropReason) => void;
   /** Queue capacity. default 100. */

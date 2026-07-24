@@ -4,7 +4,7 @@
  * previous_response_id (404 chain break) by resetting conversation state.
  */
 
-export interface ChainResetNoticeDeps {
+interface ChainResetNoticeDeps {
   surfaces: {
     beginSpeech(): void;
     pushSpeech(t: string): void;

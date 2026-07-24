@@ -90,7 +90,7 @@ const ORBIT_SETTLE_EPS = 1e-3;
 /** Idle (ambient-only) frame cap — full refresh is reserved for active animation. */
 const IDLE_FPS = 30;
 
-export interface RendererOptions {
+interface RendererOptions {
   /** Canvas element to mount the VRM render. */
   mount: HTMLElement;
   /**

@@ -30,7 +30,7 @@ function savePos(pos: SavedPos): void {
   posStore.save(pos);
 }
 
-export interface PopoverDeps {
+interface PopoverDeps {
   /** Mount container the scrim and panel attach to. */
   mount: HTMLElement;
   /** Panel root node (el). */

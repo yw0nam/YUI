@@ -17,7 +17,7 @@ import { createLogger, type Logger } from "../logger";
 import type { BrokerClient, BrokerPayload } from "./broker-client";
 import { isValidEndpointUrl } from "./endpoints-settings";
 
-export interface BrokerOverrideReconcilerOptions {
+interface BrokerOverrideReconcilerOptions {
   /** Effective (override-merged) endpoints — evaluated at call time. */
   getEffectiveEndpoints: () => EndpointsConfig;
   getBroker: () => BrokerClient | null;

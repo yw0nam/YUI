@@ -17,7 +17,7 @@ import { createDeadlineSignal } from "./deadline";
 
 const log = createLogger("stt-vad");
 
-export type SttVadRuntimeState = Exclude<VoiceInputState, "idle">;
+type SttVadRuntimeState = Exclude<VoiceInputState, "idle">;
 
 const VAD_ASSET_PATH = "/vad/";
 

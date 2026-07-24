@@ -26,7 +26,7 @@ export interface ScreenPoint {
 }
 
 /** Catch-zone band tuning. Vertical bands scale with the character's screen height. */
-export interface CatchZoneOpts {
+interface CatchZoneOpts {
   /** Up band as a fraction of charH (default {@link CATCH_U}). */
   u?: number;
   /** Down band as a fraction of charH (default {@link CATCH_D}). */
@@ -36,7 +36,7 @@ export interface CatchZoneOpts {
 }
 
 /** Side catch-zone band tuning, as fractions of the character's screen height. */
-export interface SideCatchZoneOpts {
+interface SideCatchZoneOpts {
   /** Band extending away from the window (default {@link SIDE_OUT}). */
   out?: number;
   /** Band extending into the window (default {@link SIDE_IN}). */

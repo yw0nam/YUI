@@ -13,7 +13,7 @@
 
 import * as THREE from "three";
 
-export interface CameraFitOptions {
+interface CameraFitOptions {
   /** Vertical field of view in degrees. */
   fov: number;
   /** Viewport aspect ratio (width / height). */

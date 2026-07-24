@@ -8,7 +8,7 @@ import { createContextInspector } from "./context-inspector";
 
 export type DevtoolsSection = "context" | "advanced" | "motion";
 
-export interface DevtoolsShellOptions {
+interface DevtoolsShellOptions {
   mount: HTMLElement;
   history: ReturnType<typeof createContextHistory>;
   contextSettings: ReturnType<typeof createContextSettings>;

@@ -2,7 +2,7 @@
 
 import { createLogger, type Logger } from "../logger";
 
-export interface IrodoriSynthOptions {
+interface IrodoriSynthOptions {
   baseUrl: string;
   referenceId: string;
   fetch?: typeof fetch;

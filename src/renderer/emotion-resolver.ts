@@ -34,7 +34,7 @@ export interface ResolvedEmotion {
   transition_ms: number;
 }
 
-export interface EmotionResolverOptions {
+interface EmotionResolverOptions {
   /** Checks if the given expression key exists in the VRM model. Default: () => true */
   hasExpression?: (key: string) => boolean;
   /** Warns on unregistered id / intensity clamp. Default: logger.warn */

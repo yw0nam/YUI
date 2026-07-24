@@ -25,7 +25,7 @@ export interface VrmImportDeps {
 }
 
 /** Only the bits removeUserVrm needs. */
-export type VrmRemoveDeps = Pick<VrmImportDeps, "invoke">;
+type VrmRemoveDeps = Pick<VrmImportDeps, "invoke">;
 
 async function defaultDeps(): Promise<VrmImportDeps> {
   const [{ open }, { invoke, convertFileSrc }] = await Promise.all([

@@ -27,7 +27,7 @@ const log = createLogger("agent-source");
 /** Per-tool buffer cap — oldest entry dropped when exceeded. */
 const BUFFER_CAP = 5;
 
-export interface AgentSourceDeps {
+interface AgentSourceDeps {
   bus: Pick<EventBus, "push">;
   /** Present iff cached OS idle ≤ this. */
   present_max_idle_ms: number;

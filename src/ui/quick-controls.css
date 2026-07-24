@@ -557,15 +557,6 @@
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
-/* 2-column variant — voice engine toggle. Indicator width/step fit to 2-thirds. */
-.yui-seg--2 {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.yui-seg--2 .yui-seg__ind {
-  width: calc((100% - 0.36rem) / 2);
-}
-
 /* ── Dark scrim field wrapper — instructions textarea (multi-line) · single-line input, focus → amber border ── */
 .yui-textarea-wrap {
   margin-top: 0.5rem;
@@ -787,10 +778,6 @@
   display: block;
 }
 
-.yui-endpoints__reset {
-  margin-left: 0.55rem;
-}
-
 /* ── chat API key field — reuse .yui-input-wrap + inline icons (show/clear) ── */
 .yui-chatkey__wrap {
   display: flex;
@@ -876,13 +863,6 @@
   color: var(--yui-text-dim);
   background-image: none;
   padding-right: 0.6rem;
-}
-
-/* Dimmed and non-interactive when per-section reset is inactive (no override). */
-.yui-reset.is-dim {
-  opacity: 0.4;
-  pointer-events: none;
-  text-decoration: none;
 }
 
 /* ── Source section — expands only when ON ── */
@@ -1013,9 +993,7 @@
   white-space: nowrap;
 }
 
-.yui-mon__meta,
-.yui-vrm__meta,
-.yui-spk__meta {
+.yui-mon__meta {
   font-size: 0.72rem;
   color: var(--yui-text-mute);
 }

@@ -12,6 +12,7 @@
  */
 
 import "./surfaces.css";
+import { afterFadeOut } from "./fade-out";
 import { subscribe as subscribeLocale, t } from "./i18n";
 import { downscaleToJpeg } from "./image-resize";
 import { renderMarkdownInline } from "./markdown";
@@ -268,25 +269,13 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     deferred = false;
     lastRenderAt = Number.NEGATIVE_INFINITY;
     bubbleEl.classList.remove("is-visible", "is-streaming");
-    let fb: ReturnType<typeof setTimeout>;
-    function settle(): void {
-      bubbleEl.removeEventListener("transitionend", onEnd);
+    afterFadeOut(bubbleEl, () => {
       if (!bubbleEl.classList.contains("is-visible")) {
         bubbleEl.hidden = true;
         speechRaw = "";
         bubbleText.replaceChildren();
       }
-    }
-    function onEnd(e: TransitionEvent): void {
-      if (e.propertyName !== "opacity") return;
-      clearTimeout(fb);
-      bubbleEl.removeEventListener("transitionend", onEnd);
-      settle();
-    }
-    // Fallback for environments where the transition never fires. A rAF (next frame ~16ms) is
-    // shorter than the fade (--yui-dur 200ms / -fast 140ms) and would cut it off, so the timer must exceed that ceiling.
-    fb = setTimeout(settle, 400); // ponytail: safety net exceeding the --yui-dur/-fast ceiling
-    bubbleEl.addEventListener("transitionend", onEnd);
+    });
   }
 
   // While the input is open, lift the bubble above it to prevent overlap.
@@ -335,21 +324,9 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   function hideTool(): void {
     clearToolTimer();
     toolEl.classList.remove("is-visible");
-    let fb: ReturnType<typeof setTimeout>;
-    function settle(): void {
-      toolEl.removeEventListener("transitionend", onEnd);
+    afterFadeOut(toolEl, () => {
       if (!toolEl.classList.contains("is-visible")) toolEl.hidden = true;
-    }
-    function onEnd(e: TransitionEvent): void {
-      if (e.propertyName !== "opacity") return;
-      clearTimeout(fb);
-      toolEl.removeEventListener("transitionend", onEnd);
-      settle();
-    }
-    // Fallback for environments where the transition never fires. A rAF (next frame ~16ms) is
-    // shorter than the fade (--yui-dur 200ms / -fast 140ms) and would cut it off, so the timer must exceed that ceiling.
-    fb = setTimeout(settle, 400); // ponytail: safety net exceeding the --yui-dur/-fast ceiling
-    toolEl.addEventListener("transitionend", onEnd);
+    });
   }
 
   // ── text input ──

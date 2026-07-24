@@ -13,7 +13,7 @@ const CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path
 const CROSS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>`;
 const DELETE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
 
-export interface WorkflowsSectionDeps {
+interface WorkflowsSectionDeps {
   root: HTMLElement;
   store: ReturnType<typeof createWorkflowSettings>;
   log: Logger;

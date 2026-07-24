@@ -9,7 +9,7 @@
 import type { GestureCueConfig } from "../config/load";
 import type { EventBus } from "../dispatcher/event-bus";
 
-export interface DragHoldSourceDeps {
+interface DragHoldSourceDeps {
   bus: Pick<EventBus, "push">;
   /** Hold duration (ms) before the reflex fires — read at arm time so config hot-reload applies. */
   getHoldMs: () => number;

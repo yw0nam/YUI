@@ -10,7 +10,7 @@
  */
 
 /** Cheap per-frame signals — any one means the character is actively animating. */
-export interface ActiveState {
+interface ActiveState {
   /** Lipsync mouth-open amplitude (0..1); >~0 ⇒ TTS/lipsync is driving the mouth. */
   mouthOpen: number;
   /** An emotion crossfade is in progress (emotionXfade != null). */

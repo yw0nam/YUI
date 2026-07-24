@@ -37,7 +37,7 @@ export function localStorageStore<T>(key: string): PersistedStorage<T> {
   };
 }
 
-export interface PersistedStoreConfig<T> {
+interface PersistedStoreConfig<T> {
   storage?: PersistedStorage<T>;
   initial?: T;
   defaults: T;

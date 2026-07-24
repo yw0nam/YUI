@@ -29,7 +29,7 @@ export interface BrokerPayload {
   emotionText: { mode: "free" | "enum"; table: Record<string, string> | null };
 }
 
-export interface BrokerClientOptions {
+interface BrokerClientOptions {
   baseUrl: string;
   fetch?: typeof fetch;
   logger?: Logger;

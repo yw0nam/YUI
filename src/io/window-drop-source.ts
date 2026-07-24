@@ -51,23 +51,23 @@ const AMBIGUOUS_LOST_TICKS = 2;
 const MOVE_TH = 12;
 
 /** Live perch probe surface the producer needs from the renderer. */
-export interface PerchProbeSource {
+interface PerchProbeSource {
   getPerchProbe(): { seatPx: { x: number; y: number }; charHpx: number } | null;
   /** Whether the renderer is currently in perch-align mode. */
   isPerched(): boolean;
 }
 
 /** Tauri window position/scale accessors the producer reads at drop time. */
-export interface DropWindow {
+interface DropWindow {
   outerPosition(): Promise<{ x: number; y: number }>;
   scaleFactor(): Promise<number>;
 }
 
 /** Tauri `invoke` (only `list_windows` is used here). */
-export type DropInvoke = (cmd: "list_windows") => Promise<WindowRect[]>;
+type DropInvoke = (cmd: "list_windows") => Promise<WindowRect[]>;
 
 /** Tauri `listen` (injectable for tests). */
-export type DropListen = (
+type DropListen = (
   event: string,
   handler: (e: { payload: unknown }) => void,
 ) => Promise<() => void>;

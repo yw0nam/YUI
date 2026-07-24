@@ -23,13 +23,7 @@ import type { Object3D } from "three";
 import type { Renderer, TickContext } from "../renderer";
 import * as cues from "./cues";
 
-export type AmbientCue =
-  | "blink"
-  | "idle_sway"
-  | "breath"
-  | "look_around"
-  | "tap_react"
-  | "idle_returned";
+type AmbientCue = "blink" | "idle_sway" | "breath" | "look_around" | "tap_react" | "idle_returned";
 
 export interface Tier1Engine {
   /** Register the renderer.onTick hook + start periodic cues. */

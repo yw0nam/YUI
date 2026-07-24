@@ -23,7 +23,7 @@ const CH_MOUTH_PREVIEW = "yui://mouth-preview";
 const CH_VOICE_SET = "yui://voice-set";
 const CH_VOICE_STATE = "yui://voice-state";
 
-export interface VoiceStateSnapshot {
+interface VoiceStateSnapshot {
   state: VoiceInputState;
 }
 

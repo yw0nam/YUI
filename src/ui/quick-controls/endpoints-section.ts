@@ -14,7 +14,7 @@ import { validateEndpointInput } from "./reflect";
 
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 
-export interface EndpointsSectionDeps {
+interface EndpointsSectionDeps {
   /** Panel root (el) — query endpoint inputs/key rows/dropdowns here. */
   root: HTMLElement;
   endpointsSettings: EndpointsSettingsStore;

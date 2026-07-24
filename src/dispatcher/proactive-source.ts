@@ -23,7 +23,7 @@ import type { BusEnvelope, EventBus } from "./event-bus";
 
 const log = createLogger("proactive-source");
 
-export interface ProactiveSourceDeps {
+interface ProactiveSourceDeps {
   bus: Pick<EventBus, "push">;
   present_max_idle_ms: number;
   getCues: () => ProactiveCue[];

@@ -20,7 +20,7 @@ import type { BusEnvelope, EventBus } from "./event-bus";
 
 const log = createLogger("schedule-source");
 
-export interface ScheduleSourceDeps {
+interface ScheduleSourceDeps {
   bus: Pick<EventBus, "push">;
   present_max_idle_ms: number;
   getCues: () => ScheduledCue[];

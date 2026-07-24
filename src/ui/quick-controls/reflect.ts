@@ -55,7 +55,7 @@ export function validateEndpointInput(key: keyof EndpointOverrides, input: HTMLI
   input.setAttribute("aria-invalid", invalid ? "true" : "false");
 }
 
-export interface ReflectDeps {
+interface ReflectDeps {
   /** Panel root (el) — all reflect target nodes are queried from here. */
   root: HTMLElement;
   settings: ReturnType<typeof createScreenshotSettings>;

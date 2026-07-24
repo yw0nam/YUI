@@ -21,7 +21,7 @@ import {
 } from "./constants";
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
-export interface PanelHtmlOptions {
+interface PanelHtmlOptions {
   isWindow: boolean;
   hasSession: boolean;
   showFiller: boolean;

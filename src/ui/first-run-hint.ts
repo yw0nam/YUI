@@ -6,7 +6,7 @@
 
 import { formatAccel } from "./format-accel";
 
-export type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
+type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
 
 export interface FirstRunHintDeps {
   seen(): boolean;

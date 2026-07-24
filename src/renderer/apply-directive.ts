@@ -24,7 +24,7 @@
 import type { ControlEnvelope, EmotionSignal, MotionSignal } from "../contract";
 
 /** Render sinks the directive is routed into (Renderer.setEmotion / Renderer.playMotion). */
-export interface DirectiveSinks {
+interface DirectiveSinks {
   setEmotion(emotion: EmotionSignal | null): void;
   playMotion(motion: MotionSignal | null): void;
 }

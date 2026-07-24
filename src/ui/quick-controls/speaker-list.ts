@@ -21,7 +21,7 @@ const SPK_REMOVE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 
 const REFRESH_DONE_DWELL_MS = 2400;
 
-export interface SpeakerListDeps {
+interface SpeakerListDeps {
   /** Panel root (el) — query .yui-spks / .yui-spk__import-error from here. */
   root: HTMLElement;
   speakerSelection: ReturnType<typeof createSpeakerSelection>;
