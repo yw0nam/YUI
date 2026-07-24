@@ -521,6 +521,7 @@ async function bootstrap(): Promise<void> {
       speakerSelection.dispose();
       osContext.stop();
       stage.removeEventListener("contextmenu", onContextMenu);
+      window.removeEventListener("keydown", onKeydown);
     });
   }
 
