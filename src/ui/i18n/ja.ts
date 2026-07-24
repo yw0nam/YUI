@@ -88,6 +88,8 @@ const ja: Record<string, string> = {
   "devtools.nav.advanced": "詳細設定",
   "devtools.nav.motion": "モーションプレビュー",
   "devtools.loading_motion": "モーションプレビューを読み込み中…",
+  "devtools.motion_load_failed":
+    "モーションプレビューの読み込みに失敗しました。このタブを選び直すと再試行します。",
   "devtools.inspector.turns_aria": "最近のターン",
   "devtools.inspector.empty_title": "送信済みのコンテキストはまだありません",
   "devtools.inspector.empty_sub": "成功したターンがここに表示されます。",
