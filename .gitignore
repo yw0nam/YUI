@@ -38,6 +38,8 @@ resources/vrma/
 
 # Playwright MCP run artifacts
 .playwright-mcp/
+# Screenshots taken with a relative filename land at the repo root
+/*.png
 
 # VitePress docs build artifacts
 docs/.vitepress/cache/
