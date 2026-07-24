@@ -88,6 +88,8 @@ const ko: Record<string, string> = {
   "devtools.nav.advanced": "고급 설정",
   "devtools.nav.motion": "모션 미리보기",
   "devtools.loading_motion": "모션 미리보기 불러오는 중…",
+  "devtools.motion_load_failed":
+    "모션 미리보기를 불러오지 못했습니다. 이 탭을 다시 선택하면 재시도합니다.",
   "devtools.inspector.turns_aria": "최근 턴",
   "devtools.inspector.empty_title": "아직 전송된 컨텍스트가 없어요",
   "devtools.inspector.empty_sub": "성공한 턴이 여기에 표시돼요.",

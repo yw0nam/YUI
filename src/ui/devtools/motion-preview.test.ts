@@ -13,7 +13,7 @@ describe("Motion Preview section", () => {
   });
 
   it("loads the renderer module only on its first activation", async () => {
-    const loadMotionPreview = vi.fn(async () => {});
+    const loadMotionPreview = vi.fn(async () => ({ dispose: vi.fn() }));
     const shell = createDevtoolsShell({
       mount: document.querySelector("#app")!,
       history: createContextHistory(),
@@ -29,5 +29,52 @@ describe("Motion Preview section", () => {
     await Promise.resolve();
 
     expect(loadMotionPreview).toHaveBeenCalledOnce();
+  });
+
+  it("shows an error state when the load rejects, not the loading placeholder", async () => {
+    const loadMotionPreview = vi.fn(async () => {
+      throw new Error("registry load failed");
+    });
+    const shell = createDevtoolsShell({
+      mount: document.querySelector("#app")!,
+      history: createContextHistory(),
+      contextSettings: createContextSettings(),
+      recentAppsSettings: createRecentAppsSettings(),
+      endpointsSettings: createEndpointsSettings(),
+      loadMotionPreview,
+    });
+
+    shell.activate("motion");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const panel = document.querySelector<HTMLElement>('[data-panel="motion"]')!;
+    expect(panel.querySelector(".devtools-loading")).toBeNull();
+    expect(panel.querySelector(".devtools-error")).not.toBeNull();
+  });
+
+  it("retries the load when the section is re-activated after a rejection", async () => {
+    const loadMotionPreview = vi
+      .fn<() => Promise<{ dispose(): void }>>()
+      .mockRejectedValueOnce(new Error("registry load failed"))
+      .mockResolvedValueOnce({ dispose: vi.fn() });
+    const shell = createDevtoolsShell({
+      mount: document.querySelector("#app")!,
+      history: createContextHistory(),
+      contextSettings: createContextSettings(),
+      recentAppsSettings: createRecentAppsSettings(),
+      endpointsSettings: createEndpointsSettings(),
+      loadMotionPreview,
+    });
+
+    shell.activate("motion");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    shell.activate("context");
+    shell.activate("motion");
+    await Promise.resolve();
+
+    expect(loadMotionPreview).toHaveBeenCalledTimes(2);
   });
 });

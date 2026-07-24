@@ -87,6 +87,7 @@ const en: Record<string, string> = {
   "devtools.nav.advanced": "Advanced Settings",
   "devtools.nav.motion": "Motion Preview",
   "devtools.loading_motion": "Loading motion preview…",
+  "devtools.motion_load_failed": "Motion preview failed to load. Select this tab to retry.",
   "devtools.inspector.turns_aria": "Recent turns",
   "devtools.inspector.empty_title": "No sent context yet",
   "devtools.inspector.empty_sub": "Successful turns appear here.",

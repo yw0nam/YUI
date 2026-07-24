@@ -199,7 +199,8 @@ body,
 }
 
 .devtools-empty,
-.devtools-loading {
+.devtools-loading,
+.devtools-error {
   display: grid;
   place-content: center;
   align-content: center;

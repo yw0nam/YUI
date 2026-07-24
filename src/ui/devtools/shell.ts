@@ -15,7 +15,7 @@ interface DevtoolsShellOptions {
   recentAppsSettings: ReturnType<typeof createRecentAppsSettings>;
   endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   defaultContextWindow?: number;
-  loadMotionPreview: (mount: HTMLElement) => Promise<void>;
+  loadMotionPreview: (mount: HTMLElement) => Promise<{ dispose(): void }>;
 }
 
 const SECTIONS: Array<{ id: DevtoolsSection; labelKey: string }> = [
@@ -43,7 +43,7 @@ export function createDevtoolsShell(options: DevtoolsShellOptions): {
   const content = options.mount.querySelector<HTMLElement>(".devtools-content")!;
   const panels = new Map<DevtoolsSection, HTMLElement>();
   let active: DevtoolsSection = "context";
-  let motionLoaded = false;
+  let motionLoad: Promise<{ dispose(): void }> | null = null;
 
   for (const section of SECTIONS) {
     const button = document.createElement("button");
@@ -82,14 +82,20 @@ export function createDevtoolsShell(options: DevtoolsShellOptions): {
   function activate(section: DevtoolsSection): void {
     active = section;
     reflect();
-    if (section === "motion" && !motionLoaded) {
-      motionLoaded = true;
+    if (section === "motion" && !motionLoad) {
       const panel = panels.get("motion")!;
       const loading = document.createElement("div");
       loading.className = "devtools-loading";
       loading.textContent = t("devtools.loading_motion");
       panel.replaceChildren(loading);
-      void options.loadMotionPreview(panel);
+      motionLoad = options.loadMotionPreview(panel);
+      motionLoad.catch(() => {
+        motionLoad = null;
+        const error = document.createElement("div");
+        error.className = "devtools-error";
+        error.textContent = t("devtools.motion_load_failed");
+        panel.replaceChildren(error);
+      });
     }
   }
 
@@ -99,6 +105,11 @@ export function createDevtoolsShell(options: DevtoolsShellOptions): {
     dispose() {
       inspector.dispose();
       advanced.dispose();
+      if (motionLoad)
+        void motionLoad.then(
+          (handle) => handle.dispose(),
+          () => {},
+        );
       options.mount.replaceChildren();
     },
   };

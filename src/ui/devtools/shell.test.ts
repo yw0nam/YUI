@@ -21,7 +21,7 @@ describe("Developer Tools shell", () => {
       contextSettings: createContextSettings(),
       recentAppsSettings: createRecentAppsSettings(),
       endpointsSettings: createEndpointsSettings(),
-      loadMotionPreview: vi.fn(async () => {}),
+      loadMotionPreview: vi.fn(async () => ({ dispose: vi.fn() })),
     });
 
     const advanced = document.querySelector<HTMLButtonElement>('[data-section="advanced"]')!;
@@ -41,7 +41,7 @@ describe("Developer Tools shell", () => {
       contextSettings: createContextSettings(),
       recentAppsSettings: createRecentAppsSettings(),
       endpointsSettings: createEndpointsSettings(),
-      loadMotionPreview: vi.fn(async () => {}),
+      loadMotionPreview: vi.fn(async () => ({ dispose: vi.fn() })),
     });
 
     expect(document.querySelector(".devtools-header")?.textContent).toBe("開発者ツール");
@@ -55,5 +55,53 @@ describe("Developer Tools shell", () => {
       "モーションプレビュー",
     );
     shell.dispose();
+  });
+
+  it("disposes the motion-preview handle on shell dispose", async () => {
+    const dispose = vi.fn();
+    const shell = createDevtoolsShell({
+      mount: document.querySelector("#app")!,
+      history: createContextHistory(),
+      contextSettings: createContextSettings(),
+      recentAppsSettings: createRecentAppsSettings(),
+      endpointsSettings: createEndpointsSettings(),
+      loadMotionPreview: vi.fn(async () => ({ dispose })),
+    });
+
+    shell.activate("motion");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    shell.dispose();
+    await Promise.resolve();
+
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it("disposes the motion-preview handle once a pending load resolves", async () => {
+    const dispose = vi.fn();
+    let resolveLoad!: (handle: { dispose(): void }) => void;
+    const loadMotionPreview = vi.fn(
+      () =>
+        new Promise<{ dispose(): void }>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const shell = createDevtoolsShell({
+      mount: document.querySelector("#app")!,
+      history: createContextHistory(),
+      contextSettings: createContextSettings(),
+      recentAppsSettings: createRecentAppsSettings(),
+      endpointsSettings: createEndpointsSettings(),
+      loadMotionPreview,
+    });
+
+    shell.activate("motion");
+    shell.dispose();
+    resolveLoad({ dispose });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(dispose).toHaveBeenCalledOnce();
   });
 });

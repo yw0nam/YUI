@@ -26,43 +26,6 @@ import { createRenderer } from "../../renderer";
 
 const log = createLogger("motion-preview");
 
-const previewRoot = document.querySelector<HTMLElement>('[data-panel="motion"]');
-if (!previewRoot) throw new Error("motion preview mount not found");
-previewRoot.className = "devtools-panel motion-preview";
-previewRoot.innerHTML = `
-  <div class="motion-preview__viewport">
-    <div class="viewport-label">VRM Viewport</div>
-    <div id="vrm-mount"></div>
-    <div class="viewport-status" id="viewport-status">idle · 0fps</div>
-  </div>
-  <div class="motion-preview__rail">
-    <div class="rail-scroll">
-      <div class="section">
-        <div class="section-header"><span class="section-label">Registry</span><div class="section-divider"></div></div>
-        <div id="registry-list"></div>
-      </div>
-      <div class="section-sep"></div>
-      <div class="playback-section">
-        <div class="section-header"><span class="section-label">Playback</span><div class="section-divider"></div></div>
-        <div class="playback-row"><span class="playback-label">loop</span><div class="playback-control"><label class="cb-wrap"><input type="checkbox" id="cb-loop" checked /><span class="cb-label">enabled</span></label></div></div>
-        <div class="playback-row"><span class="playback-label">speed</span><div class="playback-control"><div class="slider-wrap"><input type="range" id="sl-speed" min="0.25" max="2.5" step="0.05" value="1.0" /><span class="slider-value" id="val-speed">1x</span></div></div></div>
-        <div class="playback-row"><span class="playback-label">fade</span><div class="playback-control"><div class="slider-wrap"><input type="range" id="sl-fade" min="0" max="600" step="10" value="200" /><span class="slider-value" id="val-fade">200ms</span></div></div></div>
-        <div class="playback-row"><span class="playback-label">crossfade →</span><div class="playback-control"><select id="sel-crossfade"></select></div></div>
-        <div class="btn-row"><button class="btn btn-primary" id="btn-play">play</button><button class="btn btn-stop" id="btn-stop">stop</button><button class="btn btn-idle" id="btn-idle">→ idle</button></div>
-      </div>
-      <div class="section-sep"></div>
-      <div class="section">
-        <div class="section-header"><span class="section-label">Emotion</span><div class="section-divider"></div></div>
-        <div id="emotion-list"></div>
-        <div class="playback-row"><span class="playback-label">intensity</span><div class="playback-control"><div class="slider-wrap"><input type="range" id="sl-intensity" min="0" max="1" step="0.05" value="1" /><span class="slider-value" id="val-intensity">1.00</span></div></div></div>
-        <div class="playback-row"><span class="playback-label">transition</span><div class="playback-control"><div class="slider-wrap"><input type="range" id="sl-transition" min="0" max="1000" step="10" value="250" /><span class="slider-value" id="val-transition">250ms</span></div></div></div>
-        <div class="btn-row"><button class="btn btn-primary" id="btn-neutral">→ neutral</button><button class="btn btn-stop" id="btn-hold">hold (null)</button></div>
-      </div>
-    </div>
-    <div class="status-bar"><span class="status-text"><span class="status-key">now: </span><span class="status-accent" id="status-now">loading</span><span class="status-key"> · </span><span class="status-val" id="status-kind">-</span><span class="status-key"> · </span><span class="status-val" id="status-priority">-</span><span class="status-key"> · </span><span class="status-val" id="status-elapsed">0.0s</span><span class="status-key"> · </span><span class="status-val" id="status-fps">0fps</span></span></div>
-  </div>
-`;
-
 // ─── Motion kind display order ────────────────────────────────────────────────
 const KIND_ORDER: MotionKind[] = ["ambient", "reactive", "state", "oneshot"];
 
@@ -90,20 +53,6 @@ interface PlaybackState {
   /** Live fps from rAF counter. */
   fps: number;
 }
-
-const state: PlaybackState = {
-  activeId: null,
-  elapsedStart: 0,
-  fps: 0,
-};
-
-// ─── Live-motion polling (set in main once the renderer exists) ──────────────
-
-/** Reads renderer.getCurrentMotion(); null until the renderer is created. */
-let liveMotion: (() => { id: string; vrma_path: string } | null) | null = null;
-let liveRegistry: MotionRegistry | null = null;
-/** `${id}|${vrma_path}` of the last synced motion — gates per-frame DOM writes. */
-let lastLiveKey = "";
 
 /** "/motions/idle_03.vrma" → "idle_03" */
 function variantName(vrmaPath: string): string {
@@ -141,141 +90,311 @@ function expandVariantEntries(reg: MotionRegistry): {
   return { registry: out, variantIds };
 }
 
-/** Sync row highlight / status bar / idle sub-line to the committed motion. */
-function syncLiveMotion(): { id: string; vrma_path: string } | null {
-  const cur = liveMotion?.() ?? null;
-  const key = cur ? `${cur.id}|${cur.vrma_path}` : "";
-  if (key === lastLiveKey) return cur;
-  lastLiveKey = key;
+/** Format a playback speed multiplier for display, e.g. 1.5 → "1.5x". */
+function formatSpeed(v: number): string {
+  const s = v.toFixed(2).replace(/\.?0+$/, "");
+  return `${s}x`;
+}
 
-  state.activeId = cur?.id ?? null;
-  state.elapsedStart = performance.now(); // per-clip: resets on variant swap too
+/**
+ * Mounts the motion/emotion preview into `mount`, replacing its contents.
+ * Loads the motion + emotion registries and the configured VRM, then wires
+ * playback controls to a fresh renderer instance.
+ *
+ * Throws if the registry/config load fails — the caller (devtools shell)
+ * renders an error state and lets the user retry by re-activating the tab.
+ */
+export async function mountMotionPreview(mount: HTMLElement): Promise<{ dispose(): void }> {
+  mount.className = "devtools-panel motion-preview";
+  mount.innerHTML = `
+    <div class="motion-preview__viewport">
+      <div class="viewport-label">VRM Viewport</div>
+      <div id="vrm-mount"></div>
+      <div class="viewport-status" id="viewport-status">idle · 0fps</div>
+    </div>
+    <div class="motion-preview__rail">
+      <div class="rail-scroll">
+        <div class="section">
+          <div class="section-header"><span class="section-label">Registry</span><div class="section-divider"></div></div>
+          <div id="registry-list"></div>
+        </div>
+        <div class="section-sep"></div>
+        <div class="playback-section">
+          <div class="section-header"><span class="section-label">Playback</span><div class="section-divider"></div></div>
+          <div class="playback-row"><span class="playback-label">loop</span><div class="playback-control"><label class="cb-wrap"><input type="checkbox" id="cb-loop" checked /><span class="cb-label">enabled</span></label></div></div>
+          <div class="playback-row"><span class="playback-label">speed</span><div class="playback-control"><div class="slider-wrap"><input type="range" id="sl-speed" min="0.25" max="2.5" step="0.05" value="1.0" /><span class="slider-value" id="val-speed">1x</span></div></div></div>
+          <div class="playback-row"><span class="playback-label">fade</span><div class="playback-control"><div class="slider-wrap"><input type="range" id="sl-fade" min="0" max="600" step="10" value="200" /><span class="slider-value" id="val-fade">200ms</span></div></div></div>
+          <div class="playback-row"><span class="playback-label">crossfade →</span><div class="playback-control"><select id="sel-crossfade"></select></div></div>
+          <div class="btn-row"><button class="btn btn-primary" id="btn-play">play</button><button class="btn btn-stop" id="btn-stop">stop</button><button class="btn btn-idle" id="btn-idle">→ idle</button></div>
+        </div>
+        <div class="section-sep"></div>
+        <div class="section">
+          <div class="section-header"><span class="section-label">Emotion</span><div class="section-divider"></div></div>
+          <div id="emotion-list"></div>
+          <div class="playback-row"><span class="playback-label">intensity</span><div class="playback-control"><div class="slider-wrap"><input type="range" id="sl-intensity" min="0" max="1" step="0.05" value="1" /><span class="slider-value" id="val-intensity">1.00</span></div></div></div>
+          <div class="playback-row"><span class="playback-label">transition</span><div class="playback-control"><div class="slider-wrap"><input type="range" id="sl-transition" min="0" max="1000" step="10" value="250" /><span class="slider-value" id="val-transition">250ms</span></div></div></div>
+          <div class="btn-row"><button class="btn btn-primary" id="btn-neutral">→ neutral</button><button class="btn btn-stop" id="btn-hold">hold (null)</button></div>
+        </div>
+      </div>
+      <div class="status-bar"><span class="status-text"><span class="status-key">now: </span><span class="status-accent" id="status-now">loading</span><span class="status-key"> · </span><span class="status-val" id="status-kind">-</span><span class="status-key"> · </span><span class="status-val" id="status-priority">-</span><span class="status-key"> · </span><span class="status-val" id="status-elapsed">0.0s</span><span class="status-key"> · </span><span class="status-val" id="status-fps">0fps</span></span></div>
+    </div>
+  `;
 
-  setActiveRow(cur?.id ?? null);
+  // ─── Per-instance state ────────────────────────────────────────────────────
 
-  const entry = cur && liveRegistry ? liveRegistry[cur.id] : undefined;
-  statusNow.textContent = cur ? cur.id : "none";
-  statusKind.textContent = entry ? entry.kind : "-";
-  statusPriority.textContent = entry ? `p${entry.priority}` : "-";
+  const state: PlaybackState = {
+    activeId: null,
+    elapsedStart: 0,
+    fps: 0,
+  };
 
-  const subLine = document.getElementById("idle-sub-line");
-  const variants = liveRegistry?.idle?.variants;
-  if (subLine && cur && cur.id === "idle" && variants) {
-    const idx = variants.indexOf(cur.vrma_path);
-    if (idx >= 0) {
-      subLine.innerHTML = `variant <span>${idx + 1}/${variants.length}</span> &middot; ${variantName(cur.vrma_path)}`;
+  /** Reads renderer.getCurrentMotion(); null until the renderer is created. */
+  let liveMotion: (() => { id: string; vrma_path: string } | null) | null = null;
+  let liveRegistry: MotionRegistry | null = null;
+  /** `${id}|${vrma_path}` of the last synced motion — gates per-frame DOM writes. */
+  let lastLiveKey = "";
+  /** ID of the emotion the user last applied (or null if none applied yet). */
+  let activeEmotionId: EmotionId | null = null;
+  let fpsFrames = 0;
+  let fpsLast = performance.now();
+  let rafId = 0;
+
+  // ─── DOM refs ─────────────────────────────────────────────────────────────
+
+  const vrmMount = mount.querySelector("#vrm-mount") as HTMLDivElement;
+  const registryList = mount.querySelector("#registry-list") as HTMLDivElement;
+  const cbLoop = mount.querySelector("#cb-loop") as HTMLInputElement;
+  const slSpeed = mount.querySelector("#sl-speed") as HTMLInputElement;
+  const valSpeed = mount.querySelector("#val-speed") as HTMLSpanElement;
+  const slFade = mount.querySelector("#sl-fade") as HTMLInputElement;
+  const valFade = mount.querySelector("#val-fade") as HTMLSpanElement;
+  const selCrossfade = mount.querySelector("#sel-crossfade") as HTMLSelectElement;
+  const btnPlay = mount.querySelector("#btn-play") as HTMLButtonElement;
+  const btnStop = mount.querySelector("#btn-stop") as HTMLButtonElement;
+  const btnIdle = mount.querySelector("#btn-idle") as HTMLButtonElement;
+  const statusNow = mount.querySelector("#status-now") as HTMLSpanElement;
+  const statusKind = mount.querySelector("#status-kind") as HTMLSpanElement;
+  const statusPriority = mount.querySelector("#status-priority") as HTMLSpanElement;
+  const statusElapsed = mount.querySelector("#status-elapsed") as HTMLSpanElement;
+  const statusFps = mount.querySelector("#status-fps") as HTMLSpanElement;
+  const viewportStatus = mount.querySelector("#viewport-status") as HTMLSpanElement;
+
+  // ─── Emotion DOM refs ─────────────────────────────────────────────────────
+  const emotionList = mount.querySelector("#emotion-list") as HTMLDivElement;
+  const slIntensity = mount.querySelector("#sl-intensity") as HTMLInputElement;
+  const valIntensity = mount.querySelector("#val-intensity") as HTMLSpanElement;
+  const slTransition = mount.querySelector("#sl-transition") as HTMLInputElement;
+  const valTransition = mount.querySelector("#val-transition") as HTMLSpanElement;
+  const btnNeutral = mount.querySelector("#btn-neutral") as HTMLButtonElement;
+  const btnHold = mount.querySelector("#btn-hold") as HTMLButtonElement;
+
+  /** Sync row highlight / status bar / idle sub-line to the committed motion. */
+  function syncLiveMotion(): { id: string; vrma_path: string } | null {
+    const cur = liveMotion?.() ?? null;
+    const key = cur ? `${cur.id}|${cur.vrma_path}` : "";
+    if (key === lastLiveKey) return cur;
+    lastLiveKey = key;
+
+    state.activeId = cur?.id ?? null;
+    state.elapsedStart = performance.now(); // per-clip: resets on variant swap too
+
+    setActiveRow(cur?.id ?? null);
+
+    const entry = cur && liveRegistry ? liveRegistry[cur.id] : undefined;
+    statusNow.textContent = cur ? cur.id : "none";
+    statusKind.textContent = entry ? entry.kind : "-";
+    statusPriority.textContent = entry ? `p${entry.priority}` : "-";
+
+    const subLine = mount.querySelector("#idle-sub-line");
+    const variants = liveRegistry?.idle?.variants;
+    if (subLine && cur && cur.id === "idle" && variants) {
+      const idx = variants.indexOf(cur.vrma_path);
+      if (idx >= 0) {
+        subLine.innerHTML = `variant <span>${idx + 1}/${variants.length}</span> &middot; ${variantName(cur.vrma_path)}`;
+      }
+    }
+    return cur;
+  }
+
+  // ─── Registry list rendering ──────────────────────────────────────────────
+
+  /** Build the crossfade dropdown options from registry keys. */
+  function buildCrossfadeOptions(motionsRegistry: MotionRegistry): void {
+    selCrossfade.innerHTML = "";
+    for (const id of Object.keys(motionsRegistry)) {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = id;
+      if (id === "idle") opt.selected = true;
+      selCrossfade.appendChild(opt);
     }
   }
-  return cur;
-}
 
-/** ID of the emotion the user last applied (or null if none applied yet). */
-let activeEmotionId: EmotionId | null = null;
-
-// ─── DOM refs ─────────────────────────────────────────────────────────────────
-// The module script is deferred so the DOM is ready at this point.
-
-const mount = document.getElementById("vrm-mount") as HTMLDivElement;
-const registryList = document.getElementById("registry-list") as HTMLDivElement;
-const cbLoop = document.getElementById("cb-loop") as HTMLInputElement;
-const slSpeed = document.getElementById("sl-speed") as HTMLInputElement;
-const valSpeed = document.getElementById("val-speed") as HTMLSpanElement;
-const slFade = document.getElementById("sl-fade") as HTMLInputElement;
-const valFade = document.getElementById("val-fade") as HTMLSpanElement;
-const selCrossfade = document.getElementById("sel-crossfade") as HTMLSelectElement;
-const btnPlay = document.getElementById("btn-play") as HTMLButtonElement;
-const btnStop = document.getElementById("btn-stop") as HTMLButtonElement;
-const btnIdle = document.getElementById("btn-idle") as HTMLButtonElement;
-const statusNow = document.getElementById("status-now") as HTMLSpanElement;
-const statusKind = document.getElementById("status-kind") as HTMLSpanElement;
-const statusPriority = document.getElementById("status-priority") as HTMLSpanElement;
-const statusElapsed = document.getElementById("status-elapsed") as HTMLSpanElement;
-const statusFps = document.getElementById("status-fps") as HTMLSpanElement;
-const viewportStatus = document.getElementById("viewport-status") as HTMLSpanElement;
-
-// ─── Emotion DOM refs ─────────────────────────────────────────────────────────
-const emotionList = document.getElementById("emotion-list") as HTMLDivElement;
-const slIntensity = document.getElementById("sl-intensity") as HTMLInputElement;
-const valIntensity = document.getElementById("val-intensity") as HTMLSpanElement;
-const slTransition = document.getElementById("sl-transition") as HTMLInputElement;
-const valTransition = document.getElementById("val-transition") as HTMLSpanElement;
-const btnNeutral = document.getElementById("btn-neutral") as HTMLButtonElement;
-const btnHold = document.getElementById("btn-hold") as HTMLButtonElement;
-
-// ─── Registry list rendering ──────────────────────────────────────────────────
-
-/** Build the crossfade dropdown options from registry keys. */
-function buildCrossfadeOptions(motionsRegistry: MotionRegistry): void {
-  selCrossfade.innerHTML = "";
-  for (const id of Object.keys(motionsRegistry)) {
-    const opt = document.createElement("option");
-    opt.value = id;
-    opt.textContent = id;
-    if (id === "idle") opt.selected = true;
-    selCrossfade.appendChild(opt);
-  }
-}
-
-/** Set the active row in the registry list. */
-function setActiveRow(id: string | null): void {
-  const rows = registryList.querySelectorAll<HTMLDivElement>(".motion-row");
-  rows.forEach((row) => {
-    const rowId = row.dataset.motionId;
-    const dot = row.querySelector<HTMLSpanElement>(".dot");
-    const nameEl = row.querySelector<HTMLSpanElement>(".row-name");
-    if (rowId === id) {
-      row.classList.add("state-playing");
-      if (dot) {
-        dot.className = "dot dot-filled";
+  /** Set the active row in the registry list. */
+  function setActiveRow(id: string | null): void {
+    const rows = registryList.querySelectorAll<HTMLDivElement>(".motion-row");
+    rows.forEach((row) => {
+      const rowId = row.dataset.motionId;
+      const dot = row.querySelector<HTMLSpanElement>(".dot");
+      const nameEl = row.querySelector<HTMLSpanElement>(".row-name");
+      if (rowId === id) {
+        row.classList.add("state-playing");
+        if (dot) {
+          dot.className = "dot dot-filled";
+        }
+        if (nameEl) nameEl.style.color = "";
+      } else {
+        row.classList.remove("state-playing");
+        if (dot) {
+          dot.className = "dot dot-hollow";
+        }
+        if (nameEl) nameEl.style.color = "";
       }
-      if (nameEl) nameEl.style.color = "";
-    } else {
-      row.classList.remove("state-playing");
-      if (dot) {
+    });
+  }
+
+  /** Build the full registry list HTML grouped by kind. */
+  function buildRegistryList(
+    motionsRegistry: MotionRegistry,
+    doPlayById: (id: string) => void,
+    variantIds: Set<string> = new Set(),
+  ): void {
+    registryList.innerHTML = "";
+
+    // Group entries by kind in display order
+    const groups = new Map<MotionKind, string[]>();
+    for (const kind of KIND_ORDER) {
+      groups.set(kind, []);
+    }
+    for (const [id, entry] of Object.entries(motionsRegistry)) {
+      const list = groups.get(entry.kind);
+      if (list) list.push(id);
+    }
+
+    for (const kind of KIND_ORDER) {
+      const ids = groups.get(kind);
+      if (!ids || ids.length === 0) continue;
+
+      const groupEl = document.createElement("div");
+      groupEl.className = "group";
+
+      const labelEl = document.createElement("div");
+      labelEl.className = "group-label";
+      labelEl.textContent = kind;
+      groupEl.appendChild(labelEl);
+
+      for (const id of ids) {
+        const entry = motionsRegistry[id];
+        if (!entry) continue;
+
+        const row = document.createElement("div");
+        row.className = variantIds.has(id) ? "motion-row variant-row" : "motion-row";
+        row.dataset.motionId = id;
+        row.tabIndex = 0;
+        row.setAttribute("role", "row");
+
+        // Dot
+        const dot = document.createElement("span");
         dot.className = "dot dot-hollow";
+
+        // Name
+        const name = document.createElement("span");
+        name.className = "row-name";
+        name.textContent = id;
+
+        // Tags
+        const tags = document.createElement("div");
+        tags.className = "row-tags";
+
+        const tagPriority = document.createElement("span");
+        tagPriority.className = "tag";
+        tagPriority.textContent = `p${entry.priority}`;
+        tags.appendChild(tagPriority);
+
+        if (entry.loop) {
+          const tagLoop = document.createElement("span");
+          tagLoop.className = "tag tag-loop";
+          tagLoop.textContent = "loop";
+          tags.appendChild(tagLoop);
+        }
+
+        // Play button
+        const playBtn = document.createElement("button");
+        playBtn.className = "btn-play";
+        playBtn.title = "play";
+        playBtn.setAttribute("aria-label", `Play ${id}`);
+        playBtn.textContent = "▶";
+
+        row.appendChild(dot);
+        row.appendChild(name);
+        row.appendChild(tags);
+        row.appendChild(playBtn);
+        groupEl.appendChild(row);
+
+        // Idle variant sub-line
+        if (id === "idle" && entry.variants && entry.variants.length > 0) {
+          const subLine = document.createElement("div");
+          subLine.className = "sub-line";
+          const varCount = entry.variants.length;
+          subLine.innerHTML = `variant <span>1/${varCount}</span> &middot; idle_01`;
+          subLine.id = "idle-sub-line";
+          groupEl.appendChild(subLine);
+        }
+
+        // Row click handler
+        const handlePlay = (): void => {
+          doPlayById(id);
+        };
+        row.addEventListener("click", handlePlay);
+        row.addEventListener("keydown", (e: KeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handlePlay();
+          }
+        });
+        playBtn.addEventListener("click", (e: MouseEvent) => {
+          e.stopPropagation();
+          handlePlay();
+        });
       }
-      if (nameEl) nameEl.style.color = "";
+
+      registryList.appendChild(groupEl);
     }
-  });
-}
-
-/** Build the full registry list HTML grouped by kind. */
-function buildRegistryList(
-  motionsRegistry: MotionRegistry,
-  doPlayById: (id: string) => void,
-  variantIds: Set<string> = new Set(),
-): void {
-  registryList.innerHTML = "";
-
-  // Group entries by kind in display order
-  const groups = new Map<MotionKind, string[]>();
-  for (const kind of KIND_ORDER) {
-    groups.set(kind, []);
-  }
-  for (const [id, entry] of Object.entries(motionsRegistry)) {
-    const list = groups.get(entry.kind);
-    if (list) list.push(id);
   }
 
-  for (const kind of KIND_ORDER) {
-    const ids = groups.get(kind);
-    if (!ids || ids.length === 0) continue;
+  /** Set the active row in the emotion list (independent of motion active state). */
+  function setActiveEmotionRow(id: EmotionId | null): void {
+    const rows = emotionList.querySelectorAll<HTMLDivElement>(".motion-row");
+    rows.forEach((row) => {
+      const rowId = row.dataset.emotionId as EmotionId | undefined;
+      const dot = row.querySelector<HTMLSpanElement>(".dot");
+      if (rowId === id) {
+        row.classList.add("state-playing");
+        if (dot) dot.className = "dot dot-filled";
+      } else {
+        row.classList.remove("state-playing");
+        if (dot) dot.className = "dot dot-hollow";
+      }
+    });
+  }
 
-    const groupEl = document.createElement("div");
-    groupEl.className = "group";
+  /**
+   * Build the 10 emotion rows from the registry.
+   * The `vrm_expression` hint shown per row is the *registry* mapping, NOT the
+   * runtime-resolved key (renderer does not expose the resolved key).
+   */
+  function buildEmotionList(
+    emotionsRegistry: EmotionRegistry,
+    doSetEmotion: (id: EmotionId) => void,
+  ): void {
+    emotionList.innerHTML = "";
 
-    const labelEl = document.createElement("div");
-    labelEl.className = "group-label";
-    labelEl.textContent = kind;
-    groupEl.appendChild(labelEl);
-
-    for (const id of ids) {
-      const entry = motionsRegistry[id];
-      if (!entry) continue;
+    for (const id of EMOTION_ORDER) {
+      const entry = emotionsRegistry[id];
 
       const row = document.createElement("div");
-      row.className = variantIds.has(id) ? "motion-row variant-row" : "motion-row";
-      row.dataset.motionId = id;
+      row.className = "motion-row";
+      row.dataset.emotionId = id;
       row.tabIndex = 0;
       row.setAttribute("role", "row");
 
@@ -288,208 +407,94 @@ function buildRegistryList(
       name.className = "row-name";
       name.textContent = id;
 
-      // Tags
+      // Registry expression hint tag (registry mapping, not resolved key)
       const tags = document.createElement("div");
       tags.className = "row-tags";
-
-      const tagPriority = document.createElement("span");
-      tagPriority.className = "tag";
-      tagPriority.textContent = `p${entry.priority}`;
-      tags.appendChild(tagPriority);
-
-      if (entry.loop) {
-        const tagLoop = document.createElement("span");
-        tagLoop.className = "tag tag-loop";
-        tagLoop.textContent = "loop";
-        tags.appendChild(tagLoop);
+      if (entry) {
+        const tagExpr = document.createElement("span");
+        tagExpr.className = "tag";
+        tagExpr.textContent = entry.vrm_expression;
+        tags.appendChild(tagExpr);
       }
 
       // Play button
       const playBtn = document.createElement("button");
       playBtn.className = "btn-play";
-      playBtn.title = "play";
-      playBtn.setAttribute("aria-label", `Play ${id}`);
+      playBtn.title = "set emotion";
+      playBtn.setAttribute("aria-label", `Set emotion ${id}`);
       playBtn.textContent = "▶";
 
       row.appendChild(dot);
       row.appendChild(name);
       row.appendChild(tags);
       row.appendChild(playBtn);
-      groupEl.appendChild(row);
+      emotionList.appendChild(row);
 
-      // Idle variant sub-line
-      if (id === "idle" && entry.variants && entry.variants.length > 0) {
-        const subLine = document.createElement("div");
-        subLine.className = "sub-line";
-        const varCount = entry.variants.length;
-        subLine.innerHTML = `variant <span>1/${varCount}</span> &middot; idle_01`;
-        subLine.id = "idle-sub-line";
-        groupEl.appendChild(subLine);
-      }
-
-      // Row click handler
-      const handlePlay = (): void => {
-        doPlayById(id);
+      // Row click / keyboard handler
+      const handleSet = (): void => {
+        doSetEmotion(id);
       };
-      row.addEventListener("click", handlePlay);
+      row.addEventListener("click", handleSet);
       row.addEventListener("keydown", (e: KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          handlePlay();
+          handleSet();
         }
       });
       playBtn.addEventListener("click", (e: MouseEvent) => {
         e.stopPropagation();
-        handlePlay();
+        handleSet();
       });
     }
-
-    registryList.appendChild(groupEl);
   }
-}
 
-/** Set the active row in the emotion list (independent of motion active state). */
-function setActiveEmotionRow(id: EmotionId | null): void {
-  const rows = emotionList.querySelectorAll<HTMLDivElement>(".motion-row");
-  rows.forEach((row) => {
-    const rowId = row.dataset.emotionId as EmotionId | undefined;
-    const dot = row.querySelector<HTMLSpanElement>(".dot");
-    if (rowId === id) {
-      row.classList.add("state-playing");
-      if (dot) dot.className = "dot dot-filled";
-    } else {
-      row.classList.remove("state-playing");
-      if (dot) dot.className = "dot dot-hollow";
+  // ─── FPS counter + elapsed timer ─────────────────────────────────────────
+
+  function rafLoop(): void {
+    rafId = requestAnimationFrame(rafLoop);
+    fpsFrames++;
+    const now = performance.now();
+    if (now - fpsLast >= 500) {
+      state.fps = Math.round((fpsFrames * 1000) / (now - fpsLast));
+      fpsFrames = 0;
+      fpsLast = now;
     }
+
+    const cur = syncLiveMotion();
+
+    const elapsedSec =
+      state.activeId !== null
+        ? ((performance.now() - state.elapsedStart) / 1000).toFixed(1)
+        : "0.0";
+
+    statusElapsed.textContent = `${elapsedSec}s`;
+    statusFps.textContent = `${state.fps}fps`;
+    const variant = cur ? variantName(cur.vrma_path) : null;
+    const variantHint = cur && variant !== cur.id ? ` (${variant})` : "";
+    const emotionHint = activeEmotionId !== null ? ` · em:${activeEmotionId}` : "";
+    viewportStatus.textContent = `${cur?.id ?? "none"}${variantHint}${emotionHint} · ${state.fps}fps`;
+  }
+
+  // ─── Slider display updates ─────────────────────────────────────────────
+
+  slSpeed.addEventListener("input", () => {
+    valSpeed.textContent = formatSpeed(parseFloat(slSpeed.value));
   });
-}
 
-/**
- * Build the 10 emotion rows from the registry.
- * The `vrm_expression` hint shown per row is the *registry* mapping, NOT the
- * runtime-resolved key (renderer does not expose the resolved key).
- */
-function buildEmotionList(
-  emotionsRegistry: EmotionRegistry,
-  doSetEmotion: (id: EmotionId) => void,
-): void {
-  emotionList.innerHTML = "";
+  slFade.addEventListener("input", () => {
+    valFade.textContent = `${slFade.value}ms`;
+  });
 
-  for (const id of EMOTION_ORDER) {
-    const entry = emotionsRegistry[id];
+  slIntensity.addEventListener("input", () => {
+    valIntensity.textContent = parseFloat(slIntensity.value).toFixed(2);
+  });
 
-    const row = document.createElement("div");
-    row.className = "motion-row";
-    row.dataset.emotionId = id;
-    row.tabIndex = 0;
-    row.setAttribute("role", "row");
+  slTransition.addEventListener("input", () => {
+    valTransition.textContent = `${slTransition.value}ms`;
+  });
 
-    // Dot
-    const dot = document.createElement("span");
-    dot.className = "dot dot-hollow";
+  // ─── Registry + VRM load ──────────────────────────────────────────────────
 
-    // Name
-    const name = document.createElement("span");
-    name.className = "row-name";
-    name.textContent = id;
-
-    // Registry expression hint tag (registry mapping, not resolved key)
-    const tags = document.createElement("div");
-    tags.className = "row-tags";
-    if (entry) {
-      const tagExpr = document.createElement("span");
-      tagExpr.className = "tag";
-      tagExpr.textContent = entry.vrm_expression;
-      tags.appendChild(tagExpr);
-    }
-
-    // Play button
-    const playBtn = document.createElement("button");
-    playBtn.className = "btn-play";
-    playBtn.title = "set emotion";
-    playBtn.setAttribute("aria-label", `Set emotion ${id}`);
-    playBtn.textContent = "▶";
-
-    row.appendChild(dot);
-    row.appendChild(name);
-    row.appendChild(tags);
-    row.appendChild(playBtn);
-    emotionList.appendChild(row);
-
-    // Row click / keyboard handler
-    const handleSet = (): void => {
-      doSetEmotion(id);
-    };
-    row.addEventListener("click", handleSet);
-    row.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        handleSet();
-      }
-    });
-    playBtn.addEventListener("click", (e: MouseEvent) => {
-      e.stopPropagation();
-      handleSet();
-    });
-  }
-}
-
-// ─── FPS counter + elapsed timer ─────────────────────────────────────────────
-
-let fpsFrames = 0;
-let fpsLast = performance.now();
-
-function rafLoop(): void {
-  requestAnimationFrame(rafLoop);
-  fpsFrames++;
-  const now = performance.now();
-  if (now - fpsLast >= 500) {
-    state.fps = Math.round((fpsFrames * 1000) / (now - fpsLast));
-    fpsFrames = 0;
-    fpsLast = now;
-  }
-
-  const cur = syncLiveMotion();
-
-  const elapsedSec =
-    state.activeId !== null ? ((performance.now() - state.elapsedStart) / 1000).toFixed(1) : "0.0";
-
-  statusElapsed.textContent = `${elapsedSec}s`;
-  statusFps.textContent = `${state.fps}fps`;
-  const variant = cur ? variantName(cur.vrma_path) : null;
-  const variantHint = cur && variant !== cur.id ? ` (${variant})` : "";
-  const emotionHint = activeEmotionId !== null ? ` · em:${activeEmotionId}` : "";
-  viewportStatus.textContent = `${cur?.id ?? "none"}${variantHint}${emotionHint} · ${state.fps}fps`;
-}
-
-// ─── Slider display updates ───────────────────────────────────────────────────
-
-function formatSpeed(v: number): string {
-  const s = v.toFixed(2).replace(/\.?0+$/, "");
-  return `${s}x`;
-}
-
-slSpeed.addEventListener("input", () => {
-  valSpeed.textContent = formatSpeed(parseFloat(slSpeed.value));
-});
-
-slFade.addEventListener("input", () => {
-  valFade.textContent = `${slFade.value}ms`;
-});
-
-slIntensity.addEventListener("input", () => {
-  valIntensity.textContent = parseFloat(slIntensity.value).toFixed(2);
-});
-
-slTransition.addEventListener("input", () => {
-  valTransition.textContent = `${slTransition.value}ms`;
-});
-
-// ─── Main (async init) ────────────────────────────────────────────────────────
-// Structured as an async function so the registry fetch completes before any
-// code that depends on it runs. All init that needs the registry is inside here.
-
-async function main(): Promise<void> {
   let motionsRegistry: MotionRegistry;
   let emotionsRegistry: EmotionRegistry;
   let vrmUrl: string;
@@ -500,21 +505,20 @@ async function main(): Promise<void> {
     vrmUrl = await resolveAssetUrl(config.avatar.vrm_url);
   } catch (err) {
     log.error("registry_load_failed", { error: String(err) });
-    viewportStatus.textContent = "registry load failed";
-    return;
+    throw err;
   }
 
   // Expand pooled variants into directly selectable entries (preview-only).
   const { registry: expandedRegistry, variantIds } = expandVariantEntries(motionsRegistry);
 
-  // 2. Create renderer with both registries injected.
+  // Create renderer with both registries injected.
   const renderer = createRenderer({
-    mount,
+    mount: vrmMount,
     motionRegistry: expandedRegistry,
     emotionRegistry: emotionsRegistry,
   });
 
-  // ─── Playback helpers (close over registry + renderer) ──────────────────────
+  // ─── Playback helpers (close over registry + renderer) ──────────────────
 
   function currentSignalOverrides(): Partial<MotionSignal> {
     return {
@@ -543,7 +547,7 @@ async function main(): Promise<void> {
     doIdleReturn();
   }
 
-  // ─── Emotion helpers (close over emotionsRegistry + renderer) ───────────────
+  // ─── Emotion helpers (close over emotionsRegistry + renderer) ───────────
 
   function doSetEmotion(id: EmotionId): void {
     renderer.setEmotion({
@@ -555,14 +559,14 @@ async function main(): Promise<void> {
     setActiveEmotionRow(id);
   }
 
-  // 3. Build the registry list + crossfade dropdown (needs registry).
+  // Build the registry list + crossfade dropdown (needs registry).
   buildRegistryList(expandedRegistry, doPlayById, variantIds);
   buildCrossfadeOptions(expandedRegistry);
 
-  // 4. Build emotion rows from the emotion registry.
+  // Build emotion rows from the emotion registry.
   buildEmotionList(emotionsRegistry, doSetEmotion);
 
-  // 5. Wire motion action buttons (close over doPlayById/doStop/doIdleReturn).
+  // Wire motion action buttons (close over doPlayById/doStop/doIdleReturn).
   btnPlay.addEventListener("click", () => {
     const id = selCrossfade.value;
     if (id) doPlayById(id);
@@ -576,7 +580,7 @@ async function main(): Promise<void> {
     doIdleReturn();
   });
 
-  // 6. Wire emotion action buttons.
+  // Wire emotion action buttons.
   // btn-neutral: the ONLY explicit-neutral path — always sets {id:"neutral"}.
   btnNeutral.addEventListener("click", () => {
     renderer.setEmotion({ id: "neutral" });
@@ -590,10 +594,10 @@ async function main(): Promise<void> {
     // null is a no-op in the renderer — do not change activeEmotionId or row highlight.
   });
 
-  // 7. Start rAF loop for fps/elapsed/current-motion display.
+  // Start rAF loop for fps/elapsed/current-motion display.
   liveMotion = () => renderer.getCurrentMotion();
   liveRegistry = expandedRegistry;
-  requestAnimationFrame(rafLoop);
+  rafId = requestAnimationFrame(rafLoop);
 
   // dev-only perch hook: drive setPerchTarget from Playwright / console.
   //   window.__perch(yPx) → pin the seat to that pet-window-local y line.
@@ -606,17 +610,18 @@ async function main(): Promise<void> {
     __yuiRenderer: renderer,
   });
 
-  // 8. Load VRM — renderer auto-plays idle baseline on load.
+  // Load VRM — renderer auto-plays idle baseline on load.
   try {
     await renderer.loadVRM(vrmUrl);
     // Idle baseline auto-plays on load; syncLiveMotion picks it up next frame.
   } catch (err) {
     log.error("vrm_load_failed", { error: String(err) });
   }
-}
 
-const ready = main();
-
-export async function mountMotionPreview(_mount: HTMLElement): Promise<void> {
-  await ready;
+  return {
+    dispose() {
+      cancelAnimationFrame(rafId);
+      renderer.dispose();
+    },
+  };
 }
