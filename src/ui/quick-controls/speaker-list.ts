@@ -5,6 +5,8 @@
  * So wires roving tabindex/Enter·Space/arrow keyboard directly.
  * Additionally owns reference-voice refresh + single audition preview.
  */
+import "./speaker-list.css";
+
 import { resolveAssetUrl } from "../../io/asset-url";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
 import type { Logger } from "../../logger";

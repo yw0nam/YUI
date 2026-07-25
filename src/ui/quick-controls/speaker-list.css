@@ -1,0 +1,153 @@
+/* ── Speaker section — row is div[role=radio]. To nest ▶ preview <button>,
+   row cannot be <button> (invalid nested HTML). List·row·state styles shared with VRM
+   in quick-controls.css / user-asset-list.css. ── */
+
+/* Disable speaker selection for OpenAI-compatible engine — block click/focus + dim. */
+.yui-spk-scroll.is-disabled,
+.yui-spk-foot.is-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  filter: grayscale(1);
+}
+
+/* Speaker-disabled guidance — OpenAI engine uses server voice, static status. */
+.yui-spks-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--yui-text-mute);
+}
+
+.yui-spk:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* ── Per-row ▶ preview · ↻ reference-voice refresh — ghost, lit amber on hover only. refresh before preview (left). ── */
+.yui-spk__preview,
+.yui-spk__refresh {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+  opacity: 0.7;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease),
+    opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-spk:hover .yui-spk__preview,
+.yui-spk:hover .yui-spk__refresh {
+  opacity: 1;
+}
+
+.yui-spk__preview:hover,
+.yui-spk__refresh:hover {
+  background: var(--yui-accent-faint);
+  color: var(--yui-accent);
+}
+
+.yui-spk__preview:focus-visible,
+.yui-spk__refresh:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-spk__preview:disabled,
+.yui-spk__refresh:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.yui-spk__preview:disabled:hover,
+.yui-spk__refresh:disabled:hover {
+  background: transparent;
+  color: var(--yui-text-mute);
+}
+
+.yui-spk__preview svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.yui-spk__refresh svg {
+  width: 0.92rem;
+  height: 0.92rem;
+}
+
+/* Playing: amber-filled glyph pulses softly */
+.yui-spk__preview.is-playing {
+  color: var(--yui-accent);
+  opacity: 1;
+}
+
+/* refreshing: inactive + ↻ glyph rotates in place (same vocabulary as swap spinner) */
+.yui-spk__refresh.is-refreshing {
+  color: var(--yui-accent-soft);
+  opacity: 1;
+  cursor: progress;
+}
+
+/* success: check glyph gets momentary warm-accent tint */
+.yui-spk__refresh.is-done {
+  color: var(--yui-accent);
+  opacity: 1;
+}
+
+/* Neutral/positive inline guidance — same indent as error, but subdued dim, never warm-red */
+.yui-spk__note {
+  margin: 0.1rem 0.6rem 0.35rem 2.3rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--yui-text-dim);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.yui-spk__note svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  flex: 0 0 auto;
+  color: var(--yui-accent);
+}
+
+/* ── Motion gated behind prefers-reduced-motion ── */
+@media (prefers-reduced-motion: no-preference) {
+  .yui-spk[aria-busy="true"] .yui-spk__tick::after {
+    animation: yui-spk-spin 0.7s linear infinite;
+  }
+
+  .yui-spk__preview.is-playing {
+    animation: yui-spk-pulse 1.4s var(--yui-ease) infinite;
+  }
+
+  .yui-spk__refresh.is-refreshing svg {
+    animation: yui-spk-spin 0.7s linear infinite;
+    transform-origin: 50% 50%;
+  }
+}
+
+@keyframes yui-spk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes yui-spk-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
