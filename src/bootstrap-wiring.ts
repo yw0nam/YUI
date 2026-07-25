@@ -1,4 +1,5 @@
 /** Bootstrap wiring helpers extracted from main.ts: VRM + speaker selection stores and their swap/import flows. */
+import type { Tier1Engine } from "./ambient/tier1";
 import {
   type AppConfig,
   type ConfigSection,
@@ -8,10 +9,12 @@ import {
 } from "./config";
 import type { EndpointsConfig, WindowRect } from "./contract";
 import { createAgentSource } from "./dispatcher/agent-source";
+import type { Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
 import { createProactiveSource, type ProactiveSource } from "./dispatcher/proactive-source";
 import { createScheduleSource, type ScheduleSource } from "./dispatcher/schedule-source";
 import { createSignalsSource, type SignalsSource } from "./dispatcher/signals-source";
+import type { UserInputSource } from "./dispatcher/user-input-source";
 import type { AgentNotifySettings } from "./io/agent-notify-settings";
 import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
 import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
@@ -21,7 +24,8 @@ import { ensureRegistered, updateVoice } from "./io/irodori-voices";
 import type { PresenceSettings } from "./io/presence-settings";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
-import type { SettingsBridge } from "./io/settings-bridge";
+import { createSettingsBridge, type SettingsBridge } from "./io/settings-bridge";
+import { wireStorageSync } from "./io/settings-window";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
@@ -675,4 +679,175 @@ export function wireVoiceInput(deps: {
     void sttVad?.dispose();
   };
   return { setStt, dispose };
+}
+
+/**
+ * Cross-window settings sync: the pop-out settings window bridge (Tauri events / BroadcastChannel),
+ * its localStorage-`storage`-event fallback, and the broadcast half of the loop-guarded cross-window
+ * sync — the three pieces that exist purely so edits in either window reach the other. Mouth-preview
+ * and voice-toggle/voice-state are wired here since they ride the same bridge. `dispose` tears down
+ * all three; `broadcastSettings`/`runApplyingRemote` are handed to `wireSettingsReload` by the caller.
+ */
+export function wireCrossWindowSync(deps: {
+  renderer: Pick<Renderer, "setMouthOpen" | "stopMouth">;
+  voiceInputStatus: VoiceInputStatus;
+  storageSyncStores: ReadonlyArray<{ reloadFromStorage(): void }>;
+  syncedStores: SyncedStore[];
+  cameraSettings: Pick<SyncedStore, "subscribe">;
+  log: Logger;
+}): {
+  bridge: SettingsBridge;
+  broadcastSettings: () => void;
+  runApplyingRemote: (apply: () => void) => void;
+  dispose: () => void;
+} {
+  const { renderer, voiceInputStatus, storageSyncStores, syncedStores, cameraSettings, log } = deps;
+  const disposeStorageSync = wireStorageSync(storageSyncStores);
+  const bridge = createSettingsBridge();
+  // Mouth preview (separate window → this window VRM): gain slider drag moves actual mouth.
+  bridge.onMouthPreview((mouthOpen) => {
+    if (mouthOpen == null) renderer.stopMouth();
+    else renderer.setMouthOpen(mouthOpen);
+  });
+  // Voice toggle (separate window → this window STT): existing voiceInputStatus subscription starts/stops sttVad.
+  bridge.onVoiceSet((on) => {
+    log.info("voice_toggle_received", { on, source: "settings_window" });
+    voiceInputStatus.set(on ? "listening" : "idle");
+  });
+  // Voice state (this window → separate window): separate window indicator reflects actual STT state.
+  voiceInputStatus.subscribe((snapshot) => {
+    bridge.emitVoiceState({ state: snapshot.state });
+  });
+  const {
+    broadcastSettings,
+    runApplyingRemote,
+    dispose: disposeSettingsBroadcast,
+  } = createSettingsBroadcast({ bridge, syncedStores, cameraSettings });
+  const dispose = (): void => {
+    disposeStorageSync();
+    disposeSettingsBroadcast();
+    bridge.dispose();
+  };
+  return { bridge, broadcastSettings, runApplyingRemote, dispose };
+}
+
+/**
+ * DEV-only console/global handles for the screenshot validation loop and manual exploration:
+ * `__yuiRenderer`/`__yuiSurfaces`/etc for direct inspection, `__yui_send`/`__yui_windowSit`/`__yuiDemo`
+ * for firing dispatcher-spine events without a real gesture. Never runs in production builds.
+ */
+export async function wireDevGlobals(deps: {
+  renderer: Renderer;
+  ambient: Pick<Tier1Engine, "trigger">;
+  surfaces: Surfaces;
+  screenshotSettings: unknown;
+  lipsyncSettings: unknown;
+  agentSettings: unknown;
+  quickControls: unknown;
+  voiceInputStatus: VoiceInputStatus;
+  userInput: Pick<UserInputSource, "submit">;
+  bus: EventBus;
+  getDispatcher: () => Dispatcher | null;
+}): Promise<void> {
+  const {
+    renderer,
+    ambient,
+    surfaces,
+    screenshotSettings,
+    lipsyncSettings,
+    agentSettings,
+    quickControls,
+    voiceInputStatus,
+    userInput,
+    bus,
+    getDispatcher,
+  } = deps;
+  const { createMockDriver } = await import("./ui/mock");
+  const mock: ReturnType<typeof createMockDriver> = createMockDriver(surfaces);
+  Object.assign(globalThis as Record<string, unknown>, {
+    __yuiRenderer: renderer,
+    __yuiAmbient: ambient,
+    __yuiSurfaces: surfaces,
+    __yuiMock: mock,
+    __yuiScreenshot: screenshotSettings,
+    __yuiLipsync: lipsyncSettings,
+    __yuiAgent: agentSettings,
+    __yuiQuick: quickControls,
+    __yuiVoiceInputStatus: voiceInputStatus,
+    // DEV-ONLY trigger: fire E2E loop directly from console.
+    //   window.__yui_send("hello") → user.text_submitted → dispatcher → backend_caller →
+    //   streamChat → Hermes → ControlEnvelope → renderer.applyDirective + bubble.
+    // Temporary handle for validation.
+    __yui_send: (text: string) => userInput.submit(text),
+    // Dispatcher observation: __yui_dispatcher.inFlight()/queue()/recentDrops().
+    __yui_dispatcher: getDispatcher,
+    // DEV-ONLY trigger: fire window_sit perch enter/exit/drop directly from console.
+    //   window.__yui_windowSit.enter() → user.window_sit_enter → dispatcher → renderer.
+    //   window.__yui_windowSit.drop(rect) → user.window_sit_drop(geometry) → perch align.
+    __yui_windowSit: {
+      enter: () =>
+        bus.push({
+          source: "user_input_source",
+          event_name: "user.window_sit_enter",
+          ts: Date.now(),
+          hint_tier: 1,
+          dnd_override: true,
+        }),
+      exit: () =>
+        bus.push({
+          source: "user_input_source",
+          event_name: "user.window_sit_exit",
+          ts: Date.now(),
+          hint_tier: 1,
+          dnd_override: true,
+        }),
+      // Compute edge_local_ypx from current window outerPosition/scaleFactor,
+      // drive geometry path without real OS window (Tauri: actual values, else 0,0/1 fallback).
+      drop: async (rect: WindowRect): Promise<void> => {
+        let pos = { x: 0, y: 0 };
+        let scale = 1;
+        if (isTauri()) {
+          try {
+            const { getCurrentWindow } = await import("@tauri-apps/api/window");
+            const w = getCurrentWindow();
+            pos = await w.outerPosition();
+            scale = await w.scaleFactor();
+          } catch {
+            /* fallback to 0,0 / 1 */
+          }
+        }
+        const sf = scale > 0 ? scale : 1;
+        bus.push({
+          source: "os_event_watcher",
+          event_name: "user.window_sit_drop",
+          ts: Date.now(),
+          hint_tier: 1,
+          dnd_override: true,
+          payload: {
+            edge_local_ypx: rect.y - pos.y / sf,
+          },
+        });
+      },
+      // Occupancy simulation: fire occlusion poll exit result (window_sit_exit) without real second window.
+      occlude: (_rect?: WindowRect) =>
+        bus.push({
+          source: "os_event_watcher",
+          event_name: "user.window_sit_exit",
+          ts: Date.now(),
+          hint_tier: 1,
+          dnd_override: true,
+        }),
+    },
+    // Step-by-step demo helpers
+    __yuiDemo: {
+      input: () => surfaces.summonInput(),
+      tool: (id = "web_search") => surfaces.showTool(id),
+      send: (text = "안녕") => userInput.submit(text),
+      reply: (text = "오늘 일정 뭐 있어?") => mock.reply(text),
+      proactive: () => mock.proactive(),
+      speak: (line = "응, 듣고 있어. 그거 지금 같이 볼까?") => mock.speak(line),
+      tap: () => ambient.trigger("tap_react"),
+      idleReturn: () => ambient.trigger("idle_returned"),
+    },
+  });
 }
