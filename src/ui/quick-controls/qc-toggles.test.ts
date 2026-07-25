@@ -11,7 +11,7 @@ import { createProactiveSettings } from "../../io/proactive-settings";
 import { createScheduleSettings } from "../../io/schedule-settings";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
 import { createTtsSettings } from "../../io/tts-settings";
-import { createVadSettings } from "../../io/vad-settings";
+import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../io/vad-settings";
 import type { createVrmSelection } from "../../io/vrm-selection";
 import { setLocale } from "../i18n";
 import { createQuickControls, PREVIEW_PEAK_RMS } from "../quick-controls";
@@ -590,5 +590,70 @@ describe("createQuickControls — toggles + gain row", () => {
     expect(readout!.textContent).toBe("1.5×");
 
     qc.dispose();
+  });
+
+  // ── Gain and VAD sliders stay independent ────────────────────────────────
+  // Both rows are driven by one shared slider binder, so each side effect must reach
+  // only its own store: the lipsync preview is the gain slider's alone.
+
+  function sliders(qc: ReturnType<typeof buildQc>) {
+    return {
+      gain: qc.el.querySelector<HTMLInputElement>(
+        "input.yui-gain__slider:not(.yui-vad__slider)[type=range]",
+      )!,
+      vad: qc.el.querySelector<HTMLInputElement>("input.yui-vad__slider[type=range]")!,
+    };
+  }
+
+  it("VAD slider input commits silenceMs without starting the lipsync preview", () => {
+    const vad = createVadSettings();
+    const qc = buildQc({ vad });
+    qc.open();
+
+    const { vad: vadSlider } = sliders(qc);
+    vadSlider.value = "2000";
+    vadSlider.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(vad.get().silenceMs).toBe(2000);
+    expect(onGainPreview).not.toHaveBeenCalled();
+    expect(lipsync.get().gain).toBe(2);
+
+    vadSlider.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    expect(onGainPreviewEnd).not.toHaveBeenCalled();
+
+    qc.dispose();
+  });
+
+  it("gain slider input leaves silenceMs untouched", () => {
+    const vad = createVadSettings();
+    const qc = buildQc({ vad });
+    qc.open();
+
+    const { gain: gainSlider } = sliders(qc);
+    gainSlider.value = "3";
+    gainSlider.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(lipsync.get().gain).toBe(3);
+    expect(vad.get().silenceMs).toBe(VAD_SILENCE_DEFAULT);
+
+    qc.dispose();
+  });
+
+  it("dispose() detaches both sliders, not just one", () => {
+    const vad = createVadSettings();
+    const qc = buildQc({ vad });
+    qc.open();
+
+    const { gain: gainSlider, vad: vadSlider } = sliders(qc);
+    qc.dispose();
+
+    gainSlider.value = "4";
+    gainSlider.dispatchEvent(new Event("input", { bubbles: true }));
+    vadSlider.value = "2500";
+    vadSlider.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(lipsync.get().gain).toBe(2);
+    expect(vad.get().silenceMs).toBe(VAD_SILENCE_DEFAULT);
+    expect(onGainPreview).not.toHaveBeenCalled();
   });
 });

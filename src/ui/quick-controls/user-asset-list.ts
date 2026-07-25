@@ -6,6 +6,8 @@
  * (row markup, refresh/audition, controls-enabled gating of markup) stays in the caller;
  * this module owns only the state + control flow that is identical across domains.
  */
+import "./user-asset-list.css";
+
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 

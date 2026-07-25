@@ -1,0 +1,364 @@
+/* ── VRM·speaker list — row/tick/state styles in common block above (quick-controls.css).
+   Scroll cap + footer here. ── */
+
+/* List stops at ~4 rows; anything beyond scrolls internally — doesn't expand panel.
+   Partial 5th row shows through fade to signal overflow. */
+.yui-vrm-scroll,
+.yui-spk-scroll {
+  position: relative;
+  max-height: var(--yui-vrm-cap, 9rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--yui-edge-strong) transparent;
+}
+
+/* "Add from file…" fixed footer — outside scroll area. Always visible regardless of list length. */
+.yui-vrm-foot,
+.yui-spk-foot {
+  margin-top: 0.1rem;
+  border-top: 1px solid var(--yui-edge);
+  padding-top: 0.1rem;
+}
+
+/* ── Loading: clicked row shows "swapping…", other rows dimmed/inactive ── */
+.yui-vrm[aria-busy="true"] .yui-vrm__name,
+.yui-spk[aria-busy="true"] .yui-spk__name {
+  color: var(--yui-text-dim);
+}
+
+.yui-vrm__hint {
+  margin-left: auto;
+}
+
+.yui-spk__hint {
+  flex: 0 0 auto;
+}
+
+.yui-vrm__hint,
+.yui-spk__hint {
+  font-size: 0.7rem;
+  color: var(--yui-text-mute);
+  white-space: nowrap;
+}
+
+.yui-vrm[aria-busy="true"] .yui-vrm__tick,
+.yui-spk[aria-busy="true"] .yui-spk__tick {
+  border-color: var(--yui-accent-soft);
+  background: transparent;
+}
+
+.yui-vrm[aria-busy="true"] .yui-vrm__tick::after,
+.yui-spk[aria-busy="true"] .yui-spk__tick::after {
+  width: 0.62rem;
+  height: 0.62rem;
+  background: transparent;
+  border: 1.5px solid var(--yui-accent);
+  border-top-color: transparent;
+  transform: scale(1);
+}
+
+/* Speaker-side spin is gated in no-preference block below. */
+.yui-vrm[aria-busy="true"] .yui-vrm__tick::after {
+  animation: yui-vrm-spin 0.7s linear infinite;
+}
+
+@keyframes yui-vrm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Other rows non-interactive during swap */
+.yui-vrms.is-swapping .yui-vrm:not([aria-busy="true"]),
+.yui-spks.is-swapping .yui-spk:not([aria-busy="true"]) {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ── Error: selection reverted + warm-red inline guidance ── */
+.yui-vrm.is-error .yui-vrm__name,
+.yui-spk.is-error .yui-spk__name {
+  color: var(--yui-danger);
+}
+
+.yui-vrm.is-error .yui-vrm__tick,
+.yui-spk.is-error .yui-spk__tick {
+  border-color: var(--yui-danger);
+  background: transparent;
+}
+
+.yui-vrm.is-error .yui-vrm__tick::after,
+.yui-spk.is-error .yui-spk__tick::after {
+  transform: scale(0);
+}
+
+.yui-mon__error,
+.yui-vrm__error,
+.yui-spk__error {
+  margin: 0.1rem 0.6rem 0.35rem 2.3rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--yui-danger);
+}
+
+/* ── "Add from file…" ghost row — reserved/inactive ── */
+.yui-vrm--add,
+.yui-spk--add {
+  color: var(--yui-text-mute);
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.yui-vrm--add:hover,
+.yui-spk--add:hover {
+  background: transparent;
+}
+
+.yui-vrm--add .yui-vrm__tick,
+.yui-spk--add .yui-spk__tick {
+  border-style: dashed;
+  border-color: var(--yui-text-mute);
+}
+
+.yui-vrm--add .yui-vrm__tick::after,
+.yui-spk--add .yui-spk__tick::after {
+  content: "+";
+  width: auto;
+  height: auto;
+  background: transparent;
+  transform: none;
+  color: var(--yui-text-mute);
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.yui-vrm--add .yui-vrm__name,
+.yui-spk--add .yui-spk__name {
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+.yui-vrm__soon,
+.yui-spk__soon {
+  margin-left: auto;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--yui-text-mute);
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px dashed var(--yui-edge-strong);
+  white-space: nowrap;
+}
+
+/* ── Active "Add from file…" row — same ghost layout, now interactive.
+   Remove disabled wash, keep ⊕ tick. ── */
+.yui-vrm--add.is-ready,
+.yui-spk--add.is-ready {
+  color: var(--yui-text-dim);
+  cursor: pointer;
+  opacity: 1;
+}
+
+.yui-vrm--add.is-ready:hover,
+.yui-spk--add.is-ready:hover {
+  background: oklch(0.97 0.01 80 / 0.06);
+}
+
+.yui-vrm--add.is-ready:hover .yui-vrm__name,
+.yui-spk--add.is-ready:hover .yui-spk__name {
+  color: var(--yui-text);
+}
+
+.yui-vrm--add.is-ready .yui-vrm__tick,
+.yui-spk--add.is-ready .yui-spk__tick {
+  border-color: var(--yui-text-mute);
+}
+
+.yui-vrm--add.is-ready:hover .yui-vrm__tick,
+.yui-spk--add.is-ready:hover .yui-spk__tick {
+  border-color: var(--yui-text-dim);
+}
+
+.yui-vrm--add.is-ready .yui-vrm__name,
+.yui-spk--add.is-ready .yui-spk__name {
+  color: var(--yui-text-dim);
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+/* ── user row's ✎ rename · 🗑 delete — mirror .yui-spk__refresh / __preview.
+   1.5rem ghost, hidden elsewhere, lit on hover (rename=amber, remove=warm-red). ── */
+.yui-vrm__rename,
+.yui-vrm__remove,
+.yui-spk__rename,
+.yui-spk__remove {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease),
+    opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+/* Icons emerge on row hover/focus (invisible-by-default) */
+.yui-vrm:hover .yui-vrm__rename,
+.yui-vrm:hover .yui-vrm__remove,
+.yui-vrm:focus-within .yui-vrm__rename,
+.yui-vrm:focus-within .yui-vrm__remove,
+.yui-spk:hover .yui-spk__rename,
+.yui-spk:hover .yui-spk__remove,
+.yui-spk:focus-within .yui-spk__rename,
+.yui-spk:focus-within .yui-spk__remove {
+  opacity: 0.7;
+}
+
+.yui-vrm__rename:hover,
+.yui-spk__rename:hover {
+  opacity: 1;
+  background: var(--yui-accent-faint);
+  color: var(--yui-accent);
+}
+
+/* Delete is destructive — warm-red on hover (not amber) */
+.yui-vrm__remove:hover,
+.yui-spk__remove:hover {
+  opacity: 1;
+  background: var(--yui-danger-faint);
+  color: var(--yui-danger);
+}
+
+.yui-vrm__rename:focus-visible,
+.yui-vrm__remove:focus-visible,
+.yui-spk__rename:focus-visible,
+.yui-spk__remove:focus-visible {
+  outline: none;
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-vrm__remove:focus-visible,
+.yui-spk__remove:focus-visible {
+  box-shadow: 0 0 0 2px var(--yui-danger-soft);
+}
+
+.yui-vrm__rename svg,
+.yui-vrm__remove svg,
+.yui-spk__rename svg,
+.yui-spk__remove svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+/* ── Import placeholder row — transient, end of list ── */
+.yui-vrm__loading,
+.yui-spk__loading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  color: var(--yui-text-dim);
+}
+
+.yui-vrm__spin,
+.yui-spk__spin {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1.5px solid var(--yui-accent-soft);
+  border-top-color: transparent;
+}
+
+.yui-vrm__spin {
+  animation: yui-vrm-spin 0.7s linear infinite;
+}
+
+.yui-spk__spin {
+  animation: yui-spk-spin 0.7s linear infinite;
+}
+
+.yui-vrm__loading-name,
+.yui-spk__loading-name {
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+/* ── Load/import error — inline, below add row. muted danger. ── */
+.yui-vrm__import-error,
+.yui-spk__import-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.3rem 0.6rem 0.1rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--yui-radius-row);
+  background: var(--yui-danger-faint);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--yui-danger);
+}
+
+.yui-vrm__import-error[hidden],
+.yui-spk__import-error[hidden] {
+  display: none;
+}
+
+.yui-vrm__import-error svg,
+.yui-spk__import-error svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex: 0 0 auto;
+  margin-top: 0.08rem;
+}
+
+/* ── Inline name editing — reuse .yui-input-wrap / .yui-ep-input ── */
+.yui-vrm--renaming,
+.yui-spk--renaming {
+  cursor: default;
+  background: oklch(0.97 0.01 80 / 0.04);
+}
+
+/* Input wrapper inside edit row grows within row and removes top margin (neutralizes endpoint row variant). */
+.yui-vrm--renaming .yui-input-wrap,
+.yui-spk--renaming .yui-input-wrap {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
+
+.yui-vrm--renaming .yui-ep-input,
+.yui-spk--renaming .yui-ep-input {
+  padding: 0.32rem 0.55rem;
+}
+
+.yui-vrm__rename-hint,
+.yui-spk__rename-hint {
+  flex: 0 0 auto;
+  font-size: 0.66rem;
+  color: var(--yui-text-mute);
+  white-space: nowrap;
+}
+
+.yui-vrm__rename-hint kbd,
+.yui-spk__rename-hint kbd {
+  font-family: inherit;
+  font-weight: 650;
+  color: var(--yui-text-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-vrm__spin,
+  .yui-spk__spin {
+    animation: none;
+  }
+}

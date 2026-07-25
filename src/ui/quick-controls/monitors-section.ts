@@ -2,6 +2,8 @@
  * Monitors section — owns screen source list rendering and load state.
  * Follows sibling section pattern: explicit deps + wired from shell.
  */
+import "./monitors-section.css";
+
 import type { ScreenSource } from "../../contract";
 import type { MonitorInfo, ScreenSourceProvider } from "../../io/screen-source-provider";
 import type { createScreenshotSettings } from "../../io/screenshot-settings";

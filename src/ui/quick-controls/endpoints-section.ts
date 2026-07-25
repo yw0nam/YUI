@@ -4,6 +4,8 @@
  * Same pattern as VRM/speaker sections: explicit deps + wired from shell. reflect (store→DOM) handled by reflect layer;
  * this module owns inputs, handlers, subscriptions, teardown only.
  */
+import "./endpoints-section.css";
+
 import type { ApiKeySettingsStore } from "../../io/api-key-settings";
 import type { ChatKeySettingsStore } from "../../io/chat-key-settings";
 import type { createEndpointsSettings, EndpointOverrides } from "../../io/endpoints-settings";
