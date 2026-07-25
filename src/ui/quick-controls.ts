@@ -429,45 +429,72 @@ export function createQuickControls({
     }
   }
 
-  function handleIdleThrottleSwitchClick(): void {
-    const current = idleThrottleSettings.get().enabled;
-    idleThrottleSettings.setEnabled(!current);
-    log.info("idle_throttle_toggle", { enabled: !current });
+  // ── Declarative on/off toggle table ──
+  // Each entry: read a store's boolean field, flip it, write it back, optionally log.
+  // Toggles with extra side effects (screenshot switch loads monitors; voice switch is a
+  // tri-state status, not a boolean field) are wired individually below instead — see handleSwitchClick
+  // and handleVoiceSwitchClick.
+  interface ToggleSpec {
+    btn: HTMLButtonElement | null | undefined;
+    isAvailable: () => boolean;
+    getEnabled: () => boolean;
+    setEnabled: (value: boolean) => void;
+    logKey?: string;
   }
 
-  function handleTtsSwitchClick(): void {
-    if (!ttsSettings) return;
-    const current = ttsSettings.get().enabled;
-    ttsSettings.setEnabled(!current);
-    log.info("tts_output_toggle", { enabled: !current });
-  }
+  const TOGGLE_SPECS: ToggleSpec[] = [
+    {
+      btn: idleThrottleSwitchBtn,
+      isAvailable: () => true,
+      getEnabled: () => idleThrottleSettings.get().enabled,
+      setEnabled: (v) => idleThrottleSettings.setEnabled(v),
+      logKey: "idle_throttle_toggle",
+    },
+    {
+      btn: ttsSwitchBtn,
+      isAvailable: () => !!ttsSettings,
+      getEnabled: () => ttsSettings!.get().enabled,
+      setEnabled: (v) => ttsSettings!.setEnabled(v),
+      logKey: "tts_output_toggle",
+    },
+    {
+      btn: bargeInSwitchBtn,
+      isAvailable: () => true,
+      getEnabled: () => vad.get().bargeIn,
+      setEnabled: (v) => vad.setBargeIn(v),
+      logKey: "bargein_toggle",
+    },
+    {
+      btn: gazeSwitchBtn,
+      isAvailable: () => !!gazeSettings,
+      getEnabled: () => gazeSettings!.get().enabled,
+      setEnabled: (v) => gazeSettings!.setEnabled(v),
+      logKey: "gaze_toggle",
+    },
+    {
+      btn: agentNotifySwitchBtn,
+      isAvailable: () => !!agentNotifySettings,
+      getEnabled: () => agentNotifySettings!.get().enabled,
+      setEnabled: (v) => agentNotifySettings!.setEnabled(v),
+      logKey: "agent_notify_toggle",
+    },
+    {
+      btn: fillerSwitchBtn,
+      isAvailable: () => !!fillerSettings,
+      getEnabled: () => fillerSettings!.get().enabled,
+      setEnabled: (v) => fillerSettings!.setEnabled(v),
+      // No log — matches prior handleFillerSwitchClick, which never logged.
+    },
+  ];
 
-  function handleBargeInSwitchClick(): void {
-    const current = vad.get().bargeIn;
-    vad.setBargeIn(!current);
-    log.info("bargein_toggle", { enabled: !current });
-  }
-
-  function handleGazeSwitchClick(): void {
-    if (!gazeSettings) return;
-    const current = gazeSettings.get().enabled;
-    gazeSettings.setEnabled(!current);
-    log.info("gaze_toggle", { enabled: !current });
-  }
-
-  function handleAgentNotifySwitchClick(): void {
-    if (!agentNotifySettings) return;
-    const current = agentNotifySettings.get().enabled;
-    agentNotifySettings.setEnabled(!current);
-    log.info("agent_notify_toggle", { enabled: !current });
+  function handleToggleClick(spec: ToggleSpec): void {
+    if (!spec.isAvailable()) return;
+    const next = !spec.getEnabled();
+    spec.setEnabled(next);
+    if (spec.logKey) log.info(spec.logKey, { enabled: next });
   }
 
   // ── Thinking filler event handlers ──
-
-  function handleFillerSwitchClick(): void {
-    if (!fillerSettings) return;
-    fillerSettings.setEnabled(!fillerSettings.get().enabled);
-  }
 
   // Parse textarea rows line-by-line (trim + remove empty lines).
   function parseFillerLines(el: HTMLTextAreaElement | null): string[] {
@@ -476,6 +503,45 @@ export function createQuickControls({
       .split("\n")
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
+  }
+
+  // ── Shared segmented-control keyboard pattern ──
+  // Arrows/Home/End always navigate (clamped by the domain's own select/move function); an optional
+  // commit step handles Space/Enter separately for patterns where focus doesn't imply selection
+  // (see handleLangSegKeydown). getBaseIndex lets each caller define its own "current position" —
+  // by checked state for combined navigate+select segments, by focus for roving-focus-only segments.
+  interface SegKeydownConfig {
+    length: number;
+    getBaseIndex: () => number;
+    onNavigate: (index: number, focus: boolean) => void;
+    onCommit?: (index: number) => void;
+  }
+
+  function handleSegmentKeydown(
+    e: KeyboardEvent,
+    buttons: HTMLButtonElement[],
+    cfg: SegKeydownConfig,
+  ): void {
+    const base = cfg.getBaseIndex();
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      cfg.onNavigate(base + 1, true);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      cfg.onNavigate(base - 1, true);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      cfg.onNavigate(0, true);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      cfg.onNavigate(cfg.length - 1, true);
+    } else if (cfg.onCommit && (e.key === " " || e.key === "Enter")) {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
+      const idx = btn ? buttons.indexOf(btn) : -1;
+      if (idx < 0) return;
+      e.preventDefault();
+      cfg.onCommit(idx);
+    }
   }
 
   const FILLER_LANGS = ["ja", "en", "ko"] as const;
@@ -503,27 +569,15 @@ export function createQuickControls({
 
   // Roving-focus keyboard like reasoning-effort segment. Arrows select+focus, Space/Enter selects target.
   function handleFillerLangKeydown(e: KeyboardEvent): void {
-    const current = fillerLangBtns.findIndex((b) => b.getAttribute("aria-checked") === "true");
-    const base = current < 0 ? 0 : current;
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      e.preventDefault();
-      selectFillerLang(base + 1, true);
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      e.preventDefault();
-      selectFillerLang(base - 1, true);
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      selectFillerLang(0, true);
-    } else if (e.key === "End") {
-      e.preventDefault();
-      selectFillerLang(FILLER_LANGS.length - 1, true);
-    } else if (e.key === " " || e.key === "Enter") {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
-      const idx = btn ? fillerLangBtns.indexOf(btn) : -1;
-      if (idx < 0) return;
-      e.preventDefault();
-      selectFillerLang(idx, true);
-    }
+    handleSegmentKeydown(e, fillerLangBtns, {
+      length: FILLER_LANGS.length,
+      getBaseIndex: () => {
+        const current = fillerLangBtns.findIndex((b) => b.getAttribute("aria-checked") === "true");
+        return current < 0 ? 0 : current;
+      },
+      onNavigate: (index, focus) => selectFillerLang(index, focus),
+      onCommit: (index) => selectFillerLang(index, true),
+    });
   }
 
   // Language picker — WAI-ARIA "selection doesn't follow focus" radio pattern.
@@ -561,30 +615,21 @@ export function createQuickControls({
   }
 
   function handleLangSegKeydown(e: KeyboardEvent): void {
-    // Arrow baseline: currently focused radio (else checked one, else 0).
-    const active = document.activeElement;
-    const focusIdx = active instanceof HTMLButtonElement ? langSegButtons.indexOf(active) : -1;
-    const checkedIdx = langSegButtons.findIndex((b) => b.getAttribute("aria-checked") === "true");
-    const base = focusIdx >= 0 ? focusIdx : checkedIdx < 0 ? 0 : checkedIdx;
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      e.preventDefault();
-      moveLocaleFocus(base + 1);
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      e.preventDefault();
-      moveLocaleFocus(base - 1);
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      moveLocaleFocus(0);
-    } else if (e.key === "End") {
-      e.preventDefault();
-      moveLocaleFocus(langSegButtons.length - 1);
-    } else if (e.key === " " || e.key === "Enter") {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
-      const idx = btn ? langSegButtons.indexOf(btn) : -1;
-      if (idx < 0) return;
-      e.preventDefault(); // Prevent double-commit from native button click
-      commitLocale(idx);
-    }
+    handleSegmentKeydown(e, langSegButtons, {
+      length: langSegButtons.length,
+      // Arrow baseline: currently focused radio (else checked one, else 0).
+      getBaseIndex: () => {
+        const active = document.activeElement;
+        const focusIdx = active instanceof HTMLButtonElement ? langSegButtons.indexOf(active) : -1;
+        const checkedIdx = langSegButtons.findIndex(
+          (b) => b.getAttribute("aria-checked") === "true",
+        );
+        return focusIdx >= 0 ? focusIdx : checkedIdx < 0 ? 0 : checkedIdx;
+      },
+      onNavigate: (index) => moveLocaleFocus(index),
+      // Prevent double-commit from native button click — same guard as before (e.preventDefault in shared fn).
+      onCommit: (index) => commitLocale(index),
+    });
   }
 
   // When editing either field, write both fields' current values together so neither clobbers the other.
@@ -630,21 +675,15 @@ export function createQuickControls({
   }
 
   function handleSegKeydown(e: KeyboardEvent): void {
-    const current = segButtons.findIndex((b) => b.getAttribute("aria-checked") === "true");
-    const base = current < 0 ? 0 : current;
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      e.preventDefault();
-      selectEffort(base + 1, true);
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      e.preventDefault();
-      selectEffort(base - 1, true);
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      selectEffort(0, true);
-    } else if (e.key === "End") {
-      e.preventDefault();
-      selectEffort(REASONING_EFFORTS.length - 1, true);
-    }
+    handleSegmentKeydown(e, segButtons, {
+      length: REASONING_EFFORTS.length,
+      getBaseIndex: () => {
+        const current = segButtons.findIndex((b) => b.getAttribute("aria-checked") === "true");
+        return current < 0 ? 0 : current;
+      },
+      onNavigate: (index, focus) => selectEffort(index, focus),
+      // No onCommit — native <button> Space/Enter already fires click (handleSegClick), matching prior behavior.
+    });
   }
 
   // ── Chat section: instructions textarea ──
@@ -690,33 +729,69 @@ export function createQuickControls({
     log.info("session_reset");
   }
 
+  // ── Shared slider input/end pattern ──
+  // input: parse the raw value, commit it to the store (a subscription redraws the row), optionally
+  // run an extra side effect (gain's lipsync preview). end (pointerup/blur): optionally end that side
+  // effect, then always log the committed value.
+  interface SliderBinding<T> {
+    slider: HTMLInputElement;
+    parse: (raw: string) => T;
+    setValue: (v: T) => void;
+    logKey: string;
+    logField: string;
+    onInputExtra?: (v: T) => void;
+    onEndExtra?: () => void;
+  }
+
+  function bindSlider<T>(cfg: SliderBinding<T>): () => void {
+    function handleInput(): void {
+      const v = cfg.parse(cfg.slider.value);
+      cfg.setValue(v);
+      cfg.onInputExtra?.(v);
+    }
+    function handleEnd(): void {
+      cfg.onEndExtra?.();
+      log.info(cfg.logKey, { [cfg.logField]: cfg.parse(cfg.slider.value) });
+    }
+    cfg.slider.addEventListener("input", handleInput);
+    cfg.slider.addEventListener("pointerup", handleEnd);
+    cfg.slider.addEventListener("blur", handleEnd);
+    return () => {
+      cfg.slider.removeEventListener("input", handleInput);
+      cfg.slider.removeEventListener("pointerup", handleEnd);
+      cfg.slider.removeEventListener("blur", handleEnd);
+    };
+  }
+
   // ── Gain slider ──
 
-  function handleGainInput(): void {
-    const v = parseFloat(gainSlider.value);
-    lipsync.setGain(v); // On value change, lipsync subscription calls reflect.reflectGain to redraw gain row
-    gainPreviewing = true;
-    onGainPreview(previewMouth(v));
-  }
-
-  function handleGainEnd(): void {
-    if (gainPreviewing) {
-      onGainPreviewEnd();
-      gainPreviewing = false;
-    }
-    log.info("mouth_gain_change", { gain: parseFloat(gainSlider.value) });
-  }
+  const disposeGainSlider = bindSlider({
+    slider: gainSlider,
+    parse: parseFloat,
+    setValue: (v: number) => lipsync.setGain(v), // On value change, lipsync subscription calls reflect.reflectGain to redraw gain row
+    logKey: "mouth_gain_change",
+    logField: "gain",
+    onInputExtra: (v: number) => {
+      gainPreviewing = true;
+      onGainPreview(previewMouth(v));
+    },
+    onEndExtra: () => {
+      if (gainPreviewing) {
+        onGainPreviewEnd();
+        gainPreviewing = false;
+      }
+    },
+  });
 
   // ── Silence threshold (VAD) slider ──
 
-  function handleVadInput(): void {
-    const ms = parseInt(vadSlider.value, 10);
-    vad.setSilenceMs(ms); // Store subscription calls reflect.reflectVad to redraw value row
-  }
-
-  function handleVadEnd(): void {
-    log.info("vad_silence_change", { silenceMs: parseInt(vadSlider.value, 10) });
-  }
+  const disposeVadSlider = bindSlider({
+    slider: vadSlider,
+    parse: (raw: string) => parseInt(raw, 10),
+    setValue: (v: number) => vad.setSilenceMs(v), // Store subscription calls reflect.reflectVad to redraw value row
+    logKey: "vad_silence_change",
+    logField: "silenceMs",
+  });
 
   // ── Tab switching ──
   // Toggle aria-selected/hidden + roving tabindex only. Arrows (←/→/Home/End) activate immediately.
@@ -895,12 +970,11 @@ export function createQuickControls({
   });
 
   switchBtn.addEventListener("click", handleSwitchClick);
-  idleThrottleSwitchBtn.addEventListener("click", handleIdleThrottleSwitchClick);
-  ttsSwitchBtn?.addEventListener("click", handleTtsSwitchClick);
-  bargeInSwitchBtn?.addEventListener("click", handleBargeInSwitchClick);
-  gazeSwitchBtn?.addEventListener("click", handleGazeSwitchClick);
-  agentNotifySwitchBtn?.addEventListener("click", handleAgentNotifySwitchClick);
-  fillerSwitchBtn?.addEventListener("click", handleFillerSwitchClick);
+  // Table-driven toggles share one handler; each spec's button gets its own bound closure so dispose() can remove it.
+  const toggleClickHandlers = TOGGLE_SPECS.map((spec) => () => handleToggleClick(spec));
+  TOGGLE_SPECS.forEach((spec, i) => {
+    spec.btn?.addEventListener("click", toggleClickHandlers[i]);
+  });
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
   fillerLangSegEl?.addEventListener("keydown", handleFillerLangKeydown);
   langSegEl.addEventListener("click", handleLangSegClick);
@@ -908,12 +982,7 @@ export function createQuickControls({
   fillerFirstTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   fillerRepeatTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
-  gainSlider.addEventListener("input", handleGainInput);
-  gainSlider.addEventListener("pointerup", handleGainEnd);
-  gainSlider.addEventListener("blur", handleGainEnd);
-  vadSlider.addEventListener("input", handleVadInput);
-  vadSlider.addEventListener("pointerup", handleVadEnd);
-  vadSlider.addEventListener("blur", handleVadEnd);
+  // Gain/VAD sliders are wired inside bindSlider() above; disposeGainSlider/disposeVadSlider tear them down.
   tablistEl.addEventListener("click", handleTabClick);
   tablistEl.addEventListener("keydown", handleTabKeydown);
   railCollapseBtn.addEventListener("click", handleRailCollapseClick);
@@ -964,12 +1033,9 @@ export function createQuickControls({
     speakerList.dispose();
     popover.dispose();
     switchBtn.removeEventListener("click", handleSwitchClick);
-    idleThrottleSwitchBtn.removeEventListener("click", handleIdleThrottleSwitchClick);
-    ttsSwitchBtn?.removeEventListener("click", handleTtsSwitchClick);
-    bargeInSwitchBtn?.removeEventListener("click", handleBargeInSwitchClick);
-    gazeSwitchBtn?.removeEventListener("click", handleGazeSwitchClick);
-    agentNotifySwitchBtn?.removeEventListener("click", handleAgentNotifySwitchClick);
-    fillerSwitchBtn?.removeEventListener("click", handleFillerSwitchClick);
+    TOGGLE_SPECS.forEach((spec, i) => {
+      spec.btn?.removeEventListener("click", toggleClickHandlers[i]);
+    });
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
     fillerLangSegEl?.removeEventListener("keydown", handleFillerLangKeydown);
     langSegEl.removeEventListener("click", handleLangSegClick);
@@ -977,12 +1043,8 @@ export function createQuickControls({
     fillerFirstTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     fillerRepeatTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
-    gainSlider.removeEventListener("input", handleGainInput);
-    gainSlider.removeEventListener("pointerup", handleGainEnd);
-    gainSlider.removeEventListener("blur", handleGainEnd);
-    vadSlider.removeEventListener("input", handleVadInput);
-    vadSlider.removeEventListener("pointerup", handleVadEnd);
-    vadSlider.removeEventListener("blur", handleVadEnd);
+    disposeGainSlider();
+    disposeVadSlider();
     tablistEl.removeEventListener("click", handleTabClick);
     tablistEl.removeEventListener("keydown", handleTabKeydown);
     railCollapseBtn.removeEventListener("click", handleRailCollapseClick);
