@@ -332,15 +332,6 @@ export function wireWindowSources(deps: {
   if (!isTauri()) return;
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
-  // Guard teardown/async-assign race: cleanup may run before the IIFE assigns.
-  let windowDropDisposed = false;
-  if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => {
-      windowDropDisposed = true;
-      windowDropSource?.stop();
-      windowResizeSource?.stop();
-    });
-  }
   void (async () => {
     const { invoke } = await import("@tauri-apps/api/core");
     // Only bind loopback ingress when watcher on. Restart-to-apply:
@@ -378,10 +369,6 @@ export function wireWindowSources(deps: {
         };
       },
     });
-    if (windowDropDisposed) {
-      windowDropSource.stop();
-      return;
-    }
     await windowDropSource.start();
     windowResizeSource.start();
   })().catch((err) =>
@@ -530,9 +517,6 @@ export function wireSummonHotkey(deps: {
     });
     onReady(summonHotkey);
     await summonHotkey.apply(accelerator);
-    if (import.meta.env.DEV) {
-      import.meta.hot?.dispose(() => void summonHotkey.dispose());
-    }
   })().catch((err) => log.warn("summon_hotkey_wire_failed", { error: String(err) }));
 }
 

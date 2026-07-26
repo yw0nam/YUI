@@ -128,7 +128,7 @@ async function bootstrap(): Promise<void> {
   let hitTestRef: HitTestController | null = null;
   let tapSourceRef: TapSource | null = null;
   let dragHoldRef: DragHoldSource | null = null;
-  const cleanupDrag = await initDrag(stage, {
+  await initDrag(stage, {
     onClick: (pos) => tapSourceRef?.handleClick(pos),
     onDragStart: () => {
       hitTestRef?.suspend();
@@ -177,14 +177,6 @@ async function bootstrap(): Promise<void> {
   };
   stage.addEventListener("wheel", onWheelZoom, { passive: false });
 
-  // Register drag + wheel cleanup on HMR dispose in dev.
-  if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => {
-      cleanupDrag();
-      stage.removeEventListener("wheel", onWheelZoom);
-    });
-  }
-
   const renderer = createRenderer({ mount: stage });
   // Tier 1 ambient: backend-independent, always on. tick fires after VRM loads, so
   // starting before loadVRM is safe (frames without VRM are no-op).
@@ -195,7 +187,7 @@ async function bootstrap(): Promise<void> {
   // Anchor chat input to character's feet (follow reframe). Each frame, receive feet screen coordinates,
   // map to input bottom offset, skip changes below epsilon to reduce var rewrites.
   let lastInputBottom: number | null = null;
-  const unsubAnchor = renderer.onTick(() => {
+  renderer.onTick(() => {
     const a = renderer.getCharacterAnchor();
     if (!a) {
       if (lastInputBottom !== null) {
@@ -271,7 +263,7 @@ async function bootstrap(): Promise<void> {
   // bidirectionally so main window edits are reflected here and vice versa.
   const openSettings = createSettingsWindowOpener();
   const openDevtools = createDevtoolsWindowOpener();
-  const disposeStorageSync = wireStorageSync([
+  wireStorageSync([
     agentSettings,
     endpointsSettings,
     chatKeySettings,
@@ -335,11 +327,11 @@ async function bootstrap(): Promise<void> {
     idleThrottleSettings,
     ttsSettings,
   ];
-  const {
-    broadcastSettings,
-    runApplyingRemote,
-    dispose: disposeSettingsBroadcast,
-  } = createSettingsBroadcast({ bridge, syncedStores: syncedSettingsStores, cameraSettings });
+  const { broadcastSettings, runApplyingRemote } = createSettingsBroadcast({
+    bridge,
+    syncedStores: syncedSettingsStores,
+    cameraSettings,
+  });
   const { vrmSelection, loadVrmSerialized, swapVrm, importVrm } = wireVrmSelection({
     renderer,
     log,
@@ -466,7 +458,7 @@ async function bootstrap(): Promise<void> {
   // Defer to microtask so triggering click handler (picker inside quick-controls) unwinds
   // before its host is disposed. Long-lived non-UI singletons (renderer, TTS pipeline, VAD,
   // voiceStatus store) and dispatcher-wired `surfaces` instance intentionally NOT re-created.
-  const unsubscribeLocale = subscribeLocale(() => {
+  subscribeLocale(() => {
     queueMicrotask(() => {
       voiceInputIndicator.dispose();
       captureIndicator.dispose();
@@ -482,48 +474,6 @@ async function bootstrap(): Promise<void> {
     quickControls.open({ x: e.clientX, y: e.clientY });
   }
   stage.addEventListener("contextmenu", onContextMenu);
-
-  if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => {
-      unsubAnchor();
-      unsubscribeLocale();
-      quickControls.dispose();
-      disposeSettingsBroadcast();
-      bridge.dispose();
-      disposeStorageSync();
-      captureIndicator.dispose();
-      voiceInputIndicator.dispose();
-      voiceInput.dispose();
-      voiceInputStatus.dispose();
-      screenshotSettings.dispose();
-      idleThrottleSettings.dispose();
-      gazeSettings.dispose();
-      ttsSettings.dispose();
-      sttSettings.dispose();
-      proactiveSettings.dispose();
-      scheduleSettings.dispose();
-      workflowSettings.dispose();
-      agentNotifySettings.dispose();
-      presenceSettings.dispose();
-      recentAppsSettings.dispose();
-      contextSettings.dispose();
-      contextHistory.dispose();
-      lipsyncSettings.dispose();
-      vadSettings.dispose();
-      fillerSettings.dispose();
-      agentSettings.dispose();
-      endpointsSettings.dispose();
-      chatKeySettings.dispose();
-      sttKeySettings.dispose();
-      ttsKeySettings.dispose();
-      cameraSettings.dispose();
-      vrmSelection.dispose();
-      speakerSelection.dispose();
-      osContext.stop();
-      stage.removeEventListener("contextmenu", onContextMenu);
-      window.removeEventListener("keydown", onKeydown);
-    });
-  }
 
   // ── Dispatcher spine ──────────────────────────────────────────────────────
   // event_bus → dispatcher → backend_caller → streamChat → Hermes → ControlEnvelope →
@@ -559,14 +509,11 @@ async function bootstrap(): Promise<void> {
   // voice-turn failure error display (~3s) restoration timer — overlapping failures leave previous timer,
   // so always clearTimeout before re-arming to not cut later display early (same pattern as dwellTimer/broadcastTimer).
   let voiceTurnErrorTimer: ReturnType<typeof setTimeout> | null = null;
-  // Utterance candidate sources holder — stop them in teardown.
+  // Utterance candidate source holder — surfaces.onSubmit reaches it via this holder.
   let proactiveSourceRef: {
     stop(): void;
     noteInteraction(ts?: number): void;
   } | null = null;
-  let scheduleSourceRef: { stop(): void } | null = null;
-  let agentSourceRef: { stop(): void } | null = null;
-  let signalsSourceRef: { stop(): void } | null = null;
   // guardrails also created after config load — hot-reload setConfig reaches holder.
   let guardrailsRef: Guardrails | null = null;
   // Global summon hotkey (Tauri-only) — hot-reload reapply reaches holder.
@@ -740,7 +687,6 @@ async function bootstrap(): Promise<void> {
     },
   });
   if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => voice.dispose());
     Object.assign(globalThis as Record<string, unknown>, {
       __yuiSpeech: voice.speechPlayback,
     });
@@ -857,20 +803,6 @@ async function bootstrap(): Promise<void> {
       cancel: () => dispatcher.cancel(),
       abortSpeech: () => voice.speechPlayback.abort(),
     });
-    // HMR module re-run leaves stale dispatcher setInterval/in-flight → stop in dispose.
-    if (import.meta.env.DEV) {
-      import.meta.hot?.dispose(() => {
-        dispatcher.stop();
-        if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
-        proactiveSourceRef?.stop();
-        scheduleSourceRef?.stop();
-        agentSourceRef?.stop();
-        signalsSourceRef?.stop();
-        sessionStore.dispose();
-        sessionDiagnostics.dispose();
-        chatHistoryStore.dispose();
-      });
-    }
     const sttVad = await voice.createSttEngine(cfg.endpoints);
     // Bind the engine + auto-resume if left on last session (handled inside wireVoiceInput).
     voiceInput.setStt(sttVad);
@@ -930,12 +862,11 @@ async function bootstrap(): Promise<void> {
     });
     hitTestRef = hitTest;
     hitTest.start();
-    let disposePeekExitTriggers: (() => void) | null = null;
     if (isTauri()) {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       const win = getCurrentWindow();
       peekStateRef = createPeekState({ getWindow: getCurrentWindow });
-      disposePeekExitTriggers = await wirePeekExitTriggers({
+      await wirePeekExitTriggers({
         bus,
         peek: peekStateRef,
         win: {
@@ -944,18 +875,11 @@ async function bootstrap(): Promise<void> {
         },
       });
     }
-    if (import.meta.env.DEV) {
-      import.meta.hot?.dispose(() => {
-        disposePeekExitTriggers?.();
-        void peekStateRef?.dispose();
-        hitTest.stop();
-      });
-    }
     // Start dispatcher only after config ready (backend_caller depends on config.get()).
     dispatcher.start();
     // tier2 utterance candidate sources (proactive/schedule/agent/signals). Start after the
-    // dispatcher is running — firing is consumed immediately. Stop together in teardown.
-    const { proactiveSource, scheduleSource, agentSource, signalsSource } = wireDispatcherSources({
+    // dispatcher is running — firing is consumed immediately.
+    const { proactiveSource, signalsSource } = wireDispatcherSources({
       bus,
       presenceSettings,
       proactiveSettings,
@@ -967,9 +891,6 @@ async function bootstrap(): Promise<void> {
       },
     });
     proactiveSourceRef = proactiveSource;
-    scheduleSourceRef = scheduleSource;
-    agentSourceRef = agentSource;
-    signalsSourceRef = signalsSource;
     tapSourceRef = createTapSource({
       bus,
       renderer,
@@ -1005,7 +926,6 @@ async function bootstrap(): Promise<void> {
       endpointsSettings,
       log,
     });
-    if (import.meta.env.DEV) import.meta.hot?.dispose(() => brokerHandle?.dispose());
   } catch (err) {
     log.error("config_or_vrm_load_failed", { error: String(err) });
     // Boot failure = empty transparent window. Preserve cause (ConfigError vs VRM) visible to user (#316).
@@ -1063,8 +983,6 @@ async function bootstrap(): Promise<void> {
     Object.assign(globalThis as Record<string, unknown>, {
       __yuiConfig: config,
     });
-    // HMR module re-run stacks previous store's setInterval → stop in dispose.
-    import.meta.hot?.dispose(() => config.stop());
   }
 }
 
