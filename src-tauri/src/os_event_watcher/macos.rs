@@ -4,19 +4,10 @@
 #![allow(dead_code)] // CFBooleanRef + related bindings are unused FFI bindings
 
 use super::{
-    emit_os_event, epoch_ms, idle_ms_from_secs, sanitise_app_name, sanitise_window_title,
-    OsEventData, OsEventPayload, WindowAtPoint, WINDOW_DROP_RELEASE_CHANNEL,
+    idle_ms_from_secs, polling_loop, sanitise_window_title, PollingWindowInfo, WindowAtPoint,
 };
-use std::{
-    ffi::c_void,
-    sync::atomic::{AtomicBool, Ordering},
-    thread,
-    time::Duration,
-};
-use tauri::{AppHandle, Emitter, Runtime};
-
-// Polling interval — 5 s os_idle_tick / debounce.
-const POLL_INTERVAL: Duration = Duration::from_secs(5);
+use std::{ffi::c_void, thread};
+use tauri::AppHandle;
 
 // ─── Raw Core Foundation + Core Graphics FFI ─────────────────────────────────
 
@@ -307,9 +298,10 @@ unsafe fn make_cfstring(s: &str) -> CFStringRef {
 // kCGEventSourceStateCombinedSessionState = 0; left mouse button = 0.
 const CG_EVENT_SOURCE_STATE_COMBINED: i32 = 0;
 const CG_MOUSE_BUTTON_LEFT: u32 = 0;
-// Poll cadence + safety timeout so the thread can never spin forever.
-const RELEASE_POLL_INTERVAL: Duration = Duration::from_millis(16);
-const RELEASE_POLL_TIMEOUT: Duration = Duration::from_secs(10);
+
+pub(super) fn platform_lbutton_is_down() -> bool {
+    unsafe { CGEventSourceButtonState(CG_EVENT_SOURCE_STATE_COMBINED, CG_MOUSE_BUTTON_LEFT) }
+}
 
 /// Axis-aligned screen rect in CGWindowBounds space (points, top-left origin).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -509,87 +501,6 @@ fn enumerate_windows() -> Vec<WindowRect> {
     collected
 }
 
-// Process-wide once-guard: only one drop-release probe runs at a time so
-// overlapping drags can't emit duplicate `window_drop_release` signals.
-static PROBE_ACTIVE: AtomicBool = AtomicBool::new(false);
-
-/// RAII handle for the single active drop-release probe.
-///
-/// `try_acquire` succeeds only when no probe is running, flipping `PROBE_ACTIVE`
-/// to true; a concurrent attempt returns `None`. `Drop` clears the flag on every
-/// exit path of the holder (normal release emit, timeout, early return, panic),
-/// so the flag can never get stuck true.
-struct ProbeGuard;
-
-impl ProbeGuard {
-    fn try_acquire() -> Option<Self> {
-        PROBE_ACTIVE
-            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
-            .ok()
-            .map(|_| ProbeGuard)
-    }
-}
-
-impl Drop for ProbeGuard {
-    fn drop(&mut self) {
-        PROBE_ACTIVE.store(false, Ordering::Release);
-    }
-}
-
-/// Spawns a short-lived thread that polls the left mouse button until release
-/// (down→up), then emits a bare `window_drop_release` signal.
-///
-/// Called right after `start_dragging()` succeeds. Polling (not an NSEvent
-/// monitor) is used because the OS-modal drag loop swallows monitor callbacks.
-/// A hard timeout guarantees the thread exits even if no release is observed.
-///
-/// A process-wide once-guard suppresses a second concurrent probe; rapid or
-/// overlapping drags reuse the in-flight probe instead of emitting duplicate
-/// release signals. A later drag spawns normally once the prior probe finishes.
-pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
-    let Some(guard) = ProbeGuard::try_acquire() else {
-        log::debug!("drop_release_probe_skipped reason=already_active");
-        return;
-    };
-
-    thread::Builder::new()
-        .name("yui_drop_release".into())
-        .spawn(move || {
-            // Held for the thread's whole lifetime; Drop clears PROBE_ACTIVE on
-            // every exit path (timeout return, release break, or panic).
-            let _guard = guard;
-
-            let start = std::time::Instant::now();
-
-            // Wait until the button is actually down (drag may not have armed
-            // it yet), so we don't read a stale up-state as an instant release.
-            let mut saw_down = false;
-            loop {
-                if start.elapsed() >= RELEASE_POLL_TIMEOUT {
-                    log::info!("drop_release_timeout");
-                    return;
-                }
-                let down = unsafe {
-                    CGEventSourceButtonState(CG_EVENT_SOURCE_STATE_COMBINED, CG_MOUSE_BUTTON_LEFT)
-                };
-                if down {
-                    saw_down = true;
-                } else if saw_down {
-                    // down → up transition: this is the release.
-                    break;
-                }
-                thread::sleep(RELEASE_POLL_INTERVAL);
-            }
-
-            log::info!("drop_release_detected");
-
-            if let Err(e) = app.emit(WINDOW_DROP_RELEASE_CHANNEL, ()) {
-                log::warn!("window_drop_release_emit_failed error={e}");
-            }
-        })
-        .expect("failed to spawn yui_drop_release thread");
-}
-
 // ─── NSWorkspace / NSRunningApplication (objc2) ───────────────────────────────
 
 use objc2::rc::Retained;
@@ -609,6 +520,19 @@ pub fn frontmost_app() -> Option<(i32, String)> {
     Some((pid, name))
 }
 
+pub(super) fn platform_idle_ms() -> Option<u64> {
+    Some(os_idle_ms())
+}
+
+pub(super) fn platform_frontmost() -> Option<(String, Option<PollingWindowInfo>)> {
+    let (pid, app_name) = frontmost_app()?;
+    let win_info = frontmost_window_info(pid).map(|info| PollingWindowInfo {
+        title: info.title,
+        is_fullscreen: info.is_fullscreen,
+    });
+    Some((app_name, win_info))
+}
+
 // ─── Background polling loop ──────────────────────────────────────────────────
 
 pub fn start_polling(app: AppHandle) {
@@ -616,77 +540,6 @@ pub fn start_polling(app: AppHandle) {
         .name("os_event_watcher".into())
         .spawn(move || polling_loop(app))
         .expect("failed to spawn os_event_watcher thread");
-}
-
-fn polling_loop(app: AppHandle) {
-    let mut prev_app: Option<String> = None;
-    let mut prev_fullscreen: Option<bool> = None;
-
-    loop {
-        let now = epoch_ms();
-
-        // ── 1. Idle tick (emitted every poll interval) ─────────────────────
-        let idle = os_idle_ms();
-        let _ = emit_os_event(
-            &app,
-            OsEventPayload {
-                event_name: "os_idle_tick".into(),
-                ts: now,
-                data: OsEventData {
-                    os_idle_ms: Some(idle),
-                    ..Default::default()
-                },
-            },
-        );
-
-        // ── 2. Active app + window title + fullscreen ──────────────────────
-        if let Some((pid, app_name)) = frontmost_app() {
-            let clean_name = sanitise_app_name(&app_name);
-            let win_info = frontmost_window_info(pid);
-
-            let app_changed = clean_name != prev_app;
-            if app_changed {
-                prev_app = clean_name.clone();
-                let _ = emit_os_event(
-                    &app,
-                    OsEventPayload {
-                        event_name: "active_app_changed".into(),
-                        ts: epoch_ms(),
-                        data: OsEventData {
-                            active_app_name: clean_name,
-                            active_window_title: win_info.as_ref().and_then(|w| w.title.clone()),
-                            ..Default::default()
-                        },
-                    },
-                );
-            }
-
-            // ── 3. Fullscreen state change ─────────────────────────────────
-            let fs = win_info.as_ref().map(|w| w.is_fullscreen).unwrap_or(false);
-            let fs_changed = prev_fullscreen.map(|p| p != fs).unwrap_or(true);
-            if fs_changed {
-                prev_fullscreen = Some(fs);
-                let event_name = if fs {
-                    "fullscreen_entered"
-                } else {
-                    "fullscreen_exited"
-                };
-                let _ = emit_os_event(
-                    &app,
-                    OsEventPayload {
-                        event_name: event_name.into(),
-                        ts: epoch_ms(),
-                        data: OsEventData {
-                            is_fullscreen: Some(fs),
-                            ..Default::default()
-                        },
-                    },
-                );
-            }
-        }
-
-        thread::sleep(POLL_INTERVAL);
-    }
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -790,41 +643,5 @@ mod tests {
         assert!(!r.contains(40.0, 20.0)); // right edge exclusive (x + w)
         assert!(!r.contains(10.0, 60.0)); // bottom edge exclusive (y + h)
         assert!(r.contains(39.9, 59.9)); // just inside
-    }
-
-    // ── ProbeGuard once-guard ────────────────────────────────────────────────
-
-    #[test]
-    fn probe_guard_serialises_acquire_release() {
-        // Clean baseline (other tests share the process-wide flag).
-        PROBE_ACTIVE.store(false, Ordering::Release);
-
-        {
-            let first = ProbeGuard::try_acquire();
-            assert!(first.is_some(), "first acquire must succeed");
-            assert!(PROBE_ACTIVE.load(Ordering::Acquire), "flag set while held");
-
-            // A second concurrent acquire is refused while the first is held.
-            let second = ProbeGuard::try_acquire();
-            assert!(
-                second.is_none(),
-                "second concurrent acquire must be refused"
-            );
-        }
-
-        // Dropping the first guard at end of scope resets the flag.
-        assert!(
-            !PROBE_ACTIVE.load(Ordering::Acquire),
-            "flag cleared on drop"
-        );
-
-        // A subsequent acquire after release succeeds again.
-        let third = ProbeGuard::try_acquire();
-        assert!(third.is_some(), "acquire after release must succeed");
-        drop(third);
-        assert!(
-            !PROBE_ACTIVE.load(Ordering::Acquire),
-            "flag cleared after final drop"
-        );
     }
 }
