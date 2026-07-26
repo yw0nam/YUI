@@ -118,6 +118,32 @@ jobs:
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
         if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
 
+  rust-windows:
+    name: rust-windows (cargo check)
+    runs-on: ubuntu-latest
+    # Windows-only sources (os_event_watcher/windows.rs) are invisible to the Linux
+    # job, so they get their own compile pass. Cross-check never links: no MSVC toolchain.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: chg
+        with:
+          filters: |
+            rust:
+              - 'src-tauri/**'
+              - '.github/workflows/ci.yml'
+      - uses: dtolnay/rust-toolchain@stable
+        if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
+        with:
+          workspaces: src-tauri
+          key: windows-msvc
+      - run: cargo check --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-msvc --all-targets --locked
+        if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
+
   mods:
     name: mods (uv + pytest)
     runs-on: ubuntu-latest
