@@ -3,28 +3,16 @@
 //! comparison), window enumeration (EnumWindows) for `list_windows`.
 //!
 //! Implements:
-//!   - `start_polling`: background polling loop for idle/app/fullscreen,
-//!     mirroring the macOS `polling_loop` contract.
-//!   - `spawn_drop_release_probe`: polls `GetAsyncKeyState(VK_LBUTTON)` until
-//!     the left mouse button is released after a drag, then emits the bare
-//!     `window_drop_release` signal so the frontend flow can revert motion.
+//!   - `start_polling`: starts the shared background polling loop.
+//!   - left-button state reads for the shared drop-release probe.
 //!   - `list_all_windows`: enumerates foreign on-screen top-level windows for
 //!     the `list_windows` command.
 //!
 //! All functions must not panic; degrade gracefully.
 
-use super::{
-    emit_os_event, epoch_ms, sanitise_app_name, sanitise_window_title, OsEventData, OsEventPayload,
-    WindowAtPoint, WINDOW_DROP_RELEASE_CHANNEL,
-};
-use std::{
-    ffi::c_void,
-    path::Path,
-    sync::atomic::{AtomicBool, Ordering},
-    thread,
-    time::Duration,
-};
-use tauri::{AppHandle, Emitter, Runtime};
+use super::{polling_loop, sanitise_window_title, PollingWindowInfo, WindowAtPoint};
+use std::{ffi::c_void, path::Path, thread};
+use tauri::AppHandle;
 use windows::Win32::{
     Foundation::{CloseHandle, HWND, LPARAM, RECT},
     Graphics::{
@@ -51,15 +39,6 @@ use windows::Win32::{
     },
 };
 
-// Polling interval — 5 s os_idle_tick / debounce.
-const POLL_INTERVAL: Duration = Duration::from_secs(5);
-
-/// Polling interval for the drop-release probe (~60 Hz).
-const RELEASE_POLL_INTERVAL: Duration = Duration::from_millis(16);
-
-/// Hard timeout: probe exits after this duration even without observing a release.
-const RELEASE_POLL_TIMEOUT: Duration = Duration::from_secs(10);
-
 // Shell chrome class names excluded from `list_all_windows` (desktop + taskbars).
 const SHELL_CLASS_BLOCKLIST: &[&str] = &[
     "Progman",
@@ -70,98 +49,15 @@ const SHELL_CLASS_BLOCKLIST: &[&str] = &[
 
 // ─── Drop-release probe ───────────────────────────────────────────────────────
 
-/// Process-wide once-guard: only one probe runs at a time.
-static PROBE_ACTIVE: AtomicBool = AtomicBool::new(false);
-
-/// RAII handle that holds `PROBE_ACTIVE` true and clears it on drop.
-struct ProbeGuard;
-
-impl ProbeGuard {
-    fn try_acquire() -> Option<Self> {
-        PROBE_ACTIVE
-            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
-            .ok()
-            .map(|_| ProbeGuard)
-    }
-}
-
-impl Drop for ProbeGuard {
-    fn drop(&mut self) {
-        PROBE_ACTIVE.store(false, Ordering::Release);
-    }
-}
-
 /// Returns true when `GetAsyncKeyState(VK_LBUTTON)` reports the button as down
 /// (high-order bit of the returned i16 is set).
 ///
 /// Extracted as a pure-ish helper so the state-machine logic is testable without
 /// calling the Win32 FFI in unit tests.
-fn lbutton_is_down() -> bool {
+pub(super) fn platform_lbutton_is_down() -> bool {
     // SAFETY: GetAsyncKeyState is always safe to call; it does not mutate state.
     let state = unsafe { GetAsyncKeyState(VK_LBUTTON.0 as i32) };
     (state as u16 & 0x8000u16) != 0
-}
-
-/// Given the running state-machine state (`saw_down`) and the current button
-/// reading (`is_down`), returns the new `saw_down` value and whether a
-/// down→up release was just detected.
-///
-/// This is the pure, FFI-free core of the release logic, unit-testable.
-pub(crate) fn step_release_detector(saw_down: bool, is_down: bool) -> (bool, bool) {
-    if is_down {
-        // Button is held; record that we have seen it down.
-        (true, false)
-    } else if saw_down {
-        // We saw it down before, and now it is up: release detected.
-        (true, true)
-    } else {
-        // Button is up but we have not yet observed it down — stale read.
-        (false, false)
-    }
-}
-
-/// Spawns a short-lived thread that polls the left mouse button until release
-/// (down→up), then emits a bare `window_drop_release` signal.
-///
-/// A process-wide once-guard suppresses a duplicate probe when drags overlap.
-pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
-    let Some(guard) = ProbeGuard::try_acquire() else {
-        log::debug!("drop_release_probe_skipped reason=already_active");
-        return;
-    };
-
-    thread::Builder::new()
-        .name("yui_drop_release".into())
-        .spawn(move || {
-            let _guard = guard;
-
-            let start = std::time::Instant::now();
-            let mut saw_down = false;
-
-            loop {
-                if start.elapsed() >= RELEASE_POLL_TIMEOUT {
-                    log::info!("drop_release_timeout");
-                    return;
-                }
-
-                let is_down = lbutton_is_down();
-                let (next_saw_down, released) = step_release_detector(saw_down, is_down);
-                saw_down = next_saw_down;
-
-                if released {
-                    break;
-                }
-
-                thread::sleep(RELEASE_POLL_INTERVAL);
-            }
-
-            log::info!("drop_release_detected");
-
-            if let Err(e) = app.emit(WINDOW_DROP_RELEASE_CHANNEL, ()) {
-                log::warn!("window_drop_release_emit_failed error={e}");
-            }
-        })
-        .expect("failed to spawn yui_drop_release thread");
 }
 
 // ─── Pure helpers for the real Win32 watcher (FFI-free, unit-tested) ────────
@@ -261,6 +157,10 @@ fn os_idle_ms() -> Option<u64> {
     }
     let now_tick = unsafe { GetTickCount() };
     Some(idle_ms_from_ticks(now_tick, lii.dwTime))
+}
+
+pub(super) fn platform_idle_ms() -> Option<u64> {
+    os_idle_ms()
 }
 
 // ─── active app + window title ─────────────────────────────────────────────
@@ -365,6 +265,19 @@ fn frontmost_window_info(hwnd: HWND) -> WindowInfo {
         title: window_title(hwnd),
         is_fullscreen: is_fullscreen(hwnd),
     }
+}
+
+pub(super) fn platform_frontmost() -> Option<(String, Option<PollingWindowInfo>)> {
+    let (_pid, app_name) = frontmost_app()?;
+    let hwnd = unsafe { GetForegroundWindow() };
+    let info = frontmost_window_info(hwnd);
+    Some((
+        app_name,
+        Some(PollingWindowInfo {
+            title: info.title,
+            is_fullscreen: info.is_fullscreen,
+        }),
+    ))
 }
 
 // ─── window enumeration (list_windows) ──────────────────────────────────────
@@ -511,189 +424,11 @@ pub fn start_polling(app: AppHandle) {
         .expect("failed to spawn os_event_watcher_win thread");
 }
 
-fn polling_loop(app: AppHandle) {
-    let mut prev_app: Option<String> = None;
-    let mut prev_fullscreen: Option<bool> = None;
-
-    loop {
-        let now = epoch_ms();
-
-        // ── 1. Idle tick (emitted every poll interval) ─────────────────────
-        let idle = os_idle_ms();
-        let _ = emit_os_event(
-            &app,
-            OsEventPayload {
-                event_name: "os_idle_tick".into(),
-                ts: now,
-                data: OsEventData {
-                    os_idle_ms: idle,
-                    ..Default::default()
-                },
-            },
-        );
-
-        // ── 2. Active app + window title + fullscreen ──────────────────────
-        if let Some((_pid, app_name)) = frontmost_app() {
-            let clean_name = sanitise_app_name(&app_name);
-            let hwnd = unsafe { GetForegroundWindow() };
-            let win_info = frontmost_window_info(hwnd);
-
-            let app_changed = clean_name != prev_app;
-            if app_changed {
-                prev_app = clean_name.clone();
-                let _ = emit_os_event(
-                    &app,
-                    OsEventPayload {
-                        event_name: "active_app_changed".into(),
-                        ts: epoch_ms(),
-                        data: OsEventData {
-                            active_app_name: clean_name,
-                            active_window_title: win_info.title.clone(),
-                            ..Default::default()
-                        },
-                    },
-                );
-            }
-
-            // ── 3. Fullscreen state change ─────────────────────────────────
-            let fs = win_info.is_fullscreen;
-            let fs_changed = prev_fullscreen.map(|p| p != fs).unwrap_or(true);
-            if fs_changed {
-                prev_fullscreen = Some(fs);
-                let event_name = if fs {
-                    "fullscreen_entered"
-                } else {
-                    "fullscreen_exited"
-                };
-                let _ = emit_os_event(
-                    &app,
-                    OsEventPayload {
-                        event_name: event_name.into(),
-                        ts: epoch_ms(),
-                        data: OsEventData {
-                            is_fullscreen: Some(fs),
-                            ..Default::default()
-                        },
-                    },
-                );
-            }
-        }
-
-        thread::sleep(POLL_INTERVAL);
-    }
-}
-
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // ── ProbeGuard once-guard ────────────────────────────────────────────────
-
-    #[test]
-    fn probe_guard_serialises_acquire_release() {
-        // Clean baseline (process-wide flag shared across tests in this module).
-        PROBE_ACTIVE.store(false, Ordering::Release);
-
-        {
-            let first = ProbeGuard::try_acquire();
-            assert!(first.is_some(), "first acquire must succeed");
-            assert!(PROBE_ACTIVE.load(Ordering::Acquire), "flag set while held");
-
-            // A concurrent acquire is refused while the first is held.
-            let second = ProbeGuard::try_acquire();
-            assert!(
-                second.is_none(),
-                "second concurrent acquire must be refused"
-            );
-        }
-
-        // Drop of first guard at end of scope resets the flag.
-        assert!(
-            !PROBE_ACTIVE.load(Ordering::Acquire),
-            "flag cleared on drop"
-        );
-
-        // A subsequent acquire after release succeeds.
-        let third = ProbeGuard::try_acquire();
-        assert!(third.is_some(), "acquire after release must succeed");
-        drop(third);
-        assert!(
-            !PROBE_ACTIVE.load(Ordering::Acquire),
-            "flag cleared after final drop"
-        );
-    }
-
-    // ── step_release_detector — pure helper ──────────────────────────────────
-
-    #[test]
-    fn no_release_before_down_observed() {
-        // Button reads up before we ever see it down: stale up-state, no release.
-        let (saw_down, released) = step_release_detector(false, false);
-        assert!(!saw_down, "saw_down remains false");
-        assert!(!released, "must not release without prior down");
-    }
-
-    #[test]
-    fn down_sets_saw_down_no_release() {
-        // Button goes down: saw_down flips to true, no release yet.
-        let (saw_down, released) = step_release_detector(false, true);
-        assert!(saw_down, "saw_down set on first down read");
-        assert!(!released, "no release while button is still down");
-    }
-
-    #[test]
-    fn release_fires_exactly_on_down_to_up_transition() {
-        // Already saw the button down (saw_down=true), now it goes up.
-        let (saw_down, released) = step_release_detector(true, false);
-        assert!(saw_down, "saw_down stays true after release");
-        assert!(released, "release detected on down→up transition");
-    }
-
-    #[test]
-    fn held_down_does_not_release() {
-        // Button is held down while saw_down is already true.
-        let (saw_down, released) = step_release_detector(true, true);
-        assert!(saw_down, "saw_down stays true while held");
-        assert!(!released, "no release while button is still down");
-    }
-
-    #[test]
-    fn release_not_fired_again_after_up_while_up() {
-        // After a release (saw_down=true, is_down=false), if we keep reading
-        // up the detector should not keep emitting releases.  The probe loop
-        // breaks immediately on the first release, but we test the helper
-        // independently: calling it again with (true, false) would yield
-        // another release — the loop's `break` is the guard in practice.
-        // What we verify here is that a (false, false) call (post-reset state)
-        // never fires a spurious release.
-        let (saw_down, released) = step_release_detector(false, false);
-        assert!(!released, "no spurious release from pure up-up state");
-        assert!(!saw_down);
-    }
-
-    #[test]
-    fn full_sequence_no_release_then_release() {
-        // Simulate: up (stale), down, down, up (release).
-        let mut saw_down = false;
-
-        let (s, r) = step_release_detector(saw_down, false); // stale up
-        saw_down = s;
-        assert!(!r);
-
-        let (s, r) = step_release_detector(saw_down, true); // first down
-        saw_down = s;
-        assert!(!r);
-        assert!(saw_down);
-
-        let (s, r) = step_release_detector(saw_down, true); // held down
-        saw_down = s;
-        assert!(!r);
-
-        let (_s, r) = step_release_detector(saw_down, false); // release
-        assert!(r, "release detected at down→up");
-    }
 
     // ── idle_ms_from_ticks ───────────────────────────────────────────────────
 
