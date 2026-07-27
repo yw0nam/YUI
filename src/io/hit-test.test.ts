@@ -64,6 +64,35 @@ describe("physicalCursorToLocalCss", () => {
     const p = physicalCursorToLocalCss({ x: 150, y: 220 }, { x: 100, y: 200 }, 0);
     expect(p).toEqual({ x: 50, y: 20 });
   });
+
+  // Cursor and window origin are the same point space scaled by different monitors' factors:
+  // the cursor by the primary's, the origin by the window's own. Readings below are captured
+  // from a 2× primary (3456×2234) with the window on a 1× external monitor, alongside the
+  // pointermove clientX/clientY they must reproduce.
+  it("mixed-DPI — divides the cursor by the primary scale and the origin by the window scale", () => {
+    const a = physicalCursorToLocalCss(
+      { x: 329.84375, y: -937.0390625 },
+      { x: -28, y: -726 },
+      1,
+      2,
+    );
+    expect(a.x).toBeCloseTo(192.92, 1); // clientX 193
+    expect(a.y).toBeCloseTo(257.48, 1); // clientY 257
+
+    const b = physicalCursorToLocalCss(
+      { x: -163.65625, y: -944.0390625 },
+      { x: -274, y: -690 },
+      1,
+      2,
+    );
+    expect(b.x).toBeCloseTo(192.17, 1); // clientX 192
+    expect(b.y).toBeCloseTo(217.98, 1); // clientY 218
+  });
+
+  it("uniform DPI — an omitted cursor scale keeps the single-factor conversion", () => {
+    const p = physicalCursorToLocalCss({ x: 300, y: 400 }, { x: 100, y: 200 }, 2);
+    expect(p).toEqual({ x: 100, y: 100 });
+  });
 });
 
 // ─── decideTransition (hysteresis + debounce state machine) ──────────────────────
@@ -143,6 +172,7 @@ interface FakeWin {
   setIgnoreCursorEvents: ReturnType<typeof vi.fn>;
   outerPosition: ReturnType<typeof vi.fn>;
   scaleFactor: ReturnType<typeof vi.fn>;
+  primaryScaleFactor: ReturnType<typeof vi.fn>;
 }
 
 function fakeWindow(cursorPhys = { x: 0, y: 0 }): FakeWin {
@@ -151,6 +181,7 @@ function fakeWindow(cursorPhys = { x: 0, y: 0 }): FakeWin {
     setIgnoreCursorEvents: vi.fn(async () => {}),
     outerPosition: vi.fn(async () => ({ x: 0, y: 0 })),
     scaleFactor: vi.fn(async () => 1),
+    primaryScaleFactor: vi.fn(async () => 1),
   };
 }
 
@@ -438,6 +469,46 @@ describe("createHitTestController — poll failure hardening", () => {
     // Return the scheduled poll callback.
     return { c, scheduledCb: async () => cb?.(), target };
   }
+
+  // Regression: the poll fed one scale factor to both readings, so on a 2× primary with the window
+  // on a 1× monitor the converted point landed off the window and PASSTHROUGH never recovered.
+  it("converts the polled cursor with the primary scale factor, not the window's", async () => {
+    const win = fakeWindow({ x: 400, y: 600 });
+    win.outerPosition.mockResolvedValue({ x: 100, y: 100 });
+    win.scaleFactor.mockResolvedValue(1);
+    win.primaryScaleFactor.mockResolvedValue(2);
+    const seen: Array<[number, number]> = [];
+    const target = new EventTarget();
+    let cb: (() => void) | undefined;
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: target,
+      isOverInteractive: (x, y) => {
+        seen.push([x, y]);
+        return false;
+      },
+      getConfig: () => cfg,
+      schedule: (callback) => {
+        cb = callback;
+        return 0;
+      },
+      cancel: () => {},
+    });
+    c.start();
+    const move = (): void =>
+      void target.dispatchEvent(
+        Object.assign(new Event("pointermove"), { clientX: 10, clientY: 10 }) as Event,
+      );
+    move();
+    move();
+    seen.length = 0;
+
+    cb?.();
+
+    // cursor 400/2 − origin 100/1 = 100; y: 600/2 − 100/1 = 200. Single-factor math gives (300, 500).
+    await vi.waitFor(() => expect(seen).toContainEqual([100, 200]));
+    c.stop();
+  });
 
   it("after 3 consecutive cursorPosition failures in PASSTHROUGH, calls setIgnoreCursorEvents(false) and stops polling", async () => {
     const win = fakeWindow();
