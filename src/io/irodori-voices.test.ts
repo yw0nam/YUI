@@ -340,6 +340,31 @@ describe("ensureRegistered", () => {
     expect(refCall).toBeDefined();
   });
 
+  it("absolutizes a relative refUrl in Tauri dev, where resolveAssetUrl passes the vite path through", async () => {
+    vi.stubGlobal("__TAURI_INTERNALS__", {});
+    vi.stubGlobal("location", { href: "http://127.0.0.1:1420/" });
+    const expectedRef = new URL("/references/x.mp3", "http://127.0.0.1:1420/").href;
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `${BASE}/voices` && (init?.method ?? "GET") === "GET") {
+        return voicesResponse(["other"]);
+      }
+      if (url === expectedRef) return blobResponse(audio);
+      if (url === `${BASE}/voices` && init?.method === "POST") return createdResponse("x");
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    await ensureRegistered({
+      baseUrl: BASE,
+      id: "x",
+      refUrl: "/references/x.mp3",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    expect(fetchMock.mock.calls.some((c) => String(c[0]) === expectedRef)).toBe(true);
+  });
+
   it("injected resolveRef(Tauri asset resolver)로 ref_url을 변환해 fetch한다", async () => {
     const assetRef = "asset://localhost/app/resources/references/あやせ/merged_audio.mp3";
     const resolveRef = vi.fn(async (_p: string) => assetRef);
