@@ -274,7 +274,10 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     win = getWindow();
     state = "capture";
     counter = 0;
-    ignore = false;
+    // The OS-level flag outlives the page (webview crash / full reload), so push CAPTURE instead
+    // of assuming it — a click-through window delivers no pointermove to correct the assumption.
+    ignore = true;
+    setIgnore(false);
     suspended = false;
     suspendedOwner = null;
     pollFailureCount = 0;
