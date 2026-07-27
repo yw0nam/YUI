@@ -28,19 +28,18 @@ export function __resetIrodoriVoiceCache(): void {
 
 /**
  * Converts a ref_url into a fetchable URL.
- * Tauri packaging uses a bundle-resource absolute URL (resolveAssetUrl). dev/browser absolutizes against origin
- * (a relative vite path is a base-less URL that Tauri fetchCORS rejects). Base-less environments (node tests) keep the original.
+ * Tauri packaging resolves to a bundle-resource absolute URL (resolveAssetUrl); Tauri dev and browser keep the
+ * vite path, which is then absolutized against origin (a base-less URL is rejected by Tauri fetchCORS).
+ * Absolute URLs pass through unchanged; base-less environments (node tests) keep the original.
  */
 async function resolveRefUrl(refUrl: string): Promise<string> {
-  if (isTauri()) {
-    return resolveAssetUrl(refUrl);
-  }
+  const resolved = isTauri() ? await resolveAssetUrl(refUrl) : refUrl;
   const base = (globalThis as { location?: { href?: string } }).location?.href;
-  if (!base) return refUrl;
+  if (!base) return resolved;
   try {
-    return new URL(refUrl, base).href;
+    return new URL(resolved, base).href;
   } catch {
-    return refUrl;
+    return resolved;
   }
 }
 
