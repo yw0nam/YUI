@@ -26,12 +26,15 @@ function serveDir(prefix: string, dir: string): Plugin {
     name: `yui-serve:${prefix}`,
     configureServer(server) {
       // connect strips the prefix and passes req.url (e.g. /vrms/x.vrm → /x.vrm).
-      server.middlewares.use(prefix, (req, res, next) => {
+      server.middlewares.use(prefix, (req, res) => {
         const rel = decodeURIComponent((req.url ?? "/").split("?")[0]);
         const file = normalize(resolve(root, `.${rel}`));
-        // Block path traversal + real files only.
+        // Block path traversal + real files only. A prefix is an asset namespace, not a route, so a
+        // miss is 404 — falling through would hand back index.html with a 200 and the caller would
+        // parse HTML as a VRM/audio/JSON payload.
         if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) {
-          return next();
+          res.statusCode = 404;
+          return res.end();
         }
         res.setHeader("Content-Type", MIME[extname(file)] ?? "application/octet-stream");
         createReadStream(file).pipe(res);

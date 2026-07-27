@@ -52,7 +52,17 @@ if [ -d "$MAIN/resources/vrms" ]; then
     [ -e "$f" ] && link_asset "$f" "$WT/resources/vrms/$(basename "$f")"
   done
 fi
-link_asset "$MAIN/resources/references" "$WT/resources/references"
+# Reference clips: .gitkeep keeps resources/references tracked, so the directory already exists in
+# the worktree — link each speaker individually rather than the whole directory (a dir symlink would
+# nest under the tracked dir, leaving every /references/<id>/… request unserved).
+if [ -d "$MAIN/resources/references" ]; then
+  mkdir -p "$WT/resources/references"
+  # A stale nested link from an earlier setup shadows nothing but lingers — drop it.
+  [ -L "$WT/resources/references/references" ] && rm -f "$WT/resources/references/references"
+  for d in "$MAIN/resources/references"/*/; do
+    [ -d "$d" ] && link_asset "${d%/}" "$WT/resources/references/$(basename "$d")"
+  done
+fi
 
 # Purchased motions: AGENTS.md is tracked but the .vrma files are gitignored, so the
 # directory already exists in the worktree — link each .vrma individually rather than
