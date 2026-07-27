@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
+import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
 import { createLogger } from "../logger";
 import { isTauri } from "./tauri-env";
 
@@ -53,18 +53,33 @@ interface Vec2 {
 
 /**
  * Convert a screen-global PHYSICAL cursor to window-local CSS/logical px.
- * `localLogical = (cursorPhys − windowOuterPhys) / scaleFactor`.
- * scaleFactor ≤ 0 falls back to 1 (never divide by zero).
+ *
+ * Both readings describe the same screen-global point space, but each arrives scaled by a
+ * different monitor's factor: the cursor by the primary monitor's, the window origin by the
+ * factor of the monitor the window sits on. Dividing each by its own factor recovers the shared
+ * space — `localLogical = cursorPhys / cursorScaleFactor − windowOuterPhys / scaleFactor`. On a
+ * uniform-DPI setup the two factors are equal and this reduces to the single-factor form, so
+ * cursorScaleFactor defaults to scaleFactor. Either factor ≤ 0 falls back to 1 (never divide by
+ * zero).
  */
 export function physicalCursorToLocalCss(
   cursorPhys: Vec2,
   windowOuterPhys: Vec2,
   scaleFactor: number,
+  cursorScaleFactor: number = scaleFactor,
 ): Vec2 {
   const sf = scaleFactor > 0 ? scaleFactor : 1;
+  const cf = cursorScaleFactor > 0 ? cursorScaleFactor : 1;
+  // Equal factors subtract first — dividing each term separately loses precision on 1.5.
+  if (cf === sf) {
+    return {
+      x: (cursorPhys.x - windowOuterPhys.x) / sf,
+      y: (cursorPhys.y - windowOuterPhys.y) / sf,
+    };
+  }
   return {
-    x: (cursorPhys.x - windowOuterPhys.x) / sf,
-    y: (cursorPhys.y - windowOuterPhys.y) / sf,
+    x: cursorPhys.x / cf - windowOuterPhys.x / sf,
+    y: cursorPhys.y / cf - windowOuterPhys.y / sf,
   };
 }
 
@@ -113,6 +128,8 @@ export interface HitTestWindow {
   setIgnoreCursorEvents(ignore: boolean): Promise<void>;
   outerPosition(): Promise<Vec2>;
   scaleFactor(): Promise<number>;
+  /** Scale factor the cursor reading is expressed in — the primary monitor's. Falls back to scaleFactor(). */
+  primaryScaleFactor?(): Promise<number>;
 }
 
 export interface HitTestController {
@@ -153,6 +170,8 @@ export function createTauriHitTestWindow(): HitTestWindow {
     setIgnoreCursorEvents: (ignore: boolean) => invoke<void>("set_click_through", { ignore }),
     outerPosition: () => w.outerPosition(),
     scaleFactor: () => w.scaleFactor(),
+    primaryScaleFactor: async () =>
+      (await primaryMonitor())?.scaleFactor ?? (await w.scaleFactor()),
   };
 }
 
@@ -243,13 +262,14 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   async function poll(): Promise<void> {
     if (!running || suspended || state !== "passthrough" || !win) return;
     try {
-      const [cursor, origin, sf] = await Promise.all([
+      const [cursor, origin, sf, cursorSf] = await Promise.all([
         win.cursorPosition(),
         win.outerPosition(),
         win.scaleFactor(),
+        win.primaryScaleFactor?.(),
       ]);
       pollFailureCount = 0;
-      const local = physicalCursorToLocalCss(cursor, origin, sf);
+      const local = physicalCursorToLocalCss(cursor, origin, sf, cursorSf ?? sf);
       // Entering CAPTURE uses the tight box (margin 0).
       applySample(opts.isOverInteractive(local.x, local.y, 0));
     } catch (err) {
