@@ -51,4 +51,13 @@ describe("createSettingsStores", () => {
       expect(typeof store.get).toBe("function");
     }
   });
+
+  // bootstrap() registers teardown by iterating the returned bag, so every value must be disposable.
+  it("returns disposable stores", () => {
+    const stores = createSettingsStores();
+
+    for (const [name, store] of Object.entries(stores)) {
+      expect(typeof store.dispose, `${name}.dispose`).toBe("function");
+    }
+  });
 });
