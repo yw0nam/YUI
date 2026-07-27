@@ -154,6 +154,16 @@ function fakeWindow(cursorPhys = { x: 0, y: 0 }): FakeWin {
   };
 }
 
+/** start() pushes the initial CAPTURE state — flush it so a test sees only its own IPC calls. */
+async function startSynced(
+  c: ReturnType<typeof createHitTestController>,
+  win: FakeWin,
+): Promise<void> {
+  c.start();
+  await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenCalledWith(false));
+  win.setIgnoreCursorEvents.mockClear();
+}
+
 describe("createHitTestController — Tauri guard", () => {
   const orig = (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
   afterEach(() => {
@@ -172,6 +182,31 @@ describe("createHitTestController — Tauri guard", () => {
     });
     c.start();
     expect(win.setIgnoreCursorEvents).not.toHaveBeenCalled();
+    c.stop();
+  });
+});
+
+describe("createHitTestController — start() syncs the window flag", () => {
+  beforeEach(() => {
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+  });
+  afterEach(() => {
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+  });
+
+  // The OS-level flag outlives the page: a webview crash or full reload leaves a click-through
+  // window, and a fresh controller that assumed "not ignoring" would never receive a pointermove
+  // to correct itself — the window stays click-through for good.
+  it("pushes ignore=false on start instead of assuming the window state", async () => {
+    const win = fakeWindow();
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: new EventTarget(),
+      isOverInteractive: () => true,
+      getConfig: () => cfg,
+    });
+    c.start();
+    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenCalledWith(false));
     c.stop();
   });
 });
@@ -198,7 +233,7 @@ describe("createHitTestController — CAPTURE→PASSTHROUGH via pointermove", ()
       schedule: () => 0,
       cancel: () => {},
     });
-    c.start();
+    await startSynced(c, win);
 
     const move = (x: number, y: number): void => {
       target.dispatchEvent(
@@ -241,7 +276,7 @@ describe("createHitTestController — suspend/resume", () => {
       schedule: () => 0,
       cancel: () => {},
     });
-    c.start();
+    await startSynced(c, win);
     // Two non-interactive moves flip to passthrough (ignore=true).
     move(target);
     await Promise.resolve();
@@ -274,7 +309,7 @@ describe("createHitTestController — suspend/resume", () => {
       schedule: () => 0,
       cancel: () => {},
     });
-    c.start();
+    await startSynced(c, win);
     c.suspend();
     await Promise.resolve();
     expect(win.setIgnoreCursorEvents).not.toHaveBeenCalled();
@@ -291,7 +326,7 @@ describe("createHitTestController — suspend/resume", () => {
       schedule: () => 0,
       cancel: () => {},
     });
-    c.start();
+    await startSynced(c, win);
     c.suspend("passthrough");
     await Promise.resolve();
     expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(true);
@@ -336,9 +371,6 @@ describe("createHitTestController — suspend/resume", () => {
   it("serializes rapid passthrough suspend and resume flips", async () => {
     let resolveFirst: (() => void) | undefined;
     const win = fakeWindow();
-    win.setIgnoreCursorEvents
-      .mockImplementationOnce(() => new Promise<void>((resolve) => (resolveFirst = resolve)))
-      .mockResolvedValue(undefined);
     const c = createHitTestController({
       getWindow: () => win as never,
       moveTarget: new EventTarget(),
@@ -347,7 +379,10 @@ describe("createHitTestController — suspend/resume", () => {
       schedule: () => 0,
       cancel: () => {},
     });
-    c.start();
+    await startSynced(c, win);
+    win.setIgnoreCursorEvents
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (resolveFirst = resolve)))
+      .mockResolvedValue(undefined);
     c.suspend("passthrough");
     c.resume();
     await Promise.resolve();
