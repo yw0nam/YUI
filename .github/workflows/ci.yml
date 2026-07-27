@@ -118,6 +118,31 @@ jobs:
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
         if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
 
+  rust-windows:
+    name: rust-windows (cargo check)
+    runs-on: windows-latest
+    # Windows-only sources (os_event_watcher/windows.rs) are invisible to the Linux job,
+    # so they get their own compile pass. A native runner, not a cross-check: the aws-lc-sys
+    # build script compiles C for the target and needs the MSVC toolchain. check, not test —
+    # the goal is compile coverage; behavior is covered by the Linux job.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: chg
+        with:
+          filters: |
+            rust:
+              - 'src-tauri/**'
+              - '.github/workflows/ci.yml'
+      - uses: dtolnay/rust-toolchain@stable
+        if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
+      - uses: Swatinem/rust-cache@v2
+        if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
+        with:
+          workspaces: src-tauri
+      - run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets --locked
+        if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
+
   mods:
     name: mods (uv + pytest)
     runs-on: ubuntu-latest
