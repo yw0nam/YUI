@@ -219,6 +219,7 @@ async function bootstrap(): Promise<void> {
   });
   disposers.push(() => unsubAnchor());
 
+  const settingsStores = createSettingsStores({ locale: getLocale() });
   const {
     screenshotSettings,
     ttsSettings,
@@ -247,37 +248,10 @@ async function bootstrap(): Promise<void> {
     gazeSettings,
     hintSettings,
     railCollapsedSettings,
-  } = createSettingsStores({ locale: getLocale() });
-  // Every one-shot store above shares the same lifecycle. Registering them together here —
-  // instead of a separately hand-maintained dispose list — is the whole point of the disposer
-  // collection: add a store to the destructure above, add it to this array too.
-  for (const store of [
-    screenshotSettings,
-    ttsSettings,
-    sttSettings,
-    idleThrottleSettings,
-    proactiveSettings,
-    scheduleSettings,
-    workflowSettings,
-    agentNotifySettings,
-    presenceSettings,
-    recentAppsSettings,
-    contextSettings,
-    contextHistory,
-    lipsyncSettings,
-    vadSettings,
-    agentSettings,
-    fillerSettings,
-    sessionStore,
-    sessionDiagnostics,
-    chatHistoryStore,
-    endpointsSettings,
-    chatKeySettings,
-    sttKeySettings,
-    ttsKeySettings,
-    cameraSettings,
-    gazeSettings,
-  ]) {
+  } = settingsStores;
+  // Every store in the bag shares the same lifecycle, so teardown iterates the bag itself:
+  // a store added to createSettingsStores is disposed without touching this loop.
+  for (const store of Object.values(settingsStores)) {
     disposers.push(() => store.dispose());
   }
   // Effective endpoints with overrides layered on config.endpoints. Evaluated at call time (hot-reload friendly).
