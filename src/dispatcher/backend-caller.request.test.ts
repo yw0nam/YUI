@@ -12,7 +12,14 @@ import type { ChatStreamEvent } from "../io/chat-client";
 import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { Logger } from "../logger";
 import type { BusEnvelope } from "./event-bus";
-import { CONFIG, completedEvent, deltaEvent, makeLogger, userEnv } from "./test-helpers";
+import {
+  CONFIG,
+  clientContextJsonOf,
+  completedEvent,
+  deltaEvent,
+  makeLogger,
+  userEnv,
+} from "./test-helpers";
 
 let scriptedEvents: ChatStreamEvent[] = [];
 let streamChatError: Error | null = null;
@@ -219,12 +226,11 @@ describe("backend_caller — previous_response_id threading", () => {
 // ── cue context forwarding (schedule / proactive payloads → trigger.cue) ──────
 
 describe("backend_caller — cue context forwarding (trigger.cue)", () => {
-  /** decode the flat ClientContext from the system message. */
+  /** decode the flat ClientContext from the tagged block in the user message. */
   function clientContextOf(input: unknown): Record<string, unknown> {
     const items = input as Array<{ role: string; content: string }>;
-    const sys = items.find((m) => m.role === "system")!;
-    const json = sys.content.replace(/^client_context:\s*/, "");
-    return JSON.parse(json);
+    const user = items.find((m) => m.role === "user")!;
+    return JSON.parse(clientContextJsonOf(user.content));
   }
 
   it("(a) schedule envelope with cue → trigger.cue has label/context/local_time, NO id; schedule user message is proactive marker", async () => {
@@ -261,7 +267,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(it's the time of day you check in on me)");
+    expect(userMsg.content).toContain("(it's the time of day you check in on me)");
   });
 
   it("(b) proactive envelope with cue → trigger.cue has label/context/idle_min, NO id/local_time; idle_elapsed_min on trigger", async () => {
@@ -311,7 +317,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(I just poked you)");
+    expect(userMsg.content).toContain("(I just poked you)");
   });
 
   it.each([
@@ -333,7 +339,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe(marker);
+    expect(userMsg.content).toContain(marker);
   });
 
   it("proactive.tap_bored forwards its cue and drained signals", async () => {
@@ -364,7 +370,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(I keep poking at you)");
+    expect(userMsg.content).toContain("(I keep poking at you)");
   });
 
   it("(c) user.text_submitted envelope (no cue_id) → trigger.cue absent", async () => {
@@ -381,12 +387,11 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
 // ── agent completion triggers (agent.* payloads → trigger.kind/agent/agent_catchup) ──
 
 describe("backend_caller — agent trigger forwarding", () => {
-  /** decode the flat ClientContext from the system message. */
+  /** decode the flat ClientContext from the tagged block in the user message. */
   function clientContextOf(input: unknown): Record<string, unknown> {
     const items = input as Array<{ role: string; content: string }>;
-    const sys = items.find((m) => m.role === "system")!;
-    const json = sys.content.replace(/^client_context:\s*/, "");
-    return JSON.parse(json);
+    const user = items.find((m) => m.role === "user")!;
+    return JSON.parse(clientContextJsonOf(user.content));
   }
 
   it("(a) agent.done → trigger.kind 'agent' + trigger.agent; user message is proactive marker", async () => {
@@ -423,7 +428,7 @@ describe("backend_caller — agent trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(one of my coding tasks just finished)");
+    expect(userMsg.content).toContain("(one of my coding tasks just finished)");
   });
 
   it("(b) agent.done without status → trigger.agent.status absent", async () => {
@@ -502,7 +507,7 @@ describe("backend_caller — agent trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(my coding tasks wrapped up while I was away)");
+    expect(userMsg.content).toContain("(my coding tasks wrapped up while I was away)");
   });
 
   it("(d) agent.done with malformed payload → kind 'agent' but no trigger.agent", async () => {
@@ -526,12 +531,11 @@ describe("backend_caller — agent trigger forwarding", () => {
 
 // ── signals ingress (signals.* payloads → trigger.kind/signals, opaque passthrough) ──
 describe("backend_caller — signals trigger forwarding", () => {
-  /** decode the flat ClientContext from the system message. */
+  /** decode the flat ClientContext from the tagged block in the user message. */
   function clientContextOf(input: unknown): Record<string, unknown> {
     const items = input as Array<{ role: string; content: string }>;
-    const sys = items.find((m) => m.role === "system")!;
-    const json = sys.content.replace(/^client_context:\s*/, "");
-    return JSON.parse(json);
+    const user = items.find((m) => m.role === "user")!;
+    return JSON.parse(clientContextJsonOf(user.content));
   }
 
   it("(a) signals.push → trigger.kind 'signals' + trigger.signals verbatim; user message is proactive marker", async () => {
@@ -559,7 +563,32 @@ describe("backend_caller — signals trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(a new signal just arrived for you)");
+    expect(userMsg.content).toContain("(a new signal just arrived for you)");
+  });
+
+  it("input is a single user item: tagged client_context block first, trigger marker last, no system item", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 44,
+      source: "timer_scheduler",
+      event_name: "signals.push",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: { signals: [{ kind: "reminder" }], ts: 1_717_000_000_000 },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const items = request.input as Array<{ role: string; content: string }>;
+    expect(items).toHaveLength(1);
+    expect(items[0]!.role).toBe("user");
+    expect(items[0]!.content.startsWith("<client_context>\n")).toBe(true);
+    expect(items[0]!.content.endsWith("</client_context>\n\n(a new signal just arrived for you)")).toBe(
+      true,
+    );
+    expect(items[0]!.content).toContain("the user did not type this");
+    expect(JSON.parse(clientContextJsonOf(items[0]!.content))).toMatchObject({
+      trigger: { kind: "signals", signals: [{ kind: "reminder" }] },
+    });
   });
 
   it("(b) signals.catchup → trigger.kind 'signals' + trigger.signals (flattened, unmodified)", async () => {
@@ -583,7 +612,7 @@ describe("backend_caller — signals trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toBe("(signals piled up while I was away)");
+    expect(userMsg.content).toContain("(signals piled up while I was away)");
   });
 
   it("(c) heterogeneous/nested item shapes pass through unmodified — no structural validation", async () => {

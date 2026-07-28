@@ -11,7 +11,7 @@ import type { ExpressArgs, InputContext, ToolStatus, Usage } from "../contract";
 import type { ChatStreamEvent } from "../io/chat-client";
 import type { Logger } from "../logger";
 import type { BusEnvelope } from "./event-bus";
-import { CONFIG, completedEvent, makeLogger, userEnv } from "./test-helpers";
+import { CONFIG, clientContextJsonOf, completedEvent, makeLogger, userEnv } from "./test-helpers";
 
 let scriptedEvents: ChatStreamEvent[] = [];
 let streamChatError: Error | null = null;
@@ -121,8 +121,8 @@ describe("backend_caller — B1 package_context (contract §4 InputContext)", ()
     await caller.call(userEnv("now?"));
     const [, request] = streamChatSpy.mock.calls[0];
     const items = request.input as Array<{ role: string; content: string }>;
-    const sys = items.find((m) => m.role === "system")!;
-    const ctx = JSON.parse(sys.content.replace(/^client_context:\s*/, "")) as {
+    const user = items.find((m) => m.role === "user")!;
+    const ctx = JSON.parse(clientContextJsonOf(user.content)) as {
       env: { timestamp: string };
     };
     const ts = ctx.env.timestamp;
@@ -284,10 +284,10 @@ describe("backend_caller — user_images (chat attachments)", () => {
     return items.find((m) => m.role === "user")!;
   }
 
-  /** the raw system message string passed to streamChat. */
-  function systemStringOf(input: unknown): string {
-    const items = input as Array<{ role: string; content: string }>;
-    return items.find((m) => m.role === "system")!.content;
+  /** the input_text part of the user message passed to streamChat. */
+  function userTextPartOf(input: unknown): string {
+    const content = userMessageOf(input).content as Array<Record<string, unknown>>;
+    return content.find((p) => p.type === "input_text")!.text as string;
   }
 
   function imgEnv(text: string, images: string[]): BusEnvelope {
@@ -300,18 +300,18 @@ describe("backend_caller — user_images (chat attachments)", () => {
     const [, request] = streamChatSpy.mock.calls[0];
     const content = userMessageOf(request.input).content as Array<Record<string, unknown>>;
     expect(Array.isArray(content)).toBe(true);
-    expect(content.find((p) => p.type === "input_text")?.text).toBe("이거 봐");
+    expect(content.find((p) => p.type === "input_text")?.text).toContain("이거 봐");
     const images = content.filter((p) => p.type === "input_image");
     expect(images.map((p) => p.image_url)).toEqual([IMG_A, IMG_B]);
   });
 
-  it("image data URLs are absent from the system client_context string", async () => {
+  it("image data URLs are absent from the client_context block", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     await caller.call(imgEnv("이거 봐", [IMG_A, IMG_B]));
     const [, request] = streamChatSpy.mock.calls[0];
-    const sys = systemStringOf(request.input);
-    expect(sys).not.toContain(IMG_A);
-    expect(sys).not.toContain(IMG_B);
+    const json = clientContextJsonOf(userTextPartOf(request.input));
+    expect(json).not.toContain(IMG_A);
+    expect(json).not.toContain(IMG_B);
   });
 
   it("screenshot + user_images together → screenshot part AND all user image parts present", async () => {
@@ -345,12 +345,11 @@ describe("backend_caller — user_images (chat attachments)", () => {
 });
 
 describe("backend_caller — os context port", () => {
-  /** decode the flat ClientContext from the system message passed to streamChat. */
+  /** decode the flat ClientContext from the tagged block in the user message. */
   function clientContextOf(input: unknown): Record<string, unknown> {
     const items = input as Array<{ role: string; content: string }>;
-    const sys = items.find((m) => m.role === "system")!;
-    const json = sys.content.replace(/^client_context:\s*/, "");
-    return JSON.parse(json);
+    const user = items.find((m) => m.role === "user")!;
+    return JSON.parse(clientContextJsonOf(user.content));
   }
 
   it("getOsContext snapshot → env.active_app + env.active_window_title attached", async () => {
@@ -403,8 +402,8 @@ describe("backend_caller — os context port", () => {
 describe("backend_caller — posture context port", () => {
   function clientContextOf(input: unknown): Record<string, unknown> {
     const items = input as Array<{ role: string; content: string }>;
-    const sys = items.find((m) => m.role === "system")!;
-    return JSON.parse(sys.content.replace(/^client_context:\s*/, ""));
+    const user = items.find((m) => m.role === "user")!;
+    return JSON.parse(clientContextJsonOf(user.content));
   }
 
   it("attaches the current posture to env", async () => {
@@ -447,12 +446,11 @@ describe("backend_caller — posture context port", () => {
 });
 
 describe("backend_caller — recent apps package (peek, non-destructive)", () => {
-  /** decode the flat ClientContext from the system message passed to streamChat. */
+  /** decode the flat ClientContext from the tagged block in the user message. */
   function clientContextOf(input: unknown): Record<string, unknown> {
     const items = input as Array<{ role: string; content: string }>;
-    const sys = items.find((m) => m.role === "system")!;
-    const json = sys.content.replace(/^client_context:\s*/, "");
-    return JSON.parse(json);
+    const user = items.find((m) => m.role === "user")!;
+    return JSON.parse(clientContextJsonOf(user.content));
   }
 
   it("peekRecentApps stub → env.recent_apps included as name+local ISO timestamp", async () => {
@@ -595,12 +593,11 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
 });
 
 describe("backend_caller — flat client_context envelope", () => {
-  /** decode the flat ClientContext { env, trigger, screenshot? } from the system message. */
+  /** decode the flat ClientContext { env, trigger, screenshot? } from the user message block. */
   function clientContextOf(input: unknown): Record<string, unknown> {
     const items = input as Array<{ role: string; content: string }>;
-    const sys = items.find((m) => m.role === "system")!;
-    const json = sys.content.replace(/^client_context:\s*/, "");
-    return JSON.parse(json);
+    const user = items.find((m) => m.role === "user")!;
+    return JSON.parse(clientContextJsonOf(user.content));
   }
 
   function userMessageContentOf(input: unknown): unknown {

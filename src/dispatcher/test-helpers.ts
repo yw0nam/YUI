@@ -98,3 +98,8 @@ export function toolStatusEvent(status: ToolStatus): ChatStreamEvent {
 export function makeLogger(): Logger {
   return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 }
+
+/** Pull the client_context JSON out of the tagged block leading a user message. */
+export function clientContextJsonOf(userContent: string): string {
+  return /<client_context>[\s\S]*?(\{[\s\S]*\})\s*<\/client_context>/.exec(userContent)![1]!;
+}
