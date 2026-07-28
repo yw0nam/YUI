@@ -582,9 +582,9 @@ describe("backend_caller — signals trigger forwarding", () => {
     expect(items).toHaveLength(1);
     expect(items[0]!.role).toBe("user");
     expect(items[0]!.content.startsWith("<client_context>\n")).toBe(true);
-    expect(items[0]!.content.endsWith("</client_context>\n\n(a new signal just arrived for you)")).toBe(
-      true,
-    );
+    expect(
+      items[0]!.content.endsWith("</client_context>\n\n(a new signal just arrived for you)"),
+    ).toBe(true);
     expect(items[0]!.content).toContain("the user did not type this");
     expect(JSON.parse(clientContextJsonOf(items[0]!.content))).toMatchObject({
       trigger: { kind: "signals", signals: [{ kind: "reminder" }] },

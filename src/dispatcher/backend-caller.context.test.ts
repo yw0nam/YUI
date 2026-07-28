@@ -227,7 +227,7 @@ describe("backend_caller — screenshot port", () => {
     const content = userMessageOf(request.input).content as Array<Record<string, unknown>>;
     expect(Array.isArray(content)).toBe(true);
     const textPart = content.find((p) => p.type === "input_text");
-    expect(textPart?.text).toBe("이 화면 뭐야?");
+    expect(textPart?.text).toContain("이 화면 뭐야?");
     const imagePart = content.find((p) => p.type === "input_image");
     expect(imagePart?.image_url).toBe("data:image/png;base64,AAA");
   });
@@ -236,7 +236,7 @@ describe("backend_caller — screenshot port", () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv("그냥 텍스트"));
     const [, request] = streamChatSpy.mock.calls[0];
-    expect(userMessageOf(request.input).content).toBe("그냥 텍스트");
+    expect(userMessageOf(request.input).content).toContain("그냥 텍스트");
   });
 
   it("getScreenshot resolves undefined → user content is a plain string (no image part)", async () => {
@@ -251,7 +251,7 @@ describe("backend_caller — screenshot port", () => {
     });
     await caller.call(userEnv("이미지 없음"));
     const [, request] = streamChatSpy.mock.calls[0];
-    expect(userMessageOf(request.input).content).toBe("이미지 없음");
+    expect(userMessageOf(request.input).content).toContain("이미지 없음");
   });
 
   it("getScreenshot rejects → turn still proceeds without an image (reaches streamChat)", async () => {
@@ -270,7 +270,7 @@ describe("backend_caller — screenshot port", () => {
     expect(res.ok).toBe(true);
     expect(streamChatSpy).toHaveBeenCalledTimes(1);
     const [, request] = streamChatSpy.mock.calls[0];
-    expect(userMessageOf(request.input).content).toBe("캡처 실패");
+    expect(userMessageOf(request.input).content).toContain("캡처 실패");
   });
 });
 
@@ -340,7 +340,7 @@ describe("backend_caller — user_images (chat attachments)", () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv("그냥 텍스트"));
     const [, request] = streamChatSpy.mock.calls[0];
-    expect(userMessageOf(request.input).content).toBe("그냥 텍스트");
+    expect(userMessageOf(request.input).content).toContain("그냥 텍스트");
   });
 });
 
@@ -635,7 +635,7 @@ describe("backend_caller — flat client_context envelope", () => {
     expect("ts" in trigger).toBe(false);
     expect("seq_id" in trigger).toBe(false);
     // proactive turn (no user_text) → proactive background marker string
-    expect(userMessageContentOf(request.input)).toBe("(I've gone quiet for a while)");
+    expect(userMessageContentOf(request.input)).toContain("(I've gone quiet for a while)");
   });
 
   it("(b) user turn → trigger.kind is 'user'; env has timestamp/timezone; no user_text in system object", async () => {
@@ -654,7 +654,7 @@ describe("backend_caller — flat client_context envelope", () => {
     const serialized = JSON.stringify(ctx);
     expect(serialized).not.toContain("진짜 텍스트");
     // user text appears in the user-role message
-    expect(userMessageContentOf(request.input)).toBe("진짜 텍스트");
+    expect(userMessageContentOf(request.input)).toContain("진짜 텍스트");
   });
 
   it("(c) schedule envelope → trigger.kind is 'schedule'", async () => {
@@ -688,7 +688,7 @@ describe("backend_caller — flat client_context envelope", () => {
     };
     await caller.call(env);
     const [, request] = streamChatSpy.mock.calls[0];
-    expect(userMessageContentOf(request.input)).toBe("こんにちは");
+    expect(userMessageContentOf(request.input)).toContain("こんにちは");
   });
 });
 

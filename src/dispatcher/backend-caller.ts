@@ -211,15 +211,25 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   const log = deps.logger ?? baseLog;
 
   /**
-   * InputContext → OpenAI Responses input (user speech encoded only in user message).
-   * User message: userText ?? backgroundMarker(env.event_name) (+ image content-part when images present).
+   * InputContext → OpenAI Responses input — one user item carrying the tagged client_context
+   * block followed by userText ?? backgroundMarker(env.event_name) (+ image content-parts when
+   * images present). The `input` array has no contractual system slot: its last item becomes the
+   * turn's user message and earlier items land in plain history, so context rides inside the turn.
+   * Context leads and the utterance trails it — recall on the trailing query holds as the block grows.
    */
   function encodeInput(
     ctx: InputContext,
     env: BusEnvelope,
     clientContext: Awaited<ReturnType<typeof buildContext>>["clientContext"],
   ): ChatRequest["input"] {
-    const text = ctx.user_text ?? backgroundMarker(env.event_name);
+    const text = [
+      "<client_context>",
+      "Injected by the YUI client; the user did not type this.",
+      JSON.stringify(clientContext),
+      "</client_context>",
+      "",
+      ctx.user_text ?? backgroundMarker(env.event_name),
+    ].join("\n");
     const images = imageDataUrlsOf(ctx);
     const userContent = images.length
       ? [
@@ -228,13 +238,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         ]
       : text;
 
-    return [
-      {
-        role: "system",
-        content: `client_context: ${JSON.stringify(clientContext)}`,
-      },
-      { role: "user", content: userContent },
-    ];
+    return [{ role: "user", content: userContent }];
   }
 
   async function call(env: BusEnvelope, externalSignal?: AbortSignal): Promise<BackendCallResult> {

@@ -9,14 +9,20 @@ doc for the deltas.
 
 ## Per-turn client context (client → agent)
 
-Each turn the client sends a Responses API request with two inputs followed by `instructions` (static persona/global rules, config-driven). The inputs are:
+Each turn the client sends a Responses API request with a single `user` input followed by `instructions` (static persona/global rules, config-driven). That input carries the current context in a tagged block, then the utterance:
 
-| Index | Role | Content |
-|---|---|---|
-| `input[0]` | `system` | `client_context: <JSON>` — current context (no user utterance) |
-| `input[1]` | `user` | The user's message text, or a per-trigger background marker when no user utterance exists (see [Background markers](#background-markers)) |
+```text
+<client_context>
+Injected by the YUI client; the user did not type this.
+{ …client_context JSON… }
+</client_context>
 
-When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "input_text", text }, { type: "input_image", image_url }]`. Otherwise it is plain text.
+The user's message text, or a per-trigger background marker when no user utterance exists
+```
+
+The `input` array has no system slot: its last item becomes the turn's user message regardless of role, and earlier items land in plain conversation history, so a `system` item there never reaches the model as a system instruction. Context leads the block and the utterance trails it — recall on the trailing utterance holds as the context grows.
+
+When a screenshot is attached, the input is a content-part array: `[{ type: "input_text", text }, { type: "input_image", image_url }]`, where `text` is the block above. Otherwise it is plain text.
 
 ### `client_context` JSON shape
 
@@ -43,7 +49,7 @@ When a screenshot is attached, `input[1]` is a content-part array: `[{ type: "in
     "source": { "kind": "monitor", "index": 0 }, // ScreenSource union
     "width": 1920,
     "height": 1080
-    // data_url is NOT included here — pixels arrive as the input_image content-part on input[1]
+    // data_url is NOT included here — pixels arrive as the input_image content-part on the user input
   },
   "trigger": {
     "kind": "user | schedule | proactive | agent | signals",
@@ -76,7 +82,7 @@ For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utter
 
 ### Background markers
 
-When there is no user utterance, `input[1]` carries a short, per-`event_name` notice of what fired. The string rides in the user role, so it is written from the user's POV: "I" is the user, "you" is the agent. "You" is the on-screen VRM avatar — the agent's body — so window_sit/peek markers describe the user placing that body (drag & drop) and the agent's body ending up perched or peeking. It states what happened, never how to respond (firing ≠ judgment). The string is client-only framing so the agent has a concrete stimulus in the user turn; all situational detail still lives in `client_context.trigger`.
+When there is no user utterance, the user input trails the `client_context` block with a short, per-`event_name` notice of what fired. The string rides in the user role, so it is written from the user's POV: "I" is the user, "you" is the agent. "You" is the on-screen VRM avatar — the agent's body — so window_sit/peek markers describe the user placing that body (drag & drop) and the agent's body ending up perched or peeking. It states what happened, never how to respond (firing ≠ judgment). The string is client-only framing so the agent has a concrete stimulus in the user turn; all situational detail still lives in `client_context.trigger`.
 
 | `event_name` | Marker text |
 |---|---|
@@ -424,12 +430,12 @@ To keep the sentence neutral, stream the text without calling `generate_express`
 
 ## CC mode transport (Chat Completions)
 
-In Chat Completions mode (`chat_api: "chat_completions"`) the same two-input
-`client_context` + user layout above is sent as the CC `messages` array
-instead of Responses `input[]`: a `system` message with the persona/global
-instructions (if configured), a `system` message with `client_context: <JSON>`
-(same shape as above), the trimmed conversation transcript, then the `user`
-message.
+In Chat Completions mode (`chat_api: "chat_completions"`) the same
+`client_context` shape is sent as the CC `messages` array instead of Responses
+`input[]`, and CC keeps a real system slot: a `system` message with the
+persona/global instructions (if configured), a `system` message with
+`client_context: <JSON>`, the trimmed conversation transcript, then the `user`
+message carrying the utterance or background marker alone.
 
 `generate_express` arrives as `chat.completion.chunk` tool-call deltas
 (`delta.tool_calls[].function.arguments`, accumulated per call index) instead
