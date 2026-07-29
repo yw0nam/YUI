@@ -647,7 +647,7 @@ describe("updateVoice", () => {
 
     const injectedFetch = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
-      if (url === `${BASE}/voices` && init?.method === "PUT") return updatedResponse("x");
+      if (url === `${BASE}/voices/x` && init?.method === "PUT") return updatedResponse("x");
       throw new Error(`unexpected injected fetch ${url} ${init?.method}`);
     });
 
@@ -675,7 +675,7 @@ describe("updateVoice", () => {
     const injectedFetch = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === httpRef) return blobResponse(audio);
-      if (url === `${BASE}/voices` && init?.method === "PUT") return updatedResponse("x");
+      if (url === `${BASE}/voices/x` && init?.method === "PUT") return updatedResponse("x");
       throw new Error(`unexpected injected fetch ${url} ${init?.method}`);
     });
 
