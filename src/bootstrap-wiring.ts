@@ -212,8 +212,19 @@ export function wireSpeakerSelection(deps: {
     // A configured default the server doesn't (yet) have must not be conjured into existence.
     const defaultId =
       eps.irodori_speaker && ids.includes(eps.irodori_speaker) ? eps.irodori_speaker : "";
+    // A user-imported voice registers to the server under its own id — once relisted, it would
+    // collide as a "bundled" entry and the generic store's bundled-wins rule would strip the
+    // user's richer option (label + asset:// ref_url). Exclude ids already owned by a user option
+    // from the bundled manifest instead, so the user record stays authoritative. Read at
+    // manifest-build time (after the fetch), not before, so a fresh import mid-flight is respected.
+    const userIds = new Set(
+      speakerSelection
+        .getOptions()
+        .filter((o) => o.source === "user")
+        .map((o) => o.id),
+    );
     speakerSelection.setManifest({
-      available: ids.map((id) => ({ id, label: id, ref_url: "" })),
+      available: ids.filter((id) => !userIds.has(id)).map((id) => ({ id, label: id, ref_url: "" })),
       defaultId,
     });
   };
