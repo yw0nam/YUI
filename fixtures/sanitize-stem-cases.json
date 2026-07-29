@@ -1,0 +1,162 @@
+[
+  {
+    "input": "My_Avatar-1",
+    "expected": "My_Avatar-1"
+  },
+  {
+    "input": "My_Avatar-1.0",
+    "expected": "My_Avatar-1.0"
+  },
+  {
+    "input": "my avatar (v2)",
+    "expected": "my avatar (v2)"
+  },
+  {
+    "input": "ナツメ",
+    "expected": "ナツメ"
+  },
+  {
+    "input": "무라사메",
+    "expected": "무라사메"
+  },
+  {
+    "input": "natsume",
+    "expected": "natsume"
+  },
+  {
+    "input": "a.b",
+    "expected": "a.b"
+  },
+  {
+    "input": "",
+    "expected": "avatar"
+  },
+  {
+    "input": "   ",
+    "expected": "avatar"
+  },
+  {
+    "input": "///",
+    "expected": "avatar"
+  },
+  {
+    "input": "..",
+    "expected": "avatar"
+  },
+  {
+    "input": ".",
+    "expected": "avatar"
+  },
+  {
+    "input": "....",
+    "expected": "avatar"
+  },
+  {
+    "input": "..hidden",
+    "expected": "hidden"
+  },
+  {
+    "input": "hidden..",
+    "expected": "hidden"
+  },
+  {
+    "input": "  spaced  ",
+    "expected": "spaced"
+  },
+  {
+    "input": " . mixed . ",
+    "expected": "mixed"
+  },
+  {
+    "input": "a/b",
+    "expected": "a_b"
+  },
+  {
+    "input": "a\\b",
+    "expected": "a_b"
+  },
+  {
+    "input": "a//b\\\\c",
+    "expected": "a__b__c"
+  },
+  {
+    "input": "../../etc/passwd",
+    "expected": "_.._etc_passwd"
+  },
+  {
+    "input": "..\\..\\windows",
+    "expected": "_.._windows"
+  },
+  {
+    "input": "a<b>c:d\"e|f?g*h",
+    "expected": "a_b_c_d_e_f_g_h"
+  },
+  {
+    "input": "CON",
+    "expected": "avatar"
+  },
+  {
+    "input": "con",
+    "expected": "avatar"
+  },
+  {
+    "input": "PRN",
+    "expected": "avatar"
+  },
+  {
+    "input": "AUX",
+    "expected": "avatar"
+  },
+  {
+    "input": "NUL",
+    "expected": "avatar"
+  },
+  {
+    "input": "COM0",
+    "expected": "avatar"
+  },
+  {
+    "input": "COM1",
+    "expected": "avatar"
+  },
+  {
+    "input": "com9",
+    "expected": "avatar"
+  },
+  {
+    "input": "LPT0",
+    "expected": "avatar"
+  },
+  {
+    "input": "LPT1",
+    "expected": "avatar"
+  },
+  {
+    "input": "lpt9",
+    "expected": "avatar"
+  },
+  {
+    "input": "CON.txt",
+    "expected": "avatar"
+  },
+  {
+    "input": "com1.mp3",
+    "expected": "avatar"
+  },
+  {
+    "input": "COM10",
+    "expected": "COM10"
+  },
+  {
+    "input": "LPT10",
+    "expected": "LPT10"
+  },
+  {
+    "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  {
+    "input": "ああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああ",
+    "expected": "ああああああああああああああああああああああああああああああああああああああああああああああああああ"
+  }
+]

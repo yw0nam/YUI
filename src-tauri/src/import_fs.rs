@@ -322,15 +322,16 @@ mod tests {
     #[test]
     fn sanitize_neutralizes_reserved_windows_device_names() {
         for name in [
-            "CON", "con", "PRN", "AUX", "NUL", "COM1", "com9", "LPT1", "lpt9",
+            "CON", "con", "PRN", "AUX", "NUL", "COM0", "COM1", "com9", "LPT0", "LPT1", "lpt9",
         ] {
             assert_eq!(sanitize_stem(name), "avatar", "{name} must be neutralized");
         }
         // With an extension-shaped suffix, still caught.
         assert_eq!(sanitize_stem("CON.txt"), "avatar");
         assert_eq!(sanitize_stem("com1.mp3"), "avatar");
-        // COM10/LPT0 are not reserved — pass through.
+        // COM10/LPT10 are not reserved (current Microsoft docs list only COM0-9/LPT0-9) — pass through.
         assert_eq!(sanitize_stem("COM10"), "COM10");
+        assert_eq!(sanitize_stem("LPT10"), "LPT10");
     }
 
     #[test]
@@ -392,6 +393,24 @@ mod tests {
             assert_eq!(
                 once, twice,
                 "sanitize_stem must be idempotent for {input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn sanitize_stem_matches_the_shared_cross_language_fixture() {
+        // Shared with src/io/safe-id.test.ts's sanitizeStem reimplementation — a single source of
+        // truth for what sanitize_stem produces, so the Rust and TS charset rules cannot drift.
+        let raw = include_str!("../../fixtures/sanitize-stem-cases.json");
+        let cases: Vec<serde_json::Value> = serde_json::from_str(raw).unwrap();
+        assert!(!cases.is_empty(), "fixture must not be empty");
+        for case in &cases {
+            let input = case["input"].as_str().unwrap();
+            let expected = case["expected"].as_str().unwrap();
+            assert_eq!(
+                sanitize_stem(input),
+                expected,
+                "sanitize_stem({input:?}) mismatch"
             );
         }
     }
