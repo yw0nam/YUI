@@ -261,9 +261,15 @@ mod tests {
         std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
 
         let imported = copy_into_references(&references, &src, "wav", "Cat").unwrap();
-        assert_eq!(imported.id, "Cat", "must register under the typed name, not a suffix");
+        assert_eq!(
+            imported.id, "Cat",
+            "must register under the typed name, not a suffix"
+        );
         let clip = std::fs::read(references.join("Cat").join("clip.wav")).unwrap();
-        assert_eq!(clip, b"RIFF\x24\x08\x00\x00WAVEfmt ", "old clip content must be replaced");
+        assert_eq!(
+            clip, b"RIFF\x24\x08\x00\x00WAVEfmt ",
+            "old clip content must be replaced"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -294,7 +300,10 @@ mod tests {
         let src = dir.join("real.wav");
         std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
         let err = copy_into_references(&dir.join("references"), &src, "wav", "").unwrap_err();
-        assert!(err.contains("name"), "error should mention the name: {err:?}");
+        assert!(
+            err.contains("name"),
+            "error should mention the name: {err:?}"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -304,7 +313,10 @@ mod tests {
         let src = dir.join("real.wav");
         std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
         let err = copy_into_references(&dir.join("references"), &src, "wav", "   ").unwrap_err();
-        assert!(err.contains("name"), "error should mention the name: {err:?}");
+        assert!(
+            err.contains("name"),
+            "error should mention the name: {err:?}"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 

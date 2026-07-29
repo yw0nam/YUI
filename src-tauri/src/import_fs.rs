@@ -75,7 +75,9 @@ pub(crate) fn sniff_file(src: &Path, kind: SniffKind) -> Result<bool, String> {
 /// Chars neutralized regardless of position: path separators, ASCII control chars
 /// (including NUL and DEL), and the characters illegal in a Windows filename.
 fn is_unsafe_stem_char(c: char) -> bool {
-    matches!(c, '/' | '\\' | '<' | '>' | ':' | '"' | '|' | '?' | '*') || (c as u32) < 0x20 || c == '\u{7f}'
+    matches!(c, '/' | '\\' | '<' | '>' | ':' | '"' | '|' | '?' | '*')
+        || (c as u32) < 0x20
+        || c == '\u{7f}'
 }
 
 /// Windows reserved device names — matched case-insensitively against the part of the
@@ -87,7 +89,9 @@ const RESERVED_STEM_NAMES: [&str; 22] = [
 
 fn is_reserved_stem_name(s: &str) -> bool {
     let base = s.split('.').next().unwrap_or(s);
-    RESERVED_STEM_NAMES.iter().any(|r| r.eq_ignore_ascii_case(base))
+    RESERVED_STEM_NAMES
+        .iter()
+        .any(|r| r.eq_ignore_ascii_case(base))
 }
 
 /// Filesystem path-component byte cap. Generous for a single stem while guaranteeing a
@@ -116,7 +120,10 @@ pub(crate) fn sanitize_stem(stem: &str) -> String {
         .chars()
         .map(|c| if is_unsafe_stem_char(c) { '_' } else { c })
         .collect();
-    let trim = |s: &str| s.trim_matches(|c: char| c == '.' || c.is_whitespace()).to_string();
+    let trim = |s: &str| {
+        s.trim_matches(|c: char| c == '.' || c.is_whitespace())
+            .to_string()
+    };
     let trimmed = trim(&substituted);
     let capped = trim(truncate_at_char_boundary(&trimmed, MAX_STEM_BYTES));
 
@@ -314,7 +321,9 @@ mod tests {
 
     #[test]
     fn sanitize_neutralizes_reserved_windows_device_names() {
-        for name in ["CON", "con", "PRN", "AUX", "NUL", "COM1", "com9", "LPT1", "lpt9"] {
+        for name in [
+            "CON", "con", "PRN", "AUX", "NUL", "COM1", "com9", "LPT1", "lpt9",
+        ] {
             assert_eq!(sanitize_stem(name), "avatar", "{name} must be neutralized");
         }
         // With an extension-shaped suffix, still caught.
@@ -380,7 +389,10 @@ mod tests {
         for input in ["My_Avatar-1.0", "ナツメ", "..", "CON", "a/b\\c", "  x  "] {
             let once = sanitize_stem(input);
             let twice = sanitize_stem(&once);
-            assert_eq!(once, twice, "sanitize_stem must be idempotent for {input:?}");
+            assert_eq!(
+                once, twice,
+                "sanitize_stem must be idempotent for {input:?}"
+            );
         }
     }
 
@@ -390,7 +402,13 @@ mod tests {
         // sanitized id joined under a parent never escapes it.
         let parent = std::env::temp_dir().join("yui_sanitize_escape_check");
         std::fs::create_dir_all(&parent).unwrap();
-        for input in ["../../etc/passwd", "..\\..\\windows", "..", ".", "a/../../b"] {
+        for input in [
+            "../../etc/passwd",
+            "..\\..\\windows",
+            "..",
+            ".",
+            "a/../../b",
+        ] {
             let id = sanitize_stem(input);
             let child = parent.join(&id);
             assert!(
