@@ -104,6 +104,8 @@ interface QuickControlsOptions {
   importVoice: () => Promise<void>;
   /** Delete imported voice's app-data file (idempotent). Called separately from store removal. */
   removeUserVoice: (id: string) => Promise<void>;
+  /** Refetches the irodori server's voice list on panel open (the server may come up after the app). Fire-and-forget. */
+  refreshVoiceList?: () => void;
   /** Convert audition ref_url to fetchable URL (injectable). Default is resolveAssetUrl. */
   resolveAuditionUrl?: (refUrl: string) => Promise<string>;
   onGainPreview: (mouthOpen: number) => void;
@@ -185,6 +187,7 @@ export function createQuickControls({
   refreshSpeaker,
   importVoice,
   removeUserVoice,
+  refreshVoiceList,
   resolveAuditionUrl,
   onGainPreview,
   onGainPreviewEnd,
@@ -404,6 +407,8 @@ export function createQuickControls({
       // Provider may have changed while closed; re-sync baseline on open.
       lastSpkEnabled = speakerControlsEnabled();
       speakerList.render();
+      // Server may have come up after the app — refetch its voice list (store subscription re-renders).
+      refreshVoiceList?.();
       if (settings.get().enabled && !monitorsSection.isLoaded()) {
         void monitorsSection.load();
       }
