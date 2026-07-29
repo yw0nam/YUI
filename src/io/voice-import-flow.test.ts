@@ -134,7 +134,9 @@ describe("createVoiceImportFlow", () => {
       updateVoice.mockRejectedValue(new Error("server down"));
       const { commitVoiceImport, speakerSelection } = build("http://localhost:8091");
 
-      await expect(commitVoiceImport("/tmp/MyVoice.wav", "My Voice")).rejects.toThrow("server down");
+      await expect(commitVoiceImport("/tmp/MyVoice.wav", "My Voice")).rejects.toThrow(
+        "server down",
+      );
 
       expect(removeUserVoice).toHaveBeenCalledWith("myvoice");
       expect(speakerSelection.addUserVoice).not.toHaveBeenCalled();

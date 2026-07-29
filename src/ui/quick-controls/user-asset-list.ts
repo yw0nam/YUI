@@ -8,6 +8,7 @@
  */
 import "./user-asset-list.css";
 
+import { sanitizeStem } from "../../io/safe-id";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 
@@ -79,6 +80,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   const tickClass = `${cfg.classPrefix}__tick`;
   const hintClass = `${cfg.classPrefix}__hint`;
   const renameHintClass = `${cfg.classPrefix}__rename-hint`;
+  const overwriteWarnClass = `${cfg.classPrefix}__overwrite-warn`;
   const datasetAttr = camelToKebab(cfg.datasetKey);
 
   // Swapping id (guards duplicate swap) · last error row id (keeps inline guidance on re-render).
@@ -159,6 +161,20 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     `;
     const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
     input.value = pending.seedName;
+    // Committing a name that sanitizes to an existing id replaces that asset's file outright.
+    // The seed comes from the picked filename, so the collision can be entirely unintended — flag
+    // it live next to the hint rather than letting Enter silently overwrite.
+    const hintEl = row.querySelector<HTMLElement>(`.${renameHintClass}`)!;
+    const baseHint = hintEl.innerHTML;
+    const syncOverwriteWarning = (): void => {
+      const id = sanitizeStem(input.value);
+      const collides = cfg.getOptions().some((o) => o.id === id);
+      hintEl.innerHTML = collides
+        ? `${baseHint} · <span class="${overwriteWarnClass}">${t(`${cfg.i18nNamespace}.import_overwrite_warn`)}</span>`
+        : baseHint;
+    };
+    syncOverwriteWarning();
+    input.addEventListener("input", syncOverwriteWarning);
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
