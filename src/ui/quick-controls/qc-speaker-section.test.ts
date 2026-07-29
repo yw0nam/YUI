@@ -131,6 +131,23 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
+  it("calls refreshVoiceList on panel open (server may come up after the app)", () => {
+    const refreshVoiceList = vi.fn();
+    const qc = buildQc({ refreshVoiceList });
+    qc.open();
+
+    expect(refreshVoiceList).toHaveBeenCalledOnce();
+
+    qc.dispose();
+  });
+
+  it("does not throw on open when refreshVoiceList is absent", () => {
+    const qc = buildQc();
+    expect(() => qc.open()).not.toThrow();
+
+    qc.dispose();
+  });
+
   it("the speaker section sits AFTER the VRM section", () => {
     const qc = buildQc();
     qc.open();
