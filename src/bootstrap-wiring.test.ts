@@ -60,13 +60,35 @@ vi.mock("./io/broker-override-reconciler", () => ({
 vi.mock("./io/chat-client", () => ({ selectFetch }));
 vi.mock("./config", () => ({ loadEmotionTextTable: vi.fn().mockResolvedValue(null) }));
 
-// irodori voice registry fakes — wireSpeakerSelection's refreshVoiceList exercises listVoices only;
-// ensureRegistered/updateVoice are stubbed so the module shape stays intact for other call sites.
-const { listVoices } = vi.hoisted(() => ({ listVoices: vi.fn().mockResolvedValue([]) }));
-vi.mock("./io/irodori-voices", () => ({
-  listVoices,
+// irodori voice registry fakes — wireSpeakerSelection's refreshVoiceList exercises listVoices;
+// commitVoiceImport (pick/name/copy tests below) also exercises ensureRegistered/updateVoice directly.
+const { listVoices, ensureRegistered, updateVoice } = vi.hoisted(() => ({
+  listVoices: vi.fn().mockResolvedValue([]),
   ensureRegistered: vi.fn().mockResolvedValue(undefined),
   updateVoice: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("./io/irodori-voices", () => ({ listVoices, ensureRegistered, updateVoice }));
+
+// voice-import fakes — wireSpeakerSelection's pickVoiceImport/commitVoiceImport exercise these
+// directly; keeps the suite off the real dialog plugin / Tauri invoke.
+const { pickVoiceFile, copyVoiceFile, removeOrphanVoice, removeUserVoiceMock } = vi.hoisted(() => ({
+  pickVoiceFile: vi.fn(),
+  copyVoiceFile: vi.fn(),
+  removeOrphanVoice: vi.fn(async (id: string, remove: (id: string) => Promise<void>) => {
+    await remove(id);
+  }),
+  removeUserVoiceMock: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("./io/voice-import", () => ({
+  pickVoiceFile,
+  copyVoiceFile,
+  fileStemFromPath: (path: string) => {
+    const base = path.split(/[\\/]/).pop() ?? path;
+    const dot = base.lastIndexOf(".");
+    return dot > 0 ? base.slice(0, dot) : base;
+  },
+  removeOrphanVoice,
+  removeUserVoice: removeUserVoiceMock,
 }));
 
 // Fake bridge for wireCrossWindowSync: captures the onMouthPreview/onVoiceSet callbacks so
@@ -517,6 +539,146 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
     await first;
     expect(speakerSelection.list().map((o) => o.id)).toEqual(["ナツメ", "あやせ"]);
 
+    speakerSelection.dispose();
+  });
+});
+
+describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
+  beforeEach(() => {
+    listVoices.mockReset().mockResolvedValue([]);
+    ensureRegistered.mockReset().mockResolvedValue(undefined);
+    updateVoice.mockReset().mockResolvedValue(undefined);
+    pickVoiceFile.mockReset();
+    copyVoiceFile.mockReset();
+    removeOrphanVoice.mockClear();
+    removeUserVoiceMock.mockReset().mockResolvedValue(undefined);
+    selectFetch.mockClear();
+  });
+
+  it("pickVoiceImport returns null (cancel) without touching copyVoiceFile", async () => {
+    pickVoiceFile.mockResolvedValue(null);
+    const { pickVoiceImport, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({ irodori_base_url: "http://localhost:8091" }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    const out = await pickVoiceImport();
+
+    expect(out).toBeNull();
+    expect(copyVoiceFile).not.toHaveBeenCalled();
+    speakerSelection.dispose();
+  });
+
+  it("pickVoiceImport returns the srcPath + a seed name derived from the file stem", async () => {
+    pickVoiceFile.mockResolvedValue("/Users/me/Downloads/ナツメ.wav");
+    const { pickVoiceImport, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({ irodori_base_url: "http://localhost:8091" }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    const out = await pickVoiceImport();
+
+    expect(out).toEqual({ srcPath: "/Users/me/Downloads/ナツメ.wav", seedName: "ナツメ" });
+    speakerSelection.dispose();
+  });
+
+  it("commitVoiceImport registers via ensureRegistered (POST) when the server does not list the id yet", async () => {
+    copyVoiceFile.mockResolvedValue({
+      id: "myvoice",
+      label: "myvoice",
+      ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
+      source: "user",
+    });
+    listVoices.mockResolvedValue(["ナツメ"]); // server does not have "myvoice" yet
+    const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({ irodori_base_url: "http://localhost:8091" }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await commitVoiceImport("/tmp/MyVoice.wav", "myvoice");
+
+    expect(copyVoiceFile).toHaveBeenCalledWith("/tmp/MyVoice.wav", "myvoice");
+    expect(ensureRegistered).toHaveBeenCalledOnce();
+    expect(updateVoice).not.toHaveBeenCalled();
+    expect(speakerSelection.getOptions().map((o) => o.id)).toContain("myvoice");
+    expect(speakerSelection.getActiveId()).toBe("myvoice");
+    speakerSelection.dispose();
+  });
+
+  it("commitVoiceImport overwrites via updateVoice (PUT) when the server already lists the id (duplicate name)", async () => {
+    copyVoiceFile.mockResolvedValue({
+      id: "natsume",
+      label: "natsume",
+      ref_url: "asset://localhost/app-data/references/natsume/clip.wav",
+      source: "user",
+    });
+    listVoices.mockResolvedValue(["natsume"]); // server already has this id — explicit overwrite
+    const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({ irodori_base_url: "http://localhost:8091" }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await commitVoiceImport("/tmp/New.wav", "natsume");
+
+    expect(updateVoice).toHaveBeenCalledOnce();
+    expect(updateVoice.mock.calls[0][0]).toMatchObject({ id: "natsume" });
+    expect(ensureRegistered).not.toHaveBeenCalled();
+    expect(speakerSelection.getActiveId()).toBe("natsume");
+    speakerSelection.dispose();
+  });
+
+  it("on registration failure, cleans up the orphan copy and still throws (option never added)", async () => {
+    copyVoiceFile.mockResolvedValue({
+      id: "myvoice",
+      label: "myvoice",
+      ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
+      source: "user",
+    });
+    listVoices.mockResolvedValue([]);
+    ensureRegistered.mockRejectedValue(new Error("server down"));
+    const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({ irodori_base_url: "http://localhost:8091" }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await expect(commitVoiceImport("/tmp/MyVoice.wav", "myvoice")).rejects.toThrow("server down");
+
+    expect(removeOrphanVoice).toHaveBeenCalledWith(
+      "myvoice",
+      expect.any(Function),
+      expect.any(Function),
+    );
+    expect(removeUserVoiceMock).toHaveBeenCalledWith("myvoice");
+    expect(speakerSelection.getOptions().map((o) => o.id)).not.toContain("myvoice");
+    speakerSelection.dispose();
+  });
+
+  it("throws without copying when irodori_base_url is unset (guard before any registration)", async () => {
+    copyVoiceFile.mockResolvedValue({
+      id: "myvoice",
+      label: "myvoice",
+      ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
+      source: "user",
+    });
+    const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({}),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await expect(commitVoiceImport("/tmp/MyVoice.wav", "myvoice")).rejects.toThrow(
+      "irodori_base_url",
+    );
+    expect(removeOrphanVoice).toHaveBeenCalledWith(
+      "myvoice",
+      expect.any(Function),
+      expect.any(Function),
+    );
     speakerSelection.dispose();
   });
 });

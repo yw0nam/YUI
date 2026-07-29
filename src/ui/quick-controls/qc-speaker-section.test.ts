@@ -35,7 +35,8 @@ describe("createQuickControls — speaker section", () => {
   let speakerSelection: ReturnType<typeof createSpeakerSelection>;
   let swapSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
   let refreshSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
-  let importVoice: Mock<() => Promise<void>>;
+  let pickVoiceImport: Mock<() => Promise<{ srcPath: string; seedName: string } | null>>;
+  let commitVoiceImport: Mock<(srcPath: string, name: string) => Promise<void>>;
   let removeUserVoice: Mock<(id: string) => Promise<void>>;
 
   beforeEach(() => {
@@ -72,7 +73,10 @@ describe("createQuickControls — speaker section", () => {
     });
     // refresh is server-side only — default fake resolves without touching the store.
     refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async () => {});
-    importVoice = vi.fn<() => Promise<void>>(async () => {});
+    pickVoiceImport = vi.fn<() => Promise<{ srcPath: string; seedName: string } | null>>(
+      async () => null,
+    );
+    commitVoiceImport = vi.fn<(srcPath: string, name: string) => Promise<void>>(async () => {});
     removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {});
     try {
       globalThis.localStorage?.clear();
@@ -106,7 +110,8 @@ describe("createQuickControls — speaker section", () => {
       speakerSelection,
       swapSpeaker,
       refreshSpeaker,
-      importVoice,
+      pickVoiceImport,
+      commitVoiceImport,
       removeUserVoice,
       ...extra,
     });
@@ -271,7 +276,7 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  it("the speaker '파일에서 추가…' row is an enabled button (irodori) and click invokes importVoice", () => {
+  it("the speaker '파일에서 추가…' row is an enabled button (irodori) and click invokes pickVoiceImport", () => {
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
 
@@ -281,7 +286,7 @@ describe("createQuickControls — speaker section", () => {
     expect(add.querySelector(".yui-spk__soon")).toBeNull(); // no "준비 중" chip anymore
 
     add.click();
-    expect(importVoice).toHaveBeenCalledOnce();
+    expect(pickVoiceImport).toHaveBeenCalledOnce();
     expect(swapSpeaker).not.toHaveBeenCalled();
 
     qc.dispose();
@@ -457,47 +462,158 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  it("clicking add enters the importing state (loading row)", () => {
-    importVoice = vi.fn<() => Promise<void>>(() => new Promise<void>(() => {}));
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+  // ── Speaker: naming row (pick → name → copy+register) ────────────────────────
+
+  function spkNamingInput(qc: { el: HTMLElement }): HTMLInputElement | null {
+    return qc.el.querySelector<HTMLInputElement>(".yui-spk--renaming .yui-ep-input");
+  }
+
+  it("clicking add invokes pickVoiceImport, and a picked file shows a naming row seeded with the file stem", async () => {
+    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
+    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport });
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+
+    expect(pickVoiceImport).toHaveBeenCalledOnce();
+    expect(commitVoiceImport).not.toHaveBeenCalled();
+    const input = spkNamingInput(qc)!;
+    expect(input).not.toBeNull();
+    expect(input.value).toBe("Natsume");
+    expect(qc.el.querySelector(".yui-spk__rename-hint")).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  it("cancelling the OS picker (null) shows no naming row and never calls commitVoiceImport", async () => {
+    pickVoiceImport = vi.fn(async () => null);
+    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+
+    expect(spkNamingInput(qc)).toBeNull();
+    expect(commitVoiceImport).not.toHaveBeenCalled();
+
+    qc.dispose();
+  });
+
+  it("Esc on the naming row cancels the whole import — commitVoiceImport is never called", async () => {
+    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
+    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
+    qc.open();
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+
+    const input = spkNamingInput(qc)!;
+    input.value = "discarded";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect(commitVoiceImport).not.toHaveBeenCalled();
+    expect(spkNamingInput(qc)).toBeNull();
+    expect(qc.isOpen()).toBe(true); // Escape must not leak to panel close
+
+    qc.dispose();
+  });
+
+  it("Enter on the naming row commits with the srcPath and the typed name", async () => {
+    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
+    commitVoiceImport = vi.fn(async () => {
+      speakerSelection.addUserVoice(USER_VOICE);
+    });
+    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
+    qc.open();
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+
+    const input = spkNamingInput(qc)!;
+    input.value = "My Voice";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await flush();
+
+    expect(commitVoiceImport).toHaveBeenCalledWith("/tmp/Natsume.wav", "My Voice");
+    expect(spkNamingInput(qc)).toBeNull();
+    expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  it("shows the loading row during commit, not during the pick step", async () => {
+    let resolvePick: (v: { srcPath: string; seedName: string } | null) => void = () => {};
+    pickVoiceImport = vi.fn(
+      () =>
+        new Promise<{ srcPath: string; seedName: string } | null>((res) => {
+          resolvePick = res;
+        }),
+    );
+    let resolveCommit: () => void = () => {};
+    commitVoiceImport = vi.fn(
+      () =>
+        new Promise<void>((res) => {
+          resolveCommit = res;
+        }),
+    );
+    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    // Pick is still in flight (mirrors a blocking native OS dialog) — no loading spinner yet.
+    expect(qc.el.querySelector(".yui-spk__loading")).toBeNull();
+
+    resolvePick({ srcPath: "/tmp/x.wav", seedName: "x" });
+    await flush();
+    const input = spkNamingInput(qc)!;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await flush();
 
     const loading = qc.el.querySelector<HTMLElement>(".yui-spk__loading")!;
     expect(loading).not.toBeNull();
     expect(loading.querySelector(".yui-spk__spin")).not.toBeNull();
     expect(loading.querySelector(".yui-spk__loading-name")!.textContent).toContain("불러오는 중");
+    expect(spkNamingInput(qc)).toBeNull(); // naming row replaced by the spinner during commit
 
+    resolveCommit();
+    await flush();
     qc.dispose();
   });
 
-  it("a failed voice import shows the inline error and clears the importing row", async () => {
-    importVoice = vi.fn<() => Promise<void>>(async () => {
+  it("a failed commit shows the inline error and clears the naming row", async () => {
+    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/x.wav", seedName: "x" }));
+    commitVoiceImport = vi.fn(async () => {
       throw new Error("bad voice");
     });
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
     qc.open();
-
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+
+    const input = spkNamingInput(qc)!;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await flush();
 
     const err = qc.el.querySelector<HTMLElement>(".yui-spk__import-error")!;
     expect(err).not.toBeNull();
     expect(err.hidden).toBe(false);
     expect(qc.el.querySelector(".yui-spk__loading")).toBeNull();
+    expect(spkNamingInput(qc)).toBeNull();
 
     qc.dispose();
   });
 
-  it("a successful voice import clears the importing row and error notice", async () => {
-    importVoice = vi.fn<() => Promise<void>>(async () => {
+  it("a successful commit clears the loading row and error notice", async () => {
+    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/x.wav", seedName: "myvoice" }));
+    commitVoiceImport = vi.fn(async () => {
       speakerSelection.addUserVoice(USER_VOICE);
     });
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
     qc.open();
-
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+
+    const input = spkNamingInput(qc)!;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await flush();
 
     expect(qc.el.querySelector(".yui-spk__loading")).toBeNull();
@@ -520,7 +636,7 @@ describe("createQuickControls — speaker section", () => {
 
     // even if the click handler fires, it must not import while openai is effective
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
-    expect(importVoice).not.toHaveBeenCalled();
+    expect(pickVoiceImport).not.toHaveBeenCalled();
 
     // a remove click on a user row must not delete while openai is effective
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();

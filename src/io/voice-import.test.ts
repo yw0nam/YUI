@@ -70,7 +70,9 @@ describe("pickVoiceFile — successful pick", () => {
   });
 
   it("uses the first entry when the dialog returns a single-element array", async () => {
-    const deps = makePickDeps({ openDialog: vi.fn(async () => ["/tmp/Cat.wav"] as unknown as string) });
+    const deps = makePickDeps({
+      openDialog: vi.fn(async () => ["/tmp/Cat.wav"] as unknown as string),
+    });
     const out = await pickVoiceFile(deps);
     expect(out).toBe("/tmp/Cat.wav");
   });

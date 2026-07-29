@@ -37,7 +37,8 @@ describe("createQuickControls — endpoints + API keys", () => {
   let speakerSelection: ReturnType<typeof createSpeakerSelection>;
   let swapSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
   let refreshSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
-  let importVoice: Mock<() => Promise<void>>;
+  let pickVoiceImport: Mock<() => Promise<{ srcPath: string; seedName: string } | null>>;
+  let commitVoiceImport: Mock<(srcPath: string, name: string) => Promise<void>>;
   let removeUserVoice: Mock<(id: string) => Promise<void>>;
 
   beforeEach(() => {
@@ -74,7 +75,10 @@ describe("createQuickControls — endpoints + API keys", () => {
     });
     // refresh is server-side only — default fake resolves without touching the store.
     refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async () => {});
-    importVoice = vi.fn<() => Promise<void>>(async () => {});
+    pickVoiceImport = vi.fn<() => Promise<{ srcPath: string; seedName: string } | null>>(
+      async () => null,
+    );
+    commitVoiceImport = vi.fn<(srcPath: string, name: string) => Promise<void>>(async () => {});
     removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {});
     try {
       globalThis.localStorage?.clear();
@@ -108,7 +112,8 @@ describe("createQuickControls — endpoints + API keys", () => {
       speakerSelection,
       swapSpeaker,
       refreshSpeaker,
-      importVoice,
+      pickVoiceImport,
+      commitVoiceImport,
       removeUserVoice,
       ...extra,
     });

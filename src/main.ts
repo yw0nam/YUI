@@ -350,12 +350,18 @@ async function bootstrap(): Promise<void> {
   });
   disposers.push(() => vrmSelection.dispose());
 
-  const { speakerSelection, swapSpeaker, refreshSpeaker, importVoice, refreshVoiceList } =
-    wireSpeakerSelection({
-      getEndpoints,
-      log,
-      broadcastSettings,
-    });
+  const {
+    speakerSelection,
+    swapSpeaker,
+    refreshSpeaker,
+    pickVoiceImport,
+    commitVoiceImport,
+    refreshVoiceList,
+  } = wireSpeakerSelection({
+    getEndpoints,
+    log,
+    broadcastSettings,
+  });
   disposers.push(() => speakerSelection.dispose());
   wireSettingsReload({
     bridge,
@@ -395,7 +401,8 @@ async function bootstrap(): Promise<void> {
       speakerSelection,
       swapSpeaker,
       refreshSpeaker,
-      importVoice,
+      pickVoiceImport,
+      commitVoiceImport,
       removeUserVoice: removeUserVoiceFile,
       refreshVoiceList,
       resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),

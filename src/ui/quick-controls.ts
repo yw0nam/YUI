@@ -100,8 +100,10 @@ interface QuickControlsOptions {
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
   /** Re-register speaker's reference voice (PUT /voices). Server-side update only — doesn't change speaker selection/store. */
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
-  /** Full import flow: file select → register → addUserVoice + select. Inline error on reject. */
-  importVoice: () => Promise<void>;
+  /** Import pick step: opens the file picker, returns the source path + a naming-row seed (null on cancel). */
+  pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
+  /** Import commit step: copy + register under the typed name → addUserVoice + select. Inline error on reject. */
+  commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   /** Delete imported voice's app-data file (idempotent). Called separately from store removal. */
   removeUserVoice: (id: string) => Promise<void>;
   /** Refetches the irodori server's voice list on panel open (the server may come up after the app). Fire-and-forget. */
@@ -185,7 +187,8 @@ export function createQuickControls({
   speakerSelection,
   swapSpeaker,
   refreshSpeaker,
-  importVoice,
+  pickVoiceImport,
+  commitVoiceImport,
   removeUserVoice,
   refreshVoiceList,
   resolveAuditionUrl,
@@ -368,7 +371,8 @@ export function createQuickControls({
     speakerSelection,
     swapSpeaker,
     refreshSpeaker,
-    importVoice,
+    pickVoiceImport,
+    commitVoiceImport,
     removeUserVoice,
     resolveAuditionUrl,
     log,

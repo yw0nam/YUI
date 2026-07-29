@@ -36,7 +36,9 @@ import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
 import {
-  importVoiceFromFile,
+  copyVoiceFile,
+  fileStemFromPath,
+  pickVoiceFile,
   removeOrphanVoice,
   removeUserVoice as removeUserVoiceFile,
 } from "./io/voice-import";
@@ -128,7 +130,10 @@ export function wireSpeakerSelection(deps: {
   speakerSelection: ReturnType<typeof createSpeakerSelection>;
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
-  importVoice: () => Promise<void>;
+  /** Pick step: opens the file picker, returns the source path + a seed name for the naming row (null on cancel). */
+  pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
+  /** Commit step: copy + register under `name` (overwrite-aware) → add option + select. */
+  commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   refreshVoiceList: () => Promise<void>;
 } {
   const { getEndpoints, log, broadcastSettings } = deps;
@@ -166,23 +171,45 @@ export function wireSpeakerSelection(deps: {
       fetch: f,
     });
   };
-  // BYO-voice import: pick file → copy → register in irodori → add option + select (mirrors swapSpeaker's register-then-select).
-  // Cancel (null) is silently ignored. On register failure (server down / unusable clip), delete the orphan copy and throw
-  // without adding the option — prior selection stays as-is (no recovery needed since registration fails before the store commit).
-  const importVoice = async (): Promise<void> => {
-    const option = await importVoiceFromFile();
-    if (option === null) return; // cancel
+  // BYO-voice import, pick step: open the file picker only — nothing is copied yet. The UI
+  // shows a naming row seeded with the file stem between this and commitVoiceImport.
+  const pickVoiceImport = async (): Promise<{ srcPath: string; seedName: string } | null> => {
+    const srcPath = await pickVoiceFile();
+    if (srcPath === null) return null; // cancel
+    return { srcPath, seedName: fileStemFromPath(srcPath) };
+  };
+  // BYO-voice import, commit step: copy under the typed name → register in irodori (overwrite-aware)
+  // → add option + select (mirrors swapSpeaker's register-then-select). A duplicate name is an explicit
+  // overwrite: PUT (updateVoice) when the server already lists the id, POST (ensureRegistered) otherwise.
+  // On register failure (server down / unusable clip), delete the orphan copy and throw without adding
+  // the option — prior selection stays as-is (no recovery needed since registration fails before the store commit).
+  const commitVoiceImport = async (srcPath: string, name: string): Promise<void> => {
+    const option = await copyVoiceFile(srcPath, name);
     try {
       const f = await selectFetch();
       const eps = getEndpoints();
       if (!eps.irodori_base_url) throw new Error("irodori provider requires irodori_base_url");
-      // ref_url is an asset:// URL — resolveRef passes it through as-is and POSTs the clip.
-      await ensureRegistered({
+      const existingIds = await listVoices({
         baseUrl: eps.irodori_base_url,
-        id: option.id,
-        refUrl: option.ref_url,
         fetch: f,
+        logger: log,
       });
+      // ref_url is an asset:// URL — resolveRef passes it through as-is and PUTs/POSTs the clip.
+      if (existingIds.includes(option.id)) {
+        await updateVoice({
+          baseUrl: eps.irodori_base_url,
+          id: option.id,
+          refUrl: option.ref_url,
+          fetch: f,
+        });
+      } else {
+        await ensureRegistered({
+          baseUrl: eps.irodori_base_url,
+          id: option.id,
+          refUrl: option.ref_url,
+          fetch: f,
+        });
+      }
     } catch (err) {
       // Remove the orphan copy — don't swallow a failure, surface it as a warning (the original error is still thrown).
       await removeOrphanVoice(option.id, removeUserVoiceFile, (e) =>
@@ -228,7 +255,14 @@ export function wireSpeakerSelection(deps: {
       defaultId,
     });
   };
-  return { speakerSelection, swapSpeaker, refreshSpeaker, importVoice, refreshVoiceList };
+  return {
+    speakerSelection,
+    swapSpeaker,
+    refreshSpeaker,
+    pickVoiceImport,
+    commitVoiceImport,
+    refreshVoiceList,
+  };
 }
 
 /** A settings store that participates in cross-window sync: broadcasts local edits and reloads remote ones. */

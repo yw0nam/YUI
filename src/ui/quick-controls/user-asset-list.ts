@@ -16,6 +16,13 @@ interface UserAssetOption {
   label?: string;
 }
 
+/** A picked-but-not-yet-copied import, awaiting a typed name from the naming row. */
+export interface PendingImport {
+  srcPath: string;
+  /** Seeds the naming row's input (typically the picked file's stem). */
+  seedName: string;
+}
+
 export interface UserAssetListConfig<T extends UserAssetOption> {
   /** Row container element (e.g. .yui-vrms / .yui-spks). */
   containerEl: HTMLElement;
@@ -41,7 +48,12 @@ export interface UserAssetListConfig<T extends UserAssetOption> {
   removeFromStore: (id: string) => void;
   /** Perform the actual swap + commit store on success. */
   swap: (option: T) => Promise<void>;
-  importFn: () => Promise<void>;
+  /** One-shot import flow (VRM): file select → copy/load → addOption + select. Mutually exclusive with pickImport/commitImport. */
+  importFn?: () => Promise<void>;
+  /** Two-phase import pick step (speaker): opens the file picker, returns the source path + a naming-row seed (null on cancel). */
+  pickImport?: () => Promise<PendingImport | null>;
+  /** Two-phase import commit step (speaker): copy + register under the typed name, then addOption + select. */
+  commitImport?: (srcPath: string, name: string) => Promise<void>;
   /** Domain's full list render — called after any state change that isn't reflected via store subscription. */
   render: () => void;
   /** Gate on Enter/Space activation and add-click (speaker's openai-disabled gate). Omit for always-active (VRM). */
@@ -77,6 +89,8 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   // User option id being renamed inline (null if none) · whether import is in progress.
   let renamingId: string | null = null;
   let importing = false;
+  // Two-phase import: picked-but-not-yet-copied file awaiting a typed name (null if none pending).
+  let pendingImport: PendingImport | null = null;
 
   function rowById(id: string): HTMLElement | null {
     return cfg.containerEl.querySelector<HTMLElement>(
@@ -132,6 +146,36 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     });
   }
 
+  // Render the not-yet-imported pending row in the same inline naming presentation as
+  // renderRenamingRow — seeded with the file stem, text selected (see focusIfRenaming). Enter
+  // commits the import (copy + register under the typed name); Esc cancels the whole import —
+  // nothing was copied yet, so nothing to clean up.
+  function renderPendingImportRow(row: HTMLElement, pending: PendingImport): void {
+    row.classList.add(renamingClass);
+    row.innerHTML = `
+      <span class="${tickClass}" aria-hidden="true"></span>
+      <span class="yui-input-wrap"><input class="yui-ep-input" type="text" aria-label="${t(`${cfg.i18nNamespace}.name_aria`)}" /></span>
+      <span class="${renameHintClass}"><kbd>Enter</kbd> ${t(`${cfg.i18nNamespace}.rename_hint_save`)} · <kbd>Esc</kbd> ${t(`${cfg.i18nNamespace}.rename_hint_cancel`)}</span>
+    `;
+    const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
+    input.value = pending.seedName;
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void commitPendingImport(input.value);
+      } else if (e.key === "Escape") {
+        // Escape cancels the import only — does not propagate to panel close (document Escape).
+        e.preventDefault();
+        e.stopPropagation();
+        cancelPendingImport();
+      }
+    });
+    input.addEventListener("blur", () => {
+      if (pendingImport === null) return; // Already cleaned up by commit/cancel
+      void commitPendingImport(input.value);
+    });
+  }
+
   // Remove user option — delete file first (success required, no store/disk mismatch), then
   // remove from store and swap to fallback if it was active.
   async function remove(id: string): Promise<void> {
@@ -159,7 +203,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     }
   }
 
-  // "Add from file…" — show importing row and delegate full import flow.
+  // "Add from file…" — show importing row and delegate the one-shot import flow (VRM).
   // Success: store adds row (subscription → re-render); failure: show inline error.
   async function runImport(): Promise<void> {
     if (importing) return; // Prevent second import while in progress
@@ -167,11 +211,48 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     cfg.importErrorEl.hidden = true;
     cfg.render();
     try {
-      await cfg.importFn();
+      await cfg.importFn!();
     } catch (err) {
       cfg.importErrorEl.hidden = false;
       cfg.log.error(`${cfg.logPrefix}_import_failed`, { error: String(err) });
     } finally {
+      importing = false;
+      cfg.render();
+    }
+  }
+
+  // "Add from file…" pick step (speaker) — opens the file picker only. A naming row then
+  // appears (see renderPendingImportRow), seeded with the picked file's stem.
+  async function startPendingImport(): Promise<void> {
+    if (importing || pendingImport !== null) return; // Prevent a second pick while one is in flight
+    const picked = await cfg.pickImport!();
+    if (picked === null) return; // cancelled at the OS picker
+    pendingImport = picked;
+    cfg.render();
+  }
+
+  // Esc on the naming row — cancels the whole import. Nothing was copied yet, so nothing to clean up.
+  function cancelPendingImport(): void {
+    if (pendingImport === null) return;
+    pendingImport = null;
+    cfg.render();
+  }
+
+  // Enter on the naming row — copy + register under the typed name, then addOption + select
+  // (performed by cfg.commitImport). Failure shows the inline error, same as the one-shot flow.
+  async function commitPendingImport(name: string): Promise<void> {
+    const picked = pendingImport;
+    if (picked === null) return;
+    importing = true;
+    cfg.importErrorEl.hidden = true;
+    cfg.render();
+    try {
+      await cfg.commitImport!(picked.srcPath, name);
+    } catch (err) {
+      cfg.importErrorEl.hidden = false;
+      cfg.log.error(`${cfg.logPrefix}_import_failed`, { error: String(err) });
+    } finally {
+      pendingImport = null;
       importing = false;
       cfg.render();
     }
@@ -260,7 +341,8 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
 
   function handleAddClick(): void {
     if (cfg.canActivate && !cfg.canActivate()) return;
-    void runImport();
+    if (cfg.pickImport) void startPendingImport();
+    else void runImport();
   }
 
   // Prune stale renaming id if the row it points to left the list.
@@ -268,10 +350,11 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     if (renamingId !== null && !ids.includes(renamingId)) renamingId = null;
   }
 
-  // If editing, focus the input and report "handled" (domain render should return early — takes
-  // precedence over restoring roving focus, even when the input node itself wasn't found).
+  // If editing (rename OR the pending-import naming row — both carry renamingClass), focus the
+  // input and report "handled" (domain render should return early — takes precedence over
+  // restoring roving focus, even when the input node itself wasn't found).
   function focusIfRenaming(): boolean {
-    if (renamingId === null) return false;
+    if (renamingId === null && pendingImport === null) return false;
     const input = cfg.containerEl.querySelector<HTMLInputElement>(
       `${renamingSelector} .yui-ep-input`,
     );
@@ -286,11 +369,13 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     getRenamingId: (): string | null => renamingId,
     getRovedId: (): string | null => rovedId,
     getErrorId: (): string | null => errorId,
+    getPendingImport: (): PendingImport | null => pendingImport,
     isImporting: (): boolean => importing,
     isSwapping: (): boolean => swappingId !== null,
     reconcileRenaming,
     focusIfRenaming,
     renderRenamingRow,
+    renderPendingImportRow,
     rowById,
     startRename,
     remove,

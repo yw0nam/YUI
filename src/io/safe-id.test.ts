@@ -45,7 +45,7 @@ describe("isSafeSanitizedId", () => {
   });
 
   it("rejects Windows-illegal characters", () => {
-    for (const bad of ['a<b', 'a>b', 'a:b', 'a"b', "a|b", "a?b", "a*b"]) {
+    for (const bad of ["a<b", "a>b", "a:b", 'a"b', "a|b", "a?b", "a*b"]) {
       expect(isSafeSanitizedId(bad)).toBe(false);
     }
   });

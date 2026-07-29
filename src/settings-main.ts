@@ -52,7 +52,13 @@ import {
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
 import { createTtsSettings, localStorageTtsStorage } from "./io/tts-settings";
 import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
-import { importVoiceFromFile, removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
+import {
+  copyVoiceFile,
+  fileStemFromPath,
+  pickVoiceFile,
+  removeOrphanVoice,
+  removeUserVoice as removeUserVoiceFile,
+} from "./io/voice-import";
 import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
 import {
   createVrmSelection,
@@ -217,23 +223,43 @@ async function bootstrap(): Promise<void> {
     const f = await selectFetch();
     await updateVoice({ baseUrl: irodoriBaseUrl, id: option.id, refUrl: option.ref_url, fetch: f });
   };
-  // BYO-voice import (settings window) — registration is direct server call, perform here too (same as refreshSpeaker).
-  // Copy file → irodori register → add option + select. Cancel (null) ignored. Registration failure: remove orphan copy then throw.
-  const importVoice = async (): Promise<void> => {
-    const option = await importVoiceFromFile();
-    if (option === null) return;
+  // BYO-voice import (settings window), pick step: open the file picker only — nothing is copied
+  // yet. The UI shows a naming row seeded with the file stem between this and commitVoiceImport.
+  const pickVoiceImport = async (): Promise<{ srcPath: string; seedName: string } | null> => {
+    const srcPath = await pickVoiceFile();
+    if (srcPath === null) return null;
+    return { srcPath, seedName: fileStemFromPath(srcPath) };
+  };
+  // BYO-voice import (settings window), commit step — registration is a direct server call, performed
+  // here too (same as refreshSpeaker). Copy under the typed name → irodori register (overwrite-aware:
+  // PUT via updateVoice when the server already lists the id, POST via ensureRegistered otherwise) →
+  // add option + select. Registration failure: remove the orphan copy (surfaced, not swallowed), then throw.
+  const commitVoiceImport = async (srcPath: string, name: string): Promise<void> => {
+    const option = await copyVoiceFile(srcPath, name);
     try {
       const irodoriBaseUrl = configLoaded ? config.get().endpoints.irodori_base_url : undefined;
       if (!irodoriBaseUrl) throw new Error("irodori provider requires irodori_base_url");
       const f = await selectFetch();
-      await ensureRegistered({
-        baseUrl: irodoriBaseUrl,
-        id: option.id,
-        refUrl: option.ref_url,
-        fetch: f,
-      });
+      const existingIds = await listVoices({ baseUrl: irodoriBaseUrl, fetch: f, logger: log });
+      if (existingIds.includes(option.id)) {
+        await updateVoice({
+          baseUrl: irodoriBaseUrl,
+          id: option.id,
+          refUrl: option.ref_url,
+          fetch: f,
+        });
+      } else {
+        await ensureRegistered({
+          baseUrl: irodoriBaseUrl,
+          id: option.id,
+          refUrl: option.ref_url,
+          fetch: f,
+        });
+      }
     } catch (err) {
-      await removeUserVoiceFile(option.id).catch(() => {}); // Remove orphan copy (best-effort)
+      await removeOrphanVoice(option.id, removeUserVoiceFile, (e) =>
+        log.warn("orphan_voice_cleanup_failed", { error: String(e) }),
+      );
       log.error("imported_voice_register_failed", { error: String(err) });
       throw err;
     }
@@ -270,7 +296,8 @@ async function bootstrap(): Promise<void> {
       speakerSelection,
       swapSpeaker,
       refreshSpeaker,
-      importVoice,
+      pickVoiceImport,
+      commitVoiceImport,
       removeUserVoice: removeUserVoiceFile,
       refreshVoiceList,
       resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
