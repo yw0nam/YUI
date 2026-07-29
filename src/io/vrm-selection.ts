@@ -5,6 +5,7 @@
  */
 
 import type { AvatarOption } from "../config/load";
+import { isSafeSanitizedId } from "./safe-id";
 import {
   createSelectionStore,
   localStorageOverrideStorage,
@@ -19,14 +20,11 @@ export type VrmSelectionStorage = SelectionOverrideStorage;
 /** Persistence adapter for the list of imported source:"user" options. */
 export type UserVrmStorage = UserOptionStorage<AvatarOption>;
 
-/** Safe charset for an id (`^[A-Za-z0-9_-]+$`) — matches the native sanitize_stem. */
-const SAFE_ID = /^[A-Za-z0-9_-]+$/;
-
 /** Coerce a single imported option into a safe source:"user" AvatarOption (null if incomplete). */
 function coerceUserOption(v: unknown): AvatarOption | null {
   if (typeof v !== "object" || v === null) return null;
   const o = v as Record<string, unknown>;
-  if (typeof o.id !== "string" || !SAFE_ID.test(o.id)) return null;
+  if (typeof o.id !== "string" || !isSafeSanitizedId(o.id)) return null;
   if (typeof o.url !== "string" || o.url.length === 0) return null;
   const label = typeof o.label === "string" && o.label.length > 0 ? o.label : o.id;
   return { id: o.id, label, url: o.url, source: "user" };

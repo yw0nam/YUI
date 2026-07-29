@@ -1006,13 +1006,30 @@ describe("coerceUserOption — id charset validation", () => {
           { id: "a/b", url: "/x.vrm" },
           { id: "a\\b", url: "/x.vrm" },
           { id: ".", url: "/x.vrm" },
-          { id: "a.b", url: "/x.vrm" },
+          { id: ".hidden", url: "/x.vrm" },
         ]),
       setItem: () => {},
       removeItem: () => {},
     };
     const adapter = localStorageUserVrmStorage();
     expect(adapter.load()).toEqual([USER_CAT]);
+    delete (globalThis as any).localStorage;
+  });
+
+  // The relaxed native sanitize_stem permits UTF-8 and interior dots — ids shaped like that
+  // (not traversal/separator) must survive the reload, not be silently dropped.
+  it("keeps entries whose id has an interior dot or is UTF-8 (relaxed sanitize_stem charset)", () => {
+    (globalThis as any).localStorage = {
+      getItem: () =>
+        JSON.stringify([
+          { id: "a.b", label: "a.b", url: "/x.vrm", source: "user" },
+          { id: "ナツメ", label: "ナツメ", url: "/y.vrm", source: "user" },
+        ]),
+      setItem: () => {},
+      removeItem: () => {},
+    };
+    const adapter = localStorageUserVrmStorage();
+    expect(adapter.load().map((o) => o.id)).toEqual(["a.b", "ナツメ"]);
     delete (globalThis as any).localStorage;
   });
 
