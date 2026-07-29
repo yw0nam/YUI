@@ -1,10 +1,10 @@
 /**
- * Converts logical asset paths (`/configs`, `/vrms/x.vrm`, `/references/…`) into URLs for the runtime environment.
+ * Converts logical asset paths (`/configs`, `/vrms/x.vrm`) into URLs for the runtime environment.
  *
  * dev/browser passes the input through unchanged to preserve vite static serving. Tauri packaging
  * strips the leading slash to a resource-relative path, then resolveResource → convertFileSrc to build a
  * webview-fetchable absolute URL for the bundled resource. The bundle mapping matches src-tauri/tauri.conf.json
- * `bundle.resources` keeping `configs/`, `vrms/`, and `references/` at the resource root as-is.
+ * `bundle.resources` keeping `configs/` and `vrms/` at the resource root as-is.
  *
  * The Tauri API is injectable — tests verify the branching without hitting the real @tauri-apps/api.
  */
