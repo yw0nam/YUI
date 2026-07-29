@@ -394,12 +394,13 @@ describe("ensureRegistered", () => {
 });
 
 describe("updateVoice", () => {
-  it("PUTs multipart with the correct voice_id + blob", async () => {
+  it("PUTs multipart to /voices/{voice_id} with a percent-encoded non-ASCII id and only reference_audio in the body", async () => {
     const audio = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" });
+    const encodedId = encodeURIComponent("ナツメ");
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "/references/ナツメ/merged_audio.mp3") return blobResponse(audio);
-      if (url === "http://localhost:8091/voices" && init?.method === "PUT") {
+      if (url === `http://localhost:8091/voices/${encodedId}` && init?.method === "PUT") {
         return updatedResponse("ナツメ");
       }
       throw new Error(`unexpected fetch ${url} ${init?.method}`);
@@ -414,10 +415,11 @@ describe("updateVoice", () => {
 
     const putCall = fetchMock.mock.calls.find((c) => c[1]?.method === "PUT");
     expect(putCall).toBeDefined();
-    expect(String(putCall![0])).toBe("http://localhost:8091/voices");
+    expect(String(putCall![0])).toBe(`http://localhost:8091/voices/${encodedId}`);
     const body = putCall![1]!.body as FormData;
     expect(body).toBeInstanceOf(FormData);
-    expect(body.get("voice_id")).toBe("ナツメ");
+    // voice_id travels in the path for PUT /voices/{voice_id} — the server's Body_upsert_voice schema has no voice_id field.
+    expect(body.get("voice_id")).toBeNull();
     const ref = body.get("reference_audio");
     expect(ref).toBeInstanceOf(Blob);
   });
@@ -427,7 +429,7 @@ describe("updateVoice", () => {
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "/references/x.mp3") return blobResponse(audio);
-      if (url === "http://localhost:8091/voices" && init?.method === "PUT") {
+      if (url === "http://localhost:8091/voices/x" && init?.method === "PUT") {
         return updatedResponse("x");
       }
       throw new Error(`unexpected fetch ${url} ${init?.method}`);
@@ -442,7 +444,7 @@ describe("updateVoice", () => {
 
     // no GET /voices — a refresh is an explicit force-update, not a presence check.
     const getCall = fetchMock.mock.calls.find(
-      (c) => String(c[0]) === "http://localhost:8091/voices" && (c[1]?.method ?? "GET") === "GET",
+      (c) => String(c[0]).includes("/voices") && (c[1]?.method ?? "GET") === "GET",
     );
     expect(getCall).toBeUndefined();
     const putCount = fetchMock.mock.calls.filter((c) => c[1]?.method === "PUT").length;
@@ -457,7 +459,10 @@ describe("updateVoice", () => {
     const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === expectedRef) return blobResponse(audio);
-      if (url === "http://localhost:8091/voices" && init?.method === "PUT") {
+      if (
+        url === `http://localhost:8091/voices/${encodeURIComponent("あやせ")}` &&
+        init?.method === "PUT"
+      ) {
         return updatedResponse("あやせ");
       }
       throw new Error(`unexpected fetch ${url}`);
@@ -474,12 +479,12 @@ describe("updateVoice", () => {
     expect(refCall).toBeDefined();
   });
 
-  it("throws a clear message when PUT /voices is non-2xx", async () => {
+  it("throws a clear message when PUT /voices/{voice_id} is non-2xx", async () => {
     const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "/references/x.mp3") return blobResponse(audio);
-      if (url === "http://localhost:8091/voices" && init?.method === "PUT") {
+      if (url === "http://localhost:8091/voices/x" && init?.method === "PUT") {
         return { ok: false, status: 500, headers: new Headers() } as unknown as Response;
       }
       throw new Error(`unexpected fetch ${url}`);

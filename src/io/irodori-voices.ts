@@ -109,11 +109,14 @@ export async function updateVoice(opts: UpdateVoiceOptions): Promise<void> {
   }
   const blob = await refRes.blob();
 
+  // voice_id travels in the path — PUT /voices/{voice_id}'s body schema takes only reference_audio.
   const form = new FormData();
   form.append("reference_audio", blob, `${opts.id}.mp3`);
-  form.append("voice_id", opts.id);
 
-  const putRes = await fetchImpl(`${opts.baseUrl}/voices`, { method: "PUT", body: form });
+  const putRes = await fetchImpl(`${opts.baseUrl}/voices/${encodeURIComponent(opts.id)}`, {
+    method: "PUT",
+    body: form,
+  });
   if (!putRes.ok) {
     throw new Error(`irodori voice update failed (HTTP ${putRes.status}) ${opts.id}`);
   }
