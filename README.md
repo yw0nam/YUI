@@ -145,7 +145,8 @@ base URLs live in `configs/endpoints.json`.
 - **STT** — `localhost:5517` `/v1/audio/transcriptions`
 - **TTS** — selected via `tts_provider` (default `irodori`):
   - `irodori` — irodori_TTS at `localhost:8091` `/synthesize`, reference-voice
-    based (per-speaker voices in `irodori_voices`)
+    based; the irodori server itself is the source of truth for the speaker
+    list (`GET /voices`) — users add their own via the panel's import button
   - `openai` — OpenAI-compatible `/v1/audio/speech` at `localhost:8092`
 - **Expression Broker** — `localhost:3201/mcp` (streamable-http MCP); YUI
   publishes its emotion/motion/voice vocabulary here in both chat modes,

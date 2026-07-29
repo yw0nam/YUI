@@ -350,11 +350,12 @@ async function bootstrap(): Promise<void> {
   });
   disposers.push(() => vrmSelection.dispose());
 
-  const { speakerSelection, swapSpeaker, refreshSpeaker, importVoice } = wireSpeakerSelection({
-    getEndpoints,
-    log,
-    broadcastSettings,
-  });
+  const { speakerSelection, swapSpeaker, refreshSpeaker, importVoice, refreshVoiceList } =
+    wireSpeakerSelection({
+      getEndpoints,
+      log,
+      broadcastSettings,
+    });
   disposers.push(() => speakerSelection.dispose());
   wireSettingsReload({
     bridge,
@@ -396,6 +397,7 @@ async function bootstrap(): Promise<void> {
       refreshSpeaker,
       importVoice,
       removeUserVoice: removeUserVoiceFile,
+      refreshVoiceList,
       resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
       onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
       onGainPreviewEnd: () => renderer.stopMouth(),
@@ -779,10 +781,7 @@ async function bootstrap(): Promise<void> {
       available: cfg.avatar.available,
       defaultUrl: cfg.avatar.vrm_url,
     });
-    speakerSelection.setManifest({
-      available: cfg.endpoints.irodori_voices,
-      defaultId: cfg.endpoints.irodori_speaker ?? "",
-    });
+    void refreshVoiceList();
     await loadVrmSerialized(vrmSelection.getActive().url);
     // First-run onboarding hint — once when character visible, exposed via existing speech bubble.
     maybeShowFirstRunHint({
@@ -913,12 +912,9 @@ async function bootstrap(): Promise<void> {
     if (changed.has("guardrails")) guardrailsRef?.setConfig(cfg.guardrails);
     // Global summon hotkey hot-reload — unregister existing, register new accelerator (empty string = inactive).
     if (changed.has("hotkeys")) void summonHotkeyRef?.apply(cfg.hotkeys.summon_global);
-    // irodori speaker manifest hot-reload — synth reads via getActive() on next utterance, so just reload.
+    // irodori speaker manifest hot-reload — refetch the server list; synth reads via getActive() on next utterance.
     if (changed.has("endpoints")) {
-      speakerSelection.setManifest({
-        available: cfg.endpoints.irodori_voices,
-        defaultId: cfg.endpoints.irodori_speaker ?? "",
-      });
+      void refreshVoiceList();
     }
     // Broker re-publish on disk-config edits that change renderable vocab (best-effort; override-merged inside).
     brokerHandle?.onConfigChange(cfg, changed);

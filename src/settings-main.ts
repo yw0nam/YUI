@@ -25,7 +25,7 @@ import {
   createIdleThrottleSettings,
   localStorageIdleThrottleStorage,
 } from "./io/idle-throttle-settings";
-import { ensureRegistered, updateVoice } from "./io/irodori-voices";
+import { ensureRegistered, listVoices, updateVoice } from "./io/irodori-voices";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createPresenceSettings, localStoragePresenceStorage } from "./io/presence-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
@@ -171,17 +171,24 @@ async function bootstrap(): Promise<void> {
     storage: localStorageSpeakerStorage(),
     userStorage: localStorageUserSpeakerStorage(),
   });
-  if (configLoaded) {
+  // The irodori server is the source of truth for the speaker list — this window has no synth,
+  // so a plain listVoices + setManifest is enough (no ensureRegistered call, unlike the pet window).
+  const refreshVoiceList = async (): Promise<void> => {
+    if (!configLoaded) return;
     try {
       const eps = config.get().endpoints;
+      if (!eps.irodori_base_url) return;
+      const f = await selectFetch();
+      const ids = await listVoices({ baseUrl: eps.irodori_base_url, fetch: f, logger: log });
       speakerSelection.setManifest({
-        available: eps.irodori_voices,
+        available: ids.map((id) => ({ id, label: id, ref_url: "" })),
         defaultId: eps.irodori_speaker ?? "",
       });
     } catch (err) {
       log.warn("irodori_config_read_failed", { fallback: true, error: String(err) });
     }
-  }
+  };
+  void refreshVoiceList();
   const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
     speakerSelection.select(option.id);
   };
@@ -248,6 +255,7 @@ async function bootstrap(): Promise<void> {
       refreshSpeaker,
       importVoice,
       removeUserVoice: removeUserVoiceFile,
+      refreshVoiceList,
       resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
       // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
