@@ -12,23 +12,5 @@
   "irodori_speaker": "ナツメ",
   "broker_base_url": "http://localhost:3201/mcp",
   "chat_model_context_window": 200000,
-  "tts_max_inflight": 1,
-  "irodori_voices": [
-    { "id": "あやせ", "label": "あやせ", "ref_url": "/references/あやせ/merged_audio.mp3" },
-    { "id": "ナツメ", "label": "ナツメ", "ref_url": "/references/ナツメ/merged_audio.mp3" },
-    { "id": "ムラサメ", "label": "ムラサメ", "ref_url": "/references/ムラサメ/merged_audio.mp3" },
-    { "id": "レナ", "label": "レナ", "ref_url": "/references/レナ/merged_audio.mp3" },
-    { "id": "七海", "label": "七海", "ref_url": "/references/七海/merged_audio.mp3" },
-    { "id": "千咲", "label": "千咲", "ref_url": "/references/千咲/merged_audio.mp3" },
-    { "id": "小春", "label": "小春", "ref_url": "/references/小春/merged_audio.mp3" },
-    { "id": "希", "label": "希", "ref_url": "/references/希/merged_audio.mp3" },
-    { "id": "愛衣", "label": "愛衣", "ref_url": "/references/愛衣/merged_audio.mp3" },
-    { "id": "栞那", "label": "栞那", "ref_url": "/references/栞那/merged_audio.mp3" },
-    { "id": "涼音", "label": "涼音", "ref_url": "/references/涼音/merged_audio.mp3" },
-    { "id": "羽月", "label": "羽月", "ref_url": "/references/羽月/merged_audio.mp3" },
-    { "id": "芦花", "label": "芦花", "ref_url": "/references/芦花/merged_audio.mp3" },
-    { "id": "芳乃", "label": "芳乃", "ref_url": "/references/芳乃/merged_audio.mp3" },
-    { "id": "茉優", "label": "茉優", "ref_url": "/references/茉優/merged_audio.mp3" },
-    { "id": "茉子", "label": "茉子", "ref_url": "/references/茉子/merged_audio.mp3" }
-  ]
+  "tts_max_inflight": 1
 }

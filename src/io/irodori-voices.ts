@@ -131,6 +131,37 @@ export async function updateVoice(opts: UpdateVoiceOptions): Promise<void> {
   log.info("voice_updated", { id: opts.id });
 }
 
+interface ListVoicesOptions {
+  baseUrl: string;
+  fetch?: typeof fetch;
+  logger?: Logger;
+}
+
+/**
+ * GETs {baseUrl}/voices and returns the registered voice ids — the irodori server is the
+ * source of truth for the speaker list. A down server or a malformed response must not
+ * throw into boot: logs a warn and resolves to [].
+ */
+export async function listVoices(opts: ListVoicesOptions): Promise<string[]> {
+  const log = opts.logger ?? createLogger("irodori-voices");
+  const fetchImpl = opts.fetch ?? globalThis.fetch;
+  const voicesUrl = `${opts.baseUrl}/voices`;
+  try {
+    const res = await fetchImpl(voicesUrl);
+    if (!res.ok) {
+      log.warn("voice_list_failed", { status: res.status });
+      return [];
+    }
+    const body = (await res.json()) as { voices?: Array<{ voice_id?: string }> };
+    return (body.voices ?? [])
+      .map((v) => v.voice_id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+  } catch (err) {
+    log.warn("voice_list_failed", { error: String(err) });
+    return [];
+  }
+}
+
 export function ensureRegistered(opts: EnsureRegisteredOptions): Promise<void> {
   const log = opts.logger ?? createLogger("irodori-voices");
 

@@ -72,7 +72,6 @@ export default defineConfig(() => ({
   },
   plugins: [
     serveDir("/vrms", "resources/vrms"),
-    serveDir("/references", "resources/references"),
     serveDir("/configs", "configs"),
     serveDir("/vad", "public/vad"),
   ],
