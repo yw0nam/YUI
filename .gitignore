@@ -24,8 +24,6 @@ dist-ssr
 *.sw?
 resources/vrms/*
 !resources/vrms/.gitkeep
-resources/references/*
-!resources/references/.gitkeep
 public/purchased_motions/*
 !public/purchased_motions/.gitkeep
 !public/purchased_motions/AGENTS.md
@@ -46,3 +44,5 @@ docs/.vitepress/cache/
 docs/.vitepress/dist/
 docs/superpowers
 src/ui/mocks/
+# Local reference clips are not repo content — never track them.
+resources/references/

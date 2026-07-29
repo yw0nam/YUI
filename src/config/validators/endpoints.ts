@@ -93,44 +93,6 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     }
   }
 
-  // irodori_voices: optional. An array where each entry is {id, ref_url (starts with "/"), label?}.
-  type IrodoriVoice = NonNullable<EndpointsConfig["irodori_voices"]>[number];
-  let irodori_voices: IrodoriVoice[] | undefined;
-  const rawVoices = raw.irodori_voices;
-  if (rawVoices !== undefined) {
-    if (!Array.isArray(rawVoices)) {
-      issues.push(`irodori_voices는 배열이어야 함 (받음: ${JSON.stringify(rawVoices)})`);
-    } else {
-      irodori_voices = [];
-      rawVoices.forEach((entry, i) => {
-        if (!isObject(entry)) {
-          issues.push(`irodori_voices[${i}]: 항목이 객체가 아님`);
-          return;
-        }
-        if (typeof entry.id !== "string" || entry.id.length === 0) {
-          issues.push(
-            `irodori_voices[${i}].id는 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(entry.id)})`,
-          );
-        }
-        if (typeof entry.ref_url !== "string" || !entry.ref_url.startsWith("/")) {
-          issues.push(
-            `irodori_voices[${i}].ref_url는 "/"로 시작하는 경로여야 함 (받음: ${JSON.stringify(entry.ref_url)})`,
-          );
-        }
-        if (entry.label !== undefined && typeof entry.label !== "string") {
-          issues.push(
-            `irodori_voices[${i}].label는 문자열이어야 함 (받음: ${JSON.stringify(entry.label)})`,
-          );
-        }
-        irodori_voices!.push({
-          id: entry.id as string,
-          ref_url: entry.ref_url as string,
-          ...(typeof entry.label === "string" ? { label: entry.label } : {}),
-        });
-      });
-    }
-  }
-
   // irodori_num_steps: optional, integer ≥ 1.
   const irodori_num_steps = raw.irodori_num_steps;
   if (
@@ -202,7 +164,6 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     tts_provider,
     ...(irodori_base_url !== undefined ? { irodori_base_url } : {}),
     ...(typeof irodori_speaker === "string" ? { irodori_speaker } : {}),
-    ...(irodori_voices !== undefined ? { irodori_voices } : {}),
     ...(typeof irodori_num_steps === "number" ? { irodori_num_steps } : {}),
     ...(typeof raw.irodori_cfg_scale_text === "number"
       ? { irodori_cfg_scale_text: raw.irodori_cfg_scale_text }

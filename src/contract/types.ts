@@ -329,8 +329,6 @@ export interface EndpointsConfig {
   irodori_base_url?: string;
   /** Active speaker reference_id (voice registry registration key). Required when provider=irodori. */
   irodori_speaker?: string;
-  /** List of available speakers — UI display + voice registry registration source. ref_url is a vite serving path (`/references/…`). */
-  irodori_voices?: Array<{ id: string; label?: string; ref_url: string }>;
   /** Number of diffusion steps (quality/speed trade-off). Uses server default if not set. */
   irodori_num_steps?: number;
   /** Emotion (text) adherence cfg scale. Uses server default if not set. */

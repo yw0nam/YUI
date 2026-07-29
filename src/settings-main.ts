@@ -53,6 +53,7 @@ import { resolveScreenSourceProvider } from "./io/tauri-screen";
 import { createTtsSettings, localStorageTtsStorage } from "./io/tts-settings";
 import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
 import { importVoiceFromFile, removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
+import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
 import {
   createVrmSelection,
@@ -171,17 +172,14 @@ async function bootstrap(): Promise<void> {
     storage: localStorageSpeakerStorage(),
     userStorage: localStorageUserSpeakerStorage(),
   });
-  if (configLoaded) {
-    try {
-      const eps = config.get().endpoints;
-      speakerSelection.setManifest({
-        available: eps.irodori_voices,
-        defaultId: eps.irodori_speaker ?? "",
-      });
-    } catch (err) {
-      log.warn("irodori_config_read_failed", { fallback: true, error: String(err) });
-    }
-  }
+  // This window has no synth, so the manifest refresh is all it needs (no ensureRegistered call,
+  // unlike the pet window).
+  const refreshVoiceList = createVoiceListRefresh({
+    getEndpoints: () => (configLoaded ? config.get().endpoints : null),
+    speakerSelection,
+    log,
+  });
+  void refreshVoiceList();
   const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
     speakerSelection.select(option.id);
   };
@@ -248,6 +246,7 @@ async function bootstrap(): Promise<void> {
       refreshSpeaker,
       importVoice,
       removeUserVoice: removeUserVoiceFile,
+      refreshVoiceList,
       resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
       // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),

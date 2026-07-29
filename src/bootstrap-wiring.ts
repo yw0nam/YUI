@@ -40,6 +40,7 @@ import {
   removeOrphanVoice,
   removeUserVoice as removeUserVoiceFile,
 } from "./io/voice-import";
+import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeOrphanVrm, removeUserVrm } from "./io/vrm-import";
 import {
   createVrmSelection,
@@ -121,7 +122,7 @@ export function wireVrmSelection(deps: {
 }
 
 export function wireSpeakerSelection(deps: {
-  getEndpoints: () => { irodori_base_url?: string };
+  getEndpoints: () => { irodori_base_url?: string; irodori_speaker?: string };
   log: Logger;
   broadcastSettings: () => void;
 }): {
@@ -129,11 +130,12 @@ export function wireSpeakerSelection(deps: {
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
   importVoice: () => Promise<void>;
+  refreshVoiceList: () => Promise<void>;
 } {
   const { getEndpoints, log, broadcastSettings } = deps;
   // irodori speaker selection store. Starts with an empty fallback since config is not
-  // loaded yet — the panel is needed early. After config loads, setManifest injects the
-  // real irodori_voices and default.
+  // loaded yet — the panel is needed early. After config loads, refreshVoiceList injects
+  // the server-reported voice list and default.
   const speakerSelection = createSpeakerSelection({
     defaultId: "",
     storage: localStorageSpeakerStorage(),
@@ -195,7 +197,10 @@ export function wireSpeakerSelection(deps: {
   };
   // Announce cross-window so the speaker picked in this window reflects in the settings-window UI.
   speakerSelection.subscribe(broadcastSettings);
-  return { speakerSelection, swapSpeaker, refreshSpeaker, importVoice };
+  // A fresh server with no voices yields a genuinely empty available[] — expected, not an error
+  // (selection-store then has nothing to select).
+  const refreshVoiceList = createVoiceListRefresh({ getEndpoints, speakerSelection, log });
+  return { speakerSelection, swapSpeaker, refreshSpeaker, importVoice, refreshVoiceList };
 }
 
 /** A settings store that participates in cross-window sync: broadcasts local edits and reloads remote ones. */

@@ -42,9 +42,7 @@ function gitEnv() {
 function makeMainCheckout(opts: { envLocal?: boolean } = {}): string {
   const main = tmp("yui-main-");
   mkdirSync(join(main, "resources/vrms"), { recursive: true });
-  mkdirSync(join(main, "resources/references/natsume"), { recursive: true });
   writeFileSync(join(main, "resources/vrms/carlotta.vrm"), "vrm-bytes");
-  writeFileSync(join(main, "resources/references/natsume/merged_audio.mp3"), "clip-bytes");
   if (opts.envLocal !== false) {
     writeFileSync(join(main, ".env.local"), "VITE_YUI_CHAT_KEY=secret");
   }
@@ -52,23 +50,15 @@ function makeMainCheckout(opts: { envLocal?: boolean } = {}): string {
 }
 
 describe("scripts/worktree-setup.sh", () => {
-  it("links the VRM, links each reference speaker, and copies .env.local", () => {
+  it("links the VRM and copies .env.local", () => {
     const main = makeMainCheckout();
     const wt = tmp("yui-wt-");
-    // .gitkeep keeps resources/references tracked, so a real worktree already carries the directory
-    // — linking the whole directory would nest inside it instead of populating it.
-    mkdirSync(join(wt, "resources/references"), { recursive: true });
     const r = spawnSync("bash", [SETUP, wt, main], { encoding: "utf8" });
     expect(r.status).toBe(0);
 
     const vrm = join(wt, "resources/vrms/carlotta.vrm");
     expect(lstatSync(vrm).isSymbolicLink()).toBe(true);
     expect(readFileSync(vrm, "utf8")).toBe("vrm-bytes");
-
-    const speaker = join(wt, "resources/references/natsume");
-    expect(lstatSync(speaker).isSymbolicLink()).toBe(true);
-    expect(readFileSync(join(speaker, "merged_audio.mp3"), "utf8")).toBe("clip-bytes");
-    expect(existsSync(join(wt, "resources/references/references"))).toBe(false);
 
     expect(readFileSync(join(wt, ".env.local"), "utf8")).toContain("VITE_YUI_CHAT_KEY");
   });

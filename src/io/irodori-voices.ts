@@ -10,7 +10,7 @@ type RefUrlResolver = (refUrl: string) => Promise<string>;
 interface EnsureRegisteredOptions {
   baseUrl: string;
   id: string;
-  /** vite serving path (e.g. "/references/ナツメ/merged_audio.mp3"). */
+  /** Empty for a server-listed voice (nothing to register). An asset:// URL for a user-imported clip (e.g. "asset://localhost/app-data/references/myvoice/clip.mp3"). */
   refUrl: string;
   fetch?: typeof fetch;
   /** ref_url resolver (injectable). Defaults to resolveRefUrl (dev origin absolutization / Tauri bundle). */
@@ -129,6 +129,37 @@ export async function updateVoice(opts: UpdateVoiceOptions): Promise<void> {
     throw new Error(`irodori voice update failed (HTTP ${putRes.status}) ${opts.id}`);
   }
   log.info("voice_updated", { id: opts.id });
+}
+
+interface ListVoicesOptions {
+  baseUrl: string;
+  fetch?: typeof fetch;
+  logger?: Logger;
+}
+
+/**
+ * GETs {baseUrl}/voices and returns the registered voice ids — the irodori server is the
+ * source of truth for the speaker list. A down server or a malformed response must not
+ * throw into boot: logs a warn and resolves to [].
+ */
+export async function listVoices(opts: ListVoicesOptions): Promise<string[]> {
+  const log = opts.logger ?? createLogger("irodori-voices");
+  const fetchImpl = opts.fetch ?? globalThis.fetch;
+  const voicesUrl = `${opts.baseUrl}/voices`;
+  try {
+    const res = await fetchImpl(voicesUrl);
+    if (!res.ok) {
+      log.warn("voice_list_failed", { status: res.status });
+      return [];
+    }
+    const body = (await res.json()) as { voices?: Array<{ voice_id?: string }> };
+    return (body.voices ?? [])
+      .map((v) => v.voice_id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+  } catch (err) {
+    log.warn("voice_list_failed", { error: String(err) });
+    return [];
+  }
 }
 
 export function ensureRegistered(opts: EnsureRegisteredOptions): Promise<void> {

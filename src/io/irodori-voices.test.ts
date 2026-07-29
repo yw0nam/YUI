@@ -15,6 +15,7 @@ import {
   __resetIrodoriVoiceCache,
   ensureRegistered,
   evictRegistration,
+  listVoices,
   updateVoice,
 } from "./irodori-voices";
 
@@ -688,5 +689,77 @@ describe("updateVoice", () => {
 
     expect(nativeFetch).not.toHaveBeenCalled();
     expect(injectedFetch.mock.calls.some((c) => String(c[0]) === httpRef)).toBe(true);
+  });
+});
+
+describe("listVoices", () => {
+  it("returns the registered voice ids", async () => {
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown) => {
+      const url = String(input);
+      if (url === `${BASE}/voices`) return voicesResponse(["ナツメ", "あやせ"]);
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const ids = await listVoices({ baseUrl: BASE, fetch: fetchMock as unknown as typeof fetch });
+
+    expect(ids).toEqual(["ナツメ", "あやせ"]);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(String(fetchMock.mock.calls[0][0])).toBe(`${BASE}/voices`);
+  });
+
+  it("drops entries without a usable voice_id", async () => {
+    const fetchMock = vi.fn<FetchFn>(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => ({
+            voices: [
+              { voice_id: "ナツメ" },
+              {},
+              { voice_id: "" },
+              { voice_id: 42 },
+              { other: "x" },
+            ],
+          }),
+        }) as unknown as Response,
+    );
+
+    const ids = await listVoices({ baseUrl: BASE, fetch: fetchMock as unknown as typeof fetch });
+
+    expect(ids).toEqual(["ナツメ"]);
+  });
+
+  it("returns [] and warns on a non-ok response (a down server must not throw into boot)", async () => {
+    const warn = vi.fn();
+    const fetchMock = vi.fn<FetchFn>(
+      async () => ({ ok: false, status: 503, headers: new Headers() }) as unknown as Response,
+    );
+
+    const ids = await listVoices({
+      baseUrl: BASE,
+      fetch: fetchMock as unknown as typeof fetch,
+      logger: { debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() },
+    });
+
+    expect(ids).toEqual([]);
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it("returns [] and warns on a network error", async () => {
+    const warn = vi.fn();
+    const fetchMock = vi.fn<FetchFn>(async () => {
+      throw new Error("network down");
+    });
+
+    const ids = await listVoices({
+      baseUrl: BASE,
+      fetch: fetchMock as unknown as typeof fetch,
+      logger: { debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() },
+    });
+
+    expect(ids).toEqual([]);
+    expect(warn).toHaveBeenCalledOnce();
   });
 });

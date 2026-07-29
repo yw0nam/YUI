@@ -138,7 +138,7 @@ In `configs/endpoints.json`:
 "tts_voice": "<voice-id>"
 ```
 
-Available voice IDs are listed in `configs/endpoints.json` under `irodori_voices` (e.g. `ナツメ`, `あやせ`, `ムラサメ`, and others).
+The irodori server is the source of truth for the available voice IDs (`GET /voices`) — YUI ships no bundled catalog. Pick `irodori_speaker`/`tts_voice` from whatever the server reports, or import your own reference clip from the panel's voice section (which copies it into app-data and registers it with the server).
 
 ### Option B — OpenAI-compatible TTS
 

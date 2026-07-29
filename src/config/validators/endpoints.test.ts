@@ -75,17 +75,13 @@ describe("validateEndpoints — happy path", () => {
     expect(out.irodori_speaker).toBe("natsume");
   });
 
-  it("accepts a full irodori_voices manifest", () => {
+  it("accepts a full irodori numeric-knobs manifest", () => {
     const out = validateEndpoints(
       FILE,
       baseRaw({
         tts_provider: "irodori",
         irodori_base_url: "http://localhost:9000",
         irodori_speaker: "natsume",
-        irodori_voices: [
-          { id: "natsume", ref_url: "/voices/natsume.wav", label: "Natsume" },
-          { id: "carlotta", ref_url: "/voices/carlotta.wav" },
-        ],
         irodori_num_steps: 10,
         irodori_cfg_scale_text: 2.5,
         irodori_cfg_scale_speaker: 1.5,
@@ -93,10 +89,6 @@ describe("validateEndpoints — happy path", () => {
         broker_base_url: "http://localhost:9100",
       }),
     );
-    expect(out.irodori_voices).toEqual([
-      { id: "natsume", ref_url: "/voices/natsume.wav", label: "Natsume" },
-      { id: "carlotta", ref_url: "/voices/carlotta.wav" },
-    ]);
     expect(out.irodori_num_steps).toBe(10);
     expect(out.irodori_cfg_scale_text).toBe(2.5);
     expect(out.irodori_cfg_scale_speaker).toBe(1.5);
@@ -228,46 +220,6 @@ describe("validateEndpoints — irodori requireds when provider=irodori", () => 
     expectIssue(
       baseRaw({ tts_provider: undefined, irodori_speaker: "" }),
       "irodori_speaker는 비어있지 않은 문자열이어야 함",
-    );
-  });
-});
-
-describe("validateEndpoints — irodori_voices", () => {
-  const irodoriBase = {
-    tts_provider: "irodori" as const,
-    irodori_base_url: "http://localhost:9000",
-    irodori_speaker: "natsume",
-  };
-
-  it("rejects irodori_voices that isn't an array", () => {
-    expectIssue(
-      baseRaw({ ...irodoriBase, irodori_voices: "nope" }),
-      "irodori_voices는 배열이어야 함",
-    );
-  });
-
-  it("rejects a non-object voice entry", () => {
-    expectIssue(baseRaw({ ...irodoriBase, irodori_voices: ["x"] }), "항목이 객체가 아님");
-  });
-
-  it("rejects a voice entry with missing id", () => {
-    expectIssue(
-      baseRaw({ ...irodoriBase, irodori_voices: [{ ref_url: "/v.wav" }] }),
-      "irodori_voices[0].id는 비어있지 않은 문자열이어야 함",
-    );
-  });
-
-  it("rejects a voice entry whose ref_url doesn't start with /", () => {
-    expectIssue(
-      baseRaw({ ...irodoriBase, irodori_voices: [{ id: "a", ref_url: "voices/a.wav" }] }),
-      "irodori_voices[0].ref_url는",
-    );
-  });
-
-  it("rejects a voice entry with a non-string label", () => {
-    expectIssue(
-      baseRaw({ ...irodoriBase, irodori_voices: [{ id: "a", ref_url: "/a.wav", label: 1 }] }),
-      "irodori_voices[0].label는 문자열이어야 함",
     );
   });
 });

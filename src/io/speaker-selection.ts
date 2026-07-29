@@ -13,7 +13,7 @@ import {
   type UserOptionStorage,
 } from "./selection-store";
 
-/** An irodori speaker entry — same shape as EndpointsConfig.irodori_voices[number]. */
+/** An irodori speaker entry — id/ref_url as returned by the irodori server's voice list or a user import. */
 export interface SpeakerOption {
   id: string;
   label?: string;

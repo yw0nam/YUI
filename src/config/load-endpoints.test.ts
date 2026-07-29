@@ -21,10 +21,6 @@ describe("loadConfig — endpoints irodori provider", () => {
       tts_provider: "irodori",
       irodori_base_url: "http://localhost:8091",
       irodori_speaker: "ナツメ",
-      irodori_voices: [
-        { id: "ナツメ", label: "ナツメ", ref_url: "/references/ナツメ/merged_audio.mp3" },
-        { id: "レナ", ref_url: "/references/レナ/merged_audio.mp3" },
-      ],
       irodori_num_steps: 32,
       irodori_cfg_scale_text: 0.5,
       irodori_cfg_scale_speaker: 2,
@@ -45,10 +41,6 @@ describe("loadConfig — endpoints irodori provider", () => {
       tts_provider: "irodori",
       irodori_base_url: "http://localhost:8091",
       irodori_speaker: "ナツメ",
-      irodori_voices: [
-        { id: "ナツメ", label: "ナツメ", ref_url: "/references/ナツメ/merged_audio.mp3" },
-        { id: "レナ", ref_url: "/references/レナ/merged_audio.mp3" },
-      ],
       irodori_num_steps: 32,
       irodori_cfg_scale_text: 0.5,
       irodori_cfg_scale_speaker: 2,
@@ -280,53 +272,6 @@ describe("loadConfig — endpoints irodori validation failures", () => {
         tts_provider: "irodori",
         irodori_base_url: "localhost:8091", // missing scheme
         irodori_speaker: "ナツメ",
-      }),
-    );
-  });
-
-  it("irodori_voices가 배열이 아니면 실패", async () => {
-    await expectEndpointsError(
-      loadWith({
-        chat_base_url: "http://localhost:8642",
-        chat_endpoint: "/v1/responses",
-        stt_base_url: "http://localhost:5517",
-        tts_base_url: "http://localhost:8092",
-        tts_provider: "irodori",
-        irodori_base_url: "http://localhost:8091",
-        irodori_speaker: "ナツメ",
-        irodori_voices: { ナツメ: "/references/ナツメ/merged_audio.mp3" }, // object
-      }),
-    );
-  });
-
-  it("irodori_voices 항목의 ref_url이 '/'로 시작하지 않으면 실패", async () => {
-    await expectEndpointsError(
-      loadWith({
-        chat_base_url: "http://localhost:8642",
-        chat_endpoint: "/v1/responses",
-        stt_base_url: "http://localhost:5517",
-        tts_base_url: "http://localhost:8092",
-        tts_provider: "irodori",
-        irodori_base_url: "http://localhost:8091",
-        irodori_speaker: "ナツメ",
-        irodori_voices: [
-          { id: "ナツメ", ref_url: "references/ナツメ/merged_audio.mp3" }, // missing slash
-        ],
-      }),
-    );
-  });
-
-  it("irodori_voices 항목의 id가 비어있으면 실패", async () => {
-    await expectEndpointsError(
-      loadWith({
-        chat_base_url: "http://localhost:8642",
-        chat_endpoint: "/v1/responses",
-        stt_base_url: "http://localhost:5517",
-        tts_base_url: "http://localhost:8092",
-        tts_provider: "irodori",
-        irodori_base_url: "http://localhost:8091",
-        irodori_speaker: "ナツメ",
-        irodori_voices: [{ id: "", ref_url: "/references/x/merged_audio.mp3" }],
       }),
     );
   });
