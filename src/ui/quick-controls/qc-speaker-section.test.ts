@@ -486,6 +486,60 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
+  // A duplicate name replaces that voice's clip outright. The naming row is seeded from the picked
+  // file's stem, so a user can land on an existing name without ever meaning to — say so before Enter.
+  function spkOverwriteWarn(qc: { el: HTMLElement }): HTMLElement | null {
+    return qc.el.querySelector<HTMLElement>(".yui-spk__overwrite-warn");
+  }
+
+  it("warns on the naming row when the seeded name already names an existing voice", async () => {
+    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/natsume.wav", seedName: "natsume" }));
+    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+
+    expect(spkNamingInput(qc)!.value).toBe("natsume");
+    expect(spkOverwriteWarn(qc)).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  it("shows no warning for a name that does not collide", async () => {
+    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Brand New.wav", seedName: "Brand New" }));
+    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+
+    expect(spkOverwriteWarn(qc)).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("the warning tracks what is typed — appears and clears without re-rendering the row", async () => {
+    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Brand New.wav", seedName: "Brand New" }));
+    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+    const input = spkNamingInput(qc)!;
+    expect(spkOverwriteWarn(qc)).toBeNull();
+
+    input.value = "ayase";
+    input.dispatchEvent(new Event("input"));
+    expect(spkOverwriteWarn(qc)).not.toBeNull();
+
+    input.value = "ayase 2";
+    input.dispatchEvent(new Event("input"));
+    expect(spkOverwriteWarn(qc)).toBeNull();
+
+    qc.dispose();
+  });
+
   it("cancelling the OS picker (null) shows no naming row and never calls commitVoiceImport", async () => {
     pickVoiceImport = vi.fn(async () => null);
     const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport });
