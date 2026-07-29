@@ -76,26 +76,57 @@ fn copy_into_references(
 
     let dir = references_dir.join(&id);
     ensure_within(references_dir, &dir)?;
-    if dir.exists() {
-        std::fs::remove_dir_all(&dir).map_err(|e| {
-            log::error!("remove_failed dest={} error={e}", dir.display());
-            "storage unavailable".to_string()
-        })?;
-    }
-    std::fs::create_dir_all(&dir).map_err(|e| {
+
+    // Build the replacement in a sibling temp dir first, so a failure here never touches the
+    // existing `dir` — sanitize_stem never emits a leading dot, so this can't collide with a
+    // real voice id. Clear any leftover from a prior failed attempt before starting.
+    let tmp_dir = references_dir.join(format!(".{id}.import-tmp"));
+    ensure_within(references_dir, &tmp_dir)?;
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+    std::fs::create_dir_all(&tmp_dir).map_err(|e| {
         log::error!(
             "create_references_dir_failed dest={} error={e}",
-            dir.display()
+            tmp_dir.display()
         );
         "storage unavailable".to_string()
     })?;
 
-    let dest = dir.join(format!("clip.{ext_lower}"));
-    std::fs::copy(&src, &dest).map_err(|e| {
-        log::error!("copy_failed dest={} error={e}", dest.display());
-        "import failed".to_string()
-    })?;
+    let tmp_dest = tmp_dir.join(format!("clip.{ext_lower}"));
+    if let Err(e) = std::fs::copy(&src, &tmp_dest) {
+        log::error!("copy_failed dest={} error={e}", tmp_dest.display());
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+        return Err("import failed".to_string());
+    }
 
+    // Swap the fully-built temp dir into place. If `dir` already exists (overwrite), move it
+    // aside first so the destination of the final rename is always absent — a failure partway
+    // through restores the original instead of leaving neither old nor new content behind.
+    let backup_dir = references_dir.join(format!(".{id}.import-backup"));
+    ensure_within(references_dir, &backup_dir)?;
+    let _ = std::fs::remove_dir_all(&backup_dir);
+    let had_existing = dir.exists();
+    if had_existing {
+        if let Err(e) = std::fs::rename(&dir, &backup_dir) {
+            log::error!("backup_rename_failed dest={} error={e}", dir.display());
+            let _ = std::fs::remove_dir_all(&tmp_dir);
+            return Err("storage unavailable".to_string());
+        }
+    }
+    if let Err(e) = std::fs::rename(&tmp_dir, &dir) {
+        log::error!("swap_rename_failed dest={} error={e}", dir.display());
+        // Restore the previous voice — this is the path that matters most.
+        if had_existing {
+            let _ = std::fs::rename(&backup_dir, &dir);
+        }
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+        return Err("storage unavailable".to_string());
+    }
+    // New content is live — the backup is no longer needed (best-effort cleanup).
+    if had_existing {
+        let _ = std::fs::remove_dir_all(&backup_dir);
+    }
+
+    let dest = dir.join(format!("clip.{ext_lower}"));
     Ok(ImportedVoice {
         id,
         ref_path: dest.to_string_lossy().into_owned(),
