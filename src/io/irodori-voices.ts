@@ -48,10 +48,12 @@ export function evictRegistration(baseUrl: string, id: string): void {
   inflight.delete(`${baseUrl}::${id}`);
 }
 
-/** The injected fetch (Tauri's reqwest-backed fetchCORS) only speaks http/https; a non-http scheme (e.g. asset://) needs the webview's native fetch. Scheme-less/relative urls keep using the injected fetch. */
+/** Schemes the ref resolvers produce that the injected fetch (Tauri's reqwest-backed fetchCORS) cannot read. */
+const WEBVIEW_ONLY_SCHEME = /^(asset|blob):/i;
+
+/** Only a webview-only scheme escapes the injected fetch — anything else (http(s), relative, file:, data:) stays on it and fails loudly. */
 function fetchForRef(url: string, injected: typeof fetch): typeof fetch {
-  const nonHttpScheme = /^[a-z][a-z0-9+.-]*:/i.test(url) && !/^https?:\/\//i.test(url);
-  return nonHttpScheme ? globalThis.fetch : injected;
+  return WEBVIEW_ONLY_SCHEME.test(url) ? globalThis.fetch : injected;
 }
 
 async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<void> {

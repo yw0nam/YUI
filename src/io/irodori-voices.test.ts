@@ -433,6 +433,33 @@ describe("ensureRegistered", () => {
     expect(injectedFetch.mock.calls.length).toBe(2);
   });
 
+  it("keeps a file:// ref on the injected fetch so it fails loudly instead of reaching native fetch", async () => {
+    const fileRef = "file:///etc/passwd";
+    const nativeFetch = vi.fn<FetchFn>(async () => {
+      throw new Error("should not use native fetch for a file:// ref");
+    });
+    vi.stubGlobal("fetch", nativeFetch);
+
+    const injectedFetch = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `${BASE}/voices` && (init?.method ?? "GET") === "GET") {
+        return voicesResponse(["other"]);
+      }
+      throw new Error("scheme file not supported");
+    });
+
+    await expect(
+      ensureRegistered({
+        baseUrl: BASE,
+        id: "x",
+        refUrl: fileRef,
+        fetch: injectedFetch as unknown as typeof fetch,
+        resolveRef: async () => fileRef,
+      }),
+    ).rejects.toThrow("scheme file not supported");
+    expect(nativeFetch).not.toHaveBeenCalled();
+  });
+
   it("still fetches an http(s) ref through the injected fetch, not the native fetch", async () => {
     const httpRef = "http://127.0.0.1:1420/references/x.mp3";
     const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
