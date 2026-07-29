@@ -399,7 +399,7 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
     speakerSelection.dispose();
   });
 
-  it("an empty server voice list resolves to no bundled entries (only the default-id fallback)", async () => {
+  it("an empty server voice list yields a genuinely empty list — no phantom configured-default entry", async () => {
     listVoices.mockResolvedValue([]);
     const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({
@@ -412,7 +412,75 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
 
     await refreshVoiceList();
 
-    expect(speakerSelection.list()).toEqual([{ id: "ナツメ", label: "ナツメ", ref_url: "" }]);
+    expect(speakerSelection.list()).toEqual([]);
+    expect(speakerSelection.getActiveId()).toBe("");
+    speakerSelection.dispose();
+  });
+
+  it("does not select a configured irodori_speaker absent from a non-empty server list", async () => {
+    listVoices.mockResolvedValue(["あやせ", "レナ"]);
+    const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({
+        irodori_base_url: "http://localhost:8091",
+        irodori_speaker: "ナツメ", // configured, but the server doesn't have it
+      }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await refreshVoiceList();
+
+    expect(speakerSelection.list().map((o) => o.id)).toEqual(["あやせ", "レナ"]);
+    // Falls back to the first real (non-phantom) entry — never the unregistered configured id.
+    expect(speakerSelection.getActiveId()).toBe("あやせ");
+    speakerSelection.dispose();
+  });
+
+  it("selects the configured irodori_speaker when the server list contains it (unchanged from before)", async () => {
+    listVoices.mockResolvedValue(["あやせ", "ナツメ"]);
+    const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({
+        irodori_base_url: "http://localhost:8091",
+        irodori_speaker: "ナツメ",
+      }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await refreshVoiceList();
+
+    expect(speakerSelection.getActiveId()).toBe("ナツメ");
+    speakerSelection.dispose();
+  });
+
+  it("does not let a slow earlier refresh clobber a newer manifest (out-of-order resolution)", async () => {
+    // First call is slow and would resolve to a stale, single-voice manifest.
+    let resolveSlow: (ids: string[]) => void = () => {};
+    const slow = new Promise<string[]>((res) => {
+      resolveSlow = res;
+    });
+    listVoices.mockReturnValueOnce(slow);
+    const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({
+        irodori_base_url: "http://localhost:8091",
+        irodori_speaker: "ナツメ",
+      }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    const first = refreshVoiceList(); // in flight, slow
+
+    // Second call is fast and resolves first with the actually-current manifest.
+    listVoices.mockResolvedValueOnce(["ナツメ", "あやせ"]);
+    await refreshVoiceList();
+    expect(speakerSelection.list().map((o) => o.id)).toEqual(["ナツメ", "あやせ"]);
+
+    // The slow first call now resolves — it must be discarded, not overwrite the newer manifest.
+    resolveSlow(["stale-only-voice"]);
+    await first;
+    expect(speakerSelection.list().map((o) => o.id)).toEqual(["ナツメ", "あやせ"]);
+
     speakerSelection.dispose();
   });
 });

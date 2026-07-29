@@ -118,6 +118,64 @@ describe("createSelectionStore", () => {
     expect(store.list()[0].id).toBe("synth");
   });
 
+  // ── Genuinely empty: available empty AND fallback empty (nothing to synthesize from) ──
+
+  it("returns a genuinely empty list when available AND the fallback are both empty", () => {
+    const store = createSelectionStore<TestOption>({
+      defaultValue: "",
+      synthesize,
+      coerceUser,
+      isDefault,
+    });
+    expect(store.list()).toEqual([]);
+    expect(store.getOptions()).toEqual([]);
+  });
+
+  it("getActive/getActiveId do not throw on a genuinely empty list", () => {
+    const store = createSelectionStore<TestOption>({
+      defaultValue: "",
+      synthesize,
+      coerceUser,
+      isDefault,
+    });
+    expect(() => store.getActive()).not.toThrow();
+    expect(() => store.getActiveId()).not.toThrow();
+  });
+
+  it("select() on a genuinely empty list is a no-op — no crash, no persist", () => {
+    const storage = makeMemStorage();
+    const store = createSelectionStore<TestOption>({
+      defaultValue: "",
+      storage,
+      synthesize,
+      coerceUser,
+      isDefault,
+    });
+    expect(() => store.select("ghost")).not.toThrow();
+    expect(storage._data).toBeNull();
+  });
+
+  it("setManifest/reloadFromStorage do not throw transitioning into a genuinely empty list", () => {
+    const store = makeStore({ defaultValue: "/a.res" }); // starts non-empty
+    expect(() => store.setManifest({ available: [], defaultValue: "" })).not.toThrow();
+    expect(store.list()).toEqual([]);
+    expect(() => store.reloadFromStorage()).not.toThrow();
+  });
+
+  it("unions in a real user option even when there is genuinely nothing to synthesize", () => {
+    const userStorage = makeMemUserStorage();
+    userStorage._data = [{ id: "mine", url: "/mine.res" } as TestOption];
+    const store = createSelectionStore<TestOption>({
+      defaultValue: "",
+      userStorage,
+      synthesize,
+      coerceUser,
+      isDefault,
+    });
+    expect(store.list()).toEqual([{ id: "mine", label: "mine", url: "/mine.res", source: "user" }]);
+    expect(store.getActiveId()).toBe("mine");
+  });
+
   it("resolves override > default match > list[0], in priority order", () => {
     const storage = makeMemStorage();
     // No override, no default match with fallback value -> list[0]
