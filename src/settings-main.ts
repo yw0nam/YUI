@@ -187,8 +187,18 @@ async function bootstrap(): Promise<void> {
       // A configured default the server doesn't (yet) have must not be conjured into existence.
       const defaultId =
         eps.irodori_speaker && ids.includes(eps.irodori_speaker) ? eps.irodori_speaker : "";
+      // A user-imported voice registers to the server under its own id — exclude ids already owned
+      // by a user option so the richer user record (label + asset:// ref_url) stays authoritative.
+      const userIds = new Set(
+        speakerSelection
+          .getOptions()
+          .filter((o) => o.source === "user")
+          .map((o) => o.id),
+      );
       speakerSelection.setManifest({
-        available: ids.map((id) => ({ id, label: id, ref_url: "" })),
+        available: ids
+          .filter((id) => !userIds.has(id))
+          .map((id) => ({ id, label: id, ref_url: "" })),
         defaultId,
       });
     } catch (err) {
