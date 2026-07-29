@@ -48,6 +48,14 @@ export function evictRegistration(baseUrl: string, id: string): void {
   inflight.delete(`${baseUrl}::${id}`);
 }
 
+/** Schemes the ref resolvers produce that the injected fetch (Tauri's reqwest-backed fetchCORS) cannot read. */
+const WEBVIEW_ONLY_SCHEME = /^(asset|blob):/i;
+
+/** Only a webview-only scheme escapes the injected fetch — anything else (http(s), relative, file:, data:) stays on it and fails loudly. */
+function fetchForRef(url: string, injected: typeof fetch): typeof fetch {
+  return WEBVIEW_ONLY_SCHEME.test(url) ? globalThis.fetch : injected;
+}
+
 async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<void> {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const voicesUrl = `${opts.baseUrl}/voices`;
@@ -64,7 +72,7 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
   }
 
   const ref = await (opts.resolveRef ?? resolveRefUrl)(opts.refUrl);
-  const refRes = await fetchImpl(ref);
+  const refRes = await fetchForRef(ref, fetchImpl)(ref);
   if (!refRes.ok) {
     throw new Error(`irodori reference fetch failed (HTTP ${refRes.status}) ${ref}`);
   }
@@ -103,7 +111,7 @@ export async function updateVoice(opts: UpdateVoiceOptions): Promise<void> {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
 
   const ref = await (opts.resolveRef ?? resolveRefUrl)(opts.refUrl);
-  const refRes = await fetchImpl(ref);
+  const refRes = await fetchForRef(ref, fetchImpl)(ref);
   if (!refRes.ok) {
     throw new Error(`irodori reference fetch failed (HTTP ${refRes.status}) ${ref}`);
   }

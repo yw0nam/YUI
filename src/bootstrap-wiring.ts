@@ -42,6 +42,7 @@ import {
   removeOrphanVoice,
   removeUserVoice as removeUserVoiceFile,
 } from "./io/voice-import";
+import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeOrphanVrm, removeUserVrm } from "./io/vrm-import";
 import {
   createVrmSelection,
@@ -223,38 +224,9 @@ export function wireSpeakerSelection(deps: {
   };
   // Announce cross-window so the speaker picked in this window reflects in the settings-window UI.
   speakerSelection.subscribe(broadcastSettings);
-  // The irodori server is the source of truth for the speaker list — refetch and feed it into the
-  // manifest. No-op without irodori_base_url. A fresh server with no voices yields a genuinely empty
-  // available[] — that's expected, not an error (selection-store then has nothing to select).
-  // Generation counter discards a stale (out-of-order) resolution so it can't clobber a newer manifest —
-  // three independent triggers (boot, endpoints hot-reload, panel open) call this with no sequencing.
-  let voiceListGeneration = 0;
-  const refreshVoiceList = async (): Promise<void> => {
-    const eps = getEndpoints();
-    if (!eps.irodori_base_url) return;
-    const generation = ++voiceListGeneration;
-    const f = await selectFetch();
-    const ids = await listVoices({ baseUrl: eps.irodori_base_url, fetch: f, logger: log });
-    if (generation !== voiceListGeneration) return; // superseded by a later refresh
-    // A configured default the server doesn't (yet) have must not be conjured into existence.
-    const defaultId =
-      eps.irodori_speaker && ids.includes(eps.irodori_speaker) ? eps.irodori_speaker : "";
-    // A user-imported voice registers to the server under its own id — once relisted, it would
-    // collide as a "bundled" entry and the generic store's bundled-wins rule would strip the
-    // user's richer option (label + asset:// ref_url). Exclude ids already owned by a user option
-    // from the bundled manifest instead, so the user record stays authoritative. Read at
-    // manifest-build time (after the fetch), not before, so a fresh import mid-flight is respected.
-    const userIds = new Set(
-      speakerSelection
-        .getOptions()
-        .filter((o) => o.source === "user")
-        .map((o) => o.id),
-    );
-    speakerSelection.setManifest({
-      available: ids.filter((id) => !userIds.has(id)).map((id) => ({ id, label: id, ref_url: "" })),
-      defaultId,
-    });
-  };
+  // A fresh server with no voices yields a genuinely empty available[] — expected, not an error
+  // (selection-store then has nothing to select).
+  const refreshVoiceList = createVoiceListRefresh({ getEndpoints, speakerSelection, log });
   return {
     speakerSelection,
     swapSpeaker,

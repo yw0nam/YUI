@@ -59,6 +59,7 @@ import {
   removeOrphanVoice,
   removeUserVoice as removeUserVoiceFile,
 } from "./io/voice-import";
+import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
 import {
   createVrmSelection,
@@ -177,40 +178,13 @@ async function bootstrap(): Promise<void> {
     storage: localStorageSpeakerStorage(),
     userStorage: localStorageUserSpeakerStorage(),
   });
-  // The irodori server is the source of truth for the speaker list — this window has no synth,
-  // so a plain listVoices + setManifest is enough (no ensureRegistered call, unlike the pet window).
-  // Generation counter discards a stale (out-of-order) resolution — boot and panel-open both call this.
-  let voiceListGeneration = 0;
-  const refreshVoiceList = async (): Promise<void> => {
-    if (!configLoaded) return;
-    try {
-      const eps = config.get().endpoints;
-      if (!eps.irodori_base_url) return;
-      const generation = ++voiceListGeneration;
-      const f = await selectFetch();
-      const ids = await listVoices({ baseUrl: eps.irodori_base_url, fetch: f, logger: log });
-      if (generation !== voiceListGeneration) return; // superseded by a later refresh
-      // A configured default the server doesn't (yet) have must not be conjured into existence.
-      const defaultId =
-        eps.irodori_speaker && ids.includes(eps.irodori_speaker) ? eps.irodori_speaker : "";
-      // A user-imported voice registers to the server under its own id — exclude ids already owned
-      // by a user option so the richer user record (label + asset:// ref_url) stays authoritative.
-      const userIds = new Set(
-        speakerSelection
-          .getOptions()
-          .filter((o) => o.source === "user")
-          .map((o) => o.id),
-      );
-      speakerSelection.setManifest({
-        available: ids
-          .filter((id) => !userIds.has(id))
-          .map((id) => ({ id, label: id, ref_url: "" })),
-        defaultId,
-      });
-    } catch (err) {
-      log.warn("irodori_config_read_failed", { fallback: true, error: String(err) });
-    }
-  };
+  // This window has no synth, so the manifest refresh is all it needs (no ensureRegistered call,
+  // unlike the pet window).
+  const refreshVoiceList = createVoiceListRefresh({
+    getEndpoints: () => (configLoaded ? config.get().endpoints : null),
+    speakerSelection,
+    log,
+  });
   void refreshVoiceList();
   const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
     speakerSelection.select(option.id);
