@@ -176,6 +176,42 @@ describe("createSelectionStore", () => {
     expect(store.getActiveId()).toBe("mine");
   });
 
+  // A user option wiped from memory by a setManifest bundled-id collision is not lost: the
+  // persisted record survives (setManifest never writes userStorage), so once a later manifest
+  // no longer collides, reloadFromStorage's mergeUserOptions picks it back up unassisted.
+  it("a user option wiped by a bundled-id collision is restored by reloadFromStorage once the collision clears", () => {
+    const userStorage = makeMemUserStorage();
+    userStorage._data = [{ id: "shared", label: "Mine", url: "asset://mine.res" } as TestOption];
+    const store = createSelectionStore<TestOption>({
+      defaultValue: "",
+      userStorage,
+      synthesize,
+      coerceUser,
+      isDefault,
+    });
+    expect(store.list()).toEqual([
+      { id: "shared", label: "Mine", url: "asset://mine.res", source: "user" },
+    ]);
+
+    // A manifest now also lists "shared" as bundled (e.g. it got registered server-side) — the
+    // generic store's bundled-wins rule strips the richer user option from memory.
+    store.setManifest({
+      available: [{ id: "shared", label: "shared", url: "", source: "bundled" }],
+      defaultValue: "",
+    });
+    expect(store.list()).toEqual([{ id: "shared", label: "shared", url: "", source: "bundled" }]);
+
+    // The collision clears (the call site stops including ids already owned by a user option).
+    store.setManifest({ available: [], defaultValue: "" });
+    expect(store.list()).toEqual([]); // setManifest alone does not restore it — no mergeUserOptions
+
+    // reloadFromStorage merges from the still-intact persisted record.
+    store.reloadFromStorage();
+    expect(store.list()).toEqual([
+      { id: "shared", label: "Mine", url: "asset://mine.res", source: "user" },
+    ]);
+  });
+
   it("resolves override > default match > list[0], in priority order", () => {
     const storage = makeMemStorage();
     // No override, no default match with fallback value -> list[0]
