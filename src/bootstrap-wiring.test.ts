@@ -681,6 +681,41 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
     );
     speakerSelection.dispose();
   });
+
+  // Pins the refreshVoiceList regression fix (excludes source:"user" ids from the server-derived
+  // manifest) specifically for the new pick/commit flow: a voice just imported via commitVoiceImport
+  // must not get clobbered by a refreshVoiceList triggered right after (e.g. the next panel open).
+  it("a voice imported via commitVoiceImport survives a refreshVoiceList right after (next panel open)", async () => {
+    copyVoiceFile.mockResolvedValue({
+      id: "myvoice",
+      label: "My Voice",
+      ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
+      source: "user",
+    });
+    listVoices.mockResolvedValue([]); // not registered yet at commit time
+    const { commitVoiceImport, refreshVoiceList, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({ irodori_base_url: "http://localhost:8091" }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+    expect(speakerSelection.getOptions().map((o) => o.id)).toContain("myvoice");
+
+    // The server now also lists it (registered at import time) — simulate the next panel open.
+    listVoices.mockResolvedValue(["myvoice"]);
+    await refreshVoiceList();
+
+    const rows = speakerSelection.list().filter((o) => o.id === "myvoice");
+    expect(rows).toHaveLength(1); // not duplicated
+    expect(rows[0]).toEqual({
+      id: "myvoice",
+      label: "My Voice",
+      ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
+      source: "user",
+    });
+    speakerSelection.dispose();
+  });
 });
 
 describe("wireBroker", () => {
