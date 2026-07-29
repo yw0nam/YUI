@@ -82,9 +82,11 @@ fn is_unsafe_stem_char(c: char) -> bool {
 
 /// Windows reserved device names — matched case-insensitively against the part of the
 /// stem before its first `.`, so both a bare `CON` and a `CON.txt`-shaped stem are caught.
-const RESERVED_STEM_NAMES: [&str; 22] = [
-    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
-    "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+/// Includes COM0/LPT0 alongside COM1-9/LPT1-9 per current Microsoft file-naming docs.
+/// Keep this list in lockstep with src/io/safe-id.ts's RESERVED_STEM_NAMES.
+const RESERVED_STEM_NAMES: [&str; 24] = [
+    "CON", "PRN", "AUX", "NUL", "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
+    "COM8", "COM9", "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
 ];
 
 fn is_reserved_stem_name(s: &str) -> bool {
