@@ -25,7 +25,7 @@ import {
   createIdleThrottleSettings,
   localStorageIdleThrottleStorage,
 } from "./io/idle-throttle-settings";
-import { ensureRegistered, updateVoice } from "./io/irodori-voices";
+import { updateVoice } from "./io/irodori-voices";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createPresenceSettings, localStoragePresenceStorage } from "./io/presence-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
@@ -52,7 +52,8 @@ import {
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
 import { createTtsSettings, localStorageTtsStorage } from "./io/tts-settings";
 import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
-import { importVoiceFromFile, removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
+import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
+import { createVoiceImportFlow } from "./io/voice-import-flow";
 import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
 import {
@@ -191,29 +192,11 @@ async function bootstrap(): Promise<void> {
     const f = await selectFetch();
     await updateVoice({ baseUrl: irodoriBaseUrl, id: option.id, refUrl: option.ref_url, fetch: f });
   };
-  // BYO-voice import (settings window) — registration is direct server call, perform here too (same as refreshSpeaker).
-  // Copy file → irodori register → add option + select. Cancel (null) ignored. Registration failure: remove orphan copy then throw.
-  const importVoice = async (): Promise<void> => {
-    const option = await importVoiceFromFile();
-    if (option === null) return;
-    try {
-      const irodoriBaseUrl = configLoaded ? config.get().endpoints.irodori_base_url : undefined;
-      if (!irodoriBaseUrl) throw new Error("irodori provider requires irodori_base_url");
-      const f = await selectFetch();
-      await ensureRegistered({
-        baseUrl: irodoriBaseUrl,
-        id: option.id,
-        refUrl: option.ref_url,
-        fetch: f,
-      });
-    } catch (err) {
-      await removeUserVoiceFile(option.id).catch(() => {}); // Remove orphan copy (best-effort)
-      log.error("imported_voice_register_failed", { error: String(err) });
-      throw err;
-    }
-    speakerSelection.addUserVoice(option);
-    speakerSelection.select(option.id);
-  };
+  const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
+    getIrodoriBaseUrl: () => (configLoaded ? config.get().endpoints.irodori_base_url : undefined),
+    speakerSelection,
+    log,
+  });
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({
@@ -244,7 +227,8 @@ async function bootstrap(): Promise<void> {
       speakerSelection,
       swapSpeaker,
       refreshSpeaker,
-      importVoice,
+      pickVoiceImport,
+      commitVoiceImport,
       removeUserVoice: removeUserVoiceFile,
       refreshVoiceList,
       resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),

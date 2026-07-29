@@ -5,6 +5,7 @@
  * persists it, and resolves the active option.
  */
 
+import { isSafeSanitizedId } from "./safe-id";
 import {
   createSelectionStore,
   localStorageOverrideStorage,
@@ -32,14 +33,11 @@ function synthesizeOption(defaultId: string): SpeakerOption {
   return { id: defaultId, label: defaultId, ref_url: "" };
 }
 
-/** Safe charset for an id (`^[A-Za-z0-9_-]+$`) — matches the native sanitize_stem. */
-const SAFE_ID = /^[A-Za-z0-9_-]+$/;
-
 /** Coerces one imported option into a safe source:"user" SpeakerOption (null if incomplete). */
 function coerceUserSpeaker(v: unknown): SpeakerOption | null {
   if (typeof v !== "object" || v === null) return null;
   const o = v as Record<string, unknown>;
-  if (typeof o.id !== "string" || !SAFE_ID.test(o.id)) return null;
+  if (typeof o.id !== "string" || !isSafeSanitizedId(o.id)) return null;
   if (typeof o.ref_url !== "string" || o.ref_url.length === 0) return null;
   const label = typeof o.label === "string" && o.label.length > 0 ? o.label : o.id;
   return { id: o.id, label, ref_url: o.ref_url, source: "user" };

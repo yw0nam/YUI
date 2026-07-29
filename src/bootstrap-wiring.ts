@@ -35,11 +35,7 @@ import {
 import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
-import {
-  importVoiceFromFile,
-  removeOrphanVoice,
-  removeUserVoice as removeUserVoiceFile,
-} from "./io/voice-import";
+import { createVoiceImportFlow } from "./io/voice-import-flow";
 import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeOrphanVrm, removeUserVrm } from "./io/vrm-import";
 import {
@@ -129,7 +125,10 @@ export function wireSpeakerSelection(deps: {
   speakerSelection: ReturnType<typeof createSpeakerSelection>;
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
-  importVoice: () => Promise<void>;
+  /** Pick step: opens the file picker, returns the source path + a seed name for the naming row (null on cancel). */
+  pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
+  /** Commit step: copy + register under `name` (overwrite-aware) → add option + select. */
+  commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   refreshVoiceList: () => Promise<void>;
 } {
   const { getEndpoints, log, broadcastSettings } = deps;
@@ -167,40 +166,24 @@ export function wireSpeakerSelection(deps: {
       fetch: f,
     });
   };
-  // BYO-voice import: pick file → copy → register in irodori → add option + select (mirrors swapSpeaker's register-then-select).
-  // Cancel (null) is silently ignored. On register failure (server down / unusable clip), delete the orphan copy and throw
-  // without adding the option — prior selection stays as-is (no recovery needed since registration fails before the store commit).
-  const importVoice = async (): Promise<void> => {
-    const option = await importVoiceFromFile();
-    if (option === null) return; // cancel
-    try {
-      const f = await selectFetch();
-      const eps = getEndpoints();
-      if (!eps.irodori_base_url) throw new Error("irodori provider requires irodori_base_url");
-      // ref_url is an asset:// URL — resolveRef passes it through as-is and POSTs the clip.
-      await ensureRegistered({
-        baseUrl: eps.irodori_base_url,
-        id: option.id,
-        refUrl: option.ref_url,
-        fetch: f,
-      });
-    } catch (err) {
-      // Remove the orphan copy — don't swallow a failure, surface it as a warning (the original error is still thrown).
-      await removeOrphanVoice(option.id, removeUserVoiceFile, (e) =>
-        log.warn("orphan_voice_cleanup_failed", { error: String(e) }),
-      );
-      log.error("imported_voice_register_failed", { error: String(err) });
-      throw err;
-    }
-    speakerSelection.addUserVoice(option);
-    speakerSelection.select(option.id);
-  };
+  const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
+    getIrodoriBaseUrl: () => getEndpoints().irodori_base_url,
+    speakerSelection,
+    log,
+  });
   // Announce cross-window so the speaker picked in this window reflects in the settings-window UI.
   speakerSelection.subscribe(broadcastSettings);
   // A fresh server with no voices yields a genuinely empty available[] — expected, not an error
   // (selection-store then has nothing to select).
   const refreshVoiceList = createVoiceListRefresh({ getEndpoints, speakerSelection, log });
-  return { speakerSelection, swapSpeaker, refreshSpeaker, importVoice, refreshVoiceList };
+  return {
+    speakerSelection,
+    swapSpeaker,
+    refreshSpeaker,
+    pickVoiceImport,
+    commitVoiceImport,
+    refreshVoiceList,
+  };
 }
 
 /** A settings store that participates in cross-window sync: broadcasts local edits and reloads remote ones. */

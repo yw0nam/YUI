@@ -72,25 +72,67 @@ pub(crate) fn sniff_file(src: &Path, kind: SniffKind) -> Result<bool, String> {
     Ok(sniff_ok(&header[..n], kind))
 }
 
-/// Sanitize a filename stem into a safe id charset (`[A-Za-z0-9_-]`).
-/// Every other char — including `.`, `/`, `\`, NUL, unicode — becomes `_`, so the
-/// result can never be `.`, `..`, or contain a path separator. Collapses to `avatar`
-/// when nothing usable remains.
+/// Chars neutralized regardless of position: path separators, ASCII control chars
+/// (including NUL and DEL), and the characters illegal in a Windows filename.
+fn is_unsafe_stem_char(c: char) -> bool {
+    matches!(c, '/' | '\\' | '<' | '>' | ':' | '"' | '|' | '?' | '*')
+        || (c as u32) < 0x20
+        || c == '\u{7f}'
+}
+
+/// Windows reserved device names — matched case-insensitively against the part of the
+/// stem before its first `.`, so both a bare `CON` and a `CON.txt`-shaped stem are caught.
+/// Includes COM0/LPT0 alongside COM1-9/LPT1-9 per current Microsoft file-naming docs.
+/// Keep this list in lockstep with src/io/safe-id.ts's RESERVED_STEM_NAMES.
+const RESERVED_STEM_NAMES: [&str; 24] = [
+    "CON", "PRN", "AUX", "NUL", "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
+    "COM8", "COM9", "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+];
+
+fn is_reserved_stem_name(s: &str) -> bool {
+    let base = s.split('.').next().unwrap_or(s);
+    RESERVED_STEM_NAMES
+        .iter()
+        .any(|r| r.eq_ignore_ascii_case(base))
+}
+
+/// Filesystem path-component byte cap. Generous for a single stem while guaranteeing a
+/// multi-byte (UTF-8) name cannot blow past typical filesystem limits (~255 bytes).
+const MAX_STEM_BYTES: usize = 150;
+
+/// Truncate `s` to at most `max_bytes`, backing off to the nearest char boundary so a
+/// multi-byte UTF-8 sequence is never split.
+fn truncate_at_char_boundary(s: &str, max_bytes: usize) -> &str {
+    if s.len() <= max_bytes {
+        return s;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
+}
+
+/// Sanitize a filename stem into a safe path-component, permitting UTF-8. Neutralizes path
+/// separators, `.`/`..` traversal (via leading/trailing dot trim), leading/trailing whitespace,
+/// ASCII control chars + NUL, Windows-illegal characters, and Windows reserved device names, and
+/// caps the byte length. Collapses to `avatar` when nothing safe/usable remains.
 pub(crate) fn sanitize_stem(stem: &str) -> String {
-    let out: String = stem
+    let substituted: String = stem
         .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
-                c
-            } else {
-                '_'
-            }
-        })
+        .map(|c| if is_unsafe_stem_char(c) { '_' } else { c })
         .collect();
-    if out.chars().all(|c| c == '_') {
+    let trim = |s: &str| {
+        s.trim_matches(|c: char| c == '.' || c.is_whitespace())
+            .to_string()
+    };
+    let trimmed = trim(&substituted);
+    let capped = trim(truncate_at_char_boundary(&trimmed, MAX_STEM_BYTES));
+
+    if capped.is_empty() || capped.chars().all(|c| c == '_') || is_reserved_stem_name(&capped) {
         return "avatar".to_string();
     }
-    out
+    capped
 }
 
 /// Lexically normalize `path` by resolving `.`/`..` components without touching
@@ -195,30 +237,46 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    /// A safe stem can never be a separator, `.`, or `..`.
+    /// A safe stem can never be empty, `.`, `..`, contain a path separator, a Windows-illegal
+    /// character, an ASCII control char, or carry a leading/trailing dot or whitespace —
+    /// but otherwise permits arbitrary UTF-8 (the relaxed charset).
     fn is_safe_stem(s: &str) -> bool {
         !s.is_empty()
             && s != "."
             && s != ".."
-            && s.chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            && !s.chars().any(|c| {
+                matches!(c, '/' | '\\' | '<' | '>' | ':' | '"' | '|' | '?' | '*')
+                    || (c as u32) < 0x20
+                    || c == '\u{7f}'
+            })
+            && !s.starts_with('.')
+            && !s.ends_with('.')
+            && s.trim() == s
+            && s.len() <= MAX_STEM_BYTES
     }
 
     // ── sanitize_stem ────────────────────────────────────────────────────────
 
     #[test]
-    fn sanitize_keeps_only_alnum_underscore_dash() {
+    fn sanitize_keeps_alnum_underscore_dash_unchanged() {
         assert_eq!(sanitize_stem("My_Avatar-1"), "My_Avatar-1");
     }
 
     #[test]
-    fn sanitize_replaces_dot_with_underscore() {
-        assert_eq!(sanitize_stem("My_Avatar-1.0"), "My_Avatar-1_0");
+    fn sanitize_keeps_an_interior_dot() {
+        // Only leading/trailing dots are traversal-relevant — an interior dot is a normal char.
+        assert_eq!(sanitize_stem("My_Avatar-1.0"), "My_Avatar-1.0");
     }
 
     #[test]
-    fn sanitize_replaces_spaces_and_specials_with_underscore() {
-        assert_eq!(sanitize_stem("my avatar (v2)"), "my_avatar__v2_");
+    fn sanitize_keeps_unicode_verbatim() {
+        assert_eq!(sanitize_stem("ナツメ"), "ナツメ");
+        assert_eq!(sanitize_stem("무라사메"), "무라사메");
+    }
+
+    #[test]
+    fn sanitize_keeps_interior_spaces_and_parens() {
+        assert_eq!(sanitize_stem("my avatar (v2)"), "my avatar (v2)");
     }
 
     #[test]
@@ -229,8 +287,84 @@ mod tests {
     }
 
     #[test]
+    fn sanitize_replaces_path_separators() {
+        assert_eq!(sanitize_stem("a/b"), "a_b");
+        assert_eq!(sanitize_stem("a\\b"), "a_b");
+        assert_eq!(sanitize_stem("a//b\\\\c"), "a__b__c");
+    }
+
+    #[test]
+    fn sanitize_dotdot_and_dot_collapse_to_avatar() {
+        assert_eq!(sanitize_stem(".."), "avatar");
+        assert_eq!(sanitize_stem("."), "avatar");
+        assert_eq!(sanitize_stem("...."), "avatar");
+        assert_ne!(sanitize_stem(".."), "..");
+    }
+
+    #[test]
+    fn sanitize_trims_leading_and_trailing_dots_and_whitespace() {
+        assert_eq!(sanitize_stem("..hidden"), "hidden");
+        assert_eq!(sanitize_stem("hidden.."), "hidden");
+        assert_eq!(sanitize_stem("  spaced  "), "spaced");
+        assert_eq!(sanitize_stem(" . mixed . "), "mixed");
+    }
+
+    #[test]
+    fn sanitize_neutralizes_control_chars_and_nul() {
+        assert_eq!(sanitize_stem("a\0b"), "a_b");
+        assert_eq!(sanitize_stem("a\tb\nc"), "a_b_c");
+        assert!(is_safe_stem(&sanitize_stem("\0")));
+    }
+
+    #[test]
+    fn sanitize_replaces_windows_illegal_chars() {
+        assert_eq!(sanitize_stem(r#"a<b>c:d"e|f?g*h"#), "a_b_c_d_e_f_g_h");
+    }
+
+    #[test]
+    fn sanitize_neutralizes_reserved_windows_device_names() {
+        for name in [
+            "CON", "con", "PRN", "AUX", "NUL", "COM0", "COM1", "com9", "LPT0", "LPT1", "lpt9",
+        ] {
+            assert_eq!(sanitize_stem(name), "avatar", "{name} must be neutralized");
+        }
+        // With an extension-shaped suffix, still caught.
+        assert_eq!(sanitize_stem("CON.txt"), "avatar");
+        assert_eq!(sanitize_stem("com1.mp3"), "avatar");
+        // COM10/LPT10 are not reserved (current Microsoft docs list only COM0-9/LPT0-9) — pass through.
+        assert_eq!(sanitize_stem("COM10"), "COM10");
+        assert_eq!(sanitize_stem("LPT10"), "LPT10");
+    }
+
+    #[test]
+    fn sanitize_caps_byte_length_on_a_char_boundary() {
+        let long = "a".repeat(500);
+        let out = sanitize_stem(&long);
+        assert!(out.len() <= MAX_STEM_BYTES);
+        assert!(out.chars().all(|c| c == 'a'));
+
+        // Multi-byte chars: cap must not split a codepoint.
+        let long_unicode = "あ".repeat(200); // 3 bytes each, 600 bytes total
+        let out_unicode = sanitize_stem(&long_unicode);
+        assert!(out_unicode.len() <= MAX_STEM_BYTES);
+        assert!(out_unicode.chars().all(|c| c == 'あ'));
+        assert!(std::str::from_utf8(out_unicode.as_bytes()).is_ok());
+    }
+
+    #[test]
     fn sanitize_neutralizes_traversal_inputs() {
-        for input in ["..", ".", "../x", "a/b", "a\\b", "\0", "....", "../../etc"] {
+        for input in [
+            "..",
+            ".",
+            "../x",
+            "a/b",
+            "a\\b",
+            "\0",
+            "....",
+            "../../etc/passwd",
+            "..\\..\\windows",
+            "....//....//etc",
+        ] {
             let out = sanitize_stem(input);
             assert!(
                 is_safe_stem(&out),
@@ -247,9 +381,63 @@ mod tests {
     }
 
     #[test]
-    fn sanitize_handles_unicode_by_dropping_to_safe() {
+    fn sanitize_handles_unicode_by_keeping_it_safe() {
         let out = sanitize_stem("ナツメ");
         assert!(is_safe_stem(&out));
+        assert_eq!(out, "ナツメ");
+    }
+
+    #[test]
+    fn sanitize_output_is_idempotent() {
+        for input in ["My_Avatar-1.0", "ナツメ", "..", "CON", "a/b\\c", "  x  "] {
+            let once = sanitize_stem(input);
+            let twice = sanitize_stem(&once);
+            assert_eq!(
+                once, twice,
+                "sanitize_stem must be idempotent for {input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn sanitize_stem_matches_the_shared_cross_language_fixture() {
+        // Shared with src/io/safe-id.test.ts's sanitizeStem reimplementation — a single source of
+        // truth for what sanitize_stem produces, so the Rust and TS charset rules cannot drift.
+        let raw = include_str!("../../fixtures/sanitize-stem-cases.json");
+        let cases: Vec<serde_json::Value> = serde_json::from_str(raw).unwrap();
+        assert!(!cases.is_empty(), "fixture must not be empty");
+        for case in &cases {
+            let input = case["input"].as_str().unwrap();
+            let expected = case["expected"].as_str().unwrap();
+            assert_eq!(
+                sanitize_stem(input),
+                expected,
+                "sanitize_stem({input:?}) mismatch"
+            );
+        }
+    }
+
+    #[test]
+    fn sanitize_traversal_result_cannot_escape_via_ensure_within() {
+        // Defense-in-depth: even though sanitize_stem already neutralizes traversal, prove the
+        // sanitized id joined under a parent never escapes it.
+        let parent = std::env::temp_dir().join("yui_sanitize_escape_check");
+        std::fs::create_dir_all(&parent).unwrap();
+        for input in [
+            "../../etc/passwd",
+            "..\\..\\windows",
+            "..",
+            ".",
+            "a/../../b",
+        ] {
+            let id = sanitize_stem(input);
+            let child = parent.join(&id);
+            assert!(
+                ensure_within(&parent, &child).is_ok(),
+                "{input:?} -> {id:?} produced a child that failed ensure_within"
+            );
+        }
+        std::fs::remove_dir_all(&parent).ok();
     }
 
     // ── ensure_within ────────────────────────────────────────────────────────
@@ -283,7 +471,8 @@ mod tests {
     fn derive_uses_sanitized_stem_when_no_collision() {
         let src = PathBuf::from("/Users/me/Downloads/My Avatar.vrm");
         let stem = derive_dest_stem(&src, |_| false);
-        assert_eq!(stem, "My_Avatar");
+        // Interior spaces are kept by the relaxed sanitize_stem — only traversal/illegal chars are neutralized.
+        assert_eq!(stem, "My Avatar");
     }
 
     #[test]

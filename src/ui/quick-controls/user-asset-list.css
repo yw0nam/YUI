@@ -349,6 +349,13 @@
   white-space: nowrap;
 }
 
+/* Naming row: the typed name already exists, so committing replaces that asset. */
+.yui-vrm__overwrite-warn,
+.yui-spk__overwrite-warn {
+  color: var(--yui-danger);
+  font-weight: 650;
+}
+
 .yui-vrm__rename-hint kbd,
 .yui-spk__rename-hint kbd {
   font-family: inherit;

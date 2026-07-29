@@ -227,6 +227,21 @@ mod tests {
     }
 
     #[test]
+    fn copy_into_keeps_a_utf8_filename_stem_verbatim() {
+        // Relaxed sanitize_stem (import_fs) now passes UTF-8 through instead of mangling it —
+        // a non-ASCII VRM filename registers under its real name instead of "____".
+        let dir = unique_dir("utf8_stem");
+        let vrms = dir.join("vrms");
+        let src = dir.join("ナツメ.vrm");
+        std::fs::write(&src, b"glTF\x02\x00\x00\x00binary chunk").unwrap();
+
+        let imported = copy_into_vrms(&vrms, Path::new(&src)).unwrap();
+        assert_eq!(imported.id, "ナツメ");
+        assert!(vrms.join("ナツメ.vrm").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn copy_into_errors_carry_no_path_separators() {
         let dir = unique_dir("err_generic");
         let src = dir.join("fake.vrm");

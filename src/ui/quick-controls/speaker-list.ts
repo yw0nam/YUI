@@ -31,8 +31,10 @@ interface SpeakerListDeps {
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
   /** Refresh speaker reference voice (PUT /voices). Server-side update only — does not change speaker selection/store. */
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
-  /** Full import flow: file select → register → addUserVoice + select. Inline error on reject. */
-  importVoice: () => Promise<void>;
+  /** Import pick step: opens the file picker, returns the source path + a naming-row seed (null on cancel). */
+  pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
+  /** Import commit step: copy + register under the typed name → addUserVoice + select. Inline error on reject. */
+  commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   /** Delete imported voice app-data file (idempotent). Called separately from store removal. */
   removeUserVoice: (id: string) => Promise<void>;
   /** Convert audition ref_url to fetchable URL (injectable). Default is resolveAssetUrl. */
@@ -61,7 +63,8 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     speakerSelection,
     swapSpeaker,
     refreshSpeaker,
-    importVoice,
+    pickVoiceImport,
+    commitVoiceImport,
     removeUserVoice,
     resolveAuditionUrl,
     log,
@@ -87,7 +90,8 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     removeFile: removeUserVoice,
     removeFromStore: (id) => speakerSelection.removeUserVoice(id),
     swap: swapSpeaker,
-    importFn: importVoice,
+    pickImport: pickVoiceImport,
+    commitImport: commitVoiceImport,
     render: () => renderSpeakers(),
     canActivate: speakerControlsEnabled,
     onRowBusy: (row) => {
@@ -293,6 +297,16 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
         note.innerHTML = `${SPK_NOTE_CHECK_SVG}${t("speaker.refresh_done")}`;
         spksEl.appendChild(note);
       }
+    }
+
+    // A picked-but-not-yet-copied import shows its naming row at the end (not a radio — it
+    // isn't a selectable option yet). Hidden once commit starts, in favor of the spinner below.
+    const pending = list.getPendingImport();
+    if (pending !== null && !list.isImporting()) {
+      const row = document.createElement("div");
+      row.className = "yui-spk";
+      list.renderPendingImportRow(row, pending);
+      spksEl.appendChild(row);
     }
 
     // If import is in progress, append spinner placeholder row at end (not radio).

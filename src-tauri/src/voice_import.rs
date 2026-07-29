@@ -3,9 +3,7 @@
 //! Copies a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`.
 //! A native `std::fs::copy` reads the arbitrary source with the app's own privileges.
 
-use crate::import_fs::{
-    audio_sniff_kind, collides, derive_dest_stem, ensure_within, sanitize_stem, sniff_file,
-};
+use crate::import_fs::{audio_sniff_kind, ensure_within, sanitize_stem, sniff_file};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle, Manager};
@@ -32,12 +30,18 @@ pub struct ImportedVoice {
     pub ref_path: String,
 }
 
-/// Copy a validated audio source into `references_dir/<id>/clip.<ext_lower>`.
+/// Copy a validated audio source into `references_dir/<id>/clip.<ext_lower>`, where `<id>` is
+/// `sanitize_stem(desired_name)`. Overwrites any existing directory of that id — the caller
+/// chose the name explicitly, so a collision is intentional replacement, not disambiguation.
 fn copy_into_references(
     references_dir: &Path,
     src: &Path,
     ext_lower: &str,
+    desired_name: &str,
 ) -> Result<ImportedVoice, String> {
+    if desired_name.trim().is_empty() {
+        return Err("voice name required".to_string());
+    }
     let src = src
         .canonicalize()
         .map_err(|_| "source file not found".to_string())?;
@@ -68,30 +72,61 @@ fn copy_into_references(
         "storage unavailable".to_string()
     })?;
 
-    let id = derive_dest_stem(&src, |candidate| {
-        collides(
-            &references_dir
-                .join(candidate)
-                .join(format!("clip.{ext_lower}")),
-        )
-    });
+    let id = sanitize_stem(desired_name);
 
     let dir = references_dir.join(&id);
     ensure_within(references_dir, &dir)?;
-    std::fs::create_dir_all(&dir).map_err(|e| {
+
+    // Build the replacement in a sibling temp dir first, so a failure here never touches the
+    // existing `dir` — sanitize_stem never emits a leading dot, so this can't collide with a
+    // real voice id. Clear any leftover from a prior failed attempt before starting.
+    let tmp_dir = references_dir.join(format!(".{id}.import-tmp"));
+    ensure_within(references_dir, &tmp_dir)?;
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+    std::fs::create_dir_all(&tmp_dir).map_err(|e| {
         log::error!(
             "create_references_dir_failed dest={} error={e}",
-            dir.display()
+            tmp_dir.display()
         );
         "storage unavailable".to_string()
     })?;
 
-    let dest = dir.join(format!("clip.{ext_lower}"));
-    std::fs::copy(&src, &dest).map_err(|e| {
-        log::error!("copy_failed dest={} error={e}", dest.display());
-        "import failed".to_string()
-    })?;
+    let tmp_dest = tmp_dir.join(format!("clip.{ext_lower}"));
+    if let Err(e) = std::fs::copy(&src, &tmp_dest) {
+        log::error!("copy_failed dest={} error={e}", tmp_dest.display());
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+        return Err("import failed".to_string());
+    }
 
+    // Swap the fully-built temp dir into place. If `dir` already exists (overwrite), move it
+    // aside first so the destination of the final rename is always absent — a failure partway
+    // through restores the original instead of leaving neither old nor new content behind.
+    let backup_dir = references_dir.join(format!(".{id}.import-backup"));
+    ensure_within(references_dir, &backup_dir)?;
+    let _ = std::fs::remove_dir_all(&backup_dir);
+    let had_existing = dir.exists();
+    if had_existing {
+        if let Err(e) = std::fs::rename(&dir, &backup_dir) {
+            log::error!("backup_rename_failed dest={} error={e}", dir.display());
+            let _ = std::fs::remove_dir_all(&tmp_dir);
+            return Err("storage unavailable".to_string());
+        }
+    }
+    if let Err(e) = std::fs::rename(&tmp_dir, &dir) {
+        log::error!("swap_rename_failed dest={} error={e}", dir.display());
+        // Restore the previous voice — this is the path that matters most.
+        if had_existing {
+            let _ = std::fs::rename(&backup_dir, &dir);
+        }
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+        return Err("storage unavailable".to_string());
+    }
+    // New content is live — the backup is no longer needed (best-effort cleanup).
+    if had_existing {
+        let _ = std::fs::remove_dir_all(&backup_dir);
+    }
+
+    let dest = dir.join(format!("clip.{ext_lower}"));
     Ok(ImportedVoice {
         id,
         ref_path: dest.to_string_lossy().into_owned(),
@@ -114,9 +149,14 @@ fn remove_user_voice_at(references_dir: &Path, id: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Copy a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`.
+/// Copy a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`, where `<id>`
+/// is the sanitized form of `desired_name` — the name the user typed in the naming row.
 #[command]
-pub fn import_voice_file(app: AppHandle, src_path: String) -> Result<ImportedVoice, String> {
+pub fn import_voice_file(
+    app: AppHandle,
+    src_path: String,
+    desired_name: String,
+) -> Result<ImportedVoice, String> {
     let src = PathBuf::from(&src_path);
     let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("");
     if !is_allowed_audio_ext(ext) {
@@ -133,7 +173,7 @@ pub fn import_voice_file(app: AppHandle, src_path: String) -> Result<ImportedVoi
         })?
         .join("references");
 
-    copy_into_references(&references_dir, &src, &ext_lower)
+    copy_into_references(&references_dir, &src, &ext_lower, &desired_name)
 }
 
 /// Delete `<app_data_dir>/references/<id>/` if present. Idempotent — missing is Ok.
@@ -237,22 +277,151 @@ mod tests {
         let f = std::fs::File::create(&src).unwrap();
         f.set_len(MAX_AUDIO_BYTES + 1).unwrap();
         drop(f);
-        let err = copy_into_references(&dir.join("references"), &src, "wav");
+        let err = copy_into_references(&dir.join("references"), &src, "wav", "Big");
         assert!(err.is_err(), "oversized source must be rejected");
         std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
-    fn copy_into_disambiguates_on_existing_dest() {
-        let dir = unique_dir("collide");
+    fn copy_into_overwrites_an_existing_dest_of_the_same_desired_name() {
+        let dir = unique_dir("overwrite");
         let references = dir.join("references");
         std::fs::create_dir_all(references.join("Cat")).unwrap();
         std::fs::write(references.join("Cat").join("clip.wav"), b"existing").unwrap();
-        let src = dir.join("Cat.wav");
+        let src = dir.join("New.wav");
         std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
 
-        let imported = copy_into_references(&references, &src, "wav").unwrap();
-        assert_ne!(imported.id, "Cat", "must not overwrite the existing dest");
+        let imported = copy_into_references(&references, &src, "wav", "Cat").unwrap();
+        assert_eq!(
+            imported.id, "Cat",
+            "must register under the typed name, not a suffix"
+        );
+        let clip = std::fs::read(references.join("Cat").join("clip.wav")).unwrap();
+        assert_eq!(
+            clip, b"RIFF\x24\x08\x00\x00WAVEfmt ",
+            "old clip content must be replaced"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_overwrite_survives_a_failure_before_the_swap() {
+        // Block the copy-into-tmp step deterministically and portably: pre-occupy the exact tmp
+        // path the overwrite builds new content in with a plain file, so create_dir_all(tmp) fails
+        // before the destructive old-dir removal/swap ever runs. The previous voice must survive.
+        let dir = unique_dir("overwrite_fails_before_swap");
+        let references = dir.join("references");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        std::fs::write(references.join("Cat").join("clip.wav"), b"original clip").unwrap();
+        std::fs::write(references.join(".Cat.import-tmp"), b"blocking file").unwrap();
+        let src = dir.join("New.wav");
+        std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
+
+        let result = copy_into_references(&references, &src, "wav", "Cat");
+
+        assert!(result.is_err(), "a blocked tmp path must fail the import");
+        assert_eq!(
+            std::fs::read(references.join("Cat").join("clip.wav")).unwrap(),
+            b"original clip",
+            "the previous clip must survive a failed overwrite"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_overwrite_leaves_no_tmp_or_backup_artifacts_on_success() {
+        let dir = unique_dir("overwrite_cleanup");
+        let references = dir.join("references");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        std::fs::write(references.join("Cat").join("clip.wav"), b"existing").unwrap();
+        let src = dir.join("New.wav");
+        std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
+
+        copy_into_references(&references, &src, "wav", "Cat").unwrap();
+
+        let entries: Vec<_> = std::fs::read_dir(&references)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            entries,
+            vec!["Cat".to_string()],
+            "no .Cat.import-tmp / .Cat.import-backup leftovers after a successful overwrite"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_overwrite_removes_a_stale_clip_with_a_different_extension() {
+        // Old dest had a .wav clip; new import for the same name is .mp3 — the stale .wav must
+        // not linger alongside the new .mp3 (directory is fully replaced, not merged).
+        let dir = unique_dir("overwrite_ext_change");
+        let references = dir.join("references");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        std::fs::write(references.join("Cat").join("clip.wav"), b"old wav").unwrap();
+        let src = dir.join("New.mp3");
+        std::fs::write(&src, b"ID3\x04\x00\x00\x00\x00").unwrap();
+
+        let imported = copy_into_references(&references, &src, "mp3", "Cat").unwrap();
+        assert_eq!(imported.id, "Cat");
+        assert!(references.join("Cat").join("clip.mp3").exists());
+        assert!(
+            !references.join("Cat").join("clip.wav").exists(),
+            "stale clip with the old extension must not survive an overwrite"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_rejects_empty_desired_name() {
+        let dir = unique_dir("empty_name");
+        let src = dir.join("real.wav");
+        std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
+        let err = copy_into_references(&dir.join("references"), &src, "wav", "").unwrap_err();
+        assert!(
+            err.contains("name"),
+            "error should mention the name: {err:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_rejects_whitespace_only_desired_name() {
+        let dir = unique_dir("blank_name");
+        let src = dir.join("real.wav");
+        std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
+        let err = copy_into_references(&dir.join("references"), &src, "wav", "   ").unwrap_err();
+        assert!(
+            err.contains("name"),
+            "error should mention the name: {err:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_registers_under_a_utf8_desired_name_verbatim() {
+        let dir = unique_dir("utf8_name");
+        let references = dir.join("references");
+        let src = dir.join("src.mp3");
+        std::fs::write(&src, b"ID3\x04\x00\x00\x00\x00").unwrap();
+
+        let imported = copy_into_references(&references, &src, "mp3", "ナツメ").unwrap();
+        assert_eq!(imported.id, "ナツメ");
+        assert!(references.join("ナツメ").join("clip.mp3").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_sanitizes_a_traversal_desired_name() {
+        let dir = unique_dir("traversal_name");
+        let references = dir.join("references");
+        let src = dir.join("src.mp3");
+        std::fs::write(&src, b"ID3\x04\x00\x00\x00\x00").unwrap();
+
+        let imported = copy_into_references(&references, &src, "mp3", "../../etc/passwd").unwrap();
+        assert_ne!(imported.id, "../../etc/passwd");
+        assert!(!imported.id.contains('/'));
+        assert!(references.join(&imported.id).exists());
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -263,10 +432,10 @@ mod tests {
         let src = dir.join("fake.wav");
         std::fs::write(&src, b"not really wav audio data").unwrap();
 
-        let res = copy_into_references(&references, &src, "wav");
+        let res = copy_into_references(&references, &src, "wav", "Fake");
         assert!(res.is_err(), "non-WAV content must be rejected");
         assert!(
-            !references.join("fake").exists(),
+            !references.join("Fake").exists(),
             "no partial copy on sniff failure"
         );
         std::fs::remove_dir_all(&dir).ok();
@@ -279,7 +448,7 @@ mod tests {
         let src = dir.join("real.ogg");
         std::fs::write(&src, b"OggS\x00\x02\x00\x00\x00\x00\x00\x00").unwrap();
 
-        let imported = copy_into_references(&references, &src, "ogg").unwrap();
+        let imported = copy_into_references(&references, &src, "ogg", "real").unwrap();
         assert_eq!(imported.id, "real");
         assert!(references.join("real").join("clip.ogg").exists());
         std::fs::remove_dir_all(&dir).ok();
@@ -290,7 +459,7 @@ mod tests {
         let dir = unique_dir("err_generic");
         let src = dir.join("fake.wav");
         std::fs::write(&src, b"not wav").unwrap();
-        let err = copy_into_references(&dir.join("references"), &src, "wav").unwrap_err();
+        let err = copy_into_references(&dir.join("references"), &src, "wav", "Fake").unwrap_err();
         assert!(!err.contains('/'), "error must not leak a path: {err:?}");
         std::fs::remove_dir_all(&dir).ok();
     }
