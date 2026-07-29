@@ -173,16 +173,23 @@ async function bootstrap(): Promise<void> {
   });
   // The irodori server is the source of truth for the speaker list — this window has no synth,
   // so a plain listVoices + setManifest is enough (no ensureRegistered call, unlike the pet window).
+  // Generation counter discards a stale (out-of-order) resolution — boot and panel-open both call this.
+  let voiceListGeneration = 0;
   const refreshVoiceList = async (): Promise<void> => {
     if (!configLoaded) return;
     try {
       const eps = config.get().endpoints;
       if (!eps.irodori_base_url) return;
+      const generation = ++voiceListGeneration;
       const f = await selectFetch();
       const ids = await listVoices({ baseUrl: eps.irodori_base_url, fetch: f, logger: log });
+      if (generation !== voiceListGeneration) return; // superseded by a later refresh
+      // A configured default the server doesn't (yet) have must not be conjured into existence.
+      const defaultId =
+        eps.irodori_speaker && ids.includes(eps.irodori_speaker) ? eps.irodori_speaker : "";
       speakerSelection.setManifest({
         available: ids.map((id) => ({ id, label: id, ref_url: "" })),
-        defaultId: eps.irodori_speaker ?? "",
+        defaultId,
       });
     } catch (err) {
       log.warn("irodori_config_read_failed", { fallback: true, error: String(err) });

@@ -43,11 +43,12 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
   const { storage, userStorage, synthesize, coerceUser, isDefault } = opts;
 
   // The manifest (options + defaultValue) is mutable since setManifest can update it.
-  // list() is never empty — when available is missing or empty, synthesize a single entry from defaultValue.
+  // When available is missing or empty, synthesize a single entry from fallback — UNLESS fallback
+  // is also empty, in which case there is genuinely nothing to synthesize from and list() is empty
+  // (e.g. a server-listed voice domain with zero registered voices and no configured default).
   function normalize(available: T[] | undefined, fallback: string): T[] {
-    return available && available.length > 0
-      ? available.map((o) => ({ ...o }))
-      : [synthesize(fallback)];
+    if (available && available.length > 0) return available.map((o) => ({ ...o }));
+    return fallback.length > 0 ? [synthesize(fallback)] : [];
   }
 
   let defaultValue = opts.defaultValue;
@@ -99,14 +100,19 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
     }
   }
 
-  // Resolution priority: (1) override (present in list) > (2) default match > (3) list[0].
+  // Resolution priority: (1) override (present in list) > (2) default match > (3) list[0] >
+  // (4) a transient synthesize(defaultValue) when options() is genuinely empty (nothing to select —
+  // never persisted into bundled/userOptions, so list() stays empty; callers see a stable T instead
+  // of dereferencing an empty array).
   function resolve(): T {
     const all = options();
     if (override !== null) {
       const o = all.find((x) => x.id === override);
       if (o) return o;
     }
-    return all.find((x) => isDefault(x, defaultValue)) ?? all[0];
+    const defaultMatch = all.find((x) => isDefault(x, defaultValue));
+    if (defaultMatch) return defaultMatch;
+    return all.length > 0 ? all[0] : synthesize(defaultValue);
   }
 
   const subscribers = new Set<(active: T) => void>();
