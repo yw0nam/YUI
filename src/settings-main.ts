@@ -25,7 +25,7 @@ import {
   createIdleThrottleSettings,
   localStorageIdleThrottleStorage,
 } from "./io/idle-throttle-settings";
-import { ensureRegistered, listVoices, updateVoice } from "./io/irodori-voices";
+import { updateVoice } from "./io/irodori-voices";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
 import { createPresenceSettings, localStoragePresenceStorage } from "./io/presence-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
@@ -52,13 +52,8 @@ import {
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
 import { createTtsSettings, localStorageTtsStorage } from "./io/tts-settings";
 import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
-import {
-  copyVoiceFile,
-  fileStemFromPath,
-  pickVoiceFile,
-  removeOrphanVoice,
-  removeUserVoice as removeUserVoiceFile,
-} from "./io/voice-import";
+import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
+import { createVoiceImportFlow } from "./io/voice-import-flow";
 import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
 import {
@@ -197,49 +192,11 @@ async function bootstrap(): Promise<void> {
     const f = await selectFetch();
     await updateVoice({ baseUrl: irodoriBaseUrl, id: option.id, refUrl: option.ref_url, fetch: f });
   };
-  // BYO-voice import (settings window), pick step: open the file picker only — nothing is copied
-  // yet. The UI shows a naming row seeded with the file stem between this and commitVoiceImport.
-  const pickVoiceImport = async (): Promise<{ srcPath: string; seedName: string } | null> => {
-    const srcPath = await pickVoiceFile();
-    if (srcPath === null) return null;
-    return { srcPath, seedName: fileStemFromPath(srcPath) };
-  };
-  // BYO-voice import (settings window), commit step — registration is a direct server call, performed
-  // here too (same as refreshSpeaker). Copy under the typed name → irodori register (overwrite-aware:
-  // PUT via updateVoice when the server already lists the id, POST via ensureRegistered otherwise) →
-  // add option + select. Registration failure: remove the orphan copy (surfaced, not swallowed), then throw.
-  const commitVoiceImport = async (srcPath: string, name: string): Promise<void> => {
-    const option = await copyVoiceFile(srcPath, name);
-    try {
-      const irodoriBaseUrl = configLoaded ? config.get().endpoints.irodori_base_url : undefined;
-      if (!irodoriBaseUrl) throw new Error("irodori provider requires irodori_base_url");
-      const f = await selectFetch();
-      const existingIds = await listVoices({ baseUrl: irodoriBaseUrl, fetch: f, logger: log });
-      if (existingIds.includes(option.id)) {
-        await updateVoice({
-          baseUrl: irodoriBaseUrl,
-          id: option.id,
-          refUrl: option.ref_url,
-          fetch: f,
-        });
-      } else {
-        await ensureRegistered({
-          baseUrl: irodoriBaseUrl,
-          id: option.id,
-          refUrl: option.ref_url,
-          fetch: f,
-        });
-      }
-    } catch (err) {
-      await removeOrphanVoice(option.id, removeUserVoiceFile, (e) =>
-        log.warn("orphan_voice_cleanup_failed", { error: String(e) }),
-      );
-      log.error("imported_voice_register_failed", { error: String(err) });
-      throw err;
-    }
-    speakerSelection.addUserVoice(option);
-    speakerSelection.select(option.id);
-  };
+  const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
+    getIrodoriBaseUrl: () => (configLoaded ? config.get().endpoints.irodori_base_url : undefined),
+    speakerSelection,
+    log,
+  });
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({

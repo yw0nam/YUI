@@ -584,14 +584,13 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
     speakerSelection.dispose();
   });
 
-  it("commitVoiceImport registers via ensureRegistered (POST) when the server does not list the id yet", async () => {
+  it("commitVoiceImport uploads via updateVoice (PUT upserts) and commits the option to the store", async () => {
     copyVoiceFile.mockResolvedValue({
       id: "myvoice",
       label: "myvoice",
       ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
       source: "user",
     });
-    listVoices.mockResolvedValue(["ナツメ"]); // server does not have "myvoice" yet
     const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({ irodori_base_url: "http://localhost:8091" }),
       log: noopLog,
@@ -601,8 +600,8 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
     await commitVoiceImport("/tmp/MyVoice.wav", "myvoice");
 
     expect(copyVoiceFile).toHaveBeenCalledWith("/tmp/MyVoice.wav", "myvoice");
-    expect(ensureRegistered).toHaveBeenCalledOnce();
-    expect(updateVoice).not.toHaveBeenCalled();
+    expect(updateVoice).toHaveBeenCalledOnce();
+    expect(ensureRegistered).not.toHaveBeenCalled();
     expect(speakerSelection.getOptions().map((o) => o.id)).toContain("myvoice");
     expect(speakerSelection.getActiveId()).toBe("myvoice");
     speakerSelection.dispose();
@@ -638,8 +637,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
       ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
       source: "user",
     });
-    listVoices.mockResolvedValue([]);
-    ensureRegistered.mockRejectedValue(new Error("server down"));
+    updateVoice.mockRejectedValue(new Error("server down"));
     const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({ irodori_base_url: "http://localhost:8091" }),
       log: noopLog,

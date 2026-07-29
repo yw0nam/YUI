@@ -20,7 +20,7 @@ import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
 import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { selectFetch } from "./io/chat-client";
-import { ensureRegistered, listVoices, updateVoice } from "./io/irodori-voices";
+import { ensureRegistered, updateVoice } from "./io/irodori-voices";
 import type { PresenceSettings } from "./io/presence-settings";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
@@ -35,13 +35,7 @@ import {
 import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
-import {
-  copyVoiceFile,
-  fileStemFromPath,
-  pickVoiceFile,
-  removeOrphanVoice,
-  removeUserVoice as removeUserVoiceFile,
-} from "./io/voice-import";
+import { createVoiceImportFlow } from "./io/voice-import-flow";
 import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeOrphanVrm, removeUserVrm } from "./io/vrm-import";
 import {
@@ -172,56 +166,11 @@ export function wireSpeakerSelection(deps: {
       fetch: f,
     });
   };
-  // BYO-voice import, pick step: open the file picker only — nothing is copied yet. The UI
-  // shows a naming row seeded with the file stem between this and commitVoiceImport.
-  const pickVoiceImport = async (): Promise<{ srcPath: string; seedName: string } | null> => {
-    const srcPath = await pickVoiceFile();
-    if (srcPath === null) return null; // cancel
-    return { srcPath, seedName: fileStemFromPath(srcPath) };
-  };
-  // BYO-voice import, commit step: copy under the typed name → register in irodori (overwrite-aware)
-  // → add option + select (mirrors swapSpeaker's register-then-select). A duplicate name is an explicit
-  // overwrite: PUT (updateVoice) when the server already lists the id, POST (ensureRegistered) otherwise.
-  // On register failure (server down / unusable clip), delete the orphan copy and throw without adding
-  // the option — prior selection stays as-is (no recovery needed since registration fails before the store commit).
-  const commitVoiceImport = async (srcPath: string, name: string): Promise<void> => {
-    const option = await copyVoiceFile(srcPath, name);
-    try {
-      const f = await selectFetch();
-      const eps = getEndpoints();
-      if (!eps.irodori_base_url) throw new Error("irodori provider requires irodori_base_url");
-      const existingIds = await listVoices({
-        baseUrl: eps.irodori_base_url,
-        fetch: f,
-        logger: log,
-      });
-      // ref_url is an asset:// URL — resolveRef passes it through as-is and PUTs/POSTs the clip.
-      if (existingIds.includes(option.id)) {
-        await updateVoice({
-          baseUrl: eps.irodori_base_url,
-          id: option.id,
-          refUrl: option.ref_url,
-          fetch: f,
-        });
-      } else {
-        await ensureRegistered({
-          baseUrl: eps.irodori_base_url,
-          id: option.id,
-          refUrl: option.ref_url,
-          fetch: f,
-        });
-      }
-    } catch (err) {
-      // Remove the orphan copy — don't swallow a failure, surface it as a warning (the original error is still thrown).
-      await removeOrphanVoice(option.id, removeUserVoiceFile, (e) =>
-        log.warn("orphan_voice_cleanup_failed", { error: String(e) }),
-      );
-      log.error("imported_voice_register_failed", { error: String(err) });
-      throw err;
-    }
-    speakerSelection.addUserVoice(option);
-    speakerSelection.select(option.id);
-  };
+  const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
+    getIrodoriBaseUrl: () => getEndpoints().irodori_base_url,
+    speakerSelection,
+    log,
+  });
   // Announce cross-window so the speaker picked in this window reflects in the settings-window UI.
   speakerSelection.subscribe(broadcastSettings);
   // A fresh server with no voices yields a genuinely empty available[] — expected, not an error
