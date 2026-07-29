@@ -241,8 +241,15 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   // Enter on the naming row — copy + register under the typed name, then addOption + select
   // (performed by cfg.commitImport). Failure shows the inline error, same as the one-shot flow.
   async function commitPendingImport(name: string): Promise<void> {
+    if (importing || pendingImport === null) return; // Reentrancy guard (see below for why it holds)
     const picked = pendingImport;
-    if (picked === null) return;
+    // Clear BEFORE the first render — mirrors commitRename clearing renamingId before its render.
+    // cfg.render() (next line) replaces the naming row's innerHTML, detaching the still-focused
+    // input; a real browser fires `blur` on that SYNCHRONOUSLY, re-entering this function through
+    // the input's blur listener. Clearing pendingImport (and setting importing=true) first means
+    // that reentrant call's guard above sees the already-cleared state and no-ops instead of
+    // double-committing the same import.
+    pendingImport = null;
     importing = true;
     cfg.importErrorEl.hidden = true;
     cfg.render();
@@ -252,7 +259,6 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
       cfg.importErrorEl.hidden = false;
       cfg.log.error(`${cfg.logPrefix}_import_failed`, { error: String(err) });
     } finally {
-      pendingImport = null;
       importing = false;
       cfg.render();
     }
