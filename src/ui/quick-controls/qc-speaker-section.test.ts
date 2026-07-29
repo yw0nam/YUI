@@ -550,7 +550,12 @@ describe("createQuickControls — speaker section", () => {
   it("a synchronous blur fired by render() removing the input does not double-commit", async () => {
     pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
     let resolveCommit: () => void = () => {};
-    commitVoiceImport = vi.fn(() => new Promise<void>((res) => { resolveCommit = res; }));
+    commitVoiceImport = vi.fn(
+      () =>
+        new Promise<void>((res) => {
+          resolveCommit = res;
+        }),
+    );
     const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
     qc.open();
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
