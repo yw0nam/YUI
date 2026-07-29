@@ -274,6 +274,53 @@ mod tests {
     }
 
     #[test]
+    fn copy_into_overwrite_survives_a_failure_before_the_swap() {
+        // Block the copy-into-tmp step deterministically and portably: pre-occupy the exact tmp
+        // path the overwrite builds new content in with a plain file, so create_dir_all(tmp) fails
+        // before the destructive old-dir removal/swap ever runs. The previous voice must survive.
+        let dir = unique_dir("overwrite_fails_before_swap");
+        let references = dir.join("references");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        std::fs::write(references.join("Cat").join("clip.wav"), b"original clip").unwrap();
+        std::fs::write(references.join(".Cat.import-tmp"), b"blocking file").unwrap();
+        let src = dir.join("New.wav");
+        std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
+
+        let result = copy_into_references(&references, &src, "wav", "Cat");
+
+        assert!(result.is_err(), "a blocked tmp path must fail the import");
+        assert_eq!(
+            std::fs::read(references.join("Cat").join("clip.wav")).unwrap(),
+            b"original clip",
+            "the previous clip must survive a failed overwrite"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn copy_into_overwrite_leaves_no_tmp_or_backup_artifacts_on_success() {
+        let dir = unique_dir("overwrite_cleanup");
+        let references = dir.join("references");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        std::fs::write(references.join("Cat").join("clip.wav"), b"existing").unwrap();
+        let src = dir.join("New.wav");
+        std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
+
+        copy_into_references(&references, &src, "wav", "Cat").unwrap();
+
+        let entries: Vec<_> = std::fs::read_dir(&references)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            entries,
+            vec!["Cat".to_string()],
+            "no .Cat.import-tmp / .Cat.import-backup leftovers after a successful overwrite"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn copy_into_overwrite_removes_a_stale_clip_with_a_different_extension() {
         // Old dest had a .wav clip; new import for the same name is .mp3 — the stale .wav must
         // not linger alongside the new .mp3 (directory is fully replaced, not merged).
