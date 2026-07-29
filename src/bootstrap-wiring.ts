@@ -197,16 +197,24 @@ export function wireSpeakerSelection(deps: {
   // Announce cross-window so the speaker picked in this window reflects in the settings-window UI.
   speakerSelection.subscribe(broadcastSettings);
   // The irodori server is the source of truth for the speaker list — refetch and feed it into the
-  // manifest. No-op without irodori_base_url. A fresh server with no voices yields an empty
-  // available[] (the store falls back to its synthesized default-id entry) — that's expected, not an error.
+  // manifest. No-op without irodori_base_url. A fresh server with no voices yields a genuinely empty
+  // available[] — that's expected, not an error (selection-store then has nothing to select).
+  // Generation counter discards a stale (out-of-order) resolution so it can't clobber a newer manifest —
+  // three independent triggers (boot, endpoints hot-reload, panel open) call this with no sequencing.
+  let voiceListGeneration = 0;
   const refreshVoiceList = async (): Promise<void> => {
     const eps = getEndpoints();
     if (!eps.irodori_base_url) return;
+    const generation = ++voiceListGeneration;
     const f = await selectFetch();
     const ids = await listVoices({ baseUrl: eps.irodori_base_url, fetch: f, logger: log });
+    if (generation !== voiceListGeneration) return; // superseded by a later refresh
+    // A configured default the server doesn't (yet) have must not be conjured into existence.
+    const defaultId =
+      eps.irodori_speaker && ids.includes(eps.irodori_speaker) ? eps.irodori_speaker : "";
     speakerSelection.setManifest({
       available: ids.map((id) => ({ id, label: id, ref_url: "" })),
-      defaultId: eps.irodori_speaker ?? "",
+      defaultId,
     });
   };
   return { speakerSelection, swapSpeaker, refreshSpeaker, importVoice, refreshVoiceList };

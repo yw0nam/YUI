@@ -10,7 +10,7 @@ type RefUrlResolver = (refUrl: string) => Promise<string>;
 interface EnsureRegisteredOptions {
   baseUrl: string;
   id: string;
-  /** vite serving path (e.g. "/references/ナツメ/merged_audio.mp3"). */
+  /** Empty for a server-listed voice (nothing to register). An asset:// URL for a user-imported clip (e.g. "asset://localhost/app-data/references/myvoice/clip.mp3"). */
   refUrl: string;
   fetch?: typeof fetch;
   /** ref_url resolver (injectable). Defaults to resolveRefUrl (dev origin absolutization / Tauri bundle). */
