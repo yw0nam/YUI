@@ -60,6 +60,15 @@ vi.mock("./io/broker-override-reconciler", () => ({
 vi.mock("./io/chat-client", () => ({ selectFetch }));
 vi.mock("./config", () => ({ loadEmotionTextTable: vi.fn().mockResolvedValue(null) }));
 
+// irodori voice registry fakes — wireSpeakerSelection's refreshVoiceList exercises listVoices only;
+// ensureRegistered/updateVoice are stubbed so the module shape stays intact for other call sites.
+const { listVoices } = vi.hoisted(() => ({ listVoices: vi.fn().mockResolvedValue([]) }));
+vi.mock("./io/irodori-voices", () => ({
+  listVoices,
+  ensureRegistered: vi.fn().mockResolvedValue(undefined),
+  updateVoice: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Fake bridge for wireCrossWindowSync: captures the onMouthPreview/onVoiceSet callbacks so
 // tests can invoke them directly (a real bridge instance never delivers its own emits to itself).
 const { fakeBridge, createSettingsBridge } = vi.hoisted(() => {
@@ -97,6 +106,7 @@ import {
   wireDispatcherSources,
   wirePeekExitTriggers,
   wireSettingsReload,
+  wireSpeakerSelection,
   wireStopControl,
   wireVoiceInput,
 } from "./bootstrap-wiring";
@@ -343,6 +353,67 @@ describe("wireSettingsReload", () => {
     const changed = setup({ before: "a.vrm", after: "b.vrm" });
     changed.fire();
     expect(changed.loadVrmSerialized).toHaveBeenCalledWith("b.vrm");
+  });
+});
+
+describe("wireSpeakerSelection — refreshVoiceList", () => {
+  beforeEach(() => {
+    listVoices.mockReset().mockResolvedValue([]);
+    selectFetch.mockClear();
+  });
+
+  it("does not call listVoices when irodori_base_url is unset", async () => {
+    const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({}),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await refreshVoiceList();
+
+    expect(listVoices).not.toHaveBeenCalled();
+    speakerSelection.dispose();
+  });
+
+  it("feeds the server voice list into the manifest, mapped to id/label/empty ref_url", async () => {
+    listVoices.mockResolvedValue(["ナツメ", "あやせ"]);
+    const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({
+        irodori_base_url: "http://localhost:8091",
+        irodori_speaker: "ナツメ",
+      }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await refreshVoiceList();
+
+    expect(listVoices).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: "http://localhost:8091" }),
+    );
+    expect(speakerSelection.list()).toEqual([
+      { id: "ナツメ", label: "ナツメ", ref_url: "" },
+      { id: "あやせ", label: "あやせ", ref_url: "" },
+    ]);
+    expect(speakerSelection.getActiveId()).toBe("ナツメ");
+    speakerSelection.dispose();
+  });
+
+  it("an empty server voice list resolves to no bundled entries (only the default-id fallback)", async () => {
+    listVoices.mockResolvedValue([]);
+    const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({
+        irodori_base_url: "http://localhost:8091",
+        irodori_speaker: "ナツメ",
+      }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await refreshVoiceList();
+
+    expect(speakerSelection.list()).toEqual([{ id: "ナツメ", label: "ナツメ", ref_url: "" }]);
+    speakerSelection.dispose();
   });
 });
 
