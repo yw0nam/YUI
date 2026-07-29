@@ -708,14 +708,23 @@ describe("listVoices", () => {
   });
 
   it("drops entries without a usable voice_id", async () => {
-    const fetchMock = vi.fn<FetchFn>(async () => ({
-      ok: true,
-      status: 200,
-      headers: new Headers(),
-      json: async () => ({
-        voices: [{ voice_id: "ナツメ" }, {}, { voice_id: "" }, { voice_id: 42 }, { other: "x" }],
-      }),
-    }));
+    const fetchMock = vi.fn<FetchFn>(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => ({
+            voices: [
+              { voice_id: "ナツメ" },
+              {},
+              { voice_id: "" },
+              { voice_id: 42 },
+              { other: "x" },
+            ],
+          }),
+        }) as unknown as Response,
+    );
 
     const ids = await listVoices({ baseUrl: BASE, fetch: fetchMock as unknown as typeof fetch });
 
@@ -724,11 +733,9 @@ describe("listVoices", () => {
 
   it("returns [] and warns on a non-ok response (a down server must not throw into boot)", async () => {
     const warn = vi.fn();
-    const fetchMock = vi.fn<FetchFn>(async () => ({
-      ok: false,
-      status: 503,
-      headers: new Headers(),
-    }));
+    const fetchMock = vi.fn<FetchFn>(
+      async () => ({ ok: false, status: 503, headers: new Headers() }) as unknown as Response,
+    );
 
     const ids = await listVoices({
       baseUrl: BASE,
