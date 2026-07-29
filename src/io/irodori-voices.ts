@@ -48,6 +48,12 @@ export function evictRegistration(baseUrl: string, id: string): void {
   inflight.delete(`${baseUrl}::${id}`);
 }
 
+/** The injected fetch (Tauri's reqwest-backed fetchCORS) only speaks http/https; a non-http scheme (e.g. asset://) needs the webview's native fetch. Scheme-less/relative urls keep using the injected fetch. */
+function fetchForRef(url: string, injected: typeof fetch): typeof fetch {
+  const nonHttpScheme = /^[a-z][a-z0-9+.-]*:/i.test(url) && !/^https?:\/\//i.test(url);
+  return nonHttpScheme ? globalThis.fetch : injected;
+}
+
 async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<void> {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const voicesUrl = `${opts.baseUrl}/voices`;
@@ -64,7 +70,7 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
   }
 
   const ref = await (opts.resolveRef ?? resolveRefUrl)(opts.refUrl);
-  const refRes = await fetchImpl(ref);
+  const refRes = await fetchForRef(ref, fetchImpl)(ref);
   if (!refRes.ok) {
     throw new Error(`irodori reference fetch failed (HTTP ${refRes.status}) ${ref}`);
   }
@@ -103,7 +109,7 @@ export async function updateVoice(opts: UpdateVoiceOptions): Promise<void> {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
 
   const ref = await (opts.resolveRef ?? resolveRefUrl)(opts.refUrl);
-  const refRes = await fetchImpl(ref);
+  const refRes = await fetchForRef(ref, fetchImpl)(ref);
   if (!refRes.ok) {
     throw new Error(`irodori reference fetch failed (HTTP ${refRes.status}) ${ref}`);
   }

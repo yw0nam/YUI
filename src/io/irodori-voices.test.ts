@@ -365,18 +365,24 @@ describe("ensureRegistered", () => {
     expect(fetchMock.mock.calls.some((c) => String(c[0]) === expectedRef)).toBe(true);
   });
 
-  it("injected resolveRef(Tauri asset resolver)로 ref_url을 변환해 fetch한다", async () => {
+  it("injected resolveRef(Tauri asset resolver)로 ref_url을 변환해 native fetch로 가져온다", async () => {
     const assetRef = "asset://localhost/app/resources/references/あやせ/merged_audio.mp3";
     const resolveRef = vi.fn(async (_p: string) => assetRef);
     const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
+    const nativeFetch = vi.fn<FetchFn>(async (input: unknown) => {
+      const url = String(input);
+      if (url === assetRef) return blobResponse(audio);
+      throw new Error(`unexpected native fetch ${url}`);
+    });
+    vi.stubGlobal("fetch", nativeFetch);
+
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === `${BASE}/voices` && (init?.method ?? "GET") === "GET") {
         return voicesResponse(["other"]);
       }
-      if (url === assetRef) return blobResponse(audio);
       if (url === `${BASE}/voices` && init?.method === "POST") return createdResponse("あやせ");
-      throw new Error(`unexpected fetch ${url}`);
+      throw new Error(`unexpected injected fetch ${url}`);
     });
 
     await ensureRegistered({
@@ -388,7 +394,8 @@ describe("ensureRegistered", () => {
     });
 
     expect(resolveRef).toHaveBeenCalledWith("/references/あやせ/merged_audio.mp3");
-    expect(fetchMock.mock.calls.some((c) => String(c[0]) === assetRef)).toBe(true);
+    expect(nativeFetch.mock.calls.some((c) => String(c[0]) === assetRef)).toBe(true);
+    expect(fetchMock.mock.calls.some((c) => String(c[0]) === assetRef)).toBe(false);
   });
 
   it("fetches an asset:// ref with the native webview fetch, not the injected fetch", async () => {
