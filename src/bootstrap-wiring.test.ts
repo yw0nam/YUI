@@ -399,6 +399,42 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
     speakerSelection.dispose();
   });
 
+  it("a user-imported voice registered under its own id on the server keeps its label and asset:// ref_url", async () => {
+    const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({
+        irodori_base_url: "http://localhost:8091",
+        irodori_speaker: "ナツメ",
+      }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+    speakerSelection.addUserVoice({
+      id: "myvoice",
+      label: "My Voice",
+      ref_url: "asset://localhost/app-data/references/myvoice/clip.mp3",
+    });
+
+    // The server now also lists "myvoice" — it was registered at import time.
+    listVoices.mockResolvedValue(["ナツメ", "myvoice"]);
+    await refreshVoiceList();
+
+    const rows = speakerSelection.list().filter((o) => o.id === "myvoice");
+    expect(rows).toHaveLength(1); // not duplicated — one row, not two
+    expect(rows[0]).toEqual({
+      id: "myvoice",
+      label: "My Voice",
+      ref_url: "asset://localhost/app-data/references/myvoice/clip.mp3",
+      source: "user",
+    });
+    // Untouched server-only id still lands as a normal server entry.
+    expect(speakerSelection.list().find((o) => o.id === "ナツメ")).toEqual({
+      id: "ナツメ",
+      label: "ナツメ",
+      ref_url: "",
+    });
+    speakerSelection.dispose();
+  });
+
   it("an empty server voice list yields a genuinely empty list — no phantom configured-default entry", async () => {
     listVoices.mockResolvedValue([]);
     const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
