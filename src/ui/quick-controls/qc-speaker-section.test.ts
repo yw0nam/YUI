@@ -533,10 +533,41 @@ describe("createQuickControls — speaker section", () => {
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await flush();
 
+    expect(commitVoiceImport).toHaveBeenCalledOnce();
     expect(commitVoiceImport).toHaveBeenCalledWith("/tmp/Natsume.wav", "My Voice");
     expect(spkNamingInput(qc)).toBeNull();
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).not.toBeNull();
 
+    qc.dispose();
+  });
+
+  // Real browsers fire `blur` SYNCHRONOUSLY when a focused element is removed from the document —
+  // jsdom does not, so this test dispatches it manually to reproduce what a real engine would do.
+  // commitPendingImport's own cfg.render() (called before the commitImport await settles) replaces
+  // the naming row's innerHTML, detaching the still-focused input. If the pending state isn't
+  // cleared until AFTER that render, the blur listener's guard reads stale state and re-enters
+  // commitPendingImport, double-committing the same import.
+  it("a synchronous blur fired by render() removing the input does not double-commit", async () => {
+    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
+    let resolveCommit: () => void = () => {};
+    commitVoiceImport = vi.fn(() => new Promise<void>((res) => { resolveCommit = res; }));
+    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
+    qc.open();
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+
+    const input = spkNamingInput(qc)!;
+    input.value = "My Voice";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    // At this point commitPendingImport has run synchronously up to its first render — the input
+    // is detached from the document (innerHTML replaced), but the reference and its listeners are
+    // still live. Simulate the real-engine synchronous blur that detachment triggers.
+    input.dispatchEvent(new Event("blur"));
+
+    expect(commitVoiceImport).toHaveBeenCalledOnce();
+
+    resolveCommit();
+    await flush();
     qc.dispose();
   });
 
