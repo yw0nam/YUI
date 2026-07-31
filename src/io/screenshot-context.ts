@@ -23,12 +23,6 @@ export function buildScreenshotBlock(
     return { enabled: true, source: settings.source };
   }
 
-  return {
-    enabled: true,
-    source: settings.source,
-    data_url: capture.data_url,
-    captured_at: capture.captured_at,
-    width: capture.width,
-    height: capture.height,
-  };
+  // Only the pixels ride along — the capture's timestamp and dimensions have no reader.
+  return { enabled: true, source: settings.source, data_url: capture.data_url };
 }

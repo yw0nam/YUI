@@ -203,9 +203,6 @@ export interface InputContext {
     source: ScreenSource;
     /** "data:image/png;base64,..." or "https://...". Internal use only; removed from system context. */
     data_url?: string;
-    captured_at?: string;
-    width?: number;
-    height?: number;
   };
 
   /** User-attached images (data URLs). Internal use only; not included in system context. */

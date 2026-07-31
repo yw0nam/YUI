@@ -15,6 +15,18 @@ export type ContextSignal = (typeof ALL_CONTEXT_SIGNALS)[number];
 /** Window titles run long (full paths, document trails); the tail carries no situational value. */
 const WINDOW_TITLE_MAX_CHARS = 200;
 
+/**
+ * Cap a window title, ending a cut one with an ellipsis so the truncation is visible.
+ * Drops a trailing high surrogate first — slicing mid-pair would emit a lone code unit.
+ */
+function capWindowTitle(title: string): string {
+  if (title.length <= WINDOW_TITLE_MAX_CHARS) return title;
+  const head = title.slice(0, WINDOW_TITLE_MAX_CHARS - 1);
+  const lastCode = head.charCodeAt(head.length - 1);
+  const whole = lastCode >= 0xd800 && lastCode <= 0xdbff ? head.slice(0, -1) : head;
+  return `${whole}…`;
+}
+
 export interface ContextPolicy {
   recent_apps: boolean;
   active_app: boolean;
@@ -218,7 +230,7 @@ export async function buildContext(
     included.push("active_app");
   }
   if (policy.active_window_title && os?.activeWindowTitle) {
-    ctx.env.active_window_title = os.activeWindowTitle.slice(0, WINDOW_TITLE_MAX_CHARS);
+    ctx.env.active_window_title = capWindowTitle(os.activeWindowTitle);
     included.push("active_window_title");
   }
   if (policy.posture) {
