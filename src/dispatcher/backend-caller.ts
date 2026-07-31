@@ -224,7 +224,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   ): ChatRequest["input"] {
     const text = [
       "<client_context>",
-      "Injected by the YUI client; the user did not type this.",
+      "Client-injected context; not typed by the user.",
       JSON.stringify(clientContext),
       "</client_context>",
       "",

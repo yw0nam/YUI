@@ -194,7 +194,7 @@ export interface InputContext {
     active_window_title?: string;
     posture?: Posture;
     /** Apps switched to since the last utterance, drained on send. */
-    recent_apps?: { name: string; at: string }[];
+    recent_apps?: { name: string }[];
   };
 
   screenshot?: {
@@ -217,10 +217,13 @@ export interface InputContext {
 // Contains only context (env, screenshot meta, trigger) — NO user utterance text.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** cue forwarded from schedule/proactive firing sources. id is omitted from the wire shape. */
+/**
+ * cue forwarded from schedule/proactive firing sources. id is omitted from the wire shape.
+ * context is user-authored intent — built-in touch/gesture cues send a label only.
+ */
 export interface CueMeta {
   label: string;
-  context: string;
+  context?: string;
   local_time?: string;
   idle_min?: number;
 }
@@ -270,14 +273,11 @@ export interface ClientContext {
     active_window_title?: string;
     posture?: Posture;
     /** Apps switched to since the last utterance, drained on send. */
-    recent_apps?: { name: string; at: string }[];
+    recent_apps?: { name: string }[];
   };
   screenshot?: {
     enabled: boolean;
     source: ScreenSource;
-    captured_at?: string;
-    width?: number;
-    height?: number;
   };
   trigger: TriggerMeta;
 }
