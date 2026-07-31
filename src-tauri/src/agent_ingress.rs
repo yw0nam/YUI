@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
@@ -171,17 +171,27 @@ fn parse_signals_request(
 
 /// Validates and parses a raw HTTP request into an `AvatarRoute`.
 ///
-/// Returns `Err(400)` for an unknown `/avatar/*` path, a method the path does not
-/// accept, or a command body outside the closed verb set.
+/// Returns `Err(404)` for an unknown `/avatar/*` path, and `Err(400)` when the path
+/// exists but the method or the command body does not fit it.
 fn parse_avatar_request(method: &str, path: &str, body: &str) -> Result<AvatarRoute, u16> {
     let path_only = path.split('?').next().unwrap_or(path);
     match path_only {
-        "/avatar/state" if method == "GET" => Ok(AvatarRoute::State),
-        "/avatar/perch-targets" if method == "GET" => Ok(AvatarRoute::PerchTargets),
-        "/avatar/command" if method == "POST" => serde_json::from_str::<AvatarCommand>(body)
-            .map(AvatarRoute::Command)
-            .map_err(|_| 400u16),
-        _ => Err(400),
+        "/avatar/state" => method_gate(method, "GET").map(|()| AvatarRoute::State),
+        "/avatar/perch-targets" => method_gate(method, "GET").map(|()| AvatarRoute::PerchTargets),
+        "/avatar/command" => method_gate(method, "POST").and_then(|()| {
+            serde_json::from_str::<AvatarCommand>(body)
+                .map(AvatarRoute::Command)
+                .map_err(|_| 400u16)
+        }),
+        _ => Err(404),
+    }
+}
+
+fn method_gate(method: &str, expected: &str) -> Result<(), u16> {
+    if method == expected {
+        Ok(())
+    } else {
+        Err(400)
     }
 }
 
@@ -290,30 +300,49 @@ pub fn avatar_rpc_response(id: String, result: serde_json::Value) {
     }
 }
 
+/// Answers the HTTP request with the bridge outcome — the JSON body, or a bare status.
+fn respond_avatar(request: tiny_http::Request, outcome: Result<serde_json::Value, u16>) {
+    match outcome {
+        Ok(value) => {
+            let json = serde_json::to_string(&value).unwrap_or_else(|_| "null".to_string());
+            let header =
+                tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..])
+                    .expect("static header is valid");
+            let _ = request.respond(
+                tiny_http::Response::from_string(json)
+                    .with_header(header)
+                    .with_status_code(200u16),
+            );
+        }
+        Err(code) => {
+            let _ = request.respond(tiny_http::Response::from_string("").with_status_code(code));
+        }
+    }
+}
+
 /// Runs the bridge on its own thread so a 15s gesture never stalls the ingress loop.
+///
+/// The request travels through a shared slot: whichever side ends up owning it answers,
+/// so a thread that never starts still returns an explicit 503 instead of tiny_http's
+/// drop-time 500.
 fn spawn_avatar_request(app: &AppHandle, route: AvatarRoute, request: tiny_http::Request) {
     let app = app.clone();
+    let slot = Arc::new(Mutex::new(Some(request)));
+    let thread_slot = Arc::clone(&slot);
     let spawned = thread::Builder::new()
         .name("avatar_rpc".into())
-        .spawn(move || match avatar_rpc(&app, route) {
-            Ok(value) => {
-                let json = serde_json::to_string(&value).unwrap_or_else(|_| "null".to_string());
-                let header =
-                    tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..])
-                        .expect("static header is valid");
-                let _ = request.respond(
-                    tiny_http::Response::from_string(json)
-                        .with_header(header)
-                        .with_status_code(200u16),
-                );
-            }
-            Err(code) => {
-                let _ =
-                    request.respond(tiny_http::Response::from_string("").with_status_code(code));
+        .spawn(move || {
+            let taken = thread_slot.lock().ok().and_then(|mut s| s.take());
+            if let Some(request) = taken {
+                respond_avatar(request, avatar_rpc(&app, route));
             }
         });
     if let Err(e) = spawned {
         log::warn!("avatar_rpc_thread_spawn_failed error={e}");
+        let taken = slot.lock().ok().and_then(|mut s| s.take());
+        if let Some(request) = taken {
+            respond_avatar(request, Err(503));
+        }
     }
 }
 
