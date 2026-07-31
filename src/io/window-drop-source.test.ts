@@ -1199,3 +1199,120 @@ describe("window-drop-source — arm-baseline detach policy (#191)", () => {
     expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
   });
 });
+
+describe("window-drop-source — programmatic settle (agent-driven gestures)", () => {
+  /** Same geometry as the perch-hit fixture: seatGlobal = (300, 400). */
+  function makeDeps(windows: WindowRect[]) {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const invoke = vi.fn(async () => windows);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen } = makeListen();
+    return { bus, renderer, invoke, getWindow, listen };
+  }
+
+  it("suppresses the proactive cue while still firing the tier1 perch event", async () => {
+    const source = createWindowDropSource(makeDeps([win()]));
+
+    const outcome = await source.settle({ suppressCue: true });
+
+    expect(outcome).toEqual({ kind: "sit", app: "Visual Studio Code", window_title: "Other" });
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_drop"]);
+  });
+
+  it("fires the proactive cue when the cue is not suppressed", async () => {
+    const source = createWindowDropSource(makeDeps([win()]));
+
+    await source.settle();
+
+    expect(pushed.map((e) => e.event_name)).toEqual([
+      "proactive.window_sit",
+      "user.window_sit_drop",
+    ]);
+  });
+
+  it("suppresses the peek cue and reports the settled side", async () => {
+    // Window shifted up so the seat clears the top catch zone and lands on the left edge band.
+    const source = createWindowDropSource(makeDeps([win({ y: 300 })]));
+
+    const outcome = await source.settle({ suppressCue: true });
+
+    expect(outcome).toEqual({
+      kind: "peek",
+      side: "left",
+      app: "Visual Studio Code",
+      window_title: "Other",
+    });
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.peek_drop"]);
+  });
+
+  it("reports none and pushes the exit when the seat lands on no window", async () => {
+    const source = createWindowDropSource(makeDeps([win({ x: 5000, y: 5000 })]));
+
+    const outcome = await source.settle({ suppressCue: true });
+
+    expect(outcome).toEqual({ kind: "none" });
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+  });
+});
+
+describe("window-drop-source — perch targets + release", () => {
+  it("exposes the tracked candidate windows and the peek edges", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const invoke = vi.fn(async () => [win({ name: "Notes", ownerName: "Notes" })]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen } = makeListen();
+
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    const targets = await source.perchTargets();
+
+    expect(invoke).toHaveBeenCalledWith("list_windows");
+    expect(targets).toEqual({
+      windows: [
+        {
+          app: "Notes",
+          title: "Notes",
+          rect: { x: 300, y: 400, width: 520, height: 320 },
+        },
+      ],
+      edges: ["left", "right"],
+    });
+  });
+
+  it("release pushes the sit exit when nothing is armed", () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => null),
+      isPerched: vi.fn(() => false),
+    };
+    const invoke = vi.fn(async () => []);
+    const getWindow = () => makeWindow({ x: 0, y: 0 }, 1);
+    const { listen } = makeListen();
+
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    source.release();
+
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+  });
+
+  it("release pushes the peek exit when a peek is armed", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const invoke = vi.fn(async () => [win({ y: 300 })]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen } = makeListen();
+
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    await source.settle({ suppressCue: true });
+    pushed.length = 0;
+    source.release();
+
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.peek_exit"]);
+  });
+});
