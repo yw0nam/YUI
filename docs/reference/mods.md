@@ -78,7 +78,7 @@ Gives the agent its own body: where the avatar is, and where to move it. Runs **
 | `move_to(spot, monitor=None)` | Move to `center` or a named corner, optionally on a given monitor |
 | `stand_down()` | Release any perch or peek and return to the normal standing position |
 
-Movement only — expression stays on the `generate_express` stream and screen capture belongs to [desktop-control](#desktop-control). A gesture that did not happen raises a tool error carrying the client's reason: `not_found`, `blocked` (a window in front covers that spot, so nothing moved), `interrupted` (the user grabbed the avatar), `busy` (another gesture is running), or `unsupported`. `AVATAR_INGRESS_URL` overrides the ingress address, which defaults to the client's stored ingress port.
+Movement only — expression stays on the `generate_express` stream and screen capture belongs to [desktop-control](#desktop-control). A gesture that did not happen raises a tool error carrying the client's reason: `not_found`, `blocked` (a window in front covers that spot, so nothing moved), `interrupted` (the user is holding the avatar, or grabbed it mid-move), `busy` (another gesture is running), or `unsupported`. `AVATAR_INGRESS_URL` overrides the ingress address, which defaults to the client's stored ingress port.
 
 The user always outranks the agent: a drag aborts a running gesture and blocks new ones until it ends.
 

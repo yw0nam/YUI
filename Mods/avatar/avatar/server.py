@@ -25,7 +25,7 @@ SPOTS = ("center", "top-left", "top-right", "bottom-left", "bottom-right")
 REASONS = {
     "not_found": "not_found — no such window or screen spot to move to.",
     "blocked": "blocked — a window in front covers that spot, so the avatar stayed put.",
-    "interrupted": "interrupted — the user grabbed the avatar mid-move.",
+    "interrupted": "interrupted — the user is holding the avatar, or grabbed it mid-move.",
     "busy": "busy — another avatar gesture is still running.",
     "unsupported": "unsupported — the avatar cannot do that right now.",
 }
