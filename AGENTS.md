@@ -8,7 +8,7 @@ The client handles **firing** (when a candidate event occurs). **Judgment** (whe
 
 ## Development work
 
-Any code change — feature · bugfix · refactor · UI · schema · or any chore beyond a trivial single-file edit — load the **`yui-dev-workflow`** skill first. It carries the mandatory work rules (worktree → PR, tests, English tracker), the sub-agent roster, delegation rules, and the client-side anti-patterns.
+Any code change — feature · bugfix · refactor · UI · schema · or any chore beyond a trivial single-file edit — load the **`yui-dev-workflow`** skill first. It carries the mandatory work rules (worktree → PR, tests, English tracker), delegation rules and the review/verification gates, and the client-side anti-patterns.
 
 ## Tracker & commit conventions
 
@@ -23,7 +23,7 @@ Code is the source of truth for client behavior, TS contract shapes, and config 
 Read these when the trigger applies; they are not loaded by default.
 
 - **Code location / orientation** → `docs/agent-guide/project-structure.md`
-- **Standalone Mods (independent MCP servers)** → `Mods/README.md` — not part of the app runtime or this guide's roster; own Python/uv toolchain + `mods` CI job
+- **Standalone Mods (independent MCP servers)** → `Mods/README.md` — not part of the app runtime; own Python/uv toolchain + `mods` CI job
 - **Adding a Mod / Mods CI rules** → `docs/agent-guide/mods.md` — per-mod uv-project layout, router registration, the two-loop CI, ruff
 - **IO or backend work (chat/STT/TTS/broker)** → `docs/agent-guide/hermes-integration.md`
 - **Wiring an external coding-agent finish-hook** → `docs/agent-guide/agent-completion-hooks.md`

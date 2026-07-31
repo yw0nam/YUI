@@ -1,6 +1,6 @@
 # YUI — Mods & CI
 
-Mods are standalone MCP servers under `Mods/`, independent of the app runtime and the sub-agent roster (overview: `Mods/README.md`). Each is a **self-contained `uv` project** with its own dependency set — no shared lock, so one mod's deps never leak into another.
+Mods are standalone MCP servers under `Mods/`, independent of the app runtime (overview: `Mods/README.md`). Each is a **self-contained `uv` project** with its own dependency set — no shared lock, so one mod's deps never leak into another.
 
 ## Adding a mod
 
