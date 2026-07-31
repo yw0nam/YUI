@@ -640,9 +640,18 @@ mod tests {
     }
 
     #[test]
-    fn parse_avatar_unknown_path_returns_400() {
+    fn parse_avatar_unknown_path_returns_404() {
         assert_eq!(
             parse_avatar_request("GET", "/avatar/nope", "").unwrap_err(),
+            404
+        );
+    }
+
+    #[test]
+    fn parse_avatar_known_path_wrong_method_returns_400() {
+        // The route exists, the method does not — a client error, not a missing resource.
+        assert_eq!(
+            parse_avatar_request("DELETE", "/avatar/state", "").unwrap_err(),
             400
         );
     }
