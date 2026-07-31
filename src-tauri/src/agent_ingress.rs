@@ -2,15 +2,30 @@
 //! finish-hooks and opaque `signals` batches from the remote n8n workflow, then
 //! re-emits both as Tauri events into the frontend dispatcher.
 //!
+//! Also serves the avatar RPC surface (`/avatar/*`): body state, perch targets, and
+//! semantic movement commands. Those live in the webview, so each request is bridged
+//! as an `avatar-rpc` event and answered by the `avatar_rpc_response` command.
+//!
 //! Binds loopback only; no auth (single-user desktop).
 
 use crate::os_event_watcher::epoch_ms;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{Mutex, OnceLock};
 use std::thread;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 pub const AGENT_INBOX_CHANNEL: &str = "agent-inbox";
 pub const SIGNALS_INBOX_CHANNEL: &str = "signals-inbox";
+pub const AVATAR_RPC_CHANNEL: &str = "avatar-rpc";
+
+/// Deadline for a webview answer to a read-only avatar query.
+const AVATAR_QUERY_TIMEOUT: Duration = Duration::from_secs(2);
+/// Deadline for a webview answer to an avatar command — a gesture takes real time.
+const AVATAR_COMMAND_TIMEOUT: Duration = Duration::from_secs(15);
 
 const SUMMARY_MAX_BYTES: usize = 8192;
 /// Hard body read ceiling; prevents OOM on oversized payloads.
@@ -41,6 +56,78 @@ pub struct SignalsPayload {
 #[derive(Deserialize)]
 struct SignalsRequest {
     signals: Vec<serde_json::Value>,
+}
+
+/// Side of a window the avatar peeks from.
+#[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PeekSide {
+    Left,
+    Right,
+}
+
+/// Named screen spot `move_to` targets.
+#[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum MoveSpot {
+    Center,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+/// Body of a `/avatar/command` POST. The verb set is closed: anything else is a 400.
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+#[serde(tag = "action", rename_all = "snake_case")]
+pub enum AvatarCommand {
+    SitOnWindow {
+        app: String,
+    },
+    Peek {
+        side: PeekSide,
+    },
+    MoveTo {
+        spot: MoveSpot,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        monitor: Option<u32>,
+    },
+    StandDown,
+}
+
+/// A parsed `/avatar/*` request, ready to bridge into the webview.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum AvatarRoute {
+    State,
+    PerchTargets,
+    Command(AvatarCommand),
+}
+
+impl AvatarRoute {
+    /// RPC method name + params carried by the `avatar-rpc` event.
+    fn into_rpc(self) -> (&'static str, Option<serde_json::Value>) {
+        match self {
+            AvatarRoute::State => ("state", None),
+            AvatarRoute::PerchTargets => ("perch_targets", None),
+            AvatarRoute::Command(cmd) => ("command", serde_json::to_value(cmd).ok()),
+        }
+    }
+
+    fn timeout(&self) -> Duration {
+        match self {
+            AvatarRoute::Command(_) => AVATAR_COMMAND_TIMEOUT,
+            _ => AVATAR_QUERY_TIMEOUT,
+        }
+    }
+}
+
+/// `avatar-rpc` event payload — one in-flight request the webview must answer by id.
+#[derive(Serialize, Clone, Debug)]
+pub struct AvatarRpcRequest {
+    pub id: String,
+    pub method: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub params: Option<serde_json::Value>,
 }
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -82,6 +169,22 @@ fn parse_signals_request(
         .map_err(|_| 400u16)
 }
 
+/// Validates and parses a raw HTTP request into an `AvatarRoute`.
+///
+/// Returns `Err(400)` for an unknown `/avatar/*` path, a method the path does not
+/// accept, or a command body outside the closed verb set.
+fn parse_avatar_request(method: &str, path: &str, body: &str) -> Result<AvatarRoute, u16> {
+    let path_only = path.split('?').next().unwrap_or(path);
+    match path_only {
+        "/avatar/state" if method == "GET" => Ok(AvatarRoute::State),
+        "/avatar/perch-targets" if method == "GET" => Ok(AvatarRoute::PerchTargets),
+        "/avatar/command" if method == "POST" => serde_json::from_str::<AvatarCommand>(body)
+            .map(AvatarRoute::Command)
+            .map_err(|_| 400u16),
+        _ => Err(400),
+    }
+}
+
 /// Truncates `summary` to at most `SUMMARY_MAX_BYTES` bytes on a valid UTF-8
 /// char boundary and appends a marker. No-op when already within the cap.
 fn cap_summary(mut p: AgentDonePayload) -> AgentDonePayload {
@@ -108,6 +211,109 @@ fn emit_signals_event(app: &AppHandle, payload: SignalsPayload) {
     let result = app.emit(SIGNALS_INBOX_CHANNEL, payload);
     if let Err(e) = &result {
         log::warn!("agent_ingress_signals_emit_failed error={e}");
+    }
+}
+
+// ─── Avatar RPC bridge ────────────────────────────────────────────────────────
+
+/// In-flight avatar RPCs, keyed by request id. An entry lives from the emit until
+/// either the webview answers or the deadline passes.
+fn pending() -> &'static Mutex<HashMap<String, Sender<serde_json::Value>>> {
+    static PENDING: OnceLock<Mutex<HashMap<String, Sender<serde_json::Value>>>> = OnceLock::new();
+    PENDING.get_or_init(Default::default)
+}
+
+fn next_rpc_id() -> String {
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    format!("{}-{}", epoch_ms(), SEQ.fetch_add(1, Ordering::Relaxed))
+}
+
+fn register_pending(id: &str) -> Receiver<serde_json::Value> {
+    let (tx, rx) = channel();
+    if let Ok(mut map) = pending().lock() {
+        map.insert(id.to_string(), tx);
+    }
+    rx
+}
+
+fn drop_pending(id: &str) {
+    if let Ok(mut map) = pending().lock() {
+        map.remove(id);
+    }
+}
+
+/// Hands `result` to the waiting request. `false` means the id is unknown — the
+/// request already timed out and gave up.
+fn resolve_pending(id: &str, result: serde_json::Value) -> bool {
+    let sender = match pending().lock() {
+        Ok(mut map) => map.remove(id),
+        Err(_) => None,
+    };
+    match sender {
+        Some(tx) => tx.send(result).is_ok(),
+        None => false,
+    }
+}
+
+/// Emits the request into the webview and blocks until it answers or the deadline
+/// passes. `Err(503)` covers both an emit failure and a silent webview.
+fn avatar_rpc(app: &AppHandle, route: AvatarRoute) -> Result<serde_json::Value, u16> {
+    let timeout = route.timeout();
+    let (method, params) = route.into_rpc();
+    let id = next_rpc_id();
+    let rx = register_pending(&id);
+    let payload = AvatarRpcRequest {
+        id: id.clone(),
+        method: method.to_string(),
+        params,
+    };
+    if let Err(e) = app.emit(AVATAR_RPC_CHANNEL, payload) {
+        drop_pending(&id);
+        log::warn!("avatar_rpc_emit_failed method={method} error={e}");
+        return Err(503);
+    }
+    match rx.recv_timeout(timeout) {
+        Ok(value) => Ok(value),
+        Err(_) => {
+            drop_pending(&id);
+            log::warn!("avatar_rpc_timeout method={method} id={id}");
+            Err(503)
+        }
+    }
+}
+
+/// Answers an `avatar-rpc` request by id. Called by the webview executor.
+#[tauri::command]
+pub fn avatar_rpc_response(id: String, result: serde_json::Value) {
+    if !resolve_pending(&id, result) {
+        log::debug!("avatar_rpc_response_unclaimed id={id}");
+    }
+}
+
+/// Runs the bridge on its own thread so a 15s gesture never stalls the ingress loop.
+fn spawn_avatar_request(app: &AppHandle, route: AvatarRoute, request: tiny_http::Request) {
+    let app = app.clone();
+    let spawned = thread::Builder::new()
+        .name("avatar_rpc".into())
+        .spawn(move || match avatar_rpc(&app, route) {
+            Ok(value) => {
+                let json = serde_json::to_string(&value).unwrap_or_else(|_| "null".to_string());
+                let header =
+                    tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..])
+                        .expect("static header is valid");
+                let _ = request.respond(
+                    tiny_http::Response::from_string(json)
+                        .with_header(header)
+                        .with_status_code(200u16),
+                );
+            }
+            Err(code) => {
+                let _ =
+                    request.respond(tiny_http::Response::from_string("").with_status_code(code));
+            }
+        });
+    if let Err(e) = spawned {
+        log::warn!("avatar_rpc_thread_spawn_failed error={e}");
     }
 }
 
@@ -148,6 +354,17 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
     };
 
     let path_only = url.split('?').next().unwrap_or(&url);
+    if path_only.starts_with("/avatar/") {
+        match parse_avatar_request(&method, &url, &body) {
+            Ok(route) => spawn_avatar_request(app, route, request),
+            Err(code) => {
+                let _ =
+                    request.respond(tiny_http::Response::from_string("").with_status_code(code));
+                log::warn!("agent_ingress_rejected code={code} method={method} url={url}");
+            }
+        }
+        return;
+    }
     let result = match path_only {
         "/agent-done" => parse_request(&method, &url, &body).map(|payload| {
             let payload = cap_summary(payload);
@@ -433,16 +650,20 @@ mod tests {
     #[test]
     fn parse_avatar_command_requires_post() {
         assert_eq!(
-            parse_avatar_request("GET", "/avatar/command", r#"{"action":"stand_down"}"#).unwrap_err(),
+            parse_avatar_request("GET", "/avatar/command", r#"{"action":"stand_down"}"#)
+                .unwrap_err(),
             400
         );
     }
 
     #[test]
     fn parse_avatar_command_sit_on_window() {
-        let route =
-            parse_avatar_request("POST", "/avatar/command", r#"{"action":"sit_on_window","app":"Notes"}"#)
-                .unwrap();
+        let route = parse_avatar_request(
+            "POST",
+            "/avatar/command",
+            r#"{"action":"sit_on_window","app":"Notes"}"#,
+        )
+        .unwrap();
         assert_eq!(
             route,
             AvatarRoute::Command(AvatarCommand::SitOnWindow {
@@ -454,13 +675,23 @@ mod tests {
     #[test]
     fn parse_avatar_command_peek_sides() {
         assert_eq!(
-            parse_avatar_request("POST", "/avatar/command", r#"{"action":"peek","side":"left"}"#).unwrap(),
+            parse_avatar_request(
+                "POST",
+                "/avatar/command",
+                r#"{"action":"peek","side":"left"}"#
+            )
+            .unwrap(),
             AvatarRoute::Command(AvatarCommand::Peek {
                 side: PeekSide::Left
             })
         );
         assert_eq!(
-            parse_avatar_request("POST", "/avatar/command", r#"{"action":"peek","side":"right"}"#).unwrap(),
+            parse_avatar_request(
+                "POST",
+                "/avatar/command",
+                r#"{"action":"peek","side":"right"}"#
+            )
+            .unwrap(),
             AvatarRoute::Command(AvatarCommand::Peek {
                 side: PeekSide::Right
             })
@@ -470,7 +701,12 @@ mod tests {
     #[test]
     fn parse_avatar_command_rejects_unknown_peek_side() {
         assert_eq!(
-            parse_avatar_request("POST", "/avatar/command", r#"{"action":"peek","side":"up"}"#).unwrap_err(),
+            parse_avatar_request(
+                "POST",
+                "/avatar/command",
+                r#"{"action":"peek","side":"up"}"#
+            )
+            .unwrap_err(),
             400
         );
     }
@@ -478,8 +714,12 @@ mod tests {
     #[test]
     fn parse_avatar_command_move_to_with_and_without_monitor() {
         assert_eq!(
-            parse_avatar_request("POST", "/avatar/command", r#"{"action":"move_to","spot":"center"}"#)
-                .unwrap(),
+            parse_avatar_request(
+                "POST",
+                "/avatar/command",
+                r#"{"action":"move_to","spot":"center"}"#
+            )
+            .unwrap(),
             AvatarRoute::Command(AvatarCommand::MoveTo {
                 spot: MoveSpot::Center,
                 monitor: None
@@ -502,8 +742,12 @@ mod tests {
     #[test]
     fn parse_avatar_command_rejects_unknown_spot() {
         assert_eq!(
-            parse_avatar_request("POST", "/avatar/command", r#"{"action":"move_to","spot":"middle"}"#)
-                .unwrap_err(),
+            parse_avatar_request(
+                "POST",
+                "/avatar/command",
+                r#"{"action":"move_to","spot":"middle"}"#
+            )
+            .unwrap_err(),
             400
         );
     }
@@ -535,7 +779,8 @@ mod tests {
     #[test]
     fn parse_avatar_command_rejects_missing_app() {
         assert_eq!(
-            parse_avatar_request("POST", "/avatar/command", r#"{"action":"sit_on_window"}"#).unwrap_err(),
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"sit_on_window"}"#)
+                .unwrap_err(),
             400
         );
     }
