@@ -4,6 +4,7 @@ import asyncio
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import ClassVar
 
 import pytest
 from fastmcp.exceptions import ToolError
@@ -26,9 +27,10 @@ PERCH_TARGETS = {
 class _Stub(BaseHTTPRequestHandler):
     """Answers the three avatar routes from the class-level script."""
 
-    # (status, body) per route, plus the commands the server received.
-    routes: dict[str, tuple[int, object]] = {}
-    received: list[dict] = []
+    # (status, body) per route, plus the commands the server received. Class-level so a
+    # test can rescript the stub without reaching into the handler instances.
+    routes: ClassVar[dict[str, tuple[int, object]]] = {}
+    received: ClassVar[list[dict]] = []
 
     def log_message(self, *args):  # keep the test output clean
         pass
