@@ -97,7 +97,9 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
               payload: {
                 cue_id: "tap_bored",
                 label: deps.config.bored_cue.label,
-                context: deps.config.bored_cue.context,
+                ...(deps.config.bored_cue.context !== undefined
+                  ? { context: deps.config.bored_cue.context }
+                  : {}),
                 ...(signals.length > 0 ? { signals } : {}),
               },
             });
@@ -119,7 +121,11 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
             event_name: `proactive.touch_${region}`,
             ts,
             hint_tier: 2,
-            payload: { cue_id: `touch_${region}`, label: cue.label, context: cue.context },
+            payload: {
+              cue_id: `touch_${region}`,
+              label: cue.label,
+              ...(cue.context !== undefined ? { context: cue.context } : {}),
+            },
           });
         }
 

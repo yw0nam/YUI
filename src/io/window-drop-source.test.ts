@@ -35,6 +35,13 @@ function createWindowDropSource(
 
 const RELEASE_EVENT = "window_drop_release";
 
+/** Gesture cues with an authored context — exercises the perched-on composition. */
+const AUTHORED_CUES = {
+  drag_held: { label: "dragged around", context: "put me down" },
+  window_sit: { label: "sat on window", context: "say something fitting" },
+  peek: { label: "peeking", context: "say something playful" },
+};
+
 /** Minimal in-memory bus capturing pushes. */
 function makeBus(): { bus: EventBus; pushed: BusEnvelope[] } {
   const pushed: BusEnvelope[] = [];
@@ -128,7 +135,7 @@ describe("window-drop-source — perch hit", () => {
     expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
   });
 
-  it("also pushes proactive.window_sit composing the sat-on window name into the cue context", async () => {
+  it("also pushes proactive.window_sit carrying the label-only cue", async () => {
     const renderer = {
       getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
       isPerched: vi.fn(() => true),
@@ -152,8 +159,36 @@ describe("window-drop-source — perch hit", () => {
     expect(env.payload).toEqual({
       cue_id: "window_sit",
       label: GESTURE_CUES_DEFAULTS.window_sit.label,
-      context: `${GESTURE_CUES_DEFAULTS.window_sit.context} (currently perched on: Notes)`,
     });
+    expect(env.payload).not.toHaveProperty("context");
+  });
+
+  it("composes the sat-on window name into an authored window_sit context", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const W = win({ name: "Notes" });
+    const invoke = vi.fn(async () => [W]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow,
+      listen,
+      getGestureCues: () => AUTHORED_CUES,
+    });
+    await source.start();
+    fire({ point: { x: 123, y: 456 } });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const env = pushed.find((e) => e.event_name === "proactive.window_sit")!;
+    expect(env.payload?.context).toBe("say something fitting (currently perched on: Notes)");
   });
 
   it("proactive.window_sit context has no perch suffix when the target window has no name", async () => {
@@ -166,7 +201,14 @@ describe("window-drop-source — perch hit", () => {
     const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
     const { listen, fire } = makeListen();
 
-    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow,
+      listen,
+      getGestureCues: () => AUTHORED_CUES,
+    });
     await source.start();
     fire({ point: { x: 123, y: 456 } });
     await Promise.resolve();
@@ -174,7 +216,7 @@ describe("window-drop-source — perch hit", () => {
     await Promise.resolve();
 
     const env = pushed.find((e) => e.event_name === "proactive.window_sit")!;
-    expect(env.payload?.context).toBe(GESTURE_CUES_DEFAULTS.window_sit.context);
+    expect(env.payload?.context).toBe("say something fitting");
   });
 
   it("chooses the topmost (first front-to-back) window when several overlap the seat", async () => {
@@ -379,7 +421,43 @@ describe("window-drop-source — side peek drop", () => {
     expect(pushed.find((e) => e.event_name === "user.window_sit_drop")).toBeDefined();
   });
 
-  it("also pushes proactive.peek composing the side-target window name into the cue context", async () => {
+  it("composes the side-target window name into an authored peek context", async () => {
+    vi.useFakeTimers();
+    const peek = { active: true };
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 200, y: 300 }, charHpx: 200 })),
+      isPerched: vi.fn(() => false),
+    };
+    const target = win({
+      x: 300,
+      y: 100,
+      width: 520,
+      height: 500,
+      windowNumber: 42,
+      name: "Terminal",
+    });
+    const invoke = vi.fn(async () => [target]);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow: () => makeWindow({ x: 200, y: 0 }, 2),
+      listen,
+      peekActive: () => peek.active,
+      getGestureCues: () => AUTHORED_CUES,
+    });
+
+    await source.start();
+    fire({});
+    await settleRelease();
+
+    const env = pushed.find((e) => e.event_name === "proactive.peek")!;
+    expect(env.payload?.context).toBe("say something playful (currently perched on: Terminal)");
+    vi.useRealTimers();
+  });
+
+  it("also pushes proactive.peek carrying the label-only cue", async () => {
     vi.useFakeTimers();
     const peek = { active: true };
     const renderer = {
@@ -413,11 +491,8 @@ describe("window-drop-source — side peek drop", () => {
     expect(env).toBeDefined();
     expect(env.source).toBe("os_event_watcher");
     expect(env.hint_tier).toBe(2);
-    expect(env.payload).toEqual({
-      cue_id: "peek",
-      label: GESTURE_CUES_DEFAULTS.peek.label,
-      context: `${GESTURE_CUES_DEFAULTS.peek.context} (currently perched on: Terminal)`,
-    });
+    expect(env.payload).toEqual({ cue_id: "peek", label: GESTURE_CUES_DEFAULTS.peek.label });
+    expect(env.payload).not.toHaveProperty("context");
     vi.useRealTimers();
   });
 
@@ -445,6 +520,7 @@ describe("window-drop-source — side peek drop", () => {
       getWindow: () => makeWindow({ x: 200, y: 0 }, 2),
       listen,
       peekActive: () => peek.active,
+      getGestureCues: () => AUTHORED_CUES,
     });
 
     await source.start();
@@ -452,7 +528,7 @@ describe("window-drop-source — side peek drop", () => {
     await settleRelease();
 
     const env = pushed.find((e) => e.event_name === "proactive.peek")!;
-    expect(env.payload?.context).toBe(GESTURE_CUES_DEFAULTS.peek.context);
+    expect(env.payload?.context).toBe("say something playful");
     vi.useRealTimers();
   });
 

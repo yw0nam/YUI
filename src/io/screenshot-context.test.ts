@@ -4,7 +4,7 @@
  * Verify:
  *  - enabled=false → undefined
  *  - enabled=true, no capture → {enabled:true, source}
- *  - enabled=true, with capture → {enabled:true, source, data_url, captured_at, width, height}
+ *  - enabled=true, with capture → {enabled:true, source, data_url}
  */
 
 import { describe, expect, it } from "vitest";
@@ -39,7 +39,7 @@ describe("buildScreenshotBlock — enabled, no capture", () => {
 });
 
 describe("buildScreenshotBlock — enabled, with capture", () => {
-  it("returns full block including all capture fields", () => {
+  it("carries the pixels and drops the capture dimensions no consumer reads", () => {
     const settings: ScreenshotSettings = {
       enabled: true,
       source: { kind: "monitor", index: 0 },
@@ -55,9 +55,6 @@ describe("buildScreenshotBlock — enabled, with capture", () => {
       enabled: true,
       source: settings.source,
       data_url: capture.data_url,
-      captured_at: capture.captured_at,
-      width: capture.width,
-      height: capture.height,
     });
   });
 

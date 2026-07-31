@@ -289,6 +289,31 @@ describe("createTapSource", () => {
     expect(pushed[0]).not.toHaveProperty("dnd_override");
   });
 
+  it("omits context from the touch candidate when the region cue has none", () => {
+    const labelOnly: TapConfig = {
+      ...config,
+      region_cues: { chest: { label: "chest poked" }, hips: { label: "butt poked" } },
+    };
+    const { source, pushed } = harness(bothRegionsPoints(), undefined, null, labelOnly);
+    source.handleClick({ x: 50, y: 60 });
+
+    expect(pushed[0]?.payload).toEqual({ cue_id: "touch_chest", label: "chest poked" });
+    expect(pushed[0]?.payload).not.toHaveProperty("context");
+  });
+
+  it("omits context from the bored candidate when bored_cue has none", () => {
+    const labelOnly: TapConfig = { ...config, bored_cue: { label: "wants attention" } };
+    const { source, pushed, setTime } = harness(null, undefined, null, labelOnly);
+    for (const time of [1_000, 1_100, 1_200, 1_300]) {
+      setTime(time);
+      source.handleClick({ x: 1, y: 2 });
+    }
+
+    const payload = pushed.find((env) => env.event_name === "proactive.tap_bored")?.payload;
+    expect(payload).toEqual({ cue_id: "tap_bored", label: "wants attention" });
+    expect(payload).not.toHaveProperty("context");
+  });
+
   it("suppresses the touch candidate within the cooldown and fires again after it elapses", () => {
     const { source, pushed, setTime } = harness(
       bothRegionsPoints(),

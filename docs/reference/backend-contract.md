@@ -13,7 +13,7 @@ Each turn the client sends a Responses API request with a single `user` input fo
 
 ```text
 <client_context>
-Injected by the YUI client; the user did not type this.
+Client-injected context; not typed by the user.
 { …client_context JSON… }
 </client_context>
 
@@ -32,7 +32,7 @@ When a screenshot is attached, the input is a content-part array: `[{ type: "inp
     "timestamp": "ISO 8601 local time with offset", // e.g. "2026-06-15T19:30:00+09:00"
     "timezone": "IANA zone (auto-detected)",    // e.g. "Asia/Seoul"
     "active_app": { "name": "foreground app" }, // optional
-    "active_window_title": "foreground window", // optional
+    "active_window_title": "foreground window", // optional; truncated to 200 chars
     "posture": {                                // optional; absent while idle
       "state": "sitting | peeking | dragging",
       "perched_on": {                           // sitting/peeking only; optional when identity is unavailable
@@ -41,21 +41,19 @@ When a screenshot is attached, the input is a content-part array: `[{ type: "inp
       }
     },
     "recent_apps": [                            // optional; apps switched to since the last utterance, oldest→newest
-      { "name": "app name", "at": "ISO 8601 local time" }
+      { "name": "app name" }
     ]
   },
   "screenshot": {                               // optional; present when screen capture is enabled
     "enabled": true,
-    "source": { "kind": "monitor", "index": 0 }, // ScreenSource union
-    "width": 1920,
-    "height": 1080
+    "source": { "kind": "monitor", "index": 0 } // ScreenSource union
     // data_url is NOT included here — pixels arrive as the input_image content-part on the user input
   },
   "trigger": {
     "kind": "user | schedule | proactive | agent | signals",
     "cue": {                                    // present for schedule and proactive kinds
       "label": "short human name",
-      "context": "free-text intent the user wrote for the agent",
+      "context": "free-text intent the user wrote for the agent", // optional; user-authored cues only
       "local_time": "HH:MM",                   // present for schedule
       "idle_min": 0                             // present for proactive (configured threshold, minutes)
     },
@@ -66,7 +64,9 @@ When a screenshot is attached, the input is a content-part array: `[{ type: "inp
 
 `env.posture` reports the character's current physical posture on every turn. The field is absent while the character is idle. `state` is `"sitting"`, `"peeking"`, or `"dragging"`. Sitting and peeking may include `perched_on.app`, the primary and stable app-owner name, and `perched_on.window_title`, the secondary window title. Window titles are often unavailable without Screen Recording permission. `perched_on.app` is currently populated on macOS only; on Windows only `window_title` may appear. Either identity field may be omitted independently, and `perched_on` is omitted when both are unavailable. Dragging never includes `perched_on` because the cursor, rather than a window, holds the character.
 
-`env.active_window_title` and `env.posture.perched_on.window_title` describe different windows. `active_window_title` is the currently focused OS window, while `perched_on.window_title` is the window supporting the character. They can differ when focus moves away from the perched window.
+`env.active_window_title` and `env.posture.perched_on.window_title` describe different windows. `active_window_title` is the currently focused OS window, while `perched_on.window_title` is the window supporting the character. They can differ when focus moves away from the perched window. `active_window_title` is truncated to its first 200 characters.
+
+`env.recent_apps` carries app names only. The client tracks each switch with a timestamp internally, but the wire shape omits it — ordering (oldest→newest) already conveys the sequence, and `env.timestamp` anchors the turn. Entries are drained once a turn is confirmed sent.
 
 ### `trigger.kind` values
 
@@ -103,11 +103,13 @@ When there is no user utterance, the user input trails the `client_context` bloc
 
 | Field | Type | Present for | Meaning |
 |---|---|---|---|
-| `label` | string | schedule, proactive | Short human-readable name the user gave this cue |
-| `context` | string | schedule, proactive | Free-text intent the user wrote; the agent reads this to determine its response |
+| `label` | string | schedule, proactive | Short human-readable name for this cue |
+| `context` | string | user-authored schedule and proactive cues | Free-text intent the user wrote; the agent reads this to determine its response |
 | `local_time` | string (`HH:MM`) | schedule | Configured clock time at which this cue fires |
 | `idle_min` | number | idle proactive cues | Configured idle threshold in minutes; cue fires once this threshold is reached |
 | `idle_elapsed_min` | number | idle proactive cues | Actual elapsed minutes since the last user interaction at the moment the cue fired |
+
+`cue.context` is user-authored intent, so it rides only on cues the user wrote: schedule cues and configured engagement cues. The built-in touch and gesture cues (`touch_*`, `tap_bored`, `drag_held`, `window_sit`, `peek`) send a `label` alone — how to react to a poke or a drag is persona judgment, which belongs to the agent, not to a string the client ships. A user who authors a `context` for those cues in `configs/avatar.json` still has it forwarded.
 
 ### Per-kind examples
 
@@ -153,32 +155,26 @@ When there is no user utterance, the user input trails the `client_context` bloc
 }
 ```
 
-**`proactive.touch_*` turn** — the user tapped a configured body region (`touch_chest` or `touch_hips`). The turn carries that region's configured cue; a shared client-side cooldown limits how often touch turns fire:
+**`proactive.touch_*` turn** — the user tapped a configured body region (`touch_chest` or `touch_hips`). The turn carries that region's configured label; a shared client-side cooldown limits how often touch turns fire:
 
 ```json
 {
   "env": { "timestamp": "2026-06-15T15:10:00+09:00", "timezone": "Asia/Seoul" },
   "trigger": {
     "kind": "proactive",
-    "cue": {
-      "label": "chest poked",
-      "context": "The user just poked my chest. React in character — flustered, a little embarrassed. Keep it short."
-    }
+    "cue": { "label": "chest poked" }
   }
 }
 ```
 
-**`proactive.drag_held` / `proactive.window_sit` / `proactive.peek` turns** — reflex reactions to a physical gesture (`configs/avatar.json` `gesture_cues`): a drag held past `drag_hold_ms`, the character settling onto a foreign window's top edge, or peeking from a screen edge. Each fires once per gesture occurrence — no repeat while sustained, no cooldown. These are REFLEX turns: the client skips the TTFT thinking filler since a deliberative pause before an immediate reaction feels wrong. `window_sit`/`peek` compose the sat-on/peeked-at window's name into `cue.context` at fire time when known:
+**`proactive.drag_held` / `proactive.window_sit` / `proactive.peek` turns** — reflex reactions to a physical gesture (`configs/avatar.json` `gesture_cues`): a drag held past `drag_hold_ms`, the character settling onto a foreign window's top edge, or peeking from a screen edge. Each fires once per gesture occurrence — no repeat while sustained, no cooldown. These are REFLEX turns: the client skips the TTFT thinking filler since a deliberative pause before an immediate reaction feels wrong. They send a `label` alone. When a user has authored a `context` for `window_sit`/`peek`, the client composes the sat-on/peeked-at window's name into it at fire time. Turns that follow the perch report the supporting window through `env.posture.perched_on`:
 
 ```json
 {
   "env": { "timestamp": "2026-06-15T15:12:00+09:00", "timezone": "Asia/Seoul" },
   "trigger": {
     "kind": "proactive",
-    "cue": {
-      "label": "sat on window",
-      "context": "I just sat down on the edge of a window — say something fitting. Keep it short. (currently perched on: Notes)"
-    }
+    "cue": { "label": "sat on window" }
   }
 }
 ```
