@@ -1317,6 +1317,98 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     expect(pushed).toHaveLength(0);
   });
 
+  it("skips a covered window of the app and sits on the next one back", async () => {
+    // Stage Manager: a system overlay in front covers the app's thumbnail, while the
+    // real full-size window further back has a perfectly free top edge.
+    const overlay = win({
+      ownerName: "Window Server",
+      name: "Gesture Blocking Overlay",
+      windowNumber: 1,
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 300,
+    });
+    const thumbnail = win({
+      ownerName: "Termius",
+      name: "Termius Thumbnail",
+      windowNumber: 2,
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 150,
+    });
+    const real = win({
+      ownerName: "Termius",
+      name: "Termius",
+      windowNumber: 3,
+      x: 600,
+      y: 500,
+      width: 800,
+      height: 600,
+    });
+    const pet = makePlaceWindow();
+    const source = createWindowDropSource(makeDeps([overlay, thumbnail, real], pet));
+
+    const result = await source.placeOn({ kind: "sit", app: "Termius" });
+
+    expect(result).toEqual({ ok: true, kind: "sit" });
+    // Seat goes to the real window's top-edge center (1000, 500), not the thumbnail's.
+    expect(pet.setPositionPhysical).toHaveBeenCalledWith(1920, 940);
+    const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
+    expect(env.payload?.window_title).toBe("Termius");
+    expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
+  });
+
+  it("reports blocked only when every window of the app is covered", async () => {
+    const overlay = win({
+      ownerName: "Window Server",
+      name: "Gesture Blocking Overlay",
+      windowNumber: 1,
+      x: 0,
+      y: 0,
+      width: 2000,
+      height: 2000,
+    });
+    const thumbnail = win({
+      ownerName: "Termius",
+      name: "Termius Thumbnail",
+      windowNumber: 2,
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 150,
+    });
+    const real = win({
+      ownerName: "Termius",
+      name: "Termius",
+      windowNumber: 3,
+      x: 600,
+      y: 500,
+      width: 800,
+      height: 600,
+    });
+    const pet = makePlaceWindow();
+    const source = createWindowDropSource(makeDeps([overlay, thumbnail, real], pet));
+
+    const result = await source.placeOn({ kind: "sit", app: "Termius" });
+
+    expect(result).toEqual({ ok: false, reason: "blocked" });
+    expect(pet.setPositionPhysical).not.toHaveBeenCalled();
+    expect(pushed).toHaveLength(0);
+  });
+
+  it("prefers an exact app-name match over a partial one, front-to-back", async () => {
+    const partial = win({ ownerName: "Notes Helper", name: "Helper", windowNumber: 1 });
+    const exact = win({ ownerName: "Notes", name: "Real Notes", windowNumber: 2, x: 600, y: 500 });
+    const source = createWindowDropSource(makeDeps([partial, exact]));
+
+    await source.placeOn({ kind: "sit", app: "Notes" });
+
+    const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
+    expect(env.payload?.window_title).toBe("Real Notes");
+  });
+
   it("reports not_found without moving when no window carries the app name", async () => {
     const pet = makePlaceWindow();
     const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })], pet));
