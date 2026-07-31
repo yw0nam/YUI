@@ -3,7 +3,7 @@
 Thanks for helping build YUI. This is the short, human-facing guide;
 [`AGENTS.md`](AGENTS.md) carries the project orientation and on-demand docs, and
 the `yui-dev-workflow` skill carries the full development work rules and
-sub-agent roster.
+delegation model.
 
 ## Quick start
 
@@ -58,6 +58,6 @@ pnpm lint                   # biome
 
 ## Going deeper
 
-- [`AGENTS.md`](AGENTS.md) — project orientation (architecture, core principle, doc index); the `yui-dev-workflow` skill holds the dev work rules and sub-agent roster
+- [`AGENTS.md`](AGENTS.md) — project orientation (architecture, core principle, doc index); the `yui-dev-workflow` skill holds the dev work rules and delegation model
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md) — full install & backend wiring
 - [`PRODUCT.md`](PRODUCT.md) / [`DESIGN.md`](DESIGN.md) — product register + design system

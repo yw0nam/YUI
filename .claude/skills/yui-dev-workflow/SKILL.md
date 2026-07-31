@@ -5,7 +5,7 @@ description: Use when writing, changing, reviewing, testing, or delegating any c
 
 # YUI Development Workflow
 
-How development happens in YUI: the mandatory work rules, the sub-agent roster, delegation decisions, and the client-side anti-patterns. Load this before touching code. Project identity and the on-demand doc index stay in `AGENTS.md`.
+How development happens in YUI: the mandatory work rules, delegation decisions, the review and verification gates, and the client-side anti-patterns. Load this before touching code. Project identity and the on-demand doc index stay in `AGENTS.md`.
 
 ## Before you start
 
@@ -31,9 +31,11 @@ How development happens in YUI: the mandatory work rules, the sub-agent roster, 
 
 ## When to delegate
 
+Implementation work goes to general-purpose sub-agents (`model: opus`) driven by a written spec — the prompt carries the target paths, the rules that apply, and the TDD ordering. Two project agents are gates rather than implementers: **Code Reviewer** reviews every non-trivial diff, and **Reality Checker** certifies runtime/UI evidence.
+
 Default by rule; ask only on the boundary.
 
-- **Delegate to a sub-agent** if ANY: adds/changes behavior (needs TDD), touches a roster specialist area, or spans multiple files/steps.
+- **Delegate to a sub-agent** if ANY: adds/changes behavior (needs TDD), or spans multiple files/steps.
 - **Delegate to an external CLI agent** (codex/opencode via `agent-send`) — load the `agent-team:agent-team` skill first; roles, session naming, and the spec→review→implement→verify cycle live there. External agents see none of this conversation, so the prompt must carry the YUI rules that apply (worktree→PR, TDD ordering, English tracker) and absolute paths.
 - **Do it directly** if ALL: no new behavior (typo·doc·comment·rename·config), ~20 lines or fewer, single file, mechanical.
 - **Genuinely borderline?** Ask the user one line: "이거 ○○ 작업인데 직접 할까요, 서브에이전트로 위임할까요?"

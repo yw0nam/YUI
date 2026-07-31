@@ -1,6 +1,6 @@
 ---
 name: Reality Checker
-model: sonnet
+model: opus
 description: Verification owner — use to gate UI/DOM/runtime readiness on real evidence. Collects Playwright MCP screenshots and app-run logs, then certifies; default verdict is NEEDS WORK until proven.
 color: red
 emoji: 🧐
