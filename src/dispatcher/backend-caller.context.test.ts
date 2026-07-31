@@ -453,7 +453,7 @@ describe("backend_caller — recent apps package (peek, non-destructive)", () =>
     return JSON.parse(clientContextJsonOf(user.content));
   }
 
-  it("peekRecentApps stub → env.recent_apps included as name+local ISO timestamp", async () => {
+  it("peekRecentApps stub → env.recent_apps included as names only", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     const peekRecentApps = vi.fn(() => [
       { name: "Visual Studio Code", ts: 1_717_000_000_000 },
@@ -472,10 +472,7 @@ describe("backend_caller — recent apps package (peek, non-destructive)", () =>
     const [, request] = streamChatSpy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const env = ctx.env as Record<string, unknown>;
-    expect(env.recent_apps).toEqual([
-      { name: "Visual Studio Code", at: expect.any(String) },
-      { name: "Slack", at: expect.any(String) },
-    ]);
+    expect(env.recent_apps).toEqual([{ name: "Visual Studio Code" }, { name: "Slack" }]);
   });
 
   it("peekRecentApps returns [] → env.recent_apps omitted", async () => {

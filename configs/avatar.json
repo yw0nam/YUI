@@ -20,36 +20,18 @@
     "region_motions": { "chest": "embarrassed", "hips": "embarrassed" },
     "region_emotions": { "chest": "embarrassed", "hips": "embarrassed" },
     "region_cues": {
-      "chest": {
-        "label": "chest poked",
-        "context": "The user just poked my chest. React in character — flustered, a little embarrassed. Keep it short."
-      },
-      "hips": {
-        "label": "butt poked",
-        "context": "The user just poked my butt. React in character — surprised and embarrassed. Keep it short."
-      }
+      "chest": { "label": "chest poked" },
+      "hips": { "label": "butt poked" }
     },
     "touch_cue_cooldown_ms": 60000,
     "touch_emotion_hold_ms": 4000,
-    "bored_cue": {
-      "label": "bored poking",
-      "context": "The user keeps poking at me with no particular spot in mind — probably bored and wanting my attention. Fold in any accumulated signals and say something that fits the moment."
-    }
+    "bored_cue": { "label": "bored poking" }
   },
   "drag_hold_ms": 5000,
   "gesture_cues": {
-    "drag_held": {
-      "label": "dragged around",
-      "context": "The user has been dragging me around for a while — ask them to put me down. Keep it short."
-    },
-    "window_sit": {
-      "label": "sat on window",
-      "context": "I just sat down on the edge of a window — say something fitting. Keep it short."
-    },
-    "peek": {
-      "label": "peeking",
-      "context": "I'm peeking out from the edge of the screen — say something playful. Keep it short."
-    }
+    "drag_held": { "label": "dragged around" },
+    "window_sit": { "label": "sat on window" },
+    "peek": { "label": "peeking" }
   },
   "gaze": {
     "deadDeg": 3,

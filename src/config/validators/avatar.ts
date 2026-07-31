@@ -295,14 +295,13 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
             if (
               typeof label !== "string" ||
               label.length === 0 ||
-              typeof context !== "string" ||
-              context.length === 0
+              (context !== undefined && (typeof context !== "string" || context.length === 0))
             ) {
               issues.push(
-                `tap.region_cues.${key}의 label/context는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(cue)})`,
+                `tap.region_cues.${key}의 label은 비어 있지 않은 문자열이어야 하고 context는 생략하거나 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(cue)})`,
               );
             } else {
-              out[key] = { label, context };
+              out[key] = { label, ...(context !== undefined ? { context } : {}) };
             }
           }
           tap.region_cues = out;

@@ -55,7 +55,11 @@ export function createDragHoldSource(deps: DragHoldSourceDeps): DragHoldSource {
           event_name: "proactive.drag_held",
           ts: now(),
           hint_tier: 2,
-          payload: { cue_id: "drag_held", label: cue.label, context: cue.context },
+          payload: {
+            cue_id: "drag_held",
+            label: cue.label,
+            ...(cue.context !== undefined ? { context: cue.context } : {}),
+          },
         });
       }, getHoldMs());
     },

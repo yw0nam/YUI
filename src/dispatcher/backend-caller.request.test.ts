@@ -302,6 +302,22 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     expect(trigger.idle_elapsed_min).toBe(60);
   });
 
+  it("label-only touch cue → trigger.cue carries the label and no context", async () => {
+    scriptedEvents = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 15,
+      source: "os_event_watcher",
+      event_name: "proactive.touch_chest",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: { cue_id: "touch_chest", label: "chest poked" },
+    };
+    await caller.call(env);
+    const [, request] = streamChatSpy.mock.calls[0];
+    const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
+    expect(trigger.cue).toEqual({ label: "chest poked" });
+  });
+
   it("proactive.touch_* user message is the touch marker (not the idle marker)", async () => {
     scriptedEvents = [completedEvent({ speech_text: "" })];
     const env: BusEnvelope = {
@@ -585,7 +601,9 @@ describe("backend_caller — signals trigger forwarding", () => {
     expect(
       items[0]!.content.endsWith("</client_context>\n\n(a new signal just arrived for you)"),
     ).toBe(true);
-    expect(items[0]!.content).toContain("the user did not type this");
+    expect(items[0]!.content.split("\n")[1]).toBe(
+      "Client-injected context; not typed by the user.",
+    );
     expect(JSON.parse(clientContextJsonOf(items[0]!.content))).toMatchObject({
       trigger: { kind: "signals", signals: [{ kind: "reminder" }] },
     });

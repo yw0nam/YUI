@@ -12,6 +12,21 @@ export const ALL_CONTEXT_SIGNALS = [
 
 export type ContextSignal = (typeof ALL_CONTEXT_SIGNALS)[number];
 
+/** Window titles run long (full paths, document trails); the tail carries no situational value. */
+const WINDOW_TITLE_MAX_CHARS = 200;
+
+/**
+ * Cap a window title, ending a cut one with an ellipsis so the truncation is visible.
+ * Drops a trailing high surrogate first — slicing mid-pair would emit a lone code unit.
+ */
+function capWindowTitle(title: string): string {
+  if (title.length <= WINDOW_TITLE_MAX_CHARS) return title;
+  const head = title.slice(0, WINDOW_TITLE_MAX_CHARS - 1);
+  const lastCode = head.charCodeAt(head.length - 1);
+  const whole = lastCode >= 0xd800 && lastCode <= 0xdbff ? head.slice(0, -1) : head;
+  return `${whole}…`;
+}
+
 export interface ContextPolicy {
   recent_apps: boolean;
   active_app: boolean;
@@ -159,12 +174,10 @@ function triggerKind(eventName: string): TriggerMeta["kind"] {
 export function buildClientContext(ctx: InputContext, env: BusEnvelope): ClientContext {
   const payload = env.payload;
   const cue =
-    typeof payload?.cue_id === "string" &&
-    typeof payload?.label === "string" &&
-    typeof payload?.context === "string"
+    typeof payload?.cue_id === "string" && typeof payload?.label === "string"
       ? {
           label: payload.label,
-          context: payload.context,
+          ...(typeof payload.context === "string" ? { context: payload.context } : {}),
           ...(typeof payload.local_time === "string" ? { local_time: payload.local_time } : {}),
           ...(typeof payload.idle_min === "number" ? { idle_min: payload.idle_min } : {}),
         }
@@ -174,10 +187,7 @@ export function buildClientContext(ctx: InputContext, env: BusEnvelope): ClientC
   const agentCatchup = agentCatchupOf(env);
   const signals = signalsOf(env);
   const screenshot = ctx.screenshot
-    ? (() => {
-        const { data_url: _dataUrl, ...meta } = ctx.screenshot;
-        return meta;
-      })()
+    ? { enabled: ctx.screenshot.enabled, source: ctx.screenshot.source }
     : undefined;
 
   return {
@@ -220,7 +230,7 @@ export async function buildContext(
     included.push("active_app");
   }
   if (policy.active_window_title && os?.activeWindowTitle) {
-    ctx.env.active_window_title = os.activeWindowTitle;
+    ctx.env.active_window_title = capWindowTitle(os.activeWindowTitle);
     included.push("active_window_title");
   }
   if (policy.posture) {
@@ -233,10 +243,7 @@ export async function buildContext(
 
   const peekedApps = policy.recent_apps ? (providers.peekRecentApps?.() ?? []) : [];
   if (peekedApps.length) {
-    ctx.env.recent_apps = peekedApps.map((app) => ({
-      name: app.name,
-      at: localIso(app.ts, timezone),
-    }));
+    ctx.env.recent_apps = peekedApps.map((app) => ({ name: app.name }));
     included.push("recent_apps");
   }
 

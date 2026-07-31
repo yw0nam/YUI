@@ -53,13 +53,13 @@ export interface TapConfig {
   spam_window_ms: number;
   region_radius_frac: number;
   region_motions: { chest: string; hips: string };
-  bored_cue: { label: string; context: string };
+  bored_cue: { label: string; context?: string };
   /** Emotion applied alongside the region motion. Absent region → motion only. */
   region_emotions?: { chest?: string; hips?: string };
   /** Touch speech cue handed to the backend on a region tap. Absent region → no candidate. */
   region_cues?: {
-    chest?: { label: string; context: string };
-    hips?: { label: string; context: string };
+    chest?: { label: string; context?: string };
+    hips?: { label: string; context?: string };
   };
   /** Cooldown (ms) shared by all touch speech candidates. */
   touch_cue_cooldown_ms: number;
@@ -72,11 +72,7 @@ export const TAP_DEFAULTS: TapConfig = {
   spam_window_ms: 3000,
   region_radius_frac: 0.18,
   region_motions: { chest: "embarrassed", hips: "embarrassed" },
-  bored_cue: {
-    label: "bored poking",
-    context:
-      "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
-  },
+  bored_cue: { label: "bored poking" },
   touch_cue_cooldown_ms: 60_000,
   touch_emotion_hold_ms: 4_000,
 };
@@ -95,10 +91,10 @@ export const PEEK_DEFAULTS: PeekConfig = {
   mirror_side: "right",
 };
 
-/** Authored label/context for one reflex-gesture speech candidate. */
+/** Authored label for one reflex-gesture speech candidate. context is optional user-authored intent. */
 export interface GestureCueConfig {
   label: string;
-  context: string;
+  context?: string;
 }
 
 /** Reflex-gesture speech cues — drag-hold / window-sit / peek. */
@@ -109,19 +105,9 @@ export interface GestureCuesConfig {
 }
 
 export const GESTURE_CUES_DEFAULTS: GestureCuesConfig = {
-  drag_held: {
-    label: "dragged around",
-    context:
-      "The user has been dragging me around for a while — ask them to put me down. Keep it short.",
-  },
-  window_sit: {
-    label: "sat on window",
-    context: "I just sat down on the edge of a window — say something fitting. Keep it short.",
-  },
-  peek: {
-    label: "peeking",
-    context: "I'm peeking out from the edge of the screen — say something playful. Keep it short.",
-  },
+  drag_held: { label: "dragged around" },
+  window_sit: { label: "sat on window" },
+  peek: { label: "peeking" },
 };
 
 /** Default drag-hold threshold (ms) before proactive.drag_held fires. */

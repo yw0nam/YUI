@@ -26,7 +26,7 @@
  * degrade to a warn log (mirrors os-context.ts).
  */
 
-import type { GestureCuesConfig, PeekConfig } from "../config/load";
+import type { GestureCueConfig, GestureCuesConfig, PeekConfig } from "../config/load";
 import type { ScreenRect, WindowRect } from "../contract";
 import type { EventBus } from "../dispatcher/event-bus";
 import { createLogger } from "../logger";
@@ -151,9 +151,19 @@ export interface WindowDropSource {
   release(): void;
 }
 
-/** Compose the sat-on/peeked-at window name into a cue's base context (no name → base unchanged). */
-function withPerchedOn(baseContext: string, name: string | null): string {
-  return name ? `${baseContext} (currently perched on: ${name})` : baseContext;
+/**
+ * Cue payload fields for a perch gesture. context is only composed when the config
+ * authored one — built-in cues ship a label alone.
+ */
+function cueFields(
+  cue: GestureCueConfig,
+  name: string | null,
+): { label: string; context?: string } {
+  if (cue.context === undefined) return { label: cue.label };
+  return {
+    label: cue.label,
+    context: name ? `${cue.context} (currently perched on: ${name})` : cue.context,
+  };
 }
 
 /** Point-in-rect: is the seat actually over this window's surface (points). */
@@ -397,8 +407,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         hint_tier: 2,
         payload: {
           cue_id: "window_sit",
-          label: windowSitCue.label,
-          context: withPerchedOn(windowSitCue.context, target.name),
+          ...cueFields(windowSitCue, target.name),
         },
       });
     }
@@ -441,8 +450,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         hint_tier: 2,
         payload: {
           cue_id: "peek",
-          label: peekCue.label,
-          context: withPerchedOn(peekCue.context, target.name),
+          ...cueFields(peekCue, target.name),
         },
       });
     }
