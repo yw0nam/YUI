@@ -100,6 +100,15 @@ class TestListPerchTargets:
     def test_returns_the_client_candidates(self, stub):
         assert server.list_perch_targets() == PERCH_TARGETS
 
+    def test_passes_a_nameless_window_through_with_nulls(self, stub):
+        """The OS reports no name for some windows — app/title are null, not absent."""
+        nameless = {
+            "windows": [{"app": None, "title": None, "rect": {"x": 0, "y": 0, "width": 8, "height": 6}}],
+            "edges": ["left", "right"],
+        }
+        stub.routes["/avatar/perch-targets"] = (200, nameless)
+        assert server.list_perch_targets() == nameless
+
 
 class TestSitOnWindow:
     def test_posts_the_named_app(self, stub):

@@ -519,12 +519,19 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     return commitSit(target, pos, scale, probe.charHpx, false);
   }
 
-  /** Case-insensitive app-name match: exact owner first, then a partial owner match. */
-  function findByApp(windows: WindowRect[], app: string): number {
+  /**
+   * Every window the app owns, front-to-back: exact owner-name matches first, then
+   * partial ones. Plural because the frontmost match is not always sittable — Stage
+   * Manager keeps thumbnails of the same app in front of the real window.
+   */
+  function matchesByApp(windows: WindowRect[], app: string): number[] {
     const needle = app.toLowerCase();
-    const exact = windows.findIndex((w) => w.ownerName?.toLowerCase() === needle);
-    if (exact >= 0) return exact;
-    return windows.findIndex((w) => w.ownerName?.toLowerCase().includes(needle));
+    const indices = windows.map((_, i) => i);
+    const exact = indices.filter((i) => windows[i].ownerName?.toLowerCase() === needle);
+    const partial = indices.filter(
+      (i) => !exact.includes(i) && windows[i].ownerName?.toLowerCase().includes(needle),
+    );
+    return [...exact, ...partial];
   }
 
   /** Where the seat must land (global points) for the requested gesture. */
@@ -553,25 +560,36 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       win.scaleFactor(),
       invoke("list_windows"),
     ]);
-    // Front-to-back: sit takes the frontmost window carrying the app name, peek the
-    // frontmost window outright.
-    const targetIdx = request.kind === "sit" ? findByApp(windows, request.app) : 0;
-    const target = targetIdx < 0 ? undefined : windows[targetIdx];
-    if (!target) return { ok: false, reason: "not_found" };
-
-    const seat = seatPointFor(request, target);
-    // Same covered predicate the drop path and the occlusion poll use: a window in
-    // front of the target holding the seat point means the character would land on
-    // that window's surface instead. Refuse rather than move somewhere wrong.
-    if (windows.some((w, i) => i < targetIdx && containsSeat(w, seat))) {
-      log.debug("placement.blocked", {
+    // Front-to-back: sit considers every window the app owns, peek the frontmost
+    // window outright.
+    const candidates = request.kind === "sit" ? matchesByApp(windows, request.app) : [0];
+    if (candidates.length === 0 || windows.length === 0) {
+      return { ok: false, reason: "not_found" };
+    }
+    // Take the frontmost candidate whose own seat point is reachable. The covered
+    // predicate is the drop path's: a window in front of that candidate holding its
+    // seat point means the character would land on that window's surface instead.
+    // Only when no candidate is reachable is the request genuinely blocked.
+    let chosen: { index: number; target: WindowRect; seat: ScreenPoint } | undefined;
+    for (const index of candidates) {
+      const target = windows[index];
+      const seat = seatPointFor(request, target);
+      if (!windows.some((w, i) => i < index && containsSeat(w, seat))) {
+        chosen = { index, target, seat };
+        break;
+      }
+      log.debug("placement.candidate_covered", {
         kind: request.kind,
         targetWindowNumber: target.windowNumber,
         seatX: Math.round(seat.x),
         seatY: Math.round(seat.y),
       });
+    }
+    if (!chosen) {
+      log.debug("placement.blocked", { kind: request.kind, candidates: candidates.length });
       return { ok: false, reason: "blocked" };
     }
+    const { target, seat } = chosen;
 
     // Invert projectSeat: shift the window by the seat's global shortfall (points → physical).
     const sf = scale > 0 ? scale : 1;

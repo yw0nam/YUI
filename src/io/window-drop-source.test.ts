@@ -1205,8 +1205,12 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
    * Same geometry as the perch-hit fixture (seat at global (300, 400)), plus the
    * position setter the programmatic path needs.
    */
-  function makePlaceWindow(pos = { x: 520, y: 740 }, scale = 2) {
-    const setPositionPhysical = vi.fn(async () => {});
+  function makePlaceWindow(initial = { x: 520, y: 740 }, scale = 2) {
+    // Tracks the move like a real window: the placement re-reads the origin it landed on.
+    let pos = { ...initial };
+    const setPositionPhysical = vi.fn(async (x: number, y: number) => {
+      pos = { x, y };
+    });
     return {
       window: {
         outerPosition: vi.fn(async () => pos),

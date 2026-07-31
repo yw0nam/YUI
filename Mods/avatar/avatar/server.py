@@ -79,7 +79,8 @@ def list_perch_targets() -> dict[str, Any]:
     """Windows the avatar can currently sit on or peek around, plus the peek edges.
 
     These are the client's own tracked candidates, not a fresh screen scan — a window
-    missing here cannot be perched on.
+    missing here cannot be perched on. Each window carries `app`, `title` and `rect`;
+    `app` and `title` are null when the OS reports no name for that window.
     """
     logger.info("🔍 list_perch_targets")
     targets = _query("/avatar/perch-targets", "list_perch_targets")
