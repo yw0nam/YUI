@@ -64,6 +64,7 @@ YUI/
     tauri.conf.json         # Transparent always-on-top pet window
     src/                    # Rust: lib.rs, main.rs, drag.rs, screenshot.rs, agent_ingress.rs, import_fs.rs, log_rotation.rs, passthrough.rs, tray.rs, voice_import.rs, vrm_import.rs, os_event_watcher/ (mod·macos·windows)
   Mods/                     # Standalone MCP servers, independent of the app runtime (Python/uv, own `mods` CI job)
+    avatar/                 # Avatar body-state and movement Mod
     browser-cdp/            # Browser CDP Mod
     desktop-control/        # macOS screen and app-control Mod
     shell-sandbox/          # Sandboxed shell Mod

@@ -156,7 +156,7 @@ jobs:
       - name: Sync + test each mod
         run: |
           rc=0
-          for mod in desktop-control shell-sandbox router; do
+          for mod in desktop-control shell-sandbox avatar router; do
             echo "::group::$mod"
             (cd "Mods/$mod" && uv sync --frozen && uv run pytest) || rc=1
             echo "::endgroup::"
@@ -175,7 +175,7 @@ jobs:
       - name: Ruff format + check each mod
         run: |
           rc=0
-          for mod in desktop-control shell-sandbox router; do
+          for mod in desktop-control shell-sandbox avatar router; do
             echo "::group::$mod"
             (cd "Mods/$mod" && uv sync --frozen && uv run ruff format --check . && uv run ruff check .) || rc=1
             echo "::endgroup::"

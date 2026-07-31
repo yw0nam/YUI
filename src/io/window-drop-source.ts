@@ -61,6 +61,11 @@ interface PerchProbeSource {
 interface DropWindow {
   outerPosition(): Promise<{ x: number; y: number }>;
   scaleFactor(): Promise<number>;
+  /**
+   * Move the pet window (physical px). Only the programmatic placement path needs it;
+   * a drag-only wiring may omit it, and `placeOn` then reports `unsupported`.
+   */
+  setPositionPhysical?(x: number, y: number): Promise<void>;
 }
 
 /** Tauri `invoke` (only `list_windows` is used here). */
@@ -92,6 +97,39 @@ export interface WindowDropSourceDeps {
   clearInterval?: typeof clearInterval;
 }
 
+/** One perch candidate: a foreign window the character can sit on or peek around. */
+export interface PerchTargetWindow {
+  app: string | null;
+  title: string | null;
+  rect: ScreenRect;
+}
+
+/** The perch candidate model: the tracked foreign windows plus the peek edges. */
+export interface PerchTargets {
+  windows: PerchTargetWindow[];
+  edges: Array<"left" | "right">;
+}
+
+/** What a settle pass landed on. */
+type SettleOutcome =
+  | { kind: "sit"; app: string | null; window_title: string | null }
+  | { kind: "peek"; side: "left" | "right"; app: string | null; window_title: string | null }
+  | { kind: "none" };
+
+/** A gesture asked for by name rather than inferred from where a drag landed. */
+export type PlacementRequest =
+  | { kind: "sit"; app: string }
+  | { kind: "peek"; side: "left" | "right" };
+
+export type PlacementResult =
+  | { ok: true; kind: "sit" | "peek" }
+  | { ok: false; reason: "not_found" | "blocked" | "interrupted" | "unsupported" };
+
+export interface PlacementOptions {
+  /** Polled just before the envelope push — true abandons the placement uncommitted. */
+  shouldAbort?: () => boolean;
+}
+
 export interface WindowDropSource {
   /** Register the release listener. Idempotent. */
   start(): Promise<void>;
@@ -99,6 +137,18 @@ export interface WindowDropSource {
   stop(): void;
   /** Alias of stop() for HMR-dispose call sites. */
   dispose(): void;
+  /**
+   * Put the character on a named target, the inverse of the drag flow: the target is
+   * given instead of inferred, so this moves the pet window until the seat lands on it,
+   * then pushes and arms exactly what a real drop would. No drag happened, so the
+   * drag-release cue does not fire. A seat point covered by a window in front of the
+   * target is `blocked`, and nothing moves.
+   */
+  placeOn(request: PlacementRequest, opts?: PlacementOptions): Promise<PlacementResult>;
+  /** The current perch candidates. */
+  perchTargets(): Promise<PerchTargets>;
+  /** Release any armed perch/peek and push the matching exit. */
+  release(): void;
 }
 
 /**
@@ -334,12 +384,100 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     }
   }
 
-  async function onRelease(): Promise<void> {
+  /**
+   * Commit a sit on `target`: local edge → cue (unless suppressed) → tier1 drop → arm.
+   * `pos` is the pet window's physical origin the character is at when it commits.
+   */
+  function commitSit(
+    target: WindowRect,
+    pos: { x: number; y: number },
+    scale: number,
+    charHpx: number,
+    suppressCue: boolean,
+  ): SettleOutcome {
+    // Global top edge → pet-window-local px (winOriginPts = pos / scale).
+    const sf = scale > 0 ? scale : 1;
+    const edgeLocalYpx = target.y - pos.y / sf;
+    if (!suppressCue) {
+      const windowSitCue = getGestureCues().window_sit;
+      bus.push({
+        source: "os_event_watcher",
+        event_name: "proactive.window_sit",
+        ts: Date.now(),
+        hint_tier: 2,
+        payload: {
+          cue_id: "window_sit",
+          ...cueFields(windowSitCue, target.name),
+        },
+      });
+    }
+    bus.push({
+      source: "os_event_watcher",
+      event_name: "user.window_sit_drop",
+      ts: Date.now(),
+      hint_tier: 1,
+      dnd_override: true,
+      payload: {
+        edge_local_ypx: edgeLocalYpx,
+        app: target.ownerName,
+        window_title: target.name,
+      },
+    });
+    arm("sit", target.windowNumber, { x: target.x, y: target.y }, charHpx);
+    return { kind: "sit", app: target.ownerName, window_title: target.name };
+  }
+
+  /** Commit a peek on `target`'s `side` edge — same shape as {@link commitSit}. */
+  function commitPeek(
+    target: WindowRect,
+    side: "left" | "right",
+    pos: { x: number; y: number },
+    scale: number,
+    charHpx: number,
+    peekConfig: PeekConfig,
+    suppressCue: boolean,
+  ): SettleOutcome {
+    const sf = scale > 0 ? scale : 1;
+    const edgeXpx = side === "left" ? target.x : target.x + target.width;
+    const edgeLocalXpx = edgeXpx - pos.x / sf;
+    const targetLocalXpx = peekTargetPx(edgeLocalXpx, side, charHpx, peekConfig.inset_frac);
+    if (!suppressCue) {
+      const peekCue = getGestureCues().peek;
+      bus.push({
+        source: "os_event_watcher",
+        event_name: "proactive.peek",
+        ts: Date.now(),
+        hint_tier: 2,
+        payload: {
+          cue_id: "peek",
+          ...cueFields(peekCue, target.name),
+        },
+      });
+    }
+    bus.push({
+      source: "os_event_watcher",
+      event_name: "user.peek_drop",
+      ts: Date.now(),
+      hint_tier: 1,
+      dnd_override: true,
+      payload: {
+        side,
+        target_local_xpx: targetLocalXpx,
+        app: target.ownerName,
+        window_title: target.name,
+      },
+    });
+    arm("peek", target.windowNumber, { x: target.x, y: target.y }, charHpx);
+    return { kind: "peek", side, app: target.ownerName, window_title: target.name };
+  }
+
+  /** The drag-release pass: infer the target from where the seat landed, then commit. */
+  async function settle(): Promise<SettleOutcome> {
     const probe = renderer.getPerchProbe();
     // No VRM / projection unavailable → nothing to perch; leave to idle.
     if (!probe) {
       pushExit();
-      return;
+      return { kind: "none" };
     }
 
     const win = getWindow();
@@ -361,49 +499,20 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       );
       if (sideTargetIdx < 0) {
         pushExit();
-        return;
+        return { kind: "none" };
       }
       const sideTarget = windows[sideTargetIdx];
       if (windows.some((w, i) => i < sideTargetIdx && containsSeat(w, seatGlobal))) {
         log.debug("peek.drop_covered", { targetWindowNumber: sideTarget.windowNumber });
         pushExit();
-        return;
+        return { kind: "none" };
       }
       const side = inSideCatchZone(seatGlobal, sideTarget, probe.charHpx, sideOpts);
       if (side === null) {
         pushExit();
-        return;
+        return { kind: "none" };
       }
-      const sf = scale > 0 ? scale : 1;
-      const edgeXpx = side === "left" ? sideTarget.x : sideTarget.x + sideTarget.width;
-      const edgeLocalXpx = edgeXpx - pos.x / sf;
-      const targetLocalXpx = peekTargetPx(edgeLocalXpx, side, probe.charHpx, peekConfig.inset_frac);
-      const peekCue = getGestureCues().peek;
-      bus.push({
-        source: "os_event_watcher",
-        event_name: "proactive.peek",
-        ts: Date.now(),
-        hint_tier: 2,
-        payload: {
-          cue_id: "peek",
-          ...cueFields(peekCue, sideTarget.name),
-        },
-      });
-      bus.push({
-        source: "os_event_watcher",
-        event_name: "user.peek_drop",
-        ts: Date.now(),
-        hint_tier: 1,
-        dnd_override: true,
-        payload: {
-          side,
-          target_local_xpx: targetLocalXpx,
-          app: sideTarget.ownerName,
-          window_title: sideTarget.name,
-        },
-      });
-      arm("peek", sideTarget.windowNumber, { x: sideTarget.x, y: sideTarget.y }, probe.charHpx);
-      return;
+      return commitPeek(sideTarget, side, pos, scale, probe.charHpx, peekConfig, false);
     }
     const target = windows[targetIdx];
     // Same covered predicate as the occlusion poll, applied at drop time: a window
@@ -412,44 +521,143 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     if (windows.some((w, i) => i < targetIdx && containsSeat(w, seatGlobal))) {
       log.debug("perch.drop_covered", { targetWindowNumber: target.windowNumber });
       pushExit();
-      return;
+      return { kind: "none" };
     }
 
-    // Global top edge → pet-window-local px (winOriginPts = pos / scale).
+    return commitSit(target, pos, scale, probe.charHpx, false);
+  }
+
+  /**
+   * Every window the app owns, front-to-back: exact owner-name matches first, then
+   * partial ones. Plural because the frontmost match is not always sittable — Stage
+   * Manager keeps thumbnails of the same app in front of the real window.
+   */
+  function matchesByApp(windows: WindowRect[], app: string): number[] {
+    const needle = app.toLowerCase();
+    const indices = windows.map((_, i) => i);
+    const exact = indices.filter((i) => windows[i].ownerName?.toLowerCase() === needle);
+    const partial = indices.filter(
+      (i) => !exact.includes(i) && windows[i].ownerName?.toLowerCase().includes(needle),
+    );
+    return [...exact, ...partial];
+  }
+
+  /** Where the seat must land (global points) for the requested gesture. */
+  function seatPointFor(request: PlacementRequest, target: WindowRect): ScreenPoint {
+    if (request.kind === "sit") {
+      return { x: target.x + target.width / 2, y: target.y };
+    }
+    return {
+      x: request.side === "left" ? target.x : target.x + target.width,
+      y: target.y + target.height / 2,
+    };
+  }
+
+  async function placeOn(
+    request: PlacementRequest,
+    opts?: PlacementOptions,
+  ): Promise<PlacementResult> {
+    const probe = renderer.getPerchProbe();
+    if (!probe) return { ok: false, reason: "unsupported" };
+    const win = getWindow();
+    const move = win.setPositionPhysical?.bind(win);
+    if (!move) return { ok: false, reason: "unsupported" };
+
+    const [pos, scale, windows] = await Promise.all([
+      win.outerPosition(),
+      win.scaleFactor(),
+      invoke("list_windows"),
+    ]);
+    // Front-to-back: sit considers every window the app owns, peek the frontmost
+    // window outright.
+    const candidates = request.kind === "sit" ? matchesByApp(windows, request.app) : [0];
+    if (candidates.length === 0 || windows.length === 0) {
+      return { ok: false, reason: "not_found" };
+    }
+    // Take the frontmost candidate whose own seat point is reachable. The covered
+    // predicate is the drop path's: a window in front of that candidate holding its
+    // seat point means the character would land on that window's surface instead.
+    // Only when no candidate is reachable is the request genuinely blocked.
+    let chosen: { index: number; target: WindowRect; seat: ScreenPoint } | undefined;
+    for (const index of candidates) {
+      const target = windows[index];
+      const seat = seatPointFor(request, target);
+      if (!windows.some((w, i) => i < index && containsSeat(w, seat))) {
+        chosen = { index, target, seat };
+        break;
+      }
+      log.debug("placement.candidate_covered", {
+        kind: request.kind,
+        targetWindowNumber: target.windowNumber,
+        seatX: Math.round(seat.x),
+        seatY: Math.round(seat.y),
+      });
+    }
+    if (!chosen) {
+      log.debug("placement.blocked", { kind: request.kind, candidates: candidates.length });
+      return { ok: false, reason: "blocked" };
+    }
+    const { target, seat } = chosen;
+
+    // Invert projectSeat: shift the window by the seat's global shortfall (points → physical).
     const sf = scale > 0 ? scale : 1;
-    const edgeLocalYpx = target.y - pos.y / sf;
-    const windowSitCue = getGestureCues().window_sit;
-    bus.push({
-      source: "os_event_watcher",
-      event_name: "proactive.window_sit",
-      ts: Date.now(),
-      hint_tier: 2,
-      payload: {
-        cue_id: "window_sit",
-        ...cueFields(windowSitCue, target.name),
-      },
+    const current = projectSeat(probe, pos, scale);
+    const next = {
+      x: Math.round(pos.x + (seat.x - current.x) * sf),
+      y: Math.round(pos.y + (seat.y - current.y) * sf),
+    };
+    await move(next.x, next.y);
+    // The window manager may clamp the move (menu bar, screen bounds), so the local
+    // coords have to be computed against where the window actually landed.
+    const applied = await win.outerPosition();
+    log.debug("placement.moved", {
+      kind: request.kind,
+      x: applied.x,
+      y: applied.y,
+      requestedX: next.x,
+      requestedY: next.y,
     });
-    bus.push({
-      source: "os_event_watcher",
-      event_name: "user.window_sit_drop",
-      ts: Date.now(),
-      hint_tier: 1,
-      dnd_override: true,
-      payload: {
-        edge_local_ypx: edgeLocalYpx,
-        app: target.ownerName,
-        window_title: target.name,
-      },
-    });
-    arm("sit", target.windowNumber, { x: target.x, y: target.y }, probe.charHpx);
+    // Last gate before any side effect: a drag that started during the move wins, and
+    // abandoning here keeps the reported outcome honest — nothing was pushed or armed.
+    if (opts?.shouldAbort?.()) {
+      log.debug("placement.aborted", { kind: request.kind });
+      return { ok: false, reason: "interrupted" };
+    }
+    if (request.kind === "sit") {
+      commitSit(target, applied, scale, probe.charHpx, true);
+    } else {
+      commitPeek(target, request.side, applied, scale, probe.charHpx, getPeekConfig(), true);
+    }
+    return { ok: true, kind: request.kind };
+  }
+
+  async function perchTargets(): Promise<PerchTargets> {
+    const windows = await invoke("list_windows");
+    return {
+      windows: windows.map((w) => ({
+        app: w.ownerName,
+        title: w.name,
+        rect: { x: w.x, y: w.y, width: w.width, height: w.height },
+      })),
+      edges: ["left", "right"],
+    };
   }
 
   return {
+    placeOn,
+    perchTargets,
+    release() {
+      if (armedKind !== null) {
+        pushArmedExit(armedKind);
+        return;
+      }
+      pushExit();
+    },
     async start() {
       if (unlisten) return;
       try {
         unlisten = await listen(RELEASE_EVENT, () => {
-          void onRelease().catch((err) =>
+          void settle().catch((err) =>
             log.warn("release_handling_failed", { degrade: true, error: String(err) }),
           );
         });

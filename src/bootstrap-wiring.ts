@@ -7,7 +7,7 @@ import {
   loadEmotionTextTable,
   type PeekConfig,
 } from "./config";
-import type { EndpointsConfig, WindowRect } from "./contract";
+import type { EndpointsConfig, Posture, WindowRect } from "./contract";
 import { createAgentSource } from "./dispatcher/agent-source";
 import type { Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
@@ -17,6 +17,8 @@ import { createSignalsSource, type SignalsSource } from "./dispatcher/signals-so
 import type { UserInputSource } from "./dispatcher/user-input-source";
 import type { AgentNotifySettings } from "./io/agent-notify-settings";
 import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
+import { type AvatarExecutor, createAvatarExecutor } from "./io/avatar-executor";
+import { onAvatarRpc, respondAvatarRpc } from "./io/avatar-rpc";
 import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { selectFetch } from "./io/chat-client";
@@ -306,7 +308,8 @@ export function wireSettingsReload(deps: {
 }
 
 /**
- * Window-sit drop + ctrl+wheel resize producers, plus the agent loopback ingress bind.
+ * Window-sit drop + ctrl+wheel resize producers, the agent loopback ingress bind, and the
+ * avatar RPC executor that answers the ingress's `/avatar/*` bridge.
  * Tauri-only — getCurrentWindow()/invoke/listen require the Tauri runtime; in a plain browser
  * (Vite dev) this is skipped so bootstrap continues. Owns its own HMR teardown.
  */
@@ -317,13 +320,30 @@ export function wireWindowSources(deps: {
   getPeekConfig: () => PeekConfig;
   getGestureCues: () => GestureCuesConfig;
   agentNotifySettings: { get(): AgentNotifySettings };
+  /** Current physical posture, for the avatar RPC state answer. */
+  getPosture: () => Posture | undefined;
+  /** Currently loaded VRM, for the avatar RPC state answer. */
+  getVrm: () => { id: string; label: string } | null;
+  /** Hands the avatar executor back so a user drag can interrupt it. */
+  onAvatarExecutor: (executor: AvatarExecutor) => void;
   log: Logger;
 }): void {
-  const { bus, renderer, peekActive, getPeekConfig, getGestureCues, agentNotifySettings, log } =
-    deps;
+  const {
+    bus,
+    renderer,
+    peekActive,
+    getPeekConfig,
+    getGestureCues,
+    agentNotifySettings,
+    getPosture,
+    getVrm,
+    onAvatarExecutor,
+    log,
+  } = deps;
   if (!isTauri()) return;
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
+  let avatarExecutor: AvatarExecutor | null = null;
   // Guard teardown/async-assign race: cleanup may run before the IIFE assigns.
   let windowDropDisposed = false;
   if (import.meta.env.DEV) {
@@ -331,6 +351,7 @@ export function wireWindowSources(deps: {
       windowDropDisposed = true;
       windowDropSource?.stop();
       windowResizeSource?.stop();
+      avatarExecutor?.stop();
     });
   }
   void (async () => {
@@ -344,17 +365,26 @@ export function wireWindowSources(deps: {
     }
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     const { listen } = await import("@tauri-apps/api/event");
+    const { LogicalPosition, LogicalSize, PhysicalPosition } = await import("@tauri-apps/api/dpi");
     windowDropSource = createWindowDropSource({
       bus,
       renderer,
       invoke: (cmd) => invoke(cmd) as Promise<WindowRect[]>,
-      getWindow: getCurrentWindow,
+      // Position setter included: the programmatic placement path moves the window
+      // itself, so the drop source owns both halves of the perch geometry.
+      getWindow: () => {
+        const win = getCurrentWindow();
+        return {
+          outerPosition: () => win.outerPosition(),
+          scaleFactor: () => win.scaleFactor(),
+          setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
+        };
+      },
       listen: listen as never,
       peekActive,
       getPeekConfig,
       getGestureCues,
     });
-    const { LogicalPosition, LogicalSize } = await import("@tauri-apps/api/dpi");
     windowResizeSource = createWindowResizeSource({
       renderer,
       getWindow: () => {
@@ -370,12 +400,38 @@ export function wireWindowSources(deps: {
         };
       },
     });
+    // Avatar RPC: the loopback ingress bridges `/avatar/*` here, where the state
+    // lives and the movement happens. Perch gestures go through the drop source's
+    // placement so they share the drag flow's geometry, arming and envelopes.
+    const { availableMonitors } = await import("@tauri-apps/api/window");
+    avatarExecutor = createAvatarExecutor({
+      subscribe: (cb) => onAvatarRpc(cb),
+      respond: (id, result) => void respondAvatarRpc(id, result),
+      perch: windowDropSource,
+      getWindow: () => {
+        const win = getCurrentWindow();
+        return {
+          outerPosition: () => win.outerPosition(),
+          outerSize: () => win.outerSize(),
+          setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
+        };
+      },
+      listMonitors: async () =>
+        (await availableMonitors()).map((m) => ({
+          position: { x: m.position.x, y: m.position.y },
+          size: { width: m.size.width, height: m.size.height },
+        })),
+      getPosture,
+      getVrm,
+    });
     if (windowDropDisposed) {
       windowDropSource.stop();
       return;
     }
     await windowDropSource.start();
     windowResizeSource.start();
+    avatarExecutor.start();
+    onAvatarExecutor(avatarExecutor);
   })().catch((err) =>
     log.warn("window_drop_source_start_failed", {
       degrade: true,

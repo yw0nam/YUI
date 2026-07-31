@@ -226,6 +226,7 @@ pub fn run() {
             voice_import::remove_user_voice,
             passthrough::set_click_through,
             agent_ingress::start_agent_ingress,
+            agent_ingress::avatar_rpc_response,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

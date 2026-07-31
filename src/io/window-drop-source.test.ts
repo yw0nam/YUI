@@ -1275,3 +1275,365 @@ describe("window-drop-source — arm-baseline detach policy (#191)", () => {
     expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
   });
 });
+
+describe("window-drop-source — programmatic placement (agent-driven gestures)", () => {
+  /**
+   * Same geometry as the perch-hit fixture (seat at global (300, 400)), plus the
+   * position setter the programmatic path needs.
+   */
+  function makePlaceWindow(initial = { x: 520, y: 740 }, scale = 2) {
+    // Tracks the move like a real window: the placement re-reads the origin it landed on.
+    let pos = { ...initial };
+    const setPositionPhysical = vi.fn(async (x: number, y: number) => {
+      pos = { x, y };
+    });
+    return {
+      window: {
+        outerPosition: vi.fn(async () => pos),
+        scaleFactor: vi.fn(async () => scale),
+        setPositionPhysical,
+      },
+      setPositionPhysical,
+    };
+  }
+
+  /** Probe shape the renderer hands the producer — nullable, as the real one is. */
+  type Probe = { seatPx: { x: number; y: number }; charHpx: number } | null;
+
+  function makeDeps(windows: WindowRect[], pet = makePlaceWindow()) {
+    const renderer = {
+      getPerchProbe: vi.fn((): Probe => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const invoke = vi.fn(async () => windows);
+    const { listen } = makeListen();
+    return { bus, renderer, invoke, getWindow: () => pet.window, listen };
+  }
+
+  it("moves the pet window so the seat lands on the named window's top edge", async () => {
+    const pet = makePlaceWindow();
+    const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })], pet));
+
+    const result = await source.placeOn({ kind: "sit", app: "Notes" });
+
+    // Desired seat = top-edge center (560, 400); seat is at (300, 400) → delta (260, 0) points.
+    // New physical origin = (520 + 260*2, 740 + 0).
+    expect(pet.setPositionPhysical).toHaveBeenCalledWith(1040, 740);
+    expect(result).toEqual({ ok: true, kind: "sit" });
+  });
+
+  it("pushes the same tier1 perch envelope the drag flow pushes, against the new position", async () => {
+    const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes", name: "Todo" })]));
+
+    await source.placeOn({ kind: "sit", app: "Notes" });
+
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_drop"]);
+    const env = pushed[0];
+    expect(env.source).toBe("os_event_watcher");
+    expect(env.hint_tier).toBe(1);
+    expect(env.dnd_override).toBe(true);
+    expect(env.payload?.app).toBe("Notes");
+    expect(env.payload?.window_title).toBe("Todo");
+    // edge_local_ypx = target.y - newPos.y/scale = 400 - 740/2 = 30.
+    expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
+  });
+
+  it("arms the occlusion poll exactly as the drag flow does", async () => {
+    const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })]));
+
+    await source.placeOn({ kind: "sit", app: "Notes" });
+    pushed.length = 0;
+    source.release();
+
+    // A sit-armed source releases through the sit exit; an unarmed one would too,
+    // so pair this with the peek case below where the armed kind is observable.
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+  });
+
+  it("places a peek on the requested side edge and arms the peek", async () => {
+    const pet = makePlaceWindow();
+    const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })], pet));
+
+    const result = await source.placeOn({ kind: "peek", side: "left" });
+
+    // Desired seat = left edge mid-height (300, 560); delta (0, 160) points.
+    expect(pet.setPositionPhysical).toHaveBeenCalledWith(520, 1060);
+    expect(result).toEqual({ ok: true, kind: "peek" });
+    const env = pushed.find((e) => e.event_name === "user.peek_drop")!;
+    expect(env.payload?.side).toBe("left");
+    // edgeLocalXpx = 300 - 520/2 = 40; inset = 0.12 * 200 = 24 → 64.
+    expect(env.payload?.target_local_xpx).toBeCloseTo(64, 6);
+    pushed.length = 0;
+    source.release();
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.peek_exit"]);
+  });
+
+  it("suppresses the proactive cue for both gestures", async () => {
+    const sit = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })]));
+    await sit.placeOn({ kind: "sit", app: "Notes" });
+    expect(pushed.some((e) => e.event_name.startsWith("proactive."))).toBe(false);
+
+    pushed.length = 0;
+    const peek = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })]));
+    await peek.placeOn({ kind: "peek", side: "right" });
+    expect(pushed.some((e) => e.event_name.startsWith("proactive."))).toBe(false);
+  });
+
+  it("reports blocked without moving when a window in front covers the seat point", async () => {
+    // Cover sits above the target and contains the desired seat point (560, 400).
+    const cover = win({
+      ownerName: "Finder",
+      name: "Cover",
+      windowNumber: 99,
+      x: 500,
+      y: 350,
+      width: 300,
+      height: 200,
+    });
+    const pet = makePlaceWindow();
+    const source = createWindowDropSource(makeDeps([cover, win({ ownerName: "Notes" })], pet));
+
+    const result = await source.placeOn({ kind: "sit", app: "Notes" });
+
+    expect(result).toEqual({ ok: false, reason: "blocked" });
+    expect(pet.setPositionPhysical).not.toHaveBeenCalled();
+    expect(pushed).toHaveLength(0);
+  });
+
+  it("skips a covered window of the app and sits on the next one back", async () => {
+    // Stage Manager: a system overlay in front covers the app's thumbnail, while the
+    // real full-size window further back has a perfectly free top edge.
+    const overlay = win({
+      ownerName: "Window Server",
+      name: "Gesture Blocking Overlay",
+      windowNumber: 1,
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 300,
+    });
+    const thumbnail = win({
+      ownerName: "Termius",
+      name: "Termius Thumbnail",
+      windowNumber: 2,
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 150,
+    });
+    const real = win({
+      ownerName: "Termius",
+      name: "Termius",
+      windowNumber: 3,
+      x: 600,
+      y: 500,
+      width: 800,
+      height: 600,
+    });
+    const pet = makePlaceWindow();
+    const source = createWindowDropSource(makeDeps([overlay, thumbnail, real], pet));
+
+    const result = await source.placeOn({ kind: "sit", app: "Termius" });
+
+    expect(result).toEqual({ ok: true, kind: "sit" });
+    // Seat goes to the real window's top-edge center (1000, 500), not the thumbnail's.
+    expect(pet.setPositionPhysical).toHaveBeenCalledWith(1920, 940);
+    const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
+    expect(env.payload?.window_title).toBe("Termius");
+    expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
+  });
+
+  it("reports blocked only when every window of the app is covered", async () => {
+    const overlay = win({
+      ownerName: "Window Server",
+      name: "Gesture Blocking Overlay",
+      windowNumber: 1,
+      x: 0,
+      y: 0,
+      width: 2000,
+      height: 2000,
+    });
+    const thumbnail = win({
+      ownerName: "Termius",
+      name: "Termius Thumbnail",
+      windowNumber: 2,
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 150,
+    });
+    const real = win({
+      ownerName: "Termius",
+      name: "Termius",
+      windowNumber: 3,
+      x: 600,
+      y: 500,
+      width: 800,
+      height: 600,
+    });
+    const pet = makePlaceWindow();
+    const source = createWindowDropSource(makeDeps([overlay, thumbnail, real], pet));
+
+    const result = await source.placeOn({ kind: "sit", app: "Termius" });
+
+    expect(result).toEqual({ ok: false, reason: "blocked" });
+    expect(pet.setPositionPhysical).not.toHaveBeenCalled();
+    expect(pushed).toHaveLength(0);
+  });
+
+  it("prefers an exact app-name match over a partial one, front-to-back", async () => {
+    const partial = win({ ownerName: "Notes Helper", name: "Helper", windowNumber: 1 });
+    const exact = win({ ownerName: "Notes", name: "Real Notes", windowNumber: 2, x: 600, y: 500 });
+    const source = createWindowDropSource(makeDeps([partial, exact]));
+
+    await source.placeOn({ kind: "sit", app: "Notes" });
+
+    const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
+    expect(env.payload?.window_title).toBe("Real Notes");
+  });
+
+  it("reports not_found without moving when no window carries the app name", async () => {
+    const pet = makePlaceWindow();
+    const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })], pet));
+
+    const result = await source.placeOn({ kind: "sit", app: "Xcode" });
+
+    expect(result).toEqual({ ok: false, reason: "not_found" });
+    expect(pet.setPositionPhysical).not.toHaveBeenCalled();
+    expect(pushed).toHaveLength(0);
+  });
+
+  it("takes the frontmost window carrying the app name (front-to-back order)", async () => {
+    const front = win({ ownerName: "Notes", name: "Front", windowNumber: 1, y: 400 });
+    const back = win({ ownerName: "Notes", name: "Back", windowNumber: 2, y: 440 });
+    const source = createWindowDropSource(makeDeps([front, back]));
+
+    await source.placeOn({ kind: "sit", app: "Notes" });
+
+    expect(pushed[0].payload?.window_title).toBe("Front");
+  });
+
+  it("peeks around the frontmost window", async () => {
+    const front = win({ ownerName: "Notes", name: "Front", windowNumber: 1 });
+    const back = win({ ownerName: "Safari", name: "Back", windowNumber: 2 });
+    const source = createWindowDropSource(makeDeps([front, back]));
+
+    await source.placeOn({ kind: "peek", side: "right" });
+
+    const env = pushed.find((e) => e.event_name === "user.peek_drop")!;
+    expect(env.payload?.window_title).toBe("Front");
+  });
+
+  it("reports not_found for a peek when no window is on screen", async () => {
+    const source = createWindowDropSource(makeDeps([]));
+
+    expect(await source.placeOn({ kind: "peek", side: "left" })).toEqual({
+      ok: false,
+      reason: "not_found",
+    });
+  });
+
+  it("reports unsupported when there is no perch probe", async () => {
+    const deps = makeDeps([win({ ownerName: "Notes" })]);
+    deps.renderer.getPerchProbe = vi.fn(() => null);
+    const source = createWindowDropSource(deps);
+
+    expect(await source.placeOn({ kind: "sit", app: "Notes" })).toEqual({
+      ok: false,
+      reason: "unsupported",
+    });
+  });
+
+  it("commits against where the window actually landed, not where it was asked to go", async () => {
+    // The window manager clamps the move (menu bar / screen bounds).
+    let pos = { x: 520, y: 740 };
+    const setPositionPhysical = vi.fn(async (x: number, y: number) => {
+      pos = { x, y: Math.min(y, 700) };
+    });
+    const pet = {
+      window: {
+        outerPosition: vi.fn(async () => pos),
+        scaleFactor: vi.fn(async () => 2),
+        setPositionPhysical,
+      },
+      setPositionPhysical,
+    };
+    const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })], pet));
+
+    await source.placeOn({ kind: "sit", app: "Notes" });
+
+    expect(setPositionPhysical).toHaveBeenCalledWith(1040, 740);
+    // Clamped to y=700 → edge_local_ypx = 400 - 700/2 = 50, not the requested 30.
+    const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
+    expect(env.payload?.edge_local_ypx).toBeCloseTo(50, 6);
+  });
+
+  it("aborts before pushing or arming when the caller signals mid-place", async () => {
+    const pet = makePlaceWindow();
+    const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })], pet));
+
+    const result = await source.placeOn({ kind: "sit", app: "Notes" }, { shouldAbort: () => true });
+
+    expect(result).toEqual({ ok: false, reason: "interrupted" });
+    // The move already happened, but no envelope and no arming followed it.
+    expect(pet.setPositionPhysical).toHaveBeenCalled();
+    expect(pushed).toHaveLength(0);
+    pushed.length = 0;
+    source.release();
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+  });
+
+  it("reports unsupported when the window cannot be moved", async () => {
+    const source = createWindowDropSource({
+      ...makeDeps([win({ ownerName: "Notes" })]),
+      getWindow: () => makeWindow({ x: 520, y: 740 }, 2),
+    });
+
+    expect(await source.placeOn({ kind: "sit", app: "Notes" })).toEqual({
+      ok: false,
+      reason: "unsupported",
+    });
+  });
+});
+
+describe("window-drop-source — perch targets + release", () => {
+  it("exposes the tracked candidate windows and the peek edges", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const invoke = vi.fn(async () => [win({ name: "Notes", ownerName: "Notes" })]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen } = makeListen();
+
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    const targets = await source.perchTargets();
+
+    expect(invoke).toHaveBeenCalledWith("list_windows");
+    expect(targets).toEqual({
+      windows: [
+        {
+          app: "Notes",
+          title: "Notes",
+          rect: { x: 300, y: 400, width: 520, height: 320 },
+        },
+      ],
+      edges: ["left", "right"],
+    });
+  });
+
+  it("release pushes the sit exit when nothing is armed", () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => null),
+      isPerched: vi.fn(() => false),
+    };
+    const invoke = vi.fn(async () => []);
+    const getWindow = () => makeWindow({ x: 0, y: 0 }, 1);
+    const { listen } = makeListen();
+
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    source.release();
+
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+  });
+});

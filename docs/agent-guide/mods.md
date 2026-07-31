@@ -11,6 +11,7 @@ To add a mod `<name>`:
 3. Reachable through the router? Add one line to `UPSTREAMS` in `Mods/router/router/server.py` (`"<name>": "http://127.0.0.1:<port>"`) plus a `resolve` test.
 4. Add `<name>` to the mod list in BOTH CI loops (`mods` and `mods-lint` in `.github/workflows/ci.yml`) — the jobs iterate a hardcoded list, not the filesystem.
 5. `Mods/<name>/README.md` (run / safety / tools / test) and a row in the `Mods/README.md` index.
+6. `docs/reference/mods.md` — a catalog row plus a per-mod section (tools table + safety boundary); and the folder in the `Mods/` tree in `docs/agent-guide/project-structure.md`.
 
 Verify locally before the PR: `cd Mods/<name> && uv run pytest && uv run ruff format --check . && uv run ruff check .`.
 
