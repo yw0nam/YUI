@@ -398,8 +398,8 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       const edgeXpx = side === "left" ? sideTarget.x : sideTarget.x + sideTarget.width;
       const edgeLocalXpx = edgeXpx - pos.x / sf;
       const targetLocalXpx = peekTargetPx(edgeLocalXpx, side, probe.charHpx, peekConfig.inset_frac);
-      const peekCue = getGestureCues().peek;
       if (!suppressCue) {
+        const peekCue = getGestureCues().peek;
         bus.push({
           source: "os_event_watcher",
           event_name: "proactive.peek",
@@ -446,8 +446,8 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     // Global top edge → pet-window-local px (winOriginPts = pos / scale).
     const sf = scale > 0 ? scale : 1;
     const edgeLocalYpx = target.y - pos.y / sf;
-    const windowSitCue = getGestureCues().window_sit;
     if (!suppressCue) {
+      const windowSitCue = getGestureCues().window_sit;
       bus.push({
         source: "os_event_watcher",
         event_name: "proactive.window_sit",
