@@ -365,17 +365,26 @@ export function wireWindowSources(deps: {
     }
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     const { listen } = await import("@tauri-apps/api/event");
+    const { LogicalPosition, LogicalSize, PhysicalPosition } = await import("@tauri-apps/api/dpi");
     windowDropSource = createWindowDropSource({
       bus,
       renderer,
       invoke: (cmd) => invoke(cmd) as Promise<WindowRect[]>,
-      getWindow: getCurrentWindow,
+      // Position setter included: the programmatic placement path moves the window
+      // itself, so the drop source owns both halves of the perch geometry.
+      getWindow: () => {
+        const win = getCurrentWindow();
+        return {
+          outerPosition: () => win.outerPosition(),
+          scaleFactor: () => win.scaleFactor(),
+          setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
+        };
+      },
       listen: listen as never,
       peekActive,
       getPeekConfig,
       getGestureCues,
     });
-    const { LogicalPosition, LogicalSize } = await import("@tauri-apps/api/dpi");
     windowResizeSource = createWindowResizeSource({
       renderer,
       getWindow: () => {
@@ -392,23 +401,19 @@ export function wireWindowSources(deps: {
       },
     });
     // Avatar RPC: the loopback ingress bridges `/avatar/*` here, where the state
-    // lives and the movement happens. Movement reuses the same perch settle pass a
-    // drag release runs, with the proactive cue suppressed.
+    // lives and the movement happens. Perch gestures go through the drop source's
+    // placement so they share the drag flow's geometry, arming and envelopes.
     const { availableMonitors } = await import("@tauri-apps/api/window");
-    const { PhysicalPosition } = await import("@tauri-apps/api/dpi");
     avatarExecutor = createAvatarExecutor({
       subscribe: (cb) => onAvatarRpc(cb),
       respond: (id, result) => void respondAvatarRpc(id, result),
       perch: windowDropSource,
-      renderer,
       getWindow: () => {
         const win = getCurrentWindow();
         return {
           outerPosition: () => win.outerPosition(),
           outerSize: () => win.outerSize(),
-          scaleFactor: () => win.scaleFactor(),
-          setPositionPhysical: (x, y) =>
-            win.setPosition(new PhysicalPosition(Math.round(x), Math.round(y))),
+          setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
         };
       },
       listMonitors: async () =>

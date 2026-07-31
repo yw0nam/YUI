@@ -24,6 +24,7 @@ SPOTS = ("center", "top-left", "top-right", "bottom-left", "bottom-right")
 # Why a gesture did not happen, in words the agent can act on.
 REASONS = {
     "not_found": "not_found — no such window or screen spot to move to.",
+    "blocked": "blocked — a window in front covers that spot, so the avatar stayed put.",
     "interrupted": "interrupted — the user grabbed the avatar mid-move.",
     "busy": "busy — another avatar gesture is still running.",
     "unsupported": "unsupported — the avatar cannot do that right now.",

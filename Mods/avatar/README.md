@@ -43,7 +43,7 @@ The agent then adds the MCP tool source at `http://localhost:9002/mcp` directly,
 | `move_to(spot, monitor=None)` | Move to `"center"`, `"top-left"`, `"top-right"`, `"bottom-left"` or `"bottom-right"`; omit `monitor` to stay on the current one |
 | `stand_down()` | Release any perch or peek and return to the normal standing position |
 
-A gesture that did not happen raises a tool error carrying the client's reason — `not_found`, `interrupted`, `busy`, or `unsupported`.
+A gesture that did not happen raises a tool error carrying the client's reason — `not_found`, `blocked` (a window in front covers that spot, so nothing moved), `interrupted`, `busy`, or `unsupported`.
 
 ## Test
 

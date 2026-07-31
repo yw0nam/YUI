@@ -3,15 +3,13 @@
  *
  * Execution only, no judgment: the executor never decides where the character
  * should be. It reports what the client knows (window position, posture, VRM) and
- * carries out the verb it was handed, reusing the perch flow that a real drag
- * release goes through. Because the backend already knows it asked for the gesture,
- * an executor-driven perch suppresses its proactive cue — posture updates as usual,
- * so the next turn's env still reflects reality.
+ * forwards the verb it was handed — perch gestures go to the perch source's
+ * programmatic placement, which shares the drag flow's geometry and arming.
  *
  * One command runs at a time (a second is `busy`); a user drag wins and aborts the
  * running one as `interrupted`. Queries are never gated.
  *
- * All OS seams (Tauri window, monitors, perch settle) are injected so the module is
+ * All OS seams (Tauri window, monitors, placement) are injected so the module is
  * unit-testable without the Tauri runtime.
  */
 
@@ -27,7 +25,7 @@ import type {
   AvatarSpot,
   AvatarState,
 } from "./avatar-rpc";
-import type { PerchTargets, SettleOutcome } from "./window-drop-source";
+import type { PerchTargets, PlacementRequest, PlacementResult } from "./window-drop-source";
 
 const log = createLogger("avatar-executor");
 
@@ -38,7 +36,6 @@ const EDGE_MARGIN_PX = 24;
 export interface AvatarExecutorWindow {
   outerPosition(): Promise<{ x: number; y: number }>;
   outerSize(): Promise<{ width: number; height: number }>;
-  scaleFactor(): Promise<number>;
   setPositionPhysical(x: number, y: number): Promise<void>;
 }
 
@@ -53,14 +50,11 @@ export interface AvatarExecutorDeps {
   subscribe(cb: (req: AvatarRpcRequest) => void): () => void;
   /** Answer one request by id. */
   respond(id: string, result: unknown): void;
-  /** The perch candidate model + the settle/release flow. */
+  /** The perch candidate model + the placement/release flow. */
   perch: {
-    settle(opts?: { suppressCue?: boolean }): Promise<SettleOutcome>;
+    placeOn(request: PlacementRequest): Promise<PlacementResult>;
     perchTargets(): Promise<PerchTargets>;
     release(): void;
-  };
-  renderer: {
-    getPerchProbe(): { seatPx: { x: number; y: number }; charHpx: number } | null;
   };
   getWindow(): AvatarExecutorWindow;
   listMonitors(): Promise<AvatarMonitor[]>;
@@ -152,64 +146,17 @@ function spotOrigin(
 }
 
 export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
-  const { perch, renderer, getWindow, listMonitors, getPosture, getVrm } = deps;
+  const { perch, getWindow, listMonitors, getPosture, getVrm } = deps;
 
   let unsubscribe: (() => void) | undefined;
   let moving = false;
   let interrupted = false;
 
-  /** Move the pet window so the character's seat lands on `seatGlobal` (points). */
-  async function moveSeatTo(seatGlobal: { x: number; y: number }): Promise<boolean> {
-    const probe = renderer.getPerchProbe();
-    if (!probe) return false;
-    const win = getWindow();
-    const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
-    const sf = scale > 0 ? scale : 1;
-    const currentSeat = { x: pos.x / sf + probe.seatPx.x, y: pos.y / sf + probe.seatPx.y };
-    await win.setPositionPhysical(
-      pos.x + (seatGlobal.x - currentSeat.x) * sf,
-      pos.y + (seatGlobal.y - currentSeat.y) * sf,
-    );
-    return true;
-  }
-
-  async function sitOnWindow(app: string): Promise<AvatarCommandResult> {
-    const targets = await perch.perchTargets();
-    const needle = app.toLowerCase();
-    const target =
-      targets.windows.find((w) => w.app?.toLowerCase() === needle) ??
-      targets.windows.find(
-        (w) => w.app?.toLowerCase().includes(needle) || w.title?.toLowerCase().includes(needle),
-      );
-    if (!target) return fail("not_found");
+  /** Hand a perch gesture to the placement flow and translate its verdict. */
+  async function place(request: PlacementRequest): Promise<AvatarCommandResult> {
+    const result = await perch.placeOn(request);
     if (interrupted) return fail("interrupted");
-    // Seat lands on the horizontal center of the window's top edge — inside the
-    // catch zone the settle pass hit-tests against.
-    const moved = await moveSeatTo({
-      x: target.rect.x + target.rect.width / 2,
-      y: target.rect.y,
-    });
-    if (!moved) return fail("unsupported");
-    if (interrupted) return fail("interrupted");
-    const outcome = await perch.settle({ suppressCue: true });
-    if (interrupted) return fail("interrupted");
-    return outcome.kind === "sit" ? { ok: true } : fail("not_found");
-  }
-
-  async function peek(side: "left" | "right"): Promise<AvatarCommandResult> {
-    const targets = await perch.perchTargets();
-    const target = targets.windows[0];
-    if (!target) return fail("not_found");
-    if (interrupted) return fail("interrupted");
-    const moved = await moveSeatTo({
-      x: side === "left" ? target.rect.x : target.rect.x + target.rect.width,
-      y: target.rect.y + target.rect.height / 2,
-    });
-    if (!moved) return fail("unsupported");
-    if (interrupted) return fail("interrupted");
-    const outcome = await perch.settle({ suppressCue: true });
-    if (interrupted) return fail("interrupted");
-    return outcome.kind === "peek" && outcome.side === side ? { ok: true } : fail("not_found");
+    return result.ok ? { ok: true } : fail(result.reason);
   }
 
   async function moveTo(spot: AvatarSpot, monitor?: number): Promise<AvatarCommandResult> {
@@ -235,9 +182,9 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
   async function runCommand(command: AvatarCommand): Promise<AvatarCommandResult> {
     switch (command.action) {
       case "sit_on_window":
-        return sitOnWindow(command.app);
+        return place({ kind: "sit", app: command.app });
       case "peek":
-        return peek(command.side);
+        return place({ kind: "peek", side: command.side });
       case "move_to":
         return moveTo(command.spot, command.monitor);
       case "stand_down":

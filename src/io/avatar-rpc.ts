@@ -62,7 +62,7 @@ export interface AvatarPerchTargets {
 }
 
 /** Why a command did not happen. */
-export type AvatarFailure = "not_found" | "interrupted" | "busy" | "unsupported";
+export type AvatarFailure = "not_found" | "blocked" | "interrupted" | "busy" | "unsupported";
 
 /** `POST /avatar/command` answer. */
 export type AvatarCommandResult = { ok: true } | { ok: false; reason: AvatarFailure };

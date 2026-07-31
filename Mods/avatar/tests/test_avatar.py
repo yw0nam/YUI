@@ -127,6 +127,11 @@ class TestPeek:
         with pytest.raises(ToolError, match="interrupted"):
             server.peek("right")
 
+    def test_raises_when_a_window_in_front_covers_the_seat(self, stub):
+        stub.routes["/avatar/command"] = (200, {"ok": False, "reason": "blocked"})
+        with pytest.raises(ToolError, match="blocked"):
+            server.peek("left")
+
 
 class TestMoveTo:
     def test_omits_the_monitor_when_not_given(self, stub):
