@@ -120,7 +120,7 @@ describe("context builder", () => {
     expect(built.record.excluded).toEqual(["active_app", "active_window_title"]);
   });
 
-  it("caps active_window_title at 200 chars", async () => {
+  it("caps active_window_title at 200 chars and marks the cut with an ellipsis", async () => {
     const long = "x".repeat(320);
     const built = await buildContext(
       ENV,
@@ -128,8 +128,40 @@ describe("context builder", () => {
       ALL_ON,
     );
 
-    expect(built.clientContext.env.active_window_title).toBe("x".repeat(200));
-    expect(built.ctx.env.active_window_title).toBe("x".repeat(200));
+    const expected = `${"x".repeat(199)}…`;
+    expect(built.clientContext.env.active_window_title).toBe(expected);
+    expect(built.clientContext.env.active_window_title).toHaveLength(200);
+    expect(built.ctx.env.active_window_title).toBe(expected);
+  });
+
+  it("never leaves a lone surrogate at the truncation boundary", async () => {
+    // 198 ASCII + astral chars puts the cut inside a surrogate pair.
+    const long = `${"x".repeat(198)}${"\u{1F600}".repeat(20)}`;
+    const built = await buildContext(
+      ENV,
+      { getOsContext: () => ({ activeWindowTitle: long }) },
+      ALL_ON,
+    );
+
+    const title = built.clientContext.env.active_window_title!;
+    expect(title).toBe(`${"x".repeat(198)}…`);
+    // Strip well-formed pairs; any surrogate left over was unpaired.
+    expect(/[\uD800-\uDFFF]/.test(title.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, ""))).toBe(
+      false,
+    );
+  });
+
+  it("keeps a whole surrogate pair when the cut falls cleanly between characters", async () => {
+    const long = `${"x".repeat(195)}${"\u{1F600}".repeat(20)}`;
+    const built = await buildContext(
+      ENV,
+      { getOsContext: () => ({ activeWindowTitle: long }) },
+      ALL_ON,
+    );
+
+    expect(built.clientContext.env.active_window_title).toBe(
+      `${"x".repeat(195)}\u{1F600}\u{1F600}…`,
+    );
   });
 
   it("keeps an active_window_title at or under 200 chars verbatim", async () => {

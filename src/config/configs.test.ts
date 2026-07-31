@@ -69,6 +69,22 @@ describe("configs/avatar.json", () => {
       mirror_side: "right",
     });
   });
+
+  it("ships built-in touch/gesture cues as label-only (context is persona judgment, not client data)", () => {
+    const builtIn: Array<[string, any]> = [
+      ["tap.region_cues.chest", a.tap.region_cues.chest],
+      ["tap.region_cues.hips", a.tap.region_cues.hips],
+      ["tap.bored_cue", a.tap.bored_cue],
+      ["gesture_cues.drag_held", a.gesture_cues.drag_held],
+      ["gesture_cues.window_sit", a.gesture_cues.window_sit],
+      ["gesture_cues.peek", a.gesture_cues.peek],
+    ];
+    for (const [path, cue] of builtIn) {
+      expect(cue, path).toBeDefined();
+      expect(cue.label, `${path}.label`).toBeTypeOf("string");
+      expect(Object.keys(cue), path).toEqual(["label"]);
+    }
+  });
 });
 
 describe("configs/guardrails.json", () => {

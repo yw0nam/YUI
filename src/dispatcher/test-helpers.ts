@@ -29,7 +29,7 @@ export function touchEnv(region: "chest" | "hips" = "chest"): BusEnvelope {
     source: "os_event_watcher",
     event_name: `proactive.touch_${region}`,
     ts: 1_717_000_000_000,
-    payload: { cue_id: `touch_${region}`, label: `${region} poked`, context: "poked" },
+    payload: { cue_id: `touch_${region}`, label: `${region} poked` },
     hint_tier: 2,
   };
 }
@@ -40,7 +40,7 @@ export function dragHeldEnv(): BusEnvelope {
     source: "os_event_watcher",
     event_name: "proactive.drag_held",
     ts: 1_717_000_000_000,
-    payload: { cue_id: "drag_held", label: "dragged around", context: "put me down" },
+    payload: { cue_id: "drag_held", label: "dragged around" },
     hint_tier: 2,
   };
 }
@@ -51,7 +51,7 @@ export function windowSitEnv(): BusEnvelope {
     source: "os_event_watcher",
     event_name: "proactive.window_sit",
     ts: 1_717_000_000_000,
-    payload: { cue_id: "window_sit", label: "sat on window", context: "sat down" },
+    payload: { cue_id: "window_sit", label: "sat on window" },
     hint_tier: 2,
   };
 }
@@ -62,7 +62,7 @@ export function peekEnv(): BusEnvelope {
     source: "os_event_watcher",
     event_name: "proactive.peek",
     ts: 1_717_000_000_000,
-    payload: { cue_id: "peek", label: "peeking", context: "peeking out" },
+    payload: { cue_id: "peek", label: "peeking" },
     hint_tier: 2,
   };
 }
