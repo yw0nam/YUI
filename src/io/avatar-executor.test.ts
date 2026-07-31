@@ -1,26 +1,22 @@
 /**
  * avatar-executor.test.ts — the webview end of the avatar RPC bridge.
  *
- * The executor answers queries from live client state and executes movement verbs
- * by reusing the perch flow. It carries no judgment: it never decides where to go,
- * it moves where it is told and reports what happened.
+ * The executor answers queries from live client state and forwards movement verbs to
+ * the perch source's programmatic placement. It carries no judgment: it never decides
+ * where to go, it moves where it is told and reports what happened.
  *
- * The real perch geometry is exercised; only the OS seams (Tauri window, monitors,
- * perch settle) are faked.
+ * Only the OS seams (Tauri window, monitors) and the placement call are faked; the
+ * placement geometry itself is covered in window-drop-source.test.ts.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Posture } from "../contract";
 import { type AvatarExecutorDeps, createAvatarExecutor } from "./avatar-executor";
 import type { AvatarRpcRequest } from "./avatar-rpc";
-import type { PerchTargets, SettleOutcome } from "./window-drop-source";
+import type { PerchTargets, PlacementResult } from "./window-drop-source";
 
-/** Pet window at physical (520, 740), scale 2 → origin (260, 370) points. */
 const WINDOW_POS = { x: 520, y: 740 };
 const WINDOW_SIZE = { width: 400, height: 300 };
-const SCALE = 2;
-/** probe seatPx (40, 30) over origin (260, 370) → seat global (300, 400) points. */
-const PROBE = { seatPx: { x: 40, y: 30 }, charHpx: 200 };
 
 const MONITORS = [
   { position: { x: 0, y: 0 }, size: { width: 1000, height: 800 } },
@@ -48,7 +44,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
   const unsubscribe = vi.fn();
   const responses: Array<{ id: string; result: unknown }> = [];
   const setPositionPhysical = vi.fn(async () => {});
-  const settle = vi.fn(async (): Promise<SettleOutcome> => ({ kind: "none" }));
+  const placeOn = vi.fn(async (): Promise<PlacementResult> => ({ ok: true, kind: "sit" }));
   const release = vi.fn();
   const perchTargets = vi.fn(async () => TARGETS);
   const posture: Posture | undefined = { state: "sitting" };
@@ -61,12 +57,10 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     respond: (id, result) => {
       responses.push({ id, result });
     },
-    perch: { settle, perchTargets, release },
-    renderer: { getPerchProbe: () => PROBE },
+    perch: { placeOn, perchTargets, release },
     getWindow: () => ({
       outerPosition: async () => WINDOW_POS,
       outerSize: async () => WINDOW_SIZE,
-      scaleFactor: async () => SCALE,
       setPositionPhysical,
     }),
     listMonitors: async () => MONITORS,
@@ -105,7 +99,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     answerOf,
     responses,
     setPositionPhysical,
-    settle,
+    placeOn,
     release,
     perchTargets,
     unsubscribe,
@@ -121,9 +115,7 @@ describe("avatar-executor — state", () => {
   it("answers with window position, monitor, posture, vrm and the idle moving flag", async () => {
     const h = harness();
 
-    const state = await h.call("state");
-
-    expect(state).toEqual({
+    expect(await h.call("state")).toEqual({
       position: { x: 520, y: 740, monitor: 0 },
       posture: { state: "sitting" },
       vrm: { id: "carlotta", label: "Carlotta" },
@@ -144,10 +136,10 @@ describe("avatar-executor — state", () => {
   });
 
   it("reports moving while a command is in flight", async () => {
-    const gate = deferred<SettleOutcome>();
+    const gate = deferred<PlacementResult>();
     const h = harness({
       perch: {
-        settle: vi.fn(() => gate.promise),
+        placeOn: vi.fn(() => gate.promise),
         perchTargets: async () => TARGETS,
         release: vi.fn(),
       },
@@ -158,7 +150,7 @@ describe("avatar-executor — state", () => {
 
     expect(await h.call("state")).toMatchObject({ moving: true });
 
-    gate.resolve({ kind: "sit", app: "Notes", window_title: "Shopping" });
+    gate.resolve({ ok: true, kind: "sit" });
     await flush();
     expect(await h.call("state")).toMatchObject({ moving: false });
   });
@@ -174,50 +166,38 @@ describe("avatar-executor — perch targets", () => {
 });
 
 describe("avatar-executor — sit_on_window", () => {
-  it("moves the seat onto the named window's top edge and settles without a cue", async () => {
+  it("forwards the named app to the placement and reports ok", async () => {
     const h = harness();
-    h.settle.mockResolvedValue({ kind: "sit", app: "Notes", window_title: "Shopping" });
 
     const result = await h.call("command", { action: "sit_on_window", app: "Notes" });
 
-    // Desired seat = top-edge center (1200, 600); seat is at (300, 400) → delta (900, 200) points.
-    // New physical origin = (520 + 900*2, 740 + 200*2).
-    expect(h.setPositionPhysical).toHaveBeenCalledWith(2320, 1140);
-    expect(h.settle).toHaveBeenCalledWith({ suppressCue: true });
+    expect(h.placeOn).toHaveBeenCalledWith({ kind: "sit", app: "Notes" });
     expect(result).toEqual({ ok: true });
   });
 
-  it("matches the app name case-insensitively", async () => {
+  it("passes the placement's not_found through", async () => {
     const h = harness();
-    h.settle.mockResolvedValue({ kind: "sit", app: "Notes", window_title: "Shopping" });
-
-    expect(await h.call("command", { action: "sit_on_window", app: "notes" })).toEqual({
-      ok: true,
-    });
-  });
-
-  it("reports not_found without moving when no window matches", async () => {
-    const h = harness();
+    h.placeOn.mockResolvedValue({ ok: false, reason: "not_found" });
 
     expect(await h.call("command", { action: "sit_on_window", app: "Xcode" })).toEqual({
       ok: false,
       reason: "not_found",
     });
-    expect(h.setPositionPhysical).not.toHaveBeenCalled();
   });
 
-  it("reports not_found when the settle lands somewhere else", async () => {
+  it("passes the placement's blocked through when a window covers the seat", async () => {
     const h = harness();
-    h.settle.mockResolvedValue({ kind: "none" });
+    h.placeOn.mockResolvedValue({ ok: false, reason: "blocked" });
 
     expect(await h.call("command", { action: "sit_on_window", app: "Notes" })).toEqual({
       ok: false,
-      reason: "not_found",
+      reason: "blocked",
     });
   });
 
-  it("reports unsupported when no perch probe is available", async () => {
-    const h = harness({ renderer: { getPerchProbe: () => null } });
+  it("passes the placement's unsupported through", async () => {
+    const h = harness();
+    h.placeOn.mockResolvedValue({ ok: false, reason: "unsupported" });
 
     expect(await h.call("command", { action: "sit_on_window", app: "Notes" })).toEqual({
       ok: false,
@@ -227,61 +207,19 @@ describe("avatar-executor — sit_on_window", () => {
 });
 
 describe("avatar-executor — peek", () => {
-  it("moves the seat onto the frontmost window's requested edge", async () => {
+  it("forwards the requested side to the placement", async () => {
     const h = harness();
-    h.settle.mockResolvedValue({
-      kind: "peek",
-      side: "right",
-      app: "Notes",
-      window_title: "Shopping",
-    });
+    h.placeOn.mockResolvedValue({ ok: true, kind: "peek" });
 
     const result = await h.call("command", { action: "peek", side: "right" });
 
-    // Right edge mid-height = (1400, 750); delta from (300, 400) = (1100, 350) points.
-    expect(h.setPositionPhysical).toHaveBeenCalledWith(2720, 1440);
-    expect(h.settle).toHaveBeenCalledWith({ suppressCue: true });
+    expect(h.placeOn).toHaveBeenCalledWith({ kind: "peek", side: "right" });
     expect(result).toEqual({ ok: true });
   });
 
-  it("targets the left edge for a left peek", async () => {
+  it("passes the placement's not_found through when nothing is on screen", async () => {
     const h = harness();
-    h.settle.mockResolvedValue({
-      kind: "peek",
-      side: "left",
-      app: "Notes",
-      window_title: "Shopping",
-    });
-
-    await h.call("command", { action: "peek", side: "left" });
-
-    // Left edge mid-height = (1000, 750); delta = (700, 350) points.
-    expect(h.setPositionPhysical).toHaveBeenCalledWith(1920, 1440);
-  });
-
-  it("reports not_found when the settle lands on the other side", async () => {
-    const h = harness();
-    h.settle.mockResolvedValue({
-      kind: "peek",
-      side: "left",
-      app: "Notes",
-      window_title: "Shopping",
-    });
-
-    expect(await h.call("command", { action: "peek", side: "right" })).toEqual({
-      ok: false,
-      reason: "not_found",
-    });
-  });
-
-  it("reports not_found when there is no window to peek around", async () => {
-    const h = harness({
-      perch: {
-        settle: vi.fn(async () => ({ kind: "none" }) as SettleOutcome),
-        perchTargets: async () => ({ windows: [], edges: ["left", "right"] }),
-        release: vi.fn(),
-      },
-    });
+    h.placeOn.mockResolvedValue({ ok: false, reason: "not_found" });
 
     expect(await h.call("command", { action: "peek", side: "left" })).toEqual({
       ok: false,
@@ -294,11 +232,7 @@ describe("avatar-executor — move_to", () => {
   it("centers the window on the requested monitor", async () => {
     const h = harness();
 
-    const result = await h.call("command", {
-      action: "move_to",
-      spot: "center",
-      monitor: 1,
-    });
+    const result = await h.call("command", { action: "move_to", spot: "center", monitor: 1 });
 
     // Monitor 1 spans x 1000..3000, y 0..1000; window is 400x300.
     expect(h.setPositionPhysical).toHaveBeenCalledWith(1800, 350);
@@ -350,6 +284,23 @@ describe("avatar-executor — move_to", () => {
       reason: "unsupported",
     });
   });
+
+  it("reports unsupported when the window cannot be read", async () => {
+    const h = harness({
+      getWindow: () => ({
+        outerPosition: async () => {
+          throw new Error("no window");
+        },
+        outerSize: async () => WINDOW_SIZE,
+        setPositionPhysical: vi.fn(async () => {}),
+      }),
+    });
+
+    expect(await h.call("command", { action: "move_to", spot: "center" })).toEqual({
+      ok: false,
+      reason: "unsupported",
+    });
+  });
 });
 
 describe("avatar-executor — stand_down", () => {
@@ -363,10 +314,10 @@ describe("avatar-executor — stand_down", () => {
 
 describe("avatar-executor — concurrency and interruption", () => {
   it("rejects a second command while one is running", async () => {
-    const gate = deferred<SettleOutcome>();
+    const gate = deferred<PlacementResult>();
     const h = harness({
       perch: {
-        settle: vi.fn(() => gate.promise),
+        placeOn: vi.fn(() => gate.promise),
         perchTargets: async () => TARGETS,
         release: vi.fn(),
       },
@@ -377,15 +328,15 @@ describe("avatar-executor — concurrency and interruption", () => {
     const second = await h.call("command", { action: "stand_down" });
 
     expect(second).toEqual({ ok: false, reason: "busy" });
-    gate.resolve({ kind: "sit", app: "Notes", window_title: "Shopping" });
+    gate.resolve({ ok: true, kind: "sit" });
     await flush();
   });
 
   it("aborts the running command with interrupted when the user drags", async () => {
-    const gate = deferred<SettleOutcome>();
+    const gate = deferred<PlacementResult>();
     const h = harness({
       perch: {
-        settle: vi.fn(() => gate.promise),
+        placeOn: vi.fn(() => gate.promise),
         perchTargets: async () => TARGETS,
         release: vi.fn(),
       },
@@ -394,7 +345,7 @@ describe("avatar-executor — concurrency and interruption", () => {
     const id = h.fire("command", { action: "sit_on_window", app: "Notes" });
     await flush();
     h.executor.noteUserDrag();
-    gate.resolve({ kind: "sit", app: "Notes", window_title: "Shopping" });
+    gate.resolve({ ok: true, kind: "sit" });
     await flush();
 
     expect(h.answerOf(id)).toEqual({ ok: false, reason: "interrupted" });
@@ -402,7 +353,6 @@ describe("avatar-executor — concurrency and interruption", () => {
 
   it("accepts a new command once the previous one finished", async () => {
     const h = harness();
-    h.settle.mockResolvedValue({ kind: "sit", app: "Notes", window_title: "Shopping" });
 
     await h.call("command", { action: "sit_on_window", app: "Notes" });
 
@@ -410,10 +360,10 @@ describe("avatar-executor — concurrency and interruption", () => {
   });
 
   it("answers queries while a command is running", async () => {
-    const gate = deferred<SettleOutcome>();
+    const gate = deferred<PlacementResult>();
     const h = harness({
       perch: {
-        settle: vi.fn(() => gate.promise),
+        placeOn: vi.fn(() => gate.promise),
         perchTargets: async () => TARGETS,
         release: vi.fn(),
       },
@@ -423,7 +373,7 @@ describe("avatar-executor — concurrency and interruption", () => {
     await flush();
 
     expect(await h.call("perch_targets")).toEqual(TARGETS);
-    gate.resolve({ kind: "none" });
+    gate.resolve({ ok: true, kind: "sit" });
     await flush();
   });
 });
@@ -432,7 +382,6 @@ describe("avatar-executor — malformed input and lifecycle", () => {
   it("reports unsupported for an unknown method", async () => {
     const h = harness();
 
-    expect(await h.call("state" as never, undefined)).toBeDefined();
     expect(await h.call("teleport" as never)).toEqual({ ok: false, reason: "unsupported" });
   });
 
@@ -443,6 +392,21 @@ describe("avatar-executor — malformed input and lifecycle", () => {
       ok: false,
       reason: "unsupported",
     });
+    expect(h.placeOn).not.toHaveBeenCalled();
+  });
+
+  it("still answers state with a null position when the window is unreadable", async () => {
+    const h = harness({
+      getWindow: () => ({
+        outerPosition: async () => {
+          throw new Error("no window");
+        },
+        outerSize: async () => WINDOW_SIZE,
+        setPositionPhysical: vi.fn(async () => {}),
+      }),
+    });
+
+    expect(await h.call("state")).toMatchObject({ position: null, moving: false });
   });
 
   it("stop unsubscribes from the channel", () => {
@@ -451,33 +415,5 @@ describe("avatar-executor — malformed input and lifecycle", () => {
     h.executor.stop();
 
     expect(h.unsubscribe).toHaveBeenCalledOnce();
-  });
-});
-
-describe("avatar-executor — failure containment", () => {
-  let h: ReturnType<typeof harness>;
-
-  beforeEach(() => {
-    h = harness({
-      getWindow: () => ({
-        outerPosition: async () => {
-          throw new Error("no window");
-        },
-        outerSize: async () => WINDOW_SIZE,
-        scaleFactor: async () => SCALE,
-        setPositionPhysical: vi.fn(async () => {}),
-      }),
-    });
-  });
-
-  it("still answers state with a null position when the window is unreadable", async () => {
-    expect(await h.call("state")).toMatchObject({ position: null, moving: false });
-  });
-
-  it("reports unsupported when a command cannot read the window", async () => {
-    expect(await h.call("command", { action: "sit_on_window", app: "Notes" })).toEqual({
-      ok: false,
-      reason: "unsupported",
-    });
   });
 });
