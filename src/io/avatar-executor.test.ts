@@ -351,6 +351,55 @@ describe("avatar-executor — concurrency and interruption", () => {
     expect(h.answerOf(id)).toEqual({ ok: false, reason: "interrupted" });
   });
 
+  it("refuses a command that arrives while the user is already dragging", async () => {
+    const h = harness();
+    h.executor.noteUserDrag();
+
+    expect(await h.call("command", { action: "sit_on_window", app: "Notes" })).toEqual({
+      ok: false,
+      reason: "interrupted",
+    });
+    expect(h.placeOn).not.toHaveBeenCalled();
+  });
+
+  it("accepts commands again once the drag ends", async () => {
+    const h = harness();
+    h.executor.noteUserDrag();
+    h.executor.noteUserDragEnd();
+
+    expect(await h.call("command", { action: "sit_on_window", app: "Notes" })).toEqual({ ok: true });
+    expect(h.placeOn).toHaveBeenCalled();
+  });
+
+  it("hands the placement an abort signal that follows the drag state", async () => {
+    const h = harness();
+
+    await h.call("command", { action: "sit_on_window", app: "Notes" });
+
+    const opts = h.placeOn.mock.calls[0][1] as { shouldAbort: () => boolean } | undefined;
+    expect(opts?.shouldAbort()).toBe(false);
+    h.executor.noteUserDrag();
+    expect(opts?.shouldAbort()).toBe(true);
+  });
+
+  it("clears moving after a command throws, so the next one is not refused as busy", async () => {
+    const h = harness({
+      perch: {
+        placeOn: vi.fn(async () => {
+          throw new Error("placement exploded");
+        }),
+        perchTargets: async () => TARGETS,
+        release: vi.fn(),
+      },
+    });
+
+    expect(await h.call("command", { action: "sit_on_window", app: "Notes" })).toEqual({
+      ok: false,
+      reason: "unsupported",
+    });
+    expect(await h.call("command", { action: "stand_down" })).toEqual({ ok: true });
+  });
+
   it("accepts a new command once the previous one finished", async () => {
     const h = harness();
 
@@ -393,6 +442,34 @@ describe("avatar-executor — malformed input and lifecycle", () => {
       reason: "unsupported",
     });
     expect(h.placeOn).not.toHaveBeenCalled();
+  });
+
+  it("reports unsupported for an empty app name instead of matching everything", async () => {
+    const h = harness();
+
+    expect(await h.call("command", { action: "sit_on_window", app: "" })).toEqual({
+      ok: false,
+      reason: "unsupported",
+    });
+    expect(h.placeOn).not.toHaveBeenCalled();
+  });
+
+  it("reports unsupported for a whitespace-only app name", async () => {
+    const h = harness();
+
+    expect(await h.call("command", { action: "sit_on_window", app: "   " })).toEqual({
+      ok: false,
+      reason: "unsupported",
+    });
+    expect(h.placeOn).not.toHaveBeenCalled();
+  });
+
+  it("trims a padded app name before placing", async () => {
+    const h = harness();
+
+    await h.call("command", { action: "sit_on_window", app: "  Notes  " });
+
+    expect(h.placeOn).toHaveBeenCalledWith({ kind: "sit", app: "Notes" }, expect.anything());
   });
 
   it("still answers state with a null position when the window is unreadable", async () => {

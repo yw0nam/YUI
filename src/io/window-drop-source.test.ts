@@ -1369,6 +1369,48 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     });
   });
 
+  it("commits against where the window actually landed, not where it was asked to go", async () => {
+    // The window manager clamps the move (menu bar / screen bounds).
+    let pos = { x: 520, y: 740 };
+    const setPositionPhysical = vi.fn(async (x: number, y: number) => {
+      pos = { x, y: Math.min(y, 700) };
+    });
+    const pet = {
+      window: {
+        outerPosition: vi.fn(async () => pos),
+        scaleFactor: vi.fn(async () => 2),
+        setPositionPhysical,
+      },
+      setPositionPhysical,
+    };
+    const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })], pet));
+
+    await source.placeOn({ kind: "sit", app: "Notes" });
+
+    expect(setPositionPhysical).toHaveBeenCalledWith(1040, 740);
+    // Clamped to y=700 → edge_local_ypx = 400 - 700/2 = 50, not the requested 30.
+    const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
+    expect(env.payload?.edge_local_ypx).toBeCloseTo(50, 6);
+  });
+
+  it("aborts before pushing or arming when the caller signals mid-place", async () => {
+    const pet = makePlaceWindow();
+    const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })], pet));
+
+    const result = await source.placeOn(
+      { kind: "sit", app: "Notes" },
+      { shouldAbort: () => true },
+    );
+
+    expect(result).toEqual({ ok: false, reason: "interrupted" });
+    // The move already happened, but no envelope and no arming followed it.
+    expect(pet.setPositionPhysical).toHaveBeenCalled();
+    expect(pushed).toHaveLength(0);
+    pushed.length = 0;
+    source.release();
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+  });
+
   it("reports unsupported when the window cannot be moved", async () => {
     const source = createWindowDropSource({
       ...makeDeps([win({ ownerName: "Notes" })]),
