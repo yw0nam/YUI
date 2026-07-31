@@ -86,6 +86,24 @@ describe("drag-hold-source", () => {
     });
   });
 
+  it("omits context from the candidate when the cue has none", () => {
+    const timers = makeFakeTimers();
+    const source = createDragHoldSource({
+      bus,
+      getHoldMs: () => 5000,
+      getCue: () => ({ label: "dragged around" }),
+      now: () => 1_000,
+      setTimeout: timers.fakeSetTimeout,
+      clearTimeout: timers.fakeClearTimeout,
+    });
+
+    source.noteDragStart();
+    timers.fireLatest();
+
+    expect(pushed[0]?.payload).toEqual({ cue_id: "drag_held", label: "dragged around" });
+    expect(pushed[0]?.payload).not.toHaveProperty("context");
+  });
+
   it("reads the cue live at fire time (config hot-reload)", () => {
     const timers = makeFakeTimers();
     let cue = { label: "old", context: "old ctx" };

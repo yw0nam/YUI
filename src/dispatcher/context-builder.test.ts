@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { ALL_CONTEXT_SIGNALS, buildContext, type ContextPolicy } from "./context-builder";
+import type { InputContext } from "../contract";
+import {
+  ALL_CONTEXT_SIGNALS,
+  buildClientContext,
+  buildContext,
+  type ContextPolicy,
+} from "./context-builder";
 import type { BusEnvelope } from "./event-bus";
 
 const ENV: BusEnvelope = {
@@ -49,14 +55,11 @@ describe("context builder", () => {
         active_app: { name: "Visual Studio Code" },
         active_window_title: "context-builder.ts",
         posture: { state: "sitting" },
-        recent_apps: [{ name: "Terminal", at: expect.any(String) }],
+        recent_apps: [{ name: "Terminal" }],
       },
       screenshot: {
         enabled: true,
         source: { kind: "monitor", index: 0 },
-        captured_at: "2024-05-29T00:00:00Z",
-        width: 1280,
-        height: 720,
       },
       trigger: { kind: "user" },
     });
@@ -117,6 +120,40 @@ describe("context builder", () => {
     expect(built.record.excluded).toEqual(["active_app", "active_window_title"]);
   });
 
+  it("caps active_window_title at 200 chars", async () => {
+    const long = "x".repeat(320);
+    const built = await buildContext(
+      ENV,
+      { getOsContext: () => ({ activeWindowTitle: long }) },
+      ALL_ON,
+    );
+
+    expect(built.clientContext.env.active_window_title).toBe("x".repeat(200));
+    expect(built.ctx.env.active_window_title).toBe("x".repeat(200));
+  });
+
+  it("keeps an active_window_title at or under 200 chars verbatim", async () => {
+    const title = "y".repeat(200);
+    const built = await buildContext(
+      ENV,
+      { getOsContext: () => ({ activeWindowTitle: title }) },
+      ALL_ON,
+    );
+
+    expect(built.clientContext.env.active_window_title).toBe(title);
+  });
+
+  it("sends recent_apps as names only while peek still returns the timestamped entries", async () => {
+    const peeked = [
+      { name: "Slack", ts: 1_716_999_900_000 },
+      { name: "Terminal", ts: 1_716_999_950_000 },
+    ];
+    const built = await buildContext(ENV, { peekRecentApps: () => peeked }, ALL_ON);
+
+    expect(built.clientContext.env.recent_apps).toEqual([{ name: "Slack" }, { name: "Terminal" }]);
+    expect(built.peekedApps).toEqual(peeked);
+  });
+
   it("does not record enabled signals when their providers have no data", async () => {
     const built = await buildContext(
       ENV,
@@ -130,5 +167,61 @@ describe("context builder", () => {
     );
 
     expect(built.record).toEqual({ included: [], excluded: [] });
+  });
+});
+
+describe("buildClientContext — cue forwarding", () => {
+  const CTX: InputContext = { env: { timestamp: "2026-07-31T14:22:33+09:00", timezone: "UTC" } };
+
+  function cueEnv(payload: Record<string, unknown>): BusEnvelope {
+    return {
+      seq_id: 2,
+      source: "os_event_watcher",
+      event_name: "proactive.touch_chest",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload,
+    };
+  }
+
+  it("forwards a label-only cue without a context key", () => {
+    const client = buildClientContext(CTX, cueEnv({ cue_id: "touch_chest", label: "chest poked" }));
+
+    expect(client.trigger.cue).toEqual({ label: "chest poked" });
+    expect("context" in client.trigger.cue!).toBe(false);
+  });
+
+  it("forwards context when the firing source supplied one", () => {
+    const client = buildClientContext(
+      CTX,
+      cueEnv({ cue_id: "morning", label: "morning call", context: "say good morning" }),
+    );
+
+    expect(client.trigger.cue).toEqual({ label: "morning call", context: "say good morning" });
+  });
+
+  it("omits the cue when the payload carries no label", () => {
+    const client = buildClientContext(CTX, cueEnv({ cue_id: "touch_chest" }));
+
+    expect("cue" in client.trigger).toBe(false);
+  });
+
+  it("reduces screenshot meta to enabled + source", () => {
+    const client = buildClientContext(
+      {
+        ...CTX,
+        screenshot: {
+          enabled: true,
+          source: { kind: "monitor", index: 0 },
+          data_url: "data:image/png;base64,SHOT",
+          captured_at: "2026-07-31T14:22:33+09:00",
+          width: 2560,
+          height: 1440,
+        },
+      },
+      cueEnv({}),
+    );
+
+    expect(client.screenshot).toEqual({ enabled: true, source: { kind: "monitor", index: 0 } });
   });
 });

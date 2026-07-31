@@ -25,31 +25,15 @@ describe("loadConfig — avatar.available", () => {
         spam_window_ms: 3000,
         region_radius_frac: 0.18,
         region_motions: { chest: "embarrassed", hips: "embarrassed" },
-        bored_cue: {
-          label: "bored poking",
-          context:
-            "The user is repeatedly clicking the character with no particular spot in mind — they are likely bored and want attention. Fold in any accumulated signals and say something that fits the moment.",
-        },
+        bored_cue: { label: "bored poking" },
         touch_cue_cooldown_ms: 60_000,
         touch_emotion_hold_ms: 4000,
       },
       drag_hold_ms: 5000,
       gesture_cues: {
-        drag_held: {
-          label: "dragged around",
-          context:
-            "The user has been dragging me around for a while — ask them to put me down. Keep it short.",
-        },
-        window_sit: {
-          label: "sat on window",
-          context:
-            "I just sat down on the edge of a window — say something fitting. Keep it short.",
-        },
-        peek: {
-          label: "peeking",
-          context:
-            "I'm peeking out from the edge of the screen — say something playful. Keep it short.",
-        },
+        drag_held: { label: "dragged around" },
+        window_sit: { label: "sat on window" },
+        peek: { label: "peeking" },
       },
     });
     expect(cfg.avatar.available).toBeUndefined();
