@@ -1297,9 +1297,12 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     };
   }
 
+  /** Probe shape the renderer hands the producer — nullable, as the real one is. */
+  type Probe = { seatPx: { x: number; y: number }; charHpx: number } | null;
+
   function makeDeps(windows: WindowRect[], pet = makePlaceWindow()) {
     const renderer = {
-      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      getPerchProbe: vi.fn((): Probe => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
       isPerched: vi.fn(() => true),
     };
     const invoke = vi.fn(async () => windows);

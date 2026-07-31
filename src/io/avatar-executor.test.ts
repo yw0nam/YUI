@@ -13,7 +13,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { Posture } from "../contract";
 import { type AvatarExecutorDeps, createAvatarExecutor } from "./avatar-executor";
 import type { AvatarRpcRequest } from "./avatar-rpc";
-import type { PerchTargets, PlacementResult } from "./window-drop-source";
+import type {
+  PerchTargets,
+  PlacementOptions,
+  PlacementRequest,
+  PlacementResult,
+} from "./window-drop-source";
 
 const WINDOW_POS = { x: 520, y: 740 };
 const WINDOW_SIZE = { width: 400, height: 300 };
@@ -44,7 +49,13 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
   const unsubscribe = vi.fn();
   const responses: Array<{ id: string; result: unknown }> = [];
   const setPositionPhysical = vi.fn(async () => {});
-  const placeOn = vi.fn(async (): Promise<PlacementResult> => ({ ok: true, kind: "sit" }));
+  // Parameters declared so the abort-signal test can read the options argument.
+  const placeOn = vi.fn(
+    async (_request: PlacementRequest, _opts?: PlacementOptions): Promise<PlacementResult> => ({
+      ok: true,
+      kind: "sit",
+    }),
+  );
   const release = vi.fn();
   const perchTargets = vi.fn(async () => TARGETS);
   const posture: Posture | undefined = { state: "sitting" };
@@ -378,10 +389,10 @@ describe("avatar-executor — concurrency and interruption", () => {
 
     await h.call("command", { action: "sit_on_window", app: "Notes" });
 
-    const opts = h.placeOn.mock.calls[0][1] as { shouldAbort: () => boolean } | undefined;
-    expect(opts?.shouldAbort()).toBe(false);
+    const opts = h.placeOn.mock.calls[0][1];
+    expect(opts?.shouldAbort?.()).toBe(false);
     h.executor.noteUserDrag();
-    expect(opts?.shouldAbort()).toBe(true);
+    expect(opts?.shouldAbort?.()).toBe(true);
   });
 
   it("clears moving after a command throws, so the next one is not refused as busy", async () => {
