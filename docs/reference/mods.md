@@ -13,6 +13,7 @@ Each mod is a **self-contained `uv` project** in `Mods/<mod>/` with its own `pyp
 | [router](https://github.com/yw0nam/YUI/blob/main/Mods/router/README.md) | 8080 | host-native | One HTTP front door — path-routes `/<mod>/mcp` to every mod over a single SSH tunnel |
 | [desktop-control](https://github.com/yw0nam/YUI/blob/main/Mods/desktop-control/README.md) | 9000 | host-native | See the screen and open/close apps on the macOS host |
 | [shell-sandbox](https://github.com/yw0nam/YUI/blob/main/Mods/shell-sandbox/README.md) | 9001 | container | Unrestricted shell over a bind-mounted host directory |
+| [avatar](https://github.com/yw0nam/YUI/blob/main/Mods/avatar/README.md) | 9002 | host-native | Query the avatar's own body state and move it with semantic verbs |
 
 Not a mod, but lives here: [browser-cdp](https://github.com/yw0nam/YUI/blob/main/Mods/browser-cdp/README.md) exposes no MCP tools — it bridges the remote agent's own Playwright MCP to your local Mac browser over CDP.
 
@@ -63,6 +64,23 @@ An unrestricted shell exposed to the agent, running inside a container against a
 | `read_image(path)` | Read an image (png/jpg/jpeg/gif/webp) and return it as a viewable image |
 
 The mounted directory is the only reachable host state, and it is **writable** — mount a copy or a scratch directory if you don't want the agent to mutate originals. Network egress is open (needed for `pnpm`/`pip` installs). The container runs as root with `--cap-drop ALL` and `no-new-privileges`; for genuinely untrusted input, run under gVisor or a microVM.
+
+## avatar
+
+Gives the agent its own body: where the avatar is, and where to move it. Runs **host-native** — it calls the YUI client's loopback ingress, which only exists on the Mac running the app. The ingress binds only while the agent-notify feature is enabled, so the app must be running with that on.
+
+| Tool | Description |
+|---|---|
+| `get_body_state()` | Window position + monitor, posture (sitting / peeking / dragging and what it is perched on), loaded VRM, whether a move is running |
+| `list_perch_targets()` | The client's tracked perch candidates (app / title / rect) plus the peek edges |
+| `sit_on_window(app)` | Sit on the top edge of that app's window |
+| `peek(side)` | Peek around the `left` or `right` edge of the frontmost window |
+| `move_to(spot, monitor=None)` | Move to `center` or a named corner, optionally on a given monitor |
+| `stand_down()` | Release any perch or peek and return to the normal standing position |
+
+Movement only — expression stays on the `generate_express` stream and screen capture belongs to [desktop-control](#desktop-control). A gesture that did not happen raises a tool error carrying the client's reason: `not_found`, `blocked` (a window in front covers that spot, so nothing moved), `interrupted` (the user grabbed the avatar), `busy` (another gesture is running), or `unsupported`. `AVATAR_INGRESS_URL` overrides the ingress address, which defaults to the client's stored ingress port.
+
+The user always outranks the agent: a drag aborts a running gesture and blocks new ones until it ends.
 
 ## browser-cdp
 
