@@ -92,6 +92,25 @@ export interface WindowDropSourceDeps {
   clearInterval?: typeof clearInterval;
 }
 
+/** One perch candidate: a foreign window the character can sit on or peek around. */
+export interface PerchTargetWindow {
+  app: string | null;
+  title: string | null;
+  rect: ScreenRect;
+}
+
+/** The perch candidate model: the tracked foreign windows plus the peek edges. */
+export interface PerchTargets {
+  windows: PerchTargetWindow[];
+  edges: Array<"left" | "right">;
+}
+
+/** What a settle pass landed on. */
+export type SettleOutcome =
+  | { kind: "sit"; app: string | null; window_title: string | null }
+  | { kind: "peek"; side: "left" | "right"; app: string | null; window_title: string | null }
+  | { kind: "none" };
+
 export interface WindowDropSource {
   /** Register the release listener. Idempotent. */
   start(): Promise<void>;
@@ -99,6 +118,16 @@ export interface WindowDropSource {
   stop(): void;
   /** Alias of stop() for HMR-dispose call sites. */
   dispose(): void;
+  /**
+   * Run the drop hit-test at the character's current position — the same pass a
+   * drag release triggers. `suppressCue` skips the proactive cue for a gesture the
+   * backend already knows it asked for; the tier1 perch event fires either way.
+   */
+  settle(opts?: { suppressCue?: boolean }): Promise<SettleOutcome>;
+  /** The current perch candidates. */
+  perchTargets(): Promise<PerchTargets>;
+  /** Release any armed perch/peek and push the matching exit. */
+  release(): void;
 }
 
 /** Compose the sat-on/peeked-at window name into a cue's base context (no name → base unchanged). */
@@ -324,12 +353,13 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     }
   }
 
-  async function onRelease(): Promise<void> {
+  async function settle(opts?: { suppressCue?: boolean }): Promise<SettleOutcome> {
+    const suppressCue = opts?.suppressCue === true;
     const probe = renderer.getPerchProbe();
     // No VRM / projection unavailable → nothing to perch; leave to idle.
     if (!probe) {
       pushExit();
-      return;
+      return { kind: "none" };
     }
 
     const win = getWindow();
@@ -351,35 +381,37 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       );
       if (sideTargetIdx < 0) {
         pushExit();
-        return;
+        return { kind: "none" };
       }
       const sideTarget = windows[sideTargetIdx];
       if (windows.some((w, i) => i < sideTargetIdx && containsSeat(w, seatGlobal))) {
         log.debug("peek.drop_covered", { targetWindowNumber: sideTarget.windowNumber });
         pushExit();
-        return;
+        return { kind: "none" };
       }
       const side = inSideCatchZone(seatGlobal, sideTarget, probe.charHpx, sideOpts);
       if (side === null) {
         pushExit();
-        return;
+        return { kind: "none" };
       }
       const sf = scale > 0 ? scale : 1;
       const edgeXpx = side === "left" ? sideTarget.x : sideTarget.x + sideTarget.width;
       const edgeLocalXpx = edgeXpx - pos.x / sf;
       const targetLocalXpx = peekTargetPx(edgeLocalXpx, side, probe.charHpx, peekConfig.inset_frac);
       const peekCue = getGestureCues().peek;
-      bus.push({
-        source: "os_event_watcher",
-        event_name: "proactive.peek",
-        ts: Date.now(),
-        hint_tier: 2,
-        payload: {
-          cue_id: "peek",
-          label: peekCue.label,
-          context: withPerchedOn(peekCue.context, sideTarget.name),
-        },
-      });
+      if (!suppressCue) {
+        bus.push({
+          source: "os_event_watcher",
+          event_name: "proactive.peek",
+          ts: Date.now(),
+          hint_tier: 2,
+          payload: {
+            cue_id: "peek",
+            label: peekCue.label,
+            context: withPerchedOn(peekCue.context, sideTarget.name),
+          },
+        });
+      }
       bus.push({
         source: "os_event_watcher",
         event_name: "user.peek_drop",
@@ -394,7 +426,12 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         },
       });
       arm("peek", sideTarget.windowNumber, { x: sideTarget.x, y: sideTarget.y }, probe.charHpx);
-      return;
+      return {
+        kind: "peek",
+        side,
+        app: sideTarget.ownerName,
+        window_title: sideTarget.name,
+      };
     }
     const target = windows[targetIdx];
     // Same covered predicate as the occlusion poll, applied at drop time: a window
@@ -403,24 +440,26 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     if (windows.some((w, i) => i < targetIdx && containsSeat(w, seatGlobal))) {
       log.debug("perch.drop_covered", { targetWindowNumber: target.windowNumber });
       pushExit();
-      return;
+      return { kind: "none" };
     }
 
     // Global top edge → pet-window-local px (winOriginPts = pos / scale).
     const sf = scale > 0 ? scale : 1;
     const edgeLocalYpx = target.y - pos.y / sf;
     const windowSitCue = getGestureCues().window_sit;
-    bus.push({
-      source: "os_event_watcher",
-      event_name: "proactive.window_sit",
-      ts: Date.now(),
-      hint_tier: 2,
-      payload: {
-        cue_id: "window_sit",
-        label: windowSitCue.label,
-        context: withPerchedOn(windowSitCue.context, target.name),
-      },
-    });
+    if (!suppressCue) {
+      bus.push({
+        source: "os_event_watcher",
+        event_name: "proactive.window_sit",
+        ts: Date.now(),
+        hint_tier: 2,
+        payload: {
+          cue_id: "window_sit",
+          label: windowSitCue.label,
+          context: withPerchedOn(windowSitCue.context, target.name),
+        },
+      });
+    }
     bus.push({
       source: "os_event_watcher",
       event_name: "user.window_sit_drop",
@@ -434,14 +473,36 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       },
     });
     arm("sit", target.windowNumber, { x: target.x, y: target.y }, probe.charHpx);
+    return { kind: "sit", app: target.ownerName, window_title: target.name };
+  }
+
+  async function perchTargets(): Promise<PerchTargets> {
+    const windows = await invoke("list_windows");
+    return {
+      windows: windows.map((w) => ({
+        app: w.ownerName,
+        title: w.name,
+        rect: { x: w.x, y: w.y, width: w.width, height: w.height },
+      })),
+      edges: ["left", "right"],
+    };
   }
 
   return {
+    settle,
+    perchTargets,
+    release() {
+      if (armedKind !== null) {
+        pushArmedExit(armedKind);
+        return;
+      }
+      pushExit();
+    },
     async start() {
       if (unlisten) return;
       try {
         unlisten = await listen(RELEASE_EVENT, () => {
-          void onRelease().catch((err) =>
+          void settle().catch((err) =>
             log.warn("release_handling_failed", { degrade: true, error: String(err) }),
           );
         });

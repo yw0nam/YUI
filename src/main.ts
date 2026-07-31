@@ -48,6 +48,7 @@ import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
 import { resolveAssetUrl } from "./io/asset-url";
+import type { AvatarExecutor } from "./io/avatar-executor";
 import {
   CAMERA_ORBIT_SENSITIVITY,
   CAMERA_WHEEL_SENSITIVITY,
@@ -138,11 +139,14 @@ async function bootstrap(): Promise<void> {
   let hitTestRef: HitTestController | null = null;
   let tapSourceRef: TapSource | null = null;
   let dragHoldRef: DragHoldSource | null = null;
+  // User input wins: a drag aborts whatever gesture the agent asked for.
+  let avatarExecutorRef: AvatarExecutor | null = null;
   const cleanupDrag = await initDrag(stage, {
     onClick: (pos) => tapSourceRef?.handleClick(pos),
     onDragStart: () => {
       hitTestRef?.suspend();
       dragHoldRef?.noteDragStart();
+      avatarExecutorRef?.noteUserDrag();
       bus.push({
         source: "os_event_watcher",
         event_name: "user.drag_start",
@@ -525,6 +529,15 @@ async function bootstrap(): Promise<void> {
     getPeekConfig: () => peekConfig,
     getGestureCues: () => gestureCuesConfig,
     agentNotifySettings,
+    getPosture: () => dispatcherRef?.getPosture(),
+    getVrm: () => {
+      const active = vrmSelection.getActive();
+      return { id: active.id, label: active.label ?? active.id };
+    },
+    onAvatarExecutor: (executor) => {
+      avatarExecutorRef = executor;
+      disposers.push(() => executor.stop());
+    },
     log,
   });
   // Voice input (STT/VAD) lifecycle — start/stop driven by voiceInputStatus, intent persisted to

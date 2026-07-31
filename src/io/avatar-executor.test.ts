@@ -335,9 +335,10 @@ describe("avatar-executor — move_to", () => {
   it("reports not_found for a monitor index out of range", async () => {
     const h = harness();
 
-    expect(
-      await h.call("command", { action: "move_to", spot: "center", monitor: 7 }),
-    ).toEqual({ ok: false, reason: "not_found" });
+    expect(await h.call("command", { action: "move_to", spot: "center", monitor: 7 })).toEqual({
+      ok: false,
+      reason: "not_found",
+    });
     expect(h.setPositionPhysical).not.toHaveBeenCalled();
   });
 
