@@ -387,4 +387,242 @@ mod tests {
             400
         );
     }
+
+    // ── parse_avatar_request ─────────────────────────────────────────────────
+
+    #[test]
+    fn parse_avatar_state_requires_get() {
+        assert_eq!(
+            parse_avatar_request("GET", "/avatar/state", "").unwrap(),
+            AvatarRoute::State
+        );
+        assert_eq!(
+            parse_avatar_request("POST", "/avatar/state", "").unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_avatar_perch_targets_requires_get() {
+        assert_eq!(
+            parse_avatar_request("GET", "/avatar/perch-targets", "").unwrap(),
+            AvatarRoute::PerchTargets
+        );
+        assert_eq!(
+            parse_avatar_request("POST", "/avatar/perch-targets", "").unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_avatar_query_path_with_query_string_is_accepted() {
+        assert_eq!(
+            parse_avatar_request("GET", "/avatar/state?foo=bar", "").unwrap(),
+            AvatarRoute::State
+        );
+    }
+
+    #[test]
+    fn parse_avatar_unknown_path_returns_400() {
+        assert_eq!(
+            parse_avatar_request("GET", "/avatar/nope", "").unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_avatar_command_requires_post() {
+        assert_eq!(
+            parse_avatar_request("GET", "/avatar/command", r#"{"action":"stand_down"}"#).unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_avatar_command_sit_on_window() {
+        let route =
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"sit_on_window","app":"Notes"}"#)
+                .unwrap();
+        assert_eq!(
+            route,
+            AvatarRoute::Command(AvatarCommand::SitOnWindow {
+                app: "Notes".into()
+            })
+        );
+    }
+
+    #[test]
+    fn parse_avatar_command_peek_sides() {
+        assert_eq!(
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"peek","side":"left"}"#).unwrap(),
+            AvatarRoute::Command(AvatarCommand::Peek {
+                side: PeekSide::Left
+            })
+        );
+        assert_eq!(
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"peek","side":"right"}"#).unwrap(),
+            AvatarRoute::Command(AvatarCommand::Peek {
+                side: PeekSide::Right
+            })
+        );
+    }
+
+    #[test]
+    fn parse_avatar_command_rejects_unknown_peek_side() {
+        assert_eq!(
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"peek","side":"up"}"#).unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_avatar_command_move_to_with_and_without_monitor() {
+        assert_eq!(
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"move_to","spot":"center"}"#)
+                .unwrap(),
+            AvatarRoute::Command(AvatarCommand::MoveTo {
+                spot: MoveSpot::Center,
+                monitor: None
+            })
+        );
+        assert_eq!(
+            parse_avatar_request(
+                "POST",
+                "/avatar/command",
+                r#"{"action":"move_to","spot":"bottom-right","monitor":1}"#
+            )
+            .unwrap(),
+            AvatarRoute::Command(AvatarCommand::MoveTo {
+                spot: MoveSpot::BottomRight,
+                monitor: Some(1)
+            })
+        );
+    }
+
+    #[test]
+    fn parse_avatar_command_rejects_unknown_spot() {
+        assert_eq!(
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"move_to","spot":"middle"}"#)
+                .unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_avatar_command_stand_down() {
+        assert_eq!(
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"stand_down"}"#).unwrap(),
+            AvatarRoute::Command(AvatarCommand::StandDown)
+        );
+    }
+
+    #[test]
+    fn parse_avatar_command_rejects_unknown_action() {
+        assert_eq!(
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"dance"}"#).unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_avatar_command_rejects_malformed_json() {
+        assert_eq!(
+            parse_avatar_request("POST", "/avatar/command", "not json").unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_avatar_command_rejects_missing_app() {
+        assert_eq!(
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"sit_on_window"}"#).unwrap_err(),
+            400
+        );
+    }
+
+    // ── RPC request payload ───────────────────────────────────────────────────
+
+    #[test]
+    fn avatar_route_maps_to_method_and_params() {
+        let (method, params) = AvatarRoute::State.into_rpc();
+        assert_eq!(method, "state");
+        assert!(params.is_none());
+
+        let (method, params) = AvatarRoute::PerchTargets.into_rpc();
+        assert_eq!(method, "perch_targets");
+        assert!(params.is_none());
+
+        let (method, params) = AvatarRoute::Command(AvatarCommand::Peek {
+            side: PeekSide::Right,
+        })
+        .into_rpc();
+        assert_eq!(method, "command");
+        let params = params.unwrap();
+        assert_eq!(params["action"], "peek");
+        assert_eq!(params["side"], "right");
+    }
+
+    #[test]
+    fn avatar_route_timeout_is_shorter_for_queries() {
+        assert_eq!(AvatarRoute::State.timeout(), AVATAR_QUERY_TIMEOUT);
+        assert_eq!(AvatarRoute::PerchTargets.timeout(), AVATAR_QUERY_TIMEOUT);
+        assert_eq!(
+            AvatarRoute::Command(AvatarCommand::StandDown).timeout(),
+            AVATAR_COMMAND_TIMEOUT
+        );
+        assert!(AVATAR_QUERY_TIMEOUT < AVATAR_COMMAND_TIMEOUT);
+    }
+
+    #[test]
+    fn move_to_params_omit_absent_monitor() {
+        let (_, params) = AvatarRoute::Command(AvatarCommand::MoveTo {
+            spot: MoveSpot::TopLeft,
+            monitor: None,
+        })
+        .into_rpc();
+        let params = params.unwrap();
+        assert_eq!(params["spot"], "top-left");
+        assert!(params.get("monitor").is_none());
+    }
+
+    // ── Pending map ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn next_rpc_id_is_unique() {
+        let a = next_rpc_id();
+        let b = next_rpc_id();
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn resolve_pending_delivers_result_to_waiter() {
+        let id = next_rpc_id();
+        let rx = register_pending(&id);
+        assert!(resolve_pending(&id, serde_json::json!({"ok": true})));
+        let got = rx.recv_timeout(std::time::Duration::from_secs(1)).unwrap();
+        assert_eq!(got["ok"], true);
+    }
+
+    #[test]
+    fn resolve_pending_unknown_id_returns_false() {
+        assert!(!resolve_pending("no-such-id", serde_json::Value::Null));
+    }
+
+    #[test]
+    fn resolve_pending_after_drop_returns_false() {
+        let id = next_rpc_id();
+        let _rx = register_pending(&id);
+        drop_pending(&id);
+        assert!(!resolve_pending(&id, serde_json::Value::Null));
+    }
+
+    #[test]
+    fn pending_receiver_times_out_when_unanswered() {
+        let id = next_rpc_id();
+        let rx = register_pending(&id);
+        assert!(rx
+            .recv_timeout(std::time::Duration::from_millis(20))
+            .is_err());
+        drop_pending(&id);
+    }
 }
