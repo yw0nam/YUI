@@ -123,7 +123,12 @@ export type PlacementRequest =
 
 export type PlacementResult =
   | { ok: true; kind: "sit" | "peek" }
-  | { ok: false; reason: "not_found" | "blocked" | "unsupported" };
+  | { ok: false; reason: "not_found" | "blocked" | "interrupted" | "unsupported" };
+
+export interface PlacementOptions {
+  /** Polled just before the envelope push — true abandons the placement uncommitted. */
+  shouldAbort?: () => boolean;
+}
 
 export interface WindowDropSource {
   /** Register the release listener. Idempotent. */
@@ -135,11 +140,11 @@ export interface WindowDropSource {
   /**
    * Put the character on a named target, the inverse of the drag flow: the target is
    * given instead of inferred, so this moves the pet window until the seat lands on it,
-   * then pushes and arms exactly what a real drop would. The proactive cue is
-   * suppressed — the backend already knows it asked for this. A seat point covered by
-   * a window in front of the target is `blocked`, and nothing moves.
+   * then pushes and arms exactly what a real drop would. No drag happened, so the
+   * drag-release cue does not fire. A seat point covered by a window in front of the
+   * target is `blocked`, and nothing moves.
    */
-  placeOn(request: PlacementRequest): Promise<PlacementResult>;
+  placeOn(request: PlacementRequest, opts?: PlacementOptions): Promise<PlacementResult>;
   /** The current perch candidates. */
   perchTargets(): Promise<PerchTargets>;
   /** Release any armed perch/peek and push the matching exit. */
@@ -420,12 +425,13 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     pos: { x: number; y: number },
     scale: number,
     charHpx: number,
+    peekConfig: PeekConfig,
     suppressCue: boolean,
   ): SettleOutcome {
     const sf = scale > 0 ? scale : 1;
     const edgeXpx = side === "left" ? target.x : target.x + target.width;
     const edgeLocalXpx = edgeXpx - pos.x / sf;
-    const targetLocalXpx = peekTargetPx(edgeLocalXpx, side, charHpx, getPeekConfig().inset_frac);
+    const targetLocalXpx = peekTargetPx(edgeLocalXpx, side, charHpx, peekConfig.inset_frac);
     if (!suppressCue) {
       const peekCue = getGestureCues().peek;
       bus.push({
@@ -498,7 +504,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         pushExit();
         return { kind: "none" };
       }
-      return commitPeek(sideTarget, side, pos, scale, probe.charHpx, false);
+      return commitPeek(sideTarget, side, pos, scale, probe.charHpx, peekConfig, false);
     }
     const target = windows[targetIdx];
     // Same covered predicate as the occlusion poll, applied at drop time: a window
@@ -532,7 +538,10 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     };
   }
 
-  async function placeOn(request: PlacementRequest): Promise<PlacementResult> {
+  async function placeOn(
+    request: PlacementRequest,
+    opts?: PlacementOptions,
+  ): Promise<PlacementResult> {
     const probe = renderer.getPerchProbe();
     if (!probe) return { ok: false, reason: "unsupported" };
     const win = getWindow();
@@ -572,13 +581,28 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       y: Math.round(pos.y + (seat.y - current.y) * sf),
     };
     await move(next.x, next.y);
-    log.debug("placement.moved", { kind: request.kind, x: next.x, y: next.y });
-    // Local coords are computed against the position the character now occupies.
-    const outcome =
-      request.kind === "sit"
-        ? commitSit(target, next, scale, probe.charHpx, true)
-        : commitPeek(target, request.side, next, scale, probe.charHpx, true);
-    return { ok: true, kind: outcome.kind as "sit" | "peek" };
+    // The window manager may clamp the move (menu bar, screen bounds), so the local
+    // coords have to be computed against where the window actually landed.
+    const applied = await win.outerPosition();
+    log.debug("placement.moved", {
+      kind: request.kind,
+      x: applied.x,
+      y: applied.y,
+      requestedX: next.x,
+      requestedY: next.y,
+    });
+    // Last gate before any side effect: a drag that started during the move wins, and
+    // abandoning here keeps the reported outcome honest — nothing was pushed or armed.
+    if (opts?.shouldAbort?.()) {
+      log.debug("placement.aborted", { kind: request.kind });
+      return { ok: false, reason: "interrupted" };
+    }
+    if (request.kind === "sit") {
+      commitSit(target, applied, scale, probe.charHpx, true);
+    } else {
+      commitPeek(target, request.side, applied, scale, probe.charHpx, getPeekConfig(), true);
+    }
+    return { ok: true, kind: request.kind };
   }
 
   async function perchTargets(): Promise<PerchTargets> {

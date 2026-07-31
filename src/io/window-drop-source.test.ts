@@ -1397,10 +1397,7 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     const pet = makePlaceWindow();
     const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })], pet));
 
-    const result = await source.placeOn(
-      { kind: "sit", app: "Notes" },
-      { shouldAbort: () => true },
-    );
+    const result = await source.placeOn({ kind: "sit", app: "Notes" }, { shouldAbort: () => true });
 
     expect(result).toEqual({ ok: false, reason: "interrupted" });
     // The move already happened, but no envelope and no arming followed it.

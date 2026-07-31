@@ -158,6 +158,7 @@ async function bootstrap(): Promise<void> {
     onDragEnd: () => {
       hitTestRef?.resume();
       dragHoldRef?.noteDragEnd();
+      avatarExecutorRef?.noteUserDragEnd();
       bus.push({
         source: "os_event_watcher",
         event_name: "user.drag_end",

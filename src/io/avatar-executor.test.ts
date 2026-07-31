@@ -171,7 +171,7 @@ describe("avatar-executor — sit_on_window", () => {
 
     const result = await h.call("command", { action: "sit_on_window", app: "Notes" });
 
-    expect(h.placeOn).toHaveBeenCalledWith({ kind: "sit", app: "Notes" });
+    expect(h.placeOn).toHaveBeenCalledWith({ kind: "sit", app: "Notes" }, expect.anything());
     expect(result).toEqual({ ok: true });
   });
 
@@ -213,7 +213,7 @@ describe("avatar-executor — peek", () => {
 
     const result = await h.call("command", { action: "peek", side: "right" });
 
-    expect(h.placeOn).toHaveBeenCalledWith({ kind: "peek", side: "right" });
+    expect(h.placeOn).toHaveBeenCalledWith({ kind: "peek", side: "right" }, expect.anything());
     expect(result).toEqual({ ok: true });
   });
 
@@ -367,7 +367,9 @@ describe("avatar-executor — concurrency and interruption", () => {
     h.executor.noteUserDrag();
     h.executor.noteUserDragEnd();
 
-    expect(await h.call("command", { action: "sit_on_window", app: "Notes" })).toEqual({ ok: true });
+    expect(await h.call("command", { action: "sit_on_window", app: "Notes" })).toEqual({
+      ok: true,
+    });
     expect(h.placeOn).toHaveBeenCalled();
   });
 

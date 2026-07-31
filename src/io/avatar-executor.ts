@@ -6,8 +6,9 @@
  * forwards the verb it was handed — perch gestures go to the perch source's
  * programmatic placement, which shares the drag flow's geometry and arming.
  *
- * One command runs at a time (a second is `busy`); a user drag wins and aborts the
- * running one as `interrupted`. Queries are never gated.
+ * One command runs at a time (a second is `busy`). A user drag wins outright: it
+ * aborts the running command and refuses new ones as `interrupted` until the drag
+ * ends, since the user is holding the avatar. Queries are never gated.
  *
  * All OS seams (Tauri window, monitors, placement) are injected so the module is
  * unit-testable without the Tauri runtime.
@@ -25,7 +26,12 @@ import type {
   AvatarSpot,
   AvatarState,
 } from "./avatar-rpc";
-import type { PerchTargets, PlacementRequest, PlacementResult } from "./window-drop-source";
+import type {
+  PerchTargets,
+  PlacementOptions,
+  PlacementRequest,
+  PlacementResult,
+} from "./window-drop-source";
 
 const log = createLogger("avatar-executor");
 
@@ -52,7 +58,7 @@ export interface AvatarExecutorDeps {
   respond(id: string, result: unknown): void;
   /** The perch candidate model + the placement/release flow. */
   perch: {
-    placeOn(request: PlacementRequest): Promise<PlacementResult>;
+    placeOn(request: PlacementRequest, opts?: PlacementOptions): Promise<PlacementResult>;
     perchTargets(): Promise<PerchTargets>;
     release(): void;
   };
@@ -67,8 +73,13 @@ export interface AvatarExecutor {
   start(): void;
   /** Unsubscribe. */
   stop(): void;
-  /** A user drag beats the agent: abort the running command as interrupted. */
+  /**
+   * A user drag beats the agent: abort the running command and refuse further ones
+   * until {@link AvatarExecutor.noteUserDragEnd} — the user owns the avatar meanwhile.
+   */
   noteUserDrag(): void;
+  /** The user let go; agent commands are accepted again. */
+  noteUserDragEnd(): void;
 }
 
 function fail(reason: AvatarFailure): AvatarCommandResult {
@@ -80,8 +91,11 @@ function parseCommand(params: unknown): AvatarCommand | null {
   if (params === null || typeof params !== "object") return null;
   const p = params as Record<string, unknown>;
   switch (p.action) {
-    case "sit_on_window":
-      return typeof p.app === "string" ? { action: "sit_on_window", app: p.app } : null;
+    case "sit_on_window": {
+      // An empty app name would match every window, so it is malformed, not a miss.
+      const app = typeof p.app === "string" ? p.app.trim() : "";
+      return app.length > 0 ? { action: "sit_on_window", app } : null;
+    }
     case "peek":
       return p.side === "left" || p.side === "right" ? { action: "peek", side: p.side } : null;
     case "move_to": {
@@ -151,11 +165,17 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
   let unsubscribe: (() => void) | undefined;
   let moving = false;
   let interrupted = false;
+  let dragging = false;
+
+  /** Whether the running command should give up: the user has taken over. */
+  function aborted(): boolean {
+    return interrupted || dragging;
+  }
 
   /** Hand a perch gesture to the placement flow and translate its verdict. */
   async function place(request: PlacementRequest): Promise<AvatarCommandResult> {
-    const result = await perch.placeOn(request);
-    if (interrupted) return fail("interrupted");
+    const result = await perch.placeOn(request, { shouldAbort: aborted });
+    if (aborted()) return fail("interrupted");
     return result.ok ? { ok: true } : fail(result.reason);
   }
 
@@ -171,12 +191,12 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
       if (monitor < 0 || monitor >= monitors.length) return fail("not_found");
       index = monitor;
     }
-    if (interrupted) return fail("interrupted");
+    if (aborted()) return fail("interrupted");
     // A perch pins the character to a window edge — leave it before relocating.
     perch.release();
     const origin = spotOrigin(monitors[index], size, spot);
     await win.setPositionPhysical(origin.x, origin.y);
-    return interrupted ? fail("interrupted") : { ok: true };
+    return aborted() ? fail("interrupted") : { ok: true };
   }
 
   async function runCommand(command: AvatarCommand): Promise<AvatarCommandResult> {
@@ -196,6 +216,9 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
   async function handleCommand(params: unknown): Promise<AvatarCommandResult> {
     const command = parseCommand(params);
     if (!command) return fail("unsupported");
+    // The user is holding the avatar — the agent does not get to move it out from
+    // under them, so refuse rather than queue.
+    if (dragging) return fail("interrupted");
     if (moving) return fail("busy");
     moving = true;
     interrupted = false;
@@ -269,7 +292,11 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
       unsubscribe = undefined;
     },
     noteUserDrag() {
+      dragging = true;
       if (moving) interrupted = true;
+    },
+    noteUserDragEnd() {
+      dragging = false;
     },
   };
 }

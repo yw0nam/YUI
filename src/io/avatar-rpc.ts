@@ -7,14 +7,18 @@
  * it is safe in browser / test environments without the runtime.
  */
 
-import type { Posture, ScreenRect } from "../contract";
+import type { Posture } from "../contract";
 import { createLogger } from "../logger";
 import { createInbox } from "./create-inbox";
 import { isTauri } from "./tauri-env";
+import type { PerchTargets, PerchTargetWindow } from "./window-drop-source";
 
 const log = createLogger("avatar-rpc");
 
-/** Named screen spot `move_to` targets. */
+/**
+ * Named screen spot `move_to` targets. The Rust `MoveSpot` enum is the source of
+ * truth: it rejects anything outside this set before the request reaches the webview.
+ */
 export type AvatarSpot = "center" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
 /** Movement verb carried by a `command` request — mirrors the Rust `AvatarCommand`. */
@@ -48,18 +52,11 @@ export interface AvatarState {
   moving: boolean;
 }
 
-/** One perch candidate: a foreign window the avatar can sit on or peek around. */
-export interface AvatarPerchTargetWindow {
-  app: string | null;
-  title: string | null;
-  rect: ScreenRect;
-}
+/** One perch candidate — the perch source's own model, served over the wire as-is. */
+export type AvatarPerchTargetWindow = PerchTargetWindow;
 
 /** `GET /avatar/perch-targets` answer. */
-export interface AvatarPerchTargets {
-  windows: AvatarPerchTargetWindow[];
-  edges: Array<"left" | "right">;
-}
+export type AvatarPerchTargets = PerchTargets;
 
 /** Why a command did not happen. */
 export type AvatarFailure = "not_found" | "blocked" | "interrupted" | "busy" | "unsupported";
