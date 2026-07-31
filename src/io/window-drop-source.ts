@@ -457,8 +457,8 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     return { kind: "peek", side, app: target.ownerName, window_title: target.name };
   }
 
-  async function settle(opts?: { suppressCue?: boolean }): Promise<SettleOutcome> {
-    const suppressCue = opts?.suppressCue === true;
+  /** The drag-release pass: infer the target from where the seat landed, then commit. */
+  async function settle(): Promise<SettleOutcome> {
     const probe = renderer.getPerchProbe();
     // No VRM / projection unavailable → nothing to perch; leave to idle.
     if (!probe) {
@@ -498,7 +498,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         pushExit();
         return { kind: "none" };
       }
-      return commitPeek(sideTarget, side, pos, scale, probe.charHpx, suppressCue);
+      return commitPeek(sideTarget, side, pos, scale, probe.charHpx, false);
     }
     const target = windows[targetIdx];
     // Same covered predicate as the occlusion poll, applied at drop time: a window
@@ -510,7 +510,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       return { kind: "none" };
     }
 
-    return commitSit(target, pos, scale, probe.charHpx, suppressCue);
+    return commitSit(target, pos, scale, probe.charHpx, false);
   }
 
   /** Case-insensitive app-name match: exact owner first, then a partial owner match. */
