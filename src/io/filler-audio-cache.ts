@@ -36,7 +36,8 @@ export function createFillerAudioCache(deps: FillerAudioCacheDeps): TtsSynth {
     if (hit) return hit.slice(0);
 
     const wav = await deps.synth(input, signal);
-    audio.set(input, wav.slice(0));
+    // The params may have changed while this was in flight — that audio no longer belongs here.
+    if (currentKey === key) audio.set(input, wav.slice(0));
     return wav;
   };
 }

@@ -80,7 +80,8 @@ vi.mock("./io/filler-loop", () => ({ createFillerLoop: mocks.createFillerLoop })
 vi.mock("./io/stt-vad", () => ({ createSttVad: mocks.createSttVad }));
 vi.mock("./io/tts-pipeline", () => ({ TTS_SKIP: mocks.ttsSkip }));
 vi.mock("./io/tts-synth", () => ({ createTtsSynth: mocks.createTtsSynth }));
-vi.mock("./io/irodori-synth-factory", () => ({
+vi.mock("./io/irodori-synth-factory", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./io/irodori-synth-factory")>()),
   createIrodoriSynthFactory: mocks.createIrodoriSynthFactory,
 }));
 vi.mock("./io/irodori-synth", () => ({ createIrodoriSynth: mocks.createIrodoriSynth }));

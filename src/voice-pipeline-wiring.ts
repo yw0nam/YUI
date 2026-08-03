@@ -7,7 +7,11 @@ import { createFillerLoop, type FillerLoop } from "./io/filler-loop";
 import { effectiveFillerPool } from "./io/filler-pool";
 import type { FillerSettings } from "./io/filler-settings";
 import { createIrodoriSynth, type TtsSynth } from "./io/irodori-synth";
-import { createIrodoriSynthFactory } from "./io/irodori-synth-factory";
+import {
+  createIrodoriSynthFactory,
+  type IrodoriSynthParams,
+  irodoriParamsKey,
+} from "./io/irodori-synth-factory";
 import { ensureRegistered, evictRegistration } from "./io/irodori-voices";
 import type { SpeakerOption } from "./io/speaker-selection";
 import { createSpeechPlayback, type SpeechPlayback } from "./io/speech-playback";
@@ -51,34 +55,36 @@ export interface VoicePipeline {
 }
 
 /**
- * Voice-pipeline core: TTS synth selection (irodori/openai-compatible) with a session-scoped
- * filler audio cache, speech playback,
- * TTFT filler loop, thinking-turn handlers, and the STT/VAD engine factory incl. barge-in.
+ * Voice-pipeline core: TTS synth selection (irodori/openai-compatible) with a session-scoped filler
+ * audio cache, speech playback, TTFT filler loop, thinking-turn handlers, and the STT/VAD engine
+ * factory incl. barge-in.
  * All config/settings reads are lazy (call-time) so hot-reload and slider edits take effect
  * without rewiring. The caller registers HMR teardown via the returned dispose().
  */
 export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
+  const irodoriParams = (): IrodoriSynthParams => {
+    const eps = deps.getEndpoints();
+    const active = deps.speakerSelection.getActive();
+    if (!eps.irodori_base_url || !active.id) {
+      throw new Error("irodori provider requires irodori_base_url + irodori_speaker");
+    }
+    return {
+      baseUrl: eps.irodori_base_url,
+      referenceId: active.id,
+      refUrl: active.ref_url,
+      numSteps: eps.irodori_num_steps,
+      cfgScaleText: eps.irodori_cfg_scale_text,
+      cfgScaleSpeaker: eps.irodori_cfg_scale_speaker,
+      seconds: eps.irodori_seconds,
+    };
+  };
+
   // irodori synth closure memoized per speaker/tuning keys + 422 self-heal. Not reconstructed per sentence.
   let irodoriFactory: TtsSynth | undefined;
   const irodoriSynth = async (input: string, signal?: AbortSignal): Promise<ArrayBuffer> => {
     const f = await selectFetch();
     irodoriFactory ??= createIrodoriSynthFactory({
-      getParams: () => {
-        const eps = deps.getEndpoints();
-        const active = deps.speakerSelection.getActive();
-        if (!eps.irodori_base_url || !active.id) {
-          throw new Error("irodori provider requires irodori_base_url + irodori_speaker");
-        }
-        return {
-          baseUrl: eps.irodori_base_url,
-          referenceId: active.id,
-          refUrl: active.ref_url,
-          numSteps: eps.irodori_num_steps,
-          cfgScaleText: eps.irodori_cfg_scale_text,
-          cfgScaleSpeaker: eps.irodori_cfg_scale_speaker,
-          seconds: eps.irodori_seconds,
-        };
-      },
+      getParams: irodoriParams,
       ensureRegistered,
       evictRegistration,
       buildSynth: (p, fetchImpl) =>
@@ -99,35 +105,10 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   const effectiveFiller = () =>
     effectiveFillerPool(deps.fillerSettings.get(), deps.getFillerConfig());
 
-  // The TTS params that change the rendered audio — filler audio cached under an older key is dropped.
-  const ttsParamsKey = (): string => {
-    const eps = deps.getEndpoints();
-    if (eps.tts_provider === "irodori") {
-      return [
-        "irodori",
-        eps.irodori_base_url,
-        deps.speakerSelection.getActive().id,
-        eps.irodori_num_steps,
-        eps.irodori_cfg_scale_text,
-        eps.irodori_cfg_scale_speaker,
-        eps.irodori_seconds,
-      ].join("::");
-    }
-    return ["openai", eps.tts_base_url, eps.tts_model, eps.tts_voice, eps.tts_speed].join("::");
-  };
-
-  const synth = createFillerAudioCache({
+  const cachedSynth = createFillerAudioCache({
     synth: async (input, signal) => {
-      // TTS inactive (toggle OFF or server unset) quietly skips — expressions/motions, bubble unchanged.
-      if (!deps.ttsSettings.get().enabled) return Promise.reject(TTS_SKIP);
       const eps = deps.getEndpoints();
-      if (eps.tts_provider === "irodori") {
-        if (!eps.irodori_base_url || !deps.speakerSelection.getActive().id) {
-          return Promise.reject(TTS_SKIP);
-        }
-        return irodoriSynth(input, signal);
-      }
-      if (!eps.tts_base_url) return Promise.reject(TTS_SKIP);
+      if (eps.tts_provider === "irodori") return irodoriSynth(input, signal);
       const f = await selectFetch();
       return createTtsSynth({
         config: eps,
@@ -138,7 +119,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
         getApiKey: deps.getTtsApiKey,
       })(input, signal);
     },
-    // The pipeline synthesizes trimmed sentences, so compare against trimmed pool entries.
+    // The pipeline synthesizes trimmed sentences; a cue-tagged or multi-sentence phrase simply misses.
     isFiller: (text) => {
       const pool = effectiveFiller();
       return (
@@ -146,8 +127,28 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
         pool.repeat.some((phrase) => phrase.trim() === text)
       );
     },
-    paramsKey: ttsParamsKey,
+    // The params that change the rendered audio — filler audio cached under an older key is dropped.
+    paramsKey: () => {
+      const eps = deps.getEndpoints();
+      if (eps.tts_provider === "irodori") return `irodori::${irodoriParamsKey(irodoriParams())}`;
+      return ["openai", eps.tts_base_url, eps.tts_model, eps.tts_voice, eps.tts_speed].join("::");
+    },
   });
+
+  // Skip guards stay outside the cache so a cached phrase can never outlive the reason to stay silent.
+  const synth = async (input: string, signal?: AbortSignal): Promise<ArrayBuffer> => {
+    // TTS inactive (toggle OFF or server unset) quietly skips — expressions/motions, bubble unchanged.
+    if (!deps.ttsSettings.get().enabled) return Promise.reject(TTS_SKIP);
+    const eps = deps.getEndpoints();
+    if (eps.tts_provider === "irodori") {
+      if (!eps.irodori_base_url || !deps.speakerSelection.getActive().id) {
+        return Promise.reject(TTS_SKIP);
+      }
+    } else if (!eps.tts_base_url) {
+      return Promise.reject(TTS_SKIP);
+    }
+    return cachedSynth(input, signal);
+  };
 
   // Filler loop speaks via speechPlayback (speak), playback completion (onPlaybackEnd) triggers
   // the loop's next iteration — mutual reference, break the cycle with a forward let.
