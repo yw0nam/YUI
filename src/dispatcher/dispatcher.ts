@@ -84,6 +84,7 @@ export const DROP_SEVERITY: Record<DropRecord["reason"], LogLevel> = {
   guardrail_drop: "info",
   parse_error: "warn",
   network_drop: "warn",
+  network_stall: "warn",
   http_4xx_drop: "error",
   superseded_by_user: "info",
   stale_pending: "info",

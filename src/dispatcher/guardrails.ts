@@ -31,6 +31,7 @@ export type DropReason =
   | "guardrail_drop"
   | "parse_error"
   | "network_drop"
+  | "network_stall"
   | "http_4xx_drop"
   | "superseded_by_user";
 

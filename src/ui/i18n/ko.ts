@@ -38,6 +38,7 @@ const ko: Record<string, string> = {
   "input.placeholder": "말 걸기…",
   "input.error_auth": "인증 실패 · API 키 확인",
   "input.error_network": "응답 없음 · 연결 확인",
+  "input.error_stall": "백엔드 응답 멈춤 · {seconds}초 후 시간 초과",
   "input.error_parse": "응답 처리 실패",
 
   // chain-break (404) recovery notice

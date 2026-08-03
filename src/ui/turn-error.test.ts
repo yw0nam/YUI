@@ -1,5 +1,5 @@
 /**
- * turn-error.test.ts — backend-call failure reason → inline input-error message (issue #274).
+ * turn-error.test.ts — backend-call failure reason → inline input-error message.
  *
  * Maps the dispatcher's classified drop_reason (user-initiated turns only) to the
  * short i18n string shown by showInputError. superseded_by_user is never a failure
@@ -7,6 +7,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { IDLE_TIMEOUT_MS } from "../dispatcher/backend-caller";
 import { setLocale, t } from "./i18n";
 import { routeTurnFailure, turnErrorMessage } from "./turn-error";
 
@@ -20,6 +21,20 @@ describe("turnErrorMessage", () => {
 
   it("maps network_drop to the network message", () => {
     expect(turnErrorMessage("network_drop")).toBe(t("input.error_network"));
+  });
+
+  it("maps network_stall to the stall message, distinct from the network one", () => {
+    const seconds = IDLE_TIMEOUT_MS / 1000;
+    expect(turnErrorMessage("network_stall")).toBe(t("input.error_stall", { seconds }));
+    expect(turnErrorMessage("network_stall")).not.toBe(turnErrorMessage("network_drop"));
+  });
+
+  it("renders the watchdog deadline from IDLE_TIMEOUT_MS in every locale (no stale hardcoded figure)", () => {
+    const seconds = String(IDLE_TIMEOUT_MS / 1000);
+    for (const locale of ["en", "ko", "ja"] as const) {
+      setLocale(locale);
+      expect(turnErrorMessage("network_stall")).toContain(seconds);
+    }
   });
 
   it("maps parse_error to the parse message", () => {

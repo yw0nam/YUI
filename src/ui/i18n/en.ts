@@ -38,6 +38,7 @@ const en: Record<string, string> = {
   "input.placeholder": "Say something…",
   "input.error_auth": "Auth failed · check API key",
   "input.error_network": "No response · check connection",
+  "input.error_stall": "Backend stopped responding · timed out after {seconds}s",
   "input.error_parse": "Response parse failed",
 
   // chain-break (404) recovery notice
