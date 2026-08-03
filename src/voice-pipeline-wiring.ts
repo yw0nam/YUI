@@ -12,7 +12,7 @@ import {
   type IrodoriSynthParams,
   irodoriParamsKey,
 } from "./io/irodori-synth-factory";
-import { ensureRegistered, evictRegistration } from "./io/irodori-voices";
+import { ensureRegistered, evictRegistration, voiceRevision } from "./io/irodori-voices";
 import type { SpeakerOption } from "./io/speaker-selection";
 import { createSpeechPlayback, type SpeechPlayback } from "./io/speech-playback";
 import type { SttVad } from "./io/stt-vad";
@@ -105,6 +105,18 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   const effectiveFiller = () =>
     effectiveFillerPool(deps.fillerSettings.get(), deps.getFillerConfig());
 
+  // The provider settings that change the rendered audio. The irodori voice revision is part of it
+  // because an import over an existing name replaces the clip without changing the speaker id.
+  const ttsParamsKey = (): string => {
+    const eps = deps.getEndpoints();
+    if (eps.tts_provider === "irodori") {
+      const params = irodoriParams();
+      const revision = voiceRevision(params.baseUrl, params.referenceId);
+      return `irodori::${irodoriParamsKey(params)}::${revision}`;
+    }
+    return ["openai", eps.tts_base_url, eps.tts_model, eps.tts_voice, eps.tts_speed].join("::");
+  };
+
   const cachedSynth = createFillerAudioCache({
     synth: async (input, signal) => {
       const eps = deps.getEndpoints();
@@ -127,11 +139,11 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
         pool.repeat.some((phrase) => phrase.trim() === text)
       );
     },
-    // The params that change the rendered audio — filler audio cached under an older key is dropped.
+    // Everything that changes the rendered audio or the set of cacheable phrases. Audio held under
+    // an older key is dropped, which is also what keeps the map to the current pool.
     paramsKey: () => {
-      const eps = deps.getEndpoints();
-      if (eps.tts_provider === "irodori") return `irodori::${irodoriParamsKey(irodoriParams())}`;
-      return ["openai", eps.tts_base_url, eps.tts_model, eps.tts_voice, eps.tts_speed].join("::");
+      const pool = effectiveFiller();
+      return [ttsParamsKey(), ...pool.first, ...pool.repeat].join("\n");
     },
   });
 
