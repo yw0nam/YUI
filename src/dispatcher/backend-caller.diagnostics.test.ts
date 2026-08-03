@@ -159,26 +159,26 @@ describe("backend_caller — idle-gap watchdog", () => {
     vi.useRealTimers();
   });
 
-  it("no first byte within IDLE_TIMEOUT_MS (TTFT stall) → aborts the request and drops network_drop", async () => {
+  it("no first byte within IDLE_TIMEOUT_MS (TTFT stall) → aborts the request and drops network_stall", async () => {
     hangAtIndex = 0;
     scriptedEvents = [];
     const p = caller.call(userEnv());
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     const res = await p;
     expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_drop");
+    expect(res.drop_reason).toBe("network_stall");
     const [, request] = streamChatSpy.mock.calls[0];
     expect((request.signal as AbortSignal).aborted).toBe(true);
   });
 
-  it("stall after ≥1 delta (mid-stream stall) → aborts, drops network_drop, tears down via onSpeechAbort", async () => {
+  it("stall after ≥1 delta (mid-stream stall) → aborts, drops network_stall, tears down via onSpeechAbort", async () => {
     scriptedEvents = [deltaEvent("partial")];
     hangAtIndex = 1;
     const p = caller.call(userEnv());
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     const res = await p;
     expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_drop");
+    expect(res.drop_reason).toBe("network_stall");
     expect(speechAbortSink).toHaveBeenCalledTimes(1);
     expect(speechEndSink).not.toHaveBeenCalled();
   });
@@ -225,14 +225,14 @@ describe("backend_caller — idle-gap watchdog", () => {
     expect(res.drop_reason).toBeUndefined();
   });
 
-  it("logs logger.warn('network_drop', { stage: 'idle_timeout', ... }) on expiry", async () => {
+  it("logs logger.warn('network_stall', { stage: 'idle_timeout', ... }) on expiry", async () => {
     hangAtIndex = 0;
     scriptedEvents = [];
     const p = caller.call(userEnv());
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     await p;
     expect(logger.warn).toHaveBeenCalledWith(
-      "network_drop",
+      "network_stall",
       expect.objectContaining({ stage: "idle_timeout" }),
     );
   });

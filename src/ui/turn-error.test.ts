@@ -22,6 +22,11 @@ describe("turnErrorMessage", () => {
     expect(turnErrorMessage("network_drop")).toBe(t("input.error_network"));
   });
 
+  it("maps network_stall to the stall message, distinct from the network one", () => {
+    expect(turnErrorMessage("network_stall")).toBe(t("input.error_stalled"));
+    expect(turnErrorMessage("network_stall")).not.toBe(turnErrorMessage("network_drop"));
+  });
+
   it("maps parse_error to the parse message", () => {
     expect(turnErrorMessage("parse_error")).toBe(t("input.error_parse"));
   });

@@ -1172,6 +1172,7 @@ describe("dispatcher — structured logging: DROP_SEVERITY table", () => {
     expect(DROP_SEVERITY.guardrail_drop).toBe("info");
     expect(DROP_SEVERITY.parse_error).toBe("warn");
     expect(DROP_SEVERITY.network_drop).toBe("warn");
+    expect(DROP_SEVERITY.network_stall).toBe("warn");
     expect(DROP_SEVERITY.http_4xx_drop).toBe("error");
     expect(DROP_SEVERITY.superseded_by_user).toBe("info");
     expect(DROP_SEVERITY.stale_pending).toBe("info");
