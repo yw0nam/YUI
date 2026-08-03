@@ -12,13 +12,13 @@ function detach(buffer: ArrayBuffer): void {
   structuredClone(buffer, { transfer: [buffer] });
 }
 
-function setup(options: { isFiller?: (text: string) => boolean } = {}) {
+function setup() {
   let byte = 1;
   const synth = vi.fn(async () => wav(byte++));
   let paramsKey = "params-a";
   const cached = createFillerAudioCache({
     synth,
-    isFiller: options.isFiller ?? ((text) => text === "음..."),
+    isFiller: (text) => text === "음...",
     paramsKey: () => paramsKey,
   });
   return {
