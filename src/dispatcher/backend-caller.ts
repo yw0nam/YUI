@@ -21,7 +21,7 @@
  *     emotion/motion audio-timed (express→onCue), otherwise at completed: renderer.applyDirective(envelope).
  *     speech_text→onSpeech + tool_status→onToolStatus (flowed to TTS/UI in main.ts).
  *
- * Silent drop classification: parse_error(WARN) / network_drop(WARN, includes idle timeout).
+ * Silent drop classification: parse_error(WARN) / network_drop(WARN) / network_stall(WARN, idle timeout).
  */
 
 import type {
@@ -428,8 +428,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         if (idleTimedOut) {
           // No event (incl. first byte) within IDLE_TIMEOUT_MS of the previous one — stalled.
           if (streamedAny) deps.onSpeechAbort?.();
-          log.warn("network_drop", { stage: "idle_timeout", idle_ms: IDLE_TIMEOUT_MS });
-          return { ok: false, drop_reason: "network_drop" };
+          log.warn("network_stall", { stage: "idle_timeout", idle_ms: IDLE_TIMEOUT_MS });
+          return { ok: false, drop_reason: "network_stall" };
         }
 
         if (externalSignal?.aborted) {

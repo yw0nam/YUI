@@ -1,7 +1,7 @@
 /**
  * Backend-call failure reason → inline input-error message (issue #274).
  *
- * Delegates to the i18n dictionary. Only the three reasons a user-initiated turn can
+ * Delegates to the i18n dictionary. Only the reasons a user-initiated turn can
  * actually fail with (see dispatcher.ts's onUserTurnFailed) map to a message;
  * anything else renders nothing rather than inventing text.
  */
@@ -16,6 +16,8 @@ export function turnErrorMessage(reason: DropReason): string | undefined {
       return t("input.error_auth");
     case "network_drop":
       return t("input.error_network");
+    case "network_stall":
+      return t("input.error_stalled");
     case "parse_error":
       return t("input.error_parse");
     default:
