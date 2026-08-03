@@ -1,11 +1,12 @@
 /**
- * Backend-call failure reason → inline input-error message (issue #274).
+ * Backend-call failure reason → inline input-error message.
  *
  * Delegates to the i18n dictionary. Only the reasons a user-initiated turn can
  * actually fail with (see dispatcher.ts's onUserTurnFailed) map to a message;
  * anything else renders nothing rather than inventing text.
  */
 
+import { IDLE_TIMEOUT_MS } from "../dispatcher/backend-caller";
 import type { UserTurnSource } from "../dispatcher/dispatcher";
 import type { DropReason } from "../dispatcher/guardrails";
 import { t } from "./i18n";
@@ -17,7 +18,8 @@ export function turnErrorMessage(reason: DropReason): string | undefined {
     case "network_drop":
       return t("input.error_network");
     case "network_stall":
-      return t("input.error_stalled");
+      // The deadline comes from the watchdog constant so the text can't drift from it.
+      return t("input.error_stall", { seconds: IDLE_TIMEOUT_MS / 1000 });
     case "parse_error":
       return t("input.error_parse");
     default:

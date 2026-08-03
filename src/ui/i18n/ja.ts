@@ -38,7 +38,7 @@ const ja: Record<string, string> = {
   "input.placeholder": "話しかけてみて…",
   "input.error_auth": "認証失敗 · APIキー確認",
   "input.error_network": "応答なし · 接続確認",
-  "input.error_stalled": "バックエンド応答停止 · 45秒でタイムアウト",
+  "input.error_stall": "バックエンド応答停止 · {seconds}秒でタイムアウト",
   "input.error_parse": "応答処理に失敗",
 
   // chain-break (404) recovery notice
