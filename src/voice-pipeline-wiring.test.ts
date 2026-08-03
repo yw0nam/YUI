@@ -267,7 +267,10 @@ describe("wireVoicePipeline", () => {
     const state = setup();
     const synth = playbackOptions().pipeline!.synth!;
 
+    // A filler phrase cached while TTS was on must still skip once TTS is switched off.
+    await synth("first");
     state.setTtsEnabled(false);
+    await expect(synth("first")).rejects.toBe(mocks.ttsSkip);
     await expect(synth("off")).rejects.toBe(mocks.ttsSkip);
 
     state.setTtsEnabled(true);
@@ -337,6 +340,30 @@ describe("wireVoicePipeline", () => {
     state.setEndpoints(endpoints({ tts_voice: "another-voice" }));
     await synth("first");
     expect(mocks.openaiSynth).toHaveBeenCalledTimes(5);
+  });
+
+  it("invalidates cached filler audio when the irodori speaker or tuning changes", async () => {
+    const state = setup();
+    const irodori = (numSteps: number) =>
+      endpoints({
+        tts_provider: "irodori",
+        irodori_base_url: "http://irodori.test",
+        irodori_num_steps: numSteps,
+      });
+    state.setEndpoints(irodori(24));
+    const synth = playbackOptions().pipeline!.synth!;
+
+    await synth("first");
+    await synth("first");
+    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(1);
+
+    state.setEndpoints(irodori(32));
+    await synth("first");
+    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(2);
+
+    state.setActiveSpeaker({ id: "speaker-b", ref_url: "/speaker-b.wav" });
+    await synth("first");
+    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(3);
   });
 
   it("reads pipeline, sink, filler, and VAD settings at call time", async () => {

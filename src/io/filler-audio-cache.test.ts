@@ -70,6 +70,38 @@ describe("createFillerAudioCache", () => {
     expect(synth).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps audio that resolved under superseded params out of the cache", async () => {
+    const releases: Array<(buffer: ArrayBuffer) => void> = [];
+    const synth = vi.fn(() => new Promise<ArrayBuffer>((resolve) => releases.push(resolve)));
+    let paramsKey = "params-a";
+    const cached = createFillerAudioCache({
+      synth,
+      isFiller: () => true,
+      paramsKey: () => paramsKey,
+    });
+
+    const stale = cached("음...");
+    paramsKey = "params-b";
+    const fresh = cached("음...");
+    releases[1]!(wav(2));
+    await fresh;
+    releases[0]!(wav(1));
+    await stale;
+
+    expect(new Uint8Array(await cached("음..."))).toEqual(new Uint8Array(wav(2)));
+    expect(synth).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a phrase whose synth failed", async () => {
+    const { synth, cached } = setup();
+    synth.mockRejectedValueOnce(new Error("synth down"));
+
+    await expect(cached("음...")).rejects.toThrow("synth down");
+    await cached("음...");
+
+    expect(synth).toHaveBeenCalledTimes(2);
+  });
+
   it("hands out copies so playback cannot detach the cached audio", async () => {
     const { synth, cached } = setup();
 
