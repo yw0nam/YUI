@@ -321,6 +321,24 @@ describe("wireVoicePipeline", () => {
     expect(mocks.irodoriFactorySynth).toHaveBeenCalledWith("hello", undefined);
   });
 
+  it("caches filler-pool audio and re-synthesizes it after a TTS settings change", async () => {
+    const state = setup();
+    const synth = playbackOptions().pipeline!.synth!;
+
+    await synth("first");
+    await synth("first");
+    await synth("repeat");
+    expect(mocks.openaiSynth).toHaveBeenCalledTimes(2);
+
+    await synth("a response sentence");
+    await synth("a response sentence");
+    expect(mocks.openaiSynth).toHaveBeenCalledTimes(4);
+
+    state.setEndpoints(endpoints({ tts_voice: "another-voice" }));
+    await synth("first");
+    expect(mocks.openaiSynth).toHaveBeenCalledTimes(5);
+  });
+
   it("reads pipeline, sink, filler, and VAD settings at call time", async () => {
     const state = setup();
     const pipeline = playbackOptions().pipeline!;
