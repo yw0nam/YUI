@@ -21,9 +21,19 @@ interface EnsureRegisteredOptions {
 // Cache in-flight/settled promises so concurrent/repeat calls don't register twice. On failure, delete the entry to allow retry.
 const inflight = new Map<string, Promise<void>>();
 
+// Times the clip behind a voice id has been replaced. An import over an existing name keeps the id,
+// so this is the only signal that audio rendered for that id earlier is now stale.
+const revisions = new Map<string, number>();
+
+/** How many times the reference clip behind this voice id has been replaced this session. */
+export function voiceRevision(baseUrl: string, id: string): number {
+  return revisions.get(`${baseUrl}::${id}`) ?? 0;
+}
+
 /** test-only: prevents cache leakage between cases. */
 export function __resetIrodoriVoiceCache(): void {
   inflight.clear();
+  revisions.clear();
 }
 
 /**
@@ -128,6 +138,8 @@ export async function updateVoice(opts: UpdateVoiceOptions): Promise<void> {
   if (!putRes.ok) {
     throw new Error(`irodori voice update failed (HTTP ${putRes.status}) ${opts.id}`);
   }
+  const key = `${opts.baseUrl}::${opts.id}`;
+  revisions.set(key, (revisions.get(key) ?? 0) + 1);
   log.info("voice_updated", { id: opts.id });
 }
 

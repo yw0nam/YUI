@@ -70,6 +70,7 @@ const mocks = vi.hoisted(() => {
     selectFetch: vi.fn().mockResolvedValue(undefined),
     ensureRegistered: vi.fn().mockResolvedValue(undefined),
     evictRegistration: vi.fn(),
+    voiceRevision: vi.fn(() => 0),
   };
 });
 
@@ -80,13 +81,15 @@ vi.mock("./io/filler-loop", () => ({ createFillerLoop: mocks.createFillerLoop })
 vi.mock("./io/stt-vad", () => ({ createSttVad: mocks.createSttVad }));
 vi.mock("./io/tts-pipeline", () => ({ TTS_SKIP: mocks.ttsSkip }));
 vi.mock("./io/tts-synth", () => ({ createTtsSynth: mocks.createTtsSynth }));
-vi.mock("./io/irodori-synth-factory", () => ({
+vi.mock("./io/irodori-synth-factory", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./io/irodori-synth-factory")>()),
   createIrodoriSynthFactory: mocks.createIrodoriSynthFactory,
 }));
 vi.mock("./io/irodori-synth", () => ({ createIrodoriSynth: mocks.createIrodoriSynth }));
 vi.mock("./io/irodori-voices", () => ({
   ensureRegistered: mocks.ensureRegistered,
   evictRegistration: mocks.evictRegistration,
+  voiceRevision: mocks.voiceRevision,
 }));
 vi.mock("./io/audio-player", () => ({ createWebAudioSink: mocks.createWebAudioSink }));
 vi.mock("./io/chat-client", () => ({ selectFetch: mocks.selectFetch }));
@@ -206,6 +209,7 @@ describe("wireVoicePipeline", () => {
     vi.clearAllMocks();
     for (const key of Object.keys(mocks.captured)) delete mocks.captured[key];
     mocks.speechPlayback.isSpeaking.mockReturnValue(false);
+    mocks.voiceRevision.mockReturnValue(0);
   });
 
   it("keeps the latest thinking turn active when an earlier turn ends", () => {
@@ -267,7 +271,10 @@ describe("wireVoicePipeline", () => {
     const state = setup();
     const synth = playbackOptions().pipeline!.synth!;
 
+    // A filler phrase cached while TTS was on must still skip once TTS is switched off.
+    await synth("first");
     state.setTtsEnabled(false);
+    await expect(synth("first")).rejects.toBe(mocks.ttsSkip);
     await expect(synth("off")).rejects.toBe(mocks.ttsSkip);
 
     state.setTtsEnabled(true);
@@ -319,6 +326,80 @@ describe("wireVoicePipeline", () => {
       seconds: undefined,
     });
     expect(mocks.irodoriFactorySynth).toHaveBeenCalledWith("hello", undefined);
+  });
+
+  it("caches filler-pool audio and re-synthesizes it after a TTS settings change", async () => {
+    const state = setup();
+    const synth = playbackOptions().pipeline!.synth!;
+
+    await synth("first");
+    await synth("first");
+    await synth("repeat");
+    expect(mocks.openaiSynth).toHaveBeenCalledTimes(2);
+
+    await synth("a response sentence");
+    await synth("a response sentence");
+    expect(mocks.openaiSynth).toHaveBeenCalledTimes(4);
+
+    state.setEndpoints(endpoints({ tts_voice: "another-voice" }));
+    await synth("first");
+    expect(mocks.openaiSynth).toHaveBeenCalledTimes(5);
+  });
+
+  it("invalidates cached filler audio when the irodori speaker or tuning changes", async () => {
+    const state = setup();
+    const irodori = (numSteps: number) =>
+      endpoints({
+        tts_provider: "irodori",
+        irodori_base_url: "http://irodori.test",
+        irodori_num_steps: numSteps,
+      });
+    state.setEndpoints(irodori(24));
+    const synth = playbackOptions().pipeline!.synth!;
+
+    await synth("first");
+    await synth("first");
+    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(1);
+
+    state.setEndpoints(irodori(32));
+    await synth("first");
+    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(2);
+
+    state.setActiveSpeaker({ id: "speaker-b", ref_url: "/speaker-b.wav" });
+    await synth("first");
+    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(3);
+  });
+
+  it("re-synthesizes filler after the clip behind the active voice is replaced", async () => {
+    const state = setup();
+    state.setEndpoints(
+      endpoints({ tts_provider: "irodori", irodori_base_url: "http://irodori.test" }),
+    );
+    const synth = playbackOptions().pipeline!.synth!;
+
+    await synth("first");
+    await synth("first");
+    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(1);
+
+    // Importing a clip over an existing name replaces the voice while its id stays the same.
+    mocks.voiceRevision.mockReturnValue(1);
+    await synth("first");
+    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(2);
+  });
+
+  it("drops cached filler audio when the filler pool is edited", async () => {
+    const state = setup();
+    const synth = playbackOptions().pipeline!.synth!;
+
+    await synth("first");
+    state.setFillerConfig({
+      gap_ms: 1_000,
+      gap_jitter_ms: 100,
+      pools: { ja: { first: ["first"], repeat: ["another"] } },
+    });
+    await synth("first");
+
+    expect(mocks.openaiSynth).toHaveBeenCalledTimes(2);
   });
 
   it("reads pipeline, sink, filler, and VAD settings at call time", async () => {

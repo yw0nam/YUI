@@ -17,6 +17,7 @@ import {
   evictRegistration,
   listVoices,
   updateVoice,
+  voiceRevision,
 } from "./irodori-voices";
 
 type FetchFn = (input: unknown, init?: RequestInit) => Promise<Response>;
@@ -576,6 +577,33 @@ describe("updateVoice", () => {
 
     const refCall = fetchMock.mock.calls.find((c) => String(c[0]) === expectedRef);
     expect(refCall).toBeDefined();
+  });
+
+  it("bumps the voice revision so callers can tell the clip behind the id changed", async () => {
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/references/x.mp3") return blobResponse(audio);
+      if (url === "http://localhost:8091/voices/x" && init?.method === "PUT") {
+        return updatedResponse("x");
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const update = () =>
+      updateVoice({
+        baseUrl: BASE,
+        id: "x",
+        refUrl: "/references/x.mp3",
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+
+    expect(voiceRevision(BASE, "x")).toBe(0);
+    await update();
+    expect(voiceRevision(BASE, "x")).toBe(1);
+    await update();
+    expect(voiceRevision(BASE, "x")).toBe(2);
+    // Scoped per baseUrl::id — an unrelated voice is untouched.
+    expect(voiceRevision(BASE, "y")).toBe(0);
   });
 
   it("throws a clear message when PUT /voices/{voice_id} is non-2xx", async () => {

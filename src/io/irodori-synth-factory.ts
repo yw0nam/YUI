@@ -33,7 +33,8 @@ export interface IrodoriSynthFactoryDeps {
   fetch: typeof fetch;
 }
 
-function paramsKey(p: IrodoriSynthParams): string {
+/** The params that change the rendered audio — memo identity here, cache identity for callers. */
+export function irodoriParamsKey(p: IrodoriSynthParams): string {
   return [p.baseUrl, p.referenceId, p.numSteps, p.cfgScaleText, p.cfgScaleSpeaker, p.seconds].join(
     "::",
   );
@@ -50,7 +51,7 @@ export function createIrodoriSynthFactory(deps: IrodoriSynthFactoryDeps): TtsSyn
   let cachedSynth: TtsSynth | undefined;
 
   const synthFor = (params: IrodoriSynthParams): TtsSynth => {
-    const key = paramsKey(params);
+    const key = irodoriParamsKey(params);
     if (key !== cachedKey || !cachedSynth) {
       cachedSynth = deps.buildSynth(params, deps.fetch);
       cachedKey = key;
