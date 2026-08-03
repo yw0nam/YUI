@@ -70,6 +70,7 @@ const mocks = vi.hoisted(() => {
     selectFetch: vi.fn().mockResolvedValue(undefined),
     ensureRegistered: vi.fn().mockResolvedValue(undefined),
     evictRegistration: vi.fn(),
+    voiceRevision: vi.fn(() => 0),
   };
 });
 
@@ -88,6 +89,7 @@ vi.mock("./io/irodori-synth", () => ({ createIrodoriSynth: mocks.createIrodoriSy
 vi.mock("./io/irodori-voices", () => ({
   ensureRegistered: mocks.ensureRegistered,
   evictRegistration: mocks.evictRegistration,
+  voiceRevision: mocks.voiceRevision,
 }));
 vi.mock("./io/audio-player", () => ({ createWebAudioSink: mocks.createWebAudioSink }));
 vi.mock("./io/chat-client", () => ({ selectFetch: mocks.selectFetch }));
@@ -207,6 +209,7 @@ describe("wireVoicePipeline", () => {
     vi.clearAllMocks();
     for (const key of Object.keys(mocks.captured)) delete mocks.captured[key];
     mocks.speechPlayback.isSpeaking.mockReturnValue(false);
+    mocks.voiceRevision.mockReturnValue(0);
   });
 
   it("keeps the latest thinking turn active when an earlier turn ends", () => {
@@ -365,6 +368,38 @@ describe("wireVoicePipeline", () => {
     state.setActiveSpeaker({ id: "speaker-b", ref_url: "/speaker-b.wav" });
     await synth("first");
     expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(3);
+  });
+
+  it("re-synthesizes filler after the clip behind the active voice is replaced", async () => {
+    const state = setup();
+    state.setEndpoints(
+      endpoints({ tts_provider: "irodori", irodori_base_url: "http://irodori.test" }),
+    );
+    const synth = playbackOptions().pipeline!.synth!;
+
+    await synth("first");
+    await synth("first");
+    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(1);
+
+    // Importing a clip over an existing name replaces the voice while its id stays the same.
+    mocks.voiceRevision.mockReturnValue(1);
+    await synth("first");
+    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(2);
+  });
+
+  it("drops cached filler audio when the filler pool is edited", async () => {
+    const state = setup();
+    const synth = playbackOptions().pipeline!.synth!;
+
+    await synth("first");
+    state.setFillerConfig({
+      gap_ms: 1_000,
+      gap_jitter_ms: 100,
+      pools: { ja: { first: ["first"], repeat: ["another"] } },
+    });
+    await synth("first");
+
+    expect(mocks.openaiSynth).toHaveBeenCalledTimes(2);
   });
 
   it("reads pipeline, sink, filler, and VAD settings at call time", async () => {
