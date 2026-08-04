@@ -955,6 +955,22 @@ describe("streamChat — reasoning keepalive", () => {
 
     expect(events).toContainEqual({ type: "keepalive" });
   });
+
+  it("any unhandled event proves the wire is alive — backend heartbeats during long work (e.g. context compaction) yield keepalives", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        { type: "response.in_progress", response: { id: "resp_1", status: "in_progress" } },
+        { type: "hermes.heartbeat" },
+        textDelta("hi"),
+        textDone("hi"),
+        completed("hi"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events.filter((e) => e.type === "keepalive").length).toBe(2);
+  });
 });
 
 describe("selectChatBaseUrl", () => {
