@@ -43,6 +43,8 @@
  *    happens HERE (chat-client only): emotion_id→emotion{id}, motion_id→motion{id},
  *    emotion_text→emotion_text. Silence is an empty speech_text; no client-side speak gate.
  *  - error → error event.
+ *  - response.failed / response.incomplete → error event (terminal, not liveness).
+ *  - any other event → keepalive (wire liveness only; resets the caller's idle watchdog).
  *
  * ⚠ function_call items are ABSENT from response.completed's final output[] →
  *   generate_express/tool state must be captured mid-stream and remembered until completed.
@@ -81,7 +83,7 @@ export type ChatStreamEvent =
   | { type: "usage"; usage: Usage }
   | { type: "completed"; envelope: ControlEnvelope; responseId: string }
   | { type: "error"; message: string; status?: number }
-  /** wire activity during reasoning — resets the caller's idle watchdog without ending "thinking". */
+  /** any wire activity we don't otherwise consume — resets the caller's idle watchdog without ending "thinking". */
   | { type: "keepalive" };
 
 /**
@@ -403,9 +405,18 @@ export async function* streamChat(
           break;
         }
 
+        case "response.failed":
+        case "response.incomplete": {
+          // Terminal without completed — an error, not liveness: a dead turn must not
+          // reset the caller's idle deadline.
+          yield { type: "error", message: event.response?.error?.message ?? event.type };
+          break;
+        }
+
         default:
-          // reasoning events carry no speech/tool payload but prove the wire is alive.
-          if (event.type.startsWith("response.reasoning")) yield { type: "keepalive" };
+          // Unhandled events (reasoning deltas, backend heartbeats during long work such as
+          // context compaction) carry no payload we consume but prove the wire is alive.
+          yield { type: "keepalive" };
           break;
       }
     }

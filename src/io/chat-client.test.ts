@@ -925,7 +925,7 @@ describe("streamChat — usage event", () => {
   });
 });
 
-describe("streamChat — reasoning keepalive", () => {
+describe("streamChat — keepalive", () => {
   it("emits keepalive for response.reasoning_summary_text.delta and response.reasoning_text.delta, before the first speech_delta", async () => {
     createMock.mockResolvedValue(
       streamOf([
@@ -954,6 +954,54 @@ describe("streamChat — reasoning keepalive", () => {
     const events = await collect(streamChat(CONFIG, req()));
 
     expect(events).toContainEqual({ type: "keepalive" });
+  });
+
+  it("any unhandled event proves the wire is alive — backend heartbeats during long work (e.g. context compaction) yield keepalives", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        { type: "response.in_progress", response: { id: "resp_1", status: "in_progress" } },
+        { type: "some.unknown.event" },
+        textDelta("hi"),
+        textDone("hi"),
+        completed("hi"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events.filter((e) => e.type === "keepalive").length).toBe(2);
+  });
+
+  it("terminal response.failed/response.incomplete yield error, never keepalive — a dead turn must not reset the idle deadline", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        {
+          type: "response.failed",
+          response: {
+            id: "resp_1",
+            status: "failed",
+            error: { code: "server_error", message: "boom" },
+          },
+        },
+        {
+          type: "response.incomplete",
+          response: {
+            id: "resp_1",
+            status: "incomplete",
+            incomplete_details: { reason: "max_output_tokens" },
+          },
+        },
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events.some((e) => e.type === "keepalive")).toBe(false);
+    const errors = events.filter((e) => e.type === "error");
+    expect(errors).toEqual([
+      { type: "error", message: "boom" },
+      { type: "error", message: "response.incomplete" },
+    ]);
   });
 });
 
