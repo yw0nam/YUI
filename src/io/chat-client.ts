@@ -404,8 +404,9 @@ export async function* streamChat(
         }
 
         default:
-          // reasoning events carry no speech/tool payload but prove the wire is alive.
-          if (event.type.startsWith("response.reasoning")) yield { type: "keepalive" };
+          // Unhandled events (reasoning deltas, backend heartbeats during long work such as
+          // context compaction) carry no payload but prove the wire is alive.
+          yield { type: "keepalive" };
           break;
       }
     }
