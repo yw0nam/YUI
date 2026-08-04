@@ -977,11 +977,19 @@ describe("streamChat — keepalive", () => {
       streamOf([
         {
           type: "response.failed",
-          response: { id: "resp_1", status: "failed", error: { code: "server_error", message: "boom" } },
+          response: {
+            id: "resp_1",
+            status: "failed",
+            error: { code: "server_error", message: "boom" },
+          },
         },
         {
           type: "response.incomplete",
-          response: { id: "resp_1", status: "incomplete", incomplete_details: { reason: "max_output_tokens" } },
+          response: {
+            id: "resp_1",
+            status: "incomplete",
+            incomplete_details: { reason: "max_output_tokens" },
+          },
         },
       ]),
     );
