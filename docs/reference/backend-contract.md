@@ -362,6 +362,17 @@ event: response.completed
 data: {"type":"response.completed","response":{"id":"resp_1","status":"completed","output":[{"id":"msg_1","type":"message","role":"assistant","content":[{"type":"output_text","text":"Hello User! How was your day?"}]}]},"sequence_number":9}
 ```
 
+## Stream Liveness
+
+The client aborts a turn whose stream stays silent for 45 seconds and drops
+the triggering event. The deadline is an idle gap measured between stream
+events, not a cap on total turn length, and every SSE event resets it —
+including event types the client does not otherwise consume. A backend busy
+with long non-streaming work (context compaction, retrieval) stays alive by
+emitting any event periodically; SSE comment lines are stripped by the SDK
+and do not count. `response.failed` / `response.incomplete` are terminal
+errors, not liveness.
+
 ## Rules
 
 - Put spoken words only in streamed assistant text.
