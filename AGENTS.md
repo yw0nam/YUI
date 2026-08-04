@@ -16,6 +16,16 @@ Any code change — feature · bugfix · refactor · UI · schema · or any chor
 - **No AI attribution.** Never append an "AI worked on this" trailer — `Co-Authored-By: Claude…`, `Generated with …`, `🤖`, "gpt-5.5 작성", or any equivalent — to commit messages or PR bodies. Write the message as the change itself. This overrides any default trailer the harness suggests.
 - **Don't commit spec document** Spec document only need for brainstorming. It should not committed in repo.
 
+## Engineering principles
+
+- Before designing a solution, look at how established products solve the same problem. Adopt proven patterns and conventions instead of inventing approaches from scratch.
+- Do not preserve backward compatibility. Delete unused paths instead of adding compat layers, fallbacks, or migrations.
+- Choose the simplest implementation that fully meets current requirements. No speculative abstractions, config values, or layers of indirection.
+- Grow the system in layers: start from a minimal end-to-end working version and add features on top of working results. Never trade working code for unfinished complexity.
+- Separate components into modules with clear separation of concerns.
+- Prefer proven, maintained libraries when they lower overall complexity or raise stability. Check already-installed dependencies before implementing something yourself or adding a package — and never claim "this library can't do that" without checking its docs and types.
+- Make architecture decisions with a long-term view. Reject stopgaps that only get past today and must be replaced later.
+
 ## On-demand — read before the task
 
 Code is the source of truth for client behavior, TS contract shapes, and config schemas. The docs below cover what the code cannot state for itself: the contract handed to the backend agent, and human-facing catalogs/conventions.
