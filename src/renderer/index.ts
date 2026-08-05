@@ -41,7 +41,7 @@ import {
   type OrbitAngles,
   orbitPosition,
 } from "./camera-fit";
-import { type CameraGaze, createCameraGaze } from "./camera-gaze";
+import { type CursorGaze, createCursorGaze } from "./cursor-gaze";
 import { createCycleDwell } from "./cycle-dwell";
 import { createEmotionCrossfade, type EmotionCrossfade } from "./emotion-crossfade";
 import { isActive, shouldRenderFrame } from "./frame-gate";
@@ -105,7 +105,7 @@ interface RendererOptions {
   emotionRegistry?: EmotionRegistry;
   /** Initial fit-to-bounds framing; live path is setFraming. Omitted keys keep defaults. */
   framing?: { margin?: number; fov?: number };
-  /** Initial camera-gaze tracking thresholds; live path is setGaze. Omitted keys keep defaults. */
+  /** Initial cursor-gaze tracking thresholds; live path is setGaze. Omitted keys keep defaults. */
   gaze?: Partial<GazeConfig>;
 }
 
@@ -250,17 +250,19 @@ export interface Renderer {
   /** Current idle-throttle toggle state (true = idle cap active). */
   getIdleThrottleEnabled(): boolean;
   /**
-   * Update camera-gaze tracking thresholds. Merge only given (finite) keys onto current
+   * Update cursor-gaze tracking thresholds. Merge only given (finite) keys onto current
    * (omitted keys retain defaults); applies immediately starting next frame.
    */
   setGaze(gaze: Partial<GazeConfig>): void;
   /**
-   * Enable/disable camera-gaze head+eye tracking at runtime. Disabled ⇒ the damped
+   * Enable/disable cursor-gaze head+eye tracking at runtime. Disabled ⇒ the damped
    * gaze eases back to neutral (no snap) and the motion/eyes are left untouched once settled.
    */
   setGazeEnabled(enabled: boolean): void;
-  /** Current gaze toggle state (true = tracking the camera). */
+  /** Current gaze toggle state (true = tracking the cursor). */
   getGazeEnabled(): boolean;
+  /** Latest window-local CSS px OS-cursor position; null = unavailable. Forwards to cursor-gaze. */
+  setGazeCursor(pos: { x: number; y: number } | null): void;
   /** Stop rAF loop + release GPU resources. */
   dispose(): void;
 }
@@ -410,13 +412,15 @@ export function createRenderer(options: RendererOptions): Renderer {
     log,
   });
 
-  // ── Camera gaze (head/eye tracking) ───────────────────────────────────
+  // ── Cursor gaze (head/eye tracking) ───────────────────────────────────
   // Owns the damped gaze state + head/neck/lookAt apply; steps each frame in the rAF loop.
-  const gaze: CameraGaze = createCameraGaze({
+  const gaze: CursorGaze = createCursorGaze({
     camera,
     getVrm: () => currentVrm,
     gaze: options.gaze,
     log,
+    mountWidth: () => mount.clientWidth || 1,
+    mountHeight: () => mount.clientHeight || 1,
   });
 
   /** mixer "finished" handler (oneshot end → controller.finish → return playback). */
@@ -529,7 +533,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       // perch seat-pin — after the mixer poses the hips, before vrm.update applies
       // spring bones, so the offset rides into this frame's render.
       pins.step(camera);
-      // camera gaze — same slot as perch: rides the posed head/neck into vrm.update.
+      // cursor gaze — same slot as perch: rides the posed head/neck into vrm.update.
       gaze.step(dt);
       // emotion crossfade — expressionManager.update() runs inside vrm.update(dt),
       // so weight must be written before to reflect in this frame.
@@ -1023,6 +1027,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     },
     getGazeEnabled() {
       return gaze.getEnabled();
+    },
+    setGazeCursor(pos) {
+      gaze.setCursorCss(pos);
     },
     dispose() {
       cancelAnimationFrame(rafId);

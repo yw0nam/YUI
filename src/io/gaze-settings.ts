@@ -1,5 +1,5 @@
 /**
- * Reactive settings store managing camera gaze tracking on/off.
+ * Reactive settings store managing cursor gaze tracking on/off.
  * Persists to storage on change and notifies subscribers.
  */
 

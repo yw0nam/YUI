@@ -56,6 +56,7 @@ import {
   CAMERA_ZOOM_MIN,
 } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
+import { createCursorTracker } from "./io/cursor-tracker";
 import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { createDragHoldSource, type DragHoldSource } from "./io/drag-hold-source";
 import { mergeEndpoints } from "./io/endpoints-settings";
@@ -841,6 +842,12 @@ async function bootstrap(): Promise<void> {
     hitTestRef = hitTest;
     hitTest.start();
     disposers.push(() => hitTest.stop());
+    // Cursor gaze: forwards the global OS cursor to the renderer's head/eye tracking.
+    const cursorTracker = createCursorTracker({
+      onCursor: (p) => renderer.setGazeCursor(p),
+    });
+    cursorTracker.start();
+    disposers.push(() => cursorTracker.stop());
     let disposePeekExitTriggers: (() => void) | null = null;
     if (isTauri()) {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");

@@ -1,9 +1,9 @@
 /**
- * gaze-tracker — pure camera-gaze math (no three.js side effects, node-testable).
+ * gaze-tracker — pure cursor-gaze math (no three.js side effects, node-testable).
  *
- * Turns the camera's angular eccentricity from the character's front into eye/head
+ * Turns the gaze target's angular eccentricity from the character's front into eye/head
  * tracking targets via a 4-stage zone curve, then exponentially damps each angle.
- * The apply layer (renderer/index.ts stepGaze) feeds in the per-frame residual
+ * The apply layer (renderer/cursor-gaze.ts step) feeds in the per-frame residual
  * yaw/pitch and eccentricity and writes the damped output to the VRM bones/lookAt.
  *
  * 4-stage curve by eccentricity (degrees from front):
@@ -57,9 +57,9 @@ const SETTLE_EPS_DEG = 0.05;
 interface GazeInput {
   /** Gaze tracking on. Off (or no camera/VRM) ⇒ targets are neutral and the state eases home. */
   enabled: boolean;
-  /** Residual yaw (deg) from the posed-head forward to the camera. */
+  /** Residual yaw (deg) from the posed-head forward to the gaze target. */
   residualYawDeg: number;
-  /** Residual pitch (deg) from the posed-head forward to the camera. */
+  /** Residual pitch (deg) from the posed-head forward to the gaze target. */
   residualPitchDeg: number;
   /** Body-relative eccentricity (deg) driving the zone curve. */
   eccentricityDeg: number;
