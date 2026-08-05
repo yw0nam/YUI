@@ -65,10 +65,107 @@ export function createTauriCursorWindow(): CursorTrackerWindow {
   };
 }
 
-/** Not yet implemented — TDD stub so the test commit type-checks while the tests fail. */
-export function createCursorTracker(_opts: CursorTrackerOptions): CursorTrackerController {
+/**
+ * Global OS-cursor tracker. Tauri: polls cursorPosition/outerPosition/scaleFactor/
+ * primaryScaleFactor every POLL_MS, converts via physicalCursorToLocalCss, and reports
+ * window-local CSS px. Degrades to BACKOFF_MS after FAILURE_THRESHOLD consecutive read
+ * failures (Windows cursorPosition() intermittently throws) and reports null until a poll
+ * succeeds, then restores POLL_MS. Pauses while the document is hidden. Non-Tauri: forwards
+ * mousemove.
+ */
+export function createCursorTracker(opts: CursorTrackerOptions): CursorTrackerController {
+  if (!isTauri()) {
+    const moveTarget = opts.moveTarget ?? (globalThis as unknown as EventTarget);
+    const onMove = (e: Event): void => {
+      const me = e as MouseEvent;
+      opts.onCursor({ x: me.clientX, y: me.clientY });
+    };
+    return {
+      start() {
+        moveTarget.addEventListener("mousemove", onMove);
+      },
+      stop() {
+        moveTarget.removeEventListener("mousemove", onMove);
+      },
+    };
+  }
+
+  const getWindow = opts.getWindow ?? createTauriCursorWindow;
+  const schedule =
+    opts.schedule ?? ((cb, ms) => globalThis.setTimeout(cb, ms) as unknown as number);
+  const cancel = opts.cancel ?? ((h) => globalThis.clearTimeout(h));
+  const doc = opts.doc ?? document;
+
+  let win: CursorTrackerWindow | null = null;
+  let running = false;
+  let pollHandle: number | null = null;
+  let failureCount = 0;
+  let backoff = false;
+
+  function stopPoll(): void {
+    if (pollHandle !== null) {
+      cancel(pollHandle);
+      pollHandle = null;
+    }
+  }
+
+  function scheduleNextPoll(ms: number): void {
+    stopPoll();
+    pollHandle = schedule(() => {
+      void poll();
+    }, ms);
+  }
+
+  async function poll(): Promise<void> {
+    if (!running || !win) return;
+    try {
+      const [cursor, origin, sf, cursorSf] = await Promise.all([
+        win.cursorPosition(),
+        win.outerPosition(),
+        win.scaleFactor(),
+        win.primaryScaleFactor?.(),
+      ]);
+      failureCount = 0;
+      backoff = false;
+      opts.onCursor(physicalCursorToLocalCss(cursor, origin, sf, cursorSf ?? sf));
+    } catch (err) {
+      failureCount++;
+      log.warn("poll_failed", { error: String(err) });
+      if (failureCount === FAILURE_THRESHOLD) {
+        backoff = true;
+        log.warn("poll_failure_threshold_reached", { backoff_ms: BACKOFF_MS });
+        opts.onCursor(null);
+      }
+    }
+    if (running && doc.visibilityState !== "hidden") {
+      scheduleNextPoll(backoff ? BACKOFF_MS : POLL_MS);
+    }
+  }
+
+  function onVisibilityChange(): void {
+    if (doc.visibilityState === "hidden") {
+      stopPoll();
+      opts.onCursor(null);
+    } else if (running && pollHandle === null) {
+      scheduleNextPoll(backoff ? BACKOFF_MS : POLL_MS);
+    }
+  }
+
   return {
-    start() {},
-    stop() {},
+    start() {
+      if (running) return;
+      running = true;
+      win = getWindow();
+      failureCount = 0;
+      backoff = false;
+      doc.addEventListener("visibilitychange", onVisibilityChange);
+      if (doc.visibilityState !== "hidden") scheduleNextPoll(POLL_MS);
+    },
+    stop() {
+      running = false;
+      stopPoll();
+      doc.removeEventListener("visibilitychange", onVisibilityChange);
+      win = null;
+    },
   };
 }
