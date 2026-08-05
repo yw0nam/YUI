@@ -277,7 +277,7 @@ describe("createQuickControls — toggles + gain row", () => {
     qc.dispose();
   });
 
-  // ── Camera gaze alignment toggle row (Advanced tab) ────────────────────────
+  // ── Cursor gaze alignment toggle row (Advanced tab) ────────────────────────
 
   it("renders the gaze toggle row only when gazeSettings is provided, ON by default", () => {
     const withoutGaze = buildQc();
@@ -291,10 +291,10 @@ describe("createQuickControls — toggles + gain row", () => {
     expect(gazeSwitch).not.toBeNull();
     expect(gazeSwitch!.getAttribute("aria-checked")).toBe("true");
     expect(gazeSwitch!.getAttribute("role")).toBe("switch");
-    expect(gazeSwitch!.getAttribute("aria-label")).toBe("카메라 시선 맞춤");
+    expect(gazeSwitch!.getAttribute("aria-label")).toBe("커서 따라보기");
 
     const row = gazeSwitch!.closest(".yui-row")!;
-    expect(row.querySelector(".yui-row__label")!.textContent).toContain("카메라 시선 맞춤");
+    expect(row.querySelector(".yui-row__label")!.textContent).toContain("커서 따라보기");
     qc.dispose();
   });
 

@@ -56,6 +56,7 @@ import {
   CAMERA_ZOOM_MIN,
 } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
+import { type CursorTrackerController, createCursorTracker } from "./io/cursor-tracker";
 import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { createDragHoldSource, type DragHoldSource } from "./io/drag-hold-source";
 import { mergeEndpoints } from "./io/endpoints-settings";
@@ -137,6 +138,7 @@ async function bootstrap(): Promise<void> {
   // it gets the hit_test knob). Drag suspends toggling so the OS-native drag is
   // never interrupted by a mid-gesture ignore flip.
   let hitTestRef: HitTestController | null = null;
+  let cursorTrackerRef: CursorTrackerController | null = null;
   let tapSourceRef: TapSource | null = null;
   let dragHoldRef: DragHoldSource | null = null;
   // User input wins: a drag aborts whatever gesture the agent asked for.
@@ -272,9 +274,19 @@ async function bootstrap(): Promise<void> {
   });
   renderer.setIdleThrottleEnabled(idleThrottleSettings.get().enabled);
   idleThrottleSettings.subscribe((s) => renderer.setIdleThrottleEnabled(s.enabled));
-  // Camera gaze on/off. Default on. Flow to renderer on each change (toggle/cross-window).
-  renderer.setGazeEnabled(gazeSettings.get().enabled);
-  gazeSettings.subscribe((s) => renderer.setGazeEnabled(s.enabled));
+  // Cursor gaze on/off. Default on. Flow to renderer + the cursor tracker on each change
+  // (toggle/cross-window); off stops polling instead of just ignoring its output.
+  function applyGazeEnabled(enabled: boolean): void {
+    renderer.setGazeEnabled(enabled);
+    if (enabled) {
+      cursorTrackerRef?.start();
+    } else {
+      cursorTrackerRef?.stop();
+      renderer.setGazeCursor(null);
+    }
+  }
+  applyGazeEnabled(gazeSettings.get().enabled);
+  gazeSettings.subscribe((s) => applyGazeEnabled(s.enabled));
   const voiceInputStatus = createVoiceInputStatus();
   disposers.push(() => voiceInputStatus.dispose());
   const screenSourceProvider = resolveScreenSourceProvider();
@@ -792,7 +804,7 @@ async function bootstrap(): Promise<void> {
     renderer.setMotionRegistry(cfg.motions);
     // Inject full-body fit-to-bounds framing knob — set before first VRM load.
     renderer.setFraming(cfg.avatar.framing ?? {});
-    // Inject camera gaze-fit thresholds (configs/avatar.json gaze; omitted keys keep defaults).
+    // Inject cursor gaze-fit thresholds (configs/avatar.json gaze; omitted keys keep defaults).
     renderer.setGaze(cfg.avatar.gaze ?? {});
     // Per-pixel alpha hit-test threshold (configs/avatar.json hit_test.alpha_threshold).
     const bootAlpha = cfg.avatar.hit_test?.alpha_threshold;
@@ -841,6 +853,25 @@ async function bootstrap(): Promise<void> {
     hitTestRef = hitTest;
     hitTest.start();
     disposers.push(() => hitTest.stop());
+    // Cursor gaze: forwards the global OS cursor to the renderer's head/eye tracking, converted
+    // to stage-local px (renderer treats the mount as the coordinate origin). The rect is cached
+    // (avoids a layout flush on every 30Hz sample) and refreshed on resize — .yui-stage is
+    // inset:0, so its rect only ever changes with the viewport.
+    let stageRect = stage.getBoundingClientRect();
+    const onStageResize = (): void => {
+      stageRect = stage.getBoundingClientRect();
+    };
+    window.addEventListener("resize", onStageResize);
+    disposers.push(() => window.removeEventListener("resize", onStageResize));
+    const cursorTracker = createCursorTracker({
+      onCursor: (p) => {
+        if (!p) return renderer.setGazeCursor(null);
+        renderer.setGazeCursor({ x: p.x - stageRect.left, y: p.y - stageRect.top });
+      },
+    });
+    cursorTrackerRef = cursorTracker;
+    disposers.push(() => cursorTracker.stop());
+    applyGazeEnabled(gazeSettings.get().enabled);
     let disposePeekExitTriggers: (() => void) | null = null;
     if (isTauri()) {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");

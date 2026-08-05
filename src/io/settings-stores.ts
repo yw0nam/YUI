@@ -118,7 +118,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const cameraSettings = createCameraSettings({
     storage: localStorageCameraStorage(),
   });
-  // Camera gaze-tracking on/off. Default ON. Streams every change (toggle/cross-window) to the renderer.
+  // Cursor gaze-tracking on/off. Default ON. Streams every change (toggle/cross-window) to the renderer.
   const gazeSettings = createGazeSettings({ storage: localStorageGazeStorage() });
   // First-run onboarding hint — flag shown only once.
   const hintSettings = createHintSettings({ storage: localStorageHintStorage() });

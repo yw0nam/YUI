@@ -145,7 +145,7 @@ interface QuickControlsOptions {
   fillerSettings?: FillerSettingsStore;
   /** TTS speech output on/off store. */
   ttsSettings?: TtsSettingsStore;
-  /** Camera gaze (eye contact) on/off store. If absent, that toggle row won't render. */
+  /** Cursor gaze (eye contact) on/off store. If absent, that toggle row won't render. */
   gazeSettings?: GazeSettingsStore;
   /** Agent completion notification on/off store. If absent, that toggle row won't render. */
   agentNotifySettings?: AgentNotifySettingsStore;

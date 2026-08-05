@@ -313,9 +313,9 @@ const en: Record<string, string> = {
   "perf.idle_sub":
     "Lowers the frame rate while the character is still to save power. It smooths out automatically when speaking or moving.",
   "perf.idle_aria": "Power saving when idle",
-  "gaze.label": "Look at camera",
-  "gaze.sub": "The character turns its eyes and head to follow the camera viewpoint.",
-  "gaze.aria": "Look at camera",
+  "gaze.label": "Follow cursor",
+  "gaze.sub": "The character turns its eyes and head to follow your mouse cursor.",
+  "gaze.aria": "Follow cursor",
   "agentNotify.label": "Agent completion notifications",
   "agentNotify.sub":
     "Speaks up when a coding agent (Claude Code, opencode, …) finishes a task on your machine.",

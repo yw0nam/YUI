@@ -1,5 +1,5 @@
 /**
- * gaze-tracker.test.ts — pure camera-gaze math (no three.js side effects, node env).
+ * gaze-tracker.test.ts — pure cursor-gaze math (no three.js side effects, node env).
  *
  * Pins the 4-stage zone curve, target shaping (weight + clamp + eye-after-head
  * residual), exponential angle damping, and the head/neck split. Expected values
@@ -32,6 +32,7 @@ const CFG: GazeConfig = {
   deadDeg: 3,
   headEngageDeg: 20,
   disengageDeg: 65,
+  sensitivity: 30,
   maxHeadYaw: 50,
   maxHeadPitch: 30,
   eyeMaxDeg: 25,
