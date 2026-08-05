@@ -2,6 +2,10 @@
  * Cursor-gaze head/eye tracking — the stateful three.js apply layer over the
  * pure ./gaze-tracker math.
  *
+ * Maps the cursor's screen offset from the head directly to a yaw/pitch residual
+ * (VTube-Studio style) rather than unprojecting into a 3D target — a screen-space
+ * offset reads as a far smaller angle once actually unprojected through a camera.
+ *
  * Owns the damped gaze state, cached head/neck bones, the claimed lookAt, and the
  * per-frame scratch vectors. step() post-multiplies the motion-posed head/neck and
  * sets the eye yaw/pitch each frame; nothing else reads gaze state except the frame
@@ -19,18 +23,16 @@ import {
 } from "./gaze-tracker";
 
 const DEG2RAD = Math.PI / 180;
-const RAD2DEG = 180 / Math.PI;
 
 /**
  * Default cursor-gaze tracking — the "natural" preset; overridden by configs/avatar.json `gaze`.
- * The half-distance target (see computeCursorTarget) caps head-relative eccentricity at
- * asin(0.5) = 30°, so the zone curve is tuned for a 0°-30° domain: disengageDeg sits above
- * the reachable ceiling on purpose — a desktop pet never "gives up" tracking the cursor.
+ * disengageDeg sits above MAX_RESIDUAL_DEG so a desktop pet never "gives up" tracking the cursor.
  */
 const DEFAULT_GAZE: GazeConfig = {
   deadDeg: 2,
   headEngageDeg: 6,
   disengageDeg: 45,
+  sensitivity: 30,
   maxHeadYaw: 50,
   maxHeadPitch: 30,
   eyeMaxDeg: 25,
@@ -38,13 +40,8 @@ const DEFAULT_GAZE: GazeConfig = {
   smooth: 10,
 };
 
-/** Below this squared distance (world units) from the head, a cursor-derived target is unusable. */
-const TARGET_EPSILON_SQ = 1e-8;
-
-/** Clamp to [-1, 1] — guards acos/asin domain against float drift. */
-function clampUnit(v: number): number {
-  return Math.min(1, Math.max(-1, v));
-}
+/** Ceiling on the (yaw, pitch) residual vector magnitude — below disengageDeg on purpose. */
+const MAX_RESIDUAL_DEG = 40;
 
 /** Merge a partial gaze config over a base, ignoring missing/non-finite keys. */
 function mergeGaze(base: GazeConfig, next: Partial<GazeConfig> | undefined): GazeConfig {
@@ -57,79 +54,30 @@ function mergeGaze(base: GazeConfig, next: Partial<GazeConfig> | undefined): Gaz
   return out;
 }
 
-/** Window-local CSS px → NDC. Values outside [-1, 1] are expected (cursor outside the window). */
-export function cssToNdc(x: number, y: number, w: number, h: number): { x: number; y: number } {
-  return { x: (x / w) * 2 - 1, y: -((y / h) * 2 - 1) };
-}
-
 /**
- * World-space gaze target at half the camera-to-head distance along `dir`, so it can never
- * land on the head. Writes into `out`; returns false when the result is still degenerately
- * close to the head (guards a near-zero camera-head separation).
+ * Cursor screen-offset → yaw/pitch residual (VTube-Studio style direct mapping). Both axes
+ * normalize by the mount WIDTH (one reference length) so equal pixel offsets read as equal
+ * angles regardless of aspect ratio. CSS y grows downward; pitch is negated so a cursor above
+ * the head reads as positive (look up). The (yaw, pitch) vector is clamped to MAX_RESIDUAL_DEG,
+ * scaling both components together so direction is preserved.
  */
-export function computeCursorTarget(
-  cameraPos: THREE.Vector3,
-  dir: THREE.Vector3,
-  headPos: THREE.Vector3,
-  out: THREE.Vector3,
-): boolean {
-  const dist = 0.5 * cameraPos.distanceTo(headPos);
-  out.copy(dir).normalize().multiplyScalar(dist).add(cameraPos);
-  return out.distanceToSquared(headPos) >= TARGET_EPSILON_SQ;
-}
-
-/** Body-relative gaze geometry derived from the target, head, and body orientation. */
-export interface GazeGeometry {
-  /** Target angle from the body front (degrees) — drives the zone curve. */
-  eccentricityDeg: number;
-  /** Body-frame yaw to bring the body front onto the target (degrees). */
-  residualYawDeg: number;
-  /** Body-frame pitch to bring the body front onto the target (degrees). */
-  residualPitchDeg: number;
-}
-
-/** Reusable temporaries for {@link computeGazeGeometry} so the per-frame path allocates nothing. */
-export interface GazeGeometryScratch {
-  bodyFwd: THREE.Vector3;
-  toCam: THREE.Vector3;
-  localDir: THREE.Vector3;
-  invQuat: THREE.Quaternion;
-}
-
-/** Fresh scratch — production callers create one and reuse it; tests can omit it. */
-export function makeGazeGeometryScratch(): GazeGeometryScratch {
-  return {
-    bodyFwd: new THREE.Vector3(),
-    toCam: new THREE.Vector3(),
-    localDir: new THREE.Vector3(),
-    invQuat: new THREE.Quaternion(),
-  };
-}
-
-/**
- * Pure gaze geometry: the body-relative angle to an arbitrary world-space target. three-vrm
- * normalizes every VRM to face -Z, so the body front is the scene's local -Z. Both the
- * eccentricity and the residual yaw/pitch are measured in the BODY (scene) frame — independent
- * of the live idle-posed head — so the eyes/head bias toward the target without chasing idle
- * head motion. The residual matches the apply's euler(pitch·X, yaw·Y, YXZ) rotating -Z:
- * yaw=atan2(-x,-z), pitch=asin(y).
- *
- * Pass `scratch` on the per-frame path to avoid allocation; omit it in tests.
- */
-export function computeGazeGeometry(
-  targetPos: THREE.Vector3,
-  headPos: THREE.Vector3,
-  sceneQuat: THREE.Quaternion,
-  scratch: GazeGeometryScratch = makeGazeGeometryScratch(),
-): GazeGeometry {
-  const bodyFwd = scratch.bodyFwd.set(0, 0, -1).applyQuaternion(sceneQuat).normalize();
-  const toCam = scratch.toCam.copy(targetPos).sub(headPos).normalize();
-  const eccentricityDeg = Math.acos(clampUnit(toCam.dot(bodyFwd))) * RAD2DEG;
-  const invQuat = scratch.invQuat.copy(sceneQuat).invert();
-  const localDir = scratch.localDir.copy(toCam).applyQuaternion(invQuat);
-  const residualYawDeg = Math.atan2(-localDir.x, -localDir.z) * RAD2DEG;
-  const residualPitchDeg = Math.asin(clampUnit(localDir.y)) * RAD2DEG;
-  return { eccentricityDeg, residualYawDeg, residualPitchDeg };
+export function cursorToResidual(
+  cursor: { x: number; y: number },
+  headCss: { x: number; y: number },
+  mountWidthPx: number,
+  sensitivityDeg: number,
+): { residualYawDeg: number; residualPitchDeg: number; eccentricityDeg: number } {
+  const nx = (cursor.x - headCss.x) / mountWidthPx;
+  const ny = (cursor.y - headCss.y) / mountWidthPx;
+  let residualYawDeg = nx * sensitivityDeg;
+  let residualPitchDeg = -ny * sensitivityDeg;
+  const mag = Math.hypot(residualYawDeg, residualPitchDeg);
+  if (mag > MAX_RESIDUAL_DEG) {
+    const scale = MAX_RESIDUAL_DEG / mag;
+    residualYawDeg *= scale;
+    residualPitchDeg *= scale;
+  }
+  return { residualYawDeg, residualPitchDeg, eccentricityDeg: Math.min(mag, MAX_RESIDUAL_DEG) };
 }
 
 /** Logger surface the gaze path needs (matches the renderer logger). */
@@ -144,9 +92,9 @@ interface CursorGazeDeps {
   /** Initial thresholds; live path is setConfig. Omitted keys keep defaults. */
   gaze?: Partial<GazeConfig>;
   log: GazeLog;
-  /** Mount element width (CSS px) — cursor→NDC mapping. */
+  /** Mount element width (CSS px) — head screen-projection + residual normalization. */
   mountWidth(): number;
-  /** Mount element height (CSS px) — cursor→NDC mapping. */
+  /** Mount element height (CSS px) — head screen-projection. */
   mountHeight(): number;
 }
 
@@ -191,12 +139,8 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
   let gazeLookAtReady = false;
   // Latest window-local CSS px cursor position; null = unavailable.
   let gazeCursor: { x: number; y: number } | null = null;
-  // Scratch reused every frame for the world-transform reads + geometry + bone-nudge apply.
+  // Scratch reused every frame for the head's world→screen projection + bone-nudge apply.
   const gazeHeadPos = new THREE.Vector3();
-  const gazeSceneQuat = new THREE.Quaternion();
-  const gazeCursorDir = new THREE.Vector3();
-  const gazeTargetPos = new THREE.Vector3();
-  const gazeGeoScratch = makeGazeGeometryScratch();
   const gazeDeltaEuler = new THREE.Euler(0, 0, 0, "YXZ");
   const gazeDeltaQuat = new THREE.Quaternion();
 
@@ -205,11 +149,11 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
    * so the head/neck nudge rides on the posed skeleton into the humanoid/spring apply
    * and the eyes (driven via lookAt inside vrm.update) compose on the nudged head.
    *
-   * Unprojects the cursor's NDC through the camera at half the camera-head distance to get
-   * a world-space target, reads its eccentricity and residual yaw/pitch in the BODY frame
-   * (see computeGazeGeometry), damps toward the shaped targets, then post-multiplies the
-   * head/neck bones and sets the eye yaw/pitch. Additive over whatever motion is playing.
-   * No-op (no bone writes) once settled.
+   * Projects the head bone through the camera to its screen position, then maps the
+   * cursor's screen offset from it directly to a yaw/pitch residual (see cursorToResidual),
+   * damps toward the shaped targets, then post-multiplies the head/neck bones and sets the
+   * eye yaw/pitch. Additive over whatever motion is playing. No-op (no bone writes) once
+   * settled.
    *
    * ponytail: assumes the playing clip animates head/neck each frame (idle/sit do), so the
    * post-multiply rides a fresh motion pose; a head-trackless clip would let the nudge
@@ -224,34 +168,21 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
     let residualYawDeg = 0;
     let residualPitchDeg = 0;
     let eccentricityDeg = 0;
-    let trackable = gazeEnabled && gazeHeadBone !== null && gazeCursor !== null;
+    const trackable = gazeEnabled && gazeHeadBone !== null && gazeCursor !== null;
     if (trackable) {
       try {
         const head = gazeHeadBone as THREE.Object3D;
         const cursor = gazeCursor as { x: number; y: number };
         head.getWorldPosition(gazeHeadPos);
-        currentVrm.scene.getWorldQuaternion(gazeSceneQuat);
-        const ndc = cssToNdc(cursor.x, cursor.y, mountWidth(), mountHeight());
-        gazeCursorDir.set(ndc.x, ndc.y, 0.5).unproject(camera).sub(camera.position).normalize();
-        const usable = computeCursorTarget(
-          camera.position,
-          gazeCursorDir,
-          gazeHeadPos,
-          gazeTargetPos,
-        );
-        if (!usable) {
-          trackable = false;
-        } else {
-          const geo = computeGazeGeometry(
-            gazeTargetPos,
-            gazeHeadPos,
-            gazeSceneQuat,
-            gazeGeoScratch,
-          );
-          eccentricityDeg = geo.eccentricityDeg;
-          residualYawDeg = geo.residualYawDeg;
-          residualPitchDeg = geo.residualPitchDeg;
-        }
+        gazeHeadPos.project(camera); // world → NDC, in place
+        const headCss = {
+          x: (gazeHeadPos.x + 1) * 0.5 * mountWidth(),
+          y: (1 - gazeHeadPos.y) * 0.5 * mountHeight(),
+        };
+        const res = cursorToResidual(cursor, headCss, mountWidth(), gazeConfig.sensitivity);
+        residualYawDeg = res.residualYawDeg;
+        residualPitchDeg = res.residualPitchDeg;
+        eccentricityDeg = res.eccentricityDeg;
       } catch (err) {
         log.error("step_gaze_read", { error: String(err) });
       }

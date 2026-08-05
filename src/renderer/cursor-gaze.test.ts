@@ -1,129 +1,71 @@
 /**
- * Tests for src/renderer/cursor-gaze.ts — the cursor-derived gaze geometry and the
- * stateful apply layer (createCursorGaze).
+ * Tests for src/renderer/cursor-gaze.ts — the cursor screen-offset → residual mapping and
+ * the stateful apply layer (createCursorGaze).
  *
  * Environment: node (vitest default). three.js math runs headless.
- *
- * Convention under test: three-vrm normalizes every VRM to face -Z, so the body
- * front is the scene's local -Z; eccentricity and residual are measured in the
- * BODY (scene) frame.
  */
 
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import {
-  computeCursorTarget,
-  computeGazeGeometry,
-  createCursorGaze,
-  cssToNdc,
-} from "./cursor-gaze";
+import { createCursorGaze, cursorToResidual } from "./cursor-gaze";
 
 const RAD2DEG = 180 / Math.PI;
-const IDENTITY = new THREE.Quaternion(); // scene unrotated ⇒ body faces world -Z.
-const HEAD = new THREE.Vector3(0, 1, 0);
 const noopLog = { error: () => {} };
+const HEAD_CSS = { x: 400, y: 300 };
+const MOUNT_WIDTH = 800;
 
-/** Quaternion for a yaw (radians) about +Y — rotates the body's facing. */
-function bodyYaw(rad: number): THREE.Quaternion {
-  return new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rad, 0));
-}
-
-describe("computeGazeGeometry", () => {
-  it("target in front of a -Z-facing body (target at -Z) ⇒ eccentricity ≈ 0", () => {
-    const g = computeGazeGeometry(new THREE.Vector3(0, 1, -5), HEAD, IDENTITY);
-    expect(g.eccentricityDeg).toBeCloseTo(0, 1);
-    expect(g.residualYawDeg).toBeCloseTo(0, 1);
-    expect(g.residualPitchDeg).toBeCloseTo(0, 1);
+describe("cursorToResidual", () => {
+  it("cursor on the head ⇒ zero residual and eccentricity", () => {
+    const r = cursorToResidual(HEAD_CSS, HEAD_CSS, MOUNT_WIDTH, 30);
+    expect(r.residualYawDeg).toBeCloseTo(0, 10);
+    expect(r.residualPitchDeg).toBeCloseTo(0, 10);
+    expect(r.eccentricityDeg).toBeCloseTo(0, 10);
   });
 
-  it("target behind the body (target at +Z) ⇒ eccentricity ≈ 180 (regression: +Z would invert this)", () => {
-    const g = computeGazeGeometry(new THREE.Vector3(0, 1, 5), HEAD, IDENTITY);
-    expect(g.eccentricityDeg).toBeCloseTo(180, 1);
+  it("cursor right of the head ⇒ positive yaw scaled by offset/width × sensitivity", () => {
+    const r = cursorToResidual({ x: 480, y: 300 }, HEAD_CSS, MOUNT_WIDTH, 30);
+    // dx = 80 ⇒ 80/800 = 0.1 ⇒ 0.1 × 30 = 3.
+    expect(r.residualYawDeg).toBeCloseTo(3, 5);
+    expect(r.residualPitchDeg).toBeCloseTo(0, 5);
   });
 
-  it("target above-front ⇒ positive residual pitch, zero yaw", () => {
-    const g = computeGazeGeometry(new THREE.Vector3(0, 3, -4), HEAD, IDENTITY);
-    expect(g.eccentricityDeg).toBeCloseTo(26.57, 1);
-    expect(g.residualYawDeg).toBeCloseTo(0, 1);
-    expect(g.residualPitchDeg).toBeCloseTo(26.57, 1);
+  it("cursor left of the head ⇒ negative yaw", () => {
+    const r = cursorToResidual({ x: 320, y: 300 }, HEAD_CSS, MOUNT_WIDTH, 30);
+    expect(r.residualYawDeg).toBeCloseTo(-3, 5);
   });
 
-  it("target off to each side ⇒ mirrored residual yaw, zero pitch", () => {
-    const right = computeGazeGeometry(new THREE.Vector3(3, 1, -4), HEAD, IDENTITY);
-    const left = computeGazeGeometry(new THREE.Vector3(-3, 1, -4), HEAD, IDENTITY);
-    expect(right.eccentricityDeg).toBeCloseTo(36.87, 1);
-    expect(left.eccentricityDeg).toBeCloseTo(36.87, 1);
-    expect(right.residualYawDeg).toBeCloseTo(-36.87, 1);
-    expect(left.residualYawDeg).toBeCloseTo(36.87, 1);
-    expect(right.residualPitchDeg).toBeCloseTo(0, 1);
-    expect(left.residualPitchDeg).toBeCloseTo(0, 1);
+  it("cursor above the head (smaller CSS y) ⇒ positive pitch", () => {
+    const r = cursorToResidual({ x: 400, y: 220 }, HEAD_CSS, MOUNT_WIDTH, 30);
+    expect(r.residualPitchDeg).toBeCloseTo(3, 5);
+    expect(r.residualYawDeg).toBeCloseTo(0, 5);
   });
 
-  it("body frame follows the scene rotation: a 180°-yawed body faces a +Z target ⇒ eccentricity ≈ 0", () => {
-    const g = computeGazeGeometry(new THREE.Vector3(0, 1, 5), HEAD, bodyYaw(Math.PI));
-    expect(g.eccentricityDeg).toBeCloseTo(0, 1);
-    expect(g.residualYawDeg).toBeCloseTo(0, 1);
-    expect(g.residualPitchDeg).toBeCloseTo(0, 1);
+  it("cursor below the head ⇒ negative pitch", () => {
+    const r = cursorToResidual({ x: 400, y: 380 }, HEAD_CSS, MOUNT_WIDTH, 30);
+    expect(r.residualPitchDeg).toBeCloseTo(-3, 5);
   });
 
-  it("residual is body-frame: a yawed body shifts the residual yaw by the body yaw", () => {
-    // Target dead-front in world (-Z), but the body is yawed 30° ⇒ the target sits
-    // 30° off the body front, so the residual yaw reflects the body rotation, not the head.
-    const g = computeGazeGeometry(new THREE.Vector3(0, 1, -5), HEAD, bodyYaw((30 * Math.PI) / 180));
-    expect(g.eccentricityDeg).toBeCloseTo(30, 1);
-    expect(Math.abs(g.residualYawDeg)).toBeCloseTo(30, 1);
-  });
-});
-
-describe("cssToNdc", () => {
-  it("window center maps to NDC origin", () => {
-    const p = cssToNdc(400, 300, 800, 600);
-    expect(p.x).toBeCloseTo(0, 10);
-    expect(p.y).toBeCloseTo(0, 10);
+  it("scales linearly with sensitivity", () => {
+    const low = cursorToResidual({ x: 480, y: 300 }, HEAD_CSS, MOUNT_WIDTH, 10);
+    const high = cursorToResidual({ x: 480, y: 300 }, HEAD_CSS, MOUNT_WIDTH, 60);
+    expect(low.residualYawDeg).toBeCloseTo(1, 5);
+    expect(high.residualYawDeg).toBeCloseTo(6, 5);
   });
 
-  it("top-left corner maps to (-1, 1)", () => {
-    expect(cssToNdc(0, 0, 800, 600)).toEqual({ x: -1, y: 1 });
+  it("eccentricity below the clamp equals the raw vector magnitude", () => {
+    const r = cursorToResidual({ x: 480, y: 300 }, HEAD_CSS, MOUNT_WIDTH, 30);
+    expect(r.eccentricityDeg).toBeCloseTo(3, 5);
   });
 
-  it("bottom-right corner maps to (1, -1)", () => {
-    expect(cssToNdc(800, 600, 800, 600)).toEqual({ x: 1, y: -1 });
-  });
-
-  it("outside the window produces values outside [-1, 1] (expected/valid)", () => {
-    const p = cssToNdc(1200, -100, 800, 600);
-    expect(p.x).toBeGreaterThan(1);
-    expect(p.y).toBeGreaterThan(1);
-  });
-});
-
-describe("computeCursorTarget", () => {
-  it("places the target at half the camera-head distance along dir", () => {
-    const cameraPos = new THREE.Vector3(0, 0, 0);
-    const headPos = new THREE.Vector3(0, 0, 10);
-    const dir = new THREE.Vector3(0, 0, 1);
-    const out = new THREE.Vector3();
-    const usable = computeCursorTarget(cameraPos, dir, headPos, out);
-    expect(usable).toBe(true);
-    expect(out.distanceTo(cameraPos)).toBeCloseTo(5, 5);
-  });
-
-  it("never lands within epsilon of the head, even aimed straight at it", () => {
-    const cameraPos = new THREE.Vector3(0, 0, 0);
-    const headPos = new THREE.Vector3(0, 0, 10);
-    const dir = new THREE.Vector3(0, 0, 1); // straight at the head
-    const out = new THREE.Vector3();
-    computeCursorTarget(cameraPos, dir, headPos, out);
-    expect(out.distanceTo(headPos)).toBeGreaterThan(4); // half-distance = 5, well clear
-  });
-
-  it("flags unusable when the camera sits at the head (degenerate zero distance)", () => {
-    const cameraPos = new THREE.Vector3(1, 2, 3);
-    const headPos = new THREE.Vector3(1, 2, 3);
-    const dir = new THREE.Vector3(0, 0, 1);
-    const out = new THREE.Vector3();
-    expect(computeCursorTarget(cameraPos, dir, headPos, out)).toBe(false);
+  it("clamps the (yaw, pitch) vector to 40°, scaling both components together", () => {
+    // dx = dy = 400 ⇒ nx = ny = 0.5 ⇒ pre-clamp yaw = 30, pitch = -30 (magnitude ≈ 42.4 > 40).
+    const r = cursorToResidual({ x: 800, y: 700 }, HEAD_CSS, MOUNT_WIDTH, 60);
+    const mag = Math.hypot(r.residualYawDeg, r.residualPitchDeg);
+    expect(mag).toBeCloseTo(40, 5);
+    expect(r.eccentricityDeg).toBeCloseTo(40, 5);
+    // Direction preserved: yaw and pitch keep their pre-clamp ratio (equal magnitude, opposite sign).
+    expect(r.residualYawDeg).toBeCloseTo(-r.residualPitchDeg, 5);
   });
 });
 
@@ -136,7 +78,7 @@ interface Fixture {
   camera: THREE.PerspectiveCamera;
 }
 
-/** Head/neck bones on an unrotated scene (body faces world -Z) + a camera looking at the head. */
+/** Head/neck bones on an unrotated scene + a camera looking straight at the head. */
 function makeFixture(headPos = new THREE.Vector3(0, 1.5, 0)): Fixture {
   const scene = new THREE.Group();
   const head = new THREE.Object3D();
@@ -168,7 +110,7 @@ function quaternionAngleDeg(q: THREE.Quaternion): number {
 }
 
 describe("createCursorGaze — step()", () => {
-  it("a cursor well off-center drives head/neck rotation and lookAt yaw/pitch", () => {
+  it("a cursor at the window corner drives a large settled head+neck rotation and lookAt yaw/pitch", () => {
     const { vrm, head, neck, camera } = makeFixture();
     const gaze = createCursorGaze({
       camera,
@@ -178,7 +120,7 @@ describe("createCursorGaze — step()", () => {
       mountHeight: () => 600,
     });
     gaze.onVrmLoaded(vrm);
-    gaze.setCursorCss({ x: 799, y: 1 }); // top-right corner — well off-center
+    gaze.setCursorCss({ x: 2000, y: -900 }); // beyond the top-right corner
 
     for (let i = 0; i < 120; i++) {
       head.quaternion.identity();
@@ -186,30 +128,9 @@ describe("createCursorGaze — step()", () => {
       gaze.step(0.05);
     }
 
-    expect(quaternionAngleDeg(head.quaternion)).toBeGreaterThan(5);
-    expect(quaternionAngleDeg(neck.quaternion)).toBeGreaterThan(5);
+    const total = quaternionAngleDeg(head.quaternion) + quaternionAngleDeg(neck.quaternion);
+    expect(total).toBeGreaterThan(10);
     expect(vrm.lookAt!.yaw !== 0 || vrm.lookAt!.pitch !== 0).toBe(true);
-  });
-
-  it("a cursor far outside the window (|ndc| ≥ 4) still settles a head rotation > 5° (reachable domain)", () => {
-    const { vrm, head, camera } = makeFixture();
-    const gaze = createCursorGaze({
-      camera,
-      getVrm: () => vrm,
-      log: noopLog,
-      mountWidth: () => 800,
-      mountHeight: () => 600,
-    });
-    gaze.onVrmLoaded(vrm);
-    // ndc = (4, 4) — well outside the [-1, 1] window, still a valid (if extreme) cursor sample.
-    gaze.setCursorCss({ x: 2000, y: -900 });
-
-    for (let i = 0; i < 120; i++) {
-      head.quaternion.identity();
-      gaze.step(0.05);
-    }
-
-    expect(quaternionAngleDeg(head.quaternion)).toBeGreaterThan(5);
   });
 
   it("cursor null eases the damped state back toward neutral instead of snapping", () => {
@@ -222,7 +143,7 @@ describe("createCursorGaze — step()", () => {
       mountHeight: () => 600,
     });
     gaze.onVrmLoaded(vrm);
-    gaze.setCursorCss({ x: 799, y: 1 });
+    gaze.setCursorCss({ x: 2000, y: -900 });
     for (let i = 0; i < 120; i++) {
       head.quaternion.identity();
       gaze.step(0.05);
@@ -250,7 +171,7 @@ describe("createCursorGaze — step()", () => {
       mountHeight: () => 600,
     });
     gaze.onVrmLoaded(vrm);
-    gaze.setCursorCss({ x: 799, y: 1 });
+    gaze.setCursorCss({ x: 2000, y: -900 });
     for (let i = 0; i < 120; i++) {
       head.quaternion.identity();
       gaze.step(0.05);

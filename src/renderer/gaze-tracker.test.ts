@@ -32,6 +32,7 @@ const CFG: GazeConfig = {
   deadDeg: 3,
   headEngageDeg: 20,
   disengageDeg: 65,
+  sensitivity: 30,
   maxHeadYaw: 50,
   maxHeadPitch: 30,
   eyeMaxDeg: 25,
