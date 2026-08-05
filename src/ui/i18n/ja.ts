@@ -315,9 +315,9 @@ const ja: Record<string, string> = {
   "perf.idle_sub":
     "キャラクターが静止しているときにフレームレートを下げて電力を節約します。話したり動いたりすると自動でなめらかに戻ります。",
   "perf.idle_aria": "待機中の省電力",
-  "gaze.label": "カメラを見る",
-  "gaze.sub": "キャラクターが目と頭をカメラの視点に向けて視線を合わせます。",
-  "gaze.aria": "カメラを見る",
+  "gaze.label": "カーソルを追う",
+  "gaze.sub": "キャラクターがマウスカーソルの動きに合わせて目と頭を向けます。",
+  "gaze.aria": "カーソルを追う",
   "agentNotify.label": "エージェント完了通知",
   "agentNotify.sub":
     "Claude Code や opencode などのコーディングエージェントがタスクを終えたら先に知らせます。",

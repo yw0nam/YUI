@@ -314,9 +314,9 @@ const ko: Record<string, string> = {
   "perf.idle_sub":
     "캐릭터가 가만히 있을 때 프레임을 낮춰 전력을 아낍니다. 말하거나 움직일 땐 자동으로 부드러워집니다.",
   "perf.idle_aria": "유휴 시 절전",
-  "gaze.label": "카메라 시선 맞춤",
-  "gaze.sub": "캐릭터가 카메라 쪽으로 눈과 고개를 돌려 시선을 맞춥니다.",
-  "gaze.aria": "카메라 시선 맞춤",
+  "gaze.label": "커서 따라보기",
+  "gaze.sub": "캐릭터가 마우스 커서를 따라 눈과 고개를 움직입니다.",
+  "gaze.aria": "커서 따라보기",
   "agentNotify.label": "에이전트 완료 알림",
   "agentNotify.sub": "Claude Code, opencode 등 코딩 에이전트가 작업을 마치면 먼저 말합니다.",
   "agentNotify.aria": "에이전트 완료 알림",
