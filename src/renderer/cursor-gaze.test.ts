@@ -5,9 +5,8 @@
  * Environment: node (vitest default). three.js math runs headless.
  *
  * Convention under test: three-vrm normalizes every VRM to face -Z, so the body
- * front is the scene's local -Z and both eccentricity and residual are measured in
- * the BODY (scene) frame. The pre-fix code assumed +Z, which put a camera-facing
- * VRM at ~180° eccentricity (permanent disengage) — these tests pin the -Z fix.
+ * front is the scene's local -Z; eccentricity and residual are measured in the
+ * BODY (scene) frame.
  */
 
 import type { VRM } from "@pixiv/three-vrm";
@@ -187,9 +186,30 @@ describe("createCursorGaze — step()", () => {
       gaze.step(0.05);
     }
 
-    expect(quaternionAngleDeg(head.quaternion)).toBeGreaterThan(0.5);
-    expect(quaternionAngleDeg(neck.quaternion)).toBeGreaterThan(0.5);
+    expect(quaternionAngleDeg(head.quaternion)).toBeGreaterThan(5);
+    expect(quaternionAngleDeg(neck.quaternion)).toBeGreaterThan(5);
     expect(vrm.lookAt!.yaw !== 0 || vrm.lookAt!.pitch !== 0).toBe(true);
+  });
+
+  it("a cursor far outside the window (|ndc| ≥ 4) still settles a head rotation > 5° (reachable domain)", () => {
+    const { vrm, head, camera } = makeFixture();
+    const gaze = createCursorGaze({
+      camera,
+      getVrm: () => vrm,
+      log: noopLog,
+      mountWidth: () => 800,
+      mountHeight: () => 600,
+    });
+    gaze.onVrmLoaded(vrm);
+    // ndc = (4, 4) — well outside the [-1, 1] window, still a valid (if extreme) cursor sample.
+    gaze.setCursorCss({ x: 2000, y: -900 });
+
+    for (let i = 0; i < 120; i++) {
+      head.quaternion.identity();
+      gaze.step(0.05);
+    }
+
+    expect(quaternionAngleDeg(head.quaternion)).toBeGreaterThan(5);
   });
 
   it("cursor null eases the damped state back toward neutral instead of snapping", () => {
@@ -208,7 +228,7 @@ describe("createCursorGaze — step()", () => {
       gaze.step(0.05);
     }
     const engagedAngle = quaternionAngleDeg(head.quaternion);
-    expect(engagedAngle).toBeGreaterThan(0.5);
+    expect(engagedAngle).toBeGreaterThan(5);
 
     gaze.setCursorCss(null);
     head.quaternion.identity();

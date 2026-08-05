@@ -21,11 +21,16 @@ import {
 const DEG2RAD = Math.PI / 180;
 const RAD2DEG = 180 / Math.PI;
 
-/** Default cursor-gaze tracking — the "natural" preset; overridden by configs/avatar.json `gaze`. */
+/**
+ * Default cursor-gaze tracking — the "natural" preset; overridden by configs/avatar.json `gaze`.
+ * The half-distance target (see computeCursorTarget) caps head-relative eccentricity at
+ * asin(0.5) = 30°, so the zone curve is tuned for a 0°-30° domain: disengageDeg sits above
+ * the reachable ceiling on purpose — a desktop pet never "gives up" tracking the cursor.
+ */
 const DEFAULT_GAZE: GazeConfig = {
-  deadDeg: 3,
-  headEngageDeg: 20,
-  disengageDeg: 65,
+  deadDeg: 2,
+  headEngageDeg: 6,
+  disengageDeg: 45,
   maxHeadYaw: 50,
   maxHeadPitch: 30,
   eyeMaxDeg: 25,
