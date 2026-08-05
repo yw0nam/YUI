@@ -854,11 +854,18 @@ async function bootstrap(): Promise<void> {
     hitTest.start();
     disposers.push(() => hitTest.stop());
     // Cursor gaze: forwards the global OS cursor to the renderer's head/eye tracking, converted
-    // to stage-local px (renderer treats the mount as the coordinate origin).
+    // to stage-local px (renderer treats the mount as the coordinate origin). The rect is cached
+    // (avoids a layout flush on every 30Hz sample) and refreshed on resize — .yui-stage is
+    // inset:0, so its rect only ever changes with the viewport.
+    let stageRect = stage.getBoundingClientRect();
+    const onStageResize = (): void => {
+      stageRect = stage.getBoundingClientRect();
+    };
+    window.addEventListener("resize", onStageResize);
+    disposers.push(() => window.removeEventListener("resize", onStageResize));
     const cursorTracker = createCursorTracker({
       onCursor: (p) => {
         if (!p) return renderer.setGazeCursor(null);
-        const stageRect = stage.getBoundingClientRect();
         renderer.setGazeCursor({ x: p.x - stageRect.left, y: p.y - stageRect.top });
       },
     });

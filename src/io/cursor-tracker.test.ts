@@ -22,14 +22,53 @@ interface FakeWin {
   outerPosition: ReturnType<typeof vi.fn>;
   scaleFactor: ReturnType<typeof vi.fn>;
   primaryScaleFactor: ReturnType<typeof vi.fn>;
+  onMoved: ReturnType<typeof vi.fn>;
+  onResized: ReturnType<typeof vi.fn>;
+  onScaleChanged: ReturnType<typeof vi.fn>;
+  unlistenMoved: ReturnType<typeof vi.fn>;
+  unlistenResized: ReturnType<typeof vi.fn>;
+  unlistenScaleChanged: ReturnType<typeof vi.fn>;
+  fireMoved(): void;
+  fireResized(): void;
+  fireScaleChanged(): void;
 }
 
 function fakeWindow(cursorPhys = { x: 0, y: 0 }): FakeWin {
+  let movedCb: (() => void) | undefined;
+  let resizedCb: (() => void) | undefined;
+  let scaleCb: (() => void) | undefined;
+  const unlistenMoved = vi.fn();
+  const unlistenResized = vi.fn();
+  const unlistenScaleChanged = vi.fn();
   return {
     cursorPosition: vi.fn(async () => ({ ...cursorPhys })),
     outerPosition: vi.fn(async () => ({ x: 0, y: 0 })),
     scaleFactor: vi.fn(async () => 1),
     primaryScaleFactor: vi.fn(async () => 1),
+    onMoved: vi.fn(async (cb: () => void) => {
+      movedCb = cb;
+      return unlistenMoved;
+    }),
+    onResized: vi.fn(async (cb: () => void) => {
+      resizedCb = cb;
+      return unlistenResized;
+    }),
+    onScaleChanged: vi.fn(async (cb: () => void) => {
+      scaleCb = cb;
+      return unlistenScaleChanged;
+    }),
+    unlistenMoved,
+    unlistenResized,
+    unlistenScaleChanged,
+    fireMoved() {
+      movedCb?.();
+    },
+    fireResized() {
+      resizedCb?.();
+    },
+    fireScaleChanged() {
+      scaleCb?.();
+    },
   };
 }
 
@@ -179,6 +218,57 @@ describe("createCursorTracker — Tauri poll path", () => {
     await poll(); // 9th tick (index 8) ⇒ refresh again
     expect(win.outerPosition).toHaveBeenCalledTimes(2);
     c.stop();
+  });
+
+  it("a window move invalidates the cached statics before the next tick", async () => {
+    const win = fakeWindow({ x: 300, y: 400 });
+    win.outerPosition.mockResolvedValue({ x: 100, y: 200 });
+    win.scaleFactor.mockResolvedValue(2);
+    win.primaryScaleFactor.mockResolvedValue(2);
+    const doc = fakeDoc();
+    const { c, poll } = scheduledPoller(win, doc);
+    c.start();
+    await poll(); // tick 0 — refreshes (start-of-life)
+    await poll(); // tick 1 — cached, no refresh
+    expect(win.outerPosition).toHaveBeenCalledTimes(1);
+
+    win.fireMoved(); // window drag moved the window — invalidate now, well before tick 8
+    await poll(); // tick 2 — refreshes despite tick % 8 !== 0
+    expect(win.outerPosition).toHaveBeenCalledTimes(2);
+    c.stop();
+  });
+
+  it("stop() unsubscribes the move/resize/scale-change listeners", async () => {
+    const win = fakeWindow();
+    const doc = fakeDoc();
+    const { c } = scheduledPoller(win, doc);
+    c.start();
+    await Promise.resolve(); // let the onMoved/onResized/onScaleChanged promises settle
+    c.stop();
+    await Promise.resolve();
+    expect(win.unlistenMoved).toHaveBeenCalledTimes(1);
+    expect(win.unlistenResized).toHaveBeenCalledTimes(1);
+    expect(win.unlistenScaleChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("stop() before the listen promise resolves still unsubscribes once it does", async () => {
+    const win = fakeWindow();
+    const unlistenMoved = vi.fn();
+    let resolveOnMoved: (() => void) | undefined;
+    win.onMoved.mockImplementation(
+      () =>
+        new Promise<typeof unlistenMoved>((resolve) => {
+          resolveOnMoved = () => resolve(unlistenMoved);
+        }),
+    );
+    const doc = fakeDoc();
+    const { c } = scheduledPoller(win, doc);
+    c.start();
+    c.stop(); // stop() lands before onMoved's promise has resolved
+    resolveOnMoved?.();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(unlistenMoved).toHaveBeenCalledTimes(1);
   });
 
   it("a mixed-DPI reading (cursorSf !== sf) converts with the primary scale, not the window's", async () => {
