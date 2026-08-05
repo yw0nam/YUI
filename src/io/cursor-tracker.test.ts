@@ -58,22 +58,26 @@ function fakeDoc(): FakeDoc {
 function scheduledPoller(win: FakeWin, doc: FakeDoc) {
   const positions: Cursor[] = [];
   const scheduled: number[] = [];
+  const cancel = vi.fn();
   let cb: (() => void) | undefined;
+  const getWindow = vi.fn(() => win as never);
   const c = createCursorTracker({
     onCursor: (p) => positions.push(p),
-    getWindow: () => win as never,
+    getWindow,
     doc: doc as never,
     schedule: (callback, ms) => {
       cb = callback;
       scheduled.push(ms);
       return scheduled.length;
     },
-    cancel: () => {},
+    cancel,
   });
   return {
     c,
     positions,
     scheduled,
+    cancel,
+    getWindow,
     poll: async (): Promise<void> => {
       const fn = cb;
       cb = undefined;
@@ -156,6 +160,94 @@ describe("createCursorTracker — Tauri poll path", () => {
     expect(scheduled.at(-1)).toBe(33);
     c.stop();
   });
+
+  it("only re-reads outerPosition/scaleFactor/primaryScaleFactor every 8th tick", async () => {
+    const win = fakeWindow({ x: 300, y: 400 });
+    win.outerPosition.mockResolvedValue({ x: 100, y: 200 });
+    win.scaleFactor.mockResolvedValue(2);
+    win.primaryScaleFactor.mockResolvedValue(2);
+    const doc = fakeDoc();
+    const { c, poll } = scheduledPoller(win, doc);
+    c.start();
+    for (let i = 0; i < 8; i++) await poll();
+    // Tick 0 (start) + tick 8 (this loop's 9th poll would trigger it, so within 8 polls
+    // only the first tick refreshes the statics).
+    expect(win.cursorPosition).toHaveBeenCalledTimes(8);
+    expect(win.outerPosition).toHaveBeenCalledTimes(1);
+    expect(win.scaleFactor).toHaveBeenCalledTimes(1);
+    expect(win.primaryScaleFactor).toHaveBeenCalledTimes(1);
+    await poll(); // 9th tick (index 8) ⇒ refresh again
+    expect(win.outerPosition).toHaveBeenCalledTimes(2);
+    c.stop();
+  });
+
+  it("a mixed-DPI reading (cursorSf !== sf) converts with the primary scale, not the window's", async () => {
+    const win = fakeWindow({ x: 329.84375, y: -937.0390625 });
+    win.outerPosition.mockResolvedValue({ x: -28, y: -726 });
+    win.scaleFactor.mockResolvedValue(1);
+    win.primaryScaleFactor.mockResolvedValue(2);
+    const doc = fakeDoc();
+    const { c, positions, poll } = scheduledPoller(win, doc);
+    c.start();
+    await poll();
+    expect(positions).toHaveLength(1);
+    expect(positions[0]?.x).toBeCloseTo(192.92, 1);
+    expect(positions[0]?.y).toBeCloseTo(257.48, 1);
+    c.stop();
+  });
+
+  it("stop() cancels the pending timer via the real cancel seam", async () => {
+    const win = fakeWindow();
+    const doc = fakeDoc();
+    const { c, scheduled, cancel } = scheduledPoller(win, doc);
+    c.start();
+    expect(scheduled).toEqual([33]);
+    c.stop();
+    expect(cancel).toHaveBeenCalledWith(1); // schedule's first handle, per scheduledPoller
+  });
+
+  it("double-start() is a no-op", () => {
+    const win = fakeWindow();
+    const doc = fakeDoc();
+    const { c, scheduled, getWindow } = scheduledPoller(win, doc);
+    c.start();
+    c.start();
+    expect(getWindow).toHaveBeenCalledTimes(1);
+    expect(scheduled).toEqual([33]);
+    c.stop();
+  });
+
+  it("start() while the document is already hidden does not poll", () => {
+    const win = fakeWindow();
+    const doc = fakeDoc();
+    doc.visibilityState = "hidden";
+    const { c, scheduled } = scheduledPoller(win, doc);
+    c.start();
+    expect(scheduled).toEqual([]);
+    c.stop();
+  });
+
+  it("stop() during an in-flight poll suppresses the emit", async () => {
+    const win = fakeWindow({ x: 300, y: 400 });
+    win.outerPosition.mockResolvedValue({ x: 100, y: 200 });
+    win.scaleFactor.mockResolvedValue(2);
+    win.primaryScaleFactor.mockResolvedValue(2);
+    let resolveCursor: ((v: { x: number; y: number }) => void) | undefined;
+    win.cursorPosition.mockImplementation(
+      () =>
+        new Promise<{ x: number; y: number }>((resolve) => {
+          resolveCursor = resolve;
+        }),
+    );
+    const doc = fakeDoc();
+    const { c, positions, poll } = scheduledPoller(win, doc);
+    c.start();
+    void poll(); // fires the scheduled poll; cursorPosition() is now pending
+    c.stop(); // teardown while the read is still in flight
+    resolveCursor?.({ x: 300, y: 400 });
+    await new Promise((r) => setTimeout(r, 0)); // flush the poll's continuation
+    expect(positions).toEqual([]);
+  });
 });
 
 describe("createCursorTracker — non-Tauri mousemove path", () => {
@@ -178,6 +270,19 @@ describe("createCursorTracker — non-Tauri mousemove path", () => {
       Object.assign(new Event("mousemove"), { clientX: 12, clientY: 34 }) as Event,
     );
     expect(positions).toEqual([{ x: 12, y: 34 }]);
+    c.stop();
+  });
+
+  it("mouseleave reports the cursor unavailable", () => {
+    const target = new EventTarget();
+    const positions: Cursor[] = [];
+    const c = createCursorTracker({ onCursor: (p) => positions.push(p), moveTarget: target });
+    c.start();
+    target.dispatchEvent(
+      Object.assign(new Event("mousemove"), { clientX: 12, clientY: 34 }) as Event,
+    );
+    target.dispatchEvent(new Event("mouseleave"));
+    expect(positions).toEqual([{ x: 12, y: 34 }, null]);
     c.stop();
   });
 

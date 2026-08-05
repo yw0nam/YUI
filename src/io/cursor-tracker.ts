@@ -1,8 +1,10 @@
 /**
  * Global-cursor tracker — forwards the OS cursor (window-local CSS px) to the gaze apply
- * layer. Tauri: self-scheduled poll of the physical cursor via the same 4 reads hit-test's
- * poll uses, converted with physicalCursorToLocalCss. Non-Tauri: mousemove on the window
- * (keeps Vite browser dev testable).
+ * layer. Tauri: self-scheduled poll of the physical cursor, converted with
+ * physicalCursorToLocalCss; only cursorPosition() is read every tick, the slower
+ * outerPosition/scaleFactor/primaryScaleFactor statics are cached and refreshed every
+ * STATIC_REFRESH_TICKS ticks. Non-Tauri: mousemove/mouseleave on the window (keeps Vite
+ * browser dev testable).
  */
 
 import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
@@ -18,6 +20,8 @@ const POLL_MS = 33;
 const BACKOFF_MS = 1000;
 /** Consecutive poll failures before reporting the cursor unavailable and backing off. */
 const FAILURE_THRESHOLD = 3;
+/** Ticks between outerPosition/scaleFactor/primaryScaleFactor re-reads (~264ms at POLL_MS). */
+const STATIC_REFRESH_TICKS = 8;
 
 interface Vec2 {
   x: number;
@@ -80,12 +84,15 @@ export function createCursorTracker(opts: CursorTrackerOptions): CursorTrackerCo
       const me = e as MouseEvent;
       opts.onCursor({ x: me.clientX, y: me.clientY });
     };
+    const onLeave = (): void => opts.onCursor(null);
     return {
       start() {
         moveTarget.addEventListener("mousemove", onMove);
+        moveTarget.addEventListener("mouseleave", onLeave);
       },
       stop() {
         moveTarget.removeEventListener("mousemove", onMove);
+        moveTarget.removeEventListener("mouseleave", onLeave);
       },
     };
   }
@@ -101,6 +108,11 @@ export function createCursorTracker(opts: CursorTrackerOptions): CursorTrackerCo
   let pollHandle: number | null = null;
   let failureCount = 0;
   let backoff = false;
+  let tick = 0;
+  // Cached slow statics — re-read every STATIC_REFRESH_TICKS; null forces a refresh.
+  let cachedOrigin: Vec2 | null = null;
+  let cachedSf = 1;
+  let cachedCursorSf = 1;
 
   function stopPoll(): void {
     if (pollHandle !== null) {
@@ -118,19 +130,37 @@ export function createCursorTracker(opts: CursorTrackerOptions): CursorTrackerCo
 
   async function poll(): Promise<void> {
     if (!running || !win) return;
+    const refreshStatics = cachedOrigin === null || tick % STATIC_REFRESH_TICKS === 0;
+    tick++;
     try {
-      const [cursor, origin, sf, cursorSf] = await Promise.all([
-        win.cursorPosition(),
-        win.outerPosition(),
-        win.scaleFactor(),
-        win.primaryScaleFactor?.(),
-      ]);
+      let cursor: Vec2;
+      if (refreshStatics) {
+        const [c, origin, sf, cursorSf] = await Promise.all([
+          win.cursorPosition(),
+          win.outerPosition(),
+          win.scaleFactor(),
+          win.primaryScaleFactor?.(),
+        ]);
+        cursor = c;
+        cachedOrigin = origin;
+        cachedSf = sf;
+        cachedCursorSf = cursorSf ?? sf;
+      } else {
+        cursor = await win.cursorPosition();
+      }
+      // Teardown (or hide) may have happened while these reads were in flight.
+      if (!running || doc.visibilityState === "hidden" || cachedOrigin === null) return;
+      if (backoff) log.warn("poll_recovered", {});
       failureCount = 0;
       backoff = false;
-      opts.onCursor(physicalCursorToLocalCss(cursor, origin, sf, cursorSf ?? sf));
+      opts.onCursor(physicalCursorToLocalCss(cursor, cachedOrigin, cachedSf, cachedCursorSf));
     } catch (err) {
       failureCount++;
-      log.warn("poll_failed", { error: String(err) });
+      if (backoff) {
+        log.debug("poll_failed", { error: String(err) });
+      } else {
+        log.warn("poll_failed", { error: String(err) });
+      }
       if (failureCount === FAILURE_THRESHOLD) {
         backoff = true;
         log.warn("poll_failure_threshold_reached", { backoff_ms: BACKOFF_MS });
@@ -158,6 +188,8 @@ export function createCursorTracker(opts: CursorTrackerOptions): CursorTrackerCo
       win = getWindow();
       failureCount = 0;
       backoff = false;
+      tick = 0;
+      cachedOrigin = null;
       doc.addEventListener("visibilitychange", onVisibilityChange);
       if (doc.visibilityState !== "hidden") scheduleNextPoll(POLL_MS);
     },
