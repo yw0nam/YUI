@@ -137,7 +137,7 @@ export interface AvatarConfig {
   drag_hold_ms: number;
   /** Reflex-gesture speech cues (drag-hold / window-sit / peek). Defaults are applied by the validator. */
   gesture_cues: GestureCuesConfig;
-  /** Camera gaze-tracking knob. Absent → renderer default (natural preset). Partial values allowed. */
+  /** Cursor gaze-tracking knob. Absent → renderer default (natural preset). Partial values allowed. */
   gaze?: {
     deadDeg?: number;
     headEngageDeg?: number;
