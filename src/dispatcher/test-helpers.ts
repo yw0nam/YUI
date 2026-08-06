@@ -92,7 +92,7 @@ export const CONFIG: EndpointsConfig = {
 
 /** Wraps a trigger in a Turn for BackendCaller.call — id defaults to 1 (irrelevant to most tests). */
 export function turnOf(trigger: BusEnvelope, id = 1): Turn {
-  return { id, trigger, startedAt: 0 };
+  return { id, trigger };
 }
 
 export function userEnv(text = "안녕"): BusEnvelope {

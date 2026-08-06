@@ -10,7 +10,6 @@ import type { BusEnvelope } from "./event-bus";
 export interface Turn {
   readonly id: number;
   readonly trigger: BusEnvelope;
-  readonly startedAt: number;
 }
 
 export interface TurnLog {
@@ -26,7 +25,8 @@ export interface TurnLog {
   isAudioOwed(): boolean;
   /** THE definition of over: settled AND no audio owed. True before the first turn. */
   isOver(): boolean;
-  /** Fires only at the over⟷live boundary. Returns an unsubscribe fn. */
+  /** Fires only at the over⟷live boundary. Returns an unsubscribe fn.
+   * Subscribers must not mutate the ledger synchronously — later subscribers in the same flip see a stale value otherwise. */
   subscribe(cb: (over: boolean) => void): () => void;
 }
 
@@ -51,7 +51,7 @@ export function createTurnLog(): TurnLog {
   return {
     begin(trigger) {
       const wasOver = isOver();
-      const turn: Turn = { id: nextId++, trigger, startedAt: Date.now() };
+      const turn: Turn = { id: nextId++, trigger };
       current = turn;
       settled = false;
       audioOwed = false;
