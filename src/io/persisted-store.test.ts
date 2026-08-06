@@ -11,7 +11,12 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { PersistedStorage } from "./persisted-store";
-import { createPersistedStore, localStorageStore } from "./persisted-store";
+import {
+  createClampedIntSettings,
+  createFlagSettings,
+  createPersistedStore,
+  localStorageStore,
+} from "./persisted-store";
 
 interface Box {
   n: number;
@@ -294,5 +299,143 @@ describe("createPersistedStore subscribe/dispose", () => {
     store.dispose();
     store.commit({ n: 1 });
     expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+describe("createFlagSettings", () => {
+  it("uses the configured default", () => {
+    expect(createFlagSettings(true).get()).toEqual({ enabled: true });
+  });
+
+  it("rejects malformed stored values and falls back to the default", () => {
+    const storage: PersistedStorage<{ enabled: boolean }> = {
+      load: () => ({ enabled: "yes" }) as unknown as { enabled: boolean },
+      save: vi.fn(),
+    };
+    expect(createFlagSettings(false, { storage }).get()).toEqual({ enabled: false });
+  });
+
+  it("persists and notifies when setEnabled changes the value", () => {
+    const save = vi.fn();
+    const store = createFlagSettings(false, { storage: { load: () => null, save } });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.setEnabled(true);
+
+    expect(store.get()).toEqual({ enabled: true });
+    expect(save).toHaveBeenCalledWith({ enabled: true });
+    expect(cb).toHaveBeenCalledWith({ enabled: true });
+  });
+
+  it("does not persist or notify when setEnabled receives the current value", () => {
+    const save = vi.fn();
+    const store = createFlagSettings(true, { storage: { load: () => null, save } });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.setEnabled(true);
+
+    expect(save).not.toHaveBeenCalled();
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("uses stored over initial over default", () => {
+    const initialOnly = createFlagSettings(false, { initial: { enabled: true } });
+    expect(initialOnly.get()).toEqual({ enabled: true });
+
+    const storage: PersistedStorage<{ enabled: boolean }> = {
+      load: () => ({ enabled: false }),
+      save: vi.fn(),
+    };
+    const stored = createFlagSettings(false, { storage, initial: { enabled: true } });
+    expect(stored.get()).toEqual({ enabled: false });
+  });
+
+  it("uses initial when a stored value is malformed", () => {
+    const storage: PersistedStorage<{ enabled: boolean }> = {
+      load: () => ({ enabled: 1 }) as unknown as { enabled: boolean },
+      save: vi.fn(),
+    };
+    const store = createFlagSettings(false, { storage, initial: { enabled: true } });
+    expect(store.get()).toEqual({ enabled: true });
+  });
+});
+
+describe("createClampedIntSettings", () => {
+  const cfg = { default: 10, floor: 1, ceil: 50 };
+
+  it("uses the configured default", () => {
+    expect(createClampedIntSettings(cfg).get()).toEqual({ value: 10 });
+  });
+
+  it("rejects malformed stored values and falls back to the default", () => {
+    const storage: PersistedStorage<{ value: number }> = {
+      load: () => ({ value: 1.5 }),
+      save: vi.fn(),
+    };
+    expect(createClampedIntSettings(cfg, { storage }).get()).toEqual({ value: 10 });
+  });
+
+  it("persists and notifies when set changes the value", () => {
+    const save = vi.fn();
+    const store = createClampedIntSettings(cfg, { storage: { load: () => null, save } });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.set(20);
+
+    expect(store.get()).toEqual({ value: 20 });
+    expect(save).toHaveBeenCalledWith({ value: 20 });
+    expect(cb).toHaveBeenCalledWith({ value: 20 });
+  });
+
+  it("does not persist or notify when set receives the current value", () => {
+    const save = vi.fn();
+    const store = createClampedIntSettings(cfg, { storage: { load: () => null, save } });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.set(10);
+
+    expect(save).not.toHaveBeenCalled();
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it.each([1.5, 0, 51, Number.NaN, Number.POSITIVE_INFINITY])(
+    "ignores invalid setter input %s",
+    (value) => {
+      const save = vi.fn();
+      const store = createClampedIntSettings(cfg, { storage: { load: () => null, save } });
+      const cb = vi.fn();
+      store.subscribe(cb);
+
+      store.set(value);
+
+      expect(store.get()).toEqual({ value: 10 });
+      expect(save).not.toHaveBeenCalled();
+      expect(cb).not.toHaveBeenCalled();
+    },
+  );
+
+  it("uses stored over initial over default", () => {
+    const initialOnly = createClampedIntSettings(cfg, { initial: { value: 20 } });
+    expect(initialOnly.get()).toEqual({ value: 20 });
+
+    const storage: PersistedStorage<{ value: number }> = {
+      load: () => ({ value: 30 }),
+      save: vi.fn(),
+    };
+    const stored = createClampedIntSettings(cfg, { storage, initial: { value: 20 } });
+    expect(stored.get()).toEqual({ value: 30 });
+  });
+
+  it("uses initial when a stored value is malformed", () => {
+    const storage: PersistedStorage<{ value: number }> = {
+      load: () => ({ value: 60 }),
+      save: vi.fn(),
+    };
+    const store = createClampedIntSettings(cfg, { storage, initial: { value: 20 } });
+    expect(store.get()).toEqual({ value: 20 });
   });
 });
