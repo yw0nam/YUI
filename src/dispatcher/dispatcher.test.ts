@@ -2045,7 +2045,7 @@ describe("dispatcher — degraded state (3 consecutive backend call failures)", 
 describe("dispatcher — structured logging: turn events", () => {
   function turnLines(): Array<[string, Record<string, unknown>]> {
     return (logger.info as ReturnType<typeof vi.fn>).mock.calls.filter(
-      (c: [string, Record<string, unknown>]) => c[0] === "turn",
+      (c) => c[0] === "turn",
     ) as Array<[string, Record<string, unknown>]>;
   }
 
