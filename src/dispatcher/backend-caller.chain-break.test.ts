@@ -12,7 +12,7 @@
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { ExpressArgs, ToolStatus, Usage } from "../contract";
+import type { ToolStatus, Usage } from "../contract";
 import type { Logger } from "../logger";
 import { type BackendCaller, createBackendCaller } from "./backend-caller";
 import {
@@ -21,37 +21,28 @@ import {
   createScriptedStream,
   deltaEvent,
   makeLogger,
+  makeTurnOutput,
   userEnv,
 } from "./test-helpers";
 
 const script = createScriptedStream();
 
 let applyDirective: ReturnType<typeof vi.fn>;
-let speechSink: Mock<(text: string) => void>;
-let speechDeltaSink: Mock<(text: string) => void>;
+let turnOutput: ReturnType<typeof makeTurnOutput>;
 let onResponseId: Mock<(id: string) => void>;
 let onResponseIdInvalid: Mock<() => void>;
 let onChainReset: Mock<() => void>;
 let getPreviousResponseId: Mock<() => string | undefined>;
-let cueSink: Mock<(cue: ExpressArgs) => void>;
 let toolStatusSink: Mock<(status: ToolStatus) => void>;
-let speechEndSink: Mock<() => void>;
-let speechInterruptSink: Mock<() => void>;
-let speechAbortSink: Mock<() => void>;
 let usageSink: Mock<(usage: Usage) => void>;
 let caller: BackendCaller;
 let logger: Logger;
 
 function make404(previousResponseId: string | undefined): void {
   applyDirective = vi.fn();
-  speechSink = vi.fn();
-  speechDeltaSink = vi.fn();
+  turnOutput = makeTurnOutput();
   onResponseId = vi.fn();
-  cueSink = vi.fn();
   toolStatusSink = vi.fn();
-  speechEndSink = vi.fn();
-  speechInterruptSink = vi.fn();
-  speechAbortSink = vi.fn();
   usageSink = vi.fn();
   logger = makeLogger();
   // Mirror the real sessionStore wiring (main.ts): onResponseIdInvalid clears the stored id, so
@@ -68,12 +59,7 @@ function make404(previousResponseId: string | undefined): void {
     getApiKey: async () => "k",
     getFetch: async () => undefined,
     stream: script.stream,
-    onSpeech: speechSink,
-    onSpeechDelta: speechDeltaSink,
-    onSpeechEnd: speechEndSink,
-    onSpeechInterrupt: speechInterruptSink,
-    onSpeechAbort: speechAbortSink,
-    onCue: cueSink,
+    turnOutput,
     onToolStatus: toolStatusSink,
     onUsage: usageSink,
     getPreviousResponseId,
@@ -157,7 +143,7 @@ describe("backend_caller — 404 chain-break recovery", () => {
     expect(script.spy).toHaveBeenCalledTimes(1);
     expect(onResponseIdInvalid).not.toHaveBeenCalled();
     expect(onChainReset).not.toHaveBeenCalled();
-    expect(speechAbortSink).toHaveBeenCalledTimes(1);
+    expect(turnOutput.abort).toHaveBeenCalledTimes(1);
   });
 
   it("on successful retry, the chain-reset notice callback is invoked exactly once", async () => {

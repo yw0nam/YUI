@@ -18,8 +18,8 @@
  *  B4 speech gate — speak only when speech_text is not empty. Empty text = silence,
  *     no separate flag. emotion/motion rendered regardless of silence.
  *  B5 dispatch_to_renderer — when per-beat cue streamed, TTS pipeline applies
- *     emotion/motion audio-timed (express→onCue), otherwise at completed: renderer.applyDirective(envelope).
- *     speech_text→onSpeech + tool_status→onToolStatus (flowed to TTS/UI in main.ts).
+ *     emotion/motion audio-timed (express→turnOutput.cue), otherwise at completed: renderer.applyDirective(envelope).
+ *     speech_text→turnOutput.speak + tool_status→onToolStatus (flowed to TTS/UI in main.ts).
  *
  * Silent drop classification: parse_error(WARN) / network_drop(WARN) / network_stall(WARN, idle timeout).
  */
@@ -27,7 +27,6 @@
 import type {
   ControlEnvelope,
   EndpointsConfig,
-  ExpressArgs,
   InputContext,
   ToolStatus,
   Usage,
@@ -47,6 +46,7 @@ import {
 } from "./context-builder";
 import type { BusEnvelope } from "./event-bus";
 import type { DropReason } from "./guardrails";
+import type { TurnOutput } from "./turn-output";
 
 const baseLog = createLogger("backend-caller");
 const DEFAULT_CONTEXT_POLICY: ContextPolicy = Object.fromEntries(
@@ -110,16 +110,8 @@ interface BackendCallerDeps {
   getApiKey: () => Promise<string | undefined>;
   /** Transport fetch selection (selectFetch). Tauri=cors-fetch, dev=undefined. */
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
-  /** Speech text sink — main.ts connects to speech bubble + TTS pipeline. Fallback for delta-less backend. */
-  onSpeech?: (text: string) => void;
-  /** Speech token increment sink — called per speech_delta (streaming TTS). main.ts connects to speech bubble accumulation + pipeline driving. */
-  onSpeechDelta?: (text: string) => void;
-  /** Speech stream end sink — once after all deltas. main.ts connects to speech bubble dwell retention + pipeline flush. */
-  onSpeechEnd?: () => void;
-  /** Speech interrupt sink — once on call() entry. Cleans up remaining audio/speech bubble from the previous (superseded) turn. */
-  onSpeechInterrupt?: () => void;
-  /** Speech abnormal end sink — when stream ended due to error/disconnect (not user supersede) and at least one delta arrived. Cleans up speech bubble/audio. */
-  onSpeechAbort?: () => void;
+  /** Speech lifecycle port — the voice pipeline implements it. */
+  turnOutput?: TurnOutput;
   /** When toggle is ON, assembles and returns screenshot block (undefined if OFF/failed). main.ts composes with settings+capturer+buildScreenshotBlock. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   /** Current foreground app/title snapshot. When present, fills env.active_app/active_window_title. */
@@ -137,8 +129,6 @@ interface BackendCallerDeps {
   drainRecentApps?: (
     only?: import("../io/os-context").RecentApp[],
   ) => import("../io/os-context").RecentApp[];
-  /** Per-beat cue sink — passes each express cue as-is (emotion_id/motion_id/emotion_text). main.ts wires to TTS pipeline (speechPlayback.setCue) — applied audio-timed at sentence playback. */
-  onCue?: (cue: ExpressArgs) => void;
   /** tool_status sink — called only when present. */
   onToolStatus?: (status: ToolStatus) => void;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
@@ -153,12 +143,6 @@ interface BackendCallerDeps {
   onUsage?: (usage: Usage) => void;
   /** Current agent setting (reasoning effort + instructions override) snapshot. Reflected in request only when present. */
   getAgentSettings?: () => import("../io/agent-settings").AgentSettings;
-  /** TTFT thinking entry sink — when filler is active, once synchronously on call() entry. token is unique to this call(). main.ts connects to thinking motion + filler speech loop. */
-  onThinkingStart?: (token: object) => void;
-  /** TTFT thinking end sink — once on first speech_delta (actual response speech start) / turn end (any path). Same token as start. main.ts masks cross-turn supersede by token. */
-  onThinkingEnd?: (token: object) => void;
-  /** Filler active status query — returns true if filler is on + pool non-empty. Thinking starts synchronously only when true (called per turn). */
-  getFiller?: () => boolean;
   /** Integrated conversation transcript — append after completely successful turn in both protocol modes. CC mode also extracts send here. */
   transcript?: { get(): ChatHistoryEntry[]; append(e: ChatHistoryEntry): void };
   /** Local sent-context history, appended only after the turn is confirmed successful. */
@@ -250,7 +234,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     }
 
     // Clean up remaining audio/speech bubble from the previous (superseded) turn — once before first delta.
-    deps.onSpeechInterrupt?.();
+    deps.turnOutput?.interrupt();
 
     // TTFT thinking — when filler is active, start immediately on call() entry (not judgment, first line no delay).
     // End once on actual response speech start (first speech_delta) — usage/express/tool_status before don't
@@ -266,12 +250,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const startThinking = () => {
       if (thinkingStarted || thinkingDone) return;
       thinkingStarted = true;
-      deps.onThinkingStart?.(turnToken);
+      deps.turnOutput?.thinkingStart(turnToken);
     };
     const endThinking = () => {
       if (thinkingDone) return;
       thinkingDone = true;
-      if (thinkingStarted) deps.onThinkingEnd?.(turnToken);
+      if (thinkingStarted) deps.turnOutput?.thinkingEnd(turnToken);
     };
 
     // Wrap entire span in try/finally — thinking end guaranteed exactly once on any exit path
@@ -280,7 +264,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     try {
       // If filler is active, show first line immediately (synchronous start). Don't start if disabled/pool empty,
       // or on a reflex turn — a "thinking" bridge before an immediate reaction reads as dissonant.
-      if (deps.getFiller?.() && !isReflexTurn(env.event_name)) startThinking();
+      if (deps.turnOutput?.hasFiller() && !isReflexTurn(env.event_name)) startThinking();
 
       // B1
       const policy = deps.getContextPolicy?.() ?? DEFAULT_CONTEXT_POLICY;
@@ -355,7 +339,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // B3: Receive ControlEnvelope from chat-client's completed event (no SSE re-parsing).
       let envelope: ControlEnvelope | undefined;
       let newResponseId: string | undefined;
-      // Streaming speech: did at least one delta arrive (completion drives onSpeechEnd branching).
+      // Streaming speech: did at least one delta arrive (completion drives turnOutput.end branching).
       let streamedAny = false;
       // Did at least one express cue arrive during stream (completion drives pipeline ownership branching).
       let cueStreamed = false;
@@ -388,12 +372,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
                 // Actual response speech start — end thinking only here (thinkingDone ensures only first delta).
                 // usage/express/tool_status before don't break thinking.
                 endThinking();
-                deps.onSpeechDelta?.(ev.text);
+                deps.turnOutput?.delta(ev.text);
                 streamedAny = true;
                 break;
               case "express":
                 // Pass the entire cue as-is — TTS pipeline applies audio-timed at sentence playback.
-                deps.onCue?.(ev.args);
+                deps.turnOutput?.cue(ev.args);
                 cueStreamed = true;
                 break;
               case "usage":
@@ -423,14 +407,14 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           if (externalSignal?.aborted) {
             return { ok: false, drop_reason: "superseded_by_user" };
           }
-          if (streamedAny) deps.onSpeechAbort?.();
+          if (streamedAny) deps.turnOutput?.abort();
           log.warn("network_drop", { stage: "stream_threw", error: String(err) });
           return { ok: false, drop_reason: "network_drop" };
         }
 
         if (idleTimedOut) {
           // No event (incl. first byte) within IDLE_TIMEOUT_MS of the previous one — stalled.
-          if (streamedAny) deps.onSpeechAbort?.();
+          if (streamedAny) deps.turnOutput?.abort();
           log.warn("network_stall", { stage: "idle_timeout", idle_ms: IDLE_TIMEOUT_MS });
           return { ok: false, drop_reason: "network_stall" };
         }
@@ -441,7 +425,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
         if (streamError) {
           // If delta arrived, clean up speech bubble/audio — prevent getting stuck forever without next turn.
-          if (streamedAny) deps.onSpeechAbort?.();
+          if (streamedAny) deps.turnOutput?.abort();
           // Distinguish auth-ish (401/403) status as http_4xx_drop — keep other 4xx/5xx/no-status as network_drop.
           if (streamErrorStatus === 401 || streamErrorStatus === 403) {
             log.warn("http_4xx_drop", {
@@ -519,18 +503,18 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // same cue channel here — emotion_id/motion_id omitted, applyDirective above already
       // rendered them and re-sending would double-apply.
       if (!streamedAny && envelope.emotion_text != null) {
-        deps.onCue?.({ emotion_text: envelope.emotion_text });
+        deps.turnOutput?.cue({ emotion_text: envelope.emotion_text });
       }
 
       // B4 (speech gate): speak only when speech_text is not empty.
       //   Empty text = silence — no separate flag/decision, no drop_reason.
       if (streamedAny) {
-        // Streaming path: delta already drove speech, only signal end (don't call onSpeech).
-        deps.onSpeechEnd?.();
+        // Streaming path: delta already drove speech, only signal end (don't call speak).
+        deps.turnOutput?.end();
         log.debug("speech", { text: envelope.speech_text });
       } else if (envelope.speech_text) {
         // Legacy fallback: backend that only provides completed without delta.
-        deps.onSpeech?.(envelope.speech_text);
+        deps.turnOutput?.speak(envelope.speech_text);
         log.debug("speech", { text: envelope.speech_text });
       } else {
         log.info("empty_speech", { trigger: env.event_name });

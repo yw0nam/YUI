@@ -6,7 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { ExpressArgs, InputContext, ToolStatus, Usage } from "../contract";
+import type { InputContext, ToolStatus, Usage } from "../contract";
 import type { Logger } from "../logger";
 import { type BackendCaller, createBackendCaller } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";
@@ -16,18 +16,14 @@ import {
   completedEvent,
   createScriptedStream,
   makeLogger,
+  makeTurnOutput,
   userEnv,
 } from "./test-helpers";
 
 const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;
-let speechSink: Mock<(text: string) => void>;
-let cueSink: Mock<(cue: ExpressArgs) => void>;
+let turnOutput: ReturnType<typeof makeTurnOutput>;
 let toolStatusSink: Mock<(status: ToolStatus) => void>;
-let speechDeltaSink: Mock<(text: string) => void>;
-let speechEndSink: Mock<() => void>;
-let speechInterruptSink: Mock<() => void>;
-let speechAbortSink: Mock<() => void>;
 let usageSink: Mock<(usage: Usage) => void>;
 let caller: BackendCaller;
 let logger: Logger;
@@ -35,13 +31,8 @@ let logger: Logger;
 beforeEach(() => {
   script.reset();
   applyDirective = vi.fn();
-  speechSink = vi.fn();
-  cueSink = vi.fn();
+  turnOutput = makeTurnOutput();
   toolStatusSink = vi.fn();
-  speechDeltaSink = vi.fn();
-  speechEndSink = vi.fn();
-  speechInterruptSink = vi.fn();
-  speechAbortSink = vi.fn();
   usageSink = vi.fn();
   logger = makeLogger();
   caller = createBackendCaller({
@@ -50,13 +41,8 @@ beforeEach(() => {
     getApiKey: async () => "k",
     getFetch: async () => undefined,
     stream: script.stream,
-    onSpeech: speechSink,
-    onCue: cueSink,
+    turnOutput,
     onToolStatus: toolStatusSink,
-    onSpeechDelta: speechDeltaSink,
-    onSpeechEnd: speechEndSink,
-    onSpeechInterrupt: speechInterruptSink,
-    onSpeechAbort: speechAbortSink,
     onUsage: usageSink,
     logger,
   });
@@ -196,7 +182,7 @@ describe("backend_caller — screenshot port", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getScreenshot: async () => SCREENSHOT,
     });
     await caller.call(userEnv("이 화면 뭐야?"));
@@ -224,7 +210,7 @@ describe("backend_caller — screenshot port", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getScreenshot: async () => undefined,
     });
     await caller.call(userEnv("이미지 없음"));
@@ -240,7 +226,7 @@ describe("backend_caller — screenshot port", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getScreenshot: async () => {
         throw new Error("capture failed");
       },
@@ -302,7 +288,7 @@ describe("backend_caller — user_images (chat attachments)", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getScreenshot: async () => ({
         enabled: true,
         source: { kind: "monitor", index: 0 },
@@ -340,7 +326,7 @@ describe("backend_caller — os context port", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getOsContext: () => ({ activeApp: "Visual Studio Code", activeWindowTitle: "main.ts" }),
     });
     await caller.call(userEnv());
@@ -369,7 +355,7 @@ describe("backend_caller — os context port", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getOsContext: () => ({}),
     });
     await caller.call(userEnv());
@@ -396,7 +382,7 @@ describe("backend_caller — posture context port", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getPosture: () => ({
         state: "sitting",
         perched_on: { app: "Notes", window_title: "Meeting notes" },
@@ -419,7 +405,7 @@ describe("backend_caller — posture context port", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getPosture: () => undefined,
     });
     await caller.call(userEnv());
@@ -449,7 +435,7 @@ describe("backend_caller — recent apps package (peek, non-destructive)", () =>
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       peekRecentApps,
     });
     await caller.call(userEnv());
@@ -468,7 +454,7 @@ describe("backend_caller — recent apps package (peek, non-destructive)", () =>
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       peekRecentApps: () => [],
     });
     await caller.call(userEnv());
@@ -500,7 +486,7 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
       },
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       peekRecentApps,
       drainRecentApps,
     });
@@ -521,7 +507,7 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       drainRecentApps,
     });
     script.events = [{ type: "speech_delta", text: "x" }];
@@ -539,7 +525,7 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       drainRecentApps,
     });
     script.error = new Error("boom");
@@ -565,7 +551,7 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       peekRecentApps,
       drainRecentApps,
     });
@@ -688,7 +674,7 @@ describe("backend_caller — agent settings (reasoning effort + instructions)", 
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getAgentSettings: () => ({ reasoning_effort: "medium", instructions: "be terse" }),
     });
     await caller.call(userEnv());
@@ -705,7 +691,7 @@ describe("backend_caller — agent settings (reasoning effort + instructions)", 
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getAgentSettings: () => ({ reasoning_effort: "none", instructions: "" }),
     });
     await caller.call(userEnv());

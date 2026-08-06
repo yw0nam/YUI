@@ -1,5 +1,6 @@
 import type { AppConfig } from "./config/load";
 import type { EndpointsConfig } from "./contract";
+import type { TurnOutput } from "./dispatcher/turn-output";
 import { createWebAudioSink } from "./io/audio-player";
 import { selectFetch } from "./io/chat-client";
 import { createFillerAudioCache } from "./io/filler-audio-cache";
@@ -47,9 +48,7 @@ interface VoicePipelineDeps {
 
 export interface VoicePipeline {
   speechPlayback: SpeechPlayback;
-  hasFiller: () => boolean;
-  onThinkingStart: (token: object) => void;
-  onThinkingEnd: (token: object) => void;
+  turnOutput: TurnOutput;
   createSttEngine: (endpoints: EndpointsConfig) => Promise<SttVad>;
   dispose: () => void;
 }
@@ -210,6 +209,18 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     deps.renderer.playMotion(null);
   }
 
+  const turnOutput: TurnOutput = {
+    interrupt: () => speechPlayback.interrupt(),
+    hasFiller,
+    thinkingStart: onThinkingStart,
+    thinkingEnd: onThinkingEnd,
+    delta: (text) => speechPlayback.onSpeechDelta(text),
+    speak: (text) => speechPlayback.onSpeech(text),
+    end: () => speechPlayback.onSpeechEnd(),
+    abort: () => speechPlayback.abort(),
+    cue: (args) => speechPlayback.setCue(args),
+  };
+
   async function createSttEngine(endpoints: EndpointsConfig): Promise<SttVad> {
     const { createSttVad } = await import("./io/stt-vad");
     return createSttVad({
@@ -228,9 +239,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
 
   return {
     speechPlayback,
-    hasFiller,
-    onThinkingStart,
-    onThinkingEnd,
+    turnOutput,
     createSttEngine,
     dispose() {
       fillerLoop?.stop();

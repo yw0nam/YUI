@@ -17,6 +17,7 @@ import {
   dragHeldEnv,
   expressEvent,
   makeLogger,
+  makeTurnOutput,
   peekEnv,
   toolStatusEvent,
   touchEnv,
@@ -27,13 +28,8 @@ import {
 
 const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;
-let speechSink: Mock<(text: string) => void>;
-let cueSink: Mock<(cue: ExpressArgs) => void>;
+let turnOutput: ReturnType<typeof makeTurnOutput>;
 let toolStatusSink: Mock<(status: ToolStatus) => void>;
-let speechDeltaSink: Mock<(text: string) => void>;
-let speechEndSink: Mock<() => void>;
-let speechInterruptSink: Mock<() => void>;
-let speechAbortSink: Mock<() => void>;
 let usageSink: Mock<(usage: Usage) => void>;
 let caller: BackendCaller;
 let logger: Logger;
@@ -41,13 +37,8 @@ let logger: Logger;
 beforeEach(() => {
   script.reset();
   applyDirective = vi.fn();
-  speechSink = vi.fn();
-  cueSink = vi.fn();
+  turnOutput = makeTurnOutput();
   toolStatusSink = vi.fn();
-  speechDeltaSink = vi.fn();
-  speechEndSink = vi.fn();
-  speechInterruptSink = vi.fn();
-  speechAbortSink = vi.fn();
   usageSink = vi.fn();
   logger = makeLogger();
   caller = createBackendCaller({
@@ -56,13 +47,8 @@ beforeEach(() => {
     getApiKey: async () => "k",
     getFetch: async () => undefined,
     stream: script.stream,
-    onSpeech: speechSink,
-    onCue: cueSink,
+    turnOutput,
     onToolStatus: toolStatusSink,
-    onSpeechDelta: speechDeltaSink,
-    onSpeechEnd: speechEndSink,
-    onSpeechInterrupt: speechInterruptSink,
-    onSpeechAbort: speechAbortSink,
     onUsage: usageSink,
     logger,
   });
@@ -78,7 +64,7 @@ describe("backend_caller — B4 speech gate (speech_text only)", () => {
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(true);
     expect(applyDirective).toHaveBeenCalledWith(env);
-    expect(speechSink).toHaveBeenCalledWith("응 듣고 있어");
+    expect(turnOutput.speak).toHaveBeenCalledWith("응 듣고 있어");
   });
 
   it("empty speech_text → no speech, but render channels still applied (silence = empty text)", async () => {
@@ -90,32 +76,32 @@ describe("backend_caller — B4 speech gate (speech_text only)", () => {
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(true);
     expect(res.drop_reason).toBeUndefined();
-    expect(speechSink).not.toHaveBeenCalled();
+    expect(turnOutput.speak).not.toHaveBeenCalled();
     // emotion/motion still rendered (firing≠judgment: silence only gates speech).
     expect(applyDirective).toHaveBeenCalledWith(env);
   });
 });
 
 describe("backend_caller — B5 cue forwarding + tool_status callbacks", () => {
-  it("forwards each express cue to onCue (full args, not just emotion_text)", async () => {
+  it("forwards each express cue to turnOutput.cue (full args, not just emotion_text)", async () => {
     script.events = [
       deltaEvent("hi "),
       expressEvent({ emotion_id: "happy", motion_id: "wave", emotion_text: "(whisper)" }),
       completedEvent({ speech_text: "hi", emotion_text: "(whisper)" }),
     ];
     await caller.call(userEnv());
-    expect(cueSink).toHaveBeenCalledWith({
+    expect(turnOutput.cue).toHaveBeenCalledWith({
       emotion_id: "happy",
       motion_id: "wave",
       emotion_text: "(whisper)",
     });
   });
 
-  it("does not call onCue when the stream yields no express event", async () => {
+  it("does not call turnOutput.cue when the stream yields no express event", async () => {
     const env: ControlEnvelope = { speech_text: "안녕", emotion: { id: "happy" } };
     script.events = [deltaEvent("안녕"), completedEvent(env)];
     await caller.call(userEnv());
-    expect(cueSink).not.toHaveBeenCalled();
+    expect(turnOutput.cue).not.toHaveBeenCalled();
   });
 
   it("forwards each streamed tool_status event to onToolStatus (running spinner, done check)", async () => {
@@ -153,7 +139,7 @@ describe("backend_caller — B5 cue forwarding + tool_status callbacks", () => {
 });
 
 describe("backend_caller — streaming speech deltas (incremental TTS)", () => {
-  it("each speech_delta → onSpeechDelta in order; onSpeechEnd once after all deltas", async () => {
+  it("each speech_delta → turnOutput.delta in order; turnOutput.end once after all deltas", async () => {
     script.events = [
       deltaEvent("Hel"),
       deltaEvent("lo "),
@@ -161,27 +147,27 @@ describe("backend_caller — streaming speech deltas (incremental TTS)", () => {
       completedEvent({ speech_text: "Hello world" }),
     ];
     await caller.call(userEnv());
-    expect(speechDeltaSink.mock.calls.map((c) => c[0])).toEqual(["Hel", "lo ", "world"]);
-    expect(speechEndSink).toHaveBeenCalledTimes(1);
+    expect(turnOutput.delta.mock.calls.map((c) => c[0])).toEqual(["Hel", "lo ", "world"]);
+    expect(turnOutput.end).toHaveBeenCalledTimes(1);
   });
 
-  it("onSpeechInterrupt fires once at the START of call(), before the first delta", async () => {
+  it("turnOutput.interrupt fires once at the START of call(), before the first delta", async () => {
     const order: string[] = [];
-    speechInterruptSink.mockImplementation(() => order.push("interrupt"));
-    speechDeltaSink.mockImplementation((t: string) => order.push(`delta:${t}`));
-    speechEndSink.mockImplementation(() => order.push("end"));
+    turnOutput.interrupt.mockImplementation(() => order.push("interrupt"));
+    turnOutput.delta.mockImplementation((t: string) => order.push(`delta:${t}`));
+    turnOutput.end.mockImplementation(() => order.push("end"));
     script.events = [deltaEvent("a"), deltaEvent("b"), completedEvent({ speech_text: "ab" })];
     await caller.call(userEnv());
-    expect(speechInterruptSink).toHaveBeenCalledTimes(1);
+    expect(turnOutput.interrupt).toHaveBeenCalledTimes(1);
     // interrupt precedes every delta (and the end).
     expect(order).toEqual(["interrupt", "delta:a", "delta:b", "end"]);
   });
 
-  it("express cue → onCue DURING the stream, before onSpeechEnd", async () => {
+  it("express cue → turnOutput.cue DURING the stream, before turnOutput.end", async () => {
     const order: string[] = [];
-    cueSink.mockImplementation((c: ExpressArgs) => order.push(`cue:${c.emotion_text}`));
-    speechDeltaSink.mockImplementation((t: string) => order.push(`delta:${t}`));
-    speechEndSink.mockImplementation(() => order.push("end"));
+    turnOutput.cue.mockImplementation((c: ExpressArgs) => order.push(`cue:${c.emotion_text}`));
+    turnOutput.delta.mockImplementation((t: string) => order.push(`delta:${t}`));
+    turnOutput.end.mockImplementation(() => order.push("end"));
     script.events = [
       deltaEvent("hi "),
       expressEvent({ emotion_text: "(whisper)" }),
@@ -189,80 +175,80 @@ describe("backend_caller — streaming speech deltas (incremental TTS)", () => {
       completedEvent({ speech_text: "hi there", emotion_text: "(whisper)" }),
     ];
     await caller.call(userEnv());
-    expect(cueSink).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
+    expect(turnOutput.cue).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
     // cue routed mid-stream, strictly before the end signal.
     expect(order.indexOf("cue:(whisper)")).toBeGreaterThanOrEqual(0);
     expect(order.indexOf("cue:(whisper)")).toBeLessThan(order.indexOf("end"));
   });
 
-  it("empty speech_text: no speech_delta → neither onSpeechDelta nor onSpeechEnd", async () => {
+  it("empty speech_text: no speech_delta → neither turnOutput.delta nor turnOutput.end", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv());
-    expect(speechDeltaSink).not.toHaveBeenCalled();
-    expect(speechEndSink).not.toHaveBeenCalled();
+    expect(turnOutput.delta).not.toHaveBeenCalled();
+    expect(turnOutput.end).not.toHaveBeenCalled();
   });
 
-  it("error mid-stream after ≥1 delta → onSpeechAbort tears down (not onSpeechEnd)", async () => {
+  it("error mid-stream after ≥1 delta → turnOutput.abort tears down (not turnOutput.end)", async () => {
     script.events = [deltaEvent("partial"), { type: "error", message: "boom" }];
     await caller.call(userEnv());
-    expect(speechEndSink).not.toHaveBeenCalled();
-    expect(speechAbortSink).toHaveBeenCalledTimes(1);
+    expect(turnOutput.end).not.toHaveBeenCalled();
+    expect(turnOutput.abort).toHaveBeenCalledTimes(1);
   });
 
-  it("thrown stream mid-flight after ≥1 delta → onSpeechAbort tears down (not onSpeechEnd)", async () => {
+  it("thrown stream mid-flight after ≥1 delta → turnOutput.abort tears down (not turnOutput.end)", async () => {
     script.events = [deltaEvent("partial")];
     script.error = new Error("network reset");
     await caller.call(userEnv());
-    expect(speechEndSink).not.toHaveBeenCalled();
-    expect(speechAbortSink).toHaveBeenCalledTimes(1);
+    expect(turnOutput.end).not.toHaveBeenCalled();
+    expect(turnOutput.abort).toHaveBeenCalledTimes(1);
   });
 
   it("user-supersede mid-stream (aborted signal) → NO abort teardown (next turn cleans up)", async () => {
     const ac = new AbortController();
-    speechDeltaSink.mockImplementation(() => ac.abort());
+    turnOutput.delta.mockImplementation(() => ac.abort());
     script.events = [deltaEvent("partial"), { type: "error", message: "boom" }];
     const res = await caller.call(userEnv(), ac.signal);
     expect(res.drop_reason).toBe("superseded_by_user");
-    expect(speechAbortSink).not.toHaveBeenCalled();
-    expect(speechEndSink).not.toHaveBeenCalled();
+    expect(turnOutput.abort).not.toHaveBeenCalled();
+    expect(turnOutput.end).not.toHaveBeenCalled();
   });
 
   it("drops a buffered speech delta yielded after the external signal aborts", async () => {
     const ac = new AbortController();
-    speechDeltaSink.mockImplementationOnce(() => ac.abort());
+    turnOutput.delta.mockImplementationOnce(() => ac.abort());
     script.events = [deltaEvent("first"), deltaEvent("buffered")];
 
     const res = await caller.call(userEnv(), ac.signal);
 
     expect(res.drop_reason).toBe("superseded_by_user");
-    expect(speechDeltaSink.mock.calls.map((c) => c[0])).toEqual(["first"]);
+    expect(turnOutput.delta.mock.calls.map((c) => c[0])).toEqual(["first"]);
   });
 
   it("error mid-stream with NO prior delta → silent (no abort, no end)", async () => {
     script.events = [{ type: "error", message: "boom" }];
     await caller.call(userEnv());
-    expect(speechAbortSink).not.toHaveBeenCalled();
-    expect(speechEndSink).not.toHaveBeenCalled();
+    expect(turnOutput.abort).not.toHaveBeenCalled();
+    expect(turnOutput.end).not.toHaveBeenCalled();
   });
 
   it("thrown stream with NO prior delta → silent (no abort, no end)", async () => {
     script.error = new Error("network reset");
     await caller.call(userEnv());
-    expect(speechAbortSink).not.toHaveBeenCalled();
-    expect(speechEndSink).not.toHaveBeenCalled();
+    expect(turnOutput.abort).not.toHaveBeenCalled();
+    expect(turnOutput.end).not.toHaveBeenCalled();
   });
 
-  it("streaming path does NOT invoke the whole-text onSpeech dep", async () => {
+  it("streaming path does NOT invoke the whole-text turnOutput.speak dep", async () => {
     script.events = [deltaEvent("a"), deltaEvent("b"), completedEvent({ speech_text: "ab" })];
     await caller.call(userEnv());
-    expect(speechSink).not.toHaveBeenCalled();
+    expect(turnOutput.speak).not.toHaveBeenCalled();
   });
 });
 
 // ── per-beat cue ownership: streaming pipeline applies cues audio-timed ─────────
 
 describe("backend_caller — per-beat cue application (pipeline ownership)", () => {
-  it("streaming turn (≥1 express + ≥1 delta) → onCue per cue; applyDirective NOT called at completed", async () => {
+  it("streaming turn (≥1 express + ≥1 delta) → turnOutput.cue per cue; applyDirective NOT called at completed", async () => {
     script.events = [
       expressEvent({ emotion_id: "happy", motion_id: "wave" }),
       deltaEvent("Hi "),
@@ -274,7 +260,7 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     expect(res.ok).toBe(true);
     // pipeline owns visual application audio-timed per sentence — no completed apply.
     expect(applyDirective).not.toHaveBeenCalled();
-    expect(cueSink.mock.calls.map((c) => c[0])).toEqual([
+    expect(turnOutput.cue.mock.calls.map((c) => c[0])).toEqual([
       { emotion_id: "happy", motion_id: "wave" },
       { emotion_id: "curious" },
     ]);
@@ -285,7 +271,7 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     script.events = [expressEvent({ emotion_id: "thinking" }), completedEvent(env)];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(true);
-    expect(cueSink).toHaveBeenCalledWith({ emotion_id: "thinking" });
+    expect(turnOutput.cue).toHaveBeenCalledWith({ emotion_id: "thinking" });
     // no audio to time against → completed applies the cue once.
     expect(applyDirective).toHaveBeenCalledTimes(1);
     expect(applyDirective).toHaveBeenCalledWith(env);
@@ -302,13 +288,13 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     expect(res.ok).toBe(true);
     expect(applyDirective).toHaveBeenCalledTimes(1);
     expect(applyDirective).toHaveBeenCalledWith(env);
-    expect(cueSink).not.toHaveBeenCalled();
+    expect(turnOutput.cue).not.toHaveBeenCalled();
   });
 
-  it("completed-only backend (no express) with emotion_text → routes emotion_text through onCue, before onSpeech, without emotion_id/motion_id", async () => {
+  it("completed-only backend (no express) with emotion_text → routes emotion_text through turnOutput.cue, before turnOutput.speak, without emotion_id/motion_id", async () => {
     const order: string[] = [];
-    cueSink.mockImplementation((c: ExpressArgs) => order.push(`cue:${JSON.stringify(c)}`));
-    speechSink.mockImplementation(() => order.push("speech"));
+    turnOutput.cue.mockImplementation((c: ExpressArgs) => order.push(`cue:${JSON.stringify(c)}`));
+    turnOutput.speak.mockImplementation(() => order.push("speech"));
     const env: ControlEnvelope = {
       speech_text: "안녕",
       emotion: { id: "happy" },
@@ -317,12 +303,12 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     script.events = [completedEvent(env)];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(true);
-    expect(cueSink).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
-    expect(speechSink).toHaveBeenCalledWith("안녕");
+    expect(turnOutput.cue).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
+    expect(turnOutput.speak).toHaveBeenCalledWith("안녕");
     expect(order).toEqual([`cue:${JSON.stringify({ emotion_text: "(whisper)" })}`, "speech"]);
   });
 
-  it("completed-only backend with a true silent turn (emotion_text set, empty speech_text) → onCue still fires but onSpeech does not", async () => {
+  it("completed-only backend with a true silent turn (emotion_text set, empty speech_text) → turnOutput.cue still fires but turnOutput.speak does not", async () => {
     const env: ControlEnvelope = {
       speech_text: "",
       emotion_text: "(whisper)",
@@ -330,8 +316,8 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     script.events = [completedEvent(env)];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(true);
-    expect(cueSink).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
-    expect(speechSink).not.toHaveBeenCalled();
+    expect(turnOutput.cue).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
+    expect(turnOutput.speak).not.toHaveBeenCalled();
   });
 });
 
@@ -361,7 +347,7 @@ describe("backend_caller — usage sink (token accounting channel)", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
     });
     script.events = [usageEvent(1, 2, 3), completedEvent({ speech_text: "hi" })];
     const res = await caller.call(userEnv());
@@ -376,46 +362,30 @@ describe("backend_caller — usage sink (token accounting channel)", () => {
 // precede speech. Silent/error/abort turns still end thinking via finally.
 
 describe("backend_caller — TTFT thinking lifecycle", () => {
-  let onThinkingStart: Mock<(token: object) => void>;
-  let onThinkingEnd: Mock<(token: object) => void>;
-  let getFiller: Mock<() => boolean>;
-
   function makeCaller(fillerActive = true) {
+    turnOutput.hasFiller.mockReturnValue(fillerActive);
     return createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
-      onSpeechDelta: speechDeltaSink,
-      onSpeechEnd: speechEndSink,
-      onSpeechInterrupt: speechInterruptSink,
-      onCue: cueSink,
+      turnOutput,
       onUsage: usageSink,
       logger,
-      onThinkingStart,
-      onThinkingEnd,
-      getFiller: getFiller.mockReturnValue(fillerActive),
     });
   }
 
-  beforeEach(() => {
-    onThinkingStart = vi.fn();
-    onThinkingEnd = vi.fn();
-    getFiller = vi.fn();
-  });
-
-  it("getFiller true → onThinkingStart fires synchronously at call entry, before any stream event", async () => {
+  it("hasFiller true → thinkingStart fires synchronously at call entry, before any stream event", async () => {
     const order: string[] = [];
-    onThinkingStart.mockImplementation(() => order.push("start"));
-    speechDeltaSink.mockImplementation((t: string) => order.push(`delta:${t}`));
+    turnOutput.thinkingStart.mockImplementation(() => order.push("start"));
+    turnOutput.delta.mockImplementation((t: string) => order.push(`delta:${t}`));
     caller = makeCaller(true);
     script.events = [deltaEvent("hi"), completedEvent({ speech_text: "hi" })];
     // start must have happened before call() resolves; assert synchronous ordering vs deltas.
     const p = caller.call(userEnv());
-    // onThinkingStart is invoked synchronously inside call() before the first await yields.
-    expect(onThinkingStart).toHaveBeenCalledTimes(1);
+    // thinkingStart is invoked synchronously inside call() before the first await yields.
+    expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
     await p;
     expect(order[0]).toBe("start");
     expect(order.indexOf("start")).toBeLessThan(order.indexOf("delta:hi"));
@@ -423,94 +393,89 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
 
   it("interrupt precedes thinking start at call entry", async () => {
     const order: string[] = [];
-    speechInterruptSink.mockImplementation(() => order.push("interrupt"));
-    onThinkingStart.mockImplementation(() => order.push("start"));
+    turnOutput.interrupt.mockImplementation(() => order.push("interrupt"));
+    turnOutput.thinkingStart.mockImplementation(() => order.push("start"));
     caller = makeCaller(true);
     script.events = [deltaEvent("hi"), completedEvent({ speech_text: "hi" })];
     await caller.call(userEnv());
     expect(order.indexOf("interrupt")).toBeLessThan(order.indexOf("start"));
   });
 
-  it("getFiller false → onThinkingStart never fires", async () => {
+  it("hasFiller false → thinkingStart never fires", async () => {
     caller = makeCaller(false);
     script.events = [deltaEvent("hi"), completedEvent({ speech_text: "hi" })];
     await caller.call(userEnv());
-    expect(onThinkingStart).not.toHaveBeenCalled();
-    expect(onThinkingEnd).not.toHaveBeenCalled();
+    expect(turnOutput.thinkingStart).not.toHaveBeenCalled();
+    expect(turnOutput.thinkingEnd).not.toHaveBeenCalled();
   });
 
-  it("reflex turn (proactive.touch_*) skips thinking even when getFiller true", async () => {
+  it("reflex turn (proactive.touch_*) skips thinking even when hasFiller true", async () => {
     caller = makeCaller(true);
     script.events = [deltaEvent("꺅"), completedEvent({ speech_text: "꺅" })];
     await caller.call(touchEnv());
-    expect(onThinkingStart).not.toHaveBeenCalled();
-    expect(onThinkingEnd).not.toHaveBeenCalled();
+    expect(turnOutput.thinkingStart).not.toHaveBeenCalled();
+    expect(turnOutput.thinkingEnd).not.toHaveBeenCalled();
   });
 
   it.each([
     ["proactive.drag_held", dragHeldEnv],
     ["proactive.window_sit", windowSitEnv],
     ["proactive.peek", peekEnv],
-  ] as const)("reflex turn (%s) skips thinking even when getFiller true", async (_name, env) => {
+  ] as const)("reflex turn (%s) skips thinking even when hasFiller true", async (_name, env) => {
     caller = makeCaller(true);
     script.events = [deltaEvent("꺅"), completedEvent({ speech_text: "꺅" })];
     await caller.call(env());
-    expect(onThinkingStart).not.toHaveBeenCalled();
-    expect(onThinkingEnd).not.toHaveBeenCalled();
+    expect(turnOutput.thinkingStart).not.toHaveBeenCalled();
+    expect(turnOutput.thinkingEnd).not.toHaveBeenCalled();
   });
 
-  it("getFiller absent → onThinkingStart never fires (back-compat)", async () => {
+  it("turnOutput absent → thinkingStart never fires (missing port stays falsy, not true)", async () => {
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
-      onThinkingStart,
-      onThinkingEnd,
     });
     script.events = [completedEvent({ speech_text: "hi" })];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(true);
-    expect(onThinkingStart).not.toHaveBeenCalled();
-    expect(onThinkingEnd).not.toHaveBeenCalled();
   });
 
   it("thinking ENDS on the first speech_delta — exactly once", async () => {
     const order: string[] = [];
-    onThinkingStart.mockImplementation(() => order.push("start"));
-    onThinkingEnd.mockImplementation(() => order.push("end"));
-    speechDeltaSink.mockImplementation((t: string) => order.push(`delta:${t}`));
+    turnOutput.thinkingStart.mockImplementation(() => order.push("start"));
+    turnOutput.thinkingEnd.mockImplementation(() => order.push("end"));
+    turnOutput.delta.mockImplementation((t: string) => order.push(`delta:${t}`));
     caller = makeCaller(true);
     script.events = [deltaEvent("a"), deltaEvent("b"), completedEvent({ speech_text: "ab" })];
     await caller.call(userEnv());
-    expect(onThinkingStart).toHaveBeenCalledTimes(1);
-    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
-    // end is the first thing the first delta does (endThinking precedes onSpeechDelta);
+    expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
+    // end is the first thing the first delta does (endThinking precedes turnOutput.delta);
     // the second delta does not re-end (idempotent).
     expect(order).toEqual(["start", "end", "delta:a", "delta:b"]);
   });
 
   it("thinking PERSISTS through usage before any speech_delta (ends on the delta, not usage)", async () => {
     const order: string[] = [];
-    onThinkingEnd.mockImplementation(() => order.push("end"));
-    speechDeltaSink.mockImplementation((t: string) => order.push(`delta:${t}`));
+    turnOutput.thinkingEnd.mockImplementation(() => order.push("end"));
+    turnOutput.delta.mockImplementation((t: string) => order.push(`delta:${t}`));
     usageSink.mockImplementation(() => order.push("usage"));
     caller = makeCaller(true);
     script.events = [usageEvent(1, 2, 3), deltaEvent("hi"), completedEvent({ speech_text: "hi" })];
     await caller.call(userEnv());
     // usage routed first WITHOUT ending thinking; end fires when the delta arrives
-    // (endThinking precedes onSpeechDelta within the case).
+    // (endThinking precedes turnOutput.delta within the case).
     expect(order).toEqual(["usage", "end", "delta:hi"]);
-    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
   });
 
   it("thinking PERSISTS through express before any speech_delta", async () => {
     const order: string[] = [];
-    onThinkingEnd.mockImplementation(() => order.push("end"));
-    cueSink.mockImplementation(() => order.push("cue"));
-    speechDeltaSink.mockImplementation(() => order.push("delta"));
+    turnOutput.thinkingEnd.mockImplementation(() => order.push("end"));
+    turnOutput.cue.mockImplementation(() => order.push("cue"));
+    turnOutput.delta.mockImplementation(() => order.push("delta"));
     caller = makeCaller(true);
     script.events = [
       expressEvent({ emotion_id: "happy" }),
@@ -518,31 +483,32 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
       completedEvent({ speech_text: "hi" }),
     ];
     await caller.call(userEnv());
-    // express routed WITHOUT ending thinking; end fires at the delta (before onSpeechDelta).
+    // express routed WITHOUT ending thinking; end fires at the delta (before turnOutput.delta).
     expect(order).toEqual(["cue", "end", "delta"]);
   });
 
   it("thinking PERSISTS through tool_status-only completed with no speech (ends via finally)", async () => {
     // tool_status rides the completed envelope; no speech_delta ever arrives → silent turn.
-    onThinkingStart.mockClear();
+    turnOutput.thinkingStart.mockClear();
     caller = makeCaller(true);
     const status = { state: "running" as const, tool_id: "web_search" };
     script.events = [completedEvent({ speech_text: "", tool_status: status })];
     await caller.call(userEnv());
     // no delta → endThinking only fired once, via finally.
-    expect(onThinkingStart).toHaveBeenCalledTimes(1);
-    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
   });
 
-  it("silent turn (completed, empty speech, no deltas) → onThinkingEnd once via finally", async () => {
+  it("silent turn (completed, empty speech, no deltas) → thinkingEnd once via finally", async () => {
     caller = makeCaller(true);
     script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv());
-    expect(onThinkingStart).toHaveBeenCalledTimes(1);
-    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
   });
 
-  it("setup-stage reject (no speech ever) → onThinkingEnd once via finally", async () => {
+  it("setup-stage reject (no speech ever) → thinkingEnd once via finally", async () => {
+    turnOutput.hasFiller.mockReturnValue(true);
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
@@ -551,67 +517,64 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
       },
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
       logger,
-      onThinkingStart,
-      onThinkingEnd,
-      getFiller: getFiller.mockReturnValue(true),
+      turnOutput,
     });
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_drop");
-    expect(onThinkingStart).toHaveBeenCalledTimes(1);
-    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
   });
 
-  it("parse_error (no completed event) → onThinkingEnd once via finally", async () => {
+  it("parse_error (no completed event) → thinkingEnd once via finally", async () => {
     caller = makeCaller(true);
     script.events = [];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("parse_error");
-    expect(onThinkingStart).toHaveBeenCalledTimes(1);
-    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
   });
 
-  it("stream throw before any speech (network_drop) → onThinkingEnd once via finally", async () => {
+  it("stream throw before any speech (network_drop) → thinkingEnd once via finally", async () => {
     caller = makeCaller(true);
     script.error = new Error("connection reset");
     script.events = [];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_drop");
-    expect(onThinkingStart).toHaveBeenCalledTimes(1);
-    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
   });
 
-  it("external-signal abort mid-stream → onThinkingEnd once via finally", async () => {
+  it("external-signal abort mid-stream → thinkingEnd once via finally", async () => {
     const ac = new AbortController();
     caller = makeCaller(true);
-    speechDeltaSink.mockImplementation(() => ac.abort());
+    turnOutput.delta.mockImplementation(() => ac.abort());
     script.events = [deltaEvent("partial"), { type: "error", message: "boom" }];
     const res = await caller.call(userEnv(), ac.signal);
     expect(res.drop_reason).toBe("superseded_by_user");
-    expect(onThinkingStart).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
     // started + ended exactly once (delta ended it, finally is idempotent).
-    expect(onThinkingEnd).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
   });
 
   // ── turn-token identity (cross-turn overlap guard) ──────────────────────────
-  // The cross-turn guard lives in main.ts (singleton fillerLoop + renderer), but
+  // The cross-turn guard lives in voice-pipeline-wiring.ts (singleton fillerLoop + renderer), but
   // its correctness rests on backend-caller handing a STABLE per-call token to both
   // seams: same token for one call's start+end, distinct tokens across calls. With
-  // that contract, main.ts records currentThinkingTurn at start and no-ops an end
+  // that contract, the pipeline records currentThinkingTurn at start and no-ops an end
   // whose token != current — so a superseded turn's late end cannot tear down the
-  // turn that superseded it. These tests pin the token contract main.ts relies on.
+  // turn that superseded it. These tests pin the token contract the pipeline relies on.
 
-  it("onThinkingStart and onThinkingEnd of one call receive the SAME token", async () => {
+  it("thinkingStart and thinkingEnd of one call receive the SAME token", async () => {
     let startToken: unknown;
     let endToken: unknown;
-    onThinkingStart.mockImplementation((t: unknown) => {
+    turnOutput.thinkingStart.mockImplementation((t: unknown) => {
       startToken = t;
     });
-    onThinkingEnd.mockImplementation((t: unknown) => {
+    turnOutput.thinkingEnd.mockImplementation((t: unknown) => {
       endToken = t;
     });
     caller = makeCaller(true);
@@ -624,7 +587,7 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
 
   it("distinct calls receive DISTINCT tokens", async () => {
     const startTokens: unknown[] = [];
-    onThinkingStart.mockImplementation((t: unknown) => startTokens.push(t));
+    turnOutput.thinkingStart.mockImplementation((t: unknown) => startTokens.push(t));
     caller = makeCaller(true);
     script.events = [deltaEvent("a"), completedEvent({ speech_text: "a" })];
     await caller.call(userEnv());
@@ -635,7 +598,7 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
   });
 
   it("overlap race: turn A's late end (token A) must NOT tear down turn B (token B)", () => {
-    // Reproduce the main.ts guard against the real per-call tokens. Turn B's start
+    // Reproduce the pipeline's guard against the real per-call tokens. Turn B's start
     // runs synchronously before turn A's abort-driven finally; A's late end carries
     // A's token, which is no longer current → guard ignores it, B survives.
     let currentThinkingTurn: object | null = null;
@@ -643,12 +606,12 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
 
     // Capture each call's token via a fresh start handler per turn.
     const tokens: object[] = [];
-    onThinkingStart.mockImplementation((t: object) => {
+    turnOutput.thinkingStart.mockImplementation((t: object) => {
       tokens.push(t);
-      currentThinkingTurn = t; // main.ts: claim ownership synchronously.
+      currentThinkingTurn = t; // pipeline: claim ownership synchronously.
     });
-    onThinkingEnd.mockImplementation((t: object) => {
-      if (t !== currentThinkingTurn) return; // main.ts: ignore stale end.
+    turnOutput.thinkingEnd.mockImplementation((t: object) => {
+      if (t !== currentThinkingTurn) return; // pipeline: ignore stale end.
       currentThinkingTurn = null;
       if (t === tokens[1]) bTornDown = true; // tearing down B would set this.
     });
@@ -659,10 +622,10 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
     // Two synchronous starts (A then B), distinct tokens.
     const tokenA = {};
     const tokenB = {};
-    onThinkingStart(tokenA);
-    onThinkingStart(tokenB);
+    turnOutput.thinkingStart(tokenA);
+    turnOutput.thinkingStart(tokenB);
     // A's late end carries tokenA, which != current (tokenB) → must be ignored.
-    onThinkingEnd(tokenA);
+    turnOutput.thinkingEnd(tokenA);
 
     expect(currentThinkingTurn).toBe(tokenB); // B still owns thinking.
     expect(bTornDown).toBe(false); // B's loop/motion untouched by A's late end.
@@ -688,12 +651,7 @@ describe("backend_caller — 404 chain-break retry does not leak attempt-1 envel
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
-      onSpeechDelta: speechDeltaSink,
-      onSpeechEnd: speechEndSink,
-      onSpeechInterrupt: speechInterruptSink,
-      onSpeechAbort: speechAbortSink,
-      onCue: cueSink,
+      turnOutput,
       onToolStatus: toolStatusSink,
       onUsage: usageSink,
       getPreviousResponseId,

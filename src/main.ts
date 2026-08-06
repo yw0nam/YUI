@@ -705,12 +705,7 @@ async function bootstrap(): Promise<void> {
         getEndpoints().chat_model_context_window ?? null,
       );
     },
-    onSpeech: (text) => voice.speechPlayback.onSpeech(text),
-    onSpeechDelta: (text) => voice.speechPlayback.onSpeechDelta(text),
-    onSpeechEnd: () => voice.speechPlayback.onSpeechEnd(),
-    onSpeechInterrupt: () => voice.speechPlayback.interrupt(),
-    onSpeechAbort: () => voice.speechPlayback.abort(),
-    onCue: (cue) => voice.speechPlayback.setCue(cue),
+    turnOutput: voice.turnOutput,
     onToolStatus: (s) =>
       s.state === "running"
         ? surfaces.showTool(s.tool_id ?? "")
@@ -739,9 +734,6 @@ async function bootstrap(): Promise<void> {
     drainRecentApps: (only) => osContext.drainRecentApps(only),
     contextHistory,
     getAgentSettings: () => agentSettings.get(),
-    getFiller: voice.hasFiller,
-    onThinkingStart: voice.onThinkingStart,
-    onThinkingEnd: voice.onThinkingEnd,
   });
   // dispatcher/guardrails created after config load (guardrails needs cfg.guardrails numbers).
   try {
