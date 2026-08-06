@@ -98,8 +98,6 @@ interface QuickControlsOptions {
   removeUserVoice: (id: string) => Promise<void>;
   /** Refetches the irodori server's voice list on panel open (the server may come up after the app). Fire-and-forget. */
   refreshVoiceList?: () => void;
-  /** Convert audition ref_url to a fetchable URL. */
-  resolveAuditionUrl?: (refUrl: string) => Promise<string>;
   onGainPreview: (mouthOpen: number) => void;
   onGainPreviewEnd: () => void;
   /** Reset the camera viewpoint (orbit angles) to head-on. Renders the section when set. */
@@ -181,7 +179,6 @@ export function createQuickControls({
   commitVoiceImport,
   removeUserVoice,
   refreshVoiceList,
-  resolveAuditionUrl,
   onGainPreview,
   onGainPreviewEnd,
   onResetViewpoint,
@@ -364,7 +361,6 @@ export function createQuickControls({
     pickVoiceImport,
     commitVoiceImport,
     removeUserVoice,
-    resolveAuditionUrl,
     log,
     speakerControlsEnabled,
     isDisposed: () => disposed,

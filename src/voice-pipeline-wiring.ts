@@ -228,7 +228,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     const { createSttVad } = await import("./io/stt-vad");
     return createSttVad({
       config: endpoints,
-      fetch: (await selectFetch()) ?? undefined,
+      fetch: await selectFetch(),
       silenceMs: () => deps.vadSettings.get().silenceMs,
       getApiKey: deps.getSttApiKey,
       onVoiceSegment: deps.onVoiceSegment,

@@ -965,40 +965,6 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  it("routes the audition url through the asset resolver before constructing Audio", async () => {
-    const resolveAuditionUrl = vi.fn(async (u: string) => `resolved://${u}`);
-    const seen: string[] = [];
-    class FakeAudio {
-      src: string;
-      constructor(src: string) {
-        this.src = src;
-        seen.push(src);
-      }
-      addEventListener() {}
-      play() {
-        return Promise.resolve();
-      }
-      pause() {}
-    }
-    const OrigAudio = globalThis.Audio;
-    (globalThis as { Audio: unknown }).Audio = FakeAudio as unknown;
-    try {
-      const qc = buildQc({ resolveAuditionUrl });
-      qc.open();
-
-      const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-      rows[1].querySelector<HTMLButtonElement>(".yui-spk__preview")!.click();
-      await flush();
-
-      expect(resolveAuditionUrl).toHaveBeenCalledWith("/references/ayase.wav");
-      expect(seen).toEqual(["resolved:///references/ayase.wav"]);
-
-      qc.dispose();
-    } finally {
-      (globalThis as { Audio: unknown }).Audio = OrigAudio;
-    }
-  });
-
   it("resolves the default audition URL against the document location", async () => {
     const seen: string[] = [];
     class FakeAudio {

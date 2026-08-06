@@ -1,3 +1,5 @@
+/** Owns reference-clip URL-to-bytes resolution and transport selection. */
+
 import { resolveAssetUrl } from "./asset-url";
 import { isTauri } from "./tauri-env";
 
