@@ -5,7 +5,7 @@
  * Wires the REAL dispatcher + guardrails + speech-playback + tts-pipeline + backend-caller —
  * only the synth, the audio sink, and the chat stream are faked. Reproduces the
  * stream-done → first-audio-frame window where isSpeaking() used to read false, letting
- * startBackendCall's onSpeechInterrupt dispose the pipeline holding a finished-but-unplayed reply.
+ * startBackendCall's turnOutput.interrupt dispose the pipeline holding a finished-but-unplayed reply.
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -159,9 +159,17 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeechDelta: (text) => speechPlayback.onSpeechDelta(text),
-      onSpeechEnd: () => speechPlayback.onSpeechEnd(),
-      onSpeechInterrupt: () => speechPlayback.interrupt(),
+      turnOutput: {
+        interrupt: () => speechPlayback.interrupt(),
+        hasFiller: () => false,
+        thinkingStart: () => {},
+        thinkingEnd: () => {},
+        delta: (text) => speechPlayback.onSpeechDelta(text),
+        speak: (text) => speechPlayback.onSpeech(text),
+        end: () => speechPlayback.onSpeechEnd(),
+        abort: () => speechPlayback.abort(),
+        cue: () => {},
+      },
       logger: makeLogger(),
     });
 

@@ -217,16 +217,16 @@ describe("wireVoicePipeline", () => {
     const first = {};
     const second = {};
 
-    voice.onThinkingStart(first);
-    voice.onThinkingStart(second);
+    voice.turnOutput.thinkingStart(first);
+    voice.turnOutput.thinkingStart(second);
     vi.clearAllMocks();
-    voice.onThinkingEnd(first);
+    voice.turnOutput.thinkingEnd(first);
 
     expect(mocks.speechPlayback.holdMotion).not.toHaveBeenCalled();
     expect(mocks.fillerLoop.stop).not.toHaveBeenCalled();
     expect(renderer.playMotion).not.toHaveBeenCalled();
 
-    voice.onThinkingEnd(second);
+    voice.turnOutput.thinkingEnd(second);
     expect(mocks.speechPlayback.holdMotion).toHaveBeenCalledWith(false);
     expect(mocks.fillerLoop.stop).toHaveBeenCalledOnce();
     expect(renderer.playMotion).toHaveBeenCalledWith(null);
@@ -235,7 +235,7 @@ describe("wireVoicePipeline", () => {
   it("holds motion before starting the thinking motion and filler", () => {
     const { voice, renderer } = setup();
 
-    voice.onThinkingStart({});
+    voice.turnOutput.thinkingStart({});
 
     expect(mocks.speechPlayback.holdMotion).toHaveBeenCalledWith(true);
     expect(renderer.playMotion).toHaveBeenCalledWith({ id: "thinking", loop: true });
@@ -250,21 +250,21 @@ describe("wireVoicePipeline", () => {
   it("reports whether either effective filler pool is non-empty", () => {
     const state = setup();
     state.setFillerConfig({ gap_ms: 1, gap_jitter_ms: 0, pools: {} });
-    expect(state.voice.hasFiller()).toBe(false);
+    expect(state.voice.turnOutput.hasFiller()).toBe(false);
 
     state.setFillerConfig({
       gap_ms: 1,
       gap_jitter_ms: 0,
       pools: { ja: { first: ["first"], repeat: [] } },
     });
-    expect(state.voice.hasFiller()).toBe(true);
+    expect(state.voice.turnOutput.hasFiller()).toBe(true);
 
     state.setFillerConfig({
       gap_ms: 1,
       gap_jitter_ms: 0,
       pools: { ja: { first: [], repeat: ["repeat"] } },
     });
-    expect(state.voice.hasFiller()).toBe(true);
+    expect(state.voice.turnOutput.hasFiller()).toBe(true);
   });
 
   it("skips synth when TTS or the selected provider is not configured", async () => {

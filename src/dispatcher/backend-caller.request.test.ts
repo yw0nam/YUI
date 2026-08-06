@@ -6,7 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { EndpointsConfig, ExpressArgs, ToolStatus, Usage } from "../contract";
+import type { EndpointsConfig, ToolStatus, Usage } from "../contract";
 import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { Logger } from "../logger";
 import { type BackendCaller, createBackendCaller } from "./backend-caller";
@@ -18,18 +18,14 @@ import {
   createScriptedStream,
   deltaEvent,
   makeLogger,
+  makeTurnOutput,
   userEnv,
 } from "./test-helpers";
 
 const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;
-let speechSink: Mock<(text: string) => void>;
-let cueSink: Mock<(cue: ExpressArgs) => void>;
+let turnOutput: ReturnType<typeof makeTurnOutput>;
 let toolStatusSink: Mock<(status: ToolStatus) => void>;
-let speechDeltaSink: Mock<(text: string) => void>;
-let speechEndSink: Mock<() => void>;
-let speechInterruptSink: Mock<() => void>;
-let speechAbortSink: Mock<() => void>;
 let usageSink: Mock<(usage: Usage) => void>;
 let caller: BackendCaller;
 let logger: Logger;
@@ -37,13 +33,8 @@ let logger: Logger;
 beforeEach(() => {
   script.reset();
   applyDirective = vi.fn();
-  speechSink = vi.fn();
-  cueSink = vi.fn();
+  turnOutput = makeTurnOutput();
   toolStatusSink = vi.fn();
-  speechDeltaSink = vi.fn();
-  speechEndSink = vi.fn();
-  speechInterruptSink = vi.fn();
-  speechAbortSink = vi.fn();
   usageSink = vi.fn();
   logger = makeLogger();
   caller = createBackendCaller({
@@ -52,13 +43,8 @@ beforeEach(() => {
     getApiKey: async () => "k",
     getFetch: async () => undefined,
     stream: script.stream,
-    onSpeech: speechSink,
-    onCue: cueSink,
+    turnOutput,
     onToolStatus: toolStatusSink,
-    onSpeechDelta: speechDeltaSink,
-    onSpeechEnd: speechEndSink,
-    onSpeechInterrupt: speechInterruptSink,
-    onSpeechAbort: speechAbortSink,
     onUsage: usageSink,
     logger,
   });
@@ -73,7 +59,7 @@ describe("backend_caller — previous_response_id threading", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getPreviousResponseId: () => "resp_prev",
     });
     await caller.call(userEnv());
@@ -89,7 +75,7 @@ describe("backend_caller — previous_response_id threading", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getPreviousResponseId: () => undefined,
     });
     await caller.call(userEnv());
@@ -112,7 +98,7 @@ describe("backend_caller — previous_response_id threading", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getPreviousResponseId: () => undefined,
       onResponseId,
     });
@@ -132,7 +118,7 @@ describe("backend_caller — previous_response_id threading", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       onResponseId,
     });
     script.events = [completedEvent({ speech_text: "hi" }, "resp_123")];
@@ -148,7 +134,7 @@ describe("backend_caller — previous_response_id threading", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       onResponseId,
     });
     script.events = [{ type: "error", message: "boom" }];
@@ -164,7 +150,7 @@ describe("backend_caller — previous_response_id threading", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       onResponseId,
     });
     script.events = [deltaEvent("x")];
@@ -181,15 +167,15 @@ describe("backend_caller — previous_response_id threading", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       // settings-window reset rotates the id while the turn is in flight.
       getPreviousResponseId: () => current,
       onResponseId,
     });
-    // The reset lands via onSpeech (any callback firing before the post-stream snapshot check
-    // works — single-threaded, so there's no TOCTOU window): start-time id "resp_prev" no longer
-    // matches at completion, so the dead turn's id must not overwrite the rotated store.
-    speechSink.mockImplementation(() => {
+    // The reset lands via turnOutput.speak (any callback firing before the post-stream snapshot
+    // check works — single-threaded, so there's no TOCTOU window): start-time id "resp_prev" no
+    // longer matches at completion, so the dead turn's id must not overwrite the rotated store.
+    turnOutput.speak.mockImplementation(() => {
       current = "resp_rotated";
     });
     script.events = [completedEvent({ speech_text: "hi" }, "resp_123")];
@@ -669,7 +655,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       transcript: { get: () => transcriptEntries, append: vi.fn() },
     });
     await caller.call(userEnv("오늘 뭐해?"));
@@ -704,7 +690,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
     });
     const res = await caller.call(userEnv("혼자"));
     expect(res.ok).toBe(true);
@@ -721,7 +707,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getAgentSettings: () => ({ reasoning_effort: "medium", instructions: "be terse" }),
     });
     await caller.call(userEnv());
@@ -739,7 +725,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
       getAgentSettings: () => ({ reasoning_effort: "none", instructions: "" }),
     });
     await caller.call(userEnv());
@@ -755,7 +741,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
     });
     const env: BusEnvelope = {
       seq_id: 50,
@@ -782,7 +768,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      onSpeech: speechSink,
+      turnOutput,
     });
     const env: BusEnvelope = {
       seq_id: 51,

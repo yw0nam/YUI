@@ -8,6 +8,7 @@ import type {
 } from "../io/chat-client";
 import type { Logger } from "../logger";
 import type { BusEnvelope } from "./event-bus";
+import type { TurnOutput } from "./turn-output";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -174,6 +175,21 @@ export function toolStatusEvent(status: ToolStatus): ChatStreamEvent {
 
 export function makeLogger(): Logger {
   return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+}
+
+/** Spy TurnOutput. `hasFiller` defaults to false (matching absent-getFiller = falsy today). */
+export function makeTurnOutput(): TurnOutput & Record<keyof TurnOutput, Mock> {
+  return {
+    interrupt: vi.fn(),
+    hasFiller: vi.fn(() => false),
+    thinkingStart: vi.fn(),
+    thinkingEnd: vi.fn(),
+    delta: vi.fn(),
+    speak: vi.fn(),
+    end: vi.fn(),
+    abort: vi.fn(),
+    cue: vi.fn(),
+  };
 }
 
 /** Pull the client_context JSON out of the tagged block leading a user message. */
