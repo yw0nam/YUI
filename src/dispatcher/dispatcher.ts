@@ -388,7 +388,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         if (source) deps.onUserTurnFailed?.("network_drop", source);
       })
       .finally(() => {
-        deps.turnLog.settle(turn.id);
         // Release the slot only if this call is still the current in-flight (leave it if replaced by an abort).
         // If there is a deferred item to drain right away, replace with the next call instead of freeing the slot,
         // keeping busy at true→true (no boundary notification).
@@ -408,6 +407,9 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
             setInFlight(null);
           }
         }
+        // Settle last: a successor's begin() (if drained above) already replaced the current
+        // turn, so this hits the ledger's staleness guard instead of firing a spurious edge.
+        deps.turnLog.settle(turn.id);
       });
   }
 
