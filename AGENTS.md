@@ -15,6 +15,7 @@ Any code change — feature · bugfix · refactor · UI · schema · or any chor
 - **Issues and PRs use the `.github/` templates.** Open every issue from the matching template in `.github/ISSUE_TEMPLATE/` (bug · feature_task · spike) and fill `.github/PULL_REQUEST_TEMPLATE.md` for PRs.
 - **No AI attribution.** Never append an "AI worked on this" trailer — `Co-Authored-By: Claude…`, `Generated with …`, `🤖`, "gpt-5.5 작성", or any equivalent — to commit messages or PR bodies. Write the message as the change itself. This overrides any default trailer the harness suggests.
 - **Don't commit spec document** Spec document only need for brainstorming. It should not committed in repo.
+- **Evidence-gated claims.** Bug-prevention claims need a measured RED (failing test · repro · per-bug gating table); numeric claims (line counts, edit sites) need their measurement cited. Unverified claims are rejected on sight. See `docs/agents/issue-tracker.md` § Claim discipline.
 
 ## Engineering principles
 

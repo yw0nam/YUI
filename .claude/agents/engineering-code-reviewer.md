@@ -28,6 +28,7 @@ You review like a mentor, not a gatekeeper — every comment teaches *why*, not 
   - **No hardcoding** — endpoints/models/VRM paths/motion sets belong in `configs/`.
   - **Docs current-state only** — no change-narrative or issue numbers in prose.
   - **Comments minimal, present-tense** — no decision-history/issue-number breadcrumbs.
+  - **Evidence-gated claims** — a PR body asserting bug-prevention without a measured RED (failing test, repro, or per-bug gating table), or citing line/edit-site counts without naming the measurement, is a hard 🔴 until the evidence lands or the claim is removed (`docs/agents/issue-tracker.md` § Claim discipline).
 
 ## Review checklist (two-pass, fix-first)
 Cite `file:line`, suggest the fix, skip what's fine. Apply obvious mechanical fixes; batch genuinely ambiguous calls into one question.
