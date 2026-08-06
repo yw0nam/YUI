@@ -17,6 +17,7 @@ import { createBackendCaller } from "./backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
 import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
+import { createTurnLog, type TurnLog } from "./turn";
 import {
   CONFIG,
   completedEvent,
@@ -120,10 +121,10 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
   let played: ArrayBuffer[];
   let finishPlayback: () => void;
   let dispatcher: Dispatcher;
-  let audioOwed: boolean;
+  let turnLog: TurnLog;
 
   beforeEach(() => {
-    audioOwed = false;
+    turnLog = createTurnLog();
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     script.reset();
@@ -153,9 +154,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
         finishSpeech: vi.fn(),
       },
       pipeline: { synth: deferred.synth, sink: recorder.sink },
-      reportAudioOwed: (owed) => {
-        audioOwed = owed;
-      },
+      reportAudioOwed: (owed) => turnLog.setAudioOwed(owed),
     });
 
     const backendCaller = createBackendCaller({
@@ -191,7 +190,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
       tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails,
-      isSpeaking: () => audioOwed,
+      turnLog,
       logger: makeLogger(),
     });
   });
@@ -205,7 +204,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
     await vi.advanceTimersByTimeAsync(20);
     // Stream reached completed → pipeline.end() queued a boundary, but synth hasn't resolved yet.
     expect(script.spy.mock.calls.length).toBe(1);
-    expect(audioOwed).toBe(true);
+    expect(turnLog.isAudioOwed()).toBe(true);
     // The window this test guards: stream done, audio owed, but no frame has played yet —
     // this is precisely why the old amplitude flag read false.
     expect(played).toHaveLength(0);

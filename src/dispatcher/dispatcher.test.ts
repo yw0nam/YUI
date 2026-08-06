@@ -17,6 +17,7 @@ import type { BackendCaller, BackendCallResult } from "./backend-caller";
 import { createDispatcher, type Dispatcher, DROP_SEVERITY } from "./dispatcher";
 import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
+import { createTurnLog, type Turn, type TurnLog } from "./turn";
 
 const NOW = 1_717_000_000_000;
 
@@ -97,7 +98,17 @@ let backendCaller: BackendCaller;
 let guardrails: Guardrails;
 let dispatcher: Dispatcher;
 let logger: Logger;
-let speaking = false;
+let turnLog: TurnLog;
+
+/**
+ * Simulates "audio is still playing" independent of any backend call in flight — begins a
+ * throwaway turn first if none is current, since a live turn is a precondition for audio-owed
+ * (matching how a reply's audio can outlive the call that produced it).
+ */
+function setSpeaking(owed: boolean): void {
+  if (!turnLog.current()) turnLog.begin(env());
+  turnLog.setAudioOwed(owed);
+}
 
 const PEEK_CONFIG: PeekConfig = {
   side_out_frac: 0.28,
@@ -118,7 +129,7 @@ const TAP_CONFIG: TapConfig = {
 
 function makeBackendCaller(): BackendCaller {
   return {
-    call: vi.fn((_e: BusEnvelope, signal?: AbortSignal) => {
+    call: vi.fn((_turn: Turn, signal?: AbortSignal) => {
       return new Promise<BackendCallResult>((resolve) => {
         callDeferred.push({ resolve, signal });
       });
@@ -148,13 +159,13 @@ beforeEach(() => {
   backendCaller = makeBackendCaller();
   guardrails = createGuardrails(permissiveGuardrailsConfig(), { now: () => Date.now() });
   logger = makeLogger();
-  speaking = false;
+  turnLog = createTurnLog();
   const deps = {
     bus,
     renderer: renderer as never,
     backendCaller,
     guardrails,
-    isSpeaking: () => speaking,
+    turnLog,
     peek: { enter: peekEnter, exit: peekExit },
     logger,
     peekConfig: () => PEEK_CONFIG,
@@ -185,6 +196,7 @@ describe("dispatcher — state machine (§9)", () => {
       tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails: g,
+      turnLog,
       logger,
     });
     d.start();
@@ -572,6 +584,7 @@ describe("dispatcher — routing (§5.1)", () => {
       renderer: renderer as never,
       backendCaller,
       guardrails,
+      turnLog,
       logger,
       peekConfig: () => livePeekConfig,
       tapConfig: () => TAP_CONFIG,
@@ -670,6 +683,7 @@ describe("dispatcher — routing (§5.1)", () => {
       tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails,
+      turnLog,
       logger,
     });
     dispatcher.start();
@@ -913,29 +927,33 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
     dispatcher.start();
     pushEmotionTap();
     await vi.advanceTimersByTimeAsync(20);
-    speaking = true;
+    setSpeaking(true);
     await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms);
     expect(easeEmotionToNeutral).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms * 2);
     expect(easeEmotionToNeutral).not.toHaveBeenCalled();
   });
 
-  it("eases exactly once when the isSpeaking dep is absent", async () => {
-    const d = createDispatcher({
-      bus,
-      renderer: renderer as never,
-      peekConfig: () => PEEK_CONFIG,
-      tapConfig: () => TAP_CONFIG,
-      backendCaller,
-      guardrails,
-      logger,
-    });
-    d.start();
+  it("fires while a silent backend call is in flight (regression: isAudioOwed, not !isOver)", async () => {
+    dispatcher.start();
     pushEmotionTap();
     await vi.advanceTimersByTimeAsync(20);
+    // a second, silent backend call is admitted and never settles — the ledger is not over,
+    // but nothing is owed, so the revert must still fire.
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        hint_tier: 2,
+        dnd_override: false,
+        ts: NOW + 1,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(dispatcher.inFlight()).not.toBeNull();
+
     await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms);
     expect(easeEmotionToNeutral).toHaveBeenCalledTimes(1);
-    d.stop();
   });
 });
 
@@ -952,6 +970,26 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
     bus.push(env({ ts: NOW + 1 }));
     await vi.advanceTimersByTimeAsync(20);
     expect(first.signal?.aborted).toBe(true);
+  });
+
+  it("a superseded turn's late settle does not mark the superseding turn settled", async () => {
+    dispatcher.start();
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    const idA = turnLog.current()!.id;
+
+    // a second user message supersedes A and immediately admits B.
+    bus.push(env({ ts: NOW + 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    const idB = turnLog.current()!.id;
+    expect(idB).not.toBe(idA);
+
+    // A's aborted call resolves late — its own settle(idA) must not affect B.
+    callDeferred[0].resolve({ ok: false, drop_reason: "superseded_by_user" });
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(turnLog.current()?.id).toBe(idB);
+    expect(turnLog.isOver()).toBe(false);
   });
 
   it("drops queued tier2 events with superseded_by_user when a user message arrives", async () => {
@@ -1043,7 +1081,7 @@ describe("dispatcher — playback-gated drain (§337)", () => {
     const queued = nonUser();
     bus.push(queued);
     await vi.advanceTimersByTimeAsync(20);
-    speaking = true;
+    setSpeaking(true);
     callDeferred[0].resolve({ ok: true });
     await vi.advanceTimersByTimeAsync(20);
     return queued;
@@ -1063,7 +1101,7 @@ describe("dispatcher — playback-gated drain (§337)", () => {
   it("drains the held non-user turn after playback ends", async () => {
     await holdNonUserBehindCompletedCall();
 
-    speaking = false;
+    setSpeaking(false);
     await vi.advanceTimersByTimeAsync(20);
 
     expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(2);
@@ -1078,7 +1116,7 @@ describe("dispatcher — playback-gated drain (§337)", () => {
     await vi.advanceTimersByTimeAsync(20);
     bus.push(queued);
     await vi.advanceTimersByTimeAsync(20);
-    speaking = true;
+    setSpeaking(true);
 
     bus.push(env({ ts: NOW + 2 }));
     await vi.advanceTimersByTimeAsync(20);
@@ -1094,7 +1132,7 @@ describe("dispatcher — playback-gated drain (§337)", () => {
 
   it("defers a non-user turn that arrives via the fast path while speech is playing", async () => {
     dispatcher.start();
-    speaking = true;
+    setSpeaking(true);
     const queued = nonUser();
     bus.push(queued);
     await vi.advanceTimersByTimeAsync(20);
@@ -1105,7 +1143,7 @@ describe("dispatcher — playback-gated drain (§337)", () => {
       queued.event_name,
     );
 
-    speaking = false;
+    setSpeaking(false);
     await vi.advanceTimersByTimeAsync(20);
 
     expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
@@ -1124,7 +1162,7 @@ describe("dispatcher — playback-gated drain (§337)", () => {
       }),
     );
     await vi.advanceTimersByTimeAsync(20);
-    speaking = true;
+    setSpeaking(true);
 
     callDeferred[0].resolve({ ok: true });
     await vi.advanceTimersByTimeAsync(20);
@@ -1288,6 +1326,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
       tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails,
+      turnLog,
       logger,
       onUserTurnFailed: sink,
     });
@@ -1466,6 +1505,7 @@ describe("dispatcher — guardrail gating (§6)", () => {
       tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails: g,
+      turnLog,
       logger,
     });
     return { d, g };
@@ -1551,6 +1591,7 @@ describe("dispatcher — guardrail gating (§6)", () => {
       tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails: g,
+      turnLog,
       logger,
     });
     d.start();
@@ -1665,6 +1706,19 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     expect(dispatcher.inFlight()).toBeNull();
   });
 
+  it("stop() with a call in flight leaves isPipelineBusy() false once the aborted call settles", async () => {
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    expect(dispatcher.isPipelineBusy()).toBe(true);
+
+    dispatcher.stop();
+    callDeferred[0].resolve({ ok: false, drop_reason: "superseded_by_user" });
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(dispatcher.isPipelineBusy()).toBe(false);
+  });
+
   it("subscribeBusy fires true when a backend call starts, false when it completes", async () => {
     const seen: boolean[] = [];
     dispatcher.subscribeBusy((b) => seen.push(b));
@@ -1731,7 +1785,7 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
   });
 });
 
-describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = inFlight || speaking)", () => {
+describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not over)", () => {
   it("isPipelineBusy() is false at rest, true while a call is in flight", async () => {
     dispatcher.start();
     expect(dispatcher.isPipelineBusy()).toBe(false);
@@ -1740,13 +1794,50 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = inFlight |
     expect(dispatcher.isPipelineBusy()).toBe(true);
   });
 
-  it("subscribePipelineBusy fires true when the call starts", async () => {
+  it("follows the ledger across the whole span: admitted, settled-but-owed, then idle", async () => {
+    dispatcher.start();
+    expect(dispatcher.isPipelineBusy()).toBe(false);
+
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    expect(dispatcher.isPipelineBusy()).toBe(true);
+
+    setSpeaking(true);
+    callDeferred[0].resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(dispatcher.isPipelineBusy()).toBe(true);
+
+    setSpeaking(false);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(dispatcher.isPipelineBusy()).toBe(false);
+  });
+
+  it("subscribePipelineBusy fires true synchronously when the ledger admits the turn", async () => {
     const seen: boolean[] = [];
     dispatcher.subscribePipelineBusy((b) => seen.push(b));
     dispatcher.start();
     bus.push(env());
-    // The busy edge is polled at the top of each pump tick, so allow a couple of ticks.
-    await vi.advanceTimersByTimeAsync(50);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(seen).toEqual([true]);
+  });
+
+  it("does not flip mid-drain: draining two events in one pump tick fires the edge only once", async () => {
+    const seen: boolean[] = [];
+    dispatcher.subscribePipelineBusy((b) => seen.push(b));
+    dispatcher.start();
+    // the second event is deferred behind the first (still pending) — no further ledger
+    // mutation happens for it within this pump tick.
+    bus.push(env({ ts: NOW }));
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
     expect(seen).toEqual([true]);
   });
 
@@ -1758,13 +1849,13 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = inFlight |
     await vi.advanceTimersByTimeAsync(50);
     expect(seen).toEqual([true]);
 
-    speaking = true;
+    setSpeaking(true);
     callDeferred[0].resolve({ ok: true });
     await vi.advanceTimersByTimeAsync(50);
     expect(dispatcher.isPipelineBusy()).toBe(true);
     expect(seen).toEqual([true]); // no false fired yet — still speaking
 
-    speaking = false;
+    setSpeaking(false);
     await vi.advanceTimersByTimeAsync(50);
     expect(seen).toEqual([true, false]);
   });
@@ -1783,6 +1874,7 @@ describe("dispatcher — cooldown state mirror (§6.3/§9)", () => {
       tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails: g,
+      turnLog,
       logger,
     });
     d.start();
