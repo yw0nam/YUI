@@ -31,6 +31,7 @@ function stubPipelineFactory() {
       hasOutstandingWork: () => outstanding,
       dispose: () => {
         calls.disposed++;
+        outstanding = false;
       },
     };
   };
@@ -317,9 +318,11 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
       reportAudioOwed,
     });
 
+    stub.setOutstandingWork(true);
     sp.onSpeechDelta("Hello");
-    sp.abort();
+    expect(reportAudioOwed).toHaveBeenLastCalledWith(true);
 
+    sp.abort();
     expect(reportAudioOwed).toHaveBeenLastCalledWith(false);
   });
 });
