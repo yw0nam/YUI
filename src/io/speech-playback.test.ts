@@ -299,8 +299,10 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
       reportAudioOwed,
     });
 
-    sp.onSpeechDelta("Hello");
     multi.instances[0]!.hasOutstandingWork.mockReturnValue(true);
+    sp.onSpeechDelta("Hello");
+    expect(reportAudioOwed).toHaveBeenLastCalledWith(true);
+
     sp.interrupt();
 
     expect(reportAudioOwed).toHaveBeenLastCalledWith(false);

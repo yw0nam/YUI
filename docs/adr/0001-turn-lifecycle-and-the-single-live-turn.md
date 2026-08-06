@@ -24,8 +24,8 @@ conditions instead, and any phase label is derived at the read site.
 
 ## Consequences
 
-One live turn is not an invariant the ledger enforces. It holds because of two facts elsewhere in the
-system, and if either changes, the single-turn model is the first thing to break:
+One live turn is not an invariant the ledger enforces. It holds because of three facts elsewhere in the
+system, and if any of them changes, the single-turn model is the first thing to break:
 
 1. `backend-caller` calls `turnOutput.interrupt()` on call entry, synchronously before its first
    `await`. That disposes the TTS pipeline and stops the sink, so a previous turn's audio cannot survive
