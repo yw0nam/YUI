@@ -85,7 +85,7 @@ describe("backend_caller — 404 chain-break recovery", () => {
     ];
     const res = await caller.call(turnOf(userEnv()));
 
-    expect(res).toEqual({ ok: true });
+    expect(res).toBe("ok");
     expect(script.spy).toHaveBeenCalledTimes(2);
     expect(onResponseIdInvalid).toHaveBeenCalledTimes(1);
 
@@ -109,8 +109,7 @@ describe("backend_caller — 404 chain-break recovery", () => {
     script.queue = [[{ type: "error", message: "not found", status: 404 }]];
     const res = await caller.call(turnOf(userEnv()));
 
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_drop");
+    expect(res).toBe("network_drop");
     expect(script.spy).toHaveBeenCalledTimes(1);
     expect(onResponseIdInvalid).not.toHaveBeenCalled();
     expect(onChainReset).not.toHaveBeenCalled();
@@ -123,8 +122,7 @@ describe("backend_caller — 404 chain-break recovery", () => {
     ];
     const res = await caller.call(turnOf(userEnv()));
 
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_drop");
+    expect(res).toBe("network_drop");
     expect(script.spy).toHaveBeenCalledTimes(2);
     expect(onResponseIdInvalid).toHaveBeenCalledTimes(1);
     expect(onChainReset).toHaveBeenCalledTimes(1);
@@ -139,8 +137,7 @@ describe("backend_caller — 404 chain-break recovery", () => {
     ];
     const res = await caller.call(turnOf(userEnv()));
 
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_drop");
+    expect(res).toBe("network_drop");
     expect(script.spy).toHaveBeenCalledTimes(1);
     expect(onResponseIdInvalid).not.toHaveBeenCalled();
     expect(onChainReset).not.toHaveBeenCalled();
@@ -159,17 +156,17 @@ describe("backend_caller — 404 chain-break recovery", () => {
   it("401/403/500 classification is unaffected by chain-break handling (no retry, existing drop reasons)", async () => {
     script.queue = [[{ type: "error", message: "unauthorized", status: 401 }]];
     const res401 = await caller.call(turnOf(userEnv()));
-    expect(res401.drop_reason).toBe("http_4xx_drop");
+    expect(res401).toBe("http_4xx_drop");
 
     make404("resp_dead");
     script.queue = [[{ type: "error", message: "forbidden", status: 403 }]];
     const res403 = await caller.call(turnOf(userEnv()));
-    expect(res403.drop_reason).toBe("http_4xx_drop");
+    expect(res403).toBe("http_4xx_drop");
 
     make404("resp_dead");
     script.queue = [[{ type: "error", message: "server error", status: 500 }]];
     const res500 = await caller.call(turnOf(userEnv()));
-    expect(res500.drop_reason).toBe("network_drop");
+    expect(res500).toBe("network_drop");
 
     expect(script.spy).toHaveBeenCalledTimes(3);
     expect(onResponseIdInvalid).not.toHaveBeenCalled();

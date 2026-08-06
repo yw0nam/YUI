@@ -55,51 +55,45 @@ describe("backend_caller — failure classification (§7.3)", () => {
   it("no completed event → parse_error drop", async () => {
     script.events = [{ type: "speech_delta", text: "x" }];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("parse_error");
+    expect(res).toBe("parse_error");
     expect(applyDirective).not.toHaveBeenCalled();
   });
 
   it("an error event surfaces as network_drop and applies nothing", async () => {
     script.events = [{ type: "error", message: "401 unauthorized" }];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_drop");
+    expect(res).toBe("network_drop");
   });
 
   it("an error event carrying status:401 surfaces as http_4xx_drop (auth-ish)", async () => {
     script.events = [{ type: "error", message: "401 Incorrect API key provided", status: 401 }];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("http_4xx_drop");
+    expect(res).toBe("http_4xx_drop");
   });
 
   it("an error event carrying status:403 surfaces as http_4xx_drop (auth-ish)", async () => {
     script.events = [{ type: "error", message: "403 Forbidden", status: 403 }];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("http_4xx_drop");
+    expect(res).toBe("http_4xx_drop");
   });
 
   it("an error event carrying an unrelated status (e.g. 500) stays network_drop", async () => {
     script.events = [{ type: "error", message: "500 internal error", status: 500 }];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_drop");
+    expect(res).toBe("network_drop");
   });
 
   it("a thrown stream rejects to network_drop (not a crash)", async () => {
     script.error = new Error("boom");
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_drop");
+    expect(res).toBe("network_drop");
   });
 
   it("an already-aborted external signal short-circuits without calling streamChat", async () => {
     const ac = new AbortController();
     ac.abort();
     const res = await caller.call(turnOf(userEnv()), ac.signal);
-    expect(res.ok).toBe(false);
+    expect(res).toBe("superseded_by_user");
     expect(script.spy).not.toHaveBeenCalled();
   });
 });
@@ -120,8 +114,7 @@ describe("backend_caller — idle-gap watchdog", () => {
     const p = caller.call(turnOf(userEnv()));
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     const res = await p;
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_stall");
+    expect(res).toBe("network_stall");
     const [, request] = script.spy.mock.calls[0];
     expect((request.signal as AbortSignal).aborted).toBe(true);
   });
@@ -132,8 +125,7 @@ describe("backend_caller — idle-gap watchdog", () => {
     const p = caller.call(turnOf(userEnv()));
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     const res = await p;
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_stall");
+    expect(res).toBe("network_stall");
     expect(turnOutput.abort).toHaveBeenCalledTimes(1);
     expect(turnOutput.end).not.toHaveBeenCalled();
   });
@@ -150,8 +142,7 @@ describe("backend_caller — idle-gap watchdog", () => {
     const p = caller.call(turnOf(userEnv()));
     await vi.advanceTimersByTimeAsync(gap * 3 + 1_000);
     const res = await p;
-    expect(res.ok).toBe(true);
-    expect(res.drop_reason).toBeUndefined();
+    expect(res).toBe("ok");
   });
 
   it("a single gap just under the deadline still completes normally", async () => {
@@ -160,7 +151,7 @@ describe("backend_caller — idle-gap watchdog", () => {
     const p = caller.call(turnOf(userEnv()));
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     const res = await p;
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
   });
 
   it("keepalive events during a long reasoning phase reset the watchdog — no idle_timeout even though the gap to first speech exceeds the deadline", async () => {
@@ -176,8 +167,7 @@ describe("backend_caller — idle-gap watchdog", () => {
     const p = caller.call(turnOf(userEnv()));
     await vi.advanceTimersByTimeAsync(gap * 3 + 1_000);
     const res = await p;
-    expect(res.ok).toBe(true);
-    expect(res.drop_reason).toBeUndefined();
+    expect(res).toBe("ok");
   });
 
   it("logs logger.warn('network_stall', { stage: 'idle_timeout', ... }) on expiry", async () => {
@@ -239,7 +229,7 @@ describe("backend_caller — structured logging", () => {
     script.events = [completedEvent({ speech_text: "안녕", emotion: { id: "happy" } })];
     const res = await caller.call(turnOf(userEnv()));
     // turn must still succeed despite renderer error
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
     expect(logger.error).toHaveBeenCalledWith(
       "dispatch_to_renderer.error",
       expect.objectContaining({ error: expect.any(String) }),
@@ -414,7 +404,7 @@ describe("backend_caller — transcript recording", () => {
   it("no transcript dep → does not throw", async () => {
     script.events = [completedEvent({ speech_text: "hi" })];
     const res = await caller.call(turnOf(userEnv("안녕")));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
   });
 });
 

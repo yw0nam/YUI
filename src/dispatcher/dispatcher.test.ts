@@ -13,7 +13,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PeekConfig, TapConfig } from "../config/load";
 import type { Logger } from "../logger";
-import type { BackendCaller, BackendCallResult } from "./backend-caller";
+import type { BackendCaller, TurnOutcome } from "./backend-caller";
 import { createDispatcher, type Dispatcher, DROP_SEVERITY } from "./dispatcher";
 import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
@@ -93,7 +93,7 @@ let renderer: {
 };
 let peekEnter: ReturnType<typeof vi.fn<() => Promise<void>>>;
 let peekExit: ReturnType<typeof vi.fn<() => Promise<void>>>;
-let callDeferred: Array<{ resolve: (r: BackendCallResult) => void; signal?: AbortSignal }>;
+let callDeferred: Array<{ resolve: (r: TurnOutcome) => void; signal?: AbortSignal }>;
 let backendCaller: BackendCaller;
 let guardrails: Guardrails;
 let dispatcher: Dispatcher;
@@ -130,7 +130,7 @@ const TAP_CONFIG: TapConfig = {
 function makeBackendCaller(): BackendCaller {
   return {
     call: vi.fn((_turn: Turn, signal?: AbortSignal) => {
-      return new Promise<BackendCallResult>((resolve) => {
+      return new Promise<TurnOutcome>((resolve) => {
         callDeferred.push({ resolve, signal });
       });
     }),
@@ -236,7 +236,7 @@ describe("dispatcher — state machine (§9)", () => {
         }),
       );
       await vi.advanceTimersByTimeAsync(20);
-      callDeferred[callDeferred.length - 1].resolve({ ok: false, drop_reason: "network_drop" });
+      callDeferred[callDeferred.length - 1].resolve("network_drop");
       await vi.advanceTimersByTimeAsync(20);
     }
     expect(dispatcher.state()).toBe("degraded");
@@ -985,7 +985,7 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
     expect(idB).not.toBe(idA);
 
     // A's aborted call resolves late — its own settle(idA) must not affect B.
-    callDeferred[0].resolve({ ok: false, drop_reason: "superseded_by_user" });
+    callDeferred[0].resolve("superseded_by_user");
     await vi.advanceTimersByTimeAsync(20);
 
     expect(turnLog.current()?.id).toBe(idB);
@@ -1082,7 +1082,7 @@ describe("dispatcher — playback-gated drain (§337)", () => {
     bus.push(queued);
     await vi.advanceTimersByTimeAsync(20);
     setSpeaking(true);
-    callDeferred[0].resolve({ ok: true });
+    callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     return queued;
   }
@@ -1164,7 +1164,7 @@ describe("dispatcher — playback-gated drain (§337)", () => {
     await vi.advanceTimersByTimeAsync(20);
     setSpeaking(true);
 
-    callDeferred[0].resolve({ ok: true });
+    callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
 
     expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(2);
@@ -1178,7 +1178,7 @@ describe("dispatcher — observable dev APIs (§11)", () => {
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
     expect(dispatcher.inFlight()).not.toBeNull();
-    callDeferred[0].resolve({ ok: true });
+    callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     expect(dispatcher.inFlight()).toBeNull();
   });
@@ -1292,7 +1292,7 @@ describe("dispatcher — structured logging: backend_call events", () => {
     dispatcher.start();
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve({ ok: true });
+    callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     expect(logger.info).toHaveBeenCalledWith(
       "backend_call",
@@ -1300,11 +1300,11 @@ describe("dispatcher — structured logging: backend_call events", () => {
     );
   });
 
-  it("emits logger.info('backend_call', {outcome: drop_reason}) on parse_error", async () => {
+  it("emits logger.info('backend_call', {outcome}) on parse_error", async () => {
     dispatcher.start();
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve({ ok: false, drop_reason: "parse_error" });
+    callDeferred[0].resolve("parse_error");
     await vi.advanceTimersByTimeAsync(20);
     expect(logger.info).toHaveBeenCalledWith(
       "backend_call",
@@ -1338,7 +1338,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     d.start();
     bus.push(env({ event_name: "user.text_submitted" }));
     await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve({ ok: false, drop_reason: "network_drop" });
+    callDeferred[0].resolve("network_drop");
     await vi.advanceTimersByTimeAsync(20);
     expect(sink).toHaveBeenCalledTimes(1);
     expect(sink).toHaveBeenCalledWith("network_drop", "text");
@@ -1350,7 +1350,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     d.start();
     bus.push(env({ event_name: "user.voice_segment_ready", payload: { text: "안녕" } }));
     await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve({ ok: false, drop_reason: "parse_error" });
+    callDeferred[0].resolve("parse_error");
     await vi.advanceTimersByTimeAsync(20);
     expect(sink).toHaveBeenCalledTimes(1);
     expect(sink).toHaveBeenCalledWith("parse_error", "voice");
@@ -1362,7 +1362,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     d.start();
     bus.push(env({ event_name: "user.text_submitted" }));
     await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve({ ok: false, drop_reason: "http_4xx_drop" });
+    callDeferred[0].resolve("http_4xx_drop");
     await vi.advanceTimersByTimeAsync(20);
     expect(sink).toHaveBeenCalledWith("http_4xx_drop", "text");
     d.stop();
@@ -1373,18 +1373,18 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     d.start();
     bus.push(env({ event_name: "idle.short", dnd_override: undefined, source: "idle_watcher" }));
     await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve({ ok: false, drop_reason: "network_drop" });
+    callDeferred[0].resolve("network_drop");
     await vi.advanceTimersByTimeAsync(20);
     expect(sink).not.toHaveBeenCalled();
     d.stop();
   });
 
-  it("does NOT fire when the drop_reason is superseded_by_user", async () => {
+  it("does NOT fire when the outcome is superseded_by_user", async () => {
     const { d, sink } = makeDispatcherWithFailedTurnSink();
     d.start();
     bus.push(env({ event_name: "user.text_submitted" }));
     await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve({ ok: false, drop_reason: "superseded_by_user" });
+    callDeferred[0].resolve("superseded_by_user");
     await vi.advanceTimersByTimeAsync(20);
     expect(sink).not.toHaveBeenCalled();
     d.stop();
@@ -1395,7 +1395,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     d.start();
     bus.push(env({ event_name: "user.text_submitted" }));
     await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve({ ok: true });
+    callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     expect(sink).not.toHaveBeenCalled();
     d.stop();
@@ -1407,7 +1407,7 @@ describe("dispatcher — structured logging: drop events via logger", () => {
     dispatcher.start();
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve({ ok: false, drop_reason: "parse_error" });
+    callDeferred[0].resolve("parse_error");
     await vi.advanceTimersByTimeAsync(20);
     expect(logger.warn).toHaveBeenCalledWith(
       "drop",
@@ -1423,7 +1423,7 @@ describe("dispatcher — structured logging: drop events via logger", () => {
     dispatcher.start();
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve({ ok: false, drop_reason: "network_drop" });
+    callDeferred[0].resolve("network_drop");
     await vi.advanceTimersByTimeAsync(20);
     expect(logger.warn).toHaveBeenCalledWith(
       "drop",
@@ -1644,7 +1644,7 @@ describe("dispatcher — guardrail gating (§6)", () => {
       }),
     );
     await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0]?.resolve({ ok: true });
+    callDeferred[0]?.resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     (backendCaller.call as ReturnType<typeof vi.fn>).mockClear();
     // 2nd idle within 30s — debounce drop, no new backend call.
@@ -1713,7 +1713,7 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     expect(dispatcher.isPipelineBusy()).toBe(true);
 
     dispatcher.stop();
-    callDeferred[0].resolve({ ok: false, drop_reason: "superseded_by_user" });
+    callDeferred[0].resolve("superseded_by_user");
     await vi.advanceTimersByTimeAsync(20);
 
     expect(dispatcher.isPipelineBusy()).toBe(false);
@@ -1726,7 +1726,7 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
     expect(seen).toEqual([true]);
-    callDeferred[0].resolve({ ok: true });
+    callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     expect(seen).toEqual([true, false]);
   });
@@ -1762,11 +1762,11 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     // subscribe only now: busy is already true and stays true across the hand-off.
     dispatcher.subscribeBusy((b) => seen.push(b));
     // first completes → drainPending immediately starts the pending one (busy stays true).
-    callDeferred[0].resolve({ ok: true });
+    callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     expect(seen).toEqual([]); // no false→...→true flicker on the boundary
     // second completes with nothing pending → now busy flips to false once.
-    callDeferred[1].resolve({ ok: true });
+    callDeferred[1].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     expect(seen).toEqual([false]);
   });
@@ -1779,7 +1779,7 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     await vi.advanceTimersByTimeAsync(20);
     expect(seen).toEqual([true]);
     off();
-    callDeferred[0].resolve({ ok: true });
+    callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     expect(seen).toEqual([true]);
   });
@@ -1803,7 +1803,7 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
     expect(dispatcher.isPipelineBusy()).toBe(true);
 
     setSpeaking(true);
-    callDeferred[0].resolve({ ok: true });
+    callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     expect(dispatcher.isPipelineBusy()).toBe(true);
 
@@ -1850,7 +1850,7 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
     expect(seen).toEqual([true]);
 
     setSpeaking(true);
-    callDeferred[0].resolve({ ok: true });
+    callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(50);
     expect(dispatcher.isPipelineBusy()).toBe(true);
     expect(seen).toEqual([true]); // no false fired yet — still speaking
@@ -1887,7 +1887,7 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
     expect(seen).toEqual([true]);
 
     // first call settles owing no audio, with the second item still pending — immediate drain.
-    callDeferred[0]!.resolve({ ok: true });
+    callDeferred[0]!.resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
 
     expect(seen).toEqual([true]);
@@ -1924,7 +1924,7 @@ describe("dispatcher — cooldown state mirror (§6.3/§9)", () => {
       );
       await vi.advanceTimersByTimeAsync(20);
       // resolve any in-flight so the next can start.
-      callDeferred[callDeferred.length - 1]?.resolve({ ok: true });
+      callDeferred[callDeferred.length - 1]?.resolve("ok");
       await vi.advanceTimersByTimeAsync(20);
     }
     expect(g.cooldownActive()).toBe(true);
@@ -1967,7 +1967,7 @@ describe("dispatcher — degraded state (3 consecutive backend call failures)", 
   }
 
   /** drives one non-user backend call to resolution with the given result. */
-  async function runOneCall(idx: number, ts: number, result: BackendCallResult) {
+  async function runOneCall(idx: number, ts: number, result: TurnOutcome) {
     bus.push(nonUserEnv({ ts }));
     await vi.advanceTimersByTimeAsync(20);
     callDeferred[idx].resolve(result);
@@ -1976,43 +1976,43 @@ describe("dispatcher — degraded state (3 consecutive backend call failures)", 
 
   it("stays out of degraded after only 2 consecutive failures", async () => {
     dispatcher.start();
-    await runOneCall(0, NOW, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(1, NOW + 1, { ok: false, drop_reason: "network_drop" });
+    await runOneCall(0, NOW, "network_drop");
+    await runOneCall(1, NOW + 1, "network_drop");
     expect(dispatcher.state()).not.toBe("degraded");
   });
 
   it("enters degraded on the 3rd consecutive backend call failure", async () => {
     dispatcher.start();
-    await runOneCall(0, NOW, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(1, NOW + 1, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(2, NOW + 2, { ok: false, drop_reason: "network_drop" });
+    await runOneCall(0, NOW, "network_drop");
+    await runOneCall(1, NOW + 1, "network_drop");
+    await runOneCall(2, NOW + 2, "network_drop");
     expect(dispatcher.state()).toBe("degraded");
   });
 
   it("a successful call resets the consecutive-failure counter", async () => {
     dispatcher.start();
-    await runOneCall(0, NOW, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(1, NOW + 1, { ok: true });
-    await runOneCall(2, NOW + 2, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(3, NOW + 3, { ok: false, drop_reason: "network_drop" });
+    await runOneCall(0, NOW, "network_drop");
+    await runOneCall(1, NOW + 1, "ok");
+    await runOneCall(2, NOW + 2, "network_drop");
+    await runOneCall(3, NOW + 3, "network_drop");
     // only 2 consecutive failures since the reset — not yet degraded.
     expect(dispatcher.state()).not.toBe("degraded");
   });
 
   it("superseded_by_user outcomes do not count toward the consecutive-failure threshold", async () => {
     dispatcher.start();
-    await runOneCall(0, NOW, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(1, NOW + 1, { ok: false, drop_reason: "superseded_by_user" });
-    await runOneCall(2, NOW + 2, { ok: false, drop_reason: "network_drop" });
+    await runOneCall(0, NOW, "network_drop");
+    await runOneCall(1, NOW + 1, "superseded_by_user");
+    await runOneCall(2, NOW + 2, "network_drop");
     // 2 real failures + 1 excluded supersede — not degraded.
     expect(dispatcher.state()).not.toBe("degraded");
   });
 
   it("while degraded, a non-user tier2/3 event is dropped as degraded_drop without reaching backendCaller", async () => {
     dispatcher.start();
-    await runOneCall(0, NOW, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(1, NOW + 1, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(2, NOW + 2, { ok: false, drop_reason: "network_drop" });
+    await runOneCall(0, NOW, "network_drop");
+    await runOneCall(1, NOW + 1, "network_drop");
+    await runOneCall(2, NOW + 2, "network_drop");
     expect(dispatcher.state()).toBe("degraded");
 
     const callsBefore = (backendCaller.call as ReturnType<typeof vi.fn>).mock.calls.length;
@@ -2024,9 +2024,9 @@ describe("dispatcher — degraded state (3 consecutive backend call failures)", 
 
   it("while degraded, user.text_submitted still reaches backendCaller (judgment stays with the backend)", async () => {
     dispatcher.start();
-    await runOneCall(0, NOW, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(1, NOW + 1, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(2, NOW + 2, { ok: false, drop_reason: "network_drop" });
+    await runOneCall(0, NOW, "network_drop");
+    await runOneCall(1, NOW + 1, "network_drop");
+    await runOneCall(2, NOW + 2, "network_drop");
     expect(dispatcher.state()).toBe("degraded");
 
     const callsBefore = (backendCaller.call as ReturnType<typeof vi.fn>).mock.calls.length;
@@ -2039,24 +2039,24 @@ describe("dispatcher — degraded state (3 consecutive backend call failures)", 
 
   it("exits degraded back to running on the first successful backend call", async () => {
     dispatcher.start();
-    await runOneCall(0, NOW, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(1, NOW + 1, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(2, NOW + 2, { ok: false, drop_reason: "network_drop" });
+    await runOneCall(0, NOW, "network_drop");
+    await runOneCall(1, NOW + 1, "network_drop");
+    await runOneCall(2, NOW + 2, "network_drop");
     expect(dispatcher.state()).toBe("degraded");
 
     bus.push(env({ ts: NOW + 100 })); // user turn still goes through while degraded
     await vi.advanceTimersByTimeAsync(20);
     const idx = callDeferred.length - 1;
-    callDeferred[idx].resolve({ ok: true });
+    callDeferred[idx].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     expect(dispatcher.state()).toBe("running");
   });
 
   it("tier1 events still render locally while degraded", async () => {
     dispatcher.start();
-    await runOneCall(0, NOW, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(1, NOW + 1, { ok: false, drop_reason: "network_drop" });
-    await runOneCall(2, NOW + 2, { ok: false, drop_reason: "network_drop" });
+    await runOneCall(0, NOW, "network_drop");
+    await runOneCall(1, NOW + 1, "network_drop");
+    await runOneCall(2, NOW + 2, "network_drop");
     expect(dispatcher.state()).toBe("degraded");
 
     applyDirective.mockClear();

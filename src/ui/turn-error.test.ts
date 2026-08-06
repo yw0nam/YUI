@@ -1,7 +1,7 @@
 /**
  * turn-error.test.ts — backend-call failure reason → inline input-error message.
  *
- * Maps the dispatcher's classified drop_reason (user-initiated turns only) to the
+ * Maps the dispatcher's classified turn failure (user-initiated turns only) to the
  * short i18n string shown by showInputError. superseded_by_user is never a failure
  * (filtered upstream in the dispatcher) and is not part of this mapping's input type.
  */
@@ -51,8 +51,8 @@ describe("turnErrorMessage", () => {
     expect(turnErrorMessage("parse_error")).toBe("応答処理に失敗");
   });
 
-  it("returns undefined for an unclassified reason (defensive — never hit for user turns)", () => {
-    expect(turnErrorMessage("guardrail_drop")).toBeUndefined();
+  it("returns undefined for superseded_by_user (not a failure)", () => {
+    expect(turnErrorMessage("superseded_by_user")).toBeUndefined();
   });
 });
 

@@ -27,9 +27,9 @@ import type { ControlEnvelope, EmotionId, Posture } from "../contract";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
-import type { BackendCaller } from "./backend-caller";
+import type { BackendCaller, TurnFailure } from "./backend-caller";
 import type { BusEnvelope, EventBus } from "./event-bus";
-import type { DropReason, Guardrails } from "./guardrails";
+import type { Guardrails } from "./guardrails";
 import type { TurnLog } from "./turn";
 
 const baseLog = createLogger("dispatcher");
@@ -63,7 +63,7 @@ interface DispatcherDeps {
    * proactive/schedule/agent turn failures are only logged and never surface here (silent by design).
    */
   onUserTurnFailed?: (
-    reason: Exclude<DropReason, "superseded_by_user">,
+    reason: Exclude<TurnFailure, "superseded_by_user">,
     source: UserTurnSource,
   ) => void;
   /** Structured logging (defaults to the dispatcher namespace logger). */
@@ -76,7 +76,7 @@ type DispatcherState = "booting" | "running" | "cooldown" | "degraded" | "draini
 export interface DropRecord {
   seq_id?: number;
   event_name: string;
-  reason: DropReason | "stale_pending" | "degraded_drop";
+  reason: TurnFailure | "guardrail_drop" | "stale_pending" | "degraded_drop";
   ts: number;
 }
 
@@ -365,19 +365,17 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     const turn = deps.turnLog.begin(env);
     void backendCaller
       .call(turn, abort.signal)
-      .then((res) => {
-        if (res.ok) {
-          log.info("backend_call", { trigger: env.event_name, outcome: "ok" });
+      .then((outcome) => {
+        log.info("backend_call", { trigger: env.event_name, outcome });
+        if (outcome === "ok") {
           noteCallSuccess();
-        } else if (res.drop_reason) {
-          log.info("backend_call", { trigger: env.event_name, outcome: res.drop_reason });
-          if (res.drop_reason !== "superseded_by_user") {
-            recordDrop(env, res.drop_reason);
-            noteCallFailure();
-            const source = userTurnSourceOf(env);
-            if (source) deps.onUserTurnFailed?.(res.drop_reason, source);
-          }
+          return;
         }
+        if (outcome === "superseded_by_user") return;
+        recordDrop(env, outcome);
+        noteCallFailure();
+        const source = userTurnSourceOf(env);
+        if (source) deps.onUserTurnFailed?.(outcome, source);
       })
       .catch((err) => {
         log.error("backend_call.unexpected_error", { error: String(err) });

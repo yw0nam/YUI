@@ -6,12 +6,11 @@
  * anything else renders nothing rather than inventing text.
  */
 
-import { IDLE_TIMEOUT_MS } from "../dispatcher/backend-caller";
+import { IDLE_TIMEOUT_MS, type TurnFailure } from "../dispatcher/backend-caller";
 import type { UserTurnSource } from "../dispatcher/dispatcher";
-import type { DropReason } from "../dispatcher/guardrails";
 import { t } from "./i18n";
 
-export function turnErrorMessage(reason: DropReason): string | undefined {
+export function turnErrorMessage(reason: TurnFailure): string | undefined {
   switch (reason) {
     case "http_4xx_drop":
       return t("input.error_auth");

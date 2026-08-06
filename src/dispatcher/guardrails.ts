@@ -27,16 +27,8 @@ interface DndState {
   reasons: DndReason[];
 }
 
-export type DropReason =
-  | "guardrail_drop"
-  | "parse_error"
-  | "network_drop"
-  | "network_stall"
-  | "http_4xx_drop"
-  | "superseded_by_user";
-
 /** Guardrail pass/drop judgment result. */
-type GuardResult = { pass: true } | { pass: false; reason: DropReason; detail: string };
+type GuardResult = { pass: true } | { pass: false; reason: "guardrail_drop"; detail: string };
 
 export interface Guardrails {
   dndState(): DndState;

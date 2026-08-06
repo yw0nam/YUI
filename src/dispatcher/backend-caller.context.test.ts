@@ -233,7 +233,7 @@ describe("backend_caller — screenshot port", () => {
       },
     });
     const res = await caller.call(turnOf(userEnv("캡처 실패")));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
     expect(script.spy).toHaveBeenCalledTimes(1);
     const [, request] = script.spy.mock.calls[0];
     expect(userMessageOf(request.input).content).toContain("캡처 실패");
@@ -492,8 +492,7 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
       drainRecentApps,
     });
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_drop");
+    expect(res).toBe("network_drop");
     // packageContext still peeked (best-effort attach attempted before the failure)…
     expect(peekRecentApps).toHaveBeenCalledTimes(1);
     // …but the buffer must never be cleared on a client-side failure — no loss.
@@ -513,8 +512,7 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
     });
     script.events = [{ type: "speech_delta", text: "x" }];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("parse_error");
+    expect(res).toBe("parse_error");
     expect(drainRecentApps).not.toHaveBeenCalled();
   });
 
@@ -531,8 +529,7 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
     });
     script.error = new Error("boom");
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_drop");
+    expect(res).toBe("network_drop");
     expect(drainRecentApps).not.toHaveBeenCalled();
   });
 
@@ -558,7 +555,7 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
     });
     script.events = [completedEvent({ speech_text: "" })];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
     expect(peekRecentApps).toHaveBeenCalledTimes(1);
     expect(drainRecentApps).toHaveBeenCalledTimes(1);
     // packaging (peek) happens before the buffer is committed/cleared (drain).
