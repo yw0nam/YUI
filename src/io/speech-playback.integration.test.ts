@@ -113,6 +113,50 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
     sp.dispose();
   });
 
+  it("reports speaking across the whole stream-done → first-audio-frame window", async () => {
+    const renderer = {
+      setMouthOpen: vi.fn(),
+      stopMouth: vi.fn(),
+      easeEmotionToNeutral: vi.fn(),
+      applyDirective: vi.fn(),
+      playMotion: vi.fn(),
+    };
+    const surfaces = {
+      beginSpeech: vi.fn(),
+      pushSpeech: vi.fn(),
+      endSpeech: vi.fn(),
+      finishSpeech: vi.fn(),
+    };
+    // Synth held open — models a slow provider, where the window is seconds wide.
+    let releaseSynth!: (buf: ArrayBuffer) => void;
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: {
+        synth: () =>
+          new Promise<ArrayBuffer>((resolve) => {
+            releaseSynth = resolve;
+          }),
+      },
+    });
+
+    sp.onSpeech("Hello.");
+    // Stream is done and audio is owed, but no frame has played — still speaking.
+    expect(sp.isSpeaking()).toBe(true);
+
+    releaseSynth(new Uint8Array([1, 2, 3, 4]).buffer);
+    for (let i = 0; i < 6; i++) await Promise.resolve();
+    flushFrames(4);
+    expect(sp.isSpeaking()).toBe(true);
+
+    await tick();
+    await tick();
+    expect(surfaces.finishSpeech).toHaveBeenCalledTimes(1);
+    expect(sp.isSpeaking()).toBe(false);
+
+    sp.dispose();
+  });
+
   it("releases the deferred bubble when a muted turn submits no audio", async () => {
     const renderer = {
       setMouthOpen: vi.fn(),

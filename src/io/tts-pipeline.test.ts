@@ -966,3 +966,53 @@ describe("createTtsPipeline — TTS_SKIP sentinel (silent skip)", () => {
     expect(logger.error).not.toHaveBeenCalledWith("synth", expect.anything());
   });
 });
+
+describe("createTtsPipeline — hasOutstandingWork (audio still owed)", () => {
+  it("stays true from end() until the last chunk finishes, including before the first audio frame", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, playedOrder, finish } = recordingSink();
+    const onPlaybackEnd = vi.fn();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink, onPlaybackEnd });
+
+    expect(pipe.hasOutstandingWork()).toBe(false);
+
+    pipe.pushTextDelta("Hello.");
+    pipe.end();
+    await tick();
+    // Stream done, synth in flight — no audio frame has fired yet.
+    expect(pipe.hasOutstandingWork()).toBe(true);
+
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    expect(playedOrder).toEqual([0]);
+    expect(pipe.hasOutstandingWork()).toBe(true);
+
+    finish();
+    await tick();
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
+    expect(pipe.hasOutstandingWork()).toBe(false);
+  });
+
+  it("is false for a turn that submits no sentence", () => {
+    const { synth } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink });
+
+    pipe.end();
+    expect(pipe.hasOutstandingWork()).toBe(false);
+  });
+
+  it("is false after dispose() drops the queue", async () => {
+    const { synth } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ config: CONFIG, synth, sink });
+
+    pipe.pushTextDelta("Hello.");
+    pipe.end();
+    await tick();
+    expect(pipe.hasOutstandingWork()).toBe(true);
+
+    pipe.dispose();
+    expect(pipe.hasOutstandingWork()).toBe(false);
+  });
+});
