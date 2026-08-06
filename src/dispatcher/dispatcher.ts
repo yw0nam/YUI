@@ -30,6 +30,7 @@ import type { Renderer } from "../renderer";
 import type { BackendCaller } from "./backend-caller";
 import type { BusEnvelope, EventBus } from "./event-bus";
 import type { DropReason, Guardrails } from "./guardrails";
+import type { TurnLog } from "./turn";
 
 const baseLog = createLogger("dispatcher");
 
@@ -50,8 +51,8 @@ interface DispatcherDeps {
   backendCaller: BackendCaller;
   /** Guardrails — DND/debounce/rate-limit gate + cooldown verdict (pure). */
   guardrails: Guardrails;
-  /** Whether TTS is currently playing (playback, not stream). Gate that defers non-user-turn drain until playback ends. */
-  isSpeaking?: () => boolean;
+  /** Turn identity + admission ledger. The dispatcher begins/settles turns on it and reads busy/audio-owed state from it. */
+  turnLog: TurnLog;
   /** pump interval (ms). default 16 (roughly rAF). Tests advance with a fake timer. */
   pumpIntervalMs?: number;
   /**
@@ -278,12 +279,10 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   const stateSubscribers = new Set<(s: DispatcherState) => void>();
   const busySubscribers = new Set<(busy: boolean) => void>();
-  const pipelineBusySubscribers = new Set<(busy: boolean) => void>();
-  let wasPipelineBusy = false;
 
-  /** Pipeline-busy = a backend call is in flight OR speech is still playing. */
+  /** Pipeline-busy = the ledger has a live turn (in flight, or settled with audio still owed). */
   function currentPipelineBusy(): boolean {
-    return inFlight !== null || deps.isSpeaking?.() === true;
+    return !deps.turnLog.isOver();
   }
 
   /** Single path for state transitions: assign + state_change log + notify subscribers. */
@@ -363,8 +362,9 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     const started_at = Date.now();
     setInFlight({ trigger: env, started_at, abort });
     log.info("backend_call", { trigger: env.event_name, seq_id: env.seq_id, started_at });
+    const turn = deps.turnLog.begin(env);
     void backendCaller
-      .call(env, abort.signal)
+      .call(turn, abort.signal)
       .then((res) => {
         if (res.ok) {
           log.info("backend_call", { trigger: env.event_name, outcome: "ok" });
@@ -407,6 +407,9 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
             setInFlight(null);
           }
         }
+        // Settle last: a successor's begin() (if drained above) already replaced the current
+        // turn, so this hits the ledger's staleness guard instead of firing a spurious edge.
+        deps.turnLog.settle(turn.id);
       });
   }
 
@@ -423,7 +426,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /** Hold a non-user pending turn while playback is ongoing (user supersede is immediate). */
   function shouldHoldForPlayback(head: BusEnvelope): boolean {
-    return userTurnSourceOf(head) === undefined && deps.isSpeaking?.() === true;
+    return userTurnSourceOf(head) === undefined && deps.turnLog.isAudioOwed();
   }
 
   /** tier2/3 enqueue: start immediately if in-flight is empty, otherwise defer (with two or more, drop the oldest). */
@@ -449,7 +452,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     // While speech is playing, the TTS cue path owns the expression; playback end/interrupt/abort each ease it to neutral.
     emotionRevertTimer = setTimeout(() => {
       emotionRevertTimer = null;
-      if (deps.isSpeaking?.() === true) return;
+      if (deps.turnLog.isAudioOwed()) return;
       renderer.easeEmotionToNeutral();
     }, deps.tapConfig().touch_emotion_hold_ms);
   }
@@ -634,13 +637,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
    * Otherwise (booting/stopped/draining) hold pending events as no-op.
    */
   function pump(): void {
-    // Pipeline-busy edge check runs every tick regardless of state (mirrors playback ending
-    // while the dispatcher itself is idle/booting).
-    const nowBusy = currentPipelineBusy();
-    if (nowBusy !== wasPipelineBusy) {
-      wasPipelineBusy = nowBusy;
-      for (const cb of pipelineBusySubscribers) cb(nowBusy);
-    }
     if (state !== "running" && state !== "cooldown" && state !== "degraded") return;
     let env: BusEnvelope | null;
     while ((env = bus.pop()) !== null) {
@@ -720,10 +716,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     },
     isPipelineBusy: currentPipelineBusy,
     subscribePipelineBusy(cb) {
-      pipelineBusySubscribers.add(cb);
-      return () => {
-        pipelineBusySubscribers.delete(cb);
-      };
+      return deps.turnLog.subscribe((over) => cb(!over));
     },
   };
 }

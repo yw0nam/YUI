@@ -4,7 +4,7 @@
  *
  * Wires the REAL dispatcher + guardrails + speech-playback + tts-pipeline + backend-caller —
  * only the synth, the audio sink, and the chat stream are faked. Reproduces the
- * stream-done → first-audio-frame window where isSpeaking() used to read false, letting
+ * stream-done → first-audio-frame window where audio-owed used to read false, letting
  * startBackendCall's turnOutput.interrupt dispose the pipeline holding a finished-but-unplayed reply.
  */
 
@@ -25,6 +25,7 @@ import {
   makeLogger,
   userEnv,
 } from "./test-helpers";
+import { createTurnLog, type TurnLog } from "./turn";
 
 const NOW = 1_717_000_000_000;
 
@@ -120,8 +121,10 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
   let played: ArrayBuffer[];
   let finishPlayback: () => void;
   let dispatcher: Dispatcher;
+  let turnLog: TurnLog;
 
   beforeEach(() => {
+    turnLog = createTurnLog();
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     script.reset();
@@ -151,6 +154,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
         finishSpeech: vi.fn(),
       },
       pipeline: { synth: deferred.synth, sink: recorder.sink },
+      reportAudioOwed: (owed) => turnLog.setAudioOwed(owed),
     });
 
     const backendCaller = createBackendCaller({
@@ -186,7 +190,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
       tapConfig: () => TAP_CONFIG,
       backendCaller,
       guardrails,
-      isSpeaking: () => speechPlayback.isSpeaking(),
+      turnLog,
       logger: makeLogger(),
     });
   });
@@ -200,7 +204,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
     await vi.advanceTimersByTimeAsync(20);
     // Stream reached completed → pipeline.end() queued a boundary, but synth hasn't resolved yet.
     expect(script.spy.mock.calls.length).toBe(1);
-    expect(speechPlayback.isSpeaking()).toBe(true);
+    expect(turnLog.isAudioOwed()).toBe(true);
     // The window this test guards: stream done, audio owed, but no frame has played yet —
     // this is precisely why the old amplitude flag read false.
     expect(played).toHaveLength(0);
