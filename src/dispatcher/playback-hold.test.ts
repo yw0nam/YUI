@@ -4,7 +4,7 @@
  *
  * Wires the REAL dispatcher + guardrails + speech-playback + tts-pipeline + backend-caller —
  * only the synth, the audio sink, and the chat stream are faked. Reproduces the
- * stream-done → first-audio-frame window where isSpeaking() used to read false, letting
+ * stream-done → first-audio-frame window where audio-owed used to read false, letting
  * startBackendCall's turnOutput.interrupt dispose the pipeline holding a finished-but-unplayed reply.
  */
 
