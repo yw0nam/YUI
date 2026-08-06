@@ -32,8 +32,9 @@ vi.mock("./dispatcher/signals-source", () => ({
   createSignalsSource: vi.fn(makeSource("signals")),
 }));
 // i18n is a side-effecting singleton; stub it so the settings-sync tests stay isolated.
+const { unsubscribeLocale } = vi.hoisted(() => ({ unsubscribeLocale: vi.fn() }));
 vi.mock("./ui/i18n", () => ({
-  subscribe: () => () => {},
+  subscribe: () => unsubscribeLocale,
   reloadFromStorage: vi.fn(),
 }));
 
@@ -277,7 +278,10 @@ describe("wireDispatcherSources", () => {
 });
 
 describe("createSettingsBroadcast", () => {
-  beforeEach(() => vi.useFakeTimers());
+  beforeEach(() => {
+    vi.useFakeTimers();
+    unsubscribeLocale.mockClear();
+  });
   afterEach(() => vi.useRealTimers());
 
   it("debounces bursts into a single cross-window emit", () => {
@@ -285,7 +289,6 @@ describe("createSettingsBroadcast", () => {
     const { broadcastSettings } = createSettingsBroadcast({
       bridge: { emitSettingsChanged },
       syncedStores: [],
-      cameraSettings: { subscribe: () => () => {} },
     });
     broadcastSettings();
     broadcastSettings();
@@ -300,23 +303,47 @@ describe("createSettingsBroadcast", () => {
     const { broadcastSettings, runApplyingRemote } = createSettingsBroadcast({
       bridge: { emitSettingsChanged },
       syncedStores: [],
-      cameraSettings: { subscribe: () => () => {} },
     });
     runApplyingRemote(() => broadcastSettings());
     vi.advanceTimersByTime(200);
     expect(emitSettingsChanged).not.toHaveBeenCalled();
   });
 
-  it("subscribes every synced store plus camera to the broadcast", () => {
-    const store = { subscribe: vi.fn(), reloadFromStorage: vi.fn() };
-    const cameraSettings = { subscribe: vi.fn() };
+  it("subscribes every synced store to the broadcast", () => {
+    const store = { subscribe: vi.fn(() => vi.fn()), reloadFromStorage: vi.fn() };
     createSettingsBroadcast({
       bridge: { emitSettingsChanged: vi.fn() },
       syncedStores: [store],
-      cameraSettings,
     });
     expect(store.subscribe).toHaveBeenCalledTimes(1);
-    expect(cameraSettings.subscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispose unsubscribes every store and locale subscription", () => {
+    const subscribers = new Set<() => void>();
+    const unsubscribeStore = vi.fn();
+    const store = {
+      subscribe: vi.fn((cb: () => void) => {
+        subscribers.add(cb);
+        return () => {
+          subscribers.delete(cb);
+          unsubscribeStore();
+        };
+      }),
+      reloadFromStorage: vi.fn(),
+    };
+    const emitSettingsChanged = vi.fn();
+    const { dispose } = createSettingsBroadcast({
+      bridge: { emitSettingsChanged },
+      syncedStores: [store],
+    });
+
+    dispose();
+    for (const subscriber of subscribers) subscriber();
+    vi.advanceTimersByTime(200);
+
+    expect(unsubscribeStore).toHaveBeenCalledTimes(1);
+    expect(unsubscribeLocale).toHaveBeenCalledTimes(1);
+    expect(emitSettingsChanged).not.toHaveBeenCalled();
   });
 });
 
@@ -325,8 +352,7 @@ describe("wireSettingsReload", () => {
 
   const setup = (vrmUrls: { before: string; after: string }) => {
     let handler = (): void => {};
-    const store = { subscribe: vi.fn(), reloadFromStorage: vi.fn() };
-    const cameraSettings = { reloadFromStorage: vi.fn() };
+    const reloadStores = [{ reloadFromStorage: vi.fn() }, { reloadFromStorage: vi.fn() }];
     const speakerSelection = { reloadFromStorage: vi.fn() };
     const loadVrmSerialized = vi.fn(() => Promise.resolve({} as never));
     let url = vrmUrls.before;
@@ -339,8 +365,7 @@ describe("wireSettingsReload", () => {
     const runApplyingRemote = vi.fn((apply: () => void) => apply());
     wireSettingsReload({
       bridge: { onSettingsChanged: (h) => (handler = h) },
-      syncedStores: [store],
-      cameraSettings,
+      reloadStores,
       runApplyingRemote,
       vrmSelection,
       loadVrmSerialized,
@@ -349,8 +374,7 @@ describe("wireSettingsReload", () => {
     });
     return {
       fire: () => handler(),
-      store,
-      cameraSettings,
+      reloadStores,
       speakerSelection,
       loadVrmSerialized,
       runApplyingRemote,
@@ -361,8 +385,9 @@ describe("wireSettingsReload", () => {
     const s = setup({ before: "a.vrm", after: "a.vrm" });
     s.fire();
     expect(s.runApplyingRemote).toHaveBeenCalledTimes(1);
-    expect(s.store.reloadFromStorage).toHaveBeenCalledTimes(1);
-    expect(s.cameraSettings.reloadFromStorage).toHaveBeenCalledTimes(1);
+    for (const store of s.reloadStores) {
+      expect(store.reloadFromStorage).toHaveBeenCalledTimes(1);
+    }
     expect(s.speakerSelection.reloadFromStorage).toHaveBeenCalledTimes(1);
     expect(reloadLocaleFromStorage).toHaveBeenCalledTimes(1);
   });
@@ -909,10 +934,9 @@ describe("wireCrossWindowSync", () => {
     const renderer = { setMouthOpen: vi.fn(), stopMouth: vi.fn() };
     const voiceInputStatus = createVoiceInputStatus();
     const log = { info: vi.fn(), warn: () => {}, error: () => {}, debug: () => {} };
-    const cameraSettings = { subscribe: vi.fn() };
     const storageSyncStores = [{ reloadFromStorage: vi.fn() }];
     const syncedStores = [{ subscribe: vi.fn(), reloadFromStorage: vi.fn() }];
-    return { renderer, voiceInputStatus, log, cameraSettings, storageSyncStores, syncedStores };
+    return { renderer, voiceInputStatus, log, storageSyncStores, syncedStores };
   };
 
   it("wires storage sync with the given store list", () => {
