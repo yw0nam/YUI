@@ -235,6 +235,97 @@ describe("createSelectionStore", () => {
     expect(store.getActiveId()).toBe("b");
   });
 
+  it("returns defensive copies from lists, getActive, and notifications", () => {
+    const store = makeStore();
+    const list = store.list();
+    const options = store.getOptions();
+    const active = store.getActive();
+    list[0].label = "changed";
+    options[0].label = "changed";
+    active.label = "changed";
+    expect(store.getActive().label).toBe("A");
+
+    const cb = vi.fn((option: TestOption) => {
+      option.label = "changed";
+    });
+    store.subscribe(cb);
+    store.select("b");
+    expect(store.getActive().label).toBe("B");
+  });
+
+  it("selects and resets valid ids, persisting and notifying only on actual changes", () => {
+    const storage = makeMemStorage();
+    const store = makeStore({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.select("ghost");
+    store.select("a");
+    expect(storage._data).toBeNull();
+    expect(cb).not.toHaveBeenCalled();
+
+    store.select("b");
+    store.select("b");
+    expect(storage._data).toBe("b");
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    store.reset();
+    store.reset();
+    expect(storage._data).toBeNull();
+    expect(store.getActiveId()).toBe("a");
+    expect(cb).toHaveBeenCalledTimes(2);
+  });
+
+  it("reloads an external reset and preserves state when override storage throws", () => {
+    const storage = makeMemStorage();
+    storage._data = "b";
+    const store = makeStore({ storage });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    storage._data = null;
+    store.reloadFromStorage();
+    expect(store.getActiveId()).toBe("a");
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    storage.load = () => {
+      throw new Error("boom");
+    };
+    expect(() => store.reloadFromStorage()).not.toThrow();
+    expect(store.getActiveId()).toBe("a");
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an initially stale override so a later manifest can restore it", () => {
+    const storage = makeMemStorage();
+    storage._data = "b";
+    const store = makeStore({ available: [SAMPLE[0]], storage });
+    expect(store.getActiveId()).toBe("a");
+
+    store.setManifest({ available: SAMPLE, defaultValue: "/a.res" });
+    expect(store.getActiveId()).toBe("b");
+
+    store.setManifest({ available: [SAMPLE[0]], defaultValue: "/a.res" });
+    store.select("b");
+    expect(store.getActiveId()).toBe("a");
+  });
+
+  it("stops notifications after unsubscribe or dispose", () => {
+    const store = makeStore();
+    const unsubscribed = vi.fn();
+    const disposed = vi.fn();
+    const unsubscribe = store.subscribe(unsubscribed);
+    store.subscribe(disposed);
+    unsubscribe();
+    store.select("b");
+    expect(unsubscribed).not.toHaveBeenCalled();
+    expect(disposed).toHaveBeenCalledTimes(1);
+
+    store.dispose();
+    store.select("a");
+    expect(disposed).toHaveBeenCalledTimes(1);
+  });
+
   it("drops entries coerceUser rejects when merging persisted user options", () => {
     const userStorage = makeMemUserStorage();
     userStorage._data = [
@@ -264,6 +355,18 @@ describe("createSelectionStore", () => {
       url: "/a.res",
       source: "bundled",
     });
+  });
+
+  it("adds and updates user options in place, forcing source and persisting copies", () => {
+    const userStorage = makeMemUserStorage();
+    const store = makeStore({ userStorage });
+    store.addUserOption({ id: "c", label: "C", url: "/c.res", source: "bundled" });
+    store.addUserOption({ id: "c", label: "C2", url: "/c2.res" });
+
+    expect(store.list().filter((option) => option.id === "c")).toEqual([
+      { id: "c", label: "C2", url: "/c2.res", source: "user" },
+    ]);
+    expect(userStorage._data).toEqual([{ id: "c", label: "C2", url: "/c2.res", source: "user" }]);
   });
 
   it("renameUserOption trims, no-ops on unknown id or empty label, and notifies only when active", () => {
@@ -332,6 +435,52 @@ describe("createSelectionStore", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
+  it("union-merges cross-window user additions before the next save", () => {
+    const userStorage = makeMemUserStorage();
+    const first = makeStore({ userStorage });
+    const second = makeStore({ userStorage });
+
+    first.addUserOption({ id: "c", url: "/c.res" });
+    second.reloadFromStorage();
+    second.addUserOption({ id: "d", url: "/d.res" });
+
+    expect(userStorage._data.map((option) => option.id)).toEqual(["c", "d"]);
+    expect(second.list().map((option) => option.id)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("reloadFromStorage updates existing ids without duplicates and rejects bundled collisions", () => {
+    const userStorage = makeMemUserStorage();
+    const store = makeStore({ userStorage });
+    store.addUserOption({ id: "c", label: "old", url: "/c.res" });
+    userStorage._data = [
+      { id: "c", label: "new", url: "/new.res" },
+      { id: "a", label: "fake", url: "/fake.res" },
+    ] as TestOption[];
+
+    store.reloadFromStorage();
+    expect(store.list().filter((option) => option.id === "c")).toEqual([
+      { id: "c", label: "new", url: "/new.res", source: "user" },
+    ]);
+    expect(store.list().find((option) => option.id === "a")?.url).toBe("/a.res");
+  });
+
+  it("keeps existing user options when user storage reload throws", () => {
+    let throws = false;
+    const userStorage: UserOptionStorage<TestOption> = {
+      load: () => {
+        if (throws) throw new Error("boom");
+        return [];
+      },
+      save: vi.fn(),
+    };
+    const store = makeStore({ userStorage });
+    store.addUserOption({ id: "c", url: "/c.res" });
+    throws = true;
+
+    expect(() => store.reloadFromStorage()).not.toThrow();
+    expect(store.list().map((option) => option.id)).toContain("c");
+  });
+
   it("setManifest replaces bundled options, drops now-colliding user options, and notifies only on change", () => {
     const userStorage = makeMemUserStorage();
     const store = makeStore({ userStorage, defaultValue: "/a.res" });
@@ -373,6 +522,30 @@ describe("localStorageOverrideStorage", () => {
     expect(adapter.load()).toBeNull();
     vi.unstubAllGlobals();
   });
+
+  it("uses the requested key and tolerates unavailable or throwing storage", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", { getItem: vi.fn(), setItem, removeItem: vi.fn() });
+    localStorageOverrideStorage("custom.override").save("x");
+    expect(setItem).toHaveBeenCalledWith("custom.override", "x");
+
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => {
+        throw new Error("blocked");
+      },
+    });
+    const adapter = localStorageOverrideStorage("blocked");
+    expect(adapter.load()).toBeNull();
+    expect(() => adapter.save("x")).not.toThrow();
+    expect(() => adapter.save(null)).not.toThrow();
+    vi.unstubAllGlobals();
+  });
 });
 
 describe("localStorageUserOptionStorage", () => {
@@ -393,6 +566,19 @@ describe("localStorageUserOptionStorage", () => {
     expect(JSON.parse(store.get("test.user")!)).toEqual([
       { id: "ok", label: "ok", url: "/ok.res", source: "user" },
     ]);
+    vi.unstubAllGlobals();
+  });
+
+  it("returns an empty list for malformed JSON, non-arrays, and unavailable storage", () => {
+    const getItem = vi.fn().mockReturnValueOnce("{bad json").mockReturnValueOnce("{}");
+    vi.stubGlobal("localStorage", { getItem, setItem: vi.fn() });
+    const adapter = localStorageUserOptionStorage<TestOption>("test.user", coerceUser);
+    expect(adapter.load()).toEqual([]);
+    expect(adapter.load()).toEqual([]);
+
+    vi.stubGlobal("localStorage", undefined);
+    expect(adapter.load()).toEqual([]);
+    expect(() => adapter.save([])).not.toThrow();
     vi.unstubAllGlobals();
   });
 });
