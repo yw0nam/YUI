@@ -46,6 +46,7 @@ import {
 } from "./context-builder";
 import type { BusEnvelope } from "./event-bus";
 import type { DropReason } from "./guardrails";
+import type { Turn } from "./turn";
 import type { TurnOutput } from "./turn-output";
 
 const baseLog = createLogger("backend-caller");
@@ -155,10 +156,10 @@ interface BackendCallerDeps {
 
 export interface BackendCaller {
   /**
-   * Execute B1–B5 for one trigger envelope. In-flight aborted if externalSignal aborts.
+   * Execute B1–B5 for one admitted turn. In-flight aborted if externalSignal aborts.
    * Never throws — failures expressed as { ok:false, drop_reason } (dispatcher branches).
    */
-  call(env: BusEnvelope, externalSignal?: AbortSignal): Promise<BackendCallResult>;
+  call(turn: Turn, externalSignal?: AbortSignal): Promise<BackendCallResult>;
 }
 
 /**
@@ -228,7 +229,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     return [{ role: "user", content: userContent }];
   }
 
-  async function call(env: BusEnvelope, externalSignal?: AbortSignal): Promise<BackendCallResult> {
+  async function call(turn: Turn, externalSignal?: AbortSignal): Promise<BackendCallResult> {
+    const env = turn.trigger;
     if (externalSignal?.aborted) {
       return { ok: false, drop_reason: "superseded_by_user" };
     }
@@ -240,9 +242,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     // End once on actual response speech start (first speech_delta) — usage/express/tool_status before don't
     // break thinking. Silence/error/abort turns guaranteed end by finally.
     // call() may overlap turns, so keep state per-invocation local (never closure/module scope).
-    // turnToken: unique identity for this call() — same token in start/end so main.ts masks stale end
-    // in cross-turn supersede (overlapping next turn overtakes this turn) by token.
-    const turnToken = {};
     let thinkingStarted = false;
     let thinkingDone = false;
     // Whether running tool_status was passed and not yet closed with done — cleanup decision in finally.
@@ -250,12 +249,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const startThinking = () => {
       if (thinkingStarted || thinkingDone) return;
       thinkingStarted = true;
-      deps.turnOutput?.thinkingStart(turnToken);
+      deps.turnOutput?.thinkingStart(turn.id);
     };
     const endThinking = () => {
       if (thinkingDone) return;
       thinkingDone = true;
-      if (thinkingStarted) deps.turnOutput?.thinkingEnd(turnToken);
+      if (thinkingStarted) deps.turnOutput?.thinkingEnd(turn.id);
     };
 
     // Wrap entire span in try/finally — thinking end guaranteed exactly once on any exit path

@@ -31,6 +31,7 @@ function stubPipelineFactory() {
       hasOutstandingWork: () => outstanding,
       dispose: () => {
         calls.disposed++;
+        outstanding = false;
       },
     };
   };
@@ -55,6 +56,7 @@ function multiPipelineFactory() {
     pushTextDelta: ReturnType<typeof vi.fn>;
     setCue: ReturnType<typeof vi.fn>;
     end: ReturnType<typeof vi.fn>;
+    hasOutstandingWork: ReturnType<typeof vi.fn>;
     dispose: ReturnType<typeof vi.fn>;
     onAmplitude?: (rms: number) => void;
     onPlaybackEnd?: () => void;
@@ -195,6 +197,18 @@ describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not
     sp.interrupt();
     expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
   });
+
+  it("does not ease on interrupt() when audio was queued but never reached the speakers", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeechDelta("Hello");
+    stub.setOutstandingWork(true);
+    sp.interrupt();
+    expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
+  });
 });
 
 describe("createSpeechPlayback — bubble defers until playback ends", () => {
@@ -242,97 +256,76 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
   });
 });
 
-describe("createSpeechPlayback — isSpeaking (barge-in TTS-active window, #279)", () => {
-  it("is false before any delta", () => {
+describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
+  it("reports true after a delta submits a sentence", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const reportAudioOwed = vi.fn();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      createPipeline: stub.factory,
+      reportAudioOwed,
+    });
 
-    expect(sp.isSpeaking()).toBe(false);
-  });
-
-  it("stays false after a text delta alone — text arrival is not audio", () => {
-    const stub = stubPipelineFactory();
-    const renderer = spyRenderer();
-    const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
-
-    sp.onSpeechDelta("Hello");
-    expect(sp.isSpeaking()).toBe(false);
-  });
-
-  it("is true once the pipeline actually plays audio (first onAmplitude)", () => {
-    const stub = stubPipelineFactory();
-    const renderer = spyRenderer();
-    const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
-
-    sp.onSpeechDelta("Hello");
-    stub.emitAmplitude(0.4);
-    expect(sp.isSpeaking()).toBe(true);
-  });
-
-  it("stays false when the turn produces no audio (TTS off / every synth failed)", () => {
-    // delta streams and the bubble still closes via onPlaybackEnd, but no chunk ever
-    // reached playback — barge-in must not fire when there is nothing to interrupt.
-    const stub = stubPipelineFactory();
-    const renderer = spyRenderer();
-    const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
-
-    sp.onSpeechDelta("Hello");
-    stub.emitPlaybackEnd();
-    expect(sp.isSpeaking()).toBe(false);
-  });
-
-  it("is false after the pipeline fires onPlaybackEnd", () => {
-    const stub = stubPipelineFactory();
-    const renderer = spyRenderer();
-    const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
-
-    sp.onSpeechDelta("Hello");
-    stub.emitAmplitude(0.4);
-    stub.emitPlaybackEnd();
-    expect(sp.isSpeaking()).toBe(false);
-  });
-
-  it("is true while the pipeline still owes audio, before the first amplitude frame", () => {
-    // stream-done → first-audio window: synth in flight, nothing played yet. Admitting a
-    // new turn here would destroy a finished reply before any of it is heard.
-    const stub = stubPipelineFactory();
-    const renderer = spyRenderer();
-    const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
-
-    sp.onSpeech("Hello.");
     stub.setOutstandingWork(true);
-    expect(sp.isSpeaking()).toBe(true);
+    sp.onSpeechDelta("Hello");
+
+    expect(reportAudioOwed).toHaveBeenCalledWith(true);
   });
 
-  it("is false after interrupt()", () => {
+  it("reports false after playback ends", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const reportAudioOwed = vi.fn();
+    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory, reportAudioOwed });
 
+    stub.emitPlaybackEnd();
+
+    expect(reportAudioOwed).toHaveBeenLastCalledWith(false);
+  });
+
+  it("reports false after interrupt()", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const reportAudioOwed = vi.fn();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      createPipeline: multi.factory,
+      reportAudioOwed,
+    });
+
+    multi.instances[0]!.hasOutstandingWork.mockReturnValue(true);
     sp.onSpeechDelta("Hello");
-    stub.emitAmplitude(0.4);
+    expect(reportAudioOwed).toHaveBeenLastCalledWith(true);
+
     sp.interrupt();
-    expect(sp.isSpeaking()).toBe(false);
+
+    expect(reportAudioOwed).toHaveBeenLastCalledWith(false);
   });
 
-  it("is false after abort()", () => {
+  it("reports false after abort()", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const reportAudioOwed = vi.fn();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      createPipeline: stub.factory,
+      reportAudioOwed,
+    });
 
+    stub.setOutstandingWork(true);
     sp.onSpeechDelta("Hello");
-    stub.emitAmplitude(0.4);
+    expect(reportAudioOwed).toHaveBeenLastCalledWith(true);
+
     sp.abort();
-    expect(sp.isSpeaking()).toBe(false);
+    expect(reportAudioOwed).toHaveBeenLastCalledWith(false);
   });
 });
 

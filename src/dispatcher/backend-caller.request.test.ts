@@ -19,6 +19,7 @@ import {
   deltaEvent,
   makeLogger,
   makeTurnOutput,
+  turnOf,
   userEnv,
 } from "./test-helpers";
 
@@ -62,7 +63,7 @@ describe("backend_caller — previous_response_id threading", () => {
       turnOutput,
       getPreviousResponseId: () => "resp_prev",
     });
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     const [, request] = script.spy.mock.calls[0];
     expect(request.previous_response_id).toBe("resp_prev");
   });
@@ -78,14 +79,14 @@ describe("backend_caller — previous_response_id threading", () => {
       turnOutput,
       getPreviousResponseId: () => undefined,
     });
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     const [, request] = script.spy.mock.calls[0];
     expect("previous_response_id" in request).toBe(false);
   });
 
   it("getPreviousResponseId absent → no previous_response_id (back-compat)", async () => {
     script.events = [completedEvent({ speech_text: "" })];
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     const [, request] = script.spy.mock.calls[0];
     expect("previous_response_id" in request).toBe(false);
   });
@@ -103,7 +104,7 @@ describe("backend_caller — previous_response_id threading", () => {
       onResponseId,
     });
     script.events = [completedEvent({ speech_text: "hi" }, "resp_123")];
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     expect(onResponseId).toHaveBeenCalledTimes(1);
     expect(onResponseId).toHaveBeenCalledWith("resp_123");
   });
@@ -122,7 +123,7 @@ describe("backend_caller — previous_response_id threading", () => {
       onResponseId,
     });
     script.events = [completedEvent({ speech_text: "hi" }, "resp_123")];
-    await caller.call(userEnv(), ac.signal);
+    await caller.call(turnOf(userEnv()), ac.signal);
     expect(onResponseId).not.toHaveBeenCalled();
   });
 
@@ -138,7 +139,7 @@ describe("backend_caller — previous_response_id threading", () => {
       onResponseId,
     });
     script.events = [{ type: "error", message: "boom" }];
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     expect(onResponseId).not.toHaveBeenCalled();
   });
 
@@ -154,7 +155,7 @@ describe("backend_caller — previous_response_id threading", () => {
       onResponseId,
     });
     script.events = [deltaEvent("x")];
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     expect(onResponseId).not.toHaveBeenCalled();
   });
 
@@ -179,7 +180,7 @@ describe("backend_caller — previous_response_id threading", () => {
       current = "resp_rotated";
     });
     script.events = [completedEvent({ speech_text: "hi" }, "resp_123")];
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     expect(onResponseId).not.toHaveBeenCalled();
   });
 });
@@ -209,7 +210,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
         local_time: "09:00",
       },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const trigger = ctx.trigger as Record<string, unknown>;
@@ -247,7 +248,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
         gap_ms: 3_600_000,
       },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const trigger = ctx.trigger as Record<string, unknown>;
@@ -273,7 +274,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
       hint_tier: 2,
       payload: { cue_id: "touch_chest", label: "chest poked" },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
     expect(trigger.cue).toEqual({ label: "chest poked" });
@@ -289,7 +290,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
       hint_tier: 2,
       payload: { cue_id: "touch_chest", label: "chest poked", context: "poked" },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
@@ -311,7 +312,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
       hint_tier: 2,
       payload: { cue_id: eventName.split(".")[1], label: "label", context: "context" },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
@@ -335,7 +336,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
         signals,
       },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
     expect(trigger.kind).toBe("proactive");
@@ -352,7 +353,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
 
   it("(c) user.text_submitted envelope (no cue_id) → trigger.cue absent", async () => {
     script.events = [completedEvent({ speech_text: "" })];
-    await caller.call(userEnv("안녕"));
+    await caller.call(turnOf(userEnv("안녕")));
     const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const trigger = ctx.trigger as Record<string, unknown>;
@@ -388,7 +389,7 @@ describe("backend_caller — agent trigger forwarding", () => {
         ts: 1_717_000_000_000,
       },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const trigger = ctx.trigger as Record<string, unknown>;
@@ -424,7 +425,7 @@ describe("backend_caller — agent trigger forwarding", () => {
         ts: 1_717_000_000_000,
       },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
     expect(trigger.kind).toBe("agent");
@@ -458,7 +459,7 @@ describe("backend_caller — agent trigger forwarding", () => {
         ],
       },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
     expect(trigger.kind).toBe("agent");
@@ -497,7 +498,7 @@ describe("backend_caller — agent trigger forwarding", () => {
       hint_tier: 2,
       payload: { tool: 42 }, // tool is not a string
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
     expect(trigger.kind).toBe("agent");
@@ -528,7 +529,7 @@ describe("backend_caller — signals trigger forwarding", () => {
         ts: 1_717_000_000_000,
       },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const trigger = ctx.trigger as Record<string, unknown>;
@@ -553,7 +554,7 @@ describe("backend_caller — signals trigger forwarding", () => {
       hint_tier: 2,
       payload: { signals: [{ kind: "reminder" }], ts: 1_717_000_000_000 },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const items = request.input as Array<{ role: string; content: string }>;
     expect(items).toHaveLength(1);
@@ -583,7 +584,7 @@ describe("backend_caller — signals trigger forwarding", () => {
         signals: [{ id: 1 }, { id: 2 }],
       },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
     expect(trigger.kind).toBe("signals");
@@ -610,7 +611,7 @@ describe("backend_caller — signals trigger forwarding", () => {
       hint_tier: 2,
       payload: { signals: weird, ts: 1_717_000_000_000 },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
     expect(trigger.signals).toEqual(weird);
@@ -626,7 +627,7 @@ describe("backend_caller — signals trigger forwarding", () => {
       hint_tier: 2,
       payload: { signals: "not-an-array", ts: 1_717_000_000_000 },
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
     expect(trigger.kind).toBe("signals");
@@ -658,7 +659,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       turnOutput,
       transcript: { get: () => transcriptEntries, append: vi.fn() },
     });
-    await caller.call(userEnv("오늘 뭐해?"));
+    await caller.call(turnOf(userEnv("오늘 뭐해?")));
     const [, request] = script.spy.mock.calls[0];
     const msgs = messagesOf(request);
     expect(Array.isArray(msgs)).toBe(true);
@@ -692,7 +693,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       stream: script.stream,
       turnOutput,
     });
-    const res = await caller.call(userEnv("혼자"));
+    const res = await caller.call(turnOf(userEnv("혼자")));
     expect(res.ok).toBe(true);
     const [, request] = script.spy.mock.calls[0];
     const msgs = messagesOf(request);
@@ -710,7 +711,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       turnOutput,
       getAgentSettings: () => ({ reasoning_effort: "medium", instructions: "be terse" }),
     });
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     const [, request] = script.spy.mock.calls[0];
     expect(request.reasoning_effort).toBe("medium");
     expect(messagesOf(request)[0]).toEqual({ role: "system", content: "be terse" });
@@ -728,7 +729,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       turnOutput,
       getAgentSettings: () => ({ reasoning_effort: "none", instructions: "" }),
     });
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     const [, request] = script.spy.mock.calls[0];
     expect(messagesOf(request)[0]).toEqual({ role: "system", content: "config nudge" });
   });
@@ -751,7 +752,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       hint_tier: 2,
       payload: {},
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const msgs = messagesOf(request);
     expect(msgs[msgs.length - 1]).toEqual({
@@ -778,7 +779,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       hint_tier: 2,
       payload: {},
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const msgs = messagesOf(request);
     expect(msgs[msgs.length - 1]).toEqual({

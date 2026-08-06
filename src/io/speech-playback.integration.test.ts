@@ -129,6 +129,7 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
     };
     // Synth held open — models a slow provider, where the window is seconds wide.
     let releaseSynth!: (buf: ArrayBuffer) => void;
+    let owed: boolean | undefined;
     const sp = createSpeechPlayback({
       renderer,
       surfaces,
@@ -138,21 +139,24 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
             releaseSynth = resolve;
           }),
       },
+      reportAudioOwed: (v) => {
+        owed = v;
+      },
     });
 
     sp.onSpeech("Hello.");
     // Stream is done and audio is owed, but no frame has played — still speaking.
-    expect(sp.isSpeaking()).toBe(true);
+    expect(owed).toBe(true);
 
     releaseSynth(new Uint8Array([1, 2, 3, 4]).buffer);
     for (let i = 0; i < 6; i++) await Promise.resolve();
     flushFrames(4);
-    expect(sp.isSpeaking()).toBe(true);
+    expect(owed).toBe(true);
 
     await tick();
     await tick();
     expect(surfaces.finishSpeech).toHaveBeenCalledTimes(1);
-    expect(sp.isSpeaking()).toBe(false);
+    expect(owed).toBe(false);
 
     sp.dispose();
   });

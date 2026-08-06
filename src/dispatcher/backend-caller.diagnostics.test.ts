@@ -19,6 +19,7 @@ import {
   keepaliveEvent,
   makeLogger,
   makeTurnOutput,
+  turnOf,
   userEnv,
 } from "./test-helpers";
 
@@ -53,7 +54,7 @@ beforeEach(() => {
 describe("backend_caller — failure classification (§7.3)", () => {
   it("no completed event → parse_error drop", async () => {
     script.events = [{ type: "speech_delta", text: "x" }];
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("parse_error");
     expect(applyDirective).not.toHaveBeenCalled();
@@ -61,35 +62,35 @@ describe("backend_caller — failure classification (§7.3)", () => {
 
   it("an error event surfaces as network_drop and applies nothing", async () => {
     script.events = [{ type: "error", message: "401 unauthorized" }];
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_drop");
   });
 
   it("an error event carrying status:401 surfaces as http_4xx_drop (auth-ish)", async () => {
     script.events = [{ type: "error", message: "401 Incorrect API key provided", status: 401 }];
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("http_4xx_drop");
   });
 
   it("an error event carrying status:403 surfaces as http_4xx_drop (auth-ish)", async () => {
     script.events = [{ type: "error", message: "403 Forbidden", status: 403 }];
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("http_4xx_drop");
   });
 
   it("an error event carrying an unrelated status (e.g. 500) stays network_drop", async () => {
     script.events = [{ type: "error", message: "500 internal error", status: 500 }];
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_drop");
   });
 
   it("a thrown stream rejects to network_drop (not a crash)", async () => {
     script.error = new Error("boom");
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_drop");
   });
@@ -97,7 +98,7 @@ describe("backend_caller — failure classification (§7.3)", () => {
   it("an already-aborted external signal short-circuits without calling streamChat", async () => {
     const ac = new AbortController();
     ac.abort();
-    const res = await caller.call(userEnv(), ac.signal);
+    const res = await caller.call(turnOf(userEnv()), ac.signal);
     expect(res.ok).toBe(false);
     expect(script.spy).not.toHaveBeenCalled();
   });
@@ -116,7 +117,7 @@ describe("backend_caller — idle-gap watchdog", () => {
   it("no first byte within IDLE_TIMEOUT_MS (TTFT stall) → aborts the request and drops network_stall", async () => {
     script.hangAt = 0;
     script.events = [];
-    const p = caller.call(userEnv());
+    const p = caller.call(turnOf(userEnv()));
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     const res = await p;
     expect(res.ok).toBe(false);
@@ -128,7 +129,7 @@ describe("backend_caller — idle-gap watchdog", () => {
   it("stall after ≥1 delta (mid-stream stall) → aborts, drops network_stall, tears down via turnOutput.abort", async () => {
     script.events = [deltaEvent("partial")];
     script.hangAt = 1;
-    const p = caller.call(userEnv());
+    const p = caller.call(turnOf(userEnv()));
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     const res = await p;
     expect(res.ok).toBe(false);
@@ -146,7 +147,7 @@ describe("backend_caller — idle-gap watchdog", () => {
       completedEvent({ speech_text: "abc" }),
     ];
     script.gaps = [gap, gap, gap, 0]; // sum ≈ 3x the deadline
-    const p = caller.call(userEnv());
+    const p = caller.call(turnOf(userEnv()));
     await vi.advanceTimersByTimeAsync(gap * 3 + 1_000);
     const res = await p;
     expect(res.ok).toBe(true);
@@ -156,7 +157,7 @@ describe("backend_caller — idle-gap watchdog", () => {
   it("a single gap just under the deadline still completes normally", async () => {
     script.events = [deltaEvent("a"), completedEvent({ speech_text: "a" })];
     script.gaps = [IDLE_TIMEOUT_MS - 1_000];
-    const p = caller.call(userEnv());
+    const p = caller.call(turnOf(userEnv()));
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     const res = await p;
     expect(res.ok).toBe(true);
@@ -172,7 +173,7 @@ describe("backend_caller — idle-gap watchdog", () => {
       completedEvent({ speech_text: "a" }),
     ];
     script.gaps = [gap, gap, gap, 0, 0]; // sum of gaps ≈ 3x the deadline
-    const p = caller.call(userEnv());
+    const p = caller.call(turnOf(userEnv()));
     await vi.advanceTimersByTimeAsync(gap * 3 + 1_000);
     const res = await p;
     expect(res.ok).toBe(true);
@@ -182,7 +183,7 @@ describe("backend_caller — idle-gap watchdog", () => {
   it("logs logger.warn('network_stall', { stage: 'idle_timeout', ... }) on expiry", async () => {
     script.hangAt = 0;
     script.events = [];
-    const p = caller.call(userEnv());
+    const p = caller.call(turnOf(userEnv()));
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     await p;
     expect(logger.warn).toHaveBeenCalledWith(
@@ -197,7 +198,7 @@ describe("backend_caller — idle-gap watchdog", () => {
 describe("backend_caller — structured logging", () => {
   it("no completed event (parse_error) → logger.warn('parse_error', ...)", async () => {
     script.events = [];
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     expect(logger.warn).toHaveBeenCalledWith(
       "parse_error",
       expect.objectContaining({ event_name: expect.any(String) }),
@@ -206,7 +207,7 @@ describe("backend_caller — structured logging", () => {
 
   it("error stream event (network_drop) → logger.warn with network_drop context", async () => {
     script.events = [{ type: "error", message: "401 unauthorized" }];
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("network_drop"),
       expect.anything(),
@@ -215,7 +216,7 @@ describe("backend_caller — structured logging", () => {
 
   it("thrown stream (network_drop) → logger.warn with network_drop context", async () => {
     script.error = new Error("boom");
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("network_drop"),
       expect.anything(),
@@ -236,7 +237,7 @@ describe("backend_caller — structured logging", () => {
       logger,
     });
     script.events = [completedEvent({ speech_text: "안녕", emotion: { id: "happy" } })];
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
     // turn must still succeed despite renderer error
     expect(res.ok).toBe(true);
     expect(logger.error).toHaveBeenCalledWith(
@@ -247,7 +248,7 @@ describe("backend_caller — structured logging", () => {
 
   it("empty speech_text → logger.info('empty_speech', { trigger })", async () => {
     script.events = [completedEvent({ speech_text: "", emotion: { id: "thinking" } })];
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     expect(logger.info).toHaveBeenCalledWith(
       "empty_speech",
       expect.objectContaining({ trigger: expect.anything() }),
@@ -278,7 +279,7 @@ describe("backend_caller — transcript recording", () => {
       transcript,
     });
     script.events = [completedEvent({ speech_text: "안녕!" })];
-    await caller.call(userEnv("안녕"));
+    await caller.call(turnOf(userEnv("안녕")));
     expect(transcript.append).toHaveBeenCalledTimes(2);
     expect(transcript.append).toHaveBeenNthCalledWith(
       1,
@@ -302,7 +303,7 @@ describe("backend_caller — transcript recording", () => {
       transcript,
     });
     script.events = [completedEvent({ speech_text: "네" }, "")];
-    await caller.call(userEnv("질문"));
+    await caller.call(turnOf(userEnv("질문")));
     expect(transcript.append).toHaveBeenCalledTimes(2);
     expect(transcript.append).toHaveBeenNthCalledWith(
       1,
@@ -334,7 +335,7 @@ describe("backend_caller — transcript recording", () => {
       hint_tier: 2,
       payload: {},
     };
-    await caller.call(env);
+    await caller.call(turnOf(env));
     expect(transcript.append).toHaveBeenCalledTimes(1);
     expect(transcript.append).toHaveBeenCalledWith(
       expect.objectContaining({ role: "assistant", text: "좋은 아침!" }),
@@ -353,7 +354,7 @@ describe("backend_caller — transcript recording", () => {
       transcript,
     });
     script.events = [completedEvent({ speech_text: "" })];
-    await caller.call(userEnv("조용히"));
+    await caller.call(turnOf(userEnv("조용히")));
     expect(transcript.append).toHaveBeenCalledTimes(1);
     expect(transcript.append).toHaveBeenCalledWith(
       expect.objectContaining({ role: "user", text: "조용히" }),
@@ -372,7 +373,7 @@ describe("backend_caller — transcript recording", () => {
       transcript,
     });
     script.events = [{ type: "error", message: "boom" }];
-    await caller.call(userEnv("안녕"));
+    await caller.call(turnOf(userEnv("안녕")));
     expect(transcript.append).not.toHaveBeenCalled();
   });
 
@@ -388,7 +389,7 @@ describe("backend_caller — transcript recording", () => {
       transcript,
     });
     script.events = [];
-    await caller.call(userEnv("안녕"));
+    await caller.call(turnOf(userEnv("안녕")));
     expect(transcript.append).not.toHaveBeenCalled();
   });
 
@@ -406,13 +407,13 @@ describe("backend_caller — transcript recording", () => {
       transcript,
     });
     script.events = [completedEvent({ speech_text: "hi" })];
-    await caller.call(userEnv("안녕"), ac.signal);
+    await caller.call(turnOf(userEnv("안녕")), ac.signal);
     expect(transcript.append).not.toHaveBeenCalled();
   });
 
   it("no transcript dep → does not throw", async () => {
     script.events = [completedEvent({ speech_text: "hi" })];
-    const res = await caller.call(userEnv("안녕"));
+    const res = await caller.call(turnOf(userEnv("안녕")));
     expect(res.ok).toBe(true);
   });
 });
@@ -432,7 +433,7 @@ describe("backend_caller — onResponseId empty-string guard", () => {
       onResponseId,
     });
     script.events = [completedEvent({ speech_text: "hi" }, "")];
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     expect(onResponseId).not.toHaveBeenCalled();
   });
 
@@ -449,7 +450,7 @@ describe("backend_caller — onResponseId empty-string guard", () => {
       onResponseId,
     });
     script.events = [completedEvent({ speech_text: "hi" }, "")];
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     const [, request] = script.spy.mock.calls[0];
     expect("previous_response_id" in request).toBe(false);
     expect(onResponseId).not.toHaveBeenCalled();

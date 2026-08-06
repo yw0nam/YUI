@@ -22,6 +22,7 @@ import {
   deltaEvent,
   makeLogger,
   makeTurnOutput,
+  turnOf,
   userEnv,
 } from "./test-helpers";
 
@@ -82,7 +83,7 @@ describe("backend_caller — 404 chain-break recovery", () => {
       [{ type: "error", message: "Previous response not found: resp_dead", status: 404 }],
       [completedEvent({ speech_text: "hi again" }, "resp_new")],
     ];
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
 
     expect(res).toEqual({ ok: true });
     expect(script.spy).toHaveBeenCalledTimes(2);
@@ -106,7 +107,7 @@ describe("backend_caller — 404 chain-break recovery", () => {
   it("404 + no previous_response_id → no retry, network_drop, onResponseIdInvalid not called", async () => {
     make404(undefined);
     script.queue = [[{ type: "error", message: "not found", status: 404 }]];
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
 
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_drop");
@@ -120,7 +121,7 @@ describe("backend_caller — 404 chain-break recovery", () => {
       [{ type: "error", message: "Previous response not found: resp_dead", status: 404 }],
       [{ type: "error", message: "still not found", status: 404 }],
     ];
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
 
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_drop");
@@ -136,7 +137,7 @@ describe("backend_caller — 404 chain-break recovery", () => {
         { type: "error", message: "Previous response not found: resp_dead", status: 404 },
       ],
     ];
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
 
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_drop");
@@ -151,23 +152,23 @@ describe("backend_caller — 404 chain-break recovery", () => {
       [{ type: "error", message: "Previous response not found: resp_dead", status: 404 }],
       [completedEvent({ speech_text: "hi again" }, "resp_new")],
     ];
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     expect(onChainReset).toHaveBeenCalledTimes(1);
   });
 
   it("401/403/500 classification is unaffected by chain-break handling (no retry, existing drop reasons)", async () => {
     script.queue = [[{ type: "error", message: "unauthorized", status: 401 }]];
-    const res401 = await caller.call(userEnv());
+    const res401 = await caller.call(turnOf(userEnv()));
     expect(res401.drop_reason).toBe("http_4xx_drop");
 
     make404("resp_dead");
     script.queue = [[{ type: "error", message: "forbidden", status: 403 }]];
-    const res403 = await caller.call(userEnv());
+    const res403 = await caller.call(turnOf(userEnv()));
     expect(res403.drop_reason).toBe("http_4xx_drop");
 
     make404("resp_dead");
     script.queue = [[{ type: "error", message: "server error", status: 500 }]];
-    const res500 = await caller.call(userEnv());
+    const res500 = await caller.call(turnOf(userEnv()));
     expect(res500.drop_reason).toBe("network_drop");
 
     expect(script.spy).toHaveBeenCalledTimes(3);
@@ -177,7 +178,7 @@ describe("backend_caller — 404 chain-break recovery", () => {
   it("network_drop log for a plain stream_error now carries status", async () => {
     make404(undefined);
     script.queue = [[{ type: "error", message: "server error", status: 500 }]];
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
     expect(logger.warn).toHaveBeenCalledWith(
       "network_drop",
       expect.objectContaining({ stage: "stream_error", status: 500 }),

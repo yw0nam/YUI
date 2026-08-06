@@ -19,6 +19,7 @@ import {
   deltaEvent,
   expressEvent,
   makeLogger,
+  turnOf,
   userEnv,
 } from "./test-helpers";
 import type { TurnOutput } from "./turn-output";
@@ -139,7 +140,7 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
       logger: makeLogger(),
     });
 
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
     expect(res.ok).toBe(true);
 
     expect(order.indexOf("interrupt")).toBe(0);
@@ -170,7 +171,7 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
       logger: makeLogger(),
     });
 
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
     expect(res.ok).toBe(true);
 
     expect(order).toContain("speak");
@@ -190,7 +191,7 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
       logger: makeLogger(),
     });
 
-    const res = await caller.call(userEnv());
+    const res = await caller.call(turnOf(userEnv()));
     expect(res.ok).toBe(false);
 
     expect(order).toContain("abort");
@@ -214,7 +215,7 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
       logger: makeLogger(),
     });
 
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
 
     expect(order.filter((o) => o.startsWith("cue:"))).toEqual(["cue:(whisper)"]);
     // routed strictly during the stream — before the end signal.
@@ -233,7 +234,7 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
       logger: makeLogger(),
     });
 
-    await caller.call(userEnv());
+    await caller.call(turnOf(userEnv()));
 
     expect(order.filter((o) => o.startsWith("cue:"))).toEqual(["cue:(whisper)"]);
   });

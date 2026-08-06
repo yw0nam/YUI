@@ -8,7 +8,6 @@ const mocks = vi.hoisted(() => {
     onSpeech: vi.fn(),
     setCue: vi.fn(),
     holdMotion: vi.fn(),
-    isSpeaking: vi.fn(() => false),
     interrupt: vi.fn(),
     abort: vi.fn(),
     dispose: vi.fn(),
@@ -96,6 +95,8 @@ vi.mock("./io/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 
 import type { FillerConfig } from "./config/load";
 import type { EndpointsConfig } from "./contract";
+import type { BusEnvelope } from "./dispatcher/event-bus";
+import { createTurnLog } from "./dispatcher/turn";
 import type { FillerLoopDeps } from "./io/filler-loop";
 import type { IrodoriSynthFactoryDeps } from "./io/irodori-synth-factory";
 import type { SpeechPlaybackOptions } from "./io/speech-playback";
@@ -112,6 +113,10 @@ function endpoints(overrides: Partial<EndpointsConfig> = {}): EndpointsConfig {
     tts_provider: "openai",
     ...overrides,
   };
+}
+
+function trigger(): BusEnvelope {
+  return { source: "user_input_source", event_name: "test", ts: 0 };
 }
 
 function setup() {
@@ -148,10 +153,12 @@ function setup() {
   const getSttApiKey = vi.fn().mockResolvedValue("stt-key");
   const onVoiceSegment = vi.fn();
   const voiceInputStatus = { set: vi.fn() };
+  const turnLog = createTurnLog();
 
   const voice = wireVoicePipeline({
     renderer,
     surfaces,
+    turnLog,
     getEndpoints: () => currentEndpoints,
     getFillerConfig: () => fillerConfig,
     getTtsApiKey,
@@ -168,6 +175,7 @@ function setup() {
   return {
     voice,
     renderer,
+    turnLog,
     getTtsApiKey,
     getSttApiKey,
     onVoiceSegment,
@@ -208,25 +216,36 @@ describe("wireVoicePipeline", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     for (const key of Object.keys(mocks.captured)) delete mocks.captured[key];
-    mocks.speechPlayback.isSpeaking.mockReturnValue(false);
     mocks.voiceRevision.mockReturnValue(0);
   });
 
-  it("keeps the latest thinking turn active when an earlier turn ends", () => {
+  it("A's late thinkingEnd(idA) does not tear down B's thinking once B's thinkingStart(idB) has begun", () => {
     const { voice, renderer } = setup();
-    const first = {};
-    const second = {};
 
-    voice.turnOutput.thinkingStart(first);
-    voice.turnOutput.thinkingStart(second);
+    voice.turnOutput.thinkingStart(1); // A starts
+    voice.turnOutput.thinkingStart(2); // B starts before A's late end arrives
     vi.clearAllMocks();
-    voice.turnOutput.thinkingEnd(first);
+    voice.turnOutput.thinkingEnd(1); // A's late end
 
     expect(mocks.speechPlayback.holdMotion).not.toHaveBeenCalled();
     expect(mocks.fillerLoop.stop).not.toHaveBeenCalled();
     expect(renderer.playMotion).not.toHaveBeenCalled();
 
-    voice.turnOutput.thinkingEnd(second);
+    voice.turnOutput.thinkingEnd(2); // B's own end
+    expect(mocks.speechPlayback.holdMotion).toHaveBeenCalledWith(false);
+    expect(mocks.fillerLoop.stop).toHaveBeenCalledOnce();
+    expect(renderer.playMotion).toHaveBeenCalledWith(null);
+  });
+
+  it("a turn's own thinkingEnd tears down even after a newer turn begins on the ledger without starting its own thinking", () => {
+    const { voice, renderer, turnLog } = setup();
+
+    turnLog.begin(trigger());
+    voice.turnOutput.thinkingStart(1);
+    // the ledger moves on, but the new turn never claims thinking — the guard ignores it.
+    turnLog.begin(trigger());
+    voice.turnOutput.thinkingEnd(1);
+
     expect(mocks.speechPlayback.holdMotion).toHaveBeenCalledWith(false);
     expect(mocks.fillerLoop.stop).toHaveBeenCalledOnce();
     expect(renderer.playMotion).toHaveBeenCalledWith(null);
@@ -235,7 +254,7 @@ describe("wireVoicePipeline", () => {
   it("holds motion before starting the thinking motion and filler", () => {
     const { voice, renderer } = setup();
 
-    voice.turnOutput.thinkingStart({});
+    voice.turnOutput.thinkingStart(1);
 
     expect(mocks.speechPlayback.holdMotion).toHaveBeenCalledWith(true);
     expect(renderer.playMotion).toHaveBeenCalledWith({ id: "thinking", loop: true });
@@ -462,7 +481,8 @@ describe("wireVoicePipeline", () => {
     onSpeechActive();
     expect(mocks.speechPlayback.interrupt).not.toHaveBeenCalled();
 
-    mocks.speechPlayback.isSpeaking.mockReturnValue(true);
+    state.turnLog.begin(trigger());
+    state.turnLog.setAudioOwed(true);
     onSpeechActive();
     expect(mocks.speechPlayback.interrupt).toHaveBeenCalledWith({ muteCurrentTurn: true });
   });
