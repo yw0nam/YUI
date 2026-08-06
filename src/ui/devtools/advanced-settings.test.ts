@@ -3,11 +3,19 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createContextSettings } from "../../io/context-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
-import { createClampedIntSettings } from "../../io/persisted-store";
+import { createRecentAppsStore } from "../../io/settings-stores";
 import { setLocale } from "../i18n";
 import { createAdvancedSettings } from "./advanced-settings";
 
-const createRecentAppsStore = () => createClampedIntSettings({ default: 10, floor: 1, ceil: 50 });
+const inMemoryRecentAppsStore = () => {
+  let value: { value: number } | null = null;
+  return createRecentAppsStore({
+    load: () => value,
+    save: (next) => {
+      value = next;
+    },
+  });
+};
 
 describe("Advanced Settings", () => {
   beforeEach(() => setLocale("en"));
@@ -15,7 +23,7 @@ describe("Advanced Settings", () => {
   it("binds context toggles and numeric settings to their existing stores", () => {
     const mount = document.createElement("section");
     const context = createContextSettings();
-    const recentApps = createRecentAppsStore();
+    const recentApps = inMemoryRecentAppsStore();
     const endpoints = createEndpointsSettings();
     createAdvancedSettings(mount, { context, recentApps, endpoints });
 
@@ -38,7 +46,7 @@ describe("Advanced Settings", () => {
     const mount = document.createElement("section");
     createAdvancedSettings(mount, {
       context: createContextSettings(),
-      recentApps: createRecentAppsStore(),
+      recentApps: inMemoryRecentAppsStore(),
       endpoints: createEndpointsSettings(),
     });
 

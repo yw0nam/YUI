@@ -6,11 +6,11 @@ import { createAgentSettings } from "../../io/agent-settings";
 import { createChatKeySettings } from "../../io/chat-key-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
 import { createLipsyncSettings } from "../../io/lipsync-settings";
-import { createClampedIntSettings } from "../../io/persisted-store";
 import { createProactiveSettings } from "../../io/proactive-settings";
 import { createScheduleSettings } from "../../io/schedule-settings";
 import { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
 import { createSessionStore } from "../../io/session-store";
+import { createPresenceStore, createRecentAppsStore } from "../../io/settings-stores";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
 import type { createVrmSelection } from "../../io/vrm-selection";
 import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "../i18n";
@@ -22,13 +22,17 @@ import {
   makeVrmSelection,
 } from "./test-helpers";
 
-const createPresenceStore = () =>
-  createClampedIntSettings({
-    default: 180000,
-    floor: 10000,
-    ceil: Number.MAX_SAFE_INTEGER,
-  });
-const createRecentAppsStore = () => createClampedIntSettings({ default: 10, floor: 1, ceil: 50 });
+const inMemoryValueStorage = () => {
+  let value: { value: number } | null = null;
+  return {
+    load: () => value,
+    save: (next: { value: number }) => {
+      value = next;
+    },
+  };
+};
+const inMemoryPresenceStore = () => createPresenceStore(inMemoryValueStorage());
+const inMemoryRecentAppsStore = () => createRecentAppsStore(inMemoryValueStorage());
 
 describe("createQuickControls — shell", () => {
   let mount: HTMLElement;
@@ -747,7 +751,7 @@ describe("createQuickControls — Reactions tab", () => {
   });
 
   it("renders #yui-presence inside #yui-panel-react when presenceSettings is provided", () => {
-    const presenceSettings = createPresenceStore();
+    const presenceSettings = inMemoryPresenceStore();
     const qc = buildQc({ presenceSettings });
     qc.open();
     const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence");
@@ -758,7 +762,7 @@ describe("createQuickControls — Reactions tab", () => {
   });
 
   it("#yui-presence reflects presenceSettings.value/1000 on open", () => {
-    const presenceSettings = createPresenceStore();
+    const presenceSettings = inMemoryPresenceStore();
     const qc = buildQc({ presenceSettings });
     qc.open();
     const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
@@ -768,7 +772,7 @@ describe("createQuickControls — Reactions tab", () => {
   });
 
   it("change on #yui-presence calls presenceSettings.set(s * 1000)", () => {
-    const presenceSettings = createPresenceStore();
+    const presenceSettings = inMemoryPresenceStore();
     const setSpy = vi.spyOn(presenceSettings, "set");
     const qc = buildQc({ presenceSettings });
     qc.open();
@@ -780,7 +784,7 @@ describe("createQuickControls — Reactions tab", () => {
   });
 
   it("external presenceSettings.set reflects into #yui-presence while open", () => {
-    const presenceSettings = createPresenceStore();
+    const presenceSettings = inMemoryPresenceStore();
     const qc = buildQc({ presenceSettings });
     qc.open();
     const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
@@ -797,7 +801,7 @@ describe("createQuickControls — Reactions tab", () => {
   });
 
   it("renders #yui-recent-apps inside #yui-panel-react when recentAppsSettings is provided", () => {
-    const recentAppsSettings = createRecentAppsStore();
+    const recentAppsSettings = inMemoryRecentAppsStore();
     const qc = buildQc({ recentAppsSettings });
     qc.open();
     const recentAppsInput = qc.el.querySelector<HTMLInputElement>("#yui-recent-apps");
@@ -808,7 +812,7 @@ describe("createQuickControls — Reactions tab", () => {
   });
 
   it("change on #yui-recent-apps calls recentAppsSettings.set(n)", () => {
-    const recentAppsSettings = createRecentAppsStore();
+    const recentAppsSettings = inMemoryRecentAppsStore();
     const setSpy = vi.spyOn(recentAppsSettings, "set");
     const qc = buildQc({ recentAppsSettings });
     qc.open();
@@ -839,7 +843,7 @@ describe("createQuickControls — Reactions tab", () => {
   });
 
   it("below-floor value in #yui-presence snaps back: store unchanged, input reverts to 180", () => {
-    const presenceSettings = createPresenceStore();
+    const presenceSettings = inMemoryPresenceStore();
     const setSpy = vi.spyOn(presenceSettings, "set");
     const qc = buildQc({ presenceSettings });
     qc.open();

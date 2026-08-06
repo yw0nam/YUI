@@ -9,7 +9,12 @@ import { createContextSettings, localStorageContextSettings } from "./context-se
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./endpoints-settings";
 import { createFillerSettings, localStorageFillerStorage } from "./filler-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./lipsync-settings";
-import { createClampedIntSettings, createFlagSettings, localStorageStore } from "./persisted-store";
+import {
+  createClampedIntSettings,
+  createFlagSettings,
+  localStorageStore,
+  type PersistedStorage,
+} from "./persisted-store";
 import {
   type CueLocale,
   createProactiveSettings,
@@ -27,6 +32,22 @@ import { createWorkflowSettings, localStorageWorkflowStorage } from "./workflow-
 
 export const RECENT_APPS_FLOOR = 1;
 export const RECENT_APPS_CEIL = 50;
+
+export const createPresenceStore = (
+  storage: PersistedStorage<{ value: number }> = localStorageStore("yui.presence"),
+) =>
+  createClampedIntSettings(
+    { default: 180000, floor: 10000, ceil: Number.MAX_SAFE_INTEGER },
+    { storage },
+  );
+
+export const createRecentAppsStore = (
+  storage: PersistedStorage<{ value: number }> = localStorageStore("yui.recent-apps"),
+) =>
+  createClampedIntSettings(
+    { default: 10, floor: RECENT_APPS_FLOOR, ceil: RECENT_APPS_CEIL },
+    { storage },
+  );
 
 // localStorage-backed settings/state stores. Pure instantiation — no wiring, no renderer,
 // no dispatcher. bootstrap() destructures the bag and owns the wiring (renderer, storage-sync).
@@ -60,15 +81,9 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     storage: localStorageAgentNotifyStorage(),
   });
   // Presence window threshold — "present when idle ≤ N ms". Shared by proactive/agent sources.
-  const presenceSettings = createClampedIntSettings(
-    { default: 180000, floor: 10000, ceil: Number.MAX_SAFE_INTEGER },
-    { storage: localStorageStore("yui.presence") },
-  );
+  const presenceSettings = createPresenceStore();
   // Recent-apps buffer cap — os-context caps its app-switch buffer at this value.
-  const recentAppsSettings = createClampedIntSettings(
-    { default: 10, floor: RECENT_APPS_FLOOR, ceil: RECENT_APPS_CEIL },
-    { storage: localStorageStore("yui.recent-apps") },
-  );
+  const recentAppsSettings = createRecentAppsStore();
   const contextSettings = createContextSettings({
     storage: localStorageContextSettings(),
   });
@@ -111,7 +126,9 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   // Cursor gaze-tracking on/off. Default ON. Streams every change (toggle/cross-window) to the renderer.
   const gazeSettings = createFlagSettings(true, { storage: localStorageStore("yui.gaze") });
   // First-run onboarding hint — flag shown only once.
+  // enabled === onboarding hint already seen.
   const hintSettings = createFlagSettings(false, { storage: localStorageStore("yui.hint") });
+  // enabled === rail is collapsed.
   const railCollapsedSettings = createFlagSettings(false, {
     storage: localStorageStore("yui.quickControls.railCollapsed"),
   });
