@@ -15,7 +15,6 @@
 import "./styles.css";
 import { createTier1Engine } from "./ambient/tier1";
 import {
-  type SyncedStore,
   wireBroker,
   wireCrossWindowSync,
   wireDevGlobals,
@@ -65,7 +64,7 @@ import { createOsContext } from "./io/os-context";
 import { createPeekState } from "./io/peek-state";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createSettingsSecretProvider } from "./io/secret-provider";
-import { createSettingsStores } from "./io/settings-stores";
+import { broadcastSyncStores, createSettingsStores, reloadSyncStores } from "./io/settings-stores";
 import { createSettingsWindowOpener } from "./io/settings-window";
 import type { SummonHotkey } from "./io/summon-hotkey";
 import { createTapSource, type TapSource } from "./io/tap-source";
@@ -301,29 +300,10 @@ async function bootstrap(): Promise<void> {
   // bidirectionally so main window edits are reflected here and vice versa.
   const openSettings = createSettingsWindowOpener();
   const openDevtools = createDevtoolsWindowOpener();
-  // Cross-window settings sync (bidirectional, loop-guarded, debounced): one side edits → emit →
-  // other side reloads. cameraSettings is excluded from the array since its reload propagates to
-  // zoom (handled inside wireSettingsReload). Wired before the VRM/speaker selections below so they
-  // can broadcast through the returned `broadcastSettings`; wireSettingsReload is wired after they exist.
-  const syncedSettingsStores: SyncedStore[] = [
-    agentSettings,
-    endpointsSettings,
-    chatKeySettings,
-    sttKeySettings,
-    ttsKeySettings,
-    lipsyncSettings,
-    vadSettings,
-    fillerSettings,
-    screenshotSettings,
-    proactiveSettings,
-    scheduleSettings,
-    workflowSettings,
-    agentNotifySettings,
-    presenceSettings,
-    recentAppsSettings,
-    idleThrottleSettings,
-    ttsSettings,
-  ];
+  // Cross-window settings sync is wired before VRM/speaker selection so those stores can broadcast
+  // through the returned callback; the reload half is wired after those selections exist.
+  const reloadStores = reloadSyncStores(settingsStores);
+  const broadcastStores = broadcastSyncStores(settingsStores);
   const {
     bridge,
     broadcastSettings,
@@ -332,31 +312,8 @@ async function bootstrap(): Promise<void> {
   } = wireCrossWindowSync({
     renderer,
     voiceInputStatus,
-    storageSyncStores: [
-      agentSettings,
-      endpointsSettings,
-      chatKeySettings,
-      sttKeySettings,
-      ttsKeySettings,
-      lipsyncSettings,
-      vadSettings,
-      fillerSettings,
-      screenshotSettings,
-      proactiveSettings,
-      idleThrottleSettings,
-      gazeSettings,
-      ttsSettings,
-      cameraSettings,
-      sessionStore,
-      sessionDiagnostics,
-      chatHistoryStore,
-      recentAppsSettings,
-      contextSettings,
-      contextHistory,
-      railCollapsedSettings,
-    ],
-    syncedStores: syncedSettingsStores,
-    cameraSettings,
+    storageSyncStores: reloadStores,
+    syncedStores: broadcastStores,
     log,
   });
   disposers.push(() => disposeCrossWindowSync());
@@ -382,8 +339,7 @@ async function bootstrap(): Promise<void> {
   disposers.push(() => speakerSelection.dispose());
   wireSettingsReload({
     bridge,
-    syncedStores: syncedSettingsStores,
-    cameraSettings,
+    reloadStores,
     runApplyingRemote,
     vrmSelection,
     loadVrmSerialized,

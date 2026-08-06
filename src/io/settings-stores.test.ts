@@ -66,7 +66,9 @@ describe("createSettingsStores", () => {
     }
   });
 
-  it("declares a sync mode for every settings store", () => {
+  // Totality is already a compile error via Record<keyof SettingsStores, SyncMode>; this pins the
+  // table to the bag's order so the two stay readable side by side.
+  it("declares a sync mode for every settings store, in bag order", () => {
     expect(Object.keys(SYNC_MODE)).toEqual(Object.keys(createSettingsStores()));
   });
 

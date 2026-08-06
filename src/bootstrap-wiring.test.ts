@@ -345,6 +345,38 @@ describe("createSettingsBroadcast", () => {
     expect(unsubscribeLocale).toHaveBeenCalledTimes(1);
     expect(emitSettingsChanged).not.toHaveBeenCalled();
   });
+
+  // Teardown commits (dirty endpoint/key fields) land inside the debounce window.
+  it("dispose flushes a pending broadcast instead of dropping it", () => {
+    const emitSettingsChanged = vi.fn();
+    const { broadcastSettings, dispose } = createSettingsBroadcast({
+      bridge: { emitSettingsChanged },
+      syncedStores: [],
+    });
+
+    broadcastSettings();
+    dispose();
+
+    expect(emitSettingsChanged).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(200);
+    expect(emitSettingsChanged).toHaveBeenCalledTimes(1);
+  });
+
+  // Callers hold broadcastSettings past dispose (VRM/speaker selections), so a late notify
+  // must not re-arm a timer that emits on an already-disposed bridge.
+  it("ignores a broadcast requested after dispose", () => {
+    const emitSettingsChanged = vi.fn();
+    const { broadcastSettings, dispose } = createSettingsBroadcast({
+      bridge: { emitSettingsChanged },
+      syncedStores: [],
+    });
+
+    dispose();
+    broadcastSettings();
+    vi.advanceTimersByTime(200);
+
+    expect(emitSettingsChanged).not.toHaveBeenCalled();
+  });
 });
 
 describe("wireSettingsReload", () => {
@@ -935,7 +967,7 @@ describe("wireCrossWindowSync", () => {
     const voiceInputStatus = createVoiceInputStatus();
     const log = { info: vi.fn(), warn: () => {}, error: () => {}, debug: () => {} };
     const storageSyncStores = [{ reloadFromStorage: vi.fn() }];
-    const syncedStores = [{ subscribe: vi.fn(), reloadFromStorage: vi.fn() }];
+    const syncedStores = [{ subscribe: vi.fn(() => vi.fn()), reloadFromStorage: vi.fn() }];
     return { renderer, voiceInputStatus, log, storageSyncStores, syncedStores };
   };
 
