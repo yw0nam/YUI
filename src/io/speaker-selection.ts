@@ -28,9 +28,9 @@ export type SpeakerSelectionStorage = SelectionOverrideStorage;
 /** Persistence adapter for the list of imported source:"user" options. */
 export type UserSpeakerStorage = UserOptionStorage<SpeakerOption>;
 
-/** Synthesizes a single defaultId speaker as one manifest entry. ref_url may be empty (no clip). */
-function synthesizeOption(defaultId: string): SpeakerOption {
-  return { id: defaultId, label: defaultId, ref_url: "" };
+/** Synthesizes a single defaultValue speaker as one manifest entry. ref_url may be empty (no clip). */
+function synthesizeOption(defaultValue: string): SpeakerOption {
+  return { id: defaultValue, label: defaultValue, ref_url: "" };
 }
 
 /** Coerces one imported option into a safe source:"user" SpeakerOption (null if incomplete). */
@@ -45,13 +45,13 @@ function coerceUserSpeaker(v: unknown): SpeakerOption | null {
 
 export function createSpeakerSelection(opts: {
   available?: SpeakerOption[];
-  defaultId: string;
+  defaultValue: string;
   storage?: SpeakerSelectionStorage;
   userStorage?: UserSpeakerStorage;
 }) {
   return createSelectionStore<SpeakerOption>({
     available: opts.available,
-    defaultValue: opts.defaultId,
+    defaultValue: opts.defaultValue,
     storage: opts.storage,
     userStorage: opts.userStorage,
     synthesize: synthesizeOption,

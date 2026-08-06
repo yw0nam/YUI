@@ -13,9 +13,9 @@ describe("VRM selection domain preset", () => {
     ["https://cdn.test/AvatarSample_B.VRM?rev=1#view", "AvatarSample_B", "AvatarSample_B"],
     ["/vrms/.vrm", "avatar", "Avatar"],
     ["/vrms/", "avatar", "Avatar"],
-  ])("synthesizes %s with id %s and label %s", (defaultUrl, id, label) => {
-    expect(createVrmSelection({ defaultUrl }).list()).toEqual([
-      { id, label, url: defaultUrl, source: "bundled" },
+  ])("synthesizes %s with id %s and label %s", (defaultValue, id, label) => {
+    expect(createVrmSelection({ defaultValue }).list()).toEqual([
+      { id, label, url: defaultValue, source: "bundled" },
     ]);
   });
 

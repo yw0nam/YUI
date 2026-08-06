@@ -659,7 +659,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
     expect(copyVoiceFile).toHaveBeenCalledWith("/tmp/MyVoice.wav", "myvoice");
     expect(updateVoice).toHaveBeenCalledOnce();
     expect(ensureRegistered).not.toHaveBeenCalled();
-    expect(speakerSelection.getOptions().map((o) => o.id)).toContain("myvoice");
+    expect(speakerSelection.list().map((o) => o.id)).toContain("myvoice");
     expect(speakerSelection.getActiveId()).toBe("myvoice");
     speakerSelection.dispose();
   });
@@ -709,7 +709,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
       expect.any(Function),
     );
     expect(removeUserVoiceMock).toHaveBeenCalledWith("myvoice");
-    expect(speakerSelection.getOptions().map((o) => o.id)).not.toContain("myvoice");
+    expect(speakerSelection.list().map((o) => o.id)).not.toContain("myvoice");
     speakerSelection.dispose();
   });
 
@@ -755,7 +755,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
     });
 
     await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
-    expect(speakerSelection.getOptions().map((o) => o.id)).toContain("myvoice");
+    expect(speakerSelection.list().map((o) => o.id)).toContain("myvoice");
 
     // The server now also lists it (registered at import time) — simulate the next panel open.
     listVoices.mockResolvedValue(["myvoice"]);

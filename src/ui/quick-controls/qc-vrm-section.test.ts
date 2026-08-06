@@ -320,7 +320,7 @@ describe("createQuickControls — VRM section", () => {
     const evil = "a<img src=x onerror=alert(1)>b";
     vrmSelection = createVrmSelection({
       available: [{ id: "carlotta", label: evil, url: "/vrms/carlotta.vrm", source: "bundled" }],
-      defaultUrl: "/vrms/carlotta.vrm",
+      defaultValue: "/vrms/carlotta.vrm",
     });
     const qc = buildQc();
     qc.open();
@@ -464,7 +464,7 @@ describe("createQuickControls — VRM section", () => {
     input.value = "냥이";
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
-    expect(vrmSelection.getOptions().find((o) => o.id === "cat")!.label).toBe("냥이");
+    expect(vrmSelection.list().find((o) => o.id === "cat")!.label).toBe("냥이");
     // input is gone after commit
     expect(userRow(qc).querySelector(".yui-ep-input")).toBeNull();
 
@@ -481,7 +481,7 @@ describe("createQuickControls — VRM section", () => {
     input.value = "버려질 이름";
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
-    expect(vrmSelection.getOptions().find((o) => o.id === "cat")!.label).toBe("깜냥이");
+    expect(vrmSelection.list().find((o) => o.id === "cat")!.label).toBe("깜냥이");
     expect(userRow(qc).querySelector(".yui-ep-input")).toBeNull();
     // Esc cancels the rename only — it must NOT close the whole panel
     expect(qc.isOpen()).toBe(true);
@@ -499,7 +499,7 @@ describe("createQuickControls — VRM section", () => {
 
     expect(removeUserVrm).toHaveBeenCalledOnce();
     expect(removeUserVrm.mock.calls[0][0]).toBe("cat");
-    expect(vrmSelection.getOptions().map((o) => o.id)).not.toContain("cat");
+    expect(vrmSelection.list().map((o) => o.id)).not.toContain("cat");
     expect(qc.el.querySelector('.yui-vrm[data-vrm-id="cat"]')).toBeNull();
 
     qc.dispose();
@@ -510,7 +510,7 @@ describe("createQuickControls — VRM section", () => {
     let storeStillHadCatAtDelete: boolean | null = null;
     removeUserVrm = vi.fn<(id: string) => Promise<void>>(async () => {
       // at the moment the native delete runs, the store must not have committed yet.
-      storeStillHadCatAtDelete = vrmSelection.getOptions().some((o) => o.id === "cat");
+      storeStillHadCatAtDelete = vrmSelection.list().some((o) => o.id === "cat");
     });
     const qc = buildQc();
     qc.open();
@@ -519,7 +519,7 @@ describe("createQuickControls — VRM section", () => {
     await flush();
 
     expect(storeStillHadCatAtDelete).toBe(true);
-    expect(vrmSelection.getOptions().map((o) => o.id)).not.toContain("cat");
+    expect(vrmSelection.list().map((o) => o.id)).not.toContain("cat");
 
     qc.dispose();
   });
@@ -536,7 +536,7 @@ describe("createQuickControls — VRM section", () => {
     await flush();
 
     // file delete failed → store must NOT have dropped the entry; row stays visible.
-    expect(vrmSelection.getOptions().map((o) => o.id)).toContain("cat");
+    expect(vrmSelection.list().map((o) => o.id)).toContain("cat");
     expect(qc.el.querySelector('.yui-vrm[data-vrm-id="cat"]')).not.toBeNull();
 
     qc.dispose();

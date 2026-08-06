@@ -26,8 +26,8 @@ const SAMPLE: TestOption[] = [
   { id: "b", label: "B", url: "/b.res", source: "bundled" },
 ];
 
-function synthesize(defaultUrl: string): TestOption {
-  return { id: "synth", label: "Synth", url: defaultUrl, source: "bundled" };
+function synthesize(defaultValue: string): TestOption {
+  return { id: "synth", label: "Synth", url: defaultValue, source: "bundled" };
 }
 
 function coerceUser(v: unknown): TestOption | null {
@@ -39,8 +39,8 @@ function coerceUser(v: unknown): TestOption | null {
   return { id: o.id, label, url: o.url, source: "user" };
 }
 
-function isDefault(o: TestOption, defaultUrl: string): boolean {
-  return o.url === defaultUrl;
+function isDefault(o: TestOption, defaultValue: string): boolean {
+  return o.url === defaultValue;
 }
 
 function makeMemStorage(): SelectionOverrideStorage & { _data: string | null } {
@@ -128,7 +128,7 @@ describe("createSelectionStore", () => {
       isDefault,
     });
     expect(store.list()).toEqual([]);
-    expect(store.getOptions()).toEqual([]);
+    expect(store.list()).toEqual([]);
   });
 
   it("getActive/getActiveId do not throw on a genuinely empty list", () => {
@@ -265,7 +265,7 @@ describe("createSelectionStore", () => {
   it("returns defensive copies from lists, getActive, and notifications", () => {
     const store = makeStore();
     const list = store.list();
-    const options = store.getOptions();
+    const options = store.list();
     const active = store.getActive();
     list[0].label = "changed";
     options[0].label = "changed";

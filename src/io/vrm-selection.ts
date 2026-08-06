@@ -43,21 +43,21 @@ function labelFromStem(stem: string): string {
   return stem.charAt(0).toUpperCase() + stem.slice(1);
 }
 
-/** Synthesize a single-model defaultUrl into one manifest entry. */
-function synthesizeOption(defaultUrl: string): AvatarOption {
-  const id = stemFromUrl(defaultUrl);
-  return { id, label: labelFromStem(id), url: defaultUrl, source: "bundled" };
+/** Synthesize a single-model defaultValue into one manifest entry. */
+function synthesizeOption(defaultValue: string): AvatarOption {
+  const id = stemFromUrl(defaultValue);
+  return { id, label: labelFromStem(id), url: defaultValue, source: "bundled" };
 }
 
 export function createVrmSelection(opts: {
   available?: AvatarOption[];
-  defaultUrl: string;
+  defaultValue: string;
   storage?: VrmSelectionStorage;
   userStorage?: UserVrmStorage;
 }) {
   return createSelectionStore<AvatarOption>({
     available: opts.available,
-    defaultValue: opts.defaultUrl,
+    defaultValue: opts.defaultValue,
     storage: opts.storage,
     userStorage: opts.userStorage,
     synthesize: synthesizeOption,

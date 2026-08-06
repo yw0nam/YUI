@@ -16,7 +16,7 @@ const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 function fakeStore(userOptions: SpeakerOption[] = []) {
   const setManifest = vi.fn();
   return {
-    getOptions: () => userOptions,
+    list: () => userOptions,
     setManifest,
     _manifest: () => setManifest.mock.calls.at(-1)?.[0],
   };

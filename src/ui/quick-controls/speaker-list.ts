@@ -82,7 +82,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     i18nNamespace: "speaker",
     logPrefix: "voice",
     log,
-    getOptions: () => speakerSelection.list(),
+    list: () => speakerSelection.list(),
     getActiveId: () => speakerSelection.getActiveId(),
     getActive: () => speakerSelection.getActive(),
     getLabel: (opt) => opt.label ?? opt.id,

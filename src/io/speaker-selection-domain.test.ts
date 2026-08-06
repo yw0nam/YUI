@@ -8,8 +8,8 @@ import {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("speaker selection domain preset", () => {
-  it("synthesizes a speaker from defaultId", () => {
-    expect(createSpeakerSelection({ defaultId: "natsume" }).list()).toEqual([
+  it("synthesizes a speaker from defaultValue", () => {
+    expect(createSpeakerSelection({ defaultValue: "natsume" }).list()).toEqual([
       { id: "natsume", label: "natsume", ref_url: "" },
     ]);
   });
