@@ -1300,7 +1300,7 @@ describe("dispatcher — structured logging: backend_call events", () => {
     );
   });
 
-  it("emits logger.info('backend_call', {outcome: drop_reason}) on parse_error", async () => {
+  it("emits logger.info('backend_call', {outcome}) on parse_error", async () => {
     dispatcher.start();
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
@@ -1379,7 +1379,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     d.stop();
   });
 
-  it("does NOT fire when the drop_reason is superseded_by_user", async () => {
+  it("does NOT fire when the outcome is superseded_by_user", async () => {
     const { d, sink } = makeDispatcherWithFailedTurnSink();
     d.start();
     bus.push(env({ event_name: "user.text_submitted" }));

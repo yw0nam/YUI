@@ -93,7 +93,7 @@ describe("backend_caller — failure classification (§7.3)", () => {
     const ac = new AbortController();
     ac.abort();
     const res = await caller.call(turnOf(userEnv()), ac.signal);
-    expect(res).not.toBe("ok");
+    expect(res).toBe("superseded_by_user");
     expect(script.spy).not.toHaveBeenCalled();
   });
 });

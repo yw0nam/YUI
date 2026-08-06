@@ -192,7 +192,7 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
     });
 
     const res = await caller.call(turnOf(userEnv()));
-    expect(res).not.toBe("ok");
+    expect(res).toBe("network_drop");
 
     expect(order).toContain("abort");
     expect(order).not.toContain("end");

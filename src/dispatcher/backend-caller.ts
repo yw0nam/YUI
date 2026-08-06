@@ -511,7 +511,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       }
 
       // B4 (speech gate): speak only when speech_text is not empty.
-      //   Empty text = silence — no separate flag/decision, no drop_reason.
+      //   Empty text = silence — no separate flag/decision, no failure outcome.
       if (streamedAny) {
         // Streaming path: delta already drove speech, only signal end (don't call speak).
         deps.turnOutput?.end();

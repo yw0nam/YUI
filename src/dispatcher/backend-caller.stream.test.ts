@@ -122,7 +122,7 @@ describe("backend_caller — B5 cue forwarding + tool_status callbacks", () => {
     script.events = [toolStatusEvent(running)];
     script.error = new Error("drop");
     const res = await caller.call(turnOf(userEnv()));
-    expect(res).not.toBe("ok");
+    expect(res).toBe("network_drop");
     expect(toolStatusSink).toHaveBeenNthCalledWith(1, running);
     expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "idle" });
   });
