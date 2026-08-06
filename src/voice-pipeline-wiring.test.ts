@@ -219,22 +219,33 @@ describe("wireVoicePipeline", () => {
     mocks.voiceRevision.mockReturnValue(0);
   });
 
-  it("ignores a thinkingEnd() arriving after a newer turn has begun", () => {
-    const { voice, renderer, turnLog } = setup();
+  it("A's late thinkingEnd(idA) does not tear down B's thinking once B's thinkingStart(idB) has begun", () => {
+    const { voice, renderer } = setup();
 
-    turnLog.begin(trigger());
-    voice.turnOutput.thinkingStart();
-    // a newer turn begins before the stale end arrives.
-    turnLog.begin(trigger());
+    voice.turnOutput.thinkingStart(1); // A starts
+    voice.turnOutput.thinkingStart(2); // B starts before A's late end arrives
     vi.clearAllMocks();
-    voice.turnOutput.thinkingEnd();
+    voice.turnOutput.thinkingEnd(1); // A's late end
 
     expect(mocks.speechPlayback.holdMotion).not.toHaveBeenCalled();
     expect(mocks.fillerLoop.stop).not.toHaveBeenCalled();
     expect(renderer.playMotion).not.toHaveBeenCalled();
 
-    voice.turnOutput.thinkingStart();
-    voice.turnOutput.thinkingEnd();
+    voice.turnOutput.thinkingEnd(2); // B's own end
+    expect(mocks.speechPlayback.holdMotion).toHaveBeenCalledWith(false);
+    expect(mocks.fillerLoop.stop).toHaveBeenCalledOnce();
+    expect(renderer.playMotion).toHaveBeenCalledWith(null);
+  });
+
+  it("a turn's own thinkingEnd tears down even after a newer turn begins on the ledger without starting its own thinking", () => {
+    const { voice, renderer, turnLog } = setup();
+
+    turnLog.begin(trigger());
+    voice.turnOutput.thinkingStart(1);
+    // the ledger moves on, but the new turn never claims thinking — the guard ignores it.
+    turnLog.begin(trigger());
+    voice.turnOutput.thinkingEnd(1);
+
     expect(mocks.speechPlayback.holdMotion).toHaveBeenCalledWith(false);
     expect(mocks.fillerLoop.stop).toHaveBeenCalledOnce();
     expect(renderer.playMotion).toHaveBeenCalledWith(null);
@@ -243,7 +254,7 @@ describe("wireVoicePipeline", () => {
   it("holds motion before starting the thinking motion and filler", () => {
     const { voice, renderer } = setup();
 
-    voice.turnOutput.thinkingStart();
+    voice.turnOutput.thinkingStart(1);
 
     expect(mocks.speechPlayback.holdMotion).toHaveBeenCalledWith(true);
     expect(renderer.playMotion).toHaveBeenCalledWith({ id: "thinking", loop: true });

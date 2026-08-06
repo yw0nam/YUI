@@ -8,6 +8,7 @@ import type {
 } from "../io/chat-client";
 import type { Logger } from "../logger";
 import type { BusEnvelope } from "./event-bus";
+import type { Turn } from "./turn";
 import type { TurnOutput } from "./turn-output";
 
 function sleep(ms: number): Promise<void> {
@@ -88,6 +89,11 @@ export const CONFIG: EndpointsConfig = {
   stt_base_url: "http://localhost:5517",
   tts_base_url: "http://localhost:8092",
 };
+
+/** Wraps a trigger in a Turn for BackendCaller.call — id defaults to 1 (irrelevant to most tests). */
+export function turnOf(trigger: BusEnvelope, id = 1): Turn {
+  return { id, trigger, startedAt: 0 };
+}
 
 export function userEnv(text = "안녕"): BusEnvelope {
   return {
