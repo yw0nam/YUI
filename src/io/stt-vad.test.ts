@@ -51,10 +51,12 @@ const CONFIG: EndpointsConfig = {
 
 /** Build a fake fetch that returns a successful STT response. */
 function buildFetchMock(responseText = "hello world") {
-  return vi.fn<(url: string, init: RequestInit) => Promise<Response>>().mockResolvedValue({
-    ok: true,
-    json: () => Promise.resolve({ text: responseText }),
-  } as unknown as Response);
+  return vi
+    .fn<(input: URL | RequestInfo, init?: RequestInit) => Promise<Response>>()
+    .mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ text: responseText }),
+    } as unknown as Response);
 }
 
 /** Replace the default MicVAD.new mock with one that resolves only when `resolve` is called. */
@@ -344,8 +346,8 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     expect(wrongTransport).not.toHaveBeenCalled();
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("http://localhost:5517/v1/audio/transcriptions");
-    expect(init.method).toBe("POST");
-    expect(init.body).toBeInstanceOf(FormData);
+    expect(init?.method).toBe("POST");
+    expect(init?.body).toBeInstanceOf(FormData);
 
     // text forwarded
     expect(onVoiceSegment).toHaveBeenCalledOnce();
@@ -376,7 +378,7 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     const audio = new Float32Array(16);
     await triggerSpeechEnd!(audio);
 
-    const body = fetchMock.mock.calls[0][1].body as FormData;
+    const body = fetchMock.mock.calls[0][1]?.body as FormData;
     const file = body.get("file");
     expect(file).toBeInstanceOf(Blob);
   });
@@ -391,7 +393,7 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     const audio = new Float32Array([0.5, -0.5, 0.1]);
     await triggerSpeechEnd!(audio);
 
-    const body = fetchMock.mock.calls[0][1].body as FormData;
+    const body = fetchMock.mock.calls[0][1]?.body as FormData;
     const file = body.get("file") as Blob;
     // Blob must be non-empty (encodes PCM samples)
     expect(file.size).toBeGreaterThan(0);
@@ -411,7 +413,7 @@ describe("createSttVad — Authorization", () => {
     await stt.start();
     await triggerSpeechEnd!(new Float32Array([0.1]));
 
-    const headers = (fetchMock.mock.calls[0][1].headers ?? {}) as Record<string, string>;
+    const headers = (fetchMock.mock.calls[0][1]?.headers ?? {}) as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer sk-stt");
     // FormData body must keep the browser-set multipart boundary — never set Content-Type.
     expect("Content-Type" in headers).toBe(false);
@@ -428,7 +430,7 @@ describe("createSttVad — Authorization", () => {
       });
       await stt.start();
       await triggerSpeechEnd!(new Float32Array([0.1]));
-      const headers = (fetchMock.mock.calls[0][1].headers ?? {}) as Record<string, string>;
+      const headers = (fetchMock.mock.calls[0][1]?.headers ?? {}) as Record<string, string>;
       expect("Authorization" in headers).toBe(false);
     }
   });
@@ -469,12 +471,12 @@ describe("createSttVad — per-request deadline (#275)", () => {
 
   it("sends a signal that aborts a hung STT request once STT_REQUEST_TIMEOUT_MS elapses", async () => {
     vi.useFakeTimers();
-    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+    const fetchMock = vi.fn((_: URL | RequestInfo, init?: RequestInit) => {
       return new Promise<Response>((_resolve, reject) => {
         const abortWith = () =>
-          reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError"));
-        if (init.signal?.aborted) abortWith();
-        else init.signal?.addEventListener("abort", abortWith);
+          reject(init?.signal?.reason ?? new DOMException("Aborted", "AbortError"));
+        if (init?.signal?.aborted) abortWith();
+        else init?.signal?.addEventListener("abort", abortWith);
       });
     });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -494,19 +496,19 @@ describe("createSttVad — per-request deadline (#275)", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const init = fetchMock.mock.calls[0][1];
-    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
     expect(onState).toHaveBeenCalledWith("error", expect.any(String));
     warnSpy.mockRestore();
   });
 
   it("logs a warning via the project logger when the deadline drops the utterance", async () => {
     vi.useFakeTimers();
-    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+    const fetchMock = vi.fn((_: URL | RequestInfo, init?: RequestInit) => {
       return new Promise<Response>((_resolve, reject) => {
         const abortWith = () =>
-          reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError"));
-        if (init.signal?.aborted) abortWith();
-        else init.signal?.addEventListener("abort", abortWith);
+          reject(init?.signal?.reason ?? new DOMException("Aborted", "AbortError"));
+        if (init?.signal?.aborted) abortWith();
+        else init?.signal?.addEventListener("abort", abortWith);
       });
     });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
