@@ -999,6 +999,36 @@ describe("createQuickControls — speaker section", () => {
     }
   });
 
+  it("resolves the default audition URL against the document location", async () => {
+    const seen: string[] = [];
+    class FakeAudio {
+      constructor(src: string) {
+        seen.push(src);
+      }
+      addEventListener() {}
+      play() {
+        return Promise.resolve();
+      }
+      pause() {}
+    }
+    const OrigAudio = globalThis.Audio;
+    (globalThis as { Audio: unknown }).Audio = FakeAudio as unknown;
+    try {
+      const qc = buildQc();
+      qc.open();
+
+      const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+      rows[1].querySelector<HTMLButtonElement>(".yui-spk__preview")!.click();
+      await flush();
+
+      expect(seen).toEqual([new URL("/references/ayase.wav", globalThis.location.href).href]);
+
+      qc.dispose();
+    } finally {
+      (globalThis as { Audio: unknown }).Audio = OrigAudio;
+    }
+  });
+
   it("disables the ▶ preview button when a speaker has an empty ref_url", () => {
     speakerSelection = createSpeakerSelection({
       available: [

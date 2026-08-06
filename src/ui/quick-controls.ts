@@ -98,7 +98,7 @@ interface QuickControlsOptions {
   removeUserVoice: (id: string) => Promise<void>;
   /** Refetches the irodori server's voice list on panel open (the server may come up after the app). Fire-and-forget. */
   refreshVoiceList?: () => void;
-  /** Convert audition ref_url to fetchable URL (injectable). Default is resolveAssetUrl. */
+  /** Convert audition ref_url to a fetchable URL. */
   resolveAuditionUrl?: (refUrl: string) => Promise<string>;
   onGainPreview: (mouthOpen: number) => void;
   onGainPreviewEnd: () => void;

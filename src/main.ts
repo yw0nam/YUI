@@ -47,7 +47,6 @@ import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
 import { createTurnLog } from "./dispatcher/turn";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
-import { resolveAssetUrl } from "./io/asset-url";
 import type { AvatarExecutor } from "./io/avatar-executor";
 import {
   CAMERA_ORBIT_SENSITIVITY,
@@ -379,7 +378,6 @@ async function bootstrap(): Promise<void> {
       commitVoiceImport,
       removeUserVoice: removeUserVoiceFile,
       refreshVoiceList,
-      resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
       onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
       onGainPreviewEnd: () => renderer.stopMouth(),
       onOpenDevtools: openDevtools,
