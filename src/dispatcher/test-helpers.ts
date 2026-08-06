@@ -1,8 +1,85 @@
-import { vi } from "vitest";
+import { type Mock, vi } from "vitest";
 import type { ControlEnvelope, EndpointsConfig, ExpressArgs, ToolStatus } from "../contract";
-import type { ChatStreamEvent } from "../io/chat-client";
+import type {
+  ChatRequest,
+  ChatStreamEvent,
+  StreamChatOptions,
+  streamChat,
+} from "../io/chat-client";
 import type { Logger } from "../logger";
 import type { BusEnvelope } from "./event-bus";
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export interface ScriptedStream {
+  /** Injected as BackendCallerDeps.stream. */
+  stream: typeof streamChat;
+  /** Records (config, request, opts) per invocation. The request is snapshotted — the caller
+      mutates and reuses one object across a chain-break retry. */
+  spy: Mock;
+  /** Events yielded per invocation. */
+  events: ChatStreamEvent[];
+  /** Events for the 2nd+ invocation within one call() (chain-break retry). null = reuse `events`. */
+  eventsRetry: ChatStreamEvent[] | null;
+  /** One entry per invocation, shift()ed off. Takes precedence over events/eventsRetry when non-null. */
+  queue: ChatStreamEvent[][] | null;
+  /** Thrown after the scripted events are yielded — models a mid-flight drop. */
+  error: Error | null;
+  /** Per-event delay (ms) before yielding events[i]. */
+  gaps: number[];
+  /** Index at which the stream hangs forever (0 = before the first event). */
+  hangAt: number | null;
+  /** Restores every field to its default and clears the spy. */
+  reset(): void;
+}
+
+/** One scripted transport fixture, injected as BackendCallerDeps.stream — union of the
+    per-file mock harnesses this replaces (single script, retry script, or per-invocation queue). */
+export function createScriptedStream(): ScriptedStream {
+  const self = {} as ScriptedStream;
+  self.spy = vi.fn();
+  self.events = [];
+  self.eventsRetry = null;
+  self.queue = null;
+  self.error = null;
+  self.gaps = [];
+  self.hangAt = null;
+  self.stream = async function* (
+    config: EndpointsConfig,
+    request: ChatRequest,
+    opts?: StreamChatOptions,
+  ): AsyncGenerator<ChatStreamEvent> {
+    self.spy(config, { ...request }, opts);
+    const isRetry = self.spy.mock.calls.length > 1;
+    const events =
+      self.queue !== null
+        ? (self.queue.shift() ?? [])
+        : isRetry && self.eventsRetry !== null
+          ? self.eventsRetry
+          : self.events;
+    for (let i = 0; i < events.length; i++) {
+      if (self.hangAt === i) await sleep(2 ** 31 - 1); // never resolves in practice
+      const gap = self.gaps[i] ?? 0;
+      if (gap > 0) await sleep(gap);
+      yield events[i]!;
+    }
+    if (self.hangAt === events.length) await sleep(2 ** 31 - 1);
+    // yield scripted events first, then throw — models a stream that drops mid-flight.
+    if (self.error) throw self.error;
+  };
+  self.reset = (): void => {
+    self.spy.mockClear();
+    self.events = [];
+    self.eventsRetry = null;
+    self.queue = null;
+    self.error = null;
+    self.gaps = [];
+    self.hangAt = null;
+  };
+  return self;
+}
 
 export const CONFIG: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",

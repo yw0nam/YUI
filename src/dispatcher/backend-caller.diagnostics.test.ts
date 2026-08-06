@@ -1,56 +1,27 @@
 /**
  * backend-caller.diagnostics.test.ts — diagnostics (failure classification, idle-gap watchdog, logging, transcript, response-id guard).
  *
- * Split from backend-caller.test.ts. Shared stateless fixtures live in ./test-helpers.ts;
- * the streamChat mock + mutable scripted-event state + sinks stay file-local (vitest vi.mock
- * is file-scoped and reads module-mutable state the test bodies reassign).
+ * Split from backend-caller.test.ts. Shared stateless fixtures live in ./test-helpers.ts; the
+ * chat stream is injected per caller from the shared scripted fixture (BackendCallerDeps.stream).
  */
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ExpressArgs, ToolStatus, Usage } from "../contract";
-import type { ChatStreamEvent } from "../io/chat-client";
 import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { Logger } from "../logger";
+import { type BackendCaller, createBackendCaller, IDLE_TIMEOUT_MS } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";
 import {
   CONFIG,
   completedEvent,
+  createScriptedStream,
   deltaEvent,
   keepaliveEvent,
   makeLogger,
   userEnv,
 } from "./test-helpers";
 
-let scriptedEvents: ChatStreamEvent[] = [];
-let streamChatError: Error | null = null;
-// per-event delay (ms) before yielding scriptedEvents[i], parallel array (default 0).
-let scriptedGaps: number[] = [];
-// index at which the stream hangs forever (never yields/throws again) — models a stall.
-// 0 = hangs before the first event (no first byte / TTFT stall).
-let hangAtIndex: number | null = null;
-const streamChatSpy = vi.fn();
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-vi.mock("../io/chat-client", () => ({
-  async *streamChat(...args: unknown[]) {
-    streamChatSpy(...args);
-    for (let i = 0; i < scriptedEvents.length; i++) {
-      if (hangAtIndex === i) await sleep(2 ** 31 - 1); // never resolves in practice
-      const gap = scriptedGaps[i] ?? 0;
-      if (gap > 0) await sleep(gap);
-      yield scriptedEvents[i];
-    }
-    if (hangAtIndex === scriptedEvents.length) await sleep(2 ** 31 - 1);
-    // yield scripted events first, then throw — models a stream that drops mid-flight.
-    if (streamChatError) throw streamChatError;
-  },
-}));
-
-import { type BackendCaller, createBackendCaller, IDLE_TIMEOUT_MS } from "./backend-caller";
-
+const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;
 let speechSink: Mock<(text: string) => void>;
 let cueSink: Mock<(cue: ExpressArgs) => void>;
@@ -64,11 +35,7 @@ let caller: BackendCaller;
 let logger: Logger;
 
 beforeEach(() => {
-  scriptedEvents = [];
-  streamChatError = null;
-  scriptedGaps = [];
-  hangAtIndex = null;
-  streamChatSpy.mockClear();
+  script.reset();
   applyDirective = vi.fn();
   speechSink = vi.fn();
   cueSink = vi.fn();
@@ -84,6 +51,7 @@ beforeEach(() => {
     renderer: { applyDirective } as never,
     getApiKey: async () => "k",
     getFetch: async () => undefined,
+    stream: script.stream,
     onSpeech: speechSink,
     onCue: cueSink,
     onToolStatus: toolStatusSink,
@@ -98,7 +66,7 @@ beforeEach(() => {
 
 describe("backend_caller — failure classification (§7.3)", () => {
   it("no completed event → parse_error drop", async () => {
-    scriptedEvents = [{ type: "speech_delta", text: "x" }];
+    script.events = [{ type: "speech_delta", text: "x" }];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("parse_error");
@@ -106,35 +74,35 @@ describe("backend_caller — failure classification (§7.3)", () => {
   });
 
   it("an error event surfaces as network_drop and applies nothing", async () => {
-    scriptedEvents = [{ type: "error", message: "401 unauthorized" }];
+    script.events = [{ type: "error", message: "401 unauthorized" }];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_drop");
   });
 
   it("an error event carrying status:401 surfaces as http_4xx_drop (auth-ish)", async () => {
-    scriptedEvents = [{ type: "error", message: "401 Incorrect API key provided", status: 401 }];
+    script.events = [{ type: "error", message: "401 Incorrect API key provided", status: 401 }];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("http_4xx_drop");
   });
 
   it("an error event carrying status:403 surfaces as http_4xx_drop (auth-ish)", async () => {
-    scriptedEvents = [{ type: "error", message: "403 Forbidden", status: 403 }];
+    script.events = [{ type: "error", message: "403 Forbidden", status: 403 }];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("http_4xx_drop");
   });
 
   it("an error event carrying an unrelated status (e.g. 500) stays network_drop", async () => {
-    scriptedEvents = [{ type: "error", message: "500 internal error", status: 500 }];
+    script.events = [{ type: "error", message: "500 internal error", status: 500 }];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_drop");
   });
 
   it("a thrown stream rejects to network_drop (not a crash)", async () => {
-    streamChatError = new Error("boom");
+    script.error = new Error("boom");
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_drop");
@@ -145,7 +113,7 @@ describe("backend_caller — failure classification (§7.3)", () => {
     ac.abort();
     const res = await caller.call(userEnv(), ac.signal);
     expect(res.ok).toBe(false);
-    expect(streamChatSpy).not.toHaveBeenCalled();
+    expect(script.spy).not.toHaveBeenCalled();
   });
 });
 
@@ -160,20 +128,20 @@ describe("backend_caller — idle-gap watchdog", () => {
   });
 
   it("no first byte within IDLE_TIMEOUT_MS (TTFT stall) → aborts the request and drops network_stall", async () => {
-    hangAtIndex = 0;
-    scriptedEvents = [];
+    script.hangAt = 0;
+    script.events = [];
     const p = caller.call(userEnv());
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     const res = await p;
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_stall");
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     expect((request.signal as AbortSignal).aborted).toBe(true);
   });
 
   it("stall after ≥1 delta (mid-stream stall) → aborts, drops network_stall, tears down via onSpeechAbort", async () => {
-    scriptedEvents = [deltaEvent("partial")];
-    hangAtIndex = 1;
+    script.events = [deltaEvent("partial")];
+    script.hangAt = 1;
     const p = caller.call(userEnv());
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     const res = await p;
@@ -185,13 +153,13 @@ describe("backend_caller — idle-gap watchdog", () => {
 
   it("resets on every event: many gaps under the deadline never time out, even though their sum exceeds it", async () => {
     const gap = IDLE_TIMEOUT_MS - 5_000;
-    scriptedEvents = [
+    script.events = [
       deltaEvent("a"),
       deltaEvent("b"),
       deltaEvent("c"),
       completedEvent({ speech_text: "abc" }),
     ];
-    scriptedGaps = [gap, gap, gap, 0]; // sum ≈ 3x the deadline
+    script.gaps = [gap, gap, gap, 0]; // sum ≈ 3x the deadline
     const p = caller.call(userEnv());
     await vi.advanceTimersByTimeAsync(gap * 3 + 1_000);
     const res = await p;
@@ -200,8 +168,8 @@ describe("backend_caller — idle-gap watchdog", () => {
   });
 
   it("a single gap just under the deadline still completes normally", async () => {
-    scriptedEvents = [deltaEvent("a"), completedEvent({ speech_text: "a" })];
-    scriptedGaps = [IDLE_TIMEOUT_MS - 1_000];
+    script.events = [deltaEvent("a"), completedEvent({ speech_text: "a" })];
+    script.gaps = [IDLE_TIMEOUT_MS - 1_000];
     const p = caller.call(userEnv());
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     const res = await p;
@@ -210,14 +178,14 @@ describe("backend_caller — idle-gap watchdog", () => {
 
   it("keepalive events during a long reasoning phase reset the watchdog — no idle_timeout even though the gap to first speech exceeds the deadline", async () => {
     const gap = IDLE_TIMEOUT_MS - 5_000;
-    scriptedEvents = [
+    script.events = [
       keepaliveEvent(),
       keepaliveEvent(),
       keepaliveEvent(),
       deltaEvent("a"),
       completedEvent({ speech_text: "a" }),
     ];
-    scriptedGaps = [gap, gap, gap, 0, 0]; // sum of gaps ≈ 3x the deadline
+    script.gaps = [gap, gap, gap, 0, 0]; // sum of gaps ≈ 3x the deadline
     const p = caller.call(userEnv());
     await vi.advanceTimersByTimeAsync(gap * 3 + 1_000);
     const res = await p;
@@ -226,8 +194,8 @@ describe("backend_caller — idle-gap watchdog", () => {
   });
 
   it("logs logger.warn('network_stall', { stage: 'idle_timeout', ... }) on expiry", async () => {
-    hangAtIndex = 0;
-    scriptedEvents = [];
+    script.hangAt = 0;
+    script.events = [];
     const p = caller.call(userEnv());
     await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
     await p;
@@ -242,7 +210,7 @@ describe("backend_caller — idle-gap watchdog", () => {
 
 describe("backend_caller — structured logging", () => {
   it("no completed event (parse_error) → logger.warn('parse_error', ...)", async () => {
-    scriptedEvents = [];
+    script.events = [];
     await caller.call(userEnv());
     expect(logger.warn).toHaveBeenCalledWith(
       "parse_error",
@@ -251,7 +219,7 @@ describe("backend_caller — structured logging", () => {
   });
 
   it("error stream event (network_drop) → logger.warn with network_drop context", async () => {
-    scriptedEvents = [{ type: "error", message: "401 unauthorized" }];
+    script.events = [{ type: "error", message: "401 unauthorized" }];
     await caller.call(userEnv());
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("network_drop"),
@@ -260,7 +228,7 @@ describe("backend_caller — structured logging", () => {
   });
 
   it("thrown stream (network_drop) → logger.warn with network_drop context", async () => {
-    streamChatError = new Error("boom");
+    script.error = new Error("boom");
     await caller.call(userEnv());
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("network_drop"),
@@ -277,10 +245,11 @@ describe("backend_caller — structured logging", () => {
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       logger,
     });
-    scriptedEvents = [completedEvent({ speech_text: "안녕", emotion: { id: "happy" } })];
+    script.events = [completedEvent({ speech_text: "안녕", emotion: { id: "happy" } })];
     const res = await caller.call(userEnv());
     // turn must still succeed despite renderer error
     expect(res.ok).toBe(true);
@@ -291,7 +260,7 @@ describe("backend_caller — structured logging", () => {
   });
 
   it("empty speech_text → logger.info('empty_speech', { trigger })", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "", emotion: { id: "thinking" } })];
+    script.events = [completedEvent({ speech_text: "", emotion: { id: "thinking" } })];
     await caller.call(userEnv());
     expect(logger.info).toHaveBeenCalledWith(
       "empty_speech",
@@ -318,10 +287,11 @@ describe("backend_caller — transcript recording", () => {
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       transcript,
     });
-    scriptedEvents = [completedEvent({ speech_text: "안녕!" })];
+    script.events = [completedEvent({ speech_text: "안녕!" })];
     await caller.call(userEnv("안녕"));
     expect(transcript.append).toHaveBeenCalledTimes(2);
     expect(transcript.append).toHaveBeenNthCalledWith(
@@ -341,10 +311,11 @@ describe("backend_caller — transcript recording", () => {
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       transcript,
     });
-    scriptedEvents = [completedEvent({ speech_text: "네" }, "")];
+    script.events = [completedEvent({ speech_text: "네" }, "")];
     await caller.call(userEnv("질문"));
     expect(transcript.append).toHaveBeenCalledTimes(2);
     expect(transcript.append).toHaveBeenNthCalledWith(
@@ -364,10 +335,11 @@ describe("backend_caller — transcript recording", () => {
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       transcript,
     });
-    scriptedEvents = [completedEvent({ speech_text: "좋은 아침!" })];
+    script.events = [completedEvent({ speech_text: "좋은 아침!" })];
     const env: BusEnvelope = {
       seq_id: 41,
       source: "timer_scheduler",
@@ -390,10 +362,11 @@ describe("backend_caller — transcript recording", () => {
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       transcript,
     });
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv("조용히"));
     expect(transcript.append).toHaveBeenCalledTimes(1);
     expect(transcript.append).toHaveBeenCalledWith(
@@ -408,10 +381,11 @@ describe("backend_caller — transcript recording", () => {
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       transcript,
     });
-    scriptedEvents = [{ type: "error", message: "boom" }];
+    script.events = [{ type: "error", message: "boom" }];
     await caller.call(userEnv("안녕"));
     expect(transcript.append).not.toHaveBeenCalled();
   });
@@ -423,10 +397,11 @@ describe("backend_caller — transcript recording", () => {
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       transcript,
     });
-    scriptedEvents = [];
+    script.events = [];
     await caller.call(userEnv("안녕"));
     expect(transcript.append).not.toHaveBeenCalled();
   });
@@ -440,16 +415,17 @@ describe("backend_caller — transcript recording", () => {
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       transcript,
     });
-    scriptedEvents = [completedEvent({ speech_text: "hi" })];
+    script.events = [completedEvent({ speech_text: "hi" })];
     await caller.call(userEnv("안녕"), ac.signal);
     expect(transcript.append).not.toHaveBeenCalled();
   });
 
   it("no transcript dep → does not throw", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "hi" })];
+    script.events = [completedEvent({ speech_text: "hi" })];
     const res = await caller.call(userEnv("안녕"));
     expect(res.ok).toBe(true);
   });
@@ -465,10 +441,11 @@ describe("backend_caller — onResponseId empty-string guard", () => {
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       onResponseId,
     });
-    scriptedEvents = [completedEvent({ speech_text: "hi" }, "")];
+    script.events = [completedEvent({ speech_text: "hi" }, "")];
     await caller.call(userEnv());
     expect(onResponseId).not.toHaveBeenCalled();
   });
@@ -480,13 +457,14 @@ describe("backend_caller — onResponseId empty-string guard", () => {
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       getPreviousResponseId: () => "resp_prev",
       onResponseId,
     });
-    scriptedEvents = [completedEvent({ speech_text: "hi" }, "")];
+    script.events = [completedEvent({ speech_text: "hi" }, "")];
     await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     expect("previous_response_id" in request).toBe(false);
     expect(onResponseId).not.toHaveBeenCalled();
   });

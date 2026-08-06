@@ -1,48 +1,25 @@
 /**
  * backend-caller.context.test.ts — input context assembly (package_context, ports, client_context envelope, agent settings).
  *
- * Split from backend-caller.test.ts. Shared stateless fixtures live in ./test-helpers.ts;
- * the streamChat mock + mutable scripted-event state + sinks stay file-local (vitest vi.mock
- * is file-scoped and reads module-mutable state the test bodies reassign).
+ * Split from backend-caller.test.ts. Shared stateless fixtures live in ./test-helpers.ts; the
+ * chat stream is injected per caller from the shared scripted fixture (BackendCallerDeps.stream).
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ExpressArgs, InputContext, ToolStatus, Usage } from "../contract";
-import type { ChatStreamEvent } from "../io/chat-client";
 import type { Logger } from "../logger";
-import type { BusEnvelope } from "./event-bus";
-import { CONFIG, clientContextJsonOf, completedEvent, makeLogger, userEnv } from "./test-helpers";
-
-let scriptedEvents: ChatStreamEvent[] = [];
-let streamChatError: Error | null = null;
-// per-event delay (ms) before yielding scriptedEvents[i], parallel array (default 0).
-let scriptedGaps: number[] = [];
-// index at which the stream hangs forever (never yields/throws again) — models a stall.
-// 0 = hangs before the first event (no first byte / TTFT stall).
-let hangAtIndex: number | null = null;
-const streamChatSpy = vi.fn();
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-vi.mock("../io/chat-client", () => ({
-  async *streamChat(...args: unknown[]) {
-    streamChatSpy(...args);
-    for (let i = 0; i < scriptedEvents.length; i++) {
-      if (hangAtIndex === i) await sleep(2 ** 31 - 1); // never resolves in practice
-      const gap = scriptedGaps[i] ?? 0;
-      if (gap > 0) await sleep(gap);
-      yield scriptedEvents[i];
-    }
-    if (hangAtIndex === scriptedEvents.length) await sleep(2 ** 31 - 1);
-    // yield scripted events first, then throw — models a stream that drops mid-flight.
-    if (streamChatError) throw streamChatError;
-  },
-}));
-
 import { type BackendCaller, createBackendCaller } from "./backend-caller";
+import type { BusEnvelope } from "./event-bus";
+import {
+  CONFIG,
+  clientContextJsonOf,
+  completedEvent,
+  createScriptedStream,
+  makeLogger,
+  userEnv,
+} from "./test-helpers";
 
+const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;
 let speechSink: Mock<(text: string) => void>;
 let cueSink: Mock<(cue: ExpressArgs) => void>;
@@ -56,11 +33,7 @@ let caller: BackendCaller;
 let logger: Logger;
 
 beforeEach(() => {
-  scriptedEvents = [];
-  streamChatError = null;
-  scriptedGaps = [];
-  hangAtIndex = null;
-  streamChatSpy.mockClear();
+  script.reset();
   applyDirective = vi.fn();
   speechSink = vi.fn();
   cueSink = vi.fn();
@@ -76,6 +49,7 @@ beforeEach(() => {
     renderer: { applyDirective } as never,
     getApiKey: async () => "k",
     getFetch: async () => undefined,
+    stream: script.stream,
     onSpeech: speechSink,
     onCue: cueSink,
     onToolStatus: toolStatusSink,
@@ -90,10 +64,10 @@ beforeEach(() => {
 
 describe("backend_caller — B1 package_context (contract §4 InputContext)", () => {
   it("builds InputContext with user_text + env.timestamp + env.timezone and passes it to streamChat", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv("오늘 일정?"));
-    expect(streamChatSpy).toHaveBeenCalledTimes(1);
-    const [cfg, request] = streamChatSpy.mock.calls[0];
+    expect(script.spy).toHaveBeenCalledTimes(1);
+    const [cfg, request] = script.spy.mock.calls[0];
     expect(cfg).toEqual(CONFIG);
     // input must be an array carrying the user text (OpenAI Responses input shape).
     const json = JSON.stringify(request.input);
@@ -101,25 +75,25 @@ describe("backend_caller — B1 package_context (contract §4 InputContext)", ()
   });
 
   it("passes apiKey + fetch from the injected resolvers to streamChat opts", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv());
-    const [, , opts] = streamChatSpy.mock.calls[0];
+    const [, , opts] = script.spy.mock.calls[0];
     expect(opts.apiKey).toBe("k");
     expect("fetch" in opts).toBe(true);
   });
 
   it("threads an AbortSignal through the request", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     expect(request.signal).toBeInstanceOf(AbortSignal);
   });
 
   it("env.timestamp is a local ISO 8601 string with timezone offset representing the same instant as env.ts", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     const TS = 1_717_000_000_000;
     await caller.call(userEnv("now?"));
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const items = request.input as Array<{ role: string; content: string }>;
     const user = items.find((m) => m.role === "user")!;
     const ctx = JSON.parse(clientContextJsonOf(user.content)) as {
@@ -137,12 +111,13 @@ describe("backend_caller — context policy and sent history", () => {
   it("does not peek or drain recent apps while the signal is disabled", async () => {
     const peekRecentApps = vi.fn(() => [{ name: "Code", ts: Date.now() }]);
     const drainRecentApps = vi.fn();
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       getContextPolicy: () => ({
         recent_apps: false,
         active_app: true,
@@ -167,6 +142,7 @@ describe("backend_caller — context policy and sent history", () => {
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       getContextPolicy: () => ({
         recent_apps: true,
         active_app: true,
@@ -178,11 +154,11 @@ describe("backend_caller — context policy and sent history", () => {
       contextHistory,
     });
 
-    scriptedEvents = [];
+    script.events = [];
     await caller.call(userEnv());
     expect(contextHistory.append).not.toHaveBeenCalled();
 
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv());
     expect(contextHistory.append).toHaveBeenCalledOnce();
     expect(contextHistory.append).toHaveBeenCalledWith(
@@ -213,17 +189,18 @@ describe("backend_caller — screenshot port", () => {
   }
 
   it("getScreenshot block → user content is array with input_text + input_image (data_url)", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       getScreenshot: async () => SCREENSHOT,
     });
     await caller.call(userEnv("이 화면 뭐야?"));
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const content = userMessageOf(request.input).content as Array<Record<string, unknown>>;
     expect(Array.isArray(content)).toBe(true);
     const textPart = content.find((p) => p.type === "input_text");
@@ -233,34 +210,36 @@ describe("backend_caller — screenshot port", () => {
   });
 
   it("getScreenshot omitted → user content is a plain string (unchanged)", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv("그냥 텍스트"));
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     expect(userMessageOf(request.input).content).toContain("그냥 텍스트");
   });
 
   it("getScreenshot resolves undefined → user content is a plain string (no image part)", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       getScreenshot: async () => undefined,
     });
     await caller.call(userEnv("이미지 없음"));
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     expect(userMessageOf(request.input).content).toContain("이미지 없음");
   });
 
   it("getScreenshot rejects → turn still proceeds without an image (reaches streamChat)", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "hi" })];
+    script.events = [completedEvent({ speech_text: "hi" })];
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       getScreenshot: async () => {
         throw new Error("capture failed");
@@ -268,8 +247,8 @@ describe("backend_caller — screenshot port", () => {
     });
     const res = await caller.call(userEnv("캡처 실패"));
     expect(res.ok).toBe(true);
-    expect(streamChatSpy).toHaveBeenCalledTimes(1);
-    const [, request] = streamChatSpy.mock.calls[0];
+    expect(script.spy).toHaveBeenCalledTimes(1);
+    const [, request] = script.spy.mock.calls[0];
     expect(userMessageOf(request.input).content).toContain("캡처 실패");
   });
 });
@@ -295,9 +274,9 @@ describe("backend_caller — user_images (chat attachments)", () => {
   }
 
   it("payload.images → user content carries one input_image part per image + input_text", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(imgEnv("이거 봐", [IMG_A, IMG_B]));
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const content = userMessageOf(request.input).content as Array<Record<string, unknown>>;
     expect(Array.isArray(content)).toBe(true);
     expect(content.find((p) => p.type === "input_text")?.text).toContain("이거 봐");
@@ -306,22 +285,23 @@ describe("backend_caller — user_images (chat attachments)", () => {
   });
 
   it("image data URLs are absent from the client_context block", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(imgEnv("이거 봐", [IMG_A, IMG_B]));
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const json = clientContextJsonOf(userTextPartOf(request.input));
     expect(json).not.toContain(IMG_A);
     expect(json).not.toContain(IMG_B);
   });
 
   it("screenshot + user_images together → screenshot part AND all user image parts present", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     const SHOT = "data:image/png;base64,SHOT";
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       getScreenshot: async () => ({
         enabled: true,
@@ -330,16 +310,16 @@ describe("backend_caller — user_images (chat attachments)", () => {
       }),
     });
     await caller.call(imgEnv("둘 다", [IMG_A, IMG_B]));
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const content = userMessageOf(request.input).content as Array<Record<string, unknown>>;
     const urls = content.filter((p) => p.type === "input_image").map((p) => p.image_url);
     expect(urls).toEqual([SHOT, IMG_A, IMG_B]);
   });
 
   it("no images and no screenshot → user content stays a plain string", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv("그냥 텍스트"));
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     expect(userMessageOf(request.input).content).toContain("그냥 텍스트");
   });
 });
@@ -353,17 +333,18 @@ describe("backend_caller — os context port", () => {
   }
 
   it("getOsContext snapshot → env.active_app + env.active_window_title attached", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       getOsContext: () => ({ activeApp: "Visual Studio Code", activeWindowTitle: "main.ts" }),
     });
     await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const env = ctx.env as Record<string, unknown>;
     expect(env.active_app).toEqual({ name: "Visual Studio Code" });
@@ -371,9 +352,9 @@ describe("backend_caller — os context port", () => {
   });
 
   it("getOsContext absent → env.active_app / active_window_title omitted", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const env = ctx.env as Record<string, unknown>;
     expect("active_app" in env).toBe(false);
@@ -381,17 +362,18 @@ describe("backend_caller — os context port", () => {
   });
 
   it("getOsContext returns {} → env.active_app / active_window_title omitted", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       getOsContext: () => ({}),
     });
     await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const env = ctx.env as Record<string, unknown>;
     expect("active_app" in env).toBe(false);
@@ -407,12 +389,13 @@ describe("backend_caller — posture context port", () => {
   }
 
   it("attaches the current posture to env", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       getPosture: () => ({
         state: "sitting",
@@ -420,7 +403,7 @@ describe("backend_caller — posture context port", () => {
       }),
     });
     await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     expect((ctx.env as Record<string, unknown>).posture).toEqual({
       state: "sitting",
@@ -429,17 +412,18 @@ describe("backend_caller — posture context port", () => {
   });
 
   it("omits posture from env while idle", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       getPosture: () => undefined,
     });
     await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     expect("posture" in (ctx.env as Record<string, unknown>)).toBe(false);
   });
@@ -454,7 +438,7 @@ describe("backend_caller — recent apps package (peek, non-destructive)", () =>
   }
 
   it("peekRecentApps stub → env.recent_apps included as names only", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     const peekRecentApps = vi.fn(() => [
       { name: "Visual Studio Code", ts: 1_717_000_000_000 },
       { name: "Slack", ts: 1_717_000_001_000 },
@@ -464,38 +448,40 @@ describe("backend_caller — recent apps package (peek, non-destructive)", () =>
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       peekRecentApps,
     });
     await caller.call(userEnv());
     expect(peekRecentApps).toHaveBeenCalledTimes(1);
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const env = ctx.env as Record<string, unknown>;
     expect(env.recent_apps).toEqual([{ name: "Visual Studio Code" }, { name: "Slack" }]);
   });
 
   it("peekRecentApps returns [] → env.recent_apps omitted", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       peekRecentApps: () => [],
     });
     await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const env = ctx.env as Record<string, unknown>;
     expect("recent_apps" in env).toBe(false);
   });
 
   it("peekRecentApps absent → env.recent_apps omitted", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const env = ctx.env as Record<string, unknown>;
     expect("recent_apps" in env).toBe(false);
@@ -513,6 +499,7 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
         throw new Error("secret resolve failed");
       },
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       peekRecentApps,
       drainRecentApps,
@@ -533,10 +520,11 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       drainRecentApps,
     });
-    scriptedEvents = [{ type: "speech_delta", text: "x" }];
+    script.events = [{ type: "speech_delta", text: "x" }];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("parse_error");
@@ -550,10 +538,11 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       drainRecentApps,
     });
-    streamChatError = new Error("boom");
+    script.error = new Error("boom");
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(false);
     expect(res.drop_reason).toBe("network_drop");
@@ -575,11 +564,12 @@ describe("backend_caller — recent apps commit (drain only on confirmed success
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       peekRecentApps,
       drainRecentApps,
     });
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     const res = await caller.call(userEnv());
     expect(res.ok).toBe(true);
     expect(peekRecentApps).toHaveBeenCalledTimes(1);
@@ -614,9 +604,9 @@ describe("backend_caller — flat client_context envelope", () => {
   }
 
   it("(a) proactive envelope → flat trigger with kind/idle_elapsed_min; NO input_context/dispatcher_state; user message is proactive marker", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(proactiveEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     // top-level keys: env + trigger only (no input_context, no dispatcher_state)
     expect("input_context" in ctx).toBe(false);
@@ -636,9 +626,9 @@ describe("backend_caller — flat client_context envelope", () => {
   });
 
   it("(b) user turn → trigger.kind is 'user'; env has timestamp/timezone; no user_text in system object", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv("진짜 텍스트"));
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const trigger = ctx.trigger as Record<string, unknown>;
     expect(trigger.kind).toBe("user");
@@ -655,7 +645,7 @@ describe("backend_caller — flat client_context envelope", () => {
   });
 
   it("(c) schedule envelope → trigger.kind is 'schedule'", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     const env: BusEnvelope = {
       seq_id: 5,
       source: "timer_scheduler",
@@ -665,7 +655,7 @@ describe("backend_caller — flat client_context envelope", () => {
       payload: {},
     };
     await caller.call(env);
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     const ctx = clientContextOf(request.input);
     const trigger = ctx.trigger as Record<string, unknown>;
     expect(trigger.kind).toBe("schedule");
@@ -673,7 +663,7 @@ describe("backend_caller — flat client_context envelope", () => {
   });
 
   it("(d) voice envelope → user message content is the STT transcript text, not the proactive marker", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     const env: BusEnvelope = {
       seq_id: 9,
       source: "user_input_source",
@@ -684,48 +674,50 @@ describe("backend_caller — flat client_context envelope", () => {
       payload: { text: "こんにちは" },
     };
     await caller.call(env);
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     expect(userMessageContentOf(request.input)).toContain("こんにちは");
   });
 });
 
 describe("backend_caller — agent settings (reasoning effort + instructions)", () => {
   it("getAgentSettings present → reasoning_effort + instructions threaded into ChatRequest", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       getAgentSettings: () => ({ reasoning_effort: "medium", instructions: "be terse" }),
     });
     await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     expect(request.reasoning_effort).toBe("medium");
     expect(request.instructions).toBe("be terse");
   });
 
   it("getAgentSettings 'none' → reasoning_effort always sent; empty instructions omitted", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
       getFetch: async () => undefined,
+      stream: script.stream,
       onSpeech: speechSink,
       getAgentSettings: () => ({ reasoning_effort: "none", instructions: "" }),
     });
     await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     expect(request.reasoning_effort).toBe("none");
     expect("instructions" in request).toBe(false);
   });
 
   it("getAgentSettings absent → request carries neither (back-compat)", async () => {
-    scriptedEvents = [completedEvent({ speech_text: "" })];
+    script.events = [completedEvent({ speech_text: "" })];
     await caller.call(userEnv());
-    const [, request] = streamChatSpy.mock.calls[0];
+    const [, request] = script.spy.mock.calls[0];
     expect("reasoning_effort" in request).toBe(false);
     expect("instructions" in request).toBe(false);
   });
