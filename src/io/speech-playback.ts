@@ -62,7 +62,7 @@ export interface SpeechPlayback {
    * easeEmotionToNeutral still fires — only the motion reset is suppressed.
    */
   holdMotion(held: boolean): void;
-  /** Whether audio is actually playing — true from the first played frame until playback-end/interrupt/abort. False for text-only stretches. */
+  /** Whether audio is owed: playing now, or still queued for a finished reply. False once nothing remains to play. */
   isSpeaking(): boolean;
   /** Interrupts an in-progress utterance: dispose/rebuild the pipeline + release the held bubble immediately. */
   interrupt(opts?: { muteCurrentTurn?: boolean }): void;
@@ -173,7 +173,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       }
     },
     isSpeaking() {
-      return speaking;
+      return speaking || pipeline.hasOutstandingWork();
     },
     interrupt(opts) {
       stripper.reset();
