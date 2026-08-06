@@ -33,7 +33,7 @@ interface SpeakerListDeps {
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
   /** Import pick step: opens the file picker, returns the source path + a naming-row seed (null on cancel). */
   pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
-  /** Import commit step: copy + register under the typed name → addUserVoice + select. Inline error on reject. */
+  /** Import commit step: copy + register under the typed name → addUserOption + select. Inline error on reject. */
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   /** Delete imported voice app-data file (idempotent). Called separately from store removal. */
   removeUserVoice: (id: string) => Promise<void>;
@@ -86,9 +86,9 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     getActiveId: () => speakerSelection.getActiveId(),
     getActive: () => speakerSelection.getActive(),
     getLabel: (opt) => opt.label ?? opt.id,
-    rename: (id, label) => speakerSelection.renameUserVoice(id, label),
+    rename: (id, label) => speakerSelection.renameUserOption(id, label),
     removeFile: removeUserVoice,
-    removeFromStore: (id) => speakerSelection.removeUserVoice(id),
+    removeFromStore: (id) => speakerSelection.removeUserOption(id),
     swap: swapSpeaker,
     pickImport: pickVoiceImport,
     commitImport: commitVoiceImport,

@@ -405,7 +405,7 @@ describe("createVrmSelection — setManifest", () => {
     const store = createVrmSelection({ defaultUrl: "/vrms/carlotta.vrm" });
     expect(store.list()).toHaveLength(1);
 
-    store.setManifest({ available: SAMPLE, defaultUrl: "/vrms/miko.vrm" });
+    store.setManifest({ available: SAMPLE, defaultValue: "/vrms/miko.vrm" });
 
     expect(store.list()).toEqual(SAMPLE);
     expect(store.getActiveId()).toBe("miko"); // new defaultUrl resolves
@@ -414,7 +414,7 @@ describe("createVrmSelection — setManifest", () => {
   it("synthesizes a single option when the new manifest omits available", () => {
     const store = createVrmSelection({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm" });
 
-    store.setManifest({ defaultUrl: "/vrms/miko.vrm" });
+    store.setManifest({ defaultValue: "/vrms/miko.vrm" });
 
     expect(store.list()).toEqual([
       { id: "miko", label: "Miko", url: "/vrms/miko.vrm", source: "bundled" },
@@ -433,7 +433,7 @@ describe("createVrmSelection — setManifest", () => {
     expect(store.getActiveId()).toBe("miko");
 
     // config edits vrm_url to "custom" — the user's pick must NOT be clobbered.
-    store.setManifest({ available: SAMPLE, defaultUrl: "file:///tmp/custom.vrm" });
+    store.setManifest({ available: SAMPLE, defaultValue: "file:///tmp/custom.vrm" });
 
     expect(store.getActiveId()).toBe("miko");
     expect(storage._data).toBe("miko");
@@ -451,7 +451,7 @@ describe("createVrmSelection — setManifest", () => {
 
     // new manifest drops "custom" → fall through to the new defaultUrl entry.
     const reduced: AvatarOption[] = [SAMPLE[0], SAMPLE[1]];
-    store.setManifest({ available: reduced, defaultUrl: "/vrms/miko.vrm" });
+    store.setManifest({ available: reduced, defaultValue: "/vrms/miko.vrm" });
 
     expect(store.getActiveId()).toBe("miko");
   });
@@ -461,7 +461,7 @@ describe("createVrmSelection — setManifest", () => {
     const cb = vi.fn();
     store.subscribe(cb);
 
-    store.setManifest({ available: SAMPLE, defaultUrl: "/vrms/miko.vrm" });
+    store.setManifest({ available: SAMPLE, defaultValue: "/vrms/miko.vrm" });
 
     expect(cb).toHaveBeenCalledOnce();
     expect(cb).toHaveBeenCalledWith(SAMPLE[1]);
@@ -473,7 +473,7 @@ describe("createVrmSelection — setManifest", () => {
     store.subscribe(cb);
 
     // carlotta stays active (override absent, defaultUrl still resolves to carlotta).
-    store.setManifest({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm" });
+    store.setManifest({ available: SAMPLE, defaultValue: "/vrms/carlotta.vrm" });
 
     expect(cb).not.toHaveBeenCalled();
   });
@@ -490,7 +490,7 @@ describe("createVrmSelection — setManifest", () => {
     store.subscribe(cb);
 
     // override "miko" survives; new defaultUrl is irrelevant → no active-id change.
-    store.setManifest({ available: SAMPLE, defaultUrl: "file:///tmp/custom.vrm" });
+    store.setManifest({ available: SAMPLE, defaultValue: "file:///tmp/custom.vrm" });
 
     expect(cb).not.toHaveBeenCalled();
     expect(store.getActiveId()).toBe("miko");
@@ -509,7 +509,7 @@ describe("createVrmSelection — setManifest", () => {
 
     // "custom" removed → falls to new defaultUrl "miko" (was "custom") → active changes.
     const reduced: AvatarOption[] = [SAMPLE[0], SAMPLE[1]];
-    store.setManifest({ available: reduced, defaultUrl: "/vrms/miko.vrm" });
+    store.setManifest({ available: reduced, defaultValue: "/vrms/miko.vrm" });
 
     expect(store.getActiveId()).toBe("miko");
     expect(cb).toHaveBeenCalledOnce();
@@ -518,7 +518,7 @@ describe("createVrmSelection — setManifest", () => {
 
   it("after setManifest, select() validates against the NEW manifest", () => {
     const store = createVrmSelection({ defaultUrl: "/vrms/carlotta.vrm" });
-    store.setManifest({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm" });
+    store.setManifest({ available: SAMPLE, defaultValue: "/vrms/carlotta.vrm" });
     store.select("custom"); // only valid because the new manifest contains it
     expect(store.getActiveId()).toBe("custom");
   });
@@ -539,7 +539,7 @@ describe("createVrmSelection — boot-order regression", () => {
     });
 
     // The real config manifest arrives after construction (async injection).
-    store.setManifest({ available: SAMPLE, defaultUrl: "/vrms/carlotta.vrm" });
+    store.setManifest({ available: SAMPLE, defaultValue: "/vrms/carlotta.vrm" });
 
     expect(store.getActive().id).toBe("miko");
   });

@@ -296,7 +296,7 @@ describe("createQuickControls — speaker section", () => {
 
   function withUserVoice() {
     speakerSelection = makeSpeakerSelection();
-    speakerSelection.addUserVoice(USER_VOICE);
+    speakerSelection.addUserOption(USER_VOICE);
   }
 
   function userSpkRow(qc: { el: HTMLElement }): HTMLElement {
@@ -334,7 +334,7 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  it("pencil opens inline rename; Enter commits via renameUserVoice", () => {
+  it("pencil opens inline rename; Enter commits via renameUserOption", () => {
     withUserVoice();
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
@@ -374,7 +374,7 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  it("trash removes the voice via injected removeUserVoice then store removeUserVoice", async () => {
+  it("trash removes the voice via injected removeUserVoice then store removeUserOption", async () => {
     withUserVoice();
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
@@ -575,7 +575,7 @@ describe("createQuickControls — speaker section", () => {
   it("Enter on the naming row commits with the srcPath and the typed name", async () => {
     pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
     commitVoiceImport = vi.fn(async () => {
-      speakerSelection.addUserVoice(USER_VOICE);
+      speakerSelection.addUserOption(USER_VOICE);
     });
     const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
     qc.open();
@@ -695,7 +695,7 @@ describe("createQuickControls — speaker section", () => {
   it("a successful commit clears the loading row and error notice", async () => {
     pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/x.wav", seedName: "myvoice" }));
     commitVoiceImport = vi.fn(async () => {
-      speakerSelection.addUserVoice(USER_VOICE);
+      speakerSelection.addUserOption(USER_VOICE);
     });
     const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
     qc.open();

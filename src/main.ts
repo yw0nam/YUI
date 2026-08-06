@@ -765,7 +765,7 @@ async function bootstrap(): Promise<void> {
     // Inject actual manifest then boot load → persisted overrides take effect at startup.
     vrmSelection.setManifest({
       available: cfg.avatar.available,
-      defaultUrl: cfg.avatar.vrm_url,
+      defaultValue: cfg.avatar.vrm_url,
     });
     void refreshVoiceList();
     await loadVrmSerialized(vrmSelection.getActive().url);
@@ -932,7 +932,7 @@ async function bootstrap(): Promise<void> {
     if (reloadAlpha !== undefined) renderer.setHitTestThreshold(reloadAlpha);
     vrmSelection.setManifest({
       available: cfg.avatar.available,
-      defaultUrl: cfg.avatar.vrm_url,
+      defaultValue: cfg.avatar.vrm_url,
     });
     void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
       log.error("vrm_hot_swap_failed", { error: String(err) }),

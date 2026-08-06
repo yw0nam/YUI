@@ -337,7 +337,7 @@ describe("createSpeakerSelection — setManifest", () => {
     const store = createSpeakerSelection({ defaultId: "carlotta" });
     expect(store.list()).toHaveLength(1);
 
-    store.setManifest({ available: SAMPLE, defaultId: "miko" });
+    store.setManifest({ available: SAMPLE, defaultValue: "miko" });
 
     expect(store.list()).toEqual(SAMPLE);
     expect(store.getActiveId()).toBe("miko"); // new defaultId resolves
@@ -346,7 +346,7 @@ describe("createSpeakerSelection — setManifest", () => {
   it("synthesizes a single option when the new manifest omits available", () => {
     const store = createSpeakerSelection({ available: SAMPLE, defaultId: "carlotta" });
 
-    store.setManifest({ defaultId: "miko" });
+    store.setManifest({ defaultValue: "miko" });
 
     expect(store.list()).toEqual([{ id: "miko", label: "miko", ref_url: "" }]);
     expect(store.getActiveId()).toBe("miko");
@@ -359,7 +359,7 @@ describe("createSpeakerSelection — setManifest", () => {
     expect(store.getActiveId()).toBe("miko");
 
     // config edits irodori_speaker to "custom" — the user's pick must NOT be clobbered.
-    store.setManifest({ available: SAMPLE, defaultId: "custom" });
+    store.setManifest({ available: SAMPLE, defaultValue: "custom" });
 
     expect(store.getActiveId()).toBe("miko");
     expect(storage._data).toBe("miko");
@@ -373,7 +373,7 @@ describe("createSpeakerSelection — setManifest", () => {
 
     // new manifest drops "custom" → fall through to the new defaultId entry.
     const reduced: SpeakerOption[] = [SAMPLE[0], SAMPLE[1]];
-    store.setManifest({ available: reduced, defaultId: "miko" });
+    store.setManifest({ available: reduced, defaultValue: "miko" });
 
     expect(store.getActiveId()).toBe("miko");
   });
@@ -383,7 +383,7 @@ describe("createSpeakerSelection — setManifest", () => {
     const cb = vi.fn();
     store.subscribe(cb);
 
-    store.setManifest({ available: SAMPLE, defaultId: "miko" });
+    store.setManifest({ available: SAMPLE, defaultValue: "miko" });
 
     expect(cb).toHaveBeenCalledOnce();
     expect(cb).toHaveBeenCalledWith(SAMPLE[1]);
@@ -395,7 +395,7 @@ describe("createSpeakerSelection — setManifest", () => {
     store.subscribe(cb);
 
     // carlotta stays active (override absent, defaultId still resolves to carlotta).
-    store.setManifest({ available: SAMPLE, defaultId: "carlotta" });
+    store.setManifest({ available: SAMPLE, defaultValue: "carlotta" });
 
     expect(cb).not.toHaveBeenCalled();
   });
@@ -408,7 +408,7 @@ describe("createSpeakerSelection — setManifest", () => {
     store.subscribe(cb);
 
     // override "miko" survives; new defaultId is irrelevant → no active-id change.
-    store.setManifest({ available: SAMPLE, defaultId: "custom" });
+    store.setManifest({ available: SAMPLE, defaultValue: "custom" });
 
     expect(cb).not.toHaveBeenCalled();
     expect(store.getActiveId()).toBe("miko");
@@ -423,7 +423,7 @@ describe("createSpeakerSelection — setManifest", () => {
 
     // "custom" removed → falls to new defaultId "miko" (was "custom") → active changes.
     const reduced: SpeakerOption[] = [SAMPLE[0], SAMPLE[1]];
-    store.setManifest({ available: reduced, defaultId: "miko" });
+    store.setManifest({ available: reduced, defaultValue: "miko" });
 
     expect(store.getActiveId()).toBe("miko");
     expect(cb).toHaveBeenCalledOnce();
@@ -432,7 +432,7 @@ describe("createSpeakerSelection — setManifest", () => {
 
   it("after setManifest, select() validates against the NEW manifest", () => {
     const store = createSpeakerSelection({ defaultId: "carlotta" });
-    store.setManifest({ available: SAMPLE, defaultId: "carlotta" });
+    store.setManifest({ available: SAMPLE, defaultValue: "carlotta" });
     store.select("custom"); // only valid because the new manifest contains it
     expect(store.getActiveId()).toBe("custom");
   });
@@ -453,7 +453,7 @@ describe("createSpeakerSelection — boot-order regression", () => {
     });
 
     // The real config manifest arrives after construction (async injection).
-    store.setManifest({ available: SAMPLE, defaultId: "carlotta" });
+    store.setManifest({ available: SAMPLE, defaultValue: "carlotta" });
 
     expect(store.getActive().id).toBe("miko");
   });
@@ -610,25 +610,25 @@ function makeUserMemStorage(): UserSpeakerStorage & { _data: SpeakerOption[] } {
 describe("createSpeakerSelection — user options merge", () => {
   it("getOptions() returns bundled ∪ user", () => {
     const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
-    store.addUserVoice(USER_CAT);
+    store.addUserOption(USER_CAT);
     const ids = store.getOptions().map((o) => o.id);
     expect(ids).toEqual(["carlotta", "miko", "Cat"]);
   });
 
   it("list() also reflects user options (single source of truth)", () => {
     const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
-    store.addUserVoice(USER_CAT);
+    store.addUserOption(USER_CAT);
     expect(store.list().map((o) => o.id)).toContain("Cat");
   });
 
-  it("addUserVoice persists the user list via userStorage", () => {
+  it("addUserOption persists the user list via userStorage", () => {
     const userStorage = makeUserMemStorage();
     const store = createSpeakerSelection({
       available: BUNDLED,
       defaultId: "carlotta",
       userStorage,
     });
-    store.addUserVoice(USER_CAT);
+    store.addUserOption(USER_CAT);
     expect(userStorage._data).toEqual([USER_CAT]);
   });
 
@@ -645,8 +645,8 @@ describe("createSpeakerSelection — user options merge", () => {
 
   it("a re-added user id updates in place (no duplicate)", () => {
     const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
-    store.addUserVoice(USER_CAT);
-    store.addUserVoice({ ...USER_CAT, label: "Renamed", ref_url: "asset://localhost/new.mp3" });
+    store.addUserOption(USER_CAT);
+    store.addUserOption({ ...USER_CAT, label: "Renamed", ref_url: "asset://localhost/new.mp3" });
     const cats = store.getOptions().filter((o) => o.id === "Cat");
     expect(cats).toHaveLength(1);
     expect(cats[0].ref_url).toBe("asset://localhost/new.mp3");
@@ -654,7 +654,7 @@ describe("createSpeakerSelection — user options merge", () => {
 
   it("forces source:'user' on an added option regardless of input", () => {
     const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
-    store.addUserVoice({ ...USER_CAT, source: "bundled" });
+    store.addUserOption({ ...USER_CAT, source: "bundled" });
     const cat = store.getOptions().find((o) => o.id === "Cat");
     expect(cat?.source).toBe("user");
   });
@@ -666,7 +666,7 @@ describe("createSpeakerSelection — user options merge", () => {
       defaultId: "carlotta",
       storage,
     });
-    store.addUserVoice(USER_CAT);
+    store.addUserOption(USER_CAT);
     store.select("Cat");
     expect(store.getActiveId()).toBe("Cat");
     expect(storage._data).toBe("Cat");
@@ -687,7 +687,7 @@ describe("createSpeakerSelection — user options merge", () => {
   });
 });
 
-describe("createSpeakerSelection — removeUserVoice", () => {
+describe("createSpeakerSelection — removeUserOption", () => {
   it("removes the option and persists the shrunken list", () => {
     const userStorage = makeUserMemStorage();
     const store = createSpeakerSelection({
@@ -695,8 +695,8 @@ describe("createSpeakerSelection — removeUserVoice", () => {
       defaultId: "carlotta",
       userStorage,
     });
-    store.addUserVoice(USER_CAT);
-    store.removeUserVoice("Cat");
+    store.addUserOption(USER_CAT);
+    store.removeUserOption("Cat");
     expect(store.getOptions().map((o) => o.id)).not.toContain("Cat");
     expect(userStorage._data).toEqual([]);
   });
@@ -708,12 +708,12 @@ describe("createSpeakerSelection — removeUserVoice", () => {
       defaultId: "carlotta",
       storage,
     });
-    store.addUserVoice(USER_CAT);
+    store.addUserOption(USER_CAT);
     store.select("Cat");
     const cb = vi.fn();
     store.subscribe(cb);
 
-    store.removeUserVoice("Cat");
+    store.removeUserOption("Cat");
 
     expect(store.getActiveId()).toBe("carlotta");
     expect(storage._data).toBeNull();
@@ -723,10 +723,10 @@ describe("createSpeakerSelection — removeUserVoice", () => {
 
   it("removing a non-selected user option does not churn the active selection", () => {
     const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
-    store.addUserVoice(USER_CAT);
+    store.addUserOption(USER_CAT);
     const cb = vi.fn();
     store.subscribe(cb);
-    store.removeUserVoice("Cat");
+    store.removeUserOption("Cat");
     expect(store.getActiveId()).toBe("carlotta");
     expect(cb).not.toHaveBeenCalled();
   });
@@ -738,13 +738,13 @@ describe("createSpeakerSelection — removeUserVoice", () => {
       defaultId: "carlotta",
       userStorage,
     });
-    store.addUserVoice(USER_CAT);
-    store.removeUserVoice("ghost");
+    store.addUserOption(USER_CAT);
+    store.removeUserOption("ghost");
     expect(store.getOptions().map((o) => o.id)).toContain("Cat");
   });
 });
 
-describe("createSpeakerSelection — renameUserVoice", () => {
+describe("createSpeakerSelection — renameUserOption", () => {
   it("renames a user voice, persists, and survives reload", () => {
     const userStorage = makeUserMemStorage();
     const store = createSpeakerSelection({
@@ -752,8 +752,8 @@ describe("createSpeakerSelection — renameUserVoice", () => {
       defaultId: "carlotta",
       userStorage,
     });
-    store.addUserVoice(USER_CAT);
-    store.renameUserVoice("Cat", "냥이");
+    store.addUserOption(USER_CAT);
+    store.renameUserOption("Cat", "냥이");
     expect(store.getOptions().find((o) => o.id === "Cat")?.label).toBe("냥이");
     // persisted to storage
     expect(userStorage._data.find((o) => o.id === "Cat")?.label).toBe("냥이");
@@ -769,21 +769,21 @@ describe("createSpeakerSelection — renameUserVoice", () => {
 
   it("notifies subscribers when the active user voice is renamed", () => {
     const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
-    store.addUserVoice(USER_CAT);
+    store.addUserOption(USER_CAT);
     store.select("Cat");
     const cb = vi.fn();
     store.subscribe(cb);
-    store.renameUserVoice("Cat", "냥이");
+    store.renameUserOption("Cat", "냥이");
     expect(cb).toHaveBeenCalledOnce();
     expect(cb.mock.calls[0][0].label).toBe("냥이");
   });
 
   it("does NOT notify when a non-active user voice is renamed", () => {
     const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
-    store.addUserVoice(USER_CAT);
+    store.addUserOption(USER_CAT);
     const cb = vi.fn();
     store.subscribe(cb);
-    store.renameUserVoice("Cat", "냥이");
+    store.renameUserOption("Cat", "냥이");
     expect(cb).not.toHaveBeenCalled();
   });
 
@@ -794,32 +794,32 @@ describe("createSpeakerSelection — renameUserVoice", () => {
       defaultId: "carlotta",
       userStorage,
     });
-    store.addUserVoice(USER_CAT);
-    store.renameUserVoice("ghost", "Nope");
+    store.addUserOption(USER_CAT);
+    store.renameUserOption("ghost", "Nope");
     expect(store.getOptions().find((o) => o.id === "Cat")?.label).toBe("Cat");
     expect(userStorage._data).toEqual([USER_CAT]);
   });
 
   it("renaming a bundled id is a no-op (only user voices are renamable)", () => {
     const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
-    store.renameUserVoice("carlotta", "Hacked");
+    store.renameUserOption("carlotta", "Hacked");
     expect(store.getOptions().find((o) => o.id === "carlotta")?.label).toBe("Carlotta");
   });
 
   it("rejects an empty / whitespace-only label (keeps the old one)", () => {
     const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
-    store.addUserVoice(USER_CAT);
-    store.renameUserVoice("Cat", "   ");
+    store.addUserOption(USER_CAT);
+    store.renameUserOption("Cat", "   ");
     expect(store.getOptions().find((o) => o.id === "Cat")?.label).toBe("Cat");
-    store.renameUserVoice("Cat", "");
+    store.renameUserOption("Cat", "");
     expect(store.getOptions().find((o) => o.id === "Cat")?.label).toBe("Cat");
   });
 });
 
 describe("createSpeakerSelection — user id never clobbers a bundled id", () => {
-  it("addUserVoice with a bundled id is rejected (bundled wins)", () => {
+  it("addUserOption with a bundled id is rejected (bundled wins)", () => {
     const store = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta" });
-    store.addUserVoice({
+    store.addUserOption({
       id: "carlotta",
       label: "Evil",
       ref_url: "asset://localhost/evil.mp3",
@@ -1007,9 +1007,9 @@ describe("createSpeakerSelection — reloadFromStorage user-list merge", () => {
       userStorage,
     });
 
-    a.addUserVoice(USER_CAT);
+    a.addUserOption(USER_CAT);
     b.reloadFromStorage();
-    b.addUserVoice(USER_DOG);
+    b.addUserOption(USER_DOG);
 
     expect(userStorage._data.map((o) => o.id).sort()).toEqual(["Cat", "Dog"]);
     expect(b.list().map((o) => o.id)).toContain("Cat");
@@ -1021,7 +1021,7 @@ describe("createSpeakerSelection — reloadFromStorage user-list merge", () => {
     const a = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", userStorage });
     const b = createSpeakerSelection({ available: BUNDLED, defaultId: "carlotta", userStorage });
 
-    a.addUserVoice(USER_CAT);
+    a.addUserOption(USER_CAT);
     expect(b.getOptions().map((o) => o.id)).not.toContain("Cat");
 
     b.reloadFromStorage();
@@ -1035,7 +1035,7 @@ describe("createSpeakerSelection — reloadFromStorage user-list merge", () => {
       defaultId: "carlotta",
       userStorage,
     });
-    store.addUserVoice(USER_CAT);
+    store.addUserOption(USER_CAT);
     userStorage._data = [{ ...USER_CAT, label: "냥이" }];
 
     store.reloadFromStorage();
@@ -1120,7 +1120,7 @@ describe("createSpeakerSelection — reloadFromStorage user-list merge", () => {
       defaultId: "carlotta",
       userStorage,
     });
-    store.addUserVoice(USER_CAT);
+    store.addUserOption(USER_CAT);
     throwOnLoad = true;
     expect(() => store.reloadFromStorage()).not.toThrow();
     expect(store.getOptions().map((o) => o.id)).toContain("Cat");

@@ -78,7 +78,7 @@ describe("createVoiceListRefresh", () => {
         { id: "ナツメ", label: "ナツメ", ref_url: "" },
         { id: "あやせ", label: "あやせ", ref_url: "" },
       ],
-      defaultId: "ナツメ",
+      defaultValue: "ナツメ",
     });
   });
 
@@ -96,7 +96,7 @@ describe("createVoiceListRefresh", () => {
 
     await refresh();
 
-    expect(store._manifest().defaultId).toBe("");
+    expect(store._manifest().defaultValue).toBe("");
   });
 
   it("excludes ids already owned by a user option so the richer user record stays authoritative", async () => {

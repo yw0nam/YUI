@@ -103,7 +103,7 @@ async function bootstrap(): Promise<void> {
   if (configLoaded) {
     try {
       const avatar = config.get().avatar;
-      vrmSelection.setManifest({ available: avatar.available, defaultUrl: avatar.vrm_url });
+      vrmSelection.setManifest({ available: avatar.available, defaultValue: avatar.vrm_url });
     } catch (err) {
       log.warn("avatar_config_read_failed", { fallback: true, error: String(err) });
     }

@@ -487,7 +487,7 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
       log: noopLog,
       broadcastSettings: () => {},
     });
-    speakerSelection.addUserVoice({
+    speakerSelection.addUserOption({
       id: "myvoice",
       label: "My Voice",
       ref_url: "asset://localhost/app-data/references/myvoice/clip.mp3",
