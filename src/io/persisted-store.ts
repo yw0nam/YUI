@@ -141,3 +141,66 @@ export function createPersistedStore<T>(cfg: PersistedStoreConfig<T>): Persisted
     },
   };
 }
+
+/** Boolean on/off settings store: value shape { enabled: boolean }. */
+export function createFlagSettings(
+  defaultEnabled: boolean,
+  opts?: {
+    storage?: PersistedStorage<{ enabled: boolean }>;
+    initial?: { enabled: boolean };
+  },
+) {
+  const core = createPersistedStore({
+    storage: opts?.storage,
+    initial: opts?.initial,
+    defaults: { enabled: defaultEnabled },
+    parse: (v) =>
+      v !== null &&
+      typeof v === "object" &&
+      typeof (v as { enabled?: unknown }).enabled === "boolean"
+        ? { enabled: (v as { enabled: boolean }).enabled }
+        : null,
+    equals: (a, b) => a.enabled === b.enabled,
+  });
+
+  return {
+    get: core.get,
+    setEnabled: (enabled: boolean) => core.commit({ enabled }),
+    reloadFromStorage: core.reloadFromStorage,
+    subscribe: core.subscribe,
+    dispose: core.dispose,
+  };
+}
+
+export type FlagSettingsStore = ReturnType<typeof createFlagSettings>;
+
+/** Clamped-integer settings store: value shape { value: number }. */
+export function createClampedIntSettings(
+  cfg: { default: number; floor: number; ceil: number },
+  opts?: { storage?: PersistedStorage<{ value: number }>; initial?: { value: number } },
+) {
+  const valid = (v: unknown): v is number =>
+    typeof v === "number" && Number.isInteger(v) && v >= cfg.floor && v <= cfg.ceil;
+  const core = createPersistedStore({
+    storage: opts?.storage,
+    initial: opts?.initial,
+    defaults: { value: cfg.default },
+    parse: (v) => {
+      const value = v !== null && typeof v === "object" ? (v as { value?: unknown }).value : null;
+      return valid(value) ? { value } : null;
+    },
+    equals: (a, b) => a.value === b.value,
+  });
+
+  return {
+    get: core.get,
+    set(value: number): void {
+      if (valid(value)) core.commit({ value });
+    },
+    reloadFromStorage: core.reloadFromStorage,
+    subscribe: core.subscribe,
+    dispose: core.dispose,
+  };
+}
+
+export type ClampedIntSettingsStore = ReturnType<typeof createClampedIntSettings>;

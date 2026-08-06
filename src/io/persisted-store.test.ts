@@ -402,21 +402,24 @@ describe("createClampedIntSettings", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it.each([1.5, 0, 51, Number.NaN, Number.POSITIVE_INFINITY])(
-    "ignores invalid setter input %s",
-    (value) => {
-      const save = vi.fn();
-      const store = createClampedIntSettings(cfg, { storage: { load: () => null, save } });
-      const cb = vi.fn();
-      store.subscribe(cb);
+  it.each([
+    1.5,
+    0,
+    51,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+  ])("ignores invalid setter input %s", (value) => {
+    const save = vi.fn();
+    const store = createClampedIntSettings(cfg, { storage: { load: () => null, save } });
+    const cb = vi.fn();
+    store.subscribe(cb);
 
-      store.set(value);
+    store.set(value);
 
-      expect(store.get()).toEqual({ value: 10 });
-      expect(save).not.toHaveBeenCalled();
-      expect(cb).not.toHaveBeenCalled();
-    },
-  );
+    expect(store.get()).toEqual({ value: 10 });
+    expect(save).not.toHaveBeenCalled();
+    expect(cb).not.toHaveBeenCalled();
+  });
 
   it("uses stored over initial over default", () => {
     const initialOnly = createClampedIntSettings(cfg, { initial: { value: 20 } });
