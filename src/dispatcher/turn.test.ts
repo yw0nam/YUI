@@ -106,3 +106,35 @@ describe("turn — ledger", () => {
     expect(seenB).toEqual([false, true]);
   });
 });
+
+describe("turn — didOweAudio (audio-owed latch)", () => {
+  it("is false before any begin()", () => {
+    const log = createTurnLog();
+    expect(log.didOweAudio()).toBe(false);
+  });
+
+  it("is false for a turn that never owed audio", () => {
+    const log = createTurnLog();
+    const turn = log.begin(userEnv());
+    log.settle(turn.id);
+    expect(log.didOweAudio()).toBe(false);
+  });
+
+  it("latches true after setAudioOwed(true) and stays true after setAudioOwed(false)", () => {
+    const log = createTurnLog();
+    log.begin(userEnv());
+    log.setAudioOwed(true);
+    expect(log.didOweAudio()).toBe(true);
+    log.setAudioOwed(false);
+    expect(log.didOweAudio()).toBe(true);
+  });
+
+  it("is reset to false by the next begin()", () => {
+    const log = createTurnLog();
+    const first = log.begin(userEnv());
+    log.setAudioOwed(true);
+    log.settle(first.id);
+    log.begin(userEnv());
+    expect(log.didOweAudio()).toBe(false);
+  });
+});

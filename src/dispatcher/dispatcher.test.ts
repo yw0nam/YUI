@@ -1278,37 +1278,13 @@ describe("dispatcher — structured logging: fire events", () => {
 });
 
 describe("dispatcher — structured logging: backend_call events", () => {
-  it("emits logger.info('backend_call', {trigger, seq_id, started_at}) at call start", async () => {
+  it("emits logger.debug('backend_call', {trigger, seq_id, started_at}) at call start", async () => {
     dispatcher.start();
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       "backend_call",
       expect.objectContaining({ seq_id: expect.anything(), started_at: expect.any(Number) }),
-    );
-  });
-
-  it("emits logger.info('backend_call', {trigger, outcome:'ok'}) on successful completion", async () => {
-    dispatcher.start();
-    bus.push(env());
-    await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve("ok");
-    await vi.advanceTimersByTimeAsync(20);
-    expect(logger.info).toHaveBeenCalledWith(
-      "backend_call",
-      expect.objectContaining({ outcome: "ok" }),
-    );
-  });
-
-  it("emits logger.info('backend_call', {outcome}) on parse_error", async () => {
-    dispatcher.start();
-    bus.push(env());
-    await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve("parse_error");
-    await vi.advanceTimersByTimeAsync(20);
-    expect(logger.info).toHaveBeenCalledWith(
-      "backend_call",
-      expect.objectContaining({ outcome: "parse_error" }),
     );
   });
 });
@@ -2063,5 +2039,149 @@ describe("dispatcher — degraded state (3 consecutive backend call failures)", 
     bus.push(env({ event_name: "user.drag_start", hint_tier: 1, ts: NOW + 100 }));
     await vi.advanceTimersByTimeAsync(20);
     expect(applyDirective).toHaveBeenCalled();
+  });
+});
+
+describe("dispatcher — structured logging: turn events", () => {
+  function turnLines(): Array<[string, Record<string, unknown>]> {
+    return (logger.info as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c) => c[0] === "turn",
+    ) as Array<[string, Record<string, unknown>]>;
+  }
+
+  it("emits exactly one turn line for a successful turn that owes no audio", async () => {
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(1);
+    const [, payload] = lines[0]!;
+    expect(payload.id).toBe(1);
+    expect(payload.outcome).toBe("ok");
+    expect(payload.spoke).toBe(false);
+    expect(typeof payload.duration_ms).toBe("number");
+    expect(payload.duration_ms as number).toBeGreaterThanOrEqual(0);
+  });
+
+  it("a turn that owed audio: spoke:true, but the line only appears once audio drains", async () => {
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    setSpeaking(true);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(turnLines()).toHaveLength(0);
+
+    setSpeaking(false);
+    await vi.advanceTimersByTimeAsync(20);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]![1].spoke).toBe(true);
+  });
+
+  it("two consecutive turns produce two turn lines with different ids", async () => {
+    dispatcher.start();
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    bus.push(env({ ts: NOW + 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[1].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(2);
+    expect(lines[0]![1].id).toBe(1);
+    expect(lines[1]![1].id).toBe(2);
+  });
+
+  it("a user turn superseding an in-flight turn: the superseded turn gets a turn line before the successor starts", async () => {
+    dispatcher.start();
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    const firstId = turnLog.current()!.id;
+    expect(firstId).toBe(1);
+
+    bus.push(env({ ts: NOW + 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    const secondId = turnLog.current()!.id;
+    expect(secondId).toBe(2);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]![1].id).toBe(firstId);
+    expect(lines[0]![1].outcome).toBe("superseded_by_user");
+  });
+
+  it("no longer emits an info-level backend_call entry for a turn", async () => {
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    const backendCallInfoLines = (logger.info as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c) => c[0] === "backend_call",
+    );
+    expect(backendCallInfoLines).toHaveLength(0);
+  });
+
+  it("a turn displaced by supersede while owing audio reports spoke:true on its own line", async () => {
+    dispatcher.start();
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    const firstId = turnLog.current()!.id;
+
+    // turn 1 owes audio and is still in flight when a second user message supersedes it.
+    setSpeaking(true);
+    bus.push(env({ ts: NOW + 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]![1].id).toBe(firstId);
+    expect(lines[0]![1].spoke).toBe(true);
+  });
+
+  it("the drain path preserves the completed turn's real outcome instead of superseded_by_user", async () => {
+    function nonUserEnv(over: Partial<BusEnvelope> = {}): BusEnvelope {
+      return {
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW,
+        hint_tier: 2,
+        dnd_override: false,
+        ...over,
+      };
+    }
+
+    dispatcher.start();
+    bus.push(nonUserEnv({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    const firstId = turnLog.current()!.id;
+
+    // a second non-user turn defers behind the first (no supersede for non-user triggers).
+    bus.push(nonUserEnv({ event_name: "idle.long", ts: NOW + 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+
+    // turn 1 succeeds; the drain in .finally() starts turn 2 before turn 1 is settled.
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    const secondId = turnLog.current()!.id;
+    expect(secondId).not.toBe(firstId);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(2);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]![1].id).toBe(firstId);
+    expect(lines[0]![1].outcome).toBe("ok");
   });
 });

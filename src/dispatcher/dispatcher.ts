@@ -27,7 +27,7 @@ import type { ControlEnvelope, EmotionId, Posture } from "../contract";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
-import type { BackendCaller, TurnFailure } from "./backend-caller";
+import type { BackendCaller, TurnFailure, TurnOutcome } from "./backend-caller";
 import type { BusEnvelope, EventBus } from "./event-bus";
 import type { Guardrails } from "./guardrails";
 import type { TurnLog } from "./turn";
@@ -271,6 +271,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   // Deferred tier2/3 (with two or more, the oldest is dropped).
   const pending: BusEnvelope[] = [];
   const drops: DropRecord[] = [];
+  /** The turn whose summary line has not been emitted yet. */
+  let openTurn: {
+    id: number;
+    trigger: string;
+    started_at: number;
+    outcome: TurnOutcome | null;
+  } | null = null;
   // Consecutive backend call failure counter — superseded_by_user does not count as a failure.
   let consecutiveFailures = 0;
   // Pending tap-emotion revert — replaced per emotion tap, cleared on stop.
@@ -284,6 +291,30 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   function currentPipelineBusy(): boolean {
     return !deps.turnLog.isOver();
   }
+
+  /**
+   * Emit the open turn's summary line, once. Must run before turnLog.begin() retires the
+   * turn — `spoke` is read from the ledger, and begin() resets it.
+   */
+  function closeTurn(): void {
+    if (!openTurn) return;
+    log.info("turn", {
+      id: openTurn.id,
+      trigger: openTurn.trigger,
+      // A turn still open when the next one begins was displaced; the only way its call had not
+      // yet resolved is an abort.
+      outcome: openTurn.outcome ?? "superseded_by_user",
+      duration_ms: Date.now() - openTurn.started_at,
+      spoke: deps.turnLog.didOweAudio(),
+    });
+    openTurn = null;
+  }
+
+  // Close the turn line at the over⟷live boundary — covers a turn that settles and finishes
+  // owing audio without being displaced by the next begin() (see startBackendCall for that case).
+  deps.turnLog.subscribe((over) => {
+    if (over) closeTurn();
+  });
 
   /** Single path for state transitions: assign + state_change log + notify subscribers. */
   function setState(next: DispatcherState): void {
@@ -361,12 +392,14 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     const abort = new AbortController();
     const started_at = Date.now();
     setInFlight({ trigger: env, started_at, abort });
-    log.info("backend_call", { trigger: env.event_name, seq_id: env.seq_id, started_at });
+    log.debug("backend_call", { trigger: env.event_name, seq_id: env.seq_id, started_at });
+    closeTurn();
     const turn = deps.turnLog.begin(env);
+    openTurn = { id: turn.id, trigger: env.event_name, started_at, outcome: null };
     void backendCaller
       .call(turn, abort.signal)
       .then((outcome) => {
-        log.info("backend_call", { trigger: env.event_name, outcome });
+        if (openTurn?.id === turn.id) openTurn.outcome = outcome;
         if (outcome === "ok") {
           noteCallSuccess();
           return;
@@ -378,8 +411,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         if (source) deps.onUserTurnFailed?.(outcome, source);
       })
       .catch((err) => {
+        if (openTurn?.id === turn.id) openTurn.outcome = "network_drop";
         log.error("backend_call.unexpected_error", { error: String(err) });
-        log.info("backend_call", { trigger: env.event_name, outcome: "network_drop" });
         recordDrop(env, "network_drop");
         noteCallFailure();
         const source = userTurnSourceOf(env);
