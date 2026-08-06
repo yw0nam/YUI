@@ -46,6 +46,7 @@ import {
 } from "./context-builder";
 import type { BusEnvelope } from "./event-bus";
 import type { DropReason } from "./guardrails";
+import type { Turn } from "./turn";
 import type { TurnOutput } from "./turn-output";
 
 const baseLog = createLogger("backend-caller");
@@ -155,10 +156,10 @@ interface BackendCallerDeps {
 
 export interface BackendCaller {
   /**
-   * Execute B1–B5 for one trigger envelope. In-flight aborted if externalSignal aborts.
+   * Execute B1–B5 for one admitted turn. In-flight aborted if externalSignal aborts.
    * Never throws — failures expressed as { ok:false, drop_reason } (dispatcher branches).
    */
-  call(env: BusEnvelope, externalSignal?: AbortSignal): Promise<BackendCallResult>;
+  call(turn: Turn, externalSignal?: AbortSignal): Promise<BackendCallResult>;
 }
 
 /**
@@ -228,7 +229,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     return [{ role: "user", content: userContent }];
   }
 
-  async function call(env: BusEnvelope, externalSignal?: AbortSignal): Promise<BackendCallResult> {
+  async function call(turn: Turn, externalSignal?: AbortSignal): Promise<BackendCallResult> {
+    const env = turn.trigger;
     if (externalSignal?.aborted) {
       return { ok: false, drop_reason: "superseded_by_user" };
     }
@@ -247,12 +249,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     const startThinking = () => {
       if (thinkingStarted || thinkingDone) return;
       thinkingStarted = true;
-      deps.turnOutput?.thinkingStart();
+      deps.turnOutput?.thinkingStart(turn.id);
     };
     const endThinking = () => {
       if (thinkingDone) return;
       thinkingDone = true;
-      if (thinkingStarted) deps.turnOutput?.thinkingEnd();
+      if (thinkingStarted) deps.turnOutput?.thinkingEnd(turn.id);
     };
 
     // Wrap entire span in try/finally — thinking end guaranteed exactly once on any exit path

@@ -195,16 +195,16 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     return pool.first.length > 0 || pool.repeat.length > 0;
   }
 
-  function onThinkingStart(): void {
-    thinkingTurnId = deps.turnLog.current()?.id ?? null;
+  function onThinkingStart(turnId: number): void {
+    thinkingTurnId = turnId;
     // hold BEFORE the first filler can speak so no filler sentence resets the motion.
     speechPlayback.holdMotion(true);
     deps.renderer.playMotion({ id: "thinking", loop: true });
     fillerLoop?.start();
   }
 
-  function onThinkingEnd(): void {
-    if (thinkingTurnId === null || thinkingTurnId !== deps.turnLog.current()?.id) return;
+  function onThinkingEnd(turnId: number): void {
+    if (turnId !== thinkingTurnId) return;
     thinkingTurnId = null;
     speechPlayback.holdMotion(false);
     fillerLoop?.stop();

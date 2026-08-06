@@ -6,7 +6,8 @@ import type { ExpressArgs } from "../contract";
  * - `interrupt()` fires once on call entry, before any other member.
  * - `hasFiller()` is queried on entry; `thinkingStart` only follows when it is true and the turn
  *   is not a reflex turn.
- * - The implementation ignores a `thinkingEnd` that belongs to a turn that is no longer current.
+ * - `thinkingStart`/`thinkingEnd` carry the same turn id, so an overtaken turn's late
+ *   `thinkingEnd` is ignored by the implementation.
  * - `thinkingEnd` fires exactly once per turn that started thinking, on every exit path.
  * - `delta(text)` streams speech; the first one ends thinking.
  * - `end()` closes a streamed utterance; `speak(text)` is the whole-utterance fallback for a
@@ -18,8 +19,8 @@ import type { ExpressArgs } from "../contract";
 export interface TurnOutput {
   interrupt(): void;
   hasFiller(): boolean;
-  thinkingStart(): void;
-  thinkingEnd(): void;
+  thinkingStart(turnId: number): void;
+  thinkingEnd(turnId: number): void;
   delta(text: string): void;
   speak(text: string): void;
   end(): void;
