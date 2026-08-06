@@ -235,6 +235,33 @@ describe("createSelectionStore", () => {
     expect(store.getActiveId()).toBe("b");
   });
 
+  it("leaves user options unchanged when removing an unknown id", () => {
+    const store = makeStore();
+    store.addUserOption({ id: "c", url: "/c.res" });
+    const before = store.list();
+    store.removeUserOption("nope");
+    expect(store.list()).toEqual(before);
+  });
+
+  it("resolves the default when override storage throws during construction", () => {
+    const storage = {
+      load: () => {
+        throw new Error("boom");
+      },
+      save: vi.fn(),
+    };
+    expect(makeStore({ storage }).getActiveId()).toBe("a");
+  });
+
+  it.each(["", 42])("treats persisted %j as no override", (persisted) => {
+    const storage = { load: () => persisted as string, save: vi.fn() };
+    const store = makeStore({ storage });
+    expect(() => store.getActiveId()).not.toThrow();
+    expect(store.getActiveId()).toBe("a");
+    store.reset();
+    expect(storage.save).not.toHaveBeenCalled();
+  });
+
   it("returns defensive copies from lists, getActive, and notifications", () => {
     const store = makeStore();
     const list = store.list();
