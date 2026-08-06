@@ -96,6 +96,8 @@ describe("fetchReferenceClip", () => {
   it.each([
     "http://127.0.0.1:1420/references/ayase.mp3",
     "https://example.com/references/ayase.mp3",
+    "file:///etc/passwd",
+    "data:audio/mpeg;base64,AAAA",
   ])("uses the injected fetch for %s", async (refUrl) => {
     const blob = new Blob([new Uint8Array([4, 5, 6])], { type: "audio/mpeg" });
     const globalFetch = vi.fn<FetchFn>();

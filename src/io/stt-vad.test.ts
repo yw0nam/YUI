@@ -84,6 +84,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 // ── import after mocks ────────────────────────────────────────────────────────
@@ -327,6 +328,8 @@ describe("createSttVad — start() failure handling (#64)", () => {
 describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => {
   it("fetches /audio/transcriptions and calls onVoiceSegment with text", async () => {
     const fetchMock = buildFetchMock("こんにちは");
+    const wrongTransport = buildFetchMock("wrong transport");
+    vi.stubGlobal("fetch", wrongTransport);
 
     const onVoiceSegment = vi.fn();
     const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
@@ -338,6 +341,7 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
 
     // Must POST to stt_base_url/audio/transcriptions (server has the /v1 prefix)
     expect(fetchMock).toHaveBeenCalledOnce();
+    expect(wrongTransport).not.toHaveBeenCalled();
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("http://localhost:5517/v1/audio/transcriptions");
     expect(init.method).toBe("POST");
@@ -346,6 +350,20 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     // text forwarded
     expect(onVoiceSegment).toHaveBeenCalledOnce();
     expect(onVoiceSegment).toHaveBeenCalledWith("こんにちは");
+  });
+
+  it("uses globalThis.fetch when no fetch is injected", async () => {
+    const globalFetch = buildFetchMock("global transport");
+    vi.stubGlobal("fetch", globalFetch);
+
+    const onVoiceSegment = vi.fn();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    await stt.start();
+
+    await triggerSpeechEnd!(new Float32Array([0.1, 0.2, 0.3]));
+
+    expect(globalFetch).toHaveBeenCalledOnce();
+    expect(onVoiceSegment).toHaveBeenCalledWith("global transport");
   });
 
   it("sends audio as a Blob under the key 'file' in FormData", async () => {
