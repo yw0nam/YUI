@@ -27,6 +27,7 @@ export const STT_REQUEST_TIMEOUT_MS = 10_000;
 
 export interface SttVadOptions {
   config: EndpointsConfig;
+  fetch?: typeof fetch;
   /**
    * Silence window in ms before speech end is declared. Default 1500.
    * Accepts a getter so a live setting is read at each start(), not pinned at construction.
@@ -133,12 +134,15 @@ export function createSttVad(options: SttVadOptions): SttVad {
     try {
       // Bearer only — never set Content-Type here: FormData needs the browser-set multipart boundary.
       const key = (await getApiKey?.())?.trim() || undefined;
-      const res = await fetch(`${config.stt_base_url}/audio/transcriptions`, {
-        method: "POST",
-        body: form,
-        headers: key ? { Authorization: `Bearer ${key}` } : undefined,
-        signal: deadline.signal,
-      });
+      const res = await (options.fetch ?? globalThis.fetch)(
+        `${config.stt_base_url}/audio/transcriptions`,
+        {
+          method: "POST",
+          body: form,
+          headers: key ? { Authorization: `Bearer ${key}` } : undefined,
+          signal: deadline.signal,
+        },
+      );
       if (!res.ok) {
         log.warn("stt_request_failed", { status: res.status });
         onState?.("error", `HTTP ${res.status}`);

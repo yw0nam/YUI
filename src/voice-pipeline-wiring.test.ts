@@ -457,10 +457,14 @@ describe("wireVoicePipeline", () => {
   it("wires STT callbacks, state, credentials, and the endpoints snapshot", async () => {
     const state = setup();
     const snapshot = endpoints({ stt_base_url: "http://snapshot.test/v1" });
+    const selectedFetch = vi.fn<typeof fetch>();
+    mocks.selectFetch.mockResolvedValueOnce(selectedFetch);
     const result = await state.voice.createSttEngine(snapshot);
     const options = mocks.captured.sttVad as SttVadOptions;
 
     expect(result).toBe(mocks.sttVad);
+    expect(mocks.selectFetch).toHaveBeenCalledOnce();
+    expect(options.fetch).toBe(selectedFetch);
     expect(options.config).toBe(snapshot);
     expect(options.getApiKey).toBe(state.getSttApiKey);
     options.onVoiceSegment("transcript");
