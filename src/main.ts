@@ -44,6 +44,7 @@ import { createBackendCaller } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
+import { createTurnLog } from "./dispatcher/turn";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
 import { resolveAssetUrl } from "./io/asset-url";
@@ -614,9 +615,13 @@ async function bootstrap(): Promise<void> {
       "TTS API 키 미설정 — openai 호환 TTS가 키를 요구하면 401 가능. .env.local(VITE_YUI_TTS_KEY) 참고. (irodori는 불필요)",
     );
   }
+  // Turn identity + the single definition of "over". Dependency-free, so it is created before
+  // anything that reports to or reads from it.
+  const turnLog = createTurnLog();
   const voice = wireVoicePipeline({
     renderer,
     surfaces,
+    turnLog,
     getEndpoints,
     getFillerConfig: () => config.get().filler,
     getTtsApiKey: () => config.secrets.get(TTS_API_KEY_SECRET),
@@ -711,7 +716,7 @@ async function bootstrap(): Promise<void> {
       },
       peekConfig: () => peekConfig,
       tapConfig: () => tapConfig,
-      isSpeaking: () => voice.speechPlayback.isSpeaking(),
+      isSpeaking: () => turnLog.isAudioOwed(),
       // Surface only user-initiated turn failures (proactive/schedule/agent log only — silent by design).
       // Route by source (text/voice) — checking isInputOpen() only at failure time risks misrouting
       // escaped typed turns to voice surface, so routeTurnFailure prioritizes source.

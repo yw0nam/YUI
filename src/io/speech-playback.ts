@@ -45,6 +45,8 @@ export interface SpeechPlaybackOptions {
   createPipeline?: (opts: TtsPipelineOptions) => TtsPipeline;
   /** Called after stopMouth/finishSpeech/easeEmotionToNeutral on each playback-end. */
   onPlaybackEnd?: () => void;
+  /** Reports whether the pipeline still owes audio. Called after every state change that can flip it. */
+  reportAudioOwed?: (owed: boolean) => void;
 }
 
 export interface SpeechPlayback {
@@ -62,8 +64,6 @@ export interface SpeechPlayback {
    * easeEmotionToNeutral still fires — only the motion reset is suppressed.
    */
   holdMotion(held: boolean): void;
-  /** Whether audio is owed: playing now, or still queued for a finished reply. False once nothing remains to play. */
-  isSpeaking(): boolean;
   /** Interrupts an in-progress utterance: dispose/rebuild the pipeline + release the held bubble immediately. */
   interrupt(opts?: { muteCurrentTurn?: boolean }): void;
   /** Cleanup on abnormal end (error/network drop): dispose the pipeline + release the held bubble immediately. No rebuild, as there's no next turn. */
@@ -77,8 +77,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
 
   let motionHeld = false;
   let heldCue: ExpressArgs | null = null;
-  // TTS-active window: opened by the first played audio frame, closed on playback-end/interrupt/abort.
-  let speaking = false;
+  // Real audio reached the speakers during the current utterance; cleared on playback-end/interrupt/abort.
+  let heardAudio = false;
   let muted = false;
 
   // fires when a sentence begins playback or its synth fails — audio-timed expression seam.
@@ -99,8 +99,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     return factory({
       ...options.pipeline,
       onAmplitude: (rms) => {
-        // Fires only when real audio plays (synth-failed/TTS-off sentences don't reach here) — the true barge-in signal.
-        speaking = true;
+        // Fires only when real audio plays (synth-failed/TTS-off sentences don't reach here).
+        heardAudio = true;
         renderer.setMouthOpen(rms);
       },
       onCuePlay: (cue) => applyCue(cue),
@@ -109,8 +109,9 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
         surfaces.finishSpeech();
         // When speech ends, the expression also slowly returns to neutral — so the previous emotion isn't trapped forever.
         renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
-        speaking = false;
+        heardAudio = false;
         options.onPlaybackEnd?.();
+        reportAudioOwed();
       },
     });
   }
@@ -120,6 +121,11 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   let started = false;
   const stripper = createEmojiStripper();
 
+  // Single call site for the reporting expression — every state change that can flip it calls this.
+  function reportAudioOwed(): void {
+    options.reportAudioOwed?.(pipeline.hasOutstandingWork());
+  }
+
   function delta(text: string): void {
     const clean = stripper.push(text);
     if (!started) {
@@ -128,6 +134,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     }
     surfaces.pushSpeech(clean);
     if (!muted) pipeline.pushTextDelta(clean);
+    reportAudioOwed();
   }
 
   function end(): void {
@@ -139,6 +146,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     surfaces.endSpeech({ defer: true });
     pipeline.end();
     started = false;
+    reportAudioOwed();
   }
 
   return {
@@ -172,9 +180,6 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
         }
       }
     },
-    isSpeaking() {
-      return speaking || pipeline.hasOutstandingWork();
-    },
     interrupt(opts) {
       stripper.reset();
       pipeline.dispose();
@@ -183,9 +188,10 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       surfaces.endSpeech();
       started = false;
       // Also runs as routine pre-turn cleanup when nothing was speaking — only ease if it cut off real audio.
-      if (speaking) renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
-      speaking = false;
+      if (heardAudio) renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
+      heardAudio = false;
       muted = opts?.muteCurrentTurn === true;
+      reportAudioOwed();
     },
     abort() {
       stripper.reset();
@@ -195,8 +201,9 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       started = false;
       // Terminal like onPlaybackEnd — no next turn to re-assert an expression, so always ease.
       renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
-      speaking = false;
+      heardAudio = false;
       muted = false;
+      reportAudioOwed();
     },
     dispose() {
       pipeline.dispose();

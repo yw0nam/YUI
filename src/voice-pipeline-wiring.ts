@@ -1,5 +1,6 @@
 import type { AppConfig } from "./config/load";
 import type { EndpointsConfig } from "./contract";
+import type { TurnLog } from "./dispatcher/turn";
 import type { TurnOutput } from "./dispatcher/turn-output";
 import { createWebAudioSink } from "./io/audio-player";
 import { selectFetch } from "./io/chat-client";
@@ -33,6 +34,7 @@ type VoiceSurfaces = Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech" |
 interface VoicePipelineDeps {
   renderer: VoiceRenderer;
   surfaces: VoiceSurfaces;
+  turnLog: TurnLog;
   getEndpoints: () => EndpointsConfig;
   getFillerConfig: () => AppConfig["filler"];
   getTtsApiKey: () => Promise<string | undefined>;
@@ -164,13 +166,14 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   // Filler loop speaks via speechPlayback (speak), playback completion (onPlaybackEnd) triggers
   // the loop's next iteration — mutual reference, break the cycle with a forward let.
   let fillerLoop: FillerLoop | undefined;
-  // Token of the turn owning current thinking — late onThinkingEnd of an overtaken turn must not
-  // clean up the single fillerLoop/motion, so ignore it when the token differs.
-  let currentThinkingTurn: object | null = null;
+  // Id of the turn owning current thinking — late onThinkingEnd of an overtaken turn must not
+  // clean up the single fillerLoop/motion, so ignore it when the id differs.
+  let thinkingTurnId: number | null = null;
   const speechPlayback = createSpeechPlayback({
     renderer: deps.renderer,
     surfaces: deps.surfaces,
     onPlaybackEnd: () => fillerLoop?.onUtteranceDone(),
+    reportAudioOwed: (owed) => deps.turnLog.setAudioOwed(owed),
     pipeline: {
       sink: createWebAudioSink({ getGain: () => deps.lipsyncSettings.get().gain }),
       maxInflight: () => deps.getEndpoints().tts_max_inflight ?? 1,
@@ -192,17 +195,17 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     return pool.first.length > 0 || pool.repeat.length > 0;
   }
 
-  function onThinkingStart(token: object): void {
-    currentThinkingTurn = token;
+  function onThinkingStart(): void {
+    thinkingTurnId = deps.turnLog.current()?.id ?? null;
     // hold BEFORE the first filler can speak so no filler sentence resets the motion.
     speechPlayback.holdMotion(true);
     deps.renderer.playMotion({ id: "thinking", loop: true });
     fillerLoop?.start();
   }
 
-  function onThinkingEnd(token: object): void {
-    if (token !== currentThinkingTurn) return;
-    currentThinkingTurn = null;
+  function onThinkingEnd(): void {
+    if (thinkingTurnId === null || thinkingTurnId !== deps.turnLog.current()?.id) return;
+    thinkingTurnId = null;
     speechPlayback.holdMotion(false);
     fillerLoop?.stop();
     // thinking is loop:true — without an explicit return to idle it spins forever and pollutes previousStable.
@@ -230,7 +233,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       onVoiceSegment: deps.onVoiceSegment,
       onState: (state, detail) => deps.voiceInputStatus.set(state, detail),
       onSpeechActive: () => {
-        if (deps.vadSettings.get().bargeIn && speechPlayback.isSpeaking()) {
+        if (deps.vadSettings.get().bargeIn && deps.turnLog.isAudioOwed()) {
           speechPlayback.interrupt({ muteCurrentTurn: true });
         }
       },
