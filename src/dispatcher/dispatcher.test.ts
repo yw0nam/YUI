@@ -2132,4 +2132,56 @@ describe("dispatcher — structured logging: turn events", () => {
     );
     expect(backendCallInfoLines).toHaveLength(0);
   });
+
+  it("a turn displaced by supersede while owing audio reports spoke:true on its own line", async () => {
+    dispatcher.start();
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    const firstId = turnLog.current()!.id;
+
+    // turn 1 owes audio and is still in flight when a second user message supersedes it.
+    setSpeaking(true);
+    bus.push(env({ ts: NOW + 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]![1].id).toBe(firstId);
+    expect(lines[0]![1].spoke).toBe(true);
+  });
+
+  it("the drain path preserves the completed turn's real outcome instead of superseded_by_user", async () => {
+    function nonUserEnv(over: Partial<BusEnvelope> = {}): BusEnvelope {
+      return {
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW,
+        hint_tier: 2,
+        dnd_override: false,
+        ...over,
+      };
+    }
+
+    dispatcher.start();
+    bus.push(nonUserEnv({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    const firstId = turnLog.current()!.id;
+
+    // a second non-user turn defers behind the first (no supersede for non-user triggers).
+    bus.push(nonUserEnv({ event_name: "idle.long", ts: NOW + 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+
+    // turn 1 succeeds; the drain in .finally() starts turn 2 before turn 1 is settled.
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    const secondId = turnLog.current()!.id;
+    expect(secondId).not.toBe(firstId);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(2);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]![1].id).toBe(firstId);
+    expect(lines[0]![1].outcome).toBe("ok");
+  });
 });
