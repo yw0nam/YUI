@@ -1859,6 +1859,39 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
     await vi.advanceTimersByTimeAsync(50);
     expect(seen).toEqual([true, false]);
   });
+
+  it("draining a deferred item into a settled, silent turn's slot: busy stays true with no edge", async () => {
+    const seen: boolean[] = [];
+    dispatcher.subscribePipelineBusy((b) => seen.push(b));
+    dispatcher.start();
+    // both non-user, so neither pop triggers a supersede sweep — the second is genuinely deferred.
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        ts: NOW,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.long",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(seen).toEqual([true]);
+
+    // first call settles owing no audio, with the second item still pending — immediate drain.
+    callDeferred[0]!.resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(seen).toEqual([true]);
+  });
 });
 
 describe("dispatcher — cooldown state mirror (§6.3/§9)", () => {
