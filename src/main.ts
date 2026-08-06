@@ -716,7 +716,7 @@ async function bootstrap(): Promise<void> {
       },
       peekConfig: () => peekConfig,
       tapConfig: () => tapConfig,
-      isSpeaking: () => turnLog.isAudioOwed(),
+      turnLog,
       // Surface only user-initiated turn failures (proactive/schedule/agent log only — silent by design).
       // Route by source (text/voice) — checking isInputOpen() only at failure time risks misrouting
       // escaped typed turns to voice surface, so routeTurnFailure prioritizes source.
