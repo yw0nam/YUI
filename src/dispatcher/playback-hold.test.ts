@@ -17,7 +17,6 @@ import { createBackendCaller } from "./backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
 import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
-import { createTurnLog, type TurnLog } from "./turn";
 import {
   CONFIG,
   completedEvent,
@@ -26,6 +25,7 @@ import {
   makeLogger,
   userEnv,
 } from "./test-helpers";
+import { createTurnLog, type TurnLog } from "./turn";
 
 const NOW = 1_717_000_000_000;
 
