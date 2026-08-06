@@ -1,10 +1,10 @@
 import type { ContextSettings, createContextSettings } from "../../io/context-settings";
 import type { createEndpointsSettings } from "../../io/endpoints-settings";
-import { type createRecentAppsSettings, RECENT_APPS_CEIL } from "../../io/recent-apps-settings";
+import type { ClampedIntSettingsStore } from "../../io/persisted-store";
+import { RECENT_APPS_CEIL } from "../../io/settings-stores";
 import { t } from "../i18n";
 
 type ContextStore = ReturnType<typeof createContextSettings>;
-type RecentAppsStore = ReturnType<typeof createRecentAppsSettings>;
 type EndpointsStore = ReturnType<typeof createEndpointsSettings>;
 
 const TOGGLES: Array<{
@@ -38,7 +38,7 @@ export function createAdvancedSettings(
   mount: HTMLElement,
   deps: {
     context: ContextStore;
-    recentApps: RecentAppsStore;
+    recentApps: ClampedIntSettingsStore;
     endpoints: EndpointsStore;
     defaultContextWindow?: number;
   },
@@ -105,7 +105,7 @@ export function createAdvancedSettings(
   );
   recentApps.max = String(RECENT_APPS_CEIL);
   recentApps.addEventListener("change", () => {
-    deps.recentApps.setRecentAppsMax(Number(recentApps.value));
+    deps.recentApps.set(Number(recentApps.value));
   });
 
   const contextWindow = numericRow(
@@ -125,7 +125,7 @@ export function createAdvancedSettings(
     }
   }
   function reflectRecent(): void {
-    recentApps.value = String(deps.recentApps.get().recent_apps_max);
+    recentApps.value = String(deps.recentApps.get().value);
   }
   function reflectEndpoints(): void {
     contextWindow.value = deps.endpoints.get().chat_model_context_window;

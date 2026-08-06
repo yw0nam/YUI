@@ -5,7 +5,8 @@ import { createConfigStore } from "./config";
 import { createContextHistory, localStorageContextHistory } from "./io/context-history";
 import { createContextSettings, localStorageContextSettings } from "./io/context-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
-import { createRecentAppsSettings, localStorageRecentAppsStorage } from "./io/recent-apps-settings";
+import { createClampedIntSettings, localStorageStore } from "./io/persisted-store";
+import { RECENT_APPS_CEIL, RECENT_APPS_FLOOR } from "./io/settings-stores";
 import { wireStorageSync } from "./io/settings-window";
 import { createLogger, initLogger } from "./logger";
 import { createDevtoolsShell } from "./ui/devtools/shell";
@@ -25,9 +26,10 @@ async function bootstrap(): Promise<void> {
 
   const history = createContextHistory({ storage: localStorageContextHistory() });
   const contextSettings = createContextSettings({ storage: localStorageContextSettings() });
-  const recentAppsSettings = createRecentAppsSettings({
-    storage: localStorageRecentAppsStorage(),
-  });
+  const recentAppsSettings = createClampedIntSettings(
+    { default: 10, floor: RECENT_APPS_FLOOR, ceil: RECENT_APPS_CEIL },
+    { storage: localStorageStore("yui.recent-apps") },
+  );
   const endpointsSettings = createEndpointsSettings({
     storage: localStorageEndpointsStorage(),
   });

@@ -23,7 +23,7 @@ import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { selectFetch } from "./io/chat-client";
 import { ensureRegistered, updateVoice } from "./io/irodori-voices";
-import type { PresenceSettings } from "./io/presence-settings";
+import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
 import { createSettingsBridge, type SettingsBridge } from "./io/settings-bridge";
@@ -446,7 +446,7 @@ export function wireWindowSources(deps: {
  */
 export function wireDispatcherSources(deps: {
   bus: EventBus;
-  presenceSettings: { get(): PresenceSettings };
+  presenceSettings: Pick<ClampedIntSettingsStore, "get">;
   proactiveSettings: { get(): ProactiveSettings };
   scheduleSettings: { get(): ScheduleSettings };
   agentNotifySettings: { get(): AgentNotifySettings };
@@ -467,21 +467,21 @@ export function wireDispatcherSources(deps: {
   } = deps;
   const proactiveSource = createProactiveSource({
     bus,
-    present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
+    present_max_idle_ms: presenceSettings.get().value,
     getCues: () => proactiveSettings.get().entries,
     isEnabled: () => proactiveSettings.get().enabled,
   });
   void proactiveSource.start();
   const scheduleSource = createScheduleSource({
     bus,
-    present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
+    present_max_idle_ms: presenceSettings.get().value,
     getCues: () => scheduleSettings.get().entries,
     isEnabled: () => scheduleSettings.get().enabled,
   });
   void scheduleSource.start();
   const agentSource = createAgentSource({
     bus,
-    present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
+    present_max_idle_ms: presenceSettings.get().value,
     isEnabled: () => agentNotifySettings.get().enabled,
     isPipelineBusy: pipelineBusy.isBusy,
     subscribePipelineBusy: pipelineBusy.subscribe,
@@ -489,7 +489,7 @@ export function wireDispatcherSources(deps: {
   void agentSource.start();
   const signalsSource = createSignalsSource({
     bus,
-    present_max_idle_ms: presenceSettings.get().present_max_idle_ms,
+    present_max_idle_ms: presenceSettings.get().value,
     isEnabled: () => agentNotifySettings.get().enabled,
     isPipelineBusy: pipelineBusy.isBusy,
     subscribePipelineBusy: pipelineBusy.subscribe,

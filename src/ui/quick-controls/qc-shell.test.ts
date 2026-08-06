@@ -6,9 +6,8 @@ import { createAgentSettings } from "../../io/agent-settings";
 import { createChatKeySettings } from "../../io/chat-key-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
 import { createLipsyncSettings } from "../../io/lipsync-settings";
-import { createPresenceSettings } from "../../io/presence-settings";
+import { createClampedIntSettings } from "../../io/persisted-store";
 import { createProactiveSettings } from "../../io/proactive-settings";
-import { createRecentAppsSettings } from "../../io/recent-apps-settings";
 import { createScheduleSettings } from "../../io/schedule-settings";
 import { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
 import { createSessionStore } from "../../io/session-store";
@@ -22,6 +21,14 @@ import {
   makeSpeakerSelection,
   makeVrmSelection,
 } from "./test-helpers";
+
+const createPresenceStore = () =>
+  createClampedIntSettings({
+    default: 180000,
+    floor: 10000,
+    ceil: Number.MAX_SAFE_INTEGER,
+  });
+const createRecentAppsStore = () => createClampedIntSettings({ default: 10, floor: 1, ceil: 50 });
 
 describe("createQuickControls — shell", () => {
   let mount: HTMLElement;
@@ -740,7 +747,7 @@ describe("createQuickControls — Reactions tab", () => {
   });
 
   it("renders #yui-presence inside #yui-panel-react when presenceSettings is provided", () => {
-    const presenceSettings = createPresenceSettings();
+    const presenceSettings = createPresenceStore();
     const qc = buildQc({ presenceSettings });
     qc.open();
     const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence");
@@ -750,19 +757,19 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 
-  it("#yui-presence reflects presenceSettings.present_max_idle_ms/1000 on open", () => {
-    const presenceSettings = createPresenceSettings();
+  it("#yui-presence reflects presenceSettings.value/1000 on open", () => {
+    const presenceSettings = createPresenceStore();
     const qc = buildQc({ presenceSettings });
     qc.open();
     const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
-    // Default present_max_idle_ms = 180000 → 180 s
+    // Default value = 180000 ms → 180 s
     expect(presenceInput.value).toBe("180");
     qc.dispose();
   });
 
-  it("change on #yui-presence calls presenceSettings.setPresentMaxIdleMs(s * 1000)", () => {
-    const presenceSettings = createPresenceSettings();
-    const setSpy = vi.spyOn(presenceSettings, "setPresentMaxIdleMs");
+  it("change on #yui-presence calls presenceSettings.set(s * 1000)", () => {
+    const presenceSettings = createPresenceStore();
+    const setSpy = vi.spyOn(presenceSettings, "set");
     const qc = buildQc({ presenceSettings });
     qc.open();
     const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
@@ -772,12 +779,12 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 
-  it("external presenceSettings.setPresentMaxIdleMs reflects into #yui-presence while open", () => {
-    const presenceSettings = createPresenceSettings();
+  it("external presenceSettings.set reflects into #yui-presence while open", () => {
+    const presenceSettings = createPresenceStore();
     const qc = buildQc({ presenceSettings });
     qc.open();
     const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
-    presenceSettings.setPresentMaxIdleMs(60000);
+    presenceSettings.set(60000);
     expect(presenceInput.value).toBe("60");
     qc.dispose();
   });
@@ -790,7 +797,7 @@ describe("createQuickControls — Reactions tab", () => {
   });
 
   it("renders #yui-recent-apps inside #yui-panel-react when recentAppsSettings is provided", () => {
-    const recentAppsSettings = createRecentAppsSettings();
+    const recentAppsSettings = createRecentAppsStore();
     const qc = buildQc({ recentAppsSettings });
     qc.open();
     const recentAppsInput = qc.el.querySelector<HTMLInputElement>("#yui-recent-apps");
@@ -800,9 +807,9 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 
-  it("change on #yui-recent-apps calls recentAppsSettings.setRecentAppsMax(n)", () => {
-    const recentAppsSettings = createRecentAppsSettings();
-    const setSpy = vi.spyOn(recentAppsSettings, "setRecentAppsMax");
+  it("change on #yui-recent-apps calls recentAppsSettings.set(n)", () => {
+    const recentAppsSettings = createRecentAppsStore();
+    const setSpy = vi.spyOn(recentAppsSettings, "set");
     const qc = buildQc({ recentAppsSettings });
     qc.open();
     const recentAppsInput = qc.el.querySelector<HTMLInputElement>("#yui-recent-apps")!;
@@ -832,15 +839,15 @@ describe("createQuickControls — Reactions tab", () => {
   });
 
   it("below-floor value in #yui-presence snaps back: store unchanged, input reverts to 180", () => {
-    const presenceSettings = createPresenceSettings(); // default present_max_idle_ms = 180000
-    const setSpy = vi.spyOn(presenceSettings, "setPresentMaxIdleMs");
+    const presenceSettings = createPresenceStore();
+    const setSpy = vi.spyOn(presenceSettings, "set");
     const qc = buildQc({ presenceSettings });
     qc.open();
     const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
     presenceInput.value = "5"; // 5 s → 5000 ms — below the 10 000 ms floor
     presenceInput.dispatchEvent(new Event("change", { bubbles: true }));
     expect(setSpy).toHaveBeenCalledWith(5000); // setter was invoked but rejected
-    expect(presenceSettings.get().present_max_idle_ms).toBe(180000); // store unchanged
+    expect(presenceSettings.get().value).toBe(180000); // store unchanged
     expect(presenceInput.value).toBe("180"); // input snapped back
     qc.dispose();
   });

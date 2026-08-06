@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFillerSettings } from "../../io/filler-settings";
-import {
-  createRailCollapsedSettings,
-  localStorageRailCollapsedStorage,
-} from "../../io/rail-collapsed-settings";
+import { createFlagSettings, localStorageStore } from "../../io/persisted-store";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../io/vad-settings";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "../quick-controls";
@@ -544,8 +541,8 @@ describe("createQuickControls — sections rail collapse", () => {
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     return createQuickControls({
       ...defaultQcArgs(mount),
-      railCollapsedSettings: createRailCollapsedSettings({
-        storage: localStorageRailCollapsedStorage(),
+      railCollapsedSettings: createFlagSettings(false, {
+        storage: localStorageStore("yui.quickControls.railCollapsed"),
       }),
       ...extra,
     });
@@ -574,18 +571,18 @@ describe("createQuickControls — sections rail collapse", () => {
     collapseBtn.click();
     expect(cols.classList.contains("is-rail-collapsed")).toBe(true);
     expect(collapseBtn.getAttribute("aria-expanded")).toBe("false");
-    expect(globalThis.localStorage.getItem(RAIL_COLLAPSED_KEY)).toBe("true");
+    expect(globalThis.localStorage.getItem(RAIL_COLLAPSED_KEY)).toBe('{"enabled":true}');
 
     collapseBtn.click();
     expect(cols.classList.contains("is-rail-collapsed")).toBe(false);
     expect(collapseBtn.getAttribute("aria-expanded")).toBe("true");
-    expect(globalThis.localStorage.getItem(RAIL_COLLAPSED_KEY)).toBe("false");
+    expect(globalThis.localStorage.getItem(RAIL_COLLAPSED_KEY)).toBe('{"enabled":false}');
 
     qc.dispose();
   });
 
   it("reads the persisted collapsed state on build, applied before first paint", () => {
-    globalThis.localStorage.setItem(RAIL_COLLAPSED_KEY, "true");
+    globalThis.localStorage.setItem(RAIL_COLLAPSED_KEY, '{"enabled":true}');
     const qc = buildQc();
     qc.open();
 
@@ -598,7 +595,7 @@ describe("createQuickControls — sections rail collapse", () => {
   });
 
   it("tabs stay clickable and switch panels while the rail is collapsed", () => {
-    globalThis.localStorage.setItem(RAIL_COLLAPSED_KEY, "true");
+    globalThis.localStorage.setItem(RAIL_COLLAPSED_KEY, '{"enabled":true}');
     const qc = buildQc();
     qc.open();
 
@@ -618,7 +615,7 @@ describe("createQuickControls — sections rail collapse", () => {
   });
 
   it("the indicator still tracks the active tab (--tab custom property) while collapsed", () => {
-    globalThis.localStorage.setItem(RAIL_COLLAPSED_KEY, "true");
+    globalThis.localStorage.setItem(RAIL_COLLAPSED_KEY, '{"enabled":true}');
     const qc = buildQc();
     qc.open();
 

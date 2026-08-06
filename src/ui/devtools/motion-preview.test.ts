@@ -4,8 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createContextHistory } from "../../io/context-history";
 import { createContextSettings } from "../../io/context-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
-import { createRecentAppsSettings } from "../../io/recent-apps-settings";
+import { createClampedIntSettings } from "../../io/persisted-store";
 import { createDevtoolsShell } from "./shell";
+
+const createRecentAppsStore = () => createClampedIntSettings({ default: 10, floor: 1, ceil: 50 });
 
 describe("Motion Preview section", () => {
   beforeEach(() => {
@@ -18,7 +20,7 @@ describe("Motion Preview section", () => {
       mount: document.querySelector("#app")!,
       history: createContextHistory(),
       contextSettings: createContextSettings(),
-      recentAppsSettings: createRecentAppsSettings(),
+      recentAppsSettings: createRecentAppsStore(),
       endpointsSettings: createEndpointsSettings(),
       loadMotionPreview,
     });
@@ -39,7 +41,7 @@ describe("Motion Preview section", () => {
       mount: document.querySelector("#app")!,
       history: createContextHistory(),
       contextSettings: createContextSettings(),
-      recentAppsSettings: createRecentAppsSettings(),
+      recentAppsSettings: createRecentAppsStore(),
       endpointsSettings: createEndpointsSettings(),
       loadMotionPreview,
     });
@@ -62,7 +64,7 @@ describe("Motion Preview section", () => {
       mount: document.querySelector("#app")!,
       history: createContextHistory(),
       contextSettings: createContextSettings(),
-      recentAppsSettings: createRecentAppsSettings(),
+      recentAppsSettings: createRecentAppsStore(),
       endpointsSettings: createEndpointsSettings(),
       loadMotionPreview,
     });

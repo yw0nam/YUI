@@ -3,9 +3,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createContextSettings } from "../../io/context-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
-import { createRecentAppsSettings } from "../../io/recent-apps-settings";
+import { createClampedIntSettings } from "../../io/persisted-store";
 import { setLocale } from "../i18n";
 import { createAdvancedSettings } from "./advanced-settings";
+
+const createRecentAppsStore = () => createClampedIntSettings({ default: 10, floor: 1, ceil: 50 });
 
 describe("Advanced Settings", () => {
   beforeEach(() => setLocale("en"));
@@ -13,7 +15,7 @@ describe("Advanced Settings", () => {
   it("binds context toggles and numeric settings to their existing stores", () => {
     const mount = document.createElement("section");
     const context = createContextSettings();
-    const recentApps = createRecentAppsSettings();
+    const recentApps = createRecentAppsStore();
     const endpoints = createEndpointsSettings();
     createAdvancedSettings(mount, { context, recentApps, endpoints });
 
@@ -23,7 +25,7 @@ describe("Advanced Settings", () => {
     const cap = mount.querySelector<HTMLInputElement>("#devtools-recent-apps-cap")!;
     cap.value = "14";
     cap.dispatchEvent(new Event("change"));
-    expect(recentApps.get().recent_apps_max).toBe(14);
+    expect(recentApps.get().value).toBe(14);
 
     const window = mount.querySelector<HTMLInputElement>("#devtools-context-window")!;
     window.value = "64000";
@@ -36,7 +38,7 @@ describe("Advanced Settings", () => {
     const mount = document.createElement("section");
     createAdvancedSettings(mount, {
       context: createContextSettings(),
-      recentApps: createRecentAppsSettings(),
+      recentApps: createRecentAppsStore(),
       endpoints: createEndpointsSettings(),
     });
 

@@ -15,8 +15,8 @@ import {
 import { createSttKeySettings, createTtsKeySettings } from "../../io/api-key-settings";
 import { createChatKeySettings } from "../../io/chat-key-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
-import { createIdleThrottleSettings } from "../../io/idle-throttle-settings";
 import { createLipsyncSettings } from "../../io/lipsync-settings";
+import { createFlagSettings } from "../../io/persisted-store";
 import { createProactiveSettings } from "../../io/proactive-settings";
 import { createScheduleSettings } from "../../io/schedule-settings";
 import { createSpeakerSelection, type SpeakerOption } from "../../io/speaker-selection";
@@ -136,7 +136,7 @@ export function defaultQcArgs(mount: HTMLElement) {
   return {
     mount,
     settings: makeSettings(),
-    idleThrottleSettings: createIdleThrottleSettings(),
+    idleThrottleSettings: createFlagSettings(true),
     sourceProvider: makeSourceProvider(),
     voiceStatus: makeVoiceStatus(),
     lipsync: createLipsyncSettings(),
