@@ -32,6 +32,11 @@ system, and if either changes, the single-turn model is the first thing to break
    into the new turn.
 2. `dispatcher` holds a non-user turn while audio is owed, so a second turn is not admitted underneath a
    speaking one.
+3. A supersede either admits a successor turn or aborts speech, so an aborted turn's audio is never left
+   playing with nothing to report it finished. User envelopes carry `dnd_override: true`, which
+   short-circuits `guardrails.evaluate` to pass, so `supersedeByUser` always admits its successor; the
+   only production `cancel()` call sites pair it with an explicit speech abort. If either is relaxed, an
+   aborted mid-stream turn can leave `audioOwed` stuck true with no successor to clear it.
 
 Identity is carried by the caller, not looked up. `thinkingStart`/`thinkingEnd` take the turn id as an
 argument because a callee reading the ledger cannot tell which turn called it: a superseded turn's late
