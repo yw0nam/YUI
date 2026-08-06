@@ -165,6 +165,8 @@ interface BackendCallerDeps {
   contextHistory?: { append(entry: ContextHistoryEntry): void };
   /** Structured logging (defaults to backend_caller namespace logger if absent). */
   logger?: Logger;
+  /** Chat stream transport. Defaults to the real streamChat; injected in tests to script a turn. */
+  stream?: typeof streamChat;
 }
 
 export interface BackendCaller {
@@ -209,6 +211,7 @@ async function* withIdleWatchdog<T>(
 
 export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   const log = deps.logger ?? baseLog;
+  const stream = deps.stream ?? streamChat;
 
   /**
    * InputContext → OpenAI Responses input — one user item carrying the tagged client_context
@@ -372,7 +375,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         let idleTimedOut = false;
         try {
           for await (const ev of withIdleWatchdog(
-            streamChat(deps.config, request, { apiKey, fetch: fetchImpl }),
+            stream(deps.config, request, { apiKey, fetch: fetchImpl }),
             IDLE_TIMEOUT_MS,
             () => {
               idleTimedOut = true;

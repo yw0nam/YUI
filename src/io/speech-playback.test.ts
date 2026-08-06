@@ -19,6 +19,7 @@ import type { TtsPipeline, TtsPipelineOptions } from "./tts-pipeline";
 function stubPipelineFactory() {
   const calls = { pushTextDelta: [] as string[], ended: 0, disposed: 0 };
   let captured: TtsPipelineOptions | null = null;
+  let outstanding = false;
   const factory = (opts: TtsPipelineOptions): TtsPipeline => {
     captured = opts;
     return {
@@ -27,6 +28,7 @@ function stubPipelineFactory() {
       end: () => {
         calls.ended++;
       },
+      hasOutstandingWork: () => outstanding,
       dispose: () => {
         calls.disposed++;
       },
@@ -35,6 +37,9 @@ function stubPipelineFactory() {
   return {
     factory,
     calls,
+    setOutstandingWork: (v: boolean) => {
+      outstanding = v;
+    },
     emitAmplitude: (v: number) => captured?.onAmplitude?.(v),
     emitPlaybackEnd: () => captured?.onPlaybackEnd?.(),
     emitCuePlay: (cue: ExpressArgs | null) => captured?.onCuePlay?.(cue),
@@ -59,6 +64,7 @@ function multiPipelineFactory() {
       pushTextDelta: vi.fn(),
       setCue: vi.fn(),
       end: vi.fn(),
+      hasOutstandingWork: vi.fn(() => false),
       dispose: vi.fn(),
       onAmplitude: opts.onAmplitude,
       onPlaybackEnd: opts.onPlaybackEnd,
@@ -290,6 +296,19 @@ describe("createSpeechPlayback — isSpeaking (barge-in TTS-active window, #279)
     stub.emitAmplitude(0.4);
     stub.emitPlaybackEnd();
     expect(sp.isSpeaking()).toBe(false);
+  });
+
+  it("is true while the pipeline still owes audio, before the first amplitude frame", () => {
+    // stream-done → first-audio window: synth in flight, nothing played yet. Admitting a
+    // new turn here would destroy a finished reply before any of it is heard.
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+
+    sp.onSpeech("Hello.");
+    stub.setOutstandingWork(true);
+    expect(sp.isSpeaking()).toBe(true);
   });
 
   it("is false after interrupt()", () => {

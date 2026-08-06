@@ -33,6 +33,8 @@ export interface TtsPipeline {
   setCue(cue: ExpressArgs | null): void;
   end(): void;
   dispose(): void;
+  /** True whenever the pipeline still owes audio playback (submitted-not-played, or a chunk mid-play). */
+  hasOutstandingWork(): boolean;
 }
 
 export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
@@ -170,6 +172,10 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   }
 
   return {
+    hasOutstandingWork() {
+      return !disposed && (submitted > nextToPlay || pumping);
+    },
+
     pushTextDelta(token) {
       if (disposed) return;
       for (const sentence of segmenter.push(token)) submit(sentence);
