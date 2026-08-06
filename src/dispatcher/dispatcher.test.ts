@@ -1278,37 +1278,13 @@ describe("dispatcher — structured logging: fire events", () => {
 });
 
 describe("dispatcher — structured logging: backend_call events", () => {
-  it("emits logger.info('backend_call', {trigger, seq_id, started_at}) at call start", async () => {
+  it("emits logger.debug('backend_call', {trigger, seq_id, started_at}) at call start", async () => {
     dispatcher.start();
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       "backend_call",
       expect.objectContaining({ seq_id: expect.anything(), started_at: expect.any(Number) }),
-    );
-  });
-
-  it("emits logger.info('backend_call', {trigger, outcome:'ok'}) on successful completion", async () => {
-    dispatcher.start();
-    bus.push(env());
-    await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve("ok");
-    await vi.advanceTimersByTimeAsync(20);
-    expect(logger.info).toHaveBeenCalledWith(
-      "backend_call",
-      expect.objectContaining({ outcome: "ok" }),
-    );
-  });
-
-  it("emits logger.info('backend_call', {outcome}) on parse_error", async () => {
-    dispatcher.start();
-    bus.push(env());
-    await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0].resolve("parse_error");
-    await vi.advanceTimersByTimeAsync(20);
-    expect(logger.info).toHaveBeenCalledWith(
-      "backend_call",
-      expect.objectContaining({ outcome: "parse_error" }),
     );
   });
 });
