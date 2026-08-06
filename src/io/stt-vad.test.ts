@@ -322,10 +322,10 @@ describe("createSttVad — start() failure handling (#64)", () => {
 describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => {
   it("fetches /audio/transcriptions and calls onVoiceSegment with text", async () => {
     const fetchMock = buildFetchMock("こんにちは");
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("fetch", buildFetchMock("wrong transport"));
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
     await stt.start();
 
     expect(triggerSpeechEnd).toBeDefined();
