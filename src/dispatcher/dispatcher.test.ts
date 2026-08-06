@@ -2065,3 +2065,95 @@ describe("dispatcher — degraded state (3 consecutive backend call failures)", 
     expect(applyDirective).toHaveBeenCalled();
   });
 });
+
+describe("dispatcher — structured logging: turn events", () => {
+  function turnLines(): Array<[string, Record<string, unknown>]> {
+    return (logger.info as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c: [string, Record<string, unknown>]) => c[0] === "turn",
+    ) as Array<[string, Record<string, unknown>]>;
+  }
+
+  it("emits exactly one turn line for a successful turn that owes no audio", async () => {
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(1);
+    const [, payload] = lines[0]!;
+    expect(payload.id).toBe(1);
+    expect(payload.outcome).toBe("ok");
+    expect(payload.spoke).toBe(false);
+    expect(typeof payload.duration_ms).toBe("number");
+    expect(payload.duration_ms as number).toBeGreaterThanOrEqual(0);
+  });
+
+  it("a turn that owed audio: spoke:true, but the line only appears once audio drains", async () => {
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    setSpeaking(true);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(turnLines()).toHaveLength(0);
+
+    setSpeaking(false);
+    await vi.advanceTimersByTimeAsync(20);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]![1].spoke).toBe(true);
+  });
+
+  it("two consecutive turns produce two turn lines with different ids", async () => {
+    dispatcher.start();
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    bus.push(env({ ts: NOW + 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[1].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(2);
+    expect(lines[0]![1].id).toBe(1);
+    expect(lines[1]![1].id).toBe(2);
+  });
+
+  it("a user turn superseding an in-flight turn: the superseded turn gets a turn line before the successor starts", async () => {
+    dispatcher.start();
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    const firstId = turnLog.current()!.id;
+    expect(firstId).toBe(1);
+
+    bus.push(env({ ts: NOW + 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    const secondId = turnLog.current()!.id;
+    expect(secondId).toBe(2);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]![1].id).toBe(firstId);
+    expect(lines[0]![1].outcome).toBe("superseded_by_user");
+  });
+
+  it("no longer emits an info-level backend_call entry for a turn", async () => {
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    const backendCallInfoLines = (logger.info as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c) => c[0] === "backend_call",
+    );
+    expect(backendCallInfoLines).toHaveLength(0);
+  });
+});
