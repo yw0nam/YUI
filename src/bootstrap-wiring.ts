@@ -57,8 +57,6 @@ import {
 import type { Surfaces } from "./ui/surfaces";
 import type { VoiceInputStatus } from "./ui/voice-input-status";
 
-export type { SyncedStore } from "./io/settings-stores";
-
 export function wireVrmSelection(deps: {
   renderer: Renderer;
   log: Logger;
