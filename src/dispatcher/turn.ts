@@ -23,6 +23,8 @@ export interface TurnLog {
   current(): Turn | null;
   /** Audio is queued or playing. */
   isAudioOwed(): boolean;
+  /** Audio was owed at some point during the current turn. Reset by begin(). */
+  didOweAudio(): boolean;
   /** THE definition of over: settled AND no audio owed. True before the first turn. */
   isOver(): boolean;
   /** Fires only at the over⟷live boundary. Returns an unsubscribe fn.
@@ -34,6 +36,7 @@ export function createTurnLog(): TurnLog {
   let current: Turn | null = null;
   let settled = false;
   let audioOwed = false;
+  let owedAudioEver = false;
   let nextId = 1;
   const subscribers = new Set<(over: boolean) => void>();
 
@@ -55,6 +58,7 @@ export function createTurnLog(): TurnLog {
       current = turn;
       settled = false;
       audioOwed = false;
+      owedAudioEver = false;
       notifyIfFlipped(wasOver);
       return turn;
     },
@@ -68,6 +72,7 @@ export function createTurnLog(): TurnLog {
       if (current === null) return;
       const wasOver = isOver();
       audioOwed = owed;
+      if (owed) owedAudioEver = true;
       notifyIfFlipped(wasOver);
     },
     current() {
@@ -75,6 +80,9 @@ export function createTurnLog(): TurnLog {
     },
     isAudioOwed() {
       return audioOwed;
+    },
+    didOweAudio() {
+      return owedAudioEver;
     },
     isOver,
     subscribe(cb) {

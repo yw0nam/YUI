@@ -26,7 +26,7 @@ Applies to all TypeScript in `src/` and all Rust in `src-tauri/src/`.
 |---|---|---|
 | `error` | An operation failed in a way that is user-visible or affects state/data | `start_motion`, `backend_call.unexpected_error` |
 | `warn` | Recovered or degraded: a fallback was taken, malformed input dropped, an optional path skipped | `mouth_expression_missing`, broker poll unreachable then retried |
-| `info` | State transitions and lifecycle milestones | `vrm_loaded`, `state_change`, `backend_call`, `fire` |
+| `info` | State transitions and lifecycle milestones | `vrm_loaded`, `state_change`, `backend_call`, `fire`, `turn` |
 | `debug` | High-frequency or per-item detail | per-segment `synth`, per-frame work, poll ticks |
 
 ## TypeScript Usage
