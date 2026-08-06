@@ -27,6 +27,7 @@ import type { PresenceSettings } from "./io/presence-settings";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
 import { createSettingsBridge, type SettingsBridge } from "./io/settings-bridge";
+import type { SyncedStore } from "./io/settings-stores";
 import { wireStorageSync } from "./io/settings-window";
 import {
   createSpeakerSelection,
@@ -188,34 +189,29 @@ export function wireSpeakerSelection(deps: {
   };
 }
 
-/** A settings store that participates in cross-window sync: broadcasts local edits and reloads remote ones. */
-export type SyncedStore = {
-  subscribe(cb: () => void): () => void;
-  reloadFromStorage(): void;
-};
-
 /**
  * Cross-window settings broadcast half (loop-guarded, debounced). Local edits to any synced store
- * (plus camera + display language) emit a single settings-changed event after a 200ms idle. Must be
+ * (plus display language) emit a single settings-changed event after a 200ms idle. Must be
  * wired BEFORE the VRM/speaker selections, since they broadcast through the returned `broadcastSettings`.
  * `runApplyingRemote` is handed to the reload half so remote applies suppress re-broadcast (loop guard).
  */
 export function createSettingsBroadcast(deps: {
   bridge: Pick<SettingsBridge, "emitSettingsChanged">;
   syncedStores: SyncedStore[];
-  cameraSettings: Pick<SyncedStore, "subscribe">;
 }): {
   broadcastSettings: () => void;
   runApplyingRemote: (apply: () => void) => void;
   dispose: () => void;
 } {
-  const { bridge, syncedStores, cameraSettings } = deps;
+  const { bridge, syncedStores } = deps;
   let applyingRemote = false;
+  let disposed = false;
   let broadcastTimer: ReturnType<typeof setTimeout> | null = null;
   // Debounce: consolidate slider drag/typing bursts into a single cross-window event after 200ms idle.
-  // No-op while a remote apply is in flight, so the round-trip terminates.
+  // No-op while a remote apply is in flight, so the round-trip terminates. Callers hold this callback
+  // past dispose (VRM/speaker selections), so a post-dispose notify must not re-arm the timer.
   const broadcastSettings = (): void => {
-    if (applyingRemote) return;
+    if (disposed || applyingRemote) return;
     if (broadcastTimer) clearTimeout(broadcastTimer);
     broadcastTimer = setTimeout(() => {
       broadcastTimer = null;
@@ -231,12 +227,19 @@ export function createSettingsBroadcast(deps: {
       applyingRemote = false;
     }
   };
-  for (const store of syncedStores) store.subscribe(broadcastSettings);
-  cameraSettings.subscribe(broadcastSettings);
+  const unsubscribers = syncedStores.map((store) => store.subscribe(broadcastSettings));
   // Display language also syncs cross-window: broadcast changes here, reapply from storage on remote change.
-  subscribeLocale(broadcastSettings);
+  unsubscribers.push(subscribeLocale(broadcastSettings));
   const dispose = (): void => {
-    if (broadcastTimer) clearTimeout(broadcastTimer);
+    disposed = true;
+    // Flush a pending broadcast rather than drop it: teardown commits (dirty endpoint/key fields)
+    // land inside the debounce window, and the other window still needs to hear them.
+    if (broadcastTimer) {
+      clearTimeout(broadcastTimer);
+      broadcastTimer = null;
+      bridge.emitSettingsChanged();
+    }
+    for (const unsubscribe of unsubscribers) unsubscribe();
   };
   return { broadcastSettings, runApplyingRemote, dispose };
 }
@@ -258,15 +261,14 @@ export function wireStopControl(deps: {
 }
 
 /**
- * Cross-window settings reload half. On a remote settings-changed event, reload every synced store
- * (plus camera zoom, display language, VRM/speaker selection) under the broadcast loop guard. Must be
+ * Cross-window settings reload half. On a remote settings-changed event, reload every participating
+ * store (plus display language and VRM/speaker selection) under the broadcast loop guard. Must be
  * wired AFTER the VRM/speaker selections exist. Only OTHER-window changes reach here, so the VRM is
  * hot-swapped only when its URL actually changed (this window's own swap already loaded it).
  */
 export function wireSettingsReload(deps: {
   bridge: Pick<SettingsBridge, "onSettingsChanged">;
-  syncedStores: SyncedStore[];
-  cameraSettings: Pick<SyncedStore, "reloadFromStorage">;
+  reloadStores: ReadonlyArray<{ reloadFromStorage(): void }>;
   runApplyingRemote: (apply: () => void) => void;
   vrmSelection: Pick<ReturnType<typeof createVrmSelection>, "getActive" | "reloadFromStorage">;
   loadVrmSerialized: (url: string) => Promise<VrmLoadResult>;
@@ -275,8 +277,7 @@ export function wireSettingsReload(deps: {
 }): void {
   const {
     bridge,
-    syncedStores,
-    cameraSettings,
+    reloadStores,
     runApplyingRemote,
     vrmSelection,
     loadVrmSerialized,
@@ -285,9 +286,7 @@ export function wireSettingsReload(deps: {
   } = deps;
   bridge.onSettingsChanged(() => {
     runApplyingRemote(() => {
-      for (const store of syncedStores) store.reloadFromStorage();
-      // Zoom reload → cameraSettings.subscribe(s => renderer.setZoom) propagates to the camera.
-      cameraSettings.reloadFromStorage();
+      for (const store of reloadStores) store.reloadFromStorage();
       // Display language changed in the other window → i18n.subscribe remount callback redraws UI.
       reloadLocaleFromStorage();
       // VRM selection is committed store-only in the settings window; reflect it to this window's renderer.
@@ -737,7 +736,6 @@ export function wireCrossWindowSync(deps: {
   voiceInputStatus: VoiceInputStatus;
   storageSyncStores: ReadonlyArray<{ reloadFromStorage(): void }>;
   syncedStores: SyncedStore[];
-  cameraSettings: Pick<SyncedStore, "subscribe">;
   log: Logger;
 }): {
   bridge: SettingsBridge;
@@ -745,7 +743,7 @@ export function wireCrossWindowSync(deps: {
   runApplyingRemote: (apply: () => void) => void;
   dispose: () => void;
 } {
-  const { renderer, voiceInputStatus, storageSyncStores, syncedStores, cameraSettings, log } = deps;
+  const { renderer, voiceInputStatus, storageSyncStores, syncedStores, log } = deps;
   const disposeStorageSync = wireStorageSync(storageSyncStores);
   const bridge = createSettingsBridge();
   // Mouth preview (separate window → this window VRM): gain slider drag moves actual mouth.
@@ -766,7 +764,7 @@ export function wireCrossWindowSync(deps: {
     broadcastSettings,
     runApplyingRemote,
     dispose: disposeSettingsBroadcast,
-  } = createSettingsBroadcast({ bridge, syncedStores, cameraSettings });
+  } = createSettingsBroadcast({ bridge, syncedStores });
   const dispose = (): void => {
     disposeStorageSync();
     disposeSettingsBroadcast();

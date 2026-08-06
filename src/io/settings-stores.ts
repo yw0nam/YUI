@@ -156,3 +156,61 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     railCollapsedSettings,
   };
 }
+
+export type SettingsStores = ReturnType<typeof createSettingsStores>;
+
+/** A settings store that participates in cross-window broadcast and reload. */
+export type SyncedStore = {
+  subscribe(cb: () => void): () => void;
+  reloadFromStorage(): void;
+};
+
+/** Cross-window sync participation. "broadcast" implies everything "reload" does. */
+type SyncMode = "local" | "reload" | "broadcast";
+
+/** Exported so a test can assert totality against the store bag's actual keys. */
+export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
+  screenshotSettings: "broadcast",
+  ttsSettings: "broadcast",
+  sttSettings: "local",
+  idleThrottleSettings: "broadcast",
+  proactiveSettings: "broadcast",
+  scheduleSettings: "broadcast",
+  workflowSettings: "broadcast",
+  agentNotifySettings: "broadcast",
+  presenceSettings: "broadcast",
+  recentAppsSettings: "broadcast",
+  contextSettings: "reload",
+  contextHistory: "reload",
+  lipsyncSettings: "broadcast",
+  vadSettings: "broadcast",
+  agentSettings: "broadcast",
+  fillerSettings: "broadcast",
+  sessionStore: "reload",
+  sessionDiagnostics: "reload",
+  chatHistoryStore: "reload",
+  endpointsSettings: "broadcast",
+  chatKeySettings: "broadcast",
+  sttKeySettings: "broadcast",
+  ttsKeySettings: "broadcast",
+  cameraSettings: "broadcast",
+  gazeSettings: "broadcast",
+  hintSettings: "local",
+  railCollapsedSettings: "broadcast",
+};
+
+/** Stores that reload on a remote signal — the `storage` event and a bridge settings-changed alike. */
+export function reloadSyncStores(
+  stores: SettingsStores,
+): ReadonlyArray<{ reloadFromStorage(): void }> {
+  return (Object.keys(stores) as Array<keyof SettingsStores>)
+    .filter((key) => SYNC_MODE[key] !== "local")
+    .map((key) => stores[key]);
+}
+
+/** Stores whose local edits emit a cross-window settings-changed event. */
+export function broadcastSyncStores(stores: SettingsStores): SyncedStore[] {
+  return (Object.keys(stores) as Array<keyof SettingsStores>)
+    .filter((key) => SYNC_MODE[key] === "broadcast")
+    .map((key) => stores[key]);
+}

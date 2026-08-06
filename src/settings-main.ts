@@ -7,41 +7,13 @@
  */
 
 import "./styles.css";
+import { createSettingsBroadcast } from "./bootstrap-wiring";
 import { createConfigStore } from "./config";
-import {
-  createAgentNotifySettings,
-  localStorageAgentNotifyStorage,
-} from "./io/agent-notify-settings";
-import { createAgentSettings, localStorageAgentStorage } from "./io/agent-settings";
-import { createSttKeySettings, createTtsKeySettings } from "./io/api-key-settings";
 import { resolveAssetUrl } from "./io/asset-url";
 import { selectFetch } from "./io/chat-client";
-import { createChatHistoryStore, localStorageChatHistoryStorage } from "./io/chat-history-store";
-import { createChatKeySettings, localStorageChatKeyStorage } from "./io/chat-key-settings";
-import { createContextSettings, localStorageContextSettings } from "./io/context-settings";
-import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
-import { createFillerSettings, localStorageFillerStorage } from "./io/filler-settings";
-import {
-  createIdleThrottleSettings,
-  localStorageIdleThrottleStorage,
-} from "./io/idle-throttle-settings";
 import { updateVoice } from "./io/irodori-voices";
-import { createLipsyncSettings, localStorageLipsyncStorage } from "./io/lipsync-settings";
-import { createPresenceSettings, localStoragePresenceStorage } from "./io/presence-settings";
-import { createProactiveSettings, localStorageProactiveStorage } from "./io/proactive-settings";
-import {
-  createRailCollapsedSettings,
-  localStorageRailCollapsedStorage,
-} from "./io/rail-collapsed-settings";
-import { createRecentAppsSettings, localStorageRecentAppsStorage } from "./io/recent-apps-settings";
-import { createScheduleSettings, localStorageScheduleStorage } from "./io/schedule-settings";
-import { createScreenshotSettings, localStorageScreenshotStorage } from "./io/screenshot-settings";
-import {
-  createSessionDiagnosticsStore,
-  localStorageSessionDiagnosticsStorage,
-} from "./io/session-diagnostics";
-import { createSessionStore, localStorageSessionStorage } from "./io/session-store";
 import { createSettingsBridge } from "./io/settings-bridge";
+import { broadcastSyncStores, createSettingsStores, reloadSyncStores } from "./io/settings-stores";
 import { closeSettingsWindow, wireStorageSync } from "./io/settings-window";
 import {
   createSpeakerSelection,
@@ -50,8 +22,6 @@ import {
   type SpeakerOption,
 } from "./io/speaker-selection";
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
-import { createTtsSettings, localStorageTtsStorage } from "./io/tts-settings";
-import { createVadSettings, localStorageVadStorage } from "./io/vad-settings";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { createVoiceImportFlow } from "./io/voice-import-flow";
 import { createVoiceListRefresh } from "./io/voice-list-refresh";
@@ -61,7 +31,6 @@ import {
   localStorageUserVrmStorage,
   localStorageVrmStorage,
 } from "./io/vrm-selection";
-import { createWorkflowSettings, localStorageWorkflowStorage } from "./io/workflow-settings";
 import { createLogger, initLogger } from "./logger";
 import {
   getLocale,
@@ -80,48 +49,34 @@ async function bootstrap(): Promise<void> {
     throw new Error("#app mount point not found");
   }
 
-  const screenshotSettings = createScreenshotSettings({ storage: localStorageScreenshotStorage() });
-  const idleThrottleSettings = createIdleThrottleSettings({
-    storage: localStorageIdleThrottleStorage(),
-  });
-  const proactiveSettings = createProactiveSettings({
-    storage: localStorageProactiveStorage(),
-    locale: getLocale(),
-  });
-  const scheduleSettings = createScheduleSettings({
-    storage: localStorageScheduleStorage(),
-    locale: getLocale(),
-  });
-  const workflowSettings = createWorkflowSettings({ storage: localStorageWorkflowStorage() });
-  const agentNotifySettings = createAgentNotifySettings({
-    storage: localStorageAgentNotifyStorage(),
-  });
-  const presenceSettings = createPresenceSettings({ storage: localStoragePresenceStorage() });
-  const recentAppsSettings = createRecentAppsSettings({
-    storage: localStorageRecentAppsStorage(),
-  });
-  const contextSettings = createContextSettings({ storage: localStorageContextSettings() });
-  const railCollapsedSettings = createRailCollapsedSettings({
-    storage: localStorageRailCollapsedStorage(),
-  });
-  const lipsyncSettings = createLipsyncSettings({ storage: localStorageLipsyncStorage() });
-  const vadSettings = createVadSettings({ storage: localStorageVadStorage() });
-  const fillerSettings = createFillerSettings({ storage: localStorageFillerStorage() });
-  const ttsSettings = createTtsSettings({ storage: localStorageTtsStorage() });
-  const agentSettings = createAgentSettings({ storage: localStorageAgentStorage() });
-  const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
-  // Runtime chat API key store (same localStorage key). This window has no SecretProvider (no dispatcher);
-  // it only handles field display + cross-window sync.
-  const chatKeySettings = createChatKeySettings({ storage: localStorageChatKeyStorage() });
-  const sttKeySettings = createSttKeySettings();
-  const ttsKeySettings = createTtsKeySettings();
+  const settingsStores = createSettingsStores({ locale: getLocale() });
+  const {
+    screenshotSettings,
+    idleThrottleSettings,
+    proactiveSettings,
+    scheduleSettings,
+    workflowSettings,
+    agentNotifySettings,
+    presenceSettings,
+    recentAppsSettings,
+    railCollapsedSettings,
+    lipsyncSettings,
+    vadSettings,
+    fillerSettings,
+    ttsSettings,
+    agentSettings,
+    endpointsSettings,
+    chatKeySettings,
+    sttKeySettings,
+    ttsKeySettings,
+    cameraSettings,
+    gazeSettings,
+    sessionStore,
+    sessionDiagnostics,
+    chatHistoryStore,
+  } = settingsStores;
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
-  // Session pointer + diagnostics. When the pet window writes to localStorage, this window reloads via the storage event.
-  const sessionStore = createSessionStore(localStorageSessionStorage());
-  const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
-  // Unified conversation transcript — when "start new conversation" clears it here, the pet window reloads via the storage event.
-  const chatHistoryStore = createChatHistoryStore({ storage: localStorageChatHistoryStorage() });
 
   // Real-time wiring with main window (Tauri events). This window has no renderer/STT, so send controls
   // to main window, receive voice state from main window and reflect. Storage fallback maintained below.
@@ -207,6 +162,7 @@ async function bootstrap(): Promise<void> {
       agentSettings,
       settings: screenshotSettings,
       idleThrottleSettings,
+      gazeSettings,
       proactiveSettings,
       scheduleSettings,
       workflowSettings,
@@ -235,6 +191,7 @@ async function bootstrap(): Promise<void> {
       // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
       onGainPreviewEnd: () => bridge.emitMouthPreview(null),
+      onResetViewpoint: () => cameraSettings.resetOrbit(),
       getDefaultInstructions: () => {
         if (!configLoaded) return undefined;
         try {
@@ -301,41 +258,17 @@ async function bootstrap(): Promise<void> {
       quickControls.open();
     });
   });
-  window.addEventListener("beforeunload", unsubscribeLocale);
 
   // Reflect main window edits: cross-window storage event + focus fallback.
   // Also reload vrmSelection so pet window selection changes reflected in this window UI.
-  const resyncStores = [
-    agentSettings,
-    endpointsSettings,
-    chatKeySettings,
-    sttKeySettings,
-    ttsKeySettings,
-    lipsyncSettings,
-    vadSettings,
-    fillerSettings,
-    ttsSettings,
-    screenshotSettings,
-    idleThrottleSettings,
-    proactiveSettings,
-    scheduleSettings,
-    workflowSettings,
-    agentNotifySettings,
-    presenceSettings,
-    recentAppsSettings,
-    contextSettings,
-    vrmSelection,
-    speakerSelection,
-    sessionStore,
-    sessionDiagnostics,
-    chatHistoryStore,
-    railCollapsedSettings,
-  ];
-  wireStorageSync(resyncStores);
-  window.addEventListener("focus", () => {
-    for (const s of resyncStores) s.reloadFromStorage();
+  const reloadStores = reloadSyncStores(settingsStores);
+  const resyncStores = [...reloadStores, vrmSelection, speakerSelection];
+  const disposeStorageSync = wireStorageSync(resyncStores);
+  const reloadOnFocus = (): void => {
+    for (const store of resyncStores) store.reloadFromStorage();
     reloadLocaleFromStorage();
-  });
+  };
+  window.addEventListener("focus", reloadOnFocus);
 
   // Voice toggle (this window → main STT) and voice state reflection (main → this window).
   // Component drives local voiceInputStatus, so send changes to main, receive actual STT state and reflect.
@@ -352,50 +285,39 @@ async function bootstrap(): Promise<void> {
     }
   });
 
-  // Settings sync (bidirectional, loop-guarded): this window edit → emit; main notification → reload stores.
-  // Debounce: consolidate slider drag/typing bursts into single cross-window event after 200ms idle.
-  let applyingRemote = false;
-  let broadcastTimer: ReturnType<typeof setTimeout> | null = null;
-  const broadcastSettings = (): void => {
-    if (applyingRemote) return;
-    if (broadcastTimer) clearTimeout(broadcastTimer);
-    broadcastTimer = setTimeout(() => {
-      broadcastTimer = null;
-      bridge.emitSettingsChanged();
-    }, 200);
-  };
-  agentSettings.subscribe(broadcastSettings);
-  endpointsSettings.subscribe(broadcastSettings);
-  chatKeySettings.subscribe(broadcastSettings);
-  sttKeySettings.subscribe(broadcastSettings);
-  ttsKeySettings.subscribe(broadcastSettings);
-  lipsyncSettings.subscribe(broadcastSettings);
-  vadSettings.subscribe(broadcastSettings);
-  fillerSettings.subscribe(broadcastSettings);
-  ttsSettings.subscribe(broadcastSettings);
-  screenshotSettings.subscribe(broadcastSettings);
-  idleThrottleSettings.subscribe(broadcastSettings);
-  proactiveSettings.subscribe(broadcastSettings);
-  scheduleSettings.subscribe(broadcastSettings);
-  workflowSettings.subscribe(broadcastSettings);
-  agentNotifySettings.subscribe(broadcastSettings);
-  presenceSettings.subscribe(broadcastSettings);
-  recentAppsSettings.subscribe(broadcastSettings);
-  // Display language change also signaled cross-window → pet window receives and redraws UI in new language.
-  subscribeLocale(broadcastSettings);
+  const {
+    broadcastSettings,
+    runApplyingRemote,
+    dispose: disposeSettingsBroadcast,
+  } = createSettingsBroadcast({ bridge, syncedStores: broadcastSyncStores(settingsStores) });
   // VRM selection also signaled cross-window → pet window receives and hot-swaps renderer (backup for Tauri storage event instability).
   vrmSelection.subscribe(broadcastSettings);
   // Speaker selection also signaled cross-window → pet window receives and synthesizes with new speaker on next utterance.
   speakerSelection.subscribe(broadcastSettings);
-  bridge.onSettingsChanged(() => {
-    applyingRemote = true;
-    try {
-      for (const s of resyncStores) s.reloadFromStorage();
+  const disposeSettingsChanged = bridge.onSettingsChanged(() => {
+    runApplyingRemote(() => {
+      for (const store of resyncStores) store.reloadFromStorage();
       reloadLocaleFromStorage();
-    } finally {
-      applyingRemote = false;
-    }
+    });
+  });
+
+  window.addEventListener("beforeunload", () => {
+    // Runs first: disposing the controls commits dirty endpoint/key fields, which must still
+    // reach the broadcast path and a live bridge.
+    quickControls.dispose();
+    disposeStorageSync();
+    unsubscribeLocale();
+    disposeSettingsBroadcast();
+    disposeSettingsChanged();
+    bridge.dispose();
+    window.removeEventListener("focus", reloadOnFocus);
+    for (const store of Object.values(settingsStores)) store.dispose();
+    vrmSelection.dispose();
+    speakerSelection.dispose();
+    voiceInputStatus.dispose();
   });
 }
 
-void bootstrap();
+void bootstrap().catch((error) => {
+  log.error("boot_failed", { error: String(error) });
+});
