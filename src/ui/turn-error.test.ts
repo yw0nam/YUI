@@ -51,8 +51,8 @@ describe("turnErrorMessage", () => {
     expect(turnErrorMessage("parse_error")).toBe("応答処理に失敗");
   });
 
-  it("returns undefined for an unclassified reason (defensive — never hit for user turns)", () => {
-    expect(turnErrorMessage("guardrail_drop")).toBeUndefined();
+  it("returns undefined for superseded_by_user (not a failure)", () => {
+    expect(turnErrorMessage("superseded_by_user")).toBeUndefined();
   });
 });
 

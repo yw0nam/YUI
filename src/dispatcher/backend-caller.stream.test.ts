@@ -63,7 +63,7 @@ describe("backend_caller — B4 speech gate (speech_text only)", () => {
     };
     script.events = [completedEvent(env)];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
     expect(applyDirective).toHaveBeenCalledWith(env);
     expect(turnOutput.speak).toHaveBeenCalledWith("응 듣고 있어");
   });
@@ -75,8 +75,7 @@ describe("backend_caller — B4 speech gate (speech_text only)", () => {
     };
     script.events = [completedEvent(env)];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(true);
-    expect(res.drop_reason).toBeUndefined();
+    expect(res).toBe("ok");
     expect(turnOutput.speak).not.toHaveBeenCalled();
     // emotion/motion still rendered (firing≠judgment: silence only gates speech).
     expect(applyDirective).toHaveBeenCalledWith(env);
@@ -123,7 +122,7 @@ describe("backend_caller — B5 cue forwarding + tool_status callbacks", () => {
     script.events = [toolStatusEvent(running)];
     script.error = new Error("drop");
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
+    expect(res).not.toBe("ok");
     expect(toolStatusSink).toHaveBeenNthCalledWith(1, running);
     expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "idle" });
   });
@@ -209,7 +208,7 @@ describe("backend_caller — streaming speech deltas (incremental TTS)", () => {
     turnOutput.delta.mockImplementation(() => ac.abort());
     script.events = [deltaEvent("partial"), { type: "error", message: "boom" }];
     const res = await caller.call(turnOf(userEnv()), ac.signal);
-    expect(res.drop_reason).toBe("superseded_by_user");
+    expect(res).toBe("superseded_by_user");
     expect(turnOutput.abort).not.toHaveBeenCalled();
     expect(turnOutput.end).not.toHaveBeenCalled();
   });
@@ -221,7 +220,7 @@ describe("backend_caller — streaming speech deltas (incremental TTS)", () => {
 
     const res = await caller.call(turnOf(userEnv()), ac.signal);
 
-    expect(res.drop_reason).toBe("superseded_by_user");
+    expect(res).toBe("superseded_by_user");
     expect(turnOutput.delta.mock.calls.map((c) => c[0])).toEqual(["first"]);
   });
 
@@ -258,7 +257,7 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
       completedEvent({ speech_text: "Hi there", emotion: { id: "curious" } }),
     ];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
     // pipeline owns visual application audio-timed per sentence — no completed apply.
     expect(applyDirective).not.toHaveBeenCalled();
     expect(turnOutput.cue.mock.calls.map((c) => c[0])).toEqual([
@@ -271,7 +270,7 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     const env: ControlEnvelope = { speech_text: "", emotion: { id: "thinking" } };
     script.events = [expressEvent({ emotion_id: "thinking" }), completedEvent(env)];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
     expect(turnOutput.cue).toHaveBeenCalledWith({ emotion_id: "thinking" });
     // no audio to time against → completed applies the cue once.
     expect(applyDirective).toHaveBeenCalledTimes(1);
@@ -286,7 +285,7 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     };
     script.events = [completedEvent(env)];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
     expect(applyDirective).toHaveBeenCalledTimes(1);
     expect(applyDirective).toHaveBeenCalledWith(env);
     expect(turnOutput.cue).not.toHaveBeenCalled();
@@ -303,7 +302,7 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     };
     script.events = [completedEvent(env)];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
     expect(turnOutput.cue).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
     expect(turnOutput.speak).toHaveBeenCalledWith("안녕");
     expect(order).toEqual([`cue:${JSON.stringify({ emotion_text: "(whisper)" })}`, "speech"]);
@@ -316,7 +315,7 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     };
     script.events = [completedEvent(env)];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
     expect(turnOutput.cue).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
     expect(turnOutput.speak).not.toHaveBeenCalled();
   });
@@ -352,7 +351,7 @@ describe("backend_caller — usage sink (token accounting channel)", () => {
     });
     script.events = [usageEvent(1, 2, 3), completedEvent({ speech_text: "hi" })];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
   });
 });
 
@@ -448,7 +447,7 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
     });
     script.events = [completedEvent({ speech_text: "hi" })];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
   });
 
   it("thinking ENDS on the first speech_delta — exactly once", async () => {
@@ -530,8 +529,7 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
       turnOutput,
     });
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_drop");
+    expect(res).toBe("network_drop");
     expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
     expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
   });
@@ -540,8 +538,7 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
     caller = makeCaller(true);
     script.events = [];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("parse_error");
+    expect(res).toBe("parse_error");
     expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
     expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
   });
@@ -551,8 +548,7 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
     script.error = new Error("connection reset");
     script.events = [];
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("network_drop");
+    expect(res).toBe("network_drop");
     expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
     expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
   });
@@ -563,7 +559,7 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
     turnOutput.delta.mockImplementation(() => ac.abort());
     script.events = [deltaEvent("partial"), { type: "error", message: "boom" }];
     const res = await caller.call(turnOf(userEnv()), ac.signal);
-    expect(res.drop_reason).toBe("superseded_by_user");
+    expect(res).toBe("superseded_by_user");
     expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
     // started + ended exactly once (delta ended it, finally is idempotent).
     expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
@@ -611,8 +607,7 @@ describe("backend_caller — 404 chain-break retry does not leak attempt-1 envel
     const res = await caller.call(turnOf(userEnv()));
 
     expect(script.spy).toHaveBeenCalledTimes(2);
-    expect(res.ok).toBe(false);
-    expect(res.drop_reason).toBe("parse_error");
+    expect(res).toBe("parse_error");
     expect(applyDirective).not.toHaveBeenCalled();
     expect(onResponseId).not.toHaveBeenCalled();
   });

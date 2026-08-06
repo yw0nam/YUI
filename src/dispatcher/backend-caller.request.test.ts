@@ -694,7 +694,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       turnOutput,
     });
     const res = await caller.call(turnOf(userEnv("혼자")));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
     const [, request] = script.spy.mock.calls[0];
     const msgs = messagesOf(request);
     expect(msgs[msgs.length - 1]).toEqual({ role: "user", content: "혼자" });

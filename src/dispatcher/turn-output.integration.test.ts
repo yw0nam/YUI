@@ -141,7 +141,7 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
     });
 
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
 
     expect(order.indexOf("interrupt")).toBe(0);
     expect(order.indexOf("interrupt")).toBeLessThan(order.indexOf("delta:Hi. "));
@@ -172,7 +172,7 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
     });
 
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(true);
+    expect(res).toBe("ok");
 
     expect(order).toContain("speak");
     expect(order).not.toContain("end");
@@ -192,7 +192,7 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
     });
 
     const res = await caller.call(turnOf(userEnv()));
-    expect(res.ok).toBe(false);
+    expect(res).not.toBe("ok");
 
     expect(order).toContain("abort");
     expect(order).not.toContain("end");

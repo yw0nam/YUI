@@ -45,7 +45,6 @@ import {
   imageDataUrlsOf,
 } from "./context-builder";
 import type { BusEnvelope } from "./event-bus";
-import type { DropReason } from "./guardrails";
 import type { Turn } from "./turn";
 import type { TurnOutput } from "./turn-output";
 
@@ -96,11 +95,17 @@ function isReflexTurn(eventName: string): boolean {
  */
 export const IDLE_TIMEOUT_MS = 45_000;
 
-/** Dispatcher → Backend Caller output: { ok, drop_reason? }. */
-export interface BackendCallResult {
-  ok: boolean;
-  drop_reason?: DropReason;
-}
+/** Every outcome a backend call can settle to. */
+export type TurnOutcome =
+  | "ok"
+  | "parse_error"
+  | "network_drop"
+  | "network_stall"
+  | "http_4xx_drop"
+  | "superseded_by_user";
+
+/** Every outcome except success — what a drop record and the UI error surface deal in. */
+export type TurnFailure = Exclude<TurnOutcome, "ok">;
 
 interface BackendCallerDeps {
   /** chat endpoint config. */
@@ -157,9 +162,9 @@ interface BackendCallerDeps {
 export interface BackendCaller {
   /**
    * Execute B1–B5 for one admitted turn. In-flight aborted if externalSignal aborts.
-   * Never throws — failures expressed as { ok:false, drop_reason } (dispatcher branches).
+   * Never throws — failures expressed as a TurnOutcome failure value (dispatcher branches).
    */
-  call(turn: Turn, externalSignal?: AbortSignal): Promise<BackendCallResult>;
+  call(turn: Turn, externalSignal?: AbortSignal): Promise<TurnOutcome>;
 }
 
 /**
@@ -229,10 +234,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     return [{ role: "user", content: userContent }];
   }
 
-  async function call(turn: Turn, externalSignal?: AbortSignal): Promise<BackendCallResult> {
+  async function call(turn: Turn, externalSignal?: AbortSignal): Promise<TurnOutcome> {
     const env = turn.trigger;
     if (externalSignal?.aborted) {
-      return { ok: false, drop_reason: "superseded_by_user" };
+      return "superseded_by_user";
     }
 
     // Clean up remaining audio/speech bubble from the previous (superseded) turn — once before first delta.
@@ -288,11 +293,11 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         [apiKey, fetchImpl] = await Promise.all([deps.getApiKey(), deps.getFetch()]);
       } catch (err) {
         log.warn("network_drop", { stage: "setup", error: String(err) });
-        return { ok: false, drop_reason: "network_drop" };
+        return "network_drop";
       }
 
       if (externalSignal?.aborted) {
-        return { ok: false, drop_reason: "superseded_by_user" };
+        return "superseded_by_user";
       }
 
       // Clean up in-flight fetch via AbortController. Link external signal (dispatcher's
@@ -404,22 +409,22 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         } catch (err) {
           // If abort, supersede (next turn cleans up), otherwise network drop — if delta arrived, clean up speech bubble/audio.
           if (externalSignal?.aborted) {
-            return { ok: false, drop_reason: "superseded_by_user" };
+            return "superseded_by_user";
           }
           if (streamedAny) deps.turnOutput?.abort();
           log.warn("network_drop", { stage: "stream_threw", error: String(err) });
-          return { ok: false, drop_reason: "network_drop" };
+          return "network_drop";
         }
 
         if (idleTimedOut) {
           // No event (incl. first byte) within IDLE_TIMEOUT_MS of the previous one — stalled.
           if (streamedAny) deps.turnOutput?.abort();
           log.warn("network_stall", { stage: "idle_timeout", idle_ms: IDLE_TIMEOUT_MS });
-          return { ok: false, drop_reason: "network_stall" };
+          return "network_stall";
         }
 
         if (externalSignal?.aborted) {
-          return { ok: false, drop_reason: "superseded_by_user" };
+          return "superseded_by_user";
         }
 
         if (streamError) {
@@ -432,7 +437,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
               status: streamErrorStatus,
               message: streamError,
             });
-            return { ok: false, drop_reason: "http_4xx_drop" };
+            return "http_4xx_drop";
           }
           // Chain break: previous_response_id points at a response the backend no longer holds
           // (server-side conversation state lost/expired). Retry once without it, but only if
@@ -460,13 +465,13 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
             message: streamError,
             status: streamErrorStatus,
           });
-          return { ok: false, drop_reason: "network_drop" };
+          return "network_drop";
         }
 
         if (!envelope) {
           // No completed received = broken/empty response.
           log.warn("parse_error", { event_name: env.event_name });
-          return { ok: false, drop_reason: "parse_error" };
+          return "parse_error";
         }
 
         break;
@@ -551,7 +556,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // never sent this turn, so it stays buffered for the next one instead of being discarded.
       if (policy.recent_apps) deps.drainRecentApps?.(peekedApps);
 
-      return { ok: true };
+      return "ok";
     } finally {
       endThinking();
       // Prevent running chip from surviving without done — on all exit paths including dead turns
