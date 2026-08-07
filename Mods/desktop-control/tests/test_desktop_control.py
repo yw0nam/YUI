@@ -16,12 +16,98 @@ def allow_safari_notes(monkeypatch):
     monkeypatch.setenv("DESKTOP_CONTROL_ALLOWED_APPS", "Safari, Notes")
 
 
+class _FakeApp:
+    def __init__(self, name, pid):
+        self._name, self._pid = name, pid
+
+    def localizedName(self):
+        return self._name
+
+    def processIdentifier(self):
+        return self._pid
+
+
+def _install_fake_frameworks(monkeypatch, app, windows):
+    """Stand in for AppKit/Quartz — PyObjC is macOS-only and this suite also runs on Linux."""
+    appkit = types.ModuleType("AppKit")
+    appkit.NSWorkspace = types.SimpleNamespace(
+        sharedWorkspace=lambda: types.SimpleNamespace(frontmostApplication=lambda: app)
+    )
+    quartz = types.ModuleType("Quartz")
+    quartz.CGWindowListCopyWindowInfo = lambda option, relative_to: windows
+    quartz.kCGNullWindowID = 0
+    quartz.kCGWindowListOptionOnScreenOnly = 1
+    quartz.kCGWindowLayer = "kCGWindowLayer"
+    quartz.kCGWindowName = "kCGWindowName"
+    quartz.kCGWindowOwnerPID = "kCGWindowOwnerPID"
+    monkeypatch.setitem(sys.modules, "AppKit", appkit)
+    monkeypatch.setitem(sys.modules, "Quartz", quartz)
+
+
 class TestListRunningApps:
     def test_returns_ops_result(self):
         with patch.object(server.ops, "list_running_apps", return_value=["Finder", "Safari"]) as m:
             result = server.list_running_apps()
         assert result == ["Finder", "Safari"]
         m.assert_called_once_with()
+
+
+class TestFrontmostWindow:
+    def test_returns_front_window_of_the_frontmost_app(self, monkeypatch):
+        _install_fake_frameworks(
+            monkeypatch,
+            _FakeApp("Safari", 42),
+            [
+                {"kCGWindowOwnerPID": 7, "kCGWindowLayer": 0, "kCGWindowName": "Mail"},
+                {"kCGWindowOwnerPID": 42, "kCGWindowLayer": 0, "kCGWindowName": "YUI — GitHub"},
+                {"kCGWindowOwnerPID": 42, "kCGWindowLayer": 0, "kCGWindowName": "Behind it"},
+            ],
+        )
+        assert ops.frontmost_window() == ("Safari", "YUI — GitHub")
+
+    def test_skips_non_document_layers(self, monkeypatch):
+        _install_fake_frameworks(
+            monkeypatch,
+            _FakeApp("Notes", 9),
+            [
+                {"kCGWindowOwnerPID": 9, "kCGWindowLayer": 25, "kCGWindowName": "Status item"},
+                {"kCGWindowOwnerPID": 9, "kCGWindowLayer": 0, "kCGWindowName": "Shopping list"},
+            ],
+        )
+        assert ops.frontmost_window() == ("Notes", "Shopping list")
+
+    def test_title_is_none_when_the_app_has_no_window(self, monkeypatch):
+        _install_fake_frameworks(
+            monkeypatch,
+            _FakeApp("Finder", 1),
+            [{"kCGWindowOwnerPID": 2, "kCGWindowLayer": 0, "kCGWindowName": "Someone else"}],
+        )
+        assert ops.frontmost_window() == ("Finder", None)
+
+    def test_title_is_none_without_screen_recording(self, monkeypatch):
+        # Ungranted Screen Recording drops kCGWindowName from every entry; the rest survives.
+        _install_fake_frameworks(
+            monkeypatch,
+            _FakeApp("Safari", 42),
+            [{"kCGWindowOwnerPID": 42, "kCGWindowLayer": 0}],
+        )
+        assert ops.frontmost_window() == ("Safari", None)
+
+    def test_returns_none_pair_when_nothing_is_frontmost(self, monkeypatch):
+        _install_fake_frameworks(monkeypatch, None, [])
+        assert ops.frontmost_window() == (None, None)
+
+
+class TestGetFrontmostWindow:
+    def test_returns_app_and_title(self):
+        with patch.object(server.ops, "frontmost_window", return_value=("Safari", "YUI")) as m:
+            result = server.get_frontmost_window()
+        assert result == {"app": "Safari", "title": "YUI"}
+        m.assert_called_once_with()
+
+    def test_is_not_gated_by_the_allowlist(self, allow_safari_notes):
+        with patch.object(server.ops, "frontmost_window", return_value=("Terminal", "zsh")):
+            assert server.get_frontmost_window() == {"app": "Terminal", "title": "zsh"}
 
 
 class TestOpenApp:
@@ -161,6 +247,7 @@ class TestPreflight:
         ):
             problems = server.preflight()
         assert len(problems) == 1 and "Screen Recording" in problems[0]
+        assert "get_frontmost_window" in problems[0]
 
     def test_reports_automation_gap(self):
         with (
@@ -170,9 +257,24 @@ class TestPreflight:
             problems = server.preflight()
         assert len(problems) == 1 and "Automation" in problems[0]
 
+    def test_automation_gap_scopes_close_app_to_a_per_app_grant(self):
+        # The probe only proves System Events; close_app targets each app's own Automation grant.
+        with (
+            patch.object(server.ops, "screen_capture_granted", return_value=True),
+            patch.object(server.ops, "automation_granted", return_value=False),
+        ):
+            problems = server.preflight()
+        assert "per target app" in problems[0]
+
 
 class TestToolRegistration:
-    def test_registers_four_tools(self):
+    def test_registers_five_tools(self):
         tools = asyncio.run(server.mcp.list_tools())
         names = {t.name for t in tools}
-        assert {"screenshot", "list_running_apps", "open_app", "close_app"} <= names
+        assert {
+            "screenshot",
+            "list_running_apps",
+            "get_frontmost_window",
+            "open_app",
+            "close_app",
+        } <= names
