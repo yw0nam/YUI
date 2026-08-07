@@ -51,7 +51,7 @@ async function bootstrap(): Promise<void> {
   const { reload, dispose: disposeSync } = wireDevtoolsSync({ stores: settingsStores, log });
   window.addEventListener("focus", reload);
   window.addEventListener("beforeunload", () => {
-    // Runs first so dirty field commits still reach the broadcast path and a live bridge.
+    // Keeps the bridge alive until disposeSync flushes any pending broadcast.
     shell.dispose();
     disposeSync();
     window.removeEventListener("focus", reload);
