@@ -205,7 +205,13 @@ export function createReflect(deps: ReflectDeps): Reflect {
 
   function reflectPresence(): void {
     if (!presenceInput || !presenceSettings) return;
-    presenceInput.value = String(presenceSettings.get().value / 1000);
+    const next = String(presenceSettings.get().value / 1000);
+    if (
+      !(document.hasFocus() && document.activeElement === presenceInput) &&
+      presenceInput.value !== next
+    ) {
+      presenceInput.value = next;
+    }
   }
 
   function reflectRecentApps(): void {

@@ -889,6 +889,7 @@ export function createQuickControls({
   }
   agentPortInput?.addEventListener("change", handleAgentPortChange);
   presenceInput?.addEventListener("change", handlePresenceChange);
+  presenceInput?.addEventListener("blur", reflect.reflectPresence);
   recentAppsInput?.addEventListener("change", handleRecentAppsChange);
   recentAppsInput?.addEventListener("blur", reflect.reflectRecentApps);
 
@@ -1016,6 +1017,7 @@ export function createQuickControls({
     unsubscribeRecentApps?.();
     agentPortInput?.removeEventListener("change", handleAgentPortChange);
     presenceInput?.removeEventListener("change", handlePresenceChange);
+    presenceInput?.removeEventListener("blur", reflect.reflectPresence);
     recentAppsInput?.removeEventListener("change", handleRecentAppsChange);
     recentAppsInput?.removeEventListener("blur", reflect.reflectRecentApps);
     unsubscribeVoice();

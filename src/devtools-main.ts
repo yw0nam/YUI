@@ -44,8 +44,23 @@ async function bootstrap(): Promise<void> {
   let shell = buildShell();
   const unsubscribeLocale = subscribeLocale(() => {
     queueMicrotask(() => {
+      // The rebuild replaces every node, so a focused edit survives only by id.
+      const focused = document.activeElement;
+      const editing =
+        focused instanceof HTMLInputElement && mount.contains(focused)
+          ? { id: focused.id, value: focused.value }
+          : null;
+      const section = shell.active;
       shell.dispose();
       shell = buildShell();
+      shell.activate(section);
+      if (!editing) return;
+      const restored = document.getElementById(editing.id);
+      if (!(restored instanceof HTMLInputElement)) return;
+      restored.value = editing.value;
+      restored.focus();
+      // A scripted value carries no dirty flag, so blur would fire no change and drop the edit.
+      restored.dispatchEvent(new Event("change"));
     });
   });
   const { reload, dispose: disposeSync } = wireDevtoolsSync({ stores: settingsStores, log });

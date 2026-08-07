@@ -12,7 +12,11 @@ const { wireDevtoolsSync, createDevtoolsShell, createConfigStore, initLogger, cr
     };
     return {
       wireDevtoolsSync: vi.fn(() => ({ reload: vi.fn(), dispose: vi.fn() })),
-      createDevtoolsShell: vi.fn(() => ({ activate: vi.fn(), dispose: vi.fn() })),
+      createDevtoolsShell: vi.fn(() => ({
+        active: "context" as const,
+        activate: vi.fn(),
+        dispose: vi.fn(),
+      })),
       createConfigStore: vi.fn(() => ({
         load: vi.fn().mockResolvedValue({ endpoints: { chat_model_context_window: 1 } }),
       })),
