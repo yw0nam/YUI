@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createContextSettings } from "../../io/context-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
 import { createRecentAppsStore } from "../../io/settings-stores";
@@ -24,6 +24,7 @@ describe("Advanced Settings", () => {
   afterEach(() => {
     attachedMount?.remove();
     attachedMount = null;
+    vi.restoreAllMocks();
   });
 
   it("binds context toggles and numeric settings to their existing stores", () => {
@@ -161,5 +162,25 @@ describe("Advanced Settings", () => {
     input.blur();
 
     expect(input.value).toBe("30");
+  });
+
+  it("reflects the context-window value while the document is unfocused", () => {
+    attachedMount = document.createElement("section");
+    document.body.appendChild(attachedMount);
+    const endpoints = createEndpointsSettings();
+    createAdvancedSettings(attachedMount, {
+      context: createContextSettings(),
+      recentApps: inMemoryRecentAppsStore(),
+      endpoints,
+    });
+    const input = attachedMount.querySelector<HTMLInputElement>("#devtools-context-window")!;
+    input.focus();
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+
+    input.value = "64000";
+    endpoints.set({ chat_model_context_window: "128000" });
+
+    expect(document.activeElement).toBe(input);
+    expect(input.value).toBe("128000");
   });
 });
