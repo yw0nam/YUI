@@ -180,7 +180,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   agentNotifySettings: "broadcast",
   presenceSettings: "broadcast",
   recentAppsSettings: "broadcast",
-  contextSettings: "reload",
+  contextSettings: "broadcast",
   contextHistory: "reload",
   lipsyncSettings: "broadcast",
   vadSettings: "broadcast",
