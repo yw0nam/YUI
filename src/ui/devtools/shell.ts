@@ -1,7 +1,7 @@
 import type { createContextHistory } from "../../io/context-history";
 import type { createContextSettings } from "../../io/context-settings";
 import type { createEndpointsSettings } from "../../io/endpoints-settings";
-import type { createRecentAppsSettings } from "../../io/recent-apps-settings";
+import type { ClampedIntSettingsStore } from "../../io/persisted-store";
 import { t } from "../i18n";
 import { createAdvancedSettings } from "./advanced-settings";
 import { createContextInspector } from "./context-inspector";
@@ -12,7 +12,7 @@ interface DevtoolsShellOptions {
   mount: HTMLElement;
   history: ReturnType<typeof createContextHistory>;
   contextSettings: ReturnType<typeof createContextSettings>;
-  recentAppsSettings: ReturnType<typeof createRecentAppsSettings>;
+  recentAppsSettings: ClampedIntSettingsStore;
   endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   defaultContextWindow?: number;
   loadMotionPreview: (mount: HTMLElement) => Promise<{ dispose(): void }>;

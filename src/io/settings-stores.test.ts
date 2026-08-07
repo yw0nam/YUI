@@ -7,6 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { ClampedIntSettingsStore, FlagSettingsStore } from "./persisted-store";
 import {
   broadcastSyncStores,
   createSettingsStores,
@@ -55,6 +56,33 @@ describe("createSettingsStores", () => {
     for (const store of Object.values(stores)) {
       expect(typeof store.get).toBe("function");
     }
+  });
+
+  it.each([
+    ["ttsSettings", "yui.tts", true, false],
+    ["sttSettings", "yui.stt", false, true],
+    ["gazeSettings", "yui.gaze", true, false],
+    ["hintSettings", "yui.hint", false, true],
+    ["idleThrottleSettings", "yui.idle-throttle", true, false],
+    ["railCollapsedSettings", "yui.quickControls.railCollapsed", false, true],
+    ["presenceSettings", "yui.presence", 180000, 200000],
+    ["recentAppsSettings", "yui.recent-apps", 10, 11],
+  ] as const)("binds %s to %s with default %s", (storeName, key, defaultValue, nextValue) => {
+    localStorage.clear();
+    const store = createSettingsStores()[storeName] as FlagSettingsStore | ClampedIntSettingsStore;
+    const state = store.get();
+
+    if ("enabled" in state) {
+      expect(state.enabled).toBe(defaultValue);
+      (store as FlagSettingsStore).setEnabled(nextValue as boolean);
+      expect(localStorage.getItem(key)).toBe(JSON.stringify({ enabled: nextValue }));
+    } else {
+      expect(state.value).toBe(defaultValue);
+      (store as ClampedIntSettingsStore).set(nextValue as number);
+      expect(localStorage.getItem(key)).toBe(JSON.stringify({ value: nextValue }));
+    }
+    expect(localStorage.length).toBe(1);
+    localStorage.clear();
   });
 
   // bootstrap() registers teardown by iterating the returned bag, so every value must be disposable.

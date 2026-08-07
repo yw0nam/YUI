@@ -13,24 +13,19 @@ import type { createChatHistoryStore } from "../io/chat-history-store";
 import type { ChatKeySettingsStore } from "../io/chat-key-settings";
 import type { createEndpointsSettings, EndpointOverrides } from "../io/endpoints-settings";
 import type { createFillerSettings } from "../io/filler-settings";
-import type { createGazeSettings } from "../io/gaze-settings";
-import type { createIdleThrottleSettings } from "../io/idle-throttle-settings";
 import {
   type createLipsyncSettings,
   LIPSYNC_GAIN_MAX,
   LIPSYNC_GAIN_MIN,
 } from "../io/lipsync-settings";
-import type { createPresenceSettings } from "../io/presence-settings";
+import type { ClampedIntSettingsStore, FlagSettingsStore } from "../io/persisted-store";
 import type { createProactiveSettings } from "../io/proactive-settings";
-import type { RailCollapsedSettingsStore } from "../io/rail-collapsed-settings";
-import type { createRecentAppsSettings } from "../io/recent-apps-settings";
 import type { createScheduleSettings } from "../io/schedule-settings";
 import type { ScreenSourceProvider } from "../io/screen-source-provider";
 import type { createScreenshotSettings } from "../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import type { createSessionStore } from "../io/session-store";
 import type { createSpeakerSelection, SpeakerOption } from "../io/speaker-selection";
-import type { createTtsSettings } from "../io/tts-settings";
 import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../io/vad-settings";
 import type { createVrmSelection } from "../io/vrm-selection";
 import type { createWorkflowSettings } from "../io/workflow-settings";
@@ -51,8 +46,6 @@ import type { VoiceInputStatus } from "./voice-input-status";
 export { formatTokenCount } from "./quick-controls/reflect";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
-type IdleThrottleSettingsStore = ReturnType<typeof createIdleThrottleSettings>;
-type GazeSettingsStore = ReturnType<typeof createGazeSettings>;
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;
 type ScheduleSettingsStore = ReturnType<typeof createScheduleSettings>;
@@ -62,20 +55,17 @@ type VadSettingsStore = ReturnType<typeof createVadSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
-type TtsSettingsStore = ReturnType<typeof createTtsSettings>;
 type VrmSelectionStore = ReturnType<typeof createVrmSelection>;
 type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 type SessionDiagnosticsStore = ReturnType<typeof createSessionDiagnosticsStore>;
 type SessionStore = ReturnType<typeof createSessionStore>;
-type PresenceSettingsStore = ReturnType<typeof createPresenceSettings>;
-type RecentAppsSettingsStore = ReturnType<typeof createRecentAppsSettings>;
 type ChatHistoryStore = ReturnType<typeof createChatHistoryStore>;
 
 interface QuickControlsOptions {
   mount: HTMLElement;
   settings: ScreenshotSettingsStore;
   /** Idle power-save (30fps cap) on/off store. When off, always full frame. */
-  idleThrottleSettings: IdleThrottleSettingsStore;
+  idleThrottleSettings: FlagSettingsStore;
   /** Proactive speech on/off + cue list store. */
   proactiveSettings: ProactiveSettingsStore;
   /** Time-based schedule cue on/off + cue list store. */
@@ -144,17 +134,17 @@ interface QuickControlsOptions {
   /** Thinking filler settings store. If absent, section won't render (injected by unified agent). */
   fillerSettings?: FillerSettingsStore;
   /** TTS speech output on/off store. */
-  ttsSettings?: TtsSettingsStore;
+  ttsSettings?: FlagSettingsStore;
   /** Cursor gaze (eye contact) on/off store. If absent, that toggle row won't render. */
-  gazeSettings?: GazeSettingsStore;
+  gazeSettings?: FlagSettingsStore;
   /** Agent completion notification on/off store. If absent, that toggle row won't render. */
   agentNotifySettings?: AgentNotifySettingsStore;
   /** Away detection store. If absent, presence row in Reactions tab won't render. */
-  presenceSettings?: PresenceSettingsStore;
+  presenceSettings?: ClampedIntSettingsStore;
   /** Recent apps memory count cap store. If absent, recent-apps row in Reactions tab won't render. */
-  recentAppsSettings?: RecentAppsSettingsStore;
+  recentAppsSettings?: ClampedIntSettingsStore;
   /** Section rail collapse state store. */
-  railCollapsedSettings?: RailCollapsedSettingsStore;
+  railCollapsedSettings?: FlagSettingsStore;
 }
 
 interface QuickControls {
@@ -247,7 +237,7 @@ export function createQuickControls({
     showPresence: !!presenceSettings,
     showRecentApps: !!recentAppsSettings,
     showDevtools: !isWindow && !!onOpenDevtools,
-    railCollapsed: railCollapsedSettings?.get() ?? false,
+    railCollapsed: railCollapsedSettings?.get().enabled ?? false,
   });
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
@@ -833,7 +823,7 @@ export function createQuickControls({
     const label = t(collapsed ? "panel.rail_expand" : "panel.rail_collapse");
     railCollapseBtn.setAttribute("aria-label", label);
     railCollapseBtn.title = label;
-    railCollapsedSettings?.setCollapsed(collapsed);
+    railCollapsedSettings?.setEnabled(collapsed);
     log.info("rail_collapse_toggle", { collapsed });
   }
 
@@ -892,13 +882,13 @@ export function createQuickControls({
   function handlePresenceChange(): void {
     if (!presenceSettings || !presenceInput) return;
     const v = Math.round(Number(presenceInput.value));
-    presenceSettings.setPresentMaxIdleMs(v * 1000);
+    presenceSettings.set(v * 1000);
     reflect.reflectPresence();
   }
   function handleRecentAppsChange(): void {
     if (!recentAppsSettings || !recentAppsInput) return;
     const v = Math.round(Number(recentAppsInput.value));
-    recentAppsSettings.setRecentAppsMax(v);
+    recentAppsSettings.set(v);
     reflect.reflectRecentApps();
   }
   agentPortInput?.addEventListener("change", handleAgentPortChange);

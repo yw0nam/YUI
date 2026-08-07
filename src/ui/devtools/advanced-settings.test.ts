@@ -3,9 +3,19 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createContextSettings } from "../../io/context-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
-import { createRecentAppsSettings } from "../../io/recent-apps-settings";
+import { createRecentAppsStore } from "../../io/settings-stores";
 import { setLocale } from "../i18n";
 import { createAdvancedSettings } from "./advanced-settings";
+
+const inMemoryRecentAppsStore = () => {
+  let value: { value: number } | null = null;
+  return createRecentAppsStore({
+    load: () => value,
+    save: (next) => {
+      value = next;
+    },
+  });
+};
 
 describe("Advanced Settings", () => {
   beforeEach(() => setLocale("en"));
@@ -13,7 +23,7 @@ describe("Advanced Settings", () => {
   it("binds context toggles and numeric settings to their existing stores", () => {
     const mount = document.createElement("section");
     const context = createContextSettings();
-    const recentApps = createRecentAppsSettings();
+    const recentApps = inMemoryRecentAppsStore();
     const endpoints = createEndpointsSettings();
     createAdvancedSettings(mount, { context, recentApps, endpoints });
 
@@ -21,9 +31,14 @@ describe("Advanced Settings", () => {
     expect(context.get().send_window_title).toBe(false);
 
     const cap = mount.querySelector<HTMLInputElement>("#devtools-recent-apps-cap")!;
+    // The advertised max is the bound the store actually clamps to, not a second copy of it.
+    expect(cap.max).toBe("50");
+    recentApps.set(Number(cap.max) + 1);
+    expect(recentApps.get().value).toBe(10);
+
     cap.value = "14";
     cap.dispatchEvent(new Event("change"));
-    expect(recentApps.get().recent_apps_max).toBe(14);
+    expect(recentApps.get().value).toBe(14);
 
     const window = mount.querySelector<HTMLInputElement>("#devtools-context-window")!;
     window.value = "64000";
@@ -36,7 +51,7 @@ describe("Advanced Settings", () => {
     const mount = document.createElement("section");
     createAdvancedSettings(mount, {
       context: createContextSettings(),
-      recentApps: createRecentAppsSettings(),
+      recentApps: inMemoryRecentAppsStore(),
       endpoints: createEndpointsSettings(),
     });
 

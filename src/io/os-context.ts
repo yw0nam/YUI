@@ -47,7 +47,7 @@ function nonEmpty(v: string | null | undefined): string | undefined {
 export function createOsContext(opts?: {
   listen?: OsEventListen;
   /** Live cap read. Not injected → buffer is uncapped (no trim applied); the production
-   * wiring (main.ts) always injects this from recent-apps-settings. */
+   * wiring (main.ts) always injects this from the recent-apps store. */
   maxRecentApps?: () => number;
 }): OsContext {
   let snapshot: OsContextSnapshot = {};

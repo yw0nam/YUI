@@ -246,7 +246,7 @@ describe("wireDispatcherSources", () => {
     const pipelineBusy = { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) };
     const result = wireDispatcherSources({
       bus,
-      presenceSettings: { get: () => ({ present_max_idle_ms: 5000 }) },
+      presenceSettings: { get: () => ({ value: 5000 }) },
       proactiveSettings: { get: () => ({ enabled: true, entries: [] }) },
       scheduleSettings: { get: () => ({ enabled: false, entries: [] }) },
       agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
@@ -261,7 +261,7 @@ describe("wireDispatcherSources", () => {
     ]);
     // Each source is started (fire-and-forget) so candidate events flow once wired.
     expect(started.sort()).toEqual(["agent", "proactive", "schedule", "signals"]);
-    // present_max_idle_ms is read from the presence store at creation time.
+    // The dispatcher threshold is read from the presence store at creation time.
     expect((created.proactive as { present_max_idle_ms: number }).present_max_idle_ms).toBe(5000);
     // isEnabled reads live from the per-feature store.
     expect((created.schedule as { isEnabled: () => boolean }).isEnabled()).toBe(false);

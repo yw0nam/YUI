@@ -8,24 +8,18 @@ import { createContextHistory, localStorageContextHistory } from "./context-hist
 import { createContextSettings, localStorageContextSettings } from "./context-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./endpoints-settings";
 import { createFillerSettings, localStorageFillerStorage } from "./filler-settings";
-import { createGazeSettings, localStorageGazeStorage } from "./gaze-settings";
-import { createHintSettings, localStorageHintStorage } from "./hint-settings";
-import {
-  createIdleThrottleSettings,
-  localStorageIdleThrottleStorage,
-} from "./idle-throttle-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./lipsync-settings";
-import { createPresenceSettings, localStoragePresenceStorage } from "./presence-settings";
+import {
+  createClampedIntSettings,
+  createFlagSettings,
+  localStorageStore,
+  type PersistedStorage,
+} from "./persisted-store";
 import {
   type CueLocale,
   createProactiveSettings,
   localStorageProactiveStorage,
 } from "./proactive-settings";
-import {
-  createRailCollapsedSettings,
-  localStorageRailCollapsedStorage,
-} from "./rail-collapsed-settings";
-import { createRecentAppsSettings, localStorageRecentAppsStorage } from "./recent-apps-settings";
 import { createScheduleSettings, localStorageScheduleStorage } from "./schedule-settings";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./screenshot-settings";
 import {
@@ -33,10 +27,20 @@ import {
   localStorageSessionDiagnosticsStorage,
 } from "./session-diagnostics";
 import { createSessionStore, localStorageSessionStorage } from "./session-store";
-import { createSttSettings, localStorageSttStorage } from "./stt-settings";
-import { createTtsSettings, localStorageTtsStorage } from "./tts-settings";
 import { createVadSettings, localStorageVadStorage } from "./vad-settings";
 import { createWorkflowSettings, localStorageWorkflowStorage } from "./workflow-settings";
+
+export const createPresenceStore = (
+  storage: PersistedStorage<{ value: number }> = localStorageStore("yui.presence"),
+) =>
+  createClampedIntSettings(
+    { default: 180000, floor: 10000, ceil: Number.MAX_SAFE_INTEGER },
+    { storage },
+  );
+
+export const createRecentAppsStore = (
+  storage: PersistedStorage<{ value: number }> = localStorageStore("yui.recent-apps"),
+) => createClampedIntSettings({ default: 10, floor: 1, ceil: 50 }, { storage });
 
 // localStorage-backed settings/state stores. Pure instantiation — no wiring, no renderer,
 // no dispatcher. bootstrap() destructures the bag and owns the wiring (renderer, storage-sync).
@@ -45,16 +49,12 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     storage: localStorageScreenshotStorage(),
   });
   // TTS voice output on/off. Default ON. When OFF, skip synth and show only expression/motion + speech bubble.
-  const ttsSettings = createTtsSettings({
-    storage: localStorageTtsStorage(),
-  });
+  const ttsSettings = createFlagSettings(true, { storage: localStorageStore("yui.tts") });
   // STT voice-input on/off intent. Default OFF. If quit while on, auto-resumes on the next run.
-  const sttSettings = createSttSettings({
-    storage: localStorageSttStorage(),
-  });
+  const sttSettings = createFlagSettings(false, { storage: localStorageStore("yui.stt") });
   // Idle power-saving (30fps cap) on/off. Default ON.
-  const idleThrottleSettings = createIdleThrottleSettings({
-    storage: localStorageIdleThrottleStorage(),
+  const idleThrottleSettings = createFlagSettings(true, {
+    storage: localStorageStore("yui.idle-throttle"),
   });
   // Proactive-reaction (no interaction for N min → proactive.<id>) settings. Gates only source firing — subscriptions aren't stopped.
   const proactiveSettings = createProactiveSettings({
@@ -74,11 +74,9 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     storage: localStorageAgentNotifyStorage(),
   });
   // Presence window threshold — "present when idle ≤ N ms". Shared by proactive/agent sources.
-  const presenceSettings = createPresenceSettings({ storage: localStoragePresenceStorage() });
+  const presenceSettings = createPresenceStore();
   // Recent-apps buffer cap — os-context caps its app-switch buffer at this value.
-  const recentAppsSettings = createRecentAppsSettings({
-    storage: localStorageRecentAppsStorage(),
-  });
+  const recentAppsSettings = createRecentAppsStore();
   const contextSettings = createContextSettings({
     storage: localStorageContextSettings(),
   });
@@ -119,11 +117,13 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     storage: localStorageCameraStorage(),
   });
   // Cursor gaze-tracking on/off. Default ON. Streams every change (toggle/cross-window) to the renderer.
-  const gazeSettings = createGazeSettings({ storage: localStorageGazeStorage() });
+  const gazeSettings = createFlagSettings(true, { storage: localStorageStore("yui.gaze") });
   // First-run onboarding hint — flag shown only once.
-  const hintSettings = createHintSettings({ storage: localStorageHintStorage() });
-  const railCollapsedSettings = createRailCollapsedSettings({
-    storage: localStorageRailCollapsedStorage(),
+  // enabled === onboarding hint already seen.
+  const hintSettings = createFlagSettings(false, { storage: localStorageStore("yui.hint") });
+  // enabled === rail is collapsed.
+  const railCollapsedSettings = createFlagSettings(false, {
+    storage: localStorageStore("yui.quickControls.railCollapsed"),
   });
 
   return {

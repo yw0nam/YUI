@@ -5,7 +5,7 @@ import { createConfigStore } from "./config";
 import { createContextHistory, localStorageContextHistory } from "./io/context-history";
 import { createContextSettings, localStorageContextSettings } from "./io/context-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
-import { createRecentAppsSettings, localStorageRecentAppsStorage } from "./io/recent-apps-settings";
+import { createRecentAppsStore } from "./io/settings-stores";
 import { wireStorageSync } from "./io/settings-window";
 import { createLogger, initLogger } from "./logger";
 import { createDevtoolsShell } from "./ui/devtools/shell";
@@ -25,9 +25,7 @@ async function bootstrap(): Promise<void> {
 
   const history = createContextHistory({ storage: localStorageContextHistory() });
   const contextSettings = createContextSettings({ storage: localStorageContextSettings() });
-  const recentAppsSettings = createRecentAppsSettings({
-    storage: localStorageRecentAppsStorage(),
-  });
+  const recentAppsSettings = createRecentAppsStore();
   const endpointsSettings = createEndpointsSettings({
     storage: localStorageEndpointsStorage(),
   });

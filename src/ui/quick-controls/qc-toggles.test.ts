@@ -4,13 +4,11 @@ import type { AvatarOption } from "../../config/load";
 import { createAgentNotifySettings } from "../../io/agent-notify-settings";
 import { createAgentSettings } from "../../io/agent-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
-import { createGazeSettings } from "../../io/gaze-settings";
-import { createIdleThrottleSettings } from "../../io/idle-throttle-settings";
 import { createLipsyncSettings } from "../../io/lipsync-settings";
+import { createFlagSettings } from "../../io/persisted-store";
 import { createProactiveSettings } from "../../io/proactive-settings";
 import { createScheduleSettings } from "../../io/schedule-settings";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
-import { createTtsSettings } from "../../io/tts-settings";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../io/vad-settings";
 import type { createVrmSelection } from "../../io/vrm-selection";
 import { setLocale } from "../i18n";
@@ -244,7 +242,7 @@ describe("createQuickControls — toggles + gain row", () => {
   });
 
   it("clicking the idle-throttle switch toggles idleThrottleSettings.setEnabled", () => {
-    const idleThrottleSettings = createIdleThrottleSettings();
+    const idleThrottleSettings = createFlagSettings(true);
     const qc = buildQc({ idleThrottleSettings });
     qc.open();
 
@@ -263,7 +261,7 @@ describe("createQuickControls — toggles + gain row", () => {
   });
 
   it("external idleThrottleSettings.setEnabled reflects on the switch while open", () => {
-    const idleThrottleSettings = createIdleThrottleSettings();
+    const idleThrottleSettings = createFlagSettings(true);
     const qc = buildQc({ idleThrottleSettings });
     qc.open();
 
@@ -285,7 +283,7 @@ describe("createQuickControls — toggles + gain row", () => {
     expect(withoutGaze.el.querySelector(".yui-gaze-switch")).toBeNull();
     withoutGaze.dispose();
 
-    const qc = buildQc({ gazeSettings: createGazeSettings() });
+    const qc = buildQc({ gazeSettings: createFlagSettings(true) });
     qc.open();
     const gazeSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-gaze-switch");
     expect(gazeSwitch).not.toBeNull();
@@ -299,7 +297,7 @@ describe("createQuickControls — toggles + gain row", () => {
   });
 
   it("clicking the gaze switch toggles gazeSettings.setEnabled", () => {
-    const gazeSettings = createGazeSettings();
+    const gazeSettings = createFlagSettings(true);
     const qc = buildQc({ gazeSettings });
     qc.open();
 
@@ -318,7 +316,7 @@ describe("createQuickControls — toggles + gain row", () => {
   });
 
   it("external gazeSettings.setEnabled reflects on the switch while open", () => {
-    const gazeSettings = createGazeSettings();
+    const gazeSettings = createFlagSettings(true);
     const qc = buildQc({ gazeSettings });
     qc.open();
 
@@ -390,7 +388,7 @@ describe("createQuickControls — toggles + gain row", () => {
   // ── TTS voice output toggle ──────────────────────────────────────────────────
 
   it("clicking the TTS switch toggles ttsSettings.setEnabled", () => {
-    const ttsSettings = createTtsSettings();
+    const ttsSettings = createFlagSettings(true);
     const qc = buildQc({ ttsSettings });
     qc.open();
 
@@ -409,7 +407,7 @@ describe("createQuickControls — toggles + gain row", () => {
   });
 
   it("external ttsSettings.setEnabled reflects on the switch while open", () => {
-    const ttsSettings = createTtsSettings();
+    const ttsSettings = createFlagSettings(true);
     const qc = buildQc({ ttsSettings });
     qc.open();
 

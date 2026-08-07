@@ -12,18 +12,14 @@ import {
   isValidEndpointUrl,
 } from "../../io/endpoints-settings";
 import type { createFillerSettings } from "../../io/filler-settings";
-import type { createGazeSettings } from "../../io/gaze-settings";
-import type { createIdleThrottleSettings } from "../../io/idle-throttle-settings";
 import {
   type createLipsyncSettings,
   LIPSYNC_GAIN_MAX,
   LIPSYNC_GAIN_MIN,
 } from "../../io/lipsync-settings";
-import type { createPresenceSettings } from "../../io/presence-settings";
-import type { createRecentAppsSettings } from "../../io/recent-apps-settings";
+import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../io/persisted-store";
 import type { createScreenshotSettings } from "../../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
-import type { createTtsSettings } from "../../io/tts-settings";
 import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../../io/vad-settings";
 import { getLocale, t } from "../i18n";
 import type { VoiceInputStatusSnapshot } from "../voice-input-status";
@@ -59,9 +55,9 @@ interface ReflectDeps {
   /** Panel root (el) — all reflect target nodes are queried from here. */
   root: HTMLElement;
   settings: ReturnType<typeof createScreenshotSettings>;
-  idleThrottleSettings: ReturnType<typeof createIdleThrottleSettings>;
-  ttsSettings?: ReturnType<typeof createTtsSettings>;
-  gazeSettings?: ReturnType<typeof createGazeSettings>;
+  idleThrottleSettings: FlagSettingsStore;
+  ttsSettings?: FlagSettingsStore;
+  gazeSettings?: FlagSettingsStore;
   agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
   lipsync: ReturnType<typeof createLipsyncSettings>;
   vad: ReturnType<typeof createVadSettings>;
@@ -80,9 +76,9 @@ interface ReflectDeps {
   /** Reactions tab numeric inputs — provided when the feature is enabled. */
   agentPortInput?: HTMLInputElement;
   presenceInput?: HTMLInputElement;
-  presenceSettings?: ReturnType<typeof createPresenceSettings>;
+  presenceSettings?: ClampedIntSettingsStore;
   recentAppsInput?: HTMLInputElement;
-  recentAppsSettings?: ReturnType<typeof createRecentAppsSettings>;
+  recentAppsSettings?: ClampedIntSettingsStore;
 }
 
 export interface Reflect {
@@ -209,12 +205,12 @@ export function createReflect(deps: ReflectDeps): Reflect {
 
   function reflectPresence(): void {
     if (!presenceInput || !presenceSettings) return;
-    presenceInput.value = String(presenceSettings.get().present_max_idle_ms / 1000);
+    presenceInput.value = String(presenceSettings.get().value / 1000);
   }
 
   function reflectRecentApps(): void {
     if (!recentAppsInput || !recentAppsSettings) return;
-    recentAppsInput.value = String(recentAppsSettings.get().recent_apps_max);
+    recentAppsInput.value = String(recentAppsSettings.get().value);
   }
 
   function reflectGain(): void {

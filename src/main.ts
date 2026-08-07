@@ -293,7 +293,7 @@ async function bootstrap(): Promise<void> {
   const screenCapturer = resolveScreenCapturer();
   // Foreground app/title snapshot — backend_caller attaches as env to each request. Non-Tauri is no-op.
   const osContext = createOsContext({
-    maxRecentApps: () => recentAppsSettings.get().recent_apps_max,
+    maxRecentApps: () => recentAppsSettings.get().value,
   });
   void osContext.start();
   disposers.push(() => osContext.stop());
@@ -771,8 +771,8 @@ async function bootstrap(): Promise<void> {
     await loadVrmSerialized(vrmSelection.getActive().url);
     // First-run onboarding hint — once when character visible, exposed via existing speech bubble.
     maybeShowFirstRunHint({
-      seen: () => hintSettings.get().seen,
-      markSeen: () => hintSettings.setSeen(true),
+      seen: () => hintSettings.get().enabled,
+      markSeen: () => hintSettings.setEnabled(true),
       surfaces,
       hotkey: cfg.hotkeys.summon_global,
       isMac: /Mac/.test(navigator.platform || navigator.userAgent),
