@@ -20,6 +20,14 @@ import {
   voiceRevision,
 } from "./irodori-voices";
 
+const referenceClip = vi.hoisted(() => ({
+  fetch: vi.fn<(refUrl: string, opts?: { fetch?: typeof fetch }) => Promise<Blob>>(),
+}));
+
+vi.mock("./reference-clip", () => ({
+  fetchReferenceClip: referenceClip.fetch,
+}));
+
 type FetchFn = (input: unknown, init?: RequestInit) => Promise<Response>;
 
 const BASE = "http://localhost:8091";
@@ -30,15 +38,6 @@ function voicesResponse(ids: string[]): Response {
     status: 200,
     headers: new Headers(),
     json: async () => ({ voices: ids.map((voice_id) => ({ voice_id })) }),
-  } as unknown as Response;
-}
-
-function blobResponse(blob: Blob): Response {
-  return {
-    ok: true,
-    status: 200,
-    headers: new Headers(),
-    blob: async () => blob,
   } as unknown as Response;
 }
 
@@ -62,6 +61,10 @@ function updatedResponse(voice_id: string): Response {
 
 beforeEach(() => {
   __resetIrodoriVoiceCache();
+  referenceClip.fetch.mockReset();
+  referenceClip.fetch.mockResolvedValue(
+    new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" }),
+  );
 });
 
 afterEach(() => {
@@ -91,13 +94,11 @@ describe("ensureRegistered", () => {
   });
 
   it("fetches refUrl + POSTs multipart when the id is missing", async () => {
-    const audio = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" });
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
         return voicesResponse(["other"]);
       }
-      if (url === "/references/ナツメ/merged_audio.mp3") return blobResponse(audio);
       if (url === "http://localhost:8091/voices" && init?.method === "POST") {
         return createdResponse("ナツメ");
       }
@@ -119,16 +120,17 @@ describe("ensureRegistered", () => {
     expect(body.get("voice_id")).toBe("ナツメ");
     const ref = body.get("reference_audio");
     expect(ref).toBeInstanceOf(Blob);
+    expect(referenceClip.fetch).toHaveBeenCalledWith("/references/ナツメ/merged_audio.mp3", {
+      fetch: fetchMock,
+    });
   });
 
   it("memoizes — a second call after success makes no new POST", async () => {
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
         return voicesResponse(["other"]);
       }
-      if (url === "/references/x.mp3") return blobResponse(audio);
       if (url === "http://localhost:8091/voices" && init?.method === "POST") {
         return createdResponse("x");
       }
@@ -152,13 +154,11 @@ describe("ensureRegistered", () => {
   });
 
   it("deduplicates concurrent calls into a single registration", async () => {
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
         return voicesResponse(["other"]);
       }
-      if (url === "/references/x.mp3") return blobResponse(audio);
       if (url === "http://localhost:8091/voices" && init?.method === "POST") {
         return createdResponse("x");
       }
@@ -179,7 +179,6 @@ describe("ensureRegistered", () => {
 
   it("retries after a failure (cache cleared so a later call re-attempts)", async () => {
     let getCalls = 0;
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
@@ -189,7 +188,6 @@ describe("ensureRegistered", () => {
         }
         return voicesResponse(["other"]);
       }
-      if (url === "/references/x.mp3") return blobResponse(audio);
       if (url === "http://localhost:8091/voices" && init?.method === "POST") {
         return createdResponse("x");
       }
@@ -210,13 +208,11 @@ describe("ensureRegistered", () => {
   });
 
   it("throws a clear message when POST /voices is non-2xx", async () => {
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
         return voicesResponse(["other"]);
       }
-      if (url === "/references/x.mp3") return blobResponse(audio);
       if (url === "http://localhost:8091/voices" && init?.method === "POST") {
         return { ok: false, status: 500, headers: new Headers() } as unknown as Response;
       }
@@ -251,13 +247,11 @@ describe("ensureRegistered", () => {
   });
 
   it("evictRegistration drops the memo so a later call re-registers", async () => {
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
     const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
         return voicesResponse(["other"]);
       }
-      if (url === "/references/x.mp3") return blobResponse(audio);
       if (url === "http://localhost:8091/voices" && init?.method === "POST") {
         return createdResponse("x");
       }
@@ -281,13 +275,11 @@ describe("ensureRegistered", () => {
   });
 
   it("does not memoize the empty-refUrl skip — a later real refUrl still registers", async () => {
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
         return voicesResponse(["other"]);
       }
-      if (url === "/references/natsume.wav") return blobResponse(audio);
       if (url === "http://localhost:8091/voices" && init?.method === "POST") {
         return createdResponse("natsume");
       }
@@ -313,193 +305,13 @@ describe("ensureRegistered", () => {
     const postCount = fetchMock.mock.calls.filter((c) => c[1]?.method === "POST").length;
     expect(postCount).toBe(1);
   });
-
-  it("absolutizes a relative refUrl against window origin before fetching", async () => {
-    vi.stubGlobal("location", { href: "http://127.0.0.1:1420/" });
-    const expectedRef = new URL("/references/あやせ/merged_audio.mp3", "http://127.0.0.1:1420/")
-      .href;
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
-      const url = String(input);
-      if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
-        return voicesResponse(["other"]);
-      }
-      if (url === expectedRef) return blobResponse(audio);
-      if (url === "http://localhost:8091/voices" && init?.method === "POST") {
-        return createdResponse("あやせ");
-      }
-      throw new Error(`unexpected fetch ${url}`);
-    });
-
-    await ensureRegistered({
-      baseUrl: BASE,
-      id: "あやせ",
-      refUrl: "/references/あやせ/merged_audio.mp3",
-      fetch: fetchMock as unknown as typeof fetch,
-    });
-
-    const refCall = fetchMock.mock.calls.find((c) => String(c[0]) === expectedRef);
-    expect(refCall).toBeDefined();
-  });
-
-  it("absolutizes a relative refUrl in Tauri dev, where resolveAssetUrl passes the vite path through", async () => {
-    vi.stubGlobal("__TAURI_INTERNALS__", {});
-    vi.stubGlobal("location", { href: "http://127.0.0.1:1420/" });
-    const expectedRef = new URL("/references/x.mp3", "http://127.0.0.1:1420/").href;
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
-      const url = String(input);
-      if (url === `${BASE}/voices` && (init?.method ?? "GET") === "GET") {
-        return voicesResponse(["other"]);
-      }
-      if (url === expectedRef) return blobResponse(audio);
-      if (url === `${BASE}/voices` && init?.method === "POST") return createdResponse("x");
-      throw new Error(`unexpected fetch ${url}`);
-    });
-
-    await ensureRegistered({
-      baseUrl: BASE,
-      id: "x",
-      refUrl: "/references/x.mp3",
-      fetch: fetchMock as unknown as typeof fetch,
-    });
-
-    expect(fetchMock.mock.calls.some((c) => String(c[0]) === expectedRef)).toBe(true);
-  });
-
-  it("injected resolveRef(Tauri asset resolver)로 ref_url을 변환해 native fetch로 가져온다", async () => {
-    const assetRef = "asset://localhost/app/resources/references/あやせ/merged_audio.mp3";
-    const resolveRef = vi.fn(async (_p: string) => assetRef);
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const nativeFetch = vi.fn<FetchFn>(async (input: unknown) => {
-      const url = String(input);
-      if (url === assetRef) return blobResponse(audio);
-      throw new Error(`unexpected native fetch ${url}`);
-    });
-    vi.stubGlobal("fetch", nativeFetch);
-
-    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
-      const url = String(input);
-      if (url === `${BASE}/voices` && (init?.method ?? "GET") === "GET") {
-        return voicesResponse(["other"]);
-      }
-      if (url === `${BASE}/voices` && init?.method === "POST") return createdResponse("あやせ");
-      throw new Error(`unexpected injected fetch ${url}`);
-    });
-
-    await ensureRegistered({
-      baseUrl: BASE,
-      id: "あやせ",
-      refUrl: "/references/あやせ/merged_audio.mp3",
-      fetch: fetchMock as unknown as typeof fetch,
-      resolveRef,
-    });
-
-    expect(resolveRef).toHaveBeenCalledWith("/references/あやせ/merged_audio.mp3");
-    expect(nativeFetch.mock.calls.some((c) => String(c[0]) === assetRef)).toBe(true);
-    expect(fetchMock.mock.calls.some((c) => String(c[0]) === assetRef)).toBe(false);
-  });
-
-  it("fetches an asset:// ref with the native webview fetch, not the injected fetch", async () => {
-    const assetRef = "asset://localhost/app/resources/references/x/merged_audio.mp3";
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const nativeFetch = vi.fn<FetchFn>(async (input: unknown) => {
-      const url = String(input);
-      if (url === assetRef) return blobResponse(audio);
-      throw new Error(`unexpected native fetch ${url}`);
-    });
-    vi.stubGlobal("fetch", nativeFetch);
-
-    const injectedFetch = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
-      const url = String(input);
-      if (url === `${BASE}/voices` && (init?.method ?? "GET") === "GET") {
-        return voicesResponse(["other"]);
-      }
-      if (url === `${BASE}/voices` && init?.method === "POST") {
-        return createdResponse("x");
-      }
-      throw new Error(`unexpected injected fetch ${url} ${init?.method}`);
-    });
-
-    await ensureRegistered({
-      baseUrl: BASE,
-      id: "x",
-      refUrl: "/references/x/merged_audio.mp3",
-      fetch: injectedFetch as unknown as typeof fetch,
-      resolveRef: async () => assetRef,
-    });
-
-    expect(nativeFetch).toHaveBeenCalledTimes(1);
-    expect(String(nativeFetch.mock.calls[0][0])).toBe(assetRef);
-    expect(injectedFetch.mock.calls.some((c) => String(c[0]) === assetRef)).toBe(false);
-    expect(injectedFetch.mock.calls.length).toBe(2);
-  });
-
-  it("keeps a file:// ref on the injected fetch so it fails loudly instead of reaching native fetch", async () => {
-    const fileRef = "file:///etc/passwd";
-    const nativeFetch = vi.fn<FetchFn>(async () => {
-      throw new Error("should not use native fetch for a file:// ref");
-    });
-    vi.stubGlobal("fetch", nativeFetch);
-
-    const injectedFetch = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
-      const url = String(input);
-      if (url === `${BASE}/voices` && (init?.method ?? "GET") === "GET") {
-        return voicesResponse(["other"]);
-      }
-      throw new Error("scheme file not supported");
-    });
-
-    await expect(
-      ensureRegistered({
-        baseUrl: BASE,
-        id: "x",
-        refUrl: fileRef,
-        fetch: injectedFetch as unknown as typeof fetch,
-        resolveRef: async () => fileRef,
-      }),
-    ).rejects.toThrow("scheme file not supported");
-    expect(nativeFetch).not.toHaveBeenCalled();
-  });
-
-  it("still fetches an http(s) ref through the injected fetch, not the native fetch", async () => {
-    const httpRef = "http://127.0.0.1:1420/references/x.mp3";
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const nativeFetch = vi.fn<FetchFn>(async () => {
-      throw new Error("should not use native fetch for an http(s) ref");
-    });
-    vi.stubGlobal("fetch", nativeFetch);
-
-    const injectedFetch = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
-      const url = String(input);
-      if (url === `${BASE}/voices` && (init?.method ?? "GET") === "GET") {
-        return voicesResponse(["other"]);
-      }
-      if (url === httpRef) return blobResponse(audio);
-      if (url === `${BASE}/voices` && init?.method === "POST") return createdResponse("x");
-      throw new Error(`unexpected injected fetch ${url} ${init?.method}`);
-    });
-
-    await ensureRegistered({
-      baseUrl: BASE,
-      id: "x",
-      refUrl: "/references/x.mp3",
-      fetch: injectedFetch as unknown as typeof fetch,
-      resolveRef: async () => httpRef,
-    });
-
-    expect(nativeFetch).not.toHaveBeenCalled();
-    expect(injectedFetch.mock.calls.some((c) => String(c[0]) === httpRef)).toBe(true);
-  });
 });
 
 describe("updateVoice", () => {
   it("PUTs multipart to /voices/{voice_id} with a percent-encoded non-ASCII id and only reference_audio in the body", async () => {
-    const audio = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" });
     const encodedId = encodeURIComponent("ナツメ");
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
-      if (url === "/references/ナツメ/merged_audio.mp3") return blobResponse(audio);
       if (url === `http://localhost:8091/voices/${encodedId}` && init?.method === "PUT") {
         return updatedResponse("ナツメ");
       }
@@ -522,13 +334,14 @@ describe("updateVoice", () => {
     expect(body.get("voice_id")).toBeNull();
     const ref = body.get("reference_audio");
     expect(ref).toBeInstanceOf(Blob);
+    expect(referenceClip.fetch).toHaveBeenCalledWith("/references/ナツメ/merged_audio.mp3", {
+      fetch: fetchMock,
+    });
   });
 
   it("always fetches the ref + PUTs even when the id already exists (no GET check)", async () => {
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
-      if (url === "/references/x.mp3") return blobResponse(audio);
       if (url === "http://localhost:8091/voices/x" && init?.method === "PUT") {
         return updatedResponse("x");
       }
@@ -551,39 +364,9 @@ describe("updateVoice", () => {
     expect(putCount).toBe(1);
   });
 
-  it("absolutizes a relative refUrl against window origin before fetching", async () => {
-    vi.stubGlobal("location", { href: "http://127.0.0.1:1420/" });
-    const expectedRef = new URL("/references/あやせ/merged_audio.mp3", "http://127.0.0.1:1420/")
-      .href;
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
-      const url = String(input);
-      if (url === expectedRef) return blobResponse(audio);
-      if (
-        url === `http://localhost:8091/voices/${encodeURIComponent("あやせ")}` &&
-        init?.method === "PUT"
-      ) {
-        return updatedResponse("あやせ");
-      }
-      throw new Error(`unexpected fetch ${url}`);
-    });
-
-    await updateVoice({
-      baseUrl: BASE,
-      id: "あやせ",
-      refUrl: "/references/あやせ/merged_audio.mp3",
-      fetch: fetchMock as unknown as typeof fetch,
-    });
-
-    const refCall = fetchMock.mock.calls.find((c) => String(c[0]) === expectedRef);
-    expect(refCall).toBeDefined();
-  });
-
   it("bumps the voice revision so callers can tell the clip behind the id changed", async () => {
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
-      if (url === "/references/x.mp3") return blobResponse(audio);
       if (url === "http://localhost:8091/voices/x" && init?.method === "PUT") {
         return updatedResponse("x");
       }
@@ -607,10 +390,8 @@ describe("updateVoice", () => {
   });
 
   it("throws a clear message when PUT /voices/{voice_id} is non-2xx", async () => {
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
     const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
-      if (url === "/references/x.mp3") return blobResponse(audio);
       if (url === "http://localhost:8091/voices/x" && init?.method === "PUT") {
         return { ok: false, status: 500, headers: new Headers() } as unknown as Response;
       }
@@ -645,13 +426,10 @@ describe("updateVoice", () => {
   });
 
   it("throws when the ref fetch is non-ok", async () => {
-    const fetchMock = vi.fn<FetchFn>(async (input: unknown) => {
-      const url = String(input);
-      if (url === "/references/x.mp3") {
-        return { ok: false, status: 404, headers: new Headers() } as unknown as Response;
-      }
-      throw new Error(`unexpected fetch ${url}`);
-    });
+    referenceClip.fetch.mockRejectedValueOnce(
+      new Error("reference clip fetch failed (HTTP 404) /references/x.mp3"),
+    );
+    const fetchMock = vi.fn<FetchFn>();
 
     await expect(
       updateVoice({
@@ -661,62 +439,6 @@ describe("updateVoice", () => {
         fetch: fetchMock as unknown as typeof fetch,
       }),
     ).rejects.toThrow(/HTTP 404/);
-  });
-
-  it("fetches an asset:// ref with the native webview fetch, PUT stays on the injected fetch", async () => {
-    const assetRef = "asset://localhost/app/resources/references/x/merged_audio.mp3";
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const nativeFetch = vi.fn<FetchFn>(async (input: unknown) => {
-      const url = String(input);
-      if (url === assetRef) return blobResponse(audio);
-      throw new Error(`unexpected native fetch ${url}`);
-    });
-    vi.stubGlobal("fetch", nativeFetch);
-
-    const injectedFetch = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
-      const url = String(input);
-      if (url === `${BASE}/voices/x` && init?.method === "PUT") return updatedResponse("x");
-      throw new Error(`unexpected injected fetch ${url} ${init?.method}`);
-    });
-
-    await updateVoice({
-      baseUrl: BASE,
-      id: "x",
-      refUrl: "/references/x/merged_audio.mp3",
-      fetch: injectedFetch as unknown as typeof fetch,
-      resolveRef: async () => assetRef,
-    });
-
-    expect(nativeFetch).toHaveBeenCalledTimes(1);
-    expect(injectedFetch.mock.calls.some((c) => String(c[0]) === assetRef)).toBe(false);
-    expect(injectedFetch.mock.calls.length).toBe(1);
-  });
-
-  it("still fetches an http(s) ref through the injected fetch, not the native fetch", async () => {
-    const httpRef = "http://127.0.0.1:1420/references/x.mp3";
-    const audio = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
-    const nativeFetch = vi.fn<FetchFn>(async () => {
-      throw new Error("should not use native fetch for an http(s) ref");
-    });
-    vi.stubGlobal("fetch", nativeFetch);
-
-    const injectedFetch = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
-      const url = String(input);
-      if (url === httpRef) return blobResponse(audio);
-      if (url === `${BASE}/voices/x` && init?.method === "PUT") return updatedResponse("x");
-      throw new Error(`unexpected injected fetch ${url} ${init?.method}`);
-    });
-
-    await updateVoice({
-      baseUrl: BASE,
-      id: "x",
-      refUrl: "/references/x.mp3",
-      fetch: injectedFetch as unknown as typeof fetch,
-      resolveRef: async () => httpRef,
-    });
-
-    expect(nativeFetch).not.toHaveBeenCalled();
-    expect(injectedFetch.mock.calls.some((c) => String(c[0]) === httpRef)).toBe(true);
   });
 });
 

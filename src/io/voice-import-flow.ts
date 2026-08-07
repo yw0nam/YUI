@@ -59,7 +59,7 @@ export function createVoiceImportFlow(deps: {
       const baseUrl = getIrodoriBaseUrl();
       if (!baseUrl) throw new Error("irodori provider requires irodori_base_url");
       const f = await selectFetch();
-      // ref_url is an asset:// URL — resolveRef passes it through as-is and PUTs the clip.
+      // ref_url is an asset:// URL that reference-clip reads through the webview fetch.
       await updateVoice({ baseUrl, id: option.id, refUrl: option.ref_url, fetch: f });
     } catch (err) {
       // Surface a cleanup failure as a warning rather than swallowing it (the original still throws).

@@ -9,7 +9,6 @@
 import "./styles.css";
 import { createSettingsBroadcast } from "./bootstrap-wiring";
 import { createConfigStore } from "./config";
-import { resolveAssetUrl } from "./io/asset-url";
 import { selectFetch } from "./io/chat-client";
 import { updateVoice } from "./io/irodori-voices";
 import { createSettingsBridge } from "./io/settings-bridge";
@@ -187,7 +186,6 @@ async function bootstrap(): Promise<void> {
       commitVoiceImport,
       removeUserVoice: removeUserVoiceFile,
       refreshVoiceList,
-      resolveAuditionUrl: (refUrl) => resolveAssetUrl(refUrl),
       // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
       onGainPreviewEnd: () => bridge.emitMouthPreview(null),

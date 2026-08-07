@@ -51,10 +51,12 @@ const CONFIG: EndpointsConfig = {
 
 /** Build a fake fetch that returns a successful STT response. */
 function buildFetchMock(responseText = "hello world") {
-  return vi.fn<(url: string, init: RequestInit) => Promise<Response>>().mockResolvedValue({
-    ok: true,
-    json: () => Promise.resolve({ text: responseText }),
-  } as unknown as Response);
+  return vi
+    .fn<(input: URL | RequestInfo, init?: RequestInit) => Promise<Response>>()
+    .mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ text: responseText }),
+    } as unknown as Response);
 }
 
 /** Replace the default MicVAD.new mock with one that resolves only when `resolve` is called. */
@@ -84,6 +86,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 // ── import after mocks ────────────────────────────────────────────────────────
@@ -166,11 +169,11 @@ describe("createSttVad — runtime state callbacks", () => {
   });
 
   it("reports ASR posting before STT and fired after transcript forwarding", async () => {
-    vi.stubGlobal("fetch", buildFetchMock("hello"));
+    const fetchMock = buildFetchMock("hello");
 
     const onState = vi.fn();
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment, onState });
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment, onState, fetch: fetchMock });
     await stt.start();
 
     await triggerSpeechEnd!(new Float32Array([0.1, 0.2]));
@@ -180,11 +183,16 @@ describe("createSttVad — runtime state callbacks", () => {
   });
 
   it("reports error when STT fails", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500 });
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const onState = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState });
+    const stt = createSttVad({
+      config: CONFIG,
+      onVoiceSegment: vi.fn(),
+      onState,
+      fetch: fetchMock,
+    });
     await stt.start();
 
     await triggerSpeechEnd!(new Float32Array([0.1, 0.2]));
@@ -322,10 +330,11 @@ describe("createSttVad — start() failure handling (#64)", () => {
 describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => {
   it("fetches /audio/transcriptions and calls onVoiceSegment with text", async () => {
     const fetchMock = buildFetchMock("こんにちは");
-    vi.stubGlobal("fetch", fetchMock);
+    const wrongTransport = buildFetchMock("wrong transport");
+    vi.stubGlobal("fetch", wrongTransport);
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
     await stt.start();
 
     expect(triggerSpeechEnd).toBeDefined();
@@ -334,44 +343,57 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
 
     // Must POST to stt_base_url/audio/transcriptions (server has the /v1 prefix)
     expect(fetchMock).toHaveBeenCalledOnce();
+    expect(wrongTransport).not.toHaveBeenCalled();
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("http://localhost:5517/v1/audio/transcriptions");
-    expect(init.method).toBe("POST");
-    expect(init.body).toBeInstanceOf(FormData);
+    expect(init?.method).toBe("POST");
+    expect(init?.body).toBeInstanceOf(FormData);
 
     // text forwarded
     expect(onVoiceSegment).toHaveBeenCalledOnce();
     expect(onVoiceSegment).toHaveBeenCalledWith("こんにちは");
   });
 
-  it("sends audio as a Blob under the key 'file' in FormData", async () => {
-    const fetchMock = buildFetchMock("test");
-    vi.stubGlobal("fetch", fetchMock);
+  it("uses globalThis.fetch when no fetch is injected", async () => {
+    const globalFetch = buildFetchMock("global transport");
+    vi.stubGlobal("fetch", globalFetch);
 
     const onVoiceSegment = vi.fn();
     const stt = createSttVad({ config: CONFIG, onVoiceSegment });
     await stt.start();
 
+    await triggerSpeechEnd!(new Float32Array([0.1, 0.2, 0.3]));
+
+    expect(globalFetch).toHaveBeenCalledOnce();
+    expect(onVoiceSegment).toHaveBeenCalledWith("global transport");
+  });
+
+  it("sends audio as a Blob under the key 'file' in FormData", async () => {
+    const fetchMock = buildFetchMock("test");
+
+    const onVoiceSegment = vi.fn();
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
+    await stt.start();
+
     const audio = new Float32Array(16);
     await triggerSpeechEnd!(audio);
 
-    const body = fetchMock.mock.calls[0][1].body as FormData;
+    const body = fetchMock.mock.calls[0][1]?.body as FormData;
     const file = body.get("file");
     expect(file).toBeInstanceOf(Blob);
   });
 
   it("sends audio data that encodes the Float32Array samples", async () => {
     const fetchMock = buildFetchMock("ok");
-    vi.stubGlobal("fetch", fetchMock);
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
     await stt.start();
 
     const audio = new Float32Array([0.5, -0.5, 0.1]);
     await triggerSpeechEnd!(audio);
 
-    const body = fetchMock.mock.calls[0][1].body as FormData;
+    const body = fetchMock.mock.calls[0][1]?.body as FormData;
     const file = body.get("file") as Blob;
     // Blob must be non-empty (encodes PCM samples)
     expect(file.size).toBeGreaterThan(0);
@@ -381,17 +403,17 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
 describe("createSttVad — Authorization", () => {
   it("adds Authorization: Bearer when getApiKey resolves a key, never Content-Type", async () => {
     const fetchMock = buildFetchMock("ok");
-    vi.stubGlobal("fetch", fetchMock);
 
     const stt = createSttVad({
       config: CONFIG,
       onVoiceSegment: vi.fn(),
       getApiKey: async () => "sk-stt",
+      fetch: fetchMock,
     });
     await stt.start();
     await triggerSpeechEnd!(new Float32Array([0.1]));
 
-    const headers = (fetchMock.mock.calls[0][1].headers ?? {}) as Record<string, string>;
+    const headers = (fetchMock.mock.calls[0][1]?.headers ?? {}) as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer sk-stt");
     // FormData body must keep the browser-set multipart boundary — never set Content-Type.
     expect("Content-Type" in headers).toBe(false);
@@ -400,11 +422,15 @@ describe("createSttVad — Authorization", () => {
   it("omits Authorization when getApiKey is absent, empty, or whitespace", async () => {
     for (const getApiKey of [undefined, async () => "", async () => "   "]) {
       const fetchMock = buildFetchMock("ok");
-      vi.stubGlobal("fetch", fetchMock);
-      const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), getApiKey });
+      const stt = createSttVad({
+        config: CONFIG,
+        onVoiceSegment: vi.fn(),
+        getApiKey,
+        fetch: fetchMock,
+      });
       await stt.start();
       await triggerSpeechEnd!(new Float32Array([0.1]));
-      const headers = (fetchMock.mock.calls[0][1].headers ?? {}) as Record<string, string>;
+      const headers = (fetchMock.mock.calls[0][1]?.headers ?? {}) as Record<string, string>;
       expect("Authorization" in headers).toBe(false);
     }
   });
@@ -413,11 +439,10 @@ describe("createSttVad — Authorization", () => {
 describe("createSttVad — STT error resilience", () => {
   it("does not call onVoiceSegment when fetch rejects", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error("network error"));
-    vi.stubGlobal("fetch", fetchMock);
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
     await stt.start();
     await triggerSpeechEnd!(new Float32Array(16));
 
@@ -427,11 +452,10 @@ describe("createSttVad — STT error resilience", () => {
 
   it("does not call onVoiceSegment when response.ok is false", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500 });
-    vi.stubGlobal("fetch", fetchMock);
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
     await stt.start();
     await triggerSpeechEnd!(new Float32Array(16));
 
@@ -447,19 +471,23 @@ describe("createSttVad — per-request deadline (#275)", () => {
 
   it("sends a signal that aborts a hung STT request once STT_REQUEST_TIMEOUT_MS elapses", async () => {
     vi.useFakeTimers();
-    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+    const fetchMock = vi.fn((_: URL | RequestInfo, init?: RequestInit) => {
       return new Promise<Response>((_resolve, reject) => {
         const abortWith = () =>
-          reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError"));
-        if (init.signal?.aborted) abortWith();
-        else init.signal?.addEventListener("abort", abortWith);
+          reject(init?.signal?.reason ?? new DOMException("Aborted", "AbortError"));
+        if (init?.signal?.aborted) abortWith();
+        else init?.signal?.addEventListener("abort", abortWith);
       });
     });
-    vi.stubGlobal("fetch", fetchMock);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const onState = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState });
+    const stt = createSttVad({
+      config: CONFIG,
+      onVoiceSegment: vi.fn(),
+      onState,
+      fetch: fetchMock,
+    });
     await stt.start();
 
     const pending = triggerSpeechEnd!(new Float32Array(16));
@@ -468,26 +496,25 @@ describe("createSttVad — per-request deadline (#275)", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const init = fetchMock.mock.calls[0][1];
-    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
     expect(onState).toHaveBeenCalledWith("error", expect.any(String));
     warnSpy.mockRestore();
   });
 
   it("logs a warning via the project logger when the deadline drops the utterance", async () => {
     vi.useFakeTimers();
-    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+    const fetchMock = vi.fn((_: URL | RequestInfo, init?: RequestInit) => {
       return new Promise<Response>((_resolve, reject) => {
         const abortWith = () =>
-          reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError"));
-        if (init.signal?.aborted) abortWith();
-        else init.signal?.addEventListener("abort", abortWith);
+          reject(init?.signal?.reason ?? new DOMException("Aborted", "AbortError"));
+        if (init?.signal?.aborted) abortWith();
+        else init?.signal?.addEventListener("abort", abortWith);
       });
     });
-    vi.stubGlobal("fetch", fetchMock);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
     await stt.start();
 
     const pending = triggerSpeechEnd!(new Float32Array(16));

@@ -7,7 +7,7 @@
  */
 import "./speaker-list.css";
 
-import { resolveAssetUrl } from "../../io/asset-url";
+import { resolveReferenceClipUrl } from "../../io/reference-clip";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
@@ -37,8 +37,6 @@ interface SpeakerListDeps {
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   /** Delete imported voice app-data file (idempotent). Called separately from store removal. */
   removeUserVoice: (id: string) => Promise<void>;
-  /** Convert audition ref_url to fetchable URL (injectable). Default is resolveAssetUrl. */
-  resolveAuditionUrl?: (refUrl: string) => Promise<string>;
   log: Logger;
   /** Speaker management is active only when effective voice engine is irodori. Gates when openai. */
   speakerControlsEnabled: () => boolean;
@@ -66,7 +64,6 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     pickVoiceImport,
     commitVoiceImport,
     removeUserVoice,
-    resolveAuditionUrl,
     log,
     speakerControlsEnabled,
     isDisposed,
@@ -130,10 +127,6 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     }
   }
 
-  // Convert audition ref_url to fetchable URL (avoid /references/* 404 on packaging).
-  // Tauri: absolute URL to bundled resource; dev/browser: pass through original — same resolver as irodori-voices.
-  const resolveAudition = resolveAuditionUrl ?? resolveAssetUrl;
-
   function toggleAudition(btn: HTMLButtonElement, refUrl: string): void {
     if (auditionBtn === btn) {
       stopAudition(); // Same button re-click → toggle stop
@@ -147,7 +140,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       if (auditionBtn === btn) stopAudition();
     };
     // Resolve ref_url to asset protocol first, then create Audio — for both bundled and user rows.
-    void resolveAudition(refUrl)
+    void resolveReferenceClipUrl(refUrl)
       .then((url) => {
         if (auditionBtn !== btn) return; // Different clip started/stopped while waiting
         const audio = new Audio(url);

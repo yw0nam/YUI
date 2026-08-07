@@ -1,11 +1,7 @@
 /** irodori_TTS voice registry — idempotently ensures a voice id exists before synth. */
 
 import { createLogger, type Logger } from "../logger";
-import { resolveAssetUrl } from "./asset-url";
-import { isTauri } from "./tauri-env";
-
-/** Converts a ref_url into a fetchable URL. dev/browser = absolutized against origin, Tauri = bundle resource URL. */
-type RefUrlResolver = (refUrl: string) => Promise<string>;
+import { fetchReferenceClip } from "./reference-clip";
 
 interface EnsureRegisteredOptions {
   baseUrl: string;
@@ -13,8 +9,6 @@ interface EnsureRegisteredOptions {
   /** Empty for a server-listed voice (nothing to register). An asset:// URL for a user-imported clip (e.g. "asset://localhost/app-data/references/myvoice/clip.mp3"). */
   refUrl: string;
   fetch?: typeof fetch;
-  /** ref_url resolver (injectable). Defaults to resolveRefUrl (dev origin absolutization / Tauri bundle). */
-  resolveRef?: RefUrlResolver;
   logger?: Logger;
 }
 
@@ -36,34 +30,9 @@ export function __resetIrodoriVoiceCache(): void {
   revisions.clear();
 }
 
-/**
- * Converts a ref_url into a fetchable URL.
- * Tauri packaging resolves to a bundle-resource absolute URL (resolveAssetUrl); Tauri dev and browser keep the
- * vite path, which is then absolutized against origin (a base-less URL is rejected by Tauri fetchCORS).
- * Absolute URLs pass through unchanged; base-less environments (node tests) keep the original.
- */
-async function resolveRefUrl(refUrl: string): Promise<string> {
-  const resolved = isTauri() ? await resolveAssetUrl(refUrl) : refUrl;
-  const base = (globalThis as { location?: { href?: string } }).location?.href;
-  if (!base) return resolved;
-  try {
-    return new URL(resolved, base).href;
-  } catch {
-    return resolved;
-  }
-}
-
 /** When server-side voice deletion (restart/DELETE) causes a 422, clear the memo to allow re-registration. */
 export function evictRegistration(baseUrl: string, id: string): void {
   inflight.delete(`${baseUrl}::${id}`);
-}
-
-/** Schemes the ref resolvers produce that the injected fetch (Tauri's reqwest-backed fetchCORS) cannot read. */
-const WEBVIEW_ONLY_SCHEME = /^(asset|blob):/i;
-
-/** Only a webview-only scheme escapes the injected fetch — anything else (http(s), relative, file:, data:) stays on it and fails loudly. */
-function fetchForRef(url: string, injected: typeof fetch): typeof fetch {
-  return WEBVIEW_ONLY_SCHEME.test(url) ? globalThis.fetch : injected;
 }
 
 async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<void> {
@@ -81,12 +50,7 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
     return;
   }
 
-  const ref = await (opts.resolveRef ?? resolveRefUrl)(opts.refUrl);
-  const refRes = await fetchForRef(ref, fetchImpl)(ref);
-  if (!refRes.ok) {
-    throw new Error(`irodori reference fetch failed (HTTP ${refRes.status}) ${ref}`);
-  }
-  const blob = await refRes.blob();
+  const blob = await fetchReferenceClip(opts.refUrl, { fetch: fetchImpl });
 
   const form = new FormData();
   form.append("reference_audio", blob, `${opts.id}.mp3`);
@@ -104,8 +68,6 @@ interface UpdateVoiceOptions {
   id: string;
   refUrl: string;
   fetch?: typeof fetch;
-  /** ref_url resolver (injectable). Defaults to resolveRefUrl. */
-  resolveRef?: RefUrlResolver;
   logger?: Logger;
 }
 
@@ -120,12 +82,7 @@ export async function updateVoice(opts: UpdateVoiceOptions): Promise<void> {
   }
   const fetchImpl = opts.fetch ?? globalThis.fetch;
 
-  const ref = await (opts.resolveRef ?? resolveRefUrl)(opts.refUrl);
-  const refRes = await fetchForRef(ref, fetchImpl)(ref);
-  if (!refRes.ok) {
-    throw new Error(`irodori reference fetch failed (HTTP ${refRes.status}) ${ref}`);
-  }
-  const blob = await refRes.blob();
+  const blob = await fetchReferenceClip(opts.refUrl, { fetch: fetchImpl });
 
   // voice_id travels in the path — PUT /voices/{voice_id}'s body schema takes only reference_audio.
   const form = new FormData();
