@@ -193,6 +193,8 @@ export function createClampedIntSettings(
   });
 
   return {
+    /** The upper bound this store clamps to — lets a UI bind its input `max` to the enforced value. */
+    ceil: cfg.ceil,
     get: core.get,
     set(value: number): void {
       if (valid(value)) core.commit({ value });

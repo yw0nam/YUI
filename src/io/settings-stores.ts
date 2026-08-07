@@ -30,9 +30,6 @@ import { createSessionStore, localStorageSessionStorage } from "./session-store"
 import { createVadSettings, localStorageVadStorage } from "./vad-settings";
 import { createWorkflowSettings, localStorageWorkflowStorage } from "./workflow-settings";
 
-export const RECENT_APPS_FLOOR = 1;
-export const RECENT_APPS_CEIL = 50;
-
 export const createPresenceStore = (
   storage: PersistedStorage<{ value: number }> = localStorageStore("yui.presence"),
 ) =>
@@ -43,11 +40,7 @@ export const createPresenceStore = (
 
 export const createRecentAppsStore = (
   storage: PersistedStorage<{ value: number }> = localStorageStore("yui.recent-apps"),
-) =>
-  createClampedIntSettings(
-    { default: 10, floor: RECENT_APPS_FLOOR, ceil: RECENT_APPS_CEIL },
-    { storage },
-  );
+) => createClampedIntSettings({ default: 10, floor: 1, ceil: 50 }, { storage });
 
 // localStorage-backed settings/state stores. Pure instantiation — no wiring, no renderer,
 // no dispatcher. bootstrap() destructures the bag and owns the wiring (renderer, storage-sync).

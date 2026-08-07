@@ -31,6 +31,11 @@ describe("Advanced Settings", () => {
     expect(context.get().send_window_title).toBe(false);
 
     const cap = mount.querySelector<HTMLInputElement>("#devtools-recent-apps-cap")!;
+    // The advertised max is the bound the store actually clamps to, not a second copy of it.
+    expect(cap.max).toBe("50");
+    recentApps.set(Number(cap.max) + 1);
+    expect(recentApps.get().value).toBe(10);
+
     cap.value = "14";
     cap.dispatchEvent(new Event("change"));
     expect(recentApps.get().value).toBe(14);

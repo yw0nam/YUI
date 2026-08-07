@@ -1,7 +1,6 @@
 import type { ContextSettings, createContextSettings } from "../../io/context-settings";
 import type { createEndpointsSettings } from "../../io/endpoints-settings";
 import type { ClampedIntSettingsStore } from "../../io/persisted-store";
-import { RECENT_APPS_CEIL } from "../../io/settings-stores";
 import { t } from "../i18n";
 
 type ContextStore = ReturnType<typeof createContextSettings>;
@@ -103,7 +102,7 @@ export function createAdvancedSettings(
     t("devtools.advanced.recent_apps_cap_sub"),
     "devtools-recent-apps-cap",
   );
-  recentApps.max = String(RECENT_APPS_CEIL);
+  recentApps.max = String(deps.recentApps.ceil);
   recentApps.addEventListener("change", () => {
     deps.recentApps.set(Number(recentApps.value));
   });
