@@ -26,7 +26,7 @@ import { ensureRegistered, updateVoice } from "./io/irodori-voices";
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
-import { createSettingsBridge, type SettingsBridge } from "./io/settings-bridge";
+import { createSettingsBridge, type SettingsBridge, type WindowKind } from "./io/settings-bridge";
 import {
   broadcastSyncStores,
   reloadSyncStores,
@@ -266,48 +266,96 @@ export function wireStopControl(deps: {
 }
 
 /**
- * Cross-window settings reload half. On a remote settings-changed event, reload every participating
- * store (plus display language and VRM/speaker selection) under the broadcast loop guard. Must be
- * wired AFTER the VRM/speaker selections exist. Only OTHER-window changes reach here, so the VRM is
- * hot-swapped only when its URL actually changed (this window's own swap already loaded it).
+ * The four-part cross-window sync every window runs: the localStorage-`storage`-event fallback, the
+ * bridge, the loop-guarded debounced broadcast half, and the remote-change reload half. Window-specific
+ * extras (pet's mouth-preview/voice channels and VRM hot-swap, the settings window's vrm/speaker
+ * resync) layer on top through `extraResync` and `onRemoteChange`.
+ */
+export function wireWindowSync(deps: {
+  stores: SettingsStores;
+  windowKind: WindowKind;
+  /** Stores that resync alongside the registry's reload set — storage event, remote change, and focus reload. */
+  extraResync?: ReadonlyArray<{ reloadFromStorage(): void }>;
+  log: Logger;
+}): {
+  bridge: SettingsBridge;
+  broadcastSettings: () => void;
+  runApplyingRemote: (apply: () => void) => void;
+  /** Reload every resync store + display language. */
+  reload: () => void;
+  /** Registers extra work to run inside the remote-change loop guard, after the resync reload. */
+  onRemoteChange(cb: () => void): void;
+  dispose(): void;
+} {
+  const { stores, windowKind, extraResync, log } = deps;
+  let disposed = false;
+  const resyncStores = [...reloadSyncStores(stores), ...(extraResync ?? [])];
+  const remoteHooks: Array<() => void> = [];
+  const reload = (): void => {
+    if (disposed) return;
+    for (const store of resyncStores) store.reloadFromStorage();
+    // Display language changed in the other window → i18n.subscribe remount callback redraws UI.
+    reloadLocaleFromStorage();
+  };
+  const disposeStorageSync = wireStorageSync(resyncStores);
+  const bridge = createSettingsBridge(undefined, { windowKind });
+  const {
+    broadcastSettings,
+    runApplyingRemote,
+    dispose: disposeBroadcast,
+  } = createSettingsBroadcast({ bridge, syncedStores: broadcastSyncStores(stores) });
+  const disposeSettingsChanged = bridge.onSettingsChanged((from) => {
+    runApplyingRemote(() => {
+      reload();
+      for (const cb of remoteHooks) cb();
+    });
+    log.info("settings_change_received", { source: from });
+  });
+  return {
+    bridge,
+    broadcastSettings,
+    runApplyingRemote,
+    reload,
+    onRemoteChange(cb) {
+      remoteHooks.push(cb);
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      disposeStorageSync();
+      disposeBroadcast();
+      disposeSettingsChanged();
+      bridge.dispose();
+    },
+  };
+}
+
+/**
+ * Pet-window half of the remote-change reload: the renderer-backed VRM hot-swap plus the speaker
+ * selection. Registered as a core hook AFTER the VRM/speaker selections exist. Only OTHER-window
+ * changes reach here, so the VRM is hot-swapped only when its URL actually changed (this window's
+ * own swap already loaded it).
  */
 export function wireSettingsReload(deps: {
-  bridge: Pick<SettingsBridge, "onSettingsChanged">;
-  reloadStores: ReadonlyArray<{ reloadFromStorage(): void }>;
-  runApplyingRemote: (apply: () => void) => void;
+  onRemoteChange: (cb: () => void) => void;
   vrmSelection: Pick<ReturnType<typeof createVrmSelection>, "getActive" | "reloadFromStorage">;
   loadVrmSerialized: (url: string) => Promise<VrmLoadResult>;
   speakerSelection: Pick<ReturnType<typeof createSpeakerSelection>, "reloadFromStorage">;
   log: Logger;
 }): void {
-  const {
-    bridge,
-    reloadStores,
-    runApplyingRemote,
-    vrmSelection,
-    loadVrmSerialized,
-    speakerSelection,
-    log,
-  } = deps;
-  bridge.onSettingsChanged(() => {
-    runApplyingRemote(() => {
-      for (const store of reloadStores) store.reloadFromStorage();
-      // Display language changed in the other window → i18n.subscribe remount callback redraws UI.
-      reloadLocaleFromStorage();
-      // VRM selection is committed store-only in the settings window; reflect it to this window's renderer.
-      // This window's own swap is already loaded by swapVrm, so only OTHER-window changes reach here → avoid double-load.
-      const prevVrmUrl = vrmSelection.getActive().url;
-      vrmSelection.reloadFromStorage();
-      const nextVrmUrl = vrmSelection.getActive().url;
-      if (nextVrmUrl !== prevVrmUrl) {
-        void loadVrmSerialized(nextVrmUrl).catch((err) =>
-          log.error("vrm_cross_window_swap_failed", { error: String(err) }),
-        );
-      }
-      // Speaker selection is store-only — synth reads via getActive() on the next utterance, so just reload.
-      speakerSelection.reloadFromStorage();
-    });
-    log.info("settings_change_received", { source: "settings_window" });
+  const { onRemoteChange, vrmSelection, loadVrmSerialized, speakerSelection, log } = deps;
+  onRemoteChange(() => {
+    // VRM selection is committed store-only in the settings window; reflect it to this window's renderer.
+    const prevVrmUrl = vrmSelection.getActive().url;
+    vrmSelection.reloadFromStorage();
+    const nextVrmUrl = vrmSelection.getActive().url;
+    if (nextVrmUrl !== prevVrmUrl) {
+      void loadVrmSerialized(nextVrmUrl).catch((err) =>
+        log.error("vrm_cross_window_swap_failed", { error: String(err) }),
+      );
+    }
+    // Speaker selection is store-only — synth reads via getActive() on the next utterance, so just reload.
+    speakerSelection.reloadFromStorage();
   });
 }
 
@@ -730,52 +778,71 @@ export function wireVoiceInput(deps: {
 }
 
 /**
- * Cross-window settings sync: the pop-out settings window bridge (Tauri events / BroadcastChannel),
- * its localStorage-`storage`-event fallback, and the broadcast half of the loop-guarded cross-window
- * sync — the three pieces that exist purely so edits in either window reach the other. Mouth-preview
- * and voice-toggle/voice-state are wired here since they ride the same bridge. `dispose` tears down
- * all three; `broadcastSettings`/`runApplyingRemote` are handed to `wireSettingsReload` by the caller.
+ * Pet-window cross-window sync: the shared core plus the channels only this window owns — mouth
+ * preview and the voice toggle/state pair, which ride the same bridge. `broadcastSettings` goes to
+ * the VRM/speaker selections and `onRemoteChange` to `wireSettingsReload`, both wired by the caller
+ * once those selections exist.
  */
 export function wireCrossWindowSync(deps: {
   renderer: Pick<Renderer, "setMouthOpen" | "stopMouth">;
   voiceInputStatus: VoiceInputStatus;
-  storageSyncStores: ReadonlyArray<{ reloadFromStorage(): void }>;
-  syncedStores: SyncedStore[];
+  stores: SettingsStores;
   log: Logger;
 }): {
   bridge: SettingsBridge;
   broadcastSettings: () => void;
   runApplyingRemote: (apply: () => void) => void;
+  onRemoteChange: (cb: () => void) => void;
   dispose: () => void;
 } {
-  const { renderer, voiceInputStatus, storageSyncStores, syncedStores, log } = deps;
-  const disposeStorageSync = wireStorageSync(storageSyncStores);
-  const bridge = createSettingsBridge();
+  const { renderer, voiceInputStatus, stores, log } = deps;
+  const core = wireWindowSync({ stores, windowKind: "pet", log });
   // Mouth preview (separate window → this window VRM): gain slider drag moves actual mouth.
-  bridge.onMouthPreview((mouthOpen) => {
+  core.bridge.onMouthPreview((mouthOpen) => {
     if (mouthOpen == null) renderer.stopMouth();
     else renderer.setMouthOpen(mouthOpen);
   });
   // Voice toggle (separate window → this window STT): existing voiceInputStatus subscription starts/stops sttVad.
-  bridge.onVoiceSet((on) => {
+  core.bridge.onVoiceSet((on) => {
     log.info("voice_toggle_received", { on, source: "settings_window" });
     voiceInputStatus.set(on ? "listening" : "idle");
   });
   // Voice state (this window → separate window): separate window indicator reflects actual STT state.
   voiceInputStatus.subscribe((snapshot) => {
-    bridge.emitVoiceState({ state: snapshot.state });
+    core.bridge.emitVoiceState({ state: snapshot.state });
   });
-  const {
-    broadcastSettings,
-    runApplyingRemote,
-    dispose: disposeSettingsBroadcast,
-  } = createSettingsBroadcast({ bridge, syncedStores });
-  const dispose = (): void => {
-    disposeStorageSync();
-    disposeSettingsBroadcast();
-    bridge.dispose();
+  return {
+    bridge: core.bridge,
+    broadcastSettings: core.broadcastSettings,
+    runApplyingRemote: core.runApplyingRemote,
+    onRemoteChange: core.onRemoteChange,
+    dispose: core.dispose,
   };
-  return { bridge, broadcastSettings, runApplyingRemote, dispose };
+}
+
+/**
+ * Settings-window cross-window sync. Unlike the pet window, the VRM and speaker selections resync
+ * here too — this window commits them store-only, so it has to pick up the pet window's picks.
+ */
+export function wireSettingsWindowSync(deps: {
+  stores: SettingsStores;
+  vrmSelection: { reloadFromStorage(): void };
+  speakerSelection: { reloadFromStorage(): void };
+  log: Logger;
+}): {
+  bridge: SettingsBridge;
+  broadcastSettings: () => void;
+  reload: () => void;
+  dispose: () => void;
+} {
+  const { stores, vrmSelection, speakerSelection, log } = deps;
+  const { bridge, broadcastSettings, reload, dispose } = wireWindowSync({
+    stores,
+    windowKind: "settings",
+    extraResync: [vrmSelection, speakerSelection],
+    log,
+  });
+  return { bridge, broadcastSettings, reload, dispose };
 }
 
 /** Wires devtools registry sync; guarded remote reloads prevent echoes, and teardown flushes broadcasts before closing the bridge. */
@@ -783,31 +850,11 @@ export function wireDevtoolsSync(deps: { stores: SettingsStores; log: Logger }):
   reload: () => void;
   dispose: () => void;
 } {
-  let disposed = false;
-  const reloadStores = reloadSyncStores(deps.stores);
-  const reload = (): void => {
-    if (disposed) return;
-    for (const store of reloadStores) store.reloadFromStorage();
-    reloadLocaleFromStorage();
-  };
-  const disposeStorageSync = wireStorageSync(reloadStores);
-  const bridge = createSettingsBridge();
-  const { runApplyingRemote, dispose: disposeBroadcast } = createSettingsBroadcast({
-    bridge,
-    syncedStores: broadcastSyncStores(deps.stores),
+  const { reload, dispose } = wireWindowSync({
+    stores: deps.stores,
+    windowKind: "devtools",
+    log: deps.log,
   });
-  const disposeSettingsChanged = bridge.onSettingsChanged(() => {
-    runApplyingRemote(reload);
-    deps.log.info("settings_change_received");
-  });
-  const dispose = (): void => {
-    if (disposed) return;
-    disposed = true;
-    disposeStorageSync();
-    disposeBroadcast();
-    disposeSettingsChanged();
-    bridge.dispose();
-  };
   return { reload, dispose };
 }
 

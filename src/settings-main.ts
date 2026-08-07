@@ -7,13 +7,12 @@
  */
 
 import "./styles.css";
-import { createSettingsBroadcast } from "./bootstrap-wiring";
+import { wireSettingsWindowSync } from "./bootstrap-wiring";
 import { createConfigStore } from "./config";
 import { selectFetch } from "./io/chat-client";
 import { updateVoice } from "./io/irodori-voices";
-import { createSettingsBridge } from "./io/settings-bridge";
-import { broadcastSyncStores, createSettingsStores, reloadSyncStores } from "./io/settings-stores";
-import { closeSettingsWindow, wireStorageSync } from "./io/settings-window";
+import { createSettingsStores } from "./io/settings-stores";
+import { closeSettingsWindow } from "./io/settings-window";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
@@ -31,11 +30,7 @@ import {
   localStorageVrmStorage,
 } from "./io/vrm-selection";
 import { createLogger, initLogger } from "./logger";
-import {
-  getLocale,
-  reloadFromStorage as reloadLocaleFromStorage,
-  subscribe as subscribeLocale,
-} from "./ui/i18n";
+import { getLocale, subscribe as subscribeLocale } from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
 
@@ -76,10 +71,6 @@ async function bootstrap(): Promise<void> {
   } = settingsStores;
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
-
-  // Real-time wiring with main window (Tauri events). This window has no renderer/STT, so send controls
-  // to main window, receive voice state from main window and reflect. Storage fallback maintained below.
-  const bridge = createSettingsBridge();
 
   // Config for default instructions placeholder loaded best-effort only (failure → generic placeholder).
   const config = createConfigStore();
@@ -151,6 +142,21 @@ async function bootstrap(): Promise<void> {
     speakerSelection,
     log,
   });
+
+  // Real-time wiring with main window (Tauri events). This window has no renderer/STT, so send controls
+  // to main window, receive voice state from main window and reflect. Storage fallback rides the core.
+  const {
+    bridge,
+    broadcastSettings,
+    reload: reloadOnFocus,
+    dispose: disposeSync,
+  } = wireSettingsWindowSync({
+    stores: settingsStores,
+    vrmSelection,
+    speakerSelection,
+    log,
+  });
+  window.addEventListener("focus", reloadOnFocus);
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({
@@ -257,17 +263,6 @@ async function bootstrap(): Promise<void> {
     });
   });
 
-  // Reflect main window edits: cross-window storage event + focus fallback.
-  // Also reload vrmSelection so pet window selection changes reflected in this window UI.
-  const reloadStores = reloadSyncStores(settingsStores);
-  const resyncStores = [...reloadStores, vrmSelection, speakerSelection];
-  const disposeStorageSync = wireStorageSync(resyncStores);
-  const reloadOnFocus = (): void => {
-    for (const store of resyncStores) store.reloadFromStorage();
-    reloadLocaleFromStorage();
-  };
-  window.addEventListener("focus", reloadOnFocus);
-
   // Voice toggle (this window → main STT) and voice state reflection (main → this window).
   // Component drives local voiceInputStatus, so send changes to main, receive actual STT state and reflect.
   let applyingRemoteVoice = false;
@@ -283,31 +278,17 @@ async function bootstrap(): Promise<void> {
     }
   });
 
-  const {
-    broadcastSettings,
-    runApplyingRemote,
-    dispose: disposeSettingsBroadcast,
-  } = createSettingsBroadcast({ bridge, syncedStores: broadcastSyncStores(settingsStores) });
   // VRM selection also signaled cross-window → pet window receives and hot-swaps renderer (backup for Tauri storage event instability).
   vrmSelection.subscribe(broadcastSettings);
   // Speaker selection also signaled cross-window → pet window receives and synthesizes with new speaker on next utterance.
   speakerSelection.subscribe(broadcastSettings);
-  const disposeSettingsChanged = bridge.onSettingsChanged(() => {
-    runApplyingRemote(() => {
-      for (const store of resyncStores) store.reloadFromStorage();
-      reloadLocaleFromStorage();
-    });
-  });
 
   window.addEventListener("beforeunload", () => {
     // Runs first: disposing the controls commits dirty endpoint/key fields, which must still
     // reach the broadcast path and a live bridge.
     quickControls.dispose();
-    disposeStorageSync();
     unsubscribeLocale();
-    disposeSettingsBroadcast();
-    disposeSettingsChanged();
-    bridge.dispose();
+    disposeSync();
     window.removeEventListener("focus", reloadOnFocus);
     for (const store of Object.values(settingsStores)) store.dispose();
     vrmSelection.dispose();

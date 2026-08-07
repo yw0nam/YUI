@@ -1080,9 +1080,8 @@ describe("wireWindowSync", () => {
     const order: string[] = [];
     const { bag, subscribers } = makeBag(order);
     const sync = wireWindowSync({ stores: bag as never, windowKind: "devtools", log: noopLog });
-    const disposeSettingsChanged = fakeBridge.onSettingsChanged.mock.results[0]!.value as ReturnType<
-      typeof vi.fn
-    >;
+    const disposeSettingsChanged = fakeBridge.onSettingsChanged.mock.results[0]!
+      .value as ReturnType<typeof vi.fn>;
     subscribers.get("broadcast")!();
 
     sync.dispose();
