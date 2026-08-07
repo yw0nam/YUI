@@ -1,14 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveAssetUrl } from "./asset-url";
 import { fetchReferenceClip, resolveReferenceClipUrl } from "./reference-clip";
-import { isTauri } from "./tauri-env";
 
 vi.mock("./asset-url", () => ({
   resolveAssetUrl: vi.fn(),
-}));
-
-vi.mock("./tauri-env", () => ({
-  isTauri: vi.fn(),
 }));
 
 type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -22,7 +17,6 @@ function blobResponse(blob: Blob): Response {
 }
 
 beforeEach(() => {
-  vi.mocked(isTauri).mockReturnValue(false);
   vi.mocked(resolveAssetUrl).mockImplementation(async (url) => url);
 });
 
@@ -38,11 +32,10 @@ describe("resolveReferenceClipUrl", () => {
     await expect(resolveReferenceClipUrl("/references/ayase.mp3")).resolves.toBe(
       "http://127.0.0.1:1420/references/ayase.mp3",
     );
-    expect(resolveAssetUrl).not.toHaveBeenCalled();
+    expect(resolveAssetUrl).toHaveBeenCalledWith("/references/ayase.mp3");
   });
 
   it("absolutizes the relative URL returned by the asset resolver in Tauri dev", async () => {
-    vi.mocked(isTauri).mockReturnValue(true);
     vi.mocked(resolveAssetUrl).mockResolvedValue("/references/natsume.mp3");
     vi.stubGlobal("location", { href: "http://127.0.0.1:1420/" });
 
@@ -54,7 +47,6 @@ describe("resolveReferenceClipUrl", () => {
 
   it("returns the packaged Tauri asset URL", async () => {
     const assetUrl = "asset://localhost/app/resources/references/ayase.mp3";
-    vi.mocked(isTauri).mockReturnValue(true);
     vi.mocked(resolveAssetUrl).mockResolvedValue(assetUrl);
     vi.stubGlobal("location", { href: "tauri://localhost/" });
 
@@ -63,7 +55,6 @@ describe("resolveReferenceClipUrl", () => {
 
   it("returns the resolved input when URL construction fails", async () => {
     const invalidUrl = "http://[";
-    vi.mocked(isTauri).mockReturnValue(true);
     vi.mocked(resolveAssetUrl).mockResolvedValue(invalidUrl);
     vi.stubGlobal("location", { href: "http://127.0.0.1:1420/" });
 

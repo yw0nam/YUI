@@ -1,7 +1,6 @@
 /** Owns reference-clip URL-to-bytes resolution and transport selection. */
 
 import { resolveAssetUrl } from "./asset-url";
-import { isTauri } from "./tauri-env";
 
 /**
  * Converts a ref_url into a fetchable URL for the current runtime.
@@ -10,7 +9,7 @@ import { isTauri } from "./tauri-env";
  * Absolute URLs pass through unchanged; base-less environments (node tests) keep the original.
  */
 export async function resolveReferenceClipUrl(refUrl: string): Promise<string> {
-  const resolved = isTauri() ? await resolveAssetUrl(refUrl) : refUrl;
+  const resolved = await resolveAssetUrl(refUrl);
   const base = (globalThis as { location?: { href?: string } }).location?.href;
   if (!base) return resolved;
   try {
