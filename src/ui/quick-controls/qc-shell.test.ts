@@ -823,6 +823,42 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 
+  it("commits a focused recent-apps edit before resyncing on blur", () => {
+    const recentAppsSettings = inMemoryRecentAppsStore();
+    const qc = buildQc({ recentAppsSettings });
+    qc.open();
+    const recentAppsInput = qc.el.querySelector<HTMLInputElement>("#yui-recent-apps")!;
+
+    recentAppsInput.focus();
+    recentAppsInput.value = "25";
+    recentAppsSettings.set(30);
+
+    expect(recentAppsInput.value).toBe("25");
+
+    recentAppsInput.dispatchEvent(new Event("change"));
+    recentAppsInput.blur();
+    expect(recentAppsSettings.get().value).toBe(25);
+    expect(recentAppsInput.value).toBe("25");
+    qc.dispose();
+  });
+
+  it("resyncs an unedited focused recent-apps field without reverting a remote change", () => {
+    const recentAppsSettings = inMemoryRecentAppsStore();
+    const qc = buildQc({ recentAppsSettings });
+    qc.open();
+    const recentAppsInput = qc.el.querySelector<HTMLInputElement>("#yui-recent-apps")!;
+
+    recentAppsInput.focus();
+    recentAppsSettings.set(30);
+
+    expect(recentAppsInput.value).toBe("10");
+
+    recentAppsInput.blur();
+    expect(recentAppsSettings.get().value).toBe(30);
+    expect(recentAppsInput.value).toBe("30");
+    qc.dispose();
+  });
+
   // ── Snap-back regression tests ────────────────────────────────────────────
   // When the store setter silently rejects an out-of-range value (no-op),
   // the change handler's explicit reflect.*() must snap the input back to the

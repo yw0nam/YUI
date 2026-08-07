@@ -124,12 +124,27 @@ export function createAdvancedSettings(
     }
   }
   function reflectRecent(): void {
-    recentApps.value = String(deps.recentApps.get().value);
+    const next = String(deps.recentApps.get().value);
+    // Keeps local edits stable only while this document owns focus.
+    if (
+      !(document.hasFocus() && document.activeElement === recentApps) &&
+      recentApps.value !== next
+    ) {
+      recentApps.value = next;
+    }
   }
   function reflectEndpoints(): void {
-    contextWindow.value = deps.endpoints.get().chat_model_context_window;
+    const next = deps.endpoints.get().chat_model_context_window;
+    if (
+      !(document.hasFocus() && document.activeElement === contextWindow) &&
+      contextWindow.value !== next
+    ) {
+      contextWindow.value = next;
+    }
   }
 
+  recentApps.addEventListener("blur", reflectRecent);
+  contextWindow.addEventListener("blur", reflectEndpoints);
   reflectContext(deps.context.get());
   reflectRecent();
   reflectEndpoints();
@@ -140,6 +155,8 @@ export function createAdvancedSettings(
   ];
   return {
     dispose: () => {
+      recentApps.removeEventListener("blur", reflectRecent);
+      contextWindow.removeEventListener("blur", reflectEndpoints);
       for (const unsubscribe of unsubscribers) unsubscribe();
     },
   };

@@ -126,6 +126,7 @@ import {
   wireBroker,
   wireCrossWindowSync,
   wireDevGlobals,
+  wireDevtoolsSync,
   wireDispatcherSources,
   wirePeekExitTriggers,
   wireSettingsReload,
@@ -133,6 +134,12 @@ import {
   wireStopControl,
   wireVoiceInput,
 } from "./bootstrap-wiring";
+import {
+  broadcastSyncStores,
+  createSettingsStores,
+  reloadSyncStores,
+  type SyncedStore,
+} from "./io/settings-stores";
 import { reloadFromStorage as reloadLocaleFromStorage } from "./ui/i18n";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
 
@@ -1014,6 +1021,109 @@ describe("wireCrossWindowSync", () => {
     dispose();
     expect(wireStorageSyncDispose).toHaveBeenCalledTimes(1);
     expect(fakeBridge.dispose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("wireDevtoolsSync", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    fakeBridge.onSettingsChanged.mockClear();
+    fakeBridge.emitSettingsChanged.mockClear();
+    fakeBridge.dispose.mockClear();
+    createSettingsBridge.mockClear();
+    wireStorageSync.mockClear();
+    wireStorageSyncDispose.mockClear();
+    vi.mocked(reloadLocaleFromStorage).mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("subscribes exactly the stores classified for broadcast", () => {
+    const bag = createSettingsStores();
+    const allStores = Object.values(bag) as SyncedStore[];
+    const subscribeSpies = allStores.map((store) => vi.spyOn(store, "subscribe"));
+
+    const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
+
+    const subscribedStores = new Set(
+      allStores.filter((_store, index) => subscribeSpies[index]!.mock.calls.length > 0),
+    );
+    const expectedStores = new Set(broadcastSyncStores(bag));
+    expect(subscribedStores.size).toBe(expectedStores.size);
+    expect(subscribedStores).toEqual(expectedStores);
+
+    sync.dispose();
+    for (const spy of subscribeSpies) spy.mockRestore();
+    for (const store of Object.values(bag)) store.dispose();
+  });
+
+  it("wires storage sync with exactly the stores classified for reload", () => {
+    const bag = createSettingsStores();
+
+    const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
+
+    expect(wireStorageSync).toHaveBeenCalledWith(reloadSyncStores(bag));
+
+    sync.dispose();
+    for (const store of Object.values(bag)) store.dispose();
+  });
+
+  it("reloads every sync store without rebroadcasting a remote change", () => {
+    const bag = createSettingsStores();
+    const reloadStores = reloadSyncStores(bag);
+    const broadcastStore = broadcastSyncStores(bag)[0]!;
+    let retainedSubscriber: (() => void) | undefined;
+    const subscribeSpy = vi.spyOn(broadcastStore, "subscribe").mockImplementation((callback) => {
+      retainedSubscriber = callback;
+      return vi.fn();
+    });
+    const reloadSpies = reloadStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
+    const broadcastReloadIndex = reloadStores.indexOf(broadcastStore);
+    reloadSpies[broadcastReloadIndex]!.mockImplementation(() => retainedSubscriber!());
+    const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
+    const settingsChangedCalls = fakeBridge.onSettingsChanged.mock.calls as unknown as Array<
+      [() => void]
+    >;
+    const receiveSettingsChanged = settingsChangedCalls[0]![0];
+
+    receiveSettingsChanged();
+    vi.advanceTimersByTime(201);
+
+    for (const spy of reloadSpies) expect(spy).toHaveBeenCalledOnce();
+    expect(reloadLocaleFromStorage).toHaveBeenCalledOnce();
+    expect(fakeBridge.emitSettingsChanged).not.toHaveBeenCalled();
+
+    sync.dispose();
+    subscribeSpy.mockRestore();
+    for (const spy of reloadSpies) spy.mockRestore();
+    for (const store of Object.values(bag)) store.dispose();
+  });
+
+  it("disposes once and flushes a pending broadcast before the bridge closes", () => {
+    const bag = createSettingsStores();
+    const broadcastStore = broadcastSyncStores(bag)[0]!;
+    let retainedSubscriber: (() => void) | undefined;
+    const subscribeSpy = vi.spyOn(broadcastStore, "subscribe").mockImplementation((callback) => {
+      retainedSubscriber = callback;
+      return vi.fn();
+    });
+    const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
+    const disposeSettingsChanged = fakeBridge.onSettingsChanged.mock.results[0]!
+      .value as ReturnType<typeof vi.fn>;
+    retainedSubscriber!();
+
+    sync.dispose();
+    sync.dispose();
+
+    expect(wireStorageSyncDispose).toHaveBeenCalledOnce();
+    expect(fakeBridge.emitSettingsChanged).toHaveBeenCalledOnce();
+    expect(disposeSettingsChanged).toHaveBeenCalledOnce();
+    expect(fakeBridge.dispose).toHaveBeenCalledOnce();
+
+    subscribeSpy.mockRestore();
+    for (const store of Object.values(bag)) store.dispose();
   });
 });
 

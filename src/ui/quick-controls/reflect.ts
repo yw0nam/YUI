@@ -210,7 +210,13 @@ export function createReflect(deps: ReflectDeps): Reflect {
 
   function reflectRecentApps(): void {
     if (!recentAppsInput || !recentAppsSettings) return;
-    recentAppsInput.value = String(recentAppsSettings.get().value);
+    const next = String(recentAppsSettings.get().value);
+    if (
+      !(document.hasFocus() && document.activeElement === recentAppsInput) &&
+      recentAppsInput.value !== next
+    ) {
+      recentAppsInput.value = next;
+    }
   }
 
   function reflectGain(): void {

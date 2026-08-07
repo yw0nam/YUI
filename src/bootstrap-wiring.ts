@@ -27,7 +27,12 @@ import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
 import { createSettingsBridge, type SettingsBridge } from "./io/settings-bridge";
-import type { SyncedStore } from "./io/settings-stores";
+import {
+  broadcastSyncStores,
+  reloadSyncStores,
+  type SettingsStores,
+  type SyncedStore,
+} from "./io/settings-stores";
 import { wireStorageSync } from "./io/settings-window";
 import {
   createSpeakerSelection,
@@ -771,6 +776,39 @@ export function wireCrossWindowSync(deps: {
     bridge.dispose();
   };
   return { bridge, broadcastSettings, runApplyingRemote, dispose };
+}
+
+/** Wires devtools registry sync; guarded remote reloads prevent echoes, and teardown flushes broadcasts before closing the bridge. */
+export function wireDevtoolsSync(deps: { stores: SettingsStores; log: Logger }): {
+  reload: () => void;
+  dispose: () => void;
+} {
+  let disposed = false;
+  const reloadStores = reloadSyncStores(deps.stores);
+  const reload = (): void => {
+    if (disposed) return;
+    for (const store of reloadStores) store.reloadFromStorage();
+    reloadLocaleFromStorage();
+  };
+  const disposeStorageSync = wireStorageSync(reloadStores);
+  const bridge = createSettingsBridge();
+  const { runApplyingRemote, dispose: disposeBroadcast } = createSettingsBroadcast({
+    bridge,
+    syncedStores: broadcastSyncStores(deps.stores),
+  });
+  const disposeSettingsChanged = bridge.onSettingsChanged(() => {
+    runApplyingRemote(reload);
+    deps.log.info("settings_change_received");
+  });
+  const dispose = (): void => {
+    if (disposed) return;
+    disposed = true;
+    disposeStorageSync();
+    disposeBroadcast();
+    disposeSettingsChanged();
+    bridge.dispose();
+  };
+  return { reload, dispose };
 }
 
 /**

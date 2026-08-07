@@ -117,6 +117,12 @@ describe("createSettingsStores", () => {
     expect(broadcastStores).toContain(stores.cameraSettings);
   });
 
+  it("broadcasts context settings", () => {
+    const stores = createSettingsStores();
+
+    expect(broadcastSyncStores(stores)).toContain(stores.contextSettings);
+  });
+
   it("keeps STT intent and the first-run hint window-local", () => {
     const stores = createSettingsStores();
     const reloadStores = reloadSyncStores(stores);
