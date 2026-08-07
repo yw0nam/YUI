@@ -46,8 +46,9 @@ mcp = FastMCP(
     name="Desktop Control",
     instructions=(
         "Local macOS desktop control. Use screenshot to see the current screen, "
-        "list_running_apps to see what is open, then open_app/close_app to launch "
-        "or quit apps. open_app/close_app only work for allowlisted apps."
+        "get_frontmost_window to see what the user is looking at, list_running_apps "
+        "to see what is open, then open_app/close_app to launch or quit apps. "
+        "open_app/close_app only work for allowlisted apps."
     ),
 )
 
@@ -69,6 +70,15 @@ def list_running_apps() -> list[str]:
     apps = ops.list_running_apps()
     logger.info(f"⬅️ list_running_apps: {len(apps)} app(s)")
     return apps
+
+
+@mcp.tool
+def get_frontmost_window() -> dict[str, Any]:
+    """Return the frontmost app and its front window title (`title` is null when there is none)."""
+    logger.info("🔍 get_frontmost_window")
+    app, title = ops.frontmost_window()
+    logger.info(f"⬅️ get_frontmost_window: {app}")
+    return {"app": app, "title": title}
 
 
 @mcp.tool
@@ -114,13 +124,16 @@ def preflight() -> list[str]:
     problems: list[str] = []
     if not ops.screen_capture_granted():
         problems.append(
-            "Screen Recording NOT granted — `screenshot` will capture wallpaper only. Grant "
-            "the launching app in System Settings → Privacy & Security → Screen Recording."
+            "Screen Recording NOT granted — `screenshot` will capture wallpaper only and "
+            "get_frontmost_window will report a null title. Grant the launching app in "
+            "System Settings → Privacy & Security → Screen Recording."
         )
     if not ops.automation_granted():
         problems.append(
-            "Automation to System Events NOT granted — list_running_apps/close_app will fail "
-            "(-1743). Grant the launching app in System Settings → Privacy & Security → Automation."
+            "Automation to System Events NOT granted — list_running_apps will fail (-1743). "
+            "Grant the launching app in System Settings → Privacy & Security → Automation. "
+            "close_app is not covered by this check: it sends its Apple Event to the target "
+            "app, so macOS asks for a separate Automation grant per target app on first quit."
         )
     for problem in problems:
         logger.warning(f"[setup] {problem}")

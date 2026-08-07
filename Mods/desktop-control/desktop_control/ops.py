@@ -18,6 +18,34 @@ def list_running_apps() -> list[str]:
     return [name.strip() for name in out.split(",") if name.strip()]
 
 
+def frontmost_window() -> tuple[str | None, str | None]:
+    """Name of the frontmost app and the title of its front window.
+
+    `title` is None when the app has no on-screen document window, and also when Screen
+    Recording is ungranted — without it `kCGWindowName` is absent from every entry.
+    """
+    from AppKit import NSWorkspace  # macOS-only; imported lazily
+    from Quartz import (
+        CGWindowListCopyWindowInfo,
+        kCGNullWindowID,
+        kCGWindowLayer,
+        kCGWindowListOptionOnScreenOnly,
+        kCGWindowName,
+        kCGWindowOwnerPID,
+    )
+
+    app = NSWorkspace.sharedWorkspace().frontmostApplication()
+    if app is None:
+        return None, None
+    pid = app.processIdentifier()
+    windows = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID) or []
+    # The on-screen list is front-to-back, so the first layer-0 match is the front window.
+    for window in windows:
+        if window.get(kCGWindowOwnerPID) == pid and window.get(kCGWindowLayer) == 0:
+            return app.localizedName(), window.get(kCGWindowName) or None
+    return app.localizedName(), None
+
+
 def screen_capture_granted() -> bool:
     """True if Screen Recording (TCC) is granted for the responsible process. Non-prompting.
 
