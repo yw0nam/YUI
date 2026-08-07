@@ -112,14 +112,8 @@ function describeStartError(err: unknown): string {
 }
 
 export function createSttVad(options: SttVadOptions): SttVad {
-  const {
-    config,
-    onVoiceSegment,
-    onState,
-    getApiKey,
-    onSpeechActive,
-    fetch = globalThis.fetch,
-  } = options;
+  const { config, onVoiceSegment, onState, getApiKey, onSpeechActive } = options;
+  const fetchImpl = options.fetch ?? globalThis.fetch;
   const resolveSilenceMs = (): number =>
     typeof options.silenceMs === "function" ? options.silenceMs() : (options.silenceMs ?? 1500);
 
@@ -141,7 +135,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
     try {
       // Bearer only — never set Content-Type here: FormData needs the browser-set multipart boundary.
       const key = (await getApiKey?.())?.trim() || undefined;
-      const res = await fetch(`${config.stt_base_url}/audio/transcriptions`, {
+      const res = await fetchImpl(`${config.stt_base_url}/audio/transcriptions`, {
         method: "POST",
         body: form,
         headers: key ? { Authorization: `Bearer ${key}` } : undefined,
