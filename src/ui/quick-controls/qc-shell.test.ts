@@ -793,6 +793,42 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 
+  it("commits a focused presence edit before resyncing on blur", () => {
+    const presenceSettings = inMemoryPresenceStore();
+    const qc = buildQc({ presenceSettings });
+    qc.open();
+    const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
+
+    presenceInput.focus();
+    presenceInput.value = "300";
+    presenceSettings.set(60000);
+
+    expect(presenceInput.value).toBe("300");
+
+    presenceInput.dispatchEvent(new Event("change"));
+    presenceInput.blur();
+    expect(presenceSettings.get().value).toBe(300000);
+    expect(presenceInput.value).toBe("300");
+    qc.dispose();
+  });
+
+  it("resyncs an unedited focused presence field without reverting a remote change", () => {
+    const presenceSettings = inMemoryPresenceStore();
+    const qc = buildQc({ presenceSettings });
+    qc.open();
+    const presenceInput = qc.el.querySelector<HTMLInputElement>("#yui-presence")!;
+
+    presenceInput.focus();
+    presenceSettings.set(60000);
+
+    expect(presenceInput.value).toBe("180");
+
+    presenceInput.blur();
+    expect(presenceSettings.get().value).toBe(60000);
+    expect(presenceInput.value).toBe("60");
+    qc.dispose();
+  });
+
   it("does not render #yui-recent-apps when recentAppsSettings is absent", () => {
     const qc = buildQc();
     qc.open();
