@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createContextSettings } from "../../io/context-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
 import { createRecentAppsStore } from "../../io/settings-stores";
@@ -18,7 +18,13 @@ const inMemoryRecentAppsStore = () => {
 };
 
 describe("Advanced Settings", () => {
+  let attachedMount: HTMLElement | null = null;
+
   beforeEach(() => setLocale("en"));
+  afterEach(() => {
+    attachedMount?.remove();
+    attachedMount = null;
+  });
 
   it("binds context toggles and numeric settings to their existing stores", () => {
     const mount = document.createElement("section");
@@ -61,5 +67,61 @@ describe("Advanced Settings", () => {
     expect(mount.querySelector<HTMLInputElement>("#devtools-context-window")?.placeholder).toBe(
       "デフォルト",
     );
+  });
+
+  it("keeps the context-window text while the input is focused", () => {
+    attachedMount = document.createElement("section");
+    document.body.appendChild(attachedMount);
+    const endpoints = createEndpointsSettings();
+    createAdvancedSettings(attachedMount, {
+      context: createContextSettings(),
+      recentApps: inMemoryRecentAppsStore(),
+      endpoints,
+    });
+    const input = attachedMount.querySelector<HTMLInputElement>("#devtools-context-window")!;
+
+    input.focus();
+    input.value = "64000";
+    endpoints.set({ chat_model_context_window: "128000" });
+
+    expect(input.value).toBe("64000");
+  });
+
+  it("keeps the recent-apps text while the input is focused", () => {
+    attachedMount = document.createElement("section");
+    document.body.appendChild(attachedMount);
+    const recentApps = inMemoryRecentAppsStore();
+    createAdvancedSettings(attachedMount, {
+      context: createContextSettings(),
+      recentApps,
+      endpoints: createEndpointsSettings(),
+    });
+    const input = attachedMount.querySelector<HTMLInputElement>("#devtools-recent-apps-cap")!;
+
+    input.focus();
+    input.value = "25";
+    recentApps.set(30);
+
+    expect(input.value).toBe("25");
+  });
+
+  it("keeps a committed recent-apps edit over a concurrent remote value", () => {
+    attachedMount = document.createElement("section");
+    document.body.appendChild(attachedMount);
+    const recentApps = inMemoryRecentAppsStore();
+    createAdvancedSettings(attachedMount, {
+      context: createContextSettings(),
+      recentApps,
+      endpoints: createEndpointsSettings(),
+    });
+    const input = attachedMount.querySelector<HTMLInputElement>("#devtools-recent-apps-cap")!;
+
+    input.focus();
+    input.value = "25";
+    recentApps.set(30);
+    input.dispatchEvent(new Event("change"));
+    input.blur();
+
+    expect(input.value).toBe("25");
   });
 });
