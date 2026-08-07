@@ -133,7 +133,9 @@ import {
   wireSpeakerSelection,
   wireStopControl,
   wireVoiceInput,
+  wireWindowSync,
 } from "./bootstrap-wiring";
+import type { BridgeTransport } from "./io/settings-bridge";
 import {
   broadcastSyncStores,
   createSettingsStores,
@@ -390,8 +392,7 @@ describe("wireSettingsReload", () => {
   beforeEach(() => vi.clearAllMocks());
 
   const setup = (vrmUrls: { before: string; after: string }) => {
-    let handler = (): void => {};
-    const reloadStores = [{ reloadFromStorage: vi.fn() }, { reloadFromStorage: vi.fn() }];
+    let hook = (): void => {};
     const speakerSelection = { reloadFromStorage: vi.fn() };
     const loadVrmSerialized = vi.fn(() => Promise.resolve({} as never));
     let url = vrmUrls.before;
@@ -401,34 +402,20 @@ describe("wireSettingsReload", () => {
         url = vrmUrls.after;
       }),
     };
-    const runApplyingRemote = vi.fn((apply: () => void) => apply());
     wireSettingsReload({
-      bridge: { onSettingsChanged: (h) => (handler = h) },
-      reloadStores,
-      runApplyingRemote,
+      onRemoteChange: (cb) => (hook = cb),
       vrmSelection,
       loadVrmSerialized,
       speakerSelection,
       log: noopLog,
     });
-    return {
-      fire: () => handler(),
-      reloadStores,
-      speakerSelection,
-      loadVrmSerialized,
-      runApplyingRemote,
-    };
+    return { fire: () => hook(), speakerSelection, loadVrmSerialized };
   };
 
-  it("reloads every store under the loop guard on a remote change", () => {
+  it("reloads the speaker selection on a remote change", () => {
     const s = setup({ before: "a.vrm", after: "a.vrm" });
     s.fire();
-    expect(s.runApplyingRemote).toHaveBeenCalledTimes(1);
-    for (const store of s.reloadStores) {
-      expect(store.reloadFromStorage).toHaveBeenCalledTimes(1);
-    }
     expect(s.speakerSelection.reloadFromStorage).toHaveBeenCalledTimes(1);
-    expect(reloadLocaleFromStorage).toHaveBeenCalledTimes(1);
   });
 
   it("hot-swaps the VRM only when its url actually changed", () => {
@@ -958,6 +945,156 @@ describe("wireStopControl", () => {
   });
 });
 
+describe("wireWindowSync", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    fakeBridge.onSettingsChanged.mockClear();
+    fakeBridge.emitSettingsChanged.mockClear();
+    fakeBridge.dispose.mockClear();
+    createSettingsBridge.mockClear();
+    wireStorageSync.mockClear();
+    wireStorageSyncDispose.mockClear();
+    vi.mocked(reloadLocaleFromStorage).mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.mocked(reloadLocaleFromStorage).mockReset();
+  });
+
+  // In-memory pub/sub shared by real bridges, so envelopes cross windows for real.
+  const createFakeTransport = (): BridgeTransport => {
+    const listeners = new Map<string, Set<(p: unknown) => void>>();
+    return {
+      emit(name, payload) {
+        for (const cb of [...(listeners.get(name) ?? [])]) cb(payload);
+      },
+      listen(name, cb) {
+        let set = listeners.get(name);
+        if (!set) {
+          set = new Set();
+          listeners.set(name, set);
+        }
+        set.add(cb);
+        return () => set!.delete(cb);
+      },
+    };
+  };
+
+  // Minimal store bag covering one key of each SYNC_MODE, recording reload order by label.
+  const makeBag = (order: string[]) => {
+    const subscribers = new Map<string, () => void>();
+    const store = (label: string) => ({
+      subscribe: vi.fn((cb: () => void) => {
+        subscribers.set(label, cb);
+        return vi.fn();
+      }),
+      reloadFromStorage: vi.fn(() => {
+        order.push(label);
+        subscribers.get(label)?.();
+      }),
+    });
+    return {
+      bag: { ttsSettings: store("broadcast"), contextHistory: store("reload") },
+      subscribers,
+    };
+  };
+
+  const makeLog = () => ({ info: vi.fn(), warn: () => {}, error: () => {}, debug: () => {} });
+
+  const sourcesLogged = (log: ReturnType<typeof makeLog>): string[] =>
+    log.info.mock.calls
+      .filter(([event]) => event === "settings_change_received")
+      .map(([, fields]) => (fields as { source: string }).source);
+
+  const receiver = (): ((from: string) => void) =>
+    (fakeBridge.onSettingsChanged.mock.calls as unknown as Array<[(from: string) => void]>)[0]![0];
+
+  it("logs each remote change against the window kind that sent it", async () => {
+    const bridgeModule =
+      await vi.importActual<typeof import("./io/settings-bridge")>("./io/settings-bridge");
+    const transport = createFakeTransport();
+    createSettingsBridge.mockImplementationOnce(((_transport: unknown, opts: never) =>
+      bridgeModule.createSettingsBridge(transport, opts)) as never);
+    const order: string[] = [];
+    const { bag } = makeBag(order);
+    const log = makeLog();
+    const sync = wireWindowSync({ stores: bag as never, windowKind: "pet", log } as never);
+
+    bridgeModule.createSettingsBridge(transport, { windowKind: "settings" }).emitSettingsChanged();
+    bridgeModule.createSettingsBridge(transport, { windowKind: "devtools" }).emitSettingsChanged();
+
+    expect(sourcesLogged(log)).toEqual(["settings", "devtools"]);
+    sync.dispose();
+  });
+
+  it("reloads the registry set, then the extra resync stores, then the display language", () => {
+    const order: string[] = [];
+    const { bag } = makeBag(order);
+    const extra = [{ reloadFromStorage: vi.fn(() => order.push("extra")) }];
+    vi.mocked(reloadLocaleFromStorage).mockImplementation(() => order.push("locale"));
+    const sync = wireWindowSync({
+      stores: bag as never,
+      windowKind: "settings",
+      extraResync: extra,
+      log: noopLog,
+    });
+
+    sync.reload();
+
+    expect(order).toEqual(["broadcast", "reload", "extra", "locale"]);
+    sync.dispose();
+  });
+
+  it("runs the reload and every remote hook under the loop guard", () => {
+    const order: string[] = [];
+    const { bag } = makeBag(order);
+    const hook = vi.fn(() => order.push("hook"));
+    const sync = wireWindowSync({ stores: bag as never, windowKind: "devtools", log: noopLog });
+    sync.onRemoteChange(hook);
+
+    receiver()("settings");
+    vi.advanceTimersByTime(201);
+
+    expect(order).toEqual(["broadcast", "reload", "hook"]);
+    expect(fakeBridge.emitSettingsChanged).not.toHaveBeenCalled();
+    sync.dispose();
+  });
+
+  it("runs a hook registered after construction on the next remote change", () => {
+    const order: string[] = [];
+    const { bag } = makeBag(order);
+    const sync = wireWindowSync({ stores: bag as never, windowKind: "devtools", log: noopLog });
+    const receive = receiver();
+
+    receive("settings");
+    const late = vi.fn();
+    sync.onRemoteChange(late);
+    receive("settings");
+
+    expect(late).toHaveBeenCalledTimes(1);
+    sync.dispose();
+  });
+
+  it("disposes once and flushes a pending broadcast before the bridge closes", () => {
+    const order: string[] = [];
+    const { bag, subscribers } = makeBag(order);
+    const sync = wireWindowSync({ stores: bag as never, windowKind: "devtools", log: noopLog });
+    const disposeSettingsChanged = fakeBridge.onSettingsChanged.mock.results[0]!.value as ReturnType<
+      typeof vi.fn
+    >;
+    subscribers.get("broadcast")!();
+
+    sync.dispose();
+    sync.dispose();
+
+    expect(wireStorageSyncDispose).toHaveBeenCalledOnce();
+    expect(fakeBridge.emitSettingsChanged).toHaveBeenCalledOnce();
+    expect(disposeSettingsChanged).toHaveBeenCalledOnce();
+    expect(fakeBridge.dispose).toHaveBeenCalledOnce();
+  });
+});
+
 describe("wireCrossWindowSync", () => {
   beforeEach(() => {
     fakeBridge.onMouthPreview.mockClear();
@@ -973,15 +1110,19 @@ describe("wireCrossWindowSync", () => {
     const renderer = { setMouthOpen: vi.fn(), stopMouth: vi.fn() };
     const voiceInputStatus = createVoiceInputStatus();
     const log = { info: vi.fn(), warn: () => {}, error: () => {}, debug: () => {} };
-    const storageSyncStores = [{ reloadFromStorage: vi.fn() }];
-    const syncedStores = [{ subscribe: vi.fn(() => vi.fn()), reloadFromStorage: vi.fn() }];
-    return { renderer, voiceInputStatus, log, storageSyncStores, syncedStores };
+    const stores = createSettingsStores();
+    return { renderer, voiceInputStatus, log, stores };
   };
 
-  it("wires storage sync with the given store list", () => {
+  const teardown = (deps: ReturnType<typeof makeDeps>) => {
+    for (const store of Object.values(deps.stores)) store.dispose();
+  };
+
+  it("wires storage sync with exactly the stores classified for reload", () => {
     const deps = makeDeps();
     wireCrossWindowSync(deps as never);
-    expect(wireStorageSync).toHaveBeenCalledWith(deps.storageSyncStores);
+    expect(wireStorageSync).toHaveBeenCalledWith(reloadSyncStores(deps.stores));
+    teardown(deps);
   });
 
   it("routes mouth preview to the renderer", () => {
@@ -992,6 +1133,7 @@ describe("wireCrossWindowSync", () => {
     expect(deps.renderer.setMouthOpen).toHaveBeenCalledWith(0.5);
     onMouthPreview(null);
     expect(deps.renderer.stopMouth).toHaveBeenCalledTimes(1);
+    teardown(deps);
   });
 
   it("routes the voice toggle to voiceInputStatus and logs it", () => {
@@ -1006,6 +1148,7 @@ describe("wireCrossWindowSync", () => {
     );
     onVoiceSet(false);
     expect(deps.voiceInputStatus.get().state).toBe("idle");
+    teardown(deps);
   });
 
   it("publishes voice status changes through the bridge", () => {
@@ -1013,6 +1156,7 @@ describe("wireCrossWindowSync", () => {
     wireCrossWindowSync(deps as never);
     deps.voiceInputStatus.set("listening");
     expect(fakeBridge.emitVoiceState).toHaveBeenCalledWith({ state: "listening" });
+    teardown(deps);
   });
 
   it("dispose tears down storage sync and the bridge", () => {
@@ -1021,6 +1165,14 @@ describe("wireCrossWindowSync", () => {
     dispose();
     expect(wireStorageSyncDispose).toHaveBeenCalledTimes(1);
     expect(fakeBridge.dispose).toHaveBeenCalledTimes(1);
+    teardown(deps);
+  });
+
+  it("creates the bridge as the pet window", () => {
+    const deps = makeDeps();
+    wireCrossWindowSync(deps as never);
+    expect(createSettingsBridge).toHaveBeenCalledWith(undefined, { windowKind: "pet" });
+    teardown(deps);
   });
 });
 
