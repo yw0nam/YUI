@@ -124,4 +124,42 @@ describe("Advanced Settings", () => {
 
     expect(input.value).toBe("25");
   });
+
+  it("reflects the context-window value when the input blurs", () => {
+    attachedMount = document.createElement("section");
+    document.body.appendChild(attachedMount);
+    const endpoints = createEndpointsSettings();
+    createAdvancedSettings(attachedMount, {
+      context: createContextSettings(),
+      recentApps: inMemoryRecentAppsStore(),
+      endpoints,
+    });
+    const input = attachedMount.querySelector<HTMLInputElement>("#devtools-context-window")!;
+
+    input.focus();
+    input.value = "64000";
+    endpoints.set({ chat_model_context_window: "128000" });
+    input.blur();
+
+    expect(input.value).toBe("128000");
+  });
+
+  it("reflects an uncommitted recent-apps edit away when the input blurs", () => {
+    attachedMount = document.createElement("section");
+    document.body.appendChild(attachedMount);
+    const recentApps = inMemoryRecentAppsStore();
+    createAdvancedSettings(attachedMount, {
+      context: createContextSettings(),
+      recentApps,
+      endpoints: createEndpointsSettings(),
+    });
+    const input = attachedMount.querySelector<HTMLInputElement>("#devtools-recent-apps-cap")!;
+
+    input.focus();
+    input.value = "25";
+    recentApps.set(30);
+    input.blur();
+
+    expect(input.value).toBe("30");
+  });
 });

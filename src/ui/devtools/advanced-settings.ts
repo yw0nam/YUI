@@ -124,12 +124,24 @@ export function createAdvancedSettings(
     }
   }
   function reflectRecent(): void {
-    recentApps.value = String(deps.recentApps.get().value);
+    const next = String(deps.recentApps.get().value);
+    if (document.activeElement !== recentApps && recentApps.value !== next) recentApps.value = next;
   }
   function reflectEndpoints(): void {
-    contextWindow.value = deps.endpoints.get().chat_model_context_window;
+    const next = deps.endpoints.get().chat_model_context_window;
+    if (document.activeElement !== contextWindow && contextWindow.value !== next) {
+      contextWindow.value = next;
+    }
+  }
+  function handleRecentAppsBlur(): void {
+    reflectRecent();
+  }
+  function handleContextWindowBlur(): void {
+    reflectEndpoints();
   }
 
+  recentApps.addEventListener("blur", handleRecentAppsBlur);
+  contextWindow.addEventListener("blur", handleContextWindowBlur);
   reflectContext(deps.context.get());
   reflectRecent();
   reflectEndpoints();
@@ -140,6 +152,8 @@ export function createAdvancedSettings(
   ];
   return {
     dispose: () => {
+      recentApps.removeEventListener("blur", handleRecentAppsBlur);
+      contextWindow.removeEventListener("blur", handleContextWindowBlur);
       for (const unsubscribe of unsubscribers) unsubscribe();
     },
   };
