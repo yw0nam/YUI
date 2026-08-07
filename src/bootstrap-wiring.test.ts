@@ -130,6 +130,7 @@ import {
   wireDispatcherSources,
   wirePeekExitTriggers,
   wireSettingsReload,
+  wireSettingsWindowSync,
   wireSpeakerSelection,
   wireStopControl,
   wireVoiceInput,
@@ -1171,6 +1172,42 @@ describe("wireCrossWindowSync", () => {
     const deps = makeDeps();
     wireCrossWindowSync(deps as never);
     expect(createSettingsBridge).toHaveBeenCalledWith(undefined, { windowKind: "pet" });
+    teardown(deps);
+  });
+});
+
+describe("wireSettingsWindowSync", () => {
+  beforeEach(() => {
+    createSettingsBridge.mockClear();
+    wireStorageSync.mockClear();
+  });
+
+  const makeDeps = () => ({
+    stores: createSettingsStores(),
+    vrmSelection: { reloadFromStorage: vi.fn() },
+    speakerSelection: { reloadFromStorage: vi.fn() },
+    log: noopLog,
+  });
+
+  const teardown = (deps: ReturnType<typeof makeDeps>) => {
+    for (const store of Object.values(deps.stores)) store.dispose();
+  };
+
+  it("resyncs the vrm and speaker selections alongside the reload set", () => {
+    const deps = makeDeps();
+    wireSettingsWindowSync(deps);
+    expect(wireStorageSync).toHaveBeenCalledWith([
+      ...reloadSyncStores(deps.stores),
+      deps.vrmSelection,
+      deps.speakerSelection,
+    ]);
+    teardown(deps);
+  });
+
+  it("creates the bridge as the settings window", () => {
+    const deps = makeDeps();
+    wireSettingsWindowSync(deps);
+    expect(createSettingsBridge).toHaveBeenCalledWith(undefined, { windowKind: "settings" });
     teardown(deps);
   });
 });
