@@ -131,11 +131,6 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
       return options().map((o) => ({ ...o }));
     },
 
-    /** All options bundled ∪ user (dedup, bundled wins). Same result as list(). */
-    getOptions(): T[] {
-      return options().map((o) => ({ ...o }));
-    },
-
     /** Add/update imported user option. Reject bundled id collisions; force source to "user". */
     addUserOption(opt: T): void {
       if (isBundledId(opt.id)) return; // bundled always wins

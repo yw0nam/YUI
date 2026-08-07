@@ -27,7 +27,7 @@ export interface PickedVoiceImport {
 
 /** The slice of the speaker store the commit step writes to. */
 interface SpeakerImportTarget {
-  addUserVoice: (option: SpeakerOption & { source: "user" }) => void;
+  addUserOption: (option: SpeakerOption & { source: "user" }) => void;
   select: (id: string) => void;
 }
 
@@ -69,7 +69,7 @@ export function createVoiceImportFlow(deps: {
       log.error("imported_voice_register_failed", { error: String(err) });
       throw err;
     }
-    speakerSelection.addUserVoice(option);
+    speakerSelection.addUserOption(option);
     speakerSelection.select(option.id);
   };
 

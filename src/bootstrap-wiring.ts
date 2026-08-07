@@ -73,7 +73,7 @@ export function wireVrmSelection(deps: {
   // loaded yet — the panel is needed early. After config loads, setManifest injects
   // the real available[] (see the boot sequence below).
   const vrmSelection = createVrmSelection({
-    defaultUrl: "/vrms/carlotta.vrm",
+    defaultValue: "/vrms/carlotta.vrm",
     storage: localStorageVrmStorage(),
     userStorage: localStorageUserVrmStorage(),
   });
@@ -139,7 +139,7 @@ export function wireSpeakerSelection(deps: {
   // loaded yet — the panel is needed early. After config loads, refreshVoiceList injects
   // the server-reported voice list and default.
   const speakerSelection = createSpeakerSelection({
-    defaultId: "",
+    defaultValue: "",
     storage: localStorageSpeakerStorage(),
     userStorage: localStorageUserSpeakerStorage(),
   });

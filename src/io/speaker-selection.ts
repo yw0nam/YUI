@@ -28,9 +28,9 @@ export type SpeakerSelectionStorage = SelectionOverrideStorage;
 /** Persistence adapter for the list of imported source:"user" options. */
 export type UserSpeakerStorage = UserOptionStorage<SpeakerOption>;
 
-/** Synthesizes a single defaultId speaker as one manifest entry. ref_url may be empty (no clip). */
-function synthesizeOption(defaultId: string): SpeakerOption {
-  return { id: defaultId, label: defaultId, ref_url: "" };
+/** Synthesizes a single defaultValue speaker as one manifest entry. ref_url may be empty (no clip). */
+function synthesizeOption(defaultValue: string): SpeakerOption {
+  return { id: defaultValue, label: defaultValue, ref_url: "" };
 }
 
 /** Coerces one imported option into a safe source:"user" SpeakerOption (null if incomplete). */
@@ -45,57 +45,19 @@ function coerceUserSpeaker(v: unknown): SpeakerOption | null {
 
 export function createSpeakerSelection(opts: {
   available?: SpeakerOption[];
-  defaultId: string;
+  defaultValue: string;
   storage?: SpeakerSelectionStorage;
   userStorage?: UserSpeakerStorage;
 }) {
-  const store = createSelectionStore<SpeakerOption>({
+  return createSelectionStore<SpeakerOption>({
     available: opts.available,
-    defaultValue: opts.defaultId,
+    defaultValue: opts.defaultValue,
     storage: opts.storage,
     userStorage: opts.userStorage,
     synthesize: synthesizeOption,
     coerceUser: coerceUserSpeaker,
     isDefault: (o, id) => o.id === id,
   });
-
-  return {
-    list: store.list,
-
-    /** All bundled ∪ user options (deduped, bundled wins). Same result as list(). */
-    getOptions: store.getOptions,
-
-    /** Adds/updates an imported user option. Rejected if it collides with a bundled id. source is forced to "user". */
-    addUserVoice: store.addUserOption,
-
-    /** Removes a user option. If it was the current selection, fall back to default resolution + notify. */
-    removeUserVoice: store.removeUserOption,
-
-    /** Updates a user option's label + persist + (if active) notify. no-op for unknown/bundled id or empty label. */
-    renameUserVoice: store.renameUserOption,
-
-    getActive: store.getActive,
-
-    getActiveId: store.getActiveId,
-
-    select: store.select,
-
-    reset: store.reset,
-
-    // Config hot-reload: replace manifest + default. Preserve the user override, but fall back to
-    // default resolution if it isn't in the new manifest. Notify only when the active id actually changed.
-    setManifest(next: { available?: SpeakerOption[]; defaultId: string }): void {
-      store.setManifest({ available: next.available, defaultValue: next.defaultId });
-    },
-
-    // Reload when another window updated storage — re-read both the user list and the override pointer
-    // (prevents cross-window lost updates), and notify only when the resolved result actually changed.
-    reloadFromStorage: store.reloadFromStorage,
-
-    subscribe: store.subscribe,
-
-    dispose: store.dispose,
-  };
 }
 
 /** localStorage-backed SpeakerSelectionStorage adapter. Gracefully ignored where localStorage is unavailable. */

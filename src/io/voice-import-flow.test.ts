@@ -42,7 +42,7 @@ const IMPORTED = {
 };
 
 function fakeStore() {
-  return { addUserVoice: vi.fn(), select: vi.fn() };
+  return { addUserOption: vi.fn(), select: vi.fn() };
 }
 
 // Explicit arg, no default — build(undefined) must mean "no base url", not "fall back to one".
@@ -101,7 +101,7 @@ describe("createVoiceImportFlow", () => {
         id: "myvoice",
         refUrl: IMPORTED.ref_url,
       });
-      expect(speakerSelection.addUserVoice).toHaveBeenCalledWith(IMPORTED);
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith(IMPORTED);
       expect(speakerSelection.select).toHaveBeenCalledWith("myvoice");
     });
 
@@ -139,7 +139,7 @@ describe("createVoiceImportFlow", () => {
       );
 
       expect(removeUserVoice).toHaveBeenCalledWith("myvoice");
-      expect(speakerSelection.addUserVoice).not.toHaveBeenCalled();
+      expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
       expect(speakerSelection.select).not.toHaveBeenCalled();
     });
 
@@ -152,7 +152,7 @@ describe("createVoiceImportFlow", () => {
 
       expect(updateVoice).not.toHaveBeenCalled();
       expect(removeUserVoice).toHaveBeenCalledWith("myvoice");
-      expect(speakerSelection.addUserVoice).not.toHaveBeenCalled();
+      expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
     });
   });
 });

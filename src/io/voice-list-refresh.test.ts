@@ -16,7 +16,7 @@ const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 function fakeStore(userOptions: SpeakerOption[] = []) {
   const setManifest = vi.fn();
   return {
-    getOptions: () => userOptions,
+    list: () => userOptions,
     setManifest,
     _manifest: () => setManifest.mock.calls.at(-1)?.[0],
   };
@@ -78,7 +78,7 @@ describe("createVoiceListRefresh", () => {
         { id: "ナツメ", label: "ナツメ", ref_url: "" },
         { id: "あやせ", label: "あやせ", ref_url: "" },
       ],
-      defaultId: "ナツメ",
+      defaultValue: "ナツメ",
     });
   });
 
@@ -96,7 +96,7 @@ describe("createVoiceListRefresh", () => {
 
     await refresh();
 
-    expect(store._manifest().defaultId).toBe("");
+    expect(store._manifest().defaultValue).toBe("");
   });
 
   it("excludes ids already owned by a user option so the richer user record stays authoritative", async () => {

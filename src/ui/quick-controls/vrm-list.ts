@@ -42,7 +42,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
     i18nNamespace: "vrm",
     logPrefix: "vrm",
     log,
-    getOptions: () => vrmSelection.list(),
+    list: () => vrmSelection.list(),
     getActiveId: () => vrmSelection.getActiveId(),
     getActive: () => vrmSelection.getActive(),
     getLabel: (opt) => opt.label,

@@ -92,7 +92,7 @@ interface QuickControlsOptions {
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
   /** Import pick step: opens the file picker, returns the source path + a naming-row seed (null on cancel). */
   pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
-  /** Import commit step: copy + register under the typed name → addUserVoice + select. Inline error on reject. */
+  /** Import commit step: copy + register under the typed name → addUserOption + select. Inline error on reject. */
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   /** Delete imported voice's app-data file (idempotent). Called separately from store removal. */
   removeUserVoice: (id: string) => Promise<void>;

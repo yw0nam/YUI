@@ -96,14 +96,14 @@ async function bootstrap(): Promise<void> {
   // Main window hot-swaps actual VRM via storage reload.
   // Create with fallback default, inject actual available[] if config loaded (same as main window).
   const vrmSelection = createVrmSelection({
-    defaultUrl: "/vrms/carlotta.vrm",
+    defaultValue: "/vrms/carlotta.vrm",
     storage: localStorageVrmStorage(),
     userStorage: localStorageUserVrmStorage(),
   });
   if (configLoaded) {
     try {
       const avatar = config.get().avatar;
-      vrmSelection.setManifest({ available: avatar.available, defaultUrl: avatar.vrm_url });
+      vrmSelection.setManifest({ available: avatar.available, defaultValue: avatar.vrm_url });
     } catch (err) {
       log.warn("avatar_config_read_failed", { fallback: true, error: String(err) });
     }
@@ -124,7 +124,7 @@ async function bootstrap(): Promise<void> {
   // irodori speaker selection store. This window has no synth, so store-only commit — registration
   // performed by pet window's synth path on next utterance (same as swapVrm being select-only).
   const speakerSelection = createSpeakerSelection({
-    defaultId: "",
+    defaultValue: "",
     storage: localStorageSpeakerStorage(),
     userStorage: localStorageUserSpeakerStorage(),
   });

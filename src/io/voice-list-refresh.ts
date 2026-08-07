@@ -16,8 +16,8 @@ type VoiceListEndpoints = { irodori_base_url?: string; irodori_speaker?: string 
 
 /** The slice of the speaker store the refresher touches. */
 interface SpeakerManifestTarget {
-  getOptions: () => SpeakerOption[];
-  setManifest: (manifest: { available: SpeakerOption[]; defaultId: string }) => void;
+  list: () => SpeakerOption[];
+  setManifest: (manifest: { available: SpeakerOption[]; defaultValue: string }) => void;
 }
 
 export function createVoiceListRefresh(deps: {
@@ -48,7 +48,7 @@ export function createVoiceListRefresh(deps: {
       // instead. Read after the fetch, so an import that landed mid-flight is respected.
       const userIds = new Set(
         speakerSelection
-          .getOptions()
+          .list()
           .filter((o) => o.source === "user")
           .map((o) => o.id),
       );
@@ -56,7 +56,7 @@ export function createVoiceListRefresh(deps: {
         available: ids
           .filter((id) => !userIds.has(id))
           .map((id) => ({ id, label: id, ref_url: "" })),
-        defaultId,
+        defaultValue: defaultId,
       });
     } catch (err) {
       log.warn("voice_list_refresh_failed", { error: String(err) });

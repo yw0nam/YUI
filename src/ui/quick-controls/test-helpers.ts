@@ -103,7 +103,7 @@ export function makeVrmSelection(ids: string[] = ["carlotta", "aria", "mirai"]) 
     url: `/vrms/${id}.vrm`,
     source: "bundled",
   }));
-  return createVrmSelection({ available, defaultUrl: available[0].url });
+  return createVrmSelection({ available, defaultValue: available[0].url });
 }
 
 // A user (imported) option mirroring vrm-import's output shape.
@@ -121,7 +121,7 @@ export function makeSpeakerSelection(ids: string[] = ["natsume", "ayase", "rena"
     label: id.charAt(0).toUpperCase() + id.slice(1),
     ref_url: `/references/${id}.wav`,
   }));
-  return createSpeakerSelection({ available, defaultId: available[0].id });
+  return createSpeakerSelection({ available, defaultValue: available[0].id });
 }
 
 // A user (imported) voice mirroring voice-import's output shape.
@@ -156,14 +156,14 @@ export function defaultQcArgs(mount: HTMLElement) {
       available: [
         { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
       ],
-      defaultUrl: "/vrms/carlotta.vrm",
+      defaultValue: "/vrms/carlotta.vrm",
     }),
     swapVrm: vi.fn(async () => {}),
     importVrm: vi.fn(async () => {}),
     removeUserVrm: vi.fn(async () => {}),
     speakerSelection: createSpeakerSelection({
       available: [{ id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" }],
-      defaultId: "natsume",
+      defaultValue: "natsume",
     }),
     swapSpeaker: vi.fn(async () => {}),
     refreshSpeaker: vi.fn(async () => {}),

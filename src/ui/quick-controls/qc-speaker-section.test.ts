@@ -296,7 +296,7 @@ describe("createQuickControls — speaker section", () => {
 
   function withUserVoice() {
     speakerSelection = makeSpeakerSelection();
-    speakerSelection.addUserVoice(USER_VOICE);
+    speakerSelection.addUserOption(USER_VOICE);
   }
 
   function userSpkRow(qc: { el: HTMLElement }): HTMLElement {
@@ -334,7 +334,7 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  it("pencil opens inline rename; Enter commits via renameUserVoice", () => {
+  it("pencil opens inline rename; Enter commits via renameUserOption", () => {
     withUserVoice();
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
@@ -351,7 +351,7 @@ describe("createQuickControls — speaker section", () => {
     input.value = "새 목소리";
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
-    expect(speakerSelection.getOptions().find((o) => o.id === "myvoice")!.label).toBe("새 목소리");
+    expect(speakerSelection.list().find((o) => o.id === "myvoice")!.label).toBe("새 목소리");
     expect(userSpkRow(qc).querySelector(".yui-ep-input")).toBeNull();
 
     qc.dispose();
@@ -367,14 +367,14 @@ describe("createQuickControls — speaker section", () => {
     input.value = "버려질 이름";
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
-    expect(speakerSelection.getOptions().find((o) => o.id === "myvoice")!.label).toBe("내 목소리");
+    expect(speakerSelection.list().find((o) => o.id === "myvoice")!.label).toBe("내 목소리");
     expect(userSpkRow(qc).querySelector(".yui-ep-input")).toBeNull();
     expect(qc.isOpen()).toBe(true);
 
     qc.dispose();
   });
 
-  it("trash removes the voice via injected removeUserVoice then store removeUserVoice", async () => {
+  it("trash removes the voice via injected removeUserVoice then store removeUserOption", async () => {
     withUserVoice();
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
@@ -384,7 +384,7 @@ describe("createQuickControls — speaker section", () => {
 
     expect(removeUserVoice).toHaveBeenCalledOnce();
     expect(removeUserVoice.mock.calls[0][0]).toBe("myvoice");
-    expect(speakerSelection.getOptions().map((o) => o.id)).not.toContain("myvoice");
+    expect(speakerSelection.list().map((o) => o.id)).not.toContain("myvoice");
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).toBeNull();
 
     qc.dispose();
@@ -394,7 +394,7 @@ describe("createQuickControls — speaker section", () => {
     withUserVoice();
     let storeStillHadVoiceAtDelete: boolean | null = null;
     removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {
-      storeStillHadVoiceAtDelete = speakerSelection.getOptions().some((o) => o.id === "myvoice");
+      storeStillHadVoiceAtDelete = speakerSelection.list().some((o) => o.id === "myvoice");
     });
     const qc = buildQc({ getDefaultProvider: () => "irodori" });
     qc.open();
@@ -403,7 +403,7 @@ describe("createQuickControls — speaker section", () => {
     await flush();
 
     expect(storeStillHadVoiceAtDelete).toBe(true);
-    expect(speakerSelection.getOptions().map((o) => o.id)).not.toContain("myvoice");
+    expect(speakerSelection.list().map((o) => o.id)).not.toContain("myvoice");
 
     qc.dispose();
   });
@@ -419,7 +419,7 @@ describe("createQuickControls — speaker section", () => {
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     await flush();
 
-    expect(speakerSelection.getOptions().map((o) => o.id)).toContain("myvoice");
+    expect(speakerSelection.list().map((o) => o.id)).toContain("myvoice");
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).not.toBeNull();
 
     qc.dispose();
@@ -575,7 +575,7 @@ describe("createQuickControls — speaker section", () => {
   it("Enter on the naming row commits with the srcPath and the typed name", async () => {
     pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
     commitVoiceImport = vi.fn(async () => {
-      speakerSelection.addUserVoice(USER_VOICE);
+      speakerSelection.addUserOption(USER_VOICE);
     });
     const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
     qc.open();
@@ -695,7 +695,7 @@ describe("createQuickControls — speaker section", () => {
   it("a successful commit clears the loading row and error notice", async () => {
     pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/x.wav", seedName: "myvoice" }));
     commitVoiceImport = vi.fn(async () => {
-      speakerSelection.addUserVoice(USER_VOICE);
+      speakerSelection.addUserOption(USER_VOICE);
     });
     const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
     qc.open();
@@ -1005,7 +1005,7 @@ describe("createQuickControls — speaker section", () => {
         { id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" },
         { id: "noclip", label: "Noclip", ref_url: "" },
       ],
-      defaultId: "natsume",
+      defaultValue: "natsume",
     });
     const qc = buildQc();
     qc.open();
@@ -1036,7 +1036,7 @@ describe("createQuickControls — speaker section", () => {
     const evil = "a<img src=x onerror=alert(1)>b";
     speakerSelection = createSpeakerSelection({
       available: [{ id: "natsume", label: evil, ref_url: "/references/natsume.wav" }],
-      defaultId: "natsume",
+      defaultValue: "natsume",
     });
     const qc = buildQc();
     qc.open();
@@ -1056,7 +1056,7 @@ describe("createQuickControls — speaker section", () => {
         { id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" },
         { id: evilId, label: "Quoted", ref_url: "/references/quoted.wav" },
       ],
-      defaultId: "natsume",
+      defaultValue: "natsume",
     });
     swapSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async (option) => {
       speakerSelection.select(option.id);
@@ -1118,7 +1118,7 @@ describe("createQuickControls — speaker section", () => {
         { id: "natsume", label: "Natsume", ref_url: "/references/natsume.wav" },
         { id: "noclip", label: "Noclip", ref_url: "" },
       ],
-      defaultId: "natsume",
+      defaultValue: "natsume",
     });
     const qc = buildQc();
     qc.open();

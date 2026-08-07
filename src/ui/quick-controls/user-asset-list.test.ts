@@ -81,7 +81,7 @@ function makeHarness(overrides: Partial<UserAssetListConfig<FakeOption>> = {}) {
     i18nNamespace: "vrm", // reuse an existing real i18n namespace so t() resolves to real strings
     logPrefix: "fake",
     log,
-    getOptions: () => options,
+    list: () => options,
     getActiveId: () => activeId,
     getActive: () => options.find((o) => o.id === activeId)!,
     getLabel: (opt: FakeOption) => opt.label ?? opt.id,

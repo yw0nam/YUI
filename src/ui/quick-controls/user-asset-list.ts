@@ -39,7 +39,7 @@ export interface UserAssetListConfig<T extends UserAssetOption> {
   logPrefix: string;
   log: Logger;
 
-  getOptions: () => T[];
+  list: () => T[];
   getActiveId: () => string;
   getActive: () => T;
   /** Renaming-input seed value: opt.label (VRM) vs opt.label ?? opt.id (speaker). */
@@ -168,7 +168,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     const baseHint = hintEl.innerHTML;
     const syncOverwriteWarning = (): void => {
       const id = sanitizeStem(input.value);
-      const collides = cfg.getOptions().some((o) => o.id === id);
+      const collides = cfg.list().some((o) => o.id === id);
       hintEl.innerHTML = collides
         ? `${baseHint} · <span class="${overwriteWarnClass}">${t(`${cfg.i18nNamespace}.import_overwrite_warn`)}</span>`
         : baseHint;
@@ -339,7 +339,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
       if (cfg.canActivate && !cfg.canActivate()) return;
       e.preventDefault();
       const id = target.dataset[cfg.datasetKey];
-      const opt = cfg.getOptions().find((o) => o.id === id);
+      const opt = cfg.list().find((o) => o.id === id);
       if (opt) void swapTo(opt);
       return;
     }

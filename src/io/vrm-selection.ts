@@ -43,65 +43,27 @@ function labelFromStem(stem: string): string {
   return stem.charAt(0).toUpperCase() + stem.slice(1);
 }
 
-/** Synthesize a single-model defaultUrl into one manifest entry. */
-function synthesizeOption(defaultUrl: string): AvatarOption {
-  const id = stemFromUrl(defaultUrl);
-  return { id, label: labelFromStem(id), url: defaultUrl, source: "bundled" };
+/** Synthesize a single-model defaultValue into one manifest entry. */
+function synthesizeOption(defaultValue: string): AvatarOption {
+  const id = stemFromUrl(defaultValue);
+  return { id, label: labelFromStem(id), url: defaultValue, source: "bundled" };
 }
 
 export function createVrmSelection(opts: {
   available?: AvatarOption[];
-  defaultUrl: string;
+  defaultValue: string;
   storage?: VrmSelectionStorage;
   userStorage?: UserVrmStorage;
 }) {
-  const store = createSelectionStore<AvatarOption>({
+  return createSelectionStore<AvatarOption>({
     available: opts.available,
-    defaultValue: opts.defaultUrl,
+    defaultValue: opts.defaultValue,
     storage: opts.storage,
     userStorage: opts.userStorage,
     synthesize: synthesizeOption,
     coerceUser: coerceUserOption,
     isDefault: (o, url) => o.url === url,
   });
-
-  return {
-    list: store.list,
-
-    /** All options bundled ∪ user (dedup, bundled wins). Same result as list(). */
-    getOptions: store.getOptions,
-
-    /** Add/update imported user option. Reject bundled id collisions; force source to "user". */
-    addUserOption: store.addUserOption,
-
-    /** Remove user option. If currently selected, fall back to default resolution + notify. */
-    removeUserOption: store.removeUserOption,
-
-    /** Update user option label + persist + notify (if active). Unknown/bundled id or empty label is no-op. */
-    renameUserOption: store.renameUserOption,
-
-    getActive: store.getActive,
-
-    getActiveId: store.getActiveId,
-
-    select: store.select,
-
-    reset: store.reset,
-
-    // Config hot-reload: replace manifest + default. Preserve user override, but
-    // fall back to default resolution if absent in new manifest. Notify only if active id actually changes.
-    setManifest(next: { available?: AvatarOption[]; defaultUrl: string }): void {
-      store.setManifest({ available: next.available, defaultValue: next.defaultUrl });
-    },
-
-    // Reload when other window updates storage — re-read both user list and override pointer to
-    // prevent cross-window lost update; notify only if resolution actually changed.
-    reloadFromStorage: store.reloadFromStorage,
-
-    subscribe: store.subscribe,
-
-    dispose: store.dispose,
-  };
 }
 
 /** localStorage-based VrmSelectionStorage adapter; gracefully ignored when localStorage is unavailable. */
