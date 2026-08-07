@@ -890,6 +890,7 @@ export function createQuickControls({
   agentPortInput?.addEventListener("change", handleAgentPortChange);
   presenceInput?.addEventListener("change", handlePresenceChange);
   recentAppsInput?.addEventListener("change", handleRecentAppsChange);
+  recentAppsInput?.addEventListener("blur", handleRecentAppsChange);
 
   // Cue-list components — schedule in input tab .yui-cue-sections, proactive in Reactions tab .yui-loop-cue-section.
   const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
@@ -1016,6 +1017,7 @@ export function createQuickControls({
     agentPortInput?.removeEventListener("change", handleAgentPortChange);
     presenceInput?.removeEventListener("change", handlePresenceChange);
     recentAppsInput?.removeEventListener("change", handleRecentAppsChange);
+    recentAppsInput?.removeEventListener("blur", handleRecentAppsChange);
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();
