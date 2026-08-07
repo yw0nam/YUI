@@ -1,20 +1,12 @@
 import "./styles.css";
 import "./ui/quick-controls.css";
 import "./ui/devtools/devtools.css";
+import { wireDevtoolsSync } from "./bootstrap-wiring";
 import { createConfigStore } from "./config";
-import { createContextHistory, localStorageContextHistory } from "./io/context-history";
-import { createContextSettings, localStorageContextSettings } from "./io/context-settings";
-import { createEndpointsSettings, localStorageEndpointsStorage } from "./io/endpoints-settings";
-import { createRecentAppsStore } from "./io/settings-stores";
-import { wireStorageSync } from "./io/settings-window";
+import { createSettingsStores } from "./io/settings-stores";
 import { createLogger, initLogger } from "./logger";
 import { createDevtoolsShell } from "./ui/devtools/shell";
-import {
-  getLocale,
-  reloadFromStorage as reloadLocaleFromStorage,
-  subscribe as subscribeLocale,
-  t,
-} from "./ui/i18n";
+import { getLocale, subscribe as subscribeLocale, t } from "./ui/i18n";
 
 const log = createLogger("devtools-bootstrap");
 
@@ -23,12 +15,8 @@ async function bootstrap(): Promise<void> {
   const mount = document.querySelector<HTMLElement>("#app");
   if (!mount) throw new Error("#app mount point not found");
 
-  const history = createContextHistory({ storage: localStorageContextHistory() });
-  const contextSettings = createContextSettings({ storage: localStorageContextSettings() });
-  const recentAppsSettings = createRecentAppsStore();
-  const endpointsSettings = createEndpointsSettings({
-    storage: localStorageEndpointsStorage(),
-  });
+  const settingsStores = createSettingsStores({ locale: getLocale() });
+  const { contextHistory, contextSettings, recentAppsSettings, endpointsSettings } = settingsStores;
   const config = createConfigStore();
   let defaultContextWindow: number | undefined;
   try {
@@ -37,13 +25,12 @@ async function bootstrap(): Promise<void> {
     log.warn("config_load_failed", { error: String(error) });
   }
 
-  const stores = [history, contextSettings, recentAppsSettings, endpointsSettings];
   document.documentElement.lang = getLocale();
   const buildShell = (): ReturnType<typeof createDevtoolsShell> => {
     document.title = t("devtools.label");
     return createDevtoolsShell({
       mount,
-      history,
+      history: contextHistory,
       contextSettings,
       recentAppsSettings,
       endpointsSettings,
@@ -61,17 +48,14 @@ async function bootstrap(): Promise<void> {
       shell = buildShell();
     });
   });
-  const disposeStorageSync = wireStorageSync(stores);
-  const reload = (): void => {
-    for (const store of stores) store.reloadFromStorage();
-    reloadLocaleFromStorage();
-  };
+  const { reload, dispose: disposeSync } = wireDevtoolsSync({ stores: settingsStores, log });
   window.addEventListener("focus", reload);
   window.addEventListener("beforeunload", () => {
-    disposeStorageSync();
+    disposeSync();
+    window.removeEventListener("focus", reload);
     unsubscribeLocale();
     shell.dispose();
-    for (const store of stores) store.dispose();
+    for (const store of Object.values(settingsStores)) store.dispose();
   });
 }
 
