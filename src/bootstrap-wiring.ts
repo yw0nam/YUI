@@ -778,12 +778,15 @@ export function wireCrossWindowSync(deps: {
   return { bridge, broadcastSettings, runApplyingRemote, dispose };
 }
 
+/** Wires devtools registry sync; guarded remote reloads prevent echoes, and teardown flushes broadcasts before closing the bridge. */
 export function wireDevtoolsSync(deps: { stores: SettingsStores; log: Logger }): {
   reload: () => void;
   dispose: () => void;
 } {
+  let disposed = false;
   const reloadStores = reloadSyncStores(deps.stores);
   const reload = (): void => {
+    if (disposed) return;
     for (const store of reloadStores) store.reloadFromStorage();
     reloadLocaleFromStorage();
   };
@@ -797,7 +800,6 @@ export function wireDevtoolsSync(deps: { stores: SettingsStores; log: Logger }):
     runApplyingRemote(reload);
     deps.log.info("settings_change_received");
   });
-  let disposed = false;
   const dispose = (): void => {
     if (disposed) return;
     disposed = true;
