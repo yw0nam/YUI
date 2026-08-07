@@ -280,7 +280,6 @@ export function wireWindowSync(deps: {
 }): {
   bridge: SettingsBridge;
   broadcastSettings: () => void;
-  runApplyingRemote: (apply: () => void) => void;
   /** Reload every resync store + display language. */
   reload: () => void;
   /** Registers extra work to run inside the remote-change loop guard, after the resync reload. */
@@ -314,7 +313,6 @@ export function wireWindowSync(deps: {
   return {
     bridge,
     broadcastSettings,
-    runApplyingRemote,
     reload,
     onRemoteChange(cb) {
       remoteHooks.push(cb);
@@ -789,9 +787,7 @@ export function wireCrossWindowSync(deps: {
   stores: SettingsStores;
   log: Logger;
 }): {
-  bridge: SettingsBridge;
   broadcastSettings: () => void;
-  runApplyingRemote: (apply: () => void) => void;
   onRemoteChange: (cb: () => void) => void;
   dispose: () => void;
 } {
@@ -812,9 +808,7 @@ export function wireCrossWindowSync(deps: {
     core.bridge.emitVoiceState({ state: snapshot.state });
   });
   return {
-    bridge: core.bridge,
     broadcastSettings: core.broadcastSettings,
-    runApplyingRemote: core.runApplyingRemote,
     onRemoteChange: core.onRemoteChange,
     dispose: core.dispose,
   };
@@ -845,7 +839,7 @@ export function wireSettingsWindowSync(deps: {
   return { bridge, broadcastSettings, reload, dispose };
 }
 
-/** Wires devtools registry sync; guarded remote reloads prevent echoes, and teardown flushes broadcasts before closing the bridge. */
+/** Devtools-window cross-window sync — the shared core with no window-specific extras. */
 export function wireDevtoolsSync(deps: { stores: SettingsStores; log: Logger }): {
   reload: () => void;
   dispose: () => void;
