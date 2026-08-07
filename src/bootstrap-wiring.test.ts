@@ -125,8 +125,8 @@ import {
   showAndFocusFromSummon,
   wireBroker,
   wireCrossWindowSync,
-  wireDevtoolsSync,
   wireDevGlobals,
+  wireDevtoolsSync,
   wireDispatcherSources,
   wirePeekExitTriggers,
   wireSettingsReload,
@@ -1083,7 +1083,10 @@ describe("wireDevtoolsSync", () => {
     const broadcastReloadIndex = reloadStores.indexOf(broadcastStore);
     reloadSpies[broadcastReloadIndex]!.mockImplementation(() => retainedSubscriber!());
     const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
-    const receiveSettingsChanged = fakeBridge.onSettingsChanged.mock.calls[0]![0] as () => void;
+    const settingsChangedCalls = fakeBridge.onSettingsChanged.mock.calls as unknown as Array<
+      [() => void]
+    >;
+    const receiveSettingsChanged = settingsChangedCalls[0]![0];
 
     receiveSettingsChanged();
     vi.advanceTimersByTime(201);
@@ -1107,9 +1110,8 @@ describe("wireDevtoolsSync", () => {
       return vi.fn();
     });
     const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
-    const disposeSettingsChanged = fakeBridge.onSettingsChanged.mock.results[0]!.value as ReturnType<
-      typeof vi.fn
-    >;
+    const disposeSettingsChanged = fakeBridge.onSettingsChanged.mock.results[0]!
+      .value as ReturnType<typeof vi.fn>;
     retainedSubscriber!();
 
     sync.dispose();
