@@ -823,7 +823,7 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 
-  it("keeps a focused recent-apps edit and commits it on blur", () => {
+  it("commits a focused recent-apps edit before resyncing on blur", () => {
     const recentAppsSettings = inMemoryRecentAppsStore();
     const qc = buildQc({ recentAppsSettings });
     qc.open();
@@ -835,9 +835,27 @@ describe("createQuickControls — Reactions tab", () => {
 
     expect(recentAppsInput.value).toBe("25");
 
+    recentAppsInput.dispatchEvent(new Event("change"));
     recentAppsInput.blur();
     expect(recentAppsSettings.get().value).toBe(25);
     expect(recentAppsInput.value).toBe("25");
+    qc.dispose();
+  });
+
+  it("resyncs an unedited focused recent-apps field without reverting a remote change", () => {
+    const recentAppsSettings = inMemoryRecentAppsStore();
+    const qc = buildQc({ recentAppsSettings });
+    qc.open();
+    const recentAppsInput = qc.el.querySelector<HTMLInputElement>("#yui-recent-apps")!;
+
+    recentAppsInput.focus();
+    recentAppsSettings.set(30);
+
+    expect(recentAppsInput.value).toBe("10");
+
+    recentAppsInput.blur();
+    expect(recentAppsSettings.get().value).toBe(30);
+    expect(recentAppsInput.value).toBe("30");
     qc.dispose();
   });
 
