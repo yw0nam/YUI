@@ -46,10 +46,20 @@ Lets the agent see the screen and open/close apps on the macOS host. Runs **host
 |---|---|
 | `screenshot` | Capture every display as PNG (one image per monitor), long edge downscaled to 1280px |
 | `list_running_apps` | Names of visible (non-background) apps |
+| `get_frontmost_window` | `{ app, title }` for the frontmost app; `title` is null when it has no front window |
 | `open_app(name)` | Launch + focus an allowlisted app |
 | `close_app(name)` | Gracefully quit an allowlisted app |
 
-The `DESKTOP_CONTROL_ALLOWED_APPS` allowlist **is** the safety boundary — only listed apps can be opened or closed, and an empty allowlist rejects everything. Two macOS TCC grants gate the tools, attributed to the launching process: **Screen Recording** for `screenshot`, and **Automation** (Apple Events to System Events) for `list_running_apps` / `close_app`. A startup preflight logs an explicit `[setup] … NOT granted` warning for each gap.
+The `DESKTOP_CONTROL_ALLOWED_APPS` allowlist **is** the safety boundary — only listed apps can be opened or closed, and an empty allowlist rejects everything. The read tools are ungated. macOS TCC grants gate the tools, attributed to the launching process:
+
+| Permission | Tools |
+|---|---|
+| Screen Recording | `screenshot`; the `title` half of `get_frontmost_window` |
+| Automation → System Events | `list_running_apps` |
+| Automation → each target app | `close_app` — its Apple Event goes to the named app, so every allowlisted app is its own grant |
+| none | `open_app`; the `app` half of `get_frontmost_window` |
+
+A startup preflight logs an explicit `[setup] … NOT granted` warning for Screen Recording and for System Events. It cannot cover `close_app`: probing an app's Automation grant prompts the user, so the per-app grants surface on first quit instead.
 
 ## shell-sandbox
 
