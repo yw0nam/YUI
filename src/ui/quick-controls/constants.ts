@@ -22,9 +22,14 @@ export interface EndpointFieldDef {
   labelKey: string;
   url: boolean;
 }
+const isTextFieldSpec = (
+  s: (typeof ENDPOINT_FIELD_SPECS)[number],
+): s is Extract<(typeof ENDPOINT_FIELD_SPECS)[number], { kind: "url" | "string" }> =>
+  s.kind === "url" || s.kind === "string";
+
 export const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = ENDPOINT_FIELD_SPECS.filter(
-  (s) => s.kind === "url" || s.kind === "string",
-).map((s) => ({ key: s.key, labelKey: s.labelKey!, url: s.kind === "url" }));
+  isTextFieldSpec,
+).map((s) => ({ key: s.key, labelKey: s.labelKey, url: s.kind === "url" }));
 
 // Eye icon (show/hide). Line-icon style matches other icon buttons.
 export const CHATKEY_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg>`;

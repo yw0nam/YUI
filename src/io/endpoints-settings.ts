@@ -38,23 +38,41 @@ const VALID_CHAT_APIS = ["responses", "chat_completions"] as const;
 
 export type EndpointFieldKind = "url" | "string" | "enum" | "posInt";
 
-/** One row per overridable endpoint value. `enum` is required (and only meaningful) for kind "enum". */
-export interface EndpointFieldSpec {
+interface EndpointFieldBase {
   key: keyof EndpointOverrides;
-  kind: EndpointFieldKind;
-  enum?: readonly string[];
-  /** i18n key for the field's input-row label — only url/string-kind rows render as a labeled input. */
-  labelKey?: string;
   /** Per-service reset group (endpoints-section.ts's per-service reset buttons); omitted = not reset by any button. */
   resetGroup?: string;
 }
+
+/** url/string-kind rows render as a labeled text-input row (src/ui/quick-controls/constants.ts's ENDPOINT_FIELDS). */
+export interface EndpointTextFieldSpec extends EndpointFieldBase {
+  kind: "url" | "string";
+  labelKey: string;
+}
+
+/** enum-kind rows are value-restricted; anything outside `enum` (including "") coerces to "" (no override). */
+export interface EndpointEnumFieldSpec extends EndpointFieldBase {
+  kind: "enum";
+  enum: readonly string[];
+}
+
+/** posInt-kind rows accept only positive digit strings ("0", "abc", "" all coerce to "" — no override). */
+export interface EndpointPosIntFieldSpec extends EndpointFieldBase {
+  kind: "posInt";
+}
+
+/** One row per overridable endpoint value — a discriminated union on `kind` so `enum`/`labelKey` are only required where they're meaningful. */
+export type EndpointFieldSpec =
+  | EndpointTextFieldSpec
+  | EndpointEnumFieldSpec
+  | EndpointPosIntFieldSpec;
 
 /**
  * The declarative endpoint field table — FIELDS/EMPTY/coerceFor/mergeEndpoints below, the UI's
  * ENDPOINT_FIELDS (src/ui/quick-controls/constants.ts), and endpointDefaultsFromConfig all derive
  * from this one list. Adding an overridable value means adding one row here.
  */
-export const ENDPOINT_FIELD_SPECS: readonly EndpointFieldSpec[] = [
+export const ENDPOINT_FIELD_SPECS = [
   {
     key: "chat_base_url",
     kind: "url",
@@ -76,17 +94,32 @@ export const ENDPOINT_FIELD_SPECS: readonly EndpointFieldSpec[] = [
     resetGroup: "broker",
   },
   { key: "chat_model", kind: "string", labelKey: "endpoints.chat_model.label", resetGroup: "chat" },
-  { key: "chat_model_context_window", kind: "posInt" },
+  // No resetGroup: no reset button clears this today (the "chat" service reset only clears
+  // chat_base_url/chat_model/chat_api) — see endpoints-settings.test.ts's resetGroup pin test.
+  { key: "chat_model_context_window", kind: "posInt", resetGroup: undefined },
   { key: "chat_api", kind: "enum", enum: VALID_CHAT_APIS, resetGroup: "chat" },
   { key: "tts_voice", kind: "string", labelKey: "endpoints.tts_voice.label", resetGroup: "tts" },
   { key: "tts_provider", kind: "enum", enum: VALID_PROVIDERS, resetGroup: "tts" },
-];
+] as const satisfies readonly EndpointFieldSpec[];
+
+/** Literal union of every key declared above — used by the totality guard below. */
+type SpecKeys = (typeof ENDPOINT_FIELD_SPECS)[number]["key"];
+
+/**
+ * Compile-time totality guard: if EndpointOverrides gains a field without a matching row above,
+ * `_MissingFieldSpecRows` stops being `never` and this line fails to typecheck — `pnpm build`
+ * catches the gap, not just the runtime test in endpoints-settings.test.ts.
+ */
+type _MissingFieldSpecRows = Exclude<keyof EndpointOverrides, SpecKeys>;
+const _totalityGuard: _MissingFieldSpecRows extends never ? true : _MissingFieldSpecRows = true;
+void _totalityGuard;
 
 const FIELDS: readonly (keyof EndpointOverrides)[] = ENDPOINT_FIELD_SPECS.map((s) => s.key);
 
-const EMPTY: EndpointOverrides = Object.fromEntries(
-  FIELDS.map((k) => [k, ""]),
-) as unknown as EndpointOverrides;
+const EMPTY: EndpointOverrides = Object.fromEntries(FIELDS.map((k) => [k, ""])) as Record<
+  SpecKeys,
+  string
+>;
 
 const SPEC_BY_KEY: ReadonlyMap<keyof EndpointOverrides, EndpointFieldSpec> = new Map(
   ENDPOINT_FIELD_SPECS.map((s) => [s.key, s]),
@@ -101,7 +134,7 @@ function coerceField(v: unknown): string {
 function coerceFor(key: keyof EndpointOverrides, v: unknown): string {
   const spec = SPEC_BY_KEY.get(key)!;
   if (spec.kind === "enum") {
-    return typeof v === "string" && spec.enum!.includes(v) ? v : "";
+    return typeof v === "string" && spec.enum.includes(v) ? v : "";
   }
   if (spec.kind === "posInt") {
     return typeof v === "string" && /^[1-9]\d*$/.test(v) ? v : "";
@@ -136,6 +169,20 @@ export function isValidEndpointUrl(v: string): boolean {
   }
 }
 
+/** Type-safe dynamic property write — `value` is tied to `K` so the assignment is checked against EndpointsConfig's actual per-key type. */
+function setField<K extends keyof EndpointsConfig>(
+  out: EndpointsConfig,
+  key: K,
+  value: EndpointsConfig[K],
+): void {
+  out[key] = value;
+}
+
+/** Narrows `v` to one of `list`'s literal members — lets mergeEndpoints hand an enum-kind value to setField typechecked. */
+function isOneOf<T extends string>(list: readonly T[], v: string): v is T {
+  return (list as readonly string[]).includes(v);
+}
+
 /**
  * Builds a new EndpointsConfig by layering overrides onto the base EndpointsConfig (base unchanged).
  * URL fields apply only when non-empty + isValidEndpointUrl, chat_model only when non-empty,
@@ -144,22 +191,22 @@ export function isValidEndpointUrl(v: string): boolean {
  * Invalid URL/provider/chat_api are ignored (effective keeps the base default) — the UI surfaces the error separately.
  */
 export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): EndpointsConfig {
-  const out = { ...base } as unknown as Record<string, unknown>;
+  const out: EndpointsConfig = { ...base };
   for (const spec of ENDPOINT_FIELD_SPECS) {
     const raw = ov[spec.key];
     if (spec.kind === "url") {
       const t = raw.trim();
-      if (t !== "" && isValidEndpointUrl(t)) out[spec.key] = t;
+      if (t !== "" && isValidEndpointUrl(t)) setField(out, spec.key, t);
     } else if (spec.kind === "string") {
       const t = raw.trim();
-      if (t !== "") out[spec.key] = t;
+      if (t !== "") setField(out, spec.key, t);
     } else if (spec.kind === "posInt") {
-      if (raw !== "") out[spec.key] = Number(raw);
-    } else if (spec.kind === "enum") {
-      if (spec.enum!.includes(raw)) out[spec.key] = raw;
+      if (raw !== "") setField(out, spec.key, Number(raw));
+    } else if (spec.kind === "enum" && isOneOf(spec.enum, raw)) {
+      setField(out, spec.key, raw);
     }
   }
-  return out as unknown as EndpointsConfig;
+  return out;
 }
 
 /**
