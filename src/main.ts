@@ -735,8 +735,8 @@ async function bootstrap(): Promise<void> {
       t,
     });
     // Click-through hit-test: interactive over character/visible UI, click-through empty areas elsewhere.
-    // interactive = renderer.hitTest(stage-local) ∪ visible input form ∪ open quick-controls.
-    // All coordinates viewport(client) basis — only renderer.hitTest transforms to stage top-left basis.
+    // interactive = renderer.hitTest(client) ∪ visible input form ∪ open quick-controls.
+    // All coordinates viewport(client) basis — renderer.hitTest converts to stage-local itself.
     const interactiveRects = (): DOMRect[] => {
       const rects: DOMRect[] = [];
       const inputForm = root.querySelector<HTMLElement>(".yui-input.is-open");
@@ -751,8 +751,7 @@ async function bootstrap(): Promise<void> {
       y <= r.bottom + margin;
     const hitTest = createHitTestController({
       isOverInteractive: (xClient, yClient, marginPx) => {
-        const stageRect = stage.getBoundingClientRect();
-        if (renderer.hitTest(xClient - stageRect.left, yClient - stageRect.top)) return true;
+        if (renderer.hitTest(xClient, yClient)) return true;
         return interactiveRects().some((r) => pointInRect(xClient, yClient, r, marginPx));
       },
       moveTarget: window,
@@ -762,20 +761,11 @@ async function bootstrap(): Promise<void> {
     hitTestRef = hitTest;
     hitTest.start();
     disposers.push(() => hitTest.stop());
-    // Cursor gaze: forwards the global OS cursor to the renderer's head/eye tracking, converted
-    // to stage-local px (renderer treats the mount as the coordinate origin). The rect is cached
-    // (avoids a layout flush on every 30Hz sample) and refreshed on resize — .yui-stage is
-    // inset:0, so its rect only ever changes with the viewport.
-    let stageRect = stage.getBoundingClientRect();
-    const onStageResize = (): void => {
-      stageRect = stage.getBoundingClientRect();
-    };
-    window.addEventListener("resize", onStageResize);
-    disposers.push(() => window.removeEventListener("resize", onStageResize));
+    // Cursor gaze: forwards the global OS cursor (window-local client px) to the renderer's
+    // head/eye tracking; the renderer converts to stage-local itself (cached mount rect).
     const cursorTracker = createCursorTracker({
       onCursor: (p) => {
-        if (!p) return renderer.setGazeCursor(null);
-        renderer.setGazeCursor({ x: p.x - stageRect.left, y: p.y - stageRect.top });
+        renderer.setGazeCursor(p);
       },
     });
     cursorTrackerRef = cursorTracker;
