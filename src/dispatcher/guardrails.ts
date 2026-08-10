@@ -1,7 +1,7 @@
 /**
  * Guardrails — debounce / rate-limit.
  *
- * Evaluation order: debounce → rate-limit. Dispatcher wiring order is
+ * Evaluation order: dnd_override → cooldown → debounce → rate-limit. Dispatcher wiring order is
  * supersede → classify(tier) → evaluate(env, tier) → route. dnd_override short-circuits
  * at top of evaluate — user-initiated turns bypass all gates and don't increment any counter.
  *

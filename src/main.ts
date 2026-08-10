@@ -658,7 +658,7 @@ async function bootstrap(): Promise<void> {
     peekConfig = cfg.avatar.peek;
     tapConfig = cfg.avatar.tap;
     gestureCuesConfig = cfg.avatar.gesture_cues;
-    // Guardrails — configured by config numbers. dispatcher consumes via note+evaluate+cooldown polling.
+    // Guardrails — configured by config numbers. dispatcher consumes via evaluate+cooldown polling.
     const guardrails = createGuardrails(cfg.guardrails);
     guardrailsRef = guardrails;
     const dispatcher = createDispatcher({
