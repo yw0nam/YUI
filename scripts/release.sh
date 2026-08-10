@@ -29,8 +29,17 @@ if [ "$branch" != main ]; then
   echo "refusing to release: on branch '$branch', expected main" >&2
   exit 1
 fi
+git fetch origin main
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+  echo "refusing to release: main is not in sync with origin/main" >&2
+  exit 1
+fi
 
 cur=$(sed -n 's/^version = "\(.*\)"$/\1/p' src-tauri/Cargo.toml)
+if ! printf '%s' "$cur" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo "refusing to release: cannot parse version from src-tauri/Cargo.toml (got '$cur')" >&2
+  exit 1
+fi
 IFS=. read -r major minor patch <<<"$cur"
 case "$bump" in
   major) new="$((major + 1)).0.0" ;;
@@ -44,10 +53,17 @@ fi
 
 sed -i '' "s/^version = \"$cur\"\$/version = \"$new\"/" src-tauri/Cargo.toml
 sed -i '' "s/^  \"version\": \"[^\"]*\",\$/  \"version\": \"$new\",/" src-tauri/tauri.conf.json package.json
+if git diff --quiet; then
+  echo "refusing to release: version bump changed no files" >&2
+  exit 1
+fi
 cargo update --workspace --manifest-path src-tauri/Cargo.toml
 
 git add src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json package.json
 git commit -m "chore: release v$new"
 git tag -a "v$new" -m "v$new"
-git push --follow-tags
-gh release create "v$new" --generate-notes
+git push --atomic origin main "v$new"
+gh release create "v$new" --generate-notes || {
+  echo "tag pushed but release creation failed; run: gh release create v$new --generate-notes" >&2
+  exit 1
+}
