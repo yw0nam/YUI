@@ -5,12 +5,18 @@
  * array instead of four mismatched vocabularies (onVrmLoaded/onVrmDisposed/reset;
  * step; isConverging/isFading/openValue).
  *
- * Pure orchestration only — no DOM/GL/VRM-library state. index.ts adapts each
- * sub-controller (built once at renderer construction, not per frame) into this
- * shape and holds them in one fixed array.
+ * Pure orchestration only — no DOM/GL state. buildVrmParticipants adapts each
+ * sub-controller (called once at renderer construction, not per frame) into this
+ * shape and returns them held in one fixed array.
  */
 
 import type { VRM } from "@pixiv/three-vrm";
+import type { PerspectiveCamera } from "three";
+import type { CursorGaze } from "./cursor-gaze";
+import type { EmotionCrossfade } from "./emotion-crossfade";
+import { isMouthConverging } from "./frame-gate";
+import type { MouthLipsync } from "./mouth-lipsync";
+import type { PinController } from "./pin-controller";
 
 /** Per-frame context passed to every participant's step, before vrm.update(dt). */
 export interface VrmParticipantContext {
@@ -28,8 +34,6 @@ export interface VrmParticipant {
   step(ctx: VrmParticipantContext): void;
   /** True while still easing/animating — gates the idle frame cap. */
   isConverging?(): boolean;
-  /** Release owned GPU/DOM resources (renderer teardown only). */
-  dispose?(): void;
 }
 
 /** Notify every participant a VRM was (hot)loaded, in array order. */
@@ -56,4 +60,53 @@ export function anyConverging(participants: readonly VrmParticipant[]): boolean 
     if (p.isConverging?.()) return true;
   }
   return false;
+}
+
+/** The four sub-controllers a renderer instance owns, adapted into one VrmParticipant array. */
+export interface VrmParticipantSubControllers {
+  pins: PinController;
+  gaze: CursorGaze;
+  emotion: EmotionCrossfade;
+  mouth: MouthLipsync;
+  /** Not a participant itself — pins.step needs it and it's stable for the renderer's lifetime. */
+  camera: PerspectiveCamera;
+}
+
+/**
+ * Build the fixed-order VrmParticipant array — pins/gaze (bones) before
+ * emotion/mouth (expression weights), matching animate()'s original
+ * pins.step → gaze.step → emotion.step → mouth.step order (all before
+ * vrm.update). Each sub-controller's methods are closures (no `this`), so
+ * referencing them unbound (`pins.onVrmLoaded` rather than
+ * `(v) => pins.onVrmLoaded(v)`) is safe.
+ */
+export function buildVrmParticipants(deps: VrmParticipantSubControllers): VrmParticipant[] {
+  const { pins, gaze, emotion, mouth, camera } = deps;
+
+  const pinsParticipant: VrmParticipant = {
+    onVrmLoaded: pins.onVrmLoaded,
+    onVrmDisposed: pins.onVrmDisposed,
+    step: () => pins.step(camera),
+    isConverging: pins.isConverging,
+  };
+  const gazeParticipant: VrmParticipant = {
+    onVrmLoaded: gaze.onVrmLoaded,
+    onVrmDisposed: gaze.onVrmDisposed,
+    step: (ctx) => gaze.step(ctx.dt),
+    isConverging: gaze.isConverging,
+  };
+  const emotionParticipant: VrmParticipant = {
+    onVrmLoaded: emotion.onVrmLoaded,
+    onVrmDisposed: emotion.reset,
+    step: (ctx) => emotion.step(ctx.dt),
+    isConverging: emotion.isFading,
+  };
+  const mouthParticipant: VrmParticipant = {
+    step: (ctx) => {
+      if (ctx.vrm.expressionManager) mouth.step(ctx.dt, ctx.vrm.expressionManager);
+    },
+    isConverging: () => isMouthConverging(mouth.openValue()),
+  };
+
+  return [pinsParticipant, gazeParticipant, emotionParticipant, mouthParticipant];
 }

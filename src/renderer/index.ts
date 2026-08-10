@@ -44,7 +44,7 @@ import {
 import { type CursorGaze, createCursorGaze } from "./cursor-gaze";
 import { createCycleDwell } from "./cycle-dwell";
 import { createEmotionCrossfade, type EmotionCrossfade } from "./emotion-crossfade";
-import { isActive, isMouthConverging, shouldRenderFrame } from "./frame-gate";
+import { isActive, shouldRenderFrame } from "./frame-gate";
 import type { GazeConfig } from "./gaze-tracker";
 import { mirrorClipTracks } from "./mirror-clip";
 import {
@@ -69,10 +69,10 @@ import { recenterClipRootMotion } from "./recenter-root-motion";
 import { clientToStage } from "./stage-coords";
 import {
   anyConverging,
+  buildVrmParticipants,
   notifyVrmDisposed,
   notifyVrmLoaded,
   stepParticipants,
-  type VrmParticipant,
 } from "./vrm-participant";
 
 const log = createLogger("renderer");
@@ -501,40 +501,11 @@ export function createRenderer(options: RendererOptions): Renderer {
   // pins/gaze/emotion/mouth share the same per-frame lifecycle (adopt on load,
   // step before vrm.update, drop on dispose, report convergence) under mismatched
   // vocabularies (onVrmLoaded/onVrmDisposed/reset; step; isConverging/isFading/
-  // openValue). One shared interface, adapted once here (not per frame, so the
-  // per-frame step loop stays monomorphic), held in the fixed order animate()
-  // already ran them in: bones (pins/gaze) before expression weights
-  // (emotion/mouth), all before vrm.update.
-  const pinsParticipant: VrmParticipant = {
-    onVrmLoaded: pins.onVrmLoaded,
-    onVrmDisposed: pins.onVrmDisposed,
-    step: () => pins.step(camera),
-    isConverging: pins.isConverging,
-  };
-  const gazeParticipant: VrmParticipant = {
-    onVrmLoaded: gaze.onVrmLoaded,
-    onVrmDisposed: gaze.onVrmDisposed,
-    step: (ctx) => gaze.step(ctx.dt),
-    isConverging: gaze.isConverging,
-  };
-  const emotionParticipant: VrmParticipant = {
-    onVrmLoaded: emotion.onVrmLoaded,
-    onVrmDisposed: emotion.reset,
-    step: (ctx) => emotion.step(ctx.dt),
-    isConverging: emotion.isFading,
-  };
-  const mouthParticipant: VrmParticipant = {
-    step: (ctx) => {
-      if (ctx.vrm.expressionManager) mouth.step(ctx.dt, ctx.vrm.expressionManager);
-    },
-    isConverging: () => isMouthConverging(mouth.openValue()),
-  };
-  const participants: VrmParticipant[] = [
-    pinsParticipant,
-    gazeParticipant,
-    emotionParticipant,
-    mouthParticipant,
-  ];
+  // openValue). buildVrmParticipants adapts each once here (not per frame, so the
+  // per-frame step loop stays monomorphic) into the fixed order animate() already
+  // ran them in: bones (pins/gaze) before expression weights (emotion/mouth), all
+  // before vrm.update. Order + adapter wiring is unit-tested in vrm-participant.test.ts.
+  const participants = buildVrmParticipants({ pins, gaze, emotion, mouth, camera });
 
   function animate(): void {
     rafId = requestAnimationFrame(animate);
