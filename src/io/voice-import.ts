@@ -91,7 +91,9 @@ interface ImportedVoice {
 /**
  * Copy `srcPath` into app-data under `name` and return its SpeakerOption (source:"user").
  * The native side sanitizes `name` into the id it actually used (and overwrites any
- * existing voice of that id) — the returned id/label reflect that, never the raw input.
+ * existing voice of that id) — the returned id reflects that, never the raw input. The
+ * label keeps the typed name so a collapse (e.g. a reserved device name → "avatar") doesn't
+ * silently discard what the user typed; it falls back to the id only when the name is blank.
  */
 export async function copyVoiceFile(
   srcPath: string,
@@ -104,7 +106,7 @@ export async function copyVoiceFile(
     desiredName: name,
   });
   const ref_url = await d.resolveRefUrl(refPath);
-  return { id, label: id, ref_url, source: "user" };
+  return { id, label: name.trim() || id, ref_url, source: "user" };
 }
 
 /** Delete an imported voice's file from app-data. Idempotent on the native side. */
