@@ -1,5 +1,6 @@
 import type { createEndpointsSettings } from "../../io/endpoints-settings";
 import { t } from "../i18n";
+import { reflectUnlessEditing } from "../reflect-unless-editing";
 
 type EndpointsStore = ReturnType<typeof createEndpointsSettings>;
 
@@ -47,13 +48,7 @@ export function createAdvancedSettings(
   });
 
   function reflectEndpoints(): void {
-    const next = deps.endpoints.get().chat_model_context_window;
-    if (
-      !(document.hasFocus() && document.activeElement === contextWindow) &&
-      contextWindow.value !== next
-    ) {
-      contextWindow.value = next;
-    }
+    reflectUnlessEditing(contextWindow, deps.endpoints.get().chat_model_context_window);
   }
 
   contextWindow.addEventListener("blur", reflectEndpoints);
