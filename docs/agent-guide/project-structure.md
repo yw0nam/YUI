@@ -44,7 +44,7 @@ YUI/
     devtools-main.ts        # Developer Tools window entry
     contract/               # TS contract types — source of truth (types.ts, index.ts)
     renderer/               # three.js + VRM (index.ts, emotion-resolver.ts, motion-controller.ts)
-    io/                     # I/O layer (chat-client.ts, tts-pipeline.ts, stt-vad.ts, os-context.ts, etc.)
+    io/                     # I/O layer (chat-client.ts, tts-pipeline.ts, stt-vad.ts, etc.)
     dispatcher/             # Event bus + classify→guardrail→route
     ambient/tier1.ts        # Blink / idle sway / breath (backend-independent)
     config/                 # Config load + validate + reactive store + hot-reload
