@@ -1,18 +1,15 @@
 /**
  * signals_source — opaque `signals` ingress firing source.
  *
- * Event-driven (inbox push) sibling of agent-source. Listens on two channels:
- *  1. OS idle ticks (OS_EVENT_CHANNEL) — tracks presence; detects idle→present edge.
- *  2. signals-inbox (onSignalsInbox) — receives opaque signal batches from the Rust
- *     /signals ingress.
- *
- * When present AND the pipeline is idle: inbox arrival fires signals.push immediately,
- * carrying the batch's `signals` array verbatim.
- * When present-but-busy (backend call in flight or speech playing) OR away: batches
- * buffer (BUFFER_CAP = 5, drop oldest batch on overflow).
- * On the idle→present edge OR the busy→idle edge: if the buffer has content, fires ONE
- * signals.catchup (all buffered batches' items flattened in arrival order), then clears
- * the buffer.
+ * Configures the shared buffered-inbox core (`buffered-inbox-source.ts`, also used by
+ * agent-source) with the signals-specific policy:
+ *  - Buffer: a flat array of batches, oldest first (BUFFER_CAP = 5, drop oldest batch
+ *    on overflow).
+ *  - Catchup: flatten all buffered batches' `signals` items in arrival order (no sort).
+ *  - Live firing: signals.push, carrying the batch's `signals` array verbatim.
+ *  - `drain()`: layered on top of the shared core (not part of it) — returns the
+ *    buffer's items flattened in arrival order and clears it, without pushing to the bus.
+ *    Consumed at src/main.ts to pull unseen signals outside the presence-gated flow.
  *
  * firing ≠ judgment: `signals` is opaque — this source never inspects, validates, or
  * reshapes item contents. It only buffers/flattens/forwards the array verbatim;
@@ -22,9 +19,9 @@
 import type { SignalItem } from "../contract";
 import type { SignalsBatch } from "../io/signals-inbox";
 import { onSignalsInbox } from "../io/signals-inbox";
-import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
-import { subscribeOsEvent } from "../io/tauri-listen";
+import type { OsEventListen } from "../io/tauri-listen";
 import { createLogger } from "../logger";
+import { createBufferedInboxSource, type InboxFiring } from "./buffered-inbox-source";
 import type { EventBus } from "./event-bus";
 
 const log = createLogger("signals-source");
@@ -57,131 +54,61 @@ export interface SignalsSource {
 }
 
 export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
-  const { bus, present_max_idle_ms, isEnabled } = deps;
-  const now = deps.now ?? Date.now;
-
-  let lastIdleMs: number | null = null;
-  /** Tracks previous tick's present state for idle→present edge detection. */
-  let wasPresent = false;
-  let running = false;
-  let unlistenIdle: (() => void) | undefined;
-  let unlistenInbox: (() => void) | undefined;
-  let unlistenBusy: (() => void) | undefined;
-
   /** Buffered batches (away or busy accumulation), oldest first. */
   const buffer: SignalsBatch[] = [];
 
-  function isPresent(): boolean {
-    return lastIdleMs != null && lastIdleMs <= present_max_idle_ms;
+  function flattenBuffer(): SignalItem[] {
+    return buffer.flatMap((batch) => batch.signals);
   }
 
-  function isBusy(): boolean {
-    return deps.isPipelineBusy?.() ?? false;
+  function parse(p: SignalsBatch): SignalsBatch | undefined {
+    if (!Array.isArray((p as unknown as { signals?: unknown })?.signals)) {
+      log.debug("inbox_malformed", { degrade: true });
+      return undefined;
+    }
+    return p;
   }
 
+  function buildLive(p: SignalsBatch): InboxFiring {
+    return { event_name: "signals.push", payload: { signals: p.signals } };
+  }
+
+  function bufferAdd(p: SignalsBatch): void {
+    buffer.push(p);
+    if (buffer.length > BUFFER_CAP) buffer.shift();
+  }
+
+  /** Flatten all buffered batches' items in arrival order. */
+  function buildCatchup(): InboxFiring {
+    return { event_name: "signals.catchup", payload: { signals: flattenBuffer() } };
+  }
+
+  /** Layers on the shared core: drains the live buffer without pushing to the bus. */
   function drain(): SignalItem[] {
-    const signals = buffer.flatMap((batch) => batch.signals);
+    const signals = flattenBuffer();
     buffer.length = 0;
     return signals;
   }
 
-  /** Flatten all buffered batches' items in arrival order, emit ONE catchup. */
-  function flushCatchup(): void {
-    if (buffer.length === 0) return;
-    const signals = drain();
-    bus.push({
-      source: "timer_scheduler",
-      event_name: "signals.catchup",
-      ts: now(),
-      hint_tier: 2,
-      dnd_override: false,
-      payload: { signals },
-    });
-  }
-
-  /** Flush iff enabled, buffer non-empty, present, and the pipeline is idle. */
-  function maybeFlush(): void {
-    if (!isEnabled() || buffer.length === 0 || !isPresent() || isBusy()) return;
-    flushCatchup();
-  }
-
-  function onTick(payload: OsEventPayload): void {
-    if (payload.event_name !== "os_idle_tick") return;
-    lastIdleMs = payload.data.os_idle_ms ?? null;
-    const present = isPresent();
-    // A mid-away disable must not let previously-buffered batches survive to a
-    // later re-enable — drop the stale buffer now so it can't leak into a future flush.
-    if (!isEnabled() && buffer.length > 0) {
+  const core = createBufferedInboxSource<SignalsBatch>({
+    bus: deps.bus,
+    present_max_idle_ms: deps.present_max_idle_ms,
+    isEnabled: deps.isEnabled,
+    onInbox: deps.onInbox ?? onSignalsInbox,
+    listen: deps.listen,
+    now: deps.now,
+    isPipelineBusy: deps.isPipelineBusy,
+    subscribePipelineBusy: deps.subscribePipelineBusy,
+    log,
+    parse,
+    buildLive,
+    bufferAdd,
+    bufferEmpty: () => buffer.length === 0,
+    bufferClear: () => {
       buffer.length = 0;
-    }
-    // Flush on the idle→present edge only (not on every present tick).
-    if (!wasPresent && present) {
-      maybeFlush();
-    }
-    wasPresent = present;
-  }
+    },
+    buildCatchup,
+  });
 
-  function handleInbox(p: SignalsBatch): void {
-    if (!isEnabled()) return;
-    // Guard against malformed IPC payloads that slipped through the type cast.
-    try {
-      if (!Array.isArray((p as unknown as { signals?: unknown })?.signals)) {
-        log.debug("inbox_malformed", { degrade: true });
-        return;
-      }
-      if (isPresent() && !isBusy()) {
-        bus.push({
-          source: "timer_scheduler",
-          event_name: "signals.push",
-          ts: now(),
-          hint_tier: 2,
-          dnd_override: false,
-          payload: { signals: p.signals },
-        });
-      } else {
-        buffer.push(p);
-        if (buffer.length > BUFFER_CAP) buffer.shift();
-      }
-    } catch (err) {
-      log.debug("inbox_error", { degrade: true, error: String(err) });
-    }
-  }
-
-  async function start(): Promise<void> {
-    if (running) return;
-    running = true;
-
-    // Subscribe to OS idle ticks for presence tracking and edge detection.
-    unlistenIdle = await subscribeOsEvent({
-      listen: deps.listen,
-      onTick,
-      log,
-      subscribeTag: "subscribe_idle_failed",
-    });
-
-    // Subscribe to signal batches.
-    try {
-      const inbox = deps.onInbox ?? onSignalsInbox;
-      unlistenInbox = inbox(handleInbox, { listen: deps.listen });
-    } catch (err) {
-      log.debug("subscribe_inbox_failed", { degrade: true, error: String(err) });
-    }
-
-    // Flush on the busy→idle edge (mirrors the idle→present edge above).
-    unlistenBusy = deps.subscribePipelineBusy?.((busy) => {
-      if (!busy) maybeFlush();
-    });
-  }
-
-  function stop(): void {
-    running = false;
-    unlistenIdle?.();
-    unlistenIdle = undefined;
-    unlistenInbox?.();
-    unlistenInbox = undefined;
-    unlistenBusy?.();
-    unlistenBusy = undefined;
-  }
-
-  return { start, stop, drain };
+  return { start: core.start, stop: core.stop, drain };
 }
