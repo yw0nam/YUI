@@ -1,11 +1,10 @@
 /**
- * guardrails.test.ts — DND / debounce / rate-limit unit tests.
+ * guardrails.test.ts — debounce / rate-limit unit tests.
  *
  * Principle: time driven only by injected now() (no bare Date.now() dependency). Directly create
  * envelope composites from all sources (idle/timer/os/backend_push/user), locking evaluation branches.
  *
  * Sections locked:
- *  - §6.1 DND: toggle the manual trigger via note() / setDnd().
  *  - §6.2 Debounce: per-source window (idle 30s / os 5s / backend 10s / user 0).
  *  - §6.3 Rate-limit: tier2 6 / tier3 2 rolling 60min (N pass, N+1 drop, no refund),
  *    overall 20 → cooldownActive() true then 5min hold → release.
@@ -65,55 +64,12 @@ function env(over: Partial<BusEnvelope> = {}): BusEnvelope {
   };
 }
 
-// ── DND (§6.1) ──────────────────────────────────────────────────────────────────
+// ── evaluate: dnd_override short-circuit (§6.4) ─────────────────────────────────
 
-describe("guardrails — DND (§6.1)", () => {
-  it("user.dnd_toggle flips the manual reason", () => {
+describe("guardrails — evaluate dnd_override short-circuit", () => {
+  it("dnd_override passes without mutating any counter", () => {
     const g = createGuardrails(config());
-    g.note(env({ source: "user_input_source", event_name: "user.dnd_toggle" }));
-    expect(g.dndState().on).toBe(true);
-    expect(g.dndState().reasons).toContain("manual");
-    g.note(env({ source: "user_input_source", event_name: "user.dnd_toggle" }));
-    expect(g.dndState().on).toBe(false);
-    expect(g.dndState().reasons).not.toContain("manual");
-  });
-
-  it("setDnd is the single source of truth (note is a thin translator over it)", () => {
-    const g = createGuardrails(config());
-    g.setDnd("manual", true);
-    expect(g.dndState().reasons).toContain("manual");
-    g.setDnd("manual", false);
-    expect(g.dndState().on).toBe(false);
-  });
-
-  it("note no-ops gracefully on an unknown event_name", () => {
-    const g = createGuardrails(config());
-    expect(() =>
-      g.note(env({ source: "os_event_watcher", event_name: "unknown.event" })),
-    ).not.toThrow();
-    expect(g.dndState().on).toBe(false);
-  });
-});
-
-// ── evaluate: DND gate (§6.1 / §6.4) ─────────────────────────────────────────────
-
-describe("guardrails — evaluate DND gate", () => {
-  it("DND on → tier2/3 fail with detail dnd:<reasons>", () => {
-    const g = createGuardrails(config());
-    g.setDnd("manual", true);
-    const r = g.evaluate(env(), 2);
-    expect(r.pass).toBe(false);
-    if (!r.pass) {
-      expect(r.reason).toBe("guardrail_drop");
-      expect(r.detail).toContain("dnd:");
-      expect(r.detail).toContain("manual");
-    }
-  });
-
-  it("dnd_override bypasses DND and passes without mutating any counter", () => {
-    const g = createGuardrails(config());
-    g.setDnd("manual", true);
-    // fire many user-override turns — DND on, debounce 0, none increments rate counters.
+    // fire many user-override turns — none increments rate counters.
     for (let i = 0; i < 50; i++) {
       const r = g.evaluate(
         env({ source: "user_input_source", event_name: "user.text_submitted", dnd_override: true }),
@@ -325,26 +281,6 @@ describe("guardrails — overall cap → cooldown (§6.3)", () => {
 // ── Eval ordering (§6.4) ─────────────────────────────────────────────────────────
 
 describe("guardrails — eval ordering (§6.4)", () => {
-  it("dnd_override is checked first — bypasses DND, debounce, and rate-limit", () => {
-    const g = createGuardrails(config());
-    g.setDnd("manual", true); // DND on
-    const r = g.evaluate(
-      env({ source: "user_input_source", event_name: "user.text_submitted", dnd_override: true }),
-      2,
-    );
-    expect(r.pass).toBe(true);
-  });
-
-  it("DND is checked before debounce — DND detail wins over a debounce-eligible repeat", () => {
-    const c = clock();
-    const g = createGuardrails(config(), { now: c.now });
-    expect(g.evaluate(env({ source: "idle_watcher" }), 2).pass).toBe(true); // sets lastFire
-    g.setDnd("manual", true); // DND on
-    const r = g.evaluate(env({ source: "idle_watcher" }), 2); // would also debounce-fail
-    expect(r.pass).toBe(false);
-    if (!r.pass) expect(r.detail).toContain("dnd:");
-  });
-
   it("cooldown is checked before debounce/rate — cooldown detail wins", () => {
     const c = clock();
     const cfg = config();
@@ -363,11 +299,8 @@ describe("guardrails — eval ordering (§6.4)", () => {
 // ── interface surface ────────────────────────────────────────────────────────────
 
 describe("guardrails — interface surface", () => {
-  it("exposes dndState / setDnd / note / evaluate / cooldownActive", () => {
+  it("exposes evaluate / cooldownActive", () => {
     const g: Guardrails = createGuardrails(config());
-    expect(typeof g.dndState).toBe("function");
-    expect(typeof g.setDnd).toBe("function");
-    expect(typeof g.note).toBe("function");
     expect(typeof g.evaluate).toBe("function");
     expect(typeof g.cooldownActive).toBe("function");
   });

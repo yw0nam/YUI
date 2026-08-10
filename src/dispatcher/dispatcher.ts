@@ -49,7 +49,7 @@ interface DispatcherDeps {
   tapConfig: () => TapConfig;
   peek?: { enter(): Promise<void>; exit(): Promise<void> };
   backendCaller: BackendCaller;
-  /** Guardrails — DND/debounce/rate-limit gate + cooldown verdict (pure). */
+  /** Guardrails — debounce/rate-limit gate + cooldown verdict (pure). */
   guardrails: Guardrails;
   /** Turn identity + admission ledger. The dispatcher begins/settles turns on it and reads busy/audio-owed state from it. */
   turnLog: TurnLog;
@@ -626,9 +626,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   function handle(env: BusEnvelope): void {
-    // Update DND state before classification/evaluation — note is a thin envelope→setDnd translator.
-    guardrails.note(env);
-
     // For a user-initiated turn (typed or voice), apply supersede before classification.
     if (userTurnSourceOf(env) !== undefined) {
       supersedeByUser();
@@ -636,7 +633,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
     const { tier, target } = classify(env);
     if (target === "tier1") {
-      // tier1 is never gated (independent of DND/cooldown).
+      // tier1 is never gated (independent of guardrails/cooldown).
       renderTier1(env);
       return;
     }
