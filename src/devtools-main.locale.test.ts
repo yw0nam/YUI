@@ -40,7 +40,13 @@ it("keeps the focused advanced input and its in-progress text across a locale re
   input.dispatchEvent(new Event("input"));
 
   setLocale("ja");
-  await new Promise<void>((resolve) => queueMicrotask(resolve));
+  await vi.waitFor(() => {
+    // The pre-rebuild input already satisfies activeElement === querySelector(...), so the
+    // wait must also require a fresh node — otherwise it resolves before the rebuild runs.
+    const current = document.querySelector("#devtools-context-window");
+    expect(current).not.toBe(input);
+    expect(document.activeElement).toBe(current);
+  });
 
   const rebuilt = document.querySelector<HTMLInputElement>("#devtools-context-window")!;
   expect(rebuilt).not.toBe(input);

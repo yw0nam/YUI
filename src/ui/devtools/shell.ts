@@ -93,7 +93,7 @@ export function createDevtoolsShell(options: DevtoolsShellOptions): {
         panel.replaceChildren(error);
       });
     }
-    return motionLoad
+    return section === "motion" && motionLoad
       ? motionLoad.then(
           () => undefined,
           () => undefined,

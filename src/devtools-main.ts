@@ -30,23 +30,35 @@ function captureFocus(mount: HTMLElement): FocusCapture | null {
   return null;
 }
 
-function restoreFocus(capture: FocusCapture): void {
-  if (capture.kind === "nav") {
-    document.querySelector<HTMLButtonElement>(`[data-section="${capture.section}"]`)?.focus();
-    return;
+function restoreFocus(mount: HTMLElement, capture: FocusCapture): void {
+  switch (capture.kind) {
+    case "nav": {
+      mount
+        .querySelector<HTMLButtonElement>(`[data-section="${CSS.escape(capture.section)}"]`)
+        ?.focus();
+      return;
+    }
+    case "input": {
+      const restored = document.getElementById(capture.id);
+      if (!(restored instanceof HTMLInputElement)) return;
+      restored.value = capture.value;
+      restored.focus();
+      // A scripted value carries no dirty flag, so blur would fire no change and drop the edit.
+      restored.dispatchEvent(new Event("change"));
+      return;
+    }
+    case "select": {
+      const restored = document.getElementById(capture.id);
+      if (!(restored instanceof HTMLSelectElement)) return;
+      restored.value = capture.value;
+      restored.focus();
+      return;
+    }
+    default: {
+      const exhaustive: never = capture;
+      throw new Error(`unhandled focus capture kind: ${JSON.stringify(exhaustive)}`);
+    }
   }
-  const restored = document.getElementById(capture.id);
-  if (capture.kind === "input") {
-    if (!(restored instanceof HTMLInputElement)) return;
-    restored.value = capture.value;
-    restored.focus();
-    // A scripted value carries no dirty flag, so blur would fire no change and drop the edit.
-    restored.dispatchEvent(new Event("change"));
-    return;
-  }
-  if (!(restored instanceof HTMLSelectElement)) return;
-  restored.value = capture.value;
-  restored.focus();
 }
 
 async function bootstrap(): Promise<void> {
@@ -88,7 +100,7 @@ async function bootstrap(): Promise<void> {
       shell = buildShell();
       // Await so a focused motion-panel select exists before restore looks it up.
       await shell.activate(section);
-      if (focus) restoreFocus(focus);
+      if (focus) restoreFocus(mount, focus);
     });
   });
   const { reload, dispose: disposeSync } = wireDevtoolsSync({ stores: settingsStores, log });
