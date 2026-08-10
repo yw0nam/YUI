@@ -159,7 +159,7 @@ Add both to `.claude/settings.json` (project) or `~/.claude/settings.json` (glob
 }
 ```
 
-This wiring covers top-level Claude Code sessions only — no separate hooks fire for subagents (the `Task` tool), and there is no Codex- or opencode-specific `needs_input` wiring. A Codex run launched under Claude Code orchestration (see the `agent-team` skill) is still a tool call inside the top-level session, so its permission prompts and idle waits already reach the ingress through the `PermissionRequest`/`Notification` hooks above.
+This wiring covers top-level Claude Code sessions only — it does not configure Claude Code's separate subagent (`Task` tool) hooks, and there is no Codex- or opencode-specific `needs_input` wiring. A Codex run launched under Claude Code orchestration (see the `agent-team` skill) is still a tool call inside the top-level session, so its permission prompts and idle waits already reach the ingress through the `PermissionRequest`/`Notification` hooks above.
 
 ## Other tools
 
