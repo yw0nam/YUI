@@ -4,6 +4,8 @@
  * createSurfaces (the mount that composes text-input.ts).
  */
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // CSS imports are not handled in jsdom — mock them
@@ -12,6 +14,8 @@ vi.mock("./tokens.css", () => ({}));
 
 import { setLocale, t } from "./i18n";
 import { createSurfaces } from "./surfaces";
+
+const readSrc = (name: string): string => readFileSync(resolve(__dirname, name), "utf-8");
 
 function makeSurfaces() {
   const mount = document.createElement("div");
@@ -406,5 +410,24 @@ describe("surfaces — i18n chrome", () => {
     s.setBusy(true);
     setLocale("ja");
     expect(send.getAttribute("aria-label")).toBe(t("aria.stop"));
+  });
+});
+
+describe("input i18n labels — applied from a single site", () => {
+  // The four labels (attach/placeholder/field aria/send aria) must come from one
+  // call site (text-input.ts's applyLocaleLabels), not be duplicated into the
+  // surfaces.ts template as well — otherwise the two copies can drift.
+  it("surfaces.ts template does not bake these labels in independently", () => {
+    const surfacesSrc = readSrc("surfaces.ts");
+    for (const key of ["aria.attach_image", "input.placeholder", "aria.input_field", "aria.send"]) {
+      expect(surfacesSrc).not.toContain(`t("${key}")`);
+    }
+  });
+
+  it("text-input.ts applies the labels once at construction, not only on locale change", () => {
+    const textInputSrc = readSrc("text-input.ts");
+    // A direct call (trailing "();") proves construction runs the same function that
+    // subscribeLocale(applyLocaleLabels) re-runs on locale change — not a second copy.
+    expect(textInputSrc).toMatch(/\bapplyLocaleLabels\(\);/);
   });
 });
