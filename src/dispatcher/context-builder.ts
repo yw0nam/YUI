@@ -1,58 +1,14 @@
-import type { ClientContext, InputContext, Posture, TriggerMeta } from "../contract";
-import type { OsContextSnapshot, RecentApp } from "../io/os-context";
+import type { ClientContext, InputContext, TriggerMeta } from "../contract";
 import type { BusEnvelope } from "./event-bus";
-
-export const ALL_CONTEXT_SIGNALS = [
-  "active_app",
-  "active_window_title",
-  "posture",
-  "recent_apps",
-  "screenshot",
-] as const;
-
-export type ContextSignal = (typeof ALL_CONTEXT_SIGNALS)[number];
-
-/** Window titles run long (full paths, document trails); the tail carries no situational value. */
-const WINDOW_TITLE_MAX_CHARS = 200;
-
-/**
- * Cap a window title, ending a cut one with an ellipsis so the truncation is visible.
- * Drops a trailing high surrogate first — slicing mid-pair would emit a lone code unit.
- */
-function capWindowTitle(title: string): string {
-  if (title.length <= WINDOW_TITLE_MAX_CHARS) return title;
-  const head = title.slice(0, WINDOW_TITLE_MAX_CHARS - 1);
-  const lastCode = head.charCodeAt(head.length - 1);
-  const whole = lastCode >= 0xd800 && lastCode <= 0xdbff ? head.slice(0, -1) : head;
-  return `${whole}…`;
-}
-
-export interface ContextPolicy {
-  recent_apps: boolean;
-  active_app: boolean;
-  active_window_title: boolean;
-  posture: boolean;
-  screenshot: boolean;
-}
-
-interface ContextRecord {
-  included: ContextSignal[];
-  excluded: ContextSignal[];
-}
 
 interface ContextProviders {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
-  getOsContext?: () => OsContextSnapshot | undefined;
-  getPosture?: () => Posture | undefined;
-  peekRecentApps?: () => RecentApp[];
   onScreenshotError?: (error: unknown) => void;
 }
 
 export interface BuiltContext {
   ctx: InputContext;
   clientContext: ClientContext;
-  record: ContextRecord;
-  peekedApps: RecentApp[];
 }
 
 function userTextOf(env: BusEnvelope): string | undefined {
@@ -207,10 +163,7 @@ export function buildClientContext(ctx: InputContext, env: BusEnvelope): ClientC
 export async function buildContext(
   env: BusEnvelope,
   providers: ContextProviders,
-  policy: ContextPolicy,
 ): Promise<BuiltContext> {
-  const included: ContextSignal[] = [];
-  const excluded = ALL_CONTEXT_SIGNALS.filter((signal) => !policy[signal]);
   const timezone = resolveTimezone();
   const userText = userTextOf(env);
   const userImages = userImagesOf(env);
@@ -223,37 +176,10 @@ export async function buildContext(
     },
   };
 
-  const needsOsContext = policy.active_app || policy.active_window_title;
-  const os = needsOsContext ? providers.getOsContext?.() : undefined;
-  if (policy.active_app && os?.activeApp) {
-    ctx.env.active_app = { name: os.activeApp };
-    included.push("active_app");
-  }
-  if (policy.active_window_title && os?.activeWindowTitle) {
-    ctx.env.active_window_title = capWindowTitle(os.activeWindowTitle);
-    included.push("active_window_title");
-  }
-  if (policy.posture) {
-    const posture = providers.getPosture?.();
-    if (posture) {
-      ctx.env.posture = posture;
-      included.push("posture");
-    }
-  }
-
-  const peekedApps = policy.recent_apps ? (providers.peekRecentApps?.() ?? []) : [];
-  if (peekedApps.length) {
-    ctx.env.recent_apps = peekedApps.map((app) => ({ name: app.name }));
-    included.push("recent_apps");
-  }
-
-  if (policy.screenshot && providers.getScreenshot) {
+  if (providers.getScreenshot) {
     try {
       const screenshot = await providers.getScreenshot();
-      if (screenshot) {
-        ctx.screenshot = screenshot;
-        included.push("screenshot");
-      }
+      if (screenshot) ctx.screenshot = screenshot;
     } catch (error) {
       providers.onScreenshotError?.(error);
     }
@@ -262,8 +188,6 @@ export async function buildContext(
   return {
     ctx,
     clientContext: buildClientContext(ctx, env),
-    record: { included, excluded },
-    peekedApps,
   };
 }
 

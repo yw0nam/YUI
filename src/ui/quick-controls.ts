@@ -139,8 +139,6 @@ interface QuickControlsOptions {
   agentNotifySettings?: AgentNotifySettingsStore;
   /** Away detection store. If absent, presence row in Reactions tab won't render. */
   presenceSettings?: ClampedIntSettingsStore;
-  /** Recent apps memory count cap store. If absent, recent-apps row in Reactions tab won't render. */
-  recentAppsSettings?: ClampedIntSettingsStore;
   /** Section rail collapse state store. */
   railCollapsedSettings?: FlagSettingsStore;
 }
@@ -202,7 +200,6 @@ export function createQuickControls({
   gazeSettings,
   agentNotifySettings,
   presenceSettings,
-  recentAppsSettings,
   railCollapsedSettings,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
@@ -232,7 +229,6 @@ export function createQuickControls({
     ttsEnabled: ttsSettings?.get().enabled ?? true,
     bargeInEnabled: vad.get().bargeIn,
     showPresence: !!presenceSettings,
-    showRecentApps: !!recentAppsSettings,
     showDevtools: !isWindow && !!onOpenDevtools,
     railCollapsed: railCollapsedSettings?.get().enabled ?? false,
   });
@@ -244,7 +240,6 @@ export function createQuickControls({
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const agentPortInput = el.querySelector<HTMLInputElement>("#yui-agent-port");
   const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
-  const recentAppsInput = el.querySelector<HTMLInputElement>("#yui-recent-apps");
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const ttsSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-tts-switch");
   const bargeInSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-bargein-switch");
@@ -344,8 +339,6 @@ export function createQuickControls({
     agentPortInput: agentPortInput ?? undefined,
     presenceInput: presenceInput ?? undefined,
     presenceSettings,
-    recentAppsInput: recentAppsInput ?? undefined,
-    recentAppsSettings,
   });
 
   // ── VRM section ──
@@ -381,7 +374,6 @@ export function createQuickControls({
       reflect.reflectGaze();
       reflect.reflectAgentNotify();
       reflect.reflectPresence();
-      reflect.reflectRecentApps();
       reflect.reflectVoiceStatus(voiceStatus.get());
       reflect.reflectGain();
       reflect.reflectVad();
@@ -866,9 +858,6 @@ export function createQuickControls({
   const unsubscribePresence = presenceSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectPresence();
   });
-  const unsubscribeRecentApps = recentAppsSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectRecentApps();
-  });
 
   function handleAgentPortChange(): void {
     if (!agentNotifySettings || !agentPortInput) return;
@@ -881,17 +870,9 @@ export function createQuickControls({
     presenceSettings.set(v * 1000);
     reflect.reflectPresence();
   }
-  function handleRecentAppsChange(): void {
-    if (!recentAppsSettings || !recentAppsInput) return;
-    const v = Math.round(Number(recentAppsInput.value));
-    recentAppsSettings.set(v);
-    reflect.reflectRecentApps();
-  }
   agentPortInput?.addEventListener("change", handleAgentPortChange);
   presenceInput?.addEventListener("change", handlePresenceChange);
   presenceInput?.addEventListener("blur", reflect.reflectPresence);
-  recentAppsInput?.addEventListener("change", handleRecentAppsChange);
-  recentAppsInput?.addEventListener("blur", reflect.reflectRecentApps);
 
   // Cue-list components — schedule in input tab .yui-cue-sections, proactive in Reactions tab .yui-loop-cue-section.
   const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
@@ -1014,12 +995,9 @@ export function createQuickControls({
     unsubscribeGaze?.();
     unsubscribeAgentNotify?.();
     unsubscribePresence?.();
-    unsubscribeRecentApps?.();
     agentPortInput?.removeEventListener("change", handleAgentPortChange);
     presenceInput?.removeEventListener("change", handlePresenceChange);
     presenceInput?.removeEventListener("blur", reflect.reflectPresence);
-    recentAppsInput?.removeEventListener("change", handleRecentAppsChange);
-    recentAppsInput?.removeEventListener("blur", reflect.reflectRecentApps);
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();

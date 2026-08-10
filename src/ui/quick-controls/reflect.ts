@@ -77,8 +77,6 @@ interface ReflectDeps {
   agentPortInput?: HTMLInputElement;
   presenceInput?: HTMLInputElement;
   presenceSettings?: ClampedIntSettingsStore;
-  recentAppsInput?: HTMLInputElement;
-  recentAppsSettings?: ClampedIntSettingsStore;
 }
 
 export interface Reflect {
@@ -88,7 +86,6 @@ export interface Reflect {
   reflectGaze(): void;
   reflectAgentNotify(): void;
   reflectPresence(): void;
-  reflectRecentApps(): void;
   reflectGain(): void;
   reflectVad(): void;
   reflectAgent(): void;
@@ -127,8 +124,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     agentPortInput,
     presenceInput,
     presenceSettings,
-    recentAppsInput,
-    recentAppsSettings,
   } = deps;
 
   const switchBtn = root.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
@@ -211,17 +206,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
       presenceInput.value !== next
     ) {
       presenceInput.value = next;
-    }
-  }
-
-  function reflectRecentApps(): void {
-    if (!recentAppsInput || !recentAppsSettings) return;
-    const next = String(recentAppsSettings.get().value);
-    if (
-      !(document.hasFocus() && document.activeElement === recentAppsInput) &&
-      recentAppsInput.value !== next
-    ) {
-      recentAppsInput.value = next;
     }
   }
 
@@ -407,7 +391,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectIdleThrottle,
     reflectAgentNotify,
     reflectPresence,
-    reflectRecentApps,
     reflectTts,
     reflectGaze,
     reflectGain,

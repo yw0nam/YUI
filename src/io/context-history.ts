@@ -1,5 +1,4 @@
 import type { ClientContext } from "../contract";
-import type { ContextSignal } from "../dispatcher/context-builder";
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
 
 export const CONTEXT_HISTORY_CAP = 20;
@@ -8,8 +7,6 @@ export interface ContextHistoryEntry {
   ts: number;
   event_name: string;
   trigger_kind: ClientContext["trigger"]["kind"];
-  included: ContextSignal[];
-  excluded: ContextSignal[];
   client_context: ClientContext;
 }
 
@@ -26,8 +23,6 @@ function isEntry(value: unknown): value is ContextHistoryEntry {
     typeof entry.ts === "number" &&
     typeof entry.event_name === "string" &&
     typeof entry.trigger_kind === "string" &&
-    Array.isArray(entry.included) &&
-    Array.isArray(entry.excluded) &&
     entry.client_context !== null &&
     typeof entry.client_context === "object"
   );

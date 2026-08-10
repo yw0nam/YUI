@@ -167,7 +167,6 @@ pub(super) fn platform_idle_ms() -> Option<u64> {
 
 /// Info gathered for the current foreground window.
 struct WindowInfo {
-    title: Option<String>,
     is_fullscreen: bool,
 }
 
@@ -259,10 +258,9 @@ fn is_fullscreen(hwnd: HWND) -> bool {
     rect_covers_monitor(win_rect, mon_info.rcMonitor)
 }
 
-/// Gathers title + fullscreen state for the current foreground window.
+/// Gathers fullscreen state for the current foreground window.
 fn frontmost_window_info(hwnd: HWND) -> WindowInfo {
     WindowInfo {
-        title: window_title(hwnd),
         is_fullscreen: is_fullscreen(hwnd),
     }
 }
@@ -274,7 +272,6 @@ pub(super) fn platform_frontmost() -> Option<(String, Option<PollingWindowInfo>)
     Some((
         app_name,
         Some(PollingWindowInfo {
-            title: info.title,
             is_fullscreen: info.is_fullscreen,
         }),
     ))

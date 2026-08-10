@@ -5,7 +5,6 @@ import { createCameraSettings, localStorageCameraStorage } from "./camera-settin
 import { createChatHistoryStore, localStorageChatHistoryStorage } from "./chat-history-store";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./chat-key-settings";
 import { createContextHistory, localStorageContextHistory } from "./context-history";
-import { createContextSettings, localStorageContextSettings } from "./context-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./endpoints-settings";
 import { createFillerSettings, localStorageFillerStorage } from "./filler-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./lipsync-settings";
@@ -37,10 +36,6 @@ export const createPresenceStore = (
     { default: 180000, floor: 10000, ceil: Number.MAX_SAFE_INTEGER },
     { storage },
   );
-
-export const createRecentAppsStore = (
-  storage: PersistedStorage<{ value: number }> = localStorageStore("yui.recent-apps"),
-) => createClampedIntSettings({ default: 10, floor: 1, ceil: 50 }, { storage });
 
 // localStorage-backed settings/state stores. Pure instantiation — no wiring, no renderer,
 // no dispatcher. bootstrap() destructures the bag and owns the wiring (renderer, storage-sync).
@@ -75,11 +70,6 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   });
   // Presence window threshold — "present when idle ≤ N ms". Shared by proactive/agent sources.
   const presenceSettings = createPresenceStore();
-  // Recent-apps buffer cap — os-context caps its app-switch buffer at this value.
-  const recentAppsSettings = createRecentAppsStore();
-  const contextSettings = createContextSettings({
-    storage: localStorageContextSettings(),
-  });
   const contextHistory = createContextHistory({
     storage: localStorageContextHistory(),
   });
@@ -136,8 +126,6 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     workflowSettings,
     agentNotifySettings,
     presenceSettings,
-    recentAppsSettings,
-    contextSettings,
     contextHistory,
     lipsyncSettings,
     vadSettings,
@@ -179,8 +167,6 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   workflowSettings: "broadcast",
   agentNotifySettings: "broadcast",
   presenceSettings: "broadcast",
-  recentAppsSettings: "broadcast",
-  contextSettings: "broadcast",
   contextHistory: "reload",
   lipsyncSettings: "broadcast",
   vadSettings: "broadcast",

@@ -16,7 +16,7 @@ async function bootstrap(): Promise<void> {
   if (!mount) throw new Error("#app mount point not found");
 
   const settingsStores = createSettingsStores({ locale: getLocale() });
-  const { contextHistory, contextSettings, recentAppsSettings, endpointsSettings } = settingsStores;
+  const { contextHistory, endpointsSettings } = settingsStores;
   const config = createConfigStore();
   let defaultContextWindow: number | undefined;
   try {
@@ -31,8 +31,6 @@ async function bootstrap(): Promise<void> {
     return createDevtoolsShell({
       mount,
       history: contextHistory,
-      contextSettings,
-      recentAppsSettings,
       endpointsSettings,
       defaultContextWindow,
       loadMotionPreview: async (section) => {
