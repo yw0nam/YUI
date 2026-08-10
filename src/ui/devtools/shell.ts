@@ -25,6 +25,7 @@ const SECTIONS: Array<{ id: DevtoolsSection; labelKey: string }> = [
 ];
 
 export function createDevtoolsShell(options: DevtoolsShellOptions): {
+  readonly active: DevtoolsSection;
   activate(section: DevtoolsSection): void;
   dispose(): void;
 } {
@@ -101,6 +102,9 @@ export function createDevtoolsShell(options: DevtoolsShellOptions): {
 
   reflect();
   return {
+    get active() {
+      return active;
+    },
     activate,
     dispose() {
       inspector.dispose();
