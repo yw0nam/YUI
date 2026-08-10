@@ -207,12 +207,15 @@ describe("ensureRegistered", () => {
     expect(postCount).toBe(1);
   });
 
-  it("threads the signal into the registration fetch and evicts the memo on abort (a later call is not poisoned)", async () => {
+  it("a solo caller's own abort rejects it without handing its signal to the registration fetch", async () => {
     const controller = new AbortController();
-    // Simulates a stuck registration fetch — never settles unless the signal aborts it.
+    let resolveGet!: (value: Response) => void;
+    // If the fetch reacted to this signal it would reject the moment we abort below —
+    // it never does, proving the registration fetch is never handed a caller's signal.
     const fetchMock = vi.fn<FetchFn>(
       (_input, init) =>
-        new Promise<Response>((_resolve, reject) => {
+        new Promise<Response>((resolve, reject) => {
+          resolveGet = resolve;
           init?.signal?.addEventListener("abort", () =>
             reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError")),
           );
@@ -228,28 +231,86 @@ describe("ensureRegistered", () => {
     });
     controller.abort();
     await expect(pending).rejects.toThrow();
-    expect(fetchMock.mock.calls[0][1]?.signal).toBe(controller.signal);
+    expect(fetchMock.mock.calls[0][1]?.signal).toBeUndefined();
 
-    // A fresh call for the same id is not stuck behind the aborted registration — the memo
-    // was evicted on rejection, so this retries from scratch and succeeds.
-    const fetchMock2 = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
-      const url = String(input);
-      if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
-        return voicesResponse(["other"]);
-      }
-      if (url === "http://localhost:8091/voices" && init?.method === "POST") {
-        return createdResponse("x");
-      }
-      throw new Error(`unexpected fetch ${url}`);
-    });
+    // The aborted caller did not poison the shared registration — letting it settle lets a
+    // later call for the same id join the same success instead of retrying from scratch.
+    resolveGet(voicesResponse(["other"]));
     await expect(
       ensureRegistered({
         baseUrl: BASE,
         id: "x",
         refUrl: "/references/x.mp3",
-        fetch: fetchMock2 as unknown as typeof fetch,
+        fetch: fetchMock as unknown as typeof fetch,
       }),
     ).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("a joiner is not poisoned by another caller's abort — it still resolves when the shared registration succeeds", async () => {
+    const controllerA = new AbortController();
+    const controllerB = new AbortController();
+    let resolveGet!: (value: Response) => void;
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
+        return new Promise<Response>((resolve, reject) => {
+          resolveGet = resolve;
+          init?.signal?.addEventListener("abort", () =>
+            reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError")),
+          );
+        });
+      }
+      throw new Error(`unexpected fetch ${url} ${init?.method}`);
+    });
+
+    const opts = {
+      baseUrl: BASE,
+      id: "x",
+      refUrl: "/references/x.mp3",
+      fetch: fetchMock as unknown as typeof fetch,
+    };
+    const callerA = ensureRegistered({ ...opts, signal: controllerA.signal });
+    const callerB = ensureRegistered({ ...opts, signal: controllerB.signal });
+
+    controllerA.abort();
+    await expect(callerA).rejects.toThrow();
+
+    resolveGet(voicesResponse(["other"]));
+    await expect(callerB).resolves.toBeUndefined();
+  });
+
+  it("a joiner's own abort rejects only that joiner — the other caller still resolves", async () => {
+    const controllerA = new AbortController();
+    const controllerB = new AbortController();
+    let resolveGet!: (value: Response) => void;
+    const fetchMock = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
+        return new Promise<Response>((resolve, reject) => {
+          resolveGet = resolve;
+          init?.signal?.addEventListener("abort", () =>
+            reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError")),
+          );
+        });
+      }
+      throw new Error(`unexpected fetch ${url} ${init?.method}`);
+    });
+
+    const opts = {
+      baseUrl: BASE,
+      id: "x",
+      refUrl: "/references/x.mp3",
+      fetch: fetchMock as unknown as typeof fetch,
+    };
+    const callerA = ensureRegistered({ ...opts, signal: controllerA.signal });
+    const callerB = ensureRegistered({ ...opts, signal: controllerB.signal });
+
+    controllerB.abort();
+    await expect(callerB).rejects.toThrow();
+
+    resolveGet(voicesResponse(["other"]));
+    await expect(callerA).resolves.toBeUndefined();
   });
 
   it("throws a clear message when POST /voices is non-2xx", async () => {
