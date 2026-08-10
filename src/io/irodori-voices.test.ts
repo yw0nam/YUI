@@ -123,6 +123,7 @@ describe("ensureRegistered", () => {
     expect(ref).toBeInstanceOf(Blob);
     expect(referenceClip.fetch).toHaveBeenCalledWith("/references/ナツメ/merged_audio.mp3", {
       fetch: fetchMock,
+      signal: expect.any(AbortSignal),
     });
   });
 

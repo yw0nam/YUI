@@ -1,7 +1,13 @@
 /** irodori_TTS voice registry — idempotently ensures a voice id exists before synth. */
 
 import { createLogger, type Logger } from "../logger";
+import { createDeadlineSignal } from "./deadline";
 import { fetchReferenceClip } from "./reference-clip";
+
+// The shared registration's own budget — independent of any caller's signal, so a hung
+// server can't wedge the voice id in `inflight` forever when no caller ever passes a signal
+// (e.g. the swapSpeaker call site).
+export const VOICE_REGISTER_TIMEOUT_MS = 10_000;
 
 interface EnsureRegisteredOptions {
   baseUrl: string;
@@ -14,7 +20,8 @@ interface EnsureRegisteredOptions {
    * Rejects this caller's wait once aborted — a hung registration must not hang the caller
    * forever. Never reaches the registration fetches themselves: a shared in-flight registration
    * dedupes concurrent callers, so tying it to one caller's signal would abort the work for
-   * every other caller waiting on the same voice id.
+   * every other caller waiting on the same voice id. The shared registration keeps running
+   * after this caller's abort — see VOICE_REGISTER_TIMEOUT_MS for its own budget.
    */
   signal?: AbortSignal;
 }
@@ -44,44 +51,64 @@ export function evictRegistration(baseUrl: string, id: string): void {
 
 // Shared across every caller dedup routes to the same in-flight registration, so this never
 // takes a caller's signal — one caller's abort must not cancel the fetches for the others.
+// Owns its own deadline instead, so a hung server still settles even when no caller passes a
+// signal at all.
 async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<void> {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const voicesUrl = `${opts.baseUrl}/voices`;
+  const deadline = createDeadlineSignal(
+    VOICE_REGISTER_TIMEOUT_MS,
+    "irodori voice registration timed out",
+  );
 
-  const listRes = await fetchImpl(voicesUrl);
-  if (!listRes.ok) {
-    throw new Error(`irodori voices list failed (HTTP ${listRes.status})`);
+  try {
+    const listRes = await fetchImpl(voicesUrl, { signal: deadline.signal });
+    if (!listRes.ok) {
+      throw new Error(`irodori voices list failed (HTTP ${listRes.status})`);
+    }
+    const list = (await listRes.json()) as { voices?: Array<{ voice_id?: string }> };
+    const registered = (list.voices ?? []).some((v) => v.voice_id === opts.id);
+    if (registered) {
+      log.debug("voice_already_registered", { id: opts.id });
+      return;
+    }
+
+    const blob = await fetchReferenceClip(opts.refUrl, {
+      fetch: fetchImpl,
+      signal: deadline.signal,
+    });
+
+    const form = new FormData();
+    form.append("reference_audio", blob, `${opts.id}.mp3`);
+    form.append("voice_id", opts.id);
+
+    const postRes = await fetchImpl(voicesUrl, {
+      method: "POST",
+      body: form,
+      signal: deadline.signal,
+    });
+    if (!postRes.ok) {
+      throw new Error(`irodori voice register failed (HTTP ${postRes.status}) ${opts.id}`);
+    }
+    log.info("voice_registered", { id: opts.id });
+  } finally {
+    deadline.clear();
   }
-  const list = (await listRes.json()) as { voices?: Array<{ voice_id?: string }> };
-  const registered = (list.voices ?? []).some((v) => v.voice_id === opts.id);
-  if (registered) {
-    log.debug("voice_already_registered", { id: opts.id });
-    return;
-  }
-
-  const blob = await fetchReferenceClip(opts.refUrl, { fetch: fetchImpl });
-
-  const form = new FormData();
-  form.append("reference_audio", blob, `${opts.id}.mp3`);
-  form.append("voice_id", opts.id);
-
-  const postRes = await fetchImpl(voicesUrl, { method: "POST", body: form });
-  if (!postRes.ok) {
-    throw new Error(`irodori voice register failed (HTTP ${postRes.status}) ${opts.id}`);
-  }
-  log.info("voice_registered", { id: opts.id });
 }
 
 /** Rejects once `signal` aborts, independent of how `task` itself settles — lets one caller
- *  bail out of a shared in-flight registration without affecting the other callers on it. */
+ *  bail out of a shared in-flight registration without affecting the other callers on it.
+ *  Always attaches to `task` (even when already aborted) so a caller that created the shared
+ *  registration never leaves its later failure as an unhandled rejection. */
 function rejectOnAbort<T>(task: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
   if (!signal) return task;
-  if (signal.aborted) {
-    return Promise.reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
-  }
   return new Promise<T>((resolve, reject) => {
     const onAbort = () => reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
-    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) {
+      onAbort();
+    } else {
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
     task.then(
       (value) => {
         signal.removeEventListener("abort", onAbort);
@@ -176,11 +203,16 @@ export function ensureRegistered(opts: EnsureRegisteredOptions): Promise<void> {
 
   let task = inflight.get(key);
   if (!task) {
-    task = register(opts, log).catch((err: unknown) => {
-      inflight.delete(key);
+    // Guard eviction by identity — a stale detached failure from a since-replaced entry
+    // (e.g. after evictRegistration + a fresh call) must not delete the fresh one.
+    const created: Promise<void> = register(opts, log).catch((err: unknown) => {
+      if (inflight.get(key) === created) {
+        inflight.delete(key);
+      }
       throw err;
     });
-    inflight.set(key, task);
+    task = created;
+    inflight.set(key, created);
   }
   return rejectOnAbort(task, opts.signal);
 }
