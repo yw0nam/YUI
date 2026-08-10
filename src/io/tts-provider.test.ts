@@ -21,7 +21,7 @@ function fakeProvider(): TtsProvider {
     synth: vi.fn().mockResolvedValue(new ArrayBuffer(1)),
     paramsKey: vi.fn(() => "key"),
     isReady: vi.fn(() => true),
-    emotionTextMode: vi.fn(() => "free"),
+    emotionTextMode: vi.fn((): "enum" | "free" => "free"),
   };
 }
 

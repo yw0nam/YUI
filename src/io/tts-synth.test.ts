@@ -221,7 +221,10 @@ describe("createOpenAiTtsProvider", () => {
 
   it("paramsKey changes when the voice params change", () => {
     let eps = endpoints({ tts_voice: "alloy" });
-    const provider = createOpenAiTtsProvider({ getEndpoints: () => eps, selectFetch: async () => undefined });
+    const provider = createOpenAiTtsProvider({
+      getEndpoints: () => eps,
+      selectFetch: async () => undefined,
+    });
     const first = provider.paramsKey();
     eps = endpoints({ tts_voice: "another" });
     expect(provider.paramsKey()).not.toBe(first);

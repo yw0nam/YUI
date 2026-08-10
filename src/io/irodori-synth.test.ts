@@ -316,15 +316,17 @@ describe("createIrodoriSynth", () => {
 describe("createIrodoriTtsProvider", () => {
   const PBASE = "http://localhost:8091";
 
-  function endpoints(
-    over: Partial<{ irodori_base_url: string; irodori_num_steps: number }> = {},
-  ): { irodori_base_url?: string; irodori_num_steps?: number } {
+  function endpoints(over: Partial<{ irodori_base_url: string; irodori_num_steps: number }> = {}): {
+    irodori_base_url?: string;
+    irodori_num_steps?: number;
+  } {
     return { irodori_base_url: PBASE, ...over };
   }
 
-  function speaker(
-    over: Partial<{ id: string; ref_url: string }> = {},
-  ): { id: string; ref_url: string } {
+  function speaker(over: Partial<{ id: string; ref_url: string }> = {}): {
+    id: string;
+    ref_url: string;
+  } {
     return { id: "spk-a", ref_url: "/spk-a.mp3", ...over };
   }
 

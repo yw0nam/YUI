@@ -1,6 +1,11 @@
 /** Single-sentence input → POST {baseUrl}/synthesize (multipart) → wav ArrayBuffer (irodori_TTS). */
 
 import { createLogger, type Logger } from "../logger";
+import { createDeadlineSignal } from "./deadline";
+import { ensureRegistered, evictRegistration, voiceRevision } from "./irodori-voices";
+import { TTS_SYNTH_TIMEOUT_MS, type TtsProvider, type TtsSynth } from "./tts-provider";
+
+export type { TtsSynth };
 
 interface IrodoriSynthOptions {
   baseUrl: string;
@@ -15,10 +20,8 @@ interface IrodoriSynthOptions {
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
 }
 
-export type TtsSynth = (input: string, signal?: AbortSignal) => Promise<ArrayBuffer>;
-
-/** Carries status so callers can branch on 422/503, etc. */
-export class IrodoriSynthError extends Error {
+/** Carries status so the provider adapter can detect a 422 (unknown reference_id) and self-heal. */
+class IrodoriSynthError extends Error {
   readonly status: number;
   constructor(message: string, status: number) {
     super(message);
@@ -134,5 +137,130 @@ export function createIrodoriSynth(opts: IrodoriSynthOptions): TtsSynth {
       bytes: buf.byteLength,
     });
     return buf;
+  };
+}
+
+interface IrodoriSynthParams {
+  baseUrl: string;
+  referenceId: string;
+  refUrl: string;
+  numSteps?: number;
+  cfgScaleText?: number;
+  cfgScaleSpeaker?: number;
+  seconds?: number;
+}
+
+/** The params that change the rendered audio — memo identity here, cache identity for callers. */
+function irodoriParamsKey(p: IrodoriSynthParams): string {
+  return [p.baseUrl, p.referenceId, p.numSteps, p.cfgScaleText, p.cfgScaleSpeaker, p.seconds].join(
+    "::",
+  );
+}
+
+export interface IrodoriTtsProviderDeps {
+  getEndpoints: () => {
+    irodori_base_url?: string;
+    irodori_num_steps?: number;
+    irodori_cfg_scale_text?: number;
+    irodori_cfg_scale_speaker?: number;
+    irodori_seconds?: number;
+  };
+  getActiveSpeaker: () => { id: string; ref_url: string };
+  /** Environment fetch override (Tauri CORS-bypass) — resolved once and reused (not per sentence). */
+  selectFetch: () => Promise<typeof fetch | undefined>;
+  logger?: Logger;
+}
+
+/**
+ * TtsProvider adapter over irodori_TTS. Internalizes voice registration (ensureRegistered),
+ * the per-sentence synth closure memoized by speaker/tuning identity (not rebuilt each sentence),
+ * and the 422 (unknown reference_id) self-heal: evict the registration memo, re-register once,
+ * retry the synth once.
+ */
+export function createIrodoriTtsProvider(deps: IrodoriTtsProviderDeps): TtsProvider {
+  const params = (): IrodoriSynthParams => {
+    const eps = deps.getEndpoints();
+    const active = deps.getActiveSpeaker();
+    if (!eps.irodori_base_url || !active.id) {
+      throw new Error("irodori provider requires irodori_base_url + irodori_speaker");
+    }
+    return {
+      baseUrl: eps.irodori_base_url,
+      referenceId: active.id,
+      refUrl: active.ref_url,
+      numSteps: eps.irodori_num_steps,
+      cfgScaleText: eps.irodori_cfg_scale_text,
+      cfgScaleSpeaker: eps.irodori_cfg_scale_speaker,
+      seconds: eps.irodori_seconds,
+    };
+  };
+
+  // The built createIrodoriSynth closure must not be rebuilt each sentence, memoized by the
+  // params that change the rendered audio.
+  let cachedKey: string | undefined;
+  let cachedSynth: TtsSynth | undefined;
+  const synthFor = (p: IrodoriSynthParams, fetchImpl: typeof fetch): TtsSynth => {
+    const key = irodoriParamsKey(p);
+    if (key !== cachedKey || !cachedSynth) {
+      cachedSynth = createIrodoriSynth({
+        baseUrl: p.baseUrl,
+        referenceId: p.referenceId,
+        fetch: fetchImpl,
+        numSteps: p.numSteps,
+        cfgScaleText: p.cfgScaleText,
+        cfgScaleSpeaker: p.cfgScaleSpeaker,
+        seconds: p.seconds,
+        logger: deps.logger,
+      });
+      cachedKey = key;
+    }
+    return cachedSynth;
+  };
+
+  return {
+    synth: async (input, signal) => {
+      const fetchImpl = (await deps.selectFetch()) ?? globalThis.fetch;
+      const p = params();
+      // Deadline covers the whole call (registration + synth + one 422 self-heal retry) so a hung
+      // request settles instead of stalling the turn's ordered playback forever.
+      const deadline = createDeadlineSignal(TTS_SYNTH_TIMEOUT_MS, "irodori TTS request timed out");
+      const requestSignal = signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal;
+      try {
+        await ensureRegistered({
+          baseUrl: p.baseUrl,
+          id: p.referenceId,
+          refUrl: p.refUrl,
+          fetch: fetchImpl,
+        });
+        const synth = synthFor(p, fetchImpl);
+        try {
+          return await synth(input, requestSignal);
+        } catch (err) {
+          if (!(err instanceof IrodoriSynthError) || err.status !== 422) throw err;
+          // Server forgot the voice — evict the memo, re-register once, retry once.
+          evictRegistration(p.baseUrl, p.referenceId);
+          await ensureRegistered({
+            baseUrl: p.baseUrl,
+            id: p.referenceId,
+            refUrl: p.refUrl,
+            fetch: fetchImpl,
+          });
+          return await synth(input, requestSignal);
+        }
+      } finally {
+        deadline.clear();
+      }
+    },
+    // The irodori voice revision is part of the key because an import over an existing name
+    // replaces the clip without changing the speaker id.
+    paramsKey: () => {
+      const p = params();
+      return `irodori::${irodoriParamsKey(p)}::${voiceRevision(p.baseUrl, p.referenceId)}`;
+    },
+    isReady: () => {
+      const eps = deps.getEndpoints();
+      return Boolean(eps.irodori_base_url && deps.getActiveSpeaker().id);
+    },
+    emotionTextMode: () => "enum",
   };
 }

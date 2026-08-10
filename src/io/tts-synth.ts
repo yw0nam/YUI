@@ -2,6 +2,10 @@
 
 import type { EndpointsConfig } from "../contract";
 import { createDeadlineSignal } from "./deadline";
+import { TTS_SYNTH_TIMEOUT_MS, type TtsProvider, type TtsSynth } from "./tts-provider";
+
+export type { TtsSynth };
+export { TTS_SYNTH_TIMEOUT_MS };
 
 export interface TtsSynthOptions {
   config: EndpointsConfig;
@@ -12,12 +16,6 @@ export interface TtsSynthOptions {
   /** Resolves the TTS server key (Bearer) per request. Omitted/empty → no auth header. */
   getApiKey?: () => Promise<string | undefined>;
 }
-
-export type TtsSynth = (input: string, signal?: AbortSignal) => Promise<ArrayBuffer>;
-
-// Deadline so a hung request settles instead of stalling the turn's ordered playback forever.
-// Magnitude mirrors irodori-synth's RETRY_AFTER_CAP_MS (5s), with headroom for network + synth time.
-export const TTS_SYNTH_TIMEOUT_MS = 10_000;
 
 export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
@@ -59,5 +57,37 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
     } finally {
       deadline.clear();
     }
+  };
+}
+
+export interface OpenAiTtsProviderDeps {
+  getEndpoints: () => EndpointsConfig;
+  /** Resolves the TTS server key (Bearer) per request. Omitted/empty → no auth header. */
+  getApiKey?: () => Promise<string | undefined>;
+  /** Environment fetch override (Tauri CORS-bypass) — resolved fresh per call. */
+  selectFetch: () => Promise<typeof fetch | undefined>;
+}
+
+/** TtsProvider adapter over the OpenAI-compatible /v1/audio/speech path. */
+export function createOpenAiTtsProvider(deps: OpenAiTtsProviderDeps): TtsProvider {
+  return {
+    synth: async (input, signal) => {
+      const eps = deps.getEndpoints();
+      const fetchImpl = await deps.selectFetch();
+      return createTtsSynth({
+        config: eps,
+        fetch: fetchImpl,
+        model: eps.tts_model,
+        voice: eps.tts_voice,
+        speed: eps.tts_speed,
+        getApiKey: deps.getApiKey,
+      })(input, signal);
+    },
+    paramsKey: () => {
+      const eps = deps.getEndpoints();
+      return ["openai", eps.tts_base_url, eps.tts_model, eps.tts_voice, eps.tts_speed].join("::");
+    },
+    isReady: () => Boolean(deps.getEndpoints().tts_base_url),
+    emotionTextMode: () => "free",
   };
 }
