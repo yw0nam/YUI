@@ -10,7 +10,7 @@ import { createProactiveSettings } from "../../io/proactive-settings";
 import { createScheduleSettings } from "../../io/schedule-settings";
 import { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
 import { createSessionStore } from "../../io/session-store";
-import { createPresenceStore, createRecentAppsStore } from "../../io/settings-stores";
+import { createPresenceStore } from "../../io/settings-stores";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
 import type { createVrmSelection } from "../../io/vrm-selection";
 import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "../i18n";
@@ -32,7 +32,6 @@ const inMemoryValueStorage = () => {
   };
 };
 const inMemoryPresenceStore = () => createPresenceStore(inMemoryValueStorage());
-const inMemoryRecentAppsStore = () => createRecentAppsStore(inMemoryValueStorage());
 
 describe("createQuickControls — shell", () => {
   let mount: HTMLElement;
@@ -826,72 +825,6 @@ describe("createQuickControls — Reactions tab", () => {
     presenceInput.blur();
     expect(presenceSettings.get().value).toBe(60000);
     expect(presenceInput.value).toBe("60");
-    qc.dispose();
-  });
-
-  it("does not render #yui-recent-apps when recentAppsSettings is absent", () => {
-    const qc = buildQc();
-    qc.open();
-    expect(qc.el.querySelector("#yui-recent-apps")).toBeNull();
-    qc.dispose();
-  });
-
-  it("renders #yui-recent-apps inside #yui-panel-react when recentAppsSettings is provided", () => {
-    const recentAppsSettings = inMemoryRecentAppsStore();
-    const qc = buildQc({ recentAppsSettings });
-    qc.open();
-    const recentAppsInput = qc.el.querySelector<HTMLInputElement>("#yui-recent-apps");
-    expect(recentAppsInput).not.toBeNull();
-    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    expect(reactPanel.contains(recentAppsInput)).toBe(true);
-    qc.dispose();
-  });
-
-  it("change on #yui-recent-apps calls recentAppsSettings.set(n)", () => {
-    const recentAppsSettings = inMemoryRecentAppsStore();
-    const setSpy = vi.spyOn(recentAppsSettings, "set");
-    const qc = buildQc({ recentAppsSettings });
-    qc.open();
-    const recentAppsInput = qc.el.querySelector<HTMLInputElement>("#yui-recent-apps")!;
-    recentAppsInput.value = "5";
-    recentAppsInput.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(setSpy).toHaveBeenCalledWith(5);
-    qc.dispose();
-  });
-
-  it("commits a focused recent-apps edit before resyncing on blur", () => {
-    const recentAppsSettings = inMemoryRecentAppsStore();
-    const qc = buildQc({ recentAppsSettings });
-    qc.open();
-    const recentAppsInput = qc.el.querySelector<HTMLInputElement>("#yui-recent-apps")!;
-
-    recentAppsInput.focus();
-    recentAppsInput.value = "25";
-    recentAppsSettings.set(30);
-
-    expect(recentAppsInput.value).toBe("25");
-
-    recentAppsInput.dispatchEvent(new Event("change"));
-    recentAppsInput.blur();
-    expect(recentAppsSettings.get().value).toBe(25);
-    expect(recentAppsInput.value).toBe("25");
-    qc.dispose();
-  });
-
-  it("resyncs an unedited focused recent-apps field without reverting a remote change", () => {
-    const recentAppsSettings = inMemoryRecentAppsStore();
-    const qc = buildQc({ recentAppsSettings });
-    qc.open();
-    const recentAppsInput = qc.el.querySelector<HTMLInputElement>("#yui-recent-apps")!;
-
-    recentAppsInput.focus();
-    recentAppsSettings.set(30);
-
-    expect(recentAppsInput.value).toBe("10");
-
-    recentAppsInput.blur();
-    expect(recentAppsSettings.get().value).toBe(30);
-    expect(recentAppsInput.value).toBe("30");
     qc.dispose();
   });
 

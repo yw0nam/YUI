@@ -29,8 +29,6 @@ describe("createSettingsStores", () => {
       "workflowSettings",
       "agentNotifySettings",
       "presenceSettings",
-      "recentAppsSettings",
-      "contextSettings",
       "contextHistory",
       "lipsyncSettings",
       "vadSettings",
@@ -66,7 +64,6 @@ describe("createSettingsStores", () => {
     ["idleThrottleSettings", "yui.idle-throttle", true, false],
     ["railCollapsedSettings", "yui.quickControls.railCollapsed", false, true],
     ["presenceSettings", "yui.presence", 180000, 200000],
-    ["recentAppsSettings", "yui.recent-apps", 10, 11],
   ] as const)("binds %s to %s with default %s", (storeName, key, defaultValue, nextValue) => {
     localStorage.clear();
     const store = createSettingsStores()[storeName] as FlagSettingsStore | ClampedIntSettingsStore;
@@ -115,12 +112,6 @@ describe("createSettingsStores", () => {
 
     expect(broadcastStores).toContain(stores.gazeSettings);
     expect(broadcastStores).toContain(stores.cameraSettings);
-  });
-
-  it("broadcasts context settings", () => {
-    const stores = createSettingsStores();
-
-    expect(broadcastSyncStores(stores)).toContain(stores.contextSettings);
   });
 
   it("keeps STT intent and the first-run hint window-local", () => {

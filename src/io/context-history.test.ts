@@ -11,8 +11,6 @@ function entry(ts: number): ContextHistoryEntry {
     ts,
     event_name: "user.text",
     trigger_kind: "user",
-    included: ["active_app"],
-    excluded: [],
     client_context: {
       env: { timestamp: new Date(ts).toISOString(), timezone: "UTC" },
       trigger: { kind: "user" },

@@ -52,8 +52,6 @@ it("passes the registry bag and its devtools stores through bootstrap by identit
   expect(createDevtoolsShell).toHaveBeenCalledWith(
     expect.objectContaining({
       history: bag.contextHistory,
-      contextSettings: bag.contextSettings,
-      recentAppsSettings: bag.recentAppsSettings,
       endpointsSettings: bag.endpointsSettings,
     }),
   );
