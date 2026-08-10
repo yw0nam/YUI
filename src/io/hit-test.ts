@@ -38,7 +38,9 @@ export interface HitTestConfig {
 
 const DEFAULTS = {
   hysteresis_margin_px: 8,
-  poll_interval_ms: 200,
+  // Matches cursor-tracker.ts's POLL_MS: the same 4 IPC reads already run this often,
+  // continuously, whenever gaze tracking is on — this poll only runs during PASSTHROUGH.
+  poll_interval_ms: 33,
   debounce_samples: 2,
 } as const;
 
@@ -156,6 +158,8 @@ interface HitTestOptions {
   schedule?: (cb: () => void, ms: number) => number;
   /** clearTimeout seam. Default: globalThis.clearTimeout. */
   cancel?: (handle: number) => void;
+  /** Document seam for visibility (gates the poll while hidden). Default: document. */
+  doc?: Document;
 }
 
 /**
@@ -187,6 +191,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   const schedule =
     opts.schedule ?? ((cb, ms) => globalThis.setTimeout(cb, ms) as unknown as number);
   const cancel = opts.cancel ?? ((h) => globalThis.clearTimeout(h));
+  const doc = opts.doc ?? document;
 
   let win: HitTestWindow | null = null;
   let state: HitTestState = "capture";
@@ -252,15 +257,33 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
 
   function scheduleNextPoll(): void {
     stopPoll();
+    // Nothing can click a hidden window — resumes via onVisibilityChange.
+    if (doc.visibilityState === "hidden") return;
     const ms = opts.getConfig().poll_interval_ms ?? DEFAULTS.poll_interval_ms;
     pollHandle = schedule(() => {
       void poll();
     }, ms);
   }
 
+  // Hidden window: pause the poll instead of burning IPC on a window nothing can see.
+  function onVisibilityChange(): void {
+    if (doc.visibilityState === "hidden") {
+      stopPoll();
+    } else if (running && !suspended && state === "passthrough" && pollHandle === null) {
+      scheduleNextPoll();
+    }
+  }
+
   // PASSTHROUGH loop: webview is blind, so read the global cursor and convert.
   async function poll(): Promise<void> {
-    if (!running || suspended || state !== "passthrough" || !win) return;
+    if (
+      !running ||
+      suspended ||
+      state !== "passthrough" ||
+      !win ||
+      doc.visibilityState === "hidden"
+    )
+      return;
     try {
       const [cursor, origin, sf, cursorSf] = await Promise.all([
         win.cursorPosition(),
@@ -302,12 +325,14 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     suspendedOwner = null;
     pollFailureCount = 0;
     moveTarget.addEventListener("pointermove", onPointerMove);
+    doc.addEventListener("visibilitychange", onVisibilityChange);
   }
 
   function stop(): void {
     running = false;
     stopPoll();
     moveTarget.removeEventListener("pointermove", onPointerMove);
+    doc.removeEventListener("visibilitychange", onVisibilityChange);
     // Leave the window interactive so teardown never strands click-through on.
     setIgnore(false);
     win = null;
