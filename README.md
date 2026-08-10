@@ -57,8 +57,9 @@ there is something to show, then steps back.
 - OS-native dragging on a transparent, always-on-top, multi-monitor overlay
 - Idle liveliness — blink, sway, breathing, and look-around run locally even
   with no backend connected, and respect `prefers-reduced-motion`
-- Reads OS context (active app, idle time, fullscreen, optional screenshot) and
-  feeds it to the agent each turn
+- Reads OS-wide idle time and an optional user-toggled screenshot and feeds
+  them to the agent each turn; the frontmost app/window is a pull tool the
+  agent calls via the `desktop_control` Mod, not a per-turn push
 
 **Rendering & motion**
 - VRM 1.0 with hot-swap and GPU cleanup, via three.js + `@pixiv/three-vrm`
@@ -172,7 +173,7 @@ YUI/
   src-tauri/src/
     drag.rs               # OS-native window drag
     screenshot.rs         # Monitor capture
-    os_event_watcher/     # Active app / idle / fullscreen polling (macos · windows)
+    os_event_watcher/     # Idle-tick polling (macos · windows)
   docs/                   # Backend contract + human-facing catalogs
   Mods/                   # Standalone MCP servers, independent of the app
 ```

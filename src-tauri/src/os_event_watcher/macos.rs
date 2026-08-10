@@ -396,19 +396,6 @@ mod tests {
     }
 
     #[test]
-    fn fullscreen_heuristic_cover() {
-        // Window matches screen exactly → fullscreen.
-        let (sw, sh) = (2560.0_f64, 1600.0_f64);
-        assert!(2560.0_f64 >= sw && 1600.0_f64 >= sh);
-    }
-
-    #[test]
-    fn fullscreen_heuristic_no_cover() {
-        let (sw, sh) = (2560.0_f64, 1600.0_f64);
-        assert!(!(1280.0_f64 >= sw && 800.0_f64 >= sh));
-    }
-
-    #[test]
     fn cfstring_roundtrip() {
         unsafe {
             let s = make_cfstring("Hello, macOS!");

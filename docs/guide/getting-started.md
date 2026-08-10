@@ -194,6 +194,5 @@ No values are hardcoded in the application — all service addresses come from t
 
 ## 8. Platform Notes
 
-- **macOS-first.** Full OS-event watching (active app, idle, fullscreen) is available on macOS.
-- **Windows partial.** `os_idle_ms` is unavailable on Windows, so idle-triggered and co-working proactive cues are inert.
+- **Idle watching works on both.** `os_idle_ms` polling is implemented on both macOS and Windows, so idle-triggered and co-working proactive cues fire on either platform.
 - **macOS TCC grants.** The optional screenshot context feature and the `desktop_control` Mod (if used) require Screen Recording permission. App control via the `desktop_control` Mod additionally requires Automation / Apple Events permission. Grant these in System Settings → Privacy & Security.
