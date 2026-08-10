@@ -710,6 +710,73 @@ describe("createHitTestController — static caching", () => {
     c.stop();
   });
 
+  // Regression: invalidateStatics() firing WHILE a cached tick's cursorPosition() is in flight
+  // (the common case — 7/8 ticks are cached, and onMoved fires continuously during a window drag)
+  // must not kill the self-scheduling loop. A prior fix returned from poll() entirely when the
+  // cache came back null, which also skipped the reschedule at the bottom — the window got stuck
+  // click-through forever (no visibilitychange recovery either, since pollHandle was never freed).
+  it("a move landing mid-await on a cached tick skips the sample but still reschedules", async () => {
+    const win = fakeWindow();
+    const target = new EventTarget();
+    const scheduled: number[] = [];
+    const seen: Array<[number, number]> = [];
+    let cb: (() => void) | undefined;
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: target,
+      isOverInteractive: (x, y) => {
+        seen.push([x, y]);
+        return false;
+      },
+      getConfig: () => cfg,
+      doc: fakeDoc() as never,
+      schedule: (callback, ms) => {
+        cb = callback;
+        scheduled.push(ms);
+        return scheduled.length;
+      },
+      cancel: () => {},
+    });
+    c.start();
+    const move = (x: number, y: number): void => {
+      target.dispatchEvent(
+        Object.assign(new Event("pointermove"), { clientX: x, clientY: y }) as Event,
+      );
+    };
+    move(10, 10);
+    move(10, 10); // PASSTHROUGH — poll #1 scheduled
+    expect(scheduled.length).toBe(1);
+    const poll = async (): Promise<void> => {
+      const fn = cb;
+      cb = undefined;
+      await fn?.();
+    };
+
+    await poll(); // tick 0 — refreshes, establishes cachedOrigin
+    expect(scheduled.length).toBe(2);
+    seen.length = 0;
+
+    // tick 1 is a cached tick. Simulate the window moving while cursorPosition() is in flight:
+    // the mock invalidates the cache as a side effect before its promise resolves.
+    win.cursorPosition.mockImplementationOnce(async () => {
+      win.fireMoved();
+      return { x: 0, y: 0 };
+    });
+    await poll(); // tick 1 — cachedOrigin goes null mid-await
+
+    // The loop must still reschedule despite landing with a stale cache.
+    expect(scheduled.length).toBe(3);
+    // The invalidated tick skips sampling rather than applying a stale/missing origin.
+    expect(seen).toEqual([]);
+
+    // The next tick recovers: refreshes statics (cachedOrigin was cleared) and samples normally.
+    win.outerPosition.mockClear();
+    await poll(); // tick 2
+    expect(win.outerPosition).toHaveBeenCalledTimes(1);
+    expect(seen).toEqual([[0, 0]]);
+    c.stop();
+  });
+
   it("stop() unsubscribes the move/resize/scale-change listeners", async () => {
     const win = fakeWindow();
     const { c } = makePassthroughController(win);
