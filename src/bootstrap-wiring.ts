@@ -296,13 +296,23 @@ export function wireWindowSync(deps: {
     // Display language changed in the other window → i18n.subscribe remount callback redraws UI.
     reloadLocaleFromStorage();
   };
-  const disposeStorageSync = wireStorageSync(resyncStores);
   const bridge = createSettingsBridge(undefined, { windowKind });
   const {
     broadcastSettings,
     runApplyingRemote,
     dispose: disposeBroadcast,
   } = createSettingsBroadcast({ bridge, syncedStores: broadcastSyncStores(stores) });
+  // Run under the same loop guard as the bridge-driven reload below — a sibling window's
+  // localStorage write fires "storage" here too, and without the guard its
+  // store.subscribe(broadcastSettings) would re-broadcast the change it just received.
+  const disposeStorageSync = wireStorageSync([
+    {
+      reloadFromStorage: () =>
+        runApplyingRemote(() => {
+          for (const store of resyncStores) store.reloadFromStorage();
+        }),
+    },
+  ]);
   const disposeSettingsChanged = bridge.onSettingsChanged((from) => {
     runApplyingRemote(() => {
       reload();
