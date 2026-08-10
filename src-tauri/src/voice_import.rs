@@ -594,4 +594,102 @@ mod tests {
         let missing = references; // now-removed path — never created again
         sweep_stale_import_artifacts(&missing);
     }
+
+    #[test]
+    fn sweep_restores_a_backup_and_discards_a_tmp_present_together_for_the_same_id() {
+        // The exact mid-swap-death state: the old dir was already renamed aside (backup exists)
+        // and a next import for the same id was mid-build (tmp exists) when the process died.
+        let references = unique_dir("sweep_tmp_and_backup");
+        let backup = references.join(".Cat.import-backup");
+        std::fs::create_dir_all(&backup).unwrap();
+        std::fs::write(backup.join("clip.wav"), b"original clip").unwrap();
+        let tmp = references.join(".Cat.import-tmp");
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join("clip.wav"), b"half-built").unwrap();
+
+        sweep_stale_import_artifacts(&references);
+
+        assert!(!tmp.exists(), "the half-built tmp must be discarded");
+        assert!(!backup.exists(), "the backup path itself must be gone once restored");
+        assert_eq!(
+            std::fs::read(references.join("Cat").join("clip.wav")).unwrap(),
+            b"original clip",
+            "the backup must be restored under the id it belongs to, regardless of read_dir order"
+        );
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    // ── remove_user_voice_at: must not leave a resurrectable backup behind ───────────────────
+
+    #[test]
+    fn remove_at_also_clears_a_stale_backup_so_the_next_sweep_does_not_resurrect_it() {
+        // Simulates a successful swap whose best-effort backup cleanup failed: the live voice
+        // and an orphaned `.Cat.import-backup` coexist. Deleting the voice must also clear the
+        // backup — otherwise the next startup sweep sees backup-without-target and restores the
+        // deleted audio right back to disk.
+        let references = unique_dir("remove_clears_backup");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        std::fs::write(references.join("Cat").join("clip.wav"), b"live clip").unwrap();
+        let backup = references.join(".Cat.import-backup");
+        std::fs::create_dir_all(&backup).unwrap();
+        std::fs::write(backup.join("clip.wav"), b"stale backup").unwrap();
+
+        remove_user_voice_at(&references, "Cat").unwrap();
+
+        assert!(!references.join("Cat").exists(), "the voice itself must be gone");
+        assert!(
+            !backup.exists(),
+            "the stale backup must be cleared by the same delete, not left for the sweep to find"
+        );
+
+        sweep_stale_import_artifacts(&references);
+        assert!(
+            !references.join("Cat").exists(),
+            "the next sweep must not resurrect deleted audio from a stale backup"
+        );
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    #[test]
+    fn remove_at_clears_a_stale_tmp_for_the_deleted_id() {
+        let references = unique_dir("remove_clears_tmp");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        let tmp = references.join(".Cat.import-tmp");
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        remove_user_voice_at(&references, "Cat").unwrap();
+
+        assert!(!tmp.exists(), "a stale tmp for the deleted id must be cleared too");
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    // ── sweep_stale_import_artifacts: restore target must be a real dir inside references_dir ─
+
+    #[cfg(unix)]
+    #[test]
+    fn sweep_skips_a_symlinked_backup_instead_of_promoting_it_to_a_voice_id() {
+        use std::os::unix::fs::symlink;
+
+        let root = unique_dir("sweep_symlink");
+        let references = root.join("references");
+        std::fs::create_dir_all(&references).unwrap();
+        let outside = root.join("outside_secret");
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(outside.join("clip.wav"), b"not a voice").unwrap();
+
+        let symlinked_backup = references.join(".Evil.import-backup");
+        symlink(&outside, &symlinked_backup).unwrap();
+
+        sweep_stale_import_artifacts(&references);
+
+        assert!(
+            !references.join("Evil").exists(),
+            "a symlinked backup must never be promoted into a live voice id slot"
+        );
+        assert!(
+            symlinked_backup.exists(),
+            "a rejected symlinked backup is left in place, not silently deleted"
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
 }
