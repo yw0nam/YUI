@@ -1,0 +1,38 @@
+name: Bundle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: bundle-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    # macOS is the project's primary platform (see AGENTS.md). Unsigned: no
+    # APPLE_SIGNING_IDENTITY/certificate secrets are configured, so tauri-bundler
+    # falls back to ad-hoc signing only. No updater: no updater plugin/config exists.
+    name: bundle (tauri build, macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yui-macos-bundle
+          path: |
+            src-tauri/target/release/bundle/macos/*.app
+            src-tauri/target/release/bundle/dmg/*.dmg
+          retention-days: 7
