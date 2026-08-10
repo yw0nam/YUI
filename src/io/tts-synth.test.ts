@@ -11,7 +11,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
-import { createTtsSynth, TTS_SYNTH_TIMEOUT_MS } from "./tts-synth";
+import { createOpenAiTtsProvider, createTtsSynth, TTS_SYNTH_TIMEOUT_MS } from "./tts-synth";
 
 type FetchFn = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -188,5 +188,64 @@ describe("createTtsSynth", () => {
     for (const call of fetchMock.mock.calls) {
       expect("Authorization" in (call[1].headers as object)).toBe(false);
     }
+  });
+});
+
+describe("createOpenAiTtsProvider", () => {
+  const endpoints = (overrides: Partial<EndpointsConfig> = {}): EndpointsConfig => ({
+    ...CONFIG,
+    ...overrides,
+  });
+
+  it("isReady reflects whether tts_base_url is configured", () => {
+    const provider = createOpenAiTtsProvider({
+      getEndpoints: () => endpoints({ tts_base_url: "" }),
+      selectFetch: async () => undefined,
+    });
+    expect(provider.isReady()).toBe(false);
+
+    const ready = createOpenAiTtsProvider({
+      getEndpoints: () => endpoints(),
+      selectFetch: async () => undefined,
+    });
+    expect(ready.isReady()).toBe(true);
+  });
+
+  it("emotionTextMode is free", () => {
+    const provider = createOpenAiTtsProvider({
+      getEndpoints: () => endpoints(),
+      selectFetch: async () => undefined,
+    });
+    expect(provider.emotionTextMode()).toBe("free");
+  });
+
+  it("paramsKey changes when the voice params change", () => {
+    let eps = endpoints({ tts_voice: "alloy" });
+    const provider = createOpenAiTtsProvider({ getEndpoints: () => eps, selectFetch: async () => undefined });
+    const first = provider.paramsKey();
+    eps = endpoints({ tts_voice: "another" });
+    expect(provider.paramsKey()).not.toBe(first);
+  });
+
+  it("synth resolves fetch via selectFetch and posts through createTtsSynth with live config + key", async () => {
+    const buf = new ArrayBuffer(4);
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(buf));
+    const getApiKey = async () => "sk-live";
+    const provider = createOpenAiTtsProvider({
+      getEndpoints: () => endpoints({ tts_model: "m", tts_voice: "v", tts_speed: 1.1 }),
+      getApiKey,
+      selectFetch: async () => fetchMock as unknown as typeof fetch,
+    });
+
+    const out = await provider.synth("hi");
+
+    expect(out).toBe(buf);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:8092/v1/audio/speech");
+    const body = JSON.parse(init.body as string);
+    expect(body).toMatchObject({ input: "hi", model: "m", voice: "v", speed: 1.1 });
+    const headers = init.headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer sk-live");
   });
 });
