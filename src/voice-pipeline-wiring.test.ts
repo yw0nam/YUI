@@ -22,22 +22,27 @@ const mocks = vi.hoisted(() => {
     stop: vi.fn(),
     dispose: vi.fn().mockResolvedValue(undefined),
   };
-  const openaiSynth = vi.fn().mockResolvedValue(new ArrayBuffer(1));
-  const irodoriFactorySynth = vi.fn().mockResolvedValue(new ArrayBuffer(1));
-  const irodoriSynth = vi.fn().mockResolvedValue(new ArrayBuffer(1));
   const sink = { play: vi.fn(), stop: vi.fn() };
   const ttsSkip = Symbol("TTS_SKIP");
+  const fetchImpl = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        arrayBuffer: async () => new ArrayBuffer(4),
+        json: async () => ({}),
+      }) as unknown as Response,
+  );
 
   return {
     captured,
     speechPlayback,
     fillerLoop,
     sttVad,
-    openaiSynth,
-    irodoriFactorySynth,
-    irodoriSynth,
     sink,
     ttsSkip,
+    fetchImpl,
     createSpeechPlayback: vi.fn((options: unknown) => {
       captured.speechPlayback = options;
       return speechPlayback;
@@ -50,23 +55,11 @@ const mocks = vi.hoisted(() => {
       captured.sttVad = options;
       return sttVad;
     }),
-    createTtsSynth: vi.fn((options: unknown) => {
-      captured.ttsSynth = options;
-      return openaiSynth;
-    }),
-    createIrodoriSynthFactory: vi.fn((options: unknown) => {
-      captured.irodoriFactory = options;
-      return irodoriFactorySynth;
-    }),
-    createIrodoriSynth: vi.fn((options: unknown) => {
-      captured.irodoriSynth = options;
-      return irodoriSynth;
-    }),
     createWebAudioSink: vi.fn((options: unknown) => {
       captured.audioSink = options;
       return sink;
     }),
-    selectFetch: vi.fn().mockResolvedValue(undefined),
+    selectFetch: vi.fn().mockResolvedValue(fetchImpl),
     ensureRegistered: vi.fn().mockResolvedValue(undefined),
     evictRegistration: vi.fn(),
     voiceRevision: vi.fn(() => 0),
@@ -79,12 +72,6 @@ vi.mock("./io/speech-playback", () => ({
 vi.mock("./io/filler-loop", () => ({ createFillerLoop: mocks.createFillerLoop }));
 vi.mock("./io/stt-vad", () => ({ createSttVad: mocks.createSttVad }));
 vi.mock("./io/tts-pipeline", () => ({ TTS_SKIP: mocks.ttsSkip }));
-vi.mock("./io/tts-synth", () => ({ createTtsSynth: mocks.createTtsSynth }));
-vi.mock("./io/irodori-synth-factory", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./io/irodori-synth-factory")>()),
-  createIrodoriSynthFactory: mocks.createIrodoriSynthFactory,
-}));
-vi.mock("./io/irodori-synth", () => ({ createIrodoriSynth: mocks.createIrodoriSynth }));
 vi.mock("./io/irodori-voices", () => ({
   ensureRegistered: mocks.ensureRegistered,
   evictRegistration: mocks.evictRegistration,
@@ -98,10 +85,8 @@ import type { EndpointsConfig } from "./contract";
 import type { BusEnvelope } from "./dispatcher/event-bus";
 import { createTurnLog } from "./dispatcher/turn";
 import type { FillerLoopDeps } from "./io/filler-loop";
-import type { IrodoriSynthFactoryDeps } from "./io/irodori-synth-factory";
 import type { SpeechPlaybackOptions } from "./io/speech-playback";
 import type { SttVadOptions } from "./io/stt-vad";
-import type { TtsSynthOptions } from "./io/tts-synth";
 import { wireVoicePipeline } from "./voice-pipeline-wiring";
 
 function endpoints(overrides: Partial<EndpointsConfig> = {}): EndpointsConfig {
@@ -117,6 +102,16 @@ function endpoints(overrides: Partial<EndpointsConfig> = {}): EndpointsConfig {
 
 function trigger(): BusEnvelope {
   return { source: "user_input_source", event_name: "test", ts: 0 };
+}
+
+// Fetch calls the openai path makes: POST {tts_base_url}/v1/audio/speech.
+function openaiCalls(): unknown[][] {
+  return mocks.fetchImpl.mock.calls.filter(([url]) => String(url).endsWith("/v1/audio/speech"));
+}
+
+// Fetch calls the irodori path makes: POST {irodori_base_url}/synthesize.
+function irodoriCalls(): unknown[][] {
+  return mocks.fetchImpl.mock.calls.filter(([url]) => String(url).endsWith("/synthesize"));
 }
 
 function setup() {
@@ -217,6 +212,18 @@ describe("wireVoicePipeline", () => {
     vi.clearAllMocks();
     for (const key of Object.keys(mocks.captured)) delete mocks.captured[key];
     mocks.voiceRevision.mockReturnValue(0);
+    mocks.ensureRegistered.mockResolvedValue(undefined);
+    mocks.selectFetch.mockResolvedValue(mocks.fetchImpl);
+    mocks.fetchImpl.mockImplementation(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          arrayBuffer: async () => new ArrayBuffer(4),
+          json: async () => ({}),
+        }) as unknown as Response,
+    );
   });
 
   it("A's late thinkingEnd(idA) does not tear down B's thinking once B's thinkingStart(idB) has begun", () => {
@@ -292,6 +299,7 @@ describe("wireVoicePipeline", () => {
 
     // A filler phrase cached while TTS was on must still skip once TTS is switched off.
     await synth("first");
+    const callsBeforeSkips = mocks.fetchImpl.mock.calls.length;
     state.setTtsEnabled(false);
     await expect(synth("first")).rejects.toBe(mocks.ttsSkip);
     await expect(synth("off")).rejects.toBe(mocks.ttsSkip);
@@ -308,17 +316,23 @@ describe("wireVoicePipeline", () => {
 
     state.setEndpoints(endpoints({ tts_provider: "openai", tts_base_url: "" }));
     await expect(synth("missing openai")).rejects.toBe(mocks.ttsSkip);
+
+    // None of the skip paths should have reached the network.
+    expect(mocks.fetchImpl.mock.calls.length).toBe(callsBeforeSkips);
   });
 
   it("routes openai-compatible synth with the live API-key provider", async () => {
     const state = setup();
     await playbackOptions().pipeline!.synth!("hello");
 
-    expect(mocks.createTtsSynth).toHaveBeenCalledOnce();
-    const options = mocks.captured.ttsSynth as TtsSynthOptions;
-    expect(options.config).toEqual(endpoints());
-    expect(options.getApiKey).toBe(state.getTtsApiKey);
-    expect(mocks.openaiSynth).toHaveBeenCalledWith("hello", undefined);
+    expect(openaiCalls()).toHaveLength(1);
+    const [url, init] = mocks.fetchImpl.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://tts.test/v1/audio/speech");
+    const body = JSON.parse(init.body as string);
+    expect(body.input).toBe("hello");
+    const headers = init.headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer tts-key");
+    expect(state.getTtsApiKey).toHaveBeenCalled();
   });
 
   it("routes irodori synth with the active speaker parameters", async () => {
@@ -334,17 +348,19 @@ describe("wireVoicePipeline", () => {
 
     await playbackOptions().pipeline!.synth!("hello");
 
-    const factory = mocks.captured.irodoriFactory as IrodoriSynthFactoryDeps;
-    expect(factory.getParams()).toEqual({
-      baseUrl: "http://irodori.test",
-      referenceId: "speaker-b",
-      refUrl: "/speaker-b.wav",
-      numSteps: 24,
-      cfgScaleText: undefined,
-      cfgScaleSpeaker: undefined,
-      seconds: undefined,
-    });
-    expect(mocks.irodoriFactorySynth).toHaveBeenCalledWith("hello", undefined);
+    expect(mocks.ensureRegistered).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: "http://irodori.test",
+        id: "speaker-b",
+        refUrl: "/speaker-b.wav",
+      }),
+    );
+    expect(irodoriCalls()).toHaveLength(1);
+    const [url, init] = irodoriCalls()[0] as [string, RequestInit];
+    expect(url).toBe("http://irodori.test/synthesize");
+    const form = init.body as FormData;
+    expect(form.get("reference_id")).toBe("speaker-b");
+    expect(form.get("num_steps")).toBe("24");
   });
 
   it("caches filler-pool audio and re-synthesizes it after a TTS settings change", async () => {
@@ -354,15 +370,15 @@ describe("wireVoicePipeline", () => {
     await synth("first");
     await synth("first");
     await synth("repeat");
-    expect(mocks.openaiSynth).toHaveBeenCalledTimes(2);
+    expect(openaiCalls()).toHaveLength(2);
 
     await synth("a response sentence");
     await synth("a response sentence");
-    expect(mocks.openaiSynth).toHaveBeenCalledTimes(4);
+    expect(openaiCalls()).toHaveLength(4);
 
     state.setEndpoints(endpoints({ tts_voice: "another-voice" }));
     await synth("first");
-    expect(mocks.openaiSynth).toHaveBeenCalledTimes(5);
+    expect(openaiCalls()).toHaveLength(5);
   });
 
   it("invalidates cached filler audio when the irodori speaker or tuning changes", async () => {
@@ -378,15 +394,15 @@ describe("wireVoicePipeline", () => {
 
     await synth("first");
     await synth("first");
-    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(1);
+    expect(irodoriCalls()).toHaveLength(1);
 
     state.setEndpoints(irodori(32));
     await synth("first");
-    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(2);
+    expect(irodoriCalls()).toHaveLength(2);
 
     state.setActiveSpeaker({ id: "speaker-b", ref_url: "/speaker-b.wav" });
     await synth("first");
-    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(3);
+    expect(irodoriCalls()).toHaveLength(3);
   });
 
   it("re-synthesizes filler after the clip behind the active voice is replaced", async () => {
@@ -398,12 +414,12 @@ describe("wireVoicePipeline", () => {
 
     await synth("first");
     await synth("first");
-    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(1);
+    expect(irodoriCalls()).toHaveLength(1);
 
     // Importing a clip over an existing name replaces the voice while its id stays the same.
     mocks.voiceRevision.mockReturnValue(1);
     await synth("first");
-    expect(mocks.irodoriFactorySynth).toHaveBeenCalledTimes(2);
+    expect(irodoriCalls()).toHaveLength(2);
   });
 
   it("drops cached filler audio when the filler pool is edited", async () => {
@@ -418,7 +434,7 @@ describe("wireVoicePipeline", () => {
     });
     await synth("first");
 
-    expect(mocks.openaiSynth).toHaveBeenCalledTimes(2);
+    expect(openaiCalls()).toHaveLength(2);
   });
 
   it("reads pipeline, sink, filler, and VAD settings at call time", async () => {
@@ -463,7 +479,7 @@ describe("wireVoicePipeline", () => {
     const options = mocks.captured.sttVad as SttVadOptions;
 
     expect(result).toBe(mocks.sttVad);
-    expect(mocks.selectFetch).toHaveBeenCalledOnce();
+    expect(mocks.selectFetch).toHaveBeenCalled();
     expect(options.fetch).toBe(selectedFetch);
     expect(options.config).toBe(snapshot);
     expect(options.getApiKey).toBe(state.getSttApiKey);

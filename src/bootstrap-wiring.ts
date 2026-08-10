@@ -43,6 +43,7 @@ import {
 import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
+import { emotionTextModeFor, resolveTtsProviderKind } from "./io/tts-provider";
 import { createVoiceImportFlow } from "./io/voice-import-flow";
 import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeOrphanVrm, removeUserVrm } from "./io/vrm-import";
@@ -671,7 +672,7 @@ export async function wireBroker(deps: {
   const loadBrokerTable = async (
     provider: string | undefined,
   ): Promise<Record<string, string> | null> => {
-    if (provider !== "irodori") return null;
+    if (emotionTextModeFor(resolveTtsProviderKind(provider)) !== "enum") return null;
     try {
       return await loadEmotionTextTable({ provider: "irodori" });
     } catch (err) {

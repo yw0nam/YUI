@@ -20,6 +20,7 @@ import {
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../io/persisted-store";
 import type { createScreenshotSettings } from "../../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
+import { isTtsProviderKind, resolveTtsProviderKind } from "../../io/tts-provider";
 import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../../io/vad-settings";
 import { getLocale, t } from "../i18n";
 import type { VoiceInputStatusSnapshot } from "../voice-input-status";
@@ -283,12 +284,12 @@ export function createReflect(deps: ReflectDeps): Reflect {
     langSegEl.style.setProperty("--seg", String(idx));
   }
 
-  // Effective voice engine — use valid override if present, else bundled default, else fall back to irodori.
+  // Effective voice engine — use valid override if present, else bundled default, else the
+  // provider module's default (see tts-provider.ts's resolveTtsProviderKind).
   function effectiveProvider(): VoiceEngine {
     const ov = endpointsSettings.get().tts_provider;
-    if (ov === "irodori" || ov === "openai") return ov;
-    const def = getDefaultProvider?.();
-    return def === "openai" ? "openai" : "irodori";
+    if (isTtsProviderKind(ov)) return ov;
+    return resolveTtsProviderKind(getDefaultProvider?.());
   }
 
   // TTS dropdown value + irodori/openai subview display + speaker enable/disable, matching effective provider.
