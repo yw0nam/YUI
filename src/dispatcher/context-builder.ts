@@ -24,12 +24,13 @@ function userImagesOf(env: BusEnvelope): string[] | undefined {
 }
 
 function agentOf(env: BusEnvelope): TriggerMeta["agent"] | undefined {
-  if (env.event_name !== "agent.done") return undefined;
+  if (env.event_name !== "agent.done" && env.event_name !== "agent.needs_input") return undefined;
   const payload = env.payload;
   if (
     typeof payload?.tool !== "string" ||
     typeof payload?.project !== "string" ||
     typeof payload?.cwd !== "string" ||
+    (payload?.phase !== "done" && payload?.phase !== "needs_input") ||
     typeof payload?.summary !== "string" ||
     typeof payload?.ts !== "number"
   ) {
@@ -42,6 +43,9 @@ function agentOf(env: BusEnvelope): TriggerMeta["agent"] | undefined {
     ...(payload.status === "success" || payload.status === "error"
       ? { status: payload.status }
       : {}),
+    phase: payload.phase,
+    ...(typeof payload.session_id === "string" ? { session_id: payload.session_id } : {}),
+    ...(typeof payload.detail === "string" ? { detail: payload.detail } : {}),
     summary: payload.summary,
     ts: payload.ts,
   };
@@ -58,6 +62,7 @@ function agentCatchupOf(env: BusEnvelope): TriggerMeta["agent_catchup"] | undefi
       item != null &&
       typeof item.tool === "string" &&
       typeof item.project === "string" &&
+      (item.phase === "done" || item.phase === "needs_input") &&
       typeof item.summary === "string" &&
       typeof item.ts === "number"
     );
@@ -71,6 +76,9 @@ function agentCatchupOf(env: BusEnvelope): TriggerMeta["agent_catchup"] | undefi
       ...(item.status === "success" || item.status === "error"
         ? { status: item.status as "success" | "error" }
         : {}),
+      phase: item.phase as "done" | "needs_input",
+      ...(typeof item.session_id === "string" ? { session_id: item.session_id as string } : {}),
+      ...(typeof item.detail === "string" ? { detail: item.detail as string } : {}),
       summary: item.summary as string,
       ts: item.ts as number,
     })),

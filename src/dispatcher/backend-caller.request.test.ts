@@ -385,6 +385,7 @@ describe("backend_caller — agent trigger forwarding", () => {
         project: "my-widget",
         cwd: "/home/user/my-widget",
         status: "success",
+        phase: "done",
         summary: "Implemented the gizmo feature",
         ts: 1_717_000_000_000,
       },
@@ -399,6 +400,7 @@ describe("backend_caller — agent trigger forwarding", () => {
       project: "my-widget",
       cwd: "/home/user/my-widget",
       status: "success",
+      phase: "done",
       summary: "Implemented the gizmo feature",
       ts: 1_717_000_000_000,
     });
@@ -421,6 +423,7 @@ describe("backend_caller — agent trigger forwarding", () => {
         tool: "opencode",
         project: "api",
         cwd: "/home/user/api",
+        phase: "done",
         summary: "Refactored the handler",
         ts: 1_717_000_000_000,
       },
@@ -447,12 +450,14 @@ describe("backend_caller — agent trigger forwarding", () => {
             tool: "claude-code",
             project: "alpha",
             status: "success",
+            phase: "done",
             summary: "Done with alpha",
             ts: 1_717_000_000_000,
           },
           {
             tool: "opencode",
             project: "beta",
+            phase: "done",
             summary: "Done with beta",
             ts: 1_717_000_001_000,
           },
@@ -471,12 +476,14 @@ describe("backend_caller — agent trigger forwarding", () => {
           tool: "claude-code",
           project: "alpha",
           status: "success",
+          phase: "done",
           summary: "Done with alpha",
           ts: 1_717_000_000_000,
         },
         {
           tool: "opencode",
           project: "beta",
+          phase: "done",
           summary: "Done with beta",
           ts: 1_717_000_001_000,
         },
@@ -485,7 +492,7 @@ describe("backend_caller — agent trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toContain("(my coding tasks wrapped up while I was away)");
+    expect(userMsg.content).toContain("(my coding tasks piled up while I was away)");
   });
 
   it("(d) agent.done with malformed payload → kind 'agent' but no trigger.agent", async () => {
@@ -504,6 +511,45 @@ describe("backend_caller — agent trigger forwarding", () => {
     expect(trigger.kind).toBe("agent");
     expect("agent" in trigger).toBe(false);
     expect("agent_catchup" in trigger).toBe(false);
+  });
+
+  it("(e) agent.needs_input → trigger.kind 'agent' + trigger.agent with phase/session_id/detail; needs_input marker", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 34,
+      source: "timer_scheduler",
+      event_name: "agent.needs_input",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        tool: "claude-code",
+        project: "my-widget",
+        cwd: "/home/user/my-widget",
+        phase: "needs_input",
+        session_id: "sess-1",
+        detail: "waiting on Bash: rm -rf /tmp/x",
+        summary: "",
+        ts: 1_717_000_000_000,
+      },
+    };
+    await caller.call(turnOf(env));
+    const [, request] = script.spy.mock.calls[0];
+    const trigger = clientContextOf(request.input).trigger as Record<string, unknown>;
+    expect(trigger.kind).toBe("agent");
+    expect(trigger.agent).toEqual({
+      tool: "claude-code",
+      project: "my-widget",
+      cwd: "/home/user/my-widget",
+      phase: "needs_input",
+      session_id: "sess-1",
+      detail: "waiting on Bash: rm -rf /tmp/x",
+      summary: "",
+      ts: 1_717_000_000_000,
+    });
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toContain("(one of my coding tasks is waiting on my input)");
   });
 });
 

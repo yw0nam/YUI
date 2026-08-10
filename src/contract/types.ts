@@ -229,22 +229,28 @@ export interface TriggerMeta {
   cue?: CueMeta;
   /** proactive only: Math.round(gap_ms / 60000). */
   idle_elapsed_min?: number;
-  /** agent.completion — single coding-agent task finished. */
+  /** agent.done / agent.needs_input — single coding-agent lifecycle event. */
   agent?: {
     tool: string; // "claude-code" | "opencode" | <string>
     project: string;
     cwd: string;
-    status?: "success" | "error";
+    status?: "success" | "error"; // meaningful for phase:"done" only
+    phase: "done" | "needs_input";
+    session_id?: string; // opaque pass-through, no client interpretation
+    detail?: string; // judgment material for the backend, e.g. transcript excerpt or pending tool call
     summary: string; // speech material from the external hook (already summarized or raw)
     ts: number; // client epoch ms
   };
-  /** agent.catchup — burst of buffered completions on return. */
+  /** agent.catchup — burst of buffered lifecycle events on return. */
   agent_catchup?: {
     count: number;
     items: Array<{
       tool: string;
       project: string;
       status?: "success" | "error";
+      phase: "done" | "needs_input";
+      session_id?: string;
+      detail?: string;
       summary: string;
       ts: number;
     }>;

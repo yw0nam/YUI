@@ -299,9 +299,10 @@ const ko: Record<string, string> = {
   "gaze.label": "커서 따라보기",
   "gaze.sub": "캐릭터가 마우스 커서를 따라 눈과 고개를 움직입니다.",
   "gaze.aria": "커서 따라보기",
-  "agentNotify.label": "에이전트 완료 알림",
-  "agentNotify.sub": "Claude Code, opencode 등 코딩 에이전트가 작업을 마치면 먼저 말합니다.",
-  "agentNotify.aria": "에이전트 완료 알림",
+  "agentNotify.label": "에이전트 알림",
+  "agentNotify.sub":
+    "Claude Code, opencode 등 코딩 에이전트가 작업을 마치거나 입력이 필요하면 먼저 말합니다.",
+  "agentNotify.aria": "에이전트 알림",
 
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",

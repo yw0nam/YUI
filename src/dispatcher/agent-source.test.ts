@@ -1,5 +1,5 @@
 /**
- * agent-source.test.ts — agent completion firing source.
+ * agent-source.test.ts — agent lifecycle firing source.
  *
  * Locks the event-driven (inbox) + presence-gated state model:
  *  1. present at inbox arrival → immediate agent.done; payload has tool/project/cwd/summary/ts.
@@ -10,12 +10,14 @@
  *  6. !isEnabled() → inbox events are dropped silently.
  *  7. malformed or null payload does not crash.
  *  8. start() idempotent; stop() safe off-Tauri (listen: undefined).
+ *  9. phase:"needs_input" fires agent.needs_input (present) with session_id/detail passed through.
+ *  10. buffer dedup: same session_id+phase keeps latest only, without evicting other entries.
  *
  * All deps injected (fakeBus / fakeInbox / fakeListen / clock) — no network, no Tauri.
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { AgentDone } from "../io/agent-inbox";
+import type { AgentEvent } from "../io/agent-inbox";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import { createAgentSource } from "./agent-source";
 import type { BusEnvelope, EventBus } from "./event-bus";
@@ -48,10 +50,10 @@ function idleTick(os_idle_ms: number | null, ts = 0): OsEventPayload {
   return { event_name: "os_idle_tick", ts, data: { os_idle_ms } };
 }
 
-type OnInboxFn = (cb: (p: AgentDone) => void, deps?: { listen?: OsEventListen }) => () => void;
+type OnInboxFn = (cb: (p: AgentEvent) => void, deps?: { listen?: OsEventListen }) => () => void;
 
-function fakeInbox(): { onInbox: OnInboxFn; emit: (p: AgentDone) => void } {
-  let handler: ((p: AgentDone) => void) | undefined;
+function fakeInbox(): { onInbox: OnInboxFn; emit: (p: AgentEvent) => void } {
+  let handler: ((p: AgentEvent) => void) | undefined;
   const onInbox: OnInboxFn = vi.fn((cb) => {
     handler = cb;
     return vi.fn();
@@ -64,8 +66,20 @@ function done(
   project = "my-project",
   ts = 1000,
   status?: "success" | "error",
-): AgentDone {
-  return { tool, project, cwd: `/home/user/${project}`, status, summary: `${tool} completed`, ts };
+  phase: "done" | "needs_input" = "done",
+  extra?: { session_id?: string; detail?: string },
+): AgentEvent {
+  return {
+    tool,
+    project,
+    cwd: `/home/user/${project}`,
+    status,
+    phase,
+    ...(extra?.session_id !== undefined ? { session_id: extra.session_id } : {}),
+    ...(extra?.detail !== undefined ? { detail: extra.detail } : {}),
+    summary: `${tool} completed`,
+    ts,
+  };
 }
 
 describe("agent_source — present: immediate agent.done (spec §1)", () => {
@@ -508,9 +522,182 @@ describe("agent_source — malformed payload (spec §7)", () => {
     await src.start();
 
     emitIdle(idleTick(LOW_IDLE));
-    expect(() => emitInbox(null as unknown as AgentDone)).not.toThrow();
-    expect(() => emitInbox(undefined as unknown as AgentDone)).not.toThrow();
-    expect(() => emitInbox({} as unknown as AgentDone)).not.toThrow();
+    expect(() => emitInbox(null as unknown as AgentEvent)).not.toThrow();
+    expect(() => emitInbox(undefined as unknown as AgentEvent)).not.toThrow();
+    expect(() => emitInbox({} as unknown as AgentEvent)).not.toThrow();
+
+    src.stop();
+  });
+
+  it("unrecognized phase value is dropped silently (nothing pushed, nothing buffered)", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+
+    const src = createAgentSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+    });
+    await src.start();
+
+    emitIdle(idleTick(LOW_IDLE));
+    emitInbox({
+      tool: "claude-code",
+      project: "p",
+      cwd: "/",
+      phase: "bogus" as unknown as "done",
+      summary: "s",
+      ts: 1,
+    });
+    expect(pushed).toHaveLength(0);
+
+    src.stop();
+  });
+});
+
+describe("agent_source — phase: needs_input (spec §9)", () => {
+  it("present + phase needs_input → pushes agent.needs_input with session_id/detail", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+
+    const src = createAgentSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+    });
+    await src.start();
+
+    emitIdle(idleTick(LOW_IDLE));
+    emitInbox(
+      done("claude-code", "widget", 1000, undefined, "needs_input", {
+        session_id: "sess-1",
+        detail: "waiting on Bash: rm -rf /tmp/x",
+      }),
+    );
+
+    expect(pushed).toHaveLength(1);
+    const e = pushed[0];
+    expect(e.event_name).toBe("agent.needs_input");
+    expect(e.payload).toMatchObject({
+      tool: "claude-code",
+      project: "widget",
+      phase: "needs_input",
+      session_id: "sess-1",
+      detail: "waiting on Bash: rm -rf /tmp/x",
+    });
+
+    src.stop();
+  });
+
+  it("catchup items carry phase, session_id, and detail when present", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+
+    const src = createAgentSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+    });
+    await src.start();
+
+    emitIdle(idleTick(HIGH_IDLE));
+    emitInbox(done("claude-code", "proj-a", 1000, "success", "done"));
+    emitInbox(
+      done("claude-code", "proj-b", 2000, undefined, "needs_input", {
+        session_id: "sess-9",
+        detail: "waiting on Write: file.ts",
+      }),
+    );
+
+    emitIdle(idleTick(LOW_IDLE));
+    const items = (pushed[0].payload as { items: Array<Record<string, unknown>> }).items;
+    expect(items[0]).toMatchObject({ phase: "done" });
+    expect("session_id" in items[0]).toBe(false);
+    expect(items[1]).toMatchObject({
+      phase: "needs_input",
+      session_id: "sess-9",
+      detail: "waiting on Write: file.ts",
+    });
+
+    src.stop();
+  });
+});
+
+describe("agent_source — buffer dedup: same session_id+phase keeps latest only (spec §10)", () => {
+  it("duplicate session_id+phase in buffer replaces the earlier entry instead of evicting others", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+
+    const src = createAgentSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+    });
+    await src.start();
+
+    emitIdle(idleTick(HIGH_IDLE)); // away
+    // Four distinct sessions' permission prompts fill the buffer.
+    emitInbox(done("claude-code", "proj", 10, undefined, "needs_input", { session_id: "s1" }));
+    emitInbox(done("claude-code", "proj", 20, undefined, "needs_input", { session_id: "s2" }));
+    emitInbox(done("claude-code", "proj", 30, undefined, "needs_input", { session_id: "s3" }));
+    emitInbox(done("claude-code", "proj", 40, undefined, "needs_input", { session_id: "s4" }));
+    // A repeat prompt from s1 (same session_id+phase) must replace, not evict s2's slot.
+    emitInbox(
+      done("claude-code", "proj", 50, undefined, "needs_input", {
+        session_id: "s1",
+        detail: "second prompt",
+      }),
+    );
+
+    emitIdle(idleTick(LOW_IDLE));
+    expect(pushed).toHaveLength(1);
+    const p = pushed[0].payload as {
+      count: number;
+      items: Array<{ session_id?: string; ts: number; detail?: string }>;
+    };
+    // Still 4 entries — s1 replaced in place, no cap-driven eviction of s2/s3/s4.
+    expect(p.count).toBe(4);
+    expect(p.items.map((i) => i.session_id).sort()).toEqual(["s1", "s2", "s3", "s4"]);
+    const s1 = p.items.find((i) => i.session_id === "s1")!;
+    expect(s1.ts).toBe(50);
+    expect(s1.detail).toBe("second prompt");
+
+    src.stop();
+  });
+
+  it("dedup does not collapse different phases from the same session", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+
+    const src = createAgentSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+    });
+    await src.start();
+
+    emitIdle(idleTick(HIGH_IDLE));
+    emitInbox(done("claude-code", "proj", 10, undefined, "needs_input", { session_id: "s1" }));
+    emitInbox(done("claude-code", "proj", 20, "success", "done", { session_id: "s1" }));
+
+    emitIdle(idleTick(LOW_IDLE));
+    const p = pushed[0].payload as { count: number };
+    expect(p.count).toBe(2);
 
     src.stop();
   });

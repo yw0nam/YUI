@@ -1,13 +1,17 @@
 /**
- * agent_source — agent completion firing source.
+ * agent_source — agent lifecycle firing source.
  *
  * Event-driven (inbox push). Listens on two channels:
  *  1. OS idle ticks (OS_EVENT_CHANNEL) — tracks presence; detects idle→present edge.
- *  2. agent-inbox (onAgentInbox) — receives AgentDone completions from the Tauri side.
+ *  2. agent-inbox (onAgentInbox) — receives AgentEvent lifecycle events from the Tauri side.
  *
- * When present AND the pipeline is idle: inbox arrival fires agent.done immediately.
- * When present-but-busy (backend call in flight or speech playing) OR away: completions
- * buffer per-tool (BUFFER_CAP = 5, drop oldest on overflow).
+ * When present AND the pipeline is idle: inbox arrival fires agent.done or
+ * agent.needs_input immediately, per the event's phase.
+ * When present-but-busy (backend call in flight or speech playing) OR away: events
+ * buffer per-tool (BUFFER_CAP = 5, drop oldest on overflow). Within a tool's buffer, an
+ * arrival sharing session_id and phase with an already-buffered entry replaces it in
+ * place instead of appending — a chatty session's repeated prompts can't evict other
+ * sessions' buffered events out of the cap.
  * On the idle→present edge OR the busy→idle edge: if buffer has content, fires ONE
  * agent.catchup (flatten all tools, sort by ts ascending), then clears the buffer.
  *
@@ -15,7 +19,7 @@
  * speak. No speak/don't-speak gate and no persona state live here.
  */
 
-import type { AgentDone } from "../io/agent-inbox";
+import type { AgentEvent } from "../io/agent-inbox";
 import { onAgentInbox } from "../io/agent-inbox";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import { subscribeOsEvent } from "../io/tauri-listen";
@@ -34,7 +38,7 @@ interface AgentSourceDeps {
   /** Read on every inbox arrival — gates firing without stopping the listener. */
   isEnabled: () => boolean;
   /** Injectable inbox subscriber; defaults to the real onAgentInbox. */
-  onInbox?: (cb: (p: AgentDone) => void, deps?: { listen?: OsEventListen }) => () => void;
+  onInbox?: (cb: (p: AgentEvent) => void, deps?: { listen?: OsEventListen }) => () => void;
   /** Injectable channel listen; defaults to the resolved Tauri listen. */
   listen?: OsEventListen;
   /** Injectable clock; defaults to Date.now. */
@@ -57,8 +61,8 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
   let unlistenInbox: (() => void) | undefined;
   let unlistenBusy: (() => void) | undefined;
 
-  /** Per-tool buffered completions (away or busy accumulation). */
-  const buffer = new Map<string, AgentDone[]>();
+  /** Per-tool buffered lifecycle events (away or busy accumulation). */
+  const buffer = new Map<string, AgentEvent[]>();
 
   function isPresent(): boolean {
     return lastIdleMs != null && lastIdleMs <= present_max_idle_ms;
@@ -75,6 +79,9 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
       tool: string;
       project: string;
       status?: "success" | "error";
+      phase: "done" | "needs_input";
+      session_id?: string;
+      detail?: string;
       summary: string;
       ts: number;
     }> = [];
@@ -84,6 +91,9 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
           tool: p.tool,
           project: p.project,
           ...(p.status !== undefined ? { status: p.status } : {}),
+          phase: p.phase,
+          ...(p.session_id !== undefined ? { session_id: p.session_id } : {}),
+          ...(p.detail !== undefined ? { detail: p.detail } : {}),
           summary: p.summary,
           ts: p.ts,
         });
@@ -125,18 +135,24 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
     wasPresent = present;
   }
 
-  function handleInbox(p: AgentDone): void {
+  function handleInbox(p: AgentEvent): void {
     if (!isEnabled()) return;
     // Guard against malformed IPC payloads that slipped through the type cast.
     try {
-      if (typeof (p as unknown as { tool?: unknown })?.tool !== "string") {
+      const tool = (p as unknown as { tool?: unknown })?.tool;
+      if (typeof tool !== "string") {
         log.debug("inbox_malformed", { degrade: true });
+        return;
+      }
+      const phase = (p as unknown as { phase?: unknown })?.phase;
+      if (phase !== "done" && phase !== "needs_input") {
+        log.debug("inbox_malformed_phase", { degrade: true });
         return;
       }
       if (isPresent() && !isBusy()) {
         bus.push({
           source: "timer_scheduler",
-          event_name: "agent.done",
+          event_name: phase === "needs_input" ? "agent.needs_input" : "agent.done",
           ts: now(),
           hint_tier: 2,
           dnd_override: false,
@@ -145,15 +161,29 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
             project: p.project,
             cwd: p.cwd,
             ...(p.status !== undefined ? { status: p.status } : {}),
+            phase: p.phase,
+            ...(p.session_id !== undefined ? { session_id: p.session_id } : {}),
+            ...(p.detail !== undefined ? { detail: p.detail } : {}),
             summary: p.summary,
             ts: p.ts,
           },
         });
       } else {
-        // Buffer per tool, drop the oldest when the cap is exceeded.
+        // Buffer per tool; an arrival sharing session_id+phase with an already-buffered
+        // entry replaces it in place, so a chatty session's repeated prompts can't evict
+        // other sessions' buffered events out of the cap. Otherwise append, drop the
+        // oldest when the cap is exceeded.
         const arr = buffer.get(p.tool) ?? [];
-        arr.push(p);
-        if (arr.length > BUFFER_CAP) arr.shift();
+        const dupIdx =
+          p.session_id !== undefined
+            ? arr.findIndex((item) => item.session_id === p.session_id && item.phase === p.phase)
+            : -1;
+        if (dupIdx !== -1) {
+          arr[dupIdx] = p;
+        } else {
+          arr.push(p);
+          if (arr.length > BUFFER_CAP) arr.shift();
+        }
         buffer.set(p.tool, arr);
       }
     } catch (err) {

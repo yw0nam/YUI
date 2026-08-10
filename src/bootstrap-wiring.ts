@@ -503,7 +503,8 @@ export function wireWindowSources(deps: {
 
 /**
  * tier2 utterance candidate sources: proactive.<id> (idle dramatization) + schedule.<id>
- * (time-of-day greeting) + agent.done/catchup + signals.push/catchup, all over the presence gate.
+ * (time-of-day greeting) + agent.done/needs_input/catchup + signals.push/catchup, all over the
+ * presence gate.
  * Created and started; the started refs are returned for interaction-notes and teardown.
  */
 export function wireDispatcherSources(deps: {

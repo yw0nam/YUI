@@ -330,7 +330,7 @@ describe("createQuickControls — toggles + gain row", () => {
     qc.dispose();
   });
 
-  // ── Agent completion notifications toggle row (Advanced tab) ─────────────
+  // ── Agent notifications toggle row (Advanced tab) ─────────────────────────
 
   it("renders the agentNotify toggle row only when agentNotifySettings is provided, OFF by default", () => {
     const withoutStore = buildQc();
@@ -344,10 +344,10 @@ describe("createQuickControls — toggles + gain row", () => {
     expect(agentNotifySwitch).not.toBeNull();
     expect(agentNotifySwitch!.getAttribute("aria-checked")).toBe("false");
     expect(agentNotifySwitch!.getAttribute("role")).toBe("switch");
-    expect(agentNotifySwitch!.getAttribute("aria-label")).toBe("에이전트 완료 알림");
+    expect(agentNotifySwitch!.getAttribute("aria-label")).toBe("에이전트 알림");
 
     const row = agentNotifySwitch!.closest(".yui-row")!;
-    expect(row.querySelector(".yui-row__label")!.textContent).toContain("에이전트 완료 알림");
+    expect(row.querySelector(".yui-row__label")!.textContent).toContain("에이전트 알림");
     qc.dispose();
   });
 

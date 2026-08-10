@@ -300,10 +300,10 @@ const ja: Record<string, string> = {
   "gaze.label": "カーソルを追う",
   "gaze.sub": "キャラクターがマウスカーソルの動きに合わせて目と頭を向けます。",
   "gaze.aria": "カーソルを追う",
-  "agentNotify.label": "エージェント完了通知",
+  "agentNotify.label": "エージェント通知",
   "agentNotify.sub":
-    "Claude Code や opencode などのコーディングエージェントがタスクを終えたら先に知らせます。",
-  "agentNotify.aria": "エージェント完了通知",
+    "Claude Code や opencode などのコーディングエージェントがタスクを終えたとき、または入力が必要なときに先に知らせます。",
+  "agentNotify.aria": "エージェント通知",
 
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",
