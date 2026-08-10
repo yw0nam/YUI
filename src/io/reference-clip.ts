@@ -20,7 +20,7 @@ export async function resolveReferenceClipUrl(refUrl: string): Promise<string> {
 }
 
 /** Schemes the ref resolvers produce that the injected fetch (Tauri's reqwest-backed fetchCORS) cannot read. */
-const WEBVIEW_ONLY_SCHEME = /^(asset|blob):/i;
+const WEBVIEW_ONLY_SCHEME = /^asset:/i;
 
 /** Fetches a reference clip's bytes, choosing the right fetch for the URL's scheme. */
 export async function fetchReferenceClip(
