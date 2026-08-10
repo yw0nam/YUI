@@ -8,18 +8,13 @@ import { createFillerAudioCache } from "./io/filler-audio-cache";
 import { createFillerLoop, type FillerLoop } from "./io/filler-loop";
 import { effectiveFillerPool } from "./io/filler-pool";
 import type { FillerSettings } from "./io/filler-settings";
-import { createIrodoriSynth, type TtsSynth } from "./io/irodori-synth";
-import {
-  createIrodoriSynthFactory,
-  type IrodoriSynthParams,
-  irodoriParamsKey,
-} from "./io/irodori-synth-factory";
-import { ensureRegistered, evictRegistration, voiceRevision } from "./io/irodori-voices";
+import { createIrodoriTtsProvider } from "./io/irodori-synth";
 import type { SpeakerOption } from "./io/speaker-selection";
 import { createSpeechPlayback, type SpeechPlayback } from "./io/speech-playback";
 import type { SttVad } from "./io/stt-vad";
 import { TTS_SKIP } from "./io/tts-pipeline";
-import { createTtsSynth } from "./io/tts-synth";
+import { selectProvider, type TtsProvider } from "./io/tts-provider";
+import { createOpenAiTtsProvider } from "./io/tts-synth";
 import type { Renderer } from "./renderer";
 import type { Surfaces } from "./ui/surfaces";
 import type { VoiceInputStatus } from "./ui/voice-input-status";
@@ -63,75 +58,25 @@ export interface VoicePipeline {
  * without rewiring. The caller registers HMR teardown via the returned dispose().
  */
 export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
-  const irodoriParams = (): IrodoriSynthParams => {
-    const eps = deps.getEndpoints();
-    const active = deps.speakerSelection.getActive();
-    if (!eps.irodori_base_url || !active.id) {
-      throw new Error("irodori provider requires irodori_base_url + irodori_speaker");
-    }
-    return {
-      baseUrl: eps.irodori_base_url,
-      referenceId: active.id,
-      refUrl: active.ref_url,
-      numSteps: eps.irodori_num_steps,
-      cfgScaleText: eps.irodori_cfg_scale_text,
-      cfgScaleSpeaker: eps.irodori_cfg_scale_speaker,
-      seconds: eps.irodori_seconds,
-    };
+  const providers = {
+    irodori: createIrodoriTtsProvider({
+      getEndpoints: deps.getEndpoints,
+      getActiveSpeaker: () => deps.speakerSelection.getActive(),
+      selectFetch,
+    }),
+    openai: createOpenAiTtsProvider({
+      getEndpoints: deps.getEndpoints,
+      getApiKey: deps.getTtsApiKey,
+      selectFetch,
+    }),
   };
-
-  // irodori synth closure memoized per speaker/tuning keys + 422 self-heal. Not reconstructed per sentence.
-  let irodoriFactory: TtsSynth | undefined;
-  const irodoriSynth = async (input: string, signal?: AbortSignal): Promise<ArrayBuffer> => {
-    const f = await selectFetch();
-    irodoriFactory ??= createIrodoriSynthFactory({
-      getParams: irodoriParams,
-      ensureRegistered,
-      evictRegistration,
-      buildSynth: (p, fetchImpl) =>
-        createIrodoriSynth({
-          baseUrl: p.baseUrl,
-          referenceId: p.referenceId,
-          fetch: fetchImpl,
-          numSteps: p.numSteps,
-          cfgScaleText: p.cfgScaleText,
-          cfgScaleSpeaker: p.cfgScaleSpeaker,
-          seconds: p.seconds,
-        }),
-      fetch: f ?? globalThis.fetch,
-    });
-    return irodoriFactory(input, signal);
-  };
+  const activeProvider = (): TtsProvider => selectProvider(deps.getEndpoints(), providers);
 
   const effectiveFiller = () =>
     effectiveFillerPool(deps.fillerSettings.get(), deps.getFillerConfig());
 
-  // The provider settings that change the rendered audio. The irodori voice revision is part of it
-  // because an import over an existing name replaces the clip without changing the speaker id.
-  const ttsParamsKey = (): string => {
-    const eps = deps.getEndpoints();
-    if (eps.tts_provider === "irodori") {
-      const params = irodoriParams();
-      const revision = voiceRevision(params.baseUrl, params.referenceId);
-      return `irodori::${irodoriParamsKey(params)}::${revision}`;
-    }
-    return ["openai", eps.tts_base_url, eps.tts_model, eps.tts_voice, eps.tts_speed].join("::");
-  };
-
   const cachedSynth = createFillerAudioCache({
-    synth: async (input, signal) => {
-      const eps = deps.getEndpoints();
-      if (eps.tts_provider === "irodori") return irodoriSynth(input, signal);
-      const f = await selectFetch();
-      return createTtsSynth({
-        config: eps,
-        fetch: f,
-        model: eps.tts_model,
-        voice: eps.tts_voice,
-        speed: eps.tts_speed,
-        getApiKey: deps.getTtsApiKey,
-      })(input, signal);
-    },
+    synth: (input, signal) => activeProvider().synth(input, signal),
     // The pipeline synthesizes trimmed sentences; a cue-tagged or multi-sentence phrase simply misses.
     isFiller: (text) => {
       const pool = effectiveFiller();
@@ -144,7 +89,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     // an older key is dropped, which is also what keeps the map to the current pool.
     paramsKey: () => {
       const pool = effectiveFiller();
-      return [ttsParamsKey(), ...pool.first, ...pool.repeat].join("\n");
+      return [activeProvider().paramsKey(), ...pool.first, ...pool.repeat].join("\n");
     },
   });
 
@@ -152,14 +97,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   const synth = async (input: string, signal?: AbortSignal): Promise<ArrayBuffer> => {
     // TTS inactive (toggle OFF or server unset) quietly skips — expressions/motions, bubble unchanged.
     if (!deps.ttsSettings.get().enabled) return Promise.reject(TTS_SKIP);
-    const eps = deps.getEndpoints();
-    if (eps.tts_provider === "irodori") {
-      if (!eps.irodori_base_url || !deps.speakerSelection.getActive().id) {
-        return Promise.reject(TTS_SKIP);
-      }
-    } else if (!eps.tts_base_url) {
-      return Promise.reject(TTS_SKIP);
-    }
+    if (!activeProvider().isReady()) return Promise.reject(TTS_SKIP);
     return cachedSynth(input, signal);
   };
 

@@ -10,6 +10,8 @@ interface EnsureRegisteredOptions {
   refUrl: string;
   fetch?: typeof fetch;
   logger?: Logger;
+  /** Aborts the list/fetch-ref/register fetches — a hung registration must not hang the caller forever. */
+  signal?: AbortSignal;
 }
 
 // Cache in-flight/settled promises so concurrent/repeat calls don't register twice. On failure, delete the entry to allow retry.
@@ -39,7 +41,7 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const voicesUrl = `${opts.baseUrl}/voices`;
 
-  const listRes = await fetchImpl(voicesUrl);
+  const listRes = await fetchImpl(voicesUrl, { signal: opts.signal });
   if (!listRes.ok) {
     throw new Error(`irodori voices list failed (HTTP ${listRes.status})`);
   }
@@ -50,13 +52,13 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
     return;
   }
 
-  const blob = await fetchReferenceClip(opts.refUrl, { fetch: fetchImpl });
+  const blob = await fetchReferenceClip(opts.refUrl, { fetch: fetchImpl, signal: opts.signal });
 
   const form = new FormData();
   form.append("reference_audio", blob, `${opts.id}.mp3`);
   form.append("voice_id", opts.id);
 
-  const postRes = await fetchImpl(voicesUrl, { method: "POST", body: form });
+  const postRes = await fetchImpl(voicesUrl, { method: "POST", body: form, signal: opts.signal });
   if (!postRes.ok) {
     throw new Error(`irodori voice register failed (HTTP ${postRes.status}) ${opts.id}`);
   }

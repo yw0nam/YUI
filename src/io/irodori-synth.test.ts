@@ -9,8 +9,18 @@
  * Based on live 8091 contract (probe complete). Tests use mock fetch only — no real server.
  */
 
-import { describe, expect, it, vi } from "vitest";
-import { createIrodoriSynth } from "./irodori-synth";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const irodoriVoices = vi.hoisted(() => ({
+  ensureRegistered: vi.fn().mockResolvedValue(undefined),
+  evictRegistration: vi.fn(),
+  voiceRevision: vi.fn(() => 0),
+}));
+
+vi.mock("./irodori-voices", () => irodoriVoices);
+
+import { createIrodoriSynth, createIrodoriTtsProvider } from "./irodori-synth";
+import { TTS_SYNTH_TIMEOUT_MS } from "./tts-provider";
 
 type FetchFn = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -300,5 +310,232 @@ describe("createIrodoriSynth", () => {
     });
     await expect(synth("x")).rejects.toThrow(/503/);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("createIrodoriTtsProvider", () => {
+  const PBASE = "http://localhost:8091";
+
+  function endpoints(over: Partial<{ irodori_base_url: string; irodori_num_steps: number }> = {}): {
+    irodori_base_url?: string;
+    irodori_num_steps?: number;
+  } {
+    return { irodori_base_url: PBASE, ...over };
+  }
+
+  function speaker(over: Partial<{ id: string; ref_url: string }> = {}): {
+    id: string;
+    ref_url: string;
+  } {
+    return { id: "spk-a", ref_url: "/spk-a.mp3", ...over };
+  }
+
+  beforeEach(() => {
+    irodoriVoices.ensureRegistered.mockClear().mockResolvedValue(undefined);
+    irodoriVoices.evictRegistration.mockClear();
+    irodoriVoices.voiceRevision.mockReset().mockReturnValue(0);
+  });
+
+  it("isReady requires both irodori_base_url and an active speaker id", () => {
+    const noBaseUrl = createIrodoriTtsProvider({
+      getEndpoints: () => endpoints({ irodori_base_url: "" }),
+      getActiveSpeaker: () => speaker(),
+      selectFetch: async () => undefined,
+    });
+    expect(noBaseUrl.isReady()).toBe(false);
+
+    const noSpeaker = createIrodoriTtsProvider({
+      getEndpoints: () => endpoints(),
+      getActiveSpeaker: () => speaker({ id: "" }),
+      selectFetch: async () => undefined,
+    });
+    expect(noSpeaker.isReady()).toBe(false);
+
+    const ready = createIrodoriTtsProvider({
+      getEndpoints: () => endpoints(),
+      getActiveSpeaker: () => speaker(),
+      selectFetch: async () => undefined,
+    });
+    expect(ready.isReady()).toBe(true);
+  });
+
+  it("emotionTextMode is enum", () => {
+    const provider = createIrodoriTtsProvider({
+      getEndpoints: () => endpoints(),
+      getActiveSpeaker: () => speaker(),
+      selectFetch: async () => undefined,
+    });
+    expect(provider.emotionTextMode()).toBe("enum");
+  });
+
+  it("paramsKey folds in the voice revision so an imported clip busts the cache key", () => {
+    const provider = createIrodoriTtsProvider({
+      getEndpoints: () => endpoints(),
+      getActiveSpeaker: () => speaker(),
+      selectFetch: async () => undefined,
+    });
+    const first = provider.paramsKey();
+    irodoriVoices.voiceRevision.mockReturnValue(1);
+    expect(provider.paramsKey()).not.toBe(first);
+  });
+
+  it("registers the active speaker before synthesizing", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    const provider = createIrodoriTtsProvider({
+      getEndpoints: () => endpoints(),
+      getActiveSpeaker: () => speaker(),
+      selectFetch: async () => fetchMock as unknown as typeof fetch,
+    });
+
+    await provider.synth("hi");
+
+    expect(irodoriVoices.ensureRegistered).toHaveBeenCalledWith({
+      baseUrl: PBASE,
+      id: "spk-a",
+      refUrl: "/spk-a.mp3",
+      fetch: fetchMock,
+      signal: expect.any(AbortSignal),
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("reuses the memoized synth closure across sentences with the same speaker/tuning", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    const provider = createIrodoriTtsProvider({
+      getEndpoints: () => endpoints(),
+      getActiveSpeaker: () => speaker(),
+      selectFetch: async () => fetchMock as unknown as typeof fetch,
+    });
+
+    await provider.synth("一。");
+    await provider.synth("二。");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const call of fetchMock.mock.calls) {
+      expect(call[0]).toBe(`${PBASE}/synthesize`);
+    }
+    expect(irodoriVoices.ensureRegistered).toHaveBeenCalledTimes(2);
+  });
+
+  it("on a 422 evicts registration, re-registers once, and retries the synth once", async () => {
+    let synthCalls = 0;
+    const fetchMock = vi.fn(async () => {
+      synthCalls += 1;
+      if (synthCalls === 1) return errResponse(422, { detail: "unknown reference_id" });
+      return okResponse(new ArrayBuffer(4));
+    });
+    const provider = createIrodoriTtsProvider({
+      getEndpoints: () => endpoints(),
+      getActiveSpeaker: () => speaker(),
+      selectFetch: async () => fetchMock as unknown as typeof fetch,
+    });
+
+    const out = await provider.synth("hi");
+
+    expect(out).toBeInstanceOf(ArrayBuffer);
+    expect(irodoriVoices.evictRegistration).toHaveBeenCalledWith(PBASE, "spk-a");
+    expect(irodoriVoices.ensureRegistered).toHaveBeenCalledTimes(2);
+    expect(synthCalls).toBe(2);
+  });
+
+  it("does not self-heal more than once (a persistent 422 surfaces)", async () => {
+    const fetchMock = vi.fn(async () => errResponse(422, { detail: "still missing" }));
+    const provider = createIrodoriTtsProvider({
+      getEndpoints: () => endpoints(),
+      getActiveSpeaker: () => speaker(),
+      selectFetch: async () => fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(provider.synth("hi")).rejects.toThrow(/422/);
+    expect(irodoriVoices.evictRegistration).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not self-heal on non-422 errors", async () => {
+    const fetchMock = vi.fn(async () => errResponse(500, { detail: "boom" }));
+    const provider = createIrodoriTtsProvider({
+      getEndpoints: () => endpoints(),
+      getActiveSpeaker: () => speaker(),
+      selectFetch: async () => fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(provider.synth("hi")).rejects.toThrow(/500/);
+    expect(irodoriVoices.evictRegistration).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  describe("deadline", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("aborts a hung synth once TTS_SYNTH_TIMEOUT_MS elapses", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn<FetchFn>(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            init.signal?.addEventListener("abort", () =>
+              reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError")),
+            );
+          }),
+      );
+      const provider = createIrodoriTtsProvider({
+        getEndpoints: () => endpoints(),
+        getActiveSpeaker: () => speaker(),
+        selectFetch: async () => fetchMock as unknown as typeof fetch,
+      });
+
+      const pending = provider.synth("hi");
+      const assertion = expect(pending).rejects.toThrow();
+      await vi.advanceTimersByTimeAsync(TTS_SYNTH_TIMEOUT_MS + 10);
+      await assertion;
+    });
+
+    it("does not fire the deadline when the request settles first", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+      const provider = createIrodoriTtsProvider({
+        getEndpoints: () => endpoints(),
+        getActiveSpeaker: () => speaker(),
+        selectFetch: async () => fetchMock as unknown as typeof fetch,
+      });
+
+      await expect(provider.synth("hi")).resolves.toBeInstanceOf(ArrayBuffer);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("aborts a hung registration once TTS_SYNTH_TIMEOUT_MS elapses, and a later synth is not poisoned", async () => {
+      vi.useFakeTimers();
+      let registerCalls = 0;
+      irodoriVoices.ensureRegistered.mockImplementation(
+        (opts: { signal?: AbortSignal }) =>
+          new Promise<void>((resolve, reject) => {
+            registerCalls += 1;
+            if (registerCalls === 1) {
+              // The first registration hangs — never settles on its own, simulating a stuck server.
+              opts.signal?.addEventListener("abort", () =>
+                reject(opts.signal?.reason ?? new DOMException("Aborted", "AbortError")),
+              );
+              return;
+            }
+            resolve();
+          }),
+      );
+      const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+      const provider = createIrodoriTtsProvider({
+        getEndpoints: () => endpoints(),
+        getActiveSpeaker: () => speaker(),
+        selectFetch: async () => fetchMock as unknown as typeof fetch,
+      });
+
+      const pending = provider.synth("hi");
+      const assertion = expect(pending).rejects.toThrow();
+      await vi.advanceTimersByTimeAsync(TTS_SYNTH_TIMEOUT_MS + 10);
+      await assertion;
+
+      // A later call is not stuck behind the hung registration — it registers fresh and synthesizes.
+      await expect(provider.synth("hi")).resolves.toBeInstanceOf(ArrayBuffer);
+      expect(registerCalls).toBe(2);
+    });
   });
 });

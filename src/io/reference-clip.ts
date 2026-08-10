@@ -25,14 +25,14 @@ const WEBVIEW_ONLY_SCHEME = /^asset:/i;
 /** Fetches a reference clip's bytes, choosing the right fetch for the URL's scheme. */
 export async function fetchReferenceClip(
   refUrl: string,
-  opts: { fetch?: typeof fetch } = {},
+  opts: { fetch?: typeof fetch; signal?: AbortSignal } = {},
 ): Promise<Blob> {
   const url = await resolveReferenceClipUrl(refUrl);
   // Only a webview-only scheme escapes the injected fetch — anything else (http(s), relative, file:, data:) stays on it and fails loudly.
   const fetchImpl = WEBVIEW_ONLY_SCHEME.test(url)
     ? globalThis.fetch
     : (opts.fetch ?? globalThis.fetch);
-  const res = await fetchImpl(url);
+  const res = opts.signal ? await fetchImpl(url, { signal: opts.signal }) : await fetchImpl(url);
   if (!res.ok) {
     throw new Error(`reference clip fetch failed (HTTP ${res.status}) ${url}`);
   }

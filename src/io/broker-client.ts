@@ -14,6 +14,7 @@
 import type { AppConfig } from "../config/load";
 import type { MotionRegistry } from "../contract";
 import { createLogger, type Logger } from "../logger";
+import { emotionTextModeFor, resolveTtsProviderKind } from "./tts-provider";
 
 export interface BrokerVocab {
   emotion_ids: string[];
@@ -338,7 +339,8 @@ export function deriveBrokerPayload(
   const motionIds = agentTriggerableMotionIds(cfg.motions);
 
   let emotionText: BrokerPayload["emotionText"];
-  if (cfg.endpoints.tts_provider === "irodori") {
+  const providerKind = resolveTtsProviderKind(cfg.endpoints.tts_provider);
+  if (emotionTextModeFor(providerKind) === "enum") {
     if (irodoriTable) {
       emotionText = { mode: "enum", table: irodoriTable };
     } else {

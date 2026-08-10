@@ -6,6 +6,7 @@
 
 import type { EndpointsConfig } from "../contract";
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
+import type { TtsProviderKind } from "./tts-provider";
 
 /** Max length per field (overly long storage values are capped, not reset to ""). */
 export const ENDPOINT_VALUE_MAX_LEN = 2048;
@@ -30,8 +31,12 @@ export interface EndpointOverrides {
 
 export type EndpointsStorage = PersistedStorage<EndpointOverrides>;
 
-/** Valid provider values that mergeEndpoints applies. Anything else (including empty) means no override. */
-const VALID_PROVIDERS = ["irodori", "openai"] as const;
+/**
+ * Valid provider values that mergeEndpoints applies. Anything else (including empty) means no
+ * override. Typed against tts-provider.ts's TtsProviderKind so this list and the provider
+ * module's own enum can't silently drift.
+ */
+const VALID_PROVIDERS: readonly TtsProviderKind[] = ["irodori", "openai"];
 
 /** Valid chat_api values that mergeEndpoints applies. Anything else (including empty) means no override. */
 const VALID_CHAT_APIS = ["responses", "chat_completions"] as const;
