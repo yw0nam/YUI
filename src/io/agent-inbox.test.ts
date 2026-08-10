@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { type AgentDone, onAgentInbox } from "./agent-inbox";
+import { type AgentEvent, onAgentInbox } from "./agent-inbox";
 import type { OsEventListen } from "./tauri-listen";
 
 /** Fake `listen` that captures the handler so tests can emit payloads. */
@@ -23,17 +23,18 @@ function fakeListen() {
   return {
     listen,
     unlisten,
-    emit(payload: AgentDone) {
+    emit(payload: AgentEvent) {
       handler?.({ payload });
     },
   };
 }
 
-const SAMPLE: AgentDone = {
+const SAMPLE: AgentEvent = {
   tool: "build",
   project: "my-project",
   cwd: "/home/user/project",
   status: "success",
+  phase: "done",
   summary: "Build completed",
   ts: 1_700_000_000_000,
 };

@@ -459,26 +459,29 @@ mod tests {
     use super::*;
 
     fn valid_body() -> &'static str {
-        r#"{"tool":"claude-code","project":"YUI","cwd":"/home/user/YUI","summary":"done","ts":1719811200000}"#
+        r#"{"tool":"claude-code","project":"YUI","cwd":"/home/user/YUI","phase":"done","summary":"done","ts":1719811200000}"#
     }
 
     // ── parse_request ─────────────────────────────────────────────────────────
 
     #[test]
     fn parse_request_valid_returns_payload() {
-        let p = parse_request("POST", "/agent-done", valid_body()).unwrap();
+        let p = parse_request("POST", "/agent-event", valid_body()).unwrap();
         assert_eq!(p.tool, "claude-code");
         assert_eq!(p.project, "YUI");
         assert_eq!(p.cwd, "/home/user/YUI");
+        assert_eq!(p.phase, AgentPhase::Done);
         assert_eq!(p.summary, "done");
         assert_eq!(p.ts, 1719811200000);
         assert!(p.status.is_none());
+        assert!(p.session_id.is_none());
+        assert!(p.detail.is_none());
     }
 
     #[test]
     fn parse_request_wrong_method_returns_400() {
         assert_eq!(
-            parse_request("GET", "/agent-done", valid_body()).unwrap_err(),
+            parse_request("GET", "/agent-event", valid_body()).unwrap_err(),
             400
         );
     }
@@ -492,27 +495,57 @@ mod tests {
     }
 
     #[test]
-    fn parse_request_malformed_json_returns_400() {
+    fn parse_request_agent_done_route_removed_returns_400() {
+        // /agent-done is deleted, not aliased — no backward compat.
         assert_eq!(
-            parse_request("POST", "/agent-done", "not json").unwrap_err(),
+            parse_request("POST", "/agent-done", valid_body()).unwrap_err(),
             400
         );
     }
 
     #[test]
+    fn parse_request_malformed_json_returns_400() {
+        assert_eq!(
+            parse_request("POST", "/agent-event", "not json").unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_request_missing_phase_returns_400() {
+        let body = r#"{"tool":"t","project":"p","cwd":"/","summary":"s","ts":0}"#;
+        assert_eq!(
+            parse_request("POST", "/agent-event", body).unwrap_err(),
+            400
+        );
+    }
+
+    #[test]
+    fn parse_request_needs_input_phase_carries_session_id_and_detail() {
+        let body = r#"{"tool":"claude-code","project":"p","cwd":"/","phase":"needs_input","session_id":"sess-1","detail":"waiting on Bash: rm -rf /tmp/x","summary":"","ts":1}"#;
+        let p = parse_request("POST", "/agent-event", body).unwrap();
+        assert_eq!(p.phase, AgentPhase::NeedsInput);
+        assert_eq!(p.session_id.as_deref(), Some("sess-1"));
+        assert_eq!(p.detail.as_deref(), Some("waiting on Bash: rm -rf /tmp/x"));
+    }
+
+    #[test]
     fn parse_request_path_with_query_string_is_accepted() {
-        let p = parse_request("POST", "/agent-done?foo=bar", valid_body()).unwrap();
+        let p = parse_request("POST", "/agent-event?foo=bar", valid_body()).unwrap();
         assert_eq!(p.tool, "claude-code");
     }
 
     // ── cap_summary ───────────────────────────────────────────────────────────
 
-    fn make_payload(summary: &str) -> AgentDonePayload {
-        AgentDonePayload {
+    fn make_payload(summary: &str) -> AgentEventPayload {
+        AgentEventPayload {
             tool: "t".into(),
             project: "p".into(),
             cwd: "/".into(),
             status: None,
+            phase: AgentPhase::Done,
+            session_id: None,
+            detail: None,
             summary: summary.to_string(),
             ts: 0,
         }
@@ -548,6 +581,55 @@ mod tests {
         // Result must be valid UTF-8 (no split codepoints) and contain the marker.
         assert!(std::str::from_utf8(p.summary.as_bytes()).is_ok());
         assert!(p.summary.contains("[truncated]"));
+    }
+
+    // ── cap_detail ────────────────────────────────────────────────────────────
+
+    fn make_detail_payload(detail: Option<&str>) -> AgentEventPayload {
+        AgentEventPayload {
+            tool: "t".into(),
+            project: "p".into(),
+            cwd: "/".into(),
+            status: None,
+            phase: AgentPhase::NeedsInput,
+            session_id: None,
+            detail: detail.map(|d| d.to_string()),
+            summary: String::new(),
+            ts: 0,
+        }
+    }
+
+    #[test]
+    fn cap_detail_absent_is_unchanged() {
+        let p = cap_detail(make_detail_payload(None));
+        assert!(p.detail.is_none());
+    }
+
+    #[test]
+    fn cap_detail_under_cap_is_unchanged() {
+        let detail = "a".repeat(100);
+        let p = cap_detail(make_detail_payload(Some(&detail)));
+        assert_eq!(p.detail.as_deref(), Some(detail.as_str()));
+    }
+
+    #[test]
+    fn cap_detail_over_cap_truncated_with_marker() {
+        let detail = "b".repeat(DETAIL_MAX_BYTES + 100);
+        let p = cap_detail(make_detail_payload(Some(&detail)));
+        let d = p.detail.unwrap();
+        assert!(d.len() <= DETAIL_MAX_BYTES + 20, "too long: {}", d.len());
+        assert!(d.ends_with("[truncated]"));
+        assert!(std::str::from_utf8(d.as_bytes()).is_ok());
+    }
+
+    #[test]
+    fn cap_detail_multibyte_safe() {
+        // "あ" = 3 bytes. DETAIL_MAX_BYTES / 3 = 5461 r 1, so 5462 chars = 16386 bytes > 16384.
+        let detail = "あ".repeat(DETAIL_MAX_BYTES / 3 + 1);
+        let p = cap_detail(make_detail_payload(Some(&detail)));
+        let d = p.detail.unwrap();
+        assert!(std::str::from_utf8(d.as_bytes()).is_ok());
+        assert!(d.contains("[truncated]"));
     }
 
     // ── parse_signals_request ─────────────────────────────────────────────────
