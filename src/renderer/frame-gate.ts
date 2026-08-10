@@ -2,36 +2,32 @@
  * frame-gate — pure idle/active frame-throttle decision (no DOM, no rAF, no GL).
  *
  * The rAF loop runs uncapped while the character is doing something the eye must
- * track at full refresh (lipsync, emotion crossfade, a non-idle motion clip, or a
- * perch pin still converging). When only ambient (blink/sway/breath) is running it
- * caps to a lower idle fps to spare the frame budget. Both pieces are pure so the
- * gating math and the active predicate are node-testable; the rAF wiring +
- * visibilitychange listener around them stays thin.
+ * track at full refresh (a VrmParticipant — pins/gaze/emotion/mouth — still
+ * converging, or a non-idle motion clip). When only ambient (blink/sway/breath) is
+ * running it caps to a lower idle fps to spare the frame budget. All pieces are
+ * pure so the gating math and the active predicate are node-testable; the rAF
+ * wiring + visibilitychange listener around them stays thin.
  */
-
-/** Cheap per-frame signals — any one means the character is actively animating. */
-interface ActiveState {
-  /** Lipsync mouth-open amplitude (0..1); >~0 ⇒ TTS/lipsync is driving the mouth. */
-  mouthOpen: number;
-  /** An emotion crossfade is in progress (emotionXfade != null). */
-  emotionFading: boolean;
-  /** A non-idle motion clip is actively playing via the mixer. */
-  motionActive: boolean;
-  /** The perch seat-pin is set and not yet settled. */
-  perchConverging: boolean;
-}
 
 /** Below this mouth amplitude the mouth reads as closed — treated as idle. */
 const MOUTH_ACTIVE_EPSILON = 0.001;
 
+/** True when the lipsync mouth-open amplitude reads as actively animating. */
+export function isMouthConverging(openValue: number): boolean {
+  return openValue > MOUTH_ACTIVE_EPSILON;
+}
+
+/** Cheap per-frame signals — either one means the character is actively animating. */
+interface ActiveState {
+  /** Any VrmParticipant (pins/gaze/emotion/mouth) reports isConverging() this frame. */
+  participantsConverging: boolean;
+  /** A non-idle motion clip is actively playing via the mixer. */
+  motionActive: boolean;
+}
+
 /** True when any active signal is happening this frame — ⇒ run at full refresh. */
 export function isActive(state: ActiveState): boolean {
-  return (
-    state.mouthOpen > MOUTH_ACTIVE_EPSILON ||
-    state.emotionFading ||
-    state.motionActive ||
-    state.perchConverging
-  );
+  return state.participantsConverging || state.motionActive;
 }
 
 /**

@@ -114,8 +114,6 @@ export interface CursorGaze {
   setConfig(next: Partial<GazeConfig>): void;
   /** Enable/disable head+eye tracking at runtime. Disabled ⇒ eased back to neutral. */
   setEnabled(enabled: boolean): void;
-  /** Current toggle state (true = tracking the cursor). */
-  getEnabled(): boolean;
   /** Latest window-local CSS px cursor position; null = unavailable (eases back to neutral). */
   setCursorCss(pos: { x: number; y: number } | null): void;
 }
@@ -251,9 +249,6 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
     },
     setEnabled(enabled) {
       gazeEnabled = enabled;
-    },
-    getEnabled() {
-      return gazeEnabled;
     },
     setCursorCss(pos) {
       gazeCursor = pos;
