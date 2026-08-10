@@ -190,6 +190,37 @@ pub fn remove_user_voice(app: AppHandle, id: String) -> Result<(), String> {
     remove_user_voice_at(&references_dir, &id)
 }
 
+/// A `copy_into_references` transactional sibling left behind by a process death between its
+/// two renames (backup-aside, then tmp-into-place).
+enum StaleArtifact<'a> {
+    /// `.{id}.import-tmp` — a build-in-progress; never resumable, always discarded.
+    Tmp,
+    /// `.{id}.import-backup` — the pre-swap original, still holding the id it belongs to.
+    Backup(&'a str),
+}
+
+/// Recognize `.{id}.import-tmp` / `.{id}.import-backup`; anything else is `None`.
+fn parse_stale_artifact(file_name: &str) -> Option<StaleArtifact<'_>> {
+    let rest = file_name.strip_prefix('.')?;
+    if rest.ends_with(".import-tmp") {
+        return Some(StaleArtifact::Tmp);
+    }
+    let id = rest.strip_suffix(".import-backup")?;
+    Some(StaleArtifact::Backup(id))
+}
+
+/// Startup recovery for `copy_into_references`'s one unclosed failure window: a process death
+/// between renaming the old `<id>` dir aside and renaming the new one into place. Restores a
+/// `.{id}.import-backup` when `<id>` is missing (the swap never completed), otherwise deletes it
+/// (the swap completed; the backup is a leftover). A `.{id}.import-tmp` never finished building,
+/// so it is always discarded. A missing `references_dir` is a no-op — nothing has ever imported.
+pub(crate) fn sweep_stale_import_artifacts(references_dir: &Path) {
+    // RED: not implemented yet — pin the contract in tests first.
+    let _ = parse_stale_artifact("");
+    let _ = references_dir;
+    unimplemented!("recovery sweep not yet implemented")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -462,5 +493,78 @@ mod tests {
         let err = copy_into_references(&dir.join("references"), &src, "wav", "Fake").unwrap_err();
         assert!(!err.contains('/'), "error must not leak a path: {err:?}");
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    // ── sweep_stale_import_artifacts: startup recovery for the unclosed rename window ────────
+
+    #[test]
+    fn sweep_restores_a_backup_when_its_target_is_missing() {
+        let references = unique_dir("sweep_restore");
+        let backup = references.join(".Cat.import-backup");
+        std::fs::create_dir_all(&backup).unwrap();
+        std::fs::write(backup.join("clip.wav"), b"original clip").unwrap();
+
+        sweep_stale_import_artifacts(&references);
+
+        assert!(
+            references.join("Cat").join("clip.wav").exists(),
+            "the backup must be restored under the id it belongs to"
+        );
+        assert_eq!(
+            std::fs::read(references.join("Cat").join("clip.wav")).unwrap(),
+            b"original clip"
+        );
+        assert!(!backup.exists(), "the backup path itself must be gone once restored");
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    #[test]
+    fn sweep_deletes_a_backup_when_its_target_already_exists() {
+        let references = unique_dir("sweep_delete_backup");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        std::fs::write(references.join("Cat").join("clip.wav"), b"live clip").unwrap();
+        let backup = references.join(".Cat.import-backup");
+        std::fs::create_dir_all(&backup).unwrap();
+        std::fs::write(backup.join("clip.wav"), b"orphaned backup").unwrap();
+
+        sweep_stale_import_artifacts(&references);
+
+        assert!(!backup.exists(), "an orphaned backup must be discarded");
+        assert_eq!(
+            std::fs::read(references.join("Cat").join("clip.wav")).unwrap(),
+            b"live clip",
+            "the swap that already completed must be untouched"
+        );
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    #[test]
+    fn sweep_always_clears_a_stale_tmp_dir() {
+        let references = unique_dir("sweep_tmp");
+        let tmp = references.join(".Cat.import-tmp");
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join("clip.wav"), b"half-built").unwrap();
+        // Whether or not the id already exists, a tmp dir never resumes.
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+
+        sweep_stale_import_artifacts(&references);
+
+        assert!(!tmp.exists(), "a stale tmp dir must always be cleared");
+        assert!(
+            references.join("Cat").exists(),
+            "an unrelated existing id dir must survive the sweep"
+        );
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    #[test]
+    fn sweep_of_an_empty_or_missing_dir_is_a_no_op() {
+        let references = unique_dir("sweep_empty");
+        sweep_stale_import_artifacts(&references);
+        assert!(references.exists());
+        std::fs::remove_dir_all(&references).ok();
+
+        let missing = references; // now-removed path — never created again
+        sweep_stale_import_artifacts(&missing);
     }
 }
