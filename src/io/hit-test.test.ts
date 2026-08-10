@@ -99,7 +99,7 @@ describe("physicalCursorToLocalCss", () => {
 
 const cfg: HitTestConfig = {
   hysteresis_margin_px: 8,
-  poll_interval_ms: 200,
+  poll_interval_ms: 33,
   debounce_samples: 2,
   alpha_threshold: 0.1,
 };
@@ -173,15 +173,77 @@ interface FakeWin {
   outerPosition: ReturnType<typeof vi.fn>;
   scaleFactor: ReturnType<typeof vi.fn>;
   primaryScaleFactor: ReturnType<typeof vi.fn>;
+  onMoved: ReturnType<typeof vi.fn>;
+  onResized: ReturnType<typeof vi.fn>;
+  onScaleChanged: ReturnType<typeof vi.fn>;
+  unlistenMoved: ReturnType<typeof vi.fn>;
+  unlistenResized: ReturnType<typeof vi.fn>;
+  unlistenScaleChanged: ReturnType<typeof vi.fn>;
+  fireMoved(): void;
+  fireResized(): void;
+  fireScaleChanged(): void;
 }
 
+/** Mirrors src/io/cursor-tracker.test.ts's fakeWindow — same move/resize/scale-change seams. */
 function fakeWindow(cursorPhys = { x: 0, y: 0 }): FakeWin {
+  let movedCb: (() => void) | undefined;
+  let resizedCb: (() => void) | undefined;
+  let scaleCb: (() => void) | undefined;
+  const unlistenMoved = vi.fn();
+  const unlistenResized = vi.fn();
+  const unlistenScaleChanged = vi.fn();
   return {
     cursorPosition: vi.fn(async () => ({ ...cursorPhys })),
     setIgnoreCursorEvents: vi.fn(async () => {}),
     outerPosition: vi.fn(async () => ({ x: 0, y: 0 })),
     scaleFactor: vi.fn(async () => 1),
     primaryScaleFactor: vi.fn(async () => 1),
+    onMoved: vi.fn(async (cb: () => void) => {
+      movedCb = cb;
+      return unlistenMoved;
+    }),
+    onResized: vi.fn(async (cb: () => void) => {
+      resizedCb = cb;
+      return unlistenResized;
+    }),
+    onScaleChanged: vi.fn(async (cb: () => void) => {
+      scaleCb = cb;
+      return unlistenScaleChanged;
+    }),
+    unlistenMoved,
+    unlistenResized,
+    unlistenScaleChanged,
+    fireMoved() {
+      movedCb?.();
+    },
+    fireResized() {
+      resizedCb?.();
+    },
+    fireScaleChanged() {
+      scaleCb?.();
+    },
+  };
+}
+
+/** Fake document seam (mirrors src/io/cursor-tracker.test.ts's fakeDoc). */
+interface FakeDoc {
+  visibilityState: "visible" | "hidden";
+  addEventListener: ReturnType<typeof vi.fn>;
+  removeEventListener: ReturnType<typeof vi.fn>;
+  fire(): void;
+}
+
+function fakeDoc(): FakeDoc {
+  let cb: (() => void) | undefined;
+  return {
+    visibilityState: "visible",
+    addEventListener: vi.fn((_type: string, listener: () => void) => {
+      cb = listener;
+    }),
+    removeEventListener: vi.fn(),
+    fire() {
+      cb?.();
+    },
   };
 }
 
@@ -235,6 +297,7 @@ describe("createHitTestController — start() syncs the window flag", () => {
       moveTarget: new EventTarget(),
       isOverInteractive: () => true,
       getConfig: () => cfg,
+      doc: fakeDoc() as never,
     });
     c.start();
     await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenCalledWith(false));
@@ -263,6 +326,7 @@ describe("createHitTestController — CAPTURE→PASSTHROUGH via pointermove", ()
       // schedule seam: we drive the poll manually, so swallow scheduling.
       schedule: () => 0,
       cancel: () => {},
+      doc: fakeDoc() as never,
     });
     await startSynced(c, win);
 
@@ -306,6 +370,7 @@ describe("createHitTestController — suspend/resume", () => {
       getConfig: () => cfg,
       schedule: () => 0,
       cancel: () => {},
+      doc: fakeDoc() as never,
     });
     await startSynced(c, win);
     // Two non-interactive moves flip to passthrough (ignore=true).
@@ -339,6 +404,7 @@ describe("createHitTestController — suspend/resume", () => {
       getConfig: () => cfg,
       schedule: () => 0,
       cancel: () => {},
+      doc: fakeDoc() as never,
     });
     await startSynced(c, win);
     c.suspend();
@@ -356,6 +422,7 @@ describe("createHitTestController — suspend/resume", () => {
       getConfig: () => cfg,
       schedule: () => 0,
       cancel: () => {},
+      doc: fakeDoc() as never,
     });
     await startSynced(c, win);
     c.suspend("passthrough");
@@ -377,6 +444,7 @@ describe("createHitTestController — suspend/resume", () => {
       getConfig: () => cfg,
       schedule: () => 0,
       cancel: () => {},
+      doc: fakeDoc() as never,
     });
     c.start();
     c.suspend("passthrough", "peek");
@@ -409,6 +477,7 @@ describe("createHitTestController — suspend/resume", () => {
       getConfig: () => cfg,
       schedule: () => 0,
       cancel: () => {},
+      doc: fakeDoc() as never,
     });
     await startSynced(c, win);
     win.setIgnoreCursorEvents
@@ -456,6 +525,7 @@ describe("createHitTestController — poll failure hardening", () => {
         return 0;
       },
       cancel: () => {},
+      doc: fakeDoc() as never,
     });
     c.start();
     // Drive two non-interactive moves to flip to PASSTHROUGH.
@@ -493,6 +563,7 @@ describe("createHitTestController — poll failure hardening", () => {
         return 0;
       },
       cancel: () => {},
+      doc: fakeDoc() as never,
     });
     c.start();
     const move = (): void =>
@@ -550,6 +621,371 @@ describe("createHitTestController — poll failure hardening", () => {
 
     expect(win.setIgnoreCursorEvents).not.toHaveBeenCalledWith(false);
     c.stop();
+  });
+});
+
+// ─── createHitTestController — static caching (mirrors cursor-tracker.ts) ────
+// The poll only needs a fresh cursorPosition() every tick; outerPosition/scaleFactor/
+// primaryScaleFactor describe the window, not the cursor, and only change on a
+// move/resize/DPI change — caching them is what makes the 33ms cadence a genuine
+// reuse of cursor-tracker.ts's proven POLL_MS rather than a heavier poll under the
+// same name.
+
+describe("createHitTestController — static caching", () => {
+  beforeEach(() => {
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+  });
+  afterEach(() => {
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+  });
+
+  function makePassthroughController(win: FakeWin): {
+    c: ReturnType<typeof createHitTestController>;
+    poll: () => Promise<void>;
+  } {
+    const target = new EventTarget();
+    let cb: (() => void) | undefined;
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: target,
+      isOverInteractive: () => false,
+      getConfig: () => cfg,
+      doc: fakeDoc() as never,
+      schedule: (callback) => {
+        cb = callback;
+        return 0;
+      },
+      cancel: () => {},
+    });
+    c.start();
+    const move = (x: number, y: number): void => {
+      target.dispatchEvent(
+        Object.assign(new Event("pointermove"), { clientX: x, clientY: y }) as Event,
+      );
+    };
+    move(10, 10);
+    move(10, 10);
+    return {
+      c,
+      poll: async (): Promise<void> => {
+        const fn = cb;
+        cb = undefined;
+        await fn?.();
+      },
+    };
+  }
+
+  it("re-reads cursorPosition every poll but outerPosition/scaleFactor/primaryScaleFactor only every 8th", async () => {
+    const win = fakeWindow();
+    const { c, poll } = makePassthroughController(win);
+    win.cursorPosition.mockClear();
+    win.outerPosition.mockClear();
+    win.scaleFactor.mockClear();
+    win.primaryScaleFactor.mockClear();
+
+    for (let i = 0; i < 8; i++) await poll();
+    // Tick 0 (entering PASSTHROUGH) refreshes; the next 7 ticks are cached.
+    expect(win.cursorPosition).toHaveBeenCalledTimes(8);
+    expect(win.outerPosition).toHaveBeenCalledTimes(1);
+    expect(win.scaleFactor).toHaveBeenCalledTimes(1);
+    expect(win.primaryScaleFactor).toHaveBeenCalledTimes(1);
+
+    await poll(); // 9th poll (tick index 8) ⇒ refresh again
+    expect(win.outerPosition).toHaveBeenCalledTimes(2);
+    c.stop();
+  });
+
+  it("a window move invalidates the cached statics before the next tick", async () => {
+    const win = fakeWindow();
+    const { c, poll } = makePassthroughController(win);
+    win.outerPosition.mockClear();
+
+    await poll(); // tick 0 — refreshes (start-of-PASSTHROUGH)
+    await poll(); // tick 1 — cached, no refresh
+    expect(win.outerPosition).toHaveBeenCalledTimes(1);
+
+    win.fireMoved(); // window drag moved the window — invalidate now, well before tick 8
+    await poll(); // tick 2 — refreshes despite tick % 8 !== 0
+    expect(win.outerPosition).toHaveBeenCalledTimes(2);
+    c.stop();
+  });
+
+  // Regression: invalidateStatics() firing WHILE a cached tick's cursorPosition() is in flight
+  // (the common case — 7/8 ticks are cached, and onMoved fires continuously during a window drag)
+  // must not kill the self-scheduling loop. A prior fix returned from poll() entirely when the
+  // cache came back null, which also skipped the reschedule at the bottom — the window got stuck
+  // click-through forever (no visibilitychange recovery either, since pollHandle was never freed).
+  it("a move landing mid-await on a cached tick skips the sample but still reschedules", async () => {
+    const win = fakeWindow();
+    const target = new EventTarget();
+    const scheduled: number[] = [];
+    const seen: Array<[number, number]> = [];
+    let cb: (() => void) | undefined;
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: target,
+      isOverInteractive: (x, y) => {
+        seen.push([x, y]);
+        return false;
+      },
+      getConfig: () => cfg,
+      doc: fakeDoc() as never,
+      schedule: (callback, ms) => {
+        cb = callback;
+        scheduled.push(ms);
+        return scheduled.length;
+      },
+      cancel: () => {},
+    });
+    c.start();
+    const move = (x: number, y: number): void => {
+      target.dispatchEvent(
+        Object.assign(new Event("pointermove"), { clientX: x, clientY: y }) as Event,
+      );
+    };
+    move(10, 10);
+    move(10, 10); // PASSTHROUGH — poll #1 scheduled
+    expect(scheduled.length).toBe(1);
+    const poll = async (): Promise<void> => {
+      const fn = cb;
+      cb = undefined;
+      await fn?.();
+    };
+
+    await poll(); // tick 0 — refreshes, establishes cachedOrigin
+    expect(scheduled.length).toBe(2);
+    seen.length = 0;
+
+    // tick 1 is a cached tick. Simulate the window moving while cursorPosition() is in flight:
+    // the mock invalidates the cache as a side effect before its promise resolves.
+    win.cursorPosition.mockImplementationOnce(async () => {
+      win.fireMoved();
+      return { x: 0, y: 0 };
+    });
+    await poll(); // tick 1 — cachedOrigin goes null mid-await
+
+    // The loop must still reschedule despite landing with a stale cache.
+    expect(scheduled.length).toBe(3);
+    // The invalidated tick skips sampling rather than applying a stale/missing origin.
+    expect(seen).toEqual([]);
+
+    // The next tick recovers: refreshes statics (cachedOrigin was cleared) and samples normally.
+    win.outerPosition.mockClear();
+    await poll(); // tick 2
+    expect(win.outerPosition).toHaveBeenCalledTimes(1);
+    expect(seen).toEqual([[0, 0]]);
+    c.stop();
+  });
+
+  it("stop() unsubscribes the move/resize/scale-change listeners", async () => {
+    const win = fakeWindow();
+    const { c } = makePassthroughController(win);
+    await Promise.resolve(); // let the onMoved/onResized/onScaleChanged promises settle
+    c.stop();
+    await Promise.resolve();
+    expect(win.unlistenMoved).toHaveBeenCalledTimes(1);
+    expect(win.unlistenResized).toHaveBeenCalledTimes(1);
+    expect(win.unlistenScaleChanged).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── createHitTestController — hidden-window poll gating ─────────────────────
+// Nothing can click a hidden window, so the PASSTHROUGH poll must not run while
+// document.visibilityState is "hidden" (mirrors src/io/cursor-tracker.ts).
+
+describe("createHitTestController — hidden-window poll gating", () => {
+  beforeEach(() => {
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+  });
+  afterEach(() => {
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+  });
+
+  function makePassthroughController(
+    win: FakeWin,
+    doc: FakeDoc,
+  ): {
+    c: ReturnType<typeof createHitTestController>;
+    scheduled: number[];
+    cancel: ReturnType<typeof vi.fn>;
+  } {
+    const target = new EventTarget();
+    const scheduled: number[] = [];
+    const cancel = vi.fn();
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: target,
+      isOverInteractive: () => false,
+      getConfig: () => cfg,
+      doc: doc as never,
+      schedule: (_callback, ms) => {
+        scheduled.push(ms);
+        return scheduled.length;
+      },
+      cancel,
+    });
+    c.start();
+    // Drive two non-interactive moves to flip to PASSTHROUGH.
+    const move = (x: number, y: number): void => {
+      target.dispatchEvent(
+        Object.assign(new Event("pointermove"), { clientX: x, clientY: y }) as Event,
+      );
+    };
+    move(10, 10);
+    move(10, 10);
+    return { c, scheduled, cancel };
+  }
+
+  it("entering PASSTHROUGH while the document is hidden does not schedule a poll", async () => {
+    const win = fakeWindow();
+    const doc = fakeDoc();
+    doc.visibilityState = "hidden";
+    const { c, scheduled } = makePassthroughController(win, doc);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(scheduled).toEqual([]);
+    c.stop();
+  });
+
+  it("the document going hidden cancels the pending poll", async () => {
+    const win = fakeWindow();
+    const doc = fakeDoc();
+    const { c, scheduled, cancel } = makePassthroughController(win, doc);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(scheduled).toEqual([cfg.poll_interval_ms]);
+
+    doc.visibilityState = "hidden";
+    doc.fire();
+    expect(cancel).toHaveBeenCalled();
+    c.stop();
+  });
+
+  it("becoming visible again resumes the poll while still in PASSTHROUGH", async () => {
+    const win = fakeWindow();
+    const doc = fakeDoc();
+    const { c, scheduled } = makePassthroughController(win, doc);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(scheduled).toEqual([cfg.poll_interval_ms]);
+
+    doc.visibilityState = "hidden";
+    doc.fire();
+    doc.visibilityState = "visible";
+    doc.fire();
+    expect(scheduled).toEqual([cfg.poll_interval_ms, cfg.poll_interval_ms]);
+    c.stop();
+  });
+
+  it("a poll callback that fires while hidden makes no IPC calls", async () => {
+    const win = fakeWindow();
+    const doc = fakeDoc();
+    const target = new EventTarget();
+    let cb: (() => void) | undefined;
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: target,
+      isOverInteractive: () => false,
+      getConfig: () => cfg,
+      doc: doc as never,
+      schedule: (callback) => {
+        cb = callback;
+        return 1;
+      },
+      cancel: () => {},
+    });
+    c.start();
+    const move = (x: number, y: number): void => {
+      target.dispatchEvent(
+        Object.assign(new Event("pointermove"), { clientX: x, clientY: y }) as Event,
+      );
+    };
+    move(10, 10);
+    move(10, 10);
+    await Promise.resolve();
+    win.cursorPosition.mockClear();
+
+    doc.visibilityState = "hidden";
+    await cb?.();
+    expect(win.cursorPosition).not.toHaveBeenCalled();
+    c.stop();
+  });
+
+  it("a visible event while in CAPTURE schedules nothing", async () => {
+    const win = fakeWindow();
+    const doc = fakeDoc();
+    const scheduled: number[] = [];
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: new EventTarget(),
+      isOverInteractive: () => true, // stays CAPTURE
+      getConfig: () => cfg,
+      doc: doc as never,
+      schedule: (_callback, ms) => {
+        scheduled.push(ms);
+        return scheduled.length;
+      },
+      cancel: () => {},
+    });
+    c.start();
+    await Promise.resolve();
+    doc.fire(); // still visible; onVisibilityChange's "resume" branch requires PASSTHROUGH
+    expect(scheduled).toEqual([]);
+    c.stop();
+  });
+
+  it("a visible event while suspended does not resume the poll", async () => {
+    const win = fakeWindow();
+    const doc = fakeDoc();
+    const target = new EventTarget();
+    const scheduled: number[] = [];
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: target,
+      isOverInteractive: () => false,
+      getConfig: () => cfg,
+      doc: doc as never,
+      schedule: (_callback, ms) => {
+        scheduled.push(ms);
+        return scheduled.length;
+      },
+      cancel: () => {},
+    });
+    c.start();
+    const move = (x: number, y: number): void => {
+      target.dispatchEvent(
+        Object.assign(new Event("pointermove"), { clientX: x, clientY: y }) as Event,
+      );
+    };
+    move(10, 10);
+    move(10, 10); // PASSTHROUGH — one poll scheduled
+    expect(scheduled.length).toBe(1);
+
+    c.suspend(); // forces CAPTURE + suspended, stops the poll
+    scheduled.length = 0;
+    doc.visibilityState = "hidden";
+    doc.fire();
+    doc.visibilityState = "visible";
+    doc.fire();
+    expect(scheduled).toEqual([]);
+    c.stop();
+  });
+
+  it("stop() removes the visibilitychange listener", () => {
+    const win = fakeWindow();
+    const doc = fakeDoc();
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: new EventTarget(),
+      isOverInteractive: () => false,
+      getConfig: () => cfg,
+      doc: doc as never,
+      schedule: () => 0,
+      cancel: () => {},
+    });
+    c.start();
+    c.stop();
+    expect(doc.removeEventListener).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
   });
 });
 

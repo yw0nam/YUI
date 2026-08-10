@@ -11,6 +11,10 @@
  * - PASSTHROUGH (ignore=true): the webview is blind. A self-scheduled poll reads
  *   the screen-global PHYSICAL cursor, converts to window-local CSS px, and
  *   debounce_samples consecutive interactive samples → ignore=false, CAPTURE.
+ *   Only cursorPosition() is read every tick; outerPosition/scaleFactor/
+ *   primaryScaleFactor are cached and refreshed every STATIC_REFRESH_TICKS
+ *   ticks, or immediately on a window move/resize/scale-change event (mirrors
+ *   src/io/cursor-tracker.ts).
  *
  * Hysteresis: leaving CAPTURE rejects only when the cursor is outside the box
  * OUTSET by hysteresis_margin_px (within-margin counts as still interactive);
@@ -38,7 +42,7 @@ export interface HitTestConfig {
 
 const DEFAULTS = {
   hysteresis_margin_px: 8,
-  poll_interval_ms: 200,
+  poll_interval_ms: 33,
   debounce_samples: 2,
 } as const;
 
@@ -48,6 +52,9 @@ interface Vec2 {
   x: number;
   y: number;
 }
+
+/** Unsubscribe handle returned by a Tauri event listener. */
+type Unlisten = () => void;
 
 // ─── Pure helpers ────────────────────────────────────────────────────────────
 
@@ -130,6 +137,10 @@ export interface HitTestWindow {
   scaleFactor(): Promise<number>;
   /** Scale factor the cursor reading is expressed in — the primary monitor's. Falls back to scaleFactor(). */
   primaryScaleFactor?(): Promise<number>;
+  /** Fires on window move/resize/DPI change — invalidates the cached statics. Non-Tauri: absent. */
+  onMoved?(cb: () => void): Promise<Unlisten>;
+  onResized?(cb: () => void): Promise<Unlisten>;
+  onScaleChanged?(cb: () => void): Promise<Unlisten>;
 }
 
 export interface HitTestController {
@@ -156,6 +167,8 @@ interface HitTestOptions {
   schedule?: (cb: () => void, ms: number) => number;
   /** clearTimeout seam. Default: globalThis.clearTimeout. */
   cancel?: (handle: number) => void;
+  /** Document seam for visibility (gates the poll while hidden). Default: document. */
+  doc?: Document;
 }
 
 /**
@@ -172,6 +185,9 @@ export function createTauriHitTestWindow(): HitTestWindow {
     scaleFactor: () => w.scaleFactor(),
     primaryScaleFactor: async () =>
       (await primaryMonitor())?.scaleFactor ?? (await w.scaleFactor()),
+    onMoved: (cb) => w.onMoved(() => cb()),
+    onResized: (cb) => w.onResized(() => cb()),
+    onScaleChanged: (cb) => w.onScaleChanged(() => cb()),
   };
 }
 
@@ -187,6 +203,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   const schedule =
     opts.schedule ?? ((cb, ms) => globalThis.setTimeout(cb, ms) as unknown as number);
   const cancel = opts.cancel ?? ((h) => globalThis.clearTimeout(h));
+  const doc = opts.doc ?? document;
 
   let win: HitTestWindow | null = null;
   let state: HitTestState = "capture";
@@ -201,6 +218,37 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   // Consecutive poll failures: after this many, degrade to CAPTURE.
   const POLL_FAILURE_THRESHOLD = 3;
   let pollFailureCount = 0;
+  // Ticks between outerPosition/scaleFactor/primaryScaleFactor re-reads (mirrors cursor-tracker.ts).
+  const STATIC_REFRESH_TICKS = 8;
+  let tick = 0;
+  // Cached slow statics — re-read every STATIC_REFRESH_TICKS; null forces a refresh.
+  let cachedOrigin: Vec2 | null = null;
+  let cachedSf = 1;
+  let cachedCursorSf = 1;
+  // Window move/resize/scale-change unlisten handles — awaited (not blocking start()) so a
+  // stop() that lands before they resolve still unsubscribes once they do.
+  let unlistenMoved: Promise<Unlisten> | null = null;
+  let unlistenResized: Promise<Unlisten> | null = null;
+  let unlistenScaleChanged: Promise<Unlisten> | null = null;
+
+  function invalidateStatics(): void {
+    cachedOrigin = null;
+  }
+
+  function subscribeWindowEvents(w: HitTestWindow): void {
+    unlistenMoved = w.onMoved?.(invalidateStatics) ?? null;
+    unlistenResized = w.onResized?.(invalidateStatics) ?? null;
+    unlistenScaleChanged = w.onScaleChanged?.(invalidateStatics) ?? null;
+  }
+
+  function unsubscribeWindowEvents(): void {
+    unlistenMoved?.then((fn) => fn()).catch(() => {});
+    unlistenResized?.then((fn) => fn()).catch(() => {});
+    unlistenScaleChanged?.then((fn) => fn()).catch(() => {});
+    unlistenMoved = null;
+    unlistenResized = null;
+    unlistenScaleChanged = null;
+  }
 
   function margin(): number {
     return opts.getConfig().hysteresis_margin_px ?? DEFAULTS.hysteresis_margin_px;
@@ -252,26 +300,62 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
 
   function scheduleNextPoll(): void {
     stopPoll();
+    // Nothing can click a hidden window — resumes via onVisibilityChange.
+    if (doc.visibilityState === "hidden") return;
     const ms = opts.getConfig().poll_interval_ms ?? DEFAULTS.poll_interval_ms;
     pollHandle = schedule(() => {
       void poll();
     }, ms);
   }
 
-  // PASSTHROUGH loop: webview is blind, so read the global cursor and convert.
+  // Hidden window: pause the poll instead of burning IPC on a window nothing can see.
+  function onVisibilityChange(): void {
+    if (doc.visibilityState === "hidden") {
+      stopPoll();
+    } else if (running && !suspended && state === "passthrough" && pollHandle === null) {
+      scheduleNextPoll();
+    }
+  }
+
+  // PASSTHROUGH loop: webview is blind, so read the global cursor and convert. Only
+  // cursorPosition() is read every tick; the slower statics are cached (see subscribeWindowEvents).
   async function poll(): Promise<void> {
-    if (!running || suspended || state !== "passthrough" || !win) return;
+    if (
+      !running ||
+      suspended ||
+      state !== "passthrough" ||
+      !win ||
+      doc.visibilityState === "hidden"
+    )
+      return;
+    const refreshStatics = cachedOrigin === null || tick % STATIC_REFRESH_TICKS === 0;
+    tick++;
     try {
-      const [cursor, origin, sf, cursorSf] = await Promise.all([
-        win.cursorPosition(),
-        win.outerPosition(),
-        win.scaleFactor(),
-        win.primaryScaleFactor?.(),
-      ]);
-      pollFailureCount = 0;
-      const local = physicalCursorToLocalCss(cursor, origin, sf, cursorSf ?? sf);
-      // Entering CAPTURE uses the tight box (margin 0).
-      applySample(opts.isOverInteractive(local.x, local.y, 0));
+      let cursor: Vec2;
+      if (refreshStatics) {
+        const [c, origin, sf, cursorSf] = await Promise.all([
+          win.cursorPosition(),
+          win.outerPosition(),
+          win.scaleFactor(),
+          win.primaryScaleFactor?.(),
+        ]);
+        cursor = c;
+        cachedOrigin = origin;
+        cachedSf = sf;
+        cachedCursorSf = cursorSf ?? sf;
+      } else {
+        cursor = await win.cursorPosition();
+      }
+      // A move/resize/scale-change can invalidate the cache while a cached tick's
+      // cursorPosition() is still in flight — skip this sample (don't return: the
+      // reschedule below must still run, or the loop dies with the window stuck
+      // click-through). The next tick's cachedOrigin === null forces a fresh refresh.
+      if (cachedOrigin !== null) {
+        pollFailureCount = 0;
+        const local = physicalCursorToLocalCss(cursor, cachedOrigin, cachedSf, cachedCursorSf);
+        // Entering CAPTURE uses the tight box (margin 0).
+        applySample(opts.isOverInteractive(local.x, local.y, 0));
+      }
     } catch (err) {
       log.warn("poll_failed", { error: String(err) });
       pollFailureCount++;
@@ -301,13 +385,19 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     suspended = false;
     suspendedOwner = null;
     pollFailureCount = 0;
+    tick = 0;
+    cachedOrigin = null;
+    subscribeWindowEvents(win);
     moveTarget.addEventListener("pointermove", onPointerMove);
+    doc.addEventListener("visibilitychange", onVisibilityChange);
   }
 
   function stop(): void {
     running = false;
     stopPoll();
+    unsubscribeWindowEvents();
     moveTarget.removeEventListener("pointermove", onPointerMove);
+    doc.removeEventListener("visibilitychange", onVisibilityChange);
     // Leave the window interactive so teardown never strands click-through on.
     setIgnore(false);
     win = null;
