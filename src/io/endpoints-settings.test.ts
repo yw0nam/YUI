@@ -721,6 +721,40 @@ describe("ENDPOINT_FIELD_SPECS", () => {
   });
 });
 
+// Pins the per-service reset behavior endpoints-section.ts's handleSvcReset derives from
+// `resetGroup` — grouping by resetGroup must reproduce today's hand-written reset sets exactly
+// (including the tts_provider/chat_api special-cases), or the reset buttons silently start
+// clearing more/less than before.
+describe("ENDPOINT_FIELD_SPECS — resetGroup (endpoints-section.ts per-service reset wiring)", () => {
+  const bySvc = (svc: string): string[] =>
+    ENDPOINT_FIELD_SPECS.filter((s) => s.resetGroup === svc)
+      .map((s) => s.key)
+      .sort();
+
+  it("chat reset group is chat_base_url + chat_model + chat_api", () => {
+    expect(bySvc("chat")).toEqual(["chat_api", "chat_base_url", "chat_model"].sort());
+  });
+
+  it("stt reset group is stt_base_url only", () => {
+    expect(bySvc("stt")).toEqual(["stt_base_url"]);
+  });
+
+  it("tts reset group is irodori_base_url + tts_base_url + tts_voice + tts_provider", () => {
+    expect(bySvc("tts")).toEqual(
+      ["irodori_base_url", "tts_base_url", "tts_provider", "tts_voice"].sort(),
+    );
+  });
+
+  it("broker reset group is broker_base_url only", () => {
+    expect(bySvc("broker")).toEqual(["broker_base_url"]);
+  });
+
+  it("chat_model_context_window carries no resetGroup (no reset button clears it today)", () => {
+    const spec = ENDPOINT_FIELD_SPECS.find((s) => s.key === "chat_model_context_window")!;
+    expect(spec.resetGroup).toBeUndefined();
+  });
+});
+
 // Table-driven invariant: every row's coercion follows from its declared `kind`, so a field added
 // to the table without matching coercion cannot silently accept garbage.
 describe("coerceFor — dispatch by ENDPOINT_FIELD_SPECS kind", () => {
