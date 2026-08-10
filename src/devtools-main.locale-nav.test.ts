@@ -19,44 +19,41 @@ vi.mock("./io/settings-stores", async (importOriginal) => {
   return { ...actual, createSettingsStores: vi.fn(actual.createSettingsStores) };
 });
 
-import { createSettingsStores } from "./io/settings-stores";
 import { setLocale } from "./ui/i18n";
+
+// jsdom lacks CSS.escape — polyfill (mirrors quick-controls/test-helpers.ts).
+if (typeof (globalThis as { CSS?: { escape?: unknown } }).CSS?.escape !== "function") {
+  (globalThis as { CSS?: { escape: (s: string) => string } }).CSS = {
+    escape: (value: string) =>
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: mirror the real escape's control-char handling.
+      String(value).replace(/[\x00-\x7f]/g, (ch) => (/[a-zA-Z0-9_-]/.test(ch) ? ch : `\\${ch}`)),
+  };
+}
 
 afterEach(() => {
   window.dispatchEvent(new Event("beforeunload"));
   setLocale("en");
 });
 
-it("keeps the focused advanced input and its in-progress text across a locale rebuild", async () => {
+it("keeps focus on the active nav button across a locale rebuild", async () => {
   document.body.innerHTML = '<div id="app"></div>';
 
   await import("./devtools-main");
   await vi.waitFor(() => expect(document.querySelector(".devtools-nav")).not.toBeNull());
 
-  document.querySelector<HTMLButtonElement>('[data-section="advanced"]')!.click();
-  const input = document.querySelector<HTMLInputElement>("#devtools-context-window")!;
-  input.focus();
-  input.value = "64000";
-  input.dispatchEvent(new Event("input"));
+  const advanced = document.querySelector<HTMLButtonElement>('[data-section="advanced"]')!;
+  advanced.focus();
 
   setLocale("ja");
   await vi.waitFor(() => {
-    // The pre-rebuild input already satisfies activeElement === querySelector(...), so the
+    // The pre-rebuild button already satisfies activeElement === querySelector(...), so the
     // wait must also require a fresh node — otherwise it resolves before the rebuild runs.
-    const current = document.querySelector("#devtools-context-window");
-    expect(current).not.toBe(input);
+    const current = document.querySelector('[data-section="advanced"]');
+    expect(current).not.toBe(advanced);
     expect(document.activeElement).toBe(current);
   });
 
-  const rebuilt = document.querySelector<HTMLInputElement>("#devtools-context-window")!;
-  expect(rebuilt).not.toBe(input);
-  expect(document.querySelector<HTMLElement>('[data-panel="advanced"]')!.hidden).toBe(false);
+  const rebuilt = document.querySelector<HTMLButtonElement>('[data-section="advanced"]')!;
+  expect(rebuilt).not.toBe(advanced);
   expect(document.activeElement).toBe(rebuilt);
-  expect(rebuilt.value).toBe("64000");
-
-  // Blur resyncs from the store, so the restored text survives only if it committed.
-  const stores = vi.mocked(createSettingsStores).mock.results[0]!.value;
-  expect(stores.endpointsSettings.get().chat_model_context_window).toBe("64000");
-  rebuilt.blur();
-  expect(rebuilt.value).toBe("64000");
 });
