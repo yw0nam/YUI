@@ -57,7 +57,7 @@ When a screenshot is attached, the input is a content-part array: `[{ type: "inp
 | `user` | User spoke or typed | The user's message text | No |
 | `schedule` | A user-configured time-of-day cue fired | Background marker | Yes |
 | `proactive` | A configured engagement cue, tap-bored cue, or region-touch cue fired | Background marker | Yes |
-| `agent` | An external coding-agent finish-hook posted a completion signal | Background marker | No (carries `agent` or `agent_catchup` instead) |
+| `agent` | An external coding-agent lifecycle hook posted a completion or needs-input signal | Background marker | No (carries `agent` or `agent_catchup` instead) |
 | `signals` | An external producer POSTed a burst to the `/signals` ingress | Background marker | No (carries `signals` instead) |
 
 For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utterance — the agent reads the trigger fields to decide whether and what to say. Firing a turn does not guarantee speech: the client renders whatever text the agent returns, and silence means the agent returns empty or no speech text. No client-side gate decides whether to speak (see `D-NO-SPEAK-GATE`).
@@ -76,6 +76,7 @@ When there is no user utterance, the user input trails the `client_context` bloc
 | `proactive.*` (other) | `(I've gone quiet for a while)` |
 | `schedule.*` | `(it's the time of day you check in on me)` |
 | `agent.done` | `(one of my coding tasks just finished)` |
+| `agent.needs_input` | `(one of my coding tasks is waiting on my input)` |
 | `agent.catchup` | `(my coding tasks wrapped up while I was away)` |
 | `signals.push` | `(a new signal just arrived for you)` |
 | `signals.catchup` | `(signals piled up while I was away)` |
@@ -161,30 +162,36 @@ When there is no user utterance, the user input trails the `client_context` bloc
 }
 ```
 
-### Agent completion fields
+### Agent lifecycle fields
 
-`agent` turns carry no `cue`. A turn is one of two shapes: a single completion observed while the user is present and the pipeline is idle (`agent`), or a burst of buffered completions flushed as one turn (`agent_catchup`). Completions buffer while the user is away or while the pipeline is busy (a backend call in flight or speech playback ongoing); the buffer flushes on the return-to-present or busy-to-idle edge. The source is an external coding-agent finish-hook that POSTs a completion signal to the running YUI app over loopback HTTP.
+`agent` turns carry no `cue`. A turn is one of two shapes: a single lifecycle event observed while the user is present and the pipeline is idle (`agent`), or a burst of buffered events flushed as one turn (`agent_catchup`). Events buffer while the user is away or while the pipeline is busy (a backend call in flight or speech playback ongoing); the buffer flushes on the return-to-present or busy-to-idle edge. Within the buffer, a new event with the same `session_id` and `phase` as an already-buffered entry replaces it in place rather than appending, so a session's repeated permission prompts cannot evict other sessions' buffered events out of the per-tool cap. The source is an external coding-agent lifecycle hook that POSTs an event to the running YUI app over loopback HTTP — a task finishing (`phase:"done"`) or the agent stalling on a permission prompt or idle wait (`phase:"needs_input"`).
 
-`trigger.agent` — single live completion:
+`trigger.agent` — single live event:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `tool` | string | Coding agent that finished (e.g. `"claude-code"`, `"opencode"`) |
+| `tool` | string | Coding agent that fired the event (e.g. `"claude-code"`, `"opencode"`) |
 | `project` | string | Project name (typically the directory base name) |
-| `cwd` | string | Absolute working directory at the time of completion |
-| `status` | `"success" \| "error"` | Optional exit status reported by the hook |
+| `cwd` | string | Absolute working directory at the time of the event |
+| `status` | `"success" \| "error"` | Optional exit status reported by the hook; meaningful for `phase:"done"` only |
+| `phase` | `"done" \| "needs_input"` | Lifecycle phase: the task finished, or the agent is blocked waiting on the user |
+| `session_id` | string | Optional opaque pass-through identifying the coding-agent session; the client does not interpret it |
+| `detail` | string | Optional judgment material for the backend — a transcript excerpt or the pending tool call; capped at 16384 bytes at ingress |
 | `summary` | string | Speech material from the hook (raw last message or pre-summarized; capped at 8192 bytes at ingress) |
 | `ts` | number | Epoch millis when the hook fired |
 
-`trigger.agent_catchup` — burst of buffered completions:
+`trigger.agent_catchup` — burst of buffered events:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `count` | number | Total number of buffered completions in this burst |
-| `items[]` | array | One entry per buffered completion, oldest first |
-| `items[].tool` | string | Coding agent that finished |
+| `count` | number | Total number of buffered events in this burst |
+| `items[]` | array | One entry per buffered event, oldest first |
+| `items[].tool` | string | Coding agent that fired the event |
 | `items[].project` | string | Project name |
-| `items[].status` | `"success" \| "error"` | Optional exit status |
+| `items[].status` | `"success" \| "error"` | Optional exit status; meaningful for `phase:"done"` only |
+| `items[].phase` | `"done" \| "needs_input"` | Lifecycle phase |
+| `items[].session_id` | string | Optional opaque session pass-through |
+| `items[].detail` | string | Optional judgment material for the backend |
 | `items[].summary` | string | Speech material from the hook |
 | `items[].ts` | number | Epoch millis when the hook fired |
 
@@ -202,8 +209,30 @@ When there is no user utterance, the user input trails the `client_context` bloc
       "project": "yui",
       "cwd": "/Users/you/Desktop/codes/waifu/2026/YUI",
       "status": "success",
+      "phase": "done",
       "summary": "Extracted dev workflow into yui-dev-workflow skill and slimmed AGENTS.md.",
       "ts": 1781000000000
+    }
+  }
+}
+```
+
+**`agent` turn** — the coding agent is waiting on a permission prompt:
+
+```json
+{
+  "env": { "timestamp": "2026-06-15T16:22:00+09:00", "timezone": "Asia/Seoul" },
+  "trigger": {
+    "kind": "agent",
+    "agent": {
+      "tool": "claude-code",
+      "project": "yui",
+      "cwd": "/Users/you/Desktop/codes/waifu/2026/YUI",
+      "phase": "needs_input",
+      "session_id": "sess-abc123",
+      "detail": "waiting on Bash: rm -rf /tmp/scratch",
+      "summary": "",
+      "ts": 1781000120000
     }
   }
 }
@@ -219,8 +248,8 @@ When there is no user utterance, the user input trails the `client_context` bloc
     "agent_catchup": {
       "count": 2,
       "items": [
-        { "tool": "claude-code", "project": "yui", "status": "success", "summary": "Fixed camera gaze head/eye tracking in the Tauri window.", "ts": 1781000000000 },
-        { "tool": "opencode", "project": "api-server", "status": "error", "summary": "Build failed: type error in auth middleware.", "ts": 1781000600000 }
+        { "tool": "claude-code", "project": "yui", "status": "success", "phase": "done", "summary": "Fixed camera gaze head/eye tracking in the Tauri window.", "ts": 1781000000000 },
+        { "tool": "opencode", "project": "api-server", "status": "error", "phase": "done", "summary": "Build failed: type error in auth middleware.", "ts": 1781000600000 }
       ]
     }
   }
