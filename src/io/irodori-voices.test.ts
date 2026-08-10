@@ -17,6 +17,7 @@ import {
   evictRegistration,
   listVoices,
   updateVoice,
+  VOICE_REGISTER_TIMEOUT_MS,
   voiceRevision,
 } from "./irodori-voices";
 
@@ -210,8 +211,9 @@ describe("ensureRegistered", () => {
   it("a solo caller's own abort rejects it without handing its signal to the registration fetch", async () => {
     const controller = new AbortController();
     let resolveGet!: (value: Response) => void;
-    // If the fetch reacted to this signal it would reject the moment we abort below —
-    // it never does, proving the registration fetch is never handed a caller's signal.
+    // If the fetch reacted to the caller's signal it would reject the moment we abort below —
+    // it never does, proving the registration fetch is never handed the caller's own signal
+    // (it gets the registration's own deadline signal instead — see the "deadline" tests below).
     const fetchMock = vi.fn<FetchFn>(
       (_input, init) =>
         new Promise<Response>((resolve, reject) => {
@@ -231,7 +233,7 @@ describe("ensureRegistered", () => {
     });
     controller.abort();
     await expect(pending).rejects.toThrow();
-    expect(fetchMock.mock.calls[0][1]?.signal).toBeUndefined();
+    expect(fetchMock.mock.calls[0][1]?.signal).not.toBe(controller.signal);
 
     // The aborted caller did not poison the shared registration — letting it settle lets a
     // later call for the same id join the same success instead of retrying from scratch.
@@ -274,7 +276,7 @@ describe("ensureRegistered", () => {
     const callerB = ensureRegistered({ ...opts, signal: controllerB.signal });
 
     controllerA.abort();
-    await expect(callerA).rejects.toThrow();
+    await expect(callerA).rejects.toMatchObject({ name: "AbortError" });
 
     resolveGet(voicesResponse(["x"]));
     await expect(callerB).resolves.toBeUndefined();
@@ -307,10 +309,87 @@ describe("ensureRegistered", () => {
     const callerB = ensureRegistered({ ...opts, signal: controllerB.signal });
 
     controllerB.abort();
-    await expect(callerB).rejects.toThrow();
+    await expect(callerB).rejects.toMatchObject({ name: "AbortError" });
 
     resolveGet(voicesResponse(["x"]));
     await expect(callerA).resolves.toBeUndefined();
+  });
+
+  it("does not leave an unhandled rejection when the caller's signal is already aborted at call time", async () => {
+    const seen: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => seen.push(reason);
+    process.on("unhandledRejection", onUnhandledRejection);
+
+    try {
+      const controller = new AbortController();
+      controller.abort();
+      const fetchMock = vi.fn<FetchFn>(
+        async () => ({ ok: false, status: 500, headers: new Headers() }) as unknown as Response,
+      );
+
+      // The signal is already aborted before ensureRegistered is even called — this caller is
+      // also the one that creates the shared registration, so nobody else holds a handler on it.
+      const pending = ensureRegistered({
+        baseUrl: BASE,
+        id: "already-aborted",
+        refUrl: "/references/already-aborted.mp3",
+        fetch: fetchMock as unknown as typeof fetch,
+        signal: controller.signal,
+      });
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+
+      // Give Node a macrotask turn to flag the shared registration's own rejection as
+      // unhandled, if nothing consumed it.
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    } finally {
+      process.off("unhandledRejection", onUnhandledRejection);
+    }
+
+    expect(seen).toHaveLength(0);
+  });
+
+  describe("deadline", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("a hung registration settles at its own deadline, independent of any caller's signal", async () => {
+      vi.useFakeTimers();
+      let getCalls = 0;
+      const fetchMock = vi.fn<FetchFn>((input: unknown, init?: RequestInit) => {
+        const url = String(input);
+        if (url === "http://localhost:8091/voices" && (init?.method ?? "GET") === "GET") {
+          getCalls += 1;
+          if (getCalls === 1) {
+            // First registration hangs — nobody passes a signal (mirrors swapSpeaker), so only
+            // the registration's own deadline can settle it.
+            return new Promise<Response>((_resolve, reject) => {
+              init?.signal?.addEventListener("abort", () =>
+                reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError")),
+              );
+            });
+          }
+          return Promise.resolve(voicesResponse(["x"]));
+        }
+        throw new Error(`unexpected fetch ${url} ${init?.method}`);
+      });
+
+      const opts = {
+        baseUrl: BASE,
+        id: "x",
+        refUrl: "/references/x.mp3",
+        fetch: fetchMock as unknown as typeof fetch,
+      };
+
+      const pending = ensureRegistered(opts);
+      const assertion = expect(pending).rejects.toThrow();
+      await vi.advanceTimersByTimeAsync(VOICE_REGISTER_TIMEOUT_MS + 10);
+      await assertion;
+
+      // A later call is not stuck behind the hung registration — it retries from scratch.
+      await expect(ensureRegistered(opts)).resolves.toBeUndefined();
+      expect(getCalls).toBe(2);
+    });
   });
 
   it("throws a clear message when POST /voices is non-2xx", async () => {
