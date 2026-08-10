@@ -1062,6 +1062,23 @@ describe("wireWindowSync", () => {
     sync.dispose();
   });
 
+  it("runs a storage-event-driven reload under the same loop guard as the bridge path", () => {
+    const order: string[] = [];
+    const { bag } = makeBag(order);
+    const sync = wireWindowSync({ stores: bag as never, windowKind: "devtools", log: noopLog });
+
+    // wireStorageSync is mocked (module-level vi.mock above) — it never installs a real
+    // "storage" listener. Simulate the sibling window's storage event by invoking whatever
+    // wireWindowSync handed it, the same way the real "storage" listener would.
+    const storageReloadArg = wireStorageSync.mock.calls[0]![0]!;
+    for (const entry of storageReloadArg) entry.reloadFromStorage();
+    vi.advanceTimersByTime(201);
+
+    expect(order).toContain("broadcast");
+    expect(fakeBridge.emitSettingsChanged).not.toHaveBeenCalled();
+    sync.dispose();
+  });
+
   it("runs a hook registered after construction on the next remote change", () => {
     const order: string[] = [];
     const { bag } = makeBag(order);
