@@ -85,9 +85,32 @@ import type { EndpointsConfig } from "./contract";
 import type { BusEnvelope } from "./dispatcher/event-bus";
 import { createTurnLog } from "./dispatcher/turn";
 import type { FillerLoopDeps } from "./io/filler-loop";
+import {
+  createSpeakerSelection,
+  localStorageSpeakerStorage,
+  localStorageUserSpeakerStorage,
+  type SpeakerOption,
+} from "./io/speaker-selection";
 import type { SpeechPlaybackOptions } from "./io/speech-playback";
 import type { SttVadOptions } from "./io/stt-vad";
 import { wireVoicePipeline } from "./voice-pipeline-wiring";
+
+// In-memory Storage stand-in shared by two speakerSelection instances, so they behave like the
+// same localStorage two real windows would share (jsdom/window are not available in this file's
+// node test environment).
+function sharedLocalStorage(): Storage {
+  const backing = new Map<string, string>();
+  return {
+    getItem: (key: string) => backing.get(key) ?? null,
+    setItem: (key: string, value: string) => void backing.set(key, value),
+    removeItem: (key: string) => void backing.delete(key),
+    clear: () => backing.clear(),
+    key: () => null,
+    get length() {
+      return backing.size;
+    },
+  } as Storage;
+}
 
 function endpoints(overrides: Partial<EndpointsConfig> = {}): EndpointsConfig {
   return {
@@ -420,6 +443,92 @@ describe("wireVoicePipeline", () => {
     mocks.voiceRevision.mockReturnValue(1);
     await synth("first");
     expect(irodoriCalls()).toHaveLength(2);
+  });
+
+  it("re-synthesizes filler after a re-import bumps the revision in another window", async () => {
+    // Two independent speakerSelection instances sharing one localStorage — stand-ins for the
+    // settings window (A, performs the re-import) and the pet window (B, owns the filler cache).
+    const storage = sharedLocalStorage();
+    const storageOpts = () => ({
+      storage: localStorageSpeakerStorage(),
+      userStorage: localStorageUserSpeakerStorage(),
+    });
+    vi.stubGlobal("localStorage", storage);
+    try {
+      const windowA = createSpeakerSelection({ defaultValue: "", ...storageOpts() });
+      windowA.addUserOption({
+        id: "myvoice",
+        label: "My Voice",
+        ref_url: "/myvoice-v1.wav",
+        source: "user",
+      });
+      windowA.select("myvoice");
+
+      // Window B loads the already-persisted option at construction time, same as opening the
+      // pet window after a voice was imported in a prior session.
+      const windowB = createSpeakerSelection({ defaultValue: "", ...storageOpts() });
+
+      const currentEndpoints = endpoints({
+        tts_provider: "irodori",
+        irodori_base_url: "http://irodori.test",
+      });
+      wireVoicePipeline({
+        renderer: {
+          setMouthOpen: vi.fn(),
+          stopMouth: vi.fn(),
+          easeEmotionToNeutral: vi.fn(),
+          applyDirective: vi.fn(),
+          playMotion: vi.fn(),
+        },
+        surfaces: {
+          beginSpeech: vi.fn(),
+          pushSpeech: vi.fn(),
+          endSpeech: vi.fn(),
+          finishSpeech: vi.fn(),
+        },
+        turnLog: createTurnLog(),
+        getEndpoints: () => currentEndpoints,
+        getFillerConfig: () => ({
+          gap_ms: 1_000,
+          gap_jitter_ms: 100,
+          pools: { ja: { first: ["first"], repeat: ["repeat"] } },
+        }),
+        getTtsApiKey: vi.fn().mockResolvedValue(undefined),
+        getSttApiKey: vi.fn().mockResolvedValue(undefined),
+        ttsSettings: { get: () => ({ enabled: true }) },
+        lipsyncSettings: { get: () => ({ gain: 1 }) },
+        fillerSettings: { get: () => ({ enabled: true, language: "ja", customPools: {} }) },
+        vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: false }) },
+        speakerSelection: windowB,
+        voiceInputStatus: { set: vi.fn() },
+        onVoiceSegment: vi.fn(),
+      });
+      const synth = playbackOptions().pipeline!.synth!;
+
+      await synth("first");
+      await synth("first");
+      expect(irodoriCalls()).toHaveLength(1);
+
+      // Window A re-imports "My Voice" under the same name — same id, new clip, bumped revision.
+      // This is what a fixed commitVoiceImport does; simulated directly here since the network
+      // round-trip is covered separately in voice-import-flow.test.ts.
+      windowA.addUserOption({
+        id: "myvoice",
+        label: "My Voice",
+        ref_url: "/myvoice-v2.wav",
+        source: "user",
+        revision: 1,
+      } as SpeakerOption);
+
+      // Cross-window sync: the pet window's storage listener re-reads on the next storage event —
+      // reloadFromStorage() is exactly what that listener calls (see settings-window.ts).
+      windowB.reloadFromStorage();
+
+      await synth("first");
+      expect(irodoriCalls()).toHaveLength(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("drops cached filler audio when the filler pool is edited", async () => {
