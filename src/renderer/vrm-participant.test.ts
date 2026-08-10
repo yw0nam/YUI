@@ -7,8 +7,8 @@
  * pins/gaze/emotion/mouth.
  */
 
-import { describe, expect, it, vi } from "vitest";
 import type { VRM } from "@pixiv/three-vrm";
+import { describe, expect, it, vi } from "vitest";
 import {
   anyConverging,
   notifyVrmDisposed,
@@ -23,9 +23,24 @@ const ctx = { vrm: fakeVrm, dt: 0.016, elapsed: 1.2 };
 describe("stepParticipants", () => {
   it("steps every participant, in array order, with the same ctx", () => {
     const order: string[] = [];
-    const a: VrmParticipant = { step: vi.fn((c) => { order.push("a"); expect(c).toBe(ctx); }) };
-    const b: VrmParticipant = { step: vi.fn((c) => { order.push("b"); expect(c).toBe(ctx); }) };
-    const c: VrmParticipant = { step: vi.fn((c2) => { order.push("c"); expect(c2).toBe(ctx); }) };
+    const a: VrmParticipant = {
+      step: vi.fn((c) => {
+        order.push("a");
+        expect(c).toBe(ctx);
+      }),
+    };
+    const b: VrmParticipant = {
+      step: vi.fn((c) => {
+        order.push("b");
+        expect(c).toBe(ctx);
+      }),
+    };
+    const c: VrmParticipant = {
+      step: vi.fn((c2) => {
+        order.push("c");
+        expect(c2).toBe(ctx);
+      }),
+    };
 
     stepParticipants([a, b, c], ctx);
 

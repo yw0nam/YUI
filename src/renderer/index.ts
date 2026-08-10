@@ -192,16 +192,12 @@ export interface Renderer {
    * Non-finite or identical values are no-ops. Clamping and persistence are caller's responsibility (src/io + main.ts).
    */
   setZoom(z: number): void;
-  /** Returns the currently applied zoom multiplier. */
-  getZoom(): number;
   /**
    * Set orbit viewpoint (radians). azimuth is free (immediately applied); polar eases and narrows to [60°,120°]
    * while perched, then returns to saved free angle on perch release.
    * Clamping (free [2°,178°]) and persistence are caller's responsibility (src/io + main.ts).
    */
   setOrbit(angles: OrbitAngles): void;
-  /** Returns currently applied orbit angles — azimuth + saved free polar. */
-  getOrbit(): OrbitAngles;
   /**
    * Current screen pixel coordinates of character's feet (box center x/z, lowest y). null if VRM not loaded.
    * Changes whenever camera is refit via resize/zoom — used to pin UI input to feet.
@@ -257,8 +253,6 @@ export interface Renderer {
    * is always on and unaffected by this toggle.
    */
   setIdleThrottleEnabled(enabled: boolean): void;
-  /** Current idle-throttle toggle state (true = idle cap active). */
-  getIdleThrottleEnabled(): boolean;
   /**
    * Update cursor-gaze tracking thresholds. Merge only given (finite) keys onto current
    * (omitted keys retain defaults); applies immediately starting next frame.
@@ -269,8 +263,6 @@ export interface Renderer {
    * gaze eases back to neutral (no snap) and the motion/eyes are left untouched once settled.
    */
   setGazeEnabled(enabled: boolean): void;
-  /** Current gaze toggle state (true = tracking the cursor). */
-  getGazeEnabled(): boolean;
   /**
    * Latest window-local client CSS px OS-cursor position — e.g. MouseEvent.
    * clientX/clientY; null = unavailable. Converted internally to stage-local
@@ -980,13 +972,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     setEmotionRegistry,
     setFraming,
     setZoom,
-    getZoom() {
-      return zoom;
-    },
     setOrbit,
-    getOrbit() {
-      return { azimuth, polar };
-    },
     getCharacterAnchor() {
       if (!modelBox) return null;
       camera.updateMatrixWorld();
@@ -1057,17 +1043,11 @@ export function createRenderer(options: RendererOptions): Renderer {
     setIdleThrottleEnabled(enabled) {
       idleThrottleEnabled = enabled;
     },
-    getIdleThrottleEnabled() {
-      return idleThrottleEnabled;
-    },
     setGaze(next) {
       gaze.setConfig(next);
     },
     setGazeEnabled(enabled) {
       gaze.setEnabled(enabled);
-    },
-    getGazeEnabled() {
-      return gaze.getEnabled();
     },
     setGazeCursor(pos) {
       gaze.setCursorCss(pos && clientToStage(pos.x, pos.y, mountRect));
