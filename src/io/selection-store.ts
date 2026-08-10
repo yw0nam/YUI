@@ -139,6 +139,9 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
       if (idx >= 0) userOptions[idx] = next;
       else userOptions.push(next);
       persistUser();
+      // Content behind the active id can change without the id itself changing (e.g. a re-import
+      // over the currently-selected name) — select()'s id-unchanged no-op would otherwise swallow it.
+      if (resolve().id === next.id) notify();
     },
 
     /** Remove user option. If currently selected, fall back to default resolution + notify. */

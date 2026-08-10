@@ -769,6 +769,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
       label: "My Voice",
       ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
       source: "user",
+      revision: 1,
     });
     speakerSelection.dispose();
   });

@@ -30,6 +30,7 @@ vi.mock("./voice-import", () => ({
   },
 }));
 
+import { createSpeakerSelection, type SpeakerOption } from "./speaker-selection";
 import { createVoiceImportFlow } from "./voice-import-flow";
 
 const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
@@ -42,7 +43,7 @@ const IMPORTED = {
 };
 
 function fakeStore() {
-  return { addUserOption: vi.fn(), select: vi.fn() };
+  return { list: vi.fn(() => [] as SpeakerOption[]), addUserOption: vi.fn(), select: vi.fn() };
 }
 
 // Explicit arg, no default — build(undefined) must mean "no base url", not "fall back to one".
@@ -101,8 +102,17 @@ describe("createVoiceImportFlow", () => {
         id: "myvoice",
         refUrl: IMPORTED.ref_url,
       });
-      expect(speakerSelection.addUserOption).toHaveBeenCalledWith(IMPORTED);
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith({ ...IMPORTED, revision: 1 });
       expect(speakerSelection.select).toHaveBeenCalledWith("myvoice");
+    });
+
+    it("bumps the revision on top of whatever is already stored for that id, so a re-import invalidates other windows' filler cache", async () => {
+      const { commitVoiceImport, speakerSelection } = build("http://localhost:8091");
+      speakerSelection.list.mockReturnValue([{ ...IMPORTED, revision: 3 }]);
+
+      await commitVoiceImport("/tmp/Replacement.wav", "My Voice");
+
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith({ ...IMPORTED, revision: 4 });
     });
 
     // Regression: deciding PUT-vs-POST from listVoices routed an overwrite into ensureRegistered
@@ -153,6 +163,28 @@ describe("createVoiceImportFlow", () => {
       expect(updateVoice).not.toHaveBeenCalled();
       expect(removeUserVoice).toHaveBeenCalledWith("myvoice");
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
+    });
+
+    // fakeStore() above doesn't exercise createSelectionStore's own notify logic, so it can't
+    // catch a regression there — this uses the real store to pin the #506 scenario: re-importing
+    // the voice that is already the active selection.
+    it("notifies the real store's own subscribers when re-importing the id that is already active", async () => {
+      const speakerSelection = createSpeakerSelection({ defaultValue: "" });
+      speakerSelection.addUserOption(IMPORTED);
+      speakerSelection.select(IMPORTED.id);
+      const { commitVoiceImport } = createVoiceImportFlow({
+        getIrodoriBaseUrl: () => "http://localhost:8091",
+        speakerSelection,
+        log: noopLog,
+      });
+      const onChange = vi.fn();
+      speakerSelection.subscribe(onChange);
+
+      // Same name, same id, already active — select() alone is a no-op here (unchanged active id),
+      // so addUserOption is the only thing that can wake other windows.
+      await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+
+      expect(onChange).toHaveBeenCalled();
     });
   });
 });
