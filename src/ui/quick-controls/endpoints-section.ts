@@ -8,7 +8,11 @@ import "./endpoints-section.css";
 
 import type { ApiKeySettingsStore } from "../../io/api-key-settings";
 import type { ChatKeySettingsStore } from "../../io/chat-key-settings";
-import type { createEndpointsSettings, EndpointOverrides } from "../../io/endpoints-settings";
+import {
+  type createEndpointsSettings,
+  ENDPOINT_FIELD_SPECS,
+  type EndpointOverrides,
+} from "../../io/endpoints-settings";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 import { CHATKEY_EYE_OFF_SVG, CHATKEY_EYE_SVG, ENDPOINT_FIELDS } from "./constants";
@@ -199,12 +203,6 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
 
   // ── Per-service resets ──
   // Each section clears its endpoint fields + key store. URLs/models reset to "", keys call .clear().
-  const SVC_RESET_FIELDS: Record<string, (keyof EndpointOverrides)[]> = {
-    chat: ["chat_base_url", "chat_model"],
-    stt: ["stt_base_url"],
-    tts: ["irodori_base_url", "tts_base_url", "tts_voice"],
-    broker: ["broker_base_url"],
-  };
   const SVC_RESET_KEY: Record<string, ApiKeySettingsStore | undefined> = {
     chat: chatKeySettings,
     stt: sttKeySettings,
@@ -213,17 +211,19 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   };
 
   function handleSvcReset(svc: string): void {
-    const fields = SVC_RESET_FIELDS[svc];
-    if (!fields) return;
+    // Fields to clear are every ENDPOINT_FIELD_SPECS row tagged with this service's resetGroup —
+    // covers both text-input fields (chat_base_url, ...) and dropdown-enum fields (chat_api,
+    // tts_provider), which is why the patch loop below isn't restricted to epInputs' keys.
+    const fields = ENDPOINT_FIELD_SPECS.filter((s) => s.resetGroup === svc).map((s) => s.key);
+    if (fields.length === 0) return;
     const patch: Partial<EndpointOverrides> = {};
     for (const key of fields) patch[key] = "";
-    if (svc === "tts") patch.tts_provider = "";
-    // chat_api is a dropdown enum (like tts_provider) — not in ENDPOINT_FIELDS/epInputs, so it's
-    // patched directly rather than through the text-input reset loop below.
-    if (svc === "chat") patch.chat_api = "";
     endpointsSettings.set(patch);
+    // Only url/string-kind fields have a DOM input (epInputs); dropdown-enum fields (chat_api,
+    // tts_provider) are re-rendered by reflect.reflectChatType/reflectVoiceEngine on store change.
     for (const key of fields) {
-      const input = epInputs.get(key)!;
+      const input = epInputs.get(key);
+      if (!input) continue;
       input.value = "";
       validateEndpointInput(key, input);
     }

@@ -10,6 +10,7 @@ import "./styles.css";
 import { wireSettingsWindowSync } from "./bootstrap-wiring";
 import { createConfigStore } from "./config";
 import { selectFetch } from "./io/chat-client";
+import { endpointDefaultsFromConfig } from "./io/endpoints-settings";
 import { updateVoice } from "./io/irodori-voices";
 import { createSettingsStores } from "./io/settings-stores";
 import { closeSettingsWindow } from "./io/settings-window";
@@ -211,19 +212,7 @@ async function bootstrap(): Promise<void> {
       getEndpointDefaults: () => {
         if (!configLoaded) return undefined;
         try {
-          const e = config.get().endpoints;
-          return {
-            chat_base_url: e.chat_base_url,
-            stt_base_url: e.stt_base_url,
-            tts_base_url: e.tts_base_url,
-            irodori_base_url: e.irodori_base_url ?? "",
-            broker_base_url: e.broker_base_url ?? "",
-            chat_model: e.chat_model ?? "",
-            chat_model_context_window: e.chat_model_context_window?.toString() ?? "",
-            chat_api: e.chat_api ?? "",
-            tts_voice: e.tts_voice ?? "",
-            tts_provider: e.tts_provider ?? "",
-          };
+          return endpointDefaultsFromConfig(config.get().endpoints);
         } catch {
           return undefined;
         }

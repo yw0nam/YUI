@@ -1,6 +1,6 @@
 /** Quick-controls display constants shared by the entry panel + its sub-modules. */
 import type { ReasoningEffort } from "../../io/agent-settings";
-import type { EndpointOverrides } from "../../io/endpoints-settings";
+import { ENDPOINT_FIELD_SPECS, type EndpointOverrides } from "../../io/endpoints-settings";
 import type { Locale } from "../i18n";
 
 // Language picker display order (Japanese / English / Korean). Fixed independently of LOCALES.
@@ -14,22 +14,22 @@ export const SEG_LABEL_KEYS: Record<ReasoningEffort, string> = {
   medium: "reasoning.medium",
 };
 
-// Endpoints section: 5 editable fields. If url=true, live validation with isValidEndpointUrl.
-// labelKey is the i18n key for the field label.
+// Endpoints section: text-input fields, derived from io/endpoints-settings's ENDPOINT_FIELD_SPECS
+// (url/string-kind rows only — enum/posInt-kind fields render as a dropdown or devtools input
+// elsewhere, not as a labeled text row here). If url=true, live validation with isValidEndpointUrl.
 export interface EndpointFieldDef {
   key: keyof EndpointOverrides;
   labelKey: string;
   url: boolean;
 }
-export const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = [
-  { key: "chat_base_url", labelKey: "endpoints.chat_base_url.label", url: true },
-  { key: "stt_base_url", labelKey: "endpoints.stt_base_url.label", url: true },
-  { key: "tts_base_url", labelKey: "endpoints.tts_base_url.label", url: true },
-  { key: "irodori_base_url", labelKey: "endpoints.irodori_base_url.label", url: true },
-  { key: "broker_base_url", labelKey: "endpoints.broker_base_url.label", url: true },
-  { key: "chat_model", labelKey: "endpoints.chat_model.label", url: false },
-  { key: "tts_voice", labelKey: "endpoints.tts_voice.label", url: false },
-];
+const isTextFieldSpec = (
+  s: (typeof ENDPOINT_FIELD_SPECS)[number],
+): s is Extract<(typeof ENDPOINT_FIELD_SPECS)[number], { kind: "url" | "string" }> =>
+  s.kind === "url" || s.kind === "string";
+
+export const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = ENDPOINT_FIELD_SPECS.filter(
+  isTextFieldSpec,
+).map((s) => ({ key: s.key, labelKey: s.labelKey, url: s.kind === "url" }));
 
 // Eye icon (show/hide). Line-icon style matches other icon buttons.
 export const CHATKEY_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg>`;

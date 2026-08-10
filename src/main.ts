@@ -58,7 +58,7 @@ import { selectFetch } from "./io/chat-client";
 import { type CursorTrackerController, createCursorTracker } from "./io/cursor-tracker";
 import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { createDragHoldSource, type DragHoldSource } from "./io/drag-hold-source";
-import { mergeEndpoints } from "./io/endpoints-settings";
+import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/endpoints-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
 import { createOsContext } from "./io/os-context";
 import { createPeekState } from "./io/peek-state";
@@ -391,19 +391,7 @@ async function bootstrap(): Promise<void> {
       ttsKeySettings,
       getEndpointDefaults: () => {
         try {
-          const e = config.get().endpoints;
-          return {
-            chat_base_url: e.chat_base_url,
-            stt_base_url: e.stt_base_url,
-            tts_base_url: e.tts_base_url,
-            irodori_base_url: e.irodori_base_url ?? "",
-            broker_base_url: e.broker_base_url ?? "",
-            chat_model: e.chat_model ?? "",
-            chat_model_context_window: e.chat_model_context_window?.toString() ?? "",
-            chat_api: e.chat_api ?? "",
-            tts_voice: e.tts_voice ?? "",
-            tts_provider: e.tts_provider ?? "",
-          };
+          return endpointDefaultsFromConfig(config.get().endpoints);
         } catch {
           return undefined;
         }
