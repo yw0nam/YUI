@@ -15,20 +15,6 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
     return v;
   };
 
-  // dnd
-  const rawDnd = raw.dnd;
-  let app_blocklist: string[] = [];
-  if (!isObject(rawDnd)) {
-    issues.push(`dnd는 객체여야 함 (받음: ${JSON.stringify(rawDnd)})`);
-  } else {
-    const rawBlocklist = rawDnd.app_blocklist;
-    if (!Array.isArray(rawBlocklist) || rawBlocklist.some((v) => typeof v !== "string")) {
-      issues.push(`dnd.app_blocklist는 string[]이어야 함 (받음: ${JSON.stringify(rawBlocklist)})`);
-    } else {
-      app_blocklist = rawBlocklist as string[];
-    }
-  }
-
   // debounce_ms
   const rawDebounce = raw.debounce_ms;
   const debounce_ms = {
@@ -57,5 +43,5 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
   }
 
   assertValid(file, issues);
-  return { dnd: { app_blocklist }, debounce_ms, rate_limit };
+  return { debounce_ms, rate_limit };
 }

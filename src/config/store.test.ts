@@ -36,7 +36,6 @@ function goodFixture(): Record<string, unknown> {
       },
     },
     "guardrails.json": {
-      dnd: { app_blocklist: [] },
       debounce_ms: {
         idle_watcher: 30000,
         os_event_watcher: 5000,

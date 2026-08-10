@@ -1,6 +1,5 @@
-//! Windows OS polling — active app (Win32 foreground window), idle
-//! (GetLastInputInfo), window title + fullscreen (window/monitor rect
-//! comparison), window enumeration (EnumWindows) for `list_windows`.
+//! Windows OS polling — idle (GetLastInputInfo), window enumeration
+//! (EnumWindows) for `list_windows`.
 //!
 //! Implements:
 //!   - `start_polling`: starts the shared background polling loop.
@@ -10,31 +9,22 @@
 //!
 //! All functions must not panic; degrade gracefully.
 
-use super::{polling_loop, sanitise_window_title, PollingWindowInfo, WindowAtPoint};
-use std::{ffi::c_void, path::Path, thread};
+use super::{polling_loop, sanitise_window_title, WindowAtPoint};
+use std::{ffi::c_void, thread};
 use tauri::AppHandle;
 use windows::Win32::{
-    Foundation::{CloseHandle, HWND, LPARAM, RECT},
+    Foundation::{HWND, LPARAM, RECT},
     Graphics::{
         Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS},
-        Gdi::{
-            GetMonitorInfoW, MonitorFromWindow, HMONITOR, MONITORINFO, MONITOR_DEFAULTTONEAREST,
-        },
+        Gdi::{MonitorFromWindow, HMONITOR, MONITOR_DEFAULTTONEAREST},
     },
-    System::{
-        SystemInformation::GetTickCount,
-        Threading::{
-            OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
-            PROCESS_QUERY_LIMITED_INFORMATION,
-        },
-    },
+    System::SystemInformation::GetTickCount,
     UI::{
         HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI},
         Input::KeyboardAndMouse::{GetAsyncKeyState, GetLastInputInfo, LASTINPUTINFO, VK_LBUTTON},
         WindowsAndMessaging::{
-            EnumWindows, GetClassNameW, GetDesktopWindow, GetForegroundWindow, GetShellWindow,
-            GetWindowLongW, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
-            IsWindowVisible, GWL_EXSTYLE, WS_EX_TOOLWINDOW,
+            EnumWindows, GetClassNameW, GetWindowLongW, GetWindowRect, GetWindowTextW,
+            GetWindowThreadProcessId, IsIconic, IsWindowVisible, GWL_EXSTYLE, WS_EX_TOOLWINDOW,
         },
     },
 };
@@ -62,9 +52,9 @@ pub(super) fn platform_lbutton_is_down() -> bool {
 
 // ─── Pure helpers for the real Win32 watcher (FFI-free, unit-tested) ────────
 //
-// These back the idle / active-app / fullscreen / list_windows implementation
-// that wires them to Win32 FFI calls; kept FFI-free here so the arithmetic and
-// filtering logic is directly unit-testable.
+// These back the idle / list_windows implementation that wires them to Win32
+// FFI calls; kept FFI-free here so the arithmetic and filtering logic is
+// directly unit-testable.
 
 // Standard 96-DPI baseline used to derive the physical→logical scale factor.
 const BASELINE_DPI: f64 = 96.0;
@@ -81,23 +71,6 @@ fn idle_ms_from_ticks(now_tick: u32, last_tick: u32) -> u64 {
     } else {
         diff as u64
     }
-}
-
-/// Extracts the executable file stem (no extension) from a full image path.
-///
-/// `C:\...\chrome.exe` → `Some("chrome")`. `None` for a path with no file
-/// stem (e.g. an empty string).
-fn app_name_from_exe_path(path: &str) -> Option<String> {
-    Path::new(path)
-        .file_stem()
-        .map(|s| s.to_string_lossy().into_owned())
-        .filter(|s| !s.is_empty())
-}
-
-/// True when `win` fully covers `mon` (physical pixels, both rects in the
-/// same coordinate space — no DPI conversion needed for this comparison).
-fn rect_covers_monitor(win: RECT, mon: RECT) -> bool {
-    win.left <= mon.left && win.top <= mon.top && win.right >= mon.right && win.bottom >= mon.bottom
 }
 
 /// One enumerated top-level window in physical-pixel screen space.
@@ -163,59 +136,7 @@ pub(super) fn platform_idle_ms() -> Option<u64> {
     os_idle_ms()
 }
 
-// ─── active app + window title ─────────────────────────────────────────────
-
-/// Info gathered for the current foreground window.
-struct WindowInfo {
-    is_fullscreen: bool,
-}
-
-/// Returns (pid, app_name) for the foreground window, or `None` if there is
-/// none (e.g. nothing focused) or the process image path can't be resolved.
-fn frontmost_app() -> Option<(u32, String)> {
-    let hwnd = unsafe { GetForegroundWindow() };
-    if hwnd.is_invalid() {
-        log::debug!("frontmost_app_none skipped=true");
-        return None;
-    }
-
-    let mut pid: u32 = 0;
-    unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
-    if pid == 0 {
-        log::debug!("frontmost_app_pid_zero skipped=true");
-        return None;
-    }
-
-    let exe_path = process_image_path(pid)?;
-    let app_name = app_name_from_exe_path(&exe_path)?;
-    Some((pid, app_name))
-}
-
-/// Resolves a process's full image path via `OpenProcess` +
-/// `QueryFullProcessImageNameW`, closing the handle on every exit path.
-fn process_image_path(pid: u32) -> Option<String> {
-    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }.ok()?;
-
-    let mut buf = [0u16; 1024];
-    let mut size = buf.len() as u32;
-    let result = unsafe {
-        QueryFullProcessImageNameW(
-            handle,
-            PROCESS_NAME_WIN32,
-            windows::core::PWSTR(buf.as_mut_ptr()),
-            &mut size,
-        )
-    };
-    unsafe {
-        let _ = CloseHandle(handle);
-    }
-
-    if result.is_err() {
-        log::debug!("query_full_process_image_name_failed pid={pid}");
-        return None;
-    }
-    Some(String::from_utf16_lossy(&buf[..size as usize]))
-}
+// ─── window title ────────────────────────────────────────────────────────────
 
 /// Reads the window title of `hwnd` via `GetWindowTextW`.
 fn window_title(hwnd: HWND) -> Option<String> {
@@ -225,56 +146,6 @@ fn window_title(hwnd: HWND) -> Option<String> {
         return None;
     }
     sanitise_window_title(&String::from_utf16_lossy(&buf[..len as usize]))
-}
-
-// ─── fullscreen heuristic ───────────────────────────────────────────────────
-
-/// Foreground-window fullscreen heuristic: the window's rect covers its
-/// monitor's rect. Desktop/shell windows are excluded (never "fullscreen").
-fn is_fullscreen(hwnd: HWND) -> bool {
-    let desktop = unsafe { GetDesktopWindow() };
-    let shell = unsafe { GetShellWindow() };
-    if hwnd == desktop || hwnd == shell {
-        return false;
-    }
-
-    let mut win_rect = RECT::default();
-    if unsafe { GetWindowRect(hwnd, &mut win_rect) }.is_err() {
-        log::debug!("get_window_rect_failed skipped=true");
-        return false;
-    }
-
-    let hmonitor: HMONITOR = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
-    let mut mon_info = MONITORINFO {
-        cbSize: std::mem::size_of::<MONITORINFO>() as u32,
-        ..Default::default()
-    };
-    let ok = unsafe { GetMonitorInfoW(hmonitor, &mut mon_info) };
-    if !ok.as_bool() {
-        log::debug!("get_monitor_info_failed skipped=true");
-        return false;
-    }
-
-    rect_covers_monitor(win_rect, mon_info.rcMonitor)
-}
-
-/// Gathers fullscreen state for the current foreground window.
-fn frontmost_window_info(hwnd: HWND) -> WindowInfo {
-    WindowInfo {
-        is_fullscreen: is_fullscreen(hwnd),
-    }
-}
-
-pub(super) fn platform_frontmost() -> Option<(String, Option<PollingWindowInfo>)> {
-    let (_pid, app_name) = frontmost_app()?;
-    let hwnd = unsafe { GetForegroundWindow() };
-    let info = frontmost_window_info(hwnd);
-    Some((
-        app_name,
-        Some(PollingWindowInfo {
-            is_fullscreen: info.is_fullscreen,
-        }),
-    ))
 }
 
 // ─── window enumeration (list_windows) ──────────────────────────────────────
@@ -456,41 +327,6 @@ mod tests {
         assert_eq!(idle_ms_from_ticks(1_000, 5_000), 0);
     }
 
-    // ── app_name_from_exe_path ───────────────────────────────────────────────
-
-    #[test]
-    fn app_name_from_exe_path_normal() {
-        assert_eq!(
-            app_name_from_exe_path(r"C:\Program Files\Google\Chrome\chrome.exe"),
-            Some("chrome".into())
-        );
-    }
-
-    #[test]
-    fn app_name_from_exe_path_no_extension() {
-        assert_eq!(
-            app_name_from_exe_path(r"C:\tools\myapp"),
-            Some("myapp".into())
-        );
-    }
-
-    #[test]
-    fn app_name_from_exe_path_trailing_backslash() {
-        // Rust's `Path` treats a trailing separator as insignificant, so the
-        // last named component is still the file stem.
-        assert_eq!(
-            app_name_from_exe_path(r"C:\Program Files\App\"),
-            Some("App".into())
-        );
-    }
-
-    #[test]
-    fn app_name_from_exe_path_empty() {
-        assert_eq!(app_name_from_exe_path(""), None);
-    }
-
-    // ── rect_covers_monitor ──────────────────────────────────────────────────
-
     fn rect(left: i32, top: i32, right: i32, bottom: i32) -> RECT {
         RECT {
             left,
@@ -498,35 +334,6 @@ mod tests {
             right,
             bottom,
         }
-    }
-
-    #[test]
-    fn rect_covers_monitor_exact_cover() {
-        let mon = rect(0, 0, 2560, 1440);
-        let win = rect(0, 0, 2560, 1440);
-        assert!(rect_covers_monitor(win, mon));
-    }
-
-    #[test]
-    fn rect_covers_monitor_partial_does_not_cover() {
-        let mon = rect(0, 0, 2560, 1440);
-        let win = rect(0, 0, 1280, 1440);
-        assert!(!rect_covers_monitor(win, mon));
-    }
-
-    #[test]
-    fn rect_covers_monitor_smaller_does_not_cover() {
-        let mon = rect(0, 0, 2560, 1440);
-        let win = rect(100, 100, 800, 600);
-        assert!(!rect_covers_monitor(win, mon));
-    }
-
-    #[test]
-    fn rect_covers_monitor_larger_window_covers() {
-        // Window rect extending beyond the monitor still "covers" it.
-        let mon = rect(0, 0, 1920, 1080);
-        let win = rect(-10, -10, 1930, 1090);
-        assert!(rect_covers_monitor(win, mon));
     }
 
     // ── physical_window_to_at_point (physical → logical) ─────────────────────

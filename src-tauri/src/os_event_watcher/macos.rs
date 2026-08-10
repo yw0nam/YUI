@@ -1,9 +1,9 @@
-//! macOS OS polling — active app (NSWorkspace), idle (CGEventSource FFI),
-//! window title + fullscreen (CGWindowList raw FFI), camera best-effort.
+//! macOS OS polling — idle (CGEventSource FFI), window enumeration
+//! (CGWindowList raw FFI), camera best-effort.
 
 #![allow(dead_code)] // CFBooleanRef + related bindings are unused FFI bindings
 
-use super::{idle_ms_from_secs, polling_loop, PollingWindowInfo, WindowAtPoint};
+use super::{idle_ms_from_secs, polling_loop, WindowAtPoint};
 use std::{ffi::c_void, thread};
 use tauri::AppHandle;
 
@@ -39,9 +39,6 @@ extern "C" {
         option: CGWindowListOption,
         relativeToWindow: CGWindowID,
     ) -> CFArrayRef;
-
-    fn CGMainDisplayID() -> u32;
-    fn CGDisplayBounds(displayID: u32) -> CGRect;
 
     // Release detection — read the left mouse-button state.
     // `stateID` = kCGEventSourceStateCombinedSessionState (0); `button` = left (0).
@@ -81,27 +78,6 @@ extern "C" {
 
 const K_CF_STRING_ENCODING_UTF8: u32 = 0x08000100;
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-struct CGPoint {
-    x: f64,
-    y: f64,
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-struct CGSize {
-    width: f64,
-    height: f64,
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-struct CGRect {
-    origin: CGPoint,
-    size: CGSize,
-}
-
 // ─── idle time ────────────────────────────────────────────────────────────────
 
 // CGEventSourceStateID 1 = HIDSystemState; 14 = kCGAnyInputEventType.
@@ -114,14 +90,6 @@ pub fn os_idle_ms() -> u64 {
         CGEventSourceSecondsSinceLastEventType(HID_SYSTEM_STATE, K_CG_ANY_INPUT_EVENT_TYPE)
     };
     idle_ms_from_secs(secs)
-}
-
-// ─── Primary screen bounds ────────────────────────────────────────────────────
-
-fn primary_screen_size() -> (f64, f64) {
-    let display_id = unsafe { CGMainDisplayID() };
-    let bounds = unsafe { CGDisplayBounds(display_id) };
-    (bounds.size.width, bounds.size.height)
 }
 
 // ─── CFString → String ────────────────────────────────────────────────────────
@@ -149,89 +117,6 @@ unsafe fn cfstring_to_string(s: CFStringRef) -> Option<String> {
     }
     let nul = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
     String::from_utf8(buf[..nul].to_vec()).ok()
-}
-
-// ─── CGWindowList parsing ─────────────────────────────────────────────────────
-
-pub struct WindowInfo {
-    pub is_fullscreen: bool,
-}
-
-/// Returns WindowInfo for the frontmost window owned by `pid`.
-///
-/// Uses CGWindowListCopyWindowInfo (no Accessibility permission needed).
-/// Fullscreen heuristic: window layer == 0 && covers primary screen bounds.
-pub fn frontmost_window_info(pid: i32) -> Option<WindowInfo> {
-    let (sw, sh) = primary_screen_size();
-
-    let windows = unsafe {
-        CGWindowListCopyWindowInfo(K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY, K_CG_NULL_WINDOW_ID)
-    };
-    if windows.is_null() {
-        log::debug!("window_info_null skipped=true");
-        return None;
-    }
-
-    let count = unsafe { CFArrayGetCount(windows) };
-    let mut is_fullscreen = false;
-
-    for i in 0..count {
-        let dict = unsafe { CFArrayGetValueAtIndex(windows, i) };
-        if dict.is_null() {
-            continue;
-        }
-
-        // Match by owner PID.
-        let owner_pid = unsafe {
-            let v = CFDictionaryGetValue(dict, kCGWindowOwnerPID);
-            if v.is_null() {
-                continue;
-            }
-            let mut out: i32 = 0;
-            if !CFNumberGetValue(
-                v,
-                CFNumberType::Int32 as i32,
-                &mut out as *mut i32 as *mut c_void,
-            ) {
-                continue;
-            }
-            out
-        };
-        if owner_pid != pid {
-            continue;
-        }
-
-        // Fullscreen: layer == 0 && bounds cover screen.
-        unsafe {
-            let layer_v = CFDictionaryGetValue(dict, kCGWindowLayer);
-            if !layer_v.is_null() {
-                let mut layer: i32 = 0;
-                if CFNumberGetValue(
-                    layer_v,
-                    CFNumberType::Int32 as i32,
-                    &mut layer as *mut i32 as *mut c_void,
-                ) && layer == 0
-                {
-                    // Parse bounds dict (has X/Y/Width/Height as CFNumber keys).
-                    let bounds_dict = CFDictionaryGetValue(dict, kCGWindowBounds);
-                    if !bounds_dict.is_null() {
-                        if let (Some(w), Some(h)) = (
-                            dict_get_f64(bounds_dict, "Width"),
-                            dict_get_f64(bounds_dict, "Height"),
-                        ) {
-                            if w >= sw && h >= sh {
-                                is_fullscreen = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    unsafe { CFRelease(windows) };
-
-    Some(WindowInfo { is_fullscreen })
 }
 
 /// Reads a f64 from a nested CFDictionary by UTF-8 key.
@@ -484,35 +369,8 @@ fn enumerate_windows() -> Vec<WindowRect> {
     collected
 }
 
-// ─── NSWorkspace / NSRunningApplication (objc2) ───────────────────────────────
-
-use objc2::rc::Retained;
-use objc2_app_kit::{NSRunningApplication, NSWorkspace};
-use objc2_foundation::NSString;
-
-/// Returns (pid, localizedName) of the frontmost application, or None.
-pub fn frontmost_app() -> Option<(i32, String)> {
-    let ws = NSWorkspace::sharedWorkspace();
-    let Some(app): Option<Retained<NSRunningApplication>> = ws.frontmostApplication() else {
-        log::debug!("frontmost_app_none skipped=true");
-        return None;
-    };
-    let name_ns: Retained<NSString> = app.localizedName()?;
-    let name = name_ns.to_string();
-    let pid = app.processIdentifier();
-    Some((pid, name))
-}
-
 pub(super) fn platform_idle_ms() -> Option<u64> {
     Some(os_idle_ms())
-}
-
-pub(super) fn platform_frontmost() -> Option<(String, Option<PollingWindowInfo>)> {
-    let (pid, app_name) = frontmost_app()?;
-    let win_info = frontmost_window_info(pid).map(|info| PollingWindowInfo {
-        is_fullscreen: info.is_fullscreen,
-    });
-    Some((app_name, win_info))
 }
 
 // ─── Background polling loop ──────────────────────────────────────────────────
@@ -535,25 +393,6 @@ mod tests {
         let ms = os_idle_ms();
         // Must not panic and must be within 24 h.
         assert!(ms < 86_400_000);
-    }
-
-    #[test]
-    fn primary_screen_size_nonzero() {
-        let (w, h) = primary_screen_size();
-        assert!(w > 0.0 && h > 0.0);
-    }
-
-    #[test]
-    fn fullscreen_heuristic_cover() {
-        // Window matches screen exactly → fullscreen.
-        let (sw, sh) = (2560.0_f64, 1600.0_f64);
-        assert!(2560.0_f64 >= sw && 1600.0_f64 >= sh);
-    }
-
-    #[test]
-    fn fullscreen_heuristic_no_cover() {
-        let (sw, sh) = (2560.0_f64, 1600.0_f64);
-        assert!(!(1280.0_f64 >= sw && 800.0_f64 >= sh));
     }
 
     #[test]

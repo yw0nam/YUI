@@ -27,7 +27,6 @@ const NOW = 1_717_000_000_000;
  */
 function permissiveGuardrailsConfig(): GuardrailsConfig {
   return {
-    dnd: { app_blocklist: [] },
     debounce_ms: {
       idle_watcher: 0,
       os_event_watcher: 0,
@@ -47,7 +46,6 @@ function permissiveGuardrailsConfig(): GuardrailsConfig {
 /** Guardrails config using §6 SOT values as-is (for gating testing). */
 function realGuardrailsConfig(): GuardrailsConfig {
   return {
-    dnd: { app_blocklist: [] },
     debounce_ms: {
       idle_watcher: 30_000,
       os_event_watcher: 5_000,
@@ -1490,9 +1488,7 @@ describe("dispatcher — guardrail gating (§6)", () => {
   it("DND on → tier2 backend firing is dropped (guardrail_drop) and not enqueued", async () => {
     const { d, g } = makeGated();
     d.start();
-    g.note(
-      env({ source: "os_event_watcher", event_name: "os.fullscreen_entered", dnd_override: false }),
-    );
+    g.setDnd("manual", true);
     bus.push(
       env({ source: "idle_watcher", event_name: "idle.long", hint_tier: 2, dnd_override: false }),
     );
@@ -1502,16 +1498,16 @@ describe("dispatcher — guardrail gating (§6)", () => {
     d.stop();
   });
 
-  it("note() flips DND from a fullscreen bus event passed through the dispatcher", async () => {
+  it("note() flips DND from a user.dnd_toggle bus event passed through the dispatcher", async () => {
     const { d, g } = makeGated();
     d.start();
-    // dispatcher.handle() must call guardrails.note() — a fullscreen event flips DND state.
+    // dispatcher.handle() must call guardrails.note() — a dnd_toggle event flips DND state.
     bus.push(
       env({
-        source: "os_event_watcher",
-        event_name: "os.fullscreen_entered",
-        hint_tier: 3,
-        dnd_override: false,
+        source: "user_input_source",
+        event_name: "user.dnd_toggle",
+        hint_tier: 1,
+        dnd_override: true,
       }),
     );
     await vi.advanceTimersByTimeAsync(20);

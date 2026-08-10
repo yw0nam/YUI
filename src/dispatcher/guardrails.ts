@@ -5,7 +5,7 @@
  * supersede → classify(tier) → evaluate(env, tier) → route. dnd_override short-circuits
  * at top of evaluate — user-initiated turns bypass all gates and don't increment any counter.
  *
- *  - DND: If any of 4 triggers (Fullscreen / Camera / Active-app blocklist / Manual) is ON, DND_ON.
+ *  - DND: If Manual is ON, DND_ON.
  *         note() is thin translator moving envelope → setDnd call (state owned by setDnd).
  *  - Debounce: per source window. If now() − lastFire[source] < window, drop.
  *  - Rate-limit: per tier rolling window. Slots consumed on fire (=pass), no refund.
@@ -20,7 +20,7 @@ import type { BusEnvelope } from "./event-bus";
 
 export type { GuardrailsConfig };
 
-type DndReason = "fullscreen" | "active_app" | "manual";
+type DndReason = "manual";
 
 interface DndState {
   on: boolean;
@@ -32,7 +32,7 @@ type GuardResult = { pass: true } | { pass: false; reason: "guardrail_drop"; det
 
 export interface Guardrails {
   dndState(): DndState;
-  /** DND trigger toggle (os.fullscreen_* / os.active_app_changed / user.dnd_toggle, etc.). */
+  /** DND trigger toggle (user.dnd_toggle). */
   setDnd(reason: DndReason, on: boolean): void;
   /** Thin translator moving envelope → at most one setDnd call (update DND state). */
   note(env: BusEnvelope): void;
@@ -49,12 +49,6 @@ type Source = BusEnvelope["source"];
 interface CreateGuardrailsOptions {
   /** Time injection. default () => Date.now(). All windows/cooldowns read only this function. */
   now?: () => number;
-}
-
-/** Return if payload[key] is non-empty string, else undefined. */
-function strField(env: BusEnvelope, key: string): string | undefined {
-  const v = env.payload?.[key];
-  return typeof v === "string" && v.length > 0 ? v : undefined;
 }
 
 export function createGuardrails(
@@ -91,18 +85,6 @@ export function createGuardrails(
 
   function note(env: BusEnvelope): void {
     switch (env.event_name) {
-      case "os.fullscreen_entered":
-        setDnd("fullscreen", true);
-        return;
-      case "os.fullscreen_exited":
-        setDnd("fullscreen", false);
-        return;
-      case "os.active_app_changed": {
-        const app = strField(env, "active_app_name");
-        if (app === undefined) return;
-        setDnd("active_app", config.dnd.app_blocklist.includes(app));
-        return;
-      }
       case "user.dnd_toggle":
         setDnd("manual", !dndReasons.has("manual"));
         return;

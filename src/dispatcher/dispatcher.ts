@@ -8,7 +8,7 @@
  *     drop tier2/3 from the queue (superseded_by_user).
  *  4. Routing:
  *     · tier1 (drag/window/tap reactions, idle.returned) → local handling (no backend).
- *     · tier2/3 (user.text_submitted, idle.*, time_milestone.*, os.active_app_changed) → backend_caller.
+ *     · tier2/3 (user.text_submitted, idle.*, time_milestone.*) → backend_caller.
  *
  * Single in-flight backend call. Deferred tier2/3 keeps only one item in local pending
  * (with two or more deferred, the oldest is dropped).
@@ -155,9 +155,6 @@ function classify(env: BusEnvelope): Classification {
   }
   if (n.startsWith("signals.")) {
     return { tier: 2, target: "backend_caller" };
-  }
-  if (n === "os.active_app_changed") {
-    return { tier: 3, target: "backend_caller" };
   }
   if (
     n === "user.drag_start" ||

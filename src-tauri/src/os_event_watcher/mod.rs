@@ -1,11 +1,10 @@
 //! OS event watcher — Tauri main(Rust) side OS API access.
 //!
-//! Polls OS-wide idle and fullscreen state, then emits `os_event` IPC events
-//! to the webview.
+//! Polls OS-wide idle state, then emits `os_event` IPC events to the webview.
 //!
 //! Platform support:
-//!   macOS  — fully implemented (NSWorkspace, CGEventSource, CGWindowList)
-//!   Windows — fully implemented (GetForegroundWindow, GetLastInputInfo, EnumWindows)
+//!   macOS  — fully implemented (CGEventSource, CGWindowList)
+//!   Windows — fully implemented (GetLastInputInfo, EnumWindows)
 //!   Android — cfg-gated no-op degrade
 //!   other  — idle-source error emitted, no panic
 
@@ -37,7 +36,7 @@ const RELEASE_POLL_TIMEOUT: Duration = Duration::from_secs(10);
 /// `os_event` channel payload — "Rust → Webview" handoff.
 #[derive(Debug, Clone, Serialize)]
 pub struct OsEventPayload {
-    /// "fullscreen_entered" | "fullscreen_exited" | "os_idle_tick"
+    /// "os_idle_tick"
     pub event_name: String,
     /// client epoch ms
     pub ts: i64,
@@ -47,8 +46,6 @@ pub struct OsEventPayload {
 /// `data` block — all fields optional; each event_name populates different fields.
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct OsEventData {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_fullscreen: Option<bool>,
     /// OS-wide idle (ms). macOS `CGEventSourceSecondsSinceLastEventType`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub os_idle_ms: Option<u64>,
@@ -142,15 +139,10 @@ mod macos;
 mod windows;
 
 #[cfg(target_os = "macos")]
-use macos::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down, start_polling};
+use macos::{platform_idle_ms, platform_lbutton_is_down, start_polling};
 
 #[cfg(target_os = "windows")]
-use windows::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down, start_polling};
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-struct PollingWindowInfo {
-    is_fullscreen: bool,
-}
+use windows::{platform_idle_ms, platform_lbutton_is_down, start_polling};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 static PROBE_ACTIVE: AtomicBool = AtomicBool::new(false);
@@ -240,49 +232,19 @@ pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 fn polling_loop(app: AppHandle) {
-    let mut prev_fullscreen: Option<bool> = None;
-
     loop {
         let now = epoch_ms();
 
-        // ── 1. Idle tick (emitted every poll interval) ─────────────────────
+        // Idle tick, emitted every poll interval.
         let idle = platform_idle_ms();
         let _ = emit_os_event(
             &app,
             OsEventPayload {
                 event_name: "os_idle_tick".into(),
                 ts: now,
-                data: OsEventData {
-                    os_idle_ms: idle,
-                    ..Default::default()
-                },
+                data: OsEventData { os_idle_ms: idle },
             },
         );
-
-        // ── 2. Fullscreen state change ──────────────────────────────────────
-        if let Some((_app_name, win_info)) = platform_frontmost() {
-            let fs = win_info.as_ref().map(|w| w.is_fullscreen).unwrap_or(false);
-            let fs_changed = prev_fullscreen.map(|p| p != fs).unwrap_or(true);
-            if fs_changed {
-                prev_fullscreen = Some(fs);
-                let event_name = if fs {
-                    "fullscreen_entered"
-                } else {
-                    "fullscreen_exited"
-                };
-                let _ = emit_os_event(
-                    &app,
-                    OsEventPayload {
-                        event_name: event_name.into(),
-                        ts: epoch_ms(),
-                        data: OsEventData {
-                            is_fullscreen: Some(fs),
-                            ..Default::default()
-                        },
-                    },
-                );
-            }
-        }
 
         thread::sleep(POLL_INTERVAL);
     }
@@ -312,10 +274,7 @@ pub fn start(app: &AppHandle) {
                 OsEventPayload {
                     event_name: "os_idle_tick".into(),
                     ts: epoch_ms(),
-                    data: OsEventData {
-                        os_idle_ms: None,
-                        ..Default::default()
-                    },
+                    data: OsEventData { os_idle_ms: None },
                 },
             );
         });
@@ -462,7 +421,6 @@ mod tests {
             ts: 123,
             data: OsEventData {
                 os_idle_ms: Some(5000),
-                ..Default::default()
             },
         };
         let v = serde_json::to_value(payload).unwrap();
@@ -510,61 +468,6 @@ mod tests {
     #[test]
     fn sanitise_window_title_empty_returns_none() {
         assert_eq!(sanitise_window_title(""), None);
-    }
-
-    #[test]
-    fn fullscreen_entered_payload_shape() {
-        let p = OsEventPayload {
-            event_name: "fullscreen_entered".into(),
-            ts: 2000,
-            data: OsEventData {
-                is_fullscreen: Some(true),
-                ..Default::default()
-            },
-        };
-        let v = serde_json::to_value(p).unwrap();
-        assert_eq!(v["event_name"], "fullscreen_entered");
-        assert_eq!(v["data"]["is_fullscreen"], true);
-    }
-
-    #[test]
-    fn fullscreen_exited_payload_shape() {
-        let p = OsEventPayload {
-            event_name: "fullscreen_exited".into(),
-            ts: 3000,
-            data: OsEventData {
-                is_fullscreen: Some(false),
-                ..Default::default()
-            },
-        };
-        let v = serde_json::to_value(p).unwrap();
-        assert_eq!(v["event_name"], "fullscreen_exited");
-        assert_eq!(v["data"]["is_fullscreen"], false);
-    }
-
-    // ── fullscreen state machine ─────────────────────────────────────────────
-
-    #[test]
-    fn fullscreen_state_toggles_correctly() {
-        // Simulate what the polling loop does: track previous state
-        let mut was_fullscreen = false;
-        let events: Vec<&str> = [false, false, true, true, false]
-            .iter()
-            .filter_map(|&fs| {
-                if fs != was_fullscreen {
-                    let name = if fs {
-                        "fullscreen_entered"
-                    } else {
-                        "fullscreen_exited"
-                    };
-                    was_fullscreen = fs;
-                    Some(name)
-                } else {
-                    None
-                }
-            })
-            .collect();
-        assert_eq!(events, vec!["fullscreen_entered", "fullscreen_exited"]);
     }
 
     // ── epoch_ms sanity ──────────────────────────────────────────────────────

@@ -32,7 +32,6 @@ const NOW = 1_717_000_000_000;
 /** Permissive guardrails — routing/hold behavior only, not gating (guardrails.test.ts owns that). */
 function permissiveGuardrailsConfig(): GuardrailsConfig {
   return {
-    dnd: { app_blocklist: [] },
     debounce_ms: {
       idle_watcher: 0,
       os_event_watcher: 0,

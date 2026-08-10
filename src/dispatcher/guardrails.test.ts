@@ -5,7 +5,7 @@
  * envelope composites from all sources (idle/timer/os/backend_push/user), locking evaluation branches.
  *
  * Sections locked:
- *  - §6.1 DND: toggle 3 triggers (fullscreen/active_app/manual) via note() + multi-reason union.
+ *  - §6.1 DND: toggle the manual trigger via note() / setDnd().
  *  - §6.2 Debounce: per-source window (idle 30s / os 5s / backend 10s / user 0).
  *  - §6.3 Rate-limit: tier2 6 / tier3 2 rolling 60min (N pass, N+1 drop, no refund),
  *    overall 20 → cooldownActive() true then 5min hold → release.
@@ -21,7 +21,6 @@ const BASE_TS = 1_717_000_000_000;
 /** SOT configs/guardrails.json mirror (§6 values). */
 function config(): GuardrailsConfig {
   return {
-    dnd: { app_blocklist: [] },
     debounce_ms: {
       idle_watcher: 30_000,
       os_event_watcher: 5_000,
@@ -69,77 +68,28 @@ function env(over: Partial<BusEnvelope> = {}): BusEnvelope {
 // ── DND (§6.1) ──────────────────────────────────────────────────────────────────
 
 describe("guardrails — DND (§6.1)", () => {
-  it("fullscreen_entered → DND on, fullscreen_exited → DND off (note translator)", () => {
-    const g = createGuardrails(config());
-    g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_entered" }));
-    expect(g.dndState().on).toBe(true);
-    expect(g.dndState().reasons).toContain("fullscreen");
-
-    g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_exited" }));
-    expect(g.dndState().on).toBe(false);
-  });
-
-  it("active_app_changed toggles DND by blocklist membership (the only live trigger)", () => {
-    const cfg = config();
-    cfg.dnd.app_blocklist = ["Keynote"];
-    const g = createGuardrails(cfg);
-    g.note(
-      env({
-        source: "os_event_watcher",
-        event_name: "os.active_app_changed",
-        payload: { active_app_name: "Keynote" },
-      }),
-    );
-    expect(g.dndState().reasons).toContain("active_app");
-
-    g.note(
-      env({
-        source: "os_event_watcher",
-        event_name: "os.active_app_changed",
-        payload: { active_app_name: "Finder" },
-      }),
-    );
-    expect(g.dndState().reasons).not.toContain("active_app");
-  });
-
   it("user.dnd_toggle flips the manual reason", () => {
     const g = createGuardrails(config());
     g.note(env({ source: "user_input_source", event_name: "user.dnd_toggle" }));
+    expect(g.dndState().on).toBe(true);
     expect(g.dndState().reasons).toContain("manual");
     g.note(env({ source: "user_input_source", event_name: "user.dnd_toggle" }));
-    expect(g.dndState().reasons).not.toContain("manual");
-  });
-
-  it("multiple reasons union — on stays true until ALL clear", () => {
-    const g = createGuardrails(config());
-    g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_entered" }));
-    g.note(env({ source: "user_input_source", event_name: "user.dnd_toggle" }));
-    expect(g.dndState().on).toBe(true);
-    expect(g.dndState().reasons.sort()).toEqual(["fullscreen", "manual"]);
-
-    // clear only fullscreen — manual keeps DND on
-    g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_exited" }));
-    expect(g.dndState().on).toBe(true);
-    expect(g.dndState().reasons).toEqual(["manual"]);
-
-    // clear manual — now off
-    g.note(env({ source: "user_input_source", event_name: "user.dnd_toggle" }));
     expect(g.dndState().on).toBe(false);
+    expect(g.dndState().reasons).not.toContain("manual");
   });
 
   it("setDnd is the single source of truth (note is a thin translator over it)", () => {
     const g = createGuardrails(config());
-    g.setDnd("fullscreen", true);
-    expect(g.dndState().reasons).toContain("fullscreen");
-    g.setDnd("fullscreen", false);
+    g.setDnd("manual", true);
+    expect(g.dndState().reasons).toContain("manual");
+    g.setDnd("manual", false);
     expect(g.dndState().on).toBe(false);
   });
 
-  it("note no-ops gracefully on events with undefined payload fields", () => {
+  it("note no-ops gracefully on an unknown event_name", () => {
     const g = createGuardrails(config());
-    // active_app_changed without an active_app_name — must not throw, must not toggle.
     expect(() =>
-      g.note(env({ source: "os_event_watcher", event_name: "os.active_app_changed" })),
+      g.note(env({ source: "os_event_watcher", event_name: "unknown.event" })),
     ).not.toThrow();
     expect(g.dndState().on).toBe(false);
   });
@@ -150,19 +100,19 @@ describe("guardrails — DND (§6.1)", () => {
 describe("guardrails — evaluate DND gate", () => {
   it("DND on → tier2/3 fail with detail dnd:<reasons>", () => {
     const g = createGuardrails(config());
-    g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_entered" }));
+    g.setDnd("manual", true);
     const r = g.evaluate(env(), 2);
     expect(r.pass).toBe(false);
     if (!r.pass) {
       expect(r.reason).toBe("guardrail_drop");
       expect(r.detail).toContain("dnd:");
-      expect(r.detail).toContain("fullscreen");
+      expect(r.detail).toContain("manual");
     }
   });
 
   it("dnd_override bypasses DND and passes without mutating any counter", () => {
     const g = createGuardrails(config());
-    g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_entered" }));
+    g.setDnd("manual", true);
     // fire many user-override turns — DND on, debounce 0, none increments rate counters.
     for (let i = 0; i < 50; i++) {
       const r = g.evaluate(
@@ -197,15 +147,15 @@ describe("guardrails — debounce per source (§6.2)", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
     expect(
-      g.evaluate(env({ source: "os_event_watcher", event_name: "os.active_app_changed" }), 3).pass,
+      g.evaluate(env({ source: "os_event_watcher", event_name: "user.drag_start" }), 3).pass,
     ).toBe(true);
     c.advance(4_999);
     expect(
-      g.evaluate(env({ source: "os_event_watcher", event_name: "os.active_app_changed" }), 3).pass,
+      g.evaluate(env({ source: "os_event_watcher", event_name: "user.drag_start" }), 3).pass,
     ).toBe(false);
     c.advance(1);
     expect(
-      g.evaluate(env({ source: "os_event_watcher", event_name: "os.active_app_changed" }), 3).pass,
+      g.evaluate(env({ source: "os_event_watcher", event_name: "user.drag_start" }), 3).pass,
     ).toBe(true);
   });
 
@@ -377,7 +327,7 @@ describe("guardrails — overall cap → cooldown (§6.3)", () => {
 describe("guardrails — eval ordering (§6.4)", () => {
   it("dnd_override is checked first — bypasses DND, debounce, and rate-limit", () => {
     const g = createGuardrails(config());
-    g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_entered" })); // DND on
+    g.setDnd("manual", true); // DND on
     const r = g.evaluate(
       env({ source: "user_input_source", event_name: "user.text_submitted", dnd_override: true }),
       2,
@@ -389,7 +339,7 @@ describe("guardrails — eval ordering (§6.4)", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
     expect(g.evaluate(env({ source: "idle_watcher" }), 2).pass).toBe(true); // sets lastFire
-    g.note(env({ source: "os_event_watcher", event_name: "os.fullscreen_entered" })); // DND on
+    g.setDnd("manual", true); // DND on
     const r = g.evaluate(env({ source: "idle_watcher" }), 2); // would also debounce-fail
     expect(r.pass).toBe(false);
     if (!r.pass) expect(r.detail).toContain("dnd:");

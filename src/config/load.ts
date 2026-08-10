@@ -152,11 +152,6 @@ export interface AvatarConfig {
 
 /** configs/guardrails.json — DND/debounce/rate-limit values. */
 export interface GuardrailsConfig {
-  /** DND. */
-  dnd: {
-    /** active-app blocklist — DND on when a listed app is in the foreground. */
-    app_blocklist: string[];
-  };
   /** per-source debounce window (ms). 0 = no debounce. */
   debounce_ms: {
     idle_watcher: number;

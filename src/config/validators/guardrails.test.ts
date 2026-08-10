@@ -6,7 +6,6 @@ const FILE = "guardrails.json";
 
 function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    dnd: { app_blocklist: ["Zoom"] },
     debounce_ms: {
       idle_watcher: 30000,
       os_event_watcher: 5000,
@@ -45,9 +44,8 @@ describe("validateGuardrails — happy path", () => {
     expect(out).toEqual(baseRaw());
   });
 
-  it("accepts an empty app_blocklist and zero debounce/rate values", () => {
+  it("accepts zero debounce/rate values", () => {
     const raw = baseRaw({
-      dnd: { app_blocklist: [] },
       debounce_ms: {
         idle_watcher: 0,
         os_event_watcher: 0,
@@ -66,26 +64,6 @@ describe("validateGuardrails — top-level shape", () => {
     expectIssue([], "객체가 아님");
     expectIssue("x", "객체가 아님");
     expectIssue(null, "객체가 아님");
-  });
-});
-
-describe("validateGuardrails — dnd", () => {
-  it("rejects a non-object dnd", () => {
-    expectIssue(baseRaw({ dnd: "nope" }), "dnd는 객체여야 함");
-  });
-
-  it("rejects app_blocklist that isn't a string array", () => {
-    expectIssue(
-      baseRaw({ dnd: { app_blocklist: [1, 2] } }),
-      "dnd.app_blocklist는 string[]이어야 함",
-    );
-  });
-
-  it("rejects app_blocklist that isn't an array at all", () => {
-    expectIssue(
-      baseRaw({ dnd: { app_blocklist: "Zoom" } }),
-      "dnd.app_blocklist는 string[]이어야 함",
-    );
   });
 });
 
@@ -140,11 +118,11 @@ describe("validateGuardrails — rate_limit", () => {
 
   it("accumulates issues for every malformed block at once", () => {
     try {
-      validateGuardrails(FILE, { dnd: "x", debounce_ms: "y", rate_limit: "z" });
+      validateGuardrails(FILE, { debounce_ms: "y", rate_limit: "z" });
       expect.unreachable("validateGuardrails should have thrown");
     } catch (e) {
       const err = e as ConfigError;
-      expect(err.issues.length).toBe(3);
+      expect(err.issues.length).toBe(2);
     }
   });
 });

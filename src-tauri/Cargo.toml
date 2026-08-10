@@ -37,18 +37,9 @@ tiny_http = "0.12"
 
 # Windows OS API bindings (cfg-gated, compile-only on Windows)
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_System_SystemInformation", "Win32_Graphics_Gdi", "Win32_Graphics_Dwm", "Win32_UI_HiDpi"] }
+windows = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation", "Win32_Graphics_Gdi", "Win32_Graphics_Dwm", "Win32_UI_HiDpi"] }
 
 # macOS OS API bindings (cfg-gated, compile-only on other platforms)
 [target.'cfg(target_os = "macos")'.dependencies]
 core-graphics = { version = "0.25.0", features = ["highsierra"] }
 core-foundation = "0.10.1"
-objc2 = "0.6.4"
-objc2-app-kit = { version = "0.3.2", features = [
-  "NSRunningApplication",
-  "NSWorkspace",
-] }
-objc2-foundation = { version = "0.3.2", features = [
-  "NSString",
-  "NSArray",
-] }
