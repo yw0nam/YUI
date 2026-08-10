@@ -133,12 +133,15 @@ fn copy_into_references(
     })
 }
 
-/// Delete `references_dir/<sanitized id>/` if present. Idempotent — missing is Ok.
+/// Delete `references_dir/<sanitized id>/` if present. Idempotent — missing is Ok. Also clears
+/// any `.{id}.import-tmp` / `.{id}.import-backup` for the same id, so a leftover backup can't
+/// resurrect this voice on the next startup sweep (`sweep_stale_import_artifacts`).
 fn remove_user_voice_at(references_dir: &Path, id: &str) -> Result<(), String> {
     if !references_dir.exists() {
         return Ok(());
     }
-    let dir = references_dir.join(sanitize_stem(id));
+    let sanitized = sanitize_stem(id);
+    let dir = references_dir.join(&sanitized);
     ensure_within(references_dir, &dir)?;
     if dir.exists() {
         std::fs::remove_dir_all(&dir).map_err(|e| {
@@ -146,6 +149,15 @@ fn remove_user_voice_at(references_dir: &Path, id: &str) -> Result<(), String> {
             "remove failed".to_string()
         })?;
     }
+
+    let tmp_dir = references_dir.join(format!(".{sanitized}.import-tmp"));
+    ensure_within(references_dir, &tmp_dir)?;
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+
+    let backup_dir = references_dir.join(format!(".{sanitized}.import-backup"));
+    ensure_within(references_dir, &backup_dir)?;
+    let _ = std::fs::remove_dir_all(&backup_dir);
+
     Ok(())
 }
 
@@ -188,6 +200,72 @@ pub fn remove_user_voice(app: AppHandle, id: String) -> Result<(), String> {
         })?
         .join("references");
     remove_user_voice_at(&references_dir, &id)
+}
+
+/// A `copy_into_references` transactional sibling left behind by a process death between its
+/// two renames (backup-aside, then tmp-into-place).
+enum StaleArtifact<'a> {
+    /// `.{id}.import-tmp` — a build-in-progress; never resumable, always discarded.
+    Tmp,
+    /// `.{id}.import-backup` — the pre-swap original, still holding the id it belongs to.
+    Backup(&'a str),
+}
+
+/// Recognize `.{id}.import-tmp` / `.{id}.import-backup`; anything else is `None`.
+fn parse_stale_artifact(file_name: &str) -> Option<StaleArtifact<'_>> {
+    let rest = file_name.strip_prefix('.')?;
+    if rest.ends_with(".import-tmp") {
+        return Some(StaleArtifact::Tmp);
+    }
+    let id = rest.strip_suffix(".import-backup")?;
+    Some(StaleArtifact::Backup(id))
+}
+
+/// Startup recovery for `copy_into_references`'s one unclosed failure window: a process death
+/// between renaming the old `<id>` dir aside and renaming the new one into place. Restores a
+/// `.{id}.import-backup` when `<id>` is missing (the swap never completed), otherwise deletes it
+/// (the swap completed; the backup is a leftover). A `.{id}.import-tmp` never finished building,
+/// so it is always discarded. A missing `references_dir` is a no-op — nothing has ever imported.
+pub(crate) fn sweep_stale_import_artifacts(references_dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(references_dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let file_name = entry.file_name();
+        let Some(name) = file_name.to_str() else {
+            continue;
+        };
+        match parse_stale_artifact(name) {
+            Some(StaleArtifact::Tmp) => {
+                if let Err(e) = std::fs::remove_dir_all(entry.path()) {
+                    log::error!("stale_tmp_sweep_failed name={name} error={e}");
+                }
+            }
+            Some(StaleArtifact::Backup(id)) => {
+                let target = references_dir.join(id);
+                if let Err(e) = ensure_within(references_dir, &target) {
+                    log::error!("stale_backup_target_escapes name={name} error={e}");
+                    continue;
+                }
+                // A restore renames this entry straight into a voice-id slot — refuse anything
+                // that isn't a real directory (e.g. a symlink) so it can't be promoted into one.
+                let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+                if !is_dir {
+                    log::error!("stale_backup_not_a_dir name={name}");
+                    continue;
+                }
+                let result = if target.exists() {
+                    std::fs::remove_dir_all(entry.path())
+                } else {
+                    std::fs::rename(entry.path(), &target)
+                };
+                if let Err(e) = result {
+                    log::error!("stale_backup_sweep_failed name={name} error={e}");
+                }
+            }
+            None => {}
+        }
+    }
 }
 
 #[cfg(test)]
@@ -462,5 +540,188 @@ mod tests {
         let err = copy_into_references(&dir.join("references"), &src, "wav", "Fake").unwrap_err();
         assert!(!err.contains('/'), "error must not leak a path: {err:?}");
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    // ── sweep_stale_import_artifacts: startup recovery for the unclosed rename window ────────
+
+    #[test]
+    fn sweep_restores_a_backup_when_its_target_is_missing() {
+        let references = unique_dir("sweep_restore");
+        let backup = references.join(".Cat.import-backup");
+        std::fs::create_dir_all(&backup).unwrap();
+        std::fs::write(backup.join("clip.wav"), b"original clip").unwrap();
+
+        sweep_stale_import_artifacts(&references);
+
+        assert!(
+            references.join("Cat").join("clip.wav").exists(),
+            "the backup must be restored under the id it belongs to"
+        );
+        assert_eq!(
+            std::fs::read(references.join("Cat").join("clip.wav")).unwrap(),
+            b"original clip"
+        );
+        assert!(
+            !backup.exists(),
+            "the backup path itself must be gone once restored"
+        );
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    #[test]
+    fn sweep_deletes_a_backup_when_its_target_already_exists() {
+        let references = unique_dir("sweep_delete_backup");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        std::fs::write(references.join("Cat").join("clip.wav"), b"live clip").unwrap();
+        let backup = references.join(".Cat.import-backup");
+        std::fs::create_dir_all(&backup).unwrap();
+        std::fs::write(backup.join("clip.wav"), b"orphaned backup").unwrap();
+
+        sweep_stale_import_artifacts(&references);
+
+        assert!(!backup.exists(), "an orphaned backup must be discarded");
+        assert_eq!(
+            std::fs::read(references.join("Cat").join("clip.wav")).unwrap(),
+            b"live clip",
+            "the swap that already completed must be untouched"
+        );
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    #[test]
+    fn sweep_always_clears_a_stale_tmp_dir() {
+        let references = unique_dir("sweep_tmp");
+        let tmp = references.join(".Cat.import-tmp");
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join("clip.wav"), b"half-built").unwrap();
+        // Whether or not the id already exists, a tmp dir never resumes.
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+
+        sweep_stale_import_artifacts(&references);
+
+        assert!(!tmp.exists(), "a stale tmp dir must always be cleared");
+        assert!(
+            references.join("Cat").exists(),
+            "an unrelated existing id dir must survive the sweep"
+        );
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    #[test]
+    fn sweep_of_an_empty_or_missing_dir_is_a_no_op() {
+        let references = unique_dir("sweep_empty");
+        sweep_stale_import_artifacts(&references);
+        assert!(references.exists());
+        std::fs::remove_dir_all(&references).ok();
+
+        let missing = references; // now-removed path — never created again
+        sweep_stale_import_artifacts(&missing);
+    }
+
+    #[test]
+    fn sweep_restores_a_backup_and_discards_a_tmp_present_together_for_the_same_id() {
+        // The exact mid-swap-death state: the old dir was already renamed aside (backup exists)
+        // and a next import for the same id was mid-build (tmp exists) when the process died.
+        let references = unique_dir("sweep_tmp_and_backup");
+        let backup = references.join(".Cat.import-backup");
+        std::fs::create_dir_all(&backup).unwrap();
+        std::fs::write(backup.join("clip.wav"), b"original clip").unwrap();
+        let tmp = references.join(".Cat.import-tmp");
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join("clip.wav"), b"half-built").unwrap();
+
+        sweep_stale_import_artifacts(&references);
+
+        assert!(!tmp.exists(), "the half-built tmp must be discarded");
+        assert!(
+            !backup.exists(),
+            "the backup path itself must be gone once restored"
+        );
+        assert_eq!(
+            std::fs::read(references.join("Cat").join("clip.wav")).unwrap(),
+            b"original clip",
+            "the backup must be restored under the id it belongs to, regardless of read_dir order"
+        );
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    // ── remove_user_voice_at: must not leave a resurrectable backup behind ───────────────────
+
+    #[test]
+    fn remove_at_also_clears_a_stale_backup_so_the_next_sweep_does_not_resurrect_it() {
+        // Simulates a successful swap whose best-effort backup cleanup failed: the live voice
+        // and an orphaned `.Cat.import-backup` coexist. Deleting the voice must also clear the
+        // backup — otherwise the next startup sweep sees backup-without-target and restores the
+        // deleted audio right back to disk.
+        let references = unique_dir("remove_clears_backup");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        std::fs::write(references.join("Cat").join("clip.wav"), b"live clip").unwrap();
+        let backup = references.join(".Cat.import-backup");
+        std::fs::create_dir_all(&backup).unwrap();
+        std::fs::write(backup.join("clip.wav"), b"stale backup").unwrap();
+
+        remove_user_voice_at(&references, "Cat").unwrap();
+
+        assert!(
+            !references.join("Cat").exists(),
+            "the voice itself must be gone"
+        );
+        assert!(
+            !backup.exists(),
+            "the stale backup must be cleared by the same delete, not left for the sweep to find"
+        );
+
+        sweep_stale_import_artifacts(&references);
+        assert!(
+            !references.join("Cat").exists(),
+            "the next sweep must not resurrect deleted audio from a stale backup"
+        );
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    #[test]
+    fn remove_at_clears_a_stale_tmp_for_the_deleted_id() {
+        let references = unique_dir("remove_clears_tmp");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        let tmp = references.join(".Cat.import-tmp");
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        remove_user_voice_at(&references, "Cat").unwrap();
+
+        assert!(
+            !tmp.exists(),
+            "a stale tmp for the deleted id must be cleared too"
+        );
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    // ── sweep_stale_import_artifacts: restore target must be a real dir inside references_dir ─
+
+    #[cfg(unix)]
+    #[test]
+    fn sweep_skips_a_symlinked_backup_instead_of_promoting_it_to_a_voice_id() {
+        use std::os::unix::fs::symlink;
+
+        let root = unique_dir("sweep_symlink");
+        let references = root.join("references");
+        std::fs::create_dir_all(&references).unwrap();
+        let outside = root.join("outside_secret");
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(outside.join("clip.wav"), b"not a voice").unwrap();
+
+        let symlinked_backup = references.join(".Evil.import-backup");
+        symlink(&outside, &symlinked_backup).unwrap();
+
+        sweep_stale_import_artifacts(&references);
+
+        assert!(
+            !references.join("Evil").exists(),
+            "a symlinked backup must never be promoted into a live voice id slot"
+        );
+        assert!(
+            symlinked_backup.exists(),
+            "a rejected symlinked backup is left in place, not silently deleted"
+        );
+        std::fs::remove_dir_all(&root).ok();
     }
 }

@@ -130,7 +130,7 @@ describe("copyVoiceFile", () => {
     expect(deps.resolveRefUrl).toHaveBeenCalledWith("/app-data/references/MyVoice/clip.wav");
   });
 
-  it("reflects a sanitized id back (label follows the id the native side actually used)", async () => {
+  it("reflects a sanitized id back, but keeps the typed name as the label", async () => {
     const deps = makeCopyDeps({
       invoke: vi.fn(async () => ({
         id: "my_voice",
@@ -139,7 +139,31 @@ describe("copyVoiceFile", () => {
     });
     const out = await copyVoiceFile("/tmp/x.wav", "my/voice", deps);
     expect(out.id).toBe("my_voice");
-    expect(out.label).toBe("my_voice");
+    expect(out.label).toBe("my/voice");
+  });
+
+  it("keeps the typed label even when the sanitizer collapses the id (reserved device name)", async () => {
+    const deps = makeCopyDeps({
+      invoke: vi.fn(async () => ({
+        id: "avatar",
+        refPath: "/app-data/references/avatar/clip.wav",
+      })) as unknown as VoiceCopyDeps["invoke"],
+    });
+    const out = await copyVoiceFile("/tmp/x.wav", "CON", deps);
+    expect(out.id).toBe("avatar");
+    expect(out.label).toBe("CON");
+  });
+
+  it("falls back to the id for the label when the typed name is blank", async () => {
+    const deps = makeCopyDeps({
+      invoke: vi.fn(async () => ({
+        id: "avatar",
+        refPath: "/app-data/references/avatar/clip.wav",
+      })) as unknown as VoiceCopyDeps["invoke"],
+    });
+    const out = await copyVoiceFile("/tmp/x.wav", "   ", deps);
+    expect(out.id).toBe("avatar");
+    expect(out.label).toBe("avatar");
   });
 });
 

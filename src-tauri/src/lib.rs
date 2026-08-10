@@ -208,6 +208,13 @@ pub fn run() {
 
             app.handle().plugin(builder.build())?;
 
+            // Recover any `.{id}.import-tmp` / `.{id}.import-backup` left by a process death
+            // mid-import, before the voice picker can read the references dir. Best-effort: an
+            // unresolvable app-data dir must not block launch.
+            if let Ok(dir) = app.path().app_data_dir() {
+                voice_import::sweep_stale_import_artifacts(&dir.join("references"));
+            }
+
             // Start OS event polling loop (emits `os_event` IPC to webview).
             os_event_watcher::start(app.handle());
             tray::setup(app.handle())?;

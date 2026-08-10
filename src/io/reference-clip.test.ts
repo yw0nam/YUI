@@ -69,10 +69,8 @@ describe("resolveReferenceClipUrl", () => {
 });
 
 describe("fetchReferenceClip", () => {
-  it.each([
-    "asset://localhost/app/resources/references/ayase.mp3",
-    "blob:http://127.0.0.1:1420/35dcac8d-5640-4d23-a135-b9ec56bb9377",
-  ])("uses the global fetch for %s", async (refUrl) => {
+  it("uses the global fetch for an asset:// URL", async () => {
+    const refUrl = "asset://localhost/app/resources/references/ayase.mp3";
     const blob = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" });
     const globalFetch = vi.fn<FetchFn>(async () => blobResponse(blob));
     const injectedFetch = vi.fn<FetchFn>();
@@ -89,6 +87,8 @@ describe("fetchReferenceClip", () => {
     "https://example.com/references/ayase.mp3",
     "file:///etc/passwd",
     "data:audio/mpeg;base64,AAAA",
+    // No ref resolver in this codebase emits a blob: URL — it is not a webview-only scheme here.
+    "blob:http://127.0.0.1:1420/35dcac8d-5640-4d23-a135-b9ec56bb9377",
   ])("uses the injected fetch for %s", async (refUrl) => {
     const blob = new Blob([new Uint8Array([4, 5, 6])], { type: "audio/mpeg" });
     const globalFetch = vi.fn<FetchFn>();
