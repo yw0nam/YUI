@@ -168,13 +168,15 @@ export function createTextInput(
     sendBtn.setAttribute("aria-label", value ? t("aria.stop") : t("aria.send"));
   }
 
-  // surfaces isn't remounted on locale change, so update the static labels directly.
+  // Single site for these four labels — applied here at construction, and again by
+  // the same function on locale change (surfaces isn't remounted on locale change).
   function applyLocaleLabels(): void {
     attachBtn.setAttribute("aria-label", t("aria.attach_image"));
     field.placeholder = t("input.placeholder");
     field.setAttribute("aria-label", t("aria.input_field"));
     sendBtn.setAttribute("aria-label", busy ? t("aria.stop") : t("aria.send"));
   }
+  applyLocaleLabels();
   const unsubscribeLocale = subscribeLocale(applyLocaleLabels);
 
   function setInputEnabled(enabled: boolean): void {
