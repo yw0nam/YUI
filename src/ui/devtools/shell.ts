@@ -22,7 +22,8 @@ const SECTIONS: Array<{ id: DevtoolsSection; labelKey: string }> = [
 
 export function createDevtoolsShell(options: DevtoolsShellOptions): {
   readonly active: DevtoolsSection;
-  activate(section: DevtoolsSection): void;
+  /** Resolves once any motion-preview load triggered by this activation settles. */
+  activate(section: DevtoolsSection): Promise<void>;
   dispose(): void;
 } {
   options.mount.innerHTML = `
@@ -74,7 +75,7 @@ export function createDevtoolsShell(options: DevtoolsShellOptions): {
     for (const [id, panel] of panels) panel.hidden = id !== active;
   }
 
-  function activate(section: DevtoolsSection): void {
+  function activate(section: DevtoolsSection): Promise<void> {
     active = section;
     reflect();
     if (section === "motion" && !motionLoad) {
@@ -92,6 +93,12 @@ export function createDevtoolsShell(options: DevtoolsShellOptions): {
         panel.replaceChildren(error);
       });
     }
+    return motionLoad
+      ? motionLoad.then(
+          () => undefined,
+          () => undefined,
+        )
+      : Promise.resolve();
   }
 
   reflect();

@@ -19,7 +19,7 @@ const { mountMotionPreview, motionPreviewState } = vi.hoisted(() => {
   const motionPreviewState = { calls: 0, disposes: 0 };
   const mountMotionPreview = vi.fn(async (mount: HTMLElement) => {
     motionPreviewState.calls++;
-    mount.innerHTML = "<select id=\"sel-crossfade\"></select>";
+    mount.innerHTML = '<select id="sel-crossfade"></select>';
     return {
       dispose: vi.fn(() => {
         motionPreviewState.disposes++;

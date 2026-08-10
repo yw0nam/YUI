@@ -10,6 +10,45 @@ import { getLocale, subscribe as subscribeLocale, t } from "./ui/i18n";
 
 const log = createLogger("devtools-bootstrap");
 
+/** Focused element captured before a shell rebuild, keyed by what it takes to restore it. */
+type FocusCapture =
+  | { kind: "input"; id: string; value: string }
+  | { kind: "select"; id: string; value: string }
+  | { kind: "nav"; section: string };
+
+/** The rebuild replaces every node, so a focused element survives only by id/section. */
+function captureFocus(mount: HTMLElement): FocusCapture | null {
+  const focused = document.activeElement;
+  if (!(focused instanceof HTMLElement) || !mount.contains(focused)) return null;
+  if (focused instanceof HTMLInputElement)
+    return { kind: "input", id: focused.id, value: focused.value };
+  if (focused instanceof HTMLSelectElement)
+    return { kind: "select", id: focused.id, value: focused.value };
+  if (focused instanceof HTMLButtonElement && focused.dataset.section) {
+    return { kind: "nav", section: focused.dataset.section };
+  }
+  return null;
+}
+
+function restoreFocus(capture: FocusCapture): void {
+  if (capture.kind === "nav") {
+    document.querySelector<HTMLButtonElement>(`[data-section="${capture.section}"]`)?.focus();
+    return;
+  }
+  const restored = document.getElementById(capture.id);
+  if (capture.kind === "input") {
+    if (!(restored instanceof HTMLInputElement)) return;
+    restored.value = capture.value;
+    restored.focus();
+    // A scripted value carries no dirty flag, so blur would fire no change and drop the edit.
+    restored.dispatchEvent(new Event("change"));
+    return;
+  }
+  if (!(restored instanceof HTMLSelectElement)) return;
+  restored.value = capture.value;
+  restored.focus();
+}
+
 async function bootstrap(): Promise<void> {
   await initLogger();
   const mount = document.querySelector<HTMLElement>("#app");
@@ -41,24 +80,15 @@ async function bootstrap(): Promise<void> {
   };
   let shell = buildShell();
   const unsubscribeLocale = subscribeLocale(() => {
-    queueMicrotask(() => {
-      // The rebuild replaces every node, so a focused edit survives only by id.
-      const focused = document.activeElement;
-      const editing =
-        focused instanceof HTMLInputElement && mount.contains(focused)
-          ? { id: focused.id, value: focused.value }
-          : null;
+    queueMicrotask(async () => {
+      // The rebuild replaces every node, so a focused element survives only by id/section.
+      const focus = captureFocus(mount);
       const section = shell.active;
       shell.dispose();
       shell = buildShell();
-      shell.activate(section);
-      if (!editing) return;
-      const restored = document.getElementById(editing.id);
-      if (!(restored instanceof HTMLInputElement)) return;
-      restored.value = editing.value;
-      restored.focus();
-      // A scripted value carries no dirty flag, so blur would fire no change and drop the edit.
-      restored.dispatchEvent(new Event("change"));
+      // Await so a focused motion-panel select exists before restore looks it up.
+      await shell.activate(section);
+      if (focus) restoreFocus(focus);
     });
   });
   const { reload, dispose: disposeSync } = wireDevtoolsSync({ stores: settingsStores, log });
