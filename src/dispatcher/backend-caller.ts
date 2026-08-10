@@ -57,7 +57,7 @@ function backgroundMarker(eventName: string): string {
   if (eventName.startsWith("schedule.")) return "(it's the time of day you check in on me)";
   if (eventName === "agent.done") return "(one of my coding tasks just finished)";
   if (eventName === "agent.needs_input") return "(one of my coding tasks is waiting on my input)";
-  if (eventName === "agent.catchup") return "(my coding tasks wrapped up while I was away)";
+  if (eventName === "agent.catchup") return "(my coding tasks piled up while I was away)";
   if (eventName === "signals.push") return "(a new signal just arrived for you)";
   if (eventName === "signals.catchup") return "(signals piled up while I was away)";
   return "(something just caught your attention)";

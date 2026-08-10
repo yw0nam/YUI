@@ -77,7 +77,7 @@ When there is no user utterance, the user input trails the `client_context` bloc
 | `schedule.*` | `(it's the time of day you check in on me)` |
 | `agent.done` | `(one of my coding tasks just finished)` |
 | `agent.needs_input` | `(one of my coding tasks is waiting on my input)` |
-| `agent.catchup` | `(my coding tasks wrapped up while I was away)` |
+| `agent.catchup` | `(my coding tasks piled up while I was away)` |
 | `signals.push` | `(a new signal just arrived for you)` |
 | `signals.catchup` | `(signals piled up while I was away)` |
 | any other | `(something just caught your attention)` |

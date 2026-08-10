@@ -302,7 +302,7 @@ const ja: Record<string, string> = {
   "gaze.aria": "カーソルを追う",
   "agentNotify.label": "エージェント通知",
   "agentNotify.sub":
-    "Claude Code や opencode などのコーディングエージェントがタスクを終えたら先に知らせます。",
+    "Claude Code や opencode などのコーディングエージェントがタスクを終えたとき、または入力が必要なときに先に知らせます。",
   "agentNotify.aria": "エージェント通知",
 
   // first-run onboarding hint

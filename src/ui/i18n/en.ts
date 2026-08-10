@@ -300,7 +300,7 @@ const en: Record<string, string> = {
   "gaze.aria": "Follow cursor",
   "agentNotify.label": "Agent notifications",
   "agentNotify.sub":
-    "Speaks up when a coding agent (Claude Code, opencode, …) finishes a task on your machine.",
+    "Speaks up when a coding agent (Claude Code, opencode, …) finishes a task or needs your input on your machine.",
   "agentNotify.aria": "Agent notifications",
 
   // first-run onboarding hint

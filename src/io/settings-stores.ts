@@ -64,7 +64,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const workflowSettings = createWorkflowSettings({
     storage: localStorageWorkflowStorage(),
   });
-  // Agent-completion notification on/off + listen port. Gates only source firing.
+  // Agent notification on/off + listen port. Gates only source firing.
   const agentNotifySettings = createAgentNotifySettings({
     storage: localStorageAgentNotifyStorage(),
   });

@@ -48,11 +48,11 @@ Claude Code `Stop` hook that sends the last assistant message as the summary. No
 ```bash
 (exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
 input=$(cat)
-session_id=$(echo "$input" | jq -r '.session_id')
+session_id=$(echo "$input" | jq -r '.session_id // empty')
 transcript_path=$(echo "$input" | jq -r '.transcript_path')
 last=$(jq -rs '[.[]|select(.type=="assistant")]|last|.message.content[]?|select(.type=="text").text' "$transcript_path")
 jq -n --arg s "$last" --arg cwd "$PWD" --arg sid "$session_id" \
-  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"done",session_id:$sid,summary:$s,ts:(now*1000|floor)}' \
+  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"done",session_id:$sid,summary:$s,ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
 | curl -s -X POST localhost:8770/agent-event -d @-
 ```
 
@@ -63,12 +63,12 @@ Summarize the last message with Haiku before POSTing. The backend receives a con
 ```bash
 (exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
 input=$(cat)
-session_id=$(echo "$input" | jq -r '.session_id')
+session_id=$(echo "$input" | jq -r '.session_id // empty')
 transcript_path=$(echo "$input" | jq -r '.transcript_path')
 last=$(jq -rs '[.[]|select(.type=="assistant")]|last|.message.content[]?|select(.type=="text").text' "$transcript_path")
 summary=$(printf '%s' "$last" | claude -p "Summarize what was done in one sentence." --model claude-haiku-4-5)
 jq -n --arg s "$summary" --arg cwd "$PWD" --arg sid "$session_id" \
-  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"done",session_id:$sid,summary:$s,ts:(now*1000|floor)}' \
+  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"done",session_id:$sid,summary:$s,ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
 | curl -s -X POST localhost:8770/agent-event -d @-
 ```
 
@@ -104,11 +104,11 @@ The hook input carries `tool_name` and `tool_input` for the pending call (for `B
 (exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
 input=$(cat)
 tool_name=$(echo "$input" | jq -r '.tool_name')
-session_id=$(echo "$input" | jq -r '.session_id')
+session_id=$(echo "$input" | jq -r '.session_id // empty')
 cwd=$(echo "$input" | jq -r '.cwd')
 cmd=$(echo "$input" | jq -r '.tool_input.command // (.tool_input | tostring)')
 jq -n --arg tool_name "$tool_name" --arg cmd "$cmd" --arg sid "$session_id" --arg cwd "$cwd" \
-  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"needs_input",session_id:$sid,detail:("waiting on " + $tool_name + ": " + $cmd),summary:"",ts:(now*1000|floor)}' \
+  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"needs_input",session_id:$sid,detail:("waiting on " + $tool_name + ": " + $cmd),summary:"",ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
 | curl -s -X POST localhost:8770/agent-event -d @-
 ```
 
@@ -119,12 +119,12 @@ The `idle_prompt` matcher scopes the hook to the one notification type that mean
 ```bash
 (exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
 input=$(cat)
-session_id=$(echo "$input" | jq -r '.session_id')
+session_id=$(echo "$input" | jq -r '.session_id // empty')
 cwd=$(echo "$input" | jq -r '.cwd')
 transcript_path=$(echo "$input" | jq -r '.transcript_path')
 last=$(jq -rs '[.[]|select(.type=="assistant")]|last|.message.content[]?|select(.type=="text").text' "$transcript_path")
 jq -n --arg s "$last" --arg sid "$session_id" --arg cwd "$cwd" \
-  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"needs_input",session_id:$sid,detail:$s,summary:"",ts:(now*1000|floor)}' \
+  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"needs_input",session_id:$sid,detail:$s,summary:"",ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
 | curl -s -X POST localhost:8770/agent-event -d @-
 ```
 
@@ -160,6 +160,8 @@ Add both to `.claude/settings.json` (project) or `~/.claude/settings.json` (glob
 ```
 
 This wiring covers top-level Claude Code sessions only — it does not configure Claude Code's separate subagent (`Task` tool) hooks, and there is no Codex- or opencode-specific `needs_input` wiring. A Codex run launched under Claude Code orchestration (see the `agent-team` skill) is still a tool call inside the top-level session, so its permission prompts and idle waits already reach the ingress through the `PermissionRequest`/`Notification` hooks above.
+
+Wiring both `Stop` (`phase:"done"`) and `Notification`/`idle_prompt` (`phase:"needs_input"`) can double-fire on the same lull — Claude Code's `Stop` event and its idle-prompt notification can both land around the same turn boundary, and since their `phase` values differ, the buffer's `session_id`+`phase` dedup does not merge them into one. Pick one wiring per session rather than running both.
 
 ## Other tools
 

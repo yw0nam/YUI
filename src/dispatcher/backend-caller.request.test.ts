@@ -492,7 +492,7 @@ describe("backend_caller — agent trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toContain("(my coding tasks wrapped up while I was away)");
+    expect(userMsg.content).toContain("(my coding tasks piled up while I was away)");
   });
 
   it("(d) agent.done with malformed payload → kind 'agent' but no trigger.agent", async () => {

@@ -135,7 +135,7 @@ interface QuickControlsOptions {
   ttsSettings?: FlagSettingsStore;
   /** Cursor gaze (eye contact) on/off store. If absent, that toggle row won't render. */
   gazeSettings?: FlagSettingsStore;
-  /** Agent completion notification on/off store. If absent, that toggle row won't render. */
+  /** Agent notification on/off store. If absent, that toggle row won't render. */
   agentNotifySettings?: AgentNotifySettingsStore;
   /** Away detection store. If absent, presence row in Reactions tab won't render. */
   presenceSettings?: ClampedIntSettingsStore;
