@@ -87,9 +87,13 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     },
     // Everything that changes the rendered audio or the set of cacheable phrases. Audio held under
     // an older key is dropped, which is also what keeps the map to the current pool.
+    // The active speaker's revision is folded in on top of the provider's own paramsKey() so a
+    // re-import committed in another window (settings) invalidates this window's (pet) cache too —
+    // the provider's in-process revision only covers a re-import from the same window.
     paramsKey: () => {
       const pool = effectiveFiller();
-      return [activeProvider().paramsKey(), ...pool.first, ...pool.repeat].join("\n");
+      const revision = deps.speakerSelection.getActive().revision ?? 0;
+      return [activeProvider().paramsKey(), revision, ...pool.first, ...pool.repeat].join("\n");
     },
   });
 

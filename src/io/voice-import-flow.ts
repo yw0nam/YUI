@@ -27,6 +27,7 @@ export interface PickedVoiceImport {
 
 /** The slice of the speaker store the commit step writes to. */
 interface SpeakerImportTarget {
+  list: () => SpeakerOption[];
   addUserOption: (option: SpeakerOption & { source: "user" }) => void;
   select: (id: string) => void;
 }
@@ -54,7 +55,11 @@ export function createVoiceImportFlow(deps: {
   // would never be uploaded. On failure, delete the orphan copy and rethrow without touching the
   // store, leaving the prior selection intact.
   const commitVoiceImport = async (srcPath: string, name: string): Promise<void> => {
-    const option = await copyVoiceFile(srcPath, name);
+    const copied = await copyVoiceFile(srcPath, name);
+    // A same-name re-import keeps the id but replaces the clip — bump the persisted revision so
+    // the existing cross-window settings sync carries the change into other windows' filler cache key.
+    const prevRevision = speakerSelection.list().find((o) => o.id === copied.id)?.revision ?? 0;
+    const option = { ...copied, revision: prevRevision + 1 };
     try {
       const baseUrl = getIrodoriBaseUrl();
       if (!baseUrl) throw new Error("irodori provider requires irodori_base_url");

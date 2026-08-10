@@ -20,6 +20,9 @@ export interface SpeakerOption {
   label?: string;
   ref_url: string;
   source?: "bundled" | "user";
+  /** Times this id's clip has been replaced by a same-name re-import — carried by the settings
+   *  sync so other windows' filler cache invalidates. Absent for bundled/never-reimported voices. */
+  revision?: number;
 }
 
 /** The override is the stored id string, or null (no override). */
@@ -40,7 +43,8 @@ function coerceUserSpeaker(v: unknown): SpeakerOption | null {
   if (typeof o.id !== "string" || !isSafeSanitizedId(o.id)) return null;
   if (typeof o.ref_url !== "string" || o.ref_url.length === 0) return null;
   const label = typeof o.label === "string" && o.label.length > 0 ? o.label : o.id;
-  return { id: o.id, label, ref_url: o.ref_url, source: "user" };
+  const revision = typeof o.revision === "number" ? o.revision : undefined;
+  return { id: o.id, label, ref_url: o.ref_url, source: "user", revision };
 }
 
 export function createSpeakerSelection(opts: {
