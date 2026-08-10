@@ -10,7 +10,12 @@ interface EnsureRegisteredOptions {
   refUrl: string;
   fetch?: typeof fetch;
   logger?: Logger;
-  /** Aborts the list/fetch-ref/register fetches — a hung registration must not hang the caller forever. */
+  /**
+   * Rejects this caller's wait once aborted — a hung registration must not hang the caller
+   * forever. Never reaches the registration fetches themselves: a shared in-flight registration
+   * dedupes concurrent callers, so tying it to one caller's signal would abort the work for
+   * every other caller waiting on the same voice id.
+   */
   signal?: AbortSignal;
 }
 
@@ -37,11 +42,13 @@ export function evictRegistration(baseUrl: string, id: string): void {
   inflight.delete(`${baseUrl}::${id}`);
 }
 
+// Shared across every caller dedup routes to the same in-flight registration, so this never
+// takes a caller's signal — one caller's abort must not cancel the fetches for the others.
 async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<void> {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const voicesUrl = `${opts.baseUrl}/voices`;
 
-  const listRes = await fetchImpl(voicesUrl, { signal: opts.signal });
+  const listRes = await fetchImpl(voicesUrl);
   if (!listRes.ok) {
     throw new Error(`irodori voices list failed (HTTP ${listRes.status})`);
   }
@@ -52,17 +59,40 @@ async function register(opts: EnsureRegisteredOptions, log: Logger): Promise<voi
     return;
   }
 
-  const blob = await fetchReferenceClip(opts.refUrl, { fetch: fetchImpl, signal: opts.signal });
+  const blob = await fetchReferenceClip(opts.refUrl, { fetch: fetchImpl });
 
   const form = new FormData();
   form.append("reference_audio", blob, `${opts.id}.mp3`);
   form.append("voice_id", opts.id);
 
-  const postRes = await fetchImpl(voicesUrl, { method: "POST", body: form, signal: opts.signal });
+  const postRes = await fetchImpl(voicesUrl, { method: "POST", body: form });
   if (!postRes.ok) {
     throw new Error(`irodori voice register failed (HTTP ${postRes.status}) ${opts.id}`);
   }
   log.info("voice_registered", { id: opts.id });
+}
+
+/** Rejects once `signal` aborts, independent of how `task` itself settles — lets one caller
+ *  bail out of a shared in-flight registration without affecting the other callers on it. */
+function rejectOnAbort<T>(task: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (!signal) return task;
+  if (signal.aborted) {
+    return Promise.reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+    signal.addEventListener("abort", onAbort, { once: true });
+    task.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (err: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(err);
+      },
+    );
+  });
 }
 
 interface UpdateVoiceOptions {
@@ -144,13 +174,13 @@ export function ensureRegistered(opts: EnsureRegisteredOptions): Promise<void> {
 
   const key = `${opts.baseUrl}::${opts.id}`;
 
-  const existing = inflight.get(key);
-  if (existing) return existing;
-
-  const task = register(opts, log).catch((err: unknown) => {
-    inflight.delete(key);
-    throw err;
-  });
-  inflight.set(key, task);
-  return task;
+  let task = inflight.get(key);
+  if (!task) {
+    task = register(opts, log).catch((err: unknown) => {
+      inflight.delete(key);
+      throw err;
+    });
+    inflight.set(key, task);
+  }
+  return rejectOnAbort(task, opts.signal);
 }

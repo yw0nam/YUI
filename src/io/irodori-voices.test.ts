@@ -235,7 +235,7 @@ describe("ensureRegistered", () => {
 
     // The aborted caller did not poison the shared registration — letting it settle lets a
     // later call for the same id join the same success instead of retrying from scratch.
-    resolveGet(voicesResponse(["other"]));
+    resolveGet(voicesResponse(["x"]));
     await expect(
       ensureRegistered({
         baseUrl: BASE,
@@ -276,7 +276,7 @@ describe("ensureRegistered", () => {
     controllerA.abort();
     await expect(callerA).rejects.toThrow();
 
-    resolveGet(voicesResponse(["other"]));
+    resolveGet(voicesResponse(["x"]));
     await expect(callerB).resolves.toBeUndefined();
   });
 
@@ -309,7 +309,7 @@ describe("ensureRegistered", () => {
     controllerB.abort();
     await expect(callerB).rejects.toThrow();
 
-    resolveGet(voicesResponse(["other"]));
+    resolveGet(voicesResponse(["x"]));
     await expect(callerA).resolves.toBeUndefined();
   });
 
