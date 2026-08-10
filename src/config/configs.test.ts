@@ -90,8 +90,7 @@ describe("configs/avatar.json", () => {
 describe("configs/guardrails.json", () => {
   const g = read("configs/guardrails.json");
 
-  it("carries dnd / debounce_ms / rate_limit blocks with §6 defaults", () => {
-    expect(Array.isArray(g.dnd.app_blocklist)).toBe(true);
+  it("carries debounce_ms / rate_limit blocks with §6 defaults", () => {
     expect(g.debounce_ms.idle_watcher).toBe(30000);
     expect(g.debounce_ms.os_event_watcher).toBe(5000);
     expect(g.debounce_ms.backend_push_source).toBe(10000);

@@ -14,7 +14,6 @@ export interface OsEventPayload {
   ts: number;
   data: {
     os_idle_ms?: number | null;
-    is_fullscreen?: boolean | null;
   };
 }
 

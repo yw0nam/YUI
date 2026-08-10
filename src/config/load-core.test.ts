@@ -68,7 +68,6 @@ describe("loadConfig — guardrails", () => {
   it("SOT 모양을 그대로 보존한다", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
     expect(cfg.guardrails).toEqual({
-      dnd: { app_blocklist: [] },
       debounce_ms: {
         idle_watcher: 30000,
         os_event_watcher: 5000,
@@ -83,16 +82,6 @@ describe("loadConfig — guardrails", () => {
         cooldown_ms: 300000,
       },
     });
-  });
-
-  it("app_blocklist에 string 항목을 보존한다", async () => {
-    const map = goodFixture();
-    (map["guardrails.json"] as { dnd: { app_blocklist: string[] } }).dnd.app_blocklist = [
-      "Keynote",
-      "Zoom",
-    ];
-    const cfg = await loadConfig({ read: readerOf(map) });
-    expect(cfg.guardrails.dnd.app_blocklist).toEqual(["Keynote", "Zoom"]);
   });
 
   it("객체가 아니면 ConfigError", async () => {
@@ -111,18 +100,6 @@ describe("loadConfig — guardrails", () => {
   it("음수 rate_limit 수치는 ConfigError", async () => {
     const map = goodFixture();
     (map["guardrails.json"] as { rate_limit: Record<string, number> }).rate_limit.tier2_max = -3;
-    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
-  });
-
-  it("app_blocklist가 string[]이 아니면 ConfigError", async () => {
-    const map = goodFixture();
-    (map["guardrails.json"] as { dnd: { app_blocklist: unknown } }).dnd.app_blocklist = ["ok", 5];
-    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
-  });
-
-  it("dnd 누락은 ConfigError", async () => {
-    const map = goodFixture();
-    delete (map["guardrails.json"] as Record<string, unknown>).dnd;
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 });
