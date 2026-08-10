@@ -1074,7 +1074,10 @@ describe("wireWindowSync", () => {
     for (const entry of storageReloadArg) entry.reloadFromStorage();
     vi.advanceTimersByTime(201);
 
-    expect(order).toContain("broadcast");
+    // Scope is pinned to what the storage path reloaded before this fix: the resync
+    // stores only — no display-language reload, no onRemoteChange hooks.
+    expect(order).toEqual(["broadcast", "reload"]);
+    expect(reloadLocaleFromStorage).not.toHaveBeenCalled();
     expect(fakeBridge.emitSettingsChanged).not.toHaveBeenCalled();
     sync.dispose();
   });
@@ -1137,15 +1140,20 @@ describe("wireCrossWindowSync", () => {
 
   it("wires storage sync to reload exactly the stores classified for reload", () => {
     const deps = makeDeps();
-    const expectedStores = reloadSyncStores(deps.stores);
-    const reloadSpies = expectedStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
+    const allStores = Object.values(deps.stores) as SyncedStore[];
+    const reloadSpies = allStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
     wireCrossWindowSync(deps as never);
 
     // wireStorageSync is mocked — invoke whatever it was handed the way a real "storage"
-    // event would, and check it reloaded exactly the expected stores.
+    // event would, and check it reloaded exactly the expected stores (no more, no less).
     for (const entry of wireStorageSync.mock.calls[0]![0]!) entry.reloadFromStorage();
 
-    for (const spy of reloadSpies) expect(spy).toHaveBeenCalledOnce();
+    const reloadedStores = new Set(
+      allStores.filter((_store, index) => reloadSpies[index]!.mock.calls.length > 0),
+    );
+    const expectedStores = new Set(reloadSyncStores(deps.stores));
+    expect(reloadedStores.size).toBe(expectedStores.size);
+    expect(reloadedStores).toEqual(expectedStores);
     for (const spy of reloadSpies) spy.mockRestore();
     teardown(deps);
   });
@@ -1220,13 +1228,18 @@ describe("wireSettingsWindowSync", () => {
 
   it("resyncs the vrm and speaker selections alongside the reload set", () => {
     const deps = makeDeps();
-    const expectedStores = reloadSyncStores(deps.stores);
-    const reloadSpies = expectedStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
+    const allStores = Object.values(deps.stores) as SyncedStore[];
+    const reloadSpies = allStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
     wireSettingsWindowSync(deps);
 
     for (const entry of wireStorageSync.mock.calls[0]![0]!) entry.reloadFromStorage();
 
-    for (const spy of reloadSpies) expect(spy).toHaveBeenCalledOnce();
+    const reloadedStores = new Set(
+      allStores.filter((_store, index) => reloadSpies[index]!.mock.calls.length > 0),
+    );
+    const expectedStores = new Set(reloadSyncStores(deps.stores));
+    expect(reloadedStores.size).toBe(expectedStores.size);
+    expect(reloadedStores).toEqual(expectedStores);
     expect(deps.vrmSelection.reloadFromStorage).toHaveBeenCalledOnce();
     expect(deps.speakerSelection.reloadFromStorage).toHaveBeenCalledOnce();
     for (const spy of reloadSpies) spy.mockRestore();
@@ -1278,13 +1291,18 @@ describe("wireDevtoolsSync", () => {
 
   it("wires storage sync to reload exactly the stores classified for reload", () => {
     const bag = createSettingsStores();
-    const expectedStores = reloadSyncStores(bag);
-    const reloadSpies = expectedStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
+    const allStores = Object.values(bag) as SyncedStore[];
+    const reloadSpies = allStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
 
     const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
     for (const entry of wireStorageSync.mock.calls[0]![0]!) entry.reloadFromStorage();
 
-    for (const spy of reloadSpies) expect(spy).toHaveBeenCalledOnce();
+    const reloadedStores = new Set(
+      allStores.filter((_store, index) => reloadSpies[index]!.mock.calls.length > 0),
+    );
+    const expectedStores = new Set(reloadSyncStores(bag));
+    expect(reloadedStores.size).toBe(expectedStores.size);
+    expect(reloadedStores).toEqual(expectedStores);
 
     sync.dispose();
     for (const spy of reloadSpies) spy.mockRestore();
