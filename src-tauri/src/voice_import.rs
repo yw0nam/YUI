@@ -215,10 +215,34 @@ fn parse_stale_artifact(file_name: &str) -> Option<StaleArtifact<'_>> {
 /// (the swap completed; the backup is a leftover). A `.{id}.import-tmp` never finished building,
 /// so it is always discarded. A missing `references_dir` is a no-op — nothing has ever imported.
 pub(crate) fn sweep_stale_import_artifacts(references_dir: &Path) {
-    // RED: not implemented yet — pin the contract in tests first.
-    let _ = parse_stale_artifact("");
-    let _ = references_dir;
-    unimplemented!("recovery sweep not yet implemented")
+    let Ok(entries) = std::fs::read_dir(references_dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let file_name = entry.file_name();
+        let Some(name) = file_name.to_str() else {
+            continue;
+        };
+        match parse_stale_artifact(name) {
+            Some(StaleArtifact::Tmp) => {
+                if let Err(e) = std::fs::remove_dir_all(entry.path()) {
+                    log::error!("stale_tmp_sweep_failed name={name} error={e}");
+                }
+            }
+            Some(StaleArtifact::Backup(id)) => {
+                let target = references_dir.join(id);
+                let result = if target.exists() {
+                    std::fs::remove_dir_all(entry.path())
+                } else {
+                    std::fs::rename(entry.path(), &target)
+                };
+                if let Err(e) = result {
+                    log::error!("stale_backup_sweep_failed name={name} error={e}");
+                }
+            }
+            None => {}
+        }
+    }
 }
 
 #[cfg(test)]
@@ -514,7 +538,10 @@ mod tests {
             std::fs::read(references.join("Cat").join("clip.wav")).unwrap(),
             b"original clip"
         );
-        assert!(!backup.exists(), "the backup path itself must be gone once restored");
+        assert!(
+            !backup.exists(),
+            "the backup path itself must be gone once restored"
+        );
         std::fs::remove_dir_all(&references).ok();
     }
 
