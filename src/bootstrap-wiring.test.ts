@@ -111,7 +111,12 @@ const { fakeBridge, createSettingsBridge } = vi.hoisted(() => {
 vi.mock("./io/settings-bridge", () => ({ createSettingsBridge }));
 const { wireStorageSyncDispose, wireStorageSync } = vi.hoisted(() => {
   const wireStorageSyncDispose = vi.fn();
-  return { wireStorageSyncDispose, wireStorageSync: vi.fn(() => wireStorageSyncDispose) };
+  // Typed so `.mock.calls[0][0]` is the ReadonlyArray<{ reloadFromStorage() }> wireWindowSync
+  // hands it, not an untyped `[]` — an untyped vi.fn() infers a zero-arity call signature.
+  const wireStorageSync = vi.fn(
+    (_stores: ReadonlyArray<{ reloadFromStorage(): void }>) => wireStorageSyncDispose,
+  );
+  return { wireStorageSyncDispose, wireStorageSync };
 });
 vi.mock("./io/settings-window", () => ({ wireStorageSync }));
 const { mockDriver, createMockDriver } = vi.hoisted(() => {
@@ -1062,6 +1067,26 @@ describe("wireWindowSync", () => {
     sync.dispose();
   });
 
+  it("runs a storage-event-driven reload under the same loop guard as the bridge path", () => {
+    const order: string[] = [];
+    const { bag } = makeBag(order);
+    const sync = wireWindowSync({ stores: bag as never, windowKind: "devtools", log: noopLog });
+
+    // wireStorageSync is mocked (module-level vi.mock above) — it never installs a real
+    // "storage" listener. Simulate the sibling window's storage event by invoking whatever
+    // wireWindowSync handed it, the same way the real "storage" listener would.
+    const storageReloadArg = wireStorageSync.mock.calls[0]![0]!;
+    for (const entry of storageReloadArg) entry.reloadFromStorage();
+    vi.advanceTimersByTime(201);
+
+    // Scope is pinned to what the storage path reloaded before this fix: the resync
+    // stores only — no display-language reload, no onRemoteChange hooks.
+    expect(order).toEqual(["broadcast", "reload"]);
+    expect(reloadLocaleFromStorage).not.toHaveBeenCalled();
+    expect(fakeBridge.emitSettingsChanged).not.toHaveBeenCalled();
+    sync.dispose();
+  });
+
   it("runs a hook registered after construction on the next remote change", () => {
     const order: string[] = [];
     const { bag } = makeBag(order);
@@ -1118,10 +1143,23 @@ describe("wireCrossWindowSync", () => {
     for (const store of Object.values(deps.stores)) store.dispose();
   };
 
-  it("wires storage sync with exactly the stores classified for reload", () => {
+  it("wires storage sync to reload exactly the stores classified for reload", () => {
     const deps = makeDeps();
+    const allStores = Object.values(deps.stores) as SyncedStore[];
+    const reloadSpies = allStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
     wireCrossWindowSync(deps as never);
-    expect(wireStorageSync).toHaveBeenCalledWith(reloadSyncStores(deps.stores));
+
+    // wireStorageSync is mocked — invoke whatever it was handed the way a real "storage"
+    // event would, and check it reloaded exactly the expected stores (no more, no less).
+    for (const entry of wireStorageSync.mock.calls[0]![0]!) entry.reloadFromStorage();
+
+    const reloadedStores = new Set(
+      allStores.filter((_store, index) => reloadSpies[index]!.mock.calls.length > 0),
+    );
+    const expectedStores = new Set(reloadSyncStores(deps.stores));
+    expect(reloadedStores.size).toBe(expectedStores.size);
+    expect(reloadedStores).toEqual(expectedStores);
+    for (const spy of reloadSpies) spy.mockRestore();
     teardown(deps);
   });
 
@@ -1195,12 +1233,21 @@ describe("wireSettingsWindowSync", () => {
 
   it("resyncs the vrm and speaker selections alongside the reload set", () => {
     const deps = makeDeps();
+    const allStores = Object.values(deps.stores) as SyncedStore[];
+    const reloadSpies = allStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
     wireSettingsWindowSync(deps);
-    expect(wireStorageSync).toHaveBeenCalledWith([
-      ...reloadSyncStores(deps.stores),
-      deps.vrmSelection,
-      deps.speakerSelection,
-    ]);
+
+    for (const entry of wireStorageSync.mock.calls[0]![0]!) entry.reloadFromStorage();
+
+    const reloadedStores = new Set(
+      allStores.filter((_store, index) => reloadSpies[index]!.mock.calls.length > 0),
+    );
+    const expectedStores = new Set(reloadSyncStores(deps.stores));
+    expect(reloadedStores.size).toBe(expectedStores.size);
+    expect(reloadedStores).toEqual(expectedStores);
+    expect(deps.vrmSelection.reloadFromStorage).toHaveBeenCalledOnce();
+    expect(deps.speakerSelection.reloadFromStorage).toHaveBeenCalledOnce();
+    for (const spy of reloadSpies) spy.mockRestore();
     teardown(deps);
   });
 
@@ -1247,14 +1294,48 @@ describe("wireDevtoolsSync", () => {
     for (const store of Object.values(bag)) store.dispose();
   });
 
-  it("wires storage sync with exactly the stores classified for reload", () => {
+  it("wires storage sync to reload exactly the stores classified for reload", () => {
     const bag = createSettingsStores();
+    const allStores = Object.values(bag) as SyncedStore[];
+    const reloadSpies = allStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
 
     const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
+    for (const entry of wireStorageSync.mock.calls[0]![0]!) entry.reloadFromStorage();
 
-    expect(wireStorageSync).toHaveBeenCalledWith(reloadSyncStores(bag));
+    const reloadedStores = new Set(
+      allStores.filter((_store, index) => reloadSpies[index]!.mock.calls.length > 0),
+    );
+    const expectedStores = new Set(reloadSyncStores(bag));
+    expect(reloadedStores.size).toBe(expectedStores.size);
+    expect(reloadedStores).toEqual(expectedStores);
 
     sync.dispose();
+    for (const spy of reloadSpies) spy.mockRestore();
+    for (const store of Object.values(bag)) store.dispose();
+  });
+
+  it("runs a storage-event-driven reload under the loop guard without rebroadcasting", () => {
+    const bag = createSettingsStores();
+    const broadcastStore = broadcastSyncStores(bag)[0]!;
+    let retainedSubscriber: (() => void) | undefined;
+    const subscribeSpy = vi.spyOn(broadcastStore, "subscribe").mockImplementation((callback) => {
+      retainedSubscriber = callback;
+      return vi.fn();
+    });
+    const reloadSpy = vi.spyOn(broadcastStore, "reloadFromStorage").mockImplementation(() => {
+      retainedSubscriber!();
+    });
+
+    const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
+    for (const entry of wireStorageSync.mock.calls[0]![0]!) entry.reloadFromStorage();
+    vi.advanceTimersByTime(201);
+
+    expect(reloadSpy).toHaveBeenCalledOnce();
+    expect(fakeBridge.emitSettingsChanged).not.toHaveBeenCalled();
+
+    sync.dispose();
+    subscribeSpy.mockRestore();
+    reloadSpy.mockRestore();
     for (const store of Object.values(bag)) store.dispose();
   });
 
