@@ -53,10 +53,12 @@ fi
 
 sed -i '' "s/^version = \"$cur\"\$/version = \"$new\"/" src-tauri/Cargo.toml
 sed -i '' "s/^  \"version\": \"[^\"]*\",\$/  \"version\": \"$new\",/" src-tauri/tauri.conf.json package.json
-if git diff --quiet; then
-  echo "refusing to release: version bump changed no files" >&2
-  exit 1
-fi
+for f in src-tauri/Cargo.toml src-tauri/tauri.conf.json package.json; do
+  if git diff --quiet -- "$f"; then
+    echo "refusing to release: $f was not updated" >&2
+    exit 1
+  fi
+done
 cargo update --workspace --manifest-path src-tauri/Cargo.toml
 
 git add src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json package.json
