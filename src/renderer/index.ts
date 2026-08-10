@@ -44,7 +44,7 @@ import {
 import { type CursorGaze, createCursorGaze } from "./cursor-gaze";
 import { createCycleDwell } from "./cycle-dwell";
 import { createEmotionCrossfade, type EmotionCrossfade } from "./emotion-crossfade";
-import { isActive, shouldRenderFrame } from "./frame-gate";
+import { isActive, isMouthConverging, shouldRenderFrame } from "./frame-gate";
 import type { GazeConfig } from "./gaze-tracker";
 import { mirrorClipTracks } from "./mirror-clip";
 import {
@@ -66,6 +66,14 @@ import { createPinController, type PinController } from "./pin-controller";
 import { clampPixelRatio } from "./pixel-ratio";
 import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
 import { recenterClipRootMotion } from "./recenter-root-motion";
+import { clientToStage } from "./stage-coords";
+import {
+  anyConverging,
+  notifyVrmDisposed,
+  notifyVrmLoaded,
+  stepParticipants,
+  type VrmParticipant,
+} from "./vrm-participant";
 
 const log = createLogger("renderer");
 
@@ -201,11 +209,13 @@ export interface Renderer {
   getCharacterAnchor(): ScreenAnchor | null;
   /**
    * Per-pixel alpha hit test: true when the rendered character pixel under the
-   * canvas CSS-px point (x, y), relative to the stage top-left, is opaque
-   * (alpha ≥ threshold) — the true silhouette, including hair/transparent-texture
-   * edges. Samples a CPU-side low-res alpha grab refreshed inside the render loop
-   * (with a 3×3 dilation so thin features stay hittable). False when no VRM/grab
-   * is available yet. No GL readback happens here — the readback is in the rAF loop.
+   * window-local client CSS-px point (x, y) — e.g. MouseEvent.clientX/clientY — is
+   * opaque (alpha ≥ threshold) — the true silhouette, including hair/transparent-
+   * texture edges. Converted internally to stage-local via the renderer's own
+   * cached mount rect. Samples a CPU-side low-res alpha grab refreshed inside the
+   * render loop (with a 3×3 dilation so thin features stay hittable). False when
+   * no VRM/grab is available yet. No GL readback happens here — the readback is
+   * in the rAF loop.
    */
   hitTest(x: number, y: number): boolean;
   /**
@@ -261,7 +271,11 @@ export interface Renderer {
   setGazeEnabled(enabled: boolean): void;
   /** Current gaze toggle state (true = tracking the cursor). */
   getGazeEnabled(): boolean;
-  /** Latest window-local CSS px OS-cursor position; null = unavailable. Forwards to cursor-gaze. */
+  /**
+   * Latest window-local client CSS px OS-cursor position — e.g. MouseEvent.
+   * clientX/clientY; null = unavailable. Converted internally to stage-local
+   * before forwarding to cursor-gaze.
+   */
   setGazeCursor(pos: { x: number; y: number } | null): void;
   /** Stop rAF loop + release GPU resources. */
   dispose(): void;
@@ -445,6 +459,11 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
   };
 
+  // Cached mount rect (viewport-relative) for client→stage-local conversion
+  // (hitTest/setGazeCursor). Refreshed alongside size in resize() — mount is
+  // inset:0, so its rect only moves with the same layout changes that resize it.
+  let mountRect = mount.getBoundingClientRect();
+
   function resize(): void {
     const w = mount.clientWidth || 1;
     const h = mount.clientHeight || 1;
@@ -452,6 +471,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     fitCamera(); // re-fit on resize so width-bound framing stays correct.
+    mountRect = mount.getBoundingClientRect();
   }
   resize();
   const ro = new ResizeObserver(resize);
@@ -485,6 +505,45 @@ export function createRenderer(options: RendererOptions): Renderer {
     return id != null && id !== controller?.baseline();
   }
 
+  // ── VrmParticipant unification ──────────────────────────────────────────
+  // pins/gaze/emotion/mouth share the same per-frame lifecycle (adopt on load,
+  // step before vrm.update, drop on dispose, report convergence) under mismatched
+  // vocabularies (onVrmLoaded/onVrmDisposed/reset; step; isConverging/isFading/
+  // openValue). One shared interface, adapted once here (not per frame, so the
+  // per-frame step loop stays monomorphic), held in the fixed order animate()
+  // already ran them in: bones (pins/gaze) before expression weights
+  // (emotion/mouth), all before vrm.update.
+  const pinsParticipant: VrmParticipant = {
+    onVrmLoaded: pins.onVrmLoaded,
+    onVrmDisposed: pins.onVrmDisposed,
+    step: () => pins.step(camera),
+    isConverging: pins.isConverging,
+  };
+  const gazeParticipant: VrmParticipant = {
+    onVrmLoaded: gaze.onVrmLoaded,
+    onVrmDisposed: gaze.onVrmDisposed,
+    step: (ctx) => gaze.step(ctx.dt),
+    isConverging: gaze.isConverging,
+  };
+  const emotionParticipant: VrmParticipant = {
+    onVrmLoaded: emotion.onVrmLoaded,
+    onVrmDisposed: emotion.reset,
+    step: (ctx) => emotion.step(ctx.dt),
+    isConverging: emotion.isFading,
+  };
+  const mouthParticipant: VrmParticipant = {
+    step: (ctx) => {
+      if (ctx.vrm.expressionManager) mouth.step(ctx.dt, ctx.vrm.expressionManager);
+    },
+    isConverging: () => isMouthConverging(mouth.openValue()),
+  };
+  const participants: VrmParticipant[] = [
+    pinsParticipant,
+    gazeParticipant,
+    emotionParticipant,
+    mouthParticipant,
+  ];
+
   function animate(): void {
     rafId = requestAnimationFrame(animate);
     // Idle/active frame gate: while only ambient is running, cap to IDLE_FPS so the
@@ -493,13 +552,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     // frame so animation speed is unchanged.
     const active =
       isActive({
-        mouthOpen: mouth.openValue(),
-        emotionFading: emotion.isFading(),
+        participantsConverging: anyConverging(participants),
         motionActive: isMotionActive(),
-        perchConverging: pins.isConverging(),
-      }) ||
-      orbitConverging ||
-      gaze.isConverging();
+      }) || orbitConverging;
     const now = performance.now();
     if (!shouldRenderFrame(now, lastRenderMs, active, IDLE_FPS, idleThrottleEnabled)) return;
     lastRenderMs = now;
@@ -511,9 +566,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     stepOrbit();
     if (currentVrm) {
       elapsed += dt;
+      const ctx: TickContext = { vrm: currentVrm, dt, elapsed };
       // Hooks first — bone/expression changes must be reflected in this frame's vrm.update(spring/expression apply).
       if (tickHooks.size > 0) {
-        const ctx: TickContext = { vrm: currentVrm, dt, elapsed };
         for (const fn of tickHooks) {
           try {
             fn(ctx);
@@ -530,18 +585,9 @@ export function createRenderer(options: RendererOptions): Renderer {
           log.error("mixer_update_error", { error: String(err) });
         }
       }
-      // perch seat-pin — after the mixer poses the hips, before vrm.update applies
-      // spring bones, so the offset rides into this frame's render.
-      pins.step(camera);
-      // cursor gaze — same slot as perch: rides the posed head/neck into vrm.update.
-      gaze.step(dt);
-      // emotion crossfade — expressionManager.update() runs inside vrm.update(dt),
-      // so weight must be written before to reflect in this frame.
-      emotion.step(dt);
-      // lipsync — same reason as emotion: write `aa` weight before vrm.update.
-      if (currentVrm.expressionManager) {
-        mouth.step(dt, currentVrm.expressionManager);
-      }
+      // pins/gaze (bones) then emotion/mouth (expression weights) — all before
+      // vrm.update so expressionManager.update()/spring bones see this frame's writes.
+      stepParticipants(participants, ctx);
       currentVrm.update(dt);
     }
     renderer.render(scene, camera);
@@ -593,11 +639,9 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   function disposeCurrent(): void {
     teardownMotion();
-    // Reset in-flight fade so it doesn't write to disposed VRM (shared hotswap/dispose).
-    emotion.reset();
-    pins.onVrmDisposed();
-    // Drop gaze bone refs + reset damped state so nothing carries to the next VRM.
-    gaze.onVrmDisposed();
+    // Drop each participant's VRM-bound state (reset in-flight fade/bone refs/damped
+    // state) so nothing carries to the next VRM or writes to the disposed one.
+    notifyVrmDisposed(participants);
     if (currentVrm) {
       scene.remove(currentVrm.scene);
       VRMUtils.deepDispose(currentVrm.scene);
@@ -786,11 +830,10 @@ export function createRenderer(options: RendererOptions): Renderer {
     currentVrm = vrm;
     scene.add(vrm.scene);
 
-    pins.onVrmLoaded(vrm);
+    // Adopt the VRM: cache bones, claim lookAt, recompute the per-model emotion
+    // predicate/resolver — each participant's own onVrmLoaded, in fixed order.
+    notifyVrmLoaded(participants, vrm);
     rebuildBoneNameSwap(vrm);
-
-    // Cache head/neck for the per-frame gaze nudge; claim lookAt for eye control.
-    gaze.onVrmLoaded(vrm);
 
     // Full-body fit-to-bounds: measure in rest pose, before idle animates the arms.
     vrm.scene.updateWorldMatrix(true, true);
@@ -809,9 +852,6 @@ export function createRenderer(options: RendererOptions): Renderer {
         expressions: exprInfo.expressions,
       });
     }
-
-    // emotion: existence set is per-model so predicate/resolver recreated on each hotswap.
-    emotion.onVrmLoaded();
 
     // New mixer for this VRM (clips are VRM-specific so start fresh).
     mixer = new THREE.AnimationMixer(vrm.scene);
@@ -953,7 +993,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       return projectFeetAnchor(modelBox, camera, mount.clientWidth || 1, mount.clientHeight || 1);
     },
     hitTest(x, y) {
-      return alphaHitTest.hitTest(x, y);
+      const stage = clientToStage(x, y, mountRect);
+      return alphaHitTest.hitTest(stage.x, stage.y);
     },
     setHitTestThreshold(threshold) {
       alphaHitTest.setThreshold(threshold);
@@ -1029,7 +1070,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       return gaze.getEnabled();
     },
     setGazeCursor(pos) {
-      gaze.setCursorCss(pos);
+      gaze.setCursorCss(pos && clientToStage(pos.x, pos.y, mountRect));
     },
     dispose() {
       cancelAnimationFrame(rafId);

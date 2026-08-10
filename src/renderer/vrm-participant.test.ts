@@ -11,7 +11,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { VRM } from "@pixiv/three-vrm";
 import {
   anyConverging,
-  disposeParticipants,
   notifyVrmDisposed,
   notifyVrmLoaded,
   stepParticipants,
@@ -71,19 +70,6 @@ describe("notifyVrmDisposed", () => {
     const c: VrmParticipant = { step: vi.fn(), onVrmDisposed: () => order.push("c") };
 
     notifyVrmDisposed([a, b, c]);
-
-    expect(order).toEqual(["a", "c"]);
-  });
-});
-
-describe("disposeParticipants", () => {
-  it("calls dispose on every participant that has it, in order", () => {
-    const order: string[] = [];
-    const a: VrmParticipant = { step: vi.fn(), dispose: () => order.push("a") };
-    const b: VrmParticipant = { step: vi.fn() };
-    const c: VrmParticipant = { step: vi.fn(), dispose: () => order.push("c") };
-
-    disposeParticipants([a, b, c]);
 
     expect(order).toEqual(["a", "c"]);
   });
