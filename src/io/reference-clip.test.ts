@@ -69,20 +69,18 @@ describe("resolveReferenceClipUrl", () => {
 });
 
 describe("fetchReferenceClip", () => {
-  it.each(["asset://localhost/app/resources/references/ayase.mp3"])(
-    "uses the global fetch for %s",
-    async (refUrl) => {
-      const blob = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" });
-      const globalFetch = vi.fn<FetchFn>(async () => blobResponse(blob));
-      const injectedFetch = vi.fn<FetchFn>();
-      vi.stubGlobal("fetch", globalFetch);
+  it("uses the global fetch for an asset:// URL", async () => {
+    const refUrl = "asset://localhost/app/resources/references/ayase.mp3";
+    const blob = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" });
+    const globalFetch = vi.fn<FetchFn>(async () => blobResponse(blob));
+    const injectedFetch = vi.fn<FetchFn>();
+    vi.stubGlobal("fetch", globalFetch);
 
-      await expect(fetchReferenceClip(refUrl, { fetch: injectedFetch })).resolves.toBe(blob);
+    await expect(fetchReferenceClip(refUrl, { fetch: injectedFetch })).resolves.toBe(blob);
 
-      expect(globalFetch).toHaveBeenCalledWith(refUrl);
-      expect(injectedFetch).not.toHaveBeenCalled();
-    },
-  );
+    expect(globalFetch).toHaveBeenCalledWith(refUrl);
+    expect(injectedFetch).not.toHaveBeenCalled();
+  });
 
   it.each([
     "http://127.0.0.1:1420/references/ayase.mp3",
