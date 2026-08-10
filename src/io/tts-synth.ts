@@ -2,7 +2,12 @@
 
 import type { EndpointsConfig } from "../contract";
 import { createDeadlineSignal } from "./deadline";
-import { TTS_SYNTH_TIMEOUT_MS, type TtsProvider, type TtsSynth } from "./tts-provider";
+import {
+  emotionTextModeFor,
+  TTS_SYNTH_TIMEOUT_MS,
+  type TtsProvider,
+  type TtsSynth,
+} from "./tts-provider";
 
 export type { TtsSynth };
 export { TTS_SYNTH_TIMEOUT_MS };
@@ -88,6 +93,6 @@ export function createOpenAiTtsProvider(deps: OpenAiTtsProviderDeps): TtsProvide
       return ["openai", eps.tts_base_url, eps.tts_model, eps.tts_voice, eps.tts_speed].join("::");
     },
     isReady: () => Boolean(deps.getEndpoints().tts_base_url),
-    emotionTextMode: () => "free",
+    emotionTextMode: () => emotionTextModeFor("openai"),
   };
 }

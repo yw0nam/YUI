@@ -3,7 +3,12 @@
 import { createLogger, type Logger } from "../logger";
 import { createDeadlineSignal } from "./deadline";
 import { ensureRegistered, evictRegistration, voiceRevision } from "./irodori-voices";
-import { TTS_SYNTH_TIMEOUT_MS, type TtsProvider, type TtsSynth } from "./tts-provider";
+import {
+  emotionTextModeFor,
+  TTS_SYNTH_TIMEOUT_MS,
+  type TtsProvider,
+  type TtsSynth,
+} from "./tts-provider";
 
 export type { TtsSynth };
 
@@ -166,9 +171,28 @@ export interface IrodoriTtsProviderDeps {
     irodori_seconds?: number;
   };
   getActiveSpeaker: () => { id: string; ref_url: string };
-  /** Environment fetch override (Tauri CORS-bypass) — resolved once and reused (not per sentence). */
+  /** Environment fetch override (Tauri CORS-bypass) — resolved fresh on every synth() call. */
   selectFetch: () => Promise<typeof fetch | undefined>;
   logger?: Logger;
+}
+
+/**
+ * Runs one network step under its own deadline so a hung fetch settles instead of hanging
+ * forever. Scoped per step (not around the whole synth() call) because irodori's local
+ * diffusion synth time is unmeasured — see TTS_SYNTH_TIMEOUT_MS (tts-provider.ts) for the
+ * full reasoning.
+ */
+async function withDeadline<T>(
+  signal: AbortSignal | undefined,
+  fn: (requestSignal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const deadline = createDeadlineSignal(TTS_SYNTH_TIMEOUT_MS, "irodori TTS request timed out");
+  const requestSignal = signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal;
+  try {
+    return await fn(requestSignal);
+  } finally {
+    deadline.clear();
+  }
 }
 
 /**
@@ -221,34 +245,27 @@ export function createIrodoriTtsProvider(deps: IrodoriTtsProviderDeps): TtsProvi
     synth: async (input, signal) => {
       const fetchImpl = (await deps.selectFetch()) ?? globalThis.fetch;
       const p = params();
-      // Deadline covers the whole call (registration + synth + one 422 self-heal retry) so a hung
-      // request settles instead of stalling the turn's ordered playback forever.
-      const deadline = createDeadlineSignal(TTS_SYNTH_TIMEOUT_MS, "irodori TTS request timed out");
-      const requestSignal = signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal;
-      try {
-        await ensureRegistered({
+      const register = (requestSignal: AbortSignal): Promise<void> =>
+        ensureRegistered({
           baseUrl: p.baseUrl,
           id: p.referenceId,
           refUrl: p.refUrl,
           fetch: fetchImpl,
+          signal: requestSignal,
         });
-        const synth = synthFor(p, fetchImpl);
-        try {
-          return await synth(input, requestSignal);
-        } catch (err) {
-          if (!(err instanceof IrodoriSynthError) || err.status !== 422) throw err;
-          // Server forgot the voice — evict the memo, re-register once, retry once.
-          evictRegistration(p.baseUrl, p.referenceId);
-          await ensureRegistered({
-            baseUrl: p.baseUrl,
-            id: p.referenceId,
-            refUrl: p.refUrl,
-            fetch: fetchImpl,
-          });
-          return await synth(input, requestSignal);
-        }
-      } finally {
-        deadline.clear();
+      const synthFn = synthFor(p, fetchImpl);
+
+      // Each step (registration, synth, and the 422 self-heal's re-registration + retry) runs
+      // under its own deadline — see withDeadline.
+      await withDeadline(signal, register);
+      try {
+        return await withDeadline(signal, (requestSignal) => synthFn(input, requestSignal));
+      } catch (err) {
+        if (!(err instanceof IrodoriSynthError) || err.status !== 422) throw err;
+        // Server forgot the voice — evict the memo, re-register once, retry once.
+        evictRegistration(p.baseUrl, p.referenceId);
+        await withDeadline(signal, register);
+        return await withDeadline(signal, (requestSignal) => synthFn(input, requestSignal));
       }
     },
     // The irodori voice revision is part of the key because an import over an existing name
@@ -261,6 +278,6 @@ export function createIrodoriTtsProvider(deps: IrodoriTtsProviderDeps): TtsProvi
       const eps = deps.getEndpoints();
       return Boolean(eps.irodori_base_url && deps.getActiveSpeaker().id);
     },
-    emotionTextMode: () => "enum",
+    emotionTextMode: () => emotionTextModeFor("irodori"),
   };
 }

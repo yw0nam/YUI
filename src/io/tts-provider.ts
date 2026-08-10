@@ -19,8 +19,15 @@ export interface TtsProvider {
 }
 
 // Deadline so a hung request settles instead of stalling the turn's ordered playback forever.
-// Shared by both adapters. Magnitude has headroom for irodori's 503 retry (capped at 5s) plus
-// network + synth time.
+// Shared by both adapters, but scoped differently per adapter:
+//   - openai: one HTTP call per synth() — this is the whole call's budget.
+//   - irodori: applied PER network step (registration, synth, and the 422 self-heal's
+//     re-registration + retry), not around the whole synth() call. irodori is local diffusion
+//     TTS with unmeasured synth time; upload + synth + a possible 5s 503 Retry-After wait + retry
+//     + a 422 self-heal round can plausibly exceed 10s on a legitimate (if slow) request, so a
+//     single blanket 10s budget over the whole call risked turning slow-but-healthy audio into
+//     dropped sentences. Per-step scoping keeps every fetch hang-free without capping the total.
+// Magnitude has headroom for irodori's 503 retry (capped at 5s) plus network + synth time for one step.
 export const TTS_SYNTH_TIMEOUT_MS = 10_000;
 
 /** "unset means irodori" — the one place this default is decided. */
