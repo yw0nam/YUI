@@ -13,6 +13,8 @@ import type { EndpointsConfig } from "../contract";
 import type { EndpointOverrides, EndpointsStorage } from "./endpoints-settings";
 import {
   createEndpointsSettings,
+  endpointDefaultsFromConfig,
+  ENDPOINT_FIELD_SPECS,
   ENDPOINT_VALUE_MAX_LEN,
   isValidEndpointUrl,
   localStorageEndpointsStorage,
@@ -670,5 +672,118 @@ describe("localStorageEndpointsStorage", () => {
     expect(written[0][0]).toBe("my.key");
 
     delete (globalThis as any).localStorage;
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENDPOINT_FIELD_SPECS — declarative table FIELDS/EMPTY/coerceFor/mergeEndpoints and the UI's
+// ENDPOINT_FIELDS + both windows' endpoint defaults derive from (one row per overridable value).
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("ENDPOINT_FIELD_SPECS", () => {
+  it("has exactly one row per EndpointOverrides key (totality, no duplicates)", () => {
+    const keys = ENDPOINT_FIELD_SPECS.map((s) => s.key);
+    expect(keys.sort()).toEqual(Object.keys(EMPTY).sort());
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("assigns kind 'url' to the five base-url fields", () => {
+    const urlKeys = ENDPOINT_FIELD_SPECS.filter((s) => s.kind === "url").map((s) => s.key);
+    expect(urlKeys.sort()).toEqual(
+      [
+        "chat_base_url",
+        "stt_base_url",
+        "tts_base_url",
+        "irodori_base_url",
+        "broker_base_url",
+      ].sort(),
+    );
+  });
+
+  it("assigns kind 'string' to chat_model/tts_voice", () => {
+    const stringKeys = ENDPOINT_FIELD_SPECS.filter((s) => s.kind === "string").map((s) => s.key);
+    expect(stringKeys.sort()).toEqual(["chat_model", "tts_voice"].sort());
+  });
+
+  it("assigns kind 'posInt' to chat_model_context_window only", () => {
+    const posIntKeys = ENDPOINT_FIELD_SPECS.filter((s) => s.kind === "posInt").map((s) => s.key);
+    expect(posIntKeys).toEqual(["chat_model_context_window"]);
+  });
+
+  it("assigns kind 'enum' to tts_provider/chat_api with their valid-value lists", () => {
+    const ttsProvider = ENDPOINT_FIELD_SPECS.find((s) => s.key === "tts_provider")!;
+    expect(ttsProvider.kind).toBe("enum");
+    expect(ttsProvider.enum).toEqual(["irodori", "openai"]);
+
+    const chatApi = ENDPOINT_FIELD_SPECS.find((s) => s.key === "chat_api")!;
+    expect(chatApi.kind).toBe("enum");
+    expect(chatApi.enum).toEqual(["responses", "chat_completions"]);
+  });
+});
+
+// Table-driven invariant: every row's coercion follows from its declared `kind`, so a field added
+// to the table without matching coercion cannot silently accept garbage.
+describe("coerceFor — dispatch by ENDPOINT_FIELD_SPECS kind", () => {
+  it("enum-kind fields reject values outside their enum list", () => {
+    for (const spec of ENDPOINT_FIELD_SPECS.filter((s) => s.kind === "enum")) {
+      const store = createEndpointsSettings();
+      store.set({ [spec.key]: "not-a-real-value" } as unknown as Partial<EndpointOverrides>);
+      expect(store.get()[spec.key]).toBe("");
+    }
+  });
+
+  it("posInt-kind fields accept only positive digit strings", () => {
+    for (const spec of ENDPOINT_FIELD_SPECS.filter((s) => s.kind === "posInt")) {
+      const store = createEndpointsSettings();
+      store.set({ [spec.key]: "abc" } as unknown as Partial<EndpointOverrides>);
+      expect(store.get()[spec.key]).toBe("");
+      store.set({ [spec.key]: "0" } as unknown as Partial<EndpointOverrides>);
+      expect(store.get()[spec.key]).toBe("");
+      store.set({ [spec.key]: "42" } as unknown as Partial<EndpointOverrides>);
+      expect(store.get()[spec.key]).toBe("42");
+    }
+  });
+
+  it("url/string-kind fields cap length at ENDPOINT_VALUE_MAX_LEN", () => {
+    const long = "h".repeat(ENDPOINT_VALUE_MAX_LEN + 10);
+    for (const spec of ENDPOINT_FIELD_SPECS.filter(
+      (s) => s.kind === "url" || s.kind === "string",
+    )) {
+      const store = createEndpointsSettings();
+      store.set({ [spec.key]: long } as unknown as Partial<EndpointOverrides>);
+      expect(store.get()[spec.key].length).toBe(ENDPOINT_VALUE_MAX_LEN);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// endpointDefaultsFromConfig — the single projection main.ts + settings-main.ts both call instead
+// of hand-writing the same 10-field literal (was written verbatim twice; see issue #518).
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("endpointDefaultsFromConfig", () => {
+  it("projects a bundled EndpointsConfig onto the override shape ('' for unset optionals)", () => {
+    expect(endpointDefaultsFromConfig(baseConfig())).toEqual({
+      chat_base_url: "http://localhost:8643/v1",
+      stt_base_url: "http://localhost:5517",
+      tts_base_url: "http://localhost:8092",
+      irodori_base_url: "http://localhost:8091",
+      broker_base_url: "",
+      chat_model: "natsume",
+      chat_model_context_window: "",
+      chat_api: "",
+      tts_voice: "",
+      tts_provider: "irodori",
+    });
+  });
+
+  it("stringifies chat_model_context_window (number → digit string)", () => {
+    const cfg = { ...baseConfig(), chat_model_context_window: 64000 };
+    expect(endpointDefaultsFromConfig(cfg).chat_model_context_window).toBe("64000");
+  });
+
+  it("passes through chat_api/tts_provider enum values as-is", () => {
+    const cfg = { ...baseConfig(), chat_api: "chat_completions" as const };
+    expect(endpointDefaultsFromConfig(cfg).chat_api).toBe("chat_completions");
   });
 });
