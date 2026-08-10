@@ -150,7 +150,7 @@ export interface AvatarConfig {
   };
 }
 
-/** configs/guardrails.json — DND/debounce/rate-limit values. */
+/** configs/guardrails.json — debounce/rate-limit values. */
 export interface GuardrailsConfig {
   /** per-source debounce window (ms). 0 = no debounce. */
   debounce_ms: {

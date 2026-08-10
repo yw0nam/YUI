@@ -1485,72 +1485,6 @@ describe("dispatcher — guardrail gating (§6)", () => {
     return { d, g };
   }
 
-  it("DND on → tier2 backend firing is dropped (guardrail_drop) and not enqueued", async () => {
-    const { d, g } = makeGated();
-    d.start();
-    g.setDnd("manual", true);
-    bus.push(
-      env({ source: "idle_watcher", event_name: "idle.long", hint_tier: 2, dnd_override: false }),
-    );
-    await vi.advanceTimersByTimeAsync(20);
-    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
-    expect(d.recentDrops(10).some((dr) => dr.reason === "guardrail_drop")).toBe(true);
-    d.stop();
-  });
-
-  it("note() flips DND from a user.dnd_toggle bus event passed through the dispatcher", async () => {
-    const { d, g } = makeGated();
-    d.start();
-    // dispatcher.handle() must call guardrails.note() — a dnd_toggle event flips DND state.
-    bus.push(
-      env({
-        source: "user_input_source",
-        event_name: "user.dnd_toggle",
-        hint_tier: 1,
-        dnd_override: true,
-      }),
-    );
-    await vi.advanceTimersByTimeAsync(20);
-    expect(g.dndState().on).toBe(true);
-    d.stop();
-  });
-
-  it("tier1 is NEVER gated under DND", async () => {
-    const { d, g } = makeGated();
-    d.start();
-    g.setDnd("manual", true);
-    bus.push(
-      env({
-        source: "user_input_source",
-        event_name: "user.drag_start",
-        hint_tier: 1,
-        dnd_override: false,
-      }),
-    );
-    await vi.advanceTimersByTimeAsync(20);
-    expect(applyDirective).toHaveBeenCalled();
-    d.stop();
-  });
-
-  it("drops proactive.tap_bored under DND", async () => {
-    const { d, g } = makeGated();
-    d.start();
-    g.setDnd("manual", true);
-    bus.push(
-      env({
-        source: "os_event_watcher",
-        event_name: "proactive.tap_bored",
-        hint_tier: 2,
-        dnd_override: false,
-      }),
-    );
-    await vi.advanceTimersByTimeAsync(20);
-    expect(applyDirective).not.toHaveBeenCalled();
-    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
-    expect(d.recentDrops(10).some((dr) => dr.reason === "guardrail_drop")).toBe(true);
-    d.stop();
-  });
-
   it("drops proactive.tap_bored during cooldown", async () => {
     const cfg = realGuardrailsConfig();
     cfg.rate_limit.tier2_max = 1000;
@@ -1590,16 +1524,6 @@ describe("dispatcher — guardrail gating (§6)", () => {
     await vi.advanceTimersByTimeAsync(20);
     expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     expect(d.recentDrops(10).some((dr) => dr.reason === "guardrail_drop")).toBe(true);
-    d.stop();
-  });
-
-  it("dnd_override user turns pass the guardrail and reach the backend even under DND", async () => {
-    const { d, g } = makeGated();
-    d.start();
-    g.setDnd("manual", true);
-    bus.push(env()); // default env: user.text_submitted, dnd_override:true
-    await vi.advanceTimersByTimeAsync(20);
-    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
     d.stop();
   });
 
