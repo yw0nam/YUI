@@ -1,6 +1,7 @@
-//! Loopback HTTP ingress — receives "work done" signals from external coding-agent
-//! finish-hooks and opaque `signals` batches from the remote n8n workflow, then
-//! re-emits both as Tauri events into the frontend dispatcher.
+//! Loopback HTTP ingress — receives lifecycle signals from external coding-agent
+//! hooks (task done, or the agent needs the user's input) and opaque `signals`
+//! batches from the remote n8n workflow, then re-emits both as Tauri events into
+//! the frontend dispatcher.
 //!
 //! Also serves the avatar RPC surface (`/avatar/*`): body state, perch targets, and
 //! semantic movement commands. Those live in the webview, so each request is bridged
@@ -28,17 +29,31 @@ const AVATAR_QUERY_TIMEOUT: Duration = Duration::from_secs(2);
 const AVATAR_COMMAND_TIMEOUT: Duration = Duration::from_secs(15);
 
 const SUMMARY_MAX_BYTES: usize = 8192;
+const DETAIL_MAX_BYTES: usize = 16384;
 /// Hard body read ceiling; prevents OOM on oversized payloads.
-const BODY_CEILING_BYTES: usize = 65536; // 8× summary cap
+const BODY_CEILING_BYTES: usize = 65536;
 
-/// `agent-inbox` event payload — fired when an external agent posts to /agent-done.
+/// Lifecycle phase of an external coding-agent session.
+#[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentPhase {
+    Done,
+    NeedsInput,
+}
+
+/// `agent-inbox` event payload — fired when an external agent posts to /agent-event.
 #[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct AgentDonePayload {
+pub struct AgentEventPayload {
     pub tool: String,
     pub project: String,
     pub cwd: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub status: Option<String>, // "success" | "error" | absent
+    pub status: Option<String>, // "success" | "error" | absent — meaningful for phase:"done" only
+    pub phase: AgentPhase,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>, // opaque pass-through, no client interpretation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>, // judgment material for the backend
     pub summary: String,
     pub ts: i64, // client epoch ms
 }
@@ -132,16 +147,16 @@ pub struct AvatarRpcRequest {
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
-/// Validates and parses a raw HTTP request into an `AgentDonePayload`.
+/// Validates and parses a raw HTTP request into an `AgentEventPayload`.
 ///
 /// Returns `Err(400)` if method is not POST, path (before any query string) is
-/// not `/agent-done`, or the body is not valid JSON for `AgentDonePayload`.
-fn parse_request(method: &str, path: &str, body: &str) -> Result<AgentDonePayload, u16> {
+/// not `/agent-event`, or the body is not valid JSON for `AgentEventPayload`.
+fn parse_request(method: &str, path: &str, body: &str) -> Result<AgentEventPayload, u16> {
     if method != "POST" {
         return Err(400);
     }
     let path_only = path.split('?').next().unwrap_or(path);
-    if path_only != "/agent-done" {
+    if path_only != "/agent-event" {
         return Err(400);
     }
     serde_json::from_str(body).map_err(|_| 400u16)
@@ -197,7 +212,7 @@ fn method_gate(method: &str, expected: &str) -> Result<(), u16> {
 
 /// Truncates `summary` to at most `SUMMARY_MAX_BYTES` bytes on a valid UTF-8
 /// char boundary and appends a marker. No-op when already within the cap.
-fn cap_summary(mut p: AgentDonePayload) -> AgentDonePayload {
+fn cap_summary(mut p: AgentEventPayload) -> AgentEventPayload {
     if p.summary.len() > SUMMARY_MAX_BYTES {
         let mut end = SUMMARY_MAX_BYTES;
         while !p.summary.is_char_boundary(end) {
@@ -208,9 +223,24 @@ fn cap_summary(mut p: AgentDonePayload) -> AgentDonePayload {
     p
 }
 
+/// Truncates `detail` to at most `DETAIL_MAX_BYTES` bytes on a valid UTF-8
+/// char boundary and appends a marker. No-op when absent or already within the cap.
+fn cap_detail(mut p: AgentEventPayload) -> AgentEventPayload {
+    if let Some(detail) = &p.detail {
+        if detail.len() > DETAIL_MAX_BYTES {
+            let mut end = DETAIL_MAX_BYTES;
+            while !detail.is_char_boundary(end) {
+                end -= 1;
+            }
+            p.detail = Some(format!("{}…[truncated]", &detail[..end]));
+        }
+    }
+    p
+}
+
 // ─── Emit helper ──────────────────────────────────────────────────────────────
 
-fn emit_agent_event(app: &AppHandle, payload: AgentDonePayload) {
+fn emit_agent_event(app: &AppHandle, payload: AgentEventPayload) {
     let result = app.emit(AGENT_INBOX_CHANNEL, payload);
     if let Err(e) = &result {
         log::warn!("agent_ingress_emit_failed error={e}");
@@ -395,8 +425,8 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
         return;
     }
     let result = match path_only {
-        "/agent-done" => parse_request(&method, &url, &body).map(|payload| {
-            let payload = cap_summary(payload);
+        "/agent-event" => parse_request(&method, &url, &body).map(|payload| {
+            let payload = cap_detail(cap_summary(payload));
             emit_agent_event(app, payload);
         }),
         "/signals" => parse_signals_request(&method, &url, &body).map(|signals| {

@@ -298,10 +298,10 @@ const en: Record<string, string> = {
   "gaze.label": "Follow cursor",
   "gaze.sub": "The character turns its eyes and head to follow your mouse cursor.",
   "gaze.aria": "Follow cursor",
-  "agentNotify.label": "Agent completion notifications",
+  "agentNotify.label": "Agent notifications",
   "agentNotify.sub":
     "Speaks up when a coding agent (Claude Code, opencode, …) finishes a task on your machine.",
-  "agentNotify.aria": "Agent completion notifications",
+  "agentNotify.aria": "Agent notifications",
 
   // first-run onboarding hint
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",
