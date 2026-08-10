@@ -2,21 +2,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createContextHistory } from "../../io/context-history";
-import { createContextSettings } from "../../io/context-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
-import { createRecentAppsStore } from "../../io/settings-stores";
 import { setLocale } from "../i18n";
 import { createDevtoolsShell } from "./shell";
-
-const inMemoryRecentAppsStore = () => {
-  let value: { value: number } | null = null;
-  return createRecentAppsStore({
-    load: () => value,
-    save: (next) => {
-      value = next;
-    },
-  });
-};
 
 describe("Developer Tools shell", () => {
   beforeEach(() => {
@@ -28,8 +16,6 @@ describe("Developer Tools shell", () => {
     const shell = createDevtoolsShell({
       mount: document.querySelector("#app")!,
       history: createContextHistory(),
-      contextSettings: createContextSettings(),
-      recentAppsSettings: inMemoryRecentAppsStore(),
       endpointsSettings: createEndpointsSettings(),
       loadMotionPreview: vi.fn(async () => ({ dispose: vi.fn() })),
     });
@@ -48,8 +34,6 @@ describe("Developer Tools shell", () => {
     const shell = createDevtoolsShell({
       mount: document.querySelector("#app")!,
       history: createContextHistory(),
-      contextSettings: createContextSettings(),
-      recentAppsSettings: inMemoryRecentAppsStore(),
       endpointsSettings: createEndpointsSettings(),
       loadMotionPreview: vi.fn(async () => ({ dispose: vi.fn() })),
     });
@@ -72,8 +56,6 @@ describe("Developer Tools shell", () => {
     const shell = createDevtoolsShell({
       mount: document.querySelector("#app")!,
       history: createContextHistory(),
-      contextSettings: createContextSettings(),
-      recentAppsSettings: inMemoryRecentAppsStore(),
       endpointsSettings: createEndpointsSettings(),
       loadMotionPreview: vi.fn(async () => ({ dispose })),
     });
@@ -100,8 +82,6 @@ describe("Developer Tools shell", () => {
     const shell = createDevtoolsShell({
       mount: document.querySelector("#app")!,
       history: createContextHistory(),
-      contextSettings: createContextSettings(),
-      recentAppsSettings: inMemoryRecentAppsStore(),
       endpointsSettings: createEndpointsSettings(),
       loadMotionPreview,
     });

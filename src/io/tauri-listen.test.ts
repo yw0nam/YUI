@@ -26,9 +26,9 @@ describe("tauri-listen — resolveTauriListen", () => {
 describe("tauri-listen — subscribeOsEvent", () => {
   it("returns unlisten and forwards emitted payloads", async () => {
     const payload: OsEventPayload = {
-      event_name: "window_changed",
+      event_name: "os_idle_tick",
       ts: 123,
-      data: { active_app_name: "Example" },
+      data: { os_idle_ms: 5000 },
     };
     const unlisten = vi.fn();
     let handler: ((event: { payload: OsEventPayload }) => void) | undefined;

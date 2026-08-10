@@ -119,8 +119,7 @@ body,
   font-variant-numeric: tabular-nums;
 }
 
-.devtools-kind,
-.devtools-signal {
+.devtools-kind {
   display: inline-flex;
   align-items: center;
   width: fit-content;
@@ -162,25 +161,6 @@ body,
   color: var(--yui-text-mute);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.devtools-signals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding: 0.75rem 0;
-}
-
-.devtools-signal.is-off {
-  opacity: 0.48;
-}
-
-.devtools-off-tag {
-  margin-left: 0.18rem;
-  color: var(--yui-text-mute);
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
 }
 
 .devtools-json {

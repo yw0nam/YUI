@@ -1,7 +1,7 @@
 //! OS event watcher — Tauri main(Rust) side OS API access.
 //!
-//! Polls active app, window title, OS-wide idle, and fullscreen state, then
-//! emits `os_event` IPC events to the webview.
+//! Polls OS-wide idle and fullscreen state, then emits `os_event` IPC events
+//! to the webview.
 //!
 //! Platform support:
 //!   macOS  — fully implemented (NSWorkspace, CGEventSource, CGWindowList)
@@ -37,8 +37,7 @@ const RELEASE_POLL_TIMEOUT: Duration = Duration::from_secs(10);
 /// `os_event` channel payload — "Rust → Webview" handoff.
 #[derive(Debug, Clone, Serialize)]
 pub struct OsEventPayload {
-    /// "active_app_changed" | "fullscreen_entered"
-    /// | "fullscreen_exited" | "os_idle_tick"
+    /// "fullscreen_entered" | "fullscreen_exited" | "os_idle_tick"
     pub event_name: String,
     /// client epoch ms
     pub ts: i64,
@@ -48,10 +47,6 @@ pub struct OsEventPayload {
 /// `data` block — all fields optional; each event_name populates different fields.
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct OsEventData {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub active_app_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub active_window_title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_fullscreen: Option<bool>,
     /// OS-wide idle (ms). macOS `CGEventSourceSecondsSinceLastEventType`.
@@ -74,17 +69,6 @@ pub fn idle_ms_from_secs(secs: f64) -> u64 {
         0
     } else {
         (secs * 1000.0) as u64
-    }
-}
-
-/// Sanitises a raw OS app name: trims whitespace, returns None if empty.
-#[allow(dead_code)] // used by platform watchers; dead on unsupported targets
-pub fn sanitise_app_name(raw: &str) -> Option<String> {
-    let s = raw.trim().to_string();
-    if s.is_empty() {
-        None
-    } else {
-        Some(s)
     }
 }
 
@@ -165,7 +149,6 @@ use windows::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down, st
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 struct PollingWindowInfo {
-    title: Option<String>,
     is_fullscreen: bool,
 }
 
@@ -257,7 +240,6 @@ pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 fn polling_loop(app: AppHandle) {
-    let mut prev_app: Option<String> = None;
     let mut prev_fullscreen: Option<bool> = None;
 
     loop {
@@ -277,28 +259,8 @@ fn polling_loop(app: AppHandle) {
             },
         );
 
-        // ── 2. Active app + window title + fullscreen ──────────────────────
-        if let Some((app_name, win_info)) = platform_frontmost() {
-            let clean_name = sanitise_app_name(&app_name);
-
-            let app_changed = clean_name != prev_app;
-            if app_changed {
-                prev_app = clean_name.clone();
-                let _ = emit_os_event(
-                    &app,
-                    OsEventPayload {
-                        event_name: "active_app_changed".into(),
-                        ts: epoch_ms(),
-                        data: OsEventData {
-                            active_app_name: clean_name,
-                            active_window_title: win_info.as_ref().and_then(|w| w.title.clone()),
-                            ..Default::default()
-                        },
-                    },
-                );
-            }
-
-            // ── 3. Fullscreen state change ─────────────────────────────────
+        // ── 2. Fullscreen state change ──────────────────────────────────────
+        if let Some((_app_name, win_info)) = platform_frontmost() {
             let fs = win_info.as_ref().map(|w| w.is_fullscreen).unwrap_or(false);
             let fs_changed = prev_fullscreen.map(|p| p != fs).unwrap_or(true);
             if fs_changed {
@@ -535,24 +497,6 @@ mod tests {
         assert_eq!(idle_ms_from_secs(3600.0), 3_600_000);
     }
 
-    // ── sanitise_app_name ───────────────────────────────────────────────────
-
-    #[test]
-    fn sanitise_app_name_trims_whitespace() {
-        assert_eq!(sanitise_app_name("  Finder  "), Some("Finder".into()));
-    }
-
-    #[test]
-    fn sanitise_app_name_empty_returns_none() {
-        assert_eq!(sanitise_app_name(""), None);
-        assert_eq!(sanitise_app_name("   "), None);
-    }
-
-    #[test]
-    fn sanitise_app_name_normal() {
-        assert_eq!(sanitise_app_name("Safari"), Some("Safari".into()));
-    }
-
     // ── sanitise_window_title ───────────────────────────────────────────────
 
     #[test]
@@ -566,29 +510,6 @@ mod tests {
     #[test]
     fn sanitise_window_title_empty_returns_none() {
         assert_eq!(sanitise_window_title(""), None);
-    }
-
-    // ── payload shape — active_app_changed ──────────────────────────────────
-
-    #[test]
-    fn active_app_changed_payload_shape() {
-        let p = OsEventPayload {
-            event_name: "active_app_changed".into(),
-            ts: 1000,
-            data: OsEventData {
-                active_app_name: Some("Finder".into()),
-                active_window_title: Some("Desktop".into()),
-                ..Default::default()
-            },
-        };
-        let v = serde_json::to_value(p).unwrap();
-        assert_eq!(v["event_name"], "active_app_changed");
-        assert_eq!(v["data"]["active_app_name"], "Finder");
-        assert_eq!(v["data"]["active_window_title"], "Desktop");
-        assert!(
-            v["data"]["os_idle_ms"].is_null()
-                || !v["data"].as_object().unwrap().contains_key("os_idle_ms")
-        );
     }
 
     #[test]
@@ -644,29 +565,6 @@ mod tests {
             })
             .collect();
         assert_eq!(events, vec!["fullscreen_entered", "fullscreen_exited"]);
-    }
-
-    // ── active app change detection ──────────────────────────────────────────
-
-    #[test]
-    fn app_change_detected_on_name_differ() {
-        let prev: Option<String> = Some("Finder".into());
-        let next: Option<String> = Some("Safari".into());
-        assert!(prev != next, "name change should be detected");
-    }
-
-    #[test]
-    fn app_change_not_emitted_when_same() {
-        let prev: Option<String> = Some("Safari".into());
-        let next: Option<String> = Some("Safari".into());
-        assert!(prev == next, "no change = no emit");
-    }
-
-    #[test]
-    fn app_change_detected_from_none_to_some() {
-        let prev: Option<String> = None;
-        let next: Option<String> = Some("Finder".into());
-        assert!(prev != next);
     }
 
     // ── epoch_ms sanity ──────────────────────────────────────────────────────

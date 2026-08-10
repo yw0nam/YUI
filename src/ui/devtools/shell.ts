@@ -1,7 +1,5 @@
 import type { createContextHistory } from "../../io/context-history";
-import type { createContextSettings } from "../../io/context-settings";
 import type { createEndpointsSettings } from "../../io/endpoints-settings";
-import type { ClampedIntSettingsStore } from "../../io/persisted-store";
 import { t } from "../i18n";
 import { createAdvancedSettings } from "./advanced-settings";
 import { createContextInspector } from "./context-inspector";
@@ -11,8 +9,6 @@ export type DevtoolsSection = "context" | "advanced" | "motion";
 interface DevtoolsShellOptions {
   mount: HTMLElement;
   history: ReturnType<typeof createContextHistory>;
-  contextSettings: ReturnType<typeof createContextSettings>;
-  recentAppsSettings: ClampedIntSettingsStore;
   endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   defaultContextWindow?: number;
   loadMotionPreview: (mount: HTMLElement) => Promise<{ dispose(): void }>;
@@ -65,8 +61,6 @@ export function createDevtoolsShell(options: DevtoolsShellOptions): {
 
   const inspector = createContextInspector(panels.get("context")!, options.history);
   const advanced = createAdvancedSettings(panels.get("advanced")!, {
-    context: options.contextSettings,
-    recentApps: options.recentAppsSettings,
     endpoints: options.endpointsSettings,
     defaultContextWindow: options.defaultContextWindow,
   });

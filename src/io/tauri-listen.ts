@@ -2,8 +2,8 @@
  * Shared Tauri `os_event` IPC listen seam.
  *
  * The `os_event` channel payload shape plus a runtime-guarded resolver for the
- * real Tauri `listen`. Consumers (os-context, cowork idle source) share these so
- * the channel name and runtime guard live in one place.
+ * real Tauri `listen`. Consumers (idle/proactive/schedule/agent/signals sources)
+ * share these so the channel name and runtime guard live in one place.
  */
 
 import { isTauri } from "./tauri-env";
@@ -13,8 +13,6 @@ export interface OsEventPayload {
   event_name: string;
   ts: number;
   data: {
-    active_app_name?: string | null;
-    active_window_title?: string | null;
     os_idle_ms?: number | null;
     is_fullscreen?: boolean | null;
   };

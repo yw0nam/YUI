@@ -1,11 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { InputContext } from "../contract";
-import {
-  ALL_CONTEXT_SIGNALS,
-  buildClientContext,
-  buildContext,
-  type ContextPolicy,
-} from "./context-builder";
+import { buildClientContext, buildContext } from "./context-builder";
 import type { BusEnvelope } from "./event-bus";
 
 const ENV: BusEnvelope = {
@@ -17,42 +12,20 @@ const ENV: BusEnvelope = {
   payload: { text: "hello" },
 };
 
-const ALL_ON: ContextPolicy = {
-  recent_apps: true,
-  active_app: true,
-  active_window_title: true,
-  posture: true,
-  screenshot: true,
-};
-
 describe("context builder", () => {
-  it("preserves the existing all-signals wire shape and strips screenshot data", async () => {
-    const built = await buildContext(
-      ENV,
-      {
-        getOsContext: () => ({
-          activeApp: "Visual Studio Code",
-          activeWindowTitle: "context-builder.ts",
-        }),
-        getPosture: () => ({ state: "sitting" }),
-        peekRecentApps: () => [{ name: "Terminal", ts: 1_716_999_900_000 }],
-        getScreenshot: async () => ({
-          enabled: true,
-          source: { kind: "monitor", index: 0 },
-          data_url: "data:image/png;base64,SHOT",
-        }),
-      },
-      ALL_ON,
-    );
+  it("builds env.timestamp/timezone and strips screenshot data from the wire shape", async () => {
+    const built = await buildContext(ENV, {
+      getScreenshot: async () => ({
+        enabled: true,
+        source: { kind: "monitor", index: 0 },
+        data_url: "data:image/png;base64,SHOT",
+      }),
+    });
 
     expect(built.clientContext).toEqual({
       env: {
         timestamp: expect.any(String),
         timezone: expect.any(String),
-        active_app: { name: "Visual Studio Code" },
-        active_window_title: "context-builder.ts",
-        posture: { state: "sitting" },
-        recent_apps: [{ name: "Terminal" }],
       },
       screenshot: {
         enabled: true,
@@ -60,142 +33,38 @@ describe("context builder", () => {
       },
       trigger: { kind: "user" },
     });
-    expect(built.record).toEqual({ included: [...ALL_CONTEXT_SIGNALS], excluded: [] });
     expect(built.ctx.screenshot?.data_url).toBe("data:image/png;base64,SHOT");
   });
 
-  it("omits disabled signals, records them as excluded, and skips dedicated providers", async () => {
-    const getOsContext = vi.fn(() => ({
-      activeApp: "Terminal",
-      activeWindowTitle: "shell",
-    }));
-    const getPosture = vi.fn(() => ({ state: "dragging" as const }));
-    const peekRecentApps = vi.fn(() => [{ name: "Browser", ts: ENV.ts }]);
-    const getScreenshot = vi.fn(async () => ({
-      enabled: true,
-      source: { kind: "monitor" as const, index: 0 },
-    }));
+  it("omits screenshot when the provider is absent", async () => {
+    const built = await buildContext(ENV, {});
+    expect(built.clientContext.screenshot).toBeUndefined();
+  });
 
-    const built = await buildContext(
-      ENV,
-      { getOsContext, getPosture, peekRecentApps, getScreenshot },
-      {
-        recent_apps: false,
-        active_app: false,
-        active_window_title: true,
-        posture: false,
-        screenshot: false,
+  it("omits screenshot when the provider resolves undefined", async () => {
+    const built = await buildContext(ENV, { getScreenshot: async () => undefined });
+    expect(built.clientContext.screenshot).toBeUndefined();
+  });
+
+  it("routes a screenshot provider error to onScreenshotError and still builds context", async () => {
+    const onScreenshotError = vi.fn();
+    const built = await buildContext(ENV, {
+      getScreenshot: async () => {
+        throw new Error("capture failed");
       },
-    );
-
-    expect(getOsContext).toHaveBeenCalledOnce();
-    expect(getPosture).not.toHaveBeenCalled();
-    expect(peekRecentApps).not.toHaveBeenCalled();
-    expect(getScreenshot).not.toHaveBeenCalled();
-    expect(built.clientContext.env).toMatchObject({ active_window_title: "shell" });
-    expect(built.clientContext.env).not.toHaveProperty("active_app");
-    expect(built.record).toEqual({
-      included: ["active_window_title"],
-      excluded: ["active_app", "posture", "recent_apps", "screenshot"],
+      onScreenshotError,
     });
-    expect(built.peekedApps).toEqual([]);
+
+    expect(onScreenshotError).toHaveBeenCalledOnce();
+    expect(built.clientContext.screenshot).toBeUndefined();
   });
 
-  it("skips the shared OS snapshot only when both OS fields are disabled", async () => {
-    const getOsContext = vi.fn(() => ({ activeApp: "Terminal", activeWindowTitle: "shell" }));
-    const built = await buildContext(
-      ENV,
-      { getOsContext },
-      {
-        ...ALL_ON,
-        active_app: false,
-        active_window_title: false,
-      },
-    );
-
-    expect(getOsContext).not.toHaveBeenCalled();
-    expect(built.record.excluded).toEqual(["active_app", "active_window_title"]);
-  });
-
-  it("caps active_window_title at 200 chars and marks the cut with an ellipsis", async () => {
-    const long = "x".repeat(320);
-    const built = await buildContext(
-      ENV,
-      { getOsContext: () => ({ activeWindowTitle: long }) },
-      ALL_ON,
-    );
-
-    const expected = `${"x".repeat(199)}…`;
-    expect(built.clientContext.env.active_window_title).toBe(expected);
-    expect(built.clientContext.env.active_window_title).toHaveLength(200);
-    expect(built.ctx.env.active_window_title).toBe(expected);
-  });
-
-  it("never leaves a lone surrogate at the truncation boundary", async () => {
-    // 198 ASCII + astral chars puts the cut inside a surrogate pair.
-    const long = `${"x".repeat(198)}${"\u{1F600}".repeat(20)}`;
-    const built = await buildContext(
-      ENV,
-      { getOsContext: () => ({ activeWindowTitle: long }) },
-      ALL_ON,
-    );
-
-    const title = built.clientContext.env.active_window_title!;
-    expect(title).toBe(`${"x".repeat(198)}…`);
-    // Strip well-formed pairs; any surrogate left over was unpaired.
-    expect(/[\uD800-\uDFFF]/.test(title.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, ""))).toBe(
-      false,
-    );
-  });
-
-  it("keeps a whole surrogate pair when the cut falls cleanly between characters", async () => {
-    const long = `${"x".repeat(195)}${"\u{1F600}".repeat(20)}`;
-    const built = await buildContext(
-      ENV,
-      { getOsContext: () => ({ activeWindowTitle: long }) },
-      ALL_ON,
-    );
-
-    expect(built.clientContext.env.active_window_title).toBe(
-      `${"x".repeat(195)}\u{1F600}\u{1F600}…`,
-    );
-  });
-
-  it("keeps an active_window_title at or under 200 chars verbatim", async () => {
-    const title = "y".repeat(200);
-    const built = await buildContext(
-      ENV,
-      { getOsContext: () => ({ activeWindowTitle: title }) },
-      ALL_ON,
-    );
-
-    expect(built.clientContext.env.active_window_title).toBe(title);
-  });
-
-  it("sends recent_apps as names only while peek still returns the timestamped entries", async () => {
-    const peeked = [
-      { name: "Slack", ts: 1_716_999_900_000 },
-      { name: "Terminal", ts: 1_716_999_950_000 },
-    ];
-    const built = await buildContext(ENV, { peekRecentApps: () => peeked }, ALL_ON);
-
-    expect(built.clientContext.env.recent_apps).toEqual([{ name: "Slack" }, { name: "Terminal" }]);
-    expect(built.peekedApps).toEqual(peeked);
-  });
-
-  it("does not record enabled signals when their providers have no data", async () => {
-    const built = await buildContext(
-      ENV,
-      {
-        getOsContext: () => ({}),
-        getPosture: () => undefined,
-        peekRecentApps: () => [],
-        getScreenshot: async () => undefined,
-      },
-      ALL_ON,
-    );
-
-    expect(built.record).toEqual({ included: [], excluded: [] });
+  it("carries no active_app / active_window_title / posture / recent_apps fields", async () => {
+    const built = await buildContext(ENV, {});
+    expect(built.clientContext.env).not.toHaveProperty("active_app");
+    expect(built.clientContext.env).not.toHaveProperty("active_window_title");
+    expect(built.clientContext.env).not.toHaveProperty("posture");
+    expect(built.clientContext.env).not.toHaveProperty("recent_apps");
   });
 });
 

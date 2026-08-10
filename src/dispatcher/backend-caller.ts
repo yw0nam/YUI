@@ -4,11 +4,7 @@
  * Sends tier2/3 events to backend judgment. Backend side of the firing≠judgment boundary:
  * Speech decision is based solely on whether speech_text is empty (no separate flag: silence = empty speech_text).
  *
- *  B1 package_context — Assemble InputContext (user_text + env.timestamp +
- *     env.timezone). active_app/window attached best-effort only when getOsContext snapshot available.
- *     recent_apps snapshotted only by peekRecentApps (not cleared) — buffer cleared only by drainRecentApps
- *     once send confirmed (post-stream guard passed), so app history not lost on prior client failure
- *     (setup/stream/parse_error).
+ *  B1 package_context — Assemble InputContext (user_text + env.timestamp + env.timezone).
  *  B2 POST — io/chat-client.streamChat(config, req, { fetch, apiKey }). SSE owned by chat-client
  *     — not parsed directly here. In-flight abort via AbortSignal. idle-gap watchdog
  *     (IDLE_TIMEOUT_MS, resets on each stream event) aborts stalled calls — TTFT is just the first gap,
@@ -38,20 +34,12 @@ import type { ContextHistoryEntry } from "../io/context-history";
 import type { Logger } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
-import {
-  ALL_CONTEXT_SIGNALS,
-  buildContext,
-  type ContextPolicy,
-  imageDataUrlsOf,
-} from "./context-builder";
+import { buildContext, imageDataUrlsOf } from "./context-builder";
 import type { BusEnvelope } from "./event-bus";
 import type { Turn } from "./turn";
 import type { TurnOutput } from "./turn-output";
 
 const baseLog = createLogger("backend-caller");
-const DEFAULT_CONTEXT_POLICY: ContextPolicy = Object.fromEntries(
-  ALL_CONTEXT_SIGNALS.map((signal) => [signal, true]),
-) as unknown as ContextPolicy;
 
 /**
  * User message for non-user turns (no user_text) — a short, per-trigger notice. Delivered in a
@@ -120,21 +108,6 @@ interface BackendCallerDeps {
   turnOutput?: TurnOutput;
   /** When toggle is ON, assembles and returns screenshot block (undefined if OFF/failed). main.ts composes with settings+capturer+buildScreenshotBlock. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
-  /** Current foreground app/title snapshot. When present, fills env.active_app/active_window_title. */
-  getOsContext?: () => import("../io/os-context").OsContextSnapshot | undefined;
-  /** Current physical posture. Undefined means idle. */
-  getPosture?: () => import("../contract").Posture | undefined;
-  /** Per-turn signal inclusion policy. Defaults to all signals enabled. */
-  getContextPolicy?: () => ContextPolicy;
-  /** Snapshot app buffer without clearing, called at B1 packaging, attached to env.recent_apps when present.
-   * Buffer not cleared, so app history not lost even if packageContext fails afterward (setup/stream/parse_error). */
-  peekRecentApps?: () => import("../io/os-context").RecentApp[];
-  /** Only at send confirmation (success — completed received + post-stream guard passed), remove only the
-   * snapshot peekedApps from buffer. Not called from packageContext — if client failure occurs between them,
-   * buffer not cleared, carries to next turn, and any app switch after peek also escapes removal. */
-  drainRecentApps?: (
-    only?: import("../io/os-context").RecentApp[],
-  ) => import("../io/os-context").RecentApp[];
   /** tool_status sink — called only when present. */
   onToolStatus?: (status: ToolStatus) => void;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
@@ -271,18 +244,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       if (deps.turnOutput?.hasFiller() && !isReflexTurn(env.event_name)) startThinking();
 
       // B1
-      const policy = deps.getContextPolicy?.() ?? DEFAULT_CONTEXT_POLICY;
-      const { ctx, clientContext, record, peekedApps } = await buildContext(
-        env,
-        {
-          getScreenshot: deps.getScreenshot,
-          getOsContext: deps.getOsContext,
-          getPosture: deps.getPosture,
-          peekRecentApps: deps.peekRecentApps,
-          onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
-        },
-        policy,
-      );
+      const { ctx, clientContext } = await buildContext(env, {
+        getScreenshot: deps.getScreenshot,
+        onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
+      });
       const input = encodeInput(ctx, env, clientContext);
       log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 
@@ -543,18 +508,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         ts: Date.now(),
         event_name: env.event_name,
         trigger_kind: clientContext.trigger.kind,
-        included: record.included,
-        excluded: record.excluded,
         client_context: clientContext,
       });
-
-      // Recent-apps buffer: clear only now that the turn is a confirmed success — same
-      // post-stream guard boundary as transcript/onResponseId above. Any earlier client-side
-      // failure (setup reject, stream throw/error, parse_error) returns before reaching here,
-      // so the buffer survives and carries over to the next turn instead of being lost.
-      // Drain only the peeked snapshot — an app switch that landed mid-request (after peek) was
-      // never sent this turn, so it stays buffered for the next one instead of being discarded.
-      if (policy.recent_apps) deps.drainRecentApps?.(peekedApps);
 
       return "ok";
     } finally {

@@ -30,19 +30,7 @@ When a screenshot is attached, the input is a content-part array: `[{ type: "inp
 {
   "env": {
     "timestamp": "ISO 8601 local time with offset", // e.g. "2026-06-15T19:30:00+09:00"
-    "timezone": "IANA zone (auto-detected)",    // e.g. "Asia/Seoul"
-    "active_app": { "name": "foreground app" }, // optional
-    "active_window_title": "foreground window", // optional; truncated to 200 chars
-    "posture": {                                // optional; absent while idle
-      "state": "sitting | peeking | dragging",
-      "perched_on": {                           // sitting/peeking only; optional when identity is unavailable
-        "app": "Visual Studio Code",            // primary app-owner identifier
-        "window_title": "window the character is perched on" // secondary; optional
-      }
-    },
-    "recent_apps": [                            // optional; apps switched to since the last utterance, oldest→newest
-      { "name": "app name" }
-    ]
+    "timezone": "IANA zone (auto-detected)"     // e.g. "Asia/Seoul"
   },
   "screenshot": {                               // optional; present when screen capture is enabled
     "enabled": true,
@@ -61,12 +49,6 @@ When a screenshot is attached, the input is a content-part array: `[{ type: "inp
   }
 }
 ```
-
-`env.posture` reports the character's current physical posture on every turn. The field is absent while the character is idle. `state` is `"sitting"`, `"peeking"`, or `"dragging"`. Sitting and peeking may include `perched_on.app`, the primary and stable app-owner name, and `perched_on.window_title`, the secondary window title. Window titles are often unavailable without Screen Recording permission. `perched_on.app` is currently populated on macOS only; on Windows only `window_title` may appear. Either identity field may be omitted independently, and `perched_on` is omitted when both are unavailable. Dragging never includes `perched_on` because the cursor, rather than a window, holds the character.
-
-`env.active_window_title` and `env.posture.perched_on.window_title` describe different windows. `active_window_title` is the currently focused OS window, while `perched_on.window_title` is the window supporting the character. They can differ when focus moves away from the perched window. `active_window_title` is truncated to its first 200 characters.
-
-`env.recent_apps` carries app names only. The client tracks each switch with a timestamp internally, but the wire shape omits it — ordering (oldest→newest) already conveys the sequence, and `env.timestamp` anchors the turn. Entries are drained once a turn is confirmed sent.
 
 ### `trigger.kind` values
 
@@ -167,7 +149,7 @@ When there is no user utterance, the user input trails the `client_context` bloc
 }
 ```
 
-**`proactive.drag_held` / `proactive.window_sit` / `proactive.peek` turns** — reflex reactions to a physical gesture (`configs/avatar.json` `gesture_cues`): a drag held past `drag_hold_ms`, the character settling onto a foreign window's top edge, or peeking from a screen edge. Each fires once per gesture occurrence — no repeat while sustained, no cooldown. These are REFLEX turns: the client skips the TTFT thinking filler since a deliberative pause before an immediate reaction feels wrong. They send a `label` alone. When a user has authored a `context` for `window_sit`/`peek`, the client composes the sat-on/peeked-at window's name into it at fire time. Turns that follow the perch report the supporting window through `env.posture.perched_on`:
+**`proactive.drag_held` / `proactive.window_sit` / `proactive.peek` turns** — reflex reactions to a physical gesture (`configs/avatar.json` `gesture_cues`): a drag held past `drag_hold_ms`, the character settling onto a foreign window's top edge, or peeking from a screen edge. Each fires once per gesture occurrence — no repeat while sustained, no cooldown. These are REFLEX turns: the client skips the TTFT thinking filler since a deliberative pause before an immediate reaction feels wrong. They send a `label` alone. When a user has authored a `context` for `window_sit`/`peek`, the client composes the sat-on/peeked-at window's name into it at fire time:
 
 ```json
 {

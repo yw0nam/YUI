@@ -2,20 +2,8 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createContextHistory } from "../../io/context-history";
-import { createContextSettings } from "../../io/context-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
-import { createRecentAppsStore } from "../../io/settings-stores";
 import { createDevtoolsShell } from "./shell";
-
-const inMemoryRecentAppsStore = () => {
-  let value: { value: number } | null = null;
-  return createRecentAppsStore({
-    load: () => value,
-    save: (next) => {
-      value = next;
-    },
-  });
-};
 
 describe("Motion Preview section", () => {
   beforeEach(() => {
@@ -27,8 +15,6 @@ describe("Motion Preview section", () => {
     const shell = createDevtoolsShell({
       mount: document.querySelector("#app")!,
       history: createContextHistory(),
-      contextSettings: createContextSettings(),
-      recentAppsSettings: inMemoryRecentAppsStore(),
       endpointsSettings: createEndpointsSettings(),
       loadMotionPreview,
     });
@@ -48,8 +34,6 @@ describe("Motion Preview section", () => {
     const shell = createDevtoolsShell({
       mount: document.querySelector("#app")!,
       history: createContextHistory(),
-      contextSettings: createContextSettings(),
-      recentAppsSettings: inMemoryRecentAppsStore(),
       endpointsSettings: createEndpointsSettings(),
       loadMotionPreview,
     });
@@ -71,8 +55,6 @@ describe("Motion Preview section", () => {
     const shell = createDevtoolsShell({
       mount: document.querySelector("#app")!,
       history: createContextHistory(),
-      contextSettings: createContextSettings(),
-      recentAppsSettings: inMemoryRecentAppsStore(),
       endpointsSettings: createEndpointsSettings(),
       loadMotionPreview,
     });

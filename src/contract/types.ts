@@ -190,11 +190,6 @@ export interface InputContext {
     timestamp: string;
     /** Example: "Asia/Seoul". Always filled by client. */
     timezone: string;
-    active_app?: { name: string };
-    active_window_title?: string;
-    posture?: Posture;
-    /** Apps switched to since the last utterance, drained on send. */
-    recent_apps?: { name: string }[];
   };
 
   screenshot?: {
@@ -266,11 +261,6 @@ export interface ClientContext {
   env: {
     timestamp: string;
     timezone: string;
-    active_app?: { name: string };
-    active_window_title?: string;
-    posture?: Posture;
-    /** Apps switched to since the last utterance, drained on send. */
-    recent_apps?: { name: string }[];
   };
   screenshot?: {
     enabled: boolean;

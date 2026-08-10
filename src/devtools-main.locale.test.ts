@@ -34,22 +34,23 @@ it("keeps the focused advanced input and its in-progress text across a locale re
   await vi.waitFor(() => expect(document.querySelector(".devtools-nav")).not.toBeNull());
 
   document.querySelector<HTMLButtonElement>('[data-section="advanced"]')!.click();
-  const input = document.querySelector<HTMLInputElement>("#devtools-recent-apps-cap")!;
+  const input = document.querySelector<HTMLInputElement>("#devtools-context-window")!;
   input.focus();
-  input.value = "12";
+  input.value = "64000";
+  input.dispatchEvent(new Event("input"));
 
   setLocale("ja");
   await new Promise<void>((resolve) => queueMicrotask(resolve));
 
-  const rebuilt = document.querySelector<HTMLInputElement>("#devtools-recent-apps-cap")!;
+  const rebuilt = document.querySelector<HTMLInputElement>("#devtools-context-window")!;
   expect(rebuilt).not.toBe(input);
   expect(document.querySelector<HTMLElement>('[data-panel="advanced"]')!.hidden).toBe(false);
   expect(document.activeElement).toBe(rebuilt);
-  expect(rebuilt.value).toBe("12");
+  expect(rebuilt.value).toBe("64000");
 
   // Blur resyncs from the store, so the restored text survives only if it committed.
   const stores = vi.mocked(createSettingsStores).mock.results[0]!.value;
-  expect(stores.recentAppsSettings.get().value).toBe(12);
+  expect(stores.endpointsSettings.get().chat_model_context_window).toBe("64000");
   rebuilt.blur();
-  expect(rebuilt.value).toBe("12");
+  expect(rebuilt.value).toBe("64000");
 });

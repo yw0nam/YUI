@@ -60,7 +60,6 @@ import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { createDragHoldSource, type DragHoldSource } from "./io/drag-hold-source";
 import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/endpoints-settings";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
-import { createOsContext } from "./io/os-context";
 import { createPeekState } from "./io/peek-state";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createSettingsSecretProvider } from "./io/secret-provider";
@@ -236,8 +235,6 @@ async function bootstrap(): Promise<void> {
     workflowSettings,
     agentNotifySettings,
     presenceSettings,
-    recentAppsSettings,
-    contextSettings,
     contextHistory,
     lipsyncSettings,
     vadSettings,
@@ -290,12 +287,6 @@ async function bootstrap(): Promise<void> {
   disposers.push(() => voiceInputStatus.dispose());
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
-  // Foreground app/title snapshot — backend_caller attaches as env to each request. Non-Tauri is no-op.
-  const osContext = createOsContext({
-    maxRecentApps: () => recentAppsSettings.get().value,
-  });
-  void osContext.start();
-  disposers.push(() => osContext.stop());
   // Pop-out: Tauri uses separate WebviewWindow("settings"), otherwise browser window. Wire storage events
   // bidirectionally so main window edits are reflected here and vice versa.
   const openSettings = createSettingsWindowOpener();
@@ -352,7 +343,6 @@ async function bootstrap(): Promise<void> {
       workflowSettings,
       agentNotifySettings,
       presenceSettings,
-      recentAppsSettings,
       railCollapsedSettings,
       sourceProvider: screenSourceProvider,
       voiceStatus: voiceInputStatus,
@@ -659,20 +649,6 @@ async function bootstrap(): Promise<void> {
       const cap = await screenCapturer.capture(s.source);
       return buildScreenshotBlock(s, cap ?? undefined);
     },
-    getOsContext: () => osContext.get(),
-    getPosture: () => dispatcherRef?.getPosture(),
-    getContextPolicy: () => {
-      const context = contextSettings.get();
-      return {
-        recent_apps: context.send_recent_apps,
-        active_app: context.send_active_app,
-        active_window_title: context.send_window_title,
-        posture: context.send_posture,
-        screenshot: screenshotSettings.get().enabled,
-      };
-    },
-    peekRecentApps: () => osContext.peekRecentApps(),
-    drainRecentApps: (only) => osContext.drainRecentApps(only),
     contextHistory,
     getAgentSettings: () => agentSettings.get(),
   });

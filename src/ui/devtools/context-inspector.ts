@@ -3,14 +3,6 @@ import { t } from "../i18n";
 
 type ContextHistoryStore = ReturnType<typeof createContextHistory>;
 
-const SIGNAL_LABELS: Record<string, string> = {
-  active_app: "devtools.signal.active_app",
-  active_window_title: "devtools.signal.active_window_title",
-  posture: "devtools.signal.posture",
-  recent_apps: "devtools.signal.recent_apps",
-  screenshot: "devtools.signal.screenshot",
-};
-
 function timeOf(ts: number): string {
   return new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
@@ -18,11 +10,6 @@ function timeOf(ts: number): string {
     second: "2-digit",
     hour12: false,
   }).format(ts);
-}
-
-function signalLabel(signal: string): string {
-  const key = SIGNAL_LABELS[signal];
-  return key ? t(key) : signal.replaceAll("_", " ");
 }
 
 export function createContextInspector(
@@ -63,29 +50,10 @@ export function createContextInspector(
     header.querySelector(".devtools-kind")!.textContent = entry.trigger_kind;
     header.querySelector(".devtools-event")!.textContent = entry.event_name;
 
-    const signals = document.createElement("div");
-    signals.className = "devtools-signals";
-    for (const signal of entry.included) {
-      const pill = document.createElement("span");
-      pill.className = "devtools-signal";
-      pill.textContent = signalLabel(signal);
-      signals.appendChild(pill);
-    }
-    for (const signal of entry.excluded) {
-      const pill = document.createElement("span");
-      pill.className = "devtools-signal is-off";
-      pill.append(signalLabel(signal), " ");
-      const tag = document.createElement("span");
-      tag.className = "devtools-off-tag";
-      tag.textContent = t("devtools.inspector.off");
-      pill.appendChild(tag);
-      signals.appendChild(pill);
-    }
-
     const json = document.createElement("pre");
     json.className = "devtools-json";
     json.textContent = JSON.stringify(entry.client_context, null, 2);
-    detail.append(header, signals, json);
+    detail.append(header, json);
   }
 
   function render(entries: ContextHistoryEntry[]): void {
@@ -109,8 +77,7 @@ export function createContextInspector(
         <span class="devtools-turn__summary"></span>
       `;
       row.querySelector(".devtools-kind")!.textContent = entry.trigger_kind;
-      row.querySelector(".devtools-turn__summary")!.textContent =
-        entry.included.map(signalLabel).join(" · ") || t("devtools.inspector.baseline_only");
+      row.querySelector(".devtools-turn__summary")!.textContent = entry.event_name;
       row.addEventListener("click", () => {
         selectedTs = entry.ts;
         render(entries);

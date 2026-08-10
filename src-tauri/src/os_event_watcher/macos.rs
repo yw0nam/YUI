@@ -3,9 +3,7 @@
 
 #![allow(dead_code)] // CFBooleanRef + related bindings are unused FFI bindings
 
-use super::{
-    idle_ms_from_secs, polling_loop, sanitise_window_title, PollingWindowInfo, WindowAtPoint,
-};
+use super::{idle_ms_from_secs, polling_loop, PollingWindowInfo, WindowAtPoint};
 use std::{ffi::c_void, thread};
 use tauri::AppHandle;
 
@@ -156,7 +154,6 @@ unsafe fn cfstring_to_string(s: CFStringRef) -> Option<String> {
 // ─── CGWindowList parsing ─────────────────────────────────────────────────────
 
 pub struct WindowInfo {
-    pub title: Option<String>,
     pub is_fullscreen: bool,
 }
 
@@ -176,7 +173,6 @@ pub fn frontmost_window_info(pid: i32) -> Option<WindowInfo> {
     }
 
     let count = unsafe { CFArrayGetCount(windows) };
-    let mut title: Option<String> = None;
     let mut is_fullscreen = false;
 
     for i in 0..count {
@@ -203,16 +199,6 @@ pub fn frontmost_window_info(pid: i32) -> Option<WindowInfo> {
         };
         if owner_pid != pid {
             continue;
-        }
-
-        // Window title (kCGWindowName).
-        if title.is_none() {
-            unsafe {
-                let name_ref = CFDictionaryGetValue(dict, kCGWindowName);
-                if !name_ref.is_null() {
-                    title = cfstring_to_string(name_ref).and_then(|s| sanitise_window_title(&s));
-                }
-            }
         }
 
         // Fullscreen: layer == 0 && bounds cover screen.
@@ -245,10 +231,7 @@ pub fn frontmost_window_info(pid: i32) -> Option<WindowInfo> {
 
     unsafe { CFRelease(windows) };
 
-    Some(WindowInfo {
-        title,
-        is_fullscreen,
-    })
+    Some(WindowInfo { is_fullscreen })
 }
 
 /// Reads a f64 from a nested CFDictionary by UTF-8 key.
@@ -527,7 +510,6 @@ pub(super) fn platform_idle_ms() -> Option<u64> {
 pub(super) fn platform_frontmost() -> Option<(String, Option<PollingWindowInfo>)> {
     let (pid, app_name) = frontmost_app()?;
     let win_info = frontmost_window_info(pid).map(|info| PollingWindowInfo {
-        title: info.title,
         is_fullscreen: info.is_fullscreen,
     });
     Some((app_name, win_info))
@@ -591,7 +573,7 @@ mod tests {
             let s = make_cfstring("");
             let result = cfstring_to_string(s);
             CFRelease(s);
-            // Empty string → Some("") → sanitise_app_name will return None, but cfstring itself succeeds.
+            // Empty string still round-trips through CFString itself.
             assert_eq!(result, Some("".into()));
         }
     }

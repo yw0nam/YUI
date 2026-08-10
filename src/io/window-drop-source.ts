@@ -23,7 +23,7 @@
  *
  * Tauri deps (invoke / getWindow / listen) are injected so the module is unit-
  * testable without the Tauri runtime. Never throws to the caller — failures
- * degrade to a warn log (mirrors os-context.ts).
+ * degrade to a warn log.
  */
 
 import type { GestureCueConfig, GestureCuesConfig, PeekConfig } from "../config/load";
