@@ -141,6 +141,7 @@ import {
   wireVoiceInput,
   wireWindowSync,
 } from "./bootstrap-wiring";
+import { loadEmotionTextTable } from "./config";
 import type { BridgeTransport } from "./io/settings-bridge";
 import {
   broadcastSyncStores,
@@ -780,6 +781,7 @@ describe("wireBroker", () => {
     brokerClient.dispose.mockClear();
     createBrokerClient.mockClear();
     deriveBrokerPayload.mockClear();
+    vi.mocked(loadEmotionTextTable).mockClear();
   });
 
   // wireBroker fires publish().then(start) fire-and-forget — drain the microtask queue to observe it.
@@ -811,6 +813,16 @@ describe("wireBroker", () => {
     expect(brokerClient.publish).toHaveBeenCalledTimes(1);
     await flush();
     expect(brokerClient.start).toHaveBeenCalledTimes(1);
+  });
+
+  // tts_provider is optional on the contract; resolveTtsProviderKind's "unset means irodori"
+  // default applies to the emotion_text table load too, matching the default the validator and
+  // voice pipeline already apply (in practice tts_provider is always resolved by the validator
+  // before it reaches here, so this path is inert today — pinned so a future change is deliberate).
+  it("attempts the emotion_text table load when tts_provider is unset (resolves as irodori's default)", async () => {
+    const { deps } = makeDeps({ broker_base_url: "http://localhost:3201" });
+    await wireBroker(deps);
+    expect(vi.mocked(loadEmotionTextTable)).toHaveBeenCalledWith({ provider: "irodori" });
   });
 
   it("does nothing when broker_base_url is empty", async () => {

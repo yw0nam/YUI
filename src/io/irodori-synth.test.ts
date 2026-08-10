@@ -394,6 +394,7 @@ describe("createIrodoriTtsProvider", () => {
       id: "spk-a",
       refUrl: "/spk-a.mp3",
       fetch: fetchMock,
+      signal: expect.any(AbortSignal),
     });
     expect(fetchMock).toHaveBeenCalledOnce();
   });
@@ -501,6 +502,40 @@ describe("createIrodoriTtsProvider", () => {
 
       await expect(provider.synth("hi")).resolves.toBeInstanceOf(ArrayBuffer);
       expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("aborts a hung registration once TTS_SYNTH_TIMEOUT_MS elapses, and a later synth is not poisoned", async () => {
+      vi.useFakeTimers();
+      let registerCalls = 0;
+      irodoriVoices.ensureRegistered.mockImplementation(
+        (opts: { signal?: AbortSignal }) =>
+          new Promise<void>((resolve, reject) => {
+            registerCalls += 1;
+            if (registerCalls === 1) {
+              // The first registration hangs — never settles on its own, simulating a stuck server.
+              opts.signal?.addEventListener("abort", () =>
+                reject(opts.signal?.reason ?? new DOMException("Aborted", "AbortError")),
+              );
+              return;
+            }
+            resolve();
+          }),
+      );
+      const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+      const provider = createIrodoriTtsProvider({
+        getEndpoints: () => endpoints(),
+        getActiveSpeaker: () => speaker(),
+        selectFetch: async () => fetchMock as unknown as typeof fetch,
+      });
+
+      const pending = provider.synth("hi");
+      const assertion = expect(pending).rejects.toThrow();
+      await vi.advanceTimersByTimeAsync(TTS_SYNTH_TIMEOUT_MS + 10);
+      await assertion;
+
+      // A later call is not stuck behind the hung registration — it registers fresh and synthesizes.
+      await expect(provider.synth("hi")).resolves.toBeInstanceOf(ArrayBuffer);
+      expect(registerCalls).toBe(2);
     });
   });
 });

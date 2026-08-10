@@ -119,4 +119,17 @@ describe("fetchReferenceClip", () => {
 
     await expect(fetchReferenceClip(refUrl, { fetch: injectedFetch })).resolves.toBe(blob);
   });
+
+  it("passes the signal through to fetch when provided, omits it otherwise", async () => {
+    const refUrl = "https://example.com/references/ayase.mp3";
+    const blob = new Blob([new Uint8Array([1])], { type: "audio/mpeg" });
+    const injectedFetch = vi.fn<FetchFn>(async () => blobResponse(blob));
+
+    await fetchReferenceClip(refUrl, { fetch: injectedFetch });
+    expect(injectedFetch).toHaveBeenLastCalledWith(refUrl);
+
+    const controller = new AbortController();
+    await fetchReferenceClip(refUrl, { fetch: injectedFetch, signal: controller.signal });
+    expect(injectedFetch).toHaveBeenLastCalledWith(refUrl, { signal: controller.signal });
+  });
 });

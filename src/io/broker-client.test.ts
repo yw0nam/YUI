@@ -465,7 +465,7 @@ describe("agentTriggerableMotionIds", () => {
 });
 
 describe("deriveBrokerPayload", () => {
-  function baseConfig(provider: "openai" | "irodori"): AppConfig {
+  function baseConfig(provider: "openai" | "irodori" | undefined): AppConfig {
     return {
       endpoints: {
         chat_base_url: "http://localhost:8643",
@@ -586,5 +586,14 @@ describe("deriveBrokerPayload", () => {
     const p = deriveBrokerPayload(baseConfig("irodori"), null, logger);
     expect(p.emotionText).toEqual({ mode: "free", table: null });
     expect(logger.warn).toHaveBeenCalled();
+  });
+
+  // tts_provider is optional on the contract; resolveTtsProviderKind's "unset means irodori"
+  // default applies here too, so an unset provider resolves the same as an explicit "irodori" —
+  // matching the default the rest of the app (validator, voice pipeline) already applies.
+  it("provider unset (undefined) with a table → resolves as irodori's default → enum + table", () => {
+    const table = { "😀": "happy" };
+    const p = deriveBrokerPayload(baseConfig(undefined), table);
+    expect(p.emotionText).toEqual({ mode: "enum", table });
   });
 });
