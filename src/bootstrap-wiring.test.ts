@@ -111,7 +111,12 @@ const { fakeBridge, createSettingsBridge } = vi.hoisted(() => {
 vi.mock("./io/settings-bridge", () => ({ createSettingsBridge }));
 const { wireStorageSyncDispose, wireStorageSync } = vi.hoisted(() => {
   const wireStorageSyncDispose = vi.fn();
-  return { wireStorageSyncDispose, wireStorageSync: vi.fn(() => wireStorageSyncDispose) };
+  // Typed so `.mock.calls[0][0]` is the ReadonlyArray<{ reloadFromStorage() }> wireWindowSync
+  // hands it, not an untyped `[]` — an untyped vi.fn() infers a zero-arity call signature.
+  const wireStorageSync = vi.fn(
+    (_stores: ReadonlyArray<{ reloadFromStorage(): void }>) => wireStorageSyncDispose,
+  );
+  return { wireStorageSyncDispose, wireStorageSync };
 });
 vi.mock("./io/settings-window", () => ({ wireStorageSync }));
 const { mockDriver, createMockDriver } = vi.hoisted(() => {
