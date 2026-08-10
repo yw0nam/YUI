@@ -15,6 +15,8 @@ export interface ToolStatus {
   finishTool(): void;
   /** Hide the chip immediately. */
   hideTool(): void;
+  /** Clear the pending hide timer, if any. */
+  dispose(): void;
 }
 
 export interface ToolStatusElements {
@@ -60,5 +62,9 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
     });
   }
 
-  return { showTool, finishTool, hideTool };
+  function dispose(): void {
+    clearToolTimer();
+  }
+
+  return { showTool, finishTool, hideTool, dispose };
 }

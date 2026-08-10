@@ -12,7 +12,6 @@
  */
 
 import "./surfaces.css";
-import { t } from "./i18n";
 import { createSpeechBubble } from "./speech-bubble";
 import { createTextInput } from "./text-input";
 import { createToolStatus } from "./tool-status";
@@ -95,7 +94,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     <form class="yui-input" novalidate hidden>
       <div class="yui-input__tray"></div>
       <div class="yui-input__row">
-        <button type="button" class="yui-input__attach" aria-label="${t("aria.attach_image")}">
+        <button type="button" class="yui-input__attach">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -107,11 +106,9 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
-          placeholder="${t("input.placeholder")}"
-          aria-label="${t("aria.input_field")}"
         />
         <span class="yui-input__error" role="alert"></span>
-        <button class="yui-input__send" type="submit" aria-label="${t("aria.send")}">
+        <button class="yui-input__send" type="submit">
           <span class="icon-send" aria-hidden="true">
             <svg viewBox="0 0 16 16">
               <line x1="8" y1="13" x2="8" y2="3"/>
@@ -152,6 +149,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
 
   function dispose(): void {
     bubble.dispose();
+    tool.dispose();
     input.dispose();
     el.remove();
   }

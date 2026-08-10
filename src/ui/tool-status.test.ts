@@ -125,6 +125,28 @@ describe("tool chip lifecycle (running → done → hide)", () => {
   });
 });
 
+describe("dispose — clears the pending tool-hide timer", () => {
+  it("stops finishTool's queued hide from mutating the chip after teardown", () => {
+    vi.useFakeTimers();
+    const mount = document.createElement("div");
+    document.body.appendChild(mount);
+    const s = createSurfaces({ mount });
+    const toolEl = mount.querySelector(".yui-tool") as HTMLElement;
+
+    s.showTool("web_search");
+    s.finishTool(); // arms the 500ms toolHideTimer
+    s.dispose();
+
+    // 500ms toolHideTimer + 400ms afterFadeOut fallback, well past both
+    vi.advanceTimersByTime(1000);
+
+    expect(toolEl.hidden).toBe(false);
+
+    vi.useRealTimers();
+    mount.remove();
+  });
+});
+
 describe("tool-status hide fallback", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;
