@@ -1,11 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "settings",
-  "description": "settings pop-out window — local read-only config; no cross-origin fetch, no window creation",
+  "description": "settings pop-out window — hosts voice/VRM management UI with cross-origin fetch to user-configured endpoints and local file-open dialogs; no window creation",
   "windows": ["settings"],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
-    "log:default"
+    "log:default",
+    "cors-fetch:default",
+    "dialog:allow-open"
   ]
 }
