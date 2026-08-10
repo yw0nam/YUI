@@ -64,7 +64,7 @@ import { createOsContext } from "./io/os-context";
 import { createPeekState } from "./io/peek-state";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createSettingsSecretProvider } from "./io/secret-provider";
-import { broadcastSyncStores, createSettingsStores, reloadSyncStores } from "./io/settings-stores";
+import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener } from "./io/settings-window";
 import type { SummonHotkey } from "./io/summon-hotkey";
 import { createTapSource, type TapSource } from "./io/tap-source";
@@ -302,18 +302,14 @@ async function bootstrap(): Promise<void> {
   const openDevtools = createDevtoolsWindowOpener();
   // Cross-window settings sync is wired before VRM/speaker selection so those stores can broadcast
   // through the returned callback; the reload half is wired after those selections exist.
-  const reloadStores = reloadSyncStores(settingsStores);
-  const broadcastStores = broadcastSyncStores(settingsStores);
   const {
-    bridge,
     broadcastSettings,
-    runApplyingRemote,
+    onRemoteChange,
     dispose: disposeCrossWindowSync,
   } = wireCrossWindowSync({
     renderer,
     voiceInputStatus,
-    storageSyncStores: reloadStores,
-    syncedStores: broadcastStores,
+    stores: settingsStores,
     log,
   });
   disposers.push(() => disposeCrossWindowSync());
@@ -338,9 +334,7 @@ async function bootstrap(): Promise<void> {
   });
   disposers.push(() => speakerSelection.dispose());
   wireSettingsReload({
-    bridge,
-    reloadStores,
-    runApplyingRemote,
+    onRemoteChange,
     vrmSelection,
     loadVrmSerialized,
     speakerSelection,

@@ -27,6 +27,8 @@ interface VoiceStateSnapshot {
   state: VoiceInputState;
 }
 
+export type WindowKind = "pet" | "settings" | "devtools";
+
 export interface BridgeTransport {
   emit(name: string, payload?: unknown): void;
   /** Returns a disposer that detaches this listener. */
@@ -35,7 +37,7 @@ export interface BridgeTransport {
 
 export interface SettingsBridge {
   emitSettingsChanged(): void;
-  onSettingsChanged(cb: () => void): () => void;
+  onSettingsChanged(cb: (from: WindowKind | "unknown") => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
   onMouthPreview(cb: (mouthOpen: number | null) => void): () => void;
   emitVoiceSet(on: boolean): void;
@@ -120,9 +122,13 @@ function selectTransport(): BridgeTransport {
   return noopTransport;
 }
 
-/** envelope: identifies the sending window so it can ignore its own events (prevents Tauri global emit self-delivery). */
+/**
+ * envelope: `__src` identifies the sending instance so it can ignore its own events (prevents Tauri
+ * global emit self-delivery); `__kind` names the sending window so receivers can attribute the change.
+ */
 interface BridgeEnvelope {
   __src: string;
+  __kind: WindowKind;
   payload: unknown;
 }
 
@@ -131,20 +137,26 @@ function newSrcId(): string {
   return c?.randomUUID?.() ?? `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
 }
 
-export function createSettingsBridge(transport?: BridgeTransport): SettingsBridge {
+export function createSettingsBridge(
+  transport: BridgeTransport | undefined,
+  opts: { windowKind: WindowKind },
+): SettingsBridge {
   const t = transport ?? selectTransport();
   const disposers = new Set<() => void>();
   const srcId = newSrcId();
 
   const safeEmit = (name: string, payload?: unknown): void => {
     try {
-      t.emit(name, { __src: srcId, payload } satisfies BridgeEnvelope);
+      t.emit(name, { __src: srcId, __kind: opts.windowKind, payload } satisfies BridgeEnvelope);
     } catch (err) {
       log.warn("emit_failed", { error: String(err) });
     }
   };
 
-  const on = <T>(name: string, cb: (payload: T) => void): (() => void) => {
+  const on = <T>(
+    name: string,
+    cb: (payload: T, from: WindowKind | "unknown") => void,
+  ): (() => void) => {
     let off = (): void => {};
     try {
       off = t.listen(name, (raw) => {
@@ -152,9 +164,9 @@ export function createSettingsBridge(transport?: BridgeTransport): SettingsBridg
         const env = raw as Partial<BridgeEnvelope> | undefined;
         if (env && typeof env.__src === "string") {
           if (env.__src === srcId) return;
-          cb(env.payload as T);
+          cb(env.payload as T, env.__kind ?? "unknown");
         } else {
-          cb(((raw as { payload?: unknown } | undefined)?.payload ?? raw) as T);
+          cb(((raw as { payload?: unknown } | undefined)?.payload ?? raw) as T, "unknown");
         }
       });
     } catch (err) {
@@ -177,7 +189,7 @@ export function createSettingsBridge(transport?: BridgeTransport): SettingsBridg
       safeEmit(CH_SETTINGS_CHANGED);
     },
     onSettingsChanged(cb) {
-      return on<unknown>(CH_SETTINGS_CHANGED, () => cb());
+      return on<unknown>(CH_SETTINGS_CHANGED, (_payload, from) => cb(from));
     },
     emitMouthPreview(mouthOpen) {
       safeEmit(CH_MOUTH_PREVIEW, mouthOpen);

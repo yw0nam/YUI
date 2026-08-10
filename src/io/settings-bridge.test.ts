@@ -3,7 +3,7 @@
  * settings-bridge.test.ts — cross-window settings bridge.
  *
  * Pins the contract for src/io/settings-bridge.ts:
- *   createSettingsBridge(transport) builds a typed bus over an injectable transport.
+ *   createSettingsBridge(transport, { windowKind }) builds a typed bus over an injectable transport.
  *   Two bridge instances sharing one fake transport simulate two Tauri windows —
  *   an emit on A delivers to the matching on* callback on B.
  *   Disposers (per-listener and dispose()) stop delivery.
@@ -42,8 +42,8 @@ function createFakeTransport(): BridgeTransport & {
 describe("createSettingsBridge", () => {
   it("delivers mouth-preview from A to B with the payload value", () => {
     const t = createFakeTransport();
-    const a = createSettingsBridge(t);
-    const b = createSettingsBridge(t);
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "settings" });
     const cb = vi.fn();
     b.onMouthPreview(cb);
 
@@ -56,8 +56,8 @@ describe("createSettingsBridge", () => {
 
   it("delivers settings-changed from A to B", () => {
     const t = createFakeTransport();
-    const a = createSettingsBridge(t);
-    const b = createSettingsBridge(t);
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "settings" });
     const cb = vi.fn();
     b.onSettingsChanged(cb);
 
@@ -65,10 +65,37 @@ describe("createSettingsBridge", () => {
     expect(cb).toHaveBeenCalledTimes(1);
   });
 
+  it("delivers settings-changed with the sending window kind", () => {
+    const t = createFakeTransport();
+    const devtools = createSettingsBridge(t, { windowKind: "devtools" });
+    const b = createSettingsBridge(t, { windowKind: "settings" });
+    const cb = vi.fn();
+    b.onSettingsChanged(cb);
+
+    devtools.emitSettingsChanged();
+    expect(cb).toHaveBeenCalledWith("devtools");
+  });
+
+  it("delivers a legacy envelope as an unknown window kind", () => {
+    const t = createFakeTransport();
+    const b = createSettingsBridge(t, { windowKind: "settings" });
+    const changed = vi.fn();
+    const mouth = vi.fn();
+    b.onSettingsChanged(changed);
+    b.onMouthPreview(mouth);
+
+    // Pre-envelope emits carry the bare payload with no __src/__kind fields.
+    t.emit("yui://settings-changed", undefined);
+    t.emit("yui://mouth-preview", 0.25);
+
+    expect(changed).toHaveBeenCalledWith("unknown");
+    expect(mouth).toHaveBeenCalledWith(0.25);
+  });
+
   it("delivers voice-set true/false from A to B", () => {
     const t = createFakeTransport();
-    const a = createSettingsBridge(t);
-    const b = createSettingsBridge(t);
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "settings" });
     const cb = vi.fn();
     b.onVoiceSet(cb);
 
@@ -80,8 +107,8 @@ describe("createSettingsBridge", () => {
 
   it("delivers voice-state snapshot from A to B", () => {
     const t = createFakeTransport();
-    const a = createSettingsBridge(t);
-    const b = createSettingsBridge(t);
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "settings" });
     const cb = vi.fn();
     b.onVoiceState(cb);
 
@@ -91,8 +118,8 @@ describe("createSettingsBridge", () => {
 
   it("per-listener disposer stops delivery", () => {
     const t = createFakeTransport();
-    const a = createSettingsBridge(t);
-    const b = createSettingsBridge(t);
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "settings" });
     const cb = vi.fn();
     const off = b.onMouthPreview(cb);
 
@@ -106,8 +133,8 @@ describe("createSettingsBridge", () => {
 
   it("dispose() removes all listeners created via the bridge", () => {
     const t = createFakeTransport();
-    const a = createSettingsBridge(t);
-    const b = createSettingsBridge(t);
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "settings" });
     const mouth = vi.fn();
     const voice = vi.fn();
     b.onMouthPreview(mouth);
@@ -125,8 +152,8 @@ describe("createSettingsBridge", () => {
     // Shared transport broadcasts to every registered listener (incl. the emitter's own) —
     // models Tauri global emit delivering back to the sender window.
     const t = createFakeTransport();
-    const a = createSettingsBridge(t);
-    const b = createSettingsBridge(t);
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "settings" });
     const selfCb = vi.fn();
     const otherCb = vi.fn();
     a.onSettingsChanged(selfCb);
@@ -155,7 +182,7 @@ describe("createSettingsBridge", () => {
         return () => {};
       },
     };
-    const bridge = createSettingsBridge(throwing);
+    const bridge = createSettingsBridge(throwing, { windowKind: "pet" });
     expect(() => bridge.emitMouthPreview(0.1)).not.toThrow();
     expect(() => bridge.emitSettingsChanged()).not.toThrow();
   });
