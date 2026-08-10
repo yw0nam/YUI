@@ -30,62 +30,82 @@ export interface EndpointOverrides {
 
 export type EndpointsStorage = PersistedStorage<EndpointOverrides>;
 
-const FIELDS: readonly (keyof EndpointOverrides)[] = [
-  "chat_base_url",
-  "stt_base_url",
-  "tts_base_url",
-  "irodori_base_url",
-  "broker_base_url",
-  "chat_model",
-  "chat_model_context_window",
-  "chat_api",
-  "tts_voice",
-  "tts_provider",
-];
-
-const EMPTY: EndpointOverrides = {
-  chat_base_url: "",
-  stt_base_url: "",
-  tts_base_url: "",
-  irodori_base_url: "",
-  broker_base_url: "",
-  chat_model: "",
-  chat_model_context_window: "",
-  chat_api: "",
-  tts_voice: "",
-  tts_provider: "",
-};
-
 /** Valid provider values that mergeEndpoints applies. Anything else (including empty) means no override. */
 const VALID_PROVIDERS = ["irodori", "openai"] as const;
 
 /** Valid chat_api values that mergeEndpoints applies. Anything else (including empty) means no override. */
 const VALID_CHAT_APIS = ["responses", "chat_completions"] as const;
 
+export type EndpointFieldKind = "url" | "string" | "enum" | "posInt";
+
+/** One row per overridable endpoint value. `enum` is required (and only meaningful) for kind "enum". */
+export interface EndpointFieldSpec {
+  key: keyof EndpointOverrides;
+  kind: EndpointFieldKind;
+  enum?: readonly string[];
+  /** i18n key for the field's input-row label — only url/string-kind rows render as a labeled input. */
+  labelKey?: string;
+  /** Per-service reset group (endpoints-section.ts's per-service reset buttons); omitted = not reset by any button. */
+  resetGroup?: string;
+}
+
+/**
+ * The declarative endpoint field table — FIELDS/EMPTY/coerceFor/mergeEndpoints below, the UI's
+ * ENDPOINT_FIELDS (src/ui/quick-controls/constants.ts), and endpointDefaultsFromConfig all derive
+ * from this one list. Adding an overridable value means adding one row here.
+ */
+export const ENDPOINT_FIELD_SPECS: readonly EndpointFieldSpec[] = [
+  {
+    key: "chat_base_url",
+    kind: "url",
+    labelKey: "endpoints.chat_base_url.label",
+    resetGroup: "chat",
+  },
+  { key: "stt_base_url", kind: "url", labelKey: "endpoints.stt_base_url.label", resetGroup: "stt" },
+  { key: "tts_base_url", kind: "url", labelKey: "endpoints.tts_base_url.label", resetGroup: "tts" },
+  {
+    key: "irodori_base_url",
+    kind: "url",
+    labelKey: "endpoints.irodori_base_url.label",
+    resetGroup: "tts",
+  },
+  {
+    key: "broker_base_url",
+    kind: "url",
+    labelKey: "endpoints.broker_base_url.label",
+    resetGroup: "broker",
+  },
+  { key: "chat_model", kind: "string", labelKey: "endpoints.chat_model.label", resetGroup: "chat" },
+  { key: "chat_model_context_window", kind: "posInt" },
+  { key: "chat_api", kind: "enum", enum: VALID_CHAT_APIS, resetGroup: "chat" },
+  { key: "tts_voice", kind: "string", labelKey: "endpoints.tts_voice.label", resetGroup: "tts" },
+  { key: "tts_provider", kind: "enum", enum: VALID_PROVIDERS, resetGroup: "tts" },
+];
+
+const FIELDS: readonly (keyof EndpointOverrides)[] = ENDPOINT_FIELD_SPECS.map((s) => s.key);
+
+const EMPTY: EndpointOverrides = Object.fromEntries(
+  FIELDS.map((k) => [k, ""]),
+) as unknown as EndpointOverrides;
+
+const SPEC_BY_KEY: ReadonlyMap<keyof EndpointOverrides, EndpointFieldSpec> = new Map(
+  ENDPOINT_FIELD_SPECS.map((s) => [s.key, s]),
+);
+
 function coerceField(v: unknown): string {
   if (typeof v !== "string") return "";
   return v.length > ENDPOINT_VALUE_MAX_LEN ? v.slice(0, ENDPOINT_VALUE_MAX_LEN) : v;
 }
 
-/** tts_provider-specific coercion — drops to "" (no override) if not a valid enum. */
-function coerceProvider(v: unknown): string {
-  return typeof v === "string" && (VALID_PROVIDERS as readonly string[]).includes(v) ? v : "";
-}
-
-/** chat_api-specific coercion — drops to "" (no override) if not a valid enum. */
-function coerceChatApi(v: unknown): string {
-  return typeof v === "string" && (VALID_CHAT_APIS as readonly string[]).includes(v) ? v : "";
-}
-
-function coerceContextWindow(v: unknown): string {
-  return typeof v === "string" && /^[1-9]\d*$/.test(v) ? v : "";
-}
-
-/** Per-field coercion dispatch — tts_provider/chat_api are enum-restricted, the rest are string-length capped. */
+/** Per-field coercion dispatch, driven by the field's declared `kind` — enum/posInt are value-restricted, url/string are string-length capped. */
 function coerceFor(key: keyof EndpointOverrides, v: unknown): string {
-  if (key === "tts_provider") return coerceProvider(v);
-  if (key === "chat_api") return coerceChatApi(v);
-  if (key === "chat_model_context_window") return coerceContextWindow(v);
+  const spec = SPEC_BY_KEY.get(key)!;
+  if (spec.kind === "enum") {
+    return typeof v === "string" && spec.enum!.includes(v) ? v : "";
+  }
+  if (spec.kind === "posInt") {
+    return typeof v === "string" && /^[1-9]\d*$/.test(v) ? v : "";
+  }
   return coerceField(v);
 }
 
@@ -124,30 +144,35 @@ export function isValidEndpointUrl(v: string): boolean {
  * Invalid URL/provider/chat_api are ignored (effective keeps the base default) — the UI surfaces the error separately.
  */
 export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): EndpointsConfig {
-  const out: EndpointsConfig = { ...base };
-  const urlField = (
-    k: "chat_base_url" | "stt_base_url" | "tts_base_url" | "irodori_base_url" | "broker_base_url",
-  ): void => {
-    const t = ov[k].trim();
-    if (t !== "" && isValidEndpointUrl(t)) out[k] = t;
-  };
-  urlField("chat_base_url");
-  urlField("stt_base_url");
-  urlField("tts_base_url");
-  urlField("irodori_base_url");
-  urlField("broker_base_url");
-  const model = ov.chat_model.trim();
-  if (model !== "") out.chat_model = model;
-  if (ov.chat_model_context_window !== "") {
-    out.chat_model_context_window = Number(ov.chat_model_context_window);
+  const out = { ...base } as unknown as Record<string, unknown>;
+  for (const spec of ENDPOINT_FIELD_SPECS) {
+    const raw = ov[spec.key];
+    if (spec.kind === "url") {
+      const t = raw.trim();
+      if (t !== "" && isValidEndpointUrl(t)) out[spec.key] = t;
+    } else if (spec.kind === "string") {
+      const t = raw.trim();
+      if (t !== "") out[spec.key] = t;
+    } else if (spec.kind === "posInt") {
+      if (raw !== "") out[spec.key] = Number(raw);
+    } else if (spec.kind === "enum") {
+      if (spec.enum!.includes(raw)) out[spec.key] = raw;
+    }
   }
-  const voice = ov.tts_voice.trim();
-  if (voice !== "") out.tts_voice = voice;
-  if (ov.tts_provider === "irodori" || ov.tts_provider === "openai") {
-    out.tts_provider = ov.tts_provider;
-  }
-  if (ov.chat_api === "responses" || ov.chat_api === "chat_completions") {
-    out.chat_api = ov.chat_api;
+  return out as unknown as EndpointsConfig;
+}
+
+/**
+ * Projects a bundled EndpointsConfig onto the EndpointOverrides shape for use as UI placeholder
+ * defaults ("" when a field is unset). Both main.ts and settings-main.ts call this instead of
+ * hand-writing the same field-by-field literal.
+ */
+export function endpointDefaultsFromConfig(e: EndpointsConfig): EndpointOverrides {
+  const src = e as unknown as Record<string, unknown>;
+  const out = { ...EMPTY };
+  for (const key of FIELDS) {
+    const raw = src[key];
+    out[key] = raw === undefined || raw === null ? "" : String(raw);
   }
   return out;
 }

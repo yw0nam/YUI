@@ -13,9 +13,9 @@ import type { EndpointsConfig } from "../contract";
 import type { EndpointOverrides, EndpointsStorage } from "./endpoints-settings";
 import {
   createEndpointsSettings,
-  endpointDefaultsFromConfig,
   ENDPOINT_FIELD_SPECS,
   ENDPOINT_VALUE_MAX_LEN,
+  endpointDefaultsFromConfig,
   isValidEndpointUrl,
   localStorageEndpointsStorage,
   mergeEndpoints,
