@@ -23,6 +23,7 @@ import type { createSessionDiagnosticsStore } from "../../io/session-diagnostics
 import { isTtsProviderKind, resolveTtsProviderKind } from "../../io/tts-provider";
 import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../../io/vad-settings";
 import { getLocale, t } from "../i18n";
+import { reflectUnlessEditing } from "../reflect-unless-editing";
 import type { VoiceInputStatusSnapshot } from "../voice-input-status";
 import {
   CHAT_API_LABEL_KEYS,
@@ -202,12 +203,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
   function reflectPresence(): void {
     if (!presenceInput || !presenceSettings) return;
     const next = String(presenceSettings.get().value / 1000);
-    if (
-      !(document.hasFocus() && document.activeElement === presenceInput) &&
-      presenceInput.value !== next
-    ) {
-      presenceInput.value = next;
-    }
+    reflectUnlessEditing(presenceInput, next);
   }
 
   function reflectGain(): void {
