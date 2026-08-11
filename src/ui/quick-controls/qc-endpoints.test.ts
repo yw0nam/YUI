@@ -209,6 +209,26 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
+  it("reflects and validates a cross-window endpoint change while the focused document is blurred", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const input = qc.el.querySelector<HTMLInputElement>(
+      '.yui-input-row[data-ep-field="stt_base_url"] .yui-ep-input',
+    )!;
+    input.focus();
+    input.value = "https://local-edit.example/v1";
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    expect(document.activeElement).toBe(input);
+
+    endpointsSettings.set({ stt_base_url: "localhost:5517" });
+
+    expect(input.value).toBe("localhost:5517");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+
+    qc.dispose();
+  });
+
   it("persists an endpoint override into the store and per-section reset clears that section's fields", () => {
     const qc = buildQc();
     qc.open();
@@ -543,6 +563,29 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     chatKeySettings.clear();
     expect(chatKeyInput(qc).value).toBe("");
+
+    qc.dispose();
+  });
+
+  it("reflects a cross-window chat API key change while the focused document is blurred and clears dirty state", () => {
+    const chatKeySettings = createChatKeySettings();
+    const setSpy = vi.spyOn(chatKeySettings, "setApiKey");
+    const qc = buildQc({ chatKeySettings });
+    qc.open();
+
+    const input = chatKeyInput(qc);
+    input.focus();
+    input.value = "sk-local-edit";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    expect(document.activeElement).toBe(input);
+
+    chatKeySettings.setApiKey("sk-from-other-window");
+
+    expect(input.value).toBe("sk-from-other-window");
+    setSpy.mockClear();
+    qc.close();
+    expect(setSpy).not.toHaveBeenCalled();
 
     qc.dispose();
   });
