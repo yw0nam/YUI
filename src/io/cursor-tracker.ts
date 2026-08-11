@@ -185,11 +185,16 @@ export function createCursorTracker(opts: CursorTrackerOptions): CursorTrackerCo
         cursor = await win.cursorPosition();
       }
       // Teardown (or hide) may have happened while these reads were in flight.
-      if (!running || doc.visibilityState === "hidden" || cachedOrigin === null) return;
-      if (backoff) log.warn("poll_recovered", {});
-      failureCount = 0;
-      backoff = false;
-      opts.onCursor(physicalCursorToLocalCss(cursor, cachedOrigin, cachedSf, cachedCursorSf));
+      if (!running || doc.visibilityState === "hidden") return;
+      // A move/resize/scale-change can invalidate the cache while a cached tick's
+      // cursorPosition() is still in flight — skip this sample (don't return: the
+      // reschedule below must still run, or the loop dies with gaze frozen).
+      if (cachedOrigin !== null) {
+        if (backoff) log.warn("poll_recovered", {});
+        failureCount = 0;
+        backoff = false;
+        opts.onCursor(physicalCursorToLocalCss(cursor, cachedOrigin, cachedSf, cachedCursorSf));
+      }
     } catch (err) {
       failureCount++;
       if (backoff) {

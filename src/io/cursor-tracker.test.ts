@@ -238,6 +238,45 @@ describe("createCursorTracker — Tauri poll path", () => {
     c.stop();
   });
 
+  // Regression: invalidateStatics() firing WHILE a cached tick's cursorPosition() is in
+  // flight must not kill the self-scheduling loop — a guard that returns before the
+  // reschedule tail freezes gaze permanently. Mirrors src/io/hit-test.test.ts's identical
+  // regression for the hit-test poll.
+  it("a move landing mid-await on a cached tick skips the sample but still reschedules", async () => {
+    const win = fakeWindow({ x: 300, y: 400 });
+    win.outerPosition.mockResolvedValue({ x: 100, y: 200 });
+    win.scaleFactor.mockResolvedValue(2);
+    win.primaryScaleFactor.mockResolvedValue(2);
+    const doc = fakeDoc();
+    const { c, positions, scheduled, poll } = scheduledPoller(win, doc);
+    c.start();
+    expect(scheduled.length).toBe(1);
+
+    await poll(); // tick 0 — refreshes, establishes cachedOrigin
+    expect(scheduled.length).toBe(2);
+    positions.length = 0;
+
+    // tick 1 is a cached tick. Simulate the window moving while cursorPosition() is in
+    // flight: the mock invalidates the cache as a side effect before its promise resolves.
+    win.cursorPosition.mockImplementationOnce(async () => {
+      win.fireMoved();
+      return { x: 300, y: 400 };
+    });
+    await poll(); // tick 1 — cachedOrigin goes null mid-await
+
+    // The loop must still reschedule despite landing with a stale cache.
+    expect(scheduled.length).toBe(3);
+    // The invalidated tick skips sampling rather than applying a stale/missing origin.
+    expect(positions).toEqual([]);
+
+    // The next tick recovers: refreshes statics (cachedOrigin was cleared) and samples normally.
+    win.outerPosition.mockClear();
+    await poll(); // tick 2
+    expect(win.outerPosition).toHaveBeenCalledTimes(1);
+    expect(positions).toEqual([{ x: 100, y: 100 }]);
+    c.stop();
+  });
+
   it("stop() unsubscribes the move/resize/scale-change listeners", async () => {
     const win = fakeWindow();
     const doc = fakeDoc();
