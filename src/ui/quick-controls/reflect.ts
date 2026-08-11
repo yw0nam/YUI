@@ -237,7 +237,10 @@ export function createReflect(deps: ReflectDeps): Reflect {
     });
     segEl.style.setProperty("--seg", String(idx));
     // Do not overwrite textarea while typing (remote changes apply on blur).
-    if (document.activeElement !== instructionsEl && instructionsEl.value !== a.instructions) {
+    if (
+      (!document.hasFocus() || document.activeElement !== instructionsEl) &&
+      instructionsEl.value !== a.instructions
+    ) {
       instructionsEl.value = a.instructions;
     }
   }
@@ -325,7 +328,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
       const input = epInputs.get(key)!;
       if (defaults) input.placeholder = defaults[key];
       // Do not overwrite while typing (remote changes apply on blur).
-      if (document.activeElement !== input && input.value !== ov[key]) {
+      if ((!document.hasFocus() || document.activeElement !== input) && input.value !== ov[key]) {
         input.value = ov[key];
       }
       validateEndpointInput(key, input);

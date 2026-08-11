@@ -96,7 +96,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
 
     function reflect(): void {
       const key = store.get().apiKey;
-      if (document.activeElement !== input && input.value !== key) {
+      if ((!document.hasFocus() || document.activeElement !== input) && input.value !== key) {
         input.value = key;
         dirty = false;
       }
