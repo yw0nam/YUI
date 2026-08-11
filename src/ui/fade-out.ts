@@ -10,8 +10,11 @@
 // shorter than the fade (--yui-dur 200ms / -fast 140ms) and would cut it off, so the timer must exceed that ceiling.
 const FADE_FALLBACK_MS = 400; // ponytail: safety net exceeding the --yui-dur/-fast ceiling
 
-/** Runs `settle` once — on the element's opacity transitionend, or on the fallback timer. */
-export function afterFadeOut(el: HTMLElement, settle: () => void): void {
+/**
+ * Runs `settle` once — on the element's opacity transitionend, or on the fallback timer.
+ * Returns a cancel handle that calls off both without running `settle` (for a dispose landing mid-fade).
+ */
+export function afterFadeOut(el: HTMLElement, settle: () => void): () => void {
   const fallback = setTimeout(run, FADE_FALLBACK_MS);
 
   function run(): void {
@@ -25,4 +28,9 @@ export function afterFadeOut(el: HTMLElement, settle: () => void): void {
   }
 
   el.addEventListener("transitionend", onEnd);
+
+  return function cancel(): void {
+    clearTimeout(fallback);
+    el.removeEventListener("transitionend", onEnd);
+  };
 }

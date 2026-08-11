@@ -266,6 +266,26 @@ describe("speech-bubble hide fallback", () => {
   });
 });
 
+describe("dispose — cancels an in-flight fade fallback", () => {
+  it("stops the 400ms fallback from mutating the bubble after teardown mid-fade", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const mount = document.createElement("div");
+    document.body.appendChild(mount);
+    const s = createSurfaces({ mount });
+    const bubbleEl = mount.querySelector(".yui-bubble") as HTMLElement;
+
+    s.beginSpeech();
+    s.hideSpeech(); // arms the 400ms fade fallback
+    s.dispose();
+    vi.advanceTimersByTime(400); // fallback would fire here if not cancelled
+
+    expect(bubbleEl.hidden).toBe(false);
+
+    vi.useRealTimers();
+    mount.remove();
+  });
+});
+
 describe("pushSpeech — is-scrollable toggle (top-fade only when overflowing)", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;

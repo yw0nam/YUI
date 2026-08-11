@@ -58,6 +58,7 @@ export function createSpeechBubble(
   let hovering = false;
   // Whether a dwell debt remains (timer-arming can be held).
   let dwellArmed = false;
+  let cancelFade: (() => void) | null = null;
 
   function clearDwell(): void {
     if (dwellTimer !== null) {
@@ -151,7 +152,9 @@ export function createSpeechBubble(
     deferred = false;
     lastRenderAt = Number.NEGATIVE_INFINITY;
     bubbleEl.classList.remove("is-visible", "is-streaming");
-    afterFadeOut(bubbleEl, () => {
+    cancelFade?.();
+    cancelFade = afterFadeOut(bubbleEl, () => {
+      cancelFade = null;
       if (!bubbleEl.classList.contains("is-visible")) {
         bubbleEl.hidden = true;
         speechRaw = "";
@@ -185,6 +188,8 @@ export function createSpeechBubble(
 
   function dispose(): void {
     clearDwell();
+    cancelFade?.();
+    cancelFade = null;
     bubbleEl.removeEventListener("pointerenter", onBubbleEnter);
     bubbleEl.removeEventListener("pointerleave", onBubbleLeave);
   }

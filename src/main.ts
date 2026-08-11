@@ -200,6 +200,7 @@ async function bootstrap(): Promise<void> {
   const ambient = createTier1Engine(renderer);
   ambient.start();
   const surfaces = createSurfaces({ mount: root });
+  disposers.push(() => surfaces.dispose());
 
   // Anchor chat input to character's feet (follow reframe). Each frame, receive feet screen coordinates,
   // map to input bottom offset, skip changes below epsilon to reduce var rewrites.
