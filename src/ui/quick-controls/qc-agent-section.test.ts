@@ -284,6 +284,23 @@ describe("createQuickControls — agent section", () => {
     qc.dispose();
   });
 
+  it("reflects a cross-window instructions change while the focused document is blurred", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
+    ta.focus();
+    ta.value = "user is mid-edit";
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    expect(document.activeElement).toBe(ta);
+
+    agentSettings.setInstructions("remote value");
+
+    expect(ta.value).toBe("remote value");
+
+    qc.dispose();
+  });
+
   it("applies a deferred cross-window instructions change on blur", () => {
     const qc = buildQc();
     qc.open();
