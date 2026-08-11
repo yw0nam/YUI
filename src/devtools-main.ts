@@ -93,16 +93,18 @@ async function bootstrap(): Promise<void> {
   let shell = buildShell();
   let localeRebuild = Promise.resolve();
   const unsubscribeLocale = subscribeLocale(() => {
-    localeRebuild = localeRebuild.then(async () => {
-      // The rebuild replaces every node, so a focused element survives only by id/section.
-      const focus = captureFocus(mount);
-      const section = shell.active;
-      shell.dispose();
-      shell = buildShell();
-      // Await so a focused motion-panel select exists before restore looks it up.
-      await shell.activate(section);
-      if (focus) restoreFocus(mount, focus);
-    });
+    localeRebuild = localeRebuild
+      .then(async () => {
+        // The rebuild replaces every node, so a focused element survives only by id/section.
+        const focus = captureFocus(mount);
+        const section = shell.active;
+        shell.dispose();
+        shell = buildShell();
+        // Await so a focused motion-panel select exists before restore looks it up.
+        await shell.activate(section);
+        if (focus) restoreFocus(mount, focus);
+      })
+      .catch((error) => log.error("locale_rebuild_failed", { error: String(error) }));
   });
   const { reload, dispose: disposeSync } = wireDevtoolsSync({ stores: settingsStores, log });
   window.addEventListener("focus", reload);
