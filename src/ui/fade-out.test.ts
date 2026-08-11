@@ -74,4 +74,22 @@ describe("afterFadeOut", () => {
     transitionEnd(el);
     expect(settle).toHaveBeenCalledTimes(1);
   });
+
+  it("returns a cancel handle that stops the fallback timer from settling", () => {
+    const settle = vi.fn();
+    const cancel = afterFadeOut(el, settle);
+
+    cancel();
+    vi.advanceTimersByTime(400);
+    expect(settle).not.toHaveBeenCalled();
+  });
+
+  it("cancel also stops a later transitionend from settling", () => {
+    const settle = vi.fn();
+    const cancel = afterFadeOut(el, settle);
+
+    cancel();
+    transitionEnd(el);
+    expect(settle).not.toHaveBeenCalled();
+  });
 });

@@ -147,6 +147,48 @@ describe("dispose — clears the pending tool-hide timer", () => {
   });
 });
 
+describe("dispose — cancels an in-flight fade fallback", () => {
+  it("stops the 400ms fallback from mutating the chip after teardown mid-fade", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const mount = document.createElement("div");
+    document.body.appendChild(mount);
+    const s = createSurfaces({ mount });
+    const toolEl = mount.querySelector(".yui-tool") as HTMLElement;
+
+    s.showTool("web_search");
+    s.finishTool(); // arms the 500ms toolHideTimer
+    vi.advanceTimersByTime(500); // toolHideTimer fires -> hideTool() arms the 400ms fade fallback
+    s.dispose();
+    vi.advanceTimersByTime(400); // fallback would fire here if not cancelled
+
+    expect(toolEl.hidden).toBe(false);
+
+    vi.useRealTimers();
+    mount.remove();
+  });
+});
+
+describe("disposed guard — late async calls after teardown are no-ops", () => {
+  it("finishTool() after dispose() does not re-arm the hide timer", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const mount = document.createElement("div");
+    document.body.appendChild(mount);
+    const s = createSurfaces({ mount });
+    const toolEl = mount.querySelector(".yui-tool") as HTMLElement;
+
+    s.showTool("web_search");
+    s.dispose();
+    s.finishTool(); // late async onToolStatus callback landing after teardown
+
+    vi.advanceTimersByTime(1000);
+    expect(toolEl.dataset.state).toBe("running");
+    expect(toolEl.hidden).toBe(false);
+
+    vi.useRealTimers();
+    mount.remove();
+  });
+});
+
 describe("tool-status hide fallback", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;
