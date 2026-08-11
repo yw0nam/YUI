@@ -419,7 +419,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
       "TTS API 키 미설정 — openai 호환 TTS가 키를 요구하면 401 가능. .env.local(VITE_YUI_TTS_KEY) 참고. (irodori는 불필요)",
     );
   }
-  let devGlobalsFailed = false;
   try {
     const cfg = await config.load();
     if (disposed) return { dispose };
@@ -462,7 +461,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
           getDispatcher: () => configured.dispatcher,
         });
       } catch (err) {
-        devGlobalsFailed = true;
         configured.dispose();
         throw err;
       }
@@ -491,7 +489,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register(unsubscribeConfig);
   } catch (err) {
     if (disposed) return { dispose };
-    if (devGlobalsFailed) throw err;
     log.error("config_or_vrm_load_failed", { error: String(err) });
     // Boot failure = empty transparent window. Preserve cause (ConfigError vs VRM) visible to user (#316).
     if (!disposed) showBootError(root, err);
