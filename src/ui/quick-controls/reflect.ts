@@ -54,6 +54,15 @@ export function validateEndpointInput(key: keyof EndpointOverrides, input: HTMLI
   input.setAttribute("aria-invalid", invalid ? "true" : "false");
 }
 
+export function reflectSwitchRows(root: HTMLElement, switchRows: readonly SwitchRow[]): void {
+  for (const row of switchRows) {
+    if (!row.isVisible || !row.isAvailable) continue;
+    root
+      .querySelector<HTMLButtonElement>(row.selector)
+      ?.setAttribute("aria-checked", String(row.getEnabled()));
+  }
+}
+
 interface ReflectDeps {
   /** Panel root (el) — all reflect target nodes are queried from here. */
   root: HTMLElement;
@@ -169,14 +178,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     root.classList.toggle("is-on", on);
   }
 
-  function reflectSwitchRows(): void {
-    for (const row of switchRows) {
-      if (!row.isVisible || !row.isAvailable) continue;
-      root
-        .querySelector<HTMLButtonElement>(row.selector)
-        ?.setAttribute("aria-checked", String(row.getEnabled()));
-    }
-  }
+  const reflectSwitchRowsFromDeps = (): void => reflectSwitchRows(root, switchRows);
 
   function reflectAgentNotify(): void {
     if (!agentNotifySettings) return;
@@ -363,7 +365,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
 
   return {
     reflectSettings,
-    reflectSwitchRows,
+    reflectSwitchRows: reflectSwitchRowsFromDeps,
     reflectAgentNotify,
     reflectPresence,
     reflectGain,

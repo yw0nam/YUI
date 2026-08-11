@@ -155,70 +155,25 @@ interface QuickControls {
 export const PREVIEW_PEAK_RMS = 0.15;
 const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
 
-export function createQuickControls({
-  mount,
-  settings,
+type SwitchRowOptions = Pick<
+  QuickControlsOptions,
+  | "idleThrottleSettings"
+  | "ttsSettings"
+  | "vad"
+  | "gazeSettings"
+  | "agentNotifySettings"
+  | "fillerSettings"
+>;
+
+export function createSwitchRows({
   idleThrottleSettings,
-  proactiveSettings,
-  scheduleSettings,
-  workflowSettings,
-  sourceProvider,
-  voiceStatus,
-  lipsync,
-  vad,
-  agentSettings,
-  vrmSelection,
-  swapVrm,
-  importVrm,
-  removeUserVrm,
-  speakerSelection,
-  swapSpeaker,
-  refreshSpeaker,
-  pickVoiceImport,
-  commitVoiceImport,
-  removeUserVoice,
-  refreshVoiceList,
-  onGainPreview,
-  onGainPreviewEnd,
-  onResetViewpoint,
-  onPopOut,
-  onOpenDevtools,
-  variant = "popover",
-  onCloseWindow,
-  getDefaultInstructions,
-  endpointsSettings,
-  chatKeySettings,
-  sttKeySettings,
-  ttsKeySettings,
-  getEndpointDefaults,
-  getDefaultProvider,
-  getDefaultChatApi,
-  sessionDiagnostics,
-  sessionStore,
-  transcript,
-  fillerSettings,
   ttsSettings,
+  vad,
   gazeSettings,
   agentNotifySettings,
-  presenceSettings,
-  railCollapsedSettings,
-}: QuickControlsOptions): QuickControls {
-  const isWindow = variant === "window";
-  // Session section renders only in settings window (window), when both stores are injected.
-  const hasSession = isWindow && !!sessionDiagnostics && !!sessionStore;
-  // Use variant tag to distinguish which window created logs (Tauri merges both window logs to one file).
-  const log = createLogger(isWindow ? "settings-ui" : "quick-ui");
-
-  // scrim (outer click detection) only used in popover variant.
-  const scrimEl = document.createElement("div");
-  scrimEl.className = "yui-quick-scrim";
-
-  const el = document.createElement("div");
-  el.className = isWindow ? "yui-quick yui-quick--window" : "yui-quick";
-  el.setAttribute("role", "dialog");
-  el.setAttribute("aria-label", t("panel.dialog_label"));
-
-  const TOGGLE_SPECS: SwitchRow[] = [
+  fillerSettings,
+}: SwitchRowOptions): SwitchRow[] {
+  return [
     {
       selector: ".yui-idle-throttle-switch",
       labelKey: "perf.idle_label",
@@ -304,6 +259,79 @@ export function createQuickControls({
       setEnabled: (v) => fillerSettings!.setEnabled(v),
     },
   ];
+}
+
+export function createQuickControls({
+  mount,
+  settings,
+  idleThrottleSettings,
+  proactiveSettings,
+  scheduleSettings,
+  workflowSettings,
+  sourceProvider,
+  voiceStatus,
+  lipsync,
+  vad,
+  agentSettings,
+  vrmSelection,
+  swapVrm,
+  importVrm,
+  removeUserVrm,
+  speakerSelection,
+  swapSpeaker,
+  refreshSpeaker,
+  pickVoiceImport,
+  commitVoiceImport,
+  removeUserVoice,
+  refreshVoiceList,
+  onGainPreview,
+  onGainPreviewEnd,
+  onResetViewpoint,
+  onPopOut,
+  onOpenDevtools,
+  variant = "popover",
+  onCloseWindow,
+  getDefaultInstructions,
+  endpointsSettings,
+  chatKeySettings,
+  sttKeySettings,
+  ttsKeySettings,
+  getEndpointDefaults,
+  getDefaultProvider,
+  getDefaultChatApi,
+  sessionDiagnostics,
+  sessionStore,
+  transcript,
+  fillerSettings,
+  ttsSettings,
+  gazeSettings,
+  agentNotifySettings,
+  presenceSettings,
+  railCollapsedSettings,
+}: QuickControlsOptions): QuickControls {
+  const isWindow = variant === "window";
+  // Session section renders only in settings window (window), when both stores are injected.
+  const hasSession = isWindow && !!sessionDiagnostics && !!sessionStore;
+  // Use variant tag to distinguish which window created logs (Tauri merges both window logs to one file).
+  const log = createLogger(isWindow ? "settings-ui" : "quick-ui");
+
+  // scrim (outer click detection) only used in popover variant.
+  const scrimEl = document.createElement("div");
+  scrimEl.className = "yui-quick-scrim";
+
+  const el = document.createElement("div");
+  el.className = isWindow ? "yui-quick yui-quick--window" : "yui-quick";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-label", t("panel.dialog_label"));
+
+  const TOGGLE_SPECS = createSwitchRows({
+    idleThrottleSettings,
+    ttsSettings,
+    vad,
+    gazeSettings,
+    agentNotifySettings,
+    fillerSettings,
+  });
 
   el.innerHTML = buildPanelHtml({
     isWindow,
