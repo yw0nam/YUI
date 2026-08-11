@@ -14,60 +14,28 @@
 
 import "./styles.css";
 import { createTier1Engine } from "./ambient/tier1";
+import { createConfiguredBootstrap } from "./bootstrap-configured";
 import {
-  wireBroker,
   wireCrossWindowSync,
   wireDevGlobals,
-  wireDispatcherSources,
-  wirePeekExitTriggers,
   wireSettingsReload,
   wireSpeakerSelection,
-  wireStopControl,
-  wireSummonHotkey,
-  wireVoiceInput,
   wireVrmSelection,
-  wireWindowSources,
 } from "./bootstrap-wiring";
 import {
   CHAT_API_KEY_SECRET,
   createConfigStore,
-  GESTURE_CUES_DEFAULTS,
-  type GestureCuesConfig,
-  PEEK_DEFAULTS,
-  type PeekConfig,
   STT_API_KEY_SECRET,
-  TAP_DEFAULTS,
-  type TapConfig,
   TTS_API_KEY_SECRET,
 } from "./config";
-import { createBackendCaller } from "./dispatcher/backend-caller";
-import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import { createEventBus } from "./dispatcher/event-bus";
-import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
-import { createTurnLog } from "./dispatcher/turn";
 import { createUserInputSource } from "./dispatcher/user-input-source";
-import { initDrag } from "./drag";
-import type { AvatarExecutor } from "./io/avatar-executor";
-import {
-  CAMERA_ORBIT_SENSITIVITY,
-  CAMERA_WHEEL_SENSITIVITY,
-  CAMERA_ZOOM_MAX,
-  CAMERA_ZOOM_MIN,
-} from "./io/camera-settings";
-import { selectFetch } from "./io/chat-client";
-import { type CursorTrackerController, createCursorTracker } from "./io/cursor-tracker";
+import { CAMERA_WHEEL_SENSITIVITY, CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN } from "./io/camera-settings";
 import { createDevtoolsWindowOpener } from "./io/devtools-window";
-import { createDragHoldSource, type DragHoldSource } from "./io/drag-hold-source";
 import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/endpoints-settings";
-import { createHitTestController, type HitTestController } from "./io/hit-test";
-import { createPeekState } from "./io/peek-state";
-import { buildScreenshotBlock } from "./io/screenshot-context";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener } from "./io/settings-window";
-import type { SummonHotkey } from "./io/summon-hotkey";
-import { createTapSource, type TapSource } from "./io/tap-source";
-import { isTauri } from "./io/tauri-env";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { removeUserVrm } from "./io/vrm-import";
@@ -82,25 +50,22 @@ import {
 } from "./ui/anchor";
 import { showBootError } from "./ui/boot-error";
 import { createCaptureIndicator } from "./ui/capture-indicator";
-import { showChainResetNotice } from "./ui/chain-reset-notice";
-import { maybeShowFirstRunHint } from "./ui/first-run-hint";
-import { getLocale, subscribe as subscribeLocale, t } from "./ui/i18n";
+import { getLocale, subscribe as subscribeLocale } from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls";
 import { createSurfaces } from "./ui/surfaces";
-import { routeTurnFailure, turnErrorMessage } from "./ui/turn-error";
 import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
-import { wireVoicePipeline } from "./voice-pipeline-wiring";
 
 /** Input summon hotkey (window-focus only — global shortcuts to follow via tauri-plugin-global-shortcut). */
 const SUMMON_KEY = "/";
 
-/** Duration to hold voice-input-indicator backend-turn-failure "error" display(ms) — then return to listening. */
-const VOICE_TURN_ERROR_DISPLAY_MS = 3_000;
-
 const log = createLogger("bootstrap");
 
-async function bootstrap(): Promise<void> {
+interface BootstrapHandle {
+  dispose(): void;
+}
+
+async function bootstrap(): Promise<BootstrapHandle> {
   await initLogger();
   const app = document.querySelector<HTMLDivElement>("#app");
   if (!app) {
@@ -112,10 +77,27 @@ async function bootstrap(): Promise<void> {
   // (reverse of registration) — a single hot.dispose() registration for the whole module, so
   // a later resource can never silently displace an earlier one's teardown.
   const disposers: Array<() => void> = [];
+  let disposed = false;
+  const register = (teardown: () => void): void => {
+    if (disposed) teardown();
+    else disposers.push(teardown);
+  };
+  const dispose = (): void => {
+    disposed = true;
+    let firstError: unknown;
+    let failed = false;
+    while (disposers.length) {
+      try {
+        disposers.pop()!();
+      } catch (error) {
+        if (!failed) firstError = error;
+        failed = true;
+      }
+    }
+    if (failed) throw firstError;
+  };
   if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => {
-      while (disposers.length) disposers.pop()!();
-    });
+    import.meta.hot?.dispose(dispose);
   }
 
   // Root (positioning context) > stage (drag) + overlay (surfaces).
@@ -128,55 +110,6 @@ async function bootstrap(): Promise<void> {
   `;
   const root = app.querySelector<HTMLDivElement>(".yui-root")!;
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
-
-  // Drag: a primary press that crosses the move threshold → OS-native drag via
-  // Tauri IPC + a tier1 user.drag_start onto the bus (plays the drag motion,
-  // clears any stale perch). onScaleChanged listener installed inside for DPI seam.
-  // Click-through hit-test controller — late-bound (created after config load so
-  // it gets the hit_test knob). Drag suspends toggling so the OS-native drag is
-  // never interrupted by a mid-gesture ignore flip.
-  let hitTestRef: HitTestController | null = null;
-  let cursorTrackerRef: CursorTrackerController | null = null;
-  let tapSourceRef: TapSource | null = null;
-  let dragHoldRef: DragHoldSource | null = null;
-  // User input wins: a drag aborts whatever gesture the agent asked for.
-  let avatarExecutorRef: AvatarExecutor | null = null;
-  const cleanupDrag = await initDrag(stage, {
-    onClick: (pos) => tapSourceRef?.handleClick(pos),
-    onDragStart: () => {
-      hitTestRef?.suspend();
-      dragHoldRef?.noteDragStart();
-      avatarExecutorRef?.noteUserDrag();
-      bus.push({
-        source: "os_event_watcher",
-        event_name: "user.drag_start",
-        ts: Date.now(),
-        hint_tier: 1,
-        dnd_override: true,
-      });
-    },
-    onDragEnd: () => {
-      hitTestRef?.resume();
-      dragHoldRef?.noteDragEnd();
-      avatarExecutorRef?.noteUserDragEnd();
-      bus.push({
-        source: "os_event_watcher",
-        event_name: "user.drag_end",
-        ts: Date.now(),
-        hint_tier: 1,
-        dnd_override: true,
-      });
-    },
-    onOrbitStart: () => hitTestRef?.suspend(),
-    onOrbitEnd: () => hitTestRef?.resume(),
-    // Shift + left-drag orbits the camera. dx → azimuth, dy → polar; clamp/persist
-    // live in cameraSettings, which drives renderer.setOrbit via the subscription below.
-    onOrbit: ({ dx, dy }) => {
-      const cur = cameraSettings.get();
-      cameraSettings.setAzimuth(cur.azimuth + dx * CAMERA_ORBIT_SENSITIVITY);
-      cameraSettings.setPolar(cur.polar - dy * CAMERA_ORBIT_SENSITIVITY);
-    },
-  });
 
   // Character scale via mouse wheel: clamp bounds and sensitivity are io constants, persist is owned by store.
   // Drag uses pointerdown only, so no conflict with wheel (drag.ts).
@@ -191,8 +124,7 @@ async function bootstrap(): Promise<void> {
     cameraSettings.setZoom(next);
   };
   stage.addEventListener("wheel", onWheelZoom, { passive: false });
-  disposers.push(() => cleanupDrag());
-  disposers.push(() => stage.removeEventListener("wheel", onWheelZoom));
+  register(() => stage.removeEventListener("wheel", onWheelZoom));
 
   const renderer = createRenderer({ mount: stage });
   // Tier 1 ambient: backend-independent, always on. tick fires after VRM loads, so
@@ -200,7 +132,7 @@ async function bootstrap(): Promise<void> {
   const ambient = createTier1Engine(renderer);
   ambient.start();
   const surfaces = createSurfaces({ mount: root });
-  disposers.push(() => surfaces.dispose());
+  register(() => surfaces.dispose());
 
   // Anchor chat input to character's feet (follow reframe). Each frame, receive feet screen coordinates,
   // map to input bottom offset, skip changes below epsilon to reduce var rewrites.
@@ -223,40 +155,34 @@ async function bootstrap(): Promise<void> {
       lastInputBottom = bottom;
     }
   });
-  disposers.push(() => unsubAnchor());
+  register(() => unsubAnchor());
 
   const settingsStores = createSettingsStores({ locale: getLocale() });
   const {
     screenshotSettings,
     ttsSettings,
-    sttSettings,
     idleThrottleSettings,
     proactiveSettings,
     scheduleSettings,
     workflowSettings,
     agentNotifySettings,
     presenceSettings,
-    contextHistory,
     lipsyncSettings,
     vadSettings,
     agentSettings,
     fillerSettings,
-    sessionStore,
-    sessionDiagnostics,
-    chatHistoryStore,
     endpointsSettings,
     chatKeySettings,
     sttKeySettings,
     ttsKeySettings,
     cameraSettings,
     gazeSettings,
-    hintSettings,
     railCollapsedSettings,
   } = settingsStores;
   // Every store in the bag shares the same lifecycle, so teardown iterates the bag itself:
   // a store added to createSettingsStores is disposed without touching this loop.
   for (const store of Object.values(settingsStores)) {
-    disposers.push(() => store.dispose());
+    register(() => store.dispose());
   }
   // Effective endpoints with overrides layered on config.endpoints. Evaluated at call time (hot-reload friendly).
   function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
@@ -271,21 +197,8 @@ async function bootstrap(): Promise<void> {
   });
   renderer.setIdleThrottleEnabled(idleThrottleSettings.get().enabled);
   idleThrottleSettings.subscribe((s) => renderer.setIdleThrottleEnabled(s.enabled));
-  // Cursor gaze on/off. Default on. Flow to renderer + the cursor tracker on each change
-  // (toggle/cross-window); off stops polling instead of just ignoring its output.
-  function applyGazeEnabled(enabled: boolean): void {
-    renderer.setGazeEnabled(enabled);
-    if (enabled) {
-      cursorTrackerRef?.start();
-    } else {
-      cursorTrackerRef?.stop();
-      renderer.setGazeCursor(null);
-    }
-  }
-  applyGazeEnabled(gazeSettings.get().enabled);
-  gazeSettings.subscribe((s) => applyGazeEnabled(s.enabled));
   const voiceInputStatus = createVoiceInputStatus();
-  disposers.push(() => voiceInputStatus.dispose());
+  register(() => voiceInputStatus.dispose());
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
   // Pop-out: Tauri uses separate WebviewWindow("settings"), otherwise browser window. Wire storage events
@@ -304,14 +217,20 @@ async function bootstrap(): Promise<void> {
     stores: settingsStores,
     log,
   });
-  disposers.push(() => disposeCrossWindowSync());
-  const { vrmSelection, loadVrmSerialized, swapVrm, importVrm } = wireVrmSelection({
+  register(() => disposeCrossWindowSync());
+  const vrm = wireVrmSelection({
     renderer,
     log,
     broadcastSettings,
   });
-  disposers.push(() => vrmSelection.dispose());
+  const { vrmSelection, loadVrmSerialized, swapVrm, importVrm } = vrm;
+  register(() => vrmSelection.dispose());
 
+  const speaker = wireSpeakerSelection({
+    getEndpoints,
+    log,
+    broadcastSettings,
+  });
   const {
     speakerSelection,
     swapSpeaker,
@@ -319,12 +238,8 @@ async function bootstrap(): Promise<void> {
     pickVoiceImport,
     commitVoiceImport,
     refreshVoiceList,
-  } = wireSpeakerSelection({
-    getEndpoints,
-    log,
-    broadcastSettings,
-  });
-  disposers.push(() => speakerSelection.dispose());
+  } = speaker;
+  register(() => speakerSelection.dispose());
   wireSettingsReload({
     onRemoteChange,
     vrmSelection,
@@ -406,7 +321,7 @@ async function bootstrap(): Promise<void> {
   // DOM surfaces re-mounted on locale change (see i18n subscriber below). Held in
   // let bindings; onActivate arrows read the live binding, so recreating is safe.
   let quickControls = buildQuickControls();
-  disposers.push(() => quickControls.dispose());
+  register(() => quickControls.dispose());
   const buildCaptureIndicator = (): ReturnType<typeof createCaptureIndicator> =>
     createCaptureIndicator({
       mount: root,
@@ -420,9 +335,9 @@ async function bootstrap(): Promise<void> {
       onActivate: () => quickControls.open(),
     });
   let captureIndicator = buildCaptureIndicator();
-  disposers.push(() => captureIndicator.dispose());
+  register(() => captureIndicator.dispose());
   let voiceInputIndicator = buildVoiceInputIndicator();
-  disposers.push(() => voiceInputIndicator.dispose());
+  register(() => voiceInputIndicator.dispose());
 
   // Re-mount localized DOM surfaces when display language changes.
   // Defer to microtask so triggering click handler (picker inside quick-controls) unwinds
@@ -438,14 +353,14 @@ async function bootstrap(): Promise<void> {
       voiceInputIndicator = buildVoiceInputIndicator();
     });
   });
-  disposers.push(() => unsubscribeLocale());
+  register(() => unsubscribeLocale());
 
   function onContextMenu(e: MouseEvent): void {
     e.preventDefault();
     quickControls.open({ x: e.clientX, y: e.clientY });
   }
   stage.addEventListener("contextmenu", onContextMenu);
-  disposers.push(() => stage.removeEventListener("contextmenu", onContextMenu));
+  register(() => stage.removeEventListener("contextmenu", onContextMenu));
 
   // ── Dispatcher spine ──────────────────────────────────────────────────────
   // event_bus → dispatcher → backend_caller → streamChat → Hermes → ControlEnvelope →
@@ -456,71 +371,6 @@ async function bootstrap(): Promise<void> {
     onDrop: (env, reason) => log.info("drop", { event_name: env.event_name, reason }),
   });
   const userInput = createUserInputSource(bus);
-  let peekStateRef: ReturnType<typeof createPeekState> | null = null;
-  let peekConfig: PeekConfig = { ...PEEK_DEFAULTS };
-  let tapConfig: TapConfig = TAP_DEFAULTS;
-  let gestureCuesConfig: GestureCuesConfig = GESTURE_CUES_DEFAULTS;
-  // Window-sit drop producer (Rust window_drop_release → tier1 perch) + ctrl+wheel resize
-  // producer + agent loopback ingress bind. Tauri-only; owns its own HMR teardown.
-  // DEV mock (__yui_windowSit.drop) exercises the geometry path without a real drag.
-  wireWindowSources({
-    bus,
-    renderer,
-    peekActive: () => peekStateRef?.active() ?? false,
-    getPeekConfig: () => peekConfig,
-    getGestureCues: () => gestureCuesConfig,
-    agentNotifySettings,
-    getPosture: () => dispatcherRef?.getPosture(),
-    getVrm: () => {
-      const active = vrmSelection.getActive();
-      return { id: active.id, label: active.label ?? active.id };
-    },
-    onAvatarExecutor: (executor) => {
-      avatarExecutorRef = executor;
-      disposers.push(() => executor.stop());
-    },
-    log,
-  });
-  // Voice input (STT/VAD) lifecycle — start/stop driven by voiceInputStatus, intent persisted to
-  // sttSettings, STT engine bound post-config via setStt. Barge-in/submit wiring joins the voice pipeline below.
-  const voiceInput = wireVoiceInput({ voiceInputStatus, sttSettings });
-  disposers.push(() => voiceInput.dispose());
-  // dispatcher created after config load (backend_caller depends on config.get()), so dev inspection
-  // handles can reference it via forward holder.
-  let dispatcherRef: Dispatcher | null = null;
-  // voice-turn failure error display (~3s) restoration timer — overlapping failures leave previous timer,
-  // so always clearTimeout before re-arming to not cut later display early (same pattern as dwellTimer/broadcastTimer).
-  let voiceTurnErrorTimer: ReturnType<typeof setTimeout> | null = null;
-  disposers.push(() => {
-    if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
-  });
-  // Utterance candidate sources holder — stop them in teardown.
-  let proactiveSourceRef: {
-    stop(): void;
-    noteInteraction(ts?: number): void;
-  } | null = null;
-  let scheduleSourceRef: { stop(): void } | null = null;
-  let agentSourceRef: { stop(): void } | null = null;
-  let signalsSourceRef: { stop(): void } | null = null;
-  disposers.push(() => proactiveSourceRef?.stop());
-  disposers.push(() => scheduleSourceRef?.stop());
-  disposers.push(() => agentSourceRef?.stop());
-  disposers.push(() => signalsSourceRef?.stop());
-  // guardrails also created after config load — hot-reload setConfig reaches holder.
-  let guardrailsRef: Guardrails | null = null;
-  // Global summon hotkey (Tauri-only) — hot-reload reapply reaches holder.
-  let summonHotkeyRef: SummonHotkey | null = null;
-  // Expression Broker handle — created after config load only if broker_base_url present.
-  // config.subscribe re-publish and HMR dispose reach it via this holder.
-  let brokerHandle: Awaited<ReturnType<typeof wireBroker>> | null = null;
-
-  // Submit → fire to dispatcher spine (user.text_submitted). Keep input open, switch send→stop (subscribeBusy),
-  // return to send on turn complete. mock kept for DEV demo only.
-  surfaces.onSubmit((text, images) => {
-    userInput.submit(text, images);
-    // Conversation with YUI → reset proactive response dramatization elapsed timer.
-    proactiveSourceRef?.noteInteraction();
-  });
 
   // Hotkey: summon input via SUMMON_KEY when window focused. (Esc/Enter handled inside input)
   function onKeydown(e: KeyboardEvent): void {
@@ -531,24 +381,7 @@ async function bootstrap(): Promise<void> {
     surfaces.summonInput();
   }
   window.addEventListener("keydown", onKeydown);
-  disposers.push(() => window.removeEventListener("keydown", onKeydown));
-
-  // DEV-only: handles for direct invocation from screenshot validation loop.
-  if (import.meta.env.DEV) {
-    await wireDevGlobals({
-      renderer,
-      ambient,
-      surfaces,
-      screenshotSettings,
-      lipsyncSettings,
-      agentSettings,
-      quickControls,
-      voiceInputStatus,
-      userInput,
-      bus,
-      getDispatcher: () => dispatcherRef,
-    });
-  }
+  register(() => window.removeEventListener("keydown", onKeydown));
 
   // Config-driven load: configs/*.json → validated AppConfig. endpoints/motions etc
   // consumed during dispatcher·tts wiring. VRM displayed via avatar.vrm_url.
@@ -586,305 +419,80 @@ async function bootstrap(): Promise<void> {
       "TTS API 키 미설정 — openai 호환 TTS가 키를 요구하면 401 가능. .env.local(VITE_YUI_TTS_KEY) 참고. (irodori는 불필요)",
     );
   }
-  // Turn identity + the single definition of "over". Dependency-free, so it is created before
-  // anything that reports to or reads from it.
-  const turnLog = createTurnLog();
-  const voice = wireVoicePipeline({
-    renderer,
-    surfaces,
-    turnLog,
-    getEndpoints,
-    getFillerConfig: () => config.get().filler,
-    getTtsApiKey: () => config.secrets.get(TTS_API_KEY_SECRET),
-    getSttApiKey: () => config.secrets.get(STT_API_KEY_SECRET),
-    ttsSettings,
-    lipsyncSettings,
-    fillerSettings,
-    vadSettings,
-    speakerSelection,
-    voiceInputStatus,
-    onVoiceSegment: (text) => {
-      userInput.submitVoice(text);
-      proactiveSourceRef?.noteInteraction();
-    },
-  });
-  disposers.push(() => voice.dispose());
-  if (import.meta.env.DEV) {
-    Object.assign(globalThis as Record<string, unknown>, {
-      __yuiSpeech: voice.speechPlayback,
-    });
-  }
-
-  // ── Session continuity ───────────────────────────────────────────────────────────
-  // Conversation threading via OpenAI Responses previous_response_id — read prior id each turn
-  // (getPreviousResponseId), save new response id on success (onResponseId).
-  // session store created early above as wireStorageSync target.
-  const backendCaller = createBackendCaller({
-    get config() {
-      return getEndpoints();
-    },
-    renderer,
-    getApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
-    getFetch: () => selectFetch(),
-    getPreviousResponseId: () => sessionStore.get() ?? undefined,
-    onResponseId: (id) => sessionStore.set(id),
-    onResponseIdInvalid: () => sessionStore.clear(),
-    onChainReset: () => showChainResetNotice({ surfaces, t }),
-    transcript: chatHistoryStore,
-    onUsage: (usage) => {
-      sessionDiagnostics.setUsage(
-        usage.total_tokens,
-        getEndpoints().chat_model_context_window ?? null,
-      );
-    },
-    turnOutput: voice.turnOutput,
-    onToolStatus: (s) =>
-      s.state === "running"
-        ? surfaces.showTool(s.tool_id ?? "")
-        : s.state === "done"
-          ? surfaces.finishTool()
-          : surfaces.hideTool(),
-    getScreenshot: async () => {
-      const s = screenshotSettings.get();
-      if (!s.enabled) return undefined;
-      const cap = await screenCapturer.capture(s.source);
-      return buildScreenshotBlock(s, cap ?? undefined);
-    },
-    contextHistory,
-    getAgentSettings: () => agentSettings.get(),
-  });
-  // dispatcher/guardrails created after config load (guardrails needs cfg.guardrails numbers).
   try {
     const cfg = await config.load();
-    peekConfig = cfg.avatar.peek;
-    tapConfig = cfg.avatar.tap;
-    gestureCuesConfig = cfg.avatar.gesture_cues;
-    // Guardrails — configured by config numbers. dispatcher consumes via evaluate+cooldown polling.
-    const guardrails = createGuardrails(cfg.guardrails);
-    guardrailsRef = guardrails;
-    const dispatcher = createDispatcher({
-      bus,
-      renderer,
-      backendCaller,
-      guardrails,
-      peek: {
-        enter: () => peekStateRef?.enter() ?? Promise.resolve(),
-        exit: () => peekStateRef?.exit() ?? Promise.resolve(),
-      },
-      peekConfig: () => peekConfig,
-      tapConfig: () => tapConfig,
-      turnLog,
-      // Surface only user-initiated turn failures (proactive/schedule/agent log only — silent by design).
-      // Route by source (text/voice) — checking isInputOpen() only at failure time risks misrouting
-      // escaped typed turns to voice surface, so routeTurnFailure prioritizes source.
-      onUserTurnFailed: (reason, source) => {
-        const message = turnErrorMessage(reason);
-        if (!message) return;
-        const action = routeTurnFailure(source, surfaces.isInputOpen());
-        if (action.kind === "show_input_error") {
-          surfaces.showInputError(message);
-        } else if (action.kind === "voice_error") {
-          // Briefly reuse existing error state of voice-input-indicator (no new DOM).
-          // Overlapping failures: clearTimeout before re-arming so previous timer doesn't cut new display early.
-          if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
-          voiceInputStatus.set("error", reason);
-          voiceTurnErrorTimer = setTimeout(() => {
-            voiceTurnErrorTimer = null;
-            if (voiceInputStatus.get().state === "error") voiceInputStatus.set("listening");
-          }, VOICE_TURN_ERROR_DISPLAY_MS);
-        }
-        // action.kind === "none": typed turn already closed before failure reached — log only (dispatcher already recorded).
-      },
-    });
-    dispatcherRef = dispatcher;
-    // HMR module re-run leaves stale dispatcher setInterval/in-flight → stop in dispose.
-    disposers.push(() => dispatcher.stop());
-    // In-flight backend turn ↔ input send/stop toggle. Stop click → explicit cancel + speech abort.
-    dispatcher.subscribeBusy((busy) => surfaces.setBusy(busy));
-    wireStopControl({
-      onStop: (cb) => surfaces.onStop(cb),
-      cancel: () => dispatcher.cancel(),
-      abortSpeech: () => voice.speechPlayback.abort(),
-    });
-    const sttVad = await voice.createSttEngine(cfg.endpoints);
-    // Bind the engine + auto-resume if left on last session (handled inside wireVoiceInput).
-    voiceInput.setStt(sttVad);
-    // Inject emotion/motion registry into renderer → setEmotion/playMotion (= applyDirective) works.
-    renderer.setEmotionRegistry(cfg.emotionRegistry);
-    renderer.setMotionRegistry(cfg.motions);
-    // Inject full-body fit-to-bounds framing knob — set before first VRM load.
-    renderer.setFraming(cfg.avatar.framing ?? {});
-    // Inject cursor gaze-fit thresholds (configs/avatar.json gaze; omitted keys keep defaults).
-    renderer.setGaze(cfg.avatar.gaze ?? {});
-    // Per-pixel alpha hit-test threshold (configs/avatar.json hit_test.alpha_threshold).
-    const bootAlpha = cfg.avatar.hit_test?.alpha_threshold;
-    if (bootAlpha !== undefined) renderer.setHitTestThreshold(bootAlpha);
-    // Inject actual manifest then boot load → persisted overrides take effect at startup.
-    vrmSelection.setManifest({
-      available: cfg.avatar.available,
-      defaultValue: cfg.avatar.vrm_url,
-    });
-    void refreshVoiceList();
-    await loadVrmSerialized(vrmSelection.getActive().url);
-    // First-run onboarding hint — once when character visible, exposed via existing speech bubble.
-    maybeShowFirstRunHint({
-      seen: () => hintSettings.get().enabled,
-      markSeen: () => hintSettings.setEnabled(true),
-      surfaces,
-      hotkey: cfg.hotkeys.summon_global,
-      isMac: /Mac/.test(navigator.platform || navigator.userAgent),
-      t,
-    });
-    // Click-through hit-test: interactive over character/visible UI, click-through empty areas elsewhere.
-    // interactive = renderer.hitTest(client) ∪ visible input form ∪ open quick-controls.
-    // All coordinates viewport(client) basis — renderer.hitTest converts to stage-local itself.
-    const interactiveRects = (): DOMRect[] => {
-      const rects: DOMRect[] = [];
-      const inputForm = root.querySelector<HTMLElement>(".yui-input.is-open");
-      if (inputForm) rects.push(inputForm.getBoundingClientRect());
-      if (quickControls.isOpen()) rects.push(quickControls.el.getBoundingClientRect());
-      return rects;
-    };
-    const pointInRect = (x: number, y: number, r: DOMRect, margin: number): boolean =>
-      x >= r.left - margin &&
-      x <= r.right + margin &&
-      y >= r.top - margin &&
-      y <= r.bottom + margin;
-    const hitTest = createHitTestController({
-      isOverInteractive: (xClient, yClient, marginPx) => {
-        if (renderer.hitTest(xClient, yClient)) return true;
-        return interactiveRects().some((r) => pointInRect(xClient, yClient, r, marginPx));
-      },
-      moveTarget: window,
-      // Hot-reload friendly: read config store each tick so knob edits take effect.
-      getConfig: () => config.get().avatar.hit_test ?? {},
-    });
-    hitTestRef = hitTest;
-    hitTest.start();
-    disposers.push(() => hitTest.stop());
-    // Cursor gaze: forwards the global OS cursor (window-local client px) to the renderer's
-    // head/eye tracking; the renderer converts to stage-local itself (cached mount rect).
-    const cursorTracker = createCursorTracker({
-      onCursor: (p) => {
-        renderer.setGazeCursor(p);
-      },
-    });
-    cursorTrackerRef = cursorTracker;
-    disposers.push(() => cursorTracker.stop());
-    applyGazeEnabled(gazeSettings.get().enabled);
-    let disposePeekExitTriggers: (() => void) | null = null;
-    if (isTauri()) {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      const win = getCurrentWindow();
-      peekStateRef = createPeekState({ getWindow: getCurrentWindow });
-      disposePeekExitTriggers = await wirePeekExitTriggers({
-        bus,
-        peek: peekStateRef,
-        win: {
-          onFocusChanged: (handler) => win.onFocusChanged(handler),
-          listen: (event, handler) => win.listen(event, handler),
-        },
-      });
-    }
-    disposers.push(() => disposePeekExitTriggers?.());
-    disposers.push(() => void peekStateRef?.dispose());
-    // Start dispatcher only after config ready (backend_caller depends on config.get()).
-    dispatcher.start();
-    // tier2 utterance candidate sources (proactive/schedule/agent/signals). Start after the
-    // dispatcher is running — firing is consumed immediately. Stop together in teardown.
-    const { proactiveSource, scheduleSource, agentSource, signalsSource } = wireDispatcherSources({
-      bus,
-      presenceSettings,
-      proactiveSettings,
-      scheduleSettings,
-      agentNotifySettings,
-      pipelineBusy: {
-        isBusy: dispatcher.isPipelineBusy,
-        subscribe: dispatcher.subscribePipelineBusy,
-      },
-    });
-    proactiveSourceRef = proactiveSource;
-    scheduleSourceRef = scheduleSource;
-    agentSourceRef = agentSource;
-    signalsSourceRef = signalsSource;
-    tapSourceRef = createTapSource({
-      bus,
+    if (disposed) return { dispose };
+    const configured = await createConfiguredBootstrap(cfg, {
+      config,
       renderer,
       ambient,
-      config: cfg.avatar.tap,
-      drainSignals: () => signalsSource.drain(),
-    });
-    dragHoldRef = createDragHoldSource({
-      bus,
-      getHoldMs: () => config.get().avatar.drag_hold_ms,
-      getCue: () => gestureCuesConfig.drag_held,
-    });
-    // Global summon hotkey: register configs/hotkeys.json accelerator OS-globally. onReady holds
-    // the handle so the config.subscribe below can re-apply it on hot-reload.
-    wireSummonHotkey({
       surfaces,
+      settings: settingsStores,
       bus,
-      peek: {
-        active: () => peekStateRef?.active() ?? false,
-        exit: () => peekStateRef?.exit() ?? Promise.resolve(),
-      },
-      accelerator: cfg.hotkeys.summon_global,
-      onReady: (hk) => {
-        summonHotkeyRef = hk;
-      },
-      log,
-    });
-    // Expression Broker publish (D6): fire-and-forget initial publish + live override reconcile.
-    // Owns its own fetch resolution + client lifecycle; disk-config re-publish flows via onConfigChange below.
-    brokerHandle = await wireBroker({
-      getConfig: () => config.get(),
+      userInput,
+      voiceInputStatus,
+      screenCapturer,
+      vrm,
+      speaker,
+      root,
+      stage,
+      getQuickControls: () => quickControls,
       getEndpoints,
-      endpointsSettings,
-      log,
+      isDisposed: () => disposed,
     });
-    disposers.push(() => brokerHandle?.dispose());
+    register(configured.dispose);
+    if (disposed) return { dispose };
+    if (import.meta.env.DEV) {
+      Object.assign(globalThis as Record<string, unknown>, {
+        __yuiSpeech: configured.voice.speechPlayback,
+      });
+      try {
+        await wireDevGlobals({
+          renderer,
+          ambient,
+          surfaces,
+          screenshotSettings,
+          lipsyncSettings,
+          agentSettings,
+          quickControls,
+          voiceInputStatus,
+          userInput,
+          bus,
+          getDispatcher: () => configured.dispatcher,
+        });
+      } catch (err) {
+        configured.dispose();
+        throw err;
+      }
+      if (disposed) return { dispose };
+    }
+    const unsubscribeConfig = config.subscribe((cfg, changed) => {
+      if (changed.has("emotionRegistry")) renderer.setEmotionRegistry(cfg.emotionRegistry);
+      if (changed.has("motions")) renderer.setMotionRegistry(cfg.motions);
+      if (changed.has("guardrails")) configured.guardrails.setConfig(cfg.guardrails);
+      if (changed.has("hotkeys")) void configured.summonHotkey.apply(cfg.hotkeys.summon_global);
+      if (changed.has("endpoints")) void refreshVoiceList();
+      configured.broker.onConfigChange(cfg, changed);
+      if (!changed.has("avatar")) return;
+      renderer.setFraming(cfg.avatar.framing ?? {});
+      renderer.setGaze(cfg.avatar.gaze ?? {});
+      const reloadAlpha = cfg.avatar.hit_test?.alpha_threshold;
+      if (reloadAlpha !== undefined) renderer.setHitTestThreshold(reloadAlpha);
+      vrmSelection.setManifest({
+        available: cfg.avatar.available,
+        defaultValue: cfg.avatar.vrm_url,
+      });
+      void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
+        log.error("vrm_hot_swap_failed", { error: String(err) }),
+      );
+    });
+    register(unsubscribeConfig);
   } catch (err) {
+    if (disposed) return { dispose };
     log.error("config_or_vrm_load_failed", { error: String(err) });
     // Boot failure = empty transparent window. Preserve cause (ConfigError vs VRM) visible to user (#316).
-    showBootError(root, err);
+    if (!disposed) showBootError(root, err);
   }
-
-  // Hot-reload: when avatar manifest changes, update via setManifest then hot-swap active VRM.
-  // override-wins: config vrm_url edits don't overwrite user's localStorage selection (same as agent-settings).
-  config.subscribe((cfg, changed) => {
-    if (changed.has("avatar")) {
-      peekConfig = cfg.avatar.peek;
-      tapConfig = cfg.avatar.tap;
-      gestureCuesConfig = cfg.avatar.gesture_cues;
-    }
-    // emotion/motion registry hot-reload → renderer re-inject (immediate effect).
-    if (changed.has("emotionRegistry")) renderer.setEmotionRegistry(cfg.emotionRegistry);
-    if (changed.has("motions")) renderer.setMotionRegistry(cfg.motions);
-    // guardrails numbers hot-reload — preserve runtime DND/counter state, replace config only.
-    if (changed.has("guardrails")) guardrailsRef?.setConfig(cfg.guardrails);
-    // Global summon hotkey hot-reload — unregister existing, register new accelerator (empty string = inactive).
-    if (changed.has("hotkeys")) void summonHotkeyRef?.apply(cfg.hotkeys.summon_global);
-    // irodori speaker manifest hot-reload — refetch the server list; synth reads via getActive() on next utterance.
-    if (changed.has("endpoints")) {
-      void refreshVoiceList();
-    }
-    // Broker re-publish on disk-config edits that change renderable vocab (best-effort; override-merged inside).
-    brokerHandle?.onConfigChange(cfg, changed);
-    if (!changed.has("avatar")) return;
-    // Framing knob hot-reload — update before hot-swap re-fit.
-    renderer.setFraming(cfg.avatar.framing ?? {});
-    // Gaze thresholds hot-reload.
-    renderer.setGaze(cfg.avatar.gaze ?? {});
-    const reloadAlpha = cfg.avatar.hit_test?.alpha_threshold;
-    if (reloadAlpha !== undefined) renderer.setHitTestThreshold(reloadAlpha);
-    vrmSelection.setManifest({
-      available: cfg.avatar.available,
-      defaultValue: cfg.avatar.vrm_url,
-    });
-    void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
-      log.error("vrm_hot_swap_failed", { error: String(err) }),
-    );
-  });
   config.onError((err) =>
     log.error("config_reload_failed", {
       kept_previous: true,
@@ -898,8 +506,9 @@ async function bootstrap(): Promise<void> {
       __yuiConfig: config,
     });
     // HMR module re-run stacks previous store's setInterval → stop in dispose.
-    disposers.push(() => config.stop());
+    register(() => config.stop());
   }
+  return { dispose };
 }
 
 /** Don't intercept hotkey if focus already on input element. */

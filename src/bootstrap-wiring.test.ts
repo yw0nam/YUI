@@ -138,7 +138,9 @@ import {
   wireSettingsWindowSync,
   wireSpeakerSelection,
   wireStopControl,
+  wireSummonHotkey,
   wireVoiceInput,
+  wireWindowSources,
   wireWindowSync,
 } from "./bootstrap-wiring";
 import { loadEmotionTextTable } from "./config";
@@ -153,6 +155,21 @@ import { reloadFromStorage as reloadLocaleFromStorage } from "./ui/i18n";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
+
+describe("configured platform wiring", () => {
+  it("returns stable no-op handles outside Tauri", async () => {
+    const windowSources = wireWindowSources({} as never);
+    const summonHotkey = wireSummonHotkey({ accelerator: "CmdOrCtrl+Shift+Y" } as never);
+
+    expect(() => {
+      windowSources.noteUserDrag();
+      windowSources.noteUserDragEnd();
+      windowSources.dispose();
+    }).not.toThrow();
+    await expect(summonHotkey.apply("CmdOrCtrl+Shift+U")).resolves.toBeUndefined();
+    await expect(summonHotkey.dispose()).resolves.toBeUndefined();
+  });
+});
 
 describe("wirePeekExitTriggers", () => {
   const setup = async () => {
@@ -220,6 +237,25 @@ describe("wirePeekExitTriggers", () => {
     expect(s.exit).toHaveBeenCalledTimes(1);
     expect(s.push).toHaveBeenCalledTimes(1);
     s.dispose();
+  });
+
+  it("removes the focus listener when tray listener setup fails", async () => {
+    const unlistenFocus = vi.fn();
+    const failure = new Error("tray listen failed");
+
+    await expect(
+      wirePeekExitTriggers({
+        bus: { push: vi.fn() } as never,
+        peek: { active: () => false, exit: vi.fn() },
+        win: {
+          onFocusChanged: vi.fn(async () => unlistenFocus),
+          listen: vi.fn(async () => {
+            throw failure;
+          }),
+        },
+      }),
+    ).rejects.toThrow(failure);
+    expect(unlistenFocus).toHaveBeenCalledOnce();
   });
 });
 
