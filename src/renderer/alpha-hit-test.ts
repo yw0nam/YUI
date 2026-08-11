@@ -3,8 +3,9 @@
  *
  * Owns ONLY its own mutable state (the low-res RGBA grab, its dims, the frame
  * counter, the threshold, the offscreen target). Re-rendered into a low-res
- * render target inside the rAF loop; sampled by hitTest. Decoupled from
- * perch/gaze/orbit/fit — talks to the scene solely through the injected deps.
+ * render target inside the rAF loop and read back asynchronously; sampled by
+ * hitTest. Decoupled from perch/gaze/orbit/fit — talks to the scene solely
+ * through the injected deps.
  */
 
 import * as THREE from "three";
@@ -40,13 +41,16 @@ export interface AlphaHitTestDeps {
 export interface AlphaHitTest {
   /**
    * Refresh the low-res alpha grab via an offscreen render target. MUST run
-   * inside the rAF loop. Frame-gated; no grab while no VRM is loaded.
+   * inside the rAF loop. Frame-gated; no grab while no VRM is loaded. The
+   * readback is asynchronous — at most one read is in flight, and the frame it
+   * captures becomes the published grab a few ms later.
    */
   refresh(): void;
   /**
    * Per-pixel alpha hit test: true when the rendered character pixel under the
-   * canvas CSS-px point (x, y) is opaque (alpha ≥ threshold). False when no
-   * grab is available yet.
+   * canvas CSS-px point (x, y) is opaque (alpha ≥ threshold). Samples the last
+   * published grab, which trails the current frame by a few ms. False until the
+   * first read resolves.
    */
   hitTest(x: number, y: number): boolean;
   /**
@@ -54,9 +58,12 @@ export interface AlphaHitTest {
    * out-of-(0,1] values are ignored.
    */
   setThreshold(threshold: number): void;
-  /** Drop the current grab (stale silhouette can't outlive its VRM). */
+  /**
+   * Drop the current grab and discard the in-flight read (stale silhouette can't
+   * outlive its VRM).
+   */
   clearGrab(): void;
-  /** Release the offscreen render target. */
+  /** Release the offscreen render target and discard the in-flight read. */
   dispose(): void;
 }
 
@@ -64,11 +71,18 @@ export function createAlphaHitTest(deps: AlphaHitTestDeps): AlphaHitTest {
   const { renderer, scene, camera, isVrmLoaded, mountWidth, mountHeight, log } = deps;
 
   // ── Per-pixel alpha hit-test state ───────────────────────────────────────────
-  // Low-res RGBA grab of the silhouette (reused; no per-frame alloc).
+  // Low-res RGBA grab of the silhouette hitTest samples (reused; no per-frame alloc).
   let alphaGrab: Uint8Array | null = null;
   let alphaGrabW = 0;
   let alphaGrabH = 0;
   let alphaFrame = 0;
+  // Buffer the in-flight read fills; ping-ponged with alphaGrab on publish so a
+  // half-filled buffer never aliases the published one.
+  let alphaStaging: Uint8Array | null = null;
+  let readPending = false;
+  // Bumped whenever the pending read's result stops being publishable (VRM swap,
+  // resize, dispose); a resolve from an older generation publishes nothing.
+  let grabGeneration = 0;
   // Threshold in 0..1 (config-injected); compared as 0..255 against the grab.
   let alphaThreshold = DEFAULT_ALPHA_THRESHOLD;
   // Offscreen render target sized to the grab dims — the scene is re-rendered into
@@ -80,13 +94,16 @@ export function createAlphaHitTest(deps: AlphaHitTestDeps): AlphaHitTest {
    * Refresh the low-res alpha grab via an offscreen render target. The scene is
    * re-rendered into a gw×gh target (the GPU does the downscale) and only those
    * pixels are read back — far cheaper than reading the full device buffer and
-   * box-sampling on the CPU. MUST run inside the rAF loop. readRenderTargetPixels'
-   * origin is bottom-left, so grab rows stay bottom-up (cssToGrabCell's flip holds).
-   * Frame-gated to spare the budget. No grab while no VRM is loaded.
+   * box-sampling on the CPU. The read is issued asynchronously (PBO + fence) so
+   * the main thread never waits on the GL queue; the freshest rendered frame wins
+   * because a new read is issued only once the previous one has resolved. MUST run
+   * inside the rAF loop. readPixels' origin is bottom-left, so grab rows stay
+   * bottom-up (cssToGrabCell's flip holds). Frame-gated to spare the budget. No
+   * grab while no VRM is loaded.
    */
   function refresh(): void {
     if (!isVrmLoaded()) {
-      alphaGrab = null;
+      clearGrab();
       return;
     }
     if (alphaFrame++ % ALPHA_GRAB_FRAME_GATE !== 0) return;
@@ -108,21 +125,40 @@ export function createAlphaHitTest(deps: AlphaHitTestDeps): AlphaHitTest {
         });
       } else if (alphaTarget.width !== gw || alphaTarget.height !== gh) {
         alphaTarget.setSize(gw, gh);
+        grabGeneration++;
       }
-      const need = gw * gh * 4;
-      if (!alphaGrab || alphaGrab.length < need) alphaGrab = new Uint8Array(need);
 
       const prevTarget = renderer.getRenderTarget();
       renderer.setRenderTarget(alphaTarget);
       renderer.render(scene, camera);
-      renderer.readRenderTargetPixels(alphaTarget, 0, 0, gw, gh, alphaGrab);
       renderer.setRenderTarget(prevTarget);
 
-      alphaGrabW = gw;
-      alphaGrabH = gh;
+      if (readPending) return;
+      const need = gw * gh * 4;
+      if (!alphaStaging || alphaStaging.length < need) alphaStaging = new Uint8Array(need);
+      const buffer = alphaStaging;
+      const issuedAt = grabGeneration;
+      // Flag only once the issue succeeded — a throwing issue must not wedge the grab.
+      const read = renderer.readRenderTargetPixelsAsync(alphaTarget, 0, 0, gw, gh, buffer);
+      readPending = true;
+      read.then(
+        () => {
+          readPending = false;
+          if (issuedAt !== grabGeneration) return;
+          alphaStaging = alphaGrab;
+          alphaGrab = buffer;
+          alphaGrabW = gw;
+          alphaGrabH = gh;
+        },
+        (err: unknown) => {
+          readPending = false;
+          // The last published grab stays the best silhouette available.
+          log.error("alpha_grab_error", { error: String(err) });
+        },
+      );
     } catch (err) {
       log.error("alpha_grab_error", { error: String(err) });
-      alphaGrab = null;
+      clearGrab();
     }
   }
 
@@ -140,11 +176,13 @@ export function createAlphaHitTest(deps: AlphaHitTestDeps): AlphaHitTest {
 
   function clearGrab(): void {
     alphaGrab = null;
+    grabGeneration++;
   }
 
   function dispose(): void {
     alphaTarget?.dispose();
     alphaTarget = null;
+    grabGeneration++;
   }
 
   return { refresh, hitTest, setThreshold, clearGrab, dispose };
