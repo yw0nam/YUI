@@ -28,6 +28,8 @@ const TOOL_DONE_HOLD_MS = 500;
 
 export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): ToolStatus {
   let toolHideTimer: ReturnType<typeof setTimeout> | null = null;
+  let cancelFade: (() => void) | null = null;
+  let disposed = false;
 
   function clearToolTimer(): void {
     if (toolHideTimer !== null) {
@@ -37,6 +39,7 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
   }
 
   function showTool(toolId: string): void {
+    if (disposed) return;
     clearToolTimer();
     toolLabel.textContent = getToolLabel(toolId);
     toolEl.dataset.state = "running";
@@ -45,6 +48,7 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
   }
 
   function finishTool(): void {
+    if (disposed) return;
     if (toolEl.hidden) return;
     clearToolTimer();
     toolEl.dataset.state = "done";
@@ -57,13 +61,18 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
   function hideTool(): void {
     clearToolTimer();
     toolEl.classList.remove("is-visible");
-    afterFadeOut(toolEl, () => {
+    cancelFade?.();
+    cancelFade = afterFadeOut(toolEl, () => {
+      cancelFade = null;
       if (!toolEl.classList.contains("is-visible")) toolEl.hidden = true;
     });
   }
 
   function dispose(): void {
+    disposed = true;
     clearToolTimer();
+    cancelFade?.();
+    cancelFade = null;
   }
 
   return { showTool, finishTool, hideTool, dispose };
