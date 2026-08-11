@@ -16,9 +16,19 @@ const { wireDevtoolsSync, createConfigStore, initLogger, createLogger } = vi.hoi
 }));
 
 const { mountMotionPreview, motionPreviewState } = vi.hoisted(() => {
-  const motionPreviewState = { calls: 0, disposes: 0 };
+  const motionPreviewState = {
+    calls: 0,
+    disposes: 0,
+    blockSecondLoad: false,
+    releaseSecondLoad: () => {},
+  };
   const mountMotionPreview = vi.fn(async (mount: HTMLElement) => {
     motionPreviewState.calls++;
+    if (motionPreviewState.blockSecondLoad && motionPreviewState.calls === 2) {
+      await new Promise<void>((resolve) => {
+        motionPreviewState.releaseSecondLoad = resolve;
+      });
+    }
     mount.innerHTML = '<select id="sel-crossfade"></select>';
     return {
       dispose: vi.fn(() => {
@@ -46,25 +56,30 @@ afterEach(() => {
   mountMotionPreview.mockClear();
   motionPreviewState.calls = 0;
   motionPreviewState.disposes = 0;
+  motionPreviewState.blockSecondLoad = false;
+  motionPreviewState.releaseSecondLoad = () => {};
 });
 
-it("disposes the previous motion-preview instance for every locale rebuild, never leaving two live", async () => {
+it("serializes rapid locale rebuilds until the final motion preview mounts", async () => {
   document.body.innerHTML = '<div id="app"></div>';
+  motionPreviewState.blockSecondLoad = true;
 
   await import("./devtools-main");
   await vi.waitFor(() => expect(document.querySelector(".devtools-nav")).not.toBeNull());
 
   document.querySelector<HTMLButtonElement>('[data-section="motion"]')!.click();
-  await vi.waitFor(() => expect(motionPreviewState.calls).toBe(1));
+  await vi.waitFor(() => expect(document.querySelector("#sel-crossfade")).not.toBeNull());
 
   setLocale("ja");
   await vi.waitFor(() => expect(motionPreviewState.calls).toBe(2));
-  await vi.waitFor(() => expect(motionPreviewState.disposes).toBe(1));
+  expect(document.querySelector(".devtools-loading")).not.toBeNull();
 
   setLocale("ko");
-  await vi.waitFor(() => expect(motionPreviewState.calls).toBe(3));
-  await vi.waitFor(() => expect(motionPreviewState.disposes).toBe(2));
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  expect(motionPreviewState.calls).toBe(2);
 
-  // One mount always stays live (undisposed) per rebuild — never two, never zero.
-  expect(motionPreviewState.calls - motionPreviewState.disposes).toBe(1);
+  motionPreviewState.releaseSecondLoad();
+  await vi.waitFor(() => expect(motionPreviewState.calls).toBe(3));
+  await vi.waitFor(() => expect(document.querySelector("#sel-crossfade")).not.toBeNull());
+  expect(document.querySelector(".devtools-loading")).toBeNull();
 });
