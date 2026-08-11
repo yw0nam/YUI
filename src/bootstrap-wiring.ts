@@ -372,7 +372,8 @@ export function wireSettingsReload(deps: {
  * Window-sit drop + ctrl+wheel resize producers, the agent loopback ingress bind, and the
  * avatar RPC executor that answers the ingress's `/avatar/*` bridge.
  * Tauri-only — getCurrentWindow()/invoke/listen require the Tauri runtime; in a plain browser
- * (Vite dev) this is skipped so bootstrap continues. Owns its own HMR teardown.
+ * (Vite dev) this is skipped so bootstrap continues. The returned handle owns teardown and
+ * forwards user-drag interruption once the asynchronous Tauri executor is ready.
  */
 export function wireWindowSources(deps: {
   bus: EventBus;
@@ -385,10 +386,12 @@ export function wireWindowSources(deps: {
   getPosture: () => Posture | undefined;
   /** Currently loaded VRM, for the avatar RPC state answer. */
   getVrm: () => { id: string; label: string } | null;
-  /** Hands the avatar executor back so a user drag can interrupt it. */
-  onAvatarExecutor: (executor: AvatarExecutor) => void;
   log: Logger;
-}): void {
+}): {
+  noteUserDrag(): void;
+  noteUserDragEnd(): void;
+  dispose(): void;
+} {
   const {
     bus,
     renderer,
@@ -398,23 +401,23 @@ export function wireWindowSources(deps: {
     agentNotifySettings,
     getPosture,
     getVrm,
-    onAvatarExecutor,
     log,
   } = deps;
-  if (!isTauri()) return;
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
   let avatarExecutor: AvatarExecutor | null = null;
-  // Guard teardown/async-assign race: cleanup may run before the IIFE assigns.
-  let windowDropDisposed = false;
-  if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => {
-      windowDropDisposed = true;
+  let disposed = false;
+  const handle = {
+    noteUserDrag: () => avatarExecutor?.noteUserDrag(),
+    noteUserDragEnd: () => avatarExecutor?.noteUserDragEnd(),
+    dispose: () => {
+      disposed = true;
       windowDropSource?.stop();
       windowResizeSource?.stop();
       avatarExecutor?.stop();
-    });
-  }
+    },
+  };
+  if (!isTauri()) return handle;
   void (async () => {
     const { invoke } = await import("@tauri-apps/api/core");
     // Only bind loopback ingress when watcher on. Restart-to-apply:
@@ -485,20 +488,24 @@ export function wireWindowSources(deps: {
       getPosture,
       getVrm,
     });
-    if (windowDropDisposed) {
+    if (disposed) {
       windowDropSource.stop();
       return;
     }
     await windowDropSource.start();
+    if (disposed) {
+      windowDropSource.stop();
+      return;
+    }
     windowResizeSource.start();
     avatarExecutor.start();
-    onAvatarExecutor(avatarExecutor);
   })().catch((err) =>
     log.warn("window_drop_source_start_failed", {
       degrade: true,
       error: String(err),
     }),
   );
+  return handle;
 }
 
 /**
@@ -583,10 +590,16 @@ export async function wirePeekExitTriggers(deps: {
   const unlistenFocus = await deps.win.onFocusChanged((event) => {
     if (event.payload) void exitPeek();
   });
-  const unlistenTray = await deps.win.listen("tray_toggle", () => void exitPeek());
+  let unlistenTray: (() => void) | undefined;
+  try {
+    unlistenTray = await deps.win.listen("tray_toggle", () => void exitPeek());
+  } catch (error) {
+    unlistenFocus();
+    throw error;
+  }
   return () => {
     unlistenFocus();
-    unlistenTray();
+    unlistenTray?.();
   };
 }
 
@@ -612,23 +625,36 @@ export async function showAndFocusFromSummon(deps: {
 /**
  * Global summon hotkey (Tauri-only — skipped in browser dev). Registers the configured
  * accelerator OS-globally; on fire, show+focus the window then summon input. Registration
- * failure fails soft (summon-hotkey warns, treats as inactive). onReady hands the handle
- * back for hot-reload re-apply. Owns its own HMR teardown.
+ * failure fails soft (summon-hotkey warns, treats as inactive). The returned handle remains
+ * stable while the asynchronous Tauri implementation initializes.
  */
 export function wireSummonHotkey(deps: {
   surfaces: Pick<Surfaces, "summonInput" | "isInputOpen">;
   bus: EventBus;
   peek: { active(): boolean; exit(): Promise<void> };
   accelerator: string;
-  onReady: (hotkey: SummonHotkey) => void;
   log: Logger;
-}): void {
-  const { surfaces, accelerator, onReady, log, bus, peek } = deps;
-  if (!isTauri()) return;
+}): SummonHotkey {
+  const { surfaces, accelerator, log, bus, peek } = deps;
+  let summonHotkey: SummonHotkey | null = null;
+  let desiredAccelerator = accelerator;
+  let disposed = false;
+  const handle: SummonHotkey = {
+    apply(next) {
+      desiredAccelerator = next;
+      return summonHotkey?.apply(next) ?? Promise.resolve();
+    },
+    current: () => summonHotkey?.current() ?? null,
+    async dispose() {
+      disposed = true;
+      await summonHotkey?.dispose();
+    },
+  };
+  if (!isTauri()) return handle;
   void (async () => {
     const { register, unregister } = await import("@tauri-apps/plugin-global-shortcut");
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    const summonHotkey = createSummonHotkey({
+    summonHotkey = createSummonHotkey({
       register,
       unregister,
       // On macOS, include background app activation, bring forward (show before hidden).
@@ -638,12 +664,10 @@ export function wireSummonHotkey(deps: {
       summonInput: () => surfaces.summonInput(),
       isInputOpen: () => surfaces.isInputOpen(),
     });
-    onReady(summonHotkey);
-    await summonHotkey.apply(accelerator);
-    if (import.meta.env.DEV) {
-      import.meta.hot?.dispose(() => void summonHotkey.dispose());
-    }
+    if (disposed) return void summonHotkey.dispose();
+    await summonHotkey.apply(desiredAccelerator);
   })().catch((err) => log.warn("summon_hotkey_wire_failed", { error: String(err) }));
+  return handle;
 }
 
 /**
