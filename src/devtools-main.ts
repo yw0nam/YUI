@@ -91,8 +91,9 @@ async function bootstrap(): Promise<void> {
     });
   };
   let shell = buildShell();
+  let localeRebuild = Promise.resolve();
   const unsubscribeLocale = subscribeLocale(() => {
-    queueMicrotask(async () => {
+    localeRebuild = localeRebuild.then(async () => {
       // The rebuild replaces every node, so a focused element survives only by id/section.
       const focus = captureFocus(mount);
       const section = shell.active;
