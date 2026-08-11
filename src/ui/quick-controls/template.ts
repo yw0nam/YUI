@@ -19,19 +19,14 @@ import {
   VOICE_ENGINE_LABEL_KEYS,
   VOICE_ENGINES,
 } from "./constants";
+import type { SwitchRow } from "./switch-row";
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
 interface PanelHtmlOptions {
   isWindow: boolean;
   hasSession: boolean;
-  showFiller: boolean;
   showViewpoint: boolean;
-  showGaze: boolean;
-  gazeEnabled: boolean;
-  showAgentNotify: boolean;
-  agentNotifyEnabled: boolean;
-  ttsEnabled: boolean;
-  bargeInEnabled: boolean;
+  switchRows: readonly SwitchRow[];
   showPresence: boolean;
   showDevtools: boolean;
   /** Initial collapsed state of the sections rail, read from localStorage before first paint. */
@@ -42,18 +37,55 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
   const {
     isWindow,
     hasSession,
-    showFiller,
     showViewpoint,
-    showGaze,
-    gazeEnabled,
-    showAgentNotify,
-    agentNotifyEnabled,
-    ttsEnabled,
-    bargeInEnabled,
+    switchRows,
     showPresence,
     showDevtools,
     railCollapsed,
   } = o;
+  const visibleSwitchRows = switchRows.filter((row) => row.isVisible);
+
+  function switchRowHtml(row: SwitchRow, indent: number): string {
+    const pad = " ".repeat(indent);
+    const label = row.labelIcon
+      ? `<span class="yui-row__label">\n${row.labelIcon
+          .split("\n")
+          .map((line) => `${pad}      ${line}`)
+          .join("\n")}\n${pad}      ${t(row.labelKey)}\n${pad}    </span>`
+      : `<span class="yui-row__label">${t(row.labelKey)}</span>`;
+    const sub = row.subKey ? `\n${pad}    <span class="yui-row__sub">${t(row.subKey)}</span>` : "";
+    return `${pad}<div class="yui-row">
+${pad}  <div class="yui-row__main">
+${pad}    ${label}${sub}
+${pad}  </div>
+${pad}  <button class="yui-switch ${row.selector.slice(1)}" type="button" role="switch" aria-checked="${String(row.initialEnabled)}" aria-label="${t(row.ariaKey)}"></button>
+${pad}</div>`;
+  }
+
+  function switchRowsHtml(
+    tab: SwitchRow["tab"],
+    indent: number,
+    position?: SwitchRow["position"],
+  ): string {
+    return visibleSwitchRows
+      .filter((row) => row.tab === tab && row.position === position)
+      .map(
+        (row) =>
+          `${switchRowHtml(row, indent)}${
+            row.accessory === "agent-port"
+              ? `\n        ${numRowHtml({
+                  id: "yui-agent-port",
+                  labelKey: "reactions.port_label",
+                  subKey: "reactions.port_sub",
+                  min: 1024,
+                  max: 65535,
+                  hintKey: "reactions.restart_hint",
+                })}`
+              : ""
+          }`,
+      )
+      .join("\n");
+  }
   const segButtonsHtml = REASONING_EFFORTS.map(
     (e) =>
       `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${t(SEG_LABEL_KEYS[e])}</button>`,
@@ -269,20 +301,14 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
             <textarea class="yui-textarea" spellcheck="false" rows="4" maxlength="${INSTRUCTIONS_MAX_LEN}" aria-label="${t("instructions.label")}"></textarea>
           </div>
           <button class="yui-reset" type="button">${t("instructions.reset")}</button>
-        </div>
+        </div>${switchRowsHtml("talk", 8) ? `\n${switchRowsHtml("talk", 8)}` : ""}
         ${
-          showFiller
+          switchRowsHtml("talk", 10, "filler")
             ? `
         <div class="yui-quick__divider" aria-hidden="true"></div>
         <span class="yui-quick__section">${t("filler.section")}</span>
         <div class="yui-filler">
-          <div class="yui-row">
-            <div class="yui-row__main">
-              <span class="yui-row__label">${t("filler.enable_label")}</span>
-              <span class="yui-row__sub">${t("filler.enable_sub")}</span>
-            </div>
-            <button class="yui-switch yui-filler-switch" type="button" role="switch" aria-checked="false" aria-label="${t("filler.enable_label")}"></button>
-          </div>
+${switchRowsHtml("talk", 10, "filler")}
           <div class="yui-field-row">
             <span class="yui-field-row__label">${t("filler.lang_label")}</span>
             <span class="yui-field-row__sub">${t("filler.lang_sub")}</span>
@@ -399,20 +425,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
           </div>
           <button class="yui-switch yui-voice-switch" type="button" role="switch" aria-checked="false" aria-label="${t("voice_input.label")}"></button>
         </div>
-        <div class="yui-row">
-          <div class="yui-row__main">
-            <span class="yui-row__label">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/>
-                <path d="M9 10l2.5 2.5L15 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M4 9h2M18 9h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-              </svg>
-              ${t("tts_output.label")}
-            </span>
-            <span class="yui-row__sub">${t("tts_output.sub")}</span>
-          </div>
-          <button class="yui-switch yui-tts-switch" type="button" role="switch" aria-checked="${String(ttsEnabled)}" aria-label="${t("tts_output.aria")}"></button>
-        </div>
+${switchRowsHtml("input", 8)}
         <div class="yui-gain">
           <div class="yui-gain__head">
             <span class="yui-gain__label">${t("voice_input.silence_label")}</span>
@@ -421,30 +434,14 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
           <span class="yui-gain__sub">${t("voice_input.silence_sub")}</span>
           <input class="yui-gain__slider yui-vad__slider" type="range" aria-label="${t("voice_input.silence_aria")}" />
         </div>
-        <div class="yui-row">
-          <div class="yui-row__main">
-            <span class="yui-row__label">${t("voice_input.bargein_label")}</span>
-          </div>
-          <button class="yui-switch yui-bargein-switch" type="button" role="switch" aria-checked="${String(bargeInEnabled)}" aria-label="${t("voice_input.bargein_aria")}"></button>
-        </div>
+${switchRowsHtml("input", 8, "after-vad")}
       </div>
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-react" aria-labelledby="yui-tab-react" tabindex="0" hidden>
         <div class="yui-loop-cue-section"></div>
         <div class="yui-quick__divider" aria-hidden="true"></div>
         <span class="yui-quick__section">${t("reactions.watchers_title")}</span>
-        ${
-          showAgentNotify
-            ? `<div class="yui-row">
-          <div class="yui-row__main">
-            <span class="yui-row__label">${t("agentNotify.label")}</span>
-            <span class="yui-row__sub">${t("agentNotify.sub")}</span>
-          </div>
-          <button class="yui-switch yui-agentnotify-switch" type="button" role="switch" aria-checked="${String(agentNotifyEnabled)}" aria-label="${t("agentNotify.aria")}"></button>
-        </div>
-        ${numRowHtml({ id: "yui-agent-port", labelKey: "reactions.port_label", subKey: "reactions.port_sub", min: 1024, max: 65535, hintKey: "reactions.restart_hint" })}`
-            : ""
-        }
+${switchRowsHtml("react", 8) || "        "}
         <div class="yui-quick__divider" aria-hidden="true"></div>
         <span class="yui-quick__section">${t("workflows.title")}</span>
         <p class="yui-field-hint">${t("workflows.sub")}</p>
@@ -538,24 +535,9 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
 
         <div class="yui-quick__divider" aria-hidden="true"></div>
         <span class="yui-quick__section">${t("perf.section")}</span>
-        <div class="yui-row">
-          <div class="yui-row__main">
-            <span class="yui-row__label">${t("perf.idle_label")}</span>
-            <span class="yui-row__sub">${t("perf.idle_sub")}</span>
-          </div>
-          <button class="yui-switch yui-idle-throttle-switch" type="button" role="switch" aria-checked="false" aria-label="${t("perf.idle_aria")}"></button>
-        </div>
-        ${
-          showGaze
-            ? `<div class="yui-row">
-          <div class="yui-row__main">
-            <span class="yui-row__label">${t("gaze.label")}</span>
-            <span class="yui-row__sub">${t("gaze.sub")}</span>
-          </div>
-          <button class="yui-switch yui-gaze-switch" type="button" role="switch" aria-checked="${String(gazeEnabled)}" aria-label="${t("gaze.aria")}"></button>
-        </div>`
-            : ""
-        }
+${switchRowsHtml("advanced", 8)}${
+  visibleSwitchRows.filter((row) => row.tab === "advanced").length === 1 ? "\n        " : ""
+}
         ${sessionHtml}
         ${
           showDevtools

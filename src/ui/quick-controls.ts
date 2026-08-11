@@ -37,6 +37,7 @@ import { createMonitorsSection } from "./quick-controls/monitors-section";
 import { createPopover } from "./quick-controls/popover";
 import { createReflect } from "./quick-controls/reflect";
 import { createSpeakerList } from "./quick-controls/speaker-list";
+import type { SwitchRow } from "./quick-controls/switch-row";
 import { buildPanelHtml } from "./quick-controls/template";
 import { createVrmList } from "./quick-controls/vrm-list";
 import { createWorkflowsSection } from "./quick-controls/workflows-section";
@@ -217,32 +218,108 @@ export function createQuickControls({
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", t("panel.dialog_label"));
 
+  const TOGGLE_SPECS: SwitchRow[] = [
+    {
+      selector: ".yui-idle-throttle-switch",
+      labelKey: "perf.idle_label",
+      subKey: "perf.idle_sub",
+      ariaKey: "perf.idle_aria",
+      tab: "advanced",
+      isVisible: true,
+      isAvailable: true,
+      initialEnabled: false,
+      getEnabled: () => idleThrottleSettings.get().enabled,
+      setEnabled: (v) => idleThrottleSettings.setEnabled(v),
+      logKey: "idle_throttle_toggle",
+    },
+    {
+      selector: ".yui-tts-switch",
+      labelKey: "tts_output.label",
+      subKey: "tts_output.sub",
+      ariaKey: "tts_output.aria",
+      tab: "input",
+      labelIcon: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/>
+  <path d="M9 10l2.5 2.5L15 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M4 9h2M18 9h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+</svg>`,
+      isVisible: true,
+      isAvailable: !!ttsSettings,
+      initialEnabled: ttsSettings?.get().enabled ?? true,
+      getEnabled: () => ttsSettings!.get().enabled,
+      setEnabled: (v) => ttsSettings!.setEnabled(v),
+      logKey: "tts_output_toggle",
+    },
+    {
+      selector: ".yui-bargein-switch",
+      labelKey: "voice_input.bargein_label",
+      ariaKey: "voice_input.bargein_aria",
+      tab: "input",
+      position: "after-vad",
+      isVisible: true,
+      isAvailable: true,
+      initialEnabled: vad.get().bargeIn,
+      getEnabled: () => vad.get().bargeIn,
+      setEnabled: (v) => vad.setBargeIn(v),
+      logKey: "bargein_toggle",
+    },
+    {
+      selector: ".yui-gaze-switch",
+      labelKey: "gaze.label",
+      subKey: "gaze.sub",
+      ariaKey: "gaze.aria",
+      tab: "advanced",
+      isVisible: !!gazeSettings,
+      isAvailable: !!gazeSettings,
+      initialEnabled: gazeSettings?.get().enabled ?? false,
+      getEnabled: () => gazeSettings!.get().enabled,
+      setEnabled: (v) => gazeSettings!.setEnabled(v),
+      logKey: "gaze_toggle",
+    },
+    {
+      selector: ".yui-agentnotify-switch",
+      labelKey: "agentNotify.label",
+      subKey: "agentNotify.sub",
+      ariaKey: "agentNotify.aria",
+      tab: "react",
+      accessory: "agent-port",
+      isVisible: !!agentNotifySettings,
+      isAvailable: !!agentNotifySettings,
+      initialEnabled: agentNotifySettings?.get().enabled ?? false,
+      getEnabled: () => agentNotifySettings!.get().enabled,
+      setEnabled: (v) => agentNotifySettings!.setEnabled(v),
+      logKey: "agent_notify_toggle",
+    },
+    {
+      selector: ".yui-filler-switch",
+      labelKey: "filler.enable_label",
+      subKey: "filler.enable_sub",
+      ariaKey: "filler.enable_label",
+      tab: "talk",
+      position: "filler",
+      isVisible: !!fillerSettings,
+      isAvailable: !!fillerSettings,
+      initialEnabled: false,
+      getEnabled: () => fillerSettings!.get().enabled,
+      setEnabled: (v) => fillerSettings!.setEnabled(v),
+    },
+  ];
+
   el.innerHTML = buildPanelHtml({
     isWindow,
     hasSession,
-    showFiller: !!fillerSettings,
     showViewpoint: !!onResetViewpoint,
-    showGaze: !!gazeSettings,
-    gazeEnabled: gazeSettings?.get().enabled ?? false,
-    showAgentNotify: !!agentNotifySettings,
-    agentNotifyEnabled: agentNotifySettings?.get().enabled ?? false,
-    ttsEnabled: ttsSettings?.get().enabled ?? true,
-    bargeInEnabled: vad.get().bargeIn,
+    switchRows: TOGGLE_SPECS,
     showPresence: !!presenceSettings,
     showDevtools: !isWindow && !!onOpenDevtools,
     railCollapsed: railCollapsedSettings?.get().enabled ?? false,
   });
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
-  const idleThrottleSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
-  const gazeSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-gaze-switch");
-  const agentNotifySwitchBtn = el.querySelector<HTMLButtonElement>(".yui-agentnotify-switch");
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const agentPortInput = el.querySelector<HTMLInputElement>("#yui-agent-port");
   const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
-  const ttsSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-tts-switch");
-  const bargeInSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-bargein-switch");
   const monitorsSection = createMonitorsSection({ root: el, sourceProvider, settings, log });
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
   const vrmAddBtn = el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
@@ -265,7 +342,6 @@ export function createQuickControls({
   // Viewpoint reset button — exists only when onResetViewpoint is injected (null otherwise).
   const viewpointResetBtn = el.querySelector<HTMLButtonElement>(".yui-viewpoint-reset");
   // Thinking filler section node — exists only when fillerSettings is injected (null otherwise).
-  const fillerSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-filler-switch");
   const fillerLangSegEl = el.querySelector<HTMLDivElement>(".yui-filler-lang-seg");
   const fillerFirstTextareaEl = el.querySelector<HTMLTextAreaElement>(".yui-filler-first-textarea");
   const fillerRepeatTextareaEl = el.querySelector<HTMLTextAreaElement>(
@@ -321,10 +397,8 @@ export function createQuickControls({
   // ── reflect (store→DOM sync) layer ──
   const reflect = createReflect({
     root: el,
+    switchRows: TOGGLE_SPECS,
     settings,
-    idleThrottleSettings,
-    ttsSettings,
-    gazeSettings,
     agentNotifySettings,
     lipsync,
     vad,
@@ -369,9 +443,7 @@ export function createQuickControls({
     closeWindow: onCloseWindow,
     onOpen: () => {
       reflect.reflectSettings();
-      reflect.reflectIdleThrottle();
-      reflect.reflectTts();
-      reflect.reflectGaze();
+      reflect.reflectSwitchRows();
       reflect.reflectAgentNotify();
       reflect.reflectPresence();
       reflect.reflectVoiceStatus(voiceStatus.get());
@@ -416,66 +488,8 @@ export function createQuickControls({
     }
   }
 
-  // ── Declarative on/off toggle table ──
-  // Each entry: read a store's boolean field, flip it, write it back, optionally log.
-  // Toggles with extra side effects (screenshot switch loads monitors; voice switch is a
-  // tri-state status, not a boolean field) are wired individually below instead — see handleSwitchClick
-  // and handleVoiceSwitchClick.
-  interface ToggleSpec {
-    btn: HTMLButtonElement | null | undefined;
-    isAvailable: () => boolean;
-    getEnabled: () => boolean;
-    setEnabled: (value: boolean) => void;
-    logKey?: string;
-  }
-
-  const TOGGLE_SPECS: ToggleSpec[] = [
-    {
-      btn: idleThrottleSwitchBtn,
-      isAvailable: () => true,
-      getEnabled: () => idleThrottleSettings.get().enabled,
-      setEnabled: (v) => idleThrottleSettings.setEnabled(v),
-      logKey: "idle_throttle_toggle",
-    },
-    {
-      btn: ttsSwitchBtn,
-      isAvailable: () => !!ttsSettings,
-      getEnabled: () => ttsSettings!.get().enabled,
-      setEnabled: (v) => ttsSettings!.setEnabled(v),
-      logKey: "tts_output_toggle",
-    },
-    {
-      btn: bargeInSwitchBtn,
-      isAvailable: () => true,
-      getEnabled: () => vad.get().bargeIn,
-      setEnabled: (v) => vad.setBargeIn(v),
-      logKey: "bargein_toggle",
-    },
-    {
-      btn: gazeSwitchBtn,
-      isAvailable: () => !!gazeSettings,
-      getEnabled: () => gazeSettings!.get().enabled,
-      setEnabled: (v) => gazeSettings!.setEnabled(v),
-      logKey: "gaze_toggle",
-    },
-    {
-      btn: agentNotifySwitchBtn,
-      isAvailable: () => !!agentNotifySettings,
-      getEnabled: () => agentNotifySettings!.get().enabled,
-      setEnabled: (v) => agentNotifySettings!.setEnabled(v),
-      logKey: "agent_notify_toggle",
-    },
-    {
-      btn: fillerSwitchBtn,
-      isAvailable: () => !!fillerSettings,
-      getEnabled: () => fillerSettings!.get().enabled,
-      setEnabled: (v) => fillerSettings!.setEnabled(v),
-      // No log — matches prior handleFillerSwitchClick, which never logged.
-    },
-  ];
-
-  function handleToggleClick(spec: ToggleSpec): void {
-    if (!spec.isAvailable()) return;
+  function handleToggleClick(spec: SwitchRow): void {
+    if (!spec.isAvailable) return;
     const next = !spec.getEnabled();
     spec.setEnabled(next);
     if (spec.logKey) log.info(spec.logKey, { enabled: next });
@@ -844,16 +858,19 @@ export function createQuickControls({
     }
   });
   const unsubscribeIdleThrottle = idleThrottleSettings.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectIdleThrottle();
+    if (popover.isOpen()) reflect.reflectSwitchRows();
   });
   const unsubscribeTts = ttsSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectTts();
+    if (popover.isOpen()) reflect.reflectSwitchRows();
   });
   const unsubscribeGaze = gazeSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectGaze();
+    if (popover.isOpen()) reflect.reflectSwitchRows();
   });
   const unsubscribeAgentNotify = agentNotifySettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectAgentNotify();
+    if (popover.isOpen()) {
+      reflect.reflectSwitchRows();
+      reflect.reflectAgentNotify();
+    }
   });
   const unsubscribePresence = presenceSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectPresence();
@@ -910,7 +927,10 @@ export function createQuickControls({
     if (popover.isOpen()) reflect.reflectGain();
   });
   const unsubscribeVad = vad.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectVad();
+    if (popover.isOpen()) {
+      reflect.reflectSwitchRows();
+      reflect.reflectVad();
+    }
   });
   const unsubscribeAgent = agentSettings.subscribe(() => {
     if (popover.isOpen()) reflect.reflectAgent();
@@ -930,7 +950,10 @@ export function createQuickControls({
   });
   // Reflect thinking-filler store updates to section (includes other-window reloadFromStorage).
   const unsubscribeFiller = fillerSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectFiller();
+    if (popover.isOpen()) {
+      reflect.reflectSwitchRows();
+      reflect.reflectFiller();
+    }
   });
   // Reflect store updates (direct select · other-window reloadFromStorage) to active row.
   // Skip during swap — finally's renderVrms handles final render after loading.
@@ -948,10 +971,12 @@ export function createQuickControls({
   });
 
   switchBtn.addEventListener("click", handleSwitchClick);
-  // Table-driven toggles share one handler; each spec's button gets its own bound closure so dispose() can remove it.
+  const toggleButtons = TOGGLE_SPECS.map((spec) =>
+    el.querySelector<HTMLButtonElement>(spec.selector),
+  );
   const toggleClickHandlers = TOGGLE_SPECS.map((spec) => () => handleToggleClick(spec));
-  TOGGLE_SPECS.forEach((spec, i) => {
-    spec.btn?.addEventListener("click", toggleClickHandlers[i]);
+  toggleButtons.forEach((button, i) => {
+    button?.addEventListener("click", toggleClickHandlers[i]);
   });
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
   fillerLangSegEl?.addEventListener("keydown", handleFillerLangKeydown);
@@ -1010,8 +1035,8 @@ export function createQuickControls({
     speakerList.dispose();
     popover.dispose();
     switchBtn.removeEventListener("click", handleSwitchClick);
-    TOGGLE_SPECS.forEach((spec, i) => {
-      spec.btn?.removeEventListener("click", toggleClickHandlers[i]);
+    toggleButtons.forEach((button, i) => {
+      button?.removeEventListener("click", toggleClickHandlers[i]);
     });
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
     fillerLangSegEl?.removeEventListener("keydown", handleFillerLangKeydown);

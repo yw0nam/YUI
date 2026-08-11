@@ -17,7 +17,7 @@ import {
   LIPSYNC_GAIN_MAX,
   LIPSYNC_GAIN_MIN,
 } from "../../io/lipsync-settings";
-import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../io/persisted-store";
+import type { ClampedIntSettingsStore } from "../../io/persisted-store";
 import type { createScreenshotSettings } from "../../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
 import { isTtsProviderKind, resolveTtsProviderKind } from "../../io/tts-provider";
@@ -33,6 +33,7 @@ import {
   VOICE_ENGINE_LABEL_KEYS,
   type VoiceEngine,
 } from "./constants";
+import type { SwitchRow } from "./switch-row";
 
 // Format token count as "18.2K" / "18K" / "200K". Below 1000 stays as-is,
 // below 100K shows one decimal (dropping .0), 100K+ shows integer.
@@ -56,10 +57,8 @@ export function validateEndpointInput(key: keyof EndpointOverrides, input: HTMLI
 interface ReflectDeps {
   /** Panel root (el) — all reflect target nodes are queried from here. */
   root: HTMLElement;
+  switchRows: readonly SwitchRow[];
   settings: ReturnType<typeof createScreenshotSettings>;
-  idleThrottleSettings: FlagSettingsStore;
-  ttsSettings?: FlagSettingsStore;
-  gazeSettings?: FlagSettingsStore;
   agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
   lipsync: ReturnType<typeof createLipsyncSettings>;
   vad: ReturnType<typeof createVadSettings>;
@@ -83,9 +82,7 @@ interface ReflectDeps {
 
 export interface Reflect {
   reflectSettings(): void;
-  reflectIdleThrottle(): void;
-  reflectTts(): void;
-  reflectGaze(): void;
+  reflectSwitchRows(): void;
   reflectAgentNotify(): void;
   reflectPresence(): void;
   reflectGain(): void;
@@ -108,10 +105,8 @@ export interface Reflect {
 export function createReflect(deps: ReflectDeps): Reflect {
   const {
     root,
+    switchRows,
     settings,
-    idleThrottleSettings,
-    ttsSettings,
-    gazeSettings,
     agentNotifySettings,
     lipsync,
     vad,
@@ -129,18 +124,13 @@ export function createReflect(deps: ReflectDeps): Reflect {
   } = deps;
 
   const switchBtn = root.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
-  const idleThrottleSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
-  const gazeSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-gaze-switch");
-  const agentNotifySwitchBtn = root.querySelector<HTMLButtonElement>(".yui-agentnotify-switch");
   const voiceSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
-  const ttsSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-tts-switch");
   const gainSlider = root.querySelector<HTMLInputElement>(
     ".yui-gain__slider:not(.yui-vad__slider)",
   )!;
   const gainValue = root.querySelector<HTMLSpanElement>(".yui-gain__value:not(.yui-vad__value)")!;
   const vadSlider = root.querySelector<HTMLInputElement>(".yui-vad__slider")!;
   const vadValue = root.querySelector<HTMLSpanElement>(".yui-vad__value")!;
-  const bargeInSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-bargein-switch");
   const segEl = root.querySelector<HTMLDivElement>(".yui-field-row .yui-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const ttsTypeEl = root.querySelector<HTMLSelectElement>(".yui-tts-type")!;
@@ -153,7 +143,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const spkFootEl = root.querySelector<HTMLDivElement>(".yui-spk-foot")!;
   const spksHintEl = root.querySelector<HTMLParagraphElement>(".yui-spks-hint")!;
   const instructionsEl = root.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-  const fillerSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-filler-switch");
   const fillerLangSegEl = root.querySelector<HTMLDivElement>(".yui-filler-lang-seg");
   const fillerLangBtns = fillerLangSegEl
     ? Array.from(fillerLangSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"))
@@ -180,23 +169,17 @@ export function createReflect(deps: ReflectDeps): Reflect {
     root.classList.toggle("is-on", on);
   }
 
-  function reflectIdleThrottle(): void {
-    idleThrottleSwitchBtn.setAttribute("aria-checked", String(idleThrottleSettings.get().enabled));
-  }
-
-  function reflectTts(): void {
-    if (!ttsSwitchBtn || !ttsSettings) return;
-    ttsSwitchBtn.setAttribute("aria-checked", String(ttsSettings.get().enabled));
-  }
-
-  function reflectGaze(): void {
-    if (!gazeSwitchBtn || !gazeSettings) return;
-    gazeSwitchBtn.setAttribute("aria-checked", String(gazeSettings.get().enabled));
+  function reflectSwitchRows(): void {
+    for (const row of switchRows) {
+      if (!row.isVisible || !row.isAvailable) continue;
+      root
+        .querySelector<HTMLButtonElement>(row.selector)
+        ?.setAttribute("aria-checked", String(row.getEnabled()));
+    }
   }
 
   function reflectAgentNotify(): void {
-    if (!agentNotifySwitchBtn || !agentNotifySettings) return;
-    agentNotifySwitchBtn.setAttribute("aria-checked", String(agentNotifySettings.get().enabled));
+    if (!agentNotifySettings) return;
     if (agentPortInput) agentPortInput.value = String(agentNotifySettings.get().port);
   }
 
@@ -224,7 +207,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
       "--fill",
       String((ms - VAD_SILENCE_MIN) / (VAD_SILENCE_MAX - VAD_SILENCE_MIN)),
     );
-    bargeInSwitchBtn?.setAttribute("aria-checked", String(vad.get().bargeIn));
   }
 
   function reflectAgent(): void {
@@ -247,16 +229,9 @@ export function createReflect(deps: ReflectDeps): Reflect {
 
   // Thinking filler section — reflects store state onto UI.
   function reflectFiller(): void {
-    if (
-      !fillerSettings ||
-      !fillerSwitchBtn ||
-      !fillerLangSegEl ||
-      !fillerFirstTextareaEl ||
-      !fillerRepeatTextareaEl
-    )
+    if (!fillerSettings || !fillerLangSegEl || !fillerFirstTextareaEl || !fillerRepeatTextareaEl)
       return;
     const s = fillerSettings.get();
-    fillerSwitchBtn.setAttribute("aria-checked", String(s.enabled));
     // Language seg indicator
     const FILLER_LANGS = ["ja", "en", "ko"] as const;
     const idx = Math.max(0, FILLER_LANGS.indexOf(s.language));
@@ -388,11 +363,9 @@ export function createReflect(deps: ReflectDeps): Reflect {
 
   return {
     reflectSettings,
-    reflectIdleThrottle,
+    reflectSwitchRows,
     reflectAgentNotify,
     reflectPresence,
-    reflectTts,
-    reflectGaze,
     reflectGain,
     reflectVad,
     reflectAgent,
