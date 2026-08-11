@@ -82,4 +82,5 @@ it("serializes rapid locale rebuilds until the final motion preview mounts", asy
   await vi.waitFor(() => expect(motionPreviewState.calls).toBe(3));
   await vi.waitFor(() => expect(document.querySelector("#sel-crossfade")).not.toBeNull());
   expect(document.querySelector(".devtools-loading")).toBeNull();
+  expect(motionPreviewState.calls - motionPreviewState.disposes).toBe(1);
 });
