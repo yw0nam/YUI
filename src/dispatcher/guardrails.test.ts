@@ -12,6 +12,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { ATTACHMENT_LIMITS_DEFAULTS } from "../config/load";
 import type { BusEnvelope } from "./event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
 
@@ -33,6 +34,7 @@ function config(): GuardrailsConfig {
       overall_max: 20,
       cooldown_ms: 300_000,
     },
+    attachments: ATTACHMENT_LIMITS_DEFAULTS,
   };
 }
 

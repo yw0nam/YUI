@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./surfaces.css", () => ({}));
 vi.mock("./tokens.css", () => ({}));
 
+import { ATTACHMENT_LIMITS_DEFAULTS } from "../config";
 import { setLocale, t } from "./i18n";
 import { createSurfaces } from "./surfaces";
 
@@ -22,6 +23,25 @@ function makeSurfaces() {
   document.body.appendChild(mount);
   const s = createSurfaces({ mount });
   return { s, mount };
+}
+
+/** bytes omitted = a 4-byte PNG magic; otherwise a zero-filled blob of that size. */
+function pngFile(name: string, bytes?: number): File {
+  const data =
+    bytes === undefined ? new Uint8Array([0x89, 0x50, 0x4e, 0x47]) : new Uint8Array(bytes);
+  return new File([data], name, { type: "image/png" });
+}
+
+function makePasteEvent(files: File[], text = ""): Event & { clipboardData: unknown } {
+  const items = files.map((f) => ({ kind: "file" as const, getAsFile: () => f }));
+  const e = new Event("paste", { bubbles: true, cancelable: true }) as Event & {
+    clipboardData: unknown;
+  };
+  Object.defineProperty(e, "clipboardData", {
+    value: { items, getData: (type: string) => (type === "text" ? text : "") },
+    configurable: true,
+  });
+  return e;
 }
 
 describe("setInputAnchor — --yui-input-bottom on the chat form", () => {
@@ -82,22 +102,6 @@ describe("image attachments — tray chips + onSubmit images", () => {
   }
   function tray(): HTMLElement {
     return mount.querySelector(".yui-input__tray") as HTMLElement;
-  }
-
-  function pngFile(name: string): File {
-    return new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], name, { type: "image/png" });
-  }
-
-  function makePasteEvent(files: File[], text = ""): Event & { clipboardData: unknown } {
-    const items = files.map((f) => ({ kind: "file" as const, getAsFile: () => f }));
-    const e = new Event("paste", { bubbles: true, cancelable: true }) as Event & {
-      clipboardData: unknown;
-    };
-    Object.defineProperty(e, "clipboardData", {
-      value: { items, getData: (type: string) => (type === "text" ? text : "") },
-      configurable: true,
-    });
-    return e;
   }
 
   // Drive the field paste path with a stubbed clipboard carrying image files,
@@ -208,6 +212,112 @@ describe("image attachments — tray chips + onSubmit images", () => {
     form().dispatchEvent(te);
 
     expect(tray().children.length).toBe(0);
+  });
+});
+
+describe("attachment caps — count + per-image size", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function form(): HTMLFormElement {
+    return mount.querySelector(".yui-input") as HTMLFormElement;
+  }
+  function field(): HTMLInputElement {
+    return mount.querySelector(".yui-input__field") as HTMLInputElement;
+  }
+  function tray(): HTMLElement {
+    return mount.querySelector(".yui-input__tray") as HTMLElement;
+  }
+  function errorEl(): HTMLElement {
+    return mount.querySelector(".yui-input__error") as HTMLElement;
+  }
+
+  // Paste files in one event, then drain the async data-URL reads.
+  async function paste(...files: File[]): Promise<void> {
+    field().dispatchEvent(makePasteEvent(files));
+    for (let i = 0; i < files.length + 3; i++) await new Promise((r) => setTimeout(r, 0));
+  }
+
+  it("caps attachments at the built-in default before any config is applied", async () => {
+    const over = ATTACHMENT_LIMITS_DEFAULTS.max_count + 2;
+    await paste(...Array.from({ length: over }, (_, i) => pngFile(`img${i}.png`)));
+
+    expect(tray().children.length).toBe(ATTACHMENT_LIMITS_DEFAULTS.max_count);
+  });
+
+  it("stops at max_count within one paste and shows the count error", async () => {
+    s.setAttachmentLimits({ max_count: 2, max_image_bytes: 1024 });
+    await paste(pngFile("a.png"), pngFile("b.png"), pngFile("c.png"));
+
+    expect(tray().children.length).toBe(2);
+    expect(errorEl().textContent).toBe(t("input.attach_too_many", { max: 2 }));
+    expect(form().classList.contains("is-error")).toBe(true);
+  });
+
+  it("keeps the count cap across separate pastes", async () => {
+    s.setAttachmentLimits({ max_count: 1, max_image_bytes: 1024 });
+    await paste(pngFile("a.png"));
+    await paste(pngFile("b.png"));
+
+    expect(tray().children.length).toBe(1);
+  });
+
+  it("frees a slot when a chip is removed", async () => {
+    s.setAttachmentLimits({ max_count: 1, max_image_bytes: 1024 });
+    await paste(pngFile("a.png"));
+    (tray().querySelector(".yui-chip__remove") as HTMLButtonElement).click();
+    await paste(pngFile("b.png"));
+
+    expect(tray().children.length).toBe(1);
+  });
+
+  it("rejects an image over max_image_bytes and keeps the smaller one", async () => {
+    s.setAttachmentLimits({ max_count: 5, max_image_bytes: 1024 * 1024 });
+    await paste(pngFile("small.png"), pngFile("huge.png", 2 * 1024 * 1024));
+
+    expect(tray().children.length).toBe(1);
+    expect(errorEl().textContent).toBe(t("input.attach_too_large", { max: 1 }));
+    expect(form().classList.contains("is-error")).toBe(true);
+  });
+
+  it("drops in-flight reads when the tray is cleared mid-read", async () => {
+    const seen: string[][] = [];
+    s.onSubmit((_text, images) => seen.push(images));
+    s.setAttachmentLimits({ max_count: 2, max_image_bytes: 1024 });
+
+    field().value = "hi";
+    field().dispatchEvent(makePasteEvent([pngFile("a.png"), pngFile("b.png")]));
+    // Submit before those reads resolve — the turn goes out and the tray is cleared.
+    form().dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+
+    expect(seen[0].length).toBe(0);
+    expect(tray().children.length).toBe(0);
+
+    // …and the abandoned reads hold no slots.
+    await paste(pngFile("c.png"), pngFile("d.png"));
+    expect(tray().children.length).toBe(2);
+  });
+
+  it("submits only the accepted attachments", async () => {
+    const seen: string[][] = [];
+    s.onSubmit((_text, images) => seen.push(images));
+    s.setAttachmentLimits({ max_count: 1, max_image_bytes: 1024 });
+    await paste(pngFile("a.png"), pngFile("b.png"));
+
+    field().value = "hi";
+    form().dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+
+    expect(seen[0].length).toBe(1);
   });
 });
 

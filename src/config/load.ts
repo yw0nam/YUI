@@ -150,6 +150,20 @@ export interface AvatarConfig {
   };
 }
 
+/** Attach-time caps on one turn's image attachments. */
+export interface AttachmentLimits {
+  /** Max images held for one turn. Further attachments are refused. */
+  max_count: number;
+  /** Max source-file size (bytes) for one image. Larger files are refused. */
+  max_image_bytes: number;
+}
+
+/** Applied by the validator for any attachments key guardrails.json omits. */
+export const ATTACHMENT_LIMITS_DEFAULTS: AttachmentLimits = {
+  max_count: 6,
+  max_image_bytes: 5 * 1024 * 1024,
+};
+
 /** configs/guardrails.json — debounce/rate-limit values. */
 export interface GuardrailsConfig {
   /** per-source debounce window (ms). 0 = no debounce. */
@@ -172,6 +186,8 @@ export interface GuardrailsConfig {
     /** cooldown duration (ms) after overall is exceeded. */
     cooldown_ms: number;
   };
+  /** attach-time caps on turn attachments. */
+  attachments: AttachmentLimits;
 }
 
 /** TTFT filler language — closed union, never crosses the Hermes wire. */

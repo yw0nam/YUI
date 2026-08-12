@@ -31,7 +31,7 @@ YUI/
     motions.json              # motion registry
     avatar.json               # VRM avatar config
     filler.json               # filler motion timing and pool config
-    guardrails.json           # dispatcher cooldown and suppression config
+    guardrails.json           # dispatcher cooldown/suppression + attachments caps (max_count, max_image_bytes)
     hotkeys.json              # global summon accelerator (empty = disabled)
     emotion_text/             # per-provider voice-tag vocabulary (e.g. emotion_text/irodori.json)
   public/motions/           # VRMA motion assets

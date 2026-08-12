@@ -11,5 +11,9 @@
     "tier3_max": 2,
     "overall_max": 26,
     "cooldown_ms": 300000
+  },
+  "attachments": {
+    "max_count": 6,
+    "max_image_bytes": 5242880
   }
 }

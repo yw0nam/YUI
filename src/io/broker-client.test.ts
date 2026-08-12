@@ -14,6 +14,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   type AppConfig,
+  ATTACHMENT_LIMITS_DEFAULTS,
   DRAG_HOLD_MS_DEFAULT,
   GESTURE_CUES_DEFAULTS,
   PEEK_DEFAULTS,
@@ -546,6 +547,7 @@ describe("deriveBrokerPayload", () => {
           user_input_source: 0,
         },
         rate_limit: { window_ms: 0, tier2_max: 0, tier3_max: 0, overall_max: 0, cooldown_ms: 0 },
+        attachments: ATTACHMENT_LIMITS_DEFAULTS,
       },
       filler: { gap_ms: 0, gap_jitter_ms: 0, pools: {} },
       hotkeys: { summon_global: "" },

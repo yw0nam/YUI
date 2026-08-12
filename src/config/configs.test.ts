@@ -101,6 +101,11 @@ describe("configs/guardrails.json", () => {
     expect(g.rate_limit.overall_max).toBe(26);
     expect(g.rate_limit.cooldown_ms).toBe(300000);
   });
+
+  it("carries the attach-time caps for turn attachments", () => {
+    expect(g.attachments.max_count).toBe(6);
+    expect(g.attachments.max_image_bytes).toBe(5242880);
+  });
 });
 
 describe("configs/hotkeys.json", () => {

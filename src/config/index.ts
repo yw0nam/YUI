@@ -9,6 +9,8 @@ export {
 } from "./emotion-text";
 export {
   type AppConfig,
+  ATTACHMENT_LIMITS_DEFAULTS,
+  type AttachmentLimits,
   type AvatarConfig,
   CHAT_API_KEY_SECRET,
   CONFIG_FILES,

@@ -9,7 +9,13 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { CONFIG_FILES, ConfigError, loadConfig, plainSecretProvider } from "./load";
+import {
+  ATTACHMENT_LIMITS_DEFAULTS,
+  CONFIG_FILES,
+  ConfigError,
+  loadConfig,
+  plainSecretProvider,
+} from "./load";
 import { goodFixture, readerOf } from "./load-test-helpers";
 
 // ── happy path ─────────────────────────────────────────────────────────────────
@@ -81,6 +87,7 @@ describe("loadConfig — guardrails", () => {
         overall_max: 20,
         cooldown_ms: 300000,
       },
+      attachments: ATTACHMENT_LIMITS_DEFAULTS,
     });
   });
 

@@ -3,7 +3,7 @@ import {
   type ConfiguredBootstrapFactories,
   createConfiguredBootstrap,
 } from "./bootstrap-configured";
-import type { AppConfig } from "./config";
+import { type AppConfig, ATTACHMENT_LIMITS_DEFAULTS } from "./config";
 
 function validConfig(): AppConfig {
   return {
@@ -55,6 +55,7 @@ function validConfig(): AppConfig {
         overall_max: 20,
         cooldown_ms: 30_000,
       },
+      attachments: ATTACHMENT_LIMITS_DEFAULTS,
     },
     filler: { gap_ms: 1_000, gap_jitter_ms: 100, pools: {} },
     hotkeys: { summon_global: "CmdOrCtrl+Shift+Y" },
