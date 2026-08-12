@@ -9,7 +9,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PeekConfig, TapConfig } from "../config/load";
+import { ATTACHMENT_LIMITS_DEFAULTS, type PeekConfig, type TapConfig } from "../config/load";
 import type { AudioSink } from "../io/audio-player";
 import { createSpeechPlayback, type SpeechPlayback } from "../io/speech-playback";
 import type { TtsSynth } from "../io/tts-synth";
@@ -45,6 +45,7 @@ function permissiveGuardrailsConfig(): GuardrailsConfig {
       overall_max: 1000,
       cooldown_ms: 300_000,
     },
+    attachments: ATTACHMENT_LIMITS_DEFAULTS,
   };
 }
 
