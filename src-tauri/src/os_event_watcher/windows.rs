@@ -159,14 +159,18 @@ fn window_title(hwnd: HWND) -> Option<String> {
 
 // ─── foreground window ───────────────────────────────────────────────────────
 
-/// Owner app and title of the foreground window, `(None, None)` when there is none.
+/// Owner app and title of the foreground window, `(None, None)` when there is
+/// none, when it is YUI itself, or when it is shell chrome (Start / taskbar).
 pub(super) fn platform_frontmost() -> (Option<String>, Option<String>) {
     let hwnd = unsafe { GetForegroundWindow() };
-    if hwnd.0.is_null() {
+    if hwnd.0.is_null() || is_shell_chrome(hwnd) {
         return (None, None);
     }
     let mut pid: u32 = 0;
     unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
+    if pid == std::process::id() {
+        return (None, None);
+    }
     (process_base_name(pid), window_title(hwnd))
 }
 

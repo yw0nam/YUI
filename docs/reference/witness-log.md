@@ -35,11 +35,13 @@ Idle records carry the frontmost app and title read at the moment of the transit
 
 ## Platform notes
 
-| Platform | Frontmost source |
-|---|---|
-| macOS | Topmost on-screen layer-0 window, skipping system-helper owners (Stage Manager, Dock, Control Center, Notification Center, Spotlight, Screenshot) |
-| Windows | `GetForegroundWindow()`; `app` is the owning process base name, without directory or `.exe` |
-| other | No records |
+The two platforms answer slightly different questions: macOS reports what sits in front, Windows reports what holds focus.
+
+| Platform | Frontmost source | Meaning |
+|---|---|---|
+| macOS | Topmost on-screen layer-0 window, excluding YUI's own process and system-helper owners (Stage Manager, Dock, Control Center, Notification Center, Spotlight, Screenshot) | Topmost non-YUI, non-helper window |
+| Windows | `GetForegroundWindow()`; `app` is the owning process base name, without directory or `.exe` | Focused window, excluding YUI itself and shell chrome (desktop, taskbars) |
+| other | — | No records |
 
 macOS window titles require the Screen Recording permission. Without it, `window_title` is `null` and records carry the app alone.
 
