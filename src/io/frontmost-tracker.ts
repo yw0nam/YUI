@@ -14,20 +14,34 @@ export interface FrontmostTracker {
   get: () => FrontmostState | undefined;
 }
 
+// Same order as the watcher's idle threshold: a clear longer than this is a real
+// absence (desktop shown, screen lock), not a transient one, and must stamp fresh.
+const RESTORE_GRACE_MS = 5 * 60_000;
+
 export function createFrontmostTracker(): FrontmostTracker {
   let state: FrontmostState | undefined;
-  // Survives clears so a transient one (e.g. YUI itself taking focus) does not restart since.
+  // Survives a short clear (window switch churn; YUI/shell focus on Windows) so it
+  // does not restart since; a clear past RESTORE_GRACE_MS is a real absence.
   let lastKnown: FrontmostState | undefined;
+  let clearedAt: number | undefined;
   return {
     onTick(payload) {
       const app = payload.data.frontmost_app ?? undefined;
       const windowTitle = payload.data.frontmost_title ?? undefined;
       if (app === undefined && windowTitle === undefined) {
         state = undefined;
+        clearedAt = payload.ts;
         return;
       }
       if (state && state.app === app && state.window_title === windowTitle) return;
-      if (!state && lastKnown && lastKnown.app === app && lastKnown.window_title === windowTitle) {
+      if (
+        !state &&
+        lastKnown &&
+        lastKnown.app === app &&
+        lastKnown.window_title === windowTitle &&
+        clearedAt !== undefined &&
+        payload.ts - clearedAt <= RESTORE_GRACE_MS
+      ) {
         state = lastKnown;
         return;
       }
