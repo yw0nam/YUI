@@ -1,9 +1,10 @@
-import type { ClientContext, InputContext, TriggerMeta } from "../contract";
+import type { BodyState, ClientContext, InputContext, TriggerMeta } from "../contract";
 import type { BusEnvelope } from "./event-bus";
 
 interface ContextProviders {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   onScreenshotError?: (error: unknown) => void;
+  getBodyState?: () => BodyState | undefined;
 }
 
 export interface BuiltContext {
@@ -135,7 +136,11 @@ function triggerKind(eventName: string): TriggerMeta["kind"] {
   return "user";
 }
 
-export function buildClientContext(ctx: InputContext, env: BusEnvelope): ClientContext {
+export function buildClientContext(
+  ctx: InputContext,
+  env: BusEnvelope,
+  bodyState?: BodyState,
+): ClientContext {
   const payload = env.payload;
   const cue =
     typeof payload?.cue_id === "string" && typeof payload?.label === "string"
@@ -157,6 +162,7 @@ export function buildClientContext(ctx: InputContext, env: BusEnvelope): ClientC
   return {
     env: ctx.env,
     ...(screenshot ? { screenshot } : {}),
+    ...(bodyState ? { body_state: bodyState } : {}),
     trigger: {
       kind: triggerKind(env.event_name),
       ...(cue ? { cue } : {}),
@@ -195,7 +201,7 @@ export async function buildContext(
 
   return {
     ctx,
-    clientContext: buildClientContext(ctx, env),
+    clientContext: buildClientContext(ctx, env, providers.getBodyState?.()),
   };
 }
 

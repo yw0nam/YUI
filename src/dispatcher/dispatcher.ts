@@ -23,7 +23,7 @@
  */
 
 import type { PeekConfig, TapConfig } from "../config/load";
-import type { ControlEnvelope, EmotionId, Posture } from "../contract";
+import type { BodyState, ControlEnvelope, EmotionId, Posture } from "../contract";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
@@ -112,6 +112,8 @@ export interface Dispatcher {
   inFlight(): InFlightInfo | null;
   /** Current physical posture. Undefined means idle. */
   getPosture(): Posture | undefined;
+  /** Current posture with the wall-clock stamp of its change. Undefined means idle. */
+  getBodyState(): BodyState | undefined;
   /** Abort the in-progress call + drop deferred tier2/3 (client-only). Does not sweep the bus or touch tier1. */
   cancel(): void;
   /** Subscribe to state transitions. Callback runs on every transition; returns an unsubscribe fn. */
@@ -279,7 +281,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   let consecutiveFailures = 0;
   // Pending tap-emotion revert — replaced per emotion tap, cleared on stop.
   let emotionRevertTimer: ReturnType<typeof setTimeout> | null = null;
-  let posture: Posture | undefined;
+  let bodyState: BodyState | undefined;
 
   const stateSubscribers = new Set<(s: DispatcherState) => void>();
   const busySubscribers = new Set<(busy: boolean) => void>();
@@ -532,25 +534,30 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
             ...(typeof windowTitle === "string" ? { window_title: windowTitle } : {}),
           }
         : undefined;
+    let next: Posture | undefined;
     switch (env.event_name) {
       case "user.window_sit_drop":
-        posture = { state: "sitting", ...(perched_on ? { perched_on } : {}) };
+        next = { state: "sitting", ...(perched_on ? { perched_on } : {}) };
         break;
       case "user.window_sit_enter":
-        posture = { state: "sitting" };
+        next = { state: "sitting" };
         break;
       case "user.peek_drop":
-        posture = { state: "peeking", ...(perched_on ? { perched_on } : {}) };
+        next = { state: "peeking", ...(perched_on ? { perched_on } : {}) };
         break;
       case "user.drag_start":
-        posture = { state: "dragging" };
+        next = { state: "dragging" };
         break;
       case "user.window_sit_exit":
       case "user.peek_exit":
       case "user.drag_end":
-        posture = undefined;
+        next = undefined;
         break;
+      default:
+        return;
     }
+    // Wall clock, not the frame clock — it keeps running while the window is hidden.
+    bodyState = next ? { posture: next, since: Date.now() } : undefined;
   }
 
   function applyPeekState(env: BusEnvelope): void {
@@ -711,7 +718,10 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       return inFlight ? { trigger: inFlight.trigger, started_at: inFlight.started_at } : null;
     },
     getPosture() {
-      return posture;
+      return bodyState?.posture;
+    },
+    getBodyState() {
+      return bodyState;
     },
     cancel() {
       // client-only abort: abort in-flight call + drop pending. Don't do bus sweep/tier1 render.

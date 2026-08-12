@@ -177,6 +177,13 @@ export interface Posture {
   };
 }
 
+/** Held posture plus when it started. Only exists while a posture is held. */
+export interface BodyState {
+  posture: Posture;
+  /** Epoch ms (wall clock) of the posture change — survives the window being hidden. */
+  since: number;
+}
+
 /**
  * Internal shape returned by packageContext. Carries user utterance and screenshot data_url
  * for assembly into the Responses API request — NOT serialized to the system message.
@@ -261,7 +268,7 @@ export interface TriggerMeta {
 
 /**
  * Flat system-message context object. Carries environment, screenshot meta (no data_url),
- * and trigger — never carries user utterance text.
+ * body state and trigger — never carries user utterance text.
  */
 export interface ClientContext {
   env: {
@@ -272,6 +279,8 @@ export interface ClientContext {
     enabled: boolean;
     source: ScreenSource;
   };
+  /** Present only while a posture is held; absent while the avatar stands free. */
+  body_state?: BodyState;
   trigger: TriggerMeta;
 }
 
