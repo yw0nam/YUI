@@ -16,6 +16,12 @@ pub const IDLE_THRESHOLD_MS: u64 = 5 * 60 * 1000;
 /// Window titles are truncated to this many characters.
 pub const MAX_TITLE_CHARS: usize = 256;
 
+/// Caps a window title at `MAX_TITLE_CHARS`, the bound shared by the witness
+/// log and the IPC frontmost payload.
+pub(crate) fn cap_title(title: Option<String>) -> Option<String> {
+    title.map(|t| t.chars().take(MAX_TITLE_CHARS).collect())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RecordKind {
@@ -59,10 +65,7 @@ impl TransitionDetector {
             ts: ts.to_string(),
             kind,
             app: sample.app.clone(),
-            window_title: sample
-                .window_title
-                .as_ref()
-                .map(|t| t.chars().take(MAX_TITLE_CHARS).collect()),
+            window_title: cap_title(sample.window_title.clone()),
         };
 
         // An unreadable idle time carries the previous state forward.
