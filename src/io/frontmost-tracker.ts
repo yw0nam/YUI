@@ -29,8 +29,10 @@ export function createFrontmostTracker(): FrontmostTracker {
       const app = payload.data.frontmost_app ?? undefined;
       const windowTitle = payload.data.frontmost_title ?? undefined;
       if (app === undefined && windowTitle === undefined) {
+        // Stamp only on the transition into the clear — a sustained absence
+        // repeats this tick every poll and must not keep pushing clearedAt out.
+        if (state !== undefined) clearedAt = payload.ts;
         state = undefined;
-        clearedAt = payload.ts;
         return;
       }
       if (state && state.app === app && state.window_title === windowTitle) return;
