@@ -1,6 +1,7 @@
 //! OS event watcher — Tauri main(Rust) side OS API access.
 //!
-//! Polls OS-wide idle state, then emits `os_event` IPC events to the webview.
+//! Polls OS-wide idle state and the frontmost window, appends the transitions
+//! to the witness log, then emits `os_event` IPC events to the webview.
 //!
 //! Platform support:
 //!   macOS  — fully implemented (CGEventSource, CGWindowList)
@@ -8,6 +9,8 @@
 //!   Android — cfg-gated no-op degrade
 //!   other  — idle-source error emitted, no panic
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use crate::witness::{Sample, WitnessLog};
 use serde::Serialize;
 use std::time::{SystemTime, UNIX_EPOCH};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -16,9 +19,9 @@ use std::{
     thread,
     time::Duration,
 };
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-use tauri::Runtime;
 use tauri::{command, AppHandle, Emitter};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use tauri::{Manager, Runtime};
 
 pub const OS_EVENT_CHANNEL: &str = "os_event";
 
@@ -49,6 +52,12 @@ pub struct OsEventData {
     /// OS-wide idle (ms). macOS `CGEventSourceSecondsSinceLastEventType`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub os_idle_ms: Option<u64>,
+    /// Owner app of the frontmost window (unresolved on Windows).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frontmost_app: Option<String>,
+    /// Title of the frontmost window.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frontmost_title: Option<String>,
 }
 
 /// Returns current epoch milliseconds.
@@ -230,19 +239,48 @@ pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
         .expect("failed to spawn yui_drop_release thread");
 }
 
+/// Owner app and title of the frontmost window, `(None, None)` when there is none.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn frontmost_window() -> (Option<String>, Option<String>) {
+    match list_windows().ok().and_then(|w| w.into_iter().next()) {
+        Some(w) => (w.owner_name, w.name),
+        None => (None, None),
+    }
+}
+
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 fn polling_loop(app: AppHandle) {
+    let mut witness = app
+        .path()
+        .app_data_dir()
+        .ok()
+        .map(|dir| WitnessLog::new(dir.join("witness"), crate::resolve_log_offset()));
+
     loop {
         let now = epoch_ms();
 
         // Idle tick, emitted every poll interval.
         let idle = platform_idle_ms();
+        let (frontmost_app, frontmost_title) = frontmost_window();
+
+        if let Some(witness) = witness.as_mut() {
+            witness.observe(Sample {
+                app: frontmost_app.clone(),
+                window_title: frontmost_title.clone(),
+                idle_ms: idle,
+            });
+        }
+
         let _ = emit_os_event(
             &app,
             OsEventPayload {
                 event_name: "os_idle_tick".into(),
                 ts: now,
-                data: OsEventData { os_idle_ms: idle },
+                data: OsEventData {
+                    os_idle_ms: idle,
+                    frontmost_app,
+                    frontmost_title,
+                },
             },
         );
 
@@ -274,7 +312,7 @@ pub fn start(app: &AppHandle) {
                 OsEventPayload {
                     event_name: "os_idle_tick".into(),
                     ts: epoch_ms(),
-                    data: OsEventData { os_idle_ms: None },
+                    data: OsEventData::default(),
                 },
             );
         });

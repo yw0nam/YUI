@@ -46,3 +46,6 @@ docs/superpowers
 src/ui/mocks/
 # Local reference clips are not repo content — never track them.
 resources/references/
+
+# Witness activity log (machine-local observation records)
+witness/

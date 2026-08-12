@@ -1,4 +1,131 @@
-// Witness log — transition-only record of frontmost app and idle state.
+//! Witness log — transition-only record of frontmost app and idle state.
+//!
+//! Records land in `<app_data_dir>/witness/activity_YYYY-MM-DD.jsonl`, one JSON
+//! object per line, date-rotated with the shared 14-day retention. Observation
+//! must never break the app: every fs and serialisation error is swallowed.
+
+use crate::log_rotation::DateRotatingFile;
+use serde::Serialize;
+use std::io::Write;
+use std::path::PathBuf;
+use time::{OffsetDateTime, UtcOffset};
+
+/// Idle time at or above which the OS is considered idle.
+pub const IDLE_THRESHOLD_MS: u64 = 5 * 60 * 1000;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordKind {
+    AppChange,
+    IdleStart,
+    IdleEnd,
+}
+
+/// One JSONL line: a single observed transition.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct WitnessRecord {
+    /// ISO 8601 local time with offset.
+    pub ts: String,
+    #[serde(rename = "type")]
+    pub kind: RecordKind,
+    pub app: Option<String>,
+    pub window_title: Option<String>,
+}
+
+/// One poll reading: the frontmost window plus OS idle time.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Sample {
+    pub app: Option<String>,
+    pub window_title: Option<String>,
+    pub idle_ms: Option<u64>,
+}
+
+/// Pure, FFI-free transition detector: holds the last observed state and
+/// returns the records a new sample crosses (0–2, idle transition first).
+#[derive(Debug, Default)]
+pub struct TransitionDetector {
+    seen: bool,
+    app: Option<String>,
+    window_title: Option<String>,
+    idle: bool,
+}
+
+impl TransitionDetector {
+    pub fn step(&mut self, sample: &Sample, ts: &str) -> Vec<WitnessRecord> {
+        let mut out = Vec::new();
+        let record = |kind| WitnessRecord {
+            ts: ts.to_string(),
+            kind,
+            app: sample.app.clone(),
+            window_title: sample.window_title.clone(),
+        };
+
+        // An unreadable idle time carries the previous state forward.
+        let idle = match sample.idle_ms {
+            Some(ms) => ms >= IDLE_THRESHOLD_MS,
+            None => self.idle,
+        };
+        if self.seen && idle != self.idle {
+            out.push(record(if idle {
+                RecordKind::IdleStart
+            } else {
+                RecordKind::IdleEnd
+            }));
+        }
+        self.idle = idle;
+        self.seen = true;
+
+        if sample.app != self.app || sample.window_title != self.window_title {
+            out.push(record(RecordKind::AppChange));
+            self.app = sample.app.clone();
+            self.window_title = sample.window_title.clone();
+        }
+
+        out
+    }
+}
+
+/// Renders `now_utc` in `offset` as `YYYY-MM-DDTHH:MM:SS±HH:MM`.
+pub fn format_ts(now_utc: OffsetDateTime, offset: UtcOffset) -> String {
+    let t = now_utc.to_offset(offset);
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}{:+03}:{:02}",
+        t.year(),
+        u8::from(t.month()),
+        t.day(),
+        t.hour(),
+        t.minute(),
+        t.second(),
+        offset.whole_hours(),
+        offset.minutes_past_hour().unsigned_abs(),
+    )
+}
+
+/// Detects transitions and appends them to the dated witness file.
+pub struct WitnessLog {
+    file: DateRotatingFile,
+    detector: TransitionDetector,
+    offset: UtcOffset,
+}
+
+impl WitnessLog {
+    pub fn new(dir: PathBuf, offset: UtcOffset) -> Self {
+        Self {
+            file: DateRotatingFile::new(dir, "activity".into(), "jsonl", offset),
+            detector: TransitionDetector::default(),
+            offset,
+        }
+    }
+
+    pub fn observe(&mut self, sample: Sample) {
+        let ts = format_ts(OffsetDateTime::now_utc(), self.offset);
+        for record in self.detector.step(&sample, &ts) {
+            if let Ok(line) = serde_json::to_string(&record) {
+                let _ = self.file.write_all(format!("{line}\n").as_bytes());
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -120,7 +247,10 @@ mod tests {
     fn unchanged_sample_emits_nothing() {
         let mut d = TransitionDetector::default();
         d.step(&sample(Some("Safari"), Some("Start Page"), Some(0)), "T1");
-        let out = d.step(&sample(Some("Safari"), Some("Start Page"), Some(1000)), "T2");
+        let out = d.step(
+            &sample(Some("Safari"), Some("Start Page"), Some(1000)),
+            "T2",
+        );
         assert!(out.is_empty(), "steady state must emit no record");
     }
 

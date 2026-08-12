@@ -3,32 +3,34 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use time::{Date, Duration, Month, OffsetDateTime, UtcOffset};
 
-/// Keep today plus this many prior days of dated log files; older ones are pruned.
+/// Keep today plus this many prior days of dated files; older ones are pruned.
 const RETENTION: Duration = Duration::days(14);
 
-/// Appends formatted log lines to `{base}_{YYYY-MM-DD}.log`, rotating at midnight in `offset`.
+/// Appends lines to `{base}_{YYYY-MM-DD}.{ext}`, rotating at midnight in `offset`.
 pub struct DateRotatingFile {
     dir: PathBuf,
     base: String,
+    ext: &'static str,
     offset: UtcOffset,
     current_date: Option<Date>,
     inner: Option<File>,
 }
 
 impl DateRotatingFile {
-    pub fn new(dir: PathBuf, base: String, offset: UtcOffset) -> Self {
+    pub fn new(dir: PathBuf, base: String, ext: &'static str, offset: UtcOffset) -> Self {
         Self {
             dir,
             base,
+            ext,
             offset,
             current_date: None,
             inner: None,
         }
     }
 
-    fn dated_path(dir: &Path, base: &str, date: Date) -> PathBuf {
+    fn dated_path(dir: &Path, base: &str, ext: &str, date: Date) -> PathBuf {
         dir.join(format!(
-            "{base}_{:04}-{:02}-{:02}.log",
+            "{base}_{:04}-{:02}-{:02}.{ext}",
             date.year(),
             u8::from(date.month()),
             date.day()
@@ -41,18 +43,18 @@ impl DateRotatingFile {
                 f.flush()?;
             }
             fs::create_dir_all(&self.dir)?;
-            let path = Self::dated_path(&self.dir, &self.base, date);
+            let path = Self::dated_path(&self.dir, &self.base, self.ext, date);
             self.inner = Some(OpenOptions::new().create(true).append(true).open(path)?);
             self.current_date = Some(date);
-            prune_older_than(&self.dir, &self.base, date - RETENTION);
+            prune_older_than(&self.dir, &self.base, self.ext, date - RETENTION);
         }
         self.inner.as_mut().unwrap().write_all(buf)
     }
 }
 
-/// Deletes `{base}_YYYY-MM-DD.log` files in `dir` whose date is strictly before `cutoff`.
+/// Deletes `{base}_YYYY-MM-DD.{ext}` files in `dir` whose date is strictly before `cutoff`.
 /// Best-effort: every fs error is swallowed so a sweep never breaks logging.
-fn prune_older_than(dir: &Path, base: &str, cutoff: Date) {
+fn prune_older_than(dir: &Path, base: &str, ext: &str, cutoff: Date) {
     let entries = match fs::read_dir(dir) {
         Ok(e) => e,
         Err(_) => return,
@@ -66,7 +68,7 @@ fn prune_older_than(dir: &Path, base: &str, cutoff: Date) {
             Some(n) => n,
             None => continue,
         };
-        if let Some(date) = parse_dated_name(name, base) {
+        if let Some(date) = parse_dated_name(name, base, ext) {
             if date < cutoff {
                 let _ = fs::remove_file(entry.path());
             }
@@ -74,12 +76,12 @@ fn prune_older_than(dir: &Path, base: &str, cutoff: Date) {
     }
 }
 
-/// Extracts the date from `{base}_YYYY-MM-DD.log`; returns `None` if it doesn't match.
-fn parse_dated_name(name: &str, base: &str) -> Option<Date> {
+/// Extracts the date from `{base}_YYYY-MM-DD.{ext}`; returns `None` if it doesn't match.
+fn parse_dated_name(name: &str, base: &str, ext: &str) -> Option<Date> {
     let stem = name
         .strip_prefix(base)?
         .strip_prefix('_')?
-        .strip_suffix(".log")?;
+        .strip_suffix(&format!(".{ext}"))?;
     let mut parts = stem.split('-');
     let y: i32 = parts.next()?.parse().ok()?;
     let m: u8 = parts.next()?.parse().ok()?;
@@ -133,7 +135,13 @@ mod tests {
         let dir = scratch("creates");
         let mut f = DateRotatingFile::new(dir.clone(), "YUI".into(), "log", UtcOffset::UTC);
         f.append(d(2026, 6, 8), b"hello\n").unwrap();
-        let content = fs::read(DateRotatingFile::dated_path(&dir, "YUI", "log", d(2026, 6, 8))).unwrap();
+        let content = fs::read(DateRotatingFile::dated_path(
+            &dir,
+            "YUI",
+            "log",
+            d(2026, 6, 8),
+        ))
+        .unwrap();
         assert_eq!(content, b"hello\n");
     }
 
@@ -157,7 +165,13 @@ mod tests {
         let mut f = DateRotatingFile::new(dir.clone(), "YUI".into(), "log", UtcOffset::UTC);
         f.append(d(2026, 6, 8), b"part1\n").unwrap();
         f.append(d(2026, 6, 8), b"part2\n").unwrap();
-        let content = fs::read(DateRotatingFile::dated_path(&dir, "YUI", "log", d(2026, 6, 8))).unwrap();
+        let content = fs::read(DateRotatingFile::dated_path(
+            &dir,
+            "YUI",
+            "log",
+            d(2026, 6, 8),
+        ))
+        .unwrap();
         assert_eq!(content, b"part1\npart2\n");
     }
 
