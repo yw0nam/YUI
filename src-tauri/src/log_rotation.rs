@@ -124,27 +124,27 @@ mod tests {
     #[test]
     fn dated_path_uses_base_and_iso_date() {
         let dir = scratch("dated_path");
-        let path = DateRotatingFile::dated_path(&dir, "YUI", d(2026, 6, 8));
+        let path = DateRotatingFile::dated_path(&dir, "YUI", "log", d(2026, 6, 8));
         assert_eq!(path.file_name().unwrap(), "YUI_2026-06-08.log");
     }
 
     #[test]
     fn append_creates_dated_file() {
         let dir = scratch("creates");
-        let mut f = DateRotatingFile::new(dir.clone(), "YUI".into(), UtcOffset::UTC);
+        let mut f = DateRotatingFile::new(dir.clone(), "YUI".into(), "log", UtcOffset::UTC);
         f.append(d(2026, 6, 8), b"hello\n").unwrap();
-        let content = fs::read(DateRotatingFile::dated_path(&dir, "YUI", d(2026, 6, 8))).unwrap();
+        let content = fs::read(DateRotatingFile::dated_path(&dir, "YUI", "log", d(2026, 6, 8))).unwrap();
         assert_eq!(content, b"hello\n");
     }
 
     #[test]
     fn append_rotates_when_date_changes() {
         let dir = scratch("rotates");
-        let mut f = DateRotatingFile::new(dir.clone(), "YUI".into(), UtcOffset::UTC);
+        let mut f = DateRotatingFile::new(dir.clone(), "YUI".into(), "log", UtcOffset::UTC);
         f.append(d(2026, 6, 8), b"day1\n").unwrap();
         f.append(d(2026, 6, 9), b"day2\n").unwrap();
-        let p1 = DateRotatingFile::dated_path(&dir, "YUI", d(2026, 6, 8));
-        let p2 = DateRotatingFile::dated_path(&dir, "YUI", d(2026, 6, 9));
+        let p1 = DateRotatingFile::dated_path(&dir, "YUI", "log", d(2026, 6, 8));
+        let p2 = DateRotatingFile::dated_path(&dir, "YUI", "log", d(2026, 6, 9));
         assert!(p1.exists(), "day1 file must exist");
         assert!(p2.exists(), "day2 file must exist");
         assert_eq!(fs::read(&p1).unwrap(), b"day1\n");
@@ -154,19 +154,19 @@ mod tests {
     #[test]
     fn append_same_date_is_appended() {
         let dir = scratch("same_date");
-        let mut f = DateRotatingFile::new(dir.clone(), "YUI".into(), UtcOffset::UTC);
+        let mut f = DateRotatingFile::new(dir.clone(), "YUI".into(), "log", UtcOffset::UTC);
         f.append(d(2026, 6, 8), b"part1\n").unwrap();
         f.append(d(2026, 6, 8), b"part2\n").unwrap();
-        let content = fs::read(DateRotatingFile::dated_path(&dir, "YUI", d(2026, 6, 8))).unwrap();
+        let content = fs::read(DateRotatingFile::dated_path(&dir, "YUI", "log", d(2026, 6, 8))).unwrap();
         assert_eq!(content, b"part1\npart2\n");
     }
 
     #[test]
     fn new_instance_appends_not_truncates() {
         let dir = scratch("no_truncate");
-        let path = DateRotatingFile::dated_path(&dir, "YUI", d(2026, 6, 8));
+        let path = DateRotatingFile::dated_path(&dir, "YUI", "log", d(2026, 6, 8));
         fs::write(&path, b"existing\n").unwrap();
-        let mut f = DateRotatingFile::new(dir.clone(), "YUI".into(), UtcOffset::UTC);
+        let mut f = DateRotatingFile::new(dir.clone(), "YUI".into(), "log", UtcOffset::UTC);
         f.append(d(2026, 6, 8), b"new\n").unwrap();
         let content = fs::read(&path).unwrap();
         assert_eq!(content, b"existing\nnew\n");
@@ -179,20 +179,20 @@ mod tests {
     #[test]
     fn prune_deletes_file_older_than_retention() {
         let dir = scratch("prune_old");
-        let old = DateRotatingFile::dated_path(&dir, "YUI", d(2026, 5, 24));
+        let old = DateRotatingFile::dated_path(&dir, "YUI", "log", d(2026, 5, 24));
         fs::write(&old, b"old\n").unwrap();
-        prune_older_than(&dir, "YUI", d(2026, 5, 25));
+        prune_older_than(&dir, "YUI", "log", d(2026, 5, 25));
         assert!(!old.exists(), "file 15 days old must be deleted");
     }
 
     #[test]
     fn prune_keeps_cutoff_and_today() {
         let dir = scratch("prune_keep");
-        let cutoff = DateRotatingFile::dated_path(&dir, "YUI", d(2026, 5, 25));
-        let today = DateRotatingFile::dated_path(&dir, "YUI", d(2026, 6, 8));
+        let cutoff = DateRotatingFile::dated_path(&dir, "YUI", "log", d(2026, 5, 25));
+        let today = DateRotatingFile::dated_path(&dir, "YUI", "log", d(2026, 6, 8));
         fs::write(&cutoff, b"cutoff\n").unwrap();
         fs::write(&today, b"today\n").unwrap();
-        prune_older_than(&dir, "YUI", d(2026, 5, 25));
+        prune_older_than(&dir, "YUI", "log", d(2026, 5, 25));
         assert!(cutoff.exists(), "file at cutoff (14 days old) must be kept");
         assert!(today.exists(), "today's file must be kept");
     }
@@ -204,7 +204,7 @@ mod tests {
         touch(&dir, "YUI.log");
         touch(&dir, "YUI_not-a-date.log");
         touch(&dir, "notes.txt");
-        prune_older_than(&dir, "YUI", d(2026, 6, 8));
+        prune_older_than(&dir, "YUI", "log", d(2026, 6, 8));
         assert!(dir.join("OTHER_2026-05-01.log").exists());
         assert!(dir.join("YUI.log").exists());
         assert!(dir.join("YUI_not-a-date.log").exists());
@@ -214,14 +214,29 @@ mod tests {
     #[test]
     fn prune_does_not_panic_on_missing_dir() {
         let dir = scratch("prune_missing").join("absent");
-        prune_older_than(&dir, "YUI", d(2026, 6, 8));
+        prune_older_than(&dir, "YUI", "log", d(2026, 6, 8));
     }
 
     #[test]
     fn prune_keeps_directory_entries() {
         let dir = scratch("prune_subdir");
         fs::create_dir(dir.join("YUI_2026-01-01.log")).unwrap();
-        prune_older_than(&dir, "YUI", d(2026, 6, 8));
+        prune_older_than(&dir, "YUI", "log", d(2026, 6, 8));
         assert!(dir.join("YUI_2026-01-01.log").is_dir());
+    }
+
+    #[test]
+    fn dated_path_uses_given_extension() {
+        let dir = scratch("dated_path_ext");
+        let path = DateRotatingFile::dated_path(&dir, "activity", "jsonl", d(2026, 6, 8));
+        assert_eq!(path.file_name().unwrap(), "activity_2026-06-08.jsonl");
+    }
+
+    #[test]
+    fn prune_ignores_other_extensions() {
+        let dir = scratch("prune_ext");
+        touch(&dir, "YUI_2026-05-01.jsonl");
+        prune_older_than(&dir, "YUI", "log", d(2026, 6, 8));
+        assert!(dir.join("YUI_2026-05-01.jsonl").exists());
     }
 }

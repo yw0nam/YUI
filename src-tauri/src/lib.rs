@@ -10,6 +10,9 @@ mod screenshot;
 // Calendar-date-based log rotation.
 mod log_rotation;
 
+// Witness log — frontmost-app and idle transitions recorded to disk.
+mod witness;
+
 // Shared import filesystem helpers (sanitize/collision).
 mod import_fs;
 

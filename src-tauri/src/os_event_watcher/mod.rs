@@ -421,12 +421,31 @@ mod tests {
             ts: 123,
             data: OsEventData {
                 os_idle_ms: Some(5000),
+                ..Default::default()
             },
         };
         let v = serde_json::to_value(payload).unwrap();
         assert_eq!(
             v,
             json!({ "event_name": "os_idle_tick", "ts": 123, "data": { "os_idle_ms": 5000 } })
+        );
+    }
+
+    #[test]
+    fn data_carries_frontmost_fields() {
+        let v = serde_json::to_value(OsEventData {
+            os_idle_ms: Some(0),
+            frontmost_app: Some("Safari".into()),
+            frontmost_title: Some("Start Page".into()),
+        })
+        .unwrap();
+        assert_eq!(
+            v,
+            json!({
+                "os_idle_ms": 0,
+                "frontmost_app": "Safari",
+                "frontmost_title": "Start Page",
+            })
         );
     }
 
