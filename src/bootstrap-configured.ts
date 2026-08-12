@@ -213,6 +213,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         const capture = await screenCapturer.capture(screenshot.source);
         return buildScreenshotBlock(screenshot, capture ?? undefined);
       },
+      getBodyState: () => dispatcher.getBodyState(),
       contextHistory,
       getAgentSettings: () => agentSettings.get(),
     });

@@ -21,6 +21,7 @@
  */
 
 import type {
+  BodyState,
   ControlEnvelope,
   EndpointsConfig,
   InputContext,
@@ -109,6 +110,8 @@ interface BackendCallerDeps {
   turnOutput?: TurnOutput;
   /** When toggle is ON, assembles and returns screenshot block (undefined if OFF/failed). main.ts composes with settings+capturer+buildScreenshotBlock. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
+  /** Held posture lookup — called per turn; undefined while the avatar stands free. */
+  getBodyState?: () => BodyState | undefined;
   /** tool_status sink — called only when present. */
   onToolStatus?: (status: ToolStatus) => void;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
@@ -247,6 +250,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // B1
       const { ctx, clientContext } = await buildContext(env, {
         getScreenshot: deps.getScreenshot,
+        getBodyState: deps.getBodyState,
         onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
       });
       const input = encodeInput(ctx, env, clientContext);

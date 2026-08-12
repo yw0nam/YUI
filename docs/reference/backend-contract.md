@@ -37,6 +37,13 @@ When a screenshot is attached, the input is a content-part array: `[{ type: "inp
     "source": { "kind": "monitor", "index": 0 } // ScreenSource union
     // data_url is NOT included here — pixels arrive as the input_image content-part on the user input
   },
+  "body_state": {                               // optional; present only while a posture is held
+    "posture": {
+      "state": "sitting | peeking | dragging",
+      "perched_on": { "app": "Cursor", "window_title": "contract.md" } // optional; window under the avatar
+    },
+    "since": 1750000000000                      // epoch ms (wall clock) of the last posture change
+  },
   "trigger": {
     "kind": "user | schedule | proactive | agent | signals",
     "cue": {                                    // present for schedule and proactive kinds
@@ -49,6 +56,19 @@ When a screenshot is attached, the input is a content-part array: `[{ type: "inp
   }
 }
 ```
+
+### `body_state`
+
+Where the avatar body is, on every turn. The field is present only while a posture is held and absent whenever the avatar stands free.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `posture.state` | `sitting` \| `peeking` \| `dragging` | Perched on a window edge · peeking from a screen edge · held by the user |
+| `posture.perched_on.app` | string | Owner app of the window under the avatar, when the client resolved it |
+| `posture.perched_on.window_title` | string | Title of that window, when the client resolved it |
+| `since` | number | Epoch ms of the last posture change |
+
+`since` is wall-clock epoch ms — hold duration is `now - since` — and it moves only when the posture itself changes, not when the same posture is re-affirmed.
 
 ### `trigger.kind` values
 

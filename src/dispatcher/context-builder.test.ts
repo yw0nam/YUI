@@ -66,6 +66,30 @@ describe("context builder", () => {
     expect(built.clientContext.env).not.toHaveProperty("posture");
     expect(built.clientContext.env).not.toHaveProperty("recent_apps");
   });
+
+  it("carries the held body state from the provider", async () => {
+    const built = await buildContext(ENV, {
+      getBodyState: () => ({
+        posture: { state: "sitting", perched_on: { app: "Notes" } },
+        since: 1_716_999_000_000,
+      }),
+    });
+
+    expect(built.clientContext.body_state).toEqual({
+      posture: { state: "sitting", perched_on: { app: "Notes" } },
+      since: 1_716_999_000_000,
+    });
+  });
+
+  it("omits body_state when the provider reports no posture", async () => {
+    const built = await buildContext(ENV, { getBodyState: () => undefined });
+    expect(built.clientContext).not.toHaveProperty("body_state");
+  });
+
+  it("omits body_state when the provider is absent", async () => {
+    const built = await buildContext(ENV, {});
+    expect(built.clientContext).not.toHaveProperty("body_state");
+  });
 });
 
 describe("buildClientContext — cue forwarding", () => {

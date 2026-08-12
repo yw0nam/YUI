@@ -372,6 +372,44 @@ describe("backend_caller — flat client_context envelope", () => {
     const [, request] = script.spy.mock.calls[0];
     expect(userMessageContentOf(request.input)).toContain("こんにちは");
   });
+
+  it("(e) getBodyState reports a posture → client_context carries body_state with posture + since", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      getBodyState: () => ({
+        posture: { state: "peeking", perched_on: { app: "Messages", window_title: "Alice" } },
+        since: 1_716_999_000_000,
+      }),
+    });
+    await caller.call(turnOf(proactiveEnv()));
+    const [, request] = script.spy.mock.calls[0];
+    expect(clientContextOf(request.input).body_state).toEqual({
+      posture: { state: "peeking", perched_on: { app: "Messages", window_title: "Alice" } },
+      since: 1_716_999_000_000,
+    });
+  });
+
+  it("(f) getBodyState reports no posture → client_context omits body_state", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      getBodyState: () => undefined,
+    });
+    await caller.call(turnOf(userEnv("자유")));
+    const [, request] = script.spy.mock.calls[0];
+    expect("body_state" in clientContextOf(request.input)).toBe(false);
+  });
 });
 
 describe("backend_caller — agent settings (reasoning effort + instructions)", () => {
