@@ -36,7 +36,7 @@ function env(partial: Partial<ControlEnvelope>): ControlEnvelope {
   return { speech_text: "", ...partial };
 }
 
-const HAPPY: EmotionSignal = { id: "happy", intensity: 0.6, transition_ms: 300 };
+const HAPPY: EmotionSignal = { id: "happy" };
 const NEUTRAL: EmotionSignal = { id: "neutral" };
 const WAVE: MotionSignal = { id: "happy" };
 

@@ -23,13 +23,7 @@ import {
 import { createVRMAnimationClip, VRMAnimationLoaderPlugin } from "@pixiv/three-vrm-animation";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import type {
-  ControlEnvelope,
-  EmotionRegistry,
-  EmotionSignal,
-  MotionRegistry,
-  MotionSignal,
-} from "../contract";
+import type { ControlEnvelope, EmotionRegistry, MotionRegistry } from "../contract";
 import { createLogger } from "../logger";
 import { type AlphaHitTest, createAlphaHitTest } from "./alpha-hit-test";
 import { routeDirective } from "./apply-directive";
@@ -44,12 +38,14 @@ import {
 import { type CursorGaze, createCursorGaze } from "./cursor-gaze";
 import { createCycleDwell } from "./cycle-dwell";
 import { createEmotionCrossfade, type EmotionCrossfade } from "./emotion-crossfade";
+import type { RenderEmotionSignal } from "./emotion-resolver";
 import { isActive, shouldRenderFrame } from "./frame-gate";
 import type { GazeConfig } from "./gaze-tracker";
 import { mirrorClipTracks } from "./mirror-clip";
 import {
   createMotionController,
   type MotionController,
+  type RenderMotionSignal,
   type ResolvedMotion,
 } from "./motion-controller";
 import { resolveBaselineFallback } from "./motion-fallback";
@@ -154,7 +150,7 @@ export interface Renderer {
    * Operates only when registry is injected and VRM is loaded.
    * emotion === null is a NO-OP (retains prior expression). Returns to neutral only via explicit {id:"neutral"}.
    */
-  setEmotion(emotion: EmotionSignal | null): void;
+  setEmotion(emotion: RenderEmotionSignal | null): void;
   /**
    * Slowly ease the prior emotion to neutral (on turn's TTS playback end). Reuses setEmotion
    * crossfade by sending explicit {id:"neutral"} transition with long transition_ms.
@@ -174,7 +170,7 @@ export interface Renderer {
   /** Stop lipsync — ease mouth to 0 (closed). */
   stopMouth(): void;
   /** Lookup motion registry and play VRMA. Registry must be injected to operate. */
-  playMotion(motion: MotionSignal | null): void;
+  playMotion(motion: RenderMotionSignal | null): void;
   /** Currently committed motion (variant-resolved) — null before any playback. */
   getCurrentMotion(): { id: string; vrma_path: string } | null;
   /**
@@ -273,6 +269,8 @@ export interface Renderer {
   dispose(): void;
 }
 
+export type { RenderEmotionSignal } from "./emotion-resolver";
+export type { RenderMotionSignal } from "./motion-controller";
 export type { MouthLipsync, MouthLipsyncOptions } from "./mouth-lipsync";
 export {
   createMouthLipsync,
@@ -826,7 +824,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   }
 
   /** playMotion implementation — request → (play/queue/ignore) → commit + actual playback. */
-  function playMotion(motion: MotionSignal | null): void {
+  function playMotion(motion: RenderMotionSignal | null): void {
     if (!controller) {
       log.warn("play_motion_no_registry");
       return;
@@ -856,7 +854,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   }
 
   /** setEmotion — delegate to emotion crossfade (stable reference for routeDirective). */
-  function setEmotion(signal: EmotionSignal | null): void {
+  function setEmotion(signal: RenderEmotionSignal | null): void {
     emotion.setEmotion(signal);
   }
 

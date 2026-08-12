@@ -24,6 +24,17 @@ const log = createLogger("emotion-resolver");
 // Public types
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Renderer-local emotion signal. The wire only carries the id; the playback knobs are
+ * local callers (ease-emotion revert, devtools preview).
+ */
+export interface RenderEmotionSignal extends EmotionSignal {
+  /** 0.0~1.0, default 1.0. Clamped with a warning if out of range. */
+  intensity?: number;
+  /** Transition time in milliseconds, default 250. */
+  transition_ms?: number;
+}
+
 export interface ResolvedEmotion {
   id: EmotionId;
   /** VRM expression key from hasExpression chain traversal. */
@@ -43,7 +54,7 @@ interface EmotionResolverOptions {
 
 export interface EmotionResolver {
   /** Always non-null — returns neutral even if unregistered / all fallbacks fail. */
-  resolve(signal: EmotionSignal): ResolvedEmotion;
+  resolve(signal: RenderEmotionSignal): ResolvedEmotion;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -110,7 +121,7 @@ export function createEmotionResolver(
   }
 
   return {
-    resolve(signal: EmotionSignal): ResolvedEmotion {
+    resolve(signal: RenderEmotionSignal): ResolvedEmotion {
       // intensity: default 1, clamp to [0,1] after warning once if out of range.
       let intensity = signal.intensity ?? DEFAULT_INTENSITY;
       if (intensity < INTENSITY_MIN || intensity > INTENSITY_MAX) {
