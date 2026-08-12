@@ -185,9 +185,8 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(voice.dispose);
 
     const frontmostTracker = createFrontmostTracker();
-    void subscribeOsEvent({ onTick: frontmostTracker.onTick, log }).then((unlisten) => {
-      if (unlisten) register(unlisten);
-    });
+    const unlistenFrontmost = await subscribeOsEvent({ onTick: frontmostTracker.onTick, log });
+    if (unlistenFrontmost) register(unlistenFrontmost);
 
     const backendCaller = createBackendCaller({
       get config() {

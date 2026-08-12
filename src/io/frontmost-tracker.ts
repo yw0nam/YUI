@@ -16,6 +16,8 @@ export interface FrontmostTracker {
 
 export function createFrontmostTracker(): FrontmostTracker {
   let state: FrontmostState | undefined;
+  // Survives clears so a transient one (e.g. YUI itself taking focus) does not restart since.
+  let lastKnown: FrontmostState | undefined;
   return {
     onTick(payload) {
       const app = payload.data.frontmost_app ?? undefined;
@@ -25,11 +27,16 @@ export function createFrontmostTracker(): FrontmostTracker {
         return;
       }
       if (state && state.app === app && state.window_title === windowTitle) return;
+      if (!state && lastKnown && lastKnown.app === app && lastKnown.window_title === windowTitle) {
+        state = lastKnown;
+        return;
+      }
       state = {
         ...(app !== undefined ? { app } : {}),
         ...(windowTitle !== undefined ? { window_title: windowTitle } : {}),
         since: payload.ts,
       };
+      lastKnown = state;
     },
     get: () => state,
   };
