@@ -368,6 +368,29 @@ mod tests {
         assert_eq!(out[0].window_title.as_deref(), Some("Start Page"));
     }
 
+    // ── cap_title helper ─────────────────────────────────────────────────────
+
+    #[test]
+    fn cap_title_truncates_an_overlong_multibyte_title_to_max_chars() {
+        let long = "한".repeat(MAX_TITLE_CHARS + 44);
+        let capped = cap_title(Some(long)).unwrap();
+        assert_eq!(capped.chars().count(), MAX_TITLE_CHARS);
+        assert!(capped.chars().all(|c| c == '한'));
+    }
+
+    #[test]
+    fn cap_title_passes_a_short_title_through_verbatim() {
+        assert_eq!(
+            cap_title(Some("Start Page".into())).as_deref(),
+            Some("Start Page")
+        );
+    }
+
+    #[test]
+    fn cap_title_passes_none_through() {
+        assert_eq!(cap_title(None), None);
+    }
+
     #[test]
     fn unknown_idle_preserves_previous_state() {
         let mut d = TransitionDetector::default();
