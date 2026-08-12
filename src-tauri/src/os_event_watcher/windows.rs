@@ -1,9 +1,10 @@
-//! Windows OS polling — idle (GetLastInputInfo), window enumeration
-//! (EnumWindows) for `list_windows`.
+//! Windows OS polling — idle (GetLastInputInfo), foreground window
+//! (GetForegroundWindow), window enumeration (EnumWindows) for `list_windows`.
 //!
 //! Implements:
 //!   - `start_polling`: starts the shared background polling loop.
 //!   - left-button state reads for the shared drop-release probe.
+//!   - `platform_frontmost`: foreground window title + owning process name.
 //!   - `list_all_windows`: enumerates foreign on-screen top-level windows for
 //!     the `list_windows` command.
 //!
@@ -12,19 +13,27 @@
 use super::{polling_loop, sanitise_window_title, WindowAtPoint};
 use std::{ffi::c_void, thread};
 use tauri::AppHandle;
+use windows::core::PWSTR;
 use windows::Win32::{
-    Foundation::{HWND, LPARAM, RECT},
+    Foundation::{CloseHandle, HWND, LPARAM, RECT},
     Graphics::{
         Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS},
         Gdi::{MonitorFromWindow, HMONITOR, MONITOR_DEFAULTTONEAREST},
     },
-    System::SystemInformation::GetTickCount,
+    System::{
+        SystemInformation::GetTickCount,
+        Threading::{
+            OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
+            PROCESS_QUERY_LIMITED_INFORMATION,
+        },
+    },
     UI::{
         HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI},
         Input::KeyboardAndMouse::{GetAsyncKeyState, GetLastInputInfo, LASTINPUTINFO, VK_LBUTTON},
         WindowsAndMessaging::{
-            EnumWindows, GetClassNameW, GetWindowLongW, GetWindowRect, GetWindowTextW,
-            GetWindowThreadProcessId, IsIconic, IsWindowVisible, GWL_EXSTYLE, WS_EX_TOOLWINDOW,
+            EnumWindows, GetClassNameW, GetForegroundWindow, GetWindowLongW, GetWindowRect,
+            GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, GWL_EXSTYLE,
+            WS_EX_TOOLWINDOW,
         },
     },
 };
@@ -146,6 +155,54 @@ fn window_title(hwnd: HWND) -> Option<String> {
         return None;
     }
     sanitise_window_title(&String::from_utf16_lossy(&buf[..len as usize]))
+}
+
+// ─── foreground window ───────────────────────────────────────────────────────
+
+/// Owner app and title of the foreground window, `(None, None)` when there is
+/// none, when it is YUI itself, or when it is shell chrome (Start / taskbar).
+pub(super) fn platform_frontmost() -> (Option<String>, Option<String>) {
+    let hwnd = unsafe { GetForegroundWindow() };
+    if hwnd.0.is_null() || is_shell_chrome(hwnd) {
+        return (None, None);
+    }
+    let mut pid: u32 = 0;
+    unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
+    if pid == std::process::id() {
+        return (None, None);
+    }
+    (process_base_name(pid), window_title(hwnd))
+}
+
+/// Executable base name of `pid`, read via `QueryFullProcessImageNameW`.
+fn process_base_name(pid: u32) -> Option<String> {
+    if pid == 0 {
+        return None;
+    }
+    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }.ok()?;
+    let mut buf = [0u16; 260];
+    let mut len = buf.len() as u32;
+    let queried = unsafe {
+        QueryFullProcessImageNameW(
+            handle,
+            PROCESS_NAME_WIN32,
+            PWSTR(buf.as_mut_ptr()),
+            &mut len,
+        )
+    };
+    let _ = unsafe { CloseHandle(handle) };
+    queried.ok()?;
+    executable_base_name(&String::from_utf16_lossy(&buf[..len as usize]))
+}
+
+/// Strips the directory and the `.exe` suffix from a full image path.
+fn executable_base_name(path: &str) -> Option<String> {
+    let file = path.rsplit(['\\', '/']).next()?;
+    let stem = file
+        .strip_suffix(".exe")
+        .or_else(|| file.strip_suffix(".EXE"))
+        .unwrap_or(file);
+    sanitise_window_title(stem)
 }
 
 // ─── window enumeration (list_windows) ──────────────────────────────────────
@@ -334,6 +391,34 @@ mod tests {
             right,
             bottom,
         }
+    }
+
+    // ── executable_base_name ─────────────────────────────────────────────────
+
+    #[test]
+    fn executable_base_name_strips_directory_and_extension() {
+        assert_eq!(
+            executable_base_name("C:\\Program Files\\Notepad++\\notepad++.exe"),
+            Some("notepad++".into())
+        );
+    }
+
+    #[test]
+    fn executable_base_name_accepts_upper_case_extension() {
+        assert_eq!(
+            executable_base_name("C:\\Windows\\EXPLORER.EXE"),
+            Some("EXPLORER".into())
+        );
+    }
+
+    #[test]
+    fn executable_base_name_keeps_a_name_without_extension() {
+        assert_eq!(executable_base_name("C:\\bin\\tool"), Some("tool".into()));
+    }
+
+    #[test]
+    fn executable_base_name_rejects_an_empty_path() {
+        assert_eq!(executable_base_name(""), None);
     }
 
     // ── physical_window_to_at_point (physical → logical) ─────────────────────

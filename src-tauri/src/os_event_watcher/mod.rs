@@ -1,6 +1,7 @@
 //! OS event watcher — Tauri main(Rust) side OS API access.
 //!
-//! Polls OS-wide idle state, then emits `os_event` IPC events to the webview.
+//! Polls OS-wide idle state and the frontmost window, appends the transitions
+//! to the witness log, then emits `os_event` IPC events to the webview.
 //!
 //! Platform support:
 //!   macOS  — fully implemented (CGEventSource, CGWindowList)
@@ -8,6 +9,8 @@
 //!   Android — cfg-gated no-op degrade
 //!   other  — idle-source error emitted, no panic
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use crate::witness::{Sample, WitnessLog};
 use serde::Serialize;
 use std::time::{SystemTime, UNIX_EPOCH};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -16,9 +19,9 @@ use std::{
     thread,
     time::Duration,
 };
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-use tauri::Runtime;
 use tauri::{command, AppHandle, Emitter};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use tauri::{Manager, Runtime};
 
 pub const OS_EVENT_CHANNEL: &str = "os_event";
 
@@ -49,6 +52,12 @@ pub struct OsEventData {
     /// OS-wide idle (ms). macOS `CGEventSourceSecondsSinceLastEventType`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub os_idle_ms: Option<u64>,
+    /// Owner app of the frontmost window (process base name on Windows).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frontmost_app: Option<String>,
+    /// Title of the frontmost window.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frontmost_title: Option<String>,
 }
 
 /// Returns current epoch milliseconds.
@@ -130,6 +139,29 @@ pub fn list_windows() -> Result<Vec<WindowAtPoint>, String> {
     }
 }
 
+/// Owner names of macOS system helpers that own on-screen layer-0 windows
+/// while never being the app the user is looking at.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+const SYSTEM_HELPER_OWNERS: &[&str] = &[
+    "WindowManager",
+    "Dock",
+    "Control Center",
+    "Notification Center",
+    "Spotlight",
+    "Screenshot",
+];
+
+/// The frontmost window a user can be looking at: the topmost window whose
+/// owner is not a system helper. Pure (no FFI), so the pick is unit-testable.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn first_user_window(windows: Vec<WindowAtPoint>) -> Option<WindowAtPoint> {
+    windows.into_iter().find(|w| {
+        !w.owner_name
+            .as_deref()
+            .is_some_and(|owner| SYSTEM_HELPER_OWNERS.contains(&owner))
+    })
+}
+
 // ─── Platform-specific OS polling ────────────────────────────────────────────
 
 #[cfg(target_os = "macos")]
@@ -139,10 +171,10 @@ mod macos;
 mod windows;
 
 #[cfg(target_os = "macos")]
-use macos::{platform_idle_ms, platform_lbutton_is_down, start_polling};
+use macos::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down, start_polling};
 
 #[cfg(target_os = "windows")]
-use windows::{platform_idle_ms, platform_lbutton_is_down, start_polling};
+use windows::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down, start_polling};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 static PROBE_ACTIVE: AtomicBool = AtomicBool::new(false);
@@ -232,19 +264,41 @@ pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 fn polling_loop(app: AppHandle) {
+    let mut witness = app
+        .path()
+        .app_data_dir()
+        .ok()
+        .map(|dir| WitnessLog::new(dir.join("witness"), crate::resolve_log_offset()));
+
     loop {
         let now = epoch_ms();
 
         // Idle tick, emitted every poll interval.
         let idle = platform_idle_ms();
+        let (frontmost_app, frontmost_title) = platform_frontmost();
+        let sample = Sample {
+            app: frontmost_app.clone(),
+            window_title: frontmost_title.clone(),
+            idle_ms: idle,
+        };
+
         let _ = emit_os_event(
             &app,
             OsEventPayload {
                 event_name: "os_idle_tick".into(),
                 ts: now,
-                data: OsEventData { os_idle_ms: idle },
+                data: OsEventData {
+                    os_idle_ms: idle,
+                    frontmost_app,
+                    frontmost_title,
+                },
             },
         );
+
+        // Disk write trails the tick: fs latency must not delay the dispatcher.
+        if let Some(witness) = witness.as_mut() {
+            witness.observe(sample);
+        }
 
         thread::sleep(POLL_INTERVAL);
     }
@@ -274,7 +328,7 @@ pub fn start(app: &AppHandle) {
                 OsEventPayload {
                     event_name: "os_idle_tick".into(),
                     ts: epoch_ms(),
-                    data: OsEventData { os_idle_ms: None },
+                    data: OsEventData::default(),
                 },
             );
         });
@@ -421,12 +475,31 @@ mod tests {
             ts: 123,
             data: OsEventData {
                 os_idle_ms: Some(5000),
+                ..Default::default()
             },
         };
         let v = serde_json::to_value(payload).unwrap();
         assert_eq!(
             v,
             json!({ "event_name": "os_idle_tick", "ts": 123, "data": { "os_idle_ms": 5000 } })
+        );
+    }
+
+    #[test]
+    fn data_carries_frontmost_fields() {
+        let v = serde_json::to_value(OsEventData {
+            os_idle_ms: Some(0),
+            frontmost_app: Some("Safari".into()),
+            frontmost_title: Some("Start Page".into()),
+        })
+        .unwrap();
+        assert_eq!(
+            v,
+            json!({
+                "os_idle_ms": 0,
+                "frontmost_app": "Safari",
+                "frontmost_title": "Start Page",
+            })
         );
     }
 
@@ -484,6 +557,55 @@ mod tests {
     }
 
     // ── WindowAtPoint serialisation ──────────────────────────────────────────
+
+    // ── frontmost user window ────────────────────────────────────────────────
+
+    fn window(owner: Option<&str>, name: Option<&str>) -> WindowAtPoint {
+        WindowAtPoint {
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+            name: name.map(str::to_string),
+            owner_name: owner.map(str::to_string),
+            pid: 1,
+            window_number: 1,
+        }
+    }
+
+    #[test]
+    fn frontmost_takes_the_topmost_window() {
+        let picked = first_user_window(vec![
+            window(Some("Safari"), Some("Start Page")),
+            window(Some("Xcode"), Some("main.rs")),
+        ]);
+        assert_eq!(picked.unwrap().owner_name.as_deref(), Some("Safari"));
+    }
+
+    #[test]
+    fn frontmost_skips_a_system_helper_window() {
+        // Stage Manager's helper floats above the real frontmost app.
+        let picked = first_user_window(vec![
+            window(Some("WindowManager"), Some("App Icon Window")),
+            window(Some("Safari"), Some("Start Page")),
+        ]);
+        assert_eq!(picked.unwrap().owner_name.as_deref(), Some("Safari"));
+    }
+
+    #[test]
+    fn frontmost_is_none_when_only_helpers_are_on_screen() {
+        let picked = first_user_window(vec![
+            window(Some("WindowManager"), Some("App Icon Window")),
+            window(Some("Control Center"), None),
+        ]);
+        assert!(picked.is_none());
+    }
+
+    #[test]
+    fn frontmost_keeps_a_window_without_an_owner() {
+        let picked = first_user_window(vec![window(None, Some("Untitled"))]);
+        assert_eq!(picked.unwrap().name.as_deref(), Some("Untitled"));
+    }
 
     #[test]
     fn window_at_point_serialises_camel_case() {

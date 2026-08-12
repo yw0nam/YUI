@@ -43,6 +43,7 @@ export default defineConfig({
           { text: 'Backend Contract', link: '/reference/backend-contract' },
           { text: 'Motions', link: '/reference/motions' },
           { text: 'Logging', link: '/reference/logging' },
+          { text: 'Witness Log', link: '/reference/witness-log' },
           { text: 'TTS Emotion', link: '/reference/tts-emotion/' },
           { text: 'Mods', link: '/reference/mods' },
         ],
@@ -63,6 +64,7 @@ export default defineConfig({
             { text: 'Backend Contract', link: '/reference/backend-contract' },
             { text: 'Motions', link: '/reference/motions' },
             { text: 'Logging', link: '/reference/logging' },
+            { text: 'Witness Log', link: '/reference/witness-log' },
             {
               text: 'TTS Emotion',
               link: '/reference/tts-emotion/',

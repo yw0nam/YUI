@@ -10,6 +10,10 @@ mod screenshot;
 // Calendar-date-based log rotation.
 mod log_rotation;
 
+// Witness log — frontmost-app and idle transitions recorded to disk.
+#[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
+mod witness;
+
 // Shared import filesystem helpers (sanitize/collision).
 mod import_fs;
 
@@ -96,7 +100,7 @@ fn dotenv_value(contents: &str, key: &str) -> Option<String> {
 
 /// Resolve the log timestamp offset: process env → dev `.env.local` → UTC default.
 /// `YUI_LOG_TZ` is canonical; `VITE_YUI_LOG_TZ` is accepted as an alias (for shared `.env.local`).
-fn resolve_log_offset() -> UtcOffset {
+pub(crate) fn resolve_log_offset() -> UtcOffset {
     if let Some(off) = std::env::var("YUI_LOG_TZ")
         .or_else(|_| std::env::var("VITE_YUI_LOG_TZ"))
         .ok()
@@ -151,7 +155,7 @@ fn noisy_targets() -> &'static [(&'static str, log::LevelFilter)] {
 }
 
 fn date_rotating_target(dir: PathBuf, base: String, offset: UtcOffset) -> tauri_plugin_log::Target {
-    let writer = log_rotation::DateRotatingFile::new(dir, base, offset);
+    let writer = log_rotation::DateRotatingFile::new(dir, base, "log", offset);
     let dispatch = tauri_plugin_log::fern::Dispatch::new().chain(
         tauri_plugin_log::fern::Output::writer(Box::new(writer), "\n"),
     );

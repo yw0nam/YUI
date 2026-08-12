@@ -8,7 +8,7 @@
 
 import { isTauri } from "./tauri-env";
 
-/** `os_event` channel payload — mirrors src-tauri OsEventPayload (snake_case over IPC). */
+/** `os_event` channel payload — the fields this client consumes from the src-tauri payload (snake_case over IPC). */
 export interface OsEventPayload {
   event_name: string;
   ts: number;
