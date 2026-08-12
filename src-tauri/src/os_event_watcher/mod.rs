@@ -276,6 +276,8 @@ fn polling_loop(app: AppHandle) {
         // Idle tick, emitted every poll interval.
         let idle = platform_idle_ms();
         let (frontmost_app, frontmost_title) = platform_frontmost();
+        // Cap at the sampler so the IPC payload and the witness log share one bound.
+        let frontmost_title = crate::witness::cap_title(frontmost_title);
         let sample = Sample {
             app: frontmost_app.clone(),
             window_title: frontmost_title.clone(),

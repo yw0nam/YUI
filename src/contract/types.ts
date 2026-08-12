@@ -176,6 +176,14 @@ export interface BodyState {
   since: number;
 }
 
+/** Latest frontmost-window sample. Fields absent when the platform did not resolve them. */
+export interface FrontmostState {
+  app?: string;
+  window_title?: string;
+  /** Epoch ms (wall clock) of the last frontmost transition — stable across unchanged polls. */
+  since: number;
+}
+
 /**
  * Internal shape returned by packageContext. Carries user utterance and screenshot data_url
  * for assembly into the Responses API request — NOT serialized to the system message.
@@ -266,6 +274,8 @@ export interface ClientContext {
   env: {
     timestamp: string;
     timezone: string;
+    /** Present once an OS frontmost sample exists; absent on unsupported platforms. */
+    frontmost?: FrontmostState;
   };
   screenshot?: {
     enabled: boolean;

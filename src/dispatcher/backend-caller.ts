@@ -24,6 +24,7 @@ import type {
   BodyState,
   ControlEnvelope,
   EndpointsConfig,
+  FrontmostState,
   InputContext,
   ToolStatus,
   Usage,
@@ -122,6 +123,8 @@ interface BackendCallerDeps {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   /** Held posture lookup — called per turn; undefined while the avatar stands free. */
   getBodyState?: () => BodyState | undefined;
+  /** Latest frontmost sample lookup — called per turn; undefined until a sample exists. */
+  getFrontmost?: () => FrontmostState | undefined;
   /** tool_status sink — called only when present. */
   onToolStatus?: (status: ToolStatus) => void;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
@@ -263,6 +266,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       const { ctx, clientContext } = await buildContext(env, {
         getScreenshot: deps.getScreenshot,
         getBodyState: deps.getBodyState,
+        getFrontmost: deps.getFrontmost,
         onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
       });
       const input = encodeInput(ctx, env, clientContext);

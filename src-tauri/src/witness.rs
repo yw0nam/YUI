@@ -16,6 +16,12 @@ pub const IDLE_THRESHOLD_MS: u64 = 5 * 60 * 1000;
 /// Window titles are truncated to this many characters.
 pub const MAX_TITLE_CHARS: usize = 256;
 
+/// Caps a window title at `MAX_TITLE_CHARS`, the bound shared by the witness
+/// log and the IPC frontmost payload.
+pub(crate) fn cap_title(title: Option<String>) -> Option<String> {
+    title.map(|t| t.chars().take(MAX_TITLE_CHARS).collect())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RecordKind {
@@ -59,10 +65,7 @@ impl TransitionDetector {
             ts: ts.to_string(),
             kind,
             app: sample.app.clone(),
-            window_title: sample
-                .window_title
-                .as_ref()
-                .map(|t| t.chars().take(MAX_TITLE_CHARS).collect()),
+            window_title: cap_title(sample.window_title.clone()),
         };
 
         // An unreadable idle time carries the previous state forward.
@@ -366,6 +369,29 @@ mod tests {
         let mut d = TransitionDetector::default();
         let out = d.step(&sample(Some("Safari"), Some("Start Page"), Some(0)), "T1");
         assert_eq!(out[0].window_title.as_deref(), Some("Start Page"));
+    }
+
+    // ── cap_title helper ─────────────────────────────────────────────────────
+
+    #[test]
+    fn cap_title_truncates_an_overlong_multibyte_title_to_max_chars() {
+        let long = "한".repeat(MAX_TITLE_CHARS + 44);
+        let capped = cap_title(Some(long)).unwrap();
+        assert_eq!(capped.chars().count(), MAX_TITLE_CHARS);
+        assert!(capped.chars().all(|c| c == '한'));
+    }
+
+    #[test]
+    fn cap_title_passes_a_short_title_through_verbatim() {
+        assert_eq!(
+            cap_title(Some("Start Page".into())).as_deref(),
+            Some("Start Page")
+        );
+    }
+
+    #[test]
+    fn cap_title_passes_none_through() {
+        assert_eq!(cap_title(None), None);
     }
 
     #[test]

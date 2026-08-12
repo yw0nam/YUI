@@ -1,10 +1,17 @@
-import type { BodyState, ClientContext, InputContext, TriggerMeta } from "../contract";
+import type {
+  BodyState,
+  ClientContext,
+  FrontmostState,
+  InputContext,
+  TriggerMeta,
+} from "../contract";
 import type { BusEnvelope } from "./event-bus";
 
 interface ContextProviders {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   onScreenshotError?: (error: unknown) => void;
   getBodyState?: () => BodyState | undefined;
+  getFrontmost?: () => FrontmostState | undefined;
 }
 
 export interface BuiltContext {
@@ -140,6 +147,7 @@ export function buildClientContext(
   ctx: InputContext,
   env: BusEnvelope,
   bodyState?: BodyState,
+  frontmost?: FrontmostState,
 ): ClientContext {
   const payload = env.payload;
   const cue =
@@ -160,7 +168,7 @@ export function buildClientContext(
     : undefined;
 
   return {
-    env: ctx.env,
+    env: { ...ctx.env, ...(frontmost ? { frontmost } : {}) },
     ...(screenshot ? { screenshot } : {}),
     ...(bodyState ? { body_state: bodyState } : {}),
     trigger: {
@@ -201,7 +209,12 @@ export async function buildContext(
 
   return {
     ctx,
-    clientContext: buildClientContext(ctx, env, providers.getBodyState?.()),
+    clientContext: buildClientContext(
+      ctx,
+      env,
+      providers.getBodyState?.(),
+      providers.getFrontmost?.(),
+    ),
   };
 }
 

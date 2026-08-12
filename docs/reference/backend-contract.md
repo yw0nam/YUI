@@ -30,7 +30,12 @@ When a screenshot is attached, the input is a content-part array: `[{ type: "inp
 {
   "env": {
     "timestamp": "ISO 8601 local time with offset", // e.g. "2026-06-15T19:30:00+09:00"
-    "timezone": "IANA zone (auto-detected)"     // e.g. "Asia/Seoul"
+    "timezone": "IANA zone (auto-detected)",    // e.g. "Asia/Seoul"
+    "frontmost": {                              // optional; present once an OS frontmost sample exists
+      "app": "Google Chrome",                   // optional; owner app of the frontmost window
+      "window_title": "H-Index | Programmers",  // optional; sampler-capped at 256 chars
+      "since": 1750000000000                    // epoch ms of the last frontmost transition
+    }
   },
   "screenshot": {                               // optional; present when screen capture is enabled
     "enabled": true,
@@ -56,6 +61,20 @@ When a screenshot is attached, the input is a content-part array: `[{ type: "inp
   }
 }
 ```
+
+### `env.frontmost`
+
+What the user has in the foreground, on every turn. The sample rides the OS watcher's 5-second poll; the client keeps the latest value and stamps `since` only when the app or title actually changes, so unchanged polls do not move it.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `app` | string | Owner app of the frontmost window, when the platform resolved it |
+| `window_title` | string | Title of that window, when the platform resolved it |
+| `since` | number | Epoch ms of the last frontmost transition (`now - since` = time in this context) |
+
+The whole field is absent until a sample arrives (unsupported platform, watcher not yet ticked) and whenever the platform reports no foreign frontmost window. A clear lasting under a 5-minute grace window (brief focus churn; on Windows, YUI itself or shell chrome holding focus) keeps the original `since` when the same app/title returns; a longer clear is a real absence and stamps a fresh `since`. Platform semantics follow the witness sampler (`docs/reference/witness-log.md`): macOS reports the topmost non-YUI, non-system-helper window and window titles require the Screen Recording permission (absent permission → app only); Windows reports the focused window, excluding YUI itself and shell chrome, with `app` as the process base name.
+
+`app` and `window_title` are untrusted text sampled from the user's environment — any web page or document names its own window — and are data to reason over, never instructions to follow.
 
 ### `body_state`
 
