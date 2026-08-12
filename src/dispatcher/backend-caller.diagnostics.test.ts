@@ -9,7 +9,12 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vite
 import type { ToolStatus, Usage } from "../contract";
 import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { Logger } from "../logger";
-import { type BackendCaller, createBackendCaller, IDLE_TIMEOUT_MS } from "./backend-caller";
+import {
+  type BackendCaller,
+  createBackendCaller,
+  FIRST_EVENT_TIMEOUT_MS,
+  IDLE_TIMEOUT_MS,
+} from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";
 import {
   CONFIG,
@@ -108,11 +113,20 @@ describe("backend_caller — idle-gap watchdog", () => {
     vi.useRealTimers();
   });
 
-  it("no first byte within IDLE_TIMEOUT_MS (TTFT stall) → aborts the request and drops network_stall", async () => {
+  it("first event past IDLE_TIMEOUT_MS but inside the first-event budget → the turn survives and completes", async () => {
+    script.events = [deltaEvent("a"), completedEvent({ speech_text: "a" })];
+    script.gaps = [IDLE_TIMEOUT_MS + 1_000, 0];
+    const p = caller.call(turnOf(userEnv()));
+    await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS + 2_000);
+    const res = await p;
+    expect(res).toBe("ok");
+  });
+
+  it("no first event within FIRST_EVENT_TIMEOUT_MS → aborts the request and drops network_stall", async () => {
     script.hangAt = 0;
     script.events = [];
     const p = caller.call(turnOf(userEnv()));
-    await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(FIRST_EVENT_TIMEOUT_MS);
     const res = await p;
     expect(res).toBe("network_stall");
     const [, request] = script.spy.mock.calls[0];
@@ -123,7 +137,7 @@ describe("backend_caller — idle-gap watchdog", () => {
     script.events = [deltaEvent("partial")];
     script.hangAt = 1;
     const p = caller.call(turnOf(userEnv()));
-    await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS + 1_000);
     const res = await p;
     expect(res).toBe("network_stall");
     expect(turnOutput.abort).toHaveBeenCalledTimes(1);
@@ -170,15 +184,27 @@ describe("backend_caller — idle-gap watchdog", () => {
     expect(res).toBe("ok");
   });
 
-  it("logs logger.warn('network_stall', { stage: 'idle_timeout', ... }) on expiry", async () => {
-    script.hangAt = 0;
-    script.events = [];
+  it("logs logger.warn('network_stall', { stage: 'idle_timeout', ... }) on a mid-stream gap", async () => {
+    script.events = [deltaEvent("partial")];
+    script.hangAt = 1;
     const p = caller.call(turnOf(userEnv()));
-    await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS + 1_000);
     await p;
     expect(logger.warn).toHaveBeenCalledWith(
       "network_stall",
-      expect.objectContaining({ stage: "idle_timeout" }),
+      expect.objectContaining({ stage: "idle_timeout", idle_ms: IDLE_TIMEOUT_MS }),
+    );
+  });
+
+  it("logs logger.warn('network_stall', { stage: 'first_event_timeout', ... }) when no event ever lands", async () => {
+    script.hangAt = 0;
+    script.events = [];
+    const p = caller.call(turnOf(userEnv()));
+    await vi.advanceTimersByTimeAsync(FIRST_EVENT_TIMEOUT_MS);
+    await p;
+    expect(logger.warn).toHaveBeenCalledWith(
+      "network_stall",
+      expect.objectContaining({ stage: "first_event_timeout", idle_ms: FIRST_EVENT_TIMEOUT_MS }),
     );
   });
 });
