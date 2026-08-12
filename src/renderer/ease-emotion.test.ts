@@ -11,11 +11,11 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { EmotionSignal } from "../contract";
 import { DEFAULT_EMOTION_REVERT_MS, revertEmotionToNeutral } from "./ease-emotion";
+import type { RenderEmotionSignal } from "./emotion-resolver";
 
 function spySink() {
-  return { setEmotion: vi.fn<(e: EmotionSignal | null) => void>() };
+  return { setEmotion: vi.fn<(e: RenderEmotionSignal | null) => void>() };
 }
 
 describe("revertEmotionToNeutral — eases back to neutral", () => {

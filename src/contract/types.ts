@@ -28,12 +28,9 @@ export type EmotionId =
   | "sleepy"
   | "embarrassed";
 
+/** Normalized form of `ExpressArgs.emotion_id` — the id is all the wire carries. */
 export interface EmotionSignal {
   id: EmotionId;
-  /** 0.0~1.0, default 1.0. Client clamps and warns if out of range. */
-  intensity?: number;
-  /** Transition time in milliseconds, default 250. */
-  transition_ms?: number;
 }
 
 /**
@@ -56,15 +53,10 @@ export type EmotionRegistry = Partial<Record<EmotionId, EmotionRegistryEntry>>;
 export type MotionKind = "ambient" | "reactive" | "state" | "oneshot";
 export type InterruptPolicy = "replace" | "queue" | "ignore";
 
+/** Normalized form of `ExpressArgs.motion_id` — the registry key is all the wire carries. */
 export interface MotionSignal {
   /** registry key. */
   id: string;
-  /** Overrides registry default. */
-  loop?: boolean;
-  /** Speed multiplier: 0.25~2.5, default 1.0. */
-  speed?: number;
-  /** Crossfade duration in milliseconds, default 200. */
-  fade_ms?: number;
 }
 
 /**

@@ -10,11 +10,12 @@
  */
 
 import type { VRM } from "@pixiv/three-vrm";
-import type { EmotionRegistry, EmotionSignal } from "../contract";
+import type { EmotionRegistry } from "../contract";
 import { revertEmotionToNeutral } from "./ease-emotion";
 import {
   createEmotionResolver,
   type EmotionResolver,
+  type RenderEmotionSignal,
   type ResolvedEmotion,
 } from "./emotion-resolver";
 
@@ -41,7 +42,7 @@ export interface EmotionCrossfade {
    */
   step(dt: number): void;
   /** Resolve → retarget from the current blend → start the crossfade. null is a NO-OP. */
-  setEmotion(emotion: EmotionSignal | null): void;
+  setEmotion(emotion: RenderEmotionSignal | null): void;
   /** Slowly ease the prior emotion back to neutral via an explicit neutral transition. */
   easeToNeutral(durationMs?: number): void;
   /** Inject/replace the registry, then recompute the has-expression predicate + resolver. */
@@ -143,7 +144,7 @@ export function createEmotionCrossfade(deps: EmotionCrossfadeDeps): EmotionCross
   }
 
   /** setEmotion implementation — resolve → retarget from current blend → start crossfade. */
-  function setEmotion(emotion: EmotionSignal | null): void {
+  function setEmotion(emotion: RenderEmotionSignal | null): void {
     // "If no emotion, retain prior expression" — null is a NO-OP.
     // Only explicit {id:"neutral"} transitions to neutral.
     if (emotion === null) return;

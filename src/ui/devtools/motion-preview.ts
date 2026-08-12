@@ -5,7 +5,7 @@
  *   - Loads validated runtime config through createConfigStore.
  *   - Resolves the configured VRM through resolveAssetUrl.
  *   - Registry list is grouped by MotionKind.
- *   - Playback controls compose MotionSignal overrides passed to renderer.playMotion().
+ *   - Playback controls compose RenderMotionSignal overrides passed to renderer.playMotion().
  *
  * Status bar polls renderer.getCurrentMotion() per frame, so it reflects the committed
  * motion including variant resolution and oneshot auto-return-to-idle.
@@ -13,16 +13,10 @@
 
 import "./motion-preview.css";
 import { createConfigStore } from "../../config";
-import type {
-  EmotionId,
-  EmotionRegistry,
-  MotionKind,
-  MotionRegistry,
-  MotionSignal,
-} from "../../contract";
+import type { EmotionId, EmotionRegistry, MotionKind, MotionRegistry } from "../../contract";
 import { resolveAssetUrl } from "../../io/asset-url";
 import { createLogger } from "../../logger";
-import { createRenderer } from "../../renderer";
+import { createRenderer, type RenderMotionSignal } from "../../renderer";
 
 const log = createLogger("motion-preview");
 
@@ -520,7 +514,7 @@ export async function mountMotionPreview(mount: HTMLElement): Promise<{ dispose(
 
   // ─── Playback helpers (close over registry + renderer) ──────────────────
 
-  function currentSignalOverrides(): Partial<MotionSignal> {
+  function currentSignalOverrides(): Partial<RenderMotionSignal> {
     return {
       loop: cbLoop.checked,
       speed: parseFloat(slSpeed.value),
@@ -530,7 +524,7 @@ export async function mountMotionPreview(mount: HTMLElement): Promise<{ dispose(
 
   function doPlayById(id: string): void {
     const overrides = currentSignalOverrides();
-    const signal: MotionSignal = { id, ...overrides };
+    const signal: RenderMotionSignal = { id, ...overrides };
     renderer.playMotion(signal);
     // Row highlight / status bar follow via syncLiveMotion polling in rafLoop.
   }

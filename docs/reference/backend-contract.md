@@ -80,7 +80,7 @@ Where the avatar body is, on every turn. The field is present only while a postu
 | `agent` | An external coding-agent lifecycle hook posted a completion or needs-input signal | Background marker | No (carries `agent` or `agent_catchup` instead) |
 | `signals` | An external producer POSTed a burst to the `/signals` ingress | Background marker | No (carries `signals` instead) |
 
-For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utterance — the agent reads the trigger fields to decide whether and what to say. Firing a turn does not guarantee speech: the client renders whatever text the agent returns, and silence means the agent returns empty or no speech text. No client-side gate decides whether to speak (see `D-NO-SPEAK-GATE`).
+For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utterance — the agent reads the trigger fields to decide whether and what to say. Firing a turn does not guarantee speech: the client renders whatever text the agent returns, and silence means the agent returns empty or no speech text. No client-side gate decides whether to speak (firing ≠ judgment).
 
 ### Background markers
 

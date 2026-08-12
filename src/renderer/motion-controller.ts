@@ -19,6 +19,19 @@ const log = createLogger("motion-controller");
 // Public types
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Renderer-local motion signal. The wire only carries the registry key; the playback
+ * overrides are local callers (devtools preview).
+ */
+export interface RenderMotionSignal extends MotionSignal {
+  /** Overrides registry default. */
+  loop?: boolean;
+  /** Speed multiplier: 0.25~2.5, default 1.0. */
+  speed?: number;
+  /** Crossfade duration in milliseconds, default 200. */
+  fade_ms?: number;
+}
+
 export interface ResolvedMotion {
   id: string;
   /** variant-resolved concrete VRMA path */
@@ -59,17 +72,17 @@ interface MotionControllerOptions {
 
 export interface MotionController {
   /**
-   * Resolves a MotionSignal against the registry (variant pick, clamp, defaults).
+   * Resolves a motion signal against the registry (variant pick, clamp, defaults).
    * Returns null if the id is not registered.
    */
-  resolve(signal: MotionSignal): ResolvedMotion | null;
+  resolve(signal: RenderMotionSignal): ResolvedMotion | null;
 
   /**
    * Decides whether to play, queue, or ignore an incoming signal given the
    * current playback state and interrupt policies.
    * Pass null to request a return to the baseline motion.
    */
-  request(signal: MotionSignal | null): MotionDecision;
+  request(signal: RenderMotionSignal | null): MotionDecision;
 
   /**
    * Called when a motion finishes (e.g. a oneshot ends).
@@ -130,7 +143,7 @@ export function createMotionController(
   /** Single-slot queue. */
   let queued: ResolvedMotion | null = null;
 
-  function resolve(signal: MotionSignal): ResolvedMotion | null {
+  function resolve(signal: RenderMotionSignal): ResolvedMotion | null {
     const entry = registry[signal.id];
     if (!entry) {
       warn(`[MotionController] unregistered motion id: "${signal.id}"`);
@@ -202,7 +215,7 @@ export function createMotionController(
     };
   }
 
-  function request(signal: MotionSignal | null): MotionDecision {
+  function request(signal: RenderMotionSignal | null): MotionDecision {
     // null → return to baseline.
     if (signal === null) {
       if (current && current.id === baselineId) {

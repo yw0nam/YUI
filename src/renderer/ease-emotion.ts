@@ -10,14 +10,14 @@
  * spy. The actual crossfade is reused unchanged by setEmotion.
  */
 
-import type { EmotionSignal } from "../contract";
+import type { RenderEmotionSignal } from "./emotion-resolver";
 
 /** Slow default revert duration (ms) — gentle drift, not the snappy 250ms default crossfade. */
 export const DEFAULT_EMOTION_REVERT_MS = 1000;
 
 /** Sink the revert is routed into (Renderer.setEmotion). */
 interface EmotionSink {
-  setEmotion(emotion: EmotionSignal | null): void;
+  setEmotion(emotion: RenderEmotionSignal | null): void;
 }
 
 /**
