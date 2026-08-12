@@ -158,7 +158,7 @@ export interface AttachmentLimits {
   max_image_bytes: number;
 }
 
-/** Applied by the validator when guardrails.json omits the attachments block. */
+/** Applied by the validator for any attachments key guardrails.json omits. */
 export const ATTACHMENT_LIMITS_DEFAULTS: AttachmentLimits = {
   max_count: 6,
   max_image_bytes: 5 * 1024 * 1024,

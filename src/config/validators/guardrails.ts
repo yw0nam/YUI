@@ -42,7 +42,7 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
     }
   }
 
-  // attachments — absent block keeps the defaults.
+  // attachments — an absent block, or an absent key inside it, keeps the default.
   const rawAttachments = raw.attachments;
   const attachments = { ...ATTACHMENT_LIMITS_DEFAULTS };
   if (rawAttachments !== undefined) {
@@ -50,6 +50,7 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
       issues.push(`attachments는 객체여야 함 (받음: ${JSON.stringify(rawAttachments)})`);
     } else {
       for (const k of Object.keys(attachments) as (keyof typeof attachments)[]) {
+        if (rawAttachments[k] === undefined) continue;
         attachments[k] = nonNegNum(rawAttachments, "attachments", k);
       }
     }

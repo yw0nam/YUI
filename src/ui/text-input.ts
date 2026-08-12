@@ -72,6 +72,8 @@ export function createTextInput(
   // Accepted but still being read into a data URL — counts against max_count so a
   // single multi-file drop cannot slip past the cap.
   let inFlight = 0;
+  // Bumped by clearAttachments — reads started for an earlier turn are discarded.
+  let epoch = 0;
   // Defaults until setAttachmentLimits delivers the configured caps.
   let limits: AttachmentLimits = ATTACHMENT_LIMITS_DEFAULTS;
   // Backend processing — the send button becomes stop and submit is blocked.
@@ -135,6 +137,8 @@ export function createTextInput(
 
   function clearAttachments(): void {
     attachments.length = 0;
+    inFlight = 0;
+    epoch++;
     trayEl.replaceChildren();
   }
 
@@ -154,13 +158,15 @@ export function createTextInput(
         continue;
       }
       inFlight++;
+      const batch = epoch;
       void downscaleToJpeg(file)
         .then((url) => {
+          if (batch !== epoch) return;
           attachments.push(url);
           addChip(url);
         })
         .finally(() => {
-          inFlight--;
+          if (batch === epoch) inFlight--;
         });
     }
   }
