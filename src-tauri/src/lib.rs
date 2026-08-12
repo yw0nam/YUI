@@ -11,7 +11,7 @@ mod screenshot;
 mod log_rotation;
 
 // Witness log — frontmost-app and idle transitions recorded to disk.
-#[allow(dead_code)] // driven by the platform polling loops; dead on unsupported targets
+#[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
 mod witness;
 
 // Shared import filesystem helpers (sanitize/collision).

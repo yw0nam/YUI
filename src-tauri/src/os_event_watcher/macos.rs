@@ -373,6 +373,14 @@ pub(super) fn platform_idle_ms() -> Option<u64> {
     Some(os_idle_ms())
 }
 
+/// Owner app and title of the frontmost user window, `(None, None)` when none.
+pub(super) fn platform_frontmost() -> (Option<String>, Option<String>) {
+    match super::first_user_window(list_all_windows()) {
+        Some(w) => (w.owner_name, w.name),
+        None => (None, None),
+    }
+}
+
 // ─── Background polling loop ──────────────────────────────────────────────────
 
 pub fn start_polling(app: AppHandle) {

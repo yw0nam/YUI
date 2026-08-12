@@ -13,6 +13,9 @@ use time::{OffsetDateTime, UtcOffset};
 /// Idle time at or above which the OS is considered idle.
 pub const IDLE_THRESHOLD_MS: u64 = 5 * 60 * 1000;
 
+/// Window titles are truncated to this many characters.
+pub const MAX_TITLE_CHARS: usize = 256;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RecordKind {
@@ -44,7 +47,6 @@ pub struct Sample {
 /// returns the records a new sample crosses (0–2, idle transition first).
 #[derive(Debug, Default)]
 pub struct TransitionDetector {
-    seen: bool,
     app: Option<String>,
     window_title: Option<String>,
     idle: bool,
@@ -57,7 +59,10 @@ impl TransitionDetector {
             ts: ts.to_string(),
             kind,
             app: sample.app.clone(),
-            window_title: sample.window_title.clone(),
+            window_title: sample
+                .window_title
+                .as_ref()
+                .map(|t| t.chars().take(MAX_TITLE_CHARS).collect()),
         };
 
         // An unreadable idle time carries the previous state forward.
@@ -65,7 +70,7 @@ impl TransitionDetector {
             Some(ms) => ms >= IDLE_THRESHOLD_MS,
             None => self.idle,
         };
-        if self.seen && idle != self.idle {
+        if idle != self.idle {
             out.push(record(if idle {
                 RecordKind::IdleStart
             } else {
@@ -73,7 +78,6 @@ impl TransitionDetector {
             }));
         }
         self.idle = idle;
-        self.seen = true;
 
         if sample.app != self.app || sample.window_title != self.window_title {
             out.push(record(RecordKind::AppChange));

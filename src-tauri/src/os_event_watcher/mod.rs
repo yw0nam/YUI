@@ -52,7 +52,7 @@ pub struct OsEventData {
     /// OS-wide idle (ms). macOS `CGEventSourceSecondsSinceLastEventType`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub os_idle_ms: Option<u64>,
-    /// Owner app of the frontmost window (unresolved on Windows).
+    /// Owner app of the frontmost window (process base name on Windows).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub frontmost_app: Option<String>,
     /// Title of the frontmost window.
@@ -139,6 +139,29 @@ pub fn list_windows() -> Result<Vec<WindowAtPoint>, String> {
     }
 }
 
+/// Owner names of macOS system helpers that own on-screen layer-0 windows
+/// while never being the app the user is looking at.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+const SYSTEM_HELPER_OWNERS: &[&str] = &[
+    "WindowManager",
+    "Dock",
+    "Control Center",
+    "Notification Center",
+    "Spotlight",
+    "Screenshot",
+];
+
+/// The frontmost window a user can be looking at: the topmost window whose
+/// owner is not a system helper. Pure (no FFI), so the pick is unit-testable.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn first_user_window(windows: Vec<WindowAtPoint>) -> Option<WindowAtPoint> {
+    windows.into_iter().find(|w| {
+        !w.owner_name
+            .as_deref()
+            .is_some_and(|owner| SYSTEM_HELPER_OWNERS.contains(&owner))
+    })
+}
+
 // ─── Platform-specific OS polling ────────────────────────────────────────────
 
 #[cfg(target_os = "macos")]
@@ -148,10 +171,10 @@ mod macos;
 mod windows;
 
 #[cfg(target_os = "macos")]
-use macos::{platform_idle_ms, platform_lbutton_is_down, start_polling};
+use macos::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down, start_polling};
 
 #[cfg(target_os = "windows")]
-use windows::{platform_idle_ms, platform_lbutton_is_down, start_polling};
+use windows::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down, start_polling};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 static PROBE_ACTIVE: AtomicBool = AtomicBool::new(false);
@@ -239,15 +262,6 @@ pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
         .expect("failed to spawn yui_drop_release thread");
 }
 
-/// Owner app and title of the frontmost window, `(None, None)` when there is none.
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-fn frontmost_window() -> (Option<String>, Option<String>) {
-    match list_windows().ok().and_then(|w| w.into_iter().next()) {
-        Some(w) => (w.owner_name, w.name),
-        None => (None, None),
-    }
-}
-
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 fn polling_loop(app: AppHandle) {
     let mut witness = app
@@ -261,15 +275,12 @@ fn polling_loop(app: AppHandle) {
 
         // Idle tick, emitted every poll interval.
         let idle = platform_idle_ms();
-        let (frontmost_app, frontmost_title) = frontmost_window();
-
-        if let Some(witness) = witness.as_mut() {
-            witness.observe(Sample {
-                app: frontmost_app.clone(),
-                window_title: frontmost_title.clone(),
-                idle_ms: idle,
-            });
-        }
+        let (frontmost_app, frontmost_title) = platform_frontmost();
+        let sample = Sample {
+            app: frontmost_app.clone(),
+            window_title: frontmost_title.clone(),
+            idle_ms: idle,
+        };
 
         let _ = emit_os_event(
             &app,
@@ -283,6 +294,11 @@ fn polling_loop(app: AppHandle) {
                 },
             },
         );
+
+        // Disk write trails the tick: fs latency must not delay the dispatcher.
+        if let Some(witness) = witness.as_mut() {
+            witness.observe(sample);
+        }
 
         thread::sleep(POLL_INTERVAL);
     }
