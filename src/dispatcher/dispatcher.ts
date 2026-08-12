@@ -175,6 +175,14 @@ function classify(env: BusEnvelope): Classification {
   return { tier: (env.hint_tier ?? 3) as Tier, target: "drop" };
 }
 
+function samePosture(a: Posture, b: Posture): boolean {
+  return (
+    a.state === b.state &&
+    a.perched_on?.app === b.perched_on?.app &&
+    a.perched_on?.window_title === b.perched_on?.window_title
+  );
+}
+
 /** Source of a user-initiated turn (typed vs voice) — filters onUserTurnFailed targets and hints routing.
  * Other triggers such as proactive/schedule/agent are undefined (§274, not a UI error-surface target). */
 export type UserTurnSource = "text" | "voice";
@@ -556,8 +564,14 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       default:
         return;
     }
+    if (!next) {
+      bodyState = undefined;
+      return;
+    }
+    // Re-affirming the posture already held is not a change — `since` keeps its original stamp.
+    if (bodyState && samePosture(bodyState.posture, next)) return;
     // Wall clock, not the frame clock — it keeps running while the window is hidden.
-    bodyState = next ? { posture: next, since: Date.now() } : undefined;
+    bodyState = { posture: next, since: Date.now() };
   }
 
   function applyPeekState(env: BusEnvelope): void {

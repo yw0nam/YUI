@@ -369,6 +369,30 @@ describe("dispatcher — posture", () => {
     expect(dispatcher.getBodyState()?.since).toBe(dragging.since);
   });
 
+  it("keeps the stamp when the held posture is re-affirmed", async () => {
+    dispatcher.start();
+    const perch = { edge_local_ypx: 30, app: "Notes", window_title: "Meeting notes" };
+    await pushPostureEvent("user.window_sit_drop", perch);
+    const first = dispatcher.getBodyState()!.since;
+
+    await pushPostureEvent("user.window_sit_drop", perch);
+    expect(dispatcher.getBodyState()?.since).toBe(first);
+
+    // a different perch is a change
+    await pushPostureEvent("user.window_sit_drop", { ...perch, window_title: "Grocery list" });
+    expect(dispatcher.getBodyState()?.since).toBeGreaterThan(first);
+  });
+
+  it("leaves body state untouched on tier1 events that carry no posture", async () => {
+    dispatcher.start();
+    await pushPostureEvent("user.window_sit_enter");
+    const sitting = dispatcher.getBodyState();
+
+    await pushPostureEvent("user.tap_region", { region: "head" });
+    await pushPostureEvent("idle.returned");
+    expect(dispatcher.getBodyState()).toEqual(sitting);
+  });
+
   it("reports no body state while the avatar stands free", async () => {
     dispatcher.start();
     expect(dispatcher.getBodyState()).toBeUndefined();

@@ -68,7 +68,7 @@ Where the avatar body is, on every turn. The field is present only while a postu
 | `posture.perched_on.window_title` | string | Title of that window, when the client resolved it |
 | `since` | number | Epoch ms of the last posture change |
 
-`since` is wall-clock, so an elapsed duration derived from it stays correct across a hidden window.
+`since` is wall-clock epoch ms — hold duration is `now - since` — and it moves only when the posture itself changes, not when the same posture is re-affirmed.
 
 ### `trigger.kind` values
 
