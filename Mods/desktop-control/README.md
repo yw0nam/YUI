@@ -1,6 +1,6 @@
 # desktop-control
 
-Lets the agent see the screen and open/close apps on the local macOS host. Runs **host-native** — it needs the host GUI, and a container on macOS cannot reach the Mac WindowServer.
+Lets the agent see the screen, read the day's activity log, and open/close apps on the local macOS host. Runs **host-native** — it needs the host GUI, and a container on macOS cannot reach the Mac WindowServer.
 
 ## Run
 
@@ -11,6 +11,8 @@ DESKTOP_CONTROL_ALLOWED_APPS="Safari,Notes,Google Chrome" \
 ```
 
 Only apps in `DESKTOP_CONTROL_ALLOWED_APPS` (comma-separated) can be opened or closed.
+
+`WITNESS_LOG_DIR` points `get_activity_timeline` at the witness log directory; unset, it reads `~/Library/Application Support/com.yui.desktop/witness` — where the YUI app writes it.
 
 ## macOS permissions (TCC)
 
@@ -23,6 +25,7 @@ Grant these to the **launching process** (the terminal that runs `uv run`, since
 | `list_running_apps` | Automation — Apple Events to **System Events** | Automation |
 | `close_app` | Automation — Apple Events to **the target app**, granted per app | Automation |
 | `open_app` | none | — |
+| `get_activity_timeline` | none — it reads a local file, not the GUI | — |
 
 `close_app` is the one to watch. It runs `quit app "<name>"`, which sends its Apple Event to the named application rather than to System Events, and macOS grants Automation per target pair — so each allowlisted app raises its own prompt the first time you quit it, and a green System Events grant says nothing about whether that app can be quit.
 
@@ -53,8 +56,26 @@ The agent then adds the MCP tool source at `http://localhost:9000/mcp` directly,
 | `screenshot` | Capture every display as PNG (one image per monitor), long edge downscaled to 1280px (`DESKTOP_CONTROL_SCREENSHOT_MAX_EDGE`, `0` disables) |
 | `list_running_apps` | Names of visible (non-background) apps |
 | `get_frontmost_window` | `{ app, title }` for the frontmost app — `title` is `null` when it has no front window or Screen Recording is ungranted |
+| `get_activity_timeline(date)` | One day of activity from the witness log as ordered segments — `{ date, segments }`, empty when the day has no log |
 | `open_app(name)` | Launch + focus an allowlisted app |
 | `close_app(name)` | Gracefully quit an allowlisted app |
+
+## Activity timeline
+
+`get_activity_timeline(date)` reads the day's witness log written by the YUI client and returns the transitions as the intervals they imply:
+
+```json
+{"date": "2026-08-12", "segments": [
+  {"start": "2026-08-12T09:00:00+09:00", "end": "2026-08-12T09:30:00+09:00",
+   "type": "app", "app": "Safari", "window_title": "Start Page", "duration_min": 30.0},
+  {"start": "2026-08-12T09:30:00+09:00", "end": "2026-08-12T10:00:00+09:00",
+   "type": "idle", "duration_min": 30.0}
+]}
+```
+
+Consecutive records for one app are a single segment, and a title change within it only updates the title. A day whose log opens with `idle_end` was idle across the midnight rotation, so that idle counts from 00:00; the segment the last record opens ends at that record's timestamp, because nothing after it was observed, and so reads as zero minutes. Corrupt lines are skipped, and a missing directory or day file is an empty timeline. The merge is the only processing — no summarizing, no filtering.
+
+The log carries window titles, so this tool hands the agent a record of what the user was reading and writing all day. It is the same exposure as `screenshot`, spread over a day.
 
 ## Test
 

@@ -14,7 +14,7 @@ from fastmcp.utilities.types import Image
 from loguru import logger
 
 # ponytail: loguru's default stderr handler is enough — no core/logger setup module
-from desktop_control import ops
+from desktop_control import activity, ops
 
 ALLOWLIST_ENV = "DESKTOP_CONTROL_ALLOWED_APPS"
 SCREENSHOT_MAX_EDGE_ENV = "DESKTOP_CONTROL_SCREENSHOT_MAX_EDGE"
@@ -47,7 +47,8 @@ mcp = FastMCP(
     instructions=(
         "Local macOS desktop control. Use screenshot to see the current screen, "
         "get_frontmost_window to see what the user is looking at, list_running_apps "
-        "to see what is open, then open_app/close_app to launch or quit apps. "
+        "to see what is open, get_activity_timeline to see which apps a past day was "
+        "spent in, then open_app/close_app to launch or quit apps. "
         "open_app/close_app only work for allowlisted apps."
     ),
 )
@@ -79,6 +80,26 @@ def get_frontmost_window() -> dict[str, Any]:
     app, title = ops.frontmost_window()
     logger.info(f"⬅️ get_frontmost_window: {app}")
     return {"app": app, "title": title}
+
+
+@mcp.tool
+def get_activity_timeline(date: str) -> dict[str, Any]:
+    """Return one day of desktop activity as ordered segments, merged from the local witness log.
+
+    Each segment is either `{start, end, type: "app", app, window_title, duration_min}` or an
+    idle stretch `{start, end, type: "idle", duration_min}`. Consecutive records for one app
+    form a single segment and a title change only updates the title. A day that starts mid-idle
+    counts that idle from 00:00; the segment the last record opens ends at that record's
+    timestamp, since nothing after it was observed, so it has a zero duration. A missing log
+    directory or day file returns an empty timeline rather than an error.
+
+    Args:
+        date: Day to read as "YYYY-MM-DD", in the log's local timezone.
+    """
+    logger.info(f"🔍 get_activity_timeline: {date}")
+    result = activity.timeline(date)
+    logger.info(f"⬅️ get_activity_timeline: {len(result.get('segments', []))} segment(s)")
+    return result
 
 
 @mcp.tool

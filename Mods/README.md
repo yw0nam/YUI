@@ -9,7 +9,7 @@ Mod convention: each mod is a **self-contained `uv` project** in its own folder 
 | Mod | Port | Runs | What |
 |---|---|---|---|
 | [router](router/) | 8080 | host-native | One HTTP front door — path-routes `/<mod>/mcp` to every mod over a single SSH tunnel |
-| [desktop-control](desktop-control/) | 9000 | host-native | See the screen and open/close apps on the macOS host |
+| [desktop-control](desktop-control/) | 9000 | host-native | See the screen, read the day's activity log, and open/close apps on the macOS host |
 | [shell-sandbox](shell-sandbox/) | 9001 | container | Unrestricted shell over a bind-mounted host directory |
 | [avatar](avatar/) | 9002 | host-native | Query the avatar's own body state and move it with semantic verbs |
 
