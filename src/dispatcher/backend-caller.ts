@@ -7,8 +7,8 @@
  *  B1 package_context — Assemble InputContext (user_text + env.timestamp + env.timezone).
  *  B2 POST — io/chat-client.streamChat(config, req, { fetch, apiKey }). SSE owned by chat-client
  *     — not parsed directly here. In-flight abort via AbortSignal. idle-gap watchdog
- *     (IDLE_TIMEOUT_MS, resets on each stream event) aborts stalled calls — TTFT is just the first gap,
- *     normal turns with long thinking/streaming are not killed.
+ *     (FIRST_EVENT_TIMEOUT_MS until the stream is live, then IDLE_TIMEOUT_MS resetting on each event)
+ *     aborts stalled calls — normal turns with long thinking/streaming are not killed.
  *  B3 parse — chat-client's `completed` event already assembled ControlEnvelope.
  *     No completed received → parse_error.
  *  B4 speech gate — speak only when speech_text is not empty. Empty text = silence,
@@ -80,10 +80,20 @@ function isReflexTurn(eventName: string): boolean {
 }
 
 /**
- * Idle-gap watchdog deadline (ms). Stall baseline that resets on each stream event (including first byte) —
- * not a cap on total elapsed time. Does not kill turns with long thinking/streaming, only aborts stalled turns.
+ * Idle-gap watchdog deadline (ms) between stream events, once the stream is live. Stall baseline that
+ * resets on each event — not a cap on total elapsed time. Does not kill turns with long thinking/streaming,
+ * only aborts stalled turns.
  */
 export const IDLE_TIMEOUT_MS = 45_000;
+
+/**
+ * Watchdog deadline (ms) for the first stream event. The backend may run context compaction and
+ * agent-loop work before it emits anything, so the first wait gets its own budget.
+ */
+export const FIRST_EVENT_TIMEOUT_MS = 240_000;
+
+/** Which watchdog budget expired — carried into the network_stall log. */
+type StallStage = "first_event_timeout" | "idle_timeout";
 
 /** Every outcome a backend call can settle to. */
 export type TurnOutcome =
@@ -146,32 +156,34 @@ export interface BackendCaller {
 
 /**
  * Idle-gap watchdog over a stream: yields events as they arrive, but stops (without
- * throwing) and calls `onIdle` if no event — including the very first — lands within
- * `ms` of the previous one. The deadline resets on every event, so it never kills a
- * turn that keeps making progress, only one that stalls.
+ * throwing) and calls `onIdle` with the expired stage if nothing lands in time. The wait
+ * for the very first event gets `firstEvent`; every wait after it gets `interEvent`, reset
+ * on each event — so it never kills a turn that keeps making progress, only one that stalls.
  */
 async function* withIdleWatchdog<T>(
   source: AsyncIterable<T>,
-  ms: number,
-  onIdle: () => void,
+  budgets: { firstEvent: number; interEvent: number },
+  onIdle: (stage: StallStage) => void,
 ): AsyncGenerator<T> {
   const it = source[Symbol.asyncIterator]();
+  let sawEvent = false;
   while (true) {
     const next = it.next();
     let timer: ReturnType<typeof setTimeout>;
     const idle = new Promise<"idle">((resolve) => {
-      timer = setTimeout(() => resolve("idle"), ms);
+      timer = setTimeout(() => resolve("idle"), sawEvent ? budgets.interEvent : budgets.firstEvent);
     });
     const race = await Promise.race([next.then((r) => ({ done: r.done, value: r.value })), idle]);
     clearTimeout(timer!);
     if (race === "idle") {
-      onIdle();
+      onIdle(sawEvent ? "idle_timeout" : "first_event_timeout");
       // the abandoned `next` will settle once the aborted stream unwinds — swallow it
       // so it doesn't surface as an unhandled rejection.
       next.catch(() => {});
       return;
     }
     if (race.done) return;
+    sawEvent = true;
     yield race.value as T;
   }
 }
@@ -329,14 +341,14 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         // HTTP status carried by stream error event (openai SDK APIError.status) — distinguish
         // 401/403 as http_4xx_drop (auth-ish) instead of network_drop.
         let streamErrorStatus: number | undefined;
-        // Did idle-gap watchdog detect stall and abort (includes first byte wait).
-        let idleTimedOut = false;
+        // Which watchdog budget expired and aborted, if any (undefined = no stall).
+        let stallStage: StallStage | undefined;
         try {
           for await (const ev of withIdleWatchdog(
             stream(deps.config, request, { apiKey, fetch: fetchImpl }),
-            IDLE_TIMEOUT_MS,
-            () => {
-              idleTimedOut = true;
+            { firstEvent: FIRST_EVENT_TIMEOUT_MS, interEvent: IDLE_TIMEOUT_MS },
+            (stage) => {
+              stallStage = stage;
               ac.abort();
             },
           )) {
@@ -386,10 +398,14 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           return "network_drop";
         }
 
-        if (idleTimedOut) {
-          // No event (incl. first byte) within IDLE_TIMEOUT_MS of the previous one — stalled.
+        if (stallStage) {
+          // Nothing landed inside the budget for this phase — stalled.
           if (streamedAny) deps.turnOutput?.abort();
-          log.warn("network_stall", { stage: "idle_timeout", idle_ms: IDLE_TIMEOUT_MS });
+          log.warn("network_stall", {
+            stage: stallStage,
+            idle_ms:
+              stallStage === "first_event_timeout" ? FIRST_EVENT_TIMEOUT_MS : IDLE_TIMEOUT_MS,
+          });
           return "network_stall";
         }
 
