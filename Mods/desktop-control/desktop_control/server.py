@@ -88,10 +88,12 @@ def get_activity_timeline(date: str) -> dict[str, Any]:
 
     Each segment is either `{start, end, type: "app", app, window_title, duration_min}` or an
     idle stretch `{start, end, type: "idle", duration_min}`. Consecutive records for one app
-    form a single segment and a title change only updates the title. A day that starts mid-idle
-    counts that idle from 00:00; the segment the last record opens ends at that record's
-    timestamp, since nothing after it was observed, so it has a zero duration. A missing log
-    directory or day file returns an empty timeline rather than an error.
+    form a single segment and a title change only updates the title. An app change recorded
+    while the machine is idle is background churn, so it does not end the idle stretch. A day
+    that starts mid-idle counts that idle from 00:00; the segment the last record opens ends at
+    that record's timestamp, since nothing after it was observed, so it has a zero duration. A
+    missing log directory or day file returns an empty timeline rather than an error, and the
+    logs are kept 14 days, so any older date is empty whatever happened on it.
 
     Args:
         date: Day to read as "YYYY-MM-DD", in the log's local timezone.

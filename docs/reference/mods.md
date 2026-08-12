@@ -62,7 +62,7 @@ The `DESKTOP_CONTROL_ALLOWED_APPS` allowlist **is** the safety boundary — only
 
 A startup preflight logs an explicit `[setup] … NOT granted` warning for Screen Recording and for System Events. It cannot cover `close_app`: probing an app's Automation grant prompts the user, so the per-app grants surface on first quit instead.
 
-`get_activity_timeline` reads the client's witness activity log from `WITNESS_LOG_DIR`, defaulting to the app's own `witness/` directory, and merges its transitions into `{ date, segments }` — one segment per app stretch (`{start, end, type: "app", app, window_title, duration_min}`) and one per idle stretch (`{start, end, type: "idle", duration_min}`). Merging is the only processing; the summarizing belongs to the agent reading it. Those segments carry a day of window titles, so exposing this mod exposes the titles too.
+`get_activity_timeline` reads the [witness log](witness-log.md) from `WITNESS_LOG_DIR`, defaulting to the app's own `witness/` directory, and merges its transitions into `{ date, segments }` — one segment per app stretch (`{start, end, type: "app", app, window_title, duration_min}`) and one per idle stretch (`{start, end, type: "idle", duration_min}`). An app change recorded while the machine is idle is background churn and does not end the idle stretch; a missing, unreadable, or retention-expired day file reads as an empty timeline rather than an error. Merging is the only processing; the summarizing belongs to the agent reading it. Those segments carry a day of window titles, so exposing this mod exposes the titles too.
 
 ## shell-sandbox
 

@@ -62,7 +62,7 @@ The agent then adds the MCP tool source at `http://localhost:9000/mcp` directly,
 
 ## Activity timeline
 
-`get_activity_timeline(date)` reads the day's witness log written by the YUI client and returns the transitions as the intervals they imply:
+`get_activity_timeline(date)` reads the day's witness log (`docs/reference/witness-log.md`) and returns the transitions as the intervals they imply:
 
 ```json
 {"date": "2026-08-12", "segments": [
@@ -73,7 +73,7 @@ The agent then adds the MCP tool source at `http://localhost:9000/mcp` directly,
 ]}
 ```
 
-Consecutive records for one app are a single segment, and a title change within it only updates the title. A day whose log opens with `idle_end` was idle across the midnight rotation, so that idle counts from 00:00; the segment the last record opens ends at that record's timestamp, because nothing after it was observed, and so reads as zero minutes. Corrupt lines are skipped, and a missing directory or day file is an empty timeline. The merge is the only processing — no summarizing, no filtering.
+Consecutive records for one app are a single segment, and a title change within it only updates the title. The client keeps reporting the frontmost app while the user is away, so an app change recorded during an idle stretch is background churn and leaves the idle running. A day whose log opens with `idle_end` was idle across the midnight rotation, so that idle counts from 00:00 — an app is never back-filled that way, since a quiet stretch before the first record may equally be a machine that was off. The segment the last record opens ends at that record's timestamp, because nothing after it was observed, and so reads as zero minutes. Corrupt lines are skipped, and a missing, unreadable, or expired day file is an empty timeline. The merge is the only processing — no summarizing, no filtering.
 
 The log carries window titles, so this tool hands the agent a record of what the user was reading and writing all day. It is the same exposure as `screenshot`, spread over a day.
 
