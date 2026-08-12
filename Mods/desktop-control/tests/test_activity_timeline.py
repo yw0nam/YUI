@@ -55,6 +55,10 @@ class TestLogDir:
         monkeypatch.delenv("WITNESS_LOG_DIR", raising=False)
         assert activity.log_dir() == Path.home() / "Library/Application Support/com.yui.desktop/witness"
 
+    def test_expands_a_tilde(self, monkeypatch):
+        monkeypatch.setenv("WITNESS_LOG_DIR", "~/logs/witness")
+        assert activity.log_dir() == Path.home() / "logs/witness"
+
 
 class TestNormalDay:
     def test_each_app_change_opens_a_segment(self, log_dir):
@@ -152,6 +156,40 @@ class TestIdlePairing:
             app_segment("09:40:00", "09:40:00", "Safari", None, 0.0),
         ]
 
+    def test_an_app_change_while_idle_does_not_end_the_idle(self, log_dir):
+        write_log(
+            log_dir,
+            [
+                record("09:00:00", "app_change", "Xcode", "YUI"),
+                record("09:10:00", "idle_start", "Xcode", "YUI"),
+                record("09:30:00", "app_change", "Calendar", "Alert"),
+                record("12:00:00", "idle_end", "Xcode", "YUI"),
+                record("12:05:00", "app_change", "Notes", None),
+            ],
+        )
+        assert activity.timeline(DATE)["segments"] == [
+            app_segment("09:00:00", "09:10:00", "Xcode", "YUI", 10.0),
+            idle_segment("09:10:00", "12:00:00", 170.0),
+            app_segment("12:00:00", "12:05:00", "Xcode", "YUI", 5.0),
+            app_segment("12:05:00", "12:05:00", "Notes", None, 0.0),
+        ]
+
+    def test_waking_into_another_app_emits_no_empty_segment(self, log_dir):
+        write_log(
+            log_dir,
+            [
+                record("09:00:00", "app_change", "Safari", None),
+                record("09:10:00", "idle_start", "Safari", None),
+                record("10:00:00", "idle_end", "Safari", None),
+                record("10:00:00", "app_change", "Notes", None),
+            ],
+        )
+        assert activity.timeline(DATE)["segments"] == [
+            app_segment("09:00:00", "09:10:00", "Safari", None, 10.0),
+            idle_segment("09:10:00", "10:00:00", 50.0),
+            app_segment("10:00:00", "10:00:00", "Notes", None, 0.0),
+        ]
+
 
 class TestUnpairedIdleEdges:
     def test_a_day_that_starts_idle_counts_the_idle_from_midnight(self, log_dir):
@@ -225,6 +263,29 @@ class TestMissingAndMalformed:
             app_segment("09:00:00", "09:30:00", "Safari", None, 30.0),
             app_segment("09:30:00", "09:30:00", "Notes", None, 0.0),
         ]
+
+    def test_a_timestamp_without_an_offset_is_skipped(self, log_dir):
+        write_log(
+            log_dir,
+            [
+                record("09:00:00", "app_change", "Safari", None),
+                json.dumps({"ts": f"{DATE}T09:15:00", "type": "app_change", "app": "Notes"}),
+                record("09:30:00", "app_change", "Notes", None),
+            ],
+        )
+        assert activity.timeline(DATE)["segments"] == [
+            app_segment("09:00:00", "09:30:00", "Safari", None, 30.0),
+            app_segment("09:30:00", "09:30:00", "Notes", None, 0.0),
+        ]
+
+    def test_an_unreadable_file_is_an_empty_timeline(self, log_dir, monkeypatch):
+        write_log(log_dir, [record("09:00:00", "app_change", "Safari", None)])
+
+        def denied(*args, **kwargs):
+            raise PermissionError("Operation not permitted")
+
+        monkeypatch.setattr(Path, "read_text", denied)
+        assert activity.timeline(DATE) == {"date": DATE, "segments": []}
 
     def test_a_malformed_date_is_rejected_instead_of_reaching_the_filesystem(self, log_dir):
         result = activity.timeline("../../../etc/passwd")
