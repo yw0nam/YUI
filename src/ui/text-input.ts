@@ -5,6 +5,7 @@
  * user typed/attached. No brain, persona, or mode branching lives here.
  */
 
+import { ATTACHMENT_LIMITS_DEFAULTS, type AttachmentLimits } from "../config";
 import { subscribe as subscribeLocale, t } from "./i18n";
 import { downscaleToJpeg } from "./image-resize";
 
@@ -26,6 +27,8 @@ export interface TextInput {
   setBusy(busy: boolean): void;
   /** Show an inline error (e.g. send failure). */
   showInputError(message: string): void;
+  /** Apply the configured attach-time caps (configs/guardrails.json → attachments). */
+  setAttachmentLimits(limits: AttachmentLimits): void;
   /** Toggle the input disabled (e.g. while processing). When disabled, field disabled + pending dimming. */
   setInputEnabled(enabled: boolean): void;
   /**
@@ -65,8 +68,12 @@ export function createTextInput(
 ): TextInput {
   const submitHandlers: Array<(text: string, images: string[]) => void> = [];
   const stopHandlers: Array<() => void> = [];
-  // ponytail: no count/size cap — add when context-size bites.
   const attachments: string[] = [];
+  // Accepted but still being read into a data URL — counts against max_count so a
+  // single multi-file drop cannot slip past the cap.
+  let inFlight = 0;
+  // Defaults until setAttachmentLimits delivers the configured caps.
+  let limits: AttachmentLimits = ATTACHMENT_LIMITS_DEFAULTS;
   // Backend processing — the send button becomes stop and submit is blocked.
   let busy = false;
   // Input bottom offset (px) — updated by setInputAnchor, used to lift the bubble while the input is open.
@@ -122,6 +129,10 @@ export function createTextInput(
     submitHandlers.push(cb);
   }
 
+  function setAttachmentLimits(next: AttachmentLimits): void {
+    limits = next;
+  }
+
   function clearAttachments(): void {
     attachments.length = 0;
     trayEl.replaceChildren();
@@ -130,10 +141,27 @@ export function createTextInput(
   function addFiles(files: FileList | File[]): void {
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue;
-      void downscaleToJpeg(file).then((url) => {
-        attachments.push(url);
-        addChip(url);
-      });
+      if (attachments.length + inFlight >= limits.max_count) {
+        showInputError(t("input.attach_too_many", { max: limits.max_count }));
+        return;
+      }
+      if (file.size > limits.max_image_bytes) {
+        showInputError(
+          t("input.attach_too_large", {
+            max: Math.round((limits.max_image_bytes / 1024 / 1024) * 10) / 10,
+          }),
+        );
+        continue;
+      }
+      inFlight++;
+      void downscaleToJpeg(file)
+        .then((url) => {
+          attachments.push(url);
+          addChip(url);
+        })
+        .finally(() => {
+          inFlight--;
+        });
     }
   }
 
@@ -294,6 +322,7 @@ export function createTextInput(
     onStop,
     setBusy,
     showInputError,
+    setAttachmentLimits,
     setInputEnabled,
     setInputAnchor,
     dispose,

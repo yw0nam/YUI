@@ -12,6 +12,7 @@
  */
 
 import "./surfaces.css";
+import type { AttachmentLimits } from "../config";
 import { createSpeechBubble } from "./speech-bubble";
 import { createTextInput } from "./text-input";
 import { createToolStatus } from "./tool-status";
@@ -61,6 +62,8 @@ export interface Surfaces {
   setBusy(busy: boolean): void;
   /** Show an inline error (e.g. send failure). */
   showInputError(message: string): void;
+  /** Apply the configured attach-time caps (configs/guardrails.json → attachments). */
+  setAttachmentLimits(limits: AttachmentLimits): void;
   /** Toggle the input disabled (e.g. while processing). When disabled, field disabled + pending dimming. */
   setInputEnabled(enabled: boolean): void;
   /**
@@ -171,6 +174,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     onStop: input.onStop,
     setBusy: input.setBusy,
     showInputError: input.showInputError,
+    setAttachmentLimits: input.setAttachmentLimits,
     setInputEnabled: input.setInputEnabled,
     setInputAnchor: input.setInputAnchor,
     dispose,

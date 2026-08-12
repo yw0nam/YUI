@@ -40,6 +40,8 @@ const en: Record<string, string> = {
   "input.error_network": "No response · check connection",
   "input.error_stall": "Backend stopped responding · timed out after {seconds}s",
   "input.error_parse": "Response parse failed",
+  "input.attach_too_many": "Too many images · up to {max} per turn",
+  "input.attach_too_large": "Image too large · up to {max}MB each",
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "Conversation context was reset",

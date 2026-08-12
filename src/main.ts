@@ -422,6 +422,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   try {
     const cfg = await config.load();
     if (disposed) return { dispose };
+    surfaces.setAttachmentLimits(cfg.guardrails.attachments);
     const configured = await createConfiguredBootstrap(cfg, {
       config,
       renderer,
@@ -469,7 +470,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
     const unsubscribeConfig = config.subscribe((cfg, changed) => {
       if (changed.has("emotionRegistry")) renderer.setEmotionRegistry(cfg.emotionRegistry);
       if (changed.has("motions")) renderer.setMotionRegistry(cfg.motions);
-      if (changed.has("guardrails")) configured.guardrails.setConfig(cfg.guardrails);
+      if (changed.has("guardrails")) {
+        configured.guardrails.setConfig(cfg.guardrails);
+        surfaces.setAttachmentLimits(cfg.guardrails.attachments);
+      }
       if (changed.has("hotkeys")) void configured.summonHotkey.apply(cfg.hotkeys.summon_global);
       if (changed.has("endpoints")) void refreshVoiceList();
       configured.broker.onConfigChange(cfg, changed);
