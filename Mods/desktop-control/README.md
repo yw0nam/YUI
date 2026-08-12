@@ -14,6 +14,17 @@ Only apps in `DESKTOP_CONTROL_ALLOWED_APPS` (comma-separated) can be opened or c
 
 `WITNESS_LOG_DIR` points `get_activity_timeline` at the witness log directory; unset, it reads `~/Library/Application Support/com.yui.desktop/witness` — where the YUI app writes it.
 
+## Run at login (launchd)
+
+`install-launch-agent.sh` installs a LaunchAgent that starts the server at login and restarts it if it dies, so nothing depends on remembering a manual launch:
+
+```bash
+DESKTOP_CONTROL_ALLOWED_APPS="Safari,Notes" ./install-launch-agent.sh   # install / reinstall
+./install-launch-agent.sh --uninstall
+```
+
+The env values are baked into the plist at install time — re-run the installer to change them. Logs go to `~/Library/Logs/com.yui.desktop-control.log`; check liveness with `launchctl print gui/$(id -u)/com.yui.desktop-control`. Under launchd the TCC-responsible process changes, so Screen Recording / Automation grants from terminal launches do not carry over — re-grant on first use. `get_activity_timeline` needs no permission either way.
+
 ## macOS permissions (TCC)
 
 Grant these to the **launching process** (the terminal that runs `uv run`, since TCC attributes grants to the responsible process, not to a stable desktop-control identity; re-grant if you launch it differently):
