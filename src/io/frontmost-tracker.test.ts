@@ -78,4 +78,31 @@ describe("frontmost tracker", () => {
     tracker.onTick(tick(11_000, { app: "Chrome", title: "docs" }));
     expect(tracker.get()).toEqual({ app: "Chrome", window_title: "docs", since: 11_000 });
   });
+
+  it("restores the original since when the same context returns within the grace window", () => {
+    const tracker = createFrontmostTracker();
+    tracker.onTick(tick(1_000, { app: "Cursor", title: "a.ts" }));
+    tracker.onTick(tick(6_000));
+    tracker.onTick(tick(6_000 + 4 * 60_000, { app: "Cursor", title: "a.ts" }));
+    expect(tracker.get()).toEqual({ app: "Cursor", window_title: "a.ts", since: 1_000 });
+  });
+
+  it("stamps a fresh since when the same context returns after the grace window elapses", () => {
+    const tracker = createFrontmostTracker();
+    tracker.onTick(tick(1_000, { app: "Cursor", title: "a.ts" }));
+    tracker.onTick(tick(6_000));
+    const returnTs = 6_000 + 6 * 60_000;
+    tracker.onTick(tick(returnTs, { app: "Cursor", title: "a.ts" }));
+    expect(tracker.get()).toEqual({ app: "Cursor", window_title: "a.ts", since: returnTs });
+  });
+
+  it("stamps a fresh since when A returns after B replaced it across two clears", () => {
+    const tracker = createFrontmostTracker();
+    tracker.onTick(tick(1_000, { app: "Cursor", title: "a.ts" }));
+    tracker.onTick(tick(6_000));
+    tracker.onTick(tick(11_000, { app: "Chrome", title: "docs" }));
+    tracker.onTick(tick(16_000));
+    tracker.onTick(tick(21_000, { app: "Cursor", title: "a.ts" }));
+    expect(tracker.get()).toEqual({ app: "Cursor", window_title: "a.ts", since: 21_000 });
+  });
 });
