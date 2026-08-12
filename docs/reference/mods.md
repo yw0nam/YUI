@@ -11,7 +11,7 @@ Each mod is a **self-contained `uv` project** in `Mods/<mod>/` with its own `pyp
 | Mod | Port | Runs | What |
 |---|---|---|---|
 | [router](https://github.com/yw0nam/YUI/blob/main/Mods/router/README.md) | 8080 | host-native | One HTTP front door — path-routes `/<mod>/mcp` to every mod over a single SSH tunnel |
-| [desktop-control](https://github.com/yw0nam/YUI/blob/main/Mods/desktop-control/README.md) | 9000 | host-native | See the screen and open/close apps on the macOS host |
+| [desktop-control](https://github.com/yw0nam/YUI/blob/main/Mods/desktop-control/README.md) | 9000 | host-native | See the screen, read the day's activity log, and open/close apps on the macOS host |
 | [shell-sandbox](https://github.com/yw0nam/YUI/blob/main/Mods/shell-sandbox/README.md) | 9001 | container | Unrestricted shell over a bind-mounted host directory |
 | [avatar](https://github.com/yw0nam/YUI/blob/main/Mods/avatar/README.md) | 9002 | host-native | Query the avatar's own body state and move it with semantic verbs |
 
@@ -40,13 +40,14 @@ It runs host-native as a thin proxy — MCP's Streamable HTTP transport is SSE, 
 
 ## desktop-control
 
-Lets the agent see the screen and open/close apps on the macOS host. Runs **host-native** — it needs the host GUI, which a container on macOS cannot reach.
+Lets the agent see the screen, read the day's activity log, and open/close apps on the macOS host. Runs **host-native** — it needs the host GUI, which a container on macOS cannot reach.
 
 | Tool | Description |
 |---|---|
 | `screenshot` | Capture every display as PNG (one image per monitor), long edge downscaled to 1280px |
 | `list_running_apps` | Names of visible (non-background) apps |
 | `get_frontmost_window` | `{ app, title }` for the frontmost app; `title` is null when it has no front window |
+| `get_activity_timeline(date)` | One day of the witness log as ordered `app` / `idle` segments; an absent day file is an empty timeline |
 | `open_app(name)` | Launch + focus an allowlisted app |
 | `close_app(name)` | Gracefully quit an allowlisted app |
 
@@ -57,9 +58,11 @@ The `DESKTOP_CONTROL_ALLOWED_APPS` allowlist **is** the safety boundary — only
 | Screen Recording | `screenshot`; the `title` half of `get_frontmost_window` |
 | Automation → System Events | `list_running_apps` |
 | Automation → each target app | `close_app` — its Apple Event goes to the named app, so every allowlisted app is its own grant |
-| none | `open_app`; the `app` half of `get_frontmost_window` |
+| none | `open_app`; `get_activity_timeline`; the `app` half of `get_frontmost_window` |
 
 A startup preflight logs an explicit `[setup] … NOT granted` warning for Screen Recording and for System Events. It cannot cover `close_app`: probing an app's Automation grant prompts the user, so the per-app grants surface on first quit instead.
+
+`get_activity_timeline` reads the [witness log](witness-log.md) from `WITNESS_LOG_DIR`, defaulting to the app's own `witness/` directory, and merges its transitions into `{ date, segments }` — one segment per app stretch (`{start, end, type: "app", app, window_title, duration_min}`) and one per idle stretch (`{start, end, type: "idle", duration_min}`). An app change recorded while the machine is idle is background churn and does not end the idle stretch; a missing, unreadable, or retention-expired day file reads as an empty timeline rather than an error. Merging is the only processing; the summarizing belongs to the agent reading it. Those segments carry a day of window titles, so exposing this mod exposes the titles too.
 
 ## shell-sandbox
 
