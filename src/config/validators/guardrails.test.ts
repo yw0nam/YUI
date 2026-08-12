@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ATTACHMENT_LIMITS_DEFAULTS } from "../load";
 import { validateGuardrails } from "./guardrails";
 import { ConfigError } from "./shared";
 
@@ -18,6 +19,10 @@ function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknow
       tier3_max: 2,
       overall_max: 26,
       cooldown_ms: 300000,
+    },
+    attachments: {
+      max_count: 6,
+      max_image_bytes: 5242880,
     },
     ...overrides,
   };
@@ -116,7 +121,7 @@ describe("validateGuardrails — rate_limit", () => {
     );
   });
 
-  it("accumulates issues for every malformed block at once", () => {
+  it("accumulates issues for every malformed block at once (attachments defaulted)", () => {
     try {
       validateGuardrails(FILE, { debounce_ms: "y", rate_limit: "z" });
       expect.unreachable("validateGuardrails should have thrown");
@@ -124,5 +129,32 @@ describe("validateGuardrails — rate_limit", () => {
       const err = e as ConfigError;
       expect(err.issues.length).toBe(2);
     }
+  });
+});
+
+describe("validateGuardrails — attachments", () => {
+  it("reads the attach-time caps", () => {
+    const out = validateGuardrails(
+      FILE,
+      baseRaw({ attachments: { max_count: 3, max_image_bytes: 1024 } }),
+    );
+    expect(out.attachments).toEqual({ max_count: 3, max_image_bytes: 1024 });
+  });
+
+  it("falls back to the defaults when the block is absent", () => {
+    const raw = baseRaw();
+    delete raw.attachments;
+    expect(validateGuardrails(FILE, raw).attachments).toEqual(ATTACHMENT_LIMITS_DEFAULTS);
+  });
+
+  it("rejects a non-object attachments", () => {
+    expectIssue(baseRaw({ attachments: "nope" }), "attachments는 객체여야 함");
+  });
+
+  it("rejects a negative field", () => {
+    expectIssue(
+      baseRaw({ attachments: { max_count: -1, max_image_bytes: 1024 } }),
+      "attachments.max_count는 0 이상 유한 number여야 함",
+    );
   });
 });
