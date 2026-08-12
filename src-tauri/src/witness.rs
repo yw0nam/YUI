@@ -315,14 +315,53 @@ mod tests {
     }
 
     #[test]
-    fn first_sample_while_idle_emits_no_idle_start() {
+    fn first_sample_while_idle_emits_idle_start() {
+        // A start while the user is away must still pair: the later idle_end
+        // needs a matching idle_start.
         let mut d = TransitionDetector::default();
         let out = d.step(&sample(None, None, Some(IDLE_THRESHOLD_MS)), "T1");
-        assert!(out.is_empty(), "no prior state means no idle transition");
-        // The idle state is still seeded: returning input is an idle_end.
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].kind, RecordKind::IdleStart);
         let out = d.step(&sample(None, None, Some(0)), "T2");
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].kind, RecordKind::IdleEnd);
+    }
+
+    #[test]
+    fn first_sample_while_active_emits_no_idle_record() {
+        let mut d = TransitionDetector::default();
+        let out = d.step(&sample(None, None, Some(0)), "T1");
+        assert!(out.is_empty(), "an active first sample is not a transition");
+    }
+
+    // ── window title cap ─────────────────────────────────────────────────────
+
+    #[test]
+    fn record_truncates_an_overlong_window_title() {
+        let mut d = TransitionDetector::default();
+        let long = "a".repeat(MAX_TITLE_CHARS + 44);
+        let out = d.step(&sample(Some("Safari"), Some(&long), Some(0)), "T1");
+        assert_eq!(
+            out[0].window_title.as_deref().map(str::len),
+            Some(MAX_TITLE_CHARS)
+        );
+    }
+
+    #[test]
+    fn record_truncates_a_multibyte_title_on_char_boundaries() {
+        let mut d = TransitionDetector::default();
+        let long = "한".repeat(MAX_TITLE_CHARS + 44);
+        let out = d.step(&sample(Some("Safari"), Some(&long), Some(0)), "T1");
+        let title = out[0].window_title.as_deref().unwrap();
+        assert_eq!(title.chars().count(), MAX_TITLE_CHARS);
+        assert!(title.chars().all(|c| c == '한'));
+    }
+
+    #[test]
+    fn record_keeps_a_short_title_verbatim() {
+        let mut d = TransitionDetector::default();
+        let out = d.step(&sample(Some("Safari"), Some("Start Page"), Some(0)), "T1");
+        assert_eq!(out[0].window_title.as_deref(), Some("Start Page"));
     }
 
     #[test]

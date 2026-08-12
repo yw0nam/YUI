@@ -542,6 +542,55 @@ mod tests {
 
     // ── WindowAtPoint serialisation ──────────────────────────────────────────
 
+    // ── frontmost user window ────────────────────────────────────────────────
+
+    fn window(owner: Option<&str>, name: Option<&str>) -> WindowAtPoint {
+        WindowAtPoint {
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+            name: name.map(str::to_string),
+            owner_name: owner.map(str::to_string),
+            pid: 1,
+            window_number: 1,
+        }
+    }
+
+    #[test]
+    fn frontmost_takes_the_topmost_window() {
+        let picked = first_user_window(vec![
+            window(Some("Safari"), Some("Start Page")),
+            window(Some("Xcode"), Some("main.rs")),
+        ]);
+        assert_eq!(picked.unwrap().owner_name.as_deref(), Some("Safari"));
+    }
+
+    #[test]
+    fn frontmost_skips_a_system_helper_window() {
+        // Stage Manager's helper floats above the real frontmost app.
+        let picked = first_user_window(vec![
+            window(Some("WindowManager"), Some("App Icon Window")),
+            window(Some("Safari"), Some("Start Page")),
+        ]);
+        assert_eq!(picked.unwrap().owner_name.as_deref(), Some("Safari"));
+    }
+
+    #[test]
+    fn frontmost_is_none_when_only_helpers_are_on_screen() {
+        let picked = first_user_window(vec![
+            window(Some("WindowManager"), Some("App Icon Window")),
+            window(Some("Control Center"), None),
+        ]);
+        assert!(picked.is_none());
+    }
+
+    #[test]
+    fn frontmost_keeps_a_window_without_an_owner() {
+        let picked = first_user_window(vec![window(None, Some("Untitled"))]);
+        assert_eq!(picked.unwrap().name.as_deref(), Some("Untitled"));
+    }
+
     #[test]
     fn window_at_point_serialises_camel_case() {
         let w = WindowAtPoint {
