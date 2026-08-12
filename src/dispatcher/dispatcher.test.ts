@@ -349,6 +349,33 @@ describe("dispatcher — posture", () => {
     await pushPostureEvent(clearEvent);
     expect(dispatcher.getPosture()).toBeUndefined();
   });
+
+  it("stamps body state with the wall clock of the posture change", async () => {
+    dispatcher.start();
+    const before = Date.now();
+    await pushPostureEvent("user.window_sit_enter");
+    const sitting = dispatcher.getBodyState()!;
+    expect(sitting.posture).toEqual({ state: "sitting" });
+    expect(sitting.since).toBeGreaterThanOrEqual(before);
+    expect(sitting.since).toBeLessThanOrEqual(Date.now());
+
+    await pushPostureEvent("user.drag_start");
+    const dragging = dispatcher.getBodyState()!;
+    expect(dragging.posture).toEqual({ state: "dragging" });
+    expect(dragging.since).toBeGreaterThan(sitting.since);
+
+    // elapsed time alone never moves the stamp
+    vi.setSystemTime(Date.now() + 600_000);
+    expect(dispatcher.getBodyState()?.since).toBe(dragging.since);
+  });
+
+  it("reports no body state while the avatar stands free", async () => {
+    dispatcher.start();
+    expect(dispatcher.getBodyState()).toBeUndefined();
+    await pushPostureEvent("user.drag_start");
+    await pushPostureEvent("user.drag_end");
+    expect(dispatcher.getBodyState()).toBeUndefined();
+  });
 });
 
 describe("dispatcher — routing (§5.1)", () => {
