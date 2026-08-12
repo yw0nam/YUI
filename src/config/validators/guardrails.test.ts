@@ -147,6 +147,21 @@ describe("validateGuardrails — attachments", () => {
     expect(validateGuardrails(FILE, raw).attachments).toEqual(ATTACHMENT_LIMITS_DEFAULTS);
   });
 
+  it("defaults the keys a partial block omits", () => {
+    const out = validateGuardrails(FILE, baseRaw({ attachments: { max_count: 3 } }));
+    expect(out.attachments).toEqual({
+      max_count: 3,
+      max_image_bytes: ATTACHMENT_LIMITS_DEFAULTS.max_image_bytes,
+    });
+  });
+
+  it("still rejects a malformed key inside a partial block", () => {
+    expectIssue(
+      baseRaw({ attachments: { max_image_bytes: "big" } }),
+      "attachments.max_image_bytes는 0 이상 유한 number여야 함",
+    );
+  });
+
   it("rejects a non-object attachments", () => {
     expectIssue(baseRaw({ attachments: "nope" }), "attachments는 객체여야 함");
   });

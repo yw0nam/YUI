@@ -289,6 +289,25 @@ describe("attachment caps — count + per-image size", () => {
     expect(form().classList.contains("is-error")).toBe(true);
   });
 
+  it("drops in-flight reads when the tray is cleared mid-read", async () => {
+    const seen: string[][] = [];
+    s.onSubmit((_text, images) => seen.push(images));
+    s.setAttachmentLimits({ max_count: 2, max_image_bytes: 1024 });
+
+    field().value = "hi";
+    field().dispatchEvent(makePasteEvent([pngFile("a.png"), pngFile("b.png")]));
+    // Submit before those reads resolve — the turn goes out and the tray is cleared.
+    form().dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+
+    expect(seen[0].length).toBe(0);
+    expect(tray().children.length).toBe(0);
+
+    // …and the abandoned reads hold no slots.
+    await paste(pngFile("c.png"), pngFile("d.png"));
+    expect(tray().children.length).toBe(2);
+  });
+
   it("submits only the accepted attachments", async () => {
     const seen: string[][] = [];
     s.onSubmit((_text, images) => seen.push(images));
