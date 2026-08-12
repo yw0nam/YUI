@@ -67,6 +67,25 @@ describe("context builder", () => {
     expect(built.clientContext.env).not.toHaveProperty("recent_apps");
   });
 
+  it("carries env.frontmost from the provider", async () => {
+    const built = await buildContext(ENV, {
+      getFrontmost: () => ({ app: "Cursor", window_title: "contract.md", since: 1_716_999_500_000 }),
+    });
+
+    expect(built.clientContext.env.frontmost).toEqual({
+      app: "Cursor",
+      window_title: "contract.md",
+      since: 1_716_999_500_000,
+    });
+  });
+
+  it("omits env.frontmost when the provider is absent or returns undefined", async () => {
+    expect((await buildContext(ENV, {})).clientContext.env).not.toHaveProperty("frontmost");
+    expect(
+      (await buildContext(ENV, { getFrontmost: () => undefined })).clientContext.env,
+    ).not.toHaveProperty("frontmost");
+  });
+
   it("carries the held body state from the provider", async () => {
     const built = await buildContext(ENV, {
       getBodyState: () => ({
