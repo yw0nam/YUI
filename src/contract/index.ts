@@ -18,6 +18,8 @@ export type {
   EndpointsConfig,
   // Control envelope
   ExpressArgs,
+  // Latest frontmost-window sample reported each turn
+  FrontmostState,
   InputContext,
   InterruptPolicy,
   // Motion

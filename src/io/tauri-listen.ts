@@ -14,6 +14,8 @@ export interface OsEventPayload {
   ts: number;
   data: {
     os_idle_ms?: number | null;
+    frontmost_app?: string | null;
+    frontmost_title?: string | null;
   };
 }
 

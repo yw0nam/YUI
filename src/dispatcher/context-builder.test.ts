@@ -69,7 +69,11 @@ describe("context builder", () => {
 
   it("carries env.frontmost from the provider", async () => {
     const built = await buildContext(ENV, {
-      getFrontmost: () => ({ app: "Cursor", window_title: "contract.md", since: 1_716_999_500_000 }),
+      getFrontmost: () => ({
+        app: "Cursor",
+        window_title: "contract.md",
+        since: 1_716_999_500_000,
+      }),
     });
 
     expect(built.clientContext.env.frontmost).toEqual({

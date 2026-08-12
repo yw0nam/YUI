@@ -29,6 +29,7 @@ import { CAMERA_ORBIT_SENSITIVITY } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
 import { createCursorTracker } from "./io/cursor-tracker";
 import { createDragHoldSource } from "./io/drag-hold-source";
+import { createFrontmostTracker } from "./io/frontmost-tracker";
 import { createHitTestController } from "./io/hit-test";
 import { createPeekState } from "./io/peek-state";
 import type { ScreenCapturer } from "./io/screen-source-provider";
@@ -37,6 +38,7 @@ import type { SettingsStores } from "./io/settings-stores";
 import type { SummonHotkey } from "./io/summon-hotkey";
 import { createTapSource } from "./io/tap-source";
 import { isTauri } from "./io/tauri-env";
+import { subscribeOsEvent } from "./io/tauri-listen";
 import { createLogger } from "./logger";
 import type { Renderer } from "./renderer";
 import { showChainResetNotice } from "./ui/chain-reset-notice";
@@ -182,6 +184,11 @@ const realFactories: ConfiguredBootstrapFactories = {
     });
     register(voice.dispose);
 
+    const frontmostTracker = createFrontmostTracker();
+    void subscribeOsEvent({ onTick: frontmostTracker.onTick, log }).then((unlisten) => {
+      if (unlisten) register(unlisten);
+    });
+
     const backendCaller = createBackendCaller({
       get config() {
         return getEndpoints();
@@ -214,6 +221,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         return buildScreenshotBlock(screenshot, capture ?? undefined);
       },
       getBodyState: () => dispatcher.getBodyState(),
+      getFrontmost: () => frontmostTracker.get(),
       contextHistory,
       getAgentSettings: () => agentSettings.get(),
     });
