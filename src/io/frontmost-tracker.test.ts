@@ -105,4 +105,16 @@ describe("frontmost tracker", () => {
     tracker.onTick(tick(21_000, { app: "Cursor", title: "a.ts" }));
     expect(tracker.get()).toEqual({ app: "Cursor", window_title: "a.ts", since: 21_000 });
   });
+
+  it("stamps a fresh since when a sustained absence sends repeated clear ticks", () => {
+    // The watcher polls every ~5s, so a real absence produces many consecutive clear
+    // ticks, not one. clearedAt must stamp on the FIRST clear tick, not every one.
+    const tracker = createFrontmostTracker();
+    tracker.onTick(tick(1_000, { app: "Cursor", title: "a.ts" }));
+    tracker.onTick(tick(6_000)); // clear begins
+    tracker.onTick(tick(6_000 + 299_000)); // still clear, well within grace of the FIRST clear tick
+    const returnTs = 6_000 + 299_000 + 10_000; // >5min past the first clear tick
+    tracker.onTick(tick(returnTs, { app: "Cursor", title: "a.ts" }));
+    expect(tracker.get()).toEqual({ app: "Cursor", window_title: "a.ts", since: returnTs });
+  });
 });
