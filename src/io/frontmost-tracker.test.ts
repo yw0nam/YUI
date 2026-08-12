@@ -62,4 +62,20 @@ describe("frontmost tracker", () => {
     tracker.onTick(tick(6_000));
     expect(tracker.get()).toBeUndefined();
   });
+
+  it("restores the original since when the same context returns after a transient clear", () => {
+    const tracker = createFrontmostTracker();
+    tracker.onTick(tick(1_000, { app: "Cursor", title: "a.ts" }));
+    tracker.onTick(tick(6_000));
+    tracker.onTick(tick(11_000, { app: "Cursor", title: "a.ts" }));
+    expect(tracker.get()).toEqual({ app: "Cursor", window_title: "a.ts", since: 1_000 });
+  });
+
+  it("stamps a fresh since when a different context follows a clear", () => {
+    const tracker = createFrontmostTracker();
+    tracker.onTick(tick(1_000, { app: "Cursor", title: "a.ts" }));
+    tracker.onTick(tick(6_000));
+    tracker.onTick(tick(11_000, { app: "Chrome", title: "docs" }));
+    expect(tracker.get()).toEqual({ app: "Chrome", window_title: "docs", since: 11_000 });
+  });
 });
