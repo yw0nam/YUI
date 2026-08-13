@@ -386,7 +386,8 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
 
   it("caps the turn at three round trips and surfaces the text collected so far", async () => {
     const registry = createClientToolRegistry([toolStub("generate_express")]);
-    for (let i = 0; i < 6; i++) {
+    // Exactly the four requests the cap allows — a fifth would find the mock empty and fail loudly.
+    for (let i = 0; i < 4; i++) {
       ccCreateMock.mockResolvedValueOnce(
         streamOf([
           textChunk(`t${i}`),
