@@ -24,6 +24,8 @@ dist-ssr
 *.sw?
 resources/vrms/*
 !resources/vrms/.gitkeep
+!resources/vrms/Sendagaya_Shino.vrm
+!resources/vrms/Sendagaya_Shino.PROVENANCE.md
 public/purchased_motions/*
 !public/purchased_motions/.gitkeep
 !public/purchased_motions/AGENTS.md

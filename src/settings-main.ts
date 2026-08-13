@@ -86,7 +86,7 @@ async function bootstrap(): Promise<void> {
   // Main window hot-swaps actual VRM via storage reload.
   // Create with fallback default, inject actual available[] if config loaded (same as main window).
   const vrmSelection = createVrmSelection({
-    defaultValue: "/vrms/carlotta.vrm",
+    defaultValue: "/vrms/Sendagaya_Shino.vrm",
     storage: localStorageVrmStorage(),
     userStorage: localStorageUserVrmStorage(),
   });
