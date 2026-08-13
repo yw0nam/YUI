@@ -26,7 +26,8 @@ const VAD_ASSET_PATH = "/vad/";
 export const STT_REQUEST_TIMEOUT_MS = 10_000;
 
 export interface SttVadOptions {
-  config: EndpointsConfig;
+  /** Accepts a getter so a live stt_base_url override is read on every request, not pinned at construction. */
+  config: EndpointsConfig | (() => EndpointsConfig);
   fetch?: typeof fetch;
   /**
    * Silence window in ms before speech end is declared. Default 1500.
@@ -112,10 +113,12 @@ function describeStartError(err: unknown): string {
 }
 
 export function createSttVad(options: SttVadOptions): SttVad {
-  const { config, onVoiceSegment, onState, getApiKey, onSpeechActive } = options;
+  const { onVoiceSegment, onState, getApiKey, onSpeechActive } = options;
   const fetchImpl = options.fetch ?? globalThis.fetch;
   const resolveSilenceMs = (): number =>
     typeof options.silenceMs === "function" ? options.silenceMs() : (options.silenceMs ?? 1500);
+  const resolveConfig = (): EndpointsConfig =>
+    typeof options.config === "function" ? options.config() : options.config;
 
   let vad: Awaited<ReturnType<typeof MicVAD.new>> | null = null;
   let loading = false;
@@ -135,7 +138,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
     try {
       // Bearer only — never set Content-Type here: FormData needs the browser-set multipart boundary.
       const key = (await getApiKey?.())?.trim() || undefined;
-      const res = await fetchImpl(`${config.stt_base_url}/audio/transcriptions`, {
+      const res = await fetchImpl(`${resolveConfig().stt_base_url}/audio/transcriptions`, {
         method: "POST",
         body: form,
         headers: key ? { Authorization: `Bearer ${key}` } : undefined,
@@ -194,7 +197,7 @@ export function createSttVad(options: SttVadOptions): SttVad {
   return {
     start(): Promise<void> {
       // Without stt_base_url, STT is unavailable — silently no-op.
-      if (!config.stt_base_url) return Promise.resolve();
+      if (!resolveConfig().stt_base_url) return Promise.resolve();
       if (loading) return startPromise ?? Promise.resolve();
       // MicVAD.start() is itself idempotent (no-ops if already listening) and resumes
       // cleanly from a paused state, so reuse the loaded instance instead of reloading.

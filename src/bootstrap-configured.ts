@@ -256,7 +256,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(() => dispatcher.stop());
     register(dispatcher.subscribeBusy((busy) => surfaces.setBusy(busy)));
 
-    const sttVad = await voice.createSttEngine(cfg.endpoints);
+    const sttVad = await voice.createSttEngine();
     voiceInput.setStt(sttVad);
     ensureActive();
     renderer.setEmotionRegistry(cfg.emotionRegistry);

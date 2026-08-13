@@ -684,3 +684,48 @@ describe("createSttVad — no stt_base_url (silently disabled)", () => {
     expect(() => stt.stop()).not.toThrow();
   });
 });
+
+describe("createSttVad — live config getter tracks settings-UI overrides (#611)", () => {
+  it("accepts a config getter and reads stt_base_url from it at request time, not at construction", async () => {
+    const fetchMock = buildFetchMock("ok");
+    let current = CONFIG;
+
+    const stt = createSttVad({ config: () => current, onVoiceSegment: vi.fn(), fetch: fetchMock });
+    // Override applied after the engine was created — the bug this test locks was the engine
+    // capturing a static config object at construction time and never re-reading it.
+    current = { ...CONFIG, stt_base_url: "http://override.test/v1" };
+    await stt.start();
+
+    await triggerSpeechEnd!(new Float32Array([0.1]));
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://override.test/v1/audio/transcriptions");
+  });
+
+  it("changing the override between requests retargets the next transcription request", async () => {
+    const fetchMock = buildFetchMock("ok");
+    let current = CONFIG;
+
+    const stt = createSttVad({ config: () => current, onVoiceSegment: vi.fn(), fetch: fetchMock });
+    await stt.start();
+
+    await triggerSpeechEnd!(new Float32Array([0.1]));
+    expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:5517/v1/audio/transcriptions");
+
+    current = { ...CONFIG, stt_base_url: "http://override2.test/v1" };
+    await triggerSpeechEnd!(new Float32Array([0.1]));
+    expect(fetchMock.mock.calls[1][0]).toBe("http://override2.test/v1/audio/transcriptions");
+  });
+
+  it("start() is still a no-op when the config getter currently returns no stt_base_url", async () => {
+    const { MicVAD } = await import("@ricky0123/vad-web");
+    const current: import("../contract").EndpointsConfig = {
+      chat_base_url: "http://localhost:8643/v1",
+      chat_endpoint: "/v1/responses",
+    } as unknown as import("../contract").EndpointsConfig;
+
+    const stt = createSttVad({ config: () => current, onVoiceSegment: vi.fn() });
+    await expect(stt.start()).resolves.toBeUndefined();
+    expect(MicVAD.new).not.toHaveBeenCalled();
+  });
+});

@@ -594,7 +594,7 @@ describe("wireVoicePipeline", () => {
     state.setFillerConfig({ gap_ms: 2_000, gap_jitter_ms: 250, pools: {} });
     expect(fillerOptions().getTiming()).toEqual({ gapMs: 2_000, jitterMs: 250 });
 
-    await state.voice.createSttEngine(endpoints());
+    await state.voice.createSttEngine();
     const sttOptions = mocks.captured.sttVad as SttVadOptions;
     expect((sttOptions.silenceMs as () => number)()).toBe(1_500);
     state.setSilenceMs(900);
@@ -607,18 +607,27 @@ describe("wireVoicePipeline", () => {
     expect(mocks.fillerLoop.onUtteranceDone).toHaveBeenCalledOnce();
   });
 
-  it("wires STT callbacks, state, credentials, and the endpoints snapshot", async () => {
+  it("wires STT callbacks, state, credentials, and a live endpoints getter (#611)", async () => {
     const state = setup();
     const snapshot = endpoints({ stt_base_url: "http://snapshot.test/v1" });
+    state.setEndpoints(snapshot);
     const selectedFetch = vi.fn<typeof fetch>();
     mocks.selectFetch.mockResolvedValueOnce(selectedFetch);
-    const result = await state.voice.createSttEngine(snapshot);
+    const result = await state.voice.createSttEngine();
     const options = mocks.captured.sttVad as SttVadOptions;
 
     expect(result).toBe(mocks.sttVad);
     expect(mocks.selectFetch).toHaveBeenCalled();
     expect(options.fetch).toBe(selectedFetch);
-    expect(options.config).toBe(snapshot);
+    expect(typeof options.config).toBe("function");
+    expect((options.config as () => EndpointsConfig)()).toBe(snapshot);
+
+    // A settings-UI override applied after the engine was created must be read on the next
+    // resolve — the bug this locks was the engine capturing a static snapshot at construction.
+    const overridden = endpoints({ stt_base_url: "http://override.test/v1" });
+    state.setEndpoints(overridden);
+    expect((options.config as () => EndpointsConfig)()).toBe(overridden);
+
     expect(options.getApiKey).toBe(state.getSttApiKey);
     options.onVoiceSegment("transcript");
     options.onState!("error", "detail");
@@ -628,7 +637,7 @@ describe("wireVoicePipeline", () => {
 
   it("interrupts active playback only when barge-in is enabled", async () => {
     const state = setup();
-    await state.voice.createSttEngine(endpoints());
+    await state.voice.createSttEngine();
     const onSpeechActive = (mocks.captured.sttVad as SttVadOptions).onSpeechActive!;
 
     onSpeechActive();
