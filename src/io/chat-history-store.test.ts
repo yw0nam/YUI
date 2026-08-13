@@ -2,7 +2,8 @@
  * chat-history-store.test.ts — unified conversation transcript store.
  *
  * Pins the contract for src/io/chat-history-store.ts:
- *   createChatHistoryStore({ storage?, initial? }) store (append/get/clear/subscribe/reload/dispose)
+ *   createChatHistoryStore({ storage?, initial? }) store
+ *     (append/get/startNewSession/entriesAfterLastBoundary/sessions/subscribe/reload/dispose)
  *   localStorageChatHistoryStorage(key?) localStorage adapter
  *   selectSendSuffix(entries, contextWindow) pure helper
  */
@@ -18,6 +19,10 @@ import {
 
 function entry(role: "user" | "assistant", text: string, ts: number): ChatHistoryEntry {
   return { role, text, ts };
+}
+
+function boundary(ts: number) {
+  return { kind: "boundary" as const, ts };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,34 +80,182 @@ describe("createChatHistoryStore — rolling cap", () => {
     expect(got[0]).toEqual(entry("user", "msg-10", 10));
     expect(got[got.length - 1]).toEqual(entry("user", `msg-${CAP + 9}`, CAP + 9));
   });
+
+  it("counts boundaries toward the cap", () => {
+    const store = createChatHistoryStore();
+    const CAP = 200;
+    for (let i = 0; i < CAP; i++) store.append(entry("user", `msg-${i}`, i));
+    store.startNewSession(9999);
+
+    const got = store.get();
+    expect(got.length).toBe(CAP);
+    expect(got[got.length - 1]).toEqual(boundary(9999));
+    // The oldest entry made room for the boundary.
+    expect(got[0]).toEqual(entry("user", "msg-1", 1));
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// createChatHistoryStore — clear
+// createChatHistoryStore — session boundaries
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createChatHistoryStore — clear", () => {
-  it("empties the store", () => {
+describe("createChatHistoryStore — startNewSession", () => {
+  it("appends a boundary marker instead of clearing the transcript", () => {
     const store = createChatHistoryStore();
     store.append(entry("user", "hi", 1));
-    store.clear();
-    expect(store.get()).toEqual([]);
+    store.startNewSession(2);
+
+    expect(store.get()).toEqual([entry("user", "hi", 1), boundary(2)]);
   });
 
-  it("is a no-op (no notify) when already empty", () => {
+  it("is a no-op when the transcript is empty", () => {
     const store = createChatHistoryStore();
     const cb = vi.fn();
     store.subscribe(cb);
-    store.clear();
+    store.startNewSession(2);
+
+    expect(store.get()).toEqual([]);
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("persists the cleared state via storage.save", () => {
+  it("is a no-op when the last item is already a boundary", () => {
+    const store = createChatHistoryStore();
+    store.append(entry("user", "hi", 1));
+    store.startNewSession(2);
+    store.startNewSession(3);
+
+    expect(store.get()).toEqual([entry("user", "hi", 1), boundary(2)]);
+  });
+
+  it("persists the boundary via storage.save", () => {
     const storage: ChatHistoryStorage = { load: () => null, save: vi.fn() };
     const store = createChatHistoryStore({ storage });
     store.append(entry("user", "hi", 1));
-    store.clear();
-    expect(storage.save).toHaveBeenLastCalledWith([]);
+    store.startNewSession(2);
+
+    expect(storage.save).toHaveBeenLastCalledWith([entry("user", "hi", 1), boundary(2)]);
+  });
+
+  it("keeps a stored boundary across a store reload", () => {
+    const storage = makeMemStorage();
+    const store1 = createChatHistoryStore({ storage });
+    store1.append(entry("user", "hi", 1));
+    store1.startNewSession(2);
+    store1.append(entry("user", "fresh", 3));
+
+    const store2 = createChatHistoryStore({ storage });
+    expect(store2.get()).toEqual([entry("user", "hi", 1), boundary(2), entry("user", "fresh", 3)]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createChatHistoryStore — entriesAfterLastBoundary (replay source)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createChatHistoryStore — entriesAfterLastBoundary", () => {
+  it("returns every entry when no boundary was ever written", () => {
+    const store = createChatHistoryStore();
+    store.append(entry("user", "a", 1));
+    store.append(entry("assistant", "b", 2));
+
+    expect(store.entriesAfterLastBoundary()).toEqual([
+      entry("user", "a", 1),
+      entry("assistant", "b", 2),
+    ]);
+  });
+
+  it("returns only the entries appended after the latest boundary", () => {
+    const store = createChatHistoryStore();
+    store.append(entry("user", "old", 1));
+    store.startNewSession(2);
+    store.append(entry("user", "new", 3));
+    store.append(entry("assistant", "reply", 4));
+
+    expect(store.entriesAfterLastBoundary()).toEqual([
+      entry("user", "new", 3),
+      entry("assistant", "reply", 4),
+    ]);
+  });
+
+  it("returns an empty array right after a boundary", () => {
+    const store = createChatHistoryStore();
+    store.append(entry("user", "old", 1));
+    store.startNewSession(2);
+
+    expect(store.entriesAfterLastBoundary()).toEqual([]);
+  });
+
+  it("ignores boundaries older than the latest one", () => {
+    const store = createChatHistoryStore();
+    store.append(entry("user", "one", 1));
+    store.startNewSession(2);
+    store.append(entry("user", "two", 3));
+    store.startNewSession(4);
+    store.append(entry("user", "three", 5));
+
+    expect(store.entriesAfterLastBoundary()).toEqual([entry("user", "three", 5)]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createChatHistoryStore — sessions (viewer source)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createChatHistoryStore — sessions", () => {
+  it("groups a boundary-free transcript as one session starting at its first entry", () => {
+    const store = createChatHistoryStore();
+    store.append(entry("user", "a", 10));
+    store.append(entry("assistant", "b", 20));
+
+    expect(store.sessions()).toEqual([
+      { startedAt: 10, entries: [entry("user", "a", 10), entry("assistant", "b", 20)] },
+    ]);
+  });
+
+  it("returns sessions newest-first, each starting at its boundary timestamp", () => {
+    const store = createChatHistoryStore();
+    store.append(entry("user", "old", 10));
+    store.startNewSession(50);
+    store.append(entry("user", "new", 60));
+
+    expect(store.sessions()).toEqual([
+      { startedAt: 50, entries: [entry("user", "new", 60)] },
+      { startedAt: 10, entries: [entry("user", "old", 10)] },
+    ]);
+  });
+
+  it("keeps the current session even when it has no entries yet", () => {
+    const store = createChatHistoryStore();
+    store.append(entry("user", "old", 10));
+    store.startNewSession(50);
+
+    const sessions = store.sessions();
+    expect(sessions[0]).toEqual({ startedAt: 50, entries: [] });
+    expect(sessions).toHaveLength(2);
+  });
+
+  it("drops older empty sessions left by a leading orphan boundary", () => {
+    const storage: ChatHistoryStorage = {
+      load: () => [boundary(5), entry("user", "a", 10)] as never,
+      save: vi.fn(),
+    };
+    const store = createChatHistoryStore({ storage });
+
+    expect(store.sessions()).toEqual([{ startedAt: 5, entries: [entry("user", "a", 10)] }]);
+  });
+
+  it("reports a single empty session with no start time for an empty transcript", () => {
+    const store = createChatHistoryStore();
+    expect(store.sessions()).toEqual([{ startedAt: null, entries: [] }]);
+  });
+
+  it("returns copies — mutating the result does not affect the store", () => {
+    const store = createChatHistoryStore();
+    store.append(entry("user", "a", 10));
+    const sessions = store.sessions();
+    sessions[0].entries[0].text = "tampered";
+
+    expect(store.sessions()[0].entries[0].text).toBe("a");
   });
 });
 
@@ -203,6 +356,24 @@ describe("createChatHistoryStore — malformed stored entries dropped", () => {
     };
     const store = createChatHistoryStore({ storage });
     expect(store.get()).toEqual([entry("user", "good", 1), entry("assistant", "also good", 3)]);
+  });
+
+  it("keeps stored boundary markers alongside entries", () => {
+    const storage: ChatHistoryStorage = {
+      load: () => [entry("user", "a", 1), boundary(2), entry("assistant", "b", 3)] as never,
+      save: vi.fn(),
+    };
+    const store = createChatHistoryStore({ storage });
+    expect(store.get()).toEqual([entry("user", "a", 1), boundary(2), entry("assistant", "b", 3)]);
+  });
+
+  it("drops boundary markers with a non-number ts", () => {
+    const storage: ChatHistoryStorage = {
+      load: () => [{ kind: "boundary", ts: "later" }, entry("user", "a", 1)] as never,
+      save: vi.fn(),
+    };
+    const store = createChatHistoryStore({ storage });
+    expect(store.get()).toEqual([entry("user", "a", 1)]);
   });
 
   it("non-array stored value falls back to empty", () => {
