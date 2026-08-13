@@ -28,7 +28,7 @@ describe("configs/endpoints.json", () => {
   });
 
   it("carries the chat protocol selection", () => {
-    expect(ep.chat_api).toBe("responses");
+    expect(ep.chat_api).toBe("chat_completions");
   });
 
   it("carries a config-driven chat_instructions nudge mentioning generate_express + the 3 channels", () => {

@@ -19,7 +19,7 @@ YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I
 
 Stand up every required component first; add the optional ones when you want voice or extended capabilities.
 
-YUI selects the chat protocol with the `chat_api` key in `configs/endpoints.json`: **Responses mode** (`"responses"`, the default) needs the Expression MCP Broker and a backend agent, as above — the agent reads the broker via `get_ids` and emits cues as `generate_express` tool-calls. **Chat Completions mode** (`"chat_completions"`) declares `generate_express` from the client side with the vocabulary already baked into its schema, so a plain OpenAI-compatible endpoint drives expression on its own; the client also keeps the transcript itself, trimmed to `chat_model_context_window`, instead of relying on `previous_response_id`. See [section 4](#4-chat-protocol--backend-agent-responses-or-chat-completions) for both paths.
+YUI selects the chat protocol with the `chat_api` key in `configs/endpoints.json`: **Responses mode** (`"responses"`) needs the Expression MCP Broker and a backend agent, as above — the agent reads the broker via `get_ids` and emits cues as `generate_express` tool-calls. **Chat Completions mode** (`"chat_completions"`, the default) declares `generate_express` from the client side with the vocabulary already baked into its schema, so a plain OpenAI-compatible endpoint drives expression on its own; the client also keeps the transcript itself, trimmed to `chat_model_context_window`, instead of relying on `previous_response_id`. See [section 4](#4-chat-protocol--backend-agent-responses-or-chat-completions) for both paths.
 
 ---
 
@@ -81,7 +81,7 @@ The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary s
 
 YUI supports two chat protocols, selected by the `chat_api` key in `configs/endpoints.json`.
 
-### Option A — Responses mode (`"chat_api": "responses"`, default)
+### Option A — Responses mode (`"chat_api": "responses"`)
 
 YUI is compatible with any backend served over the OpenAI Responses API (`/v1/responses`). The [Hermes Agent](https://github.com/nousresearch/hermes-agent) gateway is recommended.
 
@@ -99,7 +99,7 @@ YUI is compatible with any backend served over the OpenAI Responses API (`/v1/re
    "chat_model_context_window": 200000
    ```
 
-### Option B — Chat Completions mode (`"chat_api": "chat_completions"`)
+### Option B — Chat Completions mode (`"chat_api": "chat_completions"`, default)
 
 Connects over the Chat Completions API to any endpoint whose model supports tool calling — OpenAI, ollama, LM Studio, vLLM, groq, OpenRouter, and other OpenAI-compatible Chat Completions endpoints all work. The client declares `generate_express` on every request with its emotion and motion ids already in the schema, executes the calls it gets back, and returns the results, so a plain model endpoint drives expression with no broker and no contract handed to it. A backend agent that owns `generate_express` itself keeps working too: its call plays the same cue. The client also keeps the transcript itself (`localStorage`), trimmed each turn to fit `chat_model_context_window`, instead of relying on `previous_response_id`.
 
@@ -178,7 +178,7 @@ Key reference:
 
 | Key | Shipped default | Purpose |
 |---|---|---|
-| `chat_api` | `responses` | Chat protocol: `"responses"` (backend agent honoring the expression contract) or `"chat_completions"` (client-declared `generate_express`, any tool-calling endpoint) |
+| `chat_api` | `chat_completions` | Chat protocol: `"responses"` (backend agent honoring the expression contract) or `"chat_completions"` (client-declared `generate_express`, any tool-calling endpoint) |
 | `chat_base_url` | unset | Chat endpoint base URL (Responses API root or Chat Completions endpoint, per `chat_api`) |
 | `chat_endpoint` | unset | Responses API path (Responses mode only) |
 | `chat_model` | unset | Model ID sent to the backend |
