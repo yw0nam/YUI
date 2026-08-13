@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { ChatHistoryEntry, ChatHistoryStorage } from "./chat-history-store";
+import type { ChatHistoryEntry, ChatHistoryItem, ChatHistoryStorage } from "./chat-history-store";
 import {
   createChatHistoryStore,
   estimateTokens,
@@ -263,13 +263,13 @@ describe("createChatHistoryStore — sessions", () => {
 // createChatHistoryStore — persist + reload via fake storage
 // ─────────────────────────────────────────────────────────────────────────────
 
-function makeMemStorage(): ChatHistoryStorage & { _data: ChatHistoryEntry[] | null } {
-  let data: ChatHistoryEntry[] | null = null;
+function makeMemStorage(): ChatHistoryStorage & { _data: ChatHistoryItem[] | null } {
+  let data: ChatHistoryItem[] | null = null;
   return {
     get _data() {
       return data;
     },
-    set _data(v: ChatHistoryEntry[] | null) {
+    set _data(v: ChatHistoryItem[] | null) {
       data = v;
     },
     load() {
