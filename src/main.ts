@@ -131,7 +131,11 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // starting before loadVRM is safe (frames without VRM are no-op).
   const ambient = createTier1Engine(renderer);
   ambient.start();
-  const surfaces = createSurfaces({ mount: root });
+  // Read at endSpeech time — the store below is built after the surfaces mount.
+  const surfaces = createSurfaces({
+    mount: root,
+    keepBubbleUntilDismissed: () => settingsStores.bubblePersistSettings.get().enabled,
+  });
   register(() => surfaces.dispose());
 
   // Anchor chat input to character's feet (follow reframe). Each frame, receive feet screen coordinates,
@@ -178,6 +182,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
     cameraSettings,
     gazeSettings,
     railCollapsedSettings,
+    bubblePersistSettings,
+    chatHistoryStore,
   } = settingsStores;
   // Every store in the bag shares the same lifecycle, so teardown iterates the bag itself:
   // a store added to createSettingsStores is disposed without touching this loop.
@@ -258,8 +264,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
       scheduleSettings,
       workflowSettings,
       agentNotifySettings,
+      bubblePersistSettings,
       presenceSettings,
       railCollapsedSettings,
+      transcript: chatHistoryStore,
       sourceProvider: screenSourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,

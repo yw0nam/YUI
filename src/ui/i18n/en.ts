@@ -35,6 +35,7 @@ const en: Record<string, string> = {
   "aria.send": "Send",
   "aria.stop": "Stop",
   "aria.remove_attachment": "Remove attachment",
+  "aria.dismiss_bubble": "Dismiss speech bubble",
   "input.placeholder": "Say something…",
   "input.error_auth": "Auth failed · check API key",
   "input.error_network": "No response · check connection",
@@ -106,6 +107,7 @@ const en: Record<string, string> = {
   "tabs.input": "Input",
   "tabs.adv": "Advanced",
   "tabs.react": "Reactions",
+  "tabs.hist": "History",
 
   // reasoning effort segment
   "reasoning.label": "Reasoning effort",
@@ -219,6 +221,17 @@ const en: Record<string, string> = {
   "voice_input.silence_aria": "Silence threshold",
   "voice_input.bargein_label": "Barge-in",
   "voice_input.bargein_aria": "Barge-in (character stops when you speak)",
+  "bubble_persist.label": "Keep bubble until dismissed",
+  "bubble_persist.sub": "The speech bubble stays on screen until you close it",
+  "bubble_persist.aria": "Keep speech bubble until dismissed",
+
+  // history tab
+  "history.current": "Current conversation",
+  "history.turns": "{n} turns",
+  "history.who_user": "You",
+  "history.who_yui": "YUI",
+  "history.empty": "Nothing has been said yet",
+  "history.foot": "Last 200 turns · stored on this device only",
 
   // TTS output toggle
   "tts_output.label": "Voice output",

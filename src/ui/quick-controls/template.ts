@@ -13,6 +13,7 @@ import {
   SEG_LABEL_KEYS,
   TAB_ICON_ADV,
   TAB_ICON_CHAR,
+  TAB_ICON_HIST,
   TAB_ICON_INPUT,
   TAB_ICON_REACT,
   TAB_ICON_TALK,
@@ -29,6 +30,8 @@ interface PanelHtmlOptions {
   switchRows: readonly SwitchRow[];
   showPresence: boolean;
   showDevtools: boolean;
+  /** Whether the History tab renders — true when a transcript store is injected. */
+  showHistory: boolean;
   /** Initial collapsed state of the sections rail, read from localStorage before first paint. */
   railCollapsed: boolean;
 }
@@ -41,6 +44,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     switchRows,
     showPresence,
     showDevtools,
+    showHistory,
     railCollapsed,
   } = o;
   const visibleSwitchRows = switchRows.filter((row) => row.isVisible);
@@ -272,7 +276,15 @@ ${pad}</div>`;
           <button class="yui-tab" type="button" role="tab" id="yui-tab-react" aria-selected="false" aria-controls="yui-panel-react" tabindex="-1" title="${t("tabs.react")}" aria-label="${t("tabs.react")}">
             ${TAB_ICON_REACT}
             <span class="yui-tab__label">${t("tabs.react")}</span>
-          </button>
+          </button>${
+            showHistory
+              ? `
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-hist" aria-selected="false" aria-controls="yui-panel-hist" tabindex="-1" title="${t("tabs.hist")}" aria-label="${t("tabs.hist")}">
+            ${TAB_ICON_HIST}
+            <span class="yui-tab__label">${t("tabs.hist")}</span>
+          </button>`
+              : ""
+          }
         </div>
       </div>
       <div class="yui-quick__body">
@@ -552,7 +564,16 @@ ${switchRowsHtml("advanced", 8)}${
             : ""
         }
       </div>
-
+${
+  showHistory
+    ? `
+      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-hist" aria-labelledby="yui-tab-hist" tabindex="0" hidden>
+        <div class="yui-hist"></div>
+        <p class="yui-hist__foot">${t("history.foot")}</p>
+      </div>
+`
+    : ""
+}
       </div>
     </div>
     <p class="yui-quick__foot yui-quick__foot--on">${t("screenshot.foot_on")}</p>

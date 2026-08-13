@@ -141,8 +141,11 @@ interface BackendCallerDeps {
   onUsage?: (usage: Usage) => void;
   /** Current agent setting (reasoning effort + instructions override) snapshot. Reflected in request only when present. */
   getAgentSettings?: () => import("../io/agent-settings").AgentSettings;
-  /** Integrated conversation transcript — append after completely successful turn in both protocol modes. CC mode also extracts send here. */
-  transcript?: { get(): ChatHistoryEntry[]; append(e: ChatHistoryEntry): void };
+  /** Integrated conversation transcript — append after completely successful turn in both protocol modes. CC mode replays the current session from here. */
+  transcript?: {
+    entriesAfterLastBoundary(): ChatHistoryEntry[];
+    append(e: ChatHistoryEntry): void;
+  };
   /** Local sent-context history, appended only after the turn is confirmed successful. */
   contextHistory?: { append(entry: ContextHistoryEntry): void };
   /** Client-declared tool registry, resolved per turn so vocabulary edits land on the next call. */
@@ -319,7 +322,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           ? agent.instructions
           : deps.config.chat_instructions;
         const ccTranscript = selectSendSuffix(
-          deps.transcript?.get() ?? [],
+          deps.transcript?.entriesAfterLastBoundary() ?? [],
           deps.config.chat_model_context_window,
         );
         const imageDataUrls = imageDataUrlsOf(ctx);

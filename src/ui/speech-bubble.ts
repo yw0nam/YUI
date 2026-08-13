@@ -36,6 +36,8 @@ export interface SpeechBubbleElements {
   bubbleText: HTMLElement;
   /** Screen-reader-only announce region — the visual bubble is not live; once speech settles, announce once here. */
   bubbleSr: HTMLElement;
+  /** Hover-revealed dismiss button. The bubble is pointer-events:none, so this is its own pointer target. */
+  bubbleClose: HTMLElement;
 }
 
 const DEFAULT_DWELL = 5000;
@@ -44,10 +46,13 @@ const SPEECH_RENDER_INTERVAL_MS = 50;
 const SCROLL_PIN_SLACK_PX = 8;
 
 export function createSpeechBubble(
-  { root, bubbleEl, bubbleText, bubbleSr }: SpeechBubbleElements,
+  { root, bubbleEl, bubbleText, bubbleSr, bubbleClose }: SpeechBubbleElements,
   dwellMs?: number,
+  /** When it returns true, speech never auto-fades — the bubble holds until dismissed or replaced. */
+  keepUntilDismissed?: () => boolean,
 ): SpeechBubble {
   const dwell = dwellMs ?? readDwellToken(root) ?? DEFAULT_DWELL;
+  const holdOpen = (): boolean => keepUntilDismissed?.() ?? false;
   let dwellTimer: ReturnType<typeof setTimeout> | null = null;
   // Whether the fade is being held by endSpeech({ defer:true }) — finishSpeech() releases it.
   let deferred = false;
@@ -134,6 +139,7 @@ export function createSpeechBubble(
       return;
     }
     deferred = false;
+    if (holdOpen()) return;
     dwellArmed = true;
     armDwell();
   }
@@ -141,7 +147,7 @@ export function createSpeechBubble(
   function finishSpeech(): void {
     if (!deferred) return;
     deferred = false;
-    if (bubbleEl.hidden) return;
+    if (bubbleEl.hidden || holdOpen()) return;
     dwellArmed = true;
     armDwell();
   }
@@ -183,8 +189,13 @@ export function createSpeechBubble(
     if (dwellArmed) armDwell();
   }
 
+  function onCloseClick(): void {
+    hideSpeech();
+  }
+
   bubbleEl.addEventListener("pointerenter", onBubbleEnter);
   bubbleEl.addEventListener("pointerleave", onBubbleLeave);
+  bubbleClose.addEventListener("click", onCloseClick);
 
   function dispose(): void {
     clearDwell();
@@ -192,6 +203,7 @@ export function createSpeechBubble(
     cancelFade = null;
     bubbleEl.removeEventListener("pointerenter", onBubbleEnter);
     bubbleEl.removeEventListener("pointerleave", onBubbleLeave);
+    bubbleClose.removeEventListener("click", onCloseClick);
   }
 
   return {

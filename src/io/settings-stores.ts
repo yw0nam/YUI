@@ -89,8 +89,13 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const sessionStore = createSessionStore(localStorageSessionStorage());
   const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
   // Unified conversation transcript — both protocol modes append, and only CC mode pulls its outbound share from here.
-  // "Start new conversation" clears it along with the session stores (quick-controls). Both windows sync via wireStorageSync.
+  // "Start new conversation" writes a session boundary instead of erasing it (quick-controls). Broadcast so the
+  // settings window's History tab updates as turns land in the pet window.
   const chatHistoryStore = createChatHistoryStore({ storage: localStorageChatHistoryStorage() });
+  // Speech bubble persistence: when on, speech holds until dismissed instead of fading after dwell. Default OFF.
+  const bubblePersistSettings = createFlagSettings(false, {
+    storage: localStorageStore("yui.bubble-persist"),
+  });
   // User-edited endpoint overrides: localStorage overrides the bundled config (empty value = fallback).
   const endpointsSettings = createEndpointsSettings({
     storage: localStorageEndpointsStorage(),
@@ -134,6 +139,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     sessionStore,
     sessionDiagnostics,
     chatHistoryStore,
+    bubblePersistSettings,
     endpointsSettings,
     chatKeySettings,
     sttKeySettings,
@@ -174,7 +180,8 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   fillerSettings: "broadcast",
   sessionStore: "reload",
   sessionDiagnostics: "reload",
-  chatHistoryStore: "reload",
+  chatHistoryStore: "broadcast",
+  bubblePersistSettings: "broadcast",
   endpointsSettings: "broadcast",
   chatKeySettings: "broadcast",
   sttKeySettings: "broadcast",

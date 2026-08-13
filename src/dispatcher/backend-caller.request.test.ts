@@ -748,9 +748,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     await caller.call(turnOf(userEnv("이어서")));
     const [, request] = script.spy.mock.calls[0];
     const msgs = messagesOf(request);
-    expect(msgs).toEqual(
-      expect.arrayContaining([{ role: "user", content: "새 세션 질문" }]),
-    );
+    expect(msgs).toEqual(expect.arrayContaining([{ role: "user", content: "새 세션 질문" }]));
     expect(msgs.some((m) => m.content === "지난 세션 질문")).toBe(false);
     expect(msgs.some((m) => m.content === "지난 세션 답변")).toBe(false);
   });

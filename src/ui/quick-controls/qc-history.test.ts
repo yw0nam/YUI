@@ -15,12 +15,28 @@ import { defaultQcArgs } from "./test-helpers";
 function seedStore() {
   const store = createChatHistoryStore();
   // older session
-  store.append({ role: "user", text: "vLLM 서버 올리는 것 좀 도와줘", ts: Date.parse("2026-08-12T07:40:00Z") });
-  store.append({ role: "assistant", text: "포트부터 확인해보자", ts: Date.parse("2026-08-12T07:41:00Z") });
+  store.append({
+    role: "user",
+    text: "vLLM 서버 올리는 것 좀 도와줘",
+    ts: Date.parse("2026-08-12T07:40:00Z"),
+  });
+  store.append({
+    role: "assistant",
+    text: "포트부터 확인해보자",
+    ts: Date.parse("2026-08-12T07:41:00Z"),
+  });
   store.startNewSession(Date.parse("2026-08-13T09:10:00Z"));
   // current session
-  store.append({ role: "user", text: "방금 그 빌드 왜 실패했어?", ts: Date.parse("2026-08-13T09:12:00Z") });
-  store.append({ role: "assistant", text: "cargo fmt 미적용이 원인이야", ts: Date.parse("2026-08-13T09:13:00Z") });
+  store.append({
+    role: "user",
+    text: "방금 그 빌드 왜 실패했어?",
+    ts: Date.parse("2026-08-13T09:12:00Z"),
+  });
+  store.append({
+    role: "assistant",
+    text: "cargo fmt 미적용이 원인이야",
+    ts: Date.parse("2026-08-13T09:13:00Z"),
+  });
   return store;
 }
 
@@ -338,9 +354,9 @@ describe("createQuickControls — keep bubble until dismissed switch", () => {
 
     bubblePersistSettings.setEnabled(true);
     expect(
-      qc.el.querySelector<HTMLButtonElement>(".yui-bubble-persist-switch")!.getAttribute(
-        "aria-checked",
-      ),
+      qc.el
+        .querySelector<HTMLButtonElement>(".yui-bubble-persist-switch")!
+        .getAttribute("aria-checked"),
     ).toBe("true");
 
     qc.dispose();

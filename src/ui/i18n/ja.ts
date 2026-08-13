@@ -35,6 +35,7 @@ const ja: Record<string, string> = {
   "aria.send": "送信",
   "aria.stop": "停止",
   "aria.remove_attachment": "添付を削除",
+  "aria.dismiss_bubble": "吹き出しを閉じる",
   "input.placeholder": "話しかけてみて…",
   "input.error_auth": "認証失敗 · APIキー確認",
   "input.error_network": "応答なし · 接続確認",
@@ -108,6 +109,7 @@ const ja: Record<string, string> = {
   "tabs.input": "入力",
   "tabs.adv": "詳細",
   "tabs.react": "リアクション",
+  "tabs.hist": "履歴",
 
   // reasoning effort segment
   "reasoning.label": "推論の強さ",
@@ -221,6 +223,17 @@ const ja: Record<string, string> = {
   "voice_input.silence_aria": "無音のしきい値",
   "voice_input.bargein_label": "割り込み",
   "voice_input.bargein_aria": "割り込み（話すとキャラが止まる）",
+  "bubble_persist.label": "閉じるまで吹き出しを表示",
+  "bubble_persist.sub": "自分で閉じるまで吹き出しが消えません",
+  "bubble_persist.aria": "閉じるまで吹き出しを表示",
+
+  // history tab
+  "history.current": "現在の会話",
+  "history.turns": "{n}ターン",
+  "history.who_user": "あなた",
+  "history.who_yui": "ユイ",
+  "history.empty": "まだ会話がありません",
+  "history.foot": "直近200ターン · この端末にのみ保存",
 
   // TTS output toggle
   "tts_output.label": "音声出力",
