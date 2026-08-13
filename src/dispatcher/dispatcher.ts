@@ -83,6 +83,7 @@ export interface DropRecord {
 /** drop reason → log severity. Record forces a missing key to be a compile error. */
 export const DROP_SEVERITY: Record<DropRecord["reason"], LogLevel> = {
   guardrail_drop: "info",
+  not_configured: "warn",
   parse_error: "warn",
   network_drop: "warn",
   network_stall: "warn",

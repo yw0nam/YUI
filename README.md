@@ -155,7 +155,7 @@ base URLs live in `configs/endpoints.json`.
   emits a custom `hermes.tool.progress` telemetry event with no arguments
   instead. With Hermes, use `responses` mode for cues.
 - **STT** — `localhost:5517` `/v1/audio/transcriptions`
-- **TTS** — selected via `tts_provider` (default `irodori`):
+- **TTS** — selected via `tts_provider` (default `openai`):
   - `irodori` — irodori_TTS at `localhost:8091` `/synthesize`, reference-voice
     based; the irodori server itself is the source of truth for the speaker
     list (`GET /voices`) — users add their own via the panel's import button

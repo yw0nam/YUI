@@ -99,6 +99,7 @@ type StallStage = "first_event_timeout" | "idle_timeout";
 /** Every outcome a backend call can settle to. */
 export type TurnOutcome =
   | "ok"
+  | "not_configured"
   | "parse_error"
   | "network_drop"
   | "network_stall"
@@ -261,6 +262,13 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // If filler is active, show first line immediately (synchronous start). Don't start if disabled/pool empty,
       // or on a reflex turn — a "thinking" bridge before an immediate reaction reads as dissonant.
       if (deps.turnOutput?.hasFiller() && !isReflexTurn(env.event_name)) startThinking();
+
+      // No chat backend configured — settle before any context/network work so the UI can point
+      // the user at the settings panel instead of showing a generic connection failure.
+      if (!deps.config.chat_base_url) {
+        log.warn("not_configured", { event_name: env.event_name, missing: "chat_base_url" });
+        return "not_configured";
+      }
 
       // B1
       const { ctx, clientContext } = await buildContext(env, {

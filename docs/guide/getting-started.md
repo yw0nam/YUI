@@ -168,23 +168,25 @@ YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires
 
 ## 7. Wire It All Together — `configs/endpoints.json`
 
-After standing up the services above, point YUI at them by editing `configs/endpoints.json`. You can also override individual keys via the in-app Endpoint settings panel.
+YUI ships with no service addresses: the bundled `configs/endpoints.json` carries only the protocol-shape defaults, and every URL is unset. An unset URL means that feature is off — STT, TTS, and the expression broker stay quiet, and a chat turn with no `chat_base_url` answers with an inline "Backend not configured" error pointing at Settings → Advanced.
+
+After standing up the services above, point YUI at them by editing `configs/endpoints.json`. You can also override individual keys via the in-app Endpoint settings panel, which persists to local storage and leaves the bundled file untouched.
 
 Key reference:
 
-| Key | Default | Purpose |
+| Key | Shipped default | Purpose |
 |---|---|---|
 | `chat_api` | `responses` | Chat protocol: `"responses"` (expression cues) or `"chat_completions"` (speech text only, no cues today) |
-| `chat_base_url` | `http://localhost:8643/v1` | Backend agent base URL (Responses API root or Chat Completions endpoint, per `chat_api`) |
+| `chat_base_url` | unset | Backend agent base URL (Responses API root or Chat Completions endpoint, per `chat_api`) |
 | `chat_endpoint` | `/v1/responses` | Responses API path (Responses mode only) |
-| `chat_model` | `natsume` | Model ID sent to the backend |
+| `chat_model` | unset | Model ID sent to the backend |
 | `chat_model_context_window` | `200000` | Token window — display in Responses mode; also trims the client-side transcript in Chat Completions mode |
-| `stt_base_url` | `http://localhost:5517/v1` | STT server base URL |
-| `tts_provider` | `irodori` | `"irodori"` or `"openai"` |
-| `irodori_base_url` | `http://localhost:8091` | Irodori TTS server |
-| `irodori_speaker` / `tts_voice` | `"ナツメ"` | Voice selection |
-| `tts_base_url` | `http://localhost:8092` | OpenAI-compatible TTS server |
-| `broker_base_url` | `http://localhost:3201/mcp` | Expression broker MCP URL |
+| `stt_base_url` | unset | STT server base URL |
+| `tts_provider` | `openai` | `"irodori"` or `"openai"` |
+| `irodori_base_url` | unset | Irodori TTS server |
+| `irodori_speaker` / `tts_voice` | unset | Voice selection |
+| `tts_base_url` | unset | OpenAI-compatible TTS server |
+| `broker_base_url` | unset | Expression broker MCP URL |
 
 No values are hardcoded in the application — all service addresses come from this file.
 

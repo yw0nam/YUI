@@ -1,8 +1,8 @@
-# `emotion_text` rule — irodori (default)
+# `emotion_text` rule — irodori
 
 | | |
 |---|---|
-| provider | `irodori` (default) |
+| provider | `irodori` |
 | `tts_provider` | `"irodori"` |
 | broker mode | `enum` |
 | table | the 39-row emoji table below |

@@ -12,6 +12,8 @@ import { t } from "./i18n";
 
 export function turnErrorMessage(reason: TurnFailure): string | undefined {
   switch (reason) {
+    case "not_configured":
+      return t("input.error_not_configured");
     case "http_4xx_drop":
       return t("input.error_auth");
     case "network_drop":

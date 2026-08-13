@@ -1,4 +1,5 @@
 import type { EndpointsConfig } from "../../contract";
+import { resolveTtsProviderKind } from "../../io/tts-provider";
 import { assertValid, ConfigError, isObject } from "./shared";
 
 export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
@@ -14,21 +15,30 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     }
     return v;
   };
-  const chat_base_url = httpUrl("chat_base_url");
-  const stt_base_url = httpUrl("stt_base_url");
-  const tts_base_url = httpUrl("tts_base_url");
-  const chat_endpoint = raw.chat_endpoint;
-  // Only paths like "/v1/responses" are allowed. "//host" (protocol-relative) does not act as a
-  // path even when combined with base_url, so it is rejected.
+  // 서비스 URL은 선택 — 없거나 빈 문자열이면 "미설정"(해당 기능 off). 값이 있으면 http(s)여야 함.
+  const optHttpUrl = (k: string): string => {
+    const v = raw[k];
+    if (v === undefined || v === "") return "";
+    return httpUrl(k);
+  };
+  const chat_base_url = optHttpUrl("chat_base_url");
+  const stt_base_url = optHttpUrl("stt_base_url");
+  const tts_base_url = optHttpUrl("tts_base_url");
+  // 선택 — 없거나 비면 미설정. 값이 있으면 "/v1/responses" 같은 경로만 허용하고,
+  // "//host"(protocol-relative)는 base_url과 합쳐도 경로로 동작하지 않으므로 거부한다.
+  const rawChatEndpoint = raw.chat_endpoint;
   if (
-    typeof chat_endpoint !== "string" ||
-    !chat_endpoint.startsWith("/") ||
-    chat_endpoint.startsWith("//")
+    rawChatEndpoint !== undefined &&
+    rawChatEndpoint !== "" &&
+    (typeof rawChatEndpoint !== "string" ||
+      !rawChatEndpoint.startsWith("/") ||
+      rawChatEndpoint.startsWith("//"))
   ) {
     issues.push(
-      `chat_endpoint는 "/"로 시작하는 경로여야 함 (받음: ${JSON.stringify(chat_endpoint)})`,
+      `chat_endpoint는 "/"로 시작하는 경로여야 함 (받음: ${JSON.stringify(rawChatEndpoint)})`,
     );
   }
+  const chat_endpoint = typeof rawChatEndpoint === "string" ? rawChatEndpoint : "";
   // chat_model: optional. If present, must be a non-empty string (model ID is config's concern).
   const chat_model = raw.chat_model;
   if (chat_model !== undefined && (typeof chat_model !== "string" || chat_model.trim() === "")) {
@@ -69,15 +79,17 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   }
 
   // ── irodori_TTS provider (additive) ──────────────────────────────────────────
-  // tts_provider: optional enum. Resolves to irodori when unset (the resolved value is written to the output).
+  // tts_provider: optional enum. Resolves to openai when unset — the neutral provider, which
+  // requires no extra fields (the resolved value is written to the output).
   const rawProvider = raw.tts_provider;
   if (rawProvider !== undefined && rawProvider !== "openai" && rawProvider !== "irodori") {
     issues.push(
       `tts_provider는 "openai" | "irodori" 중 하나여야 함 (받음: ${JSON.stringify(rawProvider)})`,
     );
   }
-  const tts_provider: EndpointsConfig["tts_provider"] =
-    rawProvider === "openai" ? "openai" : "irodori";
+  const tts_provider: EndpointsConfig["tts_provider"] = resolveTtsProviderKind(
+    typeof rawProvider === "string" ? rawProvider : undefined,
+  );
 
   // When provider=irodori, base_url (http url) + speaker (non-empty) are required — bare config fail-loud.
   let irodori_base_url: string | undefined;
@@ -152,7 +164,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   assertValid(file, issues);
   return {
     chat_base_url,
-    chat_endpoint: chat_endpoint as string,
+    chat_endpoint,
     ...(typeof chat_instructions === "string" ? { chat_instructions } : {}),
     ...(typeof chat_model === "string" ? { chat_model } : {}),
     ...(chat_api !== undefined ? { chat_api } : {}),

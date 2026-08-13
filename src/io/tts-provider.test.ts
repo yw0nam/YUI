@@ -2,7 +2,7 @@
  * tts-provider.test.ts — the shared TtsProvider selection helpers.
  *
  * resolveTtsProviderKind/isTtsProviderKind/emotionTextModeFor/selectProvider are pure and have
- * no network or DOM dependency — this pins the "unset means irodori" default and the
+ * no network or DOM dependency — this pins the "unset means openai" default and the
  * enum/free emotion_text split (docs/reference/tts-emotion) as the single source both the
  * validator's default and the UI's pre-load fallback defer to.
  */
@@ -26,8 +26,8 @@ function fakeProvider(): TtsProvider {
 }
 
 describe("resolveTtsProviderKind", () => {
-  it("resolves undefined to irodori", () => {
-    expect(resolveTtsProviderKind(undefined)).toBe("irodori");
+  it("resolves undefined to openai", () => {
+    expect(resolveTtsProviderKind(undefined)).toBe("openai");
   });
 
   it("resolves openai to openai", () => {
@@ -38,8 +38,8 @@ describe("resolveTtsProviderKind", () => {
     expect(resolveTtsProviderKind("irodori")).toBe("irodori");
   });
 
-  it("resolves any other value to irodori", () => {
-    expect(resolveTtsProviderKind("bogus")).toBe("irodori");
+  it("resolves any other value to openai", () => {
+    expect(resolveTtsProviderKind("bogus")).toBe("openai");
   });
 });
 
@@ -79,9 +79,9 @@ describe("selectProvider", () => {
     expect(selectProvider({ tts_provider: "openai" }, { irodori, openai })).toBe(openai);
   });
 
-  it("selects the irodori provider when tts_provider is unset (default)", () => {
+  it("selects the openai provider when tts_provider is unset (default)", () => {
     const irodori = fakeProvider();
     const openai = fakeProvider();
-    expect(selectProvider({}, { irodori, openai })).toBe(irodori);
+    expect(selectProvider({}, { irodori, openai })).toBe(openai);
   });
 });

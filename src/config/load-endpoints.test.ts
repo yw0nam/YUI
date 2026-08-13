@@ -251,14 +251,14 @@ describe("loadConfig — endpoints irodori validation failures", () => {
     );
   });
 
-  it("provider irodori(default)인데 irodori_base_url이 없으면 실패", async () => {
+  it("provider irodori인데 irodori_base_url이 없으면 실패", async () => {
     await expectEndpointsError(
       loadWith({
         chat_base_url: "http://localhost:8642",
         chat_endpoint: "/v1/responses",
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
-        // tts_provider omitted → irodori default
+        tts_provider: "irodori",
         irodori_speaker: "ナツメ",
       }),
     );
