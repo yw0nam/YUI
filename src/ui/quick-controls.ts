@@ -33,6 +33,7 @@ import { createLogger } from "../logger";
 import { type CueListInstance, createCueList } from "./cue-list";
 import { type Locale, setLocale, t } from "./i18n";
 import { createEndpointsSection } from "./quick-controls/endpoints-section";
+import { createHistorySection } from "./quick-controls/history-section";
 import { createMonitorsSection } from "./quick-controls/monitors-section";
 import { createPopover } from "./quick-controls/popover";
 import { createReflect } from "./quick-controls/reflect";
@@ -128,8 +129,8 @@ interface QuickControlsOptions {
   sessionDiagnostics?: SessionDiagnosticsStore;
   /** Current session id pointer. "Start fresh" clears it along with diagnostics. */
   sessionStore?: SessionStore;
-  /** Unified conversation transcript. "Start fresh" clears it with session stores (no-op if absent). */
-  transcript?: Pick<ChatHistoryStore, "clear">;
+  /** Unified conversation transcript. Feeds the History tab; "Start fresh" closes the running session in it. */
+  transcript?: Pick<ChatHistoryStore, "startNewSession" | "sessions" | "subscribe">;
   /** Thinking filler settings store. If absent, section won't render (injected by unified agent). */
   fillerSettings?: FillerSettingsStore;
   /** TTS speech output on/off store. */
@@ -138,6 +139,8 @@ interface QuickControlsOptions {
   gazeSettings?: FlagSettingsStore;
   /** Agent notification on/off store. If absent, that toggle row won't render. */
   agentNotifySettings?: AgentNotifySettingsStore;
+  /** "Keep bubble until dismissed" on/off store. If absent, that toggle row won't render. */
+  bubblePersistSettings?: FlagSettingsStore;
   /** Away detection store. If absent, presence row in Reactions tab won't render. */
   presenceSettings?: ClampedIntSettingsStore;
   /** Section rail collapse state store. */
@@ -163,6 +166,7 @@ type SwitchRowOptions = Pick<
   | "gazeSettings"
   | "agentNotifySettings"
   | "fillerSettings"
+  | "bubblePersistSettings"
 >;
 
 export function createSwitchRows({
@@ -172,6 +176,7 @@ export function createSwitchRows({
   gazeSettings,
   agentNotifySettings,
   fillerSettings,
+  bubblePersistSettings,
 }: SwitchRowOptions): SwitchRow[] {
   return [
     {
@@ -217,6 +222,20 @@ export function createSwitchRows({
       getEnabled: () => vad.get().bargeIn,
       setEnabled: (v) => vad.setBargeIn(v),
       logKey: "bargein_toggle",
+    },
+    {
+      selector: ".yui-bubble-persist-switch",
+      labelKey: "bubble_persist.label",
+      subKey: "bubble_persist.sub",
+      ariaKey: "bubble_persist.aria",
+      tab: "input",
+      position: "after-vad",
+      isVisible: !!bubblePersistSettings,
+      isAvailable: !!bubblePersistSettings,
+      initialEnabled: bubblePersistSettings?.get().enabled ?? false,
+      getEnabled: () => bubblePersistSettings!.get().enabled,
+      setEnabled: (v) => bubblePersistSettings!.setEnabled(v),
+      logKey: "bubble_persist_toggle",
     },
     {
       selector: ".yui-gaze-switch",
@@ -306,6 +325,7 @@ export function createQuickControls({
   ttsSettings,
   gazeSettings,
   agentNotifySettings,
+  bubblePersistSettings,
   presenceSettings,
   railCollapsedSettings,
 }: QuickControlsOptions): QuickControls {
@@ -331,6 +351,7 @@ export function createQuickControls({
     gazeSettings,
     agentNotifySettings,
     fillerSettings,
+    bubblePersistSettings,
   });
 
   el.innerHTML = buildPanelHtml({
@@ -340,6 +361,7 @@ export function createQuickControls({
     switchRows: TOGGLE_SPECS,
     showPresence: !!presenceSettings,
     showDevtools: !isWindow && !!onOpenDevtools,
+    showHistory: !!transcript,
     railCollapsed: railCollapsedSettings?.get().enabled ?? false,
   });
 
@@ -395,6 +417,11 @@ export function createQuickControls({
     log,
   });
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
+
+  // History tab (transcript viewer) — rendered only when a transcript store is injected.
+  const history = transcript
+    ? createHistorySection({ root: el, transcript, isOpen: () => popover.isOpen() })
+    : null;
 
   // Session section node (window only — null otherwise).
   const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
@@ -485,6 +512,7 @@ export function createQuickControls({
       reflect.reflectVoiceEngine();
       reflect.reflectChatType();
       reflect.reflectSession();
+      history?.render();
       vrmList.render();
       // Provider may have changed while closed; re-sync baseline on open.
       lastSpkEnabled = speakerControlsEnabled();
@@ -750,10 +778,12 @@ export function createQuickControls({
     if (sessionResetBtn) sessionResetBtn.hidden = false;
   }
 
+  // Closes the running conversation: the id pointer and diagnostics reset, the transcript keeps
+  // its turns behind a session boundary so the History tab can still read them.
   function handleSessionReset(): void {
     sessionStore?.clear();
     sessionDiagnostics?.clear();
-    transcript?.clear();
+    transcript?.startNewSession();
     hideSessionConfirm();
     log.info("session_reset");
   }
@@ -892,6 +922,9 @@ export function createQuickControls({
     if (popover.isOpen()) reflect.reflectSwitchRows();
   });
   const unsubscribeGaze = gazeSettings?.subscribe(() => {
+    if (popover.isOpen()) reflect.reflectSwitchRows();
+  });
+  const unsubscribeBubblePersist = bubblePersistSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectSwitchRows();
   });
   const unsubscribeAgentNotify = agentNotifySettings?.subscribe(() => {
@@ -1040,12 +1073,14 @@ export function createQuickControls({
     disposed = true;
     endpoints.dispose();
     workflows.dispose();
+    history?.dispose();
     scheduleCueList?.destroy();
     proactiveCueList?.destroy();
     unsubscribe();
     unsubscribeIdleThrottle();
     unsubscribeTts?.();
     unsubscribeGaze?.();
+    unsubscribeBubblePersist?.();
     unsubscribeAgentNotify?.();
     unsubscribePresence?.();
     agentPortInput?.removeEventListener("change", handleAgentPortChange);

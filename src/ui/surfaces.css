@@ -236,6 +236,61 @@
   }
 }
 
+/* ── Dismiss button — top-right corner, revealed on hover/focus ──
+   The bubble itself is pointer-events:none (drag passthrough), so this button carries its own
+   pointer target: hovering it is what puts the bubble in :hover and fades it in; an overflowing
+   (is-scrollable) bubble takes pointer events wholesale, so hovering anywhere reveals it there. */
+.yui-bubble__close {
+  position: absolute;
+  z-index: 1;
+  top: 0.25rem;
+  right: 0.25rem;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--yui-scrim-strong);
+  color: var(--yui-text-mute);
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0;
+  transition:
+    opacity var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-bubble:hover .yui-bubble__close,
+.yui-bubble__close:focus-visible {
+  opacity: 1;
+}
+
+/* Held speech has no auto-fade, so its only exit stays on screen. */
+.yui-bubble.is-held .yui-bubble__close {
+  opacity: 0.55;
+}
+
+.yui-bubble__close:hover {
+  color: var(--yui-text);
+}
+
+.yui-bubble__close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-bubble__close svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+/* Clear the 18px top fade an overflowing bubble wears. */
+.yui-bubble.is-scrollable .yui-bubble__close {
+  top: 1.2rem;
+}
+
 /* ── Inline markdown links (inside bubble) ──
    Warm body color + amber-soft underline, ignite to amber on hover/focus (treatment A).
    With pointer-events:auto, only links are clickable inside display-only bubble. */

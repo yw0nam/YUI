@@ -35,6 +35,7 @@ const ko: Record<string, string> = {
   "aria.send": "보내기",
   "aria.stop": "멈추기",
   "aria.remove_attachment": "첨부 제거",
+  "aria.dismiss_bubble": "말풍선 닫기",
   "input.placeholder": "말 걸기…",
   "input.error_auth": "인증 실패 · API 키 확인",
   "input.error_network": "응답 없음 · 연결 확인",
@@ -108,6 +109,7 @@ const ko: Record<string, string> = {
   "tabs.input": "입력",
   "tabs.adv": "고급",
   "tabs.react": "반응",
+  "tabs.hist": "기록",
 
   // reasoning effort segment
   "reasoning.label": "추론 강도",
@@ -220,6 +222,17 @@ const ko: Record<string, string> = {
   "voice_input.silence_aria": "침묵 기준",
   "voice_input.bargein_label": "말 끊기",
   "voice_input.bargein_aria": "말 끊기 (내가 말하면 캐릭터가 멈춤)",
+  "bubble_persist.label": "닫을 때까지 말풍선 유지",
+  "bubble_persist.sub": "직접 닫을 때까지 말풍선이 사라지지 않아요",
+  "bubble_persist.aria": "닫을 때까지 말풍선 유지",
+
+  // history tab
+  "history.current": "현재 대화",
+  "history.turns": "{n}턴",
+  "history.who_user": "나",
+  "history.who_yui": "유이",
+  "history.empty": "아직 나눈 대화가 없어요",
+  "history.foot": "최근 200턴 · 이 기기에만 저장",
 
   // TTS output toggle
   "tts_output.label": "음성 출력",

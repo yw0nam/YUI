@@ -60,5 +60,10 @@ export const TAB_ICON_INPUT = `<svg viewBox="0 0 24 24" fill="none" aria-hidden=
 export const TAB_ICON_ADV = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="6" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.7"/><circle cx="16" cy="12" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.7"/><circle cx="10" cy="18" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.7"/></svg>`;
 export const TAB_ICON_REACT = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3 5.5 13h4.7l-1 8L18 11h-4.7l1-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 
+export const TAB_ICON_HIST = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8v4l2.5 2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 12a7.5 7.5 0 1 1 2.2 5.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 17v-4h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+// Session-row disclosure chevron — CSS rotates it 90° when the session is open.
+export const HIST_CHEVRON_SVG = `<svg viewBox="0 0 24 24" fill="none" width="14" height="14" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
 // rail collapse/expand chevron — CSS rotates it 180° when collapsed.
 export const RAIL_COLLAPSE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 6l-6 6 6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;

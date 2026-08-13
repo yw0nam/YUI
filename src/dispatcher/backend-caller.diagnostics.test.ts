@@ -279,7 +279,7 @@ describe("backend_caller — transcript recording", () => {
     const entries: ChatHistoryEntry[] = [];
     return {
       append: vi.fn((e: ChatHistoryEntry) => entries.push(e)),
-      get: () => entries,
+      entriesAfterLastBoundary: () => entries,
     };
   }
 

@@ -80,9 +80,15 @@ interface SurfacesOptions {
   mount: HTMLElement;
   /** dwell (config value) override. Default = --yui-dwell token. */
   dwellMs?: number;
+  /** When it returns true, speech holds until the bubble's close button (or new speech) dismisses it. */
+  keepBubbleUntilDismissed?: () => boolean;
 }
 
-export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
+export function createSurfaces({
+  mount,
+  dwellMs,
+  keepBubbleUntilDismissed,
+}: SurfacesOptions): Surfaces {
   const el = document.createElement("div");
   el.className = "yui-ui";
   el.innerHTML = `
@@ -92,6 +98,11 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
     </div>
     <div class="yui-bubble" hidden>
       <span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span>
+      <button class="yui-bubble__close" type="button">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
     </div>
     <span class="yui-bubble__sr" role="status" aria-live="polite"></span>
     <form class="yui-input" novalidate hidden>
@@ -135,6 +146,7 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
   const bubbleText = el.querySelector<HTMLSpanElement>(".yui-bubble__text")!;
   const bubbleSr = el.querySelector<HTMLSpanElement>(".yui-bubble__sr")!;
+  const bubbleClose = el.querySelector<HTMLButtonElement>(".yui-bubble__close")!;
   const formEl = el.querySelector<HTMLFormElement>(".yui-input")!;
   const field = el.querySelector<HTMLInputElement>(".yui-input__field")!;
   const errorEl = el.querySelector<HTMLSpanElement>(".yui-input__error")!;
@@ -143,7 +155,11 @@ export function createSurfaces({ mount, dwellMs }: SurfacesOptions): Surfaces {
   const picker = el.querySelector<HTMLInputElement>(".yui-input__picker")!;
   const sendBtn = el.querySelector<HTMLButtonElement>(".yui-input__send")!;
 
-  const bubble = createSpeechBubble({ root: el, bubbleEl, bubbleText, bubbleSr }, dwellMs);
+  const bubble = createSpeechBubble(
+    { root: el, bubbleEl, bubbleText, bubbleSr, bubbleClose },
+    dwellMs,
+    keepBubbleUntilDismissed,
+  );
   const tool = createToolStatus({ toolEl, toolLabel });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },

@@ -19,6 +19,7 @@ function makeSwitchRows(): SwitchRow[] {
     fillerSettings: createFillerSettings({
       initial: { enabled: false, language: "ja", customPools: {} },
     }),
+    bubblePersistSettings: createFlagSettings(false),
   });
 }
 
@@ -31,6 +32,7 @@ function render(switchRows: readonly SwitchRow[]): HTMLElement {
     switchRows,
     showPresence: false,
     showDevtools: false,
+    showHistory: false,
     railCollapsed: false,
   });
   return root;

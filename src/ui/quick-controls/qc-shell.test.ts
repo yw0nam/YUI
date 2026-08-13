@@ -406,15 +406,19 @@ describe("createQuickControls — session section", () => {
     qc.dispose();
   });
 
-  it("reset confirm flow also clears the transcript store when provided", () => {
-    const transcript = { get: () => [], append: vi.fn(), clear: vi.fn() };
+  it("reset confirm flow closes the transcript's session when provided", () => {
+    const transcript = {
+      sessions: () => [],
+      subscribe: () => () => {},
+      startNewSession: vi.fn(),
+    };
 
     const qc = buildQc({ variant: "window", transcript });
     qc.open();
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-link-btn")!.click();
+    qc.el.querySelector<HTMLButtonElement>(".yui-session__reset")!.click();
     qc.el.querySelector<HTMLButtonElement>(".yui-session .yui-pill--go")!.click();
-    expect(transcript.clear).toHaveBeenCalledTimes(1);
+    expect(transcript.startNewSession).toHaveBeenCalledTimes(1);
 
     qc.dispose();
   });

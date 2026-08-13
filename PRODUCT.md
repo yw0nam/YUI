@@ -29,7 +29,7 @@ Core tone in one line: **invisible-by-default, warm-when-present.**
 ## Anti-references
 
 - **Enterprise SaaS chatbot widget** (Intercom/Drift-style): bottom-right bubble widget, bordered card, gradient accent, generic SaaS tone. YUI is not a widget.
-- **Messenger app** (Discord/Slack/KakaoTalk): chat list · message rows · channel chrome. YUI does not manage a conversation log.
+- **Messenger app** (Discord/Slack/KakaoTalk): chat list · message rows · channel chrome. YUI's presence surface is one ephemeral speech bubble; the transcript is a read-only record tucked inside the settings panel, never the place you live.
 - **Old desktop mascot** (Clippy/Office Assistant): tacky, pushy speech bubbles, gag-style interruptions. The exact opposite of non-intrusive.
 
 (Game HUD / sci-fi overlay aesthetic is not a rejection target — neutrally allowed.)

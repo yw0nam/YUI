@@ -68,6 +68,7 @@ async function bootstrap(): Promise<void> {
     sessionStore,
     sessionDiagnostics,
     chatHistoryStore,
+    bubblePersistSettings,
   } = settingsStores;
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
@@ -234,6 +235,7 @@ async function bootstrap(): Promise<void> {
       sessionDiagnostics,
       sessionStore,
       transcript: chatHistoryStore,
+      bubblePersistSettings,
     });
 
   // quick-controls fully re-mounts on display language change (setLocale → i18n.subscribe).

@@ -7,7 +7,7 @@
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { EndpointsConfig, ToolStatus, Usage } from "../contract";
-import type { ChatHistoryEntry } from "../io/chat-history-store";
+import { type ChatHistoryEntry, createChatHistoryStore } from "../io/chat-history-store";
 import type { Logger } from "../logger";
 import { type BackendCaller, createBackendCaller } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";
@@ -703,7 +703,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput,
-      transcript: { get: () => transcriptEntries, append: vi.fn() },
+      transcript: { entriesAfterLastBoundary: () => transcriptEntries, append: vi.fn() },
     });
     await caller.call(turnOf(userEnv("오늘 뭐해?")));
     const [, request] = script.spy.mock.calls[0];
@@ -727,6 +727,30 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     expect("tools" in request).toBe(false);
     expect("previous_response_id" in request).toBe(false);
     expect("instructions" in request).toBe(false);
+  });
+
+  it("replays only the entries after the latest session boundary", async () => {
+    script.events = [completedEvent({ speech_text: "" }, "")];
+    const store = createChatHistoryStore();
+    store.append({ role: "user", text: "지난 세션 질문", ts: 1 });
+    store.append({ role: "assistant", text: "지난 세션 답변", ts: 2 });
+    store.startNewSession(3);
+    store.append({ role: "user", text: "새 세션 질문", ts: 4 });
+    caller = createBackendCaller({
+      config: CC_CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      transcript: store,
+    });
+    await caller.call(turnOf(userEnv("이어서")));
+    const [, request] = script.spy.mock.calls[0];
+    const msgs = messagesOf(request);
+    expect(msgs).toEqual(expect.arrayContaining([{ role: "user", content: "새 세션 질문" }]));
+    expect(msgs.some((m) => m.content === "지난 세션 질문")).toBe(false);
+    expect(msgs.some((m) => m.content === "지난 세션 답변")).toBe(false);
   });
 
   it("no transcript dep → messages still built with empty transcript (no crash)", async () => {

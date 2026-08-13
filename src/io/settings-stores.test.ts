@@ -37,6 +37,7 @@ describe("createSettingsStores", () => {
       "sessionStore",
       "sessionDiagnostics",
       "chatHistoryStore",
+      "bubblePersistSettings",
       "endpointsSettings",
       "chatKeySettings",
       "sttKeySettings",
@@ -63,6 +64,7 @@ describe("createSettingsStores", () => {
     ["hintSettings", "yui.hint", false, true],
     ["idleThrottleSettings", "yui.idle-throttle", true, false],
     ["railCollapsedSettings", "yui.quickControls.railCollapsed", false, true],
+    ["bubblePersistSettings", "yui.bubble-persist", false, true],
     ["presenceSettings", "yui.presence", 180000, 200000],
   ] as const)("binds %s to %s with default %s", (storeName, key, defaultValue, nextValue) => {
     localStorage.clear();

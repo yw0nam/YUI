@@ -208,7 +208,7 @@
   transition: flex-basis var(--yui-dur) var(--yui-ease);
 }
 
-/* ── Vertical tablist — icon+label (unless collapsed), 5 tabs. role=tablist here only
+/* ── Vertical tablist — icon+label (unless collapsed). role=tablist here only
    (chevron is a sibling outside — tablist must own only tabs per ARIA contract). ── */
 .yui-tabs {
   display: flex;

@@ -21,6 +21,7 @@ vi.mock("./markdown", async (importOriginal) => {
   };
 });
 
+import { INTERACTIVE_OVERLAY_SELECTORS } from "../bootstrap-configured";
 import { renderMarkdownInline } from "./markdown";
 import { createSurfaces } from "./surfaces";
 
@@ -570,5 +571,182 @@ describe("pushSpeech — throttled markdown rendering", () => {
     expect(renderMarkdownInline).toHaveBeenCalledTimes(2);
     expect(renderMarkdownInline).toHaveBeenLastCalledWith(expected);
     expect(mount.querySelector(".yui-bubble__text")?.textContent).toBe(expected);
+  });
+});
+
+describe("close button — dismiss the bubble by hand", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    s = createSurfaces({ mount, dwellMs: 5000 });
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+    vi.useRealTimers();
+  });
+
+  function bubble(): HTMLElement {
+    return mount.querySelector(".yui-bubble") as HTMLElement;
+  }
+  function closeBtn(): HTMLButtonElement {
+    return mount.querySelector(".yui-bubble__close") as HTMLButtonElement;
+  }
+
+  it("renders a labelled close button inside the bubble", () => {
+    expect(closeBtn()).not.toBeNull();
+    expect(bubble().contains(closeBtn())).toBe(true);
+    expect(closeBtn().getAttribute("aria-label")).toBeTruthy();
+  });
+
+  // The pet window is click-through wherever nothing interactive sits, so the button must be a
+  // registered hit-test target — otherwise the OS never delivers the hover or the click.
+  it("is registered as an interactive overlay target while the bubble shows", () => {
+    expect(mount.querySelector(INTERACTIVE_OVERLAY_SELECTORS[1])).toBeNull();
+
+    s.beginSpeech();
+    s.pushSpeech("Hello.");
+    s.endSpeech();
+
+    expect(mount.querySelector(INTERACTIVE_OVERLAY_SELECTORS[1])).toBe(closeBtn());
+  });
+
+  it("clicking it hides the bubble immediately, without waiting for dwell", () => {
+    s.beginSpeech();
+    s.pushSpeech("Hello.");
+    s.endSpeech();
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+
+    closeBtn().click();
+    expect(bubble().classList.contains("is-visible")).toBe(false);
+  });
+
+  it("stays dismissed when the rest of the stream arrives", () => {
+    s.beginSpeech();
+    s.pushSpeech("First half");
+    closeBtn().click();
+
+    s.pushSpeech(" and second half.");
+    expect(bubble().classList.contains("is-visible")).toBe(false);
+
+    s.endSpeech();
+    expect(bubble().classList.contains("is-visible")).toBe(false);
+  });
+
+  it("shows again on the next utterance", () => {
+    s.beginSpeech();
+    s.pushSpeech("Dismissed.");
+    closeBtn().click();
+
+    s.beginSpeech();
+    s.pushSpeech("Next one.");
+    s.endSpeech();
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+    expect(bubble().textContent).toContain("Next one.");
+  });
+
+  it("clicking it dismisses a bubble whose fade is deferred for playback", () => {
+    s.beginSpeech();
+    s.pushSpeech("Long spoken reply.");
+    s.endSpeech({ defer: true });
+    vi.advanceTimersByTime(60000);
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+
+    closeBtn().click();
+    expect(bubble().classList.contains("is-visible")).toBe(false);
+  });
+});
+
+describe("keep bubble until dismissed", () => {
+  const DWELL = 5000;
+  let mount: HTMLElement;
+  let keep: boolean;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    keep = true;
+    s = createSurfaces({ mount, dwellMs: DWELL, keepBubbleUntilDismissed: () => keep });
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+    vi.useRealTimers();
+  });
+
+  function bubble(): HTMLElement {
+    return mount.querySelector(".yui-bubble") as HTMLElement;
+  }
+
+  it("never arms the dwell fade while on", () => {
+    s.beginSpeech();
+    s.pushSpeech("Stay put.");
+    s.endSpeech();
+
+    vi.advanceTimersByTime(DWELL * 10);
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+  });
+
+  it("marks the held bubble so its close button stays visible", () => {
+    s.beginSpeech();
+    s.pushSpeech("Stay put.");
+    expect(bubble().classList.contains("is-held")).toBe(false);
+
+    s.endSpeech();
+    expect(bubble().classList.contains("is-held")).toBe(true);
+
+    s.beginSpeech();
+    expect(bubble().classList.contains("is-held")).toBe(false);
+  });
+
+  it("finishSpeech does not release a deferred bubble into dwell while on", () => {
+    s.beginSpeech();
+    s.pushSpeech("Stay put.");
+    s.endSpeech({ defer: true });
+    s.finishSpeech();
+
+    vi.advanceTimersByTime(DWELL * 10);
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+  });
+
+  it("the close button still dismisses it", () => {
+    s.beginSpeech();
+    s.pushSpeech("Stay put.");
+    s.endSpeech();
+    vi.advanceTimersByTime(DWELL * 10);
+
+    (mount.querySelector(".yui-bubble__close") as HTMLButtonElement).click();
+    expect(bubble().classList.contains("is-visible")).toBe(false);
+  });
+
+  it("new speech replaces the held bubble", () => {
+    s.beginSpeech();
+    s.pushSpeech("First.");
+    s.endSpeech();
+    vi.advanceTimersByTime(DWELL * 10);
+
+    s.beginSpeech();
+    s.pushSpeech("Second.");
+    s.endSpeech();
+    expect(bubble().textContent).toContain("Second.");
+    expect(bubble().textContent).not.toContain("First.");
+  });
+
+  it("falls back to the dwell fade when off", () => {
+    keep = false;
+    s.beginSpeech();
+    s.pushSpeech("Transient.");
+    s.endSpeech();
+
+    vi.advanceTimersByTime(DWELL + 100);
+    expect(bubble().classList.contains("is-visible")).toBe(false);
   });
 });
