@@ -178,7 +178,7 @@ Key reference:
 |---|---|---|
 | `chat_api` | `responses` | Chat protocol: `"responses"` (expression cues) or `"chat_completions"` (speech text only, no cues today) |
 | `chat_base_url` | unset | Backend agent base URL (Responses API root or Chat Completions endpoint, per `chat_api`) |
-| `chat_endpoint` | `/v1/responses` | Responses API path (Responses mode only) |
+| `chat_endpoint` | unset | Responses API path (Responses mode only) |
 | `chat_model` | unset | Model ID sent to the backend |
 | `chat_model_context_window` | `200000` | Token window — display in Responses mode; also trims the client-side transcript in Chat Completions mode |
 | `stt_base_url` | unset | STT server base URL |

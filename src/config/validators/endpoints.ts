@@ -2,6 +2,11 @@ import type { EndpointsConfig } from "../../contract";
 import { resolveTtsProviderKind } from "../../io/tts-provider";
 import { assertValid, ConfigError, isObject } from "./shared";
 
+/** 미설정 판정 — 키가 없거나 빈 문자열이면 그 기능은 꺼진 것으로 본다. */
+function unset(v: unknown): boolean {
+  return v === undefined || v === "";
+}
+
 export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const issues: string[] = [];
   if (!isObject(raw)) {
@@ -15,21 +20,16 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     }
     return v;
   };
-  // 서비스 URL은 선택 — 없거나 빈 문자열이면 "미설정"(해당 기능 off). 값이 있으면 http(s)여야 함.
-  const optHttpUrl = (k: string): string => {
-    const v = raw[k];
-    if (v === undefined || v === "") return "";
-    return httpUrl(k);
-  };
+  // 서비스 URL은 선택 — 미설정이면 해당 기능 off. 값이 있으면 http(s)여야 함.
+  const optHttpUrl = (k: string): string => (unset(raw[k]) ? "" : httpUrl(k));
   const chat_base_url = optHttpUrl("chat_base_url");
   const stt_base_url = optHttpUrl("stt_base_url");
   const tts_base_url = optHttpUrl("tts_base_url");
-  // 선택 — 없거나 비면 미설정. 값이 있으면 "/v1/responses" 같은 경로만 허용하고,
+  // 선택 — 미설정이면 빈 값. 값이 있으면 "/v1/responses" 같은 경로만 허용하고,
   // "//host"(protocol-relative)는 base_url과 합쳐도 경로로 동작하지 않으므로 거부한다.
   const rawChatEndpoint = raw.chat_endpoint;
   if (
-    rawChatEndpoint !== undefined &&
-    rawChatEndpoint !== "" &&
+    !unset(rawChatEndpoint) &&
     (typeof rawChatEndpoint !== "string" ||
       !rawChatEndpoint.startsWith("/") ||
       rawChatEndpoint.startsWith("//"))
@@ -79,10 +79,10 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   }
 
   // ── irodori_TTS provider (additive) ──────────────────────────────────────────
-  // tts_provider: optional enum. Resolves to openai when unset — the neutral provider, which
+  // tts_provider: optional enum. Empty resolves like unset — openai, the neutral provider, which
   // requires no extra fields (the resolved value is written to the output).
   const rawProvider = raw.tts_provider;
-  if (rawProvider !== undefined && rawProvider !== "openai" && rawProvider !== "irodori") {
+  if (!unset(rawProvider) && rawProvider !== "openai" && rawProvider !== "irodori") {
     issues.push(
       `tts_provider는 "openai" | "irodori" 중 하나여야 함 (받음: ${JSON.stringify(rawProvider)})`,
     );
@@ -93,7 +93,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
 
   // When provider=irodori, base_url (http url) + speaker (non-empty) are required — bare config fail-loud.
   let irodori_base_url: string | undefined;
-  if (raw.irodori_base_url !== undefined || tts_provider === "irodori") {
+  if (!unset(raw.irodori_base_url) || tts_provider === "irodori") {
     irodori_base_url = httpUrl("irodori_base_url");
   }
   const irodori_speaker = raw.irodori_speaker;
@@ -129,9 +129,9 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   posNum("irodori_cfg_scale_text");
   posNum("irodori_cfg_scale_speaker");
   posNum("irodori_seconds");
-  // broker_base_url: optional. If present, must be an http(s) URL (Expression Broker MCP endpoint).
+  // broker_base_url: optional. If set, must be an http(s) URL (Expression Broker MCP endpoint).
   let broker_base_url: string | undefined;
-  if (raw.broker_base_url !== undefined) {
+  if (!unset(raw.broker_base_url)) {
     broker_base_url = httpUrl("broker_base_url");
   }
   // tts_max_inflight: optional, integer ≥ 1.

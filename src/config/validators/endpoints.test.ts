@@ -115,16 +115,37 @@ describe("validateEndpoints — unconfigured (empty) endpoints", () => {
     expect(out.chat_endpoint).toBe("");
   });
 
-  it("keeps the committed neutral defaults valid (chat_endpoint + chat_api only)", () => {
+  it("keeps the committed neutral defaults valid (chat_api + numeric knobs only)", () => {
     const out = validateEndpoints(FILE, {
-      chat_endpoint: "/v1/responses",
       chat_api: "responses",
       chat_model_context_window: 200000,
       tts_max_inflight: 1,
     });
-    expect(out.chat_endpoint).toBe("/v1/responses");
     expect(out.chat_api).toBe("responses");
     expect(out.chat_base_url).toBe("");
+    expect(out.chat_endpoint).toBe("");
+  });
+
+  it("reads an empty irodori_base_url as unset rather than a malformed URL", () => {
+    const out = validateEndpoints(FILE, baseRaw({ irodori_base_url: "" }));
+    expect(out.irodori_base_url).toBeUndefined();
+  });
+
+  it("reads an empty broker_base_url as unset rather than a malformed URL", () => {
+    const out = validateEndpoints(FILE, baseRaw({ broker_base_url: "" }));
+    expect(out.broker_base_url).toBeUndefined();
+  });
+
+  it("reads an empty tts_provider as unset and resolves it to the openai default", () => {
+    const out = validateEndpoints(FILE, baseRaw({ tts_provider: "" }));
+    expect(out.tts_provider).toBe("openai");
+  });
+
+  it("still requires irodori_base_url when the provider is explicitly irodori", () => {
+    expectIssue(
+      baseRaw({ tts_provider: "irodori", irodori_base_url: "", irodori_speaker: "natsume" }),
+      "irodori_base_url는 http(s) URL이어야 함",
+    );
   });
 });
 

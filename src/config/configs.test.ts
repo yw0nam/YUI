@@ -17,19 +17,18 @@ describe("configs/endpoints.json", () => {
       "irodori_base_url",
       "broker_base_url",
     ]) {
-      expect(ep[key] ?? "", key).toBe("");
+      expect(ep, key).not.toHaveProperty(key);
     }
   });
 
   it("ships no personal model or voice selection", () => {
     for (const key of ["chat_model", "tts_model", "tts_voice", "irodori_speaker", "tts_provider"]) {
-      expect(ep[key] ?? "", key).toBe("");
+      expect(ep, key).not.toHaveProperty(key);
     }
   });
 
-  it("carries the protocol-shape defaults the client needs before configuration", () => {
-    expect(ep.chat_endpoint).toBe("/v1/responses"); // contract §endpoint default
-    expect(ep.chat_api).toBe("responses"); // chat protocol selection default
+  it("carries the chat protocol selection", () => {
+    expect(ep.chat_api).toBe("responses");
   });
 
   it("carries a config-driven chat_instructions nudge mentioning generate_express + the 3 channels", () => {
