@@ -1,10 +1,10 @@
 # Backend Agent ↔ Broker Interaction
 
 This contract applies to both chat protocols YUI supports (`chat_api` in
-`configs/endpoints.json`). The sections below describe Responses mode, where
-the full contract — including the `generate_express` cue — works end-to-end
-today. Chat Completions mode carries the same `client_context` shape, over a
-different transport, but not the cue; see
+`configs/endpoints.json`). The sections below describe Responses mode; Chat
+Completions mode carries the same `client_context` shape and the same
+`generate_express` cue over a different transport, where the client declares
+the tool itself and answers the call — see
 [CC mode transport](#cc-mode-transport-chat-completions) at the end of this
 doc for the deltas.
 
@@ -495,16 +495,75 @@ persona/global instructions (if configured), a `system` message with
 `client_context: <JSON>`, the trimmed conversation transcript, then the `user`
 message carrying the utterance or background marker alone.
 
-The client parses `generate_express` the same way it would in the Responses
-stream — as `chat.completion.chunk` tool-call deltas
-(`delta.tool_calls[].function.arguments`, accumulated per call index) instead
-of `response.output_item.*` events — but it declares no tool of its own, runs
-no client-side tool-call round trip, and never returns a tool result for the
-call, so cue delivery is entirely up to the backend forwarding one.
+### Client-declared tools
 
-Today, no cue reaches the client through Chat Completions. Backend capability
-differs by provider: a plain OpenAI-compatible server (e.g. vLLM) speaks
-standard Chat Completions tool-call streaming, while the Hermes api-server's
-`/v1/chat/completions` never surfaces tool calls at all — it emits a custom
-`hermes.tool.progress` telemetry event (name + status, no arguments) instead
-of `tool_calls`. Use `responses` mode for the full contract.
+Every CC request carries the client's registered tools in `tools[]` as standard
+OpenAI function schemas, and the client executes the calls it gets back.
+`generate_express` is one of them, so expression works against any
+OpenAI-compatible endpoint whose model supports tool calling — the backend
+behind it needs neither the broker nor prior knowledge of this contract. The
+schema is generated from the vocabulary the client has loaded, the same ids it
+publishes to the broker:
+
+| Parameter | Schema |
+|---|---|
+| `emotion_id` | `string`, `enum` = the loaded emotion registry's ids |
+| `motion_id` | `string`, `enum` = the loaded motion registry's agent-triggerable ids (reactive, ambient, and `broker_publish: false` motions excluded) |
+| `emotion_text` | `string`, free-text voice tone tag |
+
+All three are optional and the object takes no other properties, matching the
+[tool arguments](#tool-arguments) above. A vocabulary edit (a new emotion, a
+new motion) reaches the schema on the next turn.
+
+### Tool-call round trip
+
+Cues arrive as `chat.completion.chunk` tool-call deltas
+(`delta.tool_calls[].function.arguments`, accumulated per call index) instead of
+`response.output_item.*` events. The turn that calls a tool carries little or no
+speech text and ends with `finish_reason: "tool_calls"`, so the client answers
+the call and asks again:
+
+1. Each call naming a registered tool is executed locally as it arrives.
+   `generate_express` plays its cue at that moment — cue timing never waits for
+   the round trip — and its result is `ok`.
+2. The client appends the assistant message carrying those `tool_calls`, then one
+   `role: "tool"` message per call (`tool_call_id` + the result string), to the
+   message array of the turn in flight and sends the whole array again with the
+   same `tools[]`.
+3. The model continues into speech, and the cycle repeats if it calls again.
+   Three round trips per turn is the cap; beyond it the client stops returning
+   results and closes the turn with the text it has.
+
+A response with no tool call is a single request. A call naming a tool the client
+did not register — an MCP tool owned by the backend agent, such as
+`mcp_<server>_generate_express` — surfaces as tool status and gets no result, so
+it stays one-way and never enters the round trip. Any tool name ending in
+`generate_express` plays its cue, whichever side registered it.
+
+Tool traffic lives in the in-flight message array only. Chat Completions has no
+`previous_response_id`, and the next turn is rebuilt from the stored transcript,
+which holds user and assistant speech text alone.
+
+One round trip on the wire:
+
+```jsonc
+// request 1 — messages + tools[]
+// response 1 — streamed tool-call deltas, finish_reason "tool_calls"
+{"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"generate_express","arguments":"{\"emotion_id\":\"happy\",\"motion_id\":\"dance\"}"}}]},"finish_reason":null}]}
+
+// request 2 — the same messages and tools[], with these two appended
+{"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"function","function":{"name":"generate_express","arguments":"{\"emotion_id\":\"happy\",\"motion_id\":\"dance\"}"}}]}
+{"role":"tool","tool_call_id":"call_1","content":"ok"}
+
+// response 2 — the spoken text
+```
+
+### Backend capability
+
+Cue delivery over Chat Completions needs an endpoint that speaks standard
+tool-call streaming. A plain OpenAI-compatible server (e.g. vLLM) does, and the
+declared `generate_express` comes back as `delta.tool_calls` fragments. The
+Hermes api-server's `/v1/chat/completions` does not surface tool calls at all —
+it emits a custom `hermes.tool.progress` telemetry event (name + status, no
+arguments) instead of `tool_calls` — so Hermes carries the full contract over
+`responses` mode.

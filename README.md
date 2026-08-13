@@ -19,12 +19,12 @@
 
 YUI is a VRM character that lives on your desktop — it renders the body, the
 voice, and the on-screen surfaces, and it leaves the thinking to a backend.
-It does not ship an embedded model. It plugs into any OpenAI-compatible
-backend agent — the [Hermes Agent](https://github.com/nousresearch/hermes-agent)
-is one such backend — over either the OpenAI Responses API or the OpenAI Chat
-Completions API, so the character is exactly as capable as whatever sits
-behind that connection. `generate_express` expression cues are carried today
-by Responses mode; Chat Completions mode streams speech text only.
+It does not ship an embedded model. It plugs into a backend agent that speaks
+the OpenAI Responses API (the
+[Hermes Agent](https://github.com/nousresearch/hermes-agent), or any
+compatible backend) honoring YUI's expression contract, or, in Chat Completions
+mode, into any OpenAI-compatible endpoint whose model supports tool calling —
+so the character is exactly as capable as whatever sits behind that connection.
 
 The character owns the screen; chrome stays out of the way and only appears when
 there is something to show, then steps back.
@@ -33,15 +33,19 @@ there is something to show, then steps back.
 
 **Agent**
 - Two chat protocols, selected by `chat_api` in `configs/endpoints.json`: a
-  backend agent over the OpenAI Responses API, or over the OpenAI-compatible
-  Chat Completions API — no fixed embedded model
+  backend agent honoring YUI's expression contract over the OpenAI Responses
+  API, or any tool-calling OpenAI-compatible Chat Completions endpoint — no
+  fixed embedded model
 - Emotion, motion, and voice cues arrive as structured `generate_express`
   tool-calls, never as inline tags in the text — Responses mode carries them
   today; Chat Completions mode streams speech text without cues
 - YUI publishes its emotion/motion/voice vocabulary to the Expression Broker
   (MCP) in both chat modes, write-only and gated only on `broker_base_url`;
-  a Responses-mode backend agent reads it back via `get_ids` and emits cues
-  as `generate_express` tool-calls
+  a backend agent reads it back via `get_ids` and emits cues as
+  `generate_express` tool-calls
+- In Chat Completions mode YUI declares `generate_express` itself, with that
+  same vocabulary in the tool schema, runs the call locally and returns the
+  result — expression on a bare model endpoint, no broker required
 
 **Voice & chat**
 - Speech input — Silero VAD + ONNX segment your voice, then an
@@ -140,16 +144,18 @@ base URLs live in `configs/endpoints.json`.
 - **Chat protocol** — selected via `chat_api` (default `responses`):
   - `responses` — routes to a backend agent (Hermes recommended) at
     `localhost:8643` `/v1/responses`
-  - `chat_completions` — connects over the OpenAI-compatible Chat Completions
-    API; the client keeps the conversation transcript client-side (no
-    `previous_response_id`) and trims it to `chat_model_context_window`
+  - `chat_completions` — connects over the Chat Completions API to any
+    tool-calling OpenAI-compatible endpoint; the client declares
+    `generate_express` with its own vocabulary, executes the call and returns
+    the result, and keeps the conversation transcript client-side (no
+    `previous_response_id`), trimmed to `chat_model_context_window`
 
   | Mode | Speech text | `generate_express` cues |
   |---|---|---|
-  | `responses` | yes | yes — arrives as function-call items |
-  | `chat_completions` | yes | no — the client declares no tools, so cue tool-calls never appear in the stream |
+  | `responses` | yes | yes — the backend agent emits them as function-call items |
+  | `chat_completions` | yes | yes — the client declares the tool, runs it, and returns the result |
 
-  Backend capability also varies: a plain OpenAI-compatible server (e.g.
+  Backend capability still varies: a plain OpenAI-compatible server (e.g.
   vLLM) speaks standard Chat Completions tool-call streaming, while the
   Hermes api-server's `/v1/chat/completions` never surfaces tool calls — it
   emits a custom `hermes.tool.progress` telemetry event with no arguments
