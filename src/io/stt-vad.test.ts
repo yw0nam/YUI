@@ -719,7 +719,7 @@ describe("createSttVad — live config getter tracks settings-UI overrides (#611
 
   it("start() is still a no-op when the config getter currently returns no stt_base_url", async () => {
     const { MicVAD } = await import("@ricky0123/vad-web");
-    let current: import("../contract").EndpointsConfig = {
+    const current: import("../contract").EndpointsConfig = {
       chat_base_url: "http://localhost:8643/v1",
       chat_endpoint: "/v1/responses",
     } as unknown as import("../contract").EndpointsConfig;

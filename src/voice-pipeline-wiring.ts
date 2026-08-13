@@ -46,7 +46,7 @@ interface VoicePipelineDeps {
 export interface VoicePipeline {
   speechPlayback: SpeechPlayback;
   turnOutput: TurnOutput;
-  createSttEngine: (endpoints: EndpointsConfig) => Promise<SttVad>;
+  createSttEngine: () => Promise<SttVad>;
   dispose: () => void;
 }
 
@@ -166,10 +166,10 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     cue: (args) => speechPlayback.setCue(args),
   };
 
-  async function createSttEngine(endpoints: EndpointsConfig): Promise<SttVad> {
+  async function createSttEngine(): Promise<SttVad> {
     const { createSttVad } = await import("./io/stt-vad");
     return createSttVad({
-      config: endpoints,
+      config: deps.getEndpoints,
       fetch: await selectFetch(),
       silenceMs: () => deps.vadSettings.get().silenceMs,
       getApiKey: deps.getSttApiKey,
