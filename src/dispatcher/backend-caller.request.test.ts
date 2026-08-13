@@ -835,4 +835,32 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
   });
 });
 
+// ── unconfigured backend (no chat_base_url) ───────────────────────────────────
+
+describe("backend_caller — unconfigured chat backend", () => {
+  function unconfiguredCaller(): BackendCaller {
+    return createBackendCaller({
+      config: { ...CONFIG, chat_base_url: "" },
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      logger,
+    });
+  }
+
+  it("returns not_configured without reaching the transport", async () => {
+    const outcome = await unconfiguredCaller().call(turnOf(userEnv()));
+    expect(outcome).toBe("not_configured");
+    expect(script.spy).not.toHaveBeenCalled();
+  });
+
+  it("closes the TTFT thinking filler it opened", async () => {
+    turnOutput.hasFiller.mockReturnValue(true);
+    await unconfiguredCaller().call(turnOf(userEnv()));
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
+  });
+});
+
 // ── transcript recording (both protocol modes) ──────────────────────────────

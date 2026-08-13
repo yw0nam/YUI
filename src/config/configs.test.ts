@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { validateEndpoints } from "./validators/endpoints";
 import { validateMotions } from "./validators/motions";
 
 const read = (rel: string): any => JSON.parse(readFileSync(resolve(process.cwd(), rel), "utf-8"));
@@ -8,14 +9,27 @@ const read = (rel: string): any => JSON.parse(readFileSync(resolve(process.cwd()
 describe("configs/endpoints.json", () => {
   const ep = read("configs/endpoints.json");
 
-  it("carries chat/stt/tts base urls + chat endpoint", () => {
-    expect(ep.chat_base_url).toMatch(/^https?:\/\//);
-    expect(ep.stt_base_url).toMatch(/^https?:\/\//);
-    expect(ep.tts_base_url).toMatch(/^https?:\/\//);
+  it("ships no service address — every URL is unconfigured until the user sets one", () => {
+    for (const key of [
+      "chat_base_url",
+      "stt_base_url",
+      "tts_base_url",
+      "irodori_base_url",
+      "broker_base_url",
+    ]) {
+      expect(ep[key] ?? "", key).toBe("");
+    }
+  });
+
+  it("ships no personal model or voice selection", () => {
+    for (const key of ["chat_model", "tts_model", "tts_voice", "irodori_speaker", "tts_provider"]) {
+      expect(ep[key] ?? "", key).toBe("");
+    }
+  });
+
+  it("carries the protocol-shape defaults the client needs before configuration", () => {
     expect(ep.chat_endpoint).toBe("/v1/responses"); // contract §endpoint default
-    expect(ep.chat_model).toBe("natsume"); // Hermes model ID (config-driven)
     expect(ep.chat_api).toBe("responses"); // chat protocol selection default
-    expect(ep.tts_voice).toBe("ナツメ"); // reference voice registered under /v1/audio/voices, default
   });
 
   it("carries a config-driven chat_instructions nudge mentioning generate_express + the 3 channels", () => {
@@ -27,15 +41,8 @@ describe("configs/endpoints.json", () => {
     expect(ep.chat_instructions).toContain("emotion_text");
   });
 
-  it("chat/stt/tts are three distinct services", () => {
-    // contract: STT/TTS are separate processes, independent of Hermes.
-    expect(new Set([ep.chat_base_url, ep.stt_base_url, ep.tts_base_url]).size).toBe(3);
-  });
-
-  it("stt_base_url resolves to /v1/audio/transcriptions (ASR server has the /v1 prefix)", () => {
-    expect(`${ep.stt_base_url}/audio/transcriptions`).toBe(
-      "http://localhost:5517/v1/audio/transcriptions",
-    );
+  it("passes the real endpoints config through validation", () => {
+    expect(() => validateEndpoints("configs/endpoints.json", ep)).not.toThrow();
   });
 
   it("carries the chat model context window for token-usage tracking", () => {
