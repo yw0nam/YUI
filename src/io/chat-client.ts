@@ -464,11 +464,12 @@ export async function* streamChat(
  * round trip), any other call yields tool_status done, and a call naming a registered tool is
  * executed locally.
  *
- * Round trip: when a response executed at least one call, the assistant tool_calls message and one
- * role:"tool" result per call are appended to the in-turn message array and the whole array is sent
- * again — the tool-calling turn usually carries no speech, so this is what produces it. Bounded by
- * MAX_TOOL_ROUND_TRIPS; past that the client stops returning results and closes the turn with the
- * text it has. A response with no executed call is the end of the turn (single request).
+ * Round trip: a response that executed calls and streamed NO speech is a silent turn — the assistant
+ * tool_calls message and one role:"tool" result per call are appended to the in-turn message array
+ * and the whole array is sent again, which is what produces the speech. A response that did speak is
+ * a finished turn: its cues have played, so returning results would only make the model say it all
+ * again. Bounded by MAX_TOOL_ROUND_TRIPS; past that the client stops returning results and closes
+ * the turn with the text it has.
  *
  * The array is copied on append, so the caller's messages are never mutated and nothing crosses
  * turn boundaries: CC has no previous_response_id and the next turn is rebuilt from the transcript.
@@ -572,6 +573,8 @@ async function* streamChatCompletions(
 
     executed = [];
     let seq = 0;
+    // Speech from this response alone — a response that spoke is a finished turn.
+    let roundText = "";
     const reducer = createChunkReducer();
 
     try {
@@ -581,6 +584,7 @@ async function* streamChatCompletions(
           switch (item.kind) {
             case "text":
               speech_text += item.text;
+              roundText += item.text;
               yield { type: "speech_delta", text: item.text };
               break;
             case "tool_call":
@@ -608,7 +612,7 @@ async function* streamChatCompletions(
       if (item.kind === "tool_call") yield* handleToolCall(item, seq++);
     }
 
-    if (executed.length === 0 || trips >= MAX_TOOL_ROUND_TRIPS) break;
+    if (executed.length === 0 || roundText !== "" || trips >= MAX_TOOL_ROUND_TRIPS) break;
     trips++;
     messages = [
       ...messages,

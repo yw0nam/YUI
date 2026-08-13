@@ -384,13 +384,30 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     expect(messages).toEqual([{ role: "user", content: "hi" }]);
   });
 
-  it("caps the turn at three round trips and surfaces the text collected so far", async () => {
+  it("a response that spoke alongside its calls is a finished turn — cue plays, no result, single request", async () => {
+    const express = toolStub("generate_express");
+    const registry = createClientToolRegistry([express]);
+    ccCreateMock.mockResolvedValueOnce(
+      streamOf([
+        textChunk("Yay!"),
+        toolCallStart(0, "call_1", "generate_express", GEN_EXPRESS_ARGS),
+        finishChunk("tool_calls"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
+
+    expect(ccCreateMock).toHaveBeenCalledTimes(1);
+    expect(events.some((e) => e.type === "express")).toBe(true);
+    expect(events.at(-1)).toMatchObject({ envelope: { speech_text: "Yay!" } });
+  });
+
+  it("caps a model that only ever calls tools at three round trips", async () => {
     const registry = createClientToolRegistry([toolStub("generate_express")]);
     // Exactly the four requests the cap allows — a fifth would find the mock empty and fail loudly.
     for (let i = 0; i < 4; i++) {
       ccCreateMock.mockResolvedValueOnce(
         streamOf([
-          textChunk(`t${i}`),
           toolCallStart(0, `call_${i}`, "generate_express", GEN_EXPRESS_ARGS),
           finishChunk("tool_calls"),
         ]),
@@ -400,10 +417,11 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
 
     expect(ccCreateMock).toHaveBeenCalledTimes(4);
+    expect(events.filter((e) => e.type === "express")).toHaveLength(4);
     expect(events.at(-1)).toEqual({
       type: "completed",
       envelope: {
-        speech_text: "t0t1t2t3",
+        speech_text: "",
         emotion: { id: "happy" },
         motion: { id: "embarrassed" },
         emotion_text: "[whisper]",

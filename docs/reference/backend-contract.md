@@ -519,26 +519,27 @@ new motion) reaches the schema on the next turn.
 
 Cues arrive as `chat.completion.chunk` tool-call deltas
 (`delta.tool_calls[].function.arguments`, accumulated per call index) instead of
-`response.output_item.*` events. The turn that calls a tool carries little or no
-speech text and ends with `finish_reason: "tool_calls"`, so the client answers
-the call and asks again:
+`response.output_item.*` events. Each call naming a registered tool is executed
+locally as it arrives, and `generate_express` plays its cue at that moment — cue
+timing never waits for anything — resolving `ok`.
 
-1. Each call naming a registered tool is executed locally as it arrives.
-   `generate_express` plays its cue at that moment — cue timing never waits for
-   the round trip — and its result is `ok`.
-2. The client appends the assistant message carrying those `tool_calls`, then one
-   `role: "tool"` message per call (`tool_call_id` + the result string), to the
-   message array of the turn in flight and sends the whole array again with the
-   same `tools[]`.
-3. The model continues into speech, and the cycle repeats if it calls again.
-   Three round trips per turn is the cap; beyond it the client stops returning
-   results and closes the turn with the text it has.
+What happens next follows the speech:
 
-A response with no tool call is a single request. A call naming a tool the client
-did not register — an MCP tool owned by the backend agent, such as
-`mcp_<server>_generate_express` — surfaces as tool status and gets no result, so
-it stays one-way and never enters the round trip. Any tool name ending in
-`generate_express` plays its cue, whichever side registered it.
+- **The response streamed speech.** The turn is complete. Its cues have played
+  alongside the text, exactly as in Responses mode, and the client returns no
+  results. One request.
+- **The response streamed only tool calls.** The turn would otherwise be silent,
+  so the client appends the assistant message carrying those `tool_calls` and one
+  `role: "tool"` message per call (`tool_call_id` + the result string) to the
+  message array of the turn in flight, and sends the whole array again with the
+  same `tools[]`. The model continues into speech, and the cycle repeats while it
+  keeps answering with calls alone. Three round trips per turn is the cap; beyond
+  it the client stops returning results and closes the turn with the text it has.
+
+A call naming a tool the client did not register — an MCP tool owned by the
+backend agent, such as `mcp_<server>_generate_express` — surfaces as tool status
+and gets no result, so it stays one-way and never enters the round trip. Any tool
+name ending in `generate_express` plays its cue, whichever side registered it.
 
 Tool traffic lives in the in-flight message array only. Chat Completions has no
 `previous_response_id`, and the next turn is rebuilt from the stored transcript,
@@ -548,7 +549,7 @@ One round trip on the wire:
 
 ```jsonc
 // request 1 — messages + tools[]
-// response 1 — streamed tool-call deltas, finish_reason "tool_calls"
+// response 1 — tool-call deltas and no text, finish_reason "tool_calls"
 {"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"generate_express","arguments":"{\"emotion_id\":\"happy\",\"motion_id\":\"dance\"}"}}]},"finish_reason":null}]}
 
 // request 2 — the same messages and tools[], with these two appended

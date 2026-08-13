@@ -25,8 +25,8 @@ export interface CCToolCall {
 
 export type CCMessage =
   | { role: "system" | "user" | "assistant"; content: string | CCContentPart[] }
-  /** The assistant turn that called tools, replayed so its results have an anchor. */
-  | { role: "assistant"; content: null; tool_calls: CCToolCall[] }
+  /** The assistant turn that called tools — its own text, if any, plus the calls. */
+  | { role: "assistant"; content: string | null; tool_calls: CCToolCall[] }
   /** One executed call's result. */
   | { role: "tool"; tool_call_id: string; content: string };
 
