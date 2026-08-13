@@ -7,7 +7,7 @@
  * subscriber notifications, and key-completeness across all three dictionaries.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import en from "./i18n/en";
 import ja from "./i18n/ja";
 import ko from "./i18n/ko";
@@ -119,6 +119,47 @@ describe("setLocale / getLocale — persistence and side effects", () => {
     setLocale("en");
     // Notification fires even when locale is unchanged — host may need force-remount.
     expect(calls).toHaveLength(1);
+  });
+});
+
+describe("OS locale detection — no persisted locale", () => {
+  const originalLanguage = navigator.language;
+
+  beforeEach(() => {
+    vi.resetModules();
+    globalThis.localStorage?.clear?.();
+  });
+
+  afterEach(() => {
+    Object.defineProperty(navigator, "language", {
+      value: originalLanguage,
+      configurable: true,
+    });
+  });
+
+  it("ko-KR system locale resolves to ko", async () => {
+    Object.defineProperty(navigator, "language", { value: "ko-KR", configurable: true });
+    const { getLocale } = await import("./i18n");
+    expect(getLocale()).toBe("ko");
+  });
+
+  it("ja-JP system locale resolves to ja", async () => {
+    Object.defineProperty(navigator, "language", { value: "ja-JP", configurable: true });
+    const { getLocale } = await import("./i18n");
+    expect(getLocale()).toBe("ja");
+  });
+
+  it("unsupported system locale (de-DE) falls back to en", async () => {
+    Object.defineProperty(navigator, "language", { value: "de-DE", configurable: true });
+    const { getLocale } = await import("./i18n");
+    expect(getLocale()).toBe("en");
+  });
+
+  it("persisted yui.locale wins over OS-language detection", async () => {
+    Object.defineProperty(navigator, "language", { value: "ko-KR", configurable: true });
+    globalThis.localStorage.setItem("yui.locale", JSON.stringify("en"));
+    const { getLocale } = await import("./i18n");
+    expect(getLocale()).toBe("en");
   });
 });
 

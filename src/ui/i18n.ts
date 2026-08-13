@@ -33,10 +33,18 @@ function _isValidLocale(v: unknown): v is Locale {
   return typeof v === "string" && VALID_LOCALES.has(v);
 }
 
-// Hydrate from storage; fall back to DEFAULT_LOCALE if stored value is invalid.
+// Maps navigator.language to the closest supported locale for first-run detection.
+function _detectLocale(): Locale {
+  const lang = typeof navigator !== "undefined" ? navigator.language : "";
+  if (lang.startsWith("ko")) return "ko";
+  if (lang.startsWith("ja")) return "ja";
+  return DEFAULT_LOCALE;
+}
+
+// Hydrate from storage; when nothing is persisted, detect from the OS language.
 function _hydrate(): Locale {
   const raw = _storage.load();
-  return _isValidLocale(raw) ? raw : DEFAULT_LOCALE;
+  return _isValidLocale(raw) ? raw : _detectLocale();
 }
 
 let _locale: Locale = _hydrate();
