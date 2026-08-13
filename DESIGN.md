@@ -147,7 +147,7 @@ Flat by default. Depth comes from a single soft ambient shadow on the one floati
 Surfaces are absent at rest and transition in over ~200ms (`--yui-dur`) on an ease-out exponential curve (`cubic-bezier(0.22, 1, 0.36, 1)`), ~140ms (`--yui-dur-fast`) for color shifts; under `prefers-reduced-motion` the slide and scale drop to an opacity-only fade. Implemented CSS lives in `src/ui/`.
 
 ### Speech bubble
-The primary floating surface (`surfaces.css`). A scrim panel with no tail and no hard border: light Speech White text on Scrim, gently curved (14px), a single Float shadow, and the system's *only* sanctioned frosted backdrop (`blur(10px)`, for legibility). Bottom-anchored at 16% over the character's lower band so the face stays unobscured, width-capped at `min(34ch, 78%)`, height-capped at 34vh with internal scroll and a top fade once it overflows. A blinking amber caret (`oklch(0.8 0.13 75)`) marks streaming onset; inline links wear an amber-soft underline that ignites to full amber on hover/focus.
+The primary floating surface (`surfaces.css`). A scrim panel with no tail and no hard border: light Speech White text on Scrim, gently curved (14px), a single Float shadow, and the system's *only* sanctioned frosted backdrop (`blur(10px)`, for legibility). Bottom-anchored at 16% over the character's lower band so the face stays unobscured, width-capped at `min(34ch, 78%)`, height-capped at 34vh with internal scroll and a top fade once it overflows. A blinking amber caret (`oklch(0.8 0.13 75)`) marks streaming onset; inline links wear an amber-soft underline that ignites to full amber on hover/focus. A small round dismiss button rests in the top-right corner, invisible until hovered — the bubble passes pointers through for character drag, so the button is its own pointer target. When "keep bubble until dismissed" is on the bubble never fades, and the dismiss button stays half-lit as its only exit.
 
 ### Text input
 A slim field summoned by hotkey, sliding up from the bottom (`surfaces.css`). Stronger scrim (`oklch(0.19 0.014 70 / 0.82)`), 12px corners, transparent inner field. At rest the border is a hairline; on `:focus-within` it ignites to a Hearth Amber border plus an amber-soft ring, the design's signature warmth moment. Submit failure shows an Ember Red inline message, never a side-stripe.
@@ -164,6 +164,9 @@ A list row (`quick-controls.css`), 10px corners, 0.5rem padding, with a faint ba
 ### Type dropdown (`yui-select`)
 A custom-styled `<select>` (`quick-controls.css`) used as the per-service type picker in the Advanced tab's collapsible sections. OS chrome is stripped (`appearance:none`) for a Strong-Scrim field with a hairline Edge border, `--yui-radius-input` corners, and an inline amber-free chevron data-URI; on `:focus-visible` it ignites to a Hearth Amber border plus an amber-soft ring (the same warmth moment as the text input). A `--single` variant for inert one-option sections drops the chevron, dims the text to Muted-Ash, and shows a default cursor — present for visual consistency, not interaction.
 
+### Session history accordion
+The settings panel's History tab (`history-section.css`), a read-only record rather than a chat surface. Each conversation session is one collapsed row carrying its start time, the first thing you said (ellipsized) and its turn count; the current session sits at the top, opened by default inside an amber-faint frame, and older ones expand in place on click (`aria-expanded`). Open sessions read as a script: a three-column row per turn (speaker · text · time) where YUI's name is the only Hearth Amber in the list, over hairline separation and a Muted-Ash footnote on retention and local-only storage.
+
 ### Capture & voice indicators
 Paired status pills at the top edge (`capture-indicator.css`, `voice-input-indicator.css`). Same pill shape and Strong-Scrim as the tool chip. The capture tell carries an amber pulse dot while the screen is being attached (an always-on privacy cue); the voice tell carries a dot that pulses amber while listening, settles to a steady full Hearth Amber when a turn fires (the label carries the state change), and turns Ember Red on error.
 
@@ -178,7 +181,7 @@ Paired status pills at the top edge (`capture-indicator.css`, `voice-input-indic
 
 ### Don't:
 - **Don't** look like an **enterprise SaaS chatbot widget** (bordered card, gradient accent, generic widget tone).
-- **Don't** stack chat lists, message rows, or channel chrome like a **messenger app** (Discord/Slack/KakaoTalk); YUI keeps no conversation log.
+- **Don't** stack chat lists, message rows, or channel chrome like a **messenger app** (Discord/Slack/KakaoTalk) on the character's stage; the past conversation is readable only inside the settings panel's History tab, and never becomes a second place to talk.
 - **Don't** use pushy, garish speech bubbles like an **old desktop mascot** (Clippy), the exact opposite of non-intrusive.
 - **Don't** overuse glassmorphism: the frosted backdrop is purposeful in the one speech bubble only, otherwise skip it.
 - **Don't** use side-stripe borders (a color line >1px on an edge), gradient text (`background-clip: text`), identical card grids, or modal-first patterns.

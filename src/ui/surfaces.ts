@@ -13,7 +13,6 @@
 
 import "./surfaces.css";
 import type { AttachmentLimits } from "../config";
-import { t } from "./i18n";
 import { createSpeechBubble } from "./speech-bubble";
 import { createTextInput } from "./text-input";
 import { createToolStatus } from "./tool-status";
@@ -99,7 +98,7 @@ export function createSurfaces({
     </div>
     <div class="yui-bubble" hidden>
       <span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span>
-      <button class="yui-bubble__close" type="button" aria-label="${t("aria.dismiss_bubble")}" title="${t("aria.dismiss_bubble")}">
+      <button class="yui-bubble__close" type="button">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>

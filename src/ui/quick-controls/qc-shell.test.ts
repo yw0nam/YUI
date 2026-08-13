@@ -416,7 +416,6 @@ describe("createQuickControls — session section", () => {
     const qc = buildQc({ variant: "window", transcript });
     qc.open();
 
-    // The History tab adds a 6th rail row, so target the session link inside its own section.
     qc.el.querySelector<HTMLButtonElement>(".yui-session__reset")!.click();
     qc.el.querySelector<HTMLButtonElement>(".yui-session .yui-pill--go")!.click();
     expect(transcript.startNewSession).toHaveBeenCalledTimes(1);

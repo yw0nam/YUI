@@ -169,6 +169,33 @@ describe("createQuickControls — history tab", () => {
     qc.dispose();
   });
 
+  it("keeps focus on the session row it just toggled", () => {
+    const qc = buildQc({ transcript: seedStore() });
+    qc.open();
+
+    const row = qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess")[1];
+    row.focus();
+    row.click();
+
+    const after = qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess")[1];
+    expect(document.activeElement).toBe(after);
+
+    qc.dispose();
+  });
+
+  it("points each session row at the turn log it discloses", () => {
+    const qc = buildQc({ transcript: seedStore() });
+    qc.open();
+
+    const row = qc.el.querySelector<HTMLButtonElement>(".yui-hist__sess")!;
+    const log = qc.el.querySelector<HTMLElement>(".yui-hist__log")!;
+    expect(row.getAttribute("aria-controls")).toBe(log.id);
+    expect(log.getAttribute("role")).toBe("region");
+    expect(log.getAttribute("aria-labelledby")).toBe(row.id);
+
+    qc.dispose();
+  });
+
   it("clicking the open current session collapses it", () => {
     const qc = buildQc({ transcript: seedStore() });
     qc.open();

@@ -6,6 +6,7 @@
  */
 
 import { afterFadeOut } from "./fade-out";
+import { subscribe as subscribeLocale, t } from "./i18n";
 import { renderMarkdownInline } from "./markdown";
 
 export interface SpeechBubble {
@@ -63,6 +64,8 @@ export function createSpeechBubble(
   let hovering = false;
   // Whether a dwell debt remains (timer-arming can be held).
   let dwellArmed = false;
+  // Whether the user dismissed this utterance — the rest of its stream stays hidden.
+  let dismissed = false;
   let cancelFade: (() => void) | null = null;
 
   function clearDwell(): void {
@@ -98,6 +101,8 @@ export function createSpeechBubble(
   function beginSpeech(): void {
     clearDwell();
     deferred = false;
+    dismissed = false;
+    bubbleEl.classList.remove("is-held");
     speechRaw = "";
     lastRenderAt = Number.NEGATIVE_INFINITY;
     bubbleText.replaceChildren();
@@ -109,6 +114,7 @@ export function createSpeechBubble(
   }
 
   function pushSpeech(delta: string): void {
+    if (dismissed) return;
     if (bubbleEl.hidden) beginSpeech();
     speechRaw += delta;
     const now = performance.now();
@@ -121,6 +127,7 @@ export function createSpeechBubble(
   }
 
   function endSpeech(opts?: { defer?: boolean }): void {
+    if (dismissed) return;
     if (bubbleEl.hidden && speechRaw === "") return;
     const pin = isPinnedToEnd();
     if (speechRaw !== "") bubbleText.replaceChildren(renderMarkdownInline(speechRaw));
@@ -139,7 +146,7 @@ export function createSpeechBubble(
       return;
     }
     deferred = false;
-    if (holdOpen()) return;
+    if (hold()) return;
     dwellArmed = true;
     armDwell();
   }
@@ -147,9 +154,17 @@ export function createSpeechBubble(
   function finishSpeech(): void {
     if (!deferred) return;
     deferred = false;
-    if (bubbleEl.hidden || holdOpen()) return;
+    if (bubbleEl.hidden) return;
+    if (hold()) return;
     dwellArmed = true;
     armDwell();
+  }
+
+  // Held speech never fades — mark it so the close button (its only exit) stays visible.
+  function hold(): boolean {
+    const on = holdOpen();
+    bubbleEl.classList.toggle("is-held", on);
+    return on;
   }
 
   function hideSpeech(): void {
@@ -157,7 +172,7 @@ export function createSpeechBubble(
     dwellArmed = false;
     deferred = false;
     lastRenderAt = Number.NEGATIVE_INFINITY;
-    bubbleEl.classList.remove("is-visible", "is-streaming");
+    bubbleEl.classList.remove("is-visible", "is-streaming", "is-held");
     cancelFade?.();
     cancelFade = afterFadeOut(bubbleEl, () => {
       cancelFade = null;
@@ -189,9 +204,19 @@ export function createSpeechBubble(
     if (dwellArmed) armDwell();
   }
 
+  // Dismissal outlives the utterance: the rest of a still-streaming reply must not re-open the bubble.
   function onCloseClick(): void {
+    dismissed = true;
     hideSpeech();
   }
+
+  // Surfaces aren't remounted on locale change, so the label is (re)applied here.
+  function applyLocaleLabels(): void {
+    bubbleClose.setAttribute("aria-label", t("aria.dismiss_bubble"));
+    bubbleClose.setAttribute("title", t("aria.dismiss_bubble"));
+  }
+  applyLocaleLabels();
+  const unsubscribeLocale = subscribeLocale(applyLocaleLabels);
 
   bubbleEl.addEventListener("pointerenter", onBubbleEnter);
   bubbleEl.addEventListener("pointerleave", onBubbleLeave);
@@ -201,6 +226,7 @@ export function createSpeechBubble(
     clearDwell();
     cancelFade?.();
     cancelFade = null;
+    unsubscribeLocale();
     bubbleEl.removeEventListener("pointerenter", onBubbleEnter);
     bubbleEl.removeEventListener("pointerleave", onBubbleLeave);
     bubbleClose.removeEventListener("click", onCloseClick);

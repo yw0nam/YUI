@@ -97,6 +97,8 @@ export function createChatHistoryStore(opts?: {
 
     /** Close the running session and open a new one. No-op when the current session is empty. */
     startNewSession(ts: number = Date.now()): void {
+      // The other window may have appended since the last sync — never write over its turns.
+      core.reloadFromStorage();
       const items = core.current();
       const last = items[items.length - 1];
       if (last === undefined || isBoundary(last)) return;

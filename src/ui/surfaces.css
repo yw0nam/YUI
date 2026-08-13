@@ -267,6 +267,11 @@
   opacity: 1;
 }
 
+/* Held speech has no auto-fade, so its only exit stays on screen. */
+.yui-bubble.is-held .yui-bubble__close {
+  opacity: 0.55;
+}
+
 .yui-bubble__close:hover {
   color: var(--yui-text);
 }

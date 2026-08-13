@@ -21,6 +21,7 @@ vi.mock("./markdown", async (importOriginal) => {
   };
 });
 
+import { INTERACTIVE_OVERLAY_SELECTORS } from "../bootstrap-configured";
 import { renderMarkdownInline } from "./markdown";
 import { createSurfaces } from "./surfaces";
 
@@ -603,6 +604,18 @@ describe("close button — dismiss the bubble by hand", () => {
     expect(closeBtn().getAttribute("aria-label")).toBeTruthy();
   });
 
+  // The pet window is click-through wherever nothing interactive sits, so the button must be a
+  // registered hit-test target — otherwise the OS never delivers the hover or the click.
+  it("is registered as an interactive overlay target while the bubble shows", () => {
+    expect(mount.querySelector(INTERACTIVE_OVERLAY_SELECTORS[1])).toBeNull();
+
+    s.beginSpeech();
+    s.pushSpeech("Hello.");
+    s.endSpeech();
+
+    expect(mount.querySelector(INTERACTIVE_OVERLAY_SELECTORS[1])).toBe(closeBtn());
+  });
+
   it("clicking it hides the bubble immediately, without waiting for dwell", () => {
     s.beginSpeech();
     s.pushSpeech("Hello.");
@@ -611,6 +624,30 @@ describe("close button — dismiss the bubble by hand", () => {
 
     closeBtn().click();
     expect(bubble().classList.contains("is-visible")).toBe(false);
+  });
+
+  it("stays dismissed when the rest of the stream arrives", () => {
+    s.beginSpeech();
+    s.pushSpeech("First half");
+    closeBtn().click();
+
+    s.pushSpeech(" and second half.");
+    expect(bubble().classList.contains("is-visible")).toBe(false);
+
+    s.endSpeech();
+    expect(bubble().classList.contains("is-visible")).toBe(false);
+  });
+
+  it("shows again on the next utterance", () => {
+    s.beginSpeech();
+    s.pushSpeech("Dismissed.");
+    closeBtn().click();
+
+    s.beginSpeech();
+    s.pushSpeech("Next one.");
+    s.endSpeech();
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+    expect(bubble().textContent).toContain("Next one.");
   });
 
   it("clicking it dismisses a bubble whose fade is deferred for playback", () => {
@@ -656,6 +693,18 @@ describe("keep bubble until dismissed", () => {
 
     vi.advanceTimersByTime(DWELL * 10);
     expect(bubble().classList.contains("is-visible")).toBe(true);
+  });
+
+  it("marks the held bubble so its close button stays visible", () => {
+    s.beginSpeech();
+    s.pushSpeech("Stay put.");
+    expect(bubble().classList.contains("is-held")).toBe(false);
+
+    s.endSpeech();
+    expect(bubble().classList.contains("is-held")).toBe(true);
+
+    s.beginSpeech();
+    expect(bubble().classList.contains("is-held")).toBe(false);
   });
 
   it("finishSpeech does not release a deferred bubble into dwell while on", () => {

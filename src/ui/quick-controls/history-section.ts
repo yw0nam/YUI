@@ -35,7 +35,7 @@ function formatTime(ts: number): string {
   });
 }
 
-/** Session start: time for today, short date for older days. */
+/** Session start: time alone for today, date + time for older days. */
 function formatSessionStart(ts: number, now: number): string {
   const then = new Date(ts);
   const today = new Date(now);
@@ -43,9 +43,9 @@ function formatSessionStart(ts: number, now: number): string {
     then.getFullYear() === today.getFullYear() &&
     then.getMonth() === today.getMonth() &&
     then.getDate() === today.getDate();
-  return sameDay
-    ? formatTime(ts)
-    : then.toLocaleDateString(getLocale(), { month: "short", day: "numeric" });
+  if (sameDay) return formatTime(ts);
+  const date = then.toLocaleDateString(getLocale(), { month: "short", day: "numeric" });
+  return `${date} ${formatTime(ts)}`;
 }
 
 export function createHistorySection({
@@ -81,14 +81,18 @@ export function createHistorySection({
     const key = keyOf(session, index);
     const open = toggled.get(key) ?? index === 0;
     const isCurrent = index === 0;
+    const headId = `yui-hist-sess-${key}`;
+    const logId = `yui-hist-log-${key}`;
 
     const group = document.createElement("div");
     group.className = open ? "yui-hist__sess-group is-open" : "yui-hist__sess-group";
 
     const head = document.createElement("button");
     head.type = "button";
+    head.id = headId;
     head.className = open ? "yui-hist__sess is-open" : "yui-hist__sess";
     head.setAttribute("aria-expanded", String(open));
+    head.setAttribute("aria-controls", logId);
     head.dataset.sessionKey = key;
 
     const chev = document.createElement("span");
@@ -123,6 +127,9 @@ export function createHistorySection({
     if (open) {
       const log = document.createElement("div");
       log.className = "yui-hist__log";
+      log.id = logId;
+      log.setAttribute("role", "region");
+      log.setAttribute("aria-labelledby", headId);
       if (session.entries.length === 0) {
         const empty = document.createElement("p");
         empty.className = "yui-hist__empty";
@@ -148,7 +155,12 @@ export function createHistorySection({
     const key = head.dataset.sessionKey;
     if (key === undefined) return;
     toggled.set(key, head.getAttribute("aria-expanded") !== "true");
+    const hadFocus = document.activeElement === head;
     render();
+    // The row was rebuilt — keyboard users keep their place on it.
+    if (hadFocus) {
+      listEl?.querySelector<HTMLButtonElement>(`[data-session-key="${CSS.escape(key)}"]`)?.focus();
+    }
   }
 
   listEl?.addEventListener("click", handleClick);

@@ -54,6 +54,15 @@ import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
 const VOICE_TURN_ERROR_DISPLAY_MS = 3_000;
 const log = createLogger("bootstrap");
 
+/**
+ * Overlay elements that must take OS pointer events while shown — everything else in the overlay
+ * stays click-through. The bubble itself is display-only; only its dismiss button is a target.
+ */
+export const INTERACTIVE_OVERLAY_SELECTORS = [
+  ".yui-input.is-open",
+  ".yui-bubble.is-visible .yui-bubble__close",
+] as const;
+
 export interface Phase1Handles {
   config: ConfigStore;
   renderer: Renderer;
@@ -334,8 +343,10 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(() => dragHold.noteDragEnd());
     const interactiveRects = (): DOMRect[] => {
       const rects: DOMRect[] = [];
-      const inputForm = root.querySelector<HTMLElement>(".yui-input.is-open");
-      if (inputForm) rects.push(inputForm.getBoundingClientRect());
+      for (const selector of INTERACTIVE_OVERLAY_SELECTORS) {
+        const el = root.querySelector<HTMLElement>(selector);
+        if (el) rects.push(el.getBoundingClientRect());
+      }
       const quickControls = getQuickControls();
       if (quickControls.isOpen()) rects.push(quickControls.el.getBoundingClientRect());
       return rects;
