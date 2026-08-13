@@ -49,13 +49,13 @@ describe("loadConfig — endpoints irodori provider", () => {
     });
   });
 
-  it("tts_provider 생략 시 irodori로 resolve되어 출력에 박힌다", async () => {
+  it("tts_provider 생략 시 openai로 resolve되어 출력에 박힌다", async () => {
     const map = goodFixture();
     const ep = irodoriEndpoints();
     delete ep.tts_provider;
     map["endpoints.json"] = ep;
     const cfg = await loadConfig({ read: readerOf(map) });
-    expect(cfg.endpoints.tts_provider).toBe("irodori");
+    expect(cfg.endpoints.tts_provider).toBe("openai");
   });
 
   it("tts_provider: openai 최소 구성은 irodori 필드 없이도 통과한다", async () => {
@@ -71,6 +71,21 @@ describe("loadConfig — endpoints irodori provider", () => {
     expect(cfg.endpoints.tts_provider).toBe("openai");
     expect(cfg.endpoints.irodori_base_url).toBeUndefined();
     expect(cfg.endpoints.irodori_speaker).toBeUndefined();
+  });
+});
+
+// ── unconfigured endpoints (distribution default) ──────────────────────────────
+
+describe("loadConfig — endpoints with no URLs", () => {
+  it("boots with a URL-less endpoints.json: every service reads as unset", async () => {
+    const map = goodFixture();
+    map["endpoints.json"] = { chat_endpoint: "/v1/responses", chat_api: "responses" };
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.endpoints.chat_base_url).toBe("");
+    expect(cfg.endpoints.stt_base_url).toBe("");
+    expect(cfg.endpoints.tts_base_url).toBe("");
+    expect(cfg.endpoints.broker_base_url).toBeUndefined();
+    expect(cfg.endpoints.tts_provider).toBe("openai");
   });
 });
 
@@ -236,14 +251,14 @@ describe("loadConfig — endpoints irodori validation failures", () => {
     );
   });
 
-  it("provider irodori(default)인데 irodori_base_url이 없으면 실패", async () => {
+  it("provider irodori인데 irodori_base_url이 없으면 실패", async () => {
     await expectEndpointsError(
       loadWith({
         chat_base_url: "http://localhost:8642",
         chat_endpoint: "/v1/responses",
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
-        // tts_provider omitted → irodori default
+        tts_provider: "irodori",
         irodori_speaker: "ナツメ",
       }),
     );

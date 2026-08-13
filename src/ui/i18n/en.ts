@@ -40,6 +40,7 @@ const en: Record<string, string> = {
   "input.error_network": "No response · check connection",
   "input.error_stall": "Backend stopped responding · timed out after {seconds}s",
   "input.error_parse": "Response parse failed",
+  "input.error_not_configured": "Backend not configured · set it in Settings → Advanced",
   "input.attach_too_many": "Too many images · up to {max} per turn",
   "input.attach_too_large": "Image too large · up to {max}MB each",
 

@@ -290,15 +290,20 @@ export interface ClientContext {
 // Endpoint config
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** configs/endpoints.json. The three base URLs (chat/stt/tts) are separate processes. */
+/**
+ * configs/endpoints.json. The three base URLs (chat/stt/tts) are separate processes.
+ * Every service address is optional: `""` means "not configured" — STT/TTS/broker stay off and a
+ * chat turn fails with `not_configured` instead of reaching the network.
+ */
 export interface EndpointsConfig {
   /**
-   * Hermes API root (SSH tunnel, example: `http://localhost:8643/v1`). The OpenAI SDK appends `/responses` after this,
-   * so this is the root including `/v1` (streamChat uses only this value as baseURL).
+   * Backend agent API root (example: `http://localhost:8643/v1`). The OpenAI SDK appends `/responses` after this,
+   * so this is the root including `/v1` (streamChat uses only this value as baseURL). `""` = not configured.
    */
   chat_base_url: string;
   /**
    * Informational / non-SDK fallback path. Default "/v1/responses", fallback "/v1/chat/completions".
+   * `""` = not configured.
    * ⚠ SDK path (streamChat) does not use this field — determined by chat_base_url + SDK append.
    *   Do not combine as `chat_base_url + chat_endpoint` (already has `/v1` duplication).
    */
@@ -309,9 +314,9 @@ export interface EndpointsConfig {
    */
   chat_instructions?: string;
   /**
-   * Hermes chat model ID (OpenAI Responses `model` parameter). Example: "natsume" (from Hermes `/v1/models`).
+   * Chat model ID (OpenAI Responses `model` parameter), as served by the backend's `/v1/models`.
    * Model ID is under config ownership (not hard-coded). If not set, streamChat omits model —
-   * backends that require model may return 4xx (prod config must set this).
+   * backends that require model may return 4xx.
    */
   chat_model?: string;
   /**
@@ -319,15 +324,15 @@ export interface EndpointsConfig {
    * If not set, streamChat operates as "responses" (backward compatible).
    */
   chat_api?: "responses" | "chat_completions";
-  /** Separate ASR service (OpenAI-compatible) → /audio/transcriptions. */
+  /** Separate ASR service (OpenAI-compatible) → /audio/transcriptions. `""` = STT off. */
   stt_base_url: string;
-  /** Separate TTS service (OpenAI-compatible) → /audio/speech. */
+  /** Separate TTS service (OpenAI-compatible) → /audio/speech. `""` = openai-provider TTS off. */
   tts_base_url: string;
   /** /v1/audio/speech model/voice/speed. Uses service default if not set. */
   tts_model?: string;
   tts_voice?: string;
   tts_speed?: number;
-  /** TTS synthesis path selection. If not set, loader resolves to "irodori". */
+  /** TTS synthesis path selection. If not set, loader resolves to "openai". */
   tts_provider?: "openai" | "irodori";
   /** irodori_TTS server root (http(s), example: `http://localhost:8091`). Required when provider=irodori. */
   irodori_base_url?: string;

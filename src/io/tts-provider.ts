@@ -30,9 +30,9 @@ export interface TtsProvider {
 // Magnitude has headroom for irodori's 503 retry (capped at 5s) plus network + synth time for one step.
 export const TTS_SYNTH_TIMEOUT_MS = 10_000;
 
-/** "unset means irodori" — the one place this default is decided. */
+/** "unset means openai" — the one place this default is decided. */
 export function resolveTtsProviderKind(raw: string | undefined): TtsProviderKind {
-  return raw === "openai" ? "openai" : "irodori";
+  return raw === "irodori" ? "irodori" : "openai";
 }
 
 export function isTtsProviderKind(v: string | undefined): v is TtsProviderKind {

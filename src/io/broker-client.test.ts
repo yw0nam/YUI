@@ -590,12 +590,12 @@ describe("deriveBrokerPayload", () => {
     expect(logger.warn).toHaveBeenCalled();
   });
 
-  // tts_provider is optional on the contract; resolveTtsProviderKind's "unset means irodori"
-  // default applies here too, so an unset provider resolves the same as an explicit "irodori" —
+  // tts_provider is optional on the contract; resolveTtsProviderKind's "unset means openai"
+  // default applies here too, so an unset provider resolves the same as an explicit "openai" —
   // matching the default the rest of the app (validator, voice pipeline) already applies.
-  it("provider unset (undefined) with a table → resolves as irodori's default → enum + table", () => {
+  it("provider unset (undefined) with a table → resolves as openai's default → free", () => {
     const table = { "😀": "happy" };
     const p = deriveBrokerPayload(baseConfig(undefined), table);
-    expect(p.emotionText).toEqual({ mode: "enum", table });
+    expect(p.emotionText).toEqual({ mode: "free", table: null });
   });
 });

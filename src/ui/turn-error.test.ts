@@ -41,6 +41,16 @@ describe("turnErrorMessage", () => {
     expect(turnErrorMessage("parse_error")).toBe(t("input.error_parse"));
   });
 
+  it("maps not_configured to a message naming the settings panel, in every locale", () => {
+    expect(turnErrorMessage("not_configured")).toBe(t("input.error_not_configured"));
+    for (const locale of ["en", "ko", "ja"] as const) {
+      setLocale(locale);
+      const message = turnErrorMessage("not_configured");
+      expect(message).toBeTruthy();
+      expect(message).toContain(t("tabs.adv"));
+    }
+  });
+
   it("follows the active locale (ko)", () => {
     setLocale("ko");
     expect(turnErrorMessage("network_drop")).toBe("응답 없음 · 연결 확인");

@@ -30,8 +30,8 @@ re-publish the broker's `emotion_text` gate via
 
 | provider | broker mode | table source | doc |
 |---|---|---|---|
-| `irodori` (default) | `enum` | irodori emoji table — canonical machine copy in `configs/` | [`irodori.md`](./irodori.md) |
-| `openai` (OpenAI-compatible, legacy fishspeech) | `free` | `null` (free-text bracket tags) | [`fishspeech.md`](./fishspeech.md) |
+| `irodori` | `enum` | irodori emoji table — canonical machine copy in `configs/` | [`irodori.md`](./irodori.md) |
+| `openai` (default; OpenAI-compatible, legacy fishspeech) | `free` | `null` (free-text bracket tags) | [`fishspeech.md`](./fishspeech.md) |
 
 - `irodori` ⇒ `update_emotion_text("enum", <irodori emoji table>)`. In `enum`
   mode the broker greedily tokenizes `emotion_text` by table keys and drops

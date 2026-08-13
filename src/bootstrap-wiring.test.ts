@@ -852,14 +852,14 @@ describe("wireBroker", () => {
     expect(brokerClient.start).toHaveBeenCalledTimes(1);
   });
 
-  // tts_provider is optional on the contract; resolveTtsProviderKind's "unset means irodori"
+  // tts_provider is optional on the contract; resolveTtsProviderKind's "unset means openai"
   // default applies to the emotion_text table load too, matching the default the validator and
   // voice pipeline already apply (in practice tts_provider is always resolved by the validator
   // before it reaches here, so this path is inert today — pinned so a future change is deliberate).
-  it("attempts the emotion_text table load when tts_provider is unset (resolves as irodori's default)", async () => {
+  it("skips the emotion_text table load when tts_provider is unset (resolves as openai's free mode)", async () => {
     const { deps } = makeDeps({ broker_base_url: "http://localhost:3201" });
     await wireBroker(deps);
-    expect(vi.mocked(loadEmotionTextTable)).toHaveBeenCalledWith({ provider: "irodori" });
+    expect(vi.mocked(loadEmotionTextTable)).not.toHaveBeenCalled();
   });
 
   it("does nothing when broker_base_url is empty", async () => {

@@ -61,18 +61,11 @@ describe("validateEndpoints — happy path", () => {
     expect(out.tts_max_inflight).toBe(2);
   });
 
-  it("defaults tts_provider to irodori and requires irodori_base_url + irodori_speaker", () => {
-    const out = validateEndpoints(
-      FILE,
-      baseRaw({
-        tts_provider: undefined,
-        irodori_base_url: "http://localhost:9000",
-        irodori_speaker: "natsume",
-      }),
-    );
-    expect(out.tts_provider).toBe("irodori");
-    expect(out.irodori_base_url).toBe("http://localhost:9000");
-    expect(out.irodori_speaker).toBe("natsume");
+  it("defaults tts_provider to openai, requiring no irodori fields", () => {
+    const out = validateEndpoints(FILE, baseRaw({ tts_provider: undefined }));
+    expect(out.tts_provider).toBe("openai");
+    expect(out.irodori_base_url).toBeUndefined();
+    expect(out.irodori_speaker).toBeUndefined();
   });
 
   it("accepts a full irodori numeric-knobs manifest", () => {
@@ -97,6 +90,65 @@ describe("validateEndpoints — happy path", () => {
   });
 });
 
+describe("validateEndpoints — unconfigured (empty) endpoints", () => {
+  it("accepts a config with no keys at all — every service reads as unset", () => {
+    const out = validateEndpoints(FILE, {});
+    expect(out).toEqual({
+      chat_base_url: "",
+      chat_endpoint: "",
+      stt_base_url: "",
+      tts_base_url: "",
+      tts_provider: "openai",
+    });
+  });
+
+  it("accepts explicitly empty url strings and an empty chat_endpoint", () => {
+    const out = validateEndpoints(FILE, {
+      chat_base_url: "",
+      chat_endpoint: "",
+      stt_base_url: "",
+      tts_base_url: "",
+    });
+    expect(out.chat_base_url).toBe("");
+    expect(out.stt_base_url).toBe("");
+    expect(out.tts_base_url).toBe("");
+    expect(out.chat_endpoint).toBe("");
+  });
+
+  it("keeps the committed neutral defaults valid (chat_api + numeric knobs only)", () => {
+    const out = validateEndpoints(FILE, {
+      chat_api: "responses",
+      chat_model_context_window: 200000,
+      tts_max_inflight: 1,
+    });
+    expect(out.chat_api).toBe("responses");
+    expect(out.chat_base_url).toBe("");
+    expect(out.chat_endpoint).toBe("");
+  });
+
+  it("reads an empty irodori_base_url as unset rather than a malformed URL", () => {
+    const out = validateEndpoints(FILE, baseRaw({ irodori_base_url: "" }));
+    expect(out.irodori_base_url).toBeUndefined();
+  });
+
+  it("reads an empty broker_base_url as unset rather than a malformed URL", () => {
+    const out = validateEndpoints(FILE, baseRaw({ broker_base_url: "" }));
+    expect(out.broker_base_url).toBeUndefined();
+  });
+
+  it("reads an empty tts_provider as unset and resolves it to the openai default", () => {
+    const out = validateEndpoints(FILE, baseRaw({ tts_provider: "" }));
+    expect(out.tts_provider).toBe("openai");
+  });
+
+  it("still requires irodori_base_url when the provider is explicitly irodori", () => {
+    expectIssue(
+      baseRaw({ tts_provider: "irodori", irodori_base_url: "", irodori_speaker: "natsume" }),
+      "irodori_base_url는 http(s) URL이어야 함",
+    );
+  });
+});
+
 describe("validateEndpoints — top-level shape", () => {
   it("rejects non-object raw", () => {
     expectIssue([], "객체가 아님");
@@ -113,8 +165,8 @@ describe("validateEndpoints — base urls", () => {
     );
   });
 
-  it("rejects a missing stt_base_url", () => {
-    expectIssue(baseRaw({ stt_base_url: undefined }), "stt_base_url는 http(s) URL이어야 함");
+  it("accepts a missing stt_base_url as unset", () => {
+    expect(validateEndpoints(FILE, baseRaw({ stt_base_url: undefined })).stt_base_url).toBe("");
   });
 
   it("rejects a non-string tts_base_url", () => {
@@ -133,6 +185,10 @@ describe("validateEndpoints — chat_endpoint", () => {
 
   it("rejects a non-string chat_endpoint", () => {
     expectIssue(baseRaw({ chat_endpoint: 5 }), "chat_endpoint는");
+  });
+
+  it("accepts a missing chat_endpoint as unset", () => {
+    expect(validateEndpoints(FILE, baseRaw({ chat_endpoint: undefined })).chat_endpoint).toBe("");
   });
 });
 

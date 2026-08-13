@@ -93,8 +93,10 @@ describe("createQuickControls — speaker section", () => {
   });
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    // The speaker list belongs to the irodori subview; openai (the bundled default) disables it.
     return createQuickControls({
       ...defaultQcArgs(mount),
+      getDefaultProvider: () => "irodori",
       lipsync,
       onGainPreview,
       onGainPreviewEnd,

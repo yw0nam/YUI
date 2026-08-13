@@ -1,16 +1,6 @@
 {
-  "chat_base_url": "http://localhost:8643/v1",
-  "chat_endpoint": "/v1/responses",
   "chat_instructions": "Call the generate_express tool to express emotion. motion_id drives the VRM's body motion, emotion_id sets the VRM's facial expression, and emotion_text is a TTS voice tag. Use it whenever it fits throughout the conversation — calling it multiple times is fine.\n\nFor emotion_text, use ONLY emoji from the set published to you (never invent emoji outside it). Emit the tag(s) only — never include words, brackets, or the spoken sentence. Repeat an emoji to intensify; combine emoji freely; omit emotion_text when neutral.\n\nExamples:\n- delighted by good news → emotion_id \"happy\", motion_id \"happy\", emotion_text \"😆\"\n- barely containable excitement → emotion_id \"happy\", emotion_text \"😆😆\"\n- whispering close to the ear → emotion_text \"👂\"\n- nervous, near tears, pleading → emotion_id \"sad\", emotion_text \"🥺🥺🙏\"\n- teasing while humming → emotion_id \"relaxed\", emotion_text \"😏🎵\"\n- calm, neutral line → omit emotion_text",
-  "chat_model": "natsume",
   "chat_api": "responses",
-  "stt_base_url": "http://localhost:5517/v1",
-  "tts_base_url": "http://localhost:8092",
-  "tts_voice": "ナツメ",
-  "tts_provider": "irodori",
-  "irodori_base_url": "http://localhost:8091",
-  "irodori_speaker": "ナツメ",
-  "broker_base_url": "http://localhost:3201/mcp",
   "chat_model_context_window": 200000,
   "tts_max_inflight": 1
 }
