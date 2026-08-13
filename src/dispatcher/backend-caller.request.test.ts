@@ -833,6 +833,41 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       content: "(something just caught your attention)",
     });
   });
+
+  it("clientTools dep → the registry is handed to the stream, resolved per turn", async () => {
+    script.events = [completedEvent({ speech_text: "" }, "")];
+    const registry = { definitions: () => [], get: () => undefined };
+    const clientTools = vi.fn(() => registry);
+    caller = createBackendCaller({
+      config: CC_CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      clientTools,
+    });
+    await caller.call(turnOf(userEnv()));
+    await caller.call(turnOf(userEnv()));
+    const [, , opts] = script.spy.mock.calls[0];
+    expect(opts?.tools).toBe(registry);
+    expect(clientTools).toHaveBeenCalledTimes(2);
+  });
+
+  it("no clientTools dep → the stream gets no tools", async () => {
+    script.events = [completedEvent({ speech_text: "" }, "")];
+    caller = createBackendCaller({
+      config: CC_CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+    });
+    await caller.call(turnOf(userEnv()));
+    const [, , opts] = script.spy.mock.calls[0];
+    expect(opts?.tools).toBeUndefined();
+  });
 });
 
 // ── unconfigured backend (no chat_base_url) ───────────────────────────────────
