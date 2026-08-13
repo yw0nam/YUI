@@ -1,5 +1,5 @@
 {
-  "vrm_url": "/vrms/carlotta.vrm",
+  "vrm_url": "/vrms/Sendagaya_Shino.vrm",
   "framing": { "margin": 0.1, "fov": 30 },
   "hit_test": {
     "hysteresis_margin_px": 8,
@@ -45,10 +45,11 @@
     "smooth": 10
   },
   "available": [
-    { "id": "carlotta", "label": "Carlotta", "url": "/vrms/carlotta.vrm", "source": "bundled" },
-    { "id": "cantarella", "label": "Cantarella", "url": "/vrms/Cantarella.vrm", "source": "bundled" },
-    { "id": "cartethyia", "label": "Cartethyia", "url": "/vrms/Cartethyia.vrm", "source": "bundled" },
-    { "id": "klukai", "label": "Klukai", "url": "/vrms/Klukai.vrm", "source": "bundled" },
-    { "id": "yinlin", "label": "Yinlin", "url": "/vrms/Yinlin.vrm", "source": "bundled" }
+    {
+      "id": "sendagaya_shino",
+      "label": "Sendagaya Shino",
+      "url": "/vrms/Sendagaya_Shino.vrm",
+      "source": "bundled"
+    }
   ]
 }

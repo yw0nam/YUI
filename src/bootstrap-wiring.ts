@@ -79,7 +79,7 @@ export function wireVrmSelection(deps: {
   // loaded yet — the panel is needed early. After config loads, setManifest injects
   // the real available[] (see the boot sequence below).
   const vrmSelection = createVrmSelection({
-    defaultValue: "/vrms/carlotta.vrm",
+    defaultValue: "/vrms/Sendagaya_Shino.vrm",
     storage: localStorageVrmStorage(),
     userStorage: localStorageUserVrmStorage(),
   });

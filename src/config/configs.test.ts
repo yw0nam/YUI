@@ -52,13 +52,13 @@ describe("configs/avatar.json", () => {
     expect(a.vrm_url.startsWith("/vrms/")).toBe(true); // vite dev static-serving path
   });
 
-  it("lists carlotta in the available[] VRM manifest", () => {
+  it("lists sendagaya_shino in the available[] VRM manifest", () => {
     expect(Array.isArray(a.available)).toBe(true);
-    const carlotta = a.available.find((o: { id: string }) => o.id === "carlotta");
-    expect(carlotta).toBeDefined();
-    expect(carlotta.label).toBeTypeOf("string");
-    expect(carlotta.url).toBe(a.vrm_url); // seed selection == default vrm_url
-    expect(carlotta.source).toBe("bundled");
+    const shino = a.available.find((o: { id: string }) => o.id === "sendagaya_shino");
+    expect(shino).toBeDefined();
+    expect(shino.label).toBeTypeOf("string");
+    expect(shino.url).toBe(a.vrm_url); // seed selection == default vrm_url
+    expect(shino.source).toBe("bundled");
   });
 
   it("carries side-peek geometry and mirroring defaults", () => {
