@@ -141,7 +141,7 @@ Chat and STT use the OpenAI-compatible API; TTS and the Expression Broker depend
 on the selected provider. Each is a separate, config-swappable process, and all
 base URLs live in `configs/endpoints.json`.
 
-- **Chat protocol** — selected via `chat_api` (default `responses`):
+- **Chat protocol** — selected via `chat_api` (default `chat_completions`):
   - `responses` — routes to a backend agent (Hermes recommended) at
     `localhost:8643` `/v1/responses`
   - `chat_completions` — connects over the Chat Completions API to any
