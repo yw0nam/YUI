@@ -27,6 +27,7 @@ import type { UserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
 import { CAMERA_ORBIT_SENSITIVITY } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
+import { createClientToolRegistry, createGenerateExpressTool } from "./io/client-tools";
 import { createCursorTracker } from "./io/cursor-tracker";
 import { createDragHoldSource } from "./io/drag-hold-source";
 import { createFrontmostTracker } from "./io/frontmost-tracker";
@@ -223,6 +224,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       getFrontmost: () => frontmostTracker.get(),
       contextHistory,
       getAgentSettings: () => agentSettings.get(),
+      // Built per turn from the published vocabulary, so a live edit reaches the next tool schema.
+      clientTools: () => createClientToolRegistry([createGenerateExpressTool(broker.vocabulary())]),
     });
     const guardrails = createGuardrails(cfg.guardrails);
     const dispatcher = createDispatcher({

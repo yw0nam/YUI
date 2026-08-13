@@ -884,6 +884,32 @@ describe("wireBroker", () => {
     expect(brokerClient.publish).not.toHaveBeenCalled();
   });
 
+  it("vocabulary() derives from the live config and the loaded emotion_text table", async () => {
+    vi.mocked(loadEmotionTextTable).mockResolvedValueOnce({ "🤭": "Giggle" });
+    const { deps } = makeDeps({
+      broker_base_url: "http://localhost:3201",
+      tts_provider: "irodori",
+    });
+    const handle = await wireBroker(deps);
+    deriveBrokerPayload.mockClear();
+
+    handle.vocabulary();
+
+    expect(deriveBrokerPayload).toHaveBeenCalledWith(expect.anything(), { "🤭": "Giggle" });
+  });
+
+  it("loads the emotion_text table with no broker configured — the vocabulary still feeds the client tools", async () => {
+    vi.mocked(loadEmotionTextTable).mockResolvedValueOnce({ "🤭": "Giggle" });
+    const { deps } = makeDeps({ broker_base_url: "", tts_provider: "irodori" });
+    const handle = await wireBroker(deps);
+    deriveBrokerPayload.mockClear();
+
+    handle.vocabulary();
+
+    expect(vi.mocked(loadEmotionTextTable)).toHaveBeenCalledTimes(1);
+    expect(deriveBrokerPayload).toHaveBeenCalledWith(expect.anything(), { "🤭": "Giggle" });
+  });
+
   it("dispose unsubscribes the override listener and disposes the client", async () => {
     const { deps, unsub } = makeDeps({
       broker_base_url: "http://localhost:3201",

@@ -407,14 +407,189 @@ describe("createChunkReducer — malformed chunks", () => {
     expect(reducer.feed({ choices: [{ finish_reason: null }] })).toEqual([]);
   });
 
-  it("malformed tool_calls entries (missing index) are skipped", () => {
+  it("a tool_calls entry that is not an object is skipped", () => {
     const reducer = createChunkReducer();
     expect(
       reducer.feed({
-        choices: [
-          { delta: { tool_calls: [{ function: { arguments: "x" } }] }, finish_reason: null },
-        ],
+        choices: [{ delta: { tool_calls: [null, "nope"] }, finish_reason: null }],
       }),
     ).toEqual([]);
+    expect(reducer.finish()).toEqual([]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createChunkReducer — index-less tool_calls fragments (non-OpenAI servers)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createChunkReducer — tool_calls without a numeric index", () => {
+  it("keeps a whole index-less call, synthesizing index 0", () => {
+    const reducer = createChunkReducer();
+    reducer.feed({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                id: "call_1",
+                type: "function",
+                function: { name: "generate_express", arguments: '{"emotion_id":"happy"}' },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    });
+    expect(reducer.feed({ choices: [{ delta: {}, finish_reason: "tool_calls" }] })).toEqual([
+      {
+        kind: "tool_call",
+        id: "call_1",
+        name: "generate_express",
+        argsJson: '{"emotion_id":"happy"}',
+      },
+      { kind: "finish", reason: "tool_calls" },
+    ]);
+  });
+
+  it("accumulates index-less argument fragments into the call opened by the same id", () => {
+    const reducer = createChunkReducer();
+    reducer.feed({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              { id: "call_1", type: "function", function: { name: "generate_express" } },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    });
+    reducer.feed({
+      choices: [
+        {
+          delta: { tool_calls: [{ id: "call_1", function: { arguments: '{"emo' } }] },
+          finish_reason: null,
+        },
+      ],
+    });
+    reducer.feed({
+      choices: [
+        {
+          delta: { tool_calls: [{ function: { arguments: 'tion_id":"sad"}' } }] },
+          finish_reason: null,
+        },
+      ],
+    });
+    expect(reducer.finish()).toEqual([
+      {
+        kind: "tool_call",
+        id: "call_1",
+        name: "generate_express",
+        argsJson: '{"emotion_id":"sad"}',
+      },
+    ]);
+  });
+
+  it("separates two index-less calls by their ids", () => {
+    const reducer = createChunkReducer();
+    reducer.feed({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                id: "call_a",
+                function: { name: "generate_express", arguments: '{"emotion_id":"happy"}' },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    });
+    reducer.feed({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              { id: "call_b", function: { name: "get_weather", arguments: '{"city":"seoul"}' } },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    });
+    expect(reducer.finish()).toEqual([
+      {
+        kind: "tool_call",
+        id: "call_a",
+        name: "generate_express",
+        argsJson: '{"emotion_id":"happy"}',
+      },
+      { kind: "tool_call", id: "call_b", name: "get_weather", argsJson: '{"city":"seoul"}' },
+    ]);
+  });
+
+  it("continues an indexed call from a fragment that carries only its id", () => {
+    const reducer = createChunkReducer();
+    reducer.feed({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: "call_1",
+                type: "function",
+                function: { name: "generate_express", arguments: '{"emo' },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    });
+    reducer.feed({
+      choices: [
+        {
+          delta: { tool_calls: [{ id: "call_1", function: { arguments: 'tion_id":"happy"}' } }] },
+          finish_reason: null,
+        },
+      ],
+    });
+    expect(reducer.finish()).toEqual([
+      {
+        kind: "tool_call",
+        id: "call_1",
+        name: "generate_express",
+        argsJson: '{"emotion_id":"happy"}',
+      },
+    ]);
+  });
+
+  it("keeps an index-less, id-less call at index 0", () => {
+    const reducer = createChunkReducer();
+    reducer.feed({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              { function: { name: "generate_express", arguments: '{"motion_id":"dance"}' } },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    });
+    expect(reducer.finish()).toEqual([
+      {
+        kind: "tool_call",
+        id: undefined,
+        name: "generate_express",
+        argsJson: '{"motion_id":"dance"}',
+      },
+    ]);
   });
 });

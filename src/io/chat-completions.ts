@@ -16,10 +16,19 @@ type CCContentPart =
   | { type: "image_url"; image_url: { url: string } }
   | { type: "text"; text: string };
 
-export interface CCMessage {
-  role: "system" | "user" | "assistant";
-  content: string | CCContentPart[];
+/** One tool call as it rides on an assistant message. */
+export interface CCToolCall {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
 }
+
+export type CCMessage =
+  | { role: "system" | "user" | "assistant"; content: string | CCContentPart[] }
+  /** The assistant turn that called tools — its own text, if any, plus the calls. */
+  | { role: "assistant"; content: string | null; tool_calls: CCToolCall[] }
+  /** One executed call's result. */
+  | { role: "tool"; tool_call_id: string; content: string };
 
 interface BuildCCMessagesOpts {
   instructions?: string;
@@ -72,6 +81,26 @@ interface ToolCallBuffer {
 
 export function createChunkReducer() {
   const buffers = new Map<number, ToolCallBuffer>();
+  // Index synthesis for servers that omit `index`: an id keeps its own slot, and a fragment
+  // carrying neither continues the call opened most recently.
+  const indexById = new Map<string, number>();
+  let lastSynthesizedIndex = 0;
+
+  function resolveIndex(t: Record<string, unknown>): number {
+    const id = typeof t.id === "string" ? t.id : undefined;
+    if (typeof t.index === "number") {
+      // Remember it too: a later fragment may carry the id alone.
+      if (id !== undefined) indexById.set(id, t.index);
+      return t.index;
+    }
+    if (id === undefined) return lastSynthesizedIndex;
+    const known = indexById.get(id);
+    if (known !== undefined) return known;
+    const next = buffers.size === 0 ? 0 : Math.max(...buffers.keys()) + 1;
+    indexById.set(id, next);
+    lastSynthesizedIndex = next;
+    return next;
+  }
 
   function flushToolCalls(): ReducerItem[] {
     if (buffers.size === 0) return [];
@@ -81,6 +110,8 @@ export function createChunkReducer() {
       return { kind: "tool_call", id: buf.id, name: buf.name, argsJson: buf.argsJson };
     });
     buffers.clear();
+    indexById.clear();
+    lastSynthesizedIndex = 0;
     return items;
   }
 
@@ -123,12 +154,12 @@ export function createChunkReducer() {
             for (const tc of d.tool_calls) {
               if (tc === null || typeof tc !== "object") continue;
               const t = tc as Record<string, unknown>;
-              if (typeof t.index !== "number") continue;
+              const index = resolveIndex(t);
 
-              let buf = buffers.get(t.index);
+              let buf = buffers.get(index);
               if (!buf) {
                 buf = { id: undefined, name: "", argsJson: "" };
-                buffers.set(t.index, buf);
+                buffers.set(index, buf);
               }
               if (typeof t.id === "string") buf.id = t.id;
               if (t.function !== null && typeof t.function === "object") {

@@ -19,7 +19,7 @@ YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I
 
 Stand up every required component first; add the optional ones when you want voice or extended capabilities.
 
-YUI selects the chat protocol with the `chat_api` key in `configs/endpoints.json`: **Responses mode** (`"responses"`, the default) and **Chat Completions mode** (`"chat_completions"`) both need the Expression MCP Broker and a backend agent, as above, but only Responses mode carries `generate_express` cues today — the backend agent reads the broker via `get_ids` and emits cues as `generate_express` tool-calls in that mode's stream. Chat Completions mode carries speech text only. See [section 4](#4-chat-protocol--backend-agent-responses-or-chat-completions) for both paths.
+YUI selects the chat protocol with the `chat_api` key in `configs/endpoints.json`: **Responses mode** (`"responses"`, the default) needs the Expression MCP Broker and a backend agent, as above — the agent reads the broker via `get_ids` and emits cues as `generate_express` tool-calls. **Chat Completions mode** (`"chat_completions"`) declares `generate_express` from the client side with the vocabulary already baked into its schema, so a plain OpenAI-compatible endpoint drives expression on its own; the client also keeps the transcript itself, trimmed to `chat_model_context_window`, instead of relying on `previous_response_id`. See [section 4](#4-chat-protocol--backend-agent-responses-or-chat-completions) for both paths.
 
 ---
 
@@ -101,20 +101,22 @@ YUI is compatible with any backend served over the OpenAI Responses API (`/v1/re
 
 ### Option B — Chat Completions mode (`"chat_api": "chat_completions"`)
 
-Connects over any OpenAI-compatible Chat Completions endpoint — OpenAI, ollama, LM Studio, vLLM, groq, OpenRouter, and others all work for chat. The client keeps the transcript itself (`localStorage`), trimmed each turn to fit `chat_model_context_window`, instead of relying on `previous_response_id`.
+Connects over the Chat Completions API to any endpoint whose model supports tool calling — OpenAI, ollama, LM Studio, vLLM, groq, OpenRouter, and other OpenAI-compatible Chat Completions endpoints all work. The client declares `generate_express` on every request with its emotion and motion ids already in the schema, executes the calls it gets back, and returns the results, so a plain model endpoint drives expression with no broker and no contract handed to it. A backend agent that owns `generate_express` itself keeps working too: its call plays the same cue. The client also keeps the transcript itself (`localStorage`), trimmed each turn to fit `chat_model_context_window`, instead of relying on `previous_response_id`.
 
-**This mode does not carry expression cues today.** The client declares no tool of its own and runs no client-side tool-call round trip, so `generate_express` tool-calls never appear in the `chat.completion.chunk` stream regardless of backend. If you need emotion, motion, and voice cues, use Option A instead — this is the only path where they currently work end-to-end, including with Hermes: Hermes' own `/v1/chat/completions` never surfaces tool calls (it emits a custom `hermes.tool.progress` telemetry event with no arguments instead of `tool_calls`).
-
-1. Stand up your backend agent, ensuring it serves an OpenAI-compatible Chat Completions endpoint.
-2. In `configs/endpoints.json`, set:
+1. Stand up the endpoint — a bare OpenAI-compatible server is enough; a backend agent works as well.
+2. Install the Expression MCP broker (step 3) **into the backend agent** when one is in play and you want it to read the published vocabulary — a bare model endpoint needs neither the broker nor step 3.
+3. Hand a backend agent the cue contract — same as Option A step 3.
+4. In `configs/endpoints.json`, set:
    ```json
    "chat_api": "chat_completions",
    "chat_base_url": "<your OpenAI-compatible endpoint base URL>",
    "chat_model": "<model id served by that endpoint>",
    "chat_model_context_window": 200000
    ```
-3. Provide a real API key for that endpoint — set `VITE_YUI_CHAT_KEY` in `.env.local`, or use the in-app Chat key field.
-4. Reasoning effort (set in the in-app agent settings) maps to the Chat Completions `reasoning_effort` parameter.
+5. Provide a real API key for that endpoint — set `VITE_YUI_CHAT_KEY` in `.env.local`, or use the in-app Chat key field.
+6. Reasoning effort (set in the in-app agent settings) maps to the Chat Completions `reasoning_effort` parameter.
+
+`generate_express` tool-call deltas are parsed from the `chat.completion.chunk` stream as they arrive and the cue plays at that moment. A model that stops on its cue calls without speaking gets the tool results back and re-requests, so the turn still reaches speech — up to three round trips. A model that speaks alongside its cues finishes in one request. See [CC mode transport](../reference/backend-contract.md#cc-mode-transport-chat-completions) for the wire shape.
 
 ---
 
@@ -176,8 +178,8 @@ Key reference:
 
 | Key | Shipped default | Purpose |
 |---|---|---|
-| `chat_api` | `responses` | Chat protocol: `"responses"` (expression cues) or `"chat_completions"` (speech text only, no cues today) |
-| `chat_base_url` | unset | Backend agent base URL (Responses API root or Chat Completions endpoint, per `chat_api`) |
+| `chat_api` | `responses` | Chat protocol: `"responses"` (backend agent honoring the expression contract) or `"chat_completions"` (client-declared `generate_express`, any tool-calling endpoint) |
+| `chat_base_url` | unset | Chat endpoint base URL (Responses API root or Chat Completions endpoint, per `chat_api`) |
 | `chat_endpoint` | unset | Responses API path (Responses mode only) |
 | `chat_model` | unset | Model ID sent to the backend |
 | `chat_model_context_window` | `200000` | Token window — display in Responses mode; also trims the client-side transcript in Chat Completions mode |

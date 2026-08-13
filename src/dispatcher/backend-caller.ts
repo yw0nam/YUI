@@ -32,6 +32,7 @@ import type {
 import { type ChatRequest, streamChat } from "../io/chat-client";
 import { buildCCMessages } from "../io/chat-completions";
 import { type ChatHistoryEntry, selectSendSuffix } from "../io/chat-history-store";
+import type { ClientToolRegistry } from "../io/client-tools";
 import type { ContextHistoryEntry } from "../io/context-history";
 import type { Logger } from "../logger";
 import { createLogger } from "../logger";
@@ -144,6 +145,8 @@ interface BackendCallerDeps {
   transcript?: { get(): ChatHistoryEntry[]; append(e: ChatHistoryEntry): void };
   /** Local sent-context history, appended only after the turn is confirmed successful. */
   contextHistory?: { append(entry: ContextHistoryEntry): void };
+  /** Client-declared tool registry, resolved per turn so vocabulary edits land on the next call. */
+  clientTools?: () => ClientToolRegistry;
   /** Structured logging (defaults to backend_caller namespace logger if absent). */
   logger?: Logger;
   /** Chat stream transport. Defaults to the real streamChat; injected in tests to script a turn. */
@@ -334,6 +337,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         if (agent?.instructions.trim()) request.instructions = agent.instructions;
       }
 
+      // Tools declared for this turn (CC mode; the Responses branch ignores them).
+      const clientTools = deps.clientTools?.();
+
       // B3: Receive ControlEnvelope from chat-client's completed event (no SSE re-parsing).
       let envelope: ControlEnvelope | undefined;
       let newResponseId: string | undefined;
@@ -357,7 +363,11 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         let stallStage: StallStage | undefined;
         try {
           for await (const ev of withIdleWatchdog(
-            stream(deps.config, request, { apiKey, fetch: fetchImpl }),
+            stream(deps.config, request, {
+              apiKey,
+              fetch: fetchImpl,
+              ...(clientTools ? { tools: clientTools } : {}),
+            }),
             { firstEvent: FIRST_EVENT_TIMEOUT_MS, interEvent: IDLE_TIMEOUT_MS },
             (stage) => {
               stallStage = stage;
