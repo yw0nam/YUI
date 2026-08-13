@@ -19,12 +19,12 @@
 
 YUI is a VRM character that lives on your desktop — it renders the body, the
 voice, and the on-screen surfaces, and it leaves the thinking to a backend.
-It does not ship an embedded model. It plugs into a backend agent that speaks
-either the OpenAI Responses API (the
-[Hermes Agent](https://github.com/nousresearch/hermes-agent), or any
-compatible backend) or, in Chat Completions mode, the OpenAI Chat Completions
-API — honoring YUI's expression contract in both cases — so the character is
-exactly as capable as whatever sits behind that connection.
+It does not ship an embedded model. It plugs into any OpenAI-compatible
+backend agent — the [Hermes Agent](https://github.com/nousresearch/hermes-agent)
+is one such backend — over either the OpenAI Responses API or the OpenAI Chat
+Completions API, so the character is exactly as capable as whatever sits
+behind that connection. `generate_express` expression cues are carried today
+by Responses mode; Chat Completions mode streams speech text only.
 
 The character owns the screen; chrome stays out of the way and only appears when
 there is something to show, then steps back.
@@ -34,14 +34,14 @@ there is something to show, then steps back.
 **Agent**
 - Two chat protocols, selected by `chat_api` in `configs/endpoints.json`: a
   backend agent over the OpenAI Responses API, or over the OpenAI-compatible
-  Chat Completions API — a backend agent honoring YUI's expression contract
-  either way, no fixed embedded model
+  Chat Completions API — no fixed embedded model
 - Emotion, motion, and voice cues arrive as structured `generate_express`
-  tool-calls, never as inline tags in the text
+  tool-calls, never as inline tags in the text — Responses mode carries them
+  today; Chat Completions mode streams speech text without cues
 - YUI publishes its emotion/motion/voice vocabulary to the Expression Broker
   (MCP) in both chat modes, write-only and gated only on `broker_base_url`;
-  the backend agent behind either endpoint reads it back via `get_ids` and
-  emits cues as `generate_express` tool-calls
+  a Responses-mode backend agent reads it back via `get_ids` and emits cues
+  as `generate_express` tool-calls
 
 **Voice & chat**
 - Speech input — Silero VAD + ONNX segment your voice, then an
@@ -87,8 +87,10 @@ Cues ride alongside the reply. Speech comes through as a normal assistant text
 stream, while emotion, motion, and voice tags arrive as `generate_express`
 tool-calls with flat arguments `{ emotion_id?, motion_id?, emotion_text? }`.
 `emotion_text` is a per-provider TTS voice tag whose vocabulary the Expression
-Broker publishes so the agent knows what it can ask for. The full cue contract
-handed to the backend lives in [`docs/reference/backend-contract.md`](docs/reference/backend-contract.md).
+Broker publishes so the agent knows what it can ask for. This is carried in
+full over Responses mode today; see [Backend wiring](#backend-wiring) for how
+it differs by chat protocol and backend. The full cue contract handed to the
+backend lives in [`docs/reference/backend-contract.md`](docs/reference/backend-contract.md).
 
 ## Stack
 
@@ -138,11 +140,20 @@ base URLs live in `configs/endpoints.json`.
 - **Chat protocol** — selected via `chat_api` (default `responses`):
   - `responses` — routes to a backend agent (Hermes recommended) at
     `localhost:8643` `/v1/responses`
-  - `chat_completions` — connects over the Chat Completions API to a backend
-    agent honoring the same expression contract; the client keeps the
-    conversation transcript client-side (no `previous_response_id`) and
-    trims it to `chat_model_context_window` — the only client-side
-    differences from Responses mode
+  - `chat_completions` — connects over the OpenAI-compatible Chat Completions
+    API; the client keeps the conversation transcript client-side (no
+    `previous_response_id`) and trims it to `chat_model_context_window`
+
+  | Mode | Speech text | `generate_express` cues |
+  |---|---|---|
+  | `responses` | yes | yes — arrives as function-call items |
+  | `chat_completions` | yes | no — the client declares no tools, so cue tool-calls never appear in the stream |
+
+  Backend capability also varies: a plain OpenAI-compatible server (e.g.
+  vLLM) speaks standard Chat Completions tool-call streaming, while the
+  Hermes api-server's `/v1/chat/completions` never surfaces tool calls — it
+  emits a custom `hermes.tool.progress` telemetry event with no arguments
+  instead. With Hermes, use `responses` mode for cues.
 - **STT** — `localhost:5517` `/v1/audio/transcriptions`
 - **TTS** — selected via `tts_provider` (default `irodori`):
   - `irodori` — irodori_TTS at `localhost:8091` `/synthesize`, reference-voice

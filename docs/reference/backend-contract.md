@@ -1,9 +1,10 @@
 # Backend Agent ↔ Broker Interaction
 
 This contract applies to both chat protocols YUI supports (`chat_api` in
-`configs/endpoints.json`). The sections below describe Responses mode; Chat
-Completions mode carries the same `client_context` shape and the same
-one-way `generate_express` cue, over a different transport — see
+`configs/endpoints.json`). The sections below describe Responses mode, where
+the full contract — including the `generate_express` cue — works end-to-end
+today. Chat Completions mode carries the same `client_context` shape, over a
+different transport, but not the cue; see
 [CC mode transport](#cc-mode-transport-chat-completions) at the end of this
 doc for the deltas.
 
@@ -494,13 +495,16 @@ persona/global instructions (if configured), a `system` message with
 `client_context: <JSON>`, the trimmed conversation transcript, then the `user`
 message carrying the utterance or background marker alone.
 
-`generate_express` arrives as `chat.completion.chunk` tool-call deltas
+The client parses `generate_express` the same way it would in the Responses
+stream — as `chat.completion.chunk` tool-call deltas
 (`delta.tool_calls[].function.arguments`, accumulated per call index) instead
-of `response.output_item.*` events, but the cue stays one-way in both
-modes — the client declares no tool of its own, runs no client-side
-tool-call round trip, and never returns a tool result for the call. The
-backend agent behind the Chat Completions endpoint reads the broker via
-`get_ids` exactly as a Responses-mode backend agent does, and is expected to
-already know the `generate_express` contract (handed to it per
-[the setup guide](../guide/getting-started.md#4-chat-protocol--backend-agent-responses-or-chat-completions))
-rather than discovering it from a client-declared JSON-schema tool.
+of `response.output_item.*` events — but it declares no tool of its own, runs
+no client-side tool-call round trip, and never returns a tool result for the
+call, so cue delivery is entirely up to the backend forwarding one.
+
+Today, no cue reaches the client through Chat Completions. Backend capability
+differs by provider: a plain OpenAI-compatible server (e.g. vLLM) speaks
+standard Chat Completions tool-call streaming, while the Hermes api-server's
+`/v1/chat/completions` never surfaces tool calls at all — it emits a custom
+`hermes.tool.progress` telemetry event (name + status, no arguments) instead
+of `tool_calls`. Use `responses` mode for the full contract.
