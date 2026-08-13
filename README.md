@@ -235,6 +235,15 @@ prohibited.
 The `falling` and `landing` clips (`falling_loop.vrma`, `landing.vrma`) are
 original works authored in Blender by the project author.
 
+The bundled default VRM model
+(`resources/vrms/Sendagaya_Shino.vrm`) is **Sendagaya Shino**, originally by
+[pixiv Inc.](https://vroid.pixiv.help/hc/en-us/articles/360013482714) (VRoid
+Project, CC0), converted to VRM 1.0 by
+[Coatie](https://hub.vroid.com/en/characters/4593660874193246717). Neither
+license requires attribution — see
+[`resources/vrms/Sendagaya_Shino.PROVENANCE.md`](resources/vrms/Sendagaya_Shino.PROVENANCE.md)
+for the full notice.
+
 ## License
 
 YUI's source code is licensed under the
