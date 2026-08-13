@@ -224,8 +224,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       getFrontmost: () => frontmostTracker.get(),
       contextHistory,
       getAgentSettings: () => agentSettings.get(),
-      // Built per turn so a live vocabulary edit reaches the next request's tool schema.
-      clientTools: () => createClientToolRegistry([createGenerateExpressTool(config.get())]),
+      // Built per turn from the published vocabulary, so a live edit reaches the next tool schema.
+      clientTools: () => createClientToolRegistry([createGenerateExpressTool(broker.vocabulary())]),
     });
     const guardrails = createGuardrails(cfg.guardrails);
     const dispatcher = createDispatcher({

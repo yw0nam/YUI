@@ -87,8 +87,12 @@ export function createChunkReducer() {
   let lastSynthesizedIndex = 0;
 
   function resolveIndex(t: Record<string, unknown>): number {
-    if (typeof t.index === "number") return t.index;
     const id = typeof t.id === "string" ? t.id : undefined;
+    if (typeof t.index === "number") {
+      // Remember it too: a later fragment may carry the id alone.
+      if (id !== undefined) indexById.set(id, t.index);
+      return t.index;
+    }
     if (id === undefined) return lastSynthesizedIndex;
     const known = indexById.get(id);
     if (known !== undefined) return known;

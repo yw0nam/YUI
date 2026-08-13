@@ -532,6 +532,43 @@ describe("createChunkReducer — tool_calls without a numeric index", () => {
     ]);
   });
 
+  it("continues an indexed call from a fragment that carries only its id", () => {
+    const reducer = createChunkReducer();
+    reducer.feed({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: "call_1",
+                type: "function",
+                function: { name: "generate_express", arguments: '{"emo' },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    });
+    reducer.feed({
+      choices: [
+        {
+          delta: { tool_calls: [{ id: "call_1", function: { arguments: 'tion_id":"happy"}' } }] },
+          finish_reason: null,
+        },
+      ],
+    });
+    expect(reducer.finish()).toEqual([
+      {
+        kind: "tool_call",
+        id: "call_1",
+        name: "generate_express",
+        argsJson: '{"emotion_id":"happy"}',
+      },
+    ]);
+  });
+
   it("keeps an index-less, id-less call at index 0", () => {
     const reducer = createChunkReducer();
     reducer.feed({

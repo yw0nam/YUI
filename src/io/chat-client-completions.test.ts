@@ -104,6 +104,9 @@ const toolStub = (name: string, result: string | (() => Promise<string>) = "ok")
   execute: vi.fn(typeof result === "function" ? result : async () => result),
 });
 
+/** A cue-only tool, like the real generate_express: its result says nothing to the model. */
+const oneWayStub = (name: string): ClientTool => ({ ...toolStub(name), oneWay: true });
+
 // ─────────────────────────────────────────────────────────────────────────────
 // text-only turn
 // ─────────────────────────────────────────────────────────────────────────────
@@ -278,7 +281,7 @@ describe("streamChat — Chat Completions generate_express capture", () => {
 describe("streamChat — Chat Completions client tool declaration", () => {
   it("sends the registry's definitions as tools[] on the request", async () => {
     ccCreateMock.mockResolvedValueOnce(streamOf([textChunk("hi"), finishChunk("stop")]));
-    const registry = createClientToolRegistry([toolStub("generate_express")]);
+    const registry = createClientToolRegistry([oneWayStub("generate_express")]);
 
     await collect(streamChat(CONFIG, req(), { tools: registry }));
 
@@ -295,7 +298,7 @@ describe("streamChat — Chat Completions client tool declaration", () => {
     ccCreateMock.mockResolvedValueOnce(
       streamOf([textChunk("Hello"), textChunk(" world"), finishChunk("stop")]),
     );
-    const registry = createClientToolRegistry([toolStub("generate_express")]);
+    const registry = createClientToolRegistry([oneWayStub("generate_express")]);
 
     const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
 
@@ -311,7 +314,7 @@ describe("streamChat — Chat Completions client tool declaration", () => {
 
 describe("streamChat — Chat Completions tool-call round trip", () => {
   it("executes the registered tool with parsed args, emits the cue, and re-requests into speech", async () => {
-    const express = toolStub("generate_express");
+    const express = oneWayStub("generate_express");
     const registry = createClientToolRegistry([express]);
     ccCreateMock
       .mockResolvedValueOnce(
@@ -334,6 +337,8 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
         type: "express",
         args: { emotion_id: "happy", motion_id: "embarrassed", emotion_text: "[whisper]" },
       },
+      // the follow-up request going out — keeps the caller's idle watchdog honest
+      { type: "keepalive" },
       { type: "speech_delta", text: "Hi there" },
       { type: "speech_done", text: "Hi there" },
       {
@@ -352,7 +357,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
 
   it("appends the assistant tool_calls message and one tool result per call, leaving the caller's array untouched", async () => {
     const messages = [{ role: "user", content: "hi" }] as any;
-    const registry = createClientToolRegistry([toolStub("generate_express")]);
+    const registry = createClientToolRegistry([oneWayStub("generate_express")]);
     ccCreateMock
       .mockResolvedValueOnce(
         streamOf([
@@ -385,7 +390,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
   });
 
   it("a response that spoke alongside its calls is a finished turn — cue plays, no result, single request", async () => {
-    const express = toolStub("generate_express");
+    const express = oneWayStub("generate_express");
     const registry = createClientToolRegistry([express]);
     ccCreateMock.mockResolvedValueOnce(
       streamOf([
@@ -402,8 +407,45 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     expect(events.at(-1)).toMatchObject({ envelope: { speech_text: "Yay!" } });
   });
 
+  it("a cue-only response that finished with stop is a deliberate silence — no result, single request", async () => {
+    const registry = createClientToolRegistry([oneWayStub("generate_express")]);
+    ccCreateMock.mockResolvedValueOnce(
+      streamOf([
+        toolCallStart(0, "call_1", "generate_express", GEN_EXPRESS_ARGS),
+        finishChunk("stop"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
+
+    expect(ccCreateMock).toHaveBeenCalledTimes(1);
+    expect(events[0].type).toBe("express");
+    expect(events.at(-1)).toMatchObject({ envelope: { speech_text: "" } });
+  });
+
+  it("a tool that answers a question is answered back even when the response spoke first", async () => {
+    const weather = toolStub("get_weather", "22C");
+    const registry = createClientToolRegistry([weather]);
+    ccCreateMock
+      .mockResolvedValueOnce(
+        streamOf([
+          textChunk("Let me check. "),
+          toolCallStart(0, "call_w", "get_weather", '{"city":"seoul"}'),
+          finishChunk("tool_calls"),
+        ]),
+      )
+      .mockResolvedValueOnce(streamOf([textChunk("It's warm."), finishChunk("stop")]));
+
+    const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
+
+    expect(ccCreateMock).toHaveBeenCalledTimes(2);
+    expect(events.at(-1)).toMatchObject({
+      envelope: { speech_text: "Let me check. It's warm." },
+    });
+  });
+
   it("caps a model that only ever calls tools at three round trips", async () => {
-    const registry = createClientToolRegistry([toolStub("generate_express")]);
+    const registry = createClientToolRegistry([oneWayStub("generate_express")]);
     // Exactly the four requests the cap allows — a fifth would find the mock empty and fail loudly.
     for (let i = 0; i < 4; i++) {
       ccCreateMock.mockResolvedValueOnce(
@@ -432,7 +474,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
 
   it("runs a second registered tool through the same engine — status, result, round trip", async () => {
     const weather = toolStub("get_weather", "22C");
-    const registry = createClientToolRegistry([toolStub("generate_express"), weather]);
+    const registry = createClientToolRegistry([oneWayStub("generate_express"), weather]);
     ccCreateMock
       .mockResolvedValueOnce(
         streamOf([
@@ -445,10 +487,10 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
 
     expect(weather.execute).toHaveBeenCalledWith({ city: "seoul" });
-    expect(events[0]).toEqual({
-      type: "tool_status",
-      status: { state: "done", tool_id: "get_weather" },
-    });
+    expect(events.slice(0, 2)).toEqual([
+      { type: "tool_status", status: { state: "running", tool_id: "get_weather" } },
+      { type: "tool_status", status: { state: "done", tool_id: "get_weather" } },
+    ]);
     expect(ccCreateMock.mock.calls[1][0].messages.at(-1)).toEqual({
       role: "tool",
       tool_call_id: "call_w",
@@ -458,7 +500,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
   });
 
   it("a call naming an unregistered tool stays one-way — cue plays, no result, single request", async () => {
-    const registry = createClientToolRegistry([toolStub("generate_express")]);
+    const registry = createClientToolRegistry([oneWayStub("generate_express")]);
     ccCreateMock.mockResolvedValueOnce(
       streamOf([
         toolCallStart(0, "call_1", "mcp_hermes_generate_express", GEN_EXPRESS_ARGS),
@@ -494,7 +536,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
   });
 
   it("unparseable arguments surface an error event, skip execution, and end the turn", async () => {
-    const express = toolStub("generate_express");
+    const express = oneWayStub("generate_express");
     const registry = createClientToolRegistry([express]);
     ccCreateMock.mockResolvedValueOnce(
       streamOf([
@@ -511,7 +553,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
   });
 
   it("gives an id-less tool call a synthesized tool_call_id shared by both messages", async () => {
-    const registry = createClientToolRegistry([toolStub("generate_express")]);
+    const registry = createClientToolRegistry([oneWayStub("generate_express")]);
     ccCreateMock
       .mockResolvedValueOnce(
         streamOf([
@@ -538,6 +580,120 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     const appended = ccCreateMock.mock.calls[1][0].messages.slice(-2);
     expect(appended[0].tool_calls[0].id).toBe(appended[1].tool_call_id);
     expect(appended[1].tool_call_id).toBeTruthy();
+  });
+
+  it("keeps synthesized ids unique across round trips", async () => {
+    const idLess = (args: string): any => ({
+      choices: [
+        {
+          index: 0,
+          delta: { tool_calls: [{ function: { name: "get_weather", arguments: args } }] },
+          finish_reason: null,
+        },
+      ],
+    });
+    const registry = createClientToolRegistry([toolStub("get_weather", "22C")]);
+    ccCreateMock
+      .mockResolvedValueOnce(streamOf([idLess('{"city":"seoul"}'), finishChunk("tool_calls")]))
+      .mockResolvedValueOnce(streamOf([idLess('{"city":"busan"}'), finishChunk("tool_calls")]))
+      .mockResolvedValueOnce(streamOf([textChunk("warm"), finishChunk("stop")]));
+
+    await collect(streamChat(CONFIG, req(), { tools: registry }));
+
+    const ids = ccCreateMock.mock.calls[2][0].messages
+      .filter((m: any) => m.role === "tool")
+      .map((m: any) => m.tool_call_id);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it("empty arguments are an empty object — the call runs and the turn survives", async () => {
+    const noArg = toolStub("get_weather", "22C");
+    const registry = createClientToolRegistry([noArg]);
+    ccCreateMock
+      .mockResolvedValueOnce(
+        streamOf([toolCallStart(0, "call_w", "get_weather", ""), finishChunk("tool_calls")]),
+      )
+      .mockResolvedValueOnce(streamOf([textChunk("warm"), finishChunk("stop")]));
+
+    const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
+
+    expect(noArg.execute).toHaveBeenCalledWith({});
+    expect(events.some((e) => e.type === "error")).toBe(false);
+  });
+
+  it("an error on the follow-up request surfaces as an error event", async () => {
+    const registry = createClientToolRegistry([oneWayStub("generate_express")]);
+    ccCreateMock
+      .mockResolvedValueOnce(
+        streamOf([
+          toolCallStart(0, "call_1", "generate_express", GEN_EXPRESS_ARGS),
+          finishChunk("tool_calls"),
+        ]),
+      )
+      .mockRejectedValueOnce(Object.assign(new Error("429 rate limited"), { status: 429 }));
+
+    const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
+
+    expect(events.at(-1)).toEqual({
+      type: "error",
+      message: "chat request failed: 429 rate limited",
+      status: 429,
+    });
+    expect(events.some((e) => e.type === "completed")).toBe(false);
+  });
+
+  it("an abort landing before the follow-up request ends the turn without another call", async () => {
+    const ac = new AbortController();
+    const registry = createClientToolRegistry([
+      {
+        ...oneWayStub("generate_express"),
+        execute: async () => {
+          ac.abort();
+          return "ok";
+        },
+      },
+    ]);
+    ccCreateMock.mockResolvedValueOnce(
+      streamOf([
+        toolCallStart(0, "call_1", "generate_express", GEN_EXPRESS_ARGS),
+        finishChunk("tool_calls"),
+        textChunk("never read"),
+      ]),
+    );
+
+    const events = await collect(
+      streamChat(CONFIG, req({ signal: ac.signal }), { tools: registry }),
+    );
+
+    expect(ccCreateMock).toHaveBeenCalledTimes(1);
+    expect(events.some((e) => e.type === "completed")).toBe(false);
+  });
+
+  it("reports usage from every request of the turn", async () => {
+    const registry = createClientToolRegistry([oneWayStub("generate_express")]);
+    ccCreateMock
+      .mockResolvedValueOnce(
+        streamOf([
+          toolCallStart(0, "call_1", "generate_express", GEN_EXPRESS_ARGS),
+          finishChunk("tool_calls"),
+          usageChunk({ prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 }),
+        ]),
+      )
+      .mockResolvedValueOnce(
+        streamOf([
+          textChunk("hi"),
+          finishChunk("stop"),
+          usageChunk({ prompt_tokens: 20, completion_tokens: 2, total_tokens: 22 }),
+        ]),
+      );
+
+    const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
+
+    expect(events.filter((e) => e.type === "usage")).toEqual([
+      { type: "usage", usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 } },
+      { type: "usage", usage: { input_tokens: 20, output_tokens: 2, total_tokens: 22 } },
+    ]);
   });
 });
 

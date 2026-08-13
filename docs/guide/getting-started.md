@@ -116,7 +116,7 @@ Connects over the Chat Completions API to any endpoint whose model supports tool
 5. Provide a real API key for that endpoint — set `VITE_YUI_CHAT_KEY` in `.env.local`, or use the in-app Chat key field.
 6. Reasoning effort (set in the in-app agent settings) maps to the Chat Completions `reasoning_effort` parameter.
 
-`generate_express` tool-call deltas are parsed from the `chat.completion.chunk` stream as they arrive and the cue plays at that moment. A model that answers with tool calls and no speech gets the tool results back and re-requests, so the turn still reaches speech — up to three round trips. A model that speaks alongside its cues finishes in one request. See [CC mode transport](../reference/backend-contract.md#cc-mode-transport-chat-completions) for the wire shape.
+`generate_express` tool-call deltas are parsed from the `chat.completion.chunk` stream as they arrive and the cue plays at that moment. A model that stops on its cue calls without speaking gets the tool results back and re-requests, so the turn still reaches speech — up to three round trips. A model that speaks alongside its cues finishes in one request. See [CC mode transport](../reference/backend-contract.md#cc-mode-transport-chat-completions) for the wire shape.
 
 ---
 

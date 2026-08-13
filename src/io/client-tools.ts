@@ -10,8 +10,7 @@
  * the engine emits the moment the call arrives, so execute only acknowledges the call.
  */
 
-import type { EmotionRegistry, MotionRegistry } from "../contract";
-import { agentTriggerableMotionIds } from "./broker-client";
+import type { BrokerPayload } from "./broker-client";
 
 /** OpenAI function-tool schema. Structural — narrowed to the SDK's type at the request site. */
 export interface ClientToolDefinition {
@@ -32,6 +31,11 @@ export interface ClientTool {
   definition: ClientToolDefinition;
   /** Runs the call; resolves the result string returned to the model. */
   execute(args: Record<string, unknown>): Promise<string>;
+  /**
+   * Cue-only tool: the result carries nothing the model can use, so a response that already spoke
+   * needs no round trip. A tool that answers a question leaves this unset — its result is the point.
+   */
+  oneWay?: boolean;
 }
 
 export interface ClientToolRegistry {
@@ -50,19 +54,34 @@ export function createClientToolRegistry(tools: readonly ClientTool[]): ClientTo
   };
 }
 
-/** The cue contract, in the words the model reads before calling. */
+/**
+ * The cue contract in the words the model reads before calling. Full statement of it:
+ * docs/reference/backend-contract.md.
+ */
 const EXPRESS_DESCRIPTION =
   "Place an expression cue on the speech around this call: facial expression, body motion, and " +
   "voice tone. Call it per sentence or expressive beat, at the point where the expression should " +
   "change, and include only the fields that change. Spoken words never go in the arguments.";
 
-/** Vocabulary the express schema enumerates — the loaded registries. */
-export interface ExpressVocabulary {
-  emotionRegistry: EmotionRegistry;
-  motions: MotionRegistry;
+/**
+ * voice tone tag schema. An enum-mode provider (irodori) speaks a fixed tag table, so the tags and
+ * their meanings ride in the schema; a free-mode provider takes any tag.
+ */
+function emotionTextSchema(emotionText: BrokerPayload["emotionText"]): Record<string, unknown> {
+  const table = emotionText.mode === "enum" ? emotionText.table : null;
+  if (!table) return { type: "string", description: "voice tone tag" };
+  const meanings = Object.entries(table)
+    .map(([tag, meaning]) => `${tag} = ${meaning}`)
+    .join("; ");
+  return {
+    type: "string",
+    description: `voice tone tag — ${meanings}`,
+    enum: Object.keys(table),
+  };
 }
 
-export function createGenerateExpressTool(vocab: ExpressVocabulary): ClientTool {
+/** Built from the same vocabulary the broker publishes (broker-client.deriveBrokerPayload). */
+export function createGenerateExpressTool(vocab: BrokerPayload): ClientTool {
   return {
     name: "generate_express",
     definition: {
@@ -76,19 +95,16 @@ export function createGenerateExpressTool(vocab: ExpressVocabulary): ClientTool 
             emotion_id: {
               type: "string",
               description: "facial expression",
-              enum: Object.keys(vocab.emotionRegistry),
+              enum: vocab.emotionIds,
             },
-            motion_id: {
-              type: "string",
-              description: "body motion",
-              enum: agentTriggerableMotionIds(vocab.motions),
-            },
-            emotion_text: { type: "string", description: "voice tone tag" },
+            motion_id: { type: "string", description: "body motion", enum: vocab.motionIds },
+            emotion_text: emotionTextSchema(vocab.emotionText),
           },
           additionalProperties: false,
         },
       },
     },
     execute: async () => "ok",
+    oneWay: true,
   };
 }

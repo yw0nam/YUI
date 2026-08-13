@@ -19,7 +19,12 @@ import type { AgentNotifySettings } from "./io/agent-notify-settings";
 import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
 import { type AvatarExecutor, createAvatarExecutor } from "./io/avatar-executor";
 import { onAvatarRpc, respondAvatarRpc } from "./io/avatar-rpc";
-import { type BrokerClient, createBrokerClient, deriveBrokerPayload } from "./io/broker-client";
+import {
+  type BrokerClient,
+  type BrokerPayload,
+  createBrokerClient,
+  deriveBrokerPayload,
+} from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { selectFetch } from "./io/chat-client";
 import { ensureRegistered, updateVoice } from "./io/irodori-voices";
@@ -684,6 +689,8 @@ export async function wireBroker(deps: {
   log: Logger;
 }): Promise<{
   onConfigChange: (cfg: AppConfig, changed: ReadonlySet<ConfigSection>) => void;
+  /** Renderable vocabulary as published, for consumers that declare it themselves (CC client tools). */
+  vocabulary: () => BrokerPayload;
   dispose: () => void;
 }> {
   const { getConfig, getEndpoints, endpointsSettings, log } = deps;
@@ -693,24 +700,33 @@ export async function wireBroker(deps: {
   let broker: BrokerClient | null = null;
   const makeBroker = (baseUrl: string): BrokerClient =>
     createBrokerClient({ baseUrl, ...(brokerFetch ? { fetch: brokerFetch } : {}) });
+  // Latest emotion_text table, kept current by every load so vocabulary() reflects the live provider.
+  let table: Record<string, string> | null = null;
   // Enum table best-effort only for irodori; on failure the broker degrades to free mode.
   const loadBrokerTable = async (
     provider: string | undefined,
   ): Promise<Record<string, string> | null> => {
-    if (emotionTextModeFor(resolveTtsProviderKind(provider)) !== "enum") return null;
-    try {
-      return await loadEmotionTextTable({ provider: "irodori" });
-    } catch (err) {
-      log.warn("emotion_text_load_failed", { fallback: "free", error: String(err) });
+    if (emotionTextModeFor(resolveTtsProviderKind(provider)) !== "enum") {
+      table = null;
       return null;
     }
+    try {
+      table = await loadEmotionTextTable({ provider: "irodori" });
+    } catch (err) {
+      log.warn("emotion_text_load_failed", { fallback: "free", error: String(err) });
+      table = null;
+    }
+    return table;
   };
+  const vocabulary = (): BrokerPayload =>
+    deriveBrokerPayload({ ...getConfig(), endpoints: getEndpoints() }, table);
 
   const bootEps = getEndpoints();
+  // Loaded even with no broker: the vocabulary also feeds the client-declared tools.
+  const bootTable = await loadBrokerTable(bootEps.tts_provider);
   if (bootEps.broker_base_url) {
-    const table = await loadBrokerTable(bootEps.tts_provider);
     broker = makeBroker(bootEps.broker_base_url);
-    const payload = deriveBrokerPayload({ ...getConfig(), endpoints: bootEps }, table);
+    const payload = deriveBrokerPayload({ ...getConfig(), endpoints: bootEps }, bootTable);
     void broker.publish(payload).then(() => broker?.start());
   } else {
     log.debug("broker_disabled", { reason: "no_broker_base_url" });
@@ -736,8 +752,8 @@ export async function wireBroker(deps: {
       (changed.has("emotionRegistry") || changed.has("motions") || changed.has("endpoints"))
     ) {
       const eff = getEndpoints();
-      void loadBrokerTable(eff.tts_provider).then((table) => {
-        void broker?.publish(deriveBrokerPayload({ ...cfg, endpoints: eff }, table));
+      void loadBrokerTable(eff.tts_provider).then((loaded) => {
+        void broker?.publish(deriveBrokerPayload({ ...cfg, endpoints: eff }, loaded));
       });
     }
   };
@@ -747,7 +763,7 @@ export async function wireBroker(deps: {
     broker?.dispose();
   };
 
-  return { onConfigChange, dispose };
+  return { onConfigChange, vocabulary, dispose };
 }
 
 /**

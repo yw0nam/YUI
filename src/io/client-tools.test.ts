@@ -7,56 +7,20 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { EmotionRegistry, MotionRegistry } from "../contract";
+import type { BrokerPayload } from "./broker-client";
 import {
   type ClientTool,
   createClientToolRegistry,
   createGenerateExpressTool,
 } from "./client-tools";
 
-function emotionRegistry(): EmotionRegistry {
-  return {
-    neutral: { vrm_expression: "neutral", fallback: "neutral" },
-    happy: { vrm_expression: "happy", fallback: "neutral" },
-    sad: { vrm_expression: "sad", fallback: "neutral" },
-  } as EmotionRegistry;
-}
-
-function motions(): MotionRegistry {
-  return {
-    idle: {
-      vrma_path: "/motions/idle.vrma",
-      kind: "ambient",
-      loop: true,
-      priority: 10,
-      interrupt_policy: "ignore",
-    },
-    drag: {
-      vrma_path: "/motions/drag.vrma",
-      kind: "reactive",
-      loop: false,
-      priority: 50,
-      interrupt_policy: "replace",
-    },
-    dance: {
-      vrma_path: "/motions/dance.vrma",
-      kind: "oneshot",
-      loop: false,
-      priority: 60,
-      interrupt_policy: "replace",
-    },
-    sit: {
-      vrma_path: "/motions/sit.vrma",
-      kind: "oneshot",
-      loop: false,
-      priority: 60,
-      interrupt_policy: "replace",
-      broker_publish: false,
-    },
-  };
-}
-
-const vocab = () => ({ emotionRegistry: emotionRegistry(), motions: motions() });
+/** The published vocabulary (broker-client.deriveBrokerPayload) is the schema's only source. */
+const vocab = (over: Partial<BrokerPayload> = {}): BrokerPayload => ({
+  emotionIds: ["neutral", "happy", "sad"],
+  motionIds: ["dance", "calm"],
+  emotionText: { mode: "free", table: null },
+  ...over,
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // generate_express definition
@@ -71,44 +35,56 @@ describe("createGenerateExpressTool — definition", () => {
     expect(tool.definition.function.description.length).toBeGreaterThan(0);
   });
 
-  it("derives emotion_id's enum from the loaded emotion registry", () => {
+  it("derives the emotion_id and motion_id enums from the published vocabulary", () => {
     const props = createGenerateExpressTool(vocab()).definition.function.parameters.properties;
     expect(props.emotion_id).toMatchObject({ type: "string", enum: ["neutral", "happy", "sad"] });
+    expect(props.motion_id).toMatchObject({ type: "string", enum: ["dance", "calm"] });
   });
 
-  it("derives motion_id's enum from the agent-triggerable motions (no reactive/ambient/unpublished)", () => {
-    const props = createGenerateExpressTool(vocab()).definition.function.parameters.properties;
-    expect(props.motion_id).toMatchObject({ type: "string", enum: ["dance"] });
-  });
-
-  it("leaves emotion_text free text and keeps every field optional", () => {
+  it("keeps every field optional and refuses extra properties", () => {
     const params = createGenerateExpressTool(vocab()).definition.function.parameters;
-    expect(params.properties.emotion_text).toMatchObject({ type: "string" });
-    expect((params.properties.emotion_text as Record<string, unknown>).enum).toBeUndefined();
     expect(params.type).toBe("object");
     expect(params.additionalProperties).toBe(false);
     expect("required" in params).toBe(false);
   });
 
+  it("free-mode emotion_text is plain text", () => {
+    const props = createGenerateExpressTool(vocab()).definition.function.parameters.properties;
+    expect(props.emotion_text).toMatchObject({ type: "string" });
+    expect((props.emotion_text as Record<string, unknown>).enum).toBeUndefined();
+  });
+
+  it("enum-mode emotion_text enumerates the provider's tags and carries their meanings", () => {
+    const tool = createGenerateExpressTool(
+      vocab({ emotionText: { mode: "enum", table: { "👂": "Whisper", "🤭": "Giggle" } } }),
+    );
+    const emotionText = tool.definition.function.parameters.properties.emotion_text as Record<
+      string,
+      unknown
+    >;
+    expect(emotionText.enum).toEqual(["👂", "🤭"]);
+    expect(emotionText.description).toContain("👂 = Whisper");
+    expect(emotionText.description).toContain("🤭 = Giggle");
+  });
+
+  it("enum mode with no table falls back to free text", () => {
+    const tool = createGenerateExpressTool(vocab({ emotionText: { mode: "enum", table: null } }));
+    const props = tool.definition.function.parameters.properties;
+    expect((props.emotion_text as Record<string, unknown>).enum).toBeUndefined();
+  });
+
   it("reflects a changed vocabulary — an added emotion and motion land in the enums", () => {
-    const next = vocab();
-    next.emotionRegistry.angry = { vrm_expression: "angry", fallback: "neutral" };
-    next.motions.wave = {
-      vrma_path: "/motions/wave.vrma",
-      kind: "oneshot",
-      loop: false,
-      priority: 60,
-      interrupt_policy: "replace",
-    };
-    const props = createGenerateExpressTool(next).definition.function.parameters.properties;
-    expect(props.emotion_id).toMatchObject({ enum: ["neutral", "happy", "sad", "angry"] });
+    const props = createGenerateExpressTool(
+      vocab({ emotionIds: ["neutral", "angry"], motionIds: ["dance", "wave"] }),
+    ).definition.function.parameters.properties;
+    expect(props.emotion_id).toMatchObject({ enum: ["neutral", "angry"] });
     expect(props.motion_id).toMatchObject({ enum: ["dance", "wave"] });
   });
 
-  it("resolves execute to ok", async () => {
-    await expect(createGenerateExpressTool(vocab()).execute({ emotion_id: "happy" })).resolves.toBe(
-      "ok",
-    );
+  it("resolves execute to ok and is one-way — its result tells the model nothing", async () => {
+    const tool = createGenerateExpressTool(vocab());
+    await expect(tool.execute({ emotion_id: "happy" })).resolves.toBe("ok");
+    expect(tool.oneWay).toBe(true);
   });
 });
 

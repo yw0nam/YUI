@@ -464,12 +464,13 @@ export async function* streamChat(
  * round trip), any other call yields tool_status done, and a call naming a registered tool is
  * executed locally.
  *
- * Round trip: a response that executed calls and streamed NO speech is a silent turn — the assistant
- * tool_calls message and one role:"tool" result per call are appended to the in-turn message array
- * and the whole array is sent again, which is what produces the speech. A response that did speak is
- * a finished turn: its cues have played, so returning results would only make the model say it all
- * again. Bounded by MAX_TOOL_ROUND_TRIPS; past that the client stops returning results and closes
- * the turn with the text it has.
+ * Round trip: the assistant tool_calls message and one role:"tool" result per call are appended to
+ * the in-turn message array and the whole array is sent again. It happens whenever a tool that
+ * answers a question ran, and — for cue-only (oneWay) tools, whose result says nothing — only when
+ * the model stopped to wait for it: finish_reason "tool_calls" with no speech in that response.
+ * A response that already spoke its cues is a finished turn; answering it would make the model say
+ * everything again. Bounded by MAX_TOOL_ROUND_TRIPS; past that the client stops returning results
+ * and closes the turn with the text it has.
  *
  * The array is copied on append, so the caller's messages are never mutated and nothing crosses
  * turn boundaries: CC has no previous_response_id and the next turn is rebuilt from the transcript.
@@ -495,16 +496,20 @@ async function* streamChatCompletions(
   let messages: CCMessage[] = request.messages ?? [];
   const toolDefs = tools?.definitions() ?? [];
   // Calls executed in the response being read — the next request's round-trip payload.
-  let executed: Array<{ call: CCToolCall; result: string }> = [];
+  let executed: Array<{ call: CCToolCall; result: string; oneWay: boolean }> = [];
+  // Monotonic across the turn: a synthesized id must stay unique in the whole message array.
+  let seq = 0;
 
   // The reducer flushes each tool_call exactly once (buffers clear on flush), so no dedup here.
-  async function* handleToolCall(
-    item: { id: string | undefined; name: string; argsJson: string },
-    seq: number,
-  ): AsyncGenerator<ChatStreamEvent> {
+  async function* handleToolCall(item: {
+    id: string | undefined;
+    name: string;
+    argsJson: string;
+  }): AsyncGenerator<ChatStreamEvent> {
     const tool = tools?.get(item.name);
     const express_call = isExpressTool(item.name);
-    if (!express_call && !tool) {
+    // A call the client did not register runs on the backend — observed, never answered.
+    if (!tool && !express_call) {
       yield { type: "tool_status", status: { state: "done", tool_id: item.name } };
       return;
     }
@@ -518,11 +523,12 @@ async function* streamChatCompletions(
     if (express_call) {
       express = parsed.args as ExpressArgs;
       yield { type: "express", args: express };
-    } else {
-      yield { type: "tool_status", status: { state: "done", tool_id: item.name } };
     }
 
     if (!tool) return;
+    // The client owns this call, so the chip runs for as long as the call does.
+    if (!express_call)
+      yield { type: "tool_status", status: { state: "running", tool_id: tool.name } };
     let result: string;
     try {
       result = await tool.execute(parsed.args);
@@ -530,13 +536,15 @@ async function* streamChatCompletions(
       // The model owns what a failed tool means — hand it the failure rather than dropping the turn.
       result = `error: ${err instanceof Error ? err.message : String(err)}`;
     }
+    if (!express_call) yield { type: "tool_status", status: { state: "done", tool_id: tool.name } };
     executed.push({
       call: {
-        id: item.id ?? `call_${seq}`,
+        id: item.id ?? `call_${seq++}`,
         type: "function",
         function: { name: item.name, arguments: item.argsJson },
       },
       result,
+      oneWay: tool.oneWay === true,
     });
   }
 
@@ -572,9 +580,10 @@ async function* streamChatCompletions(
     }
 
     executed = [];
-    let seq = 0;
-    // Speech from this response alone — a response that spoke is a finished turn.
+    // Speech from this response alone, and how it ended — together they say whether the model is
+    // waiting on results or has finished the turn.
     let roundText = "";
+    let finishReason: string | undefined;
     const reducer = createChunkReducer();
 
     try {
@@ -588,7 +597,10 @@ async function* streamChatCompletions(
               yield { type: "speech_delta", text: item.text };
               break;
             case "tool_call":
-              yield* handleToolCall(item, seq++);
+              yield* handleToolCall(item);
+              break;
+            case "finish":
+              finishReason = item.reason;
               break;
             case "usage":
               yield {
@@ -609,11 +621,18 @@ async function* streamChatCompletions(
     }
     // When stream ends without finish_reason (abnormal termination) drain incomplete buffer.
     for (const item of reducer.finish()) {
-      if (item.kind === "tool_call") yield* handleToolCall(item, seq++);
+      if (item.kind === "tool_call") yield* handleToolCall(item);
     }
 
-    if (executed.length === 0 || roundText !== "" || trips >= MAX_TOOL_ROUND_TRIPS) break;
+    // A tool that answers a question is always answered back. Cue-only calls are answered only
+    // when the model stopped to wait for them (finish_reason "tool_calls") and said nothing —
+    // a response that already spoke would otherwise be asked to speak it all over again.
+    const answerable =
+      executed.some((e) => !e.oneWay) || (finishReason === "tool_calls" && roundText === "");
+    if (executed.length === 0 || !answerable || trips >= MAX_TOOL_ROUND_TRIPS) break;
     trips++;
+    // Starting a fresh request: the caller's idle watchdog measures the wait from here.
+    yield { type: "keepalive" };
     messages = [
       ...messages,
       { role: "assistant", content: null, tool_calls: executed.map((e) => e.call) },
