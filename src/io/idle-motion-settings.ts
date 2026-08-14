@@ -32,7 +32,9 @@ function isValidSettings(v: unknown): v is IdleMotionSettings {
 }
 
 /**
- * The variants the idle cycle may pick from, in catalog order. The baseline is always included.
+ * The variants the idle cycle may pick from, in catalog order. `vrma_path` survives whatever the
+ * overlay says, so the pool never empties. A catalog whose `variants` omit `vrma_path` yields it
+ * only through the renderer's own empty-pool fallback.
  */
 export function enabledIdleVariants(
   pool: IdleVariantPool,

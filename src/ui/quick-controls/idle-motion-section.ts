@@ -31,14 +31,33 @@ export function createIdleMotionList(deps: IdleMotionListDeps): IdleMotionList {
   const sectionEl = deps.root.querySelector<HTMLDivElement>(".yui-idle-motion")!;
   const groupEl = deps.root.querySelector<HTMLDivElement>(".yui-motions")!;
 
+  /** Switches currently in the DOM, in order. */
+  function switches(): HTMLButtonElement[] {
+    return Array.from(groupEl.querySelectorAll<HTMLButtonElement>(".yui-switch"));
+  }
+
   function render(): void {
     const pool = getPool();
     const catalog = pool ? (pool.variants?.length ? pool.variants : [pool.vrma_path]) : [];
     sectionEl.hidden = catalog.length === 0;
-    groupEl.innerHTML = "";
-    if (!pool) return;
+    if (!pool) {
+      groupEl.innerHTML = "";
+      return;
+    }
 
     const enabled = enabledIdleVariants(pool, settings.get());
+    // Toggling only flips a switch — rebuilding the rows would drop keyboard focus mid-interaction.
+    const existing = switches();
+    if (
+      existing.length === catalog.length &&
+      existing.every((s, i) => s.dataset.variant === catalog[i])
+    ) {
+      for (const sw of existing) {
+        sw.setAttribute("aria-checked", String(enabled.includes(sw.dataset.variant!)));
+      }
+      return;
+    }
+    groupEl.innerHTML = "";
     for (const path of catalog) {
       const stem = idleMotionKeyStem(path);
       const label = t(`${stem}.label`);

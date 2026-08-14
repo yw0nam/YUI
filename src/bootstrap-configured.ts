@@ -277,14 +277,15 @@ const realFactories: ConfiguredBootstrapFactories = {
     voiceInput.setStt(sttVad);
     ensureActive();
     renderer.setEmotionRegistry(cfg.emotionRegistry);
-    renderer.setMotionRegistry(cfg.motions);
-    // Ambient idle pool = catalog ∩ the user's selection; re-applied live on every store change.
+    // Ambient idle pool = catalog ∩ the user's selection; applied before the registry so the
+    // first baseline play already honors it, then re-applied live on every store change.
     const applyIdleVariants = (): void => {
       const pool = config.get().motions.idle;
       if (pool) renderer.setIdleVariants(enabledIdleVariants(pool, idleMotionSettings.get()));
     };
     applyIdleVariants();
     register(idleMotionSettings.subscribe(applyIdleVariants));
+    renderer.setMotionRegistry(cfg.motions);
     renderer.setFraming(cfg.avatar.framing ?? {});
     renderer.setGaze(cfg.avatar.gaze ?? {});
     const bootAlpha = cfg.avatar.hit_test?.alpha_threshold;

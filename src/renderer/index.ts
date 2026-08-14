@@ -45,6 +45,7 @@ import { mirrorClipTracks } from "./mirror-clip";
 import {
   createMotionController,
   type MotionController,
+  needsRestartOnPoolChange,
   type RenderMotionSignal,
   type ResolvedMotion,
 } from "./motion-controller";
@@ -874,7 +875,15 @@ export function createRenderer(options: RendererOptions): Renderer {
   }
 
   function setIdleVariants(paths: readonly string[]): void {
+    const previous = idleVariants;
     idleVariants = [...paths];
+    const changed =
+      !previous ||
+      previous.length !== idleVariants.length ||
+      idleVariants.some((p, i) => p !== previous[i]);
+    if (!changed || !currentVrm || !mixer) return;
+    // A pool of one loops without ever finishing, so it needs a restart to pick up a later change.
+    if (needsRestartOnPoolChange(controller?.current() ?? null, IDLE_POOL_ID)) playIdleBaseline();
   }
 
   /** setEmotion — delegate to emotion crossfade (stable reference for routeDirective). */
