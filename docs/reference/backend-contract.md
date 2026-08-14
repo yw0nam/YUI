@@ -33,7 +33,7 @@ When a screenshot is attached, the input is a content-part array: `[{ type: "inp
     "timestamp": "ISO 8601 local time with offset", // e.g. "2026-06-15T19:30:00+09:00"
     "timezone": "IANA zone (auto-detected)",    // e.g. "Asia/Seoul"
     "frontmost": {                              // optional; present once an OS frontmost sample exists
-      "app": "Google Chrome",                   // optional; owner app of the frontmost window
+      "app": "Google Chrome",                   // optional; owner app of the frontmost window, sampler-capped at 256 chars
       "window_title": "H-Index | Programmers",  // optional; sampler-capped at 256 chars
       "since": 1750000000000                    // epoch ms of the last frontmost transition
     }

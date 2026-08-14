@@ -78,6 +78,38 @@ extern "C" {
 
 const K_CF_STRING_ENCODING_UTF8: u32 = 0x08000100;
 
+// ─── libproc — non-localized executable name ─────────────────────────────────
+//
+// `kCGWindowOwnerName` is the localized display name, so it cannot identify an
+// app across locales. libproc is plain C and thread-safe, unlike AppKit.
+
+extern "C" {
+    /// Writes the absolute executable path of `pid`; returns the byte length,
+    /// or 0 on failure.
+    fn proc_pidpath(pid: i32, buffer: *mut c_void, buffersize: u32) -> i32;
+}
+
+/// `PROC_PIDPATHINFO_MAXSIZE` (4 × MAXPATHLEN).
+const PROC_PIDPATHINFO_MAXSIZE: usize = 4 * 1024;
+
+/// Executable base name of `pid`, read via `proc_pidpath`.
+fn process_base_name(pid: i32) -> Option<String> {
+    if pid <= 0 {
+        return None;
+    }
+    let mut buf = vec![0u8; PROC_PIDPATHINFO_MAXSIZE];
+    let len = unsafe { proc_pidpath(pid, buf.as_mut_ptr() as *mut c_void, buf.len() as u32) };
+    if len <= 0 {
+        return None;
+    }
+    executable_base_name(&String::from_utf8_lossy(&buf[..len as usize]))
+}
+
+/// Strips the directory from an executable path.
+fn executable_base_name(path: &str) -> Option<String> {
+    super::sanitise_window_title(path.rsplit('/').next()?)
+}
+
 // ─── idle time ────────────────────────────────────────────────────────────────
 
 // CGEventSourceStateID 1 = HIDSystemState; 14 = kCGAnyInputEventType.
@@ -375,7 +407,7 @@ pub(super) fn platform_idle_ms() -> Option<u64> {
 
 /// Owner app and title of the frontmost user window, `(None, None)` when none.
 pub(super) fn platform_frontmost() -> (Option<String>, Option<String>) {
-    match super::first_user_window(list_all_windows()) {
+    match super::first_user_window(list_all_windows(), process_base_name) {
         Some(w) => (w.owner_name, w.name),
         None => (None, None),
     }
@@ -458,6 +490,41 @@ mod tests {
     #[test]
     fn filter_foreign_empty_is_empty() {
         assert!(filter_foreign(Vec::new(), 999).is_empty());
+    }
+
+    // ── executable name resolution (proc_pidpath) ──────────────────────────
+
+    #[test]
+    fn executable_base_name_strips_the_bundle_path() {
+        assert_eq!(
+            executable_base_name(
+                "/System/Library/CoreServices/ControlCenter.app/Contents/MacOS/ControlCenter"
+            ),
+            Some("ControlCenter".into())
+        );
+    }
+
+    #[test]
+    fn executable_base_name_keeps_a_bare_name() {
+        assert_eq!(executable_base_name("Spotlight"), Some("Spotlight".into()));
+    }
+
+    #[test]
+    fn executable_base_name_rejects_a_pathless_input() {
+        assert_eq!(executable_base_name(""), None);
+        assert_eq!(executable_base_name("/usr/bin/"), None);
+    }
+
+    #[test]
+    fn process_base_name_resolves_the_running_process() {
+        let own = process_base_name(std::process::id() as i32);
+        assert!(own.is_some_and(|n| !n.is_empty()), "own pid must resolve");
+    }
+
+    #[test]
+    fn process_base_name_rejects_an_unreadable_pid() {
+        assert_eq!(process_base_name(0), None);
+        assert_eq!(process_base_name(-1), None);
     }
 
     #[test]
