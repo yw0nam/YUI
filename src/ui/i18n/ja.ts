@@ -21,6 +21,8 @@ const ja: Record<string, string> = {
   "voice.state.asr": "文字起こし中…",
   "voice.state.fired": "送信しました",
   "voice.state.error": "エラー",
+  "voice.error.not_configured": "設定が必要",
+  "voice.error.not_configured_fix": "バックエンド未設定 — 詳細設定を開く",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "{name} の参照音声を更新",

@@ -366,6 +366,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       mount: root,
       status: voiceInputStatus,
       onActivate: () => quickControls.open(),
+      onOpenSettings: () => quickControls.open(undefined, { tab: "adv" }),
     });
   let captureIndicator = buildCaptureIndicator();
   register(() => captureIndicator.dispose());

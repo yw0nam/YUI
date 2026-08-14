@@ -49,19 +49,21 @@ import { t } from "./ui/i18n";
 import type { createQuickControls } from "./ui/quick-controls";
 import type { Surfaces } from "./ui/surfaces";
 import { routeTurnFailure, turnErrorFixAction, turnErrorMessage } from "./ui/turn-error";
+import { createVoiceErrorDwell } from "./ui/voice-error-dwell";
 import type { VoiceInputStatus } from "./ui/voice-input-status";
 import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
 
-const VOICE_TURN_ERROR_DISPLAY_MS = 3_000;
 const log = createLogger("bootstrap");
 
 /**
  * Overlay elements that must take OS pointer events while shown — everything else in the overlay
  * stays click-through. The bubble itself is display-only; only its dismiss button is a target.
+ * The voice chip earns pointer events only in the one state where it has a fix to offer.
  */
 export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-input.is-open",
   ".yui-bubble.is-visible .yui-bubble__close",
+  '.yui-voice.is-visible[data-fix="settings"]',
 ] as const;
 
 export interface Phase1Handles {
@@ -163,10 +165,8 @@ const realFactories: ConfiguredBootstrapFactories = {
     const { vrmSelection, loadVrmSerialized } = vrm;
     const { speakerSelection, refreshVoiceList } = speaker;
 
-    let voiceTurnErrorTimer: ReturnType<typeof setTimeout> | null = null;
-    register(() => {
-      if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
-    });
+    const voiceErrorDwell = createVoiceErrorDwell(voiceInputStatus);
+    register(() => voiceErrorDwell.dispose());
 
     // Voice creation precedes sources, so interaction notes stay late-bound across that cycle.
     let proactiveSourceRef: { noteInteraction(ts?: number): void } | null = null;
@@ -262,12 +262,7 @@ const realFactories: ConfiguredBootstrapFactories = {
             turnErrorFixAction(reason, (tab) => getQuickControls().open(undefined, { tab })),
           );
         } else if (action.kind === "voice_error") {
-          if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
-          voiceInputStatus.set("error", reason);
-          voiceTurnErrorTimer = setTimeout(() => {
-            voiceTurnErrorTimer = null;
-            if (voiceInputStatus.get().state === "error") voiceInputStatus.set("listening");
-          }, VOICE_TURN_ERROR_DISPLAY_MS);
+          voiceErrorDwell.show(reason);
         }
       },
     });

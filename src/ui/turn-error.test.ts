@@ -9,7 +9,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IDLE_TIMEOUT_MS } from "../dispatcher/backend-caller";
 import { setLocale, t } from "./i18n";
-import { routeTurnFailure, turnErrorFixAction, turnErrorMessage } from "./turn-error";
+import {
+  isSettingsFixable,
+  routeTurnFailure,
+  turnErrorFixAction,
+  turnErrorMessage,
+} from "./turn-error";
 
 describe("turnErrorMessage", () => {
   beforeEach(() => setLocale("en"));
@@ -100,6 +105,25 @@ describe("turnErrorFixAction", () => {
     for (const reason of reasons) {
       expect(turnErrorFixAction(reason, () => {})).toBeUndefined();
     }
+  });
+});
+
+describe("isSettingsFixable", () => {
+  it("is true only for not_configured — the one failure the panel resolves", () => {
+    expect(isSettingsFixable("not_configured")).toBe(true);
+    for (const reason of [
+      "http_4xx_drop",
+      "network_drop",
+      "network_stall",
+      "parse_error",
+      "superseded_by_user",
+    ] as const) {
+      expect(isSettingsFixable(reason)).toBe(false);
+    }
+  });
+
+  it("is false for a detail string that is not a classified failure", () => {
+    expect(isSettingsFixable("Voice input failed")).toBe(false);
   });
 });
 

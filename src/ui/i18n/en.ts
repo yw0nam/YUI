@@ -21,6 +21,9 @@ const en: Record<string, string> = {
   "voice.state.asr": "Transcribing…",
   "voice.state.fired": "Sent",
   "voice.state.error": "Error",
+  // the one voice failure the settings panel resolves — the chip becomes the fix
+  "voice.error.not_configured": "Setup needed",
+  "voice.error.not_configured_fix": "backend not configured — open Advanced settings",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "Refresh {name} reference voice",
