@@ -20,16 +20,16 @@ cd src-tauri && cargo test  # Rust unit tests
 
 ## Release
 
-`bundle.targets` in `src-tauri/tauri.conf.json` is `["app", "dmg", "msi", "nsis"]`. The Tauri bundler intersects that list with what the host platform can build, so macOS produces `.app` + `.dmg` and Windows produces `.msi` + NSIS `-setup.exe`.
+`bundle.targets` in `src-tauri/tauri.conf.json` is `["dmg", "msi", "nsis"]` — the installers that get shipped. The Tauri bundler intersects that list with what the host platform can build, so macOS produces the `.dmg` and Windows produces `.msi` + NSIS `-setup.exe`. The macOS `.app` is still built as a dependency of the `.dmg` and CI attaches it to the release as `YUI.app.tar.gz`.
 
 Releases are cut from a git tag:
 
 1. Bump the version in both `src-tauri/tauri.conf.json` and `package.json` to `X.Y.Z`, and merge it to `main`.
 2. Tag that commit `vX.Y.Z` and push the tag.
-3. The `Release` workflow (`.github/workflows/release.yml`) creates a **draft** GitHub release named after the tag, then builds macOS `aarch64-apple-darwin` and Windows x64 in parallel and uploads every bundle to that draft. The release body labels the Windows artifacts experimental.
+3. The `Release` workflow (`.github/workflows/release.yml`) rejects the tag unless `X.Y.Z` matches the version in both files, then creates a **draft** GitHub release named after the tag, builds macOS `aarch64-apple-darwin` and Windows x64 in parallel and uploads every bundle to that draft. The release body labels the Windows artifacts experimental.
 4. Review the draft on GitHub and publish it manually. CI never publishes.
 
-Re-running the workflow for the same tag reuses the existing draft instead of creating a second one.
+A tag containing a hyphen (`v0.3.0-rc.1`) drafts as a prerelease; the suffix lives on the tag only, so the guard compares `0.3.0` against the app version. Re-running the workflow for the same tag reuses the existing draft instead of creating a second one.
 
 ### macOS signing
 
