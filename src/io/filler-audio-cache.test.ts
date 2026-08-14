@@ -156,6 +156,29 @@ describe("createFillerAudioCache", () => {
     expect(synth).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps audio that resolved after its phrase left the pool out of the cache", async () => {
+    const releases: Array<(buffer: ArrayBuffer) => void> = [];
+    const synth = vi.fn(() => new Promise<ArrayBuffer>((resolve) => releases.push(resolve)));
+    let submissions = new Set(["음..."]);
+    const cache = createFillerAudioCache({
+      synth,
+      submissions: () => submissions,
+      paramsKey: () => "params-a",
+    });
+
+    const inFlight = cache.synth("음...");
+    submissions = new Set(["그러니까..."]);
+    expect(cache.has("음...")).toBe(false);
+    releases[0]!(wav(1));
+    await inFlight;
+
+    // Storing it now would put back an entry no later prune can see.
+    expect(cache.has("음...")).toBe(false);
+    submissions = new Set(["음..."]);
+    void cache.synth("음...");
+    expect(synth).toHaveBeenCalledTimes(2);
+  });
+
   it("retries a phrase whose synth failed", async () => {
     const { synth, cached } = setup();
     synth.mockRejectedValueOnce(new Error("synth down"));
