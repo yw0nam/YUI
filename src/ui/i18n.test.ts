@@ -274,6 +274,14 @@ describe("session & cue copy — corrected values", () => {
     expect(ko["session.reset"]).toBe("대화 초기화 · Reset conversation");
   });
 
+  it("the action sub-copy points at the history list the action sits under", () => {
+    expect(ko["session.action_sub"]).toBe(
+      "새 대화를 시작해요. 지금까지의 대화는 위 기록에 그대로 남아요.",
+    );
+    expect(en["session.action_sub"]).toContain("above");
+    expect(ja["session.action_sub"]).toContain("上");
+  });
+
   it("ko minutes-cue copy reads naturally as '대화 없이 [n] 분마다'", () => {
     expect(ko["cue.minutes_word"]).toBe("대화 없이");
     expect(ko["cue.minutes_aria"]).toBe("대화 없는 시간(분)");

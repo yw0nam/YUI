@@ -347,6 +347,19 @@ describe("createQuickControls — session section", () => {
     qc.dispose();
   });
 
+  it("keeps only the occupancy stat — the start-fresh action left for the History tab", () => {
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    const section = qc.el.querySelector<HTMLElement>(".yui-session")!;
+    expect(section.querySelector(".yui-session__stat")).not.toBeNull();
+    expect(section.querySelector(".yui-session__action")).toBeNull();
+    expect(section.querySelector(".yui-session__reset")).toBeNull();
+    expect(section.querySelector(".yui-confirm")).toBeNull();
+
+    qc.dispose();
+  });
+
   it("does NOT render the session section in the popover (pet) variant", () => {
     const qc = buildQc({ variant: "popover" });
     qc.open();
@@ -380,76 +393,6 @@ describe("createQuickControls — session section", () => {
     expect(value.querySelector(".pct")).toBeNull();
     // still shows the used count formatted
     expect(value.textContent).toContain("18.2K");
-
-    qc.dispose();
-  });
-
-  it("reset confirm flow clears both the session store and diagnostics", () => {
-    sessionStore.set("resp_x"); // populate so clear() actually fires
-    sessionDiagnostics.setUsage(50000, 200000);
-    const clearSession = vi.spyOn(sessionStore, "clear");
-    const clearDiag = vi.spyOn(sessionDiagnostics, "clear");
-
-    const qc = buildQc({ variant: "window" });
-    qc.open();
-
-    // the destructive action is gated behind a confirm affordance
-    const link = qc.el.querySelector<HTMLButtonElement>(".yui-link-btn")!;
-    expect(qc.el.querySelector<HTMLElement>(".yui-session .yui-confirm")!.hidden).toBe(true);
-    link.click();
-    expect(qc.el.querySelector<HTMLElement>(".yui-session .yui-confirm")!.hidden).toBe(false);
-
-    qc.el.querySelector<HTMLButtonElement>(".yui-session .yui-pill--go")!.click();
-    expect(clearSession).toHaveBeenCalledTimes(1);
-    expect(clearDiag).toHaveBeenCalledTimes(1);
-
-    qc.dispose();
-  });
-
-  it("reset confirm flow closes the transcript's session when provided", () => {
-    const transcript = {
-      sessions: () => [],
-      subscribe: () => () => {},
-      startNewSession: vi.fn(),
-    };
-
-    const qc = buildQc({ variant: "window", transcript });
-    qc.open();
-
-    qc.el.querySelector<HTMLButtonElement>(".yui-session__reset")!.click();
-    qc.el.querySelector<HTMLButtonElement>(".yui-session .yui-pill--go")!.click();
-    expect(transcript.startNewSession).toHaveBeenCalledTimes(1);
-
-    qc.dispose();
-  });
-
-  it("reset confirm flow works when the transcript store is not provided", () => {
-    const qc = buildQc({ variant: "window" });
-    qc.open();
-
-    qc.el.querySelector<HTMLButtonElement>(".yui-link-btn")!.click();
-    expect(() =>
-      qc.el.querySelector<HTMLButtonElement>(".yui-session .yui-pill--go")!.click(),
-    ).not.toThrow();
-
-    qc.dispose();
-  });
-
-  it("Cancel dismisses the confirm without clearing", () => {
-    sessionStore.set("resp_y");
-    const clearSession = vi.spyOn(sessionStore, "clear");
-
-    const qc = buildQc({ variant: "window" });
-    qc.open();
-
-    qc.el.querySelector<HTMLButtonElement>(".yui-link-btn")!.click();
-    const cancel = Array.from(
-      qc.el.querySelectorAll<HTMLButtonElement>(".yui-session .yui-pill"),
-    ).find((b) => !b.classList.contains("yui-pill--go"))!;
-    cancel.click();
-
-    expect(clearSession).not.toHaveBeenCalled();
-    expect(qc.el.querySelector<HTMLElement>(".yui-session .yui-confirm")!.hidden).toBe(true);
 
     qc.dispose();
   });
