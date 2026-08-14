@@ -23,7 +23,7 @@ export interface TtsPipelineOptions {
   onPlaybackEnd?: () => void;
   // Fires once when each sentence starts playing (or on synth-failure skip). null = no cue for this sentence.
   onCuePlay?: (cue: ExpressArgs | null) => void;
-  // Fires when a sentence's synth rejects for real (TTS_SKIP does not count) — the provider is unreachable.
+  // Fires when a sentence's synth rejects for real (TTS_SKIP does not count) — the synth request failed.
   onSynthFailure?: () => void;
   // Concurrent-synth cap. Default 1 = serial. The function form is evaluated per drain, reading config lazily.
   maxInflight?: number | (() => number);

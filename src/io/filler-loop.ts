@@ -26,7 +26,7 @@ export interface FillerLoopDeps {
 export interface FillerLoop {
   start(): void;
   onUtteranceDone(): void;
-  /** A synth failure means the provider is unreachable — no phrase can be spoken until the next start(). */
+  /** A failed synth request means no phrase can be spoken — stay silent until the next start(). */
   onSynthFailure(): void;
   stop(): void;
 }
