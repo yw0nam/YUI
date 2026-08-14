@@ -74,3 +74,24 @@ describe("surfaces.css — tool chip and input error use doctrine tokens", () =>
     expect(block).toMatch(/var\(--yui-danger\)/);
   });
 });
+
+// The divider above the start-fresh footer is the History tab's one separator;
+// a border on the retention note would stack a second rule right beside it.
+describe("history-section.css — a single separator above the start-fresh footer", () => {
+  it(".yui-hist__foot carries no border of its own", () => {
+    const css = read("quick-controls/history-section.css");
+    expect(extractBlock(css, ".yui-hist__foot")).not.toMatch(/border-top/);
+  });
+});
+
+// A class-level `display` outranks the UA [hidden] rule, so every such component
+// has to restate [hidden] itself or the attribute silently stops hiding it.
+describe("quick-controls.css — components with a display rule honour [hidden]", () => {
+  for (const selector of [".yui-link-btn", ".yui-confirm"]) {
+    it(`${selector} sets display:none under [hidden]`, () => {
+      const css = read("quick-controls.css");
+      expect(extractBlock(css, selector)).toMatch(/display:/);
+      expect(extractBlock(css, `${selector}[hidden]`)).toMatch(/display:\s*none/);
+    });
+  }
+});

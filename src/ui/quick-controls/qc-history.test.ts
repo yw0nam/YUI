@@ -405,6 +405,25 @@ describe("createQuickControls — start fresh action in the History tab", () => 
     qc.dispose();
   });
 
+  it("disarms the confirm when the panel is closed and reopened", () => {
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
+    expect(qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!.hidden).toBe(false);
+
+    qc.close();
+    qc.open();
+
+    // reopening must not land the user on an armed destructive pill
+    expect(qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!.hidden).toBe(true);
+    expect(
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.hidden,
+    ).toBe(false);
+
+    qc.dispose();
+  });
+
   it("shows the new boundary in the list right after a confirmed reset", () => {
     const transcript = seedStore();
     const qc = buildQc({ variant: "popover", transcript });
