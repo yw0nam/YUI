@@ -367,6 +367,23 @@ describe("createChatHistoryStore — persist + reload", () => {
     const store2 = createChatHistoryStore({ storage });
     expect(store2.get()).toEqual([entry("user", "hi", 1)]);
   });
+
+  it("append preserves another window's persisted entry when local memory is stale", () => {
+    const storage = makeMemStorage();
+    const storeA = createChatHistoryStore({ storage });
+    const storeB = createChatHistoryStore({ storage });
+
+    storeA.append(entry("user", "from A", 1));
+    storeB.append(entry("assistant", "from B", 2));
+    storeA.append(entry("user", "from A again", 3));
+
+    expect(storage._data).toEqual([
+      entry("user", "from A", 1),
+      entry("assistant", "from B", 2),
+      entry("user", "from A again", 3),
+    ]);
+    expect(storeA.get()).toEqual(storage._data);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
