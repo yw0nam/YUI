@@ -39,6 +39,7 @@ const en: Record<string, string> = {
   "aria.stop": "Stop",
   "aria.remove_attachment": "Remove attachment",
   "aria.dismiss_bubble": "Dismiss speech bubble",
+  "aria.dismiss_error": "Dismiss error",
   "input.placeholder": "Say something…",
   "input.error_auth": "Auth failed · check API key",
   "input.error_network": "No response · check connection",

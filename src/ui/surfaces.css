@@ -682,8 +682,41 @@
   outline-offset: 2px;
 }
 
+/* Manual dismiss at the error row's right edge — muted until hovered, so a standing
+   error still reads as text first. */
+.yui-input__error-dismiss {
+  display: inline-grid;
+  place-items: center;
+  vertical-align: middle;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-left: 0.3rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--yui-danger);
+  opacity: 0.65;
+  cursor: pointer;
+  transition: opacity var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-input__error-dismiss:hover,
+.yui-input__error-dismiss:focus-visible {
+  opacity: 1;
+}
+.yui-input__error-dismiss:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+.yui-input__error-dismiss svg {
+  width: 0.7rem;
+  height: 0.7rem;
+  display: block;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .yui-input__error-action {
+  .yui-input__error-action,
+  .yui-input__error-dismiss {
     transition: none;
   }
 }

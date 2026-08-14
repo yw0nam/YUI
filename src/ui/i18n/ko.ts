@@ -38,6 +38,7 @@ const ko: Record<string, string> = {
   "aria.stop": "멈추기",
   "aria.remove_attachment": "첨부 제거",
   "aria.dismiss_bubble": "말풍선 닫기",
+  "aria.dismiss_error": "오류 닫기",
   "input.placeholder": "말 걸기…",
   "input.error_auth": "인증 실패 · API 키 확인",
   "input.error_network": "응답 없음 · 연결 확인",

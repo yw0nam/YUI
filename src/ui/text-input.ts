@@ -127,6 +127,11 @@ export function createTextInput(
     return formEl.classList.contains("is-open");
   }
 
+  function clearInputError(): void {
+    formEl.classList.remove("is-error");
+    errorEl.textContent = "";
+  }
+
   function showInputError(message: string, action?: InputErrorAction): void {
     errorEl.textContent = message;
     if (action) {
@@ -138,6 +143,20 @@ export function createTextInput(
       // Space first — the alert announces message and label as one string otherwise.
       errorEl.append(" ", button);
     }
+    const dismiss = document.createElement("button");
+    dismiss.type = "button";
+    dismiss.className = "yui-input__error-dismiss";
+    dismiss.setAttribute("aria-label", t("aria.dismiss_error"));
+    // Icon-only — a text glyph would land inside the alert's announced string.
+    dismiss.innerHTML =
+      `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">` +
+      `<path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>` +
+      `</svg>`;
+    dismiss.addEventListener("click", () => {
+      clearInputError();
+      field.focus();
+    });
+    errorEl.append(dismiss);
     formEl.classList.add("is-error");
     formEl.classList.remove("is-pending");
   }
@@ -213,6 +232,8 @@ export function createTextInput(
   // When busy: swap send→stop icon + amber, dim the field, block submit.
   function setBusy(value: boolean): void {
     busy = value;
+    // A turn reaching the backend falsifies a standing error, whatever source started it.
+    if (value) clearInputError();
     formEl.classList.toggle("is-running", value);
     sendBtn.setAttribute("aria-label", value ? t("aria.stop") : t("aria.send"));
   }
@@ -268,10 +289,7 @@ export function createTextInput(
   }
   // Clear the error once the user types again
   function clearErrorOnInput(): void {
-    if (formEl.classList.contains("is-error")) {
-      formEl.classList.remove("is-error");
-      errorEl.textContent = "";
-    }
+    if (formEl.classList.contains("is-error")) clearInputError();
   }
 
   function onAttachClick(): void {
