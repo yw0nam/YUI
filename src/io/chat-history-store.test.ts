@@ -118,6 +118,9 @@ describe("createChatHistoryStore — rolling cap", () => {
 
     expect(store.get()).toEqual([boundary(50), ...currentEntries.slice(1), latest]);
     expect(store.entriesAfterLastBoundary()).toEqual([...currentEntries.slice(1), latest]);
+    expect(store.sessions()).toEqual([
+      { startedAt: 50, entries: [...currentEntries.slice(1), latest] },
+    ]);
   });
 
   it("pin: evicts an older boundary normally when a newer boundary remains", () => {

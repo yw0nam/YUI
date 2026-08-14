@@ -103,6 +103,8 @@ export function createChatHistoryStore(opts?: {
       return;
     }
 
+    // The newest boundary is never evicted — sessionToken and replay scope read it.
+    // It takes the oldest retained slot, so the cap still holds.
     const sliceStart = next.length - MAX_ITEMS;
     const retained = next.slice(sliceStart);
     for (let i = next.length - 1; i >= 0; i--) {
