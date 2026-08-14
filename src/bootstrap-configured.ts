@@ -18,7 +18,7 @@ import {
   TTS_API_KEY_SECRET,
 } from "./config";
 import type { EndpointsConfig } from "./contract";
-import { createBackendCaller } from "./dispatcher/backend-caller";
+import { createBackendCaller, isChatConfigured } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
 import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
@@ -293,8 +293,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       surfaces,
       hotkey: cfg.hotkeys.summon_global,
       isMac: /Mac/.test(navigator.platform || navigator.userAgent),
-      // Same predicate the backend caller settles not_configured on.
-      chatConfigured: Boolean(getEndpoints().chat_base_url),
+      chatConfigured: isChatConfigured(getEndpoints()),
       t,
     });
 

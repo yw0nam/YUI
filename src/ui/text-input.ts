@@ -135,7 +135,8 @@ export function createTextInput(
       button.className = "yui-input__error-action";
       button.textContent = action.label;
       button.addEventListener("click", action.onClick);
-      errorEl.append(button);
+      // Space first — the alert announces message and label as one string otherwise.
+      errorEl.append(" ", button);
     }
     formEl.classList.add("is-error");
     formEl.classList.remove("is-pending");

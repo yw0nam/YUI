@@ -871,12 +871,12 @@ export function createQuickControls({
   }
 
   function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void {
+    const index = opts?.tab ? tabButtons.findIndex((tab) => tab.id === `yui-tab-${opts.tab}`) : -1;
     // Select before opening so the panel is positioned around the tab the caller asked for.
-    if (opts?.tab) {
-      const index = tabButtons.findIndex((tab) => tab.id === `yui-tab-${opts.tab}`);
-      if (index >= 0) selectTab(index);
-    }
+    if (index >= 0) selectTab(index);
     popover.open(anchor);
+    // open() lands focus on the first control; move it to the tab the caller asked for.
+    if (index >= 0) tabButtons[index]?.focus();
   }
 
   function handleTabClick(e: MouseEvent): void {

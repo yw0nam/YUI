@@ -94,6 +94,14 @@ export const IDLE_TIMEOUT_MS = 45_000;
  */
 export const FIRST_EVENT_TIMEOUT_MS = 240_000;
 
+/**
+ * Whether a chat turn has an address to reach. `""` means not configured — a turn settles
+ * `not_configured` and the onboarding hint points the user at the settings panel.
+ */
+export function isChatConfigured(cfg: Pick<EndpointsConfig, "chat_base_url">): boolean {
+  return Boolean(cfg.chat_base_url);
+}
+
 /** Which watchdog budget expired — carried into the network_stall log. */
 type StallStage = "first_event_timeout" | "idle_timeout";
 
@@ -271,7 +279,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
       // No chat backend configured — settle before any context/network work so the UI can point
       // the user at the settings panel instead of showing a generic connection failure.
-      if (!deps.config.chat_base_url) {
+      if (!isChatConfigured(deps.config)) {
         log.warn("not_configured", { event_name: env.event_name, missing: "chat_base_url" });
         return "not_configured";
       }
