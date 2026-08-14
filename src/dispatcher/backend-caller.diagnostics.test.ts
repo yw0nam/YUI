@@ -7,7 +7,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ToolStatus, Usage } from "../contract";
-import type { ChatHistoryEntry } from "../io/chat-history-store";
+import type {
+  ChatHistoryEntry,
+  ChatHistoryItem,
+  ChatHistoryStorage,
+} from "../io/chat-history-store";
+import { createChatHistoryStore } from "../io/chat-history-store";
 import type { Logger } from "../logger";
 import {
   type BackendCaller,
@@ -280,6 +285,8 @@ describe("backend_caller — transcript recording", () => {
     return {
       append: vi.fn((e: ChatHistoryEntry) => entries.push(e)),
       entriesAfterLastBoundary: () => entries,
+      // Never reset in these cases — the mid-flight reset has its own describe below.
+      sessionToken: () => "session",
     };
   }
 
@@ -431,6 +438,100 @@ describe("backend_caller — transcript recording", () => {
     script.events = [completedEvent({ speech_text: "hi" })];
     const res = await caller.call(turnOf(userEnv("안녕")));
     expect(res).toBe("ok");
+  });
+});
+
+// ── session reset mid-flight (the finishing turn must not land in the new session) ──
+
+describe("backend_caller — session reset while a turn is in flight", () => {
+  /** Runs one turn whose speech callback fires `resetMidFlight`, same timing as the R2 race. */
+  async function turnResetMidFlight(store: ReturnType<typeof createChatHistoryStore>) {
+    caller = createBackendCaller({
+      config: { ...CONFIG, chat_api: "chat_completions" },
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      transcript: store,
+    });
+    turnOutput.speak.mockImplementation(() => {
+      store.startNewSession(100);
+    });
+    script.events = [completedEvent({ speech_text: "답변" }, "")];
+    return caller.call(turnOf(userEnv("질문")));
+  }
+
+  it("reset lands mid-flight → the finishing turn contributes no entries to the new session", async () => {
+    const store = createChatHistoryStore();
+    store.append({ role: "user", text: "이전 질문", ts: 1 });
+    store.append({ role: "assistant", text: "이전 답변", ts: 2 });
+
+    await turnResetMidFlight(store);
+
+    expect(store.entriesAfterLastBoundary()).toEqual([]);
+  });
+
+  it("reset lands mid-flight on an empty transcript (no boundary written) → new session stays empty", async () => {
+    const store = createChatHistoryStore();
+
+    await turnResetMidFlight(store);
+
+    expect(store.entriesAfterLastBoundary()).toEqual([]);
+  });
+
+  it("reset from the other window lands mid-flight → its boundary survives, nothing appended", async () => {
+    // Cross-window delivery is asynchronous, so this window's store is still unsynced when the
+    // turn finishes: an unguarded append would also commit its stale array over the boundary.
+    let saved: ChatHistoryItem[] | null = null;
+    const storage: ChatHistoryStorage = {
+      load: () => saved?.map((i) => ({ ...i })) ?? null,
+      save: (s) => {
+        saved = s;
+      },
+    };
+    const store = createChatHistoryStore({ storage });
+    store.append({ role: "user", text: "이전 질문", ts: 1 });
+    const otherWindow = createChatHistoryStore({ storage });
+    caller = createBackendCaller({
+      config: { ...CONFIG, chat_api: "chat_completions" },
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      transcript: store,
+    });
+    turnOutput.speak.mockImplementation(() => {
+      otherWindow.startNewSession(100);
+    });
+    script.events = [completedEvent({ speech_text: "답변" }, "")];
+    await caller.call(turnOf(userEnv("질문")));
+
+    expect(saved).toEqual([
+      { role: "user", text: "이전 질문", ts: 1 },
+      { kind: "boundary", ts: 100 },
+    ]);
+  });
+
+  it("no reset → the finished turn is recorded as usual", async () => {
+    const store = createChatHistoryStore();
+    caller = createBackendCaller({
+      config: { ...CONFIG, chat_api: "chat_completions" },
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      transcript: store,
+    });
+    script.events = [completedEvent({ speech_text: "답변" }, "")];
+    await caller.call(turnOf(userEnv("질문")));
+
+    expect(store.entriesAfterLastBoundary()).toEqual([
+      expect.objectContaining({ role: "user", text: "질문" }),
+      expect.objectContaining({ role: "assistant", text: "답변" }),
+    ]);
   });
 });
 

@@ -149,10 +149,11 @@ interface BackendCallerDeps {
   onUsage?: (usage: Usage) => void;
   /** Current agent setting (reasoning effort + instructions override) snapshot. Reflected in request only when present. */
   getAgentSettings?: () => import("../io/agent-settings").AgentSettings;
-  /** Integrated conversation transcript — append after completely successful turn in both protocol modes. CC mode replays the current session from here. */
+  /** Integrated conversation transcript — append after completely successful turn in both protocol modes, unless a reset opened a new session meanwhile (sessionToken). CC mode replays the current session from here. */
   transcript?: {
     entriesAfterLastBoundary(): ChatHistoryEntry[];
     append(e: ChatHistoryEntry): void;
+    sessionToken(): string;
   };
   /** Local sent-context history, appended only after the turn is confirmed successful. */
   contextHistory?: { append(entry: ContextHistoryEntry): void };
@@ -268,6 +269,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       thinkingDone = true;
       if (thinkingStarted) deps.turnOutput?.thinkingEnd(turn.id);
     };
+
+    // Session this turn belongs to — compared again before the transcript append (R2): a reset
+    // landing mid-flight opens a new session, and this turn must not contribute to it.
+    const startSessionToken = deps.transcript?.sessionToken();
 
     // Wrap entire span in try/finally — thinking end guaranteed exactly once on any exit path
     // (setup reject, early abort, stream throw, post-loop abort, streamError, empty/parse_error,
@@ -551,12 +556,26 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         deps.onResponseId?.(newResponseId);
       }
 
-      // Transcript appended here in both modes only (successful turn passing all post-stream guards).
-      if (ctx.user_text !== undefined) {
-        deps.transcript?.append({ role: "user", text: ctx.user_text, ts: Date.now() });
-      }
-      if (envelope.speech_text) {
-        deps.transcript?.append({ role: "assistant", text: envelope.speech_text, ts: Date.now() });
+      // Transcript appended here in both modes only (successful turn passing all post-stream guards),
+      // and only while the session that started the turn is still running — speech from a turn the
+      // user reset away from still plays out, but its turns stay out of the new session's replay.
+      // contextHistory below stays ungated on purpose: it is a capped diagnostic log of what was
+      // sent, with no session concept and no replay.
+      if (deps.transcript) {
+        if (deps.transcript.sessionToken() === startSessionToken) {
+          if (ctx.user_text !== undefined) {
+            deps.transcript.append({ role: "user", text: ctx.user_text, ts: Date.now() });
+          }
+          if (envelope.speech_text) {
+            deps.transcript.append({
+              role: "assistant",
+              text: envelope.speech_text,
+              ts: Date.now(),
+            });
+          }
+        } else {
+          log.info("transcript_skipped", { reason: "session_reset", event_name: env.event_name });
+        }
       }
       deps.contextHistory?.append({
         ts: Date.now(),

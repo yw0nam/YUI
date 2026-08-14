@@ -38,6 +38,15 @@ export function isBoundary(item: ChatHistoryItem): item is ChatHistoryBoundary {
   return "kind" in item;
 }
 
+/** Timestamp of the newest boundary; 0 when the transcript has none. */
+function lastBoundaryTs(items: ChatHistoryItem[]): number {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (isBoundary(item)) return item.ts;
+  }
+  return 0;
+}
+
 function coerceItem(v: unknown): ChatHistoryItem | null {
   if (v === null || typeof v !== "object") return null;
   const e = v as Record<string, unknown>;
@@ -83,6 +92,8 @@ export function createChatHistoryStore(opts?: {
     clone: (v) => v.map((e) => ({ ...e })),
   });
 
+  let localResets = 0;
+
   function push(item: ChatHistoryItem): void {
     const next = [...core.current(), item];
     core.commit(next.length > MAX_ITEMS ? next.slice(next.length - MAX_ITEMS) : next);
@@ -97,12 +108,29 @@ export function createChatHistoryStore(opts?: {
 
     /** Close the running session and open a new one. No-op when the current session is empty. */
     startNewSession(ts: number = Date.now()): void {
+      localResets++;
       // The other window may have appended since the last sync — never write over its turns.
       core.reloadFromStorage();
       const items = core.current();
       const last = items[items.length - 1];
       if (last === undefined || isBoundary(last)) return;
       push({ kind: "boundary", ts });
+    },
+
+    /**
+     * Identity of the running session — compare a value taken before a long operation with a
+     * fresh one to tell whether a reset opened a new session meanwhile. Both halves carry: a
+     * reset here counts even when it closes an empty session and writes no boundary, and a
+     * reset in another window arrives only as a new boundary timestamp. Storage is re-read on
+     * every call, since the other window's reset reaches this one asynchronously and a token
+     * that waits for that sync reports a session that is already closed.
+     *
+     * Blind spot by design: another window resetting an *empty* session writes no boundary and
+     * leaves nothing to observe (the counter is window-local). The same reset done here counts.
+     */
+    sessionToken(): string {
+      core.reloadFromStorage();
+      return `${localResets}:${lastBoundaryTs(core.current())}`;
     },
 
     /** Replay source — the current session's turns only. */

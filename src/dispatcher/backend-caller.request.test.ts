@@ -703,7 +703,11 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput,
-      transcript: { entriesAfterLastBoundary: () => transcriptEntries, append: vi.fn() },
+      transcript: {
+        entriesAfterLastBoundary: () => transcriptEntries,
+        append: vi.fn(),
+        sessionToken: () => "session",
+      },
     });
     await caller.call(turnOf(userEnv("오늘 뭐해?")));
     const [, request] = script.spy.mock.calls[0];

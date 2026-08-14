@@ -3,7 +3,7 @@
  *
  * Pins the contract for src/io/chat-history-store.ts:
  *   createChatHistoryStore({ storage?, initial? }) store
- *     (append/get/startNewSession/entriesAfterLastBoundary/sessions/subscribe/reload/dispose)
+ *     (append/get/startNewSession/sessionToken/entriesAfterLastBoundary/sessions/subscribe/reload/dispose)
  *   localStorageChatHistoryStorage(key?) localStorage adapter
  *   selectSendSuffix(entries, contextWindow) pure helper
  */
@@ -194,6 +194,63 @@ describe("createChatHistoryStore — entriesAfterLastBoundary", () => {
     store.append(entry("user", "three", 5));
 
     expect(store.entriesAfterLastBoundary()).toEqual([entry("user", "three", 5)]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createChatHistoryStore — sessionToken (mid-flight reset detection)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createChatHistoryStore — sessionToken", () => {
+  it("is stable across appends", () => {
+    const store = createChatHistoryStore();
+    const before = store.sessionToken();
+    store.append(entry("user", "hi", 1));
+    store.append(entry("assistant", "there", 2));
+
+    expect(store.sessionToken()).toBe(before);
+  });
+
+  it("changes when a reset closes a session", () => {
+    const store = createChatHistoryStore();
+    store.append(entry("user", "hi", 1));
+    const before = store.sessionToken();
+    store.startNewSession(2);
+
+    expect(store.sessionToken()).not.toBe(before);
+  });
+
+  it("changes when a reset closes an empty session (no boundary written)", () => {
+    const store = createChatHistoryStore();
+    const before = store.sessionToken();
+    store.startNewSession(2);
+
+    expect(store.get()).toEqual([]);
+    expect(store.sessionToken()).not.toBe(before);
+  });
+
+  // Cross-window delivery is asynchronous (storage event / debounced broadcast), so the token
+  // must not wait for it — these read the token with no reload of their own.
+  it("changes when another window's reset lands in storage, before any sync arrives", () => {
+    const storage = makeMemStorage();
+    const store = createChatHistoryStore({ storage });
+    store.append(entry("user", "hi", 1));
+    const before = store.sessionToken();
+
+    createChatHistoryStore({ storage }).startNewSession(2);
+
+    expect(store.sessionToken()).not.toBe(before);
+  });
+
+  it("is unchanged by another window's append", () => {
+    const storage = makeMemStorage();
+    const store = createChatHistoryStore({ storage });
+    store.append(entry("user", "hi", 1));
+    const before = store.sessionToken();
+
+    createChatHistoryStore({ storage }).append(entry("assistant", "there", 2));
+
+    expect(store.sessionToken()).toBe(before);
   });
 });
 
