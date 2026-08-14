@@ -13,7 +13,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { MotionRegistry } from "../contract";
-import { createMotionController } from "./motion-controller";
+import {
+  createMotionController,
+  needsRestartOnPoolChange,
+  type ResolvedMotion,
+} from "./motion-controller";
 import { resolveBaselineFallback } from "./motion-fallback";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -850,5 +854,83 @@ describe("resolve() — variantFilter restricts the pool", () => {
     const recovered = resolveBaselineFallback(mc, "thinking");
     expect(recovered?.id).toBe("idle");
     expect(recovered?.vrma_path).toBe("/motions/calm.vrma");
+  });
+
+  it("avoids an immediate repeat by path, not by index, across a pool change", () => {
+    // 0.5 → index 1 of 3 (idle_02); after the filter drops idle_01, 0.3 → index 0, which is
+    // idle_02 again. Index-based repeat avoidance misses that; path-based catches it.
+    const rngValues = [0.5, 0.3];
+    let call = 0;
+    let enabled = ["/motions/idle_01.vrma", "/motions/idle_02.vrma", "/motions/idle_03.vrma"];
+    const mc = createMotionController(syntheticRegistry, {
+      rng: () => rngValues[call++] ?? 0,
+      variantFilter: (id, variants) =>
+        id === "idle" ? variants.filter((v) => enabled.includes(v)) : variants,
+    });
+    expect(mc.resolve({ id: "idle" })!.vrma_path).toBe("/motions/idle_02.vrma");
+
+    enabled = ["/motions/idle_02.vrma", "/motions/idle_03.vrma"];
+    expect(mc.resolve({ id: "idle" })!.vrma_path).toBe("/motions/idle_03.vrma");
+  });
+
+  it("keeps the sequential cursor inside a pool the filter has shrunk", () => {
+    const registry: MotionRegistry = {
+      seq: {
+        vrma_path: "/motions/a.vrma",
+        variants: ["/motions/a.vrma", "/motions/b.vrma", "/motions/c.vrma"],
+        variant_policy: "sequential",
+        kind: "ambient",
+        loop: true,
+        priority: 0,
+        interrupt_policy: "replace",
+      },
+    };
+    let enabled = ["/motions/a.vrma", "/motions/b.vrma", "/motions/c.vrma"];
+    const mc = createMotionController(registry, {
+      variantFilter: (_id, variants) => variants.filter((v) => enabled.includes(v)),
+    });
+    expect(mc.resolve({ id: "seq" })!.vrma_path).toBe("/motions/a.vrma");
+    expect(mc.resolve({ id: "seq" })!.vrma_path).toBe("/motions/b.vrma");
+
+    // Cursor now sits at 2, past the end of the shrunken pool.
+    enabled = ["/motions/a.vrma"];
+    expect(mc.resolve({ id: "seq" })!.vrma_path).toBe("/motions/a.vrma");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §10  needsRestartOnPoolChange — a non-cycling ambient never re-resolves on its own
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("needsRestartOnPoolChange()", () => {
+  const ambient = (over: Partial<ResolvedMotion>): ResolvedMotion => ({
+    id: "idle",
+    vrma_path: "/motions/calm.vrma",
+    loop: true,
+    cycle: true,
+    pingpong: true,
+    loop_reps: 2,
+    speed: 1,
+    fade_ms: 200,
+    kind: "ambient",
+    priority: 0,
+    interrupt_policy: "replace",
+    ...over,
+  });
+
+  it("is true when the pool motion is playing without a cycle — no finish event will ever land", () => {
+    expect(needsRestartOnPoolChange(ambient({ cycle: false }), "idle")).toBe(true);
+  });
+
+  it("is false while the pool is cycling — the playing variant finishes and re-resolves", () => {
+    expect(needsRestartOnPoolChange(ambient({ cycle: true }), "idle")).toBe(false);
+  });
+
+  it("is false when another motion is playing", () => {
+    expect(needsRestartOnPoolChange(ambient({ id: "dance", cycle: false }), "idle")).toBe(false);
+  });
+
+  it("is false when nothing is playing", () => {
+    expect(needsRestartOnPoolChange(null, "idle")).toBe(false);
   });
 });
