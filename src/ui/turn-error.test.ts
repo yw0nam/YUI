@@ -6,10 +6,10 @@
  * (filtered upstream in the dispatcher) and is not part of this mapping's input type.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IDLE_TIMEOUT_MS } from "../dispatcher/backend-caller";
 import { setLocale, t } from "./i18n";
-import { routeTurnFailure, turnErrorMessage } from "./turn-error";
+import { routeTurnFailure, turnErrorFixAction, turnErrorMessage } from "./turn-error";
 
 describe("turnErrorMessage", () => {
   beforeEach(() => setLocale("en"));
@@ -63,6 +63,39 @@ describe("turnErrorMessage", () => {
 
   it("returns undefined for superseded_by_user (not a failure)", () => {
     expect(turnErrorMessage("superseded_by_user")).toBeUndefined();
+  });
+});
+
+describe("turnErrorFixAction", () => {
+  beforeEach(() => setLocale("en"));
+  afterEach(() => setLocale("en"));
+
+  it("gives not_configured a labeled action that opens the Advanced tab", () => {
+    const openSettings = vi.fn();
+
+    const action = turnErrorFixAction("not_configured", openSettings);
+
+    expect(action?.label).toBe(t("input.error_open_settings"));
+    action?.onClick();
+    expect(openSettings).toHaveBeenCalledWith("adv");
+  });
+
+  it("localizes the action label", () => {
+    setLocale("ko");
+    expect(turnErrorFixAction("not_configured", () => {})?.label).toBe("설정 열기");
+  });
+
+  it("offers nothing for failures the settings panel cannot fix", () => {
+    const reasons = [
+      "http_4xx_drop",
+      "network_drop",
+      "network_stall",
+      "parse_error",
+      "superseded_by_user",
+    ] as const;
+    for (const reason of reasons) {
+      expect(turnErrorFixAction(reason, () => {})).toBeUndefined();
+    }
   });
 });
 

@@ -112,6 +112,30 @@ describe("createQuickControls — tabs + VAD slider", () => {
     qc.dispose();
   });
 
+  it("open({ tab }) lands directly on the requested tab", () => {
+    const qc = buildQc();
+    qc.open(undefined, { tab: "adv" });
+
+    const adv = tabs(qc).find((tab) => tab.id === "yui-tab-adv")!;
+    expect(adv.getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, adv).hidden).toBe(false);
+    expect(qc.isOpen()).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("open({ tab }) switches an already-open panel to that tab", () => {
+    const qc = buildQc();
+    qc.open();
+    qc.open(undefined, { tab: "adv" });
+
+    const adv = tabs(qc).find((tab) => tab.id === "yui-tab-adv")!;
+    expect(adv.getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, adv).hidden).toBe(false);
+
+    qc.dispose();
+  });
+
   it("ArrowRight / ArrowLeft move the active tab (roving tabindex)", () => {
     const qc = buildQc();
     qc.open();

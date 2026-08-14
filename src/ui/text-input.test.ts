@@ -541,3 +541,57 @@ describe("input i18n labels — applied from a single site", () => {
     expect(textInputSrc).toMatch(/\bapplyLocaleLabels\(\);/);
   });
 });
+
+describe("showInputError — inline fix affordance", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function errorEl(): HTMLElement {
+    return mount.querySelector(".yui-input__error") as HTMLElement;
+  }
+
+  it("shows the message alone when no action is given", () => {
+    s.showInputError("boom");
+
+    expect(errorEl().textContent).toBe("boom");
+    expect(errorEl().querySelector(".yui-input__error-action")).toBeNull();
+  });
+
+  it("renders an action button that runs its handler on click", () => {
+    const onClick = vi.fn();
+    s.showInputError("boom", { label: "Open settings", onClick });
+
+    const button = errorEl().querySelector<HTMLButtonElement>(".yui-input__error-action")!;
+    expect(button).not.toBeNull();
+    expect(button.type).toBe("button");
+    expect(button.textContent).toBe("Open settings");
+    expect(errorEl().textContent).toContain("boom");
+
+    button.click();
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops the action button when the next error carries none", () => {
+    s.showInputError("boom", { label: "Open settings", onClick: vi.fn() });
+    s.showInputError("later");
+
+    expect(errorEl().querySelector(".yui-input__error-action")).toBeNull();
+    expect(errorEl().textContent).toBe("later");
+  });
+
+  it("clears the action button when the input is summoned again", () => {
+    s.showInputError("boom", { label: "Open settings", onClick: vi.fn() });
+    s.summonInput();
+
+    expect(errorEl().querySelector(".yui-input__error-action")).toBeNull();
+  });
+});
