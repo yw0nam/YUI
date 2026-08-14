@@ -15,7 +15,12 @@ import {
 } from "../../io/endpoints-settings";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
-import { CHATKEY_EYE_OFF_SVG, CHATKEY_EYE_SVG, ENDPOINT_FIELDS } from "./constants";
+import {
+  CHAT_PROVIDER_PRESETS,
+  CHATKEY_EYE_OFF_SVG,
+  CHATKEY_EYE_SVG,
+  ENDPOINT_FIELDS,
+} from "./constants";
 import { validateEndpointInput } from "./reflect";
 
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
@@ -74,6 +79,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   // TTS engine dropdown + irodori/openai subviews (Advanced tab). Chat API dropdown (no subviews).
   const ttsTypeEl = el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
   const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
+  const chatPresetEl = el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
 
   // Endpoint inputs — map of input nodes by field key.
   const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
@@ -184,6 +190,25 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     // Store subscription (unsubscribeEndpoints) calls reflect.reflectChatType to update value/summary hint.
   }
 
+  // Single write path for endpoint text fields — typing and the chat provider preset both land here.
+  function commitEndpointField(key: keyof EndpointOverrides, value: string): void {
+    const input = epInputs.get(key)!;
+    // Skip the assignment while typing: rewriting an identical value moves the caret in some browsers.
+    if (input.value !== value) input.value = value;
+    endpointsSettings.set({ [key]: value });
+    validateEndpointInput(key, input);
+  }
+
+  // ── Advanced section: chat provider preset dropdown (chat_base_url autofill) ──
+  // Custom autofills nothing — it is the state the dropdown lands in when the URL matches no preset.
+  function handleChatPresetChange(): void {
+    const preset = CHAT_PROVIDER_PRESETS.find((p) => p.id === chatPresetEl.value);
+    if (!preset) return;
+    commitEndpointField("chat_base_url", preset.url);
+    log.info("chat_preset_select", { preset: preset.id });
+    // Store subscription (unsubscribeEndpoints) calls reflect.reflectChatPreset to re-derive the selected preset.
+  }
+
   // ── Endpoints section ──
 
   function handleEndpointInput(e: Event): void {
@@ -192,8 +217,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     const row = input.closest<HTMLDivElement>(".yui-input-row");
     const key = row?.dataset.epField as keyof EndpointOverrides | undefined;
     if (!key) return;
-    endpointsSettings.set({ [key]: input.value });
-    validateEndpointInput(key, input);
+    commitEndpointField(key, input.value);
   }
 
   // On blur, reflect pending remote changes from mid-edit (same as instructions textarea).
@@ -234,6 +258,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   // ── Wiring ──
   ttsTypeEl.addEventListener("change", handleTtsTypeChange);
   chatTypeEl.addEventListener("change", handleChatTypeChange);
+  chatPresetEl.addEventListener("change", handleChatPresetChange);
   for (const input of epInputs.values()) {
     input.addEventListener("input", handleEndpointInput);
     input.addEventListener("blur", handleEndpointBlur);
@@ -255,6 +280,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     commitDirtyKeys();
     ttsTypeEl.removeEventListener("change", handleTtsTypeChange);
     chatTypeEl.removeEventListener("change", handleChatTypeChange);
+    chatPresetEl.removeEventListener("change", handleChatPresetChange);
     for (const input of epInputs.values()) {
       input.removeEventListener("input", handleEndpointInput);
       input.removeEventListener("blur", handleEndpointBlur);

@@ -27,6 +27,8 @@ import { reflectUnlessEditing } from "../reflect-unless-editing";
 import type { VoiceInputStatusSnapshot } from "../voice-input-status";
 import {
   CHAT_API_LABEL_KEYS,
+  CHAT_PRESET_CUSTOM,
+  CHAT_PROVIDER_PRESETS,
   type ChatApi,
   ENDPOINT_FIELDS,
   LANG_PICKER_ORDER,
@@ -101,6 +103,7 @@ export interface Reflect {
   reflectLanguage(): void;
   reflectVoiceEngine(): void;
   reflectChatType(): void;
+  reflectChatPreset(): void;
   reflectEndpoints(): void;
   reflectKeyRows(): void;
   reflectSession(): void;
@@ -148,6 +151,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const ttsSummaryHintEl = root.querySelector<HTMLSpanElement>(".yui-tts-summary-hint")!;
   const chatTypeEl = root.querySelector<HTMLSelectElement>(".yui-chat-type")!;
   const chatSummaryHintEl = root.querySelector<HTMLSpanElement>(".yui-chat-summary-hint")!;
+  const chatPresetEl = root.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
   const spkScrollEl = root.querySelector<HTMLDivElement>(".yui-spk-scroll")!;
   const spkFootEl = root.querySelector<HTMLDivElement>(".yui-spk-foot")!;
   const spksHintEl = root.querySelector<HTMLParagraphElement>(".yui-spks-hint")!;
@@ -297,6 +301,14 @@ export function createReflect(deps: ReflectDeps): Reflect {
     chatSummaryHintEl.textContent = t(CHAT_API_LABEL_KEYS[eff]);
   }
 
+  // Chat provider preset dropdown — the preset whose URL the chat_base_url override matches exactly, else Custom.
+  function reflectChatPreset(): void {
+    const url = endpointsSettings.get().chat_base_url.trim();
+    const match = CHAT_PROVIDER_PRESETS.find((p) => p.url === url);
+    const next = match ? match.id : CHAT_PRESET_CUSTOM;
+    if (chatPresetEl.value !== next) chatPresetEl.value = next;
+  }
+
   function reflectEndpoints(): void {
     const ov = endpointsSettings.get();
     // Placeholders fill after config loads (panel created before), so refresh every reflect.
@@ -375,6 +387,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectLanguage,
     reflectVoiceEngine,
     reflectChatType,
+    reflectChatPreset,
     reflectEndpoints,
     reflectKeyRows,
     reflectSession,

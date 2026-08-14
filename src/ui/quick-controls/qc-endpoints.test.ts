@@ -10,7 +10,7 @@ import { createProactiveSettings } from "../../io/proactive-settings";
 import { createScheduleSettings } from "../../io/schedule-settings";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
 import type { createVrmSelection } from "../../io/vrm-selection";
-import { setLocale } from "../i18n";
+import { setLocale, t } from "../i18n";
 import { createQuickControls } from "../quick-controls";
 import {
   defaultQcArgs,
@@ -868,6 +868,128 @@ describe("createQuickControls — endpoints + API keys", () => {
     sel.value = "responses";
     sel.dispatchEvent(new Event("change", { bubbles: true }));
     expect(endpointsSettings.get().chat_api).toBe("responses");
+
+    qc.dispose();
+  });
+
+  // ── Chat provider preset dropdown (chat_base_url autofill) ──────────────────
+
+  function chatPresetSelect(qc: { el: HTMLElement }): HTMLSelectElement {
+    return qc.el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
+  }
+  function chatUrlInput(qc: { el: HTMLElement }): HTMLInputElement {
+    return qc.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
+  }
+
+  const PRESET_URLS: readonly [string, string][] = [
+    ["openai", "https://api.openai.com/v1"],
+    ["ollama", "http://localhost:11434/v1"],
+    ["lmstudio", "http://localhost:1234/v1"],
+    ["groq", "https://api.groq.com/openai/v1"],
+  ];
+
+  it("renders an interactive provider-preset dropdown in the Chat section", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const sel = chatPresetSelect(qc);
+    expect(sel).not.toBeNull();
+    expect(qc.el.querySelector('#yui-panel-adv details[data-svc="chat"]')!.contains(sel)).toBe(
+      true,
+    );
+    expect(sel.classList.contains("yui-select")).toBe(true);
+    expect(sel.disabled).toBe(false);
+    expect(Array.from(sel.options).map((o) => o.value)).toEqual([
+      ...PRESET_URLS.map(([id]) => id),
+      "custom",
+    ]);
+    // Brand names are not localized.
+    expect(Array.from(sel.options).map((o) => o.textContent)).toEqual([
+      "OpenAI",
+      "Ollama",
+      "LM Studio",
+      "Groq",
+      t("svc.chat_preset_custom"),
+    ]);
+
+    qc.dispose();
+  });
+
+  it("selecting a provider preset fills the chat base URL field and commits the override", () => {
+    for (const [id, url] of PRESET_URLS) {
+      endpointsSettings.reset();
+      const qc = buildQc();
+      qc.open();
+
+      const sel = chatPresetSelect(qc);
+      sel.value = id;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+
+      expect(chatUrlInput(qc).value).toBe(url);
+      expect(endpointsSettings.get().chat_base_url).toBe(url);
+      // Presets only touch the URL — model and chat_api stay as configured.
+      expect(endpointsSettings.get().chat_model).toBe("");
+      expect(endpointsSettings.get().chat_api).toBe("");
+
+      qc.dispose();
+      qc.el.remove();
+    }
+  });
+
+  it("flips the preset dropdown to Custom when the chat base URL is edited by hand", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const sel = chatPresetSelect(qc);
+    sel.value = "ollama";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(sel.value).toBe("ollama");
+
+    const input = chatUrlInput(qc);
+    input.value = "http://localhost:9999/v1";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(sel.value).toBe("custom");
+    expect(endpointsSettings.get().chat_base_url).toBe("http://localhost:9999/v1");
+
+    qc.dispose();
+  });
+
+  it("reflects the preset matching the stored chat base URL on open", () => {
+    endpointsSettings.set({ chat_base_url: "https://api.groq.com/openai/v1" });
+    const qc = buildQc();
+    qc.open();
+    expect(chatPresetSelect(qc).value).toBe("groq");
+    qc.dispose();
+  });
+
+  it("shows Custom on open when the stored chat base URL matches no preset", () => {
+    endpointsSettings.set({ chat_base_url: "http://localhost:8643/v1" });
+    const qc = buildQc();
+    qc.open();
+    expect(chatPresetSelect(qc).value).toBe("custom");
+    qc.dispose();
+  });
+
+  it("shows Custom on open when no chat base URL override is stored", () => {
+    const qc = buildQc();
+    qc.open();
+    expect(chatPresetSelect(qc).value).toBe("custom");
+    qc.dispose();
+  });
+
+  it("selecting Custom leaves the chat base URL untouched", () => {
+    endpointsSettings.set({ chat_base_url: "https://api.openai.com/v1" });
+    const qc = buildQc();
+    qc.open();
+
+    const sel = chatPresetSelect(qc);
+    expect(sel.value).toBe("openai");
+    sel.value = "custom";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(endpointsSettings.get().chat_base_url).toBe("https://api.openai.com/v1");
+    expect(chatUrlInput(qc).value).toBe("https://api.openai.com/v1");
 
     qc.dispose();
   });

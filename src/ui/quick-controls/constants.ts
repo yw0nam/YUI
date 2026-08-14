@@ -56,6 +56,22 @@ export const CHAT_API_LABEL_KEYS: Record<ChatApi, string> = {
   chat_completions: "svc.chat_type_completions",
 };
 
+// Chat provider presets (Advanced tab, chat card) — selecting one autofills chat_base_url with the
+// provider's OpenAI-compatible path. Brand names are display-as-is, never localized. "custom" is the
+// no-autofill entry the dropdown falls back to when the URL matches no preset.
+export const CHAT_PRESET_CUSTOM = "custom";
+export interface ChatProviderPreset {
+  id: string;
+  name: string;
+  url: string;
+}
+export const CHAT_PROVIDER_PRESETS: readonly ChatProviderPreset[] = [
+  { id: "openai", name: "OpenAI", url: "https://api.openai.com/v1" },
+  { id: "ollama", name: "Ollama", url: "http://localhost:11434/v1" },
+  { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234/v1" },
+  { id: "groq", name: "Groq", url: "https://api.groq.com/openai/v1" },
+];
+
 // Tab icons — same line-icon vocabulary as other icon buttons (1.7 stroke, 24x24 viewBox). Only clue when rail collapses.
 // Input icon reuses the same path as the voice_input row icon in the input tab.
 export const TAB_ICON_TALK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6.8A2.3 2.3 0 0 1 6.3 4.5h11.4A2.3 2.3 0 0 1 20 6.8v6.4a2.3 2.3 0 0 1-2.3 2.3H10l-4.3 3.3v-3.3H6.3A2.3 2.3 0 0 1 4 13.2V6.8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg>`;

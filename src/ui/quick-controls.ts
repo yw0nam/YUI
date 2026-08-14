@@ -513,6 +513,7 @@ export function createQuickControls({
       reflect.reflectKeyRows();
       reflect.reflectVoiceEngine();
       reflect.reflectChatType();
+      reflect.reflectChatPreset();
       reflect.reflectSession();
       history?.render();
       vrmList.render();
@@ -1012,6 +1013,7 @@ export function createQuickControls({
       reflect.reflectEndpoints();
       reflect.reflectVoiceEngine();
       reflect.reflectChatType();
+      reflect.reflectChatPreset();
       // If provider change flips speaker activation, redraw list to re-evaluate disabled state.
       const nowSpkEnabled = speakerControlsEnabled();
       if (nowSpkEnabled !== lastSpkEnabled) {
