@@ -196,6 +196,19 @@ const en: Record<string, string> = {
   "expression.mouth_aria": "Mouth movement",
   "expression.mouth_hint": "Dragging opens the character's mouth that much in real time",
 
+  // idle motion selection (labels keyed by the variant file stem)
+  "idle_motion.section": "Idle motion",
+  "idle_motion.group_aria": "Idle motion selection",
+  "idle_motion.always_on": "always on",
+  "idle_motion.calm.label": "Standing calmly",
+  "idle_motion.calm.sub": "Baseline pose, hands folded in front",
+  "idle_motion.idle_01.label": "Playful gesture",
+  "idle_motion.idle_01.sub": "Hands framed at the chest with a slight turn",
+  "idle_motion.idle_04.label": "Touching her hair",
+  "idle_motion.idle_04.sub": "A coy three-quarter turn, one hand to her hair",
+  "idle_motion.idle_12.label": "Leaning on one hip",
+  "idle_motion.idle_12.sub": "Weight shifted to one side with a subtle head tilt",
+
   // viewpoint (camera orbit)
   "viewpoint.section": "Viewpoint",
   "viewpoint.sub": "Shift + drag to orbit, scroll to zoom",

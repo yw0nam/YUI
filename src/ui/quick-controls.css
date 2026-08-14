@@ -477,6 +477,12 @@
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
+/* Locked on — the baseline idle variant cannot be turned off. */
+.yui-switch[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
 /* ── Chat section: field row (label+sub+control) ── */
 .yui-field-row {
   padding: 0.5rem 0.55rem 0.2rem;

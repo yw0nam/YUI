@@ -33,6 +33,7 @@ import { createUserInputSource } from "./dispatcher/user-input-source";
 import { CAMERA_WHEEL_SENSITIVITY, CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN } from "./io/camera-settings";
 import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/endpoints-settings";
+import { enabledIdleVariants } from "./io/idle-motion-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener } from "./io/settings-window";
@@ -186,6 +187,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     chatHistoryStore,
     sessionStore,
     sessionDiagnostics,
+    idleMotionSettings,
   } = settingsStores;
   // Every store in the bag shares the same lifecycle, so teardown iterates the bag itself:
   // a store added to createSettingsStores is disposed without touching this loop.
@@ -325,6 +327,14 @@ async function bootstrap(): Promise<BootstrapHandle> {
       getDefaultChatApi: () => {
         try {
           return config.get().endpoints.chat_api;
+        } catch {
+          return undefined;
+        }
+      },
+      idleMotionSettings,
+      getIdlePool: () => {
+        try {
+          return config.get().motions.idle;
         } catch {
           return undefined;
         }
@@ -482,7 +492,15 @@ async function bootstrap(): Promise<BootstrapHandle> {
     }
     const unsubscribeConfig = config.subscribe((cfg, changed) => {
       if (changed.has("emotionRegistry")) renderer.setEmotionRegistry(cfg.emotionRegistry);
-      if (changed.has("motions")) renderer.setMotionRegistry(cfg.motions);
+      if (changed.has("motions")) {
+        // The enabled pool is catalog ∩ overlay, so a new catalog needs the intersection redone.
+        // Applied before the registry — as at boot — so the baseline it replays already honors it.
+        const idlePool = cfg.motions.idle;
+        if (idlePool) {
+          renderer.setIdleVariants(enabledIdleVariants(idlePool, idleMotionSettings.get()));
+        }
+        renderer.setMotionRegistry(cfg.motions);
+      }
       if (changed.has("guardrails")) {
         configured.guardrails.setConfig(cfg.guardrails);
         surfaces.setAttachmentLimits(cfg.guardrails.attachments);

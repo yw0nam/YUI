@@ -45,8 +45,10 @@ import { mirrorClipTracks } from "./mirror-clip";
 import {
   createMotionController,
   type MotionController,
+  poolSelectionChanged,
   type RenderMotionSignal,
   type ResolvedMotion,
+  shouldRestartIdle,
 } from "./motion-controller";
 import { resolveBaselineFallback } from "./motion-fallback";
 import { createMotionStartGeneration } from "./motion-start-generation";
@@ -93,6 +95,9 @@ const ORBIT_SETTLE_EPS = 1e-3;
 
 /** Idle (ambient-only) frame cap — full refresh is reserved for active animation. */
 const IDLE_FPS = 30;
+
+/** Ambient baseline pool id — the only pool whose variants the user selects. */
+const IDLE_POOL_ID = "idle";
 
 interface RendererOptions {
   /** Canvas element to mount the VRM render. */
@@ -178,6 +183,11 @@ export interface Renderer {
    * VRM is already loaded, plays the idle baseline.
    */
   setMotionRegistry(registry: MotionRegistry): void;
+  /**
+   * Restrict the ambient idle pool to these variant paths (the user's Character-tab selection).
+   * Applies to the next rotation — a variant already playing finishes its cycle first.
+   */
+  setIdleVariants(paths: readonly string[]): void;
   /**
    * Update fit-to-bounds framing. Merge only given keys onto current framing
    * (omitted keys retain defaults); if VRM is loaded, immediately refit.
@@ -380,8 +390,20 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   // ── Motion playback state ──────────────────────────────────────────────
   let motionRegistry: MotionRegistry | undefined = options.motionRegistry;
+  /** User-selected ambient idle variants; null until the settings overlay is applied. */
+  let idleVariants: readonly string[] | null = null;
+  /** Every controller resolves the ambient pool through the live selection. */
+  function newMotionController(registry: MotionRegistry): MotionController {
+    return createMotionController(registry, {
+      variantFilter: (id, variants) => {
+        const enabled = idleVariants;
+        if (id !== IDLE_POOL_ID || !enabled) return variants;
+        return variants.filter((v) => enabled.includes(v));
+      },
+    });
+  }
   let controller: MotionController | undefined = motionRegistry
-    ? createMotionController(motionRegistry)
+    ? newMotionController(motionRegistry)
     : undefined;
   /** AnimationMixer for current VRM only (recreated on each hotswap). */
   let mixer: THREE.AnimationMixer | undefined;
@@ -595,7 +617,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     currentAction = undefined;
     // Controller has no simple no-op reset, so recreate to empty current/queue.
     // (Clips are VRM-specific so idle baseline must be replayed on next VRM anyway.)
-    if (motionRegistry) controller = createMotionController(motionRegistry);
+    if (motionRegistry) controller = newMotionController(motionRegistry);
   }
 
   function disposeCurrent(): void {
@@ -848,9 +870,26 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   function setMotionRegistry(registry: MotionRegistry): void {
     motionRegistry = registry;
-    controller = createMotionController(registry);
+    controller = newMotionController(registry);
     // If VRM is already loaded, immediately start idle baseline.
     if (currentVrm && mixer) playIdleBaseline();
+  }
+
+  function setIdleVariants(paths: readonly string[]): void {
+    const previous = idleVariants;
+    const next = [...paths];
+    idleVariants = next;
+    if (!poolSelectionChanged(previous, next)) return;
+    // Nothing is playable before a VRM+mixer exist, so no motion can be stuck yet.
+    const playing = currentVrm && mixer ? (controller?.current() ?? null) : null;
+    if (shouldRestartIdle(previous, next, playing, IDLE_POOL_ID)) {
+      // A pool of one loops without ever finishing — only a replay picks the change up.
+      playIdleBaseline();
+      return;
+    }
+    // Otherwise the change rides the next re-resolve. Drop the cached return target so a motion
+    // playing over the pool cannot restore a resolution captured before the change.
+    controller?.invalidatePool(IDLE_POOL_ID);
   }
 
   /** setEmotion — delegate to emotion crossfade (stable reference for routeDirective). */
@@ -938,6 +977,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       return cur ? { id: cur.id, vrma_path: cur.vrma_path } : null;
     },
     setMotionRegistry,
+    setIdleVariants,
     setEmotionRegistry,
     setFraming,
     setZoom,

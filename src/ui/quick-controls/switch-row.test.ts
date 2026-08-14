@@ -30,6 +30,7 @@ function render(switchRows: readonly SwitchRow[]): HTMLElement {
     hasSession: false,
     showSessionReset: false,
     showViewpoint: false,
+    showIdleMotion: false,
     switchRows,
     showPresence: false,
     showDevtools: false,

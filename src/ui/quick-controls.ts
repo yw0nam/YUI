@@ -13,6 +13,7 @@ import type { createChatHistoryStore } from "../io/chat-history-store";
 import type { ChatKeySettingsStore } from "../io/chat-key-settings";
 import type { createEndpointsSettings, EndpointOverrides } from "../io/endpoints-settings";
 import type { createFillerSettings } from "../io/filler-settings";
+import type { IdleMotionSettingsStore, IdleVariantPool } from "../io/idle-motion-settings";
 import {
   type createLipsyncSettings,
   LIPSYNC_GAIN_MAX,
@@ -35,6 +36,7 @@ import { type Locale, setLocale, t } from "./i18n";
 import type { QuickControlsTab } from "./quick-controls/constants";
 import { createEndpointsSection } from "./quick-controls/endpoints-section";
 import { createHistorySection } from "./quick-controls/history-section";
+import { createIdleMotionList } from "./quick-controls/idle-motion-section";
 import { createMonitorsSection } from "./quick-controls/monitors-section";
 import { createPopover } from "./quick-controls/popover";
 import { createReflect } from "./quick-controls/reflect";
@@ -146,6 +148,10 @@ interface QuickControlsOptions {
   presenceSettings?: ClampedIntSettingsStore;
   /** Section rail collapse state store. */
   railCollapsedSettings?: FlagSettingsStore;
+  /** Per-variant idle-motion on/off store. If absent, the idle-motion section won't render. */
+  idleMotionSettings?: IdleMotionSettingsStore;
+  /** The read-only `idle` catalog entry backing that section (undefined until configs load). */
+  getIdlePool?: () => IdleVariantPool | undefined;
 }
 
 interface QuickControls {
@@ -330,6 +336,8 @@ export function createQuickControls({
   bubblePersistSettings,
   presenceSettings,
   railCollapsedSettings,
+  idleMotionSettings,
+  getIdlePool,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // Context-occupancy readout renders only in the settings window, when both stores are injected.
@@ -363,6 +371,7 @@ export function createQuickControls({
     hasSession,
     showSessionReset,
     showViewpoint: !!onResetViewpoint,
+    showIdleMotion: !!idleMotionSettings,
     switchRows: TOGGLE_SPECS,
     showPresence: !!presenceSettings,
     showDevtools: !isWindow && !!onOpenDevtools,
@@ -479,6 +488,17 @@ export function createQuickControls({
 
   const vrmList = createVrmList({ root: el, vrmSelection, swapVrm, importVrm, removeUserVrm, log });
 
+  // ── Idle motion section ──
+
+  const idleMotionList = idleMotionSettings
+    ? createIdleMotionList({
+        root: el,
+        settings: idleMotionSettings,
+        getPool: () => getIdlePool?.(),
+        log,
+      })
+    : undefined;
+
   // ── Speaker section ──
   const speakerList = createSpeakerList({
     root: el,
@@ -522,6 +542,7 @@ export function createQuickControls({
       hideSessionConfirm();
       history?.render();
       vrmList.render();
+      idleMotionList?.render();
       // Provider may have changed while closed; re-sync baseline on open.
       lastSpkEnabled = speakerControlsEnabled();
       speakerList.render();
@@ -1048,6 +1069,10 @@ export function createQuickControls({
   const unsubscribeSession = sessionDiagnostics?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectSession();
   });
+  // Reflect idle-motion updates (this window's toggle · other window's reloadFromStorage) to the rows.
+  const unsubscribeIdleMotion = idleMotionSettings?.subscribe(() => {
+    if (popover.isOpen()) idleMotionList?.render();
+  });
 
   switchBtn.addEventListener("click", handleSwitchClick);
   const toggleButtons = TOGGLE_SPECS.map((spec) =>
@@ -1113,6 +1138,7 @@ export function createQuickControls({
     unsubscribeVrm();
     unsubscribeSpk();
     unsubscribeSession?.();
+    unsubscribeIdleMotion?.();
     speakerList.dispose();
     popover.dispose();
     switchBtn.removeEventListener("click", handleSwitchClick);

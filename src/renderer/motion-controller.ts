@@ -68,6 +68,12 @@ interface MotionControllerOptions {
   rng?: () => number;
   /** default logger.warn */
   warn?: (msg: string) => void;
+  /**
+   * Narrows a pool's variants to the ones the user allows. Consulted on every resolve, so a
+   * selection change applies to the next rotation without re-creating the controller. An empty
+   * result falls through to the entry's own `vrma_path`.
+   */
+  variantFilter?: (id: string, variants: readonly string[]) => readonly string[];
 }
 
 export interface MotionController {
@@ -101,6 +107,50 @@ export interface MotionController {
 
   /** Returns the configured baseline motion id (single source of truth). */
   baseline(): string;
+
+  /**
+   * Drops the cached return target when it belongs to `id`. finish() then re-resolves that id
+   * instead of replaying a resolution captured before its variant selection changed. Other pools
+   * keep their cached resolution, so a held pose still resumes exactly as it was.
+   */
+  invalidatePool(id: string): void;
+}
+
+/**
+ * Whether changing `poolId`'s variant selection has to restart it to take effect.
+ *
+ * A cycling pool re-resolves on every finish, so a change lands on the next rotation by itself.
+ * A pool narrowed to one variant resolves with `cycle: false` and loops continuously — it never
+ * finishes, so without a restart it would stay on that variant even after the pool widens again.
+ */
+export function needsRestartOnPoolChange(current: ResolvedMotion | null, poolId: string): boolean {
+  return !!current && current.id === poolId && !current.cycle;
+}
+
+/** Whether a newly applied variant selection differs from the one already in force. */
+export function poolSelectionChanged(
+  previous: readonly string[] | null,
+  next: readonly string[],
+): boolean {
+  return (
+    !previous || previous.length !== next.length || next.some((path, i) => path !== previous[i])
+  );
+}
+
+/**
+ * Whether applying `next` over `previous` has to replay the pool motion right now.
+ *
+ * Only the stuck combination qualifies: the selection actually changed *and* the pool is the
+ * motion playing without a cycle. Everything else re-reads the selection on its own — a cycling
+ * pool on its next rotation, a covered pool when the motion above it finishes.
+ */
+export function shouldRestartIdle(
+  previous: readonly string[] | null,
+  next: readonly string[],
+  current: ResolvedMotion | null,
+  poolId: string,
+): boolean {
+  return poolSelectionChanged(previous, next) && needsRestartOnPoolChange(current, poolId);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -129,12 +179,14 @@ export function createMotionController(
   const baselineId = opts?.baselineId ?? "idle";
   const rng = opts?.rng ?? Math.random;
   const warn = opts?.warn ?? ((msg: string) => log.warn(msg));
+  const variantFilter = opts?.variantFilter;
 
   /** Per-id cursor for sequential variant_policy. */
   const seqCursors = new Map<string, number>();
 
-  /** Per-id prior selected index for random variant_policy — avoids repetition. */
-  const lastRandomIndex = new Map<string, number>();
+  /** Per-id prior selected path for random variant_policy — avoids repetition. Keyed by path,
+   * not index, because a filtered pool changes what an index points at. */
+  const lastRandomPath = new Map<string, string>();
 
   /** Currently playing (committed) motion. */
   let current: ResolvedMotion | null = null;
@@ -150,24 +202,25 @@ export function createMotionController(
       return null;
     }
 
-    // Select variant.
+    // Select variant. The filter runs per resolve, so a user selection change lands on the next pick.
     let vrma_path = entry.vrma_path;
-    const variants = entry.variants;
+    let variants: readonly string[] | undefined = entry.variants;
+    if (variants && variantFilter) variants = variantFilter(signal.id, variants);
     if (variants && variants.length > 0) {
       const policy = entry.variant_policy ?? "random";
       if (policy === "sequential") {
-        const cursor = seqCursors.get(signal.id) ?? 0;
+        // Modulo guards a cursor stored against a longer pool than the filter now yields.
+        const cursor = (seqCursors.get(signal.id) ?? 0) % variants.length;
         vrma_path = variants[cursor]!;
         seqCursors.set(signal.id, (cursor + 1) % variants.length);
       } else {
-        // random (default) — if same as previous index, shift by one to avoid repetition.
+        // random (default) — if same as the previous pick, shift by one to avoid repetition.
         let index = Math.min(variants.length - 1, Math.floor(rng() * variants.length));
-        const last = lastRandomIndex.get(signal.id);
-        if (last === index && variants.length > 1) {
+        if (variants[index] === lastRandomPath.get(signal.id) && variants.length > 1) {
           index = (index + 1) % variants.length;
         }
-        lastRandomIndex.set(signal.id, index);
         vrma_path = variants[index]!;
+        lastRandomPath.set(signal.id, vrma_path);
       }
     }
 
@@ -315,6 +368,9 @@ export function createMotionController(
     },
     baseline() {
       return baselineId;
+    },
+    invalidatePool(id) {
+      if (previousStable?.id === id) previousStable = null;
     },
   };
 }

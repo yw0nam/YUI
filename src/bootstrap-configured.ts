@@ -32,6 +32,7 @@ import { createCursorTracker } from "./io/cursor-tracker";
 import { createDragHoldSource } from "./io/drag-hold-source";
 import { createFrontmostTracker } from "./io/frontmost-tracker";
 import { createHitTestController } from "./io/hit-test";
+import { enabledIdleVariants } from "./io/idle-motion-settings";
 import { createPeekState } from "./io/peek-state";
 import type { ScreenCapturer } from "./io/screen-source-provider";
 import { buildScreenshotBlock } from "./io/screenshot-context";
@@ -156,6 +157,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       cameraSettings,
       gazeSettings,
       hintSettings,
+      idleMotionSettings,
     } = settings;
     const { vrmSelection, loadVrmSerialized } = vrm;
     const { speakerSelection, refreshVoiceList } = speaker;
@@ -275,6 +277,14 @@ const realFactories: ConfiguredBootstrapFactories = {
     voiceInput.setStt(sttVad);
     ensureActive();
     renderer.setEmotionRegistry(cfg.emotionRegistry);
+    // Ambient idle pool = catalog ∩ the user's selection; applied before the registry so the
+    // first baseline play already honors it, then re-applied live on every store change.
+    const applyIdleVariants = (): void => {
+      const pool = config.get().motions.idle;
+      if (pool) renderer.setIdleVariants(enabledIdleVariants(pool, idleMotionSettings.get()));
+    };
+    applyIdleVariants();
+    register(idleMotionSettings.subscribe(applyIdleVariants));
     renderer.setMotionRegistry(cfg.motions);
     renderer.setFraming(cfg.avatar.framing ?? {});
     renderer.setGaze(cfg.avatar.gaze ?? {});
