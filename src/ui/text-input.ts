@@ -9,7 +9,7 @@ import { ATTACHMENT_LIMITS_DEFAULTS, type AttachmentLimits } from "../config";
 import { subscribe as subscribeLocale, t } from "./i18n";
 import { downscaleToJpeg } from "./image-resize";
 
-/** In-place fix offered next to an inline error (e.g. "Open settings" on an unconfigured backend). */
+/** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
 export interface InputErrorAction {
   label: string;
   onClick(): void;
