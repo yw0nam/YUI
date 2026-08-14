@@ -37,13 +37,17 @@ Content-Type: application/json
 | `summary` | string | Yes | Speech material for the backend; capped at 8192 bytes at ingress |
 | `ts` | number | Yes | Epoch milliseconds when the hook fired |
 
-Each snippet first checks that the app's loopback ingress port is open and exits quietly when it isn't — the hook does no work (and, in Variant B, spends nothing on the summary model) unless YUI is running.
+Each snippet first checks that the app's loopback ingress port is open and exits quietly when it isn't — the hook does no work, and spends nothing on a model call, unless YUI is running.
 
 ## Wiring `phase:"done"` (Claude Code `Stop`)
 
-### Variant A — raw last message (zero cost)
+Both variants send the last assistant message as `detail`, the judgment material the backend grounds a next-step remark in, behind a size gate: at or under 1500 characters the message rides verbatim, above it a `claude -p … --model claude-haiku-4-5` call digests it first. The digest is a compact account of the work — several sentences where the task warrants it — distinct from the one-sentence `summary` that carries the speech material.
 
-Claude Code `Stop` hook that sends the last assistant message as the summary. No model call; the backend agent reads the raw text.
+The gate exists for the backend's context budget, not for the ingress limit. Four or five coding sessions running concurrently each contribute a transcript tail per completion, and full tails crowd out the rest of the turn's context. The 16384-byte `detail` cap at ingress is a safety cap against a runaway payload, not a per-turn budget.
+
+### Variant A — raw last message
+
+Claude Code `Stop` hook that sends the last assistant message as the summary, so the backend agent reads the raw text. It calls no model unless the message exceeds the `detail` size gate.
 
 ```bash
 (exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
@@ -51,14 +55,17 @@ input=$(cat)
 session_id=$(echo "$input" | jq -r '.session_id // empty')
 transcript_path=$(echo "$input" | jq -r '.transcript_path')
 last=$(jq -rs '[.[]|select(.type=="assistant")]|last|.message.content[]?|select(.type=="text").text' "$transcript_path")
-jq -n --arg s "$last" --arg cwd "$PWD" --arg sid "$session_id" \
-  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"done",session_id:$sid,summary:$s,ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
+if [ "${#last}" -le 1500 ]; then detail=$last; else
+  detail=$(printf '%s' "$last" | claude -p "Digest this into a compact account of what was done, what changed, and what is still open." --model claude-haiku-4-5)
+fi
+jq -n --arg s "$last" --arg d "$detail" --arg cwd "$PWD" --arg sid "$session_id" \
+  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"done",session_id:$sid,detail:$d,summary:$s,ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
 | curl -s -X POST localhost:8770/agent-event -d @-
 ```
 
 ### Variant B — cheap-model summary (recommended)
 
-Summarize the last message with Haiku before POSTing. The backend receives a concise, speech-ready sentence.
+Summarize the last message with Haiku before POSTing. The backend receives a concise, speech-ready sentence in `summary` and the size-gated message in `detail`.
 
 ```bash
 (exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
@@ -67,8 +74,11 @@ session_id=$(echo "$input" | jq -r '.session_id // empty')
 transcript_path=$(echo "$input" | jq -r '.transcript_path')
 last=$(jq -rs '[.[]|select(.type=="assistant")]|last|.message.content[]?|select(.type=="text").text' "$transcript_path")
 summary=$(printf '%s' "$last" | claude -p "Summarize what was done in one sentence." --model claude-haiku-4-5)
-jq -n --arg s "$summary" --arg cwd "$PWD" --arg sid "$session_id" \
-  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"done",session_id:$sid,summary:$s,ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
+if [ "${#last}" -le 1500 ]; then detail=$last; else
+  detail=$(printf '%s' "$last" | claude -p "Digest this into a compact account of what was done, what changed, and what is still open." --model claude-haiku-4-5)
+fi
+jq -n --arg s "$summary" --arg d "$detail" --arg cwd "$PWD" --arg sid "$session_id" \
+  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"done",session_id:$sid,detail:$d,summary:$s,ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
 | curl -s -X POST localhost:8770/agent-event -d @-
 ```
 
