@@ -1,4 +1,4 @@
-import type { AppConfig, FillerPool } from "./config/load";
+import type { AppConfig } from "./config/load";
 import type { EndpointsConfig } from "./contract";
 import type { TurnLog } from "./dispatcher/turn";
 import type { TurnOutput } from "./dispatcher/turn-output";
@@ -6,13 +6,11 @@ import { createWebAudioSink } from "./io/audio-player";
 import { selectFetch } from "./io/chat-client";
 import { createFillerAudioCache } from "./io/filler-audio-cache";
 import { createFillerLoop, type FillerLoop } from "./io/filler-loop";
-import { effectiveFillerPool } from "./io/filler-pool";
+import { effectiveFillerPool, fillerSubmissions, phraseSentences } from "./io/filler-pool";
 import type { FillerSettings } from "./io/filler-settings";
 import { createIrodoriTtsProvider } from "./io/irodori-synth";
-import { createSentenceSegmenter } from "./io/sentence-segmenter";
 import type { SpeakerOption } from "./io/speaker-selection";
 import { createSpeechPlayback, type SpeechPlayback } from "./io/speech-playback";
-import { createEmojiStripper } from "./io/strip-emoji";
 import type { SttVad } from "./io/stt-vad";
 import { TTS_SKIP } from "./io/tts-pipeline";
 import { selectProvider, type TtsProvider } from "./io/tts-provider";
@@ -20,25 +18,6 @@ import { createOpenAiTtsProvider } from "./io/tts-synth";
 import type { Renderer } from "./renderer";
 import type { Surfaces } from "./ui/surfaces";
 import type { VoiceInputStatus } from "./ui/voice-input-status";
-
-/**
- * The sentences a pool phrase actually reaches TTS as: the speech path strips emoji and splits on
- * sentence boundaries before submitting, so a phrase carrying either never arrives as written.
- * Runs the production stripper and segmenter so the two stay in step.
- */
-function fillerSubmissions(pool: FillerPool): Set<string> {
-  const submissions = new Set<string>();
-  for (const phrase of [...pool.first, ...pool.repeat]) {
-    const stripper = createEmojiStripper();
-    const segmenter = createSentenceSegmenter();
-    for (const sentence of segmenter.push(stripper.push(phrase) + stripper.flush())) {
-      submissions.add(sentence);
-    }
-    const rest = segmenter.flush();
-    if (rest) submissions.add(rest);
-  }
-  return submissions;
-}
 
 type VoiceRenderer = Pick<
   Renderer,
@@ -96,20 +75,19 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   const effectiveFiller = () =>
     effectiveFillerPool(deps.fillerSettings.get(), deps.getFillerConfig());
 
-  const cachedSynth = createFillerAudioCache({
+  const fillerCache = createFillerAudioCache({
     synth: (input, signal) => activeProvider().synth(input, signal),
     // Filler is spoken under motion-hold, which withholds cues from the pipeline, so a filler
     // submission never carries a voice tag and matching the plain sentences is enough.
-    isFiller: (text) => fillerSubmissions(effectiveFiller()).has(text),
-    // Everything that changes the rendered audio or the set of cacheable phrases. Audio held under
-    // an older key is dropped, which is also what keeps the map to the current pool.
+    submissions: () => fillerSubmissions(effectiveFiller()),
+    // Only what changes the rendered audio — a change here stales every entry. Editing the pool
+    // leaves the key alone and evicts per phrase instead.
     // The active speaker's revision is folded in on top of the provider's own paramsKey() so a
     // re-import committed in another window (settings) invalidates this window's (pet) cache too —
     // the provider's in-process revision only covers a re-import from the same window.
     paramsKey: () => {
-      const pool = effectiveFiller();
       const revision = deps.speakerSelection.getActive().revision ?? 0;
-      return [activeProvider().paramsKey(), revision, ...pool.first, ...pool.repeat].join("\n");
+      return [activeProvider().paramsKey(), revision].join("\n");
     },
   });
 
@@ -118,7 +96,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     // TTS inactive (toggle OFF or server unset) quietly skips — expressions/motions, bubble unchanged.
     if (!deps.ttsSettings.get().enabled) return Promise.reject(TTS_SKIP);
     if (!activeProvider().isReady()) return Promise.reject(TTS_SKIP);
-    return cachedSynth(input, signal);
+    return fillerCache.synth(input, signal);
   };
 
   // Filler loop speaks via speechPlayback (speak), playback completion (onPlaybackEnd) triggers
@@ -149,6 +127,12 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       gapMs: deps.getFillerConfig().gap_ms,
       jitterMs: deps.getFillerConfig().gap_jitter_ms,
     }),
+    // All-or-nothing: one uncached sentence would put the whole phrase back on the dead server.
+    // A phrase that submits nothing (emoji only) is not speakable either.
+    isCached: (phrase) => {
+      const sentences = phraseSentences(phrase);
+      return sentences.length > 0 && sentences.every((sentence) => fillerCache.has(sentence));
+    },
   });
 
   function hasFiller(): boolean {

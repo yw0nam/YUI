@@ -33,11 +33,17 @@ vi.mock("./io/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 
 import type { FillerPool } from "./config/load";
 import { createTurnLog } from "./dispatcher/turn";
+import type { SpeakerOption } from "./io/speaker-selection";
 import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
 
 // Custom pool phrases as a user writes them: emoji around the text and a sentence break inside it.
 const HESITATE = "🥺少し…⏸️考えさせて。";
 const TWO_SENTENCES = "うーん🤔。ちょっと待ってね😒。";
+const PHRASE_A = "えーっと。";
+const PHRASE_A_EDITED = "えーっとね。";
+const PHRASE_B = "ちょっと待ってね。";
+
+const SPEAKER: SpeakerOption = { id: "speaker-a", ref_url: "/speaker-a.wav" };
 
 function synthCalls(): number {
   return mocks.fetchImpl.mock.calls.filter(([url]) => String(url).endsWith("/v1/audio/speech"))
@@ -47,7 +53,12 @@ function synthCalls(): number {
 // Disposed after every case, so a failed assertion can't leave the filler loop running into the next.
 const wired: VoicePipeline[] = [];
 
-function setup(customPool: FillerPool, gapMs = 1_000): VoicePipeline {
+function setup(
+  customPool: FillerPool | (() => FillerPool),
+  gapMs = 1_000,
+  getSpeaker: () => SpeakerOption = () => SPEAKER,
+): VoicePipeline {
+  const pool = typeof customPool === "function" ? customPool : () => customPool;
   const voice = wireVoicePipeline({
     renderer: {
       setMouthOpen: vi.fn(),
@@ -76,10 +87,10 @@ function setup(customPool: FillerPool, gapMs = 1_000): VoicePipeline {
     ttsSettings: { get: () => ({ enabled: true }) },
     lipsyncSettings: { get: () => ({ gain: 1 }) },
     fillerSettings: {
-      get: () => ({ enabled: true, language: "ja" as const, customPools: { ja: customPool } }),
+      get: () => ({ enabled: true, language: "ja" as const, customPools: { ja: pool() } }),
     },
     vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: false }) },
-    speakerSelection: { getActive: () => ({ id: "speaker-a", ref_url: "/speaker-a.wav" }) },
+    speakerSelection: { getActive: getSpeaker },
     voiceInputStatus: { set: vi.fn() },
     onVoiceSegment: vi.fn(),
   });
@@ -151,5 +162,73 @@ describe("filler audio cache membership", () => {
     await speak(voice, "今日はいい天気だね。", 1);
     await speak(voice, "今日はいい天気だね。", 1);
     expect(synthCalls()).toBe(2);
+  });
+});
+
+describe("filler audio cache invalidation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    for (const voice of wired.splice(0)) voice.dispose();
+  });
+
+  it("re-synthesizes only the phrase whose text was edited", async () => {
+    let pool: FillerPool = { first: [PHRASE_A], repeat: [PHRASE_B] };
+    const voice = setup(() => pool);
+
+    await speak(voice, PHRASE_A, 1);
+    await speak(voice, PHRASE_B, 1);
+    expect(synthCalls()).toBe(2);
+
+    pool = { first: [PHRASE_A_EDITED], repeat: [PHRASE_B] };
+
+    // The untouched phrase keeps the audio it already has.
+    await speak(voice, PHRASE_B, 1);
+    expect(synthCalls()).toBe(2);
+
+    // Only the edited phrase is new to the cache.
+    await speak(voice, PHRASE_A_EDITED, 1);
+    expect(synthCalls()).toBe(3);
+  });
+
+  it("re-synthesizes every phrase when the speaker revision changes", async () => {
+    let revision = 1;
+    const voice = setup({ first: [PHRASE_A], repeat: [PHRASE_B] }, 1_000, () => ({
+      ...SPEAKER,
+      revision,
+    }));
+
+    await speak(voice, PHRASE_A, 1);
+    await speak(voice, PHRASE_B, 1);
+    expect(synthCalls()).toBe(2);
+
+    revision = 2;
+
+    await speak(voice, PHRASE_A, 1);
+    await speak(voice, PHRASE_B, 1);
+    expect(synthCalls()).toBe(4);
+  });
+
+  it("evicts a phrase that leaves the pool", async () => {
+    let pool: FillerPool = { first: [PHRASE_A], repeat: [PHRASE_B] };
+    const voice = setup(() => pool);
+
+    await speak(voice, PHRASE_B, 1);
+    expect(synthCalls()).toBe(1);
+
+    // Out of the pool it is no longer cacheable text and goes straight to the provider.
+    pool = { first: [PHRASE_A], repeat: [] };
+    await speak(voice, PHRASE_B, 1);
+    expect(synthCalls()).toBe(2);
+
+    // Re-added, it has no audio left to hit.
+    pool = { first: [PHRASE_A], repeat: [PHRASE_B] };
+    await speak(voice, PHRASE_B, 1);
+    expect(synthCalls()).toBe(3);
+
+    await speak(voice, PHRASE_B, 1);
+    expect(synthCalls()).toBe(3);
   });
 });

@@ -559,19 +559,32 @@ describe("wireVoicePipeline", () => {
     }
   });
 
-  it("drops cached filler audio when the filler pool is edited", async () => {
+  it("drops cached filler audio only for the phrase an edit removed from the pool", async () => {
     const state = setup();
     const synth = playbackOptions().pipeline!.synth!;
 
     await synth("first");
+    await synth("repeat");
+    expect(openaiCalls()).toHaveLength(2);
+
     state.setFillerConfig({
       gap_ms: 1_000,
       gap_jitter_ms: 100,
       pools: { ja: { first: ["first"], repeat: ["another"] } },
     });
-    await synth("first");
 
+    // The untouched phrase keeps its audio.
+    await synth("first");
     expect(openaiCalls()).toHaveLength(2);
+
+    // The edited-out phrase lost its audio: back in the pool, it synthesizes again.
+    state.setFillerConfig({
+      gap_ms: 1_000,
+      gap_jitter_ms: 100,
+      pools: { ja: { first: ["first"], repeat: ["repeat"] } },
+    });
+    await synth("repeat");
+    expect(openaiCalls()).toHaveLength(3);
   });
 
   it("reads pipeline, sink, filler, and VAD settings at call time", async () => {

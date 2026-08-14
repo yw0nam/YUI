@@ -12,6 +12,8 @@
 
 import type { FillerConfig, FillerPool } from "../config/load";
 import type { FillerSettings } from "./filler-settings";
+import { createSentenceSegmenter } from "./sentence-segmenter";
+import { createEmojiStripper } from "./strip-emoji";
 
 export function effectiveFillerPool(settings: FillerSettings, config: FillerConfig): FillerPool {
   if (!settings.enabled) return { first: [], repeat: [] };
@@ -21,4 +23,26 @@ export function effectiveFillerPool(settings: FillerSettings, config: FillerConf
   const first = custom && custom.first.length > 0 ? custom.first : (configPool?.first ?? []);
   const repeat = custom && custom.repeat.length > 0 ? custom.repeat : (configPool?.repeat ?? []);
   return { first, repeat };
+}
+
+/**
+ * The sentences a pool phrase actually reaches TTS as: the speech path strips emoji and splits on
+ * sentence boundaries before submitting, so a phrase carrying either never arrives as written.
+ * Runs the production stripper and segmenter so the two stay in step.
+ */
+export function phraseSentences(phrase: string): string[] {
+  const stripper = createEmojiStripper();
+  const segmenter = createSentenceSegmenter();
+  const sentences = segmenter.push(stripper.push(phrase) + stripper.flush());
+  const rest = segmenter.flush();
+  return rest ? [...sentences, rest] : sentences;
+}
+
+/** Every sentence the current pools can submit — the cacheable text of this turn. */
+export function fillerSubmissions(pool: FillerPool): Set<string> {
+  const submissions = new Set<string>();
+  for (const phrase of [...pool.first, ...pool.repeat]) {
+    for (const sentence of phraseSentences(phrase)) submissions.add(sentence);
+  }
+  return submissions;
 }
