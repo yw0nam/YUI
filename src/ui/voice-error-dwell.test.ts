@@ -7,7 +7,11 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createVoiceErrorDwell, VOICE_TURN_ERROR_DISPLAY_MS } from "./voice-error-dwell";
+import {
+  createVoiceErrorDwell,
+  VOICE_TURN_ERROR_DISPLAY_MS,
+  VOICE_TURN_FIX_HOLD_MS,
+} from "./voice-error-dwell";
 import { createVoiceInputStatus } from "./voice-input-status";
 
 describe("createVoiceErrorDwell", () => {
@@ -30,13 +34,30 @@ describe("createVoiceErrorDwell", () => {
     expect(status.get().state).toBe("listening");
   });
 
-  it("holds a not_configured failure indefinitely — the fix affordance must stay reachable", () => {
+  it("holds a not_configured failure well past the transient window", () => {
     const status = createVoiceInputStatus();
     createVoiceErrorDwell(status).show("not_configured");
 
     vi.advanceTimersByTime(VOICE_TURN_ERROR_DISPLAY_MS * 10);
 
     expect(status.get()).toMatchObject({ state: "error", detail: "not_configured" });
+  });
+
+  // The fix chip takes OS pointer events, so an unattended one would swallow
+  // clicks meant for whatever sits behind YUI. The hold is generous, not endless.
+  it("caps the hold — a not_configured error reverts to listening after the fix window", () => {
+    const status = createVoiceInputStatus();
+    createVoiceErrorDwell(status).show("not_configured");
+
+    vi.advanceTimersByTime(VOICE_TURN_FIX_HOLD_MS - 1);
+    expect(status.get().state).toBe("error");
+
+    vi.advanceTimersByTime(1);
+    expect(status.get().state).toBe("listening");
+  });
+
+  it("gives a fixable failure a longer hold than a transient one", () => {
+    expect(VOICE_TURN_FIX_HOLD_MS).toBeGreaterThan(VOICE_TURN_ERROR_DISPLAY_MS);
   });
 
   it("a held not_configured chip is not revived by a later transient revert", () => {

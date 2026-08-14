@@ -180,6 +180,20 @@ describe("createVoiceInputIndicator — not_configured settings affordance", () 
     expect(onOpenSettings).not.toHaveBeenCalled();
   });
 
+  it("keeps the default activation on a transient error — that chip has no fix to offer", () => {
+    const status = createVoiceInputStatus();
+    const onActivate = vi.fn();
+    const onOpenSettings = vi.fn();
+    createVoiceInputIndicator({ mount, status, onActivate, onOpenSettings });
+
+    status.set("error", "network_drop");
+    chip().click();
+
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(onOpenSettings).not.toHaveBeenCalled();
+    expect(status.get()).toMatchObject({ state: "error", detail: "network_drop" });
+  });
+
   it("drops the fix marking when the error is replaced by a transient one", () => {
     const status = createVoiceInputStatus();
     createVoiceInputIndicator({ mount, status, onActivate: () => {}, onOpenSettings: () => {} });
