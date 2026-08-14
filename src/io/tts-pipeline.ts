@@ -23,6 +23,8 @@ export interface TtsPipelineOptions {
   onPlaybackEnd?: () => void;
   // Fires once when each sentence starts playing (or on synth-failure skip). null = no cue for this sentence.
   onCuePlay?: (cue: ExpressArgs | null) => void;
+  // Fires when a sentence's synth rejects for real (TTS_SKIP does not count) — the provider is unreachable.
+  onSynthFailure?: () => void;
   // Concurrent-synth cap. Default 1 = serial. The function form is evaluated per drain, reading config lazily.
   maxInflight?: number | (() => number);
   logger?: Logger;
@@ -148,6 +150,8 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
             log.debug("synth", { index, skip: true });
           } else {
             log.error("synth", { index, error: String(err) });
+            // Before pump, so a listener that suppresses rescheduling wins over this index's onPlaybackEnd.
+            options.onSynthFailure?.();
           }
           failed.add(index);
           drainSynth();

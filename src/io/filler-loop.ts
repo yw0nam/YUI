@@ -2,9 +2,10 @@
  * TTFT filler loop scheduler — owns WHAT/WHEN to speak filler.
  *
  * Lifecycle:
- *   start()          — mark active, speak first phrase (or schedule first repeat)
+ *   start()           — mark active, speak first phrase (or schedule first repeat)
  *   onUtteranceDone() — schedule the next repeat after the gap+jitter delay
- *   stop()           — cancel pending timer, mark inactive
+ *   onSynthFailure()  — stay silent for the rest of this window
+ *   stop()            — cancel pending timer, mark inactive
  *
  * Pools and timing are read live on each turn so hot-reload takes effect immediately.
  * Bounded: at most one pending timer at any time; no cascading schedule on fire.
@@ -25,6 +26,8 @@ export interface FillerLoopDeps {
 export interface FillerLoop {
   start(): void;
   onUtteranceDone(): void;
+  /** A synth failure means the provider is unreachable — no phrase can be spoken until the next start(). */
+  onSynthFailure(): void;
   stop(): void;
 }
 
@@ -34,6 +37,7 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
   const rng = deps.random ?? Math.random;
 
   let active = false;
+  let suppressed = false;
   let pendingTimer: ReturnType<typeof setTimer> | undefined;
   let lastFirst: string | undefined;
   let lastRepeat: string | undefined;
@@ -71,6 +75,7 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
   return {
     start() {
       active = true;
+      suppressed = false;
       lastFirst = undefined;
       lastRepeat = undefined;
       const { first, repeat } = deps.getPools();
@@ -84,9 +89,14 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
     },
 
     onUtteranceDone() {
-      if (!active) return;
+      if (!active || suppressed) return;
       const { repeat } = deps.getPools();
       if (repeat.length > 0) scheduleNext();
+    },
+
+    onSynthFailure() {
+      suppressed = true;
+      cancelTimer();
     },
 
     stop() {

@@ -136,6 +136,9 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       sink: createWebAudioSink({ getGain: () => deps.lipsyncSettings.get().gain }),
       maxInflight: () => deps.getEndpoints().tts_max_inflight ?? 1,
       synth,
+      // A dead TTS server would otherwise be retried once per gap for the whole thinking window.
+      // Response-speech failures share the signal; the next thinking start clears it either way.
+      onSynthFailure: () => fillerLoop?.onSynthFailure(),
     },
   });
 
