@@ -6,7 +6,7 @@
  * the speech path therefore breaks this test instead of silently disabling the cache.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const sink = { play: vi.fn(async () => {}), stop: vi.fn() };
@@ -44,8 +44,11 @@ function synthCalls(): number {
     .length;
 }
 
-function setup(customPool: FillerPool): VoicePipeline {
-  return wireVoicePipeline({
+// Disposed after every case, so a failed assertion can't leave the filler loop running into the next.
+const wired: VoicePipeline[] = [];
+
+function setup(customPool: FillerPool, gapMs = 1_000): VoicePipeline {
+  const voice = wireVoicePipeline({
     renderer: {
       setMouthOpen: vi.fn(),
       stopMouth: vi.fn(),
@@ -67,7 +70,7 @@ function setup(customPool: FillerPool): VoicePipeline {
       tts_base_url: "http://tts.test",
       tts_provider: "openai",
     }),
-    getFillerConfig: () => ({ gap_ms: 1_000, gap_jitter_ms: 100, pools: {} }),
+    getFillerConfig: () => ({ gap_ms: gapMs, gap_jitter_ms: 0, pools: {} }),
     getTtsApiKey: vi.fn().mockResolvedValue(undefined),
     getSttApiKey: vi.fn().mockResolvedValue(undefined),
     ttsSettings: { get: () => ({ enabled: true }) },
@@ -80,6 +83,8 @@ function setup(customPool: FillerPool): VoicePipeline {
     voiceInputStatus: { set: vi.fn() },
     onVoiceSegment: vi.fn(),
   });
+  wired.push(voice);
+  return voice;
 }
 
 // Speaks one whole utterance and waits until every sentence it splits into has reached the sink.
@@ -92,6 +97,10 @@ async function speak(voice: VoicePipeline, text: string, segments: number): Prom
 describe("filler audio cache membership", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    for (const voice of wired.splice(0)) voice.dispose();
   });
 
   it("caches a filler phrase whose emoji the speech path strips before submission", async () => {
@@ -112,6 +121,28 @@ describe("filler audio cache membership", () => {
 
     await speak(voice, TWO_SENTENCES, 2);
     expect(synthCalls()).toBe(2);
+  });
+
+  it("keeps filler submissions cue-free when an express cue arrives during thinking", async () => {
+    // gap 0 so the loop's repeat lands without waiting; the same phrase in both pools makes the
+    // repeat the phrase already cached by the first utterance.
+    const voice = setup({ first: [HESITATE], repeat: [HESITATE] }, 0);
+
+    // The turn order the backend caller drives: interrupt, then thinking, then the express cue —
+    // which can land before the first speech delta and must stay held until thinking ends.
+    voice.turnOutput.interrupt();
+    voice.turnOutput.thinkingStart(1);
+    voice.turnOutput.cue({ emotion_id: "joy", emotion_text: "[cheerful]" });
+
+    await vi.waitFor(() => expect(mocks.sink.play.mock.calls.length).toBeGreaterThanOrEqual(1));
+    expect(synthCalls()).toBe(1);
+
+    // A cue reaching the pipeline would prefix the tag onto the next filler submission, and the
+    // cache would miss on text it never stored.
+    await vi.waitFor(() => expect(mocks.sink.play.mock.calls.length).toBeGreaterThanOrEqual(2));
+    expect(synthCalls()).toBe(1);
+
+    voice.turnOutput.thinkingEnd(1);
   });
 
   it("still re-synthesizes a response sentence that is not in the pool", async () => {
