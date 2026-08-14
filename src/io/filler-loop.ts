@@ -110,7 +110,7 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
       cancelTimer();
       if (degraded) return;
       degraded = true;
-      log.warn("degraded", { speakable: repeatCandidates().length });
+      log.warn("filler_degraded", { speakable: repeatCandidates().length });
     },
 
     stop() {

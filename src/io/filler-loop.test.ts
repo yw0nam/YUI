@@ -297,6 +297,7 @@ describe("createFillerLoop — degraded mode", () => {
       loop.onUtteranceDone();
     }
     expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith("filler_degraded", { speakable: 0 });
   });
 });
 
