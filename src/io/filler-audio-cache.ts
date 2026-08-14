@@ -58,8 +58,10 @@ export function createFillerAudioCache(deps: FillerAudioCacheDeps): FillerAudioC
       if (hit) return hit.slice(0);
 
       const wav = await deps.synth(input, signal);
-      // The params may have changed while this was in flight — that audio no longer belongs here.
-      if (currentKey === key) audio.set(input, wav.slice(0));
+      // The params or the pool may have moved on while this was in flight — audio for a phrase that
+      // is now stale or gone no longer belongs here, and no later prune would catch it.
+      const settled = sync();
+      if (settled.key === key && settled.submissions.has(input)) audio.set(input, wav.slice(0));
       return wav;
     },
 
