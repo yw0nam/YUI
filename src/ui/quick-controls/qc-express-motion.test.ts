@@ -119,6 +119,14 @@ describe("createQuickControls — express motion section", () => {
     expect(document.activeElement).toBe(sw);
   });
 
+  // role="switch" does not support aria-checked="mixed" — a user agent reports it as "off", so the
+  // half-lit track and the announced state would disagree. A checkbox carries the third state.
+  it("exposes the master as a tri-state checkbox, not a switch", () => {
+    qc = build();
+    qc.open();
+    expect(masters().map((m) => m.getAttribute("role"))).toEqual(["checkbox", "checkbox"]);
+  });
+
   it("master switch reads checked while the whole group is on", () => {
     qc = build();
     qc.open();

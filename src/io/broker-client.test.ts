@@ -272,6 +272,53 @@ describe("publish idempotency", () => {
     expect(args).toEqual({ mode: "enum", table: { "😀": "happy" } });
   });
 
+  // A user toggling motion switches fires publishes faster than a round trip completes. Overlapping
+  // publishes would each diff against the same pre-change snapshot and race on the wire, so the
+  // broker can settle on the earlier list until the next liveness poll (20s) corrects it.
+  it("serializes overlapping publishes — the second diffs against what the first left behind", async () => {
+    const state: BrokerVocab = {
+      emotion_ids: ["neutral"],
+      motion_ids: ["idle"],
+      emotion_text_mode: "free",
+      emotion_text_map: {},
+      version: 1,
+    };
+    const calls: ScriptedCall[] = [];
+    const fetch = vi.fn<FetchFn>(async (_input: unknown, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      calls.push({ body });
+      const id = body.id as number;
+      if (body.method === "initialize") return sseResponse(initResult(id));
+      if (body.method === "notifications/initialized") return acceptedResponse();
+      const params = body.params as { name: string; arguments: { ids?: string[] } };
+      if (params.name === "get_ids") return sseResponse(toolResult(id, { ...state }));
+      if (params.name === "update_motion_ids") {
+        state.motion_ids = params.arguments.ids!;
+        state.version += 1;
+      }
+      return sseResponse(toolResult(id, { ok: true, version: state.version }));
+    });
+    const client = createBrokerClient({ baseUrl: BASE, fetch, logger: silentLogger() });
+    const payload = (motionIds: string[]): BrokerPayload => ({
+      emotionIds: ["neutral"],
+      motionIds,
+      emotionText: { mode: "free", table: null },
+    });
+
+    await Promise.all([
+      client.publish(payload(["idle", "happy"])),
+      client.publish(payload(["idle", "happy", "dance"])),
+    ]);
+
+    expect(toolNames(calls)).toEqual([
+      "get_ids",
+      "update_motion_ids",
+      "get_ids",
+      "update_motion_ids",
+    ]);
+    expect(state.motion_ids).toEqual(["idle", "happy", "dance"]);
+  });
+
   it("never rejects even when fetch throws, and logs a warn", async () => {
     const fetch = vi.fn<FetchFn>(async () => {
       throw new Error("ECONNREFUSED");

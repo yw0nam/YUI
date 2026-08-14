@@ -83,6 +83,20 @@ describe("createExpressMotionSettings", () => {
     expect(store.get().disabled).toEqual(["dance"]);
   });
 
+  // The master switch calls this on every render-driven click; a no-op commit would publish the
+  // unchanged vocabulary to the broker again.
+  it("setAllEnabled is silent when the group already holds the requested state", () => {
+    const store = createExpressMotionSettings({
+      storage: memoryStorage({ disabled: ["happy", "laugh"] }),
+    });
+    const seen = vi.fn();
+    store.subscribe(seen);
+    store.setAllEnabled(["happy", "laugh"], false);
+    expect(seen).not.toHaveBeenCalled();
+    store.setAllEnabled(["calm"], true);
+    expect(seen).not.toHaveBeenCalled();
+  });
+
   it("notifies subscribers on change", () => {
     const store = createExpressMotionSettings();
     const seen = vi.fn();
