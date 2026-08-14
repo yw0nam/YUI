@@ -508,12 +508,19 @@ publishes to the broker:
 | Parameter | Schema |
 |---|---|
 | `emotion_id` | `string`, `enum` = the loaded emotion registry's ids |
-| `motion_id` | `string`, `enum` = the loaded motion registry's agent-triggerable ids (reactive, ambient, and `broker_publish: false` motions excluded) |
+| `motion_id` | `string`, `enum` = the loaded motion registry's agent-triggerable ids (reactive, ambient, and `broker_publish: false` motions excluded), narrowed by the user's expression-motion selection |
 | `emotion_text` | `string`; on an enum-mode TTS provider, `enum` = that provider's tag table with each tag's meaning in the description, otherwise free text |
 
-All three are optional and the object takes no other properties, matching the
-[tool arguments](#tool-arguments) above. A vocabulary edit (a new emotion, a new
-motion, a different voice engine) reaches the schema on the next turn.
+Every declared parameter is optional and the object takes no other properties,
+matching the [tool arguments](#tool-arguments) above. A vocabulary edit (a new
+emotion, a new motion, a different voice engine, a changed motion selection)
+reaches the schema on the next turn.
+
+When the motion selection leaves no motion at all, `motion_id` is dropped from
+the schema entirely rather than declared with an empty `enum`, and the tool
+description drops its mention of body motion — the cue carries expression and
+voice tone only. A cue that names a deselected motion still renders: the
+selection curates what the model may choose, not what the client will play.
 
 ### Tool-call round trip
 
