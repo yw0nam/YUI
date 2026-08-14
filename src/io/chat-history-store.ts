@@ -121,9 +121,15 @@ export function createChatHistoryStore(opts?: {
      * Identity of the running session — compare a value taken before a long operation with a
      * fresh one to tell whether a reset opened a new session meanwhile. Both halves carry: a
      * reset here counts even when it closes an empty session and writes no boundary, and a
-     * reset in another window arrives only as a new boundary timestamp.
+     * reset in another window arrives only as a new boundary timestamp. Storage is re-read on
+     * every call, since the other window's reset reaches this one asynchronously and a token
+     * that waits for that sync reports a session that is already closed.
+     *
+     * Blind spot by design: another window resetting an *empty* session writes no boundary and
+     * leaves nothing to observe (the counter is window-local). The same reset done here counts.
      */
     sessionToken(): string {
+      core.reloadFromStorage();
       return `${localResets}:${lastBoundaryTs(core.current())}`;
     },
 

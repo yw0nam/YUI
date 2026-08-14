@@ -559,6 +559,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // Transcript appended here in both modes only (successful turn passing all post-stream guards),
       // and only while the session that started the turn is still running — speech from a turn the
       // user reset away from still plays out, but its turns stay out of the new session's replay.
+      // contextHistory below stays ungated on purpose: it is a capped diagnostic log of what was
+      // sent, with no session concept and no replay.
       if (deps.transcript) {
         if (deps.transcript.sessionToken() === startSessionToken) {
           if (ctx.user_text !== undefined) {
