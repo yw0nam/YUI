@@ -42,6 +42,16 @@ import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
 const UNCACHED = "えーっと。";
 const CACHED = "ちょっと待ってね。";
 const TWO_SENTENCES = "うーん。ちょっと待ってね。";
+// Strips to nothing, so it submits no sentence and can never be spoken from the cache.
+const EMOJI_ONLY = "🤔🥺";
+
+// Shared so a case can count the utterances the loop starts, audible or not.
+const surfaces = {
+  beginSpeech: vi.fn(),
+  pushSpeech: vi.fn(),
+  endSpeech: vi.fn(),
+  finishSpeech: vi.fn(),
+};
 
 function synthCalls(): number {
   return mocks.fetchImpl.mock.calls.filter(([url]) => String(url).endsWith("/v1/audio/speech"))
@@ -70,12 +80,7 @@ function setup(customPool: FillerPool): VoicePipeline {
       applyDirective: vi.fn(),
       playMotion: vi.fn(),
     },
-    surfaces: {
-      beginSpeech: vi.fn(),
-      pushSpeech: vi.fn(),
-      endSpeech: vi.fn(),
-      finishSpeech: vi.fn(),
-    },
+    surfaces,
     turnLog: createTurnLog(),
     getEndpoints: () => ({
       chat_base_url: "http://chat.test/v1",
@@ -156,6 +161,24 @@ describe("filler scheduling after a synth failure with a warm cache", () => {
     // Picking the half-cached phrase would put its second sentence on the network.
     expect(synthCalls()).toBe(2);
     expect(plays()).toBe(1);
+
+    voice.turnOutput.thinkingEnd(1);
+  });
+
+  it("does not pick a phrase that strips to no sentence", async () => {
+    const voice = setup({ first: [UNCACHED], repeat: [EMOJI_ONLY] });
+
+    mocks.state.serverDown = true;
+    voice.turnOutput.thinkingStart(1);
+
+    await vi.waitFor(() => expect(synthCalls()).toBe(1));
+    // The failed first phrase, and nothing after it: an emoji-only phrase has no cached audio to
+    // fall back on, and speaking it would start a silent utterance every gap.
+    const utterances = surfaces.beginSpeech.mock.calls.length;
+    await drainTimers(30);
+
+    expect(surfaces.beginSpeech.mock.calls.length).toBe(utterances);
+    expect(plays()).toBe(0);
 
     voice.turnOutput.thinkingEnd(1);
   });
