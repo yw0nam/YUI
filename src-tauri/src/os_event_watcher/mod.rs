@@ -562,7 +562,7 @@ mod tests {
 
     // ── frontmost user window ────────────────────────────────────────────────
 
-    fn window(owner: Option<&str>, name: Option<&str>) -> WindowAtPoint {
+    fn window(pid: i32, owner: Option<&str>, name: Option<&str>) -> WindowAtPoint {
         WindowAtPoint {
             x: 0.0,
             y: 0.0,
@@ -570,42 +570,87 @@ mod tests {
             height: 100.0,
             name: name.map(str::to_string),
             owner_name: owner.map(str::to_string),
-            pid: 1,
+            pid,
             window_number: 1,
+        }
+    }
+
+    /// Stand-in for `proc_pidpath`: pid → executable base name.
+    fn executables<'a>(table: &'a [(i32, &'static str)]) -> impl Fn(i32) -> Option<String> + 'a {
+        move |pid| {
+            table
+                .iter()
+                .find(|(p, _)| *p == pid)
+                .map(|(_, exe)| (*exe).to_string())
         }
     }
 
     #[test]
     fn frontmost_takes_the_topmost_window() {
-        let picked = first_user_window(vec![
-            window(Some("Safari"), Some("Start Page")),
-            window(Some("Xcode"), Some("main.rs")),
-        ]);
+        let picked = first_user_window(
+            vec![
+                window(10, Some("Safari"), Some("Start Page")),
+                window(20, Some("Xcode"), Some("main.rs")),
+            ],
+            executables(&[(10, "Safari"), (20, "Xcode")]),
+        );
         assert_eq!(picked.unwrap().owner_name.as_deref(), Some("Safari"));
     }
 
     #[test]
     fn frontmost_skips_a_system_helper_window() {
         // Stage Manager's helper floats above the real frontmost app.
-        let picked = first_user_window(vec![
-            window(Some("WindowManager"), Some("App Icon Window")),
-            window(Some("Safari"), Some("Start Page")),
-        ]);
+        let picked = first_user_window(
+            vec![
+                window(10, Some("WindowManager"), Some("App Icon Window")),
+                window(20, Some("Safari"), Some("Start Page")),
+            ],
+            executables(&[(10, "WindowManager"), (20, "Safari")]),
+        );
         assert_eq!(picked.unwrap().owner_name.as_deref(), Some("Safari"));
     }
 
     #[test]
+    fn frontmost_skips_a_helper_whose_display_name_is_localised() {
+        // Korean macOS reports Control Center as "제어 센터"; the binary name
+        // behind the pid stays "ControlCenter".
+        let picked = first_user_window(
+            vec![
+                window(10, Some("제어 센터"), None),
+                window(20, Some("사파리"), Some("시작 페이지")),
+            ],
+            executables(&[(10, "ControlCenter"), (20, "Safari")]),
+        );
+        assert_eq!(picked.unwrap().owner_name.as_deref(), Some("사파리"));
+    }
+
+    #[test]
+    fn frontmost_keeps_an_app_whose_display_name_looks_like_a_helper() {
+        // Matching is on the binary name, so a third-party app free to call
+        // itself "Dock" is still a user window.
+        let picked = first_user_window(
+            vec![window(10, Some("Dock"), Some("Berth 4"))],
+            executables(&[(10, "Dockyard")]),
+        );
+        assert_eq!(picked.unwrap().name.as_deref(), Some("Berth 4"));
+    }
+
+    #[test]
     fn frontmost_is_none_when_only_helpers_are_on_screen() {
-        let picked = first_user_window(vec![
-            window(Some("WindowManager"), Some("App Icon Window")),
-            window(Some("Control Center"), None),
-        ]);
+        let picked = first_user_window(
+            vec![
+                window(10, Some("WindowManager"), Some("App Icon Window")),
+                window(20, Some("제어 센터"), None),
+            ],
+            executables(&[(10, "WindowManager"), (20, "ControlCenter")]),
+        );
         assert!(picked.is_none());
     }
 
     #[test]
-    fn frontmost_keeps_a_window_without_an_owner() {
-        let picked = first_user_window(vec![window(None, Some("Untitled"))]);
+    fn frontmost_keeps_a_window_whose_pid_does_not_resolve() {
+        // A dead or unreadable pid must not silently drop the window.
+        let picked = first_user_window(vec![window(10, None, Some("Untitled"))], |_| None);
         assert_eq!(picked.unwrap().name.as_deref(), Some("Untitled"));
     }
 

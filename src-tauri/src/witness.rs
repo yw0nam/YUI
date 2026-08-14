@@ -346,21 +346,21 @@ mod tests {
     #[test]
     fn record_truncates_an_overlong_window_title() {
         let mut d = TransitionDetector::default();
-        let long = "a".repeat(MAX_TITLE_CHARS + 44);
+        let long = "a".repeat(MAX_TEXT_CHARS + 44);
         let out = d.step(&sample(Some("Safari"), Some(&long), Some(0)), "T1");
         assert_eq!(
             out[0].window_title.as_deref().map(str::len),
-            Some(MAX_TITLE_CHARS)
+            Some(MAX_TEXT_CHARS)
         );
     }
 
     #[test]
     fn record_truncates_a_multibyte_title_on_char_boundaries() {
         let mut d = TransitionDetector::default();
-        let long = "한".repeat(MAX_TITLE_CHARS + 44);
+        let long = "한".repeat(MAX_TEXT_CHARS + 44);
         let out = d.step(&sample(Some("Safari"), Some(&long), Some(0)), "T1");
         let title = out[0].window_title.as_deref().unwrap();
-        assert_eq!(title.chars().count(), MAX_TITLE_CHARS);
+        assert_eq!(title.chars().count(), MAX_TEXT_CHARS);
         assert!(title.chars().all(|c| c == '한'));
     }
 
@@ -371,27 +371,46 @@ mod tests {
         assert_eq!(out[0].window_title.as_deref(), Some("Start Page"));
     }
 
-    // ── cap_title helper ─────────────────────────────────────────────────────
+    // ── app name cap ─────────────────────────────────────────────────────────
 
     #[test]
-    fn cap_title_truncates_an_overlong_multibyte_title_to_max_chars() {
-        let long = "한".repeat(MAX_TITLE_CHARS + 44);
-        let capped = cap_title(Some(long)).unwrap();
-        assert_eq!(capped.chars().count(), MAX_TITLE_CHARS);
+    fn record_truncates_an_overlong_app_name() {
+        let mut d = TransitionDetector::default();
+        let long = "한".repeat(MAX_TEXT_CHARS + 44);
+        let out = d.step(&sample(Some(&long), Some("Start Page"), Some(0)), "T1");
+        let app = out[0].app.as_deref().unwrap();
+        assert_eq!(app.chars().count(), MAX_TEXT_CHARS);
+        assert!(app.chars().all(|c| c == '한'));
+    }
+
+    #[test]
+    fn record_keeps_a_short_app_name_verbatim() {
+        let mut d = TransitionDetector::default();
+        let out = d.step(&sample(Some("Safari"), None, Some(0)), "T1");
+        assert_eq!(out[0].app.as_deref(), Some("Safari"));
+    }
+
+    // ── cap_text helper ──────────────────────────────────────────────────────
+
+    #[test]
+    fn cap_text_truncates_an_overlong_multibyte_value_to_max_chars() {
+        let long = "한".repeat(MAX_TEXT_CHARS + 44);
+        let capped = cap_text(Some(long)).unwrap();
+        assert_eq!(capped.chars().count(), MAX_TEXT_CHARS);
         assert!(capped.chars().all(|c| c == '한'));
     }
 
     #[test]
-    fn cap_title_passes_a_short_title_through_verbatim() {
+    fn cap_text_passes_a_short_value_through_verbatim() {
         assert_eq!(
-            cap_title(Some("Start Page".into())).as_deref(),
+            cap_text(Some("Start Page".into())).as_deref(),
             Some("Start Page")
         );
     }
 
     #[test]
-    fn cap_title_passes_none_through() {
-        assert_eq!(cap_title(None), None);
+    fn cap_text_passes_none_through() {
+        assert_eq!(cap_text(None), None);
     }
 
     #[test]

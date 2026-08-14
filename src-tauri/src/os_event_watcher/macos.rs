@@ -460,6 +460,39 @@ mod tests {
         assert!(filter_foreign(Vec::new(), 999).is_empty());
     }
 
+    // ── executable name resolution (proc_pidpath) ──────────────────────────
+
+    #[test]
+    fn executable_base_name_strips_the_bundle_path() {
+        assert_eq!(
+            executable_base_name("/System/Library/CoreServices/ControlCenter.app/Contents/MacOS/ControlCenter"),
+            Some("ControlCenter".into())
+        );
+    }
+
+    #[test]
+    fn executable_base_name_keeps_a_bare_name() {
+        assert_eq!(executable_base_name("Spotlight"), Some("Spotlight".into()));
+    }
+
+    #[test]
+    fn executable_base_name_rejects_a_pathless_input() {
+        assert_eq!(executable_base_name(""), None);
+        assert_eq!(executable_base_name("/usr/bin/"), None);
+    }
+
+    #[test]
+    fn process_base_name_resolves_the_running_process() {
+        let own = process_base_name(std::process::id() as i32);
+        assert!(own.is_some_and(|n| !n.is_empty()), "own pid must resolve");
+    }
+
+    #[test]
+    fn process_base_name_rejects_an_unreadable_pid() {
+        assert_eq!(process_base_name(0), None);
+        assert_eq!(process_base_name(-1), None);
+    }
+
     #[test]
     fn rect_contains_is_half_open() {
         let r = ScreenRect {
