@@ -4,7 +4,8 @@ import { ENDPOINT_FIELD_SPECS, type EndpointOverrides } from "../../io/endpoints
 import type { Locale } from "../i18n";
 
 // Tab identity — the suffix of each tab button's `yui-tab-*` element id.
-export type QuickControlsTab = "talk" | "char" | "input" | "adv" | "react";
+// "hist" renders only when a transcript is injected; the rest are always present.
+export type QuickControlsTab = "talk" | "char" | "input" | "adv" | "react" | "hist";
 
 // Language picker display order (Japanese / English / Korean). Fixed independently of LOCALES.
 export const LANG_PICKER_ORDER: readonly Locale[] = ["ja", "en", "ko"];
