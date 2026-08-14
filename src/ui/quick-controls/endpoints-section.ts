@@ -190,6 +190,15 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     // Store subscription (unsubscribeEndpoints) calls reflect.reflectChatType to update value/summary hint.
   }
 
+  // Single write path for endpoint text fields — typing and the chat provider preset both land here.
+  function commitEndpointField(key: keyof EndpointOverrides, value: string): void {
+    const input = epInputs.get(key)!;
+    // Skip the assignment while typing: rewriting an identical value moves the caret in some browsers.
+    if (input.value !== value) input.value = value;
+    endpointsSettings.set({ [key]: value });
+    validateEndpointInput(key, input);
+  }
+
   // ── Advanced section: chat provider preset dropdown (chat_base_url autofill) ──
   // Custom autofills nothing — it is the state the dropdown lands in when the URL matches no preset.
   function handleChatPresetChange(): void {
@@ -201,15 +210,6 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   }
 
   // ── Endpoints section ──
-
-  // Single write path for endpoint text fields — typing and the chat provider preset both land here.
-  function commitEndpointField(key: keyof EndpointOverrides, value: string): void {
-    const input = epInputs.get(key)!;
-    // Skip the assignment while typing: rewriting an identical value moves the caret in some browsers.
-    if (input.value !== value) input.value = value;
-    endpointsSettings.set({ [key]: value });
-    validateEndpointInput(key, input);
-  }
 
   function handleEndpointInput(e: Event): void {
     const input = e.target;
