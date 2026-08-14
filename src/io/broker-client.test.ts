@@ -567,6 +567,28 @@ describe("publish queue", () => {
     expect(calls).toEqual([]);
   });
 
+  // wireBroker's boot does `publish(payload).then(() => broker?.start())`. Disposing inside that
+  // window still armed the poll, and poll's own get_ids reaches the wire regardless of the queue —
+  // a retired client kept talking to the old broker every 20s for the life of the process.
+  it("start() after dispose never arms the poll", async () => {
+    const { fetch } = staticBroker();
+    const setIntervalImpl = vi.fn(() => 1 as unknown as ReturnType<typeof setInterval>);
+    const client = createBrokerClient({
+      baseUrl: BASE,
+      fetch,
+      logger: silentLogger(),
+      setInterval: setIntervalImpl as unknown as typeof setInterval,
+      clearInterval: (() => {}) as unknown as typeof clearInterval,
+    });
+
+    const publishing = client.publish(payload(["idle", "happy"]));
+    client.dispose();
+    await publishing;
+    client.start();
+
+    expect(setIntervalImpl).not.toHaveBeenCalled();
+  });
+
   // lastPayload is what poll() republishes on drift. Recorded when a publish *executes*, it names
   // the older payload while a newer one waits in the queue — so a poll landing in that window
   // enqueues a stale republish behind the fresh one. The broker settles stale, and lastPayload is
