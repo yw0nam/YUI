@@ -355,7 +355,7 @@ const ja: Record<string, string> = {
   "session.section": "セッション",
   "session.context": "コンテキスト",
   "session.action_label": "新しい会話を始める",
-  "session.action_sub": "新しい会話を始めます。始めるまで YUI は今の記憶を保ったままです。",
+  "session.action_sub": "新しい会話を始めます。これまでの会話は上の履歴にそのまま残ります。",
   "session.reset": "会話をリセット",
   "session.confirm_q": "やり直しますか？",
   "session.confirm_go": "新しく始める",

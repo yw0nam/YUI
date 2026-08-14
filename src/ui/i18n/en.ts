@@ -354,7 +354,7 @@ const en: Record<string, string> = {
   "session.section": "Session",
   "session.context": "Context",
   "session.action_label": "Start fresh",
-  "session.action_sub": "Start a new conversation. YUI keeps the current memory until you do.",
+  "session.action_sub": "Start a new conversation. Everything so far stays in the list above.",
   "session.reset": "Reset conversation",
   "session.confirm_q": "Start over?",
   "session.confirm_go": "Start fresh",

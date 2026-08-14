@@ -322,28 +322,28 @@ describe("createQuickControls — start fresh action in the History tab", () => 
     });
   }
 
-  it.each([["popover"], ["window"]] as const)(
-    "renders the action under the session list in the %s variant",
-    (variant) => {
-      const qc = buildQc({ variant });
-      qc.open();
+  it.each([
+    ["popover"],
+    ["window"],
+  ] as const)("renders the action under the session list in the %s variant", (variant) => {
+    const qc = buildQc({ variant });
+    qc.open();
 
-      const panel = qc.el.querySelector<HTMLElement>("#yui-panel-hist")!;
-      const action = panel.querySelector<HTMLElement>(".yui-hist__action")!;
-      expect(action).not.toBeNull();
-      expect(action.querySelector(".yui-session__action-label")!.textContent).toBe("Start fresh");
-      expect(action.querySelector(".yui-session__action-sub")!.textContent).toBeTruthy();
-      expect(action.querySelector(".yui-session__reset")).not.toBeNull();
-      expect(action.querySelector<HTMLElement>(".yui-confirm")!.hidden).toBe(true);
-      // it sits after the session list, not before it
-      expect(
-        panel.querySelector(".yui-hist")!.compareDocumentPosition(action) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
+    const panel = qc.el.querySelector<HTMLElement>("#yui-panel-hist")!;
+    const action = panel.querySelector<HTMLElement>(".yui-hist__action")!;
+    expect(action).not.toBeNull();
+    expect(action.querySelector(".yui-session__action-label")!.textContent).toBe("Start fresh");
+    expect(action.querySelector(".yui-session__action-sub")!.textContent).toBeTruthy();
+    expect(action.querySelector(".yui-session__reset")).not.toBeNull();
+    expect(action.querySelector<HTMLElement>(".yui-confirm")!.hidden).toBe(true);
+    // it sits after the session list, not before it
+    expect(
+      panel.querySelector(".yui-hist")!.compareDocumentPosition(action) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
-      qc.dispose();
-    },
-  );
+    qc.dispose();
+  });
 
   it("omits the action when the reset stores are absent", () => {
     const qc = createQuickControls({ ...defaultQcArgs(mount), transcript: seedStore() });
@@ -368,9 +368,12 @@ describe("createQuickControls — start fresh action in the History tab", () => 
     qc.open();
 
     const confirm = qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!;
+    const reset = qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!;
     expect(confirm.hidden).toBe(true);
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
+    reset.click();
+    // the confirm takes the link's place rather than stacking under it
     expect(confirm.hidden).toBe(false);
+    expect(reset.hidden).toBe(true);
 
     qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click();
 
@@ -378,6 +381,7 @@ describe("createQuickControls — start fresh action in the History tab", () => 
     expect(clearDiag).toHaveBeenCalledTimes(1);
     expect(startNewSession).toHaveBeenCalledTimes(1);
     expect(qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!.hidden).toBe(true);
+    expect(reset.hidden).toBe(false);
 
     qc.dispose();
   });

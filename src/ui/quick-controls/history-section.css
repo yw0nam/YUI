@@ -151,6 +151,11 @@
   color: var(--yui-text-mute);
 }
 
+/* ── Start-fresh footer — closes the running session, the list above keeps it ── */
+.yui-hist__action {
+  padding: 0 0.1rem;
+}
+
 /* ── Footnote — retention + local-only storage ── */
 .yui-hist__foot {
   margin: 0.2rem 0 0;
