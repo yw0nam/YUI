@@ -955,7 +955,7 @@ describe("invalidatePool()", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §10  needsRestartOnPoolChange — a non-cycling ambient never re-resolves on its own
+// §11  needsRestartOnPoolChange — a non-cycling ambient never re-resolves on its own
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("needsRestartOnPoolChange()", () => {
@@ -1053,5 +1053,41 @@ describe("shouldRestartIdle()", () => {
 
   it("does not restart when nothing is playing yet", () => {
     expect(shouldRestartIdle(before, after, null, "idle")).toBe(false);
+  });
+});
+
+describe("the restart shouldRestartIdle asks for — an explicit baseline request", () => {
+  /** A pool narrowed to the baseline alone: resolves `cycle: false`, so it loops without finishing. */
+  function stuckOnBaseline(enabled: () => readonly string[]) {
+    const mc = createMotionController(realRegistry, {
+      rng: () => 0.9,
+      variantFilter: (id, variants) =>
+        id === "idle" ? variants.filter((v) => enabled().includes(v)) : variants,
+    });
+    mc.commit(mc.request({ id: "idle" }));
+    expect(mc.current()!.vrma_path).toBe("/motions/calm.vrma");
+    expect(mc.current()!.cycle).toBe(false);
+    return mc;
+  }
+
+  it("replays the widened pool for request({id:'idle'}) — what playIdleBaseline() issues", () => {
+    let enabled: readonly string[] = ["/motions/calm.vrma"];
+    const mc = stuckOnBaseline(() => enabled);
+    enabled = ["/motions/calm.vrma", "/motions/idle_04.vrma"];
+
+    // Baseline over baseline is not a no-op: equal priority takes the `>=` branch and re-resolves.
+    const decision = mc.request({ id: "idle" });
+    expect(decision.action).toBe("play");
+    if (decision.action !== "play") return;
+    expect(decision.motion.vrma_path).toBe("/motions/idle_04.vrma");
+    expect(decision.motion.cycle).toBe(true); // two variants again — later changes ride the rotation
+  });
+
+  it("ignores request(null) at the baseline — restarting through null would lose the change", () => {
+    let enabled: readonly string[] = ["/motions/calm.vrma"];
+    const mc = stuckOnBaseline(() => enabled);
+    enabled = ["/motions/calm.vrma", "/motions/idle_04.vrma"];
+
+    expect(mc.request(null).action).toBe("ignore");
   });
 });
