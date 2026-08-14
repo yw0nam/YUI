@@ -35,7 +35,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg", "msi", "nsis"],
+    "targets": ["dmg", "msi", "nsis"],
     "resources": {
       "../configs/": "configs/",
       "../resources/vrms/": "vrms/"
