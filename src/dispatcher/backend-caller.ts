@@ -52,6 +52,14 @@ function joinNames(names: string[]): string {
 }
 
 /**
+ * Interpolated into the user turn, so a hostile hook payload can't forge structure: the ingress
+ * is unauthenticated and caps `summary`/`detail` but not `tool`. Collapsing whitespace keeps the
+ * marker one line and the clamp keeps it a name. `trigger.agent.tool` still carries it verbatim.
+ */
+const TOOL_NAME_MAX = 40;
+const toolName = (raw: string): string => raw.replace(/\s+/g, " ").trim().slice(0, TOOL_NAME_MAX);
+
+/**
  * User message for non-user turns (no user_text) — a short, per-trigger notice. Delivered in a
  * role: "user" message, so it is written from the user's POV: "I" is the user, "you" is the
  * agent. Describes what happened, never how to respond (firing ≠ judgment). The only payload
@@ -67,14 +75,15 @@ function backgroundMarker(eventName: string, trigger: TriggerMeta): string {
   if (eventName.startsWith("proactive.")) return "(I've gone quiet for a while)";
   if (eventName.startsWith("schedule.")) return "(it's the time of day you check in on me)";
   if (eventName === "agent.done" || eventName === "agent.needs_input") {
-    const tool = trigger.agent?.tool;
+    const tool = trigger.agent ? toolName(trigger.agent.tool) : "";
     const subject = tool ? `my ${tool} task` : "one of my coding tasks";
     return eventName === "agent.done"
       ? `(${subject} just finished)`
       : `(${subject} is waiting on my input)`;
   }
   if (eventName === "agent.catchup") {
-    const tools = [...new Set(trigger.agent_catchup?.items.map((item) => item.tool) ?? [])];
+    const named = trigger.agent_catchup?.items.map((item) => toolName(item.tool)).filter(Boolean);
+    const tools = [...new Set(named ?? [])];
     const subject = tools.length ? `my ${joinNames(tools)} tasks` : "my coding tasks";
     return `(${subject} piled up while I was away)`;
   }
@@ -230,7 +239,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
   /**
    * InputContext → OpenAI Responses input — one user item carrying the tagged client_context
-   * block followed by userText ?? backgroundMarker(env.event_name) (+ image content-parts when
+   * block followed by userText ?? backgroundMarker(env.event_name, trigger) (+ image content-parts when
    * images present). The `input` array has no contractual system slot: its last item becomes the
    * turn's user message and earlier items land in plain history, so context rides inside the turn.
    * Context leads and the utterance trails it — recall on the trailing query holds as the block grows.
