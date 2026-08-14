@@ -115,12 +115,16 @@ When there is no user utterance, the user input trails the `client_context` bloc
 | `proactive.peek` | `(I left you peeking out from the screen edge)` |
 | `proactive.*` (other) | `(I've gone quiet for a while)` |
 | `schedule.*` | `(it's the time of day you check in on me)` |
-| `agent.done` | `(one of my coding tasks just finished)` |
-| `agent.needs_input` | `(one of my coding tasks is waiting on my input)` |
-| `agent.catchup` | `(my coding tasks piled up while I was away)` |
+| `agent.done` | `(my claude-code task just finished)` |
+| `agent.needs_input` | `(my claude-code task is waiting on my input)` |
+| `agent.catchup` | `(my claude-code and opencode tasks piled up while I was away)` |
 | `signals.push` | `(a new signal just arrived for you)` |
 | `signals.catchup` | `(signals piled up while I was away)` |
 | any other | `(something just caught your attention)` |
+
+The `agent.*` markers name the coding agent that fired. `agent.done` and `agent.needs_input` name `trigger.agent.tool`; `agent.catchup` lists the distinct `trigger.agent_catchup.items[].tool` values in first-seen order, joined with commas and `and` before the last, so a burst from a single tool names that one tool. A payload the client could not validate leaves those trigger fields absent, and the marker falls back to `(one of my coding tasks just finished)`, `(one of my coding tasks is waiting on my input)`, and `(my coding tasks piled up while I was away)`.
+
+The marker is the one place a payload field reaches the user role as bare prose, so the tool name is normalized on the way in: runs of whitespace collapse to a single space and the result is clamped to 40 characters, which keeps the marker one line and keeps it a name. A name that normalizes to empty is dropped, and a `catchup` burst left with no names falls back to the unnamed wording. `trigger.agent.tool` and `trigger.agent_catchup.items[].tool` still carry the value verbatim — the normalization applies to the marker only.
 
 ### Cue fields
 

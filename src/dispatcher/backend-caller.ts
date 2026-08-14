@@ -27,6 +27,7 @@ import type {
   FrontmostState,
   InputContext,
   ToolStatus,
+  TriggerMeta,
   Usage,
 } from "../contract";
 import { type ChatRequest, streamChat } from "../io/chat-client";
@@ -44,13 +45,28 @@ import type { TurnOutput } from "./turn-output";
 
 const baseLog = createLogger("backend-caller");
 
+/** "a" / "a and b" / "a, b and c". */
+function joinNames(names: string[]): string {
+  if (names.length < 2) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/**
+ * Interpolated into the user turn, so a hostile hook payload can't forge structure: the ingress
+ * is unauthenticated and caps `summary`/`detail` but not `tool`. Collapsing whitespace keeps the
+ * marker one line and the clamp keeps it a name. `trigger.agent.tool` still carries it verbatim.
+ */
+const TOOL_NAME_MAX = 40;
+const toolName = (raw: string): string => raw.replace(/\s+/g, " ").trim().slice(0, TOOL_NAME_MAX);
+
 /**
  * User message for non-user turns (no user_text) — a short, per-trigger notice. Delivered in a
  * role: "user" message, so it is written from the user's POV: "I" is the user, "you" is the
- * agent. Describes what happened, never how to respond (firing ≠ judgment). No payload
- * interpolation.
+ * agent. Describes what happened, never how to respond (firing ≠ judgment). The only payload
+ * interpolation is the coding-agent tool name on `agent.*` turns, which falls back to unnamed
+ * wording when validation rejected the payload and the trigger field is absent.
  */
-function backgroundMarker(eventName: string): string {
+function backgroundMarker(eventName: string, trigger: TriggerMeta): string {
   if (eventName === "proactive.tap_bored") return "(I keep poking at you)";
   if (eventName.startsWith("proactive.touch_")) return "(I just poked you)";
   if (eventName === "proactive.drag_held") return "(I keep dragging you around)";
@@ -58,9 +74,19 @@ function backgroundMarker(eventName: string): string {
   if (eventName === "proactive.peek") return "(I left you peeking out from the screen edge)";
   if (eventName.startsWith("proactive.")) return "(I've gone quiet for a while)";
   if (eventName.startsWith("schedule.")) return "(it's the time of day you check in on me)";
-  if (eventName === "agent.done") return "(one of my coding tasks just finished)";
-  if (eventName === "agent.needs_input") return "(one of my coding tasks is waiting on my input)";
-  if (eventName === "agent.catchup") return "(my coding tasks piled up while I was away)";
+  if (eventName === "agent.done" || eventName === "agent.needs_input") {
+    const tool = trigger.agent ? toolName(trigger.agent.tool) : "";
+    const subject = tool ? `my ${tool} task` : "one of my coding tasks";
+    return eventName === "agent.done"
+      ? `(${subject} just finished)`
+      : `(${subject} is waiting on my input)`;
+  }
+  if (eventName === "agent.catchup") {
+    const named = trigger.agent_catchup?.items.map((item) => toolName(item.tool)).filter(Boolean);
+    const tools = [...new Set(named ?? [])];
+    const subject = tools.length ? `my ${joinNames(tools)} tasks` : "my coding tasks";
+    return `(${subject} piled up while I was away)`;
+  }
   if (eventName === "signals.push") return "(a new signal just arrived for you)";
   if (eventName === "signals.catchup") return "(signals piled up while I was away)";
   return "(something just caught your attention)";
@@ -213,7 +239,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
   /**
    * InputContext → OpenAI Responses input — one user item carrying the tagged client_context
-   * block followed by userText ?? backgroundMarker(env.event_name) (+ image content-parts when
+   * block followed by userText ?? backgroundMarker(env.event_name, trigger) (+ image content-parts when
    * images present). The `input` array has no contractual system slot: its last item becomes the
    * turn's user message and earlier items land in plain history, so context rides inside the turn.
    * Context leads and the utterance trails it — recall on the trailing query holds as the block grows.
@@ -229,7 +255,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       JSON.stringify(clientContext),
       "</client_context>",
       "",
-      ctx.user_text ?? backgroundMarker(env.event_name),
+      ctx.user_text ?? backgroundMarker(env.event_name, clientContext.trigger),
     ].join("\n");
     const images = imageDataUrlsOf(ctx);
     const userContent = images.length
@@ -343,7 +369,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           ...(effectiveInstructions ? { instructions: effectiveInstructions } : {}),
           clientContextJson: JSON.stringify(clientContext),
           transcript: ccTranscript,
-          userText: ctx.user_text ?? backgroundMarker(env.event_name),
+          userText: ctx.user_text ?? backgroundMarker(env.event_name, clientContext.trigger),
           ...(imageDataUrls.length ? { imageDataUrls } : {}),
         });
       } else {
