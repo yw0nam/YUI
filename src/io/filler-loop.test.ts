@@ -159,6 +159,57 @@ describe("createFillerLoop — onUtteranceDone()", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// onSynthFailure() behaviour
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createFillerLoop — onSynthFailure()", () => {
+  it("does not schedule the next repeat once a synth failure is reported", () => {
+    const deps = makeDeps();
+    const loop = createFillerLoop(deps);
+    loop.start();
+    loop.onSynthFailure();
+    loop.onUtteranceDone();
+    expect(deps.timers.hasPending()).toBe(false);
+  });
+
+  it("cancels a timer that was already pending when the failure lands", () => {
+    const deps = makeDeps();
+    const loop = createFillerLoop(deps);
+    loop.start();
+    loop.onUtteranceDone();
+    expect(deps.timers.hasPending()).toBe(true);
+    loop.onSynthFailure();
+    expect(deps.timers.hasPending()).toBe(false);
+  });
+
+  it("stays silent for the rest of the window across repeated utterance-done calls", () => {
+    const deps = makeDeps();
+    const loop = createFillerLoop(deps);
+    loop.start();
+    loop.onSynthFailure();
+    for (let i = 0; i < 5; i++) {
+      loop.onUtteranceDone();
+      deps.timers.flush();
+    }
+    expect(deps.spoken).toHaveLength(1); // only the first phrase, spoken before the failure
+  });
+
+  it("resumes scheduling at the next start()", () => {
+    const deps = makeDeps();
+    const loop = createFillerLoop(deps);
+    loop.start();
+    loop.onSynthFailure();
+    loop.stop();
+
+    loop.start();
+    loop.onUtteranceDone();
+    expect(deps.timers.hasPending()).toBe(true);
+    deps.timers.flush();
+    expect(deps.spoken).toHaveLength(3); // first, first again, repeat
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Jitter calculation
 // ─────────────────────────────────────────────────────────────────────────────
 
