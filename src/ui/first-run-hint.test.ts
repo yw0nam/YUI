@@ -113,7 +113,7 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
     expect(pushSpeech).not.toHaveBeenCalled();
   });
 
-  it("never reaches a configured profile — that one gets the controls hint and is marked seen", () => {
+  it("leaves a configured profile on the controls hint, marked seen", () => {
     const { deps, pushSpeech, markSeen } = fakeDeps({ chatConfigured: true });
 
     maybeShowFirstRunHint(deps);

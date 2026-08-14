@@ -574,7 +574,8 @@ describe("showInputError — inline fix affordance", () => {
     expect(button).not.toBeNull();
     expect(button.type).toBe("button");
     expect(button.textContent).toBe("Open settings");
-    expect(errorEl().textContent).toContain("boom");
+    // Separated, so the alert does not announce message and label as one run-on word.
+    expect(errorEl().textContent).toBe("boom Open settings");
 
     button.click();
     expect(onClick).toHaveBeenCalledTimes(1);

@@ -120,6 +120,8 @@ describe("createQuickControls — tabs + VAD slider", () => {
     expect(adv.getAttribute("aria-selected")).toBe("true");
     expect(panelFor(qc, adv).hidden).toBe(false);
     expect(qc.isOpen()).toBe(true);
+    // Focus follows the requested tab, not the first control the popover would land on.
+    expect(document.activeElement).toBe(adv);
 
     qc.dispose();
   });
