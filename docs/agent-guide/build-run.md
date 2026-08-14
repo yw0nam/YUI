@@ -20,7 +20,7 @@ cd src-tauri && cargo test  # Rust unit tests
 
 ## Release
 
-`bundle.targets` in `src-tauri/tauri.conf.json` is `["dmg", "msi", "nsis"]` — the installers that get shipped. The Tauri bundler intersects that list with what the host platform can build, so macOS produces the `.dmg` and Windows produces `.msi` + NSIS `-setup.exe`. The macOS `.app` is still built as a dependency of the `.dmg` and CI attaches it to the release as `YUI.app.tar.gz`.
+`bundle.targets` in `src-tauri/tauri.conf.json` is `["dmg", "msi", "nsis"]` — the installers that get shipped. The Tauri bundler intersects that list with what the host platform can build, so macOS produces the `.dmg` and Windows produces `.msi` + NSIS `-setup.exe`.
 
 Releases are cut from a git tag:
 
