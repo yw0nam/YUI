@@ -97,6 +97,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   let lastPayload: BrokerPayload | null = null;
   let lastObservedVersion: number | null = null;
   let inflight: Promise<void> = Promise.resolve();
+  let disposed = false;
 
   /**
    * One MCP cycle: initialize, send initialized, then run the provided tool calls on the same
@@ -250,7 +251,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   }
 
   async function publishNow(payload: BrokerPayload): Promise<void> {
-    lastPayload = payload;
+    if (disposed) return;
     const current = await getIds();
     if (current) lastObservedVersion = current.version;
     const updates = diffCalls(payload, current);
@@ -269,11 +270,15 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   /**
    * Queued behind whatever publish is still in flight, so each one diffs against the state its
    * predecessor left on the broker. Rapid user edits would otherwise race and land out of order.
-   * publishNow never rejects, so the chain cannot be poisoned.
+   * The chain the next publish waits on swallows rejections — the caller still sees them, but one
+   * failure never wedges the queue. `lastPayload` is recorded here rather than at execution, so a
+   * poll firing while this payload is queued republishes it and not the one still executing.
    */
   function publish(payload: BrokerPayload): Promise<void> {
-    inflight = inflight.then(() => publishNow(payload));
-    return inflight;
+    lastPayload = payload;
+    const next = inflight.then(() => publishNow(payload));
+    inflight = next.catch(() => {});
+    return next;
   }
 
   async function poll(): Promise<void> {
@@ -312,12 +317,18 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
     }
   }
 
+  /** Retires the client: the poll stops and anything still queued never reaches the wire. */
+  function dispose(): void {
+    disposed = true;
+    stop();
+  }
+
   return {
     getIds,
     publish,
     start,
     stop,
-    dispose: stop,
+    dispose,
   };
 }
 
