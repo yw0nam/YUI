@@ -16,7 +16,9 @@ import type { MotionRegistry } from "../contract";
 import {
   createMotionController,
   needsRestartOnPoolChange,
+  poolSelectionChanged,
   type ResolvedMotion,
+  shouldRestartIdle,
 } from "./motion-controller";
 import { resolveBaselineFallback } from "./motion-fallback";
 
@@ -899,6 +901,60 @@ describe("resolve() — variantFilter restricts the pool", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// §10  invalidatePool() — the cached return target must not outlive a pool change
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("invalidatePool()", () => {
+  /** Plays idle from a baseline-only pool, then interleaves a oneshot over it. */
+  function playIdleThenOneshot(enabled: () => readonly string[]) {
+    const mc = createMotionController(realRegistry, {
+      rng: () => 0.9,
+      variantFilter: (id, variants) =>
+        id === "idle" ? variants.filter((v) => enabled().includes(v)) : variants,
+    });
+    mc.commit(mc.request({ id: "idle" }));
+    expect(mc.current()!.vrma_path).toBe("/motions/calm.vrma");
+    expect(mc.current()!.cycle).toBe(false); // pool of one → loops, never finishes
+    mc.commit(mc.request({ id: "happy" }));
+    expect(mc.current()!.id).toBe("happy");
+    return mc;
+  }
+
+  it("re-resolves the pool after an interleaved oneshot instead of replaying a stale resolution", () => {
+    let enabled: readonly string[] = ["/motions/calm.vrma"];
+    const mc = playIdleThenOneshot(() => enabled);
+
+    // The user widens the pool while the oneshot covers the ambient motion. `idle` is not the
+    // current motion, so nothing restarts — the change has to survive in previousStable.
+    enabled = ["/motions/calm.vrma", "/motions/idle_04.vrma"];
+    mc.invalidatePool("idle");
+
+    const back = mc.finish("happy");
+    expect(back.action).toBe("play");
+    if (back.action !== "play") return;
+    expect(back.motion.id).toBe("idle");
+    expect(back.motion.vrma_path).toBe("/motions/idle_04.vrma");
+    // Two variants again, so the cycle resumes and later changes ride the rotation.
+    expect(back.motion.cycle).toBe(true);
+  });
+
+  it("leaves a different pool's return target untouched — the same pose resumes", () => {
+    const mc = createMotionController(realRegistry, { rng: () => 0.9 });
+    mc.commit(mc.request({ id: "window_sit" }));
+    const perch = mc.current()!;
+    mc.commit(mc.request({ id: "happy" }));
+
+    mc.invalidatePool("idle");
+
+    const back = mc.finish("happy");
+    expect(back.action).toBe("play");
+    if (back.action !== "play") return;
+    // Identity, not just id — the perch resumes its exact resolved variant, un-re-resolved.
+    expect(back.motion).toBe(perch);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // §10  needsRestartOnPoolChange — a non-cycling ambient never re-resolves on its own
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -932,5 +988,70 @@ describe("needsRestartOnPoolChange()", () => {
 
   it("is false when nothing is playing", () => {
     expect(needsRestartOnPoolChange(null, "idle")).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §12  poolSelectionChanged / shouldRestartIdle — the renderer's setIdleVariants decision
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("poolSelectionChanged()", () => {
+  it("is true on the first selection — nothing was applied before", () => {
+    expect(poolSelectionChanged(null, ["/motions/calm.vrma"])).toBe(true);
+  });
+
+  it("is false for the same paths in the same order", () => {
+    const paths = ["/motions/calm.vrma", "/motions/idle_04.vrma"];
+    expect(poolSelectionChanged(paths, [...paths])).toBe(false);
+  });
+
+  it("is true when a variant is added or removed", () => {
+    expect(poolSelectionChanged(["/motions/calm.vrma"], [])).toBe(true);
+    expect(
+      poolSelectionChanged(["/motions/calm.vrma"], ["/motions/calm.vrma", "/motions/idle_04.vrma"]),
+    ).toBe(true);
+  });
+
+  it("is true when a variant is swapped at the same length", () => {
+    expect(poolSelectionChanged(["/motions/idle_01.vrma"], ["/motions/idle_04.vrma"])).toBe(true);
+  });
+});
+
+describe("shouldRestartIdle()", () => {
+  const playing = (over: Partial<ResolvedMotion>): ResolvedMotion => ({
+    id: "idle",
+    vrma_path: "/motions/calm.vrma",
+    loop: true,
+    cycle: false,
+    pingpong: true,
+    loop_reps: Number.POSITIVE_INFINITY,
+    speed: 1,
+    fade_ms: 200,
+    kind: "ambient",
+    priority: 0,
+    interrupt_policy: "replace",
+    ...over,
+  });
+  const before = ["/motions/calm.vrma"];
+  const after = ["/motions/calm.vrma", "/motions/idle_04.vrma"];
+
+  it("restarts a stuck pool-of-one when the selection changed", () => {
+    expect(shouldRestartIdle(before, after, playing({}), "idle")).toBe(true);
+  });
+
+  it("does not restart when the selection is unchanged", () => {
+    expect(shouldRestartIdle(before, [...before], playing({}), "idle")).toBe(false);
+  });
+
+  it("does not restart a cycling pool — the rotation picks the change up", () => {
+    expect(shouldRestartIdle(before, after, playing({ cycle: true }), "idle")).toBe(false);
+  });
+
+  it("does not restart while another motion covers the pool", () => {
+    expect(shouldRestartIdle(before, after, playing({ id: "happy" }), "idle")).toBe(false);
+  });
+
+  it("does not restart when nothing is playing yet", () => {
+    expect(shouldRestartIdle(before, after, null, "idle")).toBe(false);
   });
 });

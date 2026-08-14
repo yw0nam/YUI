@@ -107,6 +107,16 @@ describe("createQuickControls — idle motion section", () => {
     expect(switches()[2]!.getAttribute("aria-checked")).toBe("true");
   });
 
+  it("keeps the toggled switch focused — a rebuild would drop keyboard focus mid-interaction", () => {
+    qc = build();
+    qc.open();
+    const sw = switches()[2]!;
+    sw.focus();
+    sw.click();
+    expect(switches()[2]).toBe(sw); // same node, updated in place
+    expect(document.activeElement).toBe(sw);
+  });
+
   it("reflects a store change made elsewhere (cross-window broadcast)", () => {
     qc = build();
     qc.open();
