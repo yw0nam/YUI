@@ -93,6 +93,50 @@ describe("createChatHistoryStore — rolling cap", () => {
     // The oldest entry made room for the boundary.
     expect(got[0]).toEqual(entry("user", "msg-1", 1));
   });
+
+  it("keeps the session token stable when the newest boundary reaches the eviction edge", () => {
+    const currentEntries = Array.from({ length: 199 }, (_, i) =>
+      entry("user", `current-${i}`, i + 51),
+    );
+    const store = createChatHistoryStore({ initial: [boundary(50), ...currentEntries] });
+    const before = store.sessionToken();
+
+    store.append(entry("assistant", "latest", 250));
+
+    expect(store.get()).toHaveLength(200);
+    expect(store.sessionToken()).toBe(before);
+  });
+
+  it("keeps current-session replay scoped when the newest boundary reaches the eviction edge", () => {
+    const currentEntries = Array.from({ length: 199 }, (_, i) =>
+      entry("user", `current-${i}`, i + 51),
+    );
+    const store = createChatHistoryStore({ initial: [boundary(50), ...currentEntries] });
+    const latest = entry("assistant", "latest", 250);
+
+    store.append(latest);
+
+    expect(store.get()).toEqual([boundary(50), ...currentEntries.slice(1), latest]);
+    expect(store.entriesAfterLastBoundary()).toEqual([...currentEntries.slice(1), latest]);
+  });
+
+  it("pin: evicts an older boundary normally when a newer boundary remains", () => {
+    const currentEntries = Array.from({ length: 197 }, (_, i) =>
+      entry("user", `current-${i}`, i + 21),
+    );
+    const store = createChatHistoryStore({
+      initial: [boundary(10), entry("user", "older-session", 11), boundary(20), ...currentEntries],
+    });
+
+    store.append(entry("assistant", "latest", 218));
+
+    expect(store.get()).toEqual([
+      entry("user", "older-session", 11),
+      boundary(20),
+      ...currentEntries,
+      entry("assistant", "latest", 218),
+    ]);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
