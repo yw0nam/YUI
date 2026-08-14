@@ -493,12 +493,13 @@ async function bootstrap(): Promise<BootstrapHandle> {
     const unsubscribeConfig = config.subscribe((cfg, changed) => {
       if (changed.has("emotionRegistry")) renderer.setEmotionRegistry(cfg.emotionRegistry);
       if (changed.has("motions")) {
-        renderer.setMotionRegistry(cfg.motions);
         // The enabled pool is catalog ∩ overlay, so a new catalog needs the intersection redone.
+        // Applied before the registry — as at boot — so the baseline it replays already honors it.
         const idlePool = cfg.motions.idle;
         if (idlePool) {
           renderer.setIdleVariants(enabledIdleVariants(idlePool, idleMotionSettings.get()));
         }
+        renderer.setMotionRegistry(cfg.motions);
       }
       if (changed.has("guardrails")) {
         configured.guardrails.setConfig(cfg.guardrails);

@@ -107,6 +107,13 @@ export interface MotionController {
 
   /** Returns the configured baseline motion id (single source of truth). */
   baseline(): string;
+
+  /**
+   * Drops the cached return target when it belongs to `id`. finish() then re-resolves that id
+   * instead of replaying a resolution captured before its variant selection changed. Other pools
+   * keep their cached resolution, so a held pose still resumes exactly as it was.
+   */
+  invalidatePool(id: string): void;
 }
 
 /**
@@ -118,6 +125,32 @@ export interface MotionController {
  */
 export function needsRestartOnPoolChange(current: ResolvedMotion | null, poolId: string): boolean {
   return !!current && current.id === poolId && !current.cycle;
+}
+
+/** Whether a newly applied variant selection differs from the one already in force. */
+export function poolSelectionChanged(
+  previous: readonly string[] | null,
+  next: readonly string[],
+): boolean {
+  return (
+    !previous || previous.length !== next.length || next.some((path, i) => path !== previous[i])
+  );
+}
+
+/**
+ * Whether applying `next` over `previous` has to replay the pool motion right now.
+ *
+ * Only the stuck combination qualifies: the selection actually changed *and* the pool is the
+ * motion playing without a cycle. Everything else re-reads the selection on its own — a cycling
+ * pool on its next rotation, a covered pool when the motion above it finishes.
+ */
+export function shouldRestartIdle(
+  previous: readonly string[] | null,
+  next: readonly string[],
+  current: ResolvedMotion | null,
+  poolId: string,
+): boolean {
+  return poolSelectionChanged(previous, next) && needsRestartOnPoolChange(current, poolId);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -335,6 +368,9 @@ export function createMotionController(
     },
     baseline() {
       return baselineId;
+    },
+    invalidatePool(id) {
+      if (previousStable?.id === id) previousStable = null;
     },
   };
 }

@@ -45,9 +45,10 @@ import { mirrorClipTracks } from "./mirror-clip";
 import {
   createMotionController,
   type MotionController,
-  needsRestartOnPoolChange,
+  poolSelectionChanged,
   type RenderMotionSignal,
   type ResolvedMotion,
+  shouldRestartIdle,
 } from "./motion-controller";
 import { resolveBaselineFallback } from "./motion-fallback";
 import { createMotionStartGeneration } from "./motion-start-generation";
@@ -876,14 +877,19 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   function setIdleVariants(paths: readonly string[]): void {
     const previous = idleVariants;
-    idleVariants = [...paths];
-    const changed =
-      !previous ||
-      previous.length !== idleVariants.length ||
-      idleVariants.some((p, i) => p !== previous[i]);
-    if (!changed || !currentVrm || !mixer) return;
-    // A pool of one loops without ever finishing, so it needs a restart to pick up a later change.
-    if (needsRestartOnPoolChange(controller?.current() ?? null, IDLE_POOL_ID)) playIdleBaseline();
+    const next = [...paths];
+    idleVariants = next;
+    if (!poolSelectionChanged(previous, next)) return;
+    // Nothing is playable before a VRM+mixer exist, so no motion can be stuck yet.
+    const playing = currentVrm && mixer ? (controller?.current() ?? null) : null;
+    if (shouldRestartIdle(previous, next, playing, IDLE_POOL_ID)) {
+      // A pool of one loops without ever finishing — only a replay picks the change up.
+      playIdleBaseline();
+      return;
+    }
+    // Otherwise the change rides the next re-resolve. Drop the cached return target so a motion
+    // playing over the pool cannot restore a resolution captured before the change.
+    controller?.invalidatePool(IDLE_POOL_ID);
   }
 
   /** setEmotion — delegate to emotion crossfade (stable reference for routeDirective). */
