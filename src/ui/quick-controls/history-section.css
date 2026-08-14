@@ -158,9 +158,8 @@
 
 /* ── Footnote — retention + local-only storage ── */
 .yui-hist__foot {
-  margin: 0.2rem 0 0;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--yui-edge);
+  margin: 0.55rem 0 0;
+  padding: 0 0.1rem;
   font-size: 0.75rem;
   color: var(--yui-text-mute);
 }

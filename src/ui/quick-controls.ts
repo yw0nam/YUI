@@ -517,6 +517,8 @@ export function createQuickControls({
       reflect.reflectVoiceEngine();
       reflect.reflectChatType();
       reflect.reflectSession();
+      // The confirm is static markup — disarm it so a reopen never lands on the destructive pill.
+      hideSessionConfirm();
       history?.render();
       vrmList.render();
       // Provider may have changed while closed; re-sync baseline on open.
