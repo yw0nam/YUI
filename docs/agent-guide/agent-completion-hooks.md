@@ -41,22 +41,26 @@ Each snippet first checks that the app's loopback ingress port is open and exits
 
 ## Wiring `phase:"done"` (Claude Code `Stop`)
 
-Both variants send the last assistant message as `detail`, the judgment material the backend grounds a next-step remark in, behind a size gate: at or under 1500 characters the message rides verbatim, above it a `claude -p … --model claude-haiku-4-5` call digests it first. The digest is a compact account of the work — several sentences where the task warrants it — distinct from the one-sentence `summary` that carries the speech material.
+Both variants send the last assistant message as `detail`, the judgment material the backend grounds a next-step remark in, behind a size gate: at or under 1500 characters the message rides verbatim, above it a `claude -p … --model claude-haiku-4-5` call digests it first. The digest is a compact account of the work — several sentences where the task warrants it — distinct from the one-sentence `summary` that carries the speech material. `jq -Rs 'length'` measures the gate in characters; `${#last}` counts bytes under a C locale, which would move the threshold for non-ASCII text.
 
 The gate exists for the backend's context budget, not for the ingress limit. Four or five coding sessions running concurrently each contribute a transcript tail per completion, and full tails crowd out the rest of the turn's context. The 16384-byte `detail` cap at ingress is a safety cap against a runaway payload, not a per-turn budget.
+
+Every `claude -p` call inside a hook runs with `YUI_HOOK_NESTED=1`, and each script exits at its first line when that variable is already set. A nested call opens a child session with its own `Stop` event, and Claude Code's `stop_hook_active` flag does not span sessions — the marker is what makes a re-entrant firing a no-op. A model call that returns nothing (model unavailable, quota exhausted, `claude` absent from the hook's `PATH`) falls back to the message text — the first 1500 characters for `detail`, the whole message for Variant B's `summary` — so neither field is sent empty. `printf '%.1500s'` bounds the whole string; `cut -c1-1500` would truncate each line separately and leave a multi-line message unbounded.
 
 ### Variant A — raw last message
 
 Claude Code `Stop` hook that sends the last assistant message as the summary, so the backend agent reads the raw text. It calls no model unless the message exceeds the `detail` size gate.
 
 ```bash
+[ -n "$YUI_HOOK_NESTED" ] && exit 0
 (exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
 input=$(cat)
 session_id=$(echo "$input" | jq -r '.session_id // empty')
 transcript_path=$(echo "$input" | jq -r '.transcript_path')
 last=$(jq -rs '[.[]|select(.type=="assistant")]|last|.message.content[]?|select(.type=="text").text' "$transcript_path")
-if [ "${#last}" -le 1500 ]; then detail=$last; else
-  detail=$(printf '%s' "$last" | claude -p "Digest this into a compact account of what was done, what changed, and what is still open." --model claude-haiku-4-5)
+if [ "$(printf '%s' "$last" | jq -Rs 'length')" -le 1500 ]; then detail=$last; else
+  detail=$(printf '%s' "$last" | YUI_HOOK_NESTED=1 claude -p "Digest this into a compact account of what was done, what changed, and what is still open." --model claude-haiku-4-5)
+  [ -n "$detail" ] || detail=$(printf '%.1500s' "$last")
 fi
 jq -n --arg s "$last" --arg d "$detail" --arg cwd "$PWD" --arg sid "$session_id" \
   '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"done",session_id:$sid,detail:$d,summary:$s,ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
@@ -68,14 +72,17 @@ jq -n --arg s "$last" --arg d "$detail" --arg cwd "$PWD" --arg sid "$session_id"
 Summarize the last message with Haiku before POSTing. The backend receives a concise, speech-ready sentence in `summary` and the size-gated message in `detail`.
 
 ```bash
+[ -n "$YUI_HOOK_NESTED" ] && exit 0
 (exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
 input=$(cat)
 session_id=$(echo "$input" | jq -r '.session_id // empty')
 transcript_path=$(echo "$input" | jq -r '.transcript_path')
 last=$(jq -rs '[.[]|select(.type=="assistant")]|last|.message.content[]?|select(.type=="text").text' "$transcript_path")
-summary=$(printf '%s' "$last" | claude -p "Summarize what was done in one sentence." --model claude-haiku-4-5)
-if [ "${#last}" -le 1500 ]; then detail=$last; else
-  detail=$(printf '%s' "$last" | claude -p "Digest this into a compact account of what was done, what changed, and what is still open." --model claude-haiku-4-5)
+summary=$(printf '%s' "$last" | YUI_HOOK_NESTED=1 claude -p "Summarize what was done in one sentence." --model claude-haiku-4-5)
+[ -n "$summary" ] || summary=$last
+if [ "$(printf '%s' "$last" | jq -Rs 'length')" -le 1500 ]; then detail=$last; else
+  detail=$(printf '%s' "$last" | YUI_HOOK_NESTED=1 claude -p "Digest this into a compact account of what was done, what changed, and what is still open." --model claude-haiku-4-5)
+  [ -n "$detail" ] || detail=$(printf '%.1500s' "$last")
 fi
 jq -n --arg s "$summary" --arg d "$detail" --arg cwd "$PWD" --arg sid "$session_id" \
   '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"done",session_id:$sid,detail:$d,summary:$s,ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
