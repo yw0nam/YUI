@@ -96,6 +96,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   let timer: ReturnType<typeof setInterval> | null = null;
   let lastPayload: BrokerPayload | null = null;
   let lastObservedVersion: number | null = null;
+  let inflight: Promise<void> = Promise.resolve();
 
   /**
    * One MCP cycle: initialize, send initialized, then run the provided tool calls on the same
@@ -248,7 +249,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
     return calls;
   }
 
-  async function publish(payload: BrokerPayload): Promise<void> {
+  async function publishNow(payload: BrokerPayload): Promise<void> {
     lastPayload = payload;
     const current = await getIds();
     if (current) lastObservedVersion = current.version;
@@ -263,6 +264,16 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
         if (typeof v === "number") lastObservedVersion = v;
       });
     }
+  }
+
+  /**
+   * Queued behind whatever publish is still in flight, so each one diffs against the state its
+   * predecessor left on the broker. Rapid user edits would otherwise race and land out of order.
+   * publishNow never rejects, so the chain cannot be poisoned.
+   */
+  function publish(payload: BrokerPayload): Promise<void> {
+    inflight = inflight.then(() => publishNow(payload));
+    return inflight;
   }
 
   async function poll(): Promise<void> {
@@ -328,21 +339,22 @@ export function agentTriggerableMotionIds(motions: MotionRegistry): string[] {
  * Pure derivation of the broker payload from loaded config. emotion ids = registry keys; motion ids
  * = agent-triggerable motion keys (see agentTriggerableMotionIds) narrowed by the user's
  * expression-motion selection — the one seam both vocabulary consumers read, so the broker publish
- * and the Chat-Completions tool schema always carry the same list.
+ * and the Chat-Completions tool schema always carry the same list. The selection is required, so
+ * no caller can publish the unfiltered catalog by leaving it out.
  * emotion_text mode follows the TTS provider: irodori ⇒ enum with the supplied table; anything else
  * ⇒ free/null. irodori with a missing table falls back to free/null with a warn rather than crashing.
  */
 export function deriveBrokerPayload(
   cfg: AppConfig,
   irodoriTable: Record<string, string> | null,
-  opts: { expressMotions?: ExpressMotionSettings; logger?: Logger } = {},
+  opts: { expressMotions: ExpressMotionSettings; logger?: Logger },
 ): BrokerPayload {
   const log = opts.logger ?? createLogger("broker-client");
   const emotionIds = Object.keys(cfg.emotionRegistry);
-  const vocabulary = agentTriggerableMotionIds(cfg.motions);
-  const motionIds = opts.expressMotions
-    ? enabledExpressMotions(vocabulary, opts.expressMotions)
-    : vocabulary;
+  const motionIds = enabledExpressMotions(
+    agentTriggerableMotionIds(cfg.motions),
+    opts.expressMotions,
+  );
 
   let emotionText: BrokerPayload["emotionText"];
   const providerKind = resolveTtsProviderKind(cfg.endpoints.tts_provider);

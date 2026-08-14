@@ -512,6 +512,9 @@ describe("agentTriggerableMotionIds", () => {
   });
 });
 
+/** The selection is a required argument; most cases exercise it deselecting nothing. */
+const NONE_DESELECTED = { expressMotions: { disabled: [] } };
+
 describe("deriveBrokerPayload", () => {
   function baseConfig(provider: "openai" | "irodori" | undefined): AppConfig {
     return {
@@ -602,12 +605,12 @@ describe("deriveBrokerPayload", () => {
   }
 
   it("derives emotion ids from registry keys", () => {
-    const p = deriveBrokerPayload(baseConfig("openai"), null);
+    const p = deriveBrokerPayload(baseConfig("openai"), null, NONE_DESELECTED);
     expect([...p.emotionIds].sort()).toEqual(["happy", "neutral"]);
   });
 
   it("excludes reactive, ambient, and broker_publish:false motions (drops drag/idle/sit, keeps happy/laugh/embarrassed)", () => {
-    const p = deriveBrokerPayload(baseConfig("openai"), null);
+    const p = deriveBrokerPayload(baseConfig("openai"), null, NONE_DESELECTED);
     expect(p.motionIds).not.toContain("drag");
     expect(p.motionIds).not.toContain("idle");
     expect(p.motionIds).not.toContain("sit");
@@ -615,24 +618,24 @@ describe("deriveBrokerPayload", () => {
   });
 
   it("excludes a kind:state motion solely via broker_publish:false (window_sit)", () => {
-    const p = deriveBrokerPayload(baseConfig("openai"), null);
+    const p = deriveBrokerPayload(baseConfig("openai"), null, NONE_DESELECTED);
     expect(p.motionIds).not.toContain("window_sit");
   });
 
   it("provider openai → emotion text free + null table", () => {
-    const p = deriveBrokerPayload(baseConfig("openai"), null);
+    const p = deriveBrokerPayload(baseConfig("openai"), null, NONE_DESELECTED);
     expect(p.emotionText).toEqual({ mode: "free", table: null });
   });
 
   it("provider irodori with a table → enum + table", () => {
     const table = { "😀": "happy", "😢": "sad" };
-    const p = deriveBrokerPayload(baseConfig("irodori"), table);
+    const p = deriveBrokerPayload(baseConfig("irodori"), table, NONE_DESELECTED);
     expect(p.emotionText).toEqual({ mode: "enum", table });
   });
 
   it("provider irodori with null table → free + null + warn (no crash)", () => {
     const logger = silentLogger();
-    const p = deriveBrokerPayload(baseConfig("irodori"), null, { logger });
+    const p = deriveBrokerPayload(baseConfig("irodori"), null, { ...NONE_DESELECTED, logger });
     expect(p.emotionText).toEqual({ mode: "free", table: null });
     expect(logger.warn).toHaveBeenCalled();
   });
@@ -642,7 +645,7 @@ describe("deriveBrokerPayload", () => {
   // matching the default the rest of the app (validator, voice pipeline) already applies.
   it("provider unset (undefined) with a table → resolves as openai's default → free", () => {
     const table = { "😀": "happy" };
-    const p = deriveBrokerPayload(baseConfig(undefined), table);
+    const p = deriveBrokerPayload(baseConfig(undefined), table, NONE_DESELECTED);
     expect(p.emotionText).toEqual({ mode: "free", table: null });
   });
 

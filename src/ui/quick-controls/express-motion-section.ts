@@ -110,7 +110,8 @@ export function createExpressMotionList(deps: ExpressMotionListDeps): ExpressMot
     const master = document.createElement("button");
     master.type = "button";
     master.className = "yui-switch yui-express__master";
-    master.setAttribute("role", "switch");
+    // A checkbox, not a switch: only checkbox supports the mixed state a partly-on group is in.
+    master.setAttribute("role", "checkbox");
     master.dataset.group = group.id;
     master.setAttribute("aria-label", t("express_motion.master_aria", { group: name }));
     head.append(toggle, master);
