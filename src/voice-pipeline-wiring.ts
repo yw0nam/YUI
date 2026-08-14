@@ -1,4 +1,4 @@
-import type { AppConfig, FillerPool } from "./config/load";
+import type { AppConfig } from "./config/load";
 import type { EndpointsConfig } from "./contract";
 import type { TurnLog } from "./dispatcher/turn";
 import type { TurnOutput } from "./dispatcher/turn-output";
@@ -6,13 +6,11 @@ import { createWebAudioSink } from "./io/audio-player";
 import { selectFetch } from "./io/chat-client";
 import { createFillerAudioCache } from "./io/filler-audio-cache";
 import { createFillerLoop, type FillerLoop } from "./io/filler-loop";
-import { effectiveFillerPool } from "./io/filler-pool";
+import { effectiveFillerPool, fillerSubmissions } from "./io/filler-pool";
 import type { FillerSettings } from "./io/filler-settings";
 import { createIrodoriTtsProvider } from "./io/irodori-synth";
-import { createSentenceSegmenter } from "./io/sentence-segmenter";
 import type { SpeakerOption } from "./io/speaker-selection";
 import { createSpeechPlayback, type SpeechPlayback } from "./io/speech-playback";
-import { createEmojiStripper } from "./io/strip-emoji";
 import type { SttVad } from "./io/stt-vad";
 import { TTS_SKIP } from "./io/tts-pipeline";
 import { selectProvider, type TtsProvider } from "./io/tts-provider";
@@ -20,25 +18,6 @@ import { createOpenAiTtsProvider } from "./io/tts-synth";
 import type { Renderer } from "./renderer";
 import type { Surfaces } from "./ui/surfaces";
 import type { VoiceInputStatus } from "./ui/voice-input-status";
-
-/**
- * The sentences a pool phrase actually reaches TTS as: the speech path strips emoji and splits on
- * sentence boundaries before submitting, so a phrase carrying either never arrives as written.
- * Runs the production stripper and segmenter so the two stay in step.
- */
-function fillerSubmissions(pool: FillerPool): Set<string> {
-  const submissions = new Set<string>();
-  for (const phrase of [...pool.first, ...pool.repeat]) {
-    const stripper = createEmojiStripper();
-    const segmenter = createSentenceSegmenter();
-    for (const sentence of segmenter.push(stripper.push(phrase) + stripper.flush())) {
-      submissions.add(sentence);
-    }
-    const rest = segmenter.flush();
-    if (rest) submissions.add(rest);
-  }
-  return submissions;
-}
 
 type VoiceRenderer = Pick<
   Renderer,
