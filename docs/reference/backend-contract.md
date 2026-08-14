@@ -115,12 +115,14 @@ When there is no user utterance, the user input trails the `client_context` bloc
 | `proactive.peek` | `(I left you peeking out from the screen edge)` |
 | `proactive.*` (other) | `(I've gone quiet for a while)` |
 | `schedule.*` | `(it's the time of day you check in on me)` |
-| `agent.done` | `(one of my coding tasks just finished)` |
-| `agent.needs_input` | `(one of my coding tasks is waiting on my input)` |
-| `agent.catchup` | `(my coding tasks piled up while I was away)` |
+| `agent.done` | `(my claude-code task just finished)` |
+| `agent.needs_input` | `(my claude-code task is waiting on my input)` |
+| `agent.catchup` | `(my claude-code and opencode tasks piled up while I was away)` |
 | `signals.push` | `(a new signal just arrived for you)` |
 | `signals.catchup` | `(signals piled up while I was away)` |
 | any other | `(something just caught your attention)` |
+
+The `agent.*` markers name the coding agent that fired. `agent.done` and `agent.needs_input` carry `trigger.agent.tool` verbatim; `agent.catchup` lists the distinct `trigger.agent_catchup.items[].tool` values in first-seen order, joined with commas and `and` before the last, so a burst from a single tool names that one tool. A payload the client could not validate leaves those trigger fields absent, and the marker falls back to `(one of my coding tasks just finished)`, `(one of my coding tasks is waiting on my input)`, and `(my coding tasks piled up while I was away)`.
 
 ### Cue fields
 
