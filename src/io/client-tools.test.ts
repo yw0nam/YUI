@@ -81,6 +81,24 @@ describe("createGenerateExpressTool — definition", () => {
     expect(props.motion_id).toMatchObject({ enum: ["dance", "wave"] });
   });
 
+  // An empty enum is not a legal narrowing — some providers reject it, and the ones that accept it
+  // leave the model a parameter it can never fill. The property goes away instead.
+  it("omits motion_id entirely when the curated motion vocabulary is empty", () => {
+    const params = createGenerateExpressTool(vocab({ motionIds: [] })).definition.function
+      .parameters;
+    expect("motion_id" in params.properties).toBe(false);
+    expect(Object.keys(params.properties)).toEqual(["emotion_id", "emotion_text"]);
+  });
+
+  it("drops body motion from the description when motion_id is omitted", () => {
+    const withMotion = createGenerateExpressTool(vocab()).definition.function.description;
+    const without = createGenerateExpressTool(vocab({ motionIds: [] })).definition.function
+      .description;
+    expect(withMotion).toContain("body motion");
+    expect(without).not.toContain("body motion");
+    expect(without).toContain("voice tone");
+  });
+
   it("resolves execute to ok and is one-way — its result tells the model nothing", async () => {
     const tool = createGenerateExpressTool(vocab());
     await expect(tool.execute({ emotion_id: "happy" })).resolves.toBe("ok");

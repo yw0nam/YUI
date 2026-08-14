@@ -585,7 +585,7 @@ describe("deriveBrokerPayload", () => {
 
   it("provider irodori with null table → free + null + warn (no crash)", () => {
     const logger = silentLogger();
-    const p = deriveBrokerPayload(baseConfig("irodori"), null, logger);
+    const p = deriveBrokerPayload(baseConfig("irodori"), null, { logger });
     expect(p.emotionText).toEqual({ mode: "free", table: null });
     expect(logger.warn).toHaveBeenCalled();
   });
@@ -597,5 +597,50 @@ describe("deriveBrokerPayload", () => {
     const table = { "😀": "happy" };
     const p = deriveBrokerPayload(baseConfig(undefined), table);
     expect(p.emotionText).toEqual({ mode: "free", table: null });
+  });
+
+  // The user's expression-motion selection narrows the published vocabulary at this one derive
+  // site, so both consumers — the broker publish and the CC generate_express schema — follow it.
+  describe("expression-motion selection", () => {
+    it("publishes the whole agent-triggerable set when nothing is deselected", () => {
+      const p = deriveBrokerPayload(baseConfig("openai"), null, {
+        expressMotions: { disabled: [] },
+      });
+      expect([...p.motionIds].sort()).toEqual(["embarrassed", "happy", "laugh"]);
+    });
+
+    it("drops a deselected motion from motionIds", () => {
+      const p = deriveBrokerPayload(baseConfig("openai"), null, {
+        expressMotions: { disabled: ["laugh"] },
+      });
+      expect(p.motionIds).toEqual(["happy", "embarrassed"]);
+    });
+
+    it("publishes an empty motion list when every motion is deselected", () => {
+      const p = deriveBrokerPayload(baseConfig("openai"), null, {
+        expressMotions: { disabled: ["happy", "laugh", "embarrassed"] },
+      });
+      expect(p.motionIds).toEqual([]);
+    });
+
+    it("keeps a catalog motion the selection has never heard of — additions arrive enabled", () => {
+      const cfg = baseConfig("openai");
+      cfg.motions.wave = {
+        vrma_path: "/motions/wave.vrma",
+        kind: "oneshot",
+        loop: false,
+        priority: 60,
+        interrupt_policy: "replace",
+      };
+      const p = deriveBrokerPayload(cfg, null, { expressMotions: { disabled: ["laugh"] } });
+      expect(p.motionIds).toContain("wave");
+    });
+
+    it("leaves emotion ids untouched — the selection curates motions only", () => {
+      const p = deriveBrokerPayload(baseConfig("openai"), null, {
+        expressMotions: { disabled: ["happy", "laugh", "embarrassed"] },
+      });
+      expect([...p.emotionIds].sort()).toEqual(["happy", "neutral"]);
+    });
   });
 });
