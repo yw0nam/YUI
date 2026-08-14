@@ -14,6 +14,7 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { MotionRegistry } from "../contract";
 import { createMotionController } from "./motion-controller";
+import { resolveBaselineFallback } from "./motion-fallback";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -767,5 +768,87 @@ describe("baseline() — configured baseline id getter", () => {
       baselineId: "drag",
     });
     expect(mc.baseline()).toBe("drag");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §9  variantFilter — the user's idle-motion selection, applied live
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("resolve() — variantFilter restricts the pool", () => {
+  it("picks only from the filtered variants", () => {
+    // rng always 0 → first entry of whatever pool resolve() sees.
+    const mc = createMotionController(syntheticRegistry, {
+      rng: () => 0,
+      variantFilter: (id, variants) =>
+        id === "idle" ? variants.filter((v) => v !== "/motions/idle_01.vrma") : variants,
+    });
+    expect(mc.resolve({ id: "idle" })!.vrma_path).toBe("/motions/idle_02.vrma");
+  });
+
+  it("leaves pools the filter does not target untouched", () => {
+    const mc = createMotionController(realRegistry, {
+      rng: () => 0,
+      variantFilter: (id, variants) => (id === "idle" ? [variants[0]!] : variants),
+    });
+    expect(mc.resolve({ id: "dance" })!.vrma_path).toBe("/motions/dance_01.vrma");
+  });
+
+  it("re-reads the filter on every resolve — a store change applies live, no re-creation", () => {
+    let enabled = ["/motions/idle_01.vrma", "/motions/idle_02.vrma", "/motions/idle_03.vrma"];
+    const mc = createMotionController(syntheticRegistry, {
+      rng: () => 0,
+      variantFilter: (id, variants) =>
+        id === "idle" ? variants.filter((v) => enabled.includes(v)) : variants,
+    });
+    expect(mc.resolve({ id: "idle" })!.vrma_path).toBe("/motions/idle_01.vrma");
+
+    // The user turns idle_01 off while the controller keeps running.
+    enabled = ["/motions/idle_02.vrma", "/motions/idle_03.vrma"];
+    const picks = [0, 1, 2, 3].map(() => mc.resolve({ id: "idle" })!.vrma_path);
+    expect(picks).not.toContain("/motions/idle_01.vrma");
+  });
+
+  it("chains the next cycle variant from the filtered pool on finish()", () => {
+    let enabled = ["/motions/idle_01.vrma", "/motions/idle_02.vrma", "/motions/idle_03.vrma"];
+    const mc = createMotionController(syntheticRegistry, {
+      rng: () => 0,
+      variantFilter: (id, variants) =>
+        id === "idle" ? variants.filter((v) => enabled.includes(v)) : variants,
+    });
+    const first = mc.request({ id: "idle" });
+    mc.commit(first);
+    expect(mc.current()!.vrma_path).toBe("/motions/idle_01.vrma");
+
+    // The playing variant is disabled — it finishes its cycle, then rotates out of the pool.
+    enabled = ["/motions/idle_02.vrma", "/motions/idle_03.vrma"];
+    const chained: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const next = mc.finish("idle");
+      expect(next.action).toBe("play");
+      if (next.action === "play") chained.push(next.motion.vrma_path);
+      mc.commit(next);
+    }
+    expect(chained).not.toContain("/motions/idle_01.vrma");
+  });
+
+  it("falls back to the entry's vrma_path when the filter empties the pool", () => {
+    // rng 0.9 would land on the last catalog variant if the filter were ignored.
+    const mc = createMotionController(realRegistry, {
+      rng: () => 0.9,
+      variantFilter: () => [],
+    });
+    expect(mc.resolve({ id: "idle" })!.vrma_path).toBe("/motions/calm.vrma");
+  });
+
+  it("keeps the missing-clip baseline fallback working under a one-variant filter", () => {
+    const mc = createMotionController(realRegistry, {
+      rng: () => 0.9,
+      variantFilter: (id, variants) =>
+        id === "idle" ? variants.filter((v) => v === "/motions/calm.vrma") : variants,
+    });
+    const recovered = resolveBaselineFallback(mc, "thinking");
+    expect(recovered?.id).toBe("idle");
+    expect(recovered?.vrma_path).toBe("/motions/calm.vrma");
   });
 });
