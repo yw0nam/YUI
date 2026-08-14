@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  draft-release:
+    # The draft is created up front so every build job uploads into the same
+    # release. tauri-action's own get-or-create is unsynchronized and parallel
+    # jobs would each create a draft for the tag.
+    name: draft-release (one draft per tag)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.draft.outputs.result }}
+    steps:
+      - uses: actions/github-script@v7
+        id: draft
+        env:
+          TAG: ${{ github.ref_name }}
+        with:
+          script: |
+            const tag = process.env.TAG
+            const { owner, repo } = context.repo
+
+            const releases = await github.paginate(github.rest.repos.listReleases, {
+              owner,
+              repo,
+              per_page: 100,
+            })
+            const existing = releases.find((r) => r.tag_name === tag && r.draft)
+            if (existing) return existing.id
+
+            const body = [
+              '## Downloads',
+              '',
+              '| Platform | Artifact | Status |',
+              '| --- | --- | --- |',
+              '| macOS (Apple Silicon) | `.dmg` | Supported |',
+              '| Windows (x64) | `.msi`, `-setup.exe` | **Experimental — untested platform** |',
+              '',
+              'The Windows bundles are built by CI on a platform the maintainers do not test on.',
+              'Treat them as experimental and report breakage in the issue tracker.',
+              '',
+              'If macOS refuses to open the app, right-click it in Finder and choose **Open**.',
+            ].join('\n')
+
+            const { data } = await github.rest.repos.createRelease({
+              owner,
+              repo,
+              tag_name: tag,
+              name: tag,
+              body,
+              draft: true,
+              prerelease: false,
+            })
+            return data.id
+
+  build:
+    name: build (${{ matrix.name }})
+    needs: draft-release
+    runs-on: ${{ matrix.platform }}
+    permissions:
+      contents: write
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-aarch64
+            platform: macos-latest
+            args: --target aarch64-apple-darwin
+            rust_targets: aarch64-apple-darwin
+          - name: windows-x64
+            platform: windows-latest
+            args: ''
+            rust_targets: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: pnpm install --frozen-lockfile
+
+      # The Tauri CLI reads the Apple credentials from the process environment and
+      # treats an empty value as a configured one, so unset secrets must not reach
+      # the build as empty strings. Exporting through $GITHUB_ENV keeps them absent
+      # until they are registered, which yields an unsigned, un-notarized bundle.
+      - name: Export Apple signing credentials
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          export_var() {
+            printf '%s<<__YUI_ENV__\n%s\n__YUI_ENV__\n' "$1" "$2" >>"$GITHUB_ENV"
+          }
+          if [ -n "${APPLE_CERTIFICATE:-}" ] && [ -n "${APPLE_CERTIFICATE_PASSWORD:-}" ]; then
+            export_var APPLE_CERTIFICATE "$APPLE_CERTIFICATE"
+            export_var APPLE_CERTIFICATE_PASSWORD "$APPLE_CERTIFICATE_PASSWORD"
+            if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+              export_var APPLE_SIGNING_IDENTITY "$APPLE_SIGNING_IDENTITY"
+            fi
+            echo "signing: enabled"
+          else
+            echo "signing: disabled — the bundle is unsigned"
+          fi
+          if [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_PASSWORD:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ]; then
+            export_var APPLE_ID "$APPLE_ID"
+            export_var APPLE_PASSWORD "$APPLE_PASSWORD"
+            export_var APPLE_TEAM_ID "$APPLE_TEAM_ID"
+            echo "notarization: enabled"
+          else
+            echo "notarization: disabled — the bundle is not notarized"
+          fi
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.draft-release.outputs.release_id }}
+          args: ${{ matrix.args }}
+          uploadUpdaterJson: false
