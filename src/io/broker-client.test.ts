@@ -451,6 +451,159 @@ describe("liveness poll", () => {
   });
 });
 
+/**
+ * The publish queue's own failure modes. Serialization made publish a queue, and a queue can be
+ * wedged, outlive its client, or carry a payload the poller no longer recognizes as current.
+ */
+describe("publish queue", () => {
+  const payload = (motionIds: string[]): BrokerPayload => ({
+    emotionIds: ["neutral"],
+    motionIds,
+    emotionText: { mode: "free", table: null },
+  });
+
+  /** Broker stuck at motion_ids:["idle"], so every publish diffs and every poll sees drift. */
+  function staticBroker(): {
+    fetch: ReturnType<typeof vi.fn<FetchFn>>;
+    calls: ScriptedCall[];
+    updatedIds: () => string[][];
+    gate: { hold(): void; release(): void };
+  } {
+    const calls: ScriptedCall[] = [];
+    let held: Promise<void> | null = null;
+    let releaseHeld: (() => void) | null = null;
+    const fetch = vi.fn<FetchFn>(async (_input: unknown, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      calls.push({ body });
+      const id = body.id as number;
+      if (body.method === "initialize") {
+        if (held) {
+          const wait = held;
+          held = null;
+          await wait;
+        }
+        return sseResponse(initResult(id));
+      }
+      if (body.method === "notifications/initialized") return acceptedResponse();
+      const params = body.params as { name: string };
+      if (params.name === "get_ids") {
+        return sseResponse(
+          toolResult(id, {
+            emotion_ids: ["neutral"],
+            motion_ids: ["idle"],
+            emotion_text_mode: "free",
+            emotion_text_map: {},
+            version: 1,
+          }),
+        );
+      }
+      return sseResponse(toolResult(id, { ok: true, version: 2 }));
+    });
+    return {
+      fetch,
+      calls,
+      updatedIds: () =>
+        calls
+          .filter(
+            (c) =>
+              c.body.method === "tools/call" &&
+              (c.body.params as { name: string }).name === "update_motion_ids",
+          )
+          .map((c) => (c.body.params as { arguments: { ids: string[] } }).arguments.ids),
+      gate: {
+        hold() {
+          held = new Promise<void>((resolve) => {
+            releaseHeld = resolve;
+          });
+        },
+        release() {
+          releaseHeld?.();
+        },
+      },
+    };
+  }
+
+  // publishNow rejecting is meant to be impossible, but the chain is built on that assumption and
+  // nothing pins it. A throwing logger reaches the one warn publishNow makes outside rpc's catch.
+  it("keeps the queue alive after a publish rejects", async () => {
+    const { fetch, calls } = staticBroker();
+    const logger = silentLogger();
+    let explode = true;
+    logger.warn = vi.fn(() => {
+      if (!explode) return;
+      explode = false;
+      throw new Error("logger exploded");
+    });
+    // update_not_ok fires the throwing warn — the broker answers ok:true, so force a non-ok reply.
+    const okFalseFetch = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
+      const res = await fetch(input, init);
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      const name = (body.params as { name?: string } | undefined)?.name;
+      if (name && name !== "get_ids") {
+        return sseResponse(toolResult(body.id as number, { ok: false }));
+      }
+      return res;
+    });
+    const client = createBrokerClient({ baseUrl: BASE, fetch: okFalseFetch, logger });
+
+    await expect(client.publish(payload(["idle", "happy"]))).rejects.toThrow("logger exploded");
+    calls.length = 0;
+    await client.publish(payload(["idle", "dance"]));
+
+    expect(toolNames(calls)).toContain("update_motion_ids");
+  });
+
+  // The reconciler disposes the old client when broker_base_url changes. Anything still queued
+  // would keep writing the new vocabulary to the broker the user just moved away from.
+  it("dispose drops publishes that have not reached the wire", async () => {
+    const { fetch, calls } = staticBroker();
+    const client = createBrokerClient({ baseUrl: BASE, fetch, logger: silentLogger() });
+
+    const first = client.publish(payload(["idle", "happy"]));
+    const second = client.publish(payload(["idle", "dance"]));
+    client.dispose();
+    await Promise.all([first, second]);
+
+    expect(calls).toEqual([]);
+  });
+
+  // lastPayload is what poll() republishes on drift. Recorded when a publish *executes*, it names
+  // the older payload while a newer one waits in the queue — so a poll landing in that window
+  // enqueues a stale republish behind the fresh one. The broker settles stale, and lastPayload is
+  // stale too, so the next poll sees no drift: the user's selection is lost until restart.
+  it("republishes the newest enqueued payload, not the one still executing", async () => {
+    const { fetch, updatedIds, gate } = staticBroker();
+    let tick: (() => void) | undefined;
+    const client = createBrokerClient({
+      baseUrl: BASE,
+      fetch,
+      logger: silentLogger(),
+      setInterval: ((cb: () => void) => {
+        tick = cb;
+        return 1 as unknown as ReturnType<typeof setInterval>;
+      }) as unknown as typeof setInterval,
+      clearInterval: (() => {}) as unknown as typeof clearInterval,
+    });
+    client.start();
+
+    gate.hold();
+    const first = client.publish(payload(["idle", "happy"]));
+    const second = client.publish(payload(["idle", "dance"]));
+    // Let the first publish reach the gated initialize, leaving the second queued behind it.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const polled = (async () => tick?.())();
+    // The poll's own get_ids runs ungated and detects drift while the first publish is still held.
+    await Promise.resolve();
+    await Promise.resolve();
+    gate.release();
+    await Promise.all([first, second, polled]);
+
+    expect(updatedIds().at(-1)).toEqual(["idle", "dance"]);
+  });
+});
+
 describe("agentTriggerableMotionIds", () => {
   function motions(): MotionRegistry {
     return {
