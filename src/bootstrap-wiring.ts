@@ -27,6 +27,7 @@ import {
 } from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { selectFetch } from "./io/chat-client";
+import type { ExpressMotionSettings } from "./io/express-motion-settings";
 import { ensureRegistered, updateVoice } from "./io/irodori-voices";
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
@@ -686,6 +687,11 @@ export async function wireBroker(deps: {
   getConfig: () => AppConfig;
   getEndpoints: () => EndpointsConfig;
   endpointsSettings: { subscribe(cb: () => void): () => void };
+  /** Curates the published motion vocabulary; a change re-publishes it. */
+  expressMotionSettings: {
+    get(): ExpressMotionSettings;
+    subscribe(cb: () => void): () => void;
+  };
   log: Logger;
 }): Promise<{
   onConfigChange: (cfg: AppConfig, changed: ReadonlySet<ConfigSection>) => void;
@@ -693,7 +699,7 @@ export async function wireBroker(deps: {
   vocabulary: () => BrokerPayload;
   dispose: () => void;
 }> {
-  const { getConfig, getEndpoints, endpointsSettings, log } = deps;
+  const { getConfig, getEndpoints, endpointsSettings, expressMotionSettings, log } = deps;
   // In the Tauri webview the broker (localhost:3201) is cross-origin → inject the CORS-bypass fetch.
   // Resolved once and reused when the client is retargeted.
   const brokerFetch = (await selectFetch()) ?? undefined;
@@ -718,15 +724,23 @@ export async function wireBroker(deps: {
     }
     return table;
   };
-  const vocabulary = (): BrokerPayload =>
-    deriveBrokerPayload({ ...getConfig(), endpoints: getEndpoints() }, table);
+  /** Every payload goes through here, so the motion selection reaches publish and tools alike. */
+  const derive = (
+    cfg: AppConfig,
+    eff: EndpointsConfig,
+    emotionTable: Record<string, string> | null,
+  ): BrokerPayload =>
+    deriveBrokerPayload({ ...cfg, endpoints: eff }, emotionTable, {
+      expressMotions: expressMotionSettings.get(),
+    });
+  const vocabulary = (): BrokerPayload => derive(getConfig(), getEndpoints(), table);
 
   const bootEps = getEndpoints();
   // Loaded even with no broker: the vocabulary also feeds the client-declared tools.
   const bootTable = await loadBrokerTable(bootEps.tts_provider);
   if (bootEps.broker_base_url) {
     broker = makeBroker(bootEps.broker_base_url);
-    const payload = deriveBrokerPayload({ ...getConfig(), endpoints: bootEps }, bootTable);
+    const payload = derive(getConfig(), bootEps, bootTable);
     void broker.publish(payload).then(() => broker?.start());
   } else {
     log.debug("broker_disabled", { reason: "no_broker_base_url" });
@@ -740,10 +754,14 @@ export async function wireBroker(deps: {
     },
     createBroker: makeBroker,
     loadTable: loadBrokerTable,
-    derivePayload: (eff, table) => deriveBrokerPayload({ ...getConfig(), endpoints: eff }, table),
+    derivePayload: (eff, table) => derive(getConfig(), eff, table),
   });
   const unsubscribeOverride = endpointsSettings.subscribe(() => {
     void reconciler.onChange();
+  });
+  // The selection is broadcast-synced, so this fires for the settings window's edit too.
+  const unsubscribeExpressMotions = expressMotionSettings.subscribe(() => {
+    if (broker) void broker.publish(vocabulary());
   });
 
   const onConfigChange = (cfg: AppConfig, changed: ReadonlySet<ConfigSection>): void => {
@@ -753,13 +771,14 @@ export async function wireBroker(deps: {
     ) {
       const eff = getEndpoints();
       void loadBrokerTable(eff.tts_provider).then((loaded) => {
-        void broker?.publish(deriveBrokerPayload({ ...cfg, endpoints: eff }, loaded));
+        void broker?.publish(derive(cfg, eff, loaded));
       });
     }
   };
 
   const dispose = (): void => {
     unsubscribeOverride();
+    unsubscribeExpressMotions();
     broker?.dispose();
   };
 

@@ -34,6 +34,8 @@ interface PanelHtmlOptions {
   showViewpoint: boolean;
   /** Whether the idle-motion section renders — true when the idle-motion store is injected. */
   showIdleMotion: boolean;
+  /** Whether the express-motion section renders — true when the express-motion store is injected. */
+  showExpressMotion: boolean;
   switchRows: readonly SwitchRow[];
   showPresence: boolean;
   showDevtools: boolean;
@@ -50,6 +52,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showSessionReset,
     showViewpoint,
     showIdleMotion,
+    showExpressMotion,
     switchRows,
     showPresence,
     showDevtools,
@@ -417,6 +420,17 @@ ${switchRowsHtml("talk", 10, "filler")}
           <div class="yui-quick__divider" aria-hidden="true"></div>
           <span class="yui-quick__section">${t("idle_motion.section")}</span>
           <div class="yui-motions" role="group" aria-label="${t("idle_motion.group_aria")}"></div>
+        </div>`
+            : ""
+        }
+        ${
+          showExpressMotion
+            ? `
+        <div class="yui-express-motion">
+          <div class="yui-quick__divider" aria-hidden="true"></div>
+          <span class="yui-quick__section">${t("express_motion.section")}</span>
+          <p class="yui-express__sub">${t("express_motion.sub")}</p>
+          <div class="yui-express" role="group" aria-label="${t("express_motion.group_aria")}"></div>
         </div>`
             : ""
         }

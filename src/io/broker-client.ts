@@ -14,6 +14,7 @@
 import type { AppConfig } from "../config/load";
 import type { MotionRegistry } from "../contract";
 import { createLogger, type Logger } from "../logger";
+import { type ExpressMotionSettings, enabledExpressMotions } from "./express-motion-settings";
 import { emotionTextModeFor, resolveTtsProviderKind } from "./tts-provider";
 
 export interface BrokerVocab {
@@ -325,18 +326,23 @@ export function agentTriggerableMotionIds(motions: MotionRegistry): string[] {
 
 /**
  * Pure derivation of the broker payload from loaded config. emotion ids = registry keys; motion ids
- * = agent-triggerable motion keys (see agentTriggerableMotionIds).
+ * = agent-triggerable motion keys (see agentTriggerableMotionIds) narrowed by the user's
+ * expression-motion selection — the one seam both vocabulary consumers read, so the broker publish
+ * and the Chat-Completions tool schema always carry the same list.
  * emotion_text mode follows the TTS provider: irodori ⇒ enum with the supplied table; anything else
  * ⇒ free/null. irodori with a missing table falls back to free/null with a warn rather than crashing.
  */
 export function deriveBrokerPayload(
   cfg: AppConfig,
   irodoriTable: Record<string, string> | null,
-  logger?: Logger,
+  opts: { expressMotions?: ExpressMotionSettings; logger?: Logger } = {},
 ): BrokerPayload {
-  const log = logger ?? createLogger("broker-client");
+  const log = opts.logger ?? createLogger("broker-client");
   const emotionIds = Object.keys(cfg.emotionRegistry);
-  const motionIds = agentTriggerableMotionIds(cfg.motions);
+  const vocabulary = agentTriggerableMotionIds(cfg.motions);
+  const motionIds = opts.expressMotions
+    ? enabledExpressMotions(vocabulary, opts.expressMotions)
+    : vocabulary;
 
   let emotionText: BrokerPayload["emotionText"];
   const providerKind = resolveTtsProviderKind(cfg.endpoints.tts_provider);

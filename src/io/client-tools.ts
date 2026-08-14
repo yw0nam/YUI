@@ -56,12 +56,19 @@ export function createClientToolRegistry(tools: readonly ClientTool[]): ClientTo
 
 /**
  * The cue contract in the words the model reads before calling. Full statement of it:
- * docs/reference/backend-contract.md.
+ * docs/reference/backend-contract.md. Body motion drops out of the sentence when the curated
+ * vocabulary carries no motion, so the description never promises a parameter the schema omits.
  */
-const EXPRESS_DESCRIPTION =
-  "Place an expression cue on the speech around this call: facial expression, body motion, and " +
-  "voice tone. Call it per sentence or expressive beat, at the point where the expression should " +
-  "change, and include only the fields that change. Spoken words never go in the arguments.";
+function expressDescription(withMotion: boolean): string {
+  const channels = withMotion
+    ? "facial expression, body motion, and voice tone"
+    : "facial expression and voice tone";
+  return (
+    `Place an expression cue on the speech around this call: ${channels}. Call it per sentence ` +
+    "or expressive beat, at the point where the expression should change, and include only the " +
+    "fields that change. Spoken words never go in the arguments."
+  );
+}
 
 /**
  * voice tone tag schema. An enum-mode provider (irodori) speaks a fixed tag table, so the tags and
@@ -80,15 +87,19 @@ function emotionTextSchema(emotionText: BrokerPayload["emotionText"]): Record<st
   };
 }
 
-/** Built from the same vocabulary the broker publishes (broker-client.deriveBrokerPayload). */
+/**
+ * Built from the same vocabulary the broker publishes (broker-client.deriveBrokerPayload). A
+ * curated-empty motion list drops motion_id rather than declaring an unfillable empty enum.
+ */
 export function createGenerateExpressTool(vocab: BrokerPayload): ClientTool {
+  const withMotion = vocab.motionIds.length > 0;
   return {
     name: "generate_express",
     definition: {
       type: "function",
       function: {
         name: "generate_express",
-        description: EXPRESS_DESCRIPTION,
+        description: expressDescription(withMotion),
         parameters: {
           type: "object",
           properties: {
@@ -97,7 +108,15 @@ export function createGenerateExpressTool(vocab: BrokerPayload): ClientTool {
               description: "facial expression",
               enum: vocab.emotionIds,
             },
-            motion_id: { type: "string", description: "body motion", enum: vocab.motionIds },
+            ...(withMotion
+              ? {
+                  motion_id: {
+                    type: "string",
+                    description: "body motion",
+                    enum: vocab.motionIds,
+                  },
+                }
+              : {}),
             emotion_text: emotionTextSchema(vocab.emotionText),
           },
           additionalProperties: false,

@@ -12,6 +12,7 @@ import type { ApiKeySettingsStore } from "../io/api-key-settings";
 import type { createChatHistoryStore } from "../io/chat-history-store";
 import type { ChatKeySettingsStore } from "../io/chat-key-settings";
 import type { createEndpointsSettings, EndpointOverrides } from "../io/endpoints-settings";
+import type { ExpressMotionSettingsStore } from "../io/express-motion-settings";
 import type { createFillerSettings } from "../io/filler-settings";
 import type { IdleMotionSettingsStore, IdleVariantPool } from "../io/idle-motion-settings";
 import {
@@ -35,6 +36,7 @@ import { type CueListInstance, createCueList } from "./cue-list";
 import { type Locale, setLocale, t } from "./i18n";
 import type { QuickControlsTab } from "./quick-controls/constants";
 import { createEndpointsSection } from "./quick-controls/endpoints-section";
+import { createExpressMotionList } from "./quick-controls/express-motion-section";
 import { createHistorySection } from "./quick-controls/history-section";
 import { createIdleMotionList } from "./quick-controls/idle-motion-section";
 import { createMonitorsSection } from "./quick-controls/monitors-section";
@@ -152,6 +154,10 @@ interface QuickControlsOptions {
   idleMotionSettings?: IdleMotionSettingsStore;
   /** The read-only `idle` catalog entry backing that section (undefined until configs load). */
   getIdlePool?: () => IdleVariantPool | undefined;
+  /** Per-motion express-motion on/off store. If absent, the express-motion section won't render. */
+  expressMotionSettings?: ExpressMotionSettingsStore;
+  /** Agent-triggerable motion ids backing that section (empty until configs load). */
+  getExpressMotions?: () => readonly string[];
 }
 
 interface QuickControls {
@@ -338,6 +344,8 @@ export function createQuickControls({
   railCollapsedSettings,
   idleMotionSettings,
   getIdlePool,
+  expressMotionSettings,
+  getExpressMotions,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // Context-occupancy readout renders only in the settings window, when both stores are injected.
@@ -372,6 +380,7 @@ export function createQuickControls({
     showSessionReset,
     showViewpoint: !!onResetViewpoint,
     showIdleMotion: !!idleMotionSettings,
+    showExpressMotion: !!expressMotionSettings,
     switchRows: TOGGLE_SPECS,
     showPresence: !!presenceSettings,
     showDevtools: !isWindow && !!onOpenDevtools,
@@ -499,6 +508,17 @@ export function createQuickControls({
       })
     : undefined;
 
+  // ── Express motion section ──
+
+  const expressMotionList = expressMotionSettings
+    ? createExpressMotionList({
+        root: el,
+        settings: expressMotionSettings,
+        getVocabulary: () => getExpressMotions?.() ?? [],
+        log,
+      })
+    : undefined;
+
   // ── Speaker section ──
   const speakerList = createSpeakerList({
     root: el,
@@ -543,6 +563,7 @@ export function createQuickControls({
       history?.render();
       vrmList.render();
       idleMotionList?.render();
+      expressMotionList?.render();
       // Provider may have changed while closed; re-sync baseline on open.
       lastSpkEnabled = speakerControlsEnabled();
       speakerList.render();
@@ -1073,6 +1094,10 @@ export function createQuickControls({
   const unsubscribeIdleMotion = idleMotionSettings?.subscribe(() => {
     if (popover.isOpen()) idleMotionList?.render();
   });
+  // Reflect express-motion updates (this window's toggle · other window's reloadFromStorage).
+  const unsubscribeExpressMotion = expressMotionSettings?.subscribe(() => {
+    if (popover.isOpen()) expressMotionList?.render();
+  });
 
   switchBtn.addEventListener("click", handleSwitchClick);
   const toggleButtons = TOGGLE_SPECS.map((spec) =>
@@ -1139,6 +1164,8 @@ export function createQuickControls({
     unsubscribeSpk();
     unsubscribeSession?.();
     unsubscribeIdleMotion?.();
+    unsubscribeExpressMotion?.();
+    expressMotionList?.dispose();
     speakerList.dispose();
     popover.dispose();
     switchBtn.removeEventListener("click", handleSwitchClick);

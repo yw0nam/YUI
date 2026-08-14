@@ -1,0 +1,116 @@
+/* Express motion section — category accordion + group master switch. Tokens in ../tokens.css. */
+
+.yui-express {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.2rem 0.1rem;
+}
+
+.yui-express__sub {
+  margin: 0 0 0.35rem;
+  padding: 0 0.15rem;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: var(--yui-text-mute);
+}
+
+/* ── Group header — expander on the left, whole-group switch on the right ── */
+.yui-express__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-right: 0.55rem;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-row);
+  transition: border-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-express__head:hover {
+  border-color: var(--yui-edge-strong);
+}
+
+/* Open: the group frame takes over the border, so the head loses its own. */
+.yui-express__group.is-open .yui-express__head {
+  border-color: transparent;
+}
+
+.yui-express__toggle {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.55rem;
+  border: 0;
+  border-radius: var(--yui-radius-row);
+  background: none;
+  color: var(--yui-text-dim);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yui-express__toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-express__chev {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--yui-text-mute);
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-express__chev.is-open {
+  transform: rotate(90deg);
+}
+
+.yui-express__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--yui-text);
+}
+
+.yui-express__group.is-open .yui-express__name {
+  color: var(--yui-accent);
+}
+
+.yui-express__count {
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  color: var(--yui-text-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mixed — half the track lit, knob parked mid-travel. */
+.yui-express__master[aria-checked="mixed"] {
+  background: linear-gradient(90deg, var(--yui-accent) 50%, oklch(0.5 0.01 70 / 0.35) 50%);
+}
+
+.yui-express__master[aria-checked="mixed"]::after {
+  transform: translateX(calc((var(--w) - var(--h)) / 2));
+}
+
+.yui-express__group.is-open {
+  border: 1px solid var(--yui-accent-faint);
+  border-radius: var(--yui-radius-row);
+  padding: 0.1rem 0.2rem 0.3rem;
+}
+
+.yui-express__rows {
+  display: flex;
+  flex-direction: column;
+  padding: 0 0.15rem 0.1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-express__head,
+  .yui-express__chev {
+    transition: none;
+  }
+}
