@@ -184,6 +184,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
     railCollapsedSettings,
     bubblePersistSettings,
     chatHistoryStore,
+    sessionStore,
+    sessionDiagnostics,
   } = settingsStores;
   // Every store in the bag shares the same lifecycle, so teardown iterates the bag itself:
   // a store added to createSettingsStores is disposed without touching this loop.
@@ -268,6 +270,9 @@ async function bootstrap(): Promise<BootstrapHandle> {
       presenceSettings,
       railCollapsedSettings,
       transcript: chatHistoryStore,
+      // Same instances the dispatcher reads through, so "start fresh" takes effect on the next turn.
+      sessionStore,
+      sessionDiagnostics,
       sourceProvider: screenSourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,

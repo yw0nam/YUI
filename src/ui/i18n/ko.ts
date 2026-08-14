@@ -357,7 +357,7 @@ const ko: Record<string, string> = {
   "session.section": "세션",
   "session.context": "Context",
   "session.action_label": "새 대화 시작 · Start fresh",
-  "session.action_sub": "새 대화를 시작해요. 그 전까지 YUI는 현재 기억을 유지해요.",
+  "session.action_sub": "새 대화를 시작해요. 지금까지의 대화는 위 기록에 그대로 남아요.",
   "session.reset": "대화 초기화 · Reset conversation",
   "session.confirm_q": "새로 시작할까요?",
   "session.confirm_go": "새로 시작",

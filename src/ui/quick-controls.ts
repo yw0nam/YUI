@@ -126,7 +126,7 @@ interface QuickControlsOptions {
   getDefaultProvider?: () => "openai" | "irodori" | undefined;
   /** Default bundled-config value for Chat API dropdown when no override (undefined if not loaded). */
   getDefaultChatApi?: () => string | undefined;
-  /** Session diagnostics (context usage · last compression). Session section only renders in window variant. */
+  /** Session diagnostics (context usage · last compression). The occupancy readout renders in the window variant only. */
   sessionDiagnostics?: SessionDiagnosticsStore;
   /** Current session id pointer. "Start fresh" clears it along with diagnostics. */
   sessionStore?: SessionStore;
@@ -332,8 +332,10 @@ export function createQuickControls({
   railCollapsedSettings,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
-  // Session section renders only in settings window (window), when both stores are injected.
+  // Context-occupancy readout renders only in the settings window, when both stores are injected.
   const hasSession = isWindow && !!sessionDiagnostics && !!sessionStore;
+  // Start fresh lives under the History tab's session list — both variants get it once the stores are there.
+  const showSessionReset = !!transcript && !!sessionDiagnostics && !!sessionStore;
   // Use variant tag to distinguish which window created logs (Tauri merges both window logs to one file).
   const log = createLogger(isWindow ? "settings-ui" : "quick-ui");
 
@@ -359,6 +361,7 @@ export function createQuickControls({
   el.innerHTML = buildPanelHtml({
     isWindow,
     hasSession,
+    showSessionReset,
     showViewpoint: !!onResetViewpoint,
     switchRows: TOGGLE_SPECS,
     showPresence: !!presenceSettings,
@@ -425,10 +428,10 @@ export function createQuickControls({
     ? createHistorySection({ root: el, transcript, isOpen: () => popover.isOpen() })
     : null;
 
-  // Session section node (window only — null otherwise).
+  // Start-fresh footer nodes in the History tab (null when the reset stores are absent).
   const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
-  // Cue rows also use .yui-confirm pattern, so scope session's specifically.
-  const sessionConfirmEl = el.querySelector<HTMLDivElement>(".yui-session .yui-confirm");
+  // Cue rows also use the .yui-confirm pattern, so scope the session's specifically.
+  const sessionConfirmEl = el.querySelector<HTMLDivElement>(".yui-hist__action .yui-confirm");
   const sessionConfirmBtn = el.querySelector<HTMLButtonElement>(".yui-session__confirm");
   const sessionCancelBtn = el.querySelector<HTMLButtonElement>(".yui-session__cancel");
 
@@ -515,6 +518,8 @@ export function createQuickControls({
       reflect.reflectChatType();
       reflect.reflectChatPreset();
       reflect.reflectSession();
+      // The confirm is static markup — disarm it so a reopen never lands on the destructive pill.
+      hideSessionConfirm();
       history?.render();
       vrmList.render();
       // Provider may have changed while closed; re-sync baseline on open.

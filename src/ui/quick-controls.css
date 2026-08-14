@@ -617,6 +617,11 @@
   margin: 0.5rem 0.15rem 0.1rem;
 }
 
+/* The class display would otherwise beat the UA [hidden] rule while the confirm is up. */
+.yui-link-btn[hidden] {
+  display: none;
+}
+
 .yui-reset,
 .yui-link-btn {
   padding: 0;
@@ -1000,7 +1005,7 @@
   font-size: 0.88rem;
 }
 
-/* ── Session section (window only) — quiet diagnostic readout + reset ── */
+/* ── Session section (window only) — quiet context-occupancy readout ── */
 .yui-session {
   padding: 0 0.55rem;
 }

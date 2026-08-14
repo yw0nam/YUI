@@ -288,6 +288,162 @@ describe("createQuickControls — history tab", () => {
   });
 });
 
+describe("createQuickControls — start fresh action in the History tab", () => {
+  let mount: HTMLElement;
+  let sessionStore: ReturnType<typeof createSessionStore>;
+  let sessionDiagnostics: ReturnType<typeof createSessionDiagnosticsStore>;
+
+  beforeEach(() => {
+    let rafId = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return ++rafId;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    sessionStore = createSessionStore();
+    sessionDiagnostics = createSessionDiagnosticsStore();
+    setLocale("en");
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+  });
+
+  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    return createQuickControls({
+      ...defaultQcArgs(mount),
+      sessionStore,
+      sessionDiagnostics,
+      transcript: seedStore(),
+      ...extra,
+    });
+  }
+
+  it.each([
+    ["popover"],
+    ["window"],
+  ] as const)("renders the action under the session list in the %s variant", (variant) => {
+    const qc = buildQc({ variant });
+    qc.open();
+
+    const panel = qc.el.querySelector<HTMLElement>("#yui-panel-hist")!;
+    const action = panel.querySelector<HTMLElement>(".yui-hist__action")!;
+    expect(action).not.toBeNull();
+    expect(action.querySelector(".yui-session__action-label")!.textContent).toBe("Start fresh");
+    expect(action.querySelector(".yui-session__action-sub")!.textContent).toBeTruthy();
+    expect(action.querySelector(".yui-session__reset")).not.toBeNull();
+    expect(action.querySelector<HTMLElement>(".yui-confirm")!.hidden).toBe(true);
+    // it sits after the session list, not before it
+    expect(
+      panel.querySelector(".yui-hist")!.compareDocumentPosition(action) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    qc.dispose();
+  });
+
+  it("omits the action when the reset stores are absent", () => {
+    const qc = createQuickControls({ ...defaultQcArgs(mount), transcript: seedStore() });
+    qc.open();
+
+    expect(qc.el.querySelector("#yui-panel-hist")).not.toBeNull();
+    expect(qc.el.querySelector(".yui-hist__action")).toBeNull();
+    expect(qc.el.querySelector(".yui-session__reset")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("confirming runs the one reset path: session id, diagnostics, transcript boundary", () => {
+    sessionStore.set("resp_x"); // populate so clear() actually fires
+    sessionDiagnostics.setUsage(50000, 200000);
+    const clearSession = vi.spyOn(sessionStore, "clear");
+    const clearDiag = vi.spyOn(sessionDiagnostics, "clear");
+    const transcript = seedStore();
+    const startNewSession = vi.spyOn(transcript, "startNewSession");
+
+    const qc = buildQc({ variant: "popover", transcript });
+    qc.open();
+
+    const confirm = qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!;
+    const reset = qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!;
+    expect(confirm.hidden).toBe(true);
+    reset.click();
+    // the confirm takes the link's place rather than stacking under it
+    expect(confirm.hidden).toBe(false);
+    expect(reset.hidden).toBe(true);
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click();
+
+    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(clearDiag).toHaveBeenCalledTimes(1);
+    expect(startNewSession).toHaveBeenCalledTimes(1);
+    expect(qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!.hidden).toBe(true);
+    expect(reset.hidden).toBe(false);
+
+    qc.dispose();
+  });
+
+  it("cancelling dismisses the confirm without resetting anything", () => {
+    sessionStore.set("resp_y");
+    const clearSession = vi.spyOn(sessionStore, "clear");
+    const transcript = seedStore();
+    const startNewSession = vi.spyOn(transcript, "startNewSession");
+
+    const qc = buildQc({ variant: "popover", transcript });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
+    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__cancel")!.click();
+
+    expect(clearSession).not.toHaveBeenCalled();
+    expect(startNewSession).not.toHaveBeenCalled();
+    expect(qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!.hidden).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("disarms the confirm when the panel is closed and reopened", () => {
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
+    expect(qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!.hidden).toBe(false);
+
+    qc.close();
+    qc.open();
+
+    // reopening must not land the user on an armed destructive pill
+    expect(qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!.hidden).toBe(true);
+    expect(
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.hidden,
+    ).toBe(false);
+
+    qc.dispose();
+  });
+
+  it("shows the new boundary in the list right after a confirmed reset", () => {
+    const transcript = seedStore();
+    const qc = buildQc({ variant: "popover", transcript });
+    qc.open();
+    expect(qc.el.querySelectorAll(".yui-hist__sess")).toHaveLength(2);
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
+    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess"));
+    expect(rows).toHaveLength(3);
+    // the fresh current session is on top, open and empty; the closed one keeps its turns
+    expect(rows[0].getAttribute("aria-expanded")).toBe("true");
+    expect(qc.el.querySelector(".yui-hist__empty")).not.toBeNull();
+    expect(rows[1].querySelector(".yui-hist__sess-count")!.textContent).toContain("2");
+
+    qc.dispose();
+  });
+});
+
 describe("createQuickControls — start fresh keeps the transcript", () => {
   let mount: HTMLElement;
 

@@ -27,7 +27,10 @@ import type { SwitchRow } from "./switch-row";
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
 interface PanelHtmlOptions {
   isWindow: boolean;
+  /** Whether the window-only context-occupancy readout renders. */
   hasSession: boolean;
+  /** Whether the History tab carries the start-fresh action — needs the transcript and reset stores. */
+  showSessionReset: boolean;
   showViewpoint: boolean;
   switchRows: readonly SwitchRow[];
   showPresence: boolean;
@@ -42,6 +45,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
   const {
     isWindow,
     hasSession,
+    showSessionReset,
     showViewpoint,
     switchRows,
     showPresence,
@@ -203,7 +207,7 @@ ${pad}</div>`;
           </div>`;
   }
 
-  // Session section (window-only). Token occupancy display + conversation reset action. Reset is race-safe via pet window thunk.
+  // Session section (window-only) — token occupancy readout.
   const sessionHtml = hasSession
     ? `
       <div class="yui-quick__divider" aria-hidden="true"></div>
@@ -215,18 +219,25 @@ ${pad}</div>`;
             <span class="yui-session__value"></span>
           </div>
         </div>
-        <div class="yui-quick__divider" aria-hidden="true"></div>
-        <div class="yui-session__action">
-          <span class="yui-session__action-label">${t("session.action_label")}</span>
-          <span class="yui-session__action-sub">${t("session.action_sub")}</span>
-        </div>
-        <button class="yui-link-btn yui-session__reset" type="button">${t("session.reset")}</button>
-        <div class="yui-confirm" hidden>
-          <span class="yui-confirm__q">${t("session.confirm_q")}</span>
-          <button class="yui-pill yui-pill--go yui-session__confirm" type="button">${t("session.confirm_go")}</button>
-          <button class="yui-pill yui-session__cancel" type="button">${t("session.confirm_cancel")}</button>
-        </div>
       </div>`
+    : "";
+
+  // Start-fresh footer under the session list. Reset is race-safe via pet window thunk.
+  const sessionResetHtml = showSessionReset
+    ? `
+        <div class="yui-quick__divider" aria-hidden="true"></div>
+        <div class="yui-hist__action">
+          <div class="yui-session__action">
+            <span class="yui-session__action-label">${t("session.action_label")}</span>
+            <span class="yui-session__action-sub">${t("session.action_sub")}</span>
+          </div>
+          <button class="yui-link-btn yui-session__reset" type="button">${t("session.reset")}</button>
+          <div class="yui-confirm" hidden>
+            <span class="yui-confirm__q">${t("session.confirm_q")}</span>
+            <button class="yui-pill yui-pill--go yui-session__confirm" type="button">${t("session.confirm_go")}</button>
+            <button class="yui-pill yui-session__cancel" type="button">${t("session.confirm_cancel")}</button>
+          </div>
+        </div>`
     : "";
 
   // Window variant: native titlebar owns the header — no custom bar rendered.
@@ -580,7 +591,7 @@ ${
     ? `
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-hist" aria-labelledby="yui-tab-hist" tabindex="0" hidden>
         <div class="yui-hist"></div>
-        <p class="yui-hist__foot">${t("history.foot")}</p>
+        <p class="yui-hist__foot">${t("history.foot")}</p>${sessionResetHtml}
       </div>
 `
     : ""
