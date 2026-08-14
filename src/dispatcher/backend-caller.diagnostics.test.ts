@@ -280,6 +280,8 @@ describe("backend_caller — transcript recording", () => {
     return {
       append: vi.fn((e: ChatHistoryEntry) => entries.push(e)),
       entriesAfterLastBoundary: () => entries,
+      // Never reset in these cases — the mid-flight reset has its own describe below.
+      sessionToken: () => "session",
     };
   }
 
