@@ -61,6 +61,34 @@ describe("voice-input-indicator.css — status colors from tokens", () => {
   });
 });
 
+// The chip's fix state reuses the inline-link idiom .yui-input__error-action already
+// ships, so "this is clickable" reads identically on both error surfaces.
+describe("voice-input-indicator.css — not_configured fix affordance", () => {
+  const fix = '.yui-voice[data-state="error"][data-fix="settings"]';
+
+  it("underlines the label in accent-soft at rest", () => {
+    const block = extractBlock(read("voice-input-indicator.css"), `${fix} .yui-voice__label`);
+    expect(block).toMatch(/text-decoration-color:\s*var\(--yui-accent-soft\)/);
+  });
+
+  it("ignites the label on hover and on focus-visible alike", () => {
+    const css = read("voice-input-indicator.css");
+    expect(css).toContain(`${fix}:hover .yui-voice__label`);
+    expect(css).toContain(`${fix}:focus-visible .yui-voice__label`);
+  });
+
+  it("carries a 2px accent-soft focus ring", () => {
+    const block = extractBlock(read("voice-input-indicator.css"), `${fix}:focus-visible`);
+    expect(block).toMatch(/outline:\s*2px solid var\(--yui-accent-soft\)/);
+  });
+
+  it("keeps the gear glyph out of every other state", () => {
+    const css = read("voice-input-indicator.css");
+    expect(extractBlock(css, ".yui-voice__fix-glyph")).toMatch(/display:\s*none/);
+    expect(extractBlock(css, `${fix} .yui-voice__fix-glyph`)).toMatch(/display:\s*block/);
+  });
+});
+
 describe("surfaces.css — tool chip and input error use doctrine tokens", () => {
   it(".yui-tool chip background is var(--yui-scrim-strong)", () => {
     const css = read("surfaces.css");
