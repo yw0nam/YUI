@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createChatHistoryStore } from "../../io/chat-history-store";
 import { createFillerSettings } from "../../io/filler-settings";
 import { createFlagSettings, localStorageStore } from "../../io/persisted-store";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../io/vad-settings";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "../quick-controls";
+import type { QuickControlsTab } from "./constants";
 import { defaultQcArgs } from "./test-helpers";
 
 describe("createQuickControls — tabs + VAD slider", () => {
@@ -134,6 +136,23 @@ describe("createQuickControls — tabs + VAD slider", () => {
     const adv = tabs(qc).find((tab) => tab.id === "yui-tab-adv")!;
     expect(adv.getAttribute("aria-selected")).toBe("true");
     expect(panelFor(qc, adv).hidden).toBe(false);
+
+    qc.dispose();
+  });
+
+  it("open({ tab }) reaches every tab the tablist renders", () => {
+    // The tab union is the panel's public vocabulary — it must not omit a rendered tab.
+    const names: QuickControlsTab[] = ["talk", "char", "input", "adv", "react", "hist"];
+    // A transcript is what renders the history tab, so inject one to get the full rail.
+    const qc = buildQc({ transcript: createChatHistoryStore() });
+    expect(tabs(qc).map((tab) => tab.id)).toEqual(names.map((name) => `yui-tab-${name}`));
+
+    for (const name of names) {
+      qc.open(undefined, { tab: name });
+      const target = tabs(qc).find((tab) => tab.id === `yui-tab-${name}`)!;
+      expect(target.getAttribute("aria-selected")).toBe("true");
+      expect(panelFor(qc, target).hidden).toBe(false);
+    }
 
     qc.dispose();
   });

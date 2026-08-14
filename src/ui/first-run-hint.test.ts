@@ -46,7 +46,7 @@ describe("maybeShowFirstRunHint", () => {
     expect(calls).toEqual(["begin", "push", "end", "markSeen"]);
   });
 
-  it("does nothing and returns false when already seen", () => {
+  it("does nothing and returns false when a configured profile has already seen it", () => {
     const { deps, beginSpeech, pushSpeech, endSpeech, markSeen } = fakeDeps({
       seen: () => true,
     });
@@ -105,12 +105,12 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
     expect(markSeen).not.toHaveBeenCalled();
   });
 
-  it("stays silent once the hint has been seen on a configured profile", () => {
-    const { deps, beginSpeech, pushSpeech } = fakeDeps({ seen: () => true, chatConfigured: false });
+  it("guides again after the backend is cleared, even though the hint was already seen", () => {
+    const { deps, pushSpeech, markSeen } = fakeDeps({ seen: () => true, chatConfigured: false });
 
-    expect(maybeShowFirstRunHint(deps)).toBe(false);
-    expect(beginSpeech).not.toHaveBeenCalled();
-    expect(pushSpeech).not.toHaveBeenCalled();
+    expect(maybeShowFirstRunHint(deps)).toBe(true);
+    expect(pushSpeech).toHaveBeenCalledWith("hint.setup_backend");
+    expect(markSeen).not.toHaveBeenCalled();
   });
 
   it("leaves a configured profile on the controls hint, marked seen", () => {
