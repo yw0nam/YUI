@@ -42,6 +42,7 @@ const en: Record<string, string> = {
   "input.error_stall": "Backend stopped responding · timed out after {seconds}s",
   "input.error_parse": "Response parse failed",
   "input.error_not_configured": "Backend not configured · set it in Settings → Advanced",
+  "input.error_open_settings": "Open settings",
   "input.attach_too_many": "Too many images · up to {max} per turn",
   "input.attach_too_large": "Image too large · up to {max}MB each",
 
@@ -322,6 +323,8 @@ const en: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",
   "hint.first_run_no_hotkey": "Right-click me for controls",
+  "hint.setup_backend":
+    "I have no backend to think with yet — right-click me, open Advanced, and point me at an OpenAI-compatible server",
 
   // reactions tab
   "reactions.watchers_title": "Watchers",

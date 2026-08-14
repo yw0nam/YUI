@@ -3,6 +3,9 @@ import type { ReasoningEffort } from "../../io/agent-settings";
 import { ENDPOINT_FIELD_SPECS, type EndpointOverrides } from "../../io/endpoints-settings";
 import type { Locale } from "../i18n";
 
+// Tab identity — the suffix of each tab button's `yui-tab-*` element id.
+export type QuickControlsTab = "talk" | "char" | "input" | "adv" | "react";
+
 // Language picker display order (Japanese / English / Korean). Fixed independently of LOCALES.
 export const LANG_PICKER_ORDER: readonly Locale[] = ["ja", "en", "ko"];
 

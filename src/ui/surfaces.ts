@@ -14,7 +14,7 @@
 import "./surfaces.css";
 import type { AttachmentLimits } from "../config";
 import { createSpeechBubble } from "./speech-bubble";
-import { createTextInput } from "./text-input";
+import { createTextInput, type InputErrorAction } from "./text-input";
 import { createToolStatus } from "./tool-status";
 
 export interface Surfaces {
@@ -60,8 +60,8 @@ export interface Surfaces {
    * and Enter/submit becomes a no-op. Stopping fires only via a button click.
    */
   setBusy(busy: boolean): void;
-  /** Show an inline error (e.g. send failure). */
-  showInputError(message: string): void;
+  /** Show an inline error (e.g. send failure), optionally with a button that fixes it in place. */
+  showInputError(message: string, action?: InputErrorAction): void;
   /** Apply the configured attach-time caps (configs/guardrails.json → attachments). */
   setAttachmentLimits(limits: AttachmentLimits): void;
   /** Toggle the input disabled (e.g. while processing). When disabled, field disabled + pending dimming. */

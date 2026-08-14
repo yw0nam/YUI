@@ -42,6 +42,7 @@ const ko: Record<string, string> = {
   "input.error_stall": "백엔드 응답 멈춤 · {seconds}초 후 시간 초과",
   "input.error_parse": "응답 처리 실패",
   "input.error_not_configured": "백엔드 미설정 · 설정 → 고급에서 지정",
+  "input.error_open_settings": "설정 열기",
   "input.attach_too_many": "이미지가 너무 많음 · 한 턴에 {max}장까지",
   "input.attach_too_large": "이미지가 너무 큼 · 장당 {max}MB까지",
 
@@ -323,6 +324,8 @@ const ko: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",
   "hint.first_run_no_hotkey": "우클릭하면 컨트롤이 열려요",
+  "hint.setup_backend":
+    "아직 생각할 백엔드가 없어요 · 우클릭해서 고급 탭을 열고 OpenAI 호환 서버를 지정해 주세요",
 
   // reactions tab
   "reactions.watchers_title": "감시",

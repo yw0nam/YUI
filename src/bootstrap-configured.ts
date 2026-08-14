@@ -47,7 +47,7 @@ import { maybeShowFirstRunHint } from "./ui/first-run-hint";
 import { t } from "./ui/i18n";
 import type { createQuickControls } from "./ui/quick-controls";
 import type { Surfaces } from "./ui/surfaces";
-import { routeTurnFailure, turnErrorMessage } from "./ui/turn-error";
+import { routeTurnFailure, turnErrorFixAction, turnErrorMessage } from "./ui/turn-error";
 import type { VoiceInputStatus } from "./ui/voice-input-status";
 import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
 
@@ -254,7 +254,10 @@ const realFactories: ConfiguredBootstrapFactories = {
         if (!message) return;
         const action = routeTurnFailure(source, surfaces.isInputOpen());
         if (action.kind === "show_input_error") {
-          surfaces.showInputError(message);
+          surfaces.showInputError(
+            message,
+            turnErrorFixAction(reason, (tab) => getQuickControls().open(undefined, { tab })),
+          );
         } else if (action.kind === "voice_error") {
           if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
           voiceInputStatus.set("error", reason);
@@ -290,6 +293,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       surfaces,
       hotkey: cfg.hotkeys.summon_global,
       isMac: /Mac/.test(navigator.platform || navigator.userAgent),
+      // Same predicate the backend caller settles not_configured on.
+      chatConfigured: Boolean(getEndpoints().chat_base_url),
       t,
     });
 

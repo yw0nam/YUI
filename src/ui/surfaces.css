@@ -652,3 +652,38 @@
 .yui-input.is-error .yui-input__error {
   opacity: 1;
 }
+
+/* In-place fix next to the error (e.g. open settings on an unconfigured backend).
+   Same inline-link treatment as the bubble: amber-soft underline igniting to amber. */
+.yui-input__error-action {
+  margin-left: 0.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--yui-text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--yui-accent-soft);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 0.08em;
+  border-radius: 3px;
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    text-decoration-color var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-input__error-action:hover,
+.yui-input__error-action:focus-visible {
+  color: var(--yui-accent);
+  text-decoration-color: var(--yui-accent);
+}
+.yui-input__error-action:focus-visible {
+  outline: 2px solid var(--yui-accent-soft);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-input__error-action {
+    transition: none;
+  }
+}
