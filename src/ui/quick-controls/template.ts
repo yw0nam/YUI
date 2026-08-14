@@ -5,6 +5,8 @@ import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
 import {
   CHAT_API_LABEL_KEYS,
   CHAT_APIS,
+  CHAT_PRESET_CUSTOM,
+  CHAT_PROVIDER_PRESETS,
   CHATKEY_CLEAR_SVG,
   CHATKEY_EYE_SVG,
   ENDPOINT_FIELDS,
@@ -104,6 +106,11 @@ ${pad}</div>`;
   const chatTypeOptionsHtml = CHAT_APIS.map(
     (a) => `<option value="${a}">${t(CHAT_API_LABEL_KEYS[a])}</option>`,
   ).join("");
+
+  // Chat provider preset dropdown (yui-select) options — brand names + Custom. value=preset id reflects the current chat_base_url.
+  const chatPresetOptionsHtml = `${CHAT_PROVIDER_PRESETS.map(
+    (p) => `<option value="${p.id}">${p.name}</option>`,
+  ).join("")}<option value="${CHAT_PRESET_CUSTOM}">${t("svc.chat_preset_custom")}</option>`;
 
   // Speaker picker markup — moves from Character tab to TTS·irodori subview. Nodes are queried by el root selector so
   // position changes but speaker JS stays valid. OpenAI hint accompanies it too.
@@ -492,6 +499,10 @@ ${switchRowsHtml("react", 8) || "        "}
             <div class="yui-input-row">
               <label class="yui-input-row__label" for="yui-svc-chat-type">${t("svc.type_label")}</label>
               <select class="yui-select yui-chat-type" id="yui-svc-chat-type" aria-label="${t("svc.chat_aria")}">${chatTypeOptionsHtml}</select>
+            </div>
+            <div class="yui-input-row">
+              <label class="yui-input-row__label" for="yui-svc-chat-preset">${t("svc.chat_preset_label")}</label>
+              <select class="yui-select yui-chat-preset" id="yui-svc-chat-preset" aria-label="${t("svc.chat_preset_aria")}">${chatPresetOptionsHtml}</select>
             </div>
             ${endpointRowHtml("chat_base_url")}
             ${endpointRowHtml("chat_model")}
