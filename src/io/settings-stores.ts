@@ -7,6 +7,7 @@ import { createChatKeySettings, localStorageChatKeyStorage } from "./chat-key-se
 import { createContextHistory, localStorageContextHistory } from "./context-history";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./endpoints-settings";
 import { createFillerSettings, localStorageFillerStorage } from "./filler-settings";
+import { createIdleMotionSettings, localStorageIdleMotionStorage } from "./idle-motion-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./lipsync-settings";
 import {
   createClampedIntSettings,
@@ -120,6 +121,10 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const railCollapsedSettings = createFlagSettings(false, {
     storage: localStorageStore("yui.quickControls.railCollapsed"),
   });
+  // Per-variant on/off overlay over the read-only ambient idle pool in configs/motions.json.
+  const idleMotionSettings = createIdleMotionSettings({
+    storage: localStorageIdleMotionStorage(),
+  });
 
   return {
     screenshotSettings,
@@ -148,6 +153,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     gazeSettings,
     hintSettings,
     railCollapsedSettings,
+    idleMotionSettings,
   };
 }
 
@@ -190,6 +196,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   gazeSettings: "broadcast",
   hintSettings: "local",
   railCollapsedSettings: "broadcast",
+  idleMotionSettings: "broadcast",
 };
 
 /** Stores that reload on a remote signal — the `storage` event and a bridge settings-changed alike. */

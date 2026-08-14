@@ -69,6 +69,7 @@ async function bootstrap(): Promise<void> {
     sessionDiagnostics,
     chatHistoryStore,
     bubblePersistSettings,
+    idleMotionSettings,
   } = settingsStores;
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
@@ -228,6 +229,15 @@ async function bootstrap(): Promise<void> {
         if (!configLoaded) return undefined;
         try {
           return config.get().endpoints.chat_api;
+        } catch {
+          return undefined;
+        }
+      },
+      idleMotionSettings,
+      getIdlePool: () => {
+        if (!configLoaded) return undefined;
+        try {
+          return config.get().motions.idle;
         } catch {
           return undefined;
         }

@@ -68,6 +68,12 @@ interface MotionControllerOptions {
   rng?: () => number;
   /** default logger.warn */
   warn?: (msg: string) => void;
+  /**
+   * Narrows a pool's variants to the ones the user allows. Consulted on every resolve, so a
+   * selection change applies to the next rotation without re-creating the controller. An empty
+   * result falls through to the entry's own `vrma_path`.
+   */
+  variantFilter?: (id: string, variants: readonly string[]) => readonly string[];
 }
 
 export interface MotionController {
@@ -129,6 +135,7 @@ export function createMotionController(
   const baselineId = opts?.baselineId ?? "idle";
   const rng = opts?.rng ?? Math.random;
   const warn = opts?.warn ?? ((msg: string) => log.warn(msg));
+  const variantFilter = opts?.variantFilter;
 
   /** Per-id cursor for sequential variant_policy. */
   const seqCursors = new Map<string, number>();
@@ -150,9 +157,10 @@ export function createMotionController(
       return null;
     }
 
-    // Select variant.
+    // Select variant. The filter runs per resolve, so a user selection change lands on the next pick.
     let vrma_path = entry.vrma_path;
-    const variants = entry.variants;
+    let variants: readonly string[] | undefined = entry.variants;
+    if (variants && variantFilter) variants = variantFilter(signal.id, variants);
     if (variants && variants.length > 0) {
       const policy = entry.variant_policy ?? "random";
       if (policy === "sequential") {

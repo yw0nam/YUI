@@ -197,6 +197,19 @@ const ko: Record<string, string> = {
   "expression.mouth_aria": "입 움직임",
   "expression.mouth_hint": "드래그하면 캐릭터 입이 실제로 그만큼 벌어져요",
 
+  // idle motion selection (labels keyed by the variant file stem)
+  "idle_motion.section": "Idle 모션",
+  "idle_motion.group_aria": "Idle 모션 선택",
+  "idle_motion.always_on": "항상 켜짐",
+  "idle_motion.calm.label": "차분히 서 있기",
+  "idle_motion.calm.sub": "손을 모으고 서 있는 기본 자세",
+  "idle_motion.idle_01.label": "장난스러운 몸짓",
+  "idle_motion.idle_01.sub": "가슴 앞에 손을 모으고 살짝 돌아보기",
+  "idle_motion.idle_04.label": "머리카락 만지기",
+  "idle_motion.idle_04.sub": "몸을 3/4로 돌려 머리카락을 만지는 수줍은 동작",
+  "idle_motion.idle_12.label": "한쪽 힙에 기대서기",
+  "idle_motion.idle_12.sub": "무게를 옮기고 고개를 기울이는 여유로운 자세",
+
   // viewpoint (camera orbit)
   "viewpoint.section": "시점",
   "viewpoint.sub": "Shift + 드래그로 회전, 스크롤로 확대",

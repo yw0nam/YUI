@@ -32,6 +32,7 @@ import { createCursorTracker } from "./io/cursor-tracker";
 import { createDragHoldSource } from "./io/drag-hold-source";
 import { createFrontmostTracker } from "./io/frontmost-tracker";
 import { createHitTestController } from "./io/hit-test";
+import { enabledIdleVariants } from "./io/idle-motion-settings";
 import { createPeekState } from "./io/peek-state";
 import type { ScreenCapturer } from "./io/screen-source-provider";
 import { buildScreenshotBlock } from "./io/screenshot-context";
@@ -156,6 +157,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       cameraSettings,
       gazeSettings,
       hintSettings,
+      idleMotionSettings,
     } = settings;
     const { vrmSelection, loadVrmSerialized } = vrm;
     const { speakerSelection, refreshVoiceList } = speaker;
@@ -276,6 +278,13 @@ const realFactories: ConfiguredBootstrapFactories = {
     ensureActive();
     renderer.setEmotionRegistry(cfg.emotionRegistry);
     renderer.setMotionRegistry(cfg.motions);
+    // Ambient idle pool = catalog ∩ the user's selection; re-applied live on every store change.
+    const applyIdleVariants = (): void => {
+      const pool = config.get().motions.idle;
+      if (pool) renderer.setIdleVariants(enabledIdleVariants(pool, idleMotionSettings.get()));
+    };
+    applyIdleVariants();
+    register(idleMotionSettings.subscribe(applyIdleVariants));
     renderer.setFraming(cfg.avatar.framing ?? {});
     renderer.setGaze(cfg.avatar.gaze ?? {});
     const bootAlpha = cfg.avatar.hit_test?.alpha_threshold;

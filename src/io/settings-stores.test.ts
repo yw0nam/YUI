@@ -46,6 +46,7 @@ describe("createSettingsStores", () => {
       "gazeSettings",
       "hintSettings",
       "railCollapsedSettings",
+      "idleMotionSettings",
     ]);
   });
 

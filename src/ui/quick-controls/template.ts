@@ -32,6 +32,8 @@ interface PanelHtmlOptions {
   /** Whether the History tab carries the start-fresh action — needs the transcript and reset stores. */
   showSessionReset: boolean;
   showViewpoint: boolean;
+  /** Whether the idle-motion section renders — true when the idle-motion store is injected. */
+  showIdleMotion: boolean;
   switchRows: readonly SwitchRow[];
   showPresence: boolean;
   showDevtools: boolean;
@@ -47,6 +49,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     hasSession,
     showSessionReset,
     showViewpoint,
+    showIdleMotion,
     switchRows,
     showPresence,
     showDevtools,
@@ -407,6 +410,16 @@ ${switchRowsHtml("talk", 10, "filler")}
           <input class="yui-gain__slider" type="range" aria-label="${t("expression.mouth_aria")}" />
           <span class="yui-gain__hint">${t("expression.mouth_hint")}</span>
         </div>
+        ${
+          showIdleMotion
+            ? `
+        <div class="yui-idle-motion">
+          <div class="yui-quick__divider" aria-hidden="true"></div>
+          <span class="yui-quick__section">${t("idle_motion.section")}</span>
+          <div class="yui-motions" role="group" aria-label="${t("idle_motion.group_aria")}"></div>
+        </div>`
+            : ""
+        }
         ${
           showViewpoint
             ? `

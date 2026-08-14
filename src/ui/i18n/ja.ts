@@ -198,6 +198,19 @@ const ja: Record<string, string> = {
   "expression.mouth_aria": "口の動き",
   "expression.mouth_hint": "ドラッグするとキャラクターの口が実際にその分だけ開きます",
 
+  // idle motion selection (labels keyed by the variant file stem)
+  "idle_motion.section": "Idle モーション",
+  "idle_motion.group_aria": "Idle モーションの選択",
+  "idle_motion.always_on": "常にオン",
+  "idle_motion.calm.label": "落ち着いて立つ",
+  "idle_motion.calm.sub": "手を前で組んで立つ基本の姿勢",
+  "idle_motion.idle_01.label": "いたずらっぽい仕草",
+  "idle_motion.idle_01.sub": "胸の前で手を合わせて少し振り返る",
+  "idle_motion.idle_04.label": "髪をさわる",
+  "idle_motion.idle_04.sub": "斜めに向き直って髪に触れる照れた仕草",
+  "idle_motion.idle_12.label": "片方の腰に重心をあずける",
+  "idle_motion.idle_12.sub": "重心を移して首をかしげる余裕のある姿勢",
+
   // viewpoint (camera orbit)
   "viewpoint.section": "視点",
   "viewpoint.sub": "Shift + ドラッグで回転、スクロールでズーム",

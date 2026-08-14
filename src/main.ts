@@ -186,6 +186,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     chatHistoryStore,
     sessionStore,
     sessionDiagnostics,
+    idleMotionSettings,
   } = settingsStores;
   // Every store in the bag shares the same lifecycle, so teardown iterates the bag itself:
   // a store added to createSettingsStores is disposed without touching this loop.
@@ -325,6 +326,14 @@ async function bootstrap(): Promise<BootstrapHandle> {
       getDefaultChatApi: () => {
         try {
           return config.get().endpoints.chat_api;
+        } catch {
+          return undefined;
+        }
+      },
+      idleMotionSettings,
+      getIdlePool: () => {
+        try {
+          return config.get().motions.idle;
         } catch {
           return undefined;
         }
