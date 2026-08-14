@@ -41,13 +41,15 @@ describe("turnErrorMessage", () => {
     expect(turnErrorMessage("parse_error")).toBe(t("input.error_parse"));
   });
 
-  it("maps not_configured to a message naming the settings panel, in every locale", () => {
+  it("maps not_configured to a message stating the condition, in every locale", () => {
+    // The destination is named by the fix action's label, so the message stays short
+    // enough to sit in the input row next to it.
     expect(turnErrorMessage("not_configured")).toBe(t("input.error_not_configured"));
     for (const locale of ["en", "ko", "ja"] as const) {
       setLocale(locale);
       const message = turnErrorMessage("not_configured");
       expect(message).toBeTruthy();
-      expect(message).toContain(t("tabs.adv"));
+      expect(message).not.toContain(t("tabs.adv"));
     }
   });
 
@@ -75,14 +77,16 @@ describe("turnErrorFixAction", () => {
 
     const action = turnErrorFixAction("not_configured", openSettings);
 
-    expect(action?.label).toBe(t("input.error_open_settings"));
+    expect(action?.label).toBe(t("input.error_open_advanced"));
     action?.onClick();
     expect(openSettings).toHaveBeenCalledWith("adv");
   });
 
-  it("localizes the action label", () => {
-    setLocale("ko");
-    expect(turnErrorFixAction("not_configured", () => {})?.label).toBe("설정 열기");
+  it("names the Advanced tab on the label, in every locale", () => {
+    for (const locale of ["en", "ko", "ja"] as const) {
+      setLocale(locale);
+      expect(turnErrorFixAction("not_configured", () => {})?.label).toContain(t("tabs.adv"));
+    }
   });
 
   it("offers nothing for failures the settings panel cannot fix", () => {

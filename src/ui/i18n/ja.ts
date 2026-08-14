@@ -41,8 +41,8 @@ const ja: Record<string, string> = {
   "input.error_network": "応答なし · 接続確認",
   "input.error_stall": "バックエンド応答停止 · {seconds}秒でタイムアウト",
   "input.error_parse": "応答処理に失敗",
-  "input.error_not_configured": "バックエンド未設定 · 設定 → 詳細で指定",
-  "input.error_open_settings": "設定を開く",
+  "input.error_not_configured": "バックエンド未設定",
+  "input.error_open_advanced": "詳細を開く",
   "input.attach_too_many": "画像が多すぎ · 1ターン{max}枚まで",
   "input.attach_too_large": "画像が大きすぎ · 1枚{max}MBまで",
 
