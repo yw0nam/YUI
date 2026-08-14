@@ -151,6 +151,7 @@ const SYSTEM_HELPER_EXECUTABLES: &[&str] = &[
     "NotificationCenter",
     "Spotlight",
     "Screenshot",
+    "screencaptureui",
 ];
 
 /// The frontmost window a user can be looking at: the topmost window whose
@@ -632,6 +633,20 @@ mod tests {
     }
 
     #[test]
+    fn frontmost_skips_the_screenshot_overlay_process() {
+        // The capture toolbar and selection overlay are drawn by
+        // screencaptureui, not by the Screenshot.app launcher.
+        let picked = first_user_window(
+            vec![
+                window(10, Some("screencaptureui"), None),
+                window(20, Some("메모"), Some("장보기")),
+            ],
+            executables(&[(10, "screencaptureui"), (20, "Notes")]),
+        );
+        assert_eq!(picked.unwrap().name.as_deref(), Some("장보기"));
+    }
+
+    #[test]
     fn frontmost_keeps_an_app_whose_display_name_looks_like_a_helper() {
         // Matching is on the binary name, so a third-party app free to call
         // itself "Dock" is still a user window.
@@ -648,8 +663,15 @@ mod tests {
             vec![
                 window(10, Some("WindowManager"), Some("App Icon Window")),
                 window(20, Some("제어 센터"), None),
+                window(30, Some("스크린샷"), None),
+                window(40, Some("screencaptureui"), None),
             ],
-            executables(&[(10, "WindowManager"), (20, "ControlCenter")]),
+            executables(&[
+                (10, "WindowManager"),
+                (20, "ControlCenter"),
+                (30, "Screenshot"),
+                (40, "screencaptureui"),
+            ]),
         );
         assert!(picked.is_none());
     }

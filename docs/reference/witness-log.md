@@ -20,7 +20,7 @@ JSONL: one JSON object per line.
 |---|---|
 | `ts` | ISO 8601 local time with offset |
 | `type` | `app_change` · `idle_start` · `idle_end` |
-| `app` | Owner app of the frontmost window, or `null` |
+| `app` | Owner app of the frontmost window, or `null` — capped at 256 characters |
 | `window_title` | Title of the frontmost window, or `null` — capped at 256 characters |
 
 Only transitions are written; a stable foreground app writes nothing.
@@ -39,7 +39,7 @@ The two platforms answer slightly different questions: macOS reports what sits i
 
 | Platform | Frontmost source | Meaning |
 |---|---|---|
-| macOS | Topmost on-screen layer-0 window, excluding YUI's own process and system-helper owners (Stage Manager, Dock, Control Center, Notification Center, Spotlight, Screenshot) | Topmost non-YUI, non-helper window |
+| macOS | Topmost on-screen layer-0 window, excluding YUI's own process and system helpers. Helpers are matched on the owner pid's executable base name (`WindowManager`, `Dock`, `ControlCenter`, `NotificationCenter`, `Spotlight`, `Screenshot`, `screencaptureui`), not on the localized display name | Topmost non-YUI, non-helper window |
 | Windows | `GetForegroundWindow()`; `app` is the owning process base name, without directory or `.exe` | Focused window, excluding YUI itself and shell chrome (desktop, taskbars) |
 | other | — | No records |
 
