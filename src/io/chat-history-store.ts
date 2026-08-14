@@ -98,7 +98,19 @@ export function createChatHistoryStore(opts?: {
     // The other window may have appended since the last sync — merge before committing.
     core.reloadFromStorage();
     const next = [...core.current(), item];
-    core.commit(next.length > MAX_ITEMS ? next.slice(next.length - MAX_ITEMS) : next);
+    if (next.length <= MAX_ITEMS) {
+      core.commit(next);
+      return;
+    }
+
+    const sliceStart = next.length - MAX_ITEMS;
+    const retained = next.slice(sliceStart);
+    for (let i = next.length - 1; i >= 0; i--) {
+      if (!isBoundary(next[i])) continue;
+      if (i < sliceStart) retained[0] = next[i];
+      break;
+    }
+    core.commit(retained);
   }
 
   return {
