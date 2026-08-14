@@ -139,26 +139,32 @@ pub fn list_windows() -> Result<Vec<WindowAtPoint>, String> {
     }
 }
 
-/// Owner names of macOS system helpers that own on-screen layer-0 windows
-/// while never being the app the user is looking at.
+/// Executable base names of macOS system helpers that own on-screen layer-0
+/// windows while never being the app the user is looking at. Binary names, not
+/// `kCGWindowOwnerName` — that one is localized and would miss on non-English
+/// systems.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
-const SYSTEM_HELPER_OWNERS: &[&str] = &[
+const SYSTEM_HELPER_EXECUTABLES: &[&str] = &[
     "WindowManager",
     "Dock",
-    "Control Center",
-    "Notification Center",
+    "ControlCenter",
+    "NotificationCenter",
     "Spotlight",
     "Screenshot",
 ];
 
 /// The frontmost window a user can be looking at: the topmost window whose
-/// owner is not a system helper. Pure (no FFI), so the pick is unit-testable.
+/// owner executable is not a system helper. `executable` resolves an owner pid
+/// to its binary base name; the pick itself is pure, so it is unit-testable.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
-fn first_user_window(windows: Vec<WindowAtPoint>) -> Option<WindowAtPoint> {
+fn first_user_window(
+    windows: Vec<WindowAtPoint>,
+    executable: impl Fn(i32) -> Option<String>,
+) -> Option<WindowAtPoint> {
     windows.into_iter().find(|w| {
-        !w.owner_name
+        !executable(w.pid)
             .as_deref()
-            .is_some_and(|owner| SYSTEM_HELPER_OWNERS.contains(&owner))
+            .is_some_and(|exe| SYSTEM_HELPER_EXECUTABLES.contains(&exe))
     })
 }
 
@@ -277,7 +283,8 @@ fn polling_loop(app: AppHandle) {
         let idle = platform_idle_ms();
         let (frontmost_app, frontmost_title) = platform_frontmost();
         // Cap at the sampler so the IPC payload and the witness log share one bound.
-        let frontmost_title = crate::witness::cap_title(frontmost_title);
+        let frontmost_app = crate::witness::cap_text(frontmost_app);
+        let frontmost_title = crate::witness::cap_text(frontmost_title);
         let sample = Sample {
             app: frontmost_app.clone(),
             window_title: frontmost_title.clone(),
