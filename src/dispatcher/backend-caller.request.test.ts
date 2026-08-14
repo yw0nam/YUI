@@ -408,7 +408,7 @@ describe("backend_caller — agent trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toContain("(one of my coding tasks just finished)");
+    expect(userMsg.content).toContain("(my claude-code task just finished)");
   });
 
   it("(b) agent.done without status → trigger.agent.status absent", async () => {
@@ -492,10 +492,12 @@ describe("backend_caller — agent trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toContain("(my coding tasks piled up while I was away)");
+    expect(userMsg.content).toContain(
+      "(my claude-code and opencode tasks piled up while I was away)",
+    );
   });
 
-  it("(d) agent.done with malformed payload → kind 'agent' but no trigger.agent", async () => {
+  it("(d) agent.done with malformed payload → kind 'agent', no trigger.agent, unnamed-tool marker", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     const env: BusEnvelope = {
       seq_id: 33,
@@ -511,6 +513,10 @@ describe("backend_caller — agent trigger forwarding", () => {
     expect(trigger.kind).toBe("agent");
     expect("agent" in trigger).toBe(false);
     expect("agent_catchup" in trigger).toBe(false);
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toContain("(one of my coding tasks just finished)");
   });
 
   it("(e) agent.needs_input → trigger.kind 'agent' + trigger.agent with phase/session_id/detail; needs_input marker", async () => {
@@ -549,7 +555,43 @@ describe("backend_caller — agent trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toContain("(one of my coding tasks is waiting on my input)");
+    expect(userMsg.content).toContain("(my claude-code task is waiting on my input)");
+  });
+
+  it("(f) agent.catchup from one tool → marker names that tool once", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 35,
+      source: "timer_scheduler",
+      event_name: "agent.catchup",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        count: 2,
+        items: [
+          {
+            tool: "opencode",
+            project: "alpha",
+            phase: "done",
+            summary: "Done with alpha",
+            ts: 1_717_000_000_000,
+          },
+          {
+            tool: "opencode",
+            project: "beta",
+            phase: "needs_input",
+            summary: "Blocked on beta",
+            ts: 1_717_000_001_000,
+          },
+        ],
+      },
+    };
+    await caller.call(turnOf(env));
+    const [, request] = script.spy.mock.calls[0];
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toContain("(my opencode tasks piled up while I was away)");
   });
 });
 
