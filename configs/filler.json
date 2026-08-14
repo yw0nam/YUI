@@ -1,6 +1,6 @@
 {
-  "gap_ms": 3500,
-  "gap_jitter_ms": 500,
+  "gap_ms": 7000,
+  "gap_jitter_ms": 1500,
   "pools": {
     "ja": { "first": ["うーん…", "そうだね…"], "repeat": ["ええと…", "ちょっと待ってね…", "なるほど…"] },
     "en": { "first": ["Let me think...", "Hmm..."], "repeat": ["Well...", "Just a sec...", "Let me see..."] },
