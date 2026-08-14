@@ -7,7 +7,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ToolStatus, Usage } from "../contract";
-import { type ChatHistoryEntry, createChatHistoryStore } from "../io/chat-history-store";
+import type {
+  ChatHistoryEntry,
+  ChatHistoryItem,
+  ChatHistoryStorage,
+} from "../io/chat-history-store";
+import { createChatHistoryStore } from "../io/chat-history-store";
 import type { Logger } from "../logger";
 import {
   type BackendCaller,
@@ -473,6 +478,40 @@ describe("backend_caller — session reset while a turn is in flight", () => {
     await turnResetMidFlight(store);
 
     expect(store.entriesAfterLastBoundary()).toEqual([]);
+  });
+
+  it("reset from the other window lands mid-flight → its boundary survives, nothing appended", async () => {
+    // Cross-window delivery is asynchronous, so this window's store is still unsynced when the
+    // turn finishes: an unguarded append would also commit its stale array over the boundary.
+    let saved: ChatHistoryItem[] | null = null;
+    const storage: ChatHistoryStorage = {
+      load: () => saved?.map((i) => ({ ...i })) ?? null,
+      save: (s) => {
+        saved = s;
+      },
+    };
+    const store = createChatHistoryStore({ storage });
+    store.append({ role: "user", text: "이전 질문", ts: 1 });
+    const otherWindow = createChatHistoryStore({ storage });
+    caller = createBackendCaller({
+      config: { ...CONFIG, chat_api: "chat_completions" },
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      transcript: store,
+    });
+    turnOutput.speak.mockImplementation(() => {
+      otherWindow.startNewSession(100);
+    });
+    script.events = [completedEvent({ speech_text: "답변" }, "")];
+    await caller.call(turnOf(userEnv("질문")));
+
+    expect(saved).toEqual([
+      { role: "user", text: "이전 질문", ts: 1 },
+      { kind: "boundary", ts: 100 },
+    ]);
   });
 
   it("no reset → the finished turn is recorded as usual", async () => {

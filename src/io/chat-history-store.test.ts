@@ -229,14 +229,15 @@ describe("createChatHistoryStore — sessionToken", () => {
     expect(store.sessionToken()).not.toBe(before);
   });
 
-  it("changes when another window's reset arrives through storage", () => {
+  // Cross-window delivery is asynchronous (storage event / debounced broadcast), so the token
+  // must not wait for it — these read the token with no reload of their own.
+  it("changes when another window's reset lands in storage, before any sync arrives", () => {
     const storage = makeMemStorage();
     const store = createChatHistoryStore({ storage });
     store.append(entry("user", "hi", 1));
     const before = store.sessionToken();
 
     createChatHistoryStore({ storage }).startNewSession(2);
-    store.reloadFromStorage();
 
     expect(store.sessionToken()).not.toBe(before);
   });
@@ -248,7 +249,6 @@ describe("createChatHistoryStore — sessionToken", () => {
     const before = store.sessionToken();
 
     createChatHistoryStore({ storage }).append(entry("assistant", "there", 2));
-    store.reloadFromStorage();
 
     expect(store.sessionToken()).toBe(before);
   });
