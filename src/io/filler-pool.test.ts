@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FillerConfig } from "../config/load";
-import { effectiveFillerPool } from "./filler-pool";
+import { effectiveFillerPool, fillerSubmissions, phraseSentences } from "./filler-pool";
 import type { FillerSettings } from "./filler-settings";
 
 const cfg: FillerConfig = {
@@ -80,5 +80,44 @@ describe("effectiveFillerPool", () => {
     const result = effectiveFillerPool(settings({ language: "ko" }), cfg);
     expect(result.first).toEqual(["음…"]);
     expect(result.repeat).toEqual([]);
+  });
+});
+
+describe("phraseSentences", () => {
+  it("strips the emoji a phrase carries around its text", () => {
+    expect(phraseSentences("🥺少し…⏸️考えさせて。")).toEqual(["少し…考えさせて。"]);
+  });
+
+  it("drops a trailing emoji the stripper holds back until flush", () => {
+    expect(phraseSentences("ちょっと待ってね。😒")).toEqual(["ちょっと待ってね。"]);
+  });
+
+  it("returns no sentence for an emoji-only phrase", () => {
+    expect(phraseSentences("🤔🥺")).toEqual([]);
+  });
+
+  it("splits a phrase on an embedded newline", () => {
+    expect(phraseSentences("うーん\nちょっと待ってね")).toEqual(["うーん", "ちょっと待ってね"]);
+  });
+
+  it("splits a phrase into every sentence it terminates", () => {
+    expect(phraseSentences("うーん🤔。ちょっと待ってね😒。")).toEqual([
+      "うーん。",
+      "ちょっと待ってね。",
+    ]);
+  });
+});
+
+describe("fillerSubmissions", () => {
+  it("unions the sentences of both pools", () => {
+    expect(fillerSubmissions({ first: ["うーん。"], repeat: ["まだ考えてます。"] })).toEqual(
+      new Set(["うーん。", "まだ考えてます。"]),
+    );
+  });
+
+  it("collapses a phrase shared by both pools into one submission", () => {
+    expect(fillerSubmissions({ first: ["うーん。"], repeat: ["うーん。"] })).toEqual(
+      new Set(["うーん。"]),
+    );
   });
 });

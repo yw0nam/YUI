@@ -8,7 +8,7 @@
  * No renderer, no pipeline knowledge — pure scheduling logic.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createFillerLoop, type FillerLoopDeps } from "./filler-loop";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,6 +57,7 @@ function makeDeps(overrides: Partial<FillerLoopDeps> = {}): FillerLoopDeps & {
     speak: (text) => spoken.push(text),
     getPools: () => ({ first: ["first-a", "first-b"], repeat: ["repeat-x", "repeat-y"] }),
     getTiming: () => ({ gapMs: 1000, jitterMs: 0 }),
+    isCached: () => true,
     setTimeout: timers.setTimeout as typeof globalThis.setTimeout,
     clearTimeout: timers.clearTimeout as typeof globalThis.clearTimeout,
     random: () => 0,
@@ -162,9 +163,14 @@ describe("createFillerLoop — onUtteranceDone()", () => {
 // onSynthFailure() behaviour
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createFillerLoop — onSynthFailure()", () => {
+describe("createFillerLoop — onSynthFailure() with a cold cache", () => {
+  // A failure with nothing cached leaves no speakable phrase: the window falls silent, as before.
+  function coldDeps(overrides: Partial<FillerLoopDeps> = {}) {
+    return makeDeps({ isCached: () => false, ...overrides });
+  }
+
   it("does not schedule the next repeat once a synth failure is reported", () => {
-    const deps = makeDeps();
+    const deps = coldDeps();
     const loop = createFillerLoop(deps);
     loop.start();
     loop.onSynthFailure();
@@ -173,7 +179,7 @@ describe("createFillerLoop — onSynthFailure()", () => {
   });
 
   it("cancels a timer that was already pending when the failure lands", () => {
-    const deps = makeDeps();
+    const deps = coldDeps();
     const loop = createFillerLoop(deps);
     loop.start();
     loop.onUtteranceDone();
@@ -183,7 +189,7 @@ describe("createFillerLoop — onSynthFailure()", () => {
   });
 
   it("stays silent for the rest of the window across repeated utterance-done calls", () => {
-    const deps = makeDeps();
+    const deps = coldDeps();
     const loop = createFillerLoop(deps);
     loop.start();
     loop.onSynthFailure();
@@ -195,7 +201,7 @@ describe("createFillerLoop — onSynthFailure()", () => {
   });
 
   it("resumes scheduling at the next start()", () => {
-    const deps = makeDeps();
+    const deps = coldDeps();
     const loop = createFillerLoop(deps);
     loop.start();
     loop.onSynthFailure();
@@ -206,6 +212,91 @@ describe("createFillerLoop — onSynthFailure()", () => {
     expect(deps.timers.hasPending()).toBe(true);
     deps.timers.flush();
     expect(deps.spoken).toHaveLength(3); // first, first again, repeat
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Degraded mode — a synth failure with a warm cache
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createFillerLoop — degraded mode", () => {
+  it("keeps scheduling repeats that are cached", () => {
+    const deps = makeDeps({
+      getPools: () => ({ first: ["first-a"], repeat: ["cached", "uncached"] }),
+      isCached: (phrase) => phrase === "cached",
+    });
+    const loop = createFillerLoop(deps);
+    loop.start();
+    loop.onSynthFailure();
+    loop.onUtteranceDone();
+    expect(deps.timers.hasPending()).toBe(true);
+    deps.timers.flush();
+    expect(deps.spoken).toEqual(["first-a", "cached"]);
+  });
+
+  it("never picks an uncached phrase", () => {
+    const deps = makeDeps({
+      getPools: () => ({ first: [], repeat: ["uncached-a", "cached", "uncached-b"] }),
+      isCached: (phrase) => phrase === "cached",
+      // Walks the raw pool indices, so an unfiltered pick would land on an uncached phrase.
+      random: () => 0.99,
+    });
+    const loop = createFillerLoop(deps);
+    loop.start();
+    deps.timers.flush();
+    loop.onSynthFailure();
+    for (let i = 0; i < 5; i++) {
+      loop.onUtteranceDone();
+      deps.timers.flush();
+    }
+    expect(deps.spoken.slice(1)).toEqual(["cached", "cached", "cached", "cached", "cached"]);
+  });
+
+  it("keeps avoiding the last phrase within the cached pool", () => {
+    const deps = makeDeps({
+      getPools: () => ({ first: [], repeat: ["cached-a", "uncached", "cached-b"] }),
+      isCached: (phrase) => phrase !== "uncached",
+      random: () => 0,
+    });
+    const loop = createFillerLoop(deps);
+    loop.start();
+    loop.onSynthFailure();
+    loop.onUtteranceDone();
+    deps.timers.flush();
+    loop.onUtteranceDone();
+    deps.timers.flush();
+    expect(deps.spoken).toEqual(["cached-a", "cached-b"]);
+  });
+
+  it("clears degraded at the next start()", () => {
+    const deps = makeDeps({
+      getPools: () => ({ first: ["first-a"], repeat: ["uncached"] }),
+      isCached: () => false,
+    });
+    const loop = createFillerLoop(deps);
+    loop.start();
+    loop.onSynthFailure();
+    loop.stop();
+
+    loop.start();
+    loop.onUtteranceDone();
+    deps.timers.flush();
+    expect(deps.spoken).toEqual(["first-a", "first-a", "uncached"]);
+  });
+
+  it("warns once on entering degraded mode, not per skipped cycle", () => {
+    const warn = vi.fn();
+    const deps = makeDeps({
+      isCached: () => false,
+      logger: { debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() },
+    });
+    const loop = createFillerLoop(deps);
+    loop.start();
+    for (let i = 0; i < 3; i++) {
+      loop.onSynthFailure();
+      loop.onUtteranceDone();
+    }
+    expect(warn).toHaveBeenCalledOnce();
   });
 });
 
