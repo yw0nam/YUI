@@ -1,7 +1,11 @@
 /**
- * maybeShowFirstRunHint — one-time onboarding hint through the existing speech
- * bubble. Fires right after the character becomes visible; commits the seen
- * flag on show, not on fade (so a preempting backend speech never resurfaces it).
+ * maybeShowFirstRunHint — onboarding hint through the existing speech bubble.
+ * Fires right after the character becomes visible.
+ *
+ * Configured: the controls hint, once — the seen flag commits on show, not on fade
+ * (so a preempting backend speech never resurfaces it).
+ * Unconfigured: setup guidance instead, on every boot and regardless of the seen
+ * flag, since an address can be cleared long after the hint was first shown.
  */
 
 import { formatAccel } from "./format-accel";
@@ -18,6 +22,8 @@ export interface FirstRunHintDeps {
   };
   hotkey: string;
   isMac: boolean;
+  /** Whether a chat backend address is set. False switches the hint to setup guidance. */
+  chatConfigured: boolean;
   t: TranslateFn;
 }
 
@@ -29,16 +35,20 @@ function escapeMarkdown(s: string): string {
 }
 
 export function maybeShowFirstRunHint(deps: FirstRunHintDeps): boolean {
-  if (deps.seen()) return false;
-
-  const formatted = formatAccel(deps.hotkey, deps.isMac);
-  const text = formatted
-    ? deps.t("hint.first_run", { hotkey: escapeMarkdown(formatted) })
-    : deps.t("hint.first_run_no_hotkey");
+  let text: string;
+  if (deps.chatConfigured) {
+    if (deps.seen()) return false;
+    const formatted = formatAccel(deps.hotkey, deps.isMac);
+    text = formatted
+      ? deps.t("hint.first_run", { hotkey: escapeMarkdown(formatted) })
+      : deps.t("hint.first_run_no_hotkey");
+  } else {
+    text = deps.t("hint.setup_backend");
+  }
 
   deps.surfaces.beginSpeech();
   deps.surfaces.pushSpeech(text);
   deps.surfaces.endSpeech();
-  deps.markSeen();
+  if (deps.chatConfigured) deps.markSeen();
   return true;
 }

@@ -2,8 +2,9 @@
  * first-run-hint.test.ts — maybeShowFirstRunHint decision/display routine.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { type FirstRunHintDeps, maybeShowFirstRunHint } from "./first-run-hint";
+import { setLocale, t } from "./i18n";
 
 function fakeDeps(overrides: Partial<FirstRunHintDeps> = {}): {
   deps: FirstRunHintDeps;
@@ -29,6 +30,7 @@ function fakeDeps(overrides: Partial<FirstRunHintDeps> = {}): {
     surfaces: { beginSpeech, pushSpeech, endSpeech },
     hotkey: "CmdOrCtrl+Shift+Y",
     isMac: false,
+    chatConfigured: true,
     t,
     ...overrides,
   };
@@ -44,7 +46,7 @@ describe("maybeShowFirstRunHint", () => {
     expect(calls).toEqual(["begin", "push", "end", "markSeen"]);
   });
 
-  it("does nothing and returns false when already seen", () => {
+  it("does nothing and returns false when a configured profile has already seen it", () => {
     const { deps, beginSpeech, pushSpeech, endSpeech, markSeen } = fakeDeps({
       seen: () => true,
     });
@@ -82,5 +84,54 @@ describe("maybeShowFirstRunHint", () => {
     maybeShowFirstRunHint(deps);
 
     expect(t).toHaveBeenCalledWith("hint.first_run", { hotkey: "Ctrl\\+\\*" });
+  });
+});
+
+describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
+  it("sends the setup hint instead of the controls hint", () => {
+    const { deps, calls, pushSpeech, t } = fakeDeps({ chatConfigured: false });
+
+    expect(maybeShowFirstRunHint(deps)).toBe(true);
+    expect(calls).toEqual(["begin", "push", "end"]);
+    expect(t).toHaveBeenCalledWith("hint.setup_backend");
+    expect(pushSpeech).toHaveBeenCalledWith("hint.setup_backend");
+  });
+
+  it("does not mark seen, so the guidance survives to the next boot", () => {
+    const { deps, markSeen } = fakeDeps({ chatConfigured: false });
+
+    maybeShowFirstRunHint(deps);
+
+    expect(markSeen).not.toHaveBeenCalled();
+  });
+
+  it("guides again after the backend is cleared, even though the hint was already seen", () => {
+    const { deps, pushSpeech, markSeen } = fakeDeps({ seen: () => true, chatConfigured: false });
+
+    expect(maybeShowFirstRunHint(deps)).toBe(true);
+    expect(pushSpeech).toHaveBeenCalledWith("hint.setup_backend");
+    expect(markSeen).not.toHaveBeenCalled();
+  });
+
+  it("leaves a configured profile on the controls hint, marked seen", () => {
+    const { deps, pushSpeech, markSeen } = fakeDeps({ chatConfigured: true });
+
+    maybeShowFirstRunHint(deps);
+
+    expect(pushSpeech).not.toHaveBeenCalledWith("hint.setup_backend");
+    expect(markSeen).toHaveBeenCalled();
+  });
+});
+
+describe("hint.setup_backend copy", () => {
+  afterEach(() => setLocale("en"));
+
+  it("names the Advanced tab in every locale", () => {
+    for (const locale of ["en", "ko", "ja"] as const) {
+      setLocale(locale);
+      const copy = t("hint.setup_backend");
+      expect(copy).not.toBe("hint.setup_backend");
+      expect(copy).toContain(t("tabs.adv"));
+    }
   });
 });

@@ -32,6 +32,7 @@ import type { createWorkflowSettings } from "../io/workflow-settings";
 import { createLogger } from "../logger";
 import { type CueListInstance, createCueList } from "./cue-list";
 import { type Locale, setLocale, t } from "./i18n";
+import type { QuickControlsTab } from "./quick-controls/constants";
 import { createEndpointsSection } from "./quick-controls/endpoints-section";
 import { createHistorySection } from "./quick-controls/history-section";
 import { createMonitorsSection } from "./quick-controls/monitors-section";
@@ -149,7 +150,8 @@ interface QuickControlsOptions {
 
 interface QuickControls {
   el: HTMLElement;
-  open(anchor?: { x: number; y: number }): void;
+  /** Summon the panel. `tab` lands on that tab instead of the one last left selected. */
+  open(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void;
   close(): void;
   isOpen(): boolean;
   dispose(): void;
@@ -868,6 +870,15 @@ export function createQuickControls({
     if (focus) tabButtons[clamped]?.focus();
   }
 
+  function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void {
+    const index = opts?.tab ? tabButtons.findIndex((tab) => tab.id === `yui-tab-${opts.tab}`) : -1;
+    // Select before opening so the panel is positioned around the tab the caller asked for.
+    if (index >= 0) selectTab(index);
+    popover.open(anchor);
+    // open() lands focus on the first control; move it to the tab the caller asked for.
+    if (index >= 0) tabButtons[index]?.focus();
+  }
+
   function handleTabClick(e: MouseEvent): void {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-tab");
     if (!btn) return;
@@ -1132,5 +1143,5 @@ export function createQuickControls({
     scrimEl.remove();
   }
 
-  return { el, open: popover.open, close: popover.close, isOpen: popover.isOpen, dispose };
+  return { el, open: openPanel, close: popover.close, isOpen: popover.isOpen, dispose };
 }

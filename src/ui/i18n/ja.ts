@@ -41,7 +41,8 @@ const ja: Record<string, string> = {
   "input.error_network": "応答なし · 接続確認",
   "input.error_stall": "バックエンド応答停止 · {seconds}秒でタイムアウト",
   "input.error_parse": "応答処理に失敗",
-  "input.error_not_configured": "バックエンド未設定 · 設定 → 詳細で指定",
+  "input.error_not_configured": "バックエンド未設定",
+  "input.error_open_advanced": "詳細を開く",
   "input.attach_too_many": "画像が多すぎ · 1ターン{max}枚まで",
   "input.attach_too_large": "画像が大きすぎ · 1枚{max}MBまで",
 
@@ -324,6 +325,8 @@ const ja: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",
   "hint.first_run_no_hotkey": "右クリックでコントロール",
+  "hint.setup_backend":
+    "考えるためのバックエンドがまだないの · 右クリックして詳細タブを開いて、OpenAI 互換サーバーを指定してね",
 
   // reactions tab
   "reactions.watchers_title": "ウォッチャー",

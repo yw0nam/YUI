@@ -18,7 +18,7 @@ import {
   TTS_API_KEY_SECRET,
 } from "./config";
 import type { EndpointsConfig } from "./contract";
-import { createBackendCaller } from "./dispatcher/backend-caller";
+import { createBackendCaller, isChatConfigured } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
 import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
@@ -47,7 +47,7 @@ import { maybeShowFirstRunHint } from "./ui/first-run-hint";
 import { t } from "./ui/i18n";
 import type { createQuickControls } from "./ui/quick-controls";
 import type { Surfaces } from "./ui/surfaces";
-import { routeTurnFailure, turnErrorMessage } from "./ui/turn-error";
+import { routeTurnFailure, turnErrorFixAction, turnErrorMessage } from "./ui/turn-error";
 import type { VoiceInputStatus } from "./ui/voice-input-status";
 import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
 
@@ -254,7 +254,10 @@ const realFactories: ConfiguredBootstrapFactories = {
         if (!message) return;
         const action = routeTurnFailure(source, surfaces.isInputOpen());
         if (action.kind === "show_input_error") {
-          surfaces.showInputError(message);
+          surfaces.showInputError(
+            message,
+            turnErrorFixAction(reason, (tab) => getQuickControls().open(undefined, { tab })),
+          );
         } else if (action.kind === "voice_error") {
           if (voiceTurnErrorTimer !== null) clearTimeout(voiceTurnErrorTimer);
           voiceInputStatus.set("error", reason);
@@ -290,6 +293,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       surfaces,
       hotkey: cfg.hotkeys.summon_global,
       isMac: /Mac/.test(navigator.platform || navigator.userAgent),
+      chatConfigured: isChatConfigured(getEndpoints()),
       t,
     });
 

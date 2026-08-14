@@ -9,6 +9,8 @@
 import { IDLE_TIMEOUT_MS, type TurnFailure } from "../dispatcher/backend-caller";
 import type { UserTurnSource } from "../dispatcher/dispatcher";
 import { t } from "./i18n";
+import type { QuickControlsTab } from "./quick-controls/constants";
+import type { InputErrorAction } from "./text-input";
 
 export function turnErrorMessage(reason: TurnFailure): string | undefined {
   switch (reason) {
@@ -26,6 +28,19 @@ export function turnErrorMessage(reason: TurnFailure): string | undefined {
     default:
       return undefined;
   }
+}
+
+/**
+ * The in-place fix an inline error carries, if the settings panel can resolve it.
+ * Only an unconfigured backend qualifies — every other failure is outside the panel.
+ * The label names the destination, so the message itself only states the condition.
+ */
+export function turnErrorFixAction(
+  reason: TurnFailure,
+  openSettings: (tab: QuickControlsTab) => void,
+): InputErrorAction | undefined {
+  if (reason !== "not_configured") return undefined;
+  return { label: t("input.error_open_advanced"), onClick: () => openSettings("adv") };
 }
 
 export type TurnFailureAction =

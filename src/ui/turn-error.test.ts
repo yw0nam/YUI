@@ -6,10 +6,10 @@
  * (filtered upstream in the dispatcher) and is not part of this mapping's input type.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IDLE_TIMEOUT_MS } from "../dispatcher/backend-caller";
 import { setLocale, t } from "./i18n";
-import { routeTurnFailure, turnErrorMessage } from "./turn-error";
+import { routeTurnFailure, turnErrorFixAction, turnErrorMessage } from "./turn-error";
 
 describe("turnErrorMessage", () => {
   beforeEach(() => setLocale("en"));
@@ -41,13 +41,15 @@ describe("turnErrorMessage", () => {
     expect(turnErrorMessage("parse_error")).toBe(t("input.error_parse"));
   });
 
-  it("maps not_configured to a message naming the settings panel, in every locale", () => {
+  it("maps not_configured to a message stating the condition, in every locale", () => {
+    // The destination is named by the fix action's label, so the message stays short
+    // enough to sit in the input row next to it.
     expect(turnErrorMessage("not_configured")).toBe(t("input.error_not_configured"));
     for (const locale of ["en", "ko", "ja"] as const) {
       setLocale(locale);
       const message = turnErrorMessage("not_configured");
       expect(message).toBeTruthy();
-      expect(message).toContain(t("tabs.adv"));
+      expect(message).not.toContain(t("tabs.adv"));
     }
   });
 
@@ -63,6 +65,41 @@ describe("turnErrorMessage", () => {
 
   it("returns undefined for superseded_by_user (not a failure)", () => {
     expect(turnErrorMessage("superseded_by_user")).toBeUndefined();
+  });
+});
+
+describe("turnErrorFixAction", () => {
+  beforeEach(() => setLocale("en"));
+  afterEach(() => setLocale("en"));
+
+  it("gives not_configured a labeled action that opens the Advanced tab", () => {
+    const openSettings = vi.fn();
+
+    const action = turnErrorFixAction("not_configured", openSettings);
+
+    expect(action?.label).toBe(t("input.error_open_advanced"));
+    action?.onClick();
+    expect(openSettings).toHaveBeenCalledWith("adv");
+  });
+
+  it("names the Advanced tab on the label, in every locale", () => {
+    for (const locale of ["en", "ko", "ja"] as const) {
+      setLocale(locale);
+      expect(turnErrorFixAction("not_configured", () => {})?.label).toContain(t("tabs.adv"));
+    }
+  });
+
+  it("offers nothing for failures the settings panel cannot fix", () => {
+    const reasons = [
+      "http_4xx_drop",
+      "network_drop",
+      "network_stall",
+      "parse_error",
+      "superseded_by_user",
+    ] as const;
+    for (const reason of reasons) {
+      expect(turnErrorFixAction(reason, () => {})).toBeUndefined();
+    }
   });
 });
 

@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { EndpointsConfig, ToolStatus, Usage } from "../contract";
 import { type ChatHistoryEntry, createChatHistoryStore } from "../io/chat-history-store";
 import type { Logger } from "../logger";
-import { type BackendCaller, createBackendCaller } from "./backend-caller";
+import { type BackendCaller, createBackendCaller, isChatConfigured } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";
 import {
   CONFIG,
@@ -919,6 +919,12 @@ describe("backend_caller — unconfigured chat backend", () => {
     turnOutput.hasFiller.mockReturnValue(true);
     await unconfiguredCaller().call(turnOf(userEnv()));
     expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
+  });
+
+  // The onboarding hint reads the same predicate, so the two surfaces cannot disagree.
+  it("isChatConfigured is false exactly when the chat address is empty", () => {
+    expect(isChatConfigured({ chat_base_url: "" })).toBe(false);
+    expect(isChatConfigured({ chat_base_url: "http://localhost:8643/v1" })).toBe(true);
   });
 });
 

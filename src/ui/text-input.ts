@@ -9,6 +9,12 @@ import { ATTACHMENT_LIMITS_DEFAULTS, type AttachmentLimits } from "../config";
 import { subscribe as subscribeLocale, t } from "./i18n";
 import { downscaleToJpeg } from "./image-resize";
 
+/** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
+export interface InputErrorAction {
+  label: string;
+  onClick(): void;
+}
+
 export interface TextInput {
   /** Hotkey summon — slide up + focus. */
   summonInput(): void;
@@ -25,8 +31,8 @@ export interface TextInput {
    * and Enter/submit becomes a no-op. Stopping fires only via a button click.
    */
   setBusy(busy: boolean): void;
-  /** Show an inline error (e.g. send failure). */
-  showInputError(message: string): void;
+  /** Show an inline error (e.g. send failure), optionally with a button that fixes it in place. */
+  showInputError(message: string, action?: InputErrorAction): void;
   /** Apply the configured attach-time caps (configs/guardrails.json → attachments). */
   setAttachmentLimits(limits: AttachmentLimits): void;
   /** Toggle the input disabled (e.g. while processing). When disabled, field disabled + pending dimming. */
@@ -121,8 +127,17 @@ export function createTextInput(
     return formEl.classList.contains("is-open");
   }
 
-  function showInputError(message: string): void {
+  function showInputError(message: string, action?: InputErrorAction): void {
     errorEl.textContent = message;
+    if (action) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "yui-input__error-action";
+      button.textContent = action.label;
+      button.addEventListener("click", action.onClick);
+      // Space first — the alert announces message and label as one string otherwise.
+      errorEl.append(" ", button);
+    }
     formEl.classList.add("is-error");
     formEl.classList.remove("is-pending");
   }
