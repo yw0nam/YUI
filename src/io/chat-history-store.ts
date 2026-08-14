@@ -95,6 +95,7 @@ export function createChatHistoryStore(opts?: {
   let localResets = 0;
 
   function push(item: ChatHistoryItem): void {
+    core.reloadFromStorage();
     const next = [...core.current(), item];
     core.commit(next.length > MAX_ITEMS ? next.slice(next.length - MAX_ITEMS) : next);
   }

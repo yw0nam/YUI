@@ -376,10 +376,7 @@ describe("createChatHistoryStore — persist + reload", () => {
     storeA.append(entry("user", "from A", 1));
     storeB.append(entry("assistant", "from B", 2));
 
-    expect(storage._data).toEqual([
-      entry("user", "from A", 1),
-      entry("assistant", "from B", 2),
-    ]);
+    expect(storage._data).toEqual([entry("user", "from A", 1), entry("assistant", "from B", 2)]);
   });
 });
 
