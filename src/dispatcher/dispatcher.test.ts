@@ -1680,6 +1680,22 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     expect(seen).toEqual([true, false]);
   });
 
+  it("subscribeBusy fires true for a non-user source as well — the edge is source-agnostic", async () => {
+    const seen: boolean[] = [];
+    dispatcher.subscribeBusy((b) => seen.push(b));
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "idle_watcher",
+        event_name: "idle.short",
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(seen).toEqual([true]);
+  });
+
   it("subscribeBusy fires false when cancel() aborts the in-flight call", async () => {
     const seen: boolean[] = [];
     dispatcher.subscribeBusy((b) => seen.push(b));

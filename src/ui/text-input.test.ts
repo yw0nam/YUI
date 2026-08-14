@@ -596,3 +596,95 @@ describe("showInputError — inline fix affordance", () => {
     expect(errorEl().querySelector(".yui-input__error-action")).toBeNull();
   });
 });
+
+describe("input error clearing — turn start, manual dismiss, existing paths", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function form(): HTMLElement {
+    return mount.querySelector(".yui-input") as HTMLElement;
+  }
+  function field(): HTMLInputElement {
+    return mount.querySelector(".yui-input__field") as HTMLInputElement;
+  }
+  function errorEl(): HTMLElement {
+    return mount.querySelector(".yui-input__error") as HTMLElement;
+  }
+  function dismissBtn(): HTMLButtonElement | null {
+    return errorEl().querySelector<HTMLButtonElement>(".yui-input__error-dismiss");
+  }
+
+  it("clears a standing error when a turn starts (busy edge)", () => {
+    s.showInputError("Backend stopped responding · timed out after 45s");
+    expect(form().classList.contains("is-error")).toBe(true);
+
+    s.setBusy(true);
+
+    expect(form().classList.contains("is-error")).toBe(false);
+    expect(errorEl().textContent).toBe("");
+  });
+
+  it("clears the action button too when a turn starts", () => {
+    s.showInputError("boom", { label: "Open settings", onClick: vi.fn() });
+    s.setBusy(true);
+
+    expect(errorEl().querySelector(".yui-input__error-action")).toBeNull();
+  });
+
+  it("keeps the error when the turn ends — the failure is reported before the slot frees", () => {
+    s.showInputError("boom");
+    s.setBusy(false);
+
+    expect(form().classList.contains("is-error")).toBe(true);
+    expect(errorEl().textContent).toBe("boom");
+  });
+
+  it("renders a dismiss button with an i18n aria-label", () => {
+    s.showInputError("boom");
+
+    const button = dismissBtn()!;
+    expect(button).not.toBeNull();
+    expect(button.type).toBe("button");
+    expect(button.getAttribute("aria-label")).toBe(t("aria.dismiss_error"));
+    // Icon-only — the alert announces the message, not a stray glyph.
+    expect(errorEl().textContent).toBe("boom");
+  });
+
+  it("clears the error and returns focus to the input when dismiss is clicked", () => {
+    s.summonInput();
+    s.showInputError("boom", { label: "Open settings", onClick: vi.fn() });
+
+    dismissBtn()!.click();
+
+    expect(form().classList.contains("is-error")).toBe(false);
+    expect(errorEl().textContent).toBe("");
+    expect(dismissBtn()).toBeNull();
+    expect(document.activeElement).toBe(field());
+  });
+
+  it("clears the error when the user types again", () => {
+    s.showInputError("boom");
+    field().value = "h";
+    field().dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(form().classList.contains("is-error")).toBe(false);
+    expect(errorEl().textContent).toBe("");
+  });
+
+  it("clears the error when the input is summoned again", () => {
+    s.showInputError("boom");
+    s.summonInput();
+
+    expect(form().classList.contains("is-error")).toBe(false);
+    expect(errorEl().textContent).toBe("");
+  });
+});

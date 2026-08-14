@@ -38,6 +38,7 @@ const ja: Record<string, string> = {
   "aria.stop": "停止",
   "aria.remove_attachment": "添付を削除",
   "aria.dismiss_bubble": "吹き出しを閉じる",
+  "aria.dismiss_error": "エラーを閉じる",
   "input.placeholder": "話しかけてみて…",
   "input.error_auth": "認証失敗 · APIキー確認",
   "input.error_network": "応答なし · 接続確認",
