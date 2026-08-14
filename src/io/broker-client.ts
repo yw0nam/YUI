@@ -14,6 +14,7 @@
 import type { AppConfig } from "../config/load";
 import type { MotionRegistry } from "../contract";
 import { createLogger, type Logger } from "../logger";
+import { type ExpressMotionSettings, enabledExpressMotions } from "./express-motion-settings";
 import { emotionTextModeFor, resolveTtsProviderKind } from "./tts-provider";
 
 export interface BrokerVocab {
@@ -95,6 +96,8 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   let timer: ReturnType<typeof setInterval> | null = null;
   let lastPayload: BrokerPayload | null = null;
   let lastObservedVersion: number | null = null;
+  let inflight: Promise<void> = Promise.resolve();
+  let disposed = false;
 
   /**
    * One MCP cycle: initialize, send initialized, then run the provided tool calls on the same
@@ -247,8 +250,8 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
     return calls;
   }
 
-  async function publish(payload: BrokerPayload): Promise<void> {
-    lastPayload = payload;
+  async function publishNow(payload: BrokerPayload): Promise<void> {
+    if (disposed) return;
     const current = await getIds();
     if (current) lastObservedVersion = current.version;
     const updates = diffCalls(payload, current);
@@ -262,6 +265,20 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
         if (typeof v === "number") lastObservedVersion = v;
       });
     }
+  }
+
+  /**
+   * Queued behind whatever publish is still in flight, so each one diffs against the state its
+   * predecessor left on the broker. Rapid user edits would otherwise race and land out of order.
+   * The chain the next publish waits on swallows rejections — the caller still sees them, but one
+   * failure never wedges the queue. `lastPayload` is recorded here rather than at execution, so a
+   * poll firing while this payload is queued republishes it and not the one still executing.
+   */
+  function publish(payload: BrokerPayload): Promise<void> {
+    lastPayload = payload;
+    const next = inflight.then(() => publishNow(payload));
+    inflight = next.catch(() => {});
+    return next;
   }
 
   async function poll(): Promise<void> {
@@ -289,7 +306,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   }
 
   function start(): void {
-    if (timer !== null) return;
+    if (disposed || timer !== null) return;
     timer = setIntervalImpl(() => poll(), pollMs);
   }
 
@@ -300,12 +317,18 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
     }
   }
 
+  /** Retires the client: the poll stops and anything still queued never reaches the wire. */
+  function dispose(): void {
+    disposed = true;
+    stop();
+  }
+
   return {
     getIds,
     publish,
     start,
     stop,
-    dispose: stop,
+    dispose,
   };
 }
 
@@ -325,18 +348,24 @@ export function agentTriggerableMotionIds(motions: MotionRegistry): string[] {
 
 /**
  * Pure derivation of the broker payload from loaded config. emotion ids = registry keys; motion ids
- * = agent-triggerable motion keys (see agentTriggerableMotionIds).
+ * = agent-triggerable motion keys (see agentTriggerableMotionIds) narrowed by the user's
+ * expression-motion selection — the one seam both vocabulary consumers read, so the broker publish
+ * and the Chat-Completions tool schema always carry the same list. The selection is required, so
+ * no caller can publish the unfiltered catalog by leaving it out.
  * emotion_text mode follows the TTS provider: irodori ⇒ enum with the supplied table; anything else
  * ⇒ free/null. irodori with a missing table falls back to free/null with a warn rather than crashing.
  */
 export function deriveBrokerPayload(
   cfg: AppConfig,
   irodoriTable: Record<string, string> | null,
-  logger?: Logger,
+  opts: { expressMotions: ExpressMotionSettings; logger?: Logger },
 ): BrokerPayload {
-  const log = logger ?? createLogger("broker-client");
+  const log = opts.logger ?? createLogger("broker-client");
   const emotionIds = Object.keys(cfg.emotionRegistry);
-  const motionIds = agentTriggerableMotionIds(cfg.motions);
+  const motionIds = enabledExpressMotions(
+    agentTriggerableMotionIds(cfg.motions),
+    opts.expressMotions,
+  );
 
   let emotionText: BrokerPayload["emotionText"];
   const providerKind = resolveTtsProviderKind(cfg.endpoints.tts_provider);

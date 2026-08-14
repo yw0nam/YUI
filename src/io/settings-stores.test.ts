@@ -47,6 +47,7 @@ describe("createSettingsStores", () => {
       "hintSettings",
       "railCollapsedSettings",
       "idleMotionSettings",
+      "expressMotionSettings",
     ]);
   });
 
@@ -115,6 +116,24 @@ describe("createSettingsStores", () => {
 
     expect(broadcastStores).toContain(stores.gazeSettings);
     expect(broadcastStores).toContain(stores.cameraSettings);
+  });
+
+  it("broadcasts the express-motion selection so both windows curate the same vocabulary", () => {
+    const stores = createSettingsStores();
+
+    expect(broadcastSyncStores(stores)).toContain(stores.expressMotionSettings);
+  });
+
+  it("persists the express-motion selection under yui.express_motions", () => {
+    localStorage.clear();
+    const stores = createSettingsStores();
+
+    stores.expressMotionSettings.setEnabled("dance", false);
+
+    expect(localStorage.getItem("yui.express_motions")).toBe(
+      JSON.stringify({ disabled: ["dance"] }),
+    );
+    localStorage.clear();
   });
 
   it("keeps STT intent and the first-run hint window-local", () => {

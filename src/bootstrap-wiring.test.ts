@@ -830,14 +830,27 @@ describe("wireBroker", () => {
   const makeDeps = (endpoints: Record<string, unknown>) => {
     const unsub = vi.fn();
     const endpointsSettings = { subscribe: vi.fn(() => unsub) };
+    const unsubExpress = vi.fn();
+    // Minimal express-motion store: the wiring only reads it and reacts to its notifications.
+    let notify: () => void = () => {};
+    const expressMotionSettings = {
+      get: () => ({ disabled: [] as string[] }),
+      subscribe: vi.fn((cb: () => void) => {
+        notify = cb;
+        return unsubExpress;
+      }),
+    };
     return {
       deps: {
         getConfig: () => ({ emotionRegistry: {}, motions: {}, endpoints: {} }) as never,
         getEndpoints: () => endpoints as never,
         endpointsSettings,
+        expressMotionSettings,
         log: noopLog,
       },
       unsub,
+      unsubExpress,
+      changeExpressMotions: () => notify(),
     };
   };
 
@@ -895,7 +908,11 @@ describe("wireBroker", () => {
 
     handle.vocabulary();
 
-    expect(deriveBrokerPayload).toHaveBeenCalledWith(expect.anything(), { "🤭": "Giggle" });
+    expect(deriveBrokerPayload).toHaveBeenCalledWith(
+      expect.anything(),
+      { "🤭": "Giggle" },
+      expect.anything(),
+    );
   });
 
   it("loads the emotion_text table with no broker configured — the vocabulary still feeds the client tools", async () => {
@@ -907,17 +924,62 @@ describe("wireBroker", () => {
     handle.vocabulary();
 
     expect(vi.mocked(loadEmotionTextTable)).toHaveBeenCalledTimes(1);
-    expect(deriveBrokerPayload).toHaveBeenCalledWith(expect.anything(), { "🤭": "Giggle" });
+    expect(deriveBrokerPayload).toHaveBeenCalledWith(
+      expect.anything(),
+      { "🤭": "Giggle" },
+      expect.anything(),
+    );
+  });
+
+  it("re-publishes when the expression-motion selection changes", async () => {
+    const { deps, changeExpressMotions } = makeDeps({
+      broker_base_url: "http://localhost:3201",
+      tts_provider: "openai",
+    });
+    await wireBroker(deps);
+    await flush();
+    brokerClient.publish.mockClear();
+
+    changeExpressMotions();
+    await flush();
+
+    expect(brokerClient.publish).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips the selection re-publish when no broker is configured", async () => {
+    const { deps, changeExpressMotions } = makeDeps({ broker_base_url: "" });
+    await wireBroker(deps);
+    await flush();
+
+    changeExpressMotions();
+    await flush();
+
+    expect(brokerClient.publish).not.toHaveBeenCalled();
+  });
+
+  it("derives the vocabulary against the live expression-motion selection", async () => {
+    const { deps } = makeDeps({ broker_base_url: "http://localhost:3201", tts_provider: "openai" });
+    const handle = await wireBroker(deps);
+    deriveBrokerPayload.mockClear();
+
+    handle.vocabulary();
+
+    expect(deriveBrokerPayload).toHaveBeenCalledWith(
+      expect.anything(),
+      null,
+      expect.objectContaining({ expressMotions: { disabled: [] } }),
+    );
   });
 
   it("dispose unsubscribes the override listener and disposes the client", async () => {
-    const { deps, unsub } = makeDeps({
+    const { deps, unsub, unsubExpress } = makeDeps({
       broker_base_url: "http://localhost:3201",
       tts_provider: "openai",
     });
     const handle = await wireBroker(deps);
     handle.dispose();
     expect(unsub).toHaveBeenCalledTimes(1);
+    expect(unsubExpress).toHaveBeenCalledTimes(1);
     expect(brokerClient.dispose).toHaveBeenCalledTimes(1);
   });
 });

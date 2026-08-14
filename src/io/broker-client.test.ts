@@ -272,6 +272,53 @@ describe("publish idempotency", () => {
     expect(args).toEqual({ mode: "enum", table: { "😀": "happy" } });
   });
 
+  // A user toggling motion switches fires publishes faster than a round trip completes. Overlapping
+  // publishes would each diff against the same pre-change snapshot and race on the wire, so the
+  // broker can settle on the earlier list until the next liveness poll (20s) corrects it.
+  it("serializes overlapping publishes — the second diffs against what the first left behind", async () => {
+    const state: BrokerVocab = {
+      emotion_ids: ["neutral"],
+      motion_ids: ["idle"],
+      emotion_text_mode: "free",
+      emotion_text_map: {},
+      version: 1,
+    };
+    const calls: ScriptedCall[] = [];
+    const fetch = vi.fn<FetchFn>(async (_input: unknown, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      calls.push({ body });
+      const id = body.id as number;
+      if (body.method === "initialize") return sseResponse(initResult(id));
+      if (body.method === "notifications/initialized") return acceptedResponse();
+      const params = body.params as { name: string; arguments: { ids?: string[] } };
+      if (params.name === "get_ids") return sseResponse(toolResult(id, { ...state }));
+      if (params.name === "update_motion_ids") {
+        state.motion_ids = params.arguments.ids!;
+        state.version += 1;
+      }
+      return sseResponse(toolResult(id, { ok: true, version: state.version }));
+    });
+    const client = createBrokerClient({ baseUrl: BASE, fetch, logger: silentLogger() });
+    const payload = (motionIds: string[]): BrokerPayload => ({
+      emotionIds: ["neutral"],
+      motionIds,
+      emotionText: { mode: "free", table: null },
+    });
+
+    await Promise.all([
+      client.publish(payload(["idle", "happy"])),
+      client.publish(payload(["idle", "happy", "dance"])),
+    ]);
+
+    expect(toolNames(calls)).toEqual([
+      "get_ids",
+      "update_motion_ids",
+      "get_ids",
+      "update_motion_ids",
+    ]);
+    expect(state.motion_ids).toEqual(["idle", "happy", "dance"]);
+  });
+
   it("never rejects even when fetch throws, and logs a warn", async () => {
     const fetch = vi.fn<FetchFn>(async () => {
       throw new Error("ECONNREFUSED");
@@ -404,6 +451,181 @@ describe("liveness poll", () => {
   });
 });
 
+/**
+ * The publish queue's own failure modes. Serialization made publish a queue, and a queue can be
+ * wedged, outlive its client, or carry a payload the poller no longer recognizes as current.
+ */
+describe("publish queue", () => {
+  const payload = (motionIds: string[]): BrokerPayload => ({
+    emotionIds: ["neutral"],
+    motionIds,
+    emotionText: { mode: "free", table: null },
+  });
+
+  /** Broker stuck at motion_ids:["idle"], so every publish diffs and every poll sees drift. */
+  function staticBroker(): {
+    fetch: ReturnType<typeof vi.fn<FetchFn>>;
+    calls: ScriptedCall[];
+    updatedIds: () => string[][];
+    gate: { hold(): void; release(): void };
+  } {
+    const calls: ScriptedCall[] = [];
+    let held: Promise<void> | null = null;
+    let releaseHeld: (() => void) | null = null;
+    const fetch = vi.fn<FetchFn>(async (_input: unknown, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      calls.push({ body });
+      const id = body.id as number;
+      if (body.method === "initialize") {
+        if (held) {
+          const wait = held;
+          held = null;
+          await wait;
+        }
+        return sseResponse(initResult(id));
+      }
+      if (body.method === "notifications/initialized") return acceptedResponse();
+      const params = body.params as { name: string };
+      if (params.name === "get_ids") {
+        return sseResponse(
+          toolResult(id, {
+            emotion_ids: ["neutral"],
+            motion_ids: ["idle"],
+            emotion_text_mode: "free",
+            emotion_text_map: {},
+            version: 1,
+          }),
+        );
+      }
+      return sseResponse(toolResult(id, { ok: true, version: 2 }));
+    });
+    return {
+      fetch,
+      calls,
+      updatedIds: () =>
+        calls
+          .filter(
+            (c) =>
+              c.body.method === "tools/call" &&
+              (c.body.params as { name: string }).name === "update_motion_ids",
+          )
+          .map((c) => (c.body.params as { arguments: { ids: string[] } }).arguments.ids),
+      gate: {
+        hold() {
+          held = new Promise<void>((resolve) => {
+            releaseHeld = resolve;
+          });
+        },
+        release() {
+          releaseHeld?.();
+        },
+      },
+    };
+  }
+
+  // publishNow rejecting is meant to be impossible, but the chain is built on that assumption and
+  // nothing pins it. A throwing logger reaches the one warn publishNow makes outside rpc's catch.
+  it("keeps the queue alive after a publish rejects", async () => {
+    const { fetch, calls } = staticBroker();
+    const logger = silentLogger();
+    let explode = true;
+    logger.warn = vi.fn(() => {
+      if (!explode) return;
+      explode = false;
+      throw new Error("logger exploded");
+    });
+    // update_not_ok fires the throwing warn — the broker answers ok:true, so force a non-ok reply.
+    const okFalseFetch = vi.fn<FetchFn>(async (input: unknown, init?: RequestInit) => {
+      const res = await fetch(input, init);
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      const name = (body.params as { name?: string } | undefined)?.name;
+      if (name && name !== "get_ids") {
+        return sseResponse(toolResult(body.id as number, { ok: false }));
+      }
+      return res;
+    });
+    const client = createBrokerClient({ baseUrl: BASE, fetch: okFalseFetch, logger });
+
+    await expect(client.publish(payload(["idle", "happy"]))).rejects.toThrow("logger exploded");
+    calls.length = 0;
+    await client.publish(payload(["idle", "dance"]));
+
+    expect(toolNames(calls)).toContain("update_motion_ids");
+  });
+
+  // The reconciler disposes the old client when broker_base_url changes. Anything still queued
+  // would keep writing the new vocabulary to the broker the user just moved away from.
+  it("dispose drops publishes that have not reached the wire", async () => {
+    const { fetch, calls } = staticBroker();
+    const client = createBrokerClient({ baseUrl: BASE, fetch, logger: silentLogger() });
+
+    const first = client.publish(payload(["idle", "happy"]));
+    const second = client.publish(payload(["idle", "dance"]));
+    client.dispose();
+    await Promise.all([first, second]);
+
+    expect(calls).toEqual([]);
+  });
+
+  // wireBroker's boot does `publish(payload).then(() => broker?.start())`. Disposing inside that
+  // window still armed the poll, and poll's own get_ids reaches the wire regardless of the queue —
+  // a retired client kept talking to the old broker every 20s for the life of the process.
+  it("start() after dispose never arms the poll", async () => {
+    const { fetch } = staticBroker();
+    const setIntervalImpl = vi.fn(() => 1 as unknown as ReturnType<typeof setInterval>);
+    const client = createBrokerClient({
+      baseUrl: BASE,
+      fetch,
+      logger: silentLogger(),
+      setInterval: setIntervalImpl as unknown as typeof setInterval,
+      clearInterval: (() => {}) as unknown as typeof clearInterval,
+    });
+
+    const publishing = client.publish(payload(["idle", "happy"]));
+    client.dispose();
+    await publishing;
+    client.start();
+
+    expect(setIntervalImpl).not.toHaveBeenCalled();
+  });
+
+  // lastPayload is what poll() republishes on drift. Recorded when a publish *executes*, it names
+  // the older payload while a newer one waits in the queue — so a poll landing in that window
+  // enqueues a stale republish behind the fresh one. The broker settles stale, and lastPayload is
+  // stale too, so the next poll sees no drift: the user's selection is lost until restart.
+  it("republishes the newest enqueued payload, not the one still executing", async () => {
+    const { fetch, updatedIds, gate } = staticBroker();
+    let tick: (() => void) | undefined;
+    const client = createBrokerClient({
+      baseUrl: BASE,
+      fetch,
+      logger: silentLogger(),
+      setInterval: ((cb: () => void) => {
+        tick = cb;
+        return 1 as unknown as ReturnType<typeof setInterval>;
+      }) as unknown as typeof setInterval,
+      clearInterval: (() => {}) as unknown as typeof clearInterval,
+    });
+    client.start();
+
+    gate.hold();
+    const first = client.publish(payload(["idle", "happy"]));
+    const second = client.publish(payload(["idle", "dance"]));
+    // Let the first publish reach the gated initialize, leaving the second queued behind it.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const polled = (async () => tick?.())();
+    // The poll's own get_ids runs ungated and detects drift while the first publish is still held.
+    await Promise.resolve();
+    await Promise.resolve();
+    gate.release();
+    await Promise.all([first, second, polled]);
+
+    expect(updatedIds().at(-1)).toEqual(["idle", "dance"]);
+  });
+});
+
 describe("agentTriggerableMotionIds", () => {
   function motions(): MotionRegistry {
     return {
@@ -464,6 +686,9 @@ describe("agentTriggerableMotionIds", () => {
     expect(agentTriggerableMotionIds({})).toEqual([]);
   });
 });
+
+/** The selection is a required argument; most cases exercise it deselecting nothing. */
+const NONE_DESELECTED = { expressMotions: { disabled: [] } };
 
 describe("deriveBrokerPayload", () => {
   function baseConfig(provider: "openai" | "irodori" | undefined): AppConfig {
@@ -555,12 +780,12 @@ describe("deriveBrokerPayload", () => {
   }
 
   it("derives emotion ids from registry keys", () => {
-    const p = deriveBrokerPayload(baseConfig("openai"), null);
+    const p = deriveBrokerPayload(baseConfig("openai"), null, NONE_DESELECTED);
     expect([...p.emotionIds].sort()).toEqual(["happy", "neutral"]);
   });
 
   it("excludes reactive, ambient, and broker_publish:false motions (drops drag/idle/sit, keeps happy/laugh/embarrassed)", () => {
-    const p = deriveBrokerPayload(baseConfig("openai"), null);
+    const p = deriveBrokerPayload(baseConfig("openai"), null, NONE_DESELECTED);
     expect(p.motionIds).not.toContain("drag");
     expect(p.motionIds).not.toContain("idle");
     expect(p.motionIds).not.toContain("sit");
@@ -568,24 +793,24 @@ describe("deriveBrokerPayload", () => {
   });
 
   it("excludes a kind:state motion solely via broker_publish:false (window_sit)", () => {
-    const p = deriveBrokerPayload(baseConfig("openai"), null);
+    const p = deriveBrokerPayload(baseConfig("openai"), null, NONE_DESELECTED);
     expect(p.motionIds).not.toContain("window_sit");
   });
 
   it("provider openai → emotion text free + null table", () => {
-    const p = deriveBrokerPayload(baseConfig("openai"), null);
+    const p = deriveBrokerPayload(baseConfig("openai"), null, NONE_DESELECTED);
     expect(p.emotionText).toEqual({ mode: "free", table: null });
   });
 
   it("provider irodori with a table → enum + table", () => {
     const table = { "😀": "happy", "😢": "sad" };
-    const p = deriveBrokerPayload(baseConfig("irodori"), table);
+    const p = deriveBrokerPayload(baseConfig("irodori"), table, NONE_DESELECTED);
     expect(p.emotionText).toEqual({ mode: "enum", table });
   });
 
   it("provider irodori with null table → free + null + warn (no crash)", () => {
     const logger = silentLogger();
-    const p = deriveBrokerPayload(baseConfig("irodori"), null, logger);
+    const p = deriveBrokerPayload(baseConfig("irodori"), null, { ...NONE_DESELECTED, logger });
     expect(p.emotionText).toEqual({ mode: "free", table: null });
     expect(logger.warn).toHaveBeenCalled();
   });
@@ -595,7 +820,52 @@ describe("deriveBrokerPayload", () => {
   // matching the default the rest of the app (validator, voice pipeline) already applies.
   it("provider unset (undefined) with a table → resolves as openai's default → free", () => {
     const table = { "😀": "happy" };
-    const p = deriveBrokerPayload(baseConfig(undefined), table);
+    const p = deriveBrokerPayload(baseConfig(undefined), table, NONE_DESELECTED);
     expect(p.emotionText).toEqual({ mode: "free", table: null });
+  });
+
+  // The user's expression-motion selection narrows the published vocabulary at this one derive
+  // site, so both consumers — the broker publish and the CC generate_express schema — follow it.
+  describe("expression-motion selection", () => {
+    it("publishes the whole agent-triggerable set when nothing is deselected", () => {
+      const p = deriveBrokerPayload(baseConfig("openai"), null, {
+        expressMotions: { disabled: [] },
+      });
+      expect([...p.motionIds].sort()).toEqual(["embarrassed", "happy", "laugh"]);
+    });
+
+    it("drops a deselected motion from motionIds", () => {
+      const p = deriveBrokerPayload(baseConfig("openai"), null, {
+        expressMotions: { disabled: ["laugh"] },
+      });
+      expect(p.motionIds).toEqual(["happy", "embarrassed"]);
+    });
+
+    it("publishes an empty motion list when every motion is deselected", () => {
+      const p = deriveBrokerPayload(baseConfig("openai"), null, {
+        expressMotions: { disabled: ["happy", "laugh", "embarrassed"] },
+      });
+      expect(p.motionIds).toEqual([]);
+    });
+
+    it("keeps a catalog motion the selection has never heard of — additions arrive enabled", () => {
+      const cfg = baseConfig("openai");
+      cfg.motions.wave = {
+        vrma_path: "/motions/wave.vrma",
+        kind: "oneshot",
+        loop: false,
+        priority: 60,
+        interrupt_policy: "replace",
+      };
+      const p = deriveBrokerPayload(cfg, null, { expressMotions: { disabled: ["laugh"] } });
+      expect(p.motionIds).toContain("wave");
+    });
+
+    it("leaves emotion ids untouched — the selection curates motions only", () => {
+      const p = deriveBrokerPayload(baseConfig("openai"), null, {
+        expressMotions: { disabled: ["happy", "laugh", "embarrassed"] },
+      });
+      expect([...p.emotionIds].sort()).toEqual(["happy", "neutral"]);
+    });
   });
 });

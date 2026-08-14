@@ -6,6 +6,10 @@ import { createChatHistoryStore, localStorageChatHistoryStorage } from "./chat-h
 import { createChatKeySettings, localStorageChatKeyStorage } from "./chat-key-settings";
 import { createContextHistory, localStorageContextHistory } from "./context-history";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./endpoints-settings";
+import {
+  createExpressMotionSettings,
+  localStorageExpressMotionStorage,
+} from "./express-motion-settings";
 import { createFillerSettings, localStorageFillerStorage } from "./filler-settings";
 import { createIdleMotionSettings, localStorageIdleMotionStorage } from "./idle-motion-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./lipsync-settings";
@@ -125,6 +129,10 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const idleMotionSettings = createIdleMotionSettings({
     storage: localStorageIdleMotionStorage(),
   });
+  // Per-motion on/off overlay curating the agent-selectable vocabulary published to the broker.
+  const expressMotionSettings = createExpressMotionSettings({
+    storage: localStorageExpressMotionStorage(),
+  });
 
   return {
     screenshotSettings,
@@ -154,6 +162,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     hintSettings,
     railCollapsedSettings,
     idleMotionSettings,
+    expressMotionSettings,
   };
 }
 
@@ -197,6 +206,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   hintSettings: "local",
   railCollapsedSettings: "broadcast",
   idleMotionSettings: "broadcast",
+  expressMotionSettings: "broadcast",
 };
 
 /** Stores that reload on a remote signal — the `storage` event and a bridge settings-changed alike. */

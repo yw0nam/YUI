@@ -158,6 +158,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       gazeSettings,
       hintSettings,
       idleMotionSettings,
+      expressMotionSettings,
     } = settings;
     const { vrmSelection, loadVrmSerialized } = vrm;
     const { speakerSelection, refreshVoiceList } = speaker;
@@ -462,6 +463,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       getConfig: config.get,
       getEndpoints,
       endpointsSettings,
+      expressMotionSettings,
       log,
     });
     register(broker.dispose);

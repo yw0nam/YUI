@@ -30,6 +30,7 @@ import {
 } from "./config";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createUserInputSource } from "./dispatcher/user-input-source";
+import { agentTriggerableMotionIds } from "./io/broker-client";
 import { CAMERA_WHEEL_SENSITIVITY, CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN } from "./io/camera-settings";
 import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/endpoints-settings";
@@ -188,6 +189,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     sessionStore,
     sessionDiagnostics,
     idleMotionSettings,
+    expressMotionSettings,
   } = settingsStores;
   // Every store in the bag shares the same lifecycle, so teardown iterates the bag itself:
   // a store added to createSettingsStores is disposed without touching this loop.
@@ -337,6 +339,14 @@ async function bootstrap(): Promise<BootstrapHandle> {
           return config.get().motions.idle;
         } catch {
           return undefined;
+        }
+      },
+      expressMotionSettings,
+      getExpressMotions: () => {
+        try {
+          return agentTriggerableMotionIds(config.get().motions);
+        } catch {
+          return [];
         }
       },
       onPopOut: () => openSettings(),

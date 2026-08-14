@@ -9,6 +9,7 @@
 import "./styles.css";
 import { wireSettingsWindowSync } from "./bootstrap-wiring";
 import { createConfigStore } from "./config";
+import { agentTriggerableMotionIds } from "./io/broker-client";
 import { selectFetch } from "./io/chat-client";
 import { endpointDefaultsFromConfig } from "./io/endpoints-settings";
 import { updateVoice } from "./io/irodori-voices";
@@ -70,6 +71,7 @@ async function bootstrap(): Promise<void> {
     chatHistoryStore,
     bubblePersistSettings,
     idleMotionSettings,
+    expressMotionSettings,
   } = settingsStores;
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
@@ -240,6 +242,15 @@ async function bootstrap(): Promise<void> {
           return config.get().motions.idle;
         } catch {
           return undefined;
+        }
+      },
+      expressMotionSettings,
+      getExpressMotions: () => {
+        if (!configLoaded) return [];
+        try {
+          return agentTriggerableMotionIds(config.get().motions);
+        } catch {
+          return [];
         }
       },
       sessionDiagnostics,
