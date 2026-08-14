@@ -306,7 +306,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   }
 
   function start(): void {
-    if (timer !== null) return;
+    if (disposed || timer !== null) return;
     timer = setIntervalImpl(() => poll(), pollMs);
   }
 
