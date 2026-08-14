@@ -66,6 +66,53 @@
   box-shadow: 0 0 0 2px var(--yui-danger-faint);
 }
 
+/* not_configured error — the chip is the fix. Same inline-link treatment as
+   .yui-input__error-action, so "clickable" reads the same on both error surfaces. */
+.yui-voice[data-state="error"][data-fix="settings"] .yui-voice__label {
+  color: var(--yui-text);
+  text-decoration: underline;
+  text-decoration-color: var(--yui-accent-soft);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 0.08em;
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    text-decoration-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-voice__fix-glyph {
+  display: none;
+  width: 0.72rem;
+  height: 0.72rem;
+  flex: 0 0 auto;
+  color: var(--yui-text-mute);
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-voice[data-state="error"][data-fix="settings"] .yui-voice__fix-glyph {
+  display: block;
+}
+
+.yui-voice[data-state="error"][data-fix="settings"]:focus-visible {
+  outline: 2px solid var(--yui-accent-soft);
+  outline-offset: 2px;
+}
+
+.yui-voice[data-state="error"][data-fix="settings"]:hover,
+.yui-voice[data-state="error"][data-fix="settings"]:focus-visible {
+  border-color: var(--yui-accent-soft);
+}
+
+.yui-voice[data-state="error"][data-fix="settings"]:hover .yui-voice__label,
+.yui-voice[data-state="error"][data-fix="settings"]:focus-visible .yui-voice__label {
+  color: var(--yui-accent);
+  text-decoration-color: var(--yui-accent);
+}
+
+.yui-voice[data-state="error"][data-fix="settings"]:hover .yui-voice__fix-glyph,
+.yui-voice[data-state="error"][data-fix="settings"]:focus-visible .yui-voice__fix-glyph {
+  color: var(--yui-accent);
+}
+
 @keyframes yui-voice-live {
   0%,
   100% {
@@ -86,5 +133,10 @@
 
   .yui-voice__dot {
     animation: none !important;
+  }
+
+  .yui-voice__fix-glyph,
+  .yui-voice[data-state="error"][data-fix="settings"] .yui-voice__label {
+    transition: none;
   }
 }

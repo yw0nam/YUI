@@ -21,6 +21,8 @@ const ko: Record<string, string> = {
   "voice.state.asr": "ASR 전송",
   "voice.state.fired": "전달됨",
   "voice.state.error": "오류",
+  "voice.error.not_configured": "설정 필요",
+  "voice.error.not_configured_fix": "백엔드 미설정 — 고급 설정 열기",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "{name} 참조 음성 갱신",
