@@ -1,6 +1,7 @@
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
 import { INSTRUCTIONS_MAX_LEN, REASONING_EFFORTS } from "../../io/agent-settings";
 import type { EndpointOverrides } from "../../io/endpoints-settings";
+import { RATE_LIMIT_MAX } from "../../io/guardrails-settings";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
 import {
   CHAT_API_LABEL_KEYS,
@@ -12,6 +13,7 @@ import {
   ENDPOINT_FIELDS,
   LANG_PICKER_ORDER,
   RAIL_COLLAPSE_SVG,
+  RATE_LIMIT_FIELDS,
   SEG_LABEL_KEYS,
   TAB_ICON_ADV,
   TAB_ICON_CHAR,
@@ -38,6 +40,8 @@ interface PanelHtmlOptions {
   showExpressMotion: boolean;
   switchRows: readonly SwitchRow[];
   showPresence: boolean;
+  /** Whether the rate-limit cap rows render — true when the guardrails-override store is injected. */
+  showRateLimits: boolean;
   showDevtools: boolean;
   /** Whether the History tab renders — true when a transcript store is injected. */
   showHistory: boolean;
@@ -55,6 +59,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showExpressMotion,
     switchRows,
     showPresence,
+    showRateLimits,
     showDevtools,
     showHistory,
     railCollapsed,
@@ -212,6 +217,17 @@ ${pad}</div>`;
             ${hintHtml}
           </div>`;
   }
+
+  // Rate-limit section (Reactions tab) — the rolling-window caps, one numeric row each.
+  const rateLimitHtml = showRateLimits
+    ? `
+        <div class="yui-quick__divider" aria-hidden="true"></div>
+        <span class="yui-quick__section">${t("reactions.rate_title")}</span>
+        <p class="yui-field-hint">${t("reactions.rate_hint")}</p>
+${RATE_LIMIT_FIELDS.map((f) =>
+  numRowHtml({ id: f.id, labelKey: f.labelKey, subKey: f.subKey, min: 1, max: RATE_LIMIT_MAX }),
+).join("")}`
+    : "";
 
   // Session section (window-only) — token occupancy readout.
   const sessionHtml = hasSession
@@ -527,6 +543,7 @@ ${switchRowsHtml("react", 8) || "        "}
         <div class="yui-quick__divider" aria-hidden="true"></div>
         <span class="yui-quick__section">${t("reactions.shared_title")}</span>
         ${showPresence ? numRowHtml({ id: "yui-presence", labelKey: "reactions.presence_label", subKey: "reactions.presence_sub", min: 10, max: 3600, suffixKey: "reactions.seconds_suffix", hintKey: "reactions.restart_hint" }) : ""}
+        ${rateLimitHtml}
       </div>
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-adv" aria-labelledby="yui-tab-adv" tabindex="0" hidden>

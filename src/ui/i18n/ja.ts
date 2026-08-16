@@ -384,6 +384,15 @@ const ja: Record<string, string> = {
   "reactions.presence_sub": "この時間以内の無操作であれば在席とみなします",
   "reactions.seconds_suffix": "秒",
   "reactions.restart_hint": "変更を適用するにはアプリを再起動してください",
+  "reactions.rate_title": "1時間あたりの上限",
+  "reactions.rate_hint":
+    "YUI が自分から話しかける頻度の上限です。あなたからのメッセージは数えません。空欄なら初期値を使います。",
+  "reactions.rate_tier2_label": "1時間あたりのきっかけ",
+  "reactions.rate_tier2_sub": "アイドル・自発・スケジュール・エージェントの合計",
+  "reactions.rate_tier3_label": "1時間あたりの低優先きっかけ",
+  "reactions.rate_tier3_sub": "他をすべて優先する控えめなきっかけ",
+  "reactions.rate_overall_label": "1時間あたりの合計ターン",
+  "reactions.rate_overall_sub": "超えるとクールダウンの間すべて止まります",
 
   // workflows
   "workflows.title": "ワークフロー",

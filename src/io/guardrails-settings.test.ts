@@ -78,7 +78,11 @@ describe("guardrails settings — store shape", () => {
 
   it("sanitizes a garbage stored value into no override", () => {
     const store = createGuardrailsSettings({
-      storage: inMemoryStorage({ tier2_max: -1, tier3_max: 3, overall_max: 0 } as RateLimitOverrides),
+      storage: inMemoryStorage({
+        tier2_max: -1,
+        tier3_max: 3,
+        overall_max: 0,
+      } as RateLimitOverrides),
     });
     expect(store.get()).toEqual({ tier2_max: 0, tier3_max: 3, overall_max: 0 });
   });

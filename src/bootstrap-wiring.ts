@@ -12,6 +12,7 @@ import type { EndpointsConfig, Posture, WindowRect } from "./contract";
 import { createAgentSource } from "./dispatcher/agent-source";
 import type { Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
+import type { Guardrails, GuardrailsConfig } from "./dispatcher/guardrails";
 import { createProactiveSource, type ProactiveSource } from "./dispatcher/proactive-source";
 import { createScheduleSource, type ScheduleSource } from "./dispatcher/schedule-source";
 import { createScreenSource, type ScreenSource } from "./dispatcher/screen-source";
@@ -30,6 +31,7 @@ import {
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { selectFetch } from "./io/chat-client";
 import type { ExpressMotionSettings } from "./io/express-motion-settings";
+import type { GuardrailsSettingsStore } from "./io/guardrails-settings";
 import { ensureRegistered, updateVoice } from "./io/irodori-voices";
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
@@ -272,6 +274,18 @@ export function wireStopControl(deps: {
     deps.cancel();
     deps.abortSpeech();
   });
+}
+
+/**
+ * Editable rate-limit caps → the running limiter. setConfig replaces config values only, so an edit
+ * re-caps the limiter with its rolling counters intact. Returns the unsubscribe.
+ */
+export function wireGuardrailsOverrides(deps: {
+  guardrails: Pick<Guardrails, "setConfig">;
+  store: Pick<GuardrailsSettingsStore, "subscribe">;
+  getGuardrails: () => GuardrailsConfig;
+}): () => void {
+  return deps.store.subscribe(() => deps.guardrails.setConfig(deps.getGuardrails()));
 }
 
 /**

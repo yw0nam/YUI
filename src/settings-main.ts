@@ -54,6 +54,7 @@ async function bootstrap(): Promise<void> {
     workflowSettings,
     agentNotifySettings,
     presenceSettings,
+    guardrailsSettings,
     railCollapsedSettings,
     lipsyncSettings,
     vadSettings,
@@ -177,6 +178,15 @@ async function bootstrap(): Promise<void> {
       workflowSettings,
       agentNotifySettings,
       presenceSettings,
+      rateLimitSettings: guardrailsSettings,
+      getRateLimitDefaults: () => {
+        if (!configLoaded) return undefined;
+        try {
+          return config.get().guardrails.rate_limit;
+        } catch {
+          return undefined;
+        }
+      },
       railCollapsedSettings,
       sourceProvider,
       voiceStatus: voiceInputStatus,

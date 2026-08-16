@@ -384,6 +384,15 @@ const en: Record<string, string> = {
   "reactions.presence_sub": "Treat the session as present if the idle gap is below this",
   "reactions.seconds_suffix": "s",
   "reactions.restart_hint": "Restart the app to apply this change",
+  "reactions.rate_title": "Hourly limits",
+  "reactions.rate_hint":
+    "Backstop on how often YUI speaks up on her own. Your own messages are never counted. Empty means the shipped default.",
+  "reactions.rate_tier2_label": "Cues per hour",
+  "reactions.rate_tier2_sub": "Idle, proactive, schedule, and agent cues together",
+  "reactions.rate_tier3_label": "Low-priority cues per hour",
+  "reactions.rate_tier3_sub": "Background cues that yield to everything else",
+  "reactions.rate_overall_label": "Total turns per hour",
+  "reactions.rate_overall_sub": "Crossing it holds every cue for a cooldown",
 
   // workflows
   "workflows.title": "Workflows",
