@@ -2073,6 +2073,34 @@ describe("dispatcher — structured logging: turn events", () => {
     expect(lines[0]![1].spoke).toBe(true);
   });
 
+  it("a turn whose backend returned speech reports spoke_text:true even with TTS off", async () => {
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    // The speech gate passed, but no audio was ever owed (TTS off).
+    turnLog.setSpokeText(true);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]![1].spoke_text).toBe(true);
+    expect(lines[0]![1].spoke).toBe(false);
+  });
+
+  it("an empty-speech turn reports spoke_text:false", async () => {
+    dispatcher.start();
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+    turnLog.setSpokeText(false);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    const lines = turnLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]![1].spoke_text).toBe(false);
+  });
+
   it("two consecutive turns produce two turn lines with different ids", async () => {
     dispatcher.start();
     bus.push(env({ ts: NOW }));

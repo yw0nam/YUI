@@ -220,6 +220,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         );
       },
       turnOutput: voice.turnOutput,
+      reportSpokeText: (spoke) => turnLog.setSpokeText(spoke),
       onToolStatus: (state) =>
         state.state === "running"
           ? surfaces.showTool(state.tool_id ?? "")

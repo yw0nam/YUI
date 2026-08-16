@@ -32,6 +32,7 @@ let applyDirective: ReturnType<typeof vi.fn>;
 let turnOutput: ReturnType<typeof makeTurnOutput>;
 let toolStatusSink: Mock<(status: ToolStatus) => void>;
 let usageSink: Mock<(usage: Usage) => void>;
+let spokeTextSink: Mock<(spoke: boolean) => void>;
 let caller: BackendCaller;
 let logger: Logger;
 
@@ -41,6 +42,7 @@ beforeEach(() => {
   turnOutput = makeTurnOutput();
   toolStatusSink = vi.fn();
   usageSink = vi.fn();
+  spokeTextSink = vi.fn();
   logger = makeLogger();
   caller = createBackendCaller({
     config: CONFIG,
@@ -51,6 +53,7 @@ beforeEach(() => {
     turnOutput,
     onToolStatus: toolStatusSink,
     onUsage: usageSink,
+    reportSpokeText: spokeTextSink,
     logger,
   });
 });
@@ -79,6 +82,24 @@ describe("backend_caller — B4 speech gate (speech_text only)", () => {
     expect(turnOutput.speak).not.toHaveBeenCalled();
     // emotion/motion still rendered (firing≠judgment: silence only gates speech).
     expect(applyDirective).toHaveBeenCalledWith(env);
+  });
+
+  it("reports spoke text true for non-empty speech_text on the completed-only path", async () => {
+    script.events = [completedEvent({ speech_text: "응 듣고 있어" })];
+    await caller.call(turnOf(userEnv()));
+    expect(spokeTextSink).toHaveBeenCalledWith(true);
+  });
+
+  it("reports spoke text true for a streamed reply", async () => {
+    script.events = [deltaEvent("안녕"), completedEvent({ speech_text: "안녕" })];
+    await caller.call(turnOf(userEnv()));
+    expect(spokeTextSink).toHaveBeenCalledWith(true);
+  });
+
+  it("reports spoke text false for empty speech_text", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    await caller.call(turnOf(userEnv()));
+    expect(spokeTextSink).toHaveBeenCalledWith(false);
   });
 });
 
