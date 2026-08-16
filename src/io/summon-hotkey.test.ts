@@ -9,13 +9,14 @@
  *  - accelerator change: unregister the previous one, then register the new one.
  *  - empty string: unregister the existing binding + no new registration (disabled).
  *  - register rejection (invalid accelerator/OS-occupied): stays disabled without throwing (fail-soft).
+ *  - transient register rejection (fast restart, the previous process still holds the key): retried until it takes.
  *  - summonInput is still called even if focusWindow fails.
  *  - when input is already open, only focusWindow runs and summonInput is skipped.
  *  - dispose(): unregisters.
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { createSummonHotkey, type SummonHotkeyTrigger } from "./summon-hotkey";
+import { createSummonHotkey, retryOnReject, type SummonHotkeyTrigger } from "./summon-hotkey";
 
 /** Fake deps capturing registered handlers so tests can fire the shortcut. */
 function fakeDeps() {
@@ -168,22 +169,76 @@ describe("createSummonHotkey — trigger", () => {
   });
 });
 
+describe("retryOnReject", () => {
+  it("중간에 성공하면 남은 시도를 하지 않는다", async () => {
+    const op = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error("busy"))
+      .mockRejectedValueOnce(new Error("busy"))
+      .mockResolvedValue(undefined);
+    await retryOnReject(op, 5, 0);
+    expect(op).toHaveBeenCalledTimes(3);
+  });
+
+  it("시도를 모두 소진하면 마지막 거부 사유로 reject한다", async () => {
+    const op = vi.fn<() => Promise<void>>().mockRejectedValue(new Error("still held"));
+    await expect(retryOnReject(op, 3, 0)).rejects.toThrow("still held");
+    expect(op).toHaveBeenCalledTimes(3);
+  });
+});
+
 describe("createSummonHotkey — fail-soft", () => {
+  /** Drives a hotkey promise past the register backoff without waiting in real time. */
+  async function settle<T>(promise: Promise<T>): Promise<T> {
+    await vi.advanceTimersByTimeAsync(60_000);
+    return promise;
+  }
+
+  it("OS가 아직 이전 프로세스 키를 붙들고 있어도 재시도로 등록된다", async () => {
+    vi.useFakeTimers();
+    try {
+      const f = fakeDeps();
+      const failing = f.deps.register.getMockImplementation();
+      f.deps.register
+        .mockRejectedValueOnce(new Error("RegisterEventHotKey failed for KeyY"))
+        .mockRejectedValueOnce(new Error("RegisterEventHotKey failed for KeyY"))
+        .mockImplementation(failing!);
+      const hotkey = createSummonHotkey(f.deps);
+      await settle(hotkey.apply("CmdOrCtrl+Shift+Y"));
+      expect(f.deps.register).toHaveBeenCalledTimes(3);
+      expect(hotkey.current()).toBe("CmdOrCtrl+Shift+Y");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("register 거부(무효 accelerator) → throw 없이 비활성 유지", async () => {
-    const f = fakeDeps();
-    f.deps.register.mockRejectedValueOnce(new Error("invalid accelerator"));
-    const hotkey = createSummonHotkey(f.deps);
-    await expect(hotkey.apply("NotAKey+++")).resolves.toBeUndefined();
-    expect(hotkey.current()).toBeNull();
+    vi.useFakeTimers();
+    try {
+      const f = fakeDeps();
+      f.deps.register.mockRejectedValue(new Error("invalid accelerator"));
+      const hotkey = createSummonHotkey(f.deps);
+      await expect(settle(hotkey.apply("NotAKey+++"))).resolves.toBeUndefined();
+      expect(hotkey.current()).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("register 거부 후 다음 apply(유효 accelerator)로 복구된다", async () => {
-    const f = fakeDeps();
-    f.deps.register.mockRejectedValueOnce(new Error("invalid accelerator"));
-    const hotkey = createSummonHotkey(f.deps);
-    await hotkey.apply("NotAKey+++");
-    await hotkey.apply("CmdOrCtrl+Shift+Y");
-    expect(hotkey.current()).toBe("CmdOrCtrl+Shift+Y");
+    vi.useFakeTimers();
+    try {
+      const f = fakeDeps();
+      const working = f.deps.register.getMockImplementation();
+      f.deps.register.mockRejectedValue(new Error("invalid accelerator"));
+      const hotkey = createSummonHotkey(f.deps);
+      await settle(hotkey.apply("NotAKey+++"));
+      f.deps.register.mockImplementation(working!);
+      await settle(hotkey.apply("CmdOrCtrl+Shift+Y"));
+      expect(hotkey.current()).toBe("CmdOrCtrl+Shift+Y");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("unregister 거부여도 apply는 계속 진행된다(새 등록 시도)", async () => {

@@ -1011,6 +1011,28 @@ mod tests {
         assert!(!resolve_pending(&id, serde_json::Value::Null));
     }
 
+    // ── Bind retry ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn bind_with_retry_succeeds_once_the_port_is_released() {
+        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = holder.local_addr().unwrap().port();
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(150));
+            drop(holder);
+        });
+        let server = bind_with_retry(port, 20, Duration::from_millis(50))
+            .expect("bind must succeed after the holder releases the port");
+        assert_eq!(server.server_addr().to_ip().unwrap().port(), port);
+    }
+
+    #[test]
+    fn bind_with_retry_gives_up_while_the_port_stays_taken() {
+        let _holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = _holder.local_addr().unwrap().port();
+        assert!(bind_with_retry(port, 2, Duration::from_millis(10)).is_err());
+    }
+
     #[test]
     fn pending_receiver_times_out_when_unanswered() {
         let id = next_rpc_id();
