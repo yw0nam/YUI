@@ -19,12 +19,16 @@ export interface TurnLog {
   settle(id: number): void;
   /** speech-playback reports whether audio is still owed. Always describes the current turn. */
   setAudioOwed(owed: boolean): void;
+  /** backend-caller reports the speech gate: the backend returned non-empty speech text. Reset by begin(). */
+  setSpokeText(spoke: boolean): void;
   /** The most recent turn, settled or not. Null only before the first `begin`. */
   current(): Turn | null;
   /** Audio is queued or playing. */
   isAudioOwed(): boolean;
   /** Audio was owed at some point during the current turn. Reset by begin(). */
   didOweAudio(): boolean;
+  /** The current turn returned speech text, independent of whether it was voiced. */
+  didSpeakText(): boolean;
   /** THE definition of over: settled AND no audio owed. True before the first turn. */
   isOver(): boolean;
   /** Fires only at the over⟷live boundary. Returns an unsubscribe fn.
@@ -37,6 +41,7 @@ export function createTurnLog(): TurnLog {
   let settled = false;
   let audioOwed = false;
   let owedAudioEver = false;
+  let spokeText = false;
   let nextId = 1;
   const subscribers = new Set<(over: boolean) => void>();
 
@@ -59,6 +64,7 @@ export function createTurnLog(): TurnLog {
       settled = false;
       audioOwed = false;
       owedAudioEver = false;
+      spokeText = false;
       notifyIfFlipped(wasOver);
       return turn;
     },
@@ -75,6 +81,9 @@ export function createTurnLog(): TurnLog {
       if (owed) owedAudioEver = true;
       notifyIfFlipped(wasOver);
     },
+    setSpokeText(spoke) {
+      spokeText = spoke;
+    },
     current() {
       return current;
     },
@@ -83,6 +92,9 @@ export function createTurnLog(): TurnLog {
     },
     didOweAudio() {
       return owedAudioEver;
+    },
+    didSpeakText() {
+      return spokeText;
     },
     isOver,
     subscribe(cb) {

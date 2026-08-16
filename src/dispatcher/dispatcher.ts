@@ -302,7 +302,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /**
    * Emit the open turn's summary line, once. Must run before turnLog.begin() retires the
-   * turn — `spoke` is read from the ledger, and begin() resets it.
+   * turn — `spoke`/`spoke_text` are read from the ledger, and begin() resets them.
    */
   function closeTurn(): void {
     if (!openTurn) return;
@@ -314,6 +314,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       outcome: openTurn.outcome ?? "superseded_by_user",
       duration_ms: Date.now() - openTurn.started_at,
       spoke: deps.turnLog.didOweAudio(),
+      spoke_text: deps.turnLog.didSpeakText(),
     });
     openTurn = null;
   }

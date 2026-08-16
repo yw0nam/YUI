@@ -163,6 +163,8 @@ interface BackendCallerDeps {
   getFrontmost?: () => FrontmostState | undefined;
   /** tool_status sink — called only when present. */
   onToolStatus?: (status: ToolStatus) => void;
+  /** B4 speech-gate outcome sink — whether the turn returned speech text, independent of TTS. */
+  reportSpokeText?: (spoke: boolean) => void;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;
   /** New response id persist — called only after a completely successful turn (conversation state progress). */
@@ -573,6 +575,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       } else {
         log.info("empty_speech", { trigger: env.event_name });
       }
+      deps.reportSpokeText?.(streamedAny || Boolean(envelope.speech_text));
 
       // Conversation state progress (Responses only): persist only at this point after passing all
       // post-stream guards (abort / streamError / !envelope). Only when start-time id unchanged —
