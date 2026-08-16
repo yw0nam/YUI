@@ -666,6 +666,21 @@ describe("wireVoicePipeline", () => {
     expect(mocks.speechPlayback.interrupt).toHaveBeenCalledWith({ muteCurrentTurn: true });
   });
 
+  it("stops the filler loop when barge-in interrupts", async () => {
+    const state = setup();
+    await state.voice.createSttEngine();
+    const onSpeechActive = (mocks.captured.sttVad as SttVadOptions).onSpeechActive!;
+
+    state.setBargeIn(true);
+    state.turnLog.begin(trigger());
+    state.voice.turnOutput.thinkingStart(1);
+    state.turnLog.setAudioOwed(true);
+    onSpeechActive();
+
+    // The interrupted utterance is disposed, so its onPlaybackEnd can never reschedule the loop.
+    expect(mocks.fillerLoop.stop).toHaveBeenCalledOnce();
+  });
+
   it("stops filler playback and disposes speech playback", () => {
     const { voice } = setup();
     voice.dispose();
