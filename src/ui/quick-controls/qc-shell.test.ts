@@ -5,6 +5,7 @@ import { createAgentNotifySettings } from "../../io/agent-notify-settings";
 import { createAgentSettings } from "../../io/agent-settings";
 import { createChatKeySettings } from "../../io/chat-key-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
+import { createGuardrailsSettings } from "../../io/guardrails-settings";
 import { createLipsyncSettings } from "../../io/lipsync-settings";
 import { createProactiveSettings } from "../../io/proactive-settings";
 import { createScheduleSettings } from "../../io/schedule-settings";
@@ -805,6 +806,121 @@ describe("createQuickControls — Reactions tab", () => {
     expect(setSpy).toHaveBeenCalledWith(5000); // setter was invoked but rejected
     expect(presenceSettings.get().value).toBe(180000); // store unchanged
     expect(presenceInput.value).toBe("180"); // input snapped back
+    qc.dispose();
+  });
+
+  // ── Rate-limit caps ───────────────────────────────────────────────────────
+
+  const RATE_LIMIT_DEFAULTS = { tier2_max: 24, tier3_max: 2, overall_max: 40 };
+
+  function buildRateQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    const rateLimitSettings = createGuardrailsSettings();
+    return {
+      rateLimitSettings,
+      qc: buildQc({
+        rateLimitSettings,
+        getRateLimitDefaults: () => RATE_LIMIT_DEFAULTS,
+        ...extra,
+      }),
+    };
+  }
+
+  it("does not render the rate-limit rows when rateLimitSettings is absent", () => {
+    const qc = buildQc();
+    qc.open();
+    expect(qc.el.querySelector("#yui-rate-tier2")).toBeNull();
+    expect(qc.el.querySelector("#yui-rate-tier3")).toBeNull();
+    expect(qc.el.querySelector("#yui-rate-overall")).toBeNull();
+    qc.dispose();
+  });
+
+  it("renders the three rate-limit rows inside #yui-panel-react", () => {
+    const { qc } = buildRateQc();
+    qc.open();
+    const panel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
+    for (const id of ["#yui-rate-tier2", "#yui-rate-tier3", "#yui-rate-overall"]) {
+      const input = qc.el.querySelector<HTMLInputElement>(id);
+      expect(input).not.toBeNull();
+      expect(input!.type).toBe("number");
+      expect(panel.contains(input)).toBe(true);
+    }
+    qc.dispose();
+  });
+
+  it("shows the config defaults while no cap is overridden", () => {
+    const { qc } = buildRateQc();
+    qc.open();
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-tier2")!.value).toBe("24");
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-tier3")!.value).toBe("2");
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-overall")!.value).toBe("40");
+    qc.dispose();
+  });
+
+  it("shows the stored cap instead of the config default", () => {
+    const { rateLimitSettings, qc } = buildRateQc();
+    rateLimitSettings.set({ tier2_max: 30 });
+    qc.open();
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-tier2")!.value).toBe("30");
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-overall")!.value).toBe("40");
+    qc.dispose();
+  });
+
+  it("commits a cap on change", () => {
+    const { rateLimitSettings, qc } = buildRateQc();
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-rate-overall")!;
+    input.value = "60";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(rateLimitSettings.get().overall_max).toBe(60);
+    qc.dispose();
+  });
+
+  it("does not commit on every keystroke", () => {
+    const { rateLimitSettings, qc } = buildRateQc();
+    const setSpy = vi.spyOn(rateLimitSettings, "set");
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-rate-tier2")!;
+    input.focus();
+    for (const partial of ["3", "30"]) {
+      input.value = partial;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    expect(setSpy).not.toHaveBeenCalled();
+    expect(rateLimitSettings.get().tier2_max).toBe(0);
+
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(rateLimitSettings.get().tier2_max).toBe(30);
+    qc.dispose();
+  });
+
+  it("clears the override when the field is emptied", () => {
+    const { rateLimitSettings, qc } = buildRateQc();
+    rateLimitSettings.set({ tier2_max: 30 });
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-rate-tier2")!;
+    input.value = "";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(rateLimitSettings.get().tier2_max).toBe(0);
+    expect(input.value).toBe("24");
+    qc.dispose();
+  });
+
+  it("reflects an external cap edit while open", () => {
+    const { rateLimitSettings, qc } = buildRateQc();
+    qc.open();
+    rateLimitSettings.set({ tier3_max: 6 });
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-tier3")!.value).toBe("6");
+    qc.dispose();
+  });
+
+  it("snaps an out-of-range cap back to the effective value", () => {
+    const { rateLimitSettings, qc } = buildRateQc();
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-rate-tier2")!;
+    input.value = "-5";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(rateLimitSettings.get().tier2_max).toBe(0);
+    expect(input.value).toBe("24");
     qc.dispose();
   });
 });

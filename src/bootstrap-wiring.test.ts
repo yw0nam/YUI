@@ -136,6 +136,7 @@ import {
   wireDevGlobals,
   wireDevtoolsSync,
   wireDispatcherSources,
+  wireGuardrailsOverrides,
   wirePeekExitTriggers,
   wireSettingsReload,
   wireSettingsWindowSync,
@@ -147,6 +148,9 @@ import {
   wireWindowSync,
 } from "./bootstrap-wiring";
 import { loadEmotionTextTable } from "./config";
+import type { GuardrailsConfig } from "./config/load";
+import { createGuardrails } from "./dispatcher/guardrails";
+import { createGuardrailsSettings, mergeGuardrails } from "./io/guardrails-settings";
 import type { BridgeTransport } from "./io/settings-bridge";
 import {
   broadcastSyncStores,
@@ -1654,5 +1658,85 @@ describe("wireDevGlobals", () => {
     const demo = (globalThis as unknown as Record<string, { tap: () => void }>).__yuiDemo;
     demo.tap();
     expect(deps.ambient.trigger).toHaveBeenCalledWith("tap_react");
+  });
+});
+
+describe("wireGuardrailsOverrides", () => {
+  const inMemoryStorage = () => {
+    let value: { tier2_max: number; tier3_max: number; overall_max: number } | null = null;
+    return {
+      load: () => (value ? { ...value } : null),
+      save: (s: { tier2_max: number; tier3_max: number; overall_max: number }) => {
+        value = { ...s };
+      },
+    };
+  };
+
+  function baseConfig(): GuardrailsConfig {
+    return {
+      debounce_ms: {
+        idle_watcher: 0,
+        os_event_watcher: 0,
+        backend_push_source: 0,
+        user_input_source: 0,
+      },
+      rate_limit: {
+        window_ms: 3_600_000,
+        tier2_max: 2,
+        tier3_max: 2,
+        overall_max: 100,
+        cooldown_ms: 300_000,
+      },
+      attachments: { max_count: 6, max_image_bytes: 5_242_880 },
+    };
+  }
+
+  const fire = (guardrails: ReturnType<typeof createGuardrails>): boolean =>
+    guardrails.evaluate(
+      { source: "idle_watcher", event_name: "idle.long", ts: 1_717_000_000_000 },
+      2,
+    ).pass;
+
+  function setup() {
+    const config = baseConfig();
+    const store = createGuardrailsSettings({ storage: inMemoryStorage() });
+    const getGuardrails = (): GuardrailsConfig => mergeGuardrails(config, store.get());
+    const guardrails = createGuardrails(getGuardrails(), { now: () => 1_717_000_000_000 });
+    const dispose = wireGuardrailsOverrides({ guardrails, store, getGuardrails });
+    return { guardrails, store, dispose };
+  }
+
+  it("re-caps the live limiter when a cap is edited", () => {
+    const { guardrails, store, dispose } = setup();
+    expect(fire(guardrails)).toBe(true);
+    expect(fire(guardrails)).toBe(true);
+    expect(fire(guardrails)).toBe(false);
+
+    store.set({ tier2_max: 4 });
+    expect(fire(guardrails)).toBe(true);
+    dispose();
+  });
+
+  it("keeps the rolling counters when a cap is edited", () => {
+    const { guardrails, store, dispose } = setup();
+    // Two slots consumed under the config default of 2.
+    expect(fire(guardrails)).toBe(true);
+    expect(fire(guardrails)).toBe(true);
+
+    // Raising the cap to 4 leaves exactly two slots — a counter reset would refill all four.
+    store.set({ tier2_max: 4 });
+    expect(fire(guardrails)).toBe(true);
+    expect(fire(guardrails)).toBe(true);
+    expect(fire(guardrails)).toBe(false);
+    dispose();
+  });
+
+  it("stops applying edits after dispose", () => {
+    const { guardrails, store, dispose } = setup();
+    dispose();
+    store.set({ tier2_max: 4 });
+    expect(fire(guardrails)).toBe(true);
+    expect(fire(guardrails)).toBe(true);
+    expect(fire(guardrails)).toBe(false);
   });
 });
