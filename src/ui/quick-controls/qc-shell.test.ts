@@ -913,7 +913,19 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 
-  it("snaps an out-of-range cap back to the effective value", () => {
+  it("keeps an existing cap when an out-of-range value is entered", () => {
+    const { rateLimitSettings, qc } = buildRateQc();
+    rateLimitSettings.set({ tier2_max: 30 });
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-rate-tier2")!;
+    input.value = "1000";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(rateLimitSettings.get().tier2_max).toBe(30); // store unchanged
+    expect(input.value).toBe("30"); // input snapped back
+    qc.dispose();
+  });
+
+  it("snaps back to the config default when an out-of-range value is entered with no override", () => {
     const { rateLimitSettings, qc } = buildRateQc();
     qc.open();
     const input = qc.el.querySelector<HTMLInputElement>("#yui-rate-tier2")!;

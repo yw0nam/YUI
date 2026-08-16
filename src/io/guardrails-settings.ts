@@ -23,13 +23,27 @@ export const RATE_LIMIT_KEYS = [
   "overall_max",
 ] as const satisfies readonly (keyof RateLimitOverrides)[];
 
+/**
+ * Compile-time totality guard: a cap added to RateLimitOverrides without a matching key above
+ * stops `_MissingRateLimitKeys` from being `never`, so `pnpm build` catches the gap rather than
+ * the cap silently losing its merge branch, its setter, and its UI row.
+ */
+type _MissingRateLimitKeys = Exclude<keyof RateLimitOverrides, (typeof RATE_LIMIT_KEYS)[number]>;
+const _totalityGuard: _MissingRateLimitKeys extends never ? true : _MissingRateLimitKeys = true;
+void _totalityGuard;
+
 export type GuardrailsStorage = PersistedStorage<RateLimitOverrides>;
 
 const EMPTY: RateLimitOverrides = { tier2_max: 0, tier3_max: 0, overall_max: 0 };
 
-/** A cap applies only as an integer in 1..RATE_LIMIT_MAX; anything else means no override. */
+/** A settable cap: 0 (clear the override) or an integer in 1..RATE_LIMIT_MAX. */
+function isCap(v: unknown): v is number {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= RATE_LIMIT_MAX;
+}
+
+/** Storage sanitation — a stored cap outside 1..RATE_LIMIT_MAX counts as no override. */
 function coerceCap(v: unknown): number {
-  return typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= RATE_LIMIT_MAX ? v : 0;
+  return isCap(v) ? v : 0;
 }
 
 function coerce(v: unknown): RateLimitOverrides {
@@ -55,6 +69,16 @@ export function mergeGuardrails(base: GuardrailsConfig, ov: RateLimitOverrides):
   return { ...base, rate_limit };
 }
 
+/**
+ * Projects a bundled GuardrailsConfig onto the RateLimitOverrides shape for the UI's fallback
+ * display, dropping window_ms/cooldown_ms — the values this store never overrides.
+ */
+export function rateLimitDefaultsFromConfig(g: GuardrailsConfig): RateLimitOverrides {
+  const out = { ...EMPTY };
+  for (const key of RATE_LIMIT_KEYS) out[key] = g.rate_limit[key];
+  return out;
+}
+
 export function createGuardrailsSettings(opts?: {
   storage?: GuardrailsStorage;
   initial?: RateLimitOverrides;
@@ -71,10 +95,12 @@ export function createGuardrailsSettings(opts?: {
   return {
     get: core.get,
 
+    /** An out-of-range value is ignored, so a typo never silently drops the cap already set. */
     set(partial: Partial<RateLimitOverrides>): void {
       const next = { ...core.current() };
       for (const k of RATE_LIMIT_KEYS) {
-        if (k in partial) next[k] = coerceCap(partial[k]);
+        const v = partial[k];
+        if (k in partial && isCap(v)) next[k] = v;
       }
       core.commit(next);
     },

@@ -387,10 +387,10 @@ const ko: Record<string, string> = {
   "reactions.rate_hint":
     "YUI가 먼저 말을 거는 빈도의 상한이에요. 내가 보낸 메시지는 세지 않아요. 비워 두면 기본값을 써요.",
   "reactions.rate_tier2_label": "시간당 말 걸기",
-  "reactions.rate_tier2_sub": "자리 비움·자발·일정·에이전트 알림을 합쳐서",
+  "reactions.rate_tier2_sub": "자리 비움·자발적 말 걸기·일정·에이전트 알림을 합쳐서 세요",
   "reactions.rate_tier3_label": "시간당 낮은 우선순위 말 걸기",
   "reactions.rate_tier3_sub": "다른 모든 것에 자리를 양보하는 조용한 말 걸기",
-  "reactions.rate_overall_label": "시간당 전체 대화",
+  "reactions.rate_overall_label": "시간당 먼저 건 대화 전체",
   "reactions.rate_overall_sub": "넘어서면 쿨다운 동안 모두 멈춰요",
 
   // workflows

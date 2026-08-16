@@ -12,6 +12,7 @@ import { createConfigStore } from "./config";
 import { agentTriggerableMotionIds } from "./io/broker-client";
 import { selectFetch } from "./io/chat-client";
 import { endpointDefaultsFromConfig } from "./io/endpoints-settings";
+import { rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
 import { updateVoice } from "./io/irodori-voices";
 import { createSettingsStores } from "./io/settings-stores";
 import { closeSettingsWindow } from "./io/settings-window";
@@ -182,7 +183,7 @@ async function bootstrap(): Promise<void> {
       getRateLimitDefaults: () => {
         if (!configLoaded) return undefined;
         try {
-          return config.get().guardrails.rate_limit;
+          return rateLimitDefaultsFromConfig(config.get().guardrails);
         } catch {
           return undefined;
         }

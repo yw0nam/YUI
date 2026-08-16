@@ -387,11 +387,11 @@ const ja: Record<string, string> = {
   "reactions.rate_title": "1時間あたりの上限",
   "reactions.rate_hint":
     "YUI が自分から話しかける頻度の上限です。あなたからのメッセージは数えません。空欄なら初期値を使います。",
-  "reactions.rate_tier2_label": "1時間あたりのきっかけ",
+  "reactions.rate_tier2_label": "1時間あたりの話しかけ",
   "reactions.rate_tier2_sub": "アイドル・自発・スケジュール・エージェントの合計",
-  "reactions.rate_tier3_label": "1時間あたりの低優先きっかけ",
-  "reactions.rate_tier3_sub": "他をすべて優先する控えめなきっかけ",
-  "reactions.rate_overall_label": "1時間あたりの合計ターン",
+  "reactions.rate_tier3_label": "1時間あたりの低優先の話しかけ",
+  "reactions.rate_tier3_sub": "他をすべて優先する控えめな話しかけ",
+  "reactions.rate_overall_label": "1時間あたりの自発ターン合計",
   "reactions.rate_overall_sub": "超えるとクールダウンの間すべて止まります",
 
   // workflows

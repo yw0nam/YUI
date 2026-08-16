@@ -34,7 +34,7 @@ import { agentTriggerableMotionIds } from "./io/broker-client";
 import { CAMERA_WHEEL_SENSITIVITY, CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN } from "./io/camera-settings";
 import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/endpoints-settings";
-import { mergeGuardrails } from "./io/guardrails-settings";
+import { mergeGuardrails, rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
 import { enabledIdleVariants } from "./io/idle-motion-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
@@ -281,7 +281,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       rateLimitSettings: guardrailsSettings,
       getRateLimitDefaults: () => {
         try {
-          return config.get().guardrails.rate_limit;
+          return rateLimitDefaultsFromConfig(config.get().guardrails);
         } catch {
           return undefined;
         }

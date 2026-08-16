@@ -391,7 +391,7 @@ const en: Record<string, string> = {
   "reactions.rate_tier2_sub": "Idle, proactive, schedule, and agent cues together",
   "reactions.rate_tier3_label": "Low-priority cues per hour",
   "reactions.rate_tier3_sub": "Background cues that yield to everything else",
-  "reactions.rate_overall_label": "Total turns per hour",
+  "reactions.rate_overall_label": "Total self-started turns per hour",
   "reactions.rate_overall_sub": "Crossing it holds every cue for a cooldown",
 
   // workflows

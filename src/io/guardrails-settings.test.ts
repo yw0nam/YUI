@@ -6,6 +6,7 @@ import {
   mergeGuardrails,
   RATE_LIMIT_MAX,
   type RateLimitOverrides,
+  rateLimitDefaultsFromConfig,
 } from "./guardrails-settings";
 
 function baseConfig(): GuardrailsConfig {
@@ -61,17 +62,20 @@ describe("guardrails settings — store shape", () => {
     expect(store.get()).toEqual({ tier2_max: 30, tier3_max: 0, overall_max: 50 });
   });
 
-  it("rejects a non-positive, fractional, or over-max cap as no override", () => {
+  it("clears the override when set to 0", () => {
     const store = createGuardrailsSettings({ storage: inMemoryStorage() });
     store.set({ tier2_max: 30 });
     store.set({ tier2_max: 0 });
     expect(store.get().tier2_max).toBe(0);
-    store.set({ tier2_max: -5 });
-    expect(store.get().tier2_max).toBe(0);
-    store.set({ tier2_max: 4.5 });
-    expect(store.get().tier2_max).toBe(0);
-    store.set({ tier2_max: RATE_LIMIT_MAX + 1 });
-    expect(store.get().tier2_max).toBe(0);
+  });
+
+  it("keeps the current cap when handed a negative, fractional, over-max, or NaN value", () => {
+    const store = createGuardrailsSettings({ storage: inMemoryStorage() });
+    store.set({ tier2_max: 30 });
+    for (const bad of [-5, 4.5, RATE_LIMIT_MAX + 1, Number.NaN]) {
+      store.set({ tier2_max: bad });
+      expect(store.get().tier2_max).toBe(30);
+    }
     store.set({ tier2_max: RATE_LIMIT_MAX });
     expect(store.get().tier2_max).toBe(RATE_LIMIT_MAX);
   });
@@ -121,6 +125,14 @@ describe("guardrails settings — store over config", () => {
     expect(merged.rate_limit.cooldown_ms).toBe(base.rate_limit.cooldown_ms);
     expect(merged.debounce_ms).toEqual(base.debounce_ms);
     expect(merged.attachments).toEqual(base.attachments);
+  });
+
+  it("projects the config caps onto the overrides shape, dropping the non-editable values", () => {
+    expect(rateLimitDefaultsFromConfig(baseConfig())).toEqual({
+      tier2_max: 24,
+      tier3_max: 2,
+      overall_max: 40,
+    });
   });
 
   it("never mutates the config it layers onto", () => {
