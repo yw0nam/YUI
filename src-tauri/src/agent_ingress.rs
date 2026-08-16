@@ -1052,8 +1052,8 @@ mod tests {
 
     #[test]
     fn bind_with_retry_gives_up_while_the_port_stays_taken() {
-        let _holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
-        let port = _holder.local_addr().unwrap().port();
+        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = holder.local_addr().unwrap().port();
         assert!(bind_with_retry(port, 2, Duration::from_millis(10)).is_err());
     }
 
