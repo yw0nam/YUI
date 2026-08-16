@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { validateEndpoints } from "./validators/endpoints";
 import { validateMotions } from "./validators/motions";
+import { validateScreen } from "./validators/screen";
 
 const read = (rel: string): any => JSON.parse(readFileSync(resolve(process.cwd(), rel), "utf-8"));
 
@@ -101,6 +102,7 @@ describe("configs/guardrails.json", () => {
     expect(g.debounce_ms.os_event_watcher).toBe(5000);
     expect(g.debounce_ms.backend_push_source).toBe(10000);
     expect(g.debounce_ms.user_input_source).toBe(0);
+    expect(g.debounce_ms.screen_watcher).toBe(5000);
     expect(g.rate_limit.window_ms).toBe(3600000);
     expect(g.rate_limit.tier2_max).toBe(12);
     expect(g.rate_limit.tier3_max).toBe(2);
@@ -111,6 +113,22 @@ describe("configs/guardrails.json", () => {
   it("carries the attach-time caps for turn attachments", () => {
     expect(g.attachments.max_count).toBe(6);
     expect(g.attachments.max_image_bytes).toBe(5242880);
+  });
+});
+
+describe("configs/screen.json", () => {
+  const s = read("configs/screen.json");
+
+  it("carries the frontmost-transition thresholds", () => {
+    expect(s.prev_dwell_ms).toBe(600000);
+    expect(s.settle_ms).toBe(90000);
+    expect(s.long_session_ms).toBe(2700000);
+    expect(s.min_gap_ms).toBe(300000);
+    expect(s.quiet_after_turn_ms).toBe(180000);
+  });
+
+  it("passes the real screen config through validation", () => {
+    expect(() => validateScreen("configs/screen.json", s)).not.toThrow();
   });
 });
 

@@ -12,6 +12,7 @@ function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknow
       os_event_watcher: 5000,
       backend_push_source: 10000,
       user_input_source: 0,
+      screen_watcher: 5000,
     },
     rate_limit: {
       window_ms: 3600000,
@@ -56,6 +57,7 @@ describe("validateGuardrails — happy path", () => {
         os_event_watcher: 0,
         backend_push_source: 0,
         user_input_source: 0,
+        screen_watcher: 0,
       },
       rate_limit: { window_ms: 0, tier2_max: 0, tier3_max: 0, overall_max: 0, cooldown_ms: 0 },
     });
@@ -85,6 +87,7 @@ describe("validateGuardrails — debounce_ms", () => {
           os_event_watcher: 5000,
           backend_push_source: 10000,
           user_input_source: 0,
+          screen_watcher: 5000,
         },
       }),
       "debounce_ms.idle_watcher는 0 이상 유한 number여야 함",

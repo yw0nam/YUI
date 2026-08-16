@@ -47,6 +47,7 @@ function validConfig(): AppConfig {
         os_event_watcher: 0,
         backend_push_source: 0,
         user_input_source: 0,
+        screen_watcher: 5000,
       },
       rate_limit: {
         window_ms: 60_000,
@@ -59,6 +60,13 @@ function validConfig(): AppConfig {
     },
     filler: { gap_ms: 1_000, gap_jitter_ms: 100, pools: {} },
     hotkeys: { summon_global: "CmdOrCtrl+Shift+Y" },
+    screen: {
+      prev_dwell_ms: 600000,
+      settle_ms: 90000,
+      long_session_ms: 2700000,
+      min_gap_ms: 300000,
+      quiet_after_turn_ms: 180000,
+    },
   };
 }
 

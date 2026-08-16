@@ -52,6 +52,18 @@ describe("event_bus — bus drop conditions (§4.2)", () => {
     expect(bus.push(env({ event_name: undefined }))).toBe(false);
   });
 
+  it("accepts the screen_watcher source", () => {
+    expect(
+      bus.push(
+        env({
+          source: "screen_watcher",
+          event_name: "proactive.screen_app_switched",
+          dnd_override: false,
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it("drops an envelope whose ts is more than 60s in the past", () => {
     expect(bus.push(env({ ts: NOW - 61_000 }))).toBe(false);
   });

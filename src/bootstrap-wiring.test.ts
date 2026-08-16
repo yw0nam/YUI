@@ -31,6 +31,9 @@ vi.mock("./dispatcher/agent-source", () => ({
 vi.mock("./dispatcher/signals-source", () => ({
   createSignalsSource: vi.fn(makeSource("signals")),
 }));
+vi.mock("./dispatcher/screen-source", () => ({
+  createScreenSource: vi.fn(makeSource("screen")),
+}));
 // i18n is a side-effecting singleton; stub it so the settings-sync tests stay isolated.
 const { unsubscribeLocale } = vi.hoisted(() => ({ unsubscribeLocale: vi.fn() }));
 vi.mock("./ui/i18n", () => ({
@@ -293,15 +296,27 @@ describe("wireDispatcherSources", () => {
     started.length = 0;
   });
 
-  it("creates and starts all four utterance sources", () => {
+  const screenConfig = {
+    prev_dwell_ms: 600000,
+    settle_ms: 90000,
+    long_session_ms: 2700000,
+    min_gap_ms: 300000,
+    quiet_after_turn_ms: 180000,
+  };
+
+  it("creates and starts all five utterance sources", () => {
     const bus = {} as never;
     const pipelineBusy = { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) };
+    const subscribeBusy = vi.fn(() => vi.fn());
     const result = wireDispatcherSources({
       bus,
       presenceSettings: { get: () => ({ value: 5000 }) },
       proactiveSettings: { get: () => ({ enabled: true, entries: [] }) },
       scheduleSettings: { get: () => ({ enabled: false, entries: [] }) },
       agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
+      screenSettings: { get: () => ({ enabled: false }) },
+      getScreenConfig: () => screenConfig,
+      subscribeBusy,
       pipelineBusy,
     });
 
@@ -309,10 +324,11 @@ describe("wireDispatcherSources", () => {
       "agentSource",
       "proactiveSource",
       "scheduleSource",
+      "screenSource",
       "signalsSource",
     ]);
     // Each source is started (fire-and-forget) so candidate events flow once wired.
-    expect(started.sort()).toEqual(["agent", "proactive", "schedule", "signals"]);
+    expect(started.sort()).toEqual(["agent", "proactive", "schedule", "screen", "signals"]);
     // The dispatcher threshold is read from the presence store at creation time.
     expect((created.proactive as { present_max_idle_ms: number }).present_max_idle_ms).toBe(5000);
     // isEnabled reads live from the per-feature store.
@@ -326,6 +342,37 @@ describe("wireDispatcherSources", () => {
       pipelineBusy.subscribe,
     );
     expect(result.signalsSource.drain()).toEqual([]);
+  });
+
+  it("gates the screen source on its own flag and re-anchors idle cues on a fire", () => {
+    const subscribeBusy = vi.fn(() => vi.fn());
+    const result = wireDispatcherSources({
+      bus: {} as never,
+      presenceSettings: { get: () => ({ value: 5000 }) },
+      proactiveSettings: { get: () => ({ enabled: true, entries: [] }) },
+      scheduleSettings: { get: () => ({ enabled: false, entries: [] }) },
+      agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
+      screenSettings: { get: () => ({ enabled: true }) },
+      getScreenConfig: () => screenConfig,
+      subscribeBusy,
+      pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
+    });
+
+    const screen = created.screen as {
+      present_max_idle_ms: number;
+      isEnabled: () => boolean;
+      getConfig: () => typeof screenConfig;
+      subscribeBusy: unknown;
+      noteInteraction: () => void;
+    };
+    expect(screen.present_max_idle_ms).toBe(5000);
+    expect(screen.isEnabled()).toBe(true);
+    expect(screen.getConfig()).toEqual(screenConfig);
+    // Turn edges come from the dispatcher's in-flight busy signal, not the pipeline-busy one.
+    expect(screen.subscribeBusy).toBe(subscribeBusy);
+    // A screen fire re-anchors the idle gap so proactive cues do not pile on.
+    expect(screen.noteInteraction).toBe(result.proactiveSource.noteInteraction);
+    expect(result.screenSource).toBeDefined();
   });
 });
 

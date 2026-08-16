@@ -21,7 +21,8 @@ export interface BusEnvelope {
     | "idle_watcher"
     | "os_event_watcher"
     | "user_input_source"
-    | "backend_push_source";
+    | "backend_push_source"
+    | "screen_watcher";
   /** event_name. ex: "time_milestone.morning". */
   event_name: string;
   /** client epoch ms. */
@@ -88,6 +89,7 @@ const VALID_SOURCES = new Set<BusEnvelope["source"]>([
   "os_event_watcher",
   "user_input_source",
   "backend_push_source",
+  "screen_watcher",
 ]);
 
 interface QueueItem {

@@ -6,6 +6,7 @@ import {
   type GestureCuesConfig,
   loadEmotionTextTable,
   type PeekConfig,
+  type ScreenConfig,
 } from "./config";
 import type { EndpointsConfig, Posture, WindowRect } from "./contract";
 import { createAgentSource } from "./dispatcher/agent-source";
@@ -13,6 +14,7 @@ import type { Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
 import { createProactiveSource, type ProactiveSource } from "./dispatcher/proactive-source";
 import { createScheduleSource, type ScheduleSource } from "./dispatcher/schedule-source";
+import { createScreenSource, type ScreenSource } from "./dispatcher/screen-source";
 import { createSignalsSource, type SignalsSource } from "./dispatcher/signals-source";
 import type { UserInputSource } from "./dispatcher/user-input-source";
 import type { AgentNotifySettings } from "./io/agent-notify-settings";
@@ -526,12 +528,17 @@ export function wireDispatcherSources(deps: {
   proactiveSettings: { get(): ProactiveSettings };
   scheduleSettings: { get(): ScheduleSettings };
   agentNotifySettings: { get(): AgentNotifySettings };
+  screenSettings: { get(): { enabled: boolean } };
+  getScreenConfig: () => ScreenConfig;
+  /** Dispatcher in-flight busy edges — anchors the screen source's quiet-after-turn window. */
+  subscribeBusy: (cb: (busy: boolean) => void) => () => void;
   pipelineBusy: { isBusy: () => boolean; subscribe: (cb: (busy: boolean) => void) => () => void };
 }): {
   proactiveSource: ProactiveSource;
   scheduleSource: ScheduleSource;
   agentSource: ReturnType<typeof createAgentSource>;
   signalsSource: SignalsSource;
+  screenSource: ScreenSource;
 } {
   const {
     bus,
@@ -539,6 +546,9 @@ export function wireDispatcherSources(deps: {
     proactiveSettings,
     scheduleSettings,
     agentNotifySettings,
+    screenSettings,
+    getScreenConfig,
+    subscribeBusy,
     pipelineBusy,
   } = deps;
   const proactiveSource = createProactiveSource({
@@ -571,7 +581,16 @@ export function wireDispatcherSources(deps: {
     subscribePipelineBusy: pipelineBusy.subscribe,
   });
   void signalsSource.start();
-  return { proactiveSource, scheduleSource, agentSource, signalsSource };
+  const screenSource = createScreenSource({
+    bus,
+    present_max_idle_ms: presenceSettings.get().value,
+    getConfig: getScreenConfig,
+    isEnabled: () => screenSettings.get().enabled,
+    noteInteraction: proactiveSource.noteInteraction,
+    subscribeBusy,
+  });
+  void screenSource.start();
+  return { proactiveSource, scheduleSource, agentSource, signalsSource, screenSource };
 }
 
 export async function wirePeekExitTriggers(deps: {

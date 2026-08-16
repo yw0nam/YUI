@@ -27,6 +27,7 @@ export {
   PEEK_DEFAULTS,
   type PeekConfig,
   plainSecretProvider,
+  type ScreenConfig,
   type SecretProvider,
   STT_API_KEY_SECRET,
   TAP_DEFAULTS,

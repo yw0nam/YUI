@@ -22,6 +22,7 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
     os_event_watcher: 0,
     backend_push_source: 0,
     user_input_source: 0,
+    screen_watcher: 0,
   };
   if (!isObject(rawDebounce)) {
     issues.push(`debounce_ms는 객체여야 함 (받음: ${JSON.stringify(rawDebounce)})`);
