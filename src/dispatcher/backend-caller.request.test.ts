@@ -320,6 +320,28 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     expect(userMsg.content).toContain(marker);
   });
 
+  it.each([
+    ["proactive.screen_app_switched", "(I just moved over to something else on my screen)"],
+    ["proactive.screen_long_session", "(I've been in the same thing on my screen for a while)"],
+  ] as const)("%s user message is its screen-change marker", async (eventName, marker) => {
+    script.events = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 16,
+      source: "os_event_watcher",
+      event_name: eventName,
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: { transition: eventName.replace("proactive.screen_", ""), dwell_min: 45 },
+    };
+    await caller.call(turnOf(env));
+    const [, request] = script.spy.mock.calls[0];
+    const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
+      (m) => m.role === "user",
+    )!;
+    expect(userMsg.content).toContain(marker);
+    expect(userMsg.content).not.toContain("(I've gone quiet for a while)");
+  });
+
   it("proactive.tap_bored forwards its cue and drained signals", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     const signals = [{ kind: "reminder", payload: { title: "Stretch" } }, { kind: "alert" }];

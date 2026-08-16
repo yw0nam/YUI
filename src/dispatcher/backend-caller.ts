@@ -72,6 +72,12 @@ function backgroundMarker(eventName: string, trigger: TriggerMeta): string {
   if (eventName === "proactive.drag_held") return "(I keep dragging you around)";
   if (eventName === "proactive.window_sit") return "(I just sat you down on a window's edge)";
   if (eventName === "proactive.peek") return "(I left you peeking out from the screen edge)";
+  if (eventName === "proactive.screen_app_switched") {
+    return "(I just moved over to something else on my screen)";
+  }
+  if (eventName === "proactive.screen_long_session") {
+    return "(I've been in the same thing on my screen for a while)";
+  }
   if (eventName.startsWith("proactive.")) return "(I've gone quiet for a while)";
   if (eventName.startsWith("schedule.")) return "(it's the time of day you check in on me)";
   if (eventName === "agent.done" || eventName === "agent.needs_input") {

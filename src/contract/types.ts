@@ -264,6 +264,13 @@ export interface TriggerMeta {
   };
   /** signals.ingress — opaque burst forwarded verbatim from the n8n /signals ingress. no per-item shape assumed. */
   signals?: SignalItem[];
+  /** proactive.screen_* — a frontmost-app transition fired this turn. */
+  screen?: {
+    transition: "app_switched" | "long_session";
+    from_app?: string; // app left behind; app_switched only
+    from_dwell_min?: number; // minutes it held the foreground
+    dwell_min: number; // current app's foreground minutes at fire time
+  };
 }
 
 /**

@@ -58,7 +58,13 @@ When a screenshot is attached, the input is a content-part array: `[{ type: "inp
       "local_time": "HH:MM",                   // present for schedule
       "idle_min": 0                             // present for proactive (configured threshold, minutes)
     },
-    "idle_elapsed_min": 0                       // present for proactive (actual elapsed minutes)
+    "idle_elapsed_min": 0,                      // present for proactive (actual elapsed minutes)
+    "screen": {                                 // present for proactive screen transitions
+      "transition": "app_switched",             // "app_switched" | "long_session"
+      "from_app": "Cursor",                     // optional; app the user left (app_switched)
+      "from_dwell_min": 34,                     // optional; minutes it held the foreground
+      "dwell_min": 2                            // minutes the current app has held the foreground
+    }
   }
 }
 ```
@@ -96,7 +102,7 @@ Where the avatar body is, on every turn. The field is present only while a postu
 |---|---|---|---|
 | `user` | User spoke or typed | The user's message text | No |
 | `schedule` | A user-configured time-of-day cue fired | Background marker | Yes |
-| `proactive` | A configured engagement cue, tap-bored cue, or region-touch cue fired | Background marker | Yes |
+| `proactive` | A configured engagement cue, tap-bored cue, region-touch cue, or screen transition fired | Background marker | Yes, except screen transitions (carry `screen` instead) |
 | `agent` | An external coding-agent lifecycle hook posted a completion or needs-input signal | Background marker | No (carries `agent` or `agent_catchup` instead) |
 | `signals` | An external producer POSTed a burst to the `/signals` ingress | Background marker | No (carries `signals` instead) |
 
@@ -113,6 +119,8 @@ When there is no user utterance, the user input trails the `client_context` bloc
 | `proactive.drag_held` | `(I keep dragging you around)` |
 | `proactive.window_sit` | `(I just sat you down on a window's edge)` |
 | `proactive.peek` | `(I left you peeking out from the screen edge)` |
+| `proactive.screen_app_switched` | `(I just moved over to something else on my screen)` |
+| `proactive.screen_long_session` | `(I've been in the same thing on my screen for a while)` |
 | `proactive.*` (other) | `(I've gone quiet for a while)` |
 | `schedule.*` | `(it's the time of day you check in on me)` |
 | `agent.done` | `(my claude-code task just finished)` |
@@ -137,6 +145,19 @@ The marker is the one place a payload field reaches the user role as bare prose,
 | `idle_elapsed_min` | number | idle proactive cues | Actual elapsed minutes since the last user interaction at the moment the cue fired |
 
 `cue.context` is user-authored intent, so it rides only on cues the user wrote: schedule cues and configured engagement cues. The built-in touch and gesture cues (`touch_*`, `tap_bored`, `drag_held`, `window_sit`, `peek`) send a `label` alone — how to react to a poke or a drag is persona judgment, which belongs to the agent, not to a string the client ships. A user who authors a `context` for those cues in `configs/avatar.json` still has it forwarded.
+
+### Screen-change fields
+
+`proactive.screen_*` turns carry a `screen` block instead of a `cue`: a frontmost-app transition the client observed. `screen_app_switched` fires when the user leaves an app they had held for a while and settles into another; `screen_long_session` fires while one app keeps the foreground across long stretches.
+
+| Field | Type | Present for | Meaning |
+|---|---|---|---|
+| `transition` | `app_switched` \| `long_session` | all screen turns | Which transition fired |
+| `from_app` | string | `app_switched` | Owner app the user left |
+| `from_dwell_min` | number | `app_switched` | Minutes it held the foreground |
+| `dwell_min` | number | all screen turns | Current app's foreground minutes at fire time |
+
+The app switched *to* is `env.frontmost.app`, which rides every turn, so it is not duplicated here. The departed window's title is not carried: the current title rides in `env.frontmost.window_title` under the same consent as any other turn, while a title the user has already left is history rather than present state. App names alone carry the transition; `from_app` is untrusted environment text, like every other sampled app name.
 
 ### Per-kind examples
 
@@ -202,6 +223,27 @@ The marker is the one place a payload field reaches the user role as bare prose,
   "trigger": {
     "kind": "proactive",
     "cue": { "label": "sat on window" }
+  }
+}
+```
+
+**`proactive.screen_app_switched` turn** — the user left an app they had held for a while and settled into another; `env.frontmost` names the app they moved to:
+
+```json
+{
+  "env": {
+    "timestamp": "2026-06-15T15:40:00+09:00",
+    "timezone": "Asia/Seoul",
+    "frontmost": { "app": "Slack", "window_title": "#general", "since": 1750000000000 }
+  },
+  "trigger": {
+    "kind": "proactive",
+    "screen": {
+      "transition": "app_switched",
+      "from_app": "Cursor",
+      "from_dwell_min": 34,
+      "dwell_min": 2
+    }
   }
 }
 ```
