@@ -238,6 +238,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     )!;
     input.value = "https://api.example.com/v1";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
     expect(endpointsSettings.get().chat_base_url).toBe("https://api.example.com/v1");
 
     qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="chat"]')!.click();
@@ -794,6 +795,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     )!;
     input.value = "alloy";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
     expect(endpointsSettings.get().tts_voice).toBe("alloy");
 
     qc.dispose();
@@ -948,6 +950,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     const input = chatUrlInput(qc);
     input.value = "http://localhost:9999/v1";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
 
     expect(sel.value).toBe("custom");
     expect(endpointsSettings.get().chat_base_url).toBe("http://localhost:9999/v1");
@@ -1007,6 +1010,7 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     input.value = "http://localhost:3201/mcp";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
     expect(endpointsSettings.get().broker_base_url).toBe("http://localhost:3201/mcp");
 
     qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="broker"]')!.click();
