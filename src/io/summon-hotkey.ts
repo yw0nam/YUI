@@ -2,8 +2,9 @@
  * Global summon hotkey — registers the configs/hotkeys.json accelerator as an OS-wide
  * shortcut and, when fired, brings the window forward and summons the input.
  *
- * fail-soft: if register is rejected (invalid accelerator / OS already holds it), warn and
- * stay inactive — never break boot/hot-reload. Register/unregister APIs are injected
+ * fail-soft: register is retried briefly (a fast restart races the previous process's
+ * registration); if it keeps being rejected (invalid accelerator / OS already holds it), warn
+ * and stay inactive — never break boot/hot-reload. Register/unregister APIs are injected
  * (non-Tauri/tests) so this isn't bound to the runtime.
  */
 
@@ -31,6 +32,26 @@ export interface SummonHotkey {
   current(): string | null;
   /** Unregister (teardown/HMR). */
   dispose(): Promise<void>;
+}
+
+/** Registration attempts and spacing — a fast restart overlaps the process that still holds the key. */
+const REGISTER_ATTEMPTS = 6;
+const REGISTER_RETRY_MS = 500;
+
+/** Runs `op`, retrying a rejection up to `attempts` times `delayMs` apart; rethrows the last rejection. */
+export async function retryOnReject(
+  op: () => Promise<void>,
+  attempts: number,
+  delayMs: number,
+): Promise<void> {
+  for (let attempt = 1; attempt < attempts; attempt += 1) {
+    try {
+      return await op();
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return op();
 }
 
 export function createSummonHotkey(deps: SummonHotkeyDeps): SummonHotkey {
@@ -76,7 +97,11 @@ export function createSummonHotkey(deps: SummonHotkeyDeps): SummonHotkey {
       return;
     }
     try {
-      await deps.register(accelerator, onTrigger);
+      await retryOnReject(
+        () => deps.register(accelerator, onTrigger),
+        REGISTER_ATTEMPTS,
+        REGISTER_RETRY_MS,
+      );
       registered = accelerator;
       log.info("registered", { accelerator });
     } catch (err) {

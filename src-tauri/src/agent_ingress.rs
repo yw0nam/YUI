@@ -452,15 +452,39 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
 
 // ─── Background listener ──────────────────────────────────────────────────────
 
+/// Bind attempts and spacing — a fast restart overlaps the previous process, which frees
+/// the port within a couple of seconds.
+const BIND_ATTEMPTS: u32 = 8;
+const BIND_RETRY_DELAY: Duration = Duration::from_millis(500);
+
+/// Binds the loopback listener, retrying while the port is still taken.
+fn bind_with_retry(
+    port: u16,
+    attempts: u32,
+    delay: Duration,
+) -> Result<tiny_http::Server, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    for attempt in 1..attempts {
+        match tiny_http::Server::http(("127.0.0.1", port)) {
+            Ok(server) => return Ok(server),
+            Err(e) => {
+                log::debug!("agent_ingress_bind_retry port={port} attempt={attempt} error={e}")
+            }
+        }
+        thread::sleep(delay);
+    }
+    tiny_http::Server::http(("127.0.0.1", port))
+}
+
 /// Spawns the loopback HTTP listener on the given port.
 ///
-/// Bind failure is non-fatal: the app continues without the ingress endpoint.
+/// Bind failure after the retry window is non-fatal: the app continues without the
+/// ingress endpoint.
 pub fn start(app: &AppHandle, port: u16) {
     let app = app.clone();
     thread::Builder::new()
         .name("agent_ingress".into())
         .spawn(move || {
-            let server = match tiny_http::Server::http(("127.0.0.1", port)) {
+            let server = match bind_with_retry(port, BIND_ATTEMPTS, BIND_RETRY_DELAY) {
                 Ok(s) => s,
                 Err(e) => {
                     log::warn!("agent_ingress_bind_failed port={port} error={e}");
