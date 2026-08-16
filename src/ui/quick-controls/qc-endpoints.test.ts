@@ -238,6 +238,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     )!;
     input.value = "https://api.example.com/v1";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
     expect(endpointsSettings.get().chat_base_url).toBe("https://api.example.com/v1");
 
     qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="chat"]')!.click();
@@ -794,6 +795,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     )!;
     input.value = "alloy";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
     expect(endpointsSettings.get().tts_voice).toBe("alloy");
 
     qc.dispose();
@@ -948,6 +950,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     const input = chatUrlInput(qc);
     input.value = "http://localhost:9999/v1";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
 
     expect(sel.value).toBe("custom");
     expect(endpointsSettings.get().chat_base_url).toBe("http://localhost:9999/v1");
@@ -1007,11 +1010,55 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     input.value = "http://localhost:3201/mcp";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
     expect(endpointsSettings.get().broker_base_url).toBe("http://localhost:3201/mcp");
 
     qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="broker"]')!.click();
     expect(endpointsSettings.get().broker_base_url).toBe("");
     expect(input.value).toBe("");
+
+    qc.dispose();
+  });
+
+  it("commits the broker URL once on change, not on every keystroke", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-ep-broker_base_url")!;
+    const commits: string[] = [];
+    const unsubscribe = endpointsSettings.subscribe(() =>
+      commits.push(endpointsSettings.get().broker_base_url),
+    );
+
+    const url = "http://localhost:3201/mcp";
+    for (let i = 1; i <= url.length; i++) {
+      input.value = url.slice(0, i);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    // Every intermediate prefix would otherwise reach the store, and each store change retargets
+    // the broker client (bootstrap-wiring's endpointsSettings.subscribe → reconciler.onChange).
+    expect(commits).toEqual([]);
+    expect(endpointsSettings.get().broker_base_url).toBe("");
+
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(commits).toEqual([url]);
+    expect(endpointsSettings.get().broker_base_url).toBe(url);
+
+    unsubscribe();
+    qc.dispose();
+  });
+
+  it("commits a pending endpoint edit when the panel closes without a change event", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-ep-broker_base_url")!;
+    input.value = "http://localhost:3201/mcp";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(endpointsSettings.get().broker_base_url).toBe("");
+
+    qc.close();
+    expect(endpointsSettings.get().broker_base_url).toBe("http://localhost:3201/mcp");
 
     qc.dispose();
   });

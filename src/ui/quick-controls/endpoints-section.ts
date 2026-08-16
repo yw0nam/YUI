@@ -59,6 +59,8 @@ export interface EndpointsSection {
   keyRows: readonly KeyRow[];
   /** Commit pending key inputs to store (on panel close). */
   commitDirtyKeys(): void;
+  /** Commit endpoint text fields edited but not yet settled by a change event (on panel close). */
+  commitDirtyEndpoints(): void;
   /** Permanent teardown — commit pending keys + unsubscribe all listeners. */
   dispose(): void;
 }
@@ -81,6 +83,8 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
   const chatPresetEl = el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
 
+  // Endpoint fields edited since their last commit — committed on change, panel close, or dispose.
+  const dirtyEndpoints = new Set<keyof EndpointOverrides>();
   // Endpoint inputs — map of input nodes by field key.
   const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
   for (const { key } of ENDPOINT_FIELDS) {
@@ -195,6 +199,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     const input = epInputs.get(key)!;
     // Skip the assignment while typing: rewriting an identical value moves the caret in some browsers.
     if (input.value !== value) input.value = value;
+    dirtyEndpoints.delete(key);
     endpointsSettings.set({ [key]: value });
     validateEndpointInput(key, input);
   }
@@ -211,17 +216,36 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
 
   // ── Endpoints section ──
 
-  function handleEndpointInput(e: Event): void {
+  function endpointKeyOf(e: Event): keyof EndpointOverrides | null {
     const input = e.target;
-    if (!(input instanceof HTMLInputElement)) return;
+    if (!(input instanceof HTMLInputElement)) return null;
     const row = input.closest<HTMLDivElement>(".yui-input-row");
-    const key = row?.dataset.epField as keyof EndpointOverrides | undefined;
-    if (!key) return;
-    commitEndpointField(key, input.value);
+    return (row?.dataset.epField as keyof EndpointOverrides | undefined) ?? null;
   }
 
-  // On blur, reflect pending remote changes from mid-edit (same as instructions textarea).
+  // Typing only validates — an in-progress prefix must not become a live endpoint (each store
+  // write retargets the broker client and the chat/STT/TTS callers).
+  function handleEndpointInput(e: Event): void {
+    const key = endpointKeyOf(e);
+    if (!key) return;
+    dirtyEndpoints.add(key);
+    validateEndpointInput(key, epInputs.get(key)!);
+  }
+
+  // Commit on change (blur / Enter), the same settle point as the API key rows and agent port.
+  function handleEndpointChange(e: Event): void {
+    const key = endpointKeyOf(e);
+    if (!key) return;
+    commitEndpointField(key, epInputs.get(key)!.value);
+  }
+
+  function commitDirtyEndpoints(): void {
+    for (const key of [...dirtyEndpoints]) commitEndpointField(key, epInputs.get(key)!.value);
+  }
+
+  // On blur, commit what was typed, then reflect pending remote changes from mid-edit.
   function handleEndpointBlur(): void {
+    commitDirtyEndpoints();
     reflectEndpoints();
   }
 
@@ -249,6 +273,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
       const input = epInputs.get(key);
       if (!input) continue;
       input.value = "";
+      dirtyEndpoints.delete(key);
       validateEndpointInput(key, input);
     }
     SVC_RESET_KEY[svc]?.clear();
@@ -261,6 +286,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   chatPresetEl.addEventListener("change", handleChatPresetChange);
   for (const input of epInputs.values()) {
     input.addEventListener("input", handleEndpointInput);
+    input.addEventListener("change", handleEndpointChange);
     input.addEventListener("blur", handleEndpointBlur);
   }
   const svcResetListeners = new Map<HTMLButtonElement, () => void>();
@@ -278,11 +304,13 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
 
   function dispose(): void {
     commitDirtyKeys();
+    commitDirtyEndpoints();
     ttsTypeEl.removeEventListener("change", handleTtsTypeChange);
     chatTypeEl.removeEventListener("change", handleChatTypeChange);
     chatPresetEl.removeEventListener("change", handleChatPresetChange);
     for (const input of epInputs.values()) {
       input.removeEventListener("input", handleEndpointInput);
+      input.removeEventListener("change", handleEndpointChange);
       input.removeEventListener("blur", handleEndpointBlur);
     }
     for (const [btn, handler] of svcResetListeners) btn.removeEventListener("click", handler);
@@ -290,5 +318,5 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     for (const unsub of unsubscribeKeyRows) unsub();
   }
 
-  return { keyRows, commitDirtyKeys, dispose };
+  return { keyRows, commitDirtyKeys, commitDirtyEndpoints, dispose };
 }

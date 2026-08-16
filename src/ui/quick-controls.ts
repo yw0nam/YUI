@@ -580,6 +580,7 @@ export function createQuickControls({
       }
       speakerList.stopAudition();
       endpoints.commitDirtyKeys();
+      endpoints.commitDirtyEndpoints();
     },
   });
 
