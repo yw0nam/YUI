@@ -138,3 +138,27 @@ describe("turn — didOweAudio (audio-owed latch)", () => {
     expect(log.didOweAudio()).toBe(false);
   });
 });
+
+describe("turn — didSpeakText (speech-gate record)", () => {
+  it("is false before any begin()", () => {
+    const log = createTurnLog();
+    expect(log.didSpeakText()).toBe(false);
+  });
+
+  it("records the speech gate independently of audio", () => {
+    const log = createTurnLog();
+    log.begin(userEnv());
+    log.setSpokeText(true);
+    expect(log.didSpeakText()).toBe(true);
+    expect(log.didOweAudio()).toBe(false);
+  });
+
+  it("is reset to false by the next begin()", () => {
+    const log = createTurnLog();
+    const first = log.begin(userEnv());
+    log.setSpokeText(true);
+    log.settle(first.id);
+    log.begin(userEnv());
+    expect(log.didSpeakText()).toBe(false);
+  });
+});
