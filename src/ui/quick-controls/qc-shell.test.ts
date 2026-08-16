@@ -834,11 +834,11 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 
-  it("renders the three rate-limit rows inside #yui-panel-react", () => {
+  it("renders the two rate-limit rows inside #yui-panel-react", () => {
     const { qc } = buildRateQc();
     qc.open();
     const panel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    for (const id of ["#yui-rate-tier2", "#yui-rate-tier3", "#yui-rate-overall"]) {
+    for (const id of ["#yui-rate-tier2", "#yui-rate-overall"]) {
       const input = qc.el.querySelector<HTMLInputElement>(id);
       expect(input).not.toBeNull();
       expect(input!.type).toBe("number");
@@ -847,11 +847,18 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 
+  // No event classifies as tier 3 at the evaluate site, so tier3_max gets no row.
+  it("renders no row for the tier3 cap", () => {
+    const { qc } = buildRateQc();
+    qc.open();
+    expect(qc.el.querySelector("#yui-rate-tier3")).toBeNull();
+    qc.dispose();
+  });
+
   it("shows the config defaults while no cap is overridden", () => {
     const { qc } = buildRateQc();
     qc.open();
     expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-tier2")!.value).toBe("24");
-    expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-tier3")!.value).toBe("2");
     expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-overall")!.value).toBe("40");
     qc.dispose();
   });
@@ -908,8 +915,8 @@ describe("createQuickControls — Reactions tab", () => {
   it("reflects an external cap edit while open", () => {
     const { rateLimitSettings, qc } = buildRateQc();
     qc.open();
-    rateLimitSettings.set({ tier3_max: 6 });
-    expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-tier3")!.value).toBe("6");
+    rateLimitSettings.set({ overall_max: 60 });
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-overall")!.value).toBe("60");
     qc.dispose();
   });
 
