@@ -12,6 +12,7 @@ import { createConfigStore } from "./config";
 import { agentTriggerableMotionIds } from "./io/broker-client";
 import { selectFetch } from "./io/chat-client";
 import { endpointDefaultsFromConfig } from "./io/endpoints-settings";
+import { rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
 import { updateVoice } from "./io/irodori-voices";
 import { createSettingsStores } from "./io/settings-stores";
 import { closeSettingsWindow } from "./io/settings-window";
@@ -54,6 +55,7 @@ async function bootstrap(): Promise<void> {
     workflowSettings,
     agentNotifySettings,
     presenceSettings,
+    guardrailsSettings,
     railCollapsedSettings,
     lipsyncSettings,
     vadSettings,
@@ -177,6 +179,15 @@ async function bootstrap(): Promise<void> {
       workflowSettings,
       agentNotifySettings,
       presenceSettings,
+      rateLimitSettings: guardrailsSettings,
+      getRateLimitDefaults: () => {
+        if (!configLoaded) return undefined;
+        try {
+          return rateLimitDefaultsFromConfig(config.get().guardrails);
+        } catch {
+          return undefined;
+        }
+      },
       railCollapsedSettings,
       sourceProvider,
       voiceStatus: voiceInputStatus,

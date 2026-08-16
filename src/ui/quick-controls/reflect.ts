@@ -12,6 +12,7 @@ import {
   isValidEndpointUrl,
 } from "../../io/endpoints-settings";
 import type { createFillerSettings } from "../../io/filler-settings";
+import type { GuardrailsSettingsStore, RateLimitOverrides } from "../../io/guardrails-settings";
 import {
   type createLipsyncSettings,
   LIPSYNC_GAIN_MAX,
@@ -89,6 +90,11 @@ interface ReflectDeps {
   agentPortInput?: HTMLInputElement;
   presenceInput?: HTMLInputElement;
   presenceSettings?: ClampedIntSettingsStore;
+  /** Rate-limit cap inputs, keyed by the cap they edit (empty when the store is absent). */
+  rateLimitInputs: ReadonlyMap<keyof RateLimitOverrides, HTMLInputElement>;
+  rateLimitSettings?: GuardrailsSettingsStore;
+  /** Bundled config caps a field falls back to when it carries no override (undefined if not loaded). */
+  getRateLimitDefaults?: () => RateLimitOverrides | undefined;
 }
 
 export interface Reflect {
@@ -96,6 +102,7 @@ export interface Reflect {
   reflectSwitchRows(): void;
   reflectAgentNotify(): void;
   reflectPresence(): void;
+  reflectRateLimits(): void;
   reflectGain(): void;
   reflectVad(): void;
   reflectAgent(): void;
@@ -133,6 +140,9 @@ export function createReflect(deps: ReflectDeps): Reflect {
     agentPortInput,
     presenceInput,
     presenceSettings,
+    rateLimitInputs,
+    rateLimitSettings,
+    getRateLimitDefaults,
   } = deps;
 
   const switchBtn = root.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
@@ -193,6 +203,17 @@ export function createReflect(deps: ReflectDeps): Reflect {
     if (!presenceInput || !presenceSettings) return;
     const next = String(presenceSettings.get().value / 1000);
     reflectUnlessEditing(presenceInput, next);
+  }
+
+  // Each field shows its effective cap: the override when set, the bundled config default otherwise.
+  function reflectRateLimits(): void {
+    if (!rateLimitSettings) return;
+    const overrides = rateLimitSettings.get();
+    const defaults = getRateLimitDefaults?.();
+    for (const [key, input] of rateLimitInputs) {
+      const effective = overrides[key] > 0 ? overrides[key] : (defaults?.[key] ?? 0);
+      reflectUnlessEditing(input, effective > 0 ? String(effective) : "");
+    }
   }
 
   function reflectGain(): void {
@@ -380,6 +401,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectSwitchRows: reflectSwitchRowsFromDeps,
     reflectAgentNotify,
     reflectPresence,
+    reflectRateLimits,
     reflectGain,
     reflectVad,
     reflectAgent,

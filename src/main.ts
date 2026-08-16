@@ -34,6 +34,7 @@ import { agentTriggerableMotionIds } from "./io/broker-client";
 import { CAMERA_WHEEL_SENSITIVITY, CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN } from "./io/camera-settings";
 import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/endpoints-settings";
+import { mergeGuardrails, rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
 import { enabledIdleVariants } from "./io/idle-motion-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
@@ -184,6 +185,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     cameraSettings,
     gazeSettings,
     railCollapsedSettings,
+    guardrailsSettings,
     bubblePersistSettings,
     chatHistoryStore,
     sessionStore,
@@ -199,6 +201,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // Effective endpoints with overrides layered on config.endpoints. Evaluated at call time (hot-reload friendly).
   function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
     return mergeEndpoints(config.get().endpoints, endpointsSettings.get());
+  }
+  // Effective guardrails with the edited caps layered on config.guardrails. Evaluated at call time.
+  function getGuardrails(): ReturnType<typeof config.get>["guardrails"] {
+    return mergeGuardrails(config.get().guardrails, guardrailsSettings.get());
   }
   // Camera zoom: apply persisted zoom ratio at boot, flow to renderer on each change (wheel/cross-window).
   renderer.setZoom(cameraSettings.get().zoom);
@@ -272,6 +278,14 @@ async function bootstrap(): Promise<BootstrapHandle> {
       agentNotifySettings,
       bubblePersistSettings,
       presenceSettings,
+      rateLimitSettings: guardrailsSettings,
+      getRateLimitDefaults: () => {
+        try {
+          return rateLimitDefaultsFromConfig(config.get().guardrails);
+        } catch {
+          return undefined;
+        }
+      },
       railCollapsedSettings,
       transcript: chatHistoryStore,
       // Same instances the dispatcher reads through, so "start fresh" takes effect on the next turn.
@@ -473,6 +487,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       stage,
       getQuickControls: () => quickControls,
       getEndpoints,
+      getGuardrails,
       isDisposed: () => disposed,
     });
     register(configured.dispose);
@@ -513,7 +528,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
         renderer.setMotionRegistry(cfg.motions);
       }
       if (changed.has("guardrails")) {
-        configured.guardrails.setConfig(cfg.guardrails);
+        configured.guardrails.setConfig(getGuardrails());
         surfaces.setAttachmentLimits(cfg.guardrails.attachments);
       }
       if (changed.has("hotkeys")) void configured.summonHotkey.apply(cfg.hotkeys.summon_global);

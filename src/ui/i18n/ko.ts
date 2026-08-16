@@ -383,6 +383,13 @@ const ko: Record<string, string> = {
   "reactions.presence_sub": "이 시간 이하로 자리를 비웠다면 작업 중으로 간주해요",
   "reactions.seconds_suffix": "초",
   "reactions.restart_hint": "변경 사항을 적용하려면 앱을 재시작해요",
+  "reactions.rate_title": "시간당 상한",
+  "reactions.rate_hint":
+    "YUI가 먼저 말을 거는 빈도의 상한이에요. 내가 보낸 메시지는 세지 않아요. 비워 두면 기본값을 써요.",
+  "reactions.rate_tier2_label": "시간당 말 걸기",
+  "reactions.rate_tier2_sub": "자리 비움·자발적 말 걸기·일정·에이전트 알림을 합쳐서 세요",
+  "reactions.rate_overall_label": "시간당 먼저 건 대화 전체",
+  "reactions.rate_overall_sub": "넘어서면 쿨다운 동안 모두 멈춰요",
 
   // workflows
   "workflows.title": "워크플로",

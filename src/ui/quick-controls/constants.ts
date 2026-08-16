@@ -1,6 +1,7 @@
 /** Quick-controls display constants shared by the entry panel + its sub-modules. */
 import type { ReasoningEffort } from "../../io/agent-settings";
 import { ENDPOINT_FIELD_SPECS, type EndpointOverrides } from "../../io/endpoints-settings";
+import type { RateLimitOverrides } from "../../io/guardrails-settings";
 import type { Locale } from "../i18n";
 
 // Tab identity — the suffix of each tab button's `yui-tab-*` element id.
@@ -34,6 +35,32 @@ const isTextFieldSpec = (
 export const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = ENDPOINT_FIELD_SPECS.filter(
   isTextFieldSpec,
 ).map((s) => ({ key: s.key, labelKey: s.labelKey, url: s.kind === "url" }));
+
+// Reactions tab: the editable rolling-window caps (io/guardrails-settings's RateLimitOverrides).
+// Each row renders as a numeric input; an empty field means "no override, use the config default".
+// tier3_max has no row: classify() never returns tier 3 at the evaluate site, so the cap it would
+// edit is never compared.
+export interface RateLimitFieldDef {
+  key: keyof RateLimitOverrides;
+  id: string;
+  labelKey: string;
+  subKey: string;
+}
+
+export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
+  {
+    key: "tier2_max",
+    id: "yui-rate-tier2",
+    labelKey: "reactions.rate_tier2_label",
+    subKey: "reactions.rate_tier2_sub",
+  },
+  {
+    key: "overall_max",
+    id: "yui-rate-overall",
+    labelKey: "reactions.rate_overall_label",
+    subKey: "reactions.rate_overall_sub",
+  },
+];
 
 // Eye icon (show/hide). Line-icon style matches other icon buttons.
 export const CHATKEY_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg>`;

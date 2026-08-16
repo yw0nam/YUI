@@ -14,6 +14,7 @@ import type { ChatKeySettingsStore } from "../io/chat-key-settings";
 import type { createEndpointsSettings, EndpointOverrides } from "../io/endpoints-settings";
 import type { ExpressMotionSettingsStore } from "../io/express-motion-settings";
 import type { createFillerSettings } from "../io/filler-settings";
+import type { GuardrailsSettingsStore, RateLimitOverrides } from "../io/guardrails-settings";
 import type { IdleMotionSettingsStore, IdleVariantPool } from "../io/idle-motion-settings";
 import {
   type createLipsyncSettings,
@@ -34,7 +35,7 @@ import type { createWorkflowSettings } from "../io/workflow-settings";
 import { createLogger } from "../logger";
 import { type CueListInstance, createCueList } from "./cue-list";
 import { type Locale, setLocale, t } from "./i18n";
-import type { QuickControlsTab } from "./quick-controls/constants";
+import { type QuickControlsTab, RATE_LIMIT_FIELDS } from "./quick-controls/constants";
 import { createEndpointsSection } from "./quick-controls/endpoints-section";
 import { createExpressMotionList } from "./quick-controls/express-motion-section";
 import { createHistorySection } from "./quick-controls/history-section";
@@ -148,6 +149,10 @@ interface QuickControlsOptions {
   bubblePersistSettings?: FlagSettingsStore;
   /** Away detection store. If absent, presence row in Reactions tab won't render. */
   presenceSettings?: ClampedIntSettingsStore;
+  /** Guardrail rate-limit overrides. If absent, the cap rows in Reactions tab won't render. */
+  rateLimitSettings?: GuardrailsSettingsStore;
+  /** Bundled config caps shown when a field carries no override (undefined if not loaded). */
+  getRateLimitDefaults?: () => RateLimitOverrides | undefined;
   /** Section rail collapse state store. */
   railCollapsedSettings?: FlagSettingsStore;
   /** Per-variant idle-motion on/off store. If absent, the idle-motion section won't render. */
@@ -341,6 +346,8 @@ export function createQuickControls({
   agentNotifySettings,
   bubblePersistSettings,
   presenceSettings,
+  rateLimitSettings,
+  getRateLimitDefaults,
   railCollapsedSettings,
   idleMotionSettings,
   getIdlePool,
@@ -383,6 +390,7 @@ export function createQuickControls({
     showExpressMotion: !!expressMotionSettings,
     switchRows: TOGGLE_SPECS,
     showPresence: !!presenceSettings,
+    showRateLimits: !!rateLimitSettings,
     showDevtools: !isWindow && !!onOpenDevtools,
     showHistory: !!transcript,
     railCollapsed: railCollapsedSettings?.get().enabled ?? false,
@@ -392,6 +400,11 @@ export function createQuickControls({
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const agentPortInput = el.querySelector<HTMLInputElement>("#yui-agent-port");
   const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
+  const rateLimitInputs = new Map<keyof RateLimitOverrides, HTMLInputElement>();
+  for (const field of RATE_LIMIT_FIELDS) {
+    const input = el.querySelector<HTMLInputElement>(`#${field.id}`);
+    if (input) rateLimitInputs.set(field.key, input);
+  }
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsSection = createMonitorsSection({ root: el, sourceProvider, settings, log });
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
@@ -491,6 +504,9 @@ export function createQuickControls({
     agentPortInput: agentPortInput ?? undefined,
     presenceInput: presenceInput ?? undefined,
     presenceSettings,
+    rateLimitInputs,
+    rateLimitSettings,
+    getRateLimitDefaults,
   });
 
   // ── VRM section ──
@@ -546,6 +562,7 @@ export function createQuickControls({
       reflect.reflectSwitchRows();
       reflect.reflectAgentNotify();
       reflect.reflectPresence();
+      reflect.reflectRateLimits();
       reflect.reflectVoiceStatus(voiceStatus.get());
       reflect.reflectGain();
       reflect.reflectVad();
@@ -996,6 +1013,9 @@ export function createQuickControls({
   const unsubscribePresence = presenceSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectPresence();
   });
+  const unsubscribeRateLimit = rateLimitSettings?.subscribe(() => {
+    if (popover.isOpen()) reflect.reflectRateLimits();
+  });
 
   function handleAgentPortChange(): void {
     if (!agentNotifySettings || !agentPortInput) return;
@@ -1008,9 +1028,23 @@ export function createQuickControls({
     presenceSettings.set(v * 1000);
     reflect.reflectPresence();
   }
+  // Commit on change (blur / Enter), the same settle point as the agent port — a mid-typing
+  // keystroke must not re-cap the live limiter. An emptied field clears the override.
+  function handleRateLimitChange(e: Event): void {
+    const input = e.target;
+    if (!rateLimitSettings || !(input instanceof HTMLInputElement)) return;
+    const key = RATE_LIMIT_FIELDS.find((f) => f.id === input.id)?.key;
+    if (!key) return;
+    rateLimitSettings.set({ [key]: Math.round(Number(input.value)) });
+    reflect.reflectRateLimits();
+  }
   agentPortInput?.addEventListener("change", handleAgentPortChange);
   presenceInput?.addEventListener("change", handlePresenceChange);
   presenceInput?.addEventListener("blur", reflect.reflectPresence);
+  for (const input of rateLimitInputs.values()) {
+    input.addEventListener("change", handleRateLimitChange);
+    input.addEventListener("blur", reflect.reflectRateLimits);
+  }
 
   // Cue-list components — schedule in input tab .yui-cue-sections, proactive in Reactions tab .yui-loop-cue-section.
   const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
@@ -1152,9 +1186,14 @@ export function createQuickControls({
     unsubscribeBubblePersist?.();
     unsubscribeAgentNotify?.();
     unsubscribePresence?.();
+    unsubscribeRateLimit?.();
     agentPortInput?.removeEventListener("change", handleAgentPortChange);
     presenceInput?.removeEventListener("change", handlePresenceChange);
     presenceInput?.removeEventListener("blur", reflect.reflectPresence);
+    for (const input of rateLimitInputs.values()) {
+      input.removeEventListener("change", handleRateLimitChange);
+      input.removeEventListener("blur", reflect.reflectRateLimits);
+    }
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();

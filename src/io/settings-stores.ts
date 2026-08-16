@@ -11,6 +11,7 @@ import {
   localStorageExpressMotionStorage,
 } from "./express-motion-settings";
 import { createFillerSettings, localStorageFillerStorage } from "./filler-settings";
+import { createGuardrailsSettings, localStorageGuardrailsStorage } from "./guardrails-settings";
 import { createIdleMotionSettings, localStorageIdleMotionStorage } from "./idle-motion-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./lipsync-settings";
 import {
@@ -127,6 +128,10 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const railCollapsedSettings = createFlagSettings(false, {
     storage: localStorageStore("yui.quickControls.railCollapsed"),
   });
+  // User-edited guardrail rate-limit caps: localStorage overrides the bundled config (0 = fallback).
+  const guardrailsSettings = createGuardrailsSettings({
+    storage: localStorageGuardrailsStorage(),
+  });
   // Per-variant on/off overlay over the read-only ambient idle pool in configs/motions.json.
   const idleMotionSettings = createIdleMotionSettings({
     storage: localStorageIdleMotionStorage(),
@@ -164,6 +169,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     gazeSettings,
     hintSettings,
     railCollapsedSettings,
+    guardrailsSettings,
     idleMotionSettings,
     expressMotionSettings,
   };
@@ -209,6 +215,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   gazeSettings: "broadcast",
   hintSettings: "local",
   railCollapsedSettings: "broadcast",
+  guardrailsSettings: "broadcast",
   idleMotionSettings: "broadcast",
   expressMotionSettings: "broadcast",
 };

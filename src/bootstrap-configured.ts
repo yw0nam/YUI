@@ -2,6 +2,7 @@ import type { Tier1Engine } from "./ambient/tier1";
 import {
   wireBroker,
   wireDispatcherSources,
+  wireGuardrailsOverrides,
   wirePeekExitTriggers,
   type wireSpeakerSelection,
   wireStopControl,
@@ -21,7 +22,7 @@ import type { EndpointsConfig } from "./contract";
 import { createBackendCaller, isChatConfigured } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
-import { createGuardrails, type Guardrails } from "./dispatcher/guardrails";
+import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./dispatcher/guardrails";
 import { createTurnLog } from "./dispatcher/turn";
 import type { UserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
@@ -82,6 +83,8 @@ export interface Phase1Handles {
   stage: HTMLElement;
   getQuickControls(): ReturnType<typeof createQuickControls>;
   getEndpoints(): EndpointsConfig;
+  /** Effective guardrails — the editable caps layered on configs/guardrails.json. */
+  getGuardrails(): GuardrailsConfig;
   isDisposed(): boolean;
 }
 
@@ -136,6 +139,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       stage,
       getQuickControls,
       getEndpoints,
+      getGuardrails,
     } = phase1;
     const ensureActive = (): void => {
       if (phase1.isDisposed()) throw new Error("bootstrap disposed during configured construction");
@@ -160,6 +164,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       cameraSettings,
       gazeSettings,
       hintSettings,
+      guardrailsSettings,
       idleMotionSettings,
       expressMotionSettings,
     } = settings;
@@ -241,7 +246,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       // Built per turn from the published vocabulary, so a live edit reaches the next tool schema.
       clientTools: () => createClientToolRegistry([createGenerateExpressTool(broker.vocabulary())]),
     });
-    const guardrails = createGuardrails(cfg.guardrails);
+    const guardrails = createGuardrails(getGuardrails());
+    register(wireGuardrailsOverrides({ guardrails, store: guardrailsSettings, getGuardrails }));
     const dispatcher = createDispatcher({
       bus,
       renderer,
