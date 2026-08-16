@@ -431,6 +431,23 @@ describe("createChatHistoryStore — persist + reload", () => {
     ]);
     expect(storeA.get()).toEqual(storage._data);
   });
+
+  it("append keeps the in-memory transcript when the stored value is corrupted", () => {
+    const storage = makeMemStorage();
+    const store = createChatHistoryStore({ storage });
+    store.append(entry("user", "first", 1));
+    store.append(entry("assistant", "second", 2));
+
+    storage._data = { not: "an array" } as unknown as ChatHistoryItem[];
+    store.append(entry("user", "third", 3));
+
+    expect(store.get()).toEqual([
+      entry("user", "first", 1),
+      entry("assistant", "second", 2),
+      entry("user", "third", 3),
+    ]);
+    expect(storage._data).toEqual(store.get());
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
