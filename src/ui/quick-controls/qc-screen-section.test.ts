@@ -1,0 +1,250 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createGuardrailsSettings } from "../../io/guardrails-settings";
+import { createFlagSettings } from "../../io/persisted-store";
+import { createScreenKnobSettings } from "../../io/screen-settings";
+import { setLocale } from "../i18n";
+import { createQuickControls } from "../quick-controls";
+import { defaultQcArgs } from "./test-helpers";
+
+const SCREEN_DEFAULTS = {
+  prev_dwell_ms: 600_000,
+  settle_ms: 90_000,
+  long_session_ms: 2_700_000,
+  min_gap_ms: 300_000,
+  quiet_after_turn_ms: 180_000,
+};
+
+describe("createQuickControls — proactive tab (screen watch)", () => {
+  let mount: HTMLElement;
+
+  beforeEach(() => {
+    let rafId = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return ++rafId;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    try {
+      globalThis.localStorage?.clear();
+    } catch {
+      /* Ignore environments without localStorage */
+    }
+    setLocale("ko");
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+  });
+
+  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    return createQuickControls({ ...defaultQcArgs(mount), ...extra });
+  }
+
+  function buildScreenQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    const screenSettings = createFlagSettings(false);
+    const screenKnobSettings = createScreenKnobSettings();
+    return {
+      screenSettings,
+      screenKnobSettings,
+      qc: buildQc({
+        screenSettings,
+        screenKnobSettings,
+        getScreenDefaults: () => SCREEN_DEFAULTS,
+        ...extra,
+      }),
+    };
+  }
+
+  // ── Tab identity ──────────────────────────────────────────────────────────
+
+  it("names the react tab 말걸기 and tooltips it as the proactive rule hub", () => {
+    const qc = buildQc();
+    qc.open();
+    const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
+    expect(tab.querySelector(".yui-tab__label")!.textContent).toBe("말걸기");
+    expect(tab.getAttribute("title")).toBe("유이가 먼저 말을 거는 규칙");
+    qc.dispose();
+  });
+
+  // ── Cue-section relocation ────────────────────────────────────────────────
+
+  it("mounts the cue-sections block in the proactive tab, not the input tab", () => {
+    const qc = buildQc();
+    qc.open();
+    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
+    const inputPanel = qc.el.querySelector<HTMLElement>("#yui-panel-input")!;
+    const cueSections = reactPanel.querySelector(".yui-cue-sections");
+    expect(cueSections).not.toBeNull();
+    expect(cueSections!.querySelector("[data-testid='cue-section']")).not.toBeNull();
+    expect(inputPanel.querySelector(".yui-cue-sections")).toBeNull();
+    expect(inputPanel.querySelector(".yui-loop-cue-section")).toBeNull();
+    qc.dispose();
+  });
+
+  it("keeps the screenshot and voice rows in the input tab", () => {
+    const qc = buildQc();
+    qc.open();
+    const inputPanel = qc.el.querySelector<HTMLElement>("#yui-panel-input")!;
+    expect(inputPanel.querySelector(".yui-screenshot-switch")).not.toBeNull();
+    expect(inputPanel.querySelector(".yui-voice-switch")).not.toBeNull();
+    qc.dispose();
+  });
+
+  // ── Section order ─────────────────────────────────────────────────────────
+
+  it("orders the proactive tab: screen watch → cues → watchers → shared", () => {
+    const { qc } = buildScreenQc({
+      rateLimitSettings: createGuardrailsSettings(),
+    });
+    qc.open();
+    const panel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
+    const nodes = Array.from(panel.querySelectorAll("*"));
+    const at = (sel: string) => nodes.indexOf(panel.querySelector(sel)!);
+    expect(at(".yui-screen-switch")).toBeGreaterThanOrEqual(0);
+    expect(at(".yui-screen-switch")).toBeLessThan(at(".yui-loop-cue-section"));
+    expect(at(".yui-loop-cue-section")).toBeLessThan(at(".yui-cue-sections"));
+    expect(at(".yui-cue-sections")).toBeLessThan(at(".yui-wf-list"));
+    expect(at(".yui-wf-list")).toBeLessThan(at("#yui-rate-tier2"));
+    qc.dispose();
+  });
+
+  // ── Screen-watch toggle ───────────────────────────────────────────────────
+
+  it("renders no screen-watch section when the flag store is absent", () => {
+    const qc = buildQc();
+    qc.open();
+    expect(qc.el.querySelector(".yui-screen-switch")).toBeNull();
+    expect(qc.el.querySelector(".yui-screen-knobs")).toBeNull();
+    qc.dispose();
+  });
+
+  it("starts off with the knob group hidden", () => {
+    const { screenSettings, qc } = buildScreenQc();
+    qc.open();
+    expect(screenSettings.get().enabled).toBe(false);
+    const toggle = qc.el.querySelector<HTMLButtonElement>(".yui-screen-switch")!;
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    expect(qc.el.querySelector<HTMLElement>(".yui-screen-knobs")!.hidden).toBe(true);
+    qc.dispose();
+  });
+
+  it("reveals the knob group when the toggle is switched on", () => {
+    const { screenSettings, qc } = buildScreenQc();
+    qc.open();
+    qc.el.querySelector<HTMLButtonElement>(".yui-screen-switch")!.click();
+    expect(screenSettings.get().enabled).toBe(true);
+    expect(qc.el.querySelector<HTMLElement>(".yui-screen-knobs")!.hidden).toBe(false);
+    qc.dispose();
+  });
+
+  it("hides the knob group again when the toggle is switched off", () => {
+    const screenSettings = createFlagSettings(true);
+    const { qc } = buildScreenQc({ screenSettings });
+    qc.open();
+    expect(qc.el.querySelector<HTMLElement>(".yui-screen-knobs")!.hidden).toBe(false);
+    qc.el.querySelector<HTMLButtonElement>(".yui-screen-switch")!.click();
+    expect(qc.el.querySelector<HTMLElement>(".yui-screen-knobs")!.hidden).toBe(true);
+    qc.dispose();
+  });
+
+  // ── Knobs ─────────────────────────────────────────────────────────────────
+
+  it("shows the config defaults in display units while nothing is overridden", () => {
+    const { qc } = buildScreenQc();
+    qc.open();
+    const value = (id: string) => qc.el.querySelector<HTMLInputElement>(id)!.value;
+    expect(value("#yui-screen-prev-dwell")).toBe("10");
+    expect(value("#yui-screen-settle")).toBe("90");
+    expect(value("#yui-screen-long-session")).toBe("45");
+    expect(value("#yui-screen-quiet")).toBe("3");
+    expect(qc.el.querySelector<HTMLInputElement>(".yui-screen-gap__slider")!.value).toBe("5");
+    expect(qc.el.querySelector(".yui-screen-gap__value")!.textContent).toBe("5분");
+    qc.dispose();
+  });
+
+  it("shows the stored override instead of the config default", () => {
+    const screenKnobSettings = createScreenKnobSettings();
+    screenKnobSettings.set({ settle_ms: 30_000 });
+    const { qc } = buildScreenQc({ screenKnobSettings });
+    qc.open();
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-screen-settle")!.value).toBe("30");
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-screen-prev-dwell")!.value).toBe("10");
+    qc.dispose();
+  });
+
+  it("commits a numeric knob on change, converted to ms", () => {
+    const { screenKnobSettings, qc } = buildScreenQc();
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-screen-long-session")!;
+    input.value = "30";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(screenKnobSettings.get().long_session_ms).toBe(1_800_000);
+    qc.dispose();
+  });
+
+  it("does not commit a numeric knob on every keystroke", () => {
+    const { screenKnobSettings, qc } = buildScreenQc();
+    const setSpy = vi.spyOn(screenKnobSettings, "set");
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-screen-settle")!;
+    input.focus();
+    for (const partial of ["3", "30"]) {
+      input.value = partial;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    expect(setSpy).not.toHaveBeenCalled();
+    expect(screenKnobSettings.get().settle_ms).toBe(0);
+
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(screenKnobSettings.get().settle_ms).toBe(30_000);
+    qc.dispose();
+  });
+
+  it("tracks the min-gap slider live but commits only on release", () => {
+    const { screenKnobSettings, qc } = buildScreenQc();
+    qc.open();
+    const slider = qc.el.querySelector<HTMLInputElement>(".yui-screen-gap__slider")!;
+    expect(slider.min).toBe("0");
+    expect(slider.max).toBe("60");
+
+    slider.value = "12";
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(qc.el.querySelector(".yui-screen-gap__value")!.textContent).toBe("12분");
+    expect(screenKnobSettings.get().min_gap_ms).toBe(0);
+
+    slider.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(screenKnobSettings.get().min_gap_ms).toBe(720_000);
+    qc.dispose();
+  });
+
+  it("carries the footnote about screenshot pixels and do-not-disturb", () => {
+    const { qc } = buildScreenQc();
+    qc.open();
+    const foot = qc.el.querySelector(".yui-screen-knobs .yui-field-hint")!;
+    expect(foot.textContent).toContain("스크린샷");
+    expect(foot.textContent).toContain("방해금지");
+    qc.dispose();
+  });
+
+  // ── `?` hint buttons ──────────────────────────────────────────────────────
+
+  it("puts a `?` hint on the screen-watch and rate-cap section labels", () => {
+    const { qc } = buildScreenQc({ rateLimitSettings: createGuardrailsSettings() });
+    qc.open();
+    const hints = Array.from(
+      qc.el.querySelectorAll<HTMLButtonElement>("#yui-panel-react .yui-hint-dot"),
+    );
+    expect(hints).toHaveLength(2);
+    for (const hint of hints) {
+      expect(hint.textContent).toBe("?");
+      expect(hint.getAttribute("title")).toBeTruthy();
+      expect(hint.getAttribute("aria-label")).toBeTruthy();
+      expect(hint.getAttribute("title")).not.toBe(hint.getAttribute("aria-label"));
+    }
+    qc.dispose();
+  });
+});

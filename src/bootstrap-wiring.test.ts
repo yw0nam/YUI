@@ -151,6 +151,7 @@ import { loadEmotionTextTable } from "./config";
 import type { GuardrailsConfig } from "./config/load";
 import { createGuardrails } from "./dispatcher/guardrails";
 import { createGuardrailsSettings, mergeGuardrails } from "./io/guardrails-settings";
+import { createScreenKnobSettings, mergeScreen } from "./io/screen-settings";
 import type { BridgeTransport } from "./io/settings-bridge";
 import {
   broadcastSyncStores,
@@ -377,6 +378,28 @@ describe("wireDispatcherSources", () => {
     // A screen fire re-anchors the idle gap so proactive cues do not pile on.
     expect(screen.noteInteraction).toBe(result.proactiveSource.noteInteraction);
     expect(result.screenSource).toBeDefined();
+  });
+
+  it("hands the screen source knob overrides layered on the bundled thresholds, read live", () => {
+    const knobs = createScreenKnobSettings();
+    wireDispatcherSources({
+      bus: {} as never,
+      presenceSettings: { get: () => ({ value: 5000 }) },
+      proactiveSettings: { get: () => ({ enabled: true, entries: [] }) },
+      scheduleSettings: { get: () => ({ enabled: false, entries: [] }) },
+      agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
+      screenSettings: { get: () => ({ enabled: true }) },
+      getScreenConfig: () => mergeScreen(screenConfig, knobs.get()),
+      subscribeBusy: vi.fn(() => vi.fn()),
+      pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
+    });
+
+    const screen = created.screen as { getConfig: () => typeof screenConfig };
+    expect(screen.getConfig()).toEqual(screenConfig);
+
+    knobs.set({ min_gap_ms: 60_000 });
+    expect(screen.getConfig().min_gap_ms).toBe(60_000);
+    expect(screen.getConfig().settle_ms).toBe(screenConfig.settle_ms);
   });
 });
 

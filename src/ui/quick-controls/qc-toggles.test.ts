@@ -119,20 +119,20 @@ describe("createQuickControls — toggles + gain row", () => {
     });
   }
 
-  it("mounts both cue-list sections (schedule in input, loop in react tab)", () => {
+  it("mounts both cue-list sections in the proactive tab", () => {
     const qc = buildQc();
     qc.open();
 
-    // Both section titles are present across the panels
+    // Both section titles are present in the proactive panel
     const titles = Array.from(
-      qc.el.querySelectorAll<HTMLElement>("[data-testid='cue-list-title']"),
+      qc.el.querySelectorAll<HTMLElement>("#yui-panel-react [data-testid='cue-list-title']"),
     ).map((el) => el.textContent?.trim() ?? "");
     expect(titles).toContain("시간대 인사");
     expect(titles).toContain("루프 반응");
 
     // Cue rows from default store data are rendered
-    const scheduleRows = qc.el.querySelectorAll("#yui-panel-input [data-testid='cue-row']");
-    expect(scheduleRows.length).toBeGreaterThan(0);
+    const cueRows = qc.el.querySelectorAll("#yui-panel-react [data-testid='cue-row']");
+    expect(cueRows.length).toBeGreaterThan(0);
 
     qc.dispose();
   });
@@ -141,14 +141,14 @@ describe("createQuickControls — toggles + gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    // The first master switch belongs to the schedule section (time-of-day greeting)
+    // The second master switch belongs to the schedule section (time-of-day greeting)
     const masterSwitches = Array.from(
       qc.el.querySelectorAll<HTMLButtonElement>("[data-testid='cue-list-master-switch']"),
     );
     expect(masterSwitches.length).toBe(2);
 
     // Default: scheduleSettings enabled = true
-    expect(masterSwitches[0].getAttribute("aria-checked")).toBe("true");
+    expect(masterSwitches[1].getAttribute("aria-checked")).toBe("true");
 
     qc.dispose();
   });
@@ -160,8 +160,8 @@ describe("createQuickControls — toggles + gain row", () => {
     const masterSwitches = Array.from(
       qc.el.querySelectorAll<HTMLButtonElement>("[data-testid='cue-list-master-switch']"),
     );
-    // Second master switch = proactive section
-    expect(masterSwitches[1].getAttribute("aria-checked")).toBe("true");
+    // First master switch = proactive section
+    expect(masterSwitches[0].getAttribute("aria-checked")).toBe("true");
 
     qc.dispose();
   });
@@ -175,7 +175,7 @@ describe("createQuickControls — toggles + gain row", () => {
       qc.el.querySelectorAll<HTMLButtonElement>("[data-testid='cue-list-master-switch']"),
     );
     expect(localSchedule.get().enabled).toBe(true);
-    masterSwitches[0].click();
+    masterSwitches[1].click();
     expect(localSchedule.get().enabled).toBe(false);
 
     qc.dispose();
@@ -190,25 +190,8 @@ describe("createQuickControls — toggles + gain row", () => {
       qc.el.querySelectorAll<HTMLButtonElement>("[data-testid='cue-list-master-switch']"),
     );
     expect(localProactive.get().enabled).toBe(true);
-    masterSwitches[1].click();
+    masterSwitches[0].click();
     expect(localProactive.get().enabled).toBe(false);
-
-    qc.dispose();
-  });
-
-  it("cue-list sections are placed before the screenshot row", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const inputPanel = qc.el.querySelector<HTMLElement>("#yui-panel-input")!;
-    const cueSections = inputPanel.querySelector(".yui-cue-sections")!;
-    const screenshotSwitch = inputPanel.querySelector<HTMLButtonElement>(
-      ".yui-switch[aria-label='스크린샷 첨부']",
-    )!;
-
-    // cueSections must appear in DOM before screenshotSwitch
-    const children = Array.from(inputPanel.querySelectorAll("*"));
-    expect(children.indexOf(cueSections)).toBeLessThan(children.indexOf(screenshotSwitch));
 
     qc.dispose();
   });
