@@ -202,6 +202,7 @@ type SwitchRowOptions = Pick<
   | "fillerSettings"
   | "bubblePersistSettings"
   | "screenSettings"
+  | "screenKnobSettings"
 >;
 
 export function createSwitchRows({
@@ -213,6 +214,7 @@ export function createSwitchRows({
   fillerSettings,
   bubblePersistSettings,
   screenSettings,
+  screenKnobSettings,
 }: SwitchRowOptions): SwitchRow[] {
   return [
     {
@@ -223,8 +225,9 @@ export function createSwitchRows({
       tab: "react",
       position: "screen",
       labelIcon: SCREEN_WATCH_SVG,
-      isVisible: !!screenSettings,
-      isAvailable: !!screenSettings,
+      // Paired with the knob store: a toggle whose thresholds cannot be edited is a dead half-section.
+      isVisible: !!screenSettings && !!screenKnobSettings,
+      isAvailable: !!screenSettings && !!screenKnobSettings,
       initialEnabled: screenSettings?.get().enabled ?? false,
       getEnabled: () => screenSettings!.get().enabled,
       setEnabled: (v) => screenSettings!.setEnabled(v),
@@ -415,6 +418,7 @@ export function createQuickControls({
     fillerSettings,
     bubblePersistSettings,
     screenSettings,
+    screenKnobSettings,
   });
 
   el.innerHTML = buildPanelHtml({
@@ -425,7 +429,7 @@ export function createQuickControls({
     showIdleMotion: !!idleMotionSettings,
     showExpressMotion: !!expressMotionSettings,
     switchRows: TOGGLE_SPECS,
-    showScreen: !!screenSettings,
+    showScreen: !!screenSettings && !!screenKnobSettings,
     showPresence: !!presenceSettings,
     showRateLimits: !!rateLimitSettings,
     showDevtools: !isWindow && !!onOpenDevtools,
@@ -454,9 +458,7 @@ export function createQuickControls({
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
   const vrmAddBtn = el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
   const spksEl = el.querySelector<HTMLDivElement>(".yui-spks")!;
-  const gainSlider = el.querySelector<HTMLInputElement>(
-    ".yui-gain__slider:not(.yui-vad__slider):not(.yui-screen-gap__slider)",
-  )!;
+  const gainSlider = el.querySelector<HTMLInputElement>(".yui-lipsync-gain__slider")!;
   const vadSlider = el.querySelector<HTMLInputElement>(".yui-vad__slider")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
@@ -1099,19 +1101,28 @@ export function createQuickControls({
     reflect.reflectRateLimits();
   }
   // Same settle point as the caps above: a knob commits on blur/Enter, never mid-typing.
-  // An emptied field clears the override and falls back to configs/screen.json.
+  // An emptied field clears the override and falls back to configs/screen.json. The row's
+  // min/max only bind the spinner, so a typed value is clamped here — the producer must never
+  // run outside the range the row advertises.
   function handleScreenKnobChange(e: Event): void {
     const input = e.target;
     if (!screenKnobSettings || !(input instanceof HTMLInputElement)) return;
     const field = SCREEN_KNOB_FIELDS.find((f) => f.id === input.id);
     if (!field) return;
-    screenKnobSettings.set({ [field.key]: Math.round(Number(input.value)) * field.unitMs });
+    const typed = Math.round(Number(input.value));
+    const units = typed > 0 ? Math.min(Math.max(typed, field.min), field.max) : 0;
+    screenKnobSettings.set({ [field.key]: units * field.unitMs });
     reflect.reflectScreen();
   }
+  const screenGapMinutes = (): number =>
+    Math.min(
+      Math.max(Math.round(Number(screenGapSlider?.value)), SCREEN_MIN_GAP_MIN),
+      SCREEN_MIN_GAP_MAX,
+    );
   // Slider commits on release only — dragging must not re-time the live producer on every frame.
   function handleScreenGapInput(): void {
     if (!screenGapSlider) return;
-    const minutes = Math.round(Number(screenGapSlider.value));
+    const minutes = screenGapMinutes();
     if (screenGapValue) screenGapValue.textContent = t("screen.min_gap_value", { n: minutes });
     screenGapSlider.style.setProperty(
       "--fill",
@@ -1120,9 +1131,7 @@ export function createQuickControls({
   }
   function handleScreenGapChange(): void {
     if (!screenKnobSettings || !screenGapSlider) return;
-    const minutes = Math.round(Number(screenGapSlider.value));
-    screenKnobSettings.set({ min_gap_ms: minutes * 60_000 });
-    log.info("screen_min_gap_change", { min_gap_min: minutes });
+    screenKnobSettings.set({ min_gap_ms: screenGapMinutes() * 60_000 });
     reflect.reflectScreen();
   }
   agentPortInput?.addEventListener("change", handleAgentPortChange);

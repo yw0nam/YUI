@@ -392,15 +392,13 @@ const ja: Record<string, string> = {
   "reactions.rate_tier2_sub": "アイドル・自発・スケジュール・エージェントの合計",
   "reactions.rate_overall_label": "1時間あたりの自発ターン合計",
   "reactions.rate_overall_sub": "超えるとクールダウンの間すべて止まります",
-  "reactions.rate_hint_title":
+  "reactions.rate_hint_text":
     "ユイが1時間に自分から話しかけられる回数の上限です。あなたから話しかけた分は数えません。",
-  "reactions.rate_hint_aria": "発話上限の説明",
 
   // screen watch (proactive tab)
   "screen.section": "画面の検知",
-  "screen.hint_title":
+  "screen.hint":
     "アプリを切り替えたり、ひとつの作業を長く続けているのに気づいて話しかけます。画面のピクセルを送るかどうかは入力タブのスクリーンショット設定に従います。",
-  "screen.hint_aria": "画面の検知の説明",
   "screen.label": "画面の変化に反応",
   "screen.sub": "アプリを切り替えたり長く続けていると気づいて話しかけます",
   "screen.aria": "画面の変化に反応",

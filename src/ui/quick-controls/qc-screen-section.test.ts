@@ -290,9 +290,7 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
   it("puts a `?` hint on the screen-watch and rate-cap section labels", () => {
     const { qc } = buildScreenQc({ rateLimitSettings: createGuardrailsSettings() });
     qc.open();
-    const hints = Array.from(
-      qc.el.querySelectorAll<HTMLElement>("#yui-panel-react .yui-hint-dot"),
-    );
+    const hints = Array.from(qc.el.querySelectorAll<HTMLElement>("#yui-panel-react .yui-hint-dot"));
     expect(hints).toHaveLength(2);
     for (const hint of hints) {
       expect(hint.textContent).toBe("?");

@@ -392,15 +392,13 @@ const en: Record<string, string> = {
   "reactions.rate_tier2_sub": "Idle, proactive, schedule, and agent cues together",
   "reactions.rate_overall_label": "Total self-started turns per hour",
   "reactions.rate_overall_sub": "Crossing it holds every cue for a cooldown",
-  "reactions.rate_hint_title":
+  "reactions.rate_hint_text":
     "Ceiling on how many times YUI may speak up on her own in an hour. Turns you start are never counted.",
-  "reactions.rate_hint_aria": "About the hourly limits",
 
   // screen watch (proactive tab)
   "screen.section": "Screen watch",
-  "screen.hint_title":
+  "screen.hint":
     "Notices when you move between apps or stay on one thing for a long stretch, and speaks up. Whether screen pixels are sent still follows the screenshot toggle in the Input tab.",
-  "screen.hint_aria": "About screen watch",
   "screen.label": "React to screen changes",
   "screen.sub": "Notices app switches and long stretches, then speaks up first",
   "screen.aria": "React to screen changes",

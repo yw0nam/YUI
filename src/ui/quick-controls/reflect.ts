@@ -164,12 +164,8 @@ export function createReflect(deps: ReflectDeps): Reflect {
 
   const switchBtn = root.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const voiceSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
-  const gainSlider = root.querySelector<HTMLInputElement>(
-    ".yui-gain__slider:not(.yui-vad__slider):not(.yui-screen-gap__slider)",
-  )!;
-  const gainValue = root.querySelector<HTMLSpanElement>(
-    ".yui-gain__value:not(.yui-vad__value):not(.yui-screen-gap__value)",
-  )!;
+  const gainSlider = root.querySelector<HTMLInputElement>(".yui-lipsync-gain__slider")!;
+  const gainValue = root.querySelector<HTMLSpanElement>(".yui-lipsync-gain__value")!;
   const vadSlider = root.querySelector<HTMLInputElement>(".yui-vad__slider")!;
   const vadValue = root.querySelector<HTMLSpanElement>(".yui-vad__value")!;
   const segEl = root.querySelector<HTMLDivElement>(".yui-field-row .yui-seg")!;

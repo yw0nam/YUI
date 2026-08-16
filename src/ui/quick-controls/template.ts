@@ -31,10 +31,13 @@ import type { SwitchRow } from "./switch-row";
 
 /**
  * Small round `?` that follows a section label whose name alone is not self-explanatory.
- * The explanation is a native tooltip, so it costs no layout and needs no open/close state.
+ * The explanation is a native tooltip, so it costs no layout and needs no open/close state —
+ * and it doubles as the accessible name, since `title` alone never reaches a keyboard user.
+ * Not a button: clicking it does nothing, so it must not announce itself as actionable.
  */
-function hintDotHtml(titleKey: string, ariaKey: string): string {
-  return `<button class="yui-hint-dot" type="button" title="${t(titleKey)}" aria-label="${t(ariaKey)}">?</button>`;
+function hintDotHtml(textKey: string): string {
+  const text = t(textKey);
+  return `<span class="yui-hint-dot" role="img" tabindex="0" title="${text}" aria-label="${text}">?</span>`;
 }
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
@@ -236,7 +239,7 @@ ${pad}</div>`;
   // The min-gap slider carries the .yui-gain markup; the four thresholds are numeric rows.
   const screenHtml = showScreen
     ? `
-        <span class="yui-quick__section">${t("screen.section")}${hintDotHtml("screen.hint_title", "screen.hint_aria")}</span>
+        <span class="yui-quick__section">${t("screen.section")}${hintDotHtml("screen.hint")}</span>
 ${switchRowsHtml("react", 8, "screen")}
         <div class="yui-screen-knobs" hidden>
           <div class="yui-gain">
@@ -266,7 +269,7 @@ ${SCREEN_KNOB_FIELDS.map((f) =>
   const rateLimitHtml = showRateLimits
     ? `
         <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">${t("reactions.rate_title")}${hintDotHtml("reactions.rate_hint_title", "reactions.rate_hint_aria")}</span>
+        <span class="yui-quick__section">${t("reactions.rate_title")}${hintDotHtml("reactions.rate_hint_text")}</span>
         <p class="yui-field-hint">${t("reactions.rate_hint")}</p>
 ${RATE_LIMIT_FIELDS.map((f) =>
   numRowHtml({ id: f.id, labelKey: f.labelKey, subKey: f.subKey, min: 1, max: RATE_LIMIT_MAX }),
@@ -467,10 +470,10 @@ ${switchRowsHtml("talk", 10, "filler")}
               </svg>
               ${t("expression.mouth_label")}
             </span>
-            <span class="yui-gain__value">2.0×</span>
+            <span class="yui-gain__value yui-lipsync-gain__value">2.0×</span>
           </div>
           <span class="yui-gain__sub">${t("expression.mouth_sub")}</span>
-          <input class="yui-gain__slider" type="range" aria-label="${t("expression.mouth_aria")}" />
+          <input class="yui-gain__slider yui-lipsync-gain__slider" type="range" aria-label="${t("expression.mouth_aria")}" />
           <span class="yui-gain__hint">${t("expression.mouth_hint")}</span>
         </div>
         ${

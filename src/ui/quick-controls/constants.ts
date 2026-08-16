@@ -65,7 +65,8 @@ export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
 
 // Proactive tab, screen-watch section: the editable configs/screen.json thresholds
 // (io/screen-settings's ScreenOverrides). Each renders as a numeric row in its own display unit;
-// min_gap_ms is the slider above them and so has no row. An empty field means "no override".
+// min_gap_ms is the slider above them and so has no row. Clearing a field clears the override,
+// and the row then shows the config default. min/max bound both the spinner and the commit.
 export interface ScreenKnobFieldDef {
   key: Exclude<keyof ScreenOverrides, "min_gap_ms">;
   id: string;
@@ -121,8 +122,11 @@ export const SCREEN_KNOB_FIELDS: readonly ScreenKnobFieldDef[] = [
   },
 ];
 
-/** Min-gap slider bounds, in minutes. 0 clears the override and restores the config default. */
-export const SCREEN_MIN_GAP_MIN = 0;
+/**
+ * Min-gap slider bounds, in minutes. The floor is 1, not 0: the store reads 0 as "no override",
+ * so a thumb dropped at 0 would snap back to the config default instead of holding where it landed.
+ */
+export const SCREEN_MIN_GAP_MIN = 1;
 export const SCREEN_MIN_GAP_MAX = 60;
 
 // Display icon for the screen-watch row — monitor with a lens, matching the line-icon set.

@@ -408,10 +408,6 @@
   border-left: 2px solid var(--yui-accent-faint);
 }
 
-.yui-screen-knobs[hidden] {
-  display: none;
-}
-
 .yui-screen-knobs .yui-gain {
   margin-top: 0;
 }

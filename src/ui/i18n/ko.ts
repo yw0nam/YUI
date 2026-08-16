@@ -391,15 +391,13 @@ const ko: Record<string, string> = {
   "reactions.rate_tier2_sub": "자리 비움·자발적 말 걸기·일정·에이전트 알림을 합쳐서 세요",
   "reactions.rate_overall_label": "시간당 먼저 건 대화 전체",
   "reactions.rate_overall_sub": "넘어서면 쿨다운 동안 모두 멈춰요",
-  "reactions.rate_hint_title":
+  "reactions.rate_hint_text":
     "유이가 1시간 동안 먼저 말을 걸 수 있는 횟수의 한도예요. 내가 직접 건 말은 세지 않아요.",
-  "reactions.rate_hint_aria": "발화 상한 설명",
 
   // screen watch (proactive tab)
   "screen.section": "화면 감지",
-  "screen.hint_title":
+  "screen.hint":
     "화면에서 앱을 옮기거나 한 가지를 오래 하는 걸 알아채고 먼저 말을 걸어요. 화면 픽셀을 보낼지는 입력 탭의 스크린샷 토글을 따라요.",
-  "screen.hint_aria": "화면 감지 설명",
   "screen.label": "화면 변화에 반응",
   "screen.sub": "앱을 옮기거나 오래 붙잡고 있으면 알아채고 먼저 말을 걸어요",
   "screen.aria": "화면 변화에 반응",
