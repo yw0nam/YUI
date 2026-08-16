@@ -122,6 +122,15 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     qc.dispose();
   });
 
+  // A section whose knobs cannot be edited is worse than no section — render neither half alone.
+  it("renders no screen-watch section when the knob store is absent", () => {
+    const qc = buildQc({ screenSettings: createFlagSettings(false) });
+    qc.open();
+    expect(qc.el.querySelector(".yui-screen-switch")).toBeNull();
+    expect(qc.el.querySelector(".yui-screen-knobs")).toBeNull();
+    qc.dispose();
+  });
+
   it("starts off with the knob group hidden", () => {
     const { screenSettings, qc } = buildScreenQc();
     qc.open();
@@ -186,6 +195,38 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     qc.dispose();
   });
 
+  // The row advertises its bounds via min/max, which the browser only enforces on the spinner —
+  // a typed value has to be clamped at the commit site or the producer runs outside the advertised range.
+  it("clamps a typed knob into the range its row advertises", () => {
+    const { screenKnobSettings, qc } = buildScreenQc();
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-screen-settle")!;
+    input.value = "5000"; // row max is 600 s
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(screenKnobSettings.get().settle_ms).toBe(600_000);
+    expect(input.value).toBe("600");
+
+    input.value = "2"; // row min is 5 s
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(screenKnobSettings.get().settle_ms).toBe(5_000);
+    qc.dispose();
+  });
+
+  it("clears the override when the knob is emptied, falling back to the config default", () => {
+    const { screenKnobSettings, qc } = buildScreenQc();
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-screen-settle")!;
+    input.value = "30";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(screenKnobSettings.get().settle_ms).toBe(30_000);
+
+    input.value = "";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(screenKnobSettings.get().settle_ms).toBe(0);
+    expect(input.value).toBe("90");
+    qc.dispose();
+  });
+
   it("does not commit a numeric knob on every keystroke", () => {
     const { screenKnobSettings, qc } = buildScreenQc();
     const setSpy = vi.spyOn(screenKnobSettings, "set");
@@ -208,7 +249,9 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     const { screenKnobSettings, qc } = buildScreenQc();
     qc.open();
     const slider = qc.el.querySelector<HTMLInputElement>(".yui-screen-gap__slider")!;
-    expect(slider.min).toBe("0");
+    // 0 is the store's "no override" sentinel, so the lowest reachable position is 1 —
+    // a thumb that snapped back to the config default on release would be a lie.
+    expect(slider.min).toBe("1");
     expect(slider.max).toBe("60");
 
     slider.value = "12";
@@ -218,6 +261,18 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
 
     slider.dispatchEvent(new Event("change", { bubbles: true }));
     expect(screenKnobSettings.get().min_gap_ms).toBe(720_000);
+    qc.dispose();
+  });
+
+  it("keeps the thumb where it was released at the lowest position", () => {
+    const { screenKnobSettings, qc } = buildScreenQc();
+    qc.open();
+    const slider = qc.el.querySelector<HTMLInputElement>(".yui-screen-gap__slider")!;
+    slider.value = "1";
+    slider.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(screenKnobSettings.get().min_gap_ms).toBe(60_000);
+    expect(slider.value).toBe("1");
+    expect(qc.el.querySelector(".yui-screen-gap__value")!.textContent).toBe("1분");
     qc.dispose();
   });
 
@@ -236,15 +291,36 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     const { qc } = buildScreenQc({ rateLimitSettings: createGuardrailsSettings() });
     qc.open();
     const hints = Array.from(
-      qc.el.querySelectorAll<HTMLButtonElement>("#yui-panel-react .yui-hint-dot"),
+      qc.el.querySelectorAll<HTMLElement>("#yui-panel-react .yui-hint-dot"),
     );
     expect(hints).toHaveLength(2);
     for (const hint of hints) {
       expect(hint.textContent).toBe("?");
-      expect(hint.getAttribute("title")).toBeTruthy();
-      expect(hint.getAttribute("aria-label")).toBeTruthy();
-      expect(hint.getAttribute("title")).not.toBe(hint.getAttribute("aria-label"));
+      // `title` only surfaces on hover, so the explanation itself must be the accessible name —
+      // an aria-label that merely says "an explanation exists" leaves keyboard users without it.
+      expect(hint.getAttribute("aria-label")).toBe(hint.getAttribute("title"));
+      expect(hint.getAttribute("aria-label")!.length).toBeGreaterThan(20);
+      // Nothing happens on click, so it must not announce itself as a button.
+      expect(hint.tagName).not.toBe("BUTTON");
+      expect(hint.tabIndex).toBe(0);
     }
     qc.dispose();
+  });
+
+  // ── Teardown ──────────────────────────────────────────────────────────────
+
+  it("detaches the knob and slider listeners on dispose", () => {
+    const { screenKnobSettings, qc } = buildScreenQc();
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-screen-settle")!;
+    const slider = qc.el.querySelector<HTMLInputElement>(".yui-screen-gap__slider")!;
+    qc.dispose();
+
+    input.value = "30";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    slider.value = "12";
+    slider.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(screenKnobSettings.get().settle_ms).toBe(0);
+    expect(screenKnobSettings.get().min_gap_ms).toBe(0);
   });
 });
