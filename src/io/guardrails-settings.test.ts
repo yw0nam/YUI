@@ -16,6 +16,7 @@ function baseConfig(): GuardrailsConfig {
       os_event_watcher: 5_000,
       backend_push_source: 10_000,
       user_input_source: 0,
+      screen_watcher: 5_000,
     },
     rate_limit: {
       window_ms: 3_600_000,
