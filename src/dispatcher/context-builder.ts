@@ -101,6 +101,25 @@ function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
   return Array.isArray(signals) ? (signals as TriggerMeta["signals"]) : undefined;
 }
 
+function screenOf(env: BusEnvelope): TriggerMeta["screen"] | undefined {
+  if (!env.event_name.startsWith("proactive.screen_")) return undefined;
+  const payload = env.payload;
+  if (
+    (payload?.transition !== "app_switched" && payload?.transition !== "long_session") ||
+    typeof payload?.dwell_min !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    transition: payload.transition,
+    ...(typeof payload.from_app === "string" ? { from_app: payload.from_app } : {}),
+    ...(typeof payload.from_dwell_min === "number"
+      ? { from_dwell_min: payload.from_dwell_min }
+      : {}),
+    dwell_min: payload.dwell_min,
+  };
+}
+
 function resolveTimezone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -163,6 +182,7 @@ export function buildClientContext(
   const agent = agentOf(env);
   const agentCatchup = agentCatchupOf(env);
   const signals = signalsOf(env);
+  const screen = screenOf(env);
   const screenshot = ctx.screenshot
     ? { enabled: ctx.screenshot.enabled, source: ctx.screenshot.source }
     : undefined;
@@ -178,6 +198,7 @@ export function buildClientContext(
       ...(agent ? { agent } : {}),
       ...(agentCatchup ? { agent_catchup: agentCatchup } : {}),
       ...(signals ? { signals } : {}),
+      ...(screen ? { screen } : {}),
     },
   };
 }
