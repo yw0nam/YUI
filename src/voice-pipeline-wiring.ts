@@ -181,6 +181,9 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       onSpeechActive: () => {
         if (deps.vadSettings.get().bargeIn && deps.turnLog.isAudioOwed()) {
           speechPlayback.interrupt({ muteCurrentTurn: true });
+          // The disposed utterance can no longer report completion, and the user is talking —
+          // this window's filler is over, not merely waiting.
+          fillerLoop?.stop();
         }
       },
     });
