@@ -167,3 +167,80 @@ describe("buildClientContext — cue forwarding", () => {
     expect(client.screenshot).toEqual({ enabled: true, source: { kind: "monitor", index: 0 } });
   });
 });
+
+describe("buildClientContext — screen forwarding", () => {
+  const CTX: InputContext = { env: { timestamp: "2026-07-31T14:22:33+09:00", timezone: "UTC" } };
+
+  function screenEnv(eventName: string, payload: Record<string, unknown>): BusEnvelope {
+    return {
+      seq_id: 3,
+      source: "os_event_watcher",
+      event_name: eventName,
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload,
+    };
+  }
+
+  it("forwards an app_switched transition with the departed app and its dwell", () => {
+    const client = buildClientContext(
+      CTX,
+      screenEnv("proactive.screen_app_switched", {
+        transition: "app_switched",
+        from_app: "Cursor",
+        from_dwell_min: 34,
+        dwell_min: 2,
+      }),
+    );
+
+    expect(client.trigger.kind).toBe("proactive");
+    expect(client.trigger.screen).toEqual({
+      transition: "app_switched",
+      from_app: "Cursor",
+      from_dwell_min: 34,
+      dwell_min: 2,
+    });
+  });
+
+  it("forwards a long_session transition without the app_switched-only fields", () => {
+    const client = buildClientContext(
+      CTX,
+      screenEnv("proactive.screen_long_session", { transition: "long_session", dwell_min: 45 }),
+    );
+
+    expect(client.trigger.screen).toEqual({ transition: "long_session", dwell_min: 45 });
+    expect("from_app" in client.trigger.screen!).toBe(false);
+    expect("from_dwell_min" in client.trigger.screen!).toBe(false);
+  });
+
+  it("omits screen on non-screen events carrying a screen-shaped payload", () => {
+    const client = buildClientContext(
+      CTX,
+      screenEnv("proactive.tap_bored", { transition: "app_switched", dwell_min: 2 }),
+    );
+
+    expect("screen" in client.trigger).toBe(false);
+  });
+
+  it("omits screen when the payload is malformed", () => {
+    expect(
+      "screen" in
+        buildClientContext(CTX, screenEnv("proactive.screen_long_session", { dwell_min: 45 }))
+          .trigger,
+    ).toBe(false);
+    expect(
+      "screen" in
+        buildClientContext(
+          CTX,
+          screenEnv("proactive.screen_app_switched", { transition: "app_switched" }),
+        ).trigger,
+    ).toBe(false);
+    expect(
+      "screen" in
+        buildClientContext(
+          CTX,
+          screenEnv("proactive.screen_app_switched", { transition: "resized", dwell_min: 2 }),
+        ).trigger,
+    ).toBe(false);
+  });
+});
