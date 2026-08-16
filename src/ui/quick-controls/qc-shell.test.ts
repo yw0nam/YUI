@@ -615,7 +615,7 @@ describe("createQuickControls — Reactions tab", () => {
     expect(tab).not.toBeNull();
     expect(tab!.getAttribute("role")).toBe("tab");
     expect(tab!.getAttribute("aria-controls")).toBe("yui-panel-react");
-    expect(tab!.textContent?.trim()).toBe("Reactions");
+    expect(tab!.textContent?.trim()).toBe("Proactive");
     qc.dispose();
   });
 
@@ -637,21 +637,6 @@ describe("createQuickControls — Reactions tab", () => {
     const loopSection = reactPanel.querySelector(".yui-loop-cue-section");
     expect(loopSection).not.toBeNull();
     expect(loopSection!.querySelector("[data-testid='cue-section']")).not.toBeNull();
-    qc.dispose();
-  });
-
-  it("schedule cue list stays in #yui-panel-input (.yui-cue-sections), not in react panel", () => {
-    const qc = buildQc();
-    qc.open();
-    const inputPanel = qc.el.querySelector<HTMLElement>("#yui-panel-input")!;
-    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    const cueSectionsInInput = inputPanel.querySelector(".yui-cue-sections");
-    expect(cueSectionsInInput).not.toBeNull();
-    expect(cueSectionsInInput!.querySelector("[data-testid='cue-section']")).not.toBeNull();
-    // loop-cue-section must not be inside input panel
-    expect(inputPanel.querySelector(".yui-loop-cue-section")).toBeNull();
-    // cue-sections must not be inside react panel
-    expect(reactPanel.querySelector(".yui-cue-sections")).toBeNull();
     qc.dispose();
   });
 

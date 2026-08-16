@@ -111,7 +111,8 @@ const en: Record<string, string> = {
   "tabs.char": "Character",
   "tabs.input": "Input",
   "tabs.adv": "Advanced",
-  "tabs.react": "Reactions",
+  "tabs.react": "Proactive",
+  "tabs.react_hint": "Rules for when YUI speaks up first",
   "tabs.hist": "History",
 
   // reasoning effort segment
@@ -391,6 +392,31 @@ const en: Record<string, string> = {
   "reactions.rate_tier2_sub": "Idle, proactive, schedule, and agent cues together",
   "reactions.rate_overall_label": "Total self-started turns per hour",
   "reactions.rate_overall_sub": "Crossing it holds every cue for a cooldown",
+  "reactions.rate_hint_text":
+    "Ceiling on how many times YUI may speak up on her own in an hour. Turns you start are never counted.",
+
+  // screen watch (proactive tab)
+  "screen.section": "Screen watch",
+  "screen.hint":
+    "Notices when you move between apps or stay on one thing for a long stretch, and speaks up. Whether screen pixels are sent still follows the screenshot toggle in the Input tab.",
+  "screen.label": "React to screen changes",
+  "screen.sub": "Notices app switches and long stretches, then speaks up first",
+  "screen.aria": "React to screen changes",
+  "screen.min_gap_label": "Minimum gap between cues",
+  "screen.min_gap_aria": "Minimum gap between screen-watch cues",
+  "screen.min_gap_value": "{n} min",
+  "screen.minutes_suffix": "min",
+  "screen.seconds_suffix": "s",
+  "screen.prev_dwell_label": "Counts as an app switch after",
+  "screen.prev_dwell_sub": "Only when the app you left was held this long",
+  "screen.settle_label": "New app settles after",
+  "screen.settle_sub": "A quick glance is ignored",
+  "screen.long_session_label": "Notices a long stretch every",
+  "screen.long_session_sub": "One app held this long counts as a long session",
+  "screen.quiet_label": "Stay quiet after a turn for",
+  "screen.quiet_sub": "So a cue never piles onto what was just said",
+  "screen.foot":
+    "Sending screen pixels follows the screenshot toggle in the Input tab. Nothing is said while do-not-disturb is on.",
 
   // workflows
   "workflows.title": "Workflows",

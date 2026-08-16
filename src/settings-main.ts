@@ -14,6 +14,7 @@ import { selectFetch } from "./io/chat-client";
 import { endpointDefaultsFromConfig } from "./io/endpoints-settings";
 import { rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
 import { updateVoice } from "./io/irodori-voices";
+import { screenDefaultsFromConfig } from "./io/screen-settings";
 import { createSettingsStores } from "./io/settings-stores";
 import { closeSettingsWindow } from "./io/settings-window";
 import {
@@ -55,6 +56,8 @@ async function bootstrap(): Promise<void> {
     workflowSettings,
     agentNotifySettings,
     presenceSettings,
+    screenSettings,
+    screenKnobSettings,
     guardrailsSettings,
     railCollapsedSettings,
     lipsyncSettings,
@@ -184,6 +187,16 @@ async function bootstrap(): Promise<void> {
         if (!configLoaded) return undefined;
         try {
           return rateLimitDefaultsFromConfig(config.get().guardrails);
+        } catch {
+          return undefined;
+        }
+      },
+      screenSettings,
+      screenKnobSettings,
+      getScreenDefaults: () => {
+        if (!configLoaded) return undefined;
+        try {
+          return screenDefaultsFromConfig(config.get().screen);
         } catch {
           return undefined;
         }

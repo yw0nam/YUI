@@ -371,6 +371,51 @@
   background: var(--yui-edge);
 }
 
+/* ── `?` after a section label — the explanation is the native title tooltip ── */
+.yui-hint-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-left: 0.35rem;
+  padding: 0;
+  border: 1px solid var(--yui-edge);
+  border-radius: 50%;
+  background: none;
+  color: var(--yui-text-mute);
+  font: inherit;
+  font-size: 0.62rem;
+  letter-spacing: normal;
+  line-height: 1;
+  vertical-align: text-bottom;
+  cursor: help;
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    border-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-hint-dot:hover,
+.yui-hint-dot:focus-visible {
+  color: var(--yui-accent);
+  border-color: var(--yui-accent-soft);
+}
+
+/* ── Screen-watch knobs — an accent rail marks them as owned by the toggle above ── */
+.yui-screen-knobs {
+  margin: 0.1rem 0 0.2rem 0.55rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--yui-accent-faint);
+}
+
+.yui-screen-knobs .yui-gain {
+  margin-top: 0;
+}
+
+.yui-screen-knobs .yui-field-hint {
+  padding: 0.35rem 0.55rem 0.2rem;
+}
+
 /* ── Thinking fillers — hairline + guide between two lists ── */
 .yui-filler__list-sep {
   height: 1px;

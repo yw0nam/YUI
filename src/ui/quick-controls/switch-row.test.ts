@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createAgentNotifySettings } from "../../io/agent-notify-settings";
 import { createFillerSettings } from "../../io/filler-settings";
 import { createFlagSettings } from "../../io/persisted-store";
+import { createScreenKnobSettings } from "../../io/screen-settings";
 import { createVadSettings } from "../../io/vad-settings";
 import { createSwitchRows } from "../quick-controls";
 import { reflectSwitchRows } from "./reflect";
@@ -20,6 +21,8 @@ function makeSwitchRows(): SwitchRow[] {
       initial: { enabled: false, language: "ja", customPools: {} },
     }),
     bubblePersistSettings: createFlagSettings(false),
+    screenSettings: createFlagSettings(false),
+    screenKnobSettings: createScreenKnobSettings(),
   });
 }
 
@@ -33,6 +36,7 @@ function render(switchRows: readonly SwitchRow[]): HTMLElement {
     showIdleMotion: false,
     showExpressMotion: false,
     switchRows,
+    showScreen: true,
     showPresence: false,
     showRateLimits: false,
     showDevtools: false,

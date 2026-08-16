@@ -2,6 +2,7 @@
 import type { ReasoningEffort } from "../../io/agent-settings";
 import { ENDPOINT_FIELD_SPECS, type EndpointOverrides } from "../../io/endpoints-settings";
 import type { RateLimitOverrides } from "../../io/guardrails-settings";
+import type { ScreenOverrides } from "../../io/screen-settings";
 import type { Locale } from "../i18n";
 
 // Tab identity — the suffix of each tab button's `yui-tab-*` element id.
@@ -61,6 +62,79 @@ export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
     subKey: "reactions.rate_overall_sub",
   },
 ];
+
+// Proactive tab, screen-watch section: the editable configs/screen.json thresholds
+// (io/screen-settings's ScreenOverrides). Each renders as a numeric row in its own display unit;
+// min_gap_ms is the slider above them and so has no row. Clearing a field clears the override,
+// and the row then shows the config default. min/max bound both the spinner and the commit.
+export interface ScreenKnobFieldDef {
+  key: Exclude<keyof ScreenOverrides, "min_gap_ms">;
+  id: string;
+  labelKey: string;
+  subKey: string;
+  suffixKey: string;
+  /** Display unit → milliseconds. */
+  unitMs: number;
+  min: number;
+  max: number;
+}
+
+export const SCREEN_KNOB_FIELDS: readonly ScreenKnobFieldDef[] = [
+  {
+    key: "prev_dwell_ms",
+    id: "yui-screen-prev-dwell",
+    labelKey: "screen.prev_dwell_label",
+    subKey: "screen.prev_dwell_sub",
+    suffixKey: "screen.minutes_suffix",
+    unitMs: 60_000,
+    min: 1,
+    max: 240,
+  },
+  {
+    key: "settle_ms",
+    id: "yui-screen-settle",
+    labelKey: "screen.settle_label",
+    subKey: "screen.settle_sub",
+    suffixKey: "screen.seconds_suffix",
+    unitMs: 1_000,
+    min: 5,
+    max: 600,
+  },
+  {
+    key: "long_session_ms",
+    id: "yui-screen-long-session",
+    labelKey: "screen.long_session_label",
+    subKey: "screen.long_session_sub",
+    suffixKey: "screen.minutes_suffix",
+    unitMs: 60_000,
+    min: 5,
+    max: 480,
+  },
+  {
+    key: "quiet_after_turn_ms",
+    id: "yui-screen-quiet",
+    labelKey: "screen.quiet_label",
+    subKey: "screen.quiet_sub",
+    suffixKey: "screen.minutes_suffix",
+    unitMs: 60_000,
+    min: 1,
+    max: 120,
+  },
+];
+
+/**
+ * Min-gap slider bounds, in minutes. The floor is 1, not 0: the store reads 0 as "no override",
+ * so a thumb dropped at 0 would snap back to the config default instead of holding where it landed.
+ */
+export const SCREEN_MIN_GAP_MIN = 1;
+export const SCREEN_MIN_GAP_MAX = 60;
+
+// Display icon for the screen-watch row — monitor with a lens, matching the line-icon set.
+export const SCREEN_WATCH_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <rect x="3" y="4" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/>
+  <path d="M12 16v3.5M8.5 20h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  <circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="1.7"/>
+</svg>`;
 
 // Eye icon (show/hide). Line-icon style matches other icon buttons.
 export const CHATKEY_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg>`;

@@ -112,7 +112,8 @@ const ko: Record<string, string> = {
   "tabs.char": "캐릭터",
   "tabs.input": "입력",
   "tabs.adv": "고급",
-  "tabs.react": "반응",
+  "tabs.react": "말걸기",
+  "tabs.react_hint": "유이가 먼저 말을 거는 규칙",
   "tabs.hist": "기록",
 
   // reasoning effort segment
@@ -390,6 +391,31 @@ const ko: Record<string, string> = {
   "reactions.rate_tier2_sub": "자리 비움·자발적 말 걸기·일정·에이전트 알림을 합쳐서 세요",
   "reactions.rate_overall_label": "시간당 먼저 건 대화 전체",
   "reactions.rate_overall_sub": "넘어서면 쿨다운 동안 모두 멈춰요",
+  "reactions.rate_hint_text":
+    "유이가 1시간 동안 먼저 말을 걸 수 있는 횟수의 한도예요. 내가 직접 건 말은 세지 않아요.",
+
+  // screen watch (proactive tab)
+  "screen.section": "화면 감지",
+  "screen.hint":
+    "화면에서 앱을 옮기거나 한 가지를 오래 하는 걸 알아채고 먼저 말을 걸어요. 화면 픽셀을 보낼지는 입력 탭의 스크린샷 토글을 따라요.",
+  "screen.label": "화면 변화에 반응",
+  "screen.sub": "앱을 옮기거나 오래 붙잡고 있으면 알아채고 먼저 말을 걸어요",
+  "screen.aria": "화면 변화에 반응",
+  "screen.min_gap_label": "말 거는 최소 간격",
+  "screen.min_gap_aria": "화면 감지로 말 거는 최소 간격",
+  "screen.min_gap_value": "{n}분",
+  "screen.minutes_suffix": "분",
+  "screen.seconds_suffix": "초",
+  "screen.prev_dwell_label": "앱 전환으로 치는 기준",
+  "screen.prev_dwell_sub": "이 시간 이상 쓰던 앱을 떠났을 때만",
+  "screen.settle_label": "새 앱 정착 시간",
+  "screen.settle_sub": "잠깐 들여다본 건 무시해요",
+  "screen.long_session_label": "긴 세션 알아채는 간격",
+  "screen.long_session_sub": "한 앱을 이만큼 붙잡고 있으면 알아채요",
+  "screen.quiet_label": "대화 직후 조용히",
+  "screen.quiet_sub": "방금 말한 참견 위에 또 얹지 않게",
+  "screen.foot":
+    "화면 픽셀 전송 여부는 입력 탭의 스크린샷 토글을 따라요. 방해금지 중에는 말을 걸지 않아요.",
 
   // workflows
   "workflows.title": "워크플로",

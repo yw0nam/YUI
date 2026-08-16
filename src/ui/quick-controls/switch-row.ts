@@ -4,7 +4,7 @@ export interface SwitchRow {
   subKey?: string;
   ariaKey: string;
   tab: "talk" | "input" | "react" | "advanced";
-  position?: "after-vad" | "filler";
+  position?: "after-vad" | "filler" | "screen";
   accessory?: "agent-port";
   labelIcon?: string;
   isVisible: boolean;

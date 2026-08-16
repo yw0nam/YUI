@@ -36,6 +36,7 @@ import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/endpoints-settings";
 import { mergeGuardrails, rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
 import { enabledIdleVariants } from "./io/idle-motion-settings";
+import { screenDefaultsFromConfig } from "./io/screen-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener } from "./io/settings-window";
@@ -174,6 +175,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
     workflowSettings,
     agentNotifySettings,
     presenceSettings,
+    screenSettings,
+    screenKnobSettings,
     lipsyncSettings,
     vadSettings,
     agentSettings,
@@ -282,6 +285,15 @@ async function bootstrap(): Promise<BootstrapHandle> {
       getRateLimitDefaults: () => {
         try {
           return rateLimitDefaultsFromConfig(config.get().guardrails);
+        } catch {
+          return undefined;
+        }
+      },
+      screenSettings,
+      screenKnobSettings,
+      getScreenDefaults: () => {
+        try {
+          return screenDefaultsFromConfig(config.get().screen);
         } catch {
           return undefined;
         }
