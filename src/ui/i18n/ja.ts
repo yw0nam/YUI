@@ -112,7 +112,8 @@ const ja: Record<string, string> = {
   "tabs.char": "キャラクター",
   "tabs.input": "入力",
   "tabs.adv": "詳細",
-  "tabs.react": "リアクション",
+  "tabs.react": "話しかけ",
+  "tabs.react_hint": "ユイの方から話しかけるときのルール",
   "tabs.hist": "履歴",
 
   // reasoning effort segment
@@ -391,6 +392,33 @@ const ja: Record<string, string> = {
   "reactions.rate_tier2_sub": "アイドル・自発・スケジュール・エージェントの合計",
   "reactions.rate_overall_label": "1時間あたりの自発ターン合計",
   "reactions.rate_overall_sub": "超えるとクールダウンの間すべて止まります",
+  "reactions.rate_hint_title":
+    "ユイが1時間に自分から話しかけられる回数の上限です。あなたから話しかけた分は数えません。",
+  "reactions.rate_hint_aria": "発話上限の説明",
+
+  // screen watch (proactive tab)
+  "screen.section": "画面の検知",
+  "screen.hint_title":
+    "アプリを切り替えたり、ひとつの作業を長く続けているのに気づいて話しかけます。画面のピクセルを送るかどうかは入力タブのスクリーンショット設定に従います。",
+  "screen.hint_aria": "画面の検知の説明",
+  "screen.label": "画面の変化に反応",
+  "screen.sub": "アプリを切り替えたり長く続けていると気づいて話しかけます",
+  "screen.aria": "画面の変化に反応",
+  "screen.min_gap_label": "話しかける最小間隔",
+  "screen.min_gap_aria": "画面の検知で話しかける最小間隔",
+  "screen.min_gap_value": "{n}分",
+  "screen.minutes_suffix": "分",
+  "screen.seconds_suffix": "秒",
+  "screen.prev_dwell_label": "アプリ切り替えとみなす基準",
+  "screen.prev_dwell_sub": "この時間以上使っていたアプリを離れたときだけ",
+  "screen.settle_label": "新しいアプリの定着時間",
+  "screen.settle_sub": "ちょっと覗いただけなら無視します",
+  "screen.long_session_label": "長時間作業に気づく間隔",
+  "screen.long_session_sub": "ひとつのアプリをこれだけ続けたら気づきます",
+  "screen.quiet_label": "会話の直後は静かに",
+  "screen.quiet_sub": "さっき話した上に重ねて口を出さないように",
+  "screen.foot":
+    "画面のピクセルを送るかどうかは入力タブのスクリーンショット設定に従います。おやすみモード中は話しかけません。",
 
   // workflows
   "workflows.title": "ワークフロー",

@@ -19,6 +19,7 @@ import {
   LIPSYNC_GAIN_MIN,
 } from "../../io/lipsync-settings";
 import type { ClampedIntSettingsStore } from "../../io/persisted-store";
+import type { ScreenKnobSettingsStore, ScreenOverrides } from "../../io/screen-settings";
 import type { createScreenshotSettings } from "../../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
 import { isTtsProviderKind, resolveTtsProviderKind } from "../../io/tts-provider";
@@ -33,6 +34,10 @@ import {
   type ChatApi,
   ENDPOINT_FIELDS,
   LANG_PICKER_ORDER,
+  SCREEN_KNOB_FIELDS,
+  SCREEN_MIN_GAP_MAX,
+  SCREEN_MIN_GAP_MIN,
+  type ScreenKnobFieldDef,
   VOICE_ENGINE_LABEL_KEYS,
   type VoiceEngine,
 } from "./constants";
@@ -95,6 +100,13 @@ interface ReflectDeps {
   rateLimitSettings?: GuardrailsSettingsStore;
   /** Bundled config caps a field falls back to when it carries no override (undefined if not loaded). */
   getRateLimitDefaults?: () => RateLimitOverrides | undefined;
+  /** Screen-watch on/off — gates the knob group's visibility. */
+  screenSettings?: { get(): { enabled: boolean } };
+  /** Screen-watch threshold inputs, keyed by the threshold they edit (empty when the store is absent). */
+  screenKnobInputs: ReadonlyMap<ScreenKnobFieldDef["key"], HTMLInputElement>;
+  screenKnobSettings?: ScreenKnobSettingsStore;
+  /** Bundled config thresholds a knob falls back to when it carries no override (undefined if not loaded). */
+  getScreenDefaults?: () => ScreenOverrides | undefined;
 }
 
 export interface Reflect {
@@ -103,6 +115,7 @@ export interface Reflect {
   reflectAgentNotify(): void;
   reflectPresence(): void;
   reflectRateLimits(): void;
+  reflectScreen(): void;
   reflectGain(): void;
   reflectVad(): void;
   reflectAgent(): void;
@@ -143,14 +156,20 @@ export function createReflect(deps: ReflectDeps): Reflect {
     rateLimitInputs,
     rateLimitSettings,
     getRateLimitDefaults,
+    screenSettings,
+    screenKnobInputs,
+    screenKnobSettings,
+    getScreenDefaults,
   } = deps;
 
   const switchBtn = root.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const voiceSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const gainSlider = root.querySelector<HTMLInputElement>(
-    ".yui-gain__slider:not(.yui-vad__slider)",
+    ".yui-gain__slider:not(.yui-vad__slider):not(.yui-screen-gap__slider)",
   )!;
-  const gainValue = root.querySelector<HTMLSpanElement>(".yui-gain__value:not(.yui-vad__value)")!;
+  const gainValue = root.querySelector<HTMLSpanElement>(
+    ".yui-gain__value:not(.yui-vad__value):not(.yui-screen-gap__value)",
+  )!;
   const vadSlider = root.querySelector<HTMLInputElement>(".yui-vad__slider")!;
   const vadValue = root.querySelector<HTMLSpanElement>(".yui-vad__value")!;
   const segEl = root.querySelector<HTMLDivElement>(".yui-field-row .yui-seg")!;
@@ -184,6 +203,9 @@ export function createReflect(deps: ReflectDeps): Reflect {
   }
   const sessionStatEl = root.querySelector<HTMLDivElement>(".yui-session__stat");
   const sessionValueEl = root.querySelector<HTMLSpanElement>(".yui-session__value");
+  const screenKnobsEl = root.querySelector<HTMLDivElement>(".yui-screen-knobs");
+  const screenGapSlider = root.querySelector<HTMLInputElement>(".yui-screen-gap__slider");
+  const screenGapValue = root.querySelector<HTMLSpanElement>(".yui-screen-gap__value");
 
   function reflectSettings(): void {
     const s = settings.get();
@@ -213,6 +235,32 @@ export function createReflect(deps: ReflectDeps): Reflect {
     for (const [key, input] of rateLimitInputs) {
       const effective = overrides[key] > 0 ? overrides[key] : (defaults?.[key] ?? 0);
       reflectUnlessEditing(input, effective > 0 ? String(effective) : "");
+    }
+  }
+
+  // The knob group follows the master toggle; each knob shows its override when set, else the config default.
+  function reflectScreen(): void {
+    if (!screenKnobsEl || !screenSettings) return;
+    screenKnobsEl.hidden = !screenSettings.get().enabled;
+    if (!screenKnobSettings) return;
+    const overrides = screenKnobSettings.get();
+    const defaults = getScreenDefaults?.();
+    const effective = (key: keyof ScreenOverrides): number =>
+      overrides[key] > 0 ? overrides[key] : (defaults?.[key] ?? 0);
+    for (const field of SCREEN_KNOB_FIELDS) {
+      const input = screenKnobInputs.get(field.key);
+      if (!input) continue;
+      const value = effective(field.key);
+      reflectUnlessEditing(input, value > 0 ? String(Math.round(value / field.unitMs)) : "");
+    }
+    if (screenGapSlider && screenGapValue) {
+      const minutes = Math.round(effective("min_gap_ms") / 60_000);
+      screenGapSlider.value = String(minutes);
+      screenGapValue.textContent = t("screen.min_gap_value", { n: minutes });
+      screenGapSlider.style.setProperty(
+        "--fill",
+        String((minutes - SCREEN_MIN_GAP_MIN) / (SCREEN_MIN_GAP_MAX - SCREEN_MIN_GAP_MIN)),
+      );
     }
   }
 
@@ -402,6 +450,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectAgentNotify,
     reflectPresence,
     reflectRateLimits,
+    reflectScreen,
     reflectGain,
     reflectVad,
     reflectAgent,

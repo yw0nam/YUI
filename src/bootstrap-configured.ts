@@ -35,6 +35,7 @@ import { createFrontmostTracker } from "./io/frontmost-tracker";
 import { createHitTestController } from "./io/hit-test";
 import { enabledIdleVariants } from "./io/idle-motion-settings";
 import { createPeekState } from "./io/peek-state";
+import { mergeScreen } from "./io/screen-settings";
 import type { ScreenCapturer } from "./io/screen-source-provider";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import type { SettingsStores } from "./io/settings-stores";
@@ -151,6 +152,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       scheduleSettings,
       agentNotifySettings,
       screenSettings,
+      screenKnobSettings,
       presenceSettings,
       contextHistory,
       lipsyncSettings,
@@ -338,7 +340,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         scheduleSettings,
         agentNotifySettings,
         screenSettings,
-        getScreenConfig: () => config.get().screen,
+        getScreenConfig: () => mergeScreen(config.get().screen, screenKnobSettings.get()),
         subscribeBusy: dispatcher.subscribeBusy,
         pipelineBusy: {
           isBusy: dispatcher.isPipelineBusy,

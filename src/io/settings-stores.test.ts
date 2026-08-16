@@ -28,6 +28,7 @@ describe("createSettingsStores", () => {
       "scheduleSettings",
       "workflowSettings",
       "screenSettings",
+      "screenKnobSettings",
       "agentNotifySettings",
       "presenceSettings",
       "contextHistory",

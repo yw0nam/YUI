@@ -26,6 +26,7 @@ import {
   localStorageProactiveStorage,
 } from "./proactive-settings";
 import { createScheduleSettings, localStorageScheduleStorage } from "./schedule-settings";
+import { createScreenKnobSettings, localStorageScreenKnobStorage } from "./screen-settings";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./screenshot-settings";
 import {
   createSessionDiagnosticsStore,
@@ -70,8 +71,12 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const workflowSettings = createWorkflowSettings({
     storage: localStorageWorkflowStorage(),
   });
-  // Frontmost-transition (screen-change) proactive turns on/off. Default OFF until the UI toggle ships.
+  // Frontmost-transition (screen-change) proactive turns on/off. Default OFF — it fires from what is on screen.
   const screenSettings = createFlagSettings(false, { storage: localStorageStore("yui.screen") });
+  // User-edited screen-watch thresholds: localStorage overrides the bundled config (0 = fallback).
+  const screenKnobSettings = createScreenKnobSettings({
+    storage: localStorageScreenKnobStorage(),
+  });
   // Agent notification on/off + listen port. Gates only source firing.
   const agentNotifySettings = createAgentNotifySettings({
     storage: localStorageAgentNotifyStorage(),
@@ -150,6 +155,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     scheduleSettings,
     workflowSettings,
     screenSettings,
+    screenKnobSettings,
     agentNotifySettings,
     presenceSettings,
     contextHistory,
@@ -196,6 +202,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   scheduleSettings: "broadcast",
   workflowSettings: "broadcast",
   screenSettings: "broadcast",
+  screenKnobSettings: "broadcast",
   agentNotifySettings: "broadcast",
   presenceSettings: "broadcast",
   contextHistory: "reload",

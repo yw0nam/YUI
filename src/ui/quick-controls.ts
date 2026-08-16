@@ -24,6 +24,7 @@ import {
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../io/persisted-store";
 import type { createProactiveSettings } from "../io/proactive-settings";
 import type { createScheduleSettings } from "../io/schedule-settings";
+import type { ScreenKnobSettingsStore, ScreenOverrides } from "../io/screen-settings";
 import type { ScreenSourceProvider } from "../io/screen-source-provider";
 import type { createScreenshotSettings } from "../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
@@ -35,7 +36,15 @@ import type { createWorkflowSettings } from "../io/workflow-settings";
 import { createLogger } from "../logger";
 import { type CueListInstance, createCueList } from "./cue-list";
 import { type Locale, setLocale, t } from "./i18n";
-import { type QuickControlsTab, RATE_LIMIT_FIELDS } from "./quick-controls/constants";
+import {
+  type QuickControlsTab,
+  RATE_LIMIT_FIELDS,
+  SCREEN_KNOB_FIELDS,
+  SCREEN_MIN_GAP_MAX,
+  SCREEN_MIN_GAP_MIN,
+  SCREEN_WATCH_SVG,
+  type ScreenKnobFieldDef,
+} from "./quick-controls/constants";
 import { createEndpointsSection } from "./quick-controls/endpoints-section";
 import { createExpressMotionList } from "./quick-controls/express-motion-section";
 import { createHistorySection } from "./quick-controls/history-section";
@@ -153,6 +162,12 @@ interface QuickControlsOptions {
   rateLimitSettings?: GuardrailsSettingsStore;
   /** Bundled config caps shown when a field carries no override (undefined if not loaded). */
   getRateLimitDefaults?: () => RateLimitOverrides | undefined;
+  /** Screen-watch on/off store. If absent, the screen-watch section won't render. */
+  screenSettings?: FlagSettingsStore;
+  /** Screen-watch threshold overrides. If absent, the knob group won't be editable. */
+  screenKnobSettings?: ScreenKnobSettingsStore;
+  /** Bundled config thresholds shown when a knob carries no override (undefined if not loaded). */
+  getScreenDefaults?: () => ScreenOverrides | undefined;
   /** Section rail collapse state store. */
   railCollapsedSettings?: FlagSettingsStore;
   /** Per-variant idle-motion on/off store. If absent, the idle-motion section won't render. */
@@ -186,6 +201,7 @@ type SwitchRowOptions = Pick<
   | "agentNotifySettings"
   | "fillerSettings"
   | "bubblePersistSettings"
+  | "screenSettings"
 >;
 
 export function createSwitchRows({
@@ -196,8 +212,24 @@ export function createSwitchRows({
   agentNotifySettings,
   fillerSettings,
   bubblePersistSettings,
+  screenSettings,
 }: SwitchRowOptions): SwitchRow[] {
   return [
+    {
+      selector: ".yui-screen-switch",
+      labelKey: "screen.label",
+      subKey: "screen.sub",
+      ariaKey: "screen.aria",
+      tab: "react",
+      position: "screen",
+      labelIcon: SCREEN_WATCH_SVG,
+      isVisible: !!screenSettings,
+      isAvailable: !!screenSettings,
+      initialEnabled: screenSettings?.get().enabled ?? false,
+      getEnabled: () => screenSettings!.get().enabled,
+      setEnabled: (v) => screenSettings!.setEnabled(v),
+      logKey: "screen_watch_toggle",
+    },
     {
       selector: ".yui-idle-throttle-switch",
       labelKey: "perf.idle_label",
@@ -348,6 +380,9 @@ export function createQuickControls({
   presenceSettings,
   rateLimitSettings,
   getRateLimitDefaults,
+  screenSettings,
+  screenKnobSettings,
+  getScreenDefaults,
   railCollapsedSettings,
   idleMotionSettings,
   getIdlePool,
@@ -379,6 +414,7 @@ export function createQuickControls({
     agentNotifySettings,
     fillerSettings,
     bubblePersistSettings,
+    screenSettings,
   });
 
   el.innerHTML = buildPanelHtml({
@@ -389,6 +425,7 @@ export function createQuickControls({
     showIdleMotion: !!idleMotionSettings,
     showExpressMotion: !!expressMotionSettings,
     switchRows: TOGGLE_SPECS,
+    showScreen: !!screenSettings,
     showPresence: !!presenceSettings,
     showRateLimits: !!rateLimitSettings,
     showDevtools: !isWindow && !!onOpenDevtools,
@@ -405,12 +442,21 @@ export function createQuickControls({
     const input = el.querySelector<HTMLInputElement>(`#${field.id}`);
     if (input) rateLimitInputs.set(field.key, input);
   }
+  const screenKnobInputs = new Map<ScreenKnobFieldDef["key"], HTMLInputElement>();
+  for (const field of SCREEN_KNOB_FIELDS) {
+    const input = el.querySelector<HTMLInputElement>(`#${field.id}`);
+    if (input) screenKnobInputs.set(field.key, input);
+  }
+  const screenGapSlider = el.querySelector<HTMLInputElement>(".yui-screen-gap__slider");
+  const screenGapValue = el.querySelector<HTMLSpanElement>(".yui-screen-gap__value");
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsSection = createMonitorsSection({ root: el, sourceProvider, settings, log });
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
   const vrmAddBtn = el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
   const spksEl = el.querySelector<HTMLDivElement>(".yui-spks")!;
-  const gainSlider = el.querySelector<HTMLInputElement>(".yui-gain__slider:not(.yui-vad__slider)")!;
+  const gainSlider = el.querySelector<HTMLInputElement>(
+    ".yui-gain__slider:not(.yui-vad__slider):not(.yui-screen-gap__slider)",
+  )!;
   const vadSlider = el.querySelector<HTMLInputElement>(".yui-vad__slider")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
@@ -507,6 +553,10 @@ export function createQuickControls({
     rateLimitInputs,
     rateLimitSettings,
     getRateLimitDefaults,
+    screenSettings,
+    screenKnobInputs,
+    screenKnobSettings,
+    getScreenDefaults,
   });
 
   // ── VRM section ──
@@ -563,6 +613,7 @@ export function createQuickControls({
       reflect.reflectAgentNotify();
       reflect.reflectPresence();
       reflect.reflectRateLimits();
+      reflect.reflectScreen();
       reflect.reflectVoiceStatus(voiceStatus.get());
       reflect.reflectGain();
       reflect.reflectVad();
@@ -1016,6 +1067,15 @@ export function createQuickControls({
   const unsubscribeRateLimit = rateLimitSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectRateLimits();
   });
+  const unsubscribeScreen = screenSettings?.subscribe(() => {
+    if (popover.isOpen()) {
+      reflect.reflectSwitchRows();
+      reflect.reflectScreen();
+    }
+  });
+  const unsubscribeScreenKnobs = screenKnobSettings?.subscribe(() => {
+    if (popover.isOpen()) reflect.reflectScreen();
+  });
 
   function handleAgentPortChange(): void {
     if (!agentNotifySettings || !agentPortInput) return;
@@ -1038,6 +1098,33 @@ export function createQuickControls({
     rateLimitSettings.set({ [key]: Math.round(Number(input.value)) });
     reflect.reflectRateLimits();
   }
+  // Same settle point as the caps above: a knob commits on blur/Enter, never mid-typing.
+  // An emptied field clears the override and falls back to configs/screen.json.
+  function handleScreenKnobChange(e: Event): void {
+    const input = e.target;
+    if (!screenKnobSettings || !(input instanceof HTMLInputElement)) return;
+    const field = SCREEN_KNOB_FIELDS.find((f) => f.id === input.id);
+    if (!field) return;
+    screenKnobSettings.set({ [field.key]: Math.round(Number(input.value)) * field.unitMs });
+    reflect.reflectScreen();
+  }
+  // Slider commits on release only — dragging must not re-time the live producer on every frame.
+  function handleScreenGapInput(): void {
+    if (!screenGapSlider) return;
+    const minutes = Math.round(Number(screenGapSlider.value));
+    if (screenGapValue) screenGapValue.textContent = t("screen.min_gap_value", { n: minutes });
+    screenGapSlider.style.setProperty(
+      "--fill",
+      String((minutes - SCREEN_MIN_GAP_MIN) / (SCREEN_MIN_GAP_MAX - SCREEN_MIN_GAP_MIN)),
+    );
+  }
+  function handleScreenGapChange(): void {
+    if (!screenKnobSettings || !screenGapSlider) return;
+    const minutes = Math.round(Number(screenGapSlider.value));
+    screenKnobSettings.set({ min_gap_ms: minutes * 60_000 });
+    log.info("screen_min_gap_change", { min_gap_min: minutes });
+    reflect.reflectScreen();
+  }
   agentPortInput?.addEventListener("change", handleAgentPortChange);
   presenceInput?.addEventListener("change", handlePresenceChange);
   presenceInput?.addEventListener("blur", reflect.reflectPresence);
@@ -1045,8 +1132,14 @@ export function createQuickControls({
     input.addEventListener("change", handleRateLimitChange);
     input.addEventListener("blur", reflect.reflectRateLimits);
   }
+  for (const input of screenKnobInputs.values()) {
+    input.addEventListener("change", handleScreenKnobChange);
+    input.addEventListener("blur", reflect.reflectScreen);
+  }
+  screenGapSlider?.addEventListener("input", handleScreenGapInput);
+  screenGapSlider?.addEventListener("change", handleScreenGapChange);
 
-  // Cue-list components — schedule in input tab .yui-cue-sections, proactive in Reactions tab .yui-loop-cue-section.
+  // Cue-list components — both in the Proactive tab: proactive in .yui-loop-cue-section, schedule in .yui-cue-sections.
   const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
 
   let scheduleCueList: CueListInstance | null = null;
@@ -1187,6 +1280,14 @@ export function createQuickControls({
     unsubscribeAgentNotify?.();
     unsubscribePresence?.();
     unsubscribeRateLimit?.();
+    unsubscribeScreen?.();
+    unsubscribeScreenKnobs?.();
+    for (const input of screenKnobInputs.values()) {
+      input.removeEventListener("change", handleScreenKnobChange);
+      input.removeEventListener("blur", reflect.reflectScreen);
+    }
+    screenGapSlider?.removeEventListener("input", handleScreenGapInput);
+    screenGapSlider?.removeEventListener("change", handleScreenGapChange);
     agentPortInput?.removeEventListener("change", handleAgentPortChange);
     presenceInput?.removeEventListener("change", handlePresenceChange);
     presenceInput?.removeEventListener("blur", reflect.reflectPresence);

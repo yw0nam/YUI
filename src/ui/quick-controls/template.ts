@@ -14,6 +14,9 @@ import {
   LANG_PICKER_ORDER,
   RAIL_COLLAPSE_SVG,
   RATE_LIMIT_FIELDS,
+  SCREEN_KNOB_FIELDS,
+  SCREEN_MIN_GAP_MAX,
+  SCREEN_MIN_GAP_MIN,
   SEG_LABEL_KEYS,
   TAB_ICON_ADV,
   TAB_ICON_CHAR,
@@ -25,6 +28,14 @@ import {
   VOICE_ENGINES,
 } from "./constants";
 import type { SwitchRow } from "./switch-row";
+
+/**
+ * Small round `?` that follows a section label whose name alone is not self-explanatory.
+ * The explanation is a native tooltip, so it costs no layout and needs no open/close state.
+ */
+function hintDotHtml(titleKey: string, ariaKey: string): string {
+  return `<button class="yui-hint-dot" type="button" title="${t(titleKey)}" aria-label="${t(ariaKey)}">?</button>`;
+}
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
 interface PanelHtmlOptions {
@@ -39,6 +50,8 @@ interface PanelHtmlOptions {
   /** Whether the express-motion section renders — true when the express-motion store is injected. */
   showExpressMotion: boolean;
   switchRows: readonly SwitchRow[];
+  /** Whether the screen-watch section renders — true when the screen flag store is injected. */
+  showScreen: boolean;
   showPresence: boolean;
   /** Whether the rate-limit cap rows render — true when the guardrails-override store is injected. */
   showRateLimits: boolean;
@@ -58,6 +71,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showIdleMotion,
     showExpressMotion,
     switchRows,
+    showScreen,
     showPresence,
     showRateLimits,
     showDevtools,
@@ -218,11 +232,41 @@ ${pad}</div>`;
           </div>`;
   }
 
-  // Rate-limit section (Reactions tab) — the rolling-window caps, one numeric row each.
+  // Screen-watch section (Proactive tab) — master toggle plus the knob group it reveals.
+  // The min-gap slider carries the .yui-gain markup; the four thresholds are numeric rows.
+  const screenHtml = showScreen
+    ? `
+        <span class="yui-quick__section">${t("screen.section")}${hintDotHtml("screen.hint_title", "screen.hint_aria")}</span>
+${switchRowsHtml("react", 8, "screen")}
+        <div class="yui-screen-knobs" hidden>
+          <div class="yui-gain">
+            <div class="yui-gain__head">
+              <span class="yui-gain__label">${t("screen.min_gap_label")}</span>
+              <span class="yui-gain__value yui-screen-gap__value"></span>
+            </div>
+            <input class="yui-gain__slider yui-screen-gap__slider" type="range"
+              min="${SCREEN_MIN_GAP_MIN}" max="${SCREEN_MIN_GAP_MAX}" step="1" aria-label="${t("screen.min_gap_aria")}" />
+          </div>
+${SCREEN_KNOB_FIELDS.map((f) =>
+  numRowHtml({
+    id: f.id,
+    labelKey: f.labelKey,
+    subKey: f.subKey,
+    min: f.min,
+    max: f.max,
+    suffixKey: f.suffixKey,
+  }),
+).join("")}
+          <p class="yui-field-hint">${t("screen.foot")}</p>
+        </div>
+        <div class="yui-quick__divider" aria-hidden="true"></div>`
+    : "";
+
+  // Rate-limit section (Proactive tab) — the rolling-window caps, one numeric row each.
   const rateLimitHtml = showRateLimits
     ? `
         <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">${t("reactions.rate_title")}</span>
+        <span class="yui-quick__section">${t("reactions.rate_title")}${hintDotHtml("reactions.rate_hint_title", "reactions.rate_hint_aria")}</span>
         <p class="yui-field-hint">${t("reactions.rate_hint")}</p>
 ${RATE_LIMIT_FIELDS.map((f) =>
   numRowHtml({ id: f.id, labelKey: f.labelKey, subKey: f.subKey, min: 1, max: RATE_LIMIT_MAX }),
@@ -313,7 +357,7 @@ ${RATE_LIMIT_FIELDS.map((f) =>
             ${TAB_ICON_ADV}
             <span class="yui-tab__label">${t("tabs.adv")}</span>
           </button>
-          <button class="yui-tab" type="button" role="tab" id="yui-tab-react" aria-selected="false" aria-controls="yui-panel-react" tabindex="-1" title="${t("tabs.react")}" aria-label="${t("tabs.react")}">
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-react" aria-selected="false" aria-controls="yui-panel-react" tabindex="-1" title="${t("tabs.react_hint")}" aria-label="${t("tabs.react")}">
             ${TAB_ICON_REACT}
             <span class="yui-tab__label">${t("tabs.react")}</span>
           </button>${
@@ -464,8 +508,6 @@ ${switchRowsHtml("talk", 10, "filler")}
       </div>
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-input" aria-labelledby="yui-tab-input" tabindex="0" hidden>
-        <div class="yui-cue-sections"></div>
-        <div class="yui-quick__divider" aria-hidden="true"></div>
         <div class="yui-row">
           <div class="yui-row__main">
             <span class="yui-row__label">
@@ -510,8 +552,9 @@ ${switchRowsHtml("input", 8)}
 ${switchRowsHtml("input", 8, "after-vad")}
       </div>
 
-      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-react" aria-labelledby="yui-tab-react" tabindex="0" hidden>
+      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-react" aria-labelledby="yui-tab-react" tabindex="0" hidden>${screenHtml}
         <div class="yui-loop-cue-section"></div>
+        <div class="yui-cue-sections"></div>
         <div class="yui-quick__divider" aria-hidden="true"></div>
         <span class="yui-quick__section">${t("reactions.watchers_title")}</span>
 ${switchRowsHtml("react", 8) || "        "}

@@ -20,6 +20,7 @@ function makeSwitchRows(): SwitchRow[] {
       initial: { enabled: false, language: "ja", customPools: {} },
     }),
     bubblePersistSettings: createFlagSettings(false),
+    screenSettings: createFlagSettings(false),
   });
 }
 
@@ -33,6 +34,7 @@ function render(switchRows: readonly SwitchRow[]): HTMLElement {
     showIdleMotion: false,
     showExpressMotion: false,
     switchRows,
+    showScreen: true,
     showPresence: false,
     showRateLimits: false,
     showDevtools: false,
