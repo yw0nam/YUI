@@ -86,7 +86,8 @@ export function createChatHistoryStore(opts?: {
     storage: opts?.storage,
     initial: opts?.initial,
     defaults: [],
-    parse: (v) => (v === null ? null : coerce(v)),
+    // A non-array is rejected so a corrupted stored value cannot erase the in-memory transcript.
+    parse: (v) => (Array.isArray(v) ? coerce(v) : null),
     fromInitial: coerce,
     equals: equalItems,
     clone: (v) => v.map((e) => ({ ...e })),
