@@ -37,6 +37,7 @@ function permissiveGuardrailsConfig(): GuardrailsConfig {
       os_event_watcher: 0,
       backend_push_source: 0,
       user_input_source: 0,
+      screen_watcher: 5000,
     },
     rate_limit: {
       window_ms: 3_600_000,

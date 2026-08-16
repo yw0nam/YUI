@@ -146,6 +146,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       proactiveSettings,
       scheduleSettings,
       agentNotifySettings,
+      screenSettings,
       presenceSettings,
       contextHistory,
       lipsyncSettings,
@@ -322,22 +323,27 @@ const realFactories: ConfiguredBootstrapFactories = {
     }
 
     dispatcher.start();
-    const { proactiveSource, scheduleSource, agentSource, signalsSource } = wireDispatcherSources({
-      bus,
-      presenceSettings,
-      proactiveSettings,
-      scheduleSettings,
-      agentNotifySettings,
-      pipelineBusy: {
-        isBusy: dispatcher.isPipelineBusy,
-        subscribe: dispatcher.subscribePipelineBusy,
-      },
-    });
+    const { proactiveSource, scheduleSource, agentSource, signalsSource, screenSource } =
+      wireDispatcherSources({
+        bus,
+        presenceSettings,
+        proactiveSettings,
+        scheduleSettings,
+        agentNotifySettings,
+        screenSettings,
+        getScreenConfig: () => config.get().screen,
+        subscribeBusy: dispatcher.subscribeBusy,
+        pipelineBusy: {
+          isBusy: dispatcher.isPipelineBusy,
+          subscribe: dispatcher.subscribePipelineBusy,
+        },
+      });
     proactiveSourceRef = proactiveSource;
     register(proactiveSource.stop);
     register(scheduleSource.stop);
     register(agentSource.stop);
     register(signalsSource.stop);
+    register(screenSource.stop);
     const tapSource = createTapSource({
       bus,
       renderer,

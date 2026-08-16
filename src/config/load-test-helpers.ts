@@ -52,6 +52,7 @@ export function goodFixture(): Record<string, unknown> {
         os_event_watcher: 5000,
         backend_push_source: 10000,
         user_input_source: 0,
+        screen_watcher: 5000,
       },
       rate_limit: {
         window_ms: 3600000,
@@ -71,6 +72,13 @@ export function goodFixture(): Record<string, unknown> {
       },
     },
     "hotkeys.json": { summon_global: "CmdOrCtrl+Shift+Y" },
+    "screen.json": {
+      prev_dwell_ms: 600000,
+      settle_ms: 90000,
+      long_session_ms: 2700000,
+      min_gap_ms: 300000,
+      quiet_after_turn_ms: 180000,
+    },
   };
 }
 

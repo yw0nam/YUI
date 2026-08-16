@@ -27,6 +27,7 @@ describe("createSettingsStores", () => {
       "proactiveSettings",
       "scheduleSettings",
       "workflowSettings",
+      "screenSettings",
       "agentNotifySettings",
       "presenceSettings",
       "contextHistory",

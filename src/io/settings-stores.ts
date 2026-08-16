@@ -69,6 +69,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const workflowSettings = createWorkflowSettings({
     storage: localStorageWorkflowStorage(),
   });
+  // Frontmost-transition (screen-change) proactive turns on/off. Default OFF until the UI toggle ships.
+  const screenSettings = createFlagSettings(false, { storage: localStorageStore("yui.screen") });
   // Agent notification on/off + listen port. Gates only source firing.
   const agentNotifySettings = createAgentNotifySettings({
     storage: localStorageAgentNotifyStorage(),
@@ -142,6 +144,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     proactiveSettings,
     scheduleSettings,
     workflowSettings,
+    screenSettings,
     agentNotifySettings,
     presenceSettings,
     contextHistory,
@@ -186,6 +189,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   proactiveSettings: "broadcast",
   scheduleSettings: "broadcast",
   workflowSettings: "broadcast",
+  screenSettings: "broadcast",
   agentNotifySettings: "broadcast",
   presenceSettings: "broadcast",
   contextHistory: "reload",

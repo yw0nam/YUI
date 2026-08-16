@@ -9,6 +9,7 @@
  *  - avatar.json             → AvatarConfig (vrm_url)
  *  - emotion_registry.json   → EmotionRegistry (emotion id → vrm_expression + fallback)
  *  - motions.json            → MotionRegistry (id → vrma_path + playback policy)
+ *  - screen.json             → ScreenConfig (frontmost-transition detector thresholds)
  *
  * This file does pure load + validation only (no side effects, reader injectable → testable). Hot-reload/
  * subscription is layered on by store.ts (createConfigStore), which wraps this loadConfig.
@@ -25,6 +26,7 @@ import { validateFiller } from "./validators/filler";
 import { validateGuardrails } from "./validators/guardrails";
 import { validateHotkeys } from "./validators/hotkeys";
 import { validateMotions } from "./validators/motions";
+import { validateScreen } from "./validators/screen";
 import { ConfigError } from "./validators/shared";
 
 export { ConfigError } from "./validators/shared";
@@ -172,6 +174,7 @@ export interface GuardrailsConfig {
     os_event_watcher: number;
     backend_push_source: number;
     user_input_source: number;
+    screen_watcher: number;
   };
   /** rolling rate-limit. */
   rate_limit: {
@@ -211,6 +214,23 @@ export interface FillerConfig {
   pools: Partial<Record<FillerLang, FillerPool>>;
 }
 
+/**
+ * configs/screen.json — frontmost-transition detector thresholds (screen-source).
+ * All five are surfaced as UI knobs; the client reads them live on every tick.
+ */
+export interface ScreenConfig {
+  /** The departed app must have held the foreground this long for a switch to count. */
+  prev_dwell_ms: number;
+  /** The new app must hold the foreground this long before the switch fires. */
+  settle_ms: number;
+  /** One app holding the foreground this long marks a long session, re-marking each period. */
+  long_session_ms: number;
+  /** Minimum spacing between screen fires. */
+  min_gap_ms: number;
+  /** No screen fire within this long of a backend turn from any producer. */
+  quiet_after_turn_ms: number;
+}
+
 /** configs/hotkeys.json — OS global-hotkey accelerators. */
 export interface HotkeysConfig {
   /** Global summon input (e.g. "CmdOrCtrl+Shift+Y"). Empty string / no key = disabled. */
@@ -226,6 +246,7 @@ export interface AppConfig {
   guardrails: GuardrailsConfig;
   filler: FillerConfig;
   hotkeys: HotkeysConfig;
+  screen: ScreenConfig;
 }
 
 /** AppConfig domain keys — the unit hot-reload uses to notify "what changed" (store.ts). */
@@ -240,6 +261,7 @@ export const CONFIG_FILES: Record<ConfigSection, string> = {
   guardrails: "guardrails.json",
   filler: "filler.json",
   hotkeys: "hotkeys.json",
+  screen: "screen.json",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -347,6 +369,7 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     guardrailsRaw,
     fillerRaw,
     hotkeysRaw,
+    screenRaw,
   ] = await Promise.all([
     read(CONFIG_FILES.endpoints),
     read(CONFIG_FILES.avatar),
@@ -355,6 +378,7 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     read(CONFIG_FILES.guardrails),
     read(CONFIG_FILES.filler),
     read(CONFIG_FILES.hotkeys),
+    read(CONFIG_FILES.screen),
   ]);
 
   return {
@@ -365,5 +389,6 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     guardrails: validateGuardrails(CONFIG_FILES.guardrails, guardrailsRaw),
     filler: validateFiller(CONFIG_FILES.filler, fillerRaw),
     hotkeys: validateHotkeys(CONFIG_FILES.hotkeys, hotkeysRaw),
+    screen: validateScreen(CONFIG_FILES.screen, screenRaw),
   };
 }

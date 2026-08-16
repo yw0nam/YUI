@@ -79,6 +79,7 @@ describe("loadConfig — guardrails", () => {
         os_event_watcher: 5000,
         backend_push_source: 10000,
         user_input_source: 0,
+        screen_watcher: 5000,
       },
       rate_limit: {
         window_ms: 3600000,
