@@ -64,6 +64,7 @@ import { createPinController, type PinController } from "./pin-controller";
 import { clampPixelRatio } from "./pixel-ratio";
 import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
 import { recenterClipRootMotion } from "./recenter-root-motion";
+import { clipCacheKey, playbackClip } from "./self-crossfade";
 import { clientToStage } from "./stage-coords";
 import {
   anyConverging,
@@ -643,7 +644,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     vrmaPath: string,
     mirrored: boolean,
   ): Promise<THREE.AnimationClip | null> {
-    const cacheKey = mirrored ? `${vrmaPath}#mirror` : vrmaPath;
+    const cacheKey = clipCacheKey(vrmaPath, mirrored);
     const cached = clipCache.get(cacheKey);
     if (cached) return cached;
     if (!currentVrm) return null;
@@ -699,19 +700,13 @@ export function createRenderer(options: RendererOptions): Renderer {
 
       const fadeMs = Math.max(0, motion.fade_ms);
       const prev = currentAction;
-      // self-crossfade cycle re-trigger: clipAction caches one action per clip, so
-      // re-playing the same clip returns prev === action and the crossfade is skipped.
-      // Swap to a cloned clip so the new action differs and crossFadeFrom can blend.
-      if (motion.cycle && fadeMs > 0 && prev && prev.getClip().uuid === clip.uuid) {
-        const activeClipKey = mirrored ? `${motion.vrma_path}#mirror` : motion.vrma_path;
-        const cloneKey = `${activeClipKey}#xfade`;
-        let cloneClip = clipCache.get(cloneKey);
-        if (!cloneClip) {
-          cloneClip = clip.clone();
-          clipCache.set(cloneKey, cloneClip);
-        }
-        clip = cloneClip;
-      }
+      clip = playbackClip(
+        motion.vrma_path,
+        mirrored,
+        prev ? prev.getClip() : null,
+        fadeMs,
+        clipCache,
+      );
 
       const action = mixer.clipAction(clip);
       action.timeScale = motion.speed;
@@ -728,6 +723,9 @@ export function createRenderer(options: RendererOptions): Renderer {
         action.clampWhenFinished = true;
         actionToId.set(action, motion.id);
       }
+      // The outgoing action keeps advancing during the fade and can still cross its own
+      // clip end, dispatching a stale "finished" for it once a new motion has replaced it.
+      if (prev && prev !== action) actionToId.delete(prev);
 
       const fade = fadeMs / 1000;
       action.reset();
