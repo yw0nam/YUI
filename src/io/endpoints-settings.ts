@@ -5,7 +5,12 @@
  */
 
 import type { EndpointsConfig } from "../contract";
-import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
+import {
+  createPersistedStore,
+  isPlainObject,
+  localStorageStore,
+  type PersistedStorage,
+} from "./persisted-store";
 import type { TtsProviderKind } from "./tts-provider";
 
 /** Max length per field (overly long storage values are capped, not reset to ""). */
@@ -237,7 +242,8 @@ export function createEndpointsSettings(opts?: {
     storage: opts?.storage,
     initial: opts?.initial,
     defaults: { ...EMPTY },
-    parse: (v) => (v === null ? null : coerce(v)),
+    // A non-object is rejected so a corrupted stored value cannot erase in-memory/initial overrides.
+    parse: (v) => (isPlainObject(v) ? coerce(v) : null),
     fromInitial: coerce,
     equals,
   });

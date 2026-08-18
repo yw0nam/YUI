@@ -232,6 +232,46 @@ describe("createAgentSettings — reloadFromStorage", () => {
     store.reloadFromStorage();
     expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "" });
   });
+
+  it("keeps the in-memory instructions when the stored value is corrupted", () => {
+    const storage = makeMemStorage();
+    const store = createAgentSettings({ storage });
+    store.setInstructions("user-authored");
+
+    storage._data = "garbage" as unknown as AgentSettings;
+    store.reloadFromStorage();
+
+    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "user-authored" });
+  });
+
+  it("keeps the in-memory instructions when the stored value is an array", () => {
+    const storage = makeMemStorage();
+    const store = createAgentSettings({ storage });
+    store.setInstructions("user-authored");
+
+    storage._data = [] as unknown as AgentSettings;
+    store.reloadFromStorage();
+
+    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "user-authored" });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createAgentSettings — bootstrap keeps initial over a corrupted stored value
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createAgentSettings — bootstrap keeps initial over a corrupted stored value", () => {
+  it("does not adopt a corrupted stored value when initial is provided", () => {
+    const storage: AgentStorage = {
+      load: () => "garbage" as unknown as AgentSettings,
+      save: vi.fn(),
+    };
+    const store = createAgentSettings({
+      storage,
+      initial: { reasoning_effort: "medium", instructions: "user-authored" },
+    });
+    expect(store.get()).toEqual({ reasoning_effort: "medium", instructions: "user-authored" });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
