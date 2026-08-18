@@ -64,6 +64,7 @@ import { createPinController, type PinController } from "./pin-controller";
 import { clampPixelRatio } from "./pixel-ratio";
 import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
 import { recenterClipRootMotion } from "./recenter-root-motion";
+import { selfCrossfadeClip } from "./self-crossfade";
 import { clientToStage } from "./stage-coords";
 import {
   anyConverging,
@@ -699,19 +700,14 @@ export function createRenderer(options: RendererOptions): Renderer {
 
       const fadeMs = Math.max(0, motion.fade_ms);
       const prev = currentAction;
-      // self-crossfade cycle re-trigger: clipAction caches one action per clip, so
-      // re-playing the same clip returns prev === action and the crossfade is skipped.
-      // Swap to a cloned clip so the new action differs and crossFadeFrom can blend.
-      if (motion.cycle && fadeMs > 0 && prev && prev.getClip().uuid === clip.uuid) {
-        const activeClipKey = mirrored ? `${motion.vrma_path}#mirror` : motion.vrma_path;
-        const cloneKey = `${activeClipKey}#xfade`;
-        let cloneClip = clipCache.get(cloneKey);
-        if (!cloneClip) {
-          cloneClip = clip.clone();
-          clipCache.set(cloneKey, cloneClip);
-        }
-        clip = cloneClip;
-      }
+      const activeClipKey = mirrored ? `${motion.vrma_path}#mirror` : motion.vrma_path;
+      clip = selfCrossfadeClip(
+        clip,
+        prev ? prev.getClip() : null,
+        fadeMs,
+        clipCache,
+        activeClipKey,
+      );
 
       const action = mixer.clipAction(clip);
       action.timeScale = motion.speed;
