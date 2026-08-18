@@ -10,6 +10,9 @@ mod screenshot;
 // Calendar-date-based log rotation.
 mod log_rotation;
 
+// Turn-record JSONL append command — speak-rate/suppression analysis source.
+mod turn_log;
+
 // Witness log — frontmost-app and idle transitions recorded to disk.
 #[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
 mod witness;
@@ -154,6 +157,17 @@ fn noisy_targets() -> &'static [(&'static str, log::LevelFilter)] {
     ]
 }
 
+/// Resolves the directory the app writes its own dated logs to: dev the repo's
+/// `<worktree>/logs/`, release the OS log dir (`~/Library/Logs/com.yui.desktop/` on macOS).
+/// Shared by the app-log sink and the turn-record JSONL sink, so both land side by side.
+fn log_dir(app: &tauri::App) -> tauri::Result<PathBuf> {
+    if cfg!(debug_assertions) {
+        Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../logs"))
+    } else {
+        app.path().app_log_dir()
+    }
+}
+
 fn date_rotating_target(dir: PathBuf, base: String, offset: UtcOffset) -> tauri_plugin_log::Target {
     let writer = log_rotation::DateRotatingFile::new(dir, base, "log", offset);
     let dispatch = tauri_plugin_log::fern::Dispatch::new().chain(
@@ -188,29 +202,22 @@ pub fn run() {
                 });
 
             let base = app.package_info().name.clone();
+            let dir = log_dir(app)?;
 
             if cfg!(debug_assertions) {
-                // Dev: write logs into the repo's <worktree>/logs/ for easy `tail -f logs/*.log`.
-                let dev_logs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../logs");
-                builder = builder
-                    .target(tauri_plugin_log::Target::new(
-                        tauri_plugin_log::TargetKind::Stdout,
-                    ))
-                    .target(date_rotating_target(dev_logs, base.clone(), log_offset));
-            } else {
-                // Release: standard OS log dir (~/Library/Logs/com.yui.desktop/ on macOS).
-                builder = builder.target(date_rotating_target(
-                    app.path().app_log_dir()?,
-                    base,
-                    log_offset,
+                // Dev: also mirror to stdout for `pnpm tauri dev` console output.
+                builder = builder.target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::Stdout,
                 ));
             }
+            builder = builder.target(date_rotating_target(dir.clone(), base, log_offset));
 
             for (target, level) in noisy_targets() {
                 builder = builder.level_for(*target, *level);
             }
 
             app.handle().plugin(builder.build())?;
+            app.manage(turn_log::TurnRecordLog::new(dir, log_offset));
 
             // Recover any `.{id}.import-tmp` / `.{id}.import-backup` left by a process death
             // mid-import, before the voice picker can read the references dir. Best-effort: an
@@ -238,6 +245,7 @@ pub fn run() {
             passthrough::set_click_through,
             agent_ingress::start_agent_ingress,
             agent_ingress::avatar_rpc_response,
+            turn_log::append_turn_record,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
