@@ -54,6 +54,7 @@ import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
 import { emotionTextModeFor, resolveTtsProviderKind } from "./io/tts-provider";
+import { appendRecord } from "./io/turn-record-log";
 import { createVoiceImportFlow } from "./io/voice-import-flow";
 import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeOrphanVrm, removeUserVrm } from "./io/vrm-import";
@@ -602,6 +603,7 @@ export function wireDispatcherSources(deps: {
     isEnabled: () => screenSettings.get().enabled,
     noteInteraction: proactiveSource.noteInteraction,
     subscribeBusy,
+    appendSkipRecord: (record) => appendRecord(record),
   });
   void screenSource.start();
   return { proactiveSource, scheduleSource, agentSource, signalsSource, screenSource };

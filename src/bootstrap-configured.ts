@@ -43,6 +43,7 @@ import type { SummonHotkey } from "./io/summon-hotkey";
 import { createTapSource } from "./io/tap-source";
 import { isTauri } from "./io/tauri-env";
 import { subscribeOsEvent } from "./io/tauri-listen";
+import { appendRecord } from "./io/turn-record-log";
 import { createLogger } from "./logger";
 import type { Renderer } from "./renderer";
 import { showChainResetNotice } from "./ui/chain-reset-notice";
@@ -244,6 +245,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       getBodyState: () => dispatcher.getBodyState(),
       getFrontmost: () => frontmostTracker.get(),
       contextHistory,
+      appendTurnRecord: (record) => appendRecord(record),
       getAgentSettings: () => agentSettings.get(),
       // Built per turn from the published vocabulary, so a live edit reaches the next tool schema.
       clientTools: () => createClientToolRegistry([createGenerateExpressTool(broker.vocabulary())]),

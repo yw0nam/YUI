@@ -26,6 +26,7 @@
 import type { ScreenConfig } from "../config";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import { subscribeOsEvent } from "../io/tauri-listen";
+import { buildSkipRecord, type SkipRecord } from "../io/turn-record-log";
 import { createLogger } from "../logger";
 import type { BusEnvelope, EventBus } from "./event-bus";
 
@@ -52,6 +53,8 @@ interface ScreenSourceDeps {
   noteInteraction?: () => void;
   /** Backend-turn busy edges — each one re-anchors the quiet-after-turn window. */
   subscribeBusy?: (cb: (busy: boolean) => void) => () => void;
+  /** Skip-record JSONL sink — best-effort disk log of suppressed fires for analysis. */
+  appendSkipRecord?: (record: SkipRecord) => void;
   /** Injectable channel listen; defaults to the resolved Tauri `listen`. */
   listen?: OsEventListen;
   /** Injectable clock; defaults to Date.now. */
@@ -163,8 +166,16 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
 
     if (transition !== undefined) {
       const reason = suppressionReason(t, present);
-      if (reason) log.info("fire.suppressed", { transition, reason, app: currentApp });
-      else fire(transition, t, held, from);
+      if (reason) {
+        log.info("fire.suppressed", { transition, reason, app: currentApp });
+        try {
+          deps.appendSkipRecord?.(buildSkipRecord({ ts: t, reason, transition }));
+        } catch (err) {
+          log.debug("skip_record_append_failed", { error: String(err) });
+        }
+      } else {
+        fire(transition, t, held, from);
+      }
     }
 
     if (!present) {

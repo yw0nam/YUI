@@ -35,6 +35,7 @@ import { buildCCMessages } from "../io/chat-completions";
 import { type ChatHistoryEntry, selectSendSuffix } from "../io/chat-history-store";
 import type { ClientToolRegistry } from "../io/client-tools";
 import type { ContextHistoryEntry } from "../io/context-history";
+import { buildTurnRecord, type TurnRecord } from "../io/turn-record-log";
 import type { Logger } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
@@ -191,6 +192,8 @@ interface BackendCallerDeps {
   };
   /** Local sent-context history, appended only after the turn is confirmed successful. */
   contextHistory?: { append(entry: ContextHistoryEntry): void };
+  /** Turn-record JSONL sink — best-effort disk log for speak-rate/suppression analysis. */
+  appendTurnRecord?: (record: TurnRecord) => void;
   /** Client-declared tool registry, resolved per turn so vocabulary edits land on the next call. */
   clientTools?: () => ClientToolRegistry;
   /** Structured logging (defaults to backend_caller namespace logger if absent). */
@@ -618,6 +621,19 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         trigger_kind: clientContext.trigger.kind,
         client_context: clientContext,
       });
+      try {
+        deps.appendTurnRecord?.(
+          buildTurnRecord({
+            ts: Date.now(),
+            event_name: env.event_name,
+            trigger_kind: clientContext.trigger.kind,
+            client_context: clientContext,
+            spoke_text: streamedAny || Boolean(envelope.speech_text),
+          }),
+        );
+      } catch (err) {
+        log.debug("turn_record_append_failed", { error: String(err) });
+      }
 
       return "ok";
     } finally {
