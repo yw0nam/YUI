@@ -724,6 +724,9 @@ export function createRenderer(options: RendererOptions): Renderer {
         action.clampWhenFinished = true;
         actionToId.set(action, motion.id);
       }
+      // The outgoing action keeps advancing during the fade and can still cross its own
+      // clip end, dispatching a stale "finished" for it once a new motion has replaced it.
+      if (prev && prev !== action) actionToId.delete(prev);
 
       const fade = fadeMs / 1000;
       action.reset();

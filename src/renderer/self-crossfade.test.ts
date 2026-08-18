@@ -29,6 +29,35 @@ describe("self-crossfade defect (bind-pose dip on same-action reset+fadeIn)", ()
   });
 });
 
+describe("three.js characterization: crossFadeFrom does not silence the outgoing action's own 'finished'", () => {
+  it("dispatches finished for the outgoing action mid-fade, motivating actionToId cleanup on replace", () => {
+    const root = new THREE.Object3D();
+    const mixer = new THREE.AnimationMixer(root);
+    const clip = makeClip(); // 1s duration
+
+    const outgoing = mixer.clipAction(clip);
+    outgoing.setLoop(THREE.LoopOnce, 1);
+    outgoing.clampWhenFinished = true;
+    outgoing.play();
+    mixer.update(0.95); // near the clip's own end
+
+    const incoming = mixer.clipAction(clip.clone());
+    incoming.reset();
+    incoming.enabled = true;
+    incoming.crossFadeFrom(outgoing, 0.2, false).play();
+
+    let finishedAction: THREE.AnimationAction | null = null;
+    mixer.addEventListener("finished", (e) => {
+      finishedAction = e.action;
+    });
+
+    // Crosses the outgoing clip's own end while the crossfade is still in progress.
+    mixer.update(0.1);
+
+    expect(finishedAction).toBe(outgoing);
+  });
+});
+
 describe("selfCrossfadeClip", () => {
   it("returns the input clip unchanged on first play (no prev clip)", () => {
     const clip = makeClip();
