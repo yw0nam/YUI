@@ -78,6 +78,7 @@ function setup(over: Partial<Parameters<typeof createScreenSource>[0]> = {}) {
   const { bus, pushed } = fakeBus();
   const { listen, emit, unlisten } = fakeListen();
   const noteInteraction = vi.fn();
+  const appendSkipRecord = vi.fn();
   let busyCb: ((busy: boolean) => void) | undefined;
   const unsubscribeBusy = vi.fn();
   const subscribeBusy = vi.fn((cb: (busy: boolean) => void) => {
@@ -94,6 +95,7 @@ function setup(over: Partial<Parameters<typeof createScreenSource>[0]> = {}) {
     subscribeBusy,
     listen,
     now: () => t,
+    appendSkipRecord,
     ...over,
   });
   return {
@@ -103,6 +105,7 @@ function setup(over: Partial<Parameters<typeof createScreenSource>[0]> = {}) {
     noteInteraction,
     subscribeBusy,
     unsubscribeBusy,
+    appendSkipRecord,
     at(ms: number, payload: OsEventPayload) {
       t = ms;
       emit(payload);
@@ -331,6 +334,85 @@ describe("screen_source — suppression", () => {
 
     s.at(45 * MIN, tick("Cursor"));
     expect(s.pushed).toHaveLength(1);
+  });
+});
+
+describe("screen_source — skip records", () => {
+  it("appends a skip record with reason=disabled and the transition kind", async () => {
+    const s = setup({ isEnabled: () => false });
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(45 * MIN, tick("Cursor"));
+
+    expect(s.pushed).toHaveLength(0);
+    expect(s.appendSkipRecord).toHaveBeenCalledOnce();
+    expect(s.appendSkipRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "skip",
+        source: "screen",
+        reason: "disabled",
+        transition: "long_session",
+      }),
+    );
+  });
+
+  it("appends a skip record with reason=not_present when the settling tick lands while away", async () => {
+    const s = setup();
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(10 * MIN, tick("Slack"));
+    s.at(10 * MIN + 90_000, tick("Slack", AWAY));
+
+    expect(s.pushed).toHaveLength(0);
+    expect(s.appendSkipRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "not_present", transition: "app_switched" }),
+    );
+  });
+
+  it("appends a skip record with reason=min_gap; the accepted fire itself does not append", async () => {
+    const s = setup();
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(45 * MIN, tick("Cursor")); // accepted long_session fire
+    expect(s.appendSkipRecord).not.toHaveBeenCalled();
+
+    s.at(45 * MIN + 1_000, tick("Slack"));
+    s.at(45 * MIN + 91_000, tick("Slack")); // switch within min_gap of the prior fire
+
+    expect(s.appendSkipRecord).toHaveBeenCalledOnce();
+    expect(s.appendSkipRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "min_gap", transition: "app_switched" }),
+    );
+  });
+
+  it("appends a skip record with reason=quiet_after_turn", async () => {
+    const s = setup();
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(10 * MIN, tick("Slack"));
+    s.turnAt(10 * MIN + 60_000);
+    s.at(10 * MIN + 90_000, tick("Slack"));
+
+    expect(s.appendSkipRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "quiet_after_turn", transition: "app_switched" }),
+    );
+  });
+
+  it("a throwing appendSkipRecord is swallowed — the source keeps ticking without throwing", async () => {
+    const s = setup({
+      isEnabled: () => false,
+      appendSkipRecord: vi.fn(() => {
+        throw new Error("disk full");
+      }),
+    });
+    await s.src.start();
+
+    expect(() => s.at(0, tick("Cursor"))).not.toThrow();
+    expect(() => s.at(45 * MIN, tick("Cursor"))).not.toThrow();
   });
 });
 

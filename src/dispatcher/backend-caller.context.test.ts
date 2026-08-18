@@ -125,6 +125,76 @@ describe("backend_caller — sent history", () => {
   });
 });
 
+describe("backend_caller — turn record log", () => {
+  it("appends one turn record per outcome, with spoke_text reflecting whether speech_text was non-empty", async () => {
+    const appendTurnRecord = vi.fn();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      appendTurnRecord,
+    });
+
+    script.events = [completedEvent({ speech_text: "hi" })];
+    await caller.call(turnOf(userEnv("안녕")));
+    expect(appendTurnRecord).toHaveBeenCalledOnce();
+    expect(appendTurnRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "turn",
+        event_name: "user.text_submitted",
+        trigger_kind: "user",
+        spoke_text: true,
+      }),
+    );
+
+    appendTurnRecord.mockClear();
+    script.events = [completedEvent({ speech_text: "" })];
+    await caller.call(turnOf(userEnv("조용히")));
+    expect(appendTurnRecord).toHaveBeenCalledOnce();
+    expect(appendTurnRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "turn", spoke_text: false }),
+    );
+  });
+
+  it("does not append a turn record for a dropped/unparsed turn (no completed envelope)", async () => {
+    const appendTurnRecord = vi.fn();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      appendTurnRecord,
+    });
+
+    script.events = [];
+    const outcome = await caller.call(turnOf(userEnv()));
+    expect(outcome).toBe("parse_error");
+    expect(appendTurnRecord).not.toHaveBeenCalled();
+  });
+
+  it("a throwing appendTurnRecord is swallowed — the turn still completes 'ok'", async () => {
+    const appendTurnRecord = vi.fn(() => {
+      throw new Error("disk full");
+    });
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      appendTurnRecord,
+    });
+
+    script.events = [completedEvent({ speech_text: "hi" })];
+    const outcome = await caller.call(turnOf(userEnv("안녕")));
+    expect(outcome).toBe("ok");
+    expect(appendTurnRecord).toHaveBeenCalledOnce();
+  });
+});
+
 describe("backend_caller — screenshot port", () => {
   const SCREENSHOT: NonNullable<InputContext["screenshot"]> = {
     enabled: true,
