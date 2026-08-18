@@ -94,7 +94,7 @@ tool-calls with flat arguments `{ emotion_id?, motion_id?, emotion_text? }`.
 Broker publishes so the agent knows what it can ask for. This is carried in
 full over Responses mode today; see [Backend wiring](#backend-wiring) for how
 it differs by chat protocol and backend. The full cue contract handed to the
-backend lives in [`docs/reference/backend-contract.md`](docs/reference/backend-contract.md).
+backend lives in [`docs/reference/client-context.md`](docs/reference/client-context.md).
 
 ## Stack
 
@@ -216,7 +216,7 @@ level with `VITE_YUI_LOG_LEVEL` (`debug` · `info` · `warn` · `error`).
 - [`AGENTS.md`](AGENTS.md) — project orientation (architecture, core principle, doc index); development work rules and the delegation model live in the `yui-dev-workflow` skill
 - [`PRODUCT.md`](PRODUCT.md) / [`DESIGN.md`](DESIGN.md) — product register + design system
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md) — install and wiring (broker · agent · TTS · STT · VRM)
-- [`docs/reference/backend-contract.md`](docs/reference/backend-contract.md) — the `generate_express` cue contract
+- [`docs/reference/client-context.md`](docs/reference/client-context.md) — the `generate_express` cue contract
 - [`docs/reference/motions.md`](docs/reference/motions.md) — motion catalog
 - [`docs/reference/tts-emotion/`](docs/reference/tts-emotion/) — per-provider `emotion_text` voice tags
 - [`docs/reference/logging.md`](docs/reference/logging.md) — logging convention

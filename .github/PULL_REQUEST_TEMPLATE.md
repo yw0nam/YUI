@@ -7,7 +7,7 @@
 <!-- Closes #__ -->
 
 ## Related decisions / docs
-<!-- Touched docs: docs/reference/backend-contract.md -->
+<!-- Touched docs: docs/reference/client-context.md -->
 
 ## Runtime evidence (required for UI / DOM / runtime behavior)
 <!-- Unit tests are not runtime verification. For any visible or behavioral
@@ -23,7 +23,7 @@
 - [ ] Runtime evidence attached above, or N/A justified
 
 ## Checklist (YUI principles)
-- [ ] Schema changes update `docs/reference/backend-contract.md` alongside the code
+- [ ] Schema changes update `docs/reference/client-context.md` alongside the code
 - [ ] No unverified assumptions (docs first; web/context7 cross-check)
 - [ ] No brain in the client — judgment/persona/mode live in the backend (firing ≠ judgment)
 - [ ] No inline control tags — emotion/motion only via `generate_express` tool-call arguments

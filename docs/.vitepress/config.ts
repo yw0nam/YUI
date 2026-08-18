@@ -40,7 +40,7 @@ export default defineConfig({
       {
         text: 'Reference',
         items: [
-          { text: 'Backend Contract', link: '/reference/backend-contract' },
+          { text: 'Client Context', link: '/reference/client-context' },
           { text: 'Motions', link: '/reference/motions' },
           { text: 'Logging', link: '/reference/logging' },
           { text: 'Witness Log', link: '/reference/witness-log' },
@@ -61,7 +61,7 @@ export default defineConfig({
         {
           text: 'Reference',
           items: [
-            { text: 'Backend Contract', link: '/reference/backend-contract' },
+            { text: 'Client Context', link: '/reference/client-context' },
             { text: 'Motions', link: '/reference/motions' },
             { text: 'Logging', link: '/reference/logging' },
             { text: 'Witness Log', link: '/reference/witness-log' },

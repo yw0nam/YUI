@@ -2,4 +2,4 @@ blank_issues_enabled: false
 contact_links:
   - name: 설계 문서 (docs/)
     url: https://github.com/yw0nam/YUI/tree/main/docs
-    about: Review PRODUCT.md and docs/reference/backend-contract.md before opening an issue
+    about: Review PRODUCT.md and docs/reference/client-context.md before opening an issue

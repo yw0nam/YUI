@@ -6,7 +6,7 @@ labels: ["feature"]
 ---
 
 ## Related decisions
-<!-- Example: F4 Output, D-TTS-PIPELINE. See docs/reference/backend-contract.md. -->
+<!-- Example: F4 Output, D-TTS-PIPELINE. See docs/reference/client-context.md. -->
 - Feature:
 - Decision log (D-*):
 - Milestone (M0–M4):
@@ -25,7 +25,7 @@ labels: ["feature"]
 - `docs/`:
 
 ## Checklist
-- [ ] Schema changes update `docs/reference/backend-contract.md` before the code
+- [ ] Schema changes update `docs/reference/client-context.md` before the code
 - [ ] No unverified assumptions (web/context7 cross-check, then record in docs if needed)
 - [ ] No brain in the client (firing ≠ judgment)
 - [ ] `cargo check` + `pnpm build` pass
