@@ -64,7 +64,7 @@ import { createPinController, type PinController } from "./pin-controller";
 import { clampPixelRatio } from "./pixel-ratio";
 import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
 import { recenterClipRootMotion } from "./recenter-root-motion";
-import { selfCrossfadeClip } from "./self-crossfade";
+import { clipCacheKey, playbackClip } from "./self-crossfade";
 import { clientToStage } from "./stage-coords";
 import {
   anyConverging,
@@ -644,7 +644,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     vrmaPath: string,
     mirrored: boolean,
   ): Promise<THREE.AnimationClip | null> {
-    const cacheKey = mirrored ? `${vrmaPath}#mirror` : vrmaPath;
+    const cacheKey = clipCacheKey(vrmaPath, mirrored);
     const cached = clipCache.get(cacheKey);
     if (cached) return cached;
     if (!currentVrm) return null;
@@ -700,13 +700,12 @@ export function createRenderer(options: RendererOptions): Renderer {
 
       const fadeMs = Math.max(0, motion.fade_ms);
       const prev = currentAction;
-      const activeClipKey = mirrored ? `${motion.vrma_path}#mirror` : motion.vrma_path;
-      clip = selfCrossfadeClip(
-        clip,
+      clip = playbackClip(
+        motion.vrma_path,
+        mirrored,
         prev ? prev.getClip() : null,
         fadeMs,
         clipCache,
-        activeClipKey,
       );
 
       const action = mixer.clipAction(clip);
