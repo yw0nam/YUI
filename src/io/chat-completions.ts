@@ -32,7 +32,7 @@ export type CCMessage =
 
 interface BuildCCMessagesOpts {
   instructions?: string;
-  clientContextJson: string;
+  clientContextText: string;
   transcript: ChatHistoryEntry[];
   userText: string;
   imageDataUrls?: string[];
@@ -44,7 +44,7 @@ export function buildCCMessages(opts: BuildCCMessagesOpts): CCMessage[] {
   if (opts.instructions) {
     messages.push({ role: "system", content: opts.instructions });
   }
-  messages.push({ role: "system", content: `client_context: ${opts.clientContextJson}` });
+  messages.push({ role: "system", content: `client_context:\n${opts.clientContextText}` });
 
   for (const entry of opts.transcript) {
     messages.push({ role: entry.role, content: entry.text });

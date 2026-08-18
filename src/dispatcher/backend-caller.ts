@@ -38,6 +38,7 @@ import type { ContextHistoryEntry } from "../io/context-history";
 import type { Logger } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
+import { renderClientContext } from "./client-context-text";
 import { buildContext, imageDataUrlsOf } from "./context-builder";
 import type { BusEnvelope } from "./event-bus";
 import type { Turn } from "./turn";
@@ -256,11 +257,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     ctx: InputContext,
     env: BusEnvelope,
     clientContext: Awaited<ReturnType<typeof buildContext>>["clientContext"],
+    nowMs: number,
   ): ChatRequest["input"] {
     const text = [
       "<client_context>",
       "Client-injected context; not typed by the user.",
-      JSON.stringify(clientContext),
+      renderClientContext(clientContext, nowMs),
       "</client_context>",
       "",
       ctx.user_text ?? backgroundMarker(env.event_name, clientContext.trigger),
@@ -330,7 +332,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         getFrontmost: deps.getFrontmost,
         onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
       });
-      const input = encodeInput(ctx, env, clientContext);
+      // Single "now" snapshot reused for every duration computed into this turn's rendered
+      // client_context (Responses input and CC system message alike) so both stay consistent.
+      const nowMs = Date.now();
+      const input = encodeInput(ctx, env, clientContext, nowMs);
       log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 
       // B2: After resolving fetch/apiKey, streamChat. Pass externalSignal as-is (delegate abort).
@@ -375,7 +380,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         const imageDataUrls = imageDataUrlsOf(ctx);
         request.messages = buildCCMessages({
           ...(effectiveInstructions ? { instructions: effectiveInstructions } : {}),
-          clientContextJson: JSON.stringify(clientContext),
+          clientContextText: renderClientContext(clientContext, nowMs),
           transcript: ccTranscript,
           userText: ctx.user_text ?? backgroundMarker(env.event_name, clientContext.trigger),
           ...(imageDataUrls.length ? { imageDataUrls } : {}),
