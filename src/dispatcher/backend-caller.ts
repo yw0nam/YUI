@@ -584,7 +584,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       } else {
         log.info("empty_speech", { trigger: env.event_name });
       }
-      deps.reportSpokeText?.(streamedAny || Boolean(envelope.speech_text));
+      const spokeText = streamedAny || Boolean(envelope.speech_text);
+      deps.reportSpokeText?.(spokeText);
 
       // Conversation state progress (Responses only): persist only at this point after passing all
       // post-stream guards (abort / streamError / !envelope). Only when start-time id unchanged —
@@ -628,7 +629,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
             event_name: env.event_name,
             trigger_kind: clientContext.trigger.kind,
             client_context: clientContext,
-            spoke_text: streamedAny || Boolean(envelope.speech_text),
+            spoke_text: spokeText,
           }),
         );
       } catch (err) {

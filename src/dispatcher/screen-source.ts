@@ -26,7 +26,7 @@
 import type { ScreenConfig } from "../config";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import { subscribeOsEvent } from "../io/tauri-listen";
-import { buildSkipRecord, type SkipRecord } from "../io/turn-record-log";
+import { buildSkipRecord, type ScreenSkipReason, type SkipRecord } from "../io/turn-record-log";
 import { createLogger } from "../logger";
 import type { BusEnvelope, EventBus } from "./event-bus";
 
@@ -34,7 +34,7 @@ const log = createLogger("screen-source");
 
 type ScreenTransition = "app_switched" | "long_session";
 
-type SuppressionReason = "disabled" | "not_present" | "min_gap" | "quiet_after_turn";
+type SuppressionReason = ScreenSkipReason;
 
 /** The app left behind by an identity change, awaiting the new app's settle. */
 interface PendingSwitch {

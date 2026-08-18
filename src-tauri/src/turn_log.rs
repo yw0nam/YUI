@@ -29,7 +29,9 @@ impl TurnRecordLog {
 
     fn append_line(&self, line: &str) -> std::io::Result<()> {
         let mut file = self.0.lock().unwrap_or_else(|e| e.into_inner());
-        writeln!(file, "{line}")
+        // Single write_all call: writeln! issues two writes (body, then newline), and a
+        // midnight rollover between them would split the line across two day files.
+        file.write_all(format!("{line}\n").as_bytes())
     }
 }
 
@@ -81,10 +83,14 @@ mod tests {
     }
 
     #[test]
-    fn append_line_writes_nothing_to_a_sibling_directory() {
+    fn append_line_creates_exactly_one_file_in_the_dir() {
         let dir = scratch("isolated");
         let log = TurnRecordLog::new(dir.clone(), UtcOffset::UTC);
         log.append_line(r#"{"a":1}"#).unwrap();
-        assert!(!dir.join("YUI.log").exists());
+        log.append_line(r#"{"a":2}"#).unwrap();
+
+        let entries: Vec<_> = std::fs::read_dir(&dir).unwrap().collect();
+        assert_eq!(entries.len(), 1, "expected exactly one file in {dir:?}");
+        assert_eq!(entries[0].as_ref().unwrap().path(), todays_path(&dir));
     }
 }

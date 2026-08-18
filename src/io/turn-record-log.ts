@@ -30,7 +30,7 @@ export interface SkipRecord {
   ts: number;
   source: "screen";
   reason: ScreenSkipReason;
-  transition: string;
+  transition: "app_switched" | "long_session";
 }
 
 export function buildTurnRecord(fields: Omit<TurnRecord, "type">): TurnRecord {
@@ -57,8 +57,8 @@ async function defaultDeps(): Promise<TurnRecordLogDeps | undefined> {
  * write (no Tauri runtime, IPC error, etc.) is caught and logged at debug.
  */
 export function appendRecord(record: TurnRecord | SkipRecord, deps?: TurnRecordLogDeps): void {
-  const line = JSON.stringify(record);
   const run = async () => {
+    const line = JSON.stringify(record);
     const d = deps ?? (await defaultDeps());
     if (!d) return;
     await d.invoke("append_turn_record", { line });

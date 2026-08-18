@@ -59,7 +59,7 @@ Alongside the app log, `turns_YYYY-MM-DD.jsonl` accumulates one JSON line per co
 
 Two record shapes, distinguished by `type`:
 
-- `{"type":"turn","ts","event_name","trigger_kind","client_context",spoke_text}` — one per completed turn. `client_context` is the same object sent to the backend; `spoke_text` is `false` when the backend returned no/empty speech.
-- `{"type":"skip","ts","source":"screen","reason","transition"}` — one per screen-source fire suppressed before it became a turn. `reason` is one of `disabled` / `not_present` / `min_gap` / `quiet_after_turn`; `transition` is the screen transition kind (`app_switched` / `long_session`) that was suppressed.
+- `{"type":"turn","ts","event_name","trigger_kind","client_context",spoke_text}` — one per completed turn, `ts` the moment the turn completed. `client_context` is the same object sent to the backend; `spoke_text` is `false` when the backend returned no/empty speech.
+- `{"type":"skip","ts","source":"screen","reason","transition"}` — one per screen-source fire suppressed before it became a turn, `ts` the moment the suppressed candidate arose. `reason` is one of `disabled` / `not_present` / `min_gap` / `quiet_after_turn`; `transition` is the screen transition kind (`app_switched` / `long_session`) that was suppressed.
 
 The capped `yui.context-history` (localStorage, last 20 entries) stays the DevTools Context Inspector's source; this file is the disk-backed, uncapped one.
