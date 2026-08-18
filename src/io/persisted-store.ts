@@ -37,6 +37,11 @@ export function localStorageStore<T>(key: string): PersistedStorage<T> {
   };
 }
 
+/** True for a loaded value that could plausibly hold a settings shape's fields — not null, not an array. */
+export function isPlainObject(v: unknown): boolean {
+  return v !== null && typeof v === "object" && !Array.isArray(v);
+}
+
 interface PersistedStoreConfig<T> {
   storage?: PersistedStorage<T>;
   initial?: T;

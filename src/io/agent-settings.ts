@@ -3,7 +3,12 @@
  * Persists to storage on change and notifies subscribers.
  */
 
-import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
+import {
+  createPersistedStore,
+  isPlainObject,
+  localStorageStore,
+  type PersistedStorage,
+} from "./persisted-store";
 
 export type ReasoningEffort = "none" | "minimal" | "low" | "medium";
 export const REASONING_EFFORTS: readonly ReasoningEffort[] = ["none", "minimal", "low", "medium"];
@@ -44,7 +49,7 @@ export function createAgentSettings(opts?: { storage?: AgentStorage; initial?: A
     initial: opts?.initial,
     defaults: { ...DEFAULT_SETTINGS },
     // A non-object is rejected so a corrupted stored value cannot erase in-memory/initial settings.
-    parse: (v) => (v !== null && typeof v === "object" && !Array.isArray(v) ? coerce(v) : null),
+    parse: (v) => (isPlainObject(v) ? coerce(v) : null),
     fromInitial: coerce,
     equals: (a, b) =>
       a.reasoning_effort === b.reasoning_effort && a.instructions === b.instructions,

@@ -86,7 +86,8 @@ export function createChatHistoryStore(opts?: {
     storage: opts?.storage,
     initial: opts?.initial,
     defaults: [],
-    // A non-array, or a non-empty array that coerces to empty, is rejected so a corrupted stored value cannot erase the in-memory transcript.
+    // A non-array, or a non-empty array that coerces to empty, is rejected so a corrupted
+    // stored value cannot erase the in-memory transcript.
     parse: (v) => {
       if (!Array.isArray(v)) return null;
       const coerced = coerce(v);

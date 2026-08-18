@@ -5,7 +5,12 @@
  */
 
 import type { ScreenConfig } from "../config/load";
-import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
+import {
+  createPersistedStore,
+  isPlainObject,
+  localStorageStore,
+  type PersistedStorage,
+} from "./persisted-store";
 
 /** Largest threshold accepted (24 h) — a stored value above it counts as no override. */
 export const SCREEN_MS_MAX = 86_400_000;
@@ -88,7 +93,8 @@ export function createScreenKnobSettings(opts?: {
     storage: opts?.storage,
     initial: opts?.initial,
     defaults: { ...EMPTY },
-    parse: (v) => (v === null ? null : coerce(v)),
+    // A non-object is rejected so a corrupted stored value cannot erase in-memory/initial thresholds.
+    parse: (v) => (isPlainObject(v) ? coerce(v) : null),
     fromInitial: coerce,
     equals,
   });
