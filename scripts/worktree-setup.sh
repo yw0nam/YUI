@@ -49,7 +49,13 @@ link_asset() {
 if [ -d "$MAIN/resources/vrms" ]; then
   mkdir -p "$WT/resources/vrms"
   for f in "$MAIN/resources/vrms"/*.vrm; do
-    [ -e "$f" ] && link_asset "$f" "$WT/resources/vrms/$(basename "$f")"
+    [ -e "$f" ] || continue
+    rel="resources/vrms/$(basename "$f")"
+    if git -C "$WT" ls-files --error-unmatch "$rel" >/dev/null 2>&1; then
+      echo "worktree-setup: skip (tracked): $rel"
+      continue
+    fi
+    link_asset "$f" "$WT/$rel"
   done
 fi
 # Purchased motions: AGENTS.md is tracked but the .vrma files are gitignored, so the
