@@ -236,6 +236,17 @@ describe("createEndpointsSettings — reloadFromStorage", () => {
 
     expect(store.get()).toEqual({ ...EMPTY, chat_base_url: "http://a", chat_model: "user-model" });
   });
+
+  it("keeps the in-memory overrides when the stored value is an array", () => {
+    const storage = makeMemStorage();
+    const store = createEndpointsSettings({ storage });
+    store.set({ chat_base_url: "http://a", chat_model: "user-model" });
+
+    storage._data = [] as unknown as EndpointOverrides;
+    store.reloadFromStorage();
+
+    expect(store.get()).toEqual({ ...EMPTY, chat_base_url: "http://a", chat_model: "user-model" });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -243,6 +243,17 @@ describe("createAgentSettings — reloadFromStorage", () => {
 
     expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "user-authored" });
   });
+
+  it("keeps the in-memory instructions when the stored value is an array", () => {
+    const storage = makeMemStorage();
+    const store = createAgentSettings({ storage });
+    store.setInstructions("user-authored");
+
+    storage._data = [] as unknown as AgentSettings;
+    store.reloadFromStorage();
+
+    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "user-authored" });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

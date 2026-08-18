@@ -93,6 +93,29 @@ describe("screen knob settings — store shape", () => {
     store.reloadFromStorage();
     expect(store.get().long_session_ms).toBe(1_800_000);
   });
+
+  it("does not adopt a corrupted stored value when initial is provided", () => {
+    const storage: ScreenKnobStorage = {
+      load: () => "garbage" as unknown as ScreenOverrides,
+      save: vi.fn(),
+    };
+    const store = createScreenKnobSettings({
+      storage,
+      initial: { ...NONE, prev_dwell_ms: 5_000 },
+    });
+    expect(store.get()).toEqual({ ...NONE, prev_dwell_ms: 5_000 });
+  });
+
+  it("reloadFromStorage ignores a corrupted stored value and keeps in-memory thresholds", () => {
+    const storage = inMemoryStorage();
+    const store = createScreenKnobSettings({ storage });
+    store.set({ prev_dwell_ms: 5_000 });
+
+    storage.load = () => "garbage" as unknown as ScreenOverrides;
+    store.reloadFromStorage();
+
+    expect(store.get().prev_dwell_ms).toBe(5_000);
+  });
 });
 
 describe("screen knob settings — store over config", () => {
