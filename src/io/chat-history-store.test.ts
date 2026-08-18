@@ -448,6 +448,48 @@ describe("createChatHistoryStore — persist + reload", () => {
     ]);
     expect(storage._data).toEqual(store.get());
   });
+
+  it("append keeps the in-memory transcript when the stored array is all invalid items", () => {
+    const storage = makeMemStorage();
+    const store = createChatHistoryStore({ storage });
+    store.append(entry("user", "first", 1));
+    store.append(entry("assistant", "second", 2));
+
+    storage._data = [{ bogus: true }] as unknown as ChatHistoryItem[];
+    store.append(entry("user", "third", 3));
+
+    expect(store.get()).toEqual([
+      entry("user", "first", 1),
+      entry("assistant", "second", 2),
+      entry("user", "third", 3),
+    ]);
+    expect(storage._data).toEqual(store.get());
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createChatHistoryStore — bootstrap keeps initial over a corrupted stored value
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createChatHistoryStore — bootstrap keeps initial over a corrupted stored value", () => {
+  it("a stored array of all-invalid items does not override initial", () => {
+    const validItem = entry("user", "seed", 1);
+    const storage: ChatHistoryStorage = {
+      load: () => [{ bogus: true }] as unknown as ChatHistoryItem[],
+      save: vi.fn(),
+    };
+    const store = createChatHistoryStore({ storage, initial: [validItem] });
+    expect(store.get()).toEqual([validItem]);
+  });
+
+  it("a stored empty array still overrides initial (cleared history)", () => {
+    const storage: ChatHistoryStorage = {
+      load: () => [],
+      save: vi.fn(),
+    };
+    const store = createChatHistoryStore({ storage, initial: [entry("user", "seed", 1)] });
+    expect(store.get()).toEqual([]);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

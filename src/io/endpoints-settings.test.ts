@@ -225,6 +225,35 @@ describe("createEndpointsSettings — reloadFromStorage", () => {
     store.reloadFromStorage();
     expect(store.get()).toEqual(EMPTY);
   });
+
+  it("keeps the in-memory overrides when the stored value is corrupted", () => {
+    const storage = makeMemStorage();
+    const store = createEndpointsSettings({ storage });
+    store.set({ chat_base_url: "http://a", chat_model: "user-model" });
+
+    storage._data = "garbage" as unknown as EndpointOverrides;
+    store.reloadFromStorage();
+
+    expect(store.get()).toEqual({ ...EMPTY, chat_base_url: "http://a", chat_model: "user-model" });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createEndpointsSettings — bootstrap keeps initial over a corrupted stored value
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createEndpointsSettings — bootstrap keeps initial over a corrupted stored value", () => {
+  it("does not adopt a corrupted stored value when initial is provided", () => {
+    const storage: EndpointsStorage = {
+      load: () => "garbage" as unknown as EndpointOverrides,
+      save: vi.fn(),
+    };
+    const store = createEndpointsSettings({
+      storage,
+      initial: { ...EMPTY, chat_base_url: "http://a", chat_model: "user-model" },
+    });
+    expect(store.get()).toEqual({ ...EMPTY, chat_base_url: "http://a", chat_model: "user-model" });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
