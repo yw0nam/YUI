@@ -15,6 +15,7 @@ import {
   clientContextJsonOf,
   completedEvent,
   createScriptedStream,
+  deltaEvent,
   makeLogger,
   makeTurnOutput,
   turnOf,
@@ -155,6 +156,26 @@ describe("backend_caller — turn record log", () => {
     expect(appendTurnRecord).toHaveBeenCalledOnce();
     expect(appendTurnRecord).toHaveBeenCalledWith(
       expect.objectContaining({ type: "turn", spoke_text: false }),
+    );
+  });
+
+  it("streaming path (delta drove speech, completed carries empty speech_text) → spoke_text: true", async () => {
+    const appendTurnRecord = vi.fn();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      appendTurnRecord,
+    });
+
+    script.events = [deltaEvent("안녕"), completedEvent({ speech_text: "" })];
+    await caller.call(turnOf(userEnv("안녕")));
+    expect(appendTurnRecord).toHaveBeenCalledOnce();
+    expect(appendTurnRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "turn", spoke_text: true }),
     );
   });
 
