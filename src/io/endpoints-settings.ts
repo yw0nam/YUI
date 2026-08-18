@@ -237,7 +237,8 @@ export function createEndpointsSettings(opts?: {
     storage: opts?.storage,
     initial: opts?.initial,
     defaults: { ...EMPTY },
-    parse: (v) => (v === null ? null : coerce(v)),
+    // A non-object is rejected so a corrupted stored value cannot erase in-memory/initial overrides.
+    parse: (v) => (v !== null && typeof v === "object" && !Array.isArray(v) ? coerce(v) : null),
     fromInitial: coerce,
     equals,
   });

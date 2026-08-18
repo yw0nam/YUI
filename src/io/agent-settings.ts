@@ -43,7 +43,8 @@ export function createAgentSettings(opts?: { storage?: AgentStorage; initial?: A
     storage: opts?.storage,
     initial: opts?.initial,
     defaults: { ...DEFAULT_SETTINGS },
-    parse: (v) => (v === null ? null : coerce(v)),
+    // A non-object is rejected so a corrupted stored value cannot erase in-memory/initial settings.
+    parse: (v) => (v !== null && typeof v === "object" && !Array.isArray(v) ? coerce(v) : null),
     fromInitial: coerce,
     equals: (a, b) =>
       a.reasoning_effort === b.reasoning_effort && a.instructions === b.instructions,
