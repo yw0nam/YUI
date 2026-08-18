@@ -69,8 +69,11 @@
 }
 
 /* ── Collapsed row layout ── */
+/* Wraps when the name row and trigger controls cannot share one line (narrow quick panel);
+   in the wide settings window everything fits and no wrap occurs. */
 .yui-cue__collapsed {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   padding: 0.42rem 0.5rem;
@@ -79,7 +82,7 @@
 /* Name + preview toggle button — looks like a label row but has no box/border */
 .yui-cue__label {
   flex: 1;
-  min-width: 0;
+  min-width: 7rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -117,22 +120,25 @@
   transform: rotate(90deg);
 }
 
-/* Cue name */
+/* Cue name — shrinks with ellipsis so a long name never paints over the trigger controls */
 .yui-cue__name {
   font-size: 0.84rem;
   font-weight: 550;
   color: var(--yui-text);
   white-space: nowrap;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   min-width: 3.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Trigger area */
+/* Trigger area — right-aligned when wrapped onto its own line */
 .yui-cue__trigger {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 0.28rem;
+  margin-left: auto;
 }
 
 /* Time input */
