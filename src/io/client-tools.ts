@@ -56,7 +56,7 @@ export function createClientToolRegistry(tools: readonly ClientTool[]): ClientTo
 
 /**
  * The cue contract in the words the model reads before calling. Full statement of it:
- * docs/reference/backend-contract.md. Body motion drops out of the sentence when the curated
+ * docs/reference/client-context.md. Body motion drops out of the sentence when the curated
  * vocabulary carries no motion, so the description never promises a parameter the schema omits.
  */
 function expressDescription(withMotion: boolean): string {

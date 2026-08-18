@@ -17,7 +17,7 @@ The model behind the active chat endpoint produces `emotion_text` via a
 prepends it to the TTS segment (prefix-only — never shown in the speech
 bubble). The `generate_express` cue contract that carries
 `emotion_text` is described in
-[`backend-contract.md`](../backend-contract.md);
+[`client-context.md`](../client-context.md);
 the control envelope shape lives in
 [`src/contract/types.ts`](https://github.com/yw0nam/YUI/blob/main/src/contract/types.ts).
 
@@ -55,7 +55,7 @@ agent exactly like Responses mode.
 
 ## See also
 
-- [`backend-contract.md`](../backend-contract.md) —
+- [`client-context.md`](../client-context.md) —
   the `generate_express` cue contract handed to the backend agent (the
   `emotion_id` / `motion_id` / `emotion_text` fields and streaming shape).
 - [`src/contract/types.ts`](https://github.com/yw0nam/YUI/blob/main/src/contract/types.ts) — the control

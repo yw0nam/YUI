@@ -19,12 +19,15 @@ import type { ChatHistoryEntry } from "./chat-history-store";
 describe("buildCCMessages", () => {
   it("omits the instructions system message when instructions is empty/undefined", () => {
     const msgs = buildCCMessages({
-      clientContextJson: '{"env":{}}',
+      clientContextText: "time: 2026-08-18T10:00:00+09:00 (Asia/Seoul)",
       transcript: [],
       userText: "hi",
     });
     expect(msgs).toEqual([
-      { role: "system", content: 'client_context: {"env":{}}' },
+      {
+        role: "system",
+        content: "client_context:\ntime: 2026-08-18T10:00:00+09:00 (Asia/Seoul)",
+      },
       { role: "user", content: "hi" },
     ]);
   });
@@ -32,12 +35,12 @@ describe("buildCCMessages", () => {
   it("includes the instructions system message first when non-empty", () => {
     const msgs = buildCCMessages({
       instructions: "be terse",
-      clientContextJson: "{}",
+      clientContextText: "trigger: user message",
       transcript: [],
       userText: "hi",
     });
     expect(msgs[0]).toEqual({ role: "system", content: "be terse" });
-    expect(msgs[1]).toEqual({ role: "system", content: "client_context: {}" });
+    expect(msgs[1]).toEqual({ role: "system", content: "client_context:\ntrigger: user message" });
   });
 
   it("maps transcript entries to role/content messages in order", () => {
@@ -46,12 +49,12 @@ describe("buildCCMessages", () => {
       { role: "assistant", text: "prior assistant turn", ts: 2 },
     ];
     const msgs = buildCCMessages({
-      clientContextJson: "{}",
+      clientContextText: "trigger: user message",
       transcript,
       userText: "new turn",
     });
     expect(msgs).toEqual([
-      { role: "system", content: "client_context: {}" },
+      { role: "system", content: "client_context:\ntrigger: user message" },
       { role: "user", content: "prior user turn" },
       { role: "assistant", content: "prior assistant turn" },
       { role: "user", content: "new turn" },
@@ -60,7 +63,7 @@ describe("buildCCMessages", () => {
 
   it("final user message is plain content when no images", () => {
     const msgs = buildCCMessages({
-      clientContextJson: "{}",
+      clientContextText: "trigger: user message",
       transcript: [],
       userText: "no images here",
     });
@@ -69,7 +72,7 @@ describe("buildCCMessages", () => {
 
   it("final user message is a content-parts array with images first, text last", () => {
     const msgs = buildCCMessages({
-      clientContextJson: "{}",
+      clientContextText: "trigger: user message",
       transcript: [],
       userText: "look at this",
       imageDataUrls: ["data:image/png;base64,AAA", "data:image/png;base64,BBB"],
@@ -86,7 +89,7 @@ describe("buildCCMessages", () => {
 
   it("empty imageDataUrls array behaves like no images", () => {
     const msgs = buildCCMessages({
-      clientContextJson: "{}",
+      clientContextText: "trigger: user message",
       transcript: [],
       userText: "hi",
       imageDataUrls: [],

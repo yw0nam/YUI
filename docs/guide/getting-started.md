@@ -88,8 +88,8 @@ YUI is compatible with any backend served over the OpenAI Responses API (`/v1/re
 1. Stand up your backend agent, ensuring it serves the OpenAI Responses API.
 2. Install the Expression MCP broker (step 3) **into the backend agent** so it can call `generate_express` and read the published vocabulary.
 3. Hand the agent the cue contract so it understands how to drive the character:
-   - With Hermes: create a profile, add `docs/reference/backend-contract.md` to that profile's context, and instruct it to remember the contract.
-   - With other agents: include the contents of `docs/reference/backend-contract.md` in the system prompt or context.
+   - With Hermes: create a profile, add `docs/reference/client-context.md` to that profile's context, and instruct it to remember the contract.
+   - With other agents: include the contents of `docs/reference/client-context.md` in the system prompt or context.
 4. In `configs/endpoints.json`, set:
    ```json
    "chat_api": "responses",
@@ -116,7 +116,7 @@ Connects over the Chat Completions API to any endpoint whose model supports tool
 5. Provide a real API key for that endpoint — set `VITE_YUI_CHAT_KEY` in `.env.local`, or use the in-app Chat key field.
 6. Reasoning effort (set in the in-app agent settings) maps to the Chat Completions `reasoning_effort` parameter.
 
-`generate_express` tool-call deltas are parsed from the `chat.completion.chunk` stream as they arrive and the cue plays at that moment. A model that stops on its cue calls without speaking gets the tool results back and re-requests, so the turn still reaches speech — up to three round trips. A model that speaks alongside its cues finishes in one request. See [CC mode transport](../reference/backend-contract.md#cc-mode-transport-chat-completions) for the wire shape.
+`generate_express` tool-call deltas are parsed from the `chat.completion.chunk` stream as they arrive and the cue plays at that moment. A model that stops on its cue calls without speaking gets the tool results back and re-requests, so the turn still reaches speech — up to three round trips. A model that speaks alongside its cues finishes in one request. See [CC mode transport](../reference/client-context.md#cc-mode-transport-chat-completions) for the wire shape.
 
 ---
 

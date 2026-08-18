@@ -12,7 +12,7 @@ import { type BackendCaller, createBackendCaller } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";
 import {
   CONFIG,
-  clientContextJsonOf,
+  clientContextTextOf,
   completedEvent,
   createScriptedStream,
   makeLogger,
@@ -83,10 +83,8 @@ describe("backend_caller — B1 package_context (contract §4 InputContext)", ()
     const [, request] = script.spy.mock.calls[0];
     const items = request.input as Array<{ role: string; content: string }>;
     const user = items.find((m) => m.role === "user")!;
-    const ctx = JSON.parse(clientContextJsonOf(user.content)) as {
-      env: { timestamp: string };
-    };
-    const ts = ctx.env.timestamp;
+    const text = clientContextTextOf(user.content);
+    const ts = /^time: (\S+) \(/m.exec(text)![1]!;
     // local wall-clock form with explicit ±HH:MM offset (not UTC "…Z").
     expect(ts).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/);
     // combined with its offset it must denote the same instant as env.ts.
@@ -238,9 +236,9 @@ describe("backend_caller — user_images (chat attachments)", () => {
     script.events = [completedEvent({ speech_text: "" })];
     await caller.call(turnOf(imgEnv("이거 봐", [IMG_A, IMG_B])));
     const [, request] = script.spy.mock.calls[0];
-    const json = clientContextJsonOf(userTextPartOf(request.input));
-    expect(json).not.toContain(IMG_A);
-    expect(json).not.toContain(IMG_B);
+    const text = clientContextTextOf(userTextPartOf(request.input));
+    expect(text).not.toContain(IMG_A);
+    expect(text).not.toContain(IMG_B);
   });
 
   it("screenshot + user_images together → screenshot part AND all user image parts present", async () => {
@@ -275,11 +273,11 @@ describe("backend_caller — user_images (chat attachments)", () => {
 });
 
 describe("backend_caller — flat client_context envelope", () => {
-  /** decode the flat ClientContext { env, trigger, screenshot? } from the user message block. */
-  function clientContextOf(input: unknown): Record<string, unknown> {
+  /** decode the rendered client_context text block from the user message. */
+  function clientContextOf(input: unknown): string {
     const items = input as Array<{ role: string; content: string }>;
     const user = items.find((m) => m.role === "user")!;
-    return JSON.parse(clientContextJsonOf(user.content));
+    return clientContextTextOf(user.content);
   }
 
   function userMessageContentOf(input: unknown): unknown {
@@ -298,48 +296,39 @@ describe("backend_caller — flat client_context envelope", () => {
     };
   }
 
-  it("(a) proactive envelope → flat trigger with kind/idle_elapsed_min; NO input_context/dispatcher_state; user message is proactive marker", async () => {
+  it("(a) proactive envelope → trigger line carries kind + idle_elapsed_min; NO input_context/dispatcher_state; user message is proactive marker", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     await caller.call(turnOf(proactiveEnv()));
     const [, request] = script.spy.mock.calls[0];
-    const ctx = clientContextOf(request.input);
-    // top-level keys: env + trigger only (no input_context, no dispatcher_state)
-    expect("input_context" in ctx).toBe(false);
-    expect("dispatcher_state" in ctx).toBe(false);
-    // trigger must have kind derived from event_name
-    const trigger = ctx.trigger as Record<string, unknown>;
-    expect(trigger.kind).toBe("proactive");
-    // idle_elapsed_min = round(3_900_000 / 60000) = 65
-    expect(trigger.idle_elapsed_min).toBe(65);
-    // no raw event_name/source/ts/seq_id on trigger
-    expect("event_name" in trigger).toBe(false);
-    expect("source" in trigger).toBe(false);
-    expect("ts" in trigger).toBe(false);
-    expect("seq_id" in trigger).toBe(false);
+    const text = clientContextOf(request.input);
+    // no leftover keys from the old JSON shape
+    expect(text).not.toContain("input_context");
+    expect(text).not.toContain("dispatcher_state");
+    // trigger line carries kind + idle_elapsed_min = round(3_900_000 / 60000) = 65
+    expect(text).toContain("trigger: proactive (user idle 65min)");
+    // no raw event_name/source/seq_id anywhere in the block
+    expect(text).not.toContain("event_name");
+    expect(text).not.toContain("seq_id");
     // proactive turn (no user_text) → proactive background marker string
     expect(userMessageContentOf(request.input)).toContain("(I've gone quiet for a while)");
   });
 
-  it("(b) user turn → trigger.kind is 'user'; env has timestamp/timezone; no user_text in system object", async () => {
+  it("(b) user turn → trigger line is 'user message'; time line has timestamp+timezone; no user_text leaks into the client_context block", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     await caller.call(turnOf(userEnv("진짜 텍스트")));
     const [, request] = script.spy.mock.calls[0];
-    const ctx = clientContextOf(request.input);
-    const trigger = ctx.trigger as Record<string, unknown>;
-    expect(trigger.kind).toBe("user");
-    expect("idle_elapsed_min" in trigger).toBe(false);
-    // env has timestamp + timezone
-    const env = ctx.env as Record<string, unknown>;
-    expect(typeof env.timestamp).toBe("string");
-    expect(typeof env.timezone).toBe("string");
-    // NO user text in system object anywhere
-    const serialized = JSON.stringify(ctx);
-    expect(serialized).not.toContain("진짜 텍스트");
+    const text = clientContextOf(request.input);
+    expect(text).toContain("trigger: user message");
+    expect(text).not.toMatch(/\(user idle /);
+    // first line is "time: <timestamp> (<timezone>)"
+    expect(text.split("\n")[0]).toMatch(/^time: \S+ \(\S+\)$/);
+    // NO user text in the client_context block
+    expect(text).not.toContain("진짜 텍스트");
     // user text appears in the user-role message
     expect(userMessageContentOf(request.input)).toContain("진짜 텍스트");
   });
 
-  it("(c) schedule envelope → trigger.kind is 'schedule'", async () => {
+  it("(c) schedule envelope → trigger line carries kind 'schedule'", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     const env: BusEnvelope = {
       seq_id: 5,
@@ -351,10 +340,9 @@ describe("backend_caller — flat client_context envelope", () => {
     };
     await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
-    const ctx = clientContextOf(request.input);
-    const trigger = ctx.trigger as Record<string, unknown>;
-    expect(trigger.kind).toBe("schedule");
-    expect("idle_elapsed_min" in trigger).toBe(false);
+    const text = clientContextOf(request.input);
+    expect(text).toContain("trigger: schedule");
+    expect(text).not.toMatch(/\(user idle /);
   });
 
   it("(d) voice envelope → user message content is the STT transcript text, not the proactive marker", async () => {
@@ -373,7 +361,7 @@ describe("backend_caller — flat client_context envelope", () => {
     expect(userMessageContentOf(request.input)).toContain("こんにちは");
   });
 
-  it("(e) getBodyState reports a posture → client_context carries body_state with posture + since", async () => {
+  it("(e) getBodyState reports a posture → client_context carries a body line with posture + perched_on app + duration", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
@@ -389,13 +377,10 @@ describe("backend_caller — flat client_context envelope", () => {
     });
     await caller.call(turnOf(proactiveEnv()));
     const [, request] = script.spy.mock.calls[0];
-    expect(clientContextOf(request.input).body_state).toEqual({
-      posture: { state: "peeking", perched_on: { app: "Messages", window_title: "Alice" } },
-      since: 1_716_999_000_000,
-    });
+    expect(clientContextOf(request.input)).toMatch(/^body: peeking on Messages \(for \d+min\)$/m);
   });
 
-  it("(f) getBodyState reports no posture → client_context omits body_state", async () => {
+  it("(f) getBodyState reports no posture → client_context omits the body line", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
@@ -408,7 +393,7 @@ describe("backend_caller — flat client_context envelope", () => {
     });
     await caller.call(turnOf(userEnv("자유")));
     const [, request] = script.spy.mock.calls[0];
-    expect("body_state" in clientContextOf(request.input)).toBe(false);
+    expect(clientContextOf(request.input)).not.toContain("body:");
   });
 });
 

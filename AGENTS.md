@@ -41,7 +41,7 @@ Read these when the trigger applies; they are not loaded by default.
 - **Checking how a rule is enforced** → `docs/agent-guide/harness-enforcement.md`
 - **Build / run / find logs** → `docs/agent-guide/build-run.md`
 - **Any UI or visual work** → `docs/agent-guide/design-context.md` (+ `PRODUCT.md`, `DESIGN.md`)
-- **`generate_express` cue contract** → `docs/reference/backend-contract.md`
+- **`generate_express` cue contract, or the `client_context` prompt-text format sent to the backend** → `docs/reference/client-context.md`
 - **Motion catalog** → `docs/reference/motions.md`
 - **TTS emotion_text vocabulary** → `docs/reference/tts-emotion/`
 - **Logging convention** → `docs/reference/logging.md`

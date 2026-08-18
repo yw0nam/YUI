@@ -198,7 +198,9 @@ export function makeTurnOutput(): TurnOutput & Record<keyof TurnOutput, Mock> {
   };
 }
 
-/** Pull the client_context JSON out of the tagged block leading a user message. */
-export function clientContextJsonOf(userContent: string): string {
-  return /<client_context>[\s\S]*?(\{[\s\S]*\})\s*<\/client_context>/.exec(userContent)![1]!;
+/** Pull the rendered client_context lines out of the tagged block leading a user message. */
+export function clientContextTextOf(userContent: string): string {
+  return /<client_context>\nClient-injected context; not typed by the user\.\n([\s\S]*?)\n<\/client_context>/.exec(
+    userContent,
+  )![1]!;
 }

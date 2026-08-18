@@ -210,7 +210,7 @@ import { withBase } from 'vitepress'
         <ul class="footer-links">
           <li><a :href="withBase('/')">Home</a></li>
           <li><a :href="withBase('/guide/getting-started')">Guide</a></li>
-          <li><a :href="withBase('/reference/backend-contract')">Reference</a></li>
+          <li><a :href="withBase('/reference/client-context')">Reference</a></li>
           <li>
             <a href="https://github.com/yw0nam/YUI" rel="noopener" target="_blank"
               >GitHub ↗</a
