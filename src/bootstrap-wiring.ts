@@ -31,6 +31,7 @@ import {
 } from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { selectFetch } from "./io/chat-client";
+import { type EndpointOverrides, mergeEndpoints } from "./io/endpoints-settings";
 import type { ExpressMotionSettings } from "./io/express-motion-settings";
 import type { GuardrailsSettingsStore } from "./io/guardrails-settings";
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
@@ -135,6 +136,22 @@ export function wireVrmSelection(deps: {
   // Announce cross-window so the VRM picked in this window reflects in the settings-window UI (loop guard lives in broadcastSettings).
   vrmSelection.subscribe(broadcastSettings);
   return { vrmSelection, loadVrmSerialized, swapVrm, importVrm };
+}
+
+/**
+ * Effective endpoints for a window whose config load is best-effort: user overrides layered on the
+ * bundled config, or null while the config has not loaded. Both sides are read per call, so a live
+ * override edit takes effect without rewiring. Network consumers read through this — a URL set only
+ * as an override still has to reach them.
+ */
+export function createEffectiveEndpoints(deps: {
+  getBundled: () => EndpointsConfig | null;
+  getOverrides: () => EndpointOverrides;
+}): () => EndpointsConfig | null {
+  return () => {
+    const bundled = deps.getBundled();
+    return bundled ? mergeEndpoints(bundled, deps.getOverrides()) : null;
+  };
 }
 
 export function wireSpeakerSelection(deps: {

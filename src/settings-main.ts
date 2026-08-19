@@ -7,7 +7,7 @@
  */
 
 import "./styles.css";
-import { wireSettingsWindowSync } from "./bootstrap-wiring";
+import { createEffectiveEndpoints, wireSettingsWindowSync } from "./bootstrap-wiring";
 import { createConfigStore, TTS_API_KEY_SECRET } from "./config";
 import { agentTriggerableMotionIds } from "./io/broker-client";
 import { selectFetch } from "./io/chat-client";
@@ -129,6 +129,13 @@ async function bootstrap(): Promise<void> {
     vrmSelection.select(option.id);
   };
 
+  // Every network consumer reads endpoints through here: a server the user set only as an
+  // override is invisible in the bundled config, and this window would issue no requests at all.
+  const getEndpoints = createEffectiveEndpoints({
+    getBundled: () => (configLoaded ? config.get().endpoints : null),
+    getOverrides: () => endpointsSettings.get(),
+  });
+
   // Speaker selection store. This window has no synth, so the selection is a store-only commit.
   const speakerSelection = createSpeakerSelection({
     defaultValue: "",
@@ -136,7 +143,7 @@ async function bootstrap(): Promise<void> {
     userStorage: localStorageUserSpeakerStorage(),
   });
   const refreshVoiceList = createVoiceListRefresh({
-    getEndpoints: () => (configLoaded ? config.get().endpoints : null),
+    getEndpoints,
     getApiKey: getTtsApiKey,
     speakerSelection,
     log,
@@ -148,7 +155,7 @@ async function bootstrap(): Promise<void> {
   // Reference-clip re-upload — a direct server call, so this window performs it too. Throws when
   // config is not loaded / tts_base_url is missing, and the UI exposes the error.
   const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
-    const baseUrl = configLoaded ? config.get().endpoints.tts_base_url : undefined;
+    const baseUrl = getEndpoints()?.tts_base_url;
     if (!baseUrl) throw new Error("voice refresh requires tts_base_url");
     const f = await selectFetch();
     await upsertVoice({
@@ -165,7 +172,7 @@ async function bootstrap(): Promise<void> {
     speakerSelection.addUserOption({ ...option, source: "user", revision: prev + 1 });
   };
   const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
-    getTtsBaseUrl: () => (configLoaded ? config.get().endpoints.tts_base_url : undefined),
+    getTtsBaseUrl: () => getEndpoints()?.tts_base_url,
     getApiKey: getTtsApiKey,
     speakerSelection,
     log,
