@@ -402,6 +402,41 @@ describe("screen_source — skip records", () => {
     );
   });
 
+  it("appends a skip record with reason=global_gap while the global pacer holds", async () => {
+    const s = setup({ isPacerHolding: () => true });
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(10 * MIN, tick("Slack"));
+    s.at(10 * MIN + 90_000, tick("Slack"));
+
+    expect(s.pushed).toHaveLength(0);
+    expect(s.appendSkipRecord).toHaveBeenCalledOnce();
+    expect(s.appendSkipRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "skip",
+        source: "screen",
+        reason: "global_gap",
+        transition: "app_switched",
+      }),
+    );
+  });
+
+  it("fires normally once the pacer's window has opened", async () => {
+    let holding = true;
+    const s = setup({ isPacerHolding: () => holding });
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(45 * MIN, tick("Cursor")); // long_session mark held back
+    expect(s.pushed).toHaveLength(0);
+
+    holding = false;
+    s.at(90 * MIN, tick("Cursor")); // the next mark passes
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]?.event_name).toBe("proactive.screen_long_session");
+  });
+
   it("a throwing appendSkipRecord is swallowed — the source keeps ticking without throwing", async () => {
     const s = setup({
       isEnabled: () => false,

@@ -1268,6 +1268,147 @@ describe("dispatcher — structured logging: DROP_SEVERITY table", () => {
     expect(DROP_SEVERITY.superseded_by_user).toBe("info");
     expect(DROP_SEVERITY.stale_pending).toBe("info");
     expect(DROP_SEVERITY.degraded_drop).toBe("warn");
+    expect(DROP_SEVERITY.global_gap).toBe("info");
+  });
+});
+
+describe("dispatcher — global proactive pacer gate", () => {
+  /** Pacer stub: a turn start anchors the hold, exactly as the real pacer does. */
+  function fakePacer(holding: boolean) {
+    let current = holding;
+    return {
+      isHolding: () => current,
+      noteTurnStart: vi.fn(() => {
+        current = true;
+      }),
+      open(): void {
+        current = false;
+      },
+    };
+  }
+
+  function proactiveEnv(over: Partial<BusEnvelope> = {}): BusEnvelope {
+    return {
+      source: "screen_watcher",
+      event_name: "proactive.screen_app_switched",
+      ts: NOW,
+      hint_tier: 2,
+      dnd_override: false,
+      ...over,
+    };
+  }
+
+  function build(pacer: ReturnType<typeof fakePacer>, appendSkipRecord: () => void) {
+    return createDispatcher({
+      bus,
+      renderer: renderer as never,
+      backendCaller,
+      guardrails,
+      turnLog,
+      logger,
+      peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
+      pacer,
+      appendSkipRecord,
+    });
+  }
+
+  it("drops a proactive turn that reaches the gate while the pacer holds", async () => {
+    const pacer = fakePacer(true);
+    const appendSkipRecord = vi.fn();
+    const d = build(pacer, appendSkipRecord);
+    d.start();
+
+    bus.push(proactiveEnv());
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).not.toHaveBeenCalled();
+    expect(d.inFlight()).toBeNull();
+    expect(d.recentDrops().at(-1)).toMatchObject({
+      event_name: "proactive.screen_app_switched",
+      reason: "global_gap",
+    });
+    expect(appendSkipRecord).toHaveBeenCalledWith({
+      type: "skip",
+      source: "dispatcher",
+      ts: NOW,
+      reason: "global_gap",
+      event_name: "proactive.screen_app_switched",
+    });
+    d.stop();
+  });
+
+  it("lets a user turn through while the pacer holds, and re-anchors on it", async () => {
+    const pacer = fakePacer(true);
+    const d = build(pacer, vi.fn());
+    d.start();
+
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(pacer.noteTurnStart).toHaveBeenCalledOnce();
+    d.stop();
+  });
+
+  it("passes a proactive turn once the window has opened, re-anchoring on it", async () => {
+    const pacer = fakePacer(false);
+    const d = build(pacer, vi.fn());
+    d.start();
+
+    bus.push(proactiveEnv());
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(pacer.noteTurnStart).toHaveBeenCalledOnce();
+    d.stop();
+  });
+
+  // The drain in .finally() is the second entry into startBackendCall — a drop there must free
+  // the slot the completed call still occupies, or the dispatcher stays busy forever.
+  it("drops a pending proactive drained right after a turn, and frees the in-flight slot", async () => {
+    const pacer = fakePacer(false);
+    const appendSkipRecord = vi.fn();
+    const d = build(pacer, appendSkipRecord);
+    const busyEdges: boolean[] = [];
+    d.subscribeBusy((busy) => busyEdges.push(busy));
+    d.start();
+
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(d.inFlight()).not.toBeNull();
+
+    // The proactive candidate defers behind the live user turn, then drains into the hold.
+    bus.push(proactiveEnv({ ts: NOW + 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(d.inFlight()).toBeNull();
+    expect(d.queue()).toEqual([]);
+    expect(busyEdges).toEqual([true, false]);
+    expect(d.recentDrops().at(-1)).toMatchObject({ reason: "global_gap" });
+    expect(appendSkipRecord).toHaveBeenCalledOnce();
+    d.stop();
+  });
+
+  it("swallows a throwing appendSkipRecord — the drop path still records the drop", async () => {
+    const pacer = fakePacer(true);
+    const d = build(
+      pacer,
+      vi.fn(() => {
+        throw new Error("disk full");
+      }),
+    );
+    d.start();
+
+    bus.push(proactiveEnv());
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(d.recentDrops().at(-1)).toMatchObject({ reason: "global_gap" });
+    expect(backendCaller.call).not.toHaveBeenCalled();
+    d.stop();
   });
 });
 

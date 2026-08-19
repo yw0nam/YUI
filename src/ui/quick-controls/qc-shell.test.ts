@@ -11,7 +11,7 @@ import { createProactiveSettings } from "../../io/proactive-settings";
 import { createScheduleSettings } from "../../io/schedule-settings";
 import { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
 import { createSessionStore } from "../../io/session-store";
-import { createPresenceStore } from "../../io/settings-stores";
+import { createPacerGapStore, createPresenceStore } from "../../io/settings-stores";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
 import type { createVrmSelection } from "../../io/vrm-selection";
 import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "../i18n";
@@ -33,6 +33,7 @@ const inMemoryValueStorage = () => {
   };
 };
 const inMemoryPresenceStore = () => createPresenceStore(inMemoryValueStorage());
+const inMemoryPacerGapStore = () => createPacerGapStore(inMemoryValueStorage());
 
 describe("createQuickControls — shell", () => {
   let mount: HTMLElement;
@@ -792,6 +793,98 @@ describe("createQuickControls — Reactions tab", () => {
     expect(presenceSettings.get().value).toBe(180000); // store unchanged
     expect(presenceInput.value).toBe("180"); // input snapped back
     qc.dispose();
+  });
+
+  // ── Proactive gap (global pacer) ───────────────────────────────────────────
+
+  it("does not render #yui-pacer-gap when pacerGapSettings is absent", () => {
+    const qc = buildQc();
+    qc.open();
+    expect(qc.el.querySelector("#yui-pacer-gap")).toBeNull();
+    qc.dispose();
+  });
+
+  it("renders #yui-pacer-gap inside #yui-panel-react when pacerGapSettings is provided", () => {
+    const pacerGapSettings = inMemoryPacerGapStore();
+    const qc = buildQc({ pacerGapSettings });
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-pacer-gap");
+    expect(input).not.toBeNull();
+    expect(qc.el.querySelector<HTMLElement>("#yui-panel-react")!.contains(input)).toBe(true);
+    qc.dispose();
+  });
+
+  it("#yui-pacer-gap reflects the stored gap in minutes on open", () => {
+    const pacerGapSettings = inMemoryPacerGapStore();
+    const qc = buildQc({ pacerGapSettings });
+    qc.open();
+    // Default value = 600000 ms → 10 min
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-pacer-gap")!.value).toBe("10");
+    qc.dispose();
+  });
+
+  it("change on #yui-pacer-gap commits minutes * 60000", () => {
+    const pacerGapSettings = inMemoryPacerGapStore();
+    const qc = buildQc({ pacerGapSettings });
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-pacer-gap")!;
+    input.value = "25";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(pacerGapSettings.get().value).toBe(1_500_000);
+    qc.dispose();
+  });
+
+  // 0 is the off position, not a rejected value — the pacer holds nothing at that setting.
+  it("commits 0 from #yui-pacer-gap, turning the pacer off", () => {
+    const pacerGapSettings = inMemoryPacerGapStore();
+    const qc = buildQc({ pacerGapSettings });
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-pacer-gap")!;
+    input.value = "0";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(pacerGapSettings.get().value).toBe(0);
+    expect(input.value).toBe("0");
+    qc.dispose();
+  });
+
+  it("does not commit #yui-pacer-gap on every keystroke", () => {
+    const pacerGapSettings = inMemoryPacerGapStore();
+    const setSpy = vi.spyOn(pacerGapSettings, "set");
+    const qc = buildQc({ pacerGapSettings });
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-pacer-gap")!;
+    input.focus();
+    for (const partial of ["2", "25"]) {
+      input.value = partial;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    expect(setSpy).not.toHaveBeenCalled();
+
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(pacerGapSettings.get().value).toBe(1_500_000);
+    qc.dispose();
+  });
+
+  it("external pacerGapSettings.set reflects into #yui-pacer-gap while open", () => {
+    const pacerGapSettings = inMemoryPacerGapStore();
+    const qc = buildQc({ pacerGapSettings });
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-pacer-gap")!;
+    pacerGapSettings.set(1_800_000);
+    expect(input.value).toBe("30");
+    qc.dispose();
+  });
+
+  it("detaches the #yui-pacer-gap listeners on dispose", () => {
+    const pacerGapSettings = inMemoryPacerGapStore();
+    const qc = buildQc({ pacerGapSettings });
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-pacer-gap")!;
+    qc.dispose();
+
+    input.value = "25";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(pacerGapSettings.get().value).toBe(600_000);
   });
 
   // ── Rate-limit caps ───────────────────────────────────────────────────────

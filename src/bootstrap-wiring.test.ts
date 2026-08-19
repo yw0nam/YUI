@@ -309,6 +309,25 @@ describe("wireDispatcherSources", () => {
     quiet_after_turn_ms: 180000,
   };
 
+  /** Pacer stub whose hold state the test drives directly. */
+  function fakePacer(holding = false) {
+    let current = holding;
+    const subscribers = new Set<(holding: boolean) => void>();
+    return {
+      isHolding: () => current,
+      subscribe: (cb: (holding: boolean) => void) => {
+        subscribers.add(cb);
+        return () => {
+          subscribers.delete(cb);
+        };
+      },
+      setHolding(next: boolean): void {
+        current = next;
+        for (const cb of subscribers) cb(next);
+      },
+    };
+  }
+
   it("creates and starts all five utterance sources", () => {
     const bus = {} as never;
     const pipelineBusy = { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) };
@@ -323,6 +342,7 @@ describe("wireDispatcherSources", () => {
       getScreenConfig: () => screenConfig,
       subscribeBusy,
       pipelineBusy,
+      pacer: fakePacer(),
     });
 
     expect(Object.keys(result).sort()).toEqual([
@@ -339,13 +359,14 @@ describe("wireDispatcherSources", () => {
     // isEnabled reads live from the per-feature store.
     expect((created.schedule as { isEnabled: () => boolean }).isEnabled()).toBe(false);
     expect((created.signals as { isEnabled: () => boolean }).isEnabled()).toBe(true);
-    // pipelineBusy is forwarded to both agent + signals sources (not proactive/schedule).
-    expect((created.agent as { isPipelineBusy: () => boolean }).isPipelineBusy).toBe(
-      pipelineBusy.isBusy,
-    );
-    expect((created.signals as { subscribePipelineBusy: unknown }).subscribePipelineBusy).toBe(
-      pipelineBusy.subscribe,
-    );
+    // pipelineBusy reaches both agent + signals sources (not proactive/schedule).
+    expect((created.agent as { isPipelineBusy: () => boolean }).isPipelineBusy()).toBe(false);
+    const signalsDeps = created.signals as {
+      subscribePipelineBusy: (cb: (busy: boolean) => void) => void;
+    };
+    signalsDeps.subscribePipelineBusy(vi.fn());
+    expect(pipelineBusy.subscribe).toHaveBeenCalled();
+    expect((created.proactive as { isPipelineBusy?: unknown }).isPipelineBusy).toBeUndefined();
     expect(result.signalsSource.drain()).toEqual([]);
   });
 
@@ -361,6 +382,7 @@ describe("wireDispatcherSources", () => {
       getScreenConfig: () => screenConfig,
       subscribeBusy,
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
+      pacer: fakePacer(),
     });
 
     const screen = created.screen as {
@@ -392,6 +414,7 @@ describe("wireDispatcherSources", () => {
       getScreenConfig: () => mergeScreen(screenConfig, knobs.get()),
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
+      pacer: fakePacer(),
     });
 
     const screen = created.screen as { getConfig: () => typeof screenConfig };
@@ -400,6 +423,61 @@ describe("wireDispatcherSources", () => {
     knobs.set({ min_gap_ms: 60_000 });
     expect(screen.getConfig().min_gap_ms).toBe(60_000);
     expect(screen.getConfig().settle_ms).toBe(screenConfig.settle_ms);
+  });
+
+  function wireWithPacer(pacer: ReturnType<typeof fakePacer>) {
+    return wireDispatcherSources({
+      bus: {} as never,
+      presenceSettings: { get: () => ({ value: 5000 }) },
+      proactiveSettings: { get: () => ({ enabled: true, entries: [] }) },
+      scheduleSettings: { get: () => ({ enabled: false, entries: [] }) },
+      agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
+      screenSettings: { get: () => ({ enabled: true }) },
+      getScreenConfig: () => screenConfig,
+      subscribeBusy: vi.fn(() => vi.fn()),
+      pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
+      pacer,
+    });
+  }
+
+  it("hands the screen source the pacer's hold predicate", () => {
+    const pacer = fakePacer(true);
+    wireWithPacer(pacer);
+
+    const screen = created.screen as { isPacerHolding: () => boolean };
+    expect(screen.isPacerHolding()).toBe(true);
+    pacer.setHolding(false);
+    expect(screen.isPacerHolding()).toBe(false);
+  });
+
+  // The two buffered-inbox sources hold their items instead of skipping them, so the pacer
+  // reaches them as busy rather than as a gate of their own.
+  const INBOX_SOURCES = ["agent", "signals"] as const;
+  it.each(
+    INBOX_SOURCES,
+  )("composes the pacer into the busy predicate the %s source receives", (name) => {
+    const pacer = fakePacer(false);
+    wireWithPacer(pacer);
+
+    const source = created[name] as {
+      isPipelineBusy: () => boolean;
+      subscribePipelineBusy: (cb: (busy: boolean) => void) => () => void;
+    };
+    const edges: boolean[] = [];
+    const unsubscribe = source.subscribePipelineBusy((busy) => edges.push(busy));
+
+    expect(source.isPipelineBusy()).toBe(false);
+    pacer.setHolding(true);
+    expect(source.isPipelineBusy()).toBe(true);
+    expect(edges).toEqual([true]);
+
+    pacer.setHolding(false);
+    expect(source.isPipelineBusy()).toBe(false);
+    expect(edges).toEqual([true, false]);
+
+    unsubscribe();
+    pacer.setHolding(true);
+    expect(edges).toEqual([true, false]);
   });
 });
 

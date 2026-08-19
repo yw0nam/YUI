@@ -414,6 +414,91 @@ describe("signals_source — pipeline-busy buffering (spec §2b/#451)", () => {
   });
 });
 
+/** Pacer stub plus the busy predicate bootstrap composes from it and the pipeline's own. */
+function pacedPipelineBusy(pipelineBusy: ReturnType<typeof fakePipelineBusy>): {
+  isPipelineBusy: () => boolean;
+  subscribePipelineBusy: (cb: (busy: boolean) => void) => () => void;
+  setHolding: (holding: boolean) => void;
+} {
+  let holding = true;
+  const subscribers = new Set<(holding: boolean) => void>();
+  const isPipelineBusy = () => pipelineBusy.isPipelineBusy() || holding;
+  return {
+    isPipelineBusy,
+    subscribePipelineBusy: (cb) => {
+      const unsubscribeBusy = pipelineBusy.subscribePipelineBusy(() => cb(isPipelineBusy()));
+      const pacerCb = () => cb(isPipelineBusy());
+      subscribers.add(pacerCb);
+      return () => {
+        unsubscribeBusy();
+        subscribers.delete(pacerCb);
+      };
+    },
+    setHolding: (next) => {
+      holding = next;
+      for (const cb of subscribers) cb(next);
+    },
+  };
+}
+
+describe("signals_source — global pacer composed into the busy predicate (#689)", () => {
+  function startPaced() {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+    const paced = pacedPipelineBusy(fakePipelineBusy(false));
+    const src = createSignalsSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+      isPipelineBusy: paced.isPipelineBusy,
+      subscribePipelineBusy: paced.subscribePipelineBusy,
+    });
+    return { pushed, emitIdle, emitInbox, paced, src };
+  }
+
+  it("buffers a live arrival while the pacer holds, though the pipeline itself is idle", async () => {
+    const s = startPaced();
+    await s.src.start();
+
+    s.emitIdle(idleTick(LOW_IDLE)); // present
+    s.emitInbox(batch([{ id: 1 }], 1000));
+
+    expect(s.pushed).toHaveLength(0);
+    s.src.stop();
+  });
+
+  it("flushes exactly ONE catchup on the window-open edge", async () => {
+    const s = startPaced();
+    await s.src.start();
+
+    s.emitIdle(idleTick(LOW_IDLE));
+    s.emitInbox(batch([{ id: 1 }], 1000));
+    s.emitInbox(batch([{ id: 2 }], 2000));
+
+    s.paced.setHolding(false);
+
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0].event_name).toBe("signals.catchup");
+    const p = s.pushed[0].payload as { signals: Array<{ id: number }> };
+    expect(p.signals).toEqual([{ id: 1 }, { id: 2 }]);
+    s.src.stop();
+  });
+
+  it("fires nothing on the window-open edge when the buffer is empty", async () => {
+    const s = startPaced();
+    await s.src.start();
+
+    s.emitIdle(idleTick(LOW_IDLE));
+    s.paced.setHolding(false);
+
+    expect(s.pushed).toHaveLength(0);
+    s.src.stop();
+  });
+});
+
 describe("signals_source — malformed payload (spec §7)", () => {
   it("null or undefined payload does not crash", async () => {
     const { bus } = fakeBus();

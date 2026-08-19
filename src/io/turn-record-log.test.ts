@@ -6,9 +6,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { ClientContext } from "../contract";
 import {
   appendRecord,
+  buildPacerSkipRecord,
   buildSkipRecord,
   buildTurnRecord,
-  type ScreenSkipReason,
+  type SkipReason,
   type TurnRecordLogDeps,
 } from "./turn-record-log";
 
@@ -50,7 +51,13 @@ describe("turn-record-log — buildTurnRecord", () => {
 });
 
 describe("turn-record-log — buildSkipRecord", () => {
-  const REASONS: ScreenSkipReason[] = ["disabled", "not_present", "min_gap", "quiet_after_turn"];
+  const REASONS: SkipReason[] = [
+    "disabled",
+    "not_present",
+    "min_gap",
+    "quiet_after_turn",
+    "global_gap",
+  ];
 
   it.each(REASONS)("shapes a screen skip record for reason=%s", (reason) => {
     const record = buildSkipRecord({ ts: 3_000, reason, transition: "app_switched" });
@@ -60,6 +67,19 @@ describe("turn-record-log — buildSkipRecord", () => {
       ts: 3_000,
       reason,
       transition: "app_switched",
+    });
+  });
+});
+
+describe("turn-record-log — buildPacerSkipRecord", () => {
+  it("shapes a dispatcher skip record naming the event the pacer held back", () => {
+    const record = buildPacerSkipRecord({ ts: 4_000, event_name: "signals.catchup" });
+    expect(record).toEqual({
+      type: "skip",
+      source: "dispatcher",
+      ts: 4_000,
+      reason: "global_gap",
+      event_name: "signals.catchup",
     });
   });
 });
