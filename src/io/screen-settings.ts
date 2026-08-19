@@ -1,6 +1,6 @@
 /**
- * Reactive settings store managing the user-editable screen-watch thresholds.
- * 0 means "no override" — the threshold falls back to the bundled configs/screen.json default.
+ * Reactive settings store managing the user-editable screen-watch knobs.
+ * 0 means "no override" — the knob falls back to the bundled configs/screen.json default.
  * Persists to storage on change and notifies subscribers. Never mutates the checked-in config.
  */
 
@@ -12,10 +12,13 @@ import {
   type PersistedStorage,
 } from "./persisted-store";
 
-/** Largest threshold accepted (24 h) — a stored value above it counts as no override. */
+/** Largest ms threshold accepted (24 h) — a stored value above it counts as no override. */
 export const SCREEN_MS_MAX = 86_400_000;
 
-/** Editable screen-watch thresholds, in milliseconds. 0 = no override. */
+/** Largest recent_cap accepted — matches the UI row's upper bound (SCREEN_KNOB_FIELDS). */
+export const SCREEN_RECENT_CAP_MAX = 20;
+
+/** Editable screen-watch knobs — five ms thresholds plus the unitless recent_cap count. 0 = no override. */
 export type ScreenOverrides = { [K in keyof ScreenConfig]: number };
 
 export const SCREEN_KEYS = [
@@ -47,20 +50,30 @@ const EMPTY: ScreenOverrides = {
   recent_cap: 0,
 };
 
-/** A settable threshold: 0 (clear the override) or an integer in 1..SCREEN_MS_MAX. */
-function isThreshold(v: unknown): v is number {
-  return typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= SCREEN_MS_MAX;
+/** Per-key ceiling for a settable value — ms thresholds cap at SCREEN_MS_MAX, recent_cap at SCREEN_RECENT_CAP_MAX. */
+const SCREEN_KEY_MAX: { [K in (typeof SCREEN_KEYS)[number]]: number } = {
+  prev_dwell_ms: SCREEN_MS_MAX,
+  settle_ms: SCREEN_MS_MAX,
+  long_session_ms: SCREEN_MS_MAX,
+  min_gap_ms: SCREEN_MS_MAX,
+  quiet_after_turn_ms: SCREEN_MS_MAX,
+  recent_cap: SCREEN_RECENT_CAP_MAX,
+};
+
+/** A settable value for `key`: 0 (clear the override) or an integer within its ceiling. */
+function isThreshold(key: keyof ScreenOverrides, v: unknown): v is number {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= SCREEN_KEY_MAX[key];
 }
 
-/** Storage sanitation — a stored threshold outside 1..SCREEN_MS_MAX counts as no override. */
-function coerceThreshold(v: unknown): number {
-  return isThreshold(v) ? v : 0;
+/** Storage sanitation — a stored value outside 0..ceiling counts as no override. */
+function coerceThreshold(key: keyof ScreenOverrides, v: unknown): number {
+  return isThreshold(key, v) ? v : 0;
 }
 
 function coerce(v: unknown): ScreenOverrides {
   const s = (v ?? {}) as Record<string, unknown>;
   const out = { ...EMPTY };
-  for (const k of SCREEN_KEYS) out[k] = coerceThreshold(s[k]);
+  for (const k of SCREEN_KEYS) out[k] = coerceThreshold(k, s[k]);
   return out;
 }
 
@@ -109,7 +122,7 @@ export function createScreenKnobSettings(opts?: {
       const next = { ...core.current() };
       for (const k of SCREEN_KEYS) {
         const v = partial[k];
-        if (k in partial && isThreshold(v)) next[k] = v;
+        if (k in partial && isThreshold(k, v)) next[k] = v;
       }
       core.commit(next);
     },
