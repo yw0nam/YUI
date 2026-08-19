@@ -112,11 +112,12 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
     return undefined;
   }
 
-  /** Buffers a held app_switched transition, dropping the oldest past `cap` (0 = accumulate nothing). */
+  /** Buffers a held app_switched transition, draining the oldest entries down to `cap` — a cap
+      lowered mid-hold (down to and including 0) drains in the same push, not one shift per call. */
   function pushRecent(from_app: string, to_app: string, dwell_min: number, cap: number): void {
-    if (cap <= 0) return;
     recent.push({ from_app, to_app, dwell_min });
-    if (recent.length > cap) recent.shift();
+    const floor = Math.max(0, cap);
+    while (recent.length > floor) recent.shift();
   }
 
   function fire(
