@@ -155,7 +155,8 @@ export function createEffectiveEndpoints(deps: {
 }
 
 export function wireSpeakerSelection(deps: {
-  getEndpoints: () => { tts_base_url?: string; tts_speaker?: string };
+  /** Effective endpoints, or null while a best-effort config load has not finished. */
+  getEndpoints: () => { tts_base_url?: string; tts_speaker?: string } | null;
   /** Resolves the TTS server key (Bearer). Omitted/empty → no auth header. */
   getApiKey?: () => Promise<string | undefined>;
   log: Logger;
@@ -185,11 +186,11 @@ export function wireSpeakerSelection(deps: {
   };
   // Re-upload the reference clip — server-side force-refresh only, does not change the selection.
   const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
-    const eps = getEndpoints();
-    if (!eps.tts_base_url) throw new Error("voice refresh requires tts_base_url");
+    const baseUrl = getEndpoints()?.tts_base_url;
+    if (!baseUrl) throw new Error("voice refresh requires tts_base_url");
     const f = await selectFetch();
     await upsertVoice({
-      baseUrl: eps.tts_base_url,
+      baseUrl,
       id: option.id,
       refUrl: option.ref_url,
       fetch: f,
@@ -202,7 +203,7 @@ export function wireSpeakerSelection(deps: {
     speakerSelection.addUserOption({ ...option, source: "user", revision: prev + 1 });
   };
   const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
-    getTtsBaseUrl: () => getEndpoints().tts_base_url,
+    getTtsBaseUrl: () => getEndpoints()?.tts_base_url,
     getApiKey,
     speakerSelection,
     log,
