@@ -92,6 +92,103 @@ describe("proactive_pacer — hold window", () => {
     expect(s.pacer.isHolding()).toBe(false);
     s.pacer.stop();
   });
+
+  // The open timer is armed from the interval that was current at the anchor; a raise makes
+  // that timer early, so it must re-check the window instead of assuming it is the edge.
+  it("holds to the new expiry when the interval is raised mid-hold", () => {
+    const s = setup();
+    s.pacer.noteTurnStart();
+    s.advance(GAP / 2);
+    s.setInterval(GAP * 2);
+
+    s.advance(GAP); // past the original expiry
+    expect(s.pacer.isHolding()).toBe(true);
+
+    s.advance(GAP / 2); // now past the new one
+    expect(s.pacer.isHolding()).toBe(false);
+    s.pacer.stop();
+  });
+});
+
+describe("proactive_pacer — interval edits", () => {
+  it("re-arms the open edge at the new expiry when the interval is raised mid-hold", () => {
+    const s = setup();
+    const holds: boolean[] = [];
+    s.pacer.subscribe((holding) => holds.push(holding));
+
+    s.pacer.noteTurnStart();
+    s.advance(GAP / 2);
+    s.setInterval(GAP * 2);
+    s.pacer.noteIntervalChanged();
+
+    s.advance(GAP);
+    expect(holds).toEqual([true]);
+
+    s.advance(GAP / 2);
+    expect(holds).toEqual([true, false]);
+    s.pacer.stop();
+  });
+
+  // Without this, the buffered inboxes stay held on a stale window while the skipping sources
+  // are already free — isHolding() flips but no one is told.
+  it("opens the window at once when the interval drops below the elapsed hold", () => {
+    const s = setup();
+    const holds: boolean[] = [];
+    s.pacer.subscribe((holding) => holds.push(holding));
+
+    s.pacer.noteTurnStart();
+    s.advance(60_000);
+    s.setInterval(30_000);
+    s.pacer.noteIntervalChanged();
+
+    expect(holds).toEqual([true, false]);
+    expect(s.pacer.isHolding()).toBe(false);
+    s.pacer.stop();
+  });
+
+  it("opens the window at once when the pacer is turned off mid-hold", () => {
+    const s = setup();
+    const holds: boolean[] = [];
+    s.pacer.subscribe((holding) => holds.push(holding));
+
+    s.pacer.noteTurnStart();
+    s.advance(60_000);
+    s.setInterval(0);
+    s.pacer.noteIntervalChanged();
+
+    expect(holds).toEqual([true, false]);
+    expect(s.pacer.isHolding()).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    s.pacer.stop();
+  });
+
+  it("notifies nothing on an interval edit that leaves the window still holding", () => {
+    const s = setup();
+    const holds: boolean[] = [];
+    s.pacer.subscribe((holding) => holds.push(holding));
+
+    s.pacer.noteTurnStart();
+    s.advance(60_000);
+    s.setInterval(GAP / 2);
+    s.pacer.noteIntervalChanged();
+
+    expect(holds).toEqual([true]);
+    expect(s.pacer.isHolding()).toBe(true);
+    s.pacer.stop();
+  });
+
+  it("stays quiet on an interval edit while no window is open", () => {
+    const s = setup();
+    const holds: boolean[] = [];
+    s.pacer.subscribe((holding) => holds.push(holding));
+
+    s.setInterval(GAP * 2);
+    s.pacer.noteIntervalChanged();
+
+    expect(holds).toEqual([]);
+    expect(s.pacer.isHolding()).toBe(false);
+    s.pacer.stop();
+  });
 });
 
 describe("proactive_pacer — subscribers", () => {

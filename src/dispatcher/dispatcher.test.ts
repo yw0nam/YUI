@@ -1298,12 +1298,24 @@ describe("dispatcher — global proactive pacer gate", () => {
     };
   }
 
-  function build(pacer: ReturnType<typeof fakePacer>, appendSkipRecord: () => void) {
+  /** A loop cue / schedule / signals / agent fire — everything the timer scheduler pushes. */
+  const loopCueEnv = (over: Partial<BusEnvelope> = {}): BusEnvelope =>
+    proactiveEnv({ source: "timer_scheduler", event_name: "proactive.cowork", ...over });
+
+  /** A gesture cue — a physical interaction the user just made, never paced. */
+  const gestureEnv = (over: Partial<BusEnvelope> = {}): BusEnvelope =>
+    proactiveEnv({ source: "os_event_watcher", event_name: "proactive.touch_head", ...over });
+
+  function build(
+    pacer: ReturnType<typeof fakePacer>,
+    appendSkipRecord: () => void,
+    over: { guardrails?: Guardrails } = {},
+  ) {
     return createDispatcher({
       bus,
       renderer: renderer as never,
       backendCaller,
-      guardrails,
+      guardrails: over.guardrails ?? guardrails,
       turnLog,
       logger,
       peekConfig: () => PEEK_CONFIG,
@@ -1335,6 +1347,70 @@ describe("dispatcher — global proactive pacer gate", () => {
       reason: "global_gap",
       event_name: "proactive.screen_app_switched",
     });
+    d.stop();
+  });
+
+  it("drops a loop cue from the timer scheduler while the pacer holds", async () => {
+    const pacer = fakePacer(true);
+    const d = build(pacer, vi.fn());
+    d.start();
+
+    bus.push(loopCueEnv());
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).not.toHaveBeenCalled();
+    expect(d.recentDrops().at(-1)).toMatchObject({
+      event_name: "proactive.cowork",
+      reason: "global_gap",
+    });
+    // Held before the routing log — a candidate that never went out is not a fire.
+    expect(logger.info).not.toHaveBeenCalledWith("fire", expect.anything());
+    expect(d.queue()).toEqual([]);
+    d.stop();
+  });
+
+  // A gesture cue is the user's own physical interaction — the gap is about YUI speaking up
+  // on her own, so it never applies to one.
+  it("lets a gesture cue through while the pacer holds, and re-anchors on it", async () => {
+    const pacer = fakePacer(true);
+    const appendSkipRecord = vi.fn();
+    const d = build(pacer, appendSkipRecord);
+    d.start();
+
+    bus.push(gestureEnv());
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(pacer.noteTurnStart).toHaveBeenCalledOnce();
+    expect(appendSkipRecord).not.toHaveBeenCalled();
+    expect(d.recentDrops()).toEqual([]);
+    d.stop();
+  });
+
+  // evaluate() consumes a rate-limit slot at fire time and never refunds it, so a held fire
+  // that reaches the guardrail spends a cap it never used — and exhausting the overall cap
+  // additionally trips a cooldown that silences everything after it.
+  it("spends no guardrail slot on a held fire, so a later turn still passes the cap", async () => {
+    const cfg = permissiveGuardrailsConfig();
+    cfg.rate_limit.tier2_max = 3;
+    cfg.rate_limit.overall_max = 3;
+    const capped = createGuardrails(cfg, { now: () => Date.now() });
+    const pacer = fakePacer(true);
+    const d = build(pacer, vi.fn(), { guardrails: capped });
+    d.start();
+
+    for (let i = 0; i < 3; i++) {
+      bus.push(loopCueEnv({ ts: NOW + i }));
+      await vi.advanceTimersByTimeAsync(20);
+    }
+    expect(backendCaller.call).not.toHaveBeenCalled();
+
+    pacer.open();
+    bus.push(loopCueEnv({ ts: NOW + 10 }));
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(d.state()).toBe("running");
     d.stop();
   });
 
