@@ -587,7 +587,10 @@ describe("screen_source — recent buffer", () => {
   it("drains to a cap lowered mid-hold, not just one entry short of the old length", async () => {
     let holding = true;
     let cap = 5;
-    const s = setup({ isPacerHolding: () => holding, getConfig: () => ({ ...CFG, recent_cap: cap }) });
+    const s = setup({
+      isPacerHolding: () => holding,
+      getConfig: () => ({ ...CFG, recent_cap: cap }),
+    });
     await s.src.start();
 
     s.at(0, tick("App1"));
@@ -615,7 +618,10 @@ describe("screen_source — recent buffer", () => {
   it("drains fully when the cap changes to 0 mid-hold, no special-cased early return", async () => {
     let holding = true;
     let cap = 5;
-    const s = setup({ isPacerHolding: () => holding, getConfig: () => ({ ...CFG, recent_cap: cap }) });
+    const s = setup({
+      isPacerHolding: () => holding,
+      getConfig: () => ({ ...CFG, recent_cap: cap }),
+    });
     await s.src.start();
 
     s.at(0, tick("App1"));
