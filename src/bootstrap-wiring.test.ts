@@ -1022,6 +1022,111 @@ describe("createEffectiveEndpoints", () => {
     expect(getEndpoints()?.tts_base_url).toBe("http://override.test");
   });
 
+  // Every network consumer of the settings window reaches the server through wireSpeakerSelection,
+  // so the override has to survive that composition — not merely the merge in isolation.
+  describe("composed into wireSpeakerSelection", () => {
+    const overrideOnly = () =>
+      createEffectiveEndpoints({
+        getBundled: () => bundled(),
+        getOverrides: () => overrides({ tts_base_url: "http://override.test" }),
+      });
+
+    beforeEach(() => {
+      listVoices.mockReset().mockResolvedValue(["ナツメ"]);
+      upsertVoice.mockReset().mockResolvedValue(undefined);
+      copyVoiceFile.mockReset();
+      pickVoiceFile.mockReset();
+    });
+
+    it("refreshVoiceList reaches the override URL", async () => {
+      const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
+        getEndpoints: overrideOnly(),
+        log: noopLog,
+        broadcastSettings: () => {},
+      });
+
+      await refreshVoiceList();
+
+      expect(listVoices).toHaveBeenCalledWith(
+        expect.objectContaining({ baseUrl: "http://override.test" }),
+      );
+      speakerSelection.dispose();
+    });
+
+    it("refreshSpeaker uploads to the override URL", async () => {
+      const { refreshSpeaker, speakerSelection } = wireSpeakerSelection({
+        getEndpoints: overrideOnly(),
+        log: noopLog,
+        broadcastSettings: () => {},
+      });
+      const option = { id: "myvoice", ref_url: "asset://x/clip.wav", source: "user" as const };
+      speakerSelection.addUserOption(option);
+
+      await refreshSpeaker(option);
+
+      expect(upsertVoice).toHaveBeenCalledWith(
+        expect.objectContaining({ baseUrl: "http://override.test" }),
+      );
+      speakerSelection.dispose();
+    });
+
+    it("commitVoiceImport uploads to the override URL", async () => {
+      copyVoiceFile.mockResolvedValue({
+        id: "myvoice",
+        label: "My Voice",
+        ref_url: "asset://x/clip.wav",
+        source: "user",
+      });
+      const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
+        getEndpoints: overrideOnly(),
+        log: noopLog,
+        broadcastSettings: () => {},
+      });
+
+      await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+
+      expect(upsertVoice).toHaveBeenCalledWith(
+        expect.objectContaining({ baseUrl: "http://override.test" }),
+      );
+      speakerSelection.dispose();
+    });
+
+    // The settings window loads its config best-effort, so every consumer has to survive the
+    // not-yet-loaded window with its own error rather than dereferencing null.
+    it("reports a missing server cleanly while the config has not loaded", async () => {
+      const notLoaded = createEffectiveEndpoints({
+        getBundled: () => null,
+        getOverrides: () => overrides(),
+      });
+      copyVoiceFile.mockResolvedValue({
+        id: "myvoice",
+        label: "My Voice",
+        ref_url: "asset://x/clip.wav",
+        source: "user",
+      });
+      const { refreshVoiceList, refreshSpeaker, commitVoiceImport, speakerSelection } =
+        wireSpeakerSelection({
+          getEndpoints: notLoaded,
+          log: noopLog,
+          broadcastSettings: () => {},
+        });
+
+      await expect(refreshVoiceList()).resolves.toBeUndefined();
+      expect(listVoices).not.toHaveBeenCalled();
+
+      await expect(
+        refreshSpeaker({ id: "myvoice", ref_url: "asset://x/clip.wav" }),
+      ).rejects.toThrow("voice refresh requires tts_base_url");
+
+      await expect(commitVoiceImport("/tmp/MyVoice.wav", "My Voice")).rejects.toThrow(
+        "voice import requires tts_base_url",
+      );
+      expect(upsertVoice).not.toHaveBeenCalled();
+
+      speakerSelection.dispose();
+    });
+  });
+
   // The settings window's voice list is the only place a speaker can be picked, so an
   // override-only TTS server has to reach listVoices for the picker to populate at all.
   it("carries the override all the way into the voice-list request", async () => {
