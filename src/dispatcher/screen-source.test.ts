@@ -739,6 +739,24 @@ describe("screen_source — recent buffer", () => {
     expect(s.pushed[0]?.payload).not.toHaveProperty("recent");
   });
 
+  it("clears the buffer on a presence lapse — an overnight-stale path never ships on return", async () => {
+    let holding = true;
+    const s = setup({ isPacerHolding: () => holding });
+    await s.src.start();
+
+    s.at(0, tick("App1"));
+    s.at(10 * MIN, tick("App2")); // App1 dwell 10min
+    s.at(10 * MIN + 90_000, tick("App2")); // suppressed: App1 -> App2 — buffer at 1
+
+    s.at(15 * MIN, tick("App2", AWAY)); // presence lapses — clears the buffer along with the clocks
+
+    holding = false;
+    s.at(16 * MIN, tick("App2")); // returns — dwell restarts here
+    s.at(16 * MIN + 45 * MIN, tick("App2")); // next long_session mark
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]?.payload).not.toHaveProperty("recent");
+  });
+
   it("never includes a recent key on a fire whose buffer is empty", async () => {
     const s = setup();
     await s.src.start();

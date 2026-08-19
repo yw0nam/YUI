@@ -12,19 +12,21 @@
  * title-only changes, so this source keeps its own and a title change is never a transition.
  * A tick with no frontmost app carries no identity and holds the clock where it is.
  *
- * Presence lapsing resets both clocks: time away never counts toward a dwell or a session.
+ * Presence lapsing resets both clocks and clears the `recent` buffer described below: time away
+ * never counts toward a dwell, a session, or a held path — an overnight-stale path must not
+ * ship on the first morning fire.
+ *
  * A candidate that survives to the gate is refused when the feature is off, the user is away,
  * the global proactive pacer still holds its window open, the min gap since the last screen
  * fire has not passed, or a turn from any producer landed within `quiet_after_turn_ms`. A
- * refused `long_session` mark is skipped, not queued — the
- * next fire is the next mark. Every fire re-anchors the idle-cue gap so proactive cues do not
- * pile onto it.
+ * refused `long_session` mark is skipped, not queued — the next fire is the next mark. Every
+ * fire re-anchors the idle-cue gap so proactive cues do not pile onto it.
  *
  * While the pacer holds, each `app_switched` refusal it causes is accumulated into a rolling
  * `recent` buffer (capped at `recent_cap`, oldest dropped on overflow) instead of being lost;
  * `long_session` refusals are never a transition and are never buffered. The next fire that
- * actually ships carries the buffer and clears it; a refusal because the feature is disabled
- * also clears it, so a re-enable never leaks a stale path.
+ * actually ships carries the buffer and clears it; a refusal because the feature is disabled,
+ * or a presence lapse, also clears it — so a re-enable or a return never leaks a stale path.
  *
  * firing ≠ judgment: this only produces a candidate event; the backend decides
  * whether/what to speak.
@@ -218,6 +220,7 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
     if (!present) {
       away = true;
       resetClocks();
+      recent = [];
     }
   }
 
