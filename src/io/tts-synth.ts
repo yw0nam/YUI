@@ -3,7 +3,17 @@
 import type { EndpointsConfig } from "../contract";
 import { createDeadlineSignal } from "./deadline";
 
-export type TtsSynth = (input: string, signal?: AbortSignal) => Promise<ArrayBuffer>;
+/** Per-call synthesis direction that is not part of the spoken text. */
+export interface TtsSynthCallOptions {
+  /** Natural-language voice direction, sent as `irodori.caption`. */
+  caption?: string;
+}
+
+export type TtsSynth = (
+  input: string,
+  signal?: AbortSignal,
+  opts?: TtsSynthCallOptions,
+) => Promise<ArrayBuffer>;
 
 /** What the voice pipeline needs from the TTS path, so it never reads endpoints itself. */
 export interface TtsProvider {
@@ -31,10 +41,11 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const url = `${opts.baseUrl}/v1/audio/speech`;
 
-  return async (input, signal) => {
+  return async (input, signal, call) => {
     const body: Record<string, unknown> = { input, response_format: "wav" };
     if (opts.model !== undefined) body.model = opts.model;
     if (opts.voice !== undefined) body.voice = opts.voice;
+    if (call?.caption) body.irodori = { caption: call.caption };
 
     const key = (await opts.getApiKey?.())?.trim() || undefined;
     const deadline = createDeadlineSignal(TTS_SYNTH_TIMEOUT_MS, "TTS request timed out");
@@ -81,7 +92,7 @@ export interface TtsProviderDeps {
 
 export function createTtsProvider(deps: TtsProviderDeps): TtsProvider {
   return {
-    synth: async (input, signal) => {
+    synth: async (input, signal, call) => {
       const eps = deps.getEndpoints();
       const fetchImpl = await deps.selectFetch();
       return createTtsSynth({
@@ -90,7 +101,7 @@ export function createTtsProvider(deps: TtsProviderDeps): TtsProvider {
         model: eps.tts_model,
         voice: deps.getActiveSpeaker().id,
         getApiKey: deps.getApiKey,
-      })(input, signal);
+      })(input, signal, call);
     },
     paramsKey: () => {
       const eps = deps.getEndpoints();
