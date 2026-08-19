@@ -19,7 +19,8 @@ bubble).
 `generate_express` carries a second, independent voice channel alongside it:
 `caption`, a free-text voice direction that travels out-of-band in the synthesis
 request as `irodori.caption` rather than as a prefix on the spoken text. It has
-no vocabulary and no broker gate, so nothing here constrains it. The
+no vocabulary and no enum gate — the broker truncates it to 200 characters
+(with a warning) but never blocks on it. The
 `generate_express` cue contract that carries both is described in
 [`client-context.md`](../client-context.md);
 the control envelope shape lives in

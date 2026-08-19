@@ -43,7 +43,7 @@ Metadata about a schedule/proactive firing source (label, user-authored context,
 _Avoid_: bare "cue"
 
 **Express cue**:
-The one-way `generate_express` instruction, brain→client: emotion, motion, and TTS voice-tag text, streamed per beat and applied when the sentence it belongs to starts playing. Never inline markup inside speech text.
+The one-way `generate_express` instruction, brain→client: emotion, motion, a TTS voice-tag (`emotion_text`), and a free-text voice direction (`caption`) carried out-of-band, streamed per beat and applied when the sentence it belongs to starts playing. Never inline markup inside speech text.
 _Avoid_: bare "cue", expression command, tag, control token
 
 **Reflex turn**:
