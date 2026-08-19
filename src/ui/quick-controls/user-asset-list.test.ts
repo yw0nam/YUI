@@ -256,19 +256,7 @@ describe("import flow", () => {
     expect(h.importErrorEl.hidden).toBe(true);
   });
 
-  it("handleAddClick is gated by canActivate when provided", async () => {
-    const canActivate = vi.fn(() => false);
-    const h = makeHarness({ canActivate });
-    h.list.handleAddClick();
-    expect(h.importFn).not.toHaveBeenCalled();
-
-    canActivate.mockReturnValue(true);
-    h.list.handleAddClick();
-    await Promise.resolve();
-    expect(h.importFn).toHaveBeenCalledTimes(1);
-  });
-
-  it("handleAddClick runs unconditionally when canActivate is omitted", async () => {
+  it("handleAddClick starts the import", async () => {
     const h = makeHarness();
     h.list.handleAddClick();
     await Promise.resolve();
@@ -293,17 +281,6 @@ describe("row lookup + keyboard nav", () => {
       new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
     );
     expect(h.swap).toHaveBeenCalledWith({ id: "b", label: "B" });
-  });
-
-  it("Enter is gated by canActivate when provided", () => {
-    const canActivate = vi.fn(() => false);
-    const h = makeHarness({ canActivate });
-    h.render();
-    const rowB = h.list.rowById("b")!;
-    rowB.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
-    );
-    expect(h.swap).not.toHaveBeenCalled();
   });
 
   it("ArrowDown moves roving tabindex forward, wrapping past the end", () => {

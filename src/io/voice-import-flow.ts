@@ -65,7 +65,14 @@ export function createVoiceImportFlow(deps: {
       if (!baseUrl) throw new Error("voice import requires tts_base_url");
       const f = await selectFetch();
       // ref_url is an asset:// URL that reference-clip reads through the webview fetch.
-      await upsertVoice({ baseUrl, id: option.id, refUrl: option.ref_url, fetch: f, getApiKey });
+      await upsertVoice({
+        baseUrl,
+        id: option.id,
+        refUrl: option.ref_url,
+        fetch: f,
+        getApiKey,
+        logger: log,
+      });
     } catch (err) {
       // Surface a cleanup failure as a warning rather than swallowing it (the original still throws).
       await removeOrphanVoice(option.id, removeUserVoiceFile, (e) =>

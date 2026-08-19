@@ -161,7 +161,7 @@ server. Each is a separate, config-swappable process, and all base URLs live in
   emits a custom `hermes.tool.progress` telemetry event with no arguments
   instead. With Hermes, use `responses` mode for cues.
 - **STT** — `localhost:5517` `/v1/audio/transcriptions`
-- **TTS** — OpenAI-compatible `/v1/audio/speech` at `localhost:8092`, with
+- **TTS** — OpenAI-compatible `/v1/audio/speech` at `localhost:8088`, with
   `model` from `tts_model` and `voice` from the speaker picked in the panel.
   The TTS server is the source of truth for the speaker list
   (`GET /v1/audio/voices`) — users add their own via the panel's import button,

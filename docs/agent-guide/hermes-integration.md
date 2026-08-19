@@ -6,7 +6,7 @@ Chat, STT and TTS use the **OpenAI-compatible API**; the broker is an MCP. Separ
 
 - **chat → Hermes Agent** `localhost:8643` `/v1/responses`
 - **STT →** `localhost:5517` `/v1/audio/transcriptions`
-- **TTS →** `tts_base_url` (`localhost:8092`) `/v1/audio/speech`, with `model` from `tts_model` and `voice` from the speaker selected in the panel. Speakers are listed by `GET {tts_base_url}/v1/audio/voices` — YUI carries no bundled catalog — plus any clip the user imports, which is uploaded to `POST`/`PUT /v1/audio/voices`
+- **TTS →** `tts_base_url` (`localhost:8088`) `/v1/audio/speech`, with `model` from `tts_model` and `voice` from the speaker selected in the panel. Speakers are listed by `GET {tts_base_url}/v1/audio/voices` — YUI carries no bundled catalog — plus any clip the user imports, which is uploaded to `POST`/`PUT /v1/audio/voices`
 - **Expression Broker** (config-driven) `broker_base_url` (`localhost:3201/mcp`, streamable-http MCP) — YUI publishes renderable emotion/motion/emotion_text vocabulary, the agent reads it (publish skipped if unset)
 
 **Auth.** Each call carries `Authorization: Bearer` from a key resolved through `SecretProvider` — a runtime settings override, else the `.env.local` fallback: chat `VITE_YUI_CHAT_KEY`, STT `VITE_YUI_STT_KEY`, TTS `VITE_YUI_TTS_KEY`. An empty key sends no header.

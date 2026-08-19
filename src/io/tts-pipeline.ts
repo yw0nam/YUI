@@ -3,21 +3,18 @@
  * synths run concurrently, but playback stays in submission order even if responses arrive out of order.
  */
 
-import type { EndpointsConfig, ExpressArgs } from "../contract";
+import type { ExpressArgs } from "../contract";
 import { createLogger, type Logger } from "../logger";
 import { type AudioSink, createWebAudioSink } from "./audio-player";
 import { createSentenceSegmenter } from "./sentence-segmenter";
-import { createTtsSynth, type TtsSynth } from "./tts-synth";
+import type { TtsSynth } from "./tts-synth";
 
 /** When synth rejects with this value it's a silent skip — takes the failed-skip path with no error log. */
 export const TTS_SKIP: unique symbol = Symbol("TTS_SKIP");
 
 export interface TtsPipelineOptions {
-  // Unused when synth is injected. Don't eagerly evaluate a throwable value like config.get() and pass it in.
-  config?: EndpointsConfig;
-  synth?: TtsSynth;
+  synth: TtsSynth;
   sink?: AudioSink;
-  fetch?: typeof fetch;
   onAmplitude?: (rms: number) => void;
   // Fires once after end() when the last chunk finishes playing (or when there are no chunks to play).
   onPlaybackEnd?: () => void;
@@ -41,14 +38,7 @@ export interface TtsPipeline {
 
 export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   const log: Logger = options.logger ?? createLogger("tts-pipeline");
-  const synth: TtsSynth =
-    options.synth ??
-    (() => {
-      if (!options.config) {
-        throw new Error("[tts-pipeline] config 또는 synth 중 하나는 필요하다");
-      }
-      return createTtsSynth({ baseUrl: options.config.tts_base_url, fetch: options.fetch });
-    })();
+  const synth: TtsSynth = options.synth;
   const sink: AudioSink = options.sink ?? createWebAudioSink();
   // Evaluated at drain time — the function form reads the hot-reload config value each time.
   const resolveMaxInflight = (): number => {

@@ -157,6 +157,7 @@ async function bootstrap(): Promise<void> {
       refUrl: option.ref_url,
       fetch: f,
       getApiKey: getTtsApiKey,
+      logger: log,
     });
     // The clip behind an unchanged id was replaced — bump the persisted revision so every
     // window's filler cache key moves with it.

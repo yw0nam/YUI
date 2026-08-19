@@ -698,13 +698,12 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("leaves the speaker controls enabled with no hint to disable them", () => {
+  it("leaves the speaker controls live, with no hint saying they are inactive", () => {
     const qc = buildQc();
     qc.open();
 
-    expect(qc.el.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(false);
-    expect(qc.el.querySelector(".yui-spk-foot")!.classList.contains("is-disabled")).toBe(false);
     expect(qc.el.querySelector(".yui-spks-hint")).toBeNull();
+    expect(qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.disabled).toBe(false);
 
     qc.dispose();
   });

@@ -15,6 +15,11 @@ import type { ExpressArgs } from "../contract";
 import { createSpeechPlayback } from "./speech-playback";
 import type { TtsPipeline, TtsPipelineOptions } from "./tts-pipeline";
 
+/** These tests replace pipeline construction with a factory stub, so this synth is never called. */
+const NO_PIPELINE = {
+  synth: (): Promise<ArrayBuffer> => Promise.reject(new Error("synth unused in this test")),
+};
+
 /** Stub pipeline that captures the onAmplitude / onPlaybackEnd / onCuePlay it was constructed with. */
 function stubPipelineFactory() {
   const calls = { pushTextDelta: [] as string[], ended: 0, disposed: 0 };
@@ -101,7 +106,12 @@ describe("createSpeechPlayback — amplitude drives the mouth", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     stub.emitAmplitude(0.42);
     stub.emitAmplitude(0.8);
@@ -113,7 +123,12 @@ describe("createSpeechPlayback — amplitude drives the mouth", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     stub.emitPlaybackEnd();
     expect(renderer.stopMouth).toHaveBeenCalledTimes(1);
@@ -125,7 +140,12 @@ describe("createSpeechPlayback — emotion eases back to neutral when playback e
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
     stub.emitPlaybackEnd();
@@ -139,7 +159,12 @@ describe("createSpeechPlayback — emotion eases back to neutral when playback e
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeech("Text with no audio.");
     // the emotion must NOT revert mid-utterance — only when playback ends.
@@ -152,7 +177,12 @@ describe("createSpeechPlayback — emotion eases back to neutral when playback e
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     stub.emitPlaybackEnd();
     expect(renderer.stopMouth).toHaveBeenCalledTimes(1);
@@ -166,7 +196,12 @@ describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeechDelta("Hello");
     stub.emitAmplitude(0.4);
@@ -179,7 +214,12 @@ describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeechDelta("Hello");
     stub.emitAmplitude(0.4);
@@ -192,7 +232,12 @@ describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.interrupt();
     expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
@@ -202,7 +247,12 @@ describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeechDelta("Hello");
     stub.setOutstandingWork(true);
@@ -216,7 +266,12 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeech("Hello there.");
     expect(surfaces.beginSpeech).toHaveBeenCalledTimes(1);
@@ -233,7 +288,12 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeech("Spoken.");
     expect(surfaces.finishSpeech).not.toHaveBeenCalled();
@@ -247,7 +307,12 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeech("Text with no audio.");
     // pipeline still fires onPlaybackEnd after draining an empty/failed queue.
@@ -265,6 +330,7 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
     const sp = createSpeechPlayback({
       renderer,
       surfaces,
+      pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
       reportAudioOwed,
     });
@@ -280,7 +346,13 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
     const reportAudioOwed = vi.fn();
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory, reportAudioOwed });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      reportAudioOwed,
+    });
 
     stub.emitPlaybackEnd();
 
@@ -295,6 +367,7 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
     const sp = createSpeechPlayback({
       renderer,
       surfaces,
+      pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
       reportAudioOwed,
     });
@@ -316,6 +389,7 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
     const sp = createSpeechPlayback({
       renderer,
       surfaces,
+      pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
       reportAudioOwed,
     });
@@ -335,6 +409,7 @@ describe("createSpeechPlayback — dispose", () => {
     const sp = createSpeechPlayback({
       renderer: spyRenderer(),
       surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
     });
     sp.dispose();
@@ -347,7 +422,12 @@ describe("createSpeechPlayback — onSpeechDelta streams text into bubble + pipe
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeechDelta("Hello");
     sp.onSpeechDelta(" there");
@@ -360,7 +440,12 @@ describe("createSpeechPlayback — onSpeechDelta streams text into bubble + pipe
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeechDelta("a");
     sp.onSpeechDelta("b");
@@ -378,7 +463,12 @@ describe("createSpeechPlayback — onSpeechEnd finalizes a run", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeechDelta("Hello.");
     sp.onSpeechEnd();
@@ -392,7 +482,12 @@ describe("createSpeechPlayback — onSpeechEnd finalizes a run", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeechEnd();
     expect(surfaces.endSpeech).not.toHaveBeenCalled();
@@ -406,7 +501,12 @@ describe("createSpeechPlayback — setCue forwards to the pipeline", () => {
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
 
     sp.setCue({ emotion_id: "happy", emotion_text: "😊" });
     expect(multi.instances[0].setCue).toHaveBeenCalledWith({
@@ -419,7 +519,12 @@ describe("createSpeechPlayback — setCue forwards to the pipeline", () => {
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
 
     sp.setCue(null);
     expect(multi.instances[0].setCue).toHaveBeenCalledWith(null);
@@ -431,7 +536,12 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
 
     sp.holdMotion(true);
     sp.setCue({ emotion_id: "calm", motion_id: "calm" });
@@ -443,7 +553,12 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
 
     sp.holdMotion(true);
     sp.setCue({ emotion_id: "calm", motion_id: "calm" });
@@ -460,7 +575,12 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
 
     sp.holdMotion(true);
     sp.setCue({ emotion_id: "calm", motion_id: "calm" });
@@ -478,7 +598,12 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
 
     sp.holdMotion(true);
     sp.holdMotion(false);
@@ -490,7 +615,12 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
 
     sp.holdMotion(true);
     sp.setCue({ emotion_id: "calm", motion_id: "calm" });
@@ -505,7 +635,12 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
 
     sp.setCue({ emotion_id: "happy" });
 
@@ -519,7 +654,12 @@ describe("createSpeechPlayback — onCuePlay drives renderer directives", () => 
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     stub.emitCuePlay({ emotion_id: "happy", motion_id: "dance" });
     expect(renderer.applyDirective).toHaveBeenCalledTimes(1);
@@ -537,7 +677,12 @@ describe("createSpeechPlayback — onCuePlay drives renderer directives", () => 
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     stub.emitCuePlay({ emotion_id: "curious" });
     expect(renderer.applyDirective).toHaveBeenCalledTimes(1);
@@ -552,7 +697,12 @@ describe("createSpeechPlayback — onCuePlay drives renderer directives", () => 
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     stub.emitCuePlay({ emotion_text: "😆" });
     expect(renderer.applyDirective).not.toHaveBeenCalled();
@@ -564,7 +714,12 @@ describe("createSpeechPlayback — onCuePlay drives renderer directives", () => 
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     stub.emitCuePlay(null);
     expect(renderer.applyDirective).not.toHaveBeenCalled();
@@ -578,7 +733,12 @@ describe("createSpeechPlayback — interrupt swaps the pipeline and releases the
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
     // factory called once at construction.
     expect(multi.instances.length).toBe(1);
 
@@ -595,7 +755,12 @@ describe("createSpeechPlayback — interrupt swaps the pipeline and releases the
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
 
     sp.onSpeechDelta("old");
     sp.interrupt();
@@ -613,7 +778,12 @@ describe("createSpeechPlayback — interrupt swaps the pipeline and releases the
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
 
     sp.onSpeechDelta("old");
     sp.interrupt();
@@ -630,6 +800,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     const sp = createSpeechPlayback({
       renderer: spyRenderer(),
       surfaces,
+      pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
     });
 
@@ -646,6 +817,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     const sp = createSpeechPlayback({
       renderer: spyRenderer(),
       surfaces,
+      pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
     });
 
@@ -662,6 +834,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     const sp = createSpeechPlayback({
       renderer: spyRenderer(),
       surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
     });
 
@@ -677,6 +850,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     const sp = createSpeechPlayback({
       renderer: spyRenderer(),
       surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
     });
 
@@ -693,6 +867,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     const sp = createSpeechPlayback({
       renderer: spyRenderer(),
       surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
     });
 
@@ -713,6 +888,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     const sp = createSpeechPlayback({
       renderer: spyRenderer(),
       surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
     });
 
@@ -727,6 +903,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     const sp = createSpeechPlayback({
       renderer: spyRenderer(),
       surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
     });
 
@@ -743,7 +920,12 @@ describe("createSpeechPlayback — abort tears down without rebuilding", () => {
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
     // factory called once at construction.
     expect(multi.instances.length).toBe(1);
 
@@ -760,7 +942,12 @@ describe("createSpeechPlayback — abort tears down without rebuilding", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeechDelta("partial");
     sp.abort();
@@ -775,7 +962,13 @@ describe("createSpeechPlayback — options.onPlaybackEnd passthrough", () => {
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
     const onPlaybackEnd = vi.fn();
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory, onPlaybackEnd });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      onPlaybackEnd,
+    });
 
     stub.emitPlaybackEnd();
     expect(onPlaybackEnd).toHaveBeenCalledOnce();
@@ -790,7 +983,13 @@ describe("createSpeechPlayback — options.onPlaybackEnd passthrough", () => {
     surfaces.finishSpeech.mockImplementation(() => order.push("finishSpeech"));
     renderer.easeEmotionToNeutral.mockImplementation(() => order.push("easeEmotion"));
     const onPlaybackEnd = vi.fn(() => order.push("onPlaybackEnd"));
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory, onPlaybackEnd });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      onPlaybackEnd,
+    });
 
     stub.emitPlaybackEnd();
     expect(order).toEqual(["stopMouth", "finishSpeech", "easeEmotion", "onPlaybackEnd"]);
@@ -800,7 +999,12 @@ describe("createSpeechPlayback — options.onPlaybackEnd passthrough", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
     expect(() => stub.emitPlaybackEnd()).not.toThrow();
   });
 });
@@ -810,7 +1014,12 @@ describe("createSpeechPlayback — onSpeech is sugar over delta+end", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeech("Whole thing.");
     expect(surfaces.beginSpeech).toHaveBeenCalledTimes(1);
@@ -827,7 +1036,12 @@ describe("createSpeechPlayback — emoji sanitization in delta", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     // trailing emoji is held in carry and discarded when the run ends (flush on onSpeechEnd).
     sp.onSpeechDelta("잘 왔어 ✨");
@@ -840,7 +1054,12 @@ describe("createSpeechPlayback — emoji sanitization in delta", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.onSpeechDelta("hello world");
     expect(surfaces.pushSpeech).toHaveBeenCalledWith("hello world");
@@ -853,7 +1072,12 @@ describe("createSpeechPlayback — holdMotion suppresses playMotion(null) for nu
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.holdMotion(true);
     stub.emitCuePlay(null);
@@ -866,7 +1090,12 @@ describe("createSpeechPlayback — holdMotion suppresses playMotion(null) for nu
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     // default is false — no holdMotion call needed
     stub.emitCuePlay(null);
@@ -879,7 +1108,12 @@ describe("createSpeechPlayback — holdMotion suppresses playMotion(null) for nu
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: stub.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+    });
 
     sp.holdMotion(true);
     stub.emitCuePlay({ emotion_id: "happy", motion_id: "wave" });
@@ -894,7 +1128,12 @@ describe("createSpeechPlayback — stripper carry reset on interrupt/abort", () 
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
 
     // push a delta ending in a trailing emoji-class run — stripper holds it in carry.
     sp.onSpeechDelta("hello ✨");
@@ -917,7 +1156,12 @@ describe("createSpeechPlayback — stripper carry reset on interrupt/abort", () 
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();
     const surfaces = spySurfaces();
-    const sp = createSpeechPlayback({ renderer, surfaces, createPipeline: multi.factory });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+    });
 
     // push a delta ending in a trailing emoji-class run — stripper holds it in carry.
     sp.onSpeechDelta("bye ✨");

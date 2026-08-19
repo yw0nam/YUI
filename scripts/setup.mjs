@@ -18,9 +18,9 @@ export function mergeEndpoints(existing, overrides) {
   return out;
 }
 
-// TTS 서버 주소와 기본 화자 id. 빈 답은 mergeEndpoints 가 "기존값 유지" 로 처리한다.
-export function ttsOverrides({ baseUrl, speaker } = {}) {
-  return { tts_base_url: baseUrl, tts_speaker: speaker };
+// TTS 서버 주소·모델명·기본 화자 id. 빈 답은 mergeEndpoints 가 "기존값 유지" 로 처리한다.
+export function ttsOverrides({ baseUrl, model, speaker } = {}) {
+  return { tts_base_url: baseUrl, tts_model: model, tts_speaker: speaker };
 }
 
 // --no-install 이면 마지막 pnpm install 을 건너뛴다.
@@ -112,9 +112,11 @@ async function main() {
   // Optional: TTS, STT. Blank / "none" to skip.
   console.log("\n=== OPTIONAL ===");
   console.log("— TTS (optional) — OpenAI-compatible /v1/audio/speech —");
-  console.log("  (tts_speaker is the default voice id; the panel can pick another later)");
+  console.log("  (tts_model must match the server's configured name; tts_speaker is the default");
+  console.log("   voice id, and the panel can pick another later)");
   const tts = ttsOverrides({
     baseUrl: await ask("tts_base_url", cfg.tts_base_url),
+    model: await ask("tts_model", cfg.tts_model),
     speaker: await ask("tts_speaker", cfg.tts_speaker),
   });
   // 키를 요구하지 않는 서버도 있으니 비워둘 수 있다.

@@ -36,16 +36,20 @@ describe("mergeEndpoints", () => {
 });
 
 describe("ttsOverrides", () => {
-  it("writes the TTS server URL and the default speaker id", () => {
-    expect(ttsOverrides({ baseUrl: "http://t:1", speaker: "ナツメ" })).toEqual({
+  it("writes the TTS server URL, the model name and the default speaker id", () => {
+    expect(
+      ttsOverrides({ baseUrl: "http://t:1", model: "irodori-tts", speaker: "ナツメ" }),
+    ).toEqual({
       tts_base_url: "http://t:1",
+      tts_model: "irodori-tts",
       tts_speaker: "ナツメ",
     });
   });
 
   it("blank answers stay blank so mergeEndpoints keeps the existing values", () => {
-    expect(ttsOverrides({ baseUrl: "", speaker: "" })).toEqual({
+    expect(ttsOverrides({ baseUrl: "", model: "", speaker: "" })).toEqual({
       tts_base_url: "",
+      tts_model: "",
       tts_speaker: "",
     });
   });
