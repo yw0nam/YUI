@@ -89,7 +89,8 @@ respond.
 
 Cues ride alongside the reply. Speech comes through as a normal assistant text
 stream, while emotion, motion, and voice tags arrive as `generate_express`
-tool-calls with flat arguments `{ emotion_id?, motion_id?, emotion_text? }`.
+tool-calls with flat arguments
+`{ emotion_id?, motion_id?, emotion_text?, caption? }`.
 `emotion_text` is a TTS voice tag drawn from the emoji vocabulary the Expression
 Broker publishes so the agent knows what it can ask for. This is carried in
 full over Responses mode today; see [Backend wiring](#backend-wiring) for how
