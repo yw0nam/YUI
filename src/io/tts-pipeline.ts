@@ -47,7 +47,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       if (!options.config) {
         throw new Error("[tts-pipeline] config 또는 synth 중 하나는 필요하다");
       }
-      return createTtsSynth({ config: options.config, fetch: options.fetch });
+      return createTtsSynth({ baseUrl: options.config.tts_base_url, fetch: options.fetch });
     })();
   const sink: AudioSink = options.sink ?? createWebAudioSink();
   // Evaluated at drain time — the function form reads the hot-reload config value each time.

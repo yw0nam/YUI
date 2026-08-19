@@ -11,37 +11,25 @@ import {
   localStorageStore,
   type PersistedStorage,
 } from "./persisted-store";
-import type { TtsProviderKind } from "./tts-provider";
 
 /** Max length per field (overly long storage values are capped, not reset to ""). */
 export const ENDPOINT_VALUE_MAX_LEN = 2048;
 
 /**
  * Editable override fields. Empty string = no override. URL fields are validated by isValidEndpointUrl.
- * tts_provider is valid only as "irodori"|"openai" — anything else (including empty) means no override.
  * chat_api is valid only as "responses"|"chat_completions" — anything else (including empty) means no override.
  */
 export interface EndpointOverrides {
   chat_base_url: string;
   stt_base_url: string;
   tts_base_url: string;
-  irodori_base_url: string;
   broker_base_url: string;
   chat_model: string;
   chat_model_context_window: string;
   chat_api: string;
-  tts_voice: string;
-  tts_provider: string;
 }
 
 export type EndpointsStorage = PersistedStorage<EndpointOverrides>;
-
-/**
- * Valid provider values that mergeEndpoints applies. Anything else (including empty) means no
- * override. Typed against tts-provider.ts's TtsProviderKind so this list and the provider
- * module's own enum can't silently drift.
- */
-const VALID_PROVIDERS: readonly TtsProviderKind[] = ["irodori", "openai"];
 
 /** Valid chat_api values that mergeEndpoints applies. Anything else (including empty) means no override. */
 const VALID_CHAT_APIS = ["responses", "chat_completions"] as const;
@@ -92,12 +80,6 @@ export const ENDPOINT_FIELD_SPECS = [
   { key: "stt_base_url", kind: "url", labelKey: "endpoints.stt_base_url.label", resetGroup: "stt" },
   { key: "tts_base_url", kind: "url", labelKey: "endpoints.tts_base_url.label", resetGroup: "tts" },
   {
-    key: "irodori_base_url",
-    kind: "url",
-    labelKey: "endpoints.irodori_base_url.label",
-    resetGroup: "tts",
-  },
-  {
     key: "broker_base_url",
     kind: "url",
     labelKey: "endpoints.broker_base_url.label",
@@ -108,8 +90,6 @@ export const ENDPOINT_FIELD_SPECS = [
   // chat_base_url/chat_model/chat_api) — see endpoints-settings.test.ts's resetGroup pin test.
   { key: "chat_model_context_window", kind: "posInt", resetGroup: undefined },
   { key: "chat_api", kind: "enum", enum: VALID_CHAT_APIS, resetGroup: "chat" },
-  { key: "tts_voice", kind: "string", labelKey: "endpoints.tts_voice.label", resetGroup: "tts" },
-  { key: "tts_provider", kind: "enum", enum: VALID_PROVIDERS, resetGroup: "tts" },
 ] as const satisfies readonly EndpointFieldSpec[];
 
 /** Literal union of every key declared above — used by the totality guard below. */
@@ -195,10 +175,9 @@ function isOneOf<T extends string>(list: readonly T[], v: string): v is T {
 
 /**
  * Builds a new EndpointsConfig by layering overrides onto the base EndpointsConfig (base unchanged).
- * URL fields apply only when non-empty + isValidEndpointUrl, chat_model only when non-empty,
- * tts_provider only when a valid enum ("irodori"|"openai"), and chat_api only when a valid enum
- * ("responses"|"chat_completions"). Applied values are trimmed.
- * Invalid URL/provider/chat_api are ignored (effective keeps the base default) — the UI surfaces the error separately.
+ * URL fields apply only when non-empty + isValidEndpointUrl, chat_model only when non-empty, and
+ * chat_api only when a valid enum ("responses"|"chat_completions"). Applied values are trimmed.
+ * An invalid URL/chat_api is ignored (effective keeps the base default) — the UI surfaces the error separately.
  */
 export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): EndpointsConfig {
   const out: EndpointsConfig = { ...base };

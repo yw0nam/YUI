@@ -70,7 +70,6 @@ export default defineConfig({
               link: '/reference/tts-emotion/',
               items: [
                 { text: 'Irodori', link: '/reference/tts-emotion/irodori' },
-                { text: 'Fish Speech', link: '/reference/tts-emotion/fishspeech' },
               ],
             },
             { text: 'Mods', link: '/reference/mods' },

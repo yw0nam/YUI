@@ -12,7 +12,7 @@ YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I
 | Backend agent | **Required** | No chat, no character speech |
 | `.env.local` + `VITE_YUI_CHAT_KEY` | **Required** | Chat auth absent |
 | `configs/endpoints.json` wiring | **Required** | Services unreachable |
-| TTS — Irodori or OpenAI-compatible | Optional | Speech bubble works; no audio output |
+| TTS (OpenAI-compatible) | Optional | Speech bubble works; no audio output |
 | STT | Optional | Text input works; no voice input |
 | Screenshot context | Optional | Agent receives no screen context |
 | Mods (`Mods/`) | Optional | No desktop-control or other Mod capabilities |
@@ -122,36 +122,28 @@ Connects over the Chat Completions API to any endpoint whose model supports tool
 
 ## 5. TTS — Voice Output (optional)
 
-Without TTS, YUI displays text in the speech bubble but produces no audio. Two providers are supported:
+Without TTS, YUI displays text in the speech bubble but produces no audio. Any server implementing the OpenAI `/v1/audio/speech` endpoint works.
 
-### Option A — Irodori TTS (recommended for Japanese voices)
+The reference deployment is the Irodori TTS OpenAI-compatible server — it also understands the emoji `emotion_text` tags inline in the spoken text:
 
-[https://github.com/yw0nam/Irodori-TTS](https://github.com/yw0nam/Irodori-TTS) — use the **`v3` API server branch** and serve the API server.
+```bash
+uv run --no-sync python -m irodori_openai_tts --host 0.0.0.0 --port 8088
+```
 
 **Caveat: Irodori serves Japanese only.** When using it, instruct your backend agent to respond in Japanese.
 
 In `configs/endpoints.json`:
 ```json
-"tts_provider": "irodori",
-"irodori_base_url": "http://localhost:8091",
-"irodori_speaker": "<voice-id>",
-"tts_voice": "<voice-id>"
+"tts_base_url": "http://localhost:8088",
+"tts_model": "irodori-tts",
+"tts_speaker": "<voice-id>"
 ```
 
-The irodori server is the source of truth for the available voice IDs (`GET /voices`) — YUI ships no bundled catalog. Pick `irodori_speaker`/`tts_voice` from whatever the server reports, or import your own reference clip from the panel's voice section (which copies it into app-data and registers it with the server).
+`tts_model` must match the name the server is configured under, or the server answers 400.
 
-### Option B — OpenAI-compatible TTS
+The TTS server is the source of truth for the available voice IDs (`GET /v1/audio/voices`) — YUI ships no bundled catalog. The panel's voice section lists them; `tts_speaker` picks the one used until you choose another there. Voices live in the server's `voices/` directory, and importing a reference clip from the panel copies it into app-data and uploads it to `/v1/audio/voices`.
 
-Any server that implements the OpenAI `/v1/audio/speech` endpoint.
-
-In `configs/endpoints.json`:
-```json
-"tts_provider": "openai",
-"tts_base_url": "http://localhost:8092",
-"tts_voice": "<voice-id>"
-```
-
-If the server requires auth, set `VITE_YUI_TTS_KEY` in `.env.local` — YUI sends it as `Authorization: Bearer`. irodori is self-serving and needs no key.
+If the server requires auth, set `VITE_YUI_TTS_KEY` in `.env.local` — YUI sends it as `Authorization: Bearer`.
 
 ---
 
@@ -184,10 +176,9 @@ Key reference:
 | `chat_model` | unset | Model ID sent to the backend |
 | `chat_model_context_window` | `200000` | Token window — display in Responses mode; also trims the client-side transcript in Chat Completions mode |
 | `stt_base_url` | unset | STT server base URL |
-| `tts_provider` | `openai` | `"irodori"` or `"openai"` |
-| `irodori_base_url` | unset | Irodori TTS server |
-| `irodori_speaker` / `tts_voice` | unset | Voice selection |
 | `tts_base_url` | unset | OpenAI-compatible TTS server |
+| `tts_model` | `irodori-tts` | `model` sent to the TTS server; must match its configured name |
+| `tts_speaker` | unset | Default voice id, until another is picked in the panel |
 | `broker_base_url` | unset | Expression broker MCP URL |
 
 No values are hardcoded in the application — all service addresses come from this file.

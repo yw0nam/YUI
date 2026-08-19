@@ -28,7 +28,10 @@ describe("createTtsSynth", () => {
   it("POSTs to {tts_base_url}/v1/audio/speech with input + response_format:wav", async () => {
     const buf = new ArrayBuffer(8);
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(buf));
-    const synth = createTtsSynth({ baseUrl: BASE_URL, fetch: fetchMock as unknown as typeof fetch });
+    const synth = createTtsSynth({
+      baseUrl: BASE_URL,
+      fetch: fetchMock as unknown as typeof fetch,
+    });
 
     const out = await synth("Hello there.");
 
@@ -57,7 +60,10 @@ describe("createTtsSynth", () => {
 
   it("omits model/voice keys entirely when not configured", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
-    const synth = createTtsSynth({ baseUrl: BASE_URL, fetch: fetchMock as unknown as typeof fetch });
+    const synth = createTtsSynth({
+      baseUrl: BASE_URL,
+      fetch: fetchMock as unknown as typeof fetch,
+    });
     await synth("Hi.");
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     expect("model" in body).toBe(false);
@@ -67,7 +73,10 @@ describe("createTtsSynth", () => {
   // The emoji voice tag rides inline in the spoken text — nothing may strip or relocate it.
   it("passes an emoji-prefixed input through to `input` untouched", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
-    const synth = createTtsSynth({ baseUrl: BASE_URL, fetch: fetchMock as unknown as typeof fetch });
+    const synth = createTtsSynth({
+      baseUrl: BASE_URL,
+      fetch: fetchMock as unknown as typeof fetch,
+    });
     await synth("😆😆 やったー！");
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     expect(body.input).toBe("😆😆 やったー！");
@@ -82,7 +91,10 @@ describe("createTtsSynth", () => {
           json: async () => ({ error: { message: "Unknown model 'bogus'" } }),
         }) as unknown as Response,
     );
-    const synth = createTtsSynth({ baseUrl: BASE_URL, fetch: fetchMock as unknown as typeof fetch });
+    const synth = createTtsSynth({
+      baseUrl: BASE_URL,
+      fetch: fetchMock as unknown as typeof fetch,
+    });
 
     await expect(synth("x")).rejects.toThrow(/400/);
     await expect(synth("x")).rejects.toThrow(/Unknown model 'bogus'/);
@@ -99,7 +111,10 @@ describe("createTtsSynth", () => {
           },
         }) as unknown as Response,
     );
-    const synth = createTtsSynth({ baseUrl: BASE_URL, fetch: fetchMock as unknown as typeof fetch });
+    const synth = createTtsSynth({
+      baseUrl: BASE_URL,
+      fetch: fetchMock as unknown as typeof fetch,
+    });
     await expect(synth("x")).rejects.toThrow(/503/);
   });
 
@@ -113,7 +128,10 @@ describe("createTtsSynth", () => {
           else init.signal?.addEventListener("abort", abortWith);
         }),
     );
-    const synth = createTtsSynth({ baseUrl: BASE_URL, fetch: fetchMock as unknown as typeof fetch });
+    const synth = createTtsSynth({
+      baseUrl: BASE_URL,
+      fetch: fetchMock as unknown as typeof fetch,
+    });
     const ac = new AbortController();
     const pending = synth("hi", ac.signal);
     ac.abort();

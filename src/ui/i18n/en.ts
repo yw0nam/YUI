@@ -167,17 +167,9 @@ const en: Record<string, string> = {
 
   // speaker section
   "speaker.section": "Voice",
-  "speaker.engine_label": "Voice engine",
-  "speaker.engine_sub": "Synthesis engine that creates the character voice",
-  "speaker.engine_aria": "Voice engine",
-  "speaker.engine_irodori": "irodori",
-  "speaker.engine_openai": "OpenAI-compatible",
-  "speaker.openai_hint":
-    "irodori only. The OpenAI-compatible engine speaks with the voice configured on the server.",
   "speaker.group_aria": "Speaker",
   "speaker.add": "Add from file…",
-  "speaker.import_error":
-    "Could not register this voice. Check the audio file and the irodori server.",
+  "speaker.import_error": "Could not upload this voice. Check the audio file and the TTS server.",
   "speaker.in_use": "In use",
   "speaker.rename": "Rename",
   "speaker.remove": "Delete",
@@ -303,11 +295,8 @@ const en: Record<string, string> = {
   "endpoints.chat_base_url.label": "Chat server URL",
   "endpoints.stt_base_url.label": "Speech recognition (STT) server URL",
   "endpoints.tts_base_url.label": "Speech synthesis (TTS) server URL",
-  "endpoints.irodori_base_url.label": "irodori server URL",
   "endpoints.broker_base_url.label": "Expression broker URL",
   "endpoints.chat_model.label": "Chat model",
-
-  "endpoints.tts_voice.label": "TTS voice",
 
   // per-service sections (advanced tab)
   "svc.type_label": "Type",
@@ -322,7 +311,8 @@ const en: Record<string, string> = {
   "svc.stt_hint": "OpenAI-compatible",
   "svc.stt_type": "OpenAI-compatible",
   "svc.tts": "TTS",
-  "svc.tts_aria": "TTS engine",
+  "svc.tts_hint": "OpenAI-compatible",
+  "svc.tts_type": "OpenAI-compatible",
   "svc.broker": "Broker",
   "svc.broker_hint": "MCP streamable-http",
   "svc.broker_type": "MCP streamable-http",

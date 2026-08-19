@@ -103,7 +103,6 @@ describe("validateEndpoints — unconfigured (empty) endpoints", () => {
     const out = validateEndpoints(FILE, baseRaw({ broker_base_url: "" }));
     expect(out.broker_base_url).toBeUndefined();
   });
-
 });
 
 describe("validateEndpoints — top-level shape", () => {

@@ -26,7 +26,7 @@ YUI/
     agents/                 # Vendored sub-agent definitions
   scripts/                  # Dev launchers (dev-port.mjs, tauri-dev.mjs, dev-auto.mjs) + setup.mjs + worktree-setup.sh + ci/test-guard.sh
   configs/                  # Runtime-loaded config (no hardcoding)
-    endpoints.json            # chat/stt/tts base urls + tts_provider + irodori_* + broker_base_url
+    endpoints.json            # chat/stt/tts base urls + tts_model/tts_speaker + broker_base_url
     emotion_registry.json     # emotion id → vrm_expression + fallback
     motions.json              # motion registry
     avatar.json               # VRM avatar config
@@ -34,7 +34,7 @@ YUI/
     guardrails.json           # dispatcher cooldown/suppression + attachments caps (max_count, max_image_bytes)
     hotkeys.json              # global summon accelerator (empty = disabled)
     screen.json               # frontmost-transition detector thresholds (dwell/settle/session/gap/quiet)
-    emotion_text/             # per-provider voice-tag vocabulary (e.g. emotion_text/irodori.json)
+    emotion_text/             # emoji voice-tag vocabulary (emotion_text/irodori.json)
   public/motions/           # VRMA motion assets
   src/
     main.ts                 # Application entry and orchestration

@@ -18,23 +18,9 @@ export function mergeEndpoints(existing, overrides) {
   return out;
 }
 
-// provider 별로 채워야 할 키가 다르다. none 이면 아무것도 건드리지 않는다.
-export function ttsOverrides(provider, { baseUrl, voice, speaker } = {}) {
-  if (provider === "irodori")
-    return {
-      tts_provider: "irodori",
-      irodori_base_url: baseUrl,
-      irodori_speaker: speaker ?? voice,
-      tts_voice: voice,
-    };
-  if (provider === "openai")
-    return { tts_provider: "openai", tts_base_url: baseUrl, tts_voice: voice };
-  return {};
-}
-
-// openai TTS만 Bearer 키가 필요하다. irodori 는 self-serving 이라 키를 묻지 않는다.
-export function ttsNeedsKey(provider) {
-  return provider === "openai";
+// TTS 서버 주소와 기본 화자 id. 빈 답은 mergeEndpoints 가 "기존값 유지" 로 처리한다.
+export function ttsOverrides({ baseUrl, speaker } = {}) {
+  return { tts_base_url: baseUrl, tts_speaker: speaker };
 }
 
 // --no-install 이면 마지막 pnpm install 을 건너뛴다.
@@ -125,16 +111,14 @@ async function main() {
 
   // Optional: TTS, STT. Blank / "none" to skip.
   console.log("\n=== OPTIONAL ===");
-  console.log("— TTS (optional) — provider: irodori / openai / none");
-  console.log("  (voice/reference is set by you afterward — not asked here)");
-  const provider = (await ask("tts_provider", cfg.tts_provider)) || cfg.tts_provider;
-  let tts = {};
-  if (provider === "irodori")
-    tts = ttsOverrides("irodori", { baseUrl: await ask("irodori_base_url", cfg.irodori_base_url) });
-  else if (provider === "openai")
-    tts = ttsOverrides("openai", { baseUrl: await ask("tts_base_url", cfg.tts_base_url) });
-  // irodori 는 self-serving — 키를 묻지 않는다.
-  const ttsKey = ttsNeedsKey(provider) ? await ask("VITE_YUI_TTS_KEY", "") : "";
+  console.log("— TTS (optional) — OpenAI-compatible /v1/audio/speech —");
+  console.log("  (tts_speaker is the default voice id; the panel can pick another later)");
+  const tts = ttsOverrides({
+    baseUrl: await ask("tts_base_url", cfg.tts_base_url),
+    speaker: await ask("tts_speaker", cfg.tts_speaker),
+  });
+  // 키를 요구하지 않는 서버도 있으니 비워둘 수 있다.
+  const ttsKey = await ask("VITE_YUI_TTS_KEY", "");
   console.log("— STT (optional) —");
   const stt = { stt_base_url: await ask("stt_base_url", cfg.stt_base_url) };
   const sttKey = await ask("VITE_YUI_STT_KEY", "");

@@ -635,9 +635,9 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     const input = keyInput(qc, "ttskey");
     expect(input.type).toBe("password");
-    expect(
-      qc.el.querySelector('#yui-panel-adv details[data-svc="tts"]')!.contains(input),
-    ).toBe(true);
+    expect(qc.el.querySelector('#yui-panel-adv details[data-svc="tts"]')!.contains(input)).toBe(
+      true,
+    );
 
     input.value = "sk-tts-xyz";
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -763,8 +763,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(endpointsSettings.get().chat_api).toBe("chat_completions");
 
     const hint = qc.el.querySelector<HTMLElement>(".yui-chat-summary-hint")!;
-    expect(hint.textContent).not.toBe("");
-    expect(hint.textContent).not.toBe(qc.el.querySelector(".yui-tts-summary-hint")!.textContent);
+    expect(hint.textContent).toBe(t("svc.chat_type_completions"));
 
     qc.dispose();
   });

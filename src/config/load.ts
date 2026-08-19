@@ -290,7 +290,7 @@ export const CHAT_API_KEY_SECRET = "chat_api_key";
 /** SecretProvider name for the STT server key (OpenAI-compatible Bearer). */
 export const STT_API_KEY_SECRET = "stt_api_key";
 
-/** SecretProvider name for the OpenAI-compatible TTS server key (Bearer). irodori needs none. */
+/** SecretProvider name for the TTS server key (Bearer). Only needed by servers that require one. */
 export const TTS_API_KEY_SECRET = "tts_api_key";
 
 /** Looks up from a plaintext record. Real values are best kept out of configs (env/keychain). */

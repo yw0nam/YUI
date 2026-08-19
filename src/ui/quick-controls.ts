@@ -113,7 +113,7 @@ interface QuickControlsOptions {
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   /** Delete imported voice's app-data file (idempotent). Called separately from store removal. */
   removeUserVoice: (id: string) => Promise<void>;
-  /** Refetches the irodori server's voice list on panel open (the server may come up after the app). Fire-and-forget. */
+  /** Refetches the TTS server's voice list on panel open (the server may come up after the app). Fire-and-forget. */
   refreshVoiceList?: () => void;
   onGainPreview: (mouthOpen: number) => void;
   onGainPreviewEnd: () => void;
@@ -136,8 +136,6 @@ interface QuickControlsOptions {
   ttsKeySettings: ApiKeySettingsStore;
   /** Default bundled-config endpoints to show as placeholder (undefined if not loaded). */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
-  /** Default bundled-config provider for voice engine segment when no override (undefined if not loaded). */
-  getDefaultProvider?: () => "openai" | "irodori" | undefined;
   /** Default bundled-config value for Chat API dropdown when no override (undefined if not loaded). */
   getDefaultChatApi?: () => string | undefined;
   /** Session diagnostics (context usage · last compression). The occupancy readout renders in the window variant only. */
@@ -372,7 +370,6 @@ export function createQuickControls({
   sttKeySettings,
   ttsKeySettings,
   getEndpointDefaults,
-  getDefaultProvider,
   getDefaultChatApi,
   sessionDiagnostics,
   sessionStore,
@@ -535,8 +532,6 @@ export function createQuickControls({
   let gainPreviewing = false;
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
   let disposed = false;
-  // Speaker-active baseline — re-synced on open (so closed provider changes don't stay stale).
-  let lastSpkEnabled = false;
 
   // ── reflect (store→DOM sync) layer ──
   const reflect = createReflect({
@@ -552,7 +547,6 @@ export function createQuickControls({
     sessionDiagnostics,
     keyRows: endpoints.keyRows,
     getEndpointDefaults,
-    getDefaultProvider,
     getDefaultChatApi,
     agentPortInput: agentPortInput ?? undefined,
     presenceInput: presenceInput ?? undefined,
@@ -604,7 +598,6 @@ export function createQuickControls({
     commitVoiceImport,
     removeUserVoice,
     log,
-    speakerControlsEnabled,
     isDisposed: () => disposed,
   });
 
@@ -632,7 +625,6 @@ export function createQuickControls({
       reflect.reflectLanguage();
       reflect.reflectEndpoints();
       reflect.reflectKeyRows();
-      reflect.reflectVoiceEngine();
       reflect.reflectChatType();
       reflect.reflectChatPreset();
       reflect.reflectSession();
@@ -642,8 +634,6 @@ export function createQuickControls({
       vrmList.render();
       idleMotionList?.render();
       expressMotionList?.render();
-      // Provider may have changed while closed; re-sync baseline on open.
-      lastSpkEnabled = speakerControlsEnabled();
       speakerList.render();
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
       refreshVoiceList?.();
@@ -832,11 +822,6 @@ export function createQuickControls({
     const current = voiceStatus.get().state !== "idle";
     log.info("voice_input_toggle", { on: !current });
     voiceStatus.set(current ? "idle" : "listening");
-  }
-
-  // With OpenAI engine, speaker management is inactive — gates programmatic clicks (tests) too.
-  function speakerControlsEnabled(): boolean {
-    return reflect.effectiveProvider() === "irodori";
   }
 
   function handlePopOut(): void {
@@ -1214,15 +1199,8 @@ export function createQuickControls({
   const unsubscribeEndpoints = endpointsSettings.subscribe(() => {
     if (popover.isOpen()) {
       reflect.reflectEndpoints();
-      reflect.reflectVoiceEngine();
       reflect.reflectChatType();
       reflect.reflectChatPreset();
-      // If provider change flips speaker activation, redraw list to re-evaluate disabled state.
-      const nowSpkEnabled = speakerControlsEnabled();
-      if (nowSpkEnabled !== lastSpkEnabled) {
-        lastSpkEnabled = nowSpkEnabled;
-        speakerList.render();
-      }
     }
   });
   // Reflect thinking-filler store updates to section (includes other-window reloadFromStorage).

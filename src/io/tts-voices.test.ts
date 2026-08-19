@@ -43,7 +43,10 @@ beforeEach(() => {
 describe("listVoices", () => {
   it("GETs {baseUrl}/v1/audio/voices and returns data[].id", async () => {
     const fetchMock = vi.fn<FetchFn>(async () =>
-      jsonResponse({ object: "list", data: [{ id: "ナツメ" }, { id: "ムラサメ" }, { id: "none" }] }),
+      jsonResponse({
+        object: "list",
+        data: [{ id: "ナツメ" }, { id: "ムラサメ" }, { id: "none" }],
+      }),
     );
 
     const ids = await listVoices({

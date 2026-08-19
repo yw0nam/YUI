@@ -335,27 +335,13 @@ export interface EndpointsConfig {
   chat_api?: "responses" | "chat_completions";
   /** Separate ASR service (OpenAI-compatible) → /audio/transcriptions. `""` = STT off. */
   stt_base_url: string;
-  /** Separate TTS service (OpenAI-compatible) → /audio/speech. `""` = openai-provider TTS off. */
+  /** Separate TTS service (OpenAI-compatible) → /audio/speech. `""` = TTS off. */
   tts_base_url: string;
-  /** /v1/audio/speech model/voice/speed. Uses service default if not set. */
+  /** /v1/audio/speech `model`. Must match the name the TTS server is configured under. */
   tts_model?: string;
-  tts_voice?: string;
-  tts_speed?: number;
-  /** TTS synthesis path selection. If not set, loader resolves to "openai". */
-  tts_provider?: "openai" | "irodori";
-  /** irodori_TTS server root (http(s), example: `http://localhost:8091`). Required when provider=irodori. */
-  irodori_base_url?: string;
-  /** Active speaker reference_id (voice registry registration key). Required when provider=irodori. */
-  irodori_speaker?: string;
-  /** Number of diffusion steps (quality/speed trade-off). Uses server default if not set. */
-  irodori_num_steps?: number;
-  /** Emotion (text) adherence cfg scale. Uses server default if not set. */
-  irodori_cfg_scale_text?: number;
-  /** Speaker adherence cfg scale. Uses server default if not set. */
-  irodori_cfg_scale_speaker?: number;
-  /** Target utterance length in seconds. Uses server default if not set. */
-  irodori_seconds?: number;
-  /** Provider-agnostic synthesis concurrency limit. Default 1 (serial) — applied by consumer (tts-pipeline), not loader. */
+  /** Default speaker id, used until the user picks another in the panel. */
+  tts_speaker?: string;
+  /** Synthesis concurrency limit. Default 1 (serial) — applied by consumer (tts-pipeline), not loader. */
   tts_max_inflight?: number;
   /** Expression Broker MCP endpoint (streamable-http, example: `http://localhost:3201/mcp`). Skips vocab publish if not set. */
   broker_base_url?: string;

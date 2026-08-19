@@ -8,13 +8,13 @@
 
 import "./styles.css";
 import { wireSettingsWindowSync } from "./bootstrap-wiring";
-import { createConfigStore } from "./config";
+import { createConfigStore, TTS_API_KEY_SECRET } from "./config";
 import { agentTriggerableMotionIds } from "./io/broker-client";
 import { selectFetch } from "./io/chat-client";
 import { endpointDefaultsFromConfig } from "./io/endpoints-settings";
 import { rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
-import { updateVoice } from "./io/irodori-voices";
 import { screenDefaultsFromConfig } from "./io/screen-settings";
+import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
 import { closeSettingsWindow } from "./io/settings-window";
 import {
@@ -24,6 +24,7 @@ import {
   type SpeakerOption,
 } from "./io/speaker-selection";
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
+import { upsertVoice } from "./io/tts-voices";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { createVoiceImportFlow } from "./io/voice-import-flow";
 import { createVoiceListRefresh } from "./io/voice-list-refresh";
@@ -83,7 +84,14 @@ async function bootstrap(): Promise<void> {
   const sourceProvider = resolveScreenSourceProvider();
 
   // Config for default instructions placeholder loaded best-effort only (failure → generic placeholder).
-  const config = createConfigStore();
+  // The TTS key rides along so this window's voice uploads reach a gated server too.
+  const config = createConfigStore({
+    secrets: createSettingsSecretProvider({
+      stores: { [TTS_API_KEY_SECRET]: ttsKeySettings },
+      fallback: { [TTS_API_KEY_SECRET]: import.meta.env.VITE_YUI_TTS_KEY },
+    }),
+  });
+  const getTtsApiKey = (): Promise<string | undefined> => config.secrets.get(TTS_API_KEY_SECRET);
   let configLoaded = false;
   try {
     await config.load();
@@ -121,17 +129,15 @@ async function bootstrap(): Promise<void> {
     vrmSelection.select(option.id);
   };
 
-  // irodori speaker selection store. This window has no synth, so store-only commit — registration
-  // performed by pet window's synth path on next utterance (same as swapVrm being select-only).
+  // Speaker selection store. This window has no synth, so the selection is a store-only commit.
   const speakerSelection = createSpeakerSelection({
     defaultValue: "",
     storage: localStorageSpeakerStorage(),
     userStorage: localStorageUserSpeakerStorage(),
   });
-  // This window has no synth, so the manifest refresh is all it needs (no ensureRegistered call,
-  // unlike the pet window).
   const refreshVoiceList = createVoiceListRefresh({
     getEndpoints: () => (configLoaded ? config.get().endpoints : null),
+    getApiKey: getTtsApiKey,
     speakerSelection,
     log,
   });
@@ -139,16 +145,27 @@ async function bootstrap(): Promise<void> {
   const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
     speakerSelection.select(option.id);
   };
-  // Reference voice re-registration — unlike pet window, no synth, but update is direct server call,
-  // so perform here too. Throw if config not loaded/irodori_base_url missing → UI exposes error.
+  // Reference-clip re-upload — a direct server call, so this window performs it too. Throws when
+  // config is not loaded / tts_base_url is missing, and the UI exposes the error.
   const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
-    const irodoriBaseUrl = configLoaded ? config.get().endpoints.irodori_base_url : undefined;
-    if (!irodoriBaseUrl) throw new Error("irodori provider requires irodori_base_url");
+    const baseUrl = configLoaded ? config.get().endpoints.tts_base_url : undefined;
+    if (!baseUrl) throw new Error("voice refresh requires tts_base_url");
     const f = await selectFetch();
-    await updateVoice({ baseUrl: irodoriBaseUrl, id: option.id, refUrl: option.ref_url, fetch: f });
+    await upsertVoice({
+      baseUrl,
+      id: option.id,
+      refUrl: option.ref_url,
+      fetch: f,
+      getApiKey: getTtsApiKey,
+    });
+    // The clip behind an unchanged id was replaced — bump the persisted revision so every
+    // window's filler cache key moves with it.
+    const prev = speakerSelection.list().find((o) => o.id === option.id)?.revision ?? 0;
+    speakerSelection.addUserOption({ ...option, source: "user", revision: prev + 1 });
   };
   const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
-    getIrodoriBaseUrl: () => (configLoaded ? config.get().endpoints.irodori_base_url : undefined),
+    getTtsBaseUrl: () => (configLoaded ? config.get().endpoints.tts_base_url : undefined),
+    getApiKey: getTtsApiKey,
     speakerSelection,
     log,
   });
@@ -241,14 +258,6 @@ async function bootstrap(): Promise<void> {
         if (!configLoaded) return undefined;
         try {
           return endpointDefaultsFromConfig(config.get().endpoints);
-        } catch {
-          return undefined;
-        }
-      },
-      getDefaultProvider: () => {
-        if (!configLoaded) return undefined;
-        try {
-          return config.get().endpoints.tts_provider;
         } catch {
           return undefined;
         }

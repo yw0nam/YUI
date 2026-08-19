@@ -22,7 +22,7 @@ type SttVadRuntimeState = Exclude<VoiceInputState, "idle">;
 const VAD_ASSET_PATH = "/vad/";
 
 // Deadline so a hung STT request settles instead of silently discarding the captured utterance forever.
-// Magnitude mirrors tts-synth's TTS_SYNTH_TIMEOUT_MS, itself sized off irodori-synth's RETRY_AFTER_CAP_MS (5s).
+// Magnitude mirrors tts-synth's TTS_SYNTH_TIMEOUT_MS.
 export const STT_REQUEST_TIMEOUT_MS = 10_000;
 
 export interface SttVadOptions {

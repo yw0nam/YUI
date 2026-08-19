@@ -168,16 +168,9 @@ const ko: Record<string, string> = {
 
   // speaker section
   "speaker.section": "음성",
-  "speaker.engine_label": "음성 엔진",
-  "speaker.engine_sub": "캐릭터 목소리를 만드는 합성 엔진",
-  "speaker.engine_aria": "음성 엔진",
-  "speaker.engine_irodori": "irodori",
-  "speaker.engine_openai": "OpenAI 호환",
-  "speaker.openai_hint": "irodori 전용이에요. OpenAI 호환 엔진은 서버에 설정된 voice로 말해요.",
   "speaker.group_aria": "화자",
   "speaker.add": "파일에서 추가…",
-  "speaker.import_error":
-    "이 음성을 등록하지 못했어요. 오디오 파일과 irodori 서버를 확인해 주세요.",
+  "speaker.import_error": "이 음성을 업로드하지 못했어요. 오디오 파일과 TTS 서버를 확인해 주세요.",
   "speaker.in_use": "사용 중",
   "speaker.rename": "이름 바꾸기",
   "speaker.remove": "삭제",
@@ -302,11 +295,8 @@ const ko: Record<string, string> = {
   "endpoints.chat_base_url.label": "채팅 서버 URL",
   "endpoints.stt_base_url.label": "음성 인식(STT) 서버 URL",
   "endpoints.tts_base_url.label": "음성 합성(TTS) 서버 URL",
-  "endpoints.irodori_base_url.label": "irodori 서버 URL",
   "endpoints.broker_base_url.label": "표현 브로커(Broker) URL",
   "endpoints.chat_model.label": "채팅 모델",
-
-  "endpoints.tts_voice.label": "TTS voice",
 
   // per-service sections (advanced tab)
   "svc.type_label": "유형",
@@ -321,7 +311,8 @@ const ko: Record<string, string> = {
   "svc.stt_hint": "OpenAI 호환",
   "svc.stt_type": "OpenAI 호환",
   "svc.tts": "TTS",
-  "svc.tts_aria": "TTS 엔진",
+  "svc.tts_hint": "OpenAI 호환",
+  "svc.tts_type": "OpenAI 호환",
   "svc.broker": "Broker",
   "svc.broker_hint": "MCP streamable-http",
   "svc.broker_type": "MCP streamable-http",

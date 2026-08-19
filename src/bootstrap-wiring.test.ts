@@ -912,9 +912,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
       broadcastSettings: () => {},
     });
 
-    await expect(commitVoiceImport("/tmp/MyVoice.wav", "myvoice")).rejects.toThrow(
-      "tts_base_url",
-    );
+    await expect(commitVoiceImport("/tmp/MyVoice.wav", "myvoice")).rejects.toThrow("tts_base_url");
     expect(removeOrphanVoice).toHaveBeenCalledWith(
       "myvoice",
       expect.any(Function),

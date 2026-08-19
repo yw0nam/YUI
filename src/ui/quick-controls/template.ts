@@ -24,8 +24,6 @@ import {
   TAB_ICON_INPUT,
   TAB_ICON_REACT,
   TAB_ICON_TALK,
-  VOICE_ENGINE_LABEL_KEYS,
-  VOICE_ENGINES,
 } from "./constants";
 import type { SwitchRow } from "./switch-row";
 
@@ -131,11 +129,6 @@ ${pad}</div>`;
       `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${t(SEG_LABEL_KEYS[e])}</button>`,
   ).join("");
 
-  // TTS engine dropdown (yui-select) options — irodori/openai. value=provider reflects effectiveProvider.
-  const ttsTypeOptionsHtml = VOICE_ENGINES.map(
-    (p) => `<option value="${p}">${t(VOICE_ENGINE_LABEL_KEYS[p])}</option>`,
-  ).join("");
-
   // Chat API dropdown (yui-select) options — responses/chat_completions. value=chat_api reflects effectiveChatApi.
   const chatTypeOptionsHtml = CHAT_APIS.map(
     (a) => `<option value="${a}">${t(CHAT_API_LABEL_KEYS[a])}</option>`,
@@ -146,10 +139,9 @@ ${pad}</div>`;
     (p) => `<option value="${p.id}">${p.name}</option>`,
   ).join("")}<option value="${CHAT_PRESET_CUSTOM}">${t("svc.chat_preset_custom")}</option>`;
 
-  // Speaker picker markup — moves from Character tab to TTS·irodori subview. Nodes are queried by el root selector so
-  // position changes but speaker JS stays valid. OpenAI hint accompanies it too.
+  // Speaker picker markup — lives in the Advanced tab's TTS section. Nodes are queried from the
+  // el root, so the position can move without invalidating the speaker JS.
   const speakerPickerHtml = `
-        <p class="yui-spks-hint" role="status" hidden>${t("speaker.openai_hint")}</p>
         <div class="yui-spk-scroll">
           <div class="yui-spks" role="radiogroup" aria-label="${t("speaker.group_aria")}"></div>
         </div>
@@ -629,21 +621,15 @@ ${switchRowsHtml("react", 8) || "        "}
         </details>
 
         <details class="yui-endpoints yui-svc" data-svc="tts">
-          <summary><span class="svc-name">${t("svc.tts")}</span><span class="yui-endpoints__hint yui-tts-summary-hint"></span></summary>
+          <summary><span class="svc-name">${t("svc.tts")}</span><span class="yui-endpoints__hint">${t("svc.tts_hint")}</span></summary>
           <div class="yui-endpoints__body">
             <div class="yui-input-row">
               <label class="yui-input-row__label" for="yui-svc-tts-type">${t("svc.type_label")}</label>
-              <select class="yui-select yui-tts-type" id="yui-svc-tts-type" aria-label="${t("svc.tts_aria")}">${ttsTypeOptionsHtml}</select>
+              <select class="yui-select yui-select--single" id="yui-svc-tts-type" disabled><option>${t("svc.tts_type")}</option></select>
             </div>
-            <div class="yui-tts-irodori" hidden>
-              ${endpointRowHtml("irodori_base_url")}
-              ${speakerPickerHtml}
-            </div>
-            <div class="yui-tts-openai" hidden>
-              ${endpointRowHtml("tts_base_url")}
-              ${endpointRowHtml("tts_voice")}
-              ${keyRowHtml("ttskey", "ttskey")}
-            </div>
+            ${endpointRowHtml("tts_base_url")}
+            ${speakerPickerHtml}
+            ${keyRowHtml("ttskey", "ttskey")}
             <button class="yui-reset yui-svc-reset" type="button" data-svc-reset="tts">${t("svc.reset_tts")}</button>
           </div>
         </details>

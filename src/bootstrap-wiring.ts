@@ -33,7 +33,6 @@ import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler"
 import { selectFetch } from "./io/chat-client";
 import type { ExpressMotionSettings } from "./io/express-motion-settings";
 import type { GuardrailsSettingsStore } from "./io/guardrails-settings";
-import { ensureRegistered, updateVoice } from "./io/irodori-voices";
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
@@ -54,7 +53,7 @@ import {
 import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
-import { emotionTextModeFor, resolveTtsProviderKind } from "./io/tts-provider";
+import { upsertVoice } from "./io/tts-voices";
 import { appendRecord } from "./io/turn-record-log";
 import { createVoiceImportFlow } from "./io/voice-import-flow";
 import { createVoiceListRefresh } from "./io/voice-list-refresh";
@@ -139,7 +138,9 @@ export function wireVrmSelection(deps: {
 }
 
 export function wireSpeakerSelection(deps: {
-  getEndpoints: () => { irodori_base_url?: string; irodori_speaker?: string };
+  getEndpoints: () => { tts_base_url?: string; tts_speaker?: string };
+  /** Resolves the TTS server key (Bearer). Omitted/empty → no auth header. */
+  getApiKey?: () => Promise<string | undefined>;
   log: Logger;
   broadcastSettings: () => void;
 }): {
@@ -148,47 +149,43 @@ export function wireSpeakerSelection(deps: {
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
   /** Pick step: opens the file picker, returns the source path + a seed name for the naming row (null on cancel). */
   pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
-  /** Commit step: copy + register under `name` (overwrite-aware) → add option + select. */
+  /** Commit step: copy + upload under `name` (overwrite-aware) → add option + select. */
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   refreshVoiceList: () => Promise<void>;
 } {
-  const { getEndpoints, log, broadcastSettings } = deps;
-  // irodori speaker selection store. Starts with an empty fallback since config is not
-  // loaded yet — the panel is needed early. After config loads, refreshVoiceList injects
-  // the server-reported voice list and default.
+  const { getEndpoints, getApiKey, log, broadcastSettings } = deps;
+  // Speaker selection store. Starts with an empty fallback since config is not loaded yet —
+  // the panel is needed early. After config loads, refreshVoiceList injects the server-reported
+  // voice list and default.
   const speakerSelection = createSpeakerSelection({
     defaultValue: "",
     storage: localStorageSpeakerStorage(),
     userStorage: localStorageUserSpeakerStorage(),
   });
-  // Select → register in the irodori voice registry, then commit the store (mirrors swapVrm's load-then-select).
+  // Voices are server-side persistent, so picking one is a store commit and nothing else.
   const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
-    const f = await selectFetch();
-    const eps = getEndpoints();
-    if (eps.irodori_base_url) {
-      await ensureRegistered({
-        baseUrl: eps.irodori_base_url,
-        id: option.id,
-        refUrl: option.ref_url,
-        fetch: f,
-      });
-    }
     speakerSelection.select(option.id);
   };
-  // Re-register the reference voice (PUT /voices) — server-side force-refresh only, does not change the speaker selection.
+  // Re-upload the reference clip — server-side force-refresh only, does not change the selection.
   const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
-    const f = await selectFetch();
     const eps = getEndpoints();
-    if (!eps.irodori_base_url) throw new Error("irodori provider requires irodori_base_url");
-    await updateVoice({
-      baseUrl: eps.irodori_base_url,
+    if (!eps.tts_base_url) throw new Error("voice refresh requires tts_base_url");
+    const f = await selectFetch();
+    await upsertVoice({
+      baseUrl: eps.tts_base_url,
       id: option.id,
       refUrl: option.ref_url,
       fetch: f,
+      getApiKey,
     });
+    // The clip behind an unchanged id was replaced — bump the persisted revision so every
+    // window's filler cache key moves with it.
+    const prev = speakerSelection.list().find((o) => o.id === option.id)?.revision ?? 0;
+    speakerSelection.addUserOption({ ...option, source: "user", revision: prev + 1 });
   };
   const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
-    getIrodoriBaseUrl: () => getEndpoints().irodori_base_url,
+    getTtsBaseUrl: () => getEndpoints().tts_base_url,
+    getApiKey,
     speakerSelection,
     log,
   });
@@ -196,7 +193,12 @@ export function wireSpeakerSelection(deps: {
   speakerSelection.subscribe(broadcastSettings);
   // A fresh server with no voices yields a genuinely empty available[] — expected, not an error
   // (selection-store then has nothing to select).
-  const refreshVoiceList = createVoiceListRefresh({ getEndpoints, speakerSelection, log });
+  const refreshVoiceList = createVoiceListRefresh({
+    getEndpoints,
+    getApiKey,
+    speakerSelection,
+    log,
+  });
   return {
     speakerSelection,
     swapSpeaker,
@@ -750,7 +752,7 @@ export function wireSummonHotkey(deps: {
 /**
  * Expression Broker publish (D6). Resolves the CORS-bypass fetch once, does the fire-and-forget
  * initial publish when broker_base_url is present (never blocks boot), and wires the override
- * reconciler so live voice-engine / broker-URL edits retarget the client. `onConfigChange` is
+ * reconciler so a live broker-URL edit retargets the client. `onConfigChange` is
  * called from the caller's config.subscribe to re-publish on disk edits that change renderable
  * vocab; effective (override-merged) endpoints are used so disk edits don't clobber user overrides.
  */
@@ -777,16 +779,10 @@ export async function wireBroker(deps: {
   let broker: BrokerClient | null = null;
   const makeBroker = (baseUrl: string): BrokerClient =>
     createBrokerClient({ baseUrl, ...(brokerFetch ? { fetch: brokerFetch } : {}) });
-  // Latest emotion_text table, kept current by every load so vocabulary() reflects the live provider.
+  // Latest emotion_text table, kept current by every load so vocabulary() reflects it.
   let table: Record<string, string> | null = null;
-  // Enum table best-effort only for irodori; on failure the broker degrades to free mode.
-  const loadBrokerTable = async (
-    provider: string | undefined,
-  ): Promise<Record<string, string> | null> => {
-    if (emotionTextModeFor(resolveTtsProviderKind(provider)) !== "enum") {
-      table = null;
-      return null;
-    }
+  // Best-effort load of the emoji enum table; on failure the broker degrades to free mode.
+  const loadBrokerTable = async (): Promise<Record<string, string> | null> => {
     try {
       table = await loadEmotionTextTable({ provider: "irodori" });
     } catch (err) {
@@ -808,7 +804,7 @@ export async function wireBroker(deps: {
 
   const bootEps = getEndpoints();
   // Loaded even with no broker: the vocabulary also feeds the client-declared tools.
-  const bootTable = await loadBrokerTable(bootEps.tts_provider);
+  const bootTable = await loadBrokerTable();
   if (bootEps.broker_base_url) {
     broker = makeBroker(bootEps.broker_base_url);
     const payload = derive(getConfig(), bootEps, bootTable);
@@ -841,7 +837,7 @@ export async function wireBroker(deps: {
       (changed.has("emotionRegistry") || changed.has("motions") || changed.has("endpoints"))
     ) {
       const eff = getEndpoints();
-      void loadBrokerTable(eff.tts_provider).then((loaded) => {
+      void loadBrokerTable().then((loaded) => {
         void broker?.publish(derive(cfg, eff, loaded));
       });
     }
