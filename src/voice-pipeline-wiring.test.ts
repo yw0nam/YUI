@@ -360,6 +360,44 @@ describe("wireVoicePipeline", () => {
     expect(state.getTtsApiKey).toHaveBeenCalled();
   });
 
+  // The wrappers between the playback synth and createTtsSynth each take (input, signal), and TS
+  // accepts a narrower function where a wider one is expected — so a dropped third argument
+  // typechecks and only shows up as a missing body key.
+  it("carries a per-call caption through the wrappers into the request body", async () => {
+    setup();
+
+    await playbackOptions().pipeline!.synth!("hello", undefined, {
+      caption: "囁くような小さな声で。",
+    });
+
+    expect(synthCalls()).toHaveLength(1);
+    const [, init] = synthCalls()[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.irodori).toEqual({ caption: "囁くような小さな声で。" });
+    expect(body.input).toBe("hello");
+  });
+
+  it("sends no irodori key when a response sentence carries no caption", async () => {
+    setup();
+
+    await playbackOptions().pipeline!.synth!("hello");
+
+    const [, init] = synthCalls()[0] as [string, RequestInit];
+    expect("irodori" in JSON.parse(init.body as string)).toBe(false);
+  });
+
+  // Filler audio is cached under input+paramsKey, and that key carries no caption — a
+  // caption-conditioned render stored there would be replayed for every later plain filler.
+  it("never sends a caption on the cached filler path", async () => {
+    setup();
+    const synth = playbackOptions().pipeline!.synth!;
+
+    await synth("first", undefined, { caption: "囁くような小さな声で。" });
+
+    const [, init] = synthCalls()[0] as [string, RequestInit];
+    expect("irodori" in JSON.parse(init.body as string)).toBe(false);
+  });
+
   it("caches filler-pool audio and re-synthesizes it after a TTS model change", async () => {
     const state = setup();
     const synth = playbackOptions().pipeline!.synth!;

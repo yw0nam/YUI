@@ -370,6 +370,21 @@ describe("createTtsPipeline — caption voice direction", () => {
     expect(synthOpts[1]?.caption).toBeUndefined();
   });
 
+  it("gives each sentence its own caption when a second cue replaces the pending one", async () => {
+    const { synth, synthOpts } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink, maxInflight: 3 });
+
+    pipe.setCue({ caption: "明るく弾んだ声で。" });
+    pipe.pushTextDelta("One. ");
+    pipe.setCue({ caption: "落ち着いた低めの声で。" });
+    pipe.pushTextDelta("Two. ");
+    await tick();
+
+    expect(synthOpts[0]?.caption).toBe("明るく弾んだ声で。");
+    expect(synthOpts[1]?.caption).toBe("落ち着いた低めの声で。");
+  });
+
   it("carries caption and emotion_text from one cue onto the same sentence", async () => {
     const { synth, inputs, synthOpts } = deferredSynth();
     const { sink } = recordingSink();
