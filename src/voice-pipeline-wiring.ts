@@ -12,7 +12,7 @@ import type { SpeakerOption } from "./io/speaker-selection";
 import { createSpeechPlayback, type SpeechPlayback } from "./io/speech-playback";
 import type { SttVad } from "./io/stt-vad";
 import { TTS_SKIP } from "./io/tts-pipeline";
-import { createTtsProvider } from "./io/tts-synth";
+import { createTtsProvider, type TtsSynthCallOptions } from "./io/tts-synth";
 import type { Renderer } from "./renderer";
 import type { Surfaces } from "./ui/surfaces";
 import type { VoiceInputStatus } from "./ui/voice-input-status";
@@ -66,7 +66,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     effectiveFillerPool(deps.fillerSettings.get(), deps.getFillerConfig());
 
   const fillerCache = createFillerAudioCache({
-    synth: (input, signal) => provider.synth(input, signal),
+    synth: (input, signal, opts) => provider.synth(input, signal, opts),
     // Filler is spoken under motion-hold, which withholds cues from the pipeline, so a filler
     // submission never carries a voice tag and matching the plain sentences is enough.
     submissions: () => fillerSubmissions(effectiveFiller()),
@@ -82,11 +82,15 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   });
 
   // Skip guards stay outside the cache so a cached phrase can never outlive the reason to stay silent.
-  const synth = async (input: string, signal?: AbortSignal): Promise<ArrayBuffer> => {
+  const synth = async (
+    input: string,
+    signal?: AbortSignal,
+    opts?: TtsSynthCallOptions,
+  ): Promise<ArrayBuffer> => {
     // TTS inactive (toggle OFF or server unset) quietly skips — expressions/motions, bubble unchanged.
     if (!deps.ttsSettings.get().enabled) return Promise.reject(TTS_SKIP);
     if (!provider.isReady()) return Promise.reject(TTS_SKIP);
-    return fillerCache.synth(input, signal);
+    return fillerCache.synth(input, signal, opts);
   };
 
   // Filler loop speaks via speechPlayback (speak), playback completion (onPlaybackEnd) triggers

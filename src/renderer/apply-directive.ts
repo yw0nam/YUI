@@ -18,7 +18,7 @@
  *
  * Out of scope for this layer (other tracks own them):
  * speech_text, tool_status, emotion_text (a TTS voice tag routed via the cue channel,
- * not a render channel).
+ * not a render channel), caption (a TTS voice direction on the same cue channel).
  */
 
 import type { ControlEnvelope, EmotionSignal, MotionSignal } from "../contract";

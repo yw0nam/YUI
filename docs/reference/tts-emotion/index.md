@@ -14,8 +14,13 @@ The model behind the active chat endpoint produces `emotion_text` via a
 `/v1/responses` stream in Responses mode, or identically from
 `chat.completion.chunk` tool-call deltas in Chat Completions mode — and
 prepends it to the TTS segment (prefix-only — never shown in the speech
-bubble). The `generate_express` cue contract that carries
-`emotion_text` is described in
+bubble).
+
+`generate_express` carries a second, independent voice channel alongside it:
+`caption`, a free-text voice direction that travels out-of-band in the synthesis
+request as `irodori.caption` rather than as a prefix on the spoken text. It has
+no vocabulary and no broker gate, so nothing here constrains it. The
+`generate_express` cue contract that carries both is described in
 [`client-context.md`](../client-context.md);
 the control envelope shape lives in
 [`src/contract/types.ts`](https://github.com/yw0nam/YUI/blob/main/src/contract/types.ts).

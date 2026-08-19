@@ -569,11 +569,14 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         }
       }
 
-      // Completed path only: no per-beat cue carried emotion_text, so route it through the
-      // same cue channel here — emotion_id/motion_id omitted, applyDirective above already
+      // Completed path only: no per-beat cue carried the voice channels, so route them through
+      // the same cue channel here — emotion_id/motion_id omitted, applyDirective above already
       // rendered them and re-sending would double-apply.
-      if (!streamedAny && envelope.emotion_text != null) {
-        deps.turnOutput?.cue({ emotion_text: envelope.emotion_text });
+      if (!streamedAny && (envelope.emotion_text != null || envelope.caption != null)) {
+        deps.turnOutput?.cue({
+          ...(envelope.emotion_text != null ? { emotion_text: envelope.emotion_text } : {}),
+          ...(envelope.caption != null ? { caption: envelope.caption } : {}),
+        });
       }
 
       // B4 (speech gate): speak only when speech_text is not empty.

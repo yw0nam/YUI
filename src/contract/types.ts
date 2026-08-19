@@ -108,6 +108,8 @@ export interface ExpressArgs {
   motion_id?: string;
   /** TTS voice tag (example: "[whisper in small voice]") — free text. Normalized via emotion_text channel. */
   emotion_text?: string;
+  /** Natural-language voice direction for the TTS voice — travels out-of-band beside the audio request, never spoken and never shown. */
+  caption?: string;
 }
 
 /** Usage from Responses `response.completed` event — input for tracking current session token consumption. */
@@ -135,6 +137,8 @@ export interface ControlEnvelope {
   motion?: MotionSignal | null;
   /** generate_express.emotion_text — free text for TTS voice tag. Backend-caller routes via onCue; tts-pipeline prefixes to sentence synthesis. */
   emotion_text?: string | null;
+  /** generate_express.caption — natural-language voice direction. Backend-caller routes via onCue; tts-pipeline sends it beside the sentence, not in it. */
+  caption?: string | null;
 
   // --- Assembled from text stream (not a tool field) ---
   /** Accumulated response.output_text.delta. Empty string if no utterance. */

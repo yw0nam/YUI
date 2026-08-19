@@ -158,6 +158,7 @@ function normalizeExpressIntoEnvelope(
   if (express.emotion_id !== undefined) envelope.emotion = { id: express.emotion_id as EmotionId };
   if (express.motion_id !== undefined) envelope.motion = { id: express.motion_id };
   if (express.emotion_text !== undefined) envelope.emotion_text = express.emotion_text;
+  if (express.caption !== undefined) envelope.caption = express.caption;
 }
 
 export interface ChatRequest {

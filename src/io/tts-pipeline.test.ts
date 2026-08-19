@@ -30,11 +30,17 @@ function deferredSynth() {
   }> = [];
   const inputs: string[] = [];
   const signals: Array<AbortSignal | undefined> = [];
+  const synthOpts: Array<{ caption?: string } | undefined> = [];
   let inFlight = 0;
   let maxConcurrent = 0;
-  const synth = (input: string, signal?: AbortSignal): Promise<ArrayBuffer> => {
+  const synth = (
+    input: string,
+    signal?: AbortSignal,
+    opts?: { caption?: string },
+  ): Promise<ArrayBuffer> => {
     inputs.push(input);
     signals.push(signal);
+    synthOpts.push(opts);
     inFlight++;
     if (inFlight > maxConcurrent) maxConcurrent = inFlight;
     return new Promise<ArrayBuffer>((resolve, reject) => {
@@ -54,7 +60,7 @@ function deferredSynth() {
       });
     });
   };
-  return { synth, resolvers, inputs, signals, peakConcurrency: () => maxConcurrent };
+  return { synth, resolvers, inputs, signals, synthOpts, peakConcurrency: () => maxConcurrent };
 }
 
 /** A fake sink that records playback order. play stays pending until finished externally. */
@@ -332,6 +338,118 @@ describe("createTtsPipeline — emotion_text voice tag baking", () => {
     pipe.pushTextDelta("Two. ");
     await tick();
     expect(inputs).toEqual(["[happy] One.", "[sad] Two."]);
+  });
+});
+
+describe("createTtsPipeline — caption voice direction", () => {
+  it("passes a cue caption to the next sentence's synth as opts.caption", async () => {
+    const { synth, inputs, synthOpts } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.setCue({ caption: "落ち着いた低めの声で。" });
+    pipe.pushTextDelta("Can you hear me?");
+    await tick();
+
+    // The caption travels out-of-band — the spoken input is untouched.
+    expect(inputs).toEqual(["Can you hear me?"]);
+    expect(synthOpts[0]?.caption).toBe("落ち着いた低めの声で。");
+  });
+
+  it("is one-shot: the sentence after the cue gets no caption", async () => {
+    const { synth, synthOpts } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink, maxInflight: 3 });
+
+    pipe.setCue({ caption: "落ち着いた低めの声で。" });
+    pipe.pushTextDelta("One. ");
+    pipe.pushTextDelta("Two. ");
+    await tick();
+
+    expect(synthOpts[0]?.caption).toBe("落ち着いた低めの声で。");
+    expect(synthOpts[1]?.caption).toBeUndefined();
+  });
+
+  it("gives each sentence its own caption when a second cue replaces the pending one", async () => {
+    const { synth, synthOpts } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink, maxInflight: 3 });
+
+    pipe.setCue({ caption: "明るく弾んだ声で。" });
+    pipe.pushTextDelta("One. ");
+    pipe.setCue({ caption: "落ち着いた低めの声で。" });
+    pipe.pushTextDelta("Two. ");
+    await tick();
+
+    expect(synthOpts[0]?.caption).toBe("明るく弾んだ声で。");
+    expect(synthOpts[1]?.caption).toBe("落ち着いた低めの声で。");
+  });
+
+  it("carries caption and emotion_text from one cue onto the same sentence", async () => {
+    const { synth, inputs, synthOpts } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.setCue({ emotion_text: "👂", caption: "囁くような小さな声で。" });
+    pipe.pushTextDelta("Good night.");
+    await tick();
+
+    expect(inputs).toEqual(["👂 Good night."]);
+    expect(synthOpts[0]?.caption).toBe("囁くような小さな声で。");
+  });
+
+  it("sends no caption when the cue carries none", async () => {
+    const { synth, synthOpts } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.setCue({ emotion_id: "happy" });
+    pipe.pushTextDelta("Plain sentence.");
+    await tick();
+
+    expect(synthOpts[0]?.caption).toBeUndefined();
+  });
+
+  it("sends no caption at all when no cue is set", async () => {
+    const { synth, synthOpts } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.pushTextDelta("Plain sentence.");
+    await tick();
+
+    expect(synthOpts[0]?.caption).toBeUndefined();
+  });
+
+  // setCue drops a cue with nothing renderable in it; a caption alone is renderable.
+  it("keeps a caption-only cue instead of discarding it as empty", async () => {
+    const { synth, resolvers, synthOpts } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const cuePlays: Array<import("../contract").ExpressArgs | null> = [];
+    const pipe = createTtsPipeline({ synth, sink, onCuePlay: (cue) => cuePlays.push(cue) });
+
+    pipe.setCue({ caption: "落ち着いた低めの声で。" });
+    pipe.pushTextDelta("Hello.");
+    await tick();
+    expect(synthOpts[0]?.caption).toBe("落ち着いた低めの声で。");
+
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    expect(cuePlays[0]).toMatchObject({ caption: "落ち着いた低めの声で。" });
+    finish();
+    await tick();
+  });
+
+  it("drops a whitespace-only caption rather than sending it", async () => {
+    const { synth, synthOpts } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.setCue({ caption: "   " });
+    pipe.pushTextDelta("Hello.");
+    await tick();
+
+    expect(synthOpts[0]?.caption).toBeUndefined();
   });
 });
 

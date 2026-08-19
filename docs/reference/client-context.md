@@ -342,6 +342,7 @@ generate_express({
   emotion_id?: string;
   motion_id?: string;
   emotion_text?: string;
+  caption?: string;
 })
 ```
 
@@ -349,7 +350,8 @@ generate_express({
 {
   "emotion_id": "happy",
   "motion_id": "dance",
-  "emotion_text": "🤭"
+  "emotion_text": "🤭",
+  "caption": "明るく弾んだ声で、少し早口に。"
 }
 ```
 
@@ -358,8 +360,15 @@ generate_express({
 | `emotion_id` | facial expression |
 | `motion_id` | body motion |
 | `emotion_text` | voice tone tag |
+| `caption` | voice direction in natural language |
 
 All fields are optional. Include only the fields that should change.
+
+`emotion_text` and `caption` are two separate voice channels and combine freely.
+`emotion_text` is a tag from the published emoji set, prepended to the spoken
+segment. `caption` is a free sentence describing how the voice should sound —
+Japanese reads best — carried beside the audio request rather than in the
+speech. Neither is ever spoken aloud or shown in the speech bubble.
 
 ## Basic Pattern
 
@@ -378,7 +387,7 @@ Example:
 "Hello User!"
 generate_express({ emotion_id: "happy", motion_id: "dance", emotion_text: "🤭" })
 " How was your day?"
-generate_express({ emotion_id: "curious", motion_id: "calm", emotion_text: "😏" })
+generate_express({ emotion_id: "curious", motion_id: "calm", emotion_text: "😏", caption: "穏やかに問いかけるように。" })
 ```
 
 This means:
@@ -386,7 +395,8 @@ This means:
 - say `"Hello User!"`;
 - place a happy/dance/🤭 cue on that greeting;
 - say `" How was your day?"`;
-- place a curious/calm/😏 cue on the question.
+- place a curious/calm/😏 cue on the question, with the voice directed to sound
+  like a gentle inquiry.
 
 ## Streaming Shape
 
@@ -481,6 +491,7 @@ Use the broker tool that returns valid ids before choosing values.
 - Use `get_ids` to check valid `emotion_id`, `motion_id`, and `emotion_text` values.
 - Do not rely on memorized value lists.
 - The valid set can change.
+- `caption` is free text and has no id list to check.
 - Only `generate_express` changes facial expression, body motion, or voice tone.
 
 ### What does `generate_express({})` mean?

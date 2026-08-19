@@ -205,6 +205,30 @@ describe("streamChat — Chat Completions generate_express capture", () => {
     expect(ccCreateMock.mock.calls[0][0].tools).toBeUndefined();
   });
 
+  it("carries caption from a tool-call delta into the express event and the envelope", async () => {
+    ccCreateMock.mockResolvedValueOnce(
+      streamOf([
+        toolCallStart(
+          0,
+          "call_1",
+          "generate_express",
+          '{"emotion_text":"👂","caption":"囁くような小さな声で、ゆっくりと。"}',
+        ),
+        finishChunk("stop"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events[0]).toEqual({
+      type: "express",
+      args: { emotion_text: "👂", caption: "囁くような小さな声で、ゆっくりと。" },
+    });
+    const final = events.find((e) => e.type === "completed");
+    if (final?.type !== "completed") throw new Error("narrow");
+    expect(final.envelope.caption).toBe("囁くような小さな声で、ゆっくりと。");
+  });
+
   it("recognizes an MCP-namespaced mcp_<server>_generate_express tool name — one call", async () => {
     ccCreateMock.mockResolvedValueOnce(
       streamOf([

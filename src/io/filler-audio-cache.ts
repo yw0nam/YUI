@@ -50,13 +50,15 @@ export function createFillerAudioCache(deps: FillerAudioCacheDeps): FillerAudioC
   }
 
   return {
-    synth: async (input, signal) => {
+    synth: async (input, signal, opts) => {
       const { key, submissions } = sync();
-      if (!submissions.has(input)) return deps.synth(input, signal);
+      if (!submissions.has(input)) return deps.synth(input, signal, opts);
 
       const hit = audio.get(input);
       if (hit) return hit.slice(0);
 
+      // Cached filler synth is deliberately caption-less: the cache key carries no caption, so a
+      // caption-conditioned render stored here would be replayed for every later plain filler.
       const wav = await deps.synth(input, signal);
       // The params or the pool may have moved on while this was in flight — audio for a phrase that
       // is now stale or gone no longer belongs here, and no later prune would catch it.

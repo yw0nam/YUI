@@ -58,7 +58,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   const results = new Map<number, ArrayBuffer>();
   const failed = new Set<number>();
   const cues = new Map<number, ExpressArgs | null>();
-  const pending: Array<{ index: number; input: string }> = [];
+  const pending: Array<{ index: number; input: string; caption?: string }> = [];
   let inFlight = 0;
   let submitted = 0;
   let nextToPlay = 0;
@@ -122,9 +122,9 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   // Dispatch queued items to synth, but only up to the cap.
   function drainSynth(): void {
     while (inFlight < resolveMaxInflight() && pending.length > 0) {
-      const { index, input } = pending.shift()!;
+      const { index, input, caption } = pending.shift()!;
       inFlight++;
-      synth(input, abort.signal).then(
+      synth(input, abort.signal, caption ? { caption } : undefined).then(
         (wav) => {
           inFlight--;
           if (disposed) return;
@@ -158,10 +158,12 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     pendingCue = null;
     const voiceTag = cue?.emotion_text?.trim() || null;
     const input = voiceTag ? `${voiceTag} ${trimmed}` : trimmed;
+    // The caption is a direction for the voice, not words to speak — it rides beside the input.
+    const caption = cue?.caption?.trim() || undefined;
     const index = submitted++;
     cues.set(index, cue);
     log.debug("synth", { index, chars: trimmed.length });
-    pending.push({ index, input });
+    pending.push({ index, input, ...(caption ? { caption } : {}) });
     drainSynth();
   }
 
@@ -181,8 +183,11 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
         return;
       }
       const emotText = cue.emotion_text?.trim() ? cue.emotion_text : undefined;
+      const caption = cue.caption?.trim() ? cue.caption : undefined;
       pendingCue =
-        (cue.emotion_id ?? cue.motion_id ?? emotText) ? { ...cue, emotion_text: emotText } : null;
+        (cue.emotion_id ?? cue.motion_id ?? emotText ?? caption)
+          ? { ...cue, emotion_text: emotText, caption }
+          : null;
     },
 
     end() {

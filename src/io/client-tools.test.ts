@@ -67,6 +67,23 @@ describe("createGenerateExpressTool — definition", () => {
     expect(emotionText.description).toContain("🤭 = Giggle");
   });
 
+  it("declares caption as free text, with no enum and no vocabulary tie", () => {
+    const props = createGenerateExpressTool(
+      vocab({ emotionText: { mode: "enum", table: { "👂": "Whisper" } } }),
+    ).definition.function.parameters.properties;
+    const caption = props.caption as Record<string, unknown>;
+    expect(caption).toMatchObject({ type: "string" });
+    expect(caption.enum).toBeUndefined();
+  });
+
+  it("caption's description says it is a voice direction that may be omitted", () => {
+    const caption = createGenerateExpressTool(vocab()).definition.function.parameters.properties
+      .caption as Record<string, unknown>;
+    const description = String(caption.description);
+    expect(description).toMatch(/voice direction/i);
+    expect(description).toMatch(/omit/i);
+  });
+
   it("enum mode with no table falls back to free text", () => {
     const tool = createGenerateExpressTool(vocab({ emotionText: { mode: "enum", table: null } }));
     const props = tool.definition.function.parameters.properties;
@@ -87,7 +104,7 @@ describe("createGenerateExpressTool — definition", () => {
     const params = createGenerateExpressTool(vocab({ motionIds: [] })).definition.function
       .parameters;
     expect("motion_id" in params.properties).toBe(false);
-    expect(Object.keys(params.properties)).toEqual(["emotion_id", "emotion_text"]);
+    expect(Object.keys(params.properties)).toEqual(["emotion_id", "emotion_text", "caption"]);
   });
 
   it("drops body motion from the description when motion_id is omitted", () => {

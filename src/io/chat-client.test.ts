@@ -252,6 +252,49 @@ describe("streamChat — generate_express capture (flat args)", () => {
     expect(env.emotion_text).toBe("[whisper in small voice]");
   });
 
+  it("carries caption into the express event and the completed envelope", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAdded("generate_express", "fc_1", 0),
+        fnArgsDone(
+          "generate_express",
+          "fc_1",
+          0,
+          '{"emotion_text":"👂","caption":"囁くような小さな声で、ゆっくりと。"}',
+        ),
+        completed(""),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    const express = events.find((e) => e.type === "express");
+    if (express?.type !== "express") throw new Error("narrow");
+    expect(express.args.caption).toBe("囁くような小さな声で、ゆっくりと。");
+
+    const final = events.find((e) => e.type === "completed");
+    if (final?.type !== "completed") throw new Error("narrow");
+    expect(final.envelope.caption).toBe("囁くような小さな声で、ゆっくりと。");
+    expect(final.envelope.emotion_text).toBe("👂");
+  });
+
+  it("a caption-only call carries the caption with no other cue field", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        fnAdded("generate_express", "fc_1", 0),
+        fnArgsDone("generate_express", "fc_1", 0, '{"caption":"落ち着いた低めの声で。"}'),
+        completed(""),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+    const final = events.find((e) => e.type === "completed");
+    if (final?.type !== "completed") throw new Error("narrow");
+    expect(final.envelope.caption).toBe("落ち着いた低めの声で。");
+    expect(final.envelope.emotion).toBeUndefined();
+    expect(final.envelope.emotion_text).toBeUndefined();
+  });
+
   it("partial flat args normalize only the present fields (emotion_id only)", async () => {
     createMock.mockResolvedValue(
       streamOf([
@@ -268,6 +311,7 @@ describe("streamChat — generate_express capture (flat args)", () => {
     expect(env.emotion).toEqual({ id: "thinking" });
     expect(env.motion).toBeUndefined();
     expect(env.emotion_text).toBeUndefined();
+    expect(env.caption).toBeUndefined();
   });
 
   it("captures generate_express mid-stream even though it is ABSENT from response.completed.output[]", async () => {
