@@ -532,6 +532,36 @@ export function wireWindowSources(deps: {
   return handle;
 }
 
+/** The busy predicate a buffered-inbox source takes: the pipeline's own, plus the global gap. */
+export interface PacedPipelineBusy {
+  isBusy: () => boolean;
+  subscribe: (cb: (busy: boolean) => void) => () => void;
+}
+
+/**
+ * Compose pipeline-busy with the global proactive gap. The buffered-inbox sources hold their
+ * items instead of skipping them, so a held window reads as busy and its opening is the
+ * busy→idle edge that flushes one catchup.
+ */
+export function composePacedPipelineBusy(deps: {
+  pipelineBusy: PacedPipelineBusy;
+  pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
+}): PacedPipelineBusy {
+  const { pipelineBusy, pacer } = deps;
+  const paced: PacedPipelineBusy = {
+    isBusy: () => pipelineBusy.isBusy() || pacer.isHolding(),
+    subscribe: (cb) => {
+      const unsubscribeBusy = pipelineBusy.subscribe(() => cb(paced.isBusy()));
+      const unsubscribePacer = pacer.subscribe(() => cb(paced.isBusy()));
+      return () => {
+        unsubscribeBusy();
+        unsubscribePacer();
+      };
+    },
+  };
+  return paced;
+}
+
 /**
  * tier2 utterance candidate sources: proactive.<id> (idle dramatization) + schedule.<id>
  * (time-of-day greeting) + agent.done/needs_input/catchup + signals.push/catchup, all over the
@@ -548,7 +578,7 @@ export function wireDispatcherSources(deps: {
   getScreenConfig: () => ScreenConfig;
   /** Dispatcher in-flight busy edges — anchors the screen source's quiet-after-turn window. */
   subscribeBusy: (cb: (busy: boolean) => void) => () => void;
-  pipelineBusy: { isBusy: () => boolean; subscribe: (cb: (busy: boolean) => void) => () => void };
+  pipelineBusy: PacedPipelineBusy;
   /** Global proactive gap — a hold reads as a skip to the screen source and as busy to the inboxes. */
   pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
 }): {
@@ -570,19 +600,7 @@ export function wireDispatcherSources(deps: {
     pipelineBusy,
     pacer,
   } = deps;
-  // The buffered-inbox sources hold their items instead of skipping them, so the pacer reaches
-  // them as busy — the window opening is a busy→idle edge that flushes one catchup.
-  const pacedPipelineBusy = {
-    isBusy: (): boolean => pipelineBusy.isBusy() || pacer.isHolding(),
-    subscribe: (cb: (busy: boolean) => void): (() => void) => {
-      const unsubscribeBusy = pipelineBusy.subscribe(() => cb(pacedPipelineBusy.isBusy()));
-      const unsubscribePacer = pacer.subscribe(() => cb(pacedPipelineBusy.isBusy()));
-      return () => {
-        unsubscribeBusy();
-        unsubscribePacer();
-      };
-    },
-  };
+  const pacedPipelineBusy = composePacedPipelineBusy({ pipelineBusy, pacer });
   const proactiveSource = createProactiveSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,

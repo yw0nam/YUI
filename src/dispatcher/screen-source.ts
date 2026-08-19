@@ -27,15 +27,13 @@
 import type { ScreenConfig } from "../config";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import { subscribeOsEvent } from "../io/tauri-listen";
-import { buildSkipRecord, type SkipReason, type SkipRecord } from "../io/turn-record-log";
+import { buildSkipRecord, type ScreenSkipRecord, type SkipReason } from "../io/turn-record-log";
 import { createLogger } from "../logger";
 import type { BusEnvelope, EventBus } from "./event-bus";
 
 const log = createLogger("screen-source");
 
 type ScreenTransition = "app_switched" | "long_session";
-
-type SuppressionReason = SkipReason;
 
 /** The app left behind by an identity change, awaiting the new app's settle. */
 interface PendingSwitch {
@@ -57,7 +55,7 @@ interface ScreenSourceDeps {
   /** Global proactive gap — a candidate inside the window is skipped, not queued. */
   isPacerHolding?: () => boolean;
   /** Skip-record JSONL sink — best-effort disk log of suppressed fires for analysis. */
-  appendSkipRecord?: (record: SkipRecord) => void;
+  appendSkipRecord?: (record: ScreenSkipRecord) => void;
   /** Injectable channel listen; defaults to the resolved Tauri `listen`. */
   listen?: OsEventListen;
   /** Injectable clock; defaults to Date.now. */
@@ -87,7 +85,7 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
   let lastTurnTs: number | undefined;
   let away = false;
 
-  function suppressionReason(t: number, present: boolean): SuppressionReason | undefined {
+  function suppressionReason(t: number, present: boolean): SkipReason | undefined {
     if (!isEnabled()) return "disabled";
     if (!present) return "not_present";
     const cfg = getConfig();

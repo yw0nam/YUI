@@ -26,30 +26,39 @@ export interface TurnRecord {
 
 export type SkipReason = "disabled" | "not_present" | "min_gap" | "quiet_after_turn" | "global_gap";
 
-export interface SkipRecord {
+/** A screen candidate refused at the source's own gate, named by the transition it would have been. */
+export interface ScreenSkipRecord {
   type: "skip";
   ts: number;
-  source: "screen" | "dispatcher";
+  source: "screen";
   reason: SkipReason;
-  /** Screen records only — which transition the skipped candidate was. */
-  transition?: "app_switched" | "long_session";
-  /** Dispatcher records only — the event the global pacer held back. */
-  event_name?: string;
+  transition: "app_switched" | "long_session";
 }
+
+/** A fire the dispatcher's global proactive gap held back, named by its event. */
+export interface PacerSkipRecord {
+  type: "skip";
+  ts: number;
+  source: "dispatcher";
+  reason: "global_gap";
+  event_name: string;
+}
+
+export type SkipRecord = ScreenSkipRecord | PacerSkipRecord;
 
 export function buildTurnRecord(fields: Omit<TurnRecord, "type">): TurnRecord {
   return { type: "turn", ...fields };
 }
 
-export function buildSkipRecord(fields: {
-  ts: number;
-  reason: SkipReason;
-  transition: "app_switched" | "long_session";
-}): SkipRecord {
+export function buildSkipRecord(
+  fields: Omit<ScreenSkipRecord, "type" | "source">,
+): ScreenSkipRecord {
   return { type: "skip", source: "screen", ...fields };
 }
 
-export function buildPacerSkipRecord(fields: { ts: number; event_name: string }): SkipRecord {
+export function buildPacerSkipRecord(
+  fields: Omit<PacerSkipRecord, "type" | "source" | "reason">,
+): PacerSkipRecord {
   return { type: "skip", source: "dispatcher", reason: "global_gap", ...fields };
 }
 
