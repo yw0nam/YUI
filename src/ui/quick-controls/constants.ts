@@ -2,7 +2,7 @@
 import type { ReasoningEffort } from "../../io/agent-settings";
 import { ENDPOINT_FIELD_SPECS, type EndpointOverrides } from "../../io/endpoints-settings";
 import type { RateLimitOverrides } from "../../io/guardrails-settings";
-import type { ScreenOverrides } from "../../io/screen-settings";
+import { SCREEN_RECENT_CAP_MAX, type ScreenOverrides } from "../../io/screen-settings";
 import type { Locale } from "../i18n";
 
 // Tab identity — the suffix of each tab button's `yui-tab-*` element id.
@@ -132,7 +132,7 @@ export const SCREEN_KNOB_FIELDS: readonly ScreenKnobFieldDef[] = [
     suffixKey: "screen.count_suffix",
     unitMs: 1,
     min: 0,
-    max: 20,
+    max: SCREEN_RECENT_CAP_MAX,
   },
 ];
 
