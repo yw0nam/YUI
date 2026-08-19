@@ -255,6 +255,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     const guardrails = createGuardrails(getGuardrails());
     const pacer = createProactivePacer({ getIntervalMs: () => pacerGapSettings.get().value });
     register(pacer.stop);
+    register(pacerGapSettings.subscribe(() => pacer.noteIntervalChanged()));
     register(wireGuardrailsOverrides({ guardrails, store: guardrailsSettings, getGuardrails }));
     const dispatcher = createDispatcher({
       bus,

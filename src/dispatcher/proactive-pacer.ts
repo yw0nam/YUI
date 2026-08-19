@@ -13,6 +13,11 @@
 export interface ProactivePacer {
   /** Anchor the window at the current time and (re)schedule its open edge. */
   noteTurnStart(): void;
+  /**
+   * Re-aim an open window at the edited interval: a longer gap moves the open edge out, and a
+   * gap already shorter than the elapsed hold opens the window now.
+   */
+  noteIntervalChanged(): void;
   isHolding(): boolean;
   /** Called with true at each anchor and false when the window opens; returns an unsubscribe fn. */
   subscribe(cb: (holding: boolean) => void): () => void;
@@ -46,23 +51,46 @@ export function createProactivePacer(deps: {
     for (const cb of subscribers) cb(holding);
   }
 
+  /** Arm the open edge at the current anchor + interval, replacing any pending one. */
+  function scheduleOpen(): void {
+    clearOpenTimer();
+    if (anchor === undefined) return;
+    const remaining = anchor + deps.getIntervalMs() - now();
+    if (remaining <= 0) return;
+    timer = setTimeout(() => {
+      timer = null;
+      // The interval may have grown since this timer was armed — the edge belongs to whatever
+      // the window says now, not to the timer that happened to fire.
+      if (isHolding()) {
+        scheduleOpen();
+        return;
+      }
+      anchor = undefined;
+      notify(false);
+    }, remaining);
+  }
+
   return {
     noteTurnStart() {
-      clearOpenTimer();
       const interval = deps.getIntervalMs();
       if (interval <= 0) {
+        clearOpenTimer();
         anchor = undefined;
         return;
       }
       anchor = now();
-      // The open edge is fixed to the interval read here: a knob change mid-hold reaches
-      // isHolding() immediately, but this notification still lands at the old expiry.
-      timer = setTimeout(() => {
-        timer = null;
-        anchor = undefined;
-        notify(false);
-      }, interval);
+      scheduleOpen();
       notify(true);
+    },
+    noteIntervalChanged() {
+      if (anchor === undefined) return;
+      if (isHolding()) {
+        scheduleOpen();
+        return;
+      }
+      clearOpenTimer();
+      anchor = undefined;
+      notify(false);
     },
     isHolding,
     subscribe(cb) {
