@@ -555,7 +555,8 @@ describe("screen_source — recent buffer", () => {
 
   it("drops the oldest entry once the buffer exceeds recent_cap", async () => {
     let holding = true;
-    const s = setup({ isPacerHolding: () => holding });
+    const cfg2: ScreenConfig = { ...CFG, recent_cap: 2 };
+    const s = setup({ isPacerHolding: () => holding, getConfig: () => cfg2 });
     await s.src.start();
 
     s.at(0, tick("App1"));

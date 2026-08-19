@@ -101,6 +101,22 @@ function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
   return Array.isArray(signals) ? (signals as TriggerMeta["signals"]) : undefined;
 }
 
+type RecentTransition = { from_app: string; to_app: string; dwell_min: number };
+
+function recentOf(payload: BusEnvelope["payload"]): RecentTransition[] | undefined {
+  const raw = payload?.recent;
+  if (!Array.isArray(raw)) return undefined;
+  const items = (raw as unknown[])
+    .map((item) => item as Record<string, unknown>)
+    .filter(
+      (item): item is RecentTransition =>
+        typeof item?.from_app === "string" &&
+        typeof item?.to_app === "string" &&
+        typeof item?.dwell_min === "number",
+    );
+  return items.length > 0 ? items : undefined;
+}
+
 function screenOf(env: BusEnvelope): TriggerMeta["screen"] | undefined {
   if (!env.event_name.startsWith("proactive.screen_")) return undefined;
   const payload = env.payload;
@@ -110,6 +126,7 @@ function screenOf(env: BusEnvelope): TriggerMeta["screen"] | undefined {
   ) {
     return undefined;
   }
+  const recent = recentOf(payload);
   return {
     transition: payload.transition,
     ...(typeof payload.from_app === "string" ? { from_app: payload.from_app } : {}),
@@ -117,6 +134,7 @@ function screenOf(env: BusEnvelope): TriggerMeta["screen"] | undefined {
       ? { from_dwell_min: payload.from_dwell_min }
       : {}),
     dwell_min: payload.dwell_min,
+    ...(recent ? { recent } : {}),
   };
 }
 

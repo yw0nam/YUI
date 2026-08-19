@@ -14,11 +14,17 @@
  *
  * Presence lapsing resets both clocks: time away never counts toward a dwell or a session.
  * A candidate that survives to the gate is refused when the feature is off, the user is away,
- * the min gap since the last screen fire has not passed, a turn from any producer landed
- * within `quiet_after_turn_ms`, or the global proactive pacer still holds its window open.
- * A refused `long_session` mark is skipped, not queued — the
+ * the global proactive pacer still holds its window open, the min gap since the last screen
+ * fire has not passed, or a turn from any producer landed within `quiet_after_turn_ms`. A
+ * refused `long_session` mark is skipped, not queued — the
  * next fire is the next mark. Every fire re-anchors the idle-cue gap so proactive cues do not
  * pile onto it.
+ *
+ * While the pacer holds, each `app_switched` refusal it causes is accumulated into a rolling
+ * `recent` buffer (capped at `recent_cap`, oldest dropped on overflow) instead of being lost;
+ * `long_session` refusals are never a transition and are never buffered. The next fire that
+ * actually ships carries the buffer and clears it; a refusal because the feature is disabled
+ * also clears it, so a re-enable never leaks a stale path.
  *
  * firing ≠ judgment: this only produces a candidate event; the backend decides
  * whether/what to speak.
@@ -39,6 +45,13 @@ type ScreenTransition = "app_switched" | "long_session";
 interface PendingSwitch {
   app: string;
   dwell_ms: number;
+}
+
+/** An app_switched transition held back by the pacer instead of firing. */
+interface RecentTransition {
+  from_app: string;
+  to_app: string;
+  dwell_min: number;
 }
 
 interface ScreenSourceDeps {
@@ -84,17 +97,26 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
   let lastFireTs: number | undefined;
   let lastTurnTs: number | undefined;
   let away = false;
+  /** app_switched transitions held back by the pacer, oldest first. Shipped on the next fire. */
+  let recent: RecentTransition[] = [];
 
   function suppressionReason(t: number, present: boolean): SkipReason | undefined {
     if (!isEnabled()) return "disabled";
     if (!present) return "not_present";
+    if (deps.isPacerHolding?.()) return "global_gap";
     const cfg = getConfig();
     if (lastTurnTs !== undefined && t - lastTurnTs < cfg.quiet_after_turn_ms) {
       return "quiet_after_turn";
     }
     if (lastFireTs !== undefined && t - lastFireTs < cfg.min_gap_ms) return "min_gap";
-    if (deps.isPacerHolding?.()) return "global_gap";
     return undefined;
+  }
+
+  /** Buffers a held app_switched transition, dropping the oldest past `cap` (0 = accumulate nothing). */
+  function pushRecent(from_app: string, to_app: string, dwell_min: number, cap: number): void {
+    if (cap <= 0) return;
+    recent.push({ from_app, to_app, dwell_min });
+    if (recent.length > cap) recent.shift();
   }
 
   function fire(
@@ -105,16 +127,18 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
   ): void {
     const dwell_min = toMin(dwellMs);
     const fromFields = from ? { from_app: from.app, from_dwell_min: toMin(from.dwell_ms) } : {};
+    const recentFields = recent.length > 0 ? { recent } : {};
     const env: BusEnvelope = {
       source: "screen_watcher",
       event_name: `proactive.screen_${transition}`,
       ts: t,
       hint_tier: 2,
       dnd_override: false,
-      payload: { transition, dwell_min, ...fromFields },
+      payload: { transition, dwell_min, ...fromFields, ...recentFields },
     };
     bus.push(env);
     lastFireTs = t;
+    recent = [];
     deps.noteInteraction?.();
     log.info("fire", { transition, app: currentApp, dwell_min, ...fromFields });
   }
@@ -170,6 +194,16 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
       const reason = suppressionReason(t, present);
       if (reason) {
         log.info("fire.suppressed", { transition, reason, app: currentApp });
+        if (
+          reason === "global_gap" &&
+          transition === "app_switched" &&
+          from &&
+          currentApp !== undefined
+        ) {
+          pushRecent(from.app, currentApp, toMin(from.dwell_ms), cfg.recent_cap);
+        } else if (reason === "disabled") {
+          recent = [];
+        }
         try {
           deps.appendSkipRecord?.(buildSkipRecord({ ts: t, reason, transition }));
         } catch (err) {
