@@ -23,10 +23,11 @@
  * fire re-anchors the idle-cue gap so proactive cues do not pile onto it.
  *
  * While the pacer holds, each `app_switched` refusal it causes is accumulated into a rolling
- * `recent` buffer (capped at `recent_cap`, oldest dropped on overflow) instead of being lost;
- * `long_session` refusals are never a transition and are never buffered. The next fire that
- * actually ships carries the buffer and clears it; a refusal because the feature is disabled,
- * or a presence lapse, also clears it — so a re-enable or a return never leaks a stale path.
+ * `recent` buffer (capped at `recent_cap`, oldest dropped on overflow, drained toward a lowered
+ * cap on every tick) instead of being lost; `long_session` refusals are never a transition and
+ * are never buffered. The next fire that actually ships carries the buffer and clears it. Every
+ * tick while the feature is off or the user is away also clears it — not only a tick that
+ * happens to evaluate a candidate — so a re-enable or a return never leaks a stale path.
  *
  * firing ≠ judgment: this only produces a candidate event; the backend decides
  * whether/what to speak.
@@ -114,12 +115,12 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
     return undefined;
   }
 
-  /** Buffers a held app_switched transition, draining the oldest entries down to `cap` — a cap
-      lowered mid-hold (down to and including 0) drains in the same push, not one shift per call. */
+  /** Buffers a held app_switched transition, then drains back down to `cap` (0 = accumulate
+      nothing). The tick-top drain above already bounds `recent` to the live cap on entry, so this
+      only ever has the one just-pushed entry to shed. */
   function pushRecent(from_app: string, to_app: string, dwell_min: number, cap: number): void {
     recent.push({ from_app, to_app, dwell_min });
-    const floor = Math.max(0, cap);
-    while (recent.length > floor) recent.shift();
+    while (recent.length > Math.max(0, cap)) recent.shift();
   }
 
   function fire(
@@ -164,6 +165,10 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
     const app = payload.data.frontmost_app ?? undefined;
     const cfg = getConfig();
 
+    // Drains toward the live cap on every tick, not only when a new suppression pushes — a cap
+    // lowered mid-hold takes effect even if no further switch happens before the next fire.
+    while (recent.length > Math.max(0, cfg.recent_cap)) recent.shift();
+
     if (present && away) away = false;
 
     // App identity only; the window title never enters the comparison.
@@ -204,8 +209,6 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
           currentApp !== undefined
         ) {
           pushRecent(from.app, currentApp, toMin(from.dwell_ms), cfg.recent_cap);
-        } else if (reason === "disabled") {
-          recent = [];
         }
         try {
           deps.appendSkipRecord?.(buildSkipRecord({ ts: t, reason, transition }));
@@ -220,8 +223,10 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
     if (!present) {
       away = true;
       resetClocks();
-      recent = [];
     }
+    // Both invalidating conditions in one place: disabled or away, checked every tick, not only
+    // when a candidate happened to be evaluated this tick.
+    if (!isEnabled() || !present) recent = [];
   }
 
   async function start(): Promise<void> {
