@@ -13,6 +13,7 @@ const SCREEN_DEFAULTS = {
   long_session_ms: 2_700_000,
   min_gap_ms: 300_000,
   quiet_after_turn_ms: 180_000,
+  recent_cap: 5,
 };
 
 describe("createQuickControls — proactive tab (screen watch)", () => {
@@ -183,6 +184,31 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     expect(qc.el.querySelector<HTMLInputElement>("#yui-screen-settle")!.value).toBe("30");
     expect(qc.el.querySelector<HTMLInputElement>("#yui-screen-prev-dwell")!.value).toBe("10");
     qc.dispose();
+  });
+
+  it("shows recent_cap as a bare count and commits it unconverted", () => {
+    const { screenKnobSettings, qc } = buildScreenQc();
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-screen-recent-cap")!;
+    expect(input.value).toBe("5");
+    expect(input.min).toBe("0");
+    expect(input.max).toBe("20");
+
+    input.value = "3";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(screenKnobSettings.get().recent_cap).toBe(3);
+    expect(input.value).toBe("3");
+  });
+
+  it("clamps a typed recent_cap into its 0-20 row bounds", () => {
+    const { screenKnobSettings, qc } = buildScreenQc();
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-screen-recent-cap")!;
+
+    input.value = "50";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(screenKnobSettings.get().recent_cap).toBe(20);
+    expect(input.value).toBe("20");
   });
 
   it("commits a numeric knob on change, converted to ms", () => {

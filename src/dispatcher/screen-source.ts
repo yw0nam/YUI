@@ -12,13 +12,22 @@
  * title-only changes, so this source keeps its own and a title change is never a transition.
  * A tick with no frontmost app carries no identity and holds the clock where it is.
  *
- * Presence lapsing resets both clocks: time away never counts toward a dwell or a session.
+ * Presence lapsing resets both clocks and clears the `recent` buffer described below: time away
+ * never counts toward a dwell, a session, or a held path — an overnight-stale path must not
+ * ship on the first morning fire.
+ *
  * A candidate that survives to the gate is refused when the feature is off, the user is away,
- * the min gap since the last screen fire has not passed, a turn from any producer landed
- * within `quiet_after_turn_ms`, or the global proactive pacer still holds its window open.
- * A refused `long_session` mark is skipped, not queued — the
- * next fire is the next mark. Every fire re-anchors the idle-cue gap so proactive cues do not
- * pile onto it.
+ * the global proactive pacer still holds its window open, the min gap since the last screen
+ * fire has not passed, or a turn from any producer landed within `quiet_after_turn_ms`. A
+ * refused `long_session` mark is skipped, not queued — the next fire is the next mark. Every
+ * fire re-anchors the idle-cue gap so proactive cues do not pile onto it.
+ *
+ * While the pacer holds, each `app_switched` refusal it causes is accumulated into a rolling
+ * `recent` buffer (capped at `recent_cap`, oldest dropped on overflow, drained toward a lowered
+ * cap on every tick) instead of being lost; `long_session` refusals are never a transition and
+ * are never buffered. The next fire that actually ships carries the buffer and clears it. Every
+ * tick while the feature is off or the user is away also clears it — not only a tick that
+ * happens to evaluate a candidate — so a re-enable or a return never leaks a stale path.
  *
  * firing ≠ judgment: this only produces a candidate event; the backend decides
  * whether/what to speak.
@@ -39,6 +48,13 @@ type ScreenTransition = "app_switched" | "long_session";
 interface PendingSwitch {
   app: string;
   dwell_ms: number;
+}
+
+/** An app_switched transition held back by the pacer instead of firing. */
+interface RecentTransition {
+  from_app: string;
+  to_app: string;
+  dwell_min: number;
 }
 
 interface ScreenSourceDeps {
@@ -84,17 +100,27 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
   let lastFireTs: number | undefined;
   let lastTurnTs: number | undefined;
   let away = false;
+  /** app_switched transitions held back by the pacer, oldest first. Shipped on the next fire. */
+  let recent: RecentTransition[] = [];
 
   function suppressionReason(t: number, present: boolean): SkipReason | undefined {
     if (!isEnabled()) return "disabled";
     if (!present) return "not_present";
+    if (deps.isPacerHolding?.()) return "global_gap";
     const cfg = getConfig();
     if (lastTurnTs !== undefined && t - lastTurnTs < cfg.quiet_after_turn_ms) {
       return "quiet_after_turn";
     }
     if (lastFireTs !== undefined && t - lastFireTs < cfg.min_gap_ms) return "min_gap";
-    if (deps.isPacerHolding?.()) return "global_gap";
     return undefined;
+  }
+
+  /** Buffers a held app_switched transition, then drains back down to `cap` (0 = accumulate
+      nothing). The tick-top drain above already bounds `recent` to the live cap on entry, so this
+      only ever has the one just-pushed entry to shed. */
+  function pushRecent(from_app: string, to_app: string, dwell_min: number, cap: number): void {
+    recent.push({ from_app, to_app, dwell_min });
+    while (recent.length > Math.max(0, cap)) recent.shift();
   }
 
   function fire(
@@ -105,16 +131,18 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
   ): void {
     const dwell_min = toMin(dwellMs);
     const fromFields = from ? { from_app: from.app, from_dwell_min: toMin(from.dwell_ms) } : {};
+    const recentFields = recent.length > 0 ? { recent } : {};
     const env: BusEnvelope = {
       source: "screen_watcher",
       event_name: `proactive.screen_${transition}`,
       ts: t,
       hint_tier: 2,
       dnd_override: false,
-      payload: { transition, dwell_min, ...fromFields },
+      payload: { transition, dwell_min, ...fromFields, ...recentFields },
     };
     bus.push(env);
     lastFireTs = t;
+    recent = [];
     deps.noteInteraction?.();
     log.info("fire", { transition, app: currentApp, dwell_min, ...fromFields });
   }
@@ -136,6 +164,10 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
     const t = now();
     const app = payload.data.frontmost_app ?? undefined;
     const cfg = getConfig();
+
+    // Drains toward the live cap on every tick, not only when a new suppression pushes — a cap
+    // lowered mid-hold takes effect even if no further switch happens before the next fire.
+    while (recent.length > Math.max(0, cfg.recent_cap)) recent.shift();
 
     if (present && away) away = false;
 
@@ -170,6 +202,14 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
       const reason = suppressionReason(t, present);
       if (reason) {
         log.info("fire.suppressed", { transition, reason, app: currentApp });
+        if (
+          reason === "global_gap" &&
+          transition === "app_switched" &&
+          from &&
+          currentApp !== undefined
+        ) {
+          pushRecent(from.app, currentApp, toMin(from.dwell_ms), cfg.recent_cap);
+        }
         try {
           deps.appendSkipRecord?.(buildSkipRecord({ ts: t, reason, transition }));
         } catch (err) {
@@ -184,6 +224,9 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
       away = true;
       resetClocks();
     }
+    // Both invalidating conditions in one place: disabled or away, checked every tick, not only
+    // when a candidate happened to be evaluated this tick.
+    if (!isEnabled() || !present) recent = [];
   }
 
   async function start(): Promise<void> {

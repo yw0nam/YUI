@@ -4,6 +4,7 @@ import {
   createScreenKnobSettings,
   mergeScreen,
   SCREEN_MS_MAX,
+  SCREEN_RECENT_CAP_MAX,
   type ScreenKnobStorage,
   type ScreenOverrides,
   screenDefaultsFromConfig,
@@ -16,6 +17,7 @@ function baseConfig(): ScreenConfig {
     long_session_ms: 2_700_000,
     min_gap_ms: 300_000,
     quiet_after_turn_ms: 180_000,
+    recent_cap: 5,
   };
 }
 
@@ -25,6 +27,7 @@ const NONE: ScreenOverrides = {
   long_session_ms: 0,
   min_gap_ms: 0,
   quiet_after_turn_ms: 0,
+  recent_cap: 0,
 };
 
 function inMemoryStorage(initial: ScreenOverrides | null = null): ScreenKnobStorage {
@@ -86,6 +89,26 @@ describe("screen knob settings — store shape", () => {
     expect(store.get()).toEqual({ ...NONE, settle_ms: 30_000 });
   });
 
+  it("keeps the current recent_cap when handed a value above its own, tighter ceiling", () => {
+    const store = createScreenKnobSettings({ storage: inMemoryStorage() });
+    store.set({ recent_cap: 5 });
+    for (const bad of [-1, 4.5, SCREEN_RECENT_CAP_MAX + 1, Number.NaN]) {
+      store.set({ recent_cap: bad });
+      expect(store.get().recent_cap).toBe(5);
+    }
+    store.set({ recent_cap: SCREEN_RECENT_CAP_MAX });
+    expect(store.get().recent_cap).toBe(SCREEN_RECENT_CAP_MAX);
+  });
+
+  it("sanitizes a stored recent_cap above its ceiling into no override, even though it is a valid ms threshold", () => {
+    // A hand-edited or corrupted store value like 1_000_000 is nowhere near SCREEN_MS_MAX but
+    // is far above recent_cap's own ceiling — the per-key ceiling must catch it, not the shared one.
+    const store = createScreenKnobSettings({
+      storage: inMemoryStorage({ ...NONE, recent_cap: 1_000_000 }),
+    });
+    expect(store.get().recent_cap).toBe(0);
+  });
+
   it("reloadFromStorage adopts another window's edit", () => {
     const storage = inMemoryStorage();
     const store = createScreenKnobSettings({ storage });
@@ -140,6 +163,7 @@ describe("screen knob settings — store over config", () => {
       long_session_ms: 2_700_000,
       min_gap_ms: 300_000,
       quiet_after_turn_ms: 180_000,
+      recent_cap: 5,
     });
   });
 

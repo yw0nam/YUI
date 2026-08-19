@@ -243,4 +243,67 @@ describe("buildClientContext — screen forwarding", () => {
         ).trigger,
     ).toBe(false);
   });
+
+  it("forwards a non-empty recent buffer", () => {
+    const client = buildClientContext(
+      CTX,
+      screenEnv("proactive.screen_long_session", {
+        transition: "long_session",
+        dwell_min: 45,
+        recent: [
+          { from_app: "Cursor", to_app: "Slack", dwell_min: 10 },
+          { from_app: "Slack", to_app: "VS Code", dwell_min: 3 },
+        ],
+      }),
+    );
+
+    expect(client.trigger.screen).toEqual({
+      transition: "long_session",
+      dwell_min: 45,
+      recent: [
+        { from_app: "Cursor", to_app: "Slack", dwell_min: 10 },
+        { from_app: "Slack", to_app: "VS Code", dwell_min: 3 },
+      ],
+    });
+  });
+
+  it("filters out malformed items and omits recent when nothing survives", () => {
+    const client = buildClientContext(
+      CTX,
+      screenEnv("proactive.screen_long_session", {
+        transition: "long_session",
+        dwell_min: 45,
+        recent: [
+          { from_app: "Cursor", to_app: "Slack", dwell_min: 10 },
+          { from_app: "Slack", dwell_min: 3 }, // missing to_app
+          { from_app: 1, to_app: "Slack", dwell_min: 3 }, // non-string from_app
+          { from_app: "Slack", to_app: "VS Code", dwell_min: "3" }, // non-number dwell_min
+        ],
+      }),
+    );
+
+    expect(client.trigger.screen).toEqual({
+      transition: "long_session",
+      dwell_min: 45,
+      recent: [{ from_app: "Cursor", to_app: "Slack", dwell_min: 10 }],
+    });
+
+    const empty = buildClientContext(
+      CTX,
+      screenEnv("proactive.screen_long_session", {
+        transition: "long_session",
+        dwell_min: 45,
+        recent: [{ from_app: "Slack", dwell_min: 3 }],
+      }),
+    );
+    expect("recent" in empty.trigger.screen!).toBe(false);
+  });
+
+  it("omits recent when the payload carries none", () => {
+    const client = buildClientContext(
+      CTX,
+      screenEnv("proactive.screen_long_session", { transition: "long_session", dwell_min: 45 }),
+    );
+    expect("recent" in client.trigger.screen!).toBe(false);
+  });
 });

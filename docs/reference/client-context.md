@@ -42,9 +42,9 @@ above. Otherwise it is plain text.
 Everything between the header line and the closing tag is a sequence of `key: value`
 plain-text lines built by `renderClientContext` (`src/dispatcher/client-context-text.ts`).
 One line per fact, in this fixed order — `time`, `frontmost`, `screenshot`, `body`, then
-one or more `trigger:`/`cue note:`/`agent note:`/`agent event:`/`agent detail:`/`signal:`
-lines depending on what fired. A line is omitted outright when its underlying field is
-absent (e.g. no `screenshot:` line when screen capture is off).
+one or more `trigger:`/`cue note:`/`agent note:`/`agent event:`/`agent detail:`/`signal:`/
+`recent:` lines depending on what fired. A line is omitted outright when its underlying
+field is absent (e.g. no `screenshot:` line when screen capture is off).
 
 Any field value that could contain whitespace runs, a newline, or the block's own tags (an
 app name, a window title, a cue label, an agent-hook string) is sanitized before being
@@ -187,6 +187,30 @@ printing an `after 0min` that would misreport an unknown duration as zero. `in c
 app Xmin` (`dwell_min`) always closes the line. The app switched *to* is the
 `frontmost:` line above, not repeated here; the departed window's title isn't carried —
 a title the user has already left is history, not present state.
+
+### `recent` (held transitions)
+
+While the global proactive pacer holds screen fires back for its gap window, each
+`app_switched` transition it suppresses is accumulated rather than dropped. The next
+screen turn that actually fires — either transition kind — carries the held path as an
+extra line. The transition that actually fires is a separate, later switch, not the
+last held one:
+
+```text
+trigger: screen app_switched, left VS Code after 12min, in current app 2min
+recent: Cursor 10min -> Slack, Slack 3min -> VS Code
+```
+
+`recent` lists the held `app_switched` transitions in the order they happened, oldest
+first, each rendered `<from_app> <dwell_min>min -> <to_app>`. A suppressed
+`long_session` mark is not a transition and is never added to the buffer. The list is
+capped (`recent_cap`, default 5) with the oldest entry dropped past the cap, so it may
+show only a suffix of the full held path. The line appears only when the buffer is
+non-empty at fire time; the buffer clears the instant it ships, when the feature is
+turned off mid-hold, and on a presence lapse (the user stepping away resets it along
+with the dwell and session clocks — an overnight-stale path never ships on the first
+morning fire) — a later screen turn with nothing held during its own gap carries no
+`recent` line at all.
 
 ### Agent lifecycle (single event)
 

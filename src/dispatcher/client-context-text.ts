@@ -76,6 +76,12 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
         ? `, left ${oneLine(s.from_app)} after ${s.from_dwell_min}min`
         : "";
     lines.push(`trigger: screen ${s.transition}${left}, in current app ${s.dwell_min}min`);
+    if (s.recent && s.recent.length > 0) {
+      const path = s.recent
+        .map((e) => `${oneLine(e.from_app)} ${e.dwell_min}min -> ${oneLine(e.to_app)}`)
+        .join(", ");
+      lines.push(`recent: ${path}`);
+    }
   } else if (trigger.cue) {
     lines.push(`trigger: ${trigger.kind} "${oneLine(trigger.cue.label)}"${idleClause}`);
     if (trigger.cue.context) lines.push(`cue note: ${oneLine(trigger.cue.context)}`);

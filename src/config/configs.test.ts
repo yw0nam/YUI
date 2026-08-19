@@ -125,6 +125,7 @@ describe("configs/screen.json", () => {
     expect(s.long_session_ms).toBe(2700000);
     expect(s.min_gap_ms).toBe(300000);
     expect(s.quiet_after_turn_ms).toBe(180000);
+    expect(s.recent_cap).toBe(5);
   });
 
   it("passes the real screen config through validation", () => {

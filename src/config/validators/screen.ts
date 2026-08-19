@@ -7,6 +7,7 @@ const KEYS = [
   "long_session_ms",
   "min_gap_ms",
   "quiet_after_turn_ms",
+  "recent_cap",
 ] as const;
 
 export function validateScreen(file: string, raw: unknown): ScreenConfig {
