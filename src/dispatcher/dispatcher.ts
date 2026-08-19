@@ -13,8 +13,9 @@
  * Single in-flight backend call. Deferred tier2/3 keeps only one item in local pending
  * (with two or more deferred, the oldest is dropped).
  *
- * Every started turn anchors the global proactive gap; a non-user turn that reaches the backend
- * gate while that window still holds is dropped as global_gap instead of going out.
+ * Every started turn anchors the global proactive gap. A fire from a paced source (loop cues,
+ * schedule, signals, agent, screen) that arrives while that window holds is dropped as
+ * global_gap before the guardrail sees it; gesture cues and user input pass ungated.
  *
  * state: booting → (start) → running → (stop) → stopped. cooldown polls the guardrails'
  *   overall-cap verdict every tick to transition running↔cooldown. degraded is entered when
@@ -59,9 +60,10 @@ interface DispatcherDeps {
   /** Turn identity + admission ledger. The dispatcher begins/settles turns on it and reads busy/audio-owed state from it. */
   turnLog: TurnLog;
   /**
-   * Global proactive gap. Every turn start anchors its window; a non-user turn reaching the
-   * backend gate while it holds is dropped. Sources gate themselves upstream — this is the
-   * backstop for what races past them.
+   * Global proactive gap. Every turn start anchors its window; a fire from a paced source
+   * (see PACED_SOURCES) that arrives while it holds is dropped before the guardrail. The
+   * screen source also gates itself, to record the skip with its transition; for loop cues,
+   * schedule and the buffered inboxes this is the only gate.
    */
   pacer?: Pick<ProactivePacer, "isHolding" | "noteTurnStart">;
   /** Skip-record JSONL sink — best-effort disk log of the fires the pacer held back. */
@@ -275,6 +277,17 @@ function parsePeekDropPayload(env: BusEnvelope): PeekDropPayload | null {
   return { side, targetLocalXpx };
 }
 
+/**
+ * Sources the global proactive gap applies to: loop cues, schedule and the buffered inboxes
+ * (signals, agent) all push as timer_scheduler, screen transitions as screen_watcher. Gesture
+ * cues (os_event_watcher) and typed/spoken input (user_input_source) are the user's own doing
+ * and pass ungated.
+ */
+const PACED_SOURCES: ReadonlySet<BusEnvelope["source"]> = new Set([
+  "timer_scheduler",
+  "screen_watcher",
+]);
+
 const DEFAULT_PUMP_MS = 16;
 const MAX_DROP_RECORDS = 50;
 /** Consecutive backend call failure count — degraded is entered on reaching it. */
@@ -363,6 +376,20 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     log[DROP_SEVERITY[reason]]("drop", { event_name: env.event_name, reason, seq_id: env.seq_id });
   }
 
+  /** Whether the global proactive gap holds this fire back. */
+  function heldByPacer(env: BusEnvelope): boolean {
+    return PACED_SOURCES.has(env.source) && deps.pacer?.isHolding() === true;
+  }
+
+  function dropForPacer(env: BusEnvelope): void {
+    recordDrop(env, "global_gap");
+    try {
+      deps.appendSkipRecord?.(buildPacerSkipRecord({ ts: env.ts, event_name: env.event_name }));
+    } catch (err) {
+      log.debug("skip_record_append_failed", { error: String(err) });
+    }
+  }
+
   /** Backend call success: reset the consecutive-failure counter + return immediately if degraded. */
   function noteCallSuccess(): void {
     consecutiveFailures = 0;
@@ -412,13 +439,9 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /** Start a tier2/3 backend call (occupies in-flight). On completion, free the slot and drain one deferred item. */
   function startBackendCall(env: BusEnvelope): void {
-    if (env.dnd_override !== true && deps.pacer?.isHolding()) {
-      recordDrop(env, "global_gap");
-      try {
-        deps.appendSkipRecord?.(buildPacerSkipRecord({ ts: env.ts, event_name: env.event_name }));
-      } catch (err) {
-        log.debug("skip_record_append_failed", { error: String(err) });
-      }
+    // Backstop for a fire that was already deferred when the window closed under it.
+    if (heldByPacer(env)) {
+      dropForPacer(env);
       // The drain path enters here with the completed call still holding the slot — free it,
       // or nothing ever starts again.
       setInFlight(null);
@@ -692,6 +715,12 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       // keep passing user-initiated turns to delegate judgment to backend.
       if (state === "degraded" && env.dnd_override !== true) {
         recordDrop(env, "degraded_drop");
+        return;
+      }
+      // Ahead of the guardrail: evaluate() spends a rate-limit slot at fire time and never
+      // refunds it, so a held fire must not reach it.
+      if (heldByPacer(env)) {
+        dropForPacer(env);
         return;
       }
       // After classifying to get tier, evaluate. If drop, don't enqueue.
