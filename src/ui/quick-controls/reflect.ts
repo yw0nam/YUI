@@ -95,6 +95,8 @@ interface ReflectDeps {
   agentPortInput?: HTMLInputElement;
   presenceInput?: HTMLInputElement;
   presenceSettings?: ClampedIntSettingsStore;
+  pacerGapInput?: HTMLInputElement;
+  pacerGapSettings?: ClampedIntSettingsStore;
   /** Rate-limit cap inputs, keyed by the cap they edit (empty when the store is absent). */
   rateLimitInputs: ReadonlyMap<keyof RateLimitOverrides, HTMLInputElement>;
   rateLimitSettings?: GuardrailsSettingsStore;
@@ -114,6 +116,7 @@ export interface Reflect {
   reflectSwitchRows(): void;
   reflectAgentNotify(): void;
   reflectPresence(): void;
+  reflectPacerGap(): void;
   reflectRateLimits(): void;
   reflectScreen(): void;
   reflectGain(): void;
@@ -153,6 +156,8 @@ export function createReflect(deps: ReflectDeps): Reflect {
     agentPortInput,
     presenceInput,
     presenceSettings,
+    pacerGapInput,
+    pacerGapSettings,
     rateLimitInputs,
     rateLimitSettings,
     getRateLimitDefaults,
@@ -221,6 +226,11 @@ export function createReflect(deps: ReflectDeps): Reflect {
     if (!presenceInput || !presenceSettings) return;
     const next = String(presenceSettings.get().value / 1000);
     reflectUnlessEditing(presenceInput, next);
+  }
+
+  function reflectPacerGap(): void {
+    if (!pacerGapInput || !pacerGapSettings) return;
+    reflectUnlessEditing(pacerGapInput, String(pacerGapSettings.get().value / 60_000));
   }
 
   // Each field shows its effective cap: the override when set, the bundled config default otherwise.
@@ -445,6 +455,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectSwitchRows: reflectSwitchRowsFromDeps,
     reflectAgentNotify,
     reflectPresence,
+    reflectPacerGap,
     reflectRateLimits,
     reflectScreen,
     reflectGain,

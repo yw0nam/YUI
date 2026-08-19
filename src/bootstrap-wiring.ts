@@ -13,6 +13,7 @@ import { createAgentSource } from "./dispatcher/agent-source";
 import type { Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
 import type { Guardrails, GuardrailsConfig } from "./dispatcher/guardrails";
+import type { ProactivePacer } from "./dispatcher/proactive-pacer";
 import { createProactiveSource, type ProactiveSource } from "./dispatcher/proactive-source";
 import { createScheduleSource, type ScheduleSource } from "./dispatcher/schedule-source";
 import { createScreenSource, type ScreenSource } from "./dispatcher/screen-source";
@@ -548,6 +549,8 @@ export function wireDispatcherSources(deps: {
   /** Dispatcher in-flight busy edges — anchors the screen source's quiet-after-turn window. */
   subscribeBusy: (cb: (busy: boolean) => void) => () => void;
   pipelineBusy: { isBusy: () => boolean; subscribe: (cb: (busy: boolean) => void) => () => void };
+  /** Global proactive gap — a hold reads as a skip to the screen source and as busy to the inboxes. */
+  pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
 }): {
   proactiveSource: ProactiveSource;
   scheduleSource: ScheduleSource;
@@ -565,7 +568,21 @@ export function wireDispatcherSources(deps: {
     getScreenConfig,
     subscribeBusy,
     pipelineBusy,
+    pacer,
   } = deps;
+  // The buffered-inbox sources hold their items instead of skipping them, so the pacer reaches
+  // them as busy — the window opening is a busy→idle edge that flushes one catchup.
+  const pacedPipelineBusy = {
+    isBusy: (): boolean => pipelineBusy.isBusy() || pacer.isHolding(),
+    subscribe: (cb: (busy: boolean) => void): (() => void) => {
+      const unsubscribeBusy = pipelineBusy.subscribe(() => cb(pacedPipelineBusy.isBusy()));
+      const unsubscribePacer = pacer.subscribe(() => cb(pacedPipelineBusy.isBusy()));
+      return () => {
+        unsubscribeBusy();
+        unsubscribePacer();
+      };
+    },
+  };
   const proactiveSource = createProactiveSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,
@@ -584,16 +601,16 @@ export function wireDispatcherSources(deps: {
     bus,
     present_max_idle_ms: presenceSettings.get().value,
     isEnabled: () => agentNotifySettings.get().enabled,
-    isPipelineBusy: pipelineBusy.isBusy,
-    subscribePipelineBusy: pipelineBusy.subscribe,
+    isPipelineBusy: pacedPipelineBusy.isBusy,
+    subscribePipelineBusy: pacedPipelineBusy.subscribe,
   });
   void agentSource.start();
   const signalsSource = createSignalsSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,
     isEnabled: () => agentNotifySettings.get().enabled,
-    isPipelineBusy: pipelineBusy.isBusy,
-    subscribePipelineBusy: pipelineBusy.subscribe,
+    isPipelineBusy: pacedPipelineBusy.isBusy,
+    subscribePipelineBusy: pacedPipelineBusy.subscribe,
   });
   void signalsSource.start();
   const screenSource = createScreenSource({
@@ -603,6 +620,7 @@ export function wireDispatcherSources(deps: {
     isEnabled: () => screenSettings.get().enabled,
     noteInteraction: proactiveSource.noteInteraction,
     subscribeBusy,
+    isPacerHolding: pacer.isHolding,
     appendSkipRecord: (record) => appendRecord(record),
   });
   void screenSource.start();

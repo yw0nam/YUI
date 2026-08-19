@@ -13,6 +13,9 @@
  * Single in-flight backend call. Deferred tier2/3 keeps only one item in local pending
  * (with two or more deferred, the oldest is dropped).
  *
+ * Every started turn anchors the global proactive gap; a non-user turn that reaches the backend
+ * gate while that window still holds is dropped as global_gap instead of going out.
+ *
  * state: booting → (start) → running → (stop) → stopped. cooldown polls the guardrails'
  *   overall-cap verdict every tick to transition running↔cooldown. degraded is entered when
  *   the backend call fails DEGRADED_FAILURE_THRESHOLD times in a row — during it, tier2/3
@@ -24,12 +27,14 @@
 
 import type { PeekConfig, TapConfig } from "../config/load";
 import type { BodyState, ControlEnvelope, EmotionId, Posture } from "../contract";
+import { buildPacerSkipRecord, type SkipRecord } from "../io/turn-record-log";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import type { BackendCaller, TurnFailure, TurnOutcome } from "./backend-caller";
 import type { BusEnvelope, EventBus } from "./event-bus";
 import type { Guardrails } from "./guardrails";
+import type { ProactivePacer } from "./proactive-pacer";
 import type { TurnLog } from "./turn";
 
 const baseLog = createLogger("dispatcher");
@@ -53,6 +58,14 @@ interface DispatcherDeps {
   guardrails: Guardrails;
   /** Turn identity + admission ledger. The dispatcher begins/settles turns on it and reads busy/audio-owed state from it. */
   turnLog: TurnLog;
+  /**
+   * Global proactive gap. Every turn start anchors its window; a non-user turn reaching the
+   * backend gate while it holds is dropped. Sources gate themselves upstream — this is the
+   * backstop for what races past them.
+   */
+  pacer?: Pick<ProactivePacer, "isHolding" | "noteTurnStart">;
+  /** Skip-record JSONL sink — best-effort disk log of the fires the pacer held back. */
+  appendSkipRecord?: (record: SkipRecord) => void;
   /** pump interval (ms). default 16 (roughly rAF). Tests advance with a fake timer. */
   pumpIntervalMs?: number;
   /**
@@ -76,7 +89,7 @@ type DispatcherState = "booting" | "running" | "cooldown" | "degraded" | "draini
 export interface DropRecord {
   seq_id?: number;
   event_name: string;
-  reason: TurnFailure | "guardrail_drop" | "stale_pending" | "degraded_drop";
+  reason: TurnFailure | "guardrail_drop" | "stale_pending" | "degraded_drop" | "global_gap";
   ts: number;
 }
 
@@ -91,6 +104,7 @@ export const DROP_SEVERITY: Record<DropRecord["reason"], LogLevel> = {
   superseded_by_user: "info",
   stale_pending: "info",
   degraded_drop: "warn",
+  global_gap: "info",
 };
 
 /** in_flight_backend_call. */
@@ -398,6 +412,19 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /** Start a tier2/3 backend call (occupies in-flight). On completion, free the slot and drain one deferred item. */
   function startBackendCall(env: BusEnvelope): void {
+    if (env.dnd_override !== true && deps.pacer?.isHolding()) {
+      recordDrop(env, "global_gap");
+      try {
+        deps.appendSkipRecord?.(buildPacerSkipRecord({ ts: env.ts, event_name: env.event_name }));
+      } catch (err) {
+        log.debug("skip_record_append_failed", { error: String(err) });
+      }
+      // The drain path enters here with the completed call still holding the slot — free it,
+      // or nothing ever starts again.
+      setInFlight(null);
+      return;
+    }
+    deps.pacer?.noteTurnStart();
     const abort = new AbortController();
     const started_at = Date.now();
     setInFlight({ trigger: env, started_at, abort });

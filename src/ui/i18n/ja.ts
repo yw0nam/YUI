@@ -385,6 +385,10 @@ const ja: Record<string, string> = {
   "reactions.presence_sub": "この時間以内の無操作であれば在席とみなします",
   "reactions.seconds_suffix": "秒",
   "reactions.restart_hint": "変更を適用するにはアプリを再起動してください",
+  "reactions.pacer_gap_label": "話しかけ間隔",
+  "reactions.pacer_gap_sub": "やり取りのあと、YUI がまた自分から話しかけるまで空ける最小の間隔",
+  "reactions.pacer_gap_hint": "0 にすると待たずにすぐ話しかけます。",
+  "reactions.minutes_suffix": "分",
   "reactions.rate_title": "1時間あたりの上限",
   "reactions.rate_hint":
     "YUI が自分から話しかける頻度の上限です。あなたからのメッセージは数えません。空欄なら初期値を使います。",

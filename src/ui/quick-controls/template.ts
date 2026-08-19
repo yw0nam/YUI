@@ -56,6 +56,7 @@ interface PanelHtmlOptions {
   /** Whether the screen-watch section renders — true when the screen flag store is injected. */
   showScreen: boolean;
   showPresence: boolean;
+  showPacerGap: boolean;
   /** Whether the rate-limit cap rows render — true when the guardrails-override store is injected. */
   showRateLimits: boolean;
   showDevtools: boolean;
@@ -76,6 +77,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     switchRows,
     showScreen,
     showPresence,
+    showPacerGap,
     showRateLimits,
     showDevtools,
     showHistory,
@@ -589,6 +591,7 @@ ${switchRowsHtml("react", 8) || "        "}
         <div class="yui-quick__divider" aria-hidden="true"></div>
         <span class="yui-quick__section">${t("reactions.shared_title")}</span>
         ${showPresence ? numRowHtml({ id: "yui-presence", labelKey: "reactions.presence_label", subKey: "reactions.presence_sub", min: 10, max: 3600, suffixKey: "reactions.seconds_suffix", hintKey: "reactions.restart_hint" }) : ""}
+        ${showPacerGap ? numRowHtml({ id: "yui-pacer-gap", labelKey: "reactions.pacer_gap_label", subKey: "reactions.pacer_gap_sub", min: 0, max: 180, suffixKey: "reactions.minutes_suffix", hintKey: "reactions.pacer_gap_hint" }) : ""}
         ${rateLimitHtml}
       </div>
 
