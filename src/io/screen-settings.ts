@@ -24,6 +24,7 @@ export const SCREEN_KEYS = [
   "long_session_ms",
   "min_gap_ms",
   "quiet_after_turn_ms",
+  "recent_cap",
 ] as const satisfies readonly (keyof ScreenOverrides)[];
 
 /**
@@ -43,6 +44,7 @@ const EMPTY: ScreenOverrides = {
   long_session_ms: 0,
   min_gap_ms: 0,
   quiet_after_turn_ms: 0,
+  recent_cap: 0,
 };
 
 /** A settable threshold: 0 (clear the override) or an integer in 1..SCREEN_MS_MAX. */

@@ -16,6 +16,7 @@ function baseConfig(): ScreenConfig {
     long_session_ms: 2_700_000,
     min_gap_ms: 300_000,
     quiet_after_turn_ms: 180_000,
+    recent_cap: 5,
   };
 }
 
@@ -25,6 +26,7 @@ const NONE: ScreenOverrides = {
   long_session_ms: 0,
   min_gap_ms: 0,
   quiet_after_turn_ms: 0,
+  recent_cap: 0,
 };
 
 function inMemoryStorage(initial: ScreenOverrides | null = null): ScreenKnobStorage {
@@ -140,6 +142,7 @@ describe("screen knob settings — store over config", () => {
       long_session_ms: 2_700_000,
       min_gap_ms: 300_000,
       quiet_after_turn_ms: 180_000,
+      recent_cap: 5,
     });
   });
 

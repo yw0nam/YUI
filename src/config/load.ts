@@ -216,7 +216,7 @@ export interface FillerConfig {
 
 /**
  * configs/screen.json — frontmost-transition detector thresholds (screen-source).
- * All five are surfaced as UI knobs; the client reads them live on every tick.
+ * All six are surfaced as UI knobs; the client reads them live on every tick.
  */
 export interface ScreenConfig {
   /** The departed app must have held the foreground this long for a switch to count. */
@@ -229,6 +229,8 @@ export interface ScreenConfig {
   min_gap_ms: number;
   /** No screen fire within this long of a backend turn from any producer. */
   quiet_after_turn_ms: number;
+  /** Max app_switched transitions held during a pacer gap; oldest dropped on overflow. 0 = accumulate nothing. */
+  recent_cap: number;
 }
 
 /** configs/hotkeys.json — OS global-hotkey accelerators. */

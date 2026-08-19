@@ -419,6 +419,9 @@ const en: Record<string, string> = {
   "screen.long_session_sub": "One app held this long counts as a long session",
   "screen.quiet_label": "Stay quiet after a turn for",
   "screen.quiet_sub": "So a cue never piles onto what was just said",
+  "screen.recent_cap_label": "Remembers up to",
+  "screen.recent_cap_sub": "How many app switches held during a pause carry into the next screen turn",
+  "screen.count_suffix": "entries",
   "screen.foot":
     "Sending screen pixels follows the screenshot toggle in the Input tab. Nothing is said while do-not-disturb is on.",
 

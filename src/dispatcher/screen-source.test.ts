@@ -29,6 +29,7 @@ const CFG: ScreenConfig = {
   long_session_ms: 45 * MIN,
   min_gap_ms: 5 * MIN,
   quiet_after_turn_ms: 3 * MIN,
+  recent_cap: 5,
 };
 
 function fakeBus(): { bus: Pick<EventBus, "push">; pushed: BusEnvelope[] } {
@@ -500,6 +501,137 @@ describe("screen_source — pile-on avoidance", () => {
     s.at(0, tick("Cursor"));
     s.at(45 * MIN, tick("Cursor"));
     expect(s.noteInteraction).not.toHaveBeenCalled();
+  });
+});
+
+describe("screen_source — recent buffer", () => {
+  it("reorders global_gap ahead of quiet_after_turn/min_gap and lands the suppressed switch in the buffer", async () => {
+    let holding = false;
+    const s = setup({ isPacerHolding: () => holding });
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(45 * MIN, tick("Cursor")); // accepted long_session fire — lastFireTs = 45min
+    expect(s.pushed).toHaveLength(1);
+
+    s.turnAt(45 * MIN + 30_000); // lastTurnTs = 45min30s
+
+    holding = true;
+    s.at(45 * MIN + 40_000, tick("Slack")); // arms the pending switch (Cursor dwell ~45.7min)
+    // settles 100s after the turn (< quiet_after_turn_ms) and 130s after the last fire (< min_gap_ms) —
+    // both older reasons would also apply, yet the reorder makes global_gap win.
+    s.at(45 * MIN + 130_000, tick("Slack"));
+    expect(s.pushed).toHaveLength(1);
+    expect(s.appendSkipRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({ reason: "global_gap", transition: "app_switched" }),
+    );
+
+    holding = false;
+    s.at(45 * MIN + 40_000 + 45 * MIN, tick("Slack")); // next long_session mark ships the buffer
+    expect(s.pushed).toHaveLength(2);
+    expect(s.pushed[1]).toMatchObject({
+      payload: { recent: [{ from_app: "Cursor", to_app: "Slack", dwell_min: 46 }] },
+    });
+
+    s.at(45 * MIN + 40_000 + 90 * MIN, tick("Slack")); // nothing held this time — buffer cleared after ship
+    expect(s.pushed).toHaveLength(3);
+    expect(s.pushed[2]?.payload).not.toHaveProperty("recent");
+  });
+
+  it("does not accumulate a suppressed long_session mark — it is not a transition", async () => {
+    let holding = true;
+    const s = setup({ isPacerHolding: () => holding });
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(45 * MIN, tick("Cursor")); // long_session suppressed by global_gap
+    expect(s.pushed).toHaveLength(0);
+
+    holding = false;
+    s.at(90 * MIN, tick("Cursor")); // next mark fires with an open pacer
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]?.payload).not.toHaveProperty("recent");
+  });
+
+  it("drops the oldest entry once the buffer exceeds recent_cap", async () => {
+    let holding = true;
+    const s = setup({ isPacerHolding: () => holding });
+    await s.src.start();
+
+    s.at(0, tick("App1"));
+    s.at(10 * MIN, tick("App2")); // App1 dwell 10min
+    s.at(10 * MIN + 90_000, tick("App2")); // suppressed switch 1: App1 -> App2
+
+    s.at(20 * MIN, tick("App3")); // App2 dwell 10min
+    s.at(20 * MIN + 90_000, tick("App3")); // suppressed switch 2: App2 -> App3
+
+    s.at(30 * MIN, tick("App4")); // App3 dwell 10min
+    s.at(30 * MIN + 90_000, tick("App4")); // suppressed switch 3: App3 -> App4, overflow drops switch 1
+    expect(s.pushed).toHaveLength(0);
+
+    holding = false;
+    s.at(75 * MIN, tick("App4")); // long_session mark ships the buffer
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]).toMatchObject({
+      payload: {
+        recent: [
+          { from_app: "App2", to_app: "App3", dwell_min: 10 },
+          { from_app: "App3", to_app: "App4", dwell_min: 10 },
+        ],
+      },
+    });
+  });
+
+  it("clears the buffer when a candidate is refused because the feature is disabled", async () => {
+    let holding = true;
+    let enabled = true;
+    const s = setup({ isPacerHolding: () => holding, isEnabled: () => enabled });
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(10 * MIN, tick("Slack"));
+    s.at(10 * MIN + 90_000, tick("Slack")); // buffered: Cursor -> Slack
+
+    enabled = false;
+    s.at(55 * MIN, tick("Slack")); // next mark refused with reason=disabled — clears the buffer
+    expect(s.appendSkipRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({ reason: "disabled", transition: "long_session" }),
+    );
+
+    enabled = true;
+    holding = false;
+    s.at(100 * MIN, tick("Slack")); // fires with an empty buffer
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]?.payload).not.toHaveProperty("recent");
+  });
+
+  it("accumulates nothing when recent_cap is 0", async () => {
+    let holding = true;
+    const cfg0: ScreenConfig = { ...CFG, recent_cap: 0 };
+    const s = setup({ isPacerHolding: () => holding, getConfig: () => cfg0 });
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(10 * MIN, tick("Slack"));
+    s.at(10 * MIN + 90_000, tick("Slack")); // suppressed — cap 0 accumulates nothing
+    expect(s.appendSkipRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({ reason: "global_gap" }),
+    );
+
+    holding = false;
+    s.at(55 * MIN, tick("Slack"));
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]?.payload).not.toHaveProperty("recent");
+  });
+
+  it("never includes a recent key on a fire whose buffer is empty", async () => {
+    const s = setup();
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(45 * MIN, tick("Cursor"));
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]?.payload).not.toHaveProperty("recent");
   });
 });
 

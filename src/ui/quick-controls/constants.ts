@@ -120,6 +120,20 @@ export const SCREEN_KNOB_FIELDS: readonly ScreenKnobFieldDef[] = [
     min: 1,
     max: 120,
   },
+  // recent_cap is a bare count, not a duration — unitMs 1 makes the shared ms<->display-unit
+  // conversion a no-op. Row min is 0, but 0 is also the store's "no override" sentinel, so
+  // committing 0 here falls back to the config default cap rather than setting a literal 0;
+  // configs/screen.json can still express a real 0.
+  {
+    key: "recent_cap",
+    id: "yui-screen-recent-cap",
+    labelKey: "screen.recent_cap_label",
+    subKey: "screen.recent_cap_sub",
+    suffixKey: "screen.count_suffix",
+    unitMs: 1,
+    min: 0,
+    max: 20,
+  },
 ];
 
 /**

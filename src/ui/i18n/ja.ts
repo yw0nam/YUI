@@ -419,6 +419,9 @@ const ja: Record<string, string> = {
   "screen.long_session_sub": "ひとつのアプリをこれだけ続けたら気づきます",
   "screen.quiet_label": "会話の直後は静かに",
   "screen.quiet_sub": "さっき話した上に重ねて口を出さないように",
+  "screen.recent_cap_label": "記憶する上限",
+  "screen.recent_cap_sub": "保留中に溜まったアプリ切り替えを次の画面ターンに何件まで含めるか",
+  "screen.count_suffix": "件",
   "screen.foot":
     "画面のピクセルを送るかどうかは入力タブのスクリーンショット設定に従います。おやすみモード中は話しかけません。",
 

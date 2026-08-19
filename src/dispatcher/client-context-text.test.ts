@@ -276,6 +276,34 @@ describe("renderClientContext — trigger: screen", () => {
     expect(text).not.toContain("left");
     expect(text).not.toContain("0min");
   });
+
+  it("a non-empty recent buffer renders one 'recent:' line in the documented format", () => {
+    const cc = baseContext({
+      kind: "proactive",
+      screen: {
+        transition: "long_session",
+        dwell_min: 45,
+        recent: [
+          { from_app: "Cursor", to_app: "Slack", dwell_min: 10 },
+          { from_app: "Slack", to_app: "VS Code", dwell_min: 3 },
+        ],
+      },
+    });
+    const text = renderClientContext(cc, NOW);
+    const lines = text.split("\n");
+    expect(lines.filter((l) => l.startsWith("recent:"))).toEqual([
+      "recent: Cursor 10min -> Slack, Slack 3min -> VS Code",
+    ]);
+  });
+
+  it("no recent line when the trigger carries no recent buffer", () => {
+    const cc = baseContext({
+      kind: "proactive",
+      screen: { transition: "long_session", dwell_min: 45 },
+    });
+    const text = renderClientContext(cc, NOW);
+    expect(text).not.toContain("recent:");
+  });
 });
 
 describe("renderClientContext — trigger: agent (single event)", () => {

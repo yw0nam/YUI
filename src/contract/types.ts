@@ -270,6 +270,8 @@ export interface TriggerMeta {
     from_app?: string; // app left behind; app_switched only
     from_dwell_min?: number; // minutes it held the foreground
     dwell_min: number; // current app's foreground minutes at fire time
+    /** app_switched transitions held back by the global pacer, oldest first. Present only when non-empty. */
+    recent?: Array<{ from_app: string; to_app: string; dwell_min: number }>;
   };
 }
 

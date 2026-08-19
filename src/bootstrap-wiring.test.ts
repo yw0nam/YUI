@@ -307,6 +307,7 @@ describe("wireDispatcherSources", () => {
     long_session_ms: 2700000,
     min_gap_ms: 300000,
     quiet_after_turn_ms: 180000,
+    recent_cap: 5,
   };
 
   /** Pacer stub whose hold state the test drives directly. */

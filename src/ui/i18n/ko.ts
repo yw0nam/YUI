@@ -418,6 +418,9 @@ const ko: Record<string, string> = {
   "screen.long_session_sub": "한 앱을 이만큼 붙잡고 있으면 알아채요",
   "screen.quiet_label": "대화 직후 조용히",
   "screen.quiet_sub": "방금 말한 참견 위에 또 얹지 않게",
+  "screen.recent_cap_label": "최대 기억 개수",
+  "screen.recent_cap_sub": "쉬는 동안 쌓인 앱 전환을 다음 화면 턴에 몇 개까지 담을지",
+  "screen.count_suffix": "개",
   "screen.foot":
     "화면 픽셀 전송 여부는 입력 탭의 스크린샷 토글을 따라요. 방해금지 중에는 말을 걸지 않아요.",
 
