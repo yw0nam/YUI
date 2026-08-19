@@ -70,6 +70,30 @@ describe("createTtsSynth", () => {
     expect("voice" in body).toBe(false);
   });
 
+  it("adds irodori.caption to the body when a caption is passed per call", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    const synth = createTtsSynth({
+      baseUrl: BASE_URL,
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+    await synth("Hi.", undefined, { caption: "落ち着いた低めの声で。" });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.irodori).toEqual({ caption: "落ち着いた低めの声で。" });
+  });
+
+  it("omits the irodori key entirely when no caption is passed", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    const synth = createTtsSynth({
+      baseUrl: BASE_URL,
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+    await synth("Hi.");
+    await synth("Hi.", undefined, {});
+    for (const call of fetchMock.mock.calls) {
+      expect("irodori" in JSON.parse(call[1].body as string)).toBe(false);
+    }
+  });
+
   // The emoji voice tag rides inline in the spoken text — nothing may strip or relocate it.
   it("passes an emoji-prefixed input through to `input` untouched", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
@@ -270,6 +294,21 @@ describe("createTtsProvider", () => {
     expect(body).toMatchObject({ input: "hi", model: "irodori-tts", voice: "ナツメ" });
     const headers = init.headers as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer sk-live");
+  });
+
+  it("threads a per-call caption through to the request body", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    const provider = createTtsProvider({
+      getEndpoints: () => endpoints(),
+      getActiveSpeaker: () => ({ id: "ナツメ", ref_url: "" }),
+      selectFetch: async () => fetchMock as unknown as typeof fetch,
+    });
+
+    await provider.synth("hi", undefined, { caption: "囁くような小さな声で。" });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.irodori).toEqual({ caption: "囁くような小さな声で。" });
+    expect(body.input).toBe("hi");
   });
 
   it("surfaces the server's error message out of synth", async () => {

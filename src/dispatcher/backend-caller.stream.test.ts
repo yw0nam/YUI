@@ -118,6 +118,19 @@ describe("backend_caller — B5 cue forwarding + tool_status callbacks", () => {
     });
   });
 
+  it("forwards a streamed caption on the cue untouched", async () => {
+    script.events = [
+      deltaEvent("hi "),
+      expressEvent({ emotion_text: "👂", caption: "囁くような小さな声で。" }),
+      completedEvent({ speech_text: "hi", emotion_text: "👂" }),
+    ];
+    await caller.call(turnOf(userEnv()));
+    expect(turnOutput.cue).toHaveBeenCalledWith({
+      emotion_text: "👂",
+      caption: "囁くような小さな声で。",
+    });
+  });
+
   it("does not call turnOutput.cue when the stream yields no express event", async () => {
     const env: ControlEnvelope = { speech_text: "안녕", emotion: { id: "happy" } };
     script.events = [deltaEvent("안녕"), completedEvent(env)];
@@ -327,6 +340,28 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     expect(turnOutput.cue).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
     expect(turnOutput.speak).toHaveBeenCalledWith("안녕");
     expect(order).toEqual([`cue:${JSON.stringify({ emotion_text: "(whisper)" })}`, "speech"]);
+  });
+
+  it("completed-only backend routes the envelope caption through the same cue channel", async () => {
+    const env: ControlEnvelope = {
+      speech_text: "안녕",
+      emotion: { id: "happy" },
+      emotion_text: "👂",
+      caption: "囁くような小さな声で。",
+    };
+    script.events = [completedEvent(env)];
+    await caller.call(turnOf(userEnv()));
+    expect(turnOutput.cue).toHaveBeenCalledWith({
+      emotion_text: "👂",
+      caption: "囁くような小さな声で。",
+    });
+  });
+
+  it("completed-only backend routes a caption-only envelope through the cue channel", async () => {
+    const env: ControlEnvelope = { speech_text: "안녕", caption: "落ち着いた低めの声で。" };
+    script.events = [completedEvent(env)];
+    await caller.call(turnOf(userEnv()));
+    expect(turnOutput.cue).toHaveBeenCalledWith({ caption: "落ち着いた低めの声で。" });
   });
 
   it("completed-only backend with a true silent turn (emotion_text set, empty speech_text) → turnOutput.cue still fires but turnOutput.speak does not", async () => {
