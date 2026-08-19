@@ -128,6 +128,7 @@ const { mockDriver, createMockDriver } = vi.hoisted(() => {
 vi.mock("./ui/mock", () => ({ createMockDriver }));
 
 import {
+  createEffectiveEndpoints,
   createSettingsBroadcast,
   showAndFocusFromSummon,
   wireBroker,
@@ -148,7 +149,9 @@ import {
 } from "./bootstrap-wiring";
 import { loadEmotionTextTable } from "./config";
 import type { GuardrailsConfig } from "./config/load";
+import type { EndpointsConfig } from "./contract";
 import { createGuardrails } from "./dispatcher/guardrails";
+import type { EndpointOverrides } from "./io/endpoints-settings";
 import { createGuardrailsSettings, mergeGuardrails } from "./io/guardrails-settings";
 import { createScreenKnobSettings, mergeScreen } from "./io/screen-settings";
 import type { BridgeTransport } from "./io/settings-bridge";
@@ -158,6 +161,7 @@ import {
   reloadSyncStores,
   type SyncedStore,
 } from "./io/settings-stores";
+import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { reloadFromStorage as reloadLocaleFromStorage } from "./ui/i18n";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
 
@@ -955,6 +959,192 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
       revision: 1,
     });
     speakerSelection.dispose();
+  });
+});
+
+describe("createEffectiveEndpoints", () => {
+  const overrides = (patch: Partial<EndpointOverrides> = {}): EndpointOverrides => ({
+    chat_base_url: "",
+    stt_base_url: "",
+    tts_base_url: "",
+    broker_base_url: "",
+    chat_model: "",
+    chat_model_context_window: "",
+    chat_api: "",
+    ...patch,
+  });
+  const bundled = (patch: Partial<EndpointsConfig> = {}): EndpointsConfig => ({
+    chat_base_url: "",
+    chat_endpoint: "",
+    stt_base_url: "",
+    tts_base_url: "",
+    ...patch,
+  });
+
+  // The bug this pins: the settings window read the bundled config directly, so a TTS server set
+  // only as a user override left it issuing no requests at all.
+  it("layers a user override onto a bundled config that has no URL of its own", () => {
+    const getEndpoints = createEffectiveEndpoints({
+      getBundled: () => bundled(),
+      getOverrides: () => overrides({ tts_base_url: "http://override.test" }),
+    });
+
+    expect(getEndpoints()?.tts_base_url).toBe("http://override.test");
+  });
+
+  it("keeps the bundled value when no override is set", () => {
+    const getEndpoints = createEffectiveEndpoints({
+      getBundled: () => bundled({ tts_base_url: "http://bundled.test" }),
+      getOverrides: () => overrides(),
+    });
+
+    expect(getEndpoints()?.tts_base_url).toBe("http://bundled.test");
+  });
+
+  it("resolves null while the config has not loaded", () => {
+    const getEndpoints = createEffectiveEndpoints({
+      getBundled: () => null,
+      getOverrides: () => overrides({ tts_base_url: "http://override.test" }),
+    });
+
+    expect(getEndpoints()).toBeNull();
+  });
+
+  it("re-reads both sides per call, so a later override edit takes effect", () => {
+    let ov = overrides();
+    const getEndpoints = createEffectiveEndpoints({
+      getBundled: () => bundled(),
+      getOverrides: () => ov,
+    });
+
+    expect(getEndpoints()?.tts_base_url).toBe("");
+    ov = overrides({ tts_base_url: "http://override.test" });
+    expect(getEndpoints()?.tts_base_url).toBe("http://override.test");
+  });
+
+  // Every network consumer of the settings window reaches the server through wireSpeakerSelection,
+  // so the override has to survive that composition — not merely the merge in isolation.
+  describe("composed into wireSpeakerSelection", () => {
+    const overrideOnly = () =>
+      createEffectiveEndpoints({
+        getBundled: () => bundled(),
+        getOverrides: () => overrides({ tts_base_url: "http://override.test" }),
+      });
+
+    beforeEach(() => {
+      listVoices.mockReset().mockResolvedValue(["ナツメ"]);
+      upsertVoice.mockReset().mockResolvedValue(undefined);
+      copyVoiceFile.mockReset();
+      pickVoiceFile.mockReset();
+    });
+
+    it("refreshVoiceList reaches the override URL", async () => {
+      const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
+        getEndpoints: overrideOnly(),
+        log: noopLog,
+        broadcastSettings: () => {},
+      });
+
+      await refreshVoiceList();
+
+      expect(listVoices).toHaveBeenCalledWith(
+        expect.objectContaining({ baseUrl: "http://override.test" }),
+      );
+      speakerSelection.dispose();
+    });
+
+    it("refreshSpeaker uploads to the override URL", async () => {
+      const { refreshSpeaker, speakerSelection } = wireSpeakerSelection({
+        getEndpoints: overrideOnly(),
+        log: noopLog,
+        broadcastSettings: () => {},
+      });
+      const option = { id: "myvoice", ref_url: "asset://x/clip.wav", source: "user" as const };
+      speakerSelection.addUserOption(option);
+
+      await refreshSpeaker(option);
+
+      expect(upsertVoice).toHaveBeenCalledWith(
+        expect.objectContaining({ baseUrl: "http://override.test" }),
+      );
+      speakerSelection.dispose();
+    });
+
+    it("commitVoiceImport uploads to the override URL", async () => {
+      copyVoiceFile.mockResolvedValue({
+        id: "myvoice",
+        label: "My Voice",
+        ref_url: "asset://x/clip.wav",
+        source: "user",
+      });
+      const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
+        getEndpoints: overrideOnly(),
+        log: noopLog,
+        broadcastSettings: () => {},
+      });
+
+      await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+
+      expect(upsertVoice).toHaveBeenCalledWith(
+        expect.objectContaining({ baseUrl: "http://override.test" }),
+      );
+      speakerSelection.dispose();
+    });
+
+    // The settings window loads its config best-effort, so every consumer has to survive the
+    // not-yet-loaded window with its own error rather than dereferencing null.
+    it("reports a missing server cleanly while the config has not loaded", async () => {
+      const notLoaded = createEffectiveEndpoints({
+        getBundled: () => null,
+        getOverrides: () => overrides(),
+      });
+      copyVoiceFile.mockResolvedValue({
+        id: "myvoice",
+        label: "My Voice",
+        ref_url: "asset://x/clip.wav",
+        source: "user",
+      });
+      const { refreshVoiceList, refreshSpeaker, commitVoiceImport, speakerSelection } =
+        wireSpeakerSelection({
+          getEndpoints: notLoaded,
+          log: noopLog,
+          broadcastSettings: () => {},
+        });
+
+      await expect(refreshVoiceList()).resolves.toBeUndefined();
+      expect(listVoices).not.toHaveBeenCalled();
+
+      await expect(
+        refreshSpeaker({ id: "myvoice", ref_url: "asset://x/clip.wav" }),
+      ).rejects.toThrow("voice refresh requires tts_base_url");
+
+      await expect(commitVoiceImport("/tmp/MyVoice.wav", "My Voice")).rejects.toThrow(
+        "voice import requires tts_base_url",
+      );
+      expect(upsertVoice).not.toHaveBeenCalled();
+
+      speakerSelection.dispose();
+    });
+  });
+
+  // The settings window's voice list is the only place a speaker can be picked, so an
+  // override-only TTS server has to reach listVoices for the picker to populate at all.
+  it("carries the override all the way into the voice-list request", async () => {
+    const getEndpoints = createEffectiveEndpoints({
+      getBundled: () => bundled(),
+      getOverrides: () => overrides({ tts_base_url: "http://override.test" }),
+    });
+    const refreshVoiceList = createVoiceListRefresh({
+      getEndpoints,
+      speakerSelection: { list: () => [], setManifest: () => {} },
+      log: noopLog,
+    });
+
+    await refreshVoiceList();
+
+    expect(listVoices).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: "http://override.test" }),
+    );
   });
 });
 

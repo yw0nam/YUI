@@ -332,7 +332,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       // Default instructions to show as placeholder when empty (ignored if config not loaded).
       getDefaultInstructions: () => {
         try {
-          return getEndpoints().chat_instructions;
+          return config.get().endpoints.chat_instructions;
         } catch {
           return undefined;
         }

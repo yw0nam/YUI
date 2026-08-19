@@ -31,6 +31,7 @@ import {
 } from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { selectFetch } from "./io/chat-client";
+import { type EndpointOverrides, mergeEndpoints } from "./io/endpoints-settings";
 import type { ExpressMotionSettings } from "./io/express-motion-settings";
 import type { GuardrailsSettingsStore } from "./io/guardrails-settings";
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
@@ -137,8 +138,25 @@ export function wireVrmSelection(deps: {
   return { vrmSelection, loadVrmSerialized, swapVrm, importVrm };
 }
 
+/**
+ * Effective endpoints for a window whose config load is best-effort: user overrides layered on the
+ * bundled config, or null while the config has not loaded. Both sides are read per call, so a live
+ * override edit takes effect without rewiring. Network consumers read through this — a URL set only
+ * as an override still has to reach them.
+ */
+export function createEffectiveEndpoints(deps: {
+  getBundled: () => EndpointsConfig | null;
+  getOverrides: () => EndpointOverrides;
+}): () => EndpointsConfig | null {
+  return () => {
+    const bundled = deps.getBundled();
+    return bundled ? mergeEndpoints(bundled, deps.getOverrides()) : null;
+  };
+}
+
 export function wireSpeakerSelection(deps: {
-  getEndpoints: () => { tts_base_url?: string; tts_speaker?: string };
+  /** Effective endpoints, or null while a best-effort config load has not finished. */
+  getEndpoints: () => { tts_base_url?: string; tts_speaker?: string } | null;
   /** Resolves the TTS server key (Bearer). Omitted/empty → no auth header. */
   getApiKey?: () => Promise<string | undefined>;
   log: Logger;
@@ -168,11 +186,11 @@ export function wireSpeakerSelection(deps: {
   };
   // Re-upload the reference clip — server-side force-refresh only, does not change the selection.
   const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
-    const eps = getEndpoints();
-    if (!eps.tts_base_url) throw new Error("voice refresh requires tts_base_url");
+    const baseUrl = getEndpoints()?.tts_base_url;
+    if (!baseUrl) throw new Error("voice refresh requires tts_base_url");
     const f = await selectFetch();
     await upsertVoice({
-      baseUrl: eps.tts_base_url,
+      baseUrl,
       id: option.id,
       refUrl: option.ref_url,
       fetch: f,
@@ -185,7 +203,7 @@ export function wireSpeakerSelection(deps: {
     speakerSelection.addUserOption({ ...option, source: "user", revision: prev + 1 });
   };
   const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
-    getTtsBaseUrl: () => getEndpoints().tts_base_url,
+    getTtsBaseUrl: () => getEndpoints()?.tts_base_url,
     getApiKey,
     speakerSelection,
     log,

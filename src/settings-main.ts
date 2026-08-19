@@ -7,27 +7,21 @@
  */
 
 import "./styles.css";
-import { wireSettingsWindowSync } from "./bootstrap-wiring";
+import {
+  createEffectiveEndpoints,
+  wireSettingsWindowSync,
+  wireSpeakerSelection,
+} from "./bootstrap-wiring";
 import { createConfigStore, TTS_API_KEY_SECRET } from "./config";
 import { agentTriggerableMotionIds } from "./io/broker-client";
-import { selectFetch } from "./io/chat-client";
 import { endpointDefaultsFromConfig } from "./io/endpoints-settings";
 import { rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
 import { screenDefaultsFromConfig } from "./io/screen-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
 import { closeSettingsWindow } from "./io/settings-window";
-import {
-  createSpeakerSelection,
-  localStorageSpeakerStorage,
-  localStorageUserSpeakerStorage,
-  type SpeakerOption,
-} from "./io/speaker-selection";
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
-import { upsertVoice } from "./io/tts-voices";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
-import { createVoiceImportFlow } from "./io/voice-import-flow";
-import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
 import {
   createVrmSelection,
@@ -129,47 +123,31 @@ async function bootstrap(): Promise<void> {
     vrmSelection.select(option.id);
   };
 
-  // Speaker selection store. This window has no synth, so the selection is a store-only commit.
-  const speakerSelection = createSpeakerSelection({
-    defaultValue: "",
-    storage: localStorageSpeakerStorage(),
-    userStorage: localStorageUserSpeakerStorage(),
+  // Every network consumer reads endpoints through here: a server the user set only as an
+  // override is invisible in the bundled config, and this window would issue no requests at all.
+  const getEndpoints = createEffectiveEndpoints({
+    getBundled: () => (configLoaded ? config.get().endpoints : null),
+    getOverrides: () => endpointsSettings.get(),
   });
-  const refreshVoiceList = createVoiceListRefresh({
-    getEndpoints: () => (configLoaded ? config.get().endpoints : null),
-    getApiKey: getTtsApiKey,
+
+  // Same speaker wiring the pet window runs — voices live on the server, so neither window
+  // needs a synth to list, upload or pick one. The broadcast is late-bound: wireSettingsWindowSync
+  // below needs the store this call creates, so it cannot hand back broadcastSettings until after.
+  let broadcastSpeaker: (() => void) | null = null;
+  const {
     speakerSelection,
+    swapSpeaker,
+    refreshSpeaker,
+    pickVoiceImport,
+    commitVoiceImport,
+    refreshVoiceList,
+  } = wireSpeakerSelection({
+    getEndpoints,
+    getApiKey: getTtsApiKey,
     log,
+    broadcastSettings: () => broadcastSpeaker?.(),
   });
   void refreshVoiceList();
-  const swapSpeaker = async (option: SpeakerOption): Promise<void> => {
-    speakerSelection.select(option.id);
-  };
-  // Reference-clip re-upload — a direct server call, so this window performs it too. Throws when
-  // config is not loaded / tts_base_url is missing, and the UI exposes the error.
-  const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
-    const baseUrl = configLoaded ? config.get().endpoints.tts_base_url : undefined;
-    if (!baseUrl) throw new Error("voice refresh requires tts_base_url");
-    const f = await selectFetch();
-    await upsertVoice({
-      baseUrl,
-      id: option.id,
-      refUrl: option.ref_url,
-      fetch: f,
-      getApiKey: getTtsApiKey,
-      logger: log,
-    });
-    // The clip behind an unchanged id was replaced — bump the persisted revision so every
-    // window's filler cache key moves with it.
-    const prev = speakerSelection.list().find((o) => o.id === option.id)?.revision ?? 0;
-    speakerSelection.addUserOption({ ...option, source: "user", revision: prev + 1 });
-  };
-  const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
-    getTtsBaseUrl: () => (configLoaded ? config.get().endpoints.tts_base_url : undefined),
-    getApiKey: getTtsApiKey,
-    speakerSelection,
-    log,
-  });
 
   // Real-time wiring with main window (Tauri events). This window has no renderer/STT, so send controls
   // to main window, receive voice state from main window and reflect. Storage fallback rides the core.
@@ -184,6 +162,7 @@ async function bootstrap(): Promise<void> {
     speakerSelection,
     log,
   });
+  broadcastSpeaker = broadcastSettings;
   window.addEventListener("focus", reloadOnFocus);
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
@@ -326,8 +305,6 @@ async function bootstrap(): Promise<void> {
 
   // VRM selection also signaled cross-window → pet window receives and hot-swaps renderer (backup for Tauri storage event instability).
   vrmSelection.subscribe(broadcastSettings);
-  // Speaker selection also signaled cross-window → pet window receives and synthesizes with new speaker on next utterance.
-  speakerSelection.subscribe(broadcastSettings);
 
   window.addEventListener("beforeunload", () => {
     // Runs first: disposing the controls commits dirty endpoint/key fields, which must still
