@@ -1440,9 +1440,9 @@ describe("dispatcher — global proactive pacer gate", () => {
     d.stop();
   });
 
-  // The drain in .finally() is the second entry into startBackendCall — a drop there must free
-  // the slot the completed call still occupies, or the dispatcher stays busy forever.
-  it("drops a pending proactive drained right after a turn, and frees the in-flight slot", async () => {
+  // A candidate arriving mid-turn is held at the routing gate, so it never reaches the deferral
+  // queue — the live turn finishes and frees its slot with nothing waiting behind it.
+  it("holds a paced candidate that arrives during a live turn instead of deferring it", async () => {
     const pacer = fakePacer(false);
     const appendSkipRecord = vi.fn();
     const d = build(pacer, appendSkipRecord);
@@ -1454,7 +1454,7 @@ describe("dispatcher — global proactive pacer gate", () => {
     await vi.advanceTimersByTimeAsync(20);
     expect(d.inFlight()).not.toBeNull();
 
-    // The proactive candidate defers behind the live user turn, then drains into the hold.
+    // The user turn anchored the window, so this candidate is dropped where it is routed.
     bus.push(proactiveEnv({ ts: NOW + 1 }));
     await vi.advanceTimersByTimeAsync(20);
     callDeferred[0].resolve("ok");

@@ -177,6 +177,22 @@ describe("proactive_pacer — interval edits", () => {
     s.pacer.stop();
   });
 
+  it("opens a held window when a turn starts with the pacer switched off", () => {
+    const s = setup();
+    const holds: boolean[] = [];
+    s.pacer.subscribe((holding) => holds.push(holding));
+
+    s.pacer.noteTurnStart();
+    s.advance(60_000);
+    s.setInterval(0);
+    s.pacer.noteTurnStart();
+
+    expect(holds).toEqual([true, false]);
+    expect(s.pacer.isHolding()).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    s.pacer.stop();
+  });
+
   it("stays quiet on an interval edit while no window is open", () => {
     const s = setup();
     const holds: boolean[] = [];

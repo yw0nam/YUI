@@ -51,6 +51,14 @@ export function createProactivePacer(deps: {
     for (const cb of subscribers) cb(holding);
   }
 
+  /** Open the window now: drop any pending edge and tell subscribers, if one was held. */
+  function openWindow(): void {
+    clearOpenTimer();
+    if (anchor === undefined) return;
+    anchor = undefined;
+    notify(false);
+  }
+
   /** Arm the open edge at the current anchor + interval, replacing any pending one. */
   function scheduleOpen(): void {
     clearOpenTimer();
@@ -65,17 +73,14 @@ export function createProactivePacer(deps: {
         scheduleOpen();
         return;
       }
-      anchor = undefined;
-      notify(false);
+      openWindow();
     }, remaining);
   }
 
   return {
     noteTurnStart() {
-      const interval = deps.getIntervalMs();
-      if (interval <= 0) {
-        clearOpenTimer();
-        anchor = undefined;
+      if (deps.getIntervalMs() <= 0) {
+        openWindow();
         return;
       }
       anchor = now();
@@ -88,9 +93,7 @@ export function createProactivePacer(deps: {
         scheduleOpen();
         return;
       }
-      clearOpenTimer();
-      anchor = undefined;
-      notify(false);
+      openWindow();
     },
     isHolding,
     subscribe(cb) {
