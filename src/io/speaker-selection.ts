@@ -1,8 +1,8 @@
 /**
- * Reactive store that owns the currently active irodori TTS speaker.
- * The selection is resolved and persisted by SpeakerOption.id (the voice-registry key).
- * It does not register with the voice registry — it only holds the selection state,
- * persists it, and resolves the active option.
+ * Reactive store that owns the currently active TTS speaker.
+ * The selection is resolved and persisted by SpeakerOption.id (the server-side voice id).
+ * It does not talk to the TTS server — it only holds the selection state, persists it,
+ * and resolves the active option.
  */
 
 import { isSafeSanitizedId } from "./safe-id";
@@ -14,7 +14,7 @@ import {
   type UserOptionStorage,
 } from "./selection-store";
 
-/** An irodori speaker entry — id/ref_url as returned by the irodori server's voice list or a user import. */
+/** A speaker entry — id/ref_url as returned by the TTS server's voice list or a user import. */
 export interface SpeakerOption {
   id: string;
   label?: string;

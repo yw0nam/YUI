@@ -155,14 +155,6 @@ export const CHATKEY_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden
 export const CHATKEY_EYE_OFF_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9.6 5.9A9.6 9.6 0 0 1 12 5.5C18 5.5 21.5 12 21.5 12a16 16 0 0 1-2.7 3.3M6.3 7.7A16 16 0 0 0 2.5 12S6 18.5 12 18.5a9.3 9.3 0 0 0 2.7-.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.7 9.8a2.6 2.6 0 0 0 3.6 3.7" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
 export const CHATKEY_CLEAR_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
 
-export const VOICE_ENGINES = ["irodori", "openai"] as const;
-export type VoiceEngine = (typeof VOICE_ENGINES)[number];
-// voice engine → i18n key for its segment label.
-export const VOICE_ENGINE_LABEL_KEYS: Record<VoiceEngine, string> = {
-  irodori: "speaker.engine_irodori",
-  openai: "speaker.engine_openai",
-};
-
 export const CHAT_APIS = ["responses", "chat_completions"] as const;
 export type ChatApi = (typeof CHAT_APIS)[number];
 // chat_api → i18n key for its dropdown option / summary hint label.

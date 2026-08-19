@@ -250,6 +250,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
 
   const speaker = wireSpeakerSelection({
     getEndpoints,
+    getApiKey: () => config.secrets.get(TTS_API_KEY_SECRET),
     log,
     broadcastSettings,
   });
@@ -343,13 +344,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
       getEndpointDefaults: () => {
         try {
           return endpointDefaultsFromConfig(config.get().endpoints);
-        } catch {
-          return undefined;
-        }
-      },
-      getDefaultProvider: () => {
-        try {
-          return config.get().endpoints.tts_provider;
         } catch {
           return undefined;
         }
@@ -470,7 +464,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       "chat API 키 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. 설정 패널의 채팅 API 키 또는 .env.local(VITE_YUI_CHAT_KEY) 참고.",
     );
   }
-  // STT/openai-TTS key warning (prevent 401 on gated backends requiring keys). irodori key not needed.
+  // STT/TTS key warning (prevent 401 on gated backends requiring keys).
   if (import.meta.env.DEV && !sttKeySettings.get().apiKey && !import.meta.env.VITE_YUI_STT_KEY) {
     log.warn(
       "STT API 키 미설정 — 키를 요구하는 STT 서버라면 401 가능. .env.local(VITE_YUI_STT_KEY) 참고.",
@@ -478,7 +472,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   }
   if (import.meta.env.DEV && !ttsKeySettings.get().apiKey && !import.meta.env.VITE_YUI_TTS_KEY) {
     log.warn(
-      "TTS API 키 미설정 — openai 호환 TTS가 키를 요구하면 401 가능. .env.local(VITE_YUI_TTS_KEY) 참고. (irodori는 불필요)",
+      "TTS API 키 미설정 — TTS 서버가 키를 요구하면 401 가능. .env.local(VITE_YUI_TTS_KEY) 참고.",
     );
   }
   try {

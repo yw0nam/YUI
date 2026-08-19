@@ -2,8 +2,6 @@
 
 | | |
 |---|---|
-| provider | `irodori` |
-| `tts_provider` | `"irodori"` |
 | broker mode | `enum` |
 | table | the 39-row emoji table below |
 

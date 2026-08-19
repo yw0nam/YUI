@@ -1,5 +1,4 @@
 import type { EndpointsConfig } from "../../contract";
-import { resolveTtsProviderKind } from "../../io/tts-provider";
 import { assertValid, ConfigError, isObject } from "./shared";
 
 /** 미설정 판정 — 키가 없거나 빈 문자열이면 그 기능은 꺼진 것으로 본다. */
@@ -58,8 +57,8 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   }
   const chat_api: EndpointsConfig["chat_api"] =
     rawChatApi === "responses" || rawChatApi === "chat_completions" ? rawChatApi : undefined;
-  // tts_model / tts_voice: optional. TTS service default when unset.
-  const optStr = (k: "tts_model" | "tts_voice"): string | undefined => {
+  // tts_model / tts_speaker: optional. TTS service default when unset.
+  const optStr = (k: "tts_model" | "tts_speaker"): string | undefined => {
     const v = raw[k];
     if (v !== undefined && (typeof v !== "string" || v.trim() === "")) {
       issues.push(`${k}는 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(v)})`);
@@ -68,67 +67,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     return typeof v === "string" ? v : undefined;
   };
   const tts_model = optStr("tts_model");
-  const tts_voice = optStr("tts_voice");
-  // tts_speed: optional, [0.25, 4.0].
-  const tts_speed = raw.tts_speed;
-  if (
-    tts_speed !== undefined &&
-    (typeof tts_speed !== "number" || tts_speed < 0.25 || tts_speed > 4)
-  ) {
-    issues.push(`tts_speed는 0.25~4.0 숫자여야 함 (받음: ${JSON.stringify(tts_speed)})`);
-  }
-
-  // ── irodori_TTS provider (additive) ──────────────────────────────────────────
-  // tts_provider: optional enum. Empty resolves like unset — openai, the neutral provider, which
-  // requires no extra fields (the resolved value is written to the output).
-  const rawProvider = raw.tts_provider;
-  if (!unset(rawProvider) && rawProvider !== "openai" && rawProvider !== "irodori") {
-    issues.push(
-      `tts_provider는 "openai" | "irodori" 중 하나여야 함 (받음: ${JSON.stringify(rawProvider)})`,
-    );
-  }
-  const tts_provider: EndpointsConfig["tts_provider"] = resolveTtsProviderKind(
-    typeof rawProvider === "string" ? rawProvider : undefined,
-  );
-
-  // When provider=irodori, base_url (http url) + speaker (non-empty) are required — bare config fail-loud.
-  let irodori_base_url: string | undefined;
-  if (!unset(raw.irodori_base_url) || tts_provider === "irodori") {
-    irodori_base_url = httpUrl("irodori_base_url");
-  }
-  const irodori_speaker = raw.irodori_speaker;
-  if (tts_provider === "irodori" || irodori_speaker !== undefined) {
-    if (typeof irodori_speaker !== "string" || irodori_speaker.trim() === "") {
-      issues.push(
-        `irodori_speaker는 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(irodori_speaker)})`,
-      );
-    }
-  }
-
-  // irodori_num_steps: optional, integer ≥ 1.
-  const irodori_num_steps = raw.irodori_num_steps;
-  if (
-    irodori_num_steps !== undefined &&
-    (typeof irodori_num_steps !== "number" ||
-      !Number.isInteger(irodori_num_steps) ||
-      irodori_num_steps < 1)
-  ) {
-    issues.push(
-      `irodori_num_steps는 1 이상 정수여야 함 (받음: ${JSON.stringify(irodori_num_steps)})`,
-    );
-  }
-  // irodori_cfg_scale_text / _speaker / seconds: optional, finite number > 0.
-  const posNum = (
-    k: "irodori_cfg_scale_text" | "irodori_cfg_scale_speaker" | "irodori_seconds",
-  ): void => {
-    const v = raw[k];
-    if (v !== undefined && (typeof v !== "number" || !Number.isFinite(v) || v <= 0)) {
-      issues.push(`${k}는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(v)})`);
-    }
-  };
-  posNum("irodori_cfg_scale_text");
-  posNum("irodori_cfg_scale_speaker");
-  posNum("irodori_seconds");
+  const tts_speaker = optStr("tts_speaker");
   // broker_base_url: optional. If set, must be an http(s) URL (Expression Broker MCP endpoint).
   let broker_base_url: string | undefined;
   if (!unset(raw.broker_base_url)) {
@@ -171,19 +110,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     stt_base_url,
     tts_base_url,
     ...(tts_model !== undefined ? { tts_model } : {}),
-    ...(tts_voice !== undefined ? { tts_voice } : {}),
-    ...(typeof tts_speed === "number" ? { tts_speed } : {}),
-    tts_provider,
-    ...(irodori_base_url !== undefined ? { irodori_base_url } : {}),
-    ...(typeof irodori_speaker === "string" ? { irodori_speaker } : {}),
-    ...(typeof irodori_num_steps === "number" ? { irodori_num_steps } : {}),
-    ...(typeof raw.irodori_cfg_scale_text === "number"
-      ? { irodori_cfg_scale_text: raw.irodori_cfg_scale_text }
-      : {}),
-    ...(typeof raw.irodori_cfg_scale_speaker === "number"
-      ? { irodori_cfg_scale_speaker: raw.irodori_cfg_scale_speaker }
-      : {}),
-    ...(typeof raw.irodori_seconds === "number" ? { irodori_seconds: raw.irodori_seconds } : {}),
+    ...(tts_speaker !== undefined ? { tts_speaker } : {}),
     ...(typeof tts_max_inflight === "number" ? { tts_max_inflight } : {}),
     ...(broker_base_url ? { broker_base_url } : {}),
     ...(typeof chat_model_context_window === "number" ? { chat_model_context_window } : {}),

@@ -2,22 +2,6 @@
    row cannot be <button> (invalid nested HTML). List·row·state styles shared with VRM
    in quick-controls.css / user-asset-list.css. ── */
 
-/* Disable speaker selection for OpenAI-compatible engine — block click/focus + dim. */
-.yui-spk-scroll.is-disabled,
-.yui-spk-foot.is-disabled {
-  opacity: 0.4;
-  pointer-events: none;
-  filter: grayscale(1);
-}
-
-/* Speaker-disabled guidance — OpenAI engine uses server voice, static status. */
-.yui-spks-hint {
-  margin: 0.4rem 0 0;
-  font-size: 0.74rem;
-  line-height: 1.4;
-  color: var(--yui-text-mute);
-}
-
 .yui-spk:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);

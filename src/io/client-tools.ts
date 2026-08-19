@@ -71,8 +71,8 @@ function expressDescription(withMotion: boolean): string {
 }
 
 /**
- * voice tone tag schema. An enum-mode provider (irodori) speaks a fixed tag table, so the tags and
- * their meanings ride in the schema; a free-mode provider takes any tag.
+ * voice tone tag schema. In enum mode the TTS voice speaks a fixed tag table, so the tags and
+ * their meanings ride in the schema; free mode takes any tag.
  */
 function emotionTextSchema(emotionText: BrokerPayload["emotionText"]): Record<string, unknown> {
   const table = emotionText.mode === "enum" ? emotionText.table : null;

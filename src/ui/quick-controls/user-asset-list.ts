@@ -57,8 +57,6 @@ export interface UserAssetListConfig<T extends UserAssetOption> {
   commitImport?: (srcPath: string, name: string) => Promise<void>;
   /** Domain's full list render — called after any state change that isn't reflected via store subscription. */
   render: () => void;
-  /** Gate on Enter/Space activation and add-click (speaker's openai-disabled gate). Omit for always-active (VRM). */
-  canActivate?: () => boolean;
   /** Per-domain DOM tweak right after a row is marked aria-busy for swap, before the "swapping…" hint (speaker removes its preview button). */
   onRowBusy?: (row: HTMLElement) => void;
 }
@@ -336,7 +334,6 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     if (rows.length === 0) return;
 
     if (e.key === "Enter" || e.key === " ") {
-      if (cfg.canActivate && !cfg.canActivate()) return;
       e.preventDefault();
       const id = target.dataset[cfg.datasetKey];
       const opt = cfg.list().find((o) => o.id === id);
@@ -362,7 +359,6 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   }
 
   function handleAddClick(): void {
-    if (cfg.canActivate && !cfg.canActivate()) return;
     if (cfg.pickImport) void startPendingImport();
     else void runImport();
   }

@@ -60,12 +60,9 @@ const mocks = vi.hoisted(() => {
       return sink;
     }),
     selectFetch: vi.fn().mockResolvedValue(fetchImpl),
-    ensureRegistered: vi.fn().mockResolvedValue(undefined),
-    evictRegistration: vi.fn(),
-    voiceRevision: vi.fn(() => 0),
     // Voice-import-flow fakes, used only by the cross-window re-import test below — drives the
     // settings-window side with the real commitVoiceImport instead of hand-writing its effects.
-    updateVoice: vi.fn().mockResolvedValue(undefined),
+    upsertVoice: vi.fn().mockResolvedValue(undefined),
     copyVoiceFile: vi.fn(),
   };
 });
@@ -76,12 +73,7 @@ vi.mock("./io/speech-playback", () => ({
 vi.mock("./io/filler-loop", () => ({ createFillerLoop: mocks.createFillerLoop }));
 vi.mock("./io/stt-vad", () => ({ createSttVad: mocks.createSttVad }));
 vi.mock("./io/tts-pipeline", () => ({ TTS_SKIP: mocks.ttsSkip }));
-vi.mock("./io/irodori-voices", () => ({
-  ensureRegistered: mocks.ensureRegistered,
-  evictRegistration: mocks.evictRegistration,
-  voiceRevision: mocks.voiceRevision,
-  updateVoice: mocks.updateVoice,
-}));
+vi.mock("./io/tts-voices", () => ({ upsertVoice: mocks.upsertVoice }));
 vi.mock("./io/audio-player", () => ({ createWebAudioSink: mocks.createWebAudioSink }));
 vi.mock("./io/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 vi.mock("./io/voice-import", () => ({
@@ -101,6 +93,7 @@ import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
   localStorageUserSpeakerStorage,
+  type SpeakerOption,
 } from "./io/speaker-selection";
 import type { SpeechPlaybackOptions } from "./io/speech-playback";
 import type { SttVadOptions } from "./io/stt-vad";
@@ -132,7 +125,7 @@ function endpoints(overrides: Partial<EndpointsConfig> = {}): EndpointsConfig {
     chat_endpoint: "/responses",
     stt_base_url: "http://stt.test/v1",
     tts_base_url: "http://tts.test",
-    tts_provider: "openai",
+    tts_model: "irodori-tts",
     ...overrides,
   };
 }
@@ -141,14 +134,9 @@ function trigger(): BusEnvelope {
   return { source: "user_input_source", event_name: "test", ts: 0 };
 }
 
-// Fetch calls the openai path makes: POST {tts_base_url}/v1/audio/speech.
-function openaiCalls(): unknown[][] {
+// Fetch calls the synth path makes: POST {tts_base_url}/v1/audio/speech.
+function synthCalls(): unknown[][] {
   return mocks.fetchImpl.mock.calls.filter(([url]) => String(url).endsWith("/v1/audio/speech"));
-}
-
-// Fetch calls the irodori path makes: POST {irodori_base_url}/synthesize.
-function irodoriCalls(): unknown[][] {
-  return mocks.fetchImpl.mock.calls.filter(([url]) => String(url).endsWith("/synthesize"));
 }
 
 function setup() {
@@ -167,7 +155,7 @@ function setup() {
   let gain = 2;
   let silenceMs = 1_500;
   let bargeIn = false;
-  let activeSpeaker = { id: "speaker-a", ref_url: "/speaker-a.wav" };
+  let activeSpeaker: SpeakerOption = { id: "speaker-a", ref_url: "/speaker-a.wav" };
   const renderer = {
     setMouthOpen: vi.fn(),
     stopMouth: vi.fn(),
@@ -230,7 +218,7 @@ function setup() {
     setBargeIn: (next: boolean) => {
       bargeIn = next;
     },
-    setActiveSpeaker: (next: typeof activeSpeaker) => {
+    setActiveSpeaker: (next: SpeakerOption) => {
       activeSpeaker = next;
     },
   };
@@ -248,8 +236,6 @@ describe("wireVoicePipeline", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     for (const key of Object.keys(mocks.captured)) delete mocks.captured[key];
-    mocks.voiceRevision.mockReturnValue(0);
-    mocks.ensureRegistered.mockResolvedValue(undefined);
     mocks.selectFetch.mockResolvedValue(mocks.fetchImpl);
     mocks.fetchImpl.mockImplementation(
       async () =>
@@ -330,7 +316,7 @@ describe("wireVoicePipeline", () => {
     expect(state.voice.turnOutput.hasFiller()).toBe(true);
   });
 
-  it("skips synth when TTS or the selected provider is not configured", async () => {
+  it("skips synth when TTS is off, the server is unset, or no speaker is selected", async () => {
     const state = setup();
     const synth = playbackOptions().pipeline!.synth!;
 
@@ -342,121 +328,82 @@ describe("wireVoicePipeline", () => {
     await expect(synth("off")).rejects.toBe(mocks.ttsSkip);
 
     state.setTtsEnabled(true);
-    state.setEndpoints(endpoints({ tts_provider: "irodori", irodori_base_url: undefined }));
+    state.setEndpoints(endpoints({ tts_base_url: "" }));
     await expect(synth("missing base")).rejects.toBe(mocks.ttsSkip);
 
-    state.setEndpoints(
-      endpoints({ tts_provider: "irodori", irodori_base_url: "http://irodori.test" }),
-    );
+    state.setEndpoints(endpoints());
     state.setActiveSpeaker({ id: "", ref_url: "/missing.wav" });
     await expect(synth("missing speaker")).rejects.toBe(mocks.ttsSkip);
-
-    state.setEndpoints(endpoints({ tts_provider: "openai", tts_base_url: "" }));
-    await expect(synth("missing openai")).rejects.toBe(mocks.ttsSkip);
 
     // None of the skip paths should have reached the network.
     expect(mocks.fetchImpl.mock.calls.length).toBe(callsBeforeSkips);
   });
 
-  it("routes openai-compatible synth with the live API-key provider", async () => {
+  it("routes synth to the TTS server with the model, the active speaker as voice, and the live key", async () => {
     const state = setup();
+    state.setActiveSpeaker({ id: "ナツメ", ref_url: "/natsume.wav" });
+
     await playbackOptions().pipeline!.synth!("hello");
 
-    expect(openaiCalls()).toHaveLength(1);
+    expect(synthCalls()).toHaveLength(1);
     const [url, init] = mocks.fetchImpl.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("http://tts.test/v1/audio/speech");
     const body = JSON.parse(init.body as string);
-    expect(body.input).toBe("hello");
+    expect(body).toMatchObject({
+      input: "hello",
+      model: "irodori-tts",
+      voice: "ナツメ",
+      response_format: "wav",
+    });
     const headers = init.headers as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer tts-key");
     expect(state.getTtsApiKey).toHaveBeenCalled();
   });
 
-  it("routes irodori synth with the active speaker parameters", async () => {
-    const state = setup();
-    state.setEndpoints(
-      endpoints({
-        tts_provider: "irodori",
-        irodori_base_url: "http://irodori.test",
-        irodori_num_steps: 24,
-      }),
-    );
-    state.setActiveSpeaker({ id: "speaker-b", ref_url: "/speaker-b.wav" });
-
-    await playbackOptions().pipeline!.synth!("hello");
-
-    expect(mocks.ensureRegistered).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: "http://irodori.test",
-        id: "speaker-b",
-        refUrl: "/speaker-b.wav",
-      }),
-    );
-    expect(irodoriCalls()).toHaveLength(1);
-    const [url, init] = irodoriCalls()[0] as [string, RequestInit];
-    expect(url).toBe("http://irodori.test/synthesize");
-    const form = init.body as FormData;
-    expect(form.get("reference_id")).toBe("speaker-b");
-    expect(form.get("num_steps")).toBe("24");
-  });
-
-  it("caches filler-pool audio and re-synthesizes it after a TTS settings change", async () => {
+  it("caches filler-pool audio and re-synthesizes it after a TTS model change", async () => {
     const state = setup();
     const synth = playbackOptions().pipeline!.synth!;
 
     await synth("first");
     await synth("first");
     await synth("repeat");
-    expect(openaiCalls()).toHaveLength(2);
+    expect(synthCalls()).toHaveLength(2);
 
     await synth("a response sentence");
     await synth("a response sentence");
-    expect(openaiCalls()).toHaveLength(4);
+    expect(synthCalls()).toHaveLength(4);
 
-    state.setEndpoints(endpoints({ tts_voice: "another-voice" }));
+    state.setEndpoints(endpoints({ tts_model: "another-model" }));
     await synth("first");
-    expect(openaiCalls()).toHaveLength(5);
+    expect(synthCalls()).toHaveLength(5);
   });
 
-  it("invalidates cached filler audio when the irodori speaker or tuning changes", async () => {
+  it("invalidates cached filler audio when the active speaker changes", async () => {
     const state = setup();
-    const irodori = (numSteps: number) =>
-      endpoints({
-        tts_provider: "irodori",
-        irodori_base_url: "http://irodori.test",
-        irodori_num_steps: numSteps,
-      });
-    state.setEndpoints(irodori(24));
     const synth = playbackOptions().pipeline!.synth!;
 
     await synth("first");
     await synth("first");
-    expect(irodoriCalls()).toHaveLength(1);
-
-    state.setEndpoints(irodori(32));
-    await synth("first");
-    expect(irodoriCalls()).toHaveLength(2);
+    expect(synthCalls()).toHaveLength(1);
 
     state.setActiveSpeaker({ id: "speaker-b", ref_url: "/speaker-b.wav" });
     await synth("first");
-    expect(irodoriCalls()).toHaveLength(3);
+    expect(synthCalls()).toHaveLength(2);
   });
 
   it("re-synthesizes filler after the clip behind the active voice is replaced", async () => {
     const state = setup();
-    state.setEndpoints(
-      endpoints({ tts_provider: "irodori", irodori_base_url: "http://irodori.test" }),
-    );
     const synth = playbackOptions().pipeline!.synth!;
 
     await synth("first");
     await synth("first");
-    expect(irodoriCalls()).toHaveLength(1);
+    expect(synthCalls()).toHaveLength(1);
 
-    // Importing a clip over an existing name replaces the voice while its id stays the same.
-    mocks.voiceRevision.mockReturnValue(1);
+    // Re-uploading a clip over an existing name replaces the voice while its id stays the same —
+    // the persisted revision is the only signal that earlier audio for that id is now stale.
+    state.setActiveSpeaker({ id: "speaker-a", ref_url: "/speaker-a.wav", revision: 1 });
     await synth("first");
-    expect(irodoriCalls()).toHaveLength(2);
+    expect(synthCalls()).toHaveLength(2);
   });
 
   it("re-synthesizes filler after commitVoiceImport re-imports the already-active voice in another window", async () => {
@@ -485,7 +432,7 @@ describe("wireVoicePipeline", () => {
         source: "user",
       });
       const { commitVoiceImport: commitOnWindowA } = createVoiceImportFlow({
-        getIrodoriBaseUrl: () => "http://irodori.test",
+        getTtsBaseUrl: () => "http://tts.test",
         speakerSelection: windowA,
         log: noopLog,
       });
@@ -504,10 +451,7 @@ describe("wireVoicePipeline", () => {
         windowB.reloadFromStorage();
       });
 
-      const currentEndpoints = endpoints({
-        tts_provider: "irodori",
-        irodori_base_url: "http://irodori.test",
-      });
+      const currentEndpoints = endpoints();
       wireVoicePipeline({
         renderer: {
           setMouthOpen: vi.fn(),
@@ -543,7 +487,7 @@ describe("wireVoicePipeline", () => {
 
       await synth("first");
       await synth("first");
-      expect(irodoriCalls()).toHaveLength(1);
+      expect(synthCalls()).toHaveLength(1);
 
       // Window A re-imports "My Voice" under the same name it is already active under — same id,
       // new clip, no selection change. This is the #506 scenario: re-importing the active voice.
@@ -553,7 +497,7 @@ describe("wireVoicePipeline", () => {
       expect(windowAChanged).toBe(true);
 
       await synth("first");
-      expect(irodoriCalls()).toHaveLength(2);
+      expect(synthCalls()).toHaveLength(2);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -565,7 +509,7 @@ describe("wireVoicePipeline", () => {
 
     await synth("first");
     await synth("repeat");
-    expect(openaiCalls()).toHaveLength(2);
+    expect(synthCalls()).toHaveLength(2);
 
     state.setFillerConfig({
       gap_ms: 1_000,
@@ -575,7 +519,7 @@ describe("wireVoicePipeline", () => {
 
     // The untouched phrase keeps its audio.
     await synth("first");
-    expect(openaiCalls()).toHaveLength(2);
+    expect(synthCalls()).toHaveLength(2);
 
     // The edited-out phrase lost its audio: back in the pool, it synthesizes again.
     state.setFillerConfig({
@@ -584,7 +528,7 @@ describe("wireVoicePipeline", () => {
       pools: { ja: { first: ["first"], repeat: ["repeat"] } },
     });
     await synth("repeat");
-    expect(openaiCalls()).toHaveLength(3);
+    expect(synthCalls()).toHaveLength(3);
   });
 
   it("reads pipeline, sink, filler, and VAD settings at call time", async () => {

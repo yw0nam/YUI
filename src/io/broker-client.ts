@@ -15,7 +15,6 @@ import type { AppConfig } from "../config/load";
 import type { MotionRegistry } from "../contract";
 import { createLogger, type Logger } from "../logger";
 import { type ExpressMotionSettings, enabledExpressMotions } from "./express-motion-settings";
-import { emotionTextModeFor, resolveTtsProviderKind } from "./tts-provider";
 
 export interface BrokerVocab {
   emotion_ids: string[];
@@ -352,12 +351,12 @@ export function agentTriggerableMotionIds(motions: MotionRegistry): string[] {
  * expression-motion selection — the one seam both vocabulary consumers read, so the broker publish
  * and the Chat-Completions tool schema always carry the same list. The selection is required, so
  * no caller can publish the unfiltered catalog by leaving it out.
- * emotion_text mode follows the TTS provider: irodori ⇒ enum with the supplied table; anything else
- * ⇒ free/null. irodori with a missing table falls back to free/null with a warn rather than crashing.
+ * emotion_text is the emoji enum table (docs/reference/tts-emotion); a missing table falls back to
+ * free/null with a warn rather than crashing.
  */
 export function deriveBrokerPayload(
   cfg: AppConfig,
-  irodoriTable: Record<string, string> | null,
+  emotionTextTable: Record<string, string> | null,
   opts: { expressMotions: ExpressMotionSettings; logger?: Logger },
 ): BrokerPayload {
   const log = opts.logger ?? createLogger("broker-client");
@@ -368,15 +367,10 @@ export function deriveBrokerPayload(
   );
 
   let emotionText: BrokerPayload["emotionText"];
-  const providerKind = resolveTtsProviderKind(cfg.endpoints.tts_provider);
-  if (emotionTextModeFor(providerKind) === "enum") {
-    if (irodoriTable) {
-      emotionText = { mode: "enum", table: irodoriTable };
-    } else {
-      log.warn("emotion_text_table_missing", { fallback: "free" });
-      emotionText = { mode: "free", table: null };
-    }
+  if (emotionTextTable) {
+    emotionText = { mode: "enum", table: emotionTextTable };
   } else {
+    log.warn("emotion_text_table_missing", { fallback: "free" });
     emotionText = { mode: "free", table: null };
   }
 

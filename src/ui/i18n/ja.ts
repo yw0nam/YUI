@@ -168,17 +168,10 @@ const ja: Record<string, string> = {
 
   // speaker section
   "speaker.section": "音声",
-  "speaker.engine_label": "音声エンジン",
-  "speaker.engine_sub": "キャラクターの声を作る合成エンジン",
-  "speaker.engine_aria": "音声エンジン",
-  "speaker.engine_irodori": "irodori",
-  "speaker.engine_openai": "OpenAI 互換",
-  "speaker.openai_hint":
-    "irodori 専用です。OpenAI 互換エンジンはサーバーに設定された voice で話します。",
   "speaker.group_aria": "話者",
   "speaker.add": "ファイルから追加…",
   "speaker.import_error":
-    "この音声を登録できませんでした。オーディオファイルと irodori サーバーを確認してください。",
+    "この音声をアップロードできませんでした。オーディオファイルと TTS サーバーを確認してください。",
   "speaker.in_use": "使用中",
   "speaker.rename": "名前を変更",
   "speaker.remove": "削除",
@@ -303,11 +296,8 @@ const ja: Record<string, string> = {
   "endpoints.chat_base_url.label": "チャットサーバー URL",
   "endpoints.stt_base_url.label": "音声認識 (STT) サーバー URL",
   "endpoints.tts_base_url.label": "音声合成 (TTS) サーバー URL",
-  "endpoints.irodori_base_url.label": "irodori サーバー URL",
   "endpoints.broker_base_url.label": "表現ブローカー URL",
   "endpoints.chat_model.label": "チャットモデル",
-
-  "endpoints.tts_voice.label": "TTS voice",
 
   // per-service sections (advanced tab)
   "svc.type_label": "種類",
@@ -322,7 +312,8 @@ const ja: Record<string, string> = {
   "svc.stt_hint": "OpenAI 互換",
   "svc.stt_type": "OpenAI 互換",
   "svc.tts": "TTS",
-  "svc.tts_aria": "TTS エンジン",
+  "svc.tts_hint": "OpenAI 互換",
+  "svc.tts_type": "OpenAI 互換",
   "svc.broker": "Broker",
   "svc.broker_hint": "MCP streamable-http",
   "svc.broker_type": "MCP streamable-http",

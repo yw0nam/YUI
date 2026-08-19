@@ -22,7 +22,6 @@ import type { ClampedIntSettingsStore } from "../../io/persisted-store";
 import type { ScreenKnobSettingsStore, ScreenOverrides } from "../../io/screen-settings";
 import type { createScreenshotSettings } from "../../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
-import { isTtsProviderKind, resolveTtsProviderKind } from "../../io/tts-provider";
 import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../../io/vad-settings";
 import { getLocale, t } from "../i18n";
 import { reflectUnlessEditing } from "../reflect-unless-editing";
@@ -38,8 +37,6 @@ import {
   SCREEN_MIN_GAP_MAX,
   SCREEN_MIN_GAP_MIN,
   type ScreenKnobFieldDef,
-  VOICE_ENGINE_LABEL_KEYS,
-  type VoiceEngine,
 } from "./constants";
 import type { SwitchRow } from "./switch-row";
 
@@ -87,8 +84,6 @@ interface ReflectDeps {
   keyRows: readonly { reflect(): void }[];
   /** Bundled config default endpoints to show as placeholder (undefined if not loaded). */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
-  /** Bundled config default that effective provider falls back to when no override exists (undefined if not loaded). */
-  getDefaultProvider?: () => "openai" | "irodori" | undefined;
   /** Bundled config default that effective chat_api falls back to when no override exists (undefined if not loaded). */
   getDefaultChatApi?: () => string | undefined;
   /** Reactions tab numeric inputs — provided when the feature is enabled. */
@@ -124,15 +119,12 @@ export interface Reflect {
   reflectAgent(): void;
   reflectFiller(): void;
   reflectLanguage(): void;
-  reflectVoiceEngine(): void;
   reflectChatType(): void;
   reflectChatPreset(): void;
   reflectEndpoints(): void;
   reflectKeyRows(): void;
   reflectSession(): void;
   reflectVoiceStatus(snapshot: VoiceInputStatusSnapshot): void;
-  /** Effective voice engine (used by reflectVoiceEngine + entry's speakerControlsEnabled). */
-  effectiveProvider(): VoiceEngine;
   /** Effective chat API (used by reflectChatType). */
   effectiveChatApi(): ChatApi;
 }
@@ -151,7 +143,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     sessionDiagnostics,
     keyRows,
     getEndpointDefaults,
-    getDefaultProvider,
     getDefaultChatApi,
     agentPortInput,
     presenceInput,
@@ -175,16 +166,9 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const vadValue = root.querySelector<HTMLSpanElement>(".yui-vad__value")!;
   const segEl = root.querySelector<HTMLDivElement>(".yui-field-row .yui-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-  const ttsTypeEl = root.querySelector<HTMLSelectElement>(".yui-tts-type")!;
-  const ttsIrodoriEl = root.querySelector<HTMLDivElement>(".yui-tts-irodori")!;
-  const ttsOpenaiEl = root.querySelector<HTMLDivElement>(".yui-tts-openai")!;
-  const ttsSummaryHintEl = root.querySelector<HTMLSpanElement>(".yui-tts-summary-hint")!;
   const chatTypeEl = root.querySelector<HTMLSelectElement>(".yui-chat-type")!;
   const chatSummaryHintEl = root.querySelector<HTMLSpanElement>(".yui-chat-summary-hint")!;
   const chatPresetEl = root.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
-  const spkScrollEl = root.querySelector<HTMLDivElement>(".yui-spk-scroll")!;
-  const spkFootEl = root.querySelector<HTMLDivElement>(".yui-spk-foot")!;
-  const spksHintEl = root.querySelector<HTMLParagraphElement>(".yui-spks-hint")!;
   const instructionsEl = root.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const fillerLangSegEl = root.querySelector<HTMLDivElement>(".yui-filler-lang-seg");
   const fillerLangBtns = fillerLangSegEl
@@ -339,28 +323,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     langSegEl.style.setProperty("--seg", String(idx));
   }
 
-  // Effective voice engine — use valid override if present, else bundled default, else the
-  // provider module's default (see tts-provider.ts's resolveTtsProviderKind).
-  function effectiveProvider(): VoiceEngine {
-    const ov = endpointsSettings.get().tts_provider;
-    if (isTtsProviderKind(ov)) return ov;
-    return resolveTtsProviderKind(getDefaultProvider?.());
-  }
-
-  // TTS dropdown value + irodori/openai subview display + speaker enable/disable, matching effective provider.
-  function reflectVoiceEngine(): void {
-    const eff = effectiveProvider();
-    if (ttsTypeEl.value !== eff) ttsTypeEl.value = eff;
-    const openai = eff === "openai";
-    ttsIrodoriEl.hidden = openai;
-    ttsOpenaiEl.hidden = !openai;
-    ttsSummaryHintEl.textContent = t(VOICE_ENGINE_LABEL_KEYS[eff]);
-    // OpenAI uses server voice, so disable speaker selection + show hint (speaker is in irodori subview).
-    spkScrollEl.classList.toggle("is-disabled", openai);
-    spkFootEl.classList.toggle("is-disabled", openai);
-    spksHintEl.hidden = !openai;
-  }
-
   // Effective chat API — use valid override if present, else bundled default, else fall back to responses.
   function effectiveChatApi(): ChatApi {
     const ov = endpointsSettings.get().chat_api;
@@ -463,14 +425,12 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectAgent,
     reflectFiller,
     reflectLanguage,
-    reflectVoiceEngine,
     reflectChatType,
     reflectChatPreset,
     reflectEndpoints,
     reflectKeyRows,
     reflectSession,
     reflectVoiceStatus,
-    effectiveProvider,
     effectiveChatApi,
   };
 }

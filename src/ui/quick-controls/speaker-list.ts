@@ -1,5 +1,5 @@
 /**
- * Speaker list cluster — speaker radiogroup in Advanced tab irodori subview.
+ * Speaker list cluster — speaker radiogroup in the Advanced tab's TTS section.
  * Mirrors VRM section but differs in one way: rows are div[role=radio], not <button>
  * (to hold nested ▶ preview <button> — button-in-button is invalid HTML, parser strips it).
  * So wires roving tabindex/Enter·Space/arrow keyboard directly.
@@ -29,17 +29,15 @@ interface SpeakerListDeps {
   speakerSelection: ReturnType<typeof createSpeakerSelection>;
   /** Perform actual speaker swap + commit store on success. Component does not call store.select directly. */
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
-  /** Refresh speaker reference voice (PUT /voices). Server-side update only — does not change speaker selection/store. */
+  /** Re-upload the speaker's reference clip. Server-side update only — does not change the selection. */
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
   /** Import pick step: opens the file picker, returns the source path + a naming-row seed (null on cancel). */
   pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
-  /** Import commit step: copy + register under the typed name → addUserOption + select. Inline error on reject. */
+  /** Import commit step: copy + upload under the typed name → addUserOption + select. Inline error on reject. */
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   /** Delete imported voice app-data file (idempotent). Called separately from store removal. */
   removeUserVoice: (id: string) => Promise<void>;
   log: Logger;
-  /** Speaker management is active only when effective voice engine is irodori. Gates when openai. */
-  speakerControlsEnabled: () => boolean;
   /** After dispose, prevent in-flight refresh from re-rendering/timering on torn-down DOM. */
   isDisposed: () => boolean;
 }
@@ -65,7 +63,6 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     commitVoiceImport,
     removeUserVoice,
     log,
-    speakerControlsEnabled,
     isDisposed,
   } = deps;
   const spksEl = deps.root.querySelector<HTMLDivElement>(".yui-spks")!;
@@ -90,7 +87,6 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     pickImport: pickVoiceImport,
     commitImport: commitVoiceImport,
     render: () => renderSpeakers(),
-    canActivate: speakerControlsEnabled,
     onRowBusy: (row) => {
       // Hide preview button during swap, show "swapping…" hint in its place.
       row.querySelector(".yui-spk__preview")?.remove();
@@ -160,8 +156,6 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   }
 
   function renderSpeakers(): void {
-    // With openai engine, speaker management is inactive — actually disabled with real disabled attr (CSS dims).
-    const controlsEnabled = speakerControlsEnabled();
     const activeId = speakerSelection.getActiveId();
     // Roving tabindex prioritizes last roved row — falls back to active if none.
     const ids = speakerSelection.list().map((o) => o.id);
@@ -179,8 +173,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       row.dataset.spkId = opt.id;
       const selected = opt.id === activeId;
       row.setAttribute("aria-checked", String(selected));
-      // When inactive (openai), all rows get -1 to skip Tab navigation.
-      row.tabIndex = controlsEnabled ? (opt.id === rovedId ? 0 : -1) : -1;
+      row.tabIndex = opt.id === rovedId ? 0 : -1;
 
       if (isUser && opt.id === list.getRenamingId()) {
         list.renderRenamingRow(row, opt);
@@ -212,27 +205,25 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       nameEl.textContent = label;
       if (isUser) {
         const renameBtn = row.querySelector<HTMLButtonElement>(".yui-spk__rename")!;
-        renameBtn.disabled = !controlsEnabled;
         renameBtn.addEventListener("click", (e) => {
           e.stopPropagation(); // Rename does not trigger row selection
-          if (speakerControlsEnabled()) list.startRename(opt.id);
+          list.startRename(opt.id);
         });
         const removeBtn = row.querySelector<HTMLButtonElement>(".yui-spk__remove")!;
-        removeBtn.disabled = !controlsEnabled;
         removeBtn.addEventListener("click", (e) => {
           e.stopPropagation(); // Remove does not trigger row selection
-          if (speakerControlsEnabled()) void list.remove(opt.id);
+          void list.remove(opt.id);
         });
       }
       const refreshBtn = row.querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
-      refreshBtn.disabled = !controlsEnabled || !hasClip;
+      refreshBtn.disabled = !hasClip;
       refreshBtn.setAttribute("aria-label", t("aria.refresh_speaker", { name: label }));
       refreshBtn.addEventListener("click", (e) => {
         e.stopPropagation(); // Refresh does not trigger row selection
         if (hasClip) void refreshTo(opt);
       });
       const previewBtn = row.querySelector<HTMLButtonElement>(".yui-spk__preview")!;
-      previewBtn.disabled = !controlsEnabled || !hasClip;
+      previewBtn.disabled = !hasClip;
       previewBtn.setAttribute("aria-label", t("aria.preview_speaker", { name: label }));
       previewBtn.addEventListener("click", (e) => {
         e.stopPropagation(); // Preview does not trigger row selection
@@ -240,7 +231,6 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       });
 
       row.addEventListener("click", () => {
-        if (!speakerControlsEnabled()) return; // Row selection inactive with openai
         void list.swapTo(opt);
       });
 
@@ -323,7 +313,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     }
   }
 
-  // Reference voice refresh — server-side update only, do not change speaker selection/store.
+  // Reference clip re-upload — server-side update only, does not change the selection.
   // Re-entry guard: ignore if the same id is already refreshing.
   async function refreshTo(option: SpeakerOption): Promise<void> {
     if (spkRefreshState.get(option.id) === "refreshing") return;

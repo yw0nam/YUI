@@ -8,13 +8,11 @@ import { createFillerAudioCache } from "./io/filler-audio-cache";
 import { createFillerLoop, type FillerLoop } from "./io/filler-loop";
 import { effectiveFillerPool, fillerSubmissions, phraseSentences } from "./io/filler-pool";
 import type { FillerSettings } from "./io/filler-settings";
-import { createIrodoriTtsProvider } from "./io/irodori-synth";
 import type { SpeakerOption } from "./io/speaker-selection";
 import { createSpeechPlayback, type SpeechPlayback } from "./io/speech-playback";
 import type { SttVad } from "./io/stt-vad";
 import { TTS_SKIP } from "./io/tts-pipeline";
-import { selectProvider, type TtsProvider } from "./io/tts-provider";
-import { createOpenAiTtsProvider } from "./io/tts-synth";
+import { createTtsProvider } from "./io/tts-synth";
 import type { Renderer } from "./renderer";
 import type { Surfaces } from "./ui/surfaces";
 import type { VoiceInputStatus } from "./ui/voice-input-status";
@@ -51,43 +49,35 @@ export interface VoicePipeline {
 }
 
 /**
- * Voice-pipeline core: TTS synth selection (irodori/openai-compatible) with a session-scoped filler
- * audio cache, speech playback, TTFT filler loop, thinking-turn handlers, and the STT/VAD engine
- * factory incl. barge-in.
+ * Voice-pipeline core: TTS synth with a session-scoped filler audio cache, speech playback,
+ * TTFT filler loop, thinking-turn handlers, and the STT/VAD engine factory incl. barge-in.
  * All config/settings reads are lazy (call-time) so hot-reload and slider edits take effect
  * without rewiring. The caller registers HMR teardown via the returned dispose().
  */
 export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
-  const providers = {
-    irodori: createIrodoriTtsProvider({
-      getEndpoints: deps.getEndpoints,
-      getActiveSpeaker: () => deps.speakerSelection.getActive(),
-      selectFetch,
-    }),
-    openai: createOpenAiTtsProvider({
-      getEndpoints: deps.getEndpoints,
-      getApiKey: deps.getTtsApiKey,
-      selectFetch,
-    }),
-  };
-  const activeProvider = (): TtsProvider => selectProvider(deps.getEndpoints(), providers);
+  const provider = createTtsProvider({
+    getEndpoints: deps.getEndpoints,
+    getActiveSpeaker: () => deps.speakerSelection.getActive(),
+    getApiKey: deps.getTtsApiKey,
+    selectFetch,
+  });
 
   const effectiveFiller = () =>
     effectiveFillerPool(deps.fillerSettings.get(), deps.getFillerConfig());
 
   const fillerCache = createFillerAudioCache({
-    synth: (input, signal) => activeProvider().synth(input, signal),
+    synth: (input, signal) => provider.synth(input, signal),
     // Filler is spoken under motion-hold, which withholds cues from the pipeline, so a filler
     // submission never carries a voice tag and matching the plain sentences is enough.
     submissions: () => fillerSubmissions(effectiveFiller()),
     // Only what changes the rendered audio — a change here stales every entry. Editing the pool
     // leaves the key alone and evicts per phrase instead.
-    // The active speaker's revision is folded in on top of the provider's own paramsKey() so a
-    // re-import committed in another window (settings) invalidates this window's (pet) cache too —
-    // the provider's in-process revision only covers a re-import from the same window.
+    // The active speaker's persisted revision is folded in on top of the provider's paramsKey()
+    // so a re-upload of the clip behind an unchanged speaker id — including one committed in the
+    // settings window — invalidates this window's cache too.
     paramsKey: () => {
       const revision = deps.speakerSelection.getActive().revision ?? 0;
-      return [activeProvider().paramsKey(), revision].join("\n");
+      return [provider.paramsKey(), revision].join("\n");
     },
   });
 
@@ -95,7 +85,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   const synth = async (input: string, signal?: AbortSignal): Promise<ArrayBuffer> => {
     // TTS inactive (toggle OFF or server unset) quietly skips — expressions/motions, bubble unchanged.
     if (!deps.ttsSettings.get().enabled) return Promise.reject(TTS_SKIP);
-    if (!activeProvider().isReady()) return Promise.reject(TTS_SKIP);
+    if (!provider.isReady()) return Promise.reject(TTS_SKIP);
     return fillerCache.synth(input, signal);
   };
 

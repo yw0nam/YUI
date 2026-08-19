@@ -1,5 +1,5 @@
 /**
- * Integration test against the real TTS service (:8092) — runs only when `YUI_LIVE=1`.
+ * Integration test against the real TTS service (:8088) — runs only when `YUI_LIVE=1`.
  *   YUI_LIVE=1 pnpm exec vitest run src/io/tts-synth.live.test.ts
  */
 import { describe, expect, it } from "vitest";
@@ -14,8 +14,20 @@ const endpoints: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",
   chat_endpoint: "/v1/responses",
   stt_base_url: "http://localhost:5517",
-  tts_base_url: "http://localhost:8092",
+  tts_base_url: "http://localhost:8088",
+  tts_model: "irodori-tts",
 };
+
+/** A voice the live server lists (GET /v1/audio/voices). */
+const VOICE = "ナツメ";
+
+function liveSynth() {
+  return createTtsSynth({
+    baseUrl: endpoints.tts_base_url,
+    model: endpoints.tts_model,
+    voice: VOICE,
+  });
+}
 
 /** Check the RIFF....WAVE header (first 4 bytes "RIFF", bytes 8-11 "WAVE"). */
 function isWav(buf: ArrayBuffer): boolean {
@@ -25,17 +37,15 @@ function isWav(buf: ArrayBuffer): boolean {
   return tag(0) === "RIFF" && tag(8) === "WAVE";
 }
 
-describe.skipIf(!LIVE)("tts-synth — LIVE :8092 (fishaudio/s2-pro)", () => {
+describe.skipIf(!LIVE)("tts-synth — LIVE :8088", () => {
   it("plain input → wav 바이너리", async () => {
-    const synth = createTtsSynth({ config: endpoints });
-    const wav = await synth("Hello, can you hear me?");
+    const wav = await liveSynth()("Hello, can you hear me?");
     expect(wav.byteLength).toBeGreaterThan(1000);
     expect(isWav(wav), "RIFF/WAVE 헤더여야 함").toBe(true);
   }, 60_000);
 
-  it("emotion_text prefix가 붙은 input도 합성된다", async () => {
-    const synth = createTtsSynth({ config: endpoints });
-    const wav = await synth("[whisper in small voice] Can you hear me?");
+  it("emotion_text 이모지가 붙은 input도 합성된다", async () => {
+    const wav = await liveSynth()("👂 Can you hear me?");
     expect(isWav(wav)).toBe(true);
   }, 60_000);
 
@@ -48,7 +58,7 @@ describe.skipIf(!LIVE)("tts-synth — LIVE :8092 (fishaudio/s2-pro)", () => {
       },
       stop() {},
     };
-    const tts = createTtsPipeline({ config: endpoints, sink: fakeSink });
+    const tts = createTtsPipeline({ synth: liveSynth(), sink: fakeSink });
     tts.pushTextDelta("First sentence. Second sentence! Third one?");
     tts.end();
 

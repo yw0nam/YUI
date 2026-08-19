@@ -12,7 +12,6 @@ function validConfig(): AppConfig {
       chat_endpoint: "/responses",
       stt_base_url: "http://stt.test/v1",
       tts_base_url: "http://tts.test/v1",
-      tts_provider: "openai",
     },
     avatar: {
       vrm_url: "/vrms/test.vrm",

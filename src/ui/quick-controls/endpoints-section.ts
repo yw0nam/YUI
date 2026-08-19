@@ -1,6 +1,6 @@
 /**
  * Endpoints section — owns endpoint URL fields in Advanced tab, chat/STT/TTS API key rows (secret),
- * TTS engine (tts_provider) dropdown, Chat API (chat_api) dropdown, and per-service resets.
+ * the Chat API (chat_api) dropdown, and per-service resets.
  * Same pattern as VRM/speaker sections: explicit deps + wired from shell. reflect (store→DOM) handled by reflect layer;
  * this module owns inputs, handlers, subscriptions, teardown only.
  */
@@ -78,8 +78,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     log,
   } = deps;
 
-  // TTS engine dropdown + irodori/openai subviews (Advanced tab). Chat API dropdown (no subviews).
-  const ttsTypeEl = el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
+  // Chat API dropdown (Advanced tab).
   const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
   const chatPresetEl = el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
 
@@ -175,17 +174,8 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     }
   }
 
-  // ── Advanced section: TTS engine dropdown (tts_provider) ──
+  // ── Advanced section: Chat API dropdown (chat_api) ──
   // Native select owns keyboard — write to store only on change event.
-  function handleTtsTypeChange(): void {
-    const provider = ttsTypeEl.value;
-    if (provider !== "irodori" && provider !== "openai") return;
-    endpointsSettings.set({ tts_provider: provider });
-    log.info("voice_engine_change", { provider });
-    // Store subscription (unsubscribeEndpoints) calls reflect.reflectVoiceEngine to update value/subviews/speaker-disabled.
-  }
-
-  // ── Advanced section: Chat API dropdown (chat_api) — no subviews (shared fields) ──
   function handleChatTypeChange(): void {
     const api = chatTypeEl.value;
     if (api !== "responses" && api !== "chat_completions") return;
@@ -260,15 +250,15 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
 
   function handleSvcReset(svc: string): void {
     // Fields to clear are every ENDPOINT_FIELD_SPECS row tagged with this service's resetGroup —
-    // covers both text-input fields (chat_base_url, ...) and dropdown-enum fields (chat_api,
-    // tts_provider), which is why the patch loop below isn't restricted to epInputs' keys.
+    // covers both text-input fields (chat_base_url, ...) and the dropdown-enum field (chat_api),
+    // which is why the patch loop below isn't restricted to epInputs' keys.
     const fields = ENDPOINT_FIELD_SPECS.filter((s) => s.resetGroup === svc).map((s) => s.key);
     if (fields.length === 0) return;
     const patch: Partial<EndpointOverrides> = {};
     for (const key of fields) patch[key] = "";
     endpointsSettings.set(patch);
-    // Only url/string-kind fields have a DOM input (epInputs); dropdown-enum fields (chat_api,
-    // tts_provider) are re-rendered by reflect.reflectChatType/reflectVoiceEngine on store change.
+    // Only url/string-kind fields have a DOM input (epInputs); the dropdown-enum field (chat_api)
+    // is re-rendered by reflect.reflectChatType on store change.
     for (const key of fields) {
       const input = epInputs.get(key);
       if (!input) continue;
@@ -281,7 +271,6 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   }
 
   // ── Wiring ──
-  ttsTypeEl.addEventListener("change", handleTtsTypeChange);
   chatTypeEl.addEventListener("change", handleChatTypeChange);
   chatPresetEl.addEventListener("change", handleChatPresetChange);
   for (const input of epInputs.values()) {
@@ -305,7 +294,6 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   function dispose(): void {
     commitDirtyKeys();
     commitDirtyEndpoints();
-    ttsTypeEl.removeEventListener("change", handleTtsTypeChange);
     chatTypeEl.removeEventListener("change", handleChatTypeChange);
     chatPresetEl.removeEventListener("change", handleChatPresetChange);
     for (const input of epInputs.values()) {

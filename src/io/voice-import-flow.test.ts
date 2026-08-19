@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { ensureRegistered, listVoices, updateVoice } = vi.hoisted(() => ({
-  ensureRegistered: vi.fn().mockResolvedValue(undefined),
+const { listVoices, upsertVoice } = vi.hoisted(() => ({
   listVoices: vi.fn().mockResolvedValue([]),
-  updateVoice: vi.fn().mockResolvedValue(undefined),
+  upsertVoice: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("./irodori-voices", () => ({ ensureRegistered, listVoices, updateVoice }));
+vi.mock("./tts-voices", () => ({ listVoices, upsertVoice }));
 
 const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("./chat-client", () => ({ selectFetch }));
@@ -50,7 +49,7 @@ function fakeStore() {
 function build(baseUrl: string | undefined) {
   const speakerSelection = fakeStore();
   const flow = createVoiceImportFlow({
-    getIrodoriBaseUrl: () => baseUrl,
+    getTtsBaseUrl: () => baseUrl,
     speakerSelection,
     log: noopLog,
   });
@@ -59,9 +58,8 @@ function build(baseUrl: string | undefined) {
 
 describe("createVoiceImportFlow", () => {
   beforeEach(() => {
-    ensureRegistered.mockReset().mockResolvedValue(undefined);
     listVoices.mockReset().mockResolvedValue([]);
-    updateVoice.mockReset().mockResolvedValue(undefined);
+    upsertVoice.mockReset().mockResolvedValue(undefined);
     copyVoiceFile.mockReset().mockResolvedValue(IMPORTED);
     pickVoiceFile.mockReset();
     removeOrphanVoice.mockClear();
@@ -90,20 +88,34 @@ describe("createVoiceImportFlow", () => {
   });
 
   describe("commitVoiceImport", () => {
-    it("uploads the clip with updateVoice (PUT upserts) and adds + selects the option", async () => {
+    it("uploads the clip with upsertVoice and adds + selects the option", async () => {
       const { commitVoiceImport, speakerSelection } = build("http://localhost:8091");
 
       await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
 
       expect(copyVoiceFile).toHaveBeenCalledWith("/tmp/MyVoice.wav", "My Voice");
-      expect(updateVoice).toHaveBeenCalledOnce();
-      expect(updateVoice.mock.calls[0][0]).toMatchObject({
+      expect(upsertVoice).toHaveBeenCalledOnce();
+      expect(upsertVoice.mock.calls[0][0]).toMatchObject({
         baseUrl: "http://localhost:8091",
         id: "myvoice",
         refUrl: IMPORTED.ref_url,
       });
       expect(speakerSelection.addUserOption).toHaveBeenCalledWith({ ...IMPORTED, revision: 1 });
       expect(speakerSelection.select).toHaveBeenCalledWith("myvoice");
+    });
+
+    it("hands upsertVoice the TTS key resolver so a gated server still accepts the upload", async () => {
+      const getApiKey = vi.fn().mockResolvedValue("sk-tts");
+      const { commitVoiceImport } = createVoiceImportFlow({
+        getTtsBaseUrl: () => "http://localhost:8091",
+        getApiKey,
+        speakerSelection: fakeStore(),
+        log: noopLog,
+      });
+
+      await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+
+      expect(upsertVoice.mock.calls[0][0]).toMatchObject({ getApiKey });
     });
 
     it("bumps the revision on top of whatever is already stored for that id, so a re-import invalidates other windows' filler cache", async () => {
@@ -115,19 +127,16 @@ describe("createVoiceImportFlow", () => {
       expect(speakerSelection.addUserOption).toHaveBeenCalledWith({ ...IMPORTED, revision: 4 });
     });
 
-    // Regression: deciding PUT-vs-POST from listVoices routed an overwrite into ensureRegistered
-    // whenever the list call flaked (it resolves to [] rather than throwing). ensureRegistered
-    // returns early for an already-registered id AND memoizes per baseUrl::id, so the replacement
-    // clip silently never reached the server. PUT is an upsert — there is nothing to branch on.
-    it("never consults listVoices or ensureRegistered — a flaked list cannot skip the upload", async () => {
+    // upsertVoice is itself create-or-replace, so the flow has nothing to branch on — a flaked
+    // list call (it resolves to [] rather than throwing) can never skip the upload.
+    it("never consults listVoices — a flaked list cannot skip the upload", async () => {
       listVoices.mockResolvedValue([]); // as if the server list call failed
       const { commitVoiceImport } = build("http://localhost:8091");
 
       await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
 
       expect(listVoices).not.toHaveBeenCalled();
-      expect(ensureRegistered).not.toHaveBeenCalled();
-      expect(updateVoice).toHaveBeenCalledOnce();
+      expect(upsertVoice).toHaveBeenCalledOnce();
     });
 
     it("overwriting an existing name still uploads (no id-existence short circuit)", async () => {
@@ -136,12 +145,12 @@ describe("createVoiceImportFlow", () => {
 
       await commitVoiceImport("/tmp/Replacement.wav", "My Voice");
 
-      expect(updateVoice).toHaveBeenCalledOnce();
+      expect(upsertVoice).toHaveBeenCalledOnce();
       expect(speakerSelection.select).toHaveBeenCalledWith("myvoice");
     });
 
     it("cleans up the orphan copy and rethrows when the upload fails, leaving the store untouched", async () => {
-      updateVoice.mockRejectedValue(new Error("server down"));
+      upsertVoice.mockRejectedValue(new Error("server down"));
       const { commitVoiceImport, speakerSelection } = build("http://localhost:8091");
 
       await expect(commitVoiceImport("/tmp/MyVoice.wav", "My Voice")).rejects.toThrow(
@@ -153,14 +162,14 @@ describe("createVoiceImportFlow", () => {
       expect(speakerSelection.select).not.toHaveBeenCalled();
     });
 
-    it("throws and cleans up when irodori_base_url is unset", async () => {
+    it("throws and cleans up when tts_base_url is unset", async () => {
       const { commitVoiceImport, speakerSelection } = build(undefined);
 
       await expect(commitVoiceImport("/tmp/MyVoice.wav", "My Voice")).rejects.toThrow(
-        "irodori_base_url",
+        "tts_base_url",
       );
 
-      expect(updateVoice).not.toHaveBeenCalled();
+      expect(upsertVoice).not.toHaveBeenCalled();
       expect(removeUserVoice).toHaveBeenCalledWith("myvoice");
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
     });
@@ -173,7 +182,7 @@ describe("createVoiceImportFlow", () => {
       speakerSelection.addUserOption(IMPORTED);
       speakerSelection.select(IMPORTED.id);
       const { commitVoiceImport } = createVoiceImportFlow({
-        getIrodoriBaseUrl: () => "http://localhost:8091",
+        getTtsBaseUrl: () => "http://localhost:8091",
         speakerSelection,
         log: noopLog,
       });

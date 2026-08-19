@@ -2,35 +2,39 @@
 
 import type { EndpointsConfig } from "../contract";
 import { createDeadlineSignal } from "./deadline";
-import {
-  emotionTextModeFor,
-  TTS_SYNTH_TIMEOUT_MS,
-  type TtsProvider,
-  type TtsSynth,
-} from "./tts-provider";
 
-export type { TtsSynth };
-export { TTS_SYNTH_TIMEOUT_MS };
+export type TtsSynth = (input: string, signal?: AbortSignal) => Promise<ArrayBuffer>;
+
+/** What the voice pipeline needs from the TTS path, so it never reads endpoints itself. */
+export interface TtsProvider {
+  synth: TtsSynth;
+  /** Everything that changes the rendered audio, as one comparable string. */
+  paramsKey(): string;
+  /** Whether there is enough live config to synthesize right now. */
+  isReady(): boolean;
+}
+
+// Deadline so a hung request settles instead of stalling the turn's ordered playback forever.
+// One HTTP call per synth(), so this is the whole call's budget.
+export const TTS_SYNTH_TIMEOUT_MS = 10_000;
 
 export interface TtsSynthOptions {
-  config: EndpointsConfig;
+  baseUrl: string;
   fetch?: typeof fetch;
   model?: string;
   voice?: string;
-  speed?: number;
   /** Resolves the TTS server key (Bearer) per request. Omitted/empty → no auth header. */
   getApiKey?: () => Promise<string | undefined>;
 }
 
 export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
-  const url = `${opts.config.tts_base_url}/v1/audio/speech`;
+  const url = `${opts.baseUrl}/v1/audio/speech`;
 
   return async (input, signal) => {
     const body: Record<string, unknown> = { input, response_format: "wav" };
     if (opts.model !== undefined) body.model = opts.model;
     if (opts.voice !== undefined) body.voice = opts.voice;
-    if (opts.speed !== undefined) body.speed = opts.speed;
 
     const key = (await opts.getApiKey?.())?.trim() || undefined;
     const deadline = createDeadlineSignal(TTS_SYNTH_TIMEOUT_MS, "TTS request timed out");
@@ -65,34 +69,33 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
   };
 }
 
-export interface OpenAiTtsProviderDeps {
+export interface TtsProviderDeps {
   getEndpoints: () => EndpointsConfig;
+  /** The speaker picked in the panel — its id is the server-side voice id. */
+  getActiveSpeaker: () => { id: string };
   /** Resolves the TTS server key (Bearer) per request. Omitted/empty → no auth header. */
   getApiKey?: () => Promise<string | undefined>;
   /** Environment fetch override (Tauri CORS-bypass) — resolved fresh per call. */
   selectFetch: () => Promise<typeof fetch | undefined>;
 }
 
-/** TtsProvider adapter over the OpenAI-compatible /v1/audio/speech path. */
-export function createOpenAiTtsProvider(deps: OpenAiTtsProviderDeps): TtsProvider {
+export function createTtsProvider(deps: TtsProviderDeps): TtsProvider {
   return {
     synth: async (input, signal) => {
       const eps = deps.getEndpoints();
       const fetchImpl = await deps.selectFetch();
       return createTtsSynth({
-        config: eps,
+        baseUrl: eps.tts_base_url,
         fetch: fetchImpl,
         model: eps.tts_model,
-        voice: eps.tts_voice,
-        speed: eps.tts_speed,
+        voice: deps.getActiveSpeaker().id,
         getApiKey: deps.getApiKey,
       })(input, signal);
     },
     paramsKey: () => {
       const eps = deps.getEndpoints();
-      return ["openai", eps.tts_base_url, eps.tts_model, eps.tts_voice, eps.tts_speed].join("::");
+      return [eps.tts_base_url, eps.tts_model, deps.getActiveSpeaker().id].join("::");
     },
-    isReady: () => Boolean(deps.getEndpoints().tts_base_url),
-    emotionTextMode: () => emotionTextModeFor("openai"),
+    isReady: () => Boolean(deps.getEndpoints().tts_base_url && deps.getActiveSpeaker().id),
   };
 }

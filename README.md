@@ -90,7 +90,7 @@ respond.
 Cues ride alongside the reply. Speech comes through as a normal assistant text
 stream, while emotion, motion, and voice tags arrive as `generate_express`
 tool-calls with flat arguments `{ emotion_id?, motion_id?, emotion_text? }`.
-`emotion_text` is a per-provider TTS voice tag whose vocabulary the Expression
+`emotion_text` is a TTS voice tag drawn from the emoji vocabulary the Expression
 Broker publishes so the agent knows what it can ask for. This is carried in
 full over Responses mode today; see [Backend wiring](#backend-wiring) for how
 it differs by chat protocol and backend. The full cue contract handed to the
@@ -137,9 +137,9 @@ For the backend services and full wiring, see [`docs/guide/getting-started.md`](
 
 ## Backend wiring
 
-Chat and STT use the OpenAI-compatible API; TTS and the Expression Broker depend
-on the selected provider. Each is a separate, config-swappable process, and all
-base URLs live in `configs/endpoints.json`.
+Chat, STT and TTS use the OpenAI-compatible API; the Expression Broker is an MCP
+server. Each is a separate, config-swappable process, and all base URLs live in
+`configs/endpoints.json`.
 
 - **Chat protocol** — selected via `chat_api` (default `chat_completions`):
   - `responses` — routes to a backend agent (Hermes recommended) at
@@ -161,11 +161,11 @@ base URLs live in `configs/endpoints.json`.
   emits a custom `hermes.tool.progress` telemetry event with no arguments
   instead. With Hermes, use `responses` mode for cues.
 - **STT** — `localhost:5517` `/v1/audio/transcriptions`
-- **TTS** — selected via `tts_provider` (default `openai`):
-  - `irodori` — irodori_TTS at `localhost:8091` `/synthesize`, reference-voice
-    based; the irodori server itself is the source of truth for the speaker
-    list (`GET /voices`) — users add their own via the panel's import button
-  - `openai` — OpenAI-compatible `/v1/audio/speech` at `localhost:8092`
+- **TTS** — OpenAI-compatible `/v1/audio/speech` at `localhost:8088`, with
+  `model` from `tts_model` and `voice` from the speaker picked in the panel.
+  The TTS server is the source of truth for the speaker list
+  (`GET /v1/audio/voices`) — users add their own via the panel's import button,
+  which uploads the clip to `/v1/audio/voices`
 - **Expression Broker** — `localhost:3201/mcp` (streamable-http MCP); YUI
   publishes its emotion/motion/voice vocabulary here in both chat modes,
   gated only on `broker_base_url` (skipped if unset) — the backend agent
@@ -182,7 +182,7 @@ YUI/
   src/
     contract/             # TS contract types — source of truth
     renderer/             # three.js + VRM: load, emotion resolver, motion controller, lipsync
-    io/                   # chat, tts, stt, os-context, screenshot, broker, irodori synth
+    io/                   # chat, tts, stt, os-context, screenshot, broker
     dispatcher/           # Event bus + classify → route
     ambient/              # Local idle liveliness (blink / sway / breath)
     config/               # Config load, validate, hot-reload
@@ -218,7 +218,7 @@ level with `VITE_YUI_LOG_LEVEL` (`debug` · `info` · `warn` · `error`).
 - [`docs/guide/getting-started.md`](docs/guide/getting-started.md) — install and wiring (broker · agent · TTS · STT · VRM)
 - [`docs/reference/client-context.md`](docs/reference/client-context.md) — the `generate_express` cue contract
 - [`docs/reference/motions.md`](docs/reference/motions.md) — motion catalog
-- [`docs/reference/tts-emotion/`](docs/reference/tts-emotion/) — per-provider `emotion_text` voice tags
+- [`docs/reference/tts-emotion/`](docs/reference/tts-emotion/) — the `emotion_text` voice-tag vocabulary
 - [`docs/reference/logging.md`](docs/reference/logging.md) — logging convention
 - [`src/contract/types.ts`](src/contract/types.ts) — TS contract shapes
 

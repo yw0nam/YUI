@@ -39,8 +39,8 @@ interface PlaybackSurfaces {
 export interface SpeechPlaybackOptions {
   renderer: PlaybackRenderer;
   surfaces: PlaybackSurfaces;
-  /** Base options injected when building the pipeline (synth/config, etc.). onAmplitude/onPlaybackEnd are overridden here. */
-  pipeline?: Omit<TtsPipelineOptions, "onAmplitude" | "onPlaybackEnd" | "onCuePlay">;
+  /** Base options injected when building the pipeline (synth, sink, …). onAmplitude/onPlaybackEnd are overridden here. */
+  pipeline: Omit<TtsPipelineOptions, "onAmplitude" | "onPlaybackEnd" | "onCuePlay">;
   /** Pipeline factory injection for tests. */
   createPipeline?: (opts: TtsPipelineOptions) => TtsPipeline;
   /** Called after stopMouth/finishSpeech/easeEmotionToNeutral on each playback-end. */

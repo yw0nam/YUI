@@ -81,7 +81,7 @@ export function createSttKeySettings(opts?: { storage?: ApiKeyStorage; initial?:
   return createApiKeySettings({ storageKey: "yui.stt-key", ...opts });
 }
 
-/** OpenAI-compatible TTS server key store (irodori needs none). */
+/** TTS server key store (OpenAI-compatible Bearer). */
 export function createTtsKeySettings(opts?: { storage?: ApiKeyStorage; initial?: ApiKeySettings }) {
   return createApiKeySettings({ storageKey: "yui.tts-key", ...opts });
 }

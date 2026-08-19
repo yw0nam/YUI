@@ -93,10 +93,8 @@ describe("createQuickControls — speaker section", () => {
   });
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    // The speaker list belongs to the irodori subview; openai (the bundled default) disables it.
     return createQuickControls({
       ...defaultQcArgs(mount),
-      getDefaultProvider: () => "irodori",
       lipsync,
       onGainPreview,
       onGainPreviewEnd,
@@ -278,8 +276,8 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  it("the speaker '파일에서 추가…' row is an enabled button (irodori) and click invokes pickVoiceImport", () => {
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+  it("the speaker '파일에서 추가…' row is an enabled button and click invokes pickVoiceImport", () => {
+    const qc = buildQc();
     qc.open();
 
     const add = qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
@@ -307,7 +305,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("renders a user voice row carrying rename + remove + audition controls", () => {
     withUserVoice();
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    const qc = buildQc();
     qc.open();
 
     const row = userSpkRow(qc);
@@ -324,7 +322,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("bundled speaker rows carry no rename/remove controls", () => {
     withUserVoice();
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    const qc = buildQc();
     qc.open();
 
     const natsume = qc.el.querySelector<HTMLElement>('.yui-spk[data-spk-id="natsume"]')!;
@@ -338,7 +336,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("pencil opens inline rename; Enter commits via renameUserOption", () => {
     withUserVoice();
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    const qc = buildQc();
     qc.open();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__rename")!.click();
@@ -361,7 +359,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("Esc cancels inline speaker rename without changing the label or closing the panel", () => {
     withUserVoice();
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    const qc = buildQc();
     qc.open();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__rename")!.click();
@@ -378,7 +376,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("trash removes the voice via injected removeUserVoice then store removeUserOption", async () => {
     withUserVoice();
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    const qc = buildQc();
     qc.open();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
@@ -398,7 +396,7 @@ describe("createQuickControls — speaker section", () => {
     removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {
       storeStillHadVoiceAtDelete = speakerSelection.list().some((o) => o.id === "myvoice");
     });
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    const qc = buildQc();
     qc.open();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
@@ -415,7 +413,7 @@ describe("createQuickControls — speaker section", () => {
     removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {
       throw new Error("native delete failed");
     });
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    const qc = buildQc();
     qc.open();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
@@ -433,7 +431,7 @@ describe("createQuickControls — speaker section", () => {
     removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {
       throw new Error("native delete failed");
     });
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    const qc = buildQc();
     qc.open();
     swapSpeaker.mockClear();
 
@@ -449,7 +447,7 @@ describe("createQuickControls — speaker section", () => {
   it("removing the active user voice falls back to default and swaps the speaker", async () => {
     withUserVoice();
     speakerSelection.select("myvoice");
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    const qc = buildQc();
     qc.open();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
@@ -472,7 +470,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("clicking add invokes pickVoiceImport, and a picked file shows a naming row seeded with the file stem", async () => {
     pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
-    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport });
+    const qc = buildQc({ pickVoiceImport });
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
@@ -496,7 +494,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("warns on the naming row when the seeded name already names an existing voice", async () => {
     pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/natsume.wav", seedName: "natsume" }));
-    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport });
+    const qc = buildQc({ pickVoiceImport });
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
@@ -510,7 +508,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("shows no warning for a name that does not collide", async () => {
     pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Brand New.wav", seedName: "Brand New" }));
-    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport });
+    const qc = buildQc({ pickVoiceImport });
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
@@ -523,7 +521,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("the warning tracks what is typed — appears and clears without re-rendering the row", async () => {
     pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Brand New.wav", seedName: "Brand New" }));
-    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport });
+    const qc = buildQc({ pickVoiceImport });
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
@@ -544,7 +542,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("cancelling the OS picker (null) shows no naming row and never calls commitVoiceImport", async () => {
     pickVoiceImport = vi.fn(async () => null);
-    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport });
+    const qc = buildQc({ pickVoiceImport });
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
@@ -558,7 +556,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("Esc on the naming row cancels the whole import — commitVoiceImport is never called", async () => {
     pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
-    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
+    const qc = buildQc({ pickVoiceImport, commitVoiceImport });
     qc.open();
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
     await flush();
@@ -579,7 +577,7 @@ describe("createQuickControls — speaker section", () => {
     commitVoiceImport = vi.fn(async () => {
       speakerSelection.addUserOption(USER_VOICE);
     });
-    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
+    const qc = buildQc({ pickVoiceImport, commitVoiceImport });
     qc.open();
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
     await flush();
@@ -612,7 +610,7 @@ describe("createQuickControls — speaker section", () => {
           resolveCommit = res;
         }),
     );
-    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
+    const qc = buildQc({ pickVoiceImport, commitVoiceImport });
     qc.open();
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
     await flush();
@@ -647,7 +645,7 @@ describe("createQuickControls — speaker section", () => {
           resolveCommit = res;
         }),
     );
-    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
+    const qc = buildQc({ pickVoiceImport, commitVoiceImport });
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
@@ -676,7 +674,7 @@ describe("createQuickControls — speaker section", () => {
     commitVoiceImport = vi.fn(async () => {
       throw new Error("bad voice");
     });
-    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
+    const qc = buildQc({ pickVoiceImport, commitVoiceImport });
     qc.open();
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
     await flush();
@@ -699,7 +697,7 @@ describe("createQuickControls — speaker section", () => {
     commitVoiceImport = vi.fn(async () => {
       speakerSelection.addUserOption(USER_VOICE);
     });
-    const qc = buildQc({ getDefaultProvider: () => "irodori", pickVoiceImport, commitVoiceImport });
+    const qc = buildQc({ pickVoiceImport, commitVoiceImport });
     qc.open();
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
     await flush();
@@ -711,28 +709,6 @@ describe("createQuickControls — speaker section", () => {
     expect(qc.el.querySelector(".yui-spk__loading")).toBeNull();
     expect(qc.el.querySelector<HTMLElement>(".yui-spk__import-error")!.hidden).toBe(true);
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).not.toBeNull();
-
-    qc.dispose();
-  });
-
-  it("when provider=openai the add button does not import and user controls are absent", () => {
-    withUserVoice();
-    const qc = buildQc({ getDefaultProvider: () => "openai" });
-    qc.open();
-
-    // whole speaker section disabled (pointer-events:none via .is-disabled)
-    const foot = qc.el.querySelector<HTMLElement>(".yui-spk-foot")!;
-    expect(foot.classList.contains("is-disabled")).toBe(true);
-    const scroll = qc.el.querySelector<HTMLElement>(".yui-spk-scroll")!;
-    expect(scroll.classList.contains("is-disabled")).toBe(true);
-
-    // even if the click handler fires, it must not import while openai is effective
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
-    expect(pickVoiceImport).not.toHaveBeenCalled();
-
-    // a remove click on a user row must not delete while openai is effective
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
-    expect(removeUserVoice).not.toHaveBeenCalled();
 
     qc.dispose();
   });
@@ -751,22 +727,8 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  it("openai gates the speaker option buttons with the real disabled attribute", () => {
-    const qc = buildQc({ getDefaultProvider: () => "openai" });
-    qc.open();
-
-    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-    expect(rows.length).toBeGreaterThan(0);
-    for (const r of rows) {
-      expect(r.querySelector<HTMLButtonElement>(".yui-spk__refresh")!.disabled).toBe(true);
-      expect(r.querySelector<HTMLButtonElement>(".yui-spk__preview")!.disabled).toBe(true);
-    }
-
-    qc.dispose();
-  });
-
-  it("irodori leaves clip-backed speaker option buttons enabled (not disabled)", () => {
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+  it("leaves clip-backed speaker option buttons enabled (not disabled)", () => {
+    const qc = buildQc();
     qc.open();
 
     // default speakers all carry a ref_url (clip) → option buttons are enabled.
@@ -779,31 +741,8 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  it("openai: row click and Enter/Space do NOT swap, and rows are not tabbable", () => {
-    const qc = buildQc({ getDefaultProvider: () => "openai" });
-    qc.open();
-
-    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-    expect(rows.length).toBeGreaterThan(0);
-
-    // (c) When inactive, all rows are skipped in Tab navigation.
-    for (const r of rows) expect(r.tabIndex).toBe(-1);
-
-    // (a) Clicking an inactive row does not trigger swap (CSS pointer-events cannot block keyboard).
-    rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(swapSpeaker).not.toHaveBeenCalled();
-
-    // (b) Enter/Space after focus also does not swap.
-    rows[1].focus();
-    rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
-    expect(swapSpeaker).not.toHaveBeenCalled();
-
-    qc.dispose();
-  });
-
-  it("irodori: a row click swaps and the roved row is tabbable (tabIndex 0)", () => {
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+  it("a row click swaps and the roved row is tabbable (tabIndex 0)", () => {
+    const qc = buildQc();
     qc.open();
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
@@ -815,48 +754,6 @@ describe("createQuickControls — speaker section", () => {
     rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(swapSpeaker).toHaveBeenCalledOnce();
     expect(swapSpeaker.mock.calls[0][0]).toMatchObject({ id: "ayase" });
-
-    qc.dispose();
-  });
-
-  it("switching the engine to openai while open disables the speaker option buttons", () => {
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
-    qc.open();
-
-    const refreshBefore = qc.el.querySelector<HTMLButtonElement>(
-      ".yui-spk[role=radio] .yui-spk__refresh",
-    )!;
-    expect(refreshBefore.disabled).toBe(false);
-
-    const sel = qc.el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
-    sel.value = "openai";
-    sel.dispatchEvent(new Event("change", { bubbles: true }));
-
-    const refreshAfter = qc.el.querySelector<HTMLButtonElement>(
-      ".yui-spk[role=radio] .yui-spk__refresh",
-    )!;
-    expect(refreshAfter.disabled).toBe(true);
-
-    qc.dispose();
-  });
-
-  it("re-enables speaker rows after a provider change that happened while closed", () => {
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
-    // Change to openai while closed — onOpen must resynchronize the enabled baseline.
-    endpointsSettings.set({ tts_provider: "openai" });
-    qc.open();
-
-    const refreshDisabled = qc.el.querySelector<HTMLButtonElement>(
-      ".yui-spk[role=radio] .yui-spk__refresh",
-    )!;
-    expect(refreshDisabled.disabled).toBe(true); // openai → inactive
-
-    // Return to irodori while open — rows must re-enable (baseline is stale, so skip).
-    endpointsSettings.set({ tts_provider: "irodori" });
-    const refreshEnabled = qc.el.querySelector<HTMLButtonElement>(
-      ".yui-spk[role=radio] .yui-spk__refresh",
-    )!;
-    expect(refreshEnabled.disabled).toBe(false);
 
     qc.dispose();
   });

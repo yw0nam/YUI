@@ -25,13 +25,10 @@ const EMPTY: EndpointOverrides = {
   chat_base_url: "",
   stt_base_url: "",
   tts_base_url: "",
-  irodori_base_url: "",
   broker_base_url: "",
   chat_model: "",
   chat_model_context_window: "",
   chat_api: "",
-  tts_provider: "",
-  tts_voice: "",
 };
 
 function baseConfig(): EndpointsConfig {
@@ -41,9 +38,8 @@ function baseConfig(): EndpointsConfig {
     chat_model: "natsume",
     stt_base_url: "http://localhost:5517",
     tts_base_url: "http://localhost:8092",
-    tts_provider: "irodori",
-    irodori_base_url: "http://localhost:8091",
-    irodori_speaker: "carlotta",
+    tts_model: "irodori-tts",
+    tts_speaker: "ナツメ",
   };
 }
 
@@ -342,19 +338,19 @@ describe("mergeEndpoints", () => {
     expect(out.chat_base_url).toBe("http://new:1/v1");
   });
 
-  it("applies all four URL overrides + chat_model", () => {
+  it("applies all URL overrides + chat_model", () => {
     const out = mergeEndpoints(baseConfig(), {
       ...EMPTY,
       chat_base_url: "http://c",
       stt_base_url: "http://s",
       tts_base_url: "http://t",
-      irodori_base_url: "http://i",
+      broker_base_url: "http://b",
       chat_model: "model-x",
     });
     expect(out.chat_base_url).toBe("http://c");
     expect(out.stt_base_url).toBe("http://s");
     expect(out.tts_base_url).toBe("http://t");
-    expect(out.irodori_base_url).toBe("http://i");
+    expect(out.broker_base_url).toBe("http://b");
     expect(out.chat_model).toBe("model-x");
   });
 
@@ -397,19 +393,19 @@ describe("mergeEndpoints", () => {
     expect(out.chat_model).toBe(base.chat_model);
   });
 
-  it("sets irodori_base_url even when base has none", () => {
+  it("sets broker_base_url even when base has none", () => {
     const base = baseConfig();
-    delete base.irodori_base_url;
-    const out = mergeEndpoints(base, { ...EMPTY, irodori_base_url: "http://i" });
-    expect(out.irodori_base_url).toBe("http://i");
+    delete base.broker_base_url;
+    const out = mergeEndpoints(base, { ...EMPTY, broker_base_url: "http://b" });
+    expect(out.broker_base_url).toBe("http://b");
   });
 
   it("preserves unrelated base fields", () => {
     const base = baseConfig();
     const out = mergeEndpoints(base, { ...EMPTY, chat_base_url: "http://new" });
     expect(out.chat_endpoint).toBe(base.chat_endpoint);
-    expect(out.irodori_speaker).toBe(base.irodori_speaker);
-    expect(out.tts_provider).toBe(base.tts_provider);
+    expect(out.tts_speaker).toBe(base.tts_speaker);
+    expect(out.tts_model).toBe(base.tts_model);
   });
 
   // ── broker_base_url override ──
@@ -444,37 +440,6 @@ describe("mergeEndpoints", () => {
     expect(out.broker_base_url).toBe("http://localhost:3201/mcp");
   });
 
-  // ── tts_provider override ──
-
-  it("applies tts_provider = 'openai'", () => {
-    const out = mergeEndpoints(baseConfig(), { ...EMPTY, tts_provider: "openai" });
-    expect(out.tts_provider).toBe("openai");
-  });
-
-  it("applies tts_provider = 'irodori'", () => {
-    const base = baseConfig();
-    base.tts_provider = "openai";
-    const out = mergeEndpoints(base, { ...EMPTY, tts_provider: "irodori" });
-    expect(out.tts_provider).toBe("irodori");
-  });
-
-  it("ignores an empty tts_provider override (keeps base default)", () => {
-    const base = baseConfig();
-    const out = mergeEndpoints(base, { ...EMPTY, tts_provider: "" });
-    expect(out.tts_provider).toBe(base.tts_provider);
-  });
-
-  it("ignores an unknown tts_provider override (keeps base default)", () => {
-    const base = baseConfig();
-    const out = mergeEndpoints(base, { ...EMPTY, tts_provider: "fishspeech" });
-    expect(out.tts_provider).toBe(base.tts_provider);
-  });
-
-  it("does not URL-validate tts_provider", () => {
-    const out = mergeEndpoints(baseConfig(), { ...EMPTY, tts_provider: "openai" });
-    expect(out.tts_provider).toBe("openai");
-  });
-
   // ── chat_api override ──
 
   it("applies chat_api = 'chat_completions'", () => {
@@ -505,10 +470,10 @@ describe("mergeEndpoints", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// broker_base_url + tts_provider — store set/get/persist/reload/reset
+// broker_base_url — store set/get/persist/reload/reset
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createEndpointsSettings — broker_base_url + tts_provider overrides", () => {
+describe("createEndpointsSettings — broker_base_url override", () => {
   it("set/get a broker_base_url override and persist it", () => {
     const storage: EndpointsStorage = { load: () => null, save: vi.fn() };
     const store = createEndpointsSettings({ storage });
@@ -520,55 +485,20 @@ describe("createEndpointsSettings — broker_base_url + tts_provider overrides",
     });
   });
 
-  it("set/get a tts_provider override and persist it", () => {
-    const storage: EndpointsStorage = { load: () => null, save: vi.fn() };
-    const store = createEndpointsSettings({ storage });
-    store.set({ tts_provider: "openai" });
-    expect(store.get().tts_provider).toBe("openai");
-    expect(storage.save).toHaveBeenCalledWith({ ...EMPTY, tts_provider: "openai" });
-  });
-
-  it("coerces a garbage tts_provider value to '' on set (no throw)", () => {
-    const store = createEndpointsSettings();
-    store.set({ tts_provider: "fishspeech" as unknown as string });
-    expect(store.get().tts_provider).toBe("");
-  });
-
-  it("coerces a non-string tts_provider value to '' on set", () => {
-    const store = createEndpointsSettings();
-    store.set({ tts_provider: 7 as unknown as string });
-    expect(store.get().tts_provider).toBe("");
-  });
-
-  it("loads a valid tts_provider from storage and coerces a garbage one to ''", () => {
-    const good: EndpointsStorage = {
-      load: () => ({ ...EMPTY, tts_provider: "irodori" }),
-      save: vi.fn(),
-    };
-    expect(createEndpointsSettings({ storage: good }).get().tts_provider).toBe("irodori");
-    const bad: EndpointsStorage = {
-      load: () => ({ ...EMPTY, tts_provider: "garbage" }) as unknown as EndpointOverrides,
-      save: vi.fn(),
-    };
-    expect(createEndpointsSettings({ storage: bad }).get().tts_provider).toBe("");
-  });
-
-  it("reset() clears both broker_base_url and tts_provider", () => {
+  it("reset() clears broker_base_url", () => {
     const store = createEndpointsSettings({
-      initial: { ...EMPTY, broker_base_url: "http://localhost:3201/mcp", tts_provider: "openai" },
+      initial: { ...EMPTY, broker_base_url: "http://localhost:3201/mcp" },
     });
     store.reset();
     expect(store.get().broker_base_url).toBe("");
-    expect(store.get().tts_provider).toBe("");
   });
 
-  it("reloadFromStorage applies externally-changed broker_base_url and tts_provider", () => {
+  it("reloadFromStorage applies an externally-changed broker_base_url", () => {
     const storage = makeMemStorage();
     const store = createEndpointsSettings({ storage });
-    storage._data = { ...EMPTY, broker_base_url: "http://other:3201/mcp", tts_provider: "openai" };
+    storage._data = { ...EMPTY, broker_base_url: "http://other:3201/mcp" };
     store.reloadFromStorage();
     expect(store.get().broker_base_url).toBe("http://other:3201/mcp");
-    expect(store.get().tts_provider).toBe("openai");
   });
 });
 
@@ -628,60 +558,6 @@ describe("createEndpointsSettings — chat_api override", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// tts_voice — store set/get/persist + mergeEndpoints
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("createEndpointsSettings — tts_voice override", () => {
-  it("set({ tts_voice: 'alloy' }) round-trips through get()", () => {
-    const store = createEndpointsSettings();
-    store.set({ tts_voice: "alloy" });
-    expect(store.get().tts_voice).toBe("alloy");
-  });
-
-  it("persists tts_voice via storage.save", () => {
-    const storage: EndpointsStorage = { load: () => null, save: vi.fn() };
-    const store = createEndpointsSettings({ storage });
-    store.set({ tts_voice: "alloy" });
-    expect(storage.save).toHaveBeenCalledWith({ ...EMPTY, tts_voice: "alloy" });
-  });
-
-  it("load coercion fills missing tts_voice with ''", () => {
-    const storage: EndpointsStorage = {
-      load: () => ({ chat_model: "only" }) as unknown as EndpointOverrides,
-      save: vi.fn(),
-    };
-    const store = createEndpointsSettings({ storage });
-    expect(store.get().tts_voice).toBe("");
-  });
-});
-
-describe("mergeEndpoints — tts_voice", () => {
-  it("overlays a non-empty tts_voice onto base", () => {
-    const out = mergeEndpoints(baseConfig(), { ...EMPTY, tts_voice: "alloy" });
-    expect(out.tts_voice).toBe("alloy");
-  });
-
-  it("ignores an empty tts_voice (keeps base default)", () => {
-    const base = baseConfig();
-    base.tts_voice = "shimmer";
-    const out = mergeEndpoints(base, { ...EMPTY, tts_voice: "" });
-    expect(out.tts_voice).toBe("shimmer");
-  });
-
-  it("trims tts_voice before applying", () => {
-    const out = mergeEndpoints(baseConfig(), { ...EMPTY, tts_voice: "  alloy  " });
-    expect(out.tts_voice).toBe("alloy");
-  });
-
-  it("ignores a whitespace-only tts_voice override", () => {
-    const base = baseConfig();
-    base.tts_voice = "shimmer";
-    const out = mergeEndpoints(base, { ...EMPTY, tts_voice: "   " });
-    expect(out.tts_voice).toBe("shimmer");
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // localStorageEndpointsStorage
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -727,22 +603,16 @@ describe("ENDPOINT_FIELD_SPECS", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it("assigns kind 'url' to the five base-url fields", () => {
+  it("assigns kind 'url' to the four base-url fields", () => {
     const urlKeys = ENDPOINT_FIELD_SPECS.filter((s) => s.kind === "url").map((s) => s.key);
     expect(urlKeys.sort()).toEqual(
-      [
-        "chat_base_url",
-        "stt_base_url",
-        "tts_base_url",
-        "irodori_base_url",
-        "broker_base_url",
-      ].sort(),
+      ["chat_base_url", "stt_base_url", "tts_base_url", "broker_base_url"].sort(),
     );
   });
 
-  it("assigns kind 'string' to chat_model/tts_voice", () => {
+  it("assigns kind 'string' to chat_model only", () => {
     const stringKeys = ENDPOINT_FIELD_SPECS.filter((s) => s.kind === "string").map((s) => s.key);
-    expect(stringKeys.sort()).toEqual(["chat_model", "tts_voice"].sort());
+    expect(stringKeys).toEqual(["chat_model"]);
   });
 
   it("assigns kind 'posInt' to chat_model_context_window only", () => {
@@ -750,11 +620,7 @@ describe("ENDPOINT_FIELD_SPECS", () => {
     expect(posIntKeys).toEqual(["chat_model_context_window"]);
   });
 
-  it("assigns kind 'enum' to tts_provider/chat_api with their valid-value lists", () => {
-    const ttsProvider = ENDPOINT_FIELD_SPECS.find((s) => s.key === "tts_provider")!;
-    expect(ttsProvider.kind).toBe("enum");
-    expect(ttsProvider.enum).toEqual(["irodori", "openai"]);
-
+  it("assigns kind 'enum' to chat_api with its valid-value list", () => {
     const chatApi = ENDPOINT_FIELD_SPECS.find((s) => s.key === "chat_api")!;
     expect(chatApi.kind).toBe("enum");
     expect(chatApi.enum).toEqual(["responses", "chat_completions"]);
@@ -763,8 +629,8 @@ describe("ENDPOINT_FIELD_SPECS", () => {
 
 // Pins the per-service reset behavior endpoints-section.ts's handleSvcReset derives from
 // `resetGroup` — grouping by resetGroup must reproduce today's hand-written reset sets exactly
-// (including the tts_provider/chat_api special-cases), or the reset buttons silently start
-// clearing more/less than before.
+// (including the chat_api special-case), or the reset buttons silently start clearing
+// more/less than before.
 describe("ENDPOINT_FIELD_SPECS — resetGroup (endpoints-section.ts per-service reset wiring)", () => {
   const bySvc = (svc: string): string[] =>
     ENDPOINT_FIELD_SPECS.filter((s) => s.resetGroup === svc)
@@ -779,10 +645,8 @@ describe("ENDPOINT_FIELD_SPECS — resetGroup (endpoints-section.ts per-service 
     expect(bySvc("stt")).toEqual(["stt_base_url"]);
   });
 
-  it("tts reset group is irodori_base_url + tts_base_url + tts_voice + tts_provider", () => {
-    expect(bySvc("tts")).toEqual(
-      ["irodori_base_url", "tts_base_url", "tts_provider", "tts_voice"].sort(),
-    );
+  it("tts reset group is tts_base_url only", () => {
+    expect(bySvc("tts")).toEqual(["tts_base_url"]);
   });
 
   it("broker reset group is broker_base_url only", () => {
@@ -832,7 +696,7 @@ describe("coerceFor — dispatch by ENDPOINT_FIELD_SPECS kind", () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // endpointDefaultsFromConfig — the single projection main.ts + settings-main.ts both call instead
-// of hand-writing the same 10-field literal (was written verbatim twice; see issue #518).
+// of hand-writing the same field-by-field literal.
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("endpointDefaultsFromConfig", () => {
@@ -841,13 +705,10 @@ describe("endpointDefaultsFromConfig", () => {
       chat_base_url: "http://localhost:8643/v1",
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
-      irodori_base_url: "http://localhost:8091",
       broker_base_url: "",
       chat_model: "natsume",
       chat_model_context_window: "",
       chat_api: "",
-      tts_voice: "",
-      tts_provider: "irodori",
     });
   });
 
@@ -856,7 +717,7 @@ describe("endpointDefaultsFromConfig", () => {
     expect(endpointDefaultsFromConfig(cfg).chat_model_context_window).toBe("64000");
   });
 
-  it("passes through chat_api/tts_provider enum values as-is", () => {
+  it("passes through the chat_api enum value as-is", () => {
     const cfg = { ...baseConfig(), chat_api: "chat_completions" as const };
     expect(endpointDefaultsFromConfig(cfg).chat_api).toBe("chat_completions");
   });

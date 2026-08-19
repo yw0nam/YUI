@@ -4,14 +4,13 @@ import { ConfigError } from "./shared";
 
 const FILE = "endpoints.json";
 
-/** Minimal valid endpoints config — openai TTS provider (no irodori_* required). */
+/** Minimal valid endpoints config. */
 function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     chat_base_url: "http://localhost:8642",
     chat_endpoint: "/v1/responses",
     stt_base_url: "http://localhost:5517",
     tts_base_url: "http://localhost:8092",
-    tts_provider: "openai",
     ...overrides,
   };
 }
@@ -32,7 +31,7 @@ function expectIssue(raw: unknown, fragment: string): void {
 }
 
 describe("validateEndpoints — happy path", () => {
-  it("accepts a minimal openai-provider config", () => {
+  it("accepts a minimal config", () => {
     const out = validateEndpoints(FILE, baseRaw());
     expect(out).toEqual(baseRaw());
   });
@@ -44,9 +43,8 @@ describe("validateEndpoints — happy path", () => {
         chat_model: "natsume",
         chat_instructions: "use generate_express",
         chat_api: "responses",
-        tts_model: "tts-1",
-        tts_voice: "alloy",
-        tts_speed: 1.2,
+        tts_model: "irodori-tts",
+        tts_speaker: "ナツメ",
         chat_model_context_window: 128000,
         tts_max_inflight: 2,
       }),
@@ -54,38 +52,14 @@ describe("validateEndpoints — happy path", () => {
     expect(out.chat_model).toBe("natsume");
     expect(out.chat_instructions).toBe("use generate_express");
     expect(out.chat_api).toBe("responses");
-    expect(out.tts_model).toBe("tts-1");
-    expect(out.tts_voice).toBe("alloy");
-    expect(out.tts_speed).toBe(1.2);
+    expect(out.tts_model).toBe("irodori-tts");
+    expect(out.tts_speaker).toBe("ナツメ");
     expect(out.chat_model_context_window).toBe(128000);
     expect(out.tts_max_inflight).toBe(2);
   });
 
-  it("defaults tts_provider to openai, requiring no irodori fields", () => {
-    const out = validateEndpoints(FILE, baseRaw({ tts_provider: undefined }));
-    expect(out.tts_provider).toBe("openai");
-    expect(out.irodori_base_url).toBeUndefined();
-    expect(out.irodori_speaker).toBeUndefined();
-  });
-
-  it("accepts a full irodori numeric-knobs manifest", () => {
-    const out = validateEndpoints(
-      FILE,
-      baseRaw({
-        tts_provider: "irodori",
-        irodori_base_url: "http://localhost:9000",
-        irodori_speaker: "natsume",
-        irodori_num_steps: 10,
-        irodori_cfg_scale_text: 2.5,
-        irodori_cfg_scale_speaker: 1.5,
-        irodori_seconds: 8,
-        broker_base_url: "http://localhost:9100",
-      }),
-    );
-    expect(out.irodori_num_steps).toBe(10);
-    expect(out.irodori_cfg_scale_text).toBe(2.5);
-    expect(out.irodori_cfg_scale_speaker).toBe(1.5);
-    expect(out.irodori_seconds).toBe(8);
+  it("carries through broker_base_url", () => {
+    const out = validateEndpoints(FILE, baseRaw({ broker_base_url: "http://localhost:9100" }));
     expect(out.broker_base_url).toBe("http://localhost:9100");
   });
 });
@@ -98,7 +72,6 @@ describe("validateEndpoints — unconfigured (empty) endpoints", () => {
       chat_endpoint: "",
       stt_base_url: "",
       tts_base_url: "",
-      tts_provider: "openai",
     });
   });
 
@@ -126,26 +99,9 @@ describe("validateEndpoints — unconfigured (empty) endpoints", () => {
     expect(out.chat_endpoint).toBe("");
   });
 
-  it("reads an empty irodori_base_url as unset rather than a malformed URL", () => {
-    const out = validateEndpoints(FILE, baseRaw({ irodori_base_url: "" }));
-    expect(out.irodori_base_url).toBeUndefined();
-  });
-
   it("reads an empty broker_base_url as unset rather than a malformed URL", () => {
     const out = validateEndpoints(FILE, baseRaw({ broker_base_url: "" }));
     expect(out.broker_base_url).toBeUndefined();
-  });
-
-  it("reads an empty tts_provider as unset and resolves it to the openai default", () => {
-    const out = validateEndpoints(FILE, baseRaw({ tts_provider: "" }));
-    expect(out.tts_provider).toBe("openai");
-  });
-
-  it("still requires irodori_base_url when the provider is explicitly irodori", () => {
-    expectIssue(
-      baseRaw({ tts_provider: "irodori", irodori_base_url: "", irodori_speaker: "natsume" }),
-      "irodori_base_url는 http(s) URL이어야 함",
-    );
   });
 });
 
@@ -211,112 +167,24 @@ describe("validateEndpoints — chat_model / chat_instructions / chat_api", () =
   });
 });
 
-describe("validateEndpoints — tts_model / tts_voice / tts_speed", () => {
+describe("validateEndpoints — tts_model / tts_speaker", () => {
   it("rejects an empty tts_model", () => {
     expectIssue(baseRaw({ tts_model: "" }), "tts_model는 비어있지 않은 문자열이어야 함");
   });
 
-  it("rejects an empty tts_voice", () => {
-    expectIssue(baseRaw({ tts_voice: "   " }), "tts_voice는 비어있지 않은 문자열이어야 함");
+  it("rejects an empty tts_speaker", () => {
+    expectIssue(baseRaw({ tts_speaker: "   " }), "tts_speaker는 비어있지 않은 문자열이어야 함");
   });
 
-  it("rejects tts_speed below 0.25", () => {
-    expectIssue(baseRaw({ tts_speed: 0.1 }), "tts_speed는 0.25~4.0");
+  it("accepts a non-ASCII tts_speaker verbatim — voice ids are opaque strings", () => {
+    const out = validateEndpoints(FILE, baseRaw({ tts_speaker: "ムラサメ" }));
+    expect(out.tts_speaker).toBe("ムラサメ");
   });
 
-  it("rejects tts_speed above 4.0", () => {
-    expectIssue(baseRaw({ tts_speed: 4.5 }), "tts_speed는 0.25~4.0");
-  });
-});
-
-describe("validateEndpoints — tts_provider", () => {
-  it("rejects an unknown tts_provider", () => {
-    expectIssue(baseRaw({ tts_provider: "elevenlabs" }), "tts_provider는");
-  });
-});
-
-describe("validateEndpoints — irodori requireds when provider=irodori", () => {
-  it("rejects missing irodori_base_url", () => {
-    expectIssue(
-      baseRaw({ tts_provider: "irodori", irodori_speaker: "natsume" }),
-      "irodori_base_url는 http(s) URL이어야 함",
-    );
-  });
-
-  it("rejects an invalid irodori_base_url", () => {
-    expectIssue(
-      baseRaw({
-        tts_provider: "irodori",
-        irodori_base_url: "not-a-url",
-        irodori_speaker: "natsume",
-      }),
-      "irodori_base_url는 http(s) URL이어야 함",
-    );
-  });
-
-  it("rejects missing irodori_speaker", () => {
-    expectIssue(
-      baseRaw({ tts_provider: "irodori", irodori_base_url: "http://localhost:9000" }),
-      "irodori_speaker는 비어있지 않은 문자열이어야 함",
-    );
-  });
-
-  it("rejects an empty irodori_speaker", () => {
-    expectIssue(
-      baseRaw({
-        tts_provider: "irodori",
-        irodori_base_url: "http://localhost:9000",
-        irodori_speaker: "  ",
-      }),
-      "irodori_speaker는 비어있지 않은 문자열이어야 함",
-    );
-  });
-
-  it("requires irodori_speaker even when only irodori_speaker is set without an explicit provider", () => {
-    expectIssue(
-      baseRaw({ tts_provider: undefined, irodori_speaker: "" }),
-      "irodori_speaker는 비어있지 않은 문자열이어야 함",
-    );
-  });
-});
-
-describe("validateEndpoints — irodori numeric knobs", () => {
-  const irodoriBase = {
-    tts_provider: "irodori" as const,
-    irodori_base_url: "http://localhost:9000",
-    irodori_speaker: "natsume",
-  };
-
-  it("rejects a non-integer irodori_num_steps", () => {
-    expectIssue(
-      baseRaw({ ...irodoriBase, irodori_num_steps: 1.5 }),
-      "irodori_num_steps는 1 이상 정수여야 함",
-    );
-  });
-
-  it("rejects irodori_num_steps below 1", () => {
-    expectIssue(
-      baseRaw({ ...irodoriBase, irodori_num_steps: 0 }),
-      "irodori_num_steps는 1 이상 정수여야 함",
-    );
-  });
-
-  it("rejects a non-positive irodori_cfg_scale_text", () => {
-    expectIssue(
-      baseRaw({ ...irodoriBase, irodori_cfg_scale_text: 0 }),
-      "irodori_cfg_scale_text는 0보다 큰 유한 number여야 함",
-    );
-  });
-
-  it("rejects a non-finite irodori_cfg_scale_speaker", () => {
-    expectIssue(
-      baseRaw({ ...irodoriBase, irodori_cfg_scale_speaker: Number.POSITIVE_INFINITY }),
-      "irodori_cfg_scale_speaker는 0보다 큰 유한 number여야 함",
-    );
-  });
-
-  it("rejects a non-positive irodori_seconds", () => {
-    expectIssue(baseRaw({ ...irodoriBase, irodori_seconds: -1 }), "irodori_seconds는 0보다 큰");
+  it("omits tts_model / tts_speaker when unset", () => {
+    const out = validateEndpoints(FILE, baseRaw());
+    expect(out.tts_model).toBeUndefined();
+    expect(out.tts_speaker).toBeUndefined();
   });
 });
 

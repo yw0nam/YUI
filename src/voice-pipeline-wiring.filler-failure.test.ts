@@ -72,7 +72,6 @@ function setup(): VoicePipeline {
       chat_endpoint: "/responses",
       stt_base_url: "http://stt.test/v1",
       tts_base_url: "http://tts.test",
-      tts_provider: "openai",
     }),
     // gap 0 so every filler cycle lands on the next macrotask instead of a wall-clock wait.
     getFillerConfig: () => ({ gap_ms: 0, gap_jitter_ms: 0, pools: {} }),
