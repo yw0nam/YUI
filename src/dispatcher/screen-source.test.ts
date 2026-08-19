@@ -5,10 +5,11 @@
  *  - app_switched: previous app held >= prev_dwell_ms, new app then settles settle_ms.
  *  - long_session: same app foreground for long_session_ms, re-marking each period.
  *  - app identity only — a window-title change is never a transition and never restarts dwell.
- *  - suppression reasons: disabled / not_present / min_gap / quiet_after_turn.
+ *  - suppression reasons: disabled / not_present / global_gap / min_gap / quiet_after_turn.
  *  - a suppressed long_session mark is skipped, not queued.
  *  - absence resets the dwell and long-session clocks; time away never counts.
  *  - every fire re-anchors the idle-cue gap via noteInteraction.
+ *  - a held app_switched accumulates into a capped `recent` buffer, shipped on the next fire.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -581,6 +582,119 @@ describe("screen_source — recent buffer", () => {
         ],
       },
     });
+  });
+
+  it("drains to a cap lowered mid-hold, not just one entry short of the old length", async () => {
+    let holding = true;
+    let cap = 5;
+    const s = setup({ isPacerHolding: () => holding, getConfig: () => ({ ...CFG, recent_cap: cap }) });
+    await s.src.start();
+
+    s.at(0, tick("App1"));
+    s.at(10 * MIN, tick("App2")); // App1 dwell 10min
+    s.at(10 * MIN + 90_000, tick("App2")); // suppressed 1: App1 -> App2
+
+    s.at(20 * MIN, tick("App3")); // App2 dwell 10min
+    s.at(20 * MIN + 90_000, tick("App3")); // suppressed 2: App2 -> App3
+
+    s.at(30 * MIN, tick("App4")); // App3 dwell 10min
+    s.at(30 * MIN + 90_000, tick("App4")); // suppressed 3: App3 -> App4 — buffer at 3, still under cap 5
+
+    cap = 1; // lowered mid-hold, below the buffer's current length
+    s.at(40 * MIN, tick("App5")); // App4 dwell 10min
+    s.at(40 * MIN + 90_000, tick("App5")); // suppressed 4 — must drain to the new cap in one push, not shift once
+
+    holding = false;
+    s.at(85 * MIN, tick("App5")); // long_session mark ships the buffer
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]).toMatchObject({
+      payload: { recent: [{ from_app: "App4", to_app: "App5", dwell_min: 10 }] },
+    });
+  });
+
+  it("drains fully when the cap changes to 0 mid-hold, no special-cased early return", async () => {
+    let holding = true;
+    let cap = 5;
+    const s = setup({ isPacerHolding: () => holding, getConfig: () => ({ ...CFG, recent_cap: cap }) });
+    await s.src.start();
+
+    s.at(0, tick("App1"));
+    s.at(10 * MIN, tick("App2")); // App1 dwell 10min
+    s.at(10 * MIN + 90_000, tick("App2")); // suppressed 1: App1 -> App2 — buffer at 1
+
+    cap = 0;
+    s.at(20 * MIN, tick("App3")); // App2 dwell 10min
+    s.at(20 * MIN + 90_000, tick("App3")); // suppressed 2 — must push then drain to empty, not leave the stale entry
+
+    holding = false;
+    s.at(65 * MIN, tick("App3")); // long_session mark ships the (empty) buffer
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]?.payload).not.toHaveProperty("recent");
+  });
+
+  it("does not mutate an already-shipped envelope's recent when the buffer accumulates again", async () => {
+    let holding = true;
+    const s = setup({ isPacerHolding: () => holding });
+    await s.src.start();
+
+    s.at(0, tick("App1"));
+    s.at(10 * MIN, tick("App2")); // App1 dwell 10min
+    s.at(10 * MIN + 90_000, tick("App2")); // suppressed: App1 -> App2 — buffer at 1
+
+    holding = false;
+    s.at(55 * MIN, tick("App2")); // long_session mark ships [App1 -> App2]
+    expect(s.pushed).toHaveLength(1);
+    const shipped = s.pushed[0];
+    expect(shipped).toMatchObject({
+      payload: { recent: [{ from_app: "App1", to_app: "App2", dwell_min: 10 }] },
+    });
+
+    holding = true;
+    s.at(65 * MIN, tick("App3")); // App2 dwell 55min
+    s.at(65 * MIN + 90_000, tick("App3")); // suppressed again: App2 -> App3 accumulates into the fresh buffer
+
+    // The earlier envelope's payload must still read exactly as it did when it shipped.
+    expect(shipped).toMatchObject({
+      payload: { recent: [{ from_app: "App1", to_app: "App2", dwell_min: 10 }] },
+    });
+  });
+
+  it("a min_gap suppression with the pacer open never buffers", async () => {
+    const s = setup({ isPacerHolding: () => false });
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(45 * MIN, tick("Cursor")); // accepted long_session fire — lastFireTs = 45min
+    expect(s.pushed).toHaveLength(1);
+
+    s.at(45 * MIN + 1_000, tick("Slack")); // Cursor dwell ~45min — a valid switch
+    s.at(45 * MIN + 91_000, tick("Slack")); // settles within min_gap of the prior fire
+    expect(s.appendSkipRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({ reason: "min_gap", transition: "app_switched" }),
+    );
+
+    // Next long_session mark on Slack fires cleanly — the min_gap suppression above never buffered.
+    s.at(45 * MIN + 1_000 + 45 * MIN, tick("Slack"));
+    expect(s.pushed).toHaveLength(2);
+    expect(s.pushed[1]?.payload).not.toHaveProperty("recent");
+  });
+
+  it("a quiet_after_turn suppression with the pacer open never buffers", async () => {
+    const s = setup({ isPacerHolding: () => false });
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(10 * MIN, tick("Slack")); // Cursor dwell 10min
+    s.turnAt(10 * MIN + 60_000);
+    s.at(10 * MIN + 90_000, tick("Slack")); // settles within quiet_after_turn_ms of the turn
+    expect(s.appendSkipRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({ reason: "quiet_after_turn", transition: "app_switched" }),
+    );
+
+    // Next long_session mark on Slack fires cleanly — the quiet_after_turn suppression never buffered.
+    s.at(55 * MIN, tick("Slack"));
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]?.payload).not.toHaveProperty("recent");
   });
 
   it("clears the buffer when a candidate is refused because the feature is disabled", async () => {
