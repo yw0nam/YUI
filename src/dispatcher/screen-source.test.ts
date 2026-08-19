@@ -638,6 +638,34 @@ describe("screen_source — recent buffer", () => {
     expect(s.pushed[0]?.payload).not.toHaveProperty("recent");
   });
 
+  it("drains to a cap lowered mid-hold even with no further suppression before the next fire", async () => {
+    let holding = true;
+    let cap = 5;
+    const s = setup({
+      isPacerHolding: () => holding,
+      getConfig: () => ({ ...CFG, recent_cap: cap }),
+    });
+    await s.src.start();
+
+    s.at(0, tick("App1"));
+    s.at(10 * MIN, tick("App2")); // App1 dwell 10min
+    s.at(10 * MIN + 90_000, tick("App2")); // suppressed 1: App1 -> App2
+
+    s.at(20 * MIN, tick("App3")); // App2 dwell 10min
+    s.at(20 * MIN + 90_000, tick("App3")); // suppressed 2: App2 -> App3
+
+    s.at(30 * MIN, tick("App4")); // App3 dwell 10min
+    s.at(30 * MIN + 90_000, tick("App4")); // suppressed 3: App3 -> App4 — buffer at 3, still under cap 5
+
+    cap = 1; // lowered mid-hold; no further switch happens before the next fire
+    holding = false;
+    s.at(75 * MIN, tick("App4")); // long_session mark on App4 — must still ship only the new cap
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]).toMatchObject({
+      payload: { recent: [{ from_app: "App3", to_app: "App4", dwell_min: 10 }] },
+    });
+  });
+
   it("does not mutate an already-shipped envelope's recent when the buffer accumulates again", async () => {
     let holding = true;
     const s = setup({ isPacerHolding: () => holding });
@@ -722,6 +750,27 @@ describe("screen_source — recent buffer", () => {
     enabled = true;
     holding = false;
     s.at(100 * MIN, tick("Slack")); // fires with an empty buffer
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]?.payload).not.toHaveProperty("recent");
+  });
+
+  it("clears the buffer on any tick while disabled, even with no candidate that tick", async () => {
+    let holding = true;
+    let enabled = true;
+    const s = setup({ isPacerHolding: () => holding, isEnabled: () => enabled });
+    await s.src.start();
+
+    s.at(0, tick("App1"));
+    s.at(10 * MIN, tick("App2")); // App1 dwell 10min
+    s.at(10 * MIN + 90_000, tick("App2")); // suppressed: App1 -> App2 — buffer at 1
+
+    enabled = false;
+    s.at(15 * MIN, tick("App2")); // passive tick while disabled — no transition candidate this tick
+    s.at(16 * MIN, tick("App2")); // another passive tick while still disabled
+
+    enabled = true;
+    holding = false;
+    s.at(55 * MIN, tick("App2")); // long_session mark — no candidate ever arose while disabled
     expect(s.pushed).toHaveLength(1);
     expect(s.pushed[0]?.payload).not.toHaveProperty("recent");
   });
