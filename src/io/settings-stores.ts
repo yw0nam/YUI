@@ -44,6 +44,11 @@ export const createPresenceStore = (
     { storage },
   );
 
+/** Global proactive gap held after any turn start, in ms. 0 disables the pacer; ceiling is 3 h. */
+export const createPacerGapStore = (
+  storage: PersistedStorage<{ value: number }> = localStorageStore("yui.proactive-pacer-gap"),
+) => createClampedIntSettings({ default: 600000, floor: 0, ceil: 10800000 }, { storage });
+
 // localStorage-backed settings/state stores. Pure instantiation — no wiring, no renderer,
 // no dispatcher. bootstrap() destructures the bag and owns the wiring (renderer, storage-sync).
 export function createSettingsStores(opts?: { locale?: CueLocale }) {
@@ -83,6 +88,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   });
   // Presence window threshold — "present when idle ≤ N ms". Shared by proactive/agent sources.
   const presenceSettings = createPresenceStore();
+  // Global quiet gap every proactive source waits out after a turn start.
+  const pacerGapSettings = createPacerGapStore();
   const contextHistory = createContextHistory({
     storage: localStorageContextHistory(),
   });
@@ -158,6 +165,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     screenKnobSettings,
     agentNotifySettings,
     presenceSettings,
+    pacerGapSettings,
     contextHistory,
     lipsyncSettings,
     vadSettings,
@@ -205,6 +213,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   screenKnobSettings: "broadcast",
   agentNotifySettings: "broadcast",
   presenceSettings: "broadcast",
+  pacerGapSettings: "broadcast",
   contextHistory: "reload",
   lipsyncSettings: "broadcast",
   vadSettings: "broadcast",

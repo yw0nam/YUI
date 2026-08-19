@@ -23,6 +23,7 @@ import { createBackendCaller, isChatConfigured } from "./dispatcher/backend-call
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./dispatcher/guardrails";
+import { createProactivePacer } from "./dispatcher/proactive-pacer";
 import { createTurnLog } from "./dispatcher/turn";
 import type { UserInputSource } from "./dispatcher/user-input-source";
 import { initDrag } from "./drag";
@@ -155,6 +156,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       screenSettings,
       screenKnobSettings,
       presenceSettings,
+      pacerGapSettings,
       contextHistory,
       lipsyncSettings,
       vadSettings,
@@ -251,6 +253,9 @@ const realFactories: ConfiguredBootstrapFactories = {
       clientTools: () => createClientToolRegistry([createGenerateExpressTool(broker.vocabulary())]),
     });
     const guardrails = createGuardrails(getGuardrails());
+    const pacer = createProactivePacer({ getIntervalMs: () => pacerGapSettings.get().value });
+    register(pacer.stop);
+    register(pacerGapSettings.subscribe(() => pacer.noteIntervalChanged()));
     register(wireGuardrailsOverrides({ guardrails, store: guardrailsSettings, getGuardrails }));
     const dispatcher = createDispatcher({
       bus,
@@ -264,6 +269,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       peekConfig: () => config.get().avatar.peek,
       tapConfig: () => config.get().avatar.tap,
       turnLog,
+      pacer,
+      appendSkipRecord: (record) => appendRecord(record),
       onUserTurnFailed: (reason, source) => {
         const message = turnErrorMessage(reason);
         if (!message) return;
@@ -348,6 +355,7 @@ const realFactories: ConfiguredBootstrapFactories = {
           isBusy: dispatcher.isPipelineBusy,
           subscribe: dispatcher.subscribePipelineBusy,
         },
+        pacer,
       });
     proactiveSourceRef = proactiveSource;
     register(proactiveSource.stop);

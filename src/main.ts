@@ -175,6 +175,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     workflowSettings,
     agentNotifySettings,
     presenceSettings,
+    pacerGapSettings,
     screenSettings,
     screenKnobSettings,
     lipsyncSettings,
@@ -281,6 +282,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       agentNotifySettings,
       bubblePersistSettings,
       presenceSettings,
+      pacerGapSettings,
       rateLimitSettings: guardrailsSettings,
       getRateLimitDefaults: () => {
         try {

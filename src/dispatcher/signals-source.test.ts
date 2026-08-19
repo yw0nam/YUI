@@ -16,6 +16,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import { composePacedPipelineBusy } from "../bootstrap-wiring";
 import type { SignalsBatch } from "../io/signals-inbox";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import type { BusEnvelope, EventBus } from "./event-bus";
@@ -411,6 +412,96 @@ describe("signals_source — pipeline-busy buffering (spec §2b/#451)", () => {
     expect(pushed[0].event_name).toBe("signals.push");
 
     src.stop();
+  });
+});
+
+/** Pacer stub whose hold state the test drives directly. */
+function fakePacer(holding: boolean): {
+  isHolding: () => boolean;
+  subscribe: (cb: (holding: boolean) => void) => () => void;
+  setHolding: (holding: boolean) => void;
+} {
+  let current = holding;
+  const subscribers = new Set<(holding: boolean) => void>();
+  return {
+    isHolding: () => current,
+    subscribe: (cb) => {
+      subscribers.add(cb);
+      return () => {
+        subscribers.delete(cb);
+      };
+    },
+    setHolding: (next) => {
+      current = next;
+      for (const cb of subscribers) cb(next);
+    },
+  };
+}
+
+describe("signals_source — global pacer composed into the busy predicate (#689)", () => {
+  function startPaced() {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+    const pipelineBusy = fakePipelineBusy(false);
+    const pacer = fakePacer(true);
+    // The same composition bootstrap hands the buffered-inbox sources.
+    const paced = composePacedPipelineBusy({
+      pipelineBusy: {
+        isBusy: pipelineBusy.isPipelineBusy,
+        subscribe: pipelineBusy.subscribePipelineBusy,
+      },
+      pacer,
+    });
+    const src = createSignalsSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+      isPipelineBusy: paced.isBusy,
+      subscribePipelineBusy: paced.subscribe,
+    });
+    return { pushed, emitIdle, emitInbox, pacer, src };
+  }
+
+  it("buffers a live arrival while the pacer holds, though the pipeline itself is idle", async () => {
+    const s = startPaced();
+    await s.src.start();
+
+    s.emitIdle(idleTick(LOW_IDLE)); // present
+    s.emitInbox(batch([{ id: 1 }], 1000));
+
+    expect(s.pushed).toHaveLength(0);
+    s.src.stop();
+  });
+
+  it("flushes exactly ONE catchup on the window-open edge", async () => {
+    const s = startPaced();
+    await s.src.start();
+
+    s.emitIdle(idleTick(LOW_IDLE));
+    s.emitInbox(batch([{ id: 1 }], 1000));
+    s.emitInbox(batch([{ id: 2 }], 2000));
+
+    s.pacer.setHolding(false);
+
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0].event_name).toBe("signals.catchup");
+    const p = s.pushed[0].payload as { signals: Array<{ id: number }> };
+    expect(p.signals).toEqual([{ id: 1 }, { id: 2 }]);
+    s.src.stop();
+  });
+
+  it("fires nothing on the window-open edge when the buffer is empty", async () => {
+    const s = startPaced();
+    await s.src.start();
+
+    s.emitIdle(idleTick(LOW_IDLE));
+    s.pacer.setHolding(false);
+
+    expect(s.pushed).toHaveLength(0);
+    s.src.stop();
   });
 });
 

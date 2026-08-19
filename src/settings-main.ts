@@ -56,6 +56,7 @@ async function bootstrap(): Promise<void> {
     workflowSettings,
     agentNotifySettings,
     presenceSettings,
+    pacerGapSettings,
     screenSettings,
     screenKnobSettings,
     guardrailsSettings,
@@ -182,6 +183,7 @@ async function bootstrap(): Promise<void> {
       workflowSettings,
       agentNotifySettings,
       presenceSettings,
+      pacerGapSettings,
       rateLimitSettings: guardrailsSettings,
       getRateLimitDefaults: () => {
         if (!configLoaded) return undefined;

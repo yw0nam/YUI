@@ -31,6 +31,7 @@ describe("createSettingsStores", () => {
       "screenKnobSettings",
       "agentNotifySettings",
       "presenceSettings",
+      "pacerGapSettings",
       "contextHistory",
       "lipsyncSettings",
       "vadSettings",
@@ -71,6 +72,7 @@ describe("createSettingsStores", () => {
     ["railCollapsedSettings", "yui.quickControls.railCollapsed", false, true],
     ["bubblePersistSettings", "yui.bubble-persist", false, true],
     ["presenceSettings", "yui.presence", 180000, 200000],
+    ["pacerGapSettings", "yui.proactive-pacer-gap", 600000, 0],
   ] as const)("binds %s to %s with default %s", (storeName, key, defaultValue, nextValue) => {
     localStorage.clear();
     const store = createSettingsStores()[storeName] as FlagSettingsStore | ClampedIntSettingsStore;

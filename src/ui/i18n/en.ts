@@ -385,6 +385,10 @@ const en: Record<string, string> = {
   "reactions.presence_sub": "Treat the session as present if the idle gap is below this",
   "reactions.seconds_suffix": "s",
   "reactions.restart_hint": "Restart the app to apply this change",
+  "reactions.pacer_gap_label": "Proactive gap",
+  "reactions.pacer_gap_sub": "Minimum quiet gap after any turn before YUI speaks up on her own",
+  "reactions.pacer_gap_hint": "0 lets every source speak up without waiting.",
+  "reactions.minutes_suffix": "min",
   "reactions.rate_title": "Hourly limits",
   "reactions.rate_hint":
     "Backstop on how often YUI speaks up on her own. Your own messages are never counted. Empty means the shipped default.",

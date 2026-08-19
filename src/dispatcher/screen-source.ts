@@ -14,8 +14,9 @@
  *
  * Presence lapsing resets both clocks: time away never counts toward a dwell or a session.
  * A candidate that survives to the gate is refused when the feature is off, the user is away,
- * the min gap since the last screen fire has not passed, or a turn from any producer landed
- * within `quiet_after_turn_ms`. A refused `long_session` mark is skipped, not queued — the
+ * the min gap since the last screen fire has not passed, a turn from any producer landed
+ * within `quiet_after_turn_ms`, or the global proactive pacer still holds its window open.
+ * A refused `long_session` mark is skipped, not queued — the
  * next fire is the next mark. Every fire re-anchors the idle-cue gap so proactive cues do not
  * pile onto it.
  *
@@ -26,15 +27,13 @@
 import type { ScreenConfig } from "../config";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import { subscribeOsEvent } from "../io/tauri-listen";
-import { buildSkipRecord, type ScreenSkipReason, type SkipRecord } from "../io/turn-record-log";
+import { buildSkipRecord, type ScreenSkipRecord, type SkipReason } from "../io/turn-record-log";
 import { createLogger } from "../logger";
 import type { BusEnvelope, EventBus } from "./event-bus";
 
 const log = createLogger("screen-source");
 
 type ScreenTransition = "app_switched" | "long_session";
-
-type SuppressionReason = ScreenSkipReason;
 
 /** The app left behind by an identity change, awaiting the new app's settle. */
 interface PendingSwitch {
@@ -53,8 +52,10 @@ interface ScreenSourceDeps {
   noteInteraction?: () => void;
   /** Backend-turn busy edges — each one re-anchors the quiet-after-turn window. */
   subscribeBusy?: (cb: (busy: boolean) => void) => () => void;
+  /** Global proactive gap — a candidate inside the window is skipped, not queued. */
+  isPacerHolding?: () => boolean;
   /** Skip-record JSONL sink — best-effort disk log of suppressed fires for analysis. */
-  appendSkipRecord?: (record: SkipRecord) => void;
+  appendSkipRecord?: (record: ScreenSkipRecord) => void;
   /** Injectable channel listen; defaults to the resolved Tauri `listen`. */
   listen?: OsEventListen;
   /** Injectable clock; defaults to Date.now. */
@@ -84,7 +85,7 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
   let lastTurnTs: number | undefined;
   let away = false;
 
-  function suppressionReason(t: number, present: boolean): SuppressionReason | undefined {
+  function suppressionReason(t: number, present: boolean): SkipReason | undefined {
     if (!isEnabled()) return "disabled";
     if (!present) return "not_present";
     const cfg = getConfig();
@@ -92,6 +93,7 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
       return "quiet_after_turn";
     }
     if (lastFireTs !== undefined && t - lastFireTs < cfg.min_gap_ms) return "min_gap";
+    if (deps.isPacerHolding?.()) return "global_gap";
     return undefined;
   }
 

@@ -158,6 +158,8 @@ interface QuickControlsOptions {
   bubblePersistSettings?: FlagSettingsStore;
   /** Away detection store. If absent, presence row in Reactions tab won't render. */
   presenceSettings?: ClampedIntSettingsStore;
+  /** Global proactive gap store. If absent, that row in the Reactions tab won't render. */
+  pacerGapSettings?: ClampedIntSettingsStore;
   /** Guardrail rate-limit overrides. If absent, the cap rows in Reactions tab won't render. */
   rateLimitSettings?: GuardrailsSettingsStore;
   /** Bundled config caps shown when a field carries no override (undefined if not loaded). */
@@ -381,6 +383,7 @@ export function createQuickControls({
   agentNotifySettings,
   bubblePersistSettings,
   presenceSettings,
+  pacerGapSettings,
   rateLimitSettings,
   getRateLimitDefaults,
   screenSettings,
@@ -431,6 +434,7 @@ export function createQuickControls({
     switchRows: TOGGLE_SPECS,
     showScreen: !!screenSettings && !!screenKnobSettings,
     showPresence: !!presenceSettings,
+    showPacerGap: !!pacerGapSettings,
     showRateLimits: !!rateLimitSettings,
     showDevtools: !isWindow && !!onOpenDevtools,
     showHistory: !!transcript,
@@ -441,6 +445,7 @@ export function createQuickControls({
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const agentPortInput = el.querySelector<HTMLInputElement>("#yui-agent-port");
   const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
+  const pacerGapInput = el.querySelector<HTMLInputElement>("#yui-pacer-gap");
   const rateLimitInputs = new Map<keyof RateLimitOverrides, HTMLInputElement>();
   for (const field of RATE_LIMIT_FIELDS) {
     const input = el.querySelector<HTMLInputElement>(`#${field.id}`);
@@ -552,6 +557,8 @@ export function createQuickControls({
     agentPortInput: agentPortInput ?? undefined,
     presenceInput: presenceInput ?? undefined,
     presenceSettings,
+    pacerGapInput: pacerGapInput ?? undefined,
+    pacerGapSettings,
     rateLimitInputs,
     rateLimitSettings,
     getRateLimitDefaults,
@@ -614,6 +621,7 @@ export function createQuickControls({
       reflect.reflectSwitchRows();
       reflect.reflectAgentNotify();
       reflect.reflectPresence();
+      reflect.reflectPacerGap();
       reflect.reflectRateLimits();
       reflect.reflectScreen();
       reflect.reflectVoiceStatus(voiceStatus.get());
@@ -1066,6 +1074,9 @@ export function createQuickControls({
   const unsubscribePresence = presenceSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectPresence();
   });
+  const unsubscribePacerGap = pacerGapSettings?.subscribe(() => {
+    if (popover.isOpen()) reflect.reflectPacerGap();
+  });
   const unsubscribeRateLimit = rateLimitSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectRateLimits();
   });
@@ -1089,6 +1100,12 @@ export function createQuickControls({
     const v = Math.round(Number(presenceInput.value));
     presenceSettings.set(v * 1000);
     reflect.reflectPresence();
+  }
+  function handlePacerGapChange(): void {
+    if (!pacerGapSettings || !pacerGapInput) return;
+    const v = Math.round(Number(pacerGapInput.value));
+    pacerGapSettings.set(v * 60_000);
+    reflect.reflectPacerGap();
   }
   // Commit on change (blur / Enter), the same settle point as the agent port — a mid-typing
   // keystroke must not re-cap the live limiter. An emptied field clears the override.
@@ -1137,6 +1154,8 @@ export function createQuickControls({
   agentPortInput?.addEventListener("change", handleAgentPortChange);
   presenceInput?.addEventListener("change", handlePresenceChange);
   presenceInput?.addEventListener("blur", reflect.reflectPresence);
+  pacerGapInput?.addEventListener("change", handlePacerGapChange);
+  pacerGapInput?.addEventListener("blur", reflect.reflectPacerGap);
   for (const input of rateLimitInputs.values()) {
     input.addEventListener("change", handleRateLimitChange);
     input.addEventListener("blur", reflect.reflectRateLimits);
@@ -1288,6 +1307,7 @@ export function createQuickControls({
     unsubscribeBubblePersist?.();
     unsubscribeAgentNotify?.();
     unsubscribePresence?.();
+    unsubscribePacerGap?.();
     unsubscribeRateLimit?.();
     unsubscribeScreen?.();
     unsubscribeScreenKnobs?.();
@@ -1300,6 +1320,8 @@ export function createQuickControls({
     agentPortInput?.removeEventListener("change", handleAgentPortChange);
     presenceInput?.removeEventListener("change", handlePresenceChange);
     presenceInput?.removeEventListener("blur", reflect.reflectPresence);
+    pacerGapInput?.removeEventListener("change", handlePacerGapChange);
+    pacerGapInput?.removeEventListener("blur", reflect.reflectPacerGap);
     for (const input of rateLimitInputs.values()) {
       input.removeEventListener("change", handleRateLimitChange);
       input.removeEventListener("blur", reflect.reflectRateLimits);

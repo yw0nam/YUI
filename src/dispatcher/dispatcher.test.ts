@@ -1268,6 +1268,223 @@ describe("dispatcher — structured logging: DROP_SEVERITY table", () => {
     expect(DROP_SEVERITY.superseded_by_user).toBe("info");
     expect(DROP_SEVERITY.stale_pending).toBe("info");
     expect(DROP_SEVERITY.degraded_drop).toBe("warn");
+    expect(DROP_SEVERITY.global_gap).toBe("info");
+  });
+});
+
+describe("dispatcher — global proactive pacer gate", () => {
+  /** Pacer stub: a turn start anchors the hold, exactly as the real pacer does. */
+  function fakePacer(holding: boolean) {
+    let current = holding;
+    return {
+      isHolding: () => current,
+      noteTurnStart: vi.fn(() => {
+        current = true;
+      }),
+      open(): void {
+        current = false;
+      },
+    };
+  }
+
+  function proactiveEnv(over: Partial<BusEnvelope> = {}): BusEnvelope {
+    return {
+      source: "screen_watcher",
+      event_name: "proactive.screen_app_switched",
+      ts: NOW,
+      hint_tier: 2,
+      dnd_override: false,
+      ...over,
+    };
+  }
+
+  /** A loop cue / schedule / signals / agent fire — everything the timer scheduler pushes. */
+  const loopCueEnv = (over: Partial<BusEnvelope> = {}): BusEnvelope =>
+    proactiveEnv({ source: "timer_scheduler", event_name: "proactive.cowork", ...over });
+
+  /** A gesture cue — a physical interaction the user just made, never paced. */
+  const gestureEnv = (over: Partial<BusEnvelope> = {}): BusEnvelope =>
+    proactiveEnv({ source: "os_event_watcher", event_name: "proactive.touch_head", ...over });
+
+  function build(
+    pacer: ReturnType<typeof fakePacer>,
+    appendSkipRecord: () => void,
+    over: { guardrails?: Guardrails } = {},
+  ) {
+    return createDispatcher({
+      bus,
+      renderer: renderer as never,
+      backendCaller,
+      guardrails: over.guardrails ?? guardrails,
+      turnLog,
+      logger,
+      peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
+      pacer,
+      appendSkipRecord,
+    });
+  }
+
+  it("drops a proactive turn that reaches the gate while the pacer holds", async () => {
+    const pacer = fakePacer(true);
+    const appendSkipRecord = vi.fn();
+    const d = build(pacer, appendSkipRecord);
+    d.start();
+
+    bus.push(proactiveEnv());
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).not.toHaveBeenCalled();
+    expect(d.inFlight()).toBeNull();
+    expect(d.recentDrops().at(-1)).toMatchObject({
+      event_name: "proactive.screen_app_switched",
+      reason: "global_gap",
+    });
+    expect(appendSkipRecord).toHaveBeenCalledWith({
+      type: "skip",
+      source: "dispatcher",
+      ts: NOW,
+      reason: "global_gap",
+      event_name: "proactive.screen_app_switched",
+    });
+    d.stop();
+  });
+
+  it("drops a loop cue from the timer scheduler while the pacer holds", async () => {
+    const pacer = fakePacer(true);
+    const d = build(pacer, vi.fn());
+    d.start();
+
+    bus.push(loopCueEnv());
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).not.toHaveBeenCalled();
+    expect(d.recentDrops().at(-1)).toMatchObject({
+      event_name: "proactive.cowork",
+      reason: "global_gap",
+    });
+    // Held before the routing log — a candidate that never went out is not a fire.
+    expect(logger.info).not.toHaveBeenCalledWith("fire", expect.anything());
+    expect(d.queue()).toEqual([]);
+    d.stop();
+  });
+
+  // A gesture cue is the user's own physical interaction — the gap is about YUI speaking up
+  // on her own, so it never applies to one.
+  it("lets a gesture cue through while the pacer holds, and re-anchors on it", async () => {
+    const pacer = fakePacer(true);
+    const appendSkipRecord = vi.fn();
+    const d = build(pacer, appendSkipRecord);
+    d.start();
+
+    bus.push(gestureEnv());
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(pacer.noteTurnStart).toHaveBeenCalledOnce();
+    expect(appendSkipRecord).not.toHaveBeenCalled();
+    expect(d.recentDrops()).toEqual([]);
+    d.stop();
+  });
+
+  // evaluate() consumes a rate-limit slot at fire time and never refunds it, so a held fire
+  // that reaches the guardrail spends a cap it never used — and exhausting the overall cap
+  // additionally trips a cooldown that silences everything after it.
+  it("spends no guardrail slot on a held fire, so a later turn still passes the cap", async () => {
+    const cfg = permissiveGuardrailsConfig();
+    cfg.rate_limit.tier2_max = 3;
+    cfg.rate_limit.overall_max = 3;
+    const capped = createGuardrails(cfg, { now: () => Date.now() });
+    const pacer = fakePacer(true);
+    const d = build(pacer, vi.fn(), { guardrails: capped });
+    d.start();
+
+    for (let i = 0; i < 3; i++) {
+      bus.push(loopCueEnv({ ts: NOW + i }));
+      await vi.advanceTimersByTimeAsync(20);
+    }
+    expect(backendCaller.call).not.toHaveBeenCalled();
+
+    pacer.open();
+    bus.push(loopCueEnv({ ts: NOW + 10 }));
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(d.state()).toBe("running");
+    d.stop();
+  });
+
+  it("lets a user turn through while the pacer holds, and re-anchors on it", async () => {
+    const pacer = fakePacer(true);
+    const d = build(pacer, vi.fn());
+    d.start();
+
+    bus.push(env());
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(pacer.noteTurnStart).toHaveBeenCalledOnce();
+    d.stop();
+  });
+
+  it("passes a proactive turn once the window has opened, re-anchoring on it", async () => {
+    const pacer = fakePacer(false);
+    const d = build(pacer, vi.fn());
+    d.start();
+
+    bus.push(proactiveEnv());
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(pacer.noteTurnStart).toHaveBeenCalledOnce();
+    d.stop();
+  });
+
+  // A candidate arriving mid-turn is held at the routing gate, so it never reaches the deferral
+  // queue — the live turn finishes and frees its slot with nothing waiting behind it.
+  it("holds a paced candidate that arrives during a live turn instead of deferring it", async () => {
+    const pacer = fakePacer(false);
+    const appendSkipRecord = vi.fn();
+    const d = build(pacer, appendSkipRecord);
+    const busyEdges: boolean[] = [];
+    d.subscribeBusy((busy) => busyEdges.push(busy));
+    d.start();
+
+    bus.push(env({ ts: NOW }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(d.inFlight()).not.toBeNull();
+
+    // The user turn anchored the window, so this candidate is dropped where it is routed.
+    bus.push(proactiveEnv({ ts: NOW + 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(d.inFlight()).toBeNull();
+    expect(d.queue()).toEqual([]);
+    expect(busyEdges).toEqual([true, false]);
+    expect(d.recentDrops().at(-1)).toMatchObject({ reason: "global_gap" });
+    expect(appendSkipRecord).toHaveBeenCalledOnce();
+    d.stop();
+  });
+
+  it("swallows a throwing appendSkipRecord — the drop path still records the drop", async () => {
+    const pacer = fakePacer(true);
+    const d = build(
+      pacer,
+      vi.fn(() => {
+        throw new Error("disk full");
+      }),
+    );
+    d.start();
+
+    bus.push(proactiveEnv());
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(d.recentDrops().at(-1)).toMatchObject({ reason: "global_gap" });
+    expect(backendCaller.call).not.toHaveBeenCalled();
+    d.stop();
   });
 });
 

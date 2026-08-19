@@ -13,6 +13,7 @@ import { createAgentSource } from "./dispatcher/agent-source";
 import type { Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
 import type { Guardrails, GuardrailsConfig } from "./dispatcher/guardrails";
+import type { ProactivePacer } from "./dispatcher/proactive-pacer";
 import { createProactiveSource, type ProactiveSource } from "./dispatcher/proactive-source";
 import { createScheduleSource, type ScheduleSource } from "./dispatcher/schedule-source";
 import { createScreenSource, type ScreenSource } from "./dispatcher/screen-source";
@@ -531,6 +532,36 @@ export function wireWindowSources(deps: {
   return handle;
 }
 
+/** The busy predicate a buffered-inbox source takes: the pipeline's own, plus the global gap. */
+export interface PacedPipelineBusy {
+  isBusy: () => boolean;
+  subscribe: (cb: (busy: boolean) => void) => () => void;
+}
+
+/**
+ * Compose pipeline-busy with the global proactive gap. The buffered-inbox sources hold their
+ * items instead of skipping them, so a held window reads as busy and its opening is the
+ * busy→idle edge that flushes one catchup.
+ */
+export function composePacedPipelineBusy(deps: {
+  pipelineBusy: PacedPipelineBusy;
+  pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
+}): PacedPipelineBusy {
+  const { pipelineBusy, pacer } = deps;
+  const paced: PacedPipelineBusy = {
+    isBusy: () => pipelineBusy.isBusy() || pacer.isHolding(),
+    subscribe: (cb) => {
+      const unsubscribeBusy = pipelineBusy.subscribe(() => cb(paced.isBusy()));
+      const unsubscribePacer = pacer.subscribe(() => cb(paced.isBusy()));
+      return () => {
+        unsubscribeBusy();
+        unsubscribePacer();
+      };
+    },
+  };
+  return paced;
+}
+
 /**
  * tier2 utterance candidate sources: proactive.<id> (idle dramatization) + schedule.<id>
  * (time-of-day greeting) + agent.done/needs_input/catchup + signals.push/catchup, all over the
@@ -547,7 +578,9 @@ export function wireDispatcherSources(deps: {
   getScreenConfig: () => ScreenConfig;
   /** Dispatcher in-flight busy edges — anchors the screen source's quiet-after-turn window. */
   subscribeBusy: (cb: (busy: boolean) => void) => () => void;
-  pipelineBusy: { isBusy: () => boolean; subscribe: (cb: (busy: boolean) => void) => () => void };
+  pipelineBusy: PacedPipelineBusy;
+  /** Global proactive gap — a hold reads as a skip to the screen source and as busy to the inboxes. */
+  pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
 }): {
   proactiveSource: ProactiveSource;
   scheduleSource: ScheduleSource;
@@ -565,7 +598,9 @@ export function wireDispatcherSources(deps: {
     getScreenConfig,
     subscribeBusy,
     pipelineBusy,
+    pacer,
   } = deps;
+  const pacedPipelineBusy = composePacedPipelineBusy({ pipelineBusy, pacer });
   const proactiveSource = createProactiveSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,
@@ -584,16 +619,16 @@ export function wireDispatcherSources(deps: {
     bus,
     present_max_idle_ms: presenceSettings.get().value,
     isEnabled: () => agentNotifySettings.get().enabled,
-    isPipelineBusy: pipelineBusy.isBusy,
-    subscribePipelineBusy: pipelineBusy.subscribe,
+    isPipelineBusy: pacedPipelineBusy.isBusy,
+    subscribePipelineBusy: pacedPipelineBusy.subscribe,
   });
   void agentSource.start();
   const signalsSource = createSignalsSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,
     isEnabled: () => agentNotifySettings.get().enabled,
-    isPipelineBusy: pipelineBusy.isBusy,
-    subscribePipelineBusy: pipelineBusy.subscribe,
+    isPipelineBusy: pacedPipelineBusy.isBusy,
+    subscribePipelineBusy: pacedPipelineBusy.subscribe,
   });
   void signalsSource.start();
   const screenSource = createScreenSource({
@@ -603,6 +638,7 @@ export function wireDispatcherSources(deps: {
     isEnabled: () => screenSettings.get().enabled,
     noteInteraction: proactiveSource.noteInteraction,
     subscribeBusy,
+    isPacerHolding: pacer.isHolding,
     appendSkipRecord: (record) => appendRecord(record),
   });
   void screenSource.start();

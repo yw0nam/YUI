@@ -384,6 +384,10 @@ const ko: Record<string, string> = {
   "reactions.presence_sub": "이 시간 이하로 자리를 비웠다면 작업 중으로 간주해요",
   "reactions.seconds_suffix": "초",
   "reactions.restart_hint": "변경 사항을 적용하려면 앱을 재시작해요",
+  "reactions.pacer_gap_label": "말 걸기 간격",
+  "reactions.pacer_gap_sub": "대화가 오간 뒤 유이가 다시 먼저 말을 걸기까지 두는 최소 간격",
+  "reactions.pacer_gap_hint": "0으로 두면 기다리지 않고 바로 말을 걸어요.",
+  "reactions.minutes_suffix": "분",
   "reactions.rate_title": "시간당 상한",
   "reactions.rate_hint":
     "YUI가 먼저 말을 거는 빈도의 상한이에요. 내가 보낸 메시지는 세지 않아요. 비워 두면 기본값을 써요.",

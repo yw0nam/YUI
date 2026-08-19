@@ -13,6 +13,10 @@
  * Single in-flight backend call. Deferred tier2/3 keeps only one item in local pending
  * (with two or more deferred, the oldest is dropped).
  *
+ * Every started turn anchors the global proactive gap. A fire from a paced source (loop cues,
+ * schedule, signals, agent, screen) that arrives while that window holds is dropped as
+ * global_gap before the guardrail sees it; gesture cues and user input pass ungated.
+ *
  * state: booting → (start) → running → (stop) → stopped. cooldown polls the guardrails'
  *   overall-cap verdict every tick to transition running↔cooldown. degraded is entered when
  *   the backend call fails DEGRADED_FAILURE_THRESHOLD times in a row — during it, tier2/3
@@ -24,12 +28,14 @@
 
 import type { PeekConfig, TapConfig } from "../config/load";
 import type { BodyState, ControlEnvelope, EmotionId, Posture } from "../contract";
+import { buildPacerSkipRecord, type PacerSkipRecord } from "../io/turn-record-log";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import type { BackendCaller, TurnFailure, TurnOutcome } from "./backend-caller";
 import type { BusEnvelope, EventBus } from "./event-bus";
 import type { Guardrails } from "./guardrails";
+import type { ProactivePacer } from "./proactive-pacer";
 import type { TurnLog } from "./turn";
 
 const baseLog = createLogger("dispatcher");
@@ -53,6 +59,15 @@ interface DispatcherDeps {
   guardrails: Guardrails;
   /** Turn identity + admission ledger. The dispatcher begins/settles turns on it and reads busy/audio-owed state from it. */
   turnLog: TurnLog;
+  /**
+   * Global proactive gap. Every turn start anchors its window; a fire from a paced source
+   * (see PACED_SOURCES) that arrives while it holds is dropped at the routing gate, before the
+   * guardrail. The screen source also gates itself, to record the skip with its transition; for
+   * loop cues, schedule and the buffered inboxes this is the only gate.
+   */
+  pacer?: Pick<ProactivePacer, "isHolding" | "noteTurnStart">;
+  /** Skip-record JSONL sink — best-effort disk log of the fires the pacer held back. */
+  appendSkipRecord?: (record: PacerSkipRecord) => void;
   /** pump interval (ms). default 16 (roughly rAF). Tests advance with a fake timer. */
   pumpIntervalMs?: number;
   /**
@@ -76,7 +91,7 @@ type DispatcherState = "booting" | "running" | "cooldown" | "degraded" | "draini
 export interface DropRecord {
   seq_id?: number;
   event_name: string;
-  reason: TurnFailure | "guardrail_drop" | "stale_pending" | "degraded_drop";
+  reason: TurnFailure | "guardrail_drop" | "stale_pending" | "degraded_drop" | "global_gap";
   ts: number;
 }
 
@@ -91,6 +106,7 @@ export const DROP_SEVERITY: Record<DropRecord["reason"], LogLevel> = {
   superseded_by_user: "info",
   stale_pending: "info",
   degraded_drop: "warn",
+  global_gap: "info",
 };
 
 /** in_flight_backend_call. */
@@ -261,6 +277,21 @@ function parsePeekDropPayload(env: BusEnvelope): PeekDropPayload | null {
   return { side, targetLocalXpx };
 }
 
+/**
+ * Which sources the global proactive gap applies to. Loop cues, schedule and the buffered
+ * inboxes (signals, agent) all push as timer_scheduler, screen transitions as screen_watcher;
+ * gesture cues and typed/spoken input are the user's own doing and pass ungated. Record forces
+ * a new source value to answer paced-or-not at compile time.
+ */
+const PACED_SOURCES: Record<BusEnvelope["source"], boolean> = {
+  timer_scheduler: true,
+  screen_watcher: true,
+  os_event_watcher: false,
+  user_input_source: false,
+  idle_watcher: false,
+  backend_push_source: false,
+};
+
 const DEFAULT_PUMP_MS = 16;
 const MAX_DROP_RECORDS = 50;
 /** Consecutive backend call failure count — degraded is entered on reaching it. */
@@ -349,6 +380,20 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     log[DROP_SEVERITY[reason]]("drop", { event_name: env.event_name, reason, seq_id: env.seq_id });
   }
 
+  /** Whether the global proactive gap holds this fire back. */
+  function heldByPacer(env: BusEnvelope): boolean {
+    return PACED_SOURCES[env.source] && deps.pacer?.isHolding() === true;
+  }
+
+  function dropForPacer(env: BusEnvelope): void {
+    recordDrop(env, "global_gap");
+    try {
+      deps.appendSkipRecord?.(buildPacerSkipRecord({ ts: env.ts, event_name: env.event_name }));
+    } catch (err) {
+      log.debug("skip_record_append_failed", { error: String(err) });
+    }
+  }
+
   /** Backend call success: reset the consecutive-failure counter + return immediately if degraded. */
   function noteCallSuccess(): void {
     consecutiveFailures = 0;
@@ -398,6 +443,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /** Start a tier2/3 backend call (occupies in-flight). On completion, free the slot and drain one deferred item. */
   function startBackendCall(env: BusEnvelope): void {
+    deps.pacer?.noteTurnStart();
     const abort = new AbortController();
     const started_at = Date.now();
     setInFlight({ trigger: env, started_at, abort });
@@ -665,6 +711,12 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       // keep passing user-initiated turns to delegate judgment to backend.
       if (state === "degraded" && env.dnd_override !== true) {
         recordDrop(env, "degraded_drop");
+        return;
+      }
+      // Ahead of the guardrail: evaluate() spends a rate-limit slot at fire time and never
+      // refunds it, so a held fire must not reach it.
+      if (heldByPacer(env)) {
+        dropForPacer(env);
         return;
       }
       // After classifying to get tier, evaluate. If drop, don't enqueue.
