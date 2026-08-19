@@ -1,6 +1,6 @@
 /**
  * load-endpoints.test.ts — unit tests for loadConfig endpoints.* section.
- * irodori_TTS provider, broker_base_url, chat_api, context window.
+ * TTS server/model/speaker, broker_base_url, chat_api, context window.
  */
 
 import { describe, expect, it } from "vitest";
@@ -8,69 +8,43 @@ import type { EndpointsConfig } from "../contract";
 import { CONFIG_FILES, ConfigError, loadConfig } from "./load";
 import { goodFixture, readerOf } from "./load-test-helpers";
 
-// ── irodori_TTS provider (PR-A) ────────────────────────────────────────────────
+// ── TTS (single OpenAI-compatible path) ───────────────────────────────────────
 
-describe("loadConfig — endpoints irodori provider", () => {
-  /** Valid endpoints keeping openai fields but populating irodori fields. */
-  function irodoriEndpoints(): Record<string, unknown> {
-    return {
-      chat_base_url: "http://localhost:8642",
-      chat_endpoint: "/v1/responses",
-      stt_base_url: "http://localhost:5517",
-      tts_base_url: "http://localhost:8092",
-      tts_provider: "irodori",
-      irodori_base_url: "http://localhost:8091",
-      irodori_speaker: "ナツメ",
-      irodori_num_steps: 32,
-      irodori_cfg_scale_text: 0.5,
-      irodori_cfg_scale_speaker: 2,
-      irodori_seconds: 10,
-      tts_max_inflight: 1,
-    };
-  }
-
-  it("완전한 irodori endpoints는 모든 필드를 보존한다", async () => {
-    const map = goodFixture();
-    map["endpoints.json"] = irodoriEndpoints();
-    const cfg = await loadConfig({ read: readerOf(map) });
-    expect(cfg.endpoints).toEqual({
-      chat_base_url: "http://localhost:8642",
-      chat_endpoint: "/v1/responses",
-      stt_base_url: "http://localhost:5517",
-      tts_base_url: "http://localhost:8092",
-      tts_provider: "irodori",
-      irodori_base_url: "http://localhost:8091",
-      irodori_speaker: "ナツメ",
-      irodori_num_steps: 32,
-      irodori_cfg_scale_text: 0.5,
-      irodori_cfg_scale_speaker: 2,
-      irodori_seconds: 10,
-      tts_max_inflight: 1,
-    });
-  });
-
-  it("tts_provider 생략 시 openai로 resolve되어 출력에 박힌다", async () => {
-    const map = goodFixture();
-    const ep = irodoriEndpoints();
-    delete ep.tts_provider;
-    map["endpoints.json"] = ep;
-    const cfg = await loadConfig({ read: readerOf(map) });
-    expect(cfg.endpoints.tts_provider).toBe("openai");
-  });
-
-  it("tts_provider: openai 최소 구성은 irodori 필드 없이도 통과한다", async () => {
+describe("loadConfig — endpoints TTS", () => {
+  it("완전한 TTS endpoints는 모든 필드를 보존한다", async () => {
     const map = goodFixture();
     map["endpoints.json"] = {
       chat_base_url: "http://localhost:8642",
       chat_endpoint: "/v1/responses",
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
-      tts_provider: "openai",
+      tts_model: "irodori-tts",
+      tts_speaker: "ナツメ",
+      tts_max_inflight: 1,
     };
     const cfg = await loadConfig({ read: readerOf(map) });
-    expect(cfg.endpoints.tts_provider).toBe("openai");
-    expect(cfg.endpoints.irodori_base_url).toBeUndefined();
-    expect(cfg.endpoints.irodori_speaker).toBeUndefined();
+    expect(cfg.endpoints).toEqual({
+      chat_base_url: "http://localhost:8642",
+      chat_endpoint: "/v1/responses",
+      stt_base_url: "http://localhost:5517",
+      tts_base_url: "http://localhost:8092",
+      tts_model: "irodori-tts",
+      tts_speaker: "ナツメ",
+      tts_max_inflight: 1,
+    });
+  });
+
+  it("tts_model / tts_speaker 생략은 통과한다", async () => {
+    const map = goodFixture();
+    map["endpoints.json"] = {
+      chat_base_url: "http://localhost:8642",
+      chat_endpoint: "/v1/responses",
+      stt_base_url: "http://localhost:5517",
+      tts_base_url: "http://localhost:8092",
+    };
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.endpoints.tts_model).toBeUndefined();
+    expect(cfg.endpoints.tts_speaker).toBeUndefined();
   });
 });
 
@@ -85,7 +59,6 @@ describe("loadConfig — endpoints with no URLs", () => {
     expect(cfg.endpoints.stt_base_url).toBe("");
     expect(cfg.endpoints.tts_base_url).toBe("");
     expect(cfg.endpoints.broker_base_url).toBeUndefined();
-    expect(cfg.endpoints.tts_provider).toBe("openai");
   });
 });
 
@@ -98,7 +71,6 @@ describe("loadConfig — endpoints broker_base_url", () => {
       chat_endpoint: "/v1/responses",
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
-      tts_provider: "openai",
     };
   }
 
@@ -136,7 +108,6 @@ describe("loadConfig — endpoints chat_api", () => {
       chat_endpoint: "/v1/responses",
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
-      tts_provider: "openai",
     };
   }
 
@@ -181,7 +152,6 @@ describe("loadConfig — endpoints context window", () => {
       chat_endpoint: "/v1/responses",
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
-      tts_provider: "openai",
     };
   }
   async function loadWith(value: unknown): Promise<unknown> {
@@ -226,7 +196,7 @@ describe("loadConfig — endpoints context window", () => {
   });
 });
 
-describe("loadConfig — endpoints irodori validation failures", () => {
+describe("loadConfig — endpoints validation failures", () => {
   async function loadWith(value: unknown): Promise<unknown> {
     const map = goodFixture();
     map[CONFIG_FILES.endpoints] = value;
@@ -239,99 +209,37 @@ describe("loadConfig — endpoints irodori validation failures", () => {
     expect((err as ConfigError).issues.length).toBeGreaterThan(0);
   }
 
-  it("tts_provider가 enum 밖이면 실패", async () => {
+  it("tts_base_url이 http(s) URL이 아니면 실패", async () => {
     await expectEndpointsError(
       loadWith({
         chat_base_url: "http://localhost:8642",
         chat_endpoint: "/v1/responses",
         stt_base_url: "http://localhost:5517",
-        tts_base_url: "http://localhost:8092",
-        tts_provider: "elevenlabs",
+        tts_base_url: "localhost:8092", // missing scheme
       }),
     );
   });
 
-  it("provider irodori인데 irodori_base_url이 없으면 실패", async () => {
+  it("tts_model이 빈 문자열이면 실패", async () => {
     await expectEndpointsError(
       loadWith({
         chat_base_url: "http://localhost:8642",
         chat_endpoint: "/v1/responses",
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
-        tts_provider: "irodori",
-        irodori_speaker: "ナツメ",
+        tts_model: "",
       }),
     );
   });
 
-  it("provider irodori인데 irodori_speaker가 없으면 실패", async () => {
+  it("tts_speaker가 빈 문자열이면 실패", async () => {
     await expectEndpointsError(
       loadWith({
         chat_base_url: "http://localhost:8642",
         chat_endpoint: "/v1/responses",
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
-        tts_provider: "irodori",
-        irodori_base_url: "http://localhost:8091",
-      }),
-    );
-  });
-
-  it("irodori_base_url이 http(s) URL이 아니면 실패", async () => {
-    await expectEndpointsError(
-      loadWith({
-        chat_base_url: "http://localhost:8642",
-        chat_endpoint: "/v1/responses",
-        stt_base_url: "http://localhost:5517",
-        tts_base_url: "http://localhost:8092",
-        tts_provider: "irodori",
-        irodori_base_url: "localhost:8091", // missing scheme
-        irodori_speaker: "ナツメ",
-      }),
-    );
-  });
-
-  it("irodori_num_steps가 정수 ≥ 1이 아니면 실패", async () => {
-    await expectEndpointsError(
-      loadWith({
-        chat_base_url: "http://localhost:8642",
-        chat_endpoint: "/v1/responses",
-        stt_base_url: "http://localhost:5517",
-        tts_base_url: "http://localhost:8092",
-        tts_provider: "irodori",
-        irodori_base_url: "http://localhost:8091",
-        irodori_speaker: "ナツメ",
-        irodori_num_steps: 0,
-      }),
-    );
-  });
-
-  it("irodori_cfg_scale_text가 0 이하면 실패", async () => {
-    await expectEndpointsError(
-      loadWith({
-        chat_base_url: "http://localhost:8642",
-        chat_endpoint: "/v1/responses",
-        stt_base_url: "http://localhost:5517",
-        tts_base_url: "http://localhost:8092",
-        tts_provider: "irodori",
-        irodori_base_url: "http://localhost:8091",
-        irodori_speaker: "ナツメ",
-        irodori_cfg_scale_text: 0,
-      }),
-    );
-  });
-
-  it("irodori_seconds가 비유한(Infinity)이면 실패", async () => {
-    await expectEndpointsError(
-      loadWith({
-        chat_base_url: "http://localhost:8642",
-        chat_endpoint: "/v1/responses",
-        stt_base_url: "http://localhost:5517",
-        tts_base_url: "http://localhost:8092",
-        tts_provider: "irodori",
-        irodori_base_url: "http://localhost:8091",
-        irodori_speaker: "ナツメ",
-        irodori_seconds: Infinity,
+        tts_speaker: "   ",
       }),
     );
   });
@@ -343,7 +251,6 @@ describe("loadConfig — endpoints irodori validation failures", () => {
         chat_endpoint: "/v1/responses",
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
-        tts_provider: "openai",
         tts_max_inflight: 0,
       }),
     );

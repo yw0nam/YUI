@@ -11,21 +11,19 @@ describe("configs/endpoints.json", () => {
   const ep = read("configs/endpoints.json");
 
   it("ships no service address — every URL is unconfigured until the user sets one", () => {
-    for (const key of [
-      "chat_base_url",
-      "stt_base_url",
-      "tts_base_url",
-      "irodori_base_url",
-      "broker_base_url",
-    ]) {
+    for (const key of ["chat_base_url", "stt_base_url", "tts_base_url", "broker_base_url"]) {
       expect(ep, key).not.toHaveProperty(key);
     }
   });
 
   it("ships no personal model or voice selection", () => {
-    for (const key of ["chat_model", "tts_model", "tts_voice", "irodori_speaker", "tts_provider"]) {
+    for (const key of ["chat_model", "tts_speaker"]) {
       expect(ep, key).not.toHaveProperty(key);
     }
+  });
+
+  it("carries the TTS model name the server is configured under", () => {
+    expect(ep.tts_model).toBe("irodori-tts");
   });
 
   it("carries the chat protocol selection", () => {

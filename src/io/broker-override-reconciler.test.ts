@@ -1,11 +1,9 @@
 /**
- * broker-override-reconciler.test.ts — live broker re-publish / re-point on
- * endpoint-override change.
+ * broker-override-reconciler.test.ts — live broker re-point on endpoint-override change.
  *
  * createBrokerOverrideReconciler wires endpoints overrides → the live Expression Broker client:
- *   - tts_provider override change ⇒ re-publish vocab with the MERGED provider's table.
- *   - broker_base_url override change ⇒ dispose the old client, create a new one at the new
- *     URL, publish, then start. Empty/invalid URL ⇒ dispose + leave broker disabled.
+ * a broker_base_url override change disposes the old client, creates a new one at the new URL,
+ * publishes, then starts. An empty/invalid URL disposes and leaves the broker disabled.
  *
  * Pure seam: every collaborator (broker factory, table loader, payload deriver, current client
  * accessor/setter) is injected — no real network, no real config store.
@@ -36,21 +34,17 @@ function endpoints(over: Partial<EndpointsConfig> = {}): EndpointsConfig {
     chat_endpoint: "/v1/responses",
     stt_base_url: "http://localhost:5517",
     tts_base_url: "http://localhost:8092",
-    tts_provider: "irodori",
-    irodori_base_url: "http://localhost:8091",
+    tts_model: "irodori-tts",
     broker_base_url: "http://localhost:3201/mcp",
     ...over,
   };
 }
 
-function payloadFor(eff: EndpointsConfig): BrokerPayload {
+function payloadFor(_eff: EndpointsConfig): BrokerPayload {
   return {
     emotionIds: [],
     motionIds: [],
-    emotionText:
-      eff.tts_provider === "irodori"
-        ? { mode: "enum", table: { joy: "😊" } }
-        : { mode: "free", table: null },
+    emotionText: { mode: "enum", table: { joy: "😊" } },
   };
 }
 
@@ -62,9 +56,7 @@ function setup(opts: {
 }) {
   let current = opts.initialBroker;
   const created: Array<{ baseUrl: string; broker: BrokerClient }> = [];
-  const loadTable = vi.fn(async (provider: string | undefined) =>
-    provider === "irodori" ? { joy: "😊" } : null,
-  );
+  const loadTable = vi.fn(async () => ({ joy: "😊" }));
   const createBroker = vi.fn((baseUrl: string) => {
     const b = opts.newBroker ?? fakeBroker();
     created.push({ baseUrl, broker: b });
@@ -82,46 +74,6 @@ function setup(opts: {
   });
   return { reconciler, getCurrent: () => current, created, loadTable, createBroker };
 }
-
-describe("createBrokerOverrideReconciler — tts_provider change", () => {
-  it("re-publishes with the merged provider's table when tts_provider changes", async () => {
-    const broker = fakeBroker();
-    let provider = "irodori";
-    const { reconciler, loadTable } = setup({
-      initialBroker: broker,
-      eff: () => endpoints({ tts_provider: provider as "irodori" | "openai" }),
-    });
-
-    provider = "openai";
-    await reconciler.onChange();
-
-    expect(loadTable).toHaveBeenCalledWith("openai");
-    expect(broker.publish).toHaveBeenCalledTimes(1);
-    const sent = broker.publish.mock.calls[0][0] as BrokerPayload;
-    expect(sent.emotionText.mode).toBe("free");
-  });
-
-  it("does not re-publish when tts_provider is unchanged", async () => {
-    const broker = fakeBroker();
-    const { reconciler } = setup({
-      initialBroker: broker,
-      eff: () => endpoints({ tts_provider: "irodori" }),
-    });
-    await reconciler.onChange();
-    expect(broker.publish).not.toHaveBeenCalled();
-  });
-
-  it("is a no-op for provider change when no broker is configured", async () => {
-    let provider = "irodori";
-    const { reconciler, getCurrent } = setup({
-      initialBroker: null,
-      eff: () => endpoints({ broker_base_url: "", tts_provider: provider as "irodori" | "openai" }),
-    });
-    provider = "openai";
-    await expect(reconciler.onChange()).resolves.toBeUndefined();
-    expect(getCurrent()).toBeNull();
-  });
-});
 
 describe("createBrokerOverrideReconciler — broker_base_url change", () => {
   it("disposes the old client and creates+publishes+starts a new one at the new URL", async () => {
@@ -186,13 +138,15 @@ describe("createBrokerOverrideReconciler — broker_base_url change", () => {
 
   it("never throws when a collaborator rejects (best-effort UI path)", async () => {
     const oldBroker = fakeBroker();
-    oldBroker.publish.mockRejectedValueOnce(new Error("boom"));
-    let provider = "irodori";
+    const newBroker = fakeBroker();
+    newBroker.publish.mockRejectedValueOnce(new Error("boom"));
+    let url = "http://localhost:3201/mcp";
     const { reconciler } = setup({
       initialBroker: oldBroker,
-      eff: () => endpoints({ tts_provider: provider as "irodori" | "openai" }),
+      newBroker,
+      eff: () => endpoints({ broker_base_url: url }),
     });
-    provider = "openai";
+    url = "http://other:3201/mcp";
     await expect(reconciler.onChange()).resolves.toBeUndefined();
   });
 });

@@ -5,7 +5,7 @@ const { listVoices, selectFetch } = vi.hoisted(() => ({
   listVoices: vi.fn<(o: unknown) => Promise<string[]>>().mockResolvedValue([]),
   selectFetch: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("./irodori-voices", () => ({ listVoices }));
+vi.mock("./tts-voices", () => ({ listVoices }));
 vi.mock("./chat-client", () => ({ selectFetch }));
 
 import { createVoiceListRefresh } from "./voice-list-refresh";
@@ -29,7 +29,7 @@ describe("createVoiceListRefresh", () => {
     noopLog.warn.mockClear();
   });
 
-  it("does not call listVoices when irodori_base_url is unset", async () => {
+  it("does not call listVoices when tts_base_url is unset", async () => {
     const store = fakeStore();
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({}),
@@ -61,8 +61,8 @@ describe("createVoiceListRefresh", () => {
     const store = fakeStore();
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({
-        irodori_base_url: "http://localhost:8091",
-        irodori_speaker: "ナツメ",
+        tts_base_url: "http://localhost:8091",
+        tts_speaker: "ナツメ",
       }),
       speakerSelection: store,
       log: noopLog,
@@ -82,13 +82,28 @@ describe("createVoiceListRefresh", () => {
     });
   });
 
+  it("hands listVoices the TTS key resolver so a gated server still answers", async () => {
+    const getApiKey = vi.fn().mockResolvedValue("sk-tts");
+    const store = fakeStore();
+    const refresh = createVoiceListRefresh({
+      getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
+      getApiKey,
+      speakerSelection: store,
+      log: noopLog,
+    });
+
+    await refresh();
+
+    expect(listVoices).toHaveBeenCalledWith(expect.objectContaining({ getApiKey }));
+  });
+
   it("does not conjure a configured speaker the server does not list", async () => {
     listVoices.mockResolvedValue(["あやせ"]);
     const store = fakeStore();
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({
-        irodori_base_url: "http://localhost:8091",
-        irodori_speaker: "ナツメ",
+        tts_base_url: "http://localhost:8091",
+        tts_speaker: "ナツメ",
       }),
       speakerSelection: store,
       log: noopLog,
@@ -105,7 +120,7 @@ describe("createVoiceListRefresh", () => {
       { id: "myvoice", label: "My Voice", ref_url: "asset://x/clip.mp3", source: "user" },
     ]);
     const refresh = createVoiceListRefresh({
-      getEndpoints: () => ({ irodori_base_url: "http://localhost:8091" }),
+      getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
       speakerSelection: store,
       log: noopLog,
     });
@@ -124,7 +139,7 @@ describe("createVoiceListRefresh", () => {
     );
     const store = fakeStore();
     const refresh = createVoiceListRefresh({
-      getEndpoints: () => ({ irodori_base_url: "http://localhost:8091" }),
+      getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
       speakerSelection: store,
       log: noopLog,
     });

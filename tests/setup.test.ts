@@ -5,17 +5,16 @@ import {
   mergeEndpoints,
   setEnvVar,
   shouldInstall,
-  ttsNeedsKey,
   ttsOverrides,
 } from "../scripts/setup.mjs";
 
 describe("mergeEndpoints", () => {
   it("overrides only non-empty values, preserving the rest", () => {
-    const existing = { chat_base_url: "http://old:1/v1", chat_model: "old", tts_voice: "keep" };
+    const existing = { chat_base_url: "http://old:1/v1", chat_model: "old", tts_speaker: "keep" };
     const merged = mergeEndpoints(existing, { chat_model: "new", chat_base_url: "" });
     expect(merged.chat_model).toBe("new");
     expect(merged.chat_base_url).toBe("http://old:1/v1");
-    expect(merged.tts_voice).toBe("keep");
+    expect(merged.tts_speaker).toBe("keep");
   });
 
   it("treats empty string and undefined as 'keep existing'", () => {
@@ -37,31 +36,18 @@ describe("mergeEndpoints", () => {
 });
 
 describe("ttsOverrides", () => {
-  it("irodori sets irodori_* + tts_voice + provider", () => {
-    expect(ttsOverrides("irodori", { baseUrl: "http://i:1", voice: "ナツメ" })).toEqual({
-      tts_provider: "irodori",
-      irodori_base_url: "http://i:1",
-      irodori_speaker: "ナツメ",
-      tts_voice: "ナツメ",
+  it("writes the TTS server URL and the default speaker id", () => {
+    expect(ttsOverrides({ baseUrl: "http://t:1", speaker: "ナツメ" })).toEqual({
+      tts_base_url: "http://t:1",
+      tts_speaker: "ナツメ",
     });
   });
 
-  it("openai sets tts_base_url + tts_voice + provider, no irodori keys", () => {
-    const o = ttsOverrides("openai", { baseUrl: "http://o:1", voice: "alloy" });
-    expect(o).toEqual({ tts_provider: "openai", tts_base_url: "http://o:1", tts_voice: "alloy" });
-    expect(o).not.toHaveProperty("irodori_base_url");
-  });
-
-  it("none returns no overrides", () => {
-    expect(ttsOverrides("none", {})).toEqual({});
-  });
-});
-
-describe("ttsNeedsKey", () => {
-  it("openai needs a key; irodori (self-serving) and none do not", () => {
-    expect(ttsNeedsKey("openai")).toBe(true);
-    expect(ttsNeedsKey("irodori")).toBe(false);
-    expect(ttsNeedsKey("none")).toBe(false);
+  it("blank answers stay blank so mergeEndpoints keeps the existing values", () => {
+    expect(ttsOverrides({ baseUrl: "", speaker: "" })).toEqual({
+      tts_base_url: "",
+      tts_speaker: "",
+    });
   });
 });
 

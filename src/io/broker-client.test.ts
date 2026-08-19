@@ -691,14 +691,13 @@ describe("agentTriggerableMotionIds", () => {
 const NONE_DESELECTED = { expressMotions: { disabled: [] } };
 
 describe("deriveBrokerPayload", () => {
-  function baseConfig(provider: "openai" | "irodori" | undefined): AppConfig {
+  function baseConfig(): AppConfig {
     return {
       endpoints: {
         chat_base_url: "http://localhost:8643",
         chat_endpoint: "/v1/responses",
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
-        tts_provider: provider,
       },
       avatar: {
         vrm_url: "/vrms/carlotta.vrm",
@@ -789,12 +788,12 @@ describe("deriveBrokerPayload", () => {
   }
 
   it("derives emotion ids from registry keys", () => {
-    const p = deriveBrokerPayload(baseConfig("openai"), null, NONE_DESELECTED);
+    const p = deriveBrokerPayload(baseConfig(), null, NONE_DESELECTED);
     expect([...p.emotionIds].sort()).toEqual(["happy", "neutral"]);
   });
 
   it("excludes reactive, ambient, and broker_publish:false motions (drops drag/idle/sit, keeps happy/laugh/embarrassed)", () => {
-    const p = deriveBrokerPayload(baseConfig("openai"), null, NONE_DESELECTED);
+    const p = deriveBrokerPayload(baseConfig(), null, NONE_DESELECTED);
     expect(p.motionIds).not.toContain("drag");
     expect(p.motionIds).not.toContain("idle");
     expect(p.motionIds).not.toContain("sit");
@@ -802,63 +801,49 @@ describe("deriveBrokerPayload", () => {
   });
 
   it("excludes a kind:state motion solely via broker_publish:false (window_sit)", () => {
-    const p = deriveBrokerPayload(baseConfig("openai"), null, NONE_DESELECTED);
+    const p = deriveBrokerPayload(baseConfig(), null, NONE_DESELECTED);
     expect(p.motionIds).not.toContain("window_sit");
   });
 
-  it("provider openai → emotion text free + null table", () => {
-    const p = deriveBrokerPayload(baseConfig("openai"), null, NONE_DESELECTED);
-    expect(p.emotionText).toEqual({ mode: "free", table: null });
-  });
-
-  it("provider irodori with a table → enum + table", () => {
+  it("a table → enum + that table", () => {
     const table = { "😀": "happy", "😢": "sad" };
-    const p = deriveBrokerPayload(baseConfig("irodori"), table, NONE_DESELECTED);
+    const p = deriveBrokerPayload(baseConfig(), table, NONE_DESELECTED);
     expect(p.emotionText).toEqual({ mode: "enum", table });
   });
 
-  it("provider irodori with null table → free + null + warn (no crash)", () => {
+  it("a null table → free + null + warn (no crash)", () => {
     const logger = silentLogger();
-    const p = deriveBrokerPayload(baseConfig("irodori"), null, { ...NONE_DESELECTED, logger });
+    const p = deriveBrokerPayload(baseConfig(), null, { ...NONE_DESELECTED, logger });
     expect(p.emotionText).toEqual({ mode: "free", table: null });
     expect(logger.warn).toHaveBeenCalled();
-  });
-
-  // tts_provider is optional on the contract; resolveTtsProviderKind's "unset means openai"
-  // default applies here too, so an unset provider resolves the same as an explicit "openai" —
-  // matching the default the rest of the app (validator, voice pipeline) already applies.
-  it("provider unset (undefined) with a table → resolves as openai's default → free", () => {
-    const table = { "😀": "happy" };
-    const p = deriveBrokerPayload(baseConfig(undefined), table, NONE_DESELECTED);
-    expect(p.emotionText).toEqual({ mode: "free", table: null });
   });
 
   // The user's expression-motion selection narrows the published vocabulary at this one derive
   // site, so both consumers — the broker publish and the CC generate_express schema — follow it.
   describe("expression-motion selection", () => {
     it("publishes the whole agent-triggerable set when nothing is deselected", () => {
-      const p = deriveBrokerPayload(baseConfig("openai"), null, {
+      const p = deriveBrokerPayload(baseConfig(), null, {
         expressMotions: { disabled: [] },
       });
       expect([...p.motionIds].sort()).toEqual(["embarrassed", "happy", "laugh"]);
     });
 
     it("drops a deselected motion from motionIds", () => {
-      const p = deriveBrokerPayload(baseConfig("openai"), null, {
+      const p = deriveBrokerPayload(baseConfig(), null, {
         expressMotions: { disabled: ["laugh"] },
       });
       expect(p.motionIds).toEqual(["happy", "embarrassed"]);
     });
 
     it("publishes an empty motion list when every motion is deselected", () => {
-      const p = deriveBrokerPayload(baseConfig("openai"), null, {
+      const p = deriveBrokerPayload(baseConfig(), null, {
         expressMotions: { disabled: ["happy", "laugh", "embarrassed"] },
       });
       expect(p.motionIds).toEqual([]);
     });
 
     it("keeps a catalog motion the selection has never heard of — additions arrive enabled", () => {
-      const cfg = baseConfig("openai");
+      const cfg = baseConfig();
       cfg.motions.wave = {
         vrma_path: "/motions/wave.vrma",
         kind: "oneshot",
@@ -871,7 +856,7 @@ describe("deriveBrokerPayload", () => {
     });
 
     it("leaves emotion ids untouched — the selection curates motions only", () => {
-      const p = deriveBrokerPayload(baseConfig("openai"), null, {
+      const p = deriveBrokerPayload(baseConfig(), null, {
         expressMotions: { disabled: ["happy", "laugh", "embarrassed"] },
       });
       expect([...p.emotionIds].sort()).toEqual(["happy", "neutral"]);

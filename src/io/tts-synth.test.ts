@@ -1,26 +1,20 @@
 /**
- * tts-synth.test.ts — per-sentence TTS HTTP call.
+ * tts-synth.test.ts — the single TTS path: per-sentence HTTP call + the provider adapter.
  *
- * Target: createTtsSynth({ config, fetch, model?, voice?, speed? }) → (input, signal?) => Promise<ArrayBuffer>.
- * POST {tts_base_url}/v1/audio/speech, body { input, response_format:"wav", ...model/voice/speed }.
+ * createTtsSynth({ baseUrl, fetch?, model?, voice?, getApiKey? }) → (input, signal?) => ArrayBuffer.
+ * POST {tts_base_url}/v1/audio/speech, body { input, response_format:"wav", ...model/voice }.
  * On non-2xx, throws an Error including status + (when JSON) error.message. On success, response.arrayBuffer().
  *
- * VERIFIED FACTS (live probe done): vLLM fishaudio/s2-pro, OpenAI-compatible /v1/audio/speech.
- * Tests use only a mock fetch — no real :8092 connection.
+ * createTtsProvider binds that call to the live endpoints + the active speaker id.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
-import { createOpenAiTtsProvider, createTtsSynth, TTS_SYNTH_TIMEOUT_MS } from "./tts-synth";
+import { createTtsProvider, createTtsSynth, TTS_SYNTH_TIMEOUT_MS } from "./tts-synth";
 
 type FetchFn = (url: string, init: RequestInit) => Promise<Response>;
 
-const CONFIG: EndpointsConfig = {
-  chat_base_url: "http://localhost:8643/v1",
-  chat_endpoint: "/v1/responses",
-  stt_base_url: "http://localhost:5517",
-  tts_base_url: "http://localhost:8092",
-};
+const BASE_URL = "http://localhost:8092";
 
 function okResponse(buf: ArrayBuffer): Response {
   return {
@@ -34,7 +28,7 @@ describe("createTtsSynth", () => {
   it("POSTs to {tts_base_url}/v1/audio/speech with input + response_format:wav", async () => {
     const buf = new ArrayBuffer(8);
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(buf));
-    const synth = createTtsSynth({ config: CONFIG, fetch: fetchMock as unknown as typeof fetch });
+    const synth = createTtsSynth({ baseUrl: BASE_URL, fetch: fetchMock as unknown as typeof fetch });
 
     const out = await synth("Hello there.");
 
@@ -47,30 +41,36 @@ describe("createTtsSynth", () => {
     expect(out).toBe(buf);
   });
 
-  it("includes model/voice/speed when configured, omits them otherwise", async () => {
+  it("includes model/voice when configured, omits them otherwise", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
     const synth = createTtsSynth({
-      config: CONFIG,
+      baseUrl: BASE_URL,
       fetch: fetchMock as unknown as typeof fetch,
-      model: "fishaudio/s2-pro",
-      voice: "alloy",
-      speed: 1.2,
+      model: "irodori-tts",
+      voice: "ナツメ",
     });
     await synth("Hi.");
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    expect(body.model).toBe("fishaudio/s2-pro");
-    expect(body.voice).toBe("alloy");
-    expect(body.speed).toBe(1.2);
+    expect(body.model).toBe("irodori-tts");
+    expect(body.voice).toBe("ナツメ");
   });
 
-  it("omits model/voice/speed keys entirely when not configured", async () => {
+  it("omits model/voice keys entirely when not configured", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
-    const synth = createTtsSynth({ config: CONFIG, fetch: fetchMock as unknown as typeof fetch });
+    const synth = createTtsSynth({ baseUrl: BASE_URL, fetch: fetchMock as unknown as typeof fetch });
     await synth("Hi.");
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     expect("model" in body).toBe(false);
     expect("voice" in body).toBe(false);
-    expect("speed" in body).toBe(false);
+  });
+
+  // The emoji voice tag rides inline in the spoken text — nothing may strip or relocate it.
+  it("passes an emoji-prefixed input through to `input` untouched", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    const synth = createTtsSynth({ baseUrl: BASE_URL, fetch: fetchMock as unknown as typeof fetch });
+    await synth("😆😆 やったー！");
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.input).toBe("😆😆 やったー！");
   });
 
   it("throws on non-2xx with status + parsed error.message (JSON error body)", async () => {
@@ -79,13 +79,13 @@ describe("createTtsSynth", () => {
         ({
           ok: false,
           status: 400,
-          json: async () => ({ error: { message: "input too long" } }),
+          json: async () => ({ error: { message: "Unknown model 'bogus'" } }),
         }) as unknown as Response,
     );
-    const synth = createTtsSynth({ config: CONFIG, fetch: fetchMock as unknown as typeof fetch });
+    const synth = createTtsSynth({ baseUrl: BASE_URL, fetch: fetchMock as unknown as typeof fetch });
 
     await expect(synth("x")).rejects.toThrow(/400/);
-    await expect(synth("x")).rejects.toThrow(/input too long/);
+    await expect(synth("x")).rejects.toThrow(/Unknown model 'bogus'/);
   });
 
   it("throws with status even when error body is not JSON", async () => {
@@ -99,7 +99,7 @@ describe("createTtsSynth", () => {
           },
         }) as unknown as Response,
     );
-    const synth = createTtsSynth({ config: CONFIG, fetch: fetchMock as unknown as typeof fetch });
+    const synth = createTtsSynth({ baseUrl: BASE_URL, fetch: fetchMock as unknown as typeof fetch });
     await expect(synth("x")).rejects.toThrow(/503/);
   });
 
@@ -113,7 +113,7 @@ describe("createTtsSynth", () => {
           else init.signal?.addEventListener("abort", abortWith);
         }),
     );
-    const synth = createTtsSynth({ config: CONFIG, fetch: fetchMock as unknown as typeof fetch });
+    const synth = createTtsSynth({ baseUrl: BASE_URL, fetch: fetchMock as unknown as typeof fetch });
     const ac = new AbortController();
     const pending = synth("hi", ac.signal);
     ac.abort();
@@ -138,7 +138,7 @@ describe("createTtsSynth", () => {
           }),
       );
       const synth = createTtsSynth({
-        config: CONFIG,
+        baseUrl: BASE_URL,
         fetch: fetchMock as unknown as typeof fetch,
       });
 
@@ -152,7 +152,7 @@ describe("createTtsSynth", () => {
       vi.useFakeTimers();
       const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
       const synth = createTtsSynth({
-        config: CONFIG,
+        baseUrl: BASE_URL,
         fetch: fetchMock as unknown as typeof fetch,
       });
 
@@ -165,7 +165,7 @@ describe("createTtsSynth", () => {
   it("adds Authorization: Bearer when getApiKey resolves a key, keeping Content-Type", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(2)));
     const synth = createTtsSynth({
-      config: CONFIG,
+      baseUrl: BASE_URL,
       fetch: fetchMock as unknown as typeof fetch,
       getApiKey: async () => "sk-tts",
     });
@@ -179,7 +179,7 @@ describe("createTtsSynth", () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(2)));
     for (const getApiKey of [undefined, async () => "", async () => "   "]) {
       const synth = createTtsSynth({
-        config: CONFIG,
+        baseUrl: BASE_URL,
         fetch: fetchMock as unknown as typeof fetch,
         getApiKey,
       });
@@ -191,52 +191,54 @@ describe("createTtsSynth", () => {
   });
 });
 
-describe("createOpenAiTtsProvider", () => {
+describe("createTtsProvider", () => {
   const endpoints = (overrides: Partial<EndpointsConfig> = {}): EndpointsConfig => ({
-    ...CONFIG,
+    chat_base_url: "http://localhost:8643/v1",
+    chat_endpoint: "/v1/responses",
+    stt_base_url: "http://localhost:5517",
+    tts_base_url: BASE_URL,
+    tts_model: "irodori-tts",
     ...overrides,
   });
 
-  it("isReady reflects whether tts_base_url is configured", () => {
-    const provider = createOpenAiTtsProvider({
-      getEndpoints: () => endpoints({ tts_base_url: "" }),
-      selectFetch: async () => undefined,
-    });
-    expect(provider.isReady()).toBe(false);
+  it("isReady requires both tts_base_url and an active speaker id", () => {
+    const build = (eps: EndpointsConfig, speakerId: string) =>
+      createTtsProvider({
+        getEndpoints: () => eps,
+        getActiveSpeaker: () => ({ id: speakerId, ref_url: "" }),
+        selectFetch: async () => undefined,
+      });
 
-    const ready = createOpenAiTtsProvider({
-      getEndpoints: () => endpoints(),
-      selectFetch: async () => undefined,
-    });
-    expect(ready.isReady()).toBe(true);
+    expect(build(endpoints({ tts_base_url: "" }), "ナツメ").isReady()).toBe(false);
+    expect(build(endpoints(), "").isReady()).toBe(false);
+    expect(build(endpoints(), "ナツメ").isReady()).toBe(true);
   });
 
-  it("emotionTextMode is free", () => {
-    const provider = createOpenAiTtsProvider({
-      getEndpoints: () => endpoints(),
-      selectFetch: async () => undefined,
-    });
-    expect(provider.emotionTextMode()).toBe("free");
-  });
-
-  it("paramsKey changes when the voice params change", () => {
-    let eps = endpoints({ tts_voice: "alloy" });
-    const provider = createOpenAiTtsProvider({
+  it("paramsKey joins tts_base_url, tts_model and the active speaker id", () => {
+    let eps = endpoints();
+    let speakerId = "ナツメ";
+    const provider = createTtsProvider({
       getEndpoints: () => eps,
+      getActiveSpeaker: () => ({ id: speakerId, ref_url: "" }),
       selectFetch: async () => undefined,
     });
-    const first = provider.paramsKey();
-    eps = endpoints({ tts_voice: "another" });
-    expect(provider.paramsKey()).not.toBe(first);
+
+    expect(provider.paramsKey()).toBe("http://localhost:8092::irodori-tts::ナツメ");
+
+    speakerId = "ムラサメ";
+    expect(provider.paramsKey()).toBe("http://localhost:8092::irodori-tts::ムラサメ");
+
+    eps = endpoints({ tts_model: "other" });
+    expect(provider.paramsKey()).toBe("http://localhost:8092::other::ムラサメ");
   });
 
-  it("synth resolves fetch via selectFetch and posts through createTtsSynth with live config + key", async () => {
+  it("synth resolves fetch via selectFetch and posts model + the active speaker as voice", async () => {
     const buf = new ArrayBuffer(4);
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(buf));
-    const getApiKey = async () => "sk-live";
-    const provider = createOpenAiTtsProvider({
-      getEndpoints: () => endpoints({ tts_model: "m", tts_voice: "v", tts_speed: 1.1 }),
-      getApiKey,
+    const provider = createTtsProvider({
+      getEndpoints: () => endpoints(),
+      getActiveSpeaker: () => ({ id: "ナツメ", ref_url: "asset://x/clip.wav" }),
+      getApiKey: async () => "sk-live",
       selectFetch: async () => fetchMock as unknown as typeof fetch,
     });
 
@@ -247,8 +249,26 @@ describe("createOpenAiTtsProvider", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("http://localhost:8092/v1/audio/speech");
     const body = JSON.parse(init.body as string);
-    expect(body).toMatchObject({ input: "hi", model: "m", voice: "v", speed: 1.1 });
+    expect(body).toMatchObject({ input: "hi", model: "irodori-tts", voice: "ナツメ" });
     const headers = init.headers as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer sk-live");
+  });
+
+  it("surfaces the server's error message out of synth", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: false,
+          status: 400,
+          json: async () => ({ error: { message: "Unknown voice 'nope'" } }),
+        }) as unknown as Response,
+    );
+    const provider = createTtsProvider({
+      getEndpoints: () => endpoints(),
+      getActiveSpeaker: () => ({ id: "nope", ref_url: "" }),
+      selectFetch: async () => fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(provider.synth("hi")).rejects.toThrow(/Unknown voice 'nope'/);
   });
 });

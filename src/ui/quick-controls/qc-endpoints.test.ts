@@ -122,7 +122,7 @@ describe("createQuickControls — endpoints + API keys", () => {
   // ── Endpoint section ─────────────────────────────────────────────────────
 
   it("renders four collapsible per-service sections (chat/stt/tts/broker), each with a yui-select", () => {
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+    const qc = buildQc();
     qc.open();
 
     const sections = Array.from(
@@ -134,17 +134,13 @@ describe("createQuickControls — endpoints + API keys", () => {
       expect(s.open).toBe(false);
       expect(s.querySelector(".yui-select")).not.toBeNull();
     }
-    // single-option sections are inert (--single); STT is the only one left. Chat and TTS
-    // are interactive dropdowns (chat_api / tts_provider).
+    // Chat is the only interactive dropdown (chat_api); STT/TTS/broker are inert (--single).
     expect(sections[0].querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(
       false,
     );
-    expect(sections[1].querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(
-      true,
-    );
-    expect(sections[2].querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(
-      false,
-    );
+    for (const s of sections.slice(1)) {
+      expect(s.querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(true);
+    }
 
     // each section carries its own URL field(s) inside it.
     const fieldIn = (svc: string, key: string): boolean =>
@@ -152,9 +148,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(fieldIn("chat", "chat_base_url")).toBe(true);
     expect(fieldIn("chat", "chat_model")).toBe(true);
     expect(fieldIn("stt", "stt_base_url")).toBe(true);
-    expect(fieldIn("tts", "irodori_base_url")).toBe(true);
     expect(fieldIn("tts", "tts_base_url")).toBe(true);
-    expect(fieldIn("tts", "tts_voice")).toBe(true);
     expect(fieldIn("broker", "broker_base_url")).toBe(true);
 
     qc.dispose();
@@ -169,7 +163,6 @@ describe("createQuickControls — endpoints + API keys", () => {
       chat_base_url: "http://localhost:8643/v1",
       stt_base_url: "http://localhost:5517/v1",
       tts_base_url: "http://localhost:8092",
-      irodori_base_url: "http://localhost:8091",
       chat_model: "natsume",
     };
     qc.open();
@@ -272,24 +265,16 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("the tts reset clears irodori_base_url + tts_base_url + tts_voice + tts_provider + the tts key", () => {
+  it("the tts reset clears tts_base_url + the tts key", () => {
     const ttsKeySettings = createTtsKeySettings({ storage: inMemoryApiKeyStorage() });
     ttsKeySettings.setApiKey("sk-tts-1");
     const qc = buildQc({ ttsKeySettings });
     qc.open();
 
-    endpointsSettings.set({
-      irodori_base_url: "http://i",
-      tts_base_url: "http://t",
-      tts_voice: "alloy",
-      tts_provider: "openai",
-    });
+    endpointsSettings.set({ tts_base_url: "http://t" });
 
     qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="tts"]')!.click();
-    expect(endpointsSettings.get().irodori_base_url).toBe("");
     expect(endpointsSettings.get().tts_base_url).toBe("");
-    expect(endpointsSettings.get().tts_voice).toBe("");
-    expect(endpointsSettings.get().tts_provider).toBe("");
     expect(ttsKeySettings.get().apiKey).toBe("");
 
     qc.dispose();
@@ -641,16 +626,18 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("renders a masked TTS key row in the openai sub-view wired to the tts store", () => {
+  it("renders a masked TTS key row in the TTS section wired to the tts store", () => {
     const ttsKeySettings = createTtsKeySettings({ storage: inMemoryApiKeyStorage() });
     const setSpy = vi.spyOn(ttsKeySettings, "setApiKey");
     const clearSpy = vi.spyOn(ttsKeySettings, "clear");
-    const qc = buildQc({ ttsKeySettings, getDefaultProvider: () => "openai" });
+    const qc = buildQc({ ttsKeySettings });
     qc.open();
 
     const input = keyInput(qc, "ttskey");
     expect(input.type).toBe("password");
-    expect(qc.el.querySelector(".yui-tts-openai")!.contains(input)).toBe(true);
+    expect(
+      qc.el.querySelector('#yui-panel-adv details[data-svc="tts"]')!.contains(input),
+    ).toBe(true);
 
     input.value = "sk-tts-xyz";
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -686,117 +673,38 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  // ── TTS engine (tts_provider) dropdown + sub-views + broker URL row ─────────
+  // ── TTS section: one flat OpenAI-compatible path ───────────────────────────
 
-  function ttsTypeSelect(qc: { el: HTMLElement }): HTMLSelectElement {
-    return qc.el.querySelector<HTMLSelectElement>(".yui-tts-type")!;
-  }
-
-  it("renders an interactive TTS-engine dropdown (irodori/openai) in the TTS section", () => {
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+  it("carries no engine dropdown and no irodori/openai sub-views", () => {
+    const qc = buildQc();
     qc.open();
 
-    const sel = ttsTypeSelect(qc);
-    expect(sel).not.toBeNull();
-    // lives in the advanced tab's TTS section, not the character panel.
-    expect(qc.el.querySelector('#yui-panel-adv details[data-svc="tts"]')!.contains(sel)).toBe(true);
-    expect(sel.classList.contains("yui-select--single")).toBe(false);
-    expect(Array.from(sel.options).map((o) => o.value)).toEqual(["irodori", "openai"]);
+    expect(qc.el.querySelector(".yui-tts-type")).toBeNull();
+    expect(qc.el.querySelector(".yui-tts-irodori")).toBeNull();
+    expect(qc.el.querySelector(".yui-tts-openai")).toBeNull();
 
     qc.dispose();
   });
 
-  it("reflects the effective provider on the dropdown: bundled default when no override", () => {
-    const qc = buildQc({ getDefaultProvider: () => "openai" });
+  it("shows the TTS URL row, the speaker picker and the TTS key row side by side", () => {
+    const qc = buildQc();
     qc.open();
-    expect(ttsTypeSelect(qc).value).toBe("openai");
+
+    const tts = qc.el.querySelector<HTMLElement>('#yui-panel-adv details[data-svc="tts"]')!;
+    expect(tts.querySelector('.yui-input-row[data-ep-field="tts_base_url"]')).not.toBeNull();
+    expect(tts.querySelector(".yui-spk-scroll")).not.toBeNull();
+    expect(tts.querySelector('[data-key-prefix="ttskey"]')).not.toBeNull();
+
     qc.dispose();
   });
 
-  it("reflects the effective provider on the dropdown: override wins over the default", () => {
-    endpointsSettings.set({ tts_provider: "openai" });
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
-    qc.open();
-    expect(ttsTypeSelect(qc).value).toBe("openai");
-    qc.dispose();
-  });
-
-  it("irodori sub-view shows the speaker picker + irodori URL and NO TTS key row", () => {
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
+  it("leaves the speaker controls enabled with no hint to disable them", () => {
+    const qc = buildQc();
     qc.open();
 
-    const irodori = qc.el.querySelector<HTMLElement>(".yui-tts-irodori")!;
-    const openai = qc.el.querySelector<HTMLElement>(".yui-tts-openai")!;
-    expect(irodori.hidden).toBe(false);
-    expect(openai.hidden).toBe(true);
-    // speaker picker relocated into the irodori sub-view.
-    expect(irodori.querySelector(".yui-spk-scroll")).not.toBeNull();
-    expect(
-      irodori.querySelector('.yui-input-row[data-ep-field="irodori_base_url"]'),
-    ).not.toBeNull();
-    // no key row in the irodori sub-view.
-    expect(irodori.querySelector('[data-key-prefix="ttskey"]')).toBeNull();
-    // speaker controls are enabled for irodori.
     expect(qc.el.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(false);
-    expect(qc.el.querySelector<HTMLElement>(".yui-spks-hint")!.hidden).toBe(true);
-
-    qc.dispose();
-  });
-
-  it("selecting 'openai' toggles to the openai sub-view: tts_voice field + TTS key row, speaker hidden", () => {
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
-    qc.open();
-
-    const sel = ttsTypeSelect(qc);
-    sel.value = "openai";
-    sel.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(endpointsSettings.get().tts_provider).toBe("openai");
-
-    const irodori = qc.el.querySelector<HTMLElement>(".yui-tts-irodori")!;
-    const openai = qc.el.querySelector<HTMLElement>(".yui-tts-openai")!;
-    expect(irodori.hidden).toBe(true);
-    expect(openai.hidden).toBe(false);
-    expect(openai.querySelector('.yui-input-row[data-ep-field="tts_voice"]')).not.toBeNull();
-    expect(openai.querySelector('[data-key-prefix="ttskey"]')).not.toBeNull();
-    // speaker picker disabled + hint shown while openai is effective.
-    expect(qc.el.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(true);
-    expect(qc.el.querySelector(".yui-spk-foot")!.classList.contains("is-disabled")).toBe(true);
-    const hint = qc.el.querySelector<HTMLElement>(".yui-spks-hint")!;
-    expect(hint.hidden).toBe(false);
-    expect(hint.textContent).toContain("irodori 전용");
-
-    qc.dispose();
-  });
-
-  it("selecting 'irodori' toggles back: speaker picker re-shown, hint hidden", () => {
-    endpointsSettings.set({ tts_provider: "openai" });
-    const qc = buildQc({ getDefaultProvider: () => "irodori" });
-    qc.open();
-
-    const sel = ttsTypeSelect(qc);
-    sel.value = "irodori";
-    sel.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(endpointsSettings.get().tts_provider).toBe("irodori");
-
-    expect(qc.el.querySelector<HTMLElement>(".yui-tts-irodori")!.hidden).toBe(false);
-    expect(qc.el.querySelector<HTMLElement>(".yui-tts-openai")!.hidden).toBe(true);
-    expect(qc.el.querySelector(".yui-spk-scroll")!.classList.contains("is-disabled")).toBe(false);
-    expect(qc.el.querySelector<HTMLElement>(".yui-spks-hint")!.hidden).toBe(true);
-
-    qc.dispose();
-  });
-
-  it("binds the openai tts_voice field to the endpoints store", () => {
-    const qc = buildQc({ getDefaultProvider: () => "openai" });
-    qc.open();
-
-    const input = qc.el.querySelector<HTMLInputElement>(
-      '.yui-input-row[data-ep-field="tts_voice"] .yui-ep-input',
-    )!;
-    input.value = "alloy";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(endpointsSettings.get().tts_voice).toBe("alloy");
+    expect(qc.el.querySelector(".yui-spk-foot")!.classList.contains("is-disabled")).toBe(false);
+    expect(qc.el.querySelector(".yui-spks-hint")).toBeNull();
 
     qc.dispose();
   });
