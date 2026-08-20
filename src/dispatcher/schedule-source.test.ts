@@ -2,15 +2,16 @@
  * schedule-source.test.ts — clock-time schedule firing source.
  *
  * Locks behavior over the shared `os_event` channel (bare `os_idle_tick`):
- *  - present (idle ≤ present_max) + currentHHMM ≥ cue.time → fire once/day per cue.
+ *  - present (idle ≤ present_max) + within 2h after cue.time → fire once/day per cue.
  *  - away / null idle → ignore.
  *  - not-yet-due cue → no fire.
- *  - day boundary clears the firedToday latch.
+ *  - persisted day latch survives source restarts.
  *  - isEnabled()/per-cue enabled gate firing only.
  *  - off-Tauri degrade + start idempotency.
  */
 
 import { describe, expect, it, vi } from "vitest";
+import type { PersistedStorage } from "../io/persisted-store";
 import type { ScheduledCue } from "../io/schedule-settings";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import type { BusEnvelope, EventBus } from "./event-bus";
@@ -47,6 +48,16 @@ function fakeListen(): {
 
 function idleTick(os_idle_ms: number | null, ts = 0): OsEventPayload {
   return { event_name: "os_idle_tick", ts, data: { os_idle_ms } };
+}
+
+function fakeFiredStorage(): PersistedStorage<Record<string, string>> {
+  let fired: Record<string, string> = {};
+  return {
+    load: () => ({ ...fired }),
+    save: (next) => {
+      fired = { ...next };
+    },
+  };
 }
 
 const PRESENT_MAX = 10_000;
@@ -220,10 +231,36 @@ describe("schedule_source — once-per-day latch", () => {
     emit(idleTick(500));
     expect(pushed).toHaveLength(2);
   });
+
+  it("latch survives a restart — two source lifetimes on the same day fire once total", async () => {
+    const { bus, pushed } = fakeBus();
+    const sourceAListen = fakeListen();
+    const sourceBListen = fakeListen();
+    const firedStorage = fakeFiredStorage();
+    const t = at(2026, 5, 15, 9, 30);
+    const deps = {
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      getCues: () => [cue({ time: "09:00" })],
+      isEnabled: () => true,
+      now: () => t,
+      firedStorage,
+    };
+    const sourceA = createScheduleSource({ ...deps, listen: sourceAListen.listen });
+    await sourceA.start();
+    sourceAListen.emit(idleTick(500));
+    expect(pushed).toHaveLength(1);
+    sourceA.stop();
+
+    const sourceB = createScheduleSource({ ...deps, listen: sourceBListen.listen });
+    await sourceB.start();
+    sourceBListen.emit(idleTick(500));
+    expect(pushed).toHaveLength(1);
+  });
 });
 
 describe("schedule_source — startup catch-up", () => {
-  it("first present tick fires a cue whose time already passed", async () => {
+  it("a cue more than the grace window past its time does not fire", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
     const t = at(2026, 5, 15, 14, 0);
@@ -237,7 +274,58 @@ describe("schedule_source — startup catch-up", () => {
     });
     await src.start();
     emit(idleTick(500));
+    expect(pushed).toHaveLength(0);
+  });
+
+  it("fires a cue within the grace window", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const t = at(2026, 5, 15, 10, 30);
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      getCues: () => [cue({ time: "09:00" })],
+      isEnabled: () => true,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+    emit(idleTick(500));
     expect(pushed).toHaveLength(1);
+  });
+
+  it("fires a cue exactly 120 minutes after its time", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const t = at(2026, 5, 15, 11, 0);
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      getCues: () => [cue({ time: "09:00" })],
+      isEnabled: () => true,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(1);
+  });
+
+  it("does not fire a cue 121 minutes after its time", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const t = at(2026, 5, 15, 11, 1);
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      getCues: () => [cue({ time: "09:00" })],
+      isEnabled: () => true,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(0);
   });
 });
 
