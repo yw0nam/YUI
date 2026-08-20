@@ -44,6 +44,8 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   // Below the dot, centered, clamped to the viewport; flips above when there's no room below.
   function position(dot: HTMLElement): void {
     const dotRect = dot.getBoundingClientRect();
+    tip.style.left = "0px";
+    tip.style.top = "0px";
     const tipRect = tip.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -52,15 +54,16 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     if (y + tipRect.height > vh - VIEWPORT_MARGIN) y = dotRect.top - GAP - tipRect.height;
     if (x + tipRect.width > vw - VIEWPORT_MARGIN) x = vw - VIEWPORT_MARGIN - tipRect.width;
     if (x < VIEWPORT_MARGIN) x = VIEWPORT_MARGIN;
+    if (y < VIEWPORT_MARGIN) y = VIEWPORT_MARGIN;
     tip.style.left = `${x}px`;
     tip.style.top = `${y}px`;
   }
 
   function show(dot: HTMLElement): void {
     cancelPendingOpen();
+    if (openDot && openDot !== dot) hide();
     cancelFade?.();
     cancelFade = null;
-    if (openDot && openDot !== dot) hide();
     openDot = dot;
     tip.textContent = dot.getAttribute("aria-label") ?? "";
     document.body.appendChild(tip);
@@ -117,22 +120,22 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     togglePin(e.currentTarget as HTMLElement);
   }
 
-  function handleKeydown(e: KeyboardEvent): void {
-    if (e.key !== " " && e.key !== "Enter") return;
-    e.preventDefault();
-    togglePin(e.currentTarget as HTMLElement);
-  }
-
-  // Pinned tooltips close on any click outside the dot and the tooltip itself.
+  // Pinned tooltips close on any click outside the dot.
   function handleDocumentClick(e: MouseEvent): void {
     if (!pinned || !openDot) return;
     const target = e.target as Node;
-    if (openDot.contains(target) || tip.contains(target)) return;
+    if (openDot.contains(target)) return;
     hide();
   }
 
   function handleDocumentKeydown(e: KeyboardEvent): void {
-    if (e.key === "Escape" && openDot) hide();
+    if (e.key !== "Escape" || !openDot) return;
+    e.stopPropagation();
+    hide();
+  }
+
+  function handleViewportChange(): void {
+    if (openDot) hide();
   }
 
   for (const dot of dots) {
@@ -141,23 +144,25 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     dot.addEventListener("focus", handleFocus);
     dot.addEventListener("blur", handleBlur);
     dot.addEventListener("click", handleClick);
-    dot.addEventListener("keydown", handleKeydown);
   }
   document.addEventListener("click", handleDocumentClick);
-  document.addEventListener("keydown", handleDocumentKeydown);
+  document.addEventListener("keydown", handleDocumentKeydown, true);
+  window.addEventListener("scroll", handleViewportChange, true);
+  window.addEventListener("resize", handleViewportChange);
 
   function dispose(): void {
     cancelPendingOpen();
     cancelFade?.();
     document.removeEventListener("click", handleDocumentClick);
-    document.removeEventListener("keydown", handleDocumentKeydown);
+    document.removeEventListener("keydown", handleDocumentKeydown, true);
+    window.removeEventListener("scroll", handleViewportChange, true);
+    window.removeEventListener("resize", handleViewportChange);
     for (const dot of dots) {
       dot.removeEventListener("mouseenter", handleMouseEnter);
       dot.removeEventListener("mouseleave", handleMouseLeave);
       dot.removeEventListener("focus", handleFocus);
       dot.removeEventListener("blur", handleBlur);
       dot.removeEventListener("click", handleClick);
-      dot.removeEventListener("keydown", handleKeydown);
     }
     tip.remove();
   }

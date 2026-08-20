@@ -35,12 +35,10 @@ function escapeAttr(text: string): string {
 /**
  * Small round `?` that follows a section label whose name alone is not self-explanatory.
  * Markup only — hint-tooltip.ts wires the hover/focus/click tooltip onto `.yui-hint-dot`.
- * role="button" (not a real button) since click toggles the tooltip open; aria-label carries
- * the full explanation, as it's the only way a keyboard/screen-reader user reaches it.
  */
 function hintDotHtml(textKey: string): string {
   const text = escapeAttr(t(textKey));
-  return `<span class="yui-hint-dot" role="button" tabindex="0" aria-label="${text}">?</span>`;
+  return `<button type="button" class="yui-hint-dot" aria-label="${text}">?</button>`;
 }
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
