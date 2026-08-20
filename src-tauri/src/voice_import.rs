@@ -59,7 +59,8 @@ fn voice_id_from_name(name: &str) -> String {
         return base.to_string();
     }
     let hash = short_hash(name);
-    // `base` is ASCII by construction, so the byte slice cannot split a char.
+    // `base` is ASCII by construction, so the byte slice cannot split a char. The `- 1` is the
+    // `-` separator byte between base and hash.
     let cap = MAX_STEM_BYTES - 1 - hash.len();
     let base = if base.len() > cap {
         base[..cap].trim_end_matches('_')

@@ -48,7 +48,7 @@ export interface UserAssetListConfig<T extends UserAssetOption> {
   removeFromStore: (id: string) => void;
   /** Perform the actual swap + commit store on success. */
   swap: (option: T) => Promise<void>;
-  /** Predicts the native id a typed name imports under (sanitizeStem for VRM, voiceIdFromName for speaker) — drives the naming row's overwrite warning. */
+  /** Predicts the native id a typed name imports under (sanitizeStem for VRM, voiceIdFromName for speaker) — drives the pending-import naming row's overwrite warning (the two-phase pickImport/commitImport path). */
   deriveId: (name: string) => string;
   /** One-shot import flow (VRM): file select → copy/load → addOption + select. Mutually exclusive with pickImport/commitImport. */
   importFn?: () => Promise<void>;

@@ -67,7 +67,21 @@ function truncateAtCharBoundary(s: string, maxBytes: number): string {
   return new TextDecoder("utf-8").decode(bytes.subarray(0, end));
 }
 
-const trimDotsAndWhitespace = (s: string): string => s.replace(/^[.\s]+|[.\s]+$/gu, "");
+// Rust `char::is_whitespace`'s exact set (Unicode White_Space). JS `\s`/`trim()` differ on two
+// code points — they exclude U+0085 (NEL) and include U+FEFF (BOM) — which would let this mirror
+// and the native trims derive different results from the same input.
+const RUST_WHITESPACE =
+  "\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
+
+const DOTS_AND_WHITESPACE_ENDS = new RegExp(
+  `^[.${RUST_WHITESPACE}]+|[.${RUST_WHITESPACE}]+$`,
+  "gu",
+);
+const trimDotsAndWhitespace = (s: string): string => s.replace(DOTS_AND_WHITESPACE_ENDS, "");
+
+const WHITESPACE_ENDS = new RegExp(`^[${RUST_WHITESPACE}]+|[${RUST_WHITESPACE}]+$`, "gu");
+/** Trim exactly what Rust's `str::trim` trims. */
+const trimAsRust = (s: string): string => s.replace(WHITESPACE_ENDS, "");
 
 /**
  * TS reimplementation of the native `sanitize_stem`. Permits arbitrary UTF-8 while
@@ -116,7 +130,7 @@ function shortHash(s: string): string {
  * implementations to the same outputs.
  */
 export function voiceIdFromName(name: string): string {
-  const trimmed = name.trim();
+  const trimmed = trimAsRust(name);
   let base = "";
   for (const c of sanitizeStem(trimmed)) {
     if (/[A-Za-z0-9-]/.test(c)) base += c;
