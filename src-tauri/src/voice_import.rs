@@ -476,17 +476,65 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    fn is_server_safe_id(s: &str) -> bool {
+        !s.is_empty()
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    }
+
     #[test]
-    fn copy_into_registers_under_a_utf8_desired_name_verbatim() {
+    fn copy_into_registers_a_utf8_desired_name_under_a_server_safe_ascii_id() {
         let dir = unique_dir("utf8_name");
         let references = dir.join("references");
         let src = dir.join("src.mp3");
         std::fs::write(&src, b"ID3\x04\x00\x00\x00\x00").unwrap();
 
         let imported = copy_into_references(&references, &src, "mp3", "ナツメ").unwrap();
-        assert_eq!(imported.id, "ナツメ");
-        assert!(references.join("ナツメ").join("clip.mp3").exists());
+        assert!(
+            is_server_safe_id(&imported.id),
+            "id must match the TTS server's [A-Za-z0-9_-] charset: {:?}",
+            imported.id
+        );
+        assert!(references.join(&imported.id).join("clip.mp3").exists());
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    // ── voice_id_from_name ───────────────────────────────────────────────────
+
+    #[test]
+    fn voice_id_non_ascii_name_yields_a_hashed_server_safe_id() {
+        let id = voice_id_from_name("エイメス");
+        assert!(is_server_safe_id(&id), "{id:?}");
+        assert!(
+            id.starts_with("voice-"),
+            "a fully non-ASCII name falls back to voice-<hash>: {id:?}"
+        );
+    }
+
+    #[test]
+    fn voice_id_is_stable_for_the_same_name() {
+        assert_eq!(voice_id_from_name("エイメス"), voice_id_from_name("エイメス"));
+    }
+
+    #[test]
+    fn voice_id_distinct_non_ascii_names_yield_distinct_ids() {
+        assert_ne!(voice_id_from_name("エイメス"), voice_id_from_name("ナツメ"));
+    }
+
+    #[test]
+    fn voice_id_server_safe_name_passes_through_unchanged() {
+        assert_eq!(voice_id_from_name("My_Voice-1"), "My_Voice-1");
+        assert_eq!(voice_id_from_name("Cat"), "Cat");
+    }
+
+    #[test]
+    fn voice_id_spaced_name_maps_to_underscores_with_a_hash_suffix() {
+        let id = voice_id_from_name("my avatar (v2)");
+        assert!(is_server_safe_id(&id), "{id:?}");
+        assert!(
+            id.starts_with("my_avatar_v2-"),
+            "spaces/parens map to collapsed underscores plus a hash: {id:?}"
+        );
     }
 
     #[test]
