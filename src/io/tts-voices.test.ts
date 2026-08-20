@@ -13,7 +13,7 @@ const { fetchReferenceClip } = vi.hoisted(() => ({
 }));
 vi.mock("./reference-clip", () => ({ fetchReferenceClip }));
 
-import { listVoices, upsertVoice } from "./tts-voices";
+import { deleteVoice, listVoices, upsertVoice } from "./tts-voices";
 
 type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -296,5 +296,79 @@ describe("upsertVoice", () => {
       }),
     ).rejects.toThrow(/reference clip fetch failed/);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteVoice", () => {
+  it("DELETEs the percent-encoded voice id", async () => {
+    const fetchMock = vi.fn<FetchFn>(
+      async () => ({ ok: true, status: 200 }) as unknown as Response,
+    );
+
+    await deleteVoice({
+      baseUrl: BASE_URL,
+      id: "voice / ナツメ",
+      fetch: fetchMock as unknown as typeof fetch,
+      logger: noopLog,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `http://localhost:8092/v1/audio/voices/${encodeURIComponent("voice / ナツメ")}`,
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("sends the Bearer header when configured and omits it otherwise", async () => {
+    const fetchMock = vi.fn<FetchFn>(
+      async () => ({ ok: true, status: 200 }) as unknown as Response,
+    );
+
+    await deleteVoice({
+      baseUrl: BASE_URL,
+      id: "with-key",
+      fetch: fetchMock as unknown as typeof fetch,
+      getApiKey: async () => "sk-tts",
+      logger: noopLog,
+    });
+    await deleteVoice({
+      baseUrl: BASE_URL,
+      id: "without-key",
+      fetch: fetchMock as unknown as typeof fetch,
+      getApiKey: async () => "  ",
+      logger: noopLog,
+    });
+
+    expect(fetchMock.mock.calls[0][1]?.headers).toEqual({ Authorization: "Bearer sk-tts" });
+    expect(fetchMock.mock.calls[1][1]?.headers).toEqual({});
+  });
+
+  it("resolves when the voice is already absent", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () =>
+      errorResponse(404, { error: { message: "Voice was not found." } }),
+    );
+
+    await expect(
+      deleteVoice({
+        baseUrl: BASE_URL,
+        id: "missing",
+        fetch: fetchMock as unknown as typeof fetch,
+        logger: noopLog,
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("throws with the server error message on another failure", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () =>
+      errorResponse(500, { error: { message: "database unavailable" } }),
+    );
+
+    await expect(
+      deleteVoice({
+        baseUrl: BASE_URL,
+        id: "myvoice",
+        fetch: fetchMock as unknown as typeof fetch,
+        logger: noopLog,
+      }),
+    ).rejects.toThrow("TTS voice delete failed (HTTP 500): database unavailable");
   });
 });

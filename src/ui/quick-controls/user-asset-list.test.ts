@@ -7,7 +7,7 @@
  * via keyboard, the delete-file-then-store-remove-then-active-fallback-swap ordering,
  * the reentrancy-guarded import flow with inline error, and row lookup/keyboard nav.
  */
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../logger";
 import { createUserAssetList, resolveRovedId, type UserAssetListConfig } from "./user-asset-list";
 
@@ -63,6 +63,7 @@ function makeHarness(overrides: Partial<UserAssetListConfig<FakeOption>> = {}) {
   const defaultRender = vi.fn(() => {
     // Re-render rows into containerEl to mirror a domain's render loop closely enough for
     // row-lookup/keyboard-nav assertions (rename-row markup is left to renderRenamingRow itself).
+    list.prepareRender(options.map((opt) => opt.id));
     containerEl.innerHTML = "";
     for (const opt of options) {
       const row = makeRow(opt.id);
@@ -121,8 +122,18 @@ function makeHarness(overrides: Partial<UserAssetListConfig<FakeOption>> = {}) {
     importFn: vi.mocked(cfg.importFn),
     render: vi.mocked(cfg.render),
     log,
+    dispose: () => {
+      list.dispose();
+      containerEl.remove();
+      importErrorEl.remove();
+    },
   };
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+  document.body.innerHTML = "";
+});
 
 describe("resolveRovedId", () => {
   it("keeps the roved id when it's still in the list, else falls back to active", () => {
@@ -187,10 +198,71 @@ describe("rename FSM", () => {
 });
 
 describe("remove flow", () => {
+  it("arms on the first click and deletes on the second click", async () => {
+    const h = makeHarness();
+
+    await h.list.remove("b");
+    expect(h.list.getArmedRemoveId()).toBe("b");
+    expect(h.removeFile).not.toHaveBeenCalled();
+
+    await h.list.remove("b");
+    expect(h.removeFile).toHaveBeenCalledWith("b");
+    h.dispose();
+  });
+
+  it("Escape disarms so the next click only arms again", async () => {
+    const h = makeHarness();
+    await h.list.remove("b");
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await h.list.remove("b");
+
+    expect(h.removeFile).not.toHaveBeenCalled();
+    expect(h.list.getArmedRemoveId()).toBe("b");
+    h.dispose();
+  });
+
+  it("disarms after four seconds", async () => {
+    vi.useFakeTimers();
+    const h = makeHarness();
+    await h.list.remove("b");
+
+    vi.advanceTimersByTime(4000);
+    await h.list.remove("b");
+
+    expect(h.removeFile).not.toHaveBeenCalled();
+    expect(h.list.getArmedRemoveId()).toBe("b");
+    h.dispose();
+  });
+
+  it("arming another row disarms the first", async () => {
+    const h = makeHarness();
+    await h.list.remove("a");
+    await h.list.remove("b");
+
+    expect(h.list.getArmedRemoveId()).toBe("b");
+    await h.list.remove("a");
+    expect(h.removeFile).not.toHaveBeenCalled();
+    expect(h.list.getArmedRemoveId()).toBe("a");
+    h.dispose();
+  });
+
+  it("clears the armed id on an unrelated re-render before ids can be reused", async () => {
+    const h = makeHarness();
+    await h.list.remove("a");
+
+    h.render();
+
+    expect(h.list.getArmedRemoveId()).toBeNull();
+    h.dispose();
+  });
+
   it("deletes the file first; on failure, does not touch the store and does not render", async () => {
     const h = makeHarness({
       removeFile: vi.fn(async () => Promise.reject(new Error("disk error"))),
     });
+    await h.list.remove("b");
+    h.render.mockClear();
     await h.list.remove("b");
     expect(h.removeFromStore).not.toHaveBeenCalled();
     expect(h.render).not.toHaveBeenCalled();
@@ -203,6 +275,8 @@ describe("remove flow", () => {
   it("removes from the store and renders directly when the removed option was not active", async () => {
     const h = makeHarness(); // active is "a"
     await h.list.remove("b");
+    h.render.mockClear();
+    await h.list.remove("b");
     expect(h.removeFromStore).toHaveBeenCalledWith("b");
     expect(h.swap).not.toHaveBeenCalled(); // not active -> no fallback swap
     expect(h.render).toHaveBeenCalledTimes(1);
@@ -211,6 +285,8 @@ describe("remove flow", () => {
   it("swaps to the fallback option when the removed option was active, without an extra render on swap success", async () => {
     const h = makeHarness(); // active is "a"
     await h.list.remove("a");
+    h.render.mockClear();
+    await h.list.remove("a");
     expect(h.removeFromStore).toHaveBeenCalledWith("a");
     expect(h.swap).toHaveBeenCalledWith({ id: "b", label: "B" }); // fallback option post-removal
     expect(h.render).not.toHaveBeenCalled(); // swap success needs no explicit render (store subscription handles it)
@@ -218,6 +294,8 @@ describe("remove flow", () => {
 
   it("renders when the fallback swap itself fails", async () => {
     const h = makeHarness({ swap: vi.fn(async () => Promise.reject(new Error("swap failed"))) });
+    await h.list.remove("a");
+    h.render.mockClear();
     await h.list.remove("a");
     expect(h.log.error).toHaveBeenCalledWith("fake_fallback_swap_failed", {
       error: "Error: swap failed",
