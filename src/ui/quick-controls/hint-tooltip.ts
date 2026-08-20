@@ -144,8 +144,17 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
 
   function handleClick(e: MouseEvent): void {
     const target = findClosestTarget(e.target);
-    if (target?.hasAttribute("data-tip-pin") && root.contains(target)) togglePin(target);
-    else if (openTarget && (openTarget === target || !root.contains(openTarget))) hide();
+    if (target?.hasAttribute("data-tip-pin") && root.contains(target)) {
+      togglePin(target);
+      return;
+    }
+    if (!openTarget) return;
+    // Keyboard activation keeps focus on the control, so keep its tooltip and pick up a new label.
+    if (e.detail === 0 && target && openTarget === target && root.contains(target)) {
+      show(target);
+      return;
+    }
+    if (openTarget === target || !root.contains(openTarget)) hide();
   }
 
   // Pinned tooltips close on any click outside the target.
