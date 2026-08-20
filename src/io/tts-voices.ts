@@ -112,8 +112,9 @@ export async function deleteVoice(opts: VoicesRequestOptions & { id: string }): 
     method: "DELETE",
     headers: await authHeaders(opts.getApiKey),
   });
-  if (!res.ok && res.status !== 404) {
-    throw new Error(`TTS voice delete failed (HTTP ${res.status})${await errorDetail(res)}`);
+  const detail = res.ok ? "" : await errorDetail(res);
+  if (!res.ok && (res.status !== 404 || !detail)) {
+    throw new Error(`TTS voice delete failed (HTTP ${res.status})${detail}`);
   }
   log.info("voice_deleted", { id: opts.id });
 }

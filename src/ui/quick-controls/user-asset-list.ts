@@ -95,6 +95,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   // Two-phase import: picked-but-not-yet-copied file awaiting a typed name (null if none pending).
   let pendingImport: PendingImport | null = null;
   let armedRemoveId: string | null = null;
+  let removingId: string | null = null;
   let keepArmedForRender = false;
   let removeTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -202,12 +203,21 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     removeTimer = null;
   }
 
-  function disarmRemove(render = true): void {
+  function disarmRemove(updateDom = true): void {
+    clearRemoveTimer();
     if (armedRemoveId === null) return;
+    const id = armedRemoveId;
     armedRemoveId = null;
     keepArmedForRender = false;
-    clearRemoveTimer();
-    if (render) cfg.render();
+    if (!updateDom) return;
+    const row = rowById(id);
+    row?.classList.remove("is-remove-armed");
+    const button = row?.querySelector<HTMLButtonElement>(`.${cfg.classPrefix}__remove`);
+    button?.classList.remove("is-armed");
+    if (button) {
+      button.title = t(`${cfg.i18nNamespace}.remove`);
+      button.setAttribute("aria-label", t(`${cfg.i18nNamespace}.remove`));
+    }
   }
 
   function armRemove(id: string): void {
@@ -235,21 +245,31 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
 
   // Remove user option — confirm, delete file first, then remove from store and swap to fallback.
   async function remove(id: string): Promise<void> {
+    if (removingId !== null) return;
     if (armedRemoveId !== id) {
       armRemove(id);
       return;
     }
-    disarmRemove(false);
+    disarmRemove();
+    removingId = id;
+    errorId = null;
+    const row = rowById(id);
+    row?.setAttribute("aria-busy", "true");
+    const removeButton = row?.querySelector<HTMLButtonElement>(`.${cfg.classPrefix}__remove`);
+    if (removeButton) removeButton.disabled = true;
     const wasActive = cfg.getActiveId() === id;
     cfg.log.info(`${cfg.logPrefix}_delete`, { id });
     try {
       await cfg.removeFile(id);
     } catch (err) {
       // File delete failed — do not commit store removal, keep row (maintain disk match).
+      errorId = id;
+      removingId = null;
       cfg.log.error(`${cfg.logPrefix}_delete_failed`, { id, error: String(err) });
       cfg.render();
       return;
     }
+    removingId = null;
     cfg.removeFromStore(id); // Falls back to default if was active + notify
     // Non-active removal does not notify store, so re-render list directly.
     if (!wasActive) {
@@ -413,6 +433,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
 
   function prepareRender(ids: string[]): void {
     if (renamingId !== null && !ids.includes(renamingId)) renamingId = null;
+    // The arm survives only the render that sets it; any later render disarms.
     if (armedRemoveId !== null && (!keepArmedForRender || !ids.includes(armedRemoveId))) {
       disarmRemove(false);
     }
@@ -421,6 +442,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
 
   function dispose(): void {
     disarmRemove(false);
+    clearRemoveTimer();
     ownerDocument.removeEventListener("click", handleDocumentClick, true);
     ownerDocument.removeEventListener("keydown", handleDocumentKeydown);
   }

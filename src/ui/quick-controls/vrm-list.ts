@@ -85,7 +85,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
         const badgeHtml = selected ? `<span class="yui-vrm__badge">${t("vrm.in_use")}</span>` : "";
         const actionsHtml = isUser
           ? `<button class="yui-vrm__rename" type="button" title="${t("vrm.rename")}" aria-label="${t("vrm.rename")}">${VRM_RENAME_SVG}</button>` +
-            `<button class="yui-vrm__remove" type="button" title="${t("vrm.remove")}" aria-label="${t("vrm.remove")}">${VRM_REMOVE_SVG}</button>`
+            `<button class="yui-vrm__remove" type="button" title="${t("vrm.remove")}" aria-label="${t("vrm.remove")}">${VRM_REMOVE_SVG}<span class="yui-vrm__remove-confirm">${t("vrm.remove_confirm")}</span></button>`
           : "";
         row.innerHTML = `
           <span class="yui-vrm__tick" aria-hidden="true"></span>
@@ -103,7 +103,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
           if (list.getArmedRemoveId() === opt.id) {
             row.classList.add("is-remove-armed");
             removeBtn.classList.add("is-armed");
-            removeBtn.textContent = t("vrm.remove_confirm");
+            removeBtn.title = t("vrm.remove_confirm");
             removeBtn.setAttribute("aria-label", t("vrm.remove_confirm_aria", { name: opt.label }));
           }
           row
