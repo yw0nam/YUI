@@ -410,7 +410,7 @@ describe("createQuickControls — speaker section", () => {
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     const remove = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
-    vi.spyOn(remove, "matches").mockReturnValue(true);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
     remove.focus();
     expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제할까요?");
 
@@ -454,7 +454,7 @@ describe("createQuickControls — speaker section", () => {
 
       userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
       const remove = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
-      vi.spyOn(remove, "matches").mockReturnValue(true);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
       remove.focus();
       expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제할까요?");
 

@@ -280,17 +280,13 @@ describe("createQuickControls — shell", () => {
 
   it("does not show a tooltip for programmatic panel focus but does for keyboard focus", () => {
     const qc = buildQc({ variant: "popover" });
-    const popout = qc.el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout")!;
-    const popoutMatches = popout.matches.bind(popout);
-    vi.spyOn(popout, "matches").mockImplementation((selector) =>
-      selector === ":focus-visible" ? false : popoutMatches(selector),
-    );
 
+    document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
     qc.open();
     expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
 
     const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
-    vi.spyOn(tab, "matches").mockReturnValue(true);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
     tab.focus();
     expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(tab.dataset.tip);
 
@@ -299,11 +295,9 @@ describe("createQuickControls — shell", () => {
 
   it("closes both a keyboard-focused tab tooltip and the panel on Escape", () => {
     const qc = buildQc({ variant: "popover" });
-    const popout = qc.el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout")!;
-    vi.spyOn(popout, "matches").mockReturnValue(false);
     qc.open();
     const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
-    vi.spyOn(tab, "matches").mockReturnValue(true);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
     tab.focus();
     expect(document.querySelector(".yui-hint-tip.is-open")).not.toBeNull();
 

@@ -686,7 +686,7 @@ describe("createQuickControls — sections rail collapse", () => {
     }
 
     const reactions = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
-    vi.spyOn(reactions, "matches").mockReturnValue(true);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
     reactions.focus();
     expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(
       reactions.dataset.tip,

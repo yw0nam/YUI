@@ -9,8 +9,6 @@ function makeDot(label: string): HTMLElement {
   button.setAttribute("aria-label", label);
   button.dataset.tip = label;
   button.dataset.tipPin = "";
-  const matches = button.matches.bind(button);
-  button.matches = (selector) => selector === ":focus-visible" || matches(selector);
   button.textContent = "?";
   return button;
 }
@@ -39,6 +37,10 @@ describe("createHintTooltip", () => {
 
   function openTip(): HTMLElement | null {
     return document.querySelector(".yui-hint-tip.is-open");
+  }
+
+  function enterKeyboardModality(key = "Tab"): void {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
   }
 
   it("does not open before the 150ms hover delay", () => {
@@ -83,6 +85,7 @@ describe("createHintTooltip", () => {
   });
 
   it("closes a focus-opened tooltip when the target is detached before blur", () => {
+    enterKeyboardModality();
     dotA.focus();
     expect(openTip()).not.toBeNull();
 
@@ -93,15 +96,32 @@ describe("createHintTooltip", () => {
     expect(openTip()).toBeNull();
   });
 
-  it("opens immediately on focus, with no timer advance needed", () => {
+  it("opens immediately on focus after a focus-moving keydown", () => {
+    enterKeyboardModality();
     dotA.focus();
     expect(openTip()).not.toBeNull();
   });
 
   it("closes immediately on blur", () => {
+    enterKeyboardModality();
     dotA.focus();
     expect(openTip()).not.toBeNull();
     dotA.blur();
+    expect(openTip()).toBeNull();
+  });
+
+  it("opens focus tooltips only in keyboard modality and resets on pointerdown", () => {
+    dotA.focus();
+    expect(openTip()).toBeNull();
+    dotA.blur();
+
+    enterKeyboardModality();
+    dotA.focus();
+    expect(openTip()?.textContent).toBe(dotA.dataset.tip);
+    dotA.blur();
+
+    document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    dotA.focus();
     expect(openTip()).toBeNull();
   });
 
@@ -122,9 +142,9 @@ describe("createHintTooltip", () => {
   it("clicking a non-dot data-tip element hides its focused tooltip", () => {
     const button = document.createElement("button");
     button.dataset.tip = "Switch to reactions";
-    vi.spyOn(button, "matches").mockReturnValue(true);
     root.appendChild(button);
 
+    enterKeyboardModality();
     button.focus();
     expect(openTip()?.textContent).toBe("Switch to reactions");
     button.click();
@@ -170,6 +190,7 @@ describe("createHintTooltip", () => {
 
   it("keeps dot B's pinned tooltip open after switching from pinned dot A by focus", () => {
     dotA.click();
+    enterKeyboardModality();
     dotB.focus();
 
     vi.advanceTimersByTime(500);
@@ -182,6 +203,8 @@ describe("createHintTooltip", () => {
     const panelKeydown = vi.fn();
     document.addEventListener("keydown", panelKeydown);
     try {
+      enterKeyboardModality();
+      panelKeydown.mockClear();
       dotA.focus();
       dotA.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
       expect(openTip()).toBeNull();
@@ -261,6 +284,7 @@ describe("createHintTooltip", () => {
       toJSON: () => ({}),
     });
 
+    enterKeyboardModality();
     dotB.focus();
     const tip = openTip()!;
     tip.style.left = "280px";
@@ -320,9 +344,16 @@ describe("createHintTooltip", () => {
     localTooltip.dispose();
 
     const documentClick = documentAdd.mock.calls.find(([name]) => name === "click")![1];
-    const documentKeydown = documentAdd.mock.calls.find(([name]) => name === "keydown")![1];
+    const documentKeydowns = documentAdd.mock.calls.filter(([name]) => name === "keydown");
     expect(documentRemove).toHaveBeenCalledWith("click", documentClick);
-    expect(documentRemove).toHaveBeenCalledWith("keydown", documentKeydown, true);
+    expect(documentKeydowns).toHaveLength(2);
+    for (const [, callback] of documentKeydowns) {
+      expect(documentRemove).toHaveBeenCalledWith("keydown", callback, true);
+    }
+    const documentPointerdown = documentAdd.mock.calls.find(
+      ([name]) => name === "pointerdown",
+    )![1];
+    expect(documentRemove).toHaveBeenCalledWith("pointerdown", documentPointerdown, true);
 
     const windowScroll = windowAdd.mock.calls.find(([name]) => name === "scroll")![1];
     const windowResize = windowAdd.mock.calls.find(([name]) => name === "resize")![1];
@@ -350,6 +381,7 @@ describe("createHintTooltip", () => {
   });
 
   it("cancels a pending fade when disposed", () => {
+    enterKeyboardModality();
     dotA.focus();
     const tip = openTip()!;
     const remove = vi.spyOn(tip, "remove");
@@ -366,6 +398,7 @@ describe("createHintTooltip", () => {
   it("renders data-tip instead of the accessible name as the tooltip text", () => {
     dotA.dataset.tip = "Tooltip copy";
     dotA.setAttribute("aria-label", "Accessible name");
+    enterKeyboardModality();
     dotA.focus();
     expect(openTip()!.textContent).toBe("Tooltip copy");
   });
