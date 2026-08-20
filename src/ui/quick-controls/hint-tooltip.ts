@@ -36,6 +36,7 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   const tip = document.createElement("div");
   tip.className = "yui-hint-tip";
   tip.setAttribute("role", "tooltip");
+  tip.id = "yui-hint-tip";
 
   let openTarget: HTMLElement | null = null;
   let pinned = false;
@@ -77,6 +78,7 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     cancelFade?.();
     cancelFade = null;
     openTarget = target;
+    target.setAttribute("aria-describedby", tip.id);
     tip.textContent = target.dataset.tip ?? "";
     document.body.appendChild(tip);
     position(target);
@@ -87,7 +89,9 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     cancelPendingOpen();
     pinned = false;
     if (!openTarget) return;
+    const target = openTarget;
     openTarget = null;
+    target.removeAttribute("aria-describedby");
     tip.classList.remove("is-open");
     cancelFade = afterFadeOut(tip, () => tip.remove());
   }
