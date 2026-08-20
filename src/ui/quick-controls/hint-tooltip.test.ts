@@ -154,10 +154,12 @@ describe("createHintTooltip", () => {
     tip.style.left = "280px";
     tip.style.top = "40px";
     vi.spyOn(tip, "getBoundingClientRect").mockImplementation(() => {
-      const width = tip.style.left === "0px" ? 100 : 30;
+      const coordinatesReset = tip.style.left === "0px" && tip.style.top === "0px";
+      const width = coordinatesReset ? 100 : 30;
+      const height = coordinatesReset ? 80 : 20;
       return {
-        bottom: 120,
-        height: 80,
+        bottom: 40 + height,
+        height,
         left: 0,
         right: width,
         top: 40,
@@ -174,41 +176,82 @@ describe("createHintTooltip", () => {
     expect(tip.style.top).toBe("8px");
   });
 
-  it.each(["scroll", "resize"])("closes an open tooltip on %s", (eventName) => {
+  it("closes an open tooltip on a descendant's non-bubbling scroll", () => {
+    const scroller = document.createElement("div");
+    root.appendChild(scroller);
     dotA.click();
-    window.dispatchEvent(new Event(eventName));
+    scroller.dispatchEvent(new Event("scroll", { bubbles: false }));
     expect(openTip()).toBeNull();
   });
 
-  it("removes listeners and clears pending work on dispose", () => {
+  it("closes an open tooltip on resize", () => {
+    dotA.click();
+    window.dispatchEvent(new Event("resize"));
+    expect(openTip()).toBeNull();
+  });
+
+  it("removes every listener with its original callback and clears pending work", () => {
+    const localRoot = document.createElement("div");
+    const localDots = [makeDot("Local A"), makeDot("Local B")];
+    localRoot.append(...localDots);
+    document.body.appendChild(localRoot);
+
+    const documentAdd = vi.spyOn(document, "addEventListener");
     const documentRemove = vi.spyOn(document, "removeEventListener");
+    const windowAdd = vi.spyOn(window, "addEventListener");
     const windowRemove = vi.spyOn(window, "removeEventListener");
-    const dotRemoves = [dotA, dotB].map((dot) => vi.spyOn(dot, "removeEventListener"));
+    const dotListeners = localDots.map((dot) => ({
+      add: vi.spyOn(dot, "addEventListener"),
+      remove: vi.spyOn(dot, "removeEventListener"),
+    }));
+    const localTooltip = createHintTooltip({ root: localRoot });
 
-    dotA.dispatchEvent(new MouseEvent("mouseenter"));
-    tooltip.dispose();
+    localDots[0].dispatchEvent(new MouseEvent("mouseenter"));
+    localTooltip.dispose();
 
-    expect(documentRemove).toHaveBeenCalledWith("click", expect.any(Function));
-    expect(documentRemove).toHaveBeenCalledWith("keydown", expect.any(Function), true);
-    expect(windowRemove).toHaveBeenCalledWith("scroll", expect.any(Function), true);
-    expect(windowRemove).toHaveBeenCalledWith("resize", expect.any(Function));
-    for (const remove of dotRemoves) {
+    const documentClick = documentAdd.mock.calls.find(([name]) => name === "click")![1];
+    const documentKeydown = documentAdd.mock.calls.find(([name]) => name === "keydown")![1];
+    expect(documentRemove).toHaveBeenCalledWith("click", documentClick);
+    expect(documentRemove).toHaveBeenCalledWith("keydown", documentKeydown, true);
+
+    const windowScroll = windowAdd.mock.calls.find(([name]) => name === "scroll")![1];
+    const windowResize = windowAdd.mock.calls.find(([name]) => name === "resize")![1];
+    expect(windowRemove).toHaveBeenCalledWith("scroll", windowScroll, true);
+    expect(windowRemove).toHaveBeenCalledWith("resize", windowResize);
+
+    for (const { add, remove } of dotListeners) {
       for (const eventName of ["mouseenter", "mouseleave", "focus", "blur", "click"]) {
-        expect(remove).toHaveBeenCalledWith(eventName, expect.any(Function));
+        const callback = add.mock.calls.find(([name]) => name === eventName)![1];
+        expect(remove).toHaveBeenCalledWith(eventName, callback);
       }
     }
+
+    for (const dot of localDots) {
+      dot.dispatchEvent(new MouseEvent("mouseenter"));
+      dot.dispatchEvent(new MouseEvent("mouseleave"));
+      dot.dispatchEvent(new FocusEvent("focus"));
+      dot.dispatchEvent(new FocusEvent("blur"));
+      dot.click();
+    }
+    document.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    localDots[0].dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     vi.advanceTimersByTime(500);
+
     expect(openTip()).toBeNull();
+    localRoot.remove();
   });
 
   it("cancels a pending fade when disposed", () => {
     dotA.focus();
     const tip = openTip()!;
+    const remove = vi.spyOn(tip, "remove");
     dotA.blur();
 
     tooltip.dispose();
 
+    expect(remove).toHaveBeenCalledOnce();
     expect(() => vi.advanceTimersByTime(500)).not.toThrow();
+    expect(remove).toHaveBeenCalledOnce();
     expect(tip.isConnected).toBe(false);
   });
 
