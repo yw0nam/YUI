@@ -350,9 +350,7 @@ describe("createHintTooltip", () => {
     for (const [, callback] of documentKeydowns) {
       expect(documentRemove).toHaveBeenCalledWith("keydown", callback, true);
     }
-    const documentPointerdown = documentAdd.mock.calls.find(
-      ([name]) => name === "pointerdown",
-    )![1];
+    const documentPointerdown = documentAdd.mock.calls.find(([name]) => name === "pointerdown")![1];
     expect(documentRemove).toHaveBeenCalledWith("pointerdown", documentPointerdown, true);
 
     const windowScroll = windowAdd.mock.calls.find(([name]) => name === "scroll")![1];

@@ -11,6 +11,7 @@ import { afterFadeOut } from "../fade-out";
 const OPEN_DELAY_MS = 150;
 const VIEWPORT_MARGIN = 8;
 const GAP = 6;
+const FOCUS_MOVING_KEYS = new Set(["Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 
 interface HintTooltipDeps {
   /** Panel root — tooltip events from every `[data-tip]` inside it are delegated here. */
@@ -32,6 +33,7 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   let pinned = false;
   let openTimer: ReturnType<typeof setTimeout> | null = null;
   let cancelFade: (() => void) | null = null;
+  let keyboardModality = false;
 
   function cancelPendingOpen(): void {
     if (openTimer !== null) {
@@ -127,7 +129,7 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
 
   function handleFocusIn(e: FocusEvent): void {
     const target = findTarget(e.target);
-    if (target?.matches(":focus-visible")) show(target);
+    if (target && keyboardModality) show(target);
   }
 
   function handleFocusOut(e: FocusEvent): void {
@@ -154,6 +156,14 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     hide();
   }
 
+  function handleModalityKeydown(e: KeyboardEvent): void {
+    if (FOCUS_MOVING_KEYS.has(e.key)) keyboardModality = true;
+  }
+
+  function handleModalityPointerdown(): void {
+    keyboardModality = false;
+  }
+
   function handleDocumentKeydown(e: KeyboardEvent): void {
     if (e.key !== "Escape") return;
     cancelPendingOpen();
@@ -174,6 +184,8 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   root.addEventListener("focusout", handleFocusOut);
   root.addEventListener("click", handleClick);
   document.addEventListener("click", handleDocumentClick);
+  document.addEventListener("keydown", handleModalityKeydown, true);
+  document.addEventListener("pointerdown", handleModalityPointerdown, true);
   document.addEventListener("keydown", handleDocumentKeydown, true);
   window.addEventListener("scroll", handleViewportChange, true);
   window.addEventListener("resize", handleViewportChange);
@@ -186,6 +198,8 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     cancelPendingOpen();
     cancelFade?.();
     document.removeEventListener("click", handleDocumentClick);
+    document.removeEventListener("keydown", handleModalityKeydown, true);
+    document.removeEventListener("pointerdown", handleModalityPointerdown, true);
     document.removeEventListener("keydown", handleDocumentKeydown, true);
     window.removeEventListener("scroll", handleViewportChange, true);
     window.removeEventListener("resize", handleViewportChange);
