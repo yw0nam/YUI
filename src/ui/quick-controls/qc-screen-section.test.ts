@@ -4,6 +4,7 @@ import { createGuardrailsSettings } from "../../io/guardrails-settings";
 import { createFlagSettings } from "../../io/persisted-store";
 import { createScreenKnobSettings } from "../../io/screen-settings";
 import { setLocale } from "../i18n";
+import ko from "../i18n/ko";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "./test-helpers";
 
@@ -320,15 +321,29 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     expect(hints).toHaveLength(2);
     for (const hint of hints) {
       expect(hint.textContent).toBe("?");
-      // `title` only surfaces on hover, so the explanation itself must be the accessible name —
-      // an aria-label that merely says "an explanation exists" leaves keyboard users without it.
-      expect(hint.getAttribute("aria-label")).toBe(hint.getAttribute("title"));
+      // `title` fires the OS tooltip a second time on top of ours — must not be present.
+      expect(hint.hasAttribute("title")).toBe(false);
+      // The explanation itself must be the accessible name — a keyboard user has no hover to fall back to.
       expect(hint.getAttribute("aria-label")!.length).toBeGreaterThan(20);
-      // Nothing happens on click, so it must not announce itself as a button.
-      expect(hint.tagName).not.toBe("BUTTON");
+      expect(hint.tagName).toBe("BUTTON");
+      expect((hint as HTMLButtonElement).type).toBe("button");
       expect(hint.tabIndex).toBe(0);
     }
     qc.dispose();
+  });
+
+  it("escapes a double quote and ampersand in the hint text so the markup can't break", () => {
+    const original = ko["screen.hint"];
+    ko["screen.hint"] = 'Say "hi" & bye';
+    try {
+      const { qc } = buildScreenQc();
+      qc.open();
+      const hint = qc.el.querySelector<HTMLElement>("#yui-panel-react .yui-hint-dot")!;
+      expect(hint.getAttribute("aria-label")).toBe('Say "hi" & bye');
+      qc.dispose();
+    } finally {
+      ko["screen.hint"] = original;
+    }
   });
 
   // ── Teardown ──────────────────────────────────────────────────────────────

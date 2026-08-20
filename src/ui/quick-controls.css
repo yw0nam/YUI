@@ -371,7 +371,7 @@
   background: var(--yui-edge);
 }
 
-/* ── `?` after a section label — the explanation is the native title tooltip ── */
+/* ── `?` after a section label ── */
 .yui-hint-dot {
   display: inline-flex;
   align-items: center;
