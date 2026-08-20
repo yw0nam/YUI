@@ -325,9 +325,8 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
       expect(hint.hasAttribute("title")).toBe(false);
       // The explanation itself must be the accessible name — a keyboard user has no hover to fall back to.
       expect(hint.getAttribute("aria-label")!.length).toBeGreaterThan(20);
-      // Click toggles the tooltip, so it announces itself as actionable — but stays a <span>.
-      expect(hint.getAttribute("role")).toBe("button");
-      expect(hint.tagName).not.toBe("BUTTON");
+      expect(hint.tagName).toBe("BUTTON");
+      expect((hint as HTMLButtonElement).type).toBe("button");
       expect(hint.tabIndex).toBe(0);
     }
     qc.dispose();
