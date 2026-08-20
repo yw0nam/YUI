@@ -96,6 +96,7 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
         },
       };
       bus.push(env);
+      log.info("fire", { cue_id: cue.id, local_time: currentHHMM });
       fired[cue.id] = dayKey;
       firedAny = true;
     }
