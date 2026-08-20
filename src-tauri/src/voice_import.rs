@@ -553,7 +553,10 @@ mod tests {
 
     #[test]
     fn voice_id_is_stable_for_the_same_name() {
-        assert_eq!(voice_id_from_name("エイメス"), voice_id_from_name("エイメス"));
+        assert_eq!(
+            voice_id_from_name("エイメス"),
+            voice_id_from_name("エイメス")
+        );
     }
 
     #[test]
