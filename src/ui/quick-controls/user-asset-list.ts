@@ -11,6 +11,8 @@ import "./user-asset-list.css";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 
+const REMOVE_CONFIRM_MS = 4000;
+
 interface UserAssetOption {
   id: string;
   label?: string;
@@ -92,6 +94,10 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   let importing = false;
   // Two-phase import: picked-but-not-yet-copied file awaiting a typed name (null if none pending).
   let pendingImport: PendingImport | null = null;
+  let armedRemoveId: string | null = null;
+  let removingId: string | null = null;
+  let keepArmedForRender = false;
+  let removeTimer: ReturnType<typeof setTimeout> | null = null;
 
   function rowById(id: string): HTMLElement | null {
     return cfg.containerEl.querySelector<HTMLElement>(
@@ -191,18 +197,79 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     });
   }
 
-  // Remove user option — delete file first (success required, no store/disk mismatch), then
-  // remove from store and swap to fallback if it was active.
+  function clearRemoveTimer(): void {
+    if (removeTimer === null) return;
+    clearTimeout(removeTimer);
+    removeTimer = null;
+  }
+
+  function disarmRemove(updateDom = true): void {
+    clearRemoveTimer();
+    if (armedRemoveId === null) return;
+    const id = armedRemoveId;
+    armedRemoveId = null;
+    keepArmedForRender = false;
+    if (!updateDom) return;
+    const row = rowById(id);
+    row?.classList.remove("is-remove-armed");
+    const button = row?.querySelector<HTMLButtonElement>(`.${cfg.classPrefix}__remove`);
+    button?.classList.remove("is-armed");
+    if (button) {
+      button.title = t(`${cfg.i18nNamespace}.remove`);
+      button.setAttribute("aria-label", t(`${cfg.i18nNamespace}.remove`));
+    }
+  }
+
+  function armRemove(id: string): void {
+    armedRemoveId = id;
+    keepArmedForRender = true;
+    clearRemoveTimer();
+    removeTimer = setTimeout(() => disarmRemove(), REMOVE_CONFIRM_MS);
+    cfg.render();
+  }
+
+  function handleDocumentClick(e: MouseEvent): void {
+    if (armedRemoveId === null) return;
+    const removeButton = (e.target as HTMLElement | null)?.closest(`.${cfg.classPrefix}__remove`);
+    if (removeButton) return;
+    disarmRemove();
+  }
+
+  function handleDocumentKeydown(e: KeyboardEvent): void {
+    if (e.key === "Escape") disarmRemove();
+  }
+
+  const ownerDocument = cfg.containerEl.ownerDocument;
+  ownerDocument.addEventListener("click", handleDocumentClick, true);
+  ownerDocument.addEventListener("keydown", handleDocumentKeydown);
+
+  // Remove user option — confirm, delete file first, then remove from store and swap to fallback.
   async function remove(id: string): Promise<void> {
+    if (removingId !== null) return;
+    if (armedRemoveId !== id) {
+      armRemove(id);
+      return;
+    }
+    disarmRemove();
+    removingId = id;
+    errorId = null;
+    const row = rowById(id);
+    row?.setAttribute("aria-busy", "true");
+    const removeButton = row?.querySelector<HTMLButtonElement>(`.${cfg.classPrefix}__remove`);
+    if (removeButton) removeButton.disabled = true;
     const wasActive = cfg.getActiveId() === id;
     cfg.log.info(`${cfg.logPrefix}_delete`, { id });
     try {
       await cfg.removeFile(id);
     } catch (err) {
       // File delete failed — do not commit store removal, keep row (maintain disk match).
+      errorId = id;
+      removingId = null;
       cfg.log.error(`${cfg.logPrefix}_delete_failed`, { id, error: String(err) });
+      cfg.render();
       return;
     }
+    removingId = null;
     cfg.removeFromStore(id); // Falls back to default if was active + notify
     // Non-active removal does not notify store, so re-render list directly.
     if (!wasActive) {
@@ -364,9 +431,20 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     else void runImport();
   }
 
-  // Prune stale renaming id if the row it points to left the list.
-  function reconcileRenaming(ids: string[]): void {
+  function prepareRender(ids: string[]): void {
     if (renamingId !== null && !ids.includes(renamingId)) renamingId = null;
+    // The arm survives only the render that sets it; any later render disarms.
+    if (armedRemoveId !== null && (!keepArmedForRender || !ids.includes(armedRemoveId))) {
+      disarmRemove(false);
+    }
+    keepArmedForRender = false;
+  }
+
+  function dispose(): void {
+    disarmRemove(false);
+    clearRemoveTimer();
+    ownerDocument.removeEventListener("click", handleDocumentClick, true);
+    ownerDocument.removeEventListener("keydown", handleDocumentKeydown);
   }
 
   // If editing (rename OR the pending-import naming row — both carry renamingClass), focus the
@@ -388,10 +466,11 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     getRenamingId: (): string | null => renamingId,
     getRovedId: (): string | null => rovedId,
     getErrorId: (): string | null => errorId,
+    getArmedRemoveId: (): string | null => armedRemoveId,
     getPendingImport: (): PendingImport | null => pendingImport,
     isImporting: (): boolean => importing,
     isSwapping: (): boolean => swappingId !== null,
-    reconcileRenaming,
+    prepareRender,
     focusIfRenaming,
     renderRenamingRow,
     renderPendingImportRow,
@@ -402,5 +481,6 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     swapTo,
     handleKeydown,
     handleAddClick,
+    dispose,
   };
 }

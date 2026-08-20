@@ -21,7 +21,6 @@ import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
 import { closeSettingsWindow } from "./io/settings-window";
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
-import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
 import {
   createVrmSelection,
@@ -140,6 +139,7 @@ async function bootstrap(): Promise<void> {
     refreshSpeaker,
     pickVoiceImport,
     commitVoiceImport,
+    removeUserVoice,
     refreshVoiceList,
   } = wireSpeakerSelection({
     getEndpoints,
@@ -216,7 +216,7 @@ async function bootstrap(): Promise<void> {
       refreshSpeaker,
       pickVoiceImport,
       commitVoiceImport,
-      removeUserVoice: removeUserVoiceFile,
+      removeUserVoice,
       refreshVoiceList,
       // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),

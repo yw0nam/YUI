@@ -41,7 +41,6 @@ import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener } from "./io/settings-window";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
-import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { removeUserVrm } from "./io/vrm-import";
 import { createLogger, initLogger } from "./logger";
 import { createRenderer } from "./renderer";
@@ -260,6 +259,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     refreshSpeaker,
     pickVoiceImport,
     commitVoiceImport,
+    removeUserVoice,
     refreshVoiceList,
   } = speaker;
   register(() => speakerSelection.dispose());
@@ -322,7 +322,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       refreshSpeaker,
       pickVoiceImport,
       commitVoiceImport,
-      removeUserVoice: removeUserVoiceFile,
+      removeUserVoice,
       refreshVoiceList,
       onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
       onGainPreviewEnd: () => renderer.stopMouth(),

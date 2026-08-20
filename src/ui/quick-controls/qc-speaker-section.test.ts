@@ -380,6 +380,19 @@ describe("createQuickControls — speaker section", () => {
     qc.open();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    expect(userSpkRow(qc).classList.contains("is-remove-armed")).toBe(true);
+    expect(userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.textContent).toBe(
+      "삭제할까요?",
+    );
+    expect(
+      userSpkRow(qc)
+        .querySelector<HTMLButtonElement>(".yui-spk__remove")!
+        .getAttribute("aria-label"),
+    ).toBe("삭제할까요? 내 목소리");
+    expect(userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.title).toBe(
+      "삭제할까요?",
+    );
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     await flush();
 
     expect(removeUserVoice).toHaveBeenCalledOnce();
@@ -400,6 +413,7 @@ describe("createQuickControls — speaker section", () => {
     qc.open();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     await flush();
 
     expect(storeStillHadVoiceAtDelete).toBe(true);
@@ -417,11 +431,57 @@ describe("createQuickControls — speaker section", () => {
     qc.open();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     await flush();
 
     expect(speakerSelection.list().map((o) => o.id)).toContain("myvoice");
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).not.toBeNull();
+    expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')?.classList).toContain("is-error");
+    expect(qc.el.querySelector(".yui-spk__error")).not.toBeNull();
 
+    qc.dispose();
+  });
+
+  it("shows deletion as busy and ignores repeated commits while it is in flight", async () => {
+    withUserVoice();
+    let resolveRemove: () => void = () => {};
+    removeUserVoice = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveRemove = resolve;
+        }),
+    );
+    const qc = buildQc();
+    qc.open();
+
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    const removingRow = userSpkRow(qc);
+    expect(removingRow.getAttribute("aria-busy")).toBe("true");
+    expect(removingRow.querySelector<HTMLButtonElement>(".yui-spk__remove")!.disabled).toBe(true);
+
+    await qc.el.querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    expect(removeUserVoice).toHaveBeenCalledOnce();
+
+    resolveRemove();
+    await flush();
+    qc.dispose();
+  });
+
+  it("disarms a voice delete when the panel is closed and reopened", async () => {
+    withUserVoice();
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    expect(userSpkRow(qc).classList).toContain("is-remove-armed");
+
+    qc.close();
+    qc.open();
+
+    expect(userSpkRow(qc).classList).not.toContain("is-remove-armed");
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    expect(removeUserVoice).not.toHaveBeenCalled();
+    expect(userSpkRow(qc).classList).toContain("is-remove-armed");
     qc.dispose();
   });
 
@@ -435,6 +495,7 @@ describe("createQuickControls — speaker section", () => {
     qc.open();
     swapSpeaker.mockClear();
 
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     await flush();
 
@@ -450,6 +511,7 @@ describe("createQuickControls — speaker section", () => {
     const qc = buildQc();
     qc.open();
 
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     await flush();
 
@@ -911,6 +973,47 @@ describe("createQuickControls — speaker section", () => {
 
       expect(seen).toEqual([new URL("/references/ayase.wav", globalThis.location.href).href]);
 
+      qc.dispose();
+    } finally {
+      (globalThis as { Audio: unknown }).Audio = OrigAudio;
+    }
+  });
+
+  it("keeps audition state on the visible preview button after disarming delete", async () => {
+    withUserVoice();
+    let plays = 0;
+    let pauses = 0;
+    class FakeAudio {
+      addEventListener() {}
+      play() {
+        plays += 1;
+        return Promise.resolve();
+      }
+      pause() {
+        pauses += 1;
+      }
+    }
+    const OrigAudio = globalThis.Audio;
+    (globalThis as { Audio: unknown }).Audio = FakeAudio as unknown;
+    try {
+      const qc = buildQc();
+      qc.open();
+      userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+
+      qc.el
+        .querySelector<HTMLElement>('.yui-spk[data-spk-id="ayase"]')!
+        .querySelector<HTMLButtonElement>(".yui-spk__preview")!
+        .click();
+      await flush();
+
+      const visiblePreview = qc.el
+        .querySelector<HTMLElement>('.yui-spk[data-spk-id="ayase"]')!
+        .querySelector<HTMLButtonElement>(".yui-spk__preview")!;
+      expect(visiblePreview.classList).toContain("is-playing");
+      visiblePreview.click();
+      await flush();
+      expect(plays).toBe(1);
+      expect(pauses).toBe(1);
       qc.dispose();
     } finally {
       (globalThis as { Audio: unknown }).Audio = OrigAudio;

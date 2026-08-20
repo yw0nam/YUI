@@ -66,11 +66,12 @@ vi.mock("./config", () => ({ loadEmotionTextTable: vi.fn().mockResolvedValue(nul
 
 // Voices-API fakes — wireSpeakerSelection's refreshVoiceList exercises listVoices;
 // commitVoiceImport and refreshSpeaker (tests below) exercise upsertVoice directly.
-const { listVoices, upsertVoice } = vi.hoisted(() => ({
+const { deleteVoice, listVoices, upsertVoice } = vi.hoisted(() => ({
+  deleteVoice: vi.fn().mockResolvedValue(undefined),
   listVoices: vi.fn().mockResolvedValue([]),
   upsertVoice: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("./io/tts-voices", () => ({ listVoices, upsertVoice }));
+vi.mock("./io/tts-voices", () => ({ deleteVoice, listVoices, upsertVoice }));
 
 // voice-import fakes — wireSpeakerSelection's pickVoiceImport/commitVoiceImport exercise these
 // directly; keeps the suite off the real dialog plugin / Tauri invoke.
@@ -1157,8 +1158,10 @@ describe("wireSpeakerSelection — swapSpeaker / refreshSpeaker", () => {
   };
 
   beforeEach(() => {
+    deleteVoice.mockReset().mockResolvedValue(undefined);
     listVoices.mockReset().mockResolvedValue([]);
     upsertVoice.mockReset().mockResolvedValue(undefined);
+    removeUserVoiceMock.mockReset().mockResolvedValue(undefined);
     selectFetch.mockClear();
   });
 
@@ -1236,6 +1239,43 @@ describe("wireSpeakerSelection — swapSpeaker / refreshSpeaker", () => {
 
     await expect(refreshSpeaker(USER_VOICE)).rejects.toThrow("tts_base_url");
     expect(upsertVoice).not.toHaveBeenCalled();
+    speakerSelection.dispose();
+  });
+
+  it("removes the server voice before deleting the local reference clip", async () => {
+    const { removeUserVoice, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
+      getApiKey: async () => "sk-tts",
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await removeUserVoice("myvoice");
+
+    expect(deleteVoice).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: "http://localhost:8091",
+        id: "myvoice",
+        getApiKey: expect.any(Function),
+      }),
+    );
+    expect(deleteVoice.mock.invocationCallOrder[0]).toBeLessThan(
+      removeUserVoiceMock.mock.invocationCallOrder[0],
+    );
+    speakerSelection.dispose();
+  });
+
+  it("does not delete the local reference clip when the server delete fails", async () => {
+    deleteVoice.mockRejectedValue(new Error("server down"));
+    const { removeUserVoice, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await expect(removeUserVoice("myvoice")).rejects.toThrow("server down");
+
+    expect(removeUserVoiceMock).not.toHaveBeenCalled();
     speakerSelection.dispose();
   });
 });
