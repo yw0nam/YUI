@@ -501,7 +501,10 @@ describe("createQuickControls — VRM section", () => {
     );
     expect(
       userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.getAttribute("aria-label"),
-    ).toBe("깜냥이 삭제 확인");
+    ).toBe("삭제할까요? 깜냥이");
+    expect(userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.title).toBe(
+      "삭제할까요?",
+    );
     userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
     await flush();
 

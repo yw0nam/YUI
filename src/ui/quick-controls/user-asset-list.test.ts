@@ -222,6 +222,19 @@ describe("remove flow", () => {
     h.dispose();
   });
 
+  it("an outside click disarms so the next remove only arms again", async () => {
+    const h = makeHarness();
+    await h.list.remove("b");
+
+    document.body.click();
+    expect(h.list.getArmedRemoveId()).toBeNull();
+    await h.list.remove("b");
+
+    expect(h.removeFile).not.toHaveBeenCalled();
+    expect(h.list.getArmedRemoveId()).toBe("b");
+    h.dispose();
+  });
+
   it("disarms after four seconds", async () => {
     vi.useFakeTimers();
     const h = makeHarness();
@@ -266,10 +279,44 @@ describe("remove flow", () => {
     await h.list.remove("b");
     expect(h.removeFromStore).not.toHaveBeenCalled();
     expect(h.render).toHaveBeenCalledOnce();
+    expect(h.list.getErrorId()).toBe("b");
     expect(h.log.error).toHaveBeenCalledWith("fake_delete_failed", {
       id: "b",
       error: "Error: disk error",
     });
+  });
+
+  it("ignores repeated remove attempts while deletion is in flight", async () => {
+    let resolveRemove: () => void = () => {};
+    const removeFile = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveRemove = resolve;
+        }),
+    );
+    const h = makeHarness({ removeFile });
+    await h.list.remove("b");
+
+    const removing = h.list.remove("b");
+    await h.list.remove("b");
+    await h.list.remove("b");
+
+    expect(removeFile).toHaveBeenCalledOnce();
+    resolveRemove();
+    await removing;
+    h.dispose();
+  });
+
+  it("clears the remove timeout on dispose", async () => {
+    vi.useFakeTimers();
+    const h = makeHarness();
+    await h.list.remove("b");
+    h.render.mockClear();
+
+    h.list.dispose();
+    vi.advanceTimersByTime(4000);
+
+    expect(h.render).not.toHaveBeenCalled();
   });
 
   it("removes from the store and renders directly when the removed option was not active", async () => {

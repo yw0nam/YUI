@@ -359,6 +359,23 @@ describe("deleteVoice", () => {
     expect(noopLog.info).toHaveBeenCalledWith("voice_deleted", { id: "missing" });
   });
 
+  it.each([
+    undefined,
+    {},
+    "not json",
+  ])("throws when a 404 does not carry an OpenAI-style error body: %j", async (body) => {
+    const fetchMock = vi.fn<FetchFn>(async () => errorResponse(404, body));
+
+    await expect(
+      deleteVoice({
+        baseUrl: BASE_URL,
+        id: "missing-route",
+        fetch: fetchMock as unknown as typeof fetch,
+        logger: noopLog,
+      }),
+    ).rejects.toThrow("TTS voice delete failed (HTTP 404)");
+  });
+
   it("throws with the server error message on another failure", async () => {
     const fetchMock = vi.fn<FetchFn>(async () =>
       errorResponse(500, { error: { message: "database unavailable" } }),
