@@ -11,7 +11,9 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![three.js](https://img.shields.io/badge/three.js-000000?logo=three.js&logoColor=white)
 
-<img src="docs/public/yui-hero.png" alt="YUI — a VRM character living on the desktop as a transparent, always-on-top overlay, with speech bubble, settings panel, and input bar" width="820">
+<a href="https://youtu.be/dIOQdoAp0GE"><img src="docs/public/yui-hero.gif" alt="YUI — a VRM character standing over a browser window as a transparent, always-on-top overlay: her head and eyes follow the mouse cursor, then she answers a typed question about what is on screen in a speech bubble" width="820"></a>
+
+[▶ Watch the full demo](https://youtu.be/dIOQdoAp0GE)
 
 </div>
 
