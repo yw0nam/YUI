@@ -87,6 +87,7 @@ describe("schedule_source — fires due cue once when present", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => cues,
       isEnabled: () => true,
       listen,
@@ -107,6 +108,7 @@ describe("schedule_source — gating", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue()],
       isEnabled: () => true,
       listen,
@@ -124,6 +126,7 @@ describe("schedule_source — gating", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue()],
       isEnabled: () => true,
       listen,
@@ -141,6 +144,7 @@ describe("schedule_source — gating", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue({ time: "09:00" })],
       isEnabled: () => true,
       listen,
@@ -158,6 +162,7 @@ describe("schedule_source — gating", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue()],
       isEnabled: () => false,
       listen,
@@ -175,6 +180,7 @@ describe("schedule_source — gating", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue({ enabled: false })],
       isEnabled: () => true,
       listen,
@@ -194,6 +200,7 @@ describe("schedule_source — once-per-day latch", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue()],
       isEnabled: () => true,
       listen,
@@ -216,6 +223,7 @@ describe("schedule_source — once-per-day latch", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue()],
       isEnabled: () => true,
       listen,
@@ -267,6 +275,7 @@ describe("schedule_source — startup catch-up", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue({ time: "09:00" })],
       isEnabled: () => true,
       listen,
@@ -284,6 +293,7 @@ describe("schedule_source — startup catch-up", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue({ time: "09:00" })],
       isEnabled: () => true,
       listen,
@@ -301,6 +311,7 @@ describe("schedule_source — startup catch-up", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue({ time: "09:00" })],
       isEnabled: () => true,
       listen,
@@ -318,6 +329,7 @@ describe("schedule_source — startup catch-up", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue({ time: "09:00" })],
       isEnabled: () => true,
       listen,
@@ -337,6 +349,7 @@ describe("schedule_source — payload shape", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue({ id: "lunch", label: "점심", context: "밥", time: "09:00" })],
       isEnabled: () => true,
       listen,
@@ -367,6 +380,7 @@ describe("schedule_source — live getCues edits", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => cues,
       isEnabled: () => true,
       listen,
@@ -391,6 +405,7 @@ describe("schedule_source — start idempotency", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue()],
       isEnabled: () => true,
       listen,
@@ -407,6 +422,7 @@ describe("schedule_source — off-Tauri degrade", () => {
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
       getCues: () => [cue()],
       isEnabled: () => true,
       listen: undefined,
