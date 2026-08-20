@@ -47,6 +47,7 @@ import {
 } from "./quick-controls/constants";
 import { createEndpointsSection } from "./quick-controls/endpoints-section";
 import { createExpressMotionList } from "./quick-controls/express-motion-section";
+import { createHintTooltip } from "./quick-controls/hint-tooltip";
 import { createHistorySection } from "./quick-controls/history-section";
 import { createIdleMotionList } from "./quick-controls/idle-motion-section";
 import { createMonitorsSection } from "./quick-controls/monitors-section";
@@ -503,6 +504,7 @@ export function createQuickControls({
     log,
   });
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
+  const hintTooltip = createHintTooltip({ root: el });
 
   // History tab (transcript viewer) — rendered only when a transcript store is injected.
   const history = transcript
@@ -1275,6 +1277,7 @@ export function createQuickControls({
     disposed = true;
     endpoints.dispose();
     workflows.dispose();
+    hintTooltip.dispose();
     history?.dispose();
     scheduleCueList?.destroy();
     proactiveCueList?.destroy();

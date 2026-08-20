@@ -1,0 +1,28 @@
+/* ── `?` hint tooltip — floating explanation shown by hint-tooltip.ts ── */
+.yui-hint-tip {
+  position: fixed;
+  z-index: 101; /* above .yui-quick panel (100) */
+  max-width: 16rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--yui-radius-input);
+  border: 1px solid var(--yui-edge-strong);
+  background: var(--yui-scrim-strong);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text-dim);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-shadow: var(--yui-text-shadow);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-hint-tip.is-open {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-hint-tip {
+    transition: none;
+  }
+}

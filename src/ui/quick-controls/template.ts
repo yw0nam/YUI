@@ -27,15 +27,20 @@ import {
 } from "./constants";
 import type { SwitchRow } from "./switch-row";
 
+// Escapes the characters that would otherwise break out of an HTML attribute.
+function escapeAttr(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
+
 /**
  * Small round `?` that follows a section label whose name alone is not self-explanatory.
- * The explanation is a native tooltip, so it costs no layout and needs no open/close state —
- * and it doubles as the accessible name, since `title` alone never reaches a keyboard user.
- * Not a button: clicking it does nothing, so it must not announce itself as actionable.
+ * Markup only — hint-tooltip.ts wires the hover/focus/click tooltip onto `.yui-hint-dot`.
+ * role="button" (not a real button) since click toggles the tooltip open; aria-label carries
+ * the full explanation, as it's the only way a keyboard/screen-reader user reaches it.
  */
 function hintDotHtml(textKey: string): string {
-  const text = t(textKey);
-  return `<span class="yui-hint-dot" role="img" tabindex="0" title="${text}" aria-label="${text}">?</span>`;
+  const text = escapeAttr(t(textKey));
+  return `<span class="yui-hint-dot" role="button" tabindex="0" aria-label="${text}">?</span>`;
 }
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
