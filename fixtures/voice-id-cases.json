@@ -1,0 +1,38 @@
+[
+  {
+    "input": "Cat",
+    "expected": "Cat"
+  },
+  {
+    "input": "My_Voice-1",
+    "expected": "My_Voice-1"
+  },
+  {
+    "input": "my avatar (v2)",
+    "expected": "my_avatar_v2-c2135b"
+  },
+  {
+    "input": " spaced name ",
+    "expected": "spaced_name-ac4662"
+  },
+  {
+    "input": "エイメス",
+    "expected": "voice-b5a1f4"
+  },
+  {
+    "input": "ナツメ",
+    "expected": "voice-fac55c"
+  },
+  {
+    "input": "CON",
+    "expected": "avatar-5d684b"
+  },
+  {
+    "input": "!!!",
+    "expected": "voice-866be2"
+  },
+  {
+    "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+    "expected": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy-6e5628"
+  }
+]

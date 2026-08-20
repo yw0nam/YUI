@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { isSafeSanitizedId, sanitizeStem } from "./safe-id";
+import { isSafeSanitizedId, sanitizeStem, voiceIdFromName } from "./safe-id";
 
 describe("isSafeSanitizedId", () => {
   it("accepts a plain ASCII id", () => {
@@ -101,6 +101,30 @@ describe("sanitizeStem — shared cross-language fixture", () => {
   it("isSafeSanitizedId is exactly sanitizeStem(id) === id for every fixture case", () => {
     for (const { input, expected } of cases) {
       expect(isSafeSanitizedId(input)).toBe(input === expected);
+    }
+  });
+});
+
+describe("voiceIdFromName — shared cross-language fixture", () => {
+  const fixturePath = fileURLToPath(new URL("../../fixtures/voice-id-cases.json", import.meta.url));
+  const cases: Array<{ input: string; expected: string }> = JSON.parse(
+    readFileSync(fixturePath, "utf-8"),
+  );
+
+  it("has cases", () => {
+    expect(cases.length).toBeGreaterThan(0);
+  });
+
+  for (const { input, expected } of cases) {
+    it(`voiceIdFromName(${JSON.stringify(input.slice(0, 40))}) === ${JSON.stringify(expected.slice(0, 40))}`, () => {
+      expect(voiceIdFromName(input)).toBe(expected);
+    });
+  }
+
+  it("every derived id is a sanitizeStem fixpoint within the byte cap", () => {
+    for (const { expected } of cases) {
+      expect(sanitizeStem(expected)).toBe(expected);
+      expect(new TextEncoder().encode(expected).length).toBeLessThanOrEqual(150);
     }
   });
 });

@@ -564,6 +564,105 @@ mod tests {
     }
 
     #[test]
+    fn voice_id_is_a_sanitize_stem_fixpoint_within_the_byte_cap() {
+        // Every consumer relies on sanitize_stem(id) == id: remove_user_voice_at re-derives the
+        // directory from sanitize_stem(id), and speaker-selection.ts drops persisted ids where
+        // sanitizeStem(id) !== id. 150 pins import_fs.rs's MAX_STEM_BYTES.
+        let long_ascii = "a".repeat(200);
+        let long_lossy = format!("{} {}", "x".repeat(100), "y".repeat(99));
+        let long_unicode = "あ".repeat(120);
+        let names = [
+            "Cat",
+            "My_Voice-1",
+            "my avatar (v2)",
+            " spaced name ",
+            "エイメス",
+            "ナツメ",
+            "CON",
+            "con.txt",
+            "!!!",
+            "..",
+            "../../etc/passwd",
+            long_ascii.as_str(),
+            long_lossy.as_str(),
+            long_unicode.as_str(),
+        ];
+        for name in names {
+            let id = voice_id_from_name(name);
+            assert!(
+                id.len() <= 150,
+                "voice_id_from_name({name:?}) is {} bytes, over the stem cap: {id:?}",
+                id.len()
+            );
+            assert_eq!(
+                sanitize_stem(&id),
+                id,
+                "voice_id_from_name({name:?}) is not a sanitize_stem fixpoint"
+            );
+        }
+    }
+
+    #[test]
+    fn voice_id_matches_the_shared_cross_language_fixture() {
+        // Shared with src/io/safe-id.test.ts's voiceIdFromName mirror — a single source of truth
+        // for what voice_id_from_name produces, so the Rust and TS derivations cannot drift.
+        let raw = include_str!("../../fixtures/voice-id-cases.json");
+        let cases: Vec<serde_json::Value> = serde_json::from_str(raw).unwrap();
+        assert!(!cases.is_empty(), "fixture must not be empty");
+        for case in &cases {
+            let input = case["input"].as_str().unwrap();
+            let expected = case["expected"].as_str().unwrap();
+            assert_eq!(
+                voice_id_from_name(input),
+                expected,
+                "voice_id_from_name({input:?}) mismatch"
+            );
+        }
+    }
+
+    #[test]
+    fn remove_at_deletes_the_directory_of_a_lossy_imported_id() {
+        let dir = unique_dir("roundtrip_lossy");
+        let references = dir.join("references");
+        let src = dir.join("src.mp3");
+        std::fs::write(&src, b"ID3\x04\x00\x00\x00\x00").unwrap();
+
+        let imported = copy_into_references(&references, &src, "mp3", "エイメス").unwrap();
+        assert!(references.join(&imported.id).exists());
+
+        remove_user_voice_at(&references, &imported.id).unwrap();
+        assert!(
+            !references.join(&imported.id).exists(),
+            "delete must remove the directory of the id it registered under"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn voice_id_of_a_long_lossy_name_stays_capped_and_round_trips_through_remove() {
+        let dir = unique_dir("roundtrip_long");
+        let references = dir.join("references");
+        let src = dir.join("src.mp3");
+        std::fs::write(&src, b"ID3\x04\x00\x00\x00\x00").unwrap();
+        let name = format!("{} {}", "x".repeat(100), "y".repeat(99));
+
+        let imported = copy_into_references(&references, &src, "mp3", &name).unwrap();
+        assert!(
+            imported.id.len() <= 150,
+            "a 200-char lossy name must still yield an id within the stem cap: {} bytes",
+            imported.id.len()
+        );
+        assert!(references.join(&imported.id).exists());
+
+        remove_user_voice_at(&references, &imported.id).unwrap();
+        assert!(
+            !references.join(&imported.id).exists(),
+            "delete must remove the exact id directory, not a truncation of it"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn copy_into_sanitizes_a_traversal_desired_name() {
         let dir = unique_dir("traversal_name");
         let references = dir.join("references");
