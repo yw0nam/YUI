@@ -516,6 +516,28 @@ describe("createQuickControls — VRM section", () => {
     qc.dispose();
   });
 
+  it("closes a tooltip that was open across the click that arms and re-renders its anchor", () => {
+    vi.useFakeTimers();
+    try {
+      withUserOption();
+      const qc = buildQc();
+      qc.open();
+
+      const remove = userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!;
+      remove.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      vi.advanceTimersByTime(150);
+      expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제");
+
+      remove.click();
+
+      expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+
+      qc.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("deletes the file BEFORE committing the store removal (no divergence ordering)", async () => {
     withUserOption();
     let storeStillHadCatAtDelete: boolean | null = null;

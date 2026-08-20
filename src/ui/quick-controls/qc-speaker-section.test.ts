@@ -445,6 +445,28 @@ describe("createQuickControls — speaker section", () => {
     }
   });
 
+  it("closes a tooltip that was open across the click that arms and re-renders its anchor", () => {
+    vi.useFakeTimers();
+    try {
+      withUserVoice();
+      const qc = buildQc();
+      qc.open();
+
+      const remove = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
+      remove.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      vi.advanceTimersByTime(150);
+      expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제");
+
+      remove.click();
+
+      expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+
+      qc.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("refreshes an open delete tooltip when auto-disarm restores the action", () => {
     vi.useFakeTimers();
     try {
