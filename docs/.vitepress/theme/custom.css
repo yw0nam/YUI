@@ -301,7 +301,7 @@
   box-shadow: 0 16px 48px oklch(0.08 0.02 70 / 0.5);
 }
 
-.yui-home .hero-frame img {
+.yui-home .hero-frame :is(img, video) {
   display: block;
   width: 100%;
   height: auto;
