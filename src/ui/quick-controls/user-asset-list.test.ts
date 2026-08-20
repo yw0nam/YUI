@@ -316,6 +316,7 @@ describe("remove flow", () => {
     h.list.dispose();
     vi.advanceTimersByTime(4000);
 
+    expect(h.list.getArmedRemoveId()).toBeNull();
     expect(h.render).not.toHaveBeenCalled();
   });
 
