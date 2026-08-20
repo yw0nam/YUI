@@ -67,7 +67,21 @@ function truncateAtCharBoundary(s: string, maxBytes: number): string {
   return new TextDecoder("utf-8").decode(bytes.subarray(0, end));
 }
 
-const trimDotsAndWhitespace = (s: string): string => s.replace(/^[.\s]+|[.\s]+$/gu, "");
+// Rust `char::is_whitespace`'s exact set (Unicode White_Space). JS `\s`/`trim()` differ on two
+// code points — they exclude U+0085 (NEL) and include U+FEFF (BOM) — which would let this mirror
+// and the native trims derive different results from the same input.
+const RUST_WHITESPACE =
+  "\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
+
+const DOTS_AND_WHITESPACE_ENDS = new RegExp(
+  `^[.${RUST_WHITESPACE}]+|[.${RUST_WHITESPACE}]+$`,
+  "gu",
+);
+const trimDotsAndWhitespace = (s: string): string => s.replace(DOTS_AND_WHITESPACE_ENDS, "");
+
+const WHITESPACE_ENDS = new RegExp(`^[${RUST_WHITESPACE}]+|[${RUST_WHITESPACE}]+$`, "gu");
+/** Trim exactly what Rust's `str::trim` trims. */
+const trimAsRust = (s: string): string => s.replace(WHITESPACE_ENDS, "");
 
 /**
  * TS reimplementation of the native `sanitize_stem`. Permits arbitrary UTF-8 while
@@ -92,4 +106,42 @@ export function sanitizeStem(stem: string): string {
 /** True only when `id` is exactly what `sanitizeStem` (native `sanitize_stem`) would produce. */
 export function isSafeSanitizedId(id: string): boolean {
   return sanitizeStem(id) === id;
+}
+
+/**
+ * TS mirror of the native `short_hash` (import_fs.rs): FNV-1a 64-bit over the UTF-8 bytes,
+ * low 24 bits rendered as bare lowercase hex — matches Rust's `{:x}` (no zero padding).
+ */
+function shortHash(s: string): string {
+  let h = 0xcbf29ce484222325n;
+  for (const b of new TextEncoder().encode(s)) {
+    h ^= BigInt(b);
+    h = (h * 0x100000001b3n) & 0xffffffffffffffffn;
+  }
+  return (h & 0xffffffn).toString(16);
+}
+
+/**
+ * TS mirror of the native `voice_id_from_name` (src-tauri/src/voice_import.rs) — predicts the
+ * TTS-server voice id (`[A-Za-z0-9_-]`) an import registers the typed name under, so the naming
+ * row can warn about an overwrite before Enter. Losslessness deliberately compares against the
+ * raw trimmed name, not the sanitized one — so e.g. "CON" becomes `avatar-<hash>` and cannot
+ * collide with a voice literally named "avatar". fixtures/voice-id-cases.json pins both
+ * implementations to the same outputs.
+ */
+export function voiceIdFromName(name: string): string {
+  const trimmed = trimAsRust(name);
+  let base = "";
+  for (const c of sanitizeStem(trimmed)) {
+    if (/[A-Za-z0-9-]/.test(c)) base += c;
+    else if (!base.endsWith("_")) base += "_";
+  }
+  base = base.replace(/^_+|_+$/g, "");
+  if (base === "") return `voice-${shortHash(trimmed)}`;
+  if (base === trimmed) return base;
+  const hash = shortHash(trimmed);
+  // `base` is ASCII by construction, so length equals its byte count and slicing is safe.
+  const cap = MAX_STEM_BYTES - 1 - hash.length;
+  if (base.length > cap) base = base.slice(0, cap).replace(/_+$/, "");
+  return `${base}-${hash}`;
 }

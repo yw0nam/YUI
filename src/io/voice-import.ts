@@ -92,7 +92,7 @@ interface ImportedVoice {
  * Copy `srcPath` into app-data under `name` and return its SpeakerOption (source:"user").
  * The native side sanitizes `name` into the id it actually used (and overwrites any
  * existing voice of that id) — the returned id reflects that, never the raw input. The
- * label keeps the typed name so a collapse (e.g. a reserved device name → "avatar") doesn't
+ * label keeps the typed name so a collapse (e.g. a non-ASCII name → a hashed ASCII id) doesn't
  * silently discard what the user typed; it falls back to the id only when the name is blank.
  */
 export async function copyVoiceFile(

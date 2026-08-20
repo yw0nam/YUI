@@ -3,7 +3,9 @@
 //! Copies a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`.
 //! A native `std::fs::copy` reads the arbitrary source with the app's own privileges.
 
-use crate::import_fs::{audio_sniff_kind, ensure_within, sanitize_stem, sniff_file};
+use crate::import_fs::{
+    audio_sniff_kind, ensure_within, sanitize_stem, short_hash, sniff_file, MAX_STEM_BYTES,
+};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle, Manager};
@@ -24,14 +26,52 @@ fn is_allowed_audio_ext(ext: &str) -> bool {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportedVoice {
-    /// Voice id (sanitized dest stem).
+    /// Voice id in the TTS server's `[A-Za-z0-9_-]` charset, derived by `voice_id_from_name`.
     pub id: String,
     /// Absolute path of the copied clip under app-data.
     pub ref_path: String,
 }
 
+/// Derive the voice id sent to the TTS server from the user-typed name: `sanitize_stem` first
+/// (traversal / control-char / reserved-name / length handling), then mapped to the server's
+/// `[A-Za-z0-9_-]` charset — every other char becomes `_`, runs collapse, ends are trimmed.
+/// Whenever that loses information, a `short_hash(name)` suffix keeps distinct names distinct
+/// while the same name keeps mapping to the same id; a name with nothing to keep becomes
+/// `voice-<hash>`. Losslessness deliberately compares against the raw trimmed name, not the
+/// sanitized one — so e.g. "CON" becomes `avatar-<hash>` and cannot collide with a voice
+/// literally named "avatar". The suffixed form caps its base so the id never exceeds
+/// MAX_STEM_BYTES, keeping every id a `sanitize_stem` fixpoint.
+fn voice_id_from_name(name: &str) -> String {
+    let name = name.trim();
+    let mut base = String::new();
+    for c in sanitize_stem(name).chars() {
+        if c.is_ascii_alphanumeric() || c == '-' {
+            base.push(c);
+        } else if !base.ends_with('_') {
+            base.push('_');
+        }
+    }
+    let base = base.trim_matches('_');
+    if base.is_empty() {
+        return format!("voice-{}", short_hash(name));
+    }
+    if base == name {
+        return base.to_string();
+    }
+    let hash = short_hash(name);
+    // `base` is ASCII by construction, so the byte slice cannot split a char. The `- 1` is the
+    // `-` separator byte between base and hash.
+    let cap = MAX_STEM_BYTES - 1 - hash.len();
+    let base = if base.len() > cap {
+        base[..cap].trim_end_matches('_')
+    } else {
+        base
+    };
+    format!("{base}-{hash}")
+}
+
 /// Copy a validated audio source into `references_dir/<id>/clip.<ext_lower>`, where `<id>` is
-/// `sanitize_stem(desired_name)`. Overwrites any existing directory of that id — the caller
+/// `voice_id_from_name(desired_name)`. Overwrites any existing directory of that id — the caller
 /// chose the name explicitly, so a collision is intentional replacement, not disambiguation.
 fn copy_into_references(
     references_dir: &Path,
@@ -72,14 +112,14 @@ fn copy_into_references(
         "storage unavailable".to_string()
     })?;
 
-    let id = sanitize_stem(desired_name);
+    let id = voice_id_from_name(desired_name);
 
     let dir = references_dir.join(&id);
     ensure_within(references_dir, &dir)?;
 
     // Build the replacement in a sibling temp dir first, so a failure here never touches the
-    // existing `dir` — sanitize_stem never emits a leading dot, so this can't collide with a
-    // real voice id. Clear any leftover from a prior failed attempt before starting.
+    // existing `dir` — voice_id_from_name never emits a leading dot, so this can't collide
+    // with a real voice id. Clear any leftover from a prior failed attempt before starting.
     let tmp_dir = references_dir.join(format!(".{id}.import-tmp"));
     ensure_within(references_dir, &tmp_dir)?;
     let _ = std::fs::remove_dir_all(&tmp_dir);
@@ -162,7 +202,7 @@ fn remove_user_voice_at(references_dir: &Path, id: &str) -> Result<(), String> {
 }
 
 /// Copy a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`, where `<id>`
-/// is the sanitized form of `desired_name` — the name the user typed in the naming row.
+/// is the server-charset voice id `voice_id_from_name` derives from the typed `desired_name`.
 #[command]
 pub fn import_voice_file(
     app: AppHandle,
@@ -476,16 +516,166 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    fn is_server_safe_id(s: &str) -> bool {
+        !s.is_empty()
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    }
+
     #[test]
-    fn copy_into_registers_under_a_utf8_desired_name_verbatim() {
+    fn copy_into_registers_a_utf8_desired_name_under_a_server_safe_ascii_id() {
         let dir = unique_dir("utf8_name");
         let references = dir.join("references");
         let src = dir.join("src.mp3");
         std::fs::write(&src, b"ID3\x04\x00\x00\x00\x00").unwrap();
 
         let imported = copy_into_references(&references, &src, "mp3", "ナツメ").unwrap();
-        assert_eq!(imported.id, "ナツメ");
-        assert!(references.join("ナツメ").join("clip.mp3").exists());
+        assert!(
+            is_server_safe_id(&imported.id),
+            "id must match the TTS server's [A-Za-z0-9_-] charset: {:?}",
+            imported.id
+        );
+        assert!(references.join(&imported.id).join("clip.mp3").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    // ── voice_id_from_name ───────────────────────────────────────────────────
+
+    #[test]
+    fn voice_id_non_ascii_name_yields_a_hashed_server_safe_id() {
+        let id = voice_id_from_name("エイメス");
+        assert!(is_server_safe_id(&id), "{id:?}");
+        assert!(
+            id.starts_with("voice-"),
+            "a fully non-ASCII name falls back to voice-<hash>: {id:?}"
+        );
+    }
+
+    #[test]
+    fn voice_id_is_stable_for_the_same_name() {
+        assert_eq!(
+            voice_id_from_name("エイメス"),
+            voice_id_from_name("エイメス")
+        );
+    }
+
+    #[test]
+    fn voice_id_distinct_non_ascii_names_yield_distinct_ids() {
+        assert_ne!(voice_id_from_name("エイメス"), voice_id_from_name("ナツメ"));
+    }
+
+    #[test]
+    fn voice_id_server_safe_name_passes_through_unchanged() {
+        assert_eq!(voice_id_from_name("My_Voice-1"), "My_Voice-1");
+        assert_eq!(voice_id_from_name("Cat"), "Cat");
+    }
+
+    #[test]
+    fn voice_id_spaced_name_maps_to_underscores_with_a_hash_suffix() {
+        let id = voice_id_from_name("my avatar (v2)");
+        assert!(is_server_safe_id(&id), "{id:?}");
+        assert!(
+            id.starts_with("my_avatar_v2-"),
+            "spaces/parens map to collapsed underscores plus a hash: {id:?}"
+        );
+    }
+
+    #[test]
+    fn voice_id_is_a_sanitize_stem_fixpoint_within_the_byte_cap() {
+        // Every consumer relies on sanitize_stem(id) == id: remove_user_voice_at re-derives the
+        // directory from sanitize_stem(id), and speaker-selection.ts drops persisted ids where
+        // sanitizeStem(id) !== id. 150 pins import_fs.rs's MAX_STEM_BYTES.
+        let long_ascii = "a".repeat(200);
+        let long_lossy = format!("{} {}", "x".repeat(100), "y".repeat(99));
+        let long_unicode = "あ".repeat(120);
+        let names = [
+            "Cat",
+            "My_Voice-1",
+            "my avatar (v2)",
+            " spaced name ",
+            "エイメス",
+            "ナツメ",
+            "CON",
+            "con.txt",
+            "!!!",
+            "..",
+            "../../etc/passwd",
+            long_ascii.as_str(),
+            long_lossy.as_str(),
+            long_unicode.as_str(),
+        ];
+        for name in names {
+            let id = voice_id_from_name(name);
+            assert!(
+                id.len() <= 150,
+                "voice_id_from_name({name:?}) is {} bytes, over the stem cap: {id:?}",
+                id.len()
+            );
+            assert_eq!(
+                sanitize_stem(&id),
+                id,
+                "voice_id_from_name({name:?}) is not a sanitize_stem fixpoint"
+            );
+        }
+    }
+
+    #[test]
+    fn voice_id_matches_the_shared_cross_language_fixture() {
+        // Shared with src/io/safe-id.test.ts's voiceIdFromName mirror — a single source of truth
+        // for what voice_id_from_name produces, so the Rust and TS derivations cannot drift.
+        let raw = include_str!("../../fixtures/voice-id-cases.json");
+        let cases: Vec<serde_json::Value> = serde_json::from_str(raw).unwrap();
+        assert!(!cases.is_empty(), "fixture must not be empty");
+        for case in &cases {
+            let input = case["input"].as_str().unwrap();
+            let expected = case["expected"].as_str().unwrap();
+            assert_eq!(
+                voice_id_from_name(input),
+                expected,
+                "voice_id_from_name({input:?}) mismatch"
+            );
+        }
+    }
+
+    #[test]
+    fn remove_at_deletes_the_directory_of_a_lossy_imported_id() {
+        let dir = unique_dir("roundtrip_lossy");
+        let references = dir.join("references");
+        let src = dir.join("src.mp3");
+        std::fs::write(&src, b"ID3\x04\x00\x00\x00\x00").unwrap();
+
+        let imported = copy_into_references(&references, &src, "mp3", "エイメス").unwrap();
+        assert!(references.join(&imported.id).exists());
+
+        remove_user_voice_at(&references, &imported.id).unwrap();
+        assert!(
+            !references.join(&imported.id).exists(),
+            "delete must remove the directory of the id it registered under"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn voice_id_of_a_long_lossy_name_stays_capped_and_round_trips_through_remove() {
+        let dir = unique_dir("roundtrip_long");
+        let references = dir.join("references");
+        let src = dir.join("src.mp3");
+        std::fs::write(&src, b"ID3\x04\x00\x00\x00\x00").unwrap();
+        let name = format!("{} {}", "x".repeat(100), "y".repeat(99));
+
+        let imported = copy_into_references(&references, &src, "mp3", &name).unwrap();
+        assert!(
+            imported.id.len() <= 150,
+            "a 200-char lossy name must still yield an id within the stem cap: {} bytes",
+            imported.id.len()
+        );
+        assert!(references.join(&imported.id).exists());
+
+        remove_user_voice_at(&references, &imported.id).unwrap();
+        assert!(
+            !references.join(&imported.id).exists(),
+            "delete must remove the exact id directory, not a truncation of it"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 

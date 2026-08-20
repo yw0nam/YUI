@@ -97,6 +97,7 @@ function makeHarness(overrides: Partial<UserAssetListConfig<FakeOption>> = {}) {
     swap: vi.fn(async (option: FakeOption) => {
       activeId = option.id;
     }),
+    deriveId: vi.fn((name: string) => name.trim()),
     importFn: vi.fn(async () => {}),
     render: defaultRender,
     ...overrides,
@@ -261,6 +262,33 @@ describe("import flow", () => {
     h.list.handleAddClick();
     await Promise.resolve();
     expect(h.importFn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("pending-import overwrite warning", () => {
+  it("compares cfg.deriveId's predicted native id, not the raw typed name", () => {
+    // Speaker-shaped scenario: the native voice id of a lossy name is hash-derived, so the
+    // colliding existing option's id ("voice-b5a1f4") never string-equals the typed name.
+    const h = makeHarness({
+      deriveId: vi.fn((name: string) =>
+        name.trim() === "エイメス" ? "voice-b5a1f4" : name.trim(),
+      ),
+      list: () => [{ id: "voice-b5a1f4", label: "エイメス" }],
+    });
+    const row = makeRow("pending");
+    h.containerEl.appendChild(row);
+    h.list.renderPendingImportRow(row, { srcPath: "/pick/clip.mp3", seedName: "エイメス" });
+
+    expect(
+      row.querySelector(".yui-fake__overwrite-warn"),
+      "re-importing a name whose derived id collides must warn before Enter overwrites",
+    ).not.toBeNull();
+
+    // Typing a name whose derived id is free clears the warning again.
+    const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
+    input.value = "fresh";
+    input.dispatchEvent(new Event("input"));
+    expect(row.querySelector(".yui-fake__overwrite-warn")).toBeNull();
   });
 });
 
