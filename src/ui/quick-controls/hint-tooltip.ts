@@ -1,8 +1,8 @@
 /**
- * Hover/focus/click tooltip for the `.yui-hint-dot` `?` markers.
- * One floating tooltip is shared across every dot in root, so only one is ever open.
+ * Hover/focus/click tooltip for elements carrying `data-tip`.
+ * One floating tooltip is shared across root, so only one is ever open.
  * Hover opens after a delay (and cancels if the pointer leaves first); focus opens instantly;
- * click pins it open until the same dot, an outside click, or Escape closes it.
+ * clicking a hint dot pins it, while clicking any other target closes it.
  */
 
 import "./hint-tooltip.css";
@@ -13,7 +13,7 @@ const VIEWPORT_MARGIN = 8;
 const GAP = 6;
 
 interface HintTooltipDeps {
-  /** Panel root — every `.yui-hint-dot` inside it gets hover/focus/click wiring. */
+  /** Panel root — tooltip events from every `[data-tip]` inside it are delegated here. */
   root: HTMLElement;
 }
 
@@ -23,13 +23,11 @@ export interface HintTooltip {
 
 export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   const { root } = deps;
-  const dots = Array.from(root.querySelectorAll<HTMLElement>(".yui-hint-dot"));
-
   const tip = document.createElement("div");
   tip.className = "yui-hint-tip";
   tip.setAttribute("role", "tooltip");
 
-  let openDot: HTMLElement | null = null;
+  let openTarget: HTMLElement | null = null;
   let pinned = false;
   let openTimer: ReturnType<typeof setTimeout> | null = null;
   let cancelFade: (() => void) | null = null;
@@ -41,17 +39,19 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     }
   }
 
-  // Below the dot, centered, clamped to the viewport; flips above when there's no room below.
-  function position(dot: HTMLElement): void {
-    const dotRect = dot.getBoundingClientRect();
+  // Below the target, centered, clamped to the viewport; flips above when there's no room below.
+  function position(target: HTMLElement): void {
+    const targetRect = target.getBoundingClientRect();
     tip.style.left = "0px";
     tip.style.top = "0px";
     const tipRect = tip.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    let x = dotRect.left + dotRect.width / 2 - tipRect.width / 2;
-    let y = dotRect.bottom + GAP;
-    if (y + tipRect.height > vh - VIEWPORT_MARGIN) y = dotRect.top - GAP - tipRect.height;
+    let x = targetRect.left + targetRect.width / 2 - tipRect.width / 2;
+    let y = targetRect.bottom + GAP;
+    if (y + tipRect.height > vh - VIEWPORT_MARGIN) {
+      y = targetRect.top - GAP - tipRect.height;
+    }
     if (x + tipRect.width > vw - VIEWPORT_MARGIN) x = vw - VIEWPORT_MARGIN - tipRect.width;
     if (x < VIEWPORT_MARGIN) x = VIEWPORT_MARGIN;
     if (y < VIEWPORT_MARGIN) y = VIEWPORT_MARGIN;
@@ -59,92 +59,104 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     tip.style.top = `${y}px`;
   }
 
-  function show(dot: HTMLElement): void {
+  function show(target: HTMLElement): void {
     cancelPendingOpen();
-    if (openDot && openDot !== dot) hide();
+    if (openTarget && openTarget !== target) hide();
     cancelFade?.();
     cancelFade = null;
-    openDot = dot;
-    tip.textContent = dot.getAttribute("aria-label") ?? "";
+    openTarget = target;
+    tip.textContent = target.dataset.tip ?? "";
     document.body.appendChild(tip);
-    position(dot);
+    position(target);
     tip.classList.add("is-open");
   }
 
   function hide(): void {
     cancelPendingOpen();
     pinned = false;
-    if (!openDot) return;
-    openDot = null;
+    if (!openTarget) return;
+    openTarget = null;
     tip.classList.remove("is-open");
     cancelFade = afterFadeOut(tip, () => tip.remove());
   }
 
-  function togglePin(dot: HTMLElement): void {
-    if (openDot === dot && pinned) {
+  function togglePin(target: HTMLElement): void {
+    if (openTarget === target && pinned) {
       hide();
       return;
     }
-    show(dot);
+    show(target);
     pinned = true;
   }
 
-  function handleMouseEnter(e: MouseEvent): void {
-    const dot = e.currentTarget as HTMLElement;
+  function findTarget(value: EventTarget | null): HTMLElement | null {
+    if (!(value instanceof Element)) return null;
+    const target = value.closest<HTMLElement>("[data-tip]");
+    return target && root.contains(target) ? target : null;
+  }
+
+  function handleMouseOver(e: MouseEvent): void {
+    const target = findTarget(e.target);
+    if (!target || findTarget(e.relatedTarget) === target) return;
     if (pinned) return;
     cancelPendingOpen();
     openTimer = setTimeout(() => {
       openTimer = null;
-      show(dot);
+      show(target);
     }, OPEN_DELAY_MS);
   }
 
-  function handleMouseLeave(e: MouseEvent): void {
-    const dot = e.currentTarget as HTMLElement;
+  function handleMouseOut(e: MouseEvent): void {
+    const target = findTarget(e.target);
+    if (!target || findTarget(e.relatedTarget) === target) return;
     cancelPendingOpen();
     if (pinned) return;
-    if (openDot === dot) hide();
+    if (openTarget === target) hide();
   }
 
-  function handleFocus(e: FocusEvent): void {
-    show(e.currentTarget as HTMLElement);
+  function handleFocusIn(e: FocusEvent): void {
+    const target = findTarget(e.target);
+    if (target) show(target);
   }
 
-  function handleBlur(e: FocusEvent): void {
-    const dot = e.currentTarget as HTMLElement;
+  function handleFocusOut(e: FocusEvent): void {
+    const target = findTarget(e.target);
+    if (!target) return;
     if (pinned) return;
-    if (openDot === dot) hide();
+    if (openTarget === target) hide();
   }
 
   function handleClick(e: MouseEvent): void {
-    togglePin(e.currentTarget as HTMLElement);
+    const target = findTarget(e.target);
+    if (!target) return;
+    if (target.classList.contains("yui-hint-dot")) togglePin(target);
+    else hide();
   }
 
-  // Pinned tooltips close on any click outside the dot.
+  // Pinned tooltips close on any click outside the target.
   function handleDocumentClick(e: MouseEvent): void {
-    if (!pinned || !openDot) return;
+    if (!pinned || !openTarget) return;
     const target = e.target as Node;
-    if (openDot.contains(target)) return;
+    if (openTarget.contains(target)) return;
     hide();
   }
 
   function handleDocumentKeydown(e: KeyboardEvent): void {
-    if (e.key !== "Escape" || !openDot) return;
-    e.stopPropagation();
+    if (e.key !== "Escape" || !openTarget) return;
+    const shouldConsume = openTarget.classList.contains("yui-hint-dot");
     hide();
+    if (shouldConsume) e.stopPropagation();
   }
 
   function handleViewportChange(): void {
-    if (openDot) hide();
+    if (openTarget) hide();
   }
 
-  for (const dot of dots) {
-    dot.addEventListener("mouseenter", handleMouseEnter);
-    dot.addEventListener("mouseleave", handleMouseLeave);
-    dot.addEventListener("focus", handleFocus);
-    dot.addEventListener("blur", handleBlur);
-    dot.addEventListener("click", handleClick);
-  }
+  root.addEventListener("mouseover", handleMouseOver);
+  root.addEventListener("mouseout", handleMouseOut);
+  root.addEventListener("focusin", handleFocusIn);
+  root.addEventListener("focusout", handleFocusOut);
+  root.addEventListener("click", handleClick);
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("keydown", handleDocumentKeydown, true);
   window.addEventListener("scroll", handleViewportChange, true);
@@ -157,13 +169,11 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     document.removeEventListener("keydown", handleDocumentKeydown, true);
     window.removeEventListener("scroll", handleViewportChange, true);
     window.removeEventListener("resize", handleViewportChange);
-    for (const dot of dots) {
-      dot.removeEventListener("mouseenter", handleMouseEnter);
-      dot.removeEventListener("mouseleave", handleMouseLeave);
-      dot.removeEventListener("focus", handleFocus);
-      dot.removeEventListener("blur", handleBlur);
-      dot.removeEventListener("click", handleClick);
-    }
+    root.removeEventListener("mouseover", handleMouseOver);
+    root.removeEventListener("mouseout", handleMouseOut);
+    root.removeEventListener("focusin", handleFocusIn);
+    root.removeEventListener("focusout", handleFocusOut);
+    root.removeEventListener("click", handleClick);
     tip.remove();
   }
 

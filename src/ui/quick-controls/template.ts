@@ -38,7 +38,7 @@ function escapeAttr(text: string): string {
  */
 function hintDotHtml(textKey: string): string {
   const text = escapeAttr(t(textKey));
-  return `<button type="button" class="yui-hint-dot" aria-label="${text}">?</button>`;
+  return `<button type="button" class="yui-hint-dot" aria-label="${text}" data-tip="${text}">?</button>`;
 }
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
@@ -199,8 +199,8 @@ ${pad}</div>`;
             <div class="yui-input-wrap yui-chatkey__wrap">
               <input class="yui-ep-input yui-chatkey__input" id="yui-${idPrefix}-input" type="password"
                 autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="${t(`${i18nPrefix}.label`)}" />
-              <button class="yui-iconbtn yui-chatkey__toggle" type="button" aria-pressed="false" aria-label="${t(`${i18nPrefix}.show`)}" title="${t(`${i18nPrefix}.show`)}">${CHATKEY_EYE_SVG}</button>
-              <button class="yui-iconbtn yui-chatkey__clear" type="button" aria-label="${t(`${i18nPrefix}.clear`)}" title="${t(`${i18nPrefix}.clear`)}">${CHATKEY_CLEAR_SVG}</button>
+              <button class="yui-iconbtn yui-chatkey__toggle" type="button" aria-pressed="false" aria-label="${t(`${i18nPrefix}.show`)}" data-tip="${t(`${i18nPrefix}.show`)}">${CHATKEY_EYE_SVG}</button>
+              <button class="yui-iconbtn yui-chatkey__clear" type="button" aria-label="${t(`${i18nPrefix}.clear`)}" data-tip="${t(`${i18nPrefix}.clear`)}">${CHATKEY_CLEAR_SVG}</button>
             </div>
           </div>`;
   }
@@ -316,14 +316,14 @@ ${RATE_LIMIT_FIELDS.map((f) =>
       </span>
       <span class="yui-quick__title">${t("panel.title")}</span>
       <span class="yui-quick__bar-actions">
-        <button class="yui-iconbtn yui-iconbtn--popout" type="button" aria-label="${t("panel.pop_out")}" title="${t("panel.pop_out")}">
+        <button class="yui-iconbtn yui-iconbtn--popout" type="button" aria-label="${t("panel.pop_out")}" data-tip="${t("panel.pop_out")}">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M14 5h5v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M19 5l-7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M18 13v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
-        <button class="yui-iconbtn yui-iconbtn--close" type="button" aria-label="${t("panel.close")}" title="${t("panel.close")}">
+        <button class="yui-iconbtn yui-iconbtn--close" type="button" aria-label="${t("panel.close")}" data-tip="${t("panel.close")}">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
           </svg>
@@ -336,34 +336,34 @@ ${RATE_LIMIT_FIELDS.map((f) =>
     ${headerHtml}
     <div class="yui-quick__cols${railCollapsed ? " is-rail-collapsed" : ""}">
       <div class="yui-rail">
-        <button class="yui-rail-collapse" type="button" aria-expanded="${String(!railCollapsed)}" aria-label="${railCollapseLabel}" title="${railCollapseLabel}">
+        <button class="yui-rail-collapse" type="button" aria-expanded="${String(!railCollapsed)}" aria-label="${railCollapseLabel}" data-tip="${railCollapseLabel}">
           ${RAIL_COLLAPSE_SVG}
         </button>
         <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" style="--tab:0;">
           <span class="yui-tabs__ind" aria-hidden="true"></span>
-          <button class="yui-tab" type="button" role="tab" id="yui-tab-talk" aria-selected="true" aria-controls="yui-panel-talk" tabindex="0" title="${t("tabs.talk")}" aria-label="${t("tabs.talk")}">
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-talk" aria-selected="true" aria-controls="yui-panel-talk" tabindex="0" data-tip="${t("tabs.talk")}" aria-label="${t("tabs.talk")}">
             ${TAB_ICON_TALK}
             <span class="yui-tab__label">${t("tabs.talk")}</span>
           </button>
-          <button class="yui-tab" type="button" role="tab" id="yui-tab-char" aria-selected="false" aria-controls="yui-panel-char" tabindex="-1" title="${t("tabs.char")}" aria-label="${t("tabs.char")}">
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-char" aria-selected="false" aria-controls="yui-panel-char" tabindex="-1" data-tip="${t("tabs.char")}" aria-label="${t("tabs.char")}">
             ${TAB_ICON_CHAR}
             <span class="yui-tab__label">${t("tabs.char")}</span>
           </button>
-          <button class="yui-tab" type="button" role="tab" id="yui-tab-input" aria-selected="false" aria-controls="yui-panel-input" tabindex="-1" title="${t("tabs.input")}" aria-label="${t("tabs.input")}">
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-input" aria-selected="false" aria-controls="yui-panel-input" tabindex="-1" data-tip="${t("tabs.input")}" aria-label="${t("tabs.input")}">
             ${TAB_ICON_INPUT}
             <span class="yui-tab__label">${t("tabs.input")}</span>
           </button>
-          <button class="yui-tab" type="button" role="tab" id="yui-tab-adv" aria-selected="false" aria-controls="yui-panel-adv" tabindex="-1" title="${t("tabs.adv")}" aria-label="${t("tabs.adv")}">
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-adv" aria-selected="false" aria-controls="yui-panel-adv" tabindex="-1" data-tip="${t("tabs.adv")}" aria-label="${t("tabs.adv")}">
             ${TAB_ICON_ADV}
             <span class="yui-tab__label">${t("tabs.adv")}</span>
           </button>
-          <button class="yui-tab" type="button" role="tab" id="yui-tab-react" aria-selected="false" aria-controls="yui-panel-react" tabindex="-1" title="${t("tabs.react_hint")}" aria-label="${t("tabs.react")}">
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-react" aria-selected="false" aria-controls="yui-panel-react" tabindex="-1" data-tip="${t("tabs.react_hint")}" aria-label="${t("tabs.react")}">
             ${TAB_ICON_REACT}
             <span class="yui-tab__label">${t("tabs.react")}</span>
           </button>${
             showHistory
               ? `
-          <button class="yui-tab" type="button" role="tab" id="yui-tab-hist" aria-selected="false" aria-controls="yui-panel-hist" tabindex="-1" title="${t("tabs.hist")}" aria-label="${t("tabs.hist")}">
+          <button class="yui-tab" type="button" role="tab" id="yui-tab-hist" aria-selected="false" aria-controls="yui-panel-hist" tabindex="-1" data-tip="${t("tabs.hist")}" aria-label="${t("tabs.hist")}">
             ${TAB_ICON_HIST}
             <span class="yui-tab__label">${t("tabs.hist")}</span>
           </button>`

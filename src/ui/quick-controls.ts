@@ -1007,7 +1007,7 @@ export function createQuickControls({
     railCollapseBtn.setAttribute("aria-expanded", String(!collapsed));
     const label = t(collapsed ? "panel.rail_expand" : "panel.rail_collapse");
     railCollapseBtn.setAttribute("aria-label", label);
-    railCollapseBtn.title = label;
+    railCollapseBtn.dataset.tip = label;
     railCollapsedSettings?.setEnabled(collapsed);
     log.info("rail_collapse_toggle", { collapsed });
   }

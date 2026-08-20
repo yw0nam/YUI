@@ -215,7 +215,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     const button = row?.querySelector<HTMLButtonElement>(`.${cfg.classPrefix}__remove`);
     button?.classList.remove("is-armed");
     if (button) {
-      button.title = t(`${cfg.i18nNamespace}.remove`);
+      button.dataset.tip = t(`${cfg.i18nNamespace}.remove`);
       button.setAttribute("aria-label", t(`${cfg.i18nNamespace}.remove`));
     }
   }

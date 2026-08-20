@@ -132,7 +132,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
       toggleBtn.innerHTML = show ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG;
       const label = show ? t(`${i18nPrefix}.hide`) : t(`${i18nPrefix}.show`);
       toggleBtn.setAttribute("aria-label", label);
-      toggleBtn.title = label;
+      toggleBtn.dataset.tip = label;
     }
     function handleClear(): void {
       dirty = false;
