@@ -431,13 +431,35 @@ describe("createQuickControls — speaker section", () => {
 
       const original = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
       original.click();
-      const rerendered = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__rename")!;
+      const rerendered = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
       expect(rerendered.isSameNode(original)).toBe(false);
 
       rerendered.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
       vi.advanceTimersByTime(150);
-      expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("이름 바꾸기");
+      expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제할까요?");
 
+      qc.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("refreshes an open delete tooltip when auto-disarm restores the action", () => {
+    vi.useFakeTimers();
+    try {
+      withUserVoice();
+      const qc = buildQc();
+      qc.open();
+
+      userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+      const remove = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
+      remove.focus();
+      expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제할까요?");
+
+      vi.advanceTimersByTime(4000);
+
+      expect(remove.dataset.tip).toBe("삭제");
+      expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제");
       qc.dispose();
     } finally {
       vi.useRealTimers();

@@ -261,14 +261,54 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
-  it("keeps title only on the popover drag bar", () => {
+  it("keeps the drag title on the grip and panel title without leaking onto tooltip targets", () => {
     const qc = buildQc({ variant: "popover" });
     qc.open();
 
     const titled = Array.from(qc.el.querySelectorAll<HTMLElement>("[title]"));
-    expect(titled).toHaveLength(1);
-    expect(titled[0].classList.contains("yui-quick__bar")).toBe(true);
+    expect(titled).toHaveLength(2);
+    expect(titled.map((element) => element.className)).toEqual([
+      "yui-quick__grip",
+      "yui-quick__title",
+    ]);
+    for (const target of qc.el.querySelectorAll<HTMLElement>("[data-tip]")) {
+      expect(target.parentElement?.closest("[title]")).toBeNull();
+    }
 
+    qc.dispose();
+  });
+
+  it("does not show a tooltip for programmatic panel focus but does for keyboard focus", () => {
+    const qc = buildQc({ variant: "popover" });
+    const popout = qc.el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout")!;
+    const popoutMatches = popout.matches.bind(popout);
+    vi.spyOn(popout, "matches").mockImplementation((selector) =>
+      selector === ":focus-visible" ? false : popoutMatches(selector),
+    );
+
+    qc.open();
+    expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+
+    const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
+    tab.focus();
+    expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(tab.dataset.tip);
+
+    qc.dispose();
+  });
+
+  it("closes both a keyboard-focused tab tooltip and the panel on Escape", () => {
+    const qc = buildQc({ variant: "popover" });
+    const popout = qc.el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout")!;
+    vi.spyOn(popout, "matches").mockReturnValue(false);
+    qc.open();
+    const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
+    tab.focus();
+    expect(document.querySelector(".yui-hint-tip.is-open")).not.toBeNull();
+
+    tab.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+    expect(qc.isOpen()).toBe(false);
     qc.dispose();
   });
 

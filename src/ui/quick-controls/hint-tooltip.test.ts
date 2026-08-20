@@ -8,6 +8,7 @@ function makeDot(label: string): HTMLElement {
   button.className = "yui-hint-dot";
   button.setAttribute("aria-label", label);
   button.dataset.tip = label;
+  button.dataset.tipPin = "";
   button.textContent = "?";
   return button;
 }
@@ -58,6 +59,15 @@ describe("createHintTooltip", () => {
     expect(openTip()).toBeNull();
   });
 
+  it("does not open a pending tooltip after its target is detached", () => {
+    dotA.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    dotA.remove();
+
+    vi.advanceTimersByTime(150);
+
+    expect(openTip()).toBeNull();
+  });
+
   it("opens immediately on focus, with no timer advance needed", () => {
     dotA.focus();
     expect(openTip()).not.toBeNull();
@@ -96,6 +106,32 @@ describe("createHintTooltip", () => {
     expect(openTip()).toBeNull();
   });
 
+  it("closes an open tooltip when clicking its target detaches it", () => {
+    const button = document.createElement("button");
+    button.dataset.tip = "Delete";
+    button.addEventListener("click", () => button.remove());
+    root.appendChild(button);
+    button.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    vi.advanceTimersByTime(150);
+
+    button.click();
+
+    expect(openTip()).toBeNull();
+  });
+
+  it("pins only elements carrying data-tip-pin", () => {
+    const button = document.createElement("button");
+    button.dataset.tip = "Explicit pin target";
+    button.dataset.tipPin = "";
+    root.appendChild(button);
+
+    button.click();
+
+    expect(openTip()?.textContent).toBe("Explicit pin target");
+    document.body.click();
+    expect(openTip()).toBeNull();
+  });
+
   it("keeps dot B's pinned tooltip open after switching from pinned dot A by click", () => {
     dotA.click();
     dotB.click();
@@ -116,20 +152,31 @@ describe("createHintTooltip", () => {
     expect(openTip()?.isConnected).toBe(true);
   });
 
-  it("consumes Escape only while a tooltip is open", () => {
+  it("consumes Escape only while a tooltip is pinned", () => {
     const panelKeydown = vi.fn();
     document.addEventListener("keydown", panelKeydown);
     try {
       dotA.focus();
       dotA.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
       expect(openTip()).toBeNull();
-      expect(panelKeydown).not.toHaveBeenCalled();
+      expect(panelKeydown).toHaveBeenCalledOnce();
 
+      dotA.click();
       dotA.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
       expect(panelKeydown).toHaveBeenCalledOnce();
     } finally {
       document.removeEventListener("keydown", panelKeydown);
     }
+  });
+
+  it("cancels a pending open on Escape before any tooltip is visible", () => {
+    dotA.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    dotA.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    root.remove();
+
+    vi.advanceTimersByTime(150);
+
+    expect(openTip()).toBeNull();
   });
 
   it("keeps the pinned dot open when another dot is hovered", () => {
@@ -150,13 +197,16 @@ describe("createHintTooltip", () => {
   it("keeps the tooltip open when the pointer moves onto an inner svg", () => {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     dotA.appendChild(svg);
+    const measure = vi.spyOn(dotA, "getBoundingClientRect");
     dotA.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
     vi.advanceTimersByTime(150);
 
     dotA.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: svg }));
     svg.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, relatedTarget: dotA }));
+    vi.advanceTimersByTime(150);
 
     expect(openTip()?.textContent).toBe(dotA.dataset.tip);
+    expect(measure).toHaveBeenCalledOnce();
   });
 
   it("wires data-tip elements added after construction", () => {
