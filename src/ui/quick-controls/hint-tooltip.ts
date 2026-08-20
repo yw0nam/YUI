@@ -11,7 +11,15 @@ import { afterFadeOut } from "../fade-out";
 const OPEN_DELAY_MS = 150;
 const VIEWPORT_MARGIN = 8;
 const GAP = 6;
-const FOCUS_MOVING_KEYS = new Set(["Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+const FOCUS_MOVING_KEYS = new Set([
+  "Tab",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Home",
+  "End",
+]);
 
 interface HintTooltipDeps {
   /** Panel root — tooltip events from every `[data-tip]` inside it are delegated here. */
