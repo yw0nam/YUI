@@ -74,12 +74,13 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
     if (!isEnabled()) return;
 
     let firedAny = false;
-    // The window clamps at midnight — a 23:00 cue gets less than the full grace period.
     for (const cue of getCues()) {
       const [cueHour, cueMinute] = cue.time.split(":").map(Number);
       const cueMinutes = cueHour * 60 + cueMinute;
       if (!Number.isFinite(cueMinutes)) continue;
       const delta = nowMinutes - cueMinutes;
+      // ponytail: the window clamps at midnight, so a 23:00 cue gets 60 minutes, not 120 — wrap
+      // it if that bites.
       if (!cue.enabled || fired[cue.id] === dayKey || delta < 0 || delta > GRACE_MINUTES) continue;
       const env: BusEnvelope = {
         source: "timer_scheduler",

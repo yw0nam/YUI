@@ -327,6 +327,27 @@ describe("schedule_source — once-per-day latch", () => {
     expect(firedStorage.load()).toEqual({ morning: "2026-5-15" });
   });
 
+  it("persists only on the tick that fires", async () => {
+    const { bus } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const firedStorage = fakeFiredStorage();
+    const save = vi.fn(firedStorage.save);
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage: { load: firedStorage.load, save },
+      getCues: () => [cue()],
+      isEnabled: () => true,
+      listen,
+      now: () => at(2026, 5, 15, 9, 30),
+    });
+    await src.start();
+    emit(idleTick(500));
+    emit(idleTick(500));
+
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
   it("does not let yesterday's persisted latch suppress a fresh source today", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
@@ -384,7 +405,7 @@ describe("schedule_source — startup catch-up", () => {
     expect(pushed).toHaveLength(1);
   });
 
-  it("fires a cue exactly 120 minutes after its time", async () => {
+  it("fires a cue exactly at the grace-window boundary", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
     const boundaryMinutes = 9 * 60 + GRACE_MINUTES;
@@ -403,7 +424,7 @@ describe("schedule_source — startup catch-up", () => {
     expect(pushed).toHaveLength(1);
   });
 
-  it("does not fire a cue 121 minutes after its time", async () => {
+  it("does not fire a cue one minute past the grace-window boundary", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
     const pastBoundaryMinutes = 9 * 60 + GRACE_MINUTES + 1;
