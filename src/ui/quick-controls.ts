@@ -566,7 +566,15 @@ export function createQuickControls({
 
   // ── VRM section ──
 
-  const vrmList = createVrmList({ root: el, vrmSelection, swapVrm, importVrm, removeUserVrm, log });
+  const vrmList = createVrmList({
+    root: el,
+    vrmSelection,
+    swapVrm,
+    importVrm,
+    removeUserVrm,
+    log,
+    refreshTooltip: hintTooltip.refresh,
+  });
 
   // ── Idle motion section ──
 
@@ -600,6 +608,7 @@ export function createQuickControls({
     commitVoiceImport,
     removeUserVoice,
     log,
+    refreshTooltip: hintTooltip.refresh,
     isDisposed: () => disposed,
   });
 

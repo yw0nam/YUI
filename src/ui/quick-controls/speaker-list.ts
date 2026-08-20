@@ -39,6 +39,7 @@ interface SpeakerListDeps {
   /** Delete imported voice app-data file (idempotent). Called separately from store removal. */
   removeUserVoice: (id: string) => Promise<void>;
   log: Logger;
+  refreshTooltip: () => void;
   /** After dispose, prevent in-flight refresh from re-rendering/timering on torn-down DOM. */
   isDisposed: () => boolean;
 }
@@ -77,6 +78,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     i18nNamespace: "speaker",
     logPrefix: "voice",
     log,
+    refreshTooltip: deps.refreshTooltip,
     list: () => speakerSelection.list(),
     getActiveId: () => speakerSelection.getActiveId(),
     getActive: () => speakerSelection.getActive(),
@@ -216,6 +218,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
           removeBtn.classList.add("is-armed");
           removeBtn.dataset.tip = t("speaker.remove_confirm");
           removeBtn.setAttribute("aria-label", t("speaker.remove_confirm_aria", { name: label }));
+          deps.refreshTooltip();
         }
         removeBtn.addEventListener("click", (e) => {
           e.stopPropagation(); // Remove does not trigger row selection

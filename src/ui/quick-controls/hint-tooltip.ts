@@ -18,6 +18,7 @@ interface HintTooltipDeps {
 }
 
 export interface HintTooltip {
+  refresh(): void;
   dispose(): void;
 }
 
@@ -60,6 +61,7 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   }
 
   function show(target: HTMLElement): void {
+    if (!root.contains(target)) return;
     cancelPendingOpen();
     if (openTarget && openTarget !== target) hide();
     cancelFade?.();
@@ -95,6 +97,10 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     return target && root.contains(target) ? target : null;
   }
 
+  function findClosestTarget(value: EventTarget | null): HTMLElement | null {
+    return value instanceof Element ? value.closest<HTMLElement>("[data-tip]") : null;
+  }
+
   function handleMouseOver(e: MouseEvent): void {
     const target = findTarget(e.target);
     if (!target || findTarget(e.relatedTarget) === target) return;
@@ -102,35 +108,42 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     cancelPendingOpen();
     openTimer = setTimeout(() => {
       openTimer = null;
+      if (!root.contains(target)) return;
       show(target);
     }, OPEN_DELAY_MS);
   }
 
   function handleMouseOut(e: MouseEvent): void {
-    const target = findTarget(e.target);
-    if (!target || findTarget(e.relatedTarget) === target) return;
+    const target = findClosestTarget(e.target);
+    if (target && findClosestTarget(e.relatedTarget) === target) return;
     cancelPendingOpen();
+    if (openTarget && !root.contains(openTarget)) {
+      hide();
+      return;
+    }
     if (pinned) return;
     if (openTarget === target) hide();
   }
 
   function handleFocusIn(e: FocusEvent): void {
     const target = findTarget(e.target);
-    if (target) show(target);
+    if (target?.matches(":focus-visible")) show(target);
   }
 
   function handleFocusOut(e: FocusEvent): void {
-    const target = findTarget(e.target);
-    if (!target) return;
+    const target = findClosestTarget(e.target);
+    if (openTarget && !root.contains(openTarget)) {
+      hide();
+      return;
+    }
     if (pinned) return;
     if (openTarget === target) hide();
   }
 
   function handleClick(e: MouseEvent): void {
-    const target = findTarget(e.target);
-    if (!target) return;
-    if (target.classList.contains("yui-hint-dot")) togglePin(target);
-    else hide();
+    const target = findClosestTarget(e.target);
+    if (target?.hasAttribute("data-tip-pin") && root.contains(target)) togglePin(target);
+    else if (openTarget && (openTarget === target || !root.contains(openTarget))) hide();
   }
 
   // Pinned tooltips close on any click outside the target.
@@ -142,9 +155,12 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   }
 
   function handleDocumentKeydown(e: KeyboardEvent): void {
-    if (e.key !== "Escape" || !openTarget) return;
-    const shouldConsume = openTarget.classList.contains("yui-hint-dot");
+    if (e.key !== "Escape") return;
+    cancelPendingOpen();
+    if (!openTarget) return;
+    const shouldConsume = pinned;
     hide();
+    // Capture-phase stopPropagation also blocks document bubble handlers such as delete disarm.
     if (shouldConsume) e.stopPropagation();
   }
 
@@ -162,6 +178,10 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   window.addEventListener("scroll", handleViewportChange, true);
   window.addEventListener("resize", handleViewportChange);
 
+  function refresh(): void {
+    if (openTarget) tip.textContent = openTarget.dataset.tip ?? "";
+  }
+
   function dispose(): void {
     cancelPendingOpen();
     cancelFade?.();
@@ -177,5 +197,5 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     tip.remove();
   }
 
-  return { dispose };
+  return { refresh, dispose };
 }

@@ -9,6 +9,8 @@ function makeDot(label: string): HTMLElement {
   button.setAttribute("aria-label", label);
   button.dataset.tip = label;
   button.dataset.tipPin = "";
+  const matches = button.matches.bind(button);
+  button.matches = (selector) => selector === ":focus-visible" || matches(selector);
   button.textContent = "?";
   return button;
 }
@@ -97,6 +99,7 @@ describe("createHintTooltip", () => {
   it("clicking a non-dot data-tip element hides its focused tooltip", () => {
     const button = document.createElement("button");
     button.dataset.tip = "Switch to reactions";
+    vi.spyOn(button, "matches").mockReturnValue(true);
     root.appendChild(button);
 
     button.focus();

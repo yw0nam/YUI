@@ -38,7 +38,7 @@ function escapeAttr(text: string): string {
  */
 function hintDotHtml(textKey: string): string {
   const text = escapeAttr(t(textKey));
-  return `<button type="button" class="yui-hint-dot" aria-label="${text}" data-tip="${text}">?</button>`;
+  return `<button type="button" class="yui-hint-dot" aria-label="${text}" data-tip="${text}" data-tip-pin>?</button>`;
 }
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
@@ -310,11 +310,11 @@ ${RATE_LIMIT_FIELDS.map((f) =>
   const headerHtml = isWindow
     ? ""
     : `
-    <div class="yui-quick__bar" title="${t("panel.drag_hint")}">
-      <span class="yui-quick__grip" aria-hidden="true">
+    <div class="yui-quick__bar">
+      <span class="yui-quick__grip" aria-hidden="true" title="${t("panel.drag_hint")}">
         <i></i><i></i><i></i><i></i><i></i><i></i>
       </span>
-      <span class="yui-quick__title">${t("panel.title")}</span>
+      <span class="yui-quick__title" title="${t("panel.drag_hint")}">${t("panel.title")}</span>
       <span class="yui-quick__bar-actions">
         <button class="yui-iconbtn yui-iconbtn--popout" type="button" aria-label="${t("panel.pop_out")}" data-tip="${t("panel.pop_out")}">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

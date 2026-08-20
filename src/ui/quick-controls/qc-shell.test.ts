@@ -265,15 +265,15 @@ describe("createQuickControls — shell", () => {
     const qc = buildQc({ variant: "popover" });
     qc.open();
 
+    for (const target of qc.el.querySelectorAll<HTMLElement>("[data-tip]")) {
+      expect(target.parentElement?.closest("[title]")).toBeNull();
+    }
     const titled = Array.from(qc.el.querySelectorAll<HTMLElement>("[title]"));
     expect(titled).toHaveLength(2);
     expect(titled.map((element) => element.className)).toEqual([
       "yui-quick__grip",
       "yui-quick__title",
     ]);
-    for (const target of qc.el.querySelectorAll<HTMLElement>("[data-tip]")) {
-      expect(target.parentElement?.closest("[title]")).toBeNull();
-    }
 
     qc.dispose();
   });
@@ -290,6 +290,7 @@ describe("createQuickControls — shell", () => {
     expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
 
     const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
+    vi.spyOn(tab, "matches").mockReturnValue(true);
     tab.focus();
     expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(tab.dataset.tip);
 
@@ -302,6 +303,7 @@ describe("createQuickControls — shell", () => {
     vi.spyOn(popout, "matches").mockReturnValue(false);
     qc.open();
     const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
+    vi.spyOn(tab, "matches").mockReturnValue(true);
     tab.focus();
     expect(document.querySelector(".yui-hint-tip.is-open")).not.toBeNull();
 
