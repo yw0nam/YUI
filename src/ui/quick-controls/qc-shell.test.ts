@@ -261,6 +261,17 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
+  it("keeps title only on the popover drag bar", () => {
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+
+    const titled = Array.from(qc.el.querySelectorAll<HTMLElement>("[title]"));
+    expect(titled).toHaveLength(1);
+    expect(titled[0].classList.contains("yui-quick__bar")).toBe(true);
+
+    qc.dispose();
+  });
+
   // ── Escape — both variants must close ─────────────────────────────────────
 
   it("Escape closes the popover variant", () => {

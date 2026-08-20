@@ -80,7 +80,8 @@ describe("createQuickControls — history tab", () => {
     const histTab = tabs[5];
     expect(histTab.textContent).toContain("History");
     expect(histTab.getAttribute("aria-label")).toBeTruthy();
-    expect(histTab.getAttribute("title")).toBeTruthy();
+    expect(histTab.dataset.tip).toBeTruthy();
+    expect(histTab.hasAttribute("title")).toBe(false);
     const panel = qc.el.querySelector<HTMLElement>(`#${histTab.getAttribute("aria-controls")}`)!;
     expect(panel.getAttribute("aria-labelledby")).toBe(histTab.id);
 

@@ -7,6 +7,7 @@ function makeDot(label: string): HTMLElement {
   button.type = "button";
   button.className = "yui-hint-dot";
   button.setAttribute("aria-label", label);
+  button.dataset.tip = label;
   button.textContent = "?";
   return button;
 }
@@ -38,21 +39,21 @@ describe("createHintTooltip", () => {
   }
 
   it("does not open before the 150ms hover delay", () => {
-    dotA.dispatchEvent(new MouseEvent("mouseenter"));
+    dotA.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
     vi.advanceTimersByTime(149);
     expect(openTip()).toBeNull();
   });
 
   it("opens at the 150ms hover delay", () => {
-    dotA.dispatchEvent(new MouseEvent("mouseenter"));
+    dotA.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
     vi.advanceTimersByTime(150);
     expect(openTip()).not.toBeNull();
   });
 
   it("cancels the pending open when the pointer leaves before the delay", () => {
-    dotA.dispatchEvent(new MouseEvent("mouseenter"));
+    dotA.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
     vi.advanceTimersByTime(100);
-    dotA.dispatchEvent(new MouseEvent("mouseleave"));
+    dotA.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
     vi.advanceTimersByTime(100);
     expect(openTip()).toBeNull();
   });
@@ -83,13 +84,25 @@ describe("createHintTooltip", () => {
     expect(openTip()).toBeNull();
   });
 
+  it("clicking a non-dot data-tip element hides its focused tooltip", () => {
+    const button = document.createElement("button");
+    button.dataset.tip = "Switch to reactions";
+    root.appendChild(button);
+
+    button.focus();
+    expect(openTip()?.textContent).toBe("Switch to reactions");
+    button.click();
+
+    expect(openTip()).toBeNull();
+  });
+
   it("keeps dot B's pinned tooltip open after switching from pinned dot A by click", () => {
     dotA.click();
     dotB.click();
 
     vi.advanceTimersByTime(500);
 
-    expect(openTip()?.textContent).toBe(dotB.getAttribute("aria-label"));
+    expect(openTip()?.textContent).toBe(dotB.dataset.tip);
     expect(openTip()?.isConnected).toBe(true);
   });
 
@@ -99,7 +112,7 @@ describe("createHintTooltip", () => {
 
     vi.advanceTimersByTime(500);
 
-    expect(openTip()?.textContent).toBe(dotB.getAttribute("aria-label"));
+    expect(openTip()?.textContent).toBe(dotB.dataset.tip);
     expect(openTip()?.isConnected).toBe(true);
   });
 
@@ -121,17 +134,40 @@ describe("createHintTooltip", () => {
 
   it("keeps the pinned dot open when another dot is hovered", () => {
     dotA.click();
-    dotB.dispatchEvent(new MouseEvent("mouseenter"));
+    dotB.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
     vi.advanceTimersByTime(150);
-    expect(openTip()?.textContent).toBe(dotA.getAttribute("aria-label"));
+    expect(openTip()?.textContent).toBe(dotA.dataset.tip);
   });
 
   it("opens another dot on hover after Escape releases the pin", () => {
     dotA.click();
     dotA.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    dotB.dispatchEvent(new MouseEvent("mouseenter"));
+    dotB.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
     vi.advanceTimersByTime(150);
-    expect(openTip()?.textContent).toBe(dotB.getAttribute("aria-label"));
+    expect(openTip()?.textContent).toBe(dotB.dataset.tip);
+  });
+
+  it("keeps the tooltip open when the pointer moves onto an inner svg", () => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    dotA.appendChild(svg);
+    dotA.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    vi.advanceTimersByTime(150);
+
+    dotA.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: svg }));
+    svg.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, relatedTarget: dotA }));
+
+    expect(openTip()?.textContent).toBe(dotA.dataset.tip);
+  });
+
+  it("wires data-tip elements added after construction", () => {
+    const button = document.createElement("button");
+    button.dataset.tip = "Added after construction";
+    root.appendChild(button);
+
+    button.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    vi.advanceTimersByTime(150);
+
+    expect(openTip()?.textContent).toBe("Added after construction");
   });
 
   it("measures from reset coordinates and clamps a flipped tooltip to the viewport", () => {
@@ -200,13 +236,11 @@ describe("createHintTooltip", () => {
     const documentRemove = vi.spyOn(document, "removeEventListener");
     const windowAdd = vi.spyOn(window, "addEventListener");
     const windowRemove = vi.spyOn(window, "removeEventListener");
-    const dotListeners = localDots.map((dot) => ({
-      add: vi.spyOn(dot, "addEventListener"),
-      remove: vi.spyOn(dot, "removeEventListener"),
-    }));
+    const rootAdd = vi.spyOn(localRoot, "addEventListener");
+    const rootRemove = vi.spyOn(localRoot, "removeEventListener");
     const localTooltip = createHintTooltip({ root: localRoot });
 
-    localDots[0].dispatchEvent(new MouseEvent("mouseenter"));
+    localDots[0].dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
     localTooltip.dispose();
 
     const documentClick = documentAdd.mock.calls.find(([name]) => name === "click")![1];
@@ -219,18 +253,16 @@ describe("createHintTooltip", () => {
     expect(windowRemove).toHaveBeenCalledWith("scroll", windowScroll, true);
     expect(windowRemove).toHaveBeenCalledWith("resize", windowResize);
 
-    for (const { add, remove } of dotListeners) {
-      for (const eventName of ["mouseenter", "mouseleave", "focus", "blur", "click"]) {
-        const callback = add.mock.calls.find(([name]) => name === eventName)![1];
-        expect(remove).toHaveBeenCalledWith(eventName, callback);
-      }
+    for (const eventName of ["mouseover", "mouseout", "focusin", "focusout", "click"]) {
+      const callback = rootAdd.mock.calls.find(([name]) => name === eventName)![1];
+      expect(rootRemove).toHaveBeenCalledWith(eventName, callback);
     }
 
     for (const dot of localDots) {
-      dot.dispatchEvent(new MouseEvent("mouseenter"));
-      dot.dispatchEvent(new MouseEvent("mouseleave"));
-      dot.dispatchEvent(new FocusEvent("focus"));
-      dot.dispatchEvent(new FocusEvent("blur"));
+      dot.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      dot.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
+      dot.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+      dot.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
       dot.click();
     }
     document.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -255,8 +287,10 @@ describe("createHintTooltip", () => {
     expect(tip.isConnected).toBe(false);
   });
 
-  it("renders the dot's aria-label as the tooltip text", () => {
+  it("renders data-tip instead of the accessible name as the tooltip text", () => {
+    dotA.dataset.tip = "Tooltip copy";
+    dotA.setAttribute("aria-label", "Accessible name");
     dotA.focus();
-    expect(openTip()!.textContent).toBe(dotA.getAttribute("aria-label"));
+    expect(openTip()!.textContent).toBe("Tooltip copy");
   });
 });

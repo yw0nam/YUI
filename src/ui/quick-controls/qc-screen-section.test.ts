@@ -68,7 +68,8 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     qc.open();
     const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
     expect(tab.querySelector(".yui-tab__label")!.textContent).toBe("말걸기");
-    expect(tab.getAttribute("title")).toBe("유이가 먼저 말을 거는 규칙");
+    expect(tab.dataset.tip).toBe("유이가 먼저 말을 거는 규칙");
+    expect(tab.hasAttribute("title")).toBe(false);
     qc.dispose();
   });
 
