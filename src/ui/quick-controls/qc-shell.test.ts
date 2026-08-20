@@ -261,6 +261,77 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
+  it("keeps the drag title on the grip and panel title without leaking onto tooltip targets", () => {
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+
+    for (const target of qc.el.querySelectorAll<HTMLElement>("[data-tip]")) {
+      expect(target.parentElement?.closest("[title]")).toBeNull();
+    }
+    const titled = Array.from(qc.el.querySelectorAll<HTMLElement>("[title]"));
+    expect(titled).toHaveLength(2);
+    expect(titled.map((element) => element.className)).toEqual([
+      "yui-quick__grip",
+      "yui-quick__title",
+    ]);
+
+    qc.dispose();
+  });
+
+  it("does not show a tooltip for programmatic panel focus but does for keyboard focus", () => {
+    const qc = buildQc({ variant: "popover" });
+
+    document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    qc.open();
+    expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+
+    const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    tab.focus();
+    expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(tab.dataset.tip);
+
+    qc.dispose();
+  });
+
+  it("closes both a keyboard-focused tab tooltip and the panel on Escape", () => {
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+    const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    tab.focus();
+    expect(document.querySelector(".yui-hint-tip.is-open")).not.toBeNull();
+
+    tab.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+    expect(qc.isOpen()).toBe(false);
+    qc.dispose();
+  });
+
+  it("opens a tooltip when Home or End is the first keyboard-modality key after a pointer click", () => {
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+
+    const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
+    const firstTab = tabs[0]!;
+    const lastTab = tabs[tabs.length - 1]!;
+    const advTab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-adv")!;
+
+    document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    advTab.focus();
+    expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+    advTab.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(firstTab.dataset.tip);
+
+    document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    advTab.focus();
+    expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+    advTab.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(lastTab.dataset.tip);
+
+    qc.dispose();
+  });
+
   // ── Escape — both variants must close ─────────────────────────────────────
 
   it("Escape closes the popover variant", () => {

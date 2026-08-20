@@ -20,6 +20,7 @@ interface VrmListDeps {
   /** Delete imported VRM app-data file (idempotent). Called separately from store removal. */
   removeUserVrm: (id: string) => Promise<void>;
   log: Logger;
+  refreshTooltip: () => void;
 }
 
 export interface VrmList {
@@ -44,6 +45,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
     i18nNamespace: "vrm",
     logPrefix: "vrm",
     log,
+    refreshTooltip: deps.refreshTooltip,
     list: () => vrmSelection.list(),
     getActiveId: () => vrmSelection.getActiveId(),
     getActive: () => vrmSelection.getActive(),
@@ -84,8 +86,8 @@ export function createVrmList(deps: VrmListDeps): VrmList {
       } else {
         const badgeHtml = selected ? `<span class="yui-vrm__badge">${t("vrm.in_use")}</span>` : "";
         const actionsHtml = isUser
-          ? `<button class="yui-vrm__rename" type="button" title="${t("vrm.rename")}" aria-label="${t("vrm.rename")}">${VRM_RENAME_SVG}</button>` +
-            `<button class="yui-vrm__remove" type="button" title="${t("vrm.remove")}" aria-label="${t("vrm.remove")}">${VRM_REMOVE_SVG}<span class="yui-vrm__remove-confirm">${t("vrm.remove_confirm")}</span></button>`
+          ? `<button class="yui-vrm__rename" type="button" data-tip="${t("vrm.rename")}" aria-label="${t("vrm.rename")}">${VRM_RENAME_SVG}</button>` +
+            `<button class="yui-vrm__remove" type="button" data-tip="${t("vrm.remove")}" aria-label="${t("vrm.remove")}">${VRM_REMOVE_SVG}<span class="yui-vrm__remove-confirm">${t("vrm.remove_confirm")}</span></button>`
           : "";
         row.innerHTML = `
           <span class="yui-vrm__tick" aria-hidden="true"></span>
@@ -103,8 +105,9 @@ export function createVrmList(deps: VrmListDeps): VrmList {
           if (list.getArmedRemoveId() === opt.id) {
             row.classList.add("is-remove-armed");
             removeBtn.classList.add("is-armed");
-            removeBtn.title = t("vrm.remove_confirm");
+            removeBtn.dataset.tip = t("vrm.remove_confirm");
             removeBtn.setAttribute("aria-label", t("vrm.remove_confirm_aria", { name: opt.label }));
+            deps.refreshTooltip();
           }
           row
             .querySelector<HTMLButtonElement>(".yui-vrm__rename")!

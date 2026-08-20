@@ -68,7 +68,8 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     qc.open();
     const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
     expect(tab.querySelector(".yui-tab__label")!.textContent).toBe("말걸기");
-    expect(tab.getAttribute("title")).toBe("유이가 먼저 말을 거는 규칙");
+    expect(tab.dataset.tip).toBe("유이가 먼저 말을 거는 규칙");
+    expect(tab.hasAttribute("title")).toBe(false);
     qc.dispose();
   });
 
@@ -325,6 +326,7 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
       expect(hint.hasAttribute("title")).toBe(false);
       // The explanation itself must be the accessible name — a keyboard user has no hover to fall back to.
       expect(hint.getAttribute("aria-label")!.length).toBeGreaterThan(20);
+      expect(hint.hasAttribute("data-tip-pin")).toBe(true);
       expect(hint.tagName).toBe("BUTTON");
       expect((hint as HTMLButtonElement).type).toBe("button");
       expect(hint.tabIndex).toBe(0);
@@ -340,6 +342,7 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
       qc.open();
       const hint = qc.el.querySelector<HTMLElement>("#yui-panel-react .yui-hint-dot")!;
       expect(hint.getAttribute("aria-label")).toBe('Say "hi" & bye');
+      expect(hint.dataset.tip).toBe('Say "hi" & bye');
       qc.dispose();
     } finally {
       ko["screen.hint"] = original;

@@ -673,7 +673,7 @@ describe("createQuickControls — sections rail collapse", () => {
     qc.dispose();
   });
 
-  it("every tab keeps an accessible name (title + aria-label) for the icon-only collapsed state", () => {
+  it("every tab keeps an accessible name and tooltip for the icon-only collapsed state", () => {
     const qc = buildQc();
     qc.open();
 
@@ -681,8 +681,17 @@ describe("createQuickControls — sections rail collapse", () => {
     expect(tabs).toHaveLength(5);
     for (const tab of tabs) {
       expect(tab.getAttribute("aria-label")).toBeTruthy();
-      expect(tab.getAttribute("title")).toBeTruthy();
+      expect(tab.dataset.tip).toBeTruthy();
+      expect(tab.hasAttribute("title")).toBe(false);
     }
+
+    const reactions = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    reactions.focus();
+    expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(
+      reactions.dataset.tip,
+    );
+    expect(reactions.dataset.tip).not.toBe(reactions.getAttribute("aria-label"));
 
     qc.dispose();
   });

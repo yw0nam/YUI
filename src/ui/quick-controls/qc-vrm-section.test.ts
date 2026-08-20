@@ -502,7 +502,7 @@ describe("createQuickControls — VRM section", () => {
     expect(
       userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.getAttribute("aria-label"),
     ).toBe("삭제할까요? 깜냥이");
-    expect(userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.title).toBe(
+    expect(userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.dataset.tip).toBe(
       "삭제할까요?",
     );
     userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
@@ -514,6 +514,28 @@ describe("createQuickControls — VRM section", () => {
     expect(qc.el.querySelector('.yui-vrm[data-vrm-id="cat"]')).toBeNull();
 
     qc.dispose();
+  });
+
+  it("closes a tooltip that was open across the click that arms and re-renders its anchor", () => {
+    vi.useFakeTimers();
+    try {
+      withUserOption();
+      const qc = buildQc();
+      qc.open();
+
+      const remove = userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!;
+      remove.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      vi.advanceTimersByTime(150);
+      expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제");
+
+      remove.click();
+
+      expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+
+      qc.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("deletes the file BEFORE committing the store removal (no divergence ordering)", async () => {

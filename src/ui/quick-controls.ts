@@ -566,7 +566,15 @@ export function createQuickControls({
 
   // ── VRM section ──
 
-  const vrmList = createVrmList({ root: el, vrmSelection, swapVrm, importVrm, removeUserVrm, log });
+  const vrmList = createVrmList({
+    root: el,
+    vrmSelection,
+    swapVrm,
+    importVrm,
+    removeUserVrm,
+    log,
+    refreshTooltip: hintTooltip.refresh,
+  });
 
   // ── Idle motion section ──
 
@@ -600,6 +608,7 @@ export function createQuickControls({
     commitVoiceImport,
     removeUserVoice,
     log,
+    refreshTooltip: hintTooltip.refresh,
     isDisposed: () => disposed,
   });
 
@@ -1007,7 +1016,7 @@ export function createQuickControls({
     railCollapseBtn.setAttribute("aria-expanded", String(!collapsed));
     const label = t(collapsed ? "panel.rail_expand" : "panel.rail_collapse");
     railCollapseBtn.setAttribute("aria-label", label);
-    railCollapseBtn.title = label;
+    railCollapseBtn.dataset.tip = label;
     railCollapsedSettings?.setEnabled(collapsed);
     log.info("rail_collapse_toggle", { collapsed });
   }

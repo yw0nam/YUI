@@ -39,6 +39,7 @@ export interface UserAssetListConfig<T extends UserAssetOption> {
   /** Log event key prefix — resolves `${prefix}_rename`, `${prefix}_delete`, `${prefix}_delete_failed`, `${prefix}_fallback_swap_failed`, `${prefix}_import_failed`, `${prefix}_swap`, `${prefix}_swap_failed`. */
   logPrefix: string;
   log: Logger;
+  refreshTooltip: () => void;
 
   list: () => T[];
   getActiveId: () => string;
@@ -215,8 +216,9 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     const button = row?.querySelector<HTMLButtonElement>(`.${cfg.classPrefix}__remove`);
     button?.classList.remove("is-armed");
     if (button) {
-      button.title = t(`${cfg.i18nNamespace}.remove`);
+      button.dataset.tip = t(`${cfg.i18nNamespace}.remove`);
       button.setAttribute("aria-label", t(`${cfg.i18nNamespace}.remove`));
+      cfg.refreshTooltip();
     }
   }
 

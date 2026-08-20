@@ -313,7 +313,7 @@
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
-/* ── Collapsed rail — icons only, label survives only in title/aria-label ── */
+/* ── Collapsed rail — icons only, label survives in tooltip/aria-label ── */
 .yui-quick__cols.is-rail-collapsed .yui-rail {
   flex-basis: 3rem;
 }
