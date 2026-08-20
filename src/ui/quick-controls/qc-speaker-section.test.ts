@@ -506,6 +506,29 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
+  it("warns for a lossy name whose derived voice id collides, though the raw strings differ", async () => {
+    // The native id of a lossy name is hash-derived ("エイメス" → "voice-b5a1f4"), so this
+    // collision is only visible through voiceIdFromName — a raw-name or sanitizeStem
+    // prediction would stay silent while Enter overwrites the existing voice.
+    speakerSelection.addUserOption({
+      id: "voice-b5a1f4",
+      label: "エイメス",
+      ref_url: "asset://localhost/app-data/references/voice-b5a1f4/clip.mp3",
+      source: "user",
+    });
+    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/エイメス.wav", seedName: "エイメス" }));
+    const qc = buildQc({ pickVoiceImport });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    await flush();
+
+    expect(spkNamingInput(qc)!.value).toBe("エイメス");
+    expect(spkOverwriteWarn(qc)).not.toBeNull();
+
+    qc.dispose();
+  });
+
   it("shows no warning for a name that does not collide", async () => {
     pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Brand New.wav", seedName: "Brand New" }));
     const qc = buildQc({ pickVoiceImport });
