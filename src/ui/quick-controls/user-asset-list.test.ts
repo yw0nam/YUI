@@ -185,7 +185,7 @@ describe("rename FSM", () => {
   it("reconcileRenaming clears a renaming id no longer present in the list", () => {
     const h = makeHarness();
     h.list.startRename("a");
-    h.list.reconcileRenaming(["b"]); // "a" no longer present
+    h.list.prepareRender(["b"]); // "a" no longer present
     expect(h.list.getRenamingId()).toBeNull();
   });
 
@@ -257,7 +257,7 @@ describe("remove flow", () => {
     h.dispose();
   });
 
-  it("deletes the file first; on failure, does not touch the store and does not render", async () => {
+  it("keeps and re-renders the row when the file delete fails", async () => {
     const h = makeHarness({
       removeFile: vi.fn(async () => Promise.reject(new Error("disk error"))),
     });
@@ -265,7 +265,7 @@ describe("remove flow", () => {
     h.render.mockClear();
     await h.list.remove("b");
     expect(h.removeFromStore).not.toHaveBeenCalled();
-    expect(h.render).not.toHaveBeenCalled();
+    expect(h.render).toHaveBeenCalledOnce();
     expect(h.log.error).toHaveBeenCalledWith("fake_delete_failed", {
       id: "b",
       error: "Error: disk error",

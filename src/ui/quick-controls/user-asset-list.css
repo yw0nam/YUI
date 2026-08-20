@@ -237,6 +237,26 @@
   color: var(--yui-danger);
 }
 
+.yui-vrm.is-remove-armed,
+.yui-spk.is-remove-armed {
+  background: var(--yui-danger-faint);
+}
+
+.yui-vrm__remove.is-armed,
+.yui-spk__remove.is-armed {
+  display: inline-flex;
+  width: auto;
+  padding: 0 0.5rem;
+  border: 1px solid var(--yui-danger-soft);
+  border-radius: 999px;
+  background: var(--yui-danger-faint);
+  color: var(--yui-danger);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 1;
+}
+
 .yui-vrm__rename:focus-visible,
 .yui-vrm__remove:focus-visible,
 .yui-spk__rename:focus-visible,

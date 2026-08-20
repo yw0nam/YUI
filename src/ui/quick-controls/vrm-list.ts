@@ -28,6 +28,7 @@ export interface VrmList {
   handleAddClick(): void;
   /** Whether swap is in progress — used by entry's open-subscription guard. */
   isSwapping(): boolean;
+  dispose(): void;
 }
 
 export function createVrmList(deps: VrmListDeps): VrmList {
@@ -62,8 +63,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
     // Roving tabindex prioritizes last roved row — falls back to active if none.
     const ids = options.map((o) => o.id);
     const rovedId = resolveRovedId(list.getRovedId(), ids, activeId);
-    // Clean up edit state if row being edited no longer in list.
-    list.reconcileRenaming(ids);
+    list.prepareRender(ids);
     // innerHTML re-render destroys focused row — pre-record if it had focus, only restore if it did.
     const hadFocus = vrmsEl.contains(document.activeElement);
     vrmsEl.innerHTML = "";
@@ -99,18 +99,23 @@ export function createVrmList(deps: VrmListDeps): VrmList {
           void list.swapTo(opt);
         });
         if (isUser) {
+          const removeBtn = row.querySelector<HTMLButtonElement>(".yui-vrm__remove")!;
+          if (list.getArmedRemoveId() === opt.id) {
+            row.classList.add("is-remove-armed");
+            removeBtn.classList.add("is-armed");
+            removeBtn.textContent = t("vrm.remove_confirm");
+            removeBtn.setAttribute("aria-label", t("vrm.remove_confirm_aria", { name: opt.label }));
+          }
           row
             .querySelector<HTMLButtonElement>(".yui-vrm__rename")!
             .addEventListener("click", (e) => {
               e.stopPropagation(); // Rename does not trigger row selection
               list.startRename(opt.id);
             });
-          row
-            .querySelector<HTMLButtonElement>(".yui-vrm__remove")!
-            .addEventListener("click", (e) => {
-              e.stopPropagation(); // Remove does not trigger row selection
-              void list.remove(opt.id);
-            });
+          removeBtn.addEventListener("click", (e) => {
+            e.stopPropagation(); // Remove does not trigger row selection
+            void list.remove(opt.id);
+          });
         }
       }
 
@@ -155,5 +160,6 @@ export function createVrmList(deps: VrmListDeps): VrmList {
     handleKeydown: list.handleKeydown,
     handleAddClick: list.handleAddClick,
     isSwapping: list.isSwapping,
+    dispose: list.dispose,
   };
 }

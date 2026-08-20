@@ -36,6 +36,7 @@ function errorResponse(status: number, body?: unknown): Response {
 }
 
 beforeEach(() => {
+  noopLog.info.mockClear();
   noopLog.warn.mockClear();
   fetchReferenceClip.mockReset().mockResolvedValue(new Blob(["clip"]));
 });
@@ -355,6 +356,7 @@ describe("deleteVoice", () => {
         logger: noopLog,
       }),
     ).resolves.toBeUndefined();
+    expect(noopLog.info).toHaveBeenCalledWith("voice_deleted", { id: "missing" });
   });
 
   it("throws with the server error message on another failure", async () => {

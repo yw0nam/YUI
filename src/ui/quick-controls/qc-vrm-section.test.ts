@@ -495,6 +495,14 @@ describe("createQuickControls — VRM section", () => {
     qc.open();
 
     userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    expect(userRow(qc).classList.contains("is-remove-armed")).toBe(true);
+    expect(userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.textContent).toBe(
+      "삭제할까요?",
+    );
+    expect(
+      userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.getAttribute("aria-label"),
+    ).toBe("깜냥이 삭제 확인");
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
     await flush();
 
     expect(removeUserVrm).toHaveBeenCalledOnce();
@@ -516,6 +524,7 @@ describe("createQuickControls — VRM section", () => {
     qc.open();
 
     userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
     await flush();
 
     expect(storeStillHadCatAtDelete).toBe(true);
@@ -532,6 +541,7 @@ describe("createQuickControls — VRM section", () => {
     const qc = buildQc();
     qc.open();
 
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
     userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
     await flush();
 
@@ -553,6 +563,7 @@ describe("createQuickControls — VRM section", () => {
     swapVrm.mockClear();
 
     userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
     await flush();
 
     // store still active on cat, no fallback swap attempted.
@@ -568,6 +579,7 @@ describe("createQuickControls — VRM section", () => {
     const qc = buildQc();
     qc.open();
 
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
     userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
     await flush();
 

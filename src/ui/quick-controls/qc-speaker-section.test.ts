@@ -380,6 +380,16 @@ describe("createQuickControls — speaker section", () => {
     qc.open();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    expect(userSpkRow(qc).classList.contains("is-remove-armed")).toBe(true);
+    expect(userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.textContent).toBe(
+      "삭제할까요?",
+    );
+    expect(
+      userSpkRow(qc)
+        .querySelector<HTMLButtonElement>(".yui-spk__remove")!
+        .getAttribute("aria-label"),
+    ).toBe("내 목소리 삭제 확인");
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     await flush();
 
     expect(removeUserVoice).toHaveBeenCalledOnce();
@@ -400,6 +410,7 @@ describe("createQuickControls — speaker section", () => {
     qc.open();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     await flush();
 
     expect(storeStillHadVoiceAtDelete).toBe(true);
@@ -416,6 +427,7 @@ describe("createQuickControls — speaker section", () => {
     const qc = buildQc();
     qc.open();
 
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     await flush();
 
@@ -436,6 +448,7 @@ describe("createQuickControls — speaker section", () => {
     swapSpeaker.mockClear();
 
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     await flush();
 
     expect(speakerSelection.getActiveId()).toBe("myvoice");
@@ -450,6 +463,7 @@ describe("createQuickControls — speaker section", () => {
     const qc = buildQc();
     qc.open();
 
+    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     await flush();
 

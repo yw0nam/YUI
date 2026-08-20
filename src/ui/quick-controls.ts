@@ -1316,6 +1316,7 @@ export function createQuickControls({
     unsubscribeIdleMotion?.();
     unsubscribeExpressMotion?.();
     expressMotionList?.dispose();
+    vrmList.dispose();
     speakerList.dispose();
     popover.dispose();
     switchBtn.removeEventListener("click", handleSwitchClick);

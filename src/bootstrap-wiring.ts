@@ -54,8 +54,9 @@ import {
 import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
-import { upsertVoice } from "./io/tts-voices";
+import { deleteVoice, upsertVoice } from "./io/tts-voices";
 import { appendRecord } from "./io/turn-record-log";
+import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { createVoiceImportFlow } from "./io/voice-import-flow";
 import { createVoiceListRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeOrphanVrm, removeUserVrm } from "./io/vrm-import";
@@ -169,6 +170,7 @@ export function wireSpeakerSelection(deps: {
   pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
   /** Commit step: copy + upload under `name` (overwrite-aware) → add option + select. */
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
+  removeUserVoice: (id: string) => Promise<void>;
   refreshVoiceList: () => Promise<void>;
 } {
   const { getEndpoints, getApiKey, log, broadcastSettings } = deps;
@@ -208,6 +210,13 @@ export function wireSpeakerSelection(deps: {
     speakerSelection,
     log,
   });
+  const removeUserVoice = async (id: string): Promise<void> => {
+    const baseUrl = getEndpoints()?.tts_base_url;
+    if (!baseUrl) throw new Error("voice delete requires tts_base_url");
+    const f = await selectFetch();
+    await deleteVoice({ baseUrl, id, fetch: f, getApiKey, logger: log });
+    await removeUserVoiceFile(id);
+  };
   // Announce cross-window so the speaker picked in this window reflects in the settings-window UI.
   speakerSelection.subscribe(broadcastSettings);
   // A fresh server with no voices yields a genuinely empty available[] — expected, not an error
@@ -224,6 +233,7 @@ export function wireSpeakerSelection(deps: {
     refreshSpeaker,
     pickVoiceImport,
     commitVoiceImport,
+    removeUserVoice,
     refreshVoiceList,
   };
 }

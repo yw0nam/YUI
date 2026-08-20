@@ -1,4 +1,4 @@
-/** OpenAI-compatible voices API — lists the server's voice ids and uploads reference clips. */
+/** OpenAI-compatible voices API — lists, uploads, and deletes reference voices. */
 
 import { createLogger, type Logger } from "../logger";
 import { fetchReferenceClip } from "./reference-clip";
@@ -103,4 +103,17 @@ export async function upsertVoice(opts: UpsertVoiceOptions): Promise<void> {
     throw new Error(`TTS voice upload failed (HTTP ${res.status})${await errorDetail(res)}`);
   }
   log.info("voice_uploaded", { id: opts.id });
+}
+
+export async function deleteVoice(opts: VoicesRequestOptions & { id: string }): Promise<void> {
+  const log = opts.logger ?? createLogger("tts-voices");
+  const fetchImpl = opts.fetch ?? globalThis.fetch;
+  const res = await fetchImpl(`${opts.baseUrl}/v1/audio/voices/${encodeURIComponent(opts.id)}`, {
+    method: "DELETE",
+    headers: await authHeaders(opts.getApiKey),
+  });
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`TTS voice delete failed (HTTP ${res.status})${await errorDetail(res)}`);
+  }
+  log.info("voice_deleted", { id: opts.id });
 }
