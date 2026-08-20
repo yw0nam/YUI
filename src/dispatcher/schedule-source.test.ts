@@ -15,7 +15,7 @@ import type { PersistedStorage } from "../io/persisted-store";
 import type { ScheduledCue } from "../io/schedule-settings";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import type { BusEnvelope, EventBus } from "./event-bus";
-import { createScheduleSource } from "./schedule-source";
+import { createScheduleSource, GRACE_MINUTES } from "./schedule-source";
 
 function fakeBus(): { bus: Pick<EventBus, "push">; pushed: BusEnvelope[] } {
   const pushed: BusEnvelope[] = [];
@@ -50,8 +50,10 @@ function idleTick(os_idle_ms: number | null, ts = 0): OsEventPayload {
   return { event_name: "os_idle_tick", ts, data: { os_idle_ms } };
 }
 
-function fakeFiredStorage(): PersistedStorage<Record<string, string>> {
-  let fired: Record<string, string> = {};
+function fakeFiredStorage(
+  initial: Record<string, string> = {},
+): PersistedStorage<Record<string, string>> {
+  let fired = { ...initial };
   return {
     load: () => ({ ...fired }),
     save: (next) => {
@@ -190,6 +192,24 @@ describe("schedule_source — gating", () => {
     emit(idleTick(500));
     expect(pushed).toHaveLength(0);
   });
+
+  it("does not fire a cue with a malformed time", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const t = at(2026, 5, 15, 9, 30);
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
+      getCues: () => [cue({ time: "banana" })],
+      isEnabled: () => true,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(0);
+  });
 });
 
 describe("schedule_source — once-per-day latch", () => {
@@ -211,7 +231,7 @@ describe("schedule_source — once-per-day latch", () => {
     emit(idleTick(500));
     t = at(2026, 5, 15, 10, 0);
     emit(idleTick(500));
-    t = at(2026, 5, 15, 23, 0);
+    t = at(2026, 5, 15, 10, 59);
     emit(idleTick(500));
     expect(pushed).toHaveLength(1);
   });
@@ -265,6 +285,66 @@ describe("schedule_source — once-per-day latch", () => {
     sourceBListen.emit(idleTick(500));
     expect(pushed).toHaveLength(1);
   });
+
+  it("ignores a corrupt persisted latch and fires normally", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const firedStorage = {
+      load: () => "hello",
+      save: vi.fn(),
+    } as unknown as PersistedStorage<Record<string, string>>;
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage,
+      getCues: () => [cue()],
+      isEnabled: () => true,
+      listen,
+      now: () => at(2026, 5, 15, 9, 30),
+    });
+    await src.start();
+
+    expect(() => emit(idleTick(500))).not.toThrow();
+    expect(pushed).toHaveLength(1);
+  });
+
+  it("prunes stale latch entries when a cue fires", async () => {
+    const { bus } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const firedStorage = fakeFiredStorage({ stale: "2026-4-1" });
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage,
+      getCues: () => [cue()],
+      isEnabled: () => true,
+      listen,
+      now: () => at(2026, 5, 15, 9, 30),
+    });
+    await src.start();
+    emit(idleTick(500));
+
+    expect(firedStorage.load()).toEqual({ morning: "2026-5-15" });
+  });
+
+  it("does not let yesterday's persisted latch suppress a fresh source today", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const firedStorage = fakeFiredStorage({ morning: "2026-5-14" });
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage,
+      getCues: () => [cue()],
+      isEnabled: () => true,
+      listen,
+      now: () => at(2026, 5, 15, 9, 30),
+    });
+    await src.start();
+    emit(idleTick(500));
+
+    expect(pushed).toHaveLength(1);
+  });
 });
 
 describe("schedule_source — startup catch-up", () => {
@@ -307,7 +387,8 @@ describe("schedule_source — startup catch-up", () => {
   it("fires a cue exactly 120 minutes after its time", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
-    const t = at(2026, 5, 15, 11, 0);
+    const boundaryMinutes = 9 * 60 + GRACE_MINUTES;
+    const t = at(2026, 5, 15, Math.floor(boundaryMinutes / 60), boundaryMinutes % 60);
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
@@ -325,7 +406,8 @@ describe("schedule_source — startup catch-up", () => {
   it("does not fire a cue 121 minutes after its time", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
-    const t = at(2026, 5, 15, 11, 1);
+    const pastBoundaryMinutes = 9 * 60 + GRACE_MINUTES + 1;
+    const t = at(2026, 5, 15, Math.floor(pastBoundaryMinutes / 60), pastBoundaryMinutes % 60);
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
