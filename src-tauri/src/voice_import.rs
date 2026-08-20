@@ -3,7 +3,7 @@
 //! Copies a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`.
 //! A native `std::fs::copy` reads the arbitrary source with the app's own privileges.
 
-use crate::import_fs::{audio_sniff_kind, ensure_within, sanitize_stem, sniff_file};
+use crate::import_fs::{audio_sniff_kind, ensure_within, sanitize_stem, short_hash, sniff_file};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle, Manager};
@@ -30,8 +30,34 @@ pub struct ImportedVoice {
     pub ref_path: String,
 }
 
+/// Derive the voice id sent to the TTS server from the user-typed name: `sanitize_stem` first
+/// (traversal / control-char / reserved-name / length handling), then mapped to the server's
+/// `[A-Za-z0-9_-]` charset — every other char becomes `_`, runs collapse, ends are trimmed.
+/// Whenever that loses information, a `short_hash(name)` suffix keeps distinct names distinct
+/// while the same name keeps mapping to the same id; a name with nothing to keep becomes
+/// `voice-<hash>`.
+fn voice_id_from_name(name: &str) -> String {
+    let name = name.trim();
+    let mut base = String::new();
+    for c in sanitize_stem(name).chars() {
+        if c.is_ascii_alphanumeric() || c == '-' {
+            base.push(c);
+        } else if !base.ends_with('_') {
+            base.push('_');
+        }
+    }
+    let base = base.trim_matches('_');
+    if base.is_empty() {
+        format!("voice-{}", short_hash(name))
+    } else if base == name {
+        base.to_string()
+    } else {
+        format!("{base}-{}", short_hash(name))
+    }
+}
+
 /// Copy a validated audio source into `references_dir/<id>/clip.<ext_lower>`, where `<id>` is
-/// `sanitize_stem(desired_name)`. Overwrites any existing directory of that id — the caller
+/// `voice_id_from_name(desired_name)`. Overwrites any existing directory of that id — the caller
 /// chose the name explicitly, so a collision is intentional replacement, not disambiguation.
 fn copy_into_references(
     references_dir: &Path,
@@ -72,14 +98,14 @@ fn copy_into_references(
         "storage unavailable".to_string()
     })?;
 
-    let id = sanitize_stem(desired_name);
+    let id = voice_id_from_name(desired_name);
 
     let dir = references_dir.join(&id);
     ensure_within(references_dir, &dir)?;
 
     // Build the replacement in a sibling temp dir first, so a failure here never touches the
-    // existing `dir` — sanitize_stem never emits a leading dot, so this can't collide with a
-    // real voice id. Clear any leftover from a prior failed attempt before starting.
+    // existing `dir` — voice_id_from_name never emits a leading dot, so this can't collide
+    // with a real voice id. Clear any leftover from a prior failed attempt before starting.
     let tmp_dir = references_dir.join(format!(".{id}.import-tmp"));
     ensure_within(references_dir, &tmp_dir)?;
     let _ = std::fs::remove_dir_all(&tmp_dir);
