@@ -147,7 +147,38 @@ describe("createHintTooltip", () => {
     enterKeyboardModality();
     button.focus();
     expect(openTip()?.textContent).toBe("Switch to reactions");
-    button.click();
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+
+    expect(openTip()).toBeNull();
+  });
+
+  it("keeps a keyboard-activated tooltip open and picks up a data-tip mutated by that activation", () => {
+    const button = document.createElement("button");
+    button.dataset.tip = "Collapse sections rail";
+    root.appendChild(button);
+    button.addEventListener("click", () => {
+      button.dataset.tip = "Expand sections rail";
+    });
+
+    enterKeyboardModality();
+    button.focus();
+    expect(openTip()?.textContent).toBe("Collapse sections rail");
+
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 }));
+
+    expect(openTip()?.textContent).toBe("Expand sections rail");
+  });
+
+  it("still hides a keyboard-focused tooltip on a real pointer click (detail >= 1)", () => {
+    const button = document.createElement("button");
+    button.dataset.tip = "Collapse sections rail";
+    root.appendChild(button);
+
+    enterKeyboardModality();
+    button.focus();
+    expect(openTip()).not.toBeNull();
+
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
 
     expect(openTip()).toBeNull();
   });
@@ -399,5 +430,26 @@ describe("createHintTooltip", () => {
     enterKeyboardModality();
     dotA.focus();
     expect(openTip()!.textContent).toBe("Tooltip copy");
+  });
+
+  it("points aria-describedby at the open tooltip and removes it on hide", () => {
+    enterKeyboardModality();
+    dotA.focus();
+    const tip = openTip()!;
+    expect(dotA.getAttribute("aria-describedby")).toBe(tip.id);
+
+    dotA.blur();
+
+    expect(dotA.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("does not leave aria-describedby on the previous target when the tooltip moves to another", () => {
+    dotA.click();
+    expect(dotA.getAttribute("aria-describedby")).toBe(openTip()!.id);
+
+    dotB.click();
+
+    expect(dotA.hasAttribute("aria-describedby")).toBe(false);
+    expect(dotB.getAttribute("aria-describedby")).toBe(openTip()!.id);
   });
 });

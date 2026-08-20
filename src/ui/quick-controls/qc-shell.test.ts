@@ -308,6 +308,30 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
+  it("opens a tooltip when Home or End is the first keyboard-modality key after a pointer click", () => {
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+
+    const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
+    const firstTab = tabs[0]!;
+    const lastTab = tabs[tabs.length - 1]!;
+    const advTab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-adv")!;
+
+    document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    advTab.focus();
+    expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+    advTab.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(firstTab.dataset.tip);
+
+    document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    advTab.focus();
+    expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+    advTab.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(lastTab.dataset.tip);
+
+    qc.dispose();
+  });
+
   // ── Escape — both variants must close ─────────────────────────────────────
 
   it("Escape closes the popover variant", () => {
