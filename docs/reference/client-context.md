@@ -275,7 +275,7 @@ A few `ClientContext` fields carry no rendered line, by design:
 
 | Field | Why it's omitted |
 |---|---|
-| `cue.local_time` | Configured clock time the schedule cue fires at — redundant with the `time:` line, which already states the current instant |
+| `cue.local_time` | Current local time when the schedule cue fires — redundant with the `time:` line, which already states the current instant |
 | `cue.idle_min` | Configured idle *threshold* — redundant with `idle_elapsed_min`, which states the actual elapsed minutes that caused the cue to fire |
 | `trigger.agent.cwd` (`agent_catchup` items carry no `cwd` field at all) | Host filesystem detail; the project name already identifies the work, and the agent has no use for a local path when reacting verbally |
 | `trigger.agent.session_id`, `trigger.agent_catchup.items[].session_id` | An opaque hook-continuity token the client itself doesn't interpret (see below) — no verbal content for the backend to act on |

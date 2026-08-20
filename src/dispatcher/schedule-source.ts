@@ -11,7 +11,7 @@
  * whether/what to speak.
  */
 
-import { localStorageStore, type PersistedStorage } from "../io/persisted-store";
+import { isPlainObject, localStorageStore, type PersistedStorage } from "../io/persisted-store";
 import type { ScheduledCue } from "../io/schedule-settings";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import { subscribeOsEvent } from "../io/tauri-listen";
@@ -50,7 +50,10 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
   const now = deps.now ?? Date.now;
   const firedStorage =
     deps.firedStorage ?? localStorageStore<Record<string, string>>("yui.schedule-fired");
-  const fired = firedStorage.load() ?? {};
+  const loaded = firedStorage.load();
+  const fired: Record<string, string> = isPlainObject(loaded)
+    ? (loaded as Record<string, string>)
+    : {};
 
   let unlisten: (() => void) | undefined;
 
@@ -70,12 +73,13 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
 
     if (!isEnabled()) return;
 
+    let firedAny = false;
+    // The window clamps at midnight — a 23:00 cue gets less than the full grace period.
     for (const cue of getCues()) {
       const [cueHour, cueMinute] = cue.time.split(":").map(Number);
       const cueMinutes = cueHour * 60 + cueMinute;
+      if (!Number.isFinite(cueMinutes)) continue;
       const delta = nowMinutes - cueMinutes;
-      // ponytail: windows clamp at midnight, so a 23:00 cue gets <2h; wrapping would
-      // fire it against the next day's latch.
       if (!cue.enabled || fired[cue.id] === dayKey || delta < 0 || delta > GRACE_MINUTES) continue;
       const env: BusEnvelope = {
         source: "timer_scheduler",
@@ -92,6 +96,9 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
       };
       bus.push(env);
       fired[cue.id] = dayKey;
+      firedAny = true;
+    }
+    if (firedAny) {
       firedStorage.save(
         Object.fromEntries(Object.entries(fired).filter(([, value]) => value === dayKey)),
       );
