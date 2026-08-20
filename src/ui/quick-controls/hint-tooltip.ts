@@ -191,7 +191,13 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   window.addEventListener("resize", handleViewportChange);
 
   function refresh(): void {
-    if (openTarget) tip.textContent = openTarget.dataset.tip ?? "";
+    if (!openTarget) return;
+    if (!root.contains(openTarget)) {
+      hide();
+      return;
+    }
+    tip.textContent = openTarget.dataset.tip ?? "";
+    position(openTarget);
   }
 
   function dispose(): void {
