@@ -93,3 +93,41 @@ export function sanitizeStem(stem: string): string {
 export function isSafeSanitizedId(id: string): boolean {
   return sanitizeStem(id) === id;
 }
+
+/**
+ * TS mirror of the native `short_hash` (import_fs.rs): FNV-1a 64-bit over the UTF-8 bytes,
+ * low 24 bits rendered as bare lowercase hex — matches Rust's `{:x}` (no zero padding).
+ */
+function shortHash(s: string): string {
+  let h = 0xcbf29ce484222325n;
+  for (const b of new TextEncoder().encode(s)) {
+    h ^= BigInt(b);
+    h = (h * 0x100000001b3n) & 0xffffffffffffffffn;
+  }
+  return (h & 0xffffffn).toString(16);
+}
+
+/**
+ * TS mirror of the native `voice_id_from_name` (src-tauri/src/voice_import.rs) — predicts the
+ * TTS-server voice id (`[A-Za-z0-9_-]`) an import registers the typed name under, so the naming
+ * row can warn about an overwrite before Enter. Losslessness deliberately compares against the
+ * raw trimmed name, not the sanitized one — so e.g. "CON" becomes `avatar-<hash>` and cannot
+ * collide with a voice literally named "avatar". fixtures/voice-id-cases.json pins both
+ * implementations to the same outputs.
+ */
+export function voiceIdFromName(name: string): string {
+  const trimmed = name.trim();
+  let base = "";
+  for (const c of sanitizeStem(trimmed)) {
+    if (/[A-Za-z0-9-]/.test(c)) base += c;
+    else if (!base.endsWith("_")) base += "_";
+  }
+  base = base.replace(/^_+|_+$/g, "");
+  if (base === "") return `voice-${shortHash(trimmed)}`;
+  if (base === trimmed) return base;
+  const hash = shortHash(trimmed);
+  // `base` is ASCII by construction, so length equals its byte count and slicing is safe.
+  const cap = MAX_STEM_BYTES - 1 - hash.length;
+  if (base.length > cap) base = base.slice(0, cap).replace(/_+$/, "");
+  return `${base}-${hash}`;
+}

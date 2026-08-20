@@ -1,5 +1,6 @@
 /** VRM list cluster — VRM radiogroup in Character tab: render, rename, import, swap, keyboard. */
 import type { AvatarOption } from "../../config/load";
+import { sanitizeStem } from "../../io/safe-id";
 import type { createVrmSelection } from "../../io/vrm-selection";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
@@ -50,6 +51,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
     removeFile: removeUserVrm,
     removeFromStore: (id) => vrmSelection.removeUserOption(id),
     swap: swapVrm,
+    deriveId: sanitizeStem,
     importFn: importVrm,
     render: () => renderVrms(),
   });

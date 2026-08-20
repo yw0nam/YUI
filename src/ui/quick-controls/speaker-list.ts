@@ -8,6 +8,7 @@
 import "./speaker-list.css";
 
 import { resolveReferenceClipUrl } from "../../io/reference-clip";
+import { voiceIdFromName } from "../../io/safe-id";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
@@ -84,6 +85,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     removeFile: removeUserVoice,
     removeFromStore: (id) => speakerSelection.removeUserOption(id),
     swap: swapSpeaker,
+    deriveId: voiceIdFromName,
     pickImport: pickVoiceImport,
     commitImport: commitVoiceImport,
     render: () => renderSpeakers(),

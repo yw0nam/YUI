@@ -8,7 +8,6 @@
  */
 import "./user-asset-list.css";
 
-import { sanitizeStem } from "../../io/safe-id";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 
@@ -49,6 +48,8 @@ export interface UserAssetListConfig<T extends UserAssetOption> {
   removeFromStore: (id: string) => void;
   /** Perform the actual swap + commit store on success. */
   swap: (option: T) => Promise<void>;
+  /** Predicts the native id a typed name imports under (sanitizeStem for VRM, voiceIdFromName for speaker) — drives the naming row's overwrite warning. */
+  deriveId: (name: string) => string;
   /** One-shot import flow (VRM): file select → copy/load → addOption + select. Mutually exclusive with pickImport/commitImport. */
   importFn?: () => Promise<void>;
   /** Two-phase import pick step (speaker): opens the file picker, returns the source path + a naming-row seed (null on cancel). */
@@ -159,13 +160,13 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     `;
     const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
     input.value = pending.seedName;
-    // Committing a name that sanitizes to an existing id replaces that asset's file outright.
-    // The seed comes from the picked filename, so the collision can be entirely unintended — flag
-    // it live next to the hint rather than letting Enter silently overwrite.
+    // Committing a name whose derived id matches an existing one replaces that asset's file
+    // outright. The seed comes from the picked filename, so the collision can be entirely
+    // unintended — flag it live next to the hint rather than letting Enter silently overwrite.
     const hintEl = row.querySelector<HTMLElement>(`.${renameHintClass}`)!;
     const baseHint = hintEl.innerHTML;
     const syncOverwriteWarning = (): void => {
-      const id = sanitizeStem(input.value);
+      const id = cfg.deriveId(input.value);
       const collides = cfg.list().some((o) => o.id === id);
       hintEl.innerHTML = collides
         ? `${baseHint} · <span class="${overwriteWarnClass}">${t(`${cfg.i18nNamespace}.import_overwrite_warn`)}</span>`

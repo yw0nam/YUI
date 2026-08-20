@@ -3,7 +3,9 @@
 //! Copies a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`.
 //! A native `std::fs::copy` reads the arbitrary source with the app's own privileges.
 
-use crate::import_fs::{audio_sniff_kind, ensure_within, sanitize_stem, short_hash, sniff_file};
+use crate::import_fs::{
+    audio_sniff_kind, ensure_within, sanitize_stem, short_hash, sniff_file, MAX_STEM_BYTES,
+};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle, Manager};
@@ -24,7 +26,7 @@ fn is_allowed_audio_ext(ext: &str) -> bool {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportedVoice {
-    /// Voice id (sanitized dest stem).
+    /// Voice id in the TTS server's `[A-Za-z0-9_-]` charset, derived by `voice_id_from_name`.
     pub id: String,
     /// Absolute path of the copied clip under app-data.
     pub ref_path: String,
@@ -35,7 +37,10 @@ pub struct ImportedVoice {
 /// `[A-Za-z0-9_-]` charset — every other char becomes `_`, runs collapse, ends are trimmed.
 /// Whenever that loses information, a `short_hash(name)` suffix keeps distinct names distinct
 /// while the same name keeps mapping to the same id; a name with nothing to keep becomes
-/// `voice-<hash>`.
+/// `voice-<hash>`. Losslessness deliberately compares against the raw trimmed name, not the
+/// sanitized one — so e.g. "CON" becomes `avatar-<hash>` and cannot collide with a voice
+/// literally named "avatar". The suffixed form caps its base so the id never exceeds
+/// MAX_STEM_BYTES, keeping every id a `sanitize_stem` fixpoint.
 fn voice_id_from_name(name: &str) -> String {
     let name = name.trim();
     let mut base = String::new();
@@ -48,12 +53,20 @@ fn voice_id_from_name(name: &str) -> String {
     }
     let base = base.trim_matches('_');
     if base.is_empty() {
-        format!("voice-{}", short_hash(name))
-    } else if base == name {
-        base.to_string()
-    } else {
-        format!("{base}-{}", short_hash(name))
+        return format!("voice-{}", short_hash(name));
     }
+    if base == name {
+        return base.to_string();
+    }
+    let hash = short_hash(name);
+    // `base` is ASCII by construction, so the byte slice cannot split a char.
+    let cap = MAX_STEM_BYTES - 1 - hash.len();
+    let base = if base.len() > cap {
+        base[..cap].trim_end_matches('_')
+    } else {
+        base
+    };
+    format!("{base}-{hash}")
 }
 
 /// Copy a validated audio source into `references_dir/<id>/clip.<ext_lower>`, where `<id>` is
@@ -188,7 +201,7 @@ fn remove_user_voice_at(references_dir: &Path, id: &str) -> Result<(), String> {
 }
 
 /// Copy a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`, where `<id>`
-/// is the sanitized form of `desired_name` — the name the user typed in the naming row.
+/// is the server-charset voice id `voice_id_from_name` derives from the typed `desired_name`.
 #[command]
 pub fn import_voice_file(
     app: AppHandle,

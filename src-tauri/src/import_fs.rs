@@ -98,7 +98,7 @@ fn is_reserved_stem_name(s: &str) -> bool {
 
 /// Filesystem path-component byte cap. Generous for a single stem while guaranteeing a
 /// multi-byte (UTF-8) name cannot blow past typical filesystem limits (~255 bytes).
-const MAX_STEM_BYTES: usize = 150;
+pub(crate) const MAX_STEM_BYTES: usize = 150;
 
 /// Truncate `s` to at most `max_bytes`, backing off to the nearest char boundary so a
 /// multi-byte UTF-8 sequence is never split.
