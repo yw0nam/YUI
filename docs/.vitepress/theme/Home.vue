@@ -1,5 +1,14 @@
 <script setup lang="ts">
 import { withBase } from 'vitepress'
+import { onMounted, ref } from 'vue'
+
+const heroVideo = ref<HTMLVideoElement | null>(null)
+
+// The hero loop starts from script, so a reduced-motion reader keeps the still poster.
+onMounted(() => {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  heroVideo.value?.play()
+})
 </script>
 
 <template>
@@ -26,16 +35,28 @@ import { withBase } from 'vitepress'
               class="btn-ghost"
               >View on GitHub ↗</a
             >
+            <a
+              href="https://youtu.be/dIOQdoAp0GE"
+              rel="noopener"
+              target="_blank"
+              class="btn-ghost"
+              >Watch demo ↗</a
+            >
           </div>
         </div>
 
         <div class="hero-image">
           <figure class="hero-frame">
-            <img
-              :src="withBase('/yui-hero.png')"
-              alt="YUI, a VRM character rendered on a desktop, warm and alive in a corner of the screen"
-              width="3456"
-              height="1750"
+            <video
+              ref="heroVideo"
+              :src="withBase('/yui-hero.mp4')"
+              :poster="withBase('/yui-hero-poster.jpg')"
+              aria-label="YUI, a VRM character on the desktop: her head and eyes follow the mouse cursor, then she answers a typed question about what is on screen"
+              width="820"
+              height="462"
+              muted
+              loop
+              playsinline
             />
           </figure>
         </div>
