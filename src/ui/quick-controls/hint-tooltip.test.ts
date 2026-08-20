@@ -70,6 +70,29 @@ describe("createHintTooltip", () => {
     expect(openTip()).toBeNull();
   });
 
+  it("closes an open tooltip when the pointer leaves a target that was detached", () => {
+    dotA.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    vi.advanceTimersByTime(150);
+    expect(openTip()).not.toBeNull();
+
+    // A re-render replaces the row under the pointer, then the pointer leaves.
+    dotA.remove();
+    root.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
+
+    expect(openTip()).toBeNull();
+  });
+
+  it("closes a focus-opened tooltip when the target is detached before blur", () => {
+    dotA.focus();
+    expect(openTip()).not.toBeNull();
+
+    // A re-render drops the focused node, so focusout arrives from a detached target.
+    dotA.remove();
+    root.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+
+    expect(openTip()).toBeNull();
+  });
+
   it("opens immediately on focus, with no timer advance needed", () => {
     dotA.focus();
     expect(openTip()).not.toBeNull();
