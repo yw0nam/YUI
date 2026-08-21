@@ -17,6 +17,23 @@
 
 </div>
 
+## Quickstart
+
+No dev tools needed — download, open, connect:
+
+1. **Download** — grab the [latest release](https://github.com/yw0nam/YUI/releases/latest):
+   the macOS (Apple Silicon) `.dmg`, or the experimental Windows x64 installer.
+2. **Open** — builds are unsigned, so macOS blocks the first launch: right-click
+   the app → **Open**, and if it still refuses, allow it under **System
+   Settings → Privacy & Security → Open Anyway**.
+3. **Connect** — the character appears with no backend attached and tells you
+   where to go: right-click her, open **Advanced**, and point YUI at any
+   OpenAI-compatible endpoint (base URL, model, API key). Then start talking.
+
+Voice in/out are optional add-ons — see the
+[install guide](docs/guide/getting-started.md) for TTS/STT and the full backend
+wiring.
+
 ## What it is
 
 YUI is a VRM character that lives on your desktop — it renders the body, the
@@ -110,7 +127,7 @@ backend lives in [`docs/reference/client-context.md`](docs/reference/client-cont
 | VRM / motion | `@pixiv/three-vrm`, `@pixiv/three-vrm-animation` | 3.5.x |
 | Voice | `@ricky0123/vad-web` (Silero + ONNX) | 0.0.x |
 
-## Getting started
+## Building from source
 
 **Prerequisites**
 
