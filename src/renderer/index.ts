@@ -50,7 +50,7 @@ import {
   type ResolvedMotion,
   shouldRestartIdle,
 } from "./motion-controller";
-import { resolveBaselineFallback } from "./motion-fallback";
+import { createDeadClipRegistry, resolveBaselineFallback } from "./motion-fallback";
 import { createMotionStartGeneration } from "./motion-start-generation";
 import { createMouthLipsync, describeExpressions, MOUTH_EXPRESSION_KEY } from "./mouth-lipsync";
 import {
@@ -410,6 +410,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   let mixer: THREE.AnimationMixer | undefined;
   /** (vrma_path → AnimationClip) cache — clips are VRM-specific so cleared on hotswap. */
   const clipCache = new Map<string, THREE.AnimationClip>();
+  const deadClips = createDeadClipRegistry(log);
   /** Currently playing AnimationAction (prev in crossfade). */
   let currentAction: THREE.AnimationAction | undefined;
   /** mixer "finished" event → AnimationAction → motion id reverse lookup. */
@@ -657,15 +658,24 @@ export function createRenderer(options: RendererOptions): Renderer {
       return clip;
     }
 
+    if (deadClips.isDead(vrmaPath)) return null;
     const epoch = vrmEpoch;
-    const gltf = await loader.loadAsync(vrmaPath);
+    let gltf: Awaited<ReturnType<typeof loader.loadAsync>>;
+    try {
+      gltf = await loader.loadAsync(vrmaPath);
+    } catch (err) {
+      // Fetch/parse failure is asset-permanent (above all an unshipped purchased motion,
+      // where the app serves index.html instead) — warn once, never refetch.
+      deadClips.markDead(vrmaPath, err);
+      return null;
+    }
     // If hotswap happened during load, discard.
     if (epoch !== vrmEpoch || !currentVrm) return null;
 
     const vrmAnimations = gltf.userData.vrmAnimations as unknown[] | undefined;
     const vrmAnimation = vrmAnimations?.[0];
     if (vrmAnimation == null) {
-      log.error("vrma_no_animations", { vrma_path: vrmaPath });
+      deadClips.markDead(vrmaPath, "vrma_no_animations");
       return null;
     }
     const clip = createVRMAnimationClip(vrmAnimation as never, currentVrm);

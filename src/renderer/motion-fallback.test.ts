@@ -15,10 +15,10 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { MotionRegistry } from "../contract";
 import { createMotionController } from "./motion-controller";
-import { resolveBaselineFallback } from "./motion-fallback";
+import { createDeadClipRegistry, resolveBaselineFallback } from "./motion-fallback";
 
 const realRegistry: MotionRegistry = JSON.parse(
   readFileSync(resolve(process.cwd(), "configs/motions.json"), "utf-8"),
@@ -91,5 +91,49 @@ describe("resolveBaselineFallback — failed clip repairs controller to idle", (
     const baseline = resolveBaselineFallback(controller, "idle");
     expect(baseline).not.toBeNull();
     expect(baseline!.id).toBe("window_sit");
+  });
+});
+
+describe("createDeadClipRegistry — a permanently missing VRMA is warned once and never refetched", () => {
+  function makeLog() {
+    return { warn: vi.fn() };
+  }
+
+  it("starts with no path marked dead", () => {
+    const reg = createDeadClipRegistry(makeLog());
+    expect(reg.isDead("/purchased_motions/thinking.vrma")).toBe(false);
+  });
+
+  it("markDead warns once with the path and the error, then isDead is true", () => {
+    const log = makeLog();
+    const reg = createDeadClipRegistry(log);
+
+    reg.markDead(
+      "/purchased_motions/thinking.vrma",
+      new Error("JSON Parse error: Unrecognized token '<'"),
+    );
+
+    expect(reg.isDead("/purchased_motions/thinking.vrma")).toBe(true);
+    expect(log.warn).toHaveBeenCalledTimes(1);
+    expect(log.warn).toHaveBeenCalledWith("vrma_load_failed", {
+      vrma_path: "/purchased_motions/thinking.vrma",
+      error: expect.stringContaining("Unrecognized token"),
+    });
+  });
+
+  it("marking the same path again does not warn again (no per-turn log spam)", () => {
+    const log = makeLog();
+    const reg = createDeadClipRegistry(log);
+
+    reg.markDead("/purchased_motions/thinking.vrma", new Error("boom"));
+    reg.markDead("/purchased_motions/thinking.vrma", new Error("boom"));
+
+    expect(log.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("tracks paths independently", () => {
+    const reg = createDeadClipRegistry(makeLog());
+    reg.markDead("/purchased_motions/thinking.vrma", new Error("boom"));
+    expect(reg.isDead("/motions/calm.vrma")).toBe(false);
   });
 });
