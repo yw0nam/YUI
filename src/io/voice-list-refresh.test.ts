@@ -302,6 +302,55 @@ describe("wireVoiceListAutoRefresh — endpoints override edits refetch the voic
     expect(refresh).not.toHaveBeenCalled();
   });
 
+  it("does not throw when getEndpoints throws at wire time (pet window wires before config loads)", () => {
+    const settings = fakeSettings({ tts_base_url: "http://a" });
+    const refresh = vi.fn().mockResolvedValue(undefined);
+
+    expect(() =>
+      wireVoiceListAutoRefresh({
+        subscribe: settings.subscribe,
+        getEndpoints: () => {
+          throw new Error("[config] store.get() before load()");
+        },
+        refresh,
+      }),
+    ).not.toThrow();
+  });
+
+  it("recovers after a wire-time getEndpoints throw: the first readable change refreshes", () => {
+    const settings = fakeSettings({ tts_base_url: "http://a" });
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    let loaded = false;
+    wireVoiceListAutoRefresh({
+      subscribe: settings.subscribe,
+      getEndpoints: () => {
+        if (!loaded) throw new Error("[config] store.get() before load()");
+        return settings.get();
+      },
+      refresh,
+    });
+
+    loaded = true;
+    settings.set({ tts_base_url: "http://b" });
+
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("skips a commit while getEndpoints still throws, without breaking the subscriber", () => {
+    const settings = fakeSettings({ tts_base_url: "http://a" });
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    wireVoiceListAutoRefresh({
+      subscribe: settings.subscribe,
+      getEndpoints: () => {
+        throw new Error("[config] store.get() before load()");
+      },
+      refresh,
+    });
+
+    expect(() => settings.set({ tts_base_url: "http://b" })).not.toThrow();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it("returns the store's unsubscribe", () => {
     const settings = fakeSettings({});
     const refresh = vi.fn();
