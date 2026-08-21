@@ -377,6 +377,11 @@
     opacity var(--yui-dur) var(--yui-ease),
     transform var(--yui-dur) var(--yui-ease);
 }
+/* display: inline-flex beats the UA's [hidden] rule, so hide it explicitly. */
+.yui-tool[hidden] {
+  display: none;
+}
+
 .yui-tool.is-visible {
   opacity: 1;
   transform: translate(-50%, 0);

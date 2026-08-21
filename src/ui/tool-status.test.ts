@@ -227,3 +227,76 @@ describe("tool-status hide fallback", () => {
     expect(tool.hidden).toBe(false);
   });
 });
+
+// A webview stops painting while its window is occluded: queued frames run only when it
+// comes back, long after the hide already settled.
+describe("tool-status — a frame deferred past the hide", () => {
+  function stubFrames(): { flush: () => void } {
+    const pending = new Map<number, FrameRequestCallback>();
+    let next = 1;
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      pending.set(next, cb);
+      return next++;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => pending.delete(id));
+    return {
+      flush: () => {
+        for (const cb of [...pending.values()]) cb(0);
+        pending.clear();
+      },
+    };
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("never re-shows the chip after hideTool", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { flush } = stubFrames();
+    const { s, mount } = makeSurfaces();
+    const toolEl = mount.querySelector(".yui-tool") as HTMLElement;
+
+    s.showTool("mcp_tts_express_server_get_ids");
+    s.hideTool();
+    vi.advanceTimersByTime(400); // fade fallback settles the chip hidden
+    flush(); // the window paints again
+
+    expect(toolEl.classList.contains("is-visible")).toBe(false);
+
+    s.dispose();
+    mount.remove();
+  });
+
+  it("never re-shows the chip after finishTool's auto-hide", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { flush } = stubFrames();
+    const { s, mount } = makeSurfaces();
+    const toolEl = mount.querySelector(".yui-tool") as HTMLElement;
+
+    s.showTool("mcp_tts_express_server_get_ids");
+    s.finishTool();
+    vi.advanceTimersByTime(900); // 500ms hold + 400ms fade fallback
+    flush();
+
+    expect(toolEl.classList.contains("is-visible")).toBe(false);
+
+    s.dispose();
+    mount.remove();
+  });
+
+  it("still shows the chip when the frame runs normally", () => {
+    const { flush } = stubFrames();
+    const { s, mount } = makeSurfaces();
+    const toolEl = mount.querySelector(".yui-tool") as HTMLElement;
+
+    s.showTool("web_search");
+    flush();
+
+    expect(toolEl.classList.contains("is-visible")).toBe(true);
+
+    s.dispose();
+    mount.remove();
+  });
+});
