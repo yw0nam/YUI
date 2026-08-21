@@ -490,7 +490,9 @@ pub fn start(app: &AppHandle, port: u16) {
                 Err(e) => {
                     log::warn!("agent_ingress_bind_failed port={port} error={e}");
                     // The bind retries span ~3.5s, so the webview is normally listening by now.
-                    if let Err(e) = app.emit(INGRESS_DEAD_CHANNEL, serde_json::json!({ "port": port })) {
+                    if let Err(e) =
+                        app.emit(INGRESS_DEAD_CHANNEL, serde_json::json!({ "port": port }))
+                    {
                         log::warn!("agent_ingress_dead_emit_failed error={e}");
                     }
                     return;
