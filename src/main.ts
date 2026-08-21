@@ -41,6 +41,7 @@ import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener } from "./io/settings-window";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
+import { wireVoiceListAutoRefresh } from "./io/voice-list-refresh";
 import { removeUserVrm } from "./io/vrm-import";
 import { createLogger, initLogger } from "./logger";
 import { createRenderer } from "./renderer";
@@ -263,6 +264,14 @@ async function bootstrap(): Promise<BootstrapHandle> {
     refreshVoiceList,
   } = speaker;
   register(() => speakerSelection.dispose());
+  // Config-file edits refresh via onConfigChange below; this covers the panel's override commits.
+  register(
+    wireVoiceListAutoRefresh({
+      subscribe: endpointsSettings.subscribe,
+      getEndpoints,
+      refresh: refreshVoiceList,
+    }),
+  );
   wireSettingsReload({
     onRemoteChange,
     vrmSelection,

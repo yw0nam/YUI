@@ -8,7 +8,7 @@ const { listVoices, selectFetch } = vi.hoisted(() => ({
 vi.mock("./tts-voices", () => ({ listVoices }));
 vi.mock("./chat-client", () => ({ selectFetch }));
 
-import { createVoiceListRefresh } from "./voice-list-refresh";
+import { createVoiceListRefresh, wireVoiceListAutoRefresh } from "./voice-list-refresh";
 
 const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
@@ -169,5 +169,151 @@ describe("createVoiceListRefresh", () => {
     await expect(refresh()).resolves.toBeUndefined();
     expect(noopLog.warn).toHaveBeenCalledOnce();
     expect(store.setManifest).not.toHaveBeenCalled();
+  });
+});
+
+describe("createVoiceListRefresh — re-uploading user voices the server lost", () => {
+  const userOpt: SpeakerOption = {
+    id: "myvoice",
+    label: "My Voice",
+    ref_url: "asset://x/clip.mp3",
+    source: "user",
+  };
+
+  it("re-uploads a user option missing from the server list", async () => {
+    listVoices.mockResolvedValue(["ナツメ"]);
+    const reuploadUserVoice = vi.fn().mockResolvedValue(undefined);
+    const refresh = createVoiceListRefresh({
+      getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
+      speakerSelection: fakeStore([userOpt]),
+      reuploadUserVoice,
+      log: noopLog,
+    });
+
+    await refresh();
+
+    expect(reuploadUserVoice).toHaveBeenCalledWith(userOpt);
+  });
+
+  it("leaves a user option alone when the server still lists it", async () => {
+    listVoices.mockResolvedValue(["myvoice"]);
+    const reuploadUserVoice = vi.fn();
+    const refresh = createVoiceListRefresh({
+      getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
+      speakerSelection: fakeStore([userOpt]),
+      reuploadUserVoice,
+      log: noopLog,
+    });
+
+    await refresh();
+
+    expect(reuploadUserVoice).not.toHaveBeenCalled();
+  });
+
+  it("skips a user option with no local clip to re-upload from", async () => {
+    listVoices.mockResolvedValue([]);
+    const reuploadUserVoice = vi.fn();
+    const refresh = createVoiceListRefresh({
+      getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
+      speakerSelection: fakeStore([{ ...userOpt, ref_url: "" }]),
+      reuploadUserVoice,
+      log: noopLog,
+    });
+
+    await refresh();
+
+    expect(reuploadUserVoice).not.toHaveBeenCalled();
+  });
+
+  it("warns and still completes when a re-upload rejects", async () => {
+    listVoices.mockResolvedValue([]);
+    const reuploadUserVoice = vi.fn().mockRejectedValue(new Error("server sad"));
+    const refresh = createVoiceListRefresh({
+      getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
+      speakerSelection: fakeStore([userOpt]),
+      reuploadUserVoice,
+      log: noopLog,
+    });
+
+    await expect(refresh()).resolves.toBeUndefined();
+    expect(noopLog.warn).toHaveBeenCalledWith(
+      "voice_reupload_failed",
+      expect.objectContaining({ id: "myvoice" }),
+    );
+  });
+});
+
+describe("wireVoiceListAutoRefresh — endpoints override edits refetch the voice list", () => {
+  function fakeSettings(initial: { tts_base_url?: string; tts_speaker?: string }) {
+    let value = initial;
+    const subs = new Set<() => void>();
+    return {
+      subscribe: (cb: () => void) => {
+        subs.add(cb);
+        return () => subs.delete(cb);
+      },
+      set(next: typeof initial) {
+        value = next;
+        for (const cb of subs) cb();
+      },
+      get: () => value,
+    };
+  }
+
+  it("refreshes when tts_base_url changes", () => {
+    const settings = fakeSettings({ tts_base_url: "http://a" });
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    wireVoiceListAutoRefresh({
+      subscribe: settings.subscribe,
+      getEndpoints: settings.get,
+      refresh,
+    });
+
+    settings.set({ tts_base_url: "http://b" });
+
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("refreshes when tts_speaker changes", () => {
+    const settings = fakeSettings({ tts_base_url: "http://a", tts_speaker: "x" });
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    wireVoiceListAutoRefresh({
+      subscribe: settings.subscribe,
+      getEndpoints: settings.get,
+      refresh,
+    });
+
+    settings.set({ tts_base_url: "http://a", tts_speaker: "y" });
+
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("ignores a commit that leaves the TTS fields unchanged", () => {
+    const settings = fakeSettings({ tts_base_url: "http://a" });
+    const refresh = vi.fn();
+    wireVoiceListAutoRefresh({
+      subscribe: settings.subscribe,
+      getEndpoints: settings.get,
+      refresh,
+    });
+
+    settings.set({ tts_base_url: "http://a" }); // e.g. a chat-field edit notified the store
+
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("returns the store's unsubscribe", () => {
+    const settings = fakeSettings({});
+    const refresh = vi.fn();
+    const off = wireVoiceListAutoRefresh({
+      subscribe: settings.subscribe,
+      getEndpoints: settings.get,
+      refresh,
+    });
+
+    off();
+    settings.set({ tts_base_url: "http://b" });
+
+    expect(refresh).not.toHaveBeenCalled();
   });
 });
