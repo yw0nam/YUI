@@ -123,3 +123,13 @@ describe("quick-controls.css — components with a display rule honour [hidden]"
     });
   }
 });
+
+// Same rule on the overlay surfaces: .yui-tool carries `display: inline-flex`, so without
+// its own [hidden] rule a hidden chip keeps painting whenever `is-visible` is on it.
+describe("surfaces.css — components with a display rule honour [hidden]", () => {
+  it(".yui-tool sets display:none under [hidden]", () => {
+    const css = read("surfaces.css");
+    expect(extractBlock(css, ".yui-tool")).toMatch(/display:/);
+    expect(extractBlock(css, ".yui-tool[hidden]")).toMatch(/display:\s*none/);
+  });
+});

@@ -453,6 +453,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
               case "tool_status":
                 // Native tool observation result — pass immediately on streaming to show running chip.
                 // Do not call endThinking (:551): tool_status does not break thinking.
+                log.debug("tool_status", { state: ev.status.state, tool_id: ev.status.tool_id });
                 deps.onToolStatus?.(ev.status);
                 toolRunning = ev.status.state === "running";
                 break;

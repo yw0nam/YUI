@@ -28,8 +28,17 @@ const TOOL_DONE_HOLD_MS = 500;
 
 export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): ToolStatus {
   let toolHideTimer: ReturnType<typeof setTimeout> | null = null;
+  let showFrame: number | null = null;
   let cancelFade: (() => void) | null = null;
   let disposed = false;
+
+  // A webview stops painting while occluded, so a queued frame can land long after a hide.
+  function clearShowFrame(): void {
+    if (showFrame !== null) {
+      cancelAnimationFrame(showFrame);
+      showFrame = null;
+    }
+  }
 
   function clearToolTimer(): void {
     if (toolHideTimer !== null) {
@@ -44,7 +53,11 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
     toolLabel.textContent = getToolLabel(toolId);
     toolEl.dataset.state = "running";
     toolEl.hidden = false;
-    requestAnimationFrame(() => toolEl.classList.add("is-visible"));
+    clearShowFrame();
+    showFrame = requestAnimationFrame(() => {
+      showFrame = null;
+      toolEl.classList.add("is-visible");
+    });
   }
 
   function finishTool(): void {
@@ -60,6 +73,7 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
 
   function hideTool(): void {
     clearToolTimer();
+    clearShowFrame();
     toolEl.classList.remove("is-visible");
     cancelFade?.();
     cancelFade = afterFadeOut(toolEl, () => {
@@ -71,6 +85,7 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
   function dispose(): void {
     disposed = true;
     clearToolTimer();
+    clearShowFrame();
     cancelFade?.();
     cancelFade = null;
   }
