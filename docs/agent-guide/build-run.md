@@ -22,12 +22,10 @@ cd src-tauri && cargo test  # Rust unit tests
 
 `bundle.targets` in `src-tauri/tauri.conf.json` is `["dmg", "msi", "nsis"]` — the installers that get shipped. The Tauri bundler intersects that list with what the host platform can build, so macOS produces the `.dmg` and Windows produces `.msi` + NSIS `-setup.exe`.
 
-Releases are cut from a git tag:
+Releases are cut by the operator with `./scripts/release.sh <major|minor|patch>` on a clean, synced `main` (the script refuses to run for an agent). It bumps the version in `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, and `package.json` — all three must agree, since the script computes the next version from `Cargo.toml` and the workflow guards on the other two — then commits, tags `vX.Y.Z`, and pushes. From the tag:
 
-1. Bump the version in both `src-tauri/tauri.conf.json` and `package.json` to `X.Y.Z`, and merge it to `main`.
-2. Tag that commit `vX.Y.Z` and push the tag.
-3. The `Release` workflow (`.github/workflows/release.yml`) rejects the tag unless `X.Y.Z` matches the version in both files, then creates a **draft** GitHub release named after the tag, builds macOS `aarch64-apple-darwin` and Windows x64 in parallel and uploads every bundle to that draft. The release body labels the Windows artifacts experimental.
-4. Review the draft on GitHub and publish it manually. CI never publishes.
+1. The `Release` workflow (`.github/workflows/release.yml`) rejects the tag unless `X.Y.Z` matches the version in both files, then creates a **draft** GitHub release named after the tag, builds macOS `aarch64-apple-darwin` and Windows x64 in parallel and uploads every bundle to that draft. The release body labels the Windows artifacts experimental.
+2. Review the draft on GitHub (generate the notes from the release page) and publish it manually. Nothing else creates a release for the tag — the workflow's draft is the only one, and CI never publishes.
 
 A tag containing a hyphen (`v0.3.0-rc.1`) drafts as a prerelease; the suffix lives on the tag only, so the guard compares `0.3.0` against the app version. Re-running the workflow for the same tag reuses the existing draft instead of creating a second one.
 
