@@ -51,6 +51,10 @@ const ja: Record<string, string> = {
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "会話コンテキストがリセットされました",
+  "hotkey.register_failed":
+    "呼び出しショートカット {accelerator} を登録できませんでした — 他のアプリが使用中かもしれません",
+  "ingress.dead_notice":
+    "エージェントイベントの受信を開始できませんでした（ポート {port} 使用中）— このセッションでは通知が無効です",
 
   // boot-failure notice
   "boot.error_title": "YUI を起動できませんでした",

@@ -52,6 +52,10 @@ const en: Record<string, string> = {
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "Conversation context was reset",
+  "hotkey.register_failed":
+    "Summon hotkey {accelerator} could not be registered — another app may hold it",
+  "ingress.dead_notice":
+    "Agent event listener failed to start (port {port} in use) — agent notifications are off this session",
 
   // boot-failure notice
   "boot.error_title": "YUI failed to start",

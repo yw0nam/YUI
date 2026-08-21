@@ -24,3 +24,6 @@ export type AgentEvent = {
 
 /** Subscribe to the `agent-inbox` Tauri event channel. */
 export const onAgentInbox = createInbox<AgentEvent>("agent-inbox");
+
+/** Subscribe to `ingress-dead` — the Rust listener gave up binding its port after retries. */
+export const onIngressDead = createInbox<{ port: number }>("ingress-dead");

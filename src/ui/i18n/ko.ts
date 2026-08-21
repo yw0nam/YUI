@@ -51,6 +51,9 @@ const ko: Record<string, string> = {
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "대화 컨텍스트가 초기화되었습니다",
+  "hotkey.register_failed": "소환 단축키 {accelerator} 등록 실패 — 다른 앱이 사용 중일 수 있어요",
+  "ingress.dead_notice":
+    "에이전트 이벤트 수신 시작 실패 (포트 {port} 사용 중) — 이번 세션에는 에이전트 알림이 꺼져요",
 
   // boot-failure notice
   "boot.error_title": "YUI를 시작하지 못했습니다",

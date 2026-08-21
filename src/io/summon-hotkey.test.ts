@@ -268,3 +268,33 @@ describe("createSummonHotkey — dispose", () => {
     expect(f.deps.unregister).not.toHaveBeenCalled();
   });
 });
+
+describe("createSummonHotkey — onRegisterFailed", () => {
+  /** Drives a hotkey promise past the register backoff without waiting in real time. */
+  async function settle<T>(promise: Promise<T>): Promise<T> {
+    await vi.advanceTimersByTimeAsync(60_000);
+    return promise;
+  }
+
+  it("등록이 모든 재시도를 소진하면 onRegisterFailed(accelerator)를 호출한다", async () => {
+    vi.useFakeTimers();
+    try {
+      const f = fakeDeps();
+      const onRegisterFailed = vi.fn();
+      f.deps.register.mockRejectedValue(new Error("held by another app"));
+      const hotkey = createSummonHotkey({ ...f.deps, onRegisterFailed });
+      await settle(hotkey.apply("CmdOrCtrl+Shift+Y"));
+      expect(onRegisterFailed).toHaveBeenCalledWith("CmdOrCtrl+Shift+Y");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("등록 성공 시에는 호출하지 않는다", async () => {
+    const f = fakeDeps();
+    const onRegisterFailed = vi.fn();
+    const hotkey = createSummonHotkey({ ...f.deps, onRegisterFailed });
+    await hotkey.apply("CmdOrCtrl+Shift+Y");
+    expect(onRegisterFailed).not.toHaveBeenCalled();
+  });
+});

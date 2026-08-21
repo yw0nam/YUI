@@ -50,6 +50,7 @@ import type { Renderer } from "./renderer";
 import { showChainResetNotice } from "./ui/chain-reset-notice";
 import { maybeShowFirstRunHint } from "./ui/first-run-hint";
 import { t } from "./ui/i18n";
+import { wireIngressDeadNotice } from "./ui/ingress-dead-notice";
 import type { createQuickControls } from "./ui/quick-controls";
 import type { Surfaces } from "./ui/surfaces";
 import { routeTurnFailure, turnErrorFixAction, turnErrorMessage } from "./ui/turn-error";
@@ -476,9 +477,15 @@ const realFactories: ConfiguredBootstrapFactories = {
         exit: () => peekStateRef?.exit() ?? Promise.resolve(),
       },
       accelerator: cfg.hotkeys.summon_global,
+      onRegisterFailed: (accelerator) => {
+        surfaces.beginSpeech();
+        surfaces.pushSpeech(t("hotkey.register_failed", { accelerator }));
+        surfaces.endSpeech();
+      },
       log,
     });
     register(() => void summonHotkey.dispose());
+    register(wireIngressDeadNotice({ surfaces, t }));
     const broker = await wireBroker({
       getConfig: config.get,
       getEndpoints,
