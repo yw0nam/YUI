@@ -169,6 +169,6 @@ export function defaultQcArgs(mount: HTMLElement) {
     refreshSpeaker: vi.fn(async () => {}),
     pickVoiceImport: vi.fn(async () => null),
     commitVoiceImport: vi.fn(async () => {}),
-    removeUserVoice: vi.fn(async () => {}),
+    removeVoice: vi.fn(async () => {}),
   };
 }

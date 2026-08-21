@@ -113,7 +113,7 @@ interface QuickControlsOptions {
   /** Import commit step: copy + register under the typed name → addUserOption + select. Inline error on reject. */
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   /** Delete imported voice's app-data file (idempotent). Called separately from store removal. */
-  removeUserVoice: (id: string) => Promise<void>;
+  removeVoice: (id: string) => Promise<void>;
   /** Refetches the TTS server's voice list on panel open (the server may come up after the app). Fire-and-forget. */
   refreshVoiceList?: () => void;
   onGainPreview: (mouthOpen: number) => void;
@@ -356,7 +356,7 @@ export function createQuickControls({
   refreshSpeaker,
   pickVoiceImport,
   commitVoiceImport,
-  removeUserVoice,
+  removeVoice,
   refreshVoiceList,
   onGainPreview,
   onGainPreviewEnd,
@@ -606,7 +606,7 @@ export function createQuickControls({
     refreshSpeaker,
     pickVoiceImport,
     commitVoiceImport,
-    removeUserVoice,
+    removeVoice,
     log,
     refreshTooltip: hintTooltip.refresh,
     isDisposed: () => disposed,

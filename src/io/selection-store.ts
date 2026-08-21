@@ -157,6 +157,18 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
       notify();
     },
 
+    /** Remove bundled option (e.g. a server-side voice just deleted). If active, fall back to default resolution + notify. Unknown/user id is no-op. */
+    removeBundledOption(id: string): void {
+      const idx = bundled.findIndex((o) => o.id === id);
+      if (idx < 0) return;
+      const wasActive = resolve().id === id;
+      bundled.splice(idx, 1);
+      if (!wasActive) return;
+      override = null;
+      storage?.save(null);
+      notify();
+    },
+
     /** Update user option label + persist + notify (if active). Unknown/bundled id or empty label is no-op. */
     renameUserOption(id: string, label: string): void {
       const trimmed = label.trim();

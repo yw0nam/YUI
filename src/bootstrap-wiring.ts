@@ -170,7 +170,7 @@ export function wireSpeakerSelection(deps: {
   pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
   /** Commit step: copy + upload under `name` (overwrite-aware) → add option + select. */
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
-  removeUserVoice: (id: string) => Promise<void>;
+  removeVoice: (id: string) => Promise<void>;
   refreshVoiceList: () => Promise<void>;
 } {
   const { getEndpoints, getApiKey, log, broadcastSettings } = deps;
@@ -210,12 +210,14 @@ export function wireSpeakerSelection(deps: {
     speakerSelection,
     log,
   });
-  const removeUserVoice = async (id: string): Promise<void> => {
+  // Deletes the server-side voice; a user-imported one also drops its local clip.
+  const removeVoice = async (id: string): Promise<void> => {
     const baseUrl = getEndpoints()?.tts_base_url;
     if (!baseUrl) throw new Error("voice delete requires tts_base_url");
     const f = await selectFetch();
     await deleteVoice({ baseUrl, id, fetch: f, getApiKey, logger: log });
-    await removeUserVoiceFile(id);
+    const source = speakerSelection.list().find((o) => o.id === id)?.source;
+    if (source === "user") await removeUserVoiceFile(id);
   };
   // Announce cross-window so the speaker picked in this window reflects in the settings-window UI.
   speakerSelection.subscribe(broadcastSettings);
@@ -234,7 +236,7 @@ export function wireSpeakerSelection(deps: {
     refreshSpeaker,
     pickVoiceImport,
     commitVoiceImport,
-    removeUserVoice,
+    removeVoice,
     refreshVoiceList,
   };
 }

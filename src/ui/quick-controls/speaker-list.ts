@@ -37,7 +37,7 @@ interface SpeakerListDeps {
   /** Import commit step: copy + upload under the typed name → addUserOption + select. Inline error on reject. */
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   /** Delete imported voice app-data file (idempotent). Called separately from store removal. */
-  removeUserVoice: (id: string) => Promise<void>;
+  removeVoice: (id: string) => Promise<void>;
   log: Logger;
   refreshTooltip: () => void;
   /** After dispose, prevent in-flight refresh from re-rendering/timering on torn-down DOM. */
@@ -63,7 +63,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     refreshSpeaker,
     pickVoiceImport,
     commitVoiceImport,
-    removeUserVoice,
+    removeVoice,
     log,
     isDisposed,
   } = deps;
@@ -84,8 +84,13 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     getActive: () => speakerSelection.getActive(),
     getLabel: (opt) => opt.label ?? opt.id,
     rename: (id, label) => speakerSelection.renameUserOption(id, label),
-    removeFile: removeUserVoice,
-    removeFromStore: (id) => speakerSelection.removeUserOption(id),
+    removeFile: removeVoice,
+    // The server owns every voice; a user-imported one also has a local clip + store entry.
+    removeFromStore: (id) => {
+      const source = speakerSelection.list().find((o) => o.id === id)?.source;
+      if (source === "user") speakerSelection.removeUserOption(id);
+      else speakerSelection.removeBundledOption(id);
+    },
     swap: swapSpeaker,
     deriveId: voiceIdFromName,
     pickImport: pickVoiceImport,
@@ -190,11 +195,13 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       const badgeHtml = selected
         ? `<span class="yui-spk__badge">${t("speaker.in_use")}</span>`
         : "";
-      // User rows add ✎ rename · 🗑 remove buttons before ↻/▶.
-      const userActionsHtml = isUser
-        ? `<button class="yui-spk__rename" type="button" data-tip="${t("speaker.rename")}" aria-label="${t("speaker.rename")}">${SPK_RENAME_SVG}</button>` +
-          `<button class="yui-spk__remove" type="button" data-tip="${t("speaker.remove")}" aria-label="${t("speaker.remove")}">${SPK_REMOVE_SVG}<span class="yui-spk__remove-confirm">${t("speaker.remove_confirm")}</span></button>`
+      // Every row gets 🗑 remove (voices live on the server); user rows add ✎ rename before it.
+      const renameHtml = isUser
+        ? `<button class="yui-spk__rename" type="button" data-tip="${t("speaker.rename")}" aria-label="${t("speaker.rename")}">${SPK_RENAME_SVG}</button>`
         : "";
+      const userActionsHtml =
+        renameHtml +
+        `<button class="yui-spk__remove" type="button" data-tip="${t("speaker.remove")}" aria-label="${t("speaker.remove")}">${SPK_REMOVE_SVG}<span class="yui-spk__remove-confirm">${t("speaker.remove_confirm")}</span></button>`;
       row.innerHTML = `
         <span class="yui-spk__tick" aria-hidden="true"></span>
         <span class="yui-spk__body"><span class="yui-spk__name"></span></span>
@@ -212,19 +219,19 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
           e.stopPropagation(); // Rename does not trigger row selection
           list.startRename(opt.id);
         });
-        const removeBtn = row.querySelector<HTMLButtonElement>(".yui-spk__remove")!;
-        if (list.getArmedRemoveId() === opt.id) {
-          row.classList.add("is-remove-armed");
-          removeBtn.classList.add("is-armed");
-          removeBtn.dataset.tip = t("speaker.remove_confirm");
-          removeBtn.setAttribute("aria-label", t("speaker.remove_confirm_aria", { name: label }));
-          deps.refreshTooltip();
-        }
-        removeBtn.addEventListener("click", (e) => {
-          e.stopPropagation(); // Remove does not trigger row selection
-          void list.remove(opt.id);
-        });
       }
+      const removeBtn = row.querySelector<HTMLButtonElement>(".yui-spk__remove")!;
+      if (list.getArmedRemoveId() === opt.id) {
+        row.classList.add("is-remove-armed");
+        removeBtn.classList.add("is-armed");
+        removeBtn.dataset.tip = t("speaker.remove_confirm");
+        removeBtn.setAttribute("aria-label", t("speaker.remove_confirm_aria", { name: label }));
+        deps.refreshTooltip();
+      }
+      removeBtn.addEventListener("click", (e) => {
+        e.stopPropagation(); // Remove does not trigger row selection
+        void list.remove(opt.id);
+      });
       const refreshBtn = row.querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
       refreshBtn.disabled = !hasClip;
       refreshBtn.setAttribute("aria-label", t("aria.refresh_speaker", { name: label }));

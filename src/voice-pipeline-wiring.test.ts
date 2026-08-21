@@ -80,7 +80,7 @@ vi.mock("./io/voice-import", () => ({
   copyVoiceFile: mocks.copyVoiceFile,
   pickVoiceFile: vi.fn(),
   removeOrphanVoice: vi.fn(),
-  removeUserVoice: vi.fn().mockResolvedValue(undefined),
+  removeVoice: vi.fn().mockResolvedValue(undefined),
   fileStemFromPath: (path: string) => path,
 }));
 

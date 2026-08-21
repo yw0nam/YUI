@@ -260,7 +260,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     refreshSpeaker,
     pickVoiceImport,
     commitVoiceImport,
-    removeUserVoice,
+    removeVoice,
     refreshVoiceList,
   } = speaker;
   register(() => speakerSelection.dispose());
@@ -331,7 +331,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       refreshSpeaker,
       pickVoiceImport,
       commitVoiceImport,
-      removeUserVoice,
+      removeVoice,
       refreshVoiceList,
       onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
       onGainPreviewEnd: () => renderer.stopMouth(),
