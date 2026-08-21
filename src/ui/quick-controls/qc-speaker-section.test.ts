@@ -37,7 +37,7 @@ describe("createQuickControls — speaker section", () => {
   let refreshSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
   let pickVoiceImport: Mock<() => Promise<{ srcPath: string; seedName: string } | null>>;
   let commitVoiceImport: Mock<(srcPath: string, name: string) => Promise<void>>;
-  let removeUserVoice: Mock<(id: string) => Promise<void>>;
+  let removeVoice: Mock<(id: string) => Promise<void>>;
 
   beforeEach(() => {
     // Make rAF synchronous so open() → is-open transition happens immediately in tests
@@ -77,7 +77,7 @@ describe("createQuickControls — speaker section", () => {
       async () => null,
     );
     commitVoiceImport = vi.fn<(srcPath: string, name: string) => Promise<void>>(async () => {});
-    removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {});
+    removeVoice = vi.fn<(id: string) => Promise<void>>(async () => {});
     try {
       globalThis.localStorage?.clear();
     } catch {
@@ -112,7 +112,7 @@ describe("createQuickControls — speaker section", () => {
       refreshSpeaker,
       pickVoiceImport,
       commitVoiceImport,
-      removeUserVoice,
+      removeVoice,
       ...extra,
     });
   }
@@ -320,16 +320,47 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  it("bundled speaker rows carry no rename/remove controls", () => {
+  it("bundled speaker rows carry remove (server delete) but no rename", () => {
     withUserVoice();
     const qc = buildQc();
     qc.open();
 
     const natsume = qc.el.querySelector<HTMLElement>('.yui-spk[data-spk-id="natsume"]')!;
     expect(natsume.querySelector(".yui-spk__rename")).toBeNull();
-    expect(natsume.querySelector(".yui-spk__remove")).toBeNull();
+    expect(natsume.querySelector(".yui-spk__remove")).not.toBeNull();
     // bundled still has refresh + preview
     expect(natsume.querySelector(".yui-spk__preview")).not.toBeNull();
+
+    qc.dispose();
+  });
+
+  it("trash on a bundled row deletes the server voice and drops the row", async () => {
+    const qc = buildQc();
+    qc.open();
+
+    const row = () => qc.el.querySelector<HTMLElement>('.yui-spk[data-spk-id="natsume"]')!;
+    row().querySelector<HTMLButtonElement>(".yui-spk__remove")!.click(); // arm
+    row().querySelector<HTMLButtonElement>(".yui-spk__remove")!.click(); // confirm
+    await flush();
+
+    expect(removeVoice).toHaveBeenCalledWith("natsume");
+    expect(speakerSelection.list().map((o) => o.id)).not.toContain("natsume");
+    expect(qc.el.querySelector('.yui-spk[data-spk-id="natsume"]')).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("removing the active bundled voice falls back to another option", async () => {
+    const qc = buildQc();
+    qc.open();
+    expect(speakerSelection.getActiveId()).toBe("natsume");
+
+    const row = () => qc.el.querySelector<HTMLElement>('.yui-spk[data-spk-id="natsume"]')!;
+    row().querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    row().querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    await flush();
+
+    expect(speakerSelection.getActiveId()).not.toBe("natsume");
 
     qc.dispose();
   });
@@ -374,7 +405,7 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  it("trash removes the voice via injected removeUserVoice then store removeUserOption", async () => {
+  it("trash removes the voice via injected removeVoice then store removeUserOption", async () => {
     withUserVoice();
     const qc = buildQc();
     qc.open();
@@ -395,8 +426,8 @@ describe("createQuickControls — speaker section", () => {
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     await flush();
 
-    expect(removeUserVoice).toHaveBeenCalledOnce();
-    expect(removeUserVoice.mock.calls[0][0]).toBe("myvoice");
+    expect(removeVoice).toHaveBeenCalledOnce();
+    expect(removeVoice.mock.calls[0][0]).toBe("myvoice");
     expect(speakerSelection.list().map((o) => o.id)).not.toContain("myvoice");
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).toBeNull();
 
@@ -493,7 +524,7 @@ describe("createQuickControls — speaker section", () => {
   it("deletes the voice file BEFORE committing the store removal (no divergence ordering)", async () => {
     withUserVoice();
     let storeStillHadVoiceAtDelete: boolean | null = null;
-    removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {
+    removeVoice = vi.fn<(id: string) => Promise<void>>(async () => {
       storeStillHadVoiceAtDelete = speakerSelection.list().some((o) => o.id === "myvoice");
     });
     const qc = buildQc();
@@ -511,7 +542,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("keeps the voice in the store when the native file delete fails (no divergence)", async () => {
     withUserVoice();
-    removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {
+    removeVoice = vi.fn<(id: string) => Promise<void>>(async () => {
       throw new Error("native delete failed");
     });
     const qc = buildQc();
@@ -532,7 +563,7 @@ describe("createQuickControls — speaker section", () => {
   it("shows deletion as busy and ignores repeated commits while it is in flight", async () => {
     withUserVoice();
     let resolveRemove: () => void = () => {};
-    removeUserVoice = vi.fn(
+    removeVoice = vi.fn(
       () =>
         new Promise<void>((resolve) => {
           resolveRemove = resolve;
@@ -548,7 +579,7 @@ describe("createQuickControls — speaker section", () => {
     expect(removingRow.querySelector<HTMLButtonElement>(".yui-spk__remove")!.disabled).toBe(true);
 
     await qc.el.querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
-    expect(removeUserVoice).toHaveBeenCalledOnce();
+    expect(removeVoice).toHaveBeenCalledOnce();
 
     resolveRemove();
     await flush();
@@ -567,7 +598,7 @@ describe("createQuickControls — speaker section", () => {
 
     expect(userSpkRow(qc).classList).not.toContain("is-remove-armed");
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
-    expect(removeUserVoice).not.toHaveBeenCalled();
+    expect(removeVoice).not.toHaveBeenCalled();
     expect(userSpkRow(qc).classList).toContain("is-remove-armed");
     qc.dispose();
   });
@@ -575,7 +606,7 @@ describe("createQuickControls — speaker section", () => {
   it("does NOT fall back / swap the speaker when deleting the active voice file fails", async () => {
     withUserVoice();
     speakerSelection.select("myvoice");
-    removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {
+    removeVoice = vi.fn<(id: string) => Promise<void>>(async () => {
       throw new Error("native delete failed");
     });
     const qc = buildQc();

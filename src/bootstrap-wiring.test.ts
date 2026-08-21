@@ -1243,14 +1243,15 @@ describe("wireSpeakerSelection — swapSpeaker / refreshSpeaker", () => {
   });
 
   it("removes the server voice before deleting the local reference clip", async () => {
-    const { removeUserVoice, speakerSelection } = wireSpeakerSelection({
+    const { removeVoice, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
       getApiKey: async () => "sk-tts",
       log: noopLog,
       broadcastSettings: () => {},
     });
+    speakerSelection.addUserOption(USER_VOICE);
 
-    await removeUserVoice("myvoice");
+    await removeVoice("myvoice");
 
     expect(deleteVoice).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1265,15 +1266,33 @@ describe("wireSpeakerSelection — swapSpeaker / refreshSpeaker", () => {
     speakerSelection.dispose();
   });
 
+  it("deletes a bundled (server-listed) voice on the server without touching local clips", async () => {
+    const { removeVoice, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+    speakerSelection.setManifest({
+      available: [{ id: "natsume", label: "natsume", ref_url: "" }],
+      defaultValue: "natsume",
+    });
+
+    await removeVoice("natsume");
+
+    expect(deleteVoice).toHaveBeenCalledWith(expect.objectContaining({ id: "natsume" }));
+    expect(removeUserVoiceMock).not.toHaveBeenCalled();
+    speakerSelection.dispose();
+  });
+
   it("does not delete the local reference clip when the server delete fails", async () => {
     deleteVoice.mockRejectedValue(new Error("server down"));
-    const { removeUserVoice, speakerSelection } = wireSpeakerSelection({
+    const { removeVoice, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
       log: noopLog,
       broadcastSettings: () => {},
     });
 
-    await expect(removeUserVoice("myvoice")).rejects.toThrow("server down");
+    await expect(removeVoice("myvoice")).rejects.toThrow("server down");
 
     expect(removeUserVoiceMock).not.toHaveBeenCalled();
     speakerSelection.dispose();

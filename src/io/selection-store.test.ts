@@ -609,3 +609,32 @@ describe("localStorageUserOptionStorage", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("removeBundledOption", () => {
+  it("drops the bundled option from list()", () => {
+    const store = makeStore();
+    store.removeBundledOption("b");
+    expect(store.list().map((o) => o.id)).toEqual(["a"]);
+  });
+
+  it("removing the active bundled option falls back to default resolution and notifies", () => {
+    const store = makeStore();
+    store.select("b");
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.removeBundledOption("b");
+    expect(store.getActiveId()).toBe("a");
+    expect(cb).toHaveBeenCalled();
+  });
+
+  it("unknown or user-owned id is a no-op", () => {
+    const store = makeStore();
+    store.addUserOption({ id: "mine", label: "Mine", url: "/mine.res", source: "user" });
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.removeBundledOption("ghost");
+    store.removeBundledOption("mine");
+    expect(store.list().map((o) => o.id)).toEqual(["a", "b", "mine"]);
+    expect(cb).not.toHaveBeenCalled();
+  });
+});

@@ -39,7 +39,7 @@ describe("createQuickControls — endpoints + API keys", () => {
   let refreshSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
   let pickVoiceImport: Mock<() => Promise<{ srcPath: string; seedName: string } | null>>;
   let commitVoiceImport: Mock<(srcPath: string, name: string) => Promise<void>>;
-  let removeUserVoice: Mock<(id: string) => Promise<void>>;
+  let removeVoice: Mock<(id: string) => Promise<void>>;
 
   beforeEach(() => {
     // Make rAF synchronous so open() → is-open transition happens immediately in tests
@@ -79,7 +79,7 @@ describe("createQuickControls — endpoints + API keys", () => {
       async () => null,
     );
     commitVoiceImport = vi.fn<(srcPath: string, name: string) => Promise<void>>(async () => {});
-    removeUserVoice = vi.fn<(id: string) => Promise<void>>(async () => {});
+    removeVoice = vi.fn<(id: string) => Promise<void>>(async () => {});
     try {
       globalThis.localStorage?.clear();
     } catch {
@@ -114,7 +114,7 @@ describe("createQuickControls — endpoints + API keys", () => {
       refreshSpeaker,
       pickVoiceImport,
       commitVoiceImport,
-      removeUserVoice,
+      removeVoice,
       ...extra,
     });
   }
