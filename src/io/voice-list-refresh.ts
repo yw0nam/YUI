@@ -97,14 +97,20 @@ export function wireVoiceListAutoRefresh(deps: {
   getEndpoints: () => VoiceListEndpoints;
   refresh: () => Promise<void>;
 }): () => void {
-  const key = (): string => {
-    const eps = deps.getEndpoints();
-    return `${eps?.tts_base_url ?? ""}\u0000${eps?.tts_speaker ?? ""}`;
+  // getEndpoints throws until config loads — the pet window wires this before config.load(),
+  // so an unreadable baseline is "unknown" (null), never a boot-killing exception.
+  const key = (): string | null => {
+    try {
+      const eps = deps.getEndpoints();
+      return `${eps?.tts_base_url ?? ""}\u0000${eps?.tts_speaker ?? ""}`;
+    } catch {
+      return null;
+    }
   };
   let last = key();
   return deps.subscribe(() => {
     const next = key();
-    if (next === last) return;
+    if (next === null || next === last) return;
     last = next;
     void deps.refresh();
   });
