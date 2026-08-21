@@ -22,6 +22,7 @@ use tauri::{AppHandle, Emitter};
 pub const AGENT_INBOX_CHANNEL: &str = "agent-inbox";
 pub const SIGNALS_INBOX_CHANNEL: &str = "signals-inbox";
 pub const AVATAR_RPC_CHANNEL: &str = "avatar-rpc";
+pub const INGRESS_DEAD_CHANNEL: &str = "ingress-dead";
 
 /// Deadline for a webview answer to a read-only avatar query.
 const AVATAR_QUERY_TIMEOUT: Duration = Duration::from_secs(2);
@@ -488,6 +489,10 @@ pub fn start(app: &AppHandle, port: u16) {
                 Ok(s) => s,
                 Err(e) => {
                     log::warn!("agent_ingress_bind_failed port={port} error={e}");
+                    // The bind retries span ~3.5s, so the webview is normally listening by now.
+                    if let Err(e) = app.emit(INGRESS_DEAD_CHANNEL, serde_json::json!({ "port": port })) {
+                        log::warn!("agent_ingress_dead_emit_failed error={e}");
+                    }
                     return;
                 }
             };

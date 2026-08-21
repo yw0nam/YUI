@@ -23,6 +23,8 @@ interface SummonHotkeyDeps {
   summonInput(): void;
   /** Whether the input is already open — if so, don't re-summon (just bring the window forward). */
   isInputOpen(): boolean;
+  /** The accelerator failed to register after every retry (OS/another app holds it). */
+  onRegisterFailed?(accelerator: string): void;
 }
 
 export interface SummonHotkey {
@@ -107,6 +109,7 @@ export function createSummonHotkey(deps: SummonHotkeyDeps): SummonHotkey {
     } catch (err) {
       // Invalid accelerator or held by the OS/another app — stay inactive (fail-soft).
       log.warn("register_failed", { accelerator, error: String(err) });
+      deps.onRegisterFailed?.(accelerator);
     }
   }
 

@@ -741,6 +741,8 @@ export function wireSummonHotkey(deps: {
   bus: EventBus;
   peek: { active(): boolean; exit(): Promise<void> };
   accelerator: string;
+  /** The accelerator failed to register after every retry (OS/another app holds it). */
+  onRegisterFailed?: (accelerator: string) => void;
   log: Logger;
 }): SummonHotkey {
   const { surfaces, accelerator, log, bus, peek } = deps;
@@ -771,6 +773,7 @@ export function wireSummonHotkey(deps: {
       },
       summonInput: () => surfaces.summonInput(),
       isInputOpen: () => surfaces.isInputOpen(),
+      ...(deps.onRegisterFailed ? { onRegisterFailed: deps.onRegisterFailed } : {}),
     });
     if (disposed) return void summonHotkey.dispose();
     await summonHotkey.apply(desiredAccelerator);
