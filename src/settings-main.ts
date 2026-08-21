@@ -21,6 +21,7 @@ import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
 import { closeSettingsWindow } from "./io/settings-window";
 import { resolveScreenSourceProvider } from "./io/tauri-screen";
+import { wireVoiceListAutoRefresh } from "./io/voice-list-refresh";
 import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
 import {
   createVrmSelection,
@@ -148,6 +149,11 @@ async function bootstrap(): Promise<void> {
     broadcastSettings: () => broadcastSpeaker?.(),
   });
   void refreshVoiceList();
+  const unsubscribeVoiceRefresh = wireVoiceListAutoRefresh({
+    subscribe: endpointsSettings.subscribe,
+    getEndpoints,
+    refresh: refreshVoiceList,
+  });
 
   // Real-time wiring with main window (Tauri events). This window has no renderer/STT, so send controls
   // to main window, receive voice state from main window and reflect. Storage fallback rides the core.
@@ -311,6 +317,7 @@ async function bootstrap(): Promise<void> {
     // reach the broadcast path and a live bridge.
     quickControls.dispose();
     unsubscribeLocale();
+    unsubscribeVoiceRefresh();
     disposeSync();
     window.removeEventListener("focus", reloadOnFocus);
     for (const store of Object.values(settingsStores)) store.dispose();

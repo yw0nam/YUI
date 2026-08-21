@@ -26,9 +26,11 @@ export function createVoiceListRefresh(deps: {
   /** Resolves the TTS server key (Bearer). Omitted/empty → no auth header. */
   getApiKey?: () => Promise<string | undefined>;
   speakerSelection: SpeakerManifestTarget;
+  /** Re-uploads a user voice's local clip to the server (bumping its revision). */
+  reuploadUserVoice?: (option: SpeakerOption) => Promise<void>;
   log: Logger;
 }): () => Promise<void> {
-  const { getEndpoints, getApiKey, speakerSelection, log } = deps;
+  const { getEndpoints, getApiKey, speakerSelection, reuploadUserVoice, log } = deps;
   // Discards a stale (out-of-order) resolution so it can't clobber a newer manifest — the triggers
   // (boot, endpoints hot-reload, panel open) fire with no sequencing between them.
   let generation = 0;
@@ -64,8 +66,46 @@ export function createVoiceListRefresh(deps: {
           .map((id) => ({ id, label: id, ref_url: "" })),
         defaultValue: defaultId,
       });
+      // Self-heal: a user-imported voice lives on the server as a reference clip, and a server
+      // restart or swap loses it — every synth then 400s ("Unknown voice"). The local clip is the
+      // source of truth, so push it back up instead of leaving the selection silently broken.
+      if (reuploadUserVoice) {
+        const lost = speakerSelection
+          .list()
+          .filter((o) => o.source === "user" && o.ref_url.length > 0 && !ids.includes(o.id));
+        for (const option of lost) {
+          try {
+            await reuploadUserVoice(option);
+            log.info("voice_reuploaded", { id: option.id });
+          } catch (err) {
+            log.warn("voice_reupload_failed", { id: option.id, error: String(err) });
+          }
+        }
+      }
     } catch (err) {
       log.warn("voice_list_refresh_failed", { error: String(err) });
     }
   };
+}
+
+/**
+ * Refetches the voice list when an endpoints-override commit changes a TTS field. The override
+ * store notifies on every field's commit, so non-TTS edits (chat URL etc) are filtered out here.
+ */
+export function wireVoiceListAutoRefresh(deps: {
+  subscribe: (cb: () => void) => () => void;
+  getEndpoints: () => VoiceListEndpoints;
+  refresh: () => Promise<void>;
+}): () => void {
+  const key = (): string => {
+    const eps = deps.getEndpoints();
+    return `${eps?.tts_base_url ?? ""}\u0000${eps?.tts_speaker ?? ""}`;
+  };
+  let last = key();
+  return deps.subscribe(() => {
+    const next = key();
+    if (next === last) return;
+    last = next;
+    void deps.refresh();
+  });
 }

@@ -225,6 +225,7 @@ export function wireSpeakerSelection(deps: {
     getEndpoints,
     getApiKey,
     speakerSelection,
+    reuploadUserVoice: refreshSpeaker,
     log,
   });
   return {
