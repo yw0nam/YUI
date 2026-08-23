@@ -65,13 +65,16 @@ pub struct AgentEventPayload {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct SignalsPayload {
     pub signals: Vec<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub envelope: Option<serde_json::Value>,
     pub ts: i64, // server epoch ms — n8n does not send a timestamp
 }
 
 /// Wire shape of a `/signals` POST body, before the server stamps `ts`.
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct SignalsRequest {
     signals: Vec<serde_json::Value>,
+    envelope: Option<serde_json::Value>,
 }
 
 /// Side of a window the avatar peeks from.
@@ -168,11 +171,7 @@ fn parse_request(method: &str, path: &str, body: &str) -> Result<AgentEventPaylo
 /// Returns `Err(400)` if method is not POST, path (before any query string) is
 /// not `/signals`, or the body is not valid JSON shaped `{"signals": [...]}`.
 /// Each element of `signals` is passed through as opaque JSON.
-fn parse_signals_request(
-    method: &str,
-    path: &str,
-    body: &str,
-) -> Result<Vec<serde_json::Value>, u16> {
+fn parse_signals_request(method: &str, path: &str, body: &str) -> Result<SignalsRequest, u16> {
     if method != "POST" {
         return Err(400);
     }
@@ -180,9 +179,7 @@ fn parse_signals_request(
     if path_only != "/signals" {
         return Err(400);
     }
-    serde_json::from_str::<SignalsRequest>(body)
-        .map(|r| r.signals)
-        .map_err(|_| 400u16)
+    serde_json::from_str::<SignalsRequest>(body).map_err(|_| 400u16)
 }
 
 /// Validates and parses a raw HTTP request into an `AvatarRoute`.
@@ -430,9 +427,10 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
             let payload = cap_detail(cap_summary(payload));
             emit_agent_event(app, payload);
         }),
-        "/signals" => parse_signals_request(&method, &url, &body).map(|signals| {
+        "/signals" => parse_signals_request(&method, &url, &body).map(|request| {
             let payload = SignalsPayload {
-                signals,
+                signals: request.signals,
+                envelope: request.envelope,
                 ts: epoch_ms(),
             };
             emit_signals_event(app, payload);
@@ -701,10 +699,11 @@ mod tests {
 
     #[test]
     fn parse_signals_request_valid_returns_signals() {
-        let signals = parse_signals_request("POST", "/signals", valid_signals_body()).unwrap();
-        assert_eq!(signals.len(), 2);
-        assert_eq!(signals[0]["kind"], "reminder");
-        assert_eq!(signals[1]["kind"], "alert");
+        let request = parse_signals_request("POST", "/signals", valid_signals_body()).unwrap();
+        assert_eq!(request.signals.len(), 2);
+        assert_eq!(request.signals[0]["kind"], "reminder");
+        assert_eq!(request.signals[1]["kind"], "alert");
+        assert!(request.envelope.is_none());
     }
 
     #[test]
@@ -741,24 +740,72 @@ mod tests {
 
     #[test]
     fn parse_signals_request_path_with_query_string_is_accepted() {
-        let signals =
+        let request =
             parse_signals_request("POST", "/signals?foo=bar", valid_signals_body()).unwrap();
-        assert_eq!(signals.len(), 2);
+        assert_eq!(request.signals.len(), 2);
     }
 
     #[test]
     fn parse_signals_request_empty_array_is_accepted() {
-        let signals = parse_signals_request("POST", "/signals", r#"{"signals":[]}"#).unwrap();
-        assert!(signals.is_empty());
+        let request = parse_signals_request("POST", "/signals", r#"{"signals":[]}"#).unwrap();
+        assert!(request.signals.is_empty());
+    }
+
+    #[test]
+    fn parse_signals_request_forwards_envelope_verbatim() {
+        let request = parse_signals_request(
+            "POST",
+            "/signals",
+            r#"{"signals":[{"id":1}],"envelope":{"source":"n8n","event_type":"workflow_done","delivery":"batched","event_id":"run-8812","occurred_at":1787449000000,"extra":{"opaque":true}}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            request.envelope.unwrap(),
+            serde_json::json!({
+                "source": "n8n",
+                "event_type": "workflow_done",
+                "delivery": "batched",
+                "event_id": "run-8812",
+                "occurred_at": 1787449000000_i64,
+                "extra": { "opaque": true }
+            })
+        );
+    }
+
+    #[test]
+    fn parse_signals_request_forwards_non_object_envelope_verbatim() {
+        let request = parse_signals_request(
+            "POST",
+            "/signals",
+            r#"{"signals":[{"id":1}],"envelope":"bad"}"#,
+        )
+        .unwrap();
+        assert_eq!(request.envelope, Some(serde_json::json!("bad")));
+    }
+
+    #[test]
+    fn parse_signals_request_absent_and_null_envelopes_are_omitted() {
+        for body in [r#"{"signals":[]}"#, r#"{"signals":[],"envelope":null}"#] {
+            let request = parse_signals_request("POST", "/signals", body).unwrap();
+            assert!(request.envelope.is_none());
+            let payload = SignalsPayload {
+                signals: request.signals,
+                envelope: request.envelope,
+                ts: 1,
+            };
+            let json = serde_json::to_value(payload).unwrap();
+            assert!(!json.as_object().unwrap().contains_key("envelope"));
+        }
     }
 
     // ── handle_request routing (/signals emits signals-inbox) ────────────────
 
     #[test]
     fn handle_request_routes_signals_and_stamps_ts() {
-        let signals = parse_signals_request("POST", "/signals", valid_signals_body()).unwrap();
+        let request = parse_signals_request("POST", "/signals", valid_signals_body()).unwrap();
         let payload = SignalsPayload {
-            signals,
+            signals: request.signals,
+            envelope: request.envelope,
             ts: epoch_ms(),
         };
         assert_eq!(payload.signals.len(), 2);

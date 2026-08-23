@@ -33,6 +33,8 @@ export type {
   ScreenRect,
   // Input context
   ScreenSource,
+  SignalEnvelope,
+  SignalGroup,
   SignalItem,
   ToolStatus,
   // Dispatcher-layer metadata

@@ -329,7 +329,9 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
 
   it("proactive.tap_bored forwards its cue and drained signals", async () => {
     script.events = [completedEvent({ speech_text: "" })];
-    const signals = [{ kind: "reminder", payload: { title: "Stretch" } }, { kind: "alert" }];
+    const signals = [
+      { items: [{ kind: "reminder", payload: { title: "Stretch" } }, { kind: "alert" }] },
+    ];
     const env: BusEnvelope = {
       seq_id: 12,
       source: "os_event_watcher",
@@ -348,7 +350,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     const text = clientContextOf(request.input);
     expect(text).toContain('trigger: proactive "bored poking"');
     expect(text).toContain("cue note: The user wants attention.");
-    for (const item of signals) {
+    for (const item of signals[0].items) {
       expect(text).toContain(`signal: ${JSON.stringify(item)}`);
     }
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
@@ -726,7 +728,7 @@ describe("backend_caller — signals trigger forwarding", () => {
       ts: 1_717_000_000_000,
       hint_tier: 2,
       payload: {
-        signals: [{ kind: "reminder", payload: { foo: "bar" } }, { kind: "alert" }],
+        signals: [{ items: [{ kind: "reminder", payload: { foo: "bar" } }, { kind: "alert" }] }],
         ts: 1_717_000_000_000,
       },
     };
@@ -753,7 +755,7 @@ describe("backend_caller — signals trigger forwarding", () => {
       event_name: "signals.push",
       ts: 1_717_000_000_000,
       hint_tier: 2,
-      payload: { signals: [{ kind: "reminder" }], ts: 1_717_000_000_000 },
+      payload: { signals: [{ items: [{ kind: "reminder" }] }], ts: 1_717_000_000_000 },
     };
     await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
@@ -783,7 +785,7 @@ describe("backend_caller — signals trigger forwarding", () => {
       hint_tier: 2,
       payload: {
         count: 2,
-        signals: [{ id: 1 }, { id: 2 }],
+        signals: [{ items: [{ id: 1 }] }, { items: [{ id: 2 }] }],
       },
     };
     await caller.call(turnOf(env));
@@ -813,7 +815,7 @@ describe("backend_caller — signals trigger forwarding", () => {
       event_name: "signals.push",
       ts: 1_717_000_000_000,
       hint_tier: 2,
-      payload: { signals: weird, ts: 1_717_000_000_000 },
+      payload: { signals: [{ items: weird }], ts: 1_717_000_000_000 },
     };
     await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
@@ -821,6 +823,55 @@ describe("backend_caller — signals trigger forwarding", () => {
     for (const item of weird) {
       expect(text).toContain(`signal: ${JSON.stringify(item)}`);
     }
+  });
+
+  it("signals.batch uses its marker and grouped envelope rendering", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 45,
+      source: "timer_scheduler",
+      event_name: "signals.batch",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: {
+        signals: [
+          {
+            envelope: {
+              source: "n8n",
+              event_type: "workflow_done",
+              delivery: "batched",
+              event_id: "run-1",
+              occurred_at: 1_787_449_000_000,
+            },
+            items: [{ ok: true }],
+          },
+        ],
+      },
+    };
+    await caller.call(turnOf(env));
+    const [, request] = script.spy.mock.calls[0];
+    const content = (request.input as Array<{ content: string }>)[0].content;
+    expect(content).toContain(
+      'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-1]: {"ok":true}',
+    );
+    expect(content).toContain("(a few signals batched up for you)");
+  });
+
+  it("old flat signals payload is malformed and renders no signal lines", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 46,
+      source: "timer_scheduler",
+      event_name: "signals.push",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: { signals: [{ a: 1 }] },
+    };
+    await caller.call(turnOf(env));
+    const [, request] = script.spy.mock.calls[0];
+    const text = clientContextOf(request.input);
+    expect(text).toContain("trigger: signals (0 signals)");
+    expect(text).not.toContain("signal:");
   });
 
   it("(d) signals.push with missing/malformed signals field → 'trigger: signals (0 signals)' headline, no 'signal:' lines", async () => {

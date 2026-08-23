@@ -31,6 +31,13 @@ function fakeListen() {
 
 const SAMPLE: SignalsBatch = {
   signals: [{ kind: "reminder", payload: { foo: "bar" } }, { kind: "alert" }],
+  envelope: {
+    source: "n8n",
+    event_type: "workflow_done",
+    delivery: "immediate",
+    event_id: "run-1",
+    occurred_at: 1_787_449_000_000,
+  },
   ts: 1_700_000_000_000,
 };
 

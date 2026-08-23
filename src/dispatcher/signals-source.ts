@@ -1,22 +1,12 @@
 /**
- * signals_source — opaque `signals` ingress firing source.
+ * signals_source — grouped `signals` ingress firing source.
  *
- * Configures the shared buffered-inbox core (`buffered-inbox-source.ts`, also used by
- * agent-source) with the signals-specific policy:
- *  - Buffer: a flat array of batches, oldest first (BUFFER_CAP = 5, drop oldest batch
- *    on overflow).
- *  - Catchup: flatten all buffered batches' `signals` items in arrival order (no sort).
- *  - Live firing: signals.push, carrying the batch's `signals` array verbatim.
- *  - `drain()`: layered on top of the shared core (not part of it) — returns the
- *    buffer's items flattened in arrival order and clears it, without pushing to the bus.
- *    Consumed at src/main.ts to pull unseen signals outside the presence-gated flow.
- *
- * firing ≠ judgment: `signals` is opaque — this source never inspects, validates, or
- * reshapes item contents. It only buffers/flattens/forwards the array verbatim;
- * interpretation is Hermes's job. No speak/don't-speak gate and no persona state live here.
+ * The shared buffered-inbox core owns presence, busy, enable, and lifecycle edges.
+ * This module owns envelope validation, delivery routing, buffer caps, and the lazy
+ * batched-delivery timer. Signal item contents remain opaque.
  */
 
-import type { SignalItem } from "../contract";
+import type { SignalEnvelope, SignalGroup } from "../contract";
 import type { SignalsBatch } from "../io/signals-inbox";
 import { onSignalsInbox } from "../io/signals-inbox";
 import type { OsEventListen } from "../io/tauri-listen";
@@ -26,71 +16,130 @@ import type { EventBus } from "./event-bus";
 
 const log = createLogger("signals-source");
 
-/** Buffered-batch cap — oldest batch dropped when exceeded. */
 const BUFFER_CAP = 5;
+const BATCH_INTERVAL_MS = 5 * 60_000;
 
 interface SignalsSourceDeps {
   bus: Pick<EventBus, "push">;
-  /** Present iff cached OS idle ≤ this (same semantics as agent-source). */
   present_max_idle_ms: number;
-  /** Read on every inbox arrival — gates firing without stopping the listener. */
   isEnabled: () => boolean;
-  /** Injectable inbox subscriber; defaults to the real onSignalsInbox. */
   onInbox?: (cb: (p: SignalsBatch) => void, deps?: { listen?: OsEventListen }) => () => void;
-  /** Injectable channel listen; defaults to the resolved Tauri listen. */
   listen?: OsEventListen;
-  /** Injectable clock; defaults to Date.now. */
   now?: () => number;
-  /** Whether the dispatcher pipeline is busy (backend call in flight or speech playing). Absent = never busy. */
   isPipelineBusy?: () => boolean;
-  /** Subscribe to pipeline-busy transitions; used to flush the buffer on the busy→idle edge. */
   subscribePipelineBusy?: (cb: (busy: boolean) => void) => () => void;
 }
 
 export interface SignalsSource {
   start(): Promise<void>;
   stop(): void;
-  drain(): SignalItem[];
+  drain(): SignalGroup[];
+}
+
+type RoutedGroup = {
+  group: SignalGroup;
+  delivery: SignalEnvelope["delivery"] | "legacy";
+};
+
+type BufferedGroup = { sequence: number; group: SignalGroup };
+
+function validEnvelope(value: unknown): value is SignalEnvelope {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const envelope = value as Record<string, unknown>;
+  return (
+    typeof envelope.source === "string" &&
+    envelope.source.length > 0 &&
+    typeof envelope.event_type === "string" &&
+    envelope.event_type.length > 0 &&
+    (envelope.delivery === "immediate" || envelope.delivery === "batched") &&
+    typeof envelope.event_id === "string" &&
+    envelope.event_id.length > 0 &&
+    typeof envelope.occurred_at === "number" &&
+    Number.isFinite(envelope.occurred_at) &&
+    Math.abs(envelope.occurred_at) <= 8.64e15
+  );
 }
 
 export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
-  /** Buffered batches (away or busy accumulation), oldest first. */
-  const buffer: SignalsBatch[] = [];
+  const awayBuffer: BufferedGroup[] = [];
+  const batchBuffer: BufferedGroup[] = [];
+  let nextSequence = 0;
+  let batchTimer: ReturnType<typeof setTimeout> | undefined;
 
-  function flattenBuffer(): SignalItem[] {
-    return buffer.flatMap((batch) => batch.signals);
+  function groupsInArrivalOrder(): SignalGroup[] {
+    return [...awayBuffer, ...batchBuffer]
+      .sort((left, right) => left.sequence - right.sequence)
+      .map(({ group }) => group);
   }
 
-  function parse(p: SignalsBatch): SignalsBatch | undefined {
-    if (!Array.isArray((p as unknown as { signals?: unknown })?.signals)) {
-      log.debug("inbox_malformed", { degrade: true });
-      return undefined;
-    }
-    return p;
+  function clearBatchTimer(): void {
+    if (batchTimer !== undefined) clearTimeout(batchTimer);
+    batchTimer = undefined;
   }
 
-  function buildLive(p: SignalsBatch): InboxFiring {
-    return { event_name: "signals.push", payload: { signals: p.signals } };
+  function clearBuffers(): void {
+    awayBuffer.length = 0;
+    batchBuffer.length = 0;
+    clearBatchTimer();
   }
 
-  function bufferAdd(p: SignalsBatch): void {
-    buffer.push(p);
+  function appendCapped(buffer: BufferedGroup[], group: SignalGroup): void {
+    buffer.push({ sequence: nextSequence++, group });
     if (buffer.length > BUFFER_CAP) buffer.shift();
   }
 
-  /** Flatten all buffered batches' items in arrival order. */
+  function parse(raw: SignalsBatch): RoutedGroup | undefined {
+    if (!Array.isArray((raw as unknown as { signals?: unknown })?.signals)) {
+      log.debug("inbox_malformed", { degrade: true });
+      return undefined;
+    }
+    const envelope = (raw as SignalsBatch).envelope;
+    if (envelope == null) return { group: { items: raw.signals }, delivery: "legacy" };
+    if (!validEnvelope(envelope)) {
+      log.warn("envelope_invalid", { degrade: true });
+      return { group: { items: raw.signals }, delivery: "legacy" };
+    }
+    return { group: { envelope, items: raw.signals }, delivery: envelope.delivery };
+  }
+
+  function buildLive(item: RoutedGroup): InboxFiring {
+    return { event_name: "signals.push", payload: { signals: [item.group] } };
+  }
+
+  function armBatchTimer(): void {
+    if (batchTimer !== undefined || batchBuffer.length === 0) return;
+    batchTimer = setTimeout(() => {
+      batchTimer = undefined;
+      if (batchBuffer.length === 0) return;
+      const firing: InboxFiring = {
+        event_name: "signals.batch",
+        payload: { signals: batchBuffer.map(({ group }) => group) },
+      };
+      if (core.fireIfEligible(firing)) batchBuffer.length = 0;
+    }, BATCH_INTERVAL_MS);
+  }
+
+  function bufferAdd(item: RoutedGroup): void {
+    if (item.delivery === "batched") {
+      const wasEmpty = batchBuffer.length === 0;
+      appendCapped(batchBuffer, item.group);
+      if (wasEmpty) armBatchTimer();
+      return;
+    }
+    appendCapped(awayBuffer, item.group);
+  }
+
   function buildCatchup(): InboxFiring {
-    return { event_name: "signals.catchup", payload: { signals: flattenBuffer() } };
+    return { event_name: "signals.catchup", payload: { signals: groupsInArrivalOrder() } };
   }
 
-  /** Layers on the shared core: drains the live buffer without pushing to the bus. */
-  function drain(): SignalItem[] {
-    const signals = flattenBuffer();
-    buffer.length = 0;
-    return signals;
+  function drain(): SignalGroup[] {
+    const groups = groupsInArrivalOrder();
+    clearBuffers();
+    return groups;
   }
 
-  const core = createBufferedInboxSource<SignalsBatch>({
+  const core = createBufferedInboxSource<SignalsBatch, RoutedGroup>({
     bus: deps.bus,
     present_max_idle_ms: deps.present_max_idle_ms,
     isEnabled: deps.isEnabled,
@@ -102,13 +151,22 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     log,
     parse,
     buildLive,
+    shouldBuffer: (item) => item.delivery === "batched",
     bufferAdd,
-    bufferEmpty: () => buffer.length === 0,
-    bufferClear: () => {
-      buffer.length = 0;
-    },
+    bufferEmpty: () => awayBuffer.length === 0 && batchBuffer.length === 0,
+    bufferClear: clearBuffers,
     buildCatchup,
   });
 
-  return { start: core.start, stop: core.stop, drain };
+  async function start(): Promise<void> {
+    await core.start();
+    armBatchTimer();
+  }
+
+  function stop(): void {
+    core.stop();
+    clearBatchTimer();
+  }
+
+  return { start, stop, drain };
 }

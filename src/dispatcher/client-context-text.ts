@@ -109,7 +109,7 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   } else if (trigger.kind === "user") {
     lines.push(`trigger: user message${idleClause}`);
   } else if (trigger.kind === "signals") {
-    const count = trigger.signals?.length ?? 0;
+    const count = trigger.signals?.reduce((total, group) => total + group.items.length, 0) ?? 0;
     lines.push(`trigger: signals (${count} signal${count === 1 ? "" : "s"})${idleClause}`);
   } else {
     // Fallback: kind without a matching structured field (e.g. a malformed agent.* payload
@@ -118,7 +118,19 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   }
 
   if (trigger.signals) {
-    for (const item of trigger.signals) lines.push(`signal: ${JSON.stringify(item)}`);
+    for (const group of trigger.signals) {
+      if (!group.envelope) {
+        for (const item of group.items) lines.push(`signal: ${JSON.stringify(item)}`);
+        continue;
+      }
+      const envelope = group.envelope;
+      const prefix = `signal [${oneLine(envelope.source)}/${oneLine(envelope.event_type)} @${new Date(envelope.occurred_at).toISOString()}, id ${oneLine(envelope.event_id)}]:`;
+      if (group.items.length === 0) {
+        lines.push(`${prefix} (no payload)`);
+      } else {
+        for (const item of group.items) lines.push(`${prefix} ${JSON.stringify(item)}`);
+      }
+    }
   }
 
   return lines;

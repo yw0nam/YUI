@@ -98,7 +98,14 @@ function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
     return undefined;
   }
   const signals = env.payload?.signals;
-  return Array.isArray(signals) ? (signals as TriggerMeta["signals"]) : undefined;
+  if (!Array.isArray(signals)) return undefined;
+  const grouped = signals.every(
+    (group) =>
+      group !== null &&
+      typeof group === "object" &&
+      Array.isArray((group as { items?: unknown }).items),
+  );
+  return grouped ? (signals as TriggerMeta["signals"]) : undefined;
 }
 
 type RecentTransition = { from_app: string; to_app: string; dwell_min: number };

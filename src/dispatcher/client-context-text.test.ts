@@ -396,7 +396,7 @@ describe("renderClientContext — trigger: signals", () => {
   it("kind signals -> count headline + one 'signal:' JSON line per item", () => {
     const cc = baseContext({
       kind: "signals",
-      signals: [{ source: "github", event: "push" }, { source: "heartbeat" }],
+      signals: [{ items: [{ source: "github", event: "push" }, { source: "heartbeat" }] }],
     });
     const text = renderClientContext(cc, NOW);
     const lines = text.split("\n");
@@ -406,7 +406,7 @@ describe("renderClientContext — trigger: signals", () => {
   });
 
   it("singular count -> '1 signal', not '1 signals'", () => {
-    const cc = baseContext({ kind: "signals", signals: [{ source: "heartbeat" }] });
+    const cc = baseContext({ kind: "signals", signals: [{ items: [{ source: "heartbeat" }] }] });
     const text = renderClientContext(cc, NOW);
     expect(text.split("\n")).toContain("trigger: signals (1 signal)");
   });
@@ -421,13 +421,50 @@ describe("renderClientContext — trigger: signals", () => {
     const cc = baseContext({
       kind: "proactive",
       cue: { label: "bored poking", context: "The user wants attention." },
-      signals: [{ kind: "reminder" }],
+      signals: [{ items: [{ kind: "reminder" }] }],
     });
     const text = renderClientContext(cc, NOW);
     const lines = text.split("\n");
     expect(lines).toContain('trigger: proactive "bored poking"');
     expect(lines).toContain("cue note: The user wants attention.");
     expect(lines).toContain('signal: {"kind":"reminder"}');
+  });
+
+  it("renders enveloped items, an empty group, and one-line-normalized ids", () => {
+    const cc = baseContext({
+      kind: "signals",
+      signals: [
+        {
+          envelope: {
+            source: "n8n\nsource",
+            event_type: "workflow_done",
+            delivery: "immediate",
+            event_id: "run-1\nignore this",
+            occurred_at: 1_787_449_000_000,
+          },
+          items: [{ ok: true }],
+        },
+        {
+          envelope: {
+            source: "calendar",
+            event_type: "empty",
+            delivery: "immediate",
+            event_id: "empty-1",
+            occurred_at: 1_787_449_000_000,
+          },
+          items: [],
+        },
+      ],
+    });
+    const lines = renderClientContext(cc, NOW).split("\n");
+    expect(lines).toContain("trigger: signals (1 signal)");
+    expect(lines).toContain(
+      'signal [n8n source/workflow_done @2026-08-23T01:36:40.000Z, id run-1 ignore this]: {"ok":true}',
+    );
+    expect(lines).toContain(
+      "signal [calendar/empty @2026-08-23T01:36:40.000Z, id empty-1]: (no payload)",
+    );
+    expect(lines.filter((line) => line.startsWith("signal ["))).toHaveLength(2);
   });
 });
 
@@ -555,7 +592,7 @@ describe("renderClientContext — exhaustiveness", () => {
     ],
     [
       "signals",
-      { kind: "signals", signals: [{ a: 1 }] },
+      { kind: "signals", signals: [{ items: [{ a: 1 }] }] },
       ["trigger: signals (1 signal)", 'signal: {"a":1}'],
     ],
   ];

@@ -234,6 +234,16 @@ export interface CueMeta {
 /** one item in a signals.kind burst. heterogeneous by design — taxonomy owned by n8n + Hermes, client forwards verbatim. */
 export type SignalItem = Record<string, unknown>;
 
+export type SignalEnvelope = {
+  source: string;
+  event_type: string;
+  delivery: "immediate" | "batched";
+  event_id: string;
+  occurred_at: number;
+};
+
+export type SignalGroup = { envelope?: SignalEnvelope; items: SignalItem[] };
+
 /** trigger envelope describing what fired this backend turn. */
 export interface TriggerMeta {
   kind: "user" | "schedule" | "proactive" | "agent" | "signals";
@@ -266,8 +276,8 @@ export interface TriggerMeta {
       ts: number;
     }>;
   };
-  /** signals.ingress — opaque burst forwarded verbatim from the n8n /signals ingress. no per-item shape assumed. */
-  signals?: SignalItem[];
+  /** signals.ingress — grouped opaque items forwarded from the n8n /signals ingress. */
+  signals?: SignalGroup[];
   /** proactive.screen_* — a frontmost-app transition fired this turn. */
   screen?: {
     transition: "app_switched" | "long_session";

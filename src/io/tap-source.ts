@@ -1,5 +1,5 @@
 import type { TapConfig } from "../config/load";
-import type { SignalItem } from "../contract";
+import type { SignalGroup } from "../contract";
 import type { EventBus } from "../dispatcher/event-bus";
 import { createLogger } from "../logger";
 import { type CssPoint, classifyTapRegion, type TapRegionBones } from "../renderer/tap-region";
@@ -24,7 +24,7 @@ interface TapSourceDeps {
   };
   ambient: { trigger(cue: "tap_react"): void };
   config: TapConfig;
-  drainSignals?: () => SignalItem[];
+  drainSignals?: () => SignalGroup[];
   now?: () => number;
 }
 
@@ -83,7 +83,7 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
         if (clicks.length >= deps.config.spam_count) {
           clicks.length = 0;
           if (!region) {
-            let signals: SignalItem[] = [];
+            let signals: SignalGroup[] = [];
             try {
               signals = deps.drainSignals?.() ?? [];
             } catch (error) {
