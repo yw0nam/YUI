@@ -110,6 +110,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     if (batchTimer !== undefined || batchBuffer.length === 0) return;
     batchTimer = setTimeout(() => {
       batchTimer = undefined;
+      if (batchBuffer.length === 0) return;
       const firing: InboxFiring = {
         event_name: "signals.batch",
         payload: { signals: batchBuffer.map(({ group }) => group) },

@@ -825,7 +825,7 @@ describe("backend_caller — signals trigger forwarding", () => {
     }
   });
 
-  it("AC11: signals.batch uses its marker and grouped envelope rendering", async () => {
+  it("signals.batch uses its marker and grouped envelope rendering", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     const env: BusEnvelope = {
       seq_id: 45,
@@ -857,7 +857,7 @@ describe("backend_caller — signals trigger forwarding", () => {
     expect(content).toContain("(a few signals batched up for you)");
   });
 
-  it("AC16: old flat signals payload is malformed and renders no signal lines", async () => {
+  it("old flat signals payload is malformed and renders no signal lines", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     const env: BusEnvelope = {
       seq_id: 46,

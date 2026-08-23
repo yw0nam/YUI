@@ -41,6 +41,7 @@ export default defineConfig({
         text: 'Reference',
         items: [
           { text: 'Client Context', link: '/reference/client-context' },
+          { text: 'Signals Ingress', link: '/reference/signals-ingress' },
           { text: 'Motions', link: '/reference/motions' },
           { text: 'Logging', link: '/reference/logging' },
           { text: 'Witness Log', link: '/reference/witness-log' },
@@ -62,6 +63,7 @@ export default defineConfig({
           text: 'Reference',
           items: [
             { text: 'Client Context', link: '/reference/client-context' },
+            { text: 'Signals Ingress', link: '/reference/signals-ingress' },
             { text: 'Motions', link: '/reference/motions' },
             { text: 'Logging', link: '/reference/logging' },
             { text: 'Witness Log', link: '/reference/witness-log' },

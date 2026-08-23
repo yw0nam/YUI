@@ -773,6 +773,17 @@ mod tests {
     }
 
     #[test]
+    fn parse_signals_request_forwards_non_object_envelope_verbatim() {
+        let request = parse_signals_request(
+            "POST",
+            "/signals",
+            r#"{"signals":[{"id":1}],"envelope":"bad"}"#,
+        )
+        .unwrap();
+        assert_eq!(request.envelope, Some(serde_json::json!("bad")));
+    }
+
+    #[test]
     fn parse_signals_request_absent_and_null_envelopes_are_omitted() {
         for body in [r#"{"signals":[]}"#, r#"{"signals":[],"envelope":null}"#] {
             let request = parse_signals_request("POST", "/signals", body).unwrap();

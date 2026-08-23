@@ -864,7 +864,7 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
   });
 
-  it("AC11: routes signals.batch as tier2 to backend_caller", async () => {
+  it("routes signals.batch as tier2 to backend_caller", async () => {
     dispatcher.start();
     bus.push(
       env({

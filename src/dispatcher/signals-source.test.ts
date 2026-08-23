@@ -1,18 +1,10 @@
 /**
- * signals-source.test.ts — opaque `signals` ingress firing source.
+ * signals-source.test.ts — grouped signal delivery and buffering.
  *
- * Locks the event-driven (inbox) + presence-gated state model:
- *  1. present at inbox arrival → immediate signals.push; payload carries signals + ts verbatim.
- *  2. away at inbox arrival → buffers the batch (nothing pushed).
- *  3. idle→present edge → exactly ONE signals.catchup; flattened signals in arrival order.
- *  4. subsequent present ticks emit nothing further (guard: edge not level).
- *  5. buffer cap: >5 buffered batches drops the oldest batch.
- *  6. !isEnabled() → inbox events are dropped silently (no buffering).
- *  7. malformed or null payload does not crash.
- *  8. start() idempotent; stop() safe off-Tauri (listen: undefined).
- *  9. items are never inspected/validated — opaque passthrough (firing≠judgment).
- *
- * All deps injected (fakeBus / fakeInbox / fakeListen / clock) — no network, no Tauri.
+ * Covers legacy and enveloped groups, immediate and batched routing, independent
+ * drop-oldest buffers, arrival-ordered catch-up and drain, lazy timer behavior,
+ * envelope downgrade, and enable/presence/busy/lifecycle transitions. Signal item
+ * contents remain opaque. All dependencies are injected; tests use no network or Tauri.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -591,7 +583,7 @@ describe("signals_source — delivery envelopes", () => {
     return { src, pushed, emitIdle, emitInbox, onInbox };
   }
 
-  it("AC2: an explicit null envelope follows the legacy path without warning", async () => {
+  it("an explicit null envelope follows the legacy path without warning", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const s = setup();
     await s.src.start();
@@ -602,7 +594,7 @@ describe("signals_source — delivery envelopes", () => {
     warn.mockRestore();
   });
 
-  it("AC3: valid immediate envelope is preserved on a live push", async () => {
+  it("valid immediate envelope is preserved on a live push", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
@@ -614,7 +606,7 @@ describe("signals_source — delivery envelopes", () => {
     });
   });
 
-  it("AC4: immediate envelope buffers while away and survives catch-up", async () => {
+  it("immediate envelope buffers while away and survives catch-up", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(HIGH_IDLE));
@@ -624,7 +616,7 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed[0]!.payload!.signals).toEqual([{ envelope: ENVELOPE, items: [{ id: 1 }] }]);
   });
 
-  it("AC5: batched delivery fires once at five minutes and re-arms only after a new arrival", async () => {
+  it("batched delivery fires once at five minutes and re-arms only after a new arrival", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
@@ -643,7 +635,7 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed).toHaveLength(2);
   });
 
-  it("AC6: an ineligible timer holds batched groups, then one catch-up merges both buffers by arrival", async () => {
+  it("an ineligible timer holds batched groups, then one catch-up merges both buffers by arrival", async () => {
     const s = setup();
     await s.src.start();
     const batched = { ...ENVELOPE, delivery: "batched" as const };
@@ -665,7 +657,26 @@ describe("signals_source — delivery envelopes", () => {
     ).toEqual([1, 2, 3]);
   });
 
-  it("AC7: a batched group arriving away joins catch-up before its deadline", async () => {
+  it("a busy timer fire holds its batched group for one busy-to-idle catch-up", async () => {
+    const busy = fakePipelineBusy(true);
+    const s = setup({ busy });
+    await s.src.start();
+    s.emitIdle(idleTick(LOW_IDLE));
+    const envelope = { ...ENVELOPE, delivery: "batched" as const };
+    s.emitInbox(batch([{ id: 1 }], 1, envelope));
+
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(s.pushed).toEqual([]);
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(s.pushed).toEqual([]);
+
+    busy.setBusy(false);
+    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed[0]!.event_name).toBe("signals.catchup");
+    expect(s.pushed[0]!.payload!.signals).toEqual([{ envelope, items: [{ id: 1 }] }]);
+  });
+
+  it("a batched group arriving away joins catch-up before its deadline", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(HIGH_IDLE));
@@ -684,7 +695,7 @@ describe("signals_source — delivery envelopes", () => {
     ["non-object", "bad"],
     ["non-finite occurred_at", { ...ENVELOPE, occurred_at: Number.POSITIVE_INFINITY }],
     ["out-of-range occurred_at", { ...ENVELOPE, occurred_at: 8.64e15 + 1 }],
-  ])("AC8: %s envelope downgrades once and never loses items", async (_name, invalid) => {
+  ])("%s envelope downgrades once and never loses items", async (_name, invalid) => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const s = setup();
     await s.src.start();
@@ -695,7 +706,7 @@ describe("signals_source — delivery envelopes", () => {
     warn.mockRestore();
   });
 
-  it("AC9: an empty enveloped batch remains a content-less group", async () => {
+  it("an empty enveloped batch remains a content-less group", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
@@ -703,7 +714,7 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed[0]!.payload!.signals).toEqual([{ envelope: ENVELOPE, items: [] }]);
   });
 
-  it("AC10: duplicate event ids are not deduplicated", async () => {
+  it("duplicate event ids are not deduplicated", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(HIGH_IDLE));
@@ -715,7 +726,7 @@ describe("signals_source — delivery envelopes", () => {
     ]);
   });
 
-  it("AC13: batch buffer retains five groups and cap eviction does not re-anchor the timer", async () => {
+  it("batch buffer retains five groups and cap eviction does not re-anchor the timer", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
@@ -733,7 +744,7 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed).toHaveLength(1);
   });
 
-  it("AC14: drain merges both buffers, clears the timer, and suppresses later firing", async () => {
+  it("drain merges both buffers, clears the timer, and suppresses later firing", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(HIGH_IDLE));
@@ -746,7 +757,7 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed).toEqual([]);
   });
 
-  it("AC15: disable blocks timer fire, idle cleanup clears it, and re-enable starts clean", async () => {
+  it("disable blocks timer fire, idle cleanup clears it, and re-enable starts clean", async () => {
     let enabled = true;
     const s = setup({ enabled: () => enabled });
     await s.src.start();
@@ -762,7 +773,7 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed).toEqual([]);
   });
 
-  it("AC15: stop clears the timer, restart re-arms retained batches, and start is idempotent", async () => {
+  it("stop clears the timer, restart re-arms retained batches, and start is idempotent", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));

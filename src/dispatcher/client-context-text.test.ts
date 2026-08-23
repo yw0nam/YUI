@@ -430,7 +430,7 @@ describe("renderClientContext — trigger: signals", () => {
     expect(lines).toContain('signal: {"kind":"reminder"}');
   });
 
-  it("AC3/9/10: renders enveloped items, an empty group, and one-line-normalized ids", () => {
+  it("renders enveloped items, an empty group, and one-line-normalized ids", () => {
     const cc = baseContext({
       kind: "signals",
       signals: [
