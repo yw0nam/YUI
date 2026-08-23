@@ -17,7 +17,7 @@ const config: TapConfig = {
 
 function harness(
   points: TapPoints | null = null,
-  drainSignals: (() => Array<Record<string, unknown>>) | undefined = undefined,
+  drainSignals: (() => Array<{ items: Array<Record<string, unknown>> }>) | undefined = undefined,
   currentMotion:
     | { id: string; vrma_path: string }
     | null
@@ -202,7 +202,7 @@ describe("createTapSource", () => {
   });
 
   it("suppresses a repeated region reaction and bored, then resets when that tap completes the streak", () => {
-    const drainSignals = vi.fn(() => [{ id: "buffered" }]);
+    const drainSignals = vi.fn(() => [{ items: [{ id: "buffered" }] }]);
     const { source, pushed, ambient, setTime } = harness(
       {
         chest: { x: 1, y: 2 },
@@ -231,7 +231,7 @@ describe("createTapSource", () => {
   });
 
   it("adds drained signals only when non-empty and drains only on the firing click", () => {
-    const drainSignals = vi.fn(() => [{ kind: "calendar", title: "Meeting soon" }]);
+    const drainSignals = vi.fn(() => [{ items: [{ kind: "calendar", title: "Meeting soon" }] }]);
     const { source, pushed, setTime } = harness(null, drainSignals);
 
     for (const time of [1_000, 1_100, 1_200, 1_300]) {
@@ -244,7 +244,7 @@ describe("createTapSource", () => {
       cue_id: "tap_bored",
       label: "wants attention",
       context: "The user is poking repeatedly.",
-      signals: [{ kind: "calendar", title: "Meeting soon" }],
+      signals: [{ items: [{ kind: "calendar", title: "Meeting soon" }] }],
     });
   });
 

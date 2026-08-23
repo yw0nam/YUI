@@ -4,24 +4,39 @@
  */
 
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { SignalItem, TriggerMeta } from "./types";
+import type { SignalEnvelope, SignalGroup, SignalItem, TriggerMeta } from "./types";
 
 describe("TriggerMeta kind=signals", () => {
-  it("trigger.signals는 이종 항목을 그대로 담는 opaque 배열이다", () => {
+  it("AC1: trigger.signals stores opaque items in legacy groups", () => {
     const trigger: TriggerMeta = {
       kind: "signals",
       signals: [
-        { source: "github", repo: "acme/yui", event: "push" },
-        { source: "notion", page_id: "abc123", title: "Task" },
-        { source: "heartbeat", ts: 1781000000000 },
+        {
+          items: [
+            { source: "github", repo: "acme/yui", event: "push" },
+            { source: "notion", page_id: "abc123", title: "Task" },
+          ],
+        },
       ],
     };
-    expect(trigger.signals).toHaveLength(3);
+    expect(trigger.signals?.[0].items).toHaveLength(2);
     expectTypeOf<SignalItem>().toEqualTypeOf<Record<string, unknown>>();
+    expectTypeOf<TriggerMeta["signals"]>().toEqualTypeOf<SignalGroup[] | undefined>();
   });
 
   it("signals 항목은 구조가 서로 달라도 타입 에러 없이 공존한다", () => {
     const items: SignalItem[] = [{ a: 1 }, { b: "x", c: [1, 2, 3] }, {}];
     expect(items).toHaveLength(3);
+  });
+
+  it("AC3: SignalEnvelope exposes the closed delivery contract", () => {
+    const envelope: SignalEnvelope = {
+      source: "n8n",
+      event_type: "workflow_done",
+      delivery: "batched",
+      event_id: "run-1",
+      occurred_at: 1_787_449_000_000,
+    };
+    expect(envelope.delivery).toBe("batched");
   });
 });
