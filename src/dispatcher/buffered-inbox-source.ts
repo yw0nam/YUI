@@ -32,14 +32,14 @@ export interface InboxFiring {
   payload: Record<string, unknown>;
 }
 
-export interface BufferedInboxSourceConfig<T> {
+export interface BufferedInboxSourceConfig<TRaw, TItem = TRaw> {
   bus: Pick<EventBus, "push">;
   /** Present iff cached OS idle ≤ this. */
   present_max_idle_ms: number;
   /** Read on every inbox arrival — gates firing without stopping the listener. */
   isEnabled: () => boolean;
   /** Inbox subscriber (default already resolved by the caller). */
-  onInbox: (cb: (p: T) => void, deps?: { listen?: OsEventListen }) => () => void;
+  onInbox: (cb: (p: TRaw) => void, deps?: { listen?: OsEventListen }) => () => void;
   /** Injectable channel listen; defaults to the resolved Tauri listen. */
   listen?: OsEventListen;
   /** Injectable clock; defaults to Date.now. */
@@ -50,11 +50,13 @@ export interface BufferedInboxSourceConfig<T> {
   subscribePipelineBusy?: (cb: (busy: boolean) => void) => () => void;
   log: Logger;
   /** Validate/narrow a raw inbox arrival. Return undefined to drop it as malformed (caller logs). */
-  parse: (raw: T) => T | undefined;
+  parse: (raw: TRaw) => TItem | undefined;
   /** Build the firing for a present-and-idle arrival. */
-  buildLive: (item: T) => InboxFiring;
+  buildLive: (item: TItem) => InboxFiring;
+  /** Force selected valid arrivals into the source-owned buffer even while eligible. */
+  shouldBuffer?: (item: TItem) => boolean;
   /** Add one arrived item to the buffer — dedup/cap policy owned by the caller. */
-  bufferAdd: (item: T) => void;
+  bufferAdd: (item: TItem) => void;
   /** True iff the buffer currently holds anything. */
   bufferEmpty: () => boolean;
   /** Drop everything buffered. */
@@ -63,9 +65,12 @@ export interface BufferedInboxSourceConfig<T> {
   buildCatchup: () => InboxFiring;
 }
 
-export function createBufferedInboxSource<T>(config: BufferedInboxSourceConfig<T>): {
+export function createBufferedInboxSource<TRaw, TItem = TRaw>(
+  config: BufferedInboxSourceConfig<TRaw, TItem>,
+): {
   start(): Promise<void>;
   stop(): void;
+  fireIfEligible(firing: InboxFiring): boolean;
 } {
   const { bus, present_max_idle_ms, isEnabled, log } = config;
   const now = config.now ?? Date.now;
@@ -95,6 +100,12 @@ export function createBufferedInboxSource<T>(config: BufferedInboxSourceConfig<T
       dnd_override: false,
       payload: firing.payload,
     });
+  }
+
+  function fireIfEligible(firing: InboxFiring): boolean {
+    if (!isEnabled() || !isPresent() || isBusy()) return false;
+    fire(firing);
+    return true;
   }
 
   function flushCatchup(): void {
@@ -127,13 +138,13 @@ export function createBufferedInboxSource<T>(config: BufferedInboxSourceConfig<T
     wasPresent = present;
   }
 
-  function handleInbox(raw: T): void {
+  function handleInbox(raw: TRaw): void {
     if (!isEnabled()) return;
     // Guard against malformed IPC payloads that slipped through the type cast.
     try {
       const item = config.parse(raw);
       if (item === undefined) return;
-      if (isPresent() && !isBusy()) {
+      if (!config.shouldBuffer?.(item) && isPresent() && !isBusy()) {
         fire(config.buildLive(item));
       } else {
         config.bufferAdd(item);
@@ -178,5 +189,5 @@ export function createBufferedInboxSource<T>(config: BufferedInboxSourceConfig<T
     unlistenBusy = undefined;
   }
 
-  return { start, stop };
+  return { start, stop, fireIfEligible };
 }

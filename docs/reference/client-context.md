@@ -257,17 +257,21 @@ evict other sessions' buffered events out of the per-tool cap.
 
 ```text
 trigger: signals (2 signals)
-signal: {"source":"github","repo":"acme/yui","event":"push","branch":"main"}
+signal [github/push @2026-08-23T01:36:40.000Z, id delivery-42]: {"repo":"acme/yui","branch":"main"}
 signal: {"source":"heartbeat","ts":1781000000000}
+signal [calendar/sync @2026-08-23T01:36:40.000Z, id delivery-43]: (no payload)
 ```
 
-The headline gives the item count; one `signal:` line follows per item, each the
-item's raw JSON on its own physical line — signals are opaque, heterogeneous objects
-with no client-known shape (GitHub change, Notion task, heartbeat, or any future kind
-the producer decides to emit), so JSON is the only representation that doesn't lose
-structure. `signal:` lines are independent of the headline and appear whenever
-`trigger.signals` is present, even alongside a cue headline: `proactive.tap_bored`
-turns carry both their configured cue and any drained buffered signals in one turn.
+Signals are grouped by ingress batch. The headline counts items across all groups.
+Each item in an enveloped group renders with its normalized `source/event_type`, UTC
+occurrence time, and normalized event id. An enveloped group with no items renders one
+`(no payload)` line and contributes zero to the headline count. Envelope `delivery` is
+not rendered.
+
+Legacy groups retain the `signal: {json}` format. Signal items remain opaque,
+heterogeneous objects with no client-known shape, so JSON preserves their structure.
+Signal lines are independent of the headline and also appear alongside a cue headline:
+`proactive.tap_bored` turns carry both their configured cue and drained signal groups.
 
 ## Deliberately omitted fields
 
@@ -306,6 +310,7 @@ situational detail still lives in the trigger lines above.
 | `agent.needs_input` | `(my claude-code task is waiting on my input)` |
 | `agent.catchup` | `(my claude-code and opencode tasks piled up while I was away)` |
 | `signals.push` | `(a new signal just arrived for you)` |
+| `signals.batch` | `(a few signals batched up for you)` |
 | `signals.catchup` | `(signals piled up while I was away)` |
 | any other | `(something just caught your attention)` |
 

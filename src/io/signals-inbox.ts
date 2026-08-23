@@ -12,6 +12,7 @@ import { createInbox } from "./create-inbox";
 /** Payload carried by the Rust `signals-inbox` event — mirrors src-tauri SignalsPayload. */
 export type SignalsBatch = {
   signals: SignalItem[];
+  envelope?: unknown;
   ts: number;
 };
 
