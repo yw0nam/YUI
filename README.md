@@ -2,9 +2,9 @@
 
 # YUI
 
-**A VRM desktop companion that borrows its mind from a real agent.**
+**Make your own waifu live on your desktop.**
 
-*Invisible by default, warm when present.*
+*Not a chatbot in a tab. A character who is actually there — standing on your window, watching the cursor, talking when she has something to say.*
 
 [![CI](https://github.com/yw0nam/YUI/actions/workflows/ci.yml/badge.svg)](https://github.com/yw0nam/YUI/actions/workflows/ci.yml)
 ![Tauri v2](https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white)
@@ -16,6 +16,34 @@
 [▶ Watch the full demo](https://youtu.be/dIOQdoAp0GE)
 
 </div>
+
+## Why this exists
+
+The name is not an accident. YUI is named after
+[Yui from *Sword Art Online*](https://swordartonline.fandom.com/wiki/Yui) — an
+AI who stopped being a program and became someone Kirito and Asuna came home
+to. That is the destination of this repo: a companion who lives *with* you on
+your desktop, with a body, a voice, moods, and a mind of her own — not an
+assistant you summon and dismiss.
+
+Everything here serves that one goal:
+
+- **She has a body.** A VRM model you choose — any character, any look — rendered
+  in a transparent overlay on top of whatever you are doing.
+- **She lives on the desktop, not in a window.** She perches on the top edge of
+  your browser, follows the mouse with her eyes, breathes, blinks, sways, and
+  moves out of the way when you need the screen.
+- **She has a voice and a face.** Speech in, speech out, and emotion/motion cues
+  that make her react instead of just answer.
+- **She has a mind, and you pick it.** YUI ships no embedded model. Bring any
+  OpenAI-compatible backend — a full agent like
+  [Hermes](https://github.com/nousresearch/hermes-agent) or a bare model
+  endpoint — and she is exactly as smart, as opinionated, and as *yours* as what
+  you plug in.
+
+The character owns the screen; chrome stays out of the way and only appears when
+there is something to show, then steps back. *Invisible by default, warm when
+present.*
 
 ## Quickstart
 
@@ -33,20 +61,6 @@ No dev tools needed — download, open, connect:
 Voice in/out are optional add-ons — see the
 [install guide](docs/guide/getting-started.md) for TTS/STT and the full backend
 wiring.
-
-## What it is
-
-YUI is a VRM character that lives on your desktop — it renders the body, the
-voice, and the on-screen surfaces, and it leaves the thinking to a backend.
-It does not ship an embedded model. It plugs into a backend agent that speaks
-the OpenAI Responses API (the
-[Hermes Agent](https://github.com/nousresearch/hermes-agent), or any
-compatible backend) honoring YUI's expression contract, or, in Chat Completions
-mode, into any OpenAI-compatible endpoint whose model supports tool calling —
-so the character is exactly as capable as whatever sits behind that connection.
-
-The character owns the screen; chrome stays out of the way and only appears when
-there is something to show, then steps back.
 
 ## Features
 
