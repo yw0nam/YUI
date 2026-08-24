@@ -441,9 +441,11 @@ export function wireWindowSources(deps: {
   getGestureCues: () => GestureCuesConfig;
   agentNotifySettings: { get(): AgentNotifySettings };
   /** Current physical posture, for the avatar RPC state answer. */
-  getPosture: () => Posture | undefined;
+  getPosture: () => Posture;
   /** Currently loaded VRM, for the avatar RPC state answer. */
   getVrm: () => { id: string; label: string } | null;
+  /** Record that the avatar just relocated on its own — a successful move_to restamps posture. */
+  noteAvatarMoved: () => void;
   log: Logger;
 }): {
   noteUserDrag(): void;
@@ -459,6 +461,7 @@ export function wireWindowSources(deps: {
     agentNotifySettings,
     getPosture,
     getVrm,
+    noteAvatarMoved,
     log,
   } = deps;
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
@@ -545,6 +548,7 @@ export function wireWindowSources(deps: {
         })),
       getPosture,
       getVrm,
+      noteAvatarMoved,
     });
     if (disposed) {
       windowDropSource.stop();

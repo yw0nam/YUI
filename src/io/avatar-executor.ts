@@ -64,8 +64,10 @@ export interface AvatarExecutorDeps {
   };
   getWindow(): AvatarExecutorWindow;
   listMonitors(): Promise<AvatarMonitor[]>;
-  getPosture(): Posture | undefined;
+  getPosture(): Posture;
   getVrm(): { id: string; label: string } | null;
+  /** Record that the avatar just relocated on its own — a successful move_to restamps posture. */
+  noteAvatarMoved(): void;
 }
 
 export interface AvatarExecutor {
@@ -160,7 +162,7 @@ function spotOrigin(
 }
 
 export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
-  const { perch, getWindow, listMonitors, getPosture, getVrm } = deps;
+  const { perch, getWindow, listMonitors, getPosture, getVrm, noteAvatarMoved } = deps;
 
   let unsubscribe: (() => void) | undefined;
   let moving = false;
@@ -196,7 +198,9 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     perch.release();
     const origin = spotOrigin(monitors[index], size, spot);
     await win.setPositionPhysical(origin.x, origin.y);
-    return aborted() ? fail("interrupted") : { ok: true };
+    if (aborted()) return fail("interrupted");
+    noteAvatarMoved();
+    return { ok: true };
   }
 
   async function runCommand(command: AvatarCommand): Promise<AvatarCommandResult> {
@@ -246,7 +250,7 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
   async function readState(): Promise<AvatarState> {
     return {
       position: await readPosition(),
-      posture: getPosture() ?? null,
+      posture: getPosture(),
       vrm: getVrm(),
       moving,
     };

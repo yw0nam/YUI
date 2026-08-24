@@ -65,8 +65,8 @@ def _command(payload: dict[str, Any]) -> dict[str, Any]:
 def get_body_state() -> dict[str, Any]:
     """Where the avatar is and what it is doing right now.
 
-    Returns its window position and monitor, its posture (sitting / peeking / dragging,
-    and what it is perched on), the loaded VRM, and whether a move is in progress.
+    Returns its window position and monitor, its posture (standing / sitting / peeking /
+    dragging, and what it is perched on), the loaded VRM, and whether a move is in progress.
     """
     logger.info("🔍 get_body_state")
     state = _query("/avatar/state", "get_body_state")

@@ -44,10 +44,10 @@ export interface AvatarPosition {
   monitor: number | null;
 }
 
-/** `GET /avatar/state` answer. Nulls mean the client cannot currently tell. */
+/** `GET /avatar/state` answer. `position`/`vrm` are null when the client cannot currently tell. */
 export interface AvatarState {
   position: AvatarPosition | null;
-  posture: Posture | null;
+  posture: Posture;
   vrm: { id: string; label: string } | null;
   moving: boolean;
 }

@@ -142,6 +142,13 @@ describe("renderClientContext — body line", () => {
     expect(text).toContain("body: dragging (for 0min)");
   });
 
+  it("standing -> no 'on <x>' clause", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.body_state = { posture: { state: "standing" }, since: SINCE };
+    const text = renderClientContext(cc, SINCE + 720_000);
+    expect(text).toContain("body: standing (for 12min)");
+  });
+
   it("absent entirely -> line omitted", () => {
     const text = renderClientContext(baseContext({ kind: "user" }), NOW);
     expect(text).not.toContain("body:");

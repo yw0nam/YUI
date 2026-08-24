@@ -429,6 +429,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         const active = vrmSelection.getActive();
         return { id: active.id, label: active.label ?? active.id };
       },
+      noteAvatarMoved: () => dispatcher.noteAvatarMoved(),
       log,
     });
     register(windowSources.dispose);

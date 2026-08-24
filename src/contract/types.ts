@@ -165,7 +165,7 @@ export type ScreenSource =
   | { kind: "window"; app: string; window_title: string };
 
 export interface Posture {
-  state: "sitting" | "peeking" | "dragging";
+  state: "standing" | "sitting" | "peeking" | "dragging";
   perched_on?: {
     /** Stable app-owner name. */
     app?: string;
@@ -173,7 +173,7 @@ export interface Posture {
   };
 }
 
-/** Held posture plus when it started. Only exists while a posture is held. */
+/** Current posture plus when it last changed. Always present; `standing` is the free state. */
 export interface BodyState {
   posture: Posture;
   /** Epoch ms (wall clock) of the posture change — survives the window being hidden. */
@@ -304,7 +304,7 @@ export interface ClientContext {
     enabled: boolean;
     source: ScreenSource;
   };
-  /** Present only while a posture is held; absent while the avatar stands free. */
+  /** Populated on every turn; `standing` is the free-state posture. */
   body_state?: BodyState;
   trigger: TriggerMeta;
 }

@@ -127,10 +127,12 @@ export interface Dispatcher {
   recentDrops(n?: number): DropRecord[];
   /** In-progress backend call (null if none). */
   inFlight(): InFlightInfo | null;
-  /** Current physical posture. Undefined means idle. */
-  getPosture(): Posture | undefined;
-  /** Current posture with the wall-clock stamp of its change. Undefined means idle. */
-  getBodyState(): BodyState | undefined;
+  /** Current physical posture. `standing` is the free state. */
+  getPosture(): Posture;
+  /** Current posture with the wall-clock stamp of its change. */
+  getBodyState(): BodyState;
+  /** The avatar relocated on its own initiative (move_to) — restamps posture to standing/now. */
+  noteAvatarMoved(): void;
   /** Abort the in-progress call + drop deferred tier2/3 (client-only). Does not sweep the bus or touch tier1. */
   cancel(): void;
   /** Subscribe to state transitions. Callback runs on every transition; returns an unsubscribe fn. */
@@ -321,7 +323,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   let consecutiveFailures = 0;
   // Pending tap-emotion revert — replaced per emotion tap, cleared on stop.
   let emotionRevertTimer: ReturnType<typeof setTimeout> | null = null;
-  let bodyState: BodyState | undefined;
+  // Wall clock, not the frame clock — since keeps running while the window is hidden.
+  let bodyState: BodyState = { posture: { state: "standing" }, since: Date.now() };
 
   const stateSubscribers = new Set<(s: DispatcherState) => void>();
   const busySubscribers = new Set<(busy: boolean) => void>();
@@ -590,7 +593,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
             ...(typeof windowTitle === "string" ? { window_title: windowTitle } : {}),
           }
         : undefined;
-    let next: Posture | undefined;
+    let next: Posture;
     switch (env.event_name) {
       case "user.window_sit_drop":
         next = { state: "sitting", ...(perched_on ? { perched_on } : {}) };
@@ -607,18 +610,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       case "user.window_sit_exit":
       case "user.peek_exit":
       case "user.drag_end":
-        next = undefined;
+        next = { state: "standing" };
         break;
       default:
         return;
     }
-    if (!next) {
-      bodyState = undefined;
-      return;
-    }
     // Re-affirming the posture already held is not a change — `since` keeps its original stamp.
-    if (bodyState && samePosture(bodyState.posture, next)) return;
-    // Wall clock, not the frame clock — it keeps running while the window is hidden.
+    if (samePosture(bodyState.posture, next)) return;
     bodyState = { posture: next, since: Date.now() };
   }
 
@@ -786,10 +784,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       return inFlight ? { trigger: inFlight.trigger, started_at: inFlight.started_at } : null;
     },
     getPosture() {
-      return bodyState?.posture;
+      return bodyState.posture;
     },
     getBodyState() {
       return bodyState;
+    },
+    noteAvatarMoved() {
+      bodyState = { posture: { state: "standing" }, since: Date.now() };
     },
     cancel() {
       // client-only abort: abort in-flight call + drop pending. Don't do bus sweep/tier1 render.
