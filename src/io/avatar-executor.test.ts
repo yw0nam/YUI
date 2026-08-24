@@ -340,6 +340,26 @@ describe("avatar-executor — move_to", () => {
 
     expect(h.noteAvatarMoved).not.toHaveBeenCalled();
   });
+
+  it("reports interrupted and does not note the move when a drag starts right after the position is set", async () => {
+    const gate = deferred<void>();
+    const h = harness({
+      getWindow: () => ({
+        outerPosition: async () => WINDOW_POS,
+        outerSize: async () => WINDOW_SIZE,
+        setPositionPhysical: () => gate.promise,
+      }),
+    });
+
+    const id = h.fire("command", { action: "move_to", spot: "center" });
+    await flush();
+    h.executor.noteUserDrag();
+    gate.resolve();
+    await flush();
+
+    expect(h.answerOf(id)).toEqual({ ok: false, reason: "interrupted" });
+    expect(h.noteAvatarMoved).not.toHaveBeenCalled();
+  });
 });
 
 describe("avatar-executor — stand_down", () => {
