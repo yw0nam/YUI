@@ -59,7 +59,7 @@ import {
   SEAT_DROP_DEFAULT,
   seatAnchorWorld,
 } from "./perch-geometry";
-import { suppressIdleReturn } from "./perch-hold";
+import { suppressWhileHeld } from "./perch-hold";
 import { createPinController, type PinController } from "./pin-controller";
 import { clampPixelRatio } from "./pixel-ratio";
 import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
@@ -860,9 +860,17 @@ export function createRenderer(options: RendererOptions): Renderer {
       return;
     }
     if (!currentVrm || !mixer) return; // Playback not possible if VRM not loaded.
-    // While perched, an implicit idle return (null) is a no-op so the held window_sit
-    // survives emotion-only cues. Only an explicit exit (setPerchTarget(null)) lands idle.
-    if (suppressIdleReturn(motion, pins.isPerched())) return;
+    const perched = pins.isPerched();
+    const peeking = pins.isPeeking();
+    if (suppressWhileHeld(motion, perched || peeking, (id) => motionRegistry?.[id]?.kind)) {
+      if (motion) {
+        log.info("motion_dropped_held_posture", {
+          id: motion.id,
+          posture: perched ? "sitting" : "peeking",
+        });
+      }
+      return;
+    }
     try {
       const decision = controller.request(motion);
       controller.commit(decision);
@@ -1052,7 +1060,9 @@ export function createRenderer(options: RendererOptions): Renderer {
       return pins.isPerched();
     },
     setPeekTarget(target) {
-      pins.setPeekTarget(target);
+      const changed = pins.setPeekTarget(target);
+      if (!changed) return;
+      if (target === null) playMotion(null);
     },
     setMotionMirror(on) {
       motionMirror = on;

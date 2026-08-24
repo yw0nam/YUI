@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { MotionKind, MotionSignal } from "../contract";
-import { suppressIdleReturn as suppressWhileHeld } from "./perch-hold";
+import { suppressWhileHeld } from "./perch-hold";
 
 const kinds: Record<string, MotionKind> = {
   happy: "oneshot",
@@ -40,12 +40,14 @@ describe("suppressWhileHeld — held postures survive incoming motion cues", () 
     expect(suppressWhileHeld({ id }, true, kindOf)).toBe(false);
   });
 
-  it.each([null, { id: "happy" }, { id: "peek" }, { id: "missing" }])(
-    "allows %j when no posture is held",
-    (motion) => {
-      expect(suppressWhileHeld(motion, false, kindOf)).toBe(false);
-    },
-  );
+  it.each([
+    null,
+    { id: "happy" },
+    { id: "peek" },
+    { id: "missing" },
+  ])("allows %j when no posture is held", (motion) => {
+    expect(suppressWhileHeld(motion, false, kindOf)).toBe(false);
+  });
 
   it("suppresses an unregistered motion while held", () => {
     expect(suppressWhileHeld({ id: "missing" }, true, kindOf)).toBe(true);

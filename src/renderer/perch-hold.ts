@@ -1,6 +1,10 @@
-import type { MotionSignal } from "../contract";
+import type { MotionKind, MotionSignal } from "../contract";
 
-/** While perched, an implicit idle return (null motion) is a no-op so the held perch survives. */
-export function suppressIdleReturn(requested: MotionSignal | null, perchActive: boolean): boolean {
-  return requested === null && perchActive;
+/** A held posture ignores idle returns and non-state motion requests. */
+export function suppressWhileHeld(
+  requested: MotionSignal | null,
+  held: boolean,
+  kindOf: (id: string) => MotionKind | undefined,
+): boolean {
+  return held && (requested === null || kindOf(requested.id) !== "state");
 }
