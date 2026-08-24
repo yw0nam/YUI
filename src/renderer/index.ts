@@ -59,7 +59,7 @@ import {
   SEAT_DROP_DEFAULT,
   seatAnchorWorld,
 } from "./perch-geometry";
-import { suppressWhileHeld } from "./perch-hold";
+import { baselineWhileHeld, suppressWhileHeld } from "./perch-hold";
 import { createPinController, type PinController } from "./pin-controller";
 import { clampPixelRatio } from "./pixel-ratio";
 import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
@@ -413,6 +413,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   const deadClips = createDeadClipRegistry(log);
   /** Currently playing AnimationAction (prev in crossfade). */
   let currentAction: THREE.AnimationAction | undefined;
+  let lastStateMotionId: string | null = null;
   /** mixer "finished" event → AnimationAction → motion id reverse lookup. */
   const actionToId = new Map<THREE.AnimationAction, string>();
   /** Hotswap race guard: if VRM changes during load async, discard. */
@@ -748,6 +749,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         action.play();
       }
       currentAction = action;
+      if (motion.kind === "state") lastStateMotionId = motion.id;
     } catch (err) {
       log.error("start_motion", { error: String(err) });
       // Loader threw for the live VRM → recover to idle. Drops (hotswap/teardown) return silently.
@@ -778,7 +780,9 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   /** If registry exists, lay down baseline so ambient always plays. */
   function playIdleBaseline(): void {
-    if (controller) playMotion({ id: controller.baseline() });
+    if (!controller) return;
+    const held = pins.isPerched() || pins.isPeeking();
+    playMotion({ id: baselineWhileHeld(held, lastStateMotionId, controller.baseline()) });
   }
 
   // Read display name from VRM meta — VRM1.0 uses meta.name, VRM0.0 uses meta.title. null if neither.

@@ -8,3 +8,12 @@ export function suppressWhileHeld(
 ): boolean {
   return held && (requested === null || kindOf(requested.id) !== "state");
 }
+
+/** A held posture restores its last state motion instead of the ambient baseline. */
+export function baselineWhileHeld(
+  held: boolean,
+  lastStateId: string | null,
+  baseline: string,
+): string {
+  return held && lastStateId ? lastStateId : baseline;
+}
