@@ -146,19 +146,19 @@ jobs:
   mods:
     name: mods (uv + pytest)
     runs-on: ubuntu-latest
-    # Each Mod is a self-contained uv project; OS calls are mocked, so they run on Linux.
-    # One job over all mods (sequential, grouped logs) — a failing mod doesn't skip the rest.
+    # Each path is a self-contained uv project; OS calls are mocked, so they run on Linux.
+    # One job over all projects (sequential, grouped logs) — a failure doesn't skip the rest.
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - name: Sync + test each mod
+      - name: Sync + test each Python project
         run: |
           rc=0
-          for mod in desktop-control shell-sandbox avatar router; do
-            echo "::group::$mod"
-            (cd "Mods/$mod" && uv sync --frozen && uv run pytest) || rc=1
+          for project in Mods/desktop-control Mods/shell-sandbox Mods/avatar Mods/router integrations/hermes/desire; do
+            echo "::group::$project"
+            (cd "$project" && uv sync --frozen && uv run pytest) || rc=1
             echo "::endgroup::"
           done
           exit $rc
@@ -166,18 +166,18 @@ jobs:
   mods-lint:
     name: mods-lint (ruff)
     runs-on: ubuntu-latest
-    # Python lint is ruff-only (format + check), enforced over all mods in one job.
+    # Python lint is ruff-only (format + check), enforced over all projects in one job.
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - name: Ruff format + check each mod
+      - name: Ruff format + check each Python project
         run: |
           rc=0
-          for mod in desktop-control shell-sandbox avatar router; do
-            echo "::group::$mod"
-            (cd "Mods/$mod" && uv sync --frozen && uv run ruff format --check . && uv run ruff check .) || rc=1
+          for project in Mods/desktop-control Mods/shell-sandbox Mods/avatar Mods/router integrations/hermes/desire; do
+            echo "::group::$project"
+            (cd "$project" && uv sync --frozen && uv run ruff format --check . && uv run ruff check .) || rc=1
             echo "::endgroup::"
           done
           exit $rc

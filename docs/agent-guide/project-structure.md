@@ -72,5 +72,8 @@ YUI/
     router/                 # Shared Mod router
     docker-compose.yml      # Container orchestration for Mods
     README.md               # Mod setup and operation
+  integrations/             # Backend-side integrations, independent of the YUI app runtime
+    hermes/
+      desire/               # Natsume desire middleware, state helpers, monitor, and prompts (Python/uv)
   docs/                     # Design source of truth
 ```

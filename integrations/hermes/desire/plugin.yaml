@@ -1,0 +1,5 @@
+name: yui-desire
+version: 0.1.0
+description: "Injects Natsume's desire state into outgoing LLM requests."
+author: yw0nam
+kind: standalone
