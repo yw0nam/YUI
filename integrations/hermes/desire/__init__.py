@@ -167,8 +167,6 @@ def _inject(**kwargs):
 
         with desire_state.state_lock(state_dir):
             committed_state = desire_state.bootstrap_locked(state_dir, now)
-            if not initialized:
-                outbox = desire_state.read_jsonl(state_dir / "outbox.jsonl")
             if interaction_changed:
                 current_drives = committed_state["drives"]
                 if current_drives.get("last_interaction_hash") != text_hash:

@@ -83,7 +83,7 @@ def _signal(note, now, opener):
         failure = str(getattr(error, "reason", error)).replace("\r", " ").replace("\n", " ")
 
     with desire_state.state_lock(state_dir):
-        budget = desire_state.bootstrap_locked(state_dir, now)["budget"]
+        budget = _normalized_state(state_dir, now)["budget"]
         if failure is None:
             _audit(state_dir, now, "signal_sent", event_id=event_id, note=note)
             return 0

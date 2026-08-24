@@ -25,23 +25,15 @@ _lock_guard = threading.RLock()
 _lock_local = threading.local()
 
 
-def _as_kst(value: datetime) -> datetime:
+def normalize_now(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("datetime must be timezone-aware")
     return value.astimezone(KST)
 
 
-def _parse_time(value: str) -> datetime:
-    parsed = datetime.fromisoformat(value)
-    return _as_kst(parsed)
-
-
 def parse_timestamp(value: str) -> datetime:
-    return _parse_time(value)
-
-
-def normalize_now(value: datetime) -> datetime:
-    return _as_kst(value)
+    parsed = datetime.fromisoformat(value)
+    return normalize_now(parsed)
 
 
 def resolve_state_dir() -> Path:
@@ -169,7 +161,7 @@ def write_jsonl_atomic(path: Path, values: list[dict]) -> None:
 def stamp_outbox(path: Path, item_ids: tuple[str, ...], now: datetime) -> None:
     """Stamp selected valid items while preserving malformed lines for the monitor."""
 
-    now = _as_kst(now)
+    now = normalize_now(now)
     path = Path(path)
     with state_lock(path.parent):
         ids = set(item_ids)
@@ -207,7 +199,7 @@ def _default_drives(now: datetime) -> dict:
 
 
 def default_drives(now: datetime) -> dict:
-    return _default_drives(_as_kst(now))
+    return _default_drives(normalize_now(now))
 
 
 def _default_budget(now: datetime) -> dict:
@@ -227,7 +219,7 @@ def _default_cursor(now: datetime) -> dict:
 def load_json(path: Path, default: object, now: datetime) -> object:
     """Load a JSON state file, quarantining and replacing corrupt content."""
 
-    now = _as_kst(now)
+    now = normalize_now(now)
     path = Path(path)
     with state_lock(path.parent):
         if not path.exists():
@@ -237,15 +229,7 @@ def load_json(path: Path, default: object, now: datetime) -> object:
         try:
             return json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, UnicodeError, OSError):
-            quarantine = path.with_name(f"{path.name}.corrupt-{now.strftime('%Y%m%d%H%M%S')}")
-            os.replace(path, quarantine)
-            value = default() if callable(default) else copy.deepcopy(default)
-            write_json_atomic(path, value)
-            _append_jsonl_locked(
-                path.parent / "audit.jsonl",
-                {"at": now.isoformat(), "event": "state_corrupt_recovered", "file": path.name},
-            )
-            return value
+            return _recover_invalid_json_locked(path, default, now)
 
 
 def _recover_invalid_json_locked(path: Path, default: object, now: datetime) -> object:
@@ -270,12 +254,12 @@ def _normalize_drives(value: object) -> dict:
             raise TypeError("drive state must be an object")
         result[name] = {
             "level": float(drive["level"]),
-            "anchor_at": _parse_time(drive["anchor_at"]).isoformat(),
+            "anchor_at": parse_timestamp(drive["anchor_at"]).isoformat(),
         }
     interaction_hash = value.get("last_interaction_hash")
     if interaction_hash is not None and not isinstance(interaction_hash, str):
         raise ValueError("last interaction hash must be text or null")
-    result["last_interaction_at"] = _parse_time(value["last_interaction_at"]).isoformat()
+    result["last_interaction_at"] = parse_timestamp(value["last_interaction_at"]).isoformat()
     result["last_interaction_hash"] = interaction_hash
     return result
 
@@ -283,7 +267,7 @@ def _normalize_drives(value: object) -> dict:
 def read_drives_snapshot(state_dir: Path, now: datetime) -> dict:
     """Read drives without recovery writes. The caller holds ``state_lock`` when state exists."""
 
-    now = _as_kst(now)
+    now = normalize_now(now)
     try:
         value = json.loads((Path(state_dir) / "drives.json").read_text(encoding="utf-8"))
         return _normalize_drives(value)
@@ -304,13 +288,13 @@ def _validate_budget(value: object) -> dict:
 def _normalize_cursor(value: object) -> dict:
     if not isinstance(value, dict):
         raise TypeError("cursor state must be an object")
-    return {"last_feedback_check_at": _parse_time(value["last_feedback_check_at"]).isoformat()}
+    return {"last_feedback_check_at": parse_timestamp(value["last_feedback_check_at"]).isoformat()}
 
 
 def bootstrap_locked(state_dir: Path, now: datetime) -> dict[str, dict]:
     """Ensure all state files exist. The caller must hold ``state_lock``."""
 
-    now = _as_kst(now)
+    now = normalize_now(now)
     state_dir = Path(state_dir)
     definitions = (
         ("drives.json", lambda: _default_drives(now), _normalize_drives),
@@ -334,13 +318,13 @@ def bootstrap_locked(state_dir: Path, now: datetime) -> dict[str, dict]:
 
 
 def bootstrap(now: datetime) -> dict[str, dict]:
-    now = _as_kst(now)
+    now = normalize_now(now)
     with state_lock() as state_dir:
         return bootstrap_locked(state_dir, now)
 
 
 def _elapsed_hours(anchor: str, now: datetime) -> float:
-    seconds = (now - _parse_time(anchor)).total_seconds()
+    seconds = (now - parse_timestamp(anchor)).total_seconds()
     return max(0.0, seconds) / 3600.0
 
 
@@ -349,7 +333,7 @@ def _clamp(level: float) -> float:
 
 
 def drive_levels(drives: dict, now: datetime) -> dict[str, float]:
-    now = _as_kst(now)
+    now = normalize_now(now)
     curiosity = drives["curiosity"]
     accomplishment = drives["accomplishment"]
     return {
@@ -377,10 +361,10 @@ def displayed_level(level: float) -> int:
 
 
 def normalize_budget(budget: dict, now: datetime) -> dict:
-    now = _as_kst(now)
+    now = normalize_now(now)
     today = now.date().isoformat()
     pending = budget.get("pending") if isinstance(budget.get("pending"), dict) else {}
-    if budget.get("date") != today:
+    if budget.get("date") < today:
         return {
             "date": today,
             "signals": 0,
@@ -389,7 +373,7 @@ def normalize_budget(budget: dict, now: datetime) -> dict:
             "pending": copy.deepcopy(pending),
         }
     return {
-        "date": today,
+        "date": budget["date"],
         "signals": int(budget.get("signals", 0)),
         "issues": int(budget.get("issues", 0)),
         "self_comments": int(budget.get("self_comments", 0)),
@@ -401,23 +385,26 @@ def valid_outbox_item(item: object) -> bool:
     if not isinstance(item, dict) or not isinstance(item.get("id"), str):
         return False
     try:
-        _parse_time(item["created_at"])
+        parse_timestamp(item["created_at"])
         surfaced_at = item.get("surfaced_at")
         if surfaced_at is not None:
-            _parse_time(surfaced_at)
+            parse_timestamp(surfaced_at)
     except (KeyError, TypeError, ValueError):
         return False
     return True
 
 
 def active_outbox(items: list[dict], now: datetime) -> list[dict]:
-    now = _as_kst(now)
+    now = normalize_now(now)
     active = []
     for item in items:
         if not valid_outbox_item(item):
             continue
         surfaced_at = item.get("surfaced_at")
-        if surfaced_at is None or _parse_time(surfaced_at) + timedelta(minutes=OUTBOX_ACTIVE_MINUTES) > now:
+        if (
+            surfaced_at is None
+            or parse_timestamp(surfaced_at) + timedelta(minutes=OUTBOX_ACTIVE_MINUTES) > now
+        ):
             active.append(item)
     return active
 
@@ -443,14 +430,14 @@ def serialize_desire_block(levels: dict[str, float], items: list[dict]) -> str:
     if ordered:
         lines.append(f"pent-up ({len(ordered)}):")
         for item in ordered:
-            timestamp = _parse_time(item["created_at"]).strftime("%Y-%m-%d %H:%M")
+            timestamp = parse_timestamp(item["created_at"]).strftime("%Y-%m-%d %H:%M")
             lines.append(f"- [{timestamp}] {sanitize_note(item.get('note', ''))}")
     lines.append("</desire_state>")
     return "\n".join(lines)
 
 
 def satisfy(drive: str, amount: float, why: str, now: datetime) -> None:
-    now = _as_kst(now)
+    now = normalize_now(now)
     if drive not in ("curiosity", "accomplishment"):
         raise ValueError(f"drive is not satisfiable: {drive}")
     with state_lock() as state_dir:
