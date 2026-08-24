@@ -9,11 +9,10 @@ correctness, only the prompt-cache byte-stability optimization.
 import copy
 import hashlib
 import re
-from contextlib import nullcontext
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-import desire_state
+from . import desire_state
 
 KST = ZoneInfo("Asia/Seoul")
 _TEXT_TYPES = ("text", "input_text")
@@ -68,7 +67,7 @@ def _already_injected(text):
     opening = stripped.rfind("\n<desire_state>\n")
     if opening < 0:
         return False
-    lines = stripped[opening + 1 :].splitlines()
+    lines = stripped[opening + 1 :].split("\n")
     if len(lines) < 3 or lines[0] != "<desire_state>" or lines[-1] != "</desire_state>":
         return False
     drives = _DRIVES_LINE.fullmatch(lines[1])
@@ -134,67 +133,60 @@ def _inject(**kwargs):
         initialized = (state_dir / "state.lock").exists() or any(
             (state_dir / name).exists() for name in _STATE_FILES
         )
-        transaction = desire_state.state_lock(state_dir) if initialized else nullcontext(state_dir)
-        with transaction:
-            if initialized:
+        if initialized:
+            with desire_state.state_lock(state_dir):
                 drives = desire_state.read_drives_snapshot(state_dir, now)
                 outbox = desire_state.read_jsonl(state_dir / "outbox.jsonl")
-            else:
-                drives = desire_state.default_drives(now)
-                outbox = []
+        else:
+            drives = desire_state.default_drives(now)
+            outbox = []
 
-            staged_drives = copy.deepcopy(drives)
-            interaction_changed = False
-            if _is_interaction(original_text) and drives.get("last_interaction_hash") != text_hash:
-                staged_drives["last_interaction_hash"] = text_hash
-                last_interaction = desire_state.parse_timestamp(drives["last_interaction_at"])
-                if now - last_interaction > timedelta(minutes=5):
-                    staged_drives["last_interaction_at"] = now.astimezone(KST).isoformat()
-                interaction_changed = True
+        staged_drives = copy.deepcopy(drives)
+        interaction_changed = False
+        if _is_interaction(original_text) and drives.get("last_interaction_hash") != text_hash:
+            staged_drives["last_interaction_hash"] = text_hash
+            last_interaction = desire_state.parse_timestamp(drives["last_interaction_at"])
+            if now - last_interaction > timedelta(minutes=5):
+                staged_drives["last_interaction_at"] = now.astimezone(KST).isoformat()
+            interaction_changed = True
 
-            cache_hit = (
-                _turn_cache is not None
-                and _turn_cache["key"] == cache_key
-                and now - _turn_cache["last_hit"] <= _CACHE_TTL
-            )
-            if cache_hit:
-                block = _turn_cache["block"]
-                included_ids = _turn_cache["included_ids"]
-            else:
-                block, included_ids = _build_desire_block(staged_drives, outbox, now)
+        cached = _turn_cache
+        cache_hit = (
+            cached is not None and cached["key"] == cache_key and now - cached["last_hit"] <= _CACHE_TTL
+        )
+        if cache_hit:
+            block = cached["block"]
+            included_ids = cached["included_ids"]
+        else:
+            block, included_ids = _build_desire_block(staged_drives, outbox, now)
 
-            rewritten = copy.deepcopy(request)
-            rewritten_messages = rewritten[key]
-            carrier, carrier_key = _last_text_carrier(rewritten_messages[user_index])
-            carrier[carrier_key] += "\n\n" + block
+        rewritten = copy.deepcopy(request)
+        rewritten_messages = rewritten[key]
+        carrier, carrier_key = _last_text_carrier(rewritten_messages[user_index])
+        carrier[carrier_key] += "\n\n" + block
 
-            commit_transaction = nullcontext(state_dir) if initialized else desire_state.state_lock(state_dir)
-            with commit_transaction:
-                committed_state = desire_state.bootstrap_locked(state_dir, now)
-                if not initialized:
-                    outbox = desire_state.read_jsonl(state_dir / "outbox.jsonl")
-                if interaction_changed:
-                    drives_to_write = staged_drives
-                    if not initialized:
-                        current_drives = committed_state["drives"]
-                        drives_to_write = copy.deepcopy(current_drives)
-                        if current_drives.get("last_interaction_hash") != text_hash:
-                            drives_to_write["last_interaction_hash"] = text_hash
-                            last_interaction = desire_state.parse_timestamp(
-                                current_drives["last_interaction_at"]
-                            )
-                            if now - last_interaction > timedelta(minutes=5):
-                                drives_to_write["last_interaction_at"] = now.isoformat()
+        with desire_state.state_lock(state_dir):
+            committed_state = desire_state.bootstrap_locked(state_dir, now)
+            if not initialized:
+                outbox = desire_state.read_jsonl(state_dir / "outbox.jsonl")
+            if interaction_changed:
+                current_drives = committed_state["drives"]
+                if current_drives.get("last_interaction_hash") != text_hash:
+                    drives_to_write = copy.deepcopy(current_drives)
+                    drives_to_write["last_interaction_hash"] = text_hash
+                    last_interaction = desire_state.parse_timestamp(current_drives["last_interaction_at"])
+                    if now - last_interaction > timedelta(minutes=5):
+                        drives_to_write["last_interaction_at"] = now.isoformat()
                     desire_state.write_json_atomic(state_dir / "drives.json", drives_to_write)
 
-                desire_state.stamp_outbox(state_dir / "outbox.jsonl", included_ids, now)
+            desire_state.stamp_outbox(state_dir / "outbox.jsonl", included_ids, now)
 
-                _turn_cache = {
-                    "key": cache_key,
-                    "block": block,
-                    "included_ids": included_ids,
-                    "last_hit": now,
-                }
+            _turn_cache = {
+                "key": cache_key,
+                "block": block,
+                "included_ids": included_ids,
+                "last_hit": now,
+            }
 
         return {"request": rewritten, "source": "yui-desire", "reason": "desire-state"}
     except Exception:  # noqa: BLE001 - middleware must fail open for every plugin failure

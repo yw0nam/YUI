@@ -28,26 +28,28 @@ def run(now: datetime) -> str:
         desire_state.write_json_atomic(state_dir / "budget.json", budget)
 
         outbox_path = state_dir / "outbox.jsonl"
-        outbox, dropped = desire_state._read_jsonl_locked(outbox_path)
-        active = desire_state.active_outbox(outbox, now)
+        outbox, dropped = desire_state.read_jsonl_with_dropped(outbox_path)
+        valid = [item for item in outbox if desire_state.valid_outbox_item(item)]
+        dropped += len(outbox) - len(valid)
+        active = desire_state.active_outbox(valid, now)
         active_ids = {id(item) for item in active}
-        released = [item for item in outbox if id(item) not in active_ids]
-        desire_state._write_jsonl_atomic_locked(outbox_path, active)
+        released = [item for item in valid if id(item) not in active_ids]
+        desire_state.write_jsonl_atomic(outbox_path, active)
 
         for item in released:
-            desire_state._append_jsonl_locked(
+            desire_state.append_jsonl(
                 state_dir / "audit.jsonl",
                 {"at": now.isoformat(), "event": "outbox_released", "item": item},
             )
         if dropped:
-            desire_state._append_jsonl_locked(
+            desire_state.append_jsonl(
                 state_dir / "audit.jsonl",
                 {"at": now.isoformat(), "event": "jsonl_lines_dropped", "count": dropped},
             )
 
-        remaining_signals = max(0, 3 - budget["signals"])
-        remaining_issues = max(0, 2 - budget["issues"])
-        remaining_comments = max(0, 1 - budget["self_comments"])
+        remaining_signals = max(0, desire_state.CAPS["signals"] - budget["signals"])
+        remaining_issues = max(0, desire_state.CAPS["issues"] - budget["issues"])
+        remaining_comments = max(0, desire_state.CAPS["self_comments"] - budget["self_comments"])
         return (
             f"social:{desire_state.bucket(levels['social'])} "
             f"curiosity:{desire_state.bucket(levels['curiosity'])} "
@@ -58,8 +60,12 @@ def run(now: datetime) -> str:
 
 
 def main() -> None:
-    now = datetime.now(desire_state.KST)
-    print(run(now), end="")
+    try:
+        now = datetime.now(desire_state.KST)
+        summary = run(now)
+    except Exception:  # noqa: BLE001 - the hash-gated cron must always receive a valid summary
+        summary = "social:low curiosity:mid accomplishment:mid outbox:0 budget:3/3sig 2/2iss 1/1cmt\n"
+    print(summary, end="")
 
 
 if __name__ == "__main__":

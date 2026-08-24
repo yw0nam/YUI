@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 import desire_state
 
 KST = ZoneInfo("Asia/Seoul")
-CAPS = {"signals": 3, "issues": 2, "self_comments": 1}
+CAPS = desire_state.CAPS
 
 
 def _audit(state_dir, now, event, **fields):
@@ -25,7 +25,7 @@ def _outbox_item(note, blocked_by, now):
     return {
         "id": str(uuid.uuid4()),
         "created_at": now.isoformat(),
-        "note": note,
+        "note": desire_state.sanitize_note(note),
         "blocked_by": blocked_by,
         "surfaced_at": None,
     }
@@ -66,7 +66,7 @@ def _signal(note, now, opener):
             "occurred_at": int(now.timestamp() * 1000),
         },
     }
-    target = os.environ.get("YUI_SIGNALS_URL", "http://127.0.0.1:15001/signals")
+    target = os.environ.get("YUI_SIGNALS_URL", "http://127.0.0.1:8770/signals")
     outgoing = urllib_request.Request(
         target,
         data=json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
@@ -138,11 +138,14 @@ def _feedback(operation, value, now):
         state = _normalized_state(state_dir, now)
         if operation == "get":
             print(state["cursor"]["last_feedback_check_at"])
-            _audit(state_dir, now, "feedback_cursor_read")
             return 0
-        parsed = datetime.fromisoformat(value)
-        if parsed.tzinfo is None or parsed.utcoffset() is None:
-            raise ValueError("feedback timestamp must be timezone-aware")
+        try:
+            parsed = datetime.fromisoformat(value)
+            if parsed.tzinfo is None or parsed.utcoffset() is None:
+                raise ValueError("feedback timestamp must be timezone-aware")
+        except (TypeError, ValueError) as error:
+            print(f"invalid feedback timestamp: {error}", file=sys.stderr)
+            return 1
         stamp = parsed.astimezone(KST).isoformat()
         desire_state.write_json_atomic(state_dir / "cursor.json", {"last_feedback_check_at": stamp})
         _audit(state_dir, now, "feedback_cursor_set", value=stamp)
@@ -153,8 +156,11 @@ def _outbox_list(now):
     state_dir = desire_state.resolve_state_dir()
     with desire_state.state_lock(state_dir):
         _normalized_state(state_dir, now)
-        values = desire_state.read_jsonl(state_dir / "outbox.jsonl")
-        _audit(state_dir, now, "outbox_listed")
+        values = [
+            item
+            for item in desire_state.read_jsonl(state_dir / "outbox.jsonl")
+            if desire_state.valid_outbox_item(item)
+        ]
     print(json.dumps(values, ensure_ascii=False))
     return 0
 

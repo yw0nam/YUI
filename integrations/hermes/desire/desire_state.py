@@ -19,6 +19,7 @@ CURIOSITY_RATE = 3.0
 ACCOMPLISHMENT_RATE = 2.0
 SOCIAL_RATE = 5.0
 OUTBOX_ACTIVE_MINUTES = 15
+CAPS = {"signals": 3, "issues": 2, "self_comments": 1}
 
 _lock_guard = threading.RLock()
 _lock_local = threading.local()
@@ -125,7 +126,7 @@ def _read_jsonl_locked(path: Path) -> tuple[list[dict], int]:
         return [], 0
     values: list[dict] = []
     dropped = 0
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8").split("\n"):
         if not line.strip():
             continue
         try:
@@ -144,6 +145,12 @@ def read_jsonl(path: Path) -> list[dict]:
     path = Path(path)
     with state_lock(path.parent):
         return _read_jsonl_locked(path)[0]
+
+
+def read_jsonl_with_dropped(path: Path) -> tuple[list[dict], int]:
+    path = Path(path)
+    with state_lock(path.parent):
+        return _read_jsonl_locked(path)
 
 
 def _write_jsonl_atomic_locked(path: Path, values: list[dict]) -> None:
@@ -166,18 +173,18 @@ def stamp_outbox(path: Path, item_ids: tuple[str, ...], now: datetime) -> None:
     path = Path(path)
     with state_lock(path.parent):
         ids = set(item_ids)
-        lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+        parts = path.read_text(encoding="utf-8").split("\n")
         changed = False
         rewritten = []
-        for line in lines:
-            ending = "\n" if line.endswith("\n") else ""
-            payload = line[:-1] if ending else line
+        for index, payload in enumerate(parts):
+            ending = "\n" if index < len(parts) - 1 else ""
+            line = payload + ending
             try:
                 item = json.loads(payload)
             except (json.JSONDecodeError, UnicodeError):
                 rewritten.append(line)
                 continue
-            if isinstance(item, dict) and item.get("id") in ids and item.get("surfaced_at") is None:
+            if valid_outbox_item(item) and item.get("id") in ids and item.get("surfaced_at") is None:
                 item["surfaced_at"] = now.isoformat()
                 rewritten.append(json.dumps(item, ensure_ascii=False) + ending)
                 changed = True
@@ -390,10 +397,25 @@ def normalize_budget(budget: dict, now: datetime) -> dict:
     }
 
 
+def valid_outbox_item(item: object) -> bool:
+    if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+        return False
+    try:
+        _parse_time(item["created_at"])
+        surfaced_at = item.get("surfaced_at")
+        if surfaced_at is not None:
+            _parse_time(surfaced_at)
+    except (KeyError, TypeError, ValueError):
+        return False
+    return True
+
+
 def active_outbox(items: list[dict], now: datetime) -> list[dict]:
     now = _as_kst(now)
     active = []
     for item in items:
+        if not valid_outbox_item(item):
+            continue
         surfaced_at = item.get("surfaced_at")
         if surfaced_at is None or _parse_time(surfaced_at) + timedelta(minutes=OUTBOX_ACTIVE_MINUTES) > now:
             active.append(item)
@@ -401,7 +423,7 @@ def active_outbox(items: list[dict], now: datetime) -> list[dict]:
 
 
 def sanitize_note(note: object) -> str:
-    text = re.sub(r"[\r\n]+", " ", str(note))
+    text = re.sub(r"[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]+", " ", str(note))
     text = text.replace("<desire_state>", "").replace("</desire_state>", "")
     return text[:300]
 
