@@ -59,6 +59,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
   const release = vi.fn();
   const perchTargets = vi.fn(async () => TARGETS);
   const posture: Posture | undefined = { state: "sitting" };
+  const noteAvatarMoved = vi.fn();
 
   const deps: AvatarExecutorDeps = {
     subscribe: (cb) => {
@@ -77,6 +78,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     listMonitors: async () => MONITORS,
     getPosture: () => posture,
     getVrm: () => ({ id: "carlotta", label: "Carlotta" }),
+    noteAvatarMoved,
     ...over,
   };
 
@@ -114,6 +116,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     release,
     perchTargets,
     unsubscribe,
+    noteAvatarMoved,
   };
 }
 
@@ -311,6 +314,31 @@ describe("avatar-executor — move_to", () => {
       ok: false,
       reason: "unsupported",
     });
+  });
+
+  it("notes the avatar moved once a move_to succeeds", async () => {
+    const h = harness();
+
+    const result = await h.call("command", { action: "move_to", spot: "center" });
+
+    expect(result).toEqual({ ok: true });
+    expect(h.noteAvatarMoved).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not note the move when the monitor index is out of range", async () => {
+    const h = harness();
+
+    await h.call("command", { action: "move_to", spot: "center", monitor: 7 });
+
+    expect(h.noteAvatarMoved).not.toHaveBeenCalled();
+  });
+
+  it("does not note the move when no monitor is enumerable", async () => {
+    const h = harness({ listMonitors: async () => [] });
+
+    await h.call("command", { action: "move_to", spot: "center" });
+
+    expect(h.noteAvatarMoved).not.toHaveBeenCalled();
   });
 });
 

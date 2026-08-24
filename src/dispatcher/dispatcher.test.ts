@@ -347,11 +347,11 @@ describe("dispatcher — posture", () => {
       "user.peek_exit",
     ],
     ["user.drag_start", undefined, "user.drag_end"],
-  ] as const)("clears posture on %s", async (startEvent, payload, clearEvent) => {
+  ] as const)("returns to standing on %s", async (startEvent, payload, clearEvent) => {
     dispatcher.start();
     await pushPostureEvent(startEvent, payload);
     await pushPostureEvent(clearEvent);
-    expect(dispatcher.getPosture()).toBeUndefined();
+    expect(dispatcher.getPosture()).toEqual({ state: "standing" });
   });
 
   it("stamps body state with the wall clock of the posture change", async () => {
@@ -397,12 +397,35 @@ describe("dispatcher — posture", () => {
     expect(dispatcher.getBodyState()).toEqual(sitting);
   });
 
-  it("reports no body state while the avatar stands free", async () => {
+  it("reports standing before any posture event, and again once the avatar stands free", async () => {
     dispatcher.start();
-    expect(dispatcher.getBodyState()).toBeUndefined();
+    expect(dispatcher.getBodyState()?.posture).toEqual({ state: "standing" });
     await pushPostureEvent("user.drag_start");
     await pushPostureEvent("user.drag_end");
-    expect(dispatcher.getBodyState()).toBeUndefined();
+    expect(dispatcher.getBodyState()?.posture).toEqual({ state: "standing" });
+  });
+
+  it("a fresh dispatcher reports standing", () => {
+    expect(dispatcher.getPosture()).toEqual({ state: "standing" });
+    expect(dispatcher.getBodyState()?.posture).toEqual({ state: "standing" });
+  });
+
+  it("keeps the standing stamp when re-affirmed by a second exit event", async () => {
+    dispatcher.start();
+    const first = dispatcher.getBodyState()!.since;
+    await pushPostureEvent("user.peek_exit");
+    expect(dispatcher.getBodyState()?.since).toBe(first);
+  });
+
+  it("noteAvatarMoved() restamps standing and resets since", async () => {
+    dispatcher.start();
+    await pushPostureEvent("user.window_sit_drop", { edge_local_ypx: 30 });
+    expect(dispatcher.getPosture()).toEqual({ state: "sitting" });
+
+    vi.setSystemTime(NOW + 60_000);
+    dispatcher.noteAvatarMoved();
+    expect(dispatcher.getPosture()).toEqual({ state: "standing" });
+    expect(dispatcher.getBodyState()?.since).toBe(NOW + 60_000);
   });
 });
 
@@ -678,7 +701,7 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(setPeekTarget).not.toHaveBeenCalled();
     expect(peekEnter).not.toHaveBeenCalled();
     expect(applyDirective).not.toHaveBeenCalled();
-    expect(dispatcher.getPosture()).toBeUndefined();
+    expect(dispatcher.getPosture()).toEqual({ state: "standing" });
   });
 
   it.each([
@@ -932,7 +955,7 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(setPerchTarget).not.toHaveBeenCalled();
     expect(applyDirective).not.toHaveBeenCalled();
-    expect(dispatcher.getPosture()).toBeUndefined();
+    expect(dispatcher.getPosture()).toEqual({ state: "standing" });
   });
 });
 
