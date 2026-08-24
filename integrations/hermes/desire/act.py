@@ -1,0 +1,220 @@
+"""Budget-enforced action helper for the Natsume desire integration."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import uuid
+from datetime import datetime
+from urllib import request as urllib_request
+from zoneinfo import ZoneInfo
+
+import desire_state
+
+KST = ZoneInfo("Asia/Seoul")
+CAPS = {"signals": 3, "issues": 2, "self_comments": 1}
+
+
+def _audit(state_dir, now, event, **fields):
+    desire_state.append_jsonl(state_dir / "audit.jsonl", {"at": now.isoformat(), "event": event, **fields})
+
+
+def _outbox_item(note, blocked_by, now):
+    return {
+        "id": str(uuid.uuid4()),
+        "created_at": now.isoformat(),
+        "note": note,
+        "blocked_by": blocked_by,
+        "surfaced_at": None,
+    }
+
+
+def _normalized_state(state_dir, now):
+    state = desire_state.bootstrap_locked(state_dir, now)
+    budget = desire_state.normalize_budget(state["budget"], now)
+    if budget != state["budget"]:
+        desire_state.write_json_atomic(state_dir / "budget.json", budget)
+    state["budget"] = budget
+    return state
+
+
+def _signal(note, now, opener):
+    state_dir = desire_state.resolve_state_dir()
+    reservation_date = now.date().isoformat()
+    with desire_state.state_lock(state_dir):
+        budget = _normalized_state(state_dir, now)["budget"]
+        if budget["signals"] >= CAPS["signals"]:
+            queued = _outbox_item(note, "budget", now)
+            desire_state.append_jsonl(state_dir / "outbox.jsonl", queued)
+            _audit(state_dir, now, "signal_blocked", blocked_by="budget", note=note)
+            print("over budget", file=sys.stderr)
+            return 1
+        budget["signals"] += 1
+        desire_state.write_json_atomic(state_dir / "budget.json", budget)
+        _audit(state_dir, now, "signal_reserved", note=note)
+
+    event_id = str(uuid.uuid4())
+    body = {
+        "signals": [{"kind": "desire", "note": note}],
+        "envelope": {
+            "source": "natsume-desire",
+            "event_type": "desire.impulse",
+            "delivery": "immediate",
+            "event_id": event_id,
+            "occurred_at": int(now.timestamp() * 1000),
+        },
+    }
+    target = os.environ.get("YUI_SIGNALS_URL", "http://127.0.0.1:15001/signals")
+    outgoing = urllib_request.Request(
+        target,
+        data=json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    failure = None
+    try:
+        with opener(outgoing, timeout=10) as response:
+            status = getattr(response, "status", 200)
+            if not 200 <= status < 300:
+                failure = f"HTTP {status}"
+    except Exception as error:  # noqa: BLE001 - transport implementations may raise arbitrary errors
+        failure = str(getattr(error, "reason", error)).replace("\r", " ").replace("\n", " ")
+
+    with desire_state.state_lock(state_dir):
+        budget = desire_state.bootstrap_locked(state_dir, now)["budget"]
+        if failure is None:
+            _audit(state_dir, now, "signal_sent", event_id=event_id, note=note)
+            return 0
+        if budget["date"] == reservation_date:
+            budget["signals"] = max(0, budget["signals"] - 1)
+            desire_state.write_json_atomic(state_dir / "budget.json", budget)
+        queued = _outbox_item(note, "error", now)
+        desire_state.append_jsonl(state_dir / "outbox.jsonl", queued)
+        _audit(state_dir, now, "signal_failed", event_id=event_id, reason=failure, note=note)
+    print(f"signal delivery failed: {failure}", file=sys.stderr)
+    return 1
+
+
+def _reservation_action(kind, operation, reservation_id, url, now):
+    state_dir = desire_state.resolve_state_dir()
+    counter = "issues" if kind == "issue" else "self_comments"
+    filed_event = "issue_filed" if kind == "issue" else "self_comment_filed"
+    with desire_state.state_lock(state_dir):
+        budget = _normalized_state(state_dir, now)["budget"]
+        if operation == "reserve":
+            if budget[counter] >= CAPS[counter]:
+                _audit(state_dir, now, "reservation_blocked", kind=kind)
+                print("over budget", file=sys.stderr)
+                return 1
+            reservation_id = str(uuid.uuid4())
+            budget[counter] += 1
+            budget["pending"][reservation_id] = {"kind": kind, "date": now.date().isoformat()}
+            desire_state.write_json_atomic(state_dir / "budget.json", budget)
+            _audit(state_dir, now, "reservation_created", kind=kind, reservation_id=reservation_id)
+            print(reservation_id)
+            return 0
+
+        pending = budget["pending"].get(reservation_id)
+        if not isinstance(pending, dict) or pending.get("kind") != kind:
+            _audit(state_dir, now, "reservation_unknown", kind=kind, reservation_id=reservation_id)
+            print("unknown reservation", file=sys.stderr)
+            return 1
+        del budget["pending"][reservation_id]
+        if operation == "release" and pending.get("date") == now.date().isoformat():
+            budget[counter] = max(0, budget[counter] - 1)
+        desire_state.write_json_atomic(state_dir / "budget.json", budget)
+        if operation == "commit":
+            _audit(state_dir, now, filed_event, url=url, reservation_id=reservation_id)
+        else:
+            _audit(state_dir, now, "reservation_released", kind=kind, reservation_id=reservation_id)
+        return 0
+
+
+def _feedback(operation, value, now):
+    state_dir = desire_state.resolve_state_dir()
+    with desire_state.state_lock(state_dir):
+        state = _normalized_state(state_dir, now)
+        if operation == "get":
+            print(state["cursor"]["last_feedback_check_at"])
+            _audit(state_dir, now, "feedback_cursor_read")
+            return 0
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise ValueError("feedback timestamp must be timezone-aware")
+        stamp = parsed.astimezone(KST).isoformat()
+        desire_state.write_json_atomic(state_dir / "cursor.json", {"last_feedback_check_at": stamp})
+        _audit(state_dir, now, "feedback_cursor_set", value=stamp)
+        return 0
+
+
+def _outbox_list(now):
+    state_dir = desire_state.resolve_state_dir()
+    with desire_state.state_lock(state_dir):
+        _normalized_state(state_dir, now)
+        values = desire_state.read_jsonl(state_dir / "outbox.jsonl")
+        _audit(state_dir, now, "outbox_listed")
+    print(json.dumps(values, ensure_ascii=False))
+    return 0
+
+
+def _parser():
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    signal = commands.add_parser("signal")
+    signal.add_argument("--note", required=True)
+
+    for name in ("issue", "comment"):
+        action = commands.add_parser(name)
+        group = action.add_mutually_exclusive_group(required=True)
+        group.add_argument("--reserve", action="store_true")
+        group.add_argument("--commit", metavar="ID")
+        group.add_argument("--release", metavar="ID")
+        action.add_argument("--url")
+
+    satisfy = commands.add_parser("satisfy")
+    satisfy.add_argument("drive", choices=("curiosity", "accomplishment", "social"))
+    satisfy.add_argument("amount", type=float)
+    satisfy.add_argument("--why", required=True)
+
+    feedback = commands.add_parser("feedback")
+    feedback_group = feedback.add_mutually_exclusive_group(required=True)
+    feedback_group.add_argument("--get", action="store_true")
+    feedback_group.add_argument("--set", metavar="ISO")
+
+    outbox = commands.add_parser("outbox")
+    outbox.add_argument("--list", action="store_true", required=True)
+    return parser
+
+
+def main(argv=None, *, now=None, opener=urllib_request.urlopen):
+    now = desire_state.normalize_now(now or datetime.now(KST))
+    args = _parser().parse_args(argv)
+    if args.command == "signal":
+        return _signal(args.note, now, opener)
+    if args.command in ("issue", "comment"):
+        if args.reserve:
+            operation, reservation_id = "reserve", None
+        elif args.commit:
+            operation, reservation_id = "commit", args.commit
+            if not args.url:
+                print("--url is required with --commit", file=sys.stderr)
+                return 1
+        else:
+            operation, reservation_id = "release", args.release
+        return _reservation_action(args.command, operation, reservation_id, args.url, now)
+    if args.command == "satisfy":
+        try:
+            desire_state.satisfy(args.drive, args.amount, args.why, now)
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 1
+        return 0
+    if args.command == "feedback":
+        return _feedback("get" if args.get else "set", args.set, now)
+    return _outbox_list(now)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
