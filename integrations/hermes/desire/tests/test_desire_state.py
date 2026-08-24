@@ -1,8 +1,9 @@
 import json
 from datetime import timedelta
 
-import desire_state
 import pytest
+
+import desire_state
 
 
 def test_drive_math_rises_clamps_and_clamps_future_elapsed(at):
@@ -138,3 +139,13 @@ def test_malformed_jsonl_is_skipped_and_unterminated_tail_is_separated(state_dir
     assert path.read_text(encoding="utf-8").splitlines()[-1] == json.dumps(
         {"id": "new", "created_at": now.isoformat()}
     )
+
+
+def test_public_jsonl_reader_reports_dropped_lines(state_dir):
+    path = state_dir / "outbox.jsonl"
+    path.write_text('{"id":"good"}\n{broken}\n', encoding="utf-8")
+
+    values, dropped = desire_state.read_jsonl_with_dropped(path)
+
+    assert values == [{"id": "good"}]
+    assert dropped == 1

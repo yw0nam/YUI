@@ -33,17 +33,40 @@ def test_signal_post_body_matches_ingress_contract(state_dir, at, monkeypatch):
     assert request.method == "POST"
     assert request.headers["Content-type"] == "application/json"
     assert timeout == 10
-    assert body == {
-        "signals": [{"kind": "desire", "note": "I want to explore"}],
-        "envelope": {
-            "source": "natsume-desire",
-            "event_type": "desire.impulse",
-            "delivery": "immediate",
-            "event_id": body["envelope"]["event_id"],
-            "occurred_at": 1787628896000,
-        },
+    rust_ingress_fixture = json.loads(
+        '{"signals":[{"id":1}],"envelope":{"source":"n8n",'
+        '"event_type":"workflow_done","delivery":"batched","event_id":"run-8812",'
+        '"occurred_at":1787449000000,"extra":{"opaque":true}}}'
+    )
+    assert set(body) == set(rust_ingress_fixture)
+    assert set(body["envelope"]) == set(rust_ingress_fixture["envelope"]) - {"extra"}
+    assert body["signals"] == [{"kind": "desire", "note": "I want to explore"}]
+    assert body["envelope"] == {
+        "source": "natsume-desire",
+        "event_type": "desire.impulse",
+        "delivery": "immediate",
+        "event_id": body["envelope"]["event_id"],
+        "occurred_at": 1787628896000,
     }
     assert len(body["envelope"]["event_id"]) == 36
+
+
+def test_action_and_monitor_share_budget_caps():
+    assert act.CAPS is desire_state.CAPS
+    assert desire_state.CAPS == {"signals": 3, "issues": 2, "self_comments": 1}
+
+
+def test_signal_defaults_to_yui_agent_ingress_port(state_dir, at, monkeypatch):
+    now = at("2026-08-25T12:34:56+09:00")
+    calls = []
+    monkeypatch.delenv("YUI_SIGNALS_URL", raising=False)
+
+    def opener(request, timeout):
+        calls.append((request, timeout))
+        return Response()
+
+    assert act.main(["signal", "--note", "I want to explore"], now=now, opener=opener) == 0
+    assert calls[0][0].full_url == "http://127.0.0.1:8770/signals"
 
 
 def test_fourth_signal_is_blocked_without_post_and_queued(state_dir, at, state_helpers, capsys):
@@ -205,13 +228,15 @@ def test_comment_uses_its_own_one_per_day_budget(state_dir, at, capsys):
 
 
 def test_feedback_get_set_and_outbox_list(state_dir, at, state_helpers, capsys):
-    _, write_jsonl, _, _ = state_helpers
+    _, write_jsonl, _, read_jsonl = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
     changed = "2026-08-25T11:30:00+09:00"
     assert act.main(["feedback", "--set", changed], now=now) == 0
+    audit_after_set = read_jsonl(state_dir / "audit.jsonl")
     assert act.main(["feedback", "--get"], now=now) == 0
     assert capsys.readouterr().out.strip() == changed
+    assert read_jsonl(state_dir / "audit.jsonl") == audit_after_set
     item = {
         "id": "one",
         "created_at": now.isoformat(),
@@ -222,3 +247,18 @@ def test_feedback_get_set_and_outbox_list(state_dir, at, state_helpers, capsys):
     write_jsonl(state_dir / "outbox.jsonl", [item])
     assert act.main(["outbox", "--list"], now=now) == 0
     assert json.loads(capsys.readouterr().out) == [item]
+    assert read_jsonl(state_dir / "audit.jsonl") == audit_after_set
+
+
+def test_feedback_set_bad_date_returns_one_line_error(state_dir, at, capsys):
+    result = act.main(
+        ["feedback", "--set", "not-a-date"],
+        now=at("2026-08-25T12:00:00+09:00"),
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert captured.out == ""
+    assert captured.err.strip()
+    assert len(captured.err.splitlines()) == 1
+    assert "Traceback" not in captured.err

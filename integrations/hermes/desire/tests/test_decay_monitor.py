@@ -1,7 +1,17 @@
+import re
 from datetime import timedelta
+from pathlib import Path
 
 import decay_monitor
 import desire_state
+
+
+def test_monitor_wrapper_is_self_locating_for_symlink_installation():
+    wrapper = Path(__file__).parents[1] / "scripts/natsume-desire-monitor.sh"
+    assert wrapper.read_text(encoding="utf-8").splitlines() == [
+        "#!/bin/sh",
+        'exec python3 "$(dirname "$(readlink -f "$0")")/../decay_monitor.py"',
+    ]
 
 
 def test_bootstrap_stdout_is_golden_and_has_one_newline(state_dir, at):
@@ -163,6 +173,71 @@ def test_monitor_drops_malformed_outbox_lines_and_audits_count(state_dir, at, st
         "event": "jsonl_lines_dropped",
         "count": 1,
     }
+
+
+def test_monitor_reaps_outbox_item_with_invalid_surfaced_at(state_dir, at, state_helpers):
+    _, write_jsonl, _, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(
+        state_dir / "outbox.jsonl",
+        [
+            {
+                "id": "invalid",
+                "created_at": now.isoformat(),
+                "note": "bad timestamp",
+                "blocked_by": "budget",
+                "surfaced_at": "not-a-date",
+            },
+            {
+                "id": "valid",
+                "created_at": now.isoformat(),
+                "note": "keep",
+                "blocked_by": "budget",
+                "surfaced_at": None,
+            },
+        ],
+    )
+
+    output = decay_monitor.run(now)
+
+    assert output == "social:low curiosity:mid accomplishment:mid outbox:1 budget:3/3sig 2/2iss 1/1cmt\n"
+    assert [value["id"] for value in read_jsonl(state_dir / "outbox.jsonl")] == ["valid"]
+    assert read_jsonl(state_dir / "audit.jsonl")[-1] == {
+        "at": now.isoformat(),
+        "event": "jsonl_lines_dropped",
+        "count": 1,
+    }
+
+
+def test_monitor_main_emits_valid_fallback_summary_on_unexpected_failure(monkeypatch, capsys):
+    def fail(_now):
+        raise OSError("state unavailable")
+
+    monkeypatch.setattr(decay_monitor, "run", fail)
+
+    assert decay_monitor.main() is None
+
+    captured = capsys.readouterr()
+    assert re.fullmatch(
+        r"social:low curiosity:mid accomplishment:mid outbox:0 "
+        r"budget:3/3sig 2/2iss 1/1cmt\n",
+        captured.out,
+    )
+
+
+def test_monitor_main_falls_back_when_clock_read_fails(monkeypatch, capsys):
+    class BrokenClock:
+        @classmethod
+        def now(cls, _timezone):
+            raise OSError("clock unavailable")
+
+    monkeypatch.setattr(decay_monitor, "datetime", BrokenClock)
+
+    assert decay_monitor.main() is None
+    assert capsys.readouterr().out == (
+        "social:low curiosity:mid accomplishment:mid outbox:0 budget:3/3sig 2/2iss 1/1cmt\n"
+    )
 
 
 def test_monitor_prunes_pending_older_than_seven_days(state_dir, at, state_helpers):

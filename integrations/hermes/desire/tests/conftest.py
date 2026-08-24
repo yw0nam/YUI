@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -48,8 +49,25 @@ def state_helpers():
 @pytest.fixture
 def desire_plugin():
     path = Path(__file__).parents[1] / "__init__.py"
-    spec = importlib.util.spec_from_file_location("yui_desire_under_test", path)
+    plugin_dir = path.parent
+    module_name = "yui_desire_under_test"
+    spec = importlib.util.spec_from_file_location(
+        module_name,
+        path,
+        submodule_search_locations=[str(plugin_dir)],
+    )
     module = importlib.util.module_from_spec(spec)
+    module.__package__ = module_name
+    module.__path__ = [str(plugin_dir)]
+    sys.modules[module_name] = module
     assert spec.loader is not None
-    spec.loader.exec_module(module)
+    direct_module = sys.modules.pop("desire_state", None)
+    original_path = sys.path[:]
+    sys.path[:] = [entry for entry in sys.path if Path(entry).resolve() != plugin_dir.resolve()]
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path[:] = original_path
+        if direct_module is not None:
+            sys.modules["desire_state"] = direct_module
     return module

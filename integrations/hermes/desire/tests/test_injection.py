@@ -80,6 +80,18 @@ def test_trailing_canonical_block_is_idempotent(desire_plugin, state_dir, at):
     assert request == original
 
 
+def test_canonical_block_shape_treats_unicode_separator_as_note_text(desire_plugin):
+    text = (
+        "hello\n\n<desire_state>\n"
+        "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
+        "pent-up (1):\n"
+        "- [2026-08-25 12:00] first\u2028second\n"
+        "</desire_state>"
+    )
+
+    assert desire_plugin._already_injected(text)
+
+
 def test_mid_message_mention_and_bare_closing_tag_do_not_suppress(desire_plugin, state_dir, at):
     now = at("2026-08-25T12:00:00+09:00")
     for text in ["I mentioned <desire_state> earlier, okay?", "hello\n</desire_state>"]:
@@ -131,6 +143,32 @@ def test_wrapper_original_untouched_and_only_newest_user_last_text_carrier_chang
     assert rewritten["metadata"] == original["metadata"]
 
 
+def test_request_copy_and_block_append_happen_outside_state_lock(desire_plugin, state_dir, at, monkeypatch):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_plugin.desire_state.bootstrap(now)
+    copy_depths = []
+    append_depths = []
+    original_deepcopy = desire_plugin.copy.deepcopy
+
+    class ObservedText(str):
+        def __add__(self, other):
+            append_depths.append(getattr(desire_plugin.desire_state._lock_local, "depth", 0))
+            return super().__add__(other)
+
+    request = request_with(ObservedText("hello"))
+
+    def observe_deepcopy(value, memo=None):
+        if value is request:
+            copy_depths.append(getattr(desire_plugin.desire_state._lock_local, "depth", 0))
+        return original_deepcopy(value, memo)
+
+    monkeypatch.setattr(desire_plugin.copy, "deepcopy", observe_deepcopy)
+
+    assert desire_plugin._inject(request=request, now=now) is not None
+    assert copy_depths == [0]
+    assert append_depths == [0]
+
+
 def test_golden_appended_block_sorts_and_sanitizes_notes(desire_plugin, state_dir, at, state_helpers):
     _, write_jsonl, _, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
@@ -154,6 +192,51 @@ def test_golden_appended_block_sorts_and_sanitizes_notes(desire_plugin, state_di
         "</desire_state>"
     )
     assert result["request"]["messages"][0]["content"].endswith("</desire_state>")
+
+
+def test_act_queued_unicode_separator_survives_and_is_sanitized(
+    desire_plugin, state_dir, at, state_helpers, capsys
+):
+    import act
+
+    write_json, _, _, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_json(
+        state_dir / "budget.json",
+        {"date": "2026-08-25", "signals": 3, "issues": 0, "self_comments": 0, "pending": {}},
+    )
+
+    assert act.main(["signal", "--note", "first\u2028second"], now=now) == 1
+    assert capsys.readouterr().err.strip() == "over budget"
+    stored = desire_state.read_jsonl(state_dir / "outbox.jsonl")
+    assert len(stored) == 1
+    assert stored[0]["note"] == "first second"
+
+    result = desire_plugin._inject(request=request_with("hello"), now=now)
+    assert "- [2026-08-25 12:00] first second\n" in appended_block(result)
+
+
+def test_schema_invalid_outbox_item_does_not_block_valid_injection(
+    desire_plugin, state_dir, at, state_helpers
+):
+    _, write_jsonl, _, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    invalid = {
+        "id": "missing-created-at",
+        "note": "bad",
+        "blocked_by": "budget",
+        "surfaced_at": None,
+    }
+    write_jsonl(state_dir / "outbox.jsonl", [invalid, item("valid", now, "survives")])
+
+    result = desire_plugin._inject(request=request_with("hello"), now=now)
+
+    assert result is not None
+    block = appended_block(result)
+    assert "pent-up (1):" in block
+    assert "survives" in block
+    assert "missing-created-at" not in block
 
 
 def test_notes_are_truncated_to_300_characters(desire_plugin, state_dir, at, state_helpers):
@@ -207,6 +290,33 @@ def test_cache_reuses_bytes_despite_state_changes(desire_plugin, state_dir, at, 
     write_json(state_dir / "drives.json", drives)
     second = appended_block(desire_plugin._inject(request=request, now=now + timedelta(minutes=9)))
     assert second.encode() == first.encode()
+
+
+def test_cache_lookup_uses_one_coherent_entry(desire_plugin, state_dir, at, state_helpers):
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers)
+    request = request_with("same turn")
+    expected = appended_block(desire_plugin._inject(request=request, now=now))
+    cached = desire_plugin._turn_cache
+    competing = {
+        "key": ("other", "turn"),
+        "block": "wrong block",
+        "included_ids": (),
+        "last_hit": now,
+    }
+
+    class SwappingCache(dict):
+        def __getitem__(self, key):
+            value = super().__getitem__(key)
+            if key == "key":
+                desire_plugin._turn_cache = competing
+            return value
+
+    desire_plugin._turn_cache = SwappingCache(cached)
+
+    actual = appended_block(desire_plugin._inject(request=request, now=now + timedelta(minutes=1)))
+
+    assert actual == expected
 
 
 def test_cached_ids_are_stamped_together_and_new_item_waits(desire_plugin, state_dir, at, state_helpers):
