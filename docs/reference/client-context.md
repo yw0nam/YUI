@@ -114,18 +114,20 @@ field being absent.
 
 ### `body`
 
-Where the avatar body is. Present only while a posture is held; absent whenever the
-avatar stands free.
+Where the avatar body is. Always present.
 
 ```text
 body: peeking on Orca (for 2min)
+body: standing (for 12min)
 ```
 
-The state is `body_state.posture.state` (`sitting` \| `peeking` \| `dragging`); the `on
-<label>` clause names `posture.perched_on.app` (falling back to `window_title` when the
-app didn't resolve) and is omitted when there's no window under the avatar. The
-duration is minutes since the last posture change (`body_state.since`) — it moves only
-when the posture itself changes, not when the same posture is re-affirmed.
+The state is `body_state.posture.state` (`standing` \| `sitting` \| `peeking` \|
+`dragging`); the `on <label>` clause names `posture.perched_on.app` (falling back to
+`window_title` when the app didn't resolve) and is omitted when there's no window
+under the avatar — `standing` never carries one. The duration is minutes since the
+last posture change (`body_state.since`), or since the last agent-driven relocation
+(`move_to`) while standing — it moves only when the posture itself changes or the
+avatar relocates, not when the same posture is re-affirmed.
 
 ## Trigger lines
 
