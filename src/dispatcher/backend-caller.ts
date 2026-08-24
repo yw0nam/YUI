@@ -166,7 +166,7 @@ interface BackendCallerDeps {
   turnOutput?: TurnOutput;
   /** When toggle is ON, assembles and returns screenshot block (undefined if OFF/failed). main.ts composes with settings+capturer+buildScreenshotBlock. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
-  /** Held posture lookup — called per turn; undefined while the avatar stands free. */
+  /** Held posture lookup — called per turn. Optional for callers with no dispatcher wired; the real client always provides one. */
   getBodyState?: () => BodyState | undefined;
   /** Latest frontmost sample lookup — called per turn; undefined until a sample exists. */
   getFrontmost?: () => FrontmostState | undefined;

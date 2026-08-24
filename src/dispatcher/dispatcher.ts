@@ -617,7 +617,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     }
     // Re-affirming the posture already held is not a change — `since` keeps its original stamp.
     if (samePosture(bodyState.posture, next)) return;
-    // Wall clock, not the frame clock — it keeps running while the window is hidden.
     bodyState = { posture: next, since: Date.now() };
   }
 

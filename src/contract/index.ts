@@ -3,7 +3,7 @@
  * Other modules access them via `import { ... } from "../contract"`.
  */
 export type {
-  // Held posture reported each turn
+  // Current posture reported each turn
   BodyState,
   // Flat system-message context (client → backend each turn)
   ClientContext,

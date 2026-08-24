@@ -21,6 +21,7 @@ current context in a tagged block, then the utterance:
 Client-injected context; not typed by the user.
 time: 2026-06-15T19:30:00+09:00 (Asia/Seoul)
 frontmost: Google Chrome — "H-Index | Programmers" (for 4min)
+body: standing (for 12min)
 trigger: user message
 </client_context>
 
@@ -125,9 +126,9 @@ The state is `body_state.posture.state` (`standing` \| `sitting` \| `peeking` \|
 `dragging`); the `on <label>` clause names `posture.perched_on.app` (falling back to
 `window_title` when the app didn't resolve) and is omitted when there's no window
 under the avatar — `standing` never carries one. The duration is minutes since the
-last posture change (`body_state.since`), or since the last agent-driven relocation
-(`move_to`) while standing — it moves only when the posture itself changes or the
-avatar relocates, not when the same posture is re-affirmed.
+last posture change (`body_state.since`), or when an agent-driven `move_to` relocates
+it, which returns it to standing — it moves only when the posture itself changes or
+the avatar relocates, not when the same posture is re-affirmed.
 
 ## Trigger lines
 

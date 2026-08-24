@@ -304,7 +304,7 @@ export interface ClientContext {
     enabled: boolean;
     source: ScreenSource;
   };
-  /** Present only while a posture is held; absent while the avatar stands free. */
+  /** Populated on every turn; `standing` is the free-state posture. */
   body_state?: BodyState;
   trigger: TriggerMeta;
 }

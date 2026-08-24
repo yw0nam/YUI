@@ -62,7 +62,7 @@ _Avoid_: bare "broker", message broker
 ### Presence & body
 
 **Posture**:
-The character's current physical state: `sitting`, `peeking`, or `dragging`. Absent while idle. Sent to the brain as context.
+The character's current physical state: `standing`, `sitting`, `peeking`, or `dragging`. Sent to the brain as context.
 _Avoid_: state, pose, stance
 
 **Perch**:
