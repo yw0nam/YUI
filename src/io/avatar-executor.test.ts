@@ -357,6 +357,7 @@ describe("avatar-executor — move_to", () => {
     gate.resolve();
     await flush();
 
+    expect(h.release).toHaveBeenCalled();
     expect(h.answerOf(id)).toEqual({ ok: false, reason: "interrupted" });
     expect(h.noteAvatarMoved).not.toHaveBeenCalled();
   });
