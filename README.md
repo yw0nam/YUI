@@ -6,12 +6,14 @@
 
 *Not a chatbot in a tab. A character who is actually there — standing on your window, watching the cursor, talking when she has something to say.*
 
-[![CI](https://github.com/yw0nam/YUI/actions/workflows/ci.yml/badge.svg)](https://github.com/yw0nam/YUI/actions/workflows/ci.yml)
+![CI](https://github.com/yw0nam/YUI/actions/workflows/ci.yml/badge.svg)
 ![Tauri v2](https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![three.js](https://img.shields.io/badge/three.js-000000?logo=three.js&logoColor=white)
 
-<a href="https://youtu.be/dIOQdoAp0GE"><img src="docs/public/yui-hero.gif" alt="YUI — a VRM character standing over a browser window as a transparent, always-on-top overlay: her head and eyes follow the mouse cursor, then she answers a typed question about what is on screen in a speech bubble" width="820"></a>
+<a href="https://youtu.be/dIOQdoAp0GE"><img src="docs/public/yui-hero.gif" alt="YUI — a VRM character standing over a browser window as a transparent, always-on-top overlay: her head and eyes follow the mouse cursor, then she answers a typed question about what is on screen in a speech bubble" width="820">
+
+</a>
 
 [▶ Watch the full demo](https://youtu.be/dIOQdoAp0GE)
 
@@ -29,17 +31,17 @@ assistant you summon and dismiss.
 Everything here serves that one goal:
 
 - **She has a body.** A VRM model you choose — any character, any look — rendered
-  in a transparent overlay on top of whatever you are doing.
+in a transparent overlay on top of whatever you are doing.
 - **She lives on the desktop, not in a window.** She perches on the top edge of
-  your browser, follows the mouse with her eyes, breathes, blinks, sways, and
-  moves out of the way when you need the screen.
+your browser, follows the mouse with her eyes, breathes, blinks, sways, and
+moves out of the way when you need the screen.
 - **She has a voice and a face.** Speech in, speech out, and emotion/motion cues
-  that make her react instead of just answer.
+that make her react instead of just answer.
 - **She has a mind, and you pick it.** YUI ships no embedded model. Bring any
-  OpenAI-compatible backend — a full agent like
-  [Hermes](https://github.com/nousresearch/hermes-agent) or a bare model
-  endpoint — and she is exactly as smart, as opinionated, and as *yours* as what
-  you plug in.
+OpenAI-compatible backend — a full agent like
+[Hermes](https://github.com/nousresearch/hermes-agent) or a bare model
+endpoint — and she is exactly as smart, as opinionated, and as *yours* as what
+you plug in.
 
 The character owns the screen; chrome stays out of the way and only appears when
 there is something to show, then steps back. *Invisible by default, warm when
@@ -50,13 +52,13 @@ present.*
 No dev tools needed — download, open, connect:
 
 1. **Download** — grab the [latest release](https://github.com/yw0nam/YUI/releases/latest):
-   the macOS (Apple Silicon) `.dmg`, or the experimental Windows x64 installer.
+ the macOS (Apple Silicon) `.dmg`, or the experimental Windows x64 installer.
 2. **Open** — builds are unsigned, so macOS blocks the first launch: right-click
-   the app → **Open**, and if it still refuses, allow it under **System
-   Settings → Privacy & Security → Open Anyway**.
+ the app → **Open**, and if it still refuses, allow it under **System
+ Settings → Privacy &amp; Security → Open Anyway**.
 3. **Connect** — the character appears with no backend attached and tells you
-   where to go: right-click her, open **Advanced**, and point YUI at any
-   OpenAI-compatible endpoint (base URL, model, API key). Then start talking.
+ where to go: right-click her, open **Advanced**, and point YUI at any
+ OpenAI-compatible endpoint (base URL, model, API key). Then start talking.
 
 Voice in/out are optional add-ons — see the
 [install guide](docs/guide/getting-started.md) for TTS/STT and the full backend
@@ -65,52 +67,57 @@ wiring.
 ## Features
 
 **Agent**
-- Two chat protocols, selected by `chat_api` in `configs/endpoints.json`: a
-  backend agent honoring YUI's expression contract over the OpenAI Responses
-  API, or any tool-calling OpenAI-compatible Chat Completions endpoint — no
-  fixed embedded model
-- Emotion, motion, and voice cues arrive as structured `generate_express`
-  tool-calls, never as inline tags in the text — Responses mode carries them
-  today; Chat Completions mode streams speech text without cues
-- YUI publishes its emotion/motion/voice vocabulary to the Expression Broker
-  (MCP) in both chat modes, write-only and gated only on `broker_base_url`;
-  a backend agent reads it back via `get_ids` and emits cues as
-  `generate_express` tool-calls
-- In Chat Completions mode YUI declares `generate_express` itself, with that
-  same vocabulary in the tool schema, runs the call locally and returns the
-  result — expression on a bare model endpoint, no broker required
 
-**Voice & chat**
+- Two chat protocols, selected by `chat_api` in `configs/endpoints.json`: a
+backend agent honoring YUI's expression contract over the OpenAI Responses
+API, or any tool-calling OpenAI-compatible Chat Completions endpoint — no
+fixed embedded model
+- Emotion, motion, and voice cues arrive as structured `generate_express`
+tool-calls, never as inline tags in the text — Responses mode carries them
+today; Chat Completions mode streams speech text without cues
+- YUI publishes its emotion/motion/voice vocabulary to the Expression Broker
+(MCP) in both chat modes, write-only and gated only on `broker_base_url`;
+a backend agent reads it back via `get_ids` and emits cues as
+`generate_express` tool-calls
+- In Chat Completions mode YUI declares `generate_express` itself, with that
+same vocabulary in the tool schema, runs the call locally and returns the
+result — expression on a bare model endpoint, no broker required
+
+**Voice &amp; chat**
+
 - Speech input — Silero VAD + ONNX segment your voice, then an
-  OpenAI-compatible endpoint transcribes it
+OpenAI-compatible endpoint transcribes it
 - Speech output — sentence-queued TTS with ordered playback and per-sentence
-  voice cues
+voice cues
 - Amplitude lipsync drives the mouth from audio, with a user gain slider
 - Streaming, markdown-rendered speech bubble that fades in only when she speaks
 
 **Desktop pet**
+
 - Sits on the top edge of a window and detaches when the window moves, closes,
-  or gets covered
+or gets covered
 - OS-native dragging on a transparent, always-on-top, multi-monitor overlay
 - Idle liveliness — blink, sway, breathing, and look-around run locally even
-  with no backend connected, and respect `prefers-reduced-motion`
+with no backend connected, and respect `prefers-reduced-motion`
 - Reads OS-wide idle time and an optional user-toggled screenshot and feeds
-  them to the agent each turn; the frontmost app/window is a pull tool the
-  agent calls via the `desktop_control` Mod, not a per-turn push
+them to the agent each turn; the frontmost app/window is a pull tool the
+agent calls via the `desktop_control` Mod, not a per-turn push
 
-**Rendering & motion**
+**Rendering &amp; motion**
+
 - VRM 1.0 with hot-swap and GPU cleanup, via three.js + `@pixiv/three-vrm`
 - 10 emotions and 15 motions, with a fallback chain for models that lack an
-  expression
+expression
 - Idle and sit cycle through pools of motion clips with smooth transitions
 - Camera auto-frames the avatar, with wheel zoom and a pull-back when perched
 
 **Platform**
+
 - UI in English, 日本語, and 한국어, with a persisted locale
 - Endpoints, models, VRM paths, and motion sets all live in `configs/` — nothing
-  is hardcoded
+is hardcoded
 - macOS-first: full OS-event watching on macOS; Windows is partial
-  (`os_idle_ms` is unavailable)
+(`os_idle_ms` is unavailable)
 
 ## How it works
 
@@ -132,14 +139,16 @@ backend lives in [`docs/reference/client-context.md`](docs/reference/client-cont
 
 ## Stack
 
-| Layer | Technology | Version |
-|---|---|---|
-| Shell / OS | Tauri v2 (Rust) | 2.11.x |
-| Build / dev server | Vite | 8.x |
-| Language | TypeScript | 6.x |
-| Render | three.js | 0.180.x |
-| VRM / motion | `@pixiv/three-vrm`, `@pixiv/three-vrm-animation` | 3.5.x |
-| Voice | `@ricky0123/vad-web` (Silero + ONNX) | 0.0.x |
+
+| Layer              | Technology                                       | Version |
+| ------------------ | ------------------------------------------------ | ------- |
+| Shell / OS         | Tauri v2 (Rust)                                  | 2.11.x  |
+| Build / dev server | Vite                                             | 8.x     |
+| Language           | TypeScript                                       | 6.x     |
+| Render             | three.js                                         | 0.180.x |
+| VRM / motion       | `@pixiv/three-vrm`, `@pixiv/three-vrm-animation` | 3.5.x   |
+| Voice              | `@ricky0123/vad-web` (Silero + ONNX)             | 0.0.x   |
+
 
 ## Building from source
 
@@ -177,17 +186,18 @@ server. Each is a separate, config-swappable process, and all base URLs live in
 
 - **Chat protocol** — selected via `chat_api` (default `chat_completions`):
   - `responses` — routes to a backend agent (Hermes recommended) at
-    `localhost:8643` `/v1/responses`
+  `localhost:8643` `/v1/responses`
   - `chat_completions` — connects over the Chat Completions API to any
-    tool-calling OpenAI-compatible endpoint; the client declares
-    `generate_express` with its own vocabulary, executes the call and returns
-    the result, and keeps the conversation transcript client-side (no
-    `previous_response_id`), trimmed to `chat_model_context_window`
-
-  | Mode | Speech text | `generate_express` cues |
-  |---|---|---|
-  | `responses` | yes | yes — the backend agent emits them as function-call items |
-  | `chat_completions` | yes | yes — the client declares the tool, runs it, and returns the result |
+  tool-calling OpenAI-compatible endpoint; the client declares
+  `generate_express` with its own vocabulary, executes the call and returns
+  the result, and keeps the conversation transcript client-side (no
+  `previous_response_id`), trimmed to `chat_model_context_window`
+  
+  | Mode               | Speech text | `generate_express` cues                                             |
+  | ------------------ | ----------- | ------------------------------------------------------------------- |
+  | `responses`        | yes         | yes — the backend agent emits them as function-call items           |
+  | `chat_completions` | yes         | yes — the client declares the tool, runs it, and returns the result |
+  
 
   Backend capability still varies: a plain OpenAI-compatible server (e.g.
   vLLM) speaks standard Chat Completions tool-call streaming, while the
@@ -196,14 +206,14 @@ server. Each is a separate, config-swappable process, and all base URLs live in
   instead. With Hermes, use `responses` mode for cues.
 - **STT** — `localhost:5517` `/v1/audio/transcriptions`
 - **TTS** — OpenAI-compatible `/v1/audio/speech` at `localhost:8088`, with
-  `model` from `tts_model` and `voice` from the speaker picked in the panel.
-  The TTS server is the source of truth for the speaker list
-  (`GET /v1/audio/voices`) — users add their own via the panel's import button,
-  which uploads the clip to `/v1/audio/voices`
+`model` from `tts_model` and `voice` from the speaker picked in the panel.
+The TTS server is the source of truth for the speaker list
+(`GET /v1/audio/voices`) — users add their own via the panel's import button,  
+which uploads the clip to `/v1/audio/voices Recommend to use [Irodori TTS](https://github.com/Aratako/Irodori-TTS-Server) for japanese tts.
 - **Expression Broker** — `localhost:3201/mcp` (streamable-http MCP); YUI
-  publishes its emotion/motion/voice vocabulary here in both chat modes,
-  gated only on `broker_base_url` (skipped if unset) — the backend agent
-  behind either endpoint reads it back via `get_ids`
+publishes its emotion/motion/voice vocabulary here in both chat modes,
+gated only on `broker_base_url` (skipped if unset) — the backend agent
+behind either endpoint reads it back via `get_ids`
 
 The client calls STT and TTS directly — they do not route through Hermes.
 
@@ -289,7 +299,7 @@ for the full notice.
 YUI's source code is licensed under the
 [PolyForm Noncommercial License 1.0.0](LICENSE) — free for noncommercial use,
 modification, and redistribution with attribution. **Commercial use requires
-permission from the author** (https://github.com/yw0nam).
+permission from the author** ([https://github.com/yw0nam](https://github.com/yw0nam)).
 
 The bundled motion assets (`public/motions/*.vrma`) are **not** covered by this
 license; each follows its original author's terms — see [Credits](#credits) above.
