@@ -58,7 +58,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
   );
   const release = vi.fn();
   const perchTargets = vi.fn(async () => TARGETS);
-  const posture: Posture | undefined = { state: "sitting" };
+  const posture: Posture = { state: "sitting" };
   const noteAvatarMoved = vi.fn();
 
   const deps: AvatarExecutorDeps = {
@@ -137,10 +137,10 @@ describe("avatar-executor — state", () => {
     });
   });
 
-  it("reports a null posture when the avatar is idle", async () => {
-    const h = harness({ getPosture: () => undefined });
+  it("reports standing when the avatar is idle", async () => {
+    const h = harness({ getPosture: () => ({ state: "standing" }) });
 
-    expect(await h.call("state")).toMatchObject({ posture: null });
+    expect(await h.call("state")).toMatchObject({ posture: { state: "standing" } });
   });
 
   it("reports a null monitor when no monitor contains the window", async () => {

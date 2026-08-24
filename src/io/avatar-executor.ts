@@ -64,7 +64,7 @@ export interface AvatarExecutorDeps {
   };
   getWindow(): AvatarExecutorWindow;
   listMonitors(): Promise<AvatarMonitor[]>;
-  getPosture(): Posture | undefined;
+  getPosture(): Posture;
   getVrm(): { id: string; label: string } | null;
   /** Record that the avatar just relocated on its own — a successful move_to restamps posture. */
   noteAvatarMoved(): void;
@@ -250,7 +250,7 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
   async function readState(): Promise<AvatarState> {
     return {
       position: await readPosition(),
-      posture: getPosture() ?? null,
+      posture: getPosture(),
       vrm: getVrm(),
       moving,
     };

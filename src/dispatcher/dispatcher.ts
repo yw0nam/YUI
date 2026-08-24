@@ -127,10 +127,10 @@ export interface Dispatcher {
   recentDrops(n?: number): DropRecord[];
   /** In-progress backend call (null if none). */
   inFlight(): InFlightInfo | null;
-  /** Current physical posture. Never undefined — `standing` is the free state. */
-  getPosture(): Posture | undefined;
-  /** Current posture with the wall-clock stamp of its change. Never undefined. */
-  getBodyState(): BodyState | undefined;
+  /** Current physical posture. `standing` is the free state. */
+  getPosture(): Posture;
+  /** Current posture with the wall-clock stamp of its change. */
+  getBodyState(): BodyState;
   /** The avatar relocated on its own initiative (move_to) — restamps posture to standing/now. */
   noteAvatarMoved(): void;
   /** Abort the in-progress call + drop deferred tier2/3 (client-only). Does not sweep the bus or touch tier1. */

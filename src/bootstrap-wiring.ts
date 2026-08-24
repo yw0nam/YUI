@@ -441,7 +441,7 @@ export function wireWindowSources(deps: {
   getGestureCues: () => GestureCuesConfig;
   agentNotifySettings: { get(): AgentNotifySettings };
   /** Current physical posture, for the avatar RPC state answer. */
-  getPosture: () => Posture | undefined;
+  getPosture: () => Posture;
   /** Currently loaded VRM, for the avatar RPC state answer. */
   getVrm: () => { id: string; label: string } | null;
   /** Record that the avatar just relocated on its own — a successful move_to restamps posture. */
