@@ -37,8 +37,6 @@ pnpm dev              # browser-only, no Tauri shell
 pnpm build            # production build
 ```
 
-`pnpm setup` is the interactive alternative to editing `configs/endpoints.json` and `.env.local` by hand (§7).
-
 ### Chat auth key
 
 If your chat endpoint requires a key, either paste it into the panel's Chat key field or copy `.env.example` to `.env.local` and set `VITE_YUI_CHAT_KEY`. The key set in the panel wins; `.env.local` (gitignored) is the fallback used when the panel field is empty. It is read at build time, so restart the dev server after editing it.
@@ -160,7 +158,7 @@ YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires
 
 YUI ships with no service addresses: every URL in the bundled `configs/endpoints.json` is unset, and an unset URL means that feature is off — STT, TTS, and the expression broker stay quiet, and a chat turn with no `chat_base_url` answers with an inline "Backend not configured" error pointing at **Advanced**.
 
-Point YUI at your services by editing `configs/endpoints.json`, running `pnpm setup`, or using the in-app Endpoint settings panel, which persists overrides to local storage and leaves the bundled file untouched.
+Point YUI at your services by editing `configs/endpoints.json` or using the in-app Endpoint settings panel, which persists overrides to local storage and leaves the bundled file untouched.
 
 Key reference:
 

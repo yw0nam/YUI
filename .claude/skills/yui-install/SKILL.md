@@ -23,7 +23,7 @@ Bring-your-own is optional and the user can do it later from the panel's VRM sec
 
 ## 4. Wiring (optional)
 
-Ask once: "Do you want to connect a chat backend / TTS / STT now, or skip and set them later in Settings → Advanced?" Skip → go to step 5. Otherwise collect what they have (`pnpm setup` is the interactive equivalent if the user prefers to answer prompts themselves). Every URL must start with `http://` or `https://` — the config validator rejects anything else at boot, which shows as an empty transparent window.
+Ask once: "Do you want to connect a chat backend / TTS / STT now, or skip and set them later in Settings → Advanced?" Skip → go to step 5. Otherwise collect what they have. Every URL must start with `http://` or `https://` — the config validator rejects anything else at boot, which shows as an empty transparent window.
 
 | Value | Where it goes |
 |---|---|

@@ -162,7 +162,6 @@ Manual steps follow.
 **Commands**
 
 ```bash
-pnpm setup                  # interactive config: endpoints.json + .env.local, prereq + VRM check
 pnpm install
 pnpm dev                    # Vite dev server (port 1420), browser only
 pnpm tauri dev              # Tauri app (port 1420), transparent pet window
@@ -229,7 +228,7 @@ YUI/
   resources/vrms/         # VRM models — bundled default + your own (gitignored)
   public/motions/         # VRMA motion assets
   public/vad/             # Silero VAD + ONNX runtime assets
-  scripts/                # setup / dev-port / worktree helpers
+  scripts/                # dev-port / worktree helpers
   src/
     contract/             # TS contract types — source of truth
     renderer/             # three.js + VRM: load, emotion resolver, motion controller, lipsync
