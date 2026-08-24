@@ -97,20 +97,18 @@ async function main() {
   const cfgPath = join(root, "configs", "endpoints.json");
   const cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
 
-  // Required (docs/setup.md "Required vs Optional"): chat backend + chat auth key + broker.
-  console.log("\n=== REQUIRED ===");
-  console.log("— Backend agent (chat) —");
+  // Everything is optional — blank keeps the feature off. Order follows docs/guide/getting-started.md.
+  console.log("\n=== CHAT BACKEND (optional) ===");
   const chat = {
     chat_base_url: await ask("chat_base_url", cfg.chat_base_url),
     chat_model: await ask("chat_model", cfg.chat_model),
   };
   console.log("— Chat auth key (.env.local) —");
   const key = await ask("VITE_YUI_CHAT_KEY", "");
-  console.log("— Expression broker —");
-  const broker = { broker_base_url: await ask("broker_base_url", cfg.broker_base_url) };
 
-  // Optional: TTS, STT. Blank / "none" to skip.
-  console.log("\n=== OPTIONAL ===");
+  console.log("\n=== VOICE & BROKER (optional) ===");
+  console.log("— Expression broker (Responses mode only) —");
+  const broker = { broker_base_url: await ask("broker_base_url", cfg.broker_base_url) };
   console.log("— TTS (optional) — OpenAI-compatible /v1/audio/speech —");
   console.log("  (tts_model must match the server's configured name; tts_speaker is the default");
   console.log("   voice id, and the panel can pick another later)");
@@ -150,7 +148,7 @@ async function main() {
 
   console.log("\nNext:");
   console.log(`  ${install ? "" : "pnpm install && "}pnpm tauri dev`);
-  console.log("  External services (separate repos) — see docs/setup.md");
+  console.log("  External services (separate repos) — see docs/guide/getting-started.md");
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
