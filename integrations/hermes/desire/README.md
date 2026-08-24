@@ -58,14 +58,18 @@ export HERMES_PROFILE=natsume2
 export DESIRE_STATE_DIR="$HOME/.hermes/profiles/$HERMES_PROFILE/desire"
 ```
 
-`DESIRE_STATE_DIR` is optional when the default profile path is appropriate. `YUI_SIGNALS_URL` is also optional and
-defaults to `http://127.0.0.1:15001/signals`.
+`DESIRE_STATE_DIR` is optional when the default profile path is appropriate. `YUI_SIGNALS_URL` defaults to
+`http://127.0.0.1:8770/signals`, which assumes Hermes and YUI share a host. The `/signals` ingress listens only while
+AgentNotify is enabled in YUI's quick controls, and toggling AgentNotify requires an app restart. When Hermes runs on
+a remote host, such as when it reaches YUI through an SSH reverse tunnel, `YUI_SIGNALS_URL` must be set to the tunnel
+endpoint.
 
-Hermes monitor scripts live under `~/.hermes/scripts/`. Copy or symlink
-`scripts/natsume-desire-monitor.sh` there; its command must resolve to the absolute YUI checkout path and execute:
+Hermes monitor scripts live under `~/.hermes/scripts/`. Symlink the monitor wrapper from the YUI checkout so it can
+resolve `decay_monitor.py` from its own canonical path:
 
 ```bash
-exec python3 <abs>/integrations/hermes/desire/decay_monitor.py
+ln -s <abs>/integrations/hermes/desire/scripts/natsume-desire-monitor.sh \
+  ~/.hermes/scripts/natsume-desire-monitor.sh
 ```
 
 Create the tick and weekly reflection jobs with these commands:
