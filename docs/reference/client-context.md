@@ -127,6 +127,9 @@ app didn't resolve) and is omitted when there's no window under the avatar. The
 duration is minutes since the last posture change (`body_state.since`) — it moves only
 when the posture itself changes, not when the same posture is re-affirmed.
 
+While the body is `sitting` or `peeking`, the client drops the `motion_id` of any incoming
+cue and keeps the pose; `emotion_id`, `caption` and speech still apply.
+
 ## Trigger lines
 
 Exactly one headline `trigger: …` line describes what fired the turn, chosen by what
