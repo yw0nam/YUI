@@ -108,8 +108,8 @@ onMounted(() => {
             What you need to run YUI
           </h2>
           <p class="setup-sub">
-            Three required pieces; everything else is optional. Start minimal;
-            add voice when you're ready.
+            One required piece, and it ships in the repo; everything else is
+            optional. Start minimal; add a brain and a voice when you're ready.
           </p>
         </div>
 
@@ -123,26 +123,9 @@ onMounted(() => {
                 <span class="tier-item-dot" aria-hidden="true"></span>
                 <div>
                   <p class="tier-item-name">VRM model file</p>
-                  <p class="tier-item-note">Your character. Any VRM 0.x/1.0 file.</p>
-                </div>
-              </li>
-              <li class="tier-item">
-                <span class="tier-item-dot" aria-hidden="true"></span>
-                <div>
-                  <p class="tier-item-name">Hermes backend agent</p>
                   <p class="tier-item-note">
-                    The brain: any OpenAI-compatible agent running the Responses
-                    API.
-                  </p>
-                </div>
-              </li>
-              <li class="tier-item">
-                <span class="tier-item-dot" aria-hidden="true"></span>
-                <div>
-                  <p class="tier-item-name">Expression broker</p>
-                  <p class="tier-item-note">
-                    Translates <code>generate_express</code> cues into VRM blend
-                    shapes.
+                    Your character. A default model is bundled; bring any VRM
+                    0.x/1.0 file to replace it.
                   </p>
                 </div>
               </li>
@@ -157,9 +140,29 @@ onMounted(() => {
               <li class="tier-item">
                 <span class="tier-item-dot" aria-hidden="true"></span>
                 <div>
+                  <p class="tier-item-name">Chat backend</p>
+                  <p class="tier-item-note">
+                    The brain: any OpenAI-compatible endpoint, or a full agent
+                    like Hermes over the Responses API.
+                  </p>
+                </div>
+              </li>
+              <li class="tier-item">
+                <span class="tier-item-dot" aria-hidden="true"></span>
+                <div>
+                  <p class="tier-item-name">Expression broker</p>
+                  <p class="tier-item-note">
+                    Publishes the emotion/motion vocabulary a backend agent reads
+                    back to drive <code>generate_express</code>.
+                  </p>
+                </div>
+              </li>
+              <li class="tier-item">
+                <span class="tier-item-dot" aria-hidden="true"></span>
+                <div>
                   <p class="tier-item-name">TTS provider</p>
                   <p class="tier-item-note">
-                    Fish Speech, Style-BERT-VITS2, or any streaming TTS endpoint.
+                    Irodori TTS Server, or any OpenAI-compatible speech endpoint.
                   </p>
                 </div>
               </li>
@@ -177,7 +180,8 @@ onMounted(() => {
                 <div>
                   <p class="tier-item-name">Reference voice</p>
                   <p class="tier-item-note">
-                    A .wav file to clone the character's voice with Fish Speech.
+                    A clip to clone the character's voice, uploaded to the TTS
+                    server from the panel.
                   </p>
                 </div>
               </li>

@@ -21,7 +21,7 @@ One VRM model — and one ships in the repo (`resources/vrms/Sendagaya_Shino.vrm
 
 ## 1. Run YUI itself
 
-With Claude Code: open the repo and type `/yui-install` — the `yui-install` skill runs sections 1–2 and 7 interactively and verifies the build. The rest of this page is the manual path and the reference for the external services.
+With Claude Code: open the repo and type `/yui-install` — the `yui-install` skill runs sections 1–2 and the wiring in 4–7 interactively and verifies the build. The rest of this page is the manual path and the reference for the external services.
 
 ### Prerequisites
 
@@ -71,7 +71,7 @@ Any tool-calling OpenAI-compatible `/v1/chat/completions` endpoint drives expres
 2. In `configs/endpoints.json`, set:
    ```json
    "chat_api": "chat_completions",
-   "chat_base_url": "<your OpenAI-compatible endpoint base URL>",
+   "chat_base_url": "<API root including /v1, e.g. http://localhost:8000/v1>",
    "chat_model": "<model id served by that endpoint>",
    "chat_model_context_window": 200000
    ```
@@ -165,7 +165,7 @@ Key reference:
 | Key | Shipped default | Purpose |
 |---|---|---|
 | `chat_api` | `chat_completions` | Chat protocol: `"chat_completions"` (client-declared `generate_express`, any tool-calling endpoint) or `"responses"` (backend agent honoring the expression contract) |
-| `chat_base_url` | unset | Chat endpoint base URL |
+| `chat_base_url` | unset | API root including `/v1`; the client appends `/chat/completions` or `/responses` per `chat_api` |
 | `chat_model` | unset | Model ID sent to the backend |
 | `chat_model_context_window` | `200000` | Token window — display in Responses mode; also trims the client-side transcript in Chat Completions mode |
 | `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; sent as `instructions` (Responses) or a system message (Chat Completions) |

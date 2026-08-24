@@ -225,7 +225,7 @@ The client calls STT and TTS directly — they do not route through Hermes.
 ```
 YUI/
   configs/                # Runtime config: endpoints, emotion + motion registries, voice vocab, avatar, hotkeys, screen, guardrails, filler
-  resources/vrms/         # VRM models — bundled default + your own (gitignored)
+  resources/vrms/         # VRM models — bundled default (tracked) + your own (gitignored)
   public/motions/         # VRMA motion assets
   public/vad/             # Silero VAD + ONNX runtime assets
   scripts/                # dev-port / worktree helpers
