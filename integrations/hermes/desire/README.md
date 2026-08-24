@@ -64,13 +64,17 @@ AgentNotify is enabled in YUI's quick controls, and toggling AgentNotify require
 a remote host, such as when it reaches YUI through an SSH reverse tunnel, `YUI_SIGNALS_URL` must be set to the tunnel
 endpoint.
 
-Hermes monitor scripts live under `~/.hermes/scripts/`. Symlink the monitor wrapper from the YUI checkout so it can
-resolve `decay_monitor.py` from its own canonical path:
+Hermes monitor scripts live under `~/.hermes/scripts/`, and Hermes resolves symlinks before checking that a monitor
+script stays inside that directory, so a symlink into the YUI checkout is rejected. Install the monitor as a real file
+that execs `decay_monitor.py` by absolute path:
 
 ```bash
-ln -s <abs>/integrations/hermes/desire/scripts/natsume-desire-monitor.sh \
-  ~/.hermes/scripts/natsume-desire-monitor.sh
+printf '#!/bin/sh\nexec python3 <abs>/integrations/hermes/desire/decay_monitor.py\n' \
+  > ~/.hermes/scripts/natsume-desire-monitor.sh
+chmod +x ~/.hermes/scripts/natsume-desire-monitor.sh
 ```
+
+`scripts/natsume-desire-monitor.sh` in the checkout is self-locating and serves direct execution from the repository.
 
 Create the tick and weekly reflection jobs with these commands:
 
