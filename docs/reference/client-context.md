@@ -367,6 +367,9 @@ generate_express({
 | `emotion_text` | voice tone tag |
 | `caption` | voice direction in natural language |
 
+While `body:` is `sitting` or `peeking`, the client drops `motion_id` and keeps the pose;
+`emotion_id`, `emotion_text` and `caption` still apply.
+
 All fields are optional. Include only the fields that should change.
 
 `emotion_text` and `caption` are two separate voice channels and combine freely.

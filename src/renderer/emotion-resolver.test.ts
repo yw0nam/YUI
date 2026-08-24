@@ -94,19 +94,19 @@ describe("resolve() — defaults and intensity clamp", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("fallback chain — existence-aware resolution", () => {
-  it("embarrassed with hasExpression:k=>k!=='ex_blush' → vrm_expression:'happy' (one hop: ex_blush absent → happy present)", () => {
-    // embarrassed: vrm_expression="ex_blush", fallback="happy"
-    // happy entry: vrm_expression="happy", fallback="neutral"
-    // ex_blush absent → follow fallback to "happy" entry → "happy" present → use "happy"
+  it("embarrassed with hasExpression:k=>k!=='ex_blush' → vrm_expression:'surprised' (one hop: ex_blush absent → surprised present)", () => {
+    // embarrassed: vrm_expression="ex_blush", fallback="surprised"
+    // surprised entry: vrm_expression="surprised", fallback="neutral"
+    // ex_blush absent → follow fallback to "surprised" entry → "surprised" present → use "surprised"
     const resolver = createEmotionResolver(realRegistry, {
       hasExpression: (k) => k !== "ex_blush",
     });
     const result = resolver.resolve({ id: "embarrassed" });
-    expect(result.vrm_expression).toBe("happy");
+    expect(result.vrm_expression).toBe("surprised");
   });
 
-  it("embarrassed with hasExpression:k=>k==='neutral' → vrm_expression:'neutral' (full walk ex_blush→happy→neutral)", () => {
-    // ex_blush absent → follow "happy" entry → "happy" absent → follow "neutral" entry → "neutral" present
+  it("embarrassed with hasExpression:k=>k==='neutral' → vrm_expression:'neutral' (full walk ex_blush→surprised→neutral)", () => {
+    // ex_blush absent → follow "surprised" entry → "surprised" absent → follow "neutral" entry → "neutral" present
     const resolver = createEmotionResolver(realRegistry, {
       hasExpression: (k) => k === "neutral",
     });
