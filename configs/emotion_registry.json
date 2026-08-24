@@ -8,5 +8,5 @@
   "thinking": { "vrm_expression": "ex_thinking", "fallback": "relaxed" },
   "curious": { "vrm_expression": "ex_curious", "fallback": "surprised" },
   "sleepy": { "vrm_expression": "ex_sleepy", "fallback": "relaxed" },
-  "embarrassed": { "vrm_expression": "ex_blush", "fallback": "happy" }
+  "embarrassed": { "vrm_expression": "ex_blush", "fallback": "surprised" }
 }
