@@ -73,8 +73,7 @@ backend agent honoring YUI's expression contract over the OpenAI Responses
 API, or any tool-calling OpenAI-compatible Chat Completions endpoint — no
 fixed embedded model
 - Emotion, motion, and voice cues arrive as structured `generate_express`
-tool-calls, never as inline tags in the text — Responses mode carries them
-today; Chat Completions mode streams speech text without cues
+tool-calls, never as inline tags in the text — in both chat modes
 - YUI publishes its emotion/motion/voice vocabulary to the Expression Broker
 (MCP) in both chat modes, write-only and gated only on `broker_base_url`;
 a backend agent reads it back via `get_ids` and emits cues as
@@ -101,12 +100,12 @@ or gets covered
 with no backend connected, and respect `prefers-reduced-motion`
 - Reads OS-wide idle time and an optional user-toggled screenshot and feeds
 them to the agent each turn; the frontmost app/window is a pull tool the
-agent calls via the `desktop_control` Mod, not a per-turn push
+agent calls via the `desktop-control` Mod, not a per-turn push
 
 **Rendering &amp; motion**
 
 - VRM 1.0 with hot-swap and GPU cleanup, via three.js + `@pixiv/three-vrm`
-- 10 emotions and 15 motions, with a fallback chain for models that lack an
+- 10 emotions and 16 motions, with a fallback chain for models that lack an
 expression
 - Idle and sit cycle through pools of motion clips with smooth transitions
 - Camera auto-frames the avatar, with wheel zoom and a pull-back when perched
@@ -116,8 +115,7 @@ expression
 - UI in English, 日本語, and 한국어, with a persisted locale
 - Endpoints, models, VRM paths, and motion sets all live in `configs/` — nothing
 is hardcoded
-- macOS-first: full OS-event watching on macOS; Windows is partial
-(`os_idle_ms` is unavailable)
+- macOS-first; Windows x64 builds are experimental
 
 ## How it works
 
@@ -132,9 +130,9 @@ stream, while emotion, motion, and voice tags arrive as `generate_express`
 tool-calls with flat arguments
 `{ emotion_id?, motion_id?, emotion_text?, caption? }`.
 `emotion_text` is a TTS voice tag drawn from the emoji vocabulary the Expression
-Broker publishes so the agent knows what it can ask for. This is carried in
-full over Responses mode today; see [Backend wiring](#backend-wiring) for how
-it differs by chat protocol and backend. The full cue contract handed to the
+Broker publishes so the agent knows what it can ask for. Both chat modes carry
+them; see [Backend wiring](#backend-wiring) for how the transport differs by
+chat protocol and backend. The full cue contract handed to the
 backend lives in [`docs/reference/client-context.md`](docs/reference/client-context.md).
 
 ## Stack
@@ -152,6 +150,10 @@ backend lives in [`docs/reference/client-context.md`](docs/reference/client-cont
 
 ## Building from source
 
+Using Claude Code? Open the repo and type `/yui-install` — the skill checks
+prerequisites, installs, verifies the build, and writes any wiring you want.
+Manual steps follow.
+
 **Prerequisites**
 
 - Node + [pnpm](https://pnpm.io/)
@@ -160,7 +162,6 @@ backend lives in [`docs/reference/client-context.md`](docs/reference/client-cont
 **Commands**
 
 ```bash
-pnpm setup                  # interactive config: endpoints.json + .env.local, prereq + VRM check
 pnpm install
 pnpm dev                    # Vite dev server (port 1420), browser only
 pnpm tauri dev              # Tauri app (port 1420), transparent pet window
@@ -171,10 +172,11 @@ pnpm test                   # vitest run
 cd src-tauri && cargo test  # Rust unit tests
 ```
 
-**Runtime assets.** The VRM model (`resources/vrms/*.vrm`) and `.env.local`
-(`VITE_YUI_CHAT_KEY`) are gitignored, so a fresh checkout has to supply them —
-link or copy them from an existing checkout before running. Without the VRM the
-model 404s; without `.env.local` chat auth is absent.
+**Runtime assets.** A default VRM (`resources/vrms/Sendagaya_Shino.vrm`) ships
+in the repo, so a fresh checkout runs as-is. Extra models under `resources/vrms/`
+and `.env.local` (`VITE_YUI_CHAT_KEY`, optional — the in-app key field works
+too) are gitignored; `scripts/worktree-setup.sh` links the VRMs and copies
+`.env.local` into a new worktree.
 
 For the backend services and full wiring, see [`docs/guide/getting-started.md`](docs/guide/getting-started.md).
 
@@ -185,8 +187,8 @@ server. Each is a separate, config-swappable process, and all base URLs live in
 `configs/endpoints.json`.
 
 - **Chat protocol** — selected via `chat_api` (default `chat_completions`):
-  - `responses` — routes to a backend agent (Hermes recommended) at
-  `localhost:8643` `/v1/responses`
+  - `responses` — routes to a backend agent (Hermes recommended) over
+  `/v1/responses` (e.g. `localhost:8643`)
   - `chat_completions` — connects over the Chat Completions API to any
   tool-calling OpenAI-compatible endpoint; the client declares
   `generate_express` with its own vocabulary, executes the call and returns
@@ -204,13 +206,14 @@ server. Each is a separate, config-swappable process, and all base URLs live in
   Hermes api-server's `/v1/chat/completions` never surfaces tool calls — it
   emits a custom `hermes.tool.progress` telemetry event with no arguments
   instead. With Hermes, use `responses` mode for cues.
-- **STT** — `localhost:5517` `/v1/audio/transcriptions`
-- **TTS** — OpenAI-compatible `/v1/audio/speech` at `localhost:8088`, with
+- **STT** — `<stt_base_url>/audio/transcriptions` (e.g. `localhost:5517/v1`)
+- **TTS** — OpenAI-compatible `/v1/audio/speech` (e.g. `localhost:8088`), with
 `model` from `tts_model` and `voice` from the speaker picked in the panel.
 The TTS server is the source of truth for the speaker list
 (`GET /v1/audio/voices`) — users add their own via the panel's import button,  
-which uploads the clip to `/v1/audio/voices Recommend to use [Irodori TTS](https://github.com/Aratako/Irodori-TTS-Server) for japanese tts.
-- **Expression Broker** — `localhost:3201/mcp` (streamable-http MCP); YUI
+which uploads the clip to `/v1/audio/voices`. [Irodori TTS Server](https://github.com/Aratako/Irodori-TTS-Server)
+is the recommended server for Japanese TTS.
+- **Expression Broker** — streamable-http MCP (e.g. `localhost:3201/mcp`); YUI
 publishes its emotion/motion/voice vocabulary here in both chat modes,
 gated only on `broker_base_url` (skipped if unset) — the backend agent
 behind either endpoint reads it back via `get_ids`
@@ -221,8 +224,11 @@ The client calls STT and TTS directly — they do not route through Hermes.
 
 ```
 YUI/
-  configs/                # Runtime config: endpoints, emotion + motion registries, avatar, voice vocab
+  configs/                # Runtime config: endpoints, emotion + motion registries, voice vocab, avatar, hotkeys, screen, guardrails, filler
+  resources/vrms/         # VRM models — bundled default (tracked) + your own (gitignored)
   public/motions/         # VRMA motion assets
+  public/vad/             # Silero VAD + ONNX runtime assets
+  scripts/                # dev-port / worktree helpers
   src/
     contract/             # TS contract types — source of truth
     renderer/             # three.js + VRM: load, emotion resolver, motion controller, lipsync
@@ -233,14 +239,21 @@ YUI/
     ui/                   # Speech bubble, input, tool-status surfaces
   src-tauri/src/
     drag.rs               # OS-native window drag
+    passthrough.rs        # Click-through over transparent pixels
     screenshot.rs         # Monitor capture
-    os_event_watcher/     # Idle-tick polling (macos · windows)
+    tray.rs               # System tray
+    agent_ingress.rs      # Loopback /signals ingress: coding-agent hooks + remote signal batches
+    vrm_import.rs         # Bring-your-own VRM copy into app data
+    voice_import.rs       # Reference-clip import for TTS voices
+    os_event_watcher/     # Idle / frontmost polling (macos · windows)
+  tests/                  # Non-colocated Vitest suites (scripts, hooks, CI); the rest sit beside src/
   docs/                   # Backend contract + human-facing catalogs
   Mods/                   # Standalone MCP servers, independent of the app
 ```
 
 Optional standalone **Mods** — independent MCP servers that extend the backend
-agent (e.g. `desktop_control` for macOS screen capture and app launch/quit) —
+agent: `desktop-control` (screen, activity log, app launch/quit), `avatar`
+(body state + semantic moves), `shell-sandbox`, and a `router` front door —
 live under [`Mods/`](Mods/README.md), separate from the app runtime.
 
 ## Logs

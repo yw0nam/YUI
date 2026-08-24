@@ -1,29 +1,27 @@
 # YUI — Install and Wiring Guide
 
-YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I/O surfaces. The brain and voice services — backend agent, broker, TTS, STT — run as separate, config-swappable processes that YUI points at via `configs/endpoints.json`.
+YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I/O surfaces. The brain and voice services — backend agent, broker, TTS, STT — run as separate, config-swappable processes that YUI points at via `configs/endpoints.json` or the in-app panel (right-click the character → **Advanced**).
 
-## Required vs Optional
+## What you need
 
-| Component | Status | What breaks without it |
+One VRM model — and one ships in the repo (`resources/vrms/Sendagaya_Shino.vrm`). Everything else is optional: an unset service simply keeps its feature off, and you can wire it any time later from the in-app panel.
+
+| Component | Status | Without it |
 |---|---|---|
-| YUI app (`pnpm tauri dev`) | **Required** | — |
-| VRM model in `resources/vrms/` | **Required** | Character fails to load |
-| Expression MCP Broker | **Required** | Agent cannot read YUI's vocabulary; expression/motion calls may be out of range |
-| Backend agent | **Required** | No chat, no character speech |
-| `.env.local` + `VITE_YUI_CHAT_KEY` | **Required** | Chat auth absent |
-| `configs/endpoints.json` wiring | **Required** | Services unreachable |
-| TTS (OpenAI-compatible) | Optional | Speech bubble works; no audio output |
+| VRM model | **Bundled** — bring your own optional (§2) | — |
+| Chat backend (`chat_base_url`) | Optional | Character appears and idles; a chat turn answers with an inline "Backend not configured" pointer to **Advanced** |
+| Chat API key | Optional | Only needed when the endpoint enforces one; set in the panel or `.env.local` |
+| Expression MCP Broker | Optional — Responses mode with a backend agent | Chat Completions mode bakes the vocabulary into the client-declared tool, no broker involved |
+| TTS | Optional | Speech bubble works; no audio output |
 | STT | Optional | Text input works; no voice input |
 | Screenshot context | Optional | Agent receives no screen context |
 | Mods (`Mods/`) | Optional | No desktop-control or other Mod capabilities |
 
-Stand up every required component first; add the optional ones when you want voice or extended capabilities.
-
-YUI selects the chat protocol with the `chat_api` key in `configs/endpoints.json`: **Responses mode** (`"responses"`) needs the Expression MCP Broker and a backend agent, as above — the agent reads the broker via `get_ids` and emits cues as `generate_express` tool-calls. **Chat Completions mode** (`"chat_completions"`, the default) declares `generate_express` from the client side with the vocabulary already baked into its schema, so a plain OpenAI-compatible endpoint drives expression on its own; the client also keeps the transcript itself, trimmed to `chat_model_context_window`, instead of relying on `previous_response_id`. See [section 4](#4-chat-protocol--backend-agent-responses-or-chat-completions) for both paths.
-
 ---
 
 ## 1. Run YUI itself
+
+With Claude Code: open the repo and type `/yui-install` — the `yui-install` skill runs sections 1–2 and the wiring in 4–7 interactively and verifies the build. The rest of this page is the manual path and the reference for the external services.
 
 ### Prerequisites
 
@@ -41,32 +39,75 @@ pnpm build            # production build
 
 ### Chat auth key
 
-Copy `.env.example` to `.env.local` and set `VITE_YUI_CHAT_KEY` to the API key your backend agent expects. This file is gitignored — a fresh checkout must provide it.
+If your chat endpoint requires a key, either paste it into the panel's Chat key field or copy `.env.example` to `.env.local` and set `VITE_YUI_CHAT_KEY`. The key set in the panel wins; `.env.local` (gitignored) is the fallback used when the panel field is empty. It is read at build time, so restart the dev server after editing it.
 
 ```bash
 cp .env.example .env.local
 # then edit .env.local and set VITE_YUI_CHAT_KEY=<your-key>
 ```
 
-> See the README [Building from source](https://github.com/yw0nam/YUI/blob/main/README.md#building-from-source) and [Runtime assets](https://github.com/yw0nam/YUI/blob/main/README.md#runtime-assets) sections for VRM placement and worktree setup.
+---
+
+## 2. VRM model (bring your own, optional)
+
+The bundled `Sendagaya_Shino.vrm` is what `configs/avatar.json` → `vrm_url` loads by default. To use another VRM 1.0 model:
+
+- **In the Tauri app** — open the panel's VRM section and import the file with the OS picker. The file is copied into the app data directory and added to the model list; nothing in the repo changes.
+- **From the repo (`pnpm dev` or `pnpm tauri dev`)** — drop the file into `resources/vrms/` (gitignored except the bundled default; Vite serves `/vrms/*` from there) and point `configs/avatar.json` at it: set `vrm_url` to `/vrms/<file>.vrm` and add a matching entry to `available` (`{ "id", "label", "url", "source": "bundled" }`; `id` is limited to `[A-Za-z0-9._-]`).
+
+Per-model framing (`framing.margin`, `framing.fov`) and the hit-test alpha threshold (`hit_test.alpha_threshold`) live in `configs/avatar.json`.
 
 ---
 
-## 2. VRM Placement
+## 3. Chat backend
 
-Drop a VRM 1.0 model into `resources/vrms/` (filename pattern: `*.vrm`). This directory is gitignored — a fresh checkout must provide its own model.
+YUI supports two chat protocols, selected by `chat_api` in `configs/endpoints.json`. The shipped file sets `chat_completions`; if the key is removed the client behaves as `responses`.
 
-```
-resources/vrms/your-model.vrm
-```
+### Option A — Chat Completions mode (`"chat_api": "chat_completions"`, shipped default)
 
-Vite serves `/vrms/*` from `resources/vrms/`. Without a model the character 404s on load. Per-model framing (margin, FOV) and hit-test alpha threshold are configured in `configs/avatar.json`.
+Any tool-calling OpenAI-compatible `/v1/chat/completions` endpoint drives expression on its own: the client declares `generate_express` with the emotion/motion/voice vocabulary baked into the tool schema, runs the call locally, returns the result, and keeps the conversation transcript client-side (no `previous_response_id`), trimmed to `chat_model_context_window`.
+
+1. Stand up (or pick) a Chat Completions endpoint.
+2. In `configs/endpoints.json`, set:
+   ```json
+   "chat_api": "chat_completions",
+   "chat_base_url": "<API root including /v1, e.g. http://localhost:8000/v1>",
+   "chat_model": "<model id served by that endpoint>",
+   "chat_model_context_window": 200000
+   ```
+3. Provide the endpoint's API key if it needs one (§1 Chat auth key).
+
+`generate_express` tool-call deltas are parsed from the `chat.completion.chunk` stream as they arrive and the cue plays at that moment. A model that stops on its cue calls without speaking gets the tool results back and re-requests, so the turn still reaches speech — up to three round trips. A model that speaks alongside its cues finishes in one request. See [CC mode transport](../reference/client-context.md#cc-mode-transport-chat-completions) for the wire shape.
+
+Backend capability still varies: a plain OpenAI-compatible server (e.g. vLLM) speaks standard tool-call streaming, while the Hermes api-server's `/v1/chat/completions` never surfaces tool calls. With Hermes, use Responses mode.
+
+### Option B — Responses mode (`"chat_api": "responses"`)
+
+Any backend served over the OpenAI Responses API (`/v1/responses`); the [Hermes Agent](https://github.com/nousresearch/hermes-agent) gateway is recommended. The backend agent reads YUI's vocabulary from the Expression Broker (§4) and emits cues as `generate_express` tool-calls.
+
+1. Stand up the backend agent with the Responses API served.
+2. Install the Expression MCP Broker (§4) **into the backend agent** so it can read the published vocabulary.
+3. Hand the agent the cue contract so it understands how to drive the character:
+   - With Hermes: create a profile, add `docs/reference/client-context.md` to that profile's context, and instruct it to remember the contract.
+   - With other agents: include the contents of `docs/reference/client-context.md` in the system prompt or context.
+4. In `configs/endpoints.json`, set:
+   ```json
+   "chat_api": "responses",
+   "chat_base_url": "http://localhost:8643/v1",
+   "chat_model": "<model id>",
+   "broker_base_url": "http://localhost:3201/mcp"
+   ```
+   The client appends `/responses` to `chat_base_url` itself.
+
+### Reasoning effort
+
+The in-app agent settings expose reasoning effort (`none` · `minimal` · `low` · `medium`). Responses mode sends it as `reasoning.effort`; Chat Completions mode as the top-level `reasoning_effort`.
 
 ---
 
-## 3. Expression MCP Broker
+## 4. Expression MCP Broker (optional)
 
-The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary so the backend agent learns what the body can express at runtime. Publish is best-effort and silently skipped if `broker_base_url` is unset.
+The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary so a backend agent learns what the body can express at runtime. YUI publishes in both chat modes whenever `broker_base_url` is set, and silently skips it otherwise; only Responses mode needs the agent to read it back.
 
 1. Install and serve the broker from [https://github.com/yw0nam/tts_express_broker](https://github.com/yw0nam/tts_express_broker).
 2. The broker listens by default at `http://localhost:3201/mcp` (streamable-http MCP).
@@ -77,58 +118,11 @@ The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary s
 
 ---
 
-## 4. Chat Protocol — Backend Agent (Responses or Chat Completions)
-
-YUI supports two chat protocols, selected by the `chat_api` key in `configs/endpoints.json`.
-
-### Option A — Responses mode (`"chat_api": "responses"`)
-
-YUI is compatible with any backend served over the OpenAI Responses API (`/v1/responses`). The [Hermes Agent](https://github.com/nousresearch/hermes-agent) gateway is recommended.
-
-1. Stand up your backend agent, ensuring it serves the OpenAI Responses API.
-2. Install the Expression MCP broker (step 3) **into the backend agent** so it can call `generate_express` and read the published vocabulary.
-3. Hand the agent the cue contract so it understands how to drive the character:
-   - With Hermes: create a profile, add `docs/reference/client-context.md` to that profile's context, and instruct it to remember the contract.
-   - With other agents: include the contents of `docs/reference/client-context.md` in the system prompt or context.
-4. In `configs/endpoints.json`, set:
-   ```json
-   "chat_api": "responses",
-   "chat_base_url": "http://localhost:8643/v1",
-   "chat_endpoint": "/v1/responses",
-   "chat_model": "<your-model-id>",
-   "chat_model_context_window": 200000
-   ```
-
-### Option B — Chat Completions mode (`"chat_api": "chat_completions"`, default)
-
-Connects over the Chat Completions API to any endpoint whose model supports tool calling — OpenAI, ollama, LM Studio, vLLM, groq, OpenRouter, and other OpenAI-compatible Chat Completions endpoints all work. The client declares `generate_express` on every request with its emotion and motion ids already in the schema, executes the calls it gets back, and returns the results, so a plain model endpoint drives expression with no broker and no contract handed to it. A backend agent that owns `generate_express` itself keeps working too: its call plays the same cue. The client also keeps the transcript itself (`localStorage`), trimmed each turn to fit `chat_model_context_window`, instead of relying on `previous_response_id`.
-
-1. Stand up the endpoint — a bare OpenAI-compatible server is enough; a backend agent works as well.
-2. Install the Expression MCP broker (step 3) **into the backend agent** when one is in play and you want it to read the published vocabulary — a bare model endpoint needs neither the broker nor step 3.
-3. Hand a backend agent the cue contract — same as Option A step 3.
-4. In `configs/endpoints.json`, set:
-   ```json
-   "chat_api": "chat_completions",
-   "chat_base_url": "<your OpenAI-compatible endpoint base URL>",
-   "chat_model": "<model id served by that endpoint>",
-   "chat_model_context_window": 200000
-   ```
-5. Provide a real API key for that endpoint — set `VITE_YUI_CHAT_KEY` in `.env.local`, or use the in-app Chat key field.
-6. Reasoning effort (set in the in-app agent settings) maps to the Chat Completions `reasoning_effort` parameter.
-
-`generate_express` tool-call deltas are parsed from the `chat.completion.chunk` stream as they arrive and the cue plays at that moment. A model that stops on its cue calls without speaking gets the tool results back and re-requests, so the turn still reaches speech — up to three round trips. A model that speaks alongside its cues finishes in one request. See [CC mode transport](../reference/client-context.md#cc-mode-transport-chat-completions) for the wire shape.
-
----
-
 ## 5. TTS — Voice Output (optional)
 
 Without TTS, YUI displays text in the speech bubble but produces no audio. Any server implementing the OpenAI `/v1/audio/speech` endpoint works.
 
-The reference deployment is the Irodori TTS OpenAI-compatible server — it also understands the emoji `emotion_text` tags inline in the spoken text:
-
-```bash
-uv run --no-sync python -m irodori_openai_tts --host 0.0.0.0 --port 8088
-```
+The reference deployment is [Irodori TTS Server](https://github.com/Aratako/Irodori-TTS-Server) — it also understands the emoji `emotion_text` tags inline in the spoken text. Follow that repo's README to run it (default port 8088).
 
 **Caveat: Irodori serves Japanese only.** When using it, instruct your backend agent to respond in Japanese.
 
@@ -162,30 +156,31 @@ YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires
 
 ## 7. Wire It All Together — `configs/endpoints.json`
 
-YUI ships with no service addresses: the bundled `configs/endpoints.json` carries only the protocol-shape defaults, and every URL is unset. An unset URL means that feature is off — STT, TTS, and the expression broker stay quiet, and a chat turn with no `chat_base_url` answers with an inline "Backend not configured" error pointing at Settings → Advanced.
+YUI ships with no service addresses: every URL in the bundled `configs/endpoints.json` is unset, and an unset URL means that feature is off — STT, TTS, and the expression broker stay quiet, and a chat turn with no `chat_base_url` answers with an inline "Backend not configured" error pointing at **Advanced**.
 
-After standing up the services above, point YUI at them by editing `configs/endpoints.json`. You can also override individual keys via the in-app Endpoint settings panel, which persists to local storage and leaves the bundled file untouched.
+Point YUI at your services by editing `configs/endpoints.json` or using the in-app Endpoint settings panel, which persists overrides to local storage and leaves the bundled file untouched.
 
 Key reference:
 
 | Key | Shipped default | Purpose |
 |---|---|---|
-| `chat_api` | `chat_completions` | Chat protocol: `"responses"` (backend agent honoring the expression contract) or `"chat_completions"` (client-declared `generate_express`, any tool-calling endpoint) |
-| `chat_base_url` | unset | Chat endpoint base URL (Responses API root or Chat Completions endpoint, per `chat_api`) |
-| `chat_endpoint` | unset | Responses API path (Responses mode only) |
+| `chat_api` | `chat_completions` | Chat protocol: `"chat_completions"` (client-declared `generate_express`, any tool-calling endpoint) or `"responses"` (backend agent honoring the expression contract) |
+| `chat_base_url` | unset | API root including `/v1`; the client appends `/chat/completions` or `/responses` per `chat_api` |
 | `chat_model` | unset | Model ID sent to the backend |
 | `chat_model_context_window` | `200000` | Token window — display in Responses mode; also trims the client-side transcript in Chat Completions mode |
+| `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; sent as `instructions` (Responses) or a system message (Chat Completions) |
 | `stt_base_url` | unset | STT server base URL |
 | `tts_base_url` | unset | OpenAI-compatible TTS server |
 | `tts_model` | `irodori-tts` | `model` sent to the TTS server; must match its configured name |
 | `tts_speaker` | unset | Default voice id, until another is picked in the panel |
+| `tts_max_inflight` | `1` | Concurrent TTS synthesis requests |
 | `broker_base_url` | unset | Expression broker MCP URL |
 
-No values are hardcoded in the application — all service addresses come from this file.
+All service addresses come from this file or the in-app overrides.
 
 ---
 
 ## 8. Platform Notes
 
 - **Idle watching works on both.** `os_idle_ms` polling is implemented on both macOS and Windows, so idle-triggered and co-working proactive cues fire on either platform.
-- **macOS TCC grants.** The optional screenshot context feature and the `desktop_control` Mod (if used) require Screen Recording permission. App control via the `desktop_control` Mod additionally requires Automation / Apple Events permission. Grant these in System Settings → Privacy & Security.
+- **macOS TCC grants.** The optional screenshot context feature and the `desktop-control` Mod (if used) require Screen Recording permission. App control via the `desktop-control` Mod additionally requires Automation / Apple Events permission. Grant these in System Settings → Privacy & Security.

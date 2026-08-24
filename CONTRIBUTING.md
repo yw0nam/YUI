@@ -9,14 +9,13 @@ delegation model.
 
 ```bash
 git clone https://github.com/yw0nam/YUI && cd YUI
-pnpm setup        # interactive: fills configs/endpoints.json + .env.local, checks prereqs & VRM
 pnpm install
 pnpm tauri dev    # transparent desktop-pet window
 ```
 
-`pnpm setup` only wires YUI's own config. The backend agent, Expression Broker,
-TTS, and STT are **separate repositories** — see [`docs/guide/getting-started.md`](docs/guide/getting-started.md)
-for those. Drop a VRM 1.0 model into `resources/vrms/*.vrm` (gitignored).
+With Claude Code, `/yui-install` walks the setup. A default VRM ships in the
+repo; the backend agent, Expression Broker, TTS, and STT are **separate
+repositories** and optional — see [`docs/guide/getting-started.md`](docs/guide/getting-started.md).
 
 ## Workflow
 
