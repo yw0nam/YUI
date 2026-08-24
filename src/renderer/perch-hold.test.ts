@@ -1,14 +1,13 @@
 /**
  * perch-hold.test.ts — pure predicate gating motion requests while a posture is held.
  *
- * The renderer can't be unit-instantiated (real THREE.WebGLRenderer needs a GL
- * context; see index.test.ts). So the held-perch decision is extracted here as a
- * pure predicate and tested directly, then wired into playMotion.
+ * The renderer can't be unit-instantiated because real THREE.WebGLRenderer needs a GL
+ * context. So held-posture decisions are extracted and tested as pure functions.
  */
 
 import { describe, expect, it } from "vitest";
 import type { MotionKind, MotionSignal } from "../contract";
-import { suppressWhileHeld } from "./perch-hold";
+import { baselineWhileHeld, suppressWhileHeld } from "./perch-hold";
 
 const kinds: Record<string, MotionKind> = {
   happy: "oneshot",
@@ -18,20 +17,11 @@ const kinds: Record<string, MotionKind> = {
 const kindOf = (id: string) => kinds[id];
 
 describe("suppressWhileHeld — held postures survive incoming motion cues", () => {
-  it("suppresses an implicit idle return (null motion) while perched", () => {
+  it("suppresses an implicit idle return while any posture is held", () => {
     expect(suppressWhileHeld(null, true, kindOf)).toBe(true);
   });
 
-  it("suppresses an implicit idle return (null motion) while peeking", () => {
-    expect(suppressWhileHeld(null, true, kindOf)).toBe(true);
-  });
-
-  it("suppresses a non-state motion while perched", () => {
-    const happy: MotionSignal = { id: "happy" };
-    expect(suppressWhileHeld(happy, true, kindOf)).toBe(true);
-  });
-
-  it("suppresses a non-state motion while peeking", () => {
+  it("suppresses a non-state motion while any posture is held", () => {
     const happy: MotionSignal = { id: "happy" };
     expect(suppressWhileHeld(happy, true, kindOf)).toBe(true);
   });
@@ -51,5 +41,19 @@ describe("suppressWhileHeld — held postures survive incoming motion cues", () 
 
   it("suppresses an unregistered motion while held", () => {
     expect(suppressWhileHeld({ id: "missing" }, true, kindOf)).toBe(true);
+  });
+});
+
+describe("baselineWhileHeld — VRM reload restores held state motion", () => {
+  it("uses the last state motion while a posture is held", () => {
+    expect(baselineWhileHeld(true, "window_sit", "idle")).toBe("window_sit");
+  });
+
+  it("uses the baseline without a remembered state motion", () => {
+    expect(baselineWhileHeld(true, null, "idle")).toBe("idle");
+  });
+
+  it("uses the baseline when no posture is held", () => {
+    expect(baselineWhileHeld(false, "window_sit", "idle")).toBe("idle");
   });
 });
